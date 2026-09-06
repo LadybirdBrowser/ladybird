@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .middle { --local: 1; }
+    .reader { width: var(--x, 7px); height: var(--y, 9px); }
+    .reader::before { content: ""; width: var(--y, 9px); }
+</style>
+<script>
+    test(() => {
+        const branches = [];
+        for (let i = 0; i < 32; ++i) {
+            const root = document.createElement("div");
+            root.innerHTML = '<div class="middle"><div class="reader"></div></div>';
+            document.body.append(root);
+            branches.push({ root, reader: root.querySelector(".reader") });
+        }
+        let failures = 0;
+        function check(element, property, expected, pseudo = null) {
+            const actual = getComputedStyle(element, pseudo)[property];
+            if (actual !== expected) {
+                if (failures++ < 10)
+                    println(`${property}${pseudo || ""}: expected ${expected}, got ${actual}`);
+            }
+        }
+        for (let round = 0; round < 16; ++round) {
+            // Change every branch before flushing style, including different names,
+            // removed declarations, and environments with a shared ancestor.
+            branches.forEach(({ root }, i) => {
+                root.style.cssText = (round + i) % 3 === 0
+                    ? `--x: ${20 + round + i}px`
+                    : `--y: ${40 + round + i}px`;
+            });
+            branches.forEach(({ reader }, i) => {
+                const changesX = (round + i) % 3 === 0;
+                check(reader, "width", changesX ? `${20 + round + i}px` : "7px");
+                check(reader, "height", changesX ? "9px" : `${40 + round + i}px`);
+                check(reader, "width", changesX ? "9px" : `${40 + round + i}px`, "::before");
+            });
+        }
+        println(`failures: ${failures}`);
+    });
+</script>
