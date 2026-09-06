@@ -1257,6 +1257,12 @@ impl<'pass> TableFormattingContext<'pass> {
         table_used.border_right.set(outer.right);
         table_used.border_bottom.set(outer.bottom);
         table_used.border_left.set(outer.left);
+        // https://www.w3.org/TR/CSS22/tables.html#collapsing-borders
+        // "In this model, a table does not have padding (but does have margins)."
+        table_used.padding_top.set(CssPixels::default());
+        table_used.padding_right.set(CssPixels::default());
+        table_used.padding_bottom.set(CssPixels::default());
+        table_used.padding_left.set(CssPixels::default());
         table_used.uses_collapsing_borders_model.set(true);
         self.table_box_content_block_offset_in_wrapper += table_used.border_box_top(true) - old_border_box_top;
         let freed_inline = old_inline_borders - (table_used.border_box_left(true) + table_used.border_box_right(true));
