@@ -101,7 +101,8 @@ private:
         void queue_frame(NonnullRefPtr<VideoFrame> const&);
         void dispatch_error(DecoderError&&);
         bool handle_seek();
-        void resolve_seek(u32 seek_id, bool moved_position);
+        void resolve_seek(u32 seek_id);
+        bool is_within_available_range_while_locked(AK::Duration) const;
         void push_data_and_decode_some_frames();
 
         void enter_halting_state(PipelineStatus, Optional<DecoderError>);
@@ -154,7 +155,7 @@ private:
         ReadBlockedChangeHandler m_read_blocked_change_handler;
         PipelineStatus m_current_halting_status { PipelineStatus::Pending };
 
-        u32 m_last_processed_seek_id { 0 };
+        Atomic<u32> m_last_processed_seek_id { 0 };
         Atomic<u32> m_seek_id { 0 };
         AK::Duration m_seek_timestamp;
 

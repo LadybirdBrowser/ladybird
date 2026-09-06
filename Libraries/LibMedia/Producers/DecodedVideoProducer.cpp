@@ -339,17 +339,17 @@ void DecodedVideoProducer::ThreadData::seek(AK::Duration timestamp)
     note_consumer_activity_while_locked();
     m_downstream_needs_wake = true;
 
-    auto is_within_available_range = timestamp >= m_earliest_available_timestamp
-        && (timestamp < m_latest_available_timestamp || m_current_halting_status == PipelineStatus::EndOfStream);
-    if (is_within_available_range) {
+    if (is_within_available_range_while_locked(timestamp)) {
+        if (m_last_processed_seek_id != m_seek_id) {
+            resolve_seek(m_seek_id.load());
+            m_demuxer->reset_blocking_reads_aborted_for_track(m_track);
+        }
         dispatch_wake_if_needed_while_locked();
         return;
     }
 
     m_seek_id++;
     m_seek_timestamp = timestamp;
-    m_earliest_available_timestamp = timestamp;
-    m_latest_available_timestamp = timestamp;
     m_demuxer->set_blocking_reads_aborted_for_track(m_track);
     wake();
 }
@@ -428,8 +428,6 @@ bool DecodedVideoProducer::ThreadData::handle_auto_suspension()
 
 void DecodedVideoProducer::ThreadData::queue_frame(NonnullRefPtr<VideoFrame> const& frame)
 {
-    if (m_seek_id.load() != m_last_processed_seek_id)
-        return;
     m_queue.enqueue({ frame });
     m_latest_available_timestamp = max(m_latest_available_timestamp, frame->conservative_end());
     dispatch_wake_if_needed_while_locked();
@@ -441,41 +439,55 @@ void DecodedVideoProducer::ThreadData::dispatch_error(DecoderError&& error)
         m_error_handler(move(error));
 }
 
-void DecodedVideoProducer::ThreadData::resolve_seek(u32 seek_id, bool moved_position)
+bool DecodedVideoProducer::ThreadData::is_within_available_range_while_locked(AK::Duration timestamp) const
+{
+    return timestamp >= m_earliest_available_timestamp
+        && (timestamp < m_latest_available_timestamp || m_current_halting_status == PipelineStatus::EndOfStream);
+}
+
+void DecodedVideoProducer::ThreadData::resolve_seek(u32 seek_id)
 {
     m_last_processed_seek_id = seek_id;
-    if (moved_position)
-        m_current_halting_status = PipelineStatus::Pending;
 }
 
 bool DecodedVideoProducer::ThreadData::handle_seek()
 {
     VERIFY(m_decode_thread_id.is_current_thread());
 
-    auto seek_id = m_seek_id.load();
-    if (m_last_processed_seek_id == seek_id)
+    auto seek_id = m_seek_id.load(AK::MemoryOrder::memory_order_relaxed);
+    if (seek_id == m_last_processed_seek_id.load(AK::MemoryOrder::memory_order_relaxed))
         return false;
 
     AK::Duration timestamp;
-    bool moved_position = false;
     RefPtr<VideoFrame> last_frame;
 
     auto handle_error = [&](DecoderError&& error) {
         auto locker = take_lock();
-        if (moved_position)
-            m_current_halting_status = PipelineStatus::Pending;
         enter_halting_state(PipelineStatus::Error, move(error));
-        m_last_processed_seek_id = seek_id;
+        resolve_seek(seek_id);
     };
 
     auto has_clamped_target = false;
     while (true) {
         {
             auto locker = take_lock();
+            seek_id = m_seek_id.load(MemoryOrder::memory_order_relaxed);
+            if (seek_id == m_last_processed_seek_id.load(MemoryOrder::memory_order_relaxed))
+                return false;
             seek_id = m_seek_id;
             timestamp = m_seek_timestamp;
             m_demuxer->reset_blocking_reads_aborted_for_track(m_track);
+
+            if (is_within_available_range_while_locked(timestamp)) {
+                resolve_seek(seek_id);
+                dispatch_wake_if_needed_while_locked();
+                return true;
+            }
+
             m_queue.clear();
+            m_earliest_available_timestamp = timestamp;
+            m_latest_available_timestamp = timestamp;
+            m_current_halting_status = PipelineStatus::Pending;
             m_frame_awaiting_decoder_replacement.clear();
             m_decoder_that_failed_due_to_missing_features = {};
         }
@@ -501,7 +513,6 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
         if (demuxer_seek_result == DemuxerSeekResult::MovedPosition) {
             if (m_decoder != nullptr)
                 m_decoder->flush();
-            moved_position = true;
             last_frame.clear();
         }
 
@@ -515,7 +526,7 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
                 if (coded_frame_result.error().category() == DecoderErrorCategory::EndOfStream) {
                     if (m_decoder == nullptr) {
                         auto locker = take_lock();
-                        resolve_seek(seek_id, moved_position);
+                        resolve_seek(seek_id);
                         return true;
                     }
                     m_decoder->signal_end_of_stream();
@@ -570,7 +581,7 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
                         }
 
                         auto locker = take_lock();
-                        resolve_seek(seek_id, moved_position);
+                        resolve_seek(seek_id);
                         if (last_frame != nullptr)
                             queue_frame(last_frame.release_nonnull());
                         return true;
@@ -601,14 +612,14 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
 
                 if (current_frame->contains_timestamp(timestamp)) {
                     auto locker = take_lock();
-                    resolve_seek(seek_id, moved_position);
+                    resolve_seek(seek_id);
                     queue_frame(current_frame);
                     return true;
                 }
 
                 if (current_frame->timestamp() > timestamp) {
                     auto locker = take_lock();
-                    resolve_seek(seek_id, moved_position);
+                    resolve_seek(seek_id);
 
                     if (last_frame != nullptr)
                         queue_frame(last_frame.release_nonnull());
