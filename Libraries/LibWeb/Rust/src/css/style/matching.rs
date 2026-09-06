@@ -1929,10 +1929,11 @@ impl StyleEngine {
         }
         incidences.sort_unstable();
         incidences.dedup();
-        let mut selected = Vec::<RetainedSelectorIncidence>::new();
-        for incidence in incidences {
+        let mut selected_count = 0;
+        for index in 0..incidences.len() {
+            let incidence = incidences[index];
             let entry = &compiled.entries()[incidence.entry as usize];
-            let existing = selected
+            let existing = incidences[..selected_count]
                 .iter_mut()
                 .rev()
                 .take_while(|existing| existing.node == incidence.node)
@@ -1942,12 +1943,14 @@ impl StyleEngine {
                     *existing = incidence;
                 }
             } else {
-                selected.push(incidence);
+                incidences[selected_count] = incidence;
+                selected_count += 1;
             }
         }
-        selected.sort_unstable();
+        incidences.truncate(selected_count);
+        incidences.sort_unstable();
         self.retained_selector_incidences
-            .remember(program, selected, &mut self.memory)
+            .remember(program, incidences, &mut self.memory)
     }
 
     /// Read one selector entry's pre-transaction truth from the retained exact answer.
