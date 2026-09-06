@@ -788,8 +788,15 @@ bool LocalNavigable::is_script_closable()
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#potentially-delays-the-load-event
 bool LocalNavigable::delays_the_load_event_of_its_container() const
 {
+    // AD-HOC: A destroyed document leaves its navigable without an active document until the next one is activated
+    //         or the navigable itself goes away, which the specification has no state for. A document that does not
+    //         exist is not ready for post-load tasks.
+    auto document = active_document();
+    if (!document)
+        return true;
+
     // - element's content navigable's active document is not ready for post-load tasks;
-    if (!active_document()->ready_for_post_load_tasks())
+    if (!document->ready_for_post_load_tasks())
         return true;
 
     // - element's content navigable's is delaying load events is true; or
@@ -797,7 +804,7 @@ bool LocalNavigable::delays_the_load_event_of_its_container() const
         return true;
 
     // - anything is delaying the load event of element's content navigable's active document.
-    if (active_document()->anything_is_delaying_the_load_event())
+    if (document->anything_is_delaying_the_load_event())
         return true;
 
     return false;
