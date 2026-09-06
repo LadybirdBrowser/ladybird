@@ -1,0 +1,19 @@
+Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children: not-inline
+  BlockContainer <html> at [0,0] [0+0+0 800 0+0+0] [0+0+0 166.203125 0+0+0] [BFC] children: not-inline
+    BlockContainer <body> at [8,8] [8+0+0 784 0+0+8] [8+0+0 150.203125 0+0+8] children: not-inline
+      TableWrapper <(anonymous)> at [8,8] [0+0+0 40 0+0+744] [0+0+0 150.203125 0+0+0] [BFC] children: not-inline
+        Box <table> at [8,8] table-box [0+0+0 40 0+0+0] [0+0+0 150.203125 0+0+0] [TFC] children: not-inline
+          Box <tbody> at [8,8] table-row-group [0+0+0 40 0+0+0] [0+0+0 150.203125 0+0+0] children: not-inline
+            Box <tr> at [8,8] table-row [0+0+0 40 0+0+0] [0+0+0 150.203125 0+0+0] children: not-inline
+              BlockContainer <td> at [8,8] table-cell [0+0+0 20 0+0+0] [0+0+0 50 100.203125+0+0] [BFC] children: not-inline
+                BlockContainer <div> at [8,8] [0+0+0 20 0+0+0] [0+0+0 50 0+0+0] children: not-inline
+              BlockContainer <td> at [28,38] table-cell [0+0+0 20 0+0+0] [0+0+30 120.203125 0+0+0] [BFC] children: not-inline
+                BlockContainer <(anonymous)> at [28,38] [0+0+0 20 0+0+0] [0+0+0 20.203125 0+0+0] children: inline
+                  frag 0 from BlockContainer start: 0, length: 0, rect: [28,38 20x20] baseline: 20
+                  BlockContainer <span.inline> at [28,38] inline-block [0+0+0 20 0+0+0] [0+0+0 20 0+0+0] [BFC] children: not-inline
+                BlockContainer <div.block> at [28,58.203125] [0+0+0 20 0+0+0] [0+0+0 100 0+0+0] children: not-inline
+      BlockContainer <(anonymous)> at [8,158.203125] [0+0+0 784 0+0+0] [0+0+0 0 0+0+0] children: inline
+        TextNode <#text> (not painted)
+
+SC for Viewport<#document> [0,0 800x600] (z-index: auto)
+ SC for BlockContainer<HTML> [0,0 800x166.203125] (z-index: auto)

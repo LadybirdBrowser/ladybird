@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<style>
+    table { border-spacing: 0; font-size: 0; }
+    td { padding: 0; vertical-align: baseline; }
+    .block { height: 100px; }
+    .inline { display: inline-block; height: 20px; width: 20px; }
+</style>
+<!-- The first cell has no line box, so its baseline is its bottom content edge, 50px down. The second cell's
+     baseline is that of its first line box, 20px down, so it is shifted down by 30px to align, and its 120px then
+     reach 150px down: the row is 150px tall, not 120px. -->
+<table>
+    <tr>
+        <td><div style="height: 50px; width: 20px"></div></td>
+        <td><span class="inline"></span><div class="block"></div></td>
+    </tr>
+</table>
