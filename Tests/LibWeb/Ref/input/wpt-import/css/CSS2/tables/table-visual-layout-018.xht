@@ -1,0 +1,49 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
+<html xmlns="http://www.w3.org/1999/xhtml">
+    <head>
+        <title>CSS Test: Table column boxes exactly cover the table in the collapsing borders model</title>
+        <link rel="author" title="Microsoft" href="http://www.microsoft.com/" />
+        <link rel="help" href="http://www.w3.org/TR/CSS21/tables.html#table-layout" />
+        <link rel="match" href="../../../../../expected/wpt-import/css/CSS2/tables/../reference/no-red-on-blank-page-ref.xht"/>
+        <meta name="assert" content="In the collapsing border model, the table column boxes together exactly cover the table." />
+        <style type="text/css">
+            table
+            {
+                background: red;
+                border-collapse: collapse;
+            }
+            col
+            {
+                background: white;
+            }
+            td
+            {
+                height: 2em;
+                width: 2em;
+            }
+        </style>
+    </head>
+    <body>
+        <p>Test passes if there is no red visible on the page.</p>
+        <table>
+            <col />
+            <col />
+            <col />
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+            <tr>
+                <td></td>
+                <td></td>
+                <td></td>
+            </tr>
+        </table>
+    </body>
+</html>
