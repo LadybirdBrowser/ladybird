@@ -4871,16 +4871,10 @@ impl MatchRelationCache {
     ) -> (PrecedingSiblingParentID, Option<PrecedingSiblingPrefix>) {
         let parent = {
             let mut parent_ids = self.preceding_sibling_parent_ids.borrow_mut();
-            match parent_ids.get(&parent).copied() {
-                Some(parent) => parent,
-                None => {
-                    let id = PrecedingSiblingParentID(
-                        u32::try_from(parent_ids.len()).expect("preceding sibling parent space exhausted"),
-                    );
-                    parent_ids.insert(parent, id);
-                    id
-                }
-            }
+            let next_id = parent_ids.len();
+            *parent_ids.entry(parent).or_insert_with(|| {
+                PrecedingSiblingParentID(u32::try_from(next_id).expect("preceding sibling parent space exhausted"))
+            })
         };
         (
             parent,
