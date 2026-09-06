@@ -258,24 +258,11 @@ pub(crate) fn committed_border_box_edges(arena: &impl PaintableRowsRead, slot: N
     }) else {
         return border;
     };
-    // A cell lies inside its grid lines; the table box lies around them.
-    let (part_at_start_edges, part_at_end_edges): (fn(CssPixels) -> CssPixels, fn(CssPixels) -> CssPixels) =
-        if is_table_box {
-            (
-                used_values::collapsed_border_part_before_line,
-                used_values::collapsed_border_part_after_line,
-            )
-        } else {
-            (
-                used_values::collapsed_border_part_after_line,
-                used_values::collapsed_border_part_before_line,
-            )
-        };
     FfiPixelBox {
-        top: part_at_start_edges(border.top),
-        right: part_at_end_edges(border.right),
-        bottom: part_at_end_edges(border.bottom),
-        left: part_at_start_edges(border.left),
+        top: used_values::collapsed_border_share(border.top, true, is_table_box),
+        right: used_values::collapsed_border_share(border.right, false, is_table_box),
+        bottom: used_values::collapsed_border_share(border.bottom, false, is_table_box),
+        left: used_values::collapsed_border_share(border.left, true, is_table_box),
     }
 }
 

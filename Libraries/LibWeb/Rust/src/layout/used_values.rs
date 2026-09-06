@@ -720,16 +720,8 @@ impl UsedValues {
             .set(clamp_to_max_dimension_value(value.max(CssPixels::default())));
     }
 
-    /// The part of a collapsed border of the given width that lies inside this box. The border sits on the grid line
-    /// at the box's edge; `start_edge` says whether that is the box's top or left edge. A cell lies inside its grid
-    /// lines, so it owns the part after the line at its start edges and the part before the line at its end edges;
-    /// the table box lies around the grid and owns the opposite parts of its outer borders.
     fn collapsed_border_share(&self, width: CssPixels, start_edge: bool) -> CssPixels {
-        if start_edge != self.is_collapsed_borders_table_box.get() {
-            collapsed_border_part_after_line(width)
-        } else {
-            collapsed_border_part_before_line(width)
-        }
+        collapsed_border_share(width, start_edge, self.is_collapsed_borders_table_box.get())
     }
 
     pub(crate) fn border_left_collapsed(&self, collapsed: bool) -> CssPixels {
@@ -875,6 +867,18 @@ pub(crate) fn collapsed_border_part_before_line(width: CssPixels) -> CssPixels {
         return CssPixels::default();
     }
     width - collapsed_border_part_after_line(width)
+}
+
+/// The part of a collapsed border of the given width that lies inside a box on the border's grid line; `start_edge`
+/// says whether the line is at the box's top or left edge rather than its bottom or right one. A cell lies inside its
+/// grid lines, so it owns the part after the line at its start edges and the part before the line at its end edges;
+/// the table box lies around the grid and owns the opposite parts of its outer borders.
+pub(crate) fn collapsed_border_share(width: CssPixels, start_edge: bool, is_table_box: bool) -> CssPixels {
+    if start_edge != is_table_box {
+        collapsed_border_part_after_line(width)
+    } else {
+        collapsed_border_part_before_line(width)
+    }
 }
 
 pub(crate) fn create_used_values(
