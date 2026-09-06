@@ -250,7 +250,8 @@ namespace Detail {
 Wasm::HostFunction create_host_function(JS::Realm& realm, JS::FunctionObject& function, Wasm::FunctionType const& type, size_t function_index)
 {
     return Wasm::HostFunction {
-        [&realm, &function, &type](auto&, auto arguments) -> Wasm::Result {
+        // NOTE: `type` isn't a GC-backed reference, so copy it in instead.
+        [&realm, &function, type = type](auto&, auto arguments) -> Wasm::Result {
             auto& vm = realm.vm();
             GC::RootVector<JS::Value, Wasm::ArgumentsStaticSize> argument_values;
             size_t index = 0;
