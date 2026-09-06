@@ -3534,12 +3534,14 @@ fn longhand_table_hash_with_slot_hash_sum(table: &ComputedLonghandTable, slot_ha
     table.pseudo_element_styles().hash(&mut hasher);
     unsafe { crate::css::style_value::style_value_content_hash(table.raw_cascaded_font_size().cast()) }
         .hash(&mut hasher);
-    let mut inheritance_dependent = table.inheritance_dependent_values().collect::<Vec<_>>();
-    inheritance_dependent.sort_unstable_by_key(|(property, _)| *property);
-    for (property, value) in inheritance_dependent {
-        property.hash(&mut hasher);
-        unsafe { crate::css::style_value::style_value_content_hash(value.cast()) }.hash(&mut hasher);
+    // NB: Inheritance-dependent values compare independently of insertion order. Sum the
+    //     property-mixed hashes, as for longhand slots, without copying and sorting the values.
+    let mut inheritance_dependent_hash_sum = 0_u64;
+    for (property, value) in table.inheritance_dependent_values() {
+        inheritance_dependent_hash_sum =
+            inheritance_dependent_hash_sum.wrapping_add(longhand_slot_hash(usize::from(property), value));
     }
+    inheritance_dependent_hash_sum.hash(&mut hasher);
     hasher.finish()
 }
 
