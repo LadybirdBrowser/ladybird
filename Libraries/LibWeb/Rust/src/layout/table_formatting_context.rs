@@ -2680,8 +2680,10 @@ impl<'pass> TableFormattingContext<'pass> {
         let inline_spacing = self.border_spacing_inline();
         let inline_offset = table_used.border_box_left(table_used.uses_collapsing_borders_model.get()) + inline_spacing;
         let mut row_block_offset = self.table_box_content_block_offset_in_wrapper + block_spacing;
+        let mut row_block_offsets = Vec::with_capacity(self.rows.len());
         for row_index in 0..self.rows.len() {
             let row = &self.rows[row_index];
+            row_block_offsets.push(row_block_offset);
             let inline_size = self
                 .columns
                 .iter()
@@ -2700,29 +2702,33 @@ impl<'pass> TableFormattingContext<'pass> {
             }
         }
 
+        // A row group spans the rows it contains, which were positioned above in layout order together with the rows
+        // that are direct children of the table box. Rows outside any group can lie between two groups, so a group
+        // starts at its first row rather than where the previous group ended; a group without rows is empty at the
+        // position that the rows placed so far reached.
         let mut group_block_offset = self.table_box_content_block_offset_in_wrapper + block_spacing;
         for group in self.row_groups_in_layout_order() {
-            let group_rows = self.matching_children(group, |facts| facts.is_table_row());
-            let mut block_size = CssPixels::default();
+            let mut block_start = group_block_offset;
+            let mut block_end = group_block_offset;
             let mut inline_size = CssPixels::default();
-            for row in &group_rows {
-                let used = self.used_values(*row);
-                block_size += used.border_box_block_size(false);
+            let mut has_rows = false;
+            for (row_index, row) in self.rows.iter().enumerate() {
+                if self.parent(row.box_) != group {
+                    continue;
+                }
+                let used = self.used_values(row.box_);
+                if !has_rows {
+                    block_start = row_block_offsets[row_index];
+                    has_rows = true;
+                }
+                block_end = row_block_offsets[row_index] + used.border_box_block_size(false);
                 inline_size = inline_size.max(used.border_box_inline_size(false));
             }
-            if group_rows.len() >= 2 {
-                block_size += block_spacing * (group_rows.len() - 1);
-            }
             let used = self.used_values(group);
-            used.set_content_block_size(block_size);
+            used.set_content_block_size(block_end - block_start);
             used.set_content_inline_size(inline_size);
-            self.place_child(group, inline_offset, group_block_offset);
-            group_block_offset += block_size
-                + if group_rows.is_empty() {
-                    CssPixels::default()
-                } else {
-                    block_spacing
-                };
+            self.place_child(group, inline_offset, block_start);
+            group_block_offset = block_end + if has_rows { block_spacing } else { CssPixels::default() };
         }
         let padding_top = table_used.padding_top.get();
         let total =
