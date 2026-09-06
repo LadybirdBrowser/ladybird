@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use smallvec::SmallVec;
+
 use super::*;
 
 impl StyleEngine {
@@ -1238,8 +1240,8 @@ impl StyleEngine {
     /// A fact is in the store by the time routing runs, so this is what the individual inputs would
     /// have published between them - a class each, the tag, the id, each attribute name.
     #[must_use]
-    pub(super) fn routing_keys_of_arriving_facts(&self, node: StyleNodeID) -> Vec<RoutingKey> {
-        let mut keys = Vec::new();
+    pub(super) fn routing_keys_of_arriving_facts(&self, node: StyleNodeID) -> SmallVec<[RoutingKey; 4]> {
+        let mut keys = SmallVec::new();
 
         let tag = self.facts.tag_of_node(node);
         if !tag.is_none() {

@@ -10,6 +10,8 @@
 //! normalized transaction input publishes the corresponding keys so planning can ask whether an
 //! attached selector observes that input.
 
+use smallvec::SmallVec;
+
 use super::index::FeatureValue;
 use super::index::LocalFeatureKey;
 use super::selector::RoutingKey;
@@ -19,10 +21,8 @@ use super::transaction::NormalizedInput;
 
 /// The routing keys one normalized input publishes.
 #[must_use]
-pub(super) fn routing_keys_for_input(input: &NormalizedInput) -> Vec<RoutingKey> {
-    let mut count = 0;
-    for_each_routing_key(input, |_| count += 1);
-    let mut keys = Vec::with_capacity(count);
+pub(super) fn routing_keys_for_input(input: &NormalizedInput) -> SmallVec<[RoutingKey; 4]> {
+    let mut keys = SmallVec::new();
     for_each_routing_key(input, |key| keys.push(key));
     keys
 }

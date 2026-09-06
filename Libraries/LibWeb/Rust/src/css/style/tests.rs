@@ -359,14 +359,20 @@ fn attribute_changes_publish_one_name_route() {
         new: InputValue::Feature(FeatureValue::Atom(new_value)),
     };
 
-    assert_eq!(routing_keys_for_input(&changed), [RoutingKey::AttributeName(name)]);
+    assert_eq!(
+        routing_keys_for_input(&changed).as_slice(),
+        [RoutingKey::AttributeName(name)]
+    );
 
     let added = NormalizedInput {
         old: InputValue::Feature(FeatureValue::Absent),
         new: InputValue::Feature(FeatureValue::Atom(new_value)),
         ..changed
     };
-    assert_eq!(routing_keys_for_input(&added), [RoutingKey::AttributeName(name)]);
+    assert_eq!(
+        routing_keys_for_input(&added).as_slice(),
+        [RoutingKey::AttributeName(name)]
+    );
 }
 
 #[test]
