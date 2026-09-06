@@ -840,37 +840,15 @@ impl StyleSheetProgram {
             .iter()
             .filter_map(|&(rule, live)| (!live).then_some(rule))
             .collect();
-        let roots: Vec<RuleID> = departing
-            .iter()
-            .copied()
-            .filter(|&rule| {
-                self.rules[rule.0 as usize]
-                    .parent
-                    .is_none_or(|parent| !departing.contains(&parent))
-            })
-            .collect();
-        for root in roots {
-            let sheet = self.rules[root.0 as usize].sheet;
-            let parent = self.rules[root.0 as usize].parent;
-            let siblings = match parent {
-                Some(parent) => &mut self.rules[parent.0 as usize].children,
-                None => &mut self.sheets[sheet.0 as usize].rules,
-            };
-            if let Some(position) = siblings.iter().position(|&sibling| sibling == root) {
-                siblings.remove(position);
+        for &root in &departing {
+            if self.rules[root.0 as usize]
+                .parent
+                .is_some_and(|parent| departing.contains(&parent))
+            {
+                continue;
             }
-
-            let mut removed = Vec::new();
-            self.collect_subtree(root, &mut removed);
-            for rule in removed {
-                changed |= self.set_rule_live(rule, false);
-                let order = self.rules[rule.0 as usize].nested_order;
-                let order_axis = &mut self.sheets[sheet.0 as usize].rule_order;
-                let previous_capacity = order_axis.capacity_bytes();
-                order_axis.remove(order);
-                let current_capacity = order_axis.capacity_bytes();
-                self.record_capacity_change(previous_capacity, current_capacity);
-            }
+            let (_, subtree_changed) = self.detach_rule_subtree(root);
+            changed |= subtree_changed;
         }
         if changed {
             let sheets: HashSet<SheetID> = changes
@@ -906,6 +884,15 @@ impl StyleSheetProgram {
     /// time.
     pub fn remove_rule(&mut self, rule: RuleID) -> Vec<RuleID> {
         let sheet = self.rules[rule.0 as usize].sheet;
+        let (removed, _) = self.detach_rule_subtree(rule);
+        self.bump_sheet_dispatch_version(sheet);
+        self.bump_routing_liveness_version();
+        self.bump_version();
+        removed
+    }
+
+    fn detach_rule_subtree(&mut self, rule: RuleID) -> (Vec<RuleID>, bool) {
+        let sheet = self.rules[rule.0 as usize].sheet;
         let parent = self.rules[rule.0 as usize].parent;
         let siblings = match parent {
             Some(parent) => &mut self.rules[parent.0 as usize].children,
@@ -915,10 +902,10 @@ impl StyleSheetProgram {
             siblings.remove(position);
         }
 
-        let mut removed = Vec::new();
-        self.collect_subtree(rule, &mut removed);
+        let removed = self.rule_subtree(rule);
+        let mut changed = false;
         for &id in &removed {
-            self.set_rule_live(id, false);
+            changed |= self.set_rule_live(id, false);
             let order = self.rules[id.0 as usize].nested_order;
             let order_axis = &mut self.sheets[sheet.0 as usize].rule_order;
             let previous_capacity = order_axis.capacity_bytes();
@@ -926,10 +913,7 @@ impl StyleSheetProgram {
             let current_capacity = order_axis.capacity_bytes();
             self.record_capacity_change(previous_capacity, current_capacity);
         }
-        self.bump_sheet_dispatch_version(sheet);
-        self.bump_routing_liveness_version();
-        self.bump_version();
-        removed
+        (removed, changed)
     }
 
     fn collect_subtree(&self, rule: RuleID, out: &mut Vec<RuleID>) {
