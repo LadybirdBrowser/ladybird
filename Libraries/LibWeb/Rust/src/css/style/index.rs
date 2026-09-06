@@ -1487,11 +1487,24 @@ impl Posting {
         let chunk_capacity_before = self.chunks[index].capacity();
         let moved = {
             let chunk = &mut self.chunks[index];
-            match chunk.binary_search(&node) {
-                Ok(_) => return None,
-                Err(position) => chunk.insert(position, node),
+            let Err(position) = chunk.binary_search(&node) else {
+                return None;
+            };
+            if chunk.len() == MAX_POSTING_CHUNK {
+                let middle = chunk.len() / 2;
+                let mut moved = Vec::with_capacity(chunk.len() - middle + 1);
+                moved.extend_from_slice(&chunk[middle..]);
+                chunk.truncate(middle);
+                if position < middle {
+                    chunk.insert(position, node);
+                } else {
+                    moved.insert(position - middle, node);
+                }
+                Some(moved)
+            } else {
+                chunk.insert(position, node);
+                None
             }
-            (chunk.len() > MAX_POSTING_CHUNK).then(|| chunk.split_off(chunk.len() / 2))
         };
         let mut added_bytes =
             ((self.chunks[index].capacity() - chunk_capacity_before) * size_of::<StyleNodeID>()) as u64;
