@@ -1891,6 +1891,9 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn clear_committed_fragment_link(&self, id: NodeSlotId) {
+        // Cached runs may reuse the committed paintable subtree without replaying its fragments.
+        // Once that subtree is cleared, a later layout must rebuild it instead.
+        self.fc_run_cache_store.remove_entry(id.slot_index());
         drop(self.take_committed_fragment_link(self.data(id)));
     }
 

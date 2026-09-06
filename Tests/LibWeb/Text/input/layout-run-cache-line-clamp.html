@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<iframe id="frame" width="400" srcdoc="
+    <style>
+        body { margin: 0; }
+        #clamped {
+            display: -webkit-box;
+            -webkit-box-orient: vertical;
+            -webkit-line-clamp: 1;
+            overflow: hidden;
+            font: 20px/20px monospace;
+        }
+        #target { display: inline-block; width: 50px; height: 20px; }
+        #child { display: flow-root; width: 50px; }
+    </style>
+    <div id='clamped'>text text text text <span id='target'><span id='child'>child</span></span></div>
+"></iframe>
+<script>
+    asyncTest(done => {
+        frame.onload = async () => {
+            // Narrowing the viewport clamps away the inline subtree and clears its paintables.
+            // Widening it must rebuild them even when the nested formatting context's inputs match.
+            for (const width of [400, 80, 400, 80, 400]) {
+                frame.width = width;
+                document.body.offsetWidth;
+                await animationFrame();
+                const target = frame.contentDocument.getElementById("target");
+                const child = frame.contentDocument.getElementById("child");
+                println(`viewport ${width}: target ${target.getBoundingClientRect().width}, child ${child.getBoundingClientRect().width}`);
+            }
+            done();
+        };
+    });
+</script>
