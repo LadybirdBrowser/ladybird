@@ -864,11 +864,10 @@ impl StyleEngine {
             sibling_candidates.begin();
             sibling_candidates.candidates.extend(0..sibling_entries.len());
         } else {
-            let origins: Vec<StyleNodeID> = [old.previous_element_sibling, new.previous_element_sibling]
+            let origins = [old.previous_element_sibling, new.previous_element_sibling]
                 .into_iter()
-                .flatten()
-                .collect();
-            self.sibling_entry_candidates(&origins, sibling_candidates);
+                .flatten();
+            self.sibling_entry_candidates(origins, sibling_candidates);
         }
         for &index in &sibling_candidates.candidates {
             let entry = &sibling_entries[index];
@@ -941,7 +940,7 @@ impl StyleEngine {
         pending: &mut PendingSiblingRoutes,
     ) {
         let routing = Rc::clone(&self.routing);
-        let candidate_entries = self.sibling_entry_candidates(std::slice::from_ref(&node), sibling_candidates);
+        let candidate_entries = self.sibling_entry_candidates([node], sibling_candidates);
         for &index in candidate_entries {
             let entry = &sibling_entries[index];
             let point = routing.route(entry.route);
@@ -978,11 +977,11 @@ impl StyleEngine {
 
     pub(super) fn sibling_entry_candidates<'a>(
         &self,
-        nodes: &[StyleNodeID],
+        nodes: impl IntoIterator<Item = StyleNodeID>,
         workspace: &'a mut SiblingCandidateWorkspace,
     ) -> &'a [usize] {
         workspace.begin();
-        for &node in nodes {
+        for node in nodes {
             let mut append = |key| {
                 for &route in self.routing.sibling_first_routes_for_origin(key) {
                     workspace.append(route);
@@ -1023,7 +1022,7 @@ impl StyleEngine {
             return;
         }
         let routing = Rc::clone(&self.routing);
-        self.sibling_entry_candidates(std::slice::from_ref(&node), sibling_candidates);
+        self.sibling_entry_candidates([node], sibling_candidates);
         // The live state row may already reflect a clear recorded in this transaction, but the old
         // sibling route still depends on every state the node carried before it departed.
         let before_states = self
