@@ -3,10 +3,6 @@ plugins {
     id("org.jetbrains.kotlin.android") version "2.1.20"
 }
 
-var buildDir = layout.buildDirectory.get()
-var cacheDir = System.getenv("LADYBIRD_CACHE_DIR") ?: "$buildDir/caches"
-var sourceDir = layout.projectDirectory.dir("../../").toString()
-
 android {
     namespace = "org.serenityos.ladybird"
     compileSdk = 35
@@ -26,8 +22,7 @@ android {
                 cppFlags += "-std=c++23"
                 arguments += listOf(
                     "-DANDROID_STL=c++_shared",
-                    "-DLADYBIRD_CACHE_DIR=$cacheDir",
-                    "-DVCPKG_ROOT=$sourceDir/Build/vcpkg",
+                    "-DLADYBIRD_VCPKG_TYPE=release",
                     "-DVCPKG_TARGET_ANDROID=ON"
                 )
             }

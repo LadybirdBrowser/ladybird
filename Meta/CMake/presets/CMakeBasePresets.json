@@ -6,16 +6,8 @@
       "name": "base",
       "displayName": "Default Config",
       "generator": "Ninja",
-      "cacheVariables": {
-        "LADYBIRD_CACHE_DIR": "$env{LADYBIRD_SOURCE_DIR}/Build/caches",
-        "CMAKE_TOOLCHAIN_FILE": "$env{VCPKG_ROOT}/scripts/buildsystems/vcpkg.cmake",
-        "VCPKG_INSTALL_OPTIONS": "--no-print-usage"
-      },
       "environment": {
-        "LADYBIRD_SOURCE_DIR": "${fileDir}/../../..",
-        "VCPKG_ROOT": "$env{LADYBIRD_SOURCE_DIR}/Build/vcpkg",
-        "VCPKG_BINARY_SOURCES": "clear;files,$env{LADYBIRD_SOURCE_DIR}/Build/caches/vcpkg-binary-cache,readwrite;$penv{VCPKG_BINARY_SOURCES}",
-        "X_VCPKG_ASSET_SOURCES": "clear;x-azurl,https://vcpkg-cache.app.ladybird.org/ladybird/source-assets/,$penv{VCPKG_CACHE_SAS},read$penv{VCPKG_CACHE_MODE}"
+        "LADYBIRD_SOURCE_DIR": "${sourceDir}"
       },
       "vendor": {
         "jetbrains.com/clion": {
@@ -31,7 +23,7 @@
       "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/release",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "VCPKG_OVERLAY_TRIPLETS": "$env{LADYBIRD_SOURCE_DIR}/Meta/CMake/vcpkg/release-triplets"
+        "LADYBIRD_VCPKG_TYPE": "release"
       }
     },
     {
@@ -42,7 +34,7 @@
       "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/debug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "VCPKG_OVERLAY_TRIPLETS": "$env{LADYBIRD_SOURCE_DIR}/Meta/CMake/vcpkg/debug-triplets"
+        "LADYBIRD_VCPKG_TYPE": "debug"
       }
     },
     {
@@ -53,9 +45,9 @@
       "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/sanitizers",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
+        "LADYBIRD_VCPKG_TYPE": "sanitizer",
         "ENABLE_UNDEFINED_SANITIZER": "ON",
-        "ENABLE_ADDRESS_SANITIZER": "ON",
-        "VCPKG_OVERLAY_TRIPLETS": "$env{LADYBIRD_SOURCE_DIR}/Meta/CMake/vcpkg/sanitizer-triplets"
+        "ENABLE_ADDRESS_SANITIZER": "ON"
       }
     },
     {
@@ -66,7 +58,7 @@
       "binaryDir": "$env{LADYBIRD_SOURCE_DIR}/Build/alldebug",
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug",
-        "VCPKG_OVERLAY_TRIPLETS": "$env{LADYBIRD_SOURCE_DIR}/Meta/CMake/vcpkg/debug-triplets",
+        "LADYBIRD_VCPKG_TYPE": "debug",
         "ENABLE_ALL_THE_DEBUG_MACROS": "ON"
       }
     },
@@ -79,7 +71,7 @@
       "cacheVariables": {
         "BUILD_SHARED_LIBS": "OFF",
         "CMAKE_BUILD_TYPE": "Release",
-        "VCPKG_OVERLAY_TRIPLETS": "$env{LADYBIRD_SOURCE_DIR}/Meta/CMake/vcpkg/distribution-triplets"
+        "LADYBIRD_VCPKG_TYPE": "distribution"
       }
     },
     {
@@ -91,7 +83,7 @@
       "cacheVariables": {
         "BUILD_SHARED_LIBS": "OFF",
         "CMAKE_BUILD_TYPE": "RelWithDebInfo",
-        "VCPKG_OVERLAY_TRIPLETS": "$env{LADYBIRD_SOURCE_DIR}/Meta/CMake/vcpkg/distribution-triplets",
+        "LADYBIRD_VCPKG_TYPE": "distribution",
         "ENABLE_FUZZERS_LIBFUZZER": "ON",
         "ENABLE_ADDRESS_SANITIZER": "ON"
       }
@@ -118,7 +110,7 @@
         "stopOnFailure": true
       },
       "environment": {
-        "LADYBIRD_SOURCE_DIR": "${fileDir}/../../.."
+        "LADYBIRD_SOURCE_DIR": "${sourceDir}"
       }
     }
   ]
