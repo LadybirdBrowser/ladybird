@@ -1,0 +1,59 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd"><html xmlns="http://www.w3.org/1999/xhtml" lang="en-US"><head>
+	<title>Table background tests</title>
+	<meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+	<meta http-equiv="Content-Style-Type" content="text/css" />
+	<style type="text/css">
+
+	html, body { margin: 0; padding: 0; border: 0; font-size: 16px; }
+	body { padding: 15px; }
+
+	/*
+	table {
+		margin: 0px 3px 2px 4px;
+		border-width: 4px 2px 8px 6px;
+
+		height is 97px:
+		  (2px of border outside height)
+		  extra border width for top row: 0
+		  cell * 5: == 19px * 5 == 95px
+		    border-top: 2px;
+		    padding-top: 1px;
+		    height: 10px;
+		    padding-bottom: 4px;
+		    border-bottom: 2px;
+		  extra border width for top row: 2px
+		  (4px of border outside height)
+
+		width is 287px:
+		  (3px of border outside width)
+		  extra border width for left column: 2px
+		  cell * 5: == 57px * 5 == 285px
+		    border-left: 1px;
+		    padding-left: 3px;
+		    width: 50px;
+		    padding-right: 2px;
+		    border-right: 1px;
+		  (1px of border outside width)
+    */
+
+	div { width: 287px; height: 57px; margin: 21px 4px 48px 7px; }
+	div.color { background-color: aqua; }
+
+	div.imagetl, div.imagebr {
+		background-image: url(support/repeatable-diagonal-gradient-with-ticks.png);
+	}
+
+	div.imagetl { background-position: 0 0; }
+	div.imagebr { background-position: 287px 57px; }
+
+	</style>
+</head>
+<body>
+
+<div class="color"></div>
+<div class="imagetl"></div>
+<div class="imagebr"></div>
+
+
+
+</body></html>
