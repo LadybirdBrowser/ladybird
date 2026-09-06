@@ -94,7 +94,7 @@ impl<Identity: InternIdentity, Payload> InternTable<Identity, Payload> {
         self.entries.iter_mut()
     }
 
-    pub(super) fn live_identities(&self) -> impl Iterator<Item = Identity> + '_ {
+    pub(super) fn live_identities(&self) -> impl ExactSizeIterator<Item = Identity> + '_ {
         self.identities.iter().map(|candidate| candidate.identity)
     }
 

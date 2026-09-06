@@ -2965,7 +2965,7 @@ impl ComputedGroupSets {
     pub(super) fn reclaim_unreachable(&mut self) -> ComputedGroupRetention {
         let reachable = self.reachability();
         let retention = ComputedGroupRetention {
-            retained: self.groups.live_identities().count(),
+            retained: self.groups.live_identities().len(),
             reachable: reachable.groups.iter().filter(|&&reachable| reachable).count(),
         };
         if replaying_style_groups() {
@@ -3090,7 +3090,7 @@ impl ComputedGroupSets {
         }
         self.style_records_interned_since_reclamation = 0;
         let retention = self.reclaim_unreachable();
-        self.next_reclamation_after = self.style_records.live_identities().count().max(1024);
+        self.next_reclamation_after = self.style_records.live_identities().len().max(1024);
         Some(retention)
     }
 
