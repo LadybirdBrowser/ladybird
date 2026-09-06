@@ -850,25 +850,21 @@ impl StyleNodeFacts {
         let old_class_handle = was_resident.then(|| self.class_handles[row]);
         let old_attribute_handle = was_resident.then(|| self.attribute_handles[row]);
         let mut stale_payload_bytes = 0_u64;
-        let length = row.checked_add(1).expect("element fact row space exhausted");
-        self.tag.resize(self.tag.len().max(length), StyleAtomID::NONE);
-        self.folded_tag
-            .resize(self.folded_tag.len().max(length), StyleAtomID::NONE);
-        self.id.resize(self.id.len().max(length), StyleAtomID::NONE);
-        self.states.resize(self.states.len().max(length), StateSet::default());
-        self.directionality
-            .resize(self.directionality.len().max(length), StyleAtomID::NONE);
-        self.language.resize(self.language.len().max(length), StyleAtomID::NONE);
-        self.has_text_content
-            .resize(self.has_text_content.len().max(length), false);
-        self.language_text.resize(self.language_text.len().max(length), (0, 0));
-        self.namespace
-            .resize(self.namespace.len().max(length), StyleAtomID::NONE);
-        self.class_handles
-            .resize(self.class_handles.len().max(length), PayloadHandle::default());
-        self.attribute_handles
-            .resize(self.attribute_handles.len().max(length), PayloadHandle::default());
-        self.dispatch_bloom.resize(self.dispatch_bloom.len().max(length), 0);
+        if row >= self.tag.len() {
+            let length = row.checked_add(1).expect("element fact row space exhausted");
+            self.tag.resize(length, StyleAtomID::NONE);
+            self.folded_tag.resize(length, StyleAtomID::NONE);
+            self.id.resize(length, StyleAtomID::NONE);
+            self.states.resize(length, StateSet::default());
+            self.directionality.resize(length, StyleAtomID::NONE);
+            self.language.resize(length, StyleAtomID::NONE);
+            self.has_text_content.resize(length, false);
+            self.language_text.resize(length, (0, 0));
+            self.namespace.resize(length, StyleAtomID::NONE);
+            self.class_handles.resize(length, PayloadHandle::default());
+            self.attribute_handles.resize(length, PayloadHandle::default());
+            self.dispatch_bloom.resize(length, 0);
+        }
 
         self.tag[row] = facts.tag;
         self.folded_tag[row] = facts.folded_tag;
