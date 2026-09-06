@@ -784,23 +784,18 @@ impl StyleEngine {
                     .iter()
                     .copied()
                     .filter(|&sheet| self.program.sheet_origin(sheet) != CascadeOrigin::Author));
-            let scopes: Vec<_> = self
-                .scope_program_by_scope
-                .iter()
-                .enumerate()
-                .filter_map(|(index, retained)| {
-                    let (_, program) = retained.as_ref()?;
-                    let invalidate = index == TreeScopeID::DOCUMENT.0 as usize
-                        || self.scope_program(*program).key.document_sheet_mode == DocumentSheetMode::All
-                        || (non_author_changed
-                            && self.scope_program(*program).key.document_sheet_mode == DocumentSheetMode::NonAuthor);
-                    invalidate.then_some(TreeScopeID(
-                        u32::try_from(index).expect("tree scope identity space exhausted"),
-                    ))
-                })
-                .collect();
-            for scope in scopes {
-                self.invalidate_concrete_scope_program(scope);
+            for index in 0..self.scope_program_by_scope.len() {
+                let Some((_, program)) = self.scope_program_by_scope[index] else {
+                    continue;
+                };
+                let invalidate = index == TreeScopeID::DOCUMENT.0 as usize
+                    || self.scope_program(program).key.document_sheet_mode == DocumentSheetMode::All
+                    || (non_author_changed
+                        && self.scope_program(program).key.document_sheet_mode == DocumentSheetMode::NonAuthor);
+                if invalidate {
+                    let scope = TreeScopeID(u32::try_from(index).expect("tree scope identity space exhausted"));
+                    self.invalidate_concrete_scope_program(scope);
+                }
             }
         } else {
             self.invalidate_concrete_scope_program(tree_scope);
@@ -883,24 +878,20 @@ impl StyleEngine {
     /// document sheets as well as locally attached sheets, so this also reaches shadow scopes that
     /// inherit a changed document sheet without scanning the DOM's attachment topology again.
     pub(super) fn invalidate_scope_programs_for_sheet(&mut self, sheet: SheetID) {
-        let scopes: Vec<_> = self
-            .scope_program_by_scope
-            .iter()
-            .enumerate()
-            .filter_map(|(index, retained)| {
-                let (_, program) = retained.as_ref()?;
-                self.scope_program(*program)
-                    .key
-                    .sheets
-                    .iter()
-                    .any(|&(candidate, _)| candidate == sheet)
-                    .then_some(TreeScopeID(
-                        u32::try_from(index).expect("tree scope identity space exhausted"),
-                    ))
-            })
-            .collect();
-        for scope in scopes {
-            self.invalidate_concrete_scope_program(scope);
+        for index in 0..self.scope_program_by_scope.len() {
+            let Some((_, program)) = self.scope_program_by_scope[index] else {
+                continue;
+            };
+            if self
+                .scope_program(program)
+                .key
+                .sheets
+                .iter()
+                .any(|&(candidate, _)| candidate == sheet)
+            {
+                let scope = TreeScopeID(u32::try_from(index).expect("tree scope identity space exhausted"));
+                self.invalidate_concrete_scope_program(scope);
+            }
         }
     }
 
