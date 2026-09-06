@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Test (Tables): collapsing borders with different widths</title>
+<link rel="author" title="Oriol Brufau" href="obrufau@igalia.com">
+<link rel="help" href="http://www.w3.org/TR/CSS2/tables.html#collapsing-borders" />
+<link rel="match" href="../../../../../expected/wpt-import/css/CSS2/tables/../../reference/ref-filled-green-200px-square.html">
+
+<style>
+table { border-collapse: collapse; background: green }
+td { padding: 0; background: red; }
+td div { height: 25px; background: green; }
+</style>
+
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+
+<div style="float: left; min-width: 200px; background: red">
+  <!--
+    https://drafts.csswg.org/css2/#collapsing-borders
+    > Borders are centered on the grid lines between the cells.
+
+    That is, the column needs to be big enough to contain:
+     - Half of the left border form the 1st row, i.e. 75px.
+     - Half of the right border form the 2nd row, i.e. 50px.
+
+    Therefore, the column is max(75px, 50px) = 75px wide,
+    and it goes from position 75px to position 150px.
+
+    In the 1st row there is no remaining available space,
+    so the div becomes 0px wide.
+
+    In the 2nd row there are 75px - 50px = 25px of available space,
+    so the div becomes 25px wide.
+  -->
+  <table>
+    <tr>
+      <td style="border-left: 150px solid green">
+        <div></div>
+      </td>
+    </tr>
+    <tr>
+      <td style="border-right: 100px solid green">
+        <div></div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Same situation, but with explicit widths on the divs -->
+  <table>
+    <tr>
+      <td style="border-left: 150px solid green">
+        <div style="width: 0px"></div>
+      </td>
+    </tr>
+    <tr>
+      <td style="border-right: 100px solid green">
+        <div style="width: 25px"></div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Same situation, but with the rows swapped -->
+  <table>
+    <tr>
+      <td style="border-right: 100px solid green">
+        <div></div>
+      </td>
+    </tr>
+    <tr>
+      <td style="border-left: 150px solid green">
+        <div></div>
+      </td>
+    </tr>
+  </table>
+
+  <!-- Same situation, but with explicit widths and the rows swapped -->
+  <table>
+    <tr>
+      <td style="border-left: 150px solid green">
+        <div style="width: 0px"></div>
+      </td>
+    </tr>
+    <tr>
+      <td style="border-right: 100px solid green">
+        <div style="width: 25px"></div>
+      </td>
+    </tr>
+  </table>
+</div>
