@@ -138,7 +138,6 @@ public:
 
     void queue_screenshot_task(Optional<Web::UniqueNodeID> node_id);
     void send_current_needs_beforeunload_check();
-    void run_iframe_load_event_steps(Web::HTML::CrossProcessId);
     void run_navigation_unload_check(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id);
     void create_navigation_params(Web::HTML::NavigationPopulationRequest);
     void cancel_navigation_params_creation(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id);

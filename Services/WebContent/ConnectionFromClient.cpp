@@ -224,12 +224,6 @@ void ConnectionFromClient::set_remote_child_frame_compositor_context(u64 page_id
         page->set_remote_child_frame_compositor_context(frame_id, context_id);
 }
 
-void ConnectionFromClient::run_iframe_load_event_steps(u64 page_id, Web::HTML::CrossProcessId frame_id)
-{
-    if (auto page = this->page(page_id); page.has_value())
-        page->run_iframe_load_event_steps(frame_id);
-}
-
 void ConnectionFromClient::run_navigation_unload_check(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id)
 {
     if (auto page = this->page(page_id); page.has_value()) {
