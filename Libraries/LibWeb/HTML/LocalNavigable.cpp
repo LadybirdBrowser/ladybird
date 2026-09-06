@@ -805,13 +805,20 @@ bool LocalNavigable::delays_the_load_event_of_its_container() const
 
 void LocalNavigable::set_delaying_load_events(bool value)
 {
-    if (value) {
-        auto document = container_document();
-        VERIFY(document);
-        m_delaying_the_load_event.emplace(*document);
-    } else {
-        m_delaying_the_load_event.clear();
+    m_is_delaying_load_events = value;
+
+    // The container document's load event waits on this flag where that document lives.
+    // FIXME: A container document hosted in another process does not wait yet. Its process needs the loading state
+    //        replicated for the remote navigable that stands in for this one.
+    if (!value) {
+        m_container_document_load_event_delayer.clear();
+        return;
     }
+    if (auto document = container_document()) {
+        m_container_document_load_event_delayer.emplace(*document);
+        return;
+    }
+    VERIFY(parent() && !is<LocalNavigable>(*parent()));
 }
 
 void LocalNavigable::set_navigation_load_event_guard(DOM::Document& parent_doc)

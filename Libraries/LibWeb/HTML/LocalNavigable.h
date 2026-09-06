@@ -88,7 +88,7 @@ public:
     void stop_loading();
 
     void set_delaying_load_events(bool value);
-    bool is_delaying_load_events() const { return m_delaying_the_load_event.has_value(); }
+    bool is_delaying_load_events() const { return m_is_delaying_load_events; }
 
     void set_navigation_load_event_guard(DOM::Document& parent_doc);
     void clear_navigation_load_event_guard();
@@ -516,7 +516,8 @@ private:
     bool m_closing { false };
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#delaying-load-events-mode
-    Optional<DOM::DocumentLoadEventDelayer> m_delaying_the_load_event;
+    bool m_is_delaying_load_events { false };
+    Optional<DOM::DocumentLoadEventDelayer> m_container_document_load_event_delayer;
 
     // AD-HOC: Guards the parent document's load event delay count during cross-document navigation.
     Optional<DOM::DocumentLoadEventDelayer> m_navigation_load_event_guard;
