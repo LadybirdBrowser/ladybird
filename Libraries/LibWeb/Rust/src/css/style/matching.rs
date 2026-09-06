@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use smallvec::SmallVec;
+
 use super::batch_matcher::{append_selector_truth_matches, insert_scope_rule};
 use super::cascade::CascadeContinuationID;
 use super::selector::{AttributeCase, AttributeOperator};
@@ -3955,11 +3957,11 @@ impl StyleEngine {
             .tree
             .shadow_root_of(node)
             .and_then(|shadow_root| self.scope_by_root.get(shadow_root).filter(|&inner| inner != scope));
-        let slotted_scopes: Vec<_> = self
+        let slotted_scopes: SmallVec<[TreeScopeID; 1]> = self
             .scopes_slotted_into(node)
             .filter(|&slotted| slotted != scope && Some(slotted) != inner_scope)
             .collect();
-        let part_scopes: Vec<_> = self
+        let part_scopes: SmallVec<[TreeScopeID; 1]> = self
             .part_exposure_scopes(node)
             .filter(|&exposed| exposed != scope && Some(exposed) != inner_scope && !slotted_scopes.contains(&exposed))
             .collect();
@@ -4067,7 +4069,7 @@ impl StyleEngine {
         // that tree names it, so that tree's rules are asked of it as well. A slot is itself a
         // slottable, so an element can be re-slotted through several trees, and each of them names
         // it: what stands in the flat tree at the end of the chain is the element, not the slots.
-        let slotted_scopes: Vec<TreeScopeID> = self
+        let slotted_scopes: SmallVec<[TreeScopeID; 1]> = self
             .scopes_slotted_into(node)
             .filter(|&slotted| slotted != scope && Some(slotted) != inner_scope)
             .collect();
@@ -4075,7 +4077,7 @@ impl StyleEngine {
         // scope names it. `exportparts` forwards a name outwards one host at a time, and a rule in
         // every tree along that chain can address the element - under the name that level exposes it
         // by - so each of those scopes is asked, not only the outermost one the exposure names.
-        let part_scopes: Vec<TreeScopeID> = self
+        let part_scopes: SmallVec<[TreeScopeID; 1]> = self
             .part_exposure_scopes(node)
             .filter(|&exposed| exposed != scope && Some(exposed) != inner_scope && !slotted_scopes.contains(&exposed))
             .collect();
