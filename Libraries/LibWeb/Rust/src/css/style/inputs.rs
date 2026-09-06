@@ -762,13 +762,9 @@ impl StyleEngine {
         self.style_input_nodes_for_cpp.insert(node);
     }
 
-    /// Record a style reaction the engine derived itself for one element.
-    pub(crate) fn record_derived_element_style_input(
-        &mut self,
-        node: StyleNodeID,
-        reaction: u8,
-        inherited_style_groups: u8,
-    ) {
+    /// Record a style reaction the engine derived itself for one element, or one C++ derived from
+    /// a reaction it applied: the engine settles it where it can.
+    pub fn record_derived_element_style_input(&mut self, node: StyleNodeID, reaction: u8, inherited_style_groups: u8) {
         if reaction == 0 {
             return;
         }

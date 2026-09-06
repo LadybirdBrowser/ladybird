@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #host { --x: red; }
+</style>
+<div id="host">
+    <svg width="10" height="10"><rect id="rect" width="10" height="10" fill="var(--x)"></rect></svg>
+</div>
+<script>
+    test(() => {
+        const host = document.getElementById("host");
+        const rect = document.getElementById("rect");
+        println("fill before: " + getComputedStyle(rect).fill);
+        host.style.setProperty("--x", "blue");
+        println("fill after: " + getComputedStyle(rect).fill);
+    });
+</script>

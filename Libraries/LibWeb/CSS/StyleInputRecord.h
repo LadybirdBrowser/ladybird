@@ -56,6 +56,11 @@ struct StyleInputRecord {
     bool cascade_reads_custom_properties { false };
     // The viewport environment the computation ran under; compared only when it read a viewport metric.
     u64 viewport_environment_version { 0 };
+    // Every custom property the element's cascades refer to through var(), pseudo-elements
+    // included, sorted and unique; and whether that list names every read. A cascade that
+    // substitutes a property name reads what no list can name.
+    Vector<Utf16FlyString> custom_property_reads;
+    bool custom_property_reads_are_complete { true };
 
     // Which half of the record differs first, which is what says why a recomputation could not be
     // answered from what its last one read.

@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #parent { --x: 10px; --a: 1; --b: 2; --c: 3; --d: 4; --e: 5; --f: 6; --g: 7; --h: 8; --i: 9; }
+    #middle { --y: 1; width: calc(var(--x) + attr(data-a px, 0px)); }
+    #child { width: var(--x); }
+</style>
+<div id="parent"><div id="middle" data-a="0"><div id="child"></div></div></div>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        const middle = document.getElementById("middle");
+        const child = document.getElementById("child");
+        println("middle before: " + getComputedStyle(middle).width);
+        println("child before: " + getComputedStyle(child).width);
+        parent.style.setProperty("--x", "20px");
+        println("middle after: " + getComputedStyle(middle).width);
+        println("child after: " + getComputedStyle(child).width);
+    });
+</script>

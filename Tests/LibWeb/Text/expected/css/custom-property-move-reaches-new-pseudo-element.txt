@@ -1,0 +1,2 @@
+pseudo before: rgb(255, 0, 0)
+pseudo after: rgb(0, 0, 255)

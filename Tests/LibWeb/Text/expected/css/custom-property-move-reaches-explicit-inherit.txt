@@ -1,0 +1,4 @@
+child before: rgb(255, 0, 0)
+grandchild before: rgb(0, 0, 0)
+child after: rgb(0, 0, 255)
+grandchild after: rgb(0, 0, 0)

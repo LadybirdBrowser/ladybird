@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #parent { --x: red; }
+    #child { width: attr(data-width px, 10px); }
+    #child::before { content: "test"; color: var(--x); }
+</style>
+<div id="parent"><div id="child" data-width="20"></div></div>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        const child = document.getElementById("child");
+        println("pseudo before: " + getComputedStyle(child, "::before").color);
+        parent.style.setProperty("--x", "blue");
+        println("pseudo after: " + getComputedStyle(child, "::before").color);
+    });
+</script>

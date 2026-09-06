@@ -2014,8 +2014,13 @@ CSSStyleProperties::CustomPropertyReferences const& CSSStyleProperties::custom_p
     };
     for (auto const& property : m_properties)
         visit_value(*property.value);
-    for (auto const& [name, property] : m_custom_properties)
+    for (auto const& [name, property] : m_custom_properties) {
         visit_value(*property.value);
+        // `--x: inherit` (or `unset`, `revert`) takes the parent's value of the same name, which is a
+        // read of that name.
+        if (property.value->is_css_wide_keyword() && !property.value->is_initial())
+            references->names.append(name);
+    }
     quick_sort(references->names);
     size_t unique_count = 0;
     for (size_t index = 0; index < references->names.size(); ++index) {

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @property --x {
+        syntax: "<color>";
+        inherits: false;
+        initial-value: black;
+    }
+    #parent { --x: red; }
+    #child { --x: inherit; color: var(--x); }
+    #grandchild { color: var(--x); }
+</style>
+<div id="parent"><div id="child">child<div id="grandchild">grandchild</div></div></div>
+<script>
+    test(() => {
+        const parent = document.getElementById("parent");
+        const child = document.getElementById("child");
+        const grandchild = document.getElementById("grandchild");
+        println("child before: " + getComputedStyle(child).color);
+        println("grandchild before: " + getComputedStyle(grandchild).color);
+        parent.style.setProperty("--x", "blue");
+        println("child after: " + getComputedStyle(child).color);
+        println("grandchild after: " + getComputedStyle(grandchild).color);
+    });
+</script>

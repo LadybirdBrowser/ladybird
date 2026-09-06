@@ -258,13 +258,13 @@ PASS: featureless-sensitive structural mutation keeps :has walk: child :where(:n
 PASS: featureless-sensitive structural mutation keeps :has walk: child :not(class, id) insertion | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: featureless-sensitive structural mutation keeps :has walk: descendant :not(class) nested insertion | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: featureless-sensitive structural mutation keeps :has walk: child :empty insertion | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: featureless-sensitive structural mutation keeps :has walk: child :empty stops matching after text append | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: featureless-sensitive structural mutation keeps :has walk: child :empty stops matching after text append | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: featureless-sensitive structural mutation keeps :has walk: child :first-child insertion | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: featureless-sensitive structural mutation keeps :has walk: child :last-child insertion | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: featureless-sensitive structural mutation keeps :has walk: child :only-child stops matching | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: featureless-sensitive structural mutation keeps :has walk: child :nth-child(2) starts matching | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: featureless-sensitive structural mutation keeps :has walk: child :nth-last-child(2) starts matching | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
-PASS: featureless-sensitive structural mutation keeps :has walk: child :only-of-type stops matching | elementStyleRecomputations=2, elementStyleNoopRecomputations=1
+PASS: featureless-sensitive structural mutation keeps :has walk: child :only-child stops matching | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: featureless-sensitive structural mutation keeps :has walk: child :nth-child(2) starts matching | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: featureless-sensitive structural mutation keeps :has walk: child :nth-last-child(2) starts matching | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+PASS: featureless-sensitive structural mutation keeps :has walk: child :only-of-type stops matching | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
 PASS: unprobeable pseudo structural mutation keeps :has walk: child :focus insertion with unrelated metadata | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: unprobeable pseudo structural mutation keeps :has walk: descendant :focus insertion through wrapper with unrelated metadata | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: unprobeable pseudo structural mutation keeps :has walk: child :focus-within insertion with unrelated metadata | elementStyleRecomputations=5, elementStyleNoopRecomputations=0

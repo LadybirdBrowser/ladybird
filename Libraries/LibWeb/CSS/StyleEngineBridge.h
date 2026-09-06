@@ -227,6 +227,8 @@ public:
         DisplayChanged = 1 << 11,
     };
     void record_element_style_input_change(StyleNodeID style_node, u8 reaction = PublishedStyle | RecomputeStyle, u8 inherited_style_groups = 0);
+    // A reaction C++ derived from one it applied, for the engine to settle where it can.
+    void record_derived_element_style_input_change(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups = 0);
     void record_flat_tree_descendant_style_input_changes(StyleNodeID style_node, u8 reaction, u8 inherited_style_groups = 0);
     [[nodiscard]] Vector<StyleNodeID> viewport_dependent_style_nodes();
     [[nodiscard]] bool has_recorded_element_style_input_change(StyleNodeID style_node) const;

@@ -21,13 +21,13 @@
             outer.append(child);
         }
         getComputedStyle(outer.lastChild).marginLeft;
-        const before = internals.styleEngineCounters();
+        internals.resetStyleInvalidationCounters();
         outer.style.setProperty("--theme", "2px");
         println("margin after change: " + getComputedStyle(outer.lastChild).marginLeft);
         println("every child keeps its own margin: " + [...outer.children].every(child => getComputedStyle(child).marginLeft === "2px"));
-        const after = internals.styleEngineCounters();
-        const shared = (after.engineComputedRecordSharedHits ?? 0) + (after.engineComputedRecordCohortHits ?? 0)
-            - (before.engineComputedRecordSharedHits ?? 0) - (before.engineComputedRecordCohortHits ?? 0);
-        println("children reuse a shared style: " + (shared >= outer.children.length - 1));
+        // No child reads --theme, so none of them computes its style again: the moved environment
+        // reaches each child directly.
+        const counters = internals.getStyleInvalidationCounters();
+        println("children keep their styles: " + (counters.elementStyleRecomputations <= 1));
     });
 </script>

@@ -527,4 +527,7 @@ private:
     HashMap<StyleEngineRuleID, GC::Ptr<CSSRule const>> m_style_engine_rules_by_id;
 };
 
+// Whether a custom property holds a different value under two inherited environments.
+bool custom_property_value_moved(Utf16FlyString const& name, CustomPropertyData const* old_data, CustomPropertyData const* new_data);
+
 }
