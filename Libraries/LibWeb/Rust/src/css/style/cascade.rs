@@ -34,6 +34,7 @@ use super::intern_table::InternIdentity;
 use super::intern_table::InternTable;
 use super::intern_table::content_hash;
 
+use smallvec::SmallVec;
 use std::hash::Hash;
 use std::hash::Hasher;
 
@@ -1249,7 +1250,7 @@ impl WinnerGroups {
             property: winner.property,
             key: winner.key,
         });
-        let provenance: Box<[_]> = winners
+        let provenance: SmallVec<[_; WINNER_GROUP_PROPERTY_COUNT as usize]> = winners
             .iter()
             .map(|winner| WinnerProvenance {
                 important: winner.important,
@@ -1273,7 +1274,7 @@ impl WinnerGroups {
         {
             return WinnerGroupRef {
                 winners: id,
-                provenance: self.intern_provenance_group(provenance),
+                provenance: self.intern_provenance_group(&provenance),
             };
         }
         let id = WinnerGroupID(u32::try_from(self.groups.len()).expect("winner group space exhausted"));
@@ -1284,24 +1285,23 @@ impl WinnerGroups {
         self.groups.insert(hash, id, semantic);
         WinnerGroupRef {
             winners: id,
-            provenance: self.intern_provenance_group(provenance),
+            provenance: self.intern_provenance_group(&provenance),
         }
     }
 
-    fn intern_provenance_group(&mut self, provenance: Box<[WinnerProvenance]>) -> WinnerProvenanceGroupID {
-        let hash = content_hash(&provenance);
+    fn intern_provenance_group(&mut self, provenance: &[WinnerProvenance]) -> WinnerProvenanceGroupID {
+        let hash = content_hash(provenance);
         if let Some(id) = self
             .provenance_groups
-            .find(hash, |_id, candidate| *candidate == provenance)
+            .find(hash, |_id, candidate| candidate.as_ref() == provenance)
         {
             return id;
         }
         let id = WinnerProvenanceGroupID(
             u32::try_from(self.provenance_groups.len()).expect("winner provenance group space exhausted"),
         );
-        self.nested_residency
-            .grow_committed(size_of_val(provenance.as_ref()) as u64);
-        self.provenance_groups.insert(hash, id, provenance);
+        self.nested_residency.grow_committed(size_of_val(provenance) as u64);
+        self.provenance_groups.insert(hash, id, provenance.into());
         id
     }
 
