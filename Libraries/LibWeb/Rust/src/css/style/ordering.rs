@@ -502,7 +502,8 @@ impl StyleEngine {
         let mut scratch_bytes = 0;
 
         let published_winners = if let Some(node) = publish_winners_for {
-            let mut targets = vec![None];
+            let mut targets: SmallVec<[Option<tree::PseudoElementTarget>; 3]> = SmallVec::new();
+            targets.push(None);
             for target in all.iter().filter_map(|entry| entry.pseudo_element) {
                 if !targets.contains(&Some(target)) {
                     targets.push(Some(target));
@@ -524,7 +525,7 @@ impl StyleEngine {
                             let winners = self.resolved_cascade_winners_for_properties(node, all, target, None);
                             (target, winners)
                         })
-                        .collect::<Vec<_>>(),
+                        .collect::<SmallVec<[_; 3]>>(),
                 )
             } else {
                 Some(
@@ -575,7 +576,7 @@ impl StyleEngine {
                             };
                             (target, winners)
                         })
-                        .collect::<Vec<_>>(),
+                        .collect::<SmallVec<[_; 3]>>(),
                 )
             }
         } else {
