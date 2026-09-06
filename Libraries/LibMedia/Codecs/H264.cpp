@@ -52,6 +52,10 @@ static constexpr size_t NAL_UNIT_HEADER_SIZE = 1;
 static constexpr u8 NAL_UNIT_TYPE_MASK = 0x1F;
 static constexpr u8 SEQUENCE_PARAMETER_SET_NAL_UNIT_TYPE = 7;
 static constexpr u8 PICTURE_PARAMETER_SET_NAL_UNIT_TYPE = 8;
+static constexpr u8 NAL_REF_IDC_MASK = 0x60;
+static constexpr u8 NAL_REF_IDC_SHIFT = 5;
+static constexpr u8 FIRST_CODED_SLICE_NAL_UNIT_TYPE = 1;
+static constexpr u8 LAST_CODED_SLICE_NAL_UNIT_TYPE = 5;
 
 // The profiles whose sequence parameter sets carry the chroma format and scaling matrix fields.
 // ITU-T H.264 (08/2024), 7.3.2.1.1.
@@ -191,6 +195,19 @@ static u8 max_reorder_frame_count_for_level(u8 level_idc, u32 macroblocks_per_fr
     if (!max_decoded_picture_buffer_macroblocks.has_value() || macroblocks_per_frame == 0)
         return MAXIMUM_REORDER_FRAME_COUNT;
     return static_cast<u8>(min(*max_decoded_picture_buffer_macroblocks / macroblocks_per_frame, static_cast<u32>(MAXIMUM_REORDER_FRAME_COUNT)));
+}
+
+// ITU-T H.264 (08/2024), Table 7-1: nal_unit_type 1 through 5 carry coded slices.
+bool H264::is_coded_slice(u8 nal_unit_header)
+{
+    auto nal_unit_type = nal_unit_header & NAL_UNIT_TYPE_MASK;
+    return nal_unit_type >= FIRST_CODED_SLICE_NAL_UNIT_TYPE && nal_unit_type <= LAST_CODED_SLICE_NAL_UNIT_TYPE;
+}
+
+// ITU-T H.264 (08/2024), 7.4.1: zero marks a coded slice as part of a non-reference picture.
+u8 H264::nal_ref_idc(u8 nal_unit_header)
+{
+    return (nal_unit_header & NAL_REF_IDC_MASK) >> NAL_REF_IDC_SHIFT;
 }
 
 // ITU-T H.264 (08/2024), 7.3.2.1.1: seq_parameter_set_data().
