@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style id="registration">
+    @property --x {
+        syntax: "<color>";
+        inherits: false;
+        initial-value: red;
+    }
+</style>
+<style>
+    .target { color: var(--x); }
+</style>
+<div id="element" class="target">target</div>
+<script>
+    test(() => {
+        const element = document.getElementById("element");
+        const registration = document.getElementById("registration");
+        println("initial: " + getComputedStyle(element).color);
+        registration.textContent = registration.textContent.replace("red", "blue");
+        println("after registration change: " + getComputedStyle(element).color);
+        element.classList.remove("target");
+        println("without class: " + getComputedStyle(element).color);
+        element.classList.add("target");
+        println("class restored: " + getComputedStyle(element).color);
+    });
+</script>
