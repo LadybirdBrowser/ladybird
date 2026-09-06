@@ -389,6 +389,12 @@ impl DocumentAtoms {
     }
 
     pub(super) fn finish_sweep(&mut self, reclaimable: &[StyleAtomID]) -> Vec<ReclaimedStyleAtom> {
+        self.pins.releases.set(0);
+        self.reported_pin_releases.set(0);
+        if reclaimable.is_empty() {
+            self.sweep_at = self.raw.len() + self.qualified.len() + 256;
+            return Vec::new();
+        }
         let reclaimable = reclaimable.iter().copied().collect::<HashSet<_>>();
         let mut raw = Vec::new();
         self.raw.retain(|&identity, &mut atom| {
@@ -426,8 +432,6 @@ impl DocumentAtoms {
         }
 
         self.sweep_at = self.raw.len() + self.qualified.len() + 256;
-        self.pins.releases.set(0);
-        self.reported_pin_releases.set(0);
         let mut reclaimed = raw
             .into_iter()
             .map(|(raw, atom)| ReclaimedStyleAtom {
