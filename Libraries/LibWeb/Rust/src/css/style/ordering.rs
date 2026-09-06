@@ -1132,12 +1132,10 @@ impl StyleEngine {
     ) -> CascadePriority {
         let sheet = self.program.rule_sheet(rule);
         let version = self.program.rule_version(rule);
-        // A sheet the rule's own scope does not hold is one of the origins that decide everywhere,
-        // and those are attached to the document.
-        let attachment = self.program.attachment_in_scope(sheet, tree_scope);
         // A sheet the element's own scope does not hold is one of the origins that decide
         // everywhere, and those are attached to the document, which is the outermost context.
-        let context_scope = self.cascade_context_scope(rule, tree_scope);
+        let attachment = self.program.attachment_in_scope(sheet, tree_scope);
+        let context_scope = attachment.map_or(TreeScopeID::DOCUMENT, |attachment| attachment.tree_scope);
         let attachment = attachment.or_else(|| self.program.attachment_in_scope(sheet, TreeScopeID::DOCUMENT));
         CascadePriority::new(PriorityInputs {
             origin: self.program.sheet_origin(sheet),
