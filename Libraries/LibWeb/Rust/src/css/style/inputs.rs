@@ -1702,11 +1702,11 @@ impl StyleEngine {
     pub(super) fn attach_sheet(&mut self, sheet: SheetID, tree_scope: TreeScopeID) {
         self.restore_routing_for_reattached_sheet(sheet);
         let mut sheets = self.current_sheets_in_scope(tree_scope);
-        let previous_sheets = sheets.clone();
-        let was_attached = sheets.contains(&sheet);
+        let previous_position = sheets.iter().position(|&candidate| candidate == sheet);
+        let was_attached = previous_position.is_some();
         sheets.retain(|&candidate| candidate != sheet);
         sheets.push(sheet);
-        let order_changed = was_attached && sheets != previous_sheets;
+        let order_changed = previous_position.is_some_and(|previous| previous != sheets.len() - 1);
         self.stage_sheets_in_scope(tree_scope, sheets);
         self.record_attachment(sheet, tree_scope, was_attached, true);
         if order_changed {
@@ -1719,15 +1719,15 @@ impl StyleEngine {
     pub(super) fn attach_sheet_before(&mut self, sheet: SheetID, before: SheetID, tree_scope: TreeScopeID) {
         self.restore_routing_for_reattached_sheet(sheet);
         let mut sheets = self.current_sheets_in_scope(tree_scope);
-        let previous_sheets = sheets.clone();
-        let was_attached = sheets.contains(&sheet);
+        let previous_position = sheets.iter().position(|&candidate| candidate == sheet);
+        let was_attached = previous_position.is_some();
         sheets.retain(|&candidate| candidate != sheet);
         let position = sheets
             .iter()
             .position(|&candidate| candidate == before)
             .unwrap_or(sheets.len());
         sheets.insert(position, sheet);
-        let order_changed = was_attached && sheets != previous_sheets;
+        let order_changed = previous_position.is_some_and(|previous| previous != position);
         self.stage_sheets_in_scope(tree_scope, sheets);
         // A sheet arriving in the middle is not the scope's order changing. Order is kept as tokens
         // precisely so an insertion writes one label and renumbers nothing, so every sheet already
