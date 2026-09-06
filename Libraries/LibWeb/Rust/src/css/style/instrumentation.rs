@@ -42,6 +42,7 @@ define_counters! {
     LocalFeatureDeltas => "localFeatureDeltas",
     StateDeltas => "stateDeltas",
     ElementDeclarationDeltas => "elementDeclarationDeltas",
+    ElementDeclarationRepairMatches => "elementDeclarationRepairMatches",
     ProgramDeltas => "programDeltas",
     CascadeTopologyDeltas => "cascadeTopologyDeltas",
     EnvironmentDeltas => "environmentDeltas",

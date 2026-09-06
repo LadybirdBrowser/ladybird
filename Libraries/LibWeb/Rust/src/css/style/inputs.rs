@@ -2084,11 +2084,21 @@ impl StyleEngine {
         let matches = retained
             .iter()
             .copied()
+            .filter(|entry| {
+                !self.program.declarations_are_complete_for(entry.rule)
+                    || self
+                        .program
+                        .declared_properties_of(entry.rule)
+                        .iter()
+                        .any(|declared| properties.binary_search(&declared.property).is_ok())
+            })
             .map(|entry| entry.materialize(node, &self.programs, 0))
             .collect::<Option<Vec<_>>>();
         let Some(matches) = matches else {
             return;
         };
+        self.counters
+            .add(Counter::ElementDeclarationRepairMatches, matches.len() as u64);
         let Some(updates) = self.exact_cascade_winner_updates_for_properties(node, &matches, None, properties) else {
             return;
         };

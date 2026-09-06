@@ -4385,6 +4385,64 @@ fn element_declaration_edits_repair_only_their_property_inventory() {
 }
 
 #[test]
+fn element_declaration_repairs_materialize_only_rules_declaring_their_properties() {
+    let (mut engine, nodes) = linear_document();
+    let deciding = add_target_rule(&mut engine, StyleSheetObjectID(1), StyleAtomID(200));
+    engine.set_rule_declared_properties_with_values(deciding, &[(1, false, SpecifiedValueID(101))], true);
+    let unrelated = add_target_rule(&mut engine, StyleSheetObjectID(2), StyleAtomID(200));
+    engine.set_rule_declared_properties_with_values(unrelated, &[(5, false, SpecifiedValueID(105))], true);
+    for kind in ElementDeclarationKind::ALL {
+        engine.set_element_declared_properties(nodes[0], kind, &[], Vec::new(), Vec::new(), Vec::new(), true);
+    }
+    commit_test_setup(&mut engine);
+    let matches = vec![
+        concrete_rule_match(&engine, nodes[0], deciding, 0, None),
+        concrete_rule_match(&engine, nodes[0], unrelated, 1, None),
+    ];
+    engine.matches_for_cascade(matches.clone(), false, Some(nodes[0]));
+    engine.remember_retained_match_answer(nodes[0], &matches);
+
+    let materialized_before = engine.counters().get(Counter::ElementDeclarationRepairMatches);
+    engine.set_element_declared_properties(
+        nodes[0],
+        ElementDeclarationKind::PresentationalHint,
+        &[
+            DeclaredProperty {
+                property: 1,
+                important: false,
+                operator: CascadeOperator::Declared,
+                value: SpecifiedValueID(301),
+            },
+            DeclaredProperty {
+                property: 3,
+                important: false,
+                operator: CascadeOperator::Declared,
+                value: SpecifiedValueID(303),
+            },
+        ],
+        Vec::new(),
+        Vec::new(),
+        Vec::new(),
+        true,
+    );
+    assert_eq!(
+        engine.counters().get(Counter::ElementDeclarationRepairMatches) - materialized_before,
+        1
+    );
+
+    let key = WinnerGroupKey::current(nodes[0], engine.program.version());
+    assert!(
+        matches!(engine.winner_groups.winner(key, 1), Lookup::Known(winner) if winner.source == WinnerSource::Rule(deciding) && winner.key.value == SpecifiedValueID(101))
+    );
+    assert!(
+        matches!(engine.winner_groups.winner(key, 3), Lookup::Known(winner) if winner.source == WinnerSource::Element(ElementDeclarationKind::PresentationalHint) && winner.key.value == SpecifiedValueID(303))
+    );
+    assert!(
+        matches!(engine.winner_groups.winner(key, 5), Lookup::Known(winner) if winner.source == WinnerSource::Rule(unrelated) && winner.key.value == SpecifiedValueID(105))
+    );
+}
+
+#[test]
 fn rule_declaration_edits_repair_only_their_property_inventory() {
     let (mut engine, nodes) = linear_document();
     let target = StyleAtomID(200);
