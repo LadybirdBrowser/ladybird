@@ -24,7 +24,9 @@ struct Edge {
 
 impl Edge {
     fn paints(self) -> bool {
-        self.width > CssPixels::default() && self.line_style != line_style::NONE && self.line_style != line_style::HIDDEN
+        self.width > CssPixels::default()
+            && self.line_style != line_style::NONE
+            && self.line_style != line_style::HIDDEN
     }
 }
 
@@ -203,11 +205,7 @@ pub(crate) fn paint_table_borders(recorder: &mut PaintRecorder<'_>, table_painta
     // The grid lines, in CSS pixels: each border is centered on its grid line and its rectangle is only snapped to
     // device pixels once its extent is known (see device_rect).
     let origin = crate::painting::paintable_geometry::absolute_rect(recorder.layout_arena, table_paintable).location();
-    let xs: Vec<CssPixels> = borders
-        .column_offsets
-        .iter()
-        .map(|offset| origin.x + *offset)
-        .collect();
+    let xs: Vec<CssPixels> = borders.column_offsets.iter().map(|offset| origin.x + *offset).collect();
     let ys: Vec<CssPixels> = borders.row_offsets.iter().map(|offset| origin.y + *offset).collect();
     let horizontal_edges: Vec<Edge> = borders.horizontal_edges.iter().map(|edge| Edge::from(*edge)).collect();
     let vertical_edges: Vec<Edge> = borders.vertical_edges.iter().map(|edge| Edge::from(*edge)).collect();
