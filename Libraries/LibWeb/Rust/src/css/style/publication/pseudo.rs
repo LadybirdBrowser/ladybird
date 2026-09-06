@@ -51,8 +51,7 @@ impl StyleEngine {
                 .winner_groups
                 .winner_in_state(state, crate::css::property_metadata::property_id::DISPLAY)
                 .and_then(|winner| self.winner_groups.resolved_winner(winner))
-            && let Lookup::Known(value) = self.specified_values.retained_value(winner.key.value)
-            && let StyleValueData::Display { raw } = value.data()
+            && let Lookup::Known(StyleValueData::Display { raw }) = self.specified_values.value(winner.key.value)
             && crate::css::display::FfiDisplay::from_raw(*raw).is_list_item()
         {
             explicit_kinds |= 1 << MARKER;
