@@ -556,7 +556,7 @@ impl StyleEngine {
 
     pub(super) fn retain_prefix_states(&mut self) {
         if !self.prefix_caches.borrow_mut().states.retain(&mut self.memory) {
-            self.prefix_caches.borrow_mut().states.release();
+            self.prefix_caches.borrow_mut().states.release_transition_states();
         }
     }
 
@@ -683,7 +683,7 @@ impl StyleEngine {
                     caches.answers.release(&mut self.match_answers);
                 }
             } else {
-                caches.states.release();
+                caches.states.release_transition_states();
                 caches.answers.release(&mut self.match_answers);
             }
         }
@@ -2009,7 +2009,7 @@ impl StyleEngine {
             MemoryCategory::RetainedSelectorIncidence => self.retained_selector_incidences.clear(),
             MemoryCategory::RetainedMatchAnswer => self.retained_match_answers.evict(&mut self.match_answers),
             MemoryCategory::PrefixTransitionCache => {
-                self.prefix_caches.borrow_mut().states.release();
+                self.prefix_caches.borrow_mut().states.release_transition_states();
             }
             MemoryCategory::PrefixAnswerCache => {
                 self.prefix_caches.borrow_mut().answers.release(&mut self.match_answers);

@@ -5640,6 +5640,46 @@ fn retained_prefix_transitions_supply_invalidation_and_matching() {
 }
 
 #[test]
+fn a_refused_prefix_transition_cache_keeps_the_maintained_relation() {
+    let (mut engine, nodes) = nested_document();
+    let guard = StyleAtomID(200);
+    let target = StyleAtomID(201);
+    add_guard_target_rule(&mut engine, guard, target);
+    for (node, class) in [(nodes[1], guard), (nodes[3], target)] {
+        add_feature(&mut engine, node, LocalFeatureKey::Class(class));
+    }
+    discard_transaction(&mut engine);
+
+    engine.begin_published_match_answer_completion_batch(nodes[0], true);
+    assert_eq!(engine.match_element(nodes[3]).unwrap().len(), 1);
+    engine.end_published_match_answer_completion_batch();
+    assert_eq!(engine.counters().get(Counter::PrefixRelationBuilds), 1);
+    assert!(engine.memory().bytes_in_category(MemoryCategory::PrefixRelation) > 0);
+
+    engine.memory.set_tier3_limit_for_test(0);
+    for present in [false, true] {
+        if present {
+            add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(guard));
+        } else {
+            remove_feature(&mut engine, nodes[1], LocalFeatureKey::Class(guard));
+        }
+        let mut planned = Vec::new();
+        assert!(engine.take_style_transaction_nodes(nodes[0], |nodes| planned.extend_from_slice(nodes)));
+        assert_eq!(planned, vec![nodes[3].raw()]);
+        engine.begin_published_match_answer_completion_batch(nodes[0], true);
+        assert_eq!(engine.match_element(nodes[3]).unwrap().len(), usize::from(present));
+        engine.end_published_match_answer_completion_batch();
+    }
+    assert_eq!(engine.counters().get(Counter::PrefixRelationUpdates), 2);
+    assert_eq!(engine.counters().get(Counter::PrefixRelationBuilds), 1);
+    assert_eq!(
+        engine.memory().bytes_in_category(MemoryCategory::PrefixTransitionCache),
+        0
+    );
+    assert!(engine.memory().bytes_in_category(MemoryCategory::PrefixRelation) > 0);
+}
+
+#[test]
 fn covered_prefix_changes_forget_only_the_covered_subtree() {
     let (mut engine, nodes) = nested_document();
     let guard = StyleAtomID(200);

@@ -842,6 +842,7 @@ impl PrefixAutomaton {
         root: StyleNodeID,
         counters: &mut Counters,
     ) -> PrefixRelation {
+        counters.bump(Counter::PrefixRelationBuilds);
         let tree = evaluation.tree;
         let nodes: Vec<_> = tree.preorder(root).collect();
         let count = nodes.len();

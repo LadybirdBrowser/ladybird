@@ -99,6 +99,7 @@ define_counters! {
     PrefixRelationUpdates => "prefixRelationUpdates",
     PrefixRelationStops => "prefixRelationStops",
     PrefixRelationCascadeStops => "prefixRelationCascadeStops",
+    PrefixRelationBuilds => "prefixRelationBuilds",
     PrefixConvergencePasses => "prefixConvergencePasses",
     PrefixConvergenceNodes => "prefixConvergenceNodes",
     PrefixConvergenceStops => "prefixConvergenceStops",

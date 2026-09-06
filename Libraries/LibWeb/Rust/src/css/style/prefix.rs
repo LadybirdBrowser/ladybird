@@ -3886,12 +3886,10 @@ impl PrefixStates {
                 self.ancestor_chain,
             ];
             cached [];
-            nested [
-                self.states_by_hash_collision_bytes,
-                self.relation.as_ref().map_or(0, |relation| size_of::<PrefixRelation>() as u64 + relation.capacity_bytes()),
-            ];
+            nested [self.states_by_hash_collision_bytes];
             skip [
                 self.local_fact_interner,
+                self.relation,
                 self.comparison_epoch,
                 self.states_by_hash_collision_bytes,
                 self.new_descendant_hash,
@@ -3916,6 +3914,13 @@ impl PrefixStates {
             nested [self.top_level_capacity_bytes()];
             skip [];
         }
+    }
+
+    #[must_use]
+    pub(super) fn relation_capacity_bytes(&self) -> u64 {
+        self.relation.as_ref().map_or(0, |relation| {
+            size_of::<PrefixRelation>() as u64 + relation.capacity_bytes()
+        })
     }
 }
 
@@ -4190,6 +4195,7 @@ pub(super) struct PrefixStateCache {
     by_program: Column<Option<Box<PrefixStates>>>,
     scratch_memory: MemoryLease,
     residency: MemoryLease,
+    relation_residency: MemoryLease,
     lifecycle: PrefixStateCacheLifecycle,
 }
 
@@ -4232,6 +4238,7 @@ impl Default for PrefixStateCache {
             by_program: Column::default(),
             scratch_memory: MemoryLease::new(MemoryCategory::BatchScratch),
             residency: MemoryLease::new(MemoryCategory::PrefixTransitionCache),
+            relation_residency: MemoryLease::new(MemoryCategory::PrefixRelation),
             lifecycle: PrefixStateCacheLifecycle::Scratch(PrefixStateCacheCoverage::Full),
         }
     }
@@ -4278,17 +4285,25 @@ impl PrefixStateCache {
     }
 
     pub(super) fn settle_memory(&mut self, memory: &mut MemoryController) {
+        let (transition_bytes, relation_bytes) =
+            self.by_program
+                .iter()
+                .flatten()
+                .fold((0, 0), |(transitions, relations), states| {
+                    (
+                        transitions + size_of::<PrefixStates>() as u64 + states.capacity_bytes(),
+                        relations + states.relation_capacity_bytes(),
+                    )
+                });
         let bytes = capacity_bytes! {
             shallow [self.by_program];
             cached [];
-            nested [self
-                .by_program
-                .iter()
-                .flatten()
-                .map(|states| size_of::<PrefixStates>() as u64 + states.capacity_bytes())
-                .sum::<u64>()];
-            skip [self.scratch_memory, self.residency, self.lifecycle];
+            nested [transition_bytes];
+            skip [self.scratch_memory, self.residency, self.relation_residency, self.lifecycle];
         };
+        if relation_bytes != 0 || self.relation_residency.bytes() != 0 {
+            self.relation_residency.reconcile_committed(memory, relation_bytes);
+        }
         if self.lifecycle.is_retained() {
             self.residency.reconcile_committed(memory, bytes);
             memory.finish_committed_acceleration_growth(MemoryCategory::PrefixTransitionCache);
@@ -4303,8 +4318,35 @@ impl PrefixStateCache {
         } else {
             self.scratch_memory.release();
         }
+        self.relation_residency.release();
         self.by_program = Column::default();
         self.lifecycle = PrefixStateCacheLifecycle::Scratch(self.lifecycle.coverage());
+    }
+
+    pub(super) fn release_transition_states(&mut self) {
+        if !self.has_relation() {
+            self.release();
+            return;
+        }
+        for slot in self.by_program.iter_mut() {
+            // The next installation restores the relation answers from the relation.
+            *slot = slot.as_mut().and_then(|states| states.relation.take()).map(|relation| {
+                let mut states = PrefixStates::new(0);
+                states.relation = Some(relation);
+                Box::new(states)
+            });
+        }
+        if self.lifecycle.is_retained() {
+            self.residency.release();
+        } else {
+            self.scratch_memory.release();
+        }
+        let coverage = self.lifecycle.coverage();
+        self.lifecycle = if self.lifecycle.is_current() {
+            PrefixStateCacheLifecycle::CurrentScratch(coverage)
+        } else {
+            PrefixStateCacheLifecycle::Scratch(coverage)
+        };
     }
 
     pub(super) fn retain(&mut self, memory: &mut MemoryController) -> bool {
@@ -4423,12 +4465,12 @@ impl PrefixStateCache {
         if self.by_program.get(index).is_none_or(Option::is_none) {
             return;
         }
-        let released = size_of::<PrefixStates>() as u64
-            + self.by_program[index]
-                .as_ref()
-                .expect("program entry is live")
-                .capacity_bytes();
+        let states = self.by_program[index].as_ref().expect("program entry is live");
+        let relation_released = states.relation_capacity_bytes();
+        let released = size_of::<PrefixStates>() as u64 + states.capacity_bytes();
         self.by_program[index] = None;
+        self.relation_residency
+            .shrink_committed(relation_released.min(self.relation_residency.bytes()));
         let held = if self.lifecycle.is_retained() {
             self.residency.bytes()
         } else {

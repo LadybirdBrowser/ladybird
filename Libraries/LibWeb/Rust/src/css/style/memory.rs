@@ -117,6 +117,7 @@ define_memory_categories! {
     // Appended to preserve record-replay category ordinals.
     ParsedSubstitutionCache => (Acceleration, "parsedSubstitutionCache"),
     SelectorQuery => (Scratch, "selectorQuery"),
+    PrefixRelation => (Acceleration, "prefixRelation"),
 }
 
 impl MemoryCategory {
