@@ -1,0 +1,4 @@
+initial: rgb(255, 0, 0)
+after registration change: rgb(0, 0, 255)
+without class: rgb(0, 0, 0)
+class restored: rgb(0, 0, 255)

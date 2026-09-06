@@ -573,7 +573,7 @@ impl StyleEngine {
             return None;
         };
         let registry = inputs.custom_property_registry;
-        if registry.is_null() || unsafe { &*registry.cast::<CustomPropertyRegistry>() }.has_registrations() {
+        if registry.is_null() {
             self.counters.bump(Counter::EngineComputedRecordBailSubstitution);
             return None;
         }

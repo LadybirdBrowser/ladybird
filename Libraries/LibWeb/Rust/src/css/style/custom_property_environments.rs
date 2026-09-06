@@ -252,6 +252,12 @@ impl CustomPropertyEnvironments {
             })
     }
 
+    /// Drop every memoized substitution: what a written value substitutes to under an environment
+    /// depends on the registrations as well, which changed.
+    pub(super) fn forget_substitutions(&mut self) {
+        self.substitutions.clear();
+    }
+
     pub(super) fn remember_substitution(
         &mut self,
         written: &RetainedStyleValueData,

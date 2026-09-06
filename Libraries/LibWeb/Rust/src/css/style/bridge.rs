@@ -3242,6 +3242,9 @@ pub unsafe extern "C" fn style_engine_take_style_transaction(
     engine.custom_property_registrations_changed = engine.document_style_computation_inputs.is_some_and(|previous| {
         previous.custom_property_registration_generation != computation_inputs.custom_property_registration_generation
     });
+    if engine.custom_property_registrations_changed {
+        engine.custom_property_environments.forget_substitutions();
+    }
     if engine.document_style_computation_inputs != Some(computation_inputs) {
         // Persistent records are derived from every document computation input, not only the
         // font generation carried in their keys.
