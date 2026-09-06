@@ -5506,7 +5506,7 @@ impl<'a> MatchEvaluator<'a> {
         }
 
         let mut current = node;
-        let mut traversed = Vec::new();
+        let mut traversed: SmallVec<[StyleNodeID; 8]> = SmallVec::new();
         let mut incomplete = None;
         let answer = loop {
             traversed.push(current);
