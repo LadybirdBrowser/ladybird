@@ -411,7 +411,7 @@ impl StyleEngine {
         let previous_program = self
             .replacement_rule(rule)
             .and_then(|replacement| replacement.version.selector_program);
-        let (program, _) = self.programs.add_with_status(selector_program, &mut self.memory);
+        let program = self.programs.add(selector_program);
         self.selector_programs_need_sweep |= previous_program.is_some();
         self.programs.settle_memory(&mut self.memory);
         if previous_program != Some(program) {
@@ -426,7 +426,7 @@ impl StyleEngine {
 
     #[cfg(feature = "style-recording")]
     pub(crate) fn replace_replayed_style_rule_selectors(&mut self, rule: RuleID, selector_program: SelectorProgram) {
-        let (program, _) = self.programs.add_with_status(selector_program, &mut self.memory);
+        let program = self.programs.add(selector_program);
         self.selector_programs_need_sweep = true;
         self.programs.settle_memory(&mut self.memory);
         self.add_routing_rule(rule, program);
@@ -574,7 +574,7 @@ impl StyleEngine {
         {
             return reusable;
         }
-        let (program, _) = self.programs.add_with_status(compiled, &mut self.memory);
+        let program = self.programs.add(compiled);
         self.selector_programs_need_sweep |= reusable.is_some();
         self.programs.settle_memory(&mut self.memory);
         program

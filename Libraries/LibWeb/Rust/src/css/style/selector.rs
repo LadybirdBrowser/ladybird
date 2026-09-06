@@ -2627,22 +2627,10 @@ impl SelectorPrograms {
     }
 
     pub fn add(&mut self, program: SelectorProgram) -> SelectorProgramID {
-        self.add_with_scope(program, None).0
+        self.add_with_status(program).0
     }
 
-    pub(super) fn add_with_status(
-        &mut self,
-        program: SelectorProgram,
-        memory: &mut MemoryController,
-    ) -> (SelectorProgramID, bool) {
-        self.add_with_scope(program, Some(memory))
-    }
-
-    fn add_with_scope(
-        &mut self,
-        program: SelectorProgram,
-        _memory: Option<&mut MemoryController>,
-    ) -> (SelectorProgramID, bool) {
+    pub(super) fn add_with_status(&mut self, program: SelectorProgram) -> (SelectorProgramID, bool) {
         let live_program_count = self.programs.len() - self.vacant_programs.len();
         if self.program_index.is_empty() || (live_program_count + 1) * 2 > self.program_index.len() {
             self.rebuild_program_index();
@@ -7916,12 +7904,10 @@ mod tests {
         let make_program = || single_entry(|builder| builder.push_feature(FeatureTest::Class(StyleAtomID(91))));
         let expected_bytes = make_program().capacity_bytes();
         let program_hash = SelectorPrograms::program_hash(&make_program());
-        let mut first_memory = MemoryController::new(DeviceClass::ForegroundDesktop);
-        let mut second_memory = MemoryController::new(DeviceClass::ForegroundDesktop);
         let mut first = SelectorPrograms::for_replay();
         let mut second = SelectorPrograms::for_replay();
-        let (first_id, _) = first.add_with_status(make_program(), &mut first_memory);
-        let (second_id, _) = second.add_with_status(make_program(), &mut second_memory);
+        let first_id = first.add(make_program());
+        let second_id = second.add(make_program());
 
         let (SelectorProgramStorage::Process(first_program), SelectorProgramStorage::Process(second_program)) = (
             first.programs[first_id.0 as usize].as_ref().unwrap(),
@@ -7930,8 +7916,6 @@ mod tests {
             panic!("replay selector programs must have process storage");
         };
         assert!(Rc::ptr_eq(first_program, second_program));
-        assert_eq!(first_memory.bytes_in_category(MemoryCategory::RuleProgram), 0);
-        assert_eq!(second_memory.bytes_in_category(MemoryCategory::RuleProgram), 0);
         SHARED_SELECTOR_PROGRAMS.with_borrow(|shared| {
             assert_eq!(
                 shared.memory.bytes_in_category(MemoryCategory::RuleProgram),
