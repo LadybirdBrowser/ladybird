@@ -25,6 +25,7 @@
 //! arrives with the semantics it needs rather than as a placeholder that would have to be guessed
 //! at now.
 
+use super::capacity::ShallowCapacityBytes;
 use super::capacity::capacity_bytes;
 use super::column::BitColumn;
 use super::column::Column;
@@ -4777,6 +4778,7 @@ pub struct MatchEvaluationWorkspace {
 #[derive(Default)]
 struct PositionalAnswers {
     by_test: Vec<(NthPosition, HashMap<StyleNodeID, bool>)>,
+    answer_capacity_bytes: u64,
 }
 
 impl PositionalAnswers {
@@ -4792,10 +4794,14 @@ impl PositionalAnswers {
     fn insert(&mut self, position: NthPosition, node: StyleNodeID, answer: bool) {
         match self.by_test.iter_mut().find(|(candidate, _)| *candidate == position) {
             Some((_, answers)) => {
+                let previous_bytes = answers.shallow_capacity_bytes();
                 answers.insert(node, answer);
+                self.answer_capacity_bytes += answers.shallow_capacity_bytes() - previous_bytes;
             }
             None => {
-                self.by_test.push((position, HashMap::from_iter([(node, answer)])));
+                let answers = HashMap::from_iter([(node, answer)]);
+                self.answer_capacity_bytes += answers.shallow_capacity_bytes();
+                self.by_test.push((position, answers));
             }
         }
     }
@@ -4803,15 +4809,8 @@ impl PositionalAnswers {
     fn capacity_bytes(&self) -> usize {
         (capacity_bytes! {
             shallow [self.by_test];
-            cached [];
-            nested [self.by_test.iter().map(|(_, answers)| {
-                capacity_bytes! {
-                    shallow [*answers];
-                    cached [];
-                    nested [];
-                    skip [];
-                }
-            }).sum::<u64>()];
+            cached [self.answer_capacity_bytes];
+            nested [];
             skip [];
         }) as usize
     }
