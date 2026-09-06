@@ -1398,7 +1398,6 @@ impl StyleEngine {
             return;
         }
         let staged_rows = self.tree_staging.dirty_rows();
-        let staged_first_children = self.tree_staging.dirty_first_children();
         // Depth changes only for arrivals and for nodes whose parent differs from the resident one,
         // read before installation: the frozen before-side parent misses a move that a mid-transaction
         // application already installed, and a sibling-only row must not count as a moved parent.
@@ -1426,8 +1425,8 @@ impl StyleEngine {
             self.tree
                 .set_assigned_slot(node, relations.assigned_slot, &mut self.memory);
         }
-        for (parent, _, child) in &staged_first_children {
-            self.tree.set_first_element_child(*parent, *child);
+        for (parent, _, child) in self.tree_staging.dirty_first_children() {
+            self.tree.set_first_element_child(parent, child);
         }
         for &(node, _, _) in &staged_rows {
             if !depth_recompute_nodes.contains(&node) {
