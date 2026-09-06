@@ -42,8 +42,8 @@ impl StyleEngine {
         if self.facts.is_slot(node)
             && (!invalidation_is_none || did_change_custom_properties || ancestor_became_visible)
         {
-            let assigned: Vec<StyleNodeID> = self.tree.assigned_nodes_of(node).to_vec();
-            for assigned in assigned {
+            for index in 0..self.tree.assigned_nodes_of(node).len() {
+                let assigned = self.tree.assigned_nodes_of(node)[index];
                 self.record_derived_element_style_input(assigned, STYLE_REACTION_RECOMPUTE_STYLE, 0);
             }
         }
@@ -52,17 +52,6 @@ impl StyleEngine {
         if !has(fact::HAS_STYLE) {
             return;
         }
-
-        let light_children: Vec<StyleNodeID> = self
-            .tree
-            .children(node)
-            .filter(|&child| self.tree.assigned_slot_of(child).is_none())
-            .collect();
-        let shadow_children: Vec<StyleNodeID> = self
-            .tree
-            .shadow_root_of(node)
-            .map(|shadow_root| self.tree.children(shadow_root).collect())
-            .unwrap_or_default();
 
         if has(fact::IS_DISPLAY_NONE) {
             let (child_reaction, groups) = if has(fact::WAS_UNSTYLED) {
@@ -80,8 +69,17 @@ impl StyleEngine {
                 }
                 (child_reaction, inherited_style_groups_changed)
             };
-            for child in light_children.into_iter().chain(shadow_children) {
-                self.record_derived_element_style_input(child, child_reaction, groups);
+            if child_reaction == 0 {
+                return;
+            }
+            for parent in [Some(node), self.tree.shadow_root_of(node)].into_iter().flatten() {
+                let mut next = self.tree.first_element_child(parent);
+                while let Some(child) = next {
+                    next = self.tree.next_element_sibling(child);
+                    if parent != node || self.tree.assigned_slot_of(child).is_none() {
+                        self.record_derived_element_style_input(child, child_reaction, groups);
+                    }
+                }
             }
             return;
         }
@@ -112,7 +110,12 @@ impl StyleEngine {
         // A child's box-type transformation reads its parent's display: when that moved, the
         // child's record is driven again in full, whatever its own winners did.
         let display_changed = has(fact::DISPLAY_CHANGED);
-        for child in light_children {
+        let mut next = self.tree.first_element_child(node);
+        while let Some(child) = next {
+            next = self.tree.next_element_sibling(child);
+            if self.tree.assigned_slot_of(child).is_some() {
+                continue;
+            }
             let (light_reaction, light_groups) = child_reaction(
                 !invalidation_is_none
                     && (has(fact::CHILDREN_EXPLICITLY_INHERIT)
@@ -123,7 +126,12 @@ impl StyleEngine {
                 self.parent_inputs_moved_nodes.insert(child);
             }
         }
-        for child in shadow_children {
+        let mut next = self
+            .tree
+            .shadow_root_of(node)
+            .and_then(|root| self.tree.first_element_child(root));
+        while let Some(child) = next {
+            next = self.tree.next_element_sibling(child);
             let (shadow_reaction, shadow_groups) = child_reaction(
                 !invalidation_is_none
                     && (has(fact::SHADOW_CHILDREN_EXPLICITLY_INHERIT)
