@@ -347,7 +347,9 @@ impl StyleEngine {
             .filter_map(|node| ranks.get(&node).map(|&rank| (rank, node)))
             .collect();
         ranked.sort_unstable();
-        ranked.dedup();
+        if keys.len() > 1 {
+            ranked.dedup();
+        }
         self.query_sorted_candidates.clear();
         self.query_sorted_candidates
             .extend(ranked.into_iter().map(|(_, node)| node));
