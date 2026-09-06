@@ -51,6 +51,8 @@ use super::program::SelectorProgramID;
 use super::selector::AttributeCase;
 use super::selector::AttributeOperator;
 use super::selector::AttributeTest;
+use super::sorted_merge::SortedMergeEntry;
+use super::sorted_merge::merge_sorted_by;
 use super::transaction::ElementDeclarationKind;
 use super::transaction::StateFact;
 use super::tree::StyleNodeID;
@@ -4546,23 +4548,26 @@ impl ElementFactStore {
         let mut sorted: Vec<StyleAtomID> = names.to_vec();
         sorted.sort_unstable_by_key(|name| name.0);
         sorted.dedup();
-        let previous = self
+        if self
             .metadata_of(node)
-            .map_or_else(Vec::new, |metadata| metadata.animation_names.clone());
-        if previous == sorted {
+            .map_or(&[][..], |metadata| &metadata.animation_names)
+            == sorted
+        {
             return;
         }
-        for &name in &previous {
-            if !sorted.contains(&name) {
-                self.postings.remove(DependencyPostingKey::AnimationName(name), node);
-                Self::decrement_atom_count(&mut self.atom_live_counts, name);
-            }
-        }
-        for name in &sorted {
-            if !previous.contains(name) {
-                self.postings
-                    .insert(DependencyPostingKey::AnimationName(*name), node, memory);
-                Self::increment_atom_count(&mut self.atom_live_counts, *name);
+        let previous = std::mem::take(&mut self.metadata_mut(node).animation_names);
+        for entry in merge_sorted_by(&previous, &sorted, |left, right| left.0.cmp(&right.0)) {
+            match entry {
+                SortedMergeEntry::Left(&name) => {
+                    self.postings.remove(DependencyPostingKey::AnimationName(name), node);
+                    Self::decrement_atom_count(&mut self.atom_live_counts, name);
+                }
+                SortedMergeEntry::Right(&name) => {
+                    self.postings
+                        .insert(DependencyPostingKey::AnimationName(name), node, memory);
+                    Self::increment_atom_count(&mut self.atom_live_counts, name);
+                }
+                SortedMergeEntry::Both(..) => {}
             }
         }
         self.metadata_mut(node).animation_names = sorted;
