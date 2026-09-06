@@ -98,17 +98,14 @@ bool check_a_navigation_responses_adherence_to_x_frame_options(GC::Ptr<Fetch::In
     // 9. If xFrameOptions[0] is "sameorigin", then:
     if (!x_frame_options.is_empty() && first_x_frame_option->equals_ignoring_ascii_case("sameorigin"sv)) {
         // 1. Let containerDocument be navigable's container document.
-        auto container_document = navigable->container_document();
-
         // 2. While containerDocument is not null:
-        while (container_document) {
-            // 1. If containerDocument's origin is not same origin with destinationOrigin, then return false.
-            if (!container_document->origin().is_same_origin(destination_origin)) {
+        //     1. If containerDocument's origin is not same origin with destinationOrigin, then return false.
+        //     2. Set containerDocument to containerDocument's container document.
+        // NB: Each container document is the next parent navigable's active document, and a parent navigable
+        //     answers for a document hosted in another process.
+        for (auto ancestor = navigable->parent(); ancestor; ancestor = ancestor->parent()) {
+            if (!ancestor->active_document_origin()->is_same_origin(destination_origin))
                 return false;
-            }
-
-            // 2. Set containerDocument to containerDocument's container document.
-            container_document = container_document->container_document();
         }
     }
 
