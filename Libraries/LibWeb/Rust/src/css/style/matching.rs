@@ -441,7 +441,7 @@ impl StyleEngine {
             if let Some(values) = &cache.attribute_values[entry_index]
                 && let Some(value_candidates) = self.facts.attribute_value_candidates(values)
             {
-                candidates.extend(value_candidates);
+                candidates = value_candidates;
                 used_attribute_value_posting = true;
             }
             let mut use_all_nodes = !used_attribute_value_posting && dispatch_keys.is_empty();
