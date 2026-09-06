@@ -832,16 +832,15 @@ impl StyleEngine {
                 if !property_is_longhand(declared.property) {
                     continue;
                 }
-                let retained_winner_has_continuation = self
-                    .winner_groups
-                    .winner_in_state(previous, declared.property)
-                    .is_some_and(|winner| self.winner_groups.continuation(winner.key.continuation).is_some());
                 if delta.change == SetChange::Removed
-                    || retained_winner_has_continuation
                     || matches!(
                         declared.operator,
                         CascadeOperator::Revert | CascadeOperator::RevertLayer
                     )
+                    || self
+                        .winner_groups
+                        .winner_in_state(previous, declared.property)
+                        .is_some_and(|winner| self.winner_groups.continuation(winner.key.continuation).is_some())
                 {
                     repair_properties.push(declared.property);
                     continue;
