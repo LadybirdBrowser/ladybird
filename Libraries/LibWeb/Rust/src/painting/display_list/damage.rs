@@ -642,9 +642,10 @@ mod tests {
         ClipData, ClipMode, EffectsData, FrameData, MaskData, MaskLayerOrigin, ScrollData, SpatialData, TransformData,
         TransformDataRole,
     };
+    use libgfx_rust::filter::Filter;
     use libgfx_rust::{
-        Color, CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, MaskKind, Orientation, ScalingMode,
-        WindingRule, translation_matrix,
+        Color, ColorFilterType, CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, MaskKind, Orientation,
+        ScalingMode, WindingRule, translation_matrix,
     };
 
     const RED: Color = Color(0xffff0000);
@@ -805,29 +806,15 @@ mod tests {
     }
 
     fn blur_filter(radius: f32) -> Vec<u8> {
-        let mut bytes = vec![crate::painting::ffi::FilterOperationType::Blur as u8];
-        bytes.extend_from_slice(&radius.to_ne_bytes());
-        bytes.extend_from_slice(&radius.to_ne_bytes());
-        bytes.push(0);
-        bytes
+        Filter::blur(radius, radius, None).serialize()
     }
 
     fn color_filter(amount: f32) -> Vec<u8> {
-        let mut bytes = vec![crate::painting::ffi::FilterOperationType::ColorFilter as u8];
-        bytes.extend_from_slice(&0i32.to_ne_bytes());
-        bytes.extend_from_slice(&amount.to_ne_bytes());
-        bytes.push(0);
-        bytes
+        Filter::color(ColorFilterType::Brightness, amount, None).serialize()
     }
 
     fn drop_shadow_filter(offset: f32, radius: f32) -> Vec<u8> {
-        let mut bytes = vec![crate::painting::ffi::FilterOperationType::DropShadow as u8];
-        bytes.extend_from_slice(&offset.to_ne_bytes());
-        bytes.extend_from_slice(&offset.to_ne_bytes());
-        bytes.extend_from_slice(&radius.to_ne_bytes());
-        bytes.extend_from_slice(&RED.0.to_ne_bytes());
-        bytes.push(0);
-        bytes
+        Filter::drop_shadow(offset, offset, radius, RED, None).serialize()
     }
 
     fn damage_for_filter_change(old_filter: Vec<u8>, new_filter: Vec<u8>) -> Option<IntRect> {

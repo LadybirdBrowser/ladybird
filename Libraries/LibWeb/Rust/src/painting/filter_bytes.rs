@@ -4,9 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+//! Lowers computed CSS `filter` values to the filter graphs painting hands over as bytes.
+
+use libgfx_rust::filter::Filter;
+use libgfx_rust::{Color, ColorFilterType};
+
 use crate::css::computed_value_types::{ComputedFilter, ComputedFilterOperation};
 use crate::css::css_pixels::CssPixels;
-use crate::painting::ffi::FilterOperationType;
 
 const FILTER_KIND_BLUR: u8 = 0;
 const FILTER_KIND_DROP_SHADOW: u8 = 1;
@@ -22,126 +26,57 @@ pub(crate) fn contains_url(filter: &ComputedFilter) -> bool {
         .any(|operation| operation.kind == FILTER_KIND_URL)
 }
 
+/// Whether a serialized filter can change the painted bounds of what it is applied to.
 pub(crate) fn may_affect_output_bounds(bytes: &[u8]) -> bool {
-    fn skip(bytes: &[u8], offset: &mut usize, count: usize) -> Option<()> {
-        *offset = offset.checked_add(count)?;
-        (*offset <= bytes.len()).then_some(())
-    }
-
-    fn parse_optional_filter(bytes: &[u8], offset: &mut usize) -> Option<bool> {
-        let has_filter = *bytes.get(*offset)? != 0;
-        *offset += 1;
-        if has_filter {
-            parse_filter(bytes, offset)
-        } else {
-            Some(false)
-        }
-    }
-
-    fn parse_filter(bytes: &[u8], offset: &mut usize) -> Option<bool> {
-        let operation = *bytes.get(*offset)?;
-        *offset += 1;
-        if operation == FilterOperationType::Compose as u8 {
-            let outer_affects_bounds = parse_filter(bytes, offset)?;
-            if outer_affects_bounds {
-                return Some(true);
-            }
-            return parse_filter(bytes, offset);
-        }
-        if operation == FilterOperationType::ColorFilter as u8 {
-            skip(bytes, offset, size_of::<i32>() + size_of::<f32>())?;
-            return parse_optional_filter(bytes, offset);
-        }
-        if operation == FilterOperationType::HueRotate as u8 {
-            skip(bytes, offset, size_of::<f32>())?;
-            return parse_optional_filter(bytes, offset);
-        }
-        Some(true)
-    }
-
-    let mut offset = 0;
-    parse_filter(bytes, &mut offset).is_none_or(|affects_bounds| affects_bounds || offset != bytes.len())
+    Filter::serialized_may_affect_output_bounds(bytes)
 }
 
+/// The serialized graph for a filter list without `url()` references, or `None` when the list is
+/// empty or needs the host to resolve an SVG filter.
 pub(crate) fn serialize_non_url_filter(filter: &ComputedFilter, device_pixels_per_css_pixel: f64) -> Option<Vec<u8>> {
-    let operations = filter.operations.as_slice();
-    if operations.is_empty() || operations.iter().any(|operation| operation.kind == FILTER_KIND_URL) {
+    if contains_url(filter) {
         return None;
     }
-
-    let mut bytes = Vec::new();
-    encode_composed_filter(&mut bytes, operations, device_pixels_per_css_pixel);
-    Some(bytes)
+    css_filter(filter.operations.as_slice(), device_pixels_per_css_pixel).map(|filter| filter.serialize())
 }
 
-fn encode_composed_filter(
-    bytes: &mut Vec<u8>,
-    operations: &[ComputedFilterOperation],
-    device_pixels_per_css_pixel: f64,
-) {
-    if let Some((last, previous)) = operations.split_last() {
-        if previous.is_empty() {
-            encode_operation(bytes, last, device_pixels_per_css_pixel);
-        } else {
-            write_u8(bytes, FilterOperationType::Compose as u8);
-            encode_operation(bytes, last, device_pixels_per_css_pixel);
-            encode_composed_filter(bytes, previous, device_pixels_per_css_pixel);
-        }
-    }
+/// Lowers a list of filter functions to one graph that applies each function to the output of the
+/// one before it, so the last function in the list ends up outermost.
+pub(crate) fn css_filter(operations: &[ComputedFilterOperation], device_pixels_per_css_pixel: f64) -> Option<Filter> {
+    operations.iter().fold(None, |inner, operation| {
+        let outer = css_filter_operation(operation, device_pixels_per_css_pixel);
+        Some(match inner {
+            Some(inner) => Filter::compose(outer, inner),
+            None => outer,
+        })
+    })
 }
 
-fn encode_operation(bytes: &mut Vec<u8>, operation: &ComputedFilterOperation, device_pixels_per_css_pixel: f64) {
+fn css_filter_operation(operation: &ComputedFilterOperation, device_pixels_per_css_pixel: f64) -> Filter {
     match operation.kind {
         FILTER_KIND_BLUR => {
-            write_u8(bytes, FilterOperationType::Blur as u8);
             let radius =
                 (CssPixels::nearest_value_for_f32(operation.amount).to_double() * device_pixels_per_css_pixel) as f32;
-            write_f32(bytes, radius);
-            write_f32(bytes, radius);
-            write_bool(bytes, false);
+            Filter::blur(radius, radius, None)
         }
         FILTER_KIND_DROP_SHADOW => {
-            write_u8(bytes, FilterOperationType::DropShadow as u8);
             let scale = |raw| (CssPixels::from_raw(raw).to_double() * device_pixels_per_css_pixel) as f32;
-            write_f32(bytes, scale(operation.shadow_offset_x));
-            write_f32(bytes, scale(operation.shadow_offset_y));
-            write_f32(bytes, scale(operation.shadow_radius));
-            write_u32(bytes, operation.shadow_color);
-            write_bool(bytes, false);
+            Filter::drop_shadow(
+                scale(operation.shadow_offset_x),
+                scale(operation.shadow_offset_y),
+                scale(operation.shadow_radius),
+                Color(operation.shadow_color),
+                None,
+            )
         }
         FILTER_KIND_COLOR => {
-            write_u8(bytes, FilterOperationType::ColorFilter as u8);
-            write_i32(bytes, i32::from(operation.color_operation));
-            write_f32(bytes, operation.amount);
-            write_bool(bytes, false);
+            let kind = ColorFilterType::from_i32(i32::from(operation.color_operation))
+                .expect("computed filter holds an unknown color operation");
+            Filter::color(kind, operation.amount, None)
         }
-        FILTER_KIND_HUE_ROTATE => {
-            write_u8(bytes, FilterOperationType::HueRotate as u8);
-            write_f32(bytes, operation.amount);
-            write_bool(bytes, false);
-        }
+        FILTER_KIND_HUE_ROTATE => Filter::hue_rotate(operation.amount, None),
         _ => unreachable!("computed filter holds an unknown operation kind"),
     }
-}
-
-fn write_bool(bytes: &mut Vec<u8>, value: bool) {
-    write_u8(bytes, value as u8);
-}
-
-fn write_u8(bytes: &mut Vec<u8>, value: u8) {
-    bytes.push(value);
-}
-
-fn write_i32(bytes: &mut Vec<u8>, value: i32) {
-    bytes.extend_from_slice(&value.to_ne_bytes());
-}
-
-fn write_u32(bytes: &mut Vec<u8>, value: u32) {
-    bytes.extend_from_slice(&value.to_ne_bytes());
-}
-
-fn write_f32(bytes: &mut Vec<u8>, value: f32) {
-    bytes.extend_from_slice(&value.to_ne_bytes());
 }
 
 #[cfg(test)]
@@ -165,32 +100,37 @@ mod tests {
     }
 
     #[test]
-    fn serializes_blur_with_css_pixel_rounding() {
+    fn blur_rounds_to_css_pixels_before_scaling_to_device_pixels() {
         let mut blur = operation(FILTER_KIND_BLUR);
         blur.amount = 1.257;
-        let mut bytes = Vec::new();
-        encode_composed_filter(&mut bytes, &[blur], 2.0);
-
-        let radius = 2.5f32;
-        let mut expected = vec![FilterOperationType::Blur as u8];
-        expected.extend_from_slice(&radius.to_ne_bytes());
-        expected.extend_from_slice(&radius.to_ne_bytes());
-        expected.push(0);
-        assert_eq!(bytes, expected);
+        assert_eq!(css_filter(&[blur], 2.0), Some(Filter::blur(2.5, 2.5, None)));
     }
 
     #[test]
-    fn composes_new_operations_outside_previous_operations() {
+    fn later_operations_wrap_earlier_ones() {
         let mut color = operation(FILTER_KIND_COLOR);
-        color.color_operation = 5;
+        color.color_operation = ColorFilterType::Saturate as u8;
         color.amount = 0.75;
         let mut hue_rotate = operation(FILTER_KIND_HUE_ROTATE);
         hue_rotate.amount = 90.0;
-        let mut bytes = Vec::new();
-        encode_composed_filter(&mut bytes, &[color, hue_rotate], 1.0);
+        assert_eq!(
+            css_filter(&[color, hue_rotate], 1.0),
+            Some(Filter::compose(
+                Filter::hue_rotate(90.0, None),
+                Filter::color(ColorFilterType::Saturate, 0.75, None)
+            ))
+        );
+    }
 
-        assert_eq!(bytes[0], FilterOperationType::Compose as u8);
-        assert_eq!(bytes[1], FilterOperationType::HueRotate as u8);
-        assert_eq!(bytes[7], FilterOperationType::ColorFilter as u8);
+    #[test]
+    fn an_empty_list_lowers_to_no_filter() {
+        assert_eq!(css_filter(&[], 1.0), None);
+    }
+
+    #[test]
+    fn unreadable_bytes_are_assumed_to_affect_bounds() {
+        assert!(may_affect_output_bounds(&[]));
+        assert!(may_affect_output_bounds(&[0xff]));
+        assert!(!may_affect_output_bounds(&Filter::hue_rotate(90.0, None).serialize()));
     }
 }
