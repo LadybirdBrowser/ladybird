@@ -2426,16 +2426,16 @@ impl ComputedGroupSets {
         if node_set == parent_set {
             return Some(true);
         }
-        let node_groups = self.group_identities(node_set);
-        let parent_groups = self.group_identities(parent_set);
+        let node_groups = &self.sets[node_set].payloads;
+        let parent_groups = &self.sets[parent_set].payloads;
         // C++ and Rust can intern equal payloads under different group identities. Inheritance
         // follows the parent's value in that case just as it does after group reclamation.
         Some((0..ENGINE_INHERITED_GROUP_COUNT).all(|group| {
-            if own_groups & (1 << group) != 0 || node_groups[group] == parent_groups[group] {
+            if own_groups & (1 << group) != 0 {
                 return true;
             }
-            let node_payload = self.groups[node_groups[group]].payload;
-            let parent_payload = self.groups[parent_groups[group]].payload;
+            let node_payload = node_groups[group];
+            let parent_payload = parent_groups[group];
             node_payload == parent_payload
                 || crate::css::computed_values::style_group_payloads_equal(group, node_payload, parent_payload)
         }))
@@ -2461,14 +2461,14 @@ impl ComputedGroupSets {
         };
         // Reclamation interns an equal payload under a new identity, so the groups compare by
         // content past their identities.
-        let record_groups = self.group_identities(record.groups);
-        let node_groups = self.group_identities(node_set);
+        let record_groups = &self.sets[record.groups].payloads;
+        let node_groups = &self.sets[node_set].payloads;
         (0..ENGINE_INHERITED_GROUP_COUNT).all(|group| {
             if own_groups & (1 << group) != 0 {
                 return true;
             }
-            let record_payload = self.groups[record_groups[group]].payload;
-            let node_payload = self.groups[node_groups[group]].payload;
+            let record_payload = record_groups[group];
+            let node_payload = node_groups[group];
             record_payload == node_payload
                 || crate::css::computed_values::style_group_payloads_equal(group, record_payload, node_payload)
         })
