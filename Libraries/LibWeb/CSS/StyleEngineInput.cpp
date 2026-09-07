@@ -5,32 +5,16 @@
  */
 
 #include <AK/QuickSort.h>
-#include <LibWeb/CSS/CSSConditionRule.h>
-#include <LibWeb/CSS/CSSContainerRule.h>
-#include <LibWeb/CSS/CSSCounterStyleRule.h>
-#include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
-#include <LibWeb/CSS/CSSFunctionRule.h>
-#include <LibWeb/CSS/CSSGroupingRule.h>
-#include <LibWeb/CSS/CSSImportRule.h>
-#include <LibWeb/CSS/CSSKeyframeRule.h>
-#include <LibWeb/CSS/CSSKeyframesRule.h>
-#include <LibWeb/CSS/CSSLayerBlockRule.h>
-#include <LibWeb/CSS/CSSLayerStatementRule.h>
-#include <LibWeb/CSS/CSSMediaRule.h>
-#include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
-#include <LibWeb/CSS/CSSRuleList.h>
-#include <LibWeb/CSS/CSSScopeRule.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
-#include <LibWeb/CSS/CSSStyleSheet.h>
-#include <LibWeb/CSS/CSSSupportsRule.h>
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/SelectorMatching.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleScope.h>
-#include <LibWeb/CSS/StyleSheetList.h>
+#include <LibWeb/CSS/StyleSheetImport.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -1163,26 +1147,6 @@ void record_shadow_root_connected(DOM::ShadowRoot& shadow_root)
     (void)identity_of_shadow_root(shadow_root, *style_engine);
 }
 
-// Whether a group's condition holds, asked so that the answer is about the condition rather than
-// about whether anything has looked at it yet. A freshly parsed media list has evaluated nothing, and
-// an unevaluated one reads as not matching - so a rule arriving inside `@media all` would look gated.
-static bool condition_holds(CSSRule& rule, DOM::Document const& document)
-{
-    if (auto* media_rule = as_if<CSSMediaRule>(rule))
-        return media_rule->media()->evaluate(document);
-    if (auto* supports_rule = as_if<CSSSupportsRule>(rule))
-        return supports_rule->condition_matches();
-    // An `@import` carries a media query of its own, and it gates everything the imported sheet
-    // brings in exactly as an `@media` around those rules would. A sheet imported under
-    // `(prefers-color-scheme: dark)` decides nothing in a light document.
-    if (auto* import_rule = as_if<CSSImportRule>(rule))
-        return import_rule->matches();
-    // Only `@media` and `@supports` gate rules for the document as a whole. A container query asks
-    // about the element being styled and is answered during matching, so it gates nothing here - and
-    // asking it outside that context is not even allowed.
-    return true;
-}
-
 // https://html.spec.whatwg.org/multipage/semantics-other.html#case-sensitivity-of-selectors
 // A handful of attribute names compare their values ASCII case-insensitively, but only on an HTML
 // element in an HTML document. The element half is the namespace each element already publishes;
@@ -1202,138 +1166,20 @@ void record_document_kind(DOM::Document& document)
     publish_document_kind(document);
 }
 
-// Walks a sheet's rules and compiles every style rule's selector list into the program.
-//
-// The parser has already produced a compiled selector for the matching engine, so this hands over
-// that representation rather than re-parsing anything, and no string crosses: a compiled selector
-// carries the interned identity of every name it mentions.
-//
-// `before_rule` is the engine rule the compiled rules go in front of, or 0 to append. Naming a
-// successor is what lets rules arrive in the middle of a sheet without renumbering anything.
-// Whether a rule declares a cascade layer, and so fixes where that layer sits against the others.
-static bool declares_a_layer(CSSRule const& rule)
-{
-    if (is<CSSLayerStatementRule>(rule) || is<CSSLayerBlockRule>(rule))
-        return true;
-    auto* import_rule = as_if<CSSImportRule>(rule);
-    return import_rule && import_rule->layer_name().has_value();
-}
-
-// The `@namespace` declarations in scope for a rule's selectors. A prefix means whatever its sheet
-// says it means and an unprefixed type or universal selector means the sheet's default namespace,
-// both of which are CSSOM state, so they are resolved here and the compiler looks them up per
-// qualified name. Resolving only the subject's would leave `*|x y` unconstrained on `y`'s ancestor.
-static StyleEngine::NamespaceScope namespace_scope_of(StyleEngine& style_engine, CSSStyleSheet const* sheet)
-{
-    StyleEngine::NamespaceScope scope;
-    if (!sheet)
-        return scope;
-    // https://drafts.csswg.org/css-namespaces/#syntax
-    // The empty string is a namespace name, and it is the one an element in no namespace has. A
-    // declaration of it therefore constrains, where no declaration at all does not - which is why a
-    // default declared as the empty string cannot be reported the same way as an absent one.
-    if (auto default_namespace = sheet->default_namespace(); default_namespace.has_value()) {
-        scope.default_namespace = default_namespace->is_empty()
-            ? StyleEngine::no_namespace
-            : style_engine.intern_case_sensitive_text_atom(default_namespace->view());
-    }
-    for (auto const& [prefix, rule] : sheet->namespace_rules()) {
-        if (!rule || prefix.is_empty())
-            continue;
-        scope.prefixes.append(style_engine.intern_case_sensitive_text_atom(prefix.view()));
-        scope.uris.append(rule->namespace_uri().is_empty()
-                ? 0
-                : style_engine.intern_case_sensitive_text_atom(rule->namespace_uri().view()));
-    }
-    return scope;
-}
-
-// The longhand properties a rule declares. Only a property some rule declares can be a candidate
-// for a winner change, so the cascade is told which those are rather than reading the declaration
-// block back across the boundary.
-static void record_rule_declared_properties(StyleEngine& style_engine, StyleEngineRuleID rule_id, CSSRule const& rule)
-{
-    if (rule_id == 0)
-        return;
-    CSSStyleProperties const* declaration = nullptr;
-    if (auto const* style_rule = as_if<CSSStyleRule>(rule))
-        declaration = &style_rule->declaration();
-    else if (auto const* nested = as_if<CSSNestedDeclarations>(rule))
-        declaration = &nested->declaration();
-    if (!declaration)
-        return;
-
-    style_engine.set_rule_declared_properties(rule_id, declaration->declaration_block());
-}
-
-// Where a compiled rule's identity is written. Author rules carry theirs on the rule object; the
-// user-agent and user sheets are process-wide singletons, so their rules cannot, and the document
-// that compiled them holds the identity instead.
-static void set_compiled_rule_id(CSSRule& rule, StyleEngineRuleID rule_id, HashMap<GC::Ptr<CSSRule const>, StyleEngineRuleID>* non_author_rule_ids, StyleComputer& style_computer, CascadeOrigin cascade_origin, Utf16FlyString const& layer_name)
-{
-    if (non_author_rule_ids)
-        non_author_rule_ids->set(&rule, rule_id);
-    else
-        rule.set_style_engine_rule_id(rule_id);
-    style_computer.register_style_engine_rule_identity(rule_id, rule);
-
-    // The way back from the identity to what the rule contributes. Only a rule that carries a
-    // declaration can be reported as a match, and only those are worth a way back.
-    if (rule.type() != CSSRule::Type::Style && rule.type() != CSSRule::Type::NestedDeclarations)
-        return;
-    GC::Ptr<CSSContainerRule const> container_rule;
-    for (auto ancestor = rule.parent_rule(); ancestor; ancestor = ancestor->parent_rule()) {
-        if (auto const* container = as_if<CSSContainerRule>(*ancestor)) {
-            container_rule = container;
-            break;
-        }
-    }
-    style_computer.register_style_engine_rule_target(rule, StyleEngineRuleTarget {
-                                                               .rule = &rule,
-                                                               .container_rule = container_rule,
-                                                               .qualified_layer_name = layer_name,
-                                                               .cascade_origin = cascade_origin,
-                                                           });
-}
-
-void record_cascade_layer_order(DOM::Document& document, TreeScopeID tree_scope, ReadonlySpan<Utf16FlyString> qualified_names_in_order)
-{
-    document.flush_deferred_style_change_event();
-    Vector<u32> layers;
-    layers.ensure_capacity(qualified_names_in_order.size());
-    auto& style_engine = document.style_computer().style_engine();
-    for (auto const& name : qualified_names_in_order)
-        layers.unchecked_append(name.is_empty() ? 0 : style_engine.intern_atom(name).value());
-    style_engine.set_layer_order(tree_scope, layers);
-}
-
-static Utf16FlyString qualified_layer_name_within(Utf16FlyString const& parent, Utf16FlyString const& name)
-{
-    if (parent.is_empty())
-        return name;
-    Utf16StringBuilder builder;
-    builder.append(parent);
-    builder.append_ascii('.');
-    builder.append(name);
-    auto qualified_name = builder.to_string();
-    return Utf16FlyString::from_utf16(qualified_name.utf16_view());
-}
-
 // https://drafts.csswg.org/css-cascade-6/#scope-atrule
 // An `@scope` with no `<scope-start>` roots at an element rather than at a selector, so nothing the
 // compiler reads says where it is. Resolving it here is the same walk the matcher makes, and the
 // engine names the answer by identity.
 static constexpr StyleNodeID implicit_scope_root_of_the_containing_tree { 0xffffffff };
 
-static StyleNodeID implicit_scope_root_of(CSSRule const& scope_rule)
+static StyleNodeID implicit_scope_root_of(StyleSheetState const* owner_style_sheet)
 {
-    auto* owner_style_sheet = scope_rule.parent_style_sheet();
     if (!owner_style_sheet)
         return no_style_node;
 
     // If no <scope-start> is specified, the scoping root is the parent element of the owner node of
     // the stylesheet where the @scope rule is defined.
-    if (auto* owner_node = const_cast<CSSStyleSheet&>(*owner_style_sheet).owner_node()) {
+    if (auto* owner_node = const_cast<StyleSheetState&>(*owner_style_sheet).owner_node()) {
         if (auto parent = owner_node->parent_element())
             return parent->style_node_id();
     }
@@ -1345,27 +1191,28 @@ static StyleNodeID implicit_scope_root_of(CSSRule const& scope_rule)
     return implicit_scope_root_of_the_containing_tree;
 }
 
-static void append_scope_level(CSSRule const& owner, Optional<SelectorList> const& start, Optional<SelectorList> const& end, Vector<void const*>& scope_roots, Vector<void const*>& scope_limits, StyleEngine::ScopeLevels& scope_levels)
+using CompilationVisitor = Function<bool(RustRule::Type, StyleSheetState const&, Parser::ValueParserFFI::NativeCompilationContext const&, Parser::ValueParserFFI::NativeCompilationResult const&)>;
+
+static void visit_compilation(StyleSheetState const& sheet, u64 rule_identity, DOM::Document const& document, Parser::ValueParserFFI::NativeCompilationPurpose purpose, CompilationVisitor const& visit, Parser::ValueParserFFI::NativeStylePublication const& publication)
 {
-    u32 roots_here = 0;
-    u32 limits_here = 0;
-    if (start.has_value()) {
-        for (auto const& selector : *start) {
-            scope_roots.append(&selector->rust_selector());
-            ++roots_here;
-        }
-    }
-    if (end.has_value()) {
-        for (auto const& selector : *end) {
-            scope_limits.append(&selector->rust_selector());
-            ++limits_here;
-        }
-    }
-    // Each `@scope` is one level. An omitted start uses its implicit root, while an explicit start
-    // that transforms to an empty list remains a level that matches no roots.
-    scope_levels.root_counts.append(roots_here);
-    scope_levels.limit_counts.append(limits_here);
-    scope_levels.implicit_roots.append(!start.has_value() ? implicit_scope_root_of(owner) : no_style_node);
+    MediaEnvironmentSnapshot environment { document };
+    Parser::ValueParserFFI::NativeCompilationCallbacks callbacks {
+        .context = &visit,
+        .import_source = [](void const* source, u64 identity, Parser::ValueParserFFI::NativeStyleSheet const* native_sheet) -> void const* {
+            auto const& sheet = *static_cast<StyleSheetState const*>(source);
+            auto* import = sheet.import_for_rule(identity);
+            VERIFY(import);
+            auto* imported = import->loaded_style_sheet();
+            VERIFY(imported && imported->native_sheet().handle() == native_sheet);
+            return imported;
+        },
+        .implicit_scope_root = [](void const* source) { return implicit_scope_root_of(static_cast<StyleSheetState const*>(source)).value(); },
+        .visit_rule = [](void const* context, void const* source, u64, RustRule::Type rule_type, Parser::ValueParserFFI::NativeCompilationContext const* compilation, Parser::ValueParserFFI::NativeCompilationResult result) { return (*static_cast<CompilationVisitor const*>(context))(rule_type, *static_cast<StyleSheetState const*>(source), *compilation, result); },
+    };
+    if (purpose == Parser::ValueParserFFI::NativeCompilationPurpose::Rules)
+        Parser::ValueParserFFI::rust_style_sheet_compile(sheet.native_sheet().handle(), rule_identity, &sheet, environment.ffi_environment(), &callbacks, &publication);
+    else
+        Parser::ValueParserFFI::rust_style_sheet_replace_selectors(sheet.native_sheet().handle(), rule_identity, &sheet, environment.ffi_environment(), &callbacks, &publication);
 }
 
 struct RuleCompilationContext {
@@ -1383,18 +1230,9 @@ struct RuleCompilationContext {
     StyleEngineRuleID before_rule;
     GC::Ref<DOM::Document const> document;
     GC::Ref<StyleComputer> style_computer;
-    HashMap<GC::Ptr<CSSRule const>, StyleEngineRuleID>* non_author_rule_ids { nullptr };
-    Vector<void const*> scope_roots;
-    Vector<void const*> scope_limits;
-    StyleEngine::ScopeLevels scope_levels;
-    Utf16FlyString layer_name;
-    CascadeOrigin cascade_origin { CascadeOrigin::Author };
-    bool conditions_hold { true };
-    bool in_a_layer { false };
-    bool gated_by_container_query { false };
 };
 
-static void publish_layer_order_for_sheet(CSSStyleSheet& sheet, DOM::Document const& document)
+static void publish_layer_order_for_sheet(StyleSheetState const& sheet, DOM::Document const& document)
 {
     sheet.for_each_owning_style_scope([&](StyleScope& scope) {
         if (&scope.document() == &document)
@@ -1402,289 +1240,40 @@ static void publish_layer_order_for_sheet(CSSStyleSheet& sheet, DOM::Document co
     });
 }
 
-static void compile_rules_into(RuleCompilationContext const& context, CSSRule& rule)
+static void compile_rules_into(RuleCompilationContext const& context, StyleSheetState const& sheet, u64 rule_identity = 0, Parser::ValueParserFFI::NativeCompilationPurpose purpose = Parser::ValueParserFFI::NativeCompilationPurpose::Rules)
 {
-    auto& style_engine = context.style_engine;
-    auto const sheet_handle = context.sheet_handle;
-    auto const before_rule = context.before_rule;
-    auto const& document = *context.document;
-    auto& style_computer = *context.style_computer;
-    auto* non_author_rule_ids = context.non_author_rule_ids;
-    auto const& scope_roots = context.scope_roots;
-    auto const& scope_limits = context.scope_limits;
-    auto const& scope_levels = context.scope_levels;
-    auto const& layer_name = context.layer_name;
-    auto const cascade_origin = context.cascade_origin;
-    auto const conditions_hold = context.conditions_hold;
-    auto const in_a_layer = context.in_a_layer;
-    auto const gated_by_container_query = context.gated_by_container_query;
-    auto record_initial_conditions = [&](StyleEngineRuleID rule_id) {
-        if (!conditions_hold)
-            style_engine.set_rule_conditions_hold(rule_id, false);
+    Parser::ValueParserFFI::NativeStylePublication publication {
+        .engine = context.style_engine.rust_handle(),
+        .sheet = context.sheet_handle.value(),
+        .before_rule = context.before_rule.value(),
     };
-
-    // A block of nested declarations is a rule of its own: the cascade matches it by the selector its
-    // position implies, which is its parent rule's selector, or `:where(:scope)` directly inside a
-    // scope.
-    SelectorList const* matching_selectors = nullptr;
-    if (auto* style_rule = as_if<CSSStyleRule>(rule))
-        matching_selectors = &style_rule->absolutized_selectors();
-    else if (auto* nested_declarations = as_if<CSSNestedDeclarations>(rule))
-        matching_selectors = &nested_declarations->absolutized_selectors();
-
-    if (matching_selectors) {
-        Vector<void const*> selectors;
-        selectors.ensure_capacity(matching_selectors->size());
-        for (auto const& selector : *matching_selectors)
-            selectors.unchecked_append(&selector->rust_selector());
-        auto namespaces = namespace_scope_of(style_engine, rule.parent_style_sheet());
-        if (!selectors.is_empty()) {
-            auto rule_id = style_engine.add_style_rule(sheet_handle, before_rule, selectors, namespaces, scope_roots, scope_limits, scope_levels);
-            set_compiled_rule_id(rule, rule_id, non_author_rule_ids, style_computer, cascade_origin, layer_name);
-            record_rule_declared_properties(style_engine, rule_id, rule);
-            // A container query asks about the element being styled, so two elements matching this
-            // rule can disagree about it and the rule's activation cannot answer it once.
-            if (gated_by_container_query)
-                style_engine.set_rule_gated_by_container_query(rule_id);
-            // A rule behind a group whose condition does not hold keeps its identity and its place
-            // and decides nothing, which is the same shape a disabled sheet has.
-            record_initial_conditions(rule_id);
-            // Which layer a rule sits in is part of what the rule is: the cascade compares where
-            // it sits, and a change to layer order moves every rule that references it.
-            if (in_a_layer) {
-                style_engine.set_rule_in_a_layer(rule_id);
-                style_engine.set_rule_layer(rule_id, style_engine.intern_atom(layer_name).value());
-            }
+    CompilationVisitor visit = [&](RustRule::Type rule_type, StyleSheetState const& source, auto const&, auto const& result) {
+        if (purpose == Parser::ValueParserFFI::NativeCompilationPurpose::Selectors && result.rule_id != 0)
+            context.style_computer->document().bump_style_environment_version();
+        if (result.declares_transitions)
+            context.style_engine.note_css_transitions_may_observe_style_changes();
+        if (rule_type == RustRule::Type::CounterStyle) {
+            source.for_each_owning_style_scope([](StyleScope& scope) {
+                scope.invalidate_counter_style_cache();
+            });
         }
-    }
-
-    // `@font-feature-values` matches nothing either, and unlike `@font-face` it has no consumer index
-    // to be found by: it is in the program so that a change to it is an input at all.
-    if (is<CSSFontFeatureValuesRule>(rule)) {
-        auto rule_id = style_engine.add_font_feature_values_rule(sheet_handle, before_rule);
-        set_compiled_rule_id(rule, rule_id, non_author_rule_ids, style_computer, cascade_origin, layer_name);
-        record_initial_conditions(rule_id);
-        return;
-    }
-
-    // A counter style matches nothing, but changes the counter-style environment used by list
-    // markers and generated content. Keep its position and layer in the program so attachment,
-    // condition, and layer changes are routed like the environment changes they are.
-    if (is<CSSCounterStyleRule>(rule)) {
-        auto rule_id = style_engine.add_counter_style_rule(sheet_handle, before_rule);
-        set_compiled_rule_id(rule, rule_id, non_author_rule_ids, style_computer, cascade_origin, layer_name);
-        record_initial_conditions(rule_id);
-        if (in_a_layer) {
-            style_engine.set_rule_in_a_layer(rule_id);
-            style_engine.set_rule_layer(rule_id, style_engine.intern_atom(layer_name).value());
-        }
-        return;
-    }
-
-    // A custom function contributes no declarations and matches nothing: the elements it decides for
-    // are the ones that called it.
-    if (is<CSSFunctionRule>(rule)) {
-        auto rule_id = style_engine.add_function_rule(sheet_handle, before_rule);
-        set_compiled_rule_id(rule, rule_id, non_author_rule_ids, style_computer, cascade_origin, layer_name);
-        record_initial_conditions(rule_id);
-        return;
-    }
-
-    // A layer statement contributes no declarations and matches nothing: it fixes the order of the
-    // layers other rules sit in. A layer block and an `@import` naming a layer declare their layer on
-    // the way in as well. A declaration behind a condition that does not hold declares nothing, so it
-    // moves no order.
-    if (conditions_hold && declares_a_layer(rule)) {
-        // NB: The layer order is otherwise published lazily with the rule cache, which is after
-        //     transaction has already ranked with the old order. Publish it now so the
-        //     plan for this very statement ranks with the order it establishes.
-        if (auto* sheet = rule.parent_style_sheet())
-            publish_layer_order_for_sheet(*sheet, document);
-    }
-    if (is<CSSLayerStatementRule>(rule))
-        return;
-
-    // An `@property` rule matches nothing either. Its name finds every element that declares or
-    // references the custom property, so it is in the program for changes to reach those consumers.
-    if (auto* property_rule = as_if<CSSPropertyRule>(rule)) {
-        auto rule_id = style_engine.add_property_rule(
-            sheet_handle,
-            before_rule,
-            style_engine.intern_atom(property_rule->name()));
-        set_compiled_rule_id(
-            rule,
-            rule_id,
-            non_author_rule_ids,
-            style_computer,
-            cascade_origin,
-            layer_name);
-        record_initial_conditions(rule_id);
-        return;
-    }
-
-    // A `@keyframes` rule matches nothing, so it is in the program only to be found by the name it
-    // declares - which is how a change to it reaches the elements running that animation.
-    if (auto* keyframes_rule = as_if<CSSKeyframesRule>(rule)) {
-        auto rule_id = style_engine.add_keyframes_rule(
-            sheet_handle,
-            before_rule,
-            style_engine.intern_atom(keyframes_rule->name()));
-        set_compiled_rule_id(
-            rule,
-            rule_id,
-            non_author_rule_ids,
-            style_computer,
-            cascade_origin,
-            layer_name);
-        record_initial_conditions(rule_id);
-        return;
-    }
-
-    // An imported sheet's rules belong to the importing sheet's program: they cascade in its place
-    // and they are not attached anywhere else, so nothing else would compile them. The import can
-    // carry a scope of its own, which constrains everything it brings in.
-    if (auto* import_rule = as_if<CSSImportRule>(rule)) {
-        auto* imported = import_rule->loaded_style_sheet();
-        if (!imported)
-            return;
-        auto imported_in_a_layer = in_a_layer || import_rule->layer_name().has_value();
-        auto imported_layer_name = layer_name;
-        // An anonymous `@import ... layer` opens a layer of its own, which the public name cannot
-        // tell from any other anonymous one - it is the empty string for all of them. The internal
-        // name is what distinguishes them.
-        if (auto const& imported_layer = import_rule->internal_layer_name(); imported_layer.has_value())
-            imported_layer_name = qualified_layer_name_within(layer_name, *imported_layer);
-        auto imported_context = context;
-        imported_context.layer_name = imported_layer_name;
-        imported_context.conditions_hold = conditions_hold && condition_holds(rule, document);
-        imported_context.in_a_layer = imported_in_a_layer;
-        if (import_rule->has_scope())
-            append_scope_level(*import_rule, import_rule->scope_start_selectors_for_matching(), import_rule->scope_end_selectors_for_matching(), imported_context.scope_roots, imported_context.scope_limits, imported_context.scope_levels);
-        for (size_t index = 0; index < imported->rules().length(); ++index) {
-            if (auto child = imported->rules().item(index))
-                compile_rules_into(imported_context, *child);
-        }
-        return;
-    }
-
-    if (auto* grouping_rule = as_if<CSSGroupingRule>(rule)) {
-        // A scope is a constraint on every rule inside it, and scopes nest. Carrying the roots down
-        // is what puts the scope's own selectors into the compiled entries, and therefore into
-        // routing: a class that moves an element in or out of a scope has to reach the rules the
-        // scope holds.
-        auto nested_context = context;
-        if (auto* scope_rule = as_if<CSSScopeRule>(rule)) {
-            // A scope limit is not a constraint the compiled entry can express, but an element
-            // starting or stopping being one moves the scope membership of itself and everything
-            // under it, and that has to reach the rules the scope holds.
-            append_scope_level(*scope_rule, scope_rule->start_selectors_for_matching(), scope_rule->end_selectors_for_matching(), nested_context.scope_roots, nested_context.scope_limits, nested_context.scope_levels);
-        }
-        // `@media` and `@supports` gate every rule inside them. The gate is activation, not
-        // existence: the rules are still compiled and still hold their positions, so a condition
-        // coming true later needs nothing more than to be said.
-        nested_context.conditions_hold = conditions_hold && condition_holds(rule, document);
-        if (auto* layer_block = as_if<CSSLayerBlockRule>(rule))
-            nested_context.layer_name = qualified_layer_name_within(layer_name, layer_block->internal_name());
-        nested_context.in_a_layer = in_a_layer || is<CSSLayerBlockRule>(rule);
-        nested_context.gated_by_container_query = gated_by_container_query || is<CSSContainerRule>(rule);
-
-        for (size_t index = 0; index < grouping_rule->css_rules().length(); ++index) {
-            if (auto child = grouping_rule->css_rules().item(index))
-                compile_rules_into(nested_context, *child);
-        }
-    }
-}
-
-// A sheet's rules in the order they are compiled, which is the order they cascade in.
-static void collect_rules_in_cascade_order(CSSRuleList& rules, Vector<GC::Ref<CSSRule>>& out)
-{
-    for (size_t index = 0; index < rules.length(); ++index) {
-        auto rule = rules.item(index);
-        if (!rule)
-            continue;
-        out.append(*rule);
-        if (auto* import_rule = as_if<CSSImportRule>(*rule)) {
-            if (auto* imported = import_rule->loaded_style_sheet())
-                collect_rules_in_cascade_order(imported->rules(), out);
-        } else if (auto* grouping_rule = as_if<CSSGroupingRule>(*rule)) {
-            collect_rules_in_cascade_order(grouping_rule->css_rules(), out);
-        }
-    }
-}
-
-// The engine rule that a rule compiled at `rule`'s position would come before, or 0 when nothing
-// follows it. Rules inside `rule` are skipped, because they are about to be compiled with it.
-static StyleEngineRuleID successor_of(StyleComputer const& style_computer, CSSStyleSheet& sheet, CSSRule& rule)
-{
-    Vector<GC::Ref<CSSRule>> order;
-    collect_rules_in_cascade_order(sheet.rules(), order);
-    auto position = order.find_first_index_if([&](auto const& entry) { return entry.ptr() == &rule; });
-    if (!position.has_value())
-        return 0;
-
-    Vector<GC::Ref<CSSRule>> inside;
-    if (auto* import_rule = as_if<CSSImportRule>(rule)) {
-        if (auto* imported = import_rule->loaded_style_sheet())
-            collect_rules_in_cascade_order(imported->rules(), inside);
-    } else if (auto* grouping_rule = as_if<CSSGroupingRule>(rule)) {
-        collect_rules_in_cascade_order(grouping_rule->css_rules(), inside);
-    }
-    for (size_t index = *position + 1 + inside.size(); index < order.size(); ++index) {
-        if (auto rule_id = style_computer.style_engine_rule_id_for(order[index]); rule_id != 0)
-            return rule_id;
-    }
-    return 0;
-}
-
-static GC::RootVector<GC::Ref<CSSRule>> enclosing_rules(CSSRule& rule)
-{
-    GC::RootVector<GC::Ref<CSSRule>> enclosing;
-    for (auto* ancestor = rule.parent_rule(); ancestor; ancestor = ancestor->parent_rule())
-        enclosing.append(*ancestor);
-    for (auto* sheet = rule.parent_style_sheet(); sheet;) {
-        auto owner = sheet->owner_rule();
-        if (!owner)
-            break;
-        enclosing.append(*owner);
-        for (auto* ancestor = owner->parent_rule(); ancestor; ancestor = ancestor->parent_rule())
-            enclosing.append(*ancestor);
-        sheet = owner->parent_style_sheet();
-    }
-    return enclosing;
-}
-
-// The scope a rule sits in, which its enclosing `@scope` rules and importing `@import scope()`
-// decide. A rule arriving on its own has to be compiled with the same scope the rules around it
-// were, or it would apply where they do not.
-static void collect_enclosing_scope(GC::RootVector<GC::Ref<CSSRule>> const& enclosing, Vector<void const*>& scope_roots, Vector<void const*>& scope_limits, StyleEngine::ScopeLevels& scope_levels)
-{
-    // Outermost first, so the scopes read the way they nest.
-    for (size_t index = enclosing.size(); index > 0; --index) {
-        auto& ancestor = *enclosing[index - 1];
-        Optional<SelectorList> const* start = nullptr;
-        Optional<SelectorList> const* end = nullptr;
-        if (auto* scope_rule = as_if<CSSScopeRule>(ancestor)) {
-            start = &scope_rule->start_selectors_for_matching();
-            end = &scope_rule->end_selectors_for_matching();
-        } else if (auto* import_rule = as_if<CSSImportRule>(ancestor); import_rule && import_rule->has_scope()) {
-            start = &import_rule->scope_start_selectors_for_matching();
-            end = &import_rule->scope_end_selectors_for_matching();
-        }
-        if (!start && !end)
-            continue;
-        append_scope_level(ancestor, *start, *end, scope_roots, scope_limits, scope_levels);
-    }
+        if (result.rule_id != 0)
+            context.style_computer->register_style_engine_sheet_source(source);
+        return true;
+    };
+    visit_compilation(sheet, rule_identity, *context.document, purpose, visit, publication);
+    if (purpose == Parser::ValueParserFFI::NativeCompilationPurpose::Rules)
+        publish_layer_order_for_sheet(sheet, *context.document);
 }
 
 // The sheet a rule's compiled rules belong to. An imported sheet's rules cascade in the importing
 // sheet's program, so the handle to compile into is the outermost sheet's. A constructed sheet is
 // always its own engine sheet: its ids are held per adopting document, so its raw id member being 0
 // does not mean its rules live in another sheet's program.
-static CSSStyleSheet* owning_compiled_sheet(CSSRule& rule)
+static StyleSheetState* owning_compiled_sheet(StyleSheetState* sheet)
 {
-    auto* sheet = rule.parent_style_sheet();
     while (sheet && !sheet->constructed() && sheet->style_engine_sheet_id() == 0) {
-        auto owner = sheet->owner_rule();
+        auto* owner = sheet->owner_import();
         if (!owner)
             return nullptr;
         sheet = owner->parent_style_sheet();
@@ -1692,9 +1281,14 @@ static CSSStyleSheet* owning_compiled_sheet(CSSRule& rule)
     return sheet;
 }
 
+static StyleSheetState* owning_compiled_sheet(CSSRule& rule)
+{
+    return owning_compiled_sheet(rule.parent_style_sheet());
+}
+
 // A constructed sheet compiles once per adopting document, so a mutation to it has to be replayed
 // into every document engine holding a copy; every other sheet has exactly one owning document.
-static void for_each_document_with_engine_copy(CSSStyleSheet& sheet, auto const& callback)
+static void for_each_document_with_engine_copy(StyleSheetState& sheet, auto const& callback)
 {
     if (sheet.constructed()) {
         HashTable<DOM::Document*> documents;
@@ -1714,7 +1308,7 @@ static void for_each_document_with_engine_copy(CSSStyleSheet& sheet, auto const&
         callback(*document);
 }
 
-static void flush_deferred_style_change_events_for_sheet(CSSStyleSheet& sheet)
+static void flush_deferred_style_change_events_for_sheet(StyleSheetState& sheet)
 {
     for_each_document_with_engine_copy(sheet, [](DOM::Document& document) {
         document.flush_deferred_style_change_event();
@@ -1727,69 +1321,13 @@ void flush_deferred_style_change_events_for_rule(CSSRule& rule)
         flush_deferred_style_change_events_for_sheet(*sheet);
 }
 
-// Whether the conditions of every group a rule sits inside hold. A rule compiled on its own has to
-// be told the same thing the whole-sheet walk would have told it.
-static bool enclosing_conditions_hold(GC::RootVector<GC::Ref<CSSRule>> const& enclosing, DOM::Document const& document)
+static bool rule_change_needs_style_environment_bump(RustRule const& rule)
 {
-    for (auto const& ancestor : enclosing) {
-        if (!condition_holds(*ancestor, document))
-            return false;
-    }
-    return true;
+    return Parser::ValueParserFFI::rust_rule_change_needs_style_environment_bump(rule.handle());
 }
-
-// Reconstruct the group context that the whole-sheet walk would have carried to a rule compiled on
-// its own after a CSSOM insertion.
-static void collect_enclosing_group_context(GC::RootVector<GC::Ref<CSSRule>> const& enclosing, RuleCompilationContext& context)
-{
-    bool in_a_layer = false;
-    for (auto const& ancestor : enclosing) {
-        if (is<CSSLayerBlockRule>(*ancestor))
-            in_a_layer = true;
-        if (is<CSSContainerRule>(*ancestor))
-            context.gated_by_container_query = true;
-        if (auto* import_rule = as_if<CSSImportRule>(*ancestor); import_rule && import_rule->layer_name().has_value())
-            in_a_layer = true;
-    }
-    for (size_t index = enclosing.size(); index > 0; --index) {
-        auto& ancestor = *enclosing[index - 1];
-        if (auto* layer = as_if<CSSLayerBlockRule>(ancestor))
-            context.layer_name = qualified_layer_name_within(context.layer_name, layer->internal_name());
-        else if (auto* import_rule = as_if<CSSImportRule>(ancestor); import_rule && import_rule->internal_layer_name().has_value())
-            context.layer_name = qualified_layer_name_within(context.layer_name, *import_rule->internal_layer_name());
-    }
-    context.in_a_layer = in_a_layer;
-}
-
-static bool rule_change_needs_style_environment_bump(CSSRule const& rule)
-{
-    switch (rule.type()) {
-    case CSSRule::Type::Style:
-    case CSSRule::Type::Media:
-    case CSSRule::Type::Supports:
-    case CSSRule::Type::Container:
-    case CSSRule::Type::Scope:
-    case CSSRule::Type::LayerBlock:
-        return any_of(as<CSSGroupingRule>(rule).css_rules(), [](auto& child) {
-            return rule_change_needs_style_environment_bump(child);
-        });
-    case CSSRule::Type::NestedDeclarations:
-    case CSSRule::Type::Property:
-    case CSSRule::Type::LayerStatement:
-    case CSSRule::Type::Keyframes:
-    case CSSRule::Type::FontFace:
-    case CSSRule::Type::Function:
-    case CSSRule::Type::CounterStyle:
-    case CSSRule::Type::FontFeatureValues:
-        return false;
-    default:
-        return true;
-    }
-}
-
 // A rule arrived in one document's engine. Compile it, and everything it brings with it, into the
 // position it holds there.
-static void record_style_rule_inserted_in(CSSRule& rule, CSSStyleSheet& sheet, DOM::Document& document)
+static void record_style_rule_inserted_in(u64 identity, bool changes_environment, StyleSheetState& sheet, DOM::Document& document)
 {
     document.flush_deferred_style_change_event();
     auto& style_computer = document.style_computer();
@@ -1797,40 +1335,44 @@ static void record_style_rule_inserted_in(CSSRule& rule, CSSStyleSheet& sheet, D
     if (sheet_id == 0)
         return;
 
-    if (rule_change_needs_style_environment_bump(rule))
+    if (changes_environment)
         document.bump_style_environment_version();
 
-    Vector<void const*> scope_roots;
-    Vector<void const*> scope_limits;
-    StyleEngine::ScopeLevels scope_levels;
-    auto enclosing = enclosing_rules(rule);
-    collect_enclosing_scope(enclosing, scope_roots, scope_limits, scope_levels);
     RuleCompilationContext context {
         style_computer.style_engine(),
         sheet_id,
-        successor_of(style_computer, sheet, rule),
+        StyleEngineRuleID { StyleEngineFFI::style_engine_native_rule_successor(style_computer.style_engine().rust_handle(), sheet.native_sheet().handle(), identity) },
         document,
         style_computer
     };
-    if (sheet.constructed())
-        context.non_author_rule_ids = &style_computer.constructed_rule_ids();
-    context.scope_roots = move(scope_roots);
-    context.scope_limits = move(scope_limits);
-    context.scope_levels = move(scope_levels);
-    context.conditions_hold = enclosing_conditions_hold(enclosing, document);
-    collect_enclosing_group_context(enclosing, context);
-    compile_rules_into(context, rule);
+    compile_rules_into(context, sheet, identity);
 }
 
 // A rule arrived. Compile it, and everything it brings with it, into the position it holds.
 void record_style_rule_inserted(CSSRule& rule)
 {
-    auto* sheet = owning_compiled_sheet(rule);
+    if (auto* source_sheet = rule.parent_style_sheet())
+        record_style_rule_inserted(rule.native_rule(), *source_sheet);
+}
+
+static void record_style_rule_inserted(u64 identity, bool changes_environment, StyleSheetState& source_sheet)
+{
+    auto* sheet = owning_compiled_sheet(&source_sheet);
     if (!sheet)
         return;
     for_each_document_with_engine_copy(*sheet, [&](DOM::Document& document) {
-        record_style_rule_inserted_in(rule, *sheet, document);
+        record_style_rule_inserted_in(identity, changes_environment, *sheet, document);
     });
+}
+
+void record_style_rule_inserted(RustRule const& rule, StyleSheetState& source_sheet)
+{
+    record_style_rule_inserted(rule.identity(), rule_change_needs_style_environment_bump(rule), source_sheet);
+}
+
+void record_imported_style_sheet_loaded(u64 import_rule_identity, StyleSheetState& source_sheet)
+{
+    record_style_rule_inserted(import_rule_identity, true, source_sheet);
 }
 
 // A rule left. Retire the identities it compiled into, so nothing it decided keeps deciding.
@@ -1842,89 +1384,43 @@ void record_style_rule_removed(CSSRule& rule)
     auto* sheet = owning_compiled_sheet(rule);
     if (!sheet)
         return;
-    record_style_rule_removed(*sheet, rule);
+    record_style_rule_removed(*sheet, rule.native_rule());
 }
 
-void record_style_rule_removed(CSSStyleSheet& sheet_it_left, CSSRule& rule)
+void record_style_rule_removed(StyleSheetState& sheet_it_left, RustRule const& rule, StyleSheetState const* detached_import)
 {
-    Vector<GC::Ref<CSSRule>> removed;
-    removed.append(rule);
-    if (auto* import_rule = as_if<CSSImportRule>(rule)) {
-        if (auto* imported = import_rule->loaded_style_sheet())
-            collect_rules_in_cascade_order(imported->rules(), removed);
-    } else if (auto* grouping_rule = as_if<CSSGroupingRule>(rule)) {
-        collect_rules_in_cascade_order(grouping_rule->css_rules(), removed);
-    }
-
-    bool any_engine_heard = false;
     for_each_document_with_engine_copy(sheet_it_left, [&](DOM::Document& document) {
-        any_engine_heard = true;
         document.flush_deferred_style_change_event();
-        if (rule_change_needs_style_environment_bump(rule))
-            document.bump_style_environment_version();
-
         auto& style_computer = document.style_computer();
-        auto& style_engine = style_computer.style_engine();
-        for (auto& entry : removed) {
-            // A layer declaration leaving reorders the layers as much as one arriving does, and it holds no
-            // rule identity that removing would carry the change for.
-            if (declares_a_layer(entry)) {
-                publish_layer_order_for_sheet(sheet_it_left, document);
-            }
-            if (auto rule_id = style_computer.style_engine_rule_id_for(entry); rule_id != 0) {
-                style_engine.remove_rule(rule_id);
-                style_computer.non_author_rule_ids().remove(entry.ptr());
-                style_computer.constructed_rule_ids().remove(entry.ptr());
-            }
-        }
+        struct RemovalContext {
+            GC::Ref<DOM::Document> document;
+            StyleSheetState& sheet;
+        } context { document, sheet_it_left };
+        StyleEngineFFI::style_engine_remove_native_rule(
+            style_computer.style_engine().rust_handle(),
+            sheet_it_left.native_sheet().handle(),
+            rule.handle(),
+            detached_import ? detached_import->native_sheet().handle() : nullptr,
+            style_computer.style_engine_sheet_id_for(sheet_it_left).value(),
+            &context,
+            [](void* opaque, bool changes_environment, bool has_counter_style) {
+                auto& context = *static_cast<RemovalContext*>(opaque);
+                if (changes_environment)
+                    context.document->bump_style_environment_version();
+                if (has_counter_style) {
+                    context.sheet.for_each_owning_style_scope([&](StyleScope& scope) {
+                        if (&scope.node().document() != context.document.ptr())
+                            return;
+                        scope.invalidate_counter_style_cache();
+                    });
+                }
+            },
+            [](void* opaque, u32, bool declares_layer) {
+                auto& context = *static_cast<RemovalContext*>(opaque);
+                if (declares_layer)
+                    publish_layer_order_for_sheet(context.sheet, context.document);
+            });
     });
-
-    // The identities are cleared after every engine copy heard the removal, so the loop above can
-    // still resolve them.
-    if (!any_engine_heard)
-        return;
-    for (auto& entry : removed)
-        entry->set_style_engine_rule_id(0);
-}
-
-// The selectors a rule matches by, replaced in place. A rule that compiled to nothing has no
-// identity to replace, so it arrives instead.
-static void replace_matching_selectors(CSSRule& rule, DOM::Document& document)
-{
-    // A rule that matches nothing by a selector of its own holds no identity to replace, and it is
-    // not one that arrives either: re-inserting a grouping rule compiles everything nested inside it
-    // a second time, leaving the rules it already had in the engine with nobody to update them.
-    SelectorList const* matching_selectors = nullptr;
-    if (auto* style_rule = as_if<CSSStyleRule>(rule))
-        matching_selectors = &style_rule->absolutized_selectors();
-    else if (auto* nested_declarations = as_if<CSSNestedDeclarations>(rule))
-        matching_selectors = &nested_declarations->absolutized_selectors();
-    if (!matching_selectors)
-        return;
-
-    auto& style_computer = document.style_computer();
-    auto rule_id = style_computer.style_engine_rule_id_for(rule);
-    if (rule_id == 0) {
-        if (auto* sheet = owning_compiled_sheet(rule))
-            record_style_rule_inserted_in(rule, *sheet, document);
-        return;
-    }
-
-    auto& style_engine = style_computer.style_engine();
-    Vector<void const*> selectors;
-    selectors.ensure_capacity(matching_selectors->size());
-    for (auto const& selector : *matching_selectors)
-        selectors.unchecked_append(&selector->rust_selector());
-    auto namespaces = namespace_scope_of(style_engine, rule.parent_style_sheet());
-    if (selectors.is_empty())
-        return;
-
-    Vector<void const*> scope_roots;
-    Vector<void const*> scope_limits;
-    StyleEngine::ScopeLevels scope_levels;
-    auto enclosing = enclosing_rules(rule);
-    collect_enclosing_scope(enclosing, scope_roots, scope_limits, scope_levels);
-    style_engine.replace_style_rule_selectors(rule_id, selectors, namespaces, scope_roots, scope_limits, scope_levels);
 }
 
 // A rule kept its place and its declarations, and changed what it selects.
@@ -1934,63 +1430,50 @@ void record_style_rule_selector_changed(CSSStyleRule& rule)
     if (!sheet)
         return;
 
-    // A nested rule's selector is written relative to the one it sits in, so a rule's selector
-    // changing changes what everything nested inside it matches as well.
-    Vector<GC::Ref<CSSRule>> affected;
-    affected.append(rule);
-    for (size_t index = 0; index < affected.size(); ++index) {
-        if (auto* grouping_rule = as_if<CSSGroupingRule>(*affected[index])) {
-            for (size_t child = 0; child < grouping_rule->css_rules().length(); ++child) {
-                if (auto nested = grouping_rule->css_rules().item(child))
-                    affected.append(*nested);
-            }
-        }
-    }
-
     for_each_document_with_engine_copy(*sheet, [&](DOM::Document& document) {
         document.flush_deferred_style_change_event();
-        for (auto& affected_rule : affected)
-            replace_matching_selectors(*affected_rule, document);
+        auto& style_computer = document.style_computer();
+        auto sheet_id = style_computer.style_engine_sheet_id_for(*sheet);
+        if (sheet_id == 0)
+            return;
+        RuleCompilationContext context { style_computer.style_engine(), sheet_id, 0, document, style_computer };
+        compile_rules_into(context, *sheet, rule.native_rule().identity(), Parser::ValueParserFFI::NativeCompilationPurpose::Selectors);
     });
 }
 
 // A rule kept its place and its selector, and changed what it declares.
 void record_style_rule_declarations_changed(CSSRule& rule)
 {
-    // A keyframe block is not a rule the engine holds: what the cascade sees is the `@keyframes` rule
-    // it belongs to, so editing one keyframe is that rule's declarations changing.
-    auto* changed_rule = &rule;
-    if (is<CSSKeyframeRule>(rule)) {
-        changed_rule = rule.parent_rule();
-        if (!changed_rule)
-            return;
-    }
+    if (auto* sheet = rule.parent_style_sheet())
+        record_style_rule_declarations_changed(rule.native_rule(), *sheet);
+}
 
-    auto& rule_to_report = *changed_rule;
-    auto* sheet = owning_compiled_sheet(rule_to_report);
+void record_style_rule_declarations_changed(RustRule const& rule, StyleSheetState& source_sheet)
+{
+    auto* sheet = owning_compiled_sheet(&source_sheet);
     if (!sheet)
         return;
 
     for_each_document_with_engine_copy(*sheet, [&](DOM::Document& document) {
         document.flush_deferred_style_change_event();
-        auto& style_computer = document.style_computer();
-        auto rule_id = style_computer.style_engine_rule_id_for(rule_to_report);
-        if (rule_id == 0)
-            return;
-
-        if (rule_change_needs_style_environment_bump(rule_to_report))
-            document.bump_style_environment_version();
-
-        auto& style_engine = style_computer.style_engine();
-        style_engine.record_rule_declarations_changed(rule_id, style_engine.next_declaration_block_version());
-        // Which properties the rule declares is part of what changed: an edit that adds or drops one
-        // changes which properties it can win.
-        record_rule_declared_properties(style_engine, rule_id, rule_to_report);
+        struct ChangeContext {
+            GC::Ref<DOM::Document> document;
+            bool changes_environment;
+        } context { document, rule.type() != RustRule::Type::Keyframe && rule_change_needs_style_environment_bump(rule) };
+        auto& style_engine = document.style_computer().style_engine();
+        if (StyleEngineFFI::style_engine_native_rule_declarations_changed(
+                style_engine.rust_handle(), rule.handle(), &context,
+                [](void* opaque, u32) {
+                    auto& context = *static_cast<ChangeContext*>(opaque);
+                    if (context.changes_environment)
+                        context.document->bump_style_environment_version();
+                }))
+            style_engine.note_css_transitions_may_observe_style_changes();
     });
 }
 
 // `replace()` swaps a sheet's whole rule list, so there is nothing of the old one to keep.
-void record_stylesheet_rules_replaced(CSSStyleSheet& sheet)
+void record_stylesheet_rules_replaced(StyleSheetState& sheet)
 {
     for_each_document_with_engine_copy(sheet, [&](DOM::Document& document) {
         document.flush_deferred_style_change_event();
@@ -2001,17 +1484,12 @@ void record_stylesheet_rules_replaced(CSSStyleSheet& sheet)
         auto& style_engine = style_computer.style_engine();
         style_engine.begin_sheet_rules_replacement(sheet_id);
         RuleCompilationContext context { style_engine, sheet_id, 0, document, style_computer };
-        if (sheet.constructed())
-            context.non_author_rule_ids = &style_computer.constructed_rule_ids();
-        for (size_t index = 0; index < sheet.rules().length(); ++index) {
-            if (auto rule = sheet.rules().item(index))
-                compile_rules_into(context, *rule);
-        }
+        compile_rules_into(context, sheet);
         style_engine.finish_sheet_rules_replacement(sheet_id);
     });
 }
 
-void record_stylesheet_attached(CSSStyleSheet& sheet, DOM::Node& document_or_shadow_root, CSSStyleSheet* before)
+void record_stylesheet_attached(StyleSheetState& sheet, DOM::Node& document_or_shadow_root, StyleSheetState* before)
 {
     document_or_shadow_root.document().flush_deferred_style_change_event();
     publish_document_kind(document_or_shadow_root.document());
@@ -2045,7 +1523,7 @@ void record_stylesheet_attached(CSSStyleSheet& sheet, DOM::Node& document_or_sha
     // opportunity to publish the condition state.
     if (sheet.constructed()) {
         sheet.evaluate_media_queries(document_or_shadow_root.document());
-        style_engine.set_sheet_conditions_hold(sheet_id, !sheet.disabled() && sheet.media()->matches());
+        style_engine.set_sheet_conditions_hold(sheet_id, !sheet.disabled() && sheet.native_media_list().matches());
     }
 
     // Layer ranks belong to the attachment's tree scope. Publishing them while attaching keeps the
@@ -2067,12 +1545,7 @@ void record_stylesheet_attached(CSSStyleSheet& sheet, DOM::Node& document_or_sha
     if (!first_attachment)
         return;
     RuleCompilationContext context { style_engine, sheet_id, 0, document_or_shadow_root.document(), style_computer };
-    if (sheet.constructed())
-        context.non_author_rule_ids = &style_computer.constructed_rule_ids();
-    for (size_t index = 0; index < sheet.rules().length(); ++index) {
-        if (auto rule = sheet.rules().item(index))
-            compile_rules_into(context, *rule);
-    }
+    compile_rules_into(context, sheet);
 }
 
 // The user-agent and user origins have no style sheet list to attach from, so nothing announces
@@ -2092,10 +1565,10 @@ void record_non_author_stylesheets(DOM::Document& document)
 
     publish_document_kind(document);
 
-    Vector<GC::Ref<CSSStyleSheet>> sheets;
+    Vector<NonnullRefPtr<StyleSheetState>> sheets;
     Vector<StyleEngineFFI::FfiCascadeOrigin> origins;
     for (auto origin : { CascadeOrigin::UserAgent, CascadeOrigin::User }) {
-        style_scope.for_each_stylesheet(origin, [&](CSSStyleSheet& sheet) {
+        style_scope.for_each_stylesheet(origin, [&](StyleSheetState& sheet) {
             sheets.append(sheet);
             origins.append(origin == CascadeOrigin::UserAgent ? StyleEngineFFI::FfiCascadeOrigin::UserAgent : StyleEngineFFI::FfiCascadeOrigin::User);
         });
@@ -2122,14 +1595,12 @@ void record_non_author_stylesheets(DOM::Document& document)
     for (auto const& entry : recorded)
         style_engine.detach_sheet(entry.sheet_id, document_tree_scope);
     recorded.clear();
-    auto& non_author_rule_ids = style_computer.non_author_rule_ids();
-    non_author_rule_ids.clear();
 
     // These origins cascade before every author sheet, so each is inserted ahead of the first one
     // rather than appended. Inserting each new sheet before that same successor keeps them in the
     // order they were collected.
     SheetID first_author_sheet;
-    for (auto const& sheet : document.style_sheets().sheets()) {
+    for (auto const& sheet : document.style_scope().style_sheets()) {
         if (sheet->style_engine_sheet_id() != 0) {
             first_author_sheet = sheet->style_engine_sheet_id();
             break;
@@ -2142,58 +1613,12 @@ void record_non_author_stylesheets(DOM::Document& document)
             origins[index]);
         style_engine.attach_sheet(sheet_id, document_tree_scope, first_author_sheet);
         RuleCompilationContext context { style_engine, sheet_id, 0, document, style_computer };
-        context.non_author_rule_ids = &non_author_rule_ids;
-        context.cascade_origin = origins[index] == StyleEngineFFI::FfiCascadeOrigin::UserAgent ? CascadeOrigin::UserAgent : CascadeOrigin::User;
-        for (size_t rule_index = 0; rule_index < sheets[index]->rules().length(); ++rule_index) {
-            if (auto rule = sheets[index]->rules().item(rule_index))
-                compile_rules_into(context, *rule);
-        }
+        compile_rules_into(context, *sheets[index]);
         recorded.append({ sheets[index], sheet_id });
     }
 }
 
-// A group's condition can come true or stop being true without the sheet's own media moving - a
-// viewport change is one `@media` becoming false and another becoming true. Each rule hears the
-// state it is now in, and the engine rejects the ones that did not move.
-static void record_rule_conditions_in(StyleComputer& style_computer, CSSRule& rule, bool conditions_hold, DOM::Document const& document)
-{
-    auto& style_engine = style_computer.style_engine();
-    if (auto rule_id = style_computer.style_engine_rule_id_for(rule); rule_id != 0)
-        style_engine.set_rule_conditions_hold(rule_id, conditions_hold);
-
-    if (auto* import_rule = as_if<CSSImportRule>(rule)) {
-        if (auto* imported = import_rule->loaded_style_sheet()) {
-            auto imported_conditions_hold = conditions_hold && condition_holds(rule, document);
-            for (size_t index = 0; index < imported->rules().length(); ++index) {
-                if (auto child = imported->rules().item(index))
-                    record_rule_conditions_in(style_computer, *child, imported_conditions_hold, document);
-            }
-        }
-        return;
-    }
-
-    if (auto* grouping_rule = as_if<CSSGroupingRule>(rule)) {
-        auto nested = conditions_hold && condition_holds(rule, document);
-        for (size_t index = 0; index < grouping_rule->css_rules().length(); ++index) {
-            if (auto child = grouping_rule->css_rules().item(index))
-                record_rule_conditions_in(style_computer, *child, nested, document);
-        }
-    }
-}
-
-void record_rule_conditions(CSSRule& rule)
-{
-    auto* sheet = owning_compiled_sheet(rule);
-    if (!sheet)
-        return;
-    auto enclosing = enclosing_rules(rule);
-    for_each_document_with_engine_copy(*sheet, [&](DOM::Document& document) {
-        document.flush_deferred_style_change_event();
-        record_rule_conditions_in(document.style_computer(), rule, enclosing_conditions_hold(enclosing, document), document);
-    });
-}
-
-static CSSStyleSheet* owning_engine_sheet(CSSStyleSheet& sheet)
+static StyleSheetState* owning_engine_sheet(StyleSheetState& sheet)
 {
     // A constructed sheet is always its own engine sheet; its per-document ids make the raw member 0
     // without its rules living in any other sheet's program.
@@ -2201,7 +1626,7 @@ static CSSStyleSheet* owning_engine_sheet(CSSStyleSheet& sheet)
         return &sheet;
     auto* engine_sheet = &sheet;
     while (engine_sheet->style_engine_sheet_id() == 0) {
-        auto owner = engine_sheet->owner_rule();
+        auto* owner = engine_sheet->owner_import();
         if (!owner)
             return nullptr;
         engine_sheet = owner->parent_style_sheet();
@@ -2211,7 +1636,7 @@ static CSSStyleSheet* owning_engine_sheet(CSSStyleSheet& sheet)
     return engine_sheet;
 }
 
-void record_stylesheet_rule_conditions(CSSStyleSheet& sheet)
+void record_stylesheet_rule_conditions(StyleSheetState& sheet)
 {
     auto* engine_sheet = owning_engine_sheet(sheet);
     if (!engine_sheet)
@@ -2221,22 +1646,31 @@ void record_stylesheet_rule_conditions(CSSStyleSheet& sheet)
     });
 }
 
-void record_stylesheet_rule_conditions(CSSStyleSheet& sheet, DOM::Document& document)
+void record_stylesheet_rule_conditions(StyleSheetState& sheet, DOM::Document& document)
 {
+    auto* engine_sheet = sheet.owner_import() ? owning_engine_sheet(sheet) : &sheet;
+    if (!engine_sheet)
+        return;
     document.flush_deferred_style_change_event();
     auto& style_computer = document.style_computer();
-    for (size_t index = 0; index < sheet.rules().length(); ++index) {
-        if (auto rule = sheet.rules().item(index))
-            record_rule_conditions_in(style_computer, *rule, true, document);
-    }
+    // Imported rules inherit the conditions of every enclosing import. Starting at an imported
+    // sheet would lose those gates and could re-enable rules beneath a non-matching import.
+    MediaEnvironmentSnapshot environment { document };
+    Parser::ValueParserFFI::rust_style_sheet_publish_conditions(
+        engine_sheet->native_sheet().handle(), style_computer.style_engine().rust_handle(), environment.ffi_environment());
 }
 
-void record_stylesheet_conditions(CSSStyleSheet& sheet, DOM::Node& document_or_shadow_root, bool conditions_hold)
+void record_stylesheet_conditions(StyleSheetState& sheet, DOM::Node& document_or_shadow_root, bool conditions_hold)
 {
     document_or_shadow_root.document().flush_deferred_style_change_event();
     auto* engine_sheet = owning_engine_sheet(sheet);
     if (!engine_sheet)
         return;
+    // An imported sheet gates only its own rules, not the entire enclosing engine sheet.
+    if (engine_sheet != &sheet) {
+        record_stylesheet_rule_conditions(*engine_sheet, document_or_shadow_root.document());
+        return;
+    }
     auto& style_computer = document_or_shadow_root.document().style_computer();
     auto sheet_id = style_computer.style_engine_sheet_id_for(*engine_sheet);
     if (sheet_id == 0)
@@ -2244,7 +1678,7 @@ void record_stylesheet_conditions(CSSStyleSheet& sheet, DOM::Node& document_or_s
     style_computer.style_engine().set_sheet_conditions_hold(sheet_id, conditions_hold);
 }
 
-void record_stylesheet_detached(CSSStyleSheet& sheet, DOM::Node& document_or_shadow_root)
+void record_stylesheet_detached(StyleSheetState& sheet, DOM::Node& document_or_shadow_root)
 {
     document_or_shadow_root.document().flush_deferred_style_change_event();
     auto& style_computer = document_or_shadow_root.document().style_computer();

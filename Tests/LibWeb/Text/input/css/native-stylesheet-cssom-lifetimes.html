@@ -1,0 +1,41 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    async function detachedImportedRule() {
+        const cssURL = text => `data:text/css,${encodeURIComponent(text)}`;
+        const leaf = cssURL("div { width: 47px; }");
+        const middle = cssURL(`@import url("${leaf}");`);
+        const frame = document.createElement("iframe");
+        frame.srcdoc = `<!doctype html><style>@import url("${middle}");</style><div></div>`;
+        const loaded = new Promise(resolve => frame.onload = resolve);
+        document.body.append(frame);
+        await loaded;
+        const style = frame.contentDocument.querySelector("style");
+        const rule = style.sheet.cssRules[0].styleSheet.cssRules[0].styleSheet.cssRules[0];
+        style.remove();
+        frame.contentDocument.body.offsetWidth;
+        frame.remove();
+        return rule;
+    }
+
+    const rule = await detachedImportedRule();
+    internals.gc();
+    const leaf = rule.parentStyleSheet;
+    const middle = leaf.parentStyleSheet;
+    const root = middle.parentStyleSheet;
+    println(`retained rule: ${rule.style.width}`);
+    println(`leaf owner: ${leaf.ownerRule === middle.cssRules[0]}`);
+    println(`middle owner: ${middle.ownerRule === root.cssRules[0]}`);
+    println(`detached root: ${root.ownerNode === null && root.parentStyleSheet === null}`);
+    root.deleteRule(0);
+    internals.gc();
+    println(`detached import: ${middle.parentStyleSheet === null && middle.ownerRule.parentStyleSheet === null}`);
+    println(`retained descendant: ${leaf.parentStyleSheet === middle && rule.parentStyleSheet === leaf}`);
+
+    const replacement = new CSSStyleSheet().replace("div { width: 53px; }");
+    internals.gc();
+    const replaced = await replacement;
+    println(`pending replacement retains sheet: ${replaced.cssRules[0].style.width}`);
+});
+</script>

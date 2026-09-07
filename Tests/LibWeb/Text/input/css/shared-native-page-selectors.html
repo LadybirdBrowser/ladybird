@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const text = '@page 雪:left:first, :blank { margin-left: 7px; @top-left { content: "雪"; } }';
+        const makeSheet = () => {
+            const sheet = new CSSStyleSheet();
+            sheet.replaceSync(text);
+            return sheet;
+        };
+        const first = makeSheet();
+        const shared = makeSheet();
+        const rule = first.cssRules[0];
+        const style = rule.style;
+        const marginRule = rule.cssRules[0];
+        println(`parsed selectors: ${rule.selectorText}`);
+        rule.selectorText = "氷:RIGHT";
+        println(`edited selectors: ${rule.selectorText}`);
+        println(`shared selectors: ${shared.cssRules[0].selectorText}`);
+        println(`stable identity: ${rule === first.cssRules[0]}, ${style === rule.style}, ${marginRule === rule.cssRules[0]}`);
+        rule.selectorText = "氷:unknown";
+        println(`invalid edit: ${rule.selectorText}`);
+        println(`descriptors: ${style.marginLeft}, ${marginRule.style.content}`);
+        rule.selectorText = "";
+        println(`empty selector: ${JSON.stringify(rule.selectorText)}`);
+        rule.selectorText = "雪:first, 氷:left";
+        first.deleteRule(0);
+        println(`detached selectors: ${rule.parentStyleSheet === null}, ${rule.selectorText}`);
+        println(`cached selectors: ${makeSheet().cssRules[0].selectorText}`);
+        println(`shared serialization: ${shared.cssRules[0].cssText}`);
+    });
+</script>

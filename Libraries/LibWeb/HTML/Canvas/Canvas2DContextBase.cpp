@@ -1458,12 +1458,12 @@ void Canvas2DContextBase::set_filter(Utf16View filter)
         return;
     }
 
-    auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue }, filter);
+    CSS::Parser::Parser parser { CSS::Parser::ParsingParams { CSS::Parser::SpecialContext::CanvasContextGenericValue } };
 
     // 2. Let parsedValue be the result of parsing the given values as a <filter-value-list>.
     //    If any property-independent style sheet syntax like 'inherit' or 'initial' is present,
     //    then this parsing must return failure.
-    auto style_value = parser.parse_as_css_value(CSS::PropertyID::Filter);
+    auto style_value = parser.parse_as_css_value(filter, CSS::PropertyID::Filter);
 
     if (style_value && style_value->is_value_list()) {
         auto absolutized_style_value = style_value->absolutized(computation_context_for_drawing_state());

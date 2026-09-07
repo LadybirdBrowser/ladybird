@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="outer" style="container: 色😀 / inline-size; width: 200px; --状態: 無効">
+    <div id="inner" style="container-name: 名前">
+        <div id="target"></div>
+    </div>
+</div>
+<script>
+test(() => {
+    const text = `
+        #target { height: 7px; }
+        @container 色😀 (width > 100px) {
+            @container 名前 style(--状態: 有効), absent {
+                #target { height: 13px; }
+            }
+        }
+        @container 名前 { #target { width: 17px; } }
+    `;
+    const first = document.createElement("style");
+    const second = document.createElement("style");
+    first.textContent = second.textContent = text;
+    document.head.append(first, second);
+    const outer = document.querySelector("#outer");
+    const inner = document.querySelector("#inner");
+    const target = document.querySelector("#target");
+    const outerRule = first.sheet.cssRules[1];
+    const innerRule = outerRule.cssRules[0];
+    const height = () => getComputedStyle(target).height;
+    println(`initial: ${height()}, ${getComputedStyle(target).width}`);
+    outer.style.setProperty("--状態", "有効");
+    println(`style query enabled: ${height()}`);
+    outer.style.width = "50px";
+    println(`outer size query disabled: ${height()}`);
+    outer.style.width = "200px";
+    println(`outer size query enabled: ${height()}`);
+    outer.style.setProperty("--状態", "無効");
+    inner.style.containerName = "名前 absent";
+    println(`name-only alternative: ${height()}`);
+    println(`outer name: ${outerRule.containerName}`);
+    println(`inner conditions: ${innerRule.conditions.map(c => `${c.name}:${c.query}`).join(", ")}`);
+    println(`distinct wrappers: ${outerRule !== second.sheet.cssRules[1]}`);
+    innerRule.cssRules[0].style.height = "29px";
+    println(`other declaration: ${second.sheet.cssRules[1].cssRules[0].cssRules[0].style.height}`);
+    second.remove();
+    println(`mutated declaration: ${height()}`);
+    outerRule.deleteRule(0);
+    println(`deleted nested rule: ${height()}`);
+    outerRule.insertRule("@container 名前 { #target { height: 31px; } }", 0);
+    println(`inserted nested rule: ${height()}`);
+    first.remove();
+    internals.gc();
+    println(`detached conditions: ${innerRule.conditionText}`);
+});
+</script>

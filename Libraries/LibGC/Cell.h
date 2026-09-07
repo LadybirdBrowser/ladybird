@@ -191,6 +191,21 @@ public:
         }
 
         template<typename T>
+        void visit(AK::RefPtr<T> const& value)
+        requires(requires(RemoveConst<T>& visitable) { visitable.visit_edges(*this); })
+        {
+            if (value)
+                visit(*value);
+        }
+
+        template<typename T>
+        void visit(AK::NonnullRefPtr<T> const& value)
+        requires(requires(RemoveConst<T>& visitable) { visitable.visit_edges(*this); })
+        {
+            visit(*value);
+        }
+
+        template<typename T>
         void visit(Optional<T> const& optional)
         requires(IsVisitable<T>::value)
         {

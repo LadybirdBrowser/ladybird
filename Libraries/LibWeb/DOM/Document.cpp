@@ -50,9 +50,6 @@
 #include <LibWeb/CSS/Angle.h>
 #include <LibWeb/CSS/AnimationEvent.h>
 #include <LibWeb/CSS/CSSAnimation.h>
-#include <LibWeb/CSS/CSSImportRule.h>
-#include <LibWeb/CSS/CSSPropertyRule.h>
-#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/ComputedValues.h>
@@ -76,7 +73,9 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
+#include <LibWeb/CSS/StyleSheetImport.h>
 #include <LibWeb/CSS/StyleSheetList.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
@@ -763,7 +762,8 @@ void Document::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     m_style_scope.visit_edges(visitor);
-    visitor.visit(m_pending_css_import_rules);
+    for (auto const& import : m_pending_css_import_rules)
+        import->visit_edges(visitor);
     visitor.visit(m_page);
     visitor.visit(m_window);
     visitor.visit(m_relevant_global_event_target);
@@ -2810,7 +2810,7 @@ void Document::obtain_theme_color()
             auto context = CSS::Parser::ParsingParams { document() };
             auto media = element.attribute(HTML::AttributeNames::media);
             if (media.has_value()) {
-                auto query = parse_media_query(context, media.value());
+                auto query = parse_media_query(media.value());
                 if (query.is_null() || !query->evaluate(*this))
                     return TraversalDecision::Continue;
             }
@@ -3705,7 +3705,7 @@ void Document::adopt_node_steps(Node& node)
         node.for_each_shadow_including_inclusive_descendant([&](DOM::Node& inclusive_descendant) {
             if (auto* shadow_root = as_if<ShadowRoot>(inclusive_descendant)) {
                 shadow_roots_with_adopted_sheets.append(*shadow_root);
-                for_each_adopted_style_sheet(AdoptedStyleSheetsAccess::adopted_style_sheets(*shadow_root), [&](CSS::CSSStyleSheet& sheet) {
+                for_each_adopted_style_sheet(AdoptedStyleSheetsAccess::adopted_style_sheets(*shadow_root), [&](CSS::StyleSheetState& sheet) {
                     CSS::record_stylesheet_detached(sheet, *shadow_root);
                 });
             }
@@ -3777,7 +3777,7 @@ void Document::adopt_node_steps(Node& node)
         // attaching them again is what tells this one that they decide here. Do this after the
         // adopting steps have minted the shadow root's identities for its new document.
         for (auto shadow_root : shadow_roots_with_adopted_sheets) {
-            for_each_adopted_style_sheet(AdoptedStyleSheetsAccess::adopted_style_sheets(shadow_root), [&](CSS::CSSStyleSheet& sheet) {
+            for_each_adopted_style_sheet(AdoptedStyleSheetsAccess::adopted_style_sheets(shadow_root), [&](CSS::StyleSheetState& sheet) {
                 CSS::record_stylesheet_attached(sheet, shadow_root, nullptr);
                 CSS::Invalidation::invalidate_style_after_adopting_style_sheet(shadow_root, sheet);
             });
@@ -5343,7 +5343,7 @@ void Document::set_window(HTML::Window& window)
 CSS::StyleSheetList& Document::style_sheets()
 {
     if (!m_style_sheets)
-        m_style_sheets = CSS::StyleSheetList::create(*this);
+        m_style_sheets = CSS::StyleSheetList::create(m_style_scope);
     return *m_style_sheets;
 }
 
@@ -9422,13 +9422,11 @@ GC::Ref<WebIDL::ObservableArray> Document::adopted_style_sheets() const
     return *m_adopted_style_sheets;
 }
 
-void Document::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)> const& callback) const
+void Document::for_each_active_css_style_sheet(Function<void(CSS::StyleSheetState&)> const& callback) const
 {
-    if (m_style_sheets) {
-        for (auto& style_sheet : m_style_sheets->sheets()) {
-            if (!style_sheet->disabled())
-                callback(*style_sheet);
-        }
+    for (auto& style_sheet : m_style_scope.style_sheets()) {
+        if (!style_sheet->disabled())
+            callback(*style_sheet);
     }
 
     if (m_adopted_style_sheets) {
@@ -9451,7 +9449,7 @@ double Document::ensure_element_shared_css_random_base_value(CSS::RandomCachingK
     });
 }
 
-static Optional<CSS::CSSStyleSheet&> find_style_sheet_with_url(Utf16View url, CSS::CSSStyleSheet& style_sheet)
+static Optional<CSS::StyleSheetState&> find_style_sheet_with_url(Utf16View url, CSS::StyleSheetState& style_sheet)
 {
     if (style_sheet.href_for_bindings() == url)
         return style_sheet;
@@ -9490,11 +9488,9 @@ Optional<Utf16String> Document::get_style_sheet_source(CSS::StyleSheetIdentifier
             return {};
         }
 
-        if (m_style_sheets) {
-            for (auto& style_sheet : m_style_sheets->sheets()) {
-                if (auto match = find_style_sheet_with_url(identifier.url.value(), style_sheet); match.has_value())
-                    return match->source_text();
-            }
+        for (auto& style_sheet : m_style_scope.style_sheets()) {
+            if (auto match = find_style_sheet_with_url(identifier.url.value(), style_sheet); match.has_value())
+                return match->source_text();
         }
 
         if (m_adopted_style_sheets) {
@@ -11063,10 +11059,21 @@ void Document::build_registered_properties_cache()
     ++m_style_invalidation_counters.registered_properties_cache_rebuilds;
 
     HashMap<Utf16FlyString, CSS::CustomPropertyRegistration> cached_registered_properties_from_css_property_rules;
-    for_each_active_css_style_sheet([&](CSS::CSSStyleSheet const& style_sheet) {
-        style_sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSS::CSSRule const& rule) {
-            if (auto* property_rule = as_if<CSS::CSSPropertyRule>(rule))
-                cached_registered_properties_from_css_property_rules.set(property_rule->name(), property_rule->to_registration());
+    for_each_active_css_style_sheet([&](CSS::StyleSheetState const& style_sheet) {
+        style_sheet.for_each_effective_rule_data(TraversalOrder::Preorder, [&](CSS::RustRuleView const& rule, Utf16View) {
+            if (rule.type() != CSS::RustRule::Type::Property)
+                return;
+            auto property = CSS::Parser::ValueParserFFI::rust_property_rule_view(rule.property());
+            auto name = Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(property.name.utf16), property.name.length });
+            RefPtr<CSS::StyleValue const> initial_value;
+            if (property.initial_value)
+                initial_value = CSS::StyleValue::adopt_rust_style_value_data(CSS::StyleValueFFI::rust_style_value_retain(static_cast<CSS::StyleValueFFI::StyleValueData const*>(property.initial_value)));
+            cached_registered_properties_from_css_property_rules.set(name, CSS::CustomPropertyRegistration {
+                                                                               .property_name = name,
+                                                                               .syntax = CSS::Parser::RustSyntaxHandle { CSS::Parser::ValueParserFFI::rust_syntax_retain(property.syntax) },
+                                                                               .inherit = property.inherits,
+                                                                               .initial_value = move(initial_value),
+                                                                           });
         });
     });
 
@@ -11232,12 +11239,12 @@ Utf16View to_string(PartialRelayoutEscapeReason reason)
     VERIFY_NOT_REACHED();
 }
 
-void Document::add_pending_css_import_rule(Badge<CSS::CSSImportRule>, GC::Ref<CSS::CSSImportRule> rule)
+void Document::add_pending_css_import_rule(Badge<CSS::StyleSheetImport>, NonnullRefPtr<CSS::StyleSheetImport> rule)
 {
     m_pending_css_import_rules.set(rule);
 }
 
-void Document::remove_pending_css_import_rule(Badge<CSS::CSSImportRule>, GC::Ref<CSS::CSSImportRule> rule)
+void Document::remove_pending_css_import_rule(Badge<CSS::StyleSheetImport>, NonnullRefPtr<CSS::StyleSheetImport> rule)
 {
     m_pending_css_import_rules.remove(rule);
     if (m_pending_css_import_rules.is_empty())

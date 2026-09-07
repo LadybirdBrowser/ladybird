@@ -41,7 +41,6 @@ define_ffi_ops! {
     CascadeBulkEntry => "cascadeBulkEntries",
     CascadedStoreQueryEntry => "cascadedStoreQueryEntries",
     CustomPropertyStoreLifecycleEntry => "customPropertyStoreLifecycleEntries",
-    CustomPropertyStoreQueryEntry => "customPropertyStoreQueryEntries",
     LonghandDriverEntry => "longhandDriverEntries",
     LonghandDriverPhaseCallback => "longhandDriverPhaseCallbacks",
     ShorthandExpansionEntry => "shorthandExpansionEntries",
@@ -77,6 +76,10 @@ define_ffi_ops! {
 
 static COUNTERS: [AtomicU64; FFI_OP_COUNT] = [const { AtomicU64::new(0) }; FFI_OP_COUNT];
 static COUNTERS_ENABLED: AtomicBool = AtomicBool::new(false);
+#[cfg(test)]
+thread_local! {
+    pub(crate) static CPP_CALLBACK_COUNT: std::cell::Cell<u64> = const { std::cell::Cell::new(0) };
+}
 thread_local! {
     static COMPLETE_STYLE_UPDATE_STATE: RefCell<CompleteStyleUpdateState> = const { RefCell::new(CompleteStyleUpdateState::new()) };
 }
@@ -84,14 +87,12 @@ thread_local! {
 #[derive(Default)]
 struct DeferredCppReleases {
     fly_strings: Vec<usize>,
-    strings: Vec<usize>,
 }
 
 impl DeferredCppReleases {
     const fn new() -> Self {
         Self {
             fly_strings: Vec::new(),
-            strings: Vec::new(),
         }
     }
 }
@@ -116,13 +117,10 @@ impl CompleteStyleUpdateState {
 pub struct FfiDeferredCppReleases {
     pub fly_strings: *const usize,
     pub fly_string_count: usize,
-    pub strings: *const usize,
-    pub string_count: usize,
 }
 
 unsafe extern "C" {
     fn ladybird_utf16_fly_string_unref(raw: usize);
-    fn ladybird_string_unref(raw: usize);
 }
 
 #[inline]
@@ -134,6 +132,8 @@ pub(crate) fn bump(op: FfiOp) {
 
 #[inline]
 pub(crate) fn bump_cpp_callback(op: FfiOp) {
+    #[cfg(test)]
+    CPP_CALLBACK_COUNT.set(CPP_CALLBACK_COUNT.get() + 1);
     bump(op);
 }
 
@@ -151,22 +151,6 @@ pub(crate) fn release_utf16_fly_string(raw: usize) {
     }
     bump_cpp_callback(FfiOp::StringRetainReleaseCallback);
     unsafe { ladybird_utf16_fly_string_unref(raw) };
-}
-
-pub(crate) fn release_string(raw: usize) {
-    let deferred = COMPLETE_STYLE_UPDATE_STATE.with(|state| {
-        let mut state = state.borrow_mut();
-        if state.depth == 0 {
-            return false;
-        }
-        state.releases.strings.push(raw);
-        true
-    });
-    if deferred {
-        return;
-    }
-    bump_cpp_callback(FfiOp::StringRetainReleaseCallback);
-    unsafe { ladybird_string_unref(raw) };
 }
 
 /// Marks a complete C++-orchestrated style update, from transaction planning
@@ -198,8 +182,6 @@ pub extern "C" fn rust_style_ffi_complete_style_update_end() -> FfiDeferredCppRe
             return FfiDeferredCppReleases {
                 fly_strings: std::ptr::null(),
                 fly_string_count: 0,
-                strings: std::ptr::null(),
-                string_count: 0,
             };
         }
         assert!(!state.has_outstanding_view, "deferred release view was not cleared");
@@ -207,8 +189,6 @@ pub extern "C" fn rust_style_ffi_complete_style_update_end() -> FfiDeferredCppRe
         FfiDeferredCppReleases {
             fly_strings: state.releases.fly_strings.as_ptr(),
             fly_string_count: state.releases.fly_strings.len(),
-            strings: state.releases.strings.as_ptr(),
-            string_count: state.releases.strings.len(),
         }
     })
 }
@@ -222,7 +202,6 @@ pub extern "C" fn rust_deferred_cpp_releases_clear() {
         }
         assert_eq!(state.depth, 0, "deferred releases cleared during a style update");
         state.releases.fly_strings.clear();
-        state.releases.strings.clear();
         state.has_outstanding_view = false;
     });
 }

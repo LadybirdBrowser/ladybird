@@ -50,7 +50,7 @@ fn context_bytes(pointer: *const u8, length: usize) -> Option<&'static [u8]> {
 fn image_resource_context(context: &ParseContext) -> Option<ImageResourceContext> {
     let base_url = context_bytes(context.document_base_url, context.document_base_url_length)?;
     Some(ImageResourceContext {
-        base_url: RetainedString::from_utf8(std::str::from_utf8(base_url).ok()?.to_owned()),
+        base_url: RetainedString::from_ascii(std::str::from_utf8(base_url).ok()?.to_owned()),
         has_base_url: !base_url.is_empty(),
         has_parent_style_sheet_origin_clean: false,
         parent_style_sheet_origin_clean: false,
@@ -632,7 +632,7 @@ pub(crate) fn parse_image_value(
 ) -> Option<StyleValueData> {
     tokens.discard_whitespace();
     if let Some(url) = parse_url_value(context, tokens.next_token()) {
-        let is_fragment = matches!(&url, StyleValueData::Url { url, .. } if url.as_bytes().starts_with(b"#"));
+        let is_fragment = matches!(&url, StyleValueData::Url { url, .. } if url.is_fragment());
         if !is_fragment {
             tokens.discard_a_token();
             return image_from_url(context, url);
@@ -738,7 +738,6 @@ mod tests {
             value_contexts: std::ptr::null(),
             value_context_count: 0,
             declared_namespaces: std::ptr::null(),
-            declared_namespace_count: 0,
             document_url: std::ptr::null(),
             document_url_length: 0,
             document_base_url: std::ptr::null(),

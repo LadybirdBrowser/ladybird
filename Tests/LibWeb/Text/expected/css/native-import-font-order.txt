@@ -1,0 +1,5 @@
+downloaded graph: Leaf, Middle, Root, Manual
+inserted rule: Leaf, Inserted, Middle, Root, Manual
+existing faces retain identity: true
+detached leaf: Inserted, Middle, Root, Manual
+detached middle: Root, Manual

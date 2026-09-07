@@ -1,0 +1,8 @@
+downloaded rules precede following rules: rgb(4, 5, 6)
+insert before existing rule: rgb(4, 5, 6)
+insert after existing rule: rgb(13, 14, 15)
+insert under inactive ancestor: rgb(1, 2, 3)
+activate inserted rules: rgb(16, 17, 18)
+scope excludes sibling: rgb(0, 0, 0)
+remove native subtree: rgb(1, 2, 3)
+remove imported subtree: rgb(0, 0, 0)

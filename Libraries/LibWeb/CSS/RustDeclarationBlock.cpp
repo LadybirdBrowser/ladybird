@@ -23,6 +23,42 @@ static FfiDeclaredProperty property_view(PropertyID property_id, StyleValue cons
     };
 }
 
+static StyleProperty wrap_property(FfiDeclaredProperty const& property, HashMap<void const*, NonnullRefPtr<StyleValue const>>& values)
+{
+    auto value = values.ensure(property.value, [&] {
+        return NonnullRefPtr<StyleValue const> { StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(property.value))) };
+    });
+    return { property.important ? Important::Yes : Important::No, static_cast<PropertyID>(property.property_id), move(value) };
+}
+
+RustDeclarationBlockSnapshot::RustDeclarationBlockSnapshot(DeclarationBlockData const* data)
+    : m_data(data)
+{
+    VERIFY(m_data);
+}
+
+RustDeclarationBlockSnapshot::~RustDeclarationBlockSnapshot()
+{
+    rust_declaration_data_release(m_data);
+}
+
+RustDeclarationBlockSnapshot::RustDeclarationBlockSnapshot(RustDeclarationBlockSnapshot&& other)
+    : m_data(exchange(other.m_data, nullptr))
+{
+}
+
+RustDeclarationBlockSnapshot& RustDeclarationBlockSnapshot::operator=(RustDeclarationBlockSnapshot&& other)
+{
+    RustDeclarationBlockSnapshot moved(move(other));
+    swap(m_data, moved.m_data);
+    return *this;
+}
+
+FfiDeclarationBlockDependencies RustDeclarationBlockSnapshot::dependencies() const
+{
+    return rust_declaration_data_dependencies(m_data);
+}
+
 RustDeclarationBlock::RustDeclarationBlock(Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties)
     : m_properties(move(properties))
     , m_custom_properties(move(custom_properties))
@@ -36,7 +72,7 @@ RustDeclarationBlock::RustDeclarationBlock(Vector<StyleProperty> properties, Ord
     m_block = rust_declaration_block_create(property_views.data(), property_views.size(), custom_property_views.data(), custom_property_views.size());
 }
 
-RustDeclarationBlock::RustDeclarationBlock(FfiDeclarationBlock* block)
+RustDeclarationBlock::RustDeclarationBlock(DeclarationBlock* block)
     : m_block(block)
 {
     VERIFY(m_block);
@@ -109,21 +145,20 @@ void RustDeclarationBlock::update_views() const
     for (auto const& property : m_custom_properties)
         existing_values.set(property.value.value->rust_style_value_data(), property.value.value);
 
-    auto wrap = [&](FfiDeclaredProperty const& property) {
-        auto value = existing_values.ensure(property.value, [&] {
-            return NonnullRefPtr<StyleValue const> { StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(property.value))) };
-        });
-        return StyleProperty { property.important ? Important::Yes : Important::No, static_cast<PropertyID>(property.property_id), move(value) };
-    };
-
-    auto view = rust_declaration_block_view(m_block);
     m_properties.clear();
-    m_properties.ensure_capacity(view.property_count);
-    for (auto const& property : ReadonlySpan { view.properties, view.property_count })
-        m_properties.unchecked_append(wrap(property));
     m_custom_properties.clear();
-    for (auto const& property : ReadonlySpan { view.custom_properties, view.custom_property_count })
-        m_custom_properties.set(Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(property.name.utf16), property.name.length }), wrap(property));
+    struct Context {
+        RustDeclarationBlock const& block;
+        HashMap<void const*, NonnullRefPtr<StyleValue const>>& values;
+    } context { *this, existing_values };
+    rust_declaration_block_visit(m_block, &context, [](void* raw_context, FfiDeclaredProperty const* property) {
+        auto& context = *static_cast<Context*>(raw_context);
+        auto value = wrap_property(*property, context.values);
+        if (property->name.length)
+            context.block.m_custom_properties.set(Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(property->name.utf16), property->name.length }), move(value));
+        else
+            context.block.m_properties.append(move(value));
+    });
     m_view_revision = current_revision;
 }
 
@@ -137,6 +172,11 @@ OrderedHashMap<Utf16FlyString, StyleProperty> const& RustDeclarationBlock::custo
 {
     update_views();
     return m_custom_properties;
+}
+
+FfiDeclarationBlockDependencies RustDeclarationBlock::dependencies() const
+{
+    return rust_declaration_block_dependencies(m_block);
 }
 
 size_t RustDeclarationBlock::external_memory_size() const

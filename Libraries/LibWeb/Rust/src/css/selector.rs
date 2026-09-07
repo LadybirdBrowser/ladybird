@@ -7,6 +7,7 @@
 use std::sync::Arc;
 use std::sync::atomic::{AtomicU64, Ordering};
 
+pub use crate::css::ffi_support::FfiStringView;
 use crate::css::ffi_support::ascii_lowercase;
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 
@@ -467,13 +468,6 @@ impl<Identity> CompiledSelector<Identity> {
         }
         specificity
     }
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiStringView {
-    pub data: *const u16,
-    pub length: usize,
 }
 
 pub struct RustSelector {

@@ -38,6 +38,80 @@
 
 namespace Web::CSS {
 
+NonnullRefPtr<ContainerConditions> ContainerConditions::create(Parser::ValueParserFFI::ContainerConditionsData const* data)
+{
+    return adopt_ref(*new ContainerConditions(data));
+}
+
+ContainerConditions::ContainerConditions(Parser::ValueParserFFI::ContainerConditionsData const* data)
+    : m_data(Parser::ValueParserFFI::rust_container_conditions_retain(data))
+{
+    VERIFY(m_data);
+}
+
+ContainerConditions::~ContainerConditions()
+{
+    Parser::ValueParserFFI::rust_container_conditions_release(m_data);
+}
+
+Vector<ContainerConditions::Condition> const& ContainerConditions::entries() const
+{
+    if (!m_entries.has_value()) {
+        Vector<Condition> entries;
+        auto count = Parser::ValueParserFFI::rust_container_conditions_count(m_data);
+        entries.ensure_capacity(count);
+        for (size_t index = 0; index < count; ++index) {
+            auto name = Parser::ValueParserFFI::rust_container_conditions_name(m_data, index);
+            auto const* query = Parser::ValueParserFFI::rust_container_conditions_query(m_data, index);
+            Condition condition;
+            // A container name is a nonempty custom identifier; an empty view means it is absent.
+            if (name.length)
+                condition.container_name = Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(name.utf16), name.length });
+            if (query)
+                condition.container_query = ContainerQuery::create(RustQueryHandle::retained(query));
+            entries.unchecked_append(move(condition));
+        }
+        m_entries = move(entries);
+    }
+    return *m_entries;
+}
+
+bool ContainerConditions::matches(DOM::AbstractElement const& element) const
+{
+    for (auto const& condition : entries()) {
+        if (condition.container_query) {
+            if (condition.container_query->evaluate(element, condition.container_name) == MatchResult::True)
+                return true;
+            continue;
+        }
+        if (condition.container_name.has_value()) {
+            for (auto const* container = element.flat_tree_parent_element(); container; container = container->flat_tree_parent_element()) {
+                if (container_name_matches(*container, condition.container_name))
+                    return true;
+            }
+        }
+    }
+    return false;
+}
+
+bool ContainerConditions::contains_size_feature() const
+{
+    return any_of(entries(), [](auto const& condition) { return condition.container_query && condition.container_query->contains_size_feature(); });
+}
+
+bool ContainerConditions::contains_style_feature() const
+{
+    return any_of(entries(), [](auto const& condition) { return condition.container_query && condition.container_query->contains_style_feature(); });
+}
+
+void ContainerConditions::mark_element_style_dependencies(DOM::AbstractElement& element) const
+{
+    if (contains_size_feature())
+        element.element().set_style_depends_on_size_container_query();
+    if (contains_style_feature())
+        element.element().set_style_depends_on_style_container_query();
+}
+
 struct ActiveStyleQueryResolution {
     AbstractOrHypotheticalElement element;
     Utf16FlyString property_name;
@@ -242,8 +316,8 @@ static RefPtr<StyleValue const> parse_style_range_literal_value(DOM::Document co
     // 3. Parse <style-range-value> to <number>, <percentage>, <length>, <angle>, <time>,
     //    <frequency> or <resolution>. If this cannot be done, evaluate to false.
     auto parse_as = [&](ValueType value_type) -> RefPtr<StyleValue const> {
-        auto parser = Parser::Parser::create(Parser::ParsingParams { document }, source);
-        return parser.parse_entirely_as_type(value_type);
+        Parser::Parser parser { Parser::ParsingParams { document } };
+        return parser.parse_primitive_value_from_source(value_type, source);
     };
 
     for (auto value_type : { ValueType::Number, ValueType::Length, ValueType::Percentage, ValueType::Angle, ValueType::Time, ValueType::Frequency, ValueType::Resolution }) {
@@ -464,11 +538,10 @@ NonnullRefPtr<ContainerQuery> ContainerQuery::create(RustQueryHandle handle)
     return adopt_ref(*new ContainerQuery(move(handle)));
 }
 
-ContainerQuery::ContainerQuery(RustQueryHandle handle)
-    : m_rust_query_handle(move(handle))
+static ContainerQueryFeatureRequirements container_query_requirements(Parser::ValueParserFFI::FfiQueryHandle const* query)
 {
-    auto requirements = Parser::ValueParserFFI::css_query_container_requirements(m_rust_query_handle.data());
-    m_feature_requirements = {
+    auto requirements = Parser::ValueParserFFI::css_query_container_requirements(query);
+    return {
         .requires_width_container = static_cast<bool>(requirements & Parser::ValueParserFFI::CONTAINER_QUERY_REQUIRES_WIDTH),
         .requires_height_container = static_cast<bool>(requirements & Parser::ValueParserFFI::CONTAINER_QUERY_REQUIRES_HEIGHT),
         .requires_inline_size_container = static_cast<bool>(requirements & Parser::ValueParserFFI::CONTAINER_QUERY_REQUIRES_INLINE_SIZE),
@@ -477,6 +550,12 @@ ContainerQuery::ContainerQuery(RustQueryHandle handle)
         .requires_scroll_state_container = static_cast<bool>(requirements & Parser::ValueParserFFI::CONTAINER_QUERY_REQUIRES_SCROLL_STATE),
         .has_unknown_or_unsupported_feature = static_cast<bool>(requirements & Parser::ValueParserFFI::CONTAINER_QUERY_HAS_UNKNOWN_FEATURE),
     };
+}
+
+ContainerQuery::ContainerQuery(RustQueryHandle handle)
+    : m_rust_query_handle(move(handle))
+    , m_feature_requirements(container_query_requirements(m_rust_query_handle.data()))
+{
 }
 
 static bool container_satisfies_requirements(DOM::Element const& element, ContainerQueryFeatureRequirements const& requirements)
@@ -669,11 +748,11 @@ MatchResult evaluate_style_query(RustQueryHandle const& handle, AbstractOrHypoth
 }
 
 // https://drafts.csswg.org/css-conditional-5/#container-rule
-MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Optional<Utf16FlyString> const& container_name) const
+static MatchResult evaluate_container_query(Parser::ValueParserFFI::FfiQueryHandle const* query, ContainerQueryFeatureRequirements const& requirements, DOM::AbstractElement const& element, Optional<Utf16FlyString> const& container_name)
 {
     // If the <container-query> contains unknown or unsupported container features, no query container will be selected
     // for that <container-condition>.
-    if (m_feature_requirements.has_unknown_or_unsupported_feature)
+    if (requirements.has_unknown_or_unsupported_feature)
         return MatchResult::Unknown;
 
     // For each element, the query container to be queried is selected from among the element’s ancestor query
@@ -685,7 +764,7 @@ MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Option
         if (!container_name_matches(*container, container_name))
             continue;
 
-        if (!container_satisfies_requirements(*container, m_feature_requirements))
+        if (!container_satisfies_requirements(*container, requirements))
             continue;
 
         // A style feature asks about the container's own computed style, so the container has to know
@@ -696,10 +775,10 @@ MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Option
         // is named as well.
         // A size feature asks about the container's own box, and the scan a resize does for the
         // dependents under it starts from the same fact: whether anything ever asked.
-        if (m_feature_requirements.contains_size_feature())
+        if (requirements.contains_size_feature())
             const_cast<DOM::Element&>(*container).set_is_size_query_container();
 
-        if (m_feature_requirements.contains_style_feature()) {
+        if (requirements.contains_style_feature()) {
             const_cast<DOM::Element&>(*container).set_is_style_query_container();
             if (auto* root = element.document().document_element())
                 root->set_is_style_query_container();
@@ -736,7 +815,7 @@ MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Option
 
         ContainerStyleEvaluationContext style_context { element.document(), DOM::AbstractElement { *container }, element };
         facts.style_context = &style_context;
-        auto result = Parser::ValueParserFFI::css_query_evaluate_container(m_rust_query_handle.data(), facts);
+        auto result = Parser::ValueParserFFI::css_query_evaluate_container(query, facts);
         if ((computation_context.has_value() && computation_context->depends_on_viewport_metrics()) || style_context.depends_on_viewport_metrics)
             const_cast<DOM::Element&>(element.element()).set_style_depends_on_viewport_metrics();
         VERIFY(result <= to_underlying(MatchResult::Unknown));
@@ -745,6 +824,27 @@ MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Option
 
     // If no ancestor is an eligible query container, then the container query is unknown for that element.
     return MatchResult::Unknown;
+}
+
+MatchResult ContainerQuery::evaluate(DOM::AbstractElement const& element, Optional<Utf16FlyString> const& container_name) const
+{
+    return evaluate_container_query(m_rust_query_handle.data(), m_feature_requirements, element, container_name);
+}
+
+bool evaluate_native_container_condition(Parser::ValueParserFFI::FfiQueryHandle const* query, Utf16View name, DOM::AbstractElement const& element)
+{
+    Optional<Utf16FlyString> container_name;
+    if (!name.is_empty())
+        container_name = Utf16FlyString::from_utf16(name);
+    if (query)
+        return evaluate_container_query(query, container_query_requirements(query), element, container_name) == MatchResult::True;
+    if (container_name.has_value()) {
+        for (auto const* container = element.flat_tree_parent_element(); container; container = container->flat_tree_parent_element()) {
+            if (container_name_matches(*container, container_name))
+                return true;
+        }
+    }
+    return false;
 }
 
 Utf16String ContainerQuery::to_string() const

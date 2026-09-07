@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const source = '@namespace 色 url(http://www.w3.org/2000/svg); 色|rect { fill: red; }';
+    const sheets = [new CSSStyleSheet(), new CSSStyleSheet()];
+    const roots = sheets.map(sheet => {
+        sheet.replaceSync(source);
+        const host = document.createElement("div");
+        document.body.append(host);
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = '<svg><rect class="target" width="10" height="10"></rect></svg>';
+        root.adoptedStyleSheets = [sheet];
+        return root;
+    });
+    const values = property => roots.map(root => getComputedStyle(root.querySelector("rect"))[property]).join(" / ");
+    const rule = sheets[0].cssRules[1];
+    rule.selectorText = "色|circle";
+    println(`native selector edit: ${values("fill")}`);
+    rule.selectorText = "未知|rect";
+    println(`unknown namespace rejected: ${rule.selectorText}`);
+    rule.selectorText = "色|rect.target";
+    println(`restored selector: ${values("fill")}`);
+    sheets[0].insertRule("色|rect { stroke: green; }", 2);
+    println(`inserted namespaced rule: ${values("stroke")}`);
+    sheets[0].insertRule("@media all {}", 3);
+    const group = sheets[0].cssRules[3];
+    group.insertRule("色|rect.target { fill: blue; }", 0);
+    println(`nested namespaced rule: ${values("fill")}`);
+    try {
+        group.insertRule("未知|rect { fill: green; }", 1);
+    } catch (error) {
+        println(`unknown namespace insertion: ${error.name}`);
+    }
+    sheets[0].deleteRule(1);
+    rule.selectorText = "色|circle";
+    println(`detached rule loses namespace context: ${rule.selectorText}`);
+    internals.gc();
+    println(`shared parse remains isolated: ${values("fill")}`);
+    roots.forEach(root => root.host.remove());
+});
+</script>

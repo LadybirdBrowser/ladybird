@@ -7,46 +7,58 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
-#include <LibWeb/CSS/CustomPropertyRegistration.h>
+#include <LibWeb/CSS/Parser/RustSyntaxHandle.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Dump.h>
 
 namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSPropertyRule);
 
-GC::Ref<CSSPropertyRule> CSSPropertyRule::create(Utf16FlyString name, Utf16FlyString syntax, Parser::RustSyntaxHandle parsed_syntax, bool inherits, RefPtr<StyleValue const> initial_value)
+GC::Ref<CSSPropertyRule> CSSPropertyRule::create(RustRule rule)
 {
-    return GC::Heap::the().allocate<CSSPropertyRule>(move(name), move(syntax), move(parsed_syntax), inherits, move(initial_value));
+    return GC::Heap::the().allocate<CSSPropertyRule>(move(rule));
 }
 
-CSSPropertyRule::CSSPropertyRule(Utf16FlyString name, Utf16FlyString syntax, Parser::RustSyntaxHandle parsed_syntax, bool inherits, RefPtr<StyleValue const> initial_value)
-    : CSSRule(Type::Property)
-    , m_name(move(name))
-    , m_syntax(move(syntax))
-    , m_parsed_syntax(move(parsed_syntax))
-    , m_inherits(inherits)
-    , m_initial_value(move(initial_value))
+CSSPropertyRule::CSSPropertyRule(RustRule rule)
+    : CSSRule(move(rule))
+    , m_rule(*native_rule().payload().property)
 {
 }
 
 CSSPropertyRule::~CSSPropertyRule() = default;
 
-Optional<Utf16String> CSSPropertyRule::initial_value() const
+Utf16View CSSPropertyRule::name() const
 {
-    if (m_initial_value)
-        return m_initial_value->to_utf16_string(SerializationMode::Normal);
-    return {};
+    auto name = Parser::ValueParserFFI::rust_property_rule_view(&m_rule).name;
+    return { reinterpret_cast<char16_t const*>(name.utf16), name.length };
 }
 
-CustomPropertyRegistration CSSPropertyRule::to_registration() const
+Utf16View CSSPropertyRule::syntax() const
 {
-    return CustomPropertyRegistration {
-        .property_name = m_name,
-        .syntax = m_parsed_syntax,
-        .inherit = m_inherits,
-        .initial_value = m_initial_value,
-    };
+    auto syntax = Parser::ValueParserFFI::rust_property_rule_view(&m_rule).syntax_source;
+    return { reinterpret_cast<char16_t const*>(syntax.utf16), syntax.length };
+}
+
+bool CSSPropertyRule::inherits() const
+{
+    return Parser::ValueParserFFI::rust_property_rule_view(&m_rule).inherits;
+}
+
+RefPtr<StyleValue const> CSSPropertyRule::initial_style_value() const
+{
+    auto* value = Parser::ValueParserFFI::rust_property_rule_view(&m_rule).initial_value;
+    if (!value)
+        return {};
+    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(value)));
+}
+
+Optional<Utf16String> CSSPropertyRule::initial_value() const
+{
+    if (auto initial_value = initial_style_value())
+        return initial_value->to_utf16_string(SerializationMode::Normal);
+    return {};
 }
 
 // https://www.w3.org/TR/cssom-1/#serialize-a-css-rule
@@ -81,12 +93,12 @@ Utf16String CSSPropertyRule::serialized() const
     builder.appendff("inherits: {}; ", inherits());
 
     // 8. If the rule’s initial-value is present, follow these substeps:
-    if (m_initial_value) {
+    if (auto initial_value = initial_style_value()) {
         // 1. The string "initial-value:".
         // 2. The result of performing serialize a CSS value in the rule’s initial-value followed by a single SEMICOLON
         //    (U+003B), followed by a SPACE (U+0020).
         builder.append_ascii("initial-value: "sv);
-        m_initial_value->serialize(builder, SerializationMode::Normal);
+        initial_value->serialize(builder, SerializationMode::Normal);
         builder.append_ascii("; "sv);
     }
     // 9. A single RIGHT CURLY BRACKET (U+007D).
@@ -105,15 +117,15 @@ void CSSPropertyRule::dump(StringBuilder& builder, int indent_levels) const
     dump_indent(builder, indent_levels + 1);
     builder.appendff("Syntax: `{}`\n", syntax());
     dump_indent(builder, indent_levels + 2);
-    builder.appendff("Parsed syntax: {}\n", m_parsed_syntax.serialize());
+    builder.appendff("Parsed syntax: {}\n", Parser::RustSyntaxHandle { Parser::ValueParserFFI::rust_syntax_retain(Parser::ValueParserFFI::rust_property_rule_view(&m_rule).syntax) }.serialize());
 
     dump_indent(builder, indent_levels + 1);
     builder.appendff("Inherits: {}\n", inherits());
 
-    if (m_initial_value) {
+    if (auto initial_value = initial_style_value()) {
         dump_indent(builder, indent_levels + 1);
         builder.append("Initial value: "sv);
-        m_initial_value->serialize(builder, SerializationMode::Normal);
+        initial_value->serialize(builder, SerializationMode::Normal);
         builder.append('\n');
     }
 }

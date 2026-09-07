@@ -1,0 +1,5 @@
+initial: 30px, 0.25
+mutate keyframe: 0.55
+insert lower-layer function: 30px
+insert higher-layer function: 40px
+delete higher-layer function: 30px

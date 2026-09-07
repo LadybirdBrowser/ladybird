@@ -13,13 +13,20 @@ namespace Web::CSS {
 
 URL::URL(String url, Type type, Vector<RequestURLModifier> request_url_modifiers)
     : m_type(type)
-    , m_url(move(url))
+    , m_url(Utf16String::from_utf8(url))
     , m_request_url_modifiers(move(request_url_modifiers))
 {
 }
 
 URL::URL(Utf16View url, Type type, Vector<RequestURLModifier> request_url_modifiers)
-    : URL(MUST(url.to_utf8()), type, move(request_url_modifiers))
+    : URL(Utf16String::from_utf16(url), type, move(request_url_modifiers))
+{
+}
+
+URL::URL(Utf16String url, Type type, Vector<RequestURLModifier> request_url_modifiers)
+    : m_type(type)
+    , m_url(move(url))
+    , m_request_url_modifiers(move(request_url_modifiers))
 {
 }
 
@@ -42,8 +49,7 @@ Utf16String URL::to_utf16_string() const
         break;
     }
 
-    auto url = Utf16String::from_utf8_without_validation(m_url);
-    serialize_a_string(builder, url);
+    serialize_a_string(builder, m_url);
 
     for (auto const& modifier : m_request_url_modifiers) {
         builder.append_ascii(' ');

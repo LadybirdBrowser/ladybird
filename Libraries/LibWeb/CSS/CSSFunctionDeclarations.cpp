@@ -7,21 +7,20 @@
 #include "CSSFunctionDeclarations.h"
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
-#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/Dump.h>
 
 namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSFunctionDeclarations);
 
-GC::Ref<CSSFunctionDeclarations> CSSFunctionDeclarations::create(Parser::Parser&, Parser::DeclarationList const& declarations)
+GC::Ref<CSSFunctionDeclarations> CSSFunctionDeclarations::create(RustRule rule)
 {
-    return GC::Heap::the().allocate<CSSFunctionDeclarations>(declarations.descriptors().share());
+    return GC::Heap::the().allocate<CSSFunctionDeclarations>(move(rule));
 }
 
-CSSFunctionDeclarations::CSSFunctionDeclarations(RustDescriptorBlock descriptors)
-    : CSSRule(Type::FunctionDeclarations)
-    , m_descriptors(move(descriptors))
+CSSFunctionDeclarations::CSSFunctionDeclarations(RustRule rule)
+    : CSSRule(move(rule))
+    , m_descriptors(Parser::ValueParserFFI::rust_descriptor_block_retain(native_rule().payload().descriptors))
 {
 }
 

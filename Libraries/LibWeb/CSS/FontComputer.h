@@ -117,12 +117,8 @@ class WEB_API FontComputer final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(FontComputer);
 
 public:
-    explicit FontComputer(DOM::Document& document)
-        : m_document(document)
-    {
-    }
-
-    ~FontComputer() = default;
+    explicit FontComputer(DOM::Document&);
+    virtual ~FontComputer() override;
 
     DOM::Document& document() { return m_document; }
     DOM::Document const& document() const { return m_document; }
@@ -137,14 +133,14 @@ public:
     void did_load_font(Utf16FlyString const& family_name);
     void did_load_font(FontFaceKey const&);
 
-    void register_font_face(GC::Ref<FontFace>);
-    void unregister_font_face(GC::Ref<FontFace>);
-    void synchronize_font_face_order(Vector<GC::Ref<FontFace>> const&);
+    void register_font_face(NonnullRefPtr<FontFaceState>);
+    void unregister_font_face(NonnullRefPtr<FontFaceState>);
+    void synchronize_font_face_order(Vector<NonnullRefPtr<FontFaceState>> const&);
 
-    GC::Ptr<FontLoader> load_font_face(ParsedFontFace const&, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load = {});
+    GC::Ptr<FontLoader> load_font_face(ParsedFontFace const&, RefPtr<StyleSheetState>, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load = {});
 
-    void load_fonts_from_sheet(CSSStyleSheet&);
-    void unload_fonts_from_sheet(CSSStyleSheet&);
+    void load_fonts_from_sheet(StyleSheetState&);
+    void unload_fonts_from_sheet(StyleSheetState&);
 
     NonnullRefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(Vector<ComputedFontFamily> font_families, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data) const;
     NonnullRefPtr<Gfx::FontCascadeList const> compute_font_for_style_values(StyleValue const& font_family, CSSPixels const& font_size, int font_slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data) const;
@@ -167,7 +163,7 @@ private:
 
     GC::Ref<DOM::Document> m_document;
 
-    HashMap<FontFaceKey, Vector<GC::Ref<FontFace>>> m_font_faces;
+    HashMap<FontFaceKey, Vector<NonnullRefPtr<FontFaceState>>> m_font_faces;
     HashMap<String, GC::Ref<FontLoader>> m_loaders_by_url;
 
     mutable HashMap<ComputedFontCacheKey, NonnullRefPtr<Gfx::FontCascadeList const>> m_computed_font_cache;

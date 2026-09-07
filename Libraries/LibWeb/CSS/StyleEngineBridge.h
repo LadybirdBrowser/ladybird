@@ -79,11 +79,6 @@ public:
 
     void set_element_parts(StyleNodeID node, ReadonlySpan<StyleAtomID> names, ReadonlySpan<StyleNodeID> hosts);
     void set_element_language(StyleNodeID node, StyleAtomID language, Utf16View tag);
-    // Which longhand properties a rule declares, which of them it marks important, their canonical
-    // specified values and their authored aliases, and whether that inventory describes everything
-    // the block can contribute.
-    // Only a property some rule declares can be a candidate for a winner change.
-    void set_rule_declared_properties(StyleEngineRuleID rule, RustDeclarationBlock const&);
     // Which longhand properties one of an element's own declarations covers, their canonical
     // specified values and their authored aliases, and whether the inventory has complete
     // continuation semantics.
@@ -121,38 +116,13 @@ public:
     void decide_transitions(StyleRecordID before_style_record, void const* after_longhand_table, void const* after_animated_overlay, StyleValueFFI::FfiTransitionInput&, StyleValueFFI::FfiTransitionAction*) const;
     // Remove the retained input identities for one pseudo-element kind and return its removal.
     [[nodiscard]] StyleRecordDelta remove_computed_pseudo(StyleNodeID node, u8 pseudo_kind);
-    // The `@namespace` declarations in scope for a rule's selectors. A prefix means whatever its
-    // sheet says it means and an unprefixed type or universal selector means the sheet's default
-    // namespace, both of which are CSSOM state, so they are resolved to atoms here and looked up by
-    // the selector compiler. A zero default means the sheet declared none.
-    // A default namespace declared as the empty string, which constrains a name to elements in no
-    // namespace. Zero means no default was declared at all, which constrains nothing.
-    static constexpr StyleAtomID no_namespace { 0xffffffff };
-    struct NamespaceScope {
-        StyleAtomID default_namespace;
-        Vector<StyleAtomID> prefixes;
-        Vector<StyleAtomID> uris;
-    };
-    // How many of `scope_roots` and `scope_limits` each enclosing `@scope` contributed, outermost
-    // first. Scopes nest and an element is in scope only when it is in every one of them, so the
-    // boundaries decide the answer: without them the roots of two levels read as alternatives.
-    struct ScopeLevels {
-        Vector<u32> root_counts;
-        Vector<u32> limit_counts;
-        // The style node each level roots at when it wrote no `<scope-start>`, and 0 where it wrote
-        // one. That root is an element rather than a selector, so the caller resolves it here and
-        // the engine names it by identity.
-        Vector<StyleNodeID> implicit_roots;
-    };
-    [[nodiscard]] StyleEngineRuleID add_style_rule(SheetID sheet, StyleEngineRuleID before_rule, ReadonlySpan<void const*> selectors, NamespaceScope const&, ReadonlySpan<void const*> scope_roots, ReadonlySpan<void const*> scope_limits, ScopeLevels const&);
-    void replace_style_rule_selectors(StyleEngineRuleID rule, ReadonlySpan<void const*> selectors, NamespaceScope const&, ReadonlySpan<void const*> scope_roots, ReadonlySpan<void const*> scope_limits, ScopeLevels const&);
     void finish_sheet_rules_replacement(SheetID sheet);
     // A fresh identity for an element-sourced declaration block.
     //
     // A block's contents change while the CSSOM object stays the same, so its address is not what
     // makes one version of it different from the next. A version is: an edit that reported the same
     // identity on both sides would cancel in the journal and invalidate nothing.
-    [[nodiscard]] u32 next_declaration_block_version() { return ++m_declaration_block_version; }
+    [[nodiscard]] u32 next_declaration_block_version() { return StyleEngineFFI::style_engine_next_declaration_block_version(m_impl); }
 
     // Interns one selector-mentioned name and returns its process-global atom, retained by this
     // document.
@@ -304,6 +274,7 @@ public:
     // Enumerates the engine's counters. Returns false once index is past the last counter.
     bool counter(size_t index, StringView& out_name, u64& out_value) const;
 
+    [[nodiscard]] void* rust_handle() { return m_impl; }
     [[nodiscard]] void const* rust_handle() const { return m_impl; }
 
 private:
@@ -331,7 +302,6 @@ private:
     HashMap<StyleNodeID, TreeScopeID> m_preallocated_style_nodes;
     size_t m_element_match_capacity { 64 };
 
-    u32 m_declaration_block_version { 1 };
     Vector<StyleEngineFFI::FfiTreeDelta> m_tree_deltas;
     Vector<StyleEngineFFI::FfiElementArrival> m_element_arrivals;
     Vector<u32> m_arrival_custom_state_atoms;

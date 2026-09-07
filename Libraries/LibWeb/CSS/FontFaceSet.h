@@ -35,14 +35,14 @@ public:
     virtual ~FontFaceSet() override = default;
 
     size_t set_size() const { return m_font_faces.size(); }
-    Vector<GC::Ref<FontFace>> const& font_faces() const { return m_font_faces; }
+    Vector<NonnullRefPtr<FontFaceState>> const& font_faces() const { return m_font_faces; }
 
     WebIDL::ExceptionOr<GC::Ref<FontFaceSet>> add(GC::Ref<FontFace>);
     bool delete_(GC::Ref<FontFace>);
     void clear();
 
-    void add_css_connected_font(GC::Ref<FontFace>);
-    void remove_css_connected_font(GC::Ref<FontFace>);
+    void add_css_connected_font(NonnullRefPtr<FontFaceState>);
+    void remove_css_connected_font(NonnullRefPtr<FontFaceState>);
     void synchronize_css_connected_font_order();
 
     void set_onloading(WebIDL::CallbackType*);
@@ -55,15 +55,15 @@ public:
     JS::ThrowCompletionOr<GC::Ref<WebIDL::Promise>> load(Utf16String font, Utf16String text);
     WebIDL::ExceptionOr<bool> check(Utf16String const& font, Utf16String const& text);
 
-    Vector<GC::Ref<FontFace>>& loading_fonts() { return m_loading_fonts; }
-    Vector<GC::Ref<FontFace>>& loaded_fonts() { return m_loaded_fonts; }
-    Vector<GC::Ref<FontFace>>& failed_fonts() { return m_failed_fonts; }
+    Vector<NonnullRefPtr<FontFaceState>>& loading_fonts() { return m_loading_fonts; }
+    Vector<NonnullRefPtr<FontFaceState>>& loaded_fonts() { return m_loaded_fonts; }
+    Vector<NonnullRefPtr<FontFaceState>>& failed_fonts() { return m_failed_fonts; }
 
     GC::Ref<WebIDL::Promise> ready();
     HTML::EnvironmentSettingsObject& relevant_settings_object() const { return *m_environment; }
     FontFaceSetLoadStatus status() const { return m_status; }
 
-    void fire_a_font_load_event(Utf16FlyString name, Vector<GC::Ref<FontFace>> = {});
+    void fire_a_font_load_event(Utf16FlyString name, Vector<NonnullRefPtr<FontFaceState>> = {});
     void set_is_pending_on_the_environment(bool);
 
     void switch_to_loading();
@@ -77,15 +77,15 @@ private:
 
     explicit FontFaceSet(HTML::EnvironmentSettingsObject&);
     virtual void visit_edges(Cell::Visitor&) override;
-    bool remove_font_face(GC::Ref<FontFace>, AllowCSSConnected);
+    bool remove_font_face(NonnullRefPtr<FontFaceState>, AllowCSSConnected);
 
-    Vector<GC::Ref<FontFace>> m_font_faces;
+    Vector<NonnullRefPtr<FontFaceState>> m_font_faces;
     GC::Ref<HTML::EnvironmentSettingsObject> m_environment;
     GC::Ref<WebIDL::Promise> m_ready_promise; // [[ReadyPromise]]
 
-    Vector<GC::Ref<FontFace>> m_loading_fonts {}; // [[LoadingFonts]]
-    Vector<GC::Ref<FontFace>> m_loaded_fonts {};  // [[LoadedFonts]]
-    Vector<GC::Ref<FontFace>> m_failed_fonts {};  // [[FailedFonts]]
+    Vector<NonnullRefPtr<FontFaceState>> m_loading_fonts {}; // [[LoadingFonts]]
+    Vector<NonnullRefPtr<FontFaceState>> m_loaded_fonts {};  // [[LoadedFonts]]
+    Vector<NonnullRefPtr<FontFaceState>> m_failed_fonts {};  // [[FailedFonts]]
 
     FontFaceSetLoadStatus m_status;
 

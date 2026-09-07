@@ -1,0 +1,47 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    const cssURL = text => `data:text/css,${encodeURIComponent(text)}`;
+    const child = cssURL(".雪 { height: 23px; }");
+    const source = cssURL(`@import url("${child}") all;
+        @layer 色 { .雪 { width: 17px; } }`);
+    const makeFrame = async () => {
+        const frame = document.createElement("iframe");
+        frame.srcdoc = `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href='${source}'><div class="雪"></div>`;
+        const loaded = new Promise(resolve => frame.onload = resolve);
+        document.body.append(frame);
+        await loaded;
+        return frame;
+    };
+    const first = await makeFrame();
+    const second = await makeFrame();
+    const dimensions = frame => {
+        const style = frame.contentWindow.getComputedStyle(frame.contentDocument.querySelector("div"));
+        return `${style.width}, ${style.height}`;
+    };
+    println(`untouched: ${dimensions(first)}; ${dimensions(second)}`);
+    const sheet = first.contentDocument.styleSheets[0];
+    const rules = sheet.cssRules;
+    const imported = rules[0];
+    const childSheet = imported.styleSheet;
+    const media = imported.media;
+    const styleRule = rules[1].cssRules[0];
+    const declaration = styleRule.style;
+    println(`identity: ${sheet.cssRules === rules}, ${rules[0] === imported}, ${childSheet.ownerRule === imported}, ${childSheet.parentStyleSheet === sheet}`);
+    println(`media identity: ${childSheet.media === media}`);
+    media.mediaText = "not all";
+    println(`import disabled: ${dimensions(first)}; ${dimensions(second)}`);
+    childSheet.media.mediaText = "all";
+    declaration.width = "31px";
+    childSheet.cssRules[0].style.height = "37px";
+    println(`mutated: ${dimensions(first)}; ${dimensions(second)}`);
+    println(`retained identity: ${rules[1].cssRules[0] === styleRule}, ${styleRule.style === declaration}, ${imported.media === media}`);
+    sheet.deleteRule(0);
+    println(`detached: ${imported.parentStyleSheet === null}, ${childSheet.parentStyleSheet === null}, ${childSheet.ownerRule === imported}, ${imported.styleSheet === childSheet}`);
+    println(`after deletion: ${dimensions(first)}; ${dimensions(second)}`);
+    const third = await makeFrame();
+    println(`cached source: ${dimensions(third)}`);
+});
+</script>

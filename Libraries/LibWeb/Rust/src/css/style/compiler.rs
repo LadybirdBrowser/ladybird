@@ -162,6 +162,27 @@ pub struct NamespaceScope {
 }
 
 impl NamespaceScope {
+    pub(crate) fn from_rule_list(
+        rules: &crate::css::rule::NativeRuleList,
+        mut intern: impl FnMut(&[u16]) -> StyleAtomID,
+    ) -> Self {
+        let mut scope = Self::default();
+        rules.for_each_namespace(|namespace| {
+            let uri = if namespace.uri.units().is_empty() {
+                StyleAtomID::NONE
+            } else {
+                intern(namespace.uri.units())
+            };
+            if namespace.prefix.units().is_empty() {
+                scope.default = Some(uri);
+            } else {
+                let prefix = intern(namespace.prefix.units());
+                scope.by_prefix.push((prefix, uri));
+            }
+        });
+        scope
+    }
+
     /// A declared namespace name, as a constraint. The empty string is the namespace an element in
     /// no namespace has, so declaring it names exactly those.
     #[must_use]

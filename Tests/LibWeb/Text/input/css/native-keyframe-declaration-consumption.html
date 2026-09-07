@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const source = `@keyframes 色 {
+        from { margin: 10px 20px; width: 30px; --色: green;
+               animation-timing-function: linear; animation-composition: replace; }
+        to { margin: 30px 40px; width: 50px; --色: blue; }
+    }`;
+    function createTarget() {
+        const root = document.body.appendChild(document.createElement("div"))
+            .attachShadow({ mode: "open" });
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(source);
+        root.adoptedStyleSheets = [sheet];
+        const target = root.appendChild(document.createElement("div"));
+        target.style.animation = "色 1s ease both paused";
+        const animation = target.getAnimations()[0];
+        animation.currentTime = 250;
+        return { sheet, target, animation };
+    }
+    function print(label, { target }) {
+        const style = getComputedStyle(target);
+        println(`${label}: ${style.width}, ${style.marginTop}, ${style.marginLeft}, ${style.getPropertyValue("--色")}`);
+    }
+    const first = createTarget();
+    const second = createTarget();
+    print("first", first);
+    const rule = first.sheet.cssRules[0].cssRules[0];
+    const declaration = rule.style;
+    declaration.width = "70px";
+    declaration.margin = "50px 60px";
+    declaration.setProperty("--色", "red");
+    internals.gc();
+    print("mutated", first);
+    print("shared", second);
+    println(`wrapper identity: ${first.sheet.cssRules[0].cssRules[0].style === declaration}`);
+});
+</script>

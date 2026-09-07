@@ -3,8 +3,8 @@
 interface CSSStyleSheet : StyleSheet {
     constructor(optional CSSStyleSheetInit options = {});
 
-    [DirectGetter=owner_css_rule] readonly attribute CSSRule? ownerRule;
-    [DirectGetter=rules, SameObject] readonly attribute CSSRuleList cssRules;
+    readonly attribute CSSRule? ownerRule;
+    [SameObject] readonly attribute CSSRuleList cssRules;
     unsigned long insertRule(CSSOMString rule, optional unsigned long index = 0);
     undefined deleteRule(unsigned long index);
 
@@ -12,7 +12,7 @@ interface CSSStyleSheet : StyleSheet {
     undefined replaceSync(USVString text);
 
     // https://drafts.csswg.org/cssom/#legacy-css-style-sheet-members
-    [DirectGetter, SameObject, ImplementedAs=css_rules] readonly attribute CSSRuleList rules;
+    [SameObject, ImplementedAs=css_rules] readonly attribute CSSRuleList rules;
     long addRule(optional DOMString selector = "undefined", optional DOMString style = "undefined", optional unsigned long index);
     undefined removeRule(optional unsigned long index);
 };

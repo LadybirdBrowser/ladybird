@@ -73,7 +73,7 @@ void StyleValueList::serialize(StringBuilder& builder, SerializationMode mode) c
     }
 }
 
-void StyleValueList::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
+void StyleValueList::set_style_sheet(StyleSheetState* style_sheet)
 {
     for (auto& value : values())
         const_cast<StyleValue&>(*value).set_style_sheet(style_sheet);

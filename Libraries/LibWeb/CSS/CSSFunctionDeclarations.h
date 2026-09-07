@@ -17,15 +17,14 @@ class CSSFunctionDeclarations final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSFunctionDeclarations);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSFunctionDeclarations> create(Parser::Parser&, Parser::DeclarationList const&);
+    [[nodiscard]] static GC::Ref<CSSFunctionDeclarations> create(RustRule);
 
     virtual ~CSSFunctionDeclarations() override = default;
 
     GC::Ref<CSSFunctionDescriptors> style() const;
-    RustDescriptorBlock const& descriptor_block() const { return m_descriptors; }
 
 private:
-    CSSFunctionDeclarations(RustDescriptorBlock);
+    CSSFunctionDeclarations(RustRule);
 
     virtual size_t external_memory_size() const override;
     virtual void visit_edges(Cell::Visitor&) override;

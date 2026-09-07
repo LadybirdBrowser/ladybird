@@ -1,0 +1,18 @@
+https://example.test/caf%C3%A9.png
+https://%C3%BC:%C3%A9@example.test/%F0%9F%98%80?%CE%BB#%C3%A9
+file:///C:/%C3%A9
+data:%C3%A9%20#%CE%BB
+https://example.test/%C3%A9
+https://example.test/%C3%A9
+https://xn--bcher-kva.example/%C3%A9
+https://example.test/%EF%BF%BD
+https://example.test/caf%C3%A9.png
+setters: https://xn--bcher-kva.example/%F0%9F%98%80?%CE%BB#%C3%A9
+import spelling: true
+spelling: url("café😀.png"); url("字体.woff2"); url("#é😀")
+computed: url("#é😀")
+mutated: url("変更😀.png"); url("#変更😀")
+shared source: url("café😀.png"); url("#é😀")
+identity: true; true; true
+detached: true; true; url("#変更😀")
+cached source: url("café😀.png")

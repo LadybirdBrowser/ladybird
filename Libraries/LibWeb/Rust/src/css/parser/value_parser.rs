@@ -145,8 +145,7 @@ pub struct ParseContext {
     pub is_ua_style_sheet: bool,
     pub value_contexts: *const FfiValueParsingContext,
     pub value_context_count: usize,
-    pub declared_namespaces: *const FfiUtf16View,
-    pub declared_namespace_count: usize,
+    pub declared_namespaces: *const crate::css::rule::NativeNamespaceContext,
     pub document_url: *const u8,
     pub document_url_length: usize,
     pub document_base_url: *const u8,
@@ -6157,7 +6156,6 @@ mod tests {
             value_contexts: std::ptr::null(),
             value_context_count: 0,
             declared_namespaces: std::ptr::null(),
-            declared_namespace_count: 0,
             document_url: std::ptr::null(),
             document_url_length: 0,
             document_base_url: std::ptr::null(),
@@ -6737,7 +6735,7 @@ mod tests {
             panic!("URL token should parse");
         };
         assert!(
-            matches!(&*value, StyleValueData::Url { url, url_type: 0, .. } if url.as_bytes() == b"images/mask.svg#shape")
+            matches!(&*value, StyleValueData::Url { url, url_type: 0, .. } if url.ascii_bytes() == b"images/mask.svg#shape")
         );
 
         let value = component(
@@ -6751,7 +6749,7 @@ mod tests {
         else {
             panic!("src() should produce a URL");
         };
-        assert_eq!(url.as_bytes(), b"font.woff2");
+        assert_eq!(url.ascii_bytes(), b"font.woff2");
         assert_eq!(url_type, 1);
         assert_eq!(
             modifiers

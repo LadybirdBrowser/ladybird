@@ -1,0 +1,9 @@
+selectors: & > .子, > .限界
+empty: null, null
+end only: null, .限界
+initial: 19px, 7px
+retargeted: 7px, 7px
+edited: 31px, 7px
+other: & > .子, > .限界, 19px
+removed: 7px, 7px
+detached: & > .子, > .限界, 31px

@@ -13,6 +13,7 @@ use super::selector::{
     Combinator, CompiledSelector, CompoundSelector, PseudoClassSelector, PseudoClassType, PseudoElementType,
     PseudoElementValue, RustSelector, SelectorList, SimpleSelector, pseudo_class_from_ffi,
 };
+use super::selector_parser::StyleNestingParent;
 
 fn pseudo_class(pseudo_class: PseudoClassType, arguments: SelectorList) -> SimpleSelector {
     SimpleSelector::PseudoClass(PseudoClassSelector {
@@ -37,7 +38,15 @@ fn scope_selector() -> Arc<CompiledSelector> {
     }]))
 }
 
-fn contains_nesting(selector: &CompiledSelector) -> bool {
+pub(crate) fn scope_root_selector_list() -> SelectorList {
+    Box::new([CompiledSelector::new(Box::new([CompoundSelector {
+        combinator: Combinator::None,
+        is_implicit_universal_anchor: false,
+        simple_selectors: Box::new([pseudo_class(PseudoClassType::Where, Box::new([scope_selector()]))]),
+    }]))])
+}
+
+pub(crate) fn contains_nesting<Identity>(selector: &CompiledSelector<Identity>) -> bool {
     selector.compound_selectors.iter().any(|compound| {
         compound.simple_selectors.iter().any(|simple| match simple {
             SimpleSelector::Nesting => true,
@@ -164,7 +173,10 @@ fn absolutize(selector: &CompiledSelector, replacement: &SimpleSelector) -> Opti
     Some(CompiledSelector::new(compounds))
 }
 
-fn relative_to(selector: &CompiledSelector, parent: SimpleSelector) -> Arc<CompiledSelector> {
+pub(crate) fn relative_to<Identity: Clone>(
+    selector: &CompiledSelector<Identity>,
+    parent: SimpleSelector<Identity>,
+) -> Arc<CompiledSelector<Identity>> {
     let mut compounds = Vec::with_capacity(selector.compound_selectors.len() + 1);
     compounds.push(CompoundSelector {
         combinator: Combinator::None,
@@ -233,33 +245,6 @@ pub unsafe extern "C" fn rust_selector_matches_every_element(selector: *const Ru
         assert!(!selector.is_null());
         matches_every_element((*selector).compiled())
     }
-}
-
-unsafe fn replacement(
-    use_parent_selectors: bool,
-    parent_selectors: *const *const RustSelector,
-    count: usize,
-) -> SimpleSelector {
-    if !use_parent_selectors {
-        return pseudo_class(PseudoClassType::Where, Box::new([scope_selector()]));
-    }
-    let handles = if count == 0 {
-        &[]
-    } else {
-        assert!(!parent_selectors.is_null());
-        unsafe { std::slice::from_raw_parts(parent_selectors, count) }
-    };
-    pseudo_class(
-        PseudoClassType::Is,
-        handles
-            .iter()
-            .map(|handle| {
-                assert!(!handle.is_null());
-                unsafe { (**handle).selector.clone() }
-            })
-            .collect::<Vec<_>>()
-            .into_boxed_slice(),
-    )
 }
 
 /// # Safety
@@ -397,70 +382,75 @@ pub unsafe extern "C" fn rust_selector_first_combinator(selector: *const RustSel
     }
 }
 
-/// # Safety
-/// `selector` must point to a live `RustSelector`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_selector_with_first_combinator_none(selector: *const RustSelector) -> *mut RustSelector {
-    unsafe {
-        assert!(!selector.is_null());
-        let mut compounds = (*selector).compiled().compound_selectors.clone();
-        if let Some(first) = compounds.first_mut() {
-            first.combinator = Combinator::None;
-        }
-        Box::into_raw(Box::new(RustSelector {
-            selector: CompiledSelector::new(compounds),
-        }))
+pub(crate) fn absolutize_selector_list(
+    selectors: &SelectorList,
+    parent: StyleNestingParent,
+    parents: &SelectorList,
+) -> Option<SelectorList> {
+    if !selectors.iter().any(|selector| {
+        contains_nesting(selector)
+            || (parent == StyleNestingParent::Scope
+                && !matches!(
+                    selector
+                        .compound_selectors
+                        .first()
+                        .map_or(Combinator::None, |compound| compound.combinator),
+                    Combinator::None | Combinator::Descendant
+                ))
+    }) {
+        return None;
     }
+    let replacement = if parent == StyleNestingParent::Style {
+        pseudo_class(PseudoClassType::Is, parents.clone())
+    } else {
+        pseudo_class(PseudoClassType::Where, Box::new([scope_selector()]))
+    };
+    Some(
+        selectors
+            .iter()
+            .filter_map(|selector| {
+                let first = selector
+                    .compound_selectors
+                    .first()
+                    .map_or(Combinator::None, |compound| compound.combinator);
+                if contains_nesting(selector) {
+                    absolutize(selector, &replacement)
+                } else if parent == StyleNestingParent::Scope
+                    && !matches!(first, Combinator::None | Combinator::Descendant)
+                {
+                    Some(relative_to(selector, replacement.clone()))
+                } else {
+                    Some(selector.clone())
+                }
+            })
+            .collect(),
+    )
 }
 
-/// # Safety
-/// `selector` must point to a live `RustSelector`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_selector_relative_to_nesting(selector: *const RustSelector) -> *mut RustSelector {
-    unsafe {
-        assert!(!selector.is_null());
-        Box::into_raw(Box::new(RustSelector {
-            selector: relative_to((*selector).compiled(), SimpleSelector::Nesting),
-        }))
-    }
-}
-
-/// # Safety
-/// `selector` must point to a live `RustSelector`. When `use_parent_selectors` is true, `parents`
-/// must address `count` live selector pointers, or be null when `count` is zero.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_selector_relative_to_scope(
-    selector: *const RustSelector,
-    use_parent_selectors: bool,
-    parents: *const *const RustSelector,
-    count: usize,
-) -> *mut RustSelector {
-    unsafe {
-        assert!(!selector.is_null());
-        let parent = replacement(use_parent_selectors, parents, count);
-        Box::into_raw(Box::new(RustSelector {
-            selector: relative_to((*selector).compiled(), parent),
-        }))
-    }
-}
-
-/// # Safety
-/// `selector` must point to a live `RustSelector`. When `use_parent_selectors` is true, `parents`
-/// must address `count` live selector pointers, or be null when `count` is zero.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_selector_absolutize(
-    selector: *const RustSelector,
-    use_parent_selectors: bool,
-    parents: *const *const RustSelector,
-    count: usize,
-) -> *mut RustSelector {
-    unsafe {
-        assert!(!selector.is_null());
-        let replacement = replacement(use_parent_selectors, parents, count);
-        absolutize((*selector).compiled(), &replacement)
-            .map(|selector| Box::into_raw(Box::new(RustSelector { selector })))
-            .unwrap_or(std::ptr::null_mut())
-    }
+pub(crate) fn adapt_scope_end_selector_list(selectors: &SelectorList) -> SelectorList {
+    selectors
+        .iter()
+        .map(|selector| {
+            let first = selector
+                .compound_selectors
+                .first()
+                .map_or(Combinator::None, |compound| compound.combinator);
+            if !matches!(first, Combinator::None | Combinator::Descendant)
+                || (!contains_nesting(selector) && !contains_pseudo_class(selector, PseudoClassType::Scope))
+            {
+                relative_to(
+                    selector,
+                    pseudo_class(PseudoClassType::Where, Box::new([scope_selector()])),
+                )
+            } else if first == Combinator::Descendant {
+                let mut compounds = selector.compound_selectors.clone();
+                compounds[0].combinator = Combinator::None;
+                CompiledSelector::new(compounds)
+            } else {
+                selector.clone()
+            }
+        })
+        .collect()
 }
 
 #[cfg(test)]
@@ -470,6 +460,75 @@ mod tests {
     use super::super::selector::parsed::SelectorList;
     use super::super::selector_parser::{SelectorType, parse_selector_list_from_component_values};
     use super::contains_named_namespace;
+
+    #[test]
+    fn transformed_lists_own_their_results_after_inputs_are_dropped() {
+        use super::{absolutize_selector_list, adapt_scope_end_selector_list};
+        use crate::css::selector_parser::StyleNestingParent;
+        use crate::css::selector_serialization::{rust_selector_serialize, rust_selector_serialized_text_release};
+
+        fn parse(source: &str, kind: SelectorType) -> super::SelectorList {
+            let units: Vec<_> = source.encode_utf16().collect();
+            let values = consume_a_list_of_component_values(tokenize_for_parser(units.as_slice())).unwrap();
+            let parsed = parse_selector_list_from_component_values(&values, &[], kind).unwrap();
+            unsafe { parsed.bind() }.selectors
+        }
+        fn text(selectors: super::SelectorList) -> Vec<Vec<u16>> {
+            selectors
+                .into_vec()
+                .into_iter()
+                .map(|selector| {
+                    let selector = super::RustSelector { selector };
+                    unsafe {
+                        let text = rust_selector_serialize(&selector, false, std::ptr::null(), 0);
+                        let units = std::slice::from_raw_parts(text.data, text.length).to_vec();
+                        rust_selector_serialized_text_release(text.storage);
+                        units
+                    }
+                })
+                .collect()
+        }
+        let utf16 = |source: &str| source.encode_utf16().collect::<Vec<_>>();
+        let empty: super::SelectorList = Box::new([]);
+        let parents = parse(".親, #id", SelectorType::Standalone);
+        let selectors = parse(".plain, & > .子", SelectorType::Standalone);
+        let result = absolutize_selector_list(&selectors, StyleNestingParent::Style, &parents).unwrap();
+        drop((parents, selectors));
+        assert_eq!(text(result), [".plain", ":is(.親, #id) > .子"].map(utf16));
+
+        let selectors = parse("> .子, :scope .lim, .plain", SelectorType::Relative);
+        let result = adapt_scope_end_selector_list(&selectors);
+        drop(selectors);
+        assert_eq!(
+            text(result),
+            [":where(:scope) > .子", ":scope .lim", ":where(:scope) .plain"].map(utf16)
+        );
+        assert!(
+            absolutize_selector_list(
+                &parse(".plain", SelectorType::Standalone),
+                StyleNestingParent::None,
+                &empty
+            )
+            .is_none()
+        );
+
+        let selectors = parse("&", SelectorType::Standalone);
+        let result = absolutize_selector_list(&selectors, StyleNestingParent::Style, &empty).unwrap();
+        drop(selectors);
+        assert_eq!(text(result), [utf16(":is()")]);
+        let selectors = parse("> .子, & .plain", SelectorType::Relative);
+        let result = absolutize_selector_list(&selectors, StyleNestingParent::Scope, &empty).unwrap();
+        drop(selectors);
+        assert_eq!(
+            text(result),
+            [":where(:scope) > .子", ":where(:scope) .plain"].map(utf16)
+        );
+        let parents = parse(":has(.親)", SelectorType::Standalone);
+        let selectors = parse(":has(&)", SelectorType::Standalone);
+        let result = absolutize_selector_list(&selectors, StyleNestingParent::Style, &parents).unwrap();
+        drop((parents, selectors));
+        assert!(result.is_empty());
+    }
 
     fn parse_with_namespace_context(source: &str) -> SelectorList {
         let values = consume_a_list_of_component_values(tokenize_for_parser(source.as_bytes())).unwrap();

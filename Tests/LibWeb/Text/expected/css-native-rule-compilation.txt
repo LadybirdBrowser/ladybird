@@ -1,0 +1,8 @@
+initial: rgb(0, 128, 0)
+outer condition false: rgb(255, 0, 0)
+inner condition false: rgb(255, 0, 0)
+both conditions true: rgb(0, 128, 0)
+insert nested rule: rgb(0, 0, 255)
+inserted rule retains outer condition: rgb(255, 0, 0)
+replace nested selector: rgb(0, 128, 0)
+replace sheet: rgb(0, 128, 0)

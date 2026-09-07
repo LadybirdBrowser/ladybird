@@ -99,7 +99,6 @@
 #include <LibWeb/Layout/Node.h>
 
 extern "C" void ladybird_utf16_fly_string_unref(size_t);
-extern "C" void ladybird_string_unref(size_t);
 
 static_assert(sizeof(Web::CSS::ComputedValuesFFI::RetainedUtf16FlyString) == sizeof(Utf16FlyString));
 static_assert(alignof(Web::CSS::ComputedValuesFFI::RetainedUtf16FlyString) == alignof(Utf16FlyString));
@@ -329,7 +328,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     }
 }
 
-void StyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
+void StyleValue::set_style_sheet(StyleSheetState* style_sheet)
 {
     m_has_style_sheet_context = !!style_sheet;
 
@@ -644,10 +643,4 @@ Keyword StyleValue::to_keyword() const
 extern "C" void ladybird_utf16_fly_string_unref(size_t raw)
 {
     Utf16FlyString::unref_raw(raw);
-}
-
-// Called when Rust-owned style value data drops a retained String.
-extern "C" void ladybird_string_unref(size_t raw)
-{
-    String::unref_raw(raw);
 }

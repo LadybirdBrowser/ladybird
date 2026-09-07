@@ -5,6 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/CSS/CSSMarginRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/Dump.h>
@@ -14,17 +15,34 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSMarginRule);
 
-GC::Ref<CSSMarginRule> CSSMarginRule::create(Utf16FlyString name, GC::Ref<CSSStyleProperties> style)
+GC::Ref<CSSMarginRule> CSSMarginRule::create(RustRule rule)
 {
-    return GC::Heap::the().allocate<CSSMarginRule>(move(name), style);
+    return GC::Heap::the().allocate<CSSMarginRule>(move(rule));
 }
 
-CSSMarginRule::CSSMarginRule(Utf16FlyString name, GC::Ref<CSSStyleProperties> style)
-    : CSSRule(Type::Margin)
-    , m_name(name.to_ascii_lowercase())
-    , m_style(style)
+CSSMarginRule::CSSMarginRule(RustRule rule)
+    : CSSRule(move(rule))
+    , m_name([&] {
+        auto name = native_rule().payload().name;
+        auto view = name.ascii ? Utf16View { StringView { reinterpret_cast<char const*>(name.ascii), name.length } } : Utf16View { reinterpret_cast<char16_t const*>(name.utf16), name.length };
+        return Utf16FlyString::from_utf16(view);
+    }())
+    , m_declarations(Parser::ValueParserFFI::rust_declaration_block_retain(native_rule().payload().declarations))
 {
-    m_style->set_parent_rule(*this);
+}
+
+size_t CSSMarginRule::external_memory_size() const
+{
+    return JS::saturating_add_external_memory_size(Base::external_memory_size(), m_declarations.external_memory_size());
+}
+
+GC::Ref<CSSStyleProperties> CSSMarginRule::style() const
+{
+    if (!m_style) {
+        m_style = CSSStyleProperties::create(m_declarations.retain());
+        m_style->set_parent_rule(const_cast<CSSMarginRule&>(*this));
+    }
+    return *m_style;
 }
 
 Utf16String CSSMarginRule::serialized() const
@@ -32,8 +50,8 @@ Utf16String CSSMarginRule::serialized() const
     // AD-HOC: There is currently no spec for serializing CSSMarginRule.
     Utf16StringBuilder builder;
     builder.appendff("@{} {{ ", m_name);
-    if (m_style->length() > 0) {
-        builder.append(m_style->serialized());
+    if (!m_declarations.is_empty()) {
+        builder.append(style()->serialized());
         builder.append_ascii(' ');
     }
     builder.append_ascii('}');

@@ -7,13 +7,13 @@
 #include "StylePropertyMapReadOnly.h"
 #include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSStyleDeclaration.h>
-#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/CSSStyleValue.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 

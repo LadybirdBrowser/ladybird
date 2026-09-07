@@ -1,0 +1,7 @@
+shared parse: 13px/19px, 13px/19px; 13px/19px, 13px/19px
+custom property mutation: 23px/19px, 23px/19px; 13px/19px, 13px/19px
+replace declarations: 29px/31px, 29px/31px; 13px/19px, 13px/19px
+inline override: 37px/31px, 29px/31px; 13px/19px, 13px/19px
+inline removal and collection: 29px/31px, 29px/31px; 13px/19px, 13px/19px
+detached declaration mutation: 41px/43px, 41px/43px; 13px/19px, 13px/19px
+other shared sheet mutation: 41px/43px, 41px/43px; 53px/19px, 53px/19px

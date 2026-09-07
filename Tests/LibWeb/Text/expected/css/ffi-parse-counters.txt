@@ -1,4 +1,4 @@
 computed width: 1px
 internUtf16FlyStringCallbacks: 0
 evaluateConditionCallbacks: 0
-mediaEnvironmentCallbacks: 1
+mediaEnvironmentCallbacks: 0

@@ -266,7 +266,7 @@ public:
     GC::Ref<CSSStyleValue> default_reify(Utf16FlyString const& associated_property) const;
     StyleValueVector subdivide_into_iterations(PropertyNameAndID const&) const;
 
-    void set_style_sheet(GC::Ptr<CSSStyleSheet>);
+    void set_style_sheet(StyleSheetState*);
     bool has_style_sheet_context() const { return m_has_style_sheet_context; }
 
     bool equals(StyleValue const& other) const;

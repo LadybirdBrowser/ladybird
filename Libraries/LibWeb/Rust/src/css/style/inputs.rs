@@ -49,6 +49,8 @@ impl StyleEngine {
             deferred_pseudo_element: None,
             tree,
             program: StyleSheetProgram::new(),
+            native_rules: Default::default(),
+            declaration_block_version: 1,
             journal: NormalizationJournal::new(),
             deferred_geometry_journal: NormalizationJournal::new(),
             flushing_deferred_geometry_journal: false,
@@ -526,6 +528,16 @@ impl StyleEngine {
         version.declaration_block = Some(DeclarationBlockID(block_version));
         self.replace_rule_version(rule, version);
         self.settle_program();
+    }
+
+    // A stable declaration owner changes contents without changing its address. Reserve zero for
+    // absence and one for the initial block, then issue fresh identities for subsequent edits.
+    pub(crate) fn next_declaration_block_version(&mut self) -> u32 {
+        self.declaration_block_version = self
+            .declaration_block_version
+            .checked_add(1)
+            .expect("declaration revision overflow");
+        self.declaration_block_version
     }
 
     pub(super) fn compile_selectors(

@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div class="target"></div>
+<script>
+    test(() => {
+        const text = '@function --幅(--量 <length>: 13px, --印: "雪") returns <length> { result: var(--量); } .target { width: --幅(); }';
+        const makeSheet = () => {
+            const sheet = new CSSStyleSheet();
+            sheet.replaceSync(text);
+            return sheet;
+        };
+        const first = makeSheet();
+        const shared = makeSheet();
+        const rule = first.cssRules[0];
+        const parameters = rule.getParameters();
+        println(`signature: ${rule.name}, ${rule.returnType}`);
+        println(`typed parameter: ${parameters[0].name}, ${parameters[0].type}, ${parameters[0].defaultValue}`);
+        println(`universal parameter: ${parameters[1].name}, ${parameters[1].type}, ${parameters[1].defaultValue}`);
+        println(`identity: ${rule === first.cssRules[0]}, independent: ${rule !== shared.cssRules[0]}`);
+        document.adoptedStyleSheets = [first];
+        println(`default argument width: ${getComputedStyle(document.querySelector(".target")).width}`);
+        rule.cssRules[0].style.cssText = "result: calc(var(--量) + 16px)";
+        const fresh = document.createElement("div");
+        fresh.className = "target";
+        document.body.append(fresh);
+        println(`edited body width: ${getComputedStyle(fresh).width}`);
+        println(`shared body: ${shared.cssRules[0].cssRules[0].cssText}`);
+        first.deleteRule(0);
+        println(`detached signature: ${rule.parentStyleSheet === null}, ${rule.name}, ${rule.getParameters()[1].defaultValue}`);
+        document.adoptedStyleSheets = [makeSheet()];
+        println(`cached default argument width: ${getComputedStyle(fresh).width}`);
+        println(`serialized signature: ${shared.cssRules[0].cssText}`);
+        fresh.style.width = '--幅(21px, "氷")';
+        println(`explicit argument width: ${getComputedStyle(fresh).width}`);
+        fresh.style.width = '--幅(red)';
+        println(`invalid argument default width: ${getComputedStyle(fresh).width}`);
+    });
+</script>

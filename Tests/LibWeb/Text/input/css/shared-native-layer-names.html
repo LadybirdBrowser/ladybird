@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div class="target"></div>
+<script>
+    test(() => {
+        const text = "@layer 色.子, emoji😀; @layer 色.子 { .target { height: 13px; } } @layer { .target { width: 13px !important; } }";
+        const first = document.createElement("style");
+        const second = document.createElement("style");
+        first.textContent = second.textContent = text;
+        document.head.append(first, second);
+        const sheet = first.sheet;
+        const statement = sheet.cssRules[0];
+        const block = sheet.cssRules[1];
+        const anonymous = sheet.cssRules[2];
+        println(`names: ${statement.nameList.join(", ")}`);
+        println(`statement: ${statement.cssText}`);
+        println(`block: ${block.name}, anonymous: ${JSON.stringify(anonymous.name)}`);
+        println(`distinct wrappers: ${statement !== second.sheet.cssRules[0]}`);
+        const target = document.querySelector(".target");
+        println(`initial height: ${getComputedStyle(target).height}`);
+        anonymous.cssRules[0].style.setProperty("width", "29px", "important");
+        println(`independent anonymous layers: ${getComputedStyle(target).width}`);
+        println(`other declaration: ${second.sheet.cssRules[2].cssRules[0].style.width}`);
+        sheet.deleteRule(1);
+        println(`detached block: ${block.name}, ${block.parentStyleSheet === null}`);
+        sheet.insertRule("@layer 色.子 { .target { height: 31px; } }", 1);
+        println(`inserted block: ${sheet.cssRules[1].name}, ${getComputedStyle(target).height}`);
+        first.remove();
+        second.remove();
+        internals.gc();
+        println(`retained names: ${statement.nameList.join(", ")}, ${block.name}`);
+    });
+</script>

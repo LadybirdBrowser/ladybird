@@ -1,0 +1,51 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    const source = `@media all {
+        .雪 { color: rgb(1, 2, 3); }
+        .雪 { width: 17px; }
+    }
+    @keyframes 動き { from { opacity: 0.25; } to { opacity: 0.75; } }
+    .雪 { animation: 動き 1s paused both; }`;
+    const url = `data:text/css,${encodeURIComponent(source)}`;
+    const makeFrame = async () => {
+        const frame = document.createElement("iframe");
+        frame.srcdoc = `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href="${url}"><div class="雪"></div>`;
+        const loaded = new Promise(resolve => frame.onload = resolve);
+        document.body.append(frame);
+        await loaded;
+        return frame;
+    };
+    const first = await makeFrame();
+    const second = await makeFrame();
+    const style = frame => frame.contentWindow.getComputedStyle(frame.contentDocument.querySelector("div"));
+    println(`untouched: ${style(first).width}, ${style(first).opacity}; ${style(second).width}, ${style(second).opacity}`);
+
+    const sheet = first.contentDocument.styleSheets[0];
+    const media = sheet.cssRules[0];
+    const width = media.cssRules[1];
+    const keyframes = sheet.cssRules[1];
+    const end = keyframes.cssRules[1];
+    const start = keyframes.cssRules[0];
+    println(`identity: ${sheet.cssRules[0] === media}, ${media.cssRules[1] === width}, ${keyframes.findRule("to") === end}`);
+    println(`parents: ${width.parentRule === media}, ${start.parentRule === keyframes}, ${start.parentStyleSheet === sheet}`);
+    width.style.width = "31px";
+    start.style.opacity = "0.5";
+    println(`mutated: ${style(first).width}, ${style(first).opacity}; ${style(second).width}, ${style(second).opacity}`);
+    println(`unexposed sibling: ${media.cssRules[0].style.color}`);
+
+    media.insertRule(".雪 { height: 23px; }", 0);
+    println(`shifted identity: ${media.cssRules[2] === width}, ${width.parentRule === media}`);
+    media.deleteRule(2);
+    println(`detached style: ${width.parentRule === null}, ${width.parentStyleSheet === null}, ${width.style.width}`);
+    keyframes.deleteRule("from");
+    println(`detached keyframe: ${start.parentRule === null}, ${start.parentStyleSheet === null}, ${start.style.opacity}`);
+    println(`retained keyframe: ${keyframes.cssRules[0] === end}, ${end.parentRule === keyframes}`);
+    sheet.deleteRule(0);
+    println(`detached group: ${media.parentStyleSheet === null}, ${media.cssRules[0].parentRule === media}, ${media.cssRules[0].parentStyleSheet === null}`);
+    const third = await makeFrame();
+    println(`shared source: ${style(second).width}, ${style(second).opacity}; ${style(third).width}, ${style(third).opacity}`);
+});
+</script>

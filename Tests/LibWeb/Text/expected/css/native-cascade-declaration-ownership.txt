@@ -1,0 +1,6 @@
+installation creates no value facades: true
+native declarations: 13px, 17px, 0.37
+retained owner observes mutation: 23px
+retained owner observes replacement: 31px, 41px
+deleted declaration stays independent: 53px, 59px
+native resource context: true

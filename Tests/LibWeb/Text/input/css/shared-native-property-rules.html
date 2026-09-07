@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const text = '@property --長さ { syntax: "<length>"; inherits: false; initial-value: 12px; } @property --自由 { syntax: "*"; inherits: true; }';
+        const makeSheet = () => {
+            const style = document.createElement("style");
+            style.textContent = text;
+            document.head.append(style);
+            return style.sheet;
+        };
+        const first = makeSheet();
+        const second = makeSheet();
+        const rule = first.cssRules[0];
+        const universal = first.cssRules[1];
+        const target = document.createElement("div");
+        target.style.width = "var(--長さ)";
+        document.body.append(target);
+        println(`identity: ${rule === first.cssRules[0]}, independent: ${rule !== second.cssRules[0]}`);
+        println(`typed: ${rule.name}, ${rule.syntax}, ${rule.inherits}, ${rule.initialValue}`);
+        println(`universal: ${universal.name}, ${universal.syntax}, ${universal.inherits}, ${universal.initialValue}`);
+        println(`initial width: ${getComputedStyle(target).width}`);
+        first.deleteRule(0);
+        first.insertRule('@property --長さ { syntax: "<length>"; inherits: false; initial-value: 29px; }', 0);
+        println(`later sheet wins: ${getComputedStyle(target).width}`);
+        println(`detached: ${rule.parentStyleSheet === null}, ${rule.initialValue}`);
+        second.deleteRule(0);
+        println(`replacement width: ${getComputedStyle(target).width}`);
+        const third = makeSheet();
+        println(`cached initial value: ${third.cssRules[0].initialValue}, width: ${getComputedStyle(target).width}`);
+        println(`serialized: ${rule.cssText}`);
+    });
+</script>

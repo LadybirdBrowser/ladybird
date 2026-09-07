@@ -8,8 +8,8 @@
  */
 
 #include <LibGC/Weak.h>
-#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Fetch.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/URLStyleValue.h>
 #include <LibWeb/DOM/Document.h>
@@ -23,15 +23,16 @@ namespace Web::CSS {
 
 StyleValueFFI::StyleValueData const* ImageStyleValue::make_image_url_data(URL const& url, Optional<::URL::URL> const& style_resource_base_url, Optional<bool> parent_style_sheet_origin_clean, bool should_absolutize_url_for_computed_value)
 {
-    // The Rust allocation takes ownership of one leaked reference to each retained string.
+    // Rust copies the borrowed URL text and takes ownership of each modifier string.
     auto modifiers = retain_url_modifiers_for_rust(url);
-    auto url_string = url.url();
-    auto url_bytes = url_string.bytes();
+    Utf16View url_string = url.url();
     auto resource_base_url = style_resource_base_url.has_value() ? style_resource_base_url->to_string() : String {};
     auto resource_base_url_bytes = resource_base_url.bytes();
     return StyleValueFFI::rust_style_value_create_image(
-        url_string.to_raw_leaked(), url_bytes.data(), url_bytes.size(), to_underlying(url.type()), modifiers.data(), modifiers.size(),
-        resource_base_url.to_raw_leaked(), resource_base_url_bytes.data(), resource_base_url_bytes.size(), style_resource_base_url.has_value(),
+        { url_string.has_ascii_storage() ? reinterpret_cast<u8 const*>(url_string.ascii_span().data()) : nullptr,
+            url_string.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(url_string.utf16_span().data()), url_string.length_in_code_units() },
+        to_underlying(url.type()), modifiers.data(), modifiers.size(),
+        { resource_base_url_bytes.data(), nullptr, resource_base_url_bytes.size() }, style_resource_base_url.has_value(),
         parent_style_sheet_origin_clean.has_value(), parent_style_sheet_origin_clean.value_or(false), should_absolutize_url_for_computed_value);
 }
 
@@ -133,8 +134,7 @@ ImageStyleValue::ImageStyleValue(StyleValueFFI::StyleValueData const* data)
 {
     auto const& context = data->image.resource_context;
     if (context.has_base_url) {
-        auto serialized_base_url = string_from_rust_data(context.base_url);
-        m_style_resource_base_url = DOMURL::parse_from_byte_string(serialized_base_url.bytes_as_string_view());
+        m_style_resource_base_url = DOMURL::parse(url_text_from_rust_data(context.base_url));
     }
     if (context.has_parent_style_sheet_origin_clean)
         m_parent_style_sheet_origin_clean = context.parent_style_sheet_origin_clean;
@@ -160,7 +160,7 @@ void ImageStyleValue::load_any_resources(DOM::Document& document)
     fetch_image(document);
 }
 
-void ImageStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
+void ImageStyleValue::set_style_sheet(StyleSheetState* style_sheet)
 {
 
     m_style_resource_base_url.clear();
@@ -173,7 +173,7 @@ void ImageStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
     }
 }
 
-void ImageStyleValue::update_style_sheet_resource_context(CSSStyleSheet const& style_sheet)
+void ImageStyleValue::update_style_sheet_resource_context(StyleSheetState const& style_sheet)
 {
     m_style_resource_base_url = style_sheet.style_resource_base_url();
     m_parent_style_sheet_origin_clean = style_sheet.is_origin_clean();
@@ -197,12 +197,12 @@ ValueComparingNonnullRefPtr<StyleValue const> ImageStyleValue::absolutized(Compu
 
     if (base_url.has_value()) {
         if (m_should_absolutize_url_for_computed_value) {
-            if (DOMURL::parse_from_byte_string(url_value.url().bytes_as_string_view()).has_value()) {
+            if (DOMURL::parse(url_value.url()).has_value()) {
                 auto absolutized_image = adopt_ref(*new (nothrow) ImageStyleValue(url_value, *base_url, m_parent_style_sheet_origin_clean, true));
                 return absolutized_image;
             }
 
-            if (auto resolved_url = DOMURL::parse_from_byte_string(url_value.url().bytes_as_string_view(), *base_url); resolved_url.has_value()) {
+            if (auto resolved_url = DOMURL::parse(url_value.url(), *base_url); resolved_url.has_value()) {
                 auto absolutized_image = adopt_ref(*new (nothrow) ImageStyleValue(URL { resolved_url->to_string(), url_value.type(), url_value.request_url_modifiers() }, *base_url, m_parent_style_sheet_origin_clean, true));
                 return absolutized_image;
             }
@@ -271,11 +271,11 @@ void ImageStyleValue::notify_clients_did_update() const
 
 Optional<::URL::URL> ImageStyleValue::resolved_url(DOM::Document const& document) const
 {
-    auto url = url_value().url();
+    auto url = url_text_from_rust_data(m_value->image.url);
     if (url.is_empty())
         return {};
 
-    return DOMURL::parse_from_byte_string(url.bytes_as_string_view(), style_resource_base_url(document));
+    return DOMURL::parse(url, style_resource_base_url(document));
 }
 
 ::URL::URL ImageStyleValue::style_resource_base_url(DOM::Document const& document) const

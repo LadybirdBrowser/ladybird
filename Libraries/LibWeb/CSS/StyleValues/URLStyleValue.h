@@ -12,9 +12,12 @@
 
 namespace Web::CSS {
 
-inline String string_from_rust_data(StyleValueFFI::RetainedString const& string)
+inline Utf16View url_text_from_rust_data(StyleValueFFI::RetainedString const& string)
 {
-    return String::from_utf8_without_validation({ string.bytes, string.length });
+    auto view = StyleValueFFI::rust_css_url_text_view(&string);
+    if (view.ascii)
+        return Utf16View { StringView { reinterpret_cast<char const*>(view.ascii), view.length } };
+    return Utf16View { reinterpret_cast<char16_t const*>(view.utf16), view.length };
 }
 
 // Marshals a URL's request URL modifiers for a Rust-owned allocation, retaining one leaked
@@ -53,7 +56,7 @@ inline URL url_from_rust_data(StyleValueFFI::RetainedString const& url_string, u
             break;
         }
     }
-    return URL(string_from_rust_data(url_string), static_cast<URL::Type>(url_type), move(modifiers));
+    return URL(url_text_from_rust_data(url_string), static_cast<URL::Type>(url_type), move(modifiers));
 }
 
 class URLStyleValue final : public StyleValueWithDefaultOperators<URLStyleValue> {

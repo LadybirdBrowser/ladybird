@@ -7,25 +7,116 @@
  */
 
 #include <AK/Utf16StringBuilder.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/Bindings/CSSRule.h>
+#include <LibWeb/CSS/CSSContainerRule.h>
+#include <LibWeb/CSS/CSSCounterStyleRule.h>
+#include <LibWeb/CSS/CSSFontFaceRule.h>
+#include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
+#include <LibWeb/CSS/CSSFunctionDeclarations.h>
+#include <LibWeb/CSS/CSSFunctionRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
+#include <LibWeb/CSS/CSSKeyframeRule.h>
+#include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
+#include <LibWeb/CSS/CSSLayerStatementRule.h>
+#include <LibWeb/CSS/CSSMarginRule.h>
+#include <LibWeb/CSS/CSSMediaRule.h>
+#include <LibWeb/CSS/CSSNamespaceRule.h>
+#include <LibWeb/CSS/CSSNestedDeclarations.h>
+#include <LibWeb/CSS/CSSPageRule.h>
+#include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/CSSRule.h>
+#include <LibWeb/CSS/CSSRuleList.h>
+#include <LibWeb/CSS/CSSScopeRule.h>
+#include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
+#include <LibWeb/CSS/CSSSupportsRule.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/Dump.h>
 
 namespace Web::CSS {
 
-CSSRule::CSSRule(Type type)
-    : m_type(type)
+CSSRule::~CSSRule() = default;
+
+CSSStyleSheet* CSSRule::parent_style_sheet_for_bindings() const
 {
+    return m_parent_style_sheet ? &m_parent_style_sheet->cssom_sheet() : nullptr;
+}
+
+CSSRule::CSSRule(RustRule rule)
+    : m_type(rule.type())
+    , m_native_rule(move(rule))
+{
+    auto payload = m_native_rule.payload();
+    if (payload.has_source_position) {
+        VERIFY(payload.start_line <= NumericLimits<u32>::max());
+        VERIFY(payload.start_column <= NumericLimits<u32>::max());
+        m_source_position = SourcePosition { static_cast<u32>(payload.start_line), static_cast<u32>(payload.start_column) };
+    }
+}
+
+GC::Ref<CSSRule> CSSRule::create(RustRule rule, GC::Ptr<DOM::Document> document)
+{
+    GC::Ptr<CSSRuleList> children;
+    if (auto* native_children = Parser::ValueParserFFI::rust_rule_children(rule.handle()); native_children && rule.type() != Type::Keyframes)
+        children = CSSRuleList::create(RustRuleList { Parser::ValueParserFFI::rust_rule_list_retain(native_children) }, document);
+    switch (rule.type()) {
+    case Type::Style:
+        return CSSStyleRule::create(move(rule), *children);
+    case Type::Media:
+        return CSSMediaRule::create(move(rule), *children);
+    case Type::Supports:
+        return CSSSupportsRule::create(move(rule), *children);
+    case Type::Container:
+        return CSSContainerRule::create(move(rule), *children);
+    case Type::Scope:
+        return CSSScopeRule::create(move(rule), *children);
+    case Type::LayerBlock:
+        return CSSLayerBlockRule::create(move(rule), *children);
+    case Type::Page:
+        return CSSPageRule::create(move(rule), *children);
+    case Type::Function:
+        return CSSFunctionRule::create(move(rule), *children);
+    case Type::Import:
+        return CSSImportRule::create(*StyleSheetImport::create(move(rule), document));
+    case Type::FontFace:
+        return CSSFontFaceRule::create(move(rule));
+    case Type::Keyframes:
+        return CSSKeyframesRule::create(move(rule));
+    case Type::Keyframe:
+        return CSSKeyframeRule::create(move(rule));
+    case Type::Margin:
+        return CSSMarginRule::create(move(rule));
+    case Type::Namespace:
+        return CSSNamespaceRule::create(move(rule));
+    case Type::CounterStyle:
+        return CSSCounterStyleRule::create(move(rule));
+    case Type::FontFeatureValues:
+        return CSSFontFeatureValuesRule::create(move(rule));
+    case Type::LayerStatement:
+        return CSSLayerStatementRule::create(move(rule));
+    case Type::NestedDeclarations:
+        return CSSNestedDeclarations::create(move(rule));
+    case Type::Property:
+        return CSSPropertyRule::create(move(rule));
+    case Type::FunctionDeclarations:
+        return CSSFunctionDeclarations::create(move(rule));
+    }
+    VERIFY_NOT_REACHED();
 }
 
 void CSSRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_parent_style_sheet);
+    visitor.visit(m_parent_cssom_sheet);
     visitor.visit(m_parent_rule);
+}
+
+size_t CSSRule::external_memory_size() const
+{
+    return JS::saturating_add_external_memory_size(Base::external_memory_size(), m_native_rule.external_memory_size());
 }
 
 // https://www.w3.org/TR/cssom/#dom-cssrule-type
@@ -64,10 +155,11 @@ void CSSRule::set_parent_rule(CSSRule* parent_rule)
     clear_caches();
 }
 
-void CSSRule::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet)
+void CSSRule::set_parent_style_sheet(StyleSheetState* parent_style_sheet)
 {
     clear_caches();
     m_parent_style_sheet = parent_style_sheet;
+    m_parent_cssom_sheet = parent_style_sheet ? &parent_style_sheet->cssom_sheet() : nullptr;
     clear_caches();
 }
 

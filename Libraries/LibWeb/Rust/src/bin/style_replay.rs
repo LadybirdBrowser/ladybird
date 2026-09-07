@@ -2692,7 +2692,10 @@ impl std::fmt::Debug for OwnedSemanticStyleRecordView {
 }
 
 fn pointer_value(pointer: *const c_void) -> Result<u64, std::num::TryFromIntError> {
-    u64::try_from(pointer as usize)
+    match bridge::replay_style_value_token(pointer) {
+        Some(token) => Ok(token),
+        None => u64::try_from(pointer as usize),
+    }
 }
 
 fn read_cascade_origin(payload: &mut PayloadReader) -> Result<FfiCascadeOrigin, Box<dyn std::error::Error>> {
@@ -2714,8 +2717,6 @@ fn read_declaration_kind(payload: &mut PayloadReader) -> Result<FfiElementDeclar
     })
 }
 
-#[unsafe(no_mangle)]
-extern "C" fn ladybird_string_unref(_raw: usize) {}
 #[unsafe(no_mangle)]
 extern "C" fn ladybird_utf16_fly_string_unref(_raw: usize) {}
 #[unsafe(no_mangle)]

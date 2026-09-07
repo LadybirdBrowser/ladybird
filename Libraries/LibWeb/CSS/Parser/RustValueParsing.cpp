@@ -61,12 +61,6 @@ Parser::ParseContextStorage::ParseContextStorage(Parser& parser, ParseContextMod
         }
     }
 
-    if (mode == ParseContextMode::Syntax) {
-        declared_namespaces.ensure_capacity(parser.m_declared_namespaces.size());
-        for (auto const& namespace_ : parser.m_declared_namespaces)
-            declared_namespaces.unchecked_append(ffi_utf16_view(namespace_));
-    }
-
     ReadonlyBytes document_url;
     ReadonlyBytes document_base_url;
     if (parser.m_document) {
@@ -91,8 +85,7 @@ Parser::ParseContextStorage::ParseContextStorage(Parser& parser, ParseContextMod
         .is_ua_style_sheet = mode == ParseContextMode::Syntax && parser.m_is_ua_style_sheet == IsUAStyleSheet::Yes,
         .value_contexts = context.value_contexts,
         .value_context_count = context.value_context_count,
-        .declared_namespaces = declared_namespaces.data(),
-        .declared_namespace_count = declared_namespaces.size(),
+        .declared_namespaces = mode == ParseContextMode::Syntax ? parser.m_declared_namespaces.handle() : nullptr,
         .document_url = document_url.data(),
         .document_url_length = document_url.size(),
         .document_base_url = document_base_url.data(),
@@ -107,7 +100,7 @@ Parser::ParseContextStorage Parser::make_parse_context(ParseContextMode mode, Op
     return ParseContextStorage { *this, mode, direct_property_context };
 }
 
-static Parser::ParseErrorOr<void> collect_substitution_function_presence_in_rust(Utf16View source, SubstitutionFunctionsPresence& presence)
+Parser::ParseErrorOr<void> Parser::collect_arbitrary_substitution_function_presence(Utf16View source, SubstitutionFunctionsPresence& presence)
 {
     u8 rust_presence = 0;
     if (!ValueParserFFI::rust_collect_arbitrary_substitution_function_presence_from_source(ffi_utf16_view(source), &rust_presence))
@@ -121,11 +114,6 @@ static Parser::ParseErrorOr<void> collect_substitution_function_presence_in_rust
     return {};
 }
 
-Parser::ParseErrorOr<void> Parser::collect_arbitrary_substitution_function_presence(Utf16View source, SubstitutionFunctionsPresence& presence)
-{
-    return collect_substitution_function_presence_in_rust(source, presence);
-}
-
 Optional<RustSyntaxHandle> parse_as_syntax(Utf16View source, LimitSingleComponentIdentToCustomIdent limit_single_component_ident_to_custom_ident)
 {
     auto syntax = ValueParserFFI::rust_parse_syntax(ffi_utf16_view(source), limit_single_component_ident_to_custom_ident == LimitSingleComponentIdentToCustomIdent::Yes);
@@ -136,7 +124,7 @@ Optional<RustSyntaxHandle> parse_as_syntax(Utf16View source, LimitSingleComponen
 
 NonnullRefPtr<StyleValue const> parse_with_a_syntax(ParsingParams const& parsing_params, Utf16View input, RustSyntaxHandle const& syntax)
 {
-    return Parser::create(parsing_params, input).parse_with_a_syntax(syntax);
+    return Parser { parsing_params }.parse_with_a_syntax(input, syntax);
 }
 
 // https://drafts.csswg.org/css-values-5/#parse-with-a-syntax
@@ -188,11 +176,6 @@ RefPtr<StyleValue const> Parser::parse_primitive_value_from_source(ValueType val
     if (!parsed)
         return nullptr;
     return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(parsed));
-}
-
-RefPtr<StyleValue const> Parser::parse_entirely_as_type(ValueType value_type)
-{
-    return parse_primitive_value_from_source(value_type, m_source);
 }
 
 }

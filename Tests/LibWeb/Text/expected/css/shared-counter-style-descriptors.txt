@@ -1,0 +1,17 @@
+original order: @counter-style 色 { system: fixed; symbols: "A" "B"; }
+system: true, isolated: true
+negative: true, isolated: true
+prefix: true, isolated: true
+suffix: true, isolated: true
+range: true, isolated: true
+pad: true, isolated: true
+fallback: true, isolated: true
+symbols: true, isolated: true
+additiveSymbols: true, isolated: true
+speakAs: true, isolated: true
+invalid edits ignored: true
+normalized name: upper-roman, 色
+reserved name ignored: upper-roman
+detached: true, "三"
+detached name: 新しい名前
+cached parse unchanged: true

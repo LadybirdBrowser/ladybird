@@ -8,10 +8,9 @@
 
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
-#include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
+#include <AK/Utf16View.h>
 #include <LibWeb/CSS/CSSRule.h>
-#include <LibWeb/CSS/Parser/RustSyntaxHandle.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
@@ -22,27 +21,23 @@ class CSSPropertyRule final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSPropertyRule);
 
 public:
-    static GC::Ref<CSSPropertyRule> create(Utf16FlyString name, Utf16FlyString syntax, Parser::RustSyntaxHandle parsed_syntax, bool inherits, RefPtr<StyleValue const> initial_value);
+    static GC::Ref<CSSPropertyRule> create(RustRule);
 
     virtual ~CSSPropertyRule();
 
-    Utf16FlyString const& name() const { return m_name; }
-    Utf16FlyString const& syntax() const { return m_syntax; }
-    bool inherits() const { return m_inherits; }
+    Utf16View name() const;
+    Utf16View syntax() const;
+    bool inherits() const;
     Optional<Utf16String> initial_value() const;
-    CustomPropertyRegistration to_registration() const;
 
 private:
-    CSSPropertyRule(Utf16FlyString name, Utf16FlyString syntax, Parser::RustSyntaxHandle parsed_syntax, bool inherits, RefPtr<StyleValue const> initial_value);
+    explicit CSSPropertyRule(RustRule);
 
     virtual Utf16String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
-    Utf16FlyString m_name;
-    Utf16FlyString m_syntax;
-    Parser::RustSyntaxHandle m_parsed_syntax;
-    bool m_inherits;
-    RefPtr<StyleValue const> m_initial_value;
+    RefPtr<StyleValue const> initial_style_value() const;
+    Parser::ValueParserFFI::PropertyRuleData const& m_rule;
 };
 
 template<>

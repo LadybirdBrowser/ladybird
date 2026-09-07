@@ -18,6 +18,11 @@ GC::Ref<FontFaceSetLoadEvent> FontFaceSetLoadEvent::create(Utf16FlyString const&
     return GC::Heap::the().allocate<FontFaceSetLoadEvent>(event_name, event_init, time_stamp);
 }
 
+GC::Ref<FontFaceSetLoadEvent> FontFaceSetLoadEvent::create_for_fonts(Utf16FlyString const& event_name, Vector<NonnullRefPtr<FontFaceState>> fonts, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+{
+    return GC::Heap::the().allocate<FontFaceSetLoadEvent>(event_name, move(fonts), time_stamp);
+}
+
 // https://drafts.csswg.org/css-font-loading/#dom-fontfacesetloadevent-fontfacesetloadevent
 WebIDL::ExceptionOr<GC::Ref<FontFaceSetLoadEvent>> FontFaceSetLoadEvent::create_for_constructor(Utf16FlyString const& event_name, Bindings::FontFaceSetLoadEventInit const& event_init, HighResolutionTime::DOMHighResTimeStamp time_stamp)
 {
@@ -29,8 +34,23 @@ FontFaceSetLoadEvent::FontFaceSetLoadEvent(Utf16FlyString const& event_name, Bin
 {
     m_fontfaces.ensure_capacity(event_init.fontfaces.size());
     for (auto const& font_face : event_init.fontfaces) {
-        m_fontfaces.unchecked_append(font_face);
+        m_fontfaces.unchecked_append(font_face->state());
     }
+}
+
+FontFaceSetLoadEvent::FontFaceSetLoadEvent(Utf16FlyString const& event_name, Vector<NonnullRefPtr<FontFaceState>> fonts, HighResolutionTime::DOMHighResTimeStamp time_stamp)
+    : FontFaceSetLoadEvent(event_name, Bindings::FontFaceSetLoadEventInit {}, time_stamp)
+{
+    m_fontfaces = move(fonts);
+}
+
+Vector<GC::Ref<FontFace>> FontFaceSetLoadEvent::fontfaces() const
+{
+    Vector<GC::Ref<FontFace>> faces;
+    faces.ensure_capacity(m_fontfaces.size());
+    for (auto const& font : m_fontfaces)
+        faces.unchecked_append(font->cssom_font_face());
+    return faces;
 }
 
 void FontFaceSetLoadEvent::visit_edges(Visitor& visitor)

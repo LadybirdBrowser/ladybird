@@ -7,21 +7,9 @@
 #pragma once
 
 #include <AK/Utf16FlyString.h>
-#include <AK/Utf16StringBuilder.h>
 #include <LibWeb/CSS/CSSGroupingRule.h>
-#include <LibWeb/CSS/Parser/RustSyntaxHandle.h>
 
 namespace Web::CSS {
-
-// NB: We use this struct internally instead of just using FunctionParameter so we can store the values in more
-//     convenient types (i.e. not just strings)
-struct FunctionParameterInternal {
-    Utf16FlyString name;
-    Parser::RustSyntaxHandle type;
-    RefPtr<StyleValue const> default_value;
-
-    void serialize(Utf16StringBuilder& builder) const;
-};
 
 // https://drafts.csswg.org/css-mixins-1/#dictdef-functionparameter
 struct FunctionParameter {
@@ -29,7 +17,7 @@ struct FunctionParameter {
     Utf16String type;
     Optional<Utf16String> default_value;
 
-    static FunctionParameter from_internal_function_parameter(FunctionParameterInternal const&);
+    static FunctionParameter from_native_parameter(Parser::ValueParserFFI::FfiFunctionParameterView const&);
 };
 
 // https://drafts.csswg.org/css-mixins-1/#cssfunctionrule
@@ -38,27 +26,19 @@ class CSSFunctionRule : public CSSGroupingRule {
     GC_DECLARE_ALLOCATOR(CSSFunctionRule);
 
 public:
-    static GC::Ref<CSSFunctionRule> create(CSSRuleList&, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, Parser::RustSyntaxHandle return_type);
+    static GC::Ref<CSSFunctionRule> create(RustRule, CSSRuleList&);
     virtual ~CSSFunctionRule() override = default;
-
-    Utf16FlyString const& qualified_layer_name() const { return parent_layer_internal_qualified_name(); }
 
     Utf16String name() const;
     Vector<FunctionParameter> get_parameters() const;
     Utf16String return_type() const;
 
-    ReadonlySpan<FunctionParameterInternal const> parameters_internal() const { return m_parameters; }
-    Parser::RustSyntaxHandle const& return_type_internal() const { return m_return_type; }
-    void for_each_effective_declaration(DOM::AbstractElement&, Function<void(Utf16FlyString const&, NonnullRefPtr<StyleValue const> const&)> const&) const;
-
     Utf16String serialized() const override;
 
 private:
-    CSSFunctionRule(CSSRuleList&, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, Parser::RustSyntaxHandle return_type);
+    CSSFunctionRule(RustRule, CSSRuleList&);
 
-    Utf16FlyString m_name;
-    Vector<FunctionParameterInternal> m_parameters;
-    Parser::RustSyntaxHandle m_return_type;
+    Parser::ValueParserFFI::FunctionSignature const& m_signature;
 };
 
 }

@@ -334,6 +334,7 @@ class CSSStyleDeclaration;
 class CSSStyleProperties;
 class CSSStyleRule;
 class CSSStyleSheet;
+class StyleSheetState;
 class CSSStyleValue;
 class CSSSupportsRule;
 class CSSTransformComponent;
@@ -357,6 +358,7 @@ class Flex;
 class FlexStyleValue;
 class FontComputer;
 class FontFace;
+class FontFaceState;
 class FontFaceSet;
 class FontSourceStyleValue;
 class FontStyleStyleValue;
@@ -426,6 +428,7 @@ class StylePropertyMap;
 class StylePropertyMapReadOnly;
 class StyleScope;
 class StyleSheet;
+class StyleSheetImport;
 class StyleSheetList;
 class StyleValue;
 class StyleValueList;
@@ -510,7 +513,6 @@ struct BackgroundLayerData;
 struct CalculationContext;
 struct CalculationResolutionContext;
 struct ComputationContext;
-struct FunctionParameterInternal;
 struct CustomPropertyRegistration;
 struct GridRepeatParams;
 struct LogicalAliasMappingContext;
@@ -543,11 +545,7 @@ namespace Web::CSS::Parser {
 class Parser;
 class RustSyntaxHandle;
 
-struct AtRule;
-struct Declaration;
-class DeclarationList;
 struct ParsingParams;
-struct QualifiedRule;
 
 }
 

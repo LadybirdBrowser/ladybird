@@ -1,0 +1,42 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<style>body { color: black; }</style>
+<script>
+test(() => {
+    const source = `.旧 {
+        & .target { color: red; }
+        @media not all { & .target { color: green; } }
+        @scope (.inner) { .target { background-color: blue; } }
+    }`;
+    const sheets = [new CSSStyleSheet(), new CSSStyleSheet()];
+    const roots = sheets.map(sheet => {
+        sheet.replaceSync(source);
+        const host = document.createElement("div");
+        document.body.append(host);
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = '<div class="旧"><div class="inner"><span class="target">old</span></div></div><div class="新"><div class="inner"><span class="target">new</span></div></div>';
+        root.adoptedStyleSheets = [sheet];
+        return root;
+    });
+    const colors = () => roots.map(root => [...root.querySelectorAll(".target")].map(target => {
+        const style = getComputedStyle(target);
+        return `${style.color}, ${style.backgroundColor}`;
+    }).join(" / ")).join(" | ");
+    println(`shared parse: ${colors()}`);
+    // Only the parent rule is exposed before updating the native descendant selectors.
+    const parent = sheets[0].cssRules[0];
+    parent.selectorText = ".新";
+    println(`parent selector changed: ${colors()}`);
+    internals.gc();
+    println(`native descendants survive collection: ${colors()}`);
+    parent.cssRules[1].media.mediaText = "all";
+    println(`inactive descendant becomes active: ${colors()}`);
+    parent.selectorText = ".旧";
+    println(`parent selector restored: ${colors()}`);
+    sheets[0].deleteRule(0);
+    parent.selectorText = ".新";
+    println(`detached subtree remains retired: ${colors()}`);
+    roots.forEach(root => root.host.remove());
+});
+</script>

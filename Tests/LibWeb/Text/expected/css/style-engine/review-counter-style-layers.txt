@@ -1,2 +1,3 @@
 counter layer override: true
 counter appended override: true
+counter removed override: true

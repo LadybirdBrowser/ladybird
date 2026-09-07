@@ -409,16 +409,11 @@ pub(crate) fn serialize_a_string(sink: &mut TextSink, string: &StringUnits) {
     sink.push_ascii("\"");
 }
 
-/// Serializes a retained AK::String's UTF-8 bytes with the serialize-a-string rules.
-fn serialize_a_string_utf8(sink: &mut TextSink, string: &RetainedString) {
-    // SAFETY: AK::String contents are guaranteed valid UTF-8.
-    let text = unsafe { std::str::from_utf8_unchecked(string.as_bytes()) };
-    if text.is_ascii() {
-        serialize_a_string(sink, &StringUnits::Ascii(text.as_bytes()));
-        return;
+fn serialize_url_text(sink: &mut TextSink, string: &RetainedString) {
+    match string.units() {
+        crate::css::css_tokenizer::TokenizerInput::Ascii(bytes) => serialize_a_string(sink, &StringUnits::Ascii(bytes)),
+        crate::css::css_tokenizer::TokenizerInput::Utf16(units) => serialize_a_string(sink, &StringUnits::Utf16(units)),
     }
-    let units: Vec<u16> = text.encode_utf16().collect();
-    serialize_a_string(sink, &StringUnits::Utf16(&units));
 }
 
 /// Port of AK::FormatBuilder::put_f64_with_precision for `appendff("{:.6}", value)`: base 10,
@@ -680,7 +675,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
         } => {
             // https://drafts.csswg.org/cssom-1/#serialize-a-url
             sink.push_ascii(if *url_type == 0 { "url(" } else { "src(" });
-            serialize_a_string_utf8(sink, url);
+            serialize_url_text(sink, url);
             for modifier in modifiers.as_slice() {
                 sink.push_ascii(" ");
                 serialize_request_url_modifier(sink, modifier);
@@ -1201,7 +1196,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             ..
         } => {
             sink.push_ascii(if *url_type == 0 { "url(" } else { "src(" });
-            serialize_a_string_utf8(sink, url);
+            serialize_url_text(sink, url);
             for modifier in url_modifiers.as_slice() {
                 sink.push_ascii(" ");
                 serialize_request_url_modifier(sink, modifier);
@@ -2257,7 +2252,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 return true;
             }
             sink.push_ascii(if *url_type == 0 { "url(" } else { "src(" });
-            serialize_a_string_utf8(sink, url);
+            serialize_url_text(sink, url);
             for modifier in url_modifiers.as_slice() {
                 sink.push_ascii(" ");
                 serialize_request_url_modifier(sink, modifier);

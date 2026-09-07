@@ -1,0 +1,10 @@
+duplicate prefix uses last namespace: true
+default namespace excludes HTML: true
+default namespace excludes null namespace: true
+replacement keeps namespace bindings: true
+replacement stops matching old selector: true
+shared parse keeps independent selectors: true
+empty namespace matches null namespace: true
+empty namespace excludes SVG: true
+deleted namespace rejects selectors: true
+inserted namespace reaches compiler: true

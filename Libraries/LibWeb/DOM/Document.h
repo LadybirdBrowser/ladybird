@@ -358,7 +358,7 @@ public:
     CSS::StyleSheetList& style_sheets();
     CSS::StyleSheetList const& style_sheets() const;
 
-    void for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)> const& callback) const;
+    void for_each_active_css_style_sheet(Function<void(CSS::StyleSheetState&)> const& callback) const;
 
     double ensure_element_shared_css_random_base_value(CSS::RandomCachingKey const&);
 
@@ -747,8 +747,8 @@ public:
     void schedule_html_parser_end_check();
     bool has_html_parser_end_state() const { return m_html_parser_end_state != nullptr; }
 
-    void add_pending_css_import_rule(Badge<CSS::CSSImportRule>, GC::Ref<CSS::CSSImportRule>);
-    void remove_pending_css_import_rule(Badge<CSS::CSSImportRule>, GC::Ref<CSS::CSSImportRule>);
+    void add_pending_css_import_rule(Badge<CSS::StyleSheetImport>, NonnullRefPtr<CSS::StyleSheetImport>);
+    void remove_pending_css_import_rule(Badge<CSS::StyleSheetImport>, NonnullRefPtr<CSS::StyleSheetImport>);
     bool has_pending_style_sheet_requests() const { return m_number_of_pending_style_sheet_requests > 0 || !m_pending_css_import_rules.is_empty(); }
     void increment_number_of_pending_style_sheet_requests(Badge<DocumentLoadEventDelayer>);
     void decrement_number_of_pending_style_sheet_requests(Badge<DocumentLoadEventDelayer>);
@@ -1341,7 +1341,7 @@ public:
     static constexpr size_t active_view_transition_offset() { return offsetof(Document, m_active_view_transition); }
     bool rendering_suppression_for_view_transitions() const { return m_rendering_suppression_for_view_transitions; }
     void set_rendering_suppression_for_view_transitions(bool);
-    GC::Ptr<CSS::CSSStyleSheet> dynamic_view_transition_style_sheet() const { return m_dynamic_view_transition_style_sheet; }
+    CSS::StyleSheetState* dynamic_view_transition_style_sheet() const { return m_dynamic_view_transition_style_sheet.ptr(); }
     void set_show_view_transition_tree(bool value) { m_show_view_transition_tree = value; }
     Vector<GC::Ptr<ViewTransition::ViewTransition>>& update_callback_queue() { return m_update_callback_queue; }
 
@@ -1686,7 +1686,7 @@ private:
     // https://html.spec.whatwg.org/multipage/semantics.html#script-blocking-style-sheet-set
     HashTable<GC::Ref<DOM::Element>> m_script_blocking_style_sheet_set;
 
-    HashTable<GC::Ref<CSS::CSSImportRule>> m_pending_css_import_rules;
+    HashTable<NonnullRefPtr<CSS::StyleSheetImport>> m_pending_css_import_rules;
     size_t m_number_of_pending_style_sheet_requests { 0 };
 
     GC::Ptr<HTML::History> m_history;
@@ -2033,7 +2033,7 @@ private:
     bool m_rendering_suppression_for_view_transitions { false };
 
     // https://drafts.csswg.org/css-view-transitions-1/#document-dynamic-view-transition-style-sheet
-    GC::Ptr<CSS::CSSStyleSheet> m_dynamic_view_transition_style_sheet;
+    RefPtr<CSS::StyleSheetState> m_dynamic_view_transition_style_sheet;
 
     // https://drafts.csswg.org/css-view-transitions-1/#document-show-view-transition-tree
     bool m_show_view_transition_tree { false };

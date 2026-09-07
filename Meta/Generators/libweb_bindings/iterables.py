@@ -588,10 +588,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::get)
     // 4. Let keyArg be the first argument passed to this function, or undefined if not supplied.
     // 5. Let key be keyArg converted to an IDL value of type keyType.
     auto key_arg = vm.argument(0);
-    auto key = TRY([&]() -> JS::ThrowCompletionOr<FlyString> {{
-        auto key_string = TRY(key_arg.to_utf16_string(vm));
-        return FlyString(key_string.to_utf8());
-    }}());
+    auto key = TRY(key_arg.to_utf16_string(vm));
 
     // FIXME: 6. If key is -0, set key to +0.
 
@@ -615,10 +612,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::has)
     // 4. Let keyArg be the first argument passed to this function, or undefined if not supplied.
     // 5. Let key be keyArg converted to an IDL value of type keyType.
     auto key_arg = vm.argument(0);
-    auto key = TRY([&]() -> JS::ThrowCompletionOr<FlyString> {{
-        auto key_string = TRY(key_arg.to_utf16_string(vm));
-        return FlyString(key_string.to_utf8());
-    }}());
+    auto key = TRY(key_arg.to_utf16_string(vm));
 
     // FIXME: 6. If key is -0, set key to +0.
 
@@ -646,10 +640,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::set)
     // 4. Let keyArg be the first argument passed to this function, or undefined if not supplied.
     // 5. Let key be keyArg converted to an IDL value of type keyType.
     auto key_arg = vm.argument(0);
-    auto key = TRY([&]() -> JS::ThrowCompletionOr<FlyString> {{
-        auto key_string = TRY(key_arg.to_utf16_string(vm));
-        return FlyString(key_string.to_utf8());
-    }}());
+    auto key = TRY(key_arg.to_utf16_string(vm));
 
     // FIXME: 6. If key is -0, set key to +0.
 
@@ -685,10 +676,7 @@ JS_DEFINE_NATIVE_FUNCTION({interface.prototype_class}::delete_)
     // 4. Let keyArg be the first argument passed to this function, or undefined if not supplied.
     // 5. Let key be keyArg converted to an IDL value of type keyType.
     auto key_arg = vm.argument(0);
-    auto key = TRY([&]() -> JS::ThrowCompletionOr<FlyString> {{
-        auto key_string = TRY(key_arg.to_utf16_string(vm));
-        return FlyString(key_string.to_utf8());
-    }}());
+    auto key = TRY(key_arg.to_utf16_string(vm));
 
     // FIXME: 6. If key is -0, set key to +0.
 

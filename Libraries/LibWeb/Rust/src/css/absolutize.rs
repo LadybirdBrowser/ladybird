@@ -131,7 +131,7 @@ fn absolutize_image(value: &StyleValueData, context: &AbsolutizationContext) -> 
     else {
         return None;
     };
-    if url.as_bytes().is_empty() {
+    if url.is_empty() {
         return Some(Absolutized::Unchanged);
     }
 
@@ -142,19 +142,19 @@ fn absolutize_image(value: &StyleValueData, context: &AbsolutizationContext) -> 
         .or_else(|| {
             resource_context
                 .has_base_url
-                .then(|| resource_context.base_url.as_bytes())
+                .then(|| resource_context.base_url.ascii_bytes())
         })
         .unwrap_or(context.document_base_url);
     if base_url.is_empty() {
         return Some(Absolutized::Unchanged);
     }
 
-    let url_string = std::str::from_utf8(url.as_bytes()).ok()?;
+    let url_string = url.url_input();
     let should_absolutize_url_for_computed_value =
         context.style_sheet_resource_context.is_some() || resource_context.should_absolutize_url_for_computed_value;
     let absolutized_url = if should_absolutize_url_for_computed_value {
         if liburl_rust::basic_parse(url_string, liburl_rust::BasicParseOptions::new()).is_some() {
-            crate::css::style_value::RetainedString::from_utf8(url_string.to_owned())
+            url.clone()
         } else {
             let base_url = std::str::from_utf8(base_url).ok()?;
             let base_url = liburl_rust::basic_parse(base_url, liburl_rust::BasicParseOptions::new())?;
@@ -163,13 +163,13 @@ fn absolutize_image(value: &StyleValueData, context: &AbsolutizationContext) -> 
             let Some(resolved_url) = resolved_url else {
                 return Some(Absolutized::Unchanged);
             };
-            crate::css::style_value::RetainedString::from_utf8(resolved_url.serialization())
+            crate::css::style_value::RetainedString::from_ascii(resolved_url.serialization())
         }
     } else {
-        crate::css::style_value::RetainedString::from_utf8(url_string.to_owned())
+        url.clone()
     };
     let base_url = std::str::from_utf8(base_url).ok()?;
-    let base_url = crate::css::style_value::RetainedString::from_utf8(base_url.to_owned());
+    let base_url = crate::css::style_value::RetainedString::from_ascii(base_url.to_owned());
 
     let (has_parent_style_sheet_origin_clean, parent_style_sheet_origin_clean) = context
         .style_sheet_resource_context

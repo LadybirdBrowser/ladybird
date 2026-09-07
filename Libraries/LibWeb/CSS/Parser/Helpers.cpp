@@ -10,39 +10,24 @@
  */
 
 #include <LibTextCodec/Decoder.h>
-#include <LibWeb/CSS/CSSRuleList.h>
-#include <LibWeb/CSS/CSSStyleSheet.h>
-#include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 
 namespace Web {
 
-GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams const& context, StringView css, Optional<::URL::URL> location, GC::Ptr<CSS::MediaList> media_list)
+NonnullRefPtr<CSS::StyleSheetState> parse_css_stylesheet(CSS::Parser::ParsingParams const& context, StringView css, Optional<::URL::URL> location, CSS::RustMediaList media_list)
 {
-    if (css.is_empty()) {
-        auto rule_list = CSS::CSSRuleList::create();
-        if (!media_list)
-            media_list = CSS::MediaList::create({});
-        auto style_sheet = CSS::CSSStyleSheet::create(rule_list, *media_list, location);
-        style_sheet->set_source_text({});
-        return style_sheet;
-    }
-    auto style_sheet = CSS::Parser::Parser::create(context, css).parse_as_css_stylesheet(location, move(media_list));
-    style_sheet->set_source_text(Utf16String::from_utf8(css));
-    return style_sheet;
+    return parse_css_stylesheet(context, Utf16String::from_utf8(css), move(location), move(media_list));
 }
 
-GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams const& context, Utf16View css, Optional<::URL::URL> location, GC::Ptr<CSS::MediaList> media_list)
+NonnullRefPtr<CSS::StyleSheetState> parse_css_stylesheet(CSS::Parser::ParsingParams const& context, Utf16View css, Optional<::URL::URL> location, CSS::RustMediaList media_list)
 {
     if (css.is_empty()) {
-        auto rule_list = CSS::CSSRuleList::create();
-        if (!media_list)
-            media_list = CSS::MediaList::create({});
-        auto style_sheet = CSS::CSSStyleSheet::create(rule_list, *media_list, location);
+        auto style_sheet = CSS::StyleSheetState::create(CSS::RustRuleList {}, nullptr, move(media_list), location);
         style_sheet->set_source_text({});
         return style_sheet;
     }
-    auto style_sheet = CSS::Parser::Parser::create(context, css).parse_as_css_stylesheet(location, move(media_list));
+    auto style_sheet = CSS::Parser::Parser { context }.parse_as_css_stylesheet(css, location, move(media_list));
     style_sheet->set_source_text(Utf16String::from_utf16(css));
     return style_sheet;
 }
@@ -51,104 +36,71 @@ CSS::RustDeclarationBlock parse_css_property_declaration_block(CSS::Parser::Pars
 {
     if (css.is_empty())
         return { {}, {} };
-    return CSS::Parser::Parser::create(context, css).parse_as_property_declaration_block();
+    return CSS::Parser::Parser { context }.parse_as_property_declaration_block(css);
 }
 
 CSS::RustDescriptorBlock parse_css_descriptor_declaration_block(CSS::Parser::ParsingParams const& parsing_params, CSS::AtRuleID at_rule_id, Utf16View css)
 {
     if (css.is_empty())
         return CSS::RustDescriptorBlock { Vector<CSS::Descriptor> {} };
-    return CSS::Parser::Parser::create(parsing_params, css).parse_as_descriptor_declaration_block(at_rule_id);
+    return CSS::Parser::Parser { parsing_params }.parse_as_descriptor_declaration_block(css, at_rule_id);
 }
 
 RefPtr<CSS::StyleValue const> parse_css_value(CSS::Parser::ParsingParams const& context, StringView string, CSS::PropertyID property_id)
 {
     if (string.is_empty())
         return nullptr;
-    return CSS::Parser::Parser::create(context, string).parse_as_css_value(property_id);
+    return parse_css_value(context, Utf16String::from_utf8(string), property_id);
 }
 
 RefPtr<CSS::StyleValue const> parse_css_value(CSS::Parser::ParsingParams const& context, Utf16View string, CSS::PropertyID property_id)
 {
     if (string.is_empty())
         return nullptr;
-    return CSS::Parser::Parser::parse_css_value_from_source(context, string, property_id);
+    return CSS::Parser::Parser { context }.parse_as_css_value(string, property_id);
 }
 
 RefPtr<CSS::StyleValue const> parse_css_type(CSS::Parser::ParsingParams const& context, Utf16View string, CSS::ValueType value_type)
 {
     if (string.is_empty())
         return nullptr;
-    return CSS::Parser::Parser::create(context, string).parse_as_type(value_type);
+    return CSS::Parser::Parser { context }.parse_primitive_value_from_source(value_type, string);
 }
 
-GC::Ptr<CSS::CSSKeyframeRule> CSS::Parser::parse_keyframe_rule(CSS::Parser::ParsingParams const& context, Utf16View string)
-{
-    if (string.is_empty())
-        return nullptr;
-    return CSS::Parser::Parser::create(context, string).parse_as_keyframe_rule();
-}
-
-Vector<CSS::Percentage> CSS::Parser::parse_keyframe_selectors(CSS::Parser::ParsingParams const& context, Utf16View string)
+Optional<CSS::RustRule> CSS::Parser::parse_keyframe_rule(CSS::Parser::ParsingParams const& context, Utf16View string)
 {
     if (string.is_empty())
         return {};
-    return CSS::Parser::Parser::create(context, string).parse_as_keyframe_selectors();
+    return CSS::Parser::Parser { context }.parse_as_keyframe_rule(string);
 }
 
 RefPtr<CSS::StyleValue const> parse_css_descriptor(CSS::Parser::ParsingParams const& parsing_params, CSS::AtRuleID at_rule_id, CSS::DescriptorNameAndID const& descriptor_name_and_id, Utf16View string)
 {
     if (string.is_empty())
         return nullptr;
-    return CSS::Parser::Parser::create(parsing_params, string).parse_as_descriptor_value(at_rule_id, descriptor_name_and_id);
+    return CSS::Parser::Parser { parsing_params }.parse_as_descriptor_value(string, at_rule_id, descriptor_name_and_id);
 }
 
-CSS::CSSRule* parse_css_rule(CSS::Parser::ParsingParams const& context, Utf16View css_text, bool nested)
+Optional<CSS::RustRule> parse_css_rule(CSS::Parser::ParsingParams const& context, Utf16View css_text, bool nested)
 {
-    return CSS::Parser::Parser::create(context, css_text).parse_as_css_rule(nested);
+    return CSS::Parser::Parser { context }.parse_as_css_rule(css_text, nested);
 }
 
 Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingParams const& context, Utf16View selector_text)
 {
-    return CSS::Parser::Parser::create(context, selector_text).parse_as_selector();
-}
-
-Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::ParsingParams const& context, Utf16View selector_text, CSS::StyleNestingParent parent_is_scope_rule)
-{
-    auto parser = CSS::Parser::Parser::create(context, selector_text);
-
-    auto maybe_selectors = parser.parse_as_relative_selector(CSS::Parser::Parser::SelectorParsingMode::Standard);
-    if (!maybe_selectors.has_value())
-        return {};
-
-    return adapt_nested_relative_selector_list(*maybe_selectors, parent_is_scope_rule);
-}
-
-Optional<CSS::PageSelectorList> parse_page_selector_list(CSS::Parser::ParsingParams const& params, Utf16View selector_text)
-{
-    return CSS::Parser::Parser::create(params, selector_text).parse_as_page_selector_list();
+    return CSS::Parser::Parser { context }.parse_as_selector(selector_text);
 }
 
 Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS::Parser::ParsingParams const& context, Utf16View selector_text)
 {
-    return CSS::Parser::Parser::create(context, selector_text).parse_as_pseudo_element_selector();
-}
-
-RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingParams const& context, Utf16View string)
-{
-    return CSS::Parser::Parser::create(context, string).parse_as_media_query();
-}
-
-Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(CSS::Parser::ParsingParams const& context, Utf16View string)
-{
-    return CSS::Parser::Parser::create(context, string).parse_as_media_query_list();
+    return CSS::Parser::Parser { context }.parse_as_pseudo_element_selector(selector_text);
 }
 
 Optional<CSS::RustQueryHandle> parse_css_supports(CSS::Parser::ParsingParams const& context, Utf16View string)
 {
     if (string.is_empty())
         return {};
-    return CSS::Parser::Parser::create(context, string).parse_as_supports();
+    return CSS::Parser::Parser { context }.parse_as_supports(string);
 }
 
 // https://drafts.csswg.org/css-syntax/#css-decode-bytes

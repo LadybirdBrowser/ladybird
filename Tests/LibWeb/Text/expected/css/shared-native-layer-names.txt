@@ -1,0 +1,10 @@
+names: 色.子, emoji😀
+statement: @layer 色.子, emoji😀;
+block: 色.子, anonymous: ""
+distinct wrappers: true
+initial height: 13px
+independent anonymous layers: 29px
+other declaration: 13px
+detached block: 色.子, true
+inserted block: 色.子, 13px
+retained names: 色.子, emoji😀, 色.子

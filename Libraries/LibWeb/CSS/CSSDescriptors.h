@@ -41,6 +41,7 @@ protected:
 private:
     virtual size_t external_memory_size() const override;
     bool set_a_css_declaration(DescriptorNameAndID const&, NonnullRefPtr<StyleValue const>, Important);
+    void invalidate_owners();
 
     WebIDL::ExceptionOr<void> set_property_internal(Utf16FlyString const& property, Utf16View value, Utf16View priority);
 

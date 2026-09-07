@@ -10,6 +10,7 @@
 #include <LibJS/Runtime/MapIterator.h>
 #include <LibWeb/Bindings/CSSFontFeatureValuesMap.h>
 #include <LibWeb/Bindings/Wrappable.h>
+#include <LibWeb/CSS/RustFontFeatureValues.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
@@ -19,30 +20,24 @@ class CSSFontFeatureValuesMap final : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(CSSFontFeatureValuesMap);
 
 public:
-    static GC::Ref<CSSFontFeatureValuesMap> create(size_t max_value_count, GC::Ref<CSSFontFeatureValuesRule> parent_rule);
+    static GC::Ref<CSSFontFeatureValuesMap> create(FontFeatureValuesRuleKind, GC::Ref<CSSFontFeatureValuesRule> parent_rule);
 
-    size_t map_size() const { return m_entries.size(); }
-    OrderedHashMap<FlyString, Vector<u32>> const& entries() const { return m_entries; }
-    Vector<u32> const* map_get(FlyString const& key) const;
-    bool map_has(FlyString const& key) const;
-    void map_set(FlyString const& key, Vector<u32> const& values);
-    bool map_remove(FlyString const& key);
+    size_t map_size() const;
+    OrderedHashMap<Utf16String, Vector<u32>> entries() const;
+    Optional<Vector<u32>> map_get(Utf16View key) const;
+    bool map_has(Utf16View key) const;
+    void map_set(Utf16View key, Vector<u32> const& values);
+    bool map_remove(Utf16View key);
     void map_clear();
 
-    WebIDL::ExceptionOr<void> set(Utf16String const& feature_value_name, Variant<u32, Vector<u32>> const& values);
-
-    void set_from_parser(FlyString const& feature_value_name, Vector<u32> values);
-    size_t max_value_count() const { return m_max_value_count; }
-
-    OrderedHashMap<Utf16FlyString, Vector<u32>> to_ordered_hash_map() const;
+    size_t max_value_count() const;
 
 private:
-    CSSFontFeatureValuesMap(size_t max_value_count, GC::Ref<CSSFontFeatureValuesRule> parent_rule);
+    CSSFontFeatureValuesMap(FontFeatureValuesRuleKind, GC::Ref<CSSFontFeatureValuesRule> parent_rule);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    OrderedHashMap<FlyString, Vector<u32>> m_entries;
-    size_t m_max_value_count { 0 };
+    FontFeatureValuesRuleKind m_kind;
     GC::Ref<CSSFontFeatureValuesRule> m_parent_rule;
 };
 

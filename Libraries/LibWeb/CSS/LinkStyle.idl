@@ -1,4 +1,4 @@
 // https://drafts.csswg.org/cssom-1/#ref-for-linkstyle
 interface mixin LinkStyle {
-    readonly attribute CSSStyleSheet? sheet;
+    [ImplementedAs=cssom_sheet] readonly attribute CSSStyleSheet? sheet;
 };

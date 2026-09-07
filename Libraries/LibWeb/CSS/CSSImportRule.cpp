@@ -7,82 +7,64 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Debug.h>
-#include <AK/ScopeGuard.h>
 #include <AK/Utf16StringBuilder.h>
-#include <LibGC/Root.h>
-#include <LibTextCodec/Decoder.h>
 #include <LibWeb/CSS/CSSImportRule.h>
-#include <LibWeb/CSS/CSSLayerBlockRule.h>
-#include <LibWeb/CSS/CSSScopeRule.h>
-#include <LibWeb/CSS/Fetch.h>
-#include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/StyleComputer.h>
-#include <LibWeb/CSS/StyleEngineInput.h>
-#include <LibWeb/DOM/Document.h>
-#include <LibWeb/DOM/DocumentLoadEventDelayer.h>
-#include <LibWeb/DOMURL/DOMURL.h>
+#include <LibWeb/CSS/Supports.h>
 #include <LibWeb/Dump.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
-#include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
-#include <LibWeb/HTML/Window.h>
 
 namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSImportRule);
 
-GC::Ref<CSSImportRule> CSSImportRule::create(URL url, GC::Ptr<DOM::Document> document, Optional<Utf16FlyString> layer, Optional<ImportScope>&& scope, Optional<RustQueryHandle> supports, GC::Ref<MediaList> media)
+GC::Ref<CSSImportRule> CSSImportRule::create(StyleSheetImport& import)
 {
-    return GC::Heap::the().allocate<CSSImportRule>(move(url), document, move(layer), move(scope), move(supports), move(media));
+    return GC::Heap::the().allocate<CSSImportRule>(import);
 }
 
-CSSImportRule::CSSImportRule(URL url, GC::Ptr<DOM::Document> document, Optional<Utf16FlyString> layer, Optional<ImportScope>&& scope, Optional<RustQueryHandle> supports, GC::Ref<MediaList> media)
-    : CSSRule(Type::Import)
-    , m_url(move(url))
-    , m_document(document)
-    , m_layer(move(layer))
-    , m_scope(move(scope))
-    , m_supports(move(supports))
-    , m_media(move(media))
+CSSImportRule::CSSImportRule(StyleSheetImport& import)
+    : CSSRule(import.native_rule())
+    , m_rule(native_rule().payload().import_rule)
+    , m_import(import)
+    , m_scope(native_rule().payload().scope ? RefPtr<RustScopeSelectors> { RustScopeSelectors::create(native_rule().payload().scope) } : nullptr)
+    , m_supports(m_rule.supports())
 {
-    if (m_layer.has_value() && m_layer->is_empty()) {
-        m_layer_internal = CSSLayerBlockRule::next_unique_anonymous_layer_name();
-    } else {
-        m_layer_internal = m_layer;
-    }
+    m_import->set_cssom_rule(*this);
+    CSSRule::set_parent_style_sheet(import.parent_style_sheet());
+}
+
+Optional<Utf16FlyString> CSSImportRule::internal_layer_name() const
+{
+    if (!m_rule.layer().has_value())
+        return {};
+    return m_layer_internal.ensure([&] {
+        auto name = native_rule().internal_layer_name().release_value();
+        return Utf16FlyString::from_utf16(name.utf16_view());
+    });
 }
 
 CSSImportRule::~CSSImportRule() = default;
 
+URL const& CSSImportRule::url() const
+{
+    return m_import->url();
+}
+
+GC::Ref<MediaList> CSSImportRule::media() const
+{
+    return m_import->media();
+}
+
 void CSSImportRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_document);
-    visitor.visit(m_media);
-    visitor.visit(m_style_sheet);
+    m_import->visit_edges(visitor);
 }
 
-void CSSImportRule::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet)
+void CSSImportRule::set_parent_style_sheet(StyleSheetState* parent_style_sheet)
 {
-    if (m_parent_style_sheet)
-        m_parent_style_sheet->remove_critical_subresource(*this);
-
     Base::set_parent_style_sheet(parent_style_sheet);
-
-    if (m_parent_style_sheet)
-        m_parent_style_sheet->add_critical_subresource(*this);
-
-    if (m_style_sheet && parent_style_sheet) {
-        for (auto owning_document_or_shadow_root : parent_style_sheet->owning_documents_or_shadow_roots())
-            m_style_sheet->add_owning_document_or_shadow_root(*owning_document_or_shadow_root);
-    }
-
-    if (loading_state() != CSSStyleSheet::LoadingState::Unloaded)
-        return;
-
-    // Only try to fetch if we now have a parent
-    if (parent_style_sheet)
-        fetch();
+    if (m_import->parent_style_sheet() != parent_style_sheet)
+        m_import->set_parent_style_sheet(parent_style_sheet);
 }
 
 // https://www.w3.org/TR/cssom/#serialize-a-css-rule
@@ -95,32 +77,34 @@ Utf16String CSSImportRule::serialized() const
     builder.append_ascii("@import "sv);
 
     // 2. The result of performing serialize a URL on the rule’s location.
-    builder.append(m_url.to_utf16_string());
+    builder.append(url().to_utf16_string());
 
     // AD-HOC: Serialize the rule's layer if it exists.
-    if (m_layer.has_value()) {
-        if (m_layer->is_empty()) {
+    if (auto layer = m_rule.layer(); layer.has_value()) {
+        if (layer->is_empty()) {
             builder.append_ascii(" layer"sv);
         } else {
-            builder.appendff(" layer({})", *m_layer);
+            builder.append_ascii(" layer("sv);
+            builder.append(*layer);
+            builder.append_ascii(')');
         }
     }
 
     // AD-HOC: Serialize the rule's import scope if it exists.
-    if (m_scope.has_value()) {
+    if (has_scope()) {
         builder.append_ascii(" scope"sv);
-        if (m_scope->start_selectors.has_value() || m_scope->end_selectors.has_value()) {
+        if (m_scope->start().has_value() || m_scope->end().has_value()) {
             builder.append_ascii('(');
-            if (m_scope->start_selectors.has_value()) {
-                if (m_scope->end_selectors.has_value())
-                    builder.appendff("({})", serialize_a_group_of_selectors(*m_scope->start_selectors));
+            if (m_scope->start().has_value()) {
+                if (m_scope->end().has_value())
+                    builder.appendff("({})", serialize_a_group_of_selectors(*m_scope->start()));
                 else
-                    builder.append(serialize_a_group_of_selectors(*m_scope->start_selectors));
+                    builder.append(serialize_a_group_of_selectors(*m_scope->start()));
             }
-            if (m_scope->end_selectors.has_value()) {
-                if (m_scope->start_selectors.has_value())
+            if (m_scope->end().has_value()) {
+                if (m_scope->start().has_value())
                     builder.append_ascii(' ');
-                builder.appendff("to ({})", serialize_a_group_of_selectors(*m_scope->end_selectors));
+                builder.appendff("to ({})", serialize_a_group_of_selectors(*m_scope->end()));
             }
             builder.append_ascii(')');
         }
@@ -135,9 +119,9 @@ Utf16String CSSImportRule::serialized() const
     }
 
     // 3. If the rule’s associated media list is not empty, a single SPACE (U+0020) followed by the result of performing serialize a media query list on the media list.
-    if (m_media->length() != 0) {
+    if (m_import->native_media_list().length() != 0) {
         builder.append_ascii(' ');
-        builder.append(m_media->media_text());
+        builder.append(m_import->native_media_list().media_text());
     }
 
     // 4. The string ";", i.e., SEMICOLON (U+003B).
@@ -146,154 +130,15 @@ Utf16String CSSImportRule::serialized() const
     return builder.to_string();
 }
 
-// https://drafts.csswg.org/css-cascade-4/#fetch-an-import
-void CSSImportRule::fetch()
-{
-    dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Loading import URL: {}", m_url);
-    // To fetch an @import, given an @import rule rule:
-
-    // 1. Let parentStylesheet be rule’s parent CSS style sheet. [CSSOM]
-    VERIFY(parent_style_sheet());
-    auto& parent_style_sheet = *this->parent_style_sheet();
-
-    // 2. If rule has a <supports-condition>, and that condition is not true, return.
-    if (m_supports.has_value() && !supports_condition_matches(*m_supports)) {
-        set_loading_state(CSSStyleSheet::LoadingState::Loaded);
-        return;
-    }
-
-    // AD-HOC: Track pending import rules to block rendering until they are done.
-    m_document->add_pending_css_import_rule({}, *this);
-    set_loading_state(CSSStyleSheet::LoadingState::Loading);
-
-    // 3. Fetch a style resource from rule’s URL, with ruleOrDeclaration rule, destination "style", CORS mode "no-cors", and
-    //    processResponse being the following steps given response response and byte stream, null or failure byteStream:
-    RuleOrDeclaration rule_or_declaration {
-        .environment_settings_object = HTML::relevant_settings_object(*m_document),
-        .value = RuleOrDeclaration::Rule {
-            .parent_style_sheet = &parent_style_sheet,
-        },
-        .style_resource_base_url = {},
-        .parent_style_sheet_origin_clean = {},
-    };
-    (void)fetch_a_style_resource(URL { href() }, rule_or_declaration, Fetch::Infrastructure::Request::Destination::Style, CorsMode::NoCors,
-        [strong_this = GC::Ref { *this }, parent_style_sheet = GC::Ref { parent_style_sheet }, document = m_document, load_event_delayer = DOM::DocumentLoadEventDelayer(*m_document, DOM::DocumentLoadEventDelayerReason::StyleSheetRequest)](auto response, auto maybe_byte_stream) mutable {
-            // AD-HOC: Stop delaying the load event.
-            auto finish_loading = [strong_this, document, load_event_delayer = move(load_event_delayer)] {
-                document->remove_pending_css_import_rule({}, strong_this);
-                if (!strong_this->m_style_sheet) {
-                    strong_this->set_loading_state(CSSStyleSheet::LoadingState::Error);
-                    return;
-                }
-                if (strong_this->loading_state() != CSSStyleSheet::LoadingState::Error) {
-                    // If we have no critical subresources, or they're loaded already, we can report that immediately.
-                    auto sheet_loading_state = strong_this->m_style_sheet->loading_state();
-                    if (sheet_loading_state == CSSStyleSheet::LoadingState::Loaded || sheet_loading_state == CSSStyleSheet::LoadingState::Error) {
-                        strong_this->set_loading_state(sheet_loading_state);
-                    }
-                }
-            };
-            ArmedScopeGuard guard = [&] { finish_loading(); };
-
-            // 1. If byteStream is not a byte stream, return.
-            auto byte_stream = maybe_byte_stream.template get_pointer<Core::ImmutableBytes>();
-            if (!byte_stream) {
-                // AD-HOC: This means the fetch failed, so we should report this as a load failure.
-                strong_this->set_loading_state(CSSStyleSheet::LoadingState::Error);
-                return;
-            }
-
-            // FIXME: 2. If parentStylesheet is in quirks mode and response is CORS-same-origin, let content type be "text/css".
-            //           Otherwise, let content type be the Content Type metadata of response.
-            auto content_type = "text/css"sv;
-
-            // 3. If content type is not "text/css", return.
-            if (content_type != "text/css"sv) {
-                dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Rejecting loaded style sheet; content type isn't text/css; is: '{}'", content_type);
-                return;
-            }
-
-            // 4. Let importedStylesheet be the result of parsing byteStream given parsedUrl.
-            // FIXME: Tidy up our parsing API. For now, do the decoding here.
-            // FIXME: Spec issue: parsedURL is not defined - we instead need to get that from the response.
-            //        https://github.com/w3c/csswg-drafts/issues/12288
-            auto url = response->unsafe_response()->url().value();
-
-            Optional<StringView> mime_type_charset;
-            auto extracted_mime_type = Fetch::Infrastructure::extract_mime_type(response->header_list());
-            if (extracted_mime_type.has_value()) {
-                if (auto charset = extracted_mime_type->parameters().get("charset"sv); charset.has_value())
-                    mime_type_charset = charset->bytes_as_string_view();
-            }
-            // The environment encoding of an imported style sheet is the encoding of the style sheet that imported it. [css-syntax-3]
-            // FIXME: Save encoding on Stylesheet to get it here
-            Optional<StringView> environment_encoding;
-            auto decoded_or_error = css_decode_bytes(environment_encoding, mime_type_charset, byte_stream->bytes());
-            if (decoded_or_error.is_error()) {
-                dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Failed to decode CSS file: {}", url);
-                return;
-            }
-            Parser::RustSyntaxParser::parse_stylesheet_off_thread(
-                Parser::ParsingParams { *document }, decoded_or_error.release_value(),
-                [strong_this = GC::make_root(strong_this), parent_style_sheet = GC::make_root(parent_style_sheet), document = GC::make_root(document), url = move(url), is_cors_same_origin = response->is_cors_same_origin(), finish_loading = move(finish_loading)](Parser::RustStyleSheetParse parsed) mutable {
-                    ScopeGuard guard = move(finish_loading);
-                    auto parser = Parser::Parser::create(Parser::ParsingParams { *document }, u""sv);
-                    auto imported_style_sheet = parser.create_css_stylesheet(parsed, move(url), strong_this->m_media);
-
-                    // 5. Set importedStylesheet’s origin-clean flag to parentStylesheet’s origin-clean flag.
-                    imported_style_sheet->set_origin_clean(parent_style_sheet->is_origin_clean());
-
-                    // 6. If response is not CORS-same-origin, unset importedStylesheet’s origin-clean flag.
-                    if (!is_cors_same_origin)
-                        imported_style_sheet->set_origin_clean(false);
-
-                    // 7. Set rule’s styleSheet to importedStylesheet.
-                    strong_this->set_style_sheet(imported_style_sheet);
-                });
-            guard.disarm();
-        });
-}
-
-void CSSImportRule::set_style_sheet(GC::Ref<CSSStyleSheet> style_sheet)
-{
-    m_style_sheet = style_sheet;
-    m_style_sheet->set_owner_css_rule(this);
-    if (m_parent_style_sheet)
-        m_style_sheet->set_owner_node(m_parent_style_sheet->owner_node());
-
-    if (m_parent_style_sheet) {
-        for (auto owning_document_or_shadow_root : m_parent_style_sheet->owning_documents_or_shadow_roots())
-            m_style_sheet->add_owning_document_or_shadow_root(*owning_document_or_shadow_root);
-    }
-
-    auto document = m_style_sheet->owning_document();
-    if (!document && m_parent_style_sheet)
-        document = m_parent_style_sheet->owning_document();
-    if (document)
-        m_style_sheet->load_pending_image_resources(*document);
-
-    // The rules the import brings in arrive now, at the position the import already holds.
-    record_style_rule_inserted(*this);
-    m_style_sheet->invalidate_owners();
-}
-
-// https://drafts.csswg.org/cssom/#dom-cssimportrule-media
-GC::Ref<MediaList> CSSImportRule::media() const
-{
-    // The media attribute must return the value of the media attribute of the associated CSS style sheet.
-    // AD-HOC: Return our own MediaList.
-    //         https://github.com/w3c/csswg-drafts/issues/12063
-    return m_media;
-}
-
 // https://drafts.csswg.org/cssom/#dom-cssimportrule-layername
 Optional<Utf16FlyString> CSSImportRule::layer_name() const
 {
     // The layerName attribute must return the layer name declared in the at-rule itself, or an empty string if the
     // layer is anonymous, or null if the at-rule does not declare a layer.
-    if (!m_layer.has_value())
+    auto layer = m_rule.layer();
+    if (!layer.has_value())
         return {};
-    return m_layer;
+    return Utf16FlyString::from_utf16(*layer);
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssimportrule-supportstext
@@ -306,56 +151,11 @@ Optional<Utf16String> CSSImportRule::supports_text() const
     return serialize_supports_condition(*m_supports);
 }
 
-Optional<SelectorList> const& CSSImportRule::scope_start_selectors_for_matching() const
-{
-    VERIFY(m_scope.has_value());
-    if (!m_scope->start_selectors.has_value())
-        return m_scope->start_selectors;
-
-    if (!m_cached_scope_start_selectors_for_matching.has_value())
-        m_cached_scope_start_selectors_for_matching = absolutize_selectors_relative_to(*m_scope->start_selectors, nullptr);
-    return m_cached_scope_start_selectors_for_matching;
-}
-
-Optional<SelectorList> const& CSSImportRule::scope_end_selectors_for_matching() const
-{
-    VERIFY(m_scope.has_value());
-    if (!m_scope->end_selectors.has_value())
-        return m_scope->end_selectors;
-
-    if (!m_cached_scope_end_selectors_for_matching.has_value())
-        m_cached_scope_end_selectors_for_matching = adapt_scope_end_selectors_for_matching(*m_scope->end_selectors);
-    return m_cached_scope_end_selectors_for_matching;
-}
-
-Optional<Utf16FlyString> CSSImportRule::internal_qualified_layer_name(Badge<StyleScope>) const
-{
-    if (!m_layer.has_value())
-        return {};
-
-    auto const& parent_name = parent_layer_internal_qualified_name();
-    if (parent_name.is_empty())
-        return m_layer_internal.value();
-    Utf16StringBuilder builder;
-    builder.append(parent_name);
-    builder.append_ascii('.');
-    builder.append(m_layer_internal.value());
-    auto qualified_name = builder.to_string();
-    return Utf16FlyString::from_utf16(qualified_name.utf16_view());
-}
-
 bool CSSImportRule::matches() const
 {
     if (m_supports.has_value() && !supports_condition_matches(*m_supports))
         return false;
-    return m_media->matches();
-}
-
-void CSSImportRule::clear_caches()
-{
-    Base::clear_caches();
-    m_cached_scope_start_selectors_for_matching.clear();
-    m_cached_scope_end_selectors_for_matching.clear();
+    return m_import->native_media_list().matches();
 }
 
 void CSSImportRule::dump(StringBuilder& builder, int indent_levels) const
@@ -366,38 +166,38 @@ void CSSImportRule::dump(StringBuilder& builder, int indent_levels) const
     builder.appendff("Document URL: {}\n", url().to_string());
 
     dump_indent(builder, indent_levels + 1);
-    builder.appendff("Loading state: {}\n", CSSStyleSheet::loading_state_name(loading_state()));
+    builder.appendff("Loading state: {}\n", StyleSheetState::loading_state_name(m_import->loading_state()));
 
-    if (m_layer.has_value()) {
+    if (auto layer = layer_name(); layer.has_value()) {
         dump_indent(builder, indent_levels + 1);
-        builder.appendff("Layer: `{}` (internal: `{}`)\n", *m_layer, *m_layer_internal);
+        builder.appendff("Layer: `{}` (internal: `{}`)\n", *layer, *internal_layer_name());
     }
 
-    if (m_media->length() != 0)
-        m_media->dump(builder, indent_levels + 1);
+    if (m_import->native_media_list().length() != 0)
+        m_import->native_media_list().dump(builder, indent_levels + 1);
 
     if (m_supports.has_value())
         dump_supports_condition(builder, *m_supports, indent_levels + 1);
 
-    if (m_scope.has_value()) {
+    if (has_scope()) {
         dump_indent(builder, indent_levels + 1);
         builder.append("Scope:\n"sv);
 
         dump_indent(builder, indent_levels + 2);
-        if (m_scope->start_selectors.has_value())
-            builder.appendff("Start selectors: {}\n", serialize_a_group_of_selectors(*m_scope->start_selectors));
+        if (m_scope->start().has_value())
+            builder.appendff("Start selectors: {}\n", serialize_a_group_of_selectors(*m_scope->start()));
         else
             builder.append("Start selectors: <none>\n"sv);
 
         dump_indent(builder, indent_levels + 2);
-        if (m_scope->end_selectors.has_value())
-            builder.appendff("End selectors: {}\n", serialize_a_group_of_selectors(*m_scope->end_selectors));
+        if (m_scope->end().has_value())
+            builder.appendff("End selectors: {}\n", serialize_a_group_of_selectors(*m_scope->end()));
         else
             builder.append("End selectors: <none>\n"sv);
     }
 
-    if (m_style_sheet) {
-        dump_sheet(builder, *m_style_sheet, indent_levels + 1);
+    if (auto* sheet = loaded_style_sheet()) {
+        dump_sheet(builder, *sheet, indent_levels + 1);
     } else {
         dump_indent(builder, indent_levels + 1);
         builder.append("Style sheet not loaded\n"sv);

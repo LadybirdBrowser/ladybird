@@ -38,16 +38,7 @@ private:
     Optional<ComputedValuesFFI::FfiLengthResolutionContext> m_length_resolution_context;
 };
 
-namespace Parser {
-
-class RustQueryParser;
-
-}
-
 class MediaQuery : public RefCounted<MediaQuery> {
-    friend class Parser::Parser;
-    friend class Parser::RustQueryParser;
-
 public:
     ~MediaQuery() = default;
 

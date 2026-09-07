@@ -436,12 +436,9 @@ void DOMURL::set_hash(Utf16String const& hash)
 }
 
 // https://url.spec.whatwg.org/#concept-url-parser
-Optional<URL::URL> parse_from_byte_string(StringView input, Optional<URL::URL const&> base_url, Optional<StringView> encoding)
+static Optional<URL::URL> finish_parsing(Optional<URL::URL> url)
 {
     // FIXME: We should probably have an extended version of URL::URL for LibWeb instead of standalone functions like this.
-
-    // 1. Let url be the result of running the basic URL parser on input with base and encoding.
-    auto url = URL::Parser::basic_parse(input, base_url, {}, {}, encoding);
 
     // 2. If url is failure, return failure.
     if (!url.has_value())
@@ -471,16 +468,22 @@ Optional<URL::URL> parse_from_byte_string(StringView input, Optional<URL::URL co
     return url.release_value();
 }
 
+Optional<URL::URL> parse_from_byte_string(StringView input, Optional<URL::URL const&> base_url, Optional<StringView> encoding)
+{
+    // 1. Let url be the result of running the basic URL parser on input with base and encoding.
+    return finish_parsing(URL::Parser::basic_parse(input, base_url, {}, {}, encoding));
+}
+
 Optional<URL::URL> parse(Utf16View input, Optional<URL::URL const&> base_url, Optional<Utf16View> encoding)
 {
-    auto input_utf8 = MUST(input.to_utf8());
     Optional<String> encoding_utf8;
     Optional<StringView> encoding_view;
     if (encoding.has_value()) {
         encoding_utf8 = MUST(encoding->to_utf8());
         encoding_view = encoding_utf8->bytes_as_string_view();
     }
-    return parse_from_byte_string(input_utf8.bytes_as_string_view(), base_url, encoding_view);
+    // 1. Let url be the result of running the basic URL parser on input with base and encoding.
+    return finish_parsing(URL::Parser::basic_parse(input, base_url, {}, {}, encoding_view));
 }
 
 // FIXME: At time of writing, still open spec MR: https://github.com/whatwg/url/pull/892

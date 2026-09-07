@@ -1,0 +1,4 @@
+first: 35px, 15px, 25px, green
+mutated: 65px, 45px, 55px, red
+shared: 35px, 15px, 25px, green
+wrapper identity: true

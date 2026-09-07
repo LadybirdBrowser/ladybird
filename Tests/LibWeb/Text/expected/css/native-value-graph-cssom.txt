@@ -1,0 +1,11 @@
+color-scheme: light dark; computed: light dark
+display: grid; computed: grid
+grid-auto-flow: column dense; computed: column dense
+grid-template-areas: "a a"; computed: "a a"
+background-repeat: space round; computed: space round
+scrollbar-gutter: stable both-edges; computed: stable both-edges
+text-underline-position: under left; computed: under left
+font: local("Font Name"); U+0-7F
+mutated: dark; row
+anchors: anchor-size(width, 1px); anchor(left, 2px)
+retained font: local("Font Name"); U+0-7F

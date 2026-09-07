@@ -11,8 +11,10 @@
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/RustDeclarationBlock.h>
 #include <LibWeb/CSS/RustDescriptorBlock.h>
+#include <LibWeb/CSS/RustPageSelectors.h>
+#include <LibWeb/CSS/RustRule.h>
 #include <LibWeb/CSS/StyleEngineBridge.h>
-#include <LibWeb/ComputedValuesRustFFI.h>
+#include <LibWeb/CSS/StyleSheetImport.h>
 #include <LibWeb/SelectorRustFFI.h>
 #include <LibWeb/StyleValueRustFFI.h>
 #include <LibWeb/ValueParserRustFFI.h>
@@ -21,27 +23,34 @@ namespace Web::CSS::Parser {
 
 static RustDeclarationBlock parse_native_declaration_block(Utf16View);
 
-TEST_CASE(parse_native_function_descriptor_block_on_a_worker)
+TEST_CASE(native_import_resource_owner_retains_rules_without_cssom)
+{
+    ValueParserFFI::ParseContext context {};
+    auto* parse = ValueParserFFI::rust_parse_css_stylesheet_syntax(ffi_utf16_view(u"@import url('sheet.css') layer(外) screen;"sv), &context);
+    RustRuleList roots { ValueParserFFI::rust_css_syntax_native_rules(parse) };
+    ValueParserFFI::rust_css_syntax_parse_free(parse);
+    auto identity = roots.identity_at(0);
+    auto import = StyleSheetImport::create(roots.at(0), nullptr);
+    roots.clear();
+
+    EXPECT_EQ(import->native_rule().identity(), identity);
+    EXPECT_EQ(import->href(), "sheet.css"sv);
+    EXPECT_EQ(import->native_media_list().media_text(), u"screen"sv);
+    EXPECT_EQ(import->native_rule().internal_layer_name().value(), u"外"sv);
+    EXPECT(!import->loaded_style_sheet());
+    EXPECT(!import->parent_style_sheet());
+    EXPECT_EQ(import->loading_state(), StyleSheetState::LoadingState::Unloaded);
+}
+
+TEST_CASE(native_rule_lists_own_live_payloads_and_child_order)
 {
     StyleValueFFI::rust_style_ffi_counters_reset();
-    IGNORE_USE_IN_ESCAPING_LAMBDA ValueParserFFI::FfiDescriptorBlock* block = nullptr;
-    auto thread = Threading::Thread::construct("CSS function descriptors"sv, [&] {
-        auto source = u"--色: 13px; result: var(--色)"sv;
+    IGNORE_USE_IN_ESCAPING_LAMBDA ValueParserFFI::NativeRuleList const* root = nullptr;
+    auto thread = Threading::Thread::construct("CSS native rule owners"sv, [&] {
         ValueParserFFI::ParseContext context {};
-        u8 rule_context = to_underlying(RuleContext::AtFunction);
-        auto* parse = ValueParserFFI::rust_parse_css_block_syntax(ffi_utf16_view(source), &rule_context, 1, &context, false);
-        auto data = ValueParserFFI::rust_css_syntax_parse_data(parse);
-        VERIFY(data.root_count == 1);
-        auto const& item = data.items[data.roots[0]];
-        VERIFY(item.descriptor_block);
-        block = ValueParserFFI::rust_css_syntax_parse_descriptor_block(parse);
-        auto* item_block = ValueParserFFI::rust_descriptor_block_from_data(item.descriptor_block);
-        auto view = ValueParserFFI::rust_descriptor_block_view(block);
-        VERIFY(view.count == 2);
-        EXPECT_EQ(view.descriptors[0].value, ValueParserFFI::rust_descriptor_block_view(item_block).descriptors[0].value);
-        ValueParserFFI::rust_descriptor_block_destroy(item_block);
+        auto* parse = ValueParserFFI::rust_parse_css_stylesheet_syntax(ffi_utf16_view(u"@media all { .色 { width: 13px } } @page 原:left { margin-left: 17px }"sv), &context);
+        root = ValueParserFFI::rust_css_syntax_native_rules(parse);
         ValueParserFFI::rust_css_syntax_parse_free(parse);
-        EXPECT_EQ(view.descriptors[0].name.utf16[2], 0x8272u);
         return 0;
     });
     thread->start();
@@ -52,12 +61,239 @@ TEST_CASE(parse_native_function_descriptor_block_on_a_worker)
         if (name == "stringRetainReleaseCallbacks"sv || name == "internUtf16FlyStringCallbacks"sv)
             EXPECT_EQ(StyleValueFFI::rust_style_ffi_counter_value(index), 0u);
     }
-    RustDescriptorBlock descriptors { block };
-    EXPECT_EQ(descriptors.size(), 2u);
-    EXPECT_EQ(descriptors.descriptors()[1].value->to_utf16_string(SerializationMode::Normal), u"var(--色)"sv);
+
+    auto* retained = ValueParserFFI::rust_rule_list_retain(root);
+    RustRule media { ValueParserFFI::rust_rule_list_at(root, 0) };
+    RustRule page { ValueParserFFI::rust_rule_list_at(root, 1) };
+    EXPECT_EQ(media.type(), RustRule::Type::Media);
+    EXPECT_NE(media.identity(), page.identity());
+    auto* children = ValueParserFFI::rust_rule_children(media.handle());
+    EXPECT_EQ(ValueParserFFI::rust_rule_list_count(children), 1u);
+    RustRule style { ValueParserFFI::rust_rule_list_at(children, 0) };
+    RustRule style_owner { style };
+    auto declarations = style.declarations().release_value();
+    EXPECT_EQ(declarations.identity(), style_owner.declarations()->identity());
+    auto replacement = parse_native_declaration_block(u"width: 29px"sv);
+    style_owner.declarations()->replace(replacement);
+    EXPECT_EQ(declarations.properties()[0].value->to_utf16_string(SerializationMode::Normal), u"29px"sv);
+
+    RustPageSelectors original_selectors { page.payload().page_selectors };
+    auto replacement_selectors = RustPageSelectors::parse(u"新しい:right"sv).release_value();
+    ValueParserFFI::rust_rule_set_page_selectors(page.handle(), replacement_selectors.handle());
+    EXPECT_EQ(RustPageSelectors { page.payload().page_selectors }.serialize(), u"新しい:right"sv);
+    EXPECT_EQ(original_selectors.serialize(), u"原:left"sv);
+
+    ValueParserFFI::rust_rule_list_remove(root, 0);
+    EXPECT_EQ(ValueParserFFI::rust_rule_list_count(retained), 1u);
+    EXPECT_EQ(ValueParserFFI::rust_rule_identity(ValueParserFFI::rust_rule_list_at(retained, 0)), page.identity());
+    ValueParserFFI::rust_rule_list_insert(root, 1, media.handle());
+    EXPECT_EQ(ValueParserFFI::rust_rule_identity(ValueParserFFI::rust_rule_list_at(retained, 1)), media.identity());
+    ValueParserFFI::rust_rule_list_release(root);
+    ValueParserFFI::rust_rule_list_clear(retained);
+    EXPECT_EQ(ValueParserFFI::rust_rule_list_count(children), 1u);
+    ValueParserFFI::rust_rule_list_release(retained);
+    EXPECT_EQ(style.declarations()->identity(), declarations.identity());
 }
 
-TEST_CASE(retained_descriptor_blocks_observe_replacement_and_keep_borrowed_views)
+TEST_CASE(native_matching_selectors_follow_edits_and_reparenting)
+{
+    auto matching_text = [&](RustRule const& rule) {
+        auto* bound = static_cast<SelectorFFI::RustBoundSelectorList*>(ValueParserFFI::rust_rule_matching_selectors(rule.handle()));
+        EXPECT_EQ(SelectorFFI::rust_bound_selector_list_length(bound), 1u);
+        auto* selector = SelectorFFI::rust_bound_selector_list_selector(bound, 0);
+        SelectorFFI::rust_bound_selector_list_destroy(bound);
+        auto serialized = SelectorFFI::rust_selector_serialize(selector, false, nullptr, 0);
+        auto text = Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(serialized.data), serialized.length });
+        SelectorFFI::rust_selector_serialized_text_release(serialized.storage);
+        SelectorFFI::rust_selector_destroy(selector);
+        return text;
+    };
+    ValueParserFFI::ParseContext context {};
+    auto* parse = ValueParserFFI::rust_parse_css_stylesheet_syntax(ffi_utf16_view(u".親 { @media all { & > .子 {} } color: red; } @scope (.root) { @media all {} }"sv), &context);
+    RustRuleList rules { ValueParserFFI::rust_css_syntax_native_rules(parse) };
+    RustRuleList other { ValueParserFFI::rust_css_syntax_native_rules(parse) };
+    ValueParserFFI::rust_css_syntax_parse_free(parse);
+    auto parent = rules.at(0);
+    auto* groups = ValueParserFFI::rust_rule_children(parent.handle());
+    RustRuleList children { ValueParserFFI::rust_rule_list_retain(ValueParserFFI::rust_rule_children(ValueParserFFI::rust_rule_list_at(groups, 0))) };
+    auto child = children.at(0);
+    EXPECT_EQ(matching_text(child), u":is(.親) > .子"sv);
+    EXPECT_EQ(matching_text(child), u":is(.親) > .子"sv);
+    EXPECT(ValueParserFFI::rust_rule_set_selector_text(parent.handle(), ffi_utf16_view(u".新"sv), nullptr));
+    EXPECT_EQ(matching_text(child), u":is(.新) > .子"sv);
+    RustRule nested_declarations { ValueParserFFI::rust_rule_list_at(groups, 1) };
+    EXPECT_EQ(matching_text(nested_declarations), u".新"sv);
+    auto* other_groups = ValueParserFFI::rust_rule_children(other.at(0).handle());
+    RustRule other_child { ValueParserFFI::rust_rule_list_at(ValueParserFFI::rust_rule_children(ValueParserFFI::rust_rule_list_at(other_groups, 0)), 0) };
+    EXPECT_EQ(matching_text(other_child), u":is(.親) > .子"sv);
+
+    children.remove(0);
+    EXPECT_EQ(ValueParserFFI::rust_rule_nesting_parent_kind(child.handle()), ValueParserFFI::StyleNestingParent::None);
+    EXPECT_EQ(matching_text(child), u":where(:scope) > .子"sv);
+    RustRuleList scope_children { ValueParserFFI::rust_rule_list_retain(ValueParserFFI::rust_rule_children(rules.at(1).handle())) };
+    scope_children.insert(1, child);
+    EXPECT_EQ(ValueParserFFI::rust_rule_nesting_parent_kind(child.handle()), ValueParserFFI::StyleNestingParent::Scope);
+    EXPECT_EQ(matching_text(child), u":where(:scope) > .子"sv);
+    auto block = parse_native_declaration_block(u"width: 1px"sv);
+    RustRule declarations { block };
+    RustRuleList conditional_children { ValueParserFFI::rust_rule_list_retain(ValueParserFFI::rust_rule_children(scope_children.at(0).handle())) };
+    conditional_children.insert(0, declarations);
+    EXPECT_EQ(matching_text(declarations), u":where(:scope)"sv);
+    rules.clear();
+    EXPECT_EQ(ValueParserFFI::rust_rule_nesting_parent_kind(child.handle()), ValueParserFFI::StyleNestingParent::None);
+}
+
+TEST_CASE(native_scope_matching_preserves_presence_context_and_cache_lifetimes)
+{
+    auto take_text = [](void* result) {
+        auto* bound = static_cast<SelectorFFI::RustBoundSelectorList*>(result);
+        EXPECT_EQ(SelectorFFI::rust_bound_selector_list_length(bound), 1u);
+        auto* selector = SelectorFFI::rust_bound_selector_list_selector(bound, 0);
+        SelectorFFI::rust_bound_selector_list_destroy(bound);
+        auto serialized = SelectorFFI::rust_selector_serialize(selector, false, nullptr, 0);
+        auto text = Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(serialized.data), serialized.length });
+        SelectorFFI::rust_selector_serialized_text_release(serialized.storage);
+        SelectorFFI::rust_selector_destroy(selector);
+        return text;
+    };
+    ValueParserFFI::ParseContext context {};
+    auto* parse = ValueParserFFI::rust_parse_css_stylesheet_syntax(ffi_utf16_view(u"@import 'one.css' scope((.入口) to (.出口)); .親 { @scope (& .根) to (.限) {} @media all { @scope (& .内) {} } } @scope {} @scope to (.終) {} :has(.親) { @scope (:has(&)) {} }"sv), &context);
+    RustRuleList rules { ValueParserFFI::rust_css_syntax_native_rules(parse) };
+    ValueParserFFI::rust_css_syntax_parse_free(parse);
+    EXPECT_EQ(rules.size(), 5u);
+    auto parent = rules.at(1);
+    RustRuleList children { ValueParserFFI::rust_rule_list_retain(ValueParserFFI::rust_rule_children(parent.handle())) };
+    Optional<RustRule> scope { children.at(0) };
+    EXPECT_EQ(take_text(ValueParserFFI::rust_rule_scope_start_selectors(scope->handle())), u":is(.親) .根"sv);
+    EXPECT_EQ(take_text(ValueParserFFI::rust_rule_scope_end_selectors(scope->handle())), u":where(:scope) .限"sv);
+    EXPECT_EQ(take_text(ValueParserFFI::rust_rule_scope_start_selectors(scope->handle())), u":is(.親) .根"sv);
+    EXPECT_EQ(take_text(ValueParserFFI::rust_rule_scope_end_selectors(scope->handle())), u":where(:scope) .限"sv);
+    EXPECT(ValueParserFFI::rust_rule_set_selector_text(parent.handle(), ffi_utf16_view(u".新"sv), nullptr));
+    EXPECT_EQ(take_text(ValueParserFFI::rust_rule_scope_start_selectors(scope->handle())), u":is(.新) .根"sv);
+    EXPECT_EQ(take_text(ValueParserFFI::rust_rule_scope_end_selectors(scope->handle())), u":where(:scope) .限"sv);
+    RustRule conditional_scope { ValueParserFFI::rust_rule_list_at(ValueParserFFI::rust_rule_children(children.at(1).handle()), 0) };
+    EXPECT_EQ(take_text(ValueParserFFI::rust_rule_scope_start_selectors(conditional_scope.handle())), u":where(:scope) .内"sv);
+    EXPECT_EQ(take_text(ValueParserFFI::rust_rule_scope_start_selectors(rules.at(0).handle())), u".入口"sv);
+    EXPECT_EQ(take_text(ValueParserFFI::rust_rule_scope_end_selectors(rules.at(0).handle())), u":where(:scope) .出口"sv);
+    EXPECT(!ValueParserFFI::rust_rule_scope_start_selectors(rules.at(2).handle()));
+    EXPECT(!ValueParserFFI::rust_rule_scope_end_selectors(rules.at(2).handle()));
+    EXPECT(!ValueParserFFI::rust_rule_scope_start_selectors(rules.at(3).handle()));
+    EXPECT_EQ(take_text(ValueParserFFI::rust_rule_scope_end_selectors(rules.at(3).handle())), u":where(:scope) .終"sv);
+    RustRule empty_scope { ValueParserFFI::rust_rule_list_at(ValueParserFFI::rust_rule_children(rules.at(4).handle()), 0) };
+    auto* empty = static_cast<SelectorFFI::RustBoundSelectorList*>(ValueParserFFI::rust_rule_scope_start_selectors(empty_scope.handle()));
+    VERIFY(empty);
+    EXPECT_EQ(SelectorFFI::rust_bound_selector_list_length(empty), 0u);
+    SelectorFFI::rust_bound_selector_list_destroy(empty);
+    auto* retained_end = ValueParserFFI::rust_rule_scope_end_selectors(scope->handle());
+    children.remove(0);
+    EXPECT_EQ(take_text(ValueParserFFI::rust_rule_scope_start_selectors(scope->handle())), u":where(:scope) .根"sv);
+    scope.clear();
+    rules.clear();
+    EXPECT_EQ(take_text(retained_end), u":where(:scope) .限"sv);
+}
+
+TEST_CASE(native_rule_factory_preserves_declaration_context_and_cached_data)
+{
+    auto source = u"@import 'sheet.css'; @layer 雪;\n.色 { width: 13px; @media all {} height: 17px; } @function --幅() { --長さ: 19px; @media all { result: var(--長さ); } } @page 原:left { @TOP-LEFT { width: 23px; } }"sv;
+    ValueParserFFI::ParseContext context {};
+    auto* parse = ValueParserFFI::rust_parse_css_stylesheet_syntax(ffi_utf16_view(source), &context);
+    RustRuleList rules { ValueParserFFI::rust_css_syntax_native_rules(parse) };
+    auto original_layer = rules.at(1).payload().layer_names;
+    ValueParserFFI::rust_css_syntax_parse_free(parse);
+
+    // The native root, not a C++ parse wrapper, keeps the weak cache entry alive.
+    auto* cached = ValueParserFFI::rust_parse_css_stylesheet_syntax(ffi_utf16_view(source), &context);
+    RustRuleList other { ValueParserFFI::rust_css_syntax_native_rules(cached) };
+    ValueParserFFI::rust_css_syntax_parse_free(cached);
+    EXPECT_EQ(other.at(1).payload().layer_names, original_layer);
+    EXPECT_NE(rules.at(2).identity(), other.at(2).identity());
+    EXPECT_EQ(rules.size(), 5u);
+
+    auto style = rules.at(2);
+    EXPECT(style.payload().has_source_position);
+    auto* nested = ValueParserFFI::rust_rule_children(style.handle());
+    EXPECT_EQ(ValueParserFFI::rust_rule_list_count(nested), 2u);
+    RustRule declarations { ValueParserFFI::rust_rule_list_at(nested, 1) };
+    EXPECT_EQ(declarations.type(), RustRule::Type::NestedDeclarations);
+    EXPECT(declarations.payload().has_source_position);
+    EXPECT_EQ(declarations.declarations()->properties()[0].value->to_utf16_string(SerializationMode::Normal), u"17px"sv);
+
+    auto* function_children = ValueParserFFI::rust_rule_children(rules.at(3).handle());
+    EXPECT_EQ(ValueParserFFI::rust_rule_type(ValueParserFFI::rust_rule_list_at(function_children, 0)), RustRule::Type::FunctionDeclarations);
+    auto* conditional_children = ValueParserFFI::rust_rule_children(ValueParserFFI::rust_rule_list_at(function_children, 1));
+    EXPECT_EQ(ValueParserFFI::rust_rule_type(ValueParserFFI::rust_rule_list_at(conditional_children, 0)), RustRule::Type::FunctionDeclarations);
+
+    auto* margins = ValueParserFFI::rust_rule_children(rules.at(4).handle());
+    EXPECT_EQ(ValueParserFFI::rust_rule_list_count(margins), 1u);
+    RustRule margin { ValueParserFFI::rust_rule_list_at(margins, 0) };
+    EXPECT_EQ(margin.type(), RustRule::Type::Margin);
+    auto name = margin.payload().name;
+    EXPECT_EQ((Utf16View { reinterpret_cast<char16_t const*>(name.utf16), name.length }), u"top-left"sv);
+
+    auto replacement = parse_native_declaration_block(u"width: 29px"sv);
+    style.declarations()->replace(replacement);
+    EXPECT_EQ(other.at(2).declarations()->properties()[0].value->to_utf16_string(SerializationMode::Normal), u"13px"sv);
+    rules.remove_imports();
+    EXPECT_EQ(rules.size(), 4u);
+    EXPECT_EQ(other.size(), 5u);
+    auto* original_list = rules.handle();
+    rules.replace(other);
+    EXPECT_EQ(rules.handle(), original_list);
+    EXPECT_EQ(rules.at(2).identity(), other.at(2).identity());
+    EXPECT_EQ(style.declarations()->properties()[0].value->to_utf16_string(SerializationMode::Normal), u"29px"sv);
+}
+
+TEST_CASE(native_function_fragments_preserve_declaration_context)
+{
+    ValueParserFFI::ParseContext context {};
+    u8 rule_context = to_underlying(RuleContext::AtFunction);
+    auto* parse = ValueParserFFI::rust_parse_css_rule_syntax(ffi_utf16_view(u"@supports (display: block) { result: 50px; }"sv), &rule_context, 1, true, &context);
+    RustRuleList rules { ValueParserFFI::rust_css_syntax_native_rules(parse) };
+    ValueParserFFI::rust_css_syntax_parse_free(parse);
+    EXPECT_EQ(rules.size(), 1u);
+    auto* children = ValueParserFFI::rust_rule_children(rules.at(0).handle());
+    EXPECT_EQ(ValueParserFFI::rust_rule_list_count(children), 1u);
+    RustRule declarations { ValueParserFFI::rust_rule_list_at(children, 0) };
+    EXPECT_EQ(declarations.type(), RustRule::Type::FunctionDeclarations);
+    parse = ValueParserFFI::rust_parse_css_block_syntax(ffi_utf16_view(u"result: 60px;"sv), &rule_context, 1, &context, false);
+    RustRuleList block { ValueParserFFI::rust_css_syntax_native_rules(parse) };
+    ValueParserFFI::rust_css_syntax_parse_free(parse);
+    EXPECT_EQ(block.size(), 1u);
+    EXPECT_EQ(block.at(0).type(), RustRule::Type::FunctionDeclarations);
+}
+
+TEST_CASE(native_rule_image_traversal_preserves_attachment_resources)
+{
+    ValueParserFFI::ParseContext context {};
+    auto source = u"@import 'imported.css'; .根 { background-image: url(root.png); & .子 { content: url(child.png); } background-image: url(nested-declaration.png); } @media not all { .隠 { border-image-source: image-set(url(one.png) 1x, url(two.png) 2x); } } @supports (unknown: value) { .無 { background-image: url(unsupported.png); } } @keyframes 動 { from { background-image: url(frame.png); } }"sv;
+    auto* parse = ValueParserFFI::rust_parse_css_stylesheet_syntax(ffi_utf16_view(source), &context);
+    RustRuleList rules { ValueParserFFI::rust_css_syntax_native_rules(parse) };
+    ValueParserFFI::rust_css_syntax_parse_free(parse);
+
+    auto images = [&] {
+        Vector<NonnullRefPtr<StyleValue const>> values;
+        ValueParserFFI::rust_rule_list_visit_images(rules.handle(), &values, [](void* context, void const* value) {
+            auto retained = StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(value));
+            static_cast<Vector<NonnullRefPtr<StyleValue const>>*>(context)->append(StyleValue::adopt_rust_style_value_data(retained));
+        });
+        return values;
+    };
+    auto retained_images = images();
+    EXPECT_EQ(retained_images.size(), 4u);
+    EXPECT(retained_images[0]->is_image());
+    EXPECT(retained_images[1]->is_image());
+    EXPECT(retained_images[2]->is_image_set());
+    EXPECT(retained_images[3]->is_image());
+
+    rules.remove(1);
+    EXPECT_EQ(images().size(), 2u);
+    rules.clear();
+    EXPECT(images().is_empty());
+    EXPECT_EQ(retained_images[0]->to_utf16_string(SerializationMode::Normal), u"url(\"child.png\")"sv);
+    EXPECT_EQ(retained_images[1]->to_utf16_string(SerializationMode::Normal), u"url(\"root.png\")"sv);
+}
+
+TEST_CASE(retained_descriptor_blocks_observe_replacement_and_keep_values_alive)
 {
     auto values = parse_native_declaration_block(u"width: 13px; height: 29px"sv);
     auto name = DescriptorNameAndID::from_custom_name("--色"_utf16_fly_string);
@@ -65,20 +301,17 @@ TEST_CASE(retained_descriptor_blocks_observe_replacement_and_keep_borrowed_views
     RustDescriptorBlock block { ValueParserFFI::rust_descriptor_block_create(&descriptor, 1) };
     auto retained = block.retain();
     auto shared = block.share();
-    auto borrowed = ValueParserFFI::rust_descriptor_block_view(retained.handle());
+    auto borrowed = retained.descriptor(name);
     auto revision = ValueParserFFI::rust_descriptor_block_revision(block.handle());
     EXPECT(!retained.set(name, *values.properties()[0].value));
     EXPECT_EQ(ValueParserFFI::rust_descriptor_block_revision(block.handle()), revision);
-    // Refresh after the no-op mutation, which may release this handle's views.
-    borrowed = ValueParserFFI::rust_descriptor_block_view(retained.handle());
     EXPECT(block.set(name, *values.properties()[1].value));
-    EXPECT_EQ(StyleValueFFI::rust_style_value_computed_length_value(static_cast<StyleValueFFI::StyleValueData const*>(borrowed.descriptors[0].value)), 13.0);
+    EXPECT_EQ(borrowed->to_utf16_string(SerializationMode::Normal), u"13px"sv);
     EXPECT_EQ(retained.descriptor(name)->to_utf16_string(SerializationMode::Normal), u"29px"sv);
     EXPECT_EQ(shared.descriptor(name)->to_utf16_string(SerializationMode::Normal), u"13px"sv);
-    borrowed = ValueParserFFI::rust_descriptor_block_view(retained.handle());
+    borrowed = retained.descriptor(name);
     block.replace(shared);
-    EXPECT_EQ(borrowed.descriptors[0].name.utf16[2], 0x8272u);
-    EXPECT_EQ(StyleValueFFI::rust_style_value_computed_length_value(static_cast<StyleValueFFI::StyleValueData const*>(borrowed.descriptors[0].value)), 29.0);
+    EXPECT_EQ(borrowed->to_utf16_string(SerializationMode::Normal), u"29px"sv);
     EXPECT_EQ(retained.descriptor(name)->to_utf16_string(SerializationMode::Normal), u"13px"sv);
     EXPECT(retained.remove(name));
     EXPECT_EQ(block.size(), 0u);
@@ -90,53 +323,6 @@ TEST_CASE(retained_descriptor_blocks_observe_replacement_and_keep_borrowed_views
     }();
     EXPECT_EQ(survivor.descriptor(name)->to_utf16_string(SerializationMode::Normal), u"13px"sv);
     EXPECT_EQ(block.size(), 1u);
-}
-
-TEST_CASE(parsed_descriptor_blocks_survive_worker_and_parse_result)
-{
-    StyleValueFFI::rust_style_ffi_counters_reset();
-    IGNORE_USE_IN_ESCAPING_LAMBDA ValueParserFFI::FfiDescriptorBlock* font = nullptr;
-    auto thread = Threading::Thread::construct("CSS descriptor parser"sv, [&] {
-        auto source = u"@page { margin-top: 13px; margin-left: 29px; margin-top: 17px } @font-face { font-family: 色; src: local(色) }"sv;
-        ValueParserFFI::FfiUtf16View input { nullptr, reinterpret_cast<u16 const*>(source.utf16_span().data()), source.length_in_code_units() };
-        ValueParserFFI::ParseContext context {};
-        auto* parse = ValueParserFFI::rust_parse_css_stylesheet_syntax(input, &context);
-        auto* cached = ValueParserFFI::rust_parse_css_stylesheet_syntax(input, &context);
-        auto data = ValueParserFFI::rust_css_syntax_parse_data(parse);
-        auto cached_data = ValueParserFFI::rust_css_syntax_parse_data(cached);
-        VERIFY(data.rule_count == 2 && cached_data.rule_count == 2);
-        EXPECT_EQ(data.rules[0].descriptor_block, cached_data.rules[0].descriptor_block);
-        auto* page = ValueParserFFI::rust_descriptor_block_from_data(data.rules[0].descriptor_block);
-        auto* shared = ValueParserFFI::rust_descriptor_block_from_data(cached_data.rules[0].descriptor_block);
-        font = ValueParserFFI::rust_descriptor_block_from_data(data.rules[1].descriptor_block);
-        ValueParserFFI::rust_css_syntax_parse_free(parse);
-        ValueParserFFI::rust_css_syntax_parse_free(cached);
-
-        auto view = ValueParserFFI::rust_descriptor_block_view(page);
-        VERIFY(view.count == 2);
-        EXPECT_EQ(view.descriptors[0].id, to_underlying(DescriptorID::MarginLeft));
-        EXPECT_EQ(view.descriptors[1].id, to_underlying(DescriptorID::MarginTop));
-        auto descriptor = view.descriptors[1];
-        auto* original_value = descriptor.value;
-        descriptor.value = view.descriptors[0].value;
-        EXPECT(ValueParserFFI::rust_descriptor_block_set(page, &descriptor));
-        EXPECT_EQ(ValueParserFFI::rust_descriptor_block_view(shared).descriptors[1].value, original_value);
-        EXPECT_EQ(ValueParserFFI::rust_descriptor_block_view(page).descriptors[1].value, descriptor.value);
-        ValueParserFFI::rust_descriptor_block_destroy(page);
-        ValueParserFFI::rust_descriptor_block_destroy(shared);
-        return 0;
-    });
-    thread->start();
-    MUST(thread->join());
-    for (size_t index = 0; index < StyleValueFFI::rust_style_ffi_counter_count(); ++index) {
-        auto const* name_data = reinterpret_cast<char const*>(StyleValueFFI::rust_style_ffi_counter_name(index));
-        auto name = StringView { name_data, strlen(name_data) };
-        if (name == "stringRetainReleaseCallbacks"sv || name == "internUtf16FlyStringCallbacks"sv)
-            EXPECT_EQ(StyleValueFFI::rust_style_ffi_counter_value(index), 0u);
-    }
-    RustDescriptorBlock font_block { font };
-    EXPECT_EQ(font_block.size(), 2u);
-    EXPECT_EQ(font_block.descriptors()[0].value->to_utf16_string(SerializationMode::Normal), u"色"sv);
 }
 
 TEST_CASE(native_descriptor_blocks_preserve_order_and_copy_on_write)
@@ -166,25 +352,6 @@ TEST_CASE(native_descriptor_blocks_preserve_order_and_copy_on_write)
     EXPECT_EQ(block.size(), 1u);
     EXPECT_EQ(shared.size(), 2u);
     EXPECT_EQ(shared.descriptors()[1].descriptor_name_and_id.name(), custom.name());
-
-    auto* worker_block = ValueParserFFI::rust_descriptor_block_share(shared.handle());
-    auto thread = Threading::Thread::construct("CSS descriptors"sv, [worker_block] {
-        auto view = ValueParserFFI::rust_descriptor_block_view(worker_block);
-        EXPECT_EQ(view.count, 2u);
-        EXPECT_EQ(view.descriptors[1].name.utf16[2], 0x8272u);
-        auto descriptor = view.descriptors[0];
-        descriptor.value = view.descriptors[1].value;
-        EXPECT(ValueParserFFI::rust_descriptor_block_set(worker_block, &descriptor));
-        view = ValueParserFFI::rust_descriptor_block_view(worker_block);
-        EXPECT(ValueParserFFI::rust_descriptor_block_remove(worker_block, view.descriptors[1].id, view.descriptors[1].name));
-        EXPECT_EQ(ValueParserFFI::rust_descriptor_block_length(worker_block), 1u);
-        ValueParserFFI::rust_descriptor_block_destroy(worker_block);
-        return 0;
-    });
-    thread->start();
-    MUST(thread->join());
-    EXPECT_EQ(shared.size(), 2u);
-    EXPECT_EQ(shared.descriptors()[0].value->to_utf16_string(SerializationMode::Normal), u"13px"sv);
 }
 
 static RustDeclarationBlock parse_native_declaration_block(Utf16View source)
@@ -196,59 +363,6 @@ static RustDeclarationBlock parse_native_declaration_block(Utf16View source)
     auto* block = ValueParserFFI::rust_css_syntax_parse_declaration_block(parse);
     ValueParserFFI::rust_css_syntax_parse_free(parse);
     return RustDeclarationBlock { block };
-}
-
-TEST_CASE(style_engine_consumes_native_declaration_blocks)
-{
-    auto source = u"*"sv;
-    auto* parsed = SelectorFFI::rust_selector_parse(
-        { nullptr, reinterpret_cast<u16 const*>(source.utf16_span().data()), source.length_in_code_units() }, nullptr, 0, false, false);
-    VERIFY(parsed);
-    Vector<uintptr_t> names;
-    for (size_t index = 0; index < SelectorFFI::rust_parsed_selector_list_interned_name_count(parsed); ++index) {
-        auto name = SelectorFFI::rust_parsed_selector_list_interned_name(parsed, index);
-        names.append(Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(name.data), name.length }).to_raw_leaked());
-    }
-    auto* bound = SelectorFFI::rust_parsed_selector_list_bind_interned_names(parsed, names.data(), names.size());
-    auto* selector = SelectorFFI::rust_bound_selector_list_selector(bound, 0);
-    SelectorFFI::rust_bound_selector_list_destroy(bound);
-    SelectorFFI::rust_parsed_selector_list_destroy(parsed);
-    void const* selectors[] { selector };
-
-    StyleEngine engine(StyleEngine::DeviceClass::ForegroundDesktop);
-    auto sheet = engine.add_sheet(1, StyleEngineFFI::FfiCascadeOrigin::Author);
-    auto rule = engine.add_style_rule(sheet, {}, selectors, {}, {}, {}, {});
-    VERIFY(rule.value());
-    SelectorFFI::rust_selector_destroy(selector);
-
-    auto reused_values = [&]() -> u64 {
-        for (size_t index = 0;; ++index) {
-            StringView name;
-            u64 value = 0;
-            VERIFY(engine.counter(index, name, value));
-            if (name == "specifiedValuesReused"sv)
-                return value;
-        }
-    };
-    auto first = parse_native_declaration_block(u"color: #14181c"sv);
-    auto second = parse_native_declaration_block(u"color: rgb(20, 24, 28)"sv);
-    auto transitions = parse_native_declaration_block(u"transition-duration: 1s"sv);
-    auto retained = first.retain();
-    StyleValueFFI::rust_style_ffi_counters_reset();
-    engine.set_rule_declared_properties(rule, first);
-    auto reused_before = reused_values();
-    engine.set_rule_declared_properties(rule, second);
-    EXPECT_EQ(reused_values(), reused_before + 1);
-    EXPECT(!engine.css_transitions_may_observe_style_changes());
-    first.replace(transitions);
-    engine.set_rule_declared_properties(rule, retained);
-    EXPECT(engine.css_transitions_may_observe_style_changes());
-    for (size_t index = 0; index < StyleValueFFI::rust_style_ffi_counter_count(); ++index) {
-        auto const* name_data = reinterpret_cast<char const*>(StyleValueFFI::rust_style_ffi_counter_name(index));
-        auto name = StringView { name_data, strlen(name_data) };
-        if (name == "stringRetainReleaseCallbacks"sv || name == "internUtf16FlyStringCallbacks"sv)
-            EXPECT_EQ(StyleValueFFI::rust_style_ffi_counter_value(index), 0u);
-    }
 }
 
 TEST_CASE(style_engine_consumes_native_inline_declaration_blocks)
@@ -270,7 +384,9 @@ TEST_CASE(style_engine_consumes_native_inline_declaration_blocks)
     for (size_t index = 0; index < StyleValueFFI::rust_style_ffi_counter_count(); ++index) {
         auto const* name_data = reinterpret_cast<char const*>(StyleValueFFI::rust_style_ffi_counter_name(index));
         auto name = StringView { name_data, strlen(name_data) };
-        if (name == "stringRetainReleaseCallbacks"sv || name == "internUtf16FlyStringCallbacks"sv)
+        if (name == "internUtf16FlyStringCallbacks"sv)
+            EXPECT_EQ(StyleValueFFI::rust_style_ffi_counter_value(index), 2u);
+        if (name == "stringRetainReleaseCallbacks"sv)
             EXPECT_EQ(StyleValueFFI::rust_style_ffi_counter_value(index), 0u);
     }
 }
@@ -351,50 +467,6 @@ TEST_CASE(native_declaration_block_merges_lists_without_expanding_again)
     EXPECT(parse_native_declaration_block(u""sv).is_empty());
 }
 
-TEST_CASE(merge_native_declaration_blocks_on_a_worker)
-{
-    StyleValueFFI::rust_style_ffi_counters_reset();
-    auto thread = Threading::Thread::construct("CSS block merge"sv, [] {
-        auto source = u"color: red !important; --色: first; @unknown {} color: blue; --色: last"sv;
-        ValueParserFFI::ParseContext context {};
-        u8 rule_context = to_underlying(RuleContext::Style);
-        auto* parse = ValueParserFFI::rust_parse_css_block_syntax(
-            { nullptr, reinterpret_cast<u16 const*>(source.utf16_span().data()), source.length_in_code_units() }, &rule_context, 1, &context, false);
-        auto* block = ValueParserFFI::rust_css_syntax_parse_declaration_block(parse);
-        ValueParserFFI::rust_css_syntax_parse_free(parse);
-        auto view = ValueParserFFI::rust_declaration_block_view(block);
-        EXPECT_EQ(view.property_count, 1u);
-        EXPECT_EQ(view.properties[0].property_id, to_underlying(PropertyID::Color));
-        EXPECT(view.properties[0].important);
-        EXPECT_EQ(view.custom_property_count, 1u);
-        ValueParserFFI::rust_declaration_block_destroy(block);
-        auto sheet_source = u"@page { @top-left { color: red !important; @unknown {} color: blue; } }"sv;
-        auto* sheet = ValueParserFFI::rust_parse_css_stylesheet_syntax(
-            { nullptr, reinterpret_cast<u16 const*>(sheet_source.utf16_span().data()), sheet_source.length_in_code_units() }, &context);
-        auto data = ValueParserFFI::rust_css_syntax_parse_data(sheet);
-        ValueParserFFI::FfiDeclarationBlock* margin = nullptr;
-        for (auto const& rule : ReadonlySpan { data.rules, data.rule_count }) {
-            if (rule.rule_kind == ValueParserFFI::FfiRuleKind::Margin)
-                margin = ValueParserFFI::rust_declaration_block_from_data(rule.declaration_block);
-        }
-        VERIFY(margin);
-        ValueParserFFI::rust_css_syntax_parse_free(sheet);
-        view = ValueParserFFI::rust_declaration_block_view(margin);
-        EXPECT_EQ(view.property_count, 1u);
-        EXPECT(view.properties[0].important);
-        ValueParserFFI::rust_declaration_block_destroy(margin);
-        return 0;
-    });
-    thread->start();
-    MUST(thread->join());
-    for (size_t index = 0; index < StyleValueFFI::rust_style_ffi_counter_count(); ++index) {
-        auto const* name_data = reinterpret_cast<char const*>(StyleValueFFI::rust_style_ffi_counter_name(index));
-        auto name = StringView { name_data, strlen(name_data) };
-        if (name == "stringRetainReleaseCallbacks"sv || name == "internUtf16FlyStringCallbacks"sv)
-            EXPECT_EQ(StyleValueFFI::rust_style_ffi_counter_value(index), 0u);
-    }
-}
-
 TEST_CASE(native_declaration_block_preserves_unchanged_value_wrappers)
 {
     auto block = parse_native_declaration_block(u"background-image: url(https://example.com/image.png); width: 3px"sv);
@@ -414,7 +486,6 @@ TEST_CASE(retained_declaration_blocks_observe_mutations_and_replacement)
     auto identity = block.identity();
     EXPECT_EQ(retained.identity(), identity);
     EXPECT_NE(shared.identity(), identity);
-    auto old_view = ValueParserFFI::rust_declaration_block_view(retained.handle());
     EXPECT_EQ(retained.properties().size(), 1u);
     EXPECT_EQ(retained.custom_properties().size(), 1u);
     auto revision = retained.revision();
@@ -423,9 +494,6 @@ TEST_CASE(retained_declaration_blocks_observe_mutations_and_replacement)
 
     EXPECT(block.remove(PropertyID::Width));
     EXPECT(retained.revision() > revision);
-    // A retained handle's borrowed native view keeps its snapshot alive until refreshed.
-    EXPECT_EQ(old_view.properties[0].property_id, to_underlying(PropertyID::Width));
-    EXPECT_EQ(old_view.custom_properties[0].name.utf16[2], 0x8272u);
     EXPECT(retained.properties().is_empty());
     EXPECT_EQ(shared.properties().size(), 1u);
     revision = retained.revision();
@@ -442,157 +510,6 @@ TEST_CASE(retained_declaration_blocks_observe_mutations_and_replacement)
     block = parse_native_declaration_block(u""sv);
     EXPECT_EQ(retained.identity(), identity);
     EXPECT_EQ(retained.properties()[0].property_id, PropertyID::Height);
-}
-
-TEST_CASE(retained_declaration_views_keep_replaced_data_alive)
-{
-    auto block = parse_native_declaration_block(u"width: 13px; --色: green"sv);
-    auto retained = block.retain();
-    auto view = ValueParserFFI::rust_declaration_block_view(retained.handle());
-    block.replace(parse_native_declaration_block(u""sv));
-    block = parse_native_declaration_block(u"height: 7px"sv);
-    EXPECT(retained.is_empty());
-    EXPECT_EQ(view.properties[0].property_id, to_underlying(PropertyID::Width));
-    EXPECT_EQ(view.custom_properties[0].name.utf16[2], 0x8272u);
-    auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(view.properties[0].value)));
-    EXPECT_EQ(value->to_utf16_string(SerializationMode::Normal), u"13px"sv);
-    view = ValueParserFFI::rust_declaration_block_view(retained.handle());
-    EXPECT_EQ(view.property_count, 0u);
-    EXPECT_EQ(view.custom_property_count, 0u);
-}
-
-TEST_CASE(native_declaration_block_copy_on_write_on_another_thread)
-{
-    auto block = parse_native_declaration_block(u"width: 13px; --色: green"sv);
-    auto* shared = ValueParserFFI::rust_declaration_block_share(block.handle());
-    auto original = ValueParserFFI::rust_declaration_block_view(block.handle());
-    auto thread = Threading::Thread::construct("CSS declarations"sv, [shared, original] {
-        auto view = ValueParserFFI::rust_declaration_block_view(shared);
-        EXPECT_EQ(view.custom_properties[0].name.utf16, original.custom_properties[0].name.utf16);
-        auto declaration = view.properties[0];
-        declaration.important = true;
-        EXPECT(ValueParserFFI::rust_declaration_block_set(shared, &declaration));
-        view = ValueParserFFI::rust_declaration_block_view(shared);
-        EXPECT(ValueParserFFI::rust_declaration_block_remove_custom(shared, view.custom_properties[0].name));
-        EXPECT_EQ(original.custom_property_count, 1u);
-        EXPECT(!original.properties[0].important);
-        view = ValueParserFFI::rust_declaration_block_view(shared);
-        EXPECT(view.properties[0].important);
-        EXPECT_EQ(view.custom_property_count, 0u);
-        ValueParserFFI::rust_declaration_block_destroy(shared);
-        return 0;
-    });
-    thread->start();
-    MUST(thread->join());
-    EXPECT_EQ(block.properties()[0].important, Important::No);
-    EXPECT_EQ(block.custom_properties().size(), 1u);
-}
-
-TEST_CASE(build_native_declaration_block_without_host_callbacks)
-{
-    StyleValueFFI::rust_style_ffi_counters_reset();
-    auto thread = Threading::Thread::construct("CSS declaration parse"sv, [] {
-        auto source = u"a { margin: var(--gap) }"sv;
-        ValueParserFFI::ParseContext context {};
-        auto* parse = ValueParserFFI::rust_parse_css_stylesheet_syntax(
-            { nullptr, reinterpret_cast<u16 const*>(source.utf16_span().data()), source.length_in_code_units() }, &context);
-        auto data = ValueParserFFI::rust_css_syntax_parse_data(parse);
-        VERIFY(data.declaration_count == 1);
-        auto* block = ValueParserFFI::rust_declaration_block_from_data(data.rules[data.roots[0]].declaration_block);
-        ValueParserFFI::rust_css_syntax_parse_free(parse);
-        auto view = ValueParserFFI::rust_declaration_block_view(block);
-        EXPECT_EQ(view.property_count, 5u);
-        EXPECT_EQ(view.properties[0].property_id, to_underlying(PropertyID::Margin));
-        for (size_t index = 1; index < view.property_count; ++index) {
-            auto* value = static_cast<StyleValueFFI::StyleValueData const*>(view.properties[index].value);
-            EXPECT_EQ(value->tag, StyleValueFFI::StyleValueData::Tag::PendingSubstitution);
-        }
-        ValueParserFFI::rust_declaration_block_destroy(block);
-        return 0;
-    });
-    thread->start();
-    MUST(thread->join());
-    for (size_t index = 0; index < StyleValueFFI::rust_style_ffi_counter_count(); ++index) {
-        auto const* name_data = reinterpret_cast<char const*>(StyleValueFFI::rust_style_ffi_counter_name(index));
-        auto name = StringView { name_data, strlen(name_data) };
-        if (name == "stringRetainReleaseCallbacks"sv || name == "internUtf16FlyStringCallbacks"sv)
-            EXPECT_EQ(StyleValueFFI::rust_style_ffi_counter_value(index), 0u);
-    }
-}
-
-TEST_CASE(nested_declaration_blocks_are_shared_native_worker_data)
-{
-    StyleValueFFI::rust_style_ffi_counters_reset();
-    auto thread = Threading::Thread::construct("CSS nested declarations"sv, [] {
-        auto source = u".parent { .child {} margin: var(--gap); --色: green; }"sv;
-        ValueParserFFI::ParseContext context {};
-        auto input = ValueParserFFI::FfiUtf16View { nullptr, reinterpret_cast<u16 const*>(source.utf16_span().data()), source.length_in_code_units() };
-        auto* first = ValueParserFFI::rust_parse_css_stylesheet_syntax(input, &context);
-        auto* second = ValueParserFFI::rust_parse_css_stylesheet_syntax(input, &context);
-        auto first_data = ValueParserFFI::rust_css_syntax_parse_data(first);
-        auto second_data = ValueParserFFI::rust_css_syntax_parse_data(second);
-        size_t declaration_lists = 0;
-        for (size_t index = 0; index < first_data.item_count; ++index) {
-            auto const& item = first_data.items[index];
-            if (item.item_type != 1)
-                continue;
-            ++declaration_lists;
-            EXPECT_EQ(item.declaration_block, second_data.items[index].declaration_block);
-            auto* block = ValueParserFFI::rust_declaration_block_from_data(item.declaration_block);
-            auto* shared = ValueParserFFI::rust_declaration_block_share(block);
-            auto view = ValueParserFFI::rust_declaration_block_view(block);
-            EXPECT_EQ(view.property_count, 5u);
-            EXPECT_EQ(view.custom_property_count, 1u);
-            EXPECT(ValueParserFFI::rust_declaration_block_remove(block, to_underlying(PropertyID::MarginLeft)));
-            EXPECT_EQ(ValueParserFFI::rust_declaration_block_view(shared).property_count, 5u);
-            ValueParserFFI::rust_declaration_block_destroy(block);
-            ValueParserFFI::rust_declaration_block_destroy(shared);
-        }
-        EXPECT_EQ(declaration_lists, 1u);
-        ValueParserFFI::rust_css_syntax_parse_free(first);
-        ValueParserFFI::rust_css_syntax_parse_free(second);
-        return 0;
-    });
-    thread->start();
-    MUST(thread->join());
-    for (size_t index = 0; index < StyleValueFFI::rust_style_ffi_counter_count(); ++index) {
-        auto const* name_data = reinterpret_cast<char const*>(StyleValueFFI::rust_style_ffi_counter_name(index));
-        auto name = StringView { name_data, strlen(name_data) };
-        if (name == "stringRetainReleaseCallbacks"sv || name == "internUtf16FlyStringCallbacks"sv)
-            EXPECT_EQ(StyleValueFFI::rust_style_ffi_counter_value(index), 0u);
-    }
-}
-
-TEST_CASE(cached_stylesheets_share_native_declaration_blocks)
-{
-    auto source = u"a { margin: 13px; --色: green }"sv;
-    ValueParserFFI::ParseContext context {};
-    auto parse = [&] {
-        return ValueParserFFI::rust_parse_css_stylesheet_syntax(
-            { nullptr, reinterpret_cast<u16 const*>(source.utf16_span().data()), source.length_in_code_units() }, &context);
-    };
-    auto* first = parse();
-    auto* second = parse();
-    auto first_data = ValueParserFFI::rust_css_syntax_parse_data(first);
-    auto second_data = ValueParserFFI::rust_css_syntax_parse_data(second);
-    auto* original_block = first_data.rules[first_data.roots[0]].declaration_block;
-    EXPECT_EQ(original_block, second_data.rules[second_data.roots[0]].declaration_block);
-    RustDeclarationBlock first_block { ValueParserFFI::rust_declaration_block_from_data(original_block) };
-    RustDeclarationBlock second_block { ValueParserFFI::rust_declaration_block_from_data(original_block) };
-    EXPECT_EQ(first_block.properties().size(), 4u);
-    EXPECT(first_block.remove(PropertyID::MarginTop));
-    EXPECT(first_block.remove_custom("--色"_utf16_fly_string));
-    EXPECT_EQ(second_block.properties().size(), 4u);
-    EXPECT_EQ(second_block.custom_properties().size(), 1u);
-
-    auto* third = parse();
-    auto third_data = ValueParserFFI::rust_css_syntax_parse_data(third);
-    EXPECT_EQ(third_data.rules[third_data.roots[0]].declaration_block, original_block);
-    ValueParserFFI::rust_css_syntax_parse_free(first);
-    ValueParserFFI::rust_css_syntax_parse_free(second);
-    ValueParserFFI::rust_css_syntax_parse_free(third);
-    EXPECT_EQ(second_block.properties()[0].value->to_utf16_string(SerializationMode::Normal), u"13px"sv);
-    EXPECT_EQ(second_block.custom_properties().begin()->value.value->to_utf16_string(SerializationMode::Normal), u"green"sv);
 }
 
 static void compare_parsed_syntax_serialization(Utf16View source, Utf16View expected)
@@ -670,10 +587,10 @@ TEST_CASE(invalid)
 
 TEST_CASE(devtools_declaration_metadata)
 {
-    auto source = u"COLOR: red !important; --custom: token stream; unknown-property: 1px; -webkit-unknown: 2px; -webkit-box-orient: horizontal; -webkit-box-orient: vertical; -webkit-box-orient: invalid; color: nonsense;"sv;
+    auto source = u"COLOR: red !important; --custom: token stream; unknown-property: 1px; -webkit-unknown: 2px; -webkit-box-orient: horizontal; -webkit-box-orient: vertical; -webkit-box-orient: invalid; color: nonsense; @media all { width: 99px; } .内側 { height: 99px; } --名前: '😀'; color: blue; width: calc(1px + 2px);"sv;
 
     auto declarations = parse_css_declaration_block_for_devtools(ParsingParams {}, source);
-    EXPECT_EQ(declarations.size(), 8u);
+    EXPECT_EQ(declarations.size(), 11u);
 
     auto expect_declaration = [&](size_t index, Utf16View name, Utf16View value, Important important,
                                   bool is_custom_property, bool is_name_valid, bool is_valid) {
@@ -692,416 +609,9 @@ TEST_CASE(devtools_declaration_metadata)
     expect_declaration(5, u"-webkit-box-orient"sv, u"vertical"sv, Important::No, false, true, true);
     expect_declaration(6, u"-webkit-box-orient"sv, u"invalid"sv, Important::No, false, true, false);
     expect_declaration(7, u"color"sv, u"nonsense"sv, Important::No, false, true, false);
-}
-
-TEST_CASE(retain_parsed_declarations_independently)
-{
-    auto source = u"a { width: 13px }"sv;
-    ValueParserFFI::ParseContext context {};
-    auto* parse = ValueParserFFI::rust_parse_css_stylesheet_syntax(
-        { nullptr, reinterpret_cast<u16 const*>(source.utf16_span().data()), source.length_in_code_units() }, &context);
-    VERIFY(parse);
-    auto data = ValueParserFFI::rust_css_syntax_parse_data(parse);
-    EXPECT_EQ(data.declaration_count, 1u);
-    auto* retained_parse = ValueParserFFI::rust_css_syntax_parse_retain(parse);
-    ValueParserFFI::rust_css_syntax_parse_free(parse);
-    auto* value = static_cast<StyleValueFFI::StyleValueData const*>(data.declarations[0].parsed_value);
-    VERIFY(value);
-    auto* first = StyleValueFFI::rust_style_value_retain(value);
-    auto* second = StyleValueFFI::rust_style_value_retain(value);
-    StyleValueFFI::rust_style_value_release(first);
-    EXPECT_EQ(StyleValueFFI::rust_style_value_computed_length_value(value), 13.0);
-    ValueParserFFI::rust_css_syntax_parse_free(retained_parse);
-    EXPECT_EQ(StyleValueFFI::rust_style_value_computed_length_value(second), 13.0);
-    StyleValueFFI::rust_style_value_release(second);
-}
-
-TEST_CASE(publish_parse_result_after_worker_exit)
-{
-    IGNORE_USE_IN_ESCAPING_LAMBDA ValueParserFFI::FfiSyntaxParse* parse = nullptr;
-    auto thread = Threading::Thread::construct("CSS parser"sv, [&] {
-        auto source = Utf16String::from_utf16(u".é😀 { width: 13px; --é😀: value }"sv);
-        auto view = source.utf16_view();
-        ValueParserFFI::ParseContext context {};
-        parse = ValueParserFFI::rust_parse_css_stylesheet_syntax(
-            { nullptr, reinterpret_cast<u16 const*>(view.utf16_span().data()), view.length_in_code_units() }, &context);
-        return 0;
-    });
-    thread->start();
-    MUST(thread->join());
-
-    VERIFY(parse);
-    auto data = ValueParserFFI::rust_css_syntax_parse_data(parse);
-    EXPECT_EQ(data.rule_count, 1u);
-    EXPECT_EQ(data.declaration_count, 2u);
-    VERIFY(data.rule_count == 1 && data.declaration_count == 2);
-    EXPECT(data.rules[0].selector_list);
-    auto const& declaration = data.declarations[1];
-    EXPECT_EQ((Utf16View { reinterpret_cast<char16_t const*>(data.values + declaration.name_offset), declaration.name_length }), u"--é😀"sv);
-    auto* value = static_cast<StyleValueFFI::StyleValueData const*>(data.declarations[0].parsed_value);
-    VERIFY(value);
-    EXPECT_EQ(StyleValueFFI::rust_style_value_computed_length_value(value), 13.0);
-    ValueParserFFI::rust_css_syntax_parse_free(parse);
-}
-
-TEST_CASE(share_parsed_stylesheet_between_threads)
-{
-    auto source = u".é😀 { width: 13px } @supports (display: grid) { a { height: 7px } } @property --size { syntax: '<length>'; inherits: false; initial-value: 3px } @page :left { margin: 2px }"sv;
-    ValueParserFFI::ParseContext context {};
-    auto* parse = ValueParserFFI::rust_parse_css_stylesheet_syntax(
-        { nullptr, reinterpret_cast<u16 const*>(source.utf16_span().data()), source.length_in_code_units() }, &context);
-    VERIFY(parse);
-    auto data = ValueParserFFI::rust_css_syntax_parse_data(parse);
-    VERIFY(data.declaration_count > 0);
-    auto* expected_value = data.declarations[0].parsed_value;
-    auto* expected_text = data.values;
-    auto make_thread = [&] {
-        auto* shared = ValueParserFFI::rust_css_syntax_parse_share(parse);
-        return Threading::Thread::construct("CSS consumer"sv, [shared, expected_value, expected_text] {
-            auto view = ValueParserFFI::rust_css_syntax_parse_data(shared);
-            VERIFY(view.values == expected_text);
-            VERIFY(view.declaration_count > 0);
-            VERIFY(view.declarations[0].parsed_value == expected_value);
-            VERIFY(StyleValueFFI::rust_style_value_computed_length_value(static_cast<StyleValueFFI::StyleValueData const*>(expected_value)) == 13.0);
-            bool saw_selectors = false;
-            bool saw_syntax = false;
-            bool saw_page_selectors = false;
-            bool saw_supports = false;
-            for (size_t index = 0; index < view.rule_count; ++index) {
-                auto const& rule = view.rules[index];
-                if (rule.selector_list) {
-                    auto* selectors = static_cast<SelectorFFI::RustParsedSelectorList const*>(rule.selector_list);
-                    VERIFY(SelectorFFI::rust_parsed_selector_list_length(selectors) == 1);
-                    saw_selectors = true;
-                }
-                if (rule.parsed_prelude_syntax) {
-                    VERIFY(ValueParserFFI::rust_syntax_is_single_component(rule.parsed_prelude_syntax));
-                    saw_syntax = true;
-                }
-                if (rule.page_selector_list) {
-                    auto page_selectors = ValueParserFFI::rust_page_selector_list_data(rule.page_selector_list);
-                    VERIFY(page_selectors.selector_count == 1);
-                    saw_page_selectors = true;
-                }
-            }
-            for (size_t index = 0; index < view.prelude_item_count; ++index) {
-                if (auto* query = view.prelude_items[index].query) {
-                    VERIFY(ValueParserFFI::css_query_evaluate_supports(static_cast<ValueParserFFI::FfiQueryHandle const*>(query)) == 1);
-                    saw_supports = true;
-                }
-            }
-            VERIFY(saw_selectors && saw_syntax && saw_page_selectors && saw_supports);
-            auto second_view = ValueParserFFI::rust_css_syntax_parse_data(shared);
-            VERIFY(view.declarations == second_view.declarations);
-            VERIFY(view.rules == second_view.rules);
-            ValueParserFFI::rust_css_syntax_parse_free(shared);
-            return 0;
-        });
-    };
-    auto first = make_thread();
-    auto second = make_thread();
-    ValueParserFFI::rust_css_syntax_parse_free(parse);
-    first->start();
-    second->start();
-    MUST(first->join());
-    MUST(second->join());
-}
-
-TEST_CASE(cache_stylesheets_by_text_and_parsing_context)
-{
-    auto source = u".é😀 { width: 13px; background-image: url(image.png) }"sv;
-    auto parse = [&](ValueParserFFI::ParseContext const& context) {
-        return ValueParserFFI::rust_parse_css_stylesheet_syntax(
-            { nullptr, reinterpret_cast<u16 const*>(source.utf16_span().data()), source.length_in_code_units() }, &context);
-    };
-    ValueParserFFI::ParseContext context {};
-    auto* first = parse(context);
-    auto* second = parse(context);
-    auto data = ValueParserFFI::rust_css_syntax_parse_data(first);
-    auto second_data = ValueParserFFI::rust_css_syntax_parse_data(second);
-    EXPECT_EQ(data.values, second_data.values);
-    EXPECT_NE(data.declarations, second_data.declarations);
-
-    context.in_quirks_mode = true;
-    auto* quirks = parse(context);
-    EXPECT_NE(data.values, ValueParserFFI::rust_css_syntax_parse_data(quirks).values);
-    context.in_quirks_mode = false;
-
-    auto base_url = "https://example.com/directory/"sv;
-    context.document_base_url = reinterpret_cast<u8 const*>(base_url.characters_without_null_termination());
-    context.document_base_url_length = base_url.length();
-    auto* with_base_url = parse(context);
-    EXPECT_NE(data.values, ValueParserFFI::rust_css_syntax_parse_data(with_base_url).values);
-    context.document_base_url = nullptr;
-    context.document_base_url_length = 0;
-
-    ComputedValuesFFI::FfiLengthResolutionContext lengths {};
-    context.length_resolution_context = &lengths;
-    auto* with_lengths = parse(context);
-    lengths.viewport_width = 800;
-    auto* resized = parse(context);
-    EXPECT_NE(ValueParserFFI::rust_css_syntax_parse_data(with_lengths).values, ValueParserFFI::rust_css_syntax_parse_data(resized).values);
-    bool resolved_viewport_length = false;
-    lengths.resolved_viewport_relative_length = &resolved_viewport_length;
-    auto* tracked = parse(context);
-    auto* tracked_again = parse(context);
-    EXPECT_NE(ValueParserFFI::rust_css_syntax_parse_data(tracked).values, ValueParserFFI::rust_css_syntax_parse_data(tracked_again).values);
-    context.length_resolution_context = nullptr;
-
-    size_t random_index = 7;
-    context.random_function_index = &random_index;
-    auto* with_counter = parse(context);
-    auto final_index = random_index;
-    random_index = 7;
-    auto* with_counter_again = parse(context);
-    EXPECT_EQ(random_index, final_index);
-    EXPECT_EQ(ValueParserFFI::rust_css_syntax_parse_data(with_counter).values, ValueParserFFI::rust_css_syntax_parse_data(with_counter_again).values);
-
-    for (auto* sheet : { first, second, quirks, with_base_url, with_lengths, resized, tracked, tracked_again, with_counter, with_counter_again })
-        ValueParserFFI::rust_css_syntax_parse_free(sheet);
-}
-
-TEST_CASE(cache_stylesheets_across_native_string_representations)
-{
-    auto ascii = ".cached { width: 13px }"sv;
-    auto utf16 = u".cached { width: 13px }"sv;
-    ValueParserFFI::ParseContext context {};
-    auto* first = ValueParserFFI::rust_parse_css_stylesheet_syntax(
-        { reinterpret_cast<u8 const*>(ascii.characters_without_null_termination()), nullptr, ascii.length() }, &context);
-    auto* second = ValueParserFFI::rust_parse_css_stylesheet_syntax(
-        { nullptr, reinterpret_cast<u16 const*>(utf16.utf16_span().data()), utf16.length_in_code_units() }, &context);
-    EXPECT_EQ(ValueParserFFI::rust_css_syntax_parse_data(first).values, ValueParserFFI::rust_css_syntax_parse_data(second).values);
-    ValueParserFFI::rust_css_syntax_parse_free(first);
-    ValueParserFFI::rust_css_syntax_parse_free(second);
-}
-
-TEST_CASE(stylesheet_cache_does_not_keep_graphs_alive)
-{
-    auto source = u".weak-cache-owner { width: 13px }"sv;
-    ValueParserFFI::ParseContext context {};
-    auto parse = [&] {
-        return ValueParserFFI::rust_parse_css_stylesheet_syntax(
-            { nullptr, reinterpret_cast<u16 const*>(source.utf16_span().data()), source.length_in_code_units() }, &context);
-    };
-    auto* first = parse();
-    auto data = ValueParserFFI::rust_css_syntax_parse_data(first);
-    VERIFY(data.declaration_count == 1);
-    auto* retained_value = StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data.declarations[0].parsed_value));
-    ValueParserFFI::rust_css_syntax_parse_free(first);
-
-    auto* second = parse();
-    auto second_data = ValueParserFFI::rust_css_syntax_parse_data(second);
-    VERIFY(second_data.declaration_count == 1);
-    // Keeping one value alive must not keep its entire originating parse in the cache.
-    EXPECT_NE(second_data.declarations[0].parsed_value, retained_value);
-    EXPECT_EQ(StyleValueFFI::rust_style_value_computed_length_value(retained_value), 13.0);
-    StyleValueFFI::rust_style_value_release(retained_value);
-    ValueParserFFI::rust_css_syntax_parse_free(second);
-}
-
-TEST_CASE(bind_parsed_selectors_independently)
-{
-    using namespace SelectorFFI;
-    for (auto source : { u"DIV#test.item[data-name=\"value\"]"sv, u":is(.first, :not(#second))"sv,
-             u":nth-child(2n+1 of .item)"sv, u"::slotted(.item)"sv, u"::part(label)"sv }) {
-        auto* parsed = rust_selector_parse(
-            { nullptr, reinterpret_cast<u16 const*>(source.utf16_span().data()), source.length_in_code_units() },
-            nullptr, 0, false, false);
-        VERIFY(parsed);
-        EXPECT_EQ(rust_parsed_selector_list_length(parsed), 1u);
-
-        auto bind = [&] {
-            Vector<uintptr_t> names;
-            auto count = rust_parsed_selector_list_interned_name_count(parsed);
-            for (size_t index = 0; index < count; ++index) {
-                auto name = rust_parsed_selector_list_interned_name(parsed, index);
-                names.append(Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(name.data), name.length }).to_raw_leaked());
-            }
-            auto* bound = rust_parsed_selector_list_bind_interned_names(parsed, names.data(), names.size());
-            auto* selector = rust_bound_selector_list_selector(bound, 0);
-            rust_bound_selector_list_destroy(bound);
-            return selector;
-        };
-
-        auto* first = bind();
-        auto* second = bind();
-        rust_parsed_selector_list_destroy(parsed);
-        auto first_text = rust_selector_serialize(first, false, nullptr, 0);
-        auto second_text = rust_selector_serialize(second, false, nullptr, 0);
-        EXPECT_EQ((Utf16View { reinterpret_cast<char16_t const*>(first_text.data), first_text.length }),
-            (Utf16View { reinterpret_cast<char16_t const*>(second_text.data), second_text.length }));
-        EXPECT_EQ(rust_selector_specificity(first), rust_selector_specificity(second));
-        rust_selector_serialized_text_release(first_text.storage);
-        rust_selector_serialized_text_release(second_text.storage);
-        rust_selector_destroy(first);
-
-        // The second binding must remain usable after both the source and first binding are gone.
-        second_text = rust_selector_serialize(second, false, nullptr, 0);
-        EXPECT(second_text.length > 0);
-        rust_selector_serialized_text_release(second_text.storage);
-        rust_selector_destroy(second);
-    }
-}
-
-TEST_CASE(bind_worker_parsed_selectors)
-{
-    using namespace SelectorFFI;
-    IGNORE_USE_IN_ESCAPING_LAMBDA RustParsedSelectorList* parsed = nullptr;
-    auto parser = Threading::Thread::construct("CSS selectors"sv, [&] {
-        auto source = u"é|DIV#😀:is(.é, :not([data-name='😀'])):nth-child(2n+1 of .item)::part(label)"sv;
-        auto prefix = u"é"sv;
-        SelectorFFI::StringView namespace_prefix { reinterpret_cast<u16 const*>(prefix.utf16_span().data()), prefix.length_in_code_units() };
-        parsed = rust_selector_parse(
-            { nullptr, reinterpret_cast<u16 const*>(source.utf16_span().data()), source.length_in_code_units() },
-            &namespace_prefix, 1, false, false);
-        VERIFY(parsed);
-        return 0;
-    });
-    parser->start();
-    MUST(parser->join());
-
-    auto name_count = rust_parsed_selector_list_interned_name_count(parsed);
-    auto reader = Threading::Thread::construct("CSS selector reader"sv, [parsed, name_count] {
-        for (u32 iteration = 0; iteration < 100; ++iteration) {
-            VERIFY(rust_parsed_selector_list_length(parsed) == 1);
-            VERIFY(rust_parsed_selector_list_interned_name_count(parsed) == name_count);
-            for (size_t index = 0; index < name_count; ++index) {
-                auto name = rust_parsed_selector_list_interned_name(parsed, index);
-                VERIFY(name.length > 0);
-                VERIFY(name.data);
-            }
-        }
-        return 0;
-    });
-    reader->start();
-
-    Vector<uintptr_t> names;
-    for (size_t index = 0; index < name_count; ++index) {
-        auto name = rust_parsed_selector_list_interned_name(parsed, index);
-        names.append(Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(name.data), name.length }).to_raw_leaked());
-    }
-    auto* bound = rust_parsed_selector_list_bind_interned_names(parsed, names.data(), names.size());
-    auto* selector = rust_bound_selector_list_selector(bound, 0);
-    rust_bound_selector_list_destroy(bound);
-    MUST(reader->join());
-
-    auto destroyer = Threading::Thread::construct("CSS selector release"sv, [parsed] {
-        rust_parsed_selector_list_destroy(parsed);
-        return 0;
-    });
-    destroyer->start();
-    MUST(destroyer->join());
-    auto serialized = rust_selector_serialize(selector, false, nullptr, 0);
-    EXPECT_EQ((Utf16View { reinterpret_cast<char16_t const*>(serialized.data), serialized.length }),
-        u"é|DIV#😀:is(.é, :not([data-name=\"😀\"])):nth-child(2n+1 of .item)::part(label)"sv);
-    rust_selector_serialized_text_release(serialized.storage);
-    rust_selector_destroy(selector);
-}
-
-TEST_CASE(share_parsed_value_graph_between_threads)
-{
-    auto source = u"a { grid-template-columns: repeat(2, [é] minmax(10px, 1fr)); width: calc(1em + 2px); --custom: var(--é, [nested tokens]); content: '😀'; background-image: url(image.png) }"sv;
-    ValueParserFFI::ParseContext context {};
-    auto* parse = ValueParserFFI::rust_parse_css_stylesheet_syntax(
-        { nullptr, reinterpret_cast<u16 const*>(source.utf16_span().data()), source.length_in_code_units() }, &context);
-    VERIFY(parse);
-    auto data = ValueParserFFI::rust_css_syntax_parse_data(parse);
-    VERIFY(data.declaration_count == 5);
-    Vector<StyleValueFFI::StyleValueData const*> values;
-    for (size_t index = 0; index < data.declaration_count; ++index) {
-        auto* value = static_cast<StyleValueFFI::StyleValueData const*>(data.declarations[index].parsed_value);
-        VERIFY(value);
-        values.append(StyleValueFFI::rust_style_value_retain(value));
-    }
-    ValueParserFFI::rust_css_syntax_parse_free(parse);
-
-    // Include a value constructed through the host boundary, whose strings must also be native.
-    auto url = "image.png"_string;
-    values.append(StyleValueFFI::rust_style_value_create_url(url.to_raw_leaked(), url.bytes().data(), url.bytes().size(), 0, nullptr, 0));
-    StyleValueFFI::rust_style_ffi_counters_reset();
-
-    auto make_thread = [&] {
-        Vector<StyleValueFFI::StyleValueData const*> retained;
-        for (auto* value : values)
-            retained.append(StyleValueFFI::rust_style_value_retain(value));
-        return Threading::Thread::construct("CSS values"sv, [retained = move(retained)] {
-            for (auto* value : retained) {
-                for (u32 iteration = 0; iteration < 100; ++iteration) {
-                    auto* copy = StyleValueFFI::rust_style_value_retain(value);
-                    VERIFY(StyleValueFFI::rust_style_value_equals(value, copy));
-                    auto serialized = StyleValueFFI::rust_style_value_serialize(copy, 0);
-                    VERIFY(serialized.has_value);
-                    auto text = Utf16String::adopt_raw(serialized.raw);
-                    VERIFY(!text.is_empty());
-                    StyleValueFFI::rust_style_value_release(copy);
-                }
-                StyleValueFFI::rust_style_value_release(value);
-            }
-            return 0;
-        });
-    };
-    auto first = make_thread();
-    auto second = make_thread();
-    for (auto* value : values)
-        StyleValueFFI::rust_style_value_release(value);
-    first->start();
-    second->start();
-    MUST(first->join());
-    MUST(second->join());
-
-    for (size_t index = 0; index < StyleValueFFI::rust_style_ffi_counter_count(); ++index) {
-        auto const* name_data = reinterpret_cast<char const*>(StyleValueFFI::rust_style_ffi_counter_name(index));
-        auto name = StringView { name_data, strlen(name_data) };
-        if (name == "stringRetainReleaseCallbacks"sv || name == "internUtf16FlyStringCallbacks"sv)
-            EXPECT_EQ(StyleValueFFI::rust_style_ffi_counter_value(index), 0u);
-    }
-}
-
-TEST_CASE(parse_strings_without_host_interning)
-{
-    StyleValueFFI::rust_style_ffi_counters_reset();
-    IGNORE_USE_IN_ESCAPING_LAMBDA StyleValueFFI::StyleValueData const* retained_value = nullptr;
-    auto thread = Threading::Thread::construct("CSS parser"sv, [&] {
-        auto source = u"a { position-anchor: --shared-name; color: ReD; grid-template-columns: [shared-name] 1fr; content: 'text' }"sv;
-        ValueParserFFI::ParseContext context {};
-        auto* parse = ValueParserFFI::rust_parse_css_stylesheet_syntax(
-            { nullptr, reinterpret_cast<u16 const*>(source.utf16_span().data()), source.length_in_code_units() }, &context);
-        VERIFY(parse);
-        auto data = ValueParserFFI::rust_css_syntax_parse_data(parse);
-        VERIFY(data.declaration_count == 4);
-        for (size_t index = 0; index < data.declaration_count; ++index)
-            VERIFY(data.declarations[index].parsed_value);
-        retained_value = StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data.declarations[0].parsed_value));
-        ValueParserFFI::rust_css_syntax_parse_free(parse);
-        return 0;
-    });
-    thread->start();
-    MUST(thread->join());
-
-    VERIFY(retained_value);
-    EXPECT_EQ(retained_value->tag, StyleValueFFI::StyleValueData::Tag::CustomIdent);
-    auto view = StyleValueFFI::rust_css_string_view(&retained_value->custom_ident.custom_ident);
-    EXPECT_EQ((Utf16View { reinterpret_cast<char16_t const*>(view.data), view.length }), u"--shared-name"sv);
-
-    auto source = u"b { position-anchor: --shared-name }"sv;
-    ValueParserFFI::ParseContext context {};
-    auto* second_parse = ValueParserFFI::rust_parse_css_stylesheet_syntax(
-        { nullptr, reinterpret_cast<u16 const*>(source.utf16_span().data()), source.length_in_code_units() }, &context);
-    VERIFY(second_parse);
-    auto data = ValueParserFFI::rust_css_syntax_parse_data(second_parse);
-    VERIFY(data.declaration_count == 1);
-    auto* second_value = static_cast<StyleValueFFI::StyleValueData const*>(data.declarations[0].parsed_value);
-    VERIFY(second_value);
-    EXPECT(StyleValueFFI::rust_style_value_equals(retained_value, second_value));
-    ValueParserFFI::rust_css_syntax_parse_free(second_parse);
-    StyleValueFFI::rust_style_value_release(retained_value);
-
-    for (size_t index = 0; index < StyleValueFFI::rust_style_ffi_counter_count(); ++index) {
-        auto const* name_data = reinterpret_cast<char const*>(StyleValueFFI::rust_style_ffi_counter_name(index));
-        auto name = StringView { name_data, strlen(name_data) };
-        if (name == "stringRetainReleaseCallbacks"sv || name == "internUtf16FlyStringCallbacks"sv)
-            EXPECT_EQ(StyleValueFFI::rust_style_ffi_counter_value(index), 0u);
-    }
+    expect_declaration(8, u"--名前"sv, u"'😀'"sv, Important::No, true, true, true);
+    expect_declaration(9, u"color"sv, u"blue"sv, Important::No, false, true, true);
+    expect_declaration(10, u"width"sv, u"calc(1px + 2px)"sv, Important::No, false, true, true);
 }
 
 }

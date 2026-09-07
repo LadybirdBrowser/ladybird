@@ -13,12 +13,6 @@
 
 namespace Web::CSS {
 
-namespace Parser {
-
-class RustQueryParser;
-
-}
-
 struct ContainerQueryFeatureRequirements {
     bool requires_width_container : 1 { false };
     bool requires_height_container : 1 { false };
@@ -41,8 +35,6 @@ struct ContainerQueryFeatureRequirements {
 
 // https://drafts.csswg.org/css-conditional-5/#container-rule
 class WEB_API ContainerQuery final : public RefCounted<ContainerQuery> {
-    friend class Parser::RustQueryParser;
-
 public:
     static NonnullRefPtr<ContainerQuery> create(RustQueryHandle);
 
@@ -60,7 +52,32 @@ private:
     ContainerQueryFeatureRequirements m_feature_requirements;
 };
 
+// Document-thread bindings for an immutable Rust container-condition list.
+class WEB_API ContainerConditions final : public RefCounted<ContainerConditions> {
+public:
+    struct Condition {
+        Optional<Utf16FlyString> container_name;
+        RefPtr<ContainerQuery> container_query;
+    };
+
+    static NonnullRefPtr<ContainerConditions> create(Parser::ValueParserFFI::ContainerConditionsData const*);
+    ~ContainerConditions();
+    Parser::ValueParserFFI::ContainerConditionsData const* handle() const { return m_data; }
+
+    Vector<Condition> const& entries() const;
+    bool matches(DOM::AbstractElement const&) const;
+    bool contains_size_feature() const;
+    bool contains_style_feature() const;
+    void mark_element_style_dependencies(DOM::AbstractElement&) const;
+
+private:
+    explicit ContainerConditions(Parser::ValueParserFFI::ContainerConditionsData const*);
+    Parser::ValueParserFFI::ContainerConditionsData const* m_data;
+    mutable Optional<Vector<Condition>> m_entries;
+};
+
 bool container_name_matches(DOM::Element const&, Optional<Utf16FlyString> const& container_name);
+bool evaluate_native_container_condition(Parser::ValueParserFFI::FfiQueryHandle const*, Utf16View name, DOM::AbstractElement const&);
 MatchResult evaluate_style_query(RustQueryHandle const&, AbstractOrHypotheticalElement);
 void prepare_for_style_query_evaluation();
 bool style_query_cycle_detected();

@@ -116,10 +116,7 @@ public:
         auto const& url_string = url.url();
         if (url_string.is_empty() || !url_string.starts_with('#'))
             return {};
-        auto fragment = url_string.substring_from_byte_offset(1);
-        if (fragment.is_error())
-            return {};
-        return Utf16String::from_utf8(fragment.release_value());
+        return Utf16String::from_utf16(url_string.substring_view(1));
     }
 
     Filter materialize() const

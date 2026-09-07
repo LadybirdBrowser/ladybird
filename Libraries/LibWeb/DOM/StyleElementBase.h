@@ -9,7 +9,7 @@
 
 #include <AK/Badge.h>
 #include <AK/Utf16FlyString.h>
-#include <LibWeb/CSS/CSSStyleSheet.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/Forward.h>
 
@@ -31,14 +31,12 @@ public:
     void style_element_attribute_changed(Utf16FlyString const&, Optional<Utf16String> const& value);
     void style_element_moved();
 
-    CSS::CSSStyleSheet* sheet();
-    CSS::CSSStyleSheet const* sheet() const;
+    CSS::StyleSheetState* sheet();
+    CSS::StyleSheetState const* sheet() const;
+    CSS::CSSStyleSheet* cssom_sheet() const;
 
     bool disabled();
     void set_disabled(bool disabled);
-
-    [[nodiscard]] GC::Ptr<CSS::StyleSheetList> style_sheet_list() { return m_style_sheet_list; }
-    [[nodiscard]] GC::Ptr<CSS::StyleSheetList const> style_sheet_list() const { return m_style_sheet_list; }
 
     enum class AnyFailed : u8 {
         No,
@@ -68,9 +66,9 @@ private:
     GC::Weak<Document> m_parser_document;
 
     // https://www.w3.org/TR/cssom/#associated-css-style-sheet
-    GC::Ptr<CSS::CSSStyleSheet> m_associated_css_style_sheet;
+    RefPtr<CSS::StyleSheetState> m_associated_css_style_sheet;
 
-    GC::Ptr<CSS::StyleSheetList> m_style_sheet_list;
+    CSS::StyleScope* m_style_sheet_scope { nullptr };
 
     Optional<DocumentLoadEventDelayer> m_document_load_event_delayer;
 

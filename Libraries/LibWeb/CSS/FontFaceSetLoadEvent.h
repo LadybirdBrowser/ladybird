@@ -8,6 +8,7 @@
 
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/FontFaceSetLoadEvent.h>
+#include <LibWeb/CSS/FontFaceState.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/HighResolutionTime/DOMHighResTimeStamp.h>
 
@@ -23,18 +24,20 @@ class FontFaceSetLoadEvent : public DOM::Event {
 
 public:
     [[nodiscard]] static GC::Ref<FontFaceSetLoadEvent> create(Utf16FlyString const& type, Bindings::FontFaceSetLoadEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    [[nodiscard]] static GC::Ref<FontFaceSetLoadEvent> create_for_fonts(Utf16FlyString const&, Vector<NonnullRefPtr<FontFaceState>>, HighResolutionTime::DOMHighResTimeStamp);
     static WebIDL::ExceptionOr<GC::Ref<FontFaceSetLoadEvent>> create_for_constructor(Utf16FlyString const& type, Bindings::FontFaceSetLoadEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual ~FontFaceSetLoadEvent() override = default;
 
-    Vector<GC::Ref<FontFace>> const& fontfaces() const { return m_fontfaces; }
+    Vector<GC::Ref<FontFace>> fontfaces() const;
 
 private:
     FontFaceSetLoadEvent(Utf16FlyString const& type, Bindings::FontFaceSetLoadEventInit const&, HighResolutionTime::DOMHighResTimeStamp);
+    FontFaceSetLoadEvent(Utf16FlyString const&, Vector<NonnullRefPtr<FontFaceState>>, HighResolutionTime::DOMHighResTimeStamp);
 
     virtual void visit_edges(Visitor&) override;
 
-    Vector<GC::Ref<FontFace>> m_fontfaces;
+    Vector<NonnullRefPtr<FontFaceState>> m_fontfaces;
 };
 
 }

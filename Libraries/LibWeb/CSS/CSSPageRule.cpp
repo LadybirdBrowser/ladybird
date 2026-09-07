@@ -7,7 +7,6 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/CSS/CSSPageRule.h>
-#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -18,15 +17,14 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSPageRule);
 
-GC::Ref<CSSPageRule> CSSPageRule::create(PageSelectorList&& selectors, RustDescriptorBlock descriptors, CSSRuleList& rules)
+GC::Ref<CSSPageRule> CSSPageRule::create(RustRule rule, CSSRuleList& rules)
 {
-    return GC::Heap::the().allocate<CSSPageRule>(move(selectors), move(descriptors), rules);
+    return GC::Heap::the().allocate<CSSPageRule>(move(rule), rules);
 }
 
-CSSPageRule::CSSPageRule(PageSelectorList&& selectors, RustDescriptorBlock descriptors, CSSRuleList& rules)
-    : CSSGroupingRule(rules, Type::Page)
-    , m_selectors(move(selectors))
-    , m_descriptors(move(descriptors))
+CSSPageRule::CSSPageRule(RustRule rule, CSSRuleList& rules)
+    : CSSGroupingRule(rules, move(rule))
+    , m_descriptors(Parser::ValueParserFFI::rust_descriptor_block_retain(native_rule().payload().descriptors))
 {
 }
 
@@ -47,17 +45,7 @@ GC::Ref<CSSPageDescriptors> CSSPageRule::style() const
 // https://drafts.csswg.org/cssom/#dom-csspagerule-selectortext
 Utf16String CSSPageRule::selector_text() const
 {
-    Utf16StringBuilder builder;
-
-    bool first = true;
-    for (auto const& selector : m_selectors) {
-        if (!first)
-            builder.append_ascii(", "sv);
-        first = false;
-        selector.serialize_to(builder);
-    }
-
-    return builder.to_string();
+    return RustPageSelectors { native_rule().payload().page_selectors }.serialize();
 }
 
 // https://drafts.csswg.org/cssom/#dom-csspagerule-selectortext
@@ -65,11 +53,11 @@ void CSSPageRule::set_selector_text(Utf16View text)
 {
     // On setting the selectorText attribute these steps must be run:
     // 1. Run the parse a list of CSS page selectors algorithm on the given value.
-    auto page_selector_list = parse_page_selector_list(Parser::ParsingParams {}, text);
+    auto page_selector_list = RustPageSelectors::parse(text);
 
     // 2. If the algorithm returns a non-null value replace the associated selector list with the returned value.
     if (page_selector_list.has_value())
-        m_selectors = page_selector_list.release_value();
+        Parser::ValueParserFFI::rust_rule_set_page_selectors(native_rule().handle(), page_selector_list->handle());
 
     // 3. Otherwise, if the algorithm returns a null value, do nothing.
 }

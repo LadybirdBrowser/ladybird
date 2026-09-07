@@ -1,0 +1,9 @@
+initial: .親, 13px, 17px
+mutated: .別, 31px, 青
+other: .親, 13px, 緑
+restored: 17px, same style: true, same child: true
+namespace selector: 名|要素
+invalid namespace: 名|要素
+nested: & > .子, 17px
+invalid selector: .親, 17px
+detached: .外, 47px, same style: true

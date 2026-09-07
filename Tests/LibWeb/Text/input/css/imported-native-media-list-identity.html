@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>#target { width: 5px; }</style>
+<div id="target"></div>
+<script>
+    const source = `data:text/css,${encodeURIComponent("@media screen { #target { width: 29px; } }")}`;
+    const style = document.createElement("style");
+    style.textContent = `@import url("${source}") screen; @import url("${source}") screen;`;
+    document.head.append(style);
+    const first = style.sheet.cssRules[0];
+    const second = style.sheet.cssRules[1];
+    const early = first.media;
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            println(`early identity: ${first.media === early}, ${first.styleSheet.media === early}`);
+            println(`late identity: ${second.media === second.styleSheet.media}`);
+            println(`independent imports: ${first.media !== second.media}`);
+            second.media.mediaText = "not all";
+            const width = () => getComputedStyle(target).width;
+            println(`loaded native group: ${width()}`);
+            early.mediaText = "print";
+            println(`shared mutation disables import: ${first.styleSheet.media.mediaText}, ${width()}`);
+            first.styleSheet.media.mediaText = "screen";
+            println(`shared mutation restores import: ${early.mediaText}, ${width()}`);
+            style.sheet.deleteRule(0);
+            early.mediaText = "écran";
+            println(`detached identity: ${first.styleSheet.media === early}, ${early.mediaText}, ${width()}`);
+            done();
+        }, { once: true });
+    });
+</script>

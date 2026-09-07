@@ -5,11 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/CSS/CSSFontFaceRule.h>
-#include <LibWeb/CSS/CSSRule.h>
-#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/ParsedFontFace.h>
+#include <LibWeb/CSS/RustDescriptorBlock.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
@@ -49,9 +47,8 @@ Vector<ParsedFontFace::Source> ParsedFontFace::sources_from_style_value(StyleVal
     return sources;
 }
 
-ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceRule& rule)
+ParsedFontFace ParsedFontFace::from_descriptors(RustDescriptorBlock const& descriptors, DOM::Document const& document)
 {
-    auto const& descriptors = rule.descriptor_block();
     auto extract_percentage_or_normal = [](StyleValue const& value) -> Optional<Percentage> {
         if (value.is_percentage())
             return value.as_percentage().percentage();
@@ -70,7 +67,7 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceRule& rule)
         font_family = string_from_style_value(*value);
 
     ComputationContext computation_context {
-        .length_resolution_context = Length::ResolutionContext::for_document(*rule.parent_style_sheet()->owning_document())
+        .length_resolution_context = Length::ResolutionContext::for_document(document)
     };
 
     Optional<FontWeightRange> weight;
@@ -202,7 +199,6 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceRule& rule)
     }
 
     return ParsedFontFace {
-        rule,
         move(font_family),
         move(weight),
         move(slope),
@@ -220,9 +216,8 @@ ParsedFontFace ParsedFontFace::from_descriptors(CSSFontFaceRule& rule)
     };
 }
 
-ParsedFontFace::ParsedFontFace(GC::Ref<CSSRule> parent_rule, Utf16FlyString font_family, Optional<FontWeightRange> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<Utf16FlyString> font_named_instance, Optional<Utf16FlyString> font_language_override, Optional<OrderedHashMap<Utf16FlyString, i32>> font_feature_settings, Optional<OrderedHashMap<Utf16FlyString, double>> font_variation_settings)
-    : m_parent_rule(parent_rule)
-    , m_font_family(move(font_family))
+ParsedFontFace::ParsedFontFace(Utf16FlyString font_family, Optional<FontWeightRange> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<Utf16FlyString> font_named_instance, Optional<Utf16FlyString> font_language_override, Optional<OrderedHashMap<Utf16FlyString, i32>> font_feature_settings, Optional<OrderedHashMap<Utf16FlyString, double>> font_variation_settings)
+    : m_font_family(move(font_family))
     , m_font_named_instance(move(font_named_instance))
     , m_weight(move(weight))
     , m_slope(slope)

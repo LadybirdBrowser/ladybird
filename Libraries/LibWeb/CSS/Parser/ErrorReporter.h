@@ -9,6 +9,7 @@
 #include <AK/HashMap.h>
 #include <AK/String.h>
 #include <AK/Utf16FlyString.h>
+#include <AK/Utf16String.h>
 #include <LibWeb/Export.h>
 
 namespace Web::CSS::Parser {
@@ -32,7 +33,7 @@ struct UnknownRuleError {
 struct InvalidPropertyError {
     Utf16FlyString rule_name { "style"_utf16_fly_string };
     Utf16FlyString property_name;
-    String value_string;
+    Utf16String value_string;
     String description;
     bool operator==(InvalidPropertyError const&) const = default;
     unsigned hash() const
@@ -54,7 +55,7 @@ struct InvalidValueError {
 
 struct InvalidRuleError {
     Utf16FlyString rule_name;
-    String prelude;
+    Utf16String prelude;
     String description;
     bool operator==(InvalidRuleError const&) const = default;
     unsigned hash() const

@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div class="親"><div class="子"><div class="孫"></div></div></div>
+<script>
+    test(() => {
+        const text = ".孫 { width: 5px; height: 7px; } .親 { > .子 { .孫 { width: 17px; } } @scope (> .子) { .孫 { height: 19px; } } }";
+        const first = document.createElement("style");
+        const second = document.createElement("style");
+        first.textContent = second.textContent = text;
+        document.head.append(first, second);
+        const parent = first.sheet.cssRules[1];
+        const child = parent.cssRules[0];
+        const scope = parent.cssRules[1];
+        const otherChild = second.sheet.cssRules[1].cssRules[0];
+        const target = document.querySelector(".孫");
+        const size = () => `${getComputedStyle(target).width}, ${getComputedStyle(target).height}`;
+        println(`style selectors: ${child.selectorText}, ${child.cssRules[0].selectorText}`);
+        println(`scope selectors: ${scope.start}, ${scope.cssRules[0].selectorText}`);
+        println(`initial: ${size()}`);
+        second.remove();
+        child.selectorText = ".missing";
+        println(`CSSOM normalization: ${child.selectorText}`);
+        println(`changed child: ${size()}`);
+        println(`other selector: ${otherChild.selectorText}`);
+        child.selectorText = "> .子";
+        println(`restored child: ${child.selectorText}, ${size()}`);
+        parent.selectorText = ".missing";
+        println(`changed parent: ${size()}`);
+        parent.selectorText = ".親";
+        scope.cssRules[0].selectorText = "> .孫";
+        println(`CSSOM scope selector: ${scope.cssRules[0].selectorText}, ${size()}`);
+        first.remove();
+        internals.gc();
+        println(`detached selector: ${child.selectorText}`);
+    });
+</script>

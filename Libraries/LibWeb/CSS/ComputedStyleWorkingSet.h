@@ -10,8 +10,8 @@
 #include <AK/HashMap.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefCounted.h>
+#include <AK/WeakPtr.h>
 #include <LibGC/Ptr.h>
-#include <LibGC/Weak.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/Forward.h>
@@ -27,7 +27,7 @@
 namespace Web::CSS {
 
 class AnimatedProperties;
-class CSSStyleSheet;
+class StyleSheetState;
 class StyleComputer;
 
 }
@@ -91,7 +91,7 @@ public:
     void set_property_without_modifying_flags(PropertyID, NonnullRefPtr<StyleValue const> value, i64 style_sheet_source_slot = -1);
     // Invalidates C++ sidecars after the Rust driver stores a value directly in the table.
     void did_store_property_data_from_drive(PropertyID);
-    void set_style_sheet_for_source_slot(u32, GC::Ptr<CSSStyleSheet>);
+    void set_style_sheet_for_source_slot(u32, RefPtr<StyleSheetState>);
     void cache_property_wrapper_from_drive(PropertyID, NonnullRefPtr<StyleValue const>);
     void set_display_before_box_type_transformation(Display);
 
@@ -205,7 +205,7 @@ private:
         HashMap<PropertyID, NonnullRefPtr<StyleValue const>> wrappers;
         // Style sheets are indexed by the source slots stored in the Rust longhand table.
         // Held weakly, like the cascade's own declaration sources.
-        Vector<GC::Weak<CSSStyleSheet>> style_sheet_source_slots;
+        Vector<WeakPtr<StyleSheetState>> style_sheet_source_slots;
     };
 
     ComputedStyleWorkingSet();
@@ -289,7 +289,7 @@ private:
 // Mints a C++ StyleValue wrapper for a record or table slot's value data, stamping it with the
 // style sheet the winning declaration came from when the caller resolved one from the sheet
 // sidecar. Counts toward the process-wide longhand wrapper mint statistic.
-NonnullRefPtr<StyleValue const> wrap_computed_longhand_slot(void const* value_data, GC::Ptr<CSSStyleSheet> style_sheet);
+NonnullRefPtr<StyleValue const> wrap_computed_longhand_slot(void const* value_data, RefPtr<StyleSheetState> style_sheet);
 
 // https://drafts.csswg.org/css-inline-3/#valdef-line-height-normal
 [[nodiscard]] CSSPixels normal_line_height(Gfx::FontPixelMetrics const&);

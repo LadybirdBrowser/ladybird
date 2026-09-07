@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const source = ".target { width: 7px; }";
+    const sheets = [new CSSStyleSheet(), new CSSStyleSheet()];
+    const targets = sheets.map(sheet => {
+        sheet.replaceSync(source);
+        const root = document.body.appendChild(document.createElement("div")).attachShadow({ mode: "open" });
+        root.adoptedStyleSheets = [sheet];
+        return [17, 29].map(width => {
+            const parent = root.appendChild(document.createElement("div"));
+            parent.style.setProperty("--幅", `${width}px`);
+            const target = parent.appendChild(document.createElement("div"));
+            target.className = "target";
+            return target;
+        });
+    });
+    const report = label => println(`${label}: ${targets.map(group => group.map(target => getComputedStyle(target).width).join(", ")).join("; ")}`);
+    report("constant shared declarations");
+    sheets[0].cssRules[0].style.width = "var(--幅)";
+    report("inherited dependency after copy-on-write");
+    targets[0][0].style.width = "11px";
+    targets[0][1].style.width = "11px";
+    report("constant inline declarations");
+    for (const target of targets[0])
+        target.style.width = "var(--幅)";
+    report("inline inherited dependencies");
+    sheets[0].cssRules[0].style.cssText = "--幅: 31px; width: var(--幅)";
+    report("rule custom property dependency");
+    sheets[0].cssRules[0].style.removeProperty("--幅");
+    targets[0][0].parentElement.style.setProperty("--幅", "37px");
+    internals.gc();
+    report("removed custom property and changed inheritance");
+    sheets[1].cssRules[0].style.width = "var(--幅)";
+    report("other shared sheet mutation");
+});
+</script>

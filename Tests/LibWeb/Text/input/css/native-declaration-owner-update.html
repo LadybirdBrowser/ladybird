@@ -1,0 +1,50 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const source = `@function --幅() { result: 10px; @media all { result: 20px; } }
+        @keyframes 色 { from { opacity: 0.25; } to { opacity: 0.5; } }
+        .target { width: --幅(); height: 3px; animation: 色 1s linear paused both; }`;
+    const sheets = [new CSSStyleSheet(), new CSSStyleSheet()];
+    const roots = sheets.map(sheet => {
+        sheet.replaceSync(source);
+        const host = document.createElement("div");
+        document.body.append(host);
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = '<div class="target"></div>';
+        root.adoptedStyleSheets = [sheet];
+        return root;
+    });
+    const targets = roots.map(root => root.firstChild);
+    targets.forEach(target => target.getAnimations()[0].currentTime = 1000);
+    const values = () => targets.map(target => {
+        const style = getComputedStyle(target);
+        return `${style.width}, ${style.height}, ${style.opacity}`;
+    }).join(" / ");
+    println(`shared parse: ${values()}`);
+    const frames = sheets[0].cssRules[1];
+    frames.appendRule("to { opacity: 0.75; }");
+    println(`append before exposing children: ${values()}`);
+    const list = frames.cssRules;
+    const removed = list[2];
+    removed.style.opacity = "0.6";
+    println(`native keyframe owner: ${values()}`);
+    frames.deleteRule("to");
+    removed.style.opacity = "0.9";
+    println(`detached frame: ${removed.parentRule === null}, ${values()}`);
+    frames.deleteRule("to");
+    frames.appendRule("to { opacity: 0.8; }");
+    println(`live list after edits: ${list.length}, ${values()}`);
+    sheets[0].cssRules[0].cssRules[1].cssRules[0].style.cssText = "result: 30px;";
+    println(`conditional function owner: ${values()}`);
+    sheets[0].cssRules[2].style.height = "7px";
+    targets[0].style.height = "11px";
+    println(`interleaved inline revision: ${values()}`);
+    targets[0].style.removeProperty("height");
+    sheets[0].cssRules[2].style.height = "13px";
+    internals.gc();
+    println(`native declaration revisions: ${values()}`);
+    roots.forEach(root => root.host.remove());
+});
+</script>

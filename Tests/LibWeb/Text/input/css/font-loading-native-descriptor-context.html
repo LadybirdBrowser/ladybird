@@ -1,0 +1,29 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    const link = document.createElement("link");
+    link.rel = "stylesheet";
+    link.href = new URL("resources/font-loading-native-descriptor-context.css", location.href);
+    const sheetLoaded = new Promise((resolve, reject) => {
+        link.onload = resolve;
+        link.onerror = reject;
+    });
+    document.head.append(link);
+    await sheetLoaded;
+
+    // Loading a CSS-connected face does not require exposing its rule through CSSOM.
+    const connected = [...document.fonts].find(face => face.family === "書体");
+    await connected.load();
+    println(`stylesheet-relative source: ${connected.status}`);
+
+    const base = document.createElement("base");
+    base.href = new URL("../../../Assets/", location.href);
+    document.head.append(base);
+    const scriptFace = new FontFace("文字", 'url("HashSansNoSpace.woff")');
+    await scriptFace.load();
+    println(`document-relative source: ${scriptFace.status}`);
+    println(`script face stays outside font set: ${!document.fonts.has(scriptFace)}`);
+    println(`connected face stays in font set: ${document.fonts.has(connected)}`);
+});
+</script>

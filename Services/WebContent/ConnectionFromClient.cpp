@@ -36,7 +36,8 @@
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/StyleComputer.h>
-#include <LibWeb/CSS/StyleSheetList.h>
+#include <LibWeb/CSS/StyleScope.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/CookieStore/CookieStore.h>
 #include <LibWeb/DOM/AbstractElement.h>
@@ -775,7 +776,7 @@ void ConnectionFromClient::debug_request(u64 page_id, ByteString request, ByteSt
     if (request == "dump-style-sheets") {
         if (auto doc = page->page().local_root_navigable()->active_document()) {
             dbgln("=== In document: ===");
-            for (auto& sheet : doc->style_sheets().sheets()) {
+            for (auto& sheet : doc->style_scope().style_sheets()) {
                 Web::dump_sheet(sheet);
             }
 

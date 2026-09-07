@@ -48,7 +48,7 @@ public:
 
     Separator separator() const { return static_cast<Separator>(m_value->value_list.separator); }
 
-    void set_style_sheet(GC::Ptr<CSSStyleSheet>);
+    void set_style_sheet(StyleSheetState*);
 
 private:
     friend class StyleValue;

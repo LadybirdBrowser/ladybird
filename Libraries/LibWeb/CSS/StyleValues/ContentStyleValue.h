@@ -24,7 +24,7 @@ public:
     StyleValueList const& content() const { return m_content; }
     StyleValueList const* alt_text() const { return m_alt_text.ptr(); }
 
-    void set_style_sheet(GC::Ptr<CSSStyleSheet>);
+    void set_style_sheet(StyleSheetState*);
 
 private:
     friend class StyleValue;

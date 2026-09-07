@@ -55,9 +55,10 @@ public:
     };
 
     URL(String url, Type = Type::Url, Vector<RequestURLModifier> = {});
+    URL(Utf16String url, Type = Type::Url, Vector<RequestURLModifier> = {});
     URL(Utf16View url, Type = Type::Url, Vector<RequestURLModifier> = {});
 
-    String const& url() const { return m_url; }
+    Utf16String const& url() const { return m_url; }
     Type type() const { return m_type; }
     Vector<RequestURLModifier> const& request_url_modifiers() const { return m_request_url_modifiers; }
 
@@ -67,7 +68,7 @@ public:
 
 private:
     Type m_type;
-    String m_url;
+    Utf16String m_url;
     Vector<RequestURLModifier> m_request_url_modifiers;
 };
 

@@ -9,33 +9,29 @@
 
 #include <LibWeb/CSS/CSSFontFaceDescriptors.h>
 #include <LibWeb/CSS/CSSRule.h>
-#include <LibWeb/CSS/ParsedFontFace.h>
 
 namespace Web::CSS {
 
-class FontFace;
+class FontFaceState;
 
 class CSSFontFaceRule final : public CSSRule {
     WEB_WRAPPABLE(CSSFontFaceRule, CSSRule);
     GC_DECLARE_ALLOCATOR(CSSFontFaceRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSFontFaceRule> create(RustDescriptorBlock);
+    [[nodiscard]] static GC::Ref<CSSFontFaceRule> create(RustRule);
 
     virtual ~CSSFontFaceRule() override = default;
 
     bool is_valid() const;
-    ParsedFontFace font_face() const;
     GC::Ref<CSSFontFaceDescriptors> descriptors() const;
-    RustDescriptorBlock const& descriptor_block() const { return m_descriptors; }
 
-    GC::Ptr<FontFace> css_connected_font_face() const { return m_css_connected_font_face; }
-    void set_css_connected_font_face(GC::Ptr<FontFace> font_face) { m_css_connected_font_face = font_face; }
+    RefPtr<FontFaceState> css_connected_font_face() const;
     void handle_descriptor_change(Utf16FlyString const& property);
     void disconnect_font_face();
 
 private:
-    CSSFontFaceRule(RustDescriptorBlock);
+    CSSFontFaceRule(RustRule);
 
     virtual size_t external_memory_size() const override;
     virtual Utf16String serialized() const override;
@@ -46,7 +42,6 @@ private:
 
     RustDescriptorBlock m_descriptors;
     mutable GC::Ptr<CSSFontFaceDescriptors> m_style;
-    GC::Ptr<FontFace> m_css_connected_font_face;
 };
 
 template<>

@@ -1,0 +1,6 @@
+shared parse: rgb(255, 0, 0), rgb(0, 0, 255) / rgb(0, 0, 0), rgba(0, 0, 0, 0) | rgb(255, 0, 0), rgb(0, 0, 255) / rgb(0, 0, 0), rgba(0, 0, 0, 0)
+parent selector changed: rgb(0, 0, 0), rgba(0, 0, 0, 0) / rgb(255, 0, 0), rgb(0, 0, 255) | rgb(255, 0, 0), rgb(0, 0, 255) / rgb(0, 0, 0), rgba(0, 0, 0, 0)
+native descendants survive collection: rgb(0, 0, 0), rgba(0, 0, 0, 0) / rgb(255, 0, 0), rgb(0, 0, 255) | rgb(255, 0, 0), rgb(0, 0, 255) / rgb(0, 0, 0), rgba(0, 0, 0, 0)
+inactive descendant becomes active: rgb(0, 0, 0), rgba(0, 0, 0, 0) / rgb(0, 128, 0), rgb(0, 0, 255) | rgb(255, 0, 0), rgb(0, 0, 255) / rgb(0, 0, 0), rgba(0, 0, 0, 0)
+parent selector restored: rgb(0, 128, 0), rgb(0, 0, 255) / rgb(0, 0, 0), rgba(0, 0, 0, 0) | rgb(255, 0, 0), rgb(0, 0, 255) / rgb(0, 0, 0), rgba(0, 0, 0, 0)
+detached subtree remains retired: rgb(0, 0, 0), rgba(0, 0, 0, 0) / rgb(0, 0, 0), rgba(0, 0, 0, 0) | rgb(255, 0, 0), rgb(0, 0, 255) / rgb(0, 0, 0), rgba(0, 0, 0, 0)

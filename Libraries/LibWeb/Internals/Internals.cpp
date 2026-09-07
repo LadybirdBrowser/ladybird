@@ -37,14 +37,13 @@
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
-#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoElement.h>
 #include <LibWeb/CSS/StyleComputer.h>
-#include <LibWeb/CSS/StyleSheetList.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/Clipboard/SystemClipboard.h>
 #include <LibWeb/Compositor/AsyncScrollTree.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
@@ -1635,7 +1634,7 @@ double Internals::style_engine_match_document()
 // that caused it rather than as a number.
 static void collect_style_engine_rule_names(CSS::StyleComputer const& style_computer, CSS::CSSRule const& rule, HashMap<CSS::StyleEngineRuleID, Utf16String>& names, HashMap<CSS::StyleEngineRuleID, Utf16String>& places, Utf16String const& place)
 {
-    if (auto rule_id = style_computer.style_engine_rule_id_for(rule); rule_id != 0) {
+    if (auto rule_id = style_computer.style_engine_rule_id_for(rule.native_rule()); rule_id != 0) {
         places.set(rule_id, place);
         if (auto const* style_rule = as_if<CSS::CSSStyleRule>(rule)) {
             names.set(rule_id, style_rule->selector_text());
@@ -1676,7 +1675,7 @@ Utf16String Internals::style_engine_matched_rules()
     HashMap<CSS::StyleEngineRuleID, Utf16String> rule_names;
     HashMap<CSS::StyleEngineRuleID, Utf16String> rule_places;
     HashTable<CSS::StyleEngineRuleID> user_agent_rules;
-    auto name_sheet = [&](CSS::CSSStyleSheet& sheet, StringView place) {
+    auto name_sheet = [&](CSS::StyleSheetState& sheet, StringView place) {
         HashMap<CSS::StyleEngineRuleID, Utf16String> names;
         for (size_t index = 0; index < sheet.css_rules()->length(); ++index)
             collect_style_engine_rule_names(style_computer, *sheet.css_rules()->item(index), names, rule_places, Utf16String::from_utf8(place));
@@ -1686,14 +1685,14 @@ Utf16String Internals::style_engine_matched_rules()
                 user_agent_rules.set(rule_id);
         }
     };
-    document.style_scope().for_each_stylesheet(CSS::CascadeOrigin::UserAgent, [&](CSS::CSSStyleSheet& sheet) { name_sheet(sheet, "user-agent"sv); });
-    document.style_scope().for_each_stylesheet(CSS::CascadeOrigin::User, [&](CSS::CSSStyleSheet& sheet) { name_sheet(sheet, "user"sv); });
-    document.style_scope().for_each_stylesheet(CSS::CascadeOrigin::Author, [&](CSS::CSSStyleSheet& sheet) { name_sheet(sheet, "author"sv); });
-    for (auto& sheet : document.style_sheets().sheets())
+    document.style_scope().for_each_stylesheet(CSS::CascadeOrigin::UserAgent, [&](CSS::StyleSheetState& sheet) { name_sheet(sheet, "user-agent"sv); });
+    document.style_scope().for_each_stylesheet(CSS::CascadeOrigin::User, [&](CSS::StyleSheetState& sheet) { name_sheet(sheet, "user"sv); });
+    document.style_scope().for_each_stylesheet(CSS::CascadeOrigin::Author, [&](CSS::StyleSheetState& sheet) { name_sheet(sheet, "author"sv); });
+    for (auto& sheet : document.style_scope().style_sheets())
         name_sheet(*sheet, "author"sv);
     document.for_each_shadow_root([&](DOM::ShadowRoot& shadow_root) {
-        shadow_root.style_scope().for_each_stylesheet(CSS::CascadeOrigin::Author, [&](CSS::CSSStyleSheet& sheet) { name_sheet(sheet, "shadow"sv); });
-        for (auto& sheet : shadow_root.style_sheets().sheets())
+        shadow_root.style_scope().for_each_stylesheet(CSS::CascadeOrigin::Author, [&](CSS::StyleSheetState& sheet) { name_sheet(sheet, "shadow"sv); });
+        for (auto& sheet : shadow_root.style_scope().style_sheets())
             name_sheet(*sheet, "shadow"sv);
     });
 

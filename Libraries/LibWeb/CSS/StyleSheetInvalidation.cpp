@@ -4,17 +4,17 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleSheetInvalidation.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 
 namespace Web::CSS {
 
-void invalidate_rule_cache_after_style_sheet_change(DOM::Node& document_or_shadow_root, CSSStyleSheet const& sheet)
+void invalidate_rule_cache_after_style_sheet_change(DOM::Node& document_or_shadow_root, StyleSheetState const& sheet)
 {
-    if (sheet.rules().length() == 0)
+    if (sheet.native_rules().size() == 0)
         return;
 
     if (auto* shadow_root = as_if<DOM::ShadowRoot>(document_or_shadow_root))
@@ -23,7 +23,7 @@ void invalidate_rule_cache_after_style_sheet_change(DOM::Node& document_or_shado
         document_or_shadow_root.document().style_scope().invalidate_style_cache();
 }
 
-void invalidate_rule_cache_for_style_sheet_owners(CSSStyleSheet const& style_sheet)
+void invalidate_rule_cache_for_style_sheet_owners(StyleSheetState const& style_sheet)
 {
     style_sheet.for_each_owning_style_scope([](StyleScope& style_scope) {
         style_scope.invalidate_style_cache();

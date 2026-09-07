@@ -1437,8 +1437,8 @@ fn collect_external_value_dependencies(value: &StyleValueData) -> ExternalValueD
             StyleValueData::Image {
                 url, resource_context, ..
             } => {
-                dependencies.needs_document_base_url |= !url.as_bytes().is_empty() && !resource_context.has_base_url;
-                dependencies.may_need_style_sheet_resource_context |= !url.as_bytes().is_empty();
+                dependencies.needs_document_base_url |= !url.is_empty() && !resource_context.has_base_url;
+                dependencies.may_need_style_sheet_resource_context |= !url.is_empty();
             }
             StyleValueData::Calculated { rust_calculation, .. } => {
                 collect_calculation(rust_calculation.node(), dependencies);
@@ -6743,6 +6743,8 @@ pub(crate) mod ffi_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_utf16_fly_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]
+    extern "C" fn ladybird_utf16_string_unref(_raw: usize) {}
+    #[unsafe(no_mangle)]
     unsafe extern "C" fn ladybird_utf16_fly_string_from_utf16(data: *const u16, length: usize) -> usize {
         // Native declaration publication binds custom names on the document thread. Keep a
         // test-local atom table with AK's header layout; worker parsing must never call it.
@@ -6785,8 +6787,6 @@ pub(crate) mod ffi_test_stubs {
             raw
         })
     }
-    #[unsafe(no_mangle)]
-    extern "C" fn ladybird_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_font_cascade_list_ref(_raw: *const std::ffi::c_void) {}
     #[unsafe(no_mangle)]

@@ -1,0 +1,13 @@
+insert without cssRules: 0
+native rule applies: 17px
+native subtree applies: 19px
+live list and stable wrapper: 3, true
+native nested declarations apply: 23px
+lazy parents: true, true
+native nested style applies: 29px
+insertion error: SyntaxError
+insertion error: IndexSizeError
+insertion error: InvalidStateError
+insertion error: SyntaxError
+failed insertions preserve list: 3
+retained nested wrapper: true

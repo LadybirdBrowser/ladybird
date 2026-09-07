@@ -13,14 +13,14 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSSupportsRule);
 
-GC::Ref<CSSSupportsRule> CSSSupportsRule::create(RustQueryHandle supports, CSSRuleList& rules)
+GC::Ref<CSSSupportsRule> CSSSupportsRule::create(RustRule rule, CSSRuleList& rules)
 {
-    return GC::Heap::the().allocate<CSSSupportsRule>(move(supports), rules);
+    return GC::Heap::the().allocate<CSSSupportsRule>(move(rule), rules);
 }
 
-CSSSupportsRule::CSSSupportsRule(RustQueryHandle supports, CSSRuleList& rules)
-    : CSSConditionRule(rules, Type::Supports)
-    , m_supports(move(supports))
+CSSSupportsRule::CSSSupportsRule(RustRule rule, CSSRuleList& rules)
+    : CSSConditionRule(rules, move(rule))
+    , m_supports(RustQueryHandle::retained(native_rule().payload().supports))
 {
 }
 

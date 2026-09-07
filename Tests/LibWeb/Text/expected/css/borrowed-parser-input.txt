@@ -1,0 +1,14 @@
+selector: true
+value: "ascii"
+width: 37px
+font: "ascii"
+media: screen
+mutated value: "changed ascii"
+mutated font: "changed ascii"
+selector: true
+value: "雪😀"
+width: 37px
+font: "雪😀"
+media: screen
+mutated value: "changed 雪😀"
+mutated font: "changed 雪😀"

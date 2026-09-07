@@ -527,6 +527,7 @@ impl StyleEngine {
             .iter()
             .any(|&removed| self.current_rule_version(removed).selector_program.is_some());
         for &id in &removed {
+            self.native_rules.remove(id, &mut self.memory);
             self.stage_rule_liveness(id, false);
             self.record_rule_existence(id, true, false);
         }

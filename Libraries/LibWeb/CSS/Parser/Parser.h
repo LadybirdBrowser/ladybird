@@ -16,11 +16,11 @@
 #include <LibWeb/CSS/DescriptorID.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/MediaQuery.h>
-#include <LibWeb/CSS/PageSelector.h>
 #include <LibWeb/CSS/Parser/RuleContext.h>
 #include <LibWeb/CSS/Parser/RustSyntaxHandle.h>
 #include <LibWeb/CSS/Parser/RustSyntaxParsing.h>
 #include <LibWeb/CSS/Parser/SubstitutionFunctionsPresence.h>
+#include <LibWeb/CSS/RustMediaList.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/Supports.h>
 #include <LibWeb/CSS/URL.h>
@@ -69,7 +69,7 @@ struct WEB_API ParsingParams {
 
     Vector<ValueParsingContext> value_context;
     Vector<RuleContext> rule_context;
-    HashTable<Utf16FlyString> declared_namespaces;
+    RustNamespaceContext declared_namespaces;
 };
 
 struct DevToolsStyleDeclaration {
@@ -84,27 +84,24 @@ struct DevToolsStyleDeclaration {
 WEB_API Vector<DevToolsStyleDeclaration> parse_css_declaration_block_for_devtools(ParsingParams const&, StringView);
 WEB_API Vector<DevToolsStyleDeclaration> parse_css_declaration_block_for_devtools(ParsingParams const&, Utf16View);
 
-// The CSS Parser facade is implemented across Parser.cpp and focused *Parsing.cpp files.
+// Main-thread context extraction and result wrapping for the Rust CSS parser.
 class Parser {
     AK_MAKE_NONCOPYABLE(Parser);
     AK_MAKE_NONMOVABLE(Parser);
 
 public:
-    static Parser create(ParsingParams const&, StringView input);
-    static Parser create(ParsingParams const&, Utf16View input);
-    static RefPtr<StyleValue const> parse_css_value_from_source(ParsingParams const&, Utf16View, PropertyID);
+    explicit Parser(ParsingParams);
+    static void parse_stylesheet_off_thread(ParsingParams const&, Utf16String, Function<void(RustStyleSheetParse)>);
 
-    GC::RootVector<GC::Ref<CSSRule>> convert_rules(Vector<Rule> const& raw_rules);
-    GC::Ref<CSS::CSSStyleSheet> parse_as_css_stylesheet(Optional<::URL::URL> location, GC::Ptr<MediaList> = {});
-    GC::Ref<CSSStyleSheet> create_css_stylesheet(RustStyleSheetParse const&, Optional<::URL::URL> location, GC::Ptr<MediaList> = {});
+    NonnullRefPtr<CSS::StyleSheetState> parse_as_css_stylesheet(Utf16View, Optional<::URL::URL> location, RustMediaList = {});
+    NonnullRefPtr<StyleSheetState> create_css_stylesheet(RustStyleSheetParse const&, Optional<::URL::URL> location, RustMediaList = {});
 
-    RustDeclarationBlock parse_as_property_declaration_block();
-    Vector<DevToolsStyleDeclaration> parse_as_devtools_property_declaration_block();
-    RustDescriptorBlock parse_as_descriptor_declaration_block(AtRuleID);
-    CSSRule* parse_as_css_rule(bool nested = false);
-    GC::Ptr<CSSKeyframeRule> parse_as_keyframe_rule();
-    Vector<Percentage> parse_as_keyframe_selectors();
-    GC::RootVector<GC::Ref<CSSRule>> parse_as_stylesheet_contents();
+    RustDeclarationBlock parse_as_property_declaration_block(Utf16View);
+    Vector<DevToolsStyleDeclaration> parse_as_devtools_property_declaration_block(Utf16View);
+    RustDescriptorBlock parse_as_descriptor_declaration_block(Utf16View, AtRuleID);
+    Optional<RustRule> parse_as_css_rule(Utf16View, bool nested = false);
+    Optional<RustRule> parse_as_keyframe_rule(Utf16View);
+    RustRuleList parse_as_stylesheet_contents(Utf16View);
 
     enum class SelectorParsingMode {
         Standard,
@@ -114,28 +111,19 @@ public:
         Forgiving
     };
     // Contrary to the name, these parse a comma-separated list of selectors, according to the spec.
-    Optional<SelectorList> parse_as_selector(SelectorParsingMode = SelectorParsingMode::Standard);
-    Optional<SelectorList> parse_as_relative_selector(SelectorParsingMode = SelectorParsingMode::Standard);
+    Optional<SelectorList> parse_as_selector(Utf16View, SelectorParsingMode = SelectorParsingMode::Standard);
 
-    Optional<Selector::PseudoElementSelector> parse_as_pseudo_element_selector();
+    Optional<Selector::PseudoElementSelector> parse_as_pseudo_element_selector(Utf16View);
 
-    Optional<PageSelectorList> parse_as_page_selector_list();
+    Optional<RustQueryHandle> parse_as_supports(Utf16View);
 
-    Vector<NonnullRefPtr<MediaQuery>> parse_as_media_query_list();
-    RefPtr<MediaQuery> parse_as_media_query();
-
-    Optional<RustQueryHandle> parse_as_supports();
-
-    RefPtr<StyleValue const> parse_as_css_value(PropertyID);
-    RefPtr<StyleValue const> parse_as_descriptor_value(AtRuleID, DescriptorNameAndID const&);
-    RefPtr<StyleValue const> parse_as_type(ValueType);
-    RefPtr<StyleValue const> parse_entirely_as_type(ValueType);
+    RefPtr<StyleValue const> parse_as_css_value(Utf16View, PropertyID);
+    RefPtr<StyleValue const> parse_as_descriptor_value(Utf16View, AtRuleID, DescriptorNameAndID const&);
     RefPtr<StyleValue const> parse_primitive_value_from_source(ValueType, Utf16View, NumericRange const& = infinite_range);
 
-    [[nodiscard]] NonnullRefPtr<StyleValue const> parse_as_sizes_attribute(DOM::Element const& element, HTML::HTMLImageElement const* img = nullptr);
+    [[nodiscard]] NonnullRefPtr<StyleValue const> parse_as_sizes_attribute(Utf16View, DOM::Element const& element, HTML::HTMLImageElement const* img = nullptr);
 
     NonnullRefPtr<StyleValue const> parse_with_a_syntax(Utf16View input, RustSyntaxHandle const& syntax);
-    NonnullRefPtr<StyleValue const> parse_with_a_syntax(RustSyntaxHandle const& syntax) { return parse_with_a_syntax(m_source, syntax); }
 
     enum class ParseError : u8 {
         SyntaxError,
@@ -146,13 +134,7 @@ public:
     static ParseErrorOr<void> collect_arbitrary_substitution_function_presence(Utf16View, SubstitutionFunctionsPresence&);
 
 private:
-    friend class RustSyntaxParser;
-    friend class RustQueryParser;
-    Parser(ParsingParams const&, Utf16String source);
-    enum class Nested {
-        No,
-        Yes,
-    };
+    RustStyleSheetParse parse_stylesheet(Utf16View);
     enum class ParseContextMode {
         Syntax,
         Value,
@@ -168,47 +150,15 @@ private:
 
         Vector<ValueParserFFI::FfiValueParsingContext, 1> value_contexts;
         ValueParserFFI::FfiValueParsingContext single_property_context {};
-        Vector<ValueParserFFI::FfiUtf16View> declared_namespaces;
         Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_resolution_context;
         ValueParserFFI::ParseContext context {};
     };
-
-    template<typename NestedDeclarationsRule>
-    GC::Ptr<CSSRule> convert_to_rule(Rule const&, Nested);
-    template<typename NestedDeclarationsRule>
-    GC::Ref<CSSRuleList> convert_child_rules(Vector<RuleOrListOfDeclarations> const&, Nested);
-    GC::Ptr<CSSStyleRule> convert_to_style_rule(QualifiedRule const&, Nested);
-    template<typename NestedDeclarationsRule>
-    GC::Ptr<CSSContainerRule> convert_to_container_rule(AtRule const&, Nested);
-    GC::Ptr<CSSCounterStyleRule> convert_to_counter_style_rule(AtRule const&);
-    GC::Ptr<CSSFontFaceRule> convert_to_font_face_rule(AtRule const&);
-    GC::Ptr<CSSFontFeatureValuesRule> convert_to_font_feature_values_rule(AtRule const&);
-    GC::Ptr<CSSFunctionRule> convert_to_function_rule(AtRule const&);
-    GC::Ptr<CSSKeyframeRule> convert_to_keyframe_rule(QualifiedRule const&);
-    GC::Ptr<CSSKeyframesRule> convert_to_keyframes_rule(AtRule const&);
-    GC::Ptr<CSSImportRule> convert_to_import_rule(AtRule const&);
-
-    template<typename NestedDeclarationsRule>
-    GC::Ptr<CSSRule> convert_to_layer_rule(AtRule const&, Nested);
-    GC::Ptr<CSSMarginRule> convert_to_margin_rule(AtRule const&);
-
-    template<typename NestedDeclarationsRule>
-    GC::Ptr<CSSMediaRule> convert_to_media_rule(AtRule const&, Nested);
-    GC::Ptr<CSSNamespaceRule> convert_to_namespace_rule(AtRule const&);
-    GC::Ptr<CSSPageRule> convert_to_page_rule(AtRule const& rule);
-    GC::Ptr<CSSPropertyRule> convert_to_property_rule(AtRule const& rule);
-
-    template<typename NestedDeclarationsRule>
-    GC::Ptr<CSSSupportsRule> convert_to_supports_rule(AtRule const&, Nested);
-    template<typename NestedDeclarationsRule>
-    GC::Ptr<CSSScopeRule> convert_to_scope_rule(AtRule const&, Nested);
 
     ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value_from_source(PropertyID, Utf16View);
     ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value_in_rust(PropertyID, Utf16View source, Optional<PropertyID> direct_property_context = {});
     ParseContextStorage make_parse_context(ParseContextMode, Optional<PropertyID> direct_property_context = {});
 
     DOM::Document const* document() const;
-    HTML::Window const* window() const;
     bool in_quirks_mode() const;
     bool is_parsing_svg_presentation_attribute() const;
 
@@ -218,7 +168,6 @@ private:
     ParsingMode m_parsing_mode { ParsingMode::Normal };
     IsUAStyleSheet m_is_ua_style_sheet { IsUAStyleSheet::No };
 
-    Utf16String m_source;
     Vector<ValueParsingContext> m_value_context;
     size_t m_random_function_index = 0;
     auto push_temporary_value_parsing_context(ValueParsingContext&& context)
@@ -233,18 +182,18 @@ private:
         } };
     }
     Vector<RuleContext> m_rule_context;
-    HashTable<Utf16FlyString> m_declared_namespaces;
+    RustNamespaceContext m_declared_namespaces;
 };
 
-GC::Ptr<CSSKeyframeRule> parse_keyframe_rule(ParsingParams const&, Utf16View);
-Vector<Percentage> parse_keyframe_selectors(ParsingParams const&, Utf16View);
+Optional<RustRule> parse_keyframe_rule(ParsingParams const&, Utf16View);
+Optional<RustQueryHandle> parse_style_query(Utf16View);
 
 }
 
 namespace Web {
 
-GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams const&, StringView, Optional<::URL::URL> location = {}, GC::Ptr<CSS::MediaList> media_list = {});
-GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams const&, Utf16View, Optional<::URL::URL> location = {}, GC::Ptr<CSS::MediaList> media_list = {});
+NonnullRefPtr<CSS::StyleSheetState> parse_css_stylesheet(CSS::Parser::ParsingParams const&, StringView, Optional<::URL::URL> location = {}, CSS::RustMediaList media_list = {});
+NonnullRefPtr<CSS::StyleSheetState> parse_css_stylesheet(CSS::Parser::ParsingParams const&, Utf16View, Optional<::URL::URL> location = {}, CSS::RustMediaList media_list = {});
 CSS::RustDeclarationBlock parse_css_property_declaration_block(CSS::Parser::ParsingParams const&, Utf16View);
 CSS::RustDescriptorBlock parse_css_descriptor_declaration_block(CSS::Parser::ParsingParams const&, CSS::AtRuleID, Utf16View);
 RefPtr<CSS::StyleValue const> parse_css_value(CSS::Parser::ParsingParams const&, StringView, CSS::PropertyID);
@@ -252,12 +201,10 @@ RefPtr<CSS::StyleValue const> parse_css_value(CSS::Parser::ParsingParams const&,
 RefPtr<CSS::StyleValue const> parse_css_type(CSS::Parser::ParsingParams const&, Utf16View, CSS::ValueType);
 RefPtr<CSS::StyleValue const> parse_css_descriptor(CSS::Parser::ParsingParams const&, CSS::AtRuleID, CSS::DescriptorNameAndID const&, Utf16View);
 Optional<CSS::SelectorList> parse_selector(CSS::Parser::ParsingParams const&, Utf16View);
-Optional<CSS::SelectorList> parse_selector_for_nested_style_rule(CSS::Parser::ParsingParams const&, Utf16View, CSS::StyleNestingParent);
-Optional<CSS::PageSelectorList> parse_page_selector_list(CSS::Parser::ParsingParams const&, Utf16View);
 Optional<CSS::Selector::PseudoElementSelector> parse_pseudo_element_selector(CSS::Parser::ParsingParams const&, Utf16View);
-CSS::CSSRule* parse_css_rule(CSS::Parser::ParsingParams const&, Utf16View, bool nested = false);
-RefPtr<CSS::MediaQuery> parse_media_query(CSS::Parser::ParsingParams const&, Utf16View);
-Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(CSS::Parser::ParsingParams const&, Utf16View);
+Optional<CSS::RustRule> parse_css_rule(CSS::Parser::ParsingParams const&, Utf16View, bool nested = false);
+RefPtr<CSS::MediaQuery> parse_media_query(Utf16View);
+Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(Utf16View);
 Optional<CSS::RustQueryHandle> parse_css_supports(CSS::Parser::ParsingParams const&, Utf16View);
 WEB_API ErrorOr<Utf16String> css_decode_bytes(Optional<StringView> const& environment_encoding, Optional<StringView> mime_type_charset, ReadonlyBytes encoded_string);
 bool is_valid_animation_name_custom_ident(Utf16View);

@@ -16,21 +16,22 @@ class CSSLayerStatementRule final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSLayerStatementRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSLayerStatementRule> create(Vector<Utf16FlyString> name_list);
+    [[nodiscard]] static GC::Ref<CSSLayerStatementRule> create(RustRule);
 
     virtual ~CSSLayerStatementRule() = default;
 
     // FIXME: Should be FrozenArray
-    ReadonlySpan<Utf16FlyString> name_list() const { return m_name_list; }
-    Vector<Utf16FlyString> internal_qualified_name_list(Badge<StyleScope>) const;
+    Vector<Utf16String> name_list() const;
 
 private:
-    CSSLayerStatementRule(Vector<Utf16FlyString> name_list);
+    CSSLayerStatementRule(RustRule);
 
     virtual Utf16String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
+    virtual size_t external_memory_size() const override;
 
-    Vector<Utf16FlyString> m_name_list;
+    Utf16View name_at(size_t) const;
+    Parser::ValueParserFFI::LayerNames const& m_names;
 };
 
 }

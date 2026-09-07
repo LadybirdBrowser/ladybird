@@ -1,0 +1,8 @@
+shared parsed data: rgb(255, 0, 0) / rgb(255, 0, 0)
+replacement: rgb(0, 0, 255) / rgb(255, 0, 0)
+detached mutation: rgb(0, 0, 255) / rgb(255, 0, 0)
+live mutation: rgb(128, 0, 128) / rgb(255, 0, 0)
+detached sheet: rgb(0, 0, 0) / rgb(255, 0, 0)
+reattached native owners: rgb(128, 0, 128) / rgb(255, 0, 0)
+native container dependency: rgb(0, 0, 0) / rgb(255, 0, 0)
+removed identity stays retired: rgb(0, 0, 255) / rgb(255, 0, 0)

@@ -1,0 +1,9 @@
+identity: true, independent: true
+typed: --長さ, <length>, false, 12px
+universal: --自由, *, true, null
+initial width: 12px
+later sheet wins: 12px
+detached: true, 12px
+replacement width: 29px
+cached initial value: 12px, width: 12px
+serialized: @property --長さ { syntax: "<length>"; inherits: false; initial-value: 12px; }

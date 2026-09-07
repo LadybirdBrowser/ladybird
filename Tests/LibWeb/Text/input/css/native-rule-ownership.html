@@ -1,0 +1,47 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<style>body { color: black; }</style>
+<script>
+test(() => {
+    const source = "@layer 色 { @container 箱 (width > 0px) { .target { color: red; } } }";
+    const first = new CSSStyleSheet();
+    const second = new CSSStyleSheet();
+    first.replaceSync(source);
+    second.replaceSync(source);
+    const roots = [first, second].map(sheet => {
+        const host = document.createElement("div");
+        document.body.append(host);
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = '<div style="container-type: inline-size; container-name: 箱; width: 100px"><span class="target">target</span></div>';
+        root.adoptedStyleSheets = [sheet];
+        return root;
+    });
+    const colors = () => roots.map(root => getComputedStyle(root.querySelector(".target")).color).join(" / ");
+    println(`shared parsed data: ${colors()}`);
+    const detached = first.cssRules[0].cssRules[0].cssRules[0];
+    first.replaceSync(source.replace("red", "blue"));
+    println(`replacement: ${colors()}`);
+    detached.style.color = "green";
+    detached.selectorText = ".other";
+    println(`detached mutation: ${colors()}`);
+    first.cssRules[0].cssRules[0].cssRules[0].style.color = "purple";
+    println(`live mutation: ${colors()}`);
+    roots[0].adoptedStyleSheets = [];
+    internals.gc();
+    println(`detached sheet: ${colors()}`);
+    roots[0].adoptedStyleSheets = [first];
+    println(`reattached native owners: ${colors()}`);
+    roots[0].firstChild.style.width = "0px";
+    println(`native container dependency: ${colors()}`);
+    roots[0].firstChild.style.width = "100px";
+    const container = first.cssRules[0].cssRules[0];
+    const removed = container.cssRules[0];
+    container.deleteRule(0);
+    removed.style.color = "green";
+    container.insertRule(".target { color: blue; }", 0);
+    internals.gc();
+    println(`removed identity stays retired: ${colors()}`);
+    roots.forEach(root => root.host.remove());
+});
+</script>
