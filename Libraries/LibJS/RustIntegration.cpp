@@ -536,6 +536,11 @@ ParsedProgram* parse_program(u16 const* utf16_data, size_t length_in_code_units,
     return rust_parse_program(utf16_data, length_in_code_units, static_cast<u8>(type), line_number_offset, g_dump_ast, g_dump_ast_use_color);
 }
 
+ParsedProgram* clone_parsed_program(ParsedProgram const* parsed)
+{
+    return rust_clone_parsed_program(parsed);
+}
+
 CompiledProgram* compile_parsed_program_off_thread(ParsedProgram* parsed, size_t length_in_code_units)
 {
     return rust_compile_parsed_program_off_thread(parsed, length_in_code_units);
