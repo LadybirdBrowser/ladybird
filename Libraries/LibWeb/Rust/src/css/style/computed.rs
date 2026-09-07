@@ -196,6 +196,10 @@ impl StyleRecordView<'_> {
         };
         ComputedLonghandTable::copied_for_partial_drive(source)
     }
+
+    pub(crate) fn longhand_table_seeded_with_values(&self) -> Option<ComputedLonghandTable> {
+        unsafe { self.longhand_table.as_ref() }.map(ComputedLonghandTable::seeded_with_values_from)
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
