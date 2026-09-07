@@ -893,7 +893,8 @@ void HTMLParserEndState::complete()
         // 12. Completely finish loading the Document.
         document->completely_finish_loading();
 
-        // FIXME: 13. Queue the navigation timing entry for the Document.
+        // 13. Queue the navigation timing entry for the Document.
+        document->queue_navigation_timing_entry();
     }));
 
     // FIXME: 10. If the Document's print when loaded flag is set, then run the printing steps.

@@ -4535,6 +4535,20 @@ bool Document::is_completely_loaded() const
     return m_completely_loaded_time.has_value();
 }
 
+// https://w3c.github.io/navigation-timing/#queue-the-navigation-timing-entry
+void Document::queue_navigation_timing_entry()
+{
+    // AD-HOC: Documents that were not created from a navigation response (such as the initial about:blank Document)
+    //         have no navigation timing entry.
+    if (!m_navigation_timing_entry)
+        return;
+
+    // Queue document's navigation timing entry.
+    // NB: The spec links "queue" to an HTML "queue a navigation PerformanceEntry" algorithm that HTML no longer
+    //     defines; the intended target is Performance Timeline's "queue a PerformanceEntry".
+    HTML::relevant_window_or_worker_global_scope(*this).queue_performance_entry(*m_navigation_timing_entry);
+}
+
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#completely-finish-loading
 void Document::completely_finish_loading()
 {
