@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const container = document.createElement("div");
+        document.body.append(container);
+        container.innerHTML = '<div id="namedFirst"></div><div id="namedFirst"></div><form name="namedForm"></form>';
+        const first = container.children[0];
+        const second = container.children[1];
+        const form = container.children[2];
+        println(`Duplicate ID: ${"namedFirst" in window}`);
+        first.remove();
+        println(`Remaining ID: ${window.namedFirst === second}`);
+        second.id = "namedSecond";
+        println(`Old ID absent: ${!("namedFirst" in window)}`);
+        println(`New ID present: ${window.namedSecond === second}`);
+        println(`Name present: ${window.namedForm === form}`);
+        form.name = "namedRenamedForm";
+        println(`Old name absent: ${!("namedForm" in window)}`);
+        println(`New name present: ${window.namedRenamedForm === form}`);
+        container.attachShadow({ mode: "open" }).innerHTML = '<div id="namedShadowOnly"></div>';
+        println(`Shadow ID absent: ${!("namedShadowOnly" in window)}`);
+        container.remove();
+        println(`Removed ID absent: ${!("namedSecond" in window)}`);
+        println(`Removed name absent: ${!("namedRenamedForm" in window)}`);
+    });
+</script>

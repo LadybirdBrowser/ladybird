@@ -2227,6 +2227,20 @@ Vector<Utf16FlyString> Window::supported_property_names() const
     return result;
 }
 
+bool Window::is_supported_property_name(Utf16FlyString const& name) const
+{
+    // OPTIMIZATION: Answer membership without constructing the full set of supported names.
+    //               In particular, unrelated element IDs need not be visited for a property lookup.
+    auto& document = associated_document();
+    if (document.element_by_id().contains(name))
+        return true;
+    for (auto element : document.potentially_named_elements()) {
+        if (element->name() == name)
+            return true;
+    }
+    return const_cast<Window&>(*this).document_tree_child_navigable_target_name_property_set().contains(name);
+}
+
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#named-access-on-the-window-object
 Variant<Empty, GC::Ref<WindowProxy>, GC::Ref<DOM::Element>, GC::Ref<DOM::HTMLCollection>> Window::named_item(Utf16FlyString const& name) const
 {

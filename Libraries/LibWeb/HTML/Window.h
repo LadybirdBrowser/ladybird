@@ -300,6 +300,7 @@ public:
 
     [[nodiscard]] Variant<Empty, GC::Ref<WindowProxy>, GC::Ref<DOM::Element>, GC::Ref<DOM::HTMLCollection>> named_item(Utf16FlyString const&) const;
     [[nodiscard]] Vector<Utf16FlyString> supported_property_names() const override;
+    [[nodiscard]] virtual bool is_supported_property_name(Utf16FlyString const&) const override;
 
     bool find(Utf16View string);
 

@@ -1,0 +1,10 @@
+Duplicate ID: true
+Remaining ID: true
+Old ID absent: true
+New ID present: true
+Name present: true
+Old name absent: true
+New name present: true
+Shadow ID absent: true
+Removed ID absent: true
+Removed name absent: true
