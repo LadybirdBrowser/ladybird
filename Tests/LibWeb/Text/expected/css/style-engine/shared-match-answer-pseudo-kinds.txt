@@ -1,0 +1,7 @@
+initial: "present"/normal, "present"/normal, "present"/normal
+replaced selector: normal/"present", normal/"present", normal/"present"
+one element leaves: normal/normal, normal/"present", normal/"present"
+two pseudo kinds: normal/"present", "present"/normal, "present"/normal
+rule removed: normal/normal, normal/normal, normal/normal
+rule inserted: normal/normal, normal/"returned", normal/"returned"
+element rejoins: normal/"returned", normal/"returned", normal/"returned"
