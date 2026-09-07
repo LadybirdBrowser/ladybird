@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function readImages(object) {
+            return object.images;
+        }
+        for (let i = 0; i < 5; ++i)
+            readImages(document);
+        const form = document.createElement("form");
+        form.name = "images";
+        document.body.append(form);
+        println(`form named images: ${readImages(document) === form}`);
+
+        function readForms(object) {
+            return object.forms;
+        }
+        for (let i = 0; i < 5; ++i)
+            readForms(document);
+        const object = document.createElement("object");
+        document.body.append(object);
+        object.id = "forms";
+        println(`object with id forms: ${readForms(document) === object}`);
+
+        function readLinks(object) {
+            return object.links;
+        }
+        for (let i = 0; i < 5; ++i)
+            readLinks(document);
+        const image = document.createElement("img");
+        image.id = "links";
+        document.body.append(image);
+        println(`image with only an id: ${readLinks(document) === image}`);
+
+        function readTitle(object) {
+            return object.title;
+        }
+        for (let i = 0; i < 5; ++i)
+            readTitle(document);
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+        iframe.name = "title";
+        println(`iframe renamed after insertion: ${readTitle(document) === iframe.contentWindow}`);
+    });
+</script>

@@ -214,6 +214,11 @@ void Object::unsafe_set_shape(Shape& shape)
     ensure_named_storage_capacity(shape.property_count());
 }
 
+void Object::invalidate_property_lookup_caches()
+{
+    set_shape(m_shape->create_dictionary_transition());
+}
+
 // 7.2 Testing and Comparison Operations, https://tc39.es/ecma262/#sec-testing-and-comparison-operations
 
 // 7.2.5 IsExtensible ( O ), https://tc39.es/ecma262/#sec-isextensible-o

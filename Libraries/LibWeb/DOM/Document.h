@@ -1460,6 +1460,7 @@ protected:
     void initialize_document();
 
 private:
+    void did_add_supported_property_name();
     friend struct AdoptedStyleSheetsAccess;
 
     void finish_animated_style_update();
