@@ -477,34 +477,41 @@ impl PrefixRelation {
                 };
                 for &index in compounds {
                     let compound = &automaton.compounds[index];
-                    let matched = *local_matches
-                        .entry((store, identity, is_root, positional, index))
-                        .or_insert_with(|| {
-                            counters.bump(Counter::PrefixCompoundsEvaluated);
-                            match &compound.predicate {
-                                PrefixPredicate::Features {
-                                    feature_start,
-                                    feature_len,
-                                    required_positional_bits,
-                                } => {
-                                    positional & required_positional_bits == *required_positional_bits
-                                        && automaton
-                                            .features_for(*feature_start, *feature_len)
-                                            .iter()
-                                            .all(|&feature| matches_feature(row.facts, row.row, feature))
+                    // Positional truth is checked per node; it does not change the local
+                    // predicate result shared by nodes with identical facts.
+                    let positional_matches = match &compound.predicate {
+                        PrefixPredicate::Features {
+                            required_positional_bits,
+                            ..
+                        } => positional & required_positional_bits == *required_positional_bits,
+                        PrefixPredicate::Program { .. } => true,
+                    };
+                    let matched = positional_matches
+                        && *local_matches
+                            .entry((store, identity, is_root, index))
+                            .or_insert_with(|| {
+                                counters.bump(Counter::PrefixCompoundsEvaluated);
+                                match &compound.predicate {
+                                    PrefixPredicate::Features {
+                                        feature_start,
+                                        feature_len,
+                                        ..
+                                    } => automaton
+                                        .features_for(*feature_start, *feature_len)
+                                        .iter()
+                                        .all(|&feature| matches_feature(row.facts, row.row, feature)),
+                                    PrefixPredicate::Program { program, local } => evaluation
+                                        .evaluator
+                                        .matches_prefix_local(
+                                            *program,
+                                            evaluation.programs.get(*program),
+                                            *local,
+                                            node,
+                                            counters,
+                                        )
+                                        .unwrap(),
                                 }
-                                PrefixPredicate::Program { program, local } => evaluation
-                                    .evaluator
-                                    .matches_prefix_local(
-                                        *program,
-                                        evaluation.programs.get(*program),
-                                        *local,
-                                        node,
-                                        counters,
-                                    )
-                                    .unwrap(),
-                            }
-                        });
+                            });
                     if self.compound_matches[index].binary_search(&position).is_ok() != matched {
                         changed_compounds.entry(index).or_default().push(position);
                     }

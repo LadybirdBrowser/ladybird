@@ -5263,10 +5263,9 @@ fn prefix_relation_reuses_local_facts_without_sharing_position() {
     let old_facts = engine.facts.primary().clone();
     let counters = update_test_prefix_relation(&engine, &dispatch, &mut relation, &old_facts, &nodes, None);
     let evaluations = counters.get(Counter::PrefixCompoundsEvaluated);
-    assert!(
-        evaluations < 16,
-        "repeated local facts required {evaluations} update evaluations"
-    );
+    // Evaluate the program once for roots and once for non-roots, and the class
+    // predicate once for children passing the positional test.
+    assert_eq!(evaluations, 3, "positional truth must not split local predicate reuse");
     let mut states = PrefixStates::new(0);
     relation.install_answers(&mut states);
     assert!(states.retained_matches_for(nodes[0]).unwrap().is_empty());
