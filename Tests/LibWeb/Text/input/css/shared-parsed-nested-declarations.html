@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const text = ".target { & .child {} width: 13px; --色: green; @media all { height: 17px; } }";
+        const createSheet = () => {
+            const style = document.createElement("style");
+            style.textContent = text;
+            document.head.append(style);
+            return style.sheet;
+        };
+        const first = createSheet();
+        const second = createSheet();
+        const declaration = first.cssRules[0].cssRules[1].style;
+        declaration.width = "29px";
+        declaration.setProperty("--色", "blue");
+        first.cssRules[0].cssRules[2].cssRules[0].style.height = "31px";
+        const describe = sheet => {
+            const children = sheet.cssRules[0].cssRules;
+            return `${children[1].style.width}, ${children[1].style.getPropertyValue("--色")}, ${children[2].cssRules[0].style.height}`;
+        };
+        println(`first: ${describe(first)}`);
+        println(`second: ${describe(second)}`);
+        println(`third: ${describe(createSheet())}`);
+        println(`style identity: ${first.cssRules[0].cssRules[1].style === declaration}`);
+    });
+</script>

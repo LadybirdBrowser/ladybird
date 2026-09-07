@@ -13,9 +13,9 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSFunctionDeclarations);
 
-GC::Ref<CSSFunctionDeclarations> CSSFunctionDeclarations::create(Parser::Parser& parser, Vector<Parser::Declaration> const& declarations)
+GC::Ref<CSSFunctionDeclarations> CSSFunctionDeclarations::create(Parser::Parser& parser, Parser::DeclarationList const& declarations)
 {
-    return GC::Heap::the().allocate<CSSFunctionDeclarations>(parser.convert_to_descriptors<CSSFunctionDescriptors>(AtRuleID::Function, declarations));
+    return GC::Heap::the().allocate<CSSFunctionDeclarations>(parser.convert_to_descriptors<CSSFunctionDescriptors>(AtRuleID::Function, declarations.declarations()));
 }
 
 CSSFunctionDeclarations::CSSFunctionDeclarations(GC::Ref<CSSFunctionDescriptors> style)

@@ -16,11 +16,10 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSNestedDeclarations);
 
-GC::Ref<CSSNestedDeclarations> CSSNestedDeclarations::create(Parser::Parser& parser, Vector<Parser::Declaration> const& declarations)
+GC::Ref<CSSNestedDeclarations> CSSNestedDeclarations::create(Parser::Parser&, Parser::DeclarationList const& declarations)
 {
-    auto rule = GC::Heap::the().allocate<CSSNestedDeclarations>(parser.convert_to_style_declaration(declarations));
-    if (!declarations.is_empty() && declarations.first().source_position.has_value())
-        rule->set_source_position(declarations.first().source_position);
+    auto rule = GC::Heap::the().allocate<CSSNestedDeclarations>(CSSStyleProperties::create(declarations.properties().share()));
+    rule->set_source_position(declarations.source_position());
     return rule;
 }
 

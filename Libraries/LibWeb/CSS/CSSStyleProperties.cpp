@@ -5,7 +5,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Atomic.h>
 #include <AK/QuickSort.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/ExternalMemory.h>
@@ -47,11 +46,14 @@
 
 namespace Web::CSS {
 
-static Atomic<u64> s_next_css_style_properties_identity { 1 };
-
 GC_DEFINE_ALLOCATOR(CSSStyleProperties);
 
 GC::Ref<CSSStyleProperties> CSSStyleProperties::create(Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties)
+{
+    return create(RustDeclarationBlock { move(properties), move(custom_properties) });
+}
+
+GC::Ref<CSSStyleProperties> CSSStyleProperties::create(RustDeclarationBlock declarations)
 {
     // https://drafts.csswg.org/cssom/#dom-cssstylerule-style
     // The style attribute must return a CSSStyleProperties object for the style rule, with the following properties:
@@ -60,7 +62,7 @@ GC::Ref<CSSStyleProperties> CSSStyleProperties::create(Vector<StyleProperty> pro
     //     declarations: The declared declarations in the rule, in specified order.
     //     parent CSS rule: The context object.
     //     owner node: Null.
-    return GC::Heap::the().allocate<CSSStyleProperties>(Computed::No, Readonly::No, convert_declarations_to_specified_order(properties), move(custom_properties), OptionalNone {});
+    return GC::Heap::the().allocate<CSSStyleProperties>(Computed::No, Readonly::No, move(declarations), OptionalNone {});
 }
 
 GC::Ref<CSSStyleProperties> CSSStyleProperties::create_resolved_style(Optional<DOM::AbstractElement> element_reference)
@@ -73,63 +75,27 @@ GC::Ref<CSSStyleProperties> CSSStyleProperties::create_resolved_style(Optional<D
     //     parent CSS rule: Null.
     //     owner node: obj.
     // AD-HOC: Rather than instantiate with a list of decls, they're generated on demand.
-    return GC::Heap::the().allocate<CSSStyleProperties>(Computed::Yes, Readonly::Yes, Vector<StyleProperty> {}, OrderedHashMap<Utf16FlyString, StyleProperty> {}, move(element_reference));
+    return GC::Heap::the().allocate<CSSStyleProperties>(Computed::Yes, Readonly::Yes, RustDeclarationBlock { {}, {} }, move(element_reference));
 }
 
-GC::Ref<CSSStyleProperties> CSSStyleProperties::create_element_inline_style(DOM::AbstractElement element_reference, Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties)
+GC::Ref<CSSStyleProperties> CSSStyleProperties::create_element_inline_style(DOM::AbstractElement element_reference)
 {
     // https://drafts.csswg.org/cssom/#dom-elementcssinlinestyle-style
     // The style attribute must return a CSS declaration block object whose readonly flag is unset, whose parent CSS
     // rule is null, and whose owner node is the context object.
-    return GC::Heap::the().allocate<CSSStyleProperties>(Computed::No, Readonly::No, convert_declarations_to_specified_order(properties), move(custom_properties), move(element_reference));
+    return GC::Heap::the().allocate<CSSStyleProperties>(Computed::No, Readonly::No, RustDeclarationBlock { {}, {} }, move(element_reference));
 }
 
-CSSStyleProperties::CSSStyleProperties(Computed computed, Readonly readonly, Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties, Optional<DOM::AbstractElement> owner_node)
+CSSStyleProperties::CSSStyleProperties(Computed computed, Readonly readonly, RustDeclarationBlock declarations, Optional<DOM::AbstractElement> owner_node)
     : CSSStyleDeclaration(computed, readonly)
-    , m_properties(move(properties))
-    , m_custom_properties(move(custom_properties))
-    , m_identity(s_next_css_style_properties_identity.fetch_add(1, AK::MemoryOrder::memory_order_relaxed))
+    , m_declarations(move(declarations))
 {
     set_owner_node(move(owner_node));
 }
 
-// https://drafts.csswg.org/cssom/#concept-declarations-specified-order
-Vector<StyleProperty> CSSStyleProperties::convert_declarations_to_specified_order(Vector<StyleProperty>& declarations)
-{
-    // The specified order for declarations is the same as specified, but with shorthand properties expanded into their
-    // longhand properties, in canonical order. If a property is specified more than once (after shorthand expansion), only
-    // the one with greatest cascading order must be represented, at the same relative position as it was specified.
-    Vector<StyleProperty> specified_order_declarations;
-
-    for (auto declaration : declarations) {
-        StyleComputer::for_each_property_expanding_shorthands(declaration.property_id, declaration.value, [&](CSS::PropertyID longhand_id, CSS::StyleValue const& longhand_property_value) {
-            auto existing_entry_index = specified_order_declarations.find_first_index_if([&](StyleProperty const& existing_declaration) { return existing_declaration.property_id == longhand_id; });
-
-            if (existing_entry_index.has_value()) {
-                // If there is an existing entry for this property and it is a higher cascading order than the current entry, skip the current entry.
-                if (specified_order_declarations[existing_entry_index.value()].important == Important::Yes && declaration.important == Important::No)
-                    return;
-
-                // Otherwise the existing entry has a lower cascading order and is removed.
-                specified_order_declarations.remove(existing_entry_index.value());
-            }
-
-            specified_order_declarations.append(StyleProperty {
-                .important = declaration.important,
-                .property_id = longhand_id,
-                .value = longhand_property_value });
-        });
-    }
-
-    return specified_order_declarations;
-}
-
 size_t CSSStyleProperties::external_memory_size() const
 {
-    auto size = Base::external_memory_size();
-    size = JS::saturating_add_external_memory_size(size, JS::vector_external_memory_size(m_properties));
-    size = JS::saturating_add_external_memory_size(size, JS::hash_map_external_memory_size(m_custom_properties));
-    return size;
+    return JS::saturating_add_external_memory_size(Base::external_memory_size(), m_declarations.external_memory_size());
 }
 
 // https://drafts.csswg.org/cssom/#dom-window-getcomputedstyle
@@ -160,14 +126,14 @@ size_t CSSStyleProperties::length() const
         return number_of_longhand_properties;
     }
 
-    return m_properties.size() + m_custom_properties.size();
+    return properties().size() + custom_properties().size();
 }
 
 Utf16String CSSStyleProperties::item(size_t index) const
 {
     // The item(index) method must return the property name of the CSS declaration at position index.
     // If there is no indexth object in the collection, then the method must return the empty string.
-    auto custom_properties_count = m_custom_properties.size();
+    auto custom_properties_count = custom_properties().size();
 
     if (index >= length())
         return {};
@@ -178,9 +144,9 @@ Utf16String CSSStyleProperties::item(size_t index) const
     }
 
     if (index < custom_properties_count)
-        return m_custom_properties.keys()[index].to_utf16_string();
+        return custom_properties().keys()[index].to_utf16_string();
 
-    return string_from_property_id(m_properties[index - custom_properties_count].property_id).to_utf16_string();
+    return string_from_property_id(properties()[index - custom_properties_count].property_id).to_utf16_string();
 }
 
 Optional<StyleProperty> CSSStyleProperties::get_property(PropertyID property_id) const
@@ -209,7 +175,7 @@ Optional<StyleProperty const&> CSSStyleProperties::custom_property(Utf16FlyStrin
         return {};
     }
 
-    return m_custom_properties.get(custom_property_name);
+    return custom_properties().get(custom_property_name);
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-setproperty
@@ -288,7 +254,7 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_internal(PropertyName
                 && *existing_property->value == *style_property.value) {
                 updated = false;
             } else {
-                m_custom_properties.set(property.name(), style_property);
+                m_declarations.set_custom(property.name(), style_property);
                 updated = true;
             }
         } else {
@@ -301,7 +267,6 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_internal(PropertyName
 
     // 10. If updated is true, update style attribute for the CSS declaration block.
     if (updated) {
-        ++m_revision;
         update_style_attribute();
 
         // Non-standard: Invalidate style for the owners of our containing sheet, if any.
@@ -562,13 +527,12 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_style_value(PropertyN
 
         prepare_to_update_style_attribute();
 
-        m_custom_properties.set(property.name(),
+        m_declarations.set_custom(property.name(),
             StyleProperty {
                 Important::No,
                 PropertyID::Custom,
                 style_value });
 
-        ++m_revision;
         update_style_attribute();
         invalidate_owners();
 
@@ -594,17 +558,9 @@ WebIDL::ExceptionOr<void> CSSStyleProperties::set_property_style_value(PropertyN
     prepare_to_update_style_attribute();
 
     StyleComputer::for_each_property_expanding_shorthands(property.id(), style_value, [this](PropertyID longhand_id, StyleValue const& longhand_value) {
-        m_properties.remove_first_matching([longhand_id](StyleProperty const& style_property) {
-            return style_property.property_id == longhand_id;
-        });
-        m_properties.append(StyleProperty {
-            .important = Important::No,
-            .property_id = longhand_id,
-            .value = longhand_value,
-        });
+        m_declarations.append(longhand_id, longhand_value, Important::No);
     });
 
-    ++m_revision;
     update_style_attribute();
     invalidate_owners();
 
@@ -964,7 +920,7 @@ Optional<StyleProperty> CSSStyleProperties::get_direct_property(PropertyNameAndI
     if (property_name_and_id.is_custom_property())
         return custom_property(property_name_and_id.name()).copy();
 
-    for (auto const& property : m_properties) {
+    for (auto const& property : properties()) {
         if (property.property_id == property_id)
             return property;
     }
@@ -1538,9 +1494,9 @@ WebIDL::ExceptionOr<Utf16String> CSSStyleProperties::remove_property_internal(Op
             } else {
                 // 6. Otherwise, if property is a case-sensitive match for a property name of a CSS declaration in the declarations, remove that CSS declaration and let removed be true.
                 if (property_to_remove.is_custom_property()) {
-                    removed = m_custom_properties.remove(property_to_remove.name());
+                    removed = m_declarations.remove_custom(property_to_remove.name());
                 } else {
-                    removed = m_properties.remove_first_matching([&](auto& entry) { return entry.property_id == property_to_remove.id(); });
+                    removed = m_declarations.remove(property_to_remove.id());
                 }
             }
 
@@ -1552,7 +1508,6 @@ WebIDL::ExceptionOr<Utf16String> CSSStyleProperties::remove_property_internal(Op
 
         // 7. If removed is true, Update style attribute for the CSS declaration block.
         if (removed) {
-            ++m_revision;
             update_style_attribute();
 
             // Non-standard: Invalidate style for the owners of our containing sheet, if any.
@@ -1610,7 +1565,7 @@ Utf16String CSSStyleProperties::serialized() const
     // NB: The spec treats custom properties the same as any other property, and expects the above loop to handle them.
     //       However, our implementation separates them from regular properties, so we need to handle them separately here.
     // FIXME: Is the relative order of custom properties and regular properties supposed to be preserved?
-    for (auto const& declaration : m_custom_properties) {
+    for (auto const& declaration : custom_properties()) {
         // 1. Let property be declaration’s property name.
         auto const& property = declaration.key;
 
@@ -1638,7 +1593,7 @@ Utf16String CSSStyleProperties::serialized() const
     }
 
     // 3. Declaration loop: For each CSS declaration declaration in declaration block’s declarations, follow these substeps:
-    for (auto& declaration : m_properties) {
+    for (auto& declaration : properties()) {
         // 1. Let property be declaration’s property name.
         auto property = declaration.property_id;
 
@@ -1657,7 +1612,7 @@ Utf16String CSSStyleProperties::serialized() const
                 //    properties in shorthands.
                 Vector<StyleProperty> longhands;
 
-                for (auto const& longhand_declaration : m_properties) {
+                for (auto const& longhand_declaration : properties()) {
                     if (!already_serialized.contains(longhand_declaration.property_id) && shorthands_for_longhand(longhand_declaration.property_id).contains_slow(shorthand))
                         longhands.append(longhand_declaration);
                 }
@@ -1693,8 +1648,8 @@ Utf16String CSSStyleProperties::serialized() const
                 //    in current longhands which belongs to the same logical property group, but has a different
                 //    mapping logic as any of the longhands in current longhands, and is not in current
                 //    longhands, continue with the steps labeled shorthand loop.
-                auto first_current_longhand_index = m_properties.find_first_index_if([&](StyleProperty const& current_declaration) { return current_declaration.property_id == current_longhands[0].property_id; });
-                auto last_current_longhand_index = m_properties.find_first_index_if([&](StyleProperty const& current_declaration) { return current_declaration.property_id == current_longhands[current_longhands.size() - 1].property_id; });
+                auto first_current_longhand_index = properties().find_first_index_if([&](StyleProperty const& current_declaration) { return current_declaration.property_id == current_longhands[0].property_id; });
+                auto last_current_longhand_index = properties().find_first_index_if([&](StyleProperty const& current_declaration) { return current_declaration.property_id == current_longhands[current_longhands.size() - 1].property_id; });
 
                 VERIFY(first_current_longhand_index.has_value());
                 VERIFY(last_current_longhand_index.has_value());
@@ -1703,15 +1658,15 @@ Utf16String CSSStyleProperties::serialized() const
 
                 for (auto current_declaration_index = first_current_longhand_index.value(); current_declaration_index <= last_current_longhand_index.value(); ++current_declaration_index) {
                     // NB: Declaration is in current longhands
-                    if (any_of(current_longhands, [&](auto const& current_longhand) { return current_longhand.property_id == m_properties[current_declaration_index].property_id; }))
+                    if (any_of(current_longhands, [&](auto const& current_longhand) { return current_longhand.property_id == properties()[current_declaration_index].property_id; }))
                         continue;
 
-                    auto logical_property_group_for_current_declaration = logical_property_group_for_property(m_properties[current_declaration_index].property_id);
+                    auto logical_property_group_for_current_declaration = logical_property_group_for_property(properties()[current_declaration_index].property_id);
 
                     if (!logical_property_group_for_current_declaration.has_value())
                         continue;
 
-                    auto current_declaration_is_logical_alias = property_is_logical_alias(m_properties[current_declaration_index].property_id);
+                    auto current_declaration_is_logical_alias = property_is_logical_alias(properties()[current_declaration_index].property_id);
 
                     // NB: Declaration has any counterpart in current longhands with same logical property group but different mapping logic
                     if (any_of(current_longhands, [&](auto const& current_longhand) { return logical_property_group_for_property(current_longhand.property_id) == logical_property_group_for_current_declaration && property_is_logical_alias(current_longhand.property_id) != current_declaration_is_logical_alias; })) {
@@ -1892,114 +1847,23 @@ bool CSSStyleProperties::set_a_css_declaration(PropertyID property_id, NonnullRe
 {
     VERIFY(!is_computed());
 
-    // NOTE: The below algorithm is only suggested rather than required by the spec
-    // https://drafts.csswg.org/cssom/#example-a40690cb
-    // 1. If property is a case-sensitive match for a property name of a CSS declaration in declarations, follow these substeps:
-    auto maybe_target_index = m_properties.find_first_index_if([&](auto declaration) { return declaration.property_id == property_id; });
-
-    if (maybe_target_index.has_value()) {
-        // 1. Let target declaration be such CSS declaration.
-        auto target_declaration = m_properties[maybe_target_index.value()];
-
-        // 2. Let needs append be false.
-        bool needs_append = false;
-
-        auto logical_property_group_for_set_property = logical_property_group_for_property(property_id);
-
-        // NOTE: If the property of the declaration being set has no logical property group then it's not possible for
-        //       one of the later declarations to share that logical property group so we can skip checking.
-        if (logical_property_group_for_set_property.has_value()) {
-            auto set_property_is_logical_alias = property_is_logical_alias(property_id);
-
-            // 3. For each declaration in declarations after target declaration:
-            for (size_t i = maybe_target_index.value() + 1; i < m_properties.size(); ++i) {
-                // 1. If declaration’s property name is not in the same logical property group as property, then continue.
-                if (logical_property_group_for_property(m_properties[i].property_id) != logical_property_group_for_set_property)
-                    continue;
-
-                // 2. If declaration’ property name has the same mapping logic as property, then continue.
-                if (property_is_logical_alias(m_properties[i].property_id) == set_property_is_logical_alias)
-                    continue;
-
-                // 3. Let needs append be true.
-                needs_append = true;
-
-                // 4. Break.
-                break;
-            }
-        }
-
-        // 4. If needs append is false, then:
-        if (!needs_append) {
-            // 1. Let needs update be false.
-            bool needs_update = false;
-
-            // 2. If target declaration’s value is not equal to component value list, then let needs update be true.
-            if (*target_declaration.value != *value)
-                needs_update = true;
-
-            // 3. If target declaration’s important flag is not equal to whether important flag is set, then let needs update be true.
-            if (target_declaration.important != important)
-                needs_update = true;
-
-            // 4. If needs update is false, then return false.
-            if (!needs_update)
-                return false;
-
-            // 5. Set target declaration’s value to component value list.
-            m_properties[maybe_target_index.value()].value = move(value);
-
-            // 6. If important flag is set, then set target declaration’s important flag, otherwise unset it.
-            m_properties[maybe_target_index.value()].important = important;
-
-            // 7. Return true.
-            return true;
-        }
-
-        // 5. Otherwise, remove target declaration from declarations.
-        m_properties.remove(maybe_target_index.value());
-    }
-
-    // 2. Append a new CSS declaration with property name property, value component value list, and important flag set
-    //    if important flag is set to declarations.
-    m_properties.append(StyleProperty {
-        .important = important,
-        .property_id = property_id,
-        .value = move(value),
-    });
-
-    // 3. Return true
-    return true;
-}
-
-void CSSStyleProperties::empty_the_declarations()
-{
-    m_properties.clear();
-    m_custom_properties.clear();
-}
-
-void CSSStyleProperties::set_the_declarations(Vector<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties)
-{
-    m_properties = convert_declarations_to_specified_order(properties);
-    m_custom_properties = move(custom_properties);
+    return m_declarations.set(property_id, *value, important);
 }
 
 void CSSStyleProperties::set_declarations_from_text(Utf16View css_text)
 {
-    empty_the_declarations();
+    m_declarations.replace(RustDeclarationBlock { {}, {} });
     auto parsing_params = owner_node().has_value()
         ? Parser::ParsingParams(owner_node()->element().document())
         : Parser::ParsingParams();
     parsing_params.rule_context.append(Parser::RuleContext::Style);
 
-    auto style = parse_css_property_declaration_block(parsing_params, css_text);
-    set_the_declarations(style.properties, style.custom_properties);
-    ++m_revision;
+    m_declarations.replace(parse_css_property_declaration_block(parsing_params, css_text));
 }
 
 CSSStyleProperties::CustomPropertyReferences const& CSSStyleProperties::custom_property_references() const
 {
-    if (m_custom_property_references && m_custom_property_references_revision == m_revision)
+    if (m_custom_property_references && m_custom_property_references_revision == revision())
         return *m_custom_property_references;
 
     auto references = make<CustomPropertyReferences>();
@@ -2012,9 +1876,9 @@ CSSStyleProperties::CustomPropertyReferences const& CSSStyleProperties::custom_p
         if (!StyleValueFFI::rust_unresolved_style_value_visit_custom_property_references(value.rust_style_value_data(), &references->names, visit))
             references->all_references_visible = false;
     };
-    for (auto const& property : m_properties)
+    for (auto const& property : properties())
         visit_value(*property.value);
-    for (auto const& [name, property] : m_custom_properties) {
+    for (auto const& [name, property] : custom_properties()) {
         visit_value(*property.value);
         // `--x: inherit` (or `unset`, `revert`) takes the parent's value of the same name, which is a
         // read of that name.
@@ -2030,7 +1894,7 @@ CSSStyleProperties::CustomPropertyReferences const& CSSStyleProperties::custom_p
     references->names.shrink(unique_count);
 
     m_custom_property_references = move(references);
-    m_custom_property_references_revision = m_revision;
+    m_custom_property_references_revision = revision();
     return *m_custom_property_references;
 }
 

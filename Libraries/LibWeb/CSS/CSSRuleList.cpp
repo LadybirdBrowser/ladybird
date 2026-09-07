@@ -131,14 +131,14 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<Utf16View, 
         // - Set declarations to the results of performing parse a CSS declaration block, on argument rule.
         auto declarations = rule.visit(
             [&](Utf16View rule_text) { return parse_css_property_declaration_block(parsing_params, rule_text); },
-            [](CSSRule*) -> Parser::Parser::PropertiesAndCustomProperties { VERIFY_NOT_REACHED(); });
+            [](CSSRule*) -> RustDeclarationBlock { VERIFY_NOT_REACHED(); });
 
         // - If declarations is empty, throw a SyntaxError exception.
-        if (declarations.custom_properties.is_empty() && declarations.properties.is_empty())
+        if (declarations.is_empty())
             return WebIDL::SyntaxError::create("Unable to parse CSS declarations block."_utf16);
 
         // - Otherwise, set new rule to a new nested declarations rule with declarations as it contents.
-        new_rule = CSSNestedDeclarations::create(CSSStyleProperties::create(move(declarations.properties), move(declarations.custom_properties)));
+        new_rule = CSSNestedDeclarations::create(CSSStyleProperties::create(move(declarations)));
     }
 
     // 5. If new rule is a syntax error, throw a SyntaxError exception.

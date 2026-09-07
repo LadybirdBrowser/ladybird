@@ -5,9 +5,139 @@
  */
 
 use super::*;
-use crate::css::style_value::RetainedStyleValueData;
+use crate::css::color_conversion::{RGB, SRGB};
+use crate::css::css_string::CssString;
+use crate::css::declaration_block;
+use crate::css::style_compute::keyword;
+use crate::css::style_value::{ColorBase, RetainedStyleValueData};
+use std::sync::Arc;
+
+// The context-free computed form used to identify numeric RGB declarations. Other
+// colors still need element, inherited style, or other computation context.
+fn canonical_specified_value(value: &StyleValueData) -> Option<Arc<StyleValueData>> {
+    let StyleValueData::ColorFunction {
+        color_base,
+        channel_0,
+        channel_1,
+        channel_2,
+        alpha,
+        origin_color,
+        ..
+    } = value
+    else {
+        return None;
+    };
+    if !color_base.has_color_type || color_base.color_type != RGB || origin_color.optional_data().is_some() {
+        return None;
+    }
+    let number = |channel: &RetainedStyleValueData| match channel.data() {
+        StyleValueData::Number { value } => Some(*value),
+        _ => None,
+    };
+    let channels = [number(channel_0)?, number(channel_1)?, number(channel_2)?];
+    let alpha = match alpha.optional_data() {
+        None => 1.0,
+        Some(StyleValueData::Number { value }) => *value,
+        _ => return None,
+    };
+    let [channel_0, channel_1, channel_2] =
+        channels.map(|value| RetainedStyleValueData::from_owned(StyleValueData::Number { value: value / 255.0 }));
+    const COLOR_SYNTAX_MODERN: u8 = 1;
+    Some(Arc::new(StyleValueData::ColorFunction {
+        color_base: ColorBase {
+            has_color_type: true,
+            color_type: SRGB,
+            color_syntax: COLOR_SYNTAX_MODERN,
+        },
+        channel_0,
+        channel_1,
+        channel_2,
+        alpha: RetainedStyleValueData::from_owned(StyleValueData::Number { value: alpha }),
+        has_name: false,
+        name: CssString::none(),
+        origin_color: RetainedStyleValueData::none(),
+    }))
+}
+
+pub(super) fn declaration_operator(value: &StyleValueData) -> CascadeOperator {
+    match value {
+        StyleValueData::Keyword {
+            keyword: keyword::INHERIT,
+        } => CascadeOperator::Inherit,
+        StyleValueData::Keyword {
+            keyword: keyword::INITIAL,
+        } => CascadeOperator::Initial,
+        StyleValueData::Keyword {
+            keyword: keyword::UNSET,
+        } => CascadeOperator::Unset,
+        StyleValueData::Keyword {
+            keyword: keyword::REVERT,
+        } => CascadeOperator::Revert,
+        StyleValueData::Keyword {
+            keyword: keyword::REVERT_LAYER,
+        } => CascadeOperator::RevertLayer,
+        _ => CascadeOperator::Declared,
+    }
+}
 
 impl StyleEngine {
+    pub(crate) fn intern_element_declared_properties(
+        &mut self,
+        declarations: &[declaration_block::DeclaredProperty],
+    ) -> (Vec<DeclaredProperty>, Vec<RetainedStyleValueData>) {
+        fn append(
+            engine: &mut StyleEngine,
+            property: u16,
+            declaration: &declaration_block::DeclaredProperty,
+            declared: &mut Vec<DeclaredProperty>,
+            written: &mut Vec<RetainedStyleValueData>,
+        ) {
+            use crate::css::property_metadata::{longhands_for_shorthand, property_is_shorthand};
+            // Element declarations decide longhands. Presentation attributes can name shorthands
+            // whose children are themselves shorthands, so expand the complete property inventory.
+            if property_is_shorthand(property) && !matches!(&*declaration.value, StyleValueData::Unresolved { .. }) {
+                for &longhand in longhands_for_shorthand(property) {
+                    append(engine, longhand, declaration, declared, written);
+                }
+            } else {
+                let mut value = engine.intern_declared_property(declaration);
+                value.property = property;
+                declared.push(value);
+                written.push(unsafe {
+                    RetainedStyleValueData::from_retained_pointer(Arc::into_raw(declaration.value.clone()))
+                });
+            }
+        }
+        let mut declared = Vec::with_capacity(declarations.len());
+        let mut written = Vec::with_capacity(declarations.len());
+        for declaration in declarations {
+            append(self, declaration.property_id, declaration, &mut declared, &mut written);
+        }
+        (declared, written)
+    }
+
+    pub(crate) fn intern_declared_property(
+        &mut self,
+        declaration: &declaration_block::DeclaredProperty,
+    ) -> DeclaredProperty {
+        let canonical = canonical_specified_value(&declaration.value);
+        let value = canonical.as_ref().unwrap_or(&declaration.value);
+        // SAFETY: Both roots are backed by live Arc allocations, retained by the native block
+        //         or by the canonical value above. Interning and aliasing retain their own roots.
+        let value = unsafe {
+            let value = self.intern_specified_value(Arc::as_ptr(value));
+            self.alias_specified_value(Arc::as_ptr(&declaration.value), value);
+            value
+        };
+        let operator = declaration_operator(&declaration.value);
+        DeclaredProperty {
+            property: declaration.property_id,
+            important: declaration.important,
+            operator,
+            value,
+        }
+    }
+
     /// Put the qualified layer names in the order one tree scope declares them in.
     pub fn set_layer_order(&mut self, scope: TreeScopeID, layers: &[CascadeLayerID]) {
         let ranks = StyleSheetProgram::layer_ranks_in_order(layers);

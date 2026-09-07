@@ -34,6 +34,8 @@ struct FfiTransitionInput;
 namespace Web::CSS {
 
 class StyleComputer;
+class RustDeclarationBlock;
+struct StyleProperty;
 
 // Owns one document's StyleEngine. The engine itself lives entirely on the Rust side: selector
 // evaluation, cascade, computed values, and every index and identity they are keyed by. C++ keeps
@@ -81,11 +83,12 @@ public:
     // specified values and their authored aliases, and whether that inventory describes everything
     // the block can contribute.
     // Only a property some rule declares can be a candidate for a winner change.
-    void set_rule_declared_properties(StyleEngineRuleID rule, ReadonlySpan<u16> properties, ReadonlySpan<bool> important, ReadonlySpan<StyleEngineFFI::FfiCascadeOperator> operators, ReadonlySpan<void const*> values, ReadonlySpan<void const*> original_values, ReadonlySpan<StyleAtomID> custom_names, ReadonlySpan<bool> custom_important, ReadonlySpan<StyleEngineFFI::FfiCascadeOperator> custom_operators, ReadonlySpan<void const*> custom_values, ReadonlySpan<void const*> custom_original_values, bool declarations_are_complete);
+    void set_rule_declared_properties(StyleEngineRuleID rule, RustDeclarationBlock const&);
     // Which longhand properties one of an element's own declarations covers, their canonical
     // specified values and their authored aliases, and whether the inventory has complete
     // continuation semantics.
-    void set_element_declared_properties(StyleNodeID node, StyleEngineFFI::FfiElementDeclarationKind, ReadonlySpan<u16> properties, ReadonlySpan<bool> important, ReadonlySpan<StyleEngineFFI::FfiCascadeOperator> operators, ReadonlySpan<void const*> values, ReadonlySpan<void const*> original_values, ReadonlySpan<StyleAtomID> custom_names, ReadonlySpan<bool> custom_important, ReadonlySpan<StyleEngineFFI::FfiCascadeOperator> custom_operators, ReadonlySpan<void const*> custom_values, ReadonlySpan<void const*> custom_original_values, bool declarations_are_complete);
+    void set_element_inline_style_properties(StyleNodeID node, RustDeclarationBlock const*);
+    void set_element_presentational_hint_properties(StyleNodeID node, StyleEngineFFI::FfiElementDeclarationKind, ReadonlySpan<StyleProperty>);
     struct StyleRecordDelta {
         StyleRecordID old_style_record;
         StyleRecordID new_style_record;

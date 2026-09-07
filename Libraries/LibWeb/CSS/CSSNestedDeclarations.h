@@ -17,7 +17,7 @@ class CSSNestedDeclarations final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSNestedDeclarations);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSNestedDeclarations> create(Parser::Parser&, Vector<Parser::Declaration> const&);
+    [[nodiscard]] static GC::Ref<CSSNestedDeclarations> create(Parser::Parser&, Parser::DeclarationList const&);
     [[nodiscard]] static GC::Ref<CSSNestedDeclarations> create(CSSStyleProperties&);
 
     virtual ~CSSNestedDeclarations() override = default;

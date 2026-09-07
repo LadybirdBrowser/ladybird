@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        const style = target.style;
+        style.cssText = "--gap: 13px; margin: var(--gap); color: red !important; --色: first; @media all { width: 999px; } margin-left: 7px; color: blue; --色: last";
+        const computed = getComputedStyle(target);
+        println(`inline: ${computed.marginTop}, ${computed.marginLeft}, ${computed.color}`);
+        println(`priority: ${style.getPropertyPriority("color")}`);
+        println(`custom: ${style.getPropertyValue("--色")}`);
+        println(`ignored rule: ${style.width === ""}`);
+
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(".parent {} @page { @top-left { color: red !important; @unknown {} color: blue; width: 5px; } }");
+        sheet.cssRules[0].insertRule("margin: 2px; @unknown {} margin-left: 9px", 0);
+        println(`inserted declarations: ${sheet.cssRules[0].cssRules[0].style.margin}`);
+        const margin = sheet.cssRules[1].cssRules[0].style;
+        println(`page margin: ${margin.color}, ${margin.getPropertyPriority("color")}, ${margin.width}`);
+
+        style.cssText = "@media all { color: blue; }";
+        println(`cleared: ${style.length === 0}, ${target.style === style}`);
+    });
+</script>

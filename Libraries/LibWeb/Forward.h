@@ -545,6 +545,7 @@ class RustSyntaxHandle;
 
 struct AtRule;
 struct Declaration;
+class DeclarationList;
 struct ParsingParams;
 struct QualifiedRule;
 

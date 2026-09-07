@@ -123,7 +123,7 @@ GC::Ref<CSSRuleList> Parser::convert_child_rules(Vector<RuleOrListOfDeclarations
                 if (auto child_rule = convert_to_rule<NestedDeclarationsRule>(rule, nested))
                     child_rules.append(*child_rule);
             },
-            [&](Vector<Declaration> const& declarations) {
+            [&](DeclarationList const& declarations) {
                 child_rules.append(NestedDeclarationsRule::create(*this, declarations));
             });
     }
@@ -155,7 +155,7 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
     if (nested == Nested::Yes)
         selectors = adapt_nested_relative_selector_list(selectors, nesting_parent);
 
-    auto declaration = convert_to_style_declaration(qualified_rule.declarations);
+    auto declaration = CSSStyleProperties::create(qualified_rule.declarations.share());
 
     GC::RootVector<GC::Ref<CSSRule>> child_rules;
     for (auto& child : qualified_rule.child_rules) {
@@ -169,7 +169,7 @@ GC::Ptr<CSSStyleRule> Parser::convert_to_style_rule(QualifiedRule const& qualifi
                     child_rules.append(*converted_rule);
                 }
             },
-            [&](Vector<Declaration> const& declarations) {
+            [&](DeclarationList const& declarations) {
                 child_rules.append(CSSNestedDeclarations::create(*this, declarations));
             });
     }
@@ -264,16 +264,7 @@ GC::Ptr<CSSKeyframeRule> Parser::convert_to_keyframe_rule(QualifiedRule const& r
     for (auto const& item : rule.parsed_prelude.items)
         selectors.unchecked_append(Percentage { item.number_value });
 
-    PropertiesAndCustomProperties properties;
-    rule.for_each_as_declaration_list([&](auto const& declaration) {
-        // https://drafts.csswg.org/css-animations-1/#keyframes
-        // None of the properties [in the <keyframe-block>'s <declaration-list>] interact with the cascade (so
-        // using !important on them is invalid and will cause the property to be ignored).
-        if (declaration.important == Important::Yes)
-            return;
-        extract_property(declaration, properties);
-    });
-    auto style = CSSStyleProperties::create(move(properties.properties), move(properties.custom_properties));
+    auto style = CSSStyleProperties::create(rule.declarations.share());
 
     return CSSKeyframeRule::create(move(selectors), *style);
 }
@@ -514,10 +505,8 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
     GC::RootVector<GC::Ref<CSSRule>> child_rules;
     page_rule.for_each_as_declaration_rule_list(
         [&](auto& at_rule) {
-            if (auto converted_rule = convert_to_rule<CSSNestedDeclarations>(at_rule, Nested::No)) {
-                VERIFY(is<CSSMarginRule>(*converted_rule));
-                child_rules.append(*converted_rule);
-            }
+            if (at_rule.kind == ValueParserFFI::FfiRuleKind::Margin)
+                child_rules.append(*convert_to_margin_rule(at_rule));
         },
         [](auto&) {});
 
@@ -537,11 +526,8 @@ GC::Ptr<CSSMarginRule> Parser::convert_to_margin_rule(AtRule const& rule)
     // FIXME: The declaration list should be a CSSMarginDescriptors, but that has no spec definition:
     //        https://github.com/w3c/csswg-drafts/issues/10106
     //        So, we just parse a CSSStyleProperties instead for now.
-    PropertiesAndCustomProperties properties;
-    rule.for_each_as_declaration_list([&](auto const& declaration) {
-        extract_property(declaration, properties);
-    });
-    auto style = CSSStyleProperties::create(move(properties.properties), move(properties.custom_properties));
+    VERIFY(rule.declarations.has_value());
+    auto style = CSSStyleProperties::create(rule.declarations->share());
     return CSSMarginRule::create(rule.name, style);
 }
 
