@@ -20,6 +20,18 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7.0.1
+
+      # The image bakes the SDK into a read-only layer, and the action always has flatpak-builder update it from
+      # Flathub. An update renames the old deployment into /var/lib/flatpak/.removed, and overlayfs can't rename a
+      # directory that lives in a lower layer (EXDEV) — so whenever Flathub carries a newer SDK than the image, the
+      # build dies before compiling anything. Copying the installation up into the writable layer first (about 5 GB,
+      # some 15 seconds) makes that rename an ordinary one, whatever Flathub has published since the image was built.
+      - name: Make the baked-in Flatpak installation writable
+        run: |
+          cp -a /var/lib/flatpak /var/lib/flatpak.rw
+          rm -rf /var/lib/flatpak
+          mv /var/lib/flatpak.rw /var/lib/flatpak
+
       - uses: flatpak/flatpak-github-actions/flatpak-builder@v6
         with:
           bundle: Ladybird.flatpak
