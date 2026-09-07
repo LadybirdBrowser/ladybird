@@ -3138,7 +3138,9 @@ impl PrefixStates {
     ) -> bool {
         let mut completions = 0;
         for node in nodes {
-            if matches!(self.transition_of(node), PrefixTransitionLookup::Known(_)) {
+            // A relation answer already provides the complete prefix result. Building a
+            // scalar transition for the same node duplicates work and retained state.
+            if self.retained_matches_for(node).is_some() {
                 continue;
             }
             if completions == completion_budget {
