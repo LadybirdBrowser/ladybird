@@ -10587,3 +10587,65 @@ fn shared_computation_context_checks_fixed_inputs_and_record_liveness() {
     );
     engine.end_style_record_view_epoch();
 }
+
+#[test]
+fn relational_routing_checks_an_absent_anchor_posting_once() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let mut raw = [0_u32; 128];
+    engine.allocate_style_nodes(&mut raw);
+    let nodes: Vec<StyleNodeID> = raw.iter().map(|&raw| StyleNodeID::from_raw(raw).unwrap()).collect();
+    for (index, &node) in nodes.iter().enumerate() {
+        let parent = index.checked_sub(1).map(|index| raw[index]);
+        engine.record_tree_delta(node, None, Some(relations(parent, None, None)));
+    }
+    discard_transaction(&mut engine);
+    let anchor_class = StyleAtomID(200);
+    let witness_class = StyleAtomID(201);
+    let mut builder = selector::SelectorProgramBuilder::new();
+    let witness_test = builder.push_feature(selector::FeatureTest::Class(witness_class));
+    let has_witness = builder.push_relative_exists(relative_selector::RelativeQuery {
+        axis: RelativeAxis::Descendant,
+        compound: witness_test,
+        driving_feature: Some(LocalFeatureKey::Class(witness_class)),
+        simple: true,
+        witness_is_below_the_axis: false,
+        match_in_shadow_tree: false,
+    });
+    let anchor_test = builder.push_feature(selector::FeatureTest::Class(anchor_class));
+    let selector = builder.push_compound(&[anchor_test, has_witness]);
+    builder.push_entry(selector);
+    let program = engine.programs.add(builder.finish());
+    let site = RoutingSite {
+        subject: &[],
+        subject_required: &[],
+        position: SubjectPosition::UNBOUNDED,
+        path: &[],
+        waypoints: &[],
+        in_flux: None,
+        exact_entry: None,
+        exact_tree_evaluation: None,
+        refresh_rule: None,
+    };
+    let mut regions = ImpactRegions::new();
+    engine.facts.postings().take_benefit_lookups();
+    engine.route_from_anchors(
+        nodes[127],
+        program,
+        RelativeAnchor {
+            axis: RelativeAxis::Descendant,
+            query: relative_selector::RelativeQueryID(0),
+            anchor_dispatch: DispatchKey::Class(anchor_class),
+            witness_dispatch: DispatchKey::Class(witness_class),
+            input_is_on_the_witness: true,
+            input_is_on_the_anchor: false,
+            adjacent_reach: u32::MAX,
+            witness_is_featureless: false,
+            argument_spans_siblings: false,
+            match_in_shadow_tree: false,
+        },
+        &site,
+        &mut regions,
+    );
+    assert!(regions.regions().is_empty());
+    assert_eq!(engine.facts.postings().take_benefit_lookups(), (1, 0));
+}
