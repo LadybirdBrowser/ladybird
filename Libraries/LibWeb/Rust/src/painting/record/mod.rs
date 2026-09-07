@@ -32,7 +32,7 @@ use crate::painting::paintable_rows::PaintableRowsRef;
 use crate::painting::record::cache::{OpenCapture, RecordGen};
 use crate::painting::visual_context::nested::NestedAssignments;
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
 #[derive(Clone, Copy)]
@@ -147,7 +147,7 @@ pub struct PaintRecorder<'a> {
     pub(crate) all_paint_caches_dirty: bool,
     pub(crate) all_descendant_subtree_caches_dirty: bool,
     text_node_facts_cache: HashMap<u32, FfiHitTestTextNodeFacts>,
-    font_resource_id_cache: HashMap<usize, u64>,
+    registered_font_ids: HashSet<libgfx_rust::font::FontId>,
     selection_style_cache: HashMap<u32, Rc<paint::text::SelectionStyleAnswer>>,
     pub(crate) wheel_hit_test_target_cache: HashMap<NodeSlotId, SpatialNodeIndex>,
 }
@@ -192,14 +192,12 @@ impl<'a> PaintRecorder<'a> {
         facts
     }
 
-    pub(crate) fn register_font(&mut self, font: *const std::ffi::c_void) -> u64 {
-        let key = font as usize;
-        if let Some(font_id) = self.font_resource_id_cache.get(&key) {
-            return *font_id;
+    pub(crate) fn register_font(&mut self, font: &libgfx_rust::font::FontHandle) -> u64 {
+        if self.registered_font_ids.insert(font.id()) {
+            let resource_id = self.paint_host.register_font(font.as_raw());
+            debug_assert_eq!(resource_id, font.id().0, "font resource ids are Gfx::Font ids");
         }
-        let font_id = self.paint_host.register_font(font);
-        self.font_resource_id_cache.insert(key, font_id);
-        font_id
+        font.id().0
     }
 
     /// The focused text control's selection as `(start, end)` when `node` is one of its text
@@ -269,7 +267,7 @@ impl<'a> PaintRecorder<'a> {
             all_paint_caches_dirty: self.all_paint_caches_dirty,
             all_descendant_subtree_caches_dirty: self.all_descendant_subtree_caches_dirty,
             text_node_facts_cache: HashMap::new(),
-            font_resource_id_cache: HashMap::new(),
+            registered_font_ids: HashSet::new(),
             selection_style_cache: HashMap::new(),
             wheel_hit_test_target_cache: HashMap::new(),
         }

@@ -27,7 +27,7 @@ pub(crate) struct TextDecorationSet {
     pub anchored_at_fragment_baseline: bool,
     pub decorating_font_pixel_size: f32,
     pub decorating_font_descent: f32,
-    pub decorating_font_x_height: i32,
+    pub decorating_font_point_size: i32,
     pub text_font_pixel_size: f32,
     pub text_underline_offset: CssPixels,
     pub text_underline_position_horizontal: u8,
@@ -46,14 +46,8 @@ fn text_decoration_lines(style: crate::css::computed_value_views::ComputedValues
 fn first_available_font(
     arena: &crate::layout::LayoutNodeArena,
     node: crate::layout::node_data::NodeSlotId,
-) -> Option<libgfx_rust::font::FontRef<'static>> {
-    let style = arena.node_style_if_live(node)?;
-    let font = style.first_available_font_pointer();
-    if font.is_null() {
-        return None;
-    }
-    // SAFETY: The style payload retains the font for the pass.
-    Some(unsafe { libgfx_rust::font::FontRef::from_raw(font) })
+) -> Option<libgfx_rust::font::FontHandle> {
+    Some(arena.node_style_if_live(node)?.first_available_font())
 }
 
 fn resolve_text_decoration_thickness(
@@ -157,15 +151,15 @@ pub(crate) fn decoration_sets_for_span(
             return;
         };
         let text_font = if decorating_node == text_parent {
-            decorating_font
+            decorating_font.clone()
         } else {
             let source = crate::painting::text_fragment::style_source(arena, fragment);
-            first_available_font(arena, source).unwrap_or(decorating_font)
+            first_available_font(arena, source).unwrap_or_else(|| decorating_font.clone())
         };
-        set.decorating_font_pixel_size = decorating_font.pixel_size();
-        set.decorating_font_descent = decorating_font.pixel_metrics_ascent_descent().1;
-        set.decorating_font_x_height = decorating_font.x_height() as i32;
-        set.text_font_pixel_size = text_font.pixel_size();
+        set.decorating_font_pixel_size = decorating_font.facts().pixel_size;
+        set.decorating_font_descent = decorating_font.facts().descent;
+        set.decorating_font_point_size = decorating_font.facts().point_size as i32;
+        set.text_font_pixel_size = text_font.facts().pixel_size;
         let inherited_text = decorating_style.inherited_text();
         set.text_underline_offset = inherited_text.text_underline_offset.used_value;
         set.text_underline_position_horizontal = inherited_text.text_underline_position.horizontal;
@@ -179,7 +173,7 @@ pub(crate) fn decoration_sets_for_span(
     // otherwise be painted with.
     if let Some(selection_text_decoration) = &span.selection_text_decoration {
         let glyph_height = first_available_font(arena, text_parent).map_or(CssPixels::from_raw(0), |font| {
-            CssPixels::nearest_value_for_f32(font.pixel_size())
+            CssPixels::nearest_value_for_f32(font.facts().pixel_size)
         });
         let thickness = resolve_text_decoration_thickness(arena, text_parent, text_parent, glyph_height);
         push_set(
@@ -206,7 +200,7 @@ pub(crate) fn decoration_sets_for_span(
             let lines = text_decoration_lines(style);
             if !lines.is_empty() {
                 let glyph_height = first_available_font(arena, current).map_or(CssPixels::from_raw(0), |font| {
-                    CssPixels::nearest_value_for_f32(font.pixel_size())
+                    CssPixels::nearest_value_for_f32(font.facts().pixel_size)
                 });
                 let thickness = resolve_text_decoration_thickness(arena, current, current, glyph_height);
                 let text_reset = style.text_reset();
@@ -241,7 +235,7 @@ pub(crate) fn decoration_sets_for_span(
                 if !lines.is_empty() {
                     let glyph_height = *block_glyph_height.get_or_insert_with(|| {
                         first_available_font(arena, block_node).map_or(CssPixels::from_raw(0), |font| {
-                            CssPixels::nearest_value_for_f32(font.pixel_size())
+                            CssPixels::nearest_value_for_f32(font.facts().pixel_size)
                         })
                     });
                     let thickness = resolve_text_decoration_thickness(arena, current, block_node, glyph_height);
@@ -486,8 +480,8 @@ pub(crate) fn paint_decoration_lines(
             }
             text_decoration_line::OVERLINE => baseline - glyph_height - line_thickness.div_as_fraction(two),
             text_decoration_line::LINE_THROUGH => {
-                let x_height = CssPixels::from_integer(set.decorating_font_x_height as i64);
-                baseline - x_height * CssPixels::nearest_value_for_f32(0.5)
+                let point_size = CssPixels::from_integer(set.decorating_font_point_size as i64);
+                baseline - point_size * CssPixels::nearest_value_for_f32(0.5)
             }
             // Blink: conforming user agents may simply not blink the text.
             _ => return,
