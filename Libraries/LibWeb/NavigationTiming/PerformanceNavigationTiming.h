@@ -27,6 +27,8 @@ public:
 
     virtual Utf16FlyString const& entry_type() const override;
     virtual HighResolutionTime::DOMHighResTimeStamp duration() const override;
+    virtual HighResolutionTime::DOMHighResTimeStamp redirect_start() const override;
+    virtual HighResolutionTime::DOMHighResTimeStamp redirect_end() const override;
 
     HighResolutionTime::DOMHighResTimeStamp unload_event_start() const;
     HighResolutionTime::DOMHighResTimeStamp unload_event_end() const;
