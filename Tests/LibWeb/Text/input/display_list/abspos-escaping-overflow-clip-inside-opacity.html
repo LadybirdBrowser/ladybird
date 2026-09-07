@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    #containing-block {
+        position: relative;
+        width: 200px;
+        height: 200px;
+    }
+    #group {
+        opacity: 0.5;
+        width: 200px;
+        height: 200px;
+        background: red;
+    }
+    #clip {
+        overflow: hidden;
+        width: 100px;
+        height: 100px;
+    }
+    #escaping {
+        position: absolute;
+        left: 50px;
+        top: 50px;
+        width: 100px;
+        height: 100px;
+        background: blue;
+    }
+</style>
+<div id="containing-block"><div id="group"><div id="clip"><div id="escaping"></div></div></div></div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/visual-context/abspos-escaping-overflow-clip-inside-mask-ref.html">
+<style>
+body {
+    margin: 0;
+    background: white;
+}
+.containing-block {
+    position: relative;
+    width: 200px;
+    height: 200px;
+}
+.group {
+    mask-image: linear-gradient(rgba(0, 0, 0, 0.5), rgba(0, 0, 0, 0.5));
+    width: 200px;
+    height: 200px;
+    background: red;
+}
+.clip {
+    overflow: hidden;
+    width: 100px;
+    height: 100px;
+}
+.escaping {
+    position: absolute;
+    left: 50px;
+    top: 50px;
+    width: 100px;
+    height: 100px;
+    background: blue;
+}
+</style>
+<!-- The absolute child skips the overflow clip but is masked as part of the group: applying the half
+     transparent mask to the group and to the child separately would show red through the child. -->
+<div class="containing-block">
+    <div class="group">
+        <div class="clip">
+            <div class="escaping"></div>
+        </div>
+    </div>
+</div>

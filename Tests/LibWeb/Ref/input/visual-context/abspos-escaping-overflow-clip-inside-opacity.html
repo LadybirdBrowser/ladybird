@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/visual-context/abspos-escaping-overflow-clip-inside-opacity-ref.html">
+<style>
+body {
+    margin: 0;
+    background: white;
+}
+.containing-block {
+    position: relative;
+    width: 200px;
+    height: 200px;
+}
+.group {
+    opacity: 0.5;
+    width: 200px;
+    height: 200px;
+    background: red;
+}
+.clip {
+    overflow: hidden;
+    width: 100px;
+    height: 100px;
+}
+.escaping {
+    position: absolute;
+    left: 50px;
+    top: 50px;
+    width: 100px;
+    height: 100px;
+    background: blue;
+}
+</style>
+<!-- The absolute child skips the overflow clip of its parent but stays inside the opacity group, whose
+     layer must be entered once around both the group's own background and the child. -->
+<div class="containing-block">
+    <div class="group">
+        <div class="clip">
+            <div class="escaping"></div>
+        </div>
+    </div>
+</div>
