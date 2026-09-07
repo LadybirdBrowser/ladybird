@@ -69,6 +69,7 @@ void EventLoop::visit_edges(Visitor& visitor)
     visitor.visit(m_backup_incumbent_realm_stack);
     visitor.visit(m_rendering_task_function);
     visitor.visit(m_system_event_loop_timer);
+    visitor.visit(m_idle_period_timer);
 }
 
 void EventLoop::schedule()
@@ -217,16 +218,35 @@ void EventLoop::process()
     }
 
     // 5. If this is a window event loop that has no runnable task in this event loop's task queues, then:
-    if (m_type == Type::Window && !m_task_queue->has_runnable_tasks()) {
-        // 1. Set this event loop's last idle period start time to the unsafe shared current time.
-        m_last_idle_period_start_time = HighResolutionTime::unsafe_shared_current_time();
+    if (m_type == Type::Window && !m_task_queue->has_runnable_tasks() && (!m_idle_period_timer || !m_idle_period_timer->is_active())) {
+        auto windows = same_loop_windows();
+        bool has_idle_callbacks = false;
+        for (auto& window : windows) {
+            if (!window->associated_document().hidden() && window->has_idle_callbacks()) {
+                has_idle_callbacks = true;
+                break;
+            }
+        }
+        if (has_idle_callbacks) {
+            // NB: Delay the next idle period until this one's 50 ms budget has elapsed. Callbacks registered
+            //     during an idle period belong to the next one; immediately starting it lets self-scheduling
+            //     callbacks spin continuously even when they have no work to do.
+            if (!m_idle_period_timer) {
+                m_idle_period_timer = Platform::Timer::create_single_shot(GC::Heap::the(), 50, GC::create_function(GC::Heap::the(), [this] {
+                    schedule();
+                }));
+            }
+            m_idle_period_timer->restart();
 
-        // 2. Let computeDeadline be the following steps:
-        // Implemented in EventLoop::compute_deadline()
+            // 1. Set this event loop's last idle period start time to the unsafe shared current time.
+            m_last_idle_period_start_time = HighResolutionTime::unsafe_shared_current_time();
 
-        // 3. For each win of the same-loop windows for this event loop, perform the start an idle period algorithm for win with the following step: return the result of calling computeDeadline, coarsened given win's relevant settings object's cross-origin isolated capability. [REQUESTIDLECALLBACK]
-        for (auto& win : same_loop_windows()) {
-            win->start_an_idle_period();
+            // 2. Let computeDeadline be the following steps:
+            // Implemented in EventLoop::compute_deadline()
+
+            // 3. For each win of the same-loop windows for this event loop, perform the start an idle period algorithm for win with the following step: return the result of calling computeDeadline, coarsened given win's relevant settings object's cross-origin isolated capability. [REQUESTIDLECALLBACK]
+            for (auto& window : windows)
+                window->start_an_idle_period();
         }
     }
 
