@@ -52,6 +52,7 @@
 //! - `bytecode/` — Bytecode generator, instruction types, and FFI
 //! - `scope_collector.rs` — Scope analysis
 
+/// cbindgen:ignore
 #[path = "../../../RustAllocator.rs"]
 mod rust_allocator;
 
