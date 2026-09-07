@@ -13,6 +13,7 @@
 
 namespace Web::NavigationTiming {
 
+// https://w3c.github.io/navigation-timing/#the-performancetiming-interface
 class PerformanceTiming final : public Bindings::GCAllocatedWrappable {
     WEB_WRAPPABLE(PerformanceTiming, Bindings::GCAllocatedWrappable);
     GC_DECLARE_ALLOCATOR(PerformanceTiming);
@@ -24,57 +25,39 @@ public:
 
     ~PerformanceTiming();
 
-    u64 navigation_start()
-    {
-        return monotonic_timestamp_to_wall_time_milliseconds([](auto& load_info) { return load_info.navigation_start_time; });
-    }
-    u64 unload_event_start() { return 0; }
-    u64 unload_event_end() { return 0; }
-    u64 redirect_start() { return 0; }
-    u64 redirect_end() { return 0; }
-    u64 fetch_start() { return 0; }
-    u64 domain_lookup_start() { return 0; }
-    u64 domain_lookup_end() { return 0; }
-    u64 connect_start() { return 0; }
-    u64 connect_end() { return 0; }
-    u64 secure_connection_start() { return 0; }
-    u64 request_start() { return 0; }
-    u64 response_start() { return 0; }
-    u64 response_end() { return 0; }
-    u64 dom_loading() { return 0; }
-    u64 dom_interactive()
-    {
-        return relative_timestamp_to_wall_time_milliseconds([](auto& load_info) { return load_info.dom_interactive_time; });
-    }
-    u64 dom_content_loaded_event_start()
-    {
-        return relative_timestamp_to_wall_time_milliseconds([](auto& load_info) { return load_info.dom_content_loaded_event_start_time; });
-    }
-    u64 dom_content_loaded_event_end()
-    {
-        return relative_timestamp_to_wall_time_milliseconds([](auto& load_info) { return load_info.dom_content_loaded_event_end_time; });
-    }
-    u64 dom_complete()
-    {
-        return relative_timestamp_to_wall_time_milliseconds([](auto& load_info) { return load_info.dom_complete_time; });
-    }
-    u64 load_event_start()
-    {
-        return relative_timestamp_to_wall_time_milliseconds([](auto& load_info) { return load_info.load_event_start_time; });
-    }
-    u64 load_event_end()
-    {
-        return relative_timestamp_to_wall_time_milliseconds([](auto& load_info) { return load_info.load_event_end_time; });
-    }
+    u64 navigation_start() const;
+    u64 unload_event_start() const;
+    u64 unload_event_end() const;
+    u64 redirect_start() const;
+    u64 redirect_end() const;
+    u64 fetch_start() const;
+    u64 domain_lookup_start() const;
+    u64 domain_lookup_end() const;
+    u64 connect_start() const;
+    u64 connect_end() const;
+    u64 secure_connection_start() const;
+    u64 request_start() const;
+    u64 response_start() const;
+    u64 response_end() const;
+    u64 dom_loading() const;
+    u64 dom_interactive() const;
+    u64 dom_content_loaded_event_start() const;
+    u64 dom_content_loaded_event_end() const;
+    u64 dom_complete() const;
+    u64 load_event_start() const;
+    u64 load_event_end() const;
 
 private:
     explicit PerformanceTiming(HTML::Window&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    DOM::DocumentLoadTimingInfo const& document_load_timing_info() const;
-    u64 monotonic_timestamp_to_wall_time_milliseconds(Function<HighResolutionTime::DOMHighResTimeStamp(DOM::DocumentLoadTimingInfo const&)> selector) const;
-    u64 relative_timestamp_to_wall_time_milliseconds(Function<HighResolutionTime::DOMHighResTimeStamp(DOM::DocumentLoadTimingInfo const&)> selector) const;
+    DOM::Document const& document() const { return m_window->associated_document(); }
+    GC::Ptr<PerformanceNavigationTiming> navigation_timing_entry() const { return document().navigation_timing_entry(); }
+
+    u64 monotonic_timestamp_to_wall_time_milliseconds(HighResolutionTime::DOMHighResTimeStamp) const;
+    u64 fetch_phase_to_wall_time_milliseconds(HighResolutionTime::DOMHighResTimeStamp) const;
+    u64 relative_timestamp_to_wall_time_milliseconds(HighResolutionTime::DOMHighResTimeStamp) const;
 
     GC::Ref<HTML::Window> m_window;
 };

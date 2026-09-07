@@ -456,6 +456,10 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     document->m_was_created_via_cross_origin_redirects = navigation_params.response->redirect_taint() != Fetch::Infrastructure::RedirectTaint::SameOrigin;
     document->m_about_base_url = navigation_params.about_base_url;
     document->set_url(*creation_url);
+
+    // AD-HOC: Record when the readiness becomes "loading" for PerformanceTiming's domLoading. The window is not yet
+    //         associated with document, so relate the time to loadTimingInfo directly.
+    document->load_timing_info().dom_loading_time = HighResolutionTime::coarsen_time(HighResolutionTime::unsafe_shared_current_time() - load_timing_info.navigation_start_time, HTML::relevant_settings_object(*window).cross_origin_isolated_capability());
     document->m_readiness = HTML::DocumentReadyState::Loading;
     document->set_allow_declarative_shadow_roots(HTML::HTMLParser::AllowDeclarativeShadowRoots::Yes);
     document->set_custom_element_registry(HTML::CustomElementRegistry::create_global(*document));
