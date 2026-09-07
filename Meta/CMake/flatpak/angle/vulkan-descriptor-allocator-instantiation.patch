@@ -1,0 +1,22 @@
+--- a/src/libANGLE/renderer/vulkan/vk_cache_utils.cpp
++++ b/src/libANGLE/renderer/vulkan/vk_cache_utils.cpp
+@@ -7362,6 +7362,19 @@
+     return &mCurrentVector->front();
+ }
+ 
++// allocate() is only defined in this file, but the inline alloc*() helpers in vk_cache_utils.h call
++// it from other translation units, so the instantiations have to be emitted from here. GCC 15
++// inlines this file's constant-count uses and then emits no out-of-line copy at all, which leaves
++// libGLESv2 with undefined references; the explicit instantiations force the copies to exist.
++template VkDescriptorBufferInfo *UpdateDescriptorSetsBuilder::DescriptorInfoAllocator<
++    VkDescriptorBufferInfo>::allocate(uint32_t count);
++template VkDescriptorImageInfo *UpdateDescriptorSetsBuilder::DescriptorInfoAllocator<
++    VkDescriptorImageInfo>::allocate(uint32_t count);
++template VkBufferView *UpdateDescriptorSetsBuilder::DescriptorInfoAllocator<VkBufferView>::allocate(
++    uint32_t count);
++template VkWriteDescriptorSet *UpdateDescriptorSetsBuilder::DescriptorInfoAllocator<
++    VkWriteDescriptorSet>::allocate(uint32_t count);
++
+ uint32_t UpdateDescriptorSetsBuilder::WriteDescriptorSetAllocator::updateDescriptorSets(
+     VkDevice device) const
+ {

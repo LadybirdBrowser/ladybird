@@ -170,6 +170,11 @@
           "dest": "angle/build"
         },
         {
+          "type": "patch",
+          "path": "angle/vulkan-descriptor-allocator-instantiation.patch",
+          "dest": "angle"
+        },
+        {
           "type": "file",
           "path": "angle/angle-configure.sh"
         },
