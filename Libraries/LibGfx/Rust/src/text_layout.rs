@@ -378,6 +378,27 @@ fn shaped_text_with_baseline_start(shape: &CachedShape, baseline_start_x: f32) -
     }
 }
 
+pub fn shaped_text_width(
+    font: &FontHandle,
+    text: &[u16],
+    text_type: TextType,
+    letter_spacing: f32,
+    word_spacing: f32,
+) -> f32 {
+    let params = ShapeParams {
+        text_type,
+        letter_spacing,
+        word_spacing,
+    };
+    SHAPING_CACHE.with_borrow_mut(|cache| {
+        cache
+            .shape_for(font.id().0, text, params, || {
+                shape_text_uncached(font, text, text_type, letter_spacing, word_spacing)
+            })
+            .width
+    })
+}
+
 pub fn shape_text(
     font: &FontHandle,
     text: &[u16],
