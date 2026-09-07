@@ -23,6 +23,7 @@
 #include <LibWeb/CSS/CSSScopeRule.h>
 #include <LibWeb/CSS/CSSSupportsRule.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::CSS {
@@ -333,18 +334,16 @@ bool CSSRuleList::evaluate_media_queries(DOM::Document const& document, Function
         }
         case CSSRule::Type::Media: {
             auto& media_rule = as<CSSMediaRule>(*rule);
-            bool was_first_evaluation = !media_rule.did_evaluate();
-            bool did_match = media_rule.condition_matches();
-            bool now_matches = media_rule.evaluate(document);
-            // The first evaluation establishes the baseline. did_match defaults to false because each MediaQuery
-            // starts with m_matches=false, so a brand-new rule would otherwise look like a false->true flip the
-            // first time it gets evaluated against a matching state.
-            if (!was_first_evaluation && did_match != now_matches)
+            bool changed_match_state = media_rule.evaluate_for_invalidation(document);
+            bool now_matches = media_rule.condition_matches();
+            if (changed_match_state)
                 any_media_queries_changed_match_state = true;
             if (now_matches && media_rule.css_rules().evaluate_media_queries(document, changed_rule_callback))
                 any_media_queries_changed_match_state = true;
-            if (!was_first_evaluation && did_match != now_matches)
+            if (changed_match_state) {
                 media_rule.css_rules().for_each_effective_rule(TraversalOrder::Preorder, changed_rule_callback);
+                record_rule_conditions(media_rule);
+            }
             break;
         }
         case CSSRule::Type::Scope: {

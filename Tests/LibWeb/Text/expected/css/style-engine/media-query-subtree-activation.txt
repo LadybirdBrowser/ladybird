@@ -1,0 +1,8 @@
+200: nested=rgb(0, 0, 0), imported=rgb(128, 0, 128), fonts=0
+400: nested=rgb(0, 128, 0), imported=rgb(0, 0, 255), fonts=0
+600: nested=rgb(255, 0, 0), imported=rgb(0, 0, 255), fonts=1
+800: nested=rgb(255, 0, 0), imported=rgb(0, 0, 0), fonts=1
+400: nested=rgb(0, 128, 0), imported=rgb(0, 0, 255), fonts=0
+200: nested=rgb(0, 0, 0), imported=rgb(128, 0, 128), fonts=0
+sheet disabled by media: nested=rgb(0, 0, 0), imported=rgb(0, 0, 0), fonts=0
+sheet reactivated at 600: nested=rgb(255, 0, 0), imported=rgb(0, 0, 255), fonts=1

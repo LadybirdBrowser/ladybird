@@ -56,30 +56,33 @@ void evaluate_media_rules_and_publish_conditions(DOM::Document& document)
 {
     ++document.style_invalidation_counters().media_rule_evaluations;
 
-    bool document_media_queries_changed_match_state = false;
-    bool style_cache_inputs_changed = false;
-    Function<void(CSSRule const&)> note_changed_rule = [&](CSSRule const& rule) {
-        if (rule_reaches_style_cache(rule))
-            style_cache_inputs_changed = true;
-    };
-    auto invalidate_style_cache_if_reached = [&](StyleScope& style_scope) {
-        if (style_cache_inputs_changed)
-            style_scope.invalidate_style_cache();
-    };
-    document.style_scope().for_each_active_css_style_sheet([&](CSS::CSSStyleSheet& style_sheet) {
-        if (style_sheet.evaluate_media_queries(document, note_changed_rule)) {
-            document_media_queries_changed_match_state = true;
+    HashTable<StyleScope*> scopes_with_changed_layer_order;
+    Function<void(CSSStyleSheet&)> evaluate_author_sheet = [&](CSSStyleSheet& style_sheet) {
+        bool style_cache_inputs_changed = false;
+        bool layer_order_inputs_changed = false;
+        bool font_rule_inputs_changed = false;
+        Function<void(CSSRule const&)> note_changed_rule = [&](CSSRule const& rule) {
+            if (rule_reaches_style_cache(rule))
+                style_cache_inputs_changed = true;
+            if (rule.type() == CSSRule::Type::LayerBlock || rule.type() == CSSRule::Type::LayerStatement || rule.type() == CSSRule::Type::Import)
+                layer_order_inputs_changed = true;
+            if (rule.type() == CSSRule::Type::FontFace || rule.type() == CSSRule::Type::FontFeatureValues || rule.type() == CSSRule::Type::Import)
+                font_rule_inputs_changed = true;
+        };
+        if (!style_sheet.evaluate_media_queries(document, note_changed_rule))
+            return;
+        if (font_rule_inputs_changed)
             style_sheet.reload_fonts_after_media_query_change();
-            // The queries moved, so the rules they gate changed activation. That is what StyleEngine
-            // routes; without it a viewport resize re-evaluates the queries and reaches nobody. The
-            // evaluation recorded the rule conditions of every document holding the sheet already.
-            style_sheet.record_conditions_for_owners();
-            style_sheet.for_each_owning_style_scope([&](StyleScope& style_scope) {
-                invalidate_style_cache_if_reached(style_scope);
-                style_scope.publish_cascade_layer_order();
-            });
-        }
-    });
+        // The evaluation recorded the changed rule conditions already; publish the sheet gate too.
+        style_sheet.record_conditions_for_owners();
+        style_sheet.for_each_owning_style_scope([&](StyleScope& style_scope) {
+            if (style_cache_inputs_changed)
+                style_scope.invalidate_style_cache();
+            if (layer_order_inputs_changed)
+                scopes_with_changed_layer_order.set(&style_scope);
+        });
+    };
+    document.style_scope().for_each_active_css_style_sheet(evaluate_author_sheet);
 
     for (auto origin : { CascadeOrigin::UserAgent, CascadeOrigin::User }) {
         document.style_scope().for_each_stylesheet(origin, [&](CSS::CSSStyleSheet& style_sheet) {
@@ -96,34 +99,17 @@ void evaluate_media_rules_and_publish_conditions(DOM::Document& document)
 
             if (!changed)
                 return;
-            document_media_queries_changed_match_state = true;
-            style_cache_inputs_changed = true;
+            document.style_scope().invalidate_style_cache();
             style_sheet.reload_fonts_after_media_query_change();
         });
     }
 
     document.for_each_shadow_root([&](auto& shadow_root) {
-        bool shadow_root_media_queries_changed_match_state = false;
-        shadow_root.style_scope().for_each_active_css_style_sheet([&](CSS::CSSStyleSheet& style_sheet) {
-            if (style_sheet.evaluate_media_queries(document, note_changed_rule)) {
-                shadow_root_media_queries_changed_match_state = true;
-                style_sheet.reload_fonts_after_media_query_change();
-                style_sheet.record_conditions_for_owners();
-                style_sheet.for_each_owning_style_scope([&](StyleScope& style_scope) {
-                    invalidate_style_cache_if_reached(style_scope);
-                    style_scope.publish_cascade_layer_order();
-                });
-            }
-        });
-
-        if (!shadow_root_media_queries_changed_match_state)
-            return;
-
-        invalidate_style_cache_if_reached(shadow_root.style_scope());
+        shadow_root.style_scope().for_each_active_css_style_sheet(evaluate_author_sheet);
     });
 
-    if (document_media_queries_changed_match_state)
-        invalidate_style_cache_if_reached(document.style_scope());
+    for (auto* style_scope : scopes_with_changed_layer_order)
+        style_scope->publish_cascade_layer_order();
 }
 
 }

@@ -629,7 +629,14 @@ bool CSSStyleSheet::evaluate_media_queries(DOM::Document const& document, Functi
     m_did_match = now_matches;
     if (any_media_queries_changed_match_state) {
         invalidate_shared_style_cache();
-        record_stylesheet_rule_conditions(*this);
+        // NB: Changed media groups publish their own subtrees. Only the sheet's gate can
+        //     change the condition context of rules outside those groups.
+        if (did_match_state_change) {
+            if (auto owner = owner_rule())
+                record_rule_conditions(*owner);
+            else
+                record_stylesheet_rule_conditions(*this);
+        }
     }
 
     return any_media_queries_changed_match_state;

@@ -2347,6 +2347,18 @@ static void record_rule_conditions_in(StyleComputer& style_computer, CSSRule& ru
     }
 }
 
+void record_rule_conditions(CSSRule& rule)
+{
+    auto* sheet = owning_compiled_sheet(rule);
+    if (!sheet)
+        return;
+    auto enclosing = enclosing_rules(rule);
+    for_each_document_with_engine_copy(*sheet, [&](DOM::Document& document) {
+        document.flush_deferred_style_change_event();
+        record_rule_conditions_in(document.style_computer(), rule, enclosing_conditions_hold(enclosing, document), document);
+    });
+}
+
 static CSSStyleSheet* owning_engine_sheet(CSSStyleSheet& sheet)
 {
     // A constructed sheet is always its own engine sheet; its per-document ids make the raw member 0

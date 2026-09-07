@@ -160,6 +160,7 @@ WEB_API void record_stylesheet_detached(CSSStyleSheet&, DOM::Node& document_or_s
 
 // Called once a sheet's media queries have been evaluated.
 WEB_API void record_stylesheet_conditions(CSSStyleSheet&, DOM::Node& document_or_shadow_root, bool conditions_hold);
+WEB_API void record_rule_conditions(CSSRule&);
 WEB_API void record_stylesheet_rule_conditions(CSSStyleSheet&);
 WEB_API void record_stylesheet_rule_conditions(CSSStyleSheet&, DOM::Document&);
 

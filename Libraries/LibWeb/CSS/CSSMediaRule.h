@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <LibGC/Weak.h>
 #include <LibWeb/CSS/CSSConditionRule.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/Forward.h>
@@ -31,13 +32,8 @@ public:
 
     MediaList* media() const { return m_media.ptr(); }
 
-    bool evaluate(DOM::Document const& document)
-    {
-        m_did_evaluate = true;
-        return m_media->evaluate(document);
-    }
-
-    bool did_evaluate() const { return m_did_evaluate; }
+    bool evaluate(DOM::Document const&);
+    bool evaluate_for_invalidation(DOM::Document const&);
 
 private:
     CSSMediaRule(MediaList&, CSSRuleList&);
@@ -47,7 +43,11 @@ private:
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
     GC::Ref<MediaList> m_media;
-    bool m_did_evaluate { false };
+    struct DocumentMatchState {
+        GC::Weak<DOM::Document> document;
+        bool matches;
+    };
+    Vector<DocumentMatchState, 1> m_document_match_states;
 };
 
 template<>

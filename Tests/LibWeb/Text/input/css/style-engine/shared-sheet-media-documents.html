@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+asyncTest(async done => {
+    const frames = [];
+    for (const width of [200, 600]) {
+        const frame = document.createElement("iframe");
+        frame.width = width;
+        frame.srcdoc = "<!DOCTYPE html><body>";
+        const loaded = new Promise(resolve => frame.onload = resolve);
+        document.body.append(frame);
+        await loaded;
+        frames.push(frame);
+    }
+    const sheet = new frames[0].contentWindow.CSSStyleSheet();
+    sheet.replaceSync(":host { color: red } @media (min-width: 400px) { :host { color: green } }");
+    const hosts = frames.map(frame => {
+        const host = frames[0].contentDocument.createElement("div");
+        host.attachShadow({ mode: "open" }).adoptedStyleSheets = [sheet];
+        host.shadowRoot.innerHTML = "content";
+        frame.contentDocument.body.append(host);
+        return host;
+    });
+    for (const widths of [[200, 600], [600, 200], [200, 600], [600, 600], [200, 200]]) {
+        frames.forEach((frame, index) => frame.width = widths[index]);
+        println(widths.join("/") + ": " + hosts.map(host => getComputedStyle(host).color).join(" / "));
+    }
+    done();
+});
+</script>

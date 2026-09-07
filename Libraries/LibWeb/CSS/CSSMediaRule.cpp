@@ -7,6 +7,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibWeb/CSS/CSSMediaRule.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/Dump.h>
 
 namespace Web::CSS {
@@ -29,6 +30,28 @@ void CSSMediaRule::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_media);
+}
+
+bool CSSMediaRule::evaluate(DOM::Document const& document)
+{
+    auto matches = m_media->evaluate(document);
+    m_document_match_states.remove_all_matching([](auto const& state) { return !state.document; });
+    if (!m_document_match_states.contains([&](auto const& state) { return state.document.ptr().ptr() == &document; }))
+        m_document_match_states.append({ document, matches });
+    return matches;
+}
+
+bool CSSMediaRule::evaluate_for_invalidation(DOM::Document const& document)
+{
+    auto matches = evaluate(document);
+    for (auto& state : m_document_match_states) {
+        if (state.document.ptr().ptr() == &document) {
+            // NB: Recording conditions may evaluate this rule in several documents. Keep the
+            //     invalidation baseline separate from those temporary evaluations.
+            return exchange(state.matches, matches) != matches;
+        }
+    }
+    VERIFY_NOT_REACHED();
 }
 
 Utf16String CSSMediaRule::serialized_condition_text() const
