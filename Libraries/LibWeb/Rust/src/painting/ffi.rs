@@ -763,7 +763,7 @@ unsafe fn measure_scrollable_overflow_for_slot(
         let paint_state = arena.paint_state().borrow();
         crate::painting::scrollable_overflow::measure_scrollable_overflow(
             &paintable_rows,
-            &paint_state.scrollable_overflow_contained_boxes,
+            &paint_state.scrollable_overflow_non_child_boxes,
             visual_context_callbacks,
             overflow_callbacks,
             box_paintable,
@@ -921,7 +921,7 @@ pub unsafe extern "C" fn layout_arena_update_scrollable_overflow(
             crate::painting::scrollable_overflow::refill_contained_boxes_index(
                 &paintable_rows,
                 viewport,
-                &mut paint_state.scrollable_overflow_contained_boxes,
+                &mut paint_state.scrollable_overflow_non_child_boxes,
             );
         }
     } else {
@@ -1234,7 +1234,7 @@ pub unsafe extern "C" fn layout_arena_clear_scrollable_overflow_contained_boxes(
     arena
         .paint_state()
         .borrow_mut()
-        .scrollable_overflow_contained_boxes
+        .scrollable_overflow_non_child_boxes
         .clear();
 }
 

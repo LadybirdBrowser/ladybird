@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    #outer { position: relative; overflow: auto; width: 100px; height: 100px; }
+    #wrapper { width: 50px; height: 50px; left: 20px; top: 30px; }
+    #child { position: absolute; left: 180px; top: 160px; width: 20px; height: 30px; }
+</style>
+<div id="outer"><div id="wrapper"><div id="child"></div></div></div>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const outer = document.getElementById("outer");
+        const wrapper = document.getElementById("wrapper");
+        const child = document.getElementById("child");
+        const snapshot = label => println(`${label}: ${outer.scrollWidth}x${outer.scrollHeight}`);
+        snapshot("containing block skips parent");
+        wrapper.style.position = "relative";
+        snapshot("parent establishes containing block");
+        wrapper.style.position = "static";
+        snapshot("containing block skips parent again");
+        outer.appendChild(child);
+        snapshot("direct child");
+        wrapper.appendChild(child);
+        snapshot("nested child");
+        child.remove();
+        snapshot("removed child");
+        wrapper.appendChild(child);
+        snapshot("reattached child");
+        child.style.position = "static";
+        snapshot("in-flow child");
+        child.style.position = "absolute";
+        snapshot("positioned child again");
+    });
+</script>
