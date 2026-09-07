@@ -102,8 +102,6 @@ public:
     virtual void clear() override;
     virtual void remove(Utf16View) override;
 
-    void copy_map_from(SessionStorageBottle const&);
-
     virtual void visit_edges(GC::Cell::Visitor& visitor) override;
 
 private:
