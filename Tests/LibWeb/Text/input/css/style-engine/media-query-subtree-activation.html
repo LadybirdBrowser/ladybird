@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    asyncTest(done => {
+        const frame = document.createElement("iframe");
+        frame.width = 200;
+        frame.height = 100;
+        const imported = `
+            .imported { color: rgb(128, 0, 128); }
+            @media (min-width: 400px) { .imported { color: rgb(0, 0, 255); } }
+        `;
+        frame.onload = () => {
+            const document = frame.contentDocument;
+            const nested = document.querySelector(".nested");
+            const imported = document.querySelector(".imported");
+            const snapshot = label => {
+                println(`${label}: nested=${getComputedStyle(nested).color}, imported=${getComputedStyle(imported).color}, fonts=${document.fonts.size}`);
+            };
+            for (const width of [200, 400, 600, 800, 400, 200]) {
+                frame.width = width;
+                snapshot(width);
+            }
+            document.styleSheets[0].media.mediaText = "not all";
+            snapshot("sheet disabled by media");
+            frame.width = 600;
+            document.styleSheets[0].media.mediaText = "all";
+            snapshot("sheet reactivated at 600");
+            done();
+        };
+        frame.srcdoc = `<!DOCTYPE html><style>
+            @import url("data:text/css,${encodeURIComponent(imported)}") (max-width: 650px);
+            :where(.imported), .nested { color: rgb(0, 0, 0); }
+            @media (min-width: 300px) {
+                .nested { color: rgb(255, 0, 0); }
+                @media (max-width: 500px) { .nested { color: rgb(0, 128, 0); } }
+            }
+            @media (min-width: 500px) {
+                @font-face { font-family: ViewportFont; src: url(unused-font.woff); }
+            }
+        </style><div class="nested"></div><div class="imported"></div>`;
+        document.body.appendChild(frame);
+    });
+</script>
