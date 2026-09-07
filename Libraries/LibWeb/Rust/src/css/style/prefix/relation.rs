@@ -955,6 +955,26 @@ impl PrefixAutomaton {
         let mut local_matches = vec![None; identities.len()];
         let mut compound_matches = Vec::with_capacity(self.compounds.len());
         for compound in &self.compounds {
+            // Dispatch postings already prove universal, ID, and class predicates. With
+            // no additional local or positional test, the posting is the membership set.
+            if let PrefixPredicate::Features {
+                feature_start,
+                feature_len,
+                required_positional_bits: 0,
+            } = &compound.predicate
+                && self
+                    .features_for(*feature_start, *feature_len)
+                    .iter()
+                    .all(|feature| match feature {
+                        super::FeatureTest::AnyElement => true,
+                        super::FeatureTest::Id(id) => compound.dispatch_key == DispatchKey::Id(*id),
+                        super::FeatureTest::Class(class) => compound.dispatch_key == DispatchKey::Class(*class),
+                        _ => false,
+                    })
+            {
+                compound_matches.push(candidates[&compound.dispatch_key].clone());
+                continue;
+            }
             local_matches.fill(None);
             let matched: Vec<_> = candidates[&compound.dispatch_key]
                 .iter()

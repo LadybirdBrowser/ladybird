@@ -5208,6 +5208,60 @@ fn update_test_prefix_relation(
 }
 
 #[test]
+fn prefix_relation_copies_only_dispatch_complete_predicates() {
+    let (mut engine, nodes) = linear_document();
+    let first_class = StyleAtomID(200);
+    let second_class = StyleAtomID(201);
+    let id = StyleAtomID(202);
+    for &node in &nodes {
+        add_feature(&mut engine, node, LocalFeatureKey::Class(first_class));
+    }
+    add_feature(&mut engine, nodes[2], LocalFeatureKey::Class(second_class));
+    set_atom_feature(&mut engine, nodes[3], LocalFeatureKey::Id, id);
+    let mut builder = selector::SelectorProgramBuilder::new();
+    let feature = builder.push_feature(selector::FeatureTest::Id(id));
+    builder.push_entry(feature);
+    let atoms = [("first", first_class), ("second", second_class)];
+    let mut selectors = vec![
+        test_selector_program("*", &[]),
+        test_selector_program(".first", &atoms),
+        builder.finish(),
+    ];
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    for additional_tests in [false, true] {
+        for selector in selectors.drain(..) {
+            let program = engine.programs.add(selector);
+            let rule = engine.append_rule(sheet, None, RuleKind::Style);
+            engine.add_routing_rule(rule, program);
+            let mut version = engine.program.rule_version(rule);
+            version.selector_program = Some(program);
+            version.declaration_block = Some(DeclarationBlockID(1));
+            engine.replace_rule_version(rule, version);
+        }
+        discard_transaction(&mut engine);
+        let before = engine.counters.get(Counter::PrefixCompoundsEvaluated);
+        let (_, relation) = test_prefix_relation(&mut engine, nodes[0]);
+        let evaluated = engine.counters.get(Counter::PrefixCompoundsEvaluated) - before;
+        if additional_tests {
+            assert!(evaluated > 0);
+        } else {
+            assert_eq!(evaluated, 0);
+        }
+        let mut states = PrefixStates::new(0);
+        relation.install_answers(&mut states);
+        let expected = if additional_tests { [2, 2, 4, 3] } else { [2, 2, 2, 3] };
+        for (&node, count) in nodes.iter().zip(expected) {
+            assert_eq!(states.retained_matches_for(node).unwrap().len(), count);
+        }
+        selectors = vec![
+            test_selector_program(".first.second", &atoms),
+            test_selector_program(".first:nth-child(2n)", &atoms),
+        ];
+    }
+}
+
+#[test]
 fn prefix_completion_reuses_positive_and_negative_relation_answers() {
     let (mut engine, nodes) = nested_document();
     let guard = StyleAtomID(200);
@@ -5299,7 +5353,7 @@ fn prefix_relations_share_program_predicates_without_merging_their_paths() {
     discard_transaction(&mut engine);
     let before = engine.counters.get(Counter::PrefixCompoundsEvaluated);
     let (dispatch, mut relation) = test_prefix_relation(&mut engine, nodes[0]);
-    assert_eq!(engine.counters.get(Counter::PrefixCompoundsEvaluated) - before, 4);
+    assert_eq!(engine.counters.get(Counter::PrefixCompoundsEvaluated) - before, 2);
     let mut states = PrefixStates::new(0);
     relation.install_answers(&mut states);
     let original = states.retained_matches_for(nodes[3]).unwrap().to_vec();
