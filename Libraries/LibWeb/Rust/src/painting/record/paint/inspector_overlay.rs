@@ -471,24 +471,21 @@ struct OverlayLabel {
 
 fn shape_overlay_label(recorder: &mut PaintRecorder<'_>, text: &[u16], fonts: FfiOverlayLabelFonts) -> OverlayLabel {
     // SAFETY: The host resolves both fonts from the platform font caches, which keep them live
-    // through the recording call; retaining them here keeps them alive for the rest of it.
-    let css_font = unsafe { libgfx_rust::font::RetainedFont::retain(fonts.css_font) };
+    // through the recording call; the handles keep them alive for the rest of it.
+    let css_font = unsafe { libgfx_rust::font::FontHandle::intern(fonts.css_font) };
     // SAFETY: See above.
-    let device_font = unsafe { libgfx_rust::font::RetainedFont::retain(fonts.device_font) };
-    // SAFETY: The RetainedFont handles keep both fonts live for these borrows.
-    let css_font_ref = unsafe { libgfx_rust::font::FontRef::from_raw(css_font.as_raw()) };
-    // SAFETY: See above.
-    let device_font_ref = unsafe { libgfx_rust::font::FontRef::from_raw(device_font.as_raw()) };
+    let device_font = unsafe { libgfx_rust::font::FontHandle::intern(fonts.device_font) };
     let shaped = libgfx_rust::text_layout::shape_text(
-        device_font_ref,
+        &device_font,
         text,
         libgfx_rust::text_layout::TextType::Ltr,
         0.0,
         0.0,
         0.0,
     );
-    let blob_bounds = libgfx_rust::text_layout::glyph_run_bounding_box(device_font_ref, shaped.glyphs(), 1.0);
-    let (device_ascent, device_descent) = device_font_ref.pixel_metrics_ascent_descent();
+    let blob_bounds = libgfx_rust::text_layout::glyph_run_bounding_box(&device_font, shaped.glyphs(), 1.0);
+    let device_ascent = device_font.facts().ascent;
+    let device_descent = device_font.facts().descent;
     let font_id = recorder.register_font(device_font.as_raw());
     let glyphs = shaped
         .glyphs()
@@ -500,8 +497,8 @@ fn shape_overlay_label(recorder: &mut PaintRecorder<'_>, text: &[u16], fonts: Ff
         .collect();
     OverlayLabel {
         font_id,
-        css_width: css_font_ref.measure_text_width(text),
-        css_pixel_size: css_font_ref.pixel_size(),
+        css_width: css_font.measure_text_width(text),
+        css_pixel_size: css_font.facts().pixel_size,
         device_glyph_width: shaped.width(),
         device_ascent,
         device_descent,

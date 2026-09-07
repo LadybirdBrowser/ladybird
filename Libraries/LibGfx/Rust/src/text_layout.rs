@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::font::FontRef;
+use crate::font::FontHandle;
 use std::ffi::c_void;
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -76,13 +76,13 @@ unsafe extern "C" {
 }
 
 #[must_use]
-pub fn glyph_run_bounding_box(font: FontRef<'_>, glyphs: &[DrawGlyph], scale: f32) -> [f32; 4] {
+pub fn glyph_run_bounding_box(font: &FontHandle, glyphs: &[DrawGlyph], scale: f32) -> [f32; 4] {
     let mut out_rect = [0.0f32; 4];
-    // SAFETY: FontRef keeps the font live and the glyph slice stays valid for
-    // the synchronous call, which fills the four floats out_rect points at.
+    // SAFETY: The handle keeps the font live and the glyph slice stays valid
+    // for the synchronous call, which fills the four floats out_rect points at.
     unsafe {
         ladybird_gfx_glyph_run_bounding_box(
-            font.as_ptr(),
+            font.as_raw(),
             glyphs.as_ptr(),
             glyphs.len(),
             scale,
@@ -94,7 +94,7 @@ pub fn glyph_run_bounding_box(font: FontRef<'_>, glyphs: &[DrawGlyph], scale: f3
 
 #[must_use]
 pub fn glyph_run_glyph_intercepts(
-    font: FontRef<'_>,
+    font: &FontHandle,
     glyphs: &[DrawGlyph],
     scale: f32,
     y_top: f32,
@@ -105,11 +105,11 @@ pub fn glyph_run_glyph_intercepts(
         unsafe { (*sink.cast::<Vec<f32>>()).push(value) };
     }
     let mut intercepts: Vec<f32> = Vec::new();
-    // SAFETY: FontRef keeps the font live and the glyph slice stays valid for
-    // the synchronous call; the push callback runs against the local Vec.
+    // SAFETY: The handle keeps the font live and the glyph slice stays valid
+    // for the synchronous call; the push callback runs against the local Vec.
     unsafe {
         ladybird_gfx_glyph_run_glyph_intercepts(
-            font.as_ptr(),
+            font.as_raw(),
             glyphs.as_ptr(),
             glyphs.len(),
             scale,
@@ -312,7 +312,7 @@ thread_local! {
 }
 
 fn shape_text_uncached(
-    font: FontRef<'_>,
+    font: &FontHandle,
     text: &[u16],
     text_type: TextType,
     letter_spacing: f32,
@@ -344,7 +344,7 @@ fn shape_text_uncached(
     // the synchronous shaping call; emit runs against the local CachedShape.
     unsafe {
         ladybird_gfx_shape_text_uncached(
-            font.as_ptr(),
+            font.as_raw(),
             text.as_ptr(),
             text.len(),
             text_type,
@@ -379,7 +379,7 @@ fn shaped_text_with_baseline_start(shape: &CachedShape, baseline_start_x: f32) -
 }
 
 pub fn shape_text(
-    font: FontRef<'_>,
+    font: &FontHandle,
     text: &[u16],
     text_type: TextType,
     baseline_start_x: f32,
@@ -392,7 +392,7 @@ pub fn shape_text(
         word_spacing,
     };
     SHAPING_CACHE.with_borrow_mut(|cache| {
-        let shape = cache.shape_for(font.id(), text, params, || {
+        let shape = cache.shape_for(font.id().0, text, params, || {
             shape_text_uncached(font, text, text_type, letter_spacing, word_spacing)
         });
         shaped_text_with_baseline_start(shape, baseline_start_x)

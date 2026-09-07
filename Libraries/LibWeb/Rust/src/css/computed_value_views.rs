@@ -814,7 +814,18 @@ impl<'a> ComputedValuesView<'a> {
         }
     }
 
-    pub(crate) fn first_available_font(self) -> *const c_void {
+    pub(crate) fn first_available_font(self) -> libgfx_rust::font::FontHandle {
+        let font = self.font();
+        debug_assert!(
+            !font.first_available_font.is_null() && !font.font_cascade_list.is_null(),
+            "layout read a font group that never received a font list"
+        );
+        // SAFETY: The payload's cascade list handle owns the list, and the list
+        // owns its first available font.
+        unsafe { libgfx_rust::font::FontHandle::intern(font.first_available_font) }
+    }
+
+    pub(crate) fn first_available_font_pointer(self) -> *const c_void {
         let font = self.font().first_available_font;
         debug_assert!(
             !font.is_null(),
