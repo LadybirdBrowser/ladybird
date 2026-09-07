@@ -3973,84 +3973,116 @@ pub(crate) fn resolve_intrinsic_track_sizes(
         }
     }
 
-    // 4. Increase sizes to accommodate spanning items crossing flexible tracks: Next, repeat the previous
-    // step instead considering (together, rather than grouped by span size) all items that do span a
-    // track with a flexible sizing function while
-    //
-    // https://www.w3.org/TR/css-grid-1/#algo-spanning-flex-items
-    // 11.5.4. Increase sizes to accommodate spanning items crossing flexible tracks
-    let dominated = |track: &Track| {
-        available == AvailableSize::MaxContent
-            || (row_axis && available == AvailableSize::MinContent)
-            || track.min_sizing.is_intrinsic(available)
-    };
-    let mut contributions = vec![CssPixels::default(); tracks.len()];
-    for item in items {
-        // NB: This step repeats the content-sized track step, but only distributes space to flexible tracks. For
-        //     min-content column sizing, the later "Expand Flexible Tracks" step resolves the flex fraction to zero, so
-        //     flexible columns must not grow beyond their items' minimum contribution here. Keep min-content row sizing
-        //     here so intrinsic-height grids still account for their contents.
-        let mut total_flex = 0.0;
-        let mut flexible_count = 0usize;
-        let mut non_flexible_space = CssPixels::default();
-        for &index in &item.spanned_tracks {
-            if let Some(factor) = tracks[index].max_sizing.flex_factor()
-                && dominated(&tracks[index])
-            {
-                total_flex += factor;
-                flexible_count += 1;
-            } else {
-                non_flexible_space += tracks[index].base_size;
-            }
-        }
-        if flexible_count == 0 {
+    // https://www.w3.org/TR/css-grid-2/#algo-spanning-flex-items
+    // 4. Increase sizes to accommodate spanning items crossing flexible tracks:
+    // Next, repeat the previous step instead considering (together, rather than grouped by span size)
+    // all items that do span a track with a flexible sizing function while
+    // - distributing space only to flexible tracks (i.e. treating all other tracks as having a fixed sizing function)
+    // NB: Repeat each minimum-sizing phase, so intrinsic minimums are honored even when the maximum is flexible.
+    #[derive(Clone, Copy)]
+    enum FlexibleMinimumPhase {
+        Intrinsic,
+        MinContent,
+        LimitedMaxContent,
+        MaxContent,
+    }
+    for phase in [
+        FlexibleMinimumPhase::Intrinsic,
+        FlexibleMinimumPhase::MinContent,
+        FlexibleMinimumPhase::LimitedMaxContent,
+        FlexibleMinimumPhase::MaxContent,
+    ] {
+        if matches!(phase, FlexibleMinimumPhase::LimitedMaxContent) && available != AvailableSize::MaxContent {
             continue;
         }
-        let use_limited_min_content =
-            available == AvailableSize::MaxContent || (row_axis && available == AvailableSize::MinContent);
-        let mut contribution = if use_limited_min_content {
-            if total_flex == 0.0 && item.is_scroll_container {
-                // https://drafts.csswg.org/css-grid-2/#min-size-auto
-                // A grid item's automatic minimum size is zero if its computed overflow is a scrollable
-                // overflow value. Preserve that zero minimum for collapsed zero-flex tracks.
-                item.minimum
-            } else {
-                item.limited_min_content
+        let dominated = |track: &Track| match phase {
+            FlexibleMinimumPhase::Intrinsic => {
+                available == AvailableSize::MaxContent
+                    || (row_axis && available == AvailableSize::MinContent)
+                    || track.min_sizing.is_intrinsic(available)
             }
-        } else {
-            item.minimum
+            FlexibleMinimumPhase::MinContent => track.min_sizing.is_min_content() || track.min_sizing.is_max_content(),
+            FlexibleMinimumPhase::LimitedMaxContent => {
+                track.min_sizing.is_auto(available) || track.min_sizing.is_max_content()
+            }
+            FlexibleMinimumPhase::MaxContent => track.min_sizing.is_max_content(),
         };
-        // NB: Subtract the space already accounted for by non-flexible spanned tracks (sized in 11.5.3), since only
-        //     the remaining contribution needs to be distributed among flexible tracks.
-        contribution = CssPixels::default().max(contribution - non_flexible_space);
-        // Distributing space to flexible tracks:
-        // - If the sum of the flexible sizing functions of all flexible tracks spanned by the item is greater
-        //   than or equal to one, distributing space to such tracks according to the ratios of their flexible
-        //   sizing functions rather than distributing space equally.
-        // - If the sum is less than one, distributing that proportion of space according to the ratios of their
-        //   flexible sizing functions and the rest equally.
-        // FIXME: Handle 0 < total_flex < 1 case separately per spec.
-        for &index in &item.spanned_tracks {
-            let Some(factor) = tracks[index].max_sizing.flex_factor() else {
-                continue;
-            };
-            if !dominated(&tracks[index]) {
+        let mut contributions = vec![CssPixels::default(); tracks.len()];
+        for item in items {
+            let mut total_flex = 0.0;
+            let mut flexible_count = 0usize;
+            let mut non_flexible_space = CssPixels::default();
+            for &index in &item.spanned_tracks {
+                if let Some(factor) = tracks[index].max_sizing.flex_factor()
+                    && dominated(&tracks[index])
+                {
+                    total_flex += factor;
+                    flexible_count += 1;
+                } else {
+                    non_flexible_space += tracks[index].base_size;
+                }
+            }
+            if flexible_count == 0 {
                 continue;
             }
-            let share = if total_flex > 0.0 {
-                CssPixels::nearest_value_for(contribution.to_double() * (factor / total_flex))
+            // NB: Preserve the minimum-contribution behavior for min-content column sizing. Rows still need
+            //     limited min-content contributions here to account for their intrinsic height.
+            let use_limited_min_content =
+                available == AvailableSize::MaxContent || (row_axis && available == AvailableSize::MinContent);
+            let mut contribution = if use_limited_min_content {
+                if total_flex == 0.0 && item.is_scroll_container {
+                    // https://drafts.csswg.org/css-grid-2/#min-size-auto
+                    // A grid item's automatic minimum size is zero if its computed overflow is a scrollable
+                    // overflow value. Preserve that zero minimum for collapsed zero-flex tracks.
+                    item.minimum
+                } else {
+                    item.limited_min_content
+                }
             } else {
-                contribution / flexible_count
+                item.minimum
             };
-            contributions[index] = contributions[index].max(share);
+            contribution = match phase {
+                FlexibleMinimumPhase::Intrinsic => contribution,
+                FlexibleMinimumPhase::MinContent => item.min_content,
+                FlexibleMinimumPhase::LimitedMaxContent if total_flex == 0.0 && item.is_scroll_container => {
+                    // NB: Preserve the zero automatic minimum for collapsed zero-flex tracks in this phase too.
+                    item.minimum
+                }
+                FlexibleMinimumPhase::LimitedMaxContent => item.limited_max_content,
+                FlexibleMinimumPhase::MaxContent => item.max_content,
+            };
+            // NB: Subtract the space already accounted for by non-flexible spanned tracks (sized in 11.5.3), since only
+            //     the remaining contribution needs to be distributed among flexible tracks.
+            contribution = CssPixels::default().max(contribution - non_flexible_space);
+            // Distributing space to flexible tracks:
+            // - If the sum of the flexible sizing functions of all flexible tracks spanned by the item is greater
+            //   than or equal to one, distributing space to such tracks according to the ratios of their flexible
+            //   sizing functions rather than distributing space equally.
+            // - If the sum is less than one, distributing that proportion of space according to the ratios of their
+            //   flexible sizing functions and the rest equally.
+            // FIXME: Handle 0 < total_flex < 1 case separately per spec.
+            for &index in &item.spanned_tracks {
+                let Some(factor) = tracks[index].max_sizing.flex_factor() else {
+                    continue;
+                };
+                if !dominated(&tracks[index]) {
+                    continue;
+                }
+                let share = if total_flex > 0.0 {
+                    CssPixels::nearest_value_for(contribution.to_double() * (factor / total_flex))
+                } else {
+                    contribution / flexible_count
+                };
+                contributions[index] = contributions[index].max(share);
+            }
         }
-    }
-    for (track, contribution) in tracks.iter_mut().zip(contributions) {
-        track.base_size = track.base_size.max(contribution);
-        if track.growth_limit.is_some_and(|limit| limit < track.base_size) {
-            // If at this point any track's growth limit is now less than its base size, increase its growth limit to match
-            // its base size.
-            track.growth_limit = Some(track.base_size);
+        for (track, contribution) in tracks.iter_mut().zip(contributions) {
+            track.base_size = track.base_size.max(contribution);
+            if track.growth_limit.is_some_and(|limit| limit < track.base_size) {
+                // If at this point any track's growth limit is now less than its base size, increase its growth limit to match
+                // its base size.
+                track.growth_limit = Some(track.base_size);
+            }
         }
     }
 

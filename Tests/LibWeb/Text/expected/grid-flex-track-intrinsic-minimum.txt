@@ -1,0 +1,7 @@
+600: 170px 240px 170px; menu height 20
+400: 120px 200px 60px; menu height 40
+600: 170px 240px 170px; menu height 20
+auto: 50px
+min-content: 60px
+max-content: 120px
+spanning: 40px 80px
