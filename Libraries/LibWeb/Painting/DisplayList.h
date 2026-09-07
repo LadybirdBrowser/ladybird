@@ -56,7 +56,10 @@ protected:
     }
     void execute_impl(DisplayList const&, ScrollStateSnapshot const& scroll_state);
     void execute_run_commands(DisplayListCommandRun const&, ScrollStateSnapshot const& scroll_state);
+    void execute_command_bytes(ReadonlyBytes, ScrollStateSnapshot const& scroll_state);
+    ScrollStateSnapshot const& active_scroll_state() const { return *m_active_scroll_state; }
     void execute_display_list_into_surface(DisplayList const&, AccumulatedVisualContextTree const&, Gfx::PaintingSurface&);
+    void execute_command_bytes_into_surface(ReadonlyBytes, Gfx::PaintingSurface&);
     void execute_nested_display_list(DisplayList const&, AccumulatedVisualContextTree const&, ScrollStateSnapshot const&);
 
 private:
@@ -82,6 +85,7 @@ private:
     CanvasSurfaceRegistry const* m_canvas_surface_registry { nullptr };
     RefPtr<Gfx::PaintingSurface> m_surface;
     ReadonlyBytes m_current_command_payload;
+    ScrollStateSnapshot const* m_active_scroll_state { nullptr };
 };
 
 class DisplayList : public AtomicRefCounted<DisplayList> {

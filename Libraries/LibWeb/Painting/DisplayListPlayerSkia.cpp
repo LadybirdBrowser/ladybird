@@ -6,6 +6,7 @@
  */
 
 #include <AK/NeverDestroyed.h>
+#include <AK/StringHash.h>
 #include <AK/TemporaryChange.h>
 #include <AK/Time.h>
 #include <core/SkBitmap.h>
@@ -34,7 +35,6 @@
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/DecodedImageFrame.h>
-#include <LibGfx/PainterSkia.h>
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibGfx/SkiaUtils.h>
 #include <LibWeb/Painting/CanvasSurfaceRegistry.h>
@@ -572,29 +572,40 @@ void DisplayListPlayerSkia::play_command(DrawTiledDecodedImageFrame const& comma
     canvas.drawRect(to_skia_rect(pattern_rect), paint);
 }
 
-void DisplayListPlayerSkia::play_command(DrawRepeatedDisplayList const& command)
+static u64 repeated_tile_raster_key(ReadonlyBytes tile_records, Gfx::IntSize tile_size)
+{
+    auto const* characters = reinterpret_cast<char const*>(tile_records.data());
+    u64 high = string_hash(characters, tile_records.size(), 0x9e3779b9u);
+    u64 low = string_hash(characters, tile_records.size(), static_cast<u32>(tile_size.width() * 31 + tile_size.height()));
+    return (high << 32) | low;
+}
+
+void DisplayListPlayerSkia::play_command(DrawRepeatedTile const& command)
 {
     auto tile_size = command.dst_rect.size();
     if (tile_size.is_empty())
         return;
 
-    if (auto image = resource_storage().cached_skia_image_for_display_list(command.display_list_id, tile_size, m_skia_backend_context)) {
-        paint_repeated_image(surface().canvas(), *image, command.dst_rect, command.scaling_mode, command.compositing_and_blending_operator, command.repeat.x, command.repeat.y);
-        return;
+    auto tile_records = inline_data(command.tile);
+    auto raster_key = repeated_tile_raster_key(tile_records, tile_size);
+    auto image = resource_storage().cached_repeated_tile_raster(raster_key, tile_size, m_skia_backend_context);
+    if (!image) {
+        image = rasterize_records_into_tile(tile_records, command.dst_rect);
+        if (!image)
+            return;
+        resource_storage().add_cached_repeated_tile_raster(raster_key, tile_size, m_skia_backend_context, image);
     }
-
-    auto tile_surface = Gfx::PaintingSurface::create_with_size(tile_size, Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
-    Gfx::PainterSkia painter { tile_surface };
-    painter.clear_rect(tile_surface->rect().to_type<float>(), Gfx::Color::Transparent);
-    auto const& tile_display_list = resource_storage().display_list_resource(command.display_list_id);
-    execute_display_list_into_surface(*tile_display_list.display_list, tile_display_list.visual_context_tree, *tile_surface);
-    auto image = tile_surface->sk_surface().makeImageSnapshot();
-    if (!image)
-        return;
-
-    resource_storage().set_cached_skia_image_for_display_list(command.display_list_id, tile_size, m_skia_backend_context, image);
-
     paint_repeated_image(surface().canvas(), *image, command.dst_rect, command.scaling_mode, command.compositing_and_blending_operator, command.repeat.x, command.repeat.y);
+}
+
+sk_sp<SkImage> DisplayListPlayerSkia::rasterize_records_into_tile(ReadonlyBytes tile_records, Gfx::IntRect tile_rect)
+{
+    auto tile_surface = Gfx::PaintingSurface::create_with_size(tile_rect.size(), Gfx::BitmapFormat::BGRA8888, Gfx::AlphaType::Premultiplied, m_skia_backend_context);
+    tile_surface->canvas().clear(SK_ColorTRANSPARENT);
+    tile_surface->canvas().translate(-tile_rect.x(), -tile_rect.y());
+    execute_command_bytes_into_surface(tile_records, *tile_surface);
+    tile_surface->canvas().resetMatrix();
+    return tile_surface->sk_surface().makeImageSnapshot();
 }
 
 static SkGradient::Interpolation to_skia_interpolation(Gfx::GradientInterpolationMethod interpolation_method)
@@ -1096,7 +1107,7 @@ void DisplayListPlayerSkia::play_command(PaintConicGradient const& command)
     surface().canvas().drawRect(to_skia_rect(rect), paint);
 }
 
-void DisplayListPlayerSkia::play_command(DrawIsolatedDisplayList const& command)
+void DisplayListPlayerSkia::play_command(DrawIsolatedGroup const& command)
 {
     auto& canvas = surface().canvas();
     canvas.save();
@@ -1105,14 +1116,14 @@ void DisplayListPlayerSkia::play_command(DrawIsolatedDisplayList const& command)
     if (command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal)
         group_paint.setBlender(Gfx::to_skia_blender(command.compositing_and_blending_operator));
     canvas.saveLayer(nullptr, &group_paint);
-    play_command(PaintNestedDisplayList { command.display_list_id, command.rect, command.list_size });
-    if (command.mask_display_list_id.value() != 0) {
+    execute_command_bytes(inline_data(command.content), active_scroll_state());
+    if (command.mask.size != 0) {
         SkPaint mask_paint;
         mask_paint.setBlender(Gfx::to_skia_blender(Gfx::CompositingAndBlendingOperator::DestinationIn));
         if (command.mask_kind == Gfx::MaskKind::Luminance)
             mask_paint.setColorFilter(SkLumaColorFilter::Make());
         canvas.saveLayer(nullptr, &mask_paint);
-        play_command(PaintNestedDisplayList { command.mask_display_list_id, command.rect, command.list_size });
+        execute_command_bytes(inline_data(command.mask), active_scroll_state());
         canvas.restore();
     }
     canvas.restore();

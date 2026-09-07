@@ -72,6 +72,7 @@ private:
     sk_sp<SkImageFilter> layer_image_filter(ReplayLayer const&);
     sk_sp<SkImageFilter> backdrop_image_filter(ReplayLayer const&, bool limited_to_region);
     Gfx::Path path_from_data(DisplayListDataSpan) const;
+    sk_sp<SkImage> rasterize_records_into_tile(ReadonlyBytes tile_records, Gfx::IntRect tile_rect);
     ReadonlySpan<Color> gradient_colors(DisplayListGradientColorStops) const;
     ReadonlySpan<float> gradient_positions(DisplayListGradientColorStops) const;
 

@@ -73,7 +73,7 @@ struct DisplayListTextBlobCacheKey {
 };
 
 struct DisplayListStoredImageFrameResource;
-struct DisplayListCachedSkiaImageResource;
+struct DisplayListCachedRepeatedTileRaster;
 struct DisplayListCachedNestedRasterResource;
 struct DisplayListCachedTextBlobResource;
 struct DisplayListStoredVideoSinkResource;
@@ -132,8 +132,8 @@ public:
     bool image_frame_should_force_dark(ImageFrameResourceId) const;
     sk_sp<SkImage> skia_image_for_image_frame(ImageFrameResourceId, RefPtr<Gfx::SkiaBackendContext> const&) const;
     sk_sp<SkImage> skia_image_for_video_sink(VideoSinkResourceId, RefPtr<Gfx::SkiaBackendContext> const&) const;
-    sk_sp<SkImage> cached_skia_image_for_display_list(DisplayListResourceId, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&) const;
-    void set_cached_skia_image_for_display_list(DisplayListResourceId, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&, sk_sp<SkImage>) const;
+    sk_sp<SkImage> cached_repeated_tile_raster(u64 tile_key, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&) const;
+    void add_cached_repeated_tile_raster(u64 tile_key, Gfx::IntSize, RefPtr<Gfx::SkiaBackendContext> const&, sk_sp<SkImage>) const;
     sk_sp<SkImage> cached_nested_display_list_raster(DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect visible_rect_in_list_space, Gfx::IntRect& raster_rect_in_list_space) const;
     void add_cached_nested_display_list_raster(DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_list_space, sk_sp<SkImage>) const;
     bool should_cache_nested_display_list_raster(DisplayListResourceId) const;
@@ -159,7 +159,8 @@ private:
     HashMap<u64, Media::VideoSinkHandle> m_video_sink_handles;
     HashMap<u64, NonnullOwnPtr<DisplayListStoredVideoSinkResource>> m_video_sinks;
     HashMap<u64, DisplayListResource> m_display_lists;
-    mutable HashMap<u64, NonnullOwnPtr<DisplayListCachedSkiaImageResource>> m_display_list_cached_skia_images;
+    mutable HashMap<u64, NonnullOwnPtr<DisplayListCachedRepeatedTileRaster>> m_repeated_tile_rasters;
+    mutable size_t m_repeated_tile_raster_bytes { 0 };
     mutable HashMap<u64, NonnullOwnPtr<DisplayListCachedNestedRasterResource>> m_display_list_cached_nested_rasters;
     mutable HashMap<DisplayListTextBlobCacheKey, NonnullOwnPtr<DisplayListCachedTextBlobResource>> m_text_blobs;
     mutable size_t m_text_blob_cache_bytes { 0 };

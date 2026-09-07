@@ -30,7 +30,7 @@
         const dump = internals.dumpDisplayList();
         lines.push(`dashed border painted: ${dump.includes("StrokePath")}`);
         lines.push(`shadow painted: ${dump.includes("PaintOuterBoxShadow")}`);
-        lines.push(`blended layers painted: ${dump.includes("DrawIsolatedDisplayList")}`);
+        lines.push(`blended layers painted: ${dump.includes("DrawIsolatedGroup")}`);
         settle();
 
         const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
