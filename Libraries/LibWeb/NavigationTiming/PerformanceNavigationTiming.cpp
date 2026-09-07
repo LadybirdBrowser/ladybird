@@ -67,6 +67,28 @@ HighResolutionTime::DOMHighResTimeStamp PerformanceNavigationTiming::duration() 
     return load_event_end();
 }
 
+// https://w3c.github.io/navigation-timing/#PerformanceResourceTiming
+HighResolutionTime::DOMHighResTimeStamp PerformanceNavigationTiming::redirect_start() const
+{
+    // 1. If this's redirect count is 0, return 0.
+    if (m_redirect_count == 0)
+        return 0;
+
+    // 2. Otherwise return this's redirectStart.
+    return Base::redirect_start();
+}
+
+// https://w3c.github.io/navigation-timing/#PerformanceResourceTiming
+HighResolutionTime::DOMHighResTimeStamp PerformanceNavigationTiming::redirect_end() const
+{
+    // 1. If this's redirect count is 0, return 0.
+    if (m_redirect_count == 0)
+        return 0;
+
+    // 2. Otherwise return this's redirectEnd.
+    return Base::redirect_end();
+}
+
 HighResolutionTime::DOMHighResTimeStamp PerformanceNavigationTiming::unload_event_start() const
 {
     return m_document->previous_document_unload_timing().unload_event_start_time;
