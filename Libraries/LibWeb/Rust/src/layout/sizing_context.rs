@@ -723,6 +723,15 @@ impl<'pass> SizingContext<'pass> {
         false
     }
 
+    pub(crate) fn is_anonymous_button_content_box(&self, node: Node) -> bool {
+        let parent = self.parent(node);
+        self.facts(node).is_anonymous()
+            && !parent.is_invalid()
+            && self.facts(parent).is_anonymous()
+            && !self.parent(parent).is_invalid()
+            && self.facts(self.parent(parent)).uses_button_layout()
+    }
+
     pub(crate) fn constraints_for_child_context(
         &self,
         containing_block: Node,
@@ -749,7 +758,15 @@ impl<'pass> SizingContext<'pass> {
         } else {
             None
         };
-        let block = if used.has_definite_block_size() {
+        let forwards_button_content_block_basis = self.is_anonymous_button_content_box(containing_block);
+        // https://www.w3.org/TR/CSS22/visuren.html#anonymous-block-level
+        // Anonymous block boxes are ignored when resolving percentage values that would refer to it:
+        // the closest non-anonymous ancestor box is used instead.
+        // NB: The button content box can acquire a definite post-flexing size smaller than the button.
+        //     Its descendants must still resolve percentage heights against the button's content box.
+        let block = if forwards_button_content_block_basis {
+            constraints.percentage_basis_block_size
+        } else if used.has_definite_block_size() {
             Some(used.content_block_size.get())
         } else if should_forward_indefinite_basis {
             constraints.percentage_basis_block_size
@@ -789,8 +806,8 @@ impl<'pass> SizingContext<'pass> {
             constraints.quirks_mode_percentage_basis_block_size
         };
 
-        let forwarded_a_block_basis = (!used.has_definite_block_size()
-            && should_forward_indefinite_basis
+        let forwarded_a_block_basis = (((!used.has_definite_block_size() && should_forward_indefinite_basis)
+            || forwards_button_content_block_basis)
             && constraints.percentage_basis_block_size.is_some())
             || (quirks_block.is_some()
                 && quirks_block == constraints.quirks_mode_percentage_basis_block_size
@@ -861,6 +878,7 @@ impl<'pass> SizingContext<'pass> {
             && facts.is_block_container()
             && !facts.is_table_wrapper();
         svg_root_forwards_quirks_basis
+            || self.is_anonymous_button_content_box(node)
             || forwards_block_basis_as_anonymous_box
             || forwards_quirks_basis_as_auto_height_block_container
     }
