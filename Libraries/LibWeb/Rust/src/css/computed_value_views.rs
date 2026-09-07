@@ -823,8 +823,8 @@ impl<'a> ComputedValuesView<'a> {
         font
     }
 
-    pub(crate) fn font_cascade_list(self) -> *const c_void {
-        let list = self.font().font_cascade_list.as_raw();
+    pub(crate) fn font_cascade_list(self) -> &'a libgfx_rust::font::FontCascadeListHandle {
+        let list = &self.font().font_cascade_list;
         debug_assert!(
             !list.is_null(),
             "layout read a font group that never received a font list"

@@ -145,8 +145,9 @@ fn apply_block_ellipsis(
             result.unwrap_or(char::REPLACEMENT_CHARACTER)
         }) as u32;
     let presentation = libgfx_rust::font::emoji_presentation_for_code_point(first_code_point, None);
-    // SAFETY: Font cascade pointers in layout snapshots are borrowed from the host for the synchronous layout pass.
-    let font = unsafe { libgfx_rust::font::FontCascadeListRef::from_raw(style.font_cascade_list()) }
+    let font = style
+        .font_cascade_list()
+        .as_ref()
         .font_for_code_point(first_code_point, presentation)
         .as_raw();
     let shaped_ellipsis = font::shape_text_with_font(
