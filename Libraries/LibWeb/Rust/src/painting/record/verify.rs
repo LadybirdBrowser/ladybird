@@ -251,18 +251,18 @@ pub(crate) fn verify_spliced_recording_matches_fresh(
         "paint cache verification failed: hit-test item counts differ"
     );
 
-    let with_splices_mask_frames: Vec<FrameNodeIndex> = recording_with_splices
+    let with_splices_mask_effects: Vec<EffectNodeIndex> = recording_with_splices
         .mask_display_lists
         .iter()
-        .map(|registration| registration.frame)
+        .map(|registration| registration.effect)
         .collect();
-    let from_scratch_mask_frames: Vec<FrameNodeIndex> = recording_from_scratch
+    let from_scratch_mask_effects: Vec<EffectNodeIndex> = recording_from_scratch
         .mask_display_lists
         .iter()
-        .map(|registration| registration.frame)
+        .map(|registration| registration.effect)
         .collect();
     assert_eq!(
-        with_splices_mask_frames, from_scratch_mask_frames,
+        with_splices_mask_effects, from_scratch_mask_effects,
         "paint cache verification failed: mask display list registrations differ"
     );
     let region_count = |commands: &[DecodedCommand]| {

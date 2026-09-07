@@ -6,11 +6,11 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-  frames:
-    [f0 in s0] effects=[]
+  effects:
+    [e0 in s0] effects=[]
 
 DisplayList:
-CompositorScrollNode@s0/f0 scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1413] is_viewport=true
-CompositorMainThreadWheelEventRegion@s1/f0 rect=[40,40 160x120]
-DrawCompositedContext@s1/f0 dst_rect=[40,40 160x120] inline_clips=[clip=[40,40 160x120]]
+CompositorScrollNode@s0/e0 scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1413] is_viewport=true
+CompositorMainThreadWheelEventRegion@s1/e0 rect=[40,40 160x120]
+DrawCompositedContext@s1/e0 dst_rect=[40,40 160x120] inline_clips=[clip=[40,40 160x120]]
 

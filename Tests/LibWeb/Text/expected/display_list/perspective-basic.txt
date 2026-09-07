@@ -4,10 +4,10 @@ AccumulatedVisualContext Tree:
       [s1] scroll (Viewport<#document>)
         [s2] perspective (BlockContainer<DIV>.perspective-container)
           [s3] transform=[0.8660254,0,0,1,0,0] origin=(58,58) (BlockContainer<DIV>.rotated)
-  frames:
-    [f0 in s0] effects=[]
+  effects:
+    [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s3/f0 rect=[8,8 100x100] color=rgb(0, 0, 255)
-DrawGlyphRun@s3/f0 rect=[8,8 21x16] translation=[8,20.796875] color=rgb(0, 0, 0)
+FillRect@s3/e0 rect=[8,8 100x100] color=rgb(0, 0, 255)
+DrawGlyphRun@s3/e0 rect=[8,8 21x16] translation=[8,20.796875] color=rgb(0, 0, 0)
 

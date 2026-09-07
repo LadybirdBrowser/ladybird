@@ -1190,7 +1190,7 @@ impl PaintRecorder<'_> {
         );
         debug_assert!(
             self.captured_range_references_only_the_phase_context(paintable, range, recorded_context),
-            "a per-phase paint capture records under its phase context and its own local frames"
+            "a per-phase paint capture records under its phase context or without clips and effects"
         );
         let cache = self.layout_arena.paintable_paint_cache(paintable);
         cache.register_capture_position(self.current_absolute_position(paintable));
@@ -1220,10 +1220,10 @@ impl PaintRecorder<'_> {
         let bytes = &self.recorder.bytes()[range.offset as usize..(range.offset + range.size) as usize];
         let mut only_the_phase_context = true;
         crate::painting::display_list::builder::for_each_command(bytes, |header, _, _| {
-            let frame = header.context.frame;
-            let frame_belongs_to_the_capture = frame.is_none() || frame == recorded_context.frame;
-            only_the_phase_context &=
-                header.context.spatial == recorded_context.spatial && frame_belongs_to_the_capture;
+            let context = header.context;
+            only_the_phase_context &= context.spatial == recorded_context.spatial
+                && ((context.clip.is_none() && context.effect.is_none())
+                    || (context.clip == recorded_context.clip && context.effect == recorded_context.effect));
         });
         only_the_phase_context
     }

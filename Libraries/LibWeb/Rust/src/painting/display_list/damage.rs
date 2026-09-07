@@ -10,8 +10,10 @@ use crate::painting::display_list::commands::{
     DrawGlyphRun, DrawScaledDecodedImageFrame, INLINE_CLIP_ENTRY_SIZE, OptionalColor, OptionalFloatRect,
     PaintTextShadow, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
 };
+use crate::painting::visual_context::queries::TreeCullingScratch;
 use crate::painting::visual_context::{
-    FrameData, IncludeVisualViewportTransform, SpatialData, VisualContextTree, device_offset_for_index,
+    ClipNodeData, EffectNodeData, IncludeVisualViewportTransform, SpatialData, VisualContextTree,
+    device_offset_for_index,
 };
 use libgfx_rust::{FloatPoint, FloatRect, IntRect, enclosing_int_rect};
 use std::mem::offset_of;
@@ -215,21 +217,27 @@ fn spatial_data_is_equal(
     }
 }
 
-fn frame_data_is_equal(a: &FrameData, b: &FrameData) -> bool {
+fn clip_data_is_equal(a: &ClipNodeData, b: &ClipNodeData) -> bool {
     match (a, b) {
-        (FrameData::BackgroundColorAnimation, FrameData::BackgroundColorAnimation) => true,
-        (FrameData::Clip(data), FrameData::Clip(other)) => data == other,
-        (FrameData::ClipPath(data), FrameData::ClipPath(other)) => {
+        (ClipNodeData::Rect(data), ClipNodeData::Rect(other)) => data == other,
+        (ClipNodeData::Path(data), ClipNodeData::Path(other)) => {
             data.bounding_rect == other.bounding_rect
                 && data.fill_rule == other.fill_rule
                 && (Rc::ptr_eq(&data.path, &other.path)
                     || data.path.serialize_to_bytes() == other.path.serialize_to_bytes())
         }
-        (FrameData::Effects(data), FrameData::Effects(other)) => {
+        _ => false,
+    }
+}
+
+fn effect_data_is_equal(a: &EffectNodeData, b: &EffectNodeData) -> bool {
+    match (a, b) {
+        (EffectNodeData::BackgroundColorAnimation, EffectNodeData::BackgroundColorAnimation) => true,
+        (EffectNodeData::Effects(data), EffectNodeData::Effects(other)) => {
             data.opacity == other.opacity && data.blend_mode == other.blend_mode && data.filter == other.filter
         }
         // Mask content is per-recording and invisible here, so mask chains always damage.
-        (FrameData::Mask(_), FrameData::Mask(_)) => false,
+        (EffectNodeData::Mask(_), EffectNodeData::Mask(_)) => false,
         _ => false,
     }
 }
@@ -245,16 +253,40 @@ fn spatial_depths(tree: &VisualContextTree) -> Vec<u32> {
     depths
 }
 
+// Walks two root paths in lockstep from their tips, pairing node with node; both must end together.
+fn chains_pair_up(
+    mut old: u32,
+    mut new: u32,
+    old_parent: impl Fn(u32) -> u32,
+    new_parent: impl Fn(u32) -> u32,
+    nodes_match: impl Fn(u32, u32) -> bool,
+) -> bool {
+    loop {
+        if old == u32::MAX || new == u32::MAX {
+            return old == new;
+        }
+        if !nodes_match(old, new) {
+            return false;
+        }
+        old = old_parent(old);
+        new = new_parent(new);
+    }
+}
+
 struct TreeChainComparison<'a> {
     old_tree: &'a VisualContextTree,
     old_scroll_offsets: &'a [FloatPoint],
     old_spatial_depths: Vec<u32>,
+    old_culling: TreeCullingScratch,
     new_tree: &'a VisualContextTree,
     new_scroll_offsets: &'a [FloatPoint],
     new_spatial_depths: Vec<u32>,
+    new_culling: TreeCullingScratch,
 }
 
 impl TreeChainComparison<'_> {
+    // Two contexts have the same shape when their spatial, clip and effect chains pair up node
+    // by node with matching kinds and spatial depths.
     fn chains_are_compatible(&self, old_context: ContextRef, new_context: ContextRef) -> bool {
         if self.old_spatial_depths[old_context.spatial.0 as usize]
             != self.new_spatial_depths[new_context.spatial.0 as usize]
@@ -275,27 +307,38 @@ impl TreeChainComparison<'_> {
             old_index = old_node.parent;
             new_index = new_node.parent;
         }
-        let mut old_frame = old_context.frame;
-        let mut new_frame = new_context.frame;
-        loop {
-            if old_frame.is_none() || new_frame.is_none() {
-                return old_frame == new_frame;
-            }
-            let old_node = &self.old_tree.frame_nodes[old_frame.0 as usize];
-            let new_node = &self.new_tree.frame_nodes[new_frame.0 as usize];
-            if std::mem::discriminant(&old_node.data) != std::mem::discriminant(&new_node.data) {
-                return false;
-            }
-            if self.old_spatial_depths[old_node.spatial.0 as usize]
-                != self.new_spatial_depths[new_node.spatial.0 as usize]
-            {
-                return false;
-            }
-            old_frame = old_node.parent;
-            new_frame = new_node.parent;
-        }
+        let (old_tree, new_tree) = (self.old_tree, self.new_tree);
+        let same_spatial_depth = |old_spatial: SpatialNodeIndex, new_spatial: SpatialNodeIndex| {
+            self.old_spatial_depths[old_spatial.0 as usize] == self.new_spatial_depths[new_spatial.0 as usize]
+        };
+        chains_pair_up(
+            old_context.clip.0,
+            new_context.clip.0,
+            |index| old_tree.clip_nodes[index as usize].parent.0,
+            |index| new_tree.clip_nodes[index as usize].parent.0,
+            |old, new| {
+                let (old, new) = (&old_tree.clip_nodes[old as usize], &new_tree.clip_nodes[new as usize]);
+                std::mem::discriminant(&old.data) == std::mem::discriminant(&new.data)
+                    && same_spatial_depth(old.spatial, new.spatial)
+            },
+        ) && chains_pair_up(
+            old_context.effect.0,
+            new_context.effect.0,
+            |index| old_tree.effect_nodes[index as usize].parent.0,
+            |index| new_tree.effect_nodes[index as usize].parent.0,
+            |old, new| {
+                let (old, new) = (
+                    &old_tree.effect_nodes[old as usize],
+                    &new_tree.effect_nodes[new as usize],
+                );
+                std::mem::discriminant(&old.data) == std::mem::discriminant(&new.data)
+                    && same_spatial_depth(old.spatial, new.spatial)
+            },
+        )
     }
 
+    // Value equality of compatible chains. An effect's output clip is compared by clip depth: a
+    // layer that moved relative to the clips around it is treated as a change.
     fn chains_are_equal(&self, old_context: ContextRef, new_context: ContextRef) -> bool {
         let mut old_index = old_context.spatial;
         let mut new_index = new_context.spatial;
@@ -318,27 +361,42 @@ impl TreeChainComparison<'_> {
             old_index = old_node.parent;
             new_index = new_node.parent;
         }
-        let mut old_frame = old_context.frame;
-        let mut new_frame = new_context.frame;
-        while !old_frame.is_none() {
-            let old_node = &self.old_tree.frame_nodes[old_frame.0 as usize];
-            let new_node = &self.new_tree.frame_nodes[new_frame.0 as usize];
-            if !frame_data_is_equal(&old_node.data, &new_node.data) {
-                return false;
-            }
-            old_frame = old_node.parent;
-            new_frame = new_node.parent;
-        }
-        true
+        let (old_tree, new_tree) = (self.old_tree, self.new_tree);
+        chains_pair_up(
+            old_context.clip.0,
+            new_context.clip.0,
+            |index| old_tree.clip_nodes[index as usize].parent.0,
+            |index| new_tree.clip_nodes[index as usize].parent.0,
+            |old, new| {
+                clip_data_is_equal(
+                    &old_tree.clip_nodes[old as usize].data,
+                    &new_tree.clip_nodes[new as usize].data,
+                )
+            },
+        ) && chains_pair_up(
+            old_context.effect.0,
+            new_context.effect.0,
+            |index| old_tree.effect_nodes[index as usize].parent.0,
+            |index| new_tree.effect_nodes[index as usize].parent.0,
+            |old, new| {
+                let (old, new) = (
+                    &old_tree.effect_nodes[old as usize],
+                    &new_tree.effect_nodes[new as usize],
+                );
+                effect_data_is_equal(&old.data, &new.data)
+                    && self.old_culling.clip_depth(old.output_clip()) == self.new_culling.clip_depth(new.output_clip())
+            },
+        )
     }
 
     fn changing_filter_may_affect_output_bounds(&self, old_context: ContextRef, new_context: ContextRef) -> bool {
-        let mut old_frame = old_context.frame;
-        let mut new_frame = new_context.frame;
-        while !old_frame.is_none() {
-            let old_node = &self.old_tree.frame_nodes[old_frame.0 as usize];
-            let new_node = &self.new_tree.frame_nodes[new_frame.0 as usize];
-            if let (FrameData::Effects(old_effects), FrameData::Effects(new_effects)) = (&old_node.data, &new_node.data)
+        let mut old_effect = old_context.effect;
+        let mut new_effect = new_context.effect;
+        while !old_effect.is_none() {
+            let old_node = &self.old_tree.effect_nodes[old_effect.0 as usize];
+            let new_node = &self.new_tree.effect_nodes[new_effect.0 as usize];
+            if let (EffectNodeData::Effects(old_effects), EffectNodeData::Effects(new_effects)) =
+                (&old_node.data, &new_node.data)
                 && old_effects.filter != new_effects.filter
                 && old_effects
                     .filter
@@ -348,8 +406,8 @@ impl TreeChainComparison<'_> {
             {
                 return true;
             }
-            old_frame = old_node.parent;
-            new_frame = new_node.parent;
+            old_effect = old_node.parent;
+            new_effect = new_node.parent;
         }
         false
     }
@@ -388,10 +446,10 @@ impl DamageAccumulator {
         command: &CommandReference<'_>,
         visual_context_tree: &VisualContextTree,
         scroll_offsets: &[FloatPoint],
-        frames_with_empty_effective_clip: &[bool],
+        culling: &TreeCullingScratch,
     ) {
         let context = command.header.context;
-        if !context.frame.is_none() && frames_with_empty_effective_clip[context.frame.0 as usize] {
+        if culling.context_culls_everything(context) {
             return;
         }
         if !command.header.has_bounding_rect {
@@ -458,16 +516,22 @@ pub fn compute_display_list_damage(
 ) -> Option<IntRect> {
     let old_commands = collect_command_references(old_display_list_commands);
     let new_commands = collect_command_references(new_display_list_commands);
+    let mut old_culling = TreeCullingScratch::default();
+    old_visual_context_tree.fill_culling_scratch(&mut old_culling);
+    let mut new_culling = TreeCullingScratch::default();
+    new_visual_context_tree.fill_culling_scratch(&mut new_culling);
     let chains = TreeChainComparison {
         old_tree: old_visual_context_tree,
         old_scroll_offsets,
         old_spatial_depths: spatial_depths(old_visual_context_tree),
+        old_culling,
         new_tree: new_visual_context_tree,
         new_scroll_offsets,
         new_spatial_depths: spatial_depths(new_visual_context_tree),
+        new_culling,
     };
-    let old_frames_with_empty_effective_clip = old_visual_context_tree.frames_with_empty_effective_clip();
-    let new_frames_with_empty_effective_clip = new_visual_context_tree.frames_with_empty_effective_clip();
+    let old_frames_with_empty_effective_clip = &chains.old_culling;
+    let new_frames_with_empty_effective_clip = &chains.new_culling;
     let commands_are_equal = |old_command: &CommandReference<'_>, new_command: &CommandReference<'_>| {
         display_list_commands_are_equal(old_command, new_command)
             && chains.chains_are_compatible(old_command.header.context, new_command.header.context)
@@ -499,7 +563,7 @@ pub fn compute_display_list_damage(
             command,
             old_visual_context_tree,
             old_scroll_offsets,
-            &old_frames_with_empty_effective_clip,
+            old_frames_with_empty_effective_clip,
         );
     };
     let add_new_command_damage = |damage: &mut DamageAccumulator, command: &CommandReference<'_>| {
@@ -507,7 +571,7 @@ pub fn compute_display_list_damage(
             command,
             new_visual_context_tree,
             new_scroll_offsets,
-            &new_frames_with_empty_effective_clip,
+            new_frames_with_empty_effective_clip,
         );
     };
     let add_visual_context_damage =
@@ -634,13 +698,13 @@ mod tests {
     use crate::painting::display_list::builder::HEADER_SIZE;
     use crate::painting::display_list::commands::{
         CanvasId, CompositorMainThreadWheelEventRegion, DisplayListCommand, DisplayListGlyph, DrawCanvas, FillRect,
-        FontResourceId, FrameNodeIndex, ImageFrameResourceId, InlineClipKind,
+        FontResourceId, ImageFrameResourceId, InlineClipKind,
     };
     use crate::painting::display_list::ffi_bytes::FfiBytes;
     use crate::painting::visual_context::scroll_state::NO_SCROLL_STATE_SLOT;
     use crate::painting::visual_context::{
-        ClipData, ClipMode, EffectsData, FrameData, MaskData, MaskLayerOrigin, ScrollData, SpatialData, TransformData,
-        TransformDataRole,
+        ClipData, ClipMode, ClipNodeData, ClipNodeIndex, EffectNodeData, EffectNodeIndex, EffectsData, MaskData,
+        MaskLayerOrigin, ScrollData, SpatialData, TransformData, TransformDataRole,
     };
     use libgfx_rust::filter::Filter;
     use libgfx_rust::{
@@ -705,7 +769,7 @@ mod tests {
                 rect,
                 color,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                background_color_animation_frame: FrameNodeIndex::NONE,
+                background_color_animation_effect: EffectNodeIndex::NONE,
             },
             Some(rect),
             ContextRef::default(),
@@ -781,28 +845,52 @@ mod tests {
         VisualContextTree::create(transform(FloatMatrix4x4::identity()))
     }
 
-    fn clip(rect: FloatRect) -> FrameData {
-        FrameData::Clip(ClipData {
+    fn clip(rect: FloatRect) -> ClipNodeData {
+        ClipNodeData::Rect(ClipData {
             rect,
             corner_radii: CornerRadii::default(),
             mode: ClipMode::Intersect,
         })
     }
 
-    fn mask(rect: IntRect) -> FrameData {
-        FrameData::Mask(MaskData {
+    fn mask(rect: IntRect) -> EffectNodeData {
+        EffectNodeData::Mask(MaskData {
             rect,
             kind: MaskKind::Alpha,
             origin: MaskLayerOrigin::CssMaskLayers,
         })
     }
 
-    fn effects(filter: Vec<u8>) -> FrameData {
-        FrameData::Effects(EffectsData {
+    fn effects(filter: Vec<u8>) -> EffectNodeData {
+        EffectNodeData::Effects(EffectsData {
             opacity: 1.0,
             blend_mode: CompositingAndBlendingOperator::Normal,
             filter: Some(Rc::new(filter)),
         })
+    }
+
+    // A context under a fresh root clip, or under a fresh root effect without an output clip.
+    fn clip_context(tree: &mut VisualContextTree, data: ClipNodeData) -> ContextRef {
+        let clip = tree.append_clip(data, ClipNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        ContextRef {
+            clip,
+            effect: EffectNodeIndex::NONE,
+            ..ContextRef::default()
+        }
+    }
+
+    fn effect_context(tree: &mut VisualContextTree, data: EffectNodeData) -> ContextRef {
+        let effect = tree.append_effect(
+            data,
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
+        );
+        ContextRef {
+            clip: ClipNodeIndex::NONE,
+            effect,
+            ..ContextRef::default()
+        }
     }
 
     fn blur_filter(radius: f32) -> Vec<u8> {
@@ -819,18 +907,18 @@ mod tests {
 
     fn damage_for_filter_change(old_filter: Vec<u8>, new_filter: Vec<u8>) -> Option<IntRect> {
         let mut old_tree = identity_tree();
-        let old_frame = old_tree.append_frame(effects(old_filter), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        let old_context = effect_context(&mut old_tree, effects(old_filter));
         let mut new_tree = identity_tree();
-        let new_frame = new_tree.append_frame(effects(new_filter), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        let new_context = effect_context(&mut new_tree, effects(new_filter));
         let rect = IntRect::new(10, 10, 20, 20);
         let fill = FillRect {
             rect,
             color: RED,
             compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-            background_color_animation_frame: FrameNodeIndex::NONE,
+            background_color_animation_effect: EffectNodeIndex::NONE,
         };
-        let old_display_list = command_bytes(&fill, Some(rect), context_in(VISUAL_VIEWPORT_NODE_INDEX, old_frame));
-        let new_display_list = command_bytes(&fill, Some(rect), context_in(VISUAL_VIEWPORT_NODE_INDEX, new_frame));
+        let old_display_list = command_bytes(&fill, Some(rect), context_in(VISUAL_VIEWPORT_NODE_INDEX, old_context));
+        let new_display_list = command_bytes(&fill, Some(rect), context_in(VISUAL_VIEWPORT_NODE_INDEX, new_context));
         damage(&old_display_list, &old_tree, &new_display_list, &new_tree)
     }
 
@@ -851,8 +939,8 @@ mod tests {
         )
     }
 
-    fn context_in(spatial: SpatialNodeIndex, frame: FrameNodeIndex) -> ContextRef {
-        ContextRef { spatial, frame }
+    fn context_in(spatial: SpatialNodeIndex, context: ContextRef) -> ContextRef {
+        ContextRef { spatial, ..context }
     }
 
     #[test]
@@ -892,20 +980,20 @@ mod tests {
                 rect,
                 color: RED,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                background_color_animation_frame: FrameNodeIndex::NONE,
+                background_color_animation_effect: EffectNodeIndex::NONE,
             },
             Some(rect),
-            context_in(in_order_transform, FrameNodeIndex::NONE),
+            context_in(in_order_transform, ContextRef::default()),
         );
         let new_commands = command_bytes(
             &FillRect {
                 rect,
                 color: RED,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                background_color_animation_frame: FrameNodeIndex::NONE,
+                background_color_animation_effect: EffectNodeIndex::NONE,
             },
             Some(rect),
-            context_in(permuted_transform, FrameNodeIndex::NONE),
+            context_in(permuted_transform, ContextRef::default()),
         );
         assert_eq!(
             damage(&old_commands, &in_order, &new_commands, &permuted),
@@ -1003,7 +1091,7 @@ mod tests {
                 rect,
                 color: RED,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                background_color_animation_frame: FrameNodeIndex::NONE,
+                background_color_animation_effect: EffectNodeIndex::NONE,
             },
             &[],
             Some(rect),
@@ -1061,7 +1149,7 @@ mod tests {
                 rect: IntRect::new(0, 0, 10, 10),
                 color: RED,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                background_color_animation_frame: FrameNodeIndex::NONE,
+                background_color_animation_effect: EffectNodeIndex::NONE,
             },
             None,
             ContextRef::default(),
@@ -1071,7 +1159,7 @@ mod tests {
                 rect: IntRect::new(0, 0, 10, 10),
                 color: BLUE,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                background_color_animation_frame: FrameNodeIndex::NONE,
+                background_color_animation_effect: EffectNodeIndex::NONE,
             },
             None,
             ContextRef::default(),
@@ -1133,26 +1221,18 @@ mod tests {
     #[test]
     fn mask_visual_context_damages_affected_commands() {
         let mut old_tree = identity_tree();
-        let old_mask_frame = old_tree.append_frame(
-            mask(IntRect::new(0, 0, 100, 100)),
-            FrameNodeIndex::NONE,
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
+        let old_mask_context = effect_context(&mut old_tree, mask(IntRect::new(0, 0, 100, 100)));
         let mut new_tree = identity_tree();
-        new_tree.append_frame(
-            mask(IntRect::new(0, 0, 100, 100)),
-            FrameNodeIndex::NONE,
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
+        effect_context(&mut new_tree, mask(IntRect::new(0, 0, 100, 100)));
         let display_list = command_bytes(
             &FillRect {
                 rect: IntRect::new(10, 10, 20, 20),
                 color: RED,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                background_color_animation_frame: FrameNodeIndex::NONE,
+                background_color_animation_effect: EffectNodeIndex::NONE,
             },
             Some(IntRect::new(10, 10, 20, 20)),
-            context_in(VISUAL_VIEWPORT_NODE_INDEX, old_mask_frame),
+            context_in(VISUAL_VIEWPORT_NODE_INDEX, old_mask_context),
         );
         assert_eq!(
             damage(&display_list, &old_tree, &display_list, &new_tree),
@@ -1163,36 +1243,28 @@ mod tests {
     #[test]
     fn commands_under_an_empty_effective_clip_do_not_damage() {
         let mut old_tree = identity_tree();
-        let old_frame = old_tree.append_frame(
-            clip(FloatRect::default()),
-            FrameNodeIndex::NONE,
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
+        let old_context = clip_context(&mut old_tree, clip(FloatRect::default()));
         let mut new_tree = identity_tree();
-        let new_frame = new_tree.append_frame(
-            clip(FloatRect::default()),
-            FrameNodeIndex::NONE,
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
+        let new_context = clip_context(&mut new_tree, clip(FloatRect::default()));
         let old_display_list = command_bytes(
             &FillRect {
                 rect: IntRect::new(10, 10, 20, 20),
                 color: RED,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                background_color_animation_frame: FrameNodeIndex::NONE,
+                background_color_animation_effect: EffectNodeIndex::NONE,
             },
             Some(IntRect::new(10, 10, 20, 20)),
-            context_in(VISUAL_VIEWPORT_NODE_INDEX, old_frame),
+            context_in(VISUAL_VIEWPORT_NODE_INDEX, old_context),
         );
         let new_display_list = command_bytes(
             &FillRect {
                 rect: IntRect::new(30, 30, 20, 20),
                 color: BLUE,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                background_color_animation_frame: FrameNodeIndex::NONE,
+                background_color_animation_effect: EffectNodeIndex::NONE,
             },
             Some(IntRect::new(30, 30, 20, 20)),
-            context_in(VISUAL_VIEWPORT_NODE_INDEX, new_frame),
+            context_in(VISUAL_VIEWPORT_NODE_INDEX, new_context),
         );
         assert_eq!(
             damage(&old_display_list, &old_tree, &new_display_list, &new_tree),
@@ -1203,32 +1275,24 @@ mod tests {
     #[test]
     fn a_clip_growing_from_empty_damages_the_commands_it_reveals() {
         let mut old_tree = identity_tree();
-        let old_frame = old_tree.append_frame(
-            clip(FloatRect::default()),
-            FrameNodeIndex::NONE,
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
+        let old_context = clip_context(&mut old_tree, clip(FloatRect::default()));
         let mut new_tree = identity_tree();
-        let new_frame = new_tree.append_frame(
-            clip(FloatRect::new(0.0, 0.0, 100.0, 100.0)),
-            FrameNodeIndex::NONE,
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
+        let new_context = clip_context(&mut new_tree, clip(FloatRect::new(0.0, 0.0, 100.0, 100.0)));
         let fill = FillRect {
             rect: IntRect::new(10, 10, 20, 20),
             color: RED,
             compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-            background_color_animation_frame: FrameNodeIndex::NONE,
+            background_color_animation_effect: EffectNodeIndex::NONE,
         };
         let old_display_list = command_bytes(
             &fill,
             Some(fill.rect),
-            context_in(VISUAL_VIEWPORT_NODE_INDEX, old_frame),
+            context_in(VISUAL_VIEWPORT_NODE_INDEX, old_context),
         );
         let new_display_list = command_bytes(
             &fill,
             Some(fill.rect),
-            context_in(VISUAL_VIEWPORT_NODE_INDEX, new_frame),
+            context_in(VISUAL_VIEWPORT_NODE_INDEX, new_context),
         );
         assert_eq!(
             damage(&old_display_list, &old_tree, &new_display_list, &new_tree),
@@ -1244,14 +1308,13 @@ mod tests {
             VISUAL_VIEWPORT_NODE_INDEX,
         );
         let mut new_tree = identity_tree();
-        new_tree.append_frame(
-            FrameData::Effects(EffectsData {
+        effect_context(
+            &mut new_tree,
+            EffectNodeData::Effects(EffectsData {
                 opacity: 0.5,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
             }),
-            FrameNodeIndex::NONE,
-            VISUAL_VIEWPORT_NODE_INDEX,
         );
         let new_command_spatial = new_tree.append_spatial(
             SpatialData::Transform(transform(FloatMatrix4x4::identity())),
@@ -1261,17 +1324,17 @@ mod tests {
             rect: IntRect::new(10, 10, 20, 20),
             color: RED,
             compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-            background_color_animation_frame: FrameNodeIndex::NONE,
+            background_color_animation_effect: EffectNodeIndex::NONE,
         };
         let old_display_list = command_bytes(
             &fill,
             Some(fill.rect),
-            context_in(old_command_spatial, FrameNodeIndex::NONE),
+            context_in(old_command_spatial, ContextRef::default()),
         );
         let new_display_list = command_bytes(
             &fill,
             Some(fill.rect),
-            context_in(new_command_spatial, FrameNodeIndex::NONE),
+            context_in(new_command_spatial, ContextRef::default()),
         );
         assert_eq!(
             damage(&old_display_list, &old_tree, &new_display_list, &new_tree),

@@ -56,7 +56,7 @@ pub(crate) fn svg_viewport_transform_of(
 }
 
 pub(crate) struct BoxFacts {
-    pub needs_compositor_background_color_frame: bool,
+    pub needs_compositor_background_color_effect: bool,
     pub transform: Option<TransformData>,
     pub transform_is_invertible: bool,
     pub perspective: Option<PerspectiveData>,
@@ -91,7 +91,7 @@ impl BoxFacts {
         consults_default_scroll_shift_anchors: bool,
     ) -> Self {
         let mut facts = Self {
-            needs_compositor_background_color_frame: layout_arena.node_has_compositor_animation_frame(
+            needs_compositor_background_color_effect: layout_arena.node_has_compositor_animation_frame(
                 slot,
                 crate::layout::node_data::CompositorAnimationFrameKind::BackgroundColor,
             ),
@@ -187,15 +187,17 @@ pub(crate) fn create_fresh_tree_with_viewport_nodes(
     inputs: &FfiVisualContextTreeInputs,
 ) -> FreshTree {
     let mut tree = VisualContextTree::create(super::node_values::visual_viewport_transform_data(inputs));
-    let root_isolation_frame = tree.append_frame(
-        FrameData::layer_blending_with(CompositingAndBlendingOperator::Normal),
-        FrameNodeIndex::NONE,
+    let root_isolation_effect = tree.append_effect(
+        EffectNodeData::layer_blending_with(CompositingAndBlendingOperator::Normal),
+        EffectNodeIndex::NONE,
         VISUAL_VIEWPORT_NODE_INDEX,
+        ClipNodeIndex::NONE,
     );
-    tree.root_isolation_frame = Some(root_isolation_frame);
+    tree.root_isolation_effect = Some(root_isolation_effect);
     let root_context = ContextRef {
         spatial: VISUAL_VIEWPORT_NODE_INDEX,
-        frame: root_isolation_frame,
+        clip: ClipNodeIndex::NONE,
+        effect: root_isolation_effect,
     };
 
     let viewport_scroll_node = tree.append_spatial(
@@ -208,23 +210,29 @@ pub(crate) fn create_fresh_tree_with_viewport_nodes(
     );
     let viewport_state_for_descendants = ContextRef {
         spatial: viewport_scroll_node,
-        frame: root_isolation_frame,
+        clip: ClipNodeIndex::NONE,
+        effect: root_isolation_effect,
     };
 
     let viewport_nearest_scroll_nodes = NearestScrollNodeIndices {
         stopping_at_fixed_position_ancestors: viewport_scroll_node,
         continuing_through_fixed_position_ancestors: viewport_scroll_node,
     };
+    let scrolled = PositioningContext {
+        spatial: viewport_scroll_node,
+        clip: ClipNodeIndex::NONE,
+        nearest_scroll_nodes: viewport_nearest_scroll_nodes,
+        plane_root: viewport_scroll_node,
+    };
     let viewport_contexts = DescendantVisualContexts {
-        normal: viewport_state_for_descendants,
-        absolute_position: viewport_state_for_descendants,
-        fixed_position: root_context,
-        normal_nearest_scroll_nodes: viewport_nearest_scroll_nodes,
-        absolute_position_nearest_scroll_nodes: viewport_nearest_scroll_nodes,
-        fixed_position_nearest_scroll_nodes: viewport_nearest_scroll_nodes,
-        normal_plane_root: viewport_scroll_node,
-        absolute_position_plane_root: viewport_scroll_node,
-        fixed_position_plane_root: VISUAL_VIEWPORT_NODE_INDEX,
+        effect: root_isolation_effect,
+        normal: scrolled,
+        absolute_position: scrolled,
+        fixed_position: PositioningContext {
+            spatial: VISUAL_VIEWPORT_NODE_INDEX,
+            plane_root: VISUAL_VIEWPORT_NODE_INDEX,
+            ..scrolled
+        },
         flattens_inherited_transform: true,
         sorting_context_root: None,
         enclosing_stacking_context: viewport,
@@ -236,6 +244,7 @@ pub(crate) fn create_fresh_tree_with_viewport_nodes(
             inherited_input: viewport_contexts,
             output_for_descendants: viewport_contexts,
             node_handles: BoxVisualContextNodeHandles::default(),
+            effect_clip_constraints: Vec::new(),
             has_mask_nodes: false,
             may_be_root_element: false,
             owns_geometry_dependent_nodes: false,

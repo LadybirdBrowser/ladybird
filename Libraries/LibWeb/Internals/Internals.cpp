@@ -194,7 +194,7 @@ u64 Internals::visual_context_tree_node_count()
     if (!document.has_committed_viewport_box() || !document.paint_state().has_visual_context_tree())
         return 0;
     auto visual_context_tree = document.paint_state().visual_context_tree(document);
-    return visual_context_tree.live_spatial_node_count() + visual_context_tree.live_frame_node_count();
+    return visual_context_tree.live_node_count();
 }
 
 u64 Internals::visual_context_tree_dead_node_count()
@@ -203,7 +203,7 @@ u64 Internals::visual_context_tree_dead_node_count()
     if (!document.has_committed_viewport_box() || !document.paint_state().has_visual_context_tree())
         return 0;
     auto visual_context_tree = document.paint_state().visual_context_tree(document);
-    return (visual_context_tree.spatial_node_count() - visual_context_tree.live_spatial_node_count()) + (visual_context_tree.frame_node_count() - visual_context_tree.live_frame_node_count());
+    return visual_context_tree.node_count() - visual_context_tree.live_node_count();
 }
 
 u64 Internals::visual_context_tree_structural_epoch()
@@ -220,7 +220,7 @@ u64 Internals::visual_context_tree_node_capacity()
     if (!document.has_committed_viewport_box() || !document.paint_state().has_visual_context_tree())
         return 0;
     auto visual_context_tree = document.paint_state().visual_context_tree(document);
-    return visual_context_tree.spatial_node_count() + visual_context_tree.frame_node_count();
+    return visual_context_tree.node_count();
 }
 
 GC::Ref<JS::Object> Internals::visual_context_node_indices(DOM::Element& element)
@@ -238,7 +238,8 @@ GC::Ref<JS::Object> Internals::visual_context_node_indices(DOM::Element& element
     };
     auto object = JS::Object::create(realm, nullptr);
     object->define_direct_property("spatial"_utf16_fly_string, owned_indices_as_array(Layout::RustFFI::FfiVisualContextBoxNodeList::SpatialNodes), JS::default_attributes);
-    object->define_direct_property("frames"_utf16_fly_string, owned_indices_as_array(Layout::RustFFI::FfiVisualContextBoxNodeList::FrameNodes), JS::default_attributes);
+    object->define_direct_property("clips"_utf16_fly_string, owned_indices_as_array(Layout::RustFFI::FfiVisualContextBoxNodeList::ClipNodes), JS::default_attributes);
+    object->define_direct_property("effects"_utf16_fly_string, owned_indices_as_array(Layout::RustFFI::FfiVisualContextBoxNodeList::EffectNodes), JS::default_attributes);
     object->define_direct_property("needsCompositorEffectsLayer"_utf16_fly_string, JS::Value(layout_node && layout_node->needs_compositor_effects_layer()), JS::default_attributes);
     object->define_direct_property("needsCompositorBackgroundColorFrame"_utf16_fly_string, JS::Value(layout_node && layout_node->needs_compositor_background_color_frame()), JS::default_attributes);
     return object;

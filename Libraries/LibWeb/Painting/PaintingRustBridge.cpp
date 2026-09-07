@@ -672,10 +672,10 @@ Utf16String serialize_painting_dump(DOM::Document const& document, AccumulatedVi
         .mask_display_list_count = [](void*, void const* display_list_pointer) -> size_t {
             return static_cast<DisplayList const*>(display_list_pointer)->mask_display_lists().size();
         },
-        .mask_display_lists = [](void*, void const* display_list_pointer, u32* frames, u64* display_list_ids) {
+        .mask_display_lists = [](void*, void const* display_list_pointer, u32* effects, u64* display_list_ids) {
             size_t index = 0;
             for (auto const& entry : static_cast<DisplayList const*>(display_list_pointer)->mask_display_lists()) {
-                frames[index] = entry.key.value();
+                effects[index] = entry.key.value();
                 display_list_ids[index] = entry.value.value();
                 ++index;
             } },
@@ -784,7 +784,7 @@ static NonnullRefPtr<DisplayList> display_list_from_rust_recording(AccumulatedVi
     Vector<DisplayListCommandRun> command_runs { ReadonlySpan<DisplayListCommandRun> { recorded.command_runs, recorded.command_run_count } };
     auto display_list = DisplayList::create_from_command_bytes(visual_context_tree, move(command_bytes), move(command_runs));
     for (auto const& registration : ReadonlySpan<Layout::RustFFI::FfiMaskDisplayListRegistration> { recorded.mask_registrations, recorded.mask_registration_count })
-        display_list->set_mask_display_list_id(registration.frame, DisplayListResourceId { registration.display_list_id });
+        display_list->set_mask_display_list_id(registration.effect, DisplayListResourceId { registration.display_list_id });
     return display_list;
 }
 

@@ -3,24 +3,24 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-  frames:
-    [f0 in s0] effects=[]
+  effects:
+    [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s1/f0 rect=[8,13 100x100] color=rgb(173, 216, 230)
-PaintLinearGradient@s1/f0 rect=[8,13 100x100] inline_clips=[clip=[8,13 100x100]]
-DrawGlyphRun@s1/f0 rect=[8,13 30x16] translation=[8,25.796875] color=rgb(0, 0, 0)
+FillRect@s1/e0 rect=[8,13 100x100] color=rgb(173, 216, 230)
+PaintLinearGradient@s1/e0 rect=[8,13 100x100] inline_clips=[clip=[8,13 100x100]]
+DrawGlyphRun@s1/e0 rect=[8,13 30x16] translation=[8,25.796875] color=rgb(0, 0, 0)
 
 After background-blend-mode change:
 AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-  frames:
-    [f0 in s0] effects=[]
+  effects:
+    [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s1/f0 rect=[8,13 100x100] color=rgb(173, 216, 230)
-PaintLinearGradient@s1/f0 rect=[8,13 100x100] blend_mode=2 inline_clips=[clip=[8,13 100x100]]
-DrawGlyphRun@s1/f0 rect=[8,13 30x16] translation=[8,25.796875] color=rgb(0, 0, 0)
+FillRect@s1/e0 rect=[8,13 100x100] color=rgb(173, 216, 230)
+PaintLinearGradient@s1/e0 rect=[8,13 100x100] blend_mode=2 inline_clips=[clip=[8,13 100x100]]
+DrawGlyphRun@s1/e0 rect=[8,13 30x16] translation=[8,25.796875] color=rgb(0, 0, 0)
 

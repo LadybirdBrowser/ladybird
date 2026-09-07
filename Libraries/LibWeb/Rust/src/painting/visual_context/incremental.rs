@@ -12,7 +12,7 @@ use super::dirty::{
     BoxDirtyBits, VisualContextBoxDirtyKind, VisualContextDirtySet, VisualContextGlobalRebuildReason,
     VisualContextUpdateScope,
 };
-use super::reconcile::{BoxNodeScratch, plan_box_node_placement, write_box_nodes};
+use super::reconcile::BoxNodeWriter;
 use super::refresh::compute_sticky_data;
 use super::scroll_state::ScrollState;
 use super::*;
@@ -42,13 +42,12 @@ pub(crate) struct IncrementalUpdateOutcome {
 }
 
 pub(crate) enum IncrementalUpdateResult {
-    Applied(IncrementalUpdateOutcome),
+    Applied(Box<IncrementalUpdateOutcome>),
     NeedsFullBuild(VisualContextGlobalRebuildReason),
 }
 
 fn incremental_tree_requires_fresh_build(tree: &VisualContextTree, delta: &VisualContextTreeDelta) -> bool {
-    (!delta.tombstoned_spatial_node_indices.is_empty() || !delta.tombstoned_frame_node_indices.is_empty())
-        && !tree.node_references_are_consistent()
+    delta.tombstoned_any_node && !tree.node_references_are_consistent()
 }
 
 fn box_is_inside_svg_resource_subtree(layout_arena: &impl PaintableRowsRead, slot: NodeSlotId) -> bool {
@@ -139,12 +138,17 @@ fn tombstone_removed_blocks(
     for removed in &dirty.removed {
         for index in &removed.node_handles.spatial {
             if tree.tombstone_spatial_slot(*index) {
-                delta.note_tombstoned_spatial(index.0);
+                delta.note_tombstoned();
             }
         }
-        for index in removed.node_handles.frame_handles() {
-            if tree.tombstone_frame_slot(index) {
-                delta.note_tombstoned_frame(index.0);
+        for index in removed.node_handles.clip_handles() {
+            if tree.tombstone_clip_slot(index) {
+                delta.note_tombstoned();
+            }
+        }
+        for index in &removed.node_handles.effects {
+            if tree.tombstone_effect_slot(*index) {
+                delta.note_tombstoned();
             }
         }
     }
@@ -199,7 +203,6 @@ pub(crate) fn rebuild_scroll_state_from_tree(
     layout_arena: &impl PaintableRowsRead,
     tree: &mut VisualContextTree,
     tree_inputs: &FfiVisualContextTreeInputs,
-    delta: &mut VisualContextTreeDelta,
 ) -> ScrollState {
     let mut scroll_state = ScrollState::default();
     for node_index in tree.spatial_dependency_order() {
@@ -213,16 +216,12 @@ pub(crate) fn rebuild_scroll_state_from_tree(
         let SpatialData::Sticky(sticky) = &tree.spatial_nodes[index].data else {
             unreachable!("a registered sticky node keeps its payload kind");
         };
-        let refreshed = SpatialData::Sticky(compute_sticky_data(
+        tree.spatial_nodes[index].data = SpatialData::Sticky(compute_sticky_data(
             layout_arena,
             &scroll_state,
             sticky.state_slot,
             tree_inputs,
         ));
-        if !super::shape::spatial_payloads_are_equal(&tree.spatial_nodes[index].data, &refreshed) {
-            delta.note_patched_spatial(node_index.0);
-        }
-        tree.spatial_nodes[index].data = refreshed;
     }
     scroll_state
 }
@@ -245,18 +244,21 @@ pub(crate) fn box_owns_geometry_dependent_nodes(
     let effects_filter_is_resolved_by_the_host_against_geometry = layout_arena
         .node_style_if_live(slot)
         .is_some_and(|style| crate::painting::filter_bytes::contains_url(&style.effects().filter));
-    let frames_are_geometry_dependent = handles.frame_handles().any(|index| {
-        let node = &tree.frame_nodes[index.0 as usize];
+    let clips_are_geometry_dependent = handles
+        .clip_handles()
+        .any(|index| tree.clip_nodes[index.0 as usize].data.is_live());
+    let effects_are_geometry_dependent = handles.effects.iter().any(|index| {
+        let node = &tree.effect_nodes[index.0 as usize];
         match &node.data {
-            FrameData::BackgroundColorAnimation => false,
-            FrameData::Clip(_) | FrameData::ClipPath(_) | FrameData::Mask(_) => true,
-            FrameData::Effects(effects) => {
+            EffectNodeData::BackgroundColorAnimation => false,
+            EffectNodeData::Mask(_) => true,
+            EffectNodeData::Effects(effects) => {
                 effects.filter.is_some() && effects_filter_is_resolved_by_the_host_against_geometry
             }
-            FrameData::Dead => false,
+            EffectNodeData::Dead => false,
         }
     });
-    spatial_is_geometry_dependent || frames_are_geometry_dependent
+    spatial_is_geometry_dependent || clips_are_geometry_dependent || effects_are_geometry_dependent
 }
 
 struct PendingBox {
@@ -391,6 +393,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
         .removed
         .iter()
         .any(|removed| state.paintables_with_mask_nodes.contains(&removed.slot));
+    let mut effect_clip_constraints_changed = false;
     let mut stack: Vec<PendingBox> = Vec::new();
     let push_children = |stack: &mut Vec<PendingBox>,
                          parent: NodeSlotId,
@@ -468,8 +471,9 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
             let previous_has_mask_nodes = existing_record.as_ref().is_some_and(|record| record.has_mask_nodes);
             let may_be_root_element = parent == viewport;
             let tree = Rc::make_mut(state.tree.as_mut().expect("the tree exists throughout the pass"));
-            let mut scratch = BoxNodeScratch::new(tree);
-            let output = {
+            let existing_handles = existing_record.as_ref().map(|record| &record.node_handles);
+            let mut writer = BoxNodeWriter::new(tree, existing_handles, &mut delta);
+            let mut assignment = {
                 let anchor_scroll_shift_resolver =
                     scaffold_scroll_state
                         .as_ref()
@@ -481,7 +485,7 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
                         });
                 build_box_visual_context_nodes(
                     &environment,
-                    &mut scratch,
+                    &mut writer,
                     slot,
                     input,
                     may_be_root_element,
@@ -490,39 +494,19 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
                         .map(|resolver| resolver as &dyn AnchorScrollShiftResolver),
                 )
             };
-            let (scratch_spatial, scratch_frames) = scratch.into_nodes();
-            let existing_handles = existing_record.as_ref().map(|record| &record.node_handles);
-            let placement = plan_box_node_placement(
-                tree,
-                existing_handles,
-                &output.assignment.record.node_handles,
-                &mut delta,
-            );
-            let reconcile = write_box_nodes(
-                tree,
-                scratch_spatial,
-                scratch_frames,
-                &placement,
-                existing_handles,
-                &mut delta,
-            );
+            effect_clip_constraints_changed |= existing_record
+                .as_ref()
+                .map_or(!assignment.record.effect_clip_constraints.is_empty(), |record| {
+                    record.effect_clip_constraints != assignment.record.effect_clip_constraints
+                });
+            let (handles, reconcile) = writer.finish();
             if let Some(scroll_state) = scaffold_scroll_state.as_mut() {
-                for handle in &placement.spatial {
+                for handle in &handles.spatial {
                     register_scroll_like_node(layout_arena, tree, scroll_state, *handle);
                 }
             }
-            let mut assignment = output.assignment;
-            assignment.accumulated_visual_context = placement.remap_context(assignment.accumulated_visual_context);
-            assignment.accumulated_visual_context_for_descendants =
-                placement.remap_context(assignment.accumulated_visual_context_for_descendants);
-            assignment.fixed_background_visual_context =
-                placement.remap_context(assignment.fixed_background_visual_context);
-            assignment.enclosing_scroll_node_index = placement.remap_spatial(assignment.enclosing_scroll_node_index);
-            assignment.own_scroll_node_index = placement.remap_spatial(assignment.own_scroll_node_index);
-            let new_output = remap_descendant_contexts(&placement, output.descendant_contexts);
-            assignment.record.inherited_input = input;
-            assignment.record.output_for_descendants = new_output;
-            assignment.record.node_handles = placement.into_node_handles();
+            let new_output = assignment.record.output_for_descendants;
+            assignment.record.node_handles = handles;
             assignment.record.owns_geometry_dependent_nodes =
                 box_owns_geometry_dependent_nodes(layout_arena, tree, slot, &assignment.record.node_handles);
             assignment.record.subtree_may_own_geometry_dependent_nodes =
@@ -550,6 +534,9 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
                     assignment.accumulated_visual_context,
                     assignment.accumulated_visual_context_for_descendants,
                 ));
+            // A box can select different inherited nodes without owning any nodes itself.
+            // Its recorded contexts must still be replaced in the next display list.
+            delta.requires_display_list_recording |= contexts_changed;
             if reconcile.shape_changed || !record_existed {
                 layout_arena.invalidate_paint_cache(slot);
             } else if contexts_changed {
@@ -607,11 +594,39 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
     }
 
     let tree = Rc::make_mut(state.tree.as_mut().expect("the tree exists throughout the pass"));
+    // Payload-only updates keep layer placement unless a box selected a different clip
+    // chain. Structural changes can reparent clips without changing constraint handles;
+    // removed boxes can drop escape constraints even when they owned no tree nodes.
+    if scope.rebuilds_every_box()
+        || effect_clip_constraints_changed
+        || delta.structural_epoch_changed
+        || !state.dirty_boxes.removed.is_empty()
+    {
+        let mut constraints = Vec::new();
+        if scope.rebuilds_every_box() {
+            // Every box's new record is already in the assignments, and the resolver
+            // supplies the viewport's root isolation constraint itself.
+            for assignment in &assignments {
+                constraints.extend_from_slice(&assignment.record.effect_clip_constraints);
+            }
+        } else {
+            paint_order::for_each_in_paint_subtree(layout_arena, viewport, |slot| {
+                if let Some(&index) = assignment_index_by_slot.get(&slot) {
+                    constraints.extend_from_slice(&assignments[index].record.effect_clip_constraints);
+                } else if let Some(record) = layout_arena.paintable_visual_context_record(slot) {
+                    constraints.extend_from_slice(&record.effect_clip_constraints);
+                }
+            });
+        }
+        if tree.resolve_effect_output_clips(&constraints) {
+            delta.note_repurposed_in_place();
+        }
+    }
     if incremental_tree_requires_fresh_build(tree, &delta) {
         return IncrementalUpdateResult::NeedsFullBuild(VisualContextGlobalRebuildReason::InvalidIncrementalReferences);
     }
-    let scroll_state = rebuild_scroll_state_from_tree(layout_arena, tree, &tree_inputs, &mut delta);
-    delta.finish();
+    debug_assert!(tree.node_references_are_consistent());
+    let scroll_state = rebuild_scroll_state_from_tree(layout_arena, tree, &tree_inputs);
     tree.debug_assert_slot_accounting();
     if delta.structural_epoch_changed {
         tree.structural_epoch = allocate_structural_epoch();
@@ -619,11 +634,11 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
     state.scroll_state = scroll_state;
     state.scroll_state_snapshot.clear();
     state.needs_to_refresh_scroll_state = true;
-    IncrementalUpdateResult::Applied(IncrementalUpdateOutcome {
+    IncrementalUpdateResult::Applied(Box::new(IncrementalUpdateOutcome {
         delta,
         assignments,
         mask_node_owners_changed,
-    })
+    }))
 }
 
 #[cfg(debug_assertions)]
@@ -633,34 +648,32 @@ pub(crate) fn debug_assert_every_live_node_is_owned(
     viewport: NodeSlotId,
 ) {
     let mut spatial_is_owned = vec![false; tree.spatial_nodes.len()];
-    let mut frame_is_owned = vec![false; tree.frame_nodes.len()];
+    let mut clip_is_owned = vec![false; tree.clip_nodes.len()];
+    let mut effect_is_owned = vec![false; tree.effect_nodes.len()];
     spatial_is_owned[VISUAL_VIEWPORT_NODE_INDEX.0 as usize] = true;
     let viewport_scroll_node = layout_arena.paintable_data(viewport).own_scroll_node_index;
     if (viewport_scroll_node.0 as usize) < spatial_is_owned.len() {
         spatial_is_owned[viewport_scroll_node.0 as usize] = true;
     }
-    if let Some(root_isolation_frame) = tree.root_isolation_frame {
-        frame_is_owned[root_isolation_frame.0 as usize] = true;
+    if let Some(root_isolation_effect) = tree.root_isolation_effect {
+        effect_is_owned[root_isolation_effect.0 as usize] = true;
+    }
+    fn claim(owned: &mut [bool], index: u32, kind: &str) {
+        assert!(!owned[index as usize], "{kind} {index} is claimed twice");
+        owned[index as usize] = true;
     }
     paint_order::for_each_in_paint_subtree(layout_arena, viewport, |slot| {
         let Some(record) = layout_arena.paintable_visual_context_record(slot) else {
             return;
         };
         for index in &record.node_handles.spatial {
-            assert!(
-                !spatial_is_owned[index.0 as usize],
-                "spatial node {} is claimed twice",
-                index.0
-            );
-            spatial_is_owned[index.0 as usize] = true;
+            claim(&mut spatial_is_owned, index.0, "spatial node");
         }
-        for index in record.node_handles.frame_handles() {
-            assert!(
-                !frame_is_owned[index.0 as usize],
-                "frame node {} is claimed twice",
-                index.0
-            );
-            frame_is_owned[index.0 as usize] = true;
+        for index in record.node_handles.clip_handles() {
+            claim(&mut clip_is_owned, index.0, "clip node");
+        }
+        for index in &record.node_handles.effects {
+            claim(&mut effect_is_owned, index.0, "effect node");
         }
     });
     for (index, node) in tree.spatial_nodes.iter().enumerate() {
@@ -669,10 +682,16 @@ pub(crate) fn debug_assert_every_live_node_is_owned(
             "live spatial node {index} has no owner"
         );
     }
-    for (index, node) in tree.frame_nodes.iter().enumerate() {
+    for (index, node) in tree.clip_nodes.iter().enumerate() {
         assert!(
-            !node.data.is_live() || frame_is_owned[index],
-            "live frame node {index} has no owner"
+            !node.data.is_live() || clip_is_owned[index],
+            "live clip node {index} has no owner"
+        );
+    }
+    for (index, node) in tree.effect_nodes.iter().enumerate() {
+        assert!(
+            !node.data.is_live() || effect_is_owned[index],
+            "live effect node {index} has no owner"
         );
     }
 }
@@ -690,17 +709,16 @@ mod tests {
     use super::*;
     use libgfx_rust::{CompositingAndBlendingOperator, FloatMatrix4x4};
 
-    fn effects() -> FrameData {
-        FrameData::Effects(EffectsData {
+    fn effects() -> EffectNodeData {
+        EffectNodeData::Effects(EffectsData {
             opacity: 0.5,
             blend_mode: CompositingAndBlendingOperator::Normal,
             filter: None,
         })
     }
 
-    #[test]
-    fn a_tombstoned_parent_of_a_live_frame_requires_a_fresh_tree() {
-        let mut tree = VisualContextTree::create(TransformData {
+    fn tree() -> VisualContextTree {
+        VisualContextTree::create(TransformData {
             matrix: FloatMatrix4x4::identity(),
             origin: FloatPoint::default(),
             sorting_context_root_index: None,
@@ -708,41 +726,41 @@ mod tests {
             role: TransformDataRole::CssTransform,
             synthetic_plane: false,
             establishes_sorting_context: false,
-        });
-        let parent = tree.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
-        tree.append_frame(effects(), parent, VISUAL_VIEWPORT_NODE_INDEX);
+        })
+    }
+
+    #[test]
+    fn a_tombstoned_parent_of_a_live_effect_requires_a_fresh_tree() {
+        let mut tree = tree();
+        let parent = tree.append_effect(
+            effects(),
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
+        );
+        tree.append_effect(effects(), parent, VISUAL_VIEWPORT_NODE_INDEX, ClipNodeIndex::NONE);
 
         let mut delta = VisualContextTreeDelta::default();
-        assert!(tree.tombstone_frame_slot(parent));
-        delta.note_tombstoned_frame(parent.0);
+        assert!(tree.tombstone_effect_slot(parent));
+        delta.note_tombstoned();
 
         assert!(incremental_tree_requires_fresh_build(&tree, &delta));
     }
-}
 
-fn remap_descendant_contexts(
-    placement: &super::reconcile::BoxNodePlacement,
-    contexts: DescendantVisualContexts,
-) -> DescendantVisualContexts {
-    let remap_scroll_nodes = |nodes: NearestScrollNodeIndices| NearestScrollNodeIndices {
-        stopping_at_fixed_position_ancestors: placement.remap_spatial(nodes.stopping_at_fixed_position_ancestors),
-        continuing_through_fixed_position_ancestors: placement
-            .remap_spatial(nodes.continuing_through_fixed_position_ancestors),
-    };
-    DescendantVisualContexts {
-        normal: placement.remap_context(contexts.normal),
-        absolute_position: placement.remap_context(contexts.absolute_position),
-        fixed_position: placement.remap_context(contexts.fixed_position),
-        normal_nearest_scroll_nodes: remap_scroll_nodes(contexts.normal_nearest_scroll_nodes),
-        absolute_position_nearest_scroll_nodes: remap_scroll_nodes(contexts.absolute_position_nearest_scroll_nodes),
-        fixed_position_nearest_scroll_nodes: remap_scroll_nodes(contexts.fixed_position_nearest_scroll_nodes),
-        normal_plane_root: placement.remap_spatial(contexts.normal_plane_root),
-        absolute_position_plane_root: placement.remap_spatial(contexts.absolute_position_plane_root),
-        fixed_position_plane_root: placement.remap_spatial(contexts.fixed_position_plane_root),
-        flattens_inherited_transform: contexts.flattens_inherited_transform,
-        sorting_context_root: contexts
-            .sorting_context_root
-            .map(|index| placement.remap_spatial(index)),
-        enclosing_stacking_context: contexts.enclosing_stacking_context,
+    #[test]
+    fn a_context_naming_a_tombstoned_clip_is_rejected() {
+        let mut tree = tree();
+        let clip = tree.append_clip(
+            ClipNodeData::rect_clip(FloatRect::new(0.0, 0.0, 1.0, 1.0)),
+            ClipNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let context = ContextRef {
+            clip,
+            ..ContextRef::default()
+        };
+        assert!(tree.context_is_valid(context));
+        assert!(tree.tombstone_clip_slot(clip));
+        assert!(!tree.context_is_valid(context));
     }
 }

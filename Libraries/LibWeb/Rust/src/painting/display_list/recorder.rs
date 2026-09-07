@@ -245,7 +245,7 @@ pub struct DisplayListRecorder {
     // the draws whose force-dark result is judged against it (borders and selections). None outside those scopes.
     contrast_backdrop: Option<Color>,
     context: ContextRef,
-    mask_display_lists: Vec<(FrameNodeIndex, DisplayListResourceId)>,
+    mask_display_lists: Vec<(EffectNodeIndex, DisplayListResourceId)>,
     ambient_inline_clips: Vec<PendingInlineClip>,
 }
 
@@ -374,13 +374,11 @@ impl DisplayListRecorder {
         self.force_dark.as_ref().map(ForceDarkResolver::settings)
     }
 
-    pub fn register_mask_display_list(&mut self, frames: &[FrameNodeIndex], display_list_id: DisplayListResourceId) {
-        for frame in frames {
-            self.mask_display_lists.push((*frame, display_list_id));
-        }
+    pub fn register_mask_display_list(&mut self, effect: EffectNodeIndex, display_list_id: DisplayListResourceId) {
+        self.mask_display_lists.push((effect, display_list_id));
     }
 
-    pub fn take_mask_display_lists(&mut self) -> Vec<(FrameNodeIndex, DisplayListResourceId)> {
+    pub fn take_mask_display_lists(&mut self) -> Vec<(EffectNodeIndex, DisplayListResourceId)> {
         std::mem::take(&mut self.mask_display_lists)
     }
 
@@ -388,7 +386,7 @@ impl DisplayListRecorder {
         &self.builder
     }
 
-    pub fn mask_display_lists(&self) -> &[(FrameNodeIndex, DisplayListResourceId)] {
+    pub fn mask_display_lists(&self) -> &[(EffectNodeIndex, DisplayListResourceId)] {
         &self.mask_display_lists
     }
 
@@ -480,7 +478,7 @@ impl DisplayListRecorder {
                 rect,
                 color,
                 compositing_and_blending_operator,
-                background_color_animation_frame: FrameNodeIndex::NONE,
+                background_color_animation_effect: EffectNodeIndex::NONE,
             },
             &[],
         );
@@ -512,7 +510,7 @@ impl DisplayListRecorder {
                 rect,
                 color: Color::TRANSPARENT,
                 compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                background_color_animation_frame: FrameNodeIndex::NONE,
+                background_color_animation_effect: EffectNodeIndex::NONE,
             },
             &[],
         );
@@ -1032,7 +1030,7 @@ impl DisplayListRecorder {
                 rect,
                 color,
                 corner_radii,
-                background_color_animation_frame: FrameNodeIndex::NONE,
+                background_color_animation_effect: EffectNodeIndex::NONE,
             },
             &[],
         );
@@ -1043,15 +1041,15 @@ impl DisplayListRecorder {
         rect: IntRect,
         color: Color,
         corner_radii: CornerRadii,
-        animation_frame: Option<FrameNodeIndex>,
+        animation_effect: Option<EffectNodeIndex>,
         force_dark_role: ForceDarkRole,
     ) {
-        if rect.is_empty() || (color.alpha() == 0 && animation_frame.is_none()) {
+        if rect.is_empty() || (color.alpha() == 0 && animation_effect.is_none()) {
             return;
         }
-        // NB: A frame means the player samples the animated color at play time, past this resolution. So while
+        // NB: An effect means the player samples the animated color at play time, past this resolution. So while
         // force-dark applies, Document::update_compositor_animations() keeps background colors off the compositor.
-        let animation_frame = animation_frame.unwrap_or(FrameNodeIndex::NONE);
+        let animation_effect = animation_effect.unwrap_or(EffectNodeIndex::NONE);
         let color = self.resolve_color(color, force_dark_role);
         if !corner_radii.has_any_radius() {
             self.append_command(
@@ -1059,7 +1057,7 @@ impl DisplayListRecorder {
                     rect,
                     color,
                     compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-                    background_color_animation_frame: animation_frame,
+                    background_color_animation_effect: animation_effect,
                 },
                 &[],
             );
@@ -1070,7 +1068,7 @@ impl DisplayListRecorder {
                 rect,
                 color,
                 corner_radii,
-                background_color_animation_frame: animation_frame,
+                background_color_animation_effect: animation_effect,
             },
             &[],
         );

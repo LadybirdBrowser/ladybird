@@ -2,12 +2,13 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-  frames:
-    [f0 in s0] effects=[]
-      [f1 in s1] clip=[8,8 200x200] (BlockContainer<DIV>.relpos)
-        [f3 in s1] effects=[opacity=0.5] (BlockContainer<DIV>.outer-opacity)
-          [f6 in s1] effects=[opacity=0.3] (BlockContainer<DIV>.inner-opacity)
+  clips:
+    [c0 in s1] clip=[8,8 200x200] (BlockContainer<DIV>.relpos)
+  effects:
+    [e0 in s0] effects=[]
+      [e1 in s1 out=c0] effects=[opacity=0.5] (BlockContainer<DIV>.outer-opacity)
+        [e2 in s1 out=c0] effects=[opacity=0.3] (BlockContainer<DIV>.inner-opacity)
 
 DisplayList:
-FillRect@s1/f6 rect=[8,8 100x100] color=rgb(0, 0, 0)
+FillRect@s1/c0/e2 rect=[8,8 100x100] color=rgb(0, 0, 0)
 

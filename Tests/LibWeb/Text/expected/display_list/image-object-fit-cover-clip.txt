@@ -2,9 +2,9 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-  frames:
-    [f0 in s0] effects=[]
+  effects:
+    [e0 in s0] effects=[]
 
 DisplayList:
-DrawScaledDecodedImageFrame@s1/f0 dst_rect=[0,-20 40x80] inline_clips=[clip=[0,0 40x40]]
+DrawScaledDecodedImageFrame@s1/e0 dst_rect=[0,-20 40x80] inline_clips=[clip=[0,0 40x40]]
 

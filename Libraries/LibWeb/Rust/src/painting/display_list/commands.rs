@@ -120,38 +120,47 @@ impl FfiBytes for SpatialNodeIndex {
     }
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
-#[repr(transparent)]
-pub struct FrameNodeIndex(pub u32);
+// Indices into the clip and effect trees. `u32::MAX` is the absent node.
+macro_rules! optional_node_index {
+    ($name:ident) => {
+        #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+        #[repr(transparent)]
+        pub struct $name(pub u32);
 
-impl FrameNodeIndex {
-    pub const NONE: Self = Self(u32::MAX);
+        impl $name {
+            pub const NONE: Self = Self(u32::MAX);
 
-    pub const fn is_none(self) -> bool {
-        self.0 == u32::MAX
-    }
+            pub const fn is_none(self) -> bool {
+                self.0 == u32::MAX
+            }
+        }
+
+        impl Default for $name {
+            fn default() -> Self {
+                Self::NONE
+            }
+        }
+
+        impl FfiBytes for $name {
+            #[inline]
+            fn write_ffi_bytes(&self, out: &mut [u8]) {
+                self.0.write_ffi_bytes(out);
+            }
+        }
+    };
 }
 
-impl Default for FrameNodeIndex {
-    fn default() -> Self {
-        Self::NONE
-    }
-}
-
-impl FfiBytes for FrameNodeIndex {
-    #[inline]
-    fn write_ffi_bytes(&self, out: &mut [u8]) {
-        self.0.write_ffi_bytes(out);
-    }
-}
+optional_node_index!(ClipNodeIndex);
+optional_node_index!(EffectNodeIndex);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Hash)]
 #[repr(C)]
 pub struct ContextRef {
     pub spatial: SpatialNodeIndex,
-    pub frame: FrameNodeIndex,
+    pub clip: ClipNodeIndex,
+    pub effect: EffectNodeIndex,
 }
-ffi_bytes_fields!(ContextRef { spatial, frame });
+ffi_bytes_fields!(ContextRef { spatial, clip, effect });
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
@@ -175,7 +184,7 @@ pub struct ReplayLayer {
     pub blend_mode: CompositingAndBlendingOperator,
     pub filter_bytes: *const u8,
     pub filter_bytes_size: usize,
-    pub frame: FrameNodeIndex,
+    pub effect: EffectNodeIndex,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -189,7 +198,8 @@ impl ContextRef {
     pub const fn spatial_only(spatial: SpatialNodeIndex) -> Self {
         Self {
             spatial,
-            frame: FrameNodeIndex::NONE,
+            clip: ClipNodeIndex::NONE,
+            effect: EffectNodeIndex::NONE,
         }
     }
 }
@@ -466,8 +476,9 @@ ffi_bytes_fields!(DisplayListGradientColorStops {
     repeating
 });
 
+// Keep payloads aligned after the three-index context, including inline object arrays.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(C)]
+#[repr(C, align(16))]
 pub struct DisplayListCommandHeader {
     pub command_type: DisplayListCommandType,
     pub has_bounding_rect: bool,
@@ -484,7 +495,7 @@ ffi_bytes_fields!(DisplayListCommandHeader {
     context,
     bounding_rect
 });
-const _: () = assert!(std::mem::size_of::<DisplayListCommandHeader>() == 32);
+const _: () = assert!(std::mem::size_of::<DisplayListCommandHeader>() == 48);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
@@ -534,7 +545,7 @@ pub struct DisplayListCommandRun {
     pub has_unbounded_draw: bool,
     pub has_compositor_metadata: bool,
 }
-const _: () = assert!(std::mem::size_of::<DisplayListCommandRun>() == 36);
+const _: () = assert!(std::mem::size_of::<DisplayListCommandRun>() == 40);
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 #[repr(C)]
@@ -703,13 +714,13 @@ pub struct FillRect {
     pub rect: IntRect,
     pub color: Color,
     pub compositing_and_blending_operator: CompositingAndBlendingOperator,
-    pub background_color_animation_frame: FrameNodeIndex,
+    pub background_color_animation_effect: EffectNodeIndex,
 }
 ffi_bytes_fields!(FillRect {
     rect,
     color,
     compositing_and_blending_operator,
-    background_color_animation_frame
+    background_color_animation_effect
 });
 
 impl DisplayListCommand for FillRect {
@@ -1049,13 +1060,13 @@ pub struct FillRectWithRoundedCorners {
     pub rect: IntRect,
     pub color: Color,
     pub corner_radii: CornerRadii,
-    pub background_color_animation_frame: FrameNodeIndex,
+    pub background_color_animation_effect: EffectNodeIndex,
 }
 ffi_bytes_fields!(FillRectWithRoundedCorners {
     rect,
     color,
     corner_radii,
-    background_color_animation_frame
+    background_color_animation_effect
 });
 
 impl DisplayListCommand for FillRectWithRoundedCorners {
@@ -1294,7 +1305,7 @@ pub const NO_MASK_DISPLAY_LIST: DisplayListResourceId = DisplayListResourceId(0)
 
 // Plays its content list inside an internally scoped saveLayer, optionally
 // masked by a second list composited with DestinationIn, so a group that
-// must not blend with the canvas needs no visual context frames.
+// must not blend with the canvas needs no clips or effects.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct DrawIsolatedDisplayList {

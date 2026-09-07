@@ -1,0 +1,27 @@
+new clipped effect: epoch unchanged: true
+clipped opacity update: epoch changed: false
+clipped opacity update: one effect: true
+clipped opacity update: full builds: 0
+repeated clipped opacity update: epoch changed: false
+repeated clipped opacity update: one effect: true
+repeated clipped opacity update: full builds: 0
+absolute escape: epoch changed: true
+absolute escape: one effect: true
+absolute escape: full builds: 0
+absolute child escapes: true
+escaped opacity update: epoch changed: false
+escaped opacity update: one effect: true
+escaped opacity update: full builds: 0
+absolute escape removed: epoch changed: true
+absolute escape removed: one effect: true
+absolute escape removed: full builds: 0
+fixed escape: epoch changed: true
+fixed escape: one effect: true
+fixed escape: full builds: 0
+fixed child escapes: true
+fixed escape removed: epoch changed: true
+fixed escape removed: one effect: true
+fixed escape removed: full builds: 0
+clipped opacity update after escapes: epoch changed: false
+clipped opacity update after escapes: one effect: true
+clipped opacity update after escapes: full builds: 0

@@ -225,13 +225,13 @@ fn paint_background_layers(
     let background_rect = resolved.background_rect;
     let color_box = resolved.color_box;
     let layers = &resolved.layers;
-    let background_color_animation_frame = recorder
+    let background_color_animation_effect = recorder
         .layout_arena
         .node_has_compositor_animation_frame(
             paintable,
             crate::layout::node_data::CompositorAnimationFrameKind::BackgroundColor,
         )
-        .then_some(recorder.recorder.accumulated_visual_context().frame)
+        .then_some(recorder.recorder.accumulated_visual_context().effect)
         .filter(|frame| !frame.is_none());
 
     let border_box = BackgroundBox {
@@ -246,7 +246,7 @@ fn paint_background_layers(
             converter.enclosing_device_rect(color_box.rect),
             color,
             libgfx_rust::CornerRadii::default(),
-            background_color_animation_frame,
+            background_color_animation_effect,
             ForceDarkRole::Background,
         );
     } else {
@@ -254,7 +254,7 @@ fn paint_background_layers(
             converter.rounded_device_rect(color_box.rect),
             color,
             color_box.radii.as_corners(&converter),
-            background_color_animation_frame,
+            background_color_animation_effect,
             ForceDarkRole::Background,
         );
     }
@@ -524,10 +524,10 @@ fn paint_image_layer(
         css_enums::background_attachment::FIXED => {
             let data = recorder.data(paintable);
             if data.has_fixed_background_visual_context && !recorder.recording_into_context_free_nested_list {
-                let frame = recorder.recorder.accumulated_visual_context().frame;
+                let context = recorder.recorder.accumulated_visual_context();
                 recorder.recorder.set_accumulated_visual_context(ContextRef {
                     spatial: data.fixed_background_visual_context.spatial,
-                    frame,
+                    ..context
                 });
             }
         }

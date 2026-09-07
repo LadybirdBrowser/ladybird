@@ -110,9 +110,10 @@ public:
     Optional<Gfx::Color> surface_clear_color() const { return m_surface_clear_color; }
     void set_async_scrolling_metadata(AsyncScrollingMetadata metadata) { m_async_scrolling_metadata = metadata; }
     Optional<AsyncScrollingMetadata> const& async_scrolling_metadata() const { return m_async_scrolling_metadata; }
-    Optional<DisplayListResourceId> mask_display_list_id(FrameNodeIndex frame) const { return m_mask_display_lists.get(frame); }
-    void set_mask_display_list_id(FrameNodeIndex frame, DisplayListResourceId display_list_id) { m_mask_display_lists.set(frame, display_list_id); }
-    HashMap<FrameNodeIndex, DisplayListResourceId> const& mask_display_lists() const { return m_mask_display_lists; }
+    // The mask content of a mask effect node, replayed once when that node's layer exits.
+    Optional<DisplayListResourceId> mask_display_list_id(EffectNodeIndex effect) const { return m_mask_display_lists.get(effect); }
+    void set_mask_display_list_id(EffectNodeIndex effect, DisplayListResourceId display_list_id) { m_mask_display_lists.set(effect, display_list_id); }
+    HashMap<EffectNodeIndex, DisplayListResourceId> const& mask_display_lists() const { return m_mask_display_lists; }
 
     static constexpr size_t command_alignment = 16;
 
@@ -139,7 +140,7 @@ public:
 
 private:
     explicit DisplayList(u64 compatible_visual_context_tree_structural_epoch);
-    DisplayList(u64 compatible_visual_context_tree_structural_epoch, u64 id, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata>, HashMap<FrameNodeIndex, DisplayListResourceId>&& mask_display_lists);
+    DisplayList(u64 compatible_visual_context_tree_structural_epoch, u64 id, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata>, HashMap<EffectNodeIndex, DisplayListResourceId>&& mask_display_lists);
 
     u64 m_compatible_visual_context_tree_structural_epoch { 0 };
     u64 m_id { 0 };
@@ -147,7 +148,7 @@ private:
     Vector<DisplayListCommandRun> m_command_runs;
     Optional<Gfx::Color> m_surface_clear_color;
     Optional<AsyncScrollingMetadata> m_async_scrolling_metadata;
-    HashMap<FrameNodeIndex, DisplayListResourceId> m_mask_display_lists;
+    HashMap<EffectNodeIndex, DisplayListResourceId> m_mask_display_lists;
 
     template<typename T>
     friend ErrorOr<void> IPC::encode(IPC::Encoder&, T const&);

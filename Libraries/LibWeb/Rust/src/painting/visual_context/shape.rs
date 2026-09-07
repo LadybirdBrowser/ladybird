@@ -43,19 +43,31 @@ pub(crate) enum SpatialNodeShape {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) enum FrameShapeKind {
-    BackgroundColorAnimation,
-    Clip { mode: ClipMode },
-    ClipPath,
-    Effects,
-    Mask { origin: MaskLayerOrigin },
+pub(crate) enum ClipShapeKind {
+    Rect { mode: ClipMode },
+    Path,
     Dead,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub(crate) struct FrameNodeShape {
-    pub kind: FrameShapeKind,
-    pub parent: FrameNodeIndex,
+pub(crate) struct ClipNodeShape {
+    pub kind: ClipShapeKind,
+    pub parent: ClipNodeIndex,
+    pub spatial: SpatialNodeIndex,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum EffectShapeKind {
+    Effects,
+    Mask { origin: MaskLayerOrigin },
+    BackgroundColorAnimation,
+    Dead,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct EffectNodeShape {
+    pub kind: EffectShapeKind,
+    pub parent: EffectNodeIndex,
     pub spatial: SpatialNodeIndex,
 }
 
@@ -97,16 +109,27 @@ pub(crate) fn spatial_node_shape(node: &SpatialNode) -> SpatialNodeShape {
     }
 }
 
-pub(crate) fn frame_node_shape(node: &FrameNode) -> FrameNodeShape {
+pub(crate) fn clip_node_shape(node: &ClipNode) -> ClipNodeShape {
     let kind = match &node.data {
-        FrameData::BackgroundColorAnimation => FrameShapeKind::BackgroundColorAnimation,
-        FrameData::Clip(clip) => FrameShapeKind::Clip { mode: clip.mode },
-        FrameData::ClipPath(_) => FrameShapeKind::ClipPath,
-        FrameData::Effects(_) => FrameShapeKind::Effects,
-        FrameData::Mask(mask) => FrameShapeKind::Mask { origin: mask.origin },
-        FrameData::Dead => FrameShapeKind::Dead,
+        ClipNodeData::Rect(clip) => ClipShapeKind::Rect { mode: clip.mode },
+        ClipNodeData::Path(_) => ClipShapeKind::Path,
+        ClipNodeData::Dead => ClipShapeKind::Dead,
     };
-    FrameNodeShape {
+    ClipNodeShape {
+        kind,
+        parent: node.parent,
+        spatial: node.spatial,
+    }
+}
+
+pub(crate) fn effect_node_shape(node: &EffectNode) -> EffectNodeShape {
+    let kind = match &node.data {
+        EffectNodeData::Effects(_) => EffectShapeKind::Effects,
+        EffectNodeData::Mask(mask) => EffectShapeKind::Mask { origin: mask.origin },
+        EffectNodeData::BackgroundColorAnimation => EffectShapeKind::BackgroundColorAnimation,
+        EffectNodeData::Dead => EffectShapeKind::Dead,
+    };
+    EffectNodeShape {
         kind,
         parent: node.parent,
         spatial: node.spatial,
@@ -134,20 +157,27 @@ pub(crate) fn spatial_payloads_are_equal(a: &SpatialData, b: &SpatialData) -> bo
     }
 }
 
-pub(crate) fn frame_payloads_are_equal(a: &FrameData, b: &FrameData) -> bool {
+pub(crate) fn clip_payloads_are_equal(a: &ClipNodeData, b: &ClipNodeData) -> bool {
     match (a, b) {
-        (FrameData::BackgroundColorAnimation, FrameData::BackgroundColorAnimation) => true,
-        (FrameData::Clip(a), FrameData::Clip(b)) => a == b,
-        (FrameData::ClipPath(a), FrameData::ClipPath(b)) => {
+        (ClipNodeData::Rect(a), ClipNodeData::Rect(b)) => a == b,
+        (ClipNodeData::Path(a), ClipNodeData::Path(b)) => {
             std::rc::Rc::ptr_eq(&a.path, &b.path) && a.bounding_rect == b.bounding_rect && a.fill_rule == b.fill_rule
         }
-        (FrameData::Effects(a), FrameData::Effects(b)) => {
+        (ClipNodeData::Dead, ClipNodeData::Dead) => true,
+        _ => false,
+    }
+}
+
+pub(crate) fn effect_payloads_are_equal(a: &EffectNodeData, b: &EffectNodeData) -> bool {
+    match (a, b) {
+        (EffectNodeData::Effects(a), EffectNodeData::Effects(b)) => {
             a.opacity == b.opacity
                 && a.blend_mode == b.blend_mode
                 && effects_filters_are_equal(a.filter.as_ref(), b.filter.as_ref())
         }
-        (FrameData::Mask(a), FrameData::Mask(b)) => a == b,
-        (FrameData::Dead, FrameData::Dead) => true,
+        (EffectNodeData::Mask(a), EffectNodeData::Mask(b)) => a == b,
+        (EffectNodeData::BackgroundColorAnimation, EffectNodeData::BackgroundColorAnimation) => true,
+        (EffectNodeData::Dead, EffectNodeData::Dead) => true,
         _ => false,
     }
 }

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #containing-block { transform: translateX(0); width: 200px; height: 100px; }
+    #clipped { overflow: hidden; width: 40px; height: 40px; }
+    #layer { width: 80px; height: 60px; }
+    #child { left: 60px; top: 0; width: 20px; height: 20px; background: green; }
+</style>
+<div id="containing-block"><div id="clipped"><div id="layer"><div id="child"></div></div></div></div>
+<script>
+    test(() => {
+        const layer = document.getElementById("layer");
+        const child = document.getElementById("child");
+        const settle = () => document.elementFromPoint(0, 0);
+        settle();
+        const epoch = internals.visualContextTreeStructuralEpoch();
+        layer.style.opacity = "0.5";
+        settle();
+        println(`new clipped effect: epoch unchanged: ${internals.visualContextTreeStructuralEpoch() === epoch}`);
+        const check = (label, change) => {
+            const epoch = internals.visualContextTreeStructuralEpoch();
+            const builds = internals.accumulatedVisualContextTreeBuildCount();
+            change();
+            settle();
+            println(`${label}: epoch changed: ${internals.visualContextTreeStructuralEpoch() !== epoch}`);
+            println(`${label}: one effect: ${internals.visualContextNodeIndices(layer).effects.length === 1}`);
+            println(`${label}: full builds: ${internals.accumulatedVisualContextTreeBuildCount() - builds}`);
+        };
+
+        check("clipped opacity update", () => layer.style.opacity = "0.6");
+        check("repeated clipped opacity update", () => layer.style.opacity = "0.7");
+        check("absolute escape", () => child.style.position = "absolute");
+        println(`absolute child escapes: ${document.elementFromPoint(65, 5) === child}`);
+        check("escaped opacity update", () => layer.style.opacity = "0.8");
+        check("absolute escape removed", () => child.style.position = "static");
+        check("fixed escape", () => child.style.position = "fixed");
+        println(`fixed child escapes: ${document.elementFromPoint(65, 5) === child}`);
+        check("fixed escape removed", () => child.style.position = "static");
+        check("clipped opacity update after escapes", () => layer.style.opacity = "0.9");
+    });
+</script>

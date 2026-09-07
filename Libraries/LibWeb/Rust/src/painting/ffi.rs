@@ -12,8 +12,8 @@ use crate::layout::used_values::FfiCssPixelPoint;
 use crate::layout::used_values::FfiCssPixelRect;
 use crate::layout::used_values::FfiCssPixelSize;
 use crate::layout::{grid_formatting_context, svg_formatting_context, used_values};
-use crate::painting::display_list::commands::FrameNodeIndex;
 use crate::painting::display_list::commands::SpatialNodeIndex;
+use crate::painting::display_list::commands::{ClipNodeIndex, ContextRef, EffectNodeIndex};
 use crate::painting::filter_bytes::filter_functions_graph;
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::host::FfiRecordedDisplayList;
@@ -1339,7 +1339,7 @@ pub unsafe extern "C" fn layout_arena_paintable_visual_animation_target_indices(
             crate::painting::host::FfiVisualAnimationTargetKind::Opacity
             | crate::painting::host::FfiVisualAnimationTargetKind::BackgroundColor
             | crate::painting::host::FfiVisualAnimationTargetKind::Filter => {
-                handles.frame_handles().map(|index| index.0).collect()
+                handles.effects.iter().map(|index| index.0).collect()
             }
             crate::painting::host::FfiVisualAnimationTargetKind::Transform => {
                 handles.spatial.iter().map(|index| index.0).collect()
@@ -1384,7 +1384,8 @@ pub unsafe extern "C" fn layout_arena_paintable_visual_context_node_count(
     let arena = unsafe { arena_from_handle(arena) };
     arena.with_paintable_visual_context_node_handles(slot, |handles| match list {
         FfiVisualContextBoxNodeList::SpatialNodes => handles.spatial.len(),
-        FfiVisualContextBoxNodeList::FrameNodes => handles.frame_handles().count(),
+        FfiVisualContextBoxNodeList::ClipNodes => handles.clip_handles().count(),
+        FfiVisualContextBoxNodeList::EffectNodes => handles.effects.len(),
     })
 }
 
@@ -1405,7 +1406,8 @@ pub unsafe extern "C" fn layout_arena_paintable_visual_context_copy_node_indices
     arena.with_paintable_visual_context_node_handles(slot, |handles| {
         let indices: Vec<u32> = match list {
             FfiVisualContextBoxNodeList::SpatialNodes => handles.spatial.iter().map(|index| index.0).collect(),
-            FfiVisualContextBoxNodeList::FrameNodes => handles.frame_handles().map(|index| index.0).collect(),
+            FfiVisualContextBoxNodeList::ClipNodes => handles.clip_handles().map(|index| index.0).collect(),
+            FfiVisualContextBoxNodeList::EffectNodes => handles.effects.iter().map(|index| index.0).collect(),
         };
         assert!(indices.len() <= capacity);
         // SAFETY: the caller warrants `capacity` writable indices behind `out`.
@@ -1474,7 +1476,7 @@ fn fresh_visual_context_tree_build(
             VisualContextUpdateScope::FreshTree,
             state,
         ) {
-            IncrementalUpdateResult::Applied(outcome) => outcome,
+            IncrementalUpdateResult::Applied(outcome) => *outcome,
             IncrementalUpdateResult::NeedsFullBuild(_) => {
                 unreachable!("a fresh tree walk has a tree and a viewport record")
             }
@@ -3041,47 +3043,47 @@ pub unsafe extern "C" fn visual_context_tree_spatial_node_count(tree: *const c_v
 ///
 /// `tree` must be a live retained tree handle.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_frame_node_count(tree: *const c_void) -> usize {
-    unsafe { tree_from_handle(tree) }.frame_nodes.len()
+pub unsafe extern "C" fn visual_context_tree_context_is_valid(tree: *const c_void, context: ContextRef) -> bool {
+    unsafe { tree_from_handle(tree) }.context_is_valid(context)
+}
+
+/// # Safety
+///
+/// `tree` must be a live retained tree handle. Every node slot, live or dead.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn visual_context_tree_node_count(tree: *const c_void) -> usize {
+    unsafe { tree_from_handle(tree) }.node_count()
 }
 
 /// # Safety
 ///
 /// `tree` must be a live retained tree handle.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_live_spatial_node_count(tree: *const c_void) -> usize {
-    unsafe { tree_from_handle(tree) }.live_spatial_node_count as usize
-}
-
-/// # Safety
-///
-/// `tree` must be a live retained tree handle.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_live_frame_node_count(tree: *const c_void) -> usize {
-    unsafe { tree_from_handle(tree) }.live_frame_node_count as usize
+pub unsafe extern "C" fn visual_context_tree_live_node_count(tree: *const c_void) -> usize {
+    unsafe { tree_from_handle(tree) }.live_node_count()
 }
 
 /// # Safety
 ///
 /// `tree` must be a live retained tree handle; `command_runs` must address `command_run_count`
-/// runs and `mask_frames` `mask_frame_count` frame indices for the call.
+/// runs and `mask_effects` `mask_effect_count` effect indices for the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn display_list_references_only_live_visual_context_nodes(
     tree: *const c_void,
     command_runs: *const crate::painting::display_list::commands::DisplayListCommandRun,
     command_run_count: usize,
-    mask_frames: *const FrameNodeIndex,
-    mask_frame_count: usize,
+    mask_effects: *const EffectNodeIndex,
+    mask_effect_count: usize,
 ) -> bool {
     let tree = unsafe { tree_from_handle(tree) };
     // SAFETY: The caller guarantees the slices address the stated number of values.
-    let (command_runs, mask_frames) = unsafe {
+    let (command_runs, mask_effects) = unsafe {
         (
             ffi_slice(command_runs, command_run_count),
-            ffi_slice(mask_frames, mask_frame_count),
+            ffi_slice(mask_effects, mask_effect_count),
         )
     };
-    tree.display_list_references_only_live_nodes(command_runs, mask_frames)
+    tree.display_list_references_only_live_nodes(command_runs, mask_effects)
 }
 
 /// # Safety
@@ -3260,34 +3262,34 @@ pub unsafe extern "C" fn visual_context_tree_with_visual_viewport_transform(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn visual_context_tree_with_sampled_values(
     tree: *const c_void,
-    frame_opacities: *const crate::painting::host::FfiFrameOpacitySample,
-    frame_opacity_count: usize,
-    frame_background_colors: *const crate::painting::host::FfiFrameBackgroundColorSample,
-    frame_background_color_count: usize,
-    frame_filters: *const crate::painting::host::FfiFrameFilterSample,
-    frame_filter_count: usize,
+    effect_opacities: *const crate::painting::host::FfiEffectOpacitySample,
+    effect_opacity_count: usize,
+    effect_background_colors: *const crate::painting::host::FfiEffectBackgroundColorSample,
+    effect_background_color_count: usize,
+    effect_filters: *const crate::painting::host::FfiEffectFilterSample,
+    effect_filter_count: usize,
     spatial_matrices: *const crate::painting::host::FfiSpatialTransformSample,
     spatial_matrix_count: usize,
 ) -> *const c_void {
     let tree = unsafe { tree_from_handle(tree) };
     // SAFETY: The caller guarantees the sample arrays address the stated counts.
-    let (frame_opacities, frame_background_colors, frame_filters, spatial_matrices) = unsafe {
+    let (effect_opacities, effect_background_colors, effect_filters, spatial_matrices) = unsafe {
         (
-            ffi_slice(frame_opacities, frame_opacity_count),
-            ffi_slice(frame_background_colors, frame_background_color_count),
-            ffi_slice(frame_filters, frame_filter_count),
+            ffi_slice(effect_opacities, effect_opacity_count),
+            ffi_slice(effect_background_colors, effect_background_color_count),
+            ffi_slice(effect_filters, effect_filter_count),
             ffi_slice(spatial_matrices, spatial_matrix_count),
         )
     };
-    let frame_opacities: Vec<(FrameNodeIndex, f32)> = frame_opacities
+    let effect_opacities: Vec<(EffectNodeIndex, f32)> = effect_opacities
         .iter()
-        .map(|sample| (FrameNodeIndex(sample.frame), sample.opacity))
+        .map(|sample| (EffectNodeIndex(sample.effect), sample.opacity))
         .collect();
-    let frame_background_colors: Vec<(FrameNodeIndex, libgfx_rust::Color)> = frame_background_colors
+    let effect_background_colors: Vec<(EffectNodeIndex, libgfx_rust::Color)> = effect_background_colors
         .iter()
-        .map(|sample| (FrameNodeIndex(sample.frame), sample.color))
+        .map(|sample| (EffectNodeIndex(sample.effect), sample.color))
         .collect();
-    let frame_filters: Vec<(FrameNodeIndex, Option<Rc<Vec<u8>>>)> = frame_filters
+    let effect_filters: Vec<(EffectNodeIndex, Option<Rc<Vec<u8>>>)> = effect_filters
         .iter()
         .map(|sample| {
             let filter = if sample.filter_size == 0 {
@@ -3298,7 +3300,7 @@ pub unsafe extern "C" fn visual_context_tree_with_sampled_values(
                     unsafe { ffi_slice(sample.filter_bytes, sample.filter_size) }.to_vec(),
                 ))
             };
-            (FrameNodeIndex(sample.frame), filter)
+            (EffectNodeIndex(sample.effect), filter)
         })
         .collect();
     let spatial_matrices: Vec<(SpatialNodeIndex, libgfx_rust::FloatMatrix4x4)> = spatial_matrices
@@ -3306,9 +3308,9 @@ pub unsafe extern "C" fn visual_context_tree_with_sampled_values(
         .map(|sample| (SpatialNodeIndex(sample.spatial), sample.matrix))
         .collect();
     let sampled = tree.with_sampled_visual_animation_values(
-        &frame_opacities,
-        &frame_background_colors,
-        &frame_filters,
+        &effect_opacities,
+        &effect_background_colors,
+        &effect_filters,
         &spatial_matrices,
     );
     Rc::into_raw(Rc::new(sampled)).cast()
@@ -3320,11 +3322,11 @@ pub unsafe extern "C" fn visual_context_tree_with_sampled_values(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn visual_context_tree_sampled_background_color(
     tree: *const c_void,
-    frame: FrameNodeIndex,
+    effect: EffectNodeIndex,
     color: *mut libgfx_rust::Color,
 ) -> bool {
     let tree = unsafe { tree_from_handle(tree) };
-    let Some(sampled_color) = tree.sampled_background_color(frame) else {
+    let Some(sampled_color) = tree.sampled_background_color(effect) else {
         return false;
     };
     // SAFETY: The caller guarantees that `color` points to writable storage.
@@ -3351,14 +3353,14 @@ pub unsafe extern "C" fn visual_context_tree_visual_animation_targets_are_valid(
 /// # Safety
 ///
 /// `tree` must be a live retained tree handle and `out_opacity` must be writable. Returns whether
-/// `frame` names an effects frame.
+/// `effect` names an effects node.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn visual_context_tree_effects_opacity(
     tree: *const c_void,
-    frame: FrameNodeIndex,
+    effect: EffectNodeIndex,
     out_opacity: *mut f32,
 ) -> bool {
-    match unsafe { tree_from_handle(tree) }.effects_opacity(frame) {
+    match unsafe { tree_from_handle(tree) }.effects_opacity(effect) {
         Some(opacity) => {
             // SAFETY: The caller guarantees `out_opacity` is writable.
             unsafe { *out_opacity = opacity };
@@ -3393,14 +3395,14 @@ pub unsafe extern "C" fn visual_context_tree_mark_spatial_subtrees(
 ///
 /// `tree` must be a live retained tree handle.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_has_unisolated_blending_frame(tree: *const c_void) -> bool {
-    unsafe { tree_from_handle(tree) }.has_unisolated_blending_frame()
+pub unsafe extern "C" fn visual_context_tree_has_unisolated_blending_effect(tree: *const c_void) -> bool {
+    unsafe { tree_from_handle(tree) }.has_unisolated_blending_effect()
 }
 
 /// # Safety
 ///
 /// `tree` must be a live retained tree handle; `visit` is called synchronously with `context` for every
-/// effects frame that carries a filter.
+/// effect node that carries a filter.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn visual_context_tree_for_each_effects_filter_bytes(
     tree: *const c_void,
@@ -3408,8 +3410,8 @@ pub unsafe extern "C" fn visual_context_tree_for_each_effects_filter_bytes(
     visit: unsafe extern "C" fn(*mut c_void, *const u8, usize),
 ) {
     let tree = unsafe { tree_from_handle(tree) };
-    for frame in &tree.frame_nodes {
-        if let crate::painting::visual_context::FrameData::Effects(effects) = &frame.data
+    for node in &tree.effect_nodes {
+        if let crate::painting::visual_context::EffectNodeData::Effects(effects) = &node.data
             && let Some(filter_bytes) = &effects.filter
         {
             // SAFETY: The C++ visitor reads the bytes synchronously.
@@ -3422,11 +3424,11 @@ pub unsafe extern "C" fn visual_context_tree_for_each_effects_filter_bytes(
 ///
 /// `tree` must be a live retained tree handle.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_frame_is_isolated_by_layer_frame(
+pub unsafe extern "C" fn visual_context_tree_effect_is_isolated_by_layer(
     tree: *const c_void,
-    frame: FrameNodeIndex,
+    effect: EffectNodeIndex,
 ) -> bool {
-    unsafe { tree_from_handle(tree) }.frame_is_isolated_by_layer_frame(frame)
+    unsafe { tree_from_handle(tree) }.effect_is_isolated_by_layer(effect)
 }
 
 /// # Safety
@@ -3543,22 +3545,22 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_sticky(
 ///
 /// `builder` must be a live handle from `visual_context_tree_test_builder_create`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_test_builder_append_clip_frame(
+pub unsafe extern "C" fn visual_context_tree_test_builder_append_clip(
     builder: *mut c_void,
-    parent_frame: u32,
+    parent_clip: u32,
     spatial: u32,
     rect: libgfx_rust::FloatRect,
     corner_radii: libgfx_rust::CornerRadii,
     mode: crate::painting::visual_context::ClipMode,
 ) -> u32 {
     let tree = unsafe { test_builder_tree(builder) };
-    tree.append_frame(
-        crate::painting::visual_context::FrameData::Clip(crate::painting::visual_context::ClipData {
+    tree.append_clip(
+        crate::painting::visual_context::ClipNodeData::Rect(crate::painting::visual_context::ClipData {
             rect,
             corner_radii,
             mode,
         }),
-        FrameNodeIndex(parent_frame),
+        ClipNodeIndex(parent_clip),
         SpatialNodeIndex(spatial),
     )
     .0
@@ -3568,16 +3570,18 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_clip_frame(
 ///
 /// `builder` must be a live handle from `visual_context_tree_test_builder_create`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_test_builder_append_background_color_animation_frame(
+pub unsafe extern "C" fn visual_context_tree_test_builder_append_background_color_animation(
     builder: *mut c_void,
-    parent_frame: u32,
+    parent_effect: u32,
     spatial: u32,
+    output_clip: u32,
 ) -> u32 {
     let tree = unsafe { test_builder_tree(builder) };
-    tree.append_frame(
-        crate::painting::visual_context::FrameData::BackgroundColorAnimation,
-        FrameNodeIndex(parent_frame),
+    tree.append_effect(
+        crate::painting::visual_context::EffectNodeData::BackgroundColorAnimation,
+        EffectNodeIndex(parent_effect),
         SpatialNodeIndex(spatial),
+        ClipNodeIndex(output_clip),
     )
     .0
 }
@@ -3587,9 +3591,9 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_background_colo
 /// `builder` must be a live handle from `visual_context_tree_test_builder_create`; `path_bytes`
 /// must address `path_bytes_length` readable bytes of a serialized `Gfx::Path`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_test_builder_append_clip_path_frame(
+pub unsafe extern "C" fn visual_context_tree_test_builder_append_clip_path(
     builder: *mut c_void,
-    parent_frame: u32,
+    parent_clip: u32,
     spatial: u32,
     path_bytes: *const u8,
     path_bytes_length: usize,
@@ -3600,13 +3604,13 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_clip_path_frame
     // SAFETY: The caller guarantees `path_bytes` addresses `path_bytes_length` readable bytes.
     let path_bytes = unsafe { ffi_slice(path_bytes, path_bytes_length) };
     let path = libgfx_rust::path::OwnedPath::from_serialized_bytes(path_bytes);
-    tree.append_frame(
-        crate::painting::visual_context::FrameData::ClipPath(crate::painting::visual_context::ClipPathData {
+    tree.append_clip(
+        crate::painting::visual_context::ClipNodeData::Path(crate::painting::visual_context::ClipPathData {
             path: Rc::new(path),
             bounding_rect,
             fill_rule,
         }),
-        FrameNodeIndex(parent_frame),
+        ClipNodeIndex(parent_clip),
         SpatialNodeIndex(spatial),
     )
     .0
@@ -3616,22 +3620,24 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_clip_path_frame
 ///
 /// `builder` must be a live handle from `visual_context_tree_test_builder_create`.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_test_builder_append_effects_frame(
+pub unsafe extern "C" fn visual_context_tree_test_builder_append_effects(
     builder: *mut c_void,
-    parent_frame: u32,
+    parent_effect: u32,
     spatial: u32,
+    output_clip: u32,
     opacity: f32,
     blend_mode: libgfx_rust::CompositingAndBlendingOperator,
 ) -> u32 {
     let tree = unsafe { test_builder_tree(builder) };
-    tree.append_frame(
-        crate::painting::visual_context::FrameData::Effects(crate::painting::visual_context::EffectsData {
+    tree.append_effect(
+        crate::painting::visual_context::EffectNodeData::Effects(crate::painting::visual_context::EffectsData {
             opacity,
             blend_mode,
             filter: None,
         }),
-        FrameNodeIndex(parent_frame),
+        EffectNodeIndex(parent_effect),
         SpatialNodeIndex(spatial),
+        ClipNodeIndex(output_clip),
     )
     .0
 }

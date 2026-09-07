@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #containing-block { transform: translateX(0); width: 240px; height: 100px; }
+    #clipped { overflow: hidden; width: 40px; height: 40px; }
+    #layer { opacity: 0.5; }
+    #normal { width: 80px; height: 20px; background: red; }
+    .positioned { top: 0; width: 20px; height: 20px; background: green; }
+    #absolute { position: absolute; left: 60px; }
+    #fixed { position: fixed; left: 100px; }
+</style>
+<div id="containing-block"><div id="clipped"><div id="layer">
+    <div id="normal"></div>
+    <div id="absolute" class="positioned"></div>
+    <div id="fixed" class="positioned"></div>
+</div></div></div>
+<script>
+    test(() => {
+        const layer = document.getElementById("layer");
+        const absolute = document.getElementById("absolute");
+        const fixed = document.getElementById("fixed");
+        const lines = [];
+        const check = label => {
+            // Settle the incremental update before the dump requests a canonical fresh tree.
+            document.elementFromPoint(0, 0);
+            lines.push(`${label}: one owned effect: ${internals.visualContextNodeIndices(layer).effects.length === 1}`);
+            const dump = internals.dumpDisplayList();
+            const effects = dump.split("\n").filter(line => line.includes("effects=[opacity=0.5]"));
+            lines.push(`${label}: one shared layer: ${effects.length === 1}`);
+            lines.push(`${label}: layer inside overflow clip: ${effects[0].includes(" out=c")}`);
+        };
+
+        check("both positioned children");
+        lines.push(`absolute escapes: ${document.elementFromPoint(65, 5) === absolute}`);
+        lines.push(`fixed escapes: ${document.elementFromPoint(105, 5) === fixed}`);
+        lines.push(`normal stays clipped: ${document.elementFromPoint(45, 5).id !== "normal"}`);
+        absolute.remove();
+        check("fixed child remains");
+        fixed.remove();
+        check("no positioned children");
+        layer.append(absolute);
+        check("absolute child restored");
+        layer.append(fixed);
+        check("both restored");
+        internals.forceIncompatibleVisualContextTreeRebuild();
+        check("fresh tree");
+        for (const line of lines)
+            println(line);
+    });
+</script>

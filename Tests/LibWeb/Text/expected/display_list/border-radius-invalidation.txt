@@ -3,24 +3,26 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-  frames:
-    [f0 in s0] effects=[]
-      [f1 in s1] clip=[8,13 100x100] (BlockContainer<DIV>#box.box)
+  clips:
+    [c0 in s1] clip=[8,13 100x100] (BlockContainer<DIV>#box.box)
+  effects:
+    [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s1/f0 rect=[8,13 100x100] color=rgb(173, 216, 230)
-DrawGlyphRun@s1/f1 rect=[8,13 30x16] translation=[8,25.796875] color=rgb(0, 0, 0)
+FillRect@s1/e0 rect=[8,13 100x100] color=rgb(173, 216, 230)
+DrawGlyphRun@s1/c0/e0 rect=[8,13 30x16] translation=[8,25.796875] color=rgb(0, 0, 0)
 
 After border-radius change:
 AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-  frames:
-    [f0 in s0] effects=[]
-      [f1 in s1] clip=[8,13 100x100] radii=(20,20,20,20) (BlockContainer<DIV>#box.box)
+  clips:
+    [c0 in s1] clip=[8,13 100x100] radii=(20,20,20,20) (BlockContainer<DIV>#box.box)
+  effects:
+    [e0 in s0] effects=[]
 
 DisplayList:
-FillRectWithRoundedCorners@s1/f0 rect=[8,13 100x100] color=rgb(173, 216, 230)
-DrawGlyphRun@s1/f1 rect=[8,13 30x16] translation=[8,25.796875] color=rgb(0, 0, 0)
+FillRectWithRoundedCorners@s1/e0 rect=[8,13 100x100] color=rgb(173, 216, 230)
+DrawGlyphRun@s1/c0/e0 rect=[8,13 30x16] translation=[8,25.796875] color=rgb(0, 0, 0)
 

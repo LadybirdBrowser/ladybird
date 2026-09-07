@@ -49,7 +49,8 @@ pub enum FfiVisualContextGlobalRebuildReason {
 #[repr(u8)]
 pub enum FfiVisualContextBoxNodeList {
     SpatialNodes,
-    FrameNodes,
+    ClipNodes,
+    EffectNodes,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -276,15 +277,15 @@ pub struct FfiVisualViewportTransform {
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct FfiFrameOpacitySample {
-    pub frame: u32,
+pub struct FfiEffectOpacitySample {
+    pub effect: u32,
     pub opacity: f32,
 }
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct FfiFrameBackgroundColorSample {
-    pub frame: u32,
+pub struct FfiEffectBackgroundColorSample {
+    pub effect: u32,
     pub color: libgfx_rust::Color,
 }
 
@@ -299,8 +300,8 @@ pub enum FfiVisualAnimationTargetKind {
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct FfiFrameFilterSample {
-    pub frame: u32,
+pub struct FfiEffectFilterSample {
+    pub effect: u32,
     pub filter_bytes: *const u8,
     pub filter_size: usize,
 }

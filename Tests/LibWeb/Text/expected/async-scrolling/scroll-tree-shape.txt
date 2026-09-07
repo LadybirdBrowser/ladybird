@@ -11,19 +11,20 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
         [s2] scroll (BlockContainer<DIV>#scroller)
-  frames:
-    [f0 in s0] effects=[]
-      [f1 in s1] clip=[0,0 100x100] (BlockContainer<DIV>#scroller)
+  clips:
+    [c0 in s1] clip=[0,0 100x100] (BlockContainer<DIV>#scroller)
+  effects:
+    [e0 in s0] effects=[]
 
 DisplayList:
-CompositorWheelHitTestTarget@s0/f0 target_scroll_node_index=s1 rect=[0,0 800x600]
-CompositorScrollNode@s0/f0 scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1513] is_viewport=true
-CompositorWheelHitTestTarget@s1/f0 target_scroll_node_index=s1 rect=[0,0 800x2113]
-CompositorWheelHitTestTarget@s1/f0 target_scroll_node_index=s1 rect=[0,0 800x2100]
-CompositorWheelHitTestTarget@s1/f0 target_scroll_node_index=s2 rect=[0,0 100x100]
-CompositorScrollNode@s1/f0 scroll_node_index=s2 parent_scroll_node_index=s1 scrollport_rect=[0,0 100x100] min_scroll_offset=[0,0] max_scroll_offset=[400,400] is_viewport=false
-CompositorWheelHitTestTarget@s2/f1 target_scroll_node_index=s2 rect=[0,0 500x500]
-CompositorWheelHitTestTarget@s1/f0 target_scroll_node_index=s1 rect=[0,100 800x2000]
-PaintScrollBar@s1/f0
-PaintScrollBar@s1/f0
+CompositorWheelHitTestTarget@s0/e0 target_scroll_node_index=s1 rect=[0,0 800x600]
+CompositorScrollNode@s0/e0 scroll_node_index=s1 parent_scroll_node_index=s0 scrollport_rect=[0,0 800x600] min_scroll_offset=[0,0] max_scroll_offset=[0,1513] is_viewport=true
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s1 rect=[0,0 800x2113]
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s1 rect=[0,0 800x2100]
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s2 rect=[0,0 100x100]
+CompositorScrollNode@s1/e0 scroll_node_index=s2 parent_scroll_node_index=s1 scrollport_rect=[0,0 100x100] min_scroll_offset=[0,0] max_scroll_offset=[400,400] is_viewport=false
+CompositorWheelHitTestTarget@s2/c0/e0 target_scroll_node_index=s2 rect=[0,0 500x500]
+CompositorWheelHitTestTarget@s1/e0 target_scroll_node_index=s1 rect=[0,100 800x2000]
+PaintScrollBar@s1/e0
+PaintScrollBar@s1/e0
 

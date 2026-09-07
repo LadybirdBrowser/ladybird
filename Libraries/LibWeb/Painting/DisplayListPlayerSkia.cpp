@@ -47,7 +47,7 @@ struct DisplayListPlayerSkia::LayerImageFilterCache {
         ByteBuffer filter_bytes;
         sk_sp<SkImageFilter> image_filter;
     };
-    HashMap<u64, HashMap<u32, Entry>> entries_by_tree_structural_epoch_and_frame;
+    HashMap<u64, HashMap<u32, Entry>> entries_by_tree_structural_epoch_and_effect;
     u64 tree_structural_epoch { 0 };
 };
 
@@ -77,7 +77,7 @@ void DisplayListPlayerSkia::execute(
 {
     TemporaryChange composited_context_resolver_change { m_composited_context_resolver, composited_context_resolver };
     if (m_layer_image_filter_cache->tree_structural_epoch != visual_context_tree.structural_epoch()) {
-        m_layer_image_filter_cache->entries_by_tree_structural_epoch_and_frame.clear();
+        m_layer_image_filter_cache->entries_by_tree_structural_epoch_and_effect.clear();
         m_layer_image_filter_cache->tree_structural_epoch = visual_context_tree.structural_epoch();
     }
     DisplayListPlayer::execute(
@@ -245,9 +245,9 @@ void DisplayListPlayerSkia::play_command(FillRect const& command)
     auto& canvas = surface().canvas();
     SkPaint paint;
     paint.setAntiAlias(true);
-    auto color = command.background_color_animation_frame == NO_FRAME_NODE
+    auto color = command.background_color_animation_effect == NO_EFFECT_NODE
         ? command.color
-        : active_visual_context_tree().sampled_background_color(command.background_color_animation_frame).value_or(command.color);
+        : active_visual_context_tree().sampled_background_color(command.background_color_animation_effect).value_or(command.color);
     paint.setColor(to_skia_color(color));
     apply_compositing_and_blending_operator(paint, command.compositing_and_blending_operator);
     canvas.drawRect(to_skia_rect(rect), paint);
@@ -783,9 +783,9 @@ void DisplayListPlayerSkia::play_command(FillRectWithRoundedCorners const& comma
 
     auto& canvas = surface().canvas();
     SkPaint paint;
-    auto color = command.background_color_animation_frame == NO_FRAME_NODE
+    auto color = command.background_color_animation_effect == NO_EFFECT_NODE
         ? command.color
-        : active_visual_context_tree().sampled_background_color(command.background_color_animation_frame).value_or(command.color);
+        : active_visual_context_tree().sampled_background_color(command.background_color_animation_effect).value_or(command.color);
     paint.setColor(to_skia_color(color));
     paint.setAntiAlias(true);
 
@@ -1293,13 +1293,13 @@ void DisplayListPlayerSkia::push_layer(ReplayLayer const& layer)
 sk_sp<SkImageFilter> DisplayListPlayerSkia::layer_image_filter(ReplayLayer const& layer)
 {
     ReadonlyBytes filter_bytes { layer.filter_bytes, layer.filter_bytes_size };
-    auto& entries_by_frame = m_layer_image_filter_cache->entries_by_tree_structural_epoch_and_frame.ensure(active_visual_context_tree().structural_epoch());
-    if (auto cached = entries_by_frame.get(layer.frame.value()); cached.has_value() && cached->filter_bytes.bytes() == filter_bytes)
+    auto& entries_by_effect = m_layer_image_filter_cache->entries_by_tree_structural_epoch_and_effect.ensure(active_visual_context_tree().structural_epoch());
+    if (auto cached = entries_by_effect.get(layer.effect.value()); cached.has_value() && cached->filter_bytes.bytes() == filter_bytes)
         return cached->image_filter;
     auto image_filter = Gfx::to_skia_image_filter(filter_bytes, [&](u64 image_id) -> Gfx::DecodedImageFrame const& {
         return resource_storage().image_frame(ImageFrameResourceId { image_id });
     });
-    entries_by_frame.set(layer.frame.value(), LayerImageFilterCache::Entry { MUST(ByteBuffer::copy(filter_bytes)), image_filter });
+    entries_by_effect.set(layer.effect.value(), LayerImageFilterCache::Entry { MUST(ByteBuffer::copy(filter_bytes)), image_filter });
     return image_filter;
 }
 

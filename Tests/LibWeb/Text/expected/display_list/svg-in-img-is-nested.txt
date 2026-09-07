@@ -2,15 +2,15 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-  frames:
-    [f0 in s0] effects=[]
+  effects:
+    [e0 in s0] effects=[]
 
 DisplayList:
-PaintNestedDisplayList@s1/f0 rect=[8,13 300x200]
-  FillPath@s6/f0 path_bounding_rect=[0,0 100x100]
-  FillPath@s6/f0 path_bounding_rect=[0,100 100x100]
-  FillPath@s7/f1 path_bounding_rect=[0,0 100x100]
-  FillPath@s7/f1 path_bounding_rect=[0,100 100x100]
-  MaskDisplayList for frame f1:
+PaintNestedDisplayList@s1/e0 rect=[8,13 300x200]
+  FillPath@s6/e0 path_bounding_rect=[0,0 100x100]
+  FillPath@s6/e0 path_bounding_rect=[0,100 100x100]
+  FillPath@s7/e1 path_bounding_rect=[0,0 100x100]
+  FillPath@s7/e1 path_bounding_rect=[0,100 100x100]
+  MaskDisplayList for effect e1:
     FillPath@s1 path_bounding_rect=[0,0 100x100]
 

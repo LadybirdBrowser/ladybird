@@ -4,11 +4,11 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
         [s2] transform=[1,0,0,1,0,0] origin=(58,58) (BlockContainer<DIV>#child)
-  frames:
-    [f0 in s0] effects=[]
+  effects:
+    [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s2/f0 rect=[8,8 100x100] color=rgb(0, 128, 0)
+FillRect@s2/e0 rect=[8,8 100x100] color=rgb(0, 128, 0)
 
 After perspective change:
 AccumulatedVisualContext Tree:
@@ -17,9 +17,9 @@ AccumulatedVisualContext Tree:
       [s1] scroll (Viewport<#document>)
         [s2] perspective (BlockContainer<DIV>#box)
           [s3] transform=[1,0,0,1,0,0] origin=(58,58) (BlockContainer<DIV>#child)
-  frames:
-    [f0 in s0] effects=[]
+  effects:
+    [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s3/f0 rect=[8,8 100x100] color=rgb(0, 128, 0)
+FillRect@s3/e0 rect=[8,8 100x100] color=rgb(0, 128, 0)
 

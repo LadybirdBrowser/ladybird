@@ -2,12 +2,13 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-  frames:
-    [f0 in s0] effects=[]
-      [f2 in s1] clip_path=[bounds: 0,0 200x200, path: M50 50L150 50L150 150L50 150L50 50Z] (BlockContainer<DIV>.clip-path-ancestor)
-      [f5 in s0] clip=[220,0 100x100] (BlockContainer<DIV>.clip-ancestor)
+  clips:
+    [c0 in s1] clip_path=[bounds: 0,0 200x200, path: M50 50L150 50L150 150L50 150L50 50Z] (BlockContainer<DIV>.clip-path-ancestor)
+    [c3 in s0] clip=[220,0 100x100] (BlockContainer<DIV>.clip-ancestor)
+  effects:
+    [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s1/f2 rect=[0,0 200x200] color=rgb(255, 0, 0)
-FillRect@s0/f5 rect=[220,0 200x200] color=rgb(0, 128, 0)
+FillRect@s1/c0/e0 rect=[0,0 200x200] color=rgb(255, 0, 0)
+FillRect@s0/c3/e0 rect=[220,0 200x200] color=rgb(0, 128, 0)
 
