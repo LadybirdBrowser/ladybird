@@ -63,8 +63,15 @@ pub struct FontFacts {
 
 struct FontEntry {
     id: FontId,
-    retained: RetainedFont,
+    raw: NonNull<c_void>,
     facts: FontFacts,
+}
+
+impl Drop for FontEntry {
+    fn drop(&mut self) {
+        // SAFETY: FontHandle::intern took the reference this releases.
+        unsafe { ladybird_gfx_font_unref(self.raw.as_ptr()) };
+    }
 }
 
 #[derive(Clone)]
@@ -75,16 +82,17 @@ impl FontHandle {
     ///
     /// `raw` must point to a live `Gfx::Font`.
     pub unsafe fn intern(raw: *const c_void) -> Self {
+        let raw = NonNull::new(raw.cast_mut()).expect("Gfx::Font pointer must not be null");
         let mut snapshot = FfiFontSnapshot::default();
         // SAFETY: The caller guarantees the font is live, and the out-pointer
         // addresses a local.
-        unsafe { ladybird_gfx_font_snapshot(raw, &raw mut snapshot) };
-        // SAFETY: The caller guarantees the font is live; the retained
-        // reference keeps it that way for the entry's lifetime.
-        let retained = unsafe { RetainedFont::retain(raw) };
+        unsafe { ladybird_gfx_font_snapshot(raw.as_ptr(), &raw mut snapshot) };
+        // SAFETY: The caller guarantees the font is live; the reference taken
+        // here keeps it that way until the entry drops.
+        unsafe { ladybird_gfx_font_ref(raw.as_ptr()) };
         Self(Rc::new(FontEntry {
             id: FontId(snapshot.id),
-            retained,
+            raw,
             facts: FontFacts {
                 ascent: snapshot.ascent,
                 descent: snapshot.descent,
@@ -108,7 +116,7 @@ impl FontHandle {
 
     #[inline]
     pub fn as_raw(&self) -> *const c_void {
-        self.0.retained.as_raw()
+        self.0.raw.as_ptr()
     }
 
     pub fn is_emoji_font(&self) -> bool {
@@ -287,46 +295,3 @@ impl std::fmt::Debug for FontCascadeListHandle {
             .finish()
     }
 }
-
-/// Generates a strong-reference handle over a C++ ref/unref FFI pair:
-/// retain-on-construct, release-on-drop.
-macro_rules! retained_ffi_handle {
-    ($(#[$documentation:meta])* $name:ident, $ref_function:ident, $unref_function:ident, $type_name:literal) => {
-        $(#[$documentation])*
-        pub struct $name {
-            raw: NonNull<c_void>,
-        }
-
-        impl $name {
-            /// # Safety
-            ///
-            /// `raw` must point to a live object at the time of the call.
-            pub unsafe fn retain(raw: *const c_void) -> Self {
-                let raw = NonNull::new(raw.cast_mut()).expect(concat!($type_name, " pointer must not be null"));
-                // SAFETY: The caller guarantees the object is live, and the
-                // reference taken here keeps it that way until drop.
-                unsafe { $ref_function(raw.as_ptr()) };
-                Self { raw }
-            }
-
-            pub fn as_raw(&self) -> *const c_void {
-                self.raw.as_ptr()
-            }
-        }
-
-        impl Drop for $name {
-            fn drop(&mut self) {
-                // SAFETY: retain() took a strong reference on construction.
-                unsafe { $unref_function(self.raw.as_ptr()) };
-            }
-        }
-    };
-}
-
-retained_ffi_handle!(
-    /// A strong reference to a single `Gfx::Font`, keeping it alive until dropped.
-    RetainedFont,
-    ladybird_gfx_font_ref,
-    ladybird_gfx_font_unref,
-    "Gfx::Font"
-);
