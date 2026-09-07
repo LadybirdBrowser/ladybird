@@ -914,6 +914,65 @@ fn prefix_answer_payload_accounting_uses_the_retained_match_shape() {
 }
 
 #[test]
+fn retained_answer_rule_queries_preserve_shared_nodes_and_query_boundaries() {
+    let mut catalog = MatchAnswerCatalog::default();
+    let mut answers = RetainedMatchAnswers::default();
+    let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+    let mut expected = Vec::new();
+    for index in 1..=128 {
+        let node = StyleNodeID::element(index);
+        let rule = RuleID(index % 3 + 1);
+        let retained = RuleMatch {
+            node,
+            pseudo_element: None,
+            rule,
+            program: SelectorProgramID(1),
+            entry: 0,
+            cascade_order: 1,
+            specificity: Specificity::default(),
+            tree_scope: TreeScopeID::DOCUMENT,
+            scope_proximity: 0,
+        };
+        answers
+            .remember_prepared(
+                &mut catalog,
+                node,
+                prepare_retained_match_answer([retained].into_iter()),
+                &mut memory,
+            )
+            .unwrap();
+        expected.push((node, rule));
+    }
+    assert_eq!(
+        answers.answer_identity(StyleNodeID::element(1)),
+        answers.answer_identity(StyleNodeID::element(4)),
+    );
+    for removed in [None, Some(StyleNodeID::element(1)), Some(StyleNodeID::element(128))] {
+        if let Some(removed) = removed {
+            answers.forget(&mut catalog, removed);
+            expected.retain(|&(node, _)| node != removed);
+        }
+        for rules in [
+            vec![],
+            vec![RuleID(1)],
+            vec![RuleID(2)],
+            vec![RuleID(1), RuleID(3)],
+            vec![RuleID(99)],
+        ] {
+            let mut visited = Vec::new();
+            answers.for_each_answer_containing_any_rule(&catalog, &rules, |node| visited.push(node));
+            assert_eq!(
+                visited,
+                expected
+                    .iter()
+                    .filter_map(|&(node, rule)| rules.contains(&rule).then_some(node))
+                    .collect::<Vec<_>>(),
+            );
+        }
+    }
+}
+
+#[test]
 fn cascade_input_catalog_entries_follow_retained_column_lifetimes() {
     let mut catalog = MatchAnswerCatalog::default();
     let mut answers = RetainedMatchAnswers::default();
