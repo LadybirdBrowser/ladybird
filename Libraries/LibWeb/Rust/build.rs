@@ -2972,7 +2972,6 @@ fn main() -> Result<(), Box<dyn Error>> {
         "SVGResetValues".to_string(),
         "SurroundValues".to_string(),
         "BorderLayoutFacts".to_string(),
-        "FontLayoutFacts".to_string(),
         "AnimationValues".to_string(),
         "MaskValues".to_string(),
         "BackgroundValues".to_string(),

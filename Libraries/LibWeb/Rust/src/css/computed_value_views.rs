@@ -13,15 +13,15 @@ use crate::css::calc;
 use crate::css::computed_value_types::{
     AlignmentValues, AnchorValues, BackgroundValues, BorderLayoutFacts, BorderValues, BoxValues, ComputedAspectRatio,
     ComputedGap, ComputedLengthPercentageOrAuto, ComputedSize, ComputedSizeKind, ComputedStyleValueHandle,
-    EffectsValues, FontLayoutFacts, FontValues, GridValues, InheritedListValues, InheritedSVGValues,
-    InheritedTextLayoutFacts, InheritedTextValues, InheritedUIValues, MaskValues, MiscResetValues,
-    STYLE_GROUP_INDEX_ALIGNMENT, STYLE_GROUP_INDEX_ANCHOR, STYLE_GROUP_INDEX_BACKGROUND, STYLE_GROUP_INDEX_BORDER,
-    STYLE_GROUP_INDEX_BOX, STYLE_GROUP_INDEX_EFFECTS, STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_GRID,
-    STYLE_GROUP_INDEX_INHERITED_BOX, STYLE_GROUP_INDEX_INHERITED_LIST, STYLE_GROUP_INDEX_INHERITED_SVG,
-    STYLE_GROUP_INDEX_INHERITED_TABLE, STYLE_GROUP_INDEX_INHERITED_TEXT, STYLE_GROUP_INDEX_INHERITED_UI,
-    STYLE_GROUP_INDEX_MASK, STYLE_GROUP_INDEX_MISC_RESET, STYLE_GROUP_INDEX_SIZING, STYLE_GROUP_INDEX_SURROUND,
-    STYLE_GROUP_INDEX_SVG_RESET, STYLE_GROUP_INDEX_TEXT_RESET, STYLE_GROUP_INDEX_TRANSFORM, SVGResetValues,
-    SizingValues, SurroundValues, TextResetValues, TransformValues,
+    EffectsValues, FontValues, GridValues, InheritedListValues, InheritedSVGValues, InheritedTextLayoutFacts,
+    InheritedTextValues, InheritedUIValues, MaskValues, MiscResetValues, STYLE_GROUP_INDEX_ALIGNMENT,
+    STYLE_GROUP_INDEX_ANCHOR, STYLE_GROUP_INDEX_BACKGROUND, STYLE_GROUP_INDEX_BORDER, STYLE_GROUP_INDEX_BOX,
+    STYLE_GROUP_INDEX_EFFECTS, STYLE_GROUP_INDEX_FONT, STYLE_GROUP_INDEX_GRID, STYLE_GROUP_INDEX_INHERITED_BOX,
+    STYLE_GROUP_INDEX_INHERITED_LIST, STYLE_GROUP_INDEX_INHERITED_SVG, STYLE_GROUP_INDEX_INHERITED_TABLE,
+    STYLE_GROUP_INDEX_INHERITED_TEXT, STYLE_GROUP_INDEX_INHERITED_UI, STYLE_GROUP_INDEX_MASK,
+    STYLE_GROUP_INDEX_MISC_RESET, STYLE_GROUP_INDEX_SIZING, STYLE_GROUP_INDEX_SURROUND, STYLE_GROUP_INDEX_SVG_RESET,
+    STYLE_GROUP_INDEX_TEXT_RESET, STYLE_GROUP_INDEX_TRANSFORM, SVGResetValues, SizingValues, SurroundValues,
+    TextResetValues, TransformValues,
 };
 use crate::css::computed_values::{InheritedBoxValues, InheritedTableValues};
 use crate::css::css_enums::{direction, writing_mode};
@@ -418,7 +418,7 @@ scalar_accessors! {
         tab_size: CssPixels => tab_size_length,
         tab_size_number: f64 => tab_size_number,
     }
-    font_facts: {
+    font: {
         font_variant_emoji: u8 => font_variant_emoji,
         line_height: CssPixels => line_height_used,
         font_size: CssPixels => font_size,
@@ -605,7 +605,6 @@ impl<'a> ComputedValuesView<'a> {
     }
 
     #[inline]
-    #[allow(dead_code)]
     pub(crate) fn font(self) -> &'a FontValues {
         self.native_group(STYLE_GROUP_INDEX_FONT)
     }
@@ -648,11 +647,6 @@ impl<'a> ComputedValuesView<'a> {
     #[inline]
     fn inherited_text_facts(self) -> &'a InheritedTextLayoutFacts {
         self.native_group(STYLE_GROUP_INDEX_INHERITED_TEXT)
-    }
-
-    #[inline]
-    fn font_facts(self) -> &'a FontLayoutFacts {
-        self.native_group(STYLE_GROUP_INDEX_FONT)
     }
 
     pub(crate) fn is_floating(self) -> bool {
@@ -821,7 +815,7 @@ impl<'a> ComputedValuesView<'a> {
     }
 
     pub(crate) fn first_available_font(self) -> *const c_void {
-        let font = self.font_facts().first_available_font;
+        let font = self.font().first_available_font;
         debug_assert!(
             !font.is_null(),
             "layout read a font group that never received a font list"
@@ -830,7 +824,7 @@ impl<'a> ComputedValuesView<'a> {
     }
 
     pub(crate) fn font_cascade_list(self) -> *const c_void {
-        let list = self.font_facts().font_cascade_list;
+        let list = self.font().font_cascade_list;
         debug_assert!(
             !list.is_null(),
             "layout read a font group that never received a font list"
