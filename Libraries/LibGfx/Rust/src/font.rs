@@ -7,8 +7,10 @@
 use std::ffi::c_void;
 use std::marker::PhantomData;
 use std::ptr::NonNull;
+use std::rc::Rc;
 
 unsafe extern "C" {
+    fn ladybird_gfx_font_snapshot(font: *const c_void, out_snapshot: *mut FfiFontSnapshot);
     fn ladybird_gfx_font_id(font: *const c_void) -> u64;
     fn ladybird_gfx_font_glyph_width(font: *const c_void, code_point: u32) -> f32;
     fn ladybird_gfx_font_glyph_id(font: *const c_void, code_point: u32) -> u32;
@@ -144,6 +146,128 @@ impl<'a> FontRef<'a> {
     }
 }
 
+#[repr(C)]
+#[derive(Clone, Copy, Debug, Default)]
+pub struct FfiFontSnapshot {
+    pub id: u64,
+    pub ascent: f32,
+    pub descent: f32,
+    pub x_height: f32,
+    pub zero_advance: f32,
+    pub pixel_size: f32,
+    pub point_size: f32,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub struct FontId(pub u64);
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct FontFacts {
+    pub ascent: f32,
+    pub descent: f32,
+    pub x_height: f32,
+    pub zero_advance: f32,
+    pub pixel_size: f32,
+    pub point_size: f32,
+}
+
+struct FontEntry {
+    id: FontId,
+    retained: RetainedFont,
+    facts: FontFacts,
+}
+
+#[derive(Clone)]
+pub struct FontHandle(Rc<FontEntry>);
+
+impl FontHandle {
+    /// # Safety
+    ///
+    /// `raw` must point to a live `Gfx::Font`.
+    pub unsafe fn intern(raw: *const c_void) -> Self {
+        let mut snapshot = FfiFontSnapshot::default();
+        // SAFETY: The caller guarantees the font is live, and the out-pointer
+        // addresses a local.
+        unsafe { ladybird_gfx_font_snapshot(raw, &raw mut snapshot) };
+        // SAFETY: The caller guarantees the font is live; the retained
+        // reference keeps it that way for the entry's lifetime.
+        let retained = unsafe { RetainedFont::retain(raw) };
+        Self(Rc::new(FontEntry {
+            id: FontId(snapshot.id),
+            retained,
+            facts: FontFacts {
+                ascent: snapshot.ascent,
+                descent: snapshot.descent,
+                x_height: snapshot.x_height,
+                zero_advance: snapshot.zero_advance,
+                pixel_size: snapshot.pixel_size,
+                point_size: snapshot.point_size,
+            },
+        }))
+    }
+
+    #[inline]
+    pub fn id(&self) -> FontId {
+        self.0.id
+    }
+
+    #[inline]
+    pub fn facts(&self) -> &FontFacts {
+        &self.0.facts
+    }
+
+    #[inline]
+    pub fn as_raw(&self) -> *const c_void {
+        self.0.retained.as_raw()
+    }
+
+    pub fn is_emoji_font(&self) -> bool {
+        // SAFETY: The entry's retained reference keeps the font live.
+        unsafe { ladybird_gfx_font_is_emoji_font(self.as_raw()) }
+    }
+
+    pub fn glyph_width(&self, code_point: u32) -> f32 {
+        // SAFETY: The entry's retained reference keeps the font live.
+        unsafe { ladybird_gfx_font_glyph_width(self.as_raw(), code_point) }
+    }
+
+    pub fn glyph_id_for_code_point(&self, code_point: u32) -> u32 {
+        // SAFETY: The entry's retained reference keeps the font live.
+        unsafe { ladybird_gfx_font_glyph_id(self.as_raw(), code_point) }
+    }
+
+    pub fn contains_glyph(&self, code_point: u32) -> bool {
+        // SAFETY: The entry's retained reference keeps the font live.
+        unsafe { ladybird_gfx_font_contains_glyph(self.as_raw(), code_point) }
+    }
+
+    pub fn measure_text_width(&self, text: &[u16]) -> f32 {
+        // SAFETY: The entry's retained reference keeps the font live, and the
+        // text slice stays valid for the synchronous measuring call.
+        unsafe { ladybird_gfx_font_measure_text_width(self.as_raw(), text.as_ptr(), text.len()) }
+    }
+}
+
+impl PartialEq for FontHandle {
+    fn eq(&self, other: &Self) -> bool {
+        self.0.id == other.0.id
+    }
+}
+
+impl Eq for FontHandle {}
+
+impl std::hash::Hash for FontHandle {
+    fn hash<H: std::hash::Hasher>(&self, state: &mut H) {
+        self.0.id.hash(state);
+    }
+}
+
+impl std::fmt::Debug for FontHandle {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter.debug_tuple("FontHandle").field(&self.0.id).finish()
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub struct EmojiPresentation {
     pub is_emoji: bool,
@@ -254,6 +378,32 @@ impl FontCascadeListHandle {
         // SAFETY: A non-null handle holds a reference that keeps the list live
         // for the lifetime of the returned borrow.
         unsafe { FontCascadeListRef::from_raw(self.pointer) }
+    }
+
+    pub fn font_for_code_point(
+        &self,
+        code_point: u32,
+        presentation: EmojiPresentation,
+        font_hint: Option<&FontHandle>,
+    ) -> FontHandle {
+        assert!(!self.pointer.is_null(), "Gfx::FontCascadeList pointer must not be null");
+        // SAFETY: This handle keeps the list live, and the list owns every
+        // font it resolves.
+        let raw = unsafe {
+            ladybird_gfx_font_cascade_list_font_for_code_point(
+                self.pointer,
+                code_point,
+                presentation.is_emoji,
+                presentation.forced,
+            )
+        };
+        if let Some(font_hint) = font_hint
+            && font_hint.as_raw() == raw
+        {
+            return font_hint.clone();
+        }
+        // SAFETY: The list keeps the resolved font live for the call.
+        unsafe { FontHandle::intern(raw) }
     }
 }
 
