@@ -6,12 +6,11 @@
  */
 
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/StorageAPI/StorageBottle.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
-#include <LibWeb/StorageAPI/StorageShed.h>
+#include <LibWeb/StorageAPI/StorageKey.h>
 
 namespace Web::StorageAPI {
 
@@ -47,43 +46,28 @@ StorageBucket::StorageBucket(GC::Ref<Page> page, StorageKey key, StorageType typ
 GC::Ptr<StorageBottle> obtain_a_storage_bottle_map(StorageType type, HTML::EnvironmentSettingsObject& environment, StorageEndpointType endpoint_type)
 {
     // 1. Let shed be null.
-    GC::Ptr<StorageShed> shed;
-
     // 2. If type is "local", then set shed to the user agent’s storage shed.
-    if (type == StorageType::Local) {
-        // NOTE: Bottle for local storage is constructed directly, bypassing this function, because
-        //       in that case StorageJar located on browser process side is used as a shed.
-        VERIFY_NOT_REACHED();
-    }
     // 3. Otherwise:
-    else {
-        // 1. Assert: type is "session".
-        VERIFY(type == StorageType::Session);
-
-        // 2. Set shed to environment’s global object’s associated Document’s node navigable’s traversable navigable’s storage shed.
-        // FIXME: A traversable hosted by another process keeps its shed there. Session storage for documents whose
-        //        traversable is remote needs that shed instead of a local one.
-        shed = &as<HTML::LocalTraversableNavigable>(*HTML::relevant_window(environment.global_object()).associated_document().navigable()->traversable_navigable()).storage_shed();
-    }
+    //     1. Assert: type is "session".
+    //     2. Set shed to environment’s global object’s associated Document’s node navigable’s traversable navigable’s storage shed.
+    // NB: The user agent’s storage shed and each traversable navigable’s storage shed are kept by the browser process,
+    //     in a StorageJar, which the bottles here proxy. Bottles of type "local" bypass this function entirely.
+    VERIFY(type == StorageType::Session);
+    VERIFY(endpoint_type == StorageEndpointType::SessionStorage);
 
     // 4. Let shelf be the result of running obtain a storage shelf, with shed, environment, and type.
-    VERIFY(shed);
-    auto shelf = shed->obtain_a_storage_shelf(environment, type);
-
     // 5. If shelf is failure, then return failure.
-    if (!shelf)
+    auto key = obtain_a_storage_key(environment);
+    if (!key.has_value())
         return {};
 
     // 6. Let bucket be shelf’s bucket map["default"].
-    auto bucket = shelf->bucket_map().get("default"sv).value();
-
     // 7. Let bottle be bucket’s bottle map[identifier].
-    auto bottle = bucket->bottle_map()[to_underlying(endpoint_type)];
-
     // 8. Let proxyMap be a new storage proxy map whose backing map is bottle’s map.
     // 9. Append proxyMap to bottle’s proxy map reference set.
     // 10. Return proxyMap.
-    return bottle->proxy();
+    auto& page = HTML::relevant_window(environment.global_object()).page();
+    return SessionStorageBottle::create(page, key.release_value(), StorageEndpoint::SESSION_STORAGE_QUOTA);
 }
 
 // https://storage.spec.whatwg.org/#obtain-a-session-storage-bottle-map
@@ -171,17 +155,6 @@ void SessionStorageBottle::clear()
 void SessionStorageBottle::remove(Utf16View key)
 {
     m_page->client().page_did_remove_storage_item(m_endpoint_type, m_storage_key.to_string(), Utf16String::from_utf16(key));
-}
-
-void SessionStorageBottle::copy_map_from(SessionStorageBottle const& other)
-{
-    clear();
-    for (auto const& key : other.keys()) {
-        auto value = other.get(key);
-        VERIFY(value.has_value());
-        auto result = set(key, *value);
-        VERIFY(result.has<Optional<Utf16String>>());
-    }
 }
 
 }

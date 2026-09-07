@@ -9,7 +9,6 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/StorageAPI/StorageShed.h>
 #include <LibWeb/StorageAPI/StorageShelf.h>
 
 namespace Web::StorageAPI {
@@ -68,11 +67,9 @@ GC::Ptr<StorageShelf> obtain_a_local_storage_shelf(HTML::EnvironmentSettingsObje
     if (!key.has_value())
         return {};
 
-    // AD-HOC: We have no user-agent storage shed. Our local storage is backed by StorageJar. This shelf is a transient
+    // AD-HOC: The user agent's storage shed is kept by the browser process, in a StorageJar. This shelf is a transient
     //         helper for computing estimate()'s usage and quota — so a standalone shelf is functionally equivalent to
-    //         the spec's requirement to obtain one from a shed. It must not come from the traversable navigable's
-    //         storage shed. That holds *session* storage. And we have other existing code which expects the shelves for
-    //         that to have a populated session-storage bottle — which a local shelf lacks.
+    //         the spec's requirement to obtain one from a shed.
     return StorageShelf::create(window.page(), key.release_value(), StorageType::Local);
 }
 

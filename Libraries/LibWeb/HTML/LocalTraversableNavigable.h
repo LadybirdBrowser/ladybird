@@ -19,7 +19,6 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Page/Page.h>
-#include <LibWeb/StorageAPI/StorageShed.h>
 
 namespace Web::HTML {
 
@@ -61,9 +60,6 @@ public:
 
     [[nodiscard]] GC::Ptr<DOM::Node> currently_focused_area();
 
-    StorageAPI::StorageShed& storage_shed() { return m_storage_shed; }
-    StorageAPI::StorageShed const& storage_shed() const { return m_storage_shed; }
-
     // https://w3c.github.io/geolocation/#dfn-emulated-position-data
     Geolocation::EmulatedPositionData const& emulated_position_data() const;
     void set_emulated_position_data(Geolocation::EmulatedPositionData data);
@@ -86,10 +82,6 @@ private:
 
     // AD-HOC: A forced close may supersede a prompted close while its beforeunload check is still pending.
     bool m_close_steps_have_been_appended { false };
-
-    // https://storage.spec.whatwg.org/#traversable-navigable-storage-shed
-    // A traversable navigable holds a storage shed, which is a storage shed. A traversable navigable’s storage shed holds all session storage data.
-    GC::Ref<StorageAPI::StorageShed> m_storage_shed;
 
     Utf16String m_window_handle;
 

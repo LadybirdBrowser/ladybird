@@ -1199,7 +1199,6 @@ class NavigatorStorage;
 class StorageBottle;
 class StorageBucket;
 class StorageManager;
-class StorageShed;
 class StorageShelf;
 
 struct StorageEndpoint;

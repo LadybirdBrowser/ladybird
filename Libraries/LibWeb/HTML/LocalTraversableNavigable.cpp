@@ -39,7 +39,6 @@ LocalTraversableNavigable::LocalTraversableNavigable(GC::Ref<Page> page)
           page,
           page->client().is_svg_page_client(),
           Compositor::PagePresentationRegistration::Yes)
-    , m_storage_shed(StorageAPI::StorageShed::create())
 {
 }
 
@@ -50,7 +49,6 @@ void LocalTraversableNavigable::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_emulated_position_data);
     visitor.visit(m_emulated_position_data_observers);
-    visitor.visit(m_storage_shed);
 }
 
 static OrderedHashTable<LocalTraversableNavigable*>& user_agent_top_level_traversable_set()
@@ -134,10 +132,7 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_new_top_l
     traversable->set_has_session_history_entry_and_ready_for_navigation();
 
     // 10. If opener is non-null, then legacy-clone a traversable storage shed given opener's top-level traversable and traversable. [STORAGE]
-    if (opener) {
-        auto opener_traversable = opener->top_level_traversable();
-        traversable->storage_shed().legacy_clone(opener_traversable->storage_shed(), page);
-    }
+    // NB: This is done by the canonical traversable.
 
     // 11. Append traversable to the user agent's top-level traversable set.
     user_agent_top_level_traversable_set().set(traversable.ptr());

@@ -921,7 +921,6 @@ set(SOURCES
     StorageAPI/StorageEndpoint.cpp
     StorageAPI/StorageKey.cpp
     StorageAPI/StorageManager.cpp
-    StorageAPI/StorageShed.cpp
     StorageAPI/StorageShelf.cpp
     Streams/AbstractOperations.cpp
     Streams/ByteLengthQueuingStrategy.cpp
