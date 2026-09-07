@@ -153,6 +153,7 @@ struct FunctionLocalValue {
 
 struct FunctionLocalScope {
     function_identity: CustomFunctionIdentity,
+    resolved_value_cache: Rc<RefCell<HashMap<Vec<u16>, Vec<OwnedToken>>>>,
     values: HashMap<Vec<u16>, FunctionLocalValue>,
     registrations: Rc<HashMap<Vec<u16>, FunctionLocalRegistration>>,
 }
@@ -1046,15 +1047,15 @@ fn resolve_custom_property_with_lookup(
         .iter()
         .rposition(|local_scope| local_scope.values.contains_key(name) || local_scope.registrations.contains_key(name));
     if let Some(local_scope_index) = local_scope_index {
-        let function_identity = context.function_local_scopes[local_scope_index].function_identity;
-        let value = context.function_local_scopes[local_scope_index]
-            .values
-            .get(name)
-            .cloned();
-        let registration = context.function_local_scopes[local_scope_index]
-            .registrations
-            .get(name)
-            .cloned();
+        let function_scope = &context.function_local_scopes[local_scope_index];
+
+        if let Some(cached_value) = function_scope.resolved_value_cache.borrow().get(name) {
+            return TokenResolution::Resolved(cached_value.clone());
+        }
+
+        let function_identity = function_scope.function_identity;
+        let value = function_scope.values.get(name).cloned();
+        let registration = function_scope.registrations.get(name).cloned();
         let child_scopes = context.function_local_scopes.split_off(local_scope_index + 1);
         let result = resolve_function_local_property(
             store,
@@ -1071,6 +1072,14 @@ fn resolve_custom_property_with_lookup(
             recursion_depth,
         );
         context.function_local_scopes.extend(child_scopes);
+
+        if let TokenResolution::Resolved(tokens) = &result {
+            context.function_local_scopes[local_scope_index]
+                .resolved_value_cache
+                .borrow_mut()
+                .insert(name.to_owned(), tokens.clone());
+        }
+
         return result;
     }
     let substitution_context = SubstitutionContextDependency::Property(name.to_owned(), None);
@@ -2018,6 +2027,7 @@ fn evaluate_a_custom_function(
         registry,
         FunctionLocalScope {
             function_identity: custom_function.identity,
+            resolved_value_cache: Rc::new(RefCell::new(HashMap::new())),
             values: argument_rule,
             registrations: Rc::clone(&registrations),
         },
@@ -2080,6 +2090,7 @@ fn evaluate_a_custom_function(
         registry,
         FunctionLocalScope {
             function_identity: custom_function.identity,
+            resolved_value_cache: Rc::new(RefCell::new(HashMap::new())),
             values: body_rule,
             registrations,
         },
