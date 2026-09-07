@@ -1727,29 +1727,7 @@ impl Generator {
         for block in &mut self.basic_blocks {
             remove_redundant_movs(&mut block.instructions);
 
-            let mut index = 0;
-            while index < block.instructions.len() {
-                let instructions = block.instructions[index..]
-                    .iter()
-                    .map(|(instruction, _, _)| instruction);
-                let Some((specialized, component_count)) =
-                    specialize_instruction_sequence(instructions, &self.constants)
-                else {
-                    index += 1;
-                    continue;
-                };
-                let strict = block.instructions[index].2;
-                if block.instructions[index..index + component_count]
-                    .iter()
-                    .any(|(_, _, component_strict)| *component_strict != strict)
-                {
-                    index += 1;
-                    continue;
-                }
-                block.instructions[index].0 = specialized;
-                block.instructions.drain(index + 1..index + component_count);
-                index += 1;
-            }
+            specialize_instructions(&mut block.instructions, &self.constants);
         }
 
         let number_of_registers = self.next_register;
@@ -2137,6 +2115,32 @@ pub fn choose_dst(generator: &mut Generator, preferred_dst: Option<&ScopedOperan
     }
 }
 
+fn specialize_instructions(instructions: &mut Vec<(Instruction, SourceMapEntry, bool)>, constants: &[ConstantValue]) {
+    let mut read_index = 0;
+    let mut write_index = 0;
+    while read_index < instructions.len() {
+        let mut consumed = 1;
+        if let Some((specialized, component_count)) = specialize_instruction_sequence(
+            instructions[read_index..].iter().map(|(instruction, _, _)| instruction),
+            constants,
+        ) {
+            let strict = instructions[read_index].2;
+            if instructions[read_index..read_index + component_count]
+                .iter()
+                .all(|(_, _, component_strict)| *component_strict == strict)
+            {
+                instructions[read_index].0 = specialized;
+                consumed = component_count;
+            }
+        }
+        // Compact once instead of shifting the entire tail after each fused sequence.
+        instructions.swap(write_index, read_index);
+        write_index += 1;
+        read_index += consumed;
+    }
+    instructions.truncate(write_index);
+}
+
 fn remove_redundant_movs(instructions: &mut Vec<(Instruction, SourceMapEntry, bool)>) {
     let mut index = 0;
     while index < instructions.len() {
@@ -2196,6 +2200,67 @@ mod tests {
 
     fn register(index: u32) -> Operand {
         Operand::register(Register(index))
+    }
+
+    #[test]
+    fn compacts_fused_sequences_with_their_original_source_locations() {
+        let mut instructions: Vec<_> = (0..3000)
+            .map(|index| {
+                let mut instruction = mov(register(index), Operand::constant(0));
+                instruction.1.line = index;
+                instruction
+            })
+            .collect();
+        specialize_instructions(&mut instructions, &[ConstantValue::Undefined]);
+        assert_eq!(instructions.len(), 1000);
+        for (index, (instruction, source, strict)) in instructions.iter().enumerate() {
+            assert!(matches!(instruction, Instruction::MovUndefined3 { .. }));
+            assert_eq!(source.line, index as u32 * 3);
+            assert!(!strict);
+        }
+    }
+
+    #[test]
+    fn preserves_strict_mode_boundaries_when_compacting_fused_sequences() {
+        let mut instructions: Vec<_> = (0..7)
+            .map(|index| {
+                let mut instruction = mov(register(index), Operand::constant(0));
+                instruction.1.line = index;
+                instruction.2 = index >= 3;
+                instruction
+            })
+            .collect();
+        specialize_instructions(&mut instructions, &[ConstantValue::Undefined]);
+        assert_eq!(instructions.len(), 3);
+        assert!(matches!(instructions[0].0, Instruction::MovUndefined3 { .. }));
+        assert!(matches!(instructions[1].0, Instruction::MovUndefined3 { .. }));
+        assert!(matches!(instructions[2].0, Instruction::MovSrcUndefined { .. }));
+        assert_eq!(
+            instructions
+                .iter()
+                .map(|(_, source, strict)| (source.line, *strict))
+                .collect::<Vec<_>>(),
+            vec![(0, false), (3, true), (6, true)]
+        );
+    }
+
+    #[test]
+    fn does_not_fuse_a_sequence_that_crosses_strict_mode_boundaries() {
+        let mut instructions = vec![
+            mov(register(0), Operand::constant(0)),
+            mov(register(1), Operand::constant(0)),
+            mov(register(2), Operand::constant(0)),
+        ];
+        instructions[1].2 = true;
+        specialize_instructions(&mut instructions, &[ConstantValue::Undefined]);
+        assert_eq!(instructions.len(), 3);
+        assert!(matches!(instructions[0].0, Instruction::Mov { .. }));
+        assert!(matches!(instructions[1].0, Instruction::Mov { .. }));
+        assert!(matches!(instructions[2].0, Instruction::MovSrcUndefined { .. }));
+        assert_eq!(
+            instructions.iter().map(|(_, _, strict)| *strict).collect::<Vec<_>>(),
+            vec![false, true, false]
+        );
     }
 
     #[test]
