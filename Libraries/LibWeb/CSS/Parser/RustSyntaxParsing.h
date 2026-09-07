@@ -17,6 +17,7 @@
 #include <LibWeb/CSS/PageSelector.h>
 #include <LibWeb/CSS/Parser/RuleContext.h>
 #include <LibWeb/CSS/Parser/RustSyntaxHandle.h>
+#include <LibWeb/CSS/RustDeclarationBlock.h>
 #include <LibWeb/CSS/RustQueryHandle.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleProperty.h>
@@ -50,6 +51,8 @@ public:
 
     ValueParserFFI::FfiSyntaxParseData data() const { return ValueParserFFI::rust_css_syntax_parse_data(m_parse); }
     RustStyleSheetParse share() const { return RustStyleSheetParse { ValueParserFFI::rust_css_syntax_parse_share(m_parse) }; }
+    // Retain the same consumer and its borrowed views on the document thread.
+    RustStyleSheetParse retain() const { return RustStyleSheetParse { ValueParserFFI::rust_css_syntax_parse_retain(m_parse) }; }
 
 private:
     ValueParserFFI::FfiSyntaxParse* m_parse;
@@ -67,7 +70,22 @@ inline ValueParserFFI::FfiUtf16View ffi_utf16_view(Utf16View view)
 PageSelectorList page_selector_list_from_rust(ValueParserFFI::FfiPageSelectorListData const&);
 
 using Rule = Variant<AtRule, QualifiedRule>;
-using RuleOrListOfDeclarations = Variant<Rule, Vector<Declaration, 0>>;
+class DeclarationList {
+public:
+    DeclarationList(RustStyleSheetParse const&, ValueParserFFI::FfiSyntaxItem const&);
+    Vector<Declaration> const& declarations() const;
+    RustDeclarationBlock const& properties() const { return m_properties; }
+    Optional<SourcePosition> source_position() const;
+
+private:
+    RustStyleSheetParse m_parse;
+    RustDeclarationBlock m_properties;
+    size_t m_start;
+    size_t m_count;
+    mutable Optional<Vector<Declaration>> m_declarations;
+};
+
+using RuleOrListOfDeclarations = Variant<Rule, DeclarationList>;
 
 using AtRuleVisitor = AK::Function<void(AtRule const&)>;
 using QualifiedRuleVisitor = AK::Function<void(QualifiedRule const&)>;
@@ -118,6 +136,7 @@ struct AtRule {
     Utf16FlyString name;
     ParsedRulePrelude parsed_prelude;
     Vector<Descriptor> descriptors;
+    Optional<RustDeclarationBlock> declarations;
     Vector<RuleOrListOfDeclarations> child_rules_and_lists_of_declarations;
     bool is_block_rule { false };
 
@@ -130,11 +149,9 @@ struct QualifiedRule {
     ValueParserFFI::FfiRuleKind kind;
     Optional<SelectorList> selectors;
     ParsedRulePrelude parsed_prelude;
-    Vector<Declaration> declarations;
+    RustDeclarationBlock declarations;
     Vector<RuleOrListOfDeclarations> child_rules;
     Optional<SourcePosition> source_position = {};
-
-    void for_each_as_declaration_list(DeclarationVisitor&& visit) const;
 };
 
 struct Declaration {
@@ -167,6 +184,7 @@ public:
     static RustStyleSheetParse parse_stylesheet(Parser&);
     static void parse_stylesheet_off_thread(ParsingParams const&, Utf16String, Function<void(RustStyleSheetParse)>);
     static Vector<Rule> stylesheet_rules(RustStyleSheetParse const&);
+    static RustDeclarationBlock parse_declaration_block(Parser&, ReadonlySpan<RuleContext>);
     static Vector<RuleOrListOfDeclarations> parse_block_contents(Parser&, ReadonlySpan<RuleContext>, PreservePropertySourceText = PreservePropertySourceText::No);
     static Vector<RuleOrListOfDeclarations> parse_block_contents(Parser&, Utf16View, ReadonlySpan<RuleContext>, PreservePropertySourceText = PreservePropertySourceText::No);
     static RefPtr<StyleValue const> parse_descriptor(Parser&, AtRuleID, DescriptorNameAndID const&);

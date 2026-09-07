@@ -5,9 +5,11 @@
  */
 
 use crate::css::css_enums::{keyword_from_ascii_case_insensitive, keyword_to_generic_font_family};
+use crate::css::css_string::CssString;
 use crate::css::css_tokenizer::{
     CssNumberType, ParserString, ParserToken, ParserTokenKind, SourcePosition, TokenizerInput, tokenize_for_parser,
 };
+use crate::css::declaration_block::{DeclarationBlockData, DeclaredProperty};
 use crate::css::descriptor_metadata::{CUSTOM_DESCRIPTOR_ID, descriptor_longhands};
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::component_value::{
@@ -2052,6 +2054,7 @@ pub struct FfiSyntaxRule {
     pub name_length: usize,
     pub declarations_start: usize,
     pub declaration_count: usize,
+    pub declaration_block: *const DeclarationBlockData,
     pub children_start: usize,
     pub child_count: usize,
     pub has_block: bool,
@@ -2091,6 +2094,49 @@ pub struct FfiSyntaxItem {
     pub item_type: u8,
     pub start: usize,
     pub count: usize,
+    pub declaration_block: *const DeclarationBlockData,
+}
+
+struct ParsedItem {
+    item_type: u8,
+    start: usize,
+    count: usize,
+    declaration_block: Option<Arc<DeclarationBlockData>>,
+}
+
+fn declaration_block_from_items(items: &[ParsedItem], indices: &[usize]) -> Arc<DeclarationBlockData> {
+    // https://drafts.csswg.org/cssom/#parse-a-css-declaration-block
+    // 2. Let parsed declarations be a new empty list.
+    let mut declarations: Option<Arc<DeclarationBlockData>> = None;
+    // 3. For each item declaration in declarations, follow these substeps:
+    for &index in indices {
+        let Some(block) = &items[index].declaration_block else {
+            continue;
+        };
+        // 1. Let parsed declaration be the result of parsing declaration according to the appropriate CSS
+        //    specifications, dropping parts that are said to be ignored. If the whole declaration is dropped, let
+        //    parsed declaration be null.
+        // 2. If parsed declaration is not null, append it to parsed declarations.
+        // NB: Each declaration-list item already owns its parsed, normalized properties.
+        if let Some(declarations) = &mut declarations {
+            Arc::make_mut(declarations).append_block(block);
+        } else {
+            declarations = Some(block.clone());
+        }
+    }
+    // 4. Return parsed declarations.
+    declarations.unwrap_or_default()
+}
+
+impl ParsedItem {
+    fn ffi_view(&self) -> FfiSyntaxItem {
+        FfiSyntaxItem {
+            item_type: self.item_type,
+            start: self.start,
+            count: self.count,
+            declaration_block: self.declaration_block.as_ref().map_or(std::ptr::null(), Arc::as_ptr),
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -2207,6 +2253,7 @@ struct ParsedRule {
     name_length: usize,
     declarations_start: usize,
     declaration_count: usize,
+    declaration_block: Option<Arc<DeclarationBlockData>>,
     children_start: usize,
     child_count: usize,
     has_block: bool,
@@ -2245,7 +2292,7 @@ struct SyntaxParseBuilder {
     descriptors: Vec<ParsedDescriptorData>,
     descriptor_parse_cache: ParsedDescriptorCache,
     rules: Vec<ParsedRule>,
-    items: Vec<FfiSyntaxItem>,
+    items: Vec<ParsedItem>,
     item_indices: Vec<usize>,
     roots: Vec<usize>,
     prelude_items: Vec<ParsedPreludeItemData>,
@@ -2263,7 +2310,7 @@ pub(super) struct ParsedStyleSheet {
     declarations: Box<[ParsedDeclaration]>,
     descriptors: Box<[ParsedDescriptorData]>,
     rules: Box<[ParsedRule]>,
-    items: Box<[FfiSyntaxItem]>,
+    items: Box<[ParsedItem]>,
     item_indices: Box<[usize]>,
     roots: Box<[usize]>,
     prelude_items: Box<[ParsedPreludeItemData]>,
@@ -2283,6 +2330,7 @@ pub struct FfiSyntaxParse {
 }
 
 struct FfiSyntaxParseViews {
+    items: Box<[FfiSyntaxItem]>,
     declarations: Box<[FfiSyntaxDeclaration]>,
     descriptors: Box<[FfiSyntaxDescriptor]>,
     rules: Box<[FfiSyntaxRule]>,
@@ -2331,6 +2379,7 @@ impl ParsedRule {
             name_length: self.name_length,
             declarations_start: self.declarations_start,
             declaration_count: self.declaration_count,
+            declaration_block: self.declaration_block.as_ref().map_or(std::ptr::null(), Arc::as_ptr),
             children_start: self.children_start,
             child_count: self.child_count,
             has_block: self.has_block,
@@ -2983,6 +3032,40 @@ impl SyntaxParseBuilder {
         (start, items.len())
     }
 
+    fn append_declaration_block(
+        &self,
+        block: &mut DeclarationBlockData,
+        start: usize,
+        count: usize,
+        ignore_important: bool,
+    ) {
+        for declaration in &self.declarations[start..start + count] {
+            if !declaration.is_property {
+                continue;
+            }
+            // https://drafts.csswg.org/css-animations-1/#keyframes
+            // None of the properties [in the <keyframe-block>'s <declaration-list>] interact with the cascade (so
+            // using !important on them is invalid and will cause the property to be ignored).
+            if ignore_important && declaration.important {
+                continue;
+            }
+            let Some(value) = &declaration.parsed_value else {
+                continue;
+            };
+            let property = DeclaredProperty {
+                property_id: declaration.property_id,
+                important: declaration.important,
+                value: value.clone(),
+            };
+            if declaration.property_id == property_id::CUSTOM {
+                let name = &self.values[declaration.name_offset..declaration.name_offset + declaration.name_length];
+                block.set_custom_property(CssString::from_utf16(name), property);
+            } else {
+                block.append_in_specified_order(property);
+            }
+        }
+    }
+
     fn append_item(&mut self, item: &RuleOrDeclarations, font_feature_maximum_value_count: Option<usize>) -> usize {
         let (item_type, start, count) = match item {
             RuleOrDeclarations::Rule(rule) => (0, self.append_rule(rule), 1),
@@ -2992,10 +3075,25 @@ impl SyntaxParseBuilder {
             }
         };
         let index = self.items.len();
-        self.items.push(FfiSyntaxItem {
+        let declaration_block = if let RuleOrDeclarations::Declarations(declarations) = item {
+            let mut block = DeclarationBlockData::default();
+            self.append_declaration_block(
+                &mut block,
+                start,
+                count,
+                declarations
+                    .first()
+                    .is_some_and(|declaration| declaration.rule_context == RuleContext::Keyframe),
+            );
+            Some(Arc::new(block))
+        } else {
+            None
+        };
+        self.items.push(ParsedItem {
             item_type,
             start,
             count,
+            declaration_block,
         });
         index
     }
@@ -3331,6 +3429,31 @@ impl SyntaxParseBuilder {
             });
         }
         let parsed_prelude_item_count = self.prelude_items.len() - parsed_prelude_items_start;
+        let declaration_block = if let Rule::Qualified(qualified_rule) = rule {
+            let mut block = DeclarationBlockData::default();
+            self.append_declaration_block(
+                &mut block,
+                declarations_start,
+                declaration_count,
+                !qualified_rule.prelude_is_selector,
+            );
+            if !qualified_rule.prelude_is_selector {
+                for &index in &self.item_indices[children_start..children_start + child_count] {
+                    let item = &self.items[index];
+                    if item.item_type == 1 {
+                        self.append_declaration_block(&mut block, item.start, item.count, true);
+                    }
+                }
+            }
+            Some(Arc::new(block))
+        } else if rule_kind == FfiRuleKind::Margin {
+            Some(declaration_block_from_items(
+                &self.items,
+                &self.item_indices[children_start..children_start + child_count],
+            ))
+        } else {
+            None
+        };
         let index = self.rules.len();
         self.rules.push(ParsedRule {
             rule_type,
@@ -3339,6 +3462,7 @@ impl SyntaxParseBuilder {
             name_length,
             declarations_start,
             declaration_count,
+            declaration_block,
             children_start,
             child_count,
             has_block,
@@ -3439,6 +3563,7 @@ impl FfiSyntaxParse {
     pub(crate) fn data(&self) -> FfiSyntaxParseData {
         let parsed = &self.parsed;
         let views = self.views.get_or_init(|| FfiSyntaxParseViews {
+            items: parsed.items.iter().map(ParsedItem::ffi_view).collect(),
             declarations: parsed.declarations.iter().map(ParsedDeclaration::ffi_view).collect(),
             descriptors: parsed.descriptors.iter().map(ParsedDescriptorData::ffi_view).collect(),
             rules: parsed.rules.iter().map(ParsedRule::ffi_view).collect(),
@@ -3457,8 +3582,8 @@ impl FfiSyntaxParse {
             descriptor_count: views.descriptors.len(),
             rules: views.rules.as_ptr(),
             rule_count: views.rules.len(),
-            items: parsed.items.as_ptr(),
-            item_count: parsed.items.len(),
+            items: views.items.as_ptr(),
+            item_count: views.items.len(),
             item_indices: parsed.item_indices.as_ptr(),
             item_index_count: parsed.item_indices.len(),
             roots: parsed.roots.as_ptr(),
@@ -3631,6 +3756,22 @@ pub unsafe extern "C" fn rust_page_selector_list_free(list: *mut FfiPageSelector
     if !list.is_null() {
         drop(unsafe { Box::from_raw(list) });
     }
+}
+
+/// Retains a normalized declaration block from parsed block contents, ignoring rules.
+///
+/// # Safety
+/// `parse` must be a live result of `rust_parse_css_block_syntax`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_css_syntax_parse_declaration_block(
+    parse: *const FfiSyntaxParse,
+) -> *mut crate::css::declaration_block::FfiDeclarationBlock {
+    use crate::css::declaration_block::FfiDeclarationBlock;
+    let parsed = &unsafe { &*parse }.parsed;
+    Box::into_raw(Box::new(FfiDeclarationBlock::new(declaration_block_from_items(
+        &parsed.items,
+        &parsed.roots,
+    ))))
 }
 
 /// Parses block contents into a Rust-owned arena.

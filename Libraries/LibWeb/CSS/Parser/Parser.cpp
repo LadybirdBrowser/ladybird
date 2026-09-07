@@ -29,7 +29,6 @@
 #include <LibWeb/CSS/PropertyName.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/Sizing.h>
-#include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/HTML/HTMLImageElement.h>
@@ -158,49 +157,9 @@ Vector<Percentage> Parser::parse_as_keyframe_selectors()
 }
 
 // https://drafts.csswg.org/cssom/#parse-a-css-declaration-block
-Parser::PropertiesAndCustomProperties Parser::parse_as_property_declaration_block()
+RustDeclarationBlock Parser::parse_as_property_declaration_block()
 {
-    auto expand_shorthands = [&](Vector<StyleProperty>& properties) -> Vector<StyleProperty> {
-        Vector<StyleProperty> expanded_properties;
-        for (auto& property : properties) {
-            if (property_is_shorthand(property.property_id)) {
-                StyleComputer::for_each_property_expanding_shorthands(property.property_id, *property.value, [&](PropertyID longhand_property_id, StyleValue const& longhand_value) {
-                    expanded_properties.append(CSS::StyleProperty {
-                        .important = property.important,
-                        .property_id = longhand_property_id,
-                        .value = longhand_value,
-                    });
-                });
-            } else {
-                expanded_properties.append(property);
-            }
-        }
-        return expanded_properties;
-    };
-
-    // 1. Let declarations be the returned declarations from invoking parse a block’s contents with string.
-    auto declarations_and_at_rules = RustSyntaxParser::parse_block_contents(*this, m_rule_context, PreservePropertySourceText::Yes);
-    // 2. Let parsed declarations be a new empty list.
-    PropertiesAndCustomProperties parsed_declarations;
-
-    // 3. For each item declaration in declarations, follow these substeps:
-    for (auto const& rule_or_list : declarations_and_at_rules) {
-        if (rule_or_list.has<Rule>())
-            continue;
-
-        auto& rule_declarations = rule_or_list.get<Vector<Declaration>>();
-        for (auto const& declaration : rule_declarations) {
-            // 1. Let parsed declaration be the result of parsing declaration according to the appropriate CSS
-            //    specifications, dropping parts that are said to be ignored. If the whole declaration is dropped, let
-            //    parsed declaration be null.
-            // 2. If parsed declaration is not null, append it to parsed declarations.
-            extract_property(declaration, parsed_declarations);
-        }
-    }
-    parsed_declarations.properties = expand_shorthands(parsed_declarations.properties);
-
-    // 4. Return parsed declarations.
-    return parsed_declarations;
+    return RustSyntaxParser::parse_declaration_block(*this, m_rule_context);
 }
 
 Vector<DevToolsStyleDeclaration> Parser::parse_as_devtools_property_declaration_block()
@@ -209,8 +168,8 @@ Vector<DevToolsStyleDeclaration> Parser::parse_as_devtools_property_declaration_
 
     Vector<DevToolsStyleDeclaration> parsed_declarations;
     for (auto const& rule_or_list : declarations_and_at_rules) {
-        if (auto* rule_declarations = rule_or_list.get_pointer<Vector<Declaration>>()) {
-            for (auto const& declaration : *rule_declarations) {
+        if (auto* rule_declarations = rule_or_list.get_pointer<DeclarationList>()) {
+            for (auto const& declaration : rule_declarations->declarations()) {
                 VERIFY(declaration.name.has_value());
                 VERIFY(declaration.value_text.has_value());
 
@@ -283,7 +242,7 @@ Vector<Descriptor> Parser::parse_as_descriptor_declaration_block(AtRuleID at_rul
         if (rule_or_list.has<Rule>())
             continue;
 
-        auto& rule_declarations = rule_or_list.get<Vector<Declaration>>();
+        auto& rule_declarations = rule_or_list.get<DeclarationList>().declarations();
         for (auto const& declaration : rule_declarations) {
             // 1. Let parsed declaration be the result of parsing declaration according to the appropriate CSS
             //    specifications, dropping parts that are said to be ignored. If the whole declaration is dropped, let
@@ -296,27 +255,6 @@ Vector<Descriptor> Parser::parse_as_descriptor_declaration_block(AtRuleID at_rul
 
     // 4. Return parsed declarations.
     return parsed_declarations;
-}
-
-void Parser::extract_property(Declaration const& declaration, PropertiesAndCustomProperties& dest)
-{
-    if (!declaration.property.has_value())
-        return;
-    auto property = declaration.property->property;
-    if (property.property_id == PropertyID::Custom)
-        dest.custom_properties.set(declaration.property->name, property);
-    else
-        dest.properties.append(move(property));
-}
-
-GC::Ref<CSSStyleProperties> Parser::convert_to_style_declaration(Vector<Declaration> const& declarations)
-{
-    PropertiesAndCustomProperties properties;
-    PropertiesAndCustomProperties& dest = properties;
-    for (auto const& declaration : declarations) {
-        extract_property(declaration, dest);
-    }
-    return CSSStyleProperties::create(move(properties.properties), move(properties.custom_properties));
 }
 
 RefPtr<StyleValue const> Parser::parse_as_css_value(PropertyID property_id)

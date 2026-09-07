@@ -98,11 +98,7 @@ public:
     GC::Ref<CSS::CSSStyleSheet> parse_as_css_stylesheet(Optional<::URL::URL> location, GC::Ptr<MediaList> = {});
     GC::Ref<CSSStyleSheet> create_css_stylesheet(RustStyleSheetParse const&, Optional<::URL::URL> location, GC::Ptr<MediaList> = {});
 
-    struct PropertiesAndCustomProperties {
-        Vector<StyleProperty> properties;
-        OrderedHashMap<Utf16FlyString, StyleProperty> custom_properties;
-    };
-    PropertiesAndCustomProperties parse_as_property_declaration_block();
+    RustDeclarationBlock parse_as_property_declaration_block();
     Vector<DevToolsStyleDeclaration> parse_as_devtools_property_declaration_block();
     Vector<Descriptor> parse_as_descriptor_declaration_block(AtRuleID);
     CSSRule* parse_as_css_rule(bool nested = false);
@@ -143,7 +139,6 @@ public:
 
     template<typename Descriptors>
     GC::Ref<Descriptors> convert_to_descriptors(AtRuleID, Vector<Declaration> const& declarations);
-    GC::Ref<CSSStyleProperties> convert_to_style_declaration(Vector<Declaration> const&);
 
     enum class ParseError : u8 {
         SyntaxError,
@@ -214,7 +209,6 @@ private:
     ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value_from_source(PropertyID, Utf16View);
     ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value_in_rust(PropertyID, Utf16View source, Optional<PropertyID> direct_property_context = {});
     ParseContextStorage make_parse_context(ParseContextMode, Optional<PropertyID> direct_property_context = {});
-    void extract_property(Declaration const&, Parser::PropertiesAndCustomProperties&);
 
     DOM::Document const* document() const;
     HTML::Window const* window() const;
@@ -254,7 +248,7 @@ namespace Web {
 
 GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams const&, StringView, Optional<::URL::URL> location = {}, GC::Ptr<CSS::MediaList> media_list = {});
 GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams const&, Utf16View, Optional<::URL::URL> location = {}, GC::Ptr<CSS::MediaList> media_list = {});
-CSS::Parser::Parser::PropertiesAndCustomProperties parse_css_property_declaration_block(CSS::Parser::ParsingParams const&, Utf16View);
+CSS::RustDeclarationBlock parse_css_property_declaration_block(CSS::Parser::ParsingParams const&, Utf16View);
 Vector<CSS::Descriptor> parse_css_descriptor_declaration_block(CSS::Parser::ParsingParams const&, CSS::AtRuleID, Utf16View);
 RefPtr<CSS::StyleValue const> parse_css_value(CSS::Parser::ParsingParams const&, StringView, CSS::PropertyID);
 RefPtr<CSS::StyleValue const> parse_css_value(CSS::Parser::ParsingParams const&, Utf16View, CSS::PropertyID);

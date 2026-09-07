@@ -1,0 +1,7 @@
+inline: 13px, 7px, rgb(255, 0, 0)
+priority: important
+custom: last
+ignored rule: true
+inserted declarations: 2px 2px 2px 9px
+page margin: red, important, 5px
+cleared: true, true

@@ -1,0 +1,5 @@
+parsed: 1px, 2px, green
+mutated: 5px, blue
+second unchanged: 1px, green
+cached unchanged: 1px, 2px, green
+style identity: true

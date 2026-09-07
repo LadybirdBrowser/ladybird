@@ -47,10 +47,10 @@ GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams cons
     return style_sheet;
 }
 
-CSS::Parser::Parser::PropertiesAndCustomProperties parse_css_property_declaration_block(CSS::Parser::ParsingParams const& context, Utf16View css)
+CSS::RustDeclarationBlock parse_css_property_declaration_block(CSS::Parser::ParsingParams const& context, Utf16View css)
 {
     if (css.is_empty())
-        return {};
+        return { {}, {} };
     return CSS::Parser::Parser::create(context, css).parse_as_property_declaration_block();
 }
 

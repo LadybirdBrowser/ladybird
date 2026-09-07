@@ -31,7 +31,7 @@ use crate::css::custom_properties::CustomPropertyRegistry;
 use crate::css::selector::CompiledSelector;
 use crate::css::selector::RustSelector;
 use crate::css::style_value::RetainedStyleValueData;
-use crate::css::style_value::retain_style_value;
+use crate::css::style_value::StyleValueData;
 
 use super::HashSet;
 use super::PinnedAtoms;
@@ -636,31 +636,6 @@ pub enum FfiElementDeclarationKind {
     SvgPresentationAttribute = 2,
 }
 
-/// How a CSS-wide keyword participates in the cascade.
-#[derive(Clone, Copy, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiCascadeOperator {
-    Declared = 0,
-    Inherit = 1,
-    Initial = 2,
-    Unset = 3,
-    Revert = 4,
-    RevertLayer = 5,
-}
-
-impl FfiCascadeOperator {
-    fn decode(self) -> CascadeOperator {
-        match self {
-            Self::Declared => CascadeOperator::Declared,
-            Self::Inherit => CascadeOperator::Inherit,
-            Self::Initial => CascadeOperator::Initial,
-            Self::Unset => CascadeOperator::Unset,
-            Self::Revert => CascadeOperator::Revert,
-            Self::RevertLayer => CascadeOperator::RevertLayer,
-        }
-    }
-}
-
 /// One change to a declaration block sourced from a style node. Zero means "no block".
 #[derive(Clone, Copy)]
 #[repr(C)]
@@ -844,51 +819,6 @@ fn write_custom_declarations(declared: &[CustomDeclaration], payload: &mut super
         });
         payload.write_u64(property.value.0);
     }
-}
-
-/// The custom properties one declaration block carries across the boundary as parallel columns:
-/// the engine's atom for each name, its importance, its cascade operator, and its canonical and
-/// written values. Returns nothing when a non-empty span has no storage.
-///
-/// # Safety
-/// Every non-null column must name `count` entries, and the values must be live style values.
-unsafe fn collect_custom_declarations(
-    engine: &mut StyleEngine,
-    names: *const u32,
-    important: *const bool,
-    operators: *const FfiCascadeOperator,
-    values: *const *const c_void,
-    original_values: *const *const c_void,
-    count: usize,
-) -> Option<(Vec<CustomDeclaration>, Vec<RetainedStyleValueData>)> {
-    if count == 0 {
-        return Some((Vec::new(), Vec::new()));
-    }
-    if names.is_null() || important.is_null() || operators.is_null() || values.is_null() || original_values.is_null() {
-        return None;
-    }
-    let names = unsafe { std::slice::from_raw_parts(names, count) };
-    let important = unsafe { std::slice::from_raw_parts(important, count) };
-    let operators = unsafe { std::slice::from_raw_parts(operators, count) };
-    let values = unsafe { std::slice::from_raw_parts(values, count) };
-    let original_values = unsafe { std::slice::from_raw_parts(original_values, count) };
-    let mut written = Vec::with_capacity(count);
-    let declared = (0..count)
-        .map(|index| {
-            let value = unsafe { engine.intern_specified_value(values[index].cast()) };
-            unsafe { engine.alias_specified_value(original_values[index].cast(), value) };
-            written.push(unsafe {
-                RetainedStyleValueData::from_retained_pointer(retain_style_value(original_values[index].cast()))
-            });
-            CustomDeclaration {
-                name: StyleAtomID(names[index]),
-                important: important[index],
-                operator: operators[index].decode(),
-                value,
-            }
-        })
-        .collect();
-    Some((declared, written))
 }
 
 fn write_exact_cascade_publication(
@@ -2069,86 +1999,84 @@ pub unsafe extern "C" fn style_engine_match_element(
     });
     result
 }
-/// Records which longhand properties one of an element's own declarations covers.
-///
-/// # Safety
-/// `engine` must be live, all arrays must have `count` readable entries, and every canonical and
-/// original value must point at live Rust-owned style value data.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_set_element_declared_properties(
-    engine: *mut c_void,
-    node: u32,
-    kind: FfiElementDeclarationKind,
-    properties: *const u16,
-    important: *const bool,
-    operators: *const FfiCascadeOperator,
-    values: *const *const c_void,
-    original_values: *const *const c_void,
-    count: usize,
-    custom_names: *const u32,
-    custom_important: *const bool,
-    custom_operators: *const FfiCascadeOperator,
-    custom_values: *const *const c_void,
-    custom_original_values: *const *const c_void,
-    custom_count: usize,
-    declarations_are_complete: bool,
-) {
-    let Some(node) = StyleNodeID::from_raw(node) else {
-        return;
-    };
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-    let mut written_values = Vec::with_capacity(count);
-    let declared: Vec<DeclaredProperty> = match count == 0 {
-        true => Vec::new(),
-        false => {
-            if properties.is_null()
-                || important.is_null()
-                || operators.is_null()
-                || values.is_null()
-                || original_values.is_null()
-            {
-                return;
-            }
-            let properties = unsafe { std::slice::from_raw_parts(properties, count) };
-            let important = unsafe { std::slice::from_raw_parts(important, count) };
-            let operators = unsafe { std::slice::from_raw_parts(operators, count) };
-            let values = unsafe { std::slice::from_raw_parts(values, count) };
-            let original_values = unsafe { std::slice::from_raw_parts(original_values, count) };
-            properties
+fn declaration_inventory_is_complete(declared: &[DeclaredProperty], written: &[RetainedStyleValueData]) -> bool {
+    use crate::css::property_metadata::{longhands_for_shorthand, property_id, property_is_shorthand};
+    fn covers(property: u16, declared: &[DeclaredProperty]) -> bool {
+        if property_is_shorthand(property) {
+            longhands_for_shorthand(property)
                 .iter()
-                .copied()
-                .zip(important.iter().copied())
-                .zip(operators.iter().copied())
-                .zip(values.iter().copied().zip(original_values.iter().copied()))
-                .map(|(((property, important), operator), (value, original_value))| {
-                    let specified_value = unsafe { engine.intern_specified_value(value.cast()) };
-                    unsafe { engine.alias_specified_value(original_value.cast(), specified_value) };
-                    written_values.push(unsafe {
-                        RetainedStyleValueData::from_retained_pointer(retain_style_value(original_value.cast()))
-                    });
-                    DeclaredProperty {
-                        property,
-                        important,
-                        operator: operator.decode(),
-                        value: specified_value,
-                    }
-                })
-                .collect()
+                .all(|longhand| covers(*longhand, declared))
+        } else {
+            declared.iter().any(|declaration| declaration.property == property)
         }
-    };
-    let Some((custom_declarations, custom_written_values)) = (unsafe {
-        collect_custom_declarations(
-            engine,
-            custom_names,
-            custom_important,
-            custom_operators,
-            custom_values,
-            custom_original_values,
-            custom_count,
-        )
-    }) else {
-        return;
-    };
+    }
+    assert_eq!(declared.len(), written.len());
+    declared.iter().zip(written).all(|(declaration, value)| {
+        declaration.property != property_id::ALL
+            && (!property_is_shorthand(declaration.property)
+                || !matches!(value.data(), StyleValueData::Unresolved { .. })
+                || covers(declaration.property, declared))
+    })
+}
+
+fn collect_native_custom_declarations(
+    engine: &mut StyleEngine,
+    custom_properties: &[crate::css::declaration_block::CustomProperty],
+) -> (Vec<CustomDeclaration>, Vec<RetainedStyleValueData>) {
+    let mut custom_written_values = Vec::new();
+    let custom_declarations = custom_properties
+        .iter()
+        .map(|property| {
+            let name = property.name.to_fly_string();
+            let engine_pointer = std::ptr::from_mut(engine).cast();
+            let atom = StyleAtomID(unsafe { style_engine_intern_atom(engine_pointer, name.raw()) });
+            unsafe {
+                style_engine_note_custom_property_name(
+                    engine_pointer,
+                    atom.0,
+                    name.raw(),
+                    property.name.units().as_ptr(),
+                    property.name.units().len(),
+                );
+            }
+            let declaration = &property.declaration;
+            // Custom properties retain their authored values, without normal-property
+            // canonicalization. Their token spelling is observable after substitution.
+            let value = unsafe { engine.intern_specified_value(std::sync::Arc::as_ptr(&declaration.value)) };
+            custom_written_values.push(unsafe {
+                RetainedStyleValueData::from_retained_pointer(std::sync::Arc::into_raw(
+                    property.declaration.value.clone(),
+                ))
+            });
+            CustomDeclaration {
+                name: atom,
+                important: declaration.important,
+                operator: super::program_updates::declaration_operator(&declaration.value),
+                value,
+            }
+        })
+        .collect::<Vec<_>>();
+    (custom_declarations, custom_written_values)
+}
+
+fn register_element_declared_properties(
+    engine: &mut StyleEngine,
+    node: StyleNodeID,
+    kind: FfiElementDeclarationKind,
+    declarations: &[crate::css::declaration_block::DeclaredProperty],
+    custom_properties: &[crate::css::declaration_block::CustomProperty],
+    mut declarations_are_complete: bool,
+) -> bool {
+    use crate::css::property_metadata::{property_defines_a_css_transition, property_id};
+    declarations_are_complete &= declarations
+        .iter()
+        .all(|declaration| declaration.property_id != property_id::ALL);
+    let has_transitions = declarations
+        .iter()
+        .any(|declaration| property_defines_a_css_transition(declaration.property_id));
+    let (declared, written_values) = engine.intern_element_declared_properties(declarations);
+    declarations_are_complete &= declaration_inventory_is_complete(&declared, &written_values);
+    let (custom_declarations, custom_written_values) = collect_native_custom_declarations(engine, custom_properties);
     engine.set_element_declared_properties(
         node,
         decode_element_declaration_kind(kind),
@@ -2165,6 +2093,68 @@ pub unsafe extern "C" fn style_engine_set_element_declared_properties(
         write_declared_properties(&declared, payload);
         write_custom_declarations(&custom_declarations, payload);
     });
+    has_transitions
+}
+
+/// Registers an element's native inline declaration block, or clears it when null.
+/// Returns whether the declarations can define transitions.
+///
+/// # Safety
+/// `engine` must be live. A non-null `block` must borrow a live `FfiDeclarationBlock`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_set_element_inline_style_properties(
+    engine: *mut c_void,
+    node: u32,
+    block: *const c_void,
+) -> bool {
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return false;
+    };
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let block = unsafe {
+        block
+            .cast::<crate::css::declaration_block::FfiDeclarationBlock>()
+            .as_ref()
+    };
+    let data = block.map(|block| block.data());
+    register_element_declared_properties(
+        engine,
+        node,
+        FfiElementDeclarationKind::InlineStyle,
+        data.as_ref().map_or(&[], |data| data.properties.as_slice()),
+        data.as_ref().map_or(&[], |data| data.custom_properties.as_slice()),
+        true,
+    )
+}
+
+/// Registers borrowed presentation hints and returns whether they can define transitions.
+///
+/// # Safety
+/// `engine` must be live. `properties` must borrow `count` `FfiDeclaredProperty` entries
+/// whose values point at live, Arc-backed `StyleValueData` roots.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_set_element_presentational_hint_properties(
+    engine: *mut c_void,
+    node: u32,
+    kind: FfiElementDeclarationKind,
+    properties: *const c_void,
+    count: usize,
+) -> bool {
+    use crate::css::declaration_block::{FfiDeclaredProperty, declaration_from_view};
+    let Some(node) = StyleNodeID::from_raw(node) else {
+        return false;
+    };
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    let properties = if count == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(properties.cast::<FfiDeclaredProperty>(), count) }
+    };
+    let declarations = properties
+        .iter()
+        .map(|property| unsafe { declaration_from_view(property) })
+        .collect::<Vec<_>>();
+    register_element_declared_properties(engine, node, kind, &declarations, &[], true)
 }
 
 /// # Safety
@@ -2984,85 +2974,44 @@ pub unsafe extern "C" fn style_engine_remove_computed_pseudo(
     });
     result
 }
-/// Records which longhand properties a rule declares. All four arrays are parallel.
+/// Registers the native declaration block of a rule, returning whether it declares transitions.
 ///
 /// # Safety
-/// `engine` must be live, all arrays must have `count` readable entries, and every canonical and
-/// original value must point at live Rust-owned style value data.
+/// `engine` must be live, and `block` must borrow a live `FfiDeclarationBlock` for this call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_set_rule_declared_properties(
     engine: *mut c_void,
     rule: u32,
-    properties: *const u16,
-    important: *const bool,
-    operators: *const FfiCascadeOperator,
-    values: *const *const c_void,
-    original_values: *const *const c_void,
-    count: usize,
-    custom_names: *const u32,
-    custom_important: *const bool,
-    custom_operators: *const FfiCascadeOperator,
-    custom_values: *const *const c_void,
-    custom_original_values: *const *const c_void,
-    custom_count: usize,
-    declarations_are_complete: bool,
-) {
+    block: *const c_void,
+) -> bool {
     if rule == 0 {
-        return;
+        return false;
     }
     let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-    let mut written_values = Vec::with_capacity(count);
-    let declared: Vec<DeclaredProperty> = match count == 0 {
-        true => Vec::new(),
-        false => {
-            if properties.is_null()
-                || important.is_null()
-                || operators.is_null()
-                || values.is_null()
-                || original_values.is_null()
-            {
-                return;
-            }
-            let properties = unsafe { std::slice::from_raw_parts(properties, count) };
-            let important = unsafe { std::slice::from_raw_parts(important, count) };
-            let operators = unsafe { std::slice::from_raw_parts(operators, count) };
-            let values = unsafe { std::slice::from_raw_parts(values, count) };
-            let original_values = unsafe { std::slice::from_raw_parts(original_values, count) };
-            properties
-                .iter()
-                .copied()
-                .zip(important.iter().copied())
-                .zip(operators.iter().copied())
-                .zip(values.iter().copied().zip(original_values.iter().copied()))
-                .map(|(((property, important), operator), (value, original_value))| {
-                    let value = unsafe { engine.intern_specified_value(value.cast()) };
-                    unsafe { engine.alias_specified_value(original_value.cast(), value) };
-                    written_values.push(unsafe {
-                        RetainedStyleValueData::from_retained_pointer(retain_style_value(original_value.cast()))
-                    });
-                    DeclaredProperty {
-                        property,
-                        important,
-                        operator: operator.decode(),
-                        value,
-                    }
-                })
-                .collect()
-        }
-    };
-    let Some((custom_declarations, custom_written_values)) = (unsafe {
-        collect_custom_declarations(
-            engine,
-            custom_names,
-            custom_important,
-            custom_operators,
-            custom_values,
-            custom_original_values,
-            custom_count,
-        )
-    }) else {
-        return;
-    };
+    let block = unsafe { &*block.cast::<crate::css::declaration_block::FfiDeclarationBlock>() };
+    let data = block.data();
+    let mut declarations_are_complete = true;
+    let mut has_transitions = false;
+    let declared = data
+        .properties
+        .iter()
+        .map(|declaration| {
+            use crate::css::property_metadata::{property_defines_a_css_transition, property_id};
+            declarations_are_complete &= declaration.property_id != property_id::ALL;
+            has_transitions |= property_defines_a_css_transition(declaration.property_id);
+            engine.intern_declared_property(declaration)
+        })
+        .collect::<Vec<_>>();
+    let written_values: Vec<_> = data
+        .properties
+        .iter()
+        .map(|declaration| unsafe {
+            RetainedStyleValueData::from_retained_pointer(std::sync::Arc::into_raw(declaration.value.clone()))
+        })
+        .collect();
+    declarations_are_complete &= declaration_inventory_is_complete(&declared, &written_values);
+    let (custom_declarations, custom_written_values) =
+        collect_native_custom_declarations(engine, &data.custom_properties);
     engine.set_rule_declared_properties_with_written_values(
         RuleID(rule - 1),
         &declared,
@@ -3077,6 +3026,7 @@ pub unsafe extern "C" fn style_engine_set_rule_declared_properties(
         write_declared_properties(&declared, payload);
         write_custom_declarations(&custom_declarations, payload);
     });
+    has_transitions
 }
 /// Moves a node's record to the custom-property environment C++ refreshed it to, keeping the
 /// store behind the environment, and returns the new record's identity; zero when the node holds

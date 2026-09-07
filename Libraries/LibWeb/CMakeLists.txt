@@ -97,6 +97,7 @@ set(SOURCES
     CSS/ComputedStyleWorkingSet.cpp
     CSS/ComputedValues.cpp
     CSS/RustStyleBridge.cpp
+    CSS/RustDeclarationBlock.cpp
     CSS/ContainerQuery.cpp
     CSS/CountersSet.cpp
     CSS/CounterStyle.cpp

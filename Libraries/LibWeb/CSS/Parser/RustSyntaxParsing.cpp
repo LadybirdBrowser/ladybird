@@ -22,9 +22,9 @@ namespace Web::CSS::Parser {
 void AtRule::for_each_as_declaration_list(DeclarationVisitor&& visit) const
 {
     for (auto const& child : child_rules_and_lists_of_declarations) {
-        if (!child.has<Vector<Declaration>>())
+        if (!child.has<DeclarationList>())
             continue;
-        for (auto const& declaration : child.get<Vector<Declaration>>())
+        for (auto const& declaration : child.get<DeclarationList>().declarations())
             visit(declaration);
     }
 }
@@ -51,24 +51,9 @@ void AtRule::for_each_as_declaration_rule_list(AtRuleVisitor&& visit_at_rule, De
                 if (at_rule.kind != ValueParserFFI::FfiRuleKind::Invalid)
                     visit_at_rule(at_rule);
             },
-            [&](Vector<Declaration> const& declarations) {
-                for (auto const& declaration : declarations)
+            [&](DeclarationList const& declarations) {
+                for (auto const& declaration : declarations.declarations())
                     visit_declaration(declaration);
-            });
-    }
-}
-
-void QualifiedRule::for_each_as_declaration_list(DeclarationVisitor&& visit) const
-{
-    for (auto const& declaration : declarations)
-        visit(declaration);
-
-    for (auto const& child : child_rules) {
-        child.visit(
-            [&](Rule const&) {},
-            [&](Vector<Declaration> const& declarations) {
-                for (auto const& declaration : declarations)
-                    visit(declaration);
             });
     }
 }
@@ -217,6 +202,42 @@ static void report_diagnostics(FfiSyntaxParseData const& data)
     }
 }
 
+static void report_declaration_error(FfiSyntaxParseData const& data, FfiSyntaxDeclaration const& declaration)
+{
+    auto name_view = utf16_value(data, declaration.name_offset, declaration.name_length);
+    auto value_view = utf16_value(data, declaration.value_source_offset, declaration.value_source_length);
+    switch (declaration.rejection) {
+    case FfiDeclarationRejection::None:
+    case FfiDeclarationRejection::IgnoredVendorPrefix:
+        break;
+    case FfiDeclarationRejection::UnknownProperty:
+        ErrorReporter::the().report(UnknownPropertyError { .property_name = Utf16FlyString::from_utf16(name_view) });
+        break;
+    case FfiDeclarationRejection::InvalidValue:
+        VERIFY(declaration.property_id != NumericLimits<u16>::max());
+        ErrorReporter::the().report(InvalidPropertyError {
+            .property_name = string_from_property_id(static_cast<PropertyID>(declaration.property_id)),
+            .value_string = MUST(value_view.to_utf8(AllowLonelySurrogates::Yes)),
+            .description = "Failed to parse."_string,
+        });
+        break;
+    }
+}
+
+static void report_item_declaration_errors(FfiSyntaxParseData const& data, FfiSyntaxItem const& item)
+{
+    if (item.item_type == 1) {
+        for (size_t index = 0; index < item.count; ++index)
+            report_declaration_error(data, data.declarations[item.start + index]);
+        return;
+    }
+    auto const& rule = data.rules[item.start];
+    if (rule.rule_type != 0 && !rule.selector_list)
+        return;
+    for (size_t index = 0; index < rule.child_count; ++index)
+        report_item_declaration_errors(data, data.items[data.item_indices[rule.children_start + index]]);
+}
+
 static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
 {
     VERIFY(index < data.declaration_count);
@@ -254,23 +275,6 @@ static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
             parsed_value = move(value);
     } else {
         VERIFY(!parsed_property_id.has_value() || declaration.rejection == FfiDeclarationRejection::InvalidValue);
-    }
-
-    switch (declaration.rejection) {
-    case FfiDeclarationRejection::None:
-    case FfiDeclarationRejection::IgnoredVendorPrefix:
-        break;
-    case FfiDeclarationRejection::UnknownProperty:
-        ErrorReporter::the().report(UnknownPropertyError { .property_name = Utf16FlyString::from_utf16(name_view) });
-        break;
-    case FfiDeclarationRejection::InvalidValue:
-        VERIFY(parsed_property_id.has_value());
-        ErrorReporter::the().report(InvalidPropertyError {
-            .property_name = string_from_property_id(*parsed_property_id),
-            .value_string = MUST(value_view.to_utf8(AllowLonelySurrogates::Yes)),
-            .description = "Failed to parse."_string,
-        });
-        break;
     }
 
     Optional<Vector<u32>> font_feature_values;
@@ -321,15 +325,37 @@ static Vector<Descriptor> descriptors(FfiSyntaxParseData const& data, size_t sta
     return result;
 }
 
-static Vector<Declaration> declarations(FfiSyntaxParseData const& data, size_t start, size_t count)
+DeclarationList::DeclarationList(RustStyleSheetParse const& parse, FfiSyntaxItem const& item)
+    : m_parse(parse.retain())
+    , m_properties(rust_declaration_block_from_data(item.declaration_block))
+    , m_start(item.start)
+    , m_count(item.count)
 {
-    VERIFY(start <= data.declaration_count);
-    VERIFY(count <= data.declaration_count - start);
-    Vector<Declaration> result;
-    result.ensure_capacity(count);
-    for (size_t index = 0; index < count; ++index)
-        result.unchecked_append(declaration(data, start + index));
-    return result;
+    auto data = m_parse.data();
+    VERIFY(m_start <= data.declaration_count);
+    VERIFY(m_count <= data.declaration_count - m_start);
+    for (size_t index = 0; index < m_count; ++index)
+        report_declaration_error(data, data.declarations[m_start + index]);
+}
+
+Vector<Declaration> const& DeclarationList::declarations() const
+{
+    return m_declarations.ensure([&] {
+        auto data = m_parse.data();
+        Vector<Declaration> result;
+        result.ensure_capacity(m_count);
+        for (size_t index = 0; index < m_count; ++index)
+            result.unchecked_append(declaration(data, m_start + index));
+        return result;
+    });
+}
+
+Optional<SourcePosition> DeclarationList::source_position() const
+{
+    if (m_count == 0)
+        return {};
+    auto const& first = m_parse.data().declarations[m_start];
+    return ::Web::CSS::Parser::source_position(first.start_line, first.start_column);
 }
 
 static ParsedRulePrelude parsed_rule_prelude(FfiSyntaxParseData const& data, FfiSyntaxRule const& rule)
@@ -380,9 +406,9 @@ static ParsedRulePrelude parsed_rule_prelude(FfiSyntaxParseData const& data, Ffi
     };
 }
 
-static Rule rule(FfiSyntaxParseData const&, size_t);
+static Rule rule(RustStyleSheetParse const&, FfiSyntaxParseData const&, size_t);
 
-static Vector<RuleOrListOfDeclarations> items(FfiSyntaxParseData const& data, size_t start, size_t count)
+static Vector<RuleOrListOfDeclarations> items(RustStyleSheetParse const& parse, FfiSyntaxParseData const& data, size_t start, size_t count)
 {
     VERIFY(start <= data.item_index_count);
     VERIFY(count <= data.item_index_count - start);
@@ -393,32 +419,33 @@ static Vector<RuleOrListOfDeclarations> items(FfiSyntaxParseData const& data, si
         VERIFY(item_index < data.item_count);
         auto const& item = data.items[item_index];
         if (item.item_type == 0)
-            result.unchecked_append(rule(data, item.start));
+            result.unchecked_append(rule(parse, data, item.start));
         else {
             VERIFY(item.item_type == 1);
-            result.unchecked_append(declarations(data, item.start, item.count));
+            result.unchecked_append(DeclarationList { parse, item });
         }
     }
     return result;
 }
 
-static Rule rule(FfiSyntaxParseData const& data, size_t index)
+static Rule rule(RustStyleSheetParse const& parse, FfiSyntaxParseData const& data, size_t index)
 {
     VERIFY(index < data.rule_count);
     auto const& rule = data.rules[index];
-    auto children = items(data, rule.children_start, rule.child_count);
     if (rule.rule_type == 0) {
         return AtRule {
             .kind = rule.rule_kind,
             .name = Utf16FlyString::from_utf16(utf16_value(data, rule.name_offset, rule.name_length)),
             .parsed_prelude = parsed_rule_prelude(data, rule),
             .descriptors = descriptors(data, rule.descriptors_start, rule.descriptor_count),
-            .child_rules_and_lists_of_declarations = move(children),
+            .declarations = rule.declaration_block ? Optional<RustDeclarationBlock> { RustDeclarationBlock { rust_declaration_block_from_data(rule.declaration_block) } } : OptionalNone {},
+            .child_rules_and_lists_of_declarations = items(parse, data, rule.children_start, rule.child_count),
             .is_block_rule = rule.has_block,
         };
     }
 
     VERIFY(rule.rule_type == 1);
+    VERIFY(rule.declaration_block);
     Optional<SelectorList> selectors;
     if (rule.selector_list)
         selectors = selector_list_from_rust(static_cast<SelectorFFI::RustParsedSelectorList const*>(rule.selector_list));
@@ -426,8 +453,8 @@ static Rule rule(FfiSyntaxParseData const& data, size_t index)
         .kind = rule.rule_kind,
         .selectors = move(selectors),
         .parsed_prelude = parsed_rule_prelude(data, rule),
-        .declarations = declarations(data, rule.declarations_start, rule.declaration_count),
-        .child_rules = move(children),
+        .declarations = RustDeclarationBlock { rust_declaration_block_from_data(rule.declaration_block) },
+        .child_rules = rule.selector_list ? items(parse, data, rule.children_start, rule.child_count) : Vector<RuleOrListOfDeclarations> {},
         .source_position = rule.has_source_position ? Optional<SourcePosition> { source_position(rule.start_line, rule.start_column) } : OptionalNone {},
     };
 }
@@ -468,7 +495,7 @@ Vector<Rule> RustSyntaxParser::stylesheet_rules(RustStyleSheetParse const& parse
     Vector<Rule> result;
     result.ensure_capacity(data.root_count);
     for (size_t index = 0; index < data.root_count; ++index)
-        result.unchecked_append(rule(data, data.roots[index]));
+        result.unchecked_append(rule(parse, data, data.roots[index]));
     return result;
 }
 
@@ -476,14 +503,12 @@ Optional<Rule> RustSyntaxParser::parse_rule(Parser& parser, ReadonlySpan<RuleCon
 {
     auto context = parser.make_parse_context(Parser::ParseContextMode::Syntax);
     static_assert(sizeof(RuleContext) == sizeof(u8));
-    auto* parse = rust_parse_css_rule_syntax(ffi_utf16_view(parser.m_source), reinterpret_cast<u8 const*>(contexts.data()), contexts.size(), nested == RuleNesting::Yes, &context.context);
-    VERIFY(parse);
-    ScopeGuard free_parse = [&] { rust_css_syntax_parse_free(parse); };
-    auto data = rust_css_syntax_parse_data(parse);
+    RustStyleSheetParse parse { rust_parse_css_rule_syntax(ffi_utf16_view(parser.m_source), reinterpret_cast<u8 const*>(contexts.data()), contexts.size(), nested == RuleNesting::Yes, &context.context) };
+    auto data = parse.data();
     report_diagnostics(data);
     if (data.root_count != 1)
         return {};
-    return rule(data, data.roots[0]);
+    return rule(parse, data, data.roots[0]);
 }
 
 ParsedRulePrelude RustSyntaxParser::parse_keyframe_selectors(Parser& parser)
@@ -500,6 +525,23 @@ ParsedRulePrelude RustSyntaxParser::parse_keyframe_selectors(Parser& parser)
     return parsed_rule_prelude(data, data.rules[rule_index]);
 }
 
+RustDeclarationBlock RustSyntaxParser::parse_declaration_block(Parser& parser, ReadonlySpan<RuleContext> contexts)
+{
+    static_assert(sizeof(RuleContext) == sizeof(u8));
+    auto context = parser.make_parse_context(Parser::ParseContextMode::Syntax);
+    // https://drafts.csswg.org/cssom/#parse-a-css-declaration-block
+    // 1. Let declarations be the returned declarations from invoking parse a block’s contents with string.
+    auto* handle = rust_parse_css_block_syntax(ffi_utf16_view(parser.m_source), reinterpret_cast<u8 const*>(contexts.data()), contexts.size(), &context.context, false);
+    RustStyleSheetParse parse { handle };
+    auto data = parse.data();
+    report_diagnostics(data);
+    for (size_t index = 0; index < data.root_count; ++index) {
+        auto const& item = data.items[data.roots[index]];
+        report_item_declaration_errors(data, item);
+    }
+    return RustDeclarationBlock { rust_css_syntax_parse_declaration_block(handle) };
+}
+
 Vector<RuleOrListOfDeclarations> RustSyntaxParser::parse_block_contents(Parser& parser, ReadonlySpan<RuleContext> contexts, PreservePropertySourceText preserve_property_source_text)
 {
     return parse_block_contents(parser, parser.m_source, contexts, preserve_property_source_text);
@@ -509,10 +551,8 @@ Vector<RuleOrListOfDeclarations> RustSyntaxParser::parse_block_contents(Parser& 
 {
     static_assert(sizeof(RuleContext) == sizeof(u8));
     auto context = parser.make_parse_context(Parser::ParseContextMode::Syntax);
-    auto* parse = rust_parse_css_block_syntax(ffi_utf16_view(source), reinterpret_cast<u8 const*>(contexts.data()), contexts.size(), &context.context, preserve_property_source_text == PreservePropertySourceText::Yes);
-    VERIFY(parse);
-    ScopeGuard free_parse = [&] { rust_css_syntax_parse_free(parse); };
-    auto data = rust_css_syntax_parse_data(parse);
+    RustStyleSheetParse parse { rust_parse_css_block_syntax(ffi_utf16_view(source), reinterpret_cast<u8 const*>(contexts.data()), contexts.size(), &context.context, preserve_property_source_text == PreservePropertySourceText::Yes) };
+    auto data = parse.data();
     report_diagnostics(data);
     Vector<RuleOrListOfDeclarations> result;
     result.ensure_capacity(data.root_count);
@@ -521,9 +561,9 @@ Vector<RuleOrListOfDeclarations> RustSyntaxParser::parse_block_contents(Parser& 
         VERIFY(item_index < data.item_count);
         auto const& item = data.items[item_index];
         if (item.item_type == 0)
-            result.unchecked_append(rule(data, item.start));
+            result.unchecked_append(rule(parse, data, item.start));
         else
-            result.unchecked_append(declarations(data, item.start, item.count));
+            result.unchecked_append(DeclarationList { parse, item });
     }
     return result;
 }

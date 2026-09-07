@@ -31,7 +31,6 @@
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleSheetList.h>
-#include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -1047,175 +1046,15 @@ void record_element_emptiness_changed(DOM::Element& element, DOM::Node const& ch
     record_feature(element, StyleEngineFFI::FfiFeatureKind::Emptiness, 0, kind_of(was_empty), 0, kind_of(is_empty), 0);
 }
 
-// The context-free computed form of a specified value, where the value has one.
-//
-// Numeric rgb() values need no element, inherited style, font, viewport, or other dynamic input to
-// compute. Publishing their specified syntax would make "#14181c" and "rgb(20, 24, 28)" distinct
-// even though every cascade computes them to the same value.
-static ValueComparingNonnullRefPtr<StyleValue const> canonical_specified_value(StyleValue const& value)
-{
-    if (!value.is_color_function())
-        return value;
-    auto const& color = as<ColorFunctionStyleValue>(value);
-    if (color.origin_color()
-        || color.color_type() != ColorStyleValue::ColorType::RGB
-        || any_of(color.channels(), [](auto const& channel) { return !channel->is_number(); })
-        || (color.alpha() && !color.alpha()->is_number()))
-        return value;
-    return color.computed_value_form();
-}
-
-// Which properties an element's own declarations cover is what the cascade compares them by: an
-// element-attached declaration beats every rule in its context, so it decides those properties and
-// no others.
-static StyleEngineFFI::FfiCascadeOperator cascade_operator_for(StyleValue const& value)
-{
-    if (!value.is_keyword())
-        return StyleEngineFFI::FfiCascadeOperator::Declared;
-    switch (value.to_keyword()) {
-    case Keyword::Inherit:
-        return StyleEngineFFI::FfiCascadeOperator::Inherit;
-    case Keyword::Initial:
-        return StyleEngineFFI::FfiCascadeOperator::Initial;
-    case Keyword::Unset:
-        return StyleEngineFFI::FfiCascadeOperator::Unset;
-    case Keyword::Revert:
-        return StyleEngineFFI::FfiCascadeOperator::Revert;
-    case Keyword::RevertLayer:
-        return StyleEngineFFI::FfiCascadeOperator::RevertLayer;
-    default:
-        return StyleEngineFFI::FfiCascadeOperator::Declared;
-    }
-}
-
-enum class ExpandShorthands {
-    No,
-    Yes,
-};
-
-struct DeclaredPropertyColumns {
-    DeclaredPropertyColumns(size_t capacity, bool declarations_are_complete)
-        : declarations_are_complete(declarations_are_complete)
-    {
-        properties.ensure_capacity(capacity);
-        important.ensure_capacity(capacity);
-        operators.ensure_capacity(capacity);
-        values.ensure_capacity(capacity);
-        original_values.ensure_capacity(capacity);
-        retained_values.ensure_capacity(capacity);
-    }
-
-    void append(StyleProperty const& property, ExpandShorthands expand_shorthands)
-    {
-        auto is_important = property.important == Important::Yes;
-        auto cascade_operator = cascade_operator_for(*property.value);
-        auto value = canonical_specified_value(*property.value);
-        if (property.property_id == PropertyID::All)
-            declarations_are_complete = false;
-        if (property_is_shorthand(property.property_id) && property.value->is_unresolved())
-            unresolved_shorthands.append(property.property_id);
-        // A shorthand written with a substitution is kept whole: the longhands it pends are
-        // declared beside it, and each takes its part once the shorthand substitutes.
-        if (expand_shorthands == ExpandShorthands::Yes && property_is_shorthand(property.property_id) && !property.value->is_unresolved()) {
-            for (auto longhand : expanded_longhands_for_shorthand(property.property_id)) {
-                properties.append(to_underlying(longhand));
-                important.append(is_important);
-                operators.append(cascade_operator);
-                values.append(value->rust_style_value_data());
-                original_values.append(property.value->rust_style_value_data());
-            }
-        } else {
-            properties.append(to_underlying(property.property_id));
-            important.append(is_important);
-            operators.append(cascade_operator);
-            values.append(value->rust_style_value_data());
-            original_values.append(property.value->rust_style_value_data());
-        }
-        retained_values.append(move(value));
-    }
-
-    void finalize_completeness()
-    {
-        for (auto shorthand : unresolved_shorthands) {
-            if (any_of(expanded_longhands_for_shorthand(shorthand), [&](auto longhand) { return !properties.contains_slow(to_underlying(longhand)); })) {
-                declarations_are_complete = false;
-                return;
-            }
-        }
-    }
-
-    // A custom property the block declares, named by the engine's atom for its name. The cascade
-    // tracks no winner per custom property: the element's environment cascades these by name.
-    void append_custom(StyleEngine& style_engine, Utf16FlyString const& name, StyleProperty const& property)
-    {
-        auto atom = style_engine.intern_atom(name);
-        style_engine.note_custom_property_name(atom, name);
-        custom_names.append(atom);
-        custom_important.append(property.important == Important::Yes);
-        custom_operators.append(cascade_operator_for(*property.value));
-        custom_values.append(property.value->rust_style_value_data());
-        custom_original_values.append(property.value->rust_style_value_data());
-    }
-
-    Vector<u16> properties;
-    Vector<bool> important;
-    Vector<StyleEngineFFI::FfiCascadeOperator> operators;
-    Vector<void const*> values;
-    Vector<void const*> original_values;
-    Vector<ValueComparingNonnullRefPtr<StyleValue const>> retained_values;
-    Vector<StyleAtomID> custom_names;
-    Vector<bool> custom_important;
-    Vector<StyleEngineFFI::FfiCascadeOperator> custom_operators;
-    Vector<void const*> custom_values;
-    Vector<void const*> custom_original_values;
-    Vector<PropertyID> unresolved_shorthands;
-    bool declarations_are_complete;
-};
-
-bool property_defines_a_css_transition(PropertyID property_id)
-{
-    return property_id == PropertyID::Transition
-        || property_id == PropertyID::TransitionBehavior
-        || property_id == PropertyID::TransitionDelay
-        || property_id == PropertyID::TransitionDuration
-        || property_id == PropertyID::TransitionProperty
-        || property_id == PropertyID::TransitionTimingFunction;
-}
-
-static bool publish_element_declared_properties(DOM::Element& element, StyleEngineFFI::FfiElementDeclarationKind kind, ReadonlySpan<StyleProperty> style_properties, OrderedHashMap<Utf16FlyString, StyleProperty> const* custom_properties = nullptr, bool declarations_are_complete = true)
-{
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element))
-        return false;
-
-    DeclaredPropertyColumns columns(style_properties.size(), declarations_are_complete);
-    for (auto const& property : style_properties) {
-        if (property_defines_a_css_transition(property.property_id))
-            style_engine->note_css_transitions_may_observe_style_changes();
-        // What a declaration decides is a set of longhands. An attribute maps to whichever property
-        // names it, `overflow` included, and the cascade expands that before anything is decided, so
-        // a shorthand left whole here would name a property nothing ever wins.
-        columns.append(property, ExpandShorthands::Yes);
-    }
-    if (custom_properties) {
-        for (auto const& [name, property] : *custom_properties)
-            columns.append_custom(*style_engine, name, property);
-    }
-    columns.finalize_completeness();
-    style_engine->set_element_declared_properties(element.style_node_id(), kind, columns.properties, columns.important, columns.operators, columns.values, columns.original_values, columns.custom_names, columns.custom_important, columns.custom_operators, columns.custom_values, columns.custom_original_values, columns.declarations_are_complete);
-    return true;
-}
-
 // An element can arrive with a style attribute already written, so this is published on arrival as
 // well as when the block is edited.
 static void record_element_inline_style_properties(DOM::Element& element)
 {
+    auto* style_engine = style_engine_for(element);
+    if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element))
+        return;
     auto const inline_style = element.inline_style();
-    publish_element_declared_properties(
-        element,
-        StyleEngineFFI::FfiElementDeclarationKind::InlineStyle,
-        inline_style ? inline_style->properties().span() : ReadonlySpan<StyleProperty> {},
-        inline_style ? &inline_style->custom_properties() : nullptr);
+    style_engine->set_element_inline_style_properties(element.style_node_id(), inline_style ? &inline_style->declaration_block() : nullptr);
 }
 
 // The hints an element's attributes map to are published from where the cascade collects them
@@ -1228,10 +1067,14 @@ static void record_element_inline_style_properties(DOM::Element& element)
 // are current and lets it compute the element's style itself.
 bool record_element_presentational_hint_properties(DOM::Element& element, ReadonlySpan<StyleProperty> hints)
 {
+    auto* style_engine = style_engine_for(element);
+    if (!style_engine || element.style_node_id() == no_style_node || has_pending_initial_features(element))
+        return false;
     auto kind = element.publishes_presentational_hints_on_arrival()
         ? StyleEngineFFI::FfiElementDeclarationKind::SvgPresentationAttribute
         : StyleEngineFFI::FfiElementDeclarationKind::PresentationalHint;
-    return publish_element_declared_properties(element, kind, hints);
+    style_engine->set_element_presentational_hint_properties(element.style_node_id(), kind, hints);
+    return true;
 }
 
 void record_element_declarations_changed(DOM::Element& element, ElementDeclarationKind kind, bool had_declarations, bool has_declarations)
@@ -1420,16 +1263,7 @@ static void record_rule_declared_properties(StyleEngine& style_engine, StyleEngi
     if (!declaration)
         return;
 
-    DeclaredPropertyColumns columns(declaration->properties().size(), true);
-    for (auto const& property : declaration->properties()) {
-        if (property_defines_a_css_transition(property.property_id))
-            style_engine.note_css_transitions_may_observe_style_changes();
-        columns.append(property, ExpandShorthands::No);
-    }
-    for (auto const& [name, property] : declaration->custom_properties())
-        columns.append_custom(style_engine, name, property);
-    columns.finalize_completeness();
-    style_engine.set_rule_declared_properties(rule_id, columns.properties, columns.important, columns.operators, columns.values, columns.original_values, columns.custom_names, columns.custom_important, columns.custom_operators, columns.custom_values, columns.custom_original_values, columns.declarations_are_complete);
+    style_engine.set_rule_declared_properties(rule_id, declaration->declaration_block());
 }
 
 // Where a compiled rule's identity is written. Author rules carry theirs on the rule object; the

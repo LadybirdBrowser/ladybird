@@ -8,6 +8,7 @@
 #include <AK/Utf16FlyString.h>
 #include <LibTest/TestCase.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/RustDeclarationBlock.h>
 #include <LibWeb/CSS/StyleEngineBridge.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
 
@@ -120,12 +121,11 @@ TEST_CASE(inline_custom_declaration_names_survive_without_computed_environments)
     auto root = engine.allocate_style_node();
     auto name = Utf16FlyString::from_utf8_without_validation("--retained-inline-property"sv);
     auto atom = engine.intern_atom(name);
-    bool important = false;
-    auto operation = Web::CSS::StyleEngineFFI::FfiCascadeOperator::Declared;
-    auto value = Web::CSS::property_initial_value(Web::CSS::PropertyID::Width);
-    void const* data = value->rust_style_value_data();
-    engine.set_element_declared_properties(root, Web::CSS::StyleEngineFFI::FfiElementDeclarationKind::InlineStyle,
-        {}, {}, {}, {}, {}, { &atom, 1 }, { &important, 1 }, { &operation, 1 }, { &data, 1 }, { &data, 1 }, true);
+    {
+        Web::CSS::RustDeclarationBlock declarations { {}, {} };
+        declarations.set_custom(name, { Web::CSS::Important::No, Web::CSS::PropertyID::Custom, Web::CSS::property_initial_value(Web::CSS::PropertyID::Width) });
+        engine.set_element_inline_style_properties(root, &declarations);
+    }
 
     for (u32 index = 0; index < 256; ++index) {
         auto churn = MUST(String::formatted("inline-custom-declaration-churn-{}", index));

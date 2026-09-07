@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const text = `@keyframes shared {
+        from {
+            width: 1px;
+            @unknown;
+            height: 2px;
+            width: 3px !important;
+            --色: green;
+            --色: red !important;
+        }
+    }`;
+    const createSheet = () => {
+        const style = document.createElement("style");
+        style.textContent = text;
+        document.head.append(style);
+        return style.sheet;
+    };
+    const first = createSheet();
+    const second = createSheet();
+    const firstRule = first.cssRules[0].cssRules[0];
+    const secondRule = second.cssRules[0].cssRules[0];
+    const firstStyle = firstRule.style;
+    println(`parsed: ${firstStyle.width}, ${firstStyle.height}, ${firstStyle.getPropertyValue("--色")}`);
+    firstStyle.width = "5px";
+    firstStyle.setProperty("--色", "blue");
+    println(`mutated: ${firstStyle.width}, ${firstStyle.getPropertyValue("--色")}`);
+    println(`second unchanged: ${secondRule.style.width}, ${secondRule.style.getPropertyValue("--色")}`);
+    const thirdStyle = createSheet().cssRules[0].cssRules[0].style;
+    println(`cached unchanged: ${thirdStyle.width}, ${thirdStyle.height}, ${thirdStyle.getPropertyValue("--色")}`);
+    println(`style identity: ${firstRule.style === firstStyle}`);
+});
+</script>

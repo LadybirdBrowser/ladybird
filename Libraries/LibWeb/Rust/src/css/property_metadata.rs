@@ -245,6 +245,18 @@ pub fn property_is_shorthand(property_id: u16) -> bool {
     (FIRST_SHORTHAND_PROPERTY_ID..=LAST_SHORTHAND_PROPERTY_ID).contains(&property_id)
 }
 
+pub(crate) fn property_defines_a_css_transition(property_id: u16) -> bool {
+    matches!(
+        property_id,
+        property_id::TRANSITION
+            | property_id::TRANSITION_BEHAVIOR
+            | property_id::TRANSITION_DELAY
+            | property_id::TRANSITION_DURATION
+            | property_id::TRANSITION_PROPERTY
+            | property_id::TRANSITION_TIMING_FUNCTION
+    )
+}
+
 /// Returns the longhands a shorthand expands to, in Properties.json order.
 pub fn longhands_for_shorthand(property_id: u16) -> &'static [u16] {
     if !property_is_shorthand(property_id) {
@@ -262,7 +274,7 @@ fn property_index(property_id: u16) -> usize {
     (property_id - FIRST_SHORTHAND_PROPERTY_ID) as usize
 }
 
-fn property_is_logical_alias_including_shorthands(property_id: u16) -> bool {
+pub(crate) fn property_is_logical_alias_including_shorthands(property_id: u16) -> bool {
     PROPERTY_IS_LOGICAL_ALIAS[property_index(property_id)]
 }
 
