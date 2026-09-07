@@ -13,6 +13,8 @@
 #include <LibRequests/RequestClient.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Fetching/FetchedDataReceiver.h>
+#include <LibWeb/Fetch/Infrastructure/FetchController.h>
+#include <LibWeb/Fetch/Infrastructure/FetchTimingInfo.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Bodies.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/FileAPI/Blob.h>
@@ -94,11 +96,54 @@ static NavigationResponseDescriptor create_navigation_response_descriptor(Fetch:
     };
 }
 
+static NavigationFetchTimingInfoDescriptor create_navigation_fetch_timing_info_descriptor(Fetch::Infrastructure::FetchTimingInfo const& timing_info)
+{
+    return {
+        .start_time = timing_info.start_time(),
+        .redirect_start_time = timing_info.redirect_start_time(),
+        .redirect_end_time = timing_info.redirect_end_time(),
+        .post_redirect_start_time = timing_info.post_redirect_start_time(),
+        .final_service_worker_start_time = timing_info.final_service_worker_start_time(),
+        .final_network_request_start_time = timing_info.final_network_request_start_time(),
+        .first_interim_network_response_start_time = timing_info.first_interim_network_response_start_time(),
+        .final_network_response_start_time = timing_info.final_network_response_start_time(),
+        .end_time = timing_info.end_time(),
+        .final_connection_timing_info = timing_info.final_connection_timing_info(),
+        .server_timing_headers = timing_info.server_timing_headers(),
+        .render_blocking = timing_info.render_blocking(),
+    };
+}
+
+static GC::Ref<Fetch::Infrastructure::FetchTimingInfo> create_navigation_fetch_timing_info_from_descriptor(NavigationFetchTimingInfoDescriptor const& descriptor)
+{
+    auto timing_info = Fetch::Infrastructure::FetchTimingInfo::create();
+    timing_info->set_start_time(descriptor.start_time);
+    timing_info->set_redirect_start_time(descriptor.redirect_start_time);
+    timing_info->set_redirect_end_time(descriptor.redirect_end_time);
+    timing_info->set_post_redirect_start_time(descriptor.post_redirect_start_time);
+    timing_info->set_final_service_worker_start_time(descriptor.final_service_worker_start_time);
+    timing_info->set_final_network_request_start_time(descriptor.final_network_request_start_time);
+    timing_info->set_first_interim_network_response_start_time(descriptor.first_interim_network_response_start_time);
+    timing_info->set_final_network_response_start_time(descriptor.final_network_response_start_time);
+    timing_info->set_end_time(descriptor.end_time);
+    if (descriptor.final_connection_timing_info.has_value())
+        timing_info->set_final_connection_timing_info(*descriptor.final_connection_timing_info);
+    timing_info->set_server_timing_headers(descriptor.server_timing_headers);
+    timing_info->set_render_blocking(descriptor.render_blocking);
+    return timing_info;
+}
+
 static NavigationParamsDescriptor create_navigation_params_descriptor(NavigationParams const& params)
 {
     Optional<NavigationRequestDescriptor> request;
     if (params.request)
         request = create_navigation_request_descriptor(*params.request);
+
+    Optional<NavigationFetchTimingInfoDescriptor> fetch_timing_info;
+    if (params.fetch_controller && params.fetch_controller->timing_info())
+        fetch_timing_info = create_navigation_fetch_timing_info_descriptor(*params.fetch_controller->timing_info());
+    else if (params.fetch_timing_info)
+        fetch_timing_info = create_navigation_fetch_timing_info_descriptor(*params.fetch_timing_info);
 
     Optional<NavigationEnvironmentDescriptor> reserved_environment;
     if (params.reserved_environment) {
@@ -118,6 +163,7 @@ static NavigationParamsDescriptor create_navigation_params_descriptor(Navigation
         .navigable_id = params.navigable->id(),
         .request = move(request),
         .response = create_navigation_response_descriptor(*params.response),
+        .fetch_timing_info = move(fetch_timing_info),
         .coop_enforcement_result = params.coop_enforcement_result,
         .reserved_environment = move(reserved_environment),
         .origin = params.origin,
@@ -310,7 +356,7 @@ ErrorOr<NavigationParamsVariant> create_navigation_params_from_descriptor(JS::Re
             navigable.active_browsing_context());
     }
 
-    return realm.heap().allocate<NavigationParams>(
+    auto navigation_params = realm.heap().allocate<NavigationParams>(
         move(params.id),
         &navigable,
         request,
@@ -327,6 +373,9 @@ ErrorOr<NavigationParamsVariant> create_navigation_params_from_descriptor(JS::Re
         params.navigation_timing_type,
         move(params.about_base_url),
         params.user_involvement);
+    if (params.fetch_timing_info.has_value())
+        navigation_params->fetch_timing_info = create_navigation_fetch_timing_info_from_descriptor(*params.fetch_timing_info);
+    return navigation_params;
 }
 
 }
@@ -476,6 +525,68 @@ ErrorOr<Web::HTML::NavigationEnvironmentDescriptor> decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Fetch::Infrastructure::ConnectionTimingInfo const& timing_info)
+{
+    TRY(encoder.encode(timing_info.domain_lookup_start_time));
+    TRY(encoder.encode(timing_info.domain_lookup_end_time));
+    TRY(encoder.encode(timing_info.connection_start_time));
+    TRY(encoder.encode(timing_info.connection_end_time));
+    TRY(encoder.encode(timing_info.secure_connection_start_time));
+    TRY(encoder.encode(timing_info.alpn_negotiated_protocol));
+    return {};
+}
+
+template<>
+ErrorOr<Web::Fetch::Infrastructure::ConnectionTimingInfo> decode(Decoder& decoder)
+{
+    return Web::Fetch::Infrastructure::ConnectionTimingInfo {
+        .domain_lookup_start_time = TRY(decoder.decode<double>()),
+        .domain_lookup_end_time = TRY(decoder.decode<double>()),
+        .connection_start_time = TRY(decoder.decode<double>()),
+        .connection_end_time = TRY(decoder.decode<double>()),
+        .secure_connection_start_time = TRY(decoder.decode<double>()),
+        .alpn_negotiated_protocol = TRY(decoder.decode<ByteString>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationFetchTimingInfoDescriptor const& timing_info)
+{
+    TRY(encoder.encode(timing_info.start_time));
+    TRY(encoder.encode(timing_info.redirect_start_time));
+    TRY(encoder.encode(timing_info.redirect_end_time));
+    TRY(encoder.encode(timing_info.post_redirect_start_time));
+    TRY(encoder.encode(timing_info.final_service_worker_start_time));
+    TRY(encoder.encode(timing_info.final_network_request_start_time));
+    TRY(encoder.encode(timing_info.first_interim_network_response_start_time));
+    TRY(encoder.encode(timing_info.final_network_response_start_time));
+    TRY(encoder.encode(timing_info.end_time));
+    TRY(encoder.encode(timing_info.final_connection_timing_info));
+    TRY(encoder.encode(timing_info.server_timing_headers));
+    TRY(encoder.encode(timing_info.render_blocking));
+    return {};
+}
+
+template<>
+ErrorOr<Web::HTML::NavigationFetchTimingInfoDescriptor> decode(Decoder& decoder)
+{
+    return Web::HTML::NavigationFetchTimingInfoDescriptor {
+        .start_time = TRY(decoder.decode<double>()),
+        .redirect_start_time = TRY(decoder.decode<double>()),
+        .redirect_end_time = TRY(decoder.decode<double>()),
+        .post_redirect_start_time = TRY(decoder.decode<double>()),
+        .final_service_worker_start_time = TRY(decoder.decode<double>()),
+        .final_network_request_start_time = TRY(decoder.decode<double>()),
+        .first_interim_network_response_start_time = TRY(decoder.decode<double>()),
+        .final_network_response_start_time = TRY(decoder.decode<double>()),
+        .end_time = TRY(decoder.decode<double>()),
+        .final_connection_timing_info = TRY(decoder.decode<Optional<Web::Fetch::Infrastructure::ConnectionTimingInfo>>()),
+        .server_timing_headers = TRY(decoder.decode<Vector<String>>()),
+        .render_blocking = TRY(decoder.decode<bool>()),
+    };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, Web::HTML::NonFetchSchemeNavigationParamsDescriptor const& params)
 {
     TRY(encoder.encode(params.id));
@@ -511,6 +622,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::NavigationParamsDescriptor con
     TRY(encoder.encode(params.navigable_id));
     TRY(encoder.encode(params.request));
     TRY(encoder.encode(params.response));
+    TRY(encoder.encode(params.fetch_timing_info));
     TRY(encoder.encode(params.coop_enforcement_result));
     TRY(encoder.encode(params.reserved_environment));
     TRY(encoder.encode(params.origin));
@@ -532,6 +644,7 @@ ErrorOr<Web::HTML::NavigationParamsDescriptor> decode(Decoder& decoder)
         .navigable_id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
         .request = TRY(decoder.decode<Optional<Web::HTML::NavigationRequestDescriptor>>()),
         .response = TRY(decoder.decode<Web::HTML::NavigationResponseDescriptor>()),
+        .fetch_timing_info = TRY(decoder.decode<Optional<Web::HTML::NavigationFetchTimingInfoDescriptor>>()),
         .coop_enforcement_result = TRY(decoder.decode<Web::HTML::OpenerPolicyEnforcementResult>()),
         .reserved_environment = TRY(decoder.decode<Optional<Web::HTML::NavigationEnvironmentDescriptor>>()),
         .origin = TRY(decoder.decode<URL::Origin>()),

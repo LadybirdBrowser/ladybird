@@ -20,6 +20,7 @@
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Fetch/Infrastructure/ConnectionTimingInfo.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/HTML/CrossOrigin/OpenerPolicyEnforcementResult.h>
 #include <LibWeb/HTML/CrossProcessId.h>
@@ -76,6 +77,21 @@ struct NavigationResponseDescriptor {
     NavigationResponseBody body;
 };
 
+struct NavigationFetchTimingInfoDescriptor {
+    HighResolutionTime::DOMHighResTimeStamp start_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp redirect_start_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp redirect_end_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp post_redirect_start_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp final_service_worker_start_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp final_network_request_start_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp first_interim_network_response_start_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp final_network_response_start_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp end_time { 0 };
+    Optional<Fetch::Infrastructure::ConnectionTimingInfo> final_connection_timing_info;
+    Vector<String> server_timing_headers;
+    bool render_blocking { false };
+};
+
 struct NavigationEnvironmentDescriptor {
     Utf16String id;
     URL::URL creation_url;
@@ -89,6 +105,7 @@ struct NavigationParamsDescriptor {
     CrossProcessId navigable_id;
     Optional<NavigationRequestDescriptor> request;
     NavigationResponseDescriptor response;
+    Optional<NavigationFetchTimingInfoDescriptor> fetch_timing_info;
     OpenerPolicyEnforcementResult coop_enforcement_result;
     Optional<NavigationEnvironmentDescriptor> reserved_environment;
     URL::Origin origin;
@@ -152,6 +169,18 @@ WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::NavigationResponseDescriptor c
 
 template<>
 WEB_API ErrorOr<Web::HTML::NavigationResponseDescriptor> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::Fetch::Infrastructure::ConnectionTimingInfo const&);
+
+template<>
+WEB_API ErrorOr<Web::Fetch::Infrastructure::ConnectionTimingInfo> decode(Decoder&);
+
+template<>
+WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::NavigationFetchTimingInfoDescriptor const&);
+
+template<>
+WEB_API ErrorOr<Web::HTML::NavigationFetchTimingInfoDescriptor> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::HTML::NavigationEnvironmentDescriptor const&);

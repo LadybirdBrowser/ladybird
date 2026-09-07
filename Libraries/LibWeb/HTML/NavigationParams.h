@@ -44,6 +44,11 @@ struct NavigationParams : GC::Cell {
     // null or a fetch controller
     GC::Ptr<Fetch::Infrastructure::FetchController> fetch_controller { nullptr };
 
+    // AD-HOC: The fetch controller stays in the process that ran the navigation fetch. Navigation params rebuilt from
+    //         a descriptor carry the fetch's timing info here instead, so the new Document's navigation timing entry
+    //         still sees it.
+    GC::Ptr<Fetch::Infrastructure::FetchTimingInfo> fetch_timing_info { nullptr };
+
     // null or an algorithm accepting a Document, once it has been created
     GC::Ptr<GC::Function<void(DOM::Document&)>> commit_early_hints { nullptr };
 
