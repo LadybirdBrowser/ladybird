@@ -326,20 +326,26 @@ impl ComputedLonghandTable {
         assert!(important_words.len() * 64 >= LONGHAND_COUNT);
         assert_eq!(inherited_words.len(), important_words.len());
         assert_eq!(evaluated_words.len(), important_words.len());
-        for index in 0..LONGHAND_COUNT {
-            if evaluated_words[index / 64] & (1 << (index % 64)) == 0 {
-                continue;
+        for (word_index, &evaluated_word) in evaluated_words.iter().enumerate() {
+            let mut remaining = evaluated_word;
+            while remaining != 0 {
+                let bit = remaining.trailing_zeros() as usize;
+                remaining &= remaining - 1;
+                let index = word_index * 64 + bit;
+                if index >= LONGHAND_COUNT {
+                    break;
+                }
+                set_bitmap_bit(
+                    &mut self.important_bits,
+                    index,
+                    important_words[word_index] & (1 << bit) != 0,
+                );
+                set_bitmap_bit(
+                    &mut self.inherited_bits,
+                    index,
+                    inherited_words[word_index] & (1 << bit) != 0,
+                );
             }
-            set_bitmap_bit(
-                &mut self.important_bits,
-                index,
-                important_words[index / 64] & (1 << (index % 64)) != 0,
-            );
-            set_bitmap_bit(
-                &mut self.inherited_bits,
-                index,
-                inherited_words[index / 64] & (1 << (index % 64)) != 0,
-            );
         }
     }
 
@@ -1322,5 +1328,22 @@ mod tests {
         let different_pointer = different.pointer();
         table.set_or_keep_equal(property_id::OPACITY, different, -1);
         assert_eq!(table.get(property_id::OPACITY).unwrap().pointer(), different_pointer);
+    }
+
+    #[test]
+    fn merge_driver_flags_touches_only_evaluated_slots() {
+        let mut table = ComputedLonghandTable::new();
+        let words = LONGHAND_COUNT.div_ceil(64);
+        let mut important = vec![u64::MAX; words];
+        let inherited = vec![u64::MAX; words];
+        let mut evaluated = vec![0_u64; words];
+        let z_index = ComputedLonghandTable::slot_index(property_id::Z_INDEX);
+        evaluated[z_index / 64] |= 1 << (z_index % 64);
+        important[z_index / 64] &= !(1 << (z_index % 64));
+        table.merge_driver_flags(&important, &inherited, &evaluated);
+        assert!(!table.is_important(property_id::Z_INDEX));
+        assert!(table.is_inherited(property_id::Z_INDEX));
+        assert!(!table.is_important(property_id::OPACITY));
+        assert!(!table.is_inherited(property_id::OPACITY));
     }
 }
