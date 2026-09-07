@@ -214,6 +214,8 @@ struct DocumentLoadTimingInfo {
     HighResolutionTime::DOMHighResTimeStamp load_event_start_time { 0 };
     // https://html.spec.whatwg.org/multipage/dom.html#load-event-end-time
     HighResolutionTime::DOMHighResTimeStamp load_event_end_time { 0 };
+    // AD-HOC: When the current document readiness first became "loading", for PerformanceTiming's domLoading.
+    HighResolutionTime::DOMHighResTimeStamp dom_loading_time { 0 };
 };
 
 // https://html.spec.whatwg.org/multipage/dom.html#document-unload-timing-info

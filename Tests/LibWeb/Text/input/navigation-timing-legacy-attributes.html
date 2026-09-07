@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const token = crypto.randomUUID();
+
+        const destinationURL = await server.createEcho("GET", `/navigation-timing-legacy-destination-${token}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `
+                <!DOCTYPE html>
+                <script>
+                    addEventListener("load", () => setTimeout(() => {
+                        const timing = performance.timing;
+                        const follows = (later, earlier) => timing[later] > 0 && timing[later] >= timing[earlier];
+                        parent.postMessage({
+                            navigationStartIsPositive: timing.navigationStart > 0,
+                            unloadEventStartFollowsNavigationStart: follows("unloadEventStart", "navigationStart"),
+                            unloadEventEndFollowsUnloadEventStart: follows("unloadEventEnd", "unloadEventStart"),
+                            redirectStart: timing.redirectStart,
+                            redirectEnd: timing.redirectEnd,
+                            fetchStartFollowsNavigationStart: follows("fetchStart", "navigationStart"),
+                            domainLookupStartFollowsFetchStart: follows("domainLookupStart", "fetchStart"),
+                            domainLookupEndFollowsDomainLookupStart: follows("domainLookupEnd", "domainLookupStart"),
+                            connectStartFollowsDomainLookupEnd: follows("connectStart", "domainLookupEnd"),
+                            connectEndFollowsConnectStart: follows("connectEnd", "connectStart"),
+                            secureConnectionStart: timing.secureConnectionStart,
+                            requestStartFollowsConnectEnd: follows("requestStart", "connectEnd"),
+                            responseStartFollowsRequestStart: follows("responseStart", "requestStart"),
+                            responseEndFollowsResponseStart: follows("responseEnd", "responseStart"),
+                            domLoadingFollowsFetchStart: follows("domLoading", "fetchStart"),
+                            domInteractiveFollowsDomLoading: follows("domInteractive", "domLoading"),
+                            domContentLoadedEventStartFollowsDomInteractive: follows("domContentLoadedEventStart", "domInteractive"),
+                            domContentLoadedEventEndFollowsDomContentLoadedEventStart: follows("domContentLoadedEventEnd", "domContentLoadedEventStart"),
+                            domCompleteFollowsDomContentLoadedEventEnd: follows("domComplete", "domContentLoadedEventEnd"),
+                            loadEventStartFollowsDomComplete: follows("loadEventStart", "domComplete"),
+                            loadEventEndFollowsLoadEventStart: follows("loadEventEnd", "loadEventStart"),
+                            toJSONHasNavigationStart: timing.toJSON().navigationStart === timing.navigationStart,
+                        }, "*");
+                    }, 0));
+                <\/script>
+            `,
+        });
+
+        const sourceURL = await server.createEcho("GET", `/navigation-timing-legacy-source-${token}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `
+                <!DOCTYPE html>
+                <script>
+                    addEventListener("unload", () => {
+                        const end = performance.now() + 10;
+                        while (performance.now() < end) {}
+                    });
+                    addEventListener("load", () => {
+                        location.href = ${JSON.stringify(destinationURL)};
+                    });
+                <\/script>
+            `,
+        });
+
+        addEventListener("message", event => {
+            for (const [name, value] of Object.entries(event.data))
+                println(`${name}: ${value}`);
+            done();
+        });
+
+        const frame = document.createElement("iframe");
+        frame.src = sourceURL;
+        document.body.appendChild(frame);
+    });
+</script>
