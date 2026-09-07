@@ -674,6 +674,34 @@ impl SelectorEntry {
     }
 }
 
+// A local predicate's identity excludes program-relative node IDs and text offsets.
+// Prefix matching does not compute specificity, so :where() is transparent here.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub(super) enum SelectorPrefixPredicate {
+    Leaf(SelectorOp),
+    Attribute(AttributeTest, Box<[u16]>),
+    And(Box<[Self]>),
+    Or(Box<[Self]>),
+    Not(Box<Self>),
+    Language(Box<[Box<[u16]>]>),
+}
+
+impl SelectorPrefixPredicate {
+    pub(super) fn capacity_bytes(&self) -> usize {
+        match self {
+            Self::Leaf(_) => 0,
+            Self::Attribute(_, text) => size_of_val(text.as_ref()),
+            Self::And(operands) | Self::Or(operands) => {
+                size_of_val(operands.as_ref()) + operands.iter().map(Self::capacity_bytes).sum::<usize>()
+            }
+            Self::Not(inner) => size_of::<Self>() + inner.capacity_bytes(),
+            Self::Language(ranges) => {
+                size_of_val(ranges.as_ref()) + ranges.iter().map(|range| size_of_val(range.as_ref())).sum::<usize>()
+            }
+        }
+    }
+}
+
 /// A compiled selector program: one rule's selector list.
 #[derive(Default, PartialEq, Eq, Hash)]
 pub struct SelectorProgram {
@@ -1285,6 +1313,73 @@ impl SelectorProgram {
                 .min_by_key(|key| dispatch_selectivity(*key))
                 .unwrap_or(DispatchKey::Universal),
             _ => self.dispatch_key_of(local.root),
+        }
+    }
+
+    pub(super) fn prefix_local_predicate(&self, local: SelectorPrefixLocal) -> SelectorPrefixPredicate {
+        fn conjunction(mut operands: Vec<SelectorPrefixPredicate>) -> SelectorPrefixPredicate {
+            if operands.len() == 1 {
+                operands.pop().unwrap()
+            } else {
+                SelectorPrefixPredicate::And(operands.into_boxed_slice())
+            }
+        }
+        fn predicate(program: &SelectorProgram, node: SelectorNodeID) -> SelectorPrefixPredicate {
+            match program.node(node) {
+                SelectorOp::And { first, count } => conjunction(
+                    program
+                        .operands(first, count)
+                        .iter()
+                        .map(|&node| predicate(program, node))
+                        .collect(),
+                ),
+                SelectorOp::Or { first, count } => SelectorPrefixPredicate::Or(
+                    program
+                        .operands(first, count)
+                        .iter()
+                        .map(|&node| predicate(program, node))
+                        .collect(),
+                ),
+                SelectorOp::Where(inner) => predicate(program, inner),
+                SelectorOp::Not(inner) => SelectorPrefixPredicate::Not(Box::new(predicate(program, inner))),
+                SelectorOp::Language { first, count } => {
+                    SelectorPrefixPredicate::Language(program.language_ranges(first, count).map(Box::from).collect())
+                }
+                SelectorOp::Feature(FeatureTest::Attribute(mut test)) => {
+                    let text = match test.operator {
+                        AttributeOperator::Presence => {
+                            test.value_atom = StyleAtomID::NONE;
+                            test.case = AttributeCase::Sensitive;
+                            &[][..]
+                        }
+                        AttributeOperator::Exact
+                            if test.case == AttributeCase::Sensitive && !test.value_atom.is_none() =>
+                        {
+                            &[]
+                        }
+                        _ => program.literal(test.value_offset, test.value_length),
+                    };
+                    test.value_offset = 0;
+                    test.value_length = 0;
+                    SelectorPrefixPredicate::Attribute(test, text.into())
+                }
+                leaf @ (SelectorOp::Feature(_)
+                | SelectorOp::State(_)
+                | SelectorOp::Root
+                | SelectorOp::ValueState { .. }
+                | SelectorOp::Heading(_)) => SelectorPrefixPredicate::Leaf(leaf),
+                _ => unreachable!("only local predicates can share a prefix compound"),
+            }
+        }
+        match self.node(local.root) {
+            SelectorOp::And { first, count } => conjunction(
+                self.operands(first, count)
+                    .iter()
+                    .filter(|&&node| Some(node) != local.relation)
+                    .map(|&node| predicate(self, node))
+                    .collect(),
+            ),
+            _ => predicate(self, local.root),
         }
     }
 
