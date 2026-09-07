@@ -5208,6 +5208,85 @@ fn update_test_prefix_relation(
 }
 
 #[test]
+fn prefix_relations_share_program_predicates_without_merging_their_paths() {
+    let (mut engine, nodes) = nested_document();
+    let attribute_name = StyleAtomID(200);
+    let disabled = StyleAtomID(201);
+    let target = StyleAtomID(202);
+    let ready = StyleAtomID(203);
+    let other = StyleAtomID(204);
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    for index in 0..33 {
+        let scope = StyleAtomID(300 + if index == 32 { 0 } else { index });
+        let literal: Vec<u16> = if index == 32 { "other" } else { "ready" }.encode_utf16().collect();
+        let mut builder = selector::SelectorProgramBuilder::new();
+        // Equal predicates deliberately have different program-relative text offsets.
+        builder.push_literal(&vec![0; index as usize]);
+        let (value_offset, value_length) = builder.push_literal(&literal);
+        let scope = builder.push_feature(selector::FeatureTest::Class(scope));
+        let ancestor_scope = builder.push_ancestor(scope);
+        let attribute = builder.push_feature(selector::FeatureTest::Attribute(selector::AttributeTest {
+            name: attribute_name,
+            any_namespace: false,
+            folded: attribute_name,
+            fold_in_namespace: StyleAtomID::NONE,
+            operator: selector::AttributeOperator::Substring,
+            value_atom: StyleAtomID::NONE,
+            value_offset,
+            value_length,
+            case: selector::AttributeCase::Sensitive,
+        }));
+        let disabled = builder.push_feature(selector::FeatureTest::Class(disabled));
+        let not_disabled = builder.push(selector::SelectorOp::Not(disabled));
+        let middle = builder.push_compound(&[attribute, not_disabled, ancestor_scope]);
+        let ancestor_middle = builder.push_ancestor(middle);
+        let subject = builder.push_feature(selector::FeatureTest::Class(target));
+        let subject = builder.push_compound(&[subject, ancestor_middle]);
+        builder.push_entry(subject);
+        let program = engine.programs.add(builder.finish());
+        let rule = engine.append_rule(sheet, None, RuleKind::Style);
+        engine.add_routing_rule(rule, program);
+        let mut version = engine.program.rule_version(rule);
+        version.selector_program = Some(program);
+        version.declaration_block = Some(DeclarationBlockID(1));
+        engine.replace_rule_version(rule, version);
+    }
+    add_feature(&mut engine, nodes[0], LocalFeatureKey::Class(StyleAtomID(300)));
+    add_feature(&mut engine, nodes[3], LocalFeatureKey::Class(target));
+    engine.set_attribute_value_text(ready, &"ready".encode_utf16().collect::<Vec<_>>());
+    engine.set_attribute_value_text(other, &"other".encode_utf16().collect::<Vec<_>>());
+    engine.record_input(
+        InputKey::LocalFeature(nodes[1], LocalFeatureKey::Attribute(attribute_name)),
+        InputValue::Feature(FeatureValue::Absent),
+        InputValue::Feature(FeatureValue::Atom(ready)),
+    );
+    discard_transaction(&mut engine);
+    let before = engine.counters.get(Counter::PrefixCompoundsEvaluated);
+    let (dispatch, mut relation) = test_prefix_relation(&mut engine, nodes[0]);
+    assert_eq!(engine.counters.get(Counter::PrefixCompoundsEvaluated) - before, 4);
+    let mut states = PrefixStates::new(0);
+    relation.install_answers(&mut states);
+    let original = states.retained_matches_for(nodes[3]).unwrap().to_vec();
+    assert_eq!(original.len(), 1);
+
+    let old_facts = engine.facts.primary().clone();
+    engine.record_input(
+        InputKey::LocalFeature(nodes[1], LocalFeatureKey::Attribute(attribute_name)),
+        InputValue::Feature(FeatureValue::Atom(ready)),
+        InputValue::Feature(FeatureValue::Atom(other)),
+    );
+    discard_transaction(&mut engine);
+    let counters = update_test_prefix_relation(&engine, &dispatch, &mut relation, &old_facts, &[nodes[1]], None);
+    assert_eq!(counters.get(Counter::PrefixCompoundsEvaluated), 2);
+    assert_eq!(relation.changed_answers.len(), 1);
+    assert_eq!(relation.changed_answers[0].0, nodes[3]);
+    assert_eq!(relation.changed_answers[0].1, original);
+    assert_eq!(relation.changed_answers[0].2.len(), 1);
+    assert_ne!(relation.changed_answers[0].1, relation.changed_answers[0].2);
+}
+
+#[test]
 fn prefix_relation_reuses_local_facts_without_sharing_position() {
     let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
     let mut raw = [0; 65];

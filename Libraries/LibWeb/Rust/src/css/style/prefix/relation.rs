@@ -523,7 +523,7 @@ impl PrefixRelation {
                                         .features_for(*feature_start, *feature_len)
                                         .iter()
                                         .all(|&feature| matches_feature(row.facts, row.row, feature)),
-                                    PrefixPredicate::Program { program, local } => evaluation
+                                    PrefixPredicate::Program { program, local, .. } => evaluation
                                         .evaluator
                                         .matches_prefix_local(
                                             *program,
@@ -980,7 +980,7 @@ impl PrefixAutomaton {
                                 .features_for(*feature_start, *feature_len)
                                 .iter()
                                 .all(|&feature| matches_feature(row.facts, row.row, feature)),
-                            PrefixPredicate::Program { program, local } => evaluation
+                            PrefixPredicate::Program { program, local, .. } => evaluation
                                 .evaluator
                                 .matches_prefix_local(
                                     *program,

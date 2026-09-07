@@ -21,11 +21,13 @@
 use super::capacity::capacity_bytes;
 use super::fast_hash::FastMap as HashMap;
 use super::fast_hash::fast_hasher;
+use super::selector::SelectorPrefixPredicate;
 use std::collections::hash_map::Entry;
 use std::hash::Hash;
 use std::hash::Hasher;
 use std::mem::size_of;
 use std::num::NonZeroU32;
+use std::rc::Rc;
 
 use super::ScopeProgramID;
 use super::column::Column;
@@ -162,10 +164,7 @@ enum PrefixPredicateKey {
         features: Box<[FeatureTest]>,
         required_positional_bits: u32,
     },
-    Program {
-        program: SelectorProgramID,
-        local: SelectorPrefixLocal,
-    },
+    Program(Rc<SelectorPrefixPredicate>),
 }
 
 #[derive(Clone)]
@@ -178,6 +177,7 @@ enum PrefixPredicate {
     Program {
         program: SelectorProgramID,
         local: SelectorPrefixLocal,
+        identity: Rc<SelectorPrefixPredicate>,
     },
 }
 
@@ -301,10 +301,7 @@ impl PrefixAutomaton {
                             required_positional_bits: *required_positional_bits,
                         }
                     }
-                    PrefixPredicate::Program { program, local } => PrefixPredicateKey::Program {
-                        program: *program,
-                        local: *local,
-                    },
+                    PrefixPredicate::Program { identity, .. } => PrefixPredicateKey::Program(Rc::clone(identity)),
                 };
                 (
                     key,
@@ -448,10 +445,7 @@ impl PrefixAutomaton {
                         required_positional_bits,
                     }
                 }
-                None => PrefixPredicateKey::Program {
-                    program: program_id,
-                    local: chain_step.local,
-                },
+                None => PrefixPredicateKey::Program(Rc::new(program.prefix_local_predicate(chain_step.local))),
             };
             let compound = match self.compound_ids.entry(predicate) {
                 Entry::Occupied(entry) => *entry.get(),
@@ -475,9 +469,10 @@ impl PrefixAutomaton {
                                 required_positional_bits: *required_positional_bits,
                             }
                         }
-                        PrefixPredicateKey::Program { program, local } => PrefixPredicate::Program {
-                            program: *program,
-                            local: *local,
+                        PrefixPredicateKey::Program(identity) => PrefixPredicate::Program {
+                            program: program_id,
+                            local: chain_step.local,
+                            identity: Rc::clone(identity),
                         },
                     };
                     self.compounds.push(PrefixCompound {
@@ -812,12 +807,16 @@ impl PrefixAutomaton {
             ];
             cached [];
             nested [
+                self.compounds.iter().map(|compound| match &compound.predicate {
+                    PrefixPredicate::Program { identity, .. } => size_of::<SelectorPrefixPredicate>() + 2 * size_of::<usize>() + identity.capacity_bytes(),
+                    _ => 0,
+                }).sum::<usize>(),
                 self
                 .compound_ids
                 .keys()
                 .map(|predicate| match predicate {
                     PrefixPredicateKey::Features { features, .. } => features.len() * size_of::<FeatureTest>(),
-                    PrefixPredicateKey::Program { .. } => 0,
+                    PrefixPredicateKey::Program(_) => 0,
                 })
                 .sum::<usize>(),
                 self
@@ -1593,7 +1592,7 @@ impl<'a, 'b> PrefixEvaluation<'a, 'b> {
                     .iter()
                     .all(|&feature| matches_feature(row.facts, row.row, feature)))
             }
-            PrefixPredicate::Program { program, local } => {
+            PrefixPredicate::Program { program, local, .. } => {
                 self.evaluator
                     .matches_prefix_local(*program, self.programs.get(*program), *local, node, counters)
             }
@@ -1622,7 +1621,7 @@ impl<'a, 'b> PrefixEvaluation<'a, 'b> {
                         .iter()
                         .all(|&feature| matches_feature(row.facts, row.row, feature)),
             ),
-            PrefixPredicate::Program { program, local } => {
+            PrefixPredicate::Program { program, local, .. } => {
                 self.evaluator
                     .matches_prefix_local(*program, self.programs.get(*program), *local, node, counters)
             }
@@ -3245,31 +3244,29 @@ impl PrefixStates {
                 self.compound_answer[compound_index]
             } else {
                 let compound = &automaton.compounds[compound_index];
-                let matches = match &compound.predicate {
-                    PrefixPredicate::Features {
-                        feature_start,
-                        feature_len,
-                        required_positional_bits,
-                    } => {
-                        (positional_bits & required_positional_bits) == *required_positional_bits
-                            && automaton
-                                .features_for(*feature_start, *feature_len)
-                                .iter()
-                                .all(|&feature| matches_feature(row.facts, row.row, feature))
-                    }
-                    PrefixPredicate::Program { program, local } => match evaluation.evaluator.matches_prefix_local(
-                        *program,
-                        evaluation.programs.get(*program),
-                        *local,
-                        node,
-                        counters,
-                    ) {
-                        Ok(matches) => matches,
-                        Err(incomplete) => {
-                            return PrefixTransitionLookup::Missing(PrefixTransitionGap::Incomplete(incomplete));
+                let matches =
+                    match &compound.predicate {
+                        PrefixPredicate::Features {
+                            feature_start,
+                            feature_len,
+                            required_positional_bits,
+                        } => {
+                            (positional_bits & required_positional_bits) == *required_positional_bits
+                                && automaton
+                                    .features_for(*feature_start, *feature_len)
+                                    .iter()
+                                    .all(|&feature| matches_feature(row.facts, row.row, feature))
                         }
-                    },
-                };
+                        PrefixPredicate::Program { program, local, .. } => match evaluation
+                            .evaluator
+                            .matches_prefix_local(*program, evaluation.programs.get(*program), *local, node, counters)
+                        {
+                            Ok(matches) => matches,
+                            Err(incomplete) => {
+                                return PrefixTransitionLookup::Missing(PrefixTransitionGap::Incomplete(incomplete));
+                            }
+                        },
+                    };
                 self.compound_epoch[compound_index] = self.epoch;
                 self.compound_answer[compound_index] = matches;
                 counters.bump(Counter::PrefixCompoundsEvaluated);
