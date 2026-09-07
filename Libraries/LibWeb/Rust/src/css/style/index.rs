@@ -4190,10 +4190,13 @@ impl ElementFactStore {
             return;
         }
 
-        let rebuild_started_admitting = memory.is_tier3_admitting(MemoryCategory::FeaturePosting);
+        // NB: Rebuilding needs to admit new postings. Avoid scanning every fact on each
+        //     selector query while admission is closed, and retry once it reopens.
+        if !memory.is_tier3_admitting(MemoryCategory::FeaturePosting) {
+            return;
+        }
         let Some(rebuilt) = self.build_missing_postings(memory) else {
-            self.posting_rebuild_closed_at_headroom =
-                rebuild_started_admitting.then(|| Self::posting_rebuild_headroom(memory));
+            self.posting_rebuild_closed_at_headroom = Some(Self::posting_rebuild_headroom(memory));
             return;
         };
         self.postings.take_rebuilt(rebuilt);
@@ -6007,6 +6010,36 @@ mod tests {
     }
 
     #[test]
+    fn selector_queries_defer_posting_rebuilds_while_admission_is_closed() {
+        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut facts = ElementFactStore::new();
+        let node = StyleNodeID::element(1);
+        let class = StyleAtomID(1);
+        let key = SelectorPostingKey::Class(class);
+        facts.set_class(node, class, true, &mut memory);
+        facts.apply_staged(&mut memory);
+        facts.postings_mut().evict_all();
+        facts.set_class(node, class, false, &mut memory);
+
+        memory.set_tier3_limit_for_test(0);
+        let mut other_postings = FeaturePostings::new();
+        other_postings.insert(key, node, &mut memory);
+        assert!(!memory.is_tier3_admitting(MemoryCategory::FeaturePosting));
+
+        for _ in 0..3 {
+            facts.prepare_selector_query(&mut memory);
+            assert!(facts.classes_of_node(node).is_empty());
+            // NB: Even resolving an empty missing posting requires scanning the facts.
+            assert!(matches!(facts.postings().lookup(key), Lookup::Missing(gap) if gap == key));
+        }
+
+        memory.set_tier3_limit_for_test(u64::MAX);
+        memory.begin_tier3_quota_period();
+        facts.prepare_selector_query(&mut memory);
+        assert!(matches!(facts.postings().lookup(key), Lookup::KnownAbsent));
+    }
+
+    #[test]
     fn missing_postings_rebuild_from_mutated_authoritative_facts_when_budget_returns() {
         let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
         let mut facts = ElementFactStore::new();
@@ -6032,8 +6065,8 @@ mod tests {
         assert!(matches!(facts.postings().lookup(new_animation_key), Lookup::Missing(gap) if gap == new_animation_key));
         assert_eq!(facts.posting_rebuild_closed_at_headroom, None);
 
-        // Admission was already closed before the rebuild began, so its failure says nothing about
-        // whether the same headroom could fund a later rebuild after another category reopens it.
+        // NB: Closed admission defers rebuilding without recording a failed attempt, so the same
+        //     headroom can fund a later rebuild once admission reopens.
         facts.apply_staged(&mut memory);
         assert_eq!(facts.posting_rebuild_closed_at_headroom, None);
 
