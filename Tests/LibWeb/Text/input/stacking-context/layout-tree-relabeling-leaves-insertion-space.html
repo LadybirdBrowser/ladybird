@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div><div id="target"></div><div>Following sibling</div></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        document.body.offsetHeight;
+        const before = internals.layoutTreePreOrderRelabelCount();
+        target.innerHTML = "<div>".repeat(40) + "<span>x</span>".repeat(5000) + "</div>".repeat(40);
+        document.body.offsetHeight;
+        const relabels = internals.layoutTreePreOrderRelabelCount() - before;
+        println(`Relabels stay bounded: ${relabels < 10}`);
+        println(`Label violations: ${internals.layoutTreePreOrderLabelViolationCount()}`);
+    });
+</script>
