@@ -394,6 +394,8 @@ static bool element_may_have_presentational_hints(DOM::Element const& element)
 {
     if (element_may_have_derived_presentational_hints(element))
         return true;
+    if (element.publishes_presentational_hints_on_arrival())
+        return false;
     // The cascade also reads the width and height attributes of an element that supports them.
     if (element.supports_dimension_attributes()
         && (element.has_attribute(HTML::AttributeNames::width) || element.has_attribute(HTML::AttributeNames::height)))
@@ -675,6 +677,8 @@ static void record_element_initial_features(DOM::Element& element)
         record_element_parts_changed(element);
     if (auto const inline_style = element.inline_style(); inline_style && (!inline_style->properties().is_empty() || !inline_style->custom_properties().is_empty()))
         record_element_inline_style_properties(element);
+    if (element.publishes_presentational_hints_on_arrival() && !element_may_have_derived_presentational_hints(element))
+        StyleComputer::collect_presentational_hint_properties({ element });
 }
 
 void record_element_moved(DOM::Element& element, DOM::Node* old_parent, DOM::Element* old_previous_sibling, DOM::Element* old_next_sibling)
@@ -1220,10 +1224,14 @@ static void record_element_inline_style_properties(DOM::Element& element)
 // has while the document is still being parsed. Asking for them on arrival crashes on the first
 // bordered table for that reason. The cascade builds the block anyway, so this costs the call.
 //
-// SVG presentation attributes map through the same hook, so they are published under this kind too.
+// An element that publishes its hints on arrival gets its own kind, which tells the engine the hints
+// are current and lets it compute the element's style itself.
 bool record_element_presentational_hint_properties(DOM::Element& element, ReadonlySpan<StyleProperty> hints)
 {
-    return publish_element_declared_properties(element, StyleEngineFFI::FfiElementDeclarationKind::PresentationalHint, hints);
+    auto kind = element.publishes_presentational_hints_on_arrival()
+        ? StyleEngineFFI::FfiElementDeclarationKind::SvgPresentationAttribute
+        : StyleEngineFFI::FfiElementDeclarationKind::PresentationalHint;
+    return publish_element_declared_properties(element, kind, hints);
 }
 
 void record_element_declarations_changed(DOM::Element& element, ElementDeclarationKind kind, bool had_declarations, bool has_declarations)

@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .styled { fill: green; }
+</style>
+<svg id="svg" width="100" height="100"></svg>
+<script>
+    function makeRect(x, fill) {
+        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        rect.setAttribute("x", x);
+        rect.setAttribute("y", "1");
+        rect.setAttribute("width", "10");
+        rect.setAttribute("height", "10");
+        rect.setAttribute("fill", fill);
+        return rect;
+    }
+
+    function measure(label, mutate, rect) {
+        internals.updateStyle();
+        const before = internals.getStyleInvalidationCounters();
+        rect = mutate(rect);
+        internals.updateStyle();
+        const after = internals.getStyleInvalidationCounters();
+        const style = getComputedStyle(rect);
+        println(`${label}: ${after.engineComputedStyleRecords - before.engineComputedStyleRecords} engine records, ${after.elementStyleRecomputations - before.elementStyleRecomputations} C++ recomputations`);
+        println(`${label}: x ${style.x}, fill ${style.fill}, width ${style.width}`);
+        return rect;
+    }
+
+    test(() => {
+        let rect = measure("insertion", () => { const rect = makeRect("20", "blue"); svg.append(rect); return rect; });
+        rect = measure("x rewrite", rect => { rect.setAttribute("x", "30"); return rect; }, rect);
+        rect = measure("x and fill rewrite", rect => { rect.setAttribute("x", "40"); rect.setAttribute("fill", "red"); return rect; }, rect);
+        rect = measure("fill removal", rect => { rect.removeAttribute("fill"); return rect; }, rect);
+        rect = measure("fill beaten by a rule", rect => { rect.setAttribute("fill", "blue"); rect.classList.add("styled"); return rect; }, rect);
+        rect = measure("attribute under the rule", rect => { rect.setAttribute("fill", "red"); return rect; }, rect);
+        rect = measure("rule removed", rect => { rect.classList.remove("styled"); return rect; }, rect);
+    });
+</script>

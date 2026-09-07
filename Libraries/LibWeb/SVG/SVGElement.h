@@ -48,6 +48,7 @@ public:
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const final override;
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const final override;
+    virtual bool publishes_presentational_hints_on_arrival() const final override { return true; }
 
     void register_resource_box_referencing_element(Badge<Layout::LayoutTreeBuilderAccess>, DOM::Element&);
 

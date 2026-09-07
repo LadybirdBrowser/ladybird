@@ -2745,7 +2745,7 @@ RefPtr<StyleComputer::CascadeInput const> StyleComputer::style_engine_cascade_in
     return input;
 }
 
-static Vector<StyleProperty> collect_presentational_hint_properties(DOM::AbstractElement abstract_element)
+Vector<StyleProperty> StyleComputer::collect_presentational_hint_properties(DOM::AbstractElement abstract_element)
 {
     Vector<StyleProperty> properties;
     if (abstract_element.pseudo_element().has_value())

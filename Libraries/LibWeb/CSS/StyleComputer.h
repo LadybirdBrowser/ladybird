@@ -75,6 +75,8 @@ public:
 
     static Optional<Utf16String> user_agent_style_sheet_source(Utf16View name);
 
+    static Vector<StyleProperty> collect_presentational_hint_properties(DOM::AbstractElement);
+
     explicit StyleComputer(DOM::Document&);
     virtual ~StyleComputer() override = default;
 
