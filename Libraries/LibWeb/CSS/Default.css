@@ -668,6 +668,10 @@ input:is([type=reset i], [type=button i], [type=submit i]) {
     white-space: pre;
 }
 
+select {
+    white-space: pre;
+}
+
 input, button {
     display: inline-block;
 }

@@ -589,13 +589,12 @@ pub(crate) fn box_baseline_with_content_baselines(
     // baseline sets always derive from content; so do flex and grid containers, which are not block containers.
     // FIXME: Per CSS Align, a scroll container's content-derived baseline position should be clamped to its border
     //        edge.
-    let has_visible_overflow = style.overflow_x() == overflow::VISIBLE && style.overflow_y() == overflow::VISIBLE;
     let derive_baseline_from_content =
-        baseline_set == BaselineSet::First || is_flex_or_grid_container || has_visible_overflow;
+        baseline_set == BaselineSet::First || is_flex_or_grid_container || !facts.is_scroll_container();
 
-    // AD-HOC: We also use the content-derived baseline for <input> elements with block children. Per the HTML spec,
-    //         inputs have `overflow: clip !important`, so CSS2 says to use bottom margin edge. However, the internal
-    //         shadow tree baseline should determine the control's baseline for proper alignment with adjacent text.
+    // AD-HOC: We also use the content-derived baseline for <input> elements with block children, even when their
+    //         overflow makes them scroll containers. The internal shadow tree baseline should determine the control's
+    //         baseline for proper alignment with adjacent text.
     //         https://html.spec.whatwg.org/multipage/rendering.html#form-controls
     let input_derives_from_children = facts.is_html_input_element() && !facts.children_are_inline();
 

@@ -1,0 +1,3 @@
+label: 80x20, text fragments: 1
+label: 80x20, text fragments: 1
+label: 100x20, text fragments: 1
