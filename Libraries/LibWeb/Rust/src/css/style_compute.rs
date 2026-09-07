@@ -6688,8 +6688,17 @@ pub unsafe extern "C" fn rust_compute_font_weight(
 // The standalone cargo test binary has no C++ side, so release callbacks are
 // stubbed out here.
 #[cfg(test)]
-mod ffi_test_stubs {
+pub(crate) mod ffi_test_stubs {
+    use std::cell::Cell;
     use std::ffi::c_void;
+
+    thread_local! {
+        static FONT_CASCADE_LIST_UNREFS: Cell<usize> = const { Cell::new(0) };
+    }
+
+    pub(crate) fn font_cascade_list_unref_count() -> usize {
+        FONT_CASCADE_LIST_UNREFS.get()
+    }
 
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_utf16_fly_string_unref(_raw: usize) {}
@@ -6698,7 +6707,9 @@ mod ffi_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_font_cascade_list_ref(_raw: *const std::ffi::c_void) {}
     #[unsafe(no_mangle)]
-    extern "C" fn ladybird_gfx_font_cascade_list_unref(_raw: *const std::ffi::c_void) {}
+    extern "C" fn ladybird_gfx_font_cascade_list_unref(_raw: *const std::ffi::c_void) {
+        FONT_CASCADE_LIST_UNREFS.set(FONT_CASCADE_LIST_UNREFS.get() + 1);
+    }
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_font_unref(_raw: *const std::ffi::c_void) {}
     #[unsafe(no_mangle)]
