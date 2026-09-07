@@ -402,11 +402,17 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
             top_level_origin);
     }
 
+    // AD-HOC: The fetch controller is only available in the process that ran the navigation fetch. Navigation params
+    //         rebuilt from a descriptor carry the fetch's timing info directly.
+    GC::Ptr<Fetch::Infrastructure::FetchTimingInfo> navigation_fetch_timing_info = navigation_params.fetch_timing_info;
+    if (navigation_params.fetch_controller)
+        navigation_fetch_timing_info = navigation_params.fetch_controller->timing_info();
+
     // 8. Let loadTimingInfo be a new document load timing info with its navigation start time set to navigationParams's response's timing info's start time.
     DOM::DocumentLoadTimingInfo load_timing_info;
     auto timing_info = Fetch::Infrastructure::FetchTimingInfo::create();
-    if (navigation_params.fetch_controller && navigation_params.fetch_controller->timing_info()) {
-        timing_info = *navigation_params.fetch_controller->timing_info();
+    if (navigation_fetch_timing_info) {
+        timing_info = *navigation_fetch_timing_info;
         load_timing_info.navigation_start_time = timing_info->start_time();
     } else {
         // AD-HOC: Non-fetch navigations do not have timing info, so use the time at which the response was created.

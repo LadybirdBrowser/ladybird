@@ -15,6 +15,7 @@ static Web::HTML::NavigationParamsDescriptor navigation_params_for(URL::URL cons
         .navigable_id = {},
         .request = {},
         .response = {},
+        .fetch_timing_info = {},
         .coop_enforcement_result = { .url = url, .origin = url.origin(), .opener_policy = {} },
         .reserved_environment = {},
         .origin = url.origin(),

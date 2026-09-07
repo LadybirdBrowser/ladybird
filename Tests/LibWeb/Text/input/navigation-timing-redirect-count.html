@@ -13,7 +13,11 @@
                     <!DOCTYPE html>
                     <script>
                         const entry = performance.getEntriesByType("navigation")[0];
-                        parent.postMessage({ label: "${label}", redirectCount: entry ? entry.redirectCount : "missing" }, "*");
+                        parent.postMessage({
+                            label: "${label}",
+                            redirectCount: entry ? entry.redirectCount : "missing",
+                            fetchStartFollowsRedirects: entry ? entry.fetchStart > 0 && entry.fetchStart >= entry.redirectEnd : "missing",
+                        }, "*");
                     <\/script>
                 `,
             }));
@@ -62,8 +66,10 @@
 
             const results = event.data.results;
             results.sort((a, b) => a.label.localeCompare(b.label));
-            for (const result of results)
+            for (const result of results) {
                 println(`${result.label} redirect count: ${result.redirectCount}`);
+                println(`${result.label} fetch start follows redirects: ${result.fetchStartFollowsRedirects}`);
+            }
             done();
         });
 

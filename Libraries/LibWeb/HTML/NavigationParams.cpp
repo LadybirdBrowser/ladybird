@@ -24,6 +24,7 @@ void NavigationParams::visit_edges(Visitor& visitor)
     visitor.visit(request);
     visitor.visit(response);
     visitor.visit(fetch_controller);
+    visitor.visit(fetch_timing_info);
     visitor.visit(commit_early_hints);
     visitor.visit(reserved_environment);
     visitor.visit(policy_container);
