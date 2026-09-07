@@ -1916,6 +1916,45 @@ Vector<GC::Ref<Animations::KeyframeEffect>> StyleComputer::start_needed_transiti
     return newly_started_transition_effects;
 }
 
+bool StyleComputer::has_provisional_transition_states(DOM::AbstractElement abstract_element) const
+{
+    auto& element = abstract_element.element();
+    auto pseudo_element = abstract_element.pseudo_element();
+    if (auto style_node_id = element.style_node_id(); style_node_id != 0) {
+        auto transition_target_key = (static_cast<u64>(style_node_id.value()) << 8) | pseudo_element_to_ffi(pseudo_element);
+        return m_provisional_transition_state_indices_by_target.contains(transition_target_key);
+    }
+    return any_of(m_provisional_transition_states, [&](auto const& state) {
+        return state.element == GC::Ptr { element } && state.pseudo_element == pseudo_element;
+    });
+}
+
+RefPtr<ComputedStyleWorkingSet> StyleComputer::start_needed_transitions_on_shared_style(DOM::AbstractElement abstract_element, ComputedValues const& shared_values) const
+{
+    auto& element = abstract_element.element();
+    auto pseudo_element = abstract_element.pseudo_element();
+    if (element.property_ids_with_matching_transition_property_entry(pseudo_element).is_empty()
+        && element.property_ids_with_existing_transitions(pseudo_element).is_empty()
+        && !has_provisional_transition_states(abstract_element))
+        return {};
+    auto previous_style = abstract_element.computed_style();
+    if (!previous_style || previous_style->in_display_none_subtree())
+        return {};
+    if (auto parent = abstract_element.element_to_inherit_style_from(); parent.has_value()) {
+        if (auto parent_style = parent->computed_style(); parent_style && parent_style->in_display_none_subtree())
+            return {};
+    }
+    begin_style_update();
+    ScopeGuard end_style_update = [&] { this->end_style_update(); };
+    auto style = reconstruct_computed_properties(shared_values);
+    start_needed_transitions(*style, abstract_element);
+    clear_computation_context_caches();
+    auto animated_properties = style->animated_properties_snapshot();
+    if (!animated_properties || animated_properties->is_empty())
+        return {};
+    return style;
+}
+
 // The encapsulation contexts that decide for an element, outermost first.
 //
 // https://drafts.csswg.org/css-cascade-5/#cascade-context
@@ -3755,10 +3794,15 @@ NonnullRefPtr<ComputedValues const> StyleComputer::materialize_style_record(DOM:
         return publish_computed_groups(sharing.reused_values.release_nonnull());
     if (sharing.shared_values && sharing.shared_style_record_identity.has_value()) {
         auto& values = *sharing.shared_values;
+        // An inherited-group swap does not run the transition step, so an element with transitions
+        // to decide over is not eligible for one.
+        auto& element = abstract_element.element();
         bool const inherited_group_swap_eligible = !abstract_element.pseudo_element().has_value()
-            && abstract_element.element().style_input_record()
+            && element.style_input_record()
             && values.property_inheritance_is_standard()
-            && !values.display().is_list_item();
+            && !values.display().is_list_item()
+            && element.property_ids_with_existing_transitions({}).is_empty()
+            && element.property_ids_with_matching_transition_property_entry({}).is_empty();
         auto publication = const_cast<StyleComputer&>(*this).style_engine().assign_shared_style_record(
             abstract_element.element().style_node_id(),
             pseudo_element_to_ffi(abstract_element.pseudo_element()),
@@ -4401,8 +4445,8 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
     // context, the element's own shape, and what it reads of the style it is replacing. Ordinary
     // property computation reads that style's writing mode. Custom property computation can use
     // the whole style as its fallback context, so an input that needs it is bound to that identity
-    // below. Transitions read the before-change style too, but their per-element state excludes
-    // them from sharing before a key is built.
+    // below. Transitions read the before-change style too, and are decided once the values are
+    // known.
     auto const inheritance_parent = abstract_element.element_to_inherit_style_from();
     auto const inheritance_parent_style_record_identity = inheritance_parent.has_value() ? inheritance_parent->style_record_identity() : StyleRecordID {};
     auto const inheritance_parent_style_record = m_style_engine.style_record_view(inheritance_parent_style_record_identity);
@@ -4411,14 +4455,10 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
     auto const previous_style_record = m_style_engine.style_record_view(previous_style_record_identity);
     if (sharing) {
         auto& element = abstract_element.element();
-        // A registered or running transition is decided per element from the style it is replacing,
-        // and starting one is not something the values carry.
         sharing->is_candidate = inheritance_parent_style_record.present && !element.is_document_element()
             && !inheritance_parent_style_record.animated_overlay
             && !element.has_relevant_animations()
-            && !element.has_css_defined_animations()
-            && element.property_ids_with_existing_transitions(abstract_element.pseudo_element()).is_empty()
-            && element.property_ids_with_matching_transition_property_entry(abstract_element.pseudo_element()).is_empty();
+            && !element.has_css_defined_animations();
     }
     Optional<Array<void const*, ComputedValues::inherited_style_group_count>> inherited_style_group_identities;
     auto get_inherited_style_group_identities = [&]() -> auto const& {
@@ -4952,6 +4992,10 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
                     parent->add_children_explicitly_inherited_non_inherited_style_groups(entry.explicitly_inherited_non_inherited_style_groups);
             }
             compute_transitioned_properties(*sharing->shared_values, abstract_element);
+            // A style built from the shared values when a transition starts on them records these.
+            sharing->computation_reads_unkeyed_context = entry.read_beyond_the_record;
+            sharing->computation_reads_resource_context = entry.style_reads_resource_context;
+            sharing->explicitly_inherited_non_inherited_style_groups = entry.explicitly_inherited_non_inherited_style_groups;
             // The declaration key can distinguish resource contexts that retained cascade winners
             // cannot. Preserve that restriction for the winner records retained from this element.
             if (!abstract_element.pseudo_element().has_value()) {
@@ -4967,6 +5011,17 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             return true;
         }
         return false;
+    };
+
+    auto take_shared_style = [&]() -> RefPtr<ComputedStyleWorkingSet> {
+        auto transitioned_style = start_needed_transitions_on_shared_style(abstract_element, *sharing->shared_values);
+        if (!transitioned_style)
+            return {};
+        sharing->shared_values = nullptr;
+        sharing->shared_style_record_identity = {};
+        sharing->computed_groups_to_rebuild = {};
+        sharing->donor_values = nullptr;
+        return transitioned_style;
     };
 
     if (!m_materializing_for_targeted_style_update || m_materializing_for_derived_reaction)
@@ -5059,7 +5114,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
                 new_style_input_record->bind_next_published_style = true;
             }
             document().style_invalidation_counters().element_style_shared_computations++;
-            return {};
+            return take_shared_style();
         }
     }
 
@@ -5166,11 +5221,6 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         // non-inherited property, read what the record does not name, so an unchanged cascade does
         // not mean an unchanged answer.
         && previous_computation->explicitly_inherited_non_inherited_style_groups == 0
-        // A transition starts by comparing the style that was to the style that is, and a
-        // computation skipped here never makes that comparison. The element that starts none is the
-        // one this asks about, which is the same question the transition step itself asks first.
-        && abstract_element.element().property_ids_with_matching_transition_property_entry(abstract_element.pseudo_element()).is_empty()
-        && abstract_element.element().property_ids_with_existing_transitions(abstract_element.pseudo_element()).is_empty()
         // The steps this skips after the cascade are about the element's custom properties: they are
         // resolved against the style, compared against the environment this computation replaced,
         // and any change reported to the caller. An element whose cascade declared none keeps the
@@ -5199,10 +5249,9 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
     // element owns rather than something the values carry, so an element declaring one derives its
     // own style. A declared transition is not like that. What it registers is decided by the
     // computed values, and it is registered again by every computation before anything reads it, so
-    // an element that takes another's answer this pass registers the same thing the pass it needs
-    // it - which is the pass a transitioned property changes, and that pass changes the blocks the
-    // key names, so it cannot be answered from here. An element that does start a transition holds
-    // animated values and is refused at the publish.
+    // an element that takes another's answer this pass registers the same thing. Whether a
+    // transition starts is decided from that answer against the element's own previous style, and
+    // an element that starts one takes a copy of its own.
     if (sharing && sharing->is_candidate) {
         auto animation_name = cascaded_properties->property(PropertyID::AnimationName);
         auto declares_animation = animation_name
@@ -5229,7 +5278,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
                     pseudo_element_to_ffi(abstract_element.pseudo_element()));
             }
             document().style_invalidation_counters().element_style_shared_computations++;
-            return {};
+            return take_shared_style();
         }
     }
 

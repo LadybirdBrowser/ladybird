@@ -1,0 +1,6 @@
+shared computations: 1
+donor: color=rgb(200, 200, 200) animations=0
+stale: color=rgb(100, 100, 100) animations=1
+settled: color=rgb(0, 0, 0) animations=0
+partial quick animations=1
+partial: color=rgb(100, 100, 100) animations=1
