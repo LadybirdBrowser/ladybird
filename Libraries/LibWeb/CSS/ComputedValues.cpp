@@ -921,8 +921,8 @@ static NonnullRefPtr<StyleValue const> animation_style_value(ComputedValuesFFI::
 
 Gfx::FontCascadeList const& ComputedValues::FontValues::font_list_value() const
 {
-    VERIFY(font_cascade_list);
-    return *static_cast<Gfx::FontCascadeList const*>(font_cascade_list);
+    VERIFY(font_cascade_list.pointer);
+    return *static_cast<Gfx::FontCascadeList const*>(font_cascade_list.pointer);
 }
 
 RefPtr<StyleValue const> ComputedValues::FontValues::font_family_style_value() const

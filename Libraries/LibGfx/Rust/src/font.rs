@@ -205,6 +205,96 @@ impl<'a> FontCascadeListRef<'a> {
     }
 }
 
+#[repr(C)]
+pub struct FontCascadeListHandle {
+    pointer: *const c_void,
+}
+
+impl FontCascadeListHandle {
+    pub const fn null() -> Self {
+        Self {
+            pointer: std::ptr::null(),
+        }
+    }
+
+    /// # Safety
+    ///
+    /// `list` must point to a live `Gfx::FontCascadeList`.
+    #[inline]
+    pub unsafe fn retain(list: *const c_void) -> Self {
+        assert!(!list.is_null(), "Gfx::FontCascadeList pointer must not be null");
+        // SAFETY: The caller guarantees the list is live; the reference taken
+        // here keeps it that way until drop.
+        unsafe { ladybird_gfx_font_cascade_list_ref(list) };
+        Self { pointer: list }
+    }
+
+    /// # Safety
+    ///
+    /// `list` must point to a live `Gfx::FontCascadeList` carrying one
+    /// reference the caller gives up to this handle.
+    #[inline]
+    pub unsafe fn adopt(list: *const c_void) -> Self {
+        assert!(!list.is_null(), "Gfx::FontCascadeList pointer must not be null");
+        Self { pointer: list }
+    }
+
+    #[inline]
+    pub fn is_null(&self) -> bool {
+        self.pointer.is_null()
+    }
+
+    #[inline]
+    pub fn as_raw(&self) -> *const c_void {
+        self.pointer
+    }
+
+    #[inline]
+    pub fn as_ref(&self) -> FontCascadeListRef<'_> {
+        // SAFETY: A non-null handle holds a reference that keeps the list live
+        // for the lifetime of the returned borrow.
+        unsafe { FontCascadeListRef::from_raw(self.pointer) }
+    }
+}
+
+impl Clone for FontCascadeListHandle {
+    #[inline]
+    fn clone(&self) -> Self {
+        if !self.pointer.is_null() {
+            // SAFETY: This handle holds a reference, so the list is live.
+            unsafe { ladybird_gfx_font_cascade_list_ref(self.pointer) };
+        }
+        Self { pointer: self.pointer }
+    }
+}
+
+impl Drop for FontCascadeListHandle {
+    #[inline]
+    fn drop(&mut self) {
+        if !self.pointer.is_null() {
+            // SAFETY: Construction took the reference this releases.
+            unsafe { ladybird_gfx_font_cascade_list_unref(self.pointer) };
+        }
+    }
+}
+
+impl PartialEq for FontCascadeListHandle {
+    fn eq(&self, other: &Self) -> bool {
+        self.pointer == other.pointer
+    }
+}
+
+impl Eq for FontCascadeListHandle {}
+
+impl std::fmt::Debug for FontCascadeListHandle {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        formatter
+            .debug_tuple("FontCascadeListHandle")
+            .field(&self.pointer)
+            .finish()
+    }
+}
+
 /// Generates a strong-reference handle over a C++ ref/unref FFI pair:
 /// retain-on-construct, release-on-drop.
 macro_rules! retained_ffi_handle {

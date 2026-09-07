@@ -2795,6 +2795,10 @@ unsafe extern "C" fn ladybird_rust_realloc(
 extern "C" fn ladybird_string_unref(_raw: usize) {}
 #[unsafe(no_mangle)]
 extern "C" fn ladybird_utf16_fly_string_unref(_raw: usize) {}
+#[unsafe(no_mangle)]
+extern "C" fn ladybird_gfx_font_cascade_list_ref(_list: *const c_void) {}
+#[unsafe(no_mangle)]
+extern "C" fn ladybird_gfx_font_cascade_list_unref(_list: *const c_void) {}
 
 #[unsafe(no_mangle)]
 unsafe extern "C" fn unicode_rust_idna_to_ascii(

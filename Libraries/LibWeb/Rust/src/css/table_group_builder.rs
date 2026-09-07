@@ -101,8 +101,8 @@ pub struct FfiTableGroupBuildInputs {
 }
 
 /// Platform font resources and derived facts supplied to the Rust-owned font
-/// group builder. The pointers borrow objects pinned by the document's font
-/// computer.
+/// group builder. The pointers borrow objects the caller keeps live for the
+/// call; the built group retains the cascade list itself.
 #[repr(C)]
 pub struct FfiFontGroupBuildInputs {
     pub font_size_raw: i32,
@@ -3182,7 +3182,9 @@ unsafe fn build_font_group(
         font_x_height: inputs.font_x_height,
         font_zero_advance: inputs.font_zero_advance,
         first_available_font: inputs.first_available_font,
-        font_cascade_list: inputs.font_cascade_list,
+        // SAFETY: The non-null check above and the caller's guarantee make the
+        // list live for the call; the handle keeps it live afterwards.
+        font_cascade_list: unsafe { libgfx_rust::font::FontCascadeListHandle::retain(inputs.font_cascade_list) },
         font_weight: inputs.font_weight,
         font_width: inputs.font_width,
         math_shift: inputs.math_shift,

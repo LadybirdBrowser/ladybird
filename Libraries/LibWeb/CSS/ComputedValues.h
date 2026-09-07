@@ -1628,7 +1628,7 @@ public:
     };
 
     // Rust owns the canonical font values and the derived layout-facing facts.
-    // The platform font pointers borrow cascades pinned by FontComputer.
+    // The payload holds its own reference to the platform font cascade list.
     struct FontValues : ComputedValuesFFI::FontValues {
         static constexpr size_t style_group_index = to_underlying(StyleGroupIndex::FontValues);
         static constexpr auto style_group_lifecycle = ComputedValuesFFI::StyleGroupLifecycle::Font;
