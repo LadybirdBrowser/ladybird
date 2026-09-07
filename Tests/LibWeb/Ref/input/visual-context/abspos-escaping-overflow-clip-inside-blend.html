@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/visual-context/abspos-escaping-overflow-clip-inside-blend-ref.html">
+<style>
+body {
+    margin: 0;
+    background: rgb(128, 128, 128);
+}
+.containing-block {
+    position: relative;
+    width: 200px;
+    height: 200px;
+}
+.group {
+    mix-blend-mode: multiply;
+    width: 200px;
+    height: 200px;
+    background: red;
+}
+.clip {
+    overflow: hidden;
+    width: 100px;
+    height: 100px;
+}
+.escaping {
+    position: absolute;
+    left: 50px;
+    top: 50px;
+    width: 100px;
+    height: 100px;
+    background: blue;
+}
+</style>
+<!-- The absolute child skips the overflow clip but blends as part of the group: entering the group's
+     blend layer twice would multiply the child against the already blended red instead of the gray. -->
+<div class="containing-block">
+    <div class="group">
+        <div class="clip">
+            <div class="escaping"></div>
+        </div>
+    </div>
+</div>
