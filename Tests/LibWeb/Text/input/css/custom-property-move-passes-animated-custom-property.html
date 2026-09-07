@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes animate-y { from { --y: 0; } to { --y: 1; } }
+    #parent { --x: 10px; }
+    #middle { animation: animate-y 1s infinite; }
+    #child { width: var(--x); }
+</style>
+<div id="parent"><div id="middle"><div id="child"></div></div></div>
+<script>
+    promiseTest(async () => {
+        const parent = document.getElementById("parent");
+        const child = document.getElementById("child");
+        // Let the animation start, so that the middle element holds animated custom properties.
+        await new Promise(resolve => requestAnimationFrame(resolve));
+        println("before: " + getComputedStyle(child).width);
+        parent.style.setProperty("--x", "20px");
+        println("after: " + getComputedStyle(child).width);
+    });
+</script>
