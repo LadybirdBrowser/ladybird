@@ -221,6 +221,38 @@ impl ComputedLonghandTable {
         self.mark_evaluated(index, source_slot);
     }
 
+    /// A slot that already holds an equal value keeps it, and so its identity: an unchanged longhand
+    /// then costs no allocation, no hash and no deep comparison when the table is published.
+    pub(crate) fn set_computed(&mut self, property_id: u16, value: StyleValueData, source_slot: i64) {
+        assert!(
+            !self.frozen,
+            "the computed longhand table is immutable once its style is created"
+        );
+        let index = Self::slot_index(property_id);
+        if self.storage.slots[index]
+            .as_ref()
+            .is_none_or(|existing| *existing.data() != value)
+        {
+            self.replace_slot_value(index, RetainedStyleValueData::from_owned(value));
+        }
+        self.mark_evaluated(index, source_slot);
+    }
+
+    pub(crate) fn set_or_keep_equal(&mut self, property_id: u16, value: RetainedStyleValueData, source_slot: i64) {
+        assert!(
+            !self.frozen,
+            "the computed longhand table is immutable once its style is created"
+        );
+        let index = Self::slot_index(property_id);
+        let equal_to_existing = self.storage.slots[index].as_ref().is_some_and(|existing| unsafe {
+            crate::css::style_value::rust_style_value_equals(existing.pointer(), value.pointer())
+        });
+        if !equal_to_existing {
+            self.replace_slot_value(index, value);
+        }
+        self.mark_evaluated(index, source_slot);
+    }
+
     fn replace_slot_value(&mut self, index: usize, value: RetainedStyleValueData) {
         let pointer = value.pointer().cast();
         let previous = self.storage.value_view[index];
@@ -458,7 +490,9 @@ impl ComputedLonghandTable {
             let Some(value) = inherited_source.storage.slots[index].clone() else {
                 continue;
             };
-            table.set(property_id, value, -1);
+            // An inherited value equal to the one already held keeps that one, so a swap that
+            // changes nothing leaves the table equal to its source slot for slot.
+            table.set_or_keep_equal(property_id, value, -1);
         }
         table.metadata.effective_color_scheme = inherited_source.metadata.effective_color_scheme;
         // A value reading `currentcolor` - the keyword itself, or a color function of it - is
@@ -1258,5 +1292,35 @@ mod tests {
         let mut copied = ComputedLonghandTable::new();
         copied.copy_from_values(source.value_pointers());
         assert_eq!(copied.slot_hash_sum(), source.slot_hash_sum());
+    }
+
+    #[test]
+    fn set_computed_keeps_an_equal_value_and_replaces_a_different_one() {
+        let mut table = ComputedLonghandTable::new();
+        table.set(property_id::OPACITY, retained_number(0.5), 7);
+        let original = table.get(property_id::OPACITY).unwrap().pointer();
+
+        table.set_computed(property_id::OPACITY, StyleValueData::Number { value: 0.5 }, -1);
+        assert_eq!(table.get(property_id::OPACITY).unwrap().pointer(), original);
+        assert_eq!(table.source_slot(property_id::OPACITY), None);
+
+        table.set_computed(property_id::OPACITY, StyleValueData::Number { value: 0.75 }, -1);
+        assert_ne!(table.get(property_id::OPACITY).unwrap().pointer(), original);
+        assert_eq!(table.slot_hash_sum(), table.recomputed_slot_hash_sum());
+    }
+
+    #[test]
+    fn set_or_keep_equal_keeps_the_existing_allocation() {
+        let mut table = ComputedLonghandTable::new();
+        table.set(property_id::OPACITY, retained_number(0.5), -1);
+        let original = table.get(property_id::OPACITY).unwrap().pointer();
+        let equal = retained_number(0.5);
+        assert_ne!(equal.pointer(), original);
+        table.set_or_keep_equal(property_id::OPACITY, equal, -1);
+        assert_eq!(table.get(property_id::OPACITY).unwrap().pointer(), original);
+        let different = retained_number(1.0);
+        let different_pointer = different.pointer();
+        table.set_or_keep_equal(property_id::OPACITY, different, -1);
+        assert_eq!(table.get(property_id::OPACITY).unwrap().pointer(), different_pointer);
     }
 }
