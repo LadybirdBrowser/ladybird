@@ -93,6 +93,9 @@ struct ModuleResult {
 // Parse a program (script or module) without GC interaction. Thread-safe.
 JS_API FFI::ParsedProgram* parse_program(u16 const* utf16_data, size_t length_in_code_units, ProgramType type, size_t line_number_offset = 0);
 
+// Clone an error-free parsed program for an independent compilation. Thread-safe.
+JS_API FFI::ParsedProgram* clone_parsed_program(FFI::ParsedProgram const*);
+
 // Compile a parsed program to bytecode without touching the VM or GC. Thread-safe.
 JS_API FFI::CompiledProgram* compile_parsed_program_off_thread(FFI::ParsedProgram* parsed, size_t length_in_code_units);
 

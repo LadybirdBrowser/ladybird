@@ -768,6 +768,33 @@ fn compile_parsed_program_off_thread_impl(
     }
 }
 
+/// Retain an independent parse snapshot for background cache generation.
+/// The immutable arena and compiled regex handles are shared; function-table
+/// ownership is independent so either compilation can consume its functions.
+///
+/// # Safety
+/// `parsed` must point to a valid parsed program with no errors.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_clone_parsed_program(parsed: *const ParsedProgram) -> *mut ParsedProgram {
+    unsafe {
+        abort_on_panic(|| {
+            let parsed = &*parsed;
+            assert!(parsed.errors.is_empty());
+            Box::into_raw(Box::new(ParsedProgram {
+                program: parsed.program.clone(),
+                function_table: parsed.function_table.clone(),
+                arena: parsed.arena.clone(),
+                scope_ref: parsed.scope_ref,
+                program_type: parsed.program_type,
+                is_strict_mode: parsed.is_strict_mode,
+                has_top_level_await: parsed.has_top_level_await,
+                errors: Vec::new(),
+                ast_dump: None,
+            }))
+        })
+    }
+}
+
 /// Compile a parsed program to an off-thread bytecode artifact.
 ///
 /// Consumes and frees the ParsedProgram. The returned CompiledProgram still needs to be materialized on the main thread
