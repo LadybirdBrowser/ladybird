@@ -58,5 +58,6 @@ struct ToAsciiOptions {
 };
 
 ErrorOr<String> to_ascii(Utf8View domain_name, ToAsciiOptions const& = {});
+ErrorOr<String> to_ascii(Utf16View domain_name, ToAsciiOptions const& = {});
 
 }

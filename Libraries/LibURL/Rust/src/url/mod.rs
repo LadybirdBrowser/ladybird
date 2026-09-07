@@ -5,6 +5,7 @@
  */
 
 mod host;
+mod input;
 mod parser;
 mod percent_encoding;
 mod scheme;
@@ -12,7 +13,8 @@ mod scheme;
 mod serialize;
 mod types;
 
-pub(crate) use self::host::parse_host;
+pub(crate) use self::host::parse_host_input;
+pub use self::input::UrlInput;
 pub(crate) use self::scheme::default_port_for_scheme;
 pub(crate) use self::scheme::is_special_scheme;
 pub(crate) use self::scheme::special_schemes;
@@ -49,15 +51,15 @@ impl<'a> BasicParseOptions<'a> {
     }
 }
 
-pub fn basic_parse(input: &str, options: BasicParseOptions<'_>) -> Option<Url> {
+pub fn basic_parse<'a>(input: impl Into<UrlInput<'a>>, options: BasicParseOptions<'_>) -> Option<Url> {
     let mut url = Url::default();
-    if parser::basic_parse_into(input, &mut url, &options, false) {
+    if parser::basic_parse_into(input.into(), &mut url, &options, false) {
         Some(url)
     } else {
         None
     }
 }
 
-pub fn basic_parse_into(input: &str, url: &mut Url, options: &BasicParseOptions<'_>) -> bool {
-    parser::basic_parse_into(input, url, options, true)
+pub fn basic_parse_into<'a>(input: impl Into<UrlInput<'a>>, url: &mut Url, options: &BasicParseOptions<'_>) -> bool {
+    parser::basic_parse_into(input.into(), url, options, true)
 }

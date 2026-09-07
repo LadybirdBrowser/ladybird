@@ -25,7 +25,7 @@ type FfiIdnaResultFn = unsafe extern "C" fn(*mut c_void, *const u8, usize);
 
 unsafe extern "C" {
     fn unicode_rust_idna_to_ascii(
-        domain: *const u8,
+        domain: *const u16,
         domain_length: usize,
         options: *const ToAsciiOptions,
         ctx: *mut c_void,
@@ -37,9 +37,9 @@ unsafe extern "C" {
 ///
 /// # Safety
 /// `ctx` must be a valid `*mut Option<String>` live for the duration of the
-/// enclosing `idna_to_ascii` call. `data` must point to `len` valid ASCII bytes.
+/// enclosing `idna_to_ascii_utf16` call. `data` must point to `len` valid ASCII bytes.
 unsafe extern "C" fn on_idna_result(ctx: *mut c_void, data: *const u8, len: usize) {
-    // SAFETY: `ctx` was set to `addr_of_mut!(result)` in `idna_to_ascii`.
+    // SAFETY: `ctx` was set to `addr_of_mut!(result)` in `idna_to_ascii_utf16`.
     let out = unsafe { &mut *(ctx as *mut Option<String>) };
     // SAFETY: `data` is valid for `len` bytes; IDNA to_ascii guarantees ASCII output.
     let bytes = unsafe { std::slice::from_raw_parts(data, len) };
@@ -48,7 +48,7 @@ unsafe extern "C" fn on_idna_result(ctx: *mut c_void, data: *const u8, len: usiz
     *out = Some(unsafe { String::from_utf8_unchecked(bytes.to_vec()) });
 }
 
-pub fn idna_to_ascii(domain: &str, options: ToAsciiOptions) -> Option<String> {
+pub fn idna_to_ascii_utf16(domain: &[u16], options: ToAsciiOptions) -> Option<String> {
     let mut result: Option<String> = None;
     // SAFETY: `domain` is valid for its length; `options` and `result` are valid for the call.
     unsafe {

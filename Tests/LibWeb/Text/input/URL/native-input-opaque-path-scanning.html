@@ -1,0 +1,20 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    for (const input of [
+        "data:text/plain,ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~!$&'()*+,;=:@/[]%20%zz",
+        "data:text/plain,space before ?query#fragment",
+        "data:text/plain,space before #fragment",
+        "data:text/plain,é😀",
+        "data:text/plain,\ud800A\udc00B\ud800\ud800\udc00",
+        "data:text/plain,a\nb\tc\r",
+        "data:text/plain,first?query=é😀#片",
+        "data:text/plain,first#fragment?not-a-query",
+        "https://example.test/ascii/é😀?first=1#片",
+        "https://[::1]/path?first=1&second=2#fragment",
+    ]) {
+        println(new URL(input).href);
+    }
+});
+</script>

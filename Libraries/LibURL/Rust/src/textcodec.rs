@@ -55,3 +55,25 @@ pub(crate) fn encode_into(encoding: &str, input: &str, mut on_item: impl FnMut(E
         }
     }
 }
+
+pub(crate) fn encode_utf16_into(encoding: &str, input: &[u16], mut on_item: impl FnMut(EncodeItem)) -> bool {
+    let Some(encoding) = Encoding::for_label(encoding.as_bytes()) else {
+        return false;
+    };
+    let mut encoder = encoding.new_encoder();
+    let mut total_read = 0;
+    let mut output = [0; 4096];
+    loop {
+        let (result, read, written) =
+            encoder.encode_from_utf16_without_replacement(&input[total_read..], &mut output, true);
+        total_read += read;
+        for byte in &output[..written] {
+            on_item(EncodeItem::Byte(*byte));
+        }
+        match result {
+            EncoderResult::InputEmpty => return true,
+            EncoderResult::OutputFull => {}
+            EncoderResult::Unmappable(character) => on_item(EncodeItem::Error(character as u32)),
+        }
+    }
+}

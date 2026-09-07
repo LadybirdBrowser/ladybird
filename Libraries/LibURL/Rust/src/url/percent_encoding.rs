@@ -97,6 +97,10 @@ fn append_percent_encoded_byte(builder: &mut String, byte: u8) {
 }
 
 pub(super) fn percent_encode(input: &str, set: PercentEncodeSet, space_as_plus: bool) -> String {
+    percent_encode_input(input.into(), set, space_as_plus)
+}
+
+pub(super) fn percent_encode_input(input: super::UrlInput<'_>, set: PercentEncodeSet, space_as_plus: bool) -> String {
     let mut output = String::new();
     for code_point in input.chars() {
         if space_as_plus && code_point == ' ' {
@@ -110,41 +114,30 @@ pub(super) fn percent_encode(input: &str, set: PercentEncodeSet, space_as_plus: 
     output
 }
 
-pub(super) fn percent_decode(input: &str) -> Vec<u8> {
-    fn decode_hex(byte: u8) -> Option<u8> {
-        match byte {
-            b'0'..=b'9' => Some(byte - b'0'),
-            b'a'..=b'f' => Some(byte - b'a' + 10),
-            b'A'..=b'F' => Some(byte - b'A' + 10),
-            _ => None,
+pub(super) fn percent_decode_input(input: super::UrlInput<'_>) -> Vec<u8> {
+    let mut output = Vec::with_capacity(input.len());
+    let mut characters = input.chars();
+    while let Some(character) = characters.next() {
+        if character == '%' {
+            let mut lookahead = characters.clone();
+            if let (Some(high), Some(low)) = (lookahead.next(), lookahead.next())
+                && high.is_ascii_hexdigit()
+                && low.is_ascii_hexdigit()
+            {
+                output.push(((high.to_digit(16).unwrap() << 4) | low.to_digit(16).unwrap()) as u8);
+                characters = lookahead;
+                continue;
+            }
         }
+        output.extend_from_slice(character.encode_utf8(&mut [0; 4]).as_bytes());
     }
-
-    let bytes = input.as_bytes();
-    let mut output = Vec::with_capacity(bytes.len());
-    let mut index = 0;
-
-    while index < bytes.len() {
-        if bytes[index] == b'%'
-            && index + 2 < bytes.len()
-            && let (Some(high), Some(low)) = (decode_hex(bytes[index + 1]), decode_hex(bytes[index + 2]))
-        {
-            output.push((high << 4) | low);
-            index += 3;
-            continue;
-        }
-
-        output.push(bytes[index]);
-        index += 1;
-    }
-
     output
 }
 
 // https://url.spec.whatwg.org/#string-percent-encode-after-encoding
 pub(super) fn percent_encode_after_encoding(
     encoding: &str,
-    input: &str,
+    input: super::UrlInput<'_>,
     set: PercentEncodeSet,
     space_as_plus: bool,
 ) -> String {
@@ -153,7 +146,7 @@ pub(super) fn percent_encode_after_encoding(
     // 3. Let output be the empty string.
     let mut result = String::new();
 
-    let did_succeed = textcodec_encode_into(encoding, input, |item| match item {
+    let on_item = |item| match item {
         EncodeItem::Byte(byte) => {
             // 1. If spaceAsPlus is true and byte is 0x20 (SP), then append U+002B (+) to output and continue.
             if space_as_plus && byte == b' ' {
@@ -176,7 +169,11 @@ pub(super) fn percent_encode_after_encoding(
             result.push_str(&error.to_string());
             result.push_str("%3B");
         }
-    });
+    };
+    let did_succeed = match input {
+        super::UrlInput::Utf8(input) => textcodec_encode_into(encoding, input, on_item),
+        super::UrlInput::Utf16(input) => crate::textcodec::encode_utf16_into(encoding, input, on_item),
+    };
     assert!(did_succeed, "encoding_rs should encode any valid output encoding");
 
     // 6. Return output.

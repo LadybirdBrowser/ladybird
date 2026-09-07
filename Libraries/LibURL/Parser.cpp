@@ -22,8 +22,7 @@ Optional<Host> Parser::parse_host(StringView input, bool is_opaque)
 
 Optional<Host> Parser::parse_host(Utf16View input, bool is_opaque)
 {
-    auto input_utf8 = MUST(input.to_utf8());
-    return parse_host(input_utf8.bytes_as_string_view(), is_opaque);
+    return RustIntegration::parse_host(input, is_opaque);
 }
 
 // https://url.spec.whatwg.org/#string-percent-encode-after-encoding
@@ -80,8 +79,7 @@ Optional<URL> Parser::basic_parse(StringView raw_input, Optional<URL const&> bas
 
 Optional<URL> Parser::basic_parse(Utf16View raw_input, Optional<URL const&> base_url, URL* url, Optional<State> state_override, Optional<StringView> encoding)
 {
-    auto raw_input_utf8 = MUST(raw_input.to_utf8());
-    return basic_parse(raw_input_utf8.bytes_as_string_view(), base_url, url, state_override, encoding);
+    return RustIntegration::parse_basic_url(raw_input, base_url, url, state_override, encoding);
 }
 
 }
