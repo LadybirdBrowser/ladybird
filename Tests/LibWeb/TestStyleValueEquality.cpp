@@ -119,8 +119,8 @@ static StyleValueFFI::StyleValueData const* create_test_image(StringView url)
     auto url_string = MUST(String::from_utf8(url));
     auto url_bytes = url_string.bytes();
     return StyleValueFFI::rust_style_value_create_image(
-        url_string.to_raw_leaked(), url_bytes.data(), url_bytes.size(), 0, nullptr, 0,
-        0, nullptr, 0, false, false, false, false);
+        { url_bytes.data(), nullptr, url_bytes.size() }, 0, nullptr, 0,
+        {}, false, false, false, false);
 }
 
 TEST_CASE(rust_serialization_transfers_a_native_utf16_string)
@@ -297,20 +297,10 @@ TEST_CASE(rust_handles_create_every_remaining_typed_wrapper)
         EXPECT_EQ(StyleValue::adopt_rust_style_value_data(data)->type(), type);
     };
 
-    expect_type(StyleValueFFI::rust_style_value_create_color_scheme(nullptr, nullptr, 0, false), StyleValue::Type::ColorScheme);
     expect_type(StyleValueFFI::rust_style_value_create_display(0), StyleValue::Type::Display);
     expect_type(StyleValueFFI::rust_style_value_create_empty_optional(), StyleValue::Type::EmptyOptional);
-    expect_type(StyleValueFFI::rust_style_value_create_grid_auto_flow(true, false), StyleValue::Type::GridAutoFlow);
-    expect_type(StyleValueFFI::rust_style_value_create_grid_template_area(nullptr, 0, 0, 0), StyleValue::Type::GridTemplateArea);
     expect_type(StyleValueFFI::rust_style_value_create_guaranteed_invalid(), StyleValue::Type::GuaranteedInvalid);
-    expect_type(StyleValueFFI::rust_style_value_create_repeat_style(0, 0), StyleValue::Type::RepeatStyle);
-    expect_type(StyleValueFFI::rust_style_value_create_scrollbar_gutter(0), StyleValue::Type::ScrollbarGutter);
     expect_type(StyleValueFFI::rust_style_value_create_shorthand(0, nullptr, 0, nullptr, 0), StyleValue::Type::Shorthand);
-    expect_type(StyleValueFFI::rust_style_value_create_text_underline_position(0, 0), StyleValue::Type::TextUnderlinePosition);
-    expect_type(StyleValueFFI::rust_style_value_create_unicode_range(0, 0), StyleValue::Type::UnicodeRange);
-    auto url = MUST(String::from_utf8("https://example.com/"sv));
-    auto url_bytes = url.bytes();
-    expect_type(StyleValueFFI::rust_style_value_create_url(url.to_raw_leaked(), url_bytes.data(), url_bytes.size(), 0, nullptr, 0), StyleValue::Type::URL);
 }
 
 TEST_CASE(rust_transformation_handles_retain_child_data)
@@ -803,43 +793,6 @@ TEST_CASE(rust_random_value_sharing_handles_retain_fixed_data)
     EXPECT_EQ(sharing->to_string(SerializationMode::Normal), "fixed 1"sv);
 }
 
-TEST_CASE(rust_anchor_size_handles_retain_fallback_data)
-{
-    auto fallback = NumberStyleValue::create(1);
-    auto data = StyleValueFFI::rust_style_value_create_anchor_size(
-        false,
-        0,
-        false,
-        0,
-        StyleValueFFI::rust_style_value_retain(fallback->rust_style_value_data()));
-
-    fallback = NumberStyleValue::create(2);
-    auto anchor_size = StyleValue::adopt_rust_style_value_data(data);
-    EXPECT(anchor_size->is_anchor_size());
-    auto retained_fallback = anchor_size->as_anchor_size().fallback_value();
-    anchor_size = KeywordStyleValue::create(Keyword::None);
-    EXPECT_EQ(retained_fallback->to_string(SerializationMode::Normal), "1"sv);
-}
-
-TEST_CASE(rust_anchor_handles_retain_side_and_fallback_data)
-{
-    auto side = NumberStyleValue::create(1);
-    auto fallback = NumberStyleValue::create(2);
-    auto data = StyleValueFFI::rust_style_value_create_anchor(
-        false,
-        0,
-        StyleValueFFI::rust_style_value_retain(side->rust_style_value_data()),
-        StyleValueFFI::rust_style_value_retain(fallback->rust_style_value_data()));
-
-    side = NumberStyleValue::create(3);
-    fallback = NumberStyleValue::create(4);
-    auto anchor = StyleValue::adopt_rust_style_value_data(data);
-    EXPECT(anchor->is_anchor());
-    auto retained_side = anchor->as_anchor().anchor_side();
-    anchor = KeywordStyleValue::create(Keyword::None);
-    EXPECT_EQ(retained_side->to_string(SerializationMode::Normal), "1"sv);
-}
-
 TEST_CASE(rust_content_handles_retain_list_data)
 {
     auto content = StyleValueList::create({ NumberStyleValue::create(1) }, StyleValueList::Separator::Space);
@@ -870,29 +823,6 @@ TEST_CASE(rust_counter_style_system_handles_retain_first_symbol_data)
     auto retained_symbol = system->as_counter_style_system().value().get<CounterStyleSystemStyleValue::Fixed>().first_symbol;
     system = KeywordStyleValue::create(Keyword::None);
     EXPECT_EQ(retained_symbol->to_string(SerializationMode::Normal), "1"sv);
-}
-
-TEST_CASE(rust_font_source_handles_retain_local_name_data)
-{
-    auto local_name = StringStyleValue::create("Font Name"_utf16_fly_string);
-    auto data = StyleValueFFI::rust_style_value_create_font_source(
-        true,
-        StyleValueFFI::rust_style_value_retain(local_name->rust_style_value_data()),
-        0,
-        nullptr,
-        0,
-        0,
-        nullptr,
-        0,
-        false,
-        0,
-        nullptr,
-        0);
-
-    local_name = StringStyleValue::create("Other Font"_utf16_fly_string);
-    auto source = StyleValue::adopt_rust_style_value_data(data);
-    EXPECT(source->is_font_source());
-    EXPECT_EQ(source->to_string(SerializationMode::Normal), "local(\"Font Name\")"sv);
 }
 
 TEST_CASE(rust_pending_substitution_handles_retain_shorthand_data)
@@ -1018,57 +948,6 @@ TEST_CASE(rust_calculated_handles_create_typed_wrappers)
     auto retained_calculated = StyleValue::adopt_rust_style_value_data(retained_data);
     EXPECT(retained_calculated->is_calculated());
     EXPECT_EQ(retained_calculated->to_string(SerializationMode::Normal), "calc(10px)"sv);
-}
-
-TEST_CASE(rust_custom_property_stores_retain_value_data)
-{
-    auto name = Utf16FlyString::from_utf8("--value"sv);
-    auto name_view = name.view();
-    auto name_raw = name.to_raw_leaked();
-    ComputedValuesFFI::FfiCustomPropertyStoreEntry entry {
-        .name_raw = name_raw,
-        .name = {
-            .ascii = name_view.has_ascii_storage() ? reinterpret_cast<u8 const*>(name_view.ascii_span().data()) : nullptr,
-            .utf16 = name_view.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(name_view.utf16_span().data()),
-            .length = name_view.length_in_code_units(),
-        },
-        .important = false,
-        .data = StyleValueFFI::rust_style_value_create_number(1),
-    };
-    auto const* store = ComputedValuesFFI::rust_custom_property_store_create(&entry, 1, 1, nullptr, nullptr);
-    auto result = ComputedValuesFFI::rust_custom_property_store_get(store, name_raw);
-    EXPECT(result.found);
-    auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
-        static_cast<StyleValueFFI::StyleValueData const*>(result.data)));
-    ComputedValuesFFI::rust_custom_property_store_destroy(store);
-    EXPECT_EQ(value->to_string(SerializationMode::Normal), "1"sv);
-}
-
-TEST_CASE(rust_calculation_nodes_retain_style_value_data)
-{
-    auto random = StyleValueFFI::rust_calc_node_create_random(
-        StyleValueFFI::rust_calc_node_create_numeric_dimension(0, 0, 0),
-        StyleValueFFI::rust_calc_node_create_numeric_dimension(0, 1, 0),
-        nullptr,
-        StyleValueFFI::rust_style_value_create_random_value_sharing(
-            StyleValueFFI::rust_style_value_create_number(0.25), false, false, 0, false));
-    auto const* sharing_data = static_cast<StyleValueFFI::StyleValueData const*>(
-        StyleValueFFI::rust_calc_node_style_value(random));
-    auto sharing = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(sharing_data));
-    StyleValueFFI::rust_calc_node_release(random);
-    EXPECT(sharing->is_random_value_sharing());
-    EXPECT_EQ(sharing->to_string(SerializationMode::Normal), "fixed 0.25"sv);
-
-    StyleValueFFI::FfiNumericType numeric_type {};
-    auto function = StyleValueFFI::rust_calc_node_create_non_math_function(
-        StyleValueFFI::rust_style_value_create_tree_counting_function(0, 0), &numeric_type);
-    auto const* function_data = static_cast<StyleValueFFI::StyleValueData const*>(
-        StyleValueFFI::rust_calc_node_style_value(function));
-    auto tree_counting_function = StyleValue::adopt_rust_style_value_data(
-        StyleValueFFI::rust_style_value_retain(function_data));
-    StyleValueFFI::rust_calc_node_release(function);
-    EXPECT(tree_counting_function->is_tree_counting_function());
-    EXPECT_EQ(tree_counting_function->to_string(SerializationMode::Normal), "sibling-count()"sv);
 }
 
 TEST_CASE(rust_basic_shape_handles_retain_polygon_point_data)

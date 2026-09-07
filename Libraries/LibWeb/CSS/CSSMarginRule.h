@@ -8,6 +8,7 @@
 
 #include <AK/Utf16View.h>
 #include <LibWeb/CSS/CSSRule.h>
+#include <LibWeb/CSS/RustDeclarationBlock.h>
 
 namespace Web::CSS {
 
@@ -17,24 +18,24 @@ class CSSMarginRule final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSMarginRule);
 
 public:
-    static constexpr size_t style_offset() { return offsetof(CSSMarginRule, m_style); }
-    [[nodiscard]] static GC::Ref<CSSMarginRule> create(Utf16FlyString name, GC::Ref<CSSStyleProperties>);
+    [[nodiscard]] static GC::Ref<CSSMarginRule> create(RustRule);
 
     virtual ~CSSMarginRule() override = default;
 
     Utf16FlyString const& name() const { return m_name; }
-    GC::Ref<CSSStyleProperties> style() { return m_style; }
-    GC::Ref<CSSStyleProperties const> style() const { return m_style; }
+    GC::Ref<CSSStyleProperties> style() const;
 
 private:
-    CSSMarginRule(Utf16FlyString name, GC::Ref<CSSStyleProperties>);
+    CSSMarginRule(RustRule);
 
+    virtual size_t external_memory_size() const override;
     virtual Utf16String serialized() const override;
     virtual void visit_edges(Visitor&) override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
     Utf16FlyString m_name;
-    GC::Ref<CSSStyleProperties> m_style;
+    RustDeclarationBlock m_declarations;
+    mutable GC::Ptr<CSSStyleProperties> m_style;
 };
 
 }

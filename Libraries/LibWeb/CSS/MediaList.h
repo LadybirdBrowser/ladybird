@@ -10,9 +10,8 @@
 
 #include <AK/Optional.h>
 #include <AK/String.h>
-#include <AK/Vector.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/CSS/MediaQuery.h>
+#include <LibWeb/CSS/RustMediaList.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::CSS {
@@ -23,39 +22,39 @@ class MediaList final : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(MediaList);
 
 public:
-    [[nodiscard]] static GC::Ref<MediaList> create(Vector<NonnullRefPtr<MediaQuery>>&&);
-    virtual ~MediaList() override = default;
+    [[nodiscard]] static GC::Ref<MediaList> create(RustMediaList);
+    virtual ~MediaList() override;
 
     Utf16String media_text() const;
     void set_media_text(Utf16View);
-    size_t length() const { return m_media.size(); }
+    size_t length() const { return m_media.length(); }
     Optional<Utf16String> item(u32 index) const;
     void append_medium(Utf16View);
     WebIDL::ExceptionOr<void> delete_medium(Utf16View);
 
-    bool evaluate(DOM::Document const&);
-    bool matches() const;
+    RustMediaList const& native_list() const { return m_media; }
 
-    void set_associated_style_sheet(GC::Ref<StyleSheet> style_sheet) { m_associated_style_sheet = style_sheet; }
+    void set_associated_style_sheet(NonnullRefPtr<StyleSheetState>);
 
     // A media list belongs either to a sheet or to an `@media` rule inside one. Both are gates on
     // whether rules apply, so both have to say when the gate moves - a rule's list said nothing at
     // all, and changing a group's media therefore changed no style.
     void set_associated_rule(GC::Ref<CSSRule> rule) { m_associated_rule = rule; }
 
-    void dump(StringBuilder&, int indent_levels = 0) const;
-
 private:
-    MediaList(Vector<NonnullRefPtr<MediaQuery>>&&);
+    MediaList(RustMediaList);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
 
-    GC::Ptr<CSSStyleSheet> owning_style_sheet();
+    RefPtr<StyleSheetState> owning_style_sheet();
     void invalidate_owners_for_media_change();
 
-    GC::Ptr<StyleSheet> m_associated_style_sheet;
+    RefPtr<StyleSheetState> m_associated_style_sheet;
+    GC::Ptr<CSSStyleSheet> m_associated_cssom_sheet;
     GC::Ptr<CSSRule> m_associated_rule;
-    Vector<NonnullRefPtr<MediaQuery>> m_media;
+    RustMediaList m_media;
 };
+
+void invalidate_style_sheet_for_media_change(StyleSheetState&);
 
 }

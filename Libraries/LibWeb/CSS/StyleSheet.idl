@@ -6,11 +6,11 @@ interface StyleSheet {
     [ImplementedAs=href_for_bindings] readonly attribute USVString? href;
 
     // FIXME: readonly attribute (Element or ProcessingInstruction)? ownerNode;
-    [DirectGetter] readonly attribute Element? ownerNode;
+    readonly attribute Element? ownerNode;
 
-    [DirectGetter] readonly attribute CSSStyleSheet? parentStyleSheet;
+    readonly attribute CSSStyleSheet? parentStyleSheet;
     [ImplementedAs=title_for_bindings] readonly attribute DOMString? title;
-    [DirectGetter, SameObject, PutForwards=mediaText] readonly attribute MediaList media;
+    [SameObject, PutForwards=mediaText] readonly attribute MediaList media;
     attribute boolean disabled;
 
 };

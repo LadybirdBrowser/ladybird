@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const text = '@import "data:text/css," layer(雪) supports(display: unknown) screen; @import "data:text/css," layer supports(display: unknown); @import "data:text/css," supports(display: unknown); @supports (display: grid) { .target { width: 17px; } }';
+        const makeSheet = () => {
+            const element = document.createElement("style");
+            element.textContent = text;
+            document.head.append(element);
+            return element.sheet;
+        };
+        const first = makeSheet();
+        const shared = makeSheet();
+        const rule = first.cssRules[0];
+        println(`layers: ${rule.layerName}, ${JSON.stringify(first.cssRules[1].layerName)}, ${first.cssRules[2].layerName}`);
+        println(`supports: ${rule.supportsText}, ${rule.styleSheet === null}`);
+        println(`URL: ${rule.href}`);
+        println(`serialization: ${rule.cssText}`);
+        const media = rule.media;
+        media.mediaText = "print";
+        println(`media: ${rule.media === media}, ${rule.media.mediaText}, ${shared.cssRules[0].media.mediaText}`);
+        first.deleteRule(0);
+        println(`detached: ${rule.parentStyleSheet === null}, ${rule.layerName}, ${rule.supportsText}, ${rule.href}`);
+        println(`cached media: ${makeSheet().cssRules[0].media.mediaText}`);
+        const target = document.createElement("div");
+        target.className = "target";
+        document.body.append(target);
+        println(`supports rule width: ${getComputedStyle(target).width}`);
+    });
+</script>

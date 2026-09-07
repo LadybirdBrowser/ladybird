@@ -1,0 +1,7 @@
+early identity: true, true
+late identity: true
+independent imports: true
+loaded native group: 29px
+shared mutation disables import: print, 5px
+shared mutation restores import: screen, 29px
+detached identity: true, écran, 5px

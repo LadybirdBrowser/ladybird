@@ -2528,8 +2528,7 @@ impl StyleEngine {
                 }
                 WinnerSource::ExactCascade => continue,
             };
-            let declarations = unsafe { std::slice::from_raw_parts(block.declarations, block.declaration_count) };
-            let mut source_declarations = declarations.iter().filter(|declaration| {
+            let mut source_declarations = block.declarations().filter(|declaration| {
                 declaration.property_id == winner.property && declaration.important == winner.important
             });
             let Some(declaration) = source_declarations.next() else {

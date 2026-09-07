@@ -32,8 +32,6 @@
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/CSS/AnimationEvent.h>
 #include <LibWeb/CSS/CSSAnimation.h>
-#include <LibWeb/CSS/CSSContainerRule.h>
-#include <LibWeb/CSS/CSSFunctionRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
 #include <LibWeb/CSS/CSSLayerStatementRule.h>
@@ -41,7 +39,6 @@
 #include <LibWeb/CSS/CSSScopeRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
-#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/CSSTransition.h>
 #include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
@@ -52,7 +49,6 @@
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/HypotheticalElement.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/Parser/RustQueryParsing.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/PropertyNameAndID.h>
 #include <LibWeb/CSS/SelectorMatching.h>
@@ -61,8 +57,8 @@
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleProperty.h>
 #include <LibWeb/CSS/StyleScope.h>
-#include <LibWeb/CSS/StyleSheet.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
@@ -144,23 +140,14 @@ struct SubstitutionData {
         Utf16String name;
         Utf16String value;
     };
-    struct FunctionParameter {
-        Utf16String name;
-        void const* syntax { nullptr };
-        void const* default_data { nullptr };
-    };
     struct FunctionDeclaration {
         Utf16String name;
-        void const* data { nullptr };
+        RustStyleValueHandle value;
     };
     struct FunctionDefinition {
-        GC::Ptr<CSSFunctionRule const> function;
+        RustCompiledFunction function;
         StyleScope const* scope { nullptr };
-        Utf16String name;
-        Vector<FunctionParameter> parameters;
-        void const* return_syntax { nullptr };
         Vector<FunctionDeclaration> declarations;
-        Vector<ComputedValuesFFI::FfiSubstitutionFunctionParameter> ffi_parameters;
         Vector<ComputedValuesFFI::FfiSubstitutionFunctionDeclaration> ffi_declarations;
     };
 
@@ -198,7 +185,6 @@ struct SubstitutionData {
             .value_contexts = nullptr,
             .value_context_count = 0,
             .declared_namespaces = nullptr,
-            .declared_namespace_count = 0,
             .document_url = document_url.bytes().data(),
             .document_url_length = document_url.bytes().size(),
             .document_base_url = document_base_url.bytes().data(),
@@ -221,30 +207,33 @@ struct SubstitutionData {
         if (collect_functions) {
             Function<void(StyleScope::FunctionDefinitionAndScope const&)> append_function = [&](StyleScope::FunctionDefinitionAndScope const& definition) {
                 for (auto const& existing : functions) {
-                    if (existing.function == definition.function)
+                    if (existing.function.identity() == definition.function.identity())
                         return;
                 }
                 FunctionDefinition snapshot {
                     .function = definition.function,
                     .scope = &definition.scope,
-                    .name = definition.function->name(),
-                    .parameters = {},
-                    .return_syntax = definition.function->return_type_internal().data(),
                     .declarations = {},
-                    .ffi_parameters = {},
                     .ffi_declarations = {},
                 };
-                snapshot.parameters.ensure_capacity(definition.function->parameters_internal().size());
-                for (auto const& parameter : definition.function->parameters_internal()) {
-                    snapshot.parameters.unchecked_append({
-                        .name = parameter.name.to_utf16_string(),
-                        .syntax = parameter.type.data(),
-                        .default_data = parameter.default_value ? parameter.default_value->rust_style_value_data() : nullptr,
-                    });
-                }
-                definition.function->for_each_effective_declaration(element.abstract_element(), [&](Utf16FlyString const& name, NonnullRefPtr<StyleValue const> const& value) {
-                    snapshot.declarations.append({ .name = name.to_utf16_string(), .data = value->rust_style_value_data() });
-                });
+                struct Context {
+                    DOM::AbstractElement& element;
+                    Vector<FunctionDeclaration>& declarations;
+                } context { element.abstract_element(), snapshot.declarations };
+                Parser::ValueParserFFI::rust_compiled_function_visit_declarations(definition.function.handle(), &context, [](void* data, Parser::ValueParserFFI::ContainerConditionsData const* const* conditions, size_t count) {
+                        auto& context = *static_cast<Context*>(data);
+                        Vector<NonnullRefPtr<ContainerConditions>> bindings;
+                        for (size_t index = 0; index < count; ++index) {
+                            auto condition = ContainerConditions::create(conditions[index]);
+                            condition->mark_element_style_dependencies(context.element);
+                            bindings.append(move(condition));
+                        }
+                        return all_of(bindings, [&](auto const& condition) { return condition->matches(context.element); }); }, [](void* data, Parser::ValueParserFFI::FfiUtf16View name, void const* value) {
+                        auto& context = *static_cast<Context*>(data);
+                        context.declarations.append({
+                            .name = Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(name.utf16), name.length }),
+                            .value = RustStyleValueHandle::retained(static_cast<StyleValueFFI::StyleValueData const*>(value)),
+                        }); });
                 functions.append(move(snapshot));
             };
             element.style_scope().for_each_visible_function_definition(append_function);
@@ -253,28 +242,17 @@ struct SubstitutionData {
         }
         ffi_functions.ensure_capacity(functions.size());
         for (auto& definition : functions) {
-            definition.ffi_parameters.ensure_capacity(definition.parameters.size());
-            for (auto const& parameter : definition.parameters) {
-                definition.ffi_parameters.unchecked_append({
-                    .name = ffi_utf16_view(parameter.name),
-                    .syntax = parameter.syntax,
-                    .default_data = parameter.default_data,
-                });
-            }
             definition.ffi_declarations.ensure_capacity(definition.declarations.size());
             for (auto const& declaration : definition.declarations) {
                 definition.ffi_declarations.unchecked_append({
                     .name = ffi_utf16_view(declaration.name),
-                    .data = declaration.data,
+                    .data = declaration.value.data(),
                 });
             }
             ffi_functions.unchecked_append({
-                .identity = bit_cast<FlatPtr>(definition.function),
+                .identity = definition.function.identity(),
                 .scope_identity = bit_cast<FlatPtr>(definition.scope),
-                .name = ffi_utf16_view(definition.name),
-                .parameters = definition.ffi_parameters.data(),
-                .parameter_count = definition.ffi_parameters.size(),
-                .return_syntax = definition.return_syntax,
+                .signature = definition.function.signature(),
                 .declarations = definition.ffi_declarations.data(),
                 .declaration_count = definition.ffi_declarations.size(),
             });
@@ -290,16 +268,16 @@ struct SubstitutionData {
     Vector<ComputedValuesFFI::FfiSubstitutionFunctionDefinition> ffi_functions;
 };
 
-static size_t resolve_custom_function_for_substitution(size_t scope_identity, ComputedValuesFFI::FfiUtf16View name)
+static u64 resolve_custom_function_for_substitution(size_t scope_identity, ComputedValuesFFI::FfiUtf16View name)
 {
     auto& scope = *bit_cast<StyleScope const*>(scope_identity);
     auto definition = scope.get_function_definition(Utf16FlyString::from_utf16(utf16_view(name)));
-    return definition.has_value() ? bit_cast<FlatPtr>(definition->function) : 0;
+    return definition.has_value() ? definition->function.identity() : 0;
 }
 
 static u8 evaluate_style_query_for_substitution(AbstractOrHypotheticalElement element, ComputedValuesFFI::FfiUtf16View source)
 {
-    auto query = Parser::RustQueryParser::parse_style_query(utf16_view(source));
+    auto query = Parser::parse_style_query(utf16_view(source));
     if (!query.has_value())
         return 2;
     prepare_for_style_query_evaluation();
@@ -324,7 +302,7 @@ private:
 GC_DEFINE_ALLOCATOR(StyleComputer);
 
 // What a rule contributes, for the two rule types that carry a declaration block.
-static CSSStyleProperties const& declaration_of_rule(CSSRule const& rule)
+static RustDeclarationBlock const& declaration_of_rule(CSSRule const& rule)
 {
     if (rule.type() == CSSRule::Type::Style)
         return static_cast<CSSStyleRule const&>(rule).declaration();
@@ -518,13 +496,11 @@ void StyleComputer::visit_edges(Visitor& visitor)
     visitor.visit(m_document);
     m_style_engine.visit_edges(visitor);
     visitor.visit(m_style_nodes);
+    // NB: Source sheets are weak references; their owners trace them.
+    visitor.ignore(m_style_engine_sheet_sources);
     for (auto const& entry : m_non_author_style_sheets)
         visitor.visit(entry.sheet);
-    for (auto const& entry : m_non_author_rule_ids)
-        visitor.visit(entry.key);
     for (auto const& entry : m_constructed_sheet_ids)
-        visitor.visit(entry.key);
-    for (auto const& entry : m_constructed_rule_ids)
         visitor.visit(entry.key);
 
     if (m_cached_font_computation_context.has_value())
@@ -539,15 +515,9 @@ void StyleComputer::visit_edges(Visitor& visitor)
     if (m_cached_generic_computation_context.has_value())
         m_cached_generic_computation_context->visit_edges(visitor);
 
-    for (auto const& entry : m_style_engine_rule_targets) {
-        visitor.visit(entry.key);
-        entry.value.visit_edges(visitor);
-    }
-    for (auto const& entry : m_style_engine_rules_by_id)
-        visitor.visit(entry.value);
     for (auto const& entry : m_style_engine_cascade_input_cache) {
         for (auto const& contribution : entry.value->contributions) {
-            visitor.visit(contribution.declaration);
+            visitor.visit(contribution.source_style_sheet);
             visitor.visit(contribution.source_shadow_root);
         }
     }
@@ -1994,47 +1964,49 @@ Vector<GC::Ptr<DOM::ShadowRoot const>, 4> StyleComputer::author_context_shadow_r
     return context_shadow_roots;
 }
 
-void StyleComputer::register_style_engine_rule_target(CSSRule const& rule, StyleEngineRuleTarget target)
+void StyleComputer::register_style_engine_sheet_source(StyleSheetState const& sheet)
 {
-    m_style_engine_rule_targets.set(&rule, move(target));
-}
-
-void StyleComputer::register_style_engine_rule_identity(StyleEngineRuleID rule_id, CSSRule const& rule)
-{
-    m_style_engine_rules_by_id.set(rule_id, &rule);
+    auto identity = Parser::ValueParserFFI::rust_style_sheet_identity(sheet.native_sheet().handle());
+    m_style_engine_sheet_sources.set(identity, sheet.make_weak_ptr<StyleSheetState const>());
 }
 
 Optional<StyleEngineRuleTarget> StyleComputer::style_engine_rule_target(StyleEngineRuleID rule_id) const
 {
-    auto rule = m_style_engine_rules_by_id.get(rule_id);
-    if (!rule.has_value() || !*rule)
+    StyleEngineFFI::FfiNativeRuleTarget target {};
+    if (!StyleEngineFFI::style_engine_native_rule_target(m_style_engine.rust_handle(), rule_id.value(), &target))
         return {};
-    auto it = m_style_engine_rule_targets.find(rule->ptr());
-    if (it == m_style_engine_rule_targets.end())
+    RustDeclarationBlockSnapshot declaration { static_cast<Parser::ValueParserFFI::DeclarationBlockData const*>(target.declarations) };
+    auto source = m_style_engine_sheet_sources.get(target.source_identity);
+    if (!source.has_value())
         return {};
-    // NB: Building a rule cache can register more targets and rehash this map. Return a copy so the
-    //     caller can safely keep the target while asking a style scope for its rule cache.
-    return it->value;
+    RefPtr<StyleSheetState const> source_sheet = *source;
+    if (!source_sheet)
+        return {};
+    auto layer_name = Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(target.layer_name), target.layer_name_length });
+    return StyleEngineRuleTarget {
+        .rule_identity = target.identity,
+        .declaration_version = target.declaration_version,
+        .declaration = move(declaration),
+        .source_style_sheet = move(source_sheet),
+        .has_container_conditions = target.has_container_conditions,
+        .qualified_layer_name = move(layer_name),
+        .cascade_origin = static_cast<CascadeOrigin>(target.origin),
+    };
 }
 
-StyleEngineRuleID StyleComputer::style_engine_rule_id_for(CSSRule const& rule) const
+StyleEngineRuleID StyleComputer::style_engine_rule_id_for(RustRule const& rule) const
 {
-    // A non-author rule's identity is held per document; an author rule's lives on the rule itself.
-    if (auto id = m_non_author_rule_ids.get(&rule); id.has_value())
-        return *id;
-    if (auto id = m_constructed_rule_ids.get(&rule); id.has_value())
-        return *id;
-    return rule.style_engine_rule_id();
+    return StyleEngineRuleID { StyleEngineFFI::style_engine_native_rule_id(m_style_engine.rust_handle(), rule.identity()) };
 }
 
-SheetID StyleComputer::style_engine_sheet_id_for(CSSStyleSheet const& sheet) const
+SheetID StyleComputer::style_engine_sheet_id_for(StyleSheetState const& sheet) const
 {
     if (sheet.constructed())
         return m_constructed_sheet_ids.get(&sheet).value_or(0);
     return sheet.style_engine_sheet_id();
 }
 
-void StyleComputer::set_style_engine_sheet_id_for(CSSStyleSheet& sheet, SheetID sheet_id)
+void StyleComputer::set_style_engine_sheet_id_for(StyleSheetState& sheet, SheetID sheet_id)
 {
     if (sheet.constructed())
         m_constructed_sheet_ids.set(&sheet, sheet_id);
@@ -2089,7 +2061,7 @@ static JsonObject serialize_devtools_style_declaration(
     return serialized_property;
 }
 
-static JsonArray serialize_devtools_style_declarations(DOM::Document const& document, CSSStyleProperties const& declaration)
+static JsonArray serialize_devtools_style_declarations(DOM::Document const& document, RustDeclarationBlock const& declaration)
 {
     JsonArray declarations;
 
@@ -2273,15 +2245,15 @@ static Optional<String> extract_css_declaration_block_from_source(CSSRule const&
     return {};
 }
 
-static bool has_inherited_declaration(DOM::Document const& document, CSSStyleProperties const& declaration)
+static bool has_inherited_declaration(DOM::Document const& document, ReadonlySpan<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> const& custom_properties)
 {
-    if (any_of(declaration.properties(), [](auto const& property) {
+    if (any_of(properties, [](auto const& property) {
             return CSS::is_inherited_property(property.property_id);
         })) {
         return true;
     }
 
-    return any_of(declaration.custom_properties(), [&](auto const& custom_property) {
+    return any_of(custom_properties, [&](auto const& custom_property) {
         return custom_property_inherits(document, custom_property.key);
     });
 }
@@ -2309,7 +2281,7 @@ static JsonObject serialize_devtools_applied_rule(DOM::Document& document, CSSRu
     if (auto const* style_rule = as_if<CSSStyleRule>(rule))
         selector_list = &style_rule->absolutized_selectors();
     else if (auto const* nested = as_if<CSSNestedDeclarations>(rule))
-        selector_list = &nested->parent_style_rule().absolutized_selectors();
+        selector_list = &nested->absolutized_selectors();
     SelectorList const empty_selectors;
     auto const& selectors = selector_list ? *selector_list : empty_selectors;
 
@@ -2338,7 +2310,10 @@ static JsonObject serialize_devtools_applied_rule(DOM::Document& document, CSSRu
         serialized_rule.set("authoredText"sv, *authored_text);
         serialized_rule.set("declarations"sv, serialize_devtools_style_declarations(document, parse_devtools_style_declarations(document, authored_text->bytes_as_string_view())));
     } else {
-        serialized_rule.set("authoredText"sv, declaration.serialized().to_utf8());
+        auto style = rule.type() == CSSRule::Type::Style
+            ? static_cast<CSSStyleRule const&>(rule).style()
+            : static_cast<CSSNestedDeclarations const&>(rule).style();
+        serialized_rule.set("authoredText"sv, style->serialized().to_utf8());
         serialized_rule.set("declarations"sv, serialize_devtools_style_declarations(document, declaration));
     }
     if (auto* sheet = rule.parent_style_sheet()) {
@@ -2362,7 +2337,7 @@ static JsonObject serialize_devtools_inline_style(DOM::Document const& document,
         serialized_rule.set("declarations"sv, serialize_devtools_style_declarations(document, parse_devtools_style_declarations(document, authored_text->utf16_view())));
     } else {
         serialized_rule.set("authoredText"sv, declaration.serialized().to_utf8());
-        serialized_rule.set("declarations"sv, serialize_devtools_style_declarations(document, declaration));
+        serialized_rule.set("declarations"sv, serialize_devtools_style_declarations(document, declaration.declaration_block()));
     }
     serialized_rule.set("isSystem"sv, false);
     serialized_rule.set("nodeId"sv, abstract_element.element().unique_id().value());
@@ -2396,7 +2371,7 @@ JsonArray StyleComputer::collect_devtools_applied_style_rules(DOM::AbstractEleme
 
     auto append_rules_for_abstract_element = [&](DOM::AbstractElement current_element, Optional<UniqueNodeID> inherited_node_id) {
         if (auto inline_style = current_element.inline_style()) {
-            if (!inherited_node_id.has_value() || has_inherited_declaration(m_document, *inline_style))
+            if (!inherited_node_id.has_value() || has_inherited_declaration(m_document, inline_style->properties(), inline_style->custom_properties()))
                 append_devtools_applied_style_entry(entries, serialize_devtools_inline_style(m_document, current_element, *inline_style), inherited_node_id);
         }
 
@@ -2413,13 +2388,31 @@ JsonArray StyleComputer::collect_devtools_applied_style_rules(DOM::AbstractEleme
             if (match.pseudo_element != NumericLimits<u32>::max())
                 continue;
             auto target = style_engine_rule_target(StyleEngineRuleID { match.rule });
-            if (!target.has_value() || !target->rule)
+            if (!target.has_value() || !target->source_style_sheet)
                 continue;
             if (target->cascade_origin == CascadeOrigin::UserAgent && !include_user_agent_styles)
                 continue;
-            if (inherited_node_id.has_value() && !has_inherited_declaration(m_document, declaration_of_rule(*target->rule)))
+            if (inherited_node_id.has_value()) {
+                struct Context {
+                    GC::Ref<DOM::Document const> document;
+                    bool has_inherited_declaration { false };
+                } context { m_document };
+                Parser::ValueParserFFI::rust_declaration_data_visit(target->declaration.data(), &context, [](void* raw_context, Parser::ValueParserFFI::FfiDeclaredProperty const* property) {
+                    auto& context = *static_cast<Context*>(raw_context);
+                    if (context.has_inherited_declaration)
+                        return;
+                    if (property->name.length == 0)
+                        context.has_inherited_declaration = is_inherited_property(static_cast<PropertyID>(property->property_id));
+                    else
+                        context.has_inherited_declaration = custom_property_inherits(context.document, Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(property->name.utf16), property->name.length }));
+                });
+                if (!context.has_inherited_declaration)
+                    continue;
+            }
+            auto* rule = target->source_style_sheet->rules().rule_for_identity(target->rule_identity);
+            if (!rule)
                 continue;
-            append_devtools_applied_style_entry(entries, serialize_devtools_applied_rule(m_document, *target->rule, current_element), inherited_node_id);
+            append_devtools_applied_style_entry(entries, serialize_devtools_applied_rule(m_document, *rule, current_element), inherited_node_id);
         }
     };
 
@@ -2434,29 +2427,18 @@ JsonArray StyleComputer::collect_devtools_applied_style_rules(DOM::AbstractEleme
     return entries;
 }
 
-static bool block_declares_custom_properties(OrderedHashMap<Utf16FlyString, StyleProperty> const* custom_properties)
+static Parser::ValueParserFFI::FfiDeclarationBlockDependencies presentational_hint_dependencies(ReadonlySpan<StyleProperty> properties)
 {
-    return custom_properties && !custom_properties->is_empty();
-}
-
-// Whether a declaration block holds anything that reads the inherited custom property environment:
-// a declaration of a custom property, or a value with a substitution still to make. This is what
-// decides whether the style sharing key has to name that environment. The same serializer that
-// names each block answers this for every reuse path.
-static bool block_reads_custom_properties(ReadonlySpan<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> const* custom_properties)
-{
-    if (block_declares_custom_properties(custom_properties))
-        return true;
-    return any_of(properties, [](auto const& property) { return property.value->is_unresolved(); });
-}
-
-static bool block_reads_style_scope(ReadonlySpan<StyleProperty> properties)
-{
-    return any_of(properties, [](auto const& property) {
-        return property.property_id == PropertyID::Content
-            || property.property_id == PropertyID::ListStyleType
-            || property.value->is_unresolved();
-    });
+    Parser::ValueParserFFI::FfiDeclarationBlockDependencies dependencies {};
+    for (auto const& property : properties) {
+        auto unresolved = property.value->is_unresolved();
+        dependencies.has_unresolved_values |= unresolved;
+        dependencies.reads_style_scope |= unresolved
+            || property.property_id == PropertyID::Content
+            || property.property_id == PropertyID::ListStyleType;
+        dependencies.declares_animation_name |= property.property_id == PropertyID::AnimationName;
+    }
+    return dependencies;
 }
 
 enum class CascadeBlockKeyValueComparison : u8 {
@@ -2465,15 +2447,19 @@ enum class CascadeBlockKeyValueComparison : u8 {
 };
 
 struct CascadeBlockKey {
-    ReadonlySpan<StyleProperty> properties;
-    OrderedHashMap<Utf16FlyString, StyleProperty> const* custom_properties { nullptr };
+    // Only presentational hints need individual values pinned in the key. Native declarations
+    // are identified by their source/version and inspected directly in Rust.
+    ReadonlySpan<StyleProperty> properties {};
+    Parser::ValueParserFFI::FfiDeclarationBlockDependencies dependencies {};
+    bool includes_custom_properties { false };
     CascadeOrigin origin { CascadeOrigin::Author };
     u32 author_context_index { 0 };
     u32 layer_index { 0 };
     bool is_inline_style { false };
     bool bypass_pseudo_element_property_whitelist { false };
     bool is_layered { false };
-    GC::Ptr<CSSStyleProperties const> source {};
+    u64 source_identity { 0 };
+    u64 source_revision { 0 };
     GC::Ptr<DOM::ShadowRoot const> source_shadow_root {};
     u32 semantic_declaration_id { 0 };
 };
@@ -2494,20 +2480,20 @@ static CascadeBlockKeyDependencies append_cascade_blocks_to_key(Vector<u64>& key
         key.append(static_cast<u64>(block.is_inline_style)
             | (static_cast<u64>(block.bypass_pseudo_element_property_whitelist) << 1)
             | (static_cast<u64>(block.is_layered) << 2)
-            | (static_cast<u64>(block.custom_properties != nullptr) << 3));
-        auto const reads_custom_properties = block_reads_custom_properties(block.properties, block.custom_properties);
+            | (static_cast<u64>(block.includes_custom_properties) << 3));
+        auto const declares_custom_properties = block.includes_custom_properties && block.dependencies.has_custom_properties;
+        auto const reads_custom_properties = declares_custom_properties || block.dependencies.has_unresolved_values;
         // The engine collision-checks semantic declaration IDs before exposing them. Incomplete
-        // inventories and custom-property declarations keep using their CSSOM identity, since
-        // their C++ declarations may differ.
+        // inventories and custom-property declarations keep using their native source identity,
+        // since their declarations may differ.
         auto const use_semantic_source_identity = value_comparison == CascadeBlockKeyValueComparison::ByIdentity
-            && block.source && block.semantic_declaration_id != 0
-            && !block_declares_custom_properties(block.custom_properties);
+            && block.source_identity != 0 && block.semantic_declaration_id != 0
+            && !declares_custom_properties;
         key.append(use_semantic_source_identity ? block.semantic_declaration_id : 0);
-        key.append(block.source && !use_semantic_source_identity ? block.source->identity() : 0);
-        key.append(block.source && !use_semantic_source_identity ? block.source->revision() : 0);
-        auto const declares_animation_name = any_of(block.properties, [](auto const& property) { return property.property_id == PropertyID::AnimationName; });
-        key.append(declares_animation_name ? bit_cast<FlatPtr>(block.source_shadow_root.ptr()) : 0);
-        if (!block.source) {
+        key.append(!use_semantic_source_identity ? block.source_identity : 0);
+        key.append(!use_semantic_source_identity ? block.source_revision : 0);
+        key.append(block.dependencies.declares_animation_name ? bit_cast<FlatPtr>(block.source_shadow_root.ptr()) : 0);
+        if (block.source_identity == 0) {
             key.append(block.properties.size());
             for (auto const& property : block.properties) {
                 key.append(to_underlying(property.property_id) | (static_cast<u64>(property.important == Important::Yes) << 32));
@@ -2516,7 +2502,7 @@ static CascadeBlockKeyDependencies append_cascade_blocks_to_key(Vector<u64>& key
         }
         return CascadeBlockKeyDependencies {
             .reads_custom_properties = reads_custom_properties,
-            .reads_style_scope = block_reads_style_scope(block.properties),
+            .reads_style_scope = block.dependencies.reads_style_scope,
         };
     };
 
@@ -2527,18 +2513,16 @@ static CascadeBlockKeyDependencies append_cascade_blocks_to_key(Vector<u64>& key
 
     CascadeBlockKeyDependencies dependencies;
     for (auto const& contribution : cascade_input.contributions) {
-        auto const& declaration = *contribution.declaration;
-        auto const* custom_properties = contribution.cascade_origin == CascadeOrigin::Author
-            ? &declaration.custom_properties()
-            : nullptr;
+        auto const& declaration = contribution.declaration;
         auto block_dependencies = append_block({
-            .properties = declaration.properties(),
-            .custom_properties = custom_properties,
+            .dependencies = declaration.dependencies(),
+            .includes_custom_properties = contribution.cascade_origin == CascadeOrigin::Author,
             .origin = contribution.cascade_origin,
             .author_context_index = contribution.author_context_index,
             .layer_index = contribution.layer_index,
             .is_layered = contribution.layer_name.has_value(),
-            .source = contribution.declaration,
+            .source_identity = contribution.rule_identity,
+            .source_revision = contribution.declaration_version,
             .source_shadow_root = contribution.source_shadow_root,
             .semantic_declaration_id = contribution.semantic_declaration_id,
         });
@@ -2549,6 +2533,7 @@ static CascadeBlockKeyDependencies append_cascade_blocks_to_key(Vector<u64>& key
     if (!presentational_hint_properties.is_empty()) {
         auto block_dependencies = append_block({
             .properties = presentational_hint_properties,
+            .dependencies = presentational_hint_dependencies(presentational_hint_properties),
             .origin = CascadeOrigin::AuthorPresentationalHint,
         });
         dependencies.reads_custom_properties |= block_dependencies.reads_custom_properties;
@@ -2557,13 +2542,14 @@ static CascadeBlockKeyDependencies append_cascade_blocks_to_key(Vector<u64>& key
 
     if (inline_style && cascade_input.inline_style_context_index.has_value()) {
         auto block_dependencies = append_block({
-            .properties = inline_style->properties(),
-            .custom_properties = &inline_style->custom_properties(),
+            .dependencies = inline_style->declaration_block().dependencies(),
+            .includes_custom_properties = true,
             .origin = CascadeOrigin::Author,
             .author_context_index = *cascade_input.inline_style_context_index,
             .is_inline_style = true,
             .bypass_pseudo_element_property_whitelist = true,
-            .source = inline_style,
+            .source_identity = inline_style->declaration_block().identity(),
+            .source_revision = inline_style->declaration_block().revision(),
         });
         dependencies.reads_custom_properties |= block_dependencies.reads_custom_properties;
         dependencies.reads_style_scope |= block_dependencies.reads_style_scope;
@@ -2687,11 +2673,21 @@ RefPtr<StyleComputer::CascadeInput const> StyleComputer::style_engine_cascade_in
         // for the rule and the consumer applies it here. This is the same division the matcher uses.
         // A size or style query also records that this element's style depends on its container,
         // which is what bounds the scan that re-styles it when the container moves.
-        if (target->container_rule) {
+        if (target->has_container_conditions) {
             input_is_cacheable = false;
-            if (target->container_rule->contains_size_feature() || target->container_rule->contains_style_feature())
-                target->container_rule->mark_element_style_dependencies(abstract_element);
-            if (!target->container_rule->matches(abstract_element))
+            auto matches = StyleEngineFFI::style_engine_native_rule_matches_containers(
+                style_engine.rust_handle(), match.rule, &abstract_element,
+                [](void* context, bool size, bool style) {
+                    auto& element = static_cast<DOM::AbstractElement*>(context)->element();
+                    if (size)
+                        element.set_style_depends_on_size_container_query();
+                    if (style)
+                        element.set_style_depends_on_style_container_query();
+                },
+                [](void* context, void const* query, u16 const* name, size_t length) {
+                    return evaluate_native_container_condition(static_cast<Parser::ValueParserFFI::FfiQueryHandle const*>(query), { reinterpret_cast<char16_t const*>(name), length }, *static_cast<DOM::AbstractElement*>(context));
+                });
+            if (!matches)
                 continue;
         }
 
@@ -2721,8 +2717,11 @@ RefPtr<StyleComputer::CascadeInput const> StyleComputer::style_engine_cascade_in
             layer_name = target->qualified_layer_name;
 
         input->contributions.append({
-            .declaration = &declaration_of_rule(*target->rule),
+            .declaration = move(target->declaration),
+            .source_style_sheet = target->source_style_sheet,
             .style_engine_rule_id = StyleEngineRuleID { match.rule },
+            .rule_identity = target->rule_identity,
+            .declaration_version = target->declaration_version,
             .semantic_declaration_id = match.semantic_declaration,
             .source_shadow_root = context_shadow_root,
             .layer_name = layer_name,
@@ -2910,23 +2909,20 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
     // sources are collected and pinned here; the core derives the application order from
     // the origin and the author context and layer indices.
     struct BlockSource {
-        GC::Ptr<CSSStyleDeclaration const> source;
+        RefPtr<StyleSheetState const> source;
         GC::Ptr<DOM::ShadowRoot const> source_shadow_root;
     };
     Vector<ComputedValuesFFI::FfiCascadeDeclaration> all_declarations;
-    Vector<ComputedValuesFFI::FfiCustomPropertyDeclaration> all_custom_property_declarations;
     bool has_unresolved_declarations = false;
     bool has_custom_function_declarations = false;
     struct PendingBlock {
         ComputedValuesFFI::FfiCascadeBlock block;
         size_t declarations_offset { 0 };
-        size_t custom_property_declarations_offset { 0 };
     };
     Vector<PendingBlock> pending_blocks;
     Vector<BlockSource> block_sources;
-    Vector<FlatPtr> leaked_custom_property_names;
 
-    auto add_block = [&](ReadonlySpan<StyleProperty> properties, OrderedHashMap<Utf16FlyString, StyleProperty> const* custom_properties, CascadeOrigin origin, u32 author_context_index, u32 layer_index, bool is_inline_style, bool bypass_pseudo_element_property_whitelist, Optional<Utf16FlyString> const& layer_name, GC::Ptr<CSSStyleDeclaration const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root, StyleEngineRuleID style_engine_rule_id = {}) {
+    auto add_block = [&](ReadonlySpan<StyleProperty> properties, CascadeOrigin origin, u32 author_context_index, u32 layer_index, bool is_inline_style, bool bypass_pseudo_element_property_whitelist, Optional<Utf16FlyString> const& layer_name, RefPtr<StyleSheetState const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root, StyleEngineRuleID style_engine_rule_id = {}, Parser::ValueParserFFI::DeclarationBlockData const* native_declarations = nullptr) {
         auto declarations_offset = all_declarations.size();
         all_declarations.ensure_capacity(all_declarations.size() + properties.size());
         for (auto const& property : properties) {
@@ -2935,24 +2931,9 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
             all_declarations.unchecked_append({
                 .property_id = to_underlying(property.property_id),
                 .important = property.important == Important::Yes,
-                .has_style_sheet_context = property.value->has_style_sheet_context(),
+                .has_style_sheet_context = !!source || property.value->has_style_sheet_context(),
                 .data = property.value->rust_style_value_data(),
             });
-        }
-        auto custom_property_declarations_offset = all_custom_property_declarations.size();
-        if (custom_properties) {
-            all_custom_property_declarations.ensure_capacity(all_custom_property_declarations.size() + custom_properties->size());
-            for (auto const& [name, property] : *custom_properties) {
-                auto name_raw = name.to_raw_leaked();
-                leaked_custom_property_names.append(name_raw);
-                all_custom_property_declarations.unchecked_append({
-                    .name_raw = name_raw,
-                    .name = ffi_utf16_view(name),
-                    .important = property.important == Important::Yes,
-                    .is_revert_layer = property.value->is_revert_layer(),
-                    .data = property.value->rust_style_value_data(),
-                });
-            }
         }
         FlatPtr layer_name_raw = 0;
         if (layer_name.has_value()) {
@@ -2970,13 +2951,11 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
                 .source_shadow_root_identity = bit_cast<FlatPtr>(source_shadow_root.ptr()),
                 .source_id = static_cast<u32>(block_sources.size()),
                 .style_engine_rule_id = style_engine_rule_id.value(),
+                .native_declarations = native_declarations,
                 .declarations = nullptr,
                 .declaration_count = properties.size(),
-                .custom_property_declarations = nullptr,
-                .custom_property_declaration_count = custom_properties ? custom_properties->size() : 0,
             },
             .declarations_offset = declarations_offset,
-            .custom_property_declarations_offset = custom_property_declarations_offset,
         });
         block_sources.append({ source, source_shadow_root });
     };
@@ -2984,9 +2963,11 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
     // The user-agent and user origins contribute no custom properties, which is why only an author
     // block carries them.
     for (auto const& contribution : cascade_input.contributions) {
-        auto const& declaration = *contribution.declaration;
-        auto const* custom_properties = contribution.cascade_origin == CascadeOrigin::Author ? &declaration.custom_properties() : nullptr;
-        add_block(declaration.properties(), custom_properties, contribution.cascade_origin, contribution.author_context_index, contribution.layer_index, false, false, contribution.layer_name, &declaration, contribution.source_shadow_root, contribution.style_engine_rule_id);
+        auto const& declaration = contribution.declaration;
+        auto dependencies = declaration.dependencies();
+        has_unresolved_declarations |= dependencies.has_unresolved_values;
+        has_custom_function_declarations |= dependencies.has_custom_functions;
+        add_block({}, contribution.cascade_origin, contribution.author_context_index, contribution.layer_index, false, false, contribution.layer_name, contribution.source_style_sheet, contribution.source_shadow_root, contribution.style_engine_rule_id, declaration.data());
     }
 
     // Author presentational hints
@@ -3011,22 +2992,26 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
     }
 
     if (!presentational_hint_properties.is_empty())
-        add_block(presentational_hint_properties, nullptr, CascadeOrigin::AuthorPresentationalHint, 0, 0, false, false, {}, nullptr, nullptr);
+        add_block(presentational_hint_properties, CascadeOrigin::AuthorPresentationalHint, 0, 0, false, false, {}, nullptr, nullptr);
 
+    Optional<RustDeclarationBlockSnapshot> inline_declarations;
     if (inline_style) {
+        inline_declarations.emplace(Parser::ValueParserFFI::rust_declaration_block_snapshot(inline_style->declaration_block().handle()));
+        auto dependencies = inline_declarations->dependencies();
+        has_unresolved_declarations |= dependencies.has_unresolved_values;
+        has_custom_function_declarations |= dependencies.has_custom_functions;
         // NB: Inline style bypasses the pseudo-element property whitelist since inline style is used
         //     internally to style element-reference pseudo-elements and sometimes contains disallowed
         //     properties (e.g. input::placeholder has height set); authors can't set inline style on
         //     pseudo-elements so this doesn't cause any spec compliance issues.
-        add_block(inline_style->properties(), &inline_style->custom_properties(), CascadeOrigin::Author, *cascade_input.inline_style_context_index, 0, true, true, {}, inline_style, nullptr);
+        add_block({}, CascadeOrigin::Author, *cascade_input.inline_style_context_index, 0, true, true, {}, nullptr, nullptr, {}, inline_declarations->data());
     }
 
     Vector<ComputedValuesFFI::FfiCascadeBlock> blocks;
     blocks.ensure_capacity(pending_blocks.size());
     for (auto& pending : pending_blocks) {
-        pending.block.declarations = all_declarations.data() + pending.declarations_offset;
-        if (pending.block.custom_property_declaration_count > 0)
-            pending.block.custom_property_declarations = all_custom_property_declarations.data() + pending.custom_property_declarations_offset;
+        if (pending.block.declaration_count > 0)
+            pending.block.declarations = all_declarations.data() + pending.declarations_offset;
         blocks.unchecked_append(pending.block);
     }
 
@@ -3205,9 +3190,6 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
         ComputedValuesFFI::rust_cascade_result_destroy(cascade_result.storage, cascade_result.source_slot_assignment_count);
     };
     assign_source_slots(cascade_result.source_slot_assignments, cascade_result.source_slot_assignment_count);
-
-    for (auto custom_property_name_raw : leaked_custom_property_names)
-        Utf16FlyString::unref_raw(custom_property_name_raw);
 
     // Transition declarations [css-transitions-1]
     // Note that we have to do these after finishing computing the style,
@@ -4579,8 +4561,12 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
                 record->custom_property_reads.extend(references.names);
             };
             for (auto const& contribution : input.contributions) {
-                if (contribution.declaration)
-                    add_block(*contribution.declaration);
+                auto visit = [](void* context, u16 const* name, size_t name_length) {
+                    static_cast<Vector<Utf16FlyString>*>(context)->append(Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(name), name_length }));
+                };
+                if (!Parser::ValueParserFFI::rust_declaration_data_visit_custom_property_references(
+                        contribution.declaration.data(), &record->custom_property_reads, visit))
+                    record->custom_property_reads_are_complete = false;
             }
             if (include_inline_style == IncludeInlineStyle::Yes && input.inline_style_context_index.has_value()) {
                 if (auto inline_style = abstract_element.inline_style())
@@ -4837,7 +4823,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             return false;
         auto existing = abstract_element.custom_property_data();
         auto declares_custom_properties = any_of(cascade_input.contributions, [](auto const& contribution) {
-            return contribution.cascade_origin == CascadeOrigin::Author && contribution.declaration && !contribution.declaration->custom_properties().is_empty();
+            return contribution.cascade_origin == CascadeOrigin::Author && contribution.declaration.dependencies().has_custom_properties;
         });
         if (include_inline_style == IncludeInlineStyle::Yes && cascade_input.inline_style_context_index.has_value()) {
             if (auto inline_style = abstract_element.inline_style(); inline_style && !inline_style->custom_properties().is_empty())
@@ -5652,11 +5638,9 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                 for (size_t slot = 0; slot < context.cascaded_properties.source_slot_count(); ++slot) {
                     auto& resource_context = state.style_sheet_resource_contexts[slot];
                     auto source = context.cascaded_properties.source_for_slot(static_cast<u32>(slot));
-                    if (!source || !source->parent_rule())
+                    if (!source)
                         continue;
-                    auto style_sheet = source->parent_rule()->parent_style_sheet();
-                    if (!style_sheet)
-                        continue;
+                    auto* style_sheet = const_cast<StyleSheetState*>(source.ptr());
                     computed_style.set_style_sheet_for_source_slot(static_cast<u32>(slot), style_sheet);
                     auto base_url = style_sheet->style_resource_base_url();
                     if (base_url.has_value())

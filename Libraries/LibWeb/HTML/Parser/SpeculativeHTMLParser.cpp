@@ -152,7 +152,7 @@ bool media_attribute_matches_environment(DOM::Document const& document, RustFfiP
     if (media.is_empty())
         return true;
 
-    auto media_queries = parse_media_query_list(CSS::Parser::ParsingParams(document), media);
+    auto media_queries = parse_media_query_list(media);
     for (auto const& media_query : media_queries) {
         if (media_query->evaluate(document))
             return true;

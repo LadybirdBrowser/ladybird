@@ -15,9 +15,9 @@
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibURL/URL.h>
-#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/StyleSheetList.h>
+#include <LibWeb/CSS/StyleScope.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/DOM/DOMTokenList.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
@@ -102,17 +102,17 @@ void HTMLLinkElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ance
         //     inside a shadow tree within a larger removed subtree, `old_root`
         //     is the outer subtree's root, not the shadow root that actually
         //     contains our stylesheet. Use the sheet's own tracked owning
-        //     root, which is the one whose StyleSheetList it belongs to.
+        //     root, which is the one whose style scope owns it.
         auto const& owning_roots = m_loaded_style_sheet->owning_documents_or_shadow_roots();
         VERIFY(owning_roots.size() == 1);
         auto& owning_root = **owning_roots.begin();
-        auto& style_sheet_list = [&owning_root] -> CSS::StyleSheetList& {
+        auto& style_scope = [&owning_root] -> CSS::StyleScope& {
             if (auto* shadow_root = as_if<DOM::ShadowRoot>(owning_root))
-                return shadow_root->style_sheets();
-            return as<DOM::Document>(owning_root).style_sheets();
+                return shadow_root->style_scope();
+            return as<DOM::Document>(owning_root).style_scope();
         }();
 
-        style_sheet_list.remove_a_css_style_sheet(*m_loaded_style_sheet);
+        style_scope.remove_a_css_style_sheet(*m_loaded_style_sheet);
         m_loaded_style_sheet = nullptr;
     }
 }
@@ -127,12 +127,12 @@ void HTMLLinkElement::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<Node> ol
     auto const& owning_roots = m_loaded_style_sheet->owning_documents_or_shadow_roots();
     VERIFY(owning_roots.size() == 1);
     auto& owning_root = **owning_roots.begin();
-    auto& source = [&owning_root] -> CSS::StyleSheetList& {
+    auto& source = [&owning_root] -> CSS::StyleScope& {
         if (auto* shadow_root = as_if<DOM::ShadowRoot>(owning_root))
-            return shadow_root->style_sheets();
-        return as<DOM::Document>(owning_root).style_sheets();
+            return shadow_root->style_scope();
+        return as<DOM::Document>(owning_root).style_scope();
     }();
-    source.move_sheet(*m_loaded_style_sheet, document_or_shadow_root_style_sheets());
+    source.move_sheet(*m_loaded_style_sheet, document_or_shadow_root_style_scope());
 }
 
 // https://html.spec.whatwg.org/multipage/semantics.html#dom-link-rellist
@@ -166,7 +166,12 @@ Utf16String HTMLLinkElement::media() const
 }
 
 // https://drafts.csswg.org/cssom/#dom-linkstyle-sheet
-GC::Ptr<CSS::CSSStyleSheet> HTMLLinkElement::sheet() const
+CSS::CSSStyleSheet* HTMLLinkElement::cssom_sheet() const
+{
+    return m_loaded_style_sheet ? &m_loaded_style_sheet->cssom_sheet() : nullptr;
+}
+
+RefPtr<CSS::StyleSheetState> HTMLLinkElement::sheet() const
 {
     return m_loaded_style_sheet;
 }
@@ -246,7 +251,7 @@ void HTMLLinkElement::attribute_changed(Utf16FlyString const& name, Optional<Utf
 
     if ((m_relationship & Relationship::Stylesheet) && m_loaded_style_sheet) {
         if (name == HTML::AttributeNames::disabled) {
-            document_or_shadow_root_style_sheets().remove_a_css_style_sheet(*m_loaded_style_sheet);
+            document_or_shadow_root_style_scope().remove_a_css_style_sheet(*m_loaded_style_sheet);
             m_loaded_style_sheet = nullptr;
         } else if (name == HTML::AttributeNames::media) {
             m_loaded_style_sheet->set_media(value.has_value() ? value->utf16_view() : u""sv);
@@ -608,7 +613,7 @@ static bool media_attribute_matches_environment(DOM::Document const& document, U
     if (media.is_empty())
         return true;
 
-    auto media_queries = parse_media_query_list(CSS::Parser::ParsingParams(document), media);
+    auto media_queries = parse_media_query_list(media);
     for (auto const& media_query : media_queries) {
         if (media_query->evaluate(document))
             return true;
@@ -1028,7 +1033,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
 
     // 3. If el has an associated CSS style sheet, remove the CSS style sheet.
     if (m_loaded_style_sheet) {
-        document_or_shadow_root_style_sheets().remove_a_css_style_sheet(*m_loaded_style_sheet);
+        document_or_shadow_root_style_scope().remove_a_css_style_sheet(*m_loaded_style_sheet);
         m_loaded_style_sheet = nullptr;
     }
 
@@ -1074,7 +1079,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
         } else {
             VERIFY(!response.url_list().is_empty());
             m_stylesheet_processing_pending = true;
-            CSS::Parser::RustSyntaxParser::parse_stylesheet_off_thread(
+            CSS::Parser::Parser::parse_stylesheet_off_thread(
                 CSS::Parser::ParsingParams { document() }, maybe_decoded_string.release_value(),
                 [link = GC::make_root(*this), loaded_document = GC::make_root(document()), fetch_generation = m_current_fetch_generation, location = response.url_list().first()](CSS::Parser::RustStyleSheetParse parsed) mutable {
                     if (fetch_generation != link->m_current_fetch_generation || !link->m_stylesheet_processing_pending)
@@ -1096,15 +1101,15 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
                                 return;
                             }
 
-                            auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingParams { *loaded_document }, u""sv);
+                            CSS::Parser::Parser parser { CSS::Parser::ParsingParams { *loaded_document } };
                             auto sheet = parser.create_css_stylesheet(parsed, location);
                             auto media = link->attribute(HTML::AttributeNames::media);
                             auto title = link->in_a_document_tree() ? link->attribute(HTML::AttributeNames::title) : Optional<Utf16String> {};
-                            link->document_or_shadow_root_style_sheets().initialize_a_css_style_sheet(
+                            link->document_or_shadow_root_style_scope().initialize_a_css_style_sheet(
                                 *sheet, link.ptr(), media.has_value() ? media->utf16_view() : u""sv,
                                 title.has_value() ? title.release_value() : Utf16String {},
-                                (link->m_relationship & Relationship::Alternate && !link->m_explicitly_enabled) ? CSS::StyleSheetList::Alternate::Yes : CSS::StyleSheetList::Alternate::No,
-                                CSS::StyleSheetList::OriginClean::Yes, nullptr, nullptr);
+                                (link->m_relationship & Relationship::Alternate && !link->m_explicitly_enabled) ? CSS::StyleScope::Alternate::Yes : CSS::StyleScope::Alternate::No,
+                                CSS::StyleScope::OriginClean::Yes, nullptr, nullptr);
                             link->m_loaded_style_sheet = sheet;
 
                             // NB: Removing disabled explicitly enables the sheet, even if its title would disable it.
@@ -1158,8 +1163,8 @@ void HTMLLinkElement::finish_processing_stylesheet_resource(u64 fetch_generation
 
     if (m_loaded_style_sheet) {
         auto style_sheet_loading_state = m_loaded_style_sheet->loading_state();
-        if (style_sheet_loading_state == CSS::CSSStyleSheet::LoadingState::Loaded || style_sheet_loading_state == CSS::CSSStyleSheet::LoadingState::Error) {
-            finished_loading_critical_style_subresources(style_sheet_loading_state == CSS::CSSStyleSheet::LoadingState::Error ? AnyFailed::Yes : AnyFailed::No);
+        if (style_sheet_loading_state == CSS::StyleSheetState::LoadingState::Loaded || style_sheet_loading_state == CSS::StyleSheetState::LoadingState::Error) {
+            finished_loading_critical_style_subresources(style_sheet_loading_state == CSS::StyleSheetState::LoadingState::Error ? AnyFailed::Yes : AnyFailed::No);
         }
     } else {
         m_document_load_event_delayer.clear();

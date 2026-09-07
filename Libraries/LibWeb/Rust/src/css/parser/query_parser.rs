@@ -162,6 +162,24 @@ pub struct FfiMediaEnvironment {
     pub length_resolution_context: *const c_void,
 }
 
+#[derive(Clone, Copy)]
+pub(crate) struct MediaEnvironment<'a> {
+    values: Option<&'a [FfiMediaFeatureValue]>,
+    length_context: Option<&'a FfiLengthResolutionContext>,
+}
+
+impl FfiMediaEnvironment {
+    /// # Safety
+    /// The feature values and optional length context must remain readable while borrowed.
+    pub(crate) unsafe fn borrow(&self) -> MediaEnvironment<'_> {
+        let data = unsafe { ffi_media_environment(self) };
+        MediaEnvironment {
+            values: data.map(|(values, _)| values),
+            length_context: data.and_then(|(_, context)| context),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum FfiContainerStyleFeatureKind {
@@ -785,7 +803,7 @@ where
     (!stream.has_next_token()).then_some(expression)
 }
 
-fn invalid_media_query() -> MediaQuery {
+pub(crate) fn invalid_media_query() -> MediaQuery {
     MediaQuery {
         negated: true,
         media_type: Some(ParserString::from(
@@ -1338,6 +1356,46 @@ pub struct FfiQueryHandle {
     tree: QueryTree,
 }
 
+impl FfiQueryHandle {
+    pub(crate) fn container_requirements(&self) -> u8 {
+        let QueryTree::Expression {
+            expression,
+            kind: QueryKind::Size,
+        } = &self.tree
+        else {
+            return CONTAINER_QUERY_HAS_UNKNOWN_FEATURE;
+        };
+        container_requirements(expression)
+    }
+
+    pub(crate) fn matches_media(&self, environment: MediaEnvironment<'_>) -> bool {
+        let QueryTree::MediaQuery(query) = &self.tree else {
+            return false;
+        };
+        environment
+            .values
+            .is_some_and(|values| evaluate_media_query(query, values, environment.length_context) == MatchResult::True)
+    }
+
+    pub(crate) fn evaluate_supports(&self) -> Option<MatchResult> {
+        let QueryTree::Expression {
+            expression,
+            kind: QueryKind::Supports,
+        } = &self.tree
+        else {
+            return None;
+        };
+        Some(evaluate_supports_expression(expression))
+    }
+
+    pub(crate) fn media_text(&self) -> Vec<u16> {
+        let QueryTree::MediaQuery(query) = &self.tree else {
+            unreachable!();
+        };
+        serialize_media_query(query)
+    }
+}
+
 pub(crate) fn media_query_handle(query: MediaQuery) -> Arc<FfiQueryHandle> {
     Arc::new(FfiQueryHandle {
         tree: QueryTree::MediaQuery(query),
@@ -1656,7 +1714,6 @@ fn media_value_parse_context(value_context: &FfiValueParsingContext) -> ParseCon
         value_contexts: value_context,
         value_context_count: 1,
         declared_namespaces: std::ptr::null(),
-        declared_namespace_count: 0,
         document_url: std::ptr::null(),
         document_url_length: 0,
         document_base_url: std::ptr::null(),
@@ -2169,7 +2226,7 @@ pub(crate) unsafe fn parse_and_evaluate_supports_if_condition(
     source: &[u16],
     context: &ParseContext,
 ) -> Option<MatchResult> {
-    let declared_namespaces = unsafe { declared_namespaces_from_context(context) }?;
+    let declared_namespaces = unsafe { declared_namespaces_from_context(context) };
     let evaluate_feature =
         |kind: SupportsFeatureKind, value: &[u16]| supports_feature_matches(context, &declared_namespaces, kind, value);
     // NB: Mirrors the supports arm of evaluate_condition_for_substitution, which this series
@@ -2485,7 +2542,7 @@ fn evaluate_media_query(
 
 type VisitQueryHandle = unsafe extern "C" fn(*mut c_void, *const FfiQueryHandle);
 
-type VisitQuerySerialization = unsafe extern "C" fn(*mut c_void, *const u16, usize);
+pub(crate) type VisitQuerySerialization = unsafe extern "C" fn(*mut c_void, *const u16, usize);
 
 enum SourceSizeValue {
     Auto,
@@ -2637,15 +2694,12 @@ pub unsafe extern "C" fn rust_parse_sizes_attribute(
     .cast()
 }
 
-pub(crate) unsafe fn declared_namespaces_from_context(context: &ParseContext) -> Option<Vec<TokenizerInput<'_>>> {
-    let namespaces = if context.declared_namespace_count == 0 {
-        &[][..]
-    } else {
-        unsafe { std::slice::from_raw_parts(context.declared_namespaces, context.declared_namespace_count) }
-    };
+pub(crate) unsafe fn declared_namespaces_from_context(context: &ParseContext) -> Vec<TokenizerInput<'_>> {
+    let namespaces = unsafe { context.declared_namespaces.as_ref() };
     namespaces
-        .iter()
-        .map(|namespace| unsafe { namespace.units() })
+        .into_iter()
+        .flat_map(|namespaces| namespaces.prefixes.iter())
+        .map(|namespace| TokenizerInput::Utf16(namespace.units()))
         .collect()
 }
 
@@ -2694,9 +2748,7 @@ pub unsafe extern "C" fn rust_parse_supports_condition(
     let Some(context) = (unsafe { context.as_ref() }) else {
         return std::ptr::null();
     };
-    let Some(declared_namespaces) = (unsafe { declared_namespaces_from_context(context) }) else {
-        return std::ptr::null();
-    };
+    let declared_namespaces = unsafe { declared_namespaces_from_context(context) };
     let Some(expression) = parse_supports_condition(source, &|kind, value| {
         supports_feature_matches(context, &declared_namespaces, kind, value)
     }) else {
@@ -2780,16 +2832,7 @@ pub unsafe extern "C" fn css_query_evaluate_media(
     handle: *const FfiQueryHandle,
     environment: FfiMediaEnvironment,
 ) -> bool {
-    let Some(handle) = (unsafe { handle.as_ref() }) else {
-        return false;
-    };
-    let QueryTree::MediaQuery(query) = &handle.tree else {
-        return false;
-    };
-    let Some((values, length_context)) = (unsafe { ffi_media_environment(&environment) }) else {
-        return false;
-    };
-    evaluate_media_query(query, values, length_context) == MatchResult::True
+    unsafe { handle.as_ref() }.is_some_and(|handle| handle.matches_media(unsafe { environment.borrow() }))
 }
 
 /// Evaluates a retained standalone media condition against an immutable feature snapshot.
@@ -2826,17 +2869,9 @@ pub unsafe extern "C" fn css_query_evaluate_media_condition(
 /// `handle` must point to a live supports-expression handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn css_query_evaluate_supports(handle: *const FfiQueryHandle) -> u8 {
-    let Some(handle) = (unsafe { handle.as_ref() }) else {
-        return 3;
-    };
-    let QueryTree::Expression {
-        expression,
-        kind: QueryKind::Supports,
-    } = &handle.tree
-    else {
-        return 3;
-    };
-    evaluate_supports_expression(expression) as u8
+    unsafe { handle.as_ref() }
+        .and_then(FfiQueryHandle::evaluate_supports)
+        .map_or(3, |result| result as u8)
 }
 
 /// Returns the query-container capabilities needed by a retained container condition.
@@ -2845,17 +2880,10 @@ pub unsafe extern "C" fn css_query_evaluate_supports(handle: *const FfiQueryHand
 /// `handle` must point to a live container-expression handle.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn css_query_container_requirements(handle: *const FfiQueryHandle) -> u8 {
-    let Some(handle) = (unsafe { handle.as_ref() }) else {
-        return CONTAINER_QUERY_HAS_UNKNOWN_FEATURE;
-    };
-    let QueryTree::Expression {
-        expression,
-        kind: QueryKind::Size,
-    } = &handle.tree
-    else {
-        return CONTAINER_QUERY_HAS_UNKNOWN_FEATURE;
-    };
-    container_requirements(expression)
+    unsafe { handle.as_ref() }.map_or(
+        CONTAINER_QUERY_HAS_UNKNOWN_FEATURE,
+        FfiQueryHandle::container_requirements,
+    )
 }
 
 /// Evaluates a retained container condition against immutable size facts and style callbacks.

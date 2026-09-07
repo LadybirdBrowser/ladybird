@@ -1,0 +1,54 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const svgNamespace = "http://www.w3.org/2000/svg";
+    const source = `
+        @namespace "${svgNamespace}";
+        @namespace 名 "urn:unused";
+        @namespace 名 "${svgNamespace}";
+        名|svg > 名|rect, rect { --hit: original; }
+    `;
+    function createScope() {
+        const host = document.body.appendChild(document.createElement("div"));
+        const root = host.attachShadow({ mode: "open" });
+        root.innerHTML = `<svg><rect></rect><circle></circle></svg><rect></rect>`;
+        const noNamespace = root.appendChild(document.createElementNS(null, "rect"));
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(source);
+        root.adoptedStyleSheets = [sheet];
+        return { root, sheet, noNamespace };
+    }
+    const first = createScope();
+    const second = createScope();
+    const hit = element => getComputedStyle(element).getPropertyValue("--hit");
+    const rect = scope => scope.root.querySelector("svg rect");
+    println(`duplicate prefix uses last namespace: ${hit(rect(first)) === "original"}`);
+    println(`default namespace excludes HTML: ${hit(first.root.children[1]) === ""}`);
+    println(`default namespace excludes null namespace: ${hit(first.noNamespace) === ""}`);
+    first.sheet.cssRules[3].selectorText = "名|svg > 名|circle";
+    internals.gc();
+    println(`replacement keeps namespace bindings: ${hit(first.root.querySelector("circle")) === "original"}`);
+    println(`replacement stops matching old selector: ${hit(rect(first)) === ""}`);
+    println(`shared parse keeps independent selectors: ${hit(rect(second)) === "original"}`);
+    const emptyNamespace = new CSSStyleSheet();
+    emptyNamespace.replaceSync('@namespace ""; rect { --hit: empty; }');
+    first.root.adoptedStyleSheets = [emptyNamespace];
+    println(`empty namespace matches null namespace: ${hit(first.noNamespace) === "empty"}`);
+    println(`empty namespace excludes SVG: ${hit(rect(first)) === ""}`);
+    const edited = new CSSStyleSheet();
+    edited.replaceSync(`@namespace p "${svgNamespace}";`);
+    edited.deleteRule(0);
+    try {
+        edited.insertRule("p|rect { --hit: stale; }");
+        println("deleted namespace rejects selectors: false");
+    } catch (error) {
+        println(`deleted namespace rejects selectors: ${error.name === "SyntaxError"}`);
+    }
+    edited.insertRule(`@namespace p "${svgNamespace}";`);
+    edited.insertRule("p|rect { --hit: inserted; }", 1);
+    first.root.adoptedStyleSheets = [edited];
+    println(`inserted namespace reaches compiler: ${hit(rect(first)) === "inserted"}`);
+});
+</script>

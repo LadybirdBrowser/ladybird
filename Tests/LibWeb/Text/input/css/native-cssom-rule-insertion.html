@@ -1,0 +1,37 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const sheet = new CSSStyleSheet();
+    document.adoptedStyleSheets = [sheet];
+    const target = document.createElement("div");
+    target.className = "target";
+    document.body.append(target);
+    println(`insert without cssRules: ${sheet.insertRule(".target { width: 17px; }", 0)}`);
+    println(`native rule applies: ${getComputedStyle(target).width}`);
+    sheet.insertRule("@media all { .target { padding-top: 19px; } }", 1);
+    println(`native subtree applies: ${getComputedStyle(target).paddingTop}`);
+    const list = sheet.cssRules;
+    const first = list[0];
+    sheet.insertRule(".target { color: red; }", 0);
+    println(`live list and stable wrapper: ${list.length}, ${list[1] === first}`);
+    first.insertRule("height: 23px;", 0);
+    println(`native nested declarations apply: ${getComputedStyle(target).height}`);
+    const declarations = first.cssRules[0];
+    println(`lazy parents: ${first.parentStyleSheet === sheet}, ${declarations.parentRule === first}`);
+    first.insertRule("& { height: 29px; }", 1);
+    println(`native nested style applies: ${getComputedStyle(target).height}`);
+    for (const [text, index] of [["[", 99], ["div {}", 99], ["@namespace p url(urn:p);", 0], ["@import url(a.css);", 0]]) {
+        try {
+            sheet.insertRule(text, index);
+        } catch (error) {
+            println(`insertion error: ${error.name}`);
+        }
+    }
+    println(`failed insertions preserve list: ${list.length}`);
+    internals.gc();
+    println(`retained nested wrapper: ${first.cssRules[0] === declarations}`);
+    target.remove();
+    document.adoptedStyleSheets = [];
+});
+</script>

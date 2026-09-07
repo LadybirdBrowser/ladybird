@@ -54,7 +54,8 @@ public:
     void set_media(Utf16View);
     Utf16String media() const;
 
-    GC::Ptr<CSS::CSSStyleSheet> sheet() const;
+    RefPtr<CSS::StyleSheetState> sheet() const;
+    CSS::CSSStyleSheet* cssom_sheet() const;
 
     enum class AnyFailed : u8 {
         No,
@@ -199,7 +200,7 @@ private:
     };
 
     Optional<LoadedIcon> m_loaded_icon;
-    GC::Ptr<CSS::CSSStyleSheet> m_loaded_style_sheet;
+    RefPtr<CSS::StyleSheetState> m_loaded_style_sheet;
 
     GC::Ptr<DOM::DOMTokenList> m_rel_list;
     GC::Ptr<DOM::DOMTokenList> m_sizes;

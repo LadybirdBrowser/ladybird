@@ -1,0 +1,34 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const source = '@media all { @font-face { font-family: "書体"; src: url("../../../Assets/HashSans.woff"); font-weight: 400; } }';
+    const sheets = [new CSSStyleSheet(), new CSSStyleSheet()];
+    for (const sheet of sheets)
+        sheet.replaceSync(source);
+    document.adoptedStyleSheets = sheets;
+    const [first, second] = [...document.fonts];
+    println(`independent connections: ${document.fonts.size === 2 && first !== second}`);
+    println(`native descriptors: ${first.family}, ${first.weight}, ${second.weight}`);
+
+    first.weight = "700";
+    const oldRule = sheets[0].cssRules[0].cssRules[0];
+    println(`FontFace mutation: ${oldRule.style.fontWeight}, ${second.weight}`);
+    sheets[0].deleteRule(0);
+    println(`disconnect removed rule: ${!document.fonts.has(first) && document.fonts.has(second)}`);
+    first.weight = "300";
+    println(`detached face stops writing rule: ${oldRule.style.fontWeight}`);
+
+    sheets[0].insertRule(source, 0);
+    const replacement = [...document.fonts][0];
+    println(`reinsert creates fresh connection: ${replacement !== first && replacement !== second}`);
+    oldRule.style.fontWeight = "900";
+    println(`detached rule stays independent: ${replacement.weight}, ${second.weight}`);
+    replacement.weight = "500";
+    println(`replacement mutation: ${sheets[0].cssRules[0].cssRules[0].style.fontWeight}`);
+    sheets[0].replaceSync(source);
+    println(`replace disconnects old face: ${!document.fonts.has(replacement)}`);
+    println(`replacement order: ${[...document.fonts][1] === second}`);
+    println(`replacement descriptors: ${[...document.fonts][0].weight}, ${second.weight}`);
+});
+</script>

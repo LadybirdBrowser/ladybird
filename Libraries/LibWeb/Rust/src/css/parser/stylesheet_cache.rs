@@ -128,7 +128,6 @@ impl ContextKey {
             value_contexts: borrowed_value_contexts,
             value_context_count,
             declared_namespaces: borrowed_declared_namespaces,
-            declared_namespace_count,
             document_url,
             document_url_length,
             document_base_url,
@@ -151,10 +150,11 @@ impl ContextKey {
                 name: unsafe { own_view(name) }?,
             });
         }
-        let mut declared_namespaces = Vec::with_capacity(declared_namespace_count);
-        for index in 0..declared_namespace_count {
-            declared_namespaces.push(unsafe { own_view(*borrowed_declared_namespaces.add(index)) }?);
-        }
+        let declared_namespaces = unsafe { borrowed_declared_namespaces.as_ref() }
+            .into_iter()
+            .flat_map(|namespaces| namespaces.prefixes.iter())
+            .map(|namespace| namespace.units().into())
+            .collect();
         let length_resolution = match unsafe { length_resolution_context.cast::<FfiLengthResolutionContext>().as_ref() }
         {
             Some(context) => Some(LengthResolutionKey::new(context)?),

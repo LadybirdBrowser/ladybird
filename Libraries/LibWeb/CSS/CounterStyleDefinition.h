@@ -10,6 +10,8 @@
 
 namespace Web::CSS {
 
+class RustDescriptorBlock;
+
 struct CounterStyleRangeEntry {
     i32 start;
     i32 end;
@@ -99,7 +101,7 @@ public:
         return CounterStyleDefinition(move(name), move(algorithm), move(negative_sign), move(prefix), move(suffix), move(range), move(fallback), move(pad));
     }
 
-    static Optional<CounterStyleDefinition> from_counter_style_rule(CSSCounterStyleRule const&, ComputationContext const&);
+    static Optional<CounterStyleDefinition> from_descriptors(Utf16View name, RustDescriptorBlock const&, ComputationContext const&);
 
     Utf16FlyString const& name() const { return m_name; }
 

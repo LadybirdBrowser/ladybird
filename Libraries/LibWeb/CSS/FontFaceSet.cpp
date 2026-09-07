@@ -6,6 +6,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashMap.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapVector.h>
 #include <LibGC/Root.h>
@@ -17,14 +18,13 @@
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/CSS/BindingsGlue.h>
-#include <LibWeb/CSS/CSSFontFaceRule.h>
-#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/FontFaceSet.h>
 #include <LibWeb/CSS/FontFaceSetLoadEvent.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/DOM/Document.h>
@@ -68,8 +68,9 @@ void FontFaceSet::visit_edges(Cell::Visitor& visitor)
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-add
-WebIDL::ExceptionOr<GC::Ref<FontFaceSet>> FontFaceSet::add(GC::Ref<FontFace> face)
+WebIDL::ExceptionOr<GC::Ref<FontFaceSet>> FontFaceSet::add(GC::Ref<FontFace> exposed_face)
 {
+    NonnullRefPtr face { exposed_face->state() };
     // 1. If font is already in the FontFaceSet’s set entries, skip to the last step of this algorithm immediately.
     if (m_font_faces.contains([&](auto const& entry) { return entry.ptr() == face.ptr(); }))
         return GC::Ref<FontFaceSet>(*this);
@@ -87,7 +88,7 @@ WebIDL::ExceptionOr<GC::Ref<FontFaceSet>> FontFaceSet::add(GC::Ref<FontFace> fac
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-add
-void FontFaceSet::add_css_connected_font(GC::Ref<FontFace> face)
+void FontFaceSet::add_css_connected_font(NonnullRefPtr<FontFaceState> face)
 {
     // 3. Add the font argument to the FontFaceSet’s set entries.
     if (m_font_faces.contains_slow(face))
@@ -126,16 +127,20 @@ void FontFaceSet::synchronize_css_connected_font_order()
     if (!window)
         return;
 
-    Vector<GC::Ref<FontFace>> ordered_font_faces;
-    Function<void(CSSStyleSheet&)> append_fonts_from_sheet = [&](CSSStyleSheet& sheet) {
-        sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& rule) {
-            auto const* font_face_rule = as_if<CSSFontFaceRule>(rule);
-            if (!font_face_rule)
+    HashMap<u64, NonnullRefPtr<FontFaceState>> connected_font_faces;
+    for (auto& font_face : m_font_faces) {
+        if (auto identity = font_face->css_rule_identity(); identity.has_value())
+            connected_font_faces.set(*identity, font_face);
+    }
+    Vector<NonnullRefPtr<FontFaceState>> ordered_font_faces;
+    Function<void(StyleSheetState&)> append_fonts_from_sheet = [&](StyleSheetState& sheet) {
+        sheet.for_each_effective_rule_data(TraversalOrder::Preorder, [&](RustRuleView const& rule, Utf16View) {
+            if (rule.type() != RustRule::Type::FontFace)
                 return;
-            auto font_face = font_face_rule->css_connected_font_face();
-            if (!font_face)
+            auto font_face = connected_font_faces.get(rule.identity());
+            if (!font_face.has_value())
                 return;
-            GC::Ref<FontFace> font_face_ref { *font_face };
+            NonnullRefPtr font_face_ref { **font_face };
             if (!ordered_font_faces.contains_slow(font_face_ref))
                 ordered_font_faces.append(font_face_ref);
         });
@@ -173,15 +178,15 @@ void FontFaceSet::synchronize_css_connected_font_order()
 // https://drafts.csswg.org/css-font-loading/#dom-fontfaceset-delete
 bool FontFaceSet::delete_(GC::Ref<FontFace> face)
 {
-    return remove_font_face(face, AllowCSSConnected::No);
+    return remove_font_face(face->state(), AllowCSSConnected::No);
 }
 
-void FontFaceSet::remove_css_connected_font(GC::Ref<FontFace> face)
+void FontFaceSet::remove_css_connected_font(NonnullRefPtr<FontFaceState> face)
 {
     remove_font_face(face, AllowCSSConnected::Yes);
 }
 
-bool FontFaceSet::remove_font_face(GC::Ref<FontFace> face, AllowCSSConnected allow_css_connected)
+bool FontFaceSet::remove_font_face(NonnullRefPtr<FontFaceState> face, AllowCSSConnected allow_css_connected)
 {
     // 1. If font is CSS-connected, return false and exit this algorithm immediately.
     if (allow_css_connected == AllowCSSConnected::No && face->is_css_connected()) {
@@ -200,7 +205,7 @@ bool FontFaceSet::remove_font_face(GC::Ref<FontFace> face, AllowCSSConnected all
     // 2. Let deleted be the result of removing font from the FontFaceSet’s set entries.
     bool deleted = m_font_faces.remove_first_matching([&](auto const& entry) { return entry.ptr() == face.ptr(); });
     VERIFY(deleted);
-    Bindings::did_remove_font_face(*this, GC::Ref { *face });
+    Bindings::did_remove_font_face(*this, *face);
     face->remove_from_set(*this);
 
     // 3. If font is present in the FontFaceSet’s [[LoadedFonts]], or [[FailedFonts]] lists, remove it.
@@ -280,7 +285,7 @@ WebIDL::CallbackType* FontFaceSet::onloadingerror()
 }
 
 // https://drafts.csswg.org/css-font-loading/#find-the-matching-font-faces
-static WebIDL::ExceptionOr<GC::Ref<GC::HeapVector<GC::Ref<FontFace>>>> find_matching_font_faces(FontFaceSet& font_face_set, Utf16String const& font, Utf16String const& text)
+static WebIDL::ExceptionOr<GC::Ref<GC::HeapVector<NonnullRefPtr<FontFaceState>>>> find_matching_font_faces(FontFaceSet& font_face_set, Utf16String const& font, Utf16String const& text)
 {
     // 1. Parse font using the CSS value syntax of the font property. If a syntax error occurs, return a syntax error.
     auto property = parse_css_value(CSS::Parser::ParsingParams(), font, PropertyID::Font);
@@ -300,7 +305,7 @@ static WebIDL::ExceptionOr<GC::Ref<GC::HeapVector<GC::Ref<FontFace>>>> find_matc
     auto const& font_family_list = property->as_shorthand().longhand(PropertyID::FontFamily)->as_value_list();
 
     // 5. Let matched font faces initially be an empty list.
-    auto matched_font_faces = GC::Heap::the().allocate<GC::HeapVector<GC::Ref<FontFace>>>();
+    auto matched_font_faces = GC::Heap::the().allocate<GC::HeapVector<NonnullRefPtr<FontFaceState>>>();
 
     // 6. For each family in font family list, use the font matching rules to select the font faces from available font
     //    faces that match the font style, and add them to matched font faces. The use of the unicodeRange attribute means
@@ -440,18 +445,14 @@ GC::Ref<WebIDL::Promise> FontFaceSet::ready()
 }
 
 // https://drafts.csswg.org/css-font-loading/#fire-a-font-load-event
-void FontFaceSet::fire_a_font_load_event(Utf16FlyString name, Vector<GC::Ref<FontFace>> font_faces)
+void FontFaceSet::fire_a_font_load_event(Utf16FlyString name, Vector<NonnullRefPtr<FontFaceState>> font_faces)
 {
     // To fire a font load event named e at a FontFaceSet target with optional font faces means to fire a simple
     // event named e using the FontFaceSetLoadEvent interface that also meets these conditions:
     // 1. The fontfaces attribute is initialized to the result of filtering font faces to only contain FontFace
     //    objects contained in target.
-    FontFaceSetLoadEventInit load_event_init;
-    for (auto const& font_face : font_faces) {
-        if (m_font_faces.contains_slow(font_face))
-            load_event_init.fontfaces.append(font_face);
-    }
-    dispatch_event(FontFaceSetLoadEvent::create(name, load_event_init, HighResolutionTime::current_high_resolution_time(relevant_settings_object().global_object())));
+    font_faces.remove_all_matching([&](auto const& font_face) { return !m_font_faces.contains_slow(font_face); });
+    dispatch_event(FontFaceSetLoadEvent::create_for_fonts(name, move(font_faces), HighResolutionTime::current_high_resolution_time(relevant_settings_object().global_object())));
 }
 
 // https://drafts.csswg.org/css-font-loading/#ref-for-fontfaceset-pending-on-the-environment%E2%91%A1
@@ -560,24 +561,24 @@ static WrapperWorldWeakValueCache<JS::Set>& font_face_set_cache_for(CSS::FontFac
     return font_face_set_caches().cache_for(font_face_set);
 }
 
-static JS::Value wrap_font_face(JS::Realm& realm, GC::Ref<CSS::FontFace> font_face)
+static JS::Value wrap_font_face(JS::Realm& realm, NonnullRefPtr<CSS::FontFaceState> font_face)
 {
-    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, font_face);
+    return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { font_face->cssom_font_face() });
 }
 
-static void add_font_face_to_set(JS::Set& set_entries, GC::Ref<CSS::FontFace> font_face)
+static void add_font_face_to_set(JS::Set& set_entries, NonnullRefPtr<CSS::FontFaceState> font_face)
 {
     auto& realm = HTML::relevant_realm(set_entries);
     set_entries.set_add(wrap_font_face(realm, font_face));
 }
 
-static void remove_font_face_from_set(JS::Set& set_entries, GC::Ref<CSS::FontFace> font_face)
+static void remove_font_face_from_set(JS::Set& set_entries, NonnullRefPtr<CSS::FontFaceState> font_face)
 {
     auto& realm = HTML::relevant_realm(set_entries);
     set_entries.set_remove(wrap_font_face(realm, font_face));
 }
 
-static GC::Root<JS::Set> create_set_entries(JS::Realm& realm, Vector<GC::Ref<CSS::FontFace>> const& font_faces)
+static GC::Root<JS::Set> create_set_entries(JS::Realm& realm, Vector<NonnullRefPtr<CSS::FontFaceState>> const& font_faces)
 {
     auto set_entries = GC::make_root(JS::Set::create(realm));
     for (auto font_face : font_faces)
@@ -585,7 +586,7 @@ static GC::Root<JS::Set> create_set_entries(JS::Realm& realm, Vector<GC::Ref<CSS
     return set_entries;
 }
 
-void resolve_font_face_list_promise(JS::Realm& realm, WebIDL::Promise const& promise, Vector<GC::Ref<CSS::FontFace>> const& font_faces)
+void resolve_font_face_list_promise(JS::Realm& realm, WebIDL::Promise const& promise, Vector<NonnullRefPtr<CSS::FontFaceState>> const& font_faces)
 {
     auto wrapped_font_faces = GC::Heap::the().allocate<GC::HeapVector<JS::Value>>();
     for (auto font_face : font_faces)
@@ -613,24 +614,24 @@ bool setlike_has(CSS::FontFaceSet const& font_face_set, JS::Value value)
 {
     auto* font_face = Bindings::impl_from<CSS::FontFace>(&value.as_object());
     VERIFY(font_face);
-    return font_face_set.font_faces().contains([&](auto const& entry) { return entry.ptr() == font_face; });
+    return font_face_set.font_faces().contains([&](auto const& entry) { return entry.ptr() == &font_face->state(); });
 }
 
-void did_add_font_face(CSS::FontFaceSet const& font_face_set, GC::Ref<CSS::FontFace> font_face)
+void did_add_font_face(CSS::FontFaceSet const& font_face_set, NonnullRefPtr<CSS::FontFaceState> font_face)
 {
     font_face_set_cache_for(font_face_set).for_each([&](auto& set_entries) {
         add_font_face_to_set(set_entries, font_face);
     });
 }
 
-void did_remove_font_face(CSS::FontFaceSet const& font_face_set, GC::Ref<CSS::FontFace> font_face)
+void did_remove_font_face(CSS::FontFaceSet const& font_face_set, NonnullRefPtr<CSS::FontFaceState> font_face)
 {
     font_face_set_cache_for(font_face_set).for_each([&](auto& set_entries) {
         remove_font_face_from_set(set_entries, font_face);
     });
 }
 
-void did_reorder_font_faces(CSS::FontFaceSet const& font_face_set, Vector<GC::Ref<CSS::FontFace>> const& font_faces)
+void did_reorder_font_faces(CSS::FontFaceSet const& font_face_set, Vector<NonnullRefPtr<CSS::FontFaceState>> const& font_faces)
 {
     font_face_set_cache_for(font_face_set).for_each([&](auto& set_entries) {
         set_entries.set_clear();

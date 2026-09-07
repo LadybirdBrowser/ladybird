@@ -1,0 +1,6 @@
+initial: rgb(255, 0, 0), 35px, 1px, 2px, 30px
+mutated: rgb(0, 128, 0), 45px, 3px, 4px, 40px
+independent: rgb(255, 0, 0), 35px, 1px, 2px, 30px
+rule fallback: rgb(0, 128, 0), 25px, 3px, 4px, 20px
+replaced: rgb(0, 128, 0), 70px, 0px, 0px, 80px
+wrapper identity: true

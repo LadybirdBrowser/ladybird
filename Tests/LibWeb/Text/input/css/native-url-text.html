@@ -1,0 +1,60 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    for (const input of [
+        "https://example.test/café.png",
+        "https://ü:é@example.test/😀?λ#é",
+        "file://C:/é",
+        "data:é #λ",
+        " \thttps://example.test/é\n ",
+        "https://%65xample.test/é",
+        "https://bücher.example/é",
+        "https://example.test/\ud800",
+    ])
+        println(new URL(input).href);
+    println(new URL("../café.png", "https://example.test/a/base.css").href);
+    const url = new URL("https://example.test/");
+    url.hostname = "bücher.example";
+    url.pathname = "/😀";
+    url.search = "?λ";
+    url.hash = "#é";
+    println(`setters: ${url.href}`);
+
+    const cssURL = text => `data:text/css,${encodeURIComponent(text)}`;
+    const child = cssURL('.雪 { filter: url("#é😀"); }') + "#雪😀";
+    const source = cssURL(`@import url("${child}");
+        .unused { background-image: url("café😀.png"); }
+        @font-face { font-family: Unused; src: url("字体.woff2"); }`);
+    const makeFrame = async () => {
+        const frame = document.createElement("iframe");
+        frame.srcdoc = `<!doctype html><meta charset="utf-8"><link rel="stylesheet" href='${source}'><div class="雪"></div>`;
+        const loaded = new Promise(resolve => frame.onload = resolve);
+        document.body.append(frame);
+        await loaded;
+        return frame;
+    };
+    const first = await makeFrame();
+    const second = await makeFrame();
+    const sheet = first.contentDocument.styleSheets[0];
+    const other = second.contentDocument.styleSheets[0];
+    const image = sheet.cssRules[1].style;
+    const font = sheet.cssRules[2].style;
+    const imported = sheet.cssRules[0];
+    const childSheet = imported.styleSheet;
+    const filter = childSheet.cssRules[0].style;
+    println(`import spelling: ${imported.href.endsWith("#雪😀")}`);
+    println(`spelling: ${image.backgroundImage}; ${font.src}; ${filter.filter}`);
+    println(`computed: ${first.contentWindow.getComputedStyle(first.contentDocument.querySelector("div")).filter}`);
+    image.backgroundImage = 'url("変更😀.png")';
+    filter.filter = 'url("#変更😀")';
+    println(`mutated: ${image.backgroundImage}; ${filter.filter}`);
+    println(`shared source: ${other.cssRules[1].style.backgroundImage}; ${other.cssRules[0].styleSheet.cssRules[0].style.filter}`);
+    println(`identity: ${sheet.cssRules[1].style === image}; ${imported.styleSheet === childSheet}; ${childSheet.ownerRule === imported}`);
+    sheet.deleteRule(0);
+    println(`detached: ${imported.parentStyleSheet === null}; ${imported.styleSheet === childSheet}; ${filter.filter}`);
+    const third = await makeFrame();
+    println(`cached source: ${third.contentDocument.styleSheets[0].cssRules[1].style.backgroundImage}`);
+});
+</script>

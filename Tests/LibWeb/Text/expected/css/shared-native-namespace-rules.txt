@@ -1,0 +1,9 @@
+identity: true, independent: true
+namespace: 色, urn:名前
+serialized: @namespace 色 url("urn:名前");
+last declaration wins: rgb(1, 2, 3), rgb(1, 2, 3)
+earlier namespace restored: rgb(4, 5, 6)
+other sheet unchanged: rgb(1, 2, 3)
+detached: true, 色, urn:名前
+cached parse unchanged: rgb(1, 2, 3)
+empty default namespace: true, true

@@ -88,21 +88,21 @@ public:
 private:
     friend class ImageStyleValueResource;
     friend class Client;
-    friend class CSSStyleSheet;
+    friend class StyleSheetState;
     ImageStyleValue(URL const&, Optional<::URL::URL> style_resource_base_url = {}, Optional<bool> parent_style_sheet_origin_clean = {}, bool should_absolutize_url_for_computed_value = false);
     explicit ImageStyleValue(StyleValueFFI::StyleValueData const*);
 
     void register_client(Client&) const;
     void unregister_client(Client&) const;
     void notify_clients_did_update() const;
-    void update_style_sheet_resource_context(CSSStyleSheet const&);
+    void update_style_sheet_resource_context(StyleSheetState const&);
     GC::Ptr<HTML::SharedResourceRequest> fetch_image(DOM::Document&) const;
     Optional<::URL::URL> resolved_url(DOM::Document const&) const;
     ::URL::URL style_resource_base_url(DOM::Document const&) const;
 
     // NB: StyleValue dispatches operations by type tag, so it may call private impls.
     friend class StyleValue;
-    void set_style_sheet(GC::Ptr<CSSStyleSheet>);
+    void set_style_sheet(StyleSheetState*);
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 

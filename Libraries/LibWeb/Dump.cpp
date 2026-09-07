@@ -23,9 +23,9 @@
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
-#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/CSSSupportsRule.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -202,20 +202,19 @@ void dump_descriptors(StringBuilder& builder, CSS::CSSDescriptors const& descrip
     }
 }
 
-void dump_sheet(CSS::StyleSheet const& sheet)
+void dump_sheet(CSS::StyleSheetState const& sheet)
 {
     StringBuilder builder;
     dump_sheet(builder, sheet);
     dbgln("{}", builder.string_view());
 }
 
-void dump_sheet(StringBuilder& builder, CSS::StyleSheet const& sheet, int indent_levels)
+void dump_sheet(StringBuilder& builder, CSS::StyleSheetState const& sheet, int indent_levels)
 {
     dump_indent(builder, indent_levels);
-    auto& css_stylesheet = as<CSS::CSSStyleSheet>(sheet);
-    builder.appendff("CSSStyleSheet{{{}}}: {} rule(s)\n", &sheet, css_stylesheet.rules().length());
+    builder.appendff("CSSStyleSheet{{{}}}: {} rule(s)\n", &sheet, sheet.rules().length());
 
-    for (auto& rule : css_stylesheet.rules())
+    for (auto& rule : sheet.rules())
         dump_rule(builder, rule, indent_levels + 1);
 }
 

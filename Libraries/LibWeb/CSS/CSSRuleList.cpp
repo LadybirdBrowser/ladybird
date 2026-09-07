@@ -8,25 +8,21 @@
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/Bindings/Wrappable.h>
-#include <LibWeb/CSS/CSSContainerRule.h>
-#include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
-#include <LibWeb/CSS/CSSFunctionRule.h>
 #include <LibWeb/CSS/CSSGroupingRule.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
-#include <LibWeb/CSS/CSSLayerBlockRule.h>
-#include <LibWeb/CSS/CSSMediaRule.h>
-#include <LibWeb/CSS/CSSNestedDeclarations.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
-#include <LibWeb/CSS/CSSScopeRule.h>
-#include <LibWeb/CSS/CSSSupportsRule.h>
+#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/StyleEngineInput.h>
+#include <LibWeb/CSS/StyleSheetImport.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/HTML/Window.h>
 
 namespace Web::CSS {
+
+CSSRuleList::~CSSRuleList() = default;
 
 GC_DEFINE_ALLOCATOR(CSSRuleList);
 
@@ -34,7 +30,7 @@ GC::Ref<CSSRuleList> CSSRuleList::create(ReadonlySpan<GC::Ref<CSSRule>> rules)
 {
     auto rule_list = GC::Heap::the().allocate<CSSRuleList>();
     for (auto rule : rules)
-        rule_list->m_rules.append(rule);
+        rule_list->insert(rule_list->length(), rule);
     return rule_list;
 }
 
@@ -42,46 +38,127 @@ CSSRuleList::CSSRuleList()
 {
 }
 
-static void disconnect_font_faces_in_rule(CSSRule& rule)
+GC::Ref<CSSRuleList> CSSRuleList::create(RustRuleList rules, GC::Ptr<DOM::Document> document)
 {
-    if (auto* font_face_rule = as_if<CSSFontFaceRule>(rule))
-        font_face_rule->disconnect_font_face();
-
-    if (auto* grouping_rule = as_if<CSSGroupingRule>(rule)) {
-        for (auto& child_rule : grouping_rule->css_rules())
-            disconnect_font_faces_in_rule(child_rule);
-    }
+    return GC::Heap::the().allocate<CSSRuleList>(move(rules), document);
 }
 
-void CSSRuleList::set_rules(Badge<CSSStyleSheet>, Vector<GC::Ref<CSSRule>> rules)
+CSSRuleList::CSSRuleList(RustRuleList rules, GC::Ptr<DOM::Document> document)
+    : m_rules(move(rules))
+    , m_document(document)
 {
-    // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
-    // If a @font-face rule is removed from the document, its corresponding FontFace object is no longer CSS-connected.
-    // The connection is not restorable by any means (but adding the @font-face back to the stylesheet will create a
-    // brand new FontFace object which is CSS-connected).
-    for (auto& rule : m_rules) {
-        disconnect_font_faces_in_rule(rule);
-        rule->set_parent_style_sheet(nullptr);
-    }
+}
 
-    m_rules = move(rules);
+CSSRule* CSSRuleList::existing_wrapper(u64 identity) const
+{
+    auto iterator = m_wrappers.find(identity);
+    return iterator == m_wrappers.end() ? nullptr : iterator->value.ptr();
+}
+
+GC::Ref<CSSRule> const& CSSRuleList::wrapper_at(size_t index) const
+{
+    auto identity = m_rules.identity_at(index);
+    if (auto iterator = m_wrappers.find(identity); iterator != m_wrappers.end())
+        return iterator->value;
+
+    auto rule = [&]() -> GC::Ref<CSSRule> {
+        if (m_parent_style_sheet) {
+            if (auto* import = m_parent_style_sheet->import_for_rule(identity))
+                return import->cssom_rule();
+        }
+        return CSSRule::create(m_rules.at(index), m_document);
+    }();
+    m_wrappers.set(identity, rule);
+    if (m_owner_rule)
+        rule->set_parent_rule(m_owner_rule.ptr());
+    else
+        rule->set_parent_style_sheet(m_parent_style_sheet.ptr());
+    return m_wrappers.find(identity)->value;
+}
+
+void CSSRuleList::for_each_existing_rule(Function<void(CSSRule&)> const& callback) const
+{
+    for (auto const& entry : m_wrappers)
+        callback(*entry.value);
+}
+
+void CSSRuleList::set_owner_rule(GC::Ref<CSSRule> owner)
+{
+    m_owner_rule = owner;
+    for_each_existing_rule([&](CSSRule& rule) { rule.set_parent_rule(owner.ptr()); });
+}
+
+void CSSRuleList::set_parent_style_sheet(StyleSheetState* sheet)
+{
+    m_parent_style_sheet = sheet;
+    m_parent_cssom_sheet = sheet ? &sheet->cssom_sheet() : nullptr;
+    for_each_existing_rule([&](CSSRule& rule) { rule.set_parent_style_sheet(sheet); });
+}
+
+void CSSRuleList::insert(size_t index, GC::Ref<CSSRule> rule)
+{
+    m_rules.insert(index, rule->native_rule());
+    m_wrappers.set(rule->native_rule().identity(), rule);
+}
+
+CSSRule const* CSSRuleList::rule_for_identity(u64 identity) const
+{
+    auto path = m_rules.path_to_rule(identity);
+    auto const* list = this;
+    CSSRule const* rule = nullptr;
+    for (size_t depth = 0; depth < path.size(); ++depth) {
+        rule = list->item(path[depth]);
+        VERIFY(rule);
+        if (depth + 1 < path.size())
+            list = &as<CSSGroupingRule>(*rule).css_rules();
+    }
+    return rule;
+}
+
+void CSSRuleList::set_rules(Badge<StyleSheetState>, RustRuleList rules, GC::Ptr<DOM::Document> document)
+{
+    for_each_existing_rule([](CSSRule& rule) { rule.set_parent_style_sheet(nullptr); });
+
+    m_rules.replace(rules);
+    m_wrappers.clear();
+    m_document = document;
 }
 
 void CSSRuleList::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_rules);
+    visitor.visit(m_wrappers);
     visitor.visit(m_owner_rule);
+    visitor.visit(m_parent_style_sheet);
+    visitor.visit(m_parent_cssom_sheet);
+    visitor.visit(m_document);
 }
 
 size_t CSSRuleList::external_memory_size() const
 {
-    return JS::saturating_add_external_memory_size(Base::external_memory_size(), JS::vector_external_memory_size(m_rules));
+    return JS::saturating_add_external_memory_size(Base::external_memory_size(), JS::saturating_add_external_memory_size(m_rules.external_memory_size(), JS::hash_map_external_memory_size(m_wrappers)));
+}
+
+// https://drafts.csswg.org/cssom/#insert-a-css-rule
+WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(RustRuleList& rules, RustRule const& rule, u32 index, Nested nested)
+{
+    using Result = Parser::ValueParserFFI::RuleInsertionResult;
+    switch (Parser::ValueParserFFI::rust_rule_list_insert_css_rule(rules.handle(), index, rule.handle(), nested == Nested::Yes)) {
+    case Result::Success:
+        return index;
+    case Result::IndexSizeError:
+        return WebIDL::IndexSizeError::create("CSS rule index out of bounds."_utf16);
+    case Result::HierarchyRequestError:
+        return WebIDL::HierarchyRequestError::create("Cannot insert rule at specified index."_utf16);
+    case Result::InvalidStateError:
+        return WebIDL::InvalidStateError::create("Cannot insert @namespace rule into a stylesheet with non-namespace/import rules"_utf16);
+    }
+    VERIFY_NOT_REACHED();
 }
 
 // AD-HOC: The spec doesn't include a declared_namespaces parameter, but we need it to handle parsing of namespaced selectors.
 // https://drafts.csswg.org/cssom/#insert-a-css-rule
-WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<Utf16View, CSSRule*> rule, u32 index, Nested nested, HashTable<Utf16FlyString> const& declared_namespaces)
+WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Utf16View rule, u32 index, Nested nested, RustNamespaceContext const& declared_namespaces)
 {
     // 1. Set length to the number of items in list.
     auto length = m_rules.size();
@@ -91,143 +168,66 @@ WebIDL::ExceptionOr<unsigned> CSSRuleList::insert_a_css_rule(Variant<Utf16View, 
         return WebIDL::IndexSizeError::create("CSS rule index out of bounds."_utf16);
 
     // 3. Set new rule to the results of performing parse a CSS rule on argument rule.
-    // NOTE: The insert-a-css-rule spec expects `rule` to be a string, but the CSSStyleSheet.insertRule()
-    //       spec calls this algorithm with an already-parsed CSSRule. So, we use a Variant and skip step 3
-    //       if that variant holds a CSSRule already.
-
-    GC::Ptr<CSSRule> new_rule;
-    if (!rule.has<CSSRule*>()) {
-        Parser::ParsingParams parsing_params {};
-        parsing_params.rule_context = rule_context();
-        parsing_params.declared_namespaces = declared_namespaces;
-
-        new_rule = rule.visit(
-            [&](Utf16View rule_text) { return parse_css_rule(parsing_params, rule_text, nested == Nested::Yes); },
-            [](CSSRule*) -> CSSRule* { VERIFY_NOT_REACHED(); });
-        if (!new_rule && nested == Nested::Yes) {
-            auto starts_with_import_or_namespace = rule.visit(
-                [](Utf16View rule_text) {
-                    auto trimmed_rule = rule_text.trim(" \t\n\f\r"sv, TrimMode::Left);
-                    return trimmed_rule.starts_with("@import"sv) || trimmed_rule.starts_with("@namespace"sv);
-                },
-                [](CSSRule*) -> bool { VERIFY_NOT_REACHED(); });
-            if (starts_with_import_or_namespace) {
-                parsing_params.rule_context.clear();
-                new_rule = rule.visit(
-                    [&](Utf16View rule_text) { return parse_css_rule(parsing_params, rule_text); },
-                    [](CSSRule*) -> CSSRule* { VERIFY_NOT_REACHED(); });
-            }
+    Parser::ParsingParams parsing_params {};
+    parsing_params.rule_context = rule_context();
+    parsing_params.declared_namespaces = declared_namespaces;
+    auto new_rule = parse_css_rule(parsing_params, rule, nested == Nested::Yes);
+    if (!new_rule.has_value() && nested == Nested::Yes) {
+        auto trimmed_rule = rule.trim(" \t\n\f\r"sv, TrimMode::Left);
+        if (trimmed_rule.starts_with("@import"sv) || trimmed_rule.starts_with("@namespace"sv)) {
+            auto top_level_params = parsing_params;
+            top_level_params.rule_context.clear();
+            new_rule = parse_css_rule(top_level_params, rule);
         }
-    } else {
-        new_rule = rule.get<CSSRule*>();
     }
 
     // 4. If new rule is a syntax error, and nested is set, perform the following substeps:
-    if (!new_rule && nested == Nested::Yes) {
-        Parser::ParsingParams parsing_params;
-        parsing_params.rule_context = rule_context();
-        parsing_params.declared_namespaces = declared_namespaces;
-
+    if (!new_rule.has_value() && nested == Nested::Yes) {
         // - Set declarations to the results of performing parse a CSS declaration block, on argument rule.
-        auto declarations = rule.visit(
-            [&](Utf16View rule_text) { return parse_css_property_declaration_block(parsing_params, rule_text); },
-            [](CSSRule*) -> RustDeclarationBlock { VERIFY_NOT_REACHED(); });
+        auto declarations = parse_css_property_declaration_block(parsing_params, rule);
 
         // - If declarations is empty, throw a SyntaxError exception.
         if (declarations.is_empty())
             return WebIDL::SyntaxError::create("Unable to parse CSS declarations block."_utf16);
 
         // - Otherwise, set new rule to a new nested declarations rule with declarations as it contents.
-        new_rule = CSSNestedDeclarations::create(CSSStyleProperties::create(move(declarations)));
+        new_rule = RustRule { declarations };
     }
 
     // 5. If new rule is a syntax error, throw a SyntaxError exception.
-    if (!new_rule)
+    if (!new_rule.has_value())
         return WebIDL::SyntaxError::create("Unable to parse CSS rule."_utf16);
 
-    auto has_rule_of_type_other_than_specified_before_index = [&](Vector<CSSRule::Type> types, size_t index) {
-        for (size_t i = 0; i < index; i++) {
-            if (!any_of(types, [&](auto type) { return m_rules[i]->type() == type; }))
-                return true;
-        }
-        return false;
-    };
-
-    auto has_rule_of_type_at_or_after_index = [&](CSSRule::Type type, size_t index) {
-        for (size_t i = index; i < m_rules.size(); i++) {
-            if (m_rules[i]->type() == type)
-                return true;
-        }
-        return false;
-    };
-
-    // 6. If new rule cannot be inserted into list at the zero-indexed position index due to constraints specified by CSS, then throw a HierarchyRequestError exception. [CSS21]
-    // "Any @import rules must precede all other valid at-rules and style rules in a style sheet
-    // (ignoring @charset and @layer statement rules) and must not have any other valid at-rules
-    // or style rules between it and previous @import rules, or else the @import rule is invalid."
-    // https://drafts.csswg.org/css-cascade-5/#at-import
-    //
-    // "Any @namespace rules must follow all @charset and @import rules and precede all other
-    // non-ignored at-rules and style rules in a style sheet.
-
-    auto rule_is_disallowed = false;
-    switch (new_rule->type()) {
-    case CSSRule::Type::LayerStatement:
-        break;
-    case CSSRule::Type::Import:
-        rule_is_disallowed = has_rule_of_type_other_than_specified_before_index({ CSSRule::Type::Import, CSSRule::Type::LayerStatement }, index);
-        break;
-    case CSSRule::Type::Namespace:
-        rule_is_disallowed = has_rule_of_type_at_or_after_index(CSSRule::Type::Import, index) || has_rule_of_type_other_than_specified_before_index({ CSSRule::Type::Import, CSSRule::Type::Namespace, CSSRule::Type::LayerStatement }, index);
-        break;
-    default:
-        rule_is_disallowed = has_rule_of_type_at_or_after_index(CSSRule::Type::Import, index) || has_rule_of_type_at_or_after_index(CSSRule::Type::Namespace, index);
-        break;
-    }
-
-    // FIXME: There are more constraints that we should check here - Parser::is_valid_in_the_current_context is probably a good reference for that.
-    if (rule_is_disallowed || (nested == Nested::Yes && first_is_one_of(new_rule->type(), CSSRule::Type::Import, CSSRule::Type::Namespace)))
-        return WebIDL::HierarchyRequestError::create("Cannot insert rule at specified index."_utf16);
-
-    // 7. If new rule is an @namespace at-rule, and list contains anything other than @import at-rules, and @namespace at-rules, throw an InvalidStateError exception.
-    if (new_rule->type() == CSSRule::Type::Namespace && any_of(m_rules, [](auto existing_rule) { return existing_rule->type() != CSSRule::Type::Import && existing_rule->type() != CSSRule::Type::Namespace; }))
-        return WebIDL::InvalidStateError::create("Cannot insert @namespace rule into a stylesheet with non-namespace/import rules"_utf16);
-
-    // 8. Insert new rule into list at the zero-indexed position index.
-    m_rules.insert(index, *new_rule);
-
-    // 9. Return index.
+    auto result = TRY(insert_a_css_rule(m_rules, *new_rule, index, nested));
     if (on_change)
         on_change();
-    return index;
+    return result;
 }
 
 // https://www.w3.org/TR/cssom/#remove-a-css-rule
-WebIDL::ExceptionOr<void> CSSRuleList::remove_a_css_rule(u32 index)
+WebIDL::ExceptionOr<void> CSSRuleList::validate_rule_removal(RustRuleList const& rules, u32 index)
 {
-    // 1. Set length to the number of items in list.
-    auto length = m_rules.size();
-
-    // 2. If index is greater than or equal to length, then throw an IndexSizeError exception.
-    if (index >= length)
+    using Result = Parser::ValueParserFFI::RuleRemovalResult;
+    switch (Parser::ValueParserFFI::rust_rule_list_validate_removal(rules.handle(), index)) {
+    case Result::Success:
+        return {};
+    case Result::IndexSizeError:
         return WebIDL::IndexSizeError::create("CSS rule index out of bounds."_utf16);
-
-    // 3. Set old rule to the indexth item in list.
-    CSSRule& old_rule = m_rules[index];
-
-    // 4. If old rule is an @namespace at-rule, and list contains anything other than @import at-rules, and @namespace at-rules, throw an InvalidStateError exception.
-    if (old_rule.type() == CSSRule::Type::Namespace) {
-        for (auto& rule : m_rules) {
-            if (rule->type() != CSSRule::Type::Import && rule->type() != CSSRule::Type::Namespace)
-                return WebIDL::InvalidStateError::create("Cannot remove @namespace rule from a stylesheet with non-namespace/import rules."_utf16);
-        }
+    case Result::InvalidStateError:
+        return WebIDL::InvalidStateError::create("Cannot remove @namespace rule from a stylesheet with non-namespace/import rules."_utf16);
     }
-
-    remove_a_css_rule_without_validation(index);
-    return {};
+    VERIFY_NOT_REACHED();
 }
 
-void CSSRuleList::remove_a_css_rule_without_validation(Badge<CSSStyleSheet>, u32 index)
+WebIDL::ExceptionOr<RustRule> CSSRuleList::remove_a_css_rule(u32 index)
+{
+    TRY(validate_rule_removal(m_rules, index));
+    auto old_rule = m_rules.at(index);
+    remove_a_css_rule_without_validation(index);
+    return old_rule;
+}
+
+void CSSRuleList::remove_a_css_rule_without_validation(Badge<StyleSheetState>, u32 index)
 {
     remove_a_css_rule_without_validation(index);
 }
@@ -236,151 +236,27 @@ void CSSRuleList::remove_a_css_rule_without_validation(u32 index)
 {
     VERIFY(index < m_rules.size());
 
-    CSSRule& old_rule = m_rules[index];
+    auto old_native_rule = m_rules.at(index);
+    auto old_rule = GC::make_root(existing_wrapper(old_native_rule.identity()));
 
     // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
     // If a @font-face rule is removed from the document, its corresponding FontFace object is no longer CSS-connected.
     // The connection is not restorable by any means (but adding the @font-face back to the stylesheet will create a
     // brand new FontFace object which is CSS-connected).
-    disconnect_font_faces_in_rule(old_rule);
+    if (m_parent_style_sheet)
+        m_parent_style_sheet->disconnect_font_faces_in_rule(old_native_rule);
 
     // 5. Remove rule old rule from list at the zero-indexed position index.
     m_rules.remove(index);
+    m_wrappers.remove(old_native_rule.identity());
 
     // 6. Set old rule’s parent CSS rule and parent CSS style sheet to null.
     // NOTE: We set the parent stylesheet to null within set_parent_rule.
-    old_rule.set_parent_rule(nullptr);
+    if (old_rule)
+        old_rule->set_parent_rule(nullptr);
 
     if (on_change)
         on_change();
-}
-
-void CSSRuleList::for_each_effective_rule(TraversalOrder order, Function<void(Web::CSS::CSSRule const&)> const& callback) const
-{
-    for (auto const& rule : m_rules) {
-        if (order == TraversalOrder::Preorder)
-            callback(rule);
-
-        switch (rule->type()) {
-        case CSSRule::Type::Import: {
-            auto const& import_rule = static_cast<CSSImportRule const&>(*rule);
-            if (import_rule.loaded_style_sheet())
-                import_rule.loaded_style_sheet()->for_each_effective_rule(order, callback);
-            break;
-        }
-
-        case CSSRule::Type::Container:
-        case CSSRule::Type::LayerBlock:
-        case CSSRule::Type::Media:
-        case CSSRule::Type::Page:
-        case CSSRule::Type::Scope:
-        case CSSRule::Type::Style:
-        case CSSRule::Type::Supports:
-            static_cast<CSSGroupingRule const&>(*rule).for_each_effective_rule(order, callback);
-            break;
-
-        case CSSRule::Type::CounterStyle:
-        case CSSRule::Type::FontFace:
-        case CSSRule::Type::FontFeatureValues:
-        case CSSRule::Type::Function:
-        case CSSRule::Type::FunctionDeclarations:
-        case CSSRule::Type::Keyframe:
-        case CSSRule::Type::Keyframes:
-        case CSSRule::Type::LayerStatement:
-        case CSSRule::Type::Margin:
-        case CSSRule::Type::Namespace:
-        case CSSRule::Type::NestedDeclarations:
-        case CSSRule::Type::Property:
-            break;
-        }
-
-        if (order == TraversalOrder::Postorder)
-            callback(rule);
-    }
-}
-
-bool CSSRuleList::evaluate_media_queries(DOM::Document const& document)
-{
-    return evaluate_media_queries(document, [](CSSRule const&) { });
-}
-
-bool CSSRuleList::evaluate_media_queries(DOM::Document const& document, Function<void(CSSRule const&)> const& changed_rule_callback)
-{
-    bool any_media_queries_changed_match_state = false;
-
-    for (auto& rule : m_rules) {
-        switch (rule->type()) {
-        case CSSRule::Type::Container: {
-            auto& container_rule = as<CSSContainerRule>(*rule);
-            if (container_rule.css_rules().evaluate_media_queries(document, changed_rule_callback))
-                any_media_queries_changed_match_state = true;
-            break;
-        }
-        case CSSRule::Type::Function: {
-            any_media_queries_changed_match_state |= as<CSSFunctionRule>(*rule).css_rules().evaluate_media_queries(document, changed_rule_callback);
-            break;
-        }
-        case CSSRule::Type::Import: {
-            auto& import_rule = as<CSSImportRule>(*rule);
-            if (import_rule.loaded_style_sheet() && import_rule.loaded_style_sheet()->evaluate_media_queries(document, changed_rule_callback))
-                any_media_queries_changed_match_state = true;
-            break;
-        }
-        case CSSRule::Type::LayerBlock: {
-            auto& layer_rule = as<CSSLayerBlockRule>(*rule);
-            if (layer_rule.css_rules().evaluate_media_queries(document, changed_rule_callback))
-                any_media_queries_changed_match_state = true;
-            break;
-        }
-        case CSSRule::Type::Media: {
-            auto& media_rule = as<CSSMediaRule>(*rule);
-            bool changed_match_state = media_rule.evaluate_for_invalidation(document);
-            bool now_matches = media_rule.condition_matches();
-            if (changed_match_state)
-                any_media_queries_changed_match_state = true;
-            if (now_matches && media_rule.css_rules().evaluate_media_queries(document, changed_rule_callback))
-                any_media_queries_changed_match_state = true;
-            if (changed_match_state) {
-                media_rule.css_rules().for_each_effective_rule(TraversalOrder::Preorder, changed_rule_callback);
-                record_rule_conditions(media_rule);
-            }
-            break;
-        }
-        case CSSRule::Type::Scope: {
-            auto& scope_rule = as<CSSScopeRule>(*rule);
-            if (scope_rule.css_rules().evaluate_media_queries(document, changed_rule_callback))
-                any_media_queries_changed_match_state = true;
-            break;
-        }
-        case CSSRule::Type::Supports: {
-            auto& supports_rule = as<CSSSupportsRule>(*rule);
-            if (supports_rule.condition_matches() && supports_rule.css_rules().evaluate_media_queries(document, changed_rule_callback))
-                any_media_queries_changed_match_state = true;
-            break;
-        }
-        case CSSRule::Type::Style: {
-            auto& style_rule = as<CSSStyleRule>(*rule);
-            if (style_rule.css_rules().evaluate_media_queries(document, changed_rule_callback))
-                any_media_queries_changed_match_state = true;
-            break;
-        }
-        case CSSRule::Type::CounterStyle:
-        case CSSRule::Type::FontFace:
-        case CSSRule::Type::FontFeatureValues:
-        case CSSRule::Type::FunctionDeclarations:
-        case CSSRule::Type::Keyframe:
-        case CSSRule::Type::Keyframes:
-        case CSSRule::Type::LayerStatement:
-        case CSSRule::Type::Margin:
-        case CSSRule::Type::Namespace:
-        case CSSRule::Type::NestedDeclarations:
-        case CSSRule::Type::Property:
-        case CSSRule::Type::Page:
-            break;
-        }
-    }
-
-    return any_media_queries_changed_match_state;
 }
 
 Vector<Parser::RuleContext> CSSRuleList::rule_context() const

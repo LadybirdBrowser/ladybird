@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const shared = new CSSStyleSheet();
+    shared.replaceSync(`
+        @layer 前, 後;
+        @media all {
+            @layer 前 { span { color: red !important; width: 10px; } }
+            @layer 後 { span { color: blue !important; width: 20px; } }
+        }
+        @counter-style 数 { system: cyclic; symbols: "x"; }
+        @font-feature-values 文字 { @styleset { 候補: 1; } }
+    `);
+    const order = new CSSStyleSheet();
+    order.replaceSync("@layer 後, 前;");
+    const targets = [];
+    for (const sheets of [[shared, order], [order, shared]]) {
+        const host = document.body.appendChild(document.createElement("div"));
+        const root = host.attachShadow({ mode: "open" });
+        root.adoptedStyleSheets = sheets;
+        const target = root.appendChild(document.createElement("span"));
+        target.style.display = "inline-block";
+        targets.push(target);
+    }
+    const print = label => println(`${label}: ${targets.map(target => {
+        const style = getComputedStyle(target);
+        return `${style.color}, ${style.width}`;
+    }).join(" / ")}`);
+    print("scope-local order");
+    const media = shared.cssRules[1];
+    media.media.mediaText = "not all";
+    print("inactive descendants");
+    media.media.mediaText = "all";
+    print("reactivated descendants");
+    order.replaceSync("");
+    print("removed first ordering");
+    shared.deleteRule(0);
+    print("order from layer blocks");
+    println(`wrapper identity: ${shared.cssRules[0] === media}`);
+    shared.replaceSync("span { color: green; width: 30px; }");
+    print("last layers removed");
+});
+</script>

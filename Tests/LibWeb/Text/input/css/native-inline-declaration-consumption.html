@@ -1,0 +1,38 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<style>
+@layer base {
+    .target { color: green; width: 20px; --幅: 20px; }
+}
+</style>
+<script>
+test(() => {
+    const source = "color: red !important; width: calc(var(--幅) + 5px); --幅: 30px; padding: 1px 2px";
+    function createTarget() {
+        const target = document.body.appendChild(document.createElement("div"));
+        target.className = "target";
+        target.style.cssText = source;
+        return target;
+    }
+    function print(label, target) {
+        const style = getComputedStyle(target);
+        println(`${label}: ${style.color}, ${style.width}, ${style.paddingTop}, ${style.paddingLeft}, ${style.getPropertyValue("--幅")}`);
+    }
+    const first = createTarget();
+    const second = createTarget();
+    const declaration = first.style;
+    print("initial", first);
+    declaration.setProperty("--幅", "40px");
+    declaration.setProperty("color", "revert-layer", "important");
+    declaration.padding = "3px 4px";
+    internals.gc();
+    print("mutated", first);
+    print("independent", second);
+    declaration.removeProperty("--幅");
+    print("rule fallback", first);
+    declaration.cssText = "width: 70px; --幅: 80px";
+    print("replaced", first);
+    println(`wrapper identity: ${first.style === declaration}`);
+});
+</script>

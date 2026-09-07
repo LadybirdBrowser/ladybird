@@ -1,0 +1,14 @@
+initial: 13px, 17px
+insert keeps identities: true, true, true
+removed rule: true, true, true
+native declaration edits: 23px, 29px
+root order: true, true, 4
+page payload: 新しい:right, true, 19px
+normalized margin name: top-left, 11px
+other sheet unchanged: 13px, original:left
+detached group: true, true, true, 3
+detached edits do not apply: 3px, 5px
+cached rules unchanged: 2, original:left
+replace keeps list: true, 1, .after
+replace detaches old tree: true, true, true
+old child survives replacement: 53px

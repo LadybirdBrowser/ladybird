@@ -447,7 +447,7 @@ public:
     GC::Ref<CSS::CSSStyleProperties> style();
     GC::Ref<CSS::StylePropertyMap> attribute_style_map();
 
-    CSS::StyleSheetList& document_or_shadow_root_style_sheets();
+    CSS::StyleScope& document_or_shadow_root_style_scope();
     ElementByIdMap& document_or_shadow_root_element_by_id_map();
 
     static WebIDL::ExceptionOr<GC::Ref<DOM::DocumentFragment>> parse_fragment(Variant<GC::Ref<Element>, GC::Ref<DocumentFragment>> target, Utf16View markup, HTML::ParserScriptingMode = HTML::ParserScriptingMode::Inert);

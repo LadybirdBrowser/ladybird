@@ -1,0 +1,48 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<style>#target { width: 5px; }</style>
+<div id="target"></div>
+<script>
+const cssURL = text => `data:text/css,${encodeURIComponent(text)}`;
+const leaf = cssURL("#target { width: 29px; --文字: '雪'; }");
+const middle = cssURL(`@import url("${leaf}");`);
+const style = document.createElement("style");
+style.textContent = `@import url("${middle}") screen;`;
+document.head.append(style);
+const removed = style.sheet.cssRules[0];
+const earlyMedia = removed.media;
+// Fetch and worker completion cannot run until this script returns. Detach the import while
+// its loader is still pending, and collect to exercise the document's runtime-resource roots.
+style.sheet.deleteRule(0);
+internals.gc();
+
+// Also leave a pending import with no script-visible rule, stylesheet, or element references.
+let abandoned = document.createElement("style");
+abandoned.textContent = `@import url("${leaf}");`;
+document.head.append(abandoned);
+abandoned.sheet.deleteRule(0);
+abandoned.remove();
+abandoned = null;
+internals.gc();
+
+asyncTest(done => {
+    window.addEventListener("load", () => {
+        const sheet = removed.styleSheet;
+        println(`detached parent: ${removed.parentStyleSheet === null}`);
+        println(`completed after removal: ${sheet !== null}`);
+        println(`detached sheet parent: ${sheet.parentStyleSheet === null}`);
+        println(`owner identity: ${sheet.ownerRule === removed}`);
+        println(`early media identity: ${sheet.media === earlyMedia && removed.media === earlyMedia}`);
+        const nested = sheet.cssRules[0];
+        println(`nested completion: ${nested.styleSheet !== null}`);
+        println(`nested owner identity: ${nested.styleSheet.ownerRule === nested}`);
+        println(`native value: ${nested.styleSheet.cssRules[0].style.getPropertyValue("--文字")}`);
+        earlyMedia.mediaText = "not all";
+        println(`detached media mutation: ${sheet.media.mediaText}`);
+        internals.gc();
+        println(`document unaffected: ${getComputedStyle(target).width}`);
+        done();
+    }, { once: true });
+});
+</script>

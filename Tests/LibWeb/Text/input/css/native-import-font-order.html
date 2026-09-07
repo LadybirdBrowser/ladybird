@@ -1,0 +1,32 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    const cssURL = text => `data:text/css,${encodeURIComponent(text)}`;
+    const font = family => `@font-face { font-family: ${family}; src: local(Arial); }`;
+    const leaf = cssURL(font("Leaf"));
+    const middle = cssURL(`@import url("${leaf}") layer(中); ${font("Middle")}`);
+    const root = cssURL(`@import url("${middle}") layer(外); ${font("Root")}`);
+    const frame = document.createElement("iframe");
+    frame.srcdoc = `<!doctype html><link rel="stylesheet" href='${root}'>`;
+    const loaded = new Promise(resolve => frame.onload = resolve);
+    document.body.append(frame);
+    await loaded;
+    const doc = frame.contentDocument;
+    const manual = new frame.contentWindow.FontFace("Manual", "local(Arial)");
+    doc.fonts.add(manual);
+    const order = () => [...doc.fonts].map(face => face.family).join(", ");
+    println(`downloaded graph: ${order()}`);
+    const original = [...doc.fonts];
+    const sheet = doc.querySelector("link").sheet;
+    const imported = sheet.cssRules[0].styleSheet;
+    imported.insertRule(font("Inserted"), 1);
+    println(`inserted rule: ${order()}`);
+    println(`existing faces retain identity: ${original.every(face => doc.fonts.has(face))}`);
+    imported.deleteRule(0);
+    println(`detached leaf: ${order()}`);
+    sheet.deleteRule(0);
+    println(`detached middle: ${order()}`);
+    frame.remove();
+});
+</script>

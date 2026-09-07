@@ -15,15 +15,13 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/TypefaceSkia.h>
-#include <LibWeb/CSS/CSSFontFaceRule.h>
-#include <LibWeb/CSS/CSSFontFeatureValuesRule.h>
-#include <LibWeb/CSS/CSSGroupingRule.h>
-#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Fetch.h>
-#include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/FontFaceSet.h>
+#include <LibWeb/CSS/FontFaceState.h>
 #include <LibWeb/CSS/FontLoading.h>
+#include <LibWeb/CSS/RustFontFeatureValues.h>
 #include <LibWeb/CSS/StyleComputer.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
@@ -80,6 +78,13 @@ struct Traits<Web::CSS::ComputedFontCacheKey> : public DefaultTraits<Web::CSS::C
 }
 
 namespace Web::CSS {
+
+FontComputer::FontComputer(DOM::Document& document)
+    : m_document(document)
+{
+}
+
+FontComputer::~FontComputer() = default;
 
 FontLoader::FontLoader(FontComputer& font_computer, RuleOrDeclaration rule_or_declaration, Vector<URL> urls, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load)
     : m_font_computer(font_computer)
@@ -307,7 +312,7 @@ struct FontComputer::MatchingFontCandidate {
     unsigned width { Gfx::FontWidth::Normal };
     Gfx::Typeface const* system_typeface { nullptr };
 
-    [[nodiscard]] RefPtr<Gfx::FontCascadeList const> font_with_point_size(HashMap<FontFaceKey, Vector<GC::Ref<FontFace>>> const& font_faces, float point_size, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values) const
+    [[nodiscard]] RefPtr<Gfx::FontCascadeList const> font_with_point_size(HashMap<FontFaceKey, Vector<NonnullRefPtr<FontFaceState>>> const& font_faces, float point_size, Gfx::FontVariationSettings const& variations, FontFeatureData const& font_feature_data, HashMap<FontFeatureValueKey, Vector<u32>> const& font_feature_values) const
     {
         auto const& shape_features = font_feature_data.to_shape_features(font_feature_values);
 
@@ -323,8 +328,27 @@ struct FontComputer::MatchingFontCandidate {
 
         auto font_list = Gfx::FontCascadeList::create();
         for (auto const& face : it->value) {
-            if (auto face_fonts = face->font_with_point_size(point_size, variations, shape_features))
+            // https://drafts.csswg.org/css-font-loading/#font-face-load
+            // User agents can initiate font loads on their own, whenever they determine that a given font face is
+            // necessary to render something on the page. When this happens, they must act as if they had called the
+            // corresponding FontFace’s load() method described here.
+            // NB: An unloaded face with no subsetting unicode-range starts loading once a style actually selects
+            //     it. Loading happens via FontFace::load(). The font_with_point_size() call below then observes the
+            //     fetch in flight — and so delays the document load event until the fetch has settled.
+            if (face->has_urls() && !face->has_non_default_unicode_range() && face->status() == FontFaceLoadStatus::Unloaded)
+                face->load_for_style();
+            if (auto face_fonts = face->font_with_point_size(point_size, variations, shape_features)) {
                 font_list->extend(*face_fonts);
+                continue;
+            }
+            // Unloaded subset face: surface it as a pending entry so the fetch only
+            // fires once font_for_code_point() sees a codepoint in its unicode-range.
+            if (face->has_urls() && face->has_non_default_unicode_range()) {
+                auto rooted_face = GC::make_root(face->keep_alive_during_load());
+                font_list->add_pending_face(face->unicode_ranges(), [rooted_face = move(rooted_face)] {
+                    return rooted_face->elements().first()->resolve_for_rendering();
+                });
+            }
         }
         if (font_list->is_empty())
             return {};
@@ -491,14 +515,38 @@ HashMap<FontFeatureValueKey, Vector<u32>> const& FontComputer::font_feature_valu
         // single block), the last-defined one is used.
 
         // FIXME: We only account for Author stylesheets here, we should also account for UserAgent and User
-        m_document->style_scope().for_each_active_css_style_sheet([&](CSS::CSSStyleSheet const& sheet) {
-            sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](auto const& rule) {
-                if (auto const* font_feature_values_rule = as_if<CSSFontFeatureValuesRule>(rule)) {
-                    if (!font_feature_values_rule->font_families().contains_slow(family_name))
-                        return;
-
-                    font_feature_values.update(font_feature_values_rule->to_hash_map());
+        m_document->style_scope().for_each_active_css_style_sheet([&](CSS::StyleSheetState const& sheet) {
+            sheet.for_each_effective_rule_data(TraversalOrder::Preorder, [&](RustRuleView const& rule, Utf16View) {
+                if (rule.type() != RustRule::Type::FontFeatureValues)
+                    return;
+                auto values = rule.font_feature_values();
+                bool matches_family = false;
+                for (size_t index = 0; index < values.family_count(); ++index) {
+                    if (values.family_at(index) == family_name.view()) {
+                        matches_family = true;
+                        break;
+                    }
                 }
+                if (!matches_family)
+                    return;
+
+                auto append = [&](FontFeatureValuesRuleKind kind, FontFeatureValueType type) {
+                    values.for_each_entry(kind, [&](auto key, auto values) {
+                        Vector<u32> copy;
+                        copy.append(values.data(), values.size());
+                        font_feature_values.set({ type, Utf16FlyString::from_utf16(key) }, move(copy));
+                    });
+                };
+                append(FontFeatureValuesRuleKind::Annotation, FontFeatureValueType::Annotation);
+                append(FontFeatureValuesRuleKind::Ornaments, FontFeatureValueType::Ornaments);
+                append(FontFeatureValuesRuleKind::Stylistic, FontFeatureValueType::Stylistic);
+                append(FontFeatureValuesRuleKind::Swash, FontFeatureValueType::Swash);
+                append(FontFeatureValuesRuleKind::CharacterVariant, FontFeatureValueType::CharacterVariant);
+                append(FontFeatureValuesRuleKind::Styleset, FontFeatureValueType::Styleset);
+
+                // NB: We don't include historical-forms since it can't be referenced - it seems like it's inclusion in the syntax
+                //     for @font-feature-values was a mistake and isn't supported by Chrome or Firefox. See
+                //     https://github.com/w3c/csswg-drafts/issues/9926#issuecomment-2017241274
             });
         });
 
@@ -926,7 +974,7 @@ void FontComputer::end_font_face_change_batch()
     m_batched_font_face_change_families.clear();
 }
 
-void FontComputer::register_font_face(GC::Ref<FontFace> face)
+void FontComputer::register_font_face(NonnullRefPtr<FontFaceState> face)
 {
     VERIFY(face->should_be_registered_with_font_computer());
 
@@ -942,7 +990,7 @@ void FontComputer::register_font_face(GC::Ref<FontFace> face)
     did_load_font(key);
 }
 
-void FontComputer::unregister_font_face(GC::Ref<FontFace> face)
+void FontComputer::unregister_font_face(NonnullRefPtr<FontFaceState> face)
 {
     VERIFY(face->should_be_registered_with_font_computer());
 
@@ -960,10 +1008,10 @@ void FontComputer::unregister_font_face(GC::Ref<FontFace> face)
     did_load_font(key);
 }
 
-void FontComputer::synchronize_font_face_order(Vector<GC::Ref<FontFace>> const& font_source_order)
+void FontComputer::synchronize_font_face_order(Vector<NonnullRefPtr<FontFaceState>> const& font_source_order)
 {
     for (auto& entry : m_font_faces) {
-        Vector<GC::Ref<FontFace>> ordered_faces;
+        Vector<NonnullRefPtr<FontFaceState>> ordered_faces;
         for (auto& font_face : font_source_order) {
             if (entry.value.contains_slow(font_face))
                 ordered_faces.append(font_face);
@@ -990,7 +1038,7 @@ void FontComputer::synchronize_font_face_order(Vector<GC::Ref<FontFace>> const& 
     }
 }
 
-GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load)
+GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face, RefPtr<StyleSheetState> parent_style_sheet, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load)
 {
     if (font_face.sources().is_empty()) {
         if (on_load)
@@ -1014,7 +1062,7 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face
     RuleOrDeclaration rule_or_declaration {
         .environment_settings_object = document().relevant_settings_object(),
         .value = RuleOrDeclaration::Rule {
-            .parent_style_sheet = font_face.parent_rule()->parent_style_sheet(),
+            .parent_style_sheet = parent_style_sheet,
         },
         .style_resource_base_url = {},
         .parent_style_sheet_origin_clean = {},
@@ -1032,64 +1080,77 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face
     return loader;
 }
 
-static bool is_font_rule(CSSRule const& rule)
+static void for_each_nested_font_rule(Parser::ValueParserFFI::NativeRuleList const* rules, Function<void(RustRuleView const&)> const& callback)
 {
-    return is<CSSFontFaceRule>(rule) || is<CSSFontFeatureValuesRule>(rule);
+    Parser::ValueParserFFI::rust_rule_list_visit_font_rules(rules, &callback, [](void const* context, Parser::ValueParserFFI::NativeRuleView const* rule) {
+        (*static_cast<Function<void(RustRuleView const&)> const*>(context))(RustRuleView { *rule });
+    });
 }
 
-static void for_each_nested_font_rule(CSSRuleList& rules, Function<void(CSSRule&)> const& callback)
+static void clear_font_feature_values_caches(RustRuleView const& rule, FontComputer& font_computer)
 {
-    for (auto& rule : rules) {
-        if (is_font_rule(*rule))
-            callback(*rule);
-
-        if (auto* grouping_rule = as_if<CSSGroupingRule>(*rule))
-            for_each_nested_font_rule(grouping_rule->css_rules(), callback);
+    auto values = rule.font_feature_values();
+    for (size_t index = 0; index < values.family_count(); ++index) {
+        auto family = Utf16FlyString::from_utf16(values.family_at(index));
+        font_computer.clear_computed_font_cache(family);
+        font_computer.clear_font_feature_values_cache(family);
     }
 }
 
-void FontComputer::load_fonts_from_sheet(CSSStyleSheet& sheet)
+void FontComputer::load_fonts_from_sheet(StyleSheetState& sheet)
 {
     begin_font_face_change_batch();
     ScopeGuard finish_font_face_change_batch = [&] {
         end_font_face_change_batch();
     };
 
-    GC::RootHashTable<CSSRule const*> effective_font_rules;
-    if (!sheet.disabled()) {
-        sheet.for_each_effective_rule(TraversalOrder::Preorder, [&](CSSRule const& effective_rule) {
-            // Imported sheets are attached and synchronize their fonts separately.
-            if (effective_rule.parent_style_sheet() == &sheet && is_font_rule(effective_rule))
-                effective_font_rules.set(&effective_rule);
+    HashTable<u64> effective_font_rules;
+    bool ancestors_match = true;
+    for (auto* ancestor = &sheet; ancestor; ancestor = ancestor->parent_style_sheet()) {
+        if (ancestor->disabled() || !ancestor->native_media_list().matches()) {
+            ancestors_match = false;
+            break;
+        }
+    }
+    if (ancestors_match) {
+        sheet.for_each_effective_rule_data(TraversalOrder::Preorder, [&](RustRuleView const& rule, Utf16View) {
+            // Only this sheet's rules are connected below. Imported sheets synchronize separately.
+            if (rule.type() == RustRule::Type::FontFace)
+                effective_font_rules.set(rule.identity());
         });
     }
 
-    for_each_nested_font_rule(sheet.rules(), [&](auto& rule) {
-        if (auto* font_face_rule = as_if<CSSFontFaceRule>(rule)) {
-            auto should_be_css_connected = effective_font_rules.contains(font_face_rule) && font_face_rule->is_valid();
+    for_each_nested_font_rule(sheet.native_rules().handle(), [&](RustRuleView const& rule) {
+        if (rule.type() == RustRule::Type::FontFace) {
+            auto descriptors = rule.descriptors();
+            auto should_be_css_connected = effective_font_rules.contains(rule.identity())
+                && descriptors.descriptor(DescriptorNameAndID::from_id(DescriptorID::FontFamily))
+                && descriptors.descriptor(DescriptorNameAndID::from_id(DescriptorID::Src));
+            auto connected_font_face = sheet.css_connected_font_face(rule.identity());
             if (!should_be_css_connected) {
-                font_face_rule->disconnect_font_face();
+                if (connected_font_face)
+                    connected_font_face->disconnect_from_css_rule();
                 return;
             }
 
-            if (font_face_rule->css_connected_font_face())
+            if (connected_font_face)
                 return;
 
             // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
             // A CSS @font-face rule automatically defines a corresponding FontFace object, which is automatically
             // placed in the document's font source when the rule is parsed. This FontFace object is CSS-connected.
-            auto font_face = FontFace::create_css_connected(HTML::relevant_realm(document()), *font_face_rule);
+            auto font_face = FontFaceState::create_css_connected(HTML::relevant_realm(document()), rule.identity(), sheet);
             document().fonts()->add_css_connected_font(font_face);
         }
 
-        if (auto* font_feature_values_rule = as_if<CSSFontFeatureValuesRule>(rule))
-            font_feature_values_rule->clear_caches();
+        if (rule.type() == RustRule::Type::FontFeatureValues)
+            clear_font_feature_values_caches(rule, *this);
     });
 
     document().fonts()->synchronize_css_connected_font_order();
 }
 
-void FontComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
+void FontComputer::unload_fonts_from_sheet(StyleSheetState& sheet)
 {
     begin_font_face_change_batch();
     ScopeGuard finish_font_face_change_batch = [&] {
@@ -1098,12 +1159,14 @@ void FontComputer::unload_fonts_from_sheet(CSSStyleSheet& sheet)
 
     // https://drafts.csswg.org/css-font-loading/#font-face-css-connection
     // If a @font-face rule is removed from the document, its connected FontFace object is no longer CSS-connected.
-    for_each_nested_font_rule(sheet.rules(), [&](auto& rule) {
-        if (auto* font_face_rule = as_if<CSSFontFaceRule>(rule))
-            font_face_rule->disconnect_font_face();
+    for_each_nested_font_rule(sheet.native_rules().handle(), [&](RustRuleView const& rule) {
+        if (rule.type() == RustRule::Type::FontFace) {
+            if (auto font_face = sheet.css_connected_font_face(rule.identity()))
+                font_face->disconnect_from_css_rule();
+        }
 
-        if (auto* font_feature_values_rule = as_if<CSSFontFeatureValuesRule>(rule))
-            font_feature_values_rule->clear_caches();
+        if (rule.type() == RustRule::Type::FontFeatureValues)
+            clear_font_feature_values_caches(rule, *this);
     });
 }
 

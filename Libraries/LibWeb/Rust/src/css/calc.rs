@@ -4731,21 +4731,6 @@ pub unsafe extern "C" fn rust_calc_reification_release(storage: *mut std::ffi::c
     }
 }
 
-/// The style value carried by a random() or non-math-function node
-/// (the sharing options or the function value), or null.
-///
-/// # Safety
-/// `node` must be a valid calculation node pointer.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_calc_node_style_value(node: *const CalcNode) -> *const std::ffi::c_void {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CalcNodeQueryEntry);
-    match unsafe { &*node } {
-        CalcNode::Random { sharing, .. } => sharing.data() as *const _ as *const _,
-        CalcNode::NonMathFunction { value, .. } => value.data() as *const _ as *const _,
-        _ => std::ptr::null(),
-    }
-}
-
 /// Simplifies a free-standing calculation tree: the css-values-4 algorithm
 /// over a borrowed root, returning the simplified tree as a transferred
 /// handle. This backs the C++ simplify_a_calculation_tree entry, whose

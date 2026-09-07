@@ -8,8 +8,8 @@
 #include <LibGfx/DecodedImageFrame.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
-#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/CSS/TransformFunctions.h>
 #include <LibWeb/CSS/Units.h>
 #include <LibWeb/DOM/Document.h>
@@ -492,7 +492,7 @@ void ViewTransition::setup_transition_pseudo_elements()
                 }}
             )",
                                                               transition_name),
-                stylesheet->rules().length()));
+                stylesheet->native_rules().size()));
             captured_element->image_animation_name_rule = as<CSS::CSSStyleRule>(stylesheet->css_rules()->item(index));
         }
 
@@ -513,7 +513,7 @@ void ViewTransition::setup_transition_pseudo_elements()
                 }}
             )",
                                                               transition_name),
-                stylesheet->rules().length()));
+                stylesheet->native_rules().size()));
             captured_element->image_animation_name_rule = as<CSS::CSSStyleRule>(stylesheet->css_rules()->item(index));
         }
 
@@ -557,7 +557,7 @@ void ViewTransition::setup_transition_pseudo_elements()
                 }}
             )",
                                                               transition_name, "transform", width, height, "backdrop_filter"),
-                stylesheet->rules().length()));
+                stylesheet->native_rules().size()));
             // FIXME: all the strings above should be the identically named variables, serialized somehow.
             captured_element->group_keyframes = as<CSS::CSSKeyframesRule>(stylesheet->css_rules()->item(index));
 
@@ -573,7 +573,7 @@ void ViewTransition::setup_transition_pseudo_elements()
                 }}
             )",
                                                      transition_name),
-                stylesheet->rules().length()));
+                stylesheet->native_rules().size()));
             captured_element->group_animation_name_rule = as<CSS::CSSStyleRule>(stylesheet->css_rules()->item(index));
 
             // 7. Set capturedElement’s image pair isolation rule to a new CSSStyleRule representing the
@@ -588,7 +588,7 @@ void ViewTransition::setup_transition_pseudo_elements()
                 }}
             )",
                                                      transition_name),
-                stylesheet->rules().length()));
+                stylesheet->native_rules().size()));
             captured_element->image_pair_isolation_rule = as<CSS::CSSStyleRule>(stylesheet->css_rules()->item(index));
 
             // 8. Set capturedElement’s image animation name rule to a new CSSStyleRule representing the
@@ -616,7 +616,7 @@ void ViewTransition::setup_transition_pseudo_elements()
                 }}
             )",
                                                      transition_name),
-                stylesheet->rules().length()));
+                stylesheet->native_rules().size()));
             captured_element->image_animation_name_rule = as<CSS::CSSStyleRule>(stylesheet->css_rules()->item(index));
         }
     }
@@ -961,7 +961,7 @@ ErrorOr<void> ViewTransition::update_pseudo_element_styles()
                 }}
             )",
                                                               transition_name, width, height, "transform", "writing_mode", "direction", "text_orientation", "mix_blend_mode", "backdrop_filter", "color_scheme"),
-                stylesheet->rules().length()));
+                stylesheet->native_rules().size()));
             // FIXME: all the strings above should be the identically named variables, serialized somehow.
             captured_element->group_styles_rule = as<CSS::CSSStyleRule>(stylesheet->css_rules()->item(index));
         }

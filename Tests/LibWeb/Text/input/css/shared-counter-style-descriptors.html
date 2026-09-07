@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const text = '@counter-style 色 { symbols: "A" "B"; system: fixed; }';
+        const makeSheet = () => {
+            const element = document.createElement("style");
+            element.textContent = text;
+            document.head.append(element);
+            return element.sheet;
+        };
+        const first = makeSheet();
+        const second = makeSheet();
+        const rule = first.cssRules[0];
+        const original = second.cssRules[0].cssText;
+        println(`original order: ${original}`);
+        const changes = {
+            system: "fixed 1",
+            negative: '"-"',
+            prefix: '"["',
+            suffix: '"]"',
+            range: "1 9",
+            pad: '2 "0"',
+            fallback: "decimal",
+            symbols: '"一" "二"',
+            additiveSymbols: '2 "二", 1 "一"',
+            speakAs: "numbers",
+        };
+        for (const [name, value] of Object.entries(changes)) {
+            rule[name] = value;
+            println(`${name}: ${rule[name] === value}, isolated: ${second.cssRules[0].cssText === original}`);
+        }
+        const changed = rule.cssText;
+        rule.system = "numeric";
+        rule.symbols = "";
+        println(`invalid edits ignored: ${rule.cssText === changed}`);
+        rule.name = "UPPER-ROMAN";
+        println(`normalized name: ${rule.name}, ${second.cssRules[0].name}`);
+        rule.name = "DiSc";
+        println(`reserved name ignored: ${rule.name}`);
+        first.deleteRule(0);
+        rule.symbols = '"三"';
+        rule.name = "新しい名前";
+        println(`detached: ${rule.parentStyleSheet === null}, ${rule.symbols}`);
+        println(`detached name: ${rule.name}`);
+        println(`cached parse unchanged: ${makeSheet().cssRules[0].cssText === original}`);
+    });
+</script>

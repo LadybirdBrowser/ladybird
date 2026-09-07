@@ -11,7 +11,6 @@
 #include <AK/Utf16View.h>
 #include <LibWeb/CSS/CSSRule.h>
 #include <LibWeb/CSS/CSSStyleProperties.h>
-#include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -23,21 +22,20 @@ class CSSKeyframeRule final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSKeyframeRule);
 
 public:
-    static constexpr size_t declarations_offset() { return offsetof(CSSKeyframeRule, m_declarations); }
-    static GC::Ref<CSSKeyframeRule> create(Vector<CSS::Percentage>&& keys, CSSStyleProperties&);
+    static GC::Ref<CSSKeyframeRule> create(RustRule);
 
     virtual ~CSSKeyframeRule() = default;
 
-    Vector<CSS::Percentage> keys() const { return m_keys; }
-    GC::Ref<CSSStyleProperties> style() const { return m_declarations; }
+    GC::Ref<CSSStyleProperties> style() const;
 
     Utf16String key_text() const
     {
         Utf16StringBuilder builder;
-        for (auto const& key : m_keys) {
+        auto keys = Parser::ValueParserFFI::rust_keyframe_keys(&m_frame);
+        for (auto key : ReadonlySpan<double> { keys.values, keys.count }) {
             if (!builder.is_empty())
                 builder.append(", "sv);
-            builder.appendff("{}%"sv, key.value());
+            builder.appendff("{}%"sv, key);
         }
 
         return builder.to_string();
@@ -49,14 +47,16 @@ public:
     }
 
 private:
-    CSSKeyframeRule(Vector<CSS::Percentage>&&, CSSStyleProperties&);
+    CSSKeyframeRule(RustRule);
 
+    virtual size_t external_memory_size() const override;
     virtual void visit_edges(Visitor&) override;
     virtual Utf16String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
-    Vector<CSS::Percentage> m_keys;
-    GC::Ref<CSSStyleProperties> m_declarations;
+    Parser::ValueParserFFI::FfiKeyframe const& m_frame;
+    RustDeclarationBlock m_declarations;
+    mutable GC::Ptr<CSSStyleProperties> m_style;
 };
 
 template<>

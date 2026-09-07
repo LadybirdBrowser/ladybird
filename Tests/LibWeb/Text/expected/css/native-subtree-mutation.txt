@@ -1,0 +1,8 @@
+downloaded order: rgb(0, 0, 255)
+inserted subtree precedes successor: rgb(0, 0, 255)
+subtree internal order: rgb(128, 0, 128)
+entire subtree retired: rgb(255, 165, 0)
+imported subtree precedes successor: rgb(255, 165, 0)
+imported subtree becomes last: rgb(0, 255, 255)
+detached nested import stays retired: rgb(0, 255, 255)
+detached import graph stays retired: rgb(0, 0, 0)

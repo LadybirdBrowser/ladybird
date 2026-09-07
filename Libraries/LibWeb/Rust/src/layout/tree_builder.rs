@@ -4016,8 +4016,6 @@ mod tests {
         find_first_letter_in_text, principal_box_generation_decision, principal_box_placement_decision,
         principal_node_entry_decision, pseudo_element_decision,
     };
-    use std::ffi::c_void;
-
     fn code_point_facts(code_point: u32) -> FfiCodePointCategoryFacts {
         FfiCodePointCategoryFacts {
             is_space_separator: code_point == b' ' as u32,

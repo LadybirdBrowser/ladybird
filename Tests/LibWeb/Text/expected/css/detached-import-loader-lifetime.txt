@@ -1,0 +1,10 @@
+detached parent: true
+completed after removal: true
+detached sheet parent: true
+owner identity: true
+early media identity: true
+nested completion: true
+nested owner identity: true
+native value: '雪'
+detached media mutation: not all
+document unaffected: 5px

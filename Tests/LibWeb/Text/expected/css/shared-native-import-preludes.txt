@@ -1,0 +1,8 @@
+layers: 雪, "", null
+supports: display: unknown, true
+URL: data:text/css,
+serialization: @import url("data:text/css,") layer(雪) supports(display: unknown) screen;
+media: true, print, screen
+detached: true, 雪, display: unknown, data:text/css,
+cached media: screen
+supports rule width: 17px

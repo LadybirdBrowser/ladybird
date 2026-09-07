@@ -84,18 +84,23 @@ Vector<Descriptor> const& RustDescriptorBlock::descriptors() const
     HashMap<void const*, NonnullRefPtr<StyleValue const>> existing_values;
     for (auto const& descriptor : m_descriptors)
         existing_values.set(descriptor.value->rust_style_value_data(), descriptor.value);
-    auto view = rust_descriptor_block_view(m_block);
     m_descriptors.clear();
-    for (auto const& descriptor : ReadonlySpan { view.descriptors, view.count }) {
+    struct Context {
+        Vector<Descriptor>& descriptors;
+        HashMap<void const*, NonnullRefPtr<StyleValue const>>& values;
+    } context { m_descriptors, existing_values };
+    rust_descriptor_block_visit(m_block, &context, [](void* raw_context, FfiDescriptor const* borrowed) {
+        auto& context = *static_cast<Context*>(raw_context);
+        auto const& descriptor = *borrowed;
         auto id = static_cast<DescriptorID>(descriptor.id);
         auto name = id == DescriptorID::Custom
             ? DescriptorNameAndID::from_custom_name(Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(descriptor.name.utf16), descriptor.name.length }))
             : DescriptorNameAndID::from_id(id);
-        auto value = existing_values.ensure(descriptor.value, [&] {
+        auto value = context.values.ensure(descriptor.value, [&] {
             return NonnullRefPtr<StyleValue const> { StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(reinterpret_cast<StyleValueFFI::StyleValueData const*>(descriptor.value))) };
         });
-        m_descriptors.append({ move(name), move(value) });
-    }
+        context.descriptors.append({ move(name), move(value) });
+    });
     m_view_revision = revision;
     return m_descriptors;
 }

@@ -5,8 +5,8 @@
  */
 
 #include "CounterStyleDefinition.h"
-#include <LibWeb/CSS/CSSCounterStyleRule.h>
 #include <LibWeb/CSS/Enums.h>
+#include <LibWeb/CSS/RustDescriptorBlock.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 
@@ -53,24 +53,32 @@ Vector<CounterStyleRangeEntry> AutoRange::resolve(CounterStyleAlgorithm const& a
         });
 }
 
-Optional<CounterStyleDefinition> CounterStyleDefinition::from_counter_style_rule(CSSCounterStyleRule const& rule, ComputationContext const& computation_context)
+Optional<CounterStyleDefinition> CounterStyleDefinition::from_descriptors(Utf16View name, RustDescriptorBlock const& descriptors, ComputationContext const& computation_context)
 {
-    auto system_style_value = rule.system_style_value() ? NonnullRefPtr<StyleValue const> { *rule.system_style_value() } : CounterStyleSystemStyleValue::create(CounterStyleSystem::Symbolic);
+    auto descriptor = [&](DescriptorID id) { return descriptors.descriptor(DescriptorNameAndID::from_id(id)); };
+    auto system = descriptor(DescriptorID::System);
+    auto system_style_value = system ? system.release_nonnull() : CounterStyleSystemStyleValue::create(CounterStyleSystem::Symbolic);
 
-    auto maybe_algorithm = resolve_algorithm(system_style_value, rule.symbols_style_value(), rule.additive_symbols_style_value(), computation_context);
+    auto maybe_algorithm = resolve_algorithm(system_style_value, descriptor(DescriptorID::Symbols), descriptor(DescriptorID::AdditiveSymbols), computation_context);
 
     if (maybe_algorithm.has<Empty>())
         return {};
 
+    auto negative = descriptor(DescriptorID::Negative);
+    auto prefix = descriptor(DescriptorID::Prefix);
+    auto suffix = descriptor(DescriptorID::Suffix);
+    auto range = descriptor(DescriptorID::Range);
+    auto fallback = descriptor(DescriptorID::Fallback);
+    auto pad = descriptor(DescriptorID::Pad);
     return CounterStyleDefinition::create(
-        rule.name(),
+        Utf16FlyString::from_utf16(name),
         maybe_algorithm.downcast<CounterStyleAlgorithm, CounterStyleSystemStyleValue::Extends>(),
-        rule.negative_style_value() ? Optional<CounterStyleNegativeSign> { resolve_negative_sign(*rule.negative_style_value()) } : Optional<CounterStyleNegativeSign> {},
-        rule.prefix_style_value() ? Optional<CounterStyleSymbol> { string_from_style_value(*rule.prefix_style_value()) } : Optional<CounterStyleSymbol> {},
-        rule.suffix_style_value() ? Optional<CounterStyleSymbol> { string_from_style_value(*rule.suffix_style_value()) } : Optional<CounterStyleSymbol> {},
-        rule.range_style_value() ? Variant<Empty, AutoRange, Vector<CounterStyleRangeEntry>> { resolve_range(*rule.range_style_value(), computation_context) } : Variant<Empty, AutoRange, Vector<CounterStyleRangeEntry>> {},
-        rule.fallback_style_value() ? Optional<Utf16FlyString> { string_from_style_value(*rule.fallback_style_value()) } : Optional<Utf16FlyString> {},
-        rule.pad_style_value() ? Optional<CounterStylePad> { resolve_pad(*rule.pad_style_value(), computation_context) } : Optional<CounterStylePad> {});
+        negative ? Optional<CounterStyleNegativeSign> { resolve_negative_sign(*negative) } : Optional<CounterStyleNegativeSign> {},
+        prefix ? Optional<CounterStyleSymbol> { string_from_style_value(*prefix) } : Optional<CounterStyleSymbol> {},
+        suffix ? Optional<CounterStyleSymbol> { string_from_style_value(*suffix) } : Optional<CounterStyleSymbol> {},
+        range ? Variant<Empty, AutoRange, Vector<CounterStyleRangeEntry>> { resolve_range(*range, computation_context) } : Variant<Empty, AutoRange, Vector<CounterStyleRangeEntry>> {},
+        fallback ? Optional<Utf16FlyString> { string_from_style_value(*fallback) } : Optional<Utf16FlyString> {},
+        pad ? Optional<CounterStylePad> { resolve_pad(*pad, computation_context) } : Optional<CounterStylePad> {});
 }
 
 // https://drafts.csswg.org/css-counter-styles-3/#counter-style-system

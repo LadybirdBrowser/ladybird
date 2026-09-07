@@ -1,0 +1,39 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<style>
+@font-face {
+    font-family: Graph;
+    src: local("Font Name");
+    unicode-range: U+0-7F;
+}
+.subject {
+    color-scheme: light dark;
+    display: grid;
+    grid-auto-flow: column dense;
+    grid-template-areas: "a a";
+    background-repeat: space round;
+    scrollbar-gutter: stable both-edges;
+    text-underline-position: under left;
+}
+</style>
+<div class="subject"></div>
+<script>
+test(() => {
+    const sheet = document.styleSheets[0];
+    const font = sheet.cssRules[0].style;
+    const rule = sheet.cssRules[1];
+    const subject = document.querySelector(".subject");
+    for (const property of ["color-scheme", "display", "grid-auto-flow", "grid-template-areas", "background-repeat", "scrollbar-gutter", "text-underline-position"])
+        println(`${property}: ${rule.style.getPropertyValue(property)}; computed: ${getComputedStyle(subject).getPropertyValue(property)}`);
+    println(`font: ${font.src}; ${font.unicodeRange}`);
+    rule.style.colorScheme = "dark";
+    rule.style.gridAutoFlow = "row";
+    println(`mutated: ${getComputedStyle(subject).colorScheme}; ${getComputedStyle(subject).gridAutoFlow}`);
+    rule.style.width = "anchor-size(width, 1px)";
+    rule.style.left = "anchor(left, 2px)";
+    println(`anchors: ${rule.style.width}; ${rule.style.left}`);
+    sheet.deleteRule(0);
+    println(`retained font: ${font.src}; ${font.unicodeRange}`);
+});
+</script>

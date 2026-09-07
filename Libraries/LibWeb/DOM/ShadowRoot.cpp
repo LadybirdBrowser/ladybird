@@ -6,8 +6,8 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/Iterator.h>
-#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/StyleSheetList.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/DOM/AdoptedStyleSheets.h>
 #include <LibWeb/DOM/BindingsGlue.h>
 #include <LibWeb/DOM/Document.h>
@@ -176,7 +176,7 @@ GC::Ptr<Element> ShadowRoot::active_element()
 CSS::StyleSheetList& ShadowRoot::style_sheets()
 {
     if (!m_style_sheets)
-        m_style_sheets = CSS::StyleSheetList::create(*this);
+        m_style_sheets = CSS::StyleSheetList::create(m_style_scope);
     return *m_style_sheets;
 }
 
@@ -214,9 +214,9 @@ GC::Ref<WebIDL::ObservableArray> ShadowRoot::adopted_style_sheets() const
     return *m_adopted_style_sheets;
 }
 
-void ShadowRoot::for_each_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& callback) const
+void ShadowRoot::for_each_css_style_sheet(Function<void(CSS::StyleSheetState&)>&& callback) const
 {
-    for (auto& style_sheet : style_sheets().sheets())
+    for (auto& style_sheet : m_style_scope.style_sheets())
         callback(*style_sheet);
 
     if (m_adopted_style_sheets) {
@@ -226,9 +226,9 @@ void ShadowRoot::for_each_css_style_sheet(Function<void(CSS::CSSStyleSheet&)>&& 
     }
 }
 
-void ShadowRoot::for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)> const& callback) const
+void ShadowRoot::for_each_active_css_style_sheet(Function<void(CSS::StyleSheetState&)> const& callback) const
 {
-    for (auto& style_sheet : style_sheets().sheets()) {
+    for (auto& style_sheet : m_style_scope.style_sheets()) {
         if (!style_sheet->disabled())
             callback(*style_sheet);
     }

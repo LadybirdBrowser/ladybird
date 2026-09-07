@@ -8,6 +8,21 @@
 
 use crate::css::css_tokenizer::TokenizerInput;
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum StyleNestingParent {
+    None,
+    Style,
+    Scope,
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
+pub struct FfiStringView {
+    pub data: *const u16,
+    pub length: usize,
+}
+
 #[derive(Clone, Copy, Default)]
 #[repr(C)]
 pub struct FfiUtf16View {

@@ -5,10 +5,9 @@
  */
 
 #include <LibGC/WeakInlines.h>
-#include <LibWeb/CSS/CSSRule.h>
-#include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CascadedProperties.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 
@@ -37,14 +36,14 @@ NonnullRefPtr<CascadedProperties> CascadedProperties::create()
     return adopt_ref(*new CascadedProperties);
 }
 
-void CascadedProperties::assign_source_slot(u32 slot, GC::Ptr<CSSStyleDeclaration const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root)
+void CascadedProperties::assign_source_slot(u32 slot, RefPtr<StyleSheetState const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root)
 {
     if (slot >= m_source_slots.size())
         m_source_slots.resize(slot + 1);
     m_source_slots[slot] = SourcePair { source.ptr(), source_shadow_root.ptr() };
 }
 
-GC::Ptr<CSSStyleDeclaration const> CascadedProperties::source_for_slot(u32 slot) const
+RefPtr<StyleSheetState const> CascadedProperties::source_for_slot(u32 slot) const
 {
     if (slot >= m_source_slots.size())
         return nullptr;
@@ -63,8 +62,8 @@ RefPtr<StyleValue const> CascadedProperties::property(PropertyID property_id) co
     auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(data));
     auto source_slot = ComputedValuesFFI::rust_cascaded_properties_source_slot(m_store, to_underlying(property_id));
     if (source_slot >= 0 && ComputedValuesFFI::rust_cascaded_properties_has_style_sheet_context(m_store, to_underlying(property_id))) {
-        if (auto source = source_for_slot(static_cast<u32>(source_slot)); source && source->parent_rule())
-            const_cast<StyleValue&>(*value).set_style_sheet(source->parent_rule()->parent_style_sheet());
+        if (auto source = source_for_slot(static_cast<u32>(source_slot)))
+            const_cast<StyleValue&>(*value).set_style_sheet(const_cast<StyleSheetState*>(source.ptr()));
     }
     m_property_cache.set(property_id, value);
     return value;

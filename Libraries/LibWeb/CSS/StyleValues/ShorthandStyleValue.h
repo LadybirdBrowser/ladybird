@@ -52,7 +52,7 @@ private:
 
     // NB: StyleValue dispatches operations by type tag, so it may call private impls.
     friend class StyleValue;
-    void set_style_sheet(GC::Ptr<CSSStyleSheet>);
+    void set_style_sheet(StyleSheetState*);
 
     static StyleValueFFI::StyleValueData const* make_shorthand_data(PropertyID shorthand, Vector<PropertyID> const& sub_properties, Vector<ValueComparingNonnullRefPtr<StyleValue const>> const& values)
     {

@@ -6,7 +6,7 @@
 
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/ModuleRequest.h>
-#include <LibWeb/CSS/CSSStyleSheet.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/Fetching.h>
 #include <LibWeb/HTML/Scripting/ModuleScript.h>
@@ -170,7 +170,7 @@ WebIDL::ExceptionOr<GC::Ptr<ModuleScript>> ModuleScript::create_a_css_module_scr
 
     // 5. Let sheet be the result of running the steps to create a constructed CSSStyleSheet with an empty dictionary as
     //    the argument.
-    auto sheet = TRY(CSS::CSSStyleSheet::create_constructed(*settings.responsible_document()));
+    auto sheet = TRY(CSS::StyleSheetState::create_constructed(*settings.responsible_document()));
 
     // 6. Run the steps to synchronously replace the rules of a CSSStyleSheet on sheet given source.
     //    If this throws an exception, catch it, and set script's parse error to that exception, and return script.

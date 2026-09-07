@@ -14,9 +14,9 @@ use std::sync::Arc;
 
 use crate::css::css_tokenizer::OwnedToken;
 use crate::css::css_tokenizer::OwnedTokenKind;
-use crate::css::css_tokenizer::TokenizerInput;
 use crate::css::css_tokenizer::tokenize_owned;
 use crate::css::ffi_support::FfiUtf16View;
+use crate::css::function_signature::FunctionSignature;
 use crate::css::parser::query_parser::{
     FfiMediaEnvironment, MatchResult, parse_and_evaluate_media_if_condition, parse_and_evaluate_supports_if_condition,
 };
@@ -135,19 +135,11 @@ struct RegisteredCustomProperty {
 }
 
 #[derive(Clone)]
-struct CustomFunctionParameter {
-    name: Vec<u16>,
-    syntax: SyntaxNode,
-    default_tokens: Option<Vec<OwnedToken>>,
-}
-
-#[derive(Clone)]
 struct CustomFunctionDefinition {
-    identity: usize,
+    identity: u64,
     scope_identity: usize,
-    name: Vec<u16>,
-    parameters: Vec<CustomFunctionParameter>,
-    return_syntax: SyntaxNode,
+    signature: Arc<FunctionSignature>,
+    parameter_defaults: Vec<Option<Vec<OwnedToken>>>,
     declarations: Vec<(Vec<u16>, Vec<OwnedToken>, bool)>,
 }
 
@@ -198,13 +190,6 @@ pub struct FfiSubstitutionAttribute {
 }
 
 #[repr(C)]
-pub struct FfiSubstitutionFunctionParameter {
-    pub name: FfiUtf16View,
-    pub syntax: *const c_void,
-    pub default_data: *const c_void,
-}
-
-#[repr(C)]
 pub struct FfiSubstitutionFunctionDeclaration {
     pub name: FfiUtf16View,
     pub data: *const c_void,
@@ -212,12 +197,9 @@ pub struct FfiSubstitutionFunctionDeclaration {
 
 #[repr(C)]
 pub struct FfiSubstitutionFunctionDefinition {
-    pub identity: usize,
+    pub identity: u64,
     pub scope_identity: usize,
-    pub name: FfiUtf16View,
-    pub parameters: *const FfiSubstitutionFunctionParameter,
-    pub parameter_count: usize,
-    pub return_syntax: *const c_void,
+    pub signature: *const c_void,
     pub declarations: *const FfiSubstitutionFunctionDeclaration,
     pub declaration_count: usize,
 }
@@ -238,7 +220,6 @@ impl CustomPropertyRegistry {
             value_contexts: std::ptr::null(),
             value_context_count: 0,
             declared_namespaces: std::ptr::null(),
-            declared_namespace_count: 0,
             document_url: self.document_url.as_ptr(),
             document_url_length: self.document_url.len(),
             document_base_url: self.document_base_url.as_ptr(),
@@ -431,15 +412,15 @@ struct VarResolutionContext<'a> {
     attribute_names_are_ascii_case_insensitive: bool,
     contains_attr_tainted_values: bool,
     custom_functions: Option<&'a CustomFunctionRegistry>,
-    resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> usize>,
+    resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> u64>,
     parse_context: Option<&'a ParseContext>,
     media_environment: Option<&'a FfiMediaEnvironment>,
     load_media_environment: Option<unsafe extern "C" fn(*mut c_void) -> *const c_void>,
     callback_context: *mut c_void,
     evaluate_style_query: Option<unsafe extern "C" fn(*mut c_void, FfiUtf16View) -> u8>,
     final_custom_properties: Option<&'a HashMap<Vec<u16>, *const c_void>>,
-    active_functions: Vec<usize>,
-    cyclic_functions: HashSet<usize>,
+    active_functions: Vec<u64>,
+    cyclic_functions: HashSet<u64>,
     function_local_scopes: Vec<FunctionLocalScope>,
     token_cache: Option<&'a mut CustomPropertyTokenCache>,
     resolution_stats: Option<&'a VarResolutionStats>,
@@ -685,27 +666,19 @@ unsafe fn custom_function_registry_from_ffi(
     };
     let mut parsed_definitions = Vec::with_capacity(definitions.len());
     for definition in definitions {
-        let name = unsafe { definition.name.to_utf16() }?;
-        let return_syntax = unsafe { clone_syntax_handle(definition.return_syntax) }?;
-        let parameters = if definition.parameter_count == 0 {
-            &[]
-        } else {
-            unsafe { std::slice::from_raw_parts(definition.parameters, definition.parameter_count) }
+        let signature = definition.signature.cast::<FunctionSignature>();
+        if signature.is_null() {
+            return None;
+        }
+        let signature = unsafe {
+            Arc::increment_strong_count(signature);
+            Arc::from_raw(signature)
         };
-        let mut parsed_parameters = Vec::with_capacity(parameters.len());
-        for parameter in parameters {
-            let name = unsafe { parameter.name.to_utf16() }?;
-            let syntax = unsafe { clone_syntax_handle(parameter.syntax) }?;
-            let default_tokens = if parameter.default_data.is_null() {
-                None
-            } else {
-                let data = unsafe { &*parameter.default_data.cast::<StyleValueData>() };
-                Some(tokens_for_function_value(data)?.0)
-            };
-            parsed_parameters.push(CustomFunctionParameter {
-                name,
-                syntax,
-                default_tokens,
+        let mut parameter_defaults = Vec::with_capacity(signature.parameters.len());
+        for parameter in &signature.parameters {
+            parameter_defaults.push(match &parameter.default_value {
+                Some(data) => Some(tokens_for_function_value(data)?.0),
+                None => None,
             });
         }
         let declarations = if definition.declaration_count == 0 {
@@ -723,9 +696,8 @@ unsafe fn custom_function_registry_from_ffi(
         parsed_definitions.push(CustomFunctionDefinition {
             identity: definition.identity,
             scope_identity: definition.scope_identity,
-            name,
-            parameters: parsed_parameters,
-            return_syntax,
+            signature,
+            parameter_defaults,
             declarations: parsed_declarations,
         });
     }
@@ -1848,10 +1820,9 @@ fn replace_custom_function(
         })
         .or_else(|| {
             resolved_identity.is_none().then(|| {
-                functions
-                    .definitions
-                    .iter()
-                    .find(|definition| definition.name == name && definition.scope_identity == caller_scope_identity)
+                functions.definitions.iter().find(|definition| {
+                    definition.signature.name.units() == name && definition.scope_identity == caller_scope_identity
+                })
             })?
         })
         .cloned();
@@ -1871,7 +1842,7 @@ fn replace_custom_function(
     let Some(argument_slices) = split_function_arguments(arguments) else {
         return TokenResolution::Invalid;
     };
-    if argument_slices.len() > definition.parameters.len() {
+    if argument_slices.len() > definition.signature.parameters.len() {
         return TokenResolution::Invalid;
     }
     let mut substituted_arguments = Vec::with_capacity(argument_slices.len());
@@ -1895,8 +1866,9 @@ fn replace_custom_function(
 
     let mut argument_values = HashMap::new();
     let mut argument_registrations = HashMap::new();
-    for (index, parameter) in definition.parameters.iter().enumerate() {
-        if index >= substituted_arguments.len() && parameter.default_tokens.is_none() {
+    for (index, parameter) in definition.signature.parameters.iter().enumerate() {
+        let default_tokens = &definition.parameter_defaults[index];
+        if index >= substituted_arguments.len() && default_tokens.is_none() {
             return TokenResolution::Invalid;
         }
         let argument = substituted_arguments.get(index);
@@ -1913,19 +1885,19 @@ fn replace_custom_function(
             }),
             TokenResolution::NotHandled => return TokenResolution::NotHandled,
             TokenResolution::Invalid | TokenResolution::Cyclic => {
-                parameter.default_tokens.as_ref().map(|tokens| FunctionLocalValue {
+                default_tokens.as_ref().map(|tokens| FunctionLocalValue {
                     tokens: trim_whitespace(tokens).to_vec(),
                     includes_substitution: true,
                 })
             }
         };
         if let Some(value) = value {
-            argument_values.insert(parameter.name.clone(), value);
+            argument_values.insert(parameter.name.units().to_vec(), value);
         }
         argument_registrations.insert(
-            parameter.name.clone(),
+            parameter.name.units().to_vec(),
             FunctionLocalRegistration {
-                syntax: parameter.syntax.clone(),
+                syntax: (*parameter.syntax).clone(),
                 initial_tokens: None,
                 is_result: false,
             },
@@ -1938,22 +1910,22 @@ fn replace_custom_function(
         registrations: argument_registrations,
     });
     let mut resolved_arguments = HashMap::new();
-    for parameter in &definition.parameters {
+    for parameter in &definition.signature.parameters {
         if let TokenResolution::Resolved(tokens) =
-            resolve_custom_property(store, registry, &parameter.name, context, recursion_depth + 1)
+            resolve_custom_property(store, registry, parameter.name.units(), context, recursion_depth + 1)
         {
-            resolved_arguments.insert(parameter.name.clone(), tokens);
+            resolved_arguments.insert(parameter.name.units().to_vec(), tokens);
         }
     }
     context.function_local_scopes.pop();
 
     let mut values = HashMap::new();
     let mut registrations = HashMap::new();
-    for parameter in &definition.parameters {
-        let initial_tokens = resolved_arguments.get(&parameter.name).cloned();
+    for parameter in &definition.signature.parameters {
+        let initial_tokens = resolved_arguments.get(parameter.name.units()).cloned();
         if let Some(tokens) = &initial_tokens {
             values.insert(
-                parameter.name.clone(),
+                parameter.name.units().to_vec(),
                 FunctionLocalValue {
                     tokens: tokens.clone(),
                     includes_substitution: false,
@@ -1961,9 +1933,9 @@ fn replace_custom_function(
             );
         }
         registrations.insert(
-            parameter.name.clone(),
+            parameter.name.units().to_vec(),
             FunctionLocalRegistration {
-                syntax: parameter.syntax.clone(),
+                syntax: (*parameter.syntax).clone(),
                 initial_tokens,
                 is_result: false,
             },
@@ -1972,7 +1944,7 @@ fn replace_custom_function(
     registrations.insert(
         b"result".iter().copied().map(u16::from).collect(),
         FunctionLocalRegistration {
-            syntax: definition.return_syntax.clone(),
+            syntax: (*definition.signature.return_type).clone(),
             initial_tokens: None,
             is_result: true,
         },
@@ -2427,7 +2399,7 @@ pub(crate) unsafe fn resolve_vars(
     value_data: *const c_void,
     environment: &mut VarResolutionEnvironment,
     attribute_names_are_ascii_case_insensitive: bool,
-    resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> usize>,
+    resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> u64>,
     callback_context: *mut c_void,
     evaluate_style_query: Option<unsafe extern "C" fn(*mut c_void, FfiUtf16View) -> u8>,
     final_custom_properties: Option<&HashMap<Vec<u16>, *const c_void>>,
@@ -2507,6 +2479,28 @@ pub(crate) unsafe fn resolve_vars(
 #[allow(clippy::items_after_test_module)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn custom_property_values_outlive_their_store() {
+        let name = utf16("--value");
+        let store = CustomPropertyStore::child(
+            None,
+            vec![(
+                0,
+                CustomPropertyEntry {
+                    _name: RetainedUtf16FlyString::none(),
+                    name,
+                    value: RetainedStyleValueData::from_owned(StyleValueData::Number { value: 1.0 }),
+                    important: false,
+                },
+            )],
+        );
+        // SAFETY: child returns one owned Arc reference.
+        let store = unsafe { Arc::from_raw(store.cast::<CustomPropertyStore>()) };
+        let value = store.get(0).unwrap().value.clone();
+        drop(store);
+        assert!(matches!(value.data(), StyleValueData::Number { value } if *value == 1.0));
+    }
 
     fn utf16(value: &str) -> Vec<u16> {
         value.encode_utf16().collect()
@@ -2611,13 +2605,17 @@ mod tests {
             definitions: vec![CustomFunctionDefinition {
                 identity: 2,
                 scope_identity: 1,
-                name: utf16("--echo"),
-                parameters: vec![CustomFunctionParameter {
-                    name: utf16("--value"),
-                    syntax: SyntaxNode::Universal,
-                    default_tokens: None,
-                }],
-                return_syntax: SyntaxNode::Universal,
+                signature: Arc::new(FunctionSignature {
+                    name: crate::css::css_string::CssString::from_utf16(&utf16("--echo")),
+                    parameters: vec![crate::css::function_signature::FunctionParameterData {
+                        name: crate::css::css_string::CssString::from_utf16(&utf16("--value")),
+                        syntax: Arc::new(SyntaxNode::Universal),
+                        default_value: None,
+                    }]
+                    .into_boxed_slice(),
+                    return_type: Arc::new(SyntaxNode::Universal),
+                }),
+                parameter_defaults: vec![None],
                 declarations: vec![(utf16("result"), tokenize_owned(b"var(--value)"), true)],
             }],
         };
@@ -2917,16 +2915,6 @@ pub unsafe extern "C" fn rust_custom_property_store_destroy(store: *const c_void
     drop(unsafe { Arc::from_raw(store.cast::<CustomPropertyStore>()) });
 }
 
-#[repr(C)]
-pub struct FfiCustomPropertyStoreValue {
-    pub found: bool,
-    pub important: bool,
-    pub data: *const c_void,
-    pub token_source_ascii: *const u8,
-    pub token_source_utf16: *const u16,
-    pub token_source_length: usize,
-}
-
 /// Hands every custom property a store declares itself to `callback`, in declaration order, with
 /// the fly string it is named by and a borrowed value.
 ///
@@ -2948,41 +2936,5 @@ pub unsafe extern "C" fn rust_custom_property_store_for_each_own_entry(
         unsafe {
             callback(context, *name_raw, entry.important, entry.value.pointer().cast());
         }
-    }
-}
-
-/// Looks up a custom property through the structurally shared parent chain.
-///
-/// # Safety
-/// `store` must be a live pointer returned by `rust_custom_property_store_create`.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_custom_property_store_get(
-    store: *const c_void,
-    name_raw: usize,
-) -> FfiCustomPropertyStoreValue {
-    crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::CustomPropertyStoreQueryEntry);
-    let store = unsafe { &*store.cast::<CustomPropertyStore>() };
-    let Some(entry) = store.get(name_raw) else {
-        return FfiCustomPropertyStoreValue {
-            found: false,
-            important: false,
-            data: std::ptr::null(),
-            token_source_ascii: std::ptr::null(),
-            token_source_utf16: std::ptr::null(),
-            token_source_length: 0,
-        };
-    };
-    let token_source = entry.value.data().unresolved_token_source().unwrap_or_default();
-    let (token_source_ascii, token_source_utf16) = match token_source {
-        TokenizerInput::Ascii(units) => (units.as_ptr(), std::ptr::null()),
-        TokenizerInput::Utf16(units) => (std::ptr::null(), units.as_ptr()),
-    };
-    FfiCustomPropertyStoreValue {
-        found: true,
-        important: entry.important,
-        data: entry.value.data() as *const StyleValueData as *const c_void,
-        token_source_ascii,
-        token_source_utf16,
-        token_source_length: token_source.len(),
     }
 }

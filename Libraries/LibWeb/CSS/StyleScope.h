@@ -18,7 +18,10 @@
 #include <LibGC/Ptr.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/CSS/CascadeOrigin.h>
+#include <LibWeb/CSS/ContainerQuery.h>
 #include <LibWeb/CSS/CounterStyle.h>
+#include <LibWeb/CSS/RustDeclarationBlock.h>
+#include <LibWeb/CSS/RustRule.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/Forward.h>
@@ -30,19 +33,19 @@ class StyleScope;
 // What a StyleEngine rule identity has to be turned back into before it can decide anything: the
 // declaration it carries and where that declaration sits in the cascade.
 struct StyleEngineRuleTarget {
-    GC::Ptr<CSSRule const> rule;
-    GC::Ptr<CSSContainerRule const> container_rule;
+    u64 rule_identity;
+    u32 declaration_version;
+    RustDeclarationBlockSnapshot declaration;
+    RefPtr<StyleSheetState const> source_style_sheet;
+    bool has_container_conditions { false };
     Utf16FlyString qualified_layer_name;
     CascadeOrigin cascade_origin { CascadeOrigin::Author };
-
-    void visit_edges(GC::Cell::Visitor&) const;
 };
 
 struct CachedFunctionRule {
-    GC::Ptr<CSSFunctionRule const> rule;
+    RustCompiledFunction rule;
+    Utf16FlyString qualified_layer_name;
     CascadeOrigin cascade_origin { CascadeOrigin::Author };
-
-    void visit_edges(GC::Cell::Visitor&) const;
 };
 
 // What one style scope holds that is about the program rather than about any element: the keyframes
@@ -53,8 +56,6 @@ struct StyleRuleCache {
     HashMap<Utf16FlyString, NonnullRefPtr<Animations::KeyframeEffect::KeyFrameSet>> rules_by_animation_keyframes;
     HashMap<Utf16FlyString, Vector<CachedFunctionRule>> function_rules_by_name;
     bool has_size_container_queries { false };
-
-    void visit_edges(GC::Cell::Visitor&);
 };
 
 struct StyleCache : public RefCounted<StyleCache> {
@@ -62,8 +63,6 @@ struct StyleCache : public RefCounted<StyleCache> {
 
     OwnPtr<StyleRuleCache> rule_cache;
     u64 rule_cache_generation { 0 };
-
-    void visit_edges(GC::Cell::Visitor&);
 };
 
 // Shared style caches for shadow-root scopes whose active stylesheets are the same ordered set of constructed
@@ -74,13 +73,13 @@ struct StyleCache : public RefCounted<StyleCache> {
 // lifetime.
 class SheetSetStyleCacheRegistry {
 public:
-    NonnullRefPtr<StyleCache> ensure_style_cache_for_sheet_set(Vector<GC::Ref<CSSStyleSheet>> const& sheets);
+    NonnullRefPtr<StyleCache> ensure_style_cache_for_sheet_set(Vector<NonnullRefPtr<StyleSheetState>> const& sheets);
 
     void visit_edges(GC::Cell::Visitor&);
 
 private:
     struct Entry {
-        Vector<GC::Ref<CSSStyleSheet>> sheets;
+        Vector<NonnullRefPtr<StyleSheetState>> sheets;
         Vector<u64> sheet_generations;
         NonnullRefPtr<StyleCache> style_cache;
     };
@@ -93,19 +92,40 @@ private:
 class StyleScope {
 public:
     explicit StyleScope(GC::Ref<DOM::Node>);
+    ~StyleScope();
 
     DOM::Node& node() const { return m_node; }
     DOM::Document& document() const;
 
+    Vector<NonnullRefPtr<StyleSheetState>> const& style_sheets() const { return m_style_sheets; }
+
+    enum class StyleEngineUpdate : u8 {
+        Record,
+        Defer,
+    };
+    void add_a_css_style_sheet(StyleSheetState&, StyleEngineUpdate = StyleEngineUpdate::Record);
+    void remove_a_css_style_sheet(StyleSheetState&, StyleEngineUpdate = StyleEngineUpdate::Record);
+    void move_sheet(StyleSheetState&, StyleScope& destination);
+    enum class Alternate : u8 {
+        No,
+        Yes,
+    };
+    enum class OriginClean : u8 {
+        No,
+        Yes,
+    };
+    NonnullRefPtr<StyleSheetState> create_a_css_style_sheet(Utf16View css_text, DOM::Element* owner_node, Utf16View media, Utf16String title, Alternate, OriginClean, Optional<::URL::URL> location, StyleSheetState* parent_style_sheet, StyleSheetImport* owner_import, StyleEngineUpdate = StyleEngineUpdate::Record);
+    void initialize_a_css_style_sheet(StyleSheetState&, DOM::Element* owner_node, Utf16View media, Utf16String title, Alternate, OriginClean, StyleSheetState* parent_style_sheet, StyleSheetImport* owner_import, StyleEngineUpdate = StyleEngineUpdate::Record);
+
     [[nodiscard]] StyleRuleCache const& rule_cache() const;
     [[nodiscard]] bool has_valid_rule_cache() const { return m_style_cache && m_style_cache->rule_cache; }
     void invalidate_style_cache();
-    void publish_cascade_layer_order(CSSStyleSheet* pending_attachment = nullptr);
+    void publish_cascade_layer_order(StyleSheetState* pending_attachment = nullptr);
     void invalidate_user_style_sheet();
 
-    void for_each_stylesheet(CascadeOrigin, Function<void(CSS::CSSStyleSheet&)> const&) const;
-    static WEB_API void for_each_user_agent_stylesheet(bool include_quirks_mode_stylesheet, bool include_mathml_and_svg_stylesheets, Function<void(CSS::CSSStyleSheet&, StyleSheetIdentifier const&)> const&);
-    static Optional<StyleSheetIdentifier> user_agent_style_sheet_identifier(CSS::CSSStyleSheet const&);
+    void for_each_stylesheet(CascadeOrigin, Function<void(CSS::StyleSheetState&)> const&) const;
+    static WEB_API void for_each_user_agent_stylesheet(bool include_quirks_mode_stylesheet, bool include_mathml_and_svg_stylesheets, Function<void(CSS::StyleSheetState&, StyleSheetIdentifier const&)> const&);
+    static Optional<StyleSheetIdentifier> user_agent_style_sheet_identifier(CSS::StyleSheetState const&);
     void build_user_style_sheet_if_needed();
 
     void make_rule_cache_for_cascade_origin(CascadeOrigin, StyleRuleCache&);
@@ -116,7 +136,7 @@ public:
 
     [[nodiscard]] TreeScopeID style_engine_tree_scope() const;
 
-    void for_each_active_css_style_sheet(Function<void(CSS::CSSStyleSheet&)> const& callback) const;
+    void for_each_active_css_style_sheet(Function<void(CSS::StyleSheetState&)> const& callback) const;
 
     void invalidate_counter_style_cache();
     void build_counter_style_cache();
@@ -124,7 +144,7 @@ public:
     RefPtr<CSS::CounterStyle const> get_registered_counter_style(Utf16FlyString const& name) const;
 
     struct FunctionDefinitionAndScope {
-        GC::Ref<CSSFunctionRule const> function;
+        RustCompiledFunction function;
         StyleScope const& scope;
     };
     Optional<FunctionDefinitionAndScope> get_function_definition(Utf16FlyString const& name) const;
@@ -140,7 +160,7 @@ public:
 
     RefPtr<StyleCache> m_style_cache;
 
-    GC::Ptr<CSSStyleSheet> m_user_style_sheet;
+    RefPtr<StyleSheetState> m_user_style_sheet;
 
     bool m_needs_counter_style_cache_update : 1 { true };
     bool m_is_doing_counter_style_cache_update : 1 { false };
@@ -150,6 +170,18 @@ public:
     HashMap<Utf16FlyString, NonnullRefPtr<CSS::CounterStyle const>> m_registered_counter_styles;
 
     GC::Ref<DOM::Node> m_node;
+
+private:
+    void add_sheet(StyleSheetState&, StyleEngineUpdate);
+    void remove_sheet(StyleSheetState&, StyleEngineUpdate);
+    void insert_sheet_in_tree_order(StyleSheetState&);
+    StyleSheetState* following_sheet(StyleSheetState&);
+
+    Vector<NonnullRefPtr<StyleSheetState>> m_style_sheets;
+    // https://www.w3.org/TR/cssom/#preferred-css-style-sheet-set-name
+    Utf16String m_preferred_css_style_sheet_set_name;
+    // https://www.w3.org/TR/cssom/#last-css-style-sheet-set-name
+    Optional<Utf16String> m_last_css_style_sheet_set_name;
 };
 
 }

@@ -205,7 +205,6 @@ set(SOURCES
     CSS/MediaQueryListEvent.cpp
     CSS/Number.cpp
     CSS/NumericType.cpp
-    CSS/PageSelector.cpp
     CSS/ParsedFontFace.cpp
     CSS/Parser/ErrorReporter.cpp
     CSS/Parser/Helpers.cpp
@@ -214,7 +213,6 @@ set(SOURCES
     CSS/Parser/RustValueParsing.cpp
     CSS/Parser/RustSyntaxParsing.cpp
     CSS/Parser/RuleContext.cpp
-    CSS/Parser/RuleParsing.cpp
     CSS/Parser/SelectorParsing.cpp
     CSS/Percentage.cpp
     CSS/PreferredColorScheme.cpp
@@ -237,8 +235,10 @@ set(SOURCES
     CSS/StyleScope.cpp
     CSS/StyleSheet.cpp
     CSS/StyleSheetIdentifier.cpp
+    CSS/StyleSheetImport.cpp
     CSS/StyleSheetInvalidation.cpp
     CSS/StyleSheetList.cpp
+    CSS/StyleSheetState.cpp
     CSS/StyleValues/AbstractImageStyleValue.cpp
     CSS/StyleValues/AnchorStyleValue.cpp
     CSS/StyleValues/AngleStyleValue.cpp
@@ -1282,6 +1282,7 @@ build_rust_binary(
     FEATURES style-replay
 )
 target_link_libraries(libweb_rust INTERFACE LibGfx)
+test_rust_crate(MANIFEST_PATH Rust/Cargo.toml CRATE_NAME libweb_rust)
 
 set(content_blocker_rust_features "")
 if (NOT BUILD_SHARED_LIBS)

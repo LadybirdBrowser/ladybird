@@ -14,13 +14,13 @@ class Node;
 
 namespace Web::CSS {
 
-class CSSStyleSheet;
+class StyleSheetState;
 
 }
 
 namespace Web::CSS::Invalidation {
 
-void invalidate_style_after_adopting_style_sheet(DOM::Node& document_or_shadow_root, CSSStyleSheet&);
-void invalidate_style_after_removing_adopted_style_sheet(DOM::Node& document_or_shadow_root, CSSStyleSheet&);
+void invalidate_style_after_adopting_style_sheet(DOM::Node& document_or_shadow_root, StyleSheetState&);
+void invalidate_style_after_removing_adopted_style_sheet(DOM::Node& document_or_shadow_root, StyleSheetState&);
 
 }

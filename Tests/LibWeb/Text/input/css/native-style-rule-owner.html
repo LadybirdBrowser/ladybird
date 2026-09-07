@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div class="親"><div class="子"></div></div>
+<script>
+    test(() => {
+        const text = "@namespace 名 'urn:test'; .親 { width: 13px; --色: 緑; .子 { height: 17px; } }";
+        const first = document.createElement("style");
+        const second = document.createElement("style");
+        first.textContent = second.textContent = text;
+        document.head.append(first, second);
+        const rule = first.sheet.cssRules[1];
+        const other = second.sheet.cssRules[1];
+        const style = rule.style;
+        const child = rule.cssRules[0];
+        const target = document.querySelector(".子");
+        const height = () => getComputedStyle(target).height;
+        second.remove();
+        println(`initial: ${rule.selectorText}, ${style.width}, ${height()}`);
+        style.width = "31px";
+        style.setProperty("--色", "青");
+        rule.selectorText = ".別";
+        println(`mutated: ${rule.selectorText}, ${style.width}, ${style.getPropertyValue("--色")}`);
+        println(`other: ${other.selectorText}, ${other.style.width}, ${other.style.getPropertyValue("--色")}`);
+        rule.selectorText = ".親";
+        println(`restored: ${height()}, same style: ${rule.style === style}, same child: ${rule.cssRules[0] === child}`);
+        rule.selectorText = "名|要素";
+        println(`namespace selector: ${rule.selectorText}`);
+        rule.selectorText = "未宣言|要素";
+        println(`invalid namespace: ${rule.selectorText}`);
+        rule.selectorText = ".親";
+        child.selectorText = ".別";
+        child.selectorText = "> .子";
+        println(`nested: ${child.selectorText}, ${height()}`);
+        rule.selectorText = "[";
+        println(`invalid selector: ${rule.selectorText}, ${height()}`);
+        first.sheet.deleteRule(1);
+        internals.gc();
+        rule.selectorText = ".外";
+        style.width = "47px";
+        println(`detached: ${rule.selectorText}, ${rule.style.width}, same style: ${rule.style === style}`);
+    });
+</script>

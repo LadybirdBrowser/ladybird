@@ -15,16 +15,6 @@
 
 namespace Web::CSS {
 
-static void ladybird_utf16_fly_string_ref_raw(size_t raw)
-{
-    Utf16FlyString::ref_raw(static_cast<FlatPtr>(raw));
-}
-
-static void ladybird_utf16_fly_string_unref_raw(size_t raw)
-{
-    Utf16FlyString::unref_raw(static_cast<FlatPtr>(raw));
-}
-
 static StyleEngineFFI::FfiResolvedFont resolve_font(void* context, StyleEngineFFI::FfiFontResolutionRequest request)
 {
     auto& style_computer = *static_cast<StyleComputer*>(context);
@@ -64,7 +54,6 @@ StyleEngine::StyleEngine(DeviceClass device_class, StyleComputer* style_computer
     : m_impl(StyleEngineFFI::style_engine_create(device_class))
     , m_style_computer(style_computer)
 {
-    StyleEngineFFI::style_engine_install_raw_atom_callbacks(ladybird_utf16_fly_string_ref_raw, ladybird_utf16_fly_string_unref_raw);
     if (m_style_computer) {
         set_pseudo_element_style_deferred(to_underlying(PseudoElement::Selection), true);
         StyleEngineFFI::style_engine_install_font_resolver(m_impl, m_style_computer.ptr(), resolve_font);
@@ -114,64 +103,9 @@ void StyleEngine::set_element_parts(StyleNodeID node, ReadonlySpan<StyleAtomID> 
     StyleEngineFFI::style_engine_set_element_parts(m_impl, node.value(), reinterpret_cast<u32 const*>(names.data()), reinterpret_cast<u32 const*>(hosts.data()), names.size());
 }
 
-StyleEngineRuleID StyleEngine::add_style_rule(SheetID sheet, StyleEngineRuleID before_rule, ReadonlySpan<void const*> selectors, NamespaceScope const& namespaces, ReadonlySpan<void const*> scope_roots, ReadonlySpan<void const*> scope_limits, ScopeLevels const& scope_levels)
-{
-    VERIFY(namespaces.prefixes.size() == namespaces.uris.size());
-    VERIFY(scope_levels.root_counts.size() == scope_levels.limit_counts.size());
-    VERIFY(scope_levels.root_counts.size() == scope_levels.implicit_roots.size());
-    return StyleEngineRuleID { StyleEngineFFI::style_engine_add_style_rule(
-        m_impl,
-        sheet.value(),
-        before_rule.value(),
-        selectors.data(),
-        selectors.size(),
-        namespaces.default_namespace.value(),
-        reinterpret_cast<u32 const*>(namespaces.prefixes.data()),
-        reinterpret_cast<u32 const*>(namespaces.uris.data()),
-        namespaces.prefixes.size(),
-        scope_roots.data(),
-        scope_roots.size(),
-        scope_limits.data(),
-        scope_limits.size(),
-        scope_levels.root_counts.data(),
-        scope_levels.limit_counts.data(),
-        reinterpret_cast<u32 const*>(scope_levels.implicit_roots.data()),
-        scope_levels.root_counts.size()) };
-}
-
-void StyleEngine::replace_style_rule_selectors(StyleEngineRuleID rule, ReadonlySpan<void const*> selectors, NamespaceScope const& namespaces, ReadonlySpan<void const*> scope_roots, ReadonlySpan<void const*> scope_limits, ScopeLevels const& scope_levels)
-{
-    VERIFY(namespaces.prefixes.size() == namespaces.uris.size());
-    VERIFY(scope_levels.root_counts.size() == scope_levels.limit_counts.size());
-    VERIFY(scope_levels.root_counts.size() == scope_levels.implicit_roots.size());
-    StyleEngineFFI::style_engine_replace_style_rule_selectors(
-        m_impl,
-        rule.value(),
-        selectors.data(),
-        selectors.size(),
-        namespaces.default_namespace.value(),
-        reinterpret_cast<u32 const*>(namespaces.prefixes.data()),
-        reinterpret_cast<u32 const*>(namespaces.uris.data()),
-        namespaces.prefixes.size(),
-        scope_roots.data(),
-        scope_roots.size(),
-        scope_limits.data(),
-        scope_limits.size(),
-        scope_levels.root_counts.data(),
-        scope_levels.limit_counts.data(),
-        reinterpret_cast<u32 const*>(scope_levels.implicit_roots.data()),
-        scope_levels.root_counts.size());
-}
-
 void StyleEngine::finish_sheet_rules_replacement(SheetID sheet)
 {
     StyleEngineFFI::style_engine_finish_sheet_rules_replacement(m_impl, sheet.value(), next_declaration_block_version());
-}
-
-void StyleEngine::set_rule_declared_properties(StyleEngineRuleID rule, RustDeclarationBlock const& declarations)
-{
-    if (StyleEngineFFI::style_engine_set_rule_declared_properties(m_impl, rule.value(), declarations.handle()))
-        note_css_transitions_may_observe_style_changes();
 }
 
 void StyleEngine::set_element_inline_style_properties(StyleNodeID node, RustDeclarationBlock const* declarations)

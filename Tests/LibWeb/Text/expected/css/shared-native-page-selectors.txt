@@ -1,0 +1,10 @@
+parsed selectors: 雪:left:first, :blank
+edited selectors: 氷:right
+shared selectors: 雪:left:first, :blank
+stable identity: true, true, true
+invalid edit: 氷:right
+descriptors: 7px, "雪"
+empty selector: ""
+detached selectors: true, 雪:first, 氷:left
+cached selectors: 雪:left:first, :blank
+shared serialization: @page 雪:left:first, :blank { margin-left: 7px; @top-left { content: "雪"; } }

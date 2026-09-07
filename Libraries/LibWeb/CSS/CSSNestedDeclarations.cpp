@@ -5,34 +5,38 @@
  */
 
 #include "CSSNestedDeclarations.h"
-#include <AK/NeverDestroyed.h>
 #include <LibGC/Heap.h>
-#include <LibWeb/CSS/CSSScopeRule.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
-#include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/Dump.h>
 
 namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSNestedDeclarations);
 
-GC::Ref<CSSNestedDeclarations> CSSNestedDeclarations::create(Parser::Parser&, Parser::DeclarationList const& declarations)
+GC::Ref<CSSNestedDeclarations> CSSNestedDeclarations::create(RustRule rule)
 {
-    auto rule = GC::Heap::the().allocate<CSSNestedDeclarations>(CSSStyleProperties::create(declarations.properties().share()));
-    rule->set_source_position(declarations.source_position());
-    return rule;
+    return GC::Heap::the().allocate<CSSNestedDeclarations>(move(rule));
 }
 
-GC::Ref<CSSNestedDeclarations> CSSNestedDeclarations::create(CSSStyleProperties& declaration)
+CSSNestedDeclarations::CSSNestedDeclarations(RustRule rule)
+    : CSSRule(move(rule))
+    , m_declarations(Parser::ValueParserFFI::rust_declaration_block_retain(native_rule().payload().declarations))
 {
-    return GC::Heap::the().allocate<CSSNestedDeclarations>(declaration);
 }
 
-CSSNestedDeclarations::CSSNestedDeclarations(CSSStyleProperties& declaration)
-    : CSSRule(Type::NestedDeclarations)
-    , m_declaration(declaration)
+size_t CSSNestedDeclarations::external_memory_size() const
 {
-    m_declaration->set_parent_rule(*this);
+    return JS::saturating_add_external_memory_size(Base::external_memory_size(), m_declarations.external_memory_size());
+}
+
+GC::Ref<CSSStyleProperties> CSSNestedDeclarations::ensure_style_properties() const
+{
+    if (!m_declaration) {
+        m_declaration = CSSStyleProperties::create(m_declarations.retain());
+        m_declaration->set_parent_rule(const_cast<CSSNestedDeclarations&>(*this));
+    }
+    return *m_declaration;
 }
 
 void CSSNestedDeclarations::visit_edges(GC::Cell::Visitor& visitor)
@@ -42,41 +46,18 @@ void CSSNestedDeclarations::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_parent_style_rule);
 }
 
-static SelectorList absolutize_parent_selectors(CSSNestedDeclarations const& nested_declarations)
-{
-    static NeverDestroyed<SelectorList> where_scope_selector_list = [] {
-        HashTable<Utf16FlyString> namespaces;
-        return parse_selector_list_in_rust(":where(:scope)"_utf16, namespaces, false, false).release_value();
-    }();
-
-    for (auto const* parent_rule = nested_declarations.parent_rule(); parent_rule; parent_rule = parent_rule->parent_rule()) {
-        if (auto const* parent_style_rule = as_if<CSSStyleRule>(parent_rule))
-            return parent_style_rule->absolutized_selectors();
-        if (is<CSSScopeRule>(parent_rule)) {
-            // https://drafts.csswg.org/css-cascade-6/#scoped-declarations
-            // Declarations may be used directly with the body of a @scope rule. Contiguous runs of declarations are
-            // wrapped in nested declarations rules, which match the scoping root with zero specificity.
-            return *where_scope_selector_list;
-        }
-    }
-
-    // NB: CSSNestedDeclarations can only exist inside an ancestor rule that provides selectors, so we cannot get here
-    //     unless something has gone very wrong.
-    VERIFY_NOT_REACHED();
-}
-
 SelectorList const& CSSNestedDeclarations::absolutized_selectors() const
 {
     if (m_cached_absolutized_selectors.has_value())
         return m_cached_absolutized_selectors.value();
 
-    m_cached_absolutized_selectors = absolutize_parent_selectors(*this);
+    m_cached_absolutized_selectors = matching_selectors_for_rule(native_rule());
     return m_cached_absolutized_selectors.value();
 }
 
-GC::Ref<CSSStyleProperties> CSSNestedDeclarations::style()
+GC::Ref<CSSStyleProperties> CSSNestedDeclarations::style() const
 {
-    return m_declaration;
+    return ensure_style_properties();
 }
 
 CSSStyleRule const& CSSNestedDeclarations::parent_style_rule() const
@@ -101,7 +82,7 @@ Utf16String CSSNestedDeclarations::serialized() const
     // "The CSSNestedDeclarations rule serializes as if its declaration block had been serialized directly."
     // - https://drafts.csswg.org/css-nesting-1/#ref-for-cssnesteddeclarations%E2%91%A1
     // So, we'll do the simple thing and hope it's good.
-    return m_declaration->serialized();
+    return ensure_style_properties()->serialized();
 }
 
 void CSSNestedDeclarations::clear_caches()
@@ -115,7 +96,7 @@ void CSSNestedDeclarations::dump(StringBuilder& builder, int indent_levels) cons
 {
     Base::dump(builder, indent_levels);
 
-    dump_style_properties(builder, declaration(), indent_levels + 1);
+    dump_style_properties(builder, *ensure_style_properties(), indent_levels + 1);
 }
 
 }

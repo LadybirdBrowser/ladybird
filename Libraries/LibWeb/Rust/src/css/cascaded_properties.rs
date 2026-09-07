@@ -813,21 +813,11 @@ pub(crate) unsafe fn destroy_style_computation_requirements(storage: *mut c_void
 /// A declared property in an `FfiCascadeBlock` crossing into `rust_cascade_matched_blocks`:
 /// the property identifier, its importance, and borrowed shared Rust value data.
 #[repr(C)]
+#[derive(Clone, Copy)]
 pub struct FfiCascadeDeclaration {
     pub property_id: u16,
     pub important: bool,
     pub has_style_sheet_context: bool,
-    pub data: *const c_void,
-}
-
-/// A custom-property declaration in an `FfiCascadeBlock`. Names cross as retained raw
-/// `Utf16FlyString` identities, which are also sufficient for string equality.
-#[repr(C)]
-pub struct FfiCustomPropertyDeclaration {
-    pub name_raw: usize,
-    pub name: FfiUtf16View,
-    pub important: bool,
-    pub is_revert_layer: bool,
     pub data: *const c_void,
 }
 
@@ -892,7 +882,6 @@ pub(crate) fn parse_substituted_without_callbacks(
         value_contexts: &raw const value_context,
         value_context_count: 1,
         declared_namespaces: std::ptr::null(),
-        declared_namespace_count: 0,
         document_url: input.document_url.as_ptr(),
         document_url_length: input.document_url.len(),
         document_base_url: input.document_base_url.as_ptr(),
@@ -957,7 +946,7 @@ pub(crate) fn parse_substituted_source(
 #[allow(clippy::too_many_arguments)]
 fn apply_declaration_block(
     store: &mut CascadedPropertyStore,
-    declarations: &[FfiCascadeDeclaration],
+    declarations: impl Iterator<Item = FfiCascadeDeclaration>,
     important: bool,
     origin: CascadeOrigin,
     layer_name: Option<&RetainedUtf16FlyString>,
@@ -1118,10 +1107,36 @@ pub struct FfiCascadeBlock {
     pub source_id: u32,
     /// StyleEngine rule identity, or zero for an element-attached block.
     pub style_engine_rule_id: u32,
+    /// Borrowed immutable declarations, pinned by the caller for the cascade.
+    pub native_declarations: *const crate::css::declaration_block::DeclarationBlockData,
     pub declarations: *const FfiCascadeDeclaration,
     pub declaration_count: usize,
-    pub custom_property_declarations: *const FfiCustomPropertyDeclaration,
-    pub custom_property_declaration_count: usize,
+}
+
+impl FfiCascadeBlock {
+    pub(crate) fn declarations(&self) -> impl Iterator<Item = FfiCascadeDeclaration> + '_ {
+        let native = unsafe { self.native_declarations.as_ref() };
+        let external = if self.declaration_count == 0 {
+            &[]
+        } else {
+            unsafe { std::slice::from_raw_parts(self.declarations, self.declaration_count) }
+        };
+        native
+            .into_iter()
+            .flat_map(|data| &data.properties)
+            .map(|property| FfiCascadeDeclaration {
+                property_id: property.property_id,
+                important: property.important,
+                has_style_sheet_context: !self.is_inline_style,
+                data: std::sync::Arc::as_ptr(&property.value).cast(),
+            })
+            .chain(external.iter().copied())
+    }
+
+    fn has_custom_properties(&self) -> bool {
+        self.origin == CascadeOrigin::Author
+            && unsafe { self.native_declarations.as_ref() }.is_some_and(|data| !data.custom_properties.is_empty())
+    }
 }
 
 /// One winning store slot and the block source that supplied it, reported in
@@ -1161,7 +1176,7 @@ pub struct FfiCascadeResolutionContext {
     pub install_custom_properties: Option<
         unsafe extern "C" fn(*mut c_void, *const FfiCascadedCustomProperty, usize, *mut *const c_void) -> *const c_void,
     >,
-    pub resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> usize>,
+    pub resolve_custom_function: Option<unsafe extern "C" fn(usize, FfiUtf16View) -> u64>,
     pub evaluate_style_query: Option<unsafe extern "C" fn(*mut c_void, FfiUtf16View) -> u8>,
     pub note_substitution: Option<unsafe extern "C" fn(*mut c_void, *const c_void)>,
 }
@@ -1462,6 +1477,7 @@ fn cascade_custom_properties(
     author_context_count: u32,
     pseudo_element: u8,
     parent_store: *const c_void,
+    retained_names: &mut Vec<RetainedUtf16FlyString>,
 ) -> (bool, Vec<FfiCascadedCustomProperty>, *const c_void) {
     use crate::css::style::cascade::{CascadeAttachment, CascadeOperator, CascadeStratum};
     use crate::css::style::program::CascadeLayerID;
@@ -1471,15 +1487,20 @@ fn cascade_custom_properties(
             pseudo_element,
             crate::css::property_metadata::property_id::CUSTOM,
         );
-    if !applies || !blocks.iter().any(|block| block.custom_property_declaration_count != 0) {
+    if !applies || !blocks.iter().any(FfiCascadeBlock::has_custom_properties) {
         return (applies, Vec::new(), std::ptr::null());
     }
 
+    struct Candidate<'a> {
+        property: &'a crate::css::declaration_block::CustomProperty,
+        name_raw: usize,
+        stratum: CascadeStratum,
+    }
     let mut property_indices = HashMap::new();
-    let mut candidates_by_name: Vec<Vec<(&FfiCustomPropertyDeclaration, CascadeStratum)>> = Vec::new();
+    let mut candidates_by_name: Vec<Vec<Candidate<'_>>> = Vec::new();
     for (block_index, important, _) in cascade_application_order(blocks, author_context_count) {
         let block = &blocks[block_index];
-        if block.custom_property_declaration_count == 0 {
+        if !block.has_custom_properties() {
             continue;
         }
         // NB: Bulk blocks use context-local dense layer indices rather than interned layer IDs.
@@ -1504,37 +1525,47 @@ fn cascade_custom_properties(
                 CascadeAttachment::StyleSheet
             },
         );
-        let declarations = unsafe {
-            std::slice::from_raw_parts(
-                block.custom_property_declarations,
-                block.custom_property_declaration_count,
-            )
-        };
-        for declaration in declarations {
-            if declaration.important != important {
+        let declarations = unsafe { block.native_declarations.as_ref() }.unwrap();
+        for property in &declarations.custom_properties {
+            if property.declaration.important != important {
                 continue;
             }
-            let index = *property_indices.entry(declaration.name_raw).or_insert_with(|| {
+            // NB: Cascading runs on the document thread. Parsed sheets retain only native
+            //     strings; bind names here for the document's custom-property environment.
+            let name = property.name.to_fly_string();
+            let name_raw = name.raw();
+            retained_names.push(name);
+            let index = *property_indices.entry(name_raw).or_insert_with(|| {
                 candidates_by_name.push(Vec::new());
                 candidates_by_name.len() - 1
             });
-            candidates_by_name[index].push((declaration, stratum));
+            candidates_by_name[index].push(Candidate {
+                property,
+                name_raw,
+                stratum,
+            });
         }
     }
     let mut properties = Vec::with_capacity(candidates_by_name.len());
     for candidates in candidates_by_name {
         let mut ceilings = Vec::new();
-        for (declaration, stratum) in candidates.into_iter().rev() {
+        for Candidate {
+            property,
+            name_raw,
+            stratum,
+        } in candidates.into_iter().rev()
+        {
             if !ceilings.iter().all(|&ceiling| stratum.is_below(ceiling)) {
                 continue;
             }
-            let operator = if declaration.is_revert_layer {
-                CascadeOperator::RevertLayer
-            } else if matches!(unsafe { &*declaration.data.cast::<StyleValueData>() }, StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::keyword::REVERT)
-            {
-                CascadeOperator::Revert
-            } else {
-                CascadeOperator::Declared
+            let operator = match &*property.declaration.value {
+                StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::keyword::REVERT_LAYER => {
+                    CascadeOperator::RevertLayer
+                }
+                StyleValueData::Keyword { keyword } if *keyword == crate::css::style_compute::keyword::REVERT => {
+                    CascadeOperator::Revert
+                }
+                _ => CascadeOperator::Declared,
             };
             if let Some(ceiling) = stratum.ceiling(operator) {
                 ceilings.push(ceiling);
@@ -1542,11 +1573,11 @@ fn cascade_custom_properties(
             }
             properties.push((
                 FfiCascadedCustomProperty {
-                    name_raw: declaration.name_raw,
-                    important: declaration.important,
-                    data: declaration.data,
+                    name_raw,
+                    important: property.declaration.important,
+                    data: std::sync::Arc::as_ptr(&property.declaration.value).cast(),
                 },
-                declaration.name,
+                property.name.units(),
             ));
             break;
         }
@@ -1562,12 +1593,7 @@ fn cascade_custom_properties(
         .into_iter()
         .map(|(property, name)| {
             if !parent.is_some_and(|parent| parent.value_is_identical(property.name_raw, property.data)) {
-                store_values.push((
-                    property.name_raw,
-                    unsafe { name.to_utf16() }.expect("invalid custom property name"),
-                    property.important,
-                    property.data,
-                ));
+                store_values.push((property.name_raw, name.to_vec(), property.important, property.data));
             }
             property
         })
@@ -1894,11 +1920,13 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
     };
     let resolution_context = unsafe { &*resolution_context };
 
+    let mut retained_custom_property_names = Vec::new();
     let (custom_properties_apply, custom_properties, mut unadopted_custom_property_store) = cascade_custom_properties(
         blocks,
         author_context_count,
         pseudo_element,
         resolution_context.custom_property_store,
+        &mut retained_custom_property_names,
     );
     let mut resolution_context = *resolution_context;
     if custom_properties_apply {
@@ -1933,11 +1961,6 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
     let mut source_slot_assignments: Vec<FfiSourceSlotAssignment> = Vec::new();
     let mut apply = |block_index: usize, important: bool, use_layer_name: bool| {
         let block = &blocks[block_index];
-        let declarations = if block.declaration_count == 0 {
-            &[]
-        } else {
-            unsafe { std::slice::from_raw_parts(block.declarations, block.declaration_count) }
-        };
         let is_property_disallowed = |property_id: u16| -> bool {
             if block.bypass_pseudo_element_property_whitelist || !has_pseudo_element {
                 return false;
@@ -1946,7 +1969,7 @@ pub unsafe extern "C" fn rust_cascade_matched_blocks(
         };
         apply_declaration_block(
             store,
-            declarations,
+            block.declarations(),
             important,
             block.origin,
             if use_layer_name {

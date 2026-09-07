@@ -83,8 +83,8 @@ Optional<SVGGraphicsElement::PaintServer> SVGGraphicsElement::stroke_paint_serve
 GC::Ptr<DOM::Element> SVGGraphicsElement::resolve_url_to_element(CSS::URL const& url) const
 {
     // FIXME: Complete and use the entire URL, not just the fragment.
-    if (auto fragment_offset = url.url().find_byte_offset('#'); fragment_offset.has_value()) {
-        auto fragment_string = MUST(url.url().substring_from_byte_offset_with_shared_superstring(fragment_offset.value() + 1));
+    if (auto fragment_offset = Utf16View { url.url() }.find_code_unit_offset('#'); fragment_offset.has_value()) {
+        auto fragment_string = url.url().substring_view(fragment_offset.value() + 1);
         return resolve_fragment_identifier_to_element(decode_fragment_identifier(fragment_string));
     }
 

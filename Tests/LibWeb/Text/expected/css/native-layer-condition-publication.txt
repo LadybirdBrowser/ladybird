@@ -1,0 +1,7 @@
+scope-local order: rgb(255, 0, 0), 20px / rgb(0, 0, 255), 10px
+inactive descendants: rgb(0, 0, 0), 0px / rgb(0, 0, 0), 0px
+reactivated descendants: rgb(255, 0, 0), 20px / rgb(0, 0, 255), 10px
+removed first ordering: rgb(255, 0, 0), 20px / rgb(255, 0, 0), 20px
+order from layer blocks: rgb(255, 0, 0), 20px / rgb(255, 0, 0), 20px
+wrapper identity: true
+last layers removed: rgb(0, 128, 0), 30px / rgb(0, 128, 0), 30px

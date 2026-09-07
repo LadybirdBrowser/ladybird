@@ -1,0 +1,41 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const source = ".文字 { --幅: 13px; width: var(--幅); height: 19px; }";
+    const sheets = [new CSSStyleSheet(), new CSSStyleSheet()];
+    const targets = sheets.map(sheet => {
+        sheet.replaceSync(source);
+        const host = document.body.appendChild(document.createElement("div"));
+        const root = host.attachShadow({ mode: "open" });
+        root.adoptedStyleSheets = [sheet];
+        return Array.from({ length: 2 }, () => {
+            const target = root.appendChild(document.createElement("div"));
+            target.className = "文字";
+            return target;
+        });
+    });
+    const report = label => println(`${label}: ${targets.map(group => group.map(target => {
+        const style = getComputedStyle(target);
+        return `${style.width}/${style.height}`;
+    }).join(", ")).join("; ")}`);
+    report("shared parse");
+    const declaration = sheets[0].cssRules[0].style;
+    declaration.setProperty("--幅", "23px");
+    report("custom property mutation");
+    declaration.cssText = "--幅: 29px; width: var(--幅); height: 31px";
+    report("replace declarations");
+    targets[0][0].style.width = "37px";
+    report("inline override");
+    targets[0][0].style.removeProperty("width");
+    internals.gc();
+    report("inline removal and collection");
+    sheets[0].deleteRule(0);
+    sheets[0].insertRule(".文字 { width: 41px; height: 43px; }", 0);
+    declaration.width = "47px";
+    report("detached declaration mutation");
+    sheets[1].cssRules[0].style.setProperty("--幅", "53px");
+    report("other shared sheet mutation");
+});
+</script>

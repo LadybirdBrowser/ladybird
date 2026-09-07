@@ -513,7 +513,7 @@ mod tests {
     fn current_color_origins_are_equivalent() {
         let before = crate::css::style_value::StyleValueData::Number { value: 0.0 };
         let after = crate::css::style_value::StyleValueData::Number { value: 1.0 };
-        let mut input = input(&before, &after, &before);
+        let input = input(&before, &after, &before);
         assert_eq!(
             decide_transition(&animation_context(), &input, true).kind,
             FfiTransitionActionKind::None

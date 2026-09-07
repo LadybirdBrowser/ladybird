@@ -1,0 +1,9 @@
+registered property: 12px
+function: 7px
+nested declarations: rgb(0, 128, 0)
+nested selector: rgb(0, 0, 255)
+native keyframes: 0.75
+inserted declarations: 30px, rgb(128, 0, 128)
+restored declarations: 12px, rgb(0, 128, 0)
+replaced function: 19px
+retained native values: 12px, 19px, 0.75

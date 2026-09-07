@@ -1,0 +1,37 @@
+<!doctype html>
+<script src="include.js"></script>
+<script>
+test(() => {
+    const source = `
+        @function --幅() { --値: 10px; result: var(--値); }
+        div { width: --幅(); }
+    `;
+    const sheets = [new CSSStyleSheet(), new CSSStyleSheet()];
+    const targets = sheets.map(sheet => {
+        sheet.replaceSync(source);
+        const host = document.body.appendChild(document.createElement("div"));
+        const root = host.attachShadow({ mode: "open" });
+        root.adoptedStyleSheets = [sheet];
+        return root.appendChild(document.createElement("div"));
+    });
+    const widths = label => println(`${label}: ${targets.map(target => getComputedStyle(target).width).join(", ")}`);
+    widths("shared parse");
+    const declarations = sheets[0].cssRules[0].cssRules[0].style;
+    declarations.setProperty("--値", "20px");
+    widths("mutate local variable");
+    declarations.result = "30px";
+    widths("mutate result");
+    declarations.cssText = "--local: 35px; result: var(--local, 15px);";
+    widths("replace declarations");
+    declarations.removeProperty("--local");
+    widths("remove local variable");
+    sheets[0].replaceSync(source);
+    widths("replace function");
+    declarations.result = "40px";
+    widths("mutate detached definition");
+    sheets[1].cssRules[0].insertRule("@supports (display: block) { result: 50px; }", 1);
+    widths("insert conditional result");
+    sheets[1].cssRules[0].deleteRule(1);
+    widths("delete conditional result");
+});
+</script>

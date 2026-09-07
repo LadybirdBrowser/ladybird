@@ -181,7 +181,28 @@ function(build_rust_binary)
     endif()
 endfunction()
 
-# Shared cargo setup for import_rust_crate() and build_rust_binary().
+function(test_rust_crate)
+    cmake_parse_arguments(PARSE_ARGV 0 ARG "" "MANIFEST_PATH;CRATE_NAME" "")
+    _rust_crate_common_setup(
+        MANIFEST_PATH "${ARG_MANIFEST_PATH}"
+        CRATE_NAME ${ARG_CRATE_NAME}
+        TARGET_DIR "${CMAKE_BINARY_DIR}/cargo/tests/${ARG_CRATE_NAME}"
+    )
+    # cargo test accepts harness arguments after --, not rustc arguments.
+    list(FIND cargo_common_flags "--" rustc_flags_start)
+    list(SUBLIST cargo_common_flags 0 ${rustc_flags_start} cargo_test_flags)
+    # Unit tests exercise internal invariants even when using optimized build artifacts.
+    list(APPEND cargo_env "CARGO_PROFILE_RELEASE_DEBUG_ASSERTIONS=true")
+    add_custom_target(${ARG_CRATE_NAME}-test
+        COMMAND ${CMAKE_COMMAND} -E env ${cargo_env}
+            "${RUST_CARGO}" test --lib ${cargo_test_flags}
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        USES_TERMINAL
+        COMMAND_EXPAND_LISTS
+    )
+endfunction()
+
+# Shared cargo setup for Rust build and test targets.
 function(_rust_crate_common_setup)
     cmake_parse_arguments(PARSE_ARGV 0 ARG "" "MANIFEST_PATH;CRATE_NAME;FFI_OUTPUT_DIR;TARGET_DIR" "")
 

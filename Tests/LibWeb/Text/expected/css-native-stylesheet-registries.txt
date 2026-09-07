@@ -1,0 +1,7 @@
+initial layer precedence: 17px, counter matches: true
+mutate counter symbols: 17px, counter matches: true
+replace namespaced selector: 17px, counter matches: true
+remove registration: 9px, counter matches: true
+insert registration: 23px, counter matches: true
+activate conditional definitions: 99px, counter matches: true
+deactivate conditional definitions: 23px, counter matches: true

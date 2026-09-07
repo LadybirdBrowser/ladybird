@@ -10,33 +10,44 @@
 #include <LibWeb/CSS/CSSKeyframesRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
-#include <LibWeb/CSS/StyleSheetInvalidation.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/Dump.h>
 
 namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSKeyframesRule);
 
-GC::Ref<CSSKeyframesRule> CSSKeyframesRule::create(Utf16FlyString name, GC::Ref<CSSRuleList> css_rules)
+GC::Ref<CSSKeyframesRule> CSSKeyframesRule::create(RustRule rule)
 {
-    return GC::Heap::the().allocate<CSSKeyframesRule>(move(name), move(css_rules));
+    return GC::Heap::the().allocate<CSSKeyframesRule>(move(rule));
 }
 
-CSSKeyframesRule::CSSKeyframesRule(Utf16FlyString name, GC::Ref<CSSRuleList> keyframes)
-    : CSSRule(Type::Keyframes)
-    , m_name(move(name))
-    , m_rules(move(keyframes))
+CSSKeyframesRule::CSSKeyframesRule(RustRule rule)
+    : CSSRule(move(rule))
 {
-    for (auto& rule : *m_rules)
-        rule->set_parent_rule(this);
+    auto name = native_rule().payload().name;
+    m_name = Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(name.utf16), name.length });
 }
 
-void CSSKeyframesRule::set_parent_style_sheet(CSSStyleSheet* parent_style_sheet)
+GC::Ref<CSSRuleList> CSSKeyframesRule::css_rules() const
+{
+    if (!m_rules) {
+        RustRuleList rules { Parser::ValueParserFFI::rust_rule_list_retain(Parser::ValueParserFFI::rust_rule_children(native_rule().handle())) };
+        m_rules = CSSRuleList::create(move(rules), nullptr);
+        m_rules->set_owner_rule(*const_cast<CSSKeyframesRule*>(this));
+        m_rules->set_parent_style_sheet(const_cast<CSSKeyframesRule*>(this)->parent_style_sheet());
+    }
+    return *m_rules;
+}
+
+void CSSKeyframesRule::set_parent_style_sheet(StyleSheetState* parent_style_sheet)
 {
     CSSRule::set_parent_style_sheet(parent_style_sheet);
-    for (auto& rule : *m_rules)
-        rule->set_parent_style_sheet(parent_style_sheet);
+    if (m_rules) {
+        m_rules->set_parent_style_sheet(parent_style_sheet);
+    }
 }
 
 void CSSKeyframesRule::visit_edges(Visitor& visitor)
@@ -60,7 +71,7 @@ Utf16String CSSKeyframesRule::serialized() const
         serialize_an_identifier(builder, m_name);
 
     builder.append_ascii(" { "sv);
-    for (auto const& keyframe : *m_rules) {
+    for (auto const& keyframe : *css_rules()) {
         builder.append(keyframe->serialized());
         builder.append_ascii(' ');
     }
@@ -70,12 +81,14 @@ Utf16String CSSKeyframesRule::serialized() const
 
 WebIDL::UnsignedLong CSSKeyframesRule::length() const
 {
-    return m_rules->length();
+    return Parser::ValueParserFFI::rust_rule_list_count(Parser::ValueParserFFI::rust_rule_children(native_rule().handle()));
 }
 
 GC::Ptr<CSSKeyframeRule> CSSKeyframesRule::item(size_t index) const
 {
-    return as_if<CSSKeyframeRule>(m_rules->item(index));
+    if (index >= length())
+        return nullptr;
+    return as_if<CSSKeyframeRule>(css_rules()->item(index));
 }
 
 void CSSKeyframesRule::set_name(Utf16String const& name)
@@ -86,10 +99,11 @@ void CSSKeyframesRule::set_name(Utf16String const& name)
 
     record_style_rule_removed(*this);
     m_name = move(new_name);
+    Parser::ValueParserFFI::rust_keyframes_set_name(native_rule().handle(), Parser::ffi_utf16_view(name));
     record_style_rule_inserted(*this);
 
     if (auto* sheet = parent_style_sheet())
-        invalidate_rule_cache_for_style_sheet_owners(*sheet);
+        sheet->invalidate_owners();
 }
 
 // https://drafts.csswg.org/css-animations/#interface-csskeyframesrule-appendrule
@@ -98,19 +112,15 @@ void CSSKeyframesRule::append_rule(Utf16String const& rule)
     // The appendRule method appends the passed CSSKeyframeRule at the end of the keyframes rule.
     auto parsed_rule = Parser::parse_keyframe_rule(Parser::ParsingParams {}, rule);
 
-    if (!parsed_rule)
+    if (!parsed_rule.has_value())
         return;
 
-    // AD-HOC: The spec doesn't say where to set the parent rule, so we'll do it here.
-    parsed_rule->set_parent_rule(this);
-
-    // NB: this only returns an exception if the rule is invalid or the index is out of bounds, neither of which are
-    //     applicable here.
-    MUST(m_rules->insert_a_css_rule(parsed_rule.ptr(), m_rules->length(), CSSRuleList::Nested::Yes, {}));
+    RustRuleList rules { Parser::ValueParserFFI::rust_rule_list_retain(Parser::ValueParserFFI::rust_rule_children(native_rule().handle())) };
+    rules.insert(rules.size(), *parsed_rule);
 
     if (auto* sheet = parent_style_sheet()) {
         record_style_rule_declarations_changed(*this);
-        invalidate_rule_cache_for_style_sheet_owners(*sheet);
+        sheet->invalidate_owners();
     }
 }
 
@@ -119,24 +129,18 @@ void CSSKeyframesRule::delete_rule(Utf16String const& select)
 {
     // The deleteRule method deletes the last declared CSSKeyframeRule matching the specified keyframe selector. If no
     // matching rule exists, the method does nothing.
-    auto selectors = Parser::parse_keyframe_selectors(Parser::ParsingParams {}, select);
-
-    if (selectors.is_empty())
+    auto index = Parser::ValueParserFFI::rust_keyframes_find_rule(native_rule().handle(), Parser::ffi_utf16_view(select));
+    if (index == NumericLimits<size_t>::max())
         return;
 
-    for (size_t i = m_rules->length(); i-- > 0;) {
-        auto const& keyframe_rule = as<CSSKeyframeRule>(*m_rules->item(i));
+    if (m_rules)
+        MUST(m_rules->remove_a_css_rule(index));
+    else
+        Parser::ValueParserFFI::rust_rule_list_remove(Parser::ValueParserFFI::rust_rule_children(native_rule().handle()), index);
 
-        if (keyframe_rule.keys() == selectors) {
-            MUST(m_rules->remove_a_css_rule(i));
-
-            if (auto* sheet = parent_style_sheet()) {
-                record_style_rule_declarations_changed(*this);
-                invalidate_rule_cache_for_style_sheet_owners(*sheet);
-            }
-
-            return;
-        }
+    if (auto* sheet = parent_style_sheet()) {
+        record_style_rule_declarations_changed(*this);
+        sheet->invalidate_owners();
     }
 }
 
@@ -145,19 +149,8 @@ GC::Ptr<CSSKeyframeRule> CSSKeyframesRule::find_rule(Utf16String const& select)
 {
     // The findRule returns the last declared CSSKeyframeRule matching the specified keyframe selector. If no matching
     // rule exists, the method does nothing.
-    auto selectors = Parser::parse_keyframe_selectors(Parser::ParsingParams {}, select);
-
-    if (selectors.is_empty())
-        return nullptr;
-
-    for (size_t i = m_rules->length(); i-- > 0;) {
-        auto& keyframe_rule = as<CSSKeyframeRule>(*m_rules->item(i));
-
-        if (keyframe_rule.keys() == selectors)
-            return keyframe_rule;
-    }
-
-    return nullptr;
+    auto index = Parser::ValueParserFFI::rust_keyframes_find_rule(native_rule().handle(), Parser::ffi_utf16_view(select));
+    return index == NumericLimits<size_t>::max() ? nullptr : item(index);
 }
 
 void CSSKeyframesRule::dump(StringBuilder& builder, int indent_levels) const

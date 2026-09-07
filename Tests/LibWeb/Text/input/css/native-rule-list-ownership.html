@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div class="target"></div>
+<script>
+test(() => {
+    const text = ".target { width: 3px; height: 5px } @media all { .target { width: 13px } @supports (display: grid) { .target { height: 17px } } } @page original:left { margin-left: 19px; @TOP-LEFT { margin-left: 11px } }";
+    const createSheet = media => {
+        const element = document.createElement("style");
+        element.media = media;
+        element.textContent = text;
+        document.head.append(element);
+        return element.sheet;
+    };
+    const sheet = createSheet("all");
+    const other = createSheet("not all");
+    const rules = sheet.cssRules;
+    const media = rules[1];
+    const children = media.cssRules;
+    const style = children[0];
+    const declarations = style.style;
+    const supports = children[1];
+    const target = document.querySelector(".target");
+    const size = () => {
+        const computed = getComputedStyle(target);
+        return `${computed.width}, ${computed.height}`;
+    };
+    println(`initial: ${size()}`);
+    media.insertRule(".target { width: 23px }", 0);
+    println(`insert keeps identities: ${media.cssRules === children}, ${children[1] === style}, ${children[2] === supports}`);
+    media.deleteRule(1);
+    declarations.width = "41px";
+    println(`removed rule: ${style.parentRule === null}, ${style.parentStyleSheet === null}, ${style.style === declarations}`);
+    supports.cssRules[0].style.height = "29px";
+    println(`native declaration edits: ${size()}`);
+    sheet.insertRule("@layer late;", 0);
+    println(`root order: ${rules === sheet.cssRules}, ${rules[2] === media}, ${rules.length}`);
+    const page = rules[3];
+    const pageStyle = page.style;
+    page.selectorText = "新しい:right";
+    println(`page payload: ${page.selectorText}, ${page.style === pageStyle}, ${page.style.marginLeft}`);
+    println(`normalized margin name: ${page.cssRules[0].name}, ${page.cssRules[0].style.marginLeft}`);
+    println(`other sheet unchanged: ${other.cssRules[1].cssRules[0].style.width}, ${other.cssRules[2].selectorText}`);
+    sheet.deleteRule(2);
+    media.insertRule(".target { width: 31px }", 1);
+    internals.gc();
+    println(`detached group: ${media.parentStyleSheet === null}, ${supports.parentRule === media}, ${supports.parentStyleSheet === null}, ${children.length}`);
+    println(`detached edits do not apply: ${size()}`);
+    const cached = createSheet("not all");
+    println(`cached rules unchanged: ${cached.cssRules[1].cssRules.length}, ${cached.cssRules[2].selectorText}`);
+
+    const replacement = new CSSStyleSheet();
+    replacement.replaceSync(".before { width: 37px } @media all { .nested { height: 43px } }");
+    const replacementRules = replacement.cssRules;
+    const oldGroup = replacementRules[1];
+    const oldChild = oldGroup.cssRules[0];
+    replacement.replaceSync(".after { width: 47px }");
+    println(`replace keeps list: ${replacementRules === replacement.cssRules}, ${replacementRules.length}, ${replacementRules[0].selectorText}`);
+    println(`replace detaches old tree: ${oldGroup.parentStyleSheet === null}, ${oldChild.parentStyleSheet === null}, ${oldChild.parentRule === oldGroup}`);
+    oldChild.style.height = "53px";
+    println(`old child survives replacement: ${oldChild.style.height}`);
+});
+</script>

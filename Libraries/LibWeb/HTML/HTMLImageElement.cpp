@@ -1540,8 +1540,7 @@ static void update_the_source_set(DOM::Element& element)
 
         // 6. If child has a media attribute, and its value does not match the environment, continue to the next child.
         if (child->has_attribute(HTML::AttributeNames::media)) {
-            auto media_query = parse_media_query(CSS::Parser::ParsingParams { element.document() },
-                child->attribute(HTML::AttributeNames::media).value_or({}));
+            auto media_query = parse_media_query(child->attribute(HTML::AttributeNames::media).value_or({}));
             if (!media_query || !media_query->evaluate(element.document())) {
                 continue;
             }

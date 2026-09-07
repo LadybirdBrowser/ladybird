@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+    test(() => {
+        getComputedStyle(document.body).width;
+        const style = document.createElement("style");
+        style.textContent = ".native-target { width: 13px; height: 17px; opacity: 0.37; }";
+        internals.resetStyleFfiCounters();
+        document.head.append(style);
+        println(`installation creates no value facades: ${internals.styleFfiCounters().styleValueCreateEntries === 0}`);
+
+        target.className = "native-target";
+        println(`native declarations: ${getComputedStyle(target).width}, ${getComputedStyle(target).height}, ${getComputedStyle(target).opacity}`);
+        const rule = style.sheet.cssRules[0];
+        rule.style.width = "23px";
+        println(`retained owner observes mutation: ${getComputedStyle(target).width}`);
+        rule.style.cssText = "width: 31px; height: 41px";
+        println(`retained owner observes replacement: ${getComputedStyle(target).width}, ${getComputedStyle(target).height}`);
+        style.sheet.deleteRule(0);
+        rule.style.width = "53px";
+        style.sheet.insertRule(".native-target { width: 59px; }");
+        internals.gc();
+        println(`deleted declaration stays independent: ${rule.style.width}, ${getComputedStyle(target).width}`);
+
+        const sheet = new CSSStyleSheet({ baseURL: new URL("resources/", location.href).href });
+        sheet.replaceSync("#target { --image: url('../../wpt-import/images/anim-gr.gif'); background-image: var(--image); }");
+        document.adoptedStyleSheets = [sheet];
+        const expectedURL = new URL("../wpt-import/images/anim-gr.gif", location.href).href;
+        println(`native resource context: ${getComputedStyle(target).backgroundImage === `url("${expectedURL}")`}`);
+    });
+</script>

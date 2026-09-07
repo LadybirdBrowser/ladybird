@@ -1,18 +1,15 @@
 /*
  * Copyright (c) 2018-2021, Andreas Kling <andreas@ladybird.org>
  * Copyright (c) 2021, the SerenityOS developers.
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #pragma once
 
-#include <AK/Utf16FlyString.h>
-#include <AK/Utf16String.h>
 #include <LibWeb/Bindings/PlatformObject.h>
-#include <LibWeb/CSS/MediaList.h>
-#include <LibWeb/Export.h>
-#include <LibWeb/Forward.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 
 namespace Web::CSS {
 
@@ -21,67 +18,27 @@ class WEB_API StyleSheet : public Bindings::GCAllocatedWrappable {
     WEB_WRAPPABLE(StyleSheet, Bindings::GCAllocatedWrappable);
 
 public:
-    static constexpr size_t media_offset() { return offsetof(StyleSheet, m_media); }
-    virtual ~StyleSheet() = default;
+    virtual ~StyleSheet() override = default;
 
-    virtual Utf16FlyString type() const = 0;
+    StyleSheetState& state() { return m_state; }
+    StyleSheetState const& state() const { return m_state; }
 
-    DOM::Element* owner_node() { return m_owner_node.ptr(); }
-    DOM::Element const* owner_node() const { return m_owner_node.ptr(); }
-    void set_owner_node(DOM::Element*);
-    static constexpr size_t owner_node_offset() { return offsetof(StyleSheet, m_owner_node); }
-
-    Optional<String> href() const;
-    Optional<Utf16String> href_for_bindings() const;
-
-    Optional<::URL::URL> location() const { return m_location; }
-    void set_location(Optional<::URL::URL> location) { m_location = move(location); }
-
-    Utf16String const& title() const { return m_title; }
-    Optional<Utf16String> title_for_bindings() const;
-    void set_title(Utf16String title) { m_title = move(title); }
-
-    GC::Ref<MediaList> media() const
-    {
-        return m_media;
-    }
-
-    void set_media(Utf16View media)
-    {
-        m_media->set_media_text(media);
-    }
-
-    bool is_alternate() const { return m_alternate; }
-    void set_alternate(bool alternate) { m_alternate = alternate; }
-
-    bool is_origin_clean() const { return m_origin_clean; }
-    void set_origin_clean(bool origin_clean) { m_origin_clean = origin_clean; }
-
-    bool disabled() const { return m_disabled; }
-    virtual void set_disabled(bool disabled) { m_disabled = disabled; }
-
-    CSSStyleSheet* parent_style_sheet() { return m_parent_style_sheet.ptr(); }
-    CSSStyleSheet const* parent_style_sheet() const { return m_parent_style_sheet.ptr(); }
-    void set_parent_css_style_sheet(CSSStyleSheet*);
-    static constexpr size_t parent_style_sheet_offset() { return offsetof(StyleSheet, m_parent_style_sheet); }
+    Utf16FlyString type() const { return m_state->type(); }
+    DOM::Element* owner_node() { return m_state->owner_node(); }
+    Optional<Utf16String> href_for_bindings() const { return m_state->href_for_bindings(); }
+    Optional<Utf16String> title_for_bindings() const { return m_state->title_for_bindings(); }
+    GC::Ref<MediaList> media() const { return m_state->media(); }
+    bool disabled() const { return m_state->disabled(); }
+    void set_disabled(bool disabled) { m_state->set_disabled(disabled); }
+    CSSStyleSheet* parent_style_sheet() const;
 
 protected:
-    explicit StyleSheet(MediaList& media);
+    explicit StyleSheet(StyleSheetState&);
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual size_t external_memory_size() const override;
 
-    GC::Ref<MediaList> m_media;
-
 private:
-    GC::Ptr<DOM::Element> m_owner_node;
-    GC::Ptr<CSSStyleSheet> m_parent_style_sheet;
-
-    Optional<::URL::URL> m_location;
-    Utf16String m_title;
-
-    bool m_disabled { false };
-    bool m_alternate { false };
-    bool m_origin_clean { true };
+    NonnullRefPtr<StyleSheetState> m_state;
 };
 
 }

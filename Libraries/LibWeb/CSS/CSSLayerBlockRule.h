@@ -16,24 +16,22 @@ class CSSLayerBlockRule final : public CSSGroupingRule {
     GC_DECLARE_ALLOCATOR(CSSLayerBlockRule);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSLayerBlockRule> create(Utf16FlyString name, CSSRuleList&);
-
-    static Utf16FlyString next_unique_anonymous_layer_name();
+    [[nodiscard]] static GC::Ref<CSSLayerBlockRule> create(RustRule, CSSRuleList&);
 
     virtual ~CSSLayerBlockRule() = default;
 
-    Utf16FlyString const& name() const { return m_name; }
-    Utf16FlyString const& internal_name() const { return m_name_internal; }
-    Utf16FlyString internal_qualified_name(Badge<StyleScope>) const;
+    Utf16View name() const;
+    Utf16FlyString const& internal_name() const;
 
 private:
-    CSSLayerBlockRule(Utf16FlyString name, CSSRuleList&);
+    CSSLayerBlockRule(RustRule, CSSRuleList&);
 
     virtual Utf16String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
+    virtual size_t external_memory_size() const override;
 
-    Utf16FlyString m_name;
-    Utf16FlyString m_name_internal;
+    Parser::ValueParserFFI::LayerNames const& m_names;
+    mutable Optional<Utf16FlyString> m_name_internal;
 };
 
 }

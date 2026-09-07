@@ -9,9 +9,9 @@
 #include <AK/NeverDestroyed.h>
 #include <AK/TypeCasts.h>
 #include <LibGC/WeakInlines.h>
-#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/FontComputer.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
@@ -402,7 +402,7 @@ void ComputedStyleWorkingSet::did_store_property_data_from_drive(PropertyID id)
         clear_computed_font_list_cache();
 }
 
-void ComputedStyleWorkingSet::set_style_sheet_for_source_slot(u32 slot, GC::Ptr<CSSStyleSheet> style_sheet)
+void ComputedStyleWorkingSet::set_style_sheet_for_source_slot(u32 slot, RefPtr<StyleSheetState> style_sheet)
 {
     if (slot >= m_mint_cache->style_sheet_source_slots.size())
         m_mint_cache->style_sheet_source_slots.resize(slot + 1);
@@ -513,7 +513,7 @@ void ComputedStyleWorkingSet::clear_animated_properties(Badge<StyleComputer>)
     clear_computed_font_list_cache();
 }
 
-NonnullRefPtr<StyleValue const> wrap_computed_longhand_slot(void const* value_data, GC::Ptr<CSSStyleSheet> style_sheet)
+NonnullRefPtr<StyleValue const> wrap_computed_longhand_slot(void const* value_data, RefPtr<StyleSheetState> style_sheet)
 {
     auto wrapper = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(value_data)));
     ++s_longhand_wrappers_minted;
@@ -548,7 +548,7 @@ StyleValue const& ComputedStyleWorkingSet::property(PropertyID property_id, With
     // Mints the wrapper on demand, stamping a table-stored value with the sheet the winning
     // declaration came from when the drive recorded one; image fetches read that context, and
     // the mint happens before any group fallback consumes the value.
-    GC::Ptr<CSSStyleSheet> style_sheet;
+    RefPtr<StyleSheetState> style_sheet;
     if (effective.source == ComputedValuesFFI::EFFECTIVE_LONGHAND_SOURCE_TABLE) {
         auto source_slot = ComputedValuesFFI::rust_computed_longhand_table_source_slot(m_computed_longhand_table, to_underlying(property_id));
         if (source_slot >= 0 && static_cast<size_t>(source_slot) < m_mint_cache->style_sheet_source_slots.size())

@@ -1,0 +1,55 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    const imported = `@layer 内 {
+        @scope (.nested) {
+            @container (width > 0px) {
+                .target { color: red; }
+                @media not all {}
+            }
+        }
+    }`;
+    const importedURL = `data:text/css,${encodeURIComponent(imported)}`;
+    const source = `@import url("${importedURL}") layer(外) scope((.scope));`;
+    const frame = document.createElement("iframe");
+    frame.srcdoc = `<!doctype html>
+        <link rel="stylesheet" href="data:text/css,${encodeURIComponent(source)}">
+        <style>body { color: black; } .nested { container-type: inline-size; width: 100px; }</style>
+        <div class="scope" id="scope"><div class="nested" id="container"><span class="target" id="target">inside</span></div></div>
+        <span class="target" id="outside">outside</span>`;
+    const loaded = new Promise(resolve => frame.onload = resolve);
+    document.body.append(frame);
+    await loaded;
+    const doc = frame.contentDocument;
+    const link = doc.querySelector("link");
+    const target = doc.getElementById("target");
+    const color = () => frame.contentWindow.getComputedStyle(target).color;
+    println(`native import context: ${color()}`);
+    println(`import scope excludes outside: ${frame.contentWindow.getComputedStyle(doc.getElementById("outside")).color}`);
+    const containerRule = link.sheet.cssRules[0].styleSheet.cssRules[0].cssRules[0].cssRules[0];
+    const mediaRule = containerRule.cssRules[1];
+    containerRule.insertRule(".target { color: blue; }", 1);
+    println(`inserted rule inherits context: ${color()}`);
+    const insertedRule = containerRule.cssRules[1];
+    insertedRule.selectorText = ".other";
+    println(`selector replacement keeps scope: ${color()}`);
+    insertedRule.selectorText = ".target";
+    mediaRule.insertRule(".target { color: green; }", 0);
+    println(`inserted inactive rule stays gated: ${color()}`);
+    mediaRule.media.mediaText = "all";
+    println(`media activation reaches inserted rule: ${color()}`);
+    doc.getElementById("scope").className = "other";
+    println(`import scope remains live: ${color()}`);
+    doc.getElementById("scope").className = "scope";
+    doc.getElementById("container").style.width = "0px";
+    println(`container gate remains live: ${color()}`);
+    doc.getElementById("container").style.width = "100px";
+    internals.gc();
+    println(`restored native context: ${color()}`);
+    mediaRule.deleteRule(0);
+    println(`deletion preserves surrounding order: ${color()}`);
+    frame.remove();
+});
+</script>

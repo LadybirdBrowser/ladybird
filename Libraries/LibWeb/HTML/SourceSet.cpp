@@ -345,8 +345,8 @@ descriptor_parser:
 // https://html.spec.whatwg.org/multipage/images.html#parse-a-sizes-attribute
 NonnullRefPtr<CSS::StyleValue const> parse_a_sizes_attribute(DOM::Element const& element, Utf16View sizes, HTML::HTMLImageElement const* img)
 {
-    auto css_parser = CSS::Parser::Parser::create(CSS::Parser::ParsingParams { element.document() }, sizes);
-    return css_parser.parse_as_sizes_attribute(element, img);
+    CSS::Parser::Parser css_parser { CSS::Parser::ParsingParams { element.document() } };
+    return css_parser.parse_as_sizes_attribute(sizes, element, img);
 }
 
 // https://html.spec.whatwg.org/multipage/images.html#create-a-source-set

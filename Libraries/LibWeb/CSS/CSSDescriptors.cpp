@@ -10,6 +10,8 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/Serialize.h>
+#include <LibWeb/CSS/StyleEngineInput.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
@@ -53,6 +55,7 @@ bool CSSDescriptors::set_a_css_declaration(DescriptorNameAndID const& descriptor
 {
     VERIFY(!is_computed());
 
+    prepare_to_update_style_attribute();
     return m_descriptors.set(descriptor_name_and_id, *value);
 }
 
@@ -123,8 +126,10 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_property_internal(Utf16FlyString c
     }
 
     // 10. If updated is true, update style attribute for the CSS declaration block.
-    if (updated)
+    if (updated) {
         update_style_attribute();
+        invalidate_owners();
+    }
 
     return {};
 }
@@ -148,6 +153,7 @@ WebIDL::ExceptionOr<Utf16String> CSSDescriptors::remove_property(Utf16FlyString 
     // 4. Let removed be false.
     bool removed = false;
     auto descriptor_name_and_id = DescriptorNameAndID::from_name(m_at_rule_id, property);
+    prepare_to_update_style_attribute();
 
     // 5. If property is a shorthand property, for each longhand property longhand that property maps to:
     if (descriptor_name_and_id.has_value() && is_shorthand(m_at_rule_id, *descriptor_name_and_id)) {
@@ -166,8 +172,10 @@ WebIDL::ExceptionOr<Utf16String> CSSDescriptors::remove_property(Utf16FlyString 
     }
 
     // 7. If removed is true, Update style attribute for the CSS declaration block.
-    if (removed)
+    if (removed) {
         update_style_attribute();
+        invalidate_owners();
+    }
 
     // 8. Return value.
     return value;
@@ -252,6 +260,7 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_css_text(Utf16View value)
         return WebIDL::NoModificationAllowedError::create("Cannot modify properties of readonly CSSStyleDeclaration"_utf16);
 
     // 2. Empty the declarations.
+    prepare_to_update_style_attribute();
     m_descriptors.replace(RustDescriptorBlock { Vector<Descriptor> {} });
 
     // 3. Parse the given value and, if the return value is not the empty list, insert the items in the list into the
@@ -262,6 +271,7 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_css_text(Utf16View value)
 
     // 4. Update style attribute for the CSS declaration block.
     update_style_attribute();
+    invalidate_owners();
 
     return {};
 }
@@ -269,6 +279,17 @@ WebIDL::ExceptionOr<void> CSSDescriptors::set_css_text(Utf16View value)
 RefPtr<StyleValue const> CSSDescriptors::descriptor(DescriptorNameAndID const& descriptor_name_and_id) const
 {
     return m_descriptors.descriptor(descriptor_name_and_id);
+}
+
+void CSSDescriptors::invalidate_owners()
+{
+    auto rule = parent_rule();
+    if (!rule || rule->type() != CSSRule::Type::FunctionDeclarations)
+        return;
+    if (auto* sheet = rule->parent_style_sheet()) {
+        record_style_rule_declarations_changed(*rule);
+        sheet->invalidate_owners();
+    }
 }
 
 RefPtr<StyleValue const> CSSDescriptors::descriptor_or_initial_value(DescriptorNameAndID const& descriptor_name_and_id) const

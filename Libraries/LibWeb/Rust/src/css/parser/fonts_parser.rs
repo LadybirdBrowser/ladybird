@@ -480,7 +480,7 @@ fn parse_font_source(context: &ParseContext, values: &[ComponentValue]) -> Optio
         return Some(StyleValueData::FontSource {
             is_local: true,
             local_name: retained(local_name),
-            url: RetainedString::from_utf8(String::new()),
+            url: RetainedString::from_ascii(String::new()),
             url_type: 0,
             url_modifiers: RetainedRequestUrlModifierList::from_retained_modifiers(Vec::new()),
             has_format: false,
@@ -696,7 +696,6 @@ mod tests {
             value_contexts: std::ptr::null(),
             value_context_count: 0,
             declared_namespaces: std::ptr::null(),
-            declared_namespace_count: 0,
             document_url: std::ptr::null(),
             document_url_length: 0,
             document_base_url: std::ptr::null(),

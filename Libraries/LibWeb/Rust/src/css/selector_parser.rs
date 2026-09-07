@@ -33,6 +33,8 @@ pub(crate) enum SelectorType {
     Relative,
 }
 
+pub use super::ffi_support::StyleNestingParent;
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum SelectorParsingMode {
     Standard,
@@ -1303,7 +1305,7 @@ fn bind_interned_names_in_selector(
 #[derive(Clone, Debug, PartialEq)]
 pub struct RustParsedSelectorList {
     selectors: SelectorList,
-    interned_names: Box<[SelectorString]>,
+    pub(crate) interned_names: Box<[SelectorString]>,
 }
 
 // Keep worker-parsed selectors free of document-thread atoms, including nested selectors.
@@ -1314,11 +1316,63 @@ const _: fn() = || {
 
 /// Document-thread selectors with interned names, owned independently of the parsed list.
 pub struct RustBoundSelectorList {
-    selectors: bound::SelectorList,
+    pub(crate) selectors: bound::SelectorList,
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_bound_selector_list_length(list: &RustBoundSelectorList) -> usize {
+    list.selectors.len()
 }
 
 impl RustParsedSelectorList {
-    fn new(selectors: SelectorList) -> Self {
+    /// Bind immutable parsed names to the document's atom table without a host-side list.
+    ///
+    /// # Safety
+    /// Call only on the document thread: AK's Utf16FlyString table is not thread-safe.
+    pub(crate) unsafe fn bind(&self) -> RustBoundSelectorList {
+        let names = self
+            .interned_names
+            .iter()
+            .map(|name| {
+                crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::InternUtf16FlyStringCallback);
+                let name = ak::Utf16FlyString::from_utf16(name);
+                unsafe { RetainedUtf16FlyString::from_leaked_raw(name.into_raw()) }
+            })
+            .collect::<Vec<_>>();
+        RustBoundSelectorList {
+            selectors: self
+                .selectors
+                .iter()
+                .map(|selector| bind_interned_names_in_selector(selector, &self.interned_names, &names))
+                .collect(),
+        }
+    }
+
+    pub(crate) fn adapt_for_nesting(mut self, parent: StyleNestingParent) -> Self {
+        if parent == StyleNestingParent::None {
+            return self;
+        }
+        for selector in &mut self.selectors {
+            let first = selector
+                .compound_selectors
+                .first()
+                .map_or(Combinator::None, |compound| compound.combinator);
+            let insert_nesting = parent == StyleNestingParent::Style
+                && (!matches!(first, Combinator::None | Combinator::Descendant)
+                    || !super::selector_operations::contains_nesting(selector));
+            if insert_nesting {
+                *selector = super::selector_operations::relative_to(selector, SimpleSelector::Nesting);
+            } else if first == Combinator::Descendant {
+                let mut compounds = selector.compound_selectors.clone();
+                compounds[0].combinator = Combinator::None;
+                *selector = CompiledSelector::new(compounds);
+            }
+        }
+        // Adding an implicit nesting selector does not introduce any names to bind.
+        self
+    }
+
+    pub(crate) fn new(selectors: SelectorList) -> Self {
         let mut interned_names = Vec::new();
         for selector in &selectors {
             collect_interned_names_from_selector(&mut interned_names, selector);
@@ -1354,11 +1408,68 @@ pub unsafe extern "C" fn rust_selector_parse(
     namespace_count: usize,
     is_relative: bool,
     is_forgiving: bool,
+    nesting_parent: StyleNestingParent,
 ) -> *mut RustParsedSelectorList {
     unsafe {
-        let Some(input) = input.units() else {
-            return std::ptr::null_mut();
-        };
+        parse_selector_list_from_ffi(
+            input,
+            namespaces,
+            namespace_count,
+            is_relative,
+            is_forgiving,
+            nesting_parent,
+        )
+    }
+    .map_or(std::ptr::null_mut(), |selectors| Box::into_raw(Box::new(selectors)))
+}
+
+/// # Safety
+/// Input and the optional immutable namespace context must be readable for this call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_selector_parse_with_namespace_context(
+    input: FfiUtf16View,
+    namespaces: *const std::ffi::c_void,
+    is_relative: bool,
+    is_forgiving: bool,
+) -> *mut RustParsedSelectorList {
+    let Some(input) = (unsafe { input.units() }) else {
+        return std::ptr::null_mut();
+    };
+    let namespaces = unsafe { namespaces.cast::<crate::css::rule::NativeNamespaceContext>().as_ref() };
+    let namespaces: Vec<_> = namespaces
+        .into_iter()
+        .flat_map(|namespaces| namespaces.prefixes.iter())
+        .map(|namespace| TokenizerInput::Utf16(namespace.units()))
+        .collect();
+    parse_selector_list(
+        input,
+        &namespaces,
+        if is_relative {
+            SelectorType::Relative
+        } else {
+            SelectorType::Standalone
+        },
+        if is_forgiving {
+            SelectorParsingMode::Forgiving
+        } else {
+            SelectorParsingMode::Standard
+        },
+    )
+    .map_or(std::ptr::null_mut(), |selectors| {
+        Box::into_raw(Box::new(RustParsedSelectorList::new(selectors)))
+    })
+}
+
+pub(crate) unsafe fn parse_selector_list_from_ffi(
+    input: FfiUtf16View,
+    namespaces: *const FfiStringView,
+    namespace_count: usize,
+    is_relative: bool,
+    is_forgiving: bool,
+    nesting_parent: StyleNestingParent,
+) -> Option<RustParsedSelectorList> {
+    unsafe {
+        let input = input.units()?;
         let namespace_views = if namespace_count == 0 {
             &[]
         } else {
@@ -1390,9 +1501,9 @@ pub unsafe extern "C" fn rust_selector_parse(
                 SelectorParsingMode::Standard
             },
         ) else {
-            return std::ptr::null_mut();
+            return None;
         };
-        Box::into_raw(Box::new(RustParsedSelectorList::new(selectors)))
+        Some(RustParsedSelectorList::new(selectors).adapt_for_nesting(nesting_parent))
     }
 }
 
@@ -1463,7 +1574,7 @@ pub unsafe extern "C" fn rust_bound_selector_list_selector(
 }
 
 /// # Safety
-/// `list` must be null or an undestroyed pointer returned by `rust_parsed_selector_list_bind_interned_names`.
+/// `list` must be null or an undestroyed pointer returned by `rust_parsed_selector_list_bind`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_bound_selector_list_destroy(list: *mut RustBoundSelectorList) {
     if !list.is_null() {
@@ -1472,57 +1583,111 @@ pub unsafe extern "C" fn rust_bound_selector_list_destroy(list: *mut RustBoundSe
 }
 
 /// # Safety
-/// `list` must point to a live parsed selector list.
+/// `list` must be live. Call only on the document thread, and destroy the returned list there.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parsed_selector_list_interned_name_count(list: *const RustParsedSelectorList) -> usize {
-    unsafe { (&*list).interned_names.len() }
+pub unsafe extern "C" fn rust_parsed_selector_list_bind(list: &RustParsedSelectorList) -> *mut RustBoundSelectorList {
+    Box::into_raw(Box::new(unsafe { list.bind() }))
 }
 
-/// # Safety
-/// `list` must point to a live parsed selector list and `index` must be in bounds.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parsed_selector_list_interned_name(
-    list: *const RustParsedSelectorList,
-    index: usize,
-) -> FfiStringView {
-    unsafe {
-        let name = &(&(*list).interned_names)[index];
-        FfiStringView {
-            data: name.as_ptr(),
-            length: name.len(),
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn parse(source: &str) -> Box<RustParsedSelectorList> {
+        let units: Vec<_> = source.encode_utf16().collect();
+        let prefix: Vec<_> = "é".encode_utf16().collect();
+        let prefix = FfiStringView {
+            data: prefix.as_ptr(),
+            length: prefix.len(),
+        };
+        unsafe {
+            let parsed = rust_selector_parse(
+                FfiUtf16View {
+                    utf16: units.as_ptr(),
+                    length: units.len(),
+                    ..Default::default()
+                },
+                &prefix,
+                1,
+                false,
+                false,
+                StyleNestingParent::None,
+            );
+            assert!(!parsed.is_null());
+            Box::from_raw(parsed)
         }
     }
-}
 
-/// # Safety
-/// `list` must point to a live parsed selector list. `leaked_name_raws` must contain one leaked
-/// `Utf16FlyString` raw value for every name returned by
-/// `rust_parsed_selector_list_interned_name`. This function assumes ownership of those references.
-/// This must run on the document thread. The parsed list is not modified and can be bound again.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_parsed_selector_list_bind_interned_names(
-    list: *const RustParsedSelectorList,
-    leaked_name_raws: *const usize,
-    name_count: usize,
-) -> *mut RustBoundSelectorList {
-    unsafe {
-        let list = &*list;
-        assert_eq!(name_count, list.interned_names.len());
-        let leaked_name_raws = if name_count == 0 {
-            &[]
-        } else {
-            assert!(!leaked_name_raws.is_null());
-            std::slice::from_raw_parts(leaked_name_raws, name_count)
-        };
-        let retained_names = leaked_name_raws
-            .iter()
-            .map(|&raw| RetainedUtf16FlyString::from_leaked_raw(raw))
-            .collect::<Vec<_>>();
-        let selectors = list
-            .selectors
-            .iter()
-            .map(|selector| bind_interned_names_in_selector(selector, &list.interned_names, &retained_names))
-            .collect();
-        Box::into_raw(Box::new(RustBoundSelectorList { selectors }))
+    fn serialize(selector: &Arc<bound::CompiledSelector>) -> Vec<u16> {
+        use crate::css::selector_serialization::{rust_selector_serialize, rust_selector_serialized_text_release};
+        unsafe {
+            let text = rust_selector_serialize(
+                &RustSelector {
+                    selector: selector.clone(),
+                },
+                false,
+                std::ptr::null(),
+                0,
+            );
+            let units = std::slice::from_raw_parts(text.data, text.length).to_vec();
+            rust_selector_serialized_text_release(text.storage);
+            units
+        }
+    }
+
+    #[test]
+    fn independent_bindings_outlive_the_parsed_list_and_each_other() {
+        for source in [
+            "DIV#test.item[data-name=\"value\"]",
+            ":is(.first, :not(#second))",
+            ":nth-child(2n+1 of .item)",
+            "::slotted(.item)",
+            "::part(label)",
+        ] {
+            let parsed = parse(source);
+            let first = unsafe { parsed.bind() };
+            let second = unsafe { parsed.bind() };
+            drop(parsed);
+            let expected = serialize(&first.selectors[0]);
+            assert_eq!(serialize(&second.selectors[0]), expected);
+            assert_eq!(first.selectors[0].specificity(), second.selectors[0].specificity());
+            drop(first);
+            assert_eq!(serialize(&second.selectors[0]), expected);
+        }
+    }
+
+    #[test]
+    fn worker_parsing_reading_and_release_do_not_touch_the_interner() {
+        use crate::css::ffi_stats::CPP_CALLBACK_COUNT;
+        let parsed = std::thread::spawn(|| {
+            let parsed = parse("é|DIV#😀:is(.é, :not([data-name='😀'])):nth-child(2n+1 of .item)::part(label)");
+            assert_eq!(CPP_CALLBACK_COUNT.get(), 0);
+            parsed
+        })
+        .join()
+        .unwrap();
+        let bound = std::thread::scope(|scope| {
+            let parsed = &parsed;
+            scope.spawn(move || {
+                for _ in 0..100 {
+                    assert_eq!(parsed.selectors.len(), 1);
+                    assert!(parsed.interned_names.iter().all(|name| !name.is_empty()));
+                }
+                assert_eq!(CPP_CALLBACK_COUNT.get(), 0);
+            });
+            unsafe { parsed.bind() }
+        });
+        std::thread::spawn(move || {
+            drop(parsed);
+            assert_eq!(CPP_CALLBACK_COUNT.get(), 0);
+        })
+        .join()
+        .unwrap();
+        assert_eq!(
+            serialize(&bound.selectors[0]),
+            "é|DIV#😀:is(.é, :not([data-name=\"😀\"])):nth-child(2n+1 of .item)::part(label)"
+                .encode_utf16()
+                .collect::<Vec<_>>()
+        );
     }
 }

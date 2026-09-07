@@ -1,0 +1,4 @@
+stylesheet-relative source: loaded
+document-relative source: loaded
+script face stays outside font set: true
+connected face stays in font set: true

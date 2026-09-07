@@ -1,0 +1,45 @@
+<!doctype html>
+<script src="include.js"></script>
+<div id="target"></div>
+<span id="counter" style="display: inline-block; font: 20px monospace; counter-reset: 項 1"></span>
+<span id="reference" style="display: inline-block; font: 20px monospace">XX</span>
+<script>
+test(() => {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(`
+        @namespace 文 url(http://www.w3.org/1999/xhtml);
+        @layer 低, 高;
+        @layer 高 { @counter-style 数 { system: cyclic; symbols: "XX"; } }
+        @layer 低 { @counter-style 数 { system: cyclic; symbols: "X"; } }
+        @property --幅 { syntax: "<length>"; inherits: false; initial-value: 17px; }
+        @media not all {
+            @counter-style 数 { system: cyclic; symbols: "XXXXX"; }
+            @property --幅 { syntax: "<length>"; inherits: false; initial-value: 99px; }
+        }
+        @supports (unknown: value) {
+            @counter-style 数 { system: cyclic; symbols: "XXXXXXXX"; }
+            @property --幅 { syntax: "<length>"; inherits: false; initial-value: 88px; }
+        }
+        文|*#target { width: var(--幅, 9px); }
+        #counter::before { content: counter(項, 数); }
+    `);
+    document.adoptedStyleSheets = [sheet];
+    const check = label => println(`${label}: ${getComputedStyle(target).width}, counter matches: ${counter.getBoundingClientRect().width === reference.getBoundingClientRect().width}`);
+    check("initial layer precedence");
+    sheet.cssRules[2].cssRules[0].symbols = '"XXX"';
+    reference.textContent = "XXX";
+    check("mutate counter symbols");
+    sheet.cssRules[7].selectorText = "文|div#target";
+    check("replace namespaced selector");
+    sheet.deleteRule(4);
+    check("remove registration");
+    sheet.insertRule('@property --幅 { syntax: "<length>"; inherits: false; initial-value: 23px; }', 4);
+    check("insert registration");
+    sheet.cssRules[5].media.mediaText = "all";
+    reference.textContent = "XXXXX";
+    check("activate conditional definitions");
+    sheet.cssRules[5].media.mediaText = "not all";
+    reference.textContent = "XXX";
+    check("deactivate conditional definitions");
+});
+</script>

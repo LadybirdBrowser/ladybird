@@ -4,15 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Invalidation/AdoptedStyleSheetInvalidator.h>
 #include <LibWeb/CSS/StyleSheetInvalidation.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Node.h>
 
 namespace Web::CSS::Invalidation {
 
-void invalidate_style_after_adopting_style_sheet(DOM::Node& document_or_shadow_root, CSSStyleSheet& style_sheet)
+void invalidate_style_after_adopting_style_sheet(DOM::Node& document_or_shadow_root, StyleSheetState& style_sheet)
 {
     style_sheet.add_owning_document_or_shadow_root(document_or_shadow_root);
     style_sheet.load_pending_image_resources(document_or_shadow_root.document());
@@ -25,7 +25,7 @@ void invalidate_style_after_adopting_style_sheet(DOM::Node& document_or_shadow_r
     invalidate_rule_cache_after_style_sheet_change(document_or_shadow_root, style_sheet);
 }
 
-void invalidate_style_after_removing_adopted_style_sheet(DOM::Node& document_or_shadow_root, CSSStyleSheet& style_sheet)
+void invalidate_style_after_removing_adopted_style_sheet(DOM::Node& document_or_shadow_root, StyleSheetState& style_sheet)
 {
     style_sheet.remove_owning_document_or_shadow_root(document_or_shadow_root);
     invalidate_rule_cache_after_style_sheet_change(document_or_shadow_root, style_sheet);

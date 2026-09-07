@@ -1059,15 +1059,6 @@ pub extern "C" fn style_engine_create(device_class: FfiDeviceClass) -> *mut c_vo
     Box::into_raw(engine).cast()
 }
 
-/// Installs the C++ ownership callbacks used by live process-global raw atoms.
-#[unsafe(no_mangle)]
-pub extern "C" fn style_engine_install_raw_atom_callbacks(
-    retain: unsafe extern "C" fn(usize),
-    release: unsafe extern "C" fn(usize),
-) {
-    super::atoms::install_raw_atom_callbacks(retain, release);
-}
-
 /// Installs the document's synchronous platform font resolver once.
 ///
 /// # Safety
@@ -1288,36 +1279,17 @@ fn write_recording_element_style_inputs(
         },
     );
 }
-/// Compiles one style rule's selector list into the program.
-///
-/// `selectors` points at `count` `RustSelector` pointers, each owned by the C++ selector it was
-/// created from and alive for this call.
-///
-/// # Safety
-/// `engine` must be live, `sheet` must have come from `style_engine_add_sheet`, and the array must
-/// hold `count` valid non-null pointers.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_add_style_rule(
-    engine: *mut c_void,
+
+/// Publish already bound immutable selector inputs, after all host interning has finished.
+pub(crate) fn publish_style_rule(
+    engine: &mut StyleEngine,
     sheet: u32,
     before_rule: u32,
-    selectors: *const *const c_void,
-    count: usize,
-    default_namespace: u32,
-    namespace_prefixes: *const u32,
-    namespace_uris: *const u32,
-    namespace_count: usize,
-    scope_roots: *const *const c_void,
-    scope_root_count: usize,
-    scope_limits: *const *const c_void,
-    scope_limit_count: usize,
-    scope_level_root_counts: *const u32,
-    scope_level_limit_counts: *const u32,
-    scope_level_implicit_roots: *const u32,
-    scope_level_count: usize,
+    compiled: &[&CompiledSelector],
+    namespaces: NamespaceScope,
+    bound_scope: &BoundScopeChain,
 ) -> u32 {
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-    if sheet == 0 || count == 0 {
+    if sheet == 0 || compiled.is_empty() {
         engine.record_boundary_call(EventKind::AddStyleRule, |payload| {
             payload.write_u32(sheet);
             payload.write_u32(before_rule);
@@ -1325,32 +1297,19 @@ pub unsafe extern "C" fn style_engine_add_style_rule(
         });
         return 0;
     }
-    let compiled = unsafe { borrow_selectors(selectors, count) };
-    if compiled.is_empty() {
-        engine.record_boundary_call(EventKind::AddStyleRule, |payload| {
-            payload.write_u32(sheet);
-            payload.write_u32(before_rule);
-            payload.write_u32(0);
-        });
-        return 0;
-    }
-    let scope = unsafe { borrow_selectors(scope_roots, scope_root_count) };
-    let limits = unsafe { borrow_selectors(scope_limits, scope_limit_count) };
-    let levels = unsafe { borrow_scope_levels(scope_level_root_counts, scope_level_limit_counts, scope_level_count) };
-    let implicit_roots = unsafe { borrow_implicit_scope_roots(scope_level_implicit_roots, scope_level_count) };
+    let scope: Vec<_> = bound_scope.roots.iter().map(|selector| selector.as_ref()).collect();
+    let limits: Vec<_> = bound_scope.limits.iter().map(|selector| selector.as_ref()).collect();
     let before = match before_rule {
         0 => None,
         id => Some(RuleID(id - 1)),
     };
-    let namespaces =
-        unsafe { borrow_namespace_scope(default_namespace, namespace_prefixes, namespace_uris, namespace_count) };
     let scope = ScopeChain {
         roots: &scope,
         limits: &limits,
-        levels: &levels,
-        implicit_roots: &implicit_roots,
+        levels: &bound_scope.levels,
+        implicit_roots: &bound_scope.implicit_roots,
     };
-    let rule = engine.add_style_rule_in_scope(SheetID(sheet - 1), before, &compiled, namespaces, &scope);
+    let rule = engine.add_style_rule_in_scope(SheetID(sheet - 1), before, compiled, namespaces, &scope);
     let result = rule.0 + 1;
     engine.record_boundary_call(EventKind::AddStyleRule, |payload| {
         payload.write_u32(sheet);
@@ -1447,50 +1406,26 @@ pub unsafe fn replay_set_rule_declared_properties(
     );
 }
 
-/// Gives an existing style rule a new selector list, keeping its identity and its position.
-///
-/// # Safety
-/// `engine` must be live, and the selector pointers must point to live `RustSelector`s.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_replace_style_rule_selectors(
-    engine: *mut c_void,
+/// Replace selectors using immutable compilation inputs, preserving recording and rule identity.
+pub(crate) fn publish_style_rule_selectors(
+    engine: &mut StyleEngine,
     rule: u32,
-    selectors: *const *const c_void,
-    count: usize,
-    default_namespace: u32,
-    namespace_prefixes: *const u32,
-    namespace_uris: *const u32,
-    namespace_count: usize,
-    scope_roots: *const *const c_void,
-    scope_root_count: usize,
-    scope_limits: *const *const c_void,
-    scope_limit_count: usize,
-    scope_level_root_counts: *const u32,
-    scope_level_limit_counts: *const u32,
-    scope_level_implicit_roots: *const u32,
-    scope_level_count: usize,
+    compiled: &[&CompiledSelector],
+    namespaces: NamespaceScope,
+    bound_scope: &BoundScopeChain,
 ) {
-    if rule == 0 || count == 0 {
+    if rule == 0 || compiled.is_empty() {
         return;
     }
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-    let compiled = unsafe { borrow_selectors(selectors, count) };
-    if compiled.is_empty() {
-        return;
-    }
-    let scope = unsafe { borrow_selectors(scope_roots, scope_root_count) };
-    let limits = unsafe { borrow_selectors(scope_limits, scope_limit_count) };
-    let levels = unsafe { borrow_scope_levels(scope_level_root_counts, scope_level_limit_counts, scope_level_count) };
-    let implicit_roots = unsafe { borrow_implicit_scope_roots(scope_level_implicit_roots, scope_level_count) };
-    let namespaces =
-        unsafe { borrow_namespace_scope(default_namespace, namespace_prefixes, namespace_uris, namespace_count) };
+    let scope: Vec<_> = bound_scope.roots.iter().map(|selector| selector.as_ref()).collect();
+    let limits: Vec<_> = bound_scope.limits.iter().map(|selector| selector.as_ref()).collect();
     let scope = ScopeChain {
         roots: &scope,
         limits: &limits,
-        levels: &levels,
-        implicit_roots: &implicit_roots,
+        levels: &bound_scope.levels,
+        implicit_roots: &bound_scope.implicit_roots,
     };
-    engine.replace_style_rule_selectors(RuleID(rule - 1), &compiled, namespaces, &scope);
+    engine.replace_style_rule_selectors(RuleID(rule - 1), compiled, namespaces, &scope);
     engine.record_boundary_call(EventKind::ReplaceStyleRuleSelectors, |payload| {
         payload.write_u32(rule);
         write_recording_atom_mappings(engine, payload);
@@ -1567,38 +1502,40 @@ pub unsafe extern "C" fn style_engine_set_element_language(
     });
 }
 
-/// # Safety
-/// `pointers` must be null or point to `count` live `RustSelector` pointers.
-/// How many scope roots and limits each enclosing `@scope` contributed, outermost first.
-///
-/// Scopes nest, and an element is in scope only when it is in every one of them, so the compiler
-/// needs the boundaries rather than one flat run.
-unsafe fn borrow_scope_levels(roots: *const u32, limits: *const u32, count: usize) -> Vec<(u32, u32)> {
-    if count == 0 || roots.is_null() || limits.is_null() {
-        return Vec::new();
-    }
-    let roots = unsafe { std::slice::from_raw_parts(roots, count) };
-    let limits = unsafe { std::slice::from_raw_parts(limits, count) };
-    roots.iter().copied().zip(limits.iter().copied()).collect()
+#[derive(Clone, Default)]
+pub(crate) struct BoundScopeChain {
+    roots: Vec<std::sync::Arc<CompiledSelector>>,
+    limits: Vec<std::sync::Arc<CompiledSelector>>,
+    levels: Vec<(u32, u32)>,
+    implicit_roots: Vec<Option<ImplicitScopeRoot>>,
 }
 
-/// The element each `@scope` level roots at when it wrote no `<scope-start>`, zero where it wrote
-/// one.
-///
-/// # Safety
-/// `roots` must be null or point to `count` live `u32`s.
-unsafe fn borrow_implicit_scope_roots(roots: *const u32, count: usize) -> Vec<Option<ImplicitScopeRoot>> {
-    if count == 0 || roots.is_null() {
-        return Vec::new();
-    }
-    unsafe { std::slice::from_raw_parts(roots, count) }
-        .iter()
-        .map(|&raw| match raw {
+impl BoundScopeChain {
+    pub(crate) fn push(
+        &mut self,
+        start: Option<&crate::css::selector_parser::RustBoundSelectorList>,
+        end: Option<&crate::css::selector_parser::RustBoundSelectorList>,
+        implicit_root: u32,
+    ) {
+        self.levels.push((
+            u32::try_from(start.map_or(0, |list| list.selectors.len())).expect("scope root count exceeds u32"),
+            u32::try_from(end.map_or(0, |list| list.selectors.len())).expect("scope limit count exceeds u32"),
+        ));
+        // An explicit start that transforms to an empty list matches no roots. It must not acquire
+        // the DOM root that an omitted start uses.
+        let implicit_root = if start.is_none() { implicit_root } else { 0 };
+        self.implicit_roots.push(match implicit_root {
             0 => None,
             u32::MAX => Some(ImplicitScopeRoot::ContainingTree),
             node => StyleNodeID::from_raw(node).map(ImplicitScopeRoot::Node),
-        })
-        .collect()
+        });
+        if let Some(start) = start {
+            self.roots.extend(start.selectors.iter().cloned());
+        }
+        if let Some(end) = end {
+            self.limits.extend(end.selectors.iter().cloned());
+        }
+    }
 }
 
 unsafe fn borrow_selectors<'a>(pointers: *const *const c_void, count: usize) -> Vec<&'a CompiledSelector> {
@@ -1808,41 +1745,6 @@ unsafe fn selector_query_matches_impl(
     })
 }
 
-/// The `@namespace` declarations of one sheet, as the boundary carries them.
-///
-/// A zero default means the sheet declared none, in which case an unprefixed type or universal
-/// selector constrains no namespace at all.
-///
-/// # Safety
-/// `prefixes` and `uris` must each point at `count` readable `u32` values, or be null.
-unsafe fn borrow_namespace_scope(
-    default_namespace: u32,
-    prefixes: *const u32,
-    uris: *const u32,
-    count: usize,
-) -> NamespaceScope {
-    let by_prefix = match prefixes.is_null() || uris.is_null() {
-        true => Vec::new(),
-        false => {
-            let prefixes = unsafe { std::slice::from_raw_parts(prefixes, count) };
-            let uris = unsafe { std::slice::from_raw_parts(uris, count) };
-            prefixes
-                .iter()
-                .zip(uris)
-                .map(|(&prefix, &uri)| (StyleAtomID(prefix), StyleAtomID(uri)))
-                .collect()
-        }
-    };
-    NamespaceScope {
-        default: match default_namespace {
-            0 => None,
-            // The empty string, which is the namespace an element in none has.
-            u32::MAX => Some(StyleAtomID::NONE),
-            atom => Some(StyleAtomID(atom)),
-        },
-        by_prefix,
-    }
-}
 /// One concrete match, as the boundary carries it.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
@@ -1999,6 +1901,7 @@ pub unsafe extern "C" fn style_engine_match_element(
     });
     result
 }
+
 fn declaration_inventory_is_complete(declared: &[DeclaredProperty], written: &[RetainedStyleValueData]) -> bool {
     use crate::css::property_metadata::{longhands_for_shorthand, property_id, property_is_shorthand};
     fn covers(property: u16, declared: &[DeclaredProperty]) -> bool {
@@ -2028,17 +1931,8 @@ fn collect_native_custom_declarations(
         .iter()
         .map(|property| {
             let name = property.name.to_fly_string();
-            let engine_pointer = std::ptr::from_mut(engine).cast();
-            let atom = StyleAtomID(unsafe { style_engine_intern_atom(engine_pointer, name.raw()) });
-            unsafe {
-                style_engine_note_custom_property_name(
-                    engine_pointer,
-                    atom.0,
-                    name.raw(),
-                    property.name.units().as_ptr(),
-                    property.name.units().len(),
-                );
-            }
+            let atom = intern_native_atom(engine, name.raw());
+            unsafe { note_native_custom_property_name(engine, atom, name.raw(), property.name.units()) };
             let declaration = &property.declaration;
             // Custom properties retain their authored values, without normal-property
             // canonicalization. Their token spelling is observable after substitution.
@@ -2100,7 +1994,7 @@ fn register_element_declared_properties(
 /// Returns whether the declarations can define transitions.
 ///
 /// # Safety
-/// `engine` must be live. A non-null `block` must borrow a live `FfiDeclarationBlock`.
+/// `engine` must be live. A non-null `block` must borrow a live `DeclarationBlock`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_set_element_inline_style_properties(
     engine: *mut c_void,
@@ -2111,11 +2005,7 @@ pub unsafe extern "C" fn style_engine_set_element_inline_style_properties(
         return false;
     };
     let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-    let block = unsafe {
-        block
-            .cast::<crate::css::declaration_block::FfiDeclarationBlock>()
-            .as_ref()
-    };
+    let block = unsafe { block.cast::<crate::css::declaration_block::DeclarationBlock>().as_ref() };
     let data = block.map(|block| block.data());
     register_element_declared_properties(
         engine,
@@ -2333,6 +2223,11 @@ pub unsafe fn replay_exact_cascade_generation_snapshot(
 #[cfg(feature = "style-replay")]
 pub fn replay_style_value(token: u64, dependency_flags: u8) -> *const c_void {
     crate::css::style_value::register_replay_style_value(token, dependency_flags).cast()
+}
+
+#[cfg(feature = "style-replay")]
+pub fn replay_style_value_token(value: *const c_void) -> Option<u64> {
+    crate::css::style_value::replay_style_value_token(value.cast())
 }
 
 #[cfg(feature = "style-recording")]
@@ -2974,22 +2869,14 @@ pub unsafe extern "C" fn style_engine_remove_computed_pseudo(
     });
     result
 }
-/// Registers the native declaration block of a rule, returning whether it declares transitions.
-///
-/// # Safety
-/// `engine` must be live, and `block` must borrow a live `FfiDeclarationBlock` for this call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn style_engine_set_rule_declared_properties(
-    engine: *mut c_void,
+pub(crate) fn publish_rule_declarations(
+    engine: &mut StyleEngine,
     rule: u32,
-    block: *const c_void,
+    data: &crate::css::declaration_block::DeclarationBlockData,
 ) -> bool {
     if rule == 0 {
         return false;
     }
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-    let block = unsafe { &*block.cast::<crate::css::declaration_block::FfiDeclarationBlock>() };
-    let data = block.data();
     let mut declarations_are_complete = true;
     let mut has_transitions = false;
     let declared = data
@@ -3139,9 +3026,14 @@ pub unsafe extern "C" fn style_engine_note_custom_property_name(
         0 => &[],
         _ => unsafe { std::slice::from_raw_parts(text, length) },
     };
-    unsafe { engine.note_custom_property_name(StyleAtomID(name), raw, text) };
+    unsafe { note_native_custom_property_name(engine, StyleAtomID(name), raw, text) };
+}
+
+// The raw identity must remain a live Utf16FlyString for the native engine to retain it.
+unsafe fn note_native_custom_property_name(engine: &mut StyleEngine, name: StyleAtomID, raw: usize, text: &[u16]) {
+    unsafe { engine.note_custom_property_name(name, raw, text) };
     engine.record_boundary_call(EventKind::NoteCustomPropertyName, |payload| {
-        payload.write_u32(name);
+        payload.write_u32(name.0);
         payload.write_u16_slice(text);
     });
 }
@@ -3155,6 +3047,220 @@ pub unsafe fn replay_note_custom_property_name(engine: *mut c_void, name: u32, t
     unsafe { engine.note_custom_property_name(StyleAtomID(name), 0, text) };
 }
 
+#[repr(C)]
+pub struct FfiNativeRuleTarget {
+    pub identity: u64,
+    pub declaration_version: u32,
+    pub source_identity: u64,
+    pub declarations: *const c_void,
+    pub layer_name: *const u16,
+    pub layer_name_length: usize,
+    pub has_container_conditions: bool,
+    pub origin: FfiCascadeOrigin,
+}
+
+/// Resolve a native rule identity in this document's engine, including shared sheets.
+///
+/// # Safety
+/// Engine must be live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_native_rule_id(engine: *const c_void, identity: u64) -> u32 {
+    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    engine.native_rule_id(identity).map_or(0, |id| id.0 + 1)
+}
+
+/// Issue a new identity for changed declaration contents, independently of CSSOM wrappers.
+///
+/// # Safety
+/// Engine must be live and not borrowed.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_next_declaration_block_version(engine: *mut c_void) -> u32 {
+    unsafe { &mut *engine.cast::<StyleEngine>() }.next_declaration_block_version()
+}
+
+/// Publish a native declaration edit through its owning rule and return whether it declares
+/// transitions. The host is notified before publishing, without an engine or graph borrow.
+///
+/// # Safety
+/// Engine and rule must be live. The callback must not mutate the native rule graph or destroy the
+/// engine, and must remain valid for this call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_native_rule_declarations_changed(
+    engine: *mut c_void,
+    rule: *const c_void,
+    context: *mut c_void,
+    notify: unsafe extern "C" fn(*mut c_void, u32),
+) -> bool {
+    let (id, declarations) = {
+        let rule = unsafe { &*rule.cast::<crate::css::rule::NativeRule>() };
+        let Some(identity) = rule.declaration_owner_identity() else {
+            return false;
+        };
+        let engine = unsafe { &*engine.cast::<StyleEngine>() };
+        let Some(&id) = engine.native_rules.identities.get(&identity) else {
+            return false;
+        };
+        (id, rule.cascade_declarations())
+    };
+    unsafe { notify(context, id.0 + 1) };
+    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
+    engine.native_rules.targets.get_mut(&id).unwrap().declarations = declarations.clone();
+    let version = engine.next_declaration_block_version();
+    operations::record_rule_declarations_changed(engine, id.0 + 1, version);
+    declarations.is_some_and(|declarations| publish_rule_declarations(engine, id.0 + 1, &declarations))
+}
+
+/// Find the next compiled rule after an inserted native subtree, without creating CSSOM objects.
+///
+/// # Safety
+/// Engine and sheet must be live native allocations.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_native_rule_successor(
+    engine: *const c_void,
+    sheet: *const c_void,
+    identity: u64,
+) -> u32 {
+    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let sheet = unsafe { &*sheet.cast::<crate::css::style_sheet::NativeStyleSheet>() };
+    crate::css::rule::mutation::successor(sheet, identity, |identity| {
+        engine.native_rules.identities.get(&identity).map_or(0, |id| id.0 + 1)
+    })
+}
+
+/// Retire a native subtree, with host callbacks only for document and cascade-cache notifications.
+///
+/// # Safety
+/// Engine, sheet, rule, callbacks, and any non-null detached import must be live. Native rules must
+/// belong to Rc allocations. No graph or engine borrow spans a host callback.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_remove_native_rule(
+    engine: *mut c_void,
+    sheet: *const c_void,
+    rule: *const c_void,
+    detached_import: *const c_void,
+    _sheet_id: u32,
+    context: *mut c_void,
+    begin: unsafe extern "C" fn(*mut c_void, bool, bool),
+    notify: unsafe extern "C" fn(*mut c_void, u32, bool),
+) {
+    use crate::css::rule::{NativeRule, NativeRuleType, mutation, read::RuleRef};
+    use crate::css::style_sheet::NativeStyleSheet;
+    let removed = unsafe {
+        mutation::removed_rules(
+            &*rule.cast::<NativeRule>(),
+            &*sheet.cast::<NativeStyleSheet>(),
+            detached_import.cast::<NativeStyleSheet>().as_ref(),
+        )
+    };
+    let changes_environment =
+        RuleRef::Materialized(unsafe { &*rule.cast::<NativeRule>() }).change_needs_style_environment_bump();
+    let has_counter_style = removed
+        .iter()
+        .any(|rule| RuleRef::Materialized(rule).rule_type() == NativeRuleType::CounterStyle);
+    unsafe { begin(context, changes_environment, has_counter_style) };
+    for rule in removed {
+        let declares_layer = mutation::declares_layer(&rule);
+        let id = unsafe { &*engine.cast::<StyleEngine>() }.native_rule_id(RuleRef::Materialized(&rule).identity());
+        unsafe { notify(context, id.map_or(0, |id| id.0 + 1), declares_layer) };
+        if let Some(id) = id {
+            operations::remove_rule(unsafe { &mut *engine.cast::<StyleEngine>() }, id.0 + 1);
+        }
+    }
+}
+
+/// Read a rule's native cascade data without a CSSOM facade.
+///
+/// # Safety
+/// Engine must be live. On success the caller owns declarations and must release it with
+/// rust_declaration_data_release. Layer text is borrowed until the next rule mutation; callers
+/// must copy any text needed across such a mutation. Source identity never retains a native sheet.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_native_rule_target(
+    engine: *const c_void,
+    rule: u32,
+    result: &mut FfiNativeRuleTarget,
+) -> bool {
+    let engine = unsafe { &*engine.cast::<StyleEngine>() };
+    let Some(target) = rule
+        .checked_sub(1)
+        .and_then(|id| engine.native_rules.targets.get(&RuleID(id)))
+    else {
+        return false;
+    };
+    let Some(declarations) = &target.declarations else {
+        return false;
+    };
+    let origin = engine.program.sheet_origin(engine.program.rule_sheet(RuleID(rule - 1)));
+    *result = FfiNativeRuleTarget {
+        identity: target.identity,
+        declaration_version: engine
+            .current_rule_version(RuleID(rule - 1))
+            .declaration_block
+            .map_or(0, |version| version.0),
+        source_identity: target.source_identity,
+        declarations: std::sync::Arc::into_raw(declarations.clone()).cast(),
+        layer_name: target.layer_name.as_ptr(),
+        layer_name_length: target.layer_name.len(),
+        has_container_conditions: !target.containers.is_empty(),
+        origin: match origin {
+            CascadeOrigin::Author => FfiCascadeOrigin::Author,
+            CascadeOrigin::AuthorPresentationalHint => FfiCascadeOrigin::AuthorPresentationalHint,
+            CascadeOrigin::User => FfiCascadeOrigin::User,
+            CascadeOrigin::UserAgent => FfiCascadeOrigin::UserAgent,
+            CascadeOrigin::Animation | CascadeOrigin::Transition => {
+                unreachable!("stylesheets cannot have an animation origin")
+            }
+        },
+    };
+    true
+}
+
+/// Evaluate native container conditions while keeping their ownership independent of the host.
+///
+/// # Safety
+/// Engine and callbacks must be live. Callbacks receive borrowed native query data and UTF-16
+/// names. Evaluation can reenter style computation, so no engine borrow spans either callback.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn style_engine_native_rule_matches_containers(
+    engine: *const c_void,
+    rule: u32,
+    context: *mut c_void,
+    mark_dependencies: unsafe extern "C" fn(*mut c_void, bool, bool),
+    evaluate: unsafe extern "C" fn(*mut c_void, *const c_void, *const u16, usize) -> bool,
+) -> bool {
+    use crate::css::parser::query_parser::CONTAINER_QUERY_REQUIRES_STYLE;
+    let containers = {
+        let engine = unsafe { &*engine.cast::<StyleEngine>() };
+        let Some(target) = rule
+            .checked_sub(1)
+            .and_then(|id| engine.native_rules.targets.get(&RuleID(id)))
+        else {
+            return false;
+        };
+        target.containers.clone()
+    };
+    // Mark all ancestor dependencies, even if an inner condition subsequently fails to match.
+    let size = containers.iter().any(|conditions| conditions.contains_size_feature());
+    let style = containers.iter().any(|conditions| {
+        conditions.conditions.iter().any(|condition| {
+            condition.query.as_ref().is_some_and(|query| {
+                let requirements = query.container_requirements();
+                requirements & CONTAINER_QUERY_REQUIRES_STYLE != 0
+            })
+        })
+    });
+    unsafe { mark_dependencies(context, size, style) };
+    containers.iter().all(|conditions| {
+        conditions.conditions.iter().any(|condition| {
+            let name = condition.name.as_ref().map_or(&[][..], |name| name.units());
+            let query = condition
+                .query
+                .as_ref()
+                .map_or(std::ptr::null(), |query| std::sync::Arc::as_ptr(query).cast());
+            unsafe { evaluate(context, query, name.as_ptr(), name.len()) }
+        })
+    })
+}
 /// Interns one name identity and returns its document-local atom.
 ///
 /// The caller passes the one-word identity of an interned string it holds a reference to, so the
@@ -3165,13 +3271,29 @@ pub unsafe fn replay_note_custom_property_name(engine: *mut c_void, name: u32, t
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_intern_atom(engine: *mut c_void, raw: usize) -> u32 {
     let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
-    let result = engine.intern_atom(raw).0;
+    let result = engine.intern_atom(raw);
+    record_interned_atom(engine, raw, result);
+    result.0
+}
+
+pub(crate) fn intern_native_text(engine: &mut StyleEngine, units: &[u16]) -> StyleAtomID {
+    crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::InternUtf16FlyStringCallback);
+    let name = ak::Utf16FlyString::from_utf16(units);
+    intern_native_atom(engine, name.raw_identity())
+}
+
+pub(crate) fn intern_native_atom(engine: &mut StyleEngine, raw: usize) -> StyleAtomID {
+    let result = engine.atoms.intern_raw(raw);
+    record_interned_atom(engine, raw, result);
+    result
+}
+
+fn record_interned_atom(engine: &mut StyleEngine, raw: usize, atom: StyleAtomID) {
     let token = engine.recording_atom_pointer_token(raw);
     engine.record_boundary_call(EventKind::InternAtom, |payload| {
         payload.write_u64(token.expect("an enabled recorder must tokenize the pointer"));
-        payload.write_u32(result);
+        payload.write_u32(atom.0);
     });
-    result
 }
 
 /// Takes the pending style transaction and returns its versioned semantic match answers.

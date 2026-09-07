@@ -17,28 +17,12 @@ use std::sync::OnceLock;
 
 use super::index::StyleAtomID;
 
-type RawAtomCallback = unsafe extern "C" fn(usize);
-
 const TEXT_KEY_MASK: u64 = 0x0000_ffff_ffff_ffff;
 const TEXT_KEY_FLOOR: usize = usize::MAX - TEXT_KEY_MASK as usize;
 
 #[must_use]
 pub(super) fn synthetic_text_atom_key(hash: u64) -> usize {
     usize::MAX - (hash & TEXT_KEY_MASK) as usize
-}
-
-struct RawAtomCallbacks {
-    retain: RawAtomCallback,
-    release: RawAtomCallback,
-}
-
-fn raw_atom_callbacks() -> &'static OnceLock<RawAtomCallbacks> {
-    static CALLBACKS: OnceLock<RawAtomCallbacks> = OnceLock::new();
-    &CALLBACKS
-}
-
-pub(super) fn install_raw_atom_callbacks(retain: RawAtomCallback, release: RawAtomCallback) {
-    raw_atom_callbacks().get_or_init(|| RawAtomCallbacks { retain, release });
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -98,10 +82,7 @@ impl GlobalAtoms {
         let atom = self.allocate();
         if lifetime == RawAtomLifetime::RetainedFlyString {
             // SAFETY: Live StyleEngine callers pass the raw identity of a referenced Utf16FlyString.
-            let callbacks = raw_atom_callbacks()
-                .get()
-                .expect("live atom callbacks must be installed");
-            unsafe { (callbacks.retain)(raw) };
+            unsafe { ak::reference_utf16_string(raw) };
         }
         self.raw.insert(
             raw,
@@ -146,10 +127,7 @@ impl GlobalAtoms {
         self.available.insert(entry.atom.0);
         if entry.raw_lifetime == Some(RawAtomLifetime::RetainedFlyString) {
             // SAFETY: acquire_raw retained exactly one global reference for this entry.
-            let callbacks = raw_atom_callbacks()
-                .get()
-                .expect("live atom callbacks must be installed");
-            unsafe { (callbacks.release)(raw) };
+            unsafe { ak::release_utf16_string_with(raw, crate::css::ffi_stats::release_utf16_fly_string) };
         }
     }
 

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div class="親"><div class="子">
+    <div id="inside" class="対象"></div>
+    <div class="限界"><div id="limited" class="対象"></div></div>
+</div></div>
+<script>
+    test(() => {
+        const text = ".対象 { height: 7px; } .親 { @scope (> .子) to (> .限界) { .対象 { height: 19px; } } } @scope {} @scope to (.限界) {}";
+        const first = document.createElement("style");
+        const second = document.createElement("style");
+        first.textContent = second.textContent = text;
+        document.head.append(first, second);
+        const parent = first.sheet.cssRules[1];
+        const scope = parent.cssRules[0];
+        const other = second.sheet.cssRules[1].cssRules[0];
+        const heights = () => `${getComputedStyle(inside).height}, ${getComputedStyle(limited).height}`;
+        second.remove();
+        println(`selectors: ${scope.start}, ${scope.end}`);
+        println(`empty: ${first.sheet.cssRules[2].start}, ${first.sheet.cssRules[2].end}`);
+        println(`end only: ${first.sheet.cssRules[3].start}, ${first.sheet.cssRules[3].end}`);
+        println(`initial: ${heights()}`);
+        parent.selectorText = ".別";
+        println(`retargeted: ${heights()}`);
+        parent.selectorText = ".親";
+        scope.cssRules[0].style.height = "31px";
+        println(`edited: ${heights()}`);
+        println(`other: ${other.start}, ${other.end}, ${other.cssRules[0].style.height}`);
+        parent.deleteRule(0);
+        internals.gc();
+        println(`removed: ${heights()}`);
+        println(`detached: ${scope.start}, ${scope.end}, ${scope.cssRules[0].style.height}`);
+    });
+</script>

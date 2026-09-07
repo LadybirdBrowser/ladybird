@@ -1,0 +1,11 @@
+independent connections: true
+native descriptors: 書体, 400, 400
+FontFace mutation: 700, 400
+disconnect removed rule: true
+detached face stops writing rule: 700
+reinsert creates fresh connection: true
+detached rule stays independent: 400, 400
+replacement mutation: 500
+replace disconnects old face: true
+replacement order: true
+replacement descriptors: 400, 400

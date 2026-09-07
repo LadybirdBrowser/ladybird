@@ -30,7 +30,7 @@ struct RuleOrDeclaration {
     };
 
     struct Rule {
-        GC::Ptr<CSSStyleSheet> parent_style_sheet;
+        RefPtr<StyleSheetState> parent_style_sheet;
     };
 
     GC::Ref<HTML::EnvironmentSettingsObject> environment_settings_object;

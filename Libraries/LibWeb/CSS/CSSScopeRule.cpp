@@ -6,24 +6,21 @@
 
 #include "CSSScopeRule.h"
 #include <LibGC/Heap.h>
-#include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSRuleList.h>
-#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/Dump.h>
 
 namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSScopeRule);
 
-GC::Ref<CSSScopeRule> CSSScopeRule::create(Optional<SelectorList>&& start_selectors, Optional<SelectorList>&& end_selectors, CSSRuleList& rules)
+GC::Ref<CSSScopeRule> CSSScopeRule::create(RustRule rule, CSSRuleList& rules)
 {
-    return GC::Heap::the().allocate<CSSScopeRule>(move(start_selectors), move(end_selectors), rules);
+    return GC::Heap::the().allocate<CSSScopeRule>(move(rule), rules);
 }
 
-CSSScopeRule::CSSScopeRule(Optional<SelectorList>&& start_selectors, Optional<SelectorList>&& end_selectors, CSSRuleList& rules)
-    : CSSGroupingRule(rules, Type::Scope)
-    , m_start_selectors(move(start_selectors))
-    , m_end_selectors(move(end_selectors))
+CSSScopeRule::CSSScopeRule(RustRule rule, CSSRuleList& rules)
+    : CSSGroupingRule(rules, move(rule))
+    , m_selectors(RustScopeSelectors::create(native_rule().payload().scope))
 {
 }
 
@@ -36,86 +33,16 @@ void CSSScopeRule::visit_edges(GC::Cell::Visitor& visitor)
 
 Optional<Utf16String> CSSScopeRule::start() const
 {
-    if (m_start_selectors.has_value())
-        return serialize_a_group_of_selectors(*m_start_selectors);
+    if (start_selectors().has_value())
+        return serialize_a_group_of_selectors(*start_selectors());
     return {};
 }
 
 Optional<Utf16String> CSSScopeRule::end() const
 {
-    if (m_end_selectors.has_value())
-        return serialize_a_group_of_selectors(*m_end_selectors);
+    if (end_selectors().has_value())
+        return serialize_a_group_of_selectors(*end_selectors());
     return {};
-}
-
-Optional<SelectorList> const& CSSScopeRule::start_selectors_for_matching() const
-{
-    if (!m_start_selectors.has_value())
-        return m_start_selectors;
-
-    if (!m_cached_start_selectors_for_matching.has_value())
-        m_cached_start_selectors_for_matching = absolutize_selectors_relative_to(*m_start_selectors, m_parent_rule);
-    return m_cached_start_selectors_for_matching;
-}
-
-Optional<SelectorList> const& CSSScopeRule::end_selectors_for_matching() const
-{
-    if (!m_end_selectors.has_value())
-        return m_end_selectors;
-
-    if (!m_cached_end_selectors_for_matching.has_value())
-        m_cached_end_selectors_for_matching = adapt_scope_end_selectors_for_matching(*m_end_selectors);
-    return m_cached_end_selectors_for_matching;
-}
-
-Optional<SelectorList> const& scope_start_selectors_for_matching(CSSRule const& scope_rule)
-{
-    if (auto const* css_scope_rule = as_if<CSSScopeRule const>(scope_rule))
-        return css_scope_rule->start_selectors_for_matching();
-    if (auto const* import_rule = as_if<CSSImportRule const>(scope_rule)) {
-        VERIFY(import_rule->has_scope());
-        return import_rule->scope_start_selectors_for_matching();
-    }
-    VERIFY_NOT_REACHED();
-}
-
-Optional<SelectorList> const& scope_end_selectors_for_matching(CSSRule const& scope_rule)
-{
-    if (auto const* css_scope_rule = as_if<CSSScopeRule const>(scope_rule))
-        return css_scope_rule->end_selectors_for_matching();
-    if (auto const* import_rule = as_if<CSSImportRule const>(scope_rule)) {
-        VERIFY(import_rule->has_scope());
-        return import_rule->scope_end_selectors_for_matching();
-    }
-    VERIFY_NOT_REACHED();
-}
-
-GC::Ptr<CSSImportRule const> nearest_scoped_owner_import(CSSStyleSheet const* style_sheet)
-{
-    for (auto const* current_style_sheet = style_sheet; current_style_sheet;) {
-        auto owner_rule = current_style_sheet->owner_rule();
-        if (auto const* import_rule = as_if<CSSImportRule const>(owner_rule.ptr()); import_rule && import_rule->has_scope())
-            return import_rule;
-        current_style_sheet = owner_rule ? owner_rule->parent_style_sheet() : nullptr;
-    }
-    return nullptr;
-}
-
-GC::Ptr<CSSRule const> nearest_ancestor_scope_rule_for_matching(CSSRule const& scope_rule)
-{
-    for (auto const* parent_rule = scope_rule.parent_rule(); parent_rule; parent_rule = parent_rule->parent_rule()) {
-        if (is<CSSScopeRule>(*parent_rule))
-            return parent_rule;
-    }
-
-    return nearest_scoped_owner_import(scope_rule.parent_style_sheet());
-}
-
-void CSSScopeRule::clear_caches()
-{
-    Base::clear_caches();
-    m_cached_start_selectors_for_matching.clear();
-    m_cached_end_selectors_for_matching.clear();
 }
 
 // https://drafts.csswg.org/cssom-1/#serialize-a-css-rule
@@ -155,14 +82,15 @@ void CSSScopeRule::dump(StringBuilder& builder, int indent_levels) const
     Base::dump(builder, indent_levels);
 
     dump_indent(builder, indent_levels + 1);
-    if (m_start_selectors.has_value()) {
-        builder.appendff("Start selectors ({}):\n", m_start_selectors->size());
-        for (auto& selector : *m_start_selectors)
+    if (start_selectors().has_value()) {
+        builder.appendff("Start selectors ({}):\n", start_selectors()->size());
+        for (auto& selector : *start_selectors())
             dump_selector(builder, selector, indent_levels + 2);
 
         dump_indent(builder, indent_levels + 1);
         builder.appendff("Absolutized start selectors:\n");
-        for (auto& selector : start_selectors_for_matching().value()) {
+        auto matching_selectors = scope_start_selectors_for_rule(native_rule());
+        for (auto& selector : matching_selectors.value()) {
             dump_selector(builder, selector, indent_levels + 2);
         }
     } else {
@@ -170,14 +98,15 @@ void CSSScopeRule::dump(StringBuilder& builder, int indent_levels) const
     }
 
     dump_indent(builder, indent_levels + 1);
-    if (m_end_selectors.has_value()) {
-        builder.appendff("End selectors ({}):\n", m_end_selectors->size());
-        for (auto& selector : *m_end_selectors)
+    if (end_selectors().has_value()) {
+        builder.appendff("End selectors ({}):\n", end_selectors()->size());
+        for (auto& selector : *end_selectors())
             dump_selector(builder, selector, indent_levels + 2);
 
         dump_indent(builder, indent_levels + 1);
         builder.appendff("Absolutized end selectors:\n");
-        for (auto& selector : end_selectors_for_matching().value()) {
+        auto matching_selectors = scope_end_selectors_for_rule(native_rule());
+        for (auto& selector : matching_selectors.value()) {
             dump_selector(builder, selector, indent_levels + 2);
         }
     } else {

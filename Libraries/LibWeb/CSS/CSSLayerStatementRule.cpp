@@ -14,15 +14,36 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSLayerStatementRule);
 
-GC::Ref<CSSLayerStatementRule> CSSLayerStatementRule::create(Vector<Utf16FlyString> name_list)
+GC::Ref<CSSLayerStatementRule> CSSLayerStatementRule::create(RustRule rule)
 {
-    return GC::Heap::the().allocate<CSSLayerStatementRule>(move(name_list));
+    return GC::Heap::the().allocate<CSSLayerStatementRule>(move(rule));
 }
 
-CSSLayerStatementRule::CSSLayerStatementRule(Vector<Utf16FlyString> name_list)
-    : CSSRule(Type::LayerStatement)
-    , m_name_list(move(name_list))
+CSSLayerStatementRule::CSSLayerStatementRule(RustRule rule)
+    : CSSRule(move(rule))
+    , m_names(*native_rule().payload().layer_names)
 {
+}
+
+Vector<Utf16String> CSSLayerStatementRule::name_list() const
+{
+    Vector<Utf16String> names;
+    auto count = Parser::ValueParserFFI::rust_layer_names_count(&m_names);
+    names.ensure_capacity(count);
+    for (size_t index = 0; index < count; ++index)
+        names.unchecked_append(Utf16String::from_utf16(name_at(index)));
+    return names;
+}
+
+Utf16View CSSLayerStatementRule::name_at(size_t index) const
+{
+    auto view = Parser::ValueParserFFI::rust_layer_names_at(&m_names, index);
+    return { reinterpret_cast<char16_t const*>(view.utf16), view.length };
+}
+
+size_t CSSLayerStatementRule::external_memory_size() const
+{
+    return Base::external_memory_size() + Parser::ValueParserFFI::rust_layer_names_external_memory_size(&m_names);
 }
 
 Utf16String CSSLayerStatementRule::serialized() const
@@ -30,33 +51,14 @@ Utf16String CSSLayerStatementRule::serialized() const
     // AD-HOC: No spec yet.
     Utf16StringBuilder builder;
     builder.append_ascii("@layer "sv);
-    for (size_t i = 0; i < m_name_list.size(); ++i) {
+    auto count = Parser::ValueParserFFI::rust_layer_names_count(&m_names);
+    for (size_t i = 0; i < count; ++i) {
         if (i > 0)
             builder.append_ascii(", "sv);
-        builder.append(m_name_list[i]);
+        builder.append(name_at(i));
     }
     builder.append_ascii(';');
     return builder.to_string();
-}
-
-Vector<Utf16FlyString> CSSLayerStatementRule::internal_qualified_name_list(Badge<StyleScope>) const
-{
-    Vector<Utf16FlyString> qualified_layer_names;
-
-    auto const& qualified_parent_layer_name = parent_layer_internal_qualified_name();
-    if (qualified_parent_layer_name.is_empty())
-        return m_name_list;
-
-    for (auto const& name : m_name_list) {
-        Utf16StringBuilder builder;
-        builder.append(qualified_parent_layer_name);
-        builder.append_ascii('.');
-        builder.append(name);
-        auto qualified_name = builder.to_string();
-        qualified_layer_names.append(Utf16FlyString::from_utf16(qualified_name.utf16_view()));
-    }
-
-    return qualified_layer_names;
 }
 
 void CSSLayerStatementRule::dump(StringBuilder& builder, int indent_levels) const

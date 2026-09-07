@@ -424,6 +424,11 @@ fn replay_style_value_metadata(value: *const StyleValueData) -> Option<ReplaySty
         .map(|value| **value)
 }
 
+#[cfg(any(test, feature = "style-replay"))]
+pub(crate) fn replay_style_value_token(value: *const StyleValueData) -> Option<u64> {
+    replay_style_value_metadata(value).map(|value| value.token)
+}
+
 fn replay_style_value_dependency_flags(value: *const StyleValueData) -> Option<u8> {
     #[cfg(any(test, feature = "style-replay"))]
     return replay_style_value_metadata(value).map(|value| value.dependency_flags);
@@ -708,71 +713,129 @@ impl RetainedPropertyIdList {
     }
 }
 
-/// Rust-owned UTF-8 bytes. Host strings are copied and released at the FFI boundary.
+/// Shared native URL text, independent of host strings and the atom table.
 #[repr(C)]
 pub struct RetainedString {
-    bytes: *mut u8,
-    length: usize,
+    storage: *const c_void,
 }
 
-// SAFETY: The handle uniquely owns its byte allocation and only exposes shared slices.
+// SAFETY: This handle owns an Arc to immutable ASCII or UTF-16 storage.
 unsafe impl Send for RetainedString {}
 unsafe impl Sync for RetainedString {}
 
 impl RetainedString {
-    /// Takes ownership of a leaked AK::String reference and copies its bytes.
-    ///
-    /// # Safety
-    /// `bytes` must point at `length` readable bytes. `raw` must be zero or one leaked AK::String reference.
-    unsafe fn from_raw(raw: usize, bytes: *const u8, length: usize) -> Self {
-        let source = unsafe { crate::bytes_from_raw(bytes, length) }.expect("invalid retained string bytes");
-        let string = Self::from_bytes(source.to_vec());
-        if raw != 0 {
-            crate::css::ffi_stats::release_string(raw);
+    fn from_storage(storage: crate::css::css_tokenizer::SourceStorage) -> Self {
+        Self {
+            storage: Arc::into_raw(Arc::new(storage)).cast(),
         }
-        string
     }
 
-    fn from_bytes(bytes: Vec<u8>) -> Self {
-        let bytes = bytes.into_boxed_slice();
-        let length = bytes.len();
-        let bytes = Box::into_raw(bytes).cast::<u8>();
-        Self { bytes, length }
+    fn from_units(units: TokenizerInput<'_>) -> Self {
+        use crate::css::css_tokenizer::SourceStorage;
+        Self::from_storage(match units {
+            TokenizerInput::Ascii(bytes) => {
+                assert!(bytes.is_ascii());
+                SourceStorage::Ascii(bytes.into())
+            }
+            TokenizerInput::Utf16(units) if units.iter().all(|unit| *unit <= 0x7f) => {
+                SourceStorage::Ascii(units.iter().map(|unit| *unit as u8).collect())
+            }
+            TokenizerInput::Utf16(units) => SourceStorage::Utf16(units.into()),
+        })
     }
 
-    pub(crate) fn from_utf8(string: String) -> Self {
-        Self::from_bytes(string.into_bytes())
+    pub(crate) fn from_ascii(string: String) -> Self {
+        assert!(string.is_ascii());
+        Self::from_storage(crate::css::css_tokenizer::SourceStorage::Ascii(
+            string.into_bytes().into_boxed_slice(),
+        ))
     }
 
     pub(crate) fn from_utf16(string: &[u16]) -> Option<Self> {
-        String::from_utf16(string).ok().map(Self::from_utf8)
+        if char::decode_utf16(string.iter().copied()).any(|character| character.is_err()) {
+            return None;
+        }
+        Some(Self::from_units(TokenizerInput::Utf16(string)))
     }
 
-    pub(crate) fn as_bytes(&self) -> &[u8] {
-        if self.bytes.is_null() {
-            return &[];
+    pub(crate) fn units(&self) -> TokenizerInput<'_> {
+        use crate::css::css_tokenizer::SourceStorage;
+        match unsafe { &*self.storage.cast::<SourceStorage>() } {
+            SourceStorage::Ascii(bytes) => TokenizerInput::Ascii(bytes),
+            SourceStorage::Utf16(units) => TokenizerInput::Utf16(units),
         }
-        unsafe { std::slice::from_raw_parts(self.bytes, self.length) }
+    }
+
+    pub(crate) fn url_input(&self) -> liburl_rust::url::UrlInput<'_> {
+        match self.units() {
+            TokenizerInput::Ascii(bytes) => {
+                liburl_rust::url::UrlInput::Utf8(unsafe { std::str::from_utf8_unchecked(bytes) })
+            }
+            TokenizerInput::Utf16(units) => liburl_rust::url::UrlInput::Utf16(units),
+        }
+    }
+
+    pub(crate) fn ascii_bytes(&self) -> &[u8] {
+        let TokenizerInput::Ascii(bytes) = self.units() else {
+            panic!("Expected a serialized ASCII URL")
+        };
+        bytes
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.units().is_empty()
+    }
+
+    pub(crate) fn is_fragment(&self) -> bool {
+        !self.is_empty() && self.units().code_unit_at(0) == u16::from(b'#')
+    }
+
+    fn hash(&self, hasher: &mut impl std::hash::Hasher) {
+        let units = self.units();
+        for index in 0..units.len() {
+            hasher.write_u16(units.code_unit_at(index));
+        }
     }
 }
 
 impl PartialEq for RetainedString {
     fn eq(&self, other: &Self) -> bool {
-        self.as_bytes() == other.as_bytes()
+        if self.storage == other.storage {
+            return true;
+        }
+        let left = self.units();
+        let right = other.units();
+        left.len() == right.len() && (0..left.len()).all(|index| left.code_unit_at(index) == right.code_unit_at(index))
     }
 }
 
 impl Clone for RetainedString {
     fn clone(&self) -> Self {
-        Self::from_bytes(self.as_bytes().to_vec())
+        unsafe { Arc::increment_strong_count(self.storage.cast::<crate::css::css_tokenizer::SourceStorage>()) };
+        Self { storage: self.storage }
     }
 }
 
 impl Drop for RetainedString {
     fn drop(&mut self) {
-        if !self.bytes.is_null() {
-            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.bytes, self.length)) });
-        }
+        unsafe { Arc::decrement_strong_count(self.storage.cast::<crate::css::css_tokenizer::SourceStorage>()) };
+    }
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_css_url_text_view(text: &RetainedString) -> crate::css::ffi_support::FfiUtf16View {
+    use crate::css::ffi_support::FfiUtf16View;
+    match text.units() {
+        TokenizerInput::Ascii(bytes) => FfiUtf16View {
+            ascii: bytes.as_ptr(),
+            utf16: std::ptr::null(),
+            length: bytes.len(),
+        },
+        TokenizerInput::Utf16(units) => FfiUtf16View {
+            ascii: std::ptr::null(),
+            utf16: units.as_ptr(),
+            length: units.len(),
+        },
     }
 }
 
@@ -878,17 +941,6 @@ pub struct FfiImageSetOption {
     type_string: usize,
 }
 
-#[repr(C)]
-pub struct FfiGridArea {
-    name: usize,
-    implicit_start_name: usize,
-    implicit_end_name: usize,
-    row_start: usize,
-    row_end: usize,
-    column_start: usize,
-    column_end: usize,
-}
-
 impl RetainedRequestUrlModifier {
     pub(crate) fn from_enum(modifier_type: u8, enum_value: u8) -> Self {
         Self {
@@ -970,7 +1022,13 @@ pub struct RetainedByteList {
     length: usize,
 }
 
-retained_list!(RetainedByteList, u8);
+retained_list_drop!(RetainedByteList);
+
+impl Clone for RetainedByteList {
+    fn clone(&self) -> Self {
+        Self::from_bytes(self.as_slice().to_vec())
+    }
+}
 
 impl RetainedByteList {
     pub(crate) fn from_bytes(bytes: Vec<u8>) -> Self {
@@ -1334,26 +1392,6 @@ pub struct RetainedGridAreaList {
 }
 
 impl RetainedGridAreaList {
-    unsafe fn from_raw(elements: *const FfiGridArea, length: usize) -> Self {
-        let slice: Box<[RetainedGridArea]> = (0..length)
-            .map(|i| {
-                let element = unsafe { &*elements.add(i) };
-                RetainedGridArea {
-                    name: unsafe { CssString::from_leaked_raw(element.name) },
-                    implicit_start_name: unsafe { CssString::from_leaked_raw(element.implicit_start_name) },
-                    implicit_end_name: unsafe { CssString::from_leaked_raw(element.implicit_end_name) },
-                    row_start: element.row_start,
-                    row_end: element.row_end,
-                    column_start: element.column_start,
-                    column_end: element.column_end,
-                }
-            })
-            .collect();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut RetainedGridArea;
-        Self { pointer, length }
-    }
-
     pub(crate) fn from_retained_elements(elements: Vec<RetainedGridArea>) -> Self {
         let slice = elements.into_boxed_slice();
         let length = slice.len();
@@ -2748,7 +2786,7 @@ impl StyleValueData {
                 hasher.write_u8(*color_syntax);
             }
             Self::Image { url, url_type, .. } => {
-                hasher.write(url.as_bytes());
+                url.hash(hasher);
                 hasher.write_u8(*url_type);
             }
             Self::ImageSet { options: _ } => {}
@@ -2898,7 +2936,7 @@ impl StyleValueData {
                 url_type,
                 modifiers: _,
             } => {
-                hasher.write(url.as_bytes());
+                url.hash(hasher);
                 hasher.write_u8(*url_type);
             }
             Self::FontSource {
@@ -2913,7 +2951,7 @@ impl StyleValueData {
             } => {
                 write_bool(hasher, *is_local);
                 write_value(hasher, local_name);
-                hasher.write(url.as_bytes());
+                url.hash(hasher);
                 hasher.write_u8(*url_type);
                 write_bool(hasher, *has_format);
                 write_fly(hasher, format);
@@ -3052,17 +3090,6 @@ pub unsafe extern "C" fn rust_style_value_create_ratio(
     }))
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_value_create_unicode_range(
-    min_code_point: u32,
-    max_code_point: u32,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::UnicodeRange {
-        min_code_point,
-        max_code_point,
-    }))
-}
-
 /// Takes ownership of one strong reference to the value.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_opacity_value(value: *const StyleValueData) -> *const StyleValueData {
@@ -3093,19 +3120,6 @@ pub extern "C" fn rust_style_value_create_guaranteed_invalid() -> *const StyleVa
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_value_create_empty_optional() -> *const StyleValueData {
     Arc::into_raw(Arc::new(StyleValueData::EmptyOptional))
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_value_create_grid_auto_flow(row: bool, dense: bool) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::GridAutoFlow { row, dense }))
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_value_create_text_underline_position(
-    horizontal: u8,
-    vertical: u8,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::TextUnderlinePosition { horizontal, vertical }))
 }
 
 /// Takes ownership of one strong reference to the color.
@@ -3306,17 +3320,6 @@ pub unsafe extern "C" fn rust_style_value_create_overflow_clip_margin(
     }))
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_value_create_tree_counting_function(
-    function: u8,
-    computed_type: u8,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::TreeCountingFunction {
-        function,
-        computed_type,
-    }))
-}
-
 /// Takes ownership of one strong reference to each size.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_background_size(
@@ -3327,11 +3330,6 @@ pub unsafe extern "C" fn rust_style_value_create_background_size(
         size_x: unsafe { RetainedStyleValueData::from_retained_pointer(size_x) },
         size_y: unsafe { RetainedStyleValueData::from_retained_pointer(size_y) },
     }))
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_value_create_repeat_style(repeat_x: u8, repeat_y: u8) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::RepeatStyle { repeat_x, repeat_y }))
 }
 
 /// Takes ownership of one strong reference to each offset data allocation.
@@ -3349,42 +3347,6 @@ pub unsafe extern "C" fn rust_style_value_create_border_image_slice(
         bottom: unsafe { RetainedStyleValueData::from_retained_pointer(bottom) },
         left: unsafe { RetainedStyleValueData::from_retained_pointer(left) },
         fill,
-    }))
-}
-
-/// Takes ownership of one leaked reference to the anchor name (0 when absent) and one strong
-/// reference to the fallback value if it is non-null.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_anchor_size(
-    has_anchor_name: bool,
-    anchor_name: usize,
-    has_anchor_size: bool,
-    anchor_size: u8,
-    fallback_value: *const StyleValueData,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::AnchorSize {
-        has_anchor_name,
-        anchor_name: unsafe { CssString::from_leaked_raw(anchor_name) },
-        has_anchor_size,
-        anchor_size,
-        fallback_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(fallback_value) },
-    }))
-}
-
-/// Takes ownership of one leaked reference to the anchor name (0 when absent), one strong
-/// reference to the side and one strong reference to the fallback value if it is non-null.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_anchor(
-    has_anchor_name: bool,
-    anchor_name: usize,
-    anchor_side: *const StyleValueData,
-    fallback_value: *const StyleValueData,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::Anchor {
-        has_anchor_name,
-        anchor_name: unsafe { CssString::from_leaked_raw(anchor_name) },
-        anchor_side: unsafe { RetainedStyleValueData::from_retained_pointer(anchor_side) },
-        fallback_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(fallback_value) },
     }))
 }
 
@@ -3492,11 +3454,6 @@ pub unsafe extern "C" fn rust_style_value_create_random_value_sharing(
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_style_value_create_scrollbar_gutter(value: u8) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::ScrollbarGutter { value }))
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn rust_style_value_create_color_interpolation_method(
     is_polar: bool,
     color_space: u8,
@@ -3590,68 +3547,6 @@ pub unsafe extern "C" fn rust_style_value_create_radial_size(
         is_extent_1,
         extent_1,
         value_1: unsafe { RetainedStyleValueData::from_retained_optional_pointer(value_1) },
-    }))
-}
-
-/// Takes ownership of one leaked reference to the URL string and to each modifier's retained
-/// string.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_url(
-    url: usize,
-    url_bytes: *const u8,
-    url_length: usize,
-    url_type: u8,
-    modifiers: *const FfiRequestUrlModifier,
-    modifier_count: usize,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::Url {
-        url: unsafe { RetainedString::from_raw(url, url_bytes, url_length) },
-        url_type,
-        modifiers: unsafe { RetainedRequestUrlModifierList::from_raw(modifiers, modifier_count) },
-    }))
-}
-
-/// Takes ownership of one strong reference to the local name if local, or one leaked reference
-/// to the URL string and each modifier string otherwise, plus the format string when present.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_font_source(
-    is_local: bool,
-    local_name: *const StyleValueData,
-    url: usize,
-    url_bytes: *const u8,
-    url_length: usize,
-    url_type: u8,
-    url_modifiers: *const FfiRequestUrlModifier,
-    url_modifier_count: usize,
-    has_format: bool,
-    format: usize,
-    tech: *const u8,
-    tech_count: usize,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::FontSource {
-        is_local,
-        local_name: unsafe { RetainedStyleValueData::from_retained_optional_pointer(local_name) },
-        url: unsafe { RetainedString::from_raw(url, url_bytes, url_length) },
-        url_type,
-        url_modifiers: unsafe { RetainedRequestUrlModifierList::from_raw(url_modifiers, url_modifier_count) },
-        has_format,
-        format: unsafe { CssString::from_leaked_raw(format) },
-        tech: unsafe { RetainedByteList::from_raw(tech, tech_count) },
-    }))
-}
-
-/// Takes ownership of one leaked reference to each scheme name.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_color_scheme(
-    schemes: *const usize,
-    scheme_codes: *const u8,
-    scheme_count: usize,
-    only: bool,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::ColorScheme {
-        schemes: unsafe { CssStringList::from_raw(schemes, scheme_count) },
-        scheme_codes: unsafe { RetainedByteList::from_raw(scheme_codes, scheme_count) },
-        only,
     }))
 }
 
@@ -3973,21 +3868,6 @@ pub unsafe extern "C" fn rust_style_value_create_radial_gradient(
     }))
 }
 
-/// Takes ownership of the areas' retained names.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_grid_template_area(
-    areas: *const FfiGridArea,
-    area_count: usize,
-    row_count: usize,
-    column_count: usize,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::GridTemplateArea {
-        grid_areas: unsafe { RetainedGridAreaList::from_raw(areas, area_count) },
-        row_count,
-        column_count,
-    }))
-}
-
 /// Takes ownership of one strong reference to each non-null value and of the stops' retained
 /// values.
 #[unsafe(no_mangle)]
@@ -4083,31 +3963,25 @@ pub unsafe extern "C" fn rust_style_value_create_calculated(
     }))
 }
 
-/// Takes ownership of one leaked reference to the URL string and each modifier string.
+/// Copies the borrowed native URL text and takes ownership of each modifier string.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_image(
-    url: usize,
-    url_bytes: *const u8,
-    url_length: usize,
+    url: crate::css::ffi_support::FfiUtf16View,
     url_type: u8,
     url_modifiers: *const FfiRequestUrlModifier,
     url_modifier_count: usize,
-    resource_base_url: usize,
-    resource_base_url_bytes: *const u8,
-    resource_base_url_length: usize,
+    resource_base_url: crate::css::ffi_support::FfiUtf16View,
     has_resource_base_url: bool,
     has_parent_style_sheet_origin_clean: bool,
     parent_style_sheet_origin_clean: bool,
     should_absolutize_url_for_computed_value: bool,
 ) -> *const StyleValueData {
     Arc::into_raw(Arc::new(StyleValueData::Image {
-        url: unsafe { RetainedString::from_raw(url, url_bytes, url_length) },
+        url: unsafe { RetainedString::from_units(url.units().expect("invalid URL text")) },
         url_type,
         url_modifiers: unsafe { RetainedRequestUrlModifierList::from_raw(url_modifiers, url_modifier_count) },
         resource_context: ImageResourceContext {
-            base_url: unsafe {
-                RetainedString::from_raw(resource_base_url, resource_base_url_bytes, resource_base_url_length)
-            },
+            base_url: unsafe { RetainedString::from_units(resource_base_url.units().expect("invalid base URL text")) },
             has_base_url: has_resource_base_url,
             has_parent_style_sheet_origin_clean,
             parent_style_sheet_origin_clean,
@@ -4232,6 +4106,7 @@ mod replay_tests {
         std::thread::spawn(move || {
             let copy = value.clone();
             assert_eq!(unsafe { style_value_content_hash(copy.pointer()) }, 0x1234);
+            assert_eq!(replay_style_value_token(copy.pointer()), Some(0x1234));
         })
         .join()
         .unwrap();
@@ -4242,6 +4117,9 @@ mod replay_tests {
         let first = register_replay_style_value(0x1234, 0);
         let second = register_replay_style_value(0x5678, 0);
 
+        assert_eq!(replay_style_value_token(first), Some(0x1234));
+        assert_eq!(replay_style_value_token(second), Some(0x5678));
+        assert_eq!(replay_style_value_token(std::ptr::null()), None);
         assert!(unsafe { rust_style_value_equals(first, first) });
         assert!(!unsafe { rust_style_value_equals(first, second) });
     }

@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <LibGC/Weak.h>
 #include <LibWeb/CSS/CSSConditionRule.h>
 #include <LibWeb/CSS/MediaList.h>
 #include <LibWeb/Forward.h>
@@ -20,34 +19,25 @@ class CSSMediaRule final : public CSSConditionRule {
     GC_DECLARE_ALLOCATOR(CSSMediaRule);
 
 public:
-    static constexpr size_t media_offset() { return offsetof(CSSMediaRule, m_media); }
-    [[nodiscard]] static GC::Ref<CSSMediaRule> create(MediaList& media_queries, CSSRuleList&);
+    [[nodiscard]] static GC::Ref<CSSMediaRule> create(RustRule, CSSRuleList&);
 
     virtual ~CSSMediaRule() = default;
 
     virtual Utf16String serialized_condition_text() const override;
-    bool matches() const { return condition_matches(); }
+    bool matches() const { return m_media_list.matches(); }
 
-    virtual bool condition_matches() const override { return m_media->matches(); }
-
-    MediaList* media() const { return m_media.ptr(); }
-
-    bool evaluate(DOM::Document const&);
-    bool evaluate_for_invalidation(DOM::Document const&);
+    MediaList* media() const;
+    RustMediaList const& native_media_list() const { return m_media_list; }
 
 private:
-    CSSMediaRule(MediaList&, CSSRuleList&);
+    CSSMediaRule(RustRule, CSSRuleList&);
 
     virtual void visit_edges(Cell::Visitor&) override;
     virtual Utf16String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
-    GC::Ref<MediaList> m_media;
-    struct DocumentMatchState {
-        GC::Weak<DOM::Document> document;
-        bool matches;
-    };
-    Vector<DocumentMatchState, 1> m_document_match_states;
+    RustMediaList m_media_list;
+    mutable GC::Ptr<MediaList> m_media;
 };
 
 template<>

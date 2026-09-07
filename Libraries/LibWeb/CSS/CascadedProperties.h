@@ -11,6 +11,7 @@
 #include <AK/RefCounted.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
+#include <AK/WeakPtr.h>
 #include <LibGC/Ptr.h>
 #include <LibGC/Weak.h>
 #include <LibWeb/CSS/CascadeOrigin.h>
@@ -24,7 +25,7 @@ namespace Web::CSS {
 
 // A thin shell over the Rust cascaded property store. The store owns the
 // entries (values, importance, origin, layer, cascade order); this shell keeps
-// the GC-weak declaration sources the store cannot hold, one pair per
+// the GC-weak stylesheet sources the store cannot hold, one pair per
 // store-assigned slot.
 class CascadedProperties final : public RefCounted<CascadedProperties> {
 public:
@@ -34,20 +35,18 @@ public:
 
     [[nodiscard]] RefPtr<StyleValue const> property(PropertyID) const;
     [[nodiscard]] GC::Ptr<DOM::ShadowRoot const> property_source_shadow_root(PropertyID) const;
-    // The declaration whose value won this property, which is what says where the value came from.
-
     // For the Rust-driven cascade application: the underlying store, and assignment of the
-    // GC-weak declaration source pair for a slot the store handed out.
+    // GC-weak stylesheet source pair for a slot the store handed out. Inline declarations have no sheet.
     ComputedValuesFFI::CascadedPropertyStore* rust_store() { return m_store; }
-    void assign_source_slot(u32 slot, GC::Ptr<CSS::CSSStyleDeclaration const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root);
+    void assign_source_slot(u32 slot, RefPtr<StyleSheetState const> source, GC::Ptr<DOM::ShadowRoot const> source_shadow_root);
     [[nodiscard]] size_t source_slot_count() const { return m_source_slots.size(); }
-    [[nodiscard]] GC::Ptr<CSS::CSSStyleDeclaration const> source_for_slot(u32 slot) const;
+    [[nodiscard]] RefPtr<StyleSheetState const> source_for_slot(u32 slot) const;
 
 private:
     CascadedProperties();
 
     struct SourcePair {
-        GC::Weak<CSS::CSSStyleDeclaration const> source;
+        WeakPtr<StyleSheetState const> source;
         GC::Weak<DOM::ShadowRoot const> source_shadow_root;
     };
 

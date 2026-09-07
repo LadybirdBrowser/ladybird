@@ -22,6 +22,6 @@ struct AdoptedStyleSheetsAccess {
 };
 
 WEB_API GC::Ref<WebIDL::ObservableArray> create_adopted_style_sheets_list(Node& document_or_shadow_root);
-WEB_API void for_each_adopted_style_sheet(WebIDL::ObservableArray&, Function<void(CSS::CSSStyleSheet&)> const&);
+WEB_API void for_each_adopted_style_sheet(WebIDL::ObservableArray&, Function<void(CSS::StyleSheetState&)> const&);
 
 }

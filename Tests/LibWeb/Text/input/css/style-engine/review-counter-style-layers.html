@@ -28,8 +28,10 @@
             @layer base { @counter-style appended-counter { system: extends three; } }
         `;
         document.head.appendChild(appended);
-        getComputedStyle(document.getElementById("counter-target")).width;
+        const initialWidth = getComputedStyle(document.getElementById("counter-target")).width;
         appended.sheet.insertRule("@layer override { @counter-style appended-counter { system: extends four; } }", appended.sheet.cssRules.length);
         println(`counter appended override: ${getComputedStyle(document.getElementById("counter-target")).width === getComputedStyle(document.getElementById("counter-reference")).width}`);
+        appended.sheet.deleteRule(appended.sheet.cssRules.length - 1);
+        println(`counter removed override: ${getComputedStyle(document.getElementById("counter-target")).width === initialWidth}`);
     });
 </script>

@@ -1,0 +1,10 @@
+style selectors: & > .子, & .孫
+scope selectors: & > .子, .孫
+initial: 17px, 19px
+CSSOM normalization: & .missing
+changed child: 5px, 19px
+other selector: & > .子
+restored child: & > .子, 17px, 19px
+changed parent: 5px, 7px
+CSSOM scope selector: > .孫, 17px, 19px
+detached selector: & > .子

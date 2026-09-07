@@ -23,10 +23,10 @@
 #include <LibIPC/TransportHandle.h>
 #include <LibJS/Console.h>
 #include <LibJS/Runtime/ConsoleObject.h>
-#include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/StyleScope.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
-#include <LibWeb/CSS/StyleSheetList.h>
+#include <LibWeb/CSS/StyleSheetImport.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/Compositor/CompositorHost.h>
 #include <LibWeb/DOM/CharacterData.h>
 #include <LibWeb/DOM/Document.h>
@@ -47,6 +47,7 @@
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/InvalidateDisplayList.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Painting/BoxViews.h>
@@ -1794,7 +1795,7 @@ void PageClient::console_peer_did_misbehave(char const* reason)
     client().did_misbehave(reason);
 }
 
-static void gather_style_sheets(Vector<Web::CSS::StyleSheetIdentifier>& results, Web::CSS::CSSStyleSheet& sheet)
+static void gather_style_sheets(Vector<Web::CSS::StyleSheetIdentifier>& results, Web::CSS::StyleSheetState& sheet)
 {
     if (auto identifier = Web::CSS::style_sheet_identifier_for(sheet); identifier.has_value())
         results.append(identifier.release_value());
@@ -1806,7 +1807,7 @@ static void gather_style_sheets(Vector<Web::CSS::StyleSheetIdentifier>& results,
             // We can gather this anyway, and hope it loads later
             results.append({
                 .type = Web::CSS::StyleSheetIdentifier::Type::ImportRule,
-                .url = import_rule->href_for_bindings(),
+                .url = import_rule->href(),
             });
         }
     }
@@ -1818,7 +1819,7 @@ Vector<Web::CSS::StyleSheetIdentifier> PageClient::list_style_sheets() const
 
     auto document = page().local_root_navigable()->active_document();
     if (document) {
-        for (auto& sheet : document->style_sheets().sheets()) {
+        for (auto& sheet : document->style_scope().style_sheets()) {
             gather_style_sheets(results, sheet);
         }
     }

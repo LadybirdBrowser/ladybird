@@ -1,0 +1,13 @@
+initial: 7px, 17px
+style query enabled: 13px
+outer size query disabled: 7px
+outer size query enabled: 13px
+name-only alternative: 13px
+outer name: 色😀
+inner conditions: 名前:style(--状態: 有効), absent:
+distinct wrappers: true
+other declaration: 13px
+mutated declaration: 29px
+deleted nested rule: 7px
+inserted nested rule: 31px
+detached conditions: 名前 style(--状態: 有効), absent

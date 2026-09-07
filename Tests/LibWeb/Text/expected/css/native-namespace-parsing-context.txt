@@ -1,0 +1,8 @@
+native selector edit: rgb(0, 0, 0) / rgb(255, 0, 0)
+unknown namespace rejected: 色|circle
+restored selector: rgb(255, 0, 0) / rgb(255, 0, 0)
+inserted namespaced rule: rgb(0, 128, 0) / none
+nested namespaced rule: rgb(0, 0, 255) / rgb(255, 0, 0)
+unknown namespace insertion: SyntaxError
+detached rule loses namespace context: 色|rect.target
+shared parse remains isolated: rgb(0, 0, 255) / rgb(255, 0, 0)

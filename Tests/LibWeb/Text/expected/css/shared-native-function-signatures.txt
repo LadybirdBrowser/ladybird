@@ -1,0 +1,12 @@
+signature: --幅, <length>
+typed parameter: --量, <length>, 13px
+universal parameter: --印, *, "雪"
+identity: true, independent: true
+default argument width: 13px
+edited body width: 29px
+shared body: result: var(--量);
+detached signature: true, --幅, "雪"
+cached default argument width: 13px
+serialized signature: @function --幅(--量 <length>: 13px, --印: "雪") returns <length> { result: var(--量); }
+explicit argument width: 21px
+invalid argument default width: 13px

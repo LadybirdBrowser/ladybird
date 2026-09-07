@@ -1658,7 +1658,7 @@ GC::Ref<CSS::CSSStyleProperties> Window::get_computed_style(DOM::Element& elemen
 WebIDL::ExceptionOr<GC::Ref<CSS::MediaQueryList>> Window::match_media(Utf16View query)
 {
     // 1. Let parsed media query list be the result of parsing query.
-    auto parsed_media_query_list = parse_media_query_list(CSS::Parser::ParsingParams(associated_document()), query);
+    auto parsed_media_query_list = parse_media_query_list(query);
 
     // 2. Return a new MediaQueryList object, with this's associated Document as the document, with parsed media query list as its associated media query list.
     auto media_query_list = CSS::MediaQueryList::create(associated_document(), move(parsed_media_query_list));

@@ -1,0 +1,45 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    const cssURL = text => `data:text/css,${encodeURIComponent(text)}`;
+    const leaf = cssURL("@media all { .target { color: red; } }");
+    const middle = cssURL(`@import url("${leaf}"); .target { color: orange; }`);
+    const root = cssURL(`@import url("${middle}"); @layer 空; .target { color: blue; }`);
+    const frame = document.createElement("iframe");
+    frame.srcdoc = `<!doctype html><link rel="stylesheet" href='${root}'>
+        <style>body { color: black; }</style><span class="target">target</span>`;
+    const loaded = new Promise(resolve => frame.onload = resolve);
+    document.body.append(frame);
+    await loaded;
+    const doc = frame.contentDocument;
+    const target = doc.querySelector(".target");
+    const color = () => frame.contentWindow.getComputedStyle(target).color;
+    const sheet = doc.querySelector("link").sheet;
+    const imported = sheet.cssRules[0].styleSheet;
+    const nested = imported.cssRules[0].styleSheet;
+    println(`downloaded order: ${color()}`);
+    sheet.insertRule("@media all { .target { color: green; } @supports (display: grid) { .target { color: purple; } } }", 2);
+    println(`inserted subtree precedes successor: ${color()}`);
+    sheet.deleteRule(3);
+    println(`subtree internal order: ${color()}`);
+    const detached = sheet.cssRules[2];
+    sheet.deleteRule(2);
+    detached.cssRules[0].style.color = "cyan";
+    detached.insertRule(".target { color: pink; }", 0);
+    println(`entire subtree retired: ${color()}`);
+    imported.insertRule("@media all { .target { color: cyan; } }", 1);
+    println(`imported subtree precedes successor: ${color()}`);
+    imported.deleteRule(2);
+    println(`imported subtree becomes last: ${color()}`);
+    imported.deleteRule(0);
+    nested.cssRules[0].cssRules[0].style.color = "green";
+    println(`detached nested import stays retired: ${color()}`);
+    sheet.deleteRule(0);
+    imported.cssRules[0].cssRules[0].style.color = "purple";
+    internals.gc();
+    println(`detached import graph stays retired: ${color()}`);
+    frame.remove();
+});
+</script>

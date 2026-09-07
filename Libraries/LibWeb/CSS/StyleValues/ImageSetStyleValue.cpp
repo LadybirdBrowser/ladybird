@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Resolution.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageSetStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ResolutionStyleValue.h>
@@ -123,7 +123,7 @@ bool ImageSetStyleValue::is_paintable(GC::Ptr<HTML::DecodedImageData> decoded_im
     return false;
 }
 
-void ImageSetStyleValue::set_style_sheet(GC::Ptr<CSSStyleSheet> style_sheet)
+void ImageSetStyleValue::set_style_sheet(StyleSheetState* style_sheet)
 {
 
     // Propagate the style sheet to candidate images whose type() filter does not exclude them. This ensures the

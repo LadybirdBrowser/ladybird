@@ -6325,13 +6325,13 @@ void Element::set_is_value(Optional<Utf16FlyString> const& is)
         rare_data->is_value.clear();
 }
 
-CSS::StyleSheetList& Element::document_or_shadow_root_style_sheets()
+CSS::StyleScope& Element::document_or_shadow_root_style_scope()
 {
     auto& root_node = root();
     if (is<DOM::ShadowRoot>(root_node))
-        return static_cast<DOM::ShadowRoot&>(root_node).style_sheets();
+        return static_cast<DOM::ShadowRoot&>(root_node).style_scope();
 
-    return document().style_sheets();
+    return document().style_scope();
 }
 
 ElementByIdMap& Element::document_or_shadow_root_element_by_id_map()

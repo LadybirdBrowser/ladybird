@@ -4,8 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Fetch.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
@@ -17,7 +17,7 @@ namespace Web::CSS {
 // https://drafts.csswg.org/css-values-4/#style-resource-base-url
 
 struct StyleResourceContext {
-    GC::Ptr<CSSStyleSheet> sheet;
+    RefPtr<StyleSheetState> sheet;
     Optional<bool> parent_style_sheet_origin_clean;
     ::URL::URL url;
 };
@@ -32,7 +32,7 @@ static StyleResourceContext style_resource_context(RuleOrDeclaration css_rule_or
     }
 
     // 1. Let sheet be null.
-    GC::Ptr<CSSStyleSheet> sheet;
+    RefPtr<StyleSheetState> sheet;
 
     // 2. If cssRuleOrDeclaration is a CSS declaration block whose parent CSS rule is not null, set cssRuleOrDeclaration to cssRuleOrDeclaration’s parent CSS rule.
     if (auto* block = css_rule_or_declaration.value.get_pointer<RuleOrDeclaration::StyleDeclaration>()) {
@@ -72,10 +72,9 @@ static Optional<::URL::URL> resolve_a_style_resource_url(StyleResourceURL const&
     auto base_url = style_resource_context(css_rule_or_declaration).url;
 
     // 2. Return the result of the URL parser steps with urlValue’s url and base.
-    auto url_string = url_value.visit(
-        [](::URL::URL const& url) { return url.to_string(); },
-        [](CSS::URL const& url) { return url.url(); });
-    return DOMURL::parse_from_byte_string(url_string.bytes_as_string_view(), base_url);
+    return url_value.visit(
+        [&](::URL::URL const& url) { return DOMURL::parse_from_byte_string(url.to_string(), base_url); },
+        [&](CSS::URL const& url) { return DOMURL::parse(url.url(), base_url); });
 }
 
 // https://drafts.csswg.org/css-values-4/#fetch-a-style-resource

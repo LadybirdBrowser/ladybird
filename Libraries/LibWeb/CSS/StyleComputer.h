@@ -13,16 +13,17 @@
 #include <AK/OwnPtr.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
+#include <AK/WeakPtr.h>
 #include <LibWeb/Animations/KeyframeEffect.h>
 #include <LibWeb/CSS/CSSAnimationProperties.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSKeyframesRule.h>
-#include <LibWeb/CSS/CSSStyleDeclaration.h>
 #include <LibWeb/CSS/CascadeOrigin.h>
 #include <LibWeb/CSS/ComputedStyleWorkingSet.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/CustomPropertyData.h>
 #include <LibWeb/CSS/MediaQuery.h>
+#include <LibWeb/CSS/RustDeclarationBlock.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/SelectorMatching.h>
 #include <LibWeb/CSS/StyleGroupPayloadPins.h>
@@ -104,13 +105,10 @@ public:
 
     // The way back from a StyleEngine rule identity to what that rule contributes to the cascade.
     // Matching in the engine answers with identities; the cascade needs a declaration and the place
-    // it sits in. The map is per document because the identities are, and it is not per scope: a
-    // `:host` rule decides for an element whose own scope is not the one the rule lives in.
-    // Keyed by the rule rather than by its identity, because the two are written at different
-    // times: the identity when the sheet is fed to the engine, the rest when the rule cache is
-    // built. Keying by the rule lets either come first.
-    void register_style_engine_rule_target(CSSRule const&, StyleEngineRuleTarget);
-    void register_style_engine_rule_identity(StyleEngineRuleID rule_id, CSSRule const&);
+    // it sits in. Rust owns the rule data and per-document identities; this side resolves only
+    // the source's document/loading state.
+    // DevTools resolves native identities to CSSOM wrappers only when requested.
+    void register_style_engine_sheet_source(StyleSheetState const&);
     [[nodiscard]] Optional<StyleEngineRuleTarget> style_engine_rule_target(StyleEngineRuleID rule_id) const;
 
     static CSSPixels default_user_font_size();
@@ -251,8 +249,11 @@ public:
     // asks a match anything else, so this is the whole of the boundary between matching and
     // cascading, and either matcher can produce it.
     struct CascadeContribution {
-        GC::Ptr<CSSStyleProperties const> declaration;
+        RustDeclarationBlockSnapshot declaration;
+        RefPtr<StyleSheetState const> source_style_sheet;
         StyleEngineRuleID style_engine_rule_id;
+        u64 rule_identity;
+        u32 declaration_version;
         u32 semantic_declaration_id { 0 };
         // The shadow root the rule decides from, which is not always the one the element is in.
         GC::Ptr<DOM::ShadowRoot const> source_shadow_root;
@@ -347,24 +348,14 @@ public:
     // The user-agent and user sheets attached to this document's StyleEngine. User-agent sheets are
     // shared between documents, so a per-document identity cannot live on the sheet itself.
     struct NonAuthorStyleSheet {
-        GC::Ptr<CSSStyleSheet> sheet;
+        RefPtr<StyleSheetState> sheet;
         SheetID sheet_id;
     };
     [[nodiscard]] Vector<NonAuthorStyleSheet>& non_author_style_sheets() { return m_non_author_style_sheets; }
 
-    // The user-agent sheets are process-wide singletons, so their rules cannot carry a StyleEngine
-    // identity the way an author rule does: every document compiles the same rule objects into its
-    // own engine, and the last one to do so would own the field. Their identities live here, per
-    // document, next to the sheets they came from and cleared with them.
-    [[nodiscard]] HashMap<GC::Ptr<CSSRule const>, StyleEngineRuleID>& non_author_rule_ids() { return m_non_author_rule_ids; }
-
-    // A constructed sheet's rules hold per-document identities for the same reason, but in their own
-    // map: the non-author rebuild clears its map wholesale, and must not wipe adopted sheets' rules.
-    [[nodiscard]] HashMap<GC::Ptr<CSSRule const>, StyleEngineRuleID>& constructed_rule_ids() { return m_constructed_rule_ids; }
-
-    [[nodiscard]] StyleEngineRuleID style_engine_rule_id_for(CSSRule const&) const;
-    [[nodiscard]] SheetID style_engine_sheet_id_for(CSSStyleSheet const&) const;
-    void set_style_engine_sheet_id_for(CSSStyleSheet&, SheetID);
+    [[nodiscard]] StyleEngineRuleID style_engine_rule_id_for(RustRule const&) const;
+    [[nodiscard]] SheetID style_engine_sheet_id_for(StyleSheetState const&) const;
+    void set_style_engine_sheet_id_for(StyleSheetState&, SheetID);
 
     // The reverse of an element's style node identity. StyleEngine plans in identities; turning a
     // plan back into elements needs this, and it is maintained at exactly the two points the
@@ -522,11 +513,8 @@ private:
     Vector<GC::Ptr<DOM::Element>> m_style_nodes;
     TreeScopeID m_next_tree_scope;
     Vector<NonAuthorStyleSheet> m_non_author_style_sheets;
-    HashMap<GC::Ptr<CSSRule const>, StyleEngineRuleID> m_non_author_rule_ids;
-    HashMap<GC::Ptr<CSSStyleSheet const>, SheetID> m_constructed_sheet_ids;
-    HashMap<GC::Ptr<CSSRule const>, StyleEngineRuleID> m_constructed_rule_ids;
-    HashMap<GC::Ptr<CSSRule const>, StyleEngineRuleTarget> m_style_engine_rule_targets;
-    HashMap<StyleEngineRuleID, GC::Ptr<CSSRule const>> m_style_engine_rules_by_id;
+    HashMap<RefPtr<StyleSheetState const>, SheetID> m_constructed_sheet_ids;
+    HashMap<u64, WeakPtr<StyleSheetState const>> m_style_engine_sheet_sources;
 };
 
 // Whether a custom property holds a different value under two inherited environments.

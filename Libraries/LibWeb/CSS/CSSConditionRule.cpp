@@ -9,15 +9,9 @@
 
 namespace Web::CSS {
 
-CSSConditionRule::CSSConditionRule(CSSRuleList& rules, Type type)
-    : CSSGroupingRule(rules, type)
+CSSConditionRule::CSSConditionRule(CSSRuleList& rules, RustRule rule)
+    : CSSGroupingRule(rules, move(rule))
 {
-}
-
-void CSSConditionRule::for_each_effective_rule(TraversalOrder order, Function<void(Web::CSS::CSSRule const&)> const& callback) const
-{
-    if (condition_matches())
-        CSSGroupingRule::for_each_effective_rule(order, callback);
 }
 
 }

@@ -1,0 +1,35 @@
+<!doctype html>
+<script src="include.js"></script>
+<div id="target"></div>
+<script>
+test(() => {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(`
+        @layer 底, 上;
+        @layer 上 { @function --幅() { result: 30px; } }
+        @layer 底 { @function --幅() { result: 10px; } }
+        @keyframes 動 { from { opacity: 0; } to { opacity: 1; } }
+        @media not all {
+            @keyframes 動 { from { opacity: 1; } to { opacity: 1; } }
+            @function --幅() { result: 50px; }
+        }
+        @supports (unknown: value) {
+            @keyframes 動 { from { opacity: 1; } to { opacity: 1; } }
+            @function --幅() { result: 60px; }
+        }
+        #target { width: --幅(); animation: 動 1s linear paused both; }
+    `);
+    document.adoptedStyleSheets = [sheet];
+    const animation = target.getAnimations()[0];
+    animation.currentTime = 250;
+    println(`initial: ${getComputedStyle(target).width}, ${getComputedStyle(target).opacity}`);
+    sheet.cssRules[3].cssRules[0].style.opacity = "0.4";
+    println(`mutate keyframe: ${getComputedStyle(target).opacity}`);
+    sheet.cssRules[2].insertRule("@function --幅() { result: 20px; }", 1);
+    println(`insert lower-layer function: ${getComputedStyle(target).width}`);
+    sheet.cssRules[1].insertRule("@function --幅() { result: 40px; }", 1);
+    println(`insert higher-layer function: ${getComputedStyle(target).width}`);
+    sheet.cssRules[1].deleteRule(1);
+    println(`delete higher-layer function: ${getComputedStyle(target).width}`);
+});
+</script>

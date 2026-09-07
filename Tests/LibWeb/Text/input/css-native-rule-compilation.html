@@ -1,0 +1,53 @@
+<!doctype html>
+<script src="include.js"></script>
+<div id="outer" class="根" style="container: 外 / inline-size; width: 300px">
+    <div id="inner" style="container: 内 / inline-size; width: 100px">
+        <span id="target" class="目標">Text</span>
+    </div>
+</div>
+<script>
+test(() => {
+    const source = `
+        @layer 底, 上;
+        @layer 底 { .目標 { color: red; } }
+        @layer 上 {
+            @supports (display: block) {
+                @media (min-width: 0px) {
+                    @container 外 (width > 200px) {
+                        @scope (.根) {
+                            @container 内 (width > 50px) {
+                                .目標 { color: green; }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        @supports (unknown: value) { .目標 { color: black; } }
+    `;
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(source);
+    document.adoptedStyleSheets = [sheet];
+    const color = label => println(`${label}: ${getComputedStyle(target).color}`);
+    color("initial");
+    outer.style.width = "100px";
+    color("outer condition false");
+    outer.style.width = "300px";
+    inner.style.width = "20px";
+    color("inner condition false");
+    inner.style.width = "100px";
+    color("both conditions true");
+
+    const outerQuery = sheet.cssRules[2].cssRules[0].cssRules[0].cssRules[0];
+    const innerQuery = outerQuery.cssRules[0].cssRules[0];
+    innerQuery.insertRule(".目標 { color: blue; }", 1);
+    color("insert nested rule");
+    outer.style.width = "100px";
+    color("inserted rule retains outer condition");
+    outer.style.width = "300px";
+    innerQuery.cssRules[1].selectorText = ".別";
+    color("replace nested selector");
+    sheet.replaceSync(source);
+    color("replace sheet");
+});
+</script>

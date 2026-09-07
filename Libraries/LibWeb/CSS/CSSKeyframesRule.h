@@ -24,12 +24,11 @@ class CSSKeyframesRule final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSKeyframesRule);
 
 public:
-    static constexpr size_t rules_offset() { return offsetof(CSSKeyframesRule, m_rules); }
-    [[nodiscard]] static GC::Ref<CSSKeyframesRule> create(Utf16FlyString name, GC::Ref<CSSRuleList>);
+    [[nodiscard]] static GC::Ref<CSSKeyframesRule> create(RustRule);
 
     virtual ~CSSKeyframesRule() = default;
 
-    auto const& css_rules() const { return m_rules; }
+    GC::Ref<CSSRuleList> css_rules() const;
     Utf16FlyString const& name() const { return m_name; }
     [[nodiscard]] WebIDL::UnsignedLong length() const;
     GC::Ptr<CSSKeyframeRule> item(size_t index) const;
@@ -43,17 +42,17 @@ public:
     // A keyframes rule holds rules without being a grouping rule, so its keyframes have to be handed
     // the sheet themselves. A keyframe edited through the CSSOM reports against the sheet it belongs
     // to, and one that never learned its sheet reports against nothing at all.
-    virtual void set_parent_style_sheet(CSSStyleSheet*) override;
+    virtual void set_parent_style_sheet(StyleSheetState*) override;
 
 private:
-    CSSKeyframesRule(Utf16FlyString name, GC::Ref<CSSRuleList> keyframes);
+    CSSKeyframesRule(RustRule);
     virtual void visit_edges(Visitor&) override;
 
     virtual Utf16String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
     Utf16FlyString m_name;
-    GC::Ref<CSSRuleList> m_rules;
+    mutable GC::Ptr<CSSRuleList> m_rules;
 };
 
 template<>

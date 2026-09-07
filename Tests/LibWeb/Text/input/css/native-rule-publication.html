@@ -1,0 +1,43 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<style id="source">
+@layer 本体 {
+    @property --size { syntax: "<length>"; inherits: false; initial-value: 12px; }
+    @function --height() { result: 7px; }
+    @keyframes 淡色 { from { opacity: 0.25; } to { opacity: 0.75; } }
+    #target {
+        width: var(--size);
+        height: --height();
+        color: red;
+        animation: 淡色 1s linear paused both;
+        & { background-color: blue; }
+        color: green;
+    }
+}
+</style>
+<div id="target"></div>
+<script>
+test(() => {
+    const target = document.getElementById("target");
+    const style = () => getComputedStyle(target);
+    println(`registered property: ${style().width}`);
+    println(`function: ${style().height}`);
+    println(`nested declarations: ${style().color}`);
+    println(`nested selector: ${style().backgroundColor}`);
+    const animation = target.getAnimations()[0];
+    animation.currentTime = 1000;
+    println(`native keyframes: ${style().opacity}`);
+
+    const layer = document.getElementById("source").sheet.cssRules[0];
+    layer.insertRule("#target { width: 30px; color: purple; }", layer.cssRules.length);
+    println(`inserted declarations: ${style().width}, ${style().color}`);
+    layer.deleteRule(layer.cssRules.length - 1);
+    println(`restored declarations: ${style().width}, ${style().color}`);
+    layer.deleteRule(1);
+    layer.insertRule("@function --height() { result: 19px; }", 1);
+    println(`replaced function: ${style().height}`);
+    internals.gc();
+    println(`retained native values: ${style().width}, ${style().height}, ${style().opacity}`);
+});
+</script>

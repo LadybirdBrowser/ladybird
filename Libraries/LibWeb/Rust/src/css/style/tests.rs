@@ -20,6 +20,171 @@ use super::*;
 use crate::css::property_metadata::property_id;
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
 
+fn native_rules(source: &str) -> std::rc::Rc<crate::css::rule::NativeRuleList> {
+    use crate::css::css_tokenizer::TokenizerInput;
+    use crate::css::parser::syntax_parser::parse_shared_stylesheet;
+    let units: Vec<_> = source.encode_utf16().collect();
+    let context = unsafe { std::mem::zeroed() };
+    unsafe {
+        crate::css::rule::NativeRuleList::from_parsed(parse_shared_stylesheet(TokenizerInput::Utf16(&units), &context))
+    }
+}
+
+#[test]
+fn native_selector_publication_and_replacement_outlive_the_source() {
+    use super::bridge::{BoundScopeChain, publish_style_rule, publish_style_rule_selectors};
+    let (mut engine, nodes) = linear_document();
+    let name = ak::Utf16FlyString::from_utf16(&"色".encode_utf16().collect::<Vec<_>>());
+    let name = engine.intern_atom(name.raw_identity());
+    add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(name));
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    let mut published = 0;
+    for (text, matches) in [(".別, .色 {}", true), (".別 {}", false), (".色 {}", true)] {
+        let rules = native_rules(text);
+        let rule = rules.rule_at(0);
+        let bound = unsafe { rule.matching_selectors() };
+        let selectors: Vec<_> = bound.selectors.iter().map(|selector| selector.as_ref()).collect();
+        if published == 0 {
+            published = publish_style_rule(
+                &mut engine,
+                sheet.0 + 1,
+                0,
+                &selectors,
+                NamespaceScope::default(),
+                &BoundScopeChain::default(),
+            );
+        } else {
+            publish_style_rule_selectors(
+                &mut engine,
+                published,
+                &selectors,
+                NamespaceScope::default(),
+                &BoundScopeChain::default(),
+            );
+        }
+        drop(bound);
+        drop(rule);
+        drop(rules);
+        discard_transaction(&mut engine);
+        let answer = engine.match_element(nodes[1]).unwrap();
+        assert_eq!(!answer.is_empty(), matches, "{text}");
+        if matches {
+            assert_eq!(answer.len(), 1);
+        }
+    }
+}
+
+#[test]
+fn native_scope_publication_outlives_the_rule_graph() {
+    use super::bridge::{BoundScopeChain, publish_style_rule, publish_style_rule_selectors};
+    use crate::css::rule::{NativeRuleType, rust_rule_children, rust_rule_list_count};
+    for (source, matches) in [
+        ("@scope (.根) {}", true),
+        ("@scope (.別) {}", false),
+        ("@scope {}", true),
+        ("@scope (.根) to (.限) {}", false),
+        ("@scope (.根) { @scope (.別) {} }", false),
+        (":has(.根) { @scope (:has(&)) {} }", false),
+        ("@import 'sheet.css' scope((.根));", true),
+        ("@import 'sheet.css' scope((.根) to (.限));", false),
+    ] {
+        let (mut engine, nodes) = linear_document();
+        for (node, text) in [(nodes[0], "根"), (nodes[1], "限")] {
+            let name = ak::Utf16FlyString::from_utf16(&text.encode_utf16().collect::<Vec<_>>());
+            let name = engine.intern_atom(name.raw_identity());
+            add_feature(&mut engine, node, LocalFeatureKey::Class(name));
+        }
+        let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+        engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+        let mut published = 0;
+        for _ in 0..2 {
+            let rules = native_rules(source);
+            let mut rule = rules.rule_at(0);
+            let mut scope = BoundScopeChain::default();
+            loop {
+                if matches!(
+                    crate::css::rule::rust_rule_type(&rule),
+                    NativeRuleType::Scope | NativeRuleType::Import
+                ) {
+                    let start = unsafe { rule.scope_start_selectors() };
+                    let end = unsafe { rule.scope_end_selectors() };
+                    scope.push(start.as_deref(), end.as_deref(), nodes[0].raw());
+                }
+                let children = unsafe { rust_rule_children(&rule).as_ref() };
+                let Some(children) = children.filter(|children| rust_rule_list_count(children) > 0) else {
+                    break;
+                };
+                rule = children.rule_at(0);
+            }
+            let universal = native_rules("* {}");
+            let bound = unsafe { universal.rule_at(0).matching_selectors() };
+            let selectors: Vec<_> = bound.selectors.iter().map(|selector| selector.as_ref()).collect();
+            if published == 0 {
+                published = publish_style_rule(
+                    &mut engine,
+                    sheet.0 + 1,
+                    0,
+                    &selectors,
+                    NamespaceScope::default(),
+                    &scope,
+                );
+            } else {
+                publish_style_rule_selectors(&mut engine, published, &selectors, NamespaceScope::default(), &scope);
+            }
+            drop(bound);
+            drop(universal);
+            drop(scope);
+            drop(rule);
+            drop(rules);
+            discard_transaction(&mut engine);
+            assert_eq!(!engine.match_element(nodes[1]).unwrap().is_empty(), matches, "{source}");
+        }
+    }
+}
+
+#[test]
+fn native_declaration_publication_reuses_values_and_observes_live_mutation() {
+    use super::bridge::{BoundScopeChain, publish_rule_declarations, publish_style_rule};
+    use crate::css::declaration_block::{
+        DeclarationBlock, rust_declaration_block_replace, rust_declaration_block_retain,
+    };
+    let (mut engine, _) = linear_document();
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    let first = native_rules("* { color: #14181c; }");
+    let bound = unsafe { first.rule_at(0).matching_selectors() };
+    let selectors: Vec<_> = bound.selectors.iter().map(|selector| selector.as_ref()).collect();
+    let rule = publish_style_rule(
+        &mut engine,
+        sheet.0 + 1,
+        0,
+        &selectors,
+        NamespaceScope::default(),
+        &BoundScopeChain::default(),
+    );
+    let mut first = DeclarationBlock::new(first.rule_at(0).cascade_declarations().unwrap());
+    let retained = unsafe { Box::from_raw(rust_declaration_block_retain(&first)) };
+    let second = native_rules("* { color: rgb(20, 24, 28); }")
+        .rule_at(0)
+        .cascade_declarations()
+        .unwrap();
+    let transitions = DeclarationBlock::new(
+        native_rules("* { transition-duration: 1s; }")
+            .rule_at(0)
+            .cascade_declarations()
+            .unwrap(),
+    );
+    let callbacks = crate::css::ffi_stats::CPP_CALLBACK_COUNT.get();
+    assert!(!publish_rule_declarations(&mut engine, rule, &first.data()));
+    let reused = engine.counters().get(Counter::SpecifiedValuesReused);
+    assert!(!publish_rule_declarations(&mut engine, rule, &second));
+    assert_eq!(engine.counters().get(Counter::SpecifiedValuesReused), reused + 1);
+    rust_declaration_block_replace(&mut first, &transitions);
+    assert!(publish_rule_declarations(&mut engine, rule, &retained.data()));
+    assert_eq!(crate::css::ffi_stats::CPP_CALLBACK_COUNT.get(), callbacks);
+}
+
 #[test]
 fn environment_memo_retains_its_written_value_keys() {
     let mut environments = custom_property_environments::CustomPropertyEnvironments::default();
@@ -9366,6 +9531,36 @@ fn rule_activation_reaches_only_current_selector_matches() {
 }
 
 #[test]
+fn shared_rule_deactivation_reaches_each_adopting_shadow_scope() {
+    let (mut engine, nodes) = linear_document();
+    let target = StyleAtomID(200);
+    let rule = add_target_rule(&mut engine, StyleSheetObjectID(1), target);
+    let sheet = engine.program.rule_sheet(rule);
+    engine.detach_sheet(sheet, TreeScopeID::DOCUMENT);
+    let mut targets = Vec::new();
+    for (host, scope) in [(nodes[1], TreeScopeID(1)), (nodes[2], TreeScopeID(2))] {
+        let shadow = attach_shadow_tree(&mut engine, host, scope, 1);
+        engine.attach_sheet(sheet, scope);
+        add_feature(&mut engine, shadow[1], LocalFeatureKey::Class(target));
+        targets.push(shadow[1]);
+    }
+    engine.set_rule_declared_properties(rule, &[(1, false)], true);
+    discard_transaction(&mut engine);
+    for &node in &targets {
+        let exact = engine.match_element(node).unwrap();
+        assert_eq!(exact.len(), 1);
+        let compact = engine.matches_for_cascade(exact.clone(), false, Some(node));
+        engine.remember_retained_match_answer(node, &exact);
+        engine.remember_cascade_input(node, &compact);
+        publish_current_cascade_as_computed(&mut engine, node);
+    }
+    engine.set_rule_conditions_hold(rule, false);
+    let mut planned = Vec::new();
+    assert!(engine.take_style_transaction_nodes(nodes[0], |nodes| planned.extend_from_slice(nodes)));
+    assert_eq!(planned, targets.iter().map(|node| node.raw()).collect::<Vec<_>>());
+}
+
+#[test]
 fn rule_deactivation_reaches_only_nodes_where_the_rule_won() {
     let (mut engine, nodes) = linear_document();
     let target = StyleAtomID(200);
@@ -10288,6 +10483,30 @@ fn answer_transitions_refuse_equality_removals_and_winning_additions() {
 
     // A removal can uncover a candidate provenance cannot always name; it must refuse too.
     assert!(!engine.answer_transition_cannot_change_cascade(nodes[1], with_winner, before_input));
+}
+
+#[test]
+fn native_atom_reclamation_does_not_claim_a_cpp_memo_reference() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let native = bridge::intern_native_atom(&mut engine, 0x1000);
+    let shared = bridge::intern_native_atom(&mut engine, 0x1001);
+    assert_eq!(engine.intern_atom(0x1001), shared);
+    for raw in 0x2000..0x2100 {
+        bridge::intern_native_atom(&mut engine, raw);
+    }
+    engine.sweep_style_atoms();
+    assert!(
+        engine
+            .reclaimed_style_atoms
+            .iter()
+            .any(|entry| entry.atom == native && entry.raw == 0)
+    );
+    assert!(
+        engine
+            .reclaimed_style_atoms
+            .iter()
+            .any(|entry| entry.atom == shared && entry.raw == 0x1001)
+    );
 }
 
 #[test]

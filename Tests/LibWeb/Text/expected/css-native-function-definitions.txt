@@ -1,0 +1,9 @@
+shared parse: 10px, 10px
+mutate local variable: 20px, 10px
+mutate result: 30px, 10px
+replace declarations: 35px, 10px
+remove local variable: 15px, 10px
+replace function: 10px, 10px
+mutate detached definition: 10px, 10px
+insert conditional result: 10px, 50px
+delete conditional result: 10px, 10px

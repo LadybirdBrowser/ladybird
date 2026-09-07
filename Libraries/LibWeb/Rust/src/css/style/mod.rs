@@ -77,6 +77,7 @@ pub mod instrumentation;
 mod intern_table;
 mod matching;
 pub mod memory;
+mod native_rules;
 pub mod order;
 mod ordering;
 mod partial_view;
@@ -760,6 +761,8 @@ pub struct StyleEngine {
     deferred_pseudo_element: Option<tree::PseudoElementKind>,
     tree: StyleNodeTree,
     program: StyleSheetProgram,
+    native_rules: native_rules::NativeRuleRegistry,
+    declaration_block_version: u32,
     journal: NormalizationJournal,
     /// Local selector facts through the latest geometry read which reused committed layout. A
     /// normal style observation merges this into `journal`; a newly introduced transition can

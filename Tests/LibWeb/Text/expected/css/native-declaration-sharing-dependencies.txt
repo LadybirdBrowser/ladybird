@@ -1,0 +1,7 @@
+constant shared declarations: 7px, 7px; 7px, 7px
+inherited dependency after copy-on-write: 17px, 29px; 7px, 7px
+constant inline declarations: 11px, 11px; 7px, 7px
+inline inherited dependencies: 17px, 29px; 7px, 7px
+rule custom property dependency: 31px, 31px; 7px, 7px
+removed custom property and changed inheritance: 37px, 29px; 7px, 7px
+other shared sheet mutation: 37px, 29px; 17px, 29px

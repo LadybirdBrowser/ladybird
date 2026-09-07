@@ -8,9 +8,6 @@
 #include <AK/Utf16StringBuilder.h>
 #include <LibWeb/Bindings/CSSFunctionRule.h>
 #include <LibWeb/Bindings/Intrinsics.h>
-#include <LibWeb/CSS/CSSConditionRule.h>
-#include <LibWeb/CSS/CSSContainerRule.h>
-#include <LibWeb/CSS/CSSFunctionDeclarations.h>
 #include <LibWeb/CSS/CustomPropertyRegistration.h>
 #include <LibWeb/CSS/HypotheticalElement.h>
 #include <LibWeb/CSS/Parser/Parser.h>
@@ -25,22 +22,36 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSFunctionRule);
 
-// https://drafts.csswg.org/css-mixins-1/#dictdef-functionparameter
-FunctionParameter FunctionParameter::from_internal_function_parameter(FunctionParameterInternal const& internal)
+static Utf16View parameter_name(Parser::ValueParserFFI::FfiFunctionParameterView const& parameter)
 {
+    return { reinterpret_cast<char16_t const*>(parameter.name.utf16), parameter.name.length };
+}
+
+static RefPtr<StyleValue const> parameter_default_value(Parser::ValueParserFFI::FfiFunctionParameterView const& parameter)
+{
+    if (!parameter.default_value)
+        return {};
+    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(parameter.default_value)));
+}
+
+// https://drafts.csswg.org/css-mixins-1/#dictdef-functionparameter
+FunctionParameter FunctionParameter::from_native_parameter(Parser::ValueParserFFI::FfiFunctionParameterView const& parameter)
+{
+    auto type = Parser::RustSyntaxHandle { Parser::ValueParserFFI::rust_syntax_retain(parameter.syntax) };
+    auto default_value = parameter_default_value(parameter);
     return {
         // name
         // The name of the function parameter.
-        internal.name,
+        Utf16FlyString::from_utf16(parameter_name(parameter)),
 
         // type
         // The type of the function parameter, represented as a syntax string, or "*" if the parameter has no type.
-        internal.type.serialize(),
+        type.serialize(),
 
         // defaultValue
         // The default value of the function parameter, or `null` if the argument does not have a default.
-        internal.default_value
-            ? internal.default_value->to_utf16_string(SerializationMode::Normal)
+        default_value
+            ? default_value->to_utf16_string(SerializationMode::Normal)
             : Optional<Utf16String> {},
     };
 }
@@ -68,12 +79,13 @@ static void serialize_a_css_type(Utf16StringBuilder& builder, Parser::RustSyntax
 }
 
 // https://drafts.csswg.org/css-mixins-1/#serialize-a-function-parameter
-void FunctionParameterInternal::serialize(Utf16StringBuilder& builder) const
+static void serialize_function_parameter(Utf16StringBuilder& builder, Parser::ValueParserFFI::FfiFunctionParameterView const& parameter)
 {
+    auto type = Parser::RustSyntaxHandle { Parser::ValueParserFFI::rust_syntax_retain(parameter.syntax) };
     // To serialize a function parameter, return the concatenation of the following:
 
     // The result of performing serialize an identifier on the name of the function parameter.
-    serialize_an_identifier(builder, name);
+    serialize_an_identifier(builder, parameter_name(parameter));
 
     // If the function parameter has a type, and that type is not the universal syntax definition:
     if (!type.is_universal()) {
@@ -83,39 +95,40 @@ void FunctionParameterInternal::serialize(Utf16StringBuilder& builder) const
     }
 
     // If the function parameter has a default value:
-    if (default_value) {
+    if (auto default_value = parameter_default_value(parameter)) {
         // - A single COLON (U+003A), followed by a single SPACE (U+0020), followed by the result of performing
         //   serialize a CSS value on that value.
-        builder.appendff(": {}", default_value->to_string(SerializationMode::Normal));
+        builder.append_ascii(": "sv);
+        default_value->serialize(builder, SerializationMode::Normal);
     }
 }
 
-GC::Ref<CSSFunctionRule> CSSFunctionRule::create(CSSRuleList& rules, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, Parser::RustSyntaxHandle return_type)
+GC::Ref<CSSFunctionRule> CSSFunctionRule::create(RustRule rule, CSSRuleList& rules)
 {
-    return GC::Heap::the().allocate<CSSFunctionRule>(rules, move(name), move(parameters), move(return_type));
+    return GC::Heap::the().allocate<CSSFunctionRule>(move(rule), rules);
 }
 
-CSSFunctionRule::CSSFunctionRule(CSSRuleList& rules, Utf16FlyString name, Vector<FunctionParameterInternal> parameters, Parser::RustSyntaxHandle return_type)
-    : CSSGroupingRule(rules, Type::Function)
-    , m_name(move(name))
-    , m_parameters(move(parameters))
-    , m_return_type(move(return_type))
+CSSFunctionRule::CSSFunctionRule(RustRule rule, CSSRuleList& rules)
+    : CSSGroupingRule(rules, move(rule))
+    , m_signature(*native_rule().payload().function_signature)
 {
 }
 
 Utf16String CSSFunctionRule::name() const
 {
-    return m_name.to_utf16_string();
+    auto name = Parser::ValueParserFFI::rust_function_signature_view(&m_signature).name;
+    return Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(name.utf16), name.length });
 }
 
 // https://drafts.csswg.org/css-mixins-1/#dom-cssfunctionrule-getparameters
 Vector<FunctionParameter> CSSFunctionRule::get_parameters() const
 {
     Vector<FunctionParameter> parameters;
-    parameters.ensure_capacity(m_parameters.size());
+    auto count = Parser::ValueParserFFI::rust_function_signature_view(&m_signature).parameter_count;
+    parameters.ensure_capacity(count);
 
-    for (auto const& parameter : m_parameters)
-        parameters.append(FunctionParameter::from_internal_function_parameter(parameter));
+    for (size_t index = 0; index < count; ++index)
+        parameters.append(FunctionParameter::from_native_parameter(Parser::ValueParserFFI::rust_function_signature_parameter(&m_signature, index)));
 
     return parameters;
 }
@@ -126,12 +139,13 @@ Utf16String CSSFunctionRule::return_type() const
     // The return type of the custom function, represented as a syntax string. If the custom function has no return
     // type, returns "*".
     // NB: We always store a return type (defaulting to "*")
-    return m_return_type.serialize();
+    return Parser::RustSyntaxHandle { Parser::ValueParserFFI::rust_syntax_retain(Parser::ValueParserFFI::rust_function_signature_view(&m_signature).return_type) }.serialize();
 }
 
 // https://drafts.csswg.org/css-mixins-1/#serialize-a-cssfunctionrule
 Utf16String CSSFunctionRule::serialized() const
 {
+    auto signature = Parser::ValueParserFFI::rust_function_signature_view(&m_signature);
     // To serialize a CSSFunctionRule, return the concatenation of the following:
     Utf16StringBuilder builder;
 
@@ -140,27 +154,27 @@ Utf16String CSSFunctionRule::serialized() const
 
     // 2. The result of performing serialize an identifier on the name of the custom function, followed by a single LEFT
     //    PARENTHESIS (U+0028).
-    serialize_an_identifier(builder, m_name);
+    serialize_an_identifier(builder, { reinterpret_cast<char16_t const*>(signature.name.utf16), signature.name.length });
     builder.append_ascii('(');
 
     // 3. The result of serialize a function parameter on each of the custom function’s parameters, all joined by ", "
     //    (COMMA U+002C, followed by a single SPACE U+0020).
-    for (size_t i = 0; i < m_parameters.size(); ++i) {
+    for (size_t i = 0; i < signature.parameter_count; ++i) {
         if (i > 0)
             builder.append_ascii(", "sv);
-        m_parameters[i].serialize(builder);
+        serialize_function_parameter(builder, Parser::ValueParserFFI::rust_function_signature_parameter(&m_signature, i));
     }
 
     // 4. A single RIGHT PARENTHESIS (U+0029).
     builder.append_ascii(')');
 
     // 5. If the custom function has return type, and that return type is not the universal syntax definition ("*"):
-    if (!m_return_type.is_universal()) {
+    if (auto return_type = Parser::RustSyntaxHandle { Parser::ValueParserFFI::rust_syntax_retain(signature.return_type) }; !return_type.is_universal()) {
         // - A single SPACE (U+0020), followed by the string "returns", followed by a single SPACE (U+0020).
         builder.append_ascii(" returns "sv);
 
         // - The result of performing serialize a CSS type on that type.
-        serialize_a_css_type(builder, m_return_type);
+        serialize_a_css_type(builder, return_type);
     }
 
     // 6. A single SPACE (U+0020), followed by a LEFT CURLY BRACKET (U+007B).
@@ -185,45 +199,6 @@ Utf16String CSSFunctionRule::serialized() const
     builder.append_ascii(" }"sv);
 
     return builder.to_string();
-}
-
-template<typename Callback>
-static void for_each_effective_function_declarations_rule(CSSRuleList const& rule_list, GC::Ptr<CSSContainerRule const> container_rule, Callback const& callback)
-{
-    for (auto const& rule : rule_list) {
-        switch (rule->type()) {
-        case CSSRule::Type::Container: {
-            auto const& nested_container_rule = as<CSSContainerRule>(*rule);
-            for_each_effective_function_declarations_rule(nested_container_rule.css_rules(), &nested_container_rule, callback);
-            break;
-        }
-        case CSSRule::Type::Media:
-        case CSSRule::Type::Supports: {
-            auto const& condition_rule = as<CSSConditionRule>(*rule);
-            if (condition_rule.condition_matches())
-                for_each_effective_function_declarations_rule(condition_rule.css_rules(), container_rule, callback);
-            break;
-        }
-        case CSSRule::Type::FunctionDeclarations:
-            callback(as<CSSFunctionDeclarations>(*rule), container_rule);
-            break;
-        default:
-            break;
-        }
-    }
-}
-
-void CSSFunctionRule::for_each_effective_declaration(DOM::AbstractElement& root_element, Function<void(Utf16FlyString const&, NonnullRefPtr<StyleValue const> const&)> const& callback) const
-{
-    for_each_effective_function_declarations_rule(css_rules(), nullptr, [&](CSSFunctionDeclarations const& declarations, GC::Ptr<CSSContainerRule const> container_rule) {
-        if (container_rule) {
-            container_rule->mark_element_style_dependencies(root_element);
-            if (!container_rule->matches(root_element))
-                return;
-        }
-        for (auto const& descriptor : declarations.descriptor_block().descriptors())
-            callback(descriptor.descriptor_name_and_id.name(), descriptor.value);
-    });
 }
 
 }

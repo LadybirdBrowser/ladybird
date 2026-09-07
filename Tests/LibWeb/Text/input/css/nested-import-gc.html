@@ -1,0 +1,37 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div id="target"></div>
+<script>
+const depth = 32;
+const cssURL = text => `data:text/css,${encodeURIComponent(text)}`;
+let url = cssURL("#target { width: 37px; }");
+for (let index = 1; index < depth; ++index)
+    url = cssURL(`@import url("${url}");`);
+const style = document.createElement("style");
+style.textContent = `@import url("${url}");`;
+document.head.append(style);
+
+asyncTest(done => {
+    window.addEventListener("load", () => {
+        // Collect before accessing CSSOM, while the imported sheets have no wrappers.
+        internals.gc();
+        println(`imported style: ${getComputedStyle(target).width}`);
+
+        let sheet = style.sheet;
+        for (let index = 0; index < depth; ++index) {
+            const rule = sheet.cssRules[0];
+            sheet = rule.styleSheet;
+            if (sheet.ownerRule !== rule)
+                throw new Error(`Incorrect owner at import depth ${index}`);
+        }
+        println(`leaf declaration: ${sheet.cssRules[0].style.width}`);
+        internals.gc();
+        sheet.cssRules[0].style.width = "41px";
+        println(`mutation after GC: ${getComputedStyle(target).width}`);
+        style.remove();
+        internals.gc();
+        println(`detached leaf: ${sheet.cssRules[0].style.width}`);
+        done();
+    }, { once: true });
+});
+</script>

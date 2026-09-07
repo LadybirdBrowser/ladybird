@@ -5,15 +5,15 @@
  */
 
 #include <LibWeb/CSS/Parser/Parser.h>
-#include <LibWeb/CSS/Parser/RustQueryParsing.h>
 #include <LibWeb/ValueParserRustFFI.h>
 
-namespace Web::CSS::Parser {
+namespace Web {
 
-using namespace ValueParserFFI;
-
-Vector<NonnullRefPtr<MediaQuery>> RustQueryParser::parse_media_query_list(Utf16View source)
+Vector<NonnullRefPtr<CSS::MediaQuery>> parse_media_query_list(Utf16View source)
 {
+    using namespace CSS;
+    using namespace CSS::Parser;
+    using namespace ValueParserFFI;
     Vector<NonnullRefPtr<MediaQuery>> queries;
     auto visit = [](void* context, FfiQueryHandle const* handle) {
         auto& queries = *static_cast<Vector<NonnullRefPtr<MediaQuery>>*>(context);
@@ -24,31 +24,32 @@ Vector<NonnullRefPtr<MediaQuery>> RustQueryParser::parse_media_query_list(Utf16V
     return queries;
 }
 
-Vector<NonnullRefPtr<MediaQuery>> Parser::parse_as_media_query_list()
+RefPtr<CSS::MediaQuery> parse_media_query(Utf16View source)
 {
-    return RustQueryParser::parse_media_query_list(m_source);
-}
-
-RefPtr<MediaQuery> Parser::parse_as_media_query()
-{
-    auto media_query_list = parse_as_media_query_list();
+    auto media_query_list = parse_media_query_list(source);
     if (media_query_list.is_empty())
-        return MediaQuery::create_not_all();
+        return CSS::MediaQuery::create_not_all();
     if (media_query_list.size() == 1)
         return media_query_list.first();
     return nullptr;
 }
 
-Optional<RustQueryHandle> Parser::parse_as_supports()
+}
+
+namespace Web::CSS::Parser {
+
+using namespace ValueParserFFI;
+
+Optional<RustQueryHandle> Parser::parse_as_supports(Utf16View source)
 {
     auto context = make_parse_context(ParseContextMode::Syntax);
-    auto* handle = rust_parse_supports_condition(ffi_utf16_view(m_source), &context.context);
+    auto* handle = rust_parse_supports_condition(ffi_utf16_view(source), &context.context);
     if (!handle)
         return {};
     return RustQueryHandle { handle };
 }
 
-Optional<RustQueryHandle> RustQueryParser::parse_style_query(Utf16View source)
+Optional<RustQueryHandle> parse_style_query(Utf16View source)
 {
     auto* handle = rust_parse_style_query(ffi_utf16_view(source));
     if (!handle)

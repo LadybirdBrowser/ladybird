@@ -14,6 +14,7 @@
 
 namespace Web::CSS {
 
+class RustRule;
 class StyleEngine;
 
 // Settle a style-change boundary deferred by a geometry read before mutating a rule's declaration
@@ -135,31 +136,32 @@ WEB_API void record_element_state_changed(DOM::Element&, PseudoClass, bool new_v
 WEB_API void record_non_author_stylesheets(DOM::Document&);
 
 // Called once a sheet has taken its place in the sheet list, so its successor is known.
-WEB_API void record_stylesheet_attached(CSSStyleSheet&, DOM::Node& document_or_shadow_root, CSSStyleSheet* before);
+WEB_API void record_stylesheet_attached(StyleSheetState&, DOM::Node& document_or_shadow_root, StyleSheetState* before);
 
 // The order one tree scope declares its qualified cascade layer names in. Rules retain the interned
 // names, while StyleEngine derives the scope-local ranks used by every cascade consumer.
-WEB_API void record_cascade_layer_order(DOM::Document&, TreeScopeID tree_scope, ReadonlySpan<Utf16FlyString> qualified_names_in_order);
 WEB_API TreeScopeID style_engine_tree_scope_for(DOM::Node&);
 
 // A sheet's rules are not immutable, and each of these is one rule moving rather than the sheet
 // being rebuilt. Patching what moved is the point: retiring identities that did not change would
 // turn an `insertRule` into a program change over the whole sheet.
 WEB_API void record_style_rule_inserted(CSSRule&);
+WEB_API void record_style_rule_inserted(RustRule const&, StyleSheetState&);
+WEB_API void record_imported_style_sheet_loaded(u64 import_rule_identity, StyleSheetState&);
 WEB_API void record_style_rule_removed(CSSRule&);
-WEB_API void record_style_rule_removed(CSSStyleSheet&, CSSRule&);
+WEB_API void record_style_rule_removed(StyleSheetState&, RustRule const&, StyleSheetState const* detached_import = nullptr);
 WEB_API void record_style_rule_selector_changed(CSSStyleRule&);
 WEB_API void record_style_rule_declarations_changed(CSSRule&);
+WEB_API void record_style_rule_declarations_changed(RustRule const&, StyleSheetState&);
 
 // `replace()` is the exception: it swaps the whole rule list, so there is nothing to keep.
-WEB_API void record_stylesheet_rules_replaced(CSSStyleSheet&);
-WEB_API void record_stylesheet_detached(CSSStyleSheet&, DOM::Node& document_or_shadow_root);
+WEB_API void record_stylesheet_rules_replaced(StyleSheetState&);
+WEB_API void record_stylesheet_detached(StyleSheetState&, DOM::Node& document_or_shadow_root);
 
 // Called once a sheet's media queries have been evaluated.
-WEB_API void record_stylesheet_conditions(CSSStyleSheet&, DOM::Node& document_or_shadow_root, bool conditions_hold);
-WEB_API void record_rule_conditions(CSSRule&);
-WEB_API void record_stylesheet_rule_conditions(CSSStyleSheet&);
-WEB_API void record_stylesheet_rule_conditions(CSSStyleSheet&, DOM::Document&);
+WEB_API void record_stylesheet_conditions(StyleSheetState&, DOM::Node& document_or_shadow_root, bool conditions_hold);
+WEB_API void record_stylesheet_rule_conditions(StyleSheetState&);
+WEB_API void record_stylesheet_rule_conditions(StyleSheetState&, DOM::Document&);
 
 WEB_API void record_element_id_changed(DOM::Element&, Optional<Utf16FlyString> const& old_value, Optional<Utf16FlyString> const& new_value);
 WEB_API void record_element_class_list_changed(DOM::Element&, Vector<Utf16FlyString> const& old_classes, Vector<Utf16FlyString> const& new_classes);

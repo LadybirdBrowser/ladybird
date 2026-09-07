@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const text = '@namespace "http://www.w3.org/1999/xhtml"; @namespace 色 "urn:old"; @namespace 色 "urn:名前"; 色|x { color: rgb(1, 2, 3); }';
+        const makeTree = () => {
+            const host = document.createElement("div");
+            document.body.append(host);
+            const root = host.attachShadow({ mode: "open" });
+            const style = document.createElement("style");
+            style.textContent = text;
+            const old = document.createElementNS("urn:old", "x");
+            const current = document.createElementNS("urn:名前", "x");
+            root.append(style, old, current);
+            return { sheet: style.sheet, old, current };
+        };
+        const first = makeTree();
+        const second = makeTree();
+        const rule = first.sheet.cssRules[2];
+        println(`identity: ${rule === first.sheet.cssRules[2]}, independent: ${rule !== second.sheet.cssRules[2]}`);
+        println(`namespace: ${rule.prefix}, ${rule.namespaceURI}`);
+        println(`serialized: ${rule.cssText}`);
+        println(`last declaration wins: ${getComputedStyle(first.current).color}, ${getComputedStyle(second.current).color}`);
+        first.sheet.deleteRule(3);
+        first.sheet.deleteRule(2);
+        first.sheet.insertRule('色|x { color: rgb(4, 5, 6); }', 2);
+        println(`earlier namespace restored: ${getComputedStyle(first.old).color}`);
+        println(`other sheet unchanged: ${getComputedStyle(second.current).color}`);
+        println(`detached: ${rule.parentStyleSheet === null}, ${rule.prefix}, ${rule.namespaceURI}`);
+        const third = makeTree();
+        println(`cached parse unchanged: ${getComputedStyle(third.current).color}`);
+        const empty = new CSSStyleSheet();
+        empty.replaceSync('@namespace "";');
+        println(`empty default namespace: ${empty.cssRules[0].prefix === ""}, ${empty.cssRules[0].namespaceURI === ""}`);
+    });
+</script>

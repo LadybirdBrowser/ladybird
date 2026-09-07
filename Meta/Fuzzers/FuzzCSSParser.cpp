@@ -6,6 +6,7 @@
 
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/CSS/Parser/Parser.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 
 namespace {

@@ -1,0 +1,44 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+const cssURL = text => `data:text/css,${encodeURIComponent(text)}`;
+const leaf = cssURL("@scope (.根) { .対象 { color: rgb(1, 2, 3); } }");
+const middle = cssURL(`@import url("${leaf}");`);
+const style = document.createElement("style");
+style.textContent = `
+    @import url("${middle}") layer(外);
+    @layer 外 {
+        @scope (.根) {
+            @media all { .対象 { color: rgb(4, 5, 6); } }
+        }
+    }
+    .対象 { background-color: rgb(10, 11, 12); }
+`;
+document.head.append(style);
+asyncTest(done => {
+    window.addEventListener("load", () => {
+        const color = () => getComputedStyle(document.querySelector(".根 .対象")).color;
+        println(`downloaded rules precede following rules: ${color()}`);
+        const scope = style.sheet.cssRules[1].cssRules[0];
+        const media = scope.cssRules[0];
+        media.insertRule(".対象 { color: rgb(7, 8, 9); }", 0);
+        println(`insert before existing rule: ${color()}`);
+        media.insertRule(".対象 { color: rgb(13, 14, 15); }", 2);
+        println(`insert after existing rule: ${color()}`);
+        media.media.mediaText = "not all";
+        media.insertRule(".対象 { color: rgb(16, 17, 18); }", 3);
+        println(`insert under inactive ancestor: ${color()}`);
+        media.media.mediaText = "all";
+        println(`activate inserted rules: ${color()}`);
+        println(`scope excludes sibling: ${getComputedStyle(document.querySelector("#outside")).color}`);
+        scope.deleteRule(0);
+        println(`remove native subtree: ${color()}`);
+        style.sheet.deleteRule(0);
+        println(`remove imported subtree: ${color()}`);
+        done();
+    }, { once: true });
+});
+</script>
+<div class="根"><div class="対象"></div></div>
+<div id="outside" class="対象"></div>

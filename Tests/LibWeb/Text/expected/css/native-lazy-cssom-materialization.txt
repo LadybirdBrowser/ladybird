@@ -1,0 +1,11 @@
+untouched: 17px, 0.25; 17px, 0.25
+identity: true, true, true
+parents: true, true, true
+mutated: 31px, 0.5; 17px, 0.25
+unexposed sibling: rgb(1, 2, 3)
+shifted identity: true, true
+detached style: true, true, 31px
+detached keyframe: true, true, 0.5
+retained keyframe: true, true
+detached group: true, true, true
+shared source: 17px, 0.25; 17px, 0.25

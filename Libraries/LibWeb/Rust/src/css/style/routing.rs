@@ -3530,6 +3530,7 @@ impl StyleEngine {
     pub(super) fn rule_has_complete_element_winners(&self, rule: RuleID, entry: &SelectorEntry) -> bool {
         entry.pseudo_element.is_none()
             && entry.scope_root.is_none()
+            && !self.program.rule_is_gated_by_container_query(rule)
             && self.program.declarations_are_complete_for(rule)
             && self.program.sheet_origin(self.program.rule_sheet(rule)) == CascadeOrigin::Author
     }
@@ -4432,6 +4433,9 @@ impl StyleEngine {
                     )
                 );
                 let winner_inventory_is_complete = removes_contribution
+                    // Container conditions are evaluated by the style consumer, so its
+                    // winning declarations are not proven by the native winner inventory.
+                    && !self.program.rule_is_gated_by_container_query(rule)
                     && self.program.declarations_are_complete_for(rule)
                     && compiled.entries().iter().all(|entry| entry.pseudo_element.is_none())
                     && winner_program_version.is_some_and(|version| {
@@ -4807,6 +4811,10 @@ impl StyleEngine {
         };
         let node_state = match probe {
             RetainedWinnerProbe::Node(node) => {
+                // Shadow-scope winner rows do not describe the complete cascade.
+                if self.tree.tree_scope(node) != TreeScopeID::DOCUMENT {
+                    return false;
+                }
                 let retained_winner_key = WinnerGroupKey::retained(node, winner_program_version);
                 if !matches!(self.winner_groups.lookup(retained_winner_key), Lookup::Known(_)) {
                     return false;

@@ -14,29 +14,35 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSLayerBlockRule);
 
-GC::Ref<CSSLayerBlockRule> CSSLayerBlockRule::create(Utf16FlyString name, CSSRuleList& rules)
+GC::Ref<CSSLayerBlockRule> CSSLayerBlockRule::create(RustRule rule, CSSRuleList& rules)
 {
-    return GC::Heap::the().allocate<CSSLayerBlockRule>(move(name), rules);
+    return GC::Heap::the().allocate<CSSLayerBlockRule>(move(rule), rules);
 }
 
-Utf16FlyString CSSLayerBlockRule::next_unique_anonymous_layer_name()
+CSSLayerBlockRule::CSSLayerBlockRule(RustRule rule, CSSRuleList& rules)
+    : CSSGroupingRule(rules, move(rule))
+    , m_names(*native_rule().payload().layer_names)
 {
-    static u64 s_anonymous_layer_id = 0;
-    Utf16StringBuilder builder;
-    builder.appendff("#{}", ++s_anonymous_layer_id);
-    auto name = builder.to_string();
-    return Utf16FlyString::from_utf16(name.utf16_view());
+    VERIFY(Parser::ValueParserFFI::rust_layer_names_count(&m_names) == 1);
 }
 
-CSSLayerBlockRule::CSSLayerBlockRule(Utf16FlyString name, CSSRuleList& rules)
-    : CSSGroupingRule(rules, Type::LayerBlock)
-    , m_name(move(name))
+Utf16View CSSLayerBlockRule::name() const
 {
-    if (m_name.is_empty()) {
-        m_name_internal = next_unique_anonymous_layer_name();
-    } else {
-        m_name_internal = m_name;
-    }
+    auto view = Parser::ValueParserFFI::rust_layer_names_at(&m_names, 0);
+    return { reinterpret_cast<char16_t const*>(view.utf16), view.length };
+}
+
+Utf16FlyString const& CSSLayerBlockRule::internal_name() const
+{
+    return m_name_internal.ensure([&] {
+        auto name = native_rule().internal_layer_name().release_value();
+        return Utf16FlyString::from_utf16(name.utf16_view());
+    });
+}
+
+size_t CSSLayerBlockRule::external_memory_size() const
+{
+    return Base::external_memory_size() + Parser::ValueParserFFI::rust_layer_names_external_memory_size(&m_names);
 }
 
 Utf16String CSSLayerBlockRule::serialized() const
@@ -44,8 +50,8 @@ Utf16String CSSLayerBlockRule::serialized() const
     // AD-HOC: No spec yet, so this is based on the @media serialization algorithm.
     Utf16StringBuilder builder;
     builder.append_ascii("@layer"sv);
-    if (!m_name.is_empty())
-        builder.appendff(" {}", m_name);
+    if (!name().is_empty())
+        builder.appendff(" {}", name());
 
     builder.append_ascii(" {\n"sv);
     // AD-HOC: All modern browsers omit the ending newline if there are no CSS rules, so let's do the same.
@@ -67,25 +73,12 @@ Utf16String CSSLayerBlockRule::serialized() const
     return builder.to_string();
 }
 
-Utf16FlyString CSSLayerBlockRule::internal_qualified_name(Badge<StyleScope>) const
-{
-    auto const& parent_name = parent_layer_internal_qualified_name();
-    if (parent_name.is_empty())
-        return m_name_internal;
-    Utf16StringBuilder builder;
-    builder.append(parent_name);
-    builder.append_ascii('.');
-    builder.append(m_name_internal);
-    auto qualified_name = builder.to_string();
-    return Utf16FlyString::from_utf16(qualified_name.utf16_view());
-}
-
 void CSSLayerBlockRule::dump(StringBuilder& builder, int indent_levels) const
 {
     Base::dump(builder, indent_levels);
 
     dump_indent(builder, indent_levels + 1);
-    builder.appendff("Name: `{}` (internal `{}`)\n", m_name, m_name_internal);
+    builder.appendff("Name: `{}` (internal `{}`)\n", name(), internal_name());
     dump_indent(builder, indent_levels + 1);
     builder.appendff("Rules ({}):\n", css_rules().length());
     for (auto& rule : css_rules())

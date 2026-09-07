@@ -1,0 +1,40 @@
+<!doctype html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<style>
+    .対象 { display: block; width: 1px; height: 1px; }
+</style>
+<div class="旧"><div class="内"><span class="対象"></span><div class="限界"><span class="対象"></span></div></div></div>
+<div class="新"><div class="内"><span class="対象"></span><div class="限界"><span class="対象"></span></div></div></div>
+<script>
+test(() => {
+    const sheet = new CSSStyleSheet();
+    sheet.replaceSync(`.旧 {
+        @media all {
+            & .対象 { width: 11px; }
+            @scope (.内) { .対象 { height: 21px; } }
+        }
+        @scope (> .内) to (:scope > .限界) {
+            .対象 { background-color: red; }
+        }
+    }`);
+    document.adoptedStyleSheets = [sheet];
+    const snapshot = label => println(`${label}: ${[...document.querySelectorAll(".対象")].map(target => {
+        const style = getComputedStyle(target);
+        return `${style.width}/${style.height}/${style.backgroundColor}`;
+    }).join(" | ")}`);
+    // Style nesting crosses the media rule, but a scope prelude uses its immediate parent.
+    snapshot("initial");
+    const parent = sheet.cssRules[0];
+    parent.selectorText = ".新";
+    snapshot("retargeted");
+    internals.gc();
+    snapshot("after collection");
+    const media = parent.cssRules[0];
+    media.insertRule("& .対象 { width: 17px; }", 1);
+    snapshot("inserted descendant");
+    parent.selectorText = ".旧";
+    snapshot("restored");
+    document.adoptedStyleSheets = [];
+});
+</script>

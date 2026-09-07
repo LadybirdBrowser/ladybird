@@ -4,9 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/Invalidation/AdoptedStyleSheetInvalidator.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
+#include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/DOM/AdoptedStyleSheets.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -45,7 +45,7 @@ GC::Ref<WebIDL::ObservableArray> create_adopted_style_sheets_list(Node& document
         // engine. Observable array operations can write displaced entries before the insertion
         // point, so preserve their final order by attaching before the entry currently following
         // this index.
-        CSS::CSSStyleSheet* before = nullptr;
+        CSS::StyleSheetState* before = nullptr;
         if (auto successor = adopted_style_sheets->indexed_get(index + 1); successor.has_value())
             before = CSS::css_style_sheet_from_value(successor->value);
         CSS::record_stylesheet_attached(*style_sheet, document_or_shadow_root, before);
@@ -63,7 +63,7 @@ GC::Ref<WebIDL::ObservableArray> create_adopted_style_sheets_list(Node& document
     return adopted_style_sheets;
 }
 
-void for_each_adopted_style_sheet(WebIDL::ObservableArray& adopted_style_sheets, Function<void(CSS::CSSStyleSheet&)> const& callback)
+void for_each_adopted_style_sheet(WebIDL::ObservableArray& adopted_style_sheets, Function<void(CSS::StyleSheetState&)> const& callback)
 {
     for (u32 i = 0; i < adopted_style_sheets.indexed_array_like_size(); ++i) {
         auto value_and_attributes = adopted_style_sheets.indexed_get(i);

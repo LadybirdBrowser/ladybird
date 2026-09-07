@@ -82,6 +82,7 @@ impl CssString {
         if self.raw == 0 {
             return RetainedUtf16FlyString::none();
         }
+        crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::InternUtf16FlyStringCallback);
         let string = ak::Utf16FlyString::from_utf16(self.units());
         unsafe { RetainedUtf16FlyString::from_leaked_raw(string.into_raw()) }
     }

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+test(() => {
+    for (const name of ["ascii", "雪😀"]) {
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync(`.${name} { --value: "${name}"; }`);
+        sheet.insertRule(`@media screen { .${name} { width: 37px; } }`, 1);
+        sheet.insertRule(`@font-face { font-family: "${name}"; src: local("${name}"); }`, 2);
+        const target = document.createElement("div");
+        target.className = name;
+        document.body.append(target);
+        document.adoptedStyleSheets = [sheet];
+        const query = matchMedia(["scr", "een"].join(""));
+        internals.gc();
+        println(`selector: ${document.querySelector(`.${name}`) === target}`);
+        println(`value: ${getComputedStyle(target).getPropertyValue("--value")}`);
+        println(`width: ${getComputedStyle(target).width}`);
+        println(`font: ${sheet.cssRules[2].style.fontFamily}`);
+        println(`media: ${query.media}`);
+        sheet.cssRules[0].style.cssText = `--value: "changed ${name}";`;
+        sheet.cssRules[2].style.cssText = `font-family: "changed ${name}"; src: local("${name}");`;
+        internals.gc();
+        println(`mutated value: ${getComputedStyle(target).getPropertyValue("--value")}`);
+        println(`mutated font: ${sheet.cssRules[2].style.fontFamily}`);
+        document.adoptedStyleSheets = [];
+        target.remove();
+    }
+});
+</script>

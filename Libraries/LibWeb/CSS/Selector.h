@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include <AK/HashTable.h>
 #include <AK/RefCounted.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
@@ -18,6 +17,9 @@
 #include <LibWeb/Forward.h>
 
 namespace Web::CSS {
+
+class RustRule;
+class RustNamespaceContext;
 
 namespace SelectorFFI {
 
@@ -80,7 +82,7 @@ public:
     Combinator first_combinator() const;
     u32 specificity() const;
     Utf16String serialize() const;
-    void serialize_to(Utf16StringBuilder&, GC::Ptr<CSSStyleSheet const> = nullptr) const;
+    void serialize_to(Utf16StringBuilder&, StyleSheetState const* = nullptr) const;
 
     SelectorFFI::RustSelector const& rust_selector() const { return *m_rust_selector; }
 
@@ -90,20 +92,15 @@ private:
     SelectorFFI::RustSelector* m_rust_selector { nullptr };
 };
 
-Optional<SelectorList> parse_selector_list_in_rust(Utf16View, HashTable<Utf16FlyString> const&, bool is_relative, bool is_forgiving);
 SelectorList selector_list_from_rust(SelectorFFI::RustParsedSelectorList const*);
-Utf16String serialize_a_group_of_selectors(SelectorList const&, GC::Ptr<CSSStyleSheet const> = nullptr);
+SelectorList matching_selectors_for_rule(RustRule const&);
+Optional<SelectorList> scope_start_selectors_for_rule(RustRule const&);
+Optional<SelectorList> scope_end_selectors_for_rule(RustRule const&);
+Utf16String serialize_a_group_of_selectors(SelectorList const&, StyleSheetState const* = nullptr);
 u8 pseudo_element_to_ffi(Optional<PseudoElement>);
 Optional<PseudoElement> pseudo_element_from_ffi(u8);
 
-enum class StyleNestingParent : u8 {
-    None,
-    Style,
-    Scope,
-};
-SelectorList adapt_nested_relative_selector_list(SelectorList const&, StyleNestingParent);
-SelectorList adapt_scope_end_selectors_for_matching(SelectorList const&);
-SelectorList absolutize_selectors_relative_to(SelectorList const&, GC::Ptr<CSSRule const> parent);
+Optional<SelectorList> parse_selector_list_in_rust(Utf16View, RustNamespaceContext const&, bool is_relative, bool is_forgiving);
 
 }
 
