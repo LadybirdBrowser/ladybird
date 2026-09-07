@@ -20,7 +20,6 @@
 #include <LibWebView/PrivateBrowsing.h>
 #include <LibWebView/ViewImplementation.h>
 
-#include <QMenu>
 #include <QPixmap>
 #include <QTimer>
 #include <QUrl>
@@ -66,6 +65,7 @@ using WebContentViewBase = QWidget;
 #endif
 
 class CrashOverlayUrlLabel;
+class SelectDropdown;
 
 struct WebContentViewInitialState {
     WebView::IsPrivate is_private { WebView::IsPrivate::No };
@@ -128,9 +128,6 @@ public:
 
     QPoint map_point_to_global_position(Gfx::IntPoint) const;
 
-public slots:
-    void select_dropdown_action();
-
 signals:
     void urls_dropped(QList<QUrl> const&);
 
@@ -190,8 +187,7 @@ private:
     QPointF m_last_click_position;
     int m_click_count { 0 };
 
-    QMenu* m_select_dropdown { nullptr };
-    bool m_suppress_select_dropdown_close { false };
+    SelectDropdown* m_select_dropdown { nullptr };
 
     QWidget* m_crash_overlay { nullptr };
     CrashOverlayUrlLabel* m_crash_overlay_url { nullptr };

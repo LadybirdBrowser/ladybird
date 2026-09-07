@@ -57,6 +57,16 @@ ladybird_test("TestHiddenPageSizing.cpp" UI/Qt
 target_sources(TestHiddenPageSizing PRIVATE "${LADYBIRD_SOURCE_DIR}/UI/Qt/HiddenPageSizing.cpp")
 deploy_qt_offscreen_platform_plugin(TestHiddenPageSizing)
 
+ladybird_test("TestSelectDropdown.cpp" UI/Qt
+    CUSTOM_MAIN "$<TARGET_OBJECTS:QtTestMain>"
+    LIBS LibWeb LibGfx LibIPC LibURL Qt::Core Qt::Gui Qt::Widgets
+)
+target_sources(TestSelectDropdown PRIVATE
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/SelectDropdown.cpp"
+    "${LADYBIRD_SOURCE_DIR}/UI/Qt/StringUtils.cpp"
+)
+deploy_qt_offscreen_platform_plugin(TestSelectDropdown)
+
 if (NOT LINUX)
     return()
 endif()
