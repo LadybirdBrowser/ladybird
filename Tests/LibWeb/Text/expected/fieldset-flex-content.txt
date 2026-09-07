@@ -1,0 +1,17 @@
+with-legend
+LEGEND: 0,0 30x20
+DIV: 0,20 80x30
+DIV: 90,20 80x30
+DIV: 0,60 80x30
+without-legend
+DIV: 0,0 80x30
+DIV: 90,0 80x30
+DIV: 0,40 80x30
+column
+LEGEND: 0,0 30x20
+DIV: 120,20 80x30
+DIV: 120,60 80x30
+inline
+LEGEND: 0,0 30x20
+DIV: 30,20 80x30
+DIV: 120,20 80x30

@@ -2368,6 +2368,11 @@ public:
             return;
         m_values.m_noninherited.border.access().border_left.color = value.value();
     }
+    void copy_fieldset_content_alignment_from(ComputedValues const& source)
+    {
+        ComputedValuesFFI::rust_alignment_values_copy_fieldset_content_properties(
+            &*source.m_noninherited.alignment, &m_values.m_noninherited.alignment.access());
+    }
     void set_flex_direction(FlexDirection value)
     {
         if (m_values.flex_direction() == value)

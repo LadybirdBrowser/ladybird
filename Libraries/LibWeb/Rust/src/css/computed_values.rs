@@ -3841,3 +3841,22 @@ mod tests {
         }
     }
 }
+
+/// # Safety
+/// `source` must be a valid alignment payload and `target` a uniquely owned alignment value.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_alignment_values_copy_fieldset_content_properties(
+    source: *const AlignmentValues,
+    target: *mut AlignmentValues,
+) {
+    // SAFETY: The caller supplies a valid source and a uniquely owned target.
+    let (source, target) = unsafe { (&*source, &mut *target) };
+    target.flex_direction = source.flex_direction;
+    target.flex_wrap = source.flex_wrap;
+    target.align_content = source.align_content;
+    target.align_items = source.align_items;
+    target.justify_content = source.justify_content;
+    target.justify_items = source.justify_items;
+    target.row_gap = source.row_gap.clone();
+    target.column_gap = source.column_gap.clone();
+}

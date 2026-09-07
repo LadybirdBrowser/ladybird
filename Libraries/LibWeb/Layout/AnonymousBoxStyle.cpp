@@ -98,7 +98,14 @@ CSS::StyleRecordID derive_pinned_anonymous_box_style_record(CSS::StyleComputer c
         builder->set_min_height(CSS::Size::make_px(CSSPixels(0)));
         break;
     case RustFFI::FfiAnonymousStyleKind::FieldsetContentWrapper:
-        builder->set_display(CSS::Display::from_short(CSS::Display::Short::FlowRoot));
+        // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
+        // If the computed value of 'display' on the fieldset element is 'flex' or 'inline-flex', then set the used value to 'flex'.
+        if (parent_values->display().is_flex_inside())
+            builder->set_display(CSS::Display { CSS::DisplayOutside::Block, CSS::DisplayInside::Flex });
+        else
+            builder->set_display(CSS::Display::from_short(CSS::Display::Short::FlowRoot));
+        // NB: Flex layout and alignment apply to the anonymous content box, excluding the rendered legend.
+        builder->copy_fieldset_content_alignment_from(*parent_values);
         builder->set_overflow_x(static_cast<CSS::Overflow>(overrides.overflow_x));
         builder->set_overflow_y(static_cast<CSS::Overflow>(overrides.overflow_y));
         break;
