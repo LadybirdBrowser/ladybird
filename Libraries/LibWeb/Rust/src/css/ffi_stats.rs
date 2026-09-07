@@ -59,6 +59,10 @@ define_ffi_ops! {
     AnimationKeyframeLonghandEntry => "animationKeyframeLonghandEntries",
     AnimationEvaluationEntry => "animationEvaluationEntries",
     TransitionDecisionEntry => "transitionDecisionEntries",
+    // Computed longhand table passes whose cost follows the table's width rather than a change.
+    LonghandTableClone => "longhandTableClones",
+    LonghandTableFullHash => "longhandTableFullHashes",
+    LonghandTableSlotHash => "longhandTableSlotHashes",
     SubstitutionCallbackFreeParse => "substitutionCallbackFreeParses",
     SubstitutionCallbackParseRequest => "substitutionCallbackParseRequests",
     SizesAttributeParseEntry => "sizesAttributeParseEntries",

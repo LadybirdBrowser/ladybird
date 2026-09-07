@@ -35,7 +35,7 @@ use super::memory::MemoryLease;
 use super::tree::PseudoElementKind;
 use super::tree::PseudoElementTarget;
 use super::tree::StyleNodeID;
-use crate::css::computed_longhand_table::ComputedLonghandTable;
+use crate::css::computed_longhand_table::{ComputedLonghandTable, longhand_slot_hash};
 use crate::css::computed_values::computed_group_output_mask;
 use crate::css::computed_values::release_group_payload;
 use crate::css::computed_values::replay_style_group_identity;
@@ -152,9 +152,6 @@ struct ComputedFixedMetadata {
 /// the source-slot sidecar is per-drive and does not participate in identity.
 struct RetainedLonghandTable {
     table: *const ComputedLonghandTable,
-    /// The order-sensitive sum of the table's per-slot value hashes: the part of the table's
-    /// publication hash a patched copy can adjust slot by slot instead of rehashing every value.
-    slot_hash_sum: u64,
 }
 
 impl RetainedLonghandTable {
@@ -1024,7 +1021,9 @@ impl ComputedGroupSets {
 
     /// Interns one frozen computed longhand table. Values and publication
     /// metadata participate in identity; the per-drive provenance sidecar
-    /// does not.
+    /// does not. A candidate found equal by comparison is reused before the
+    /// table's hash is asked for, so a table that starts empty and computes
+    /// to a published state never hashes its values.
     fn intern_longhand_table(
         &mut self,
         table: &ComputedLonghandTable,
@@ -1040,19 +1039,7 @@ impl ComputedGroupSets {
                 return candidate;
             }
         }
-        self.intern_longhand_table_with_slot_hash_sum(table, longhand_table_slot_hash_sum(table))
-    }
-
-    /// Intern a frozen table whose per-slot hash sum the caller already knows, from the table it
-    /// was patched from.
-    fn intern_longhand_table_with_slot_hash_sum(
-        &mut self,
-        table: &ComputedLonghandTable,
-        slot_hash_sum: u64,
-    ) -> ComputedLonghandTableID {
-        debug_assert!(table.is_frozen(), "only frozen longhand tables are published");
-        debug_assert_eq!(slot_hash_sum, longhand_table_slot_hash_sum(table));
-        let hash = longhand_table_hash_with_slot_hash_sum(table, slot_hash_sum);
+        let hash = longhand_table_hash(table);
         if let Some(identity) = self
             .computed_longhand_tables
             .find(hash, |_identity, candidate| candidate.table().publication_equals(table))
@@ -1068,14 +1055,8 @@ impl ComputedGroupSets {
         let retained = unsafe { crate::css::computed_longhand_table::rust_computed_longhand_table_retain(table) };
         self.longhand_table_nested_memory
             .grow_committed(size_of_val(table.value_pointers()) as u64);
-        self.computed_longhand_tables.insert(
-            hash,
-            identity,
-            RetainedLonghandTable {
-                table: retained,
-                slot_hash_sum,
-            },
-        );
+        self.computed_longhand_tables
+            .insert(hash, identity, RetainedLonghandTable { table: retained });
         identity
     }
 
@@ -1392,26 +1373,12 @@ impl ComputedGroupSets {
             let source_slot = table.source_slot(property).map_or(-1, i64::from);
             table.set(property, resolved, source_slot);
         }
-        let (table, slot_hash_sum) = {
-            let retained = &self.computed_longhand_tables[old_table];
-            let source = retained.table();
-            let mut slot_hash_sum = retained.slot_hash_sum;
-            let old_values = source.value_pointers();
-            let new_values = table.value_pointers();
-            for slot in 0..old_values.len() {
-                if old_values[slot] != new_values[slot] {
-                    slot_hash_sum = slot_hash_sum
-                        .wrapping_sub(longhand_slot_hash(slot, old_values[slot]))
-                        .wrapping_add(longhand_slot_hash(slot, new_values[slot]));
-                }
-            }
-            // The flag is the parent's and the driven display's, the way a fresh computation
-            // sets it, not what the old table held.
-            let display_is_none = crate::css::style_compute::effective_display(&table, None).is_none();
-            table.set_in_display_none_subtree(parent_in_display_none_subtree || display_is_none);
-            table.freeze();
-            (table.into_raw_shared(), slot_hash_sum)
-        };
+        // The flag is the parent's and the driven display's, the way a fresh computation sets
+        // it, not what the old table held.
+        let display_is_none = crate::css::style_compute::effective_display(&table, None).is_none();
+        table.set_in_display_none_subtree(parent_in_display_none_subtree || display_is_none);
+        table.freeze();
+        let table = table.into_raw_shared();
         let release_table = |table: *const ComputedLonghandTable| unsafe {
             crate::css::computed_longhand_table::rust_computed_longhand_table_release(table.cast_mut());
         };
@@ -1477,7 +1444,7 @@ impl ComputedGroupSets {
             })
             .0
         };
-        let longhand_table = self.intern_longhand_table_with_slot_hash_sum(unsafe { &*table }, slot_hash_sum);
+        let longhand_table = self.intern_longhand_table(unsafe { &*table }, Some(old_table), None);
         release_table(table);
         // The environment moves with the record when the node's custom declarations resolved to
         // another; a record keeps its environment otherwise.
@@ -3046,13 +3013,11 @@ impl ComputedGroupSets {
             .filter(|identity| !reachable.longhand_tables[identity.index()])
             .collect::<Vec<_>>()
         {
-            let retained = &self.computed_longhand_tables[identity];
-            let hash = longhand_table_hash_with_slot_hash_sum(retained.table(), retained.slot_hash_sum);
+            let hash = longhand_table_hash(self.computed_longhand_tables[identity].table());
             let table = std::mem::replace(
                 self.computed_longhand_tables.get_mut(identity),
                 RetainedLonghandTable {
                     table: std::ptr::null(),
-                    slot_hash_sum: 0,
                 },
             );
             self.longhand_table_nested_memory
@@ -3529,33 +3494,10 @@ fn content_hash(content: impl Hash) -> u64 {
     hasher.finish()
 }
 
-/// One slot's contribution to a table's slot hash sum: the value's content hash mixed with the
-/// slot, so the sum is order-sensitive while any slot's share can be subtracted and replaced.
-fn longhand_slot_hash(slot: usize, value: *const c_void) -> u64 {
-    let content = unsafe { crate::css::style_value::style_value_content_hash(value.cast()) };
-    (content ^ (slot as u64).wrapping_mul(0x9E37_79B9_7F4A_7C15))
-        .wrapping_mul(0x2545_F491_4F6C_DD1D)
-        .rotate_left((slot as u32) & 63)
-}
-
-fn longhand_table_slot_hash_sum(table: &ComputedLonghandTable) -> u64 {
-    table
-        .value_pointers()
-        .iter()
-        .enumerate()
-        .fold(0_u64, |sum, (slot, &value)| {
-            sum.wrapping_add(longhand_slot_hash(slot, value))
-        })
-}
-
-#[cfg(test)]
 fn longhand_table_hash(table: &ComputedLonghandTable) -> u64 {
-    longhand_table_hash_with_slot_hash_sum(table, longhand_table_slot_hash_sum(table))
-}
-
-fn longhand_table_hash_with_slot_hash_sum(table: &ComputedLonghandTable, slot_hash_sum: u64) -> u64 {
+    debug_assert_eq!(table.slot_hash_sum(), table.recomputed_slot_hash_sum());
     let mut hasher = fast_hasher();
-    slot_hash_sum.hash(&mut hasher);
+    table.slot_hash_sum().hash(&mut hasher);
     table.evaluated_bits().hash(&mut hasher);
     table.importance_bits().hash(&mut hasher);
     table.inheritance_bits().hash(&mut hasher);
