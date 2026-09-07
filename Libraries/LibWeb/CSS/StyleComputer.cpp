@@ -3576,6 +3576,30 @@ bool StyleSharingKey::equals_without_values(StyleSharingKey const& other) const
     return inputs_after_parent_groups_equal(other) && parent_groups_equal(other);
 }
 
+static bool custom_property_own_values_differ(CustomPropertyData const* old_data, CustomPropertyData const* new_data)
+{
+    static NeverDestroyed<OrderedHashMap<Utf16FlyString, StyleProperty>> empty_own_values;
+    auto const& old_own = old_data ? old_data->own_values() : *empty_own_values;
+    auto const& new_own = new_data ? new_data->own_values() : *empty_own_values;
+    if (old_own.size() != new_own.size())
+        return true;
+    // A cascade hands out the very value objects the declarations hold, so two environments built
+    // from the same declarations share their values: compare by identity before comparing text.
+    auto old_iterator = old_own.begin();
+    auto new_iterator = new_own.begin();
+    for (; old_iterator != old_own.end(); ++old_iterator, ++new_iterator) {
+        if (old_iterator->key != new_iterator->key || old_iterator->value.important != new_iterator->value.important)
+            return true;
+        auto const& old_value = *old_iterator->value.value;
+        auto const& new_value = *new_iterator->value.value;
+        if (&old_value == &new_value || old_value.rust_style_value_data() == new_value.rust_style_value_data())
+            continue;
+        if (!old_value.equals(new_value))
+            return true;
+    }
+    return false;
+}
+
 // Whether an element's own custom properties changed is a question about what it now holds against
 // what it held, and it is answered the same way whether the values were computed or taken from
 // another element.
@@ -3586,44 +3610,33 @@ static void report_custom_property_change(DOM::AbstractElement abstract_element,
     auto new_custom_property_data = abstract_element.custom_property_data();
     if (old_custom_property_data.ptr() == new_custom_property_data.ptr())
         return;
-    // The environment an element hands its descendants is its own declarations over the one it
-    // inherits: when the inherited one moved, the descendants' moved too, whatever the element's
-    // own declarations did. Inherited environments are interned, so one that did not move is the
-    // same object.
-    auto inherited_environment_of = [](CustomPropertyData const* data) -> CustomPropertyData const* {
+    // An animation overlay holds only the animated values. A move of the environment under it
+    // reaches the descendants whether or not those values moved too.
+    auto environment_under_overlay = [](CustomPropertyData const* data) -> CustomPropertyData const* {
         if (data && data->is_animation_overlay())
-            data = data->parent().ptr();
-        return data ? data->parent().ptr() : nullptr;
+            return data->parent().ptr();
+        return data;
     };
-    if (inherited_environment_of(old_custom_property_data.ptr()) != inherited_environment_of(new_custom_property_data.ptr())) {
-        *did_change_custom_properties = true;
-        return;
-    }
-    static NeverDestroyed<OrderedHashMap<Utf16FlyString, StyleProperty>> empty_own_values;
-    auto const& old_own = old_custom_property_data ? old_custom_property_data->own_values() : *empty_own_values;
-    auto const& new_own = new_custom_property_data ? new_custom_property_data->own_values() : *empty_own_values;
-    if (old_own.size() != new_own.size()) {
-        *did_change_custom_properties = true;
-        return;
-    }
-    // A cascade hands out the very value objects the declarations hold, so two environments built
-    // from the same declarations share their values: compare by identity before comparing text.
-    auto old_iterator = old_own.begin();
-    auto new_iterator = new_own.begin();
-    for (; old_iterator != old_own.end(); ++old_iterator, ++new_iterator) {
-        if (old_iterator->key != new_iterator->key || old_iterator->value.important != new_iterator->value.important) {
-            *did_change_custom_properties = true;
-            return;
-        }
-        auto const& old_value = *old_iterator->value.value;
-        auto const& new_value = *new_iterator->value.value;
-        if (&old_value == &new_value || old_value.rust_style_value_data() == new_value.rust_style_value_data())
-            continue;
-        if (!old_value.equals(new_value)) {
+    auto const* old_environment = environment_under_overlay(old_custom_property_data.ptr());
+    auto const* new_environment = environment_under_overlay(new_custom_property_data.ptr());
+    if (old_environment != new_environment) {
+        // The environment an element hands its descendants is its own declarations over the one it
+        // inherits: when the inherited one moved, the descendants' moved too, whatever the element's
+        // own declarations did. Inherited environments are interned, so one that did not move is the
+        // same object.
+        auto const* old_inherited = old_environment ? old_environment->parent().ptr() : nullptr;
+        auto const* new_inherited = new_environment ? new_environment->parent().ptr() : nullptr;
+        if (old_inherited != new_inherited || custom_property_own_values_differ(old_environment, new_environment)) {
             *did_change_custom_properties = true;
             return;
         }
     }
+    bool const old_is_overlay = old_custom_property_data && old_custom_property_data->is_animation_overlay();
+    bool const new_is_overlay = new_custom_property_data && new_custom_property_data->is_animation_overlay();
+    if (!old_is_overlay && !new_is_overlay)
+        return;
+    if (custom_property_own_values_differ(old_is_overlay ? old_custom_property_data.ptr() : nullptr, new_is_overlay ? new_custom_property_data.ptr() : nullptr))
+        *did_change_custom_properties = true;
 }
 
 // A shared style installs the current inheritance parent's environment directly. Unlike a normal
