@@ -8,7 +8,7 @@
 
 #include <AK/Atomic.h>
 #include <AK/NonnullOwnPtr.h>
-#include <AK/Queue.h>
+#include <AK/Vector.h>
 #include <LibMedia/CodecID.h>
 #include <LibMedia/CodecParameters.h>
 #include <LibMedia/Codecs/VP9.h>
@@ -22,6 +22,9 @@
 #include <LibSync/Mutex.h>
 
 namespace Media::VideoToolbox {
+
+// The parameter sets an H.264 stream is configured from, tracked across the frames that carry them.
+struct H264State;
 
 // Decodes on the platform's media engine, which allocates the surfaces it decodes into and hands them back rather
 // than filling ones we provide.
@@ -61,15 +64,20 @@ private:
     void note_decode_failure_while_locked(i32 status);
     void note_frame_left_the_media_engine_while_locked();
 
+    void insert_output_in_presentation_order_while_locked(DecodedOutput&&);
+    bool may_pull_frame_from_reorder_queue_while_locked() const;
+
     CodecID const m_codec_id;
     NonnullRefPtr<VideoFrameSurfacePool> m_surface_pool;
+    OwnPtr<H264State> m_h264_state;
     OwnPtr<Session> m_session;
     bool m_reached_end_of_stream { false };
 
     // The media engine decodes on its own threads, so outputs arrive from outside this decoder's caller.
     mutable Sync::Mutex m_output_mutex;
     Sync::ConditionVariable m_output_arrived { m_output_mutex };
-    Queue<DecodedOutput> m_outputs;
+    Vector<DecodedOutput> m_outputs;
+    u8 m_reorder_frame_count { 0 };
     Optional<DecoderError> m_decode_failure;
 
     // Only the caller's thread submits, so a read followed by an increment cannot exceed the limit; the media
