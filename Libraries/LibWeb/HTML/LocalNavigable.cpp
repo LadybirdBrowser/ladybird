@@ -1408,16 +1408,40 @@ bool LocalNavigable::active_document_is(DOM::Document const& document) const
     return m_active_document.ptr() == &document;
 }
 
+Optional<URL::URL> LocalNavigable::active_document_top_level_creation_url() const
+{
+    if (!m_active_document)
+        return {};
+    return relevant_settings_object(*m_active_document).top_level_creation_url;
+}
+
+Optional<URL::Origin> LocalNavigable::active_document_top_level_origin() const
+{
+    if (!m_active_document)
+        return {};
+    return relevant_settings_object(*m_active_document).top_level_origin;
+}
+
+bool LocalNavigable::active_document_has_cross_site_ancestor() const
+{
+    VERIFY(m_active_document);
+    return relevant_settings_object(*m_active_document).has_cross_site_ancestor();
+}
+
 ReplicatedNavigableState LocalNavigable::replicated_state() const
 {
     VERIFY(m_active_document);
     VERIFY(m_active_session_history_entry);
+    auto& settings = relevant_settings_object(*m_active_document);
     return {
         .target_name = target_name(),
         .active_document_url = m_active_document->url(),
         .active_document_origin = m_active_document->origin(),
         .active_document_is_fully_active = m_active_document->is_fully_active(),
         .active_session_history_entry_identity = session_history_entry_identity(*m_active_session_history_entry),
+        .top_level_creation_url = settings.top_level_creation_url.value(),
+        .top_level_origin = settings.top_level_origin.value(),
+        .has_cross_site_ancestor = settings.has_cross_site_ancestor(),
     };
 }
 
@@ -2108,9 +2132,8 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         if (!state_holder->navigable->is_top_level_traversable()) {
             // 1. Let parentEnvironment be navigable's parent's active document's relevant settings object.
             auto parent = state_holder->navigable->parent();
-            auto* local_parent = parent ? &as<LocalNavigable>(*parent) : nullptr;
-            auto parent_document = local_parent ? local_parent->active_document() : nullptr;
-            if (!local_parent || local_parent->has_been_destroyed() || !parent_document || parent_document->has_been_destroyed()) {
+            auto parent_top_level_creation_url = parent && !parent->has_been_destroyed() ? parent->active_document_top_level_creation_url() : Optional<URL::URL> {};
+            if (!parent_top_level_creation_url.has_value()) {
                 // AD-HOC: A queued child navigation can resume after its parent document has been destroyed. The
                 //         specification assumes the parent environment is still available here, but browser engines
                 //         abandon this stale detached frame navigation instead of continuing it against a discarded
@@ -2119,13 +2142,12 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
                 fetch_completion_steps->function()();
                 return;
             }
-            auto& parent_environment = parent_document->relevant_settings_object();
 
             // 2. Set topLevelCreationURL to parentEnvironment's top-level creation URL.
-            top_level_creation_url = parent_environment.top_level_creation_url;
+            top_level_creation_url = move(parent_top_level_creation_url);
 
             // 3. Set topLevelOrigin to parentEnvironment's top-level origin.
-            top_level_origin = parent_environment.top_level_origin;
+            top_level_origin = parent->active_document_top_level_origin();
         }
 
         // 4. Set request's reserved client to a new environment whose id is a unique opaque string,

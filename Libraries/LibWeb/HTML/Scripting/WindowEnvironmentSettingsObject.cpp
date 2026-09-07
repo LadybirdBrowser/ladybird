@@ -113,18 +113,17 @@ URL::Origin WindowEnvironmentSettingsObject::origin() const
 bool WindowEnvironmentSettingsObject::has_cross_site_ancestor() const
 {
     // 1. If window's navigable's parent is null, then return false.
-    if (m_window->navigable()->parent() == nullptr)
+    auto parent = m_window->navigable()->parent();
+    if (!parent)
         return false;
 
     // 2. Let parentDocument be window's navigable's parent's active document.
-    auto parent_document = as<LocalNavigable>(*m_window->navigable()->parent()).active_document();
-
     // 3. If parentDocument's relevant settings object's has cross-site ancestor is true, then return true.
-    if (parent_document->relevant_settings_object().has_cross_site_ancestor())
+    if (parent->active_document_has_cross_site_ancestor())
         return true;
 
     // 4. If parentDocument's origin is not same site with window's associated Document's origin, then return true.
-    if (!parent_document->origin().is_same_site(m_window->associated_document().origin()))
+    if (!parent->active_document_origin()->is_same_site(m_window->associated_document().origin()))
         return true;
 
     // 5. Return false.
