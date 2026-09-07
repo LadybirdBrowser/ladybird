@@ -79,7 +79,9 @@ fn set_bitmap_bit(bits: &mut [u8; LONGHAND_BITMAP_BYTES], index: usize, value: b
     }
 }
 
-pub struct ComputedLonghandTable {
+/// The per-slot arrays, kept on the heap so that a table moves as a handful of words rather than
+/// as the several kilobytes the slots occupy.
+struct SlotStorage {
     slots: [Option<RetainedStyleValueData>; LONGHAND_COUNT],
     /// The raw data pointer of every slot, null where the slot is empty, so a
     /// borrower can read the whole table as one span without FFI calls.
@@ -89,6 +91,32 @@ pub struct ComputedLonghandTable {
     /// overwrites the sidecar, so sparse lookup would make a full drive
     /// quadratic in the number of context-bearing declarations.
     source_slots: [i32; LONGHAND_COUNT],
+}
+
+impl SlotStorage {
+    fn new_boxed() -> Box<Self> {
+        let mut storage = Box::<Self>::new_uninit();
+        let pointer = storage.as_mut_ptr();
+        // SAFETY: Every field is initialized in place below, so the box holds a complete value
+        // when it is assumed initialized; nothing is moved through the stack.
+        unsafe {
+            let slots = std::ptr::addr_of_mut!((*pointer).slots).cast::<Option<RetainedStyleValueData>>();
+            for index in 0..LONGHAND_COUNT {
+                slots.add(index).write(None);
+            }
+            std::ptr::addr_of_mut!((*pointer).value_view)
+                .cast::<*const c_void>()
+                .write_bytes(0, LONGHAND_COUNT);
+            std::ptr::addr_of_mut!((*pointer).source_slots)
+                .cast::<i32>()
+                .write_bytes(u8::MAX, LONGHAND_COUNT);
+            storage.assume_init()
+        }
+    }
+}
+
+pub struct ComputedLonghandTable {
+    storage: Box<SlotStorage>,
     /// Whether the longhand's winning declaration was `!important`, in the
     /// byte layout of the C++ `FixedBitmap` (bit `i` is byte `i / 8`, bit
     /// `i % 8`), so whole bitmaps copy across the FFI without translation.
@@ -130,9 +158,7 @@ pub struct FfiComputedStyleMetadata {
 impl ComputedLonghandTable {
     pub(crate) fn new() -> Self {
         Self {
-            slots: std::array::from_fn(|_| None),
-            value_view: [std::ptr::null(); LONGHAND_COUNT],
-            source_slots: [-1; LONGHAND_COUNT],
+            storage: SlotStorage::new_boxed(),
             important_bits: [0; LONGHAND_BITMAP_BYTES],
             inherited_bits: [0; LONGHAND_BITMAP_BYTES],
             evaluated_bits: [0; LONGHAND_BITMAP_BYTES],
@@ -165,10 +191,10 @@ impl ComputedLonghandTable {
             !self.frozen,
             "the computed longhand table is immutable once its style is created"
         );
-        self.value_view[Self::slot_index(property_id)] = value.pointer().cast();
-        self.slots[Self::slot_index(property_id)] = Some(value);
+        self.storage.value_view[Self::slot_index(property_id)] = value.pointer().cast();
+        self.storage.slots[Self::slot_index(property_id)] = Some(value);
         set_bitmap_bit(&mut self.evaluated_bits, Self::slot_index(property_id), true);
-        self.source_slots[Self::slot_index(property_id)] = i32::try_from(source_slot).unwrap_or(-1);
+        self.storage.source_slots[Self::slot_index(property_id)] = i32::try_from(source_slot).unwrap_or(-1);
     }
 
     pub(crate) fn set_important(&mut self, property_id: u16, important: bool) {
@@ -285,9 +311,9 @@ impl ComputedLonghandTable {
             !self.frozen,
             "the computed longhand table is immutable once its style is created"
         );
-        self.slots.clone_from(&source.slots);
-        self.value_view.clone_from(&source.value_view);
-        self.source_slots.clone_from(&source.source_slots);
+        self.storage.slots.clone_from(&source.storage.slots);
+        self.storage.value_view.clone_from(&source.storage.value_view);
+        self.storage.source_slots.clone_from(&source.storage.source_slots);
         self.important_bits = source.important_bits;
         self.inherited_bits = source.inherited_bits;
         self.evaluated_bits = source.evaluated_bits;
@@ -309,9 +335,9 @@ impl ComputedLonghandTable {
             "the computed longhand table is immutable once its style is created"
         );
         let slot = Self::slot_index(property_id);
-        self.slots[slot].clone_from(&source.slots[slot]);
-        self.value_view[slot] = source.value_view[slot];
-        self.source_slots[slot] = source.source_slots[slot];
+        self.storage.slots[slot].clone_from(&source.storage.slots[slot]);
+        self.storage.value_view[slot] = source.storage.value_view[slot];
+        self.storage.source_slots[slot] = source.storage.source_slots[slot];
         set_bitmap_bit(&mut self.important_bits, slot, bitmap_bit(&source.important_bits, slot));
         set_bitmap_bit(&mut self.inherited_bits, slot, bitmap_bit(&source.inherited_bits, slot));
         set_bitmap_bit(&mut self.evaluated_bits, slot, bitmap_bit(&source.evaluated_bits, slot));
@@ -356,7 +382,7 @@ impl ComputedLonghandTable {
                 continue;
             }
             let index = Self::slot_index(property_id);
-            let Some(value) = inherited_source.slots[index].clone() else {
+            let Some(value) = inherited_source.storage.slots[index].clone() else {
                 continue;
             };
             table.set(property_id, value, -1);
@@ -386,12 +412,12 @@ impl ComputedLonghandTable {
         );
         assert_eq!(values.len(), LONGHAND_COUNT);
         for (index, &value) in values.iter().enumerate() {
-            self.slots[index] = (!value.is_null()).then(|| unsafe {
+            self.storage.slots[index] = (!value.is_null()).then(|| unsafe {
                 RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(value.cast()))
             });
-            self.value_view[index] = value;
+            self.storage.value_view[index] = value;
         }
-        self.source_slots.fill(-1);
+        self.storage.source_slots.fill(-1);
         self.important_bits = [0; LONGHAND_BITMAP_BYTES];
         self.inherited_bits = [0; LONGHAND_BITMAP_BYTES];
         self.evaluated_bits = [0; LONGHAND_BITMAP_BYTES];
@@ -572,9 +598,10 @@ impl ComputedLonghandTable {
             && self.pseudo_element_styles() == other.pseudo_element_styles()
             && self.inheritance_dependent.len() == other.inheritance_dependent.len()
             && self
+                .storage
                 .value_view
                 .iter()
-                .zip(&other.value_view)
+                .zip(&other.storage.value_view)
                 .all(|(&first, &second)| values_equal(first, second))
             && values_equal(self.raw_cascaded_font_size(), other.raw_cascaded_font_size())
             && self.inheritance_dependent.iter().all(|(property, value)| {
@@ -627,7 +654,7 @@ impl ComputedLonghandTable {
             };
         }
         FfiEffectiveLonghandValue {
-            value: self.value_view[Self::slot_index(property_id)],
+            value: self.storage.value_view[Self::slot_index(property_id)],
             source: EFFECTIVE_LONGHAND_SOURCE_TABLE,
         }
     }
@@ -679,19 +706,19 @@ impl ComputedLonghandTable {
 
     /// The stored value for a longhand, when the drive stored one.
     pub(crate) fn get(&self, property_id: u16) -> Option<&RetainedStyleValueData> {
-        self.slots[Self::slot_index(property_id)].as_ref()
+        self.storage.slots[Self::slot_index(property_id)].as_ref()
     }
 
     /// The cascade source slot of the declaration a longhand's value came
     /// from, recorded only when that declaration carries style sheet context.
     pub(crate) fn source_slot(&self, property_id: u16) -> Option<u32> {
-        u32::try_from(self.source_slots[Self::slot_index(property_id)]).ok()
+        u32::try_from(self.storage.source_slots[Self::slot_index(property_id)]).ok()
     }
 
     /// One raw data pointer per longhand slot, null where the drive stored no
     /// value. The span is stable for the table's lifetime once frozen.
     pub(crate) fn value_pointers(&self) -> &[*const c_void] {
-        &self.value_view
+        &self.storage.value_view
     }
 
     pub(crate) fn is_frozen(&self) -> bool {
@@ -809,7 +836,7 @@ pub unsafe extern "C" fn rust_computed_longhand_table_values(
 ) -> *const *const c_void {
     let table = unsafe { &*table };
     debug_assert!(table.frozen, "only frozen tables hand out their value span");
-    table.value_view.as_ptr()
+    table.storage.value_view.as_ptr()
 }
 
 /// Whether two frozen tables have equal values and publication metadata.
