@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function describe(table, tr) {
+            return `tBodies=${table.tBodies.length} rows=${table.rows.length} ` +
+                `parent=${tr.parentNode.localName}.${tr.parentNode.className}`;
+        }
+
+        function makeTable(markup) {
+            const table = document.createElement("table");
+            table.innerHTML = markup;
+            return table;
+        }
+
+        let table = makeTable('<tbody class="only"></tbody>');
+        println(describe(table, table.insertRow(-1)));
+
+        table = makeTable('<tbody class="only"></tbody>');
+        println(describe(table, table.insertRow(0)));
+
+        table = makeTable('<tbody class="first"></tbody><tbody class="last"></tbody>');
+        println(describe(table, table.insertRow(-1)));
+
+        table = makeTable('<thead class="head"></thead>');
+        println(describe(table, table.insertRow(-1)));
+
+        table = makeTable("");
+        println(describe(table, table.insertRow(-1)));
+
+        table = makeTable('<tbody class="only"></tbody>');
+        for (let i = 0; i < 3; ++i)
+            table.insertRow(-1);
+        println(`tBodies=${table.tBodies.length} rows=${table.rows.length} ` +
+            `onlyRows=${table.tBodies[0].rows.length}`);
+    });
+</script>

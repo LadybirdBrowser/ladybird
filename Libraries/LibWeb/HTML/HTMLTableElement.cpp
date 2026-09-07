@@ -440,23 +440,45 @@ WebIDL::ExceptionOr<GC::Ref<HTMLTableRowElement>> HTMLTableElement::insert_row(W
     auto rows = this->rows();
     auto rows_length = rows->length();
 
+    // 1. If index is less than -1 or greater than the number of elements in the rows collection, then throw an
+    //    "IndexSizeError" DOMException.
     if (index < -1 || index > (long)rows_length) {
         return WebIDL::IndexSizeError::create("Index is negative or greater than the number of rows"_utf16);
     }
+
+    // 2. Let tr be the result of creating a table element given this and "tr".
     auto& tr = static_cast<HTMLTableRowElement&>(*TRY(DOM::create_element(document(), TagNames::tr, Namespace::HTML)));
-    if (rows_length == 0 && !has_child_of_type<HTMLTableRowElement>()) {
+
+    auto t_bodies = this->t_bodies();
+    auto t_bodies_length = t_bodies->length();
+
+    // 3. If the rows collection has zero elements in it, and this has no tbody elements in it:
+    if (rows_length == 0 && t_bodies_length == 0) {
+        // 1. Let tbody be the result of creating a table element given this and "tbody".
         auto tbody = TRY(DOM::create_element(document(), TagNames::tbody, Namespace::HTML));
+
+        // 2. Append tr to tbody.
         TRY(tbody->append_child(tr));
+
+        // 3. Append tbody to this.
         TRY(append_child(tbody));
-    } else if (rows_length == 0) {
-        auto tbody = last_child_of_type<HTMLTableRowElement>();
-        TRY(tbody->append_child(tr));
-    } else if (index == -1 || index == (long)rows_length) {
+    }
+    // 4. Otherwise, if the rows collection has zero elements in it, then append tr to the last tbody element in this.
+    else if (rows_length == 0) {
+        TRY(t_bodies->item(t_bodies_length - 1)->append_child(tr));
+    }
+    // 5. Otherwise, if index is -1 or equal to the number of items in the rows collection, then append tr to the
+    //    parent of the last tr element in the rows collection.
+    else if (index == -1 || index == (long)rows_length) {
         auto parent_of_last_tr = rows->item(rows_length - 1)->parent_element();
         TRY(parent_of_last_tr->append_child(tr));
-    } else {
+    }
+    // 6. Otherwise, insert tr immediately before the indexth tr element in the rows collection, in the same parent.
+    else {
         rows->item(index)->parent_element()->insert_before(tr, rows->item(index));
     }
+
+    // 7. Return tr.
     return GC::Ref(tr);
 }
 
