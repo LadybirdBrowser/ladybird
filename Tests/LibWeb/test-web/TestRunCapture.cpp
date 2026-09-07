@@ -45,7 +45,7 @@ TestRunCapture::TestRunCapture()
     m_previous_on_process_exited = move(process_manager.on_process_exited);
     process_manager.on_process_exited = [this](WebView::Process&& process, Optional<int> exit_status) {
         consume_view_capture(process);
-        consume_helper_capture(process.pid());
+        consume_helper_capture(process);
         log_helper_message(
             { process.type(), process.pid() },
             m_stderr_capture.original_fd.value_or(STDERR_FILENO),
@@ -149,6 +149,14 @@ void TestRunCapture::setup_output_capture_for_view(TestWebView& view, ViewOutput
     if (!output_capture.stdout_file && !output_capture.stderr_file)
         return;
 
+    if (auto capture = m_helper_output_captures.take(process->pid()); capture.has_value()) {
+        auto helper_capture = capture.release_value();
+        if (helper_capture->stdout_notifier)
+            helper_capture->stdout_notifier->close();
+        if (helper_capture->stderr_notifier)
+            helper_capture->stderr_notifier->close();
+    }
+
     view_capture.web_content_pid = process->pid();
 
     if (output_capture.stdout_file) {
@@ -236,7 +244,7 @@ void TestRunCapture::restore_stderr()
 
 void TestRunCapture::setup_output_capture_for_helper_process(WebView::Process& process)
 {
-    if (process.type() == WebView::ProcessType::Browser || process.type() == WebView::ProcessType::WebContent)
+    if (process.type() == WebView::ProcessType::Browser)
         return;
 
     auto const pid = process.pid();
@@ -253,20 +261,16 @@ void TestRunCapture::setup_output_capture_for_helper_process(WebView::Process& p
     auto* helper_capture_ptr = helper_capture.ptr();
 
     if (output_capture.stdout_file) {
-        helper_capture->stdout_reader = move(output_capture.stdout_file);
-        setup_capture_notifier(helper_capture->stdout_notifier, *helper_capture->stdout_reader, false, [this, capture = helper_capture_ptr](StringView message) {
+        setup_capture_notifier(helper_capture->stdout_notifier, *output_capture.stdout_file, false, [this, capture = helper_capture_ptr](StringView message) {
             log_helper_message({ capture->type, capture->pid }, STDOUT_FILENO, message);
         });
     }
     if (output_capture.stderr_file) {
-        helper_capture->stderr_reader = move(output_capture.stderr_file);
-        setup_capture_notifier(helper_capture->stderr_notifier, *helper_capture->stderr_reader, false, [this, capture = helper_capture_ptr](StringView message) {
-            log_helper_message(
-                { capture->type, capture->pid },
-                m_stderr_capture.original_fd.value_or(STDERR_FILENO),
-                message);
+        setup_capture_notifier(helper_capture->stderr_notifier, *output_capture.stderr_file, false, [this, capture = helper_capture_ptr](StringView message) {
+            log_helper_message({ capture->type, capture->pid }, m_stderr_capture.original_fd.value_or(STDERR_FILENO), message);
         });
     }
+
     m_helper_output_captures.set(pid, move(helper_capture));
 }
 
@@ -313,29 +317,33 @@ static bool drain_capture_output(Core::File& file, bool drain_available, Functio
     }
 }
 
-void TestRunCapture::consume_helper_capture(pid_t pid)
+void TestRunCapture::consume_helper_capture(WebView::Process& process)
 {
-    auto capture = m_helper_output_captures.take(pid);
+    auto capture = m_helper_output_captures.take(process.pid());
     if (!capture.has_value())
         return;
 
     auto helper_capture = capture.release_value();
+    if (helper_capture->stdout_notifier)
+        helper_capture->stdout_notifier->set_enabled(false);
+    if (helper_capture->stderr_notifier)
+        helper_capture->stderr_notifier->set_enabled(false);
 
-    helper_capture->stdout_notifier->set_enabled(false);
-    helper_capture->stderr_notifier->set_enabled(false);
-
-    if (helper_capture->stdout_reader) {
-        (void)drain_capture_output(*helper_capture->stdout_reader, true, [this, type = helper_capture->type, pid = helper_capture->pid](StringView message) {
+    auto& output_capture = process.output_capture();
+    if (output_capture.stdout_file) {
+        (void)drain_capture_output(*output_capture.stdout_file, true, [this, type = helper_capture->type, pid = helper_capture->pid](StringView message) {
             log_helper_message({ type, pid }, STDOUT_FILENO, message);
         });
     }
-    if (helper_capture->stderr_reader) {
-        (void)drain_capture_output(*helper_capture->stderr_reader, true, [this, type = helper_capture->type, pid = helper_capture->pid](StringView message) {
+    if (output_capture.stderr_file) {
+        (void)drain_capture_output(*output_capture.stderr_file, true, [this, type = helper_capture->type, pid = helper_capture->pid](StringView message) {
             log_helper_message({ type, pid }, m_stderr_capture.original_fd.value_or(STDERR_FILENO), message);
         });
     }
-    helper_capture->stdout_notifier->close();
-    helper_capture->stderr_notifier->close();
+    if (helper_capture->stdout_notifier)
+        helper_capture->stdout_notifier->close();
+    if (helper_capture->stderr_notifier)
+        helper_capture->stderr_notifier->close();
 }
 
 void TestRunCapture::consume_view_capture(WebView::Process& process)
