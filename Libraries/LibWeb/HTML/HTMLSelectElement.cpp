@@ -709,6 +709,9 @@ void HTMLSelectElement::create_shadow_tree_if_needed()
     m_inner_text_element = DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML).release_value_but_fixme_should_propagate_errors();
     m_inner_text_element->set_attribute_value(HTML::AttributeNames::style, R"~~~(
         flex: 1;
+        min-width: 0;
+        overflow: clip;
+        text-overflow: inherit;
         margin-inline-end: 20px;
     )~~~"_utf16);
     MUST(border->append_child(*m_inner_text_element));

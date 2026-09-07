@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    select { width: 100px; height: 40px; border: 0; padding: 0; font: 20px/20px monospace; }
+</style>
+<select><option>20 Envelopes</option></select>
+<select style="direction: rtl"><option>20 Envelopes</option></select>
+<select style="appearance: none"><option>20 Envelopes</option></select>
+<script>
+    test(() => {
+        for (const select of document.querySelectorAll("select")) {
+            const label = internals.getShadowRoot(select).firstChild.firstChild;
+            const rect = label.getBoundingClientRect();
+            const range = document.createRange();
+            range.selectNodeContents(label);
+            println(`label: ${rect.width}x${rect.height}, text fragments: ${range.getClientRects().length}`);
+        }
+    });
+</script>
