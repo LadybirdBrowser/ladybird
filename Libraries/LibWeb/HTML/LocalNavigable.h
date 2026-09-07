@@ -131,6 +131,9 @@ public:
     virtual Optional<URL::Origin> active_document_origin() const override;
     virtual bool active_document_is_fully_active() const override;
     virtual bool active_document_is(DOM::Document const&) const override;
+    virtual Optional<URL::URL> active_document_top_level_creation_url() const override;
+    virtual Optional<URL::Origin> active_document_top_level_origin() const override;
+    virtual bool active_document_has_cross_site_ancestor() const override;
     ReplicatedNavigableState replicated_state() const;
 
     void save_persisted_state_to_active_session_history_entry();
@@ -216,7 +219,7 @@ public:
     void reload(Optional<StorageSerializationRecord> navigation_api_state = {}, UserNavigationInvolvement = UserNavigationInvolvement::None);
 
     // https://github.com/whatwg/html/issues/9690
-    [[nodiscard]] bool has_been_destroyed() const { return m_has_been_destroyed; }
+    [[nodiscard]] virtual bool has_been_destroyed() const override { return m_has_been_destroyed; }
     void set_has_been_destroyed();
     void report_child_frame_destroyed();
     void unload_child_navigable_before_destruction(GC::Ref<GC::Function<void()>> after_all_unloads);

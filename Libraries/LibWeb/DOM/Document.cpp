@@ -375,21 +375,21 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
         VERIFY(window);
 
         // 7. Let topLevelCreationURL be creationURL.
-        auto top_level_creation_url = creation_url;
+        Optional<URL::URL> top_level_creation_url = creation_url.copy();
 
         // 8. Let topLevelOrigin be navigationParams's origin.
         auto top_level_origin = navigation_params.origin;
 
         // 9. If navigable's container is not null, then:
-        if (navigation_params.navigable->container()) {
+        // NB: The container's relevant settings object is that of the parent navigable's active document, which the
+        //     parent navigable provides even when the container is hosted in another process.
+        if (auto parent = navigation_params.navigable->parent()) {
             // 1. Let parentEnvironment be navigable's container's relevant settings object.
-            auto& parent_environment = HTML::relevant_settings_object(*navigation_params.navigable->container());
-
             // 2. Set topLevelCreationURL to parentEnvironment's top-level creation URL.
-            top_level_creation_url = parent_environment.top_level_creation_url;
+            top_level_creation_url = parent->active_document_top_level_creation_url();
 
             // 3. Set topLevelOrigin to parentEnvironment's top-level origin.
-            top_level_origin = parent_environment.top_level_origin.value();
+            top_level_origin = parent->active_document_top_level_origin().value();
         }
 
         // 10. Set up a window environment settings object with creationURL, realm execution context,

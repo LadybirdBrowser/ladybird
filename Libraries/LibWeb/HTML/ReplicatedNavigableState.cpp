@@ -18,6 +18,9 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::ReplicatedNavigableState const
     TRY(encoder.encode(state.active_document_origin));
     TRY(encoder.encode(state.active_document_is_fully_active));
     TRY(encoder.encode(state.active_session_history_entry_identity));
+    TRY(encoder.encode(state.top_level_creation_url));
+    TRY(encoder.encode(state.top_level_origin));
+    TRY(encoder.encode(state.has_cross_site_ancestor));
     return {};
 }
 
@@ -30,6 +33,9 @@ ErrorOr<Web::HTML::ReplicatedNavigableState> decode(Decoder& decoder)
         .active_document_origin = TRY(decoder.decode<URL::Origin>()),
         .active_document_is_fully_active = TRY(decoder.decode<bool>()),
         .active_session_history_entry_identity = TRY(decoder.decode<Web::HTML::SessionHistoryEntryIdentity>()),
+        .top_level_creation_url = TRY(decoder.decode<URL::URL>()),
+        .top_level_origin = TRY(decoder.decode<URL::Origin>()),
+        .has_cross_site_ancestor = TRY(decoder.decode<bool>()),
     };
 }
 

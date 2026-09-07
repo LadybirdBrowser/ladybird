@@ -110,6 +110,9 @@ TEST_CASE(response_browsing_context_is_activated_only_at_commit)
                                           .active_document_origin = destination_url.origin(),
                                           .active_document_is_fully_active = true,
                                           .active_session_history_entry_identity = {},
+                                          .top_level_creation_url = destination_url,
+                                          .top_level_origin = destination_url.origin(),
+                                          .has_cross_site_ancestor = false,
                                       },
         navigation_id);
     EXPECT_EQ(&traversable.active_browsing_context(), destination_context.ptr());

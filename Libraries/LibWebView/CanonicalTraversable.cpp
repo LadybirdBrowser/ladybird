@@ -198,6 +198,9 @@ void CanonicalTraversable::create_a_new_top_level_traversable(Optional<Canonical
         .active_document_origin = document_origin,
         .active_document_is_fully_active = true,
         .active_session_history_entry_identity = Web::HTML::session_history_entry_identity(initial_history_entry),
+        .top_level_creation_url = initial_history_entry.url,
+        .top_level_origin = document_origin,
+        .has_cross_site_ancestor = false,
     });
 
     // 7. Let initialHistoryEntry be traversable's active session history entry.

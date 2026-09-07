@@ -33,6 +33,8 @@ public:
 
     bool is_ancestor_of(Navigable const&) const;
 
+    virtual bool has_been_destroyed() const = 0;
+
     virtual GC::Ptr<WindowProxy> active_window_proxy() = 0;
     virtual Utf16String const& target_name() const = 0;
     virtual bool is_traversable() const { return false; }
@@ -43,6 +45,10 @@ public:
     virtual Optional<URL::Origin> active_document_origin() const = 0;
     virtual bool active_document_is_fully_active() const = 0;
     virtual bool active_document_is(DOM::Document const&) const = 0;
+
+    virtual Optional<URL::URL> active_document_top_level_creation_url() const = 0;
+    virtual Optional<URL::Origin> active_document_top_level_origin() const = 0;
+    virtual bool active_document_has_cross_site_ancestor() const = 0;
 
     virtual bool has_session_history_entry_and_ready_for_navigation() const = 0;
     virtual bool delays_the_load_event_of_its_container() const = 0;
