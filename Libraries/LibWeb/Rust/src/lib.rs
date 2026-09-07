@@ -4,9 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-// Unconditional in every build flavor: the HTML tokenizer transfers allocation
-// ownership across the FFI boundary, so the crate-global allocator must stay
-// the Ladybird allocator for C++-side frees to stay balanced.
+// The browser transfers HTML buffers to C++, so both sides must use the same allocator.
+// The standalone replay program has no C++ runtime or cross-language buffer transfers.
+#[cfg(not(feature = "style-replay"))]
+/// cbindgen:ignore
 #[path = "../../../RustAllocator.rs"]
 mod rust_allocator;
 

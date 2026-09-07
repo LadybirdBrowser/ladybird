@@ -5,6 +5,7 @@
  */
 
 #[cfg(feature = "allocator")]
+/// cbindgen:ignore
 #[path = "../../../../RustAllocator.rs"]
 mod rust_allocator;
 

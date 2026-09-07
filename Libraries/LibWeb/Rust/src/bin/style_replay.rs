@@ -4,9 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use std::alloc::GlobalAlloc;
-use std::alloc::Layout;
-use std::alloc::System;
 use std::collections::BTreeMap;
 use std::collections::BTreeSet;
 use std::collections::HashSet;
@@ -2715,80 +2712,6 @@ fn read_declaration_kind(payload: &mut PayloadReader) -> Result<FfiElementDeclar
         2 => FfiElementDeclarationKind::SvgPresentationAttribute,
         value => return Err(format!("unknown element declaration kind {value}").into()),
     })
-}
-
-unsafe fn standalone_alloc(size: usize, alignment: usize) -> *mut u8 {
-    if !alignment.is_power_of_two() {
-        return std::ptr::null_mut();
-    }
-    let metadata_size = 2 * size_of::<usize>();
-    let Some(total_size) = size
-        .max(1)
-        .checked_add(alignment.saturating_sub(1))
-        .and_then(|size| size.checked_add(metadata_size))
-    else {
-        return std::ptr::null_mut();
-    };
-    let Ok(layout) = Layout::from_size_align(total_size, align_of::<usize>()) else {
-        return std::ptr::null_mut();
-    };
-    let base = unsafe { System.alloc(layout) };
-    if base.is_null() {
-        return base;
-    }
-    let unaligned = base as usize + metadata_size;
-    let aligned = unaligned.next_multiple_of(alignment);
-    let metadata = (aligned - metadata_size) as *mut usize;
-    unsafe {
-        *metadata = base as usize;
-        *metadata.add(1) = total_size;
-    }
-    aligned as *mut u8
-}
-
-unsafe fn standalone_dealloc(pointer: *mut u8) {
-    if pointer.is_null() {
-        return;
-    }
-    let metadata = unsafe { pointer.cast::<usize>().sub(2) };
-    let base = unsafe { *metadata } as *mut u8;
-    let total_size = unsafe { *metadata.add(1) };
-    let layout = Layout::from_size_align(total_size, align_of::<usize>()).expect("invalid retained allocation layout");
-    unsafe { System.dealloc(base, layout) };
-}
-
-#[unsafe(no_mangle)]
-unsafe extern "C" fn ladybird_rust_alloc(size: usize, alignment: usize) -> *mut u8 {
-    unsafe { standalone_alloc(size, alignment) }
-}
-
-#[unsafe(no_mangle)]
-unsafe extern "C" fn ladybird_rust_alloc_zeroed(size: usize, alignment: usize) -> *mut u8 {
-    let pointer = unsafe { standalone_alloc(size, alignment) };
-    if !pointer.is_null() {
-        unsafe { pointer.write_bytes(0, size) };
-    }
-    pointer
-}
-
-#[unsafe(no_mangle)]
-unsafe extern "C" fn ladybird_rust_dealloc(pointer: *mut u8, _alignment: usize) {
-    unsafe { standalone_dealloc(pointer) };
-}
-
-#[unsafe(no_mangle)]
-unsafe extern "C" fn ladybird_rust_realloc(
-    pointer: *mut u8,
-    old_size: usize,
-    new_size: usize,
-    alignment: usize,
-) -> *mut u8 {
-    let new_pointer = unsafe { standalone_alloc(new_size, alignment) };
-    if !new_pointer.is_null() {
-        unsafe { pointer.copy_to_nonoverlapping(new_pointer, old_size.min(new_size)) };
-        unsafe { standalone_dealloc(pointer) };
-    }
-    new_pointer
 }
 
 #[unsafe(no_mangle)]
