@@ -317,6 +317,13 @@ bool CompositorConnection::request_rendering_opportunity(Web::Compositor::Compos
     return true;
 }
 
+void CompositorConnection::hurry_rendering_opportunity(Web::Compositor::CompositorContextId context_id)
+{
+    if (!can_send_message_to_compositor())
+        return;
+    async_hurry_rendering_opportunity(context_id);
+}
+
 void CompositorConnection::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect)
 {
     if (!can_send_message_to_compositor())

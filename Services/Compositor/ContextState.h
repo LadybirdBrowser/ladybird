@@ -156,6 +156,8 @@ public:
 
     bool request_rendering_opportunity(double maximum_frames_per_second);
     bool rendering_opportunity_requested() const { return m_rendering_opportunity_requested; }
+    bool window_resize_in_progress() const { return m_window_resize_in_progress == Web::Compositor::WindowResizingInProgress::Yes; }
+    bool is_present_blocked() const;
     double rendering_opportunity_frame_interval(double display_refresh_rate) const;
     bool rendering_opportunity_is_due(MonotonicTime frame_time, double display_refresh_rate) const;
     void did_deliver_rendering_opportunity(MonotonicTime frame_time);
@@ -212,7 +214,6 @@ private:
     void rebuild_wheel_hit_test_targets();
     void discard_sampled_visual_context_tree();
     void invalidate_visual_context_tree_for_compositing();
-    bool is_present_blocked() const;
     bool can_render_frame() const;
     Web::Painting::AccumulatedVisualContextTree const& visual_context_tree_for_compositing();
     enum class PaintUIOverlay : u8 {

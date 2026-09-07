@@ -36,6 +36,7 @@ public:
     virtual Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates(Web::Compositor::CompositorContextId, Web::Compositor::AsyncScrollUpdateFreshness) override;
     virtual void viewport_size_updated(Web::Compositor::CompositorContextId, Gfx::IntSize, Web::Compositor::WindowResizingInProgress) override;
     virtual bool request_rendering_opportunity(Web::Compositor::CompositorContextId, double maximum_frames_per_second) override;
+    virtual void hurry_rendering_opportunity(Web::Compositor::CompositorContextId) override;
     virtual void present_frame(Web::Compositor::CompositorContextId, Gfx::IntRect viewport_rect) override;
     virtual void request_screenshot(Web::Compositor::CompositorContextId, NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&& callback) override;
 

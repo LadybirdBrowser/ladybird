@@ -108,6 +108,9 @@ public:
     void set_display_metadata(Web::Compositor::CompositorContextId, Optional<u64> display_id, double refresh_rate);
     void set_context_visibility(Web::Compositor::CompositorContextId, Web::Compositor::ContextVisibility);
     void present_frame(Web::Compositor::CompositorContextId, Gfx::IntRect viewport_rect);
+    // Delivers the rendering opportunity a context requested now rather than at the next display tick: a
+    // viewport change that arrived while an animation's opportunity was outstanding starts its update at once.
+    void hurry_rendering_opportunity(Web::Compositor::CompositorContextId);
     bool request_screenshot(Web::Compositor::CompositorContextId, Gfx::ShareableBitmap&);
     void presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId, i32 bitmap_id);
     void set_client_gpu_presentation_capability(bool supported, u64 adapter_luid);
@@ -169,7 +172,8 @@ private:
         Web::Compositor::CompositorContextId,
         ContextState&,
         ContextState::ContextUpdateResult const&);
-    void present_frame(Web::Compositor::CompositorContextId, ContextState&, ContextState::PendingFrame);
+    // Whether the frame was prepared and submitted; a blocked frame is the caller's to schedule.
+    bool present_frame(Web::Compositor::CompositorContextId, ContextState&, ContextState::PendingFrame);
     void schedule_present_frame(Web::Compositor::CompositorContextId, ContextState&, ContextState::PendingFrame);
     void schedule_present_frame(Web::Compositor::CompositorContextId, ContextState&, Gfx::IntRect viewport_rect);
     void schedule_pending_present_frame(Web::Compositor::CompositorContextId, ContextState&);
