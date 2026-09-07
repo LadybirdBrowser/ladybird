@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Utf16String.h>
+#include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/InitialInsertion.h>
@@ -35,6 +36,13 @@ public:
     DOM::Document const* get_svg_document() const;
 
     void destroy_the_child_navigable();
+    static void continue_destroying_the_child_navigable(Navigable&);
+
+    void swap_content_navigable_to_remote(Badge<Page>, ReplicatedNavigableState);
+    void swap_content_navigable_to_local(Badge<Page>, LocalNavigable&);
+
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#completely-finish-loading
+    void content_navigable_completely_finished_loading();
 
     // All elements that extend NavigableContainer "potentially delay the load event".
     // (embed, frame, iframe, and object)
@@ -67,6 +75,8 @@ private:
     virtual bool is_navigable_container() const override { return true; }
 
     virtual void finalize() override;
+
+    static void finish_destroying_the_child_navigable(Navigable&);
 
     bool m_potentially_delays_the_load_event { true };
 };

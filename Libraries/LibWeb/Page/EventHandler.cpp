@@ -238,7 +238,10 @@ static Optional<EventResult> dispatch_event_to_nested_navigable(Layout::Node con
     if (Painting::is_navigable_container_viewport_paintable(layout_node)) {
         auto position = Painting::transform_to_local_coordinates(layout_node, viewport_position) - Painting::absolute_rect(layout_node).location();
         if (auto content_navigable = as_if<HTML::NavigableContainer>(*node)->content_navigable()) {
-            return dispatch(as<HTML::LocalNavigable>(*content_navigable).event_handler(), position);
+            // The UI process dispatches events over content hosted by another process to that process.
+            if (auto* local_navigable = as_if<HTML::LocalNavigable>(*content_navigable))
+                return dispatch(local_navigable->event_handler(), position);
+            return EventResult::Dropped;
         }
         return EventResult::Dropped;
     }
@@ -2121,8 +2124,13 @@ EventResult EventHandler::fire_keyboard_event(Utf16FlyString const& event_name, 
     if (GC::Ptr focused_area = document->focused_area()) {
         if (is<HTML::NavigableContainer>(*focused_area)) {
             auto& navigable_container = as<HTML::NavigableContainer>(*focused_area);
-            if (navigable_container.content_navigable())
-                return fire_keyboard_event(event_name, as<HTML::LocalNavigable>(*navigable_container.content_navigable()), key, modifiers, code_point, repeat);
+            if (auto content_navigable = navigable_container.content_navigable()) {
+                // FIXME: Route keyboard input to a navigable hosted by another process.
+                auto* local_navigable = as_if<HTML::LocalNavigable>(*content_navigable);
+                if (!local_navigable)
+                    return EventResult::Dropped;
+                return fire_keyboard_event(event_name, *local_navigable, key, modifiers, code_point, repeat);
+            }
         }
 
         auto event = UIEvents::KeyboardEvent::create_from_platform_event(HTML::relevant_global_object(*document), event_name, key, modifiers, code_point, repeat);
@@ -2151,8 +2159,13 @@ EventResult EventHandler::fire_text_input_event(HTML::LocalNavigable& navigable,
     if (auto focused_area = document->focused_area()) {
         if (is<HTML::NavigableContainer>(*focused_area)) {
             auto& navigable_container = as<HTML::NavigableContainer>(*focused_area);
-            if (navigable_container.content_navigable())
-                return fire_text_input_event(as<HTML::LocalNavigable>(*navigable_container.content_navigable()), data);
+            if (auto content_navigable = navigable_container.content_navigable()) {
+                // FIXME: Route text input to a navigable hosted by another process.
+                auto* local_navigable = as_if<HTML::LocalNavigable>(*content_navigable);
+                if (!local_navigable)
+                    return EventResult::Dropped;
+                return fire_text_input_event(*local_navigable, data);
+            }
         }
 
         auto event = UIEvents::TextEvent::create(Utf16FlyString { UIEvents::EventNames::textInput }, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*document)));
@@ -2189,8 +2202,13 @@ EventResult EventHandler::input_event(Utf16FlyString const& event_name, Utf16Fly
     if (auto focused_area = document->focused_area()) {
         if (is<HTML::NavigableContainer>(*focused_area)) {
             auto& navigable_container = as<HTML::NavigableContainer>(*focused_area);
-            if (navigable_container.content_navigable())
-                return input_event(event_name, input_type, as<HTML::LocalNavigable>(*navigable_container.content_navigable()), move(code_point_or_string));
+            if (auto content_navigable = navigable_container.content_navigable()) {
+                // FIXME: Route input to a navigable hosted by another process.
+                auto* local_navigable = as_if<HTML::LocalNavigable>(*content_navigable);
+                if (!local_navigable)
+                    return EventResult::Dropped;
+                return input_event(event_name, input_type, *local_navigable, move(code_point_or_string));
+            }
         }
 
         auto event = UIEvents::InputEvent::create_from_platform_event(event_name, input_event_init, target_ranges_for_input_event(*document, input_type), HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*document)));

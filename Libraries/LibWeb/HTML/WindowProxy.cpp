@@ -315,6 +315,11 @@ void WindowProxy::set_window(GC::Ref<Window> window)
 void WindowProxy::set_window(GC::Ref<RemoteWindow> window)
 {
     m_window = nullptr;
+    set_remote_window_over_provisional_window(window);
+}
+
+void WindowProxy::set_remote_window_over_provisional_window(GC::Ref<RemoteWindow> window)
+{
     m_remote_window = window;
     m_cross_origin_window_wrapper = nullptr;
     set_prototype(nullptr);

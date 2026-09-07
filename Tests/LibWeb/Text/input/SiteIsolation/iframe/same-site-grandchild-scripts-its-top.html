@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<title>page per tab</title>
+<script src="../../include.js"></script>
+<script>
+    // A grandchild same origin with the top document, under an isolated iframe, is hosted in the top document's
+    // process, in the page displaying the tab: the tab's graph there holds the top document's navigable as the local
+    // one, so top is the real WindowProxy and same-origin access to the document is ordinary.
+    // This page is served over HTTP so that the grandchild can be same origin with it.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const childHostname = uniqueLocalhostHostname("oop-grandchild");
+
+        const checks = [
+            "grandchild-ran",
+            "top-is-not-parent",
+            "parent-parent-is-top",
+            "top-document-readable",
+            "top-title-matches",
+            "top-first-child-is-parent",
+            "top-document-body-has-iframe",
+        ];
+        for (const check of checks) {
+            await httpServer.createEcho("GET", `/oop-grandchild-${runId}-${check}-true`, {
+                status: 200,
+                headers: { "Content-Type": "text/plain" },
+                body: "recorded",
+            });
+        }
+
+        const grandchildUrl = await httpServer.createEcho("GET", `/oop-grandchild-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>
+                const report = (check, ok) => fetch(new URL("/echo/oop-grandchild-${runId}-" + check + "-" + ok, location.href));
+                const run = check => { try { return check(); } catch (e) { return "threw " + e.name; } };
+                report("grandchild-ran", true);
+                report("top-is-not-parent", run(() => top !== parent));
+                report("parent-parent-is-top", run(() => parent.parent === top));
+                report("top-document-readable", run(() => typeof top.document.title === "string"));
+                report("top-title-matches", run(() => top.document.title === "page per tab"));
+                report("top-first-child-is-parent", run(() => top[0] === parent));
+                report("top-document-body-has-iframe", run(() => top.document.querySelector("iframe") !== null));
+            <\/script>`,
+        });
+
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-grandchild-child-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html>child<iframe src="${grandchildUrl}"></iframe>`,
+            })
+        );
+        childUrl.hostname = childHostname;
+
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+
+        for (const check of checks) {
+            const recordedUrl = `${httpServer.baseURL}/recorded-request-headers/echo/oop-grandchild-${runId}-${check}-true`;
+            let recorded = false;
+            for (let attempt = 0; attempt < 400 && !recorded; ++attempt) {
+                try {
+                    recorded = (await fetch(recordedUrl)).ok;
+                } catch {}
+                if (!recorded) await timeout(25);
+            }
+            println(`${check}: ${recorded}`);
+        }
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

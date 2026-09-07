@@ -38,7 +38,9 @@ public:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-container
     GC::Ptr<NavigableContainer> container() const;
-    void set_container(Badge<NavigableContainer>, GC::Ptr<NavigableContainer> container) { m_container = container; }
+    // NB: A page sets the container of the local navigable it created to populate the content navigable's next
+    //     document there, before the navigable is the content navigable, and clears it if it never becomes one.
+    void set_container(Badge<NavigableContainer, Page>, GC::Ptr<NavigableContainer> container) { m_container = container; }
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-container-document
     GC::Ptr<DOM::Document> container_document() const;
@@ -51,6 +53,7 @@ public:
     GC::Ptr<Navigable> find(CrossProcessId);
 
     virtual bool has_been_destroyed() const = 0;
+    virtual void set_has_been_destroyed() = 0;
 
     virtual GC::Ptr<WindowProxy> active_window_proxy() = 0;
     virtual Utf16String const& target_name() const = 0;

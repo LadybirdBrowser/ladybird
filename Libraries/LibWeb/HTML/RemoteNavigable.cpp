@@ -6,13 +6,16 @@
 
 #include <AK/NeverDestroyed.h>
 #include <LibGC/Heap.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/PreparedNavigationDescriptor.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/RemoteWindow.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
 
 namespace Web::HTML {
@@ -136,6 +139,7 @@ Vector<GC::Root<Navigable>> RemoteNavigable::active_document_inclusive_descendan
 
 void RemoteNavigable::set_replicated_state(ReplicatedNavigableState state)
 {
+    auto was_delaying_the_load_event_of_its_container = m_replicated_state.delays_the_load_event_of_its_container;
     auto previous_compositor_context_id = m_replicated_state.compositor_context_id;
     m_replicated_state = move(state);
 
@@ -147,18 +151,36 @@ void RemoteNavigable::set_replicated_state(ReplicatedNavigableState state)
                 local_child->set_parent_compositor_context(m_replicated_state.compositor_context_id);
         }
     }
+
+    // A container here hears from the document through the replicated state what a document here tells it directly.
+    auto container = this->container();
+    if (!container)
+        return;
+    if (previous_compositor_context_id != m_replicated_state.compositor_context_id) {
+        if (auto* layout_node = container->unsafe_layout_node())
+            layout_node->refresh_dom_paint_facts();
+        container->set_needs_repaint();
+    }
+    if (was_delaying_the_load_event_of_its_container && !m_replicated_state.delays_the_load_event_of_its_container)
+        container->document().schedule_html_parser_end_check();
+}
+
+ReplicatedContainerState RemoteNavigable::container_state() const
+{
+    if (auto container = this->container())
+        return container->replicated_container_state();
+    return m_replicated_state.container;
 }
 
 bool RemoteNavigable::has_session_history_entry_and_ready_for_navigation() const
 {
-    // Only a navigable container asks this of its content navigable, and no remote navigable has a container in this
-    // process yet.
-    VERIFY_NOT_REACHED();
+    return m_replicated_state.has_session_history_entry_and_ready_for_navigation;
 }
 
 bool RemoteNavigable::delays_the_load_event_of_its_container() const
 {
-    VERIFY_NOT_REACHED();
+    // A destroyed navigable's document is on its way out, as a local one's is once its delaying flag is cleared.
+    return !has_been_destroyed() && m_replicated_state.delays_the_load_event_of_its_container;
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate

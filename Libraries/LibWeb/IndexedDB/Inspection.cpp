@@ -99,7 +99,11 @@ static Vector<IndexedDatabaseDocument> indexed_database_documents_for_inspection
         if (!content_navigable)
             return TraversalDecision::Continue;
 
-        auto content_document = as<HTML::LocalNavigable>(*content_navigable).active_document();
+        // FIXME: Inspect a document hosted by another process.
+        auto* local_navigable = as_if<HTML::LocalNavigable>(*content_navigable);
+        if (!local_navigable)
+            return TraversalDecision::Continue;
+        auto content_document = local_navigable->active_document();
         if (!content_document)
             return TraversalDecision::Continue;
 

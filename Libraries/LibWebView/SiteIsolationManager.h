@@ -42,6 +42,7 @@ public:
 
     void transition_child_frame_to_remote(WebContentClient& parent_client, Web::PageId page_id, Web::HTML::CrossProcessId frame_id, NonnullRefPtr<WebContentClient>, Web::PageId remote_page_id);
     void transition_child_frame_to_local(CanonicalNavigable&);
+    void detach_child_frame_host(CanonicalNavigable&);
 
     void remove_child_frame_subtree(CanonicalNavigable&);
 

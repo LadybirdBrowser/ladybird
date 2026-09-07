@@ -44,6 +44,9 @@ public:
     void set_window(GC::Ref<Window>);
     GC::Ptr<RemoteWindow> remote_window() const { return m_remote_window; }
     void set_window(GC::Ref<RemoteWindow>);
+    // The [[Window]] is a provisional navigable's, standing in until the document it populates activates. Scripts
+    // keep reaching the document the remote navigable displays through the proxy until then.
+    void set_remote_window_over_provisional_window(GC::Ref<RemoteWindow>);
 
     GC::Ptr<BrowsingContext> associated_browsing_context() const;
 
