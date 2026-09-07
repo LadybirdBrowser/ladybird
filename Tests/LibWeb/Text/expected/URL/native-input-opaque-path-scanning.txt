@@ -1,0 +1,10 @@
+data:text/plain,ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-._~!$&'()*+,;=:@/[]%20%zz
+data:text/plain,space before%20?query#fragment
+data:text/plain,space before%20#fragment
+data:text/plain,%C3%A9%F0%9F%98%80
+data:text/plain,%EF%BF%BDA%EF%BF%BDB%EF%BF%BD%F0%90%80%80
+data:text/plain,abc
+data:text/plain,first?query=%C3%A9%F0%9F%98%80#%E7%89%87
+data:text/plain,first#fragment?not-a-query
+https://example.test/ascii/%C3%A9%F0%9F%98%80?first=1#%E7%89%87
+https://[::1]/path?first=1&second=2#fragment

@@ -16,7 +16,30 @@ use crate::url::Url;
 use crate::url::basic_parse;
 use crate::url::basic_parse_into;
 use crate::url::is_special_scheme;
-use crate::url::parse_host;
+use crate::url::{UrlInput, parse_host_input};
+
+#[repr(C)]
+#[derive(Clone, Copy)]
+pub struct RustUrlInput {
+    pub utf8: *const u8,
+    pub utf16: *const u16,
+    pub length: usize,
+}
+
+impl RustUrlInput {
+    /// # Safety
+    /// The selected pointer must borrow length storage units. Byte input must be valid UTF-8.
+    unsafe fn borrow<'a>(self) -> UrlInput<'a> {
+        if self.length == 0 {
+            return UrlInput::Utf8("");
+        }
+        if !self.utf16.is_null() {
+            UrlInput::Utf16(unsafe { std::slice::from_raw_parts(self.utf16, self.length) })
+        } else {
+            UrlInput::Utf8(unsafe { std::str::from_utf8_unchecked(std::slice::from_raw_parts(self.utf8, self.length)) })
+        }
+    }
+}
 
 #[repr(C)]
 #[derive(Clone, Copy)]
@@ -212,20 +235,18 @@ fn url_to_ffi_result<'a>(url: &'a Url, path_slices: &'a [RustUrlByteSlice]) -> R
 }
 
 /// # Safety
-/// `input` must be valid for `input_length` bytes. `options` must be a valid pointer
+/// `input` must borrow its declared storage, with valid UTF-8 for byte input. `options` must be a valid pointer
 /// whose embedded URL pointers remain valid for the duration of this call. `on_complete`
 /// is called exactly once with the parse result.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_url_basic_parse(
-    input: *const u8,
-    input_length: usize,
+    input: RustUrlInput,
     options: *const RustBasicParseOptions,
     ctx: *mut c_void,
     on_complete: FfiUrlResultFn,
 ) -> bool {
     abort_on_panic(|| {
-        // SAFETY: caller guarantees input is scalar-value UTF-8 and valid for input_length bytes.
-        let input_str = unsafe { std::str::from_utf8_unchecked(std::slice::from_raw_parts(input, input_length)) };
+        let input_str = unsafe { input.borrow() };
 
         let options = unsafe { options.as_ref() };
 
@@ -282,21 +303,19 @@ pub unsafe extern "C" fn rust_url_basic_parse(
 }
 
 /// # Safety
-/// `input` must be valid for `input_length` bytes.
+/// `input` must borrow its declared storage, with valid UTF-8 for byte input.
 /// `on_complete` is called exactly once with either a host result or null.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_url_parse_host(
-    input: *const u8,
-    input_length: usize,
+    input: RustUrlInput,
     is_opaque: bool,
     ctx: *mut c_void,
     on_complete: FfiHostResultFn,
 ) -> bool {
     abort_on_panic(|| {
-        // SAFETY: caller guarantees input is scalar-value UTF-8 and valid for input_length bytes.
-        let input_str = unsafe { std::str::from_utf8_unchecked(std::slice::from_raw_parts(input, input_length)) };
+        let input_str = unsafe { input.borrow() };
 
-        let Some(host) = parse_host(input_str, is_opaque) else {
+        let Some(host) = parse_host_input(input_str, is_opaque) else {
             // SAFETY: on_complete is a valid function pointer; ctx is caller-provided.
             unsafe { on_complete(ctx, std::ptr::null()) };
             return false;

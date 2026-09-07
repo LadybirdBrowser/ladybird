@@ -16,6 +16,14 @@ namespace Unicode::IDNA {
 // https://www.unicode.org/reports/tr46/#ToASCII
 ErrorOr<String> to_ascii(Utf8View domain_name, ToAsciiOptions const& options)
 {
+    return to_ascii(Utf16String::from_utf8(domain_name.as_string()), options);
+}
+
+ErrorOr<String> to_ascii(Utf16View domain_name, ToAsciiOptions const& options)
+{
+    if (domain_name.length_in_code_units() > static_cast<size_t>(NumericLimits<i32>::max()))
+        return Error::from_string_literal("Domain name is too long");
+
     u32 icu_options = 0;
 
     if (options.check_bidi == CheckBidi::Yes)
@@ -33,11 +41,9 @@ ErrorOr<String> to_ascii(Utf8View domain_name, ToAsciiOptions const& options)
     if (icu_failure(status))
         return Error::from_string_literal("Unable to create an IDNA instance");
 
-    StringBuilder builder { domain_name.as_string().length() };
-    icu::StringByteSink sink { &builder };
-
+    icu::UnicodeString output;
     icu::IDNAInfo info;
-    idna->nameToASCII_UTF8(icu_string_piece(domain_name.as_string()), sink, info, status);
+    idna->nameToASCII(icu_string(domain_name), output, info, status);
 
     auto errors = info.getErrors();
 
@@ -60,6 +66,12 @@ ErrorOr<String> to_ascii(Utf8View domain_name, ToAsciiOptions const& options)
     if (icu_failure(status) || errors != 0)
         return Error::from_string_literal("Unable to convert domain to ASCII");
 
+    StringBuilder builder { static_cast<size_t>(output.length()) };
+    for (i32 index = 0; index < output.length(); ++index) {
+        auto code_unit = output.charAt(index);
+        VERIFY(code_unit <= 0x7f);
+        builder.append(static_cast<char>(code_unit));
+    }
     return builder.to_string();
 }
 
@@ -67,7 +79,7 @@ ErrorOr<String> to_ascii(Utf8View domain_name, ToAsciiOptions const& options)
 
 namespace Unicode::FFI {
 
-extern "C" void unicode_rust_idna_to_ascii(uint8_t const* domain, size_t domain_length, ToAsciiOptions const* options, void* ctx, FfiIdnaResultFn on_success)
+extern "C" void unicode_rust_idna_to_ascii(uint16_t const* domain, size_t domain_length, ToAsciiOptions const* options, void* ctx, FfiIdnaResultFn on_success)
 {
     Unicode::IDNA::ToAsciiOptions const cpp_options {
         options->check_hyphens ? Unicode::IDNA::CheckHyphens::Yes : Unicode::IDNA::CheckHyphens::No,
@@ -79,7 +91,7 @@ extern "C" void unicode_rust_idna_to_ascii(uint8_t const* domain, size_t domain_
         options->ignore_invalid_punycode ? Unicode::IDNA::IgnoreInvalidPunycode::Yes : Unicode::IDNA::IgnoreInvalidPunycode::No,
     };
 
-    auto result = Unicode::IDNA::to_ascii(Utf8View { StringView { domain, domain_length } }, cpp_options);
+    auto result = Unicode::IDNA::to_ascii(Utf16View { reinterpret_cast<char16_t const*>(domain), domain_length }, cpp_options);
     if (result.is_error())
         return;
 

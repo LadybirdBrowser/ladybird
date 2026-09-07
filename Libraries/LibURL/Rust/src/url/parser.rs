@@ -4,52 +4,43 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use std::borrow::Cow;
+use super::UrlInput;
 
 use super::BasicParseOptions;
 use super::Host;
 use super::State;
 use super::Url;
 use super::default_port_for_scheme;
-use super::host::parse_host;
+use super::host::parse_host_input;
 use super::is_special_scheme;
 use super::percent_encoding::PercentEncodeSet;
 use super::percent_encoding::append_percent_encoded_if_necessary;
-use super::percent_encoding::percent_encode;
 use super::percent_encoding::percent_encode_after_encoding;
+use super::percent_encoding::percent_encode_input;
 use crate::textcodec::get_output_encoding;
 
-pub(super) fn starts_with_two_ascii_hex_digits(remaining: &str) -> bool {
-    let bytes = remaining.as_bytes();
-    bytes.len() >= 3 && bytes[1].is_ascii_hexdigit() && bytes[2].is_ascii_hexdigit()
+pub(super) fn starts_with_two_ascii_hex_digits(remaining: UrlInput<'_>) -> bool {
+    let mut characters = remaining.chars().skip(1);
+    characters.next().is_some_and(|character| character.is_ascii_hexdigit())
+        && characters.next().is_some_and(|character| character.is_ascii_hexdigit())
 }
 
-fn contains_ascii_tab_or_newline(input: &str) -> bool {
-    input.chars().any(|code_point| matches!(code_point, '\t' | '\n' | '\r'))
-}
-
-fn strip_ascii_tab_or_newline(input: &str) -> Cow<'_, str> {
-    if !contains_ascii_tab_or_newline(input) {
-        return Cow::Borrowed(input);
-    }
-
-    let mut output = String::with_capacity(input.len());
-    for code_point in input.chars() {
-        if !matches!(code_point, '\t' | '\n' | '\r') {
-            output.push(code_point);
-        }
-    }
-    Cow::Owned(output)
-}
-
-pub(super) fn preprocess_input(input: &str, url_is_given: bool) -> Cow<'_, str> {
-    let trimmed_input = if url_is_given {
-        input
-    } else {
-        input.trim_matches(is_ascii_c0_control_or_space)
-    };
-
-    strip_ascii_tab_or_newline(trimmed_input)
+fn preprocess_input(input: UrlInput<'_>, url_is_given: bool) -> (UrlInput<'_>, Option<Vec<u16>>) {
+    let input = if url_is_given { input } else { input.trim_ascii_c0() };
+    let cleaned = input
+        .chars()
+        .any(|character| matches!(character, '\t' | '\n' | '\r'))
+        .then(|| {
+            let mut output = Vec::new();
+            for character in input
+                .chars()
+                .filter(|character| !matches!(character, '\t' | '\n' | '\r'))
+            {
+                output.extend_from_slice(character.encode_utf16(&mut [0; 2]));
+            }
+            output
+        });
+    (input, cleaned)
 }
 
 // https://url.spec.whatwg.org/#validation-error
@@ -134,20 +125,6 @@ fn is_ascii_path_state_copyable_byte(byte: u8) -> bool {
         )
 }
 
-#[inline]
-fn is_ascii_query_state_copyable_byte(byte: u8) -> bool {
-    is_ascii_url_code_point_byte(byte)
-}
-
-#[inline]
-fn ascii_copyable_state_prefix_length(input: &str, is_copyable_byte: impl Fn(u8) -> bool) -> usize {
-    input
-        .as_bytes()
-        .iter()
-        .position(|&byte| !is_copyable_byte(byte))
-        .unwrap_or(input.len())
-}
-
 // https://url.spec.whatwg.org/#single-dot-path-segment
 pub(super) fn is_single_dot_path_segment(input: &[u8]) -> bool {
     // A single-dot URL path segment is a URL path segment that is "." or an ASCII case-insensitive match for "%2e".
@@ -165,7 +142,7 @@ pub(super) fn is_double_dot_path_segment(input: &[u8]) -> bool {
 }
 
 // https://url.spec.whatwg.org/#start-with-a-windows-drive-letter
-pub(super) fn starts_with_windows_drive_letter(input: &str) -> bool {
+pub(super) fn starts_with_windows_drive_letter(input: UrlInput<'_>) -> bool {
     // A string starts with a Windows drive letter if all of the following are true:
 
     // * its length is greater than or equal to 2
@@ -197,6 +174,10 @@ pub(super) fn url_includes_credentials(url: &Url) -> bool {
 
 // https://url.spec.whatwg.org/#windows-drive-letter
 pub(super) fn is_windows_drive_letter(input: &str) -> bool {
+    is_windows_drive_letter_input(input.into())
+}
+
+fn is_windows_drive_letter_input(input: UrlInput<'_>) -> bool {
     // A Windows drive letter is two code points, of which the first is an ASCII alpha and the second is either U+003A (:) or U+007C (|).
     let mut code_points = input.chars();
     matches!(
@@ -245,7 +226,7 @@ pub(super) fn cloned_shortened_path(base_url: &Url) -> Vec<String> {
 
 // https://url.spec.whatwg.org/#concept-basic-url-parser
 pub(crate) fn basic_parse_into(
-    input: &str,
+    input: UrlInput<'_>,
     url: &mut Url,
     options: &BasicParseOptions<'_>,
     url_is_given: bool,
@@ -258,16 +239,15 @@ pub(crate) fn basic_parse_into(
 
         // 2. If input contains any leading or trailing C0 control or space, invalid-URL-unit validation error.
         // 3. Remove any leading and trailing C0 control or space from input.
-        let trimmed_input = input.trim_matches(is_ascii_c0_control_or_space);
-        if trimmed_input.len() != input.len() {
+        if input.trim_ascii_c0().len() != input.len() {
             report_validation_error(State::SchemeStart, 0, input.chars().next(), "invalid-URL-unit");
         }
     }
 
     // 2. If input contains any ASCII tab or newline, invalid-URL-unit validation error.
     // 3. Remove all ASCII tab or newline from input.
-    let processed_input = preprocess_input(input, url_is_given);
-    let processed_input = processed_input.as_ref();
+    let (trimmed_input, cleaned_input) = preprocess_input(input, url_is_given);
+    let processed_input = cleaned_input.as_deref().map(UrlInput::Utf16).unwrap_or(trimmed_input);
 
     // 4. Let state be state override if given, or scheme start state otherwise.
     let mut state = options.state_override.unwrap_or(State::SchemeStart);
@@ -277,6 +257,7 @@ pub(crate) fn basic_parse_into(
 
     // 6. Let buffer be the empty string.
     let mut buffer = String::new();
+    let mut host_start = None;
 
     // 7. Let atSignSeen, insideBrackets, and passwordTokenSeen be false.
     let mut inside_brackets = false;
@@ -293,14 +274,14 @@ pub(crate) fn basic_parse_into(
     //    Otherwise, increase pointer by 1 and continue with the state machine.
     loop {
         let remaining = if pointer < processed_input.len() {
-            &processed_input[pointer..]
+            processed_input.suffix(pointer)
         } else {
-            ""
+            processed_input.suffix(processed_input.len())
         };
         let code_point = remaining.chars().next();
         let remaining_after_code_point = code_point
-            .map(|code_point| &remaining[code_point.len_utf8()..])
-            .unwrap_or("");
+            .map(|code_point| remaining.suffix(remaining.char_length(code_point)))
+            .unwrap_or(remaining);
 
         match state {
             // -> scheme start state, https://url.spec.whatwg.org/#scheme-start-state
@@ -400,7 +381,7 @@ pub(crate) fn basic_parse_into(
                     }
                     // 8. Otherwise, if remaining starts with an U+002F (/), set state to path or authority state and
                     //    increase pointer by 1.
-                    else if remaining_after_code_point.starts_with('/') {
+                    else if remaining_after_code_point.starts_with("/") {
                         state = State::PathOrAuthority;
                         pointer += 1;
                     }
@@ -623,8 +604,8 @@ pub(crate) fn basic_parse_into(
                     (matches!(byte, '@' | '/' | '?' | '#') || (url.is_special() && byte == '\\')).then_some(index)
                 });
                 let authority_length = authority_end.unwrap_or(remaining.len());
-                let authority = &remaining[..authority_length];
-                let delimiter_code_point = remaining[authority_length..].chars().next();
+                let authority = remaining.slice(0..authority_length);
+                let delimiter_code_point = remaining.suffix(authority_length).chars().next();
 
                 // 1. If c is U+0040 (@), then:
                 if delimiter_code_point == Some('@') {
@@ -654,20 +635,20 @@ pub(crate) fn basic_parse_into(
                     //     3. If passwordTokenSeen is true, then append encodedCodePoints to url’s password.
                     //     4. Otherwise, append encodedCodePoints to url’s username.
                     if password_token_seen {
-                        let encoded_authority = percent_encode(authority, PercentEncodeSet::Userinfo, false);
+                        let encoded_authority = percent_encode_input(authority, PercentEncodeSet::Userinfo, false);
                         password_builder.push_str(&encoded_authority);
                     } else if let Some(password_end) = authority.find(':') {
                         password_token_seen = true;
 
                         let encoded_username =
-                            percent_encode(&authority[..password_end], PercentEncodeSet::Userinfo, false);
+                            percent_encode_input(authority.slice(0..password_end), PercentEncodeSet::Userinfo, false);
                         let encoded_password =
-                            percent_encode(&authority[password_end + 1..], PercentEncodeSet::Userinfo, false);
+                            percent_encode_input(authority.suffix(password_end + 1), PercentEncodeSet::Userinfo, false);
 
                         username_builder.push_str(&encoded_username);
                         password_builder.push_str(&encoded_password);
                     } else {
-                        let encoded_authority = percent_encode(authority, PercentEncodeSet::Userinfo, false);
+                        let encoded_authority = percent_encode_input(authority, PercentEncodeSet::Userinfo, false);
                         username_builder.push_str(&encoded_authority);
                     }
 
@@ -699,6 +680,8 @@ pub(crate) fn basic_parse_into(
             // -> host state, https://url.spec.whatwg.org/#host-state
             // -> hostname state, https://url.spec.whatwg.org/#hostname-state
             State::Host | State::Hostname => {
+                let start = *host_start.get_or_insert(pointer);
+                let host_input = processed_input.slice(start..pointer);
                 // 1. If state override is given and url’s scheme is "file", then decrease pointer by 1 and set state to file host state.
                 if options.state_override.is_some() && url.scheme == "file" {
                     state = State::FileHost;
@@ -707,7 +690,7 @@ pub(crate) fn basic_parse_into(
                 // 2. Otherwise, if c is U+003A (:) and insideBrackets is false:
                 else if code_point == Some(':') && !inside_brackets {
                     // 1. If buffer is the empty string, host-missing validation error, return failure.
-                    if buffer.is_empty() {
+                    if host_input.is_empty() {
                         return false;
                     }
 
@@ -718,13 +701,13 @@ pub(crate) fn basic_parse_into(
 
                     // 3. Let host be the result of host parsing buffer with url is not special.
                     // 4. If host is failure, then return failure.
-                    let Some(host) = parse_host(&buffer, !url.is_special()) else {
+                    let Some(host) = parse_host_input(host_input, !url.is_special()) else {
                         return false;
                     };
 
                     // 5. Set url’s host to host, buffer to the empty string, and state to port state.
                     url.host = Some(host);
-                    buffer.clear();
+                    host_start = None;
                     state = State::Port;
                 }
                 // 3. Otherwise, if one of the following is true:
@@ -736,21 +719,21 @@ pub(crate) fn basic_parse_into(
                     // then decrease pointer by 1, and:
 
                     // 1. If url is special and buffer is the empty string, host-missing validation error, return failure.
-                    if url.is_special() && buffer.is_empty() {
+                    if url.is_special() && host_input.is_empty() {
                         return false;
                     }
 
                     // 2. Otherwise, if state override is given, buffer is the empty string, and either url
                     //    includes credentials or url’s port is non-null, then return failure.
                     if options.state_override.is_some()
-                        && buffer.is_empty()
+                        && host_input.is_empty()
                         && (url_includes_credentials(url) || url.port.is_some())
                     {
                         return false;
                     }
 
                     // 3. Let host be the result of host parsing buffer with url is not special.
-                    let Some(host) = parse_host(&buffer, !url.is_special()) else {
+                    let Some(host) = parse_host_input(host_input, !url.is_special()) else {
                         return false;
                     };
 
@@ -759,7 +742,7 @@ pub(crate) fn basic_parse_into(
 
                     // 5. Set url’s host to host, buffer to the empty string, and state to path start state.
                     url.host = Some(host);
-                    buffer.clear();
+                    host_start = None;
                     state = State::PathStart;
 
                     // 6. If state override is given, then return.
@@ -779,8 +762,7 @@ pub(crate) fn basic_parse_into(
                     else if byte == ']' {
                         inside_brackets = false;
                     }
-                    // 3. Append c to buffer.
-                    buffer.push(byte);
+                    // OPTIMIZATION: The hostname buffer is a borrowed range of processed_input.
                 }
             }
             // -> port state, https://url.spec.whatwg.org/#port-state
@@ -954,6 +936,8 @@ pub(crate) fn basic_parse_into(
             }
             // -> file host state, https://url.spec.whatwg.org/#file-host-state
             State::FileHost => {
+                let start = *host_start.get_or_insert(pointer);
+                let host_input = processed_input.slice(start..pointer);
                 // 1. If c is the EOF code point, U+002F (/), U+005C (\), U+003F (?), or U+0023 (#), then decrease pointer by 1 and then:
                 if matches!(code_point, None | Some('/' | '\\' | '?' | '#')) {
                     // 1. If state override is not given and buffer is a Windows drive letter,
@@ -961,17 +945,19 @@ pub(crate) fn basic_parse_into(
                     //
                     // NOTE: This is a (platform-independent) Windows drive letter quirk. buffer is not reset here and
                     //       instead used in the path state.
-                    if options.state_override.is_none() && is_windows_drive_letter(&buffer) {
+                    if options.state_override.is_none() && is_windows_drive_letter_input(host_input) {
                         report_validation_error(
                             State::FileHost,
                             pointer,
                             code_point,
                             "file-invalid-Windows-drive-letter-host",
                         );
+                        host_input.append_ascii_to(&mut buffer);
+                        host_start = None;
                         state = State::Path;
                     }
                     // 2. Otherwise, if buffer is the empty string, then:
-                    else if buffer.is_empty() {
+                    else if host_input.is_empty() {
                         // 1. Set url’s host to the empty string.
                         url.host = Some(Host::Domain(String::new()));
 
@@ -987,7 +973,7 @@ pub(crate) fn basic_parse_into(
                     else {
                         // 1. Let host be the result of host parsing buffer with url is not special.
                         // 2. If host is failure, then return failure.
-                        let Some(mut host) = parse_host(&buffer, !url.is_special()) else {
+                        let Some(mut host) = parse_host_input(host_input, !url.is_special()) else {
                             return false;
                         };
 
@@ -1005,16 +991,13 @@ pub(crate) fn basic_parse_into(
                         }
 
                         // 6. Set buffer to the empty string and state to path start state.
-                        buffer.clear();
+                        host_start = None;
                         state = State::PathStart;
                     }
 
                     continue;
                 }
-                // 2. Otherwise, append c to buffer.
-                else if let Some(byte) = code_point {
-                    buffer.push(byte);
-                }
+                // OPTIMIZATION: Advancing pointer extends the borrowed hostname buffer.
             }
             // -> path start state, https://url.spec.whatwg.org/#path-start-state
             State::PathStart => {
@@ -1129,10 +1112,9 @@ pub(crate) fn basic_parse_into(
                 else {
                     // OPTIMIZATION: The spec processes one code point at a time here. Copy the prefix of ASCII
                     // bytes that can be appended without changing parser state or requiring percent-encoding.
-                    let prefix_length =
-                        ascii_copyable_state_prefix_length(remaining, is_ascii_path_state_copyable_byte);
+                    let prefix_length = remaining.ascii_prefix_length(is_ascii_path_state_copyable_byte);
                     if prefix_length > 0 {
-                        buffer.push_str(&remaining[..prefix_length]);
+                        remaining.slice(0..prefix_length).append_ascii_to(&mut buffer);
                         pointer += prefix_length;
                         continue;
                     }
@@ -1190,6 +1172,19 @@ pub(crate) fn basic_parse_into(
                 }
                 // 4. Otherwise, if c is not the EOF code point:
                 else if let Some(byte) = code_point {
+                    // OPTIMIZATION: Copy unchanged ASCII opaque-path units in bulk. Stop before
+                    //               spaces and state delimiters, and preserve validation reporting
+                    //               when enabled. Both input encodings stay borrowed throughout.
+                    let prefix_length = remaining.ascii_prefix_length(|byte| {
+                        (0x21..0x7f).contains(&byte)
+                            && !matches!(byte, b'?' | b'#')
+                            && (!cfg!(feature = "debug-validation-errors") || is_ascii_url_code_point_byte(byte))
+                    });
+                    if prefix_length > 0 {
+                        remaining.slice(0..prefix_length).append_ascii_to(&mut buffer);
+                        pointer += prefix_length;
+                        continue;
+                    }
                     // 1. If c is not a URL code point and not U+0025 (%), invalid-URL-unit validation error.
                     if !is_url_code_point(byte) && byte != '%' {
                         report_validation_error(State::OpaquePath, pointer, code_point, "invalid-URL-unit");
@@ -1214,56 +1209,46 @@ pub(crate) fn basic_parse_into(
                     encoding = "utf-8";
                 }
 
-                // 2. If one of the following is true:
-                //     * state override is not given and c is U+0023 (#)
-                //     * c is the EOF code point
-                // then:
-                if (options.state_override.is_none() && code_point == Some('#')) || code_point.is_none() {
-                    // 1. Let queryPercentEncodeSet be the special-query percent-encode set if url is special; otherwise
-                    //    the query percent-encode set.
-                    let query_percent_encode_set = if url.is_special() {
-                        PercentEncodeSet::SpecialQuery
-                    } else {
-                        PercentEncodeSet::Query
-                    };
+                // OPTIMIZATION: The query is a contiguous input range. Borrow it instead of
+                //               copying its code points into a temporary encoding buffer.
+                let query_length = if options.state_override.is_none() {
+                    remaining.find('#').unwrap_or(remaining.len())
+                } else {
+                    remaining.len()
+                };
+                let query_input = remaining.slice(0..query_length);
+                #[cfg(feature = "debug-validation-errors")]
+                for (offset, character) in query_input.char_indices() {
+                    if (!is_url_code_point(character) && character != '%')
+                        || (character == '%' && !starts_with_two_ascii_hex_digits(query_input.suffix(offset)))
+                    {
+                        report_validation_error(State::Query, pointer + offset, Some(character), "invalid-URL-unit");
+                    }
+                }
 
-                    // 2. Percent-encode after encoding, with encoding, buffer, and queryPercentEncodeSet, and append the result to url’s query.
-                    // NOTE: This operation cannot be invoked code-point-for-code-point due to the stateful ISO-2022-JP encoder.
-                    let query = percent_encode_after_encoding(encoding, &buffer, query_percent_encode_set, false);
-                    url.query = Some(query);
+                // 1. Let queryPercentEncodeSet be the special-query percent-encode set if url is special; otherwise
+                //    the query percent-encode set.
+                let query_percent_encode_set = if url.is_special() {
+                    PercentEncodeSet::SpecialQuery
+                } else {
+                    PercentEncodeSet::Query
+                };
+                // 2. Percent-encode after encoding, with encoding, buffer, and queryPercentEncodeSet, and append the result to url’s query.
+                url.query = Some(percent_encode_after_encoding(
+                    encoding,
+                    query_input,
+                    query_percent_encode_set,
+                    false,
+                ));
 
-                    // 3. Set buffer to the empty string.
-                    buffer.clear();
-
+                if query_length < remaining.len() {
                     // 4. If c is U+0023 (#), then set url’s fragment to the empty string and state to fragment state.
-                    if code_point == Some('#') {
-                        url.fragment = Some(String::new());
-                        state = State::Fragment;
-                    }
+                    url.fragment = Some(String::new());
+                    state = State::Fragment;
+                    pointer += query_length + 1;
+                    continue;
                 }
-                // 3. Otherwise, if c is not the EOF code point:
-                else if let Some(byte) = code_point {
-                    // OPTIMIZATION: The spec appends query code points one at a time before the final encoding pass.
-                    // Copy the matching ASCII URL-code-point prefix directly and resume normal handling at the first special byte.
-                    let prefix_length =
-                        ascii_copyable_state_prefix_length(remaining, is_ascii_query_state_copyable_byte);
-                    if prefix_length > 0 {
-                        buffer.push_str(&remaining[..prefix_length]);
-                        pointer += prefix_length;
-                        continue;
-                    }
-
-                    // 1. If c is not a URL code point and not U+0025 (%), invalid-URL-unit validation error.
-                    if !is_url_code_point(byte) && byte != '%' {
-                        report_validation_error(State::Query, pointer, code_point, "invalid-URL-unit");
-                    }
-                    // 2. If c is U+0025 (%) and remaining does not start with two ASCII hex digits, invalid-URL-unit validation error.
-                    if byte == '%' && !starts_with_two_ascii_hex_digits(remaining) {
-                        report_validation_error(State::Query, pointer, code_point, "invalid-URL-unit");
-                    }
-                    // 3. Append c to buffer.
-                    buffer.push(byte);
-                }
+                break;
             }
             // -> fragment state, https://url.spec.whatwg.org/#fragment-state
             State::Fragment => {
@@ -1278,13 +1263,9 @@ pub(crate) fn basic_parse_into(
                         report_validation_error(State::Fragment, pointer, code_point, "invalid-URL-unit");
                     }
                     // 3. UTF-8 percent-encode c using the fragment percent-encode set and append the result to url’s fragment.
-                    // NOTE: The percent-encode is done on EOF on the entire buffer.
-                    buffer.push(byte);
+                    append_percent_encoded_if_necessary(&mut buffer, byte, PercentEncodeSet::Fragment);
                 } else {
-                    let fragment_input = std::mem::take(&mut buffer);
-                    let fragment =
-                        percent_encode_after_encoding("utf-8", &fragment_input, PercentEncodeSet::Fragment, false);
-                    url.fragment = Some(fragment);
+                    url.fragment = Some(std::mem::take(&mut buffer));
                 }
             }
         }
@@ -1292,7 +1273,7 @@ pub(crate) fn basic_parse_into(
         if code_point.is_none() {
             break;
         }
-        pointer += code_point.unwrap().len_utf8();
+        pointer += remaining.char_length(code_point.unwrap());
     }
 
     true

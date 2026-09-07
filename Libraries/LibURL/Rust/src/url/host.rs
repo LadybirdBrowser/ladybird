@@ -7,15 +7,19 @@
 use std::net::Ipv4Addr;
 use std::net::Ipv6Addr;
 
+use super::UrlInput;
 use libunicode_rust::idna::ToAsciiOptions;
-use libunicode_rust::idna::idna_to_ascii;
+
+fn idna_to_ascii(domain: UrlInput<'_>, options: ToAsciiOptions) -> Option<String> {
+    libunicode_rust::idna::idna_to_ascii_utf16(&domain.to_utf16(), options)
+}
 
 use super::Host;
 use super::State;
 use super::parser::report_validation_error;
 use super::percent_encoding::PercentEncodeSet;
-use super::percent_encoding::percent_decode;
-use super::percent_encoding::percent_encode;
+use super::percent_encoding::percent_decode_input;
+use super::percent_encoding::percent_encode_input;
 
 // https://url.spec.whatwg.org/#forbidden-host-code-point
 fn is_forbidden_host_code_point(code_point: char) -> bool {
@@ -34,7 +38,7 @@ pub(super) fn is_forbidden_domain_code_point(code_point: char) -> bool {
 }
 
 // https://url.spec.whatwg.org/#concept-opaque-host-parser
-fn parse_opaque_host(input: &str) -> Option<Host> {
+fn parse_opaque_host(input: UrlInput<'_>) -> Option<Host> {
     // 1. If input contains a forbidden host code point, host-invalid-code-point validation error, return failure.
     if input.chars().any(is_forbidden_host_code_point) {
         report_validation_error(State::Host, 0, None, "host-invalid-code-point");
@@ -47,12 +51,16 @@ fn parse_opaque_host(input: &str) -> Option<Host> {
     //       currently report validation errors, they are only useful for debugging efforts in the URL parsing code.
 
     // 4. Return the result of running UTF-8 percent-encode on input using the C0 control percent-encode set.
-    Some(Host::Opaque(percent_encode(input, PercentEncodeSet::C0Control, false)))
+    Some(Host::Opaque(percent_encode_input(
+        input,
+        PercentEncodeSet::C0Control,
+        false,
+    )))
 }
 
 // https://url.spec.whatwg.org/#concept-domain-to-ascii
 #[allow(clippy::needless_late_init)]
-pub(crate) fn domain_to_ascii(domain: &str, be_strict: bool) -> Option<String> {
+pub(crate) fn domain_to_ascii(domain: UrlInput<'_>, be_strict: bool) -> Option<String> {
     // 1. If beStrict is true:
     if be_strict {
         // 1. Let result be the result of running Unicode ToASCII with
@@ -121,7 +129,9 @@ pub(crate) fn domain_to_ascii(domain: &str, be_strict: bool) -> Option<String> {
         }
 
         // 2. Set result to domain, lowercased.
-        result = domain.to_ascii_lowercase();
+        let mut ascii_domain = domain.ascii_string().unwrap();
+        ascii_domain.make_ascii_lowercase();
+        result = ascii_domain;
 
         // NOTE: When beStrict is false and domain is an ASCII string, Unicode ToASCII failures only
         //       result in validation errors (instead of failing the whole algorithm) due to web
@@ -573,17 +583,17 @@ fn ends_in_a_number_checker(input: &str) -> bool {
 }
 
 // https://url.spec.whatwg.org/#concept-host-parser
-pub(crate) fn parse_host(input: &str, is_opaque: bool) -> Option<Host> {
+pub(crate) fn parse_host_input(input: UrlInput<'_>, is_opaque: bool) -> Option<Host> {
     // 1. If input starts with U+005B ([), then:
-    if input.starts_with('[') {
+    if input.starts_with("[") {
         // 1. If input does not end with U+005D (]), IPv6-unclosed validation error, return failure.
-        if !input.ends_with(']') {
+        if input.chars().last() != Some(']') {
             report_validation_error(State::Host, 0, None, "IPv6-unclosed");
             return None;
         }
 
         // 2. Return the result of IPv6 parsing input with its leading U+005B ([) and trailing U+005D (]) removed.
-        let address = parse_ipv6_address(&input[1..input.len() - 1])?;
+        let address = parse_ipv6_address(&input.slice(1..input.len() - 1).ascii_string()?)?;
         return Some(Host::Ipv6(address));
     }
 
@@ -596,11 +606,25 @@ pub(crate) fn parse_host(input: &str, is_opaque: bool) -> Option<Host> {
     assert!(!input.is_empty());
 
     // 4. Let domain be the result of running UTF-8 decode without BOM on the percent-decoding of input.
-    let domain = String::from_utf8_lossy(&percent_decode(input)).into_owned();
+    let decoded;
+    let domain = if input.find('%').is_some() {
+        let bytes = percent_decode_input(input);
+        let mut decoder = encoding_rs::UTF_8.new_decoder_without_bom_handling();
+        let capacity = decoder.max_utf16_buffer_length(bytes.len())?;
+        let mut units = vec![0; capacity];
+        let (result, read, written, _) = decoder.decode_to_utf16(&bytes, &mut units, true);
+        assert_eq!(result, encoding_rs::CoderResult::InputEmpty);
+        assert_eq!(read, bytes.len());
+        units.truncate(written);
+        decoded = units;
+        UrlInput::Utf16(&decoded)
+    } else {
+        input
+    };
 
     // 5. Let asciiDomain be the result of running domain to ASCII with domain and false.
     // 6. If asciiDomain is failure, then return failure.
-    let ascii_domain = domain_to_ascii(&domain, false)?;
+    let ascii_domain = domain_to_ascii(domain, false)?;
 
     // 7. If asciiDomain contains a forbidden domain code point, domain-invalid-code-point validation error, return failure.
     if ascii_domain.chars().any(is_forbidden_domain_code_point) {

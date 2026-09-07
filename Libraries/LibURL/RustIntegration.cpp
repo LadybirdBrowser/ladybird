@@ -415,17 +415,21 @@ static void on_parse_host_complete(void* ctx_ptr, FFI::FfiUrlHost const* ffi_res
     *ctx->result = host_from_ffi(*ffi_result);
 }
 
-Optional<Host> parse_host(StringView input, bool is_opaque)
+static FFI::RustUrlInput native_input(Utf16View input)
 {
-    // URL parsing expects a scalar-value UTF-8 string, but WTF-8 can be provided.
-    auto processed_input = String::from_utf8_with_replacement_character(input, String::WithBOMHandling::No);
-    auto processed_input_view = processed_input.bytes_as_string_view();
+    return {
+        input.has_ascii_storage() ? reinterpret_cast<u8 const*>(input.ascii_span().data()) : nullptr,
+        input.has_ascii_storage() ? nullptr : reinterpret_cast<u16 const*>(input.utf16_span().data()),
+        input.length_in_code_units(),
+    };
+}
 
+static Optional<Host> parse_host_impl(FFI::RustUrlInput input, bool is_opaque)
+{
     Optional<Host> result;
     HostParseCallbackCtx ctx { .result = &result };
     bool const did_succeed = FFI::rust_url_parse_host(
-        reinterpret_cast<u8 const*>(processed_input_view.characters_without_null_termination()),
-        processed_input_view.length(),
+        input,
         is_opaque,
         &ctx,
         on_parse_host_complete);
@@ -434,14 +438,11 @@ Optional<Host> parse_host(StringView input, bool is_opaque)
     return result;
 }
 
-Optional<URL> parse_basic_url(StringView input, Optional<URL const&> base_url, URL* url, Optional<Parser::State> state_override, Optional<StringView> encoding)
+static Optional<URL> parse_basic_url_impl(FFI::RustUrlInput input, Optional<URL const&> base_url, URL* url, Optional<Parser::State> state_override, Optional<StringView> encoding)
 {
     auto const state_override_from_cpp = [](Parser::State state) {
         return static_cast<FFI::State>(to_underlying(state));
     };
-
-    // URL parsing expects a scalar-value UTF-8 string, but WTF-8 can be provided.
-    auto processed_input = String::from_utf8_with_replacement_character(input, String::WithBOMHandling::No);
 
     Optional<UrlFfiStorage> base_storage;
     if (base_url.has_value())
@@ -466,16 +467,36 @@ Optional<URL> parse_basic_url(StringView input, Optional<URL const&> base_url, U
 
     Optional<URL> result;
     ParseCallbackCtx ctx { .result = &result, .url_inout = url };
-    auto processed_input_view = processed_input.bytes_as_string_view();
     bool const did_succeed = rust_url_basic_parse(
-        reinterpret_cast<u8 const*>(processed_input_view.characters_without_null_termination()),
-        processed_input_view.length(),
+        input,
         &options,
         &ctx,
         on_basic_parse_complete);
     if (!did_succeed)
         return {};
     return result;
+}
+
+Optional<Host> parse_host(StringView input, bool is_opaque)
+{
+    auto processed_input = String::from_utf8_with_replacement_character(input, String::WithBOMHandling::No);
+    return parse_host_impl({ processed_input.bytes().data(), nullptr, processed_input.bytes().size() }, is_opaque);
+}
+
+Optional<Host> parse_host(Utf16View input, bool is_opaque)
+{
+    return parse_host_impl(native_input(input), is_opaque);
+}
+
+Optional<URL> parse_basic_url(StringView input, Optional<URL const&> base_url, URL* url, Optional<Parser::State> state_override, Optional<StringView> encoding)
+{
+    auto processed_input = String::from_utf8_with_replacement_character(input, String::WithBOMHandling::No);
+    return parse_basic_url_impl({ processed_input.bytes().data(), nullptr, processed_input.bytes().size() }, base_url, url, state_override, encoding);
+}
+
+Optional<URL> parse_basic_url(Utf16View input, Optional<URL const&> base_url, URL* url, Optional<Parser::State> state_override, Optional<StringView> encoding)
+{
+    return parse_basic_url_impl(native_input(input), base_url, url, state_override, encoding);
 }
 
 }
