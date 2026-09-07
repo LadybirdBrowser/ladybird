@@ -1112,6 +1112,11 @@ bool WebContentClient::continue_navigation_population_in_selected_process(Web::P
     if (site_isolation_mode() != SiteIsolationMode::IFrame)
         return populate_in(*this, page_id);
 
+    // A document created for inline content stands in for the resource the process that fetched could not load, in
+    // an agent cluster of its own; that process hosts it.
+    if (document->is_inline_content)
+        return populate_in(*this, page_id);
+
     // FIXME: Pass the document's requestsOAC value once Origin-Agent-Cluster is implemented.
     auto agent = browsing_context_group->obtain_similar_origin_window_agent(document->origin, false);
     SiteIsolationManager::the().host_opaque_origin_agent_with_initiator(*browsing_context_group, *agent, document->origin, loader.request().history_entry.document_state.initiator_origin);

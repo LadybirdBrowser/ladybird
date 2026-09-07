@@ -1517,7 +1517,7 @@ void CanonicalTraversable::continue_history_navigation_population(Web::HTML::Cro
                 endpoint = history_job_endpoint_for(*navigable);
                 operation->changing_job_endpoints.set(navigable_id, *endpoint);
             }
-        } else if (site_isolation_mode() == SiteIsolationMode::IFrame) {
+        } else if (site_isolation_mode() == SiteIsolationMode::IFrame && !document->is_inline_content) {
             auto group = active_browsing_context().group();
             VERIFY(group);
             auto agent = group->obtain_similar_origin_window_agent(document->origin, false);

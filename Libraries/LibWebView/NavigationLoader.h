@@ -29,6 +29,8 @@ public:
     ~NavigationLoader();
 
     struct ResponseDocument {
+        // Created for inline content that doesn't have a DOM: the error page for a failed navigation.
+        bool is_inline_content { false };
         Web::HTML::OpenerPolicyEnforcementResult coop_enforcement_result;
         URL::URL url;
         URL::Origin origin;
