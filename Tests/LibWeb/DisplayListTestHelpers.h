@@ -21,6 +21,7 @@ void append_display_list_command(ByteBuffer& command_bytes, Command const& comma
         .command_type = Command::command_type,
         .has_bounding_rect = bounding_rect.has_value(),
         .inline_clip_count = 0,
+        .has_inline_transform = false,
         .payload_size = static_cast<u32>(payload_size),
         .context = context,
         .bounding_rect = bounding_rect.value_or({}),
