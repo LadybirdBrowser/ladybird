@@ -44,6 +44,7 @@
 #include <LibURL/Parser.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/SelectedFile.h>
+#include <LibWeb/HTML/VisibilityState.h>
 #include <LibWebView/Process.h>
 #include <LibWebView/Utilities.h>
 
@@ -1219,6 +1220,11 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
                 view->reset_line_box_borders();
                 view->reset_viewport_size(window_size);
             }
+
+            // The system visibility state lives in this view's traversable, and a test that hid the page only puts it
+            // back from signalTestIsDone(). A test that times out or crashes while hidden would otherwise hand the
+            // hidden state to every test that follows in this view, a respawned WebContent included.
+            view->set_system_visibility_state(Web::HTML::VisibilityState::Visible);
 
             auto& test = tests[test_index];
             if (test.timeout_timer) {
