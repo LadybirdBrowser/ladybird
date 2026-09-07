@@ -735,7 +735,8 @@ impl PrefixRelation {
                 }
                 walk_truth.clear();
                 let mut changes = Vec::new();
-                for &position in &affected {
+                let previous_matches = contains_sorted_positions(&self.matches[step_index], &affected);
+                for (&position, previously_matched) in affected.iter().zip(previous_matches) {
                     let mut matched = candidates.binary_search(&position).is_ok();
                     if matched && let Some(predecessor) = predecessor {
                         let predecessor = &self.matches[predecessor.0 as usize];
@@ -794,7 +795,7 @@ impl PrefixRelation {
                             _ => unreachable!(),
                         };
                     }
-                    if self.matches[step_index].binary_search(&(position as u32)).is_ok() != matched {
+                    if previously_matched != matched {
                         changes.push(position);
                     }
                 }
@@ -1204,6 +1205,27 @@ impl PrefixWalkMemo {
     }
 }
 
+// Queries already arrive in sorted slot order. Scan the membership once when its
+// population fits the estimated cost of separate binary searches for the batch.
+fn contains_sorted_positions<'a>(members: &'a [u32], positions: &'a [usize]) -> impl Iterator<Item = bool> + 'a {
+    debug_assert!(positions.is_sorted());
+    let mut remaining = (members.len()
+        <= positions
+            .len()
+            .saturating_mul(members.len().checked_ilog2().unwrap_or(0) as usize + 1))
+    .then_some(members);
+    positions.iter().map(move |&position| {
+        if let Some(members) = &mut remaining {
+            while members.first().is_some_and(|&member| (member as usize) < position) {
+                *members = &members[1..];
+            }
+            members.first().is_some_and(|&member| member as usize == position)
+        } else {
+            u32::try_from(position).is_ok_and(|position| members.binary_search(&position).is_ok())
+        }
+    })
+}
+
 // Merge a batch of membership flips once. Repeated Vec::insert/remove would move the
 // unaffected tail once per changed element, multiplying batch size by the set's population.
 fn toggle_members<T: Copy + Ord + TryFrom<usize>>(members: &mut Vec<T>, changes: &[usize])
@@ -1307,7 +1329,38 @@ impl PendingPrefixSteps {
 
 #[cfg(test)]
 mod tests {
-    use super::{PendingPrefixSteps, PrefixWalkMemo, toggle_members};
+    use super::{PendingPrefixSteps, PrefixWalkMemo, contains_sorted_positions, toggle_members};
+
+    #[test]
+    fn ordered_prefix_membership_queries_preserve_gaps_duplicates_and_boundary_slots() {
+        use std::collections::BTreeSet;
+
+        for slots in [
+            Vec::new(),
+            vec![0],
+            vec![u32::MAX],
+            (0..256).step_by(3).collect(),
+            (0..10_000).step_by(997).collect(),
+            vec![1, 63, 64, 127, 128, 10_000, u32::MAX],
+        ] {
+            let expected: BTreeSet<_> = slots.iter().copied().collect();
+            let members = slots;
+            for positions in [
+                Vec::new(),
+                vec![5000],
+                vec![usize::MAX],
+                vec![0, 1, 1, 63, 64, 64, 127, 128, 10_000, u32::MAX as usize, usize::MAX],
+                (0..10_001).collect(),
+            ] {
+                let actual: Vec<_> = contains_sorted_positions(&members, &positions).collect();
+                let expected: Vec<_> = positions
+                    .iter()
+                    .map(|&position| u32::try_from(position).is_ok_and(|position| expected.contains(&position)))
+                    .collect();
+                assert_eq!(actual, expected);
+            }
+        }
+    }
 
     #[test]
     fn prefix_walk_memo_separates_true_false_and_unknown_across_queries() {
