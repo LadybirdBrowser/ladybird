@@ -480,22 +480,6 @@ pub struct BackgroundValues {
     pub background_size: ComputedStyleValueHandle,
 }
 
-/// The layout-facing prefix of the Rust-owned font style group. The metric
-/// fields and pointers borrow a font cascade pinned by the document's font
-/// computer for the lifetime of its style records.
-#[repr(C)]
-pub struct FontLayoutFacts {
-    pub font_size: crate::css::css_pixels::CssPixels,
-    pub line_height_used: crate::css::css_pixels::CssPixels,
-    pub font_variant_emoji: u8,
-    pub font_ascent: f32,
-    pub font_descent: f32,
-    pub font_x_height: f32,
-    pub font_zero_advance: f32,
-    pub first_available_font: *const std::ffi::c_void,
-    pub font_cascade_list: *const std::ffi::c_void,
-}
-
 /// Canonical inherited font values and their derived platform font facts.
 #[repr(C)]
 pub struct FontValues {

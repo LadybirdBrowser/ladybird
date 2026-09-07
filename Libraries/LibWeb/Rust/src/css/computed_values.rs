@@ -41,12 +41,12 @@ pub use crate::css::computed_value_types::{
     ComputedOverflowClipMarginSide, ComputedPositionTryFallback, ComputedResolvedTransform, ComputedSize,
     ComputedSizeKind, ComputedStyleValueHandle, ComputedSvgDash, ComputedSvgPaint, ComputedTextIndent,
     ComputedTextUnderlineOffset, ComputedTextUnderlinePosition, ComputedVerticalAlign, ContentValues, EffectsValues,
-    FontLayoutFacts, FontValues, GRID_NO_INDEX, GridValues, InheritedListValues, InheritedSVGValues,
-    InheritedTextLayoutFacts, InheritedTextValues, InheritedUIValues, MaskValues, MiscResetValues,
-    RetainedComputedCursorList, RetainedComputedFilterOperationList, RetainedComputedResolvedTransformList,
-    RetainedComputedShadowList, RetainedComputedSvgDashList, RetainedGridAreaList, RetainedGridNameIndexList,
-    RetainedGridTrackEntryList, RetainedPositionAreaList, RetainedPositionTryFallbackList,
-    RetainedTextDecorationLineList, SVGResetValues, SizingValues, SurroundValues, TextResetValues, TransformValues,
+    FontValues, GRID_NO_INDEX, GridValues, InheritedListValues, InheritedSVGValues, InheritedTextLayoutFacts,
+    InheritedTextValues, InheritedUIValues, MaskValues, MiscResetValues, RetainedComputedCursorList,
+    RetainedComputedFilterOperationList, RetainedComputedResolvedTransformList, RetainedComputedShadowList,
+    RetainedComputedSvgDashList, RetainedGridAreaList, RetainedGridNameIndexList, RetainedGridTrackEntryList,
+    RetainedPositionAreaList, RetainedPositionTryFallbackList, RetainedTextDecorationLineList, SVGResetValues,
+    SizingValues, SurroundValues, TextResetValues, TransformValues,
 };
 use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
 use crate::css::style_value::StyleValueData;
