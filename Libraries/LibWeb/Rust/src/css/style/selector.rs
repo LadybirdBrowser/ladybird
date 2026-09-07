@@ -1288,6 +1288,23 @@ impl SelectorProgram {
         }
     }
 
+    pub(super) fn visit_prefix_local_features(&self, local: SelectorPrefixLocal, visit: &mut impl FnMut(FeatureTest)) {
+        let mut pending = vec![local.root];
+        while let Some(node) = pending.pop() {
+            if Some(node) == local.relation {
+                continue;
+            }
+            match self.node(node) {
+                SelectorOp::Feature(feature) => visit(feature),
+                SelectorOp::And { first, count } | SelectorOp::Or { first, count } => {
+                    pending.extend_from_slice(self.operands(first, count));
+                }
+                SelectorOp::Where(inner) | SelectorOp::Not(inner) => pending.push(inner),
+                _ => {}
+            }
+        }
+    }
+
     /// The canonical feature list of one prefix step's local compound, plus at most one
     /// positional test. Positional truth is a pure function of the visit index and the
     /// sequence length, both of which the rightward walk knows, so a step carrying one stays

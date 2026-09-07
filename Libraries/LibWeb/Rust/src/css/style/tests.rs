@@ -5226,8 +5226,20 @@ fn prefix_relation_reuses_local_facts_without_sharing_position() {
             )),
         );
     }
-    for &node in &nodes {
+    let unused_attribute = StyleAtomID(202);
+    let observed_attribute = StyleAtomID(203);
+    for (index, &node) in nodes.iter().enumerate() {
         add_feature(&mut engine, node, LocalFeatureKey::Class(class));
+        engine.record_input(
+            InputKey::LocalFeature(node, LocalFeatureKey::Id),
+            InputValue::Feature(FeatureValue::Absent),
+            InputValue::Feature(FeatureValue::Atom(StyleAtomID(500 + index as u32))),
+        );
+        engine.record_input(
+            InputKey::LocalFeature(node, LocalFeatureKey::Attribute(unused_attribute)),
+            InputValue::Feature(FeatureValue::Absent),
+            InputValue::Feature(FeatureValue::Atom(StyleAtomID(600 + index as u32))),
+        );
     }
 
     // The root has the same local facts as its children, but :root and nth-child
@@ -5236,7 +5248,19 @@ fn prefix_relation_reuses_local_facts_without_sharing_position() {
     let feature = builder.push_feature(selector::FeatureTest::Class(class));
     let root = builder.push(selector::SelectorOp::Root);
     let not_root = builder.push(selector::SelectorOp::Not(root));
-    let compound = builder.push_compound(&[feature, not_root]);
+    let attribute = builder.push_feature(selector::FeatureTest::Attribute(selector::AttributeTest {
+        name: observed_attribute,
+        any_namespace: false,
+        folded: observed_attribute,
+        fold_in_namespace: StyleAtomID::NONE,
+        operator: selector::AttributeOperator::Presence,
+        value_atom: StyleAtomID::NONE,
+        value_offset: 0,
+        value_length: 0,
+        case: selector::AttributeCase::Sensitive,
+    }));
+    let not_attribute = builder.push(selector::SelectorOp::Not(attribute));
+    let compound = builder.push_compound(&[feature, not_root, not_attribute]);
     builder.push_entry_for_pseudo(compound, None);
     let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
     engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
@@ -5263,9 +5287,10 @@ fn prefix_relation_reuses_local_facts_without_sharing_position() {
     let old_facts = engine.facts.primary().clone();
     let counters = update_test_prefix_relation(&engine, &dispatch, &mut relation, &old_facts, &nodes, None);
     let evaluations = counters.get(Counter::PrefixCompoundsEvaluated);
-    // Evaluate the program once for roots and once for non-roots, and the class
-    // predicate once for children passing the positional test.
-    assert_eq!(evaluations, 3, "positional truth must not split local predicate reuse");
+    assert_eq!(
+        evaluations, 0,
+        "unchanged local facts must retain their predicate answers"
+    );
     let mut states = PrefixStates::new(0);
     relation.install_answers(&mut states);
     assert!(states.retained_matches_for(nodes[0]).unwrap().is_empty());
@@ -5275,6 +5300,27 @@ fn prefix_relation_reuses_local_facts_without_sharing_position() {
             1 + usize::from(index % 2 == 0)
         );
     }
+    let old_facts = engine.facts.primary().clone();
+    for (index, &node) in nodes.iter().enumerate() {
+        engine.record_input(
+            InputKey::LocalFeature(node, LocalFeatureKey::Attribute(unused_attribute)),
+            InputValue::Feature(FeatureValue::Atom(StyleAtomID(600 + index as u32))),
+            InputValue::Feature(FeatureValue::Atom(StyleAtomID(1000 + index as u32))),
+        );
+    }
+    discard_transaction(&mut engine);
+    let counters = update_test_prefix_relation(&engine, &dispatch, &mut relation, &old_facts, &nodes, None);
+    assert_eq!(counters.get(Counter::PrefixCompoundsEvaluated), 0);
+    assert!(relation.changed_answers.is_empty());
+
+    // A dependency nested inside :not() must still invalidate the predicate.
+    let old_facts = engine.facts.primary().clone();
+    add_feature(&mut engine, nodes[1], LocalFeatureKey::Attribute(observed_attribute));
+    discard_transaction(&mut engine);
+    update_test_prefix_relation(&engine, &dispatch, &mut relation, &old_facts, &[nodes[1]], None);
+    assert_eq!(relation.changed_answers.len(), 1);
+    assert_eq!(relation.changed_answers[0].0, nodes[1]);
+    assert!(relation.changed_answers[0].2.is_empty());
 }
 
 #[test]
