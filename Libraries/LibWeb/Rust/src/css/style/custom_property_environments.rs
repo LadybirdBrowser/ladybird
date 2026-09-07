@@ -19,8 +19,8 @@ use std::sync::Arc;
 use super::fast_hash::FastMap as HashMap;
 use super::index::StyleAtomID;
 use crate::css::custom_properties::CustomPropertyStore;
+use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style_value::RetainedStyleValueData;
-use crate::css::style_value::RetainedUtf16FlyString;
 
 /// How many substituted values the engine keeps before starting over.
 const SUBSTITUTION_MEMO_LIMIT: usize = 1 << 16;

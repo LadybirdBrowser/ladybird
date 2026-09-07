@@ -30,9 +30,9 @@ public:
     virtual ~CounterStyleValue() override;
 
     CounterFunction function_type() const { return static_cast<CounterFunction>(m_value->counter.function); }
-    Utf16FlyString counter_name() const { return Utf16FlyString::from_raw(m_value->counter.counter_name.raw); }
+    Utf16FlyString counter_name() const { return css_string_from_rust(&m_value->counter.counter_name); }
     ValueComparingNonnullRefPtr<StyleValue const> counter_style() const { return wrap_rust_child(m_value->counter.counter_style); }
-    Utf16FlyString join_string() const { return Utf16FlyString::from_raw(m_value->counter.join_string.raw); }
+    Utf16FlyString join_string() const { return css_string_from_rust(&m_value->counter.join_string); }
 
     Utf16String resolve(DOM::AbstractElement&) const;
 

@@ -22,11 +22,11 @@ use crate::css::parser::token_stream::TokenStream;
 use crate::css::parser::value_parser::{
     FfiValueParsingContext, FfiValueParsingContextKind, FontDescriptorKind, NumericRange, ParseContext, ParseOutcome,
     is_valid_custom_ident, parse_css_value, parse_integer_from_stream, parse_length_value, parse_percentage_value,
-    retain_fly_string, string_style_value, unresolved_value, value_list,
+    string_style_value, unresolved_value, value_list,
 };
 use crate::css::property_metadata::property_id;
 use crate::css::style_compute::FfiLengthResolutionContext;
-use crate::css::style_value::{RetainedStyleValueData, RetainedUtf16FlyString, StyleValueData};
+use crate::css::style_value::{CssString, RetainedStyleValueData, StyleValueData};
 use std::ffi::c_void;
 use std::sync::Arc;
 
@@ -71,7 +71,7 @@ fn parse_keyword(values: &[ComponentValue], expected: &str) -> Option<StyleValue
     (parsed == expected).then_some(StyleValueData::Keyword { keyword: parsed })
 }
 
-fn parse_counter_style_name(context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
+fn parse_counter_style_name(_context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
     let identifier = value.ident()?;
     if !is_valid_custom_ident(identifier, &["none"]) {
         return None;
@@ -87,20 +87,20 @@ fn parse_counter_style_name(context: &ParseContext, value: &ComponentValue) -> O
         identifier.to_vec()
     };
     Some(StyleValueData::CustomIdent {
-        custom_ident: retain_fly_string(context, &name)?,
+        custom_ident: CssString::from_utf16(&name),
     })
 }
 
-fn parse_symbol(context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
+fn parse_symbol(_context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
     if let Some(string) = value.string() {
-        return string_style_value(context, string);
+        return Some(string_style_value(string));
     }
     let identifier = value.ident()?;
     if !is_valid_custom_ident(identifier, &[]) {
         return None;
     }
     Some(StyleValueData::CustomIdent {
-        custom_ident: retain_fly_string(context, identifier)?,
+        custom_ident: CssString::from_utf16(identifier),
     })
 }
 
@@ -160,7 +160,7 @@ fn parse_counter_style_system(context: &ParseContext, values: &[ComponentValue])
             kind: 0,
             system,
             first_symbol: RetainedStyleValueData::none(),
-            name: RetainedUtf16FlyString::none(),
+            name: CssString::none(),
         });
     }
     if parsed_keyword == keyword::FIXED {
@@ -180,7 +180,7 @@ fn parse_counter_style_system(context: &ParseContext, values: &[ComponentValue])
             kind: 1,
             system: 0,
             first_symbol,
-            name: RetainedUtf16FlyString::none(),
+            name: CssString::none(),
         });
     }
     if parsed_keyword == keyword::EXTENDS {
@@ -328,7 +328,7 @@ fn parse_value_type(
         DescriptorValueType::PositivePercentage => {
             parse_percentage_value(single_non_whitespace(values)?, NumericRange::new(0.0, f64::INFINITY))
         }
-        DescriptorValueType::String => string_style_value(context, single_non_whitespace(values)?.string()?),
+        DescriptorValueType::String => Some(string_style_value(single_non_whitespace(values)?.string()?)),
         DescriptorValueType::Symbol => parse_symbol(context, single_non_whitespace(values)?),
         DescriptorValueType::Symbols => {
             let symbols = non_whitespace(values)
@@ -544,10 +544,6 @@ mod tests {
     use crate::css::style_value::StyleValueData;
     use std::sync::Arc;
 
-    unsafe extern "C" fn discard_interned_string(_: *const u16, _: usize) -> usize {
-        0
-    }
-
     fn context() -> ParseContext {
         ParseContext {
             in_quirks_mode: false,
@@ -563,7 +559,6 @@ mod tests {
             document_url_length: 0,
             document_base_url: std::ptr::null(),
             document_base_url_length: 0,
-            intern_utf16_fly_string: Some(discard_interned_string),
             length_resolution_context: std::ptr::null(),
             random_function_index: std::ptr::null_mut(),
         }

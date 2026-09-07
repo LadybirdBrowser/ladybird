@@ -11,4 +11,4 @@ registered universal initial: 13px
 registered callback-free parses: true
 registered callback parse requests: 0
 string-bearing family: LadybirdCallbackFallback
-string-bearing callback parse: true
+string-bearing callback parse requests: 0

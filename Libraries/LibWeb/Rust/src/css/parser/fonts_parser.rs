@@ -10,8 +10,7 @@ use super::component_value::ComponentValue;
 use super::token_stream::TokenStream;
 use super::value_parser::{
     FontDescriptorKind, NumericRange, ParseContext, ParseOutcome, equals_ascii_case_insensitive, is_valid_custom_ident,
-    parse_angle_from_stream, parse_integer_from_stream, parse_number_from_stream, retain_fly_string,
-    string_style_value, value_list,
+    parse_angle_from_stream, parse_integer_from_stream, parse_number_from_stream, string_style_value, value_list,
 };
 use crate::css::css_enums::{
     font_tech, keyword, keyword_from_ascii_case_insensitive, keyword_to_common_lig_value,
@@ -20,6 +19,7 @@ use crate::css::css_enums::{
     keyword_to_historical_lig_value, keyword_to_numeric_figure_value, keyword_to_numeric_fraction_value,
     keyword_to_numeric_spacing_value,
 };
+use crate::css::css_string::CssString;
 use crate::css::property_metadata::property_id;
 use crate::css::style_value::{
     RetainedByteList, RetainedRequestUrlModifierList, RetainedString, RetainedStyleValueData,
@@ -82,12 +82,12 @@ fn keyword_value(value: &ComponentValue) -> Option<(u16, StyleValueData)> {
     Some((keyword, StyleValueData::Keyword { keyword }))
 }
 
-fn parse_family_name(context: &ParseContext, values: &[ComponentValue]) -> Option<StyleValueData> {
+fn parse_family_name(_context: &ParseContext, values: &[ComponentValue]) -> Option<StyleValueData> {
     let values = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
     if let [value] = values.as_slice()
         && let Some(string) = value.string()
     {
-        return string_style_value(context, string);
+        return Some(string_style_value(string));
     }
 
     let parts = values.iter().map(|value| value.ident()).collect::<Option<Vec<_>>>()?;
@@ -113,7 +113,7 @@ fn parse_family_name(context: &ParseContext, values: &[ComponentValue]) -> Optio
         complete_name.extend_from_slice(part);
     }
     Some(StyleValueData::CustomIdent {
-        custom_ident: retain_fly_string(context, &complete_name)?,
+        custom_ident: CssString::from_utf16(&complete_name),
     })
 }
 
@@ -231,7 +231,7 @@ fn parse_font_variant_ligatures(values: &[ComponentValue]) -> Option<StyleValueD
     })
 }
 
-fn parse_feature_value_names(context: &ParseContext, values: &[ComponentValue]) -> Option<Vec<StyleValueData>> {
+fn parse_feature_value_names(_context: &ParseContext, values: &[ComponentValue]) -> Option<Vec<StyleValueData>> {
     values
         .split(ComponentValue::is_comma)
         .map(|argument| {
@@ -241,7 +241,7 @@ fn parse_feature_value_names(context: &ParseContext, values: &[ComponentValue]) 
                 return None;
             }
             Some(StyleValueData::CustomIdent {
-                custom_ident: retain_fly_string(context, identifier)?,
+                custom_ident: CssString::from_utf16(identifier),
             })
         })
         .collect()
@@ -287,7 +287,7 @@ fn parse_font_variant_alternates(context: &ParseContext, values: &[ComponentValu
         }
         let function_name = canonical_name.encode_utf16().collect::<Vec<_>>();
         parsed[slot] = Some(StyleValueData::Function {
-            name: retain_fly_string(context, &function_name)?,
+            name: CssString::from_utf16(&function_name),
             value: retained(value_list(names, 1, true)),
         });
     }
@@ -308,24 +308,24 @@ fn contains_substitution(values: &[ComponentValue]) -> bool {
     })
 }
 
-fn parse_opentype_tag(context: &ParseContext, tokens: &mut TokenStream<'_>) -> Option<([u16; 4], StyleValueData)> {
+fn parse_opentype_tag(_context: &ParseContext, tokens: &mut TokenStream<'_>) -> Option<([u16; 4], StyleValueData)> {
     tokens.discard_whitespace();
     let string = tokens.consume_a_token().string()?;
     let tag: [u16; 4] = string.try_into().ok()?;
     if !tag.iter().all(|code_unit| (0x20..=0x7e).contains(code_unit)) {
         return None;
     }
-    Some((tag, string_style_value(context, &tag)?))
+    Some((tag, string_style_value(&tag)))
 }
 
-fn open_type_tagged(context: &ParseContext, mode: u8, tag: [u16; 4], value: StyleValueData) -> Option<StyleValueData> {
+fn open_type_tagged(mode: u8, tag: [u16; 4], value: StyleValueData) -> StyleValueData {
     let packed_tag = u32::from(tag[0]) << 24 | u32::from(tag[1]) << 16 | u32::from(tag[2]) << 8 | u32::from(tag[3]);
-    Some(StyleValueData::OpenTypeTagged {
+    StyleValueData::OpenTypeTagged {
         mode,
-        tag: retain_fly_string(context, &tag)?,
+        tag: CssString::from_utf16(&tag),
         packed_tag,
         value: retained(value),
-    })
+    }
 }
 
 fn parse_font_feature_settings(context: &ParseContext, values: &[ComponentValue]) -> Option<StyleValueData> {
@@ -361,7 +361,7 @@ fn parse_font_feature_settings(context: &ParseContext, values: &[ComponentValue]
             if tokens.has_next_token() {
                 return None;
             }
-            open_type_tagged(context, 0, tag, value)
+            Some(open_type_tagged(0, tag, value))
         })
         .collect::<Option<Vec<_>>>()?;
     (!settings.is_empty()).then(|| value_list(settings, 1, true))
@@ -383,7 +383,7 @@ fn parse_font_variation_settings(context: &ParseContext, values: &[ComponentValu
             if tokens.has_next_token() {
                 return None;
             }
-            open_type_tagged(context, 1, tag, value)
+            Some(open_type_tagged(1, tag, value))
         })
         .collect::<Option<Vec<_>>>()?;
     (!settings.is_empty()).then(|| value_list(settings, 1, true))
@@ -484,7 +484,7 @@ fn parse_font_source(context: &ParseContext, values: &[ComponentValue]) -> Optio
             url_type: 0,
             url_modifiers: RetainedRequestUrlModifierList::from_retained_modifiers(Vec::new()),
             has_format: false,
-            format: crate::css::retained_fly_string::RetainedUtf16FlyString::none(),
+            format: crate::css::css_string::CssString::none(),
             tech: RetainedByteList::from_bytes(Vec::new()),
         });
     }
@@ -526,8 +526,8 @@ fn parse_font_source(context: &ParseContext, values: &[ComponentValue]) -> Optio
         url_modifiers,
         has_format: format.is_some(),
         format: match format {
-            Some(format) => retain_fly_string(context, &format)?,
-            None => crate::css::retained_fly_string::RetainedUtf16FlyString::none(),
+            Some(format) => CssString::from_utf16(&format),
+            None => crate::css::css_string::CssString::none(),
         },
         tech: RetainedByteList::from_bytes(tech),
     })
@@ -686,10 +686,6 @@ mod tests {
     use crate::css::parser::value_parser::{ParseContext, ParseOutcome};
     use crate::css::property_metadata::property_id;
 
-    unsafe extern "C" fn discard_interned_string(_: *const u16, _: usize) -> usize {
-        0
-    }
-
     fn context() -> ParseContext {
         ParseContext {
             in_quirks_mode: false,
@@ -705,7 +701,6 @@ mod tests {
             document_url_length: 0,
             document_base_url: std::ptr::null(),
             document_base_url_length: 0,
-            intern_utf16_fly_string: Some(discard_interned_string),
             length_resolution_context: std::ptr::null(),
             random_function_index: std::ptr::null_mut(),
         }

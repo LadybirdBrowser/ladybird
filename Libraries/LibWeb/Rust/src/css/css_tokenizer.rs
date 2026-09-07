@@ -9,7 +9,7 @@ use std::ffi::c_void;
 use std::ops::Range;
 #[cfg(test)]
 use std::ptr;
-use std::rc::Rc;
+use std::sync::Arc;
 
 const REPLACEMENT_CHARACTER: u32 = 0xFFFD;
 const TOKENIZER_EOF: u32 = u32::MAX;
@@ -352,12 +352,12 @@ impl<'a> From<&'a Vec<u16>> for TokenizerInput<'a> {
 pub(crate) enum ParserString {
     Inline(SmallVec<[u16; 16]>),
     Owned(Box<[u16]>),
-    Shared { storage: Rc<[u16]>, range: Range<usize> },
+    Shared { storage: Arc<[u16]>, range: Range<usize> },
     Pending(Range<usize>),
 }
 
 impl ParserString {
-    fn finish_shared(&mut self, storage: Rc<[u16]>, offset: usize) {
+    fn finish_shared(&mut self, storage: Arc<[u16]>, offset: usize) {
         let Self::Pending(range) = self else {
             return;
         };
@@ -442,7 +442,7 @@ pub(crate) enum ParserTokenKind {
 }
 
 impl ParserTokenKind {
-    fn finish_shared_strings(&mut self, storage: Rc<[u16]>, offset: usize) {
+    fn finish_shared_strings(&mut self, storage: Arc<[u16]>, offset: usize) {
         let string = match self {
             Self::Ident(value)
             | Self::Function(value)
@@ -472,7 +472,7 @@ pub(crate) enum ParserSource {
     Empty,
     Owned(Box<[u16]>),
     Shared {
-        storage: Rc<SourceStorage>,
+        storage: Arc<SourceStorage>,
         range: Range<usize>,
     },
 }
@@ -507,7 +507,7 @@ impl ParserSource {
         Self::Empty
     }
 
-    fn shared(storage: Rc<SourceStorage>, range: Range<usize>) -> Self {
+    fn shared(storage: Arc<SourceStorage>, range: Range<usize>) -> Self {
         Self::Shared { storage, range }
     }
 
@@ -526,7 +526,7 @@ impl ParserSource {
         else {
             return None;
         };
-        Rc::ptr_eq(first_storage, last_storage).then(|| Self::Shared {
+        Arc::ptr_eq(first_storage, last_storage).then(|| Self::Shared {
             storage: first_storage.clone(),
             range: first_range.start..last_range.end,
         })
@@ -681,7 +681,7 @@ fn tokenize_for_parser_internal<'a>(
         // Copy the filtered source only when tokens will keep slices into it.
         let source_storage = retain_original_source.then(|| {
             source_storage.get_or_insert_with(|| {
-                Rc::new(match filtered_input {
+                Arc::new(match filtered_input {
                     TokenizerInput::Ascii(units) => SourceStorage::Ascii(units.into()),
                     TokenizerInput::Utf16(units) => SourceStorage::Utf16(units.into()),
                 })
@@ -742,7 +742,7 @@ fn tokenize_for_parser_internal<'a>(
             end_position: token.range.end,
         });
     });
-    let string_storage: Rc<[u16]> = string_storage.into();
+    let string_storage: Arc<[u16]> = string_storage.into();
     for token in &mut tokens {
         token.kind.finish_shared_strings(string_storage.clone(), 0);
     }
@@ -755,7 +755,7 @@ pub(crate) fn tokenize_owned<'a>(input: impl Into<TokenizerInput<'a>>) -> Vec<Ow
     let mut tokens = Vec::new();
     tokenize(input, |token, filtered_input| {
         let storage = storage.get_or_insert_with(|| {
-            Rc::new(match filtered_input {
+            Arc::new(match filtered_input {
                 TokenizerInput::Ascii(units) => SourceStorage::Ascii(units.into()),
                 TokenizerInput::Utf16(units) => SourceStorage::Utf16(units.into()),
             })

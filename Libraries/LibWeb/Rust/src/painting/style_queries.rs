@@ -11,7 +11,7 @@ use crate::css::css_enums::{
     positioning, transform_style,
 };
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
-use crate::css::retained_fly_string::RetainedUtf16FlyString;
+use crate::css::css_string::CssString;
 use crate::css::serialize::{StringUnits, with_fly_string_units};
 use crate::css::style_value::StyleValueData;
 use crate::layout::LayoutNodeArena;
@@ -75,10 +75,10 @@ pub(crate) fn background_layers_have_image(style: ComputedValuesView<'_>) -> boo
     for_each_comma_item(value, is_abstract_image)
 }
 
-fn fly_string_equals_ascii(string: &RetainedUtf16FlyString, expected: &[u8]) -> bool {
+fn fly_string_equals_ascii(string: &CssString, expected: &[u8]) -> bool {
     with_fly_string_units(string, |units| match units {
         StringUnits::Ascii(bytes) => bytes == expected,
-        StringUnits::Utf16(_) => false,
+        StringUnits::Utf16(units) => units.iter().copied().eq(expected.iter().copied().map(u16::from)),
     })
 }
 

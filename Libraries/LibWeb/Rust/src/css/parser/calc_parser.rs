@@ -13,6 +13,7 @@ use crate::css::calc::{
     CalcNode, CalcNumericType, CalcNumericValue, resolve_as_for_value_type, simplify_parsed_calculation,
 };
 use crate::css::css_enums::{keyword_from_ascii_case_insensitive, keyword_to_channel_keyword};
+use crate::css::css_string::CssString;
 use crate::css::css_tokenizer::ParserTokenKind;
 use crate::css::math_functions::{MathFunction, math_function_from_name};
 use crate::css::parser::component_value::{ComponentKind, ComponentValue};
@@ -23,7 +24,6 @@ use crate::css::parser::value_parser::{
     parse_calculated_numeric_value_with_ranges,
 };
 use crate::css::property_metadata::property_name;
-use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style_compute::LENGTH_UNIT_NAMES;
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
 use std::sync::Arc;
@@ -41,7 +41,6 @@ pub(crate) struct CalcParserContext {
     pub percentages_resolve_as: Option<u8>,
     pub property: u16,
     pub random_function_index: *mut usize,
-    pub intern_utf16_fly_string: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
     pub allowed_color_channels: u64,
     pub allow_random_functions: bool,
     pub parse_context: *const ParseContext,
@@ -54,7 +53,6 @@ impl CalcParserContext {
             percentages_resolve_as,
             property: 0,
             random_function_index: std::ptr::null_mut(),
-            intern_utf16_fly_string: None,
             allowed_color_channels: 0,
             allow_random_functions: false,
             parse_context: std::ptr::null(),
@@ -561,22 +559,15 @@ fn parse_rounding_strategy(values: &[ComponentValue]) -> Option<u8> {
     }
 }
 
-fn retain_fly_string(context: CalcParserContext, value: &[u16]) -> Result<RetainedUtf16FlyString> {
-    let callback = context.intern_utf16_fly_string.ok_or(CalcParseError::NotHandled)?;
-    crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::InternUtf16FlyStringCallback);
-    let raw = unsafe { callback(value.as_ptr(), value.len()) };
-    Ok(unsafe { RetainedUtf16FlyString::from_leaked_raw(raw) })
-}
-
-fn random_auto_name(context: CalcParserContext, index: usize) -> Result<RetainedUtf16FlyString> {
+fn random_auto_name(context: CalcParserContext, index: usize) -> CssString {
     let name = format!("{} {index}", property_name(context.property));
-    retain_fly_string(context, &name.encode_utf16().collect::<Vec<_>>())
+    CssString::from_utf16(&name.encode_utf16().collect::<Vec<_>>())
 }
 
 fn parse_random_value_sharing(
     argument: &[ComponentValue],
     context: CalcParserContext,
-    auto_name: RetainedUtf16FlyString,
+    auto_name: CssString,
 ) -> Result<Option<StyleValueData>> {
     let values = argument
         .iter()
@@ -613,7 +604,7 @@ fn parse_random_value_sharing(
             fixed_value: RetainedStyleValueData::from_owned(fixed_value),
             is_auto: false,
             has_name: false,
-            name: RetainedUtf16FlyString::none(),
+            name: CssString::none(),
             element_shared: false,
         }));
     }
@@ -629,7 +620,7 @@ fn parse_random_value_sharing(
             if has_explicit_auto || dashed_ident.is_some() {
                 return Err(CalcParseError::Invalid);
             }
-            dashed_ident = Some(retain_fly_string(context, identifier)?);
+            dashed_ident = Some(CssString::from_utf16(identifier));
         } else if equals_ascii_case_insensitive(identifier, b"auto") {
             if has_explicit_auto || dashed_ident.is_some() {
                 return Err(CalcParseError::Invalid);
@@ -658,15 +649,12 @@ fn parse_random_value_sharing(
 }
 
 fn parse_random(arguments: &[&[ComponentValue]], context: CalcParserContext) -> Result<Arc<CalcNode>> {
-    if !context.allow_random_functions
-        || context.random_function_index.is_null()
-        || context.intern_utf16_fly_string.is_none()
-    {
+    if !context.allow_random_functions || context.random_function_index.is_null() {
         return Err(CalcParseError::NotHandled);
     }
     let index = unsafe { *context.random_function_index };
     unsafe { *context.random_function_index += 1 };
-    let auto_name = random_auto_name(context, index)?;
+    let auto_name = random_auto_name(context, index);
     let explicit_sharing = arguments
         .first()
         .map(|argument| parse_random_value_sharing(argument, context, auto_name.clone()))
@@ -723,10 +711,6 @@ mod tests {
         parse_a_calc_function_node(name, values, CalcParserContext::for_test(percentages_resolve_as))
     }
 
-    unsafe extern "C" fn discard_interned_string(_: *const u16, _: usize) -> usize {
-        0
-    }
-
     #[test]
     fn parses_and_simplifies_calc_operators() {
         let node = parse("calc(1 + 2 * 3)", None).unwrap();
@@ -781,7 +765,6 @@ mod tests {
             percentages_resolve_as: None,
             property: 1,
             random_function_index: &raw mut random_function_index,
-            intern_utf16_fly_string: Some(discard_interned_string),
             allowed_color_channels: 0,
             allow_random_functions: true,
             parse_context: std::ptr::null(),

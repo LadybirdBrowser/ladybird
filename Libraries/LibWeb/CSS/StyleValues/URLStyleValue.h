@@ -14,23 +14,21 @@ namespace Web::CSS {
 
 inline String string_from_rust_data(StyleValueFFI::RetainedString const& string)
 {
-    if (string.raw != 0)
-        return String::from_raw(string.raw);
     return String::from_utf8_without_validation({ string.bytes, string.length });
 }
 
 // Marshals a URL's request URL modifiers for a Rust-owned allocation, retaining one leaked
 // reference to each string-valued modifier.
-inline Vector<StyleValueFFI::RetainedRequestUrlModifier> retain_url_modifiers_for_rust(URL const& url)
+inline Vector<StyleValueFFI::FfiRequestUrlModifier> retain_url_modifiers_for_rust(URL const& url)
 {
-    Vector<StyleValueFFI::RetainedRequestUrlModifier> modifiers;
+    Vector<StyleValueFFI::FfiRequestUrlModifier> modifiers;
     modifiers.ensure_capacity(url.request_url_modifiers().size());
     for (auto const& modifier : url.request_url_modifiers()) {
-        StyleValueFFI::RetainedRequestUrlModifier ffi_modifier { to_underlying(modifier.type()), 0, { 0 } };
+        StyleValueFFI::FfiRequestUrlModifier ffi_modifier { to_underlying(modifier.type()), 0, 0 };
         modifier.value().visit(
             [&](CrossOriginModifierValue value) { ffi_modifier.enum_value = to_underlying(value); },
             [&](ReferrerPolicyModifierValue value) { ffi_modifier.enum_value = to_underlying(value); },
-            [&](Utf16FlyString const& string) { ffi_modifier.string_value.raw = string.to_raw_leaked(); });
+            [&](Utf16FlyString const& string) { ffi_modifier.string_value = string.to_raw_leaked(); });
         modifiers.unchecked_append(ffi_modifier);
     }
     return modifiers;
@@ -48,7 +46,7 @@ inline URL url_from_rust_data(StyleValueFFI::RetainedString const& url_string, u
             modifiers.unchecked_append(RequestURLModifier::create_cross_origin(static_cast<CrossOriginModifierValue>(modifier.enum_value)));
             break;
         case RequestURLModifier::Type::Integrity:
-            modifiers.unchecked_append(RequestURLModifier::create_integrity(Utf16FlyString::from_raw(modifier.string_value.raw)));
+            modifiers.unchecked_append(RequestURLModifier::create_integrity(css_string_from_rust(&modifier.string_value)));
             break;
         case RequestURLModifier::Type::ReferrerPolicy:
             modifiers.unchecked_append(RequestURLModifier::create_referrer_policy(static_cast<ReferrerPolicyModifierValue>(modifier.enum_value)));

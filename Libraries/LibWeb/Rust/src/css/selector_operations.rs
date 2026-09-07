@@ -6,7 +6,7 @@
 
 //! Queries and transformations over Rust-owned CSS selectors.
 
-use std::rc::Rc;
+use std::sync::Arc;
 
 use super::css_tokenizer::{ParserTokenKind, tokenize_for_parser};
 use super::selector::{
@@ -29,7 +29,7 @@ fn pseudo_class(pseudo_class: PseudoClassType, arguments: SelectorList) -> Simpl
     })
 }
 
-fn scope_selector() -> Rc<CompiledSelector> {
+fn scope_selector() -> Arc<CompiledSelector> {
     CompiledSelector::new(Box::new([CompoundSelector {
         combinator: Combinator::None,
         is_implicit_universal_anchor: false,
@@ -68,14 +68,17 @@ fn contains_pseudo_class(selector: &CompiledSelector, expected: PseudoClassType)
     })
 }
 
-fn any_simple(selector: &CompiledSelector, predicate: &impl Fn(&SimpleSelector) -> bool) -> bool {
+fn any_simple<Identity>(
+    selector: &CompiledSelector<Identity>,
+    predicate: &impl Fn(&SimpleSelector<Identity>) -> bool,
+) -> bool {
     selector
         .compound_selectors
         .iter()
         .any(|compound| compound.simple_selectors.iter().any(predicate))
 }
 
-pub(crate) fn contains_unknown_webkit(selector: &CompiledSelector) -> bool {
+pub(crate) fn contains_unknown_webkit<Identity>(selector: &CompiledSelector<Identity>) -> bool {
     any_simple(selector, &|simple| match simple {
         SimpleSelector::PseudoElement(pseudo_element) => {
             pseudo_element.pseudo_element == PseudoElementType::UnknownWebKit
@@ -88,7 +91,7 @@ pub(crate) fn contains_unknown_webkit(selector: &CompiledSelector) -> bool {
     })
 }
 
-fn contains_named_namespace(selector: &CompiledSelector) -> bool {
+fn contains_named_namespace<Identity>(selector: &CompiledSelector<Identity>) -> bool {
     any_simple(selector, &|simple| match simple {
         SimpleSelector::Universal(name) | SimpleSelector::TagName(name) => {
             name.namespace_type == super::selector::NamespaceType::Named
@@ -122,7 +125,7 @@ fn invalid_for_has(selector: &CompiledSelector) -> bool {
     })
 }
 
-fn absolutize(selector: &CompiledSelector, replacement: &SimpleSelector) -> Option<Rc<CompiledSelector>> {
+fn absolutize(selector: &CompiledSelector, replacement: &SimpleSelector) -> Option<Arc<CompiledSelector>> {
     if !contains_nesting(selector) {
         return Some(CompiledSelector::new(selector.compound_selectors.clone()));
     }
@@ -161,7 +164,7 @@ fn absolutize(selector: &CompiledSelector, replacement: &SimpleSelector) -> Opti
     Some(CompiledSelector::new(compounds))
 }
 
-fn relative_to(selector: &CompiledSelector, parent: SimpleSelector) -> Rc<CompiledSelector> {
+fn relative_to(selector: &CompiledSelector, parent: SimpleSelector) -> Arc<CompiledSelector> {
     let mut compounds = Vec::with_capacity(selector.compound_selectors.len() + 1);
     compounds.push(CompoundSelector {
         combinator: Combinator::None,
@@ -464,7 +467,7 @@ pub unsafe extern "C" fn rust_selector_absolutize(
 mod tests {
     use super::super::css_tokenizer::{TokenizerInput, tokenize_for_parser};
     use super::super::parser::component_value::consume_a_list_of_component_values;
-    use super::super::selector::SelectorList;
+    use super::super::selector::parsed::SelectorList;
     use super::super::selector_parser::{SelectorType, parse_selector_list_from_component_values};
     use super::contains_named_namespace;
 

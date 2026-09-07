@@ -27,7 +27,7 @@ public:
     virtual ~OpenTypeTaggedStyleValue() override = default;
 
     Mode mode() const { return static_cast<Mode>(m_value->open_type_tagged.mode); }
-    Utf16FlyString tag() const { return Utf16FlyString::from_raw(m_value->open_type_tagged.tag.raw); }
+    Utf16FlyString tag() const { return css_string_from_rust(&m_value->open_type_tagged.tag); }
     ValueComparingNonnullRefPtr<StyleValue const> value() const { return wrap_rust_child(m_value->open_type_tagged.value); }
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;

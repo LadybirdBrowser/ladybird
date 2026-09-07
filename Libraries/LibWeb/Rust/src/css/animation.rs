@@ -13,9 +13,9 @@ use std::sync::Arc;
 
 use crate::css::property_metadata::{property_animation_type, property_numeric_ranges};
 use crate::css::style_value::{
-    ColorBase, GridTrackEntryKind, RetainedGridTrackEntry, RetainedGridTrackEntryList, RetainedNumericRangeList,
-    RetainedShapePoint, RetainedShapePointList, RetainedStyleValueData, RetainedStyleValueDataList,
-    RetainedUtf16FlyString, RetainedUtf16FlyStringList, StyleValueData,
+    ColorBase, CssString, CssStringList, GridTrackEntryKind, RetainedGridTrackEntry, RetainedGridTrackEntryList,
+    RetainedNumericRangeList, RetainedShapePoint, RetainedShapePointList, RetainedStyleValueData,
+    RetainedStyleValueDataList, StyleValueData,
 };
 
 pub(crate) const ANIMATION_TYPE_DISCRETE: u8 = 0;
@@ -701,7 +701,7 @@ pub struct FfiResolvedAnimationProperties {
 #[repr(C)]
 pub struct FfiAnimationUnfixedRandomSharing {
     pub source: *const StyleValueData,
-    pub name: usize,
+    pub name: *const std::ffi::c_void,
     pub element_shared: bool,
 }
 
@@ -871,7 +871,7 @@ fn resolve_animation_declarations(
             };
             FfiAnimationUnfixedRandomSharing {
                 source,
-                name: if *has_name { name.raw() } else { 0 },
+                name: if *has_name { name.as_ptr() } else { std::ptr::null() },
                 element_shared: *element_shared || !*is_auto,
             }
         })
@@ -1743,52 +1743,21 @@ fn radius_components_equal(first: &StyleValueData, second: &StyleValueData) -> b
 
 struct ExpandedGridTrack<'a> {
     track: &'a RetainedGridTrackEntry,
-    line_names: Option<&'a RetainedUtf16FlyStringList>,
+    line_names: Option<&'a CssStringList>,
 }
 
 fn empty_retained_style_value() -> RetainedStyleValueData {
     unsafe { RetainedStyleValueData::from_retained_optional_pointer(std::ptr::null()) }
 }
 
-fn empty_grid_line_names() -> RetainedUtf16FlyStringList {
-    RetainedUtf16FlyStringList::from_retained_strings(Vec::new())
+fn empty_grid_line_names() -> CssStringList {
+    CssStringList::from_strings(Vec::new())
 }
 
-fn grid_nested_entries(entry: &RetainedGridTrackEntry) -> &[RetainedGridTrackEntry] {
-    if entry.repeat_entries_pointer.is_null() {
-        return &[];
-    }
-    unsafe { std::slice::from_raw_parts(entry.repeat_entries_pointer, entry.repeat_entries_length) }
-}
-
-fn grid_entries_into_raw_parts(entries: Vec<RetainedGridTrackEntry>) -> (*mut RetainedGridTrackEntry, usize) {
-    let entries = entries.into_boxed_slice();
-    let length = entries.len();
-    (Box::into_raw(entries) as *mut RetainedGridTrackEntry, length)
-}
-
-fn clone_grid_track_entry(entry: &RetainedGridTrackEntry) -> RetainedGridTrackEntry {
-    let (repeat_entries_pointer, repeat_entries_length) =
-        grid_entries_into_raw_parts(grid_nested_entries(entry).iter().map(clone_grid_track_entry).collect());
-    RetainedGridTrackEntry {
-        kind: entry.kind,
-        names: entry.names.clone_retained(),
-        size_value: entry.size_value.clone_retained(),
-        min_value: entry.min_value.clone_retained(),
-        max_value: entry.max_value.clone_retained(),
-        repeat_type: entry.repeat_type,
-        repeat_count: entry.repeat_count.clone_retained(),
-        repeat_is_subgrid: entry.repeat_is_subgrid,
-        repeat_preserve_line_name_sets: entry.repeat_preserve_line_name_sets,
-        repeat_entries_pointer,
-        repeat_entries_length,
-    }
-}
-
-fn grid_line_names_entry(names: &RetainedUtf16FlyStringList) -> RetainedGridTrackEntry {
+fn grid_line_names_entry(names: &CssStringList) -> RetainedGridTrackEntry {
     RetainedGridTrackEntry {
         kind: GridTrackEntryKind::LineNames,
-        names: names.clone_retained(),
+        names: names.clone(),
         size_value: empty_retained_style_value(),
         min_value: empty_retained_style_value(),
         max_value: empty_retained_style_value(),
@@ -1796,8 +1765,7 @@ fn grid_line_names_entry(names: &RetainedUtf16FlyStringList) -> RetainedGridTrac
         repeat_count: empty_retained_style_value(),
         repeat_is_subgrid: false,
         repeat_preserve_line_name_sets: false,
-        repeat_entries_pointer: std::ptr::null_mut(),
-        repeat_entries_length: 0,
+        repeat_entries: RetainedGridTrackEntryList::from_retained_entries(Vec::new()),
     }
 }
 
@@ -1841,7 +1809,7 @@ fn expand_grid_tracks_and_lines(entries: &[RetainedGridTrackEntry]) -> Option<Ve
 fn append_grid_track_with_line_names(
     result: &mut Vec<RetainedGridTrackEntry>,
     track: RetainedGridTrackEntry,
-    line_names: Option<&RetainedUtf16FlyStringList>,
+    line_names: Option<&CssStringList>,
 ) {
     result.push(track);
     if let Some(line_names) = line_names {
@@ -1909,12 +1877,11 @@ fn interpolate_grid_track_entries(
                 let nested = interpolate_grid_track_entries(
                     property_id,
                     from.track.repeat_is_subgrid,
-                    grid_nested_entries(from.track),
+                    from.track.repeat_entries(),
                     to.track.repeat_is_subgrid,
-                    grid_nested_entries(to.track),
+                    to.track.repeat_entries(),
                     delta,
                 )?;
-                let (repeat_entries_pointer, repeat_entries_length) = grid_entries_into_raw_parts(nested);
                 RetainedGridTrackEntry {
                     kind: GridTrackEntryKind::Repeat,
                     names: empty_grid_line_names(),
@@ -1925,8 +1892,7 @@ fn interpolate_grid_track_entries(
                     repeat_count: from.track.repeat_count.clone_retained(),
                     repeat_is_subgrid: false,
                     repeat_preserve_line_name_sets: false,
-                    repeat_entries_pointer,
-                    repeat_entries_length,
+                    repeat_entries: RetainedGridTrackEntryList::from_retained_entries(nested),
                 }
             }
             (GridTrackEntryKind::Repeat, _) | (_, GridTrackEntryKind::Repeat) => return None,
@@ -1940,8 +1906,7 @@ fn interpolate_grid_track_entries(
                 repeat_count: empty_retained_style_value(),
                 repeat_is_subgrid: false,
                 repeat_preserve_line_name_sets: false,
-                repeat_entries_pointer: std::ptr::null_mut(),
-                repeat_entries_length: 0,
+                repeat_entries: RetainedGridTrackEntryList::from_retained_entries(Vec::new()),
             },
             (GridTrackEntryKind::Size, GridTrackEntryKind::Size) => RetainedGridTrackEntry {
                 kind: GridTrackEntryKind::Size,
@@ -1958,14 +1923,13 @@ fn interpolate_grid_track_entries(
                 repeat_count: empty_retained_style_value(),
                 repeat_is_subgrid: false,
                 repeat_preserve_line_name_sets: false,
-                repeat_entries_pointer: std::ptr::null_mut(),
-                repeat_entries_length: 0,
+                repeat_entries: RetainedGridTrackEntryList::from_retained_entries(Vec::new()),
             },
             _ => {
                 if delta < 0.5 {
-                    clone_grid_track_entry(from.track)
+                    from.track.clone()
                 } else {
-                    clone_grid_track_entry(to.track)
+                    to.track.clone()
                 }
             }
         };
@@ -2043,12 +2007,11 @@ fn composite_grid_track_entries(
                 }
                 let nested = composite_grid_track_entries(
                     underlying.track.repeat_is_subgrid,
-                    grid_nested_entries(underlying.track),
+                    underlying.track.repeat_entries(),
                     animated.track.repeat_is_subgrid,
-                    grid_nested_entries(animated.track),
+                    animated.track.repeat_entries(),
                     operation,
                 )?;
-                let (repeat_entries_pointer, repeat_entries_length) = grid_entries_into_raw_parts(nested);
                 RetainedGridTrackEntry {
                     kind: GridTrackEntryKind::Repeat,
                     names: empty_grid_line_names(),
@@ -2059,8 +2022,7 @@ fn composite_grid_track_entries(
                     repeat_count: underlying.track.repeat_count.clone_retained(),
                     repeat_is_subgrid: false,
                     repeat_preserve_line_name_sets: false,
-                    repeat_entries_pointer,
-                    repeat_entries_length,
+                    repeat_entries: RetainedGridTrackEntryList::from_retained_entries(nested),
                 }
             }
             (GridTrackEntryKind::Repeat, _) | (_, GridTrackEntryKind::Repeat) => return None,
@@ -2074,8 +2036,7 @@ fn composite_grid_track_entries(
                 repeat_count: empty_retained_style_value(),
                 repeat_is_subgrid: false,
                 repeat_preserve_line_name_sets: false,
-                repeat_entries_pointer: std::ptr::null_mut(),
-                repeat_entries_length: 0,
+                repeat_entries: RetainedGridTrackEntryList::from_retained_entries(Vec::new()),
             },
             (GridTrackEntryKind::Size, GridTrackEntryKind::Size) => RetainedGridTrackEntry {
                 kind: GridTrackEntryKind::Size,
@@ -2091,10 +2052,9 @@ fn composite_grid_track_entries(
                 repeat_count: empty_retained_style_value(),
                 repeat_is_subgrid: false,
                 repeat_preserve_line_name_sets: false,
-                repeat_entries_pointer: std::ptr::null_mut(),
-                repeat_entries_length: 0,
+                repeat_entries: RetainedGridTrackEntryList::from_retained_entries(Vec::new()),
             },
-            _ => clone_grid_track_entry(animated.track),
+            _ => animated.track.clone(),
         };
         append_grid_track_with_line_names(&mut result, track, animated.line_names);
     }
@@ -2543,8 +2503,8 @@ fn empty_shape_points() -> RetainedShapePointList {
     RetainedShapePointList::from_retained_points(Vec::new())
 }
 
-fn empty_retained_fly_string() -> RetainedUtf16FlyString {
-    unsafe { RetainedUtf16FlyString::from_leaked_raw(0) }
+fn empty_retained_fly_string() -> CssString {
+    CssString::none()
 }
 
 fn interpolate_basic_shape_component(
@@ -3681,7 +3641,7 @@ fn composite_scalar_value(
             // https://drafts.csswg.org/web-animations-1/#animating-properties
             // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
             // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
-            if underlying_tag.raw() != animated_tag.raw() {
+            if underlying_tag != animated_tag {
                 return handled_without_value();
             }
             let value = composite_scalar_value(underlying_value.data(), animated_value.data(), operation);
@@ -3711,7 +3671,7 @@ fn composite_scalar_value(
             // https://drafts.csswg.org/web-animations-1/#animating-properties
             // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
             // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
-            if underlying_name.raw() != animated_name.raw() {
+            if underlying_name != animated_name {
                 return handled_without_value();
             }
             let value = composite_scalar_value(underlying_value.data(), animated_value.data(), operation);
@@ -4431,7 +4391,7 @@ fn interpolate_scalar_value(
             // https://drafts.csswg.org/web-animations-1/#animating-properties
             // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
             // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
-            if from_tag.raw() != to_tag.raw() {
+            if from_tag != to_tag {
                 return handled_without_value();
             }
             let value =
@@ -4462,7 +4422,7 @@ fn interpolate_scalar_value(
             // https://drafts.csswg.org/web-animations-1/#animating-properties
             // Corresponding individual components of the computed values are combined (interpolated, added, or accumulated) using the indicated procedure for that value type (see CSS Values 4 § 3 Combining Values: Interpolation, Addition, and Accumulation).
             // If the number of components or the types of corresponding components do not match, or if any component value uses discrete animation and the two corresponding values do not match, then the property values combine as discrete.
-            if from_name.raw() != to_name.raw() {
+            if from_name != to_name {
                 return handled_without_value();
             }
             let value =

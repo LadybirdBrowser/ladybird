@@ -1338,14 +1338,12 @@ pub struct FfiQueryHandle {
     tree: QueryTree,
 }
 
-#[allow(clippy::arc_with_non_send_sync)]
 pub(crate) fn media_query_handle(query: MediaQuery) -> Arc<FfiQueryHandle> {
     Arc::new(FfiQueryHandle {
         tree: QueryTree::MediaQuery(query),
     })
 }
 
-#[allow(clippy::arc_with_non_send_sync)]
 pub(crate) fn expression_query_handle(expression: Expression, kind: QueryKind) -> Arc<FfiQueryHandle> {
     Arc::new(FfiQueryHandle {
         tree: QueryTree::Expression { expression, kind },
@@ -1663,7 +1661,6 @@ fn media_value_parse_context(value_context: &FfiValueParsingContext) -> ParseCon
         document_url_length: 0,
         document_base_url: std::ptr::null(),
         document_base_url_length: 0,
-        intern_utf16_fly_string: None,
         length_resolution_context: std::ptr::null(),
         random_function_index: std::ptr::null_mut(),
     }
@@ -2615,7 +2612,6 @@ fn parse_sizes_attribute(
 /// The source, context, media environment, and optional auto width must remain readable for the
 /// duration of the call. The media environment's nested pointers must be valid for their lengths.
 #[unsafe(no_mangle)]
-#[allow(clippy::arc_with_non_send_sync)]
 pub unsafe extern "C" fn rust_parse_sizes_attribute(
     source: FfiUtf16View,
     context: *const ParseContext,
@@ -2659,7 +2655,6 @@ pub(crate) unsafe fn declared_namespaces_from_context(context: &ParseContext) ->
 /// The source pointers must identify readable storage for the duration of the call. The callback
 /// must be valid and may retain a query handle with `css_query_ref`.
 #[unsafe(no_mangle)]
-#[allow(clippy::arc_with_non_send_sync)]
 pub unsafe extern "C" fn rust_visit_media_query_list(
     source: FfiUtf16View,
     context: *mut c_void,
@@ -2680,7 +2675,6 @@ pub unsafe extern "C" fn rust_visit_media_query_list(
     true
 }
 
-#[allow(clippy::arc_with_non_send_sync)]
 fn create_expression_handle(expression: Expression, kind: QueryKind) -> *const FfiQueryHandle {
     Arc::into_raw(Arc::new(FfiQueryHandle {
         tree: QueryTree::Expression { expression, kind },
@@ -2748,7 +2742,6 @@ pub unsafe extern "C" fn css_query_unref(handle: *const FfiQueryHandle) {
 }
 
 #[unsafe(no_mangle)]
-#[allow(clippy::arc_with_non_send_sync)]
 pub extern "C" fn css_query_create_not_all() -> *const FfiQueryHandle {
     Arc::into_raw(Arc::new(FfiQueryHandle {
         tree: QueryTree::MediaQuery(invalid_media_query()),

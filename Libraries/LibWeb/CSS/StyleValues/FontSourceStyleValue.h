@@ -26,7 +26,7 @@ public:
     {
         if (!m_value->font_source.has_format)
             return {};
-        return Utf16FlyString::from_raw(m_value->font_source.format.raw);
+        return css_string_from_rust(&m_value->font_source.format);
     }
     Vector<FontTech> tech() const
     {

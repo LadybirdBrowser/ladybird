@@ -101,14 +101,17 @@
 extern "C" void ladybird_utf16_fly_string_unref(size_t);
 extern "C" void ladybird_string_unref(size_t);
 
-static_assert(sizeof(Web::CSS::StyleValueFFI::RetainedUtf16FlyString) == sizeof(Utf16FlyString));
-static_assert(alignof(Web::CSS::StyleValueFFI::RetainedUtf16FlyString) == alignof(Utf16FlyString));
-static_assert(offsetof(Web::CSS::StyleValueFFI::RetainedUtf16FlyString, raw) == 0);
 static_assert(sizeof(Web::CSS::ComputedValuesFFI::RetainedUtf16FlyString) == sizeof(Utf16FlyString));
 static_assert(alignof(Web::CSS::ComputedValuesFFI::RetainedUtf16FlyString) == alignof(Utf16FlyString));
 static_assert(offsetof(Web::CSS::ComputedValuesFFI::RetainedUtf16FlyString, raw) == 0);
 
 namespace Web::CSS {
+
+Utf16FlyString css_string_from_rust(void const* string)
+{
+    auto view = StyleValueFFI::rust_css_string_view(string);
+    return Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(view.data), view.length });
+}
 
 ColorResolutionContext ColorResolutionContext::for_element(DOM::AbstractElement const& element)
 {

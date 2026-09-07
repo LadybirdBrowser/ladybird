@@ -2670,7 +2670,7 @@ pub struct FfiComputedAnimation {
     pub delay: f64,
     pub fill_mode: u8,
     pub composition: u8,
-    pub name_raw: usize,
+    pub name: *const c_void,
     pub timeline_kind: FfiAnimationTimelineKind,
     pub scroll_scroller: u8,
     pub scroll_axis: u8,
@@ -4673,14 +4673,8 @@ fn computed_value_list(table: &ComputedLonghandTable, property_id: u16) -> &[Ret
     values.as_slice()
 }
 
-fn property_id_from_custom_ident(
-    custom_ident: &crate::css::retained_fly_string::RetainedUtf16FlyString,
-) -> Option<u16> {
-    let name = unsafe { ak::utf16_string_units(custom_ident.raw_word()) };
-    match name {
-        ak::Utf16StringUnits::Ascii(name) => crate::css::property_metadata::property_id_from_name(name),
-        ak::Utf16StringUnits::Utf16(name) => crate::css::property_metadata::property_id_from_name(name),
-    }
+fn property_id_from_custom_ident(custom_ident: &crate::css::css_string::CssString) -> Option<u16> {
+    crate::css::property_metadata::property_id_from_name(custom_ident.units())
 }
 
 fn time_value_to_milliseconds(value: &StyleValueData) -> f64 {
@@ -4853,11 +4847,12 @@ fn build_computed_transition_list(table: &ComputedLonghandTable) -> FfiComputedT
     }
 }
 
-fn fly_string_is_ascii(string: &crate::css::retained_fly_string::RetainedUtf16FlyString, expected: &[u8]) -> bool {
-    match unsafe { ak::utf16_string_units(string.raw_word()) } {
-        ak::Utf16StringUnits::Ascii(string) => string == expected,
-        ak::Utf16StringUnits::Utf16(string) => string.iter().copied().eq(expected.iter().copied().map(u16::from)),
-    }
+fn fly_string_is_ascii(string: &crate::css::css_string::CssString, expected: &[u8]) -> bool {
+    string
+        .units()
+        .iter()
+        .copied()
+        .eq(expected.iter().copied().map(u16::from))
 }
 
 fn animation_timeline_descriptor(value: &StyleValueData) -> (FfiAnimationTimelineKind, u8, u8) {
@@ -4910,10 +4905,10 @@ fn build_computed_animation_list(table: &ComputedLonghandTable) -> FfiComputedAn
 
     let mut animations = Vec::with_capacity(name_values.len());
     for (index, name_value) in name_values.iter().enumerate() {
-        let name_raw = match name_value.data() {
+        let name = match name_value.data() {
             StyleValueData::Keyword { keyword } if *keyword == keyword::NONE => continue,
-            StyleValueData::CustomIdent { custom_ident } => custom_ident.raw(),
-            StyleValueData::String { string, .. } => string.raw(),
+            StyleValueData::CustomIdent { custom_ident } => custom_ident.as_ptr(),
+            StyleValueData::String { string, .. } => string.as_ptr(),
             _ => unreachable!("computed animation-name must be none or a string"),
         };
         let duration_value = duration_values[index % duration_values.len()].data();
@@ -4944,7 +4939,7 @@ fn build_computed_animation_list(table: &ComputedLonghandTable) -> FfiComputedAn
             delay: time_value_to_milliseconds(delay_values[index % delay_values.len()].data()),
             fill_mode: keyword_to_animation_fill_mode(keyword_value(fill_mode_values)).unwrap(),
             composition: keyword_to_animation_composition(keyword_value(composition_values)).unwrap(),
-            name_raw,
+            name,
             timeline_kind,
             scroll_scroller,
             scroll_axis,
@@ -6737,6 +6732,8 @@ pub(crate) mod ffi_test_stubs {
 
     thread_local! {
         static FONT_CASCADE_LIST_UNREFS: Cell<usize> = const { Cell::new(0) };
+        static FLY_STRINGS: std::cell::RefCell<std::collections::HashMap<Vec<u16>, Box<[u64]>>> =
+            std::cell::RefCell::new(std::collections::HashMap::new());
     }
 
     pub(crate) fn font_cascade_list_unref_count() -> usize {
@@ -6745,6 +6742,49 @@ pub(crate) mod ffi_test_stubs {
 
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_utf16_fly_string_unref(_raw: usize) {}
+    #[unsafe(no_mangle)]
+    unsafe extern "C" fn ladybird_utf16_fly_string_from_utf16(data: *const u16, length: usize) -> usize {
+        // Native declaration publication binds custom names on the document thread. Keep a
+        // test-local atom table with AK's header layout; worker parsing must never call it.
+        #[repr(C, align(8))]
+        struct Header {
+            references: std::sync::atomic::AtomicU32,
+            length: u32,
+            code_points: std::sync::atomic::AtomicU32,
+            hash: std::sync::atomic::AtomicU32,
+            flags: std::sync::atomic::AtomicU32,
+            reserved: u32,
+        }
+        const _: () = assert!(size_of::<Header>() == 24);
+        let units = unsafe { std::slice::from_raw_parts(data, length) };
+        FLY_STRINGS.with_borrow_mut(|strings| {
+            let storage = strings.entry(units.to_vec()).or_insert_with(|| {
+                let bytes = size_of::<Header>().checked_add(size_of_val(units)).unwrap();
+                let mut storage = vec![0_u64; bytes.div_ceil(size_of::<u64>())].into_boxed_slice();
+                unsafe {
+                    storage.as_mut_ptr().cast::<Header>().write(Header {
+                        references: std::sync::atomic::AtomicU32::new(1),
+                        length: u32::try_from(length).unwrap(),
+                        code_points: std::sync::atomic::AtomicU32::new(u32::MAX),
+                        hash: std::sync::atomic::AtomicU32::new(0),
+                        flags: std::sync::atomic::AtomicU32::new(1),
+                        reserved: 0,
+                    });
+                    storage
+                        .as_mut_ptr()
+                        .cast::<Header>()
+                        .add(1)
+                        .cast::<u16>()
+                        .copy_from_nonoverlapping(units.as_ptr(), length);
+                }
+                storage
+            });
+            let raw = storage.as_ptr() as usize;
+            // The table retains its own reference for the test thread's lifetime.
+            unsafe { ak::reference_utf16_string(raw) };
+            raw
+        })
+    }
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_string_unref(_raw: usize) {}
     #[unsafe(no_mangle)]

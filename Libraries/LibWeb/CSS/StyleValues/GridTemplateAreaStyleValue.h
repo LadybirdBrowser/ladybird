@@ -27,7 +27,7 @@ public:
         HashMap<Utf16FlyString, GridArea> grid_areas;
         for (size_t i = 0; i < list.length; ++i) {
             auto const& area = list.pointer[i];
-            grid_areas.set(Utf16FlyString::from_raw(area.name.raw), GridArea { area.row_start, area.row_end, area.column_start, area.column_end });
+            grid_areas.set(css_string_from_rust(&area.name), GridArea { area.row_start, area.row_end, area.column_start, area.column_end });
         }
         return grid_areas;
     }

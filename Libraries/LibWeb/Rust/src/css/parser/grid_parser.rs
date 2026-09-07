@@ -11,6 +11,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::css::css_enums::{keyword, keyword_from_ascii_case_insensitive};
+use crate::css::css_string::CssString;
 use crate::css::math_functions::math_function_from_name;
 use crate::css::parser::component_value::ComponentValue;
 use crate::css::parser::token_stream::TokenStream;
@@ -18,7 +19,6 @@ use crate::css::parser::value_parser::{
     NumericRange, ParseContext, ParseOutcome, VALUE_TYPE_FLEX, equals_ascii_case_insensitive,
     is_arbitrary_substitution_function, is_valid_custom_ident, parse_calculated_numeric_value_with_ranges,
     parse_flex_value, parse_integer_from_stream, parse_length_percentage_from_stream, parse_tree_counting_value,
-    retain_fly_string,
 };
 use crate::css::property_metadata::property_id;
 use crate::css::style_value::{
@@ -117,9 +117,9 @@ fn parse_grid_track_breadth(
 // https://drafts.csswg.org/css-grid-2/#typedef-line-names
 // <line-names> = '[' <custom-ident>* ']'
 fn parse_grid_line_names(
-    context: &ParseContext,
+    _context: &ParseContext,
     tokens: &mut TokenStream<'_>,
-) -> Option<Vec<crate::css::retained_fly_string::RetainedUtf16FlyString>> {
+) -> Option<Vec<crate::css::css_string::CssString>> {
     tokens.discard_whitespace();
     let Some(block) = tokens.next_token().square_block() else {
         return Some(Vec::new());
@@ -132,7 +132,7 @@ fn parse_grid_line_names(
         if !is_valid_custom_ident(identifier, &["span", "auto"]) {
             return None;
         }
-        names.push(retain_fly_string(context, identifier)?);
+        names.push(CssString::from_utf16(identifier));
         block_tokens.discard_a_token();
         block_tokens.discard_whitespace();
     }
@@ -221,7 +221,7 @@ fn parse_grid_track_size(
                 return None;
             }
             let function = StyleValueData::Function {
-                name: retain_fly_string(context, name)?,
+                name: CssString::from_utf16(name),
                 value: RetainedStyleValueData::from_owned(value),
             };
             tokens.discard_a_token();
@@ -321,7 +321,7 @@ fn parse_grid_intrinsic_or_fixed_size(
                 return None;
             }
             let function = StyleValueData::Function {
-                name: retain_fly_string(context, name)?,
+                name: CssString::from_utf16(name),
                 value: RetainedStyleValueData::from_owned(value),
             };
             tokens.discard_a_token();
@@ -706,9 +706,9 @@ fn parse_grid_track_placement(
                 kind: 0,
                 value: RetainedStyleValueData::none(),
                 has_name: false,
-                name: crate::css::retained_fly_string::RetainedUtf16FlyString::none(),
-                implicit_start_name: crate::css::retained_fly_string::RetainedUtf16FlyString::none(),
-                implicit_end_name: crate::css::retained_fly_string::RetainedUtf16FlyString::none(),
+                name: crate::css::css_string::CssString::none(),
+                implicit_start_name: crate::css::css_string::CssString::none(),
+                implicit_end_name: crate::css::css_string::CssString::none(),
             });
         }
         return None;
@@ -766,23 +766,18 @@ fn parse_grid_track_placement(
     }
 
     let has_name = parsed_name.is_some();
-    let name = match parsed_name.as_deref() {
-        Some(name) => Some(retain_fly_string(context, name)?),
-        None => None,
-    };
+    let name = parsed_name.as_deref().map(CssString::from_utf16);
     let implicit_start_name = if !is_span {
-        match parsed_name.as_deref() {
-            Some(name) => Some(retain_fly_string(context, &implicit_grid_line_name(name, b"-start"))?),
-            None => None,
-        }
+        parsed_name
+            .as_deref()
+            .map(|name| CssString::from_utf16(&implicit_grid_line_name(name, b"-start")))
     } else {
         None
     };
     let implicit_end_name = if !is_span {
-        match parsed_name.as_deref() {
-            Some(name) => Some(retain_fly_string(context, &implicit_grid_line_name(name, b"-end"))?),
-            None => None,
-        }
+        parsed_name
+            .as_deref()
+            .map(|name| CssString::from_utf16(&implicit_grid_line_name(name, b"-end")))
     } else {
         None
     };
@@ -794,11 +789,9 @@ fn parse_grid_track_placement(
             kind: 2,
             value: parsed_integer.map_or_else(RetainedStyleValueData::none, RetainedStyleValueData::from_owned),
             has_name,
-            name: name.unwrap_or_else(crate::css::retained_fly_string::RetainedUtf16FlyString::none),
-            implicit_start_name: implicit_start_name
-                .unwrap_or_else(crate::css::retained_fly_string::RetainedUtf16FlyString::none),
-            implicit_end_name: implicit_end_name
-                .unwrap_or_else(crate::css::retained_fly_string::RetainedUtf16FlyString::none),
+            name: name.unwrap_or_else(crate::css::css_string::CssString::none),
+            implicit_start_name: implicit_start_name.unwrap_or_else(crate::css::css_string::CssString::none),
+            implicit_end_name: implicit_end_name.unwrap_or_else(crate::css::css_string::CssString::none),
         });
     }
     if is_span
@@ -809,9 +802,9 @@ fn parse_grid_track_placement(
             kind: 1,
             value: RetainedStyleValueData::from_owned(parsed_integer.unwrap_or(StyleValueData::Integer { value: 1 })),
             has_name,
-            name: name.unwrap_or_else(crate::css::retained_fly_string::RetainedUtf16FlyString::none),
-            implicit_start_name: crate::css::retained_fly_string::RetainedUtf16FlyString::none(),
-            implicit_end_name: crate::css::retained_fly_string::RetainedUtf16FlyString::none(),
+            name: name.unwrap_or_else(crate::css::css_string::CssString::none),
+            implicit_start_name: crate::css::css_string::CssString::none(),
+            implicit_end_name: crate::css::css_string::CssString::none(),
         });
     }
     None
@@ -822,9 +815,9 @@ fn auto_grid_track_placement() -> StyleValueData {
         kind: 0,
         value: RetainedStyleValueData::none(),
         has_name: false,
-        name: crate::css::retained_fly_string::RetainedUtf16FlyString::none(),
-        implicit_start_name: crate::css::retained_fly_string::RetainedUtf16FlyString::none(),
-        implicit_end_name: crate::css::retained_fly_string::RetainedUtf16FlyString::none(),
+        name: crate::css::css_string::CssString::none(),
+        implicit_start_name: crate::css::css_string::CssString::none(),
+        implicit_end_name: crate::css::css_string::CssString::none(),
     }
 }
 
@@ -972,10 +965,7 @@ fn initial_grid_values() -> [StyleValueData; 6] {
 }
 
 fn parse_grid_template_area_form(context: &ParseContext, values: &[ComponentValue]) -> Option<[StyleValueData; 3]> {
-    fn append_line_names(
-        rows: &mut Vec<RetainedGridTrackEntry>,
-        mut names: Vec<crate::css::retained_fly_string::RetainedUtf16FlyString>,
-    ) {
+    fn append_line_names(rows: &mut Vec<RetainedGridTrackEntry>, mut names: Vec<crate::css::css_string::CssString>) {
         if names.is_empty() {
             return;
         }
@@ -1304,7 +1294,7 @@ fn parse_grid_area_row(string: &[u16]) -> Option<Vec<Vec<u16>>> {
 
 // https://drafts.csswg.org/css-grid-2/#grid-template-areas-property
 // none | <string>+
-fn parse_grid_template_areas(context: &ParseContext, values: &[ComponentValue]) -> Option<StyleValueData> {
+fn parse_grid_template_areas(_context: &ParseContext, values: &[ComponentValue]) -> Option<StyleValueData> {
     let mut tokens = TokenStream::new(values);
     tokens.discard_whitespace();
     if parse_keyword(tokens.next_token(), keyword::NONE).is_some() {
@@ -1364,9 +1354,9 @@ fn parse_grid_template_areas(context: &ParseContext, values: &[ComponentValue]) 
             }
             seen.insert(name.clone(), ());
             areas.push(RetainedGridArea::new(
-                retain_fly_string(context, name)?,
-                retain_fly_string(context, &implicit_grid_line_name(name, b"-start"))?,
-                retain_fly_string(context, &implicit_grid_line_name(name, b"-end"))?,
+                CssString::from_utf16(name),
+                CssString::from_utf16(&implicit_grid_line_name(name, b"-start")),
+                CssString::from_utf16(&implicit_grid_line_name(name, b"-end")),
                 y,
                 y_end,
                 x,
@@ -1451,10 +1441,6 @@ mod tests {
     use crate::css::css_tokenizer::tokenize_for_parser;
     use crate::css::parser::component_value::consume_a_list_of_component_values;
 
-    unsafe extern "C" fn discard_interned_string(_: *const u16, _: usize) -> usize {
-        0
-    }
-
     fn context() -> ParseContext {
         ParseContext {
             in_quirks_mode: false,
@@ -1470,7 +1456,6 @@ mod tests {
             document_url_length: 0,
             document_base_url: std::ptr::null(),
             document_base_url_length: 0,
-            intern_utf16_fly_string: Some(discard_interned_string),
             length_resolution_context: std::ptr::null(),
             random_function_index: std::ptr::null_mut(),
         }

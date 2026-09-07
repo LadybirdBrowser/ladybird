@@ -1096,7 +1096,7 @@ Vector<ComputedFontFamily> ComputedStyleWorkingSet::computed_font_families() con
         }
         VERIFY(entry.kind == StyleValueFFI::COMPUTED_FONT_FAMILY_CUSTOM_IDENT || entry.kind == StyleValueFFI::COMPUTED_FONT_FAMILY_STRING);
         families.unchecked_append(ComputedFontFamilyName {
-            .name = Utf16FlyString::from_raw(entry.string_raw),
+            .name = css_string_from_rust(entry.string),
             .syntax = entry.kind == StyleValueFFI::COMPUTED_FONT_FAMILY_STRING
                 ? ComputedFontFamilySyntax::String
                 : ComputedFontFamilySyntax::CustomIdent,

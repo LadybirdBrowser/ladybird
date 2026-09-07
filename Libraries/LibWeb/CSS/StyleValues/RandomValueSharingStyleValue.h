@@ -60,7 +60,7 @@ private:
     {
         if (!m_value->random_value_sharing.has_name)
             return {};
-        return Utf16FlyString::from_raw(m_value->random_value_sharing.name.raw);
+        return css_string_from_rust(&m_value->random_value_sharing.name);
     }
     bool element_shared() const { return m_value->random_value_sharing.element_shared; }
 };

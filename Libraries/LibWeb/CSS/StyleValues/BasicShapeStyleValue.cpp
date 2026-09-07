@@ -88,7 +88,7 @@ BasicShapeStyleValue::BasicShapeStyleValue(StyleValueFFI::StyleValueData const* 
             return Polygon { static_cast<Gfx::WindingRule>(shape.fill_rule), move(points) };
         }
         case 6: {
-            auto path_string = Utf16String::from_raw(shape.path_string.raw);
+            auto path_string = css_string_from_rust(&shape.path_string).to_utf16_string();
             return Path { static_cast<Gfx::WindingRule>(shape.fill_rule), SVG::parse_path_data(path_string) };
         }
         default:

@@ -28,7 +28,8 @@ use crate::css::color_resolution::{
 use crate::css::css_enums::keyword;
 use crate::css::style_compute::{FfiLengthResolutionContext, absolutize_length, keyword_is_color};
 use crate::css::style_value::{
-    ColorBase, RetainedStyleValueData, RetainedStyleValueDataList, RetainedUtf16FlyString, StyleValueData,
+    ColorBase, CssString, RetainedGridTrackEntryList, RetainedStyleValueData, RetainedStyleValueDataList,
+    StyleValueData,
 };
 
 pub(crate) struct AbsolutizationContext<'a> {
@@ -218,7 +219,7 @@ fn rgb_color_function(r: f64, g: f64, b: f64, alpha: f64, color_syntax: u8) -> S
         channel_2: retain_new(StyleValueData::Number { value: b }),
         alpha: retain_new(StyleValueData::Number { value: alpha }),
         has_name: false,
-        name: RetainedUtf16FlyString::none(),
+        name: CssString::none(),
         origin_color: retained_null(),
     }
 }
@@ -299,7 +300,7 @@ fn hwb_to_absolutized_rgb(
                 value: alpha_0_1.clamp(0.0, 1.0),
             }),
             has_name: false,
-            name: RetainedUtf16FlyString::none(),
+            name: CssString::none(),
             origin_color: retained_null(),
         };
     }
@@ -898,13 +899,6 @@ fn absolutize_grid_track_entries(
         let max_value = absolutize_child(&entry.max_value, context, any_changed)?;
         let repeat_count = absolutize_child(&entry.repeat_count, context, any_changed)?;
         let nested = absolutize_grid_track_entries(entry.repeat_entries(), context, any_changed)?;
-        let nested = nested.into_boxed_slice();
-        let repeat_entries_length = nested.len();
-        let repeat_entries_pointer = if repeat_entries_length == 0 {
-            std::ptr::null_mut()
-        } else {
-            Box::into_raw(nested) as *mut RetainedGridTrackEntry
-        };
         absolutized.push(RetainedGridTrackEntry {
             kind: entry.kind,
             names: entry.names.clone(),
@@ -915,8 +909,7 @@ fn absolutize_grid_track_entries(
             repeat_count,
             repeat_is_subgrid: entry.repeat_is_subgrid,
             repeat_preserve_line_name_sets: entry.repeat_preserve_line_name_sets,
-            repeat_entries_pointer,
-            repeat_entries_length,
+            repeat_entries: RetainedGridTrackEntryList::from_retained_entries(nested),
         });
     }
     Some(absolutized)
@@ -1521,7 +1514,7 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
                 StyleValueData::GridTrackSizeList {
                     is_subgrid: *is_subgrid,
                     preserve_line_name_sets: *preserve_line_name_sets,
-                    entries: crate::css::style_value::RetainedGridTrackEntryList::from_retained_elements(entries),
+                    entries: crate::css::style_value::RetainedGridTrackEntryList::from_retained_entries(entries),
                 }
             )
         }
