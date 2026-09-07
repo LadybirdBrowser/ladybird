@@ -177,6 +177,41 @@ TEST_CASE(stopped_timer_does_not_fire)
     EXPECT_EQ(stopped_count, 0);
 }
 
+// A timer fires no earlier than its interval, on the monotonic clock the rest of the process reads. The loop is kept
+// busy for a moment after each start: a clock that moves once per scheduler tick counts up to a tick more across that
+// moment than really passed, so a loop timing its wait by that clock wakes early by the difference and fires the timer
+// before the interval is up on the precise clock. The rounds drift through the tick, so a fair share of them hit that.
+TEST_CASE(timer_does_not_fire_before_its_interval)
+{
+    Core::EventLoop loop;
+    static constexpr int interval_ms = 10;
+    static constexpr int rounds = 50;
+    int round = 0;
+    auto started_at = MonotonicTime::now();
+    RefPtr<Core::Timer> timer;
+    auto start_timer = [&] {
+        started_at = MonotonicTime::now();
+        timer->start();
+        auto busy_until = started_at + AK::Duration::from_microseconds(2500);
+        while (MonotonicTime::now() < busy_until)
+            ;
+    };
+    timer = Core::Timer::create_single_shot(interval_ms, [&] {
+        auto elapsed = MonotonicTime::now() - started_at;
+        auto interval = AK::Duration::from_milliseconds(interval_ms);
+        if (elapsed < interval)
+            warnln("Round {}: the timer fired {} us early", round, (interval - elapsed).to_microseconds());
+        EXPECT(elapsed >= interval);
+        if (++round == rounds)
+            loop.quit(0);
+        else
+            start_timer();
+    });
+    start_timer();
+    loop.exec();
+    EXPECT_EQ(round, rounds);
+}
+
 #if !defined(AK_OS_WINDOWS)
 // Signals delivered to threads without event-loop state must wake the registering event loop.
 TEST_CASE(signal_delivered_on_thread_without_event_loop)
