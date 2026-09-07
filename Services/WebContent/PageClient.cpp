@@ -514,6 +514,15 @@ void PageClient::set_viewport(Web::DevicePixelSize const& size, double device_pi
     m_device_pixel_ratio = device_pixel_ratio;
 
     page().local_root_navigable()->set_viewport_size(page().device_to_css_size(size), invalidate);
+
+    // A new size wants its update now. When an animation's opportunity is already outstanding, that
+    // update would otherwise wait for the next display tick, and the page would show the old size for
+    // one more tick.
+    if (m_compositor_rendering_opportunity_outstanding && page().has_local_root_navigable()) {
+        auto& local_root_navigable = *page().local_root_navigable();
+        if (local_root_navigable.has_compositor_context())
+            local_root_navigable.compositor_context().hurry_rendering_opportunity();
+    }
 }
 
 void PageClient::set_zoom_level(double zoom_level)

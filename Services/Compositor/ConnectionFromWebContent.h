@@ -70,6 +70,7 @@ private:
     virtual Messages::CompositorWebContentServer::TakePendingAsyncScrollUpdatesResponse take_pending_async_scroll_updates(Web::Compositor::CompositorContextId) override;
     virtual void viewport_size_updated(Web::Compositor::CompositorContextId, Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress) override;
     virtual void request_rendering_opportunity(Web::Compositor::CompositorContextId, double maximum_frames_per_second) override;
+    virtual void hurry_rendering_opportunity(Web::Compositor::CompositorContextId) override;
     virtual void present_frame(Web::Compositor::CompositorContextId, Gfx::IntRect viewport_rect) override;
     virtual void request_screenshot(Web::Compositor::CompositorContextId, Web::Compositor::ScreenshotRequestId request_id, Gfx::ShareableBitmap target_bitmap) override;
 

@@ -296,6 +296,12 @@ bool CompositorHostBase::request_rendering_opportunity(Web::Compositor::Composit
     return false;
 }
 
+void CompositorHostBase::hurry_rendering_opportunity(Web::Compositor::CompositorContextId context_id)
+{
+    if (auto* connection = compositor_connection())
+        connection->hurry_rendering_opportunity(context_id);
+}
+
 void CompositorHostBase::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect)
 {
     if (auto* connection = compositor_connection())

@@ -101,6 +101,11 @@ bool CompositorContextHandle::request_rendering_opportunity(double maximum_frame
     return m_host.request_rendering_opportunity(m_context_id, maximum_frames_per_second);
 }
 
+void CompositorContextHandle::hurry_rendering_opportunity()
+{
+    m_host.hurry_rendering_opportunity(m_context_id);
+}
+
 void CompositorContextHandle::present_frame(Gfx::IntRect viewport_rect)
 {
     m_host.flush_canvas_2d_stream();

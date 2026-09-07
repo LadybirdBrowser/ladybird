@@ -134,6 +134,13 @@ void ConnectionFromWebContent::request_rendering_opportunity(Web::Compositor::Co
     m_compositor_state->request_rendering_opportunity(context_id, maximum_frames_per_second);
 }
 
+void ConnectionFromWebContent::hurry_rendering_opportunity(Web::Compositor::CompositorContextId context_id)
+{
+    if (!context_is_owned_by_this_connection(context_id))
+        return;
+    m_compositor_state->hurry_rendering_opportunity(context_id);
+}
+
 void ConnectionFromWebContent::set_parent_context(Web::Compositor::CompositorContextId context_id, Optional<Web::Compositor::CompositorContextId> parent_context_id)
 {
     if (!context_is_owned_by_this_connection(context_id))

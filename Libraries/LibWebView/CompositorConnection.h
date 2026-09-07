@@ -60,6 +60,7 @@ public:
     Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates(Web::Compositor::CompositorContextId, Web::Compositor::AsyncScrollUpdateFreshness);
     void viewport_size_updated(Web::Compositor::CompositorContextId, Gfx::IntSize, Web::Compositor::WindowResizingInProgress);
     bool request_rendering_opportunity(Web::Compositor::CompositorContextId, double maximum_frames_per_second);
+    void hurry_rendering_opportunity(Web::Compositor::CompositorContextId);
     void present_frame(Web::Compositor::CompositorContextId, Gfx::IntRect viewport_rect);
     void request_screenshot(Web::Compositor::CompositorContextId, NonnullRefPtr<Gfx::PaintingSurface>, Function<void()>&&);
 

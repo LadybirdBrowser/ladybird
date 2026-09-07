@@ -26,19 +26,39 @@
 <div id="finite"></div>
 <script>
     asyncTest(async done => {
+        // Hold the animation clock still while the compositor publishes the effects.
+        const timeline = internals.createInternalAnimationTimeline();
+        const animations = document.getAnimations();
+        for (const animation of animations) {
+            animation.timeline = timeline;
+            animation.startTime = 0;
+        }
+        timeline.setTime(0);
+        timeline.setTimeForObservation(0);
         await new Promise(requestAnimationFrame);
         await new Promise(requestAnimationFrame);
-        const ended = new Promise(resolve => finite.addEventListener("animationend", resolve, { once: true }));
         println(`all effects use the compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 6}`);
 
+        let receivedAnimationEnd = false;
+        finite.addEventListener("animationend", () => receivedAnimationEnd = true, { once: true });
         internals.resetStyleInvalidationCounters();
-        await ended;
-        await new Promise(resolve => setTimeout(resolve, 0));
+        timeline.setTimeForObservation(299);
+        internals.fireCompositorAnimationWakeupForTesting(299);
+        const earlyCounters = internals.getStyleInvalidationCounters();
+        println(`early wake-up does no work: ${earlyCounters.animatedStyleOverlayBuilds === 0 && earlyCounters.animationFramePumpRequests === 0}`);
+
+        timeline.setTimeForObservation(301);
+        internals.fireCompositorAnimationWakeupForTesting(301);
+        timeline.setTime(301);
+        await new Promise(requestAnimationFrame);
         const counters = internals.getStyleInvalidationCounters();
 
         println(`finite end samples only its target: ${counters.animatedStyleOverlayBuilds === 1}`);
         println(`finite end requests one frame: ${counters.animationFramePumpRequests === 1}`);
         println(`infinite effects remain on the compositor: ${counters.compositorVisualAnimations === 5}`);
+        println(`finite animation dispatches its end event: ${receivedAnimationEnd}`);
+        for (const animation of animations)
+            animation.cancel();
         done();
     });
 </script>

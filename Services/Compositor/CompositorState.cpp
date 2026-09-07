@@ -616,19 +616,43 @@ void CompositorState::request_rendering_opportunity(Web::Compositor::CompositorC
     scheduler.schedule(display_refresh_rate);
 }
 
+void CompositorState::hurry_rendering_opportunity(Web::Compositor::CompositorContextId context_id)
+{
+    auto* context = context_if_present(context_id);
+    if (!context || !context->rendering_opportunity_requested() || !context_is_effectively_visible(*context))
+        return;
+    auto display_refresh_rate = display_refresh_rate_for_context(*context);
+    auto frame_interval = context->rendering_opportunity_frame_interval(display_refresh_rate);
+    auto frame_time = MonotonicTime::now();
+    context->did_deliver_rendering_opportunity(frame_time);
+    context->web_content_client().rendering_opportunity(context_id, frame_time.nanoseconds(), frame_interval);
+}
+
 void CompositorState::present_frame(Web::Compositor::CompositorContextId context_id, Gfx::IntRect viewport_rect)
 {
     auto* context = context_if_present(context_id);
     VERIFY(context);
-    schedule_present_frame(context_id, *context, ContextState::PendingFrame { viewport_rect, {} });
+    // The frame joins whatever is queued, so a frame queued earlier cannot be presented after it.
+    context->queue_present_frame({ viewport_rect, {} });
+    // A frame of a window being resized is rasterized as it arrives: waiting for the next display tick
+    // would show the previous size for one more tick. Presentation to the client still lands on a tick.
+    if (context->window_resize_in_progress() && context->presents_to_client() && context_is_effectively_visible(*context)
+        && !context->is_present_blocked()) {
+        if (auto pending_frame = context->take_pending_present_frame_if_unblocked(); pending_frame.has_value()) {
+            if (present_frame(context_id, *context, *pending_frame))
+                return;
+            context->queue_present_frame(*pending_frame);
+        }
+    }
+    schedule_pending_present_frame(context_id, *context);
 }
 
-void CompositorState::present_frame(Web::Compositor::CompositorContextId context_id, ContextState& context, ContextState::PendingFrame pending_frame)
+bool CompositorState::present_frame(Web::Compositor::CompositorContextId context_id, ContextState& context, ContextState::PendingFrame pending_frame)
 {
     auto composited_context_resolver = resolver_for(context_id);
     auto prepared_frame = context.prepare_frame(*m_display_list_player, pending_frame, &composited_context_resolver);
     if (!prepared_frame.has_value())
-        return;
+        return false;
 
     m_pending_async_presents.append(context_id, pending_frame.viewport_rect, prepared_frame->damage_rect, prepared_frame->bitmap_id);
     auto* pending_present = &m_pending_async_presents.last();
@@ -642,6 +666,7 @@ void CompositorState::present_frame(Web::Compositor::CompositorContextId context
     });
     context.did_submit_prepared_frame(pending_frame.viewport_rect);
     schedule_gpu_completion_check();
+    return true;
 }
 
 void CompositorState::schedule_present_frame(Web::Compositor::CompositorContextId context_id, ContextState& context, ContextState::PendingFrame pending_frame)
@@ -695,6 +720,16 @@ void CompositorState::schedule_pending_present_frame_if_unblocked(Web::Composito
 {
     if (!context.can_schedule_pending_present_frame_if_unblocked())
         return;
+
+    // A frame of a window being resized that waited for a backing store is rasterized as soon as
+    // one is free, not at the next display tick.
+    if (context.window_resize_in_progress() && context.presents_to_client() && context_is_effectively_visible(context)) {
+        if (auto pending_frame = context.take_pending_present_frame_if_unblocked(); pending_frame.has_value()) {
+            if (present_frame(context_id, context, *pending_frame))
+                return;
+            context.queue_present_frame(*pending_frame);
+        }
+    }
 
     schedule_pending_present_frame(context_id, context);
 }

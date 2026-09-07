@@ -1,4 +1,6 @@
 all effects use the compositor: true
+early wake-up does no work: true
 finite end samples only its target: true
 finite end requests one frame: true
 infinite effects remain on the compositor: true
+finite animation dispatches its end event: true
