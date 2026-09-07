@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const token = crypto.randomUUID();
+
+        async function createDestination(label) {
+            return server.createEcho("GET", `/navigation-timing-unload-destination-${label}-${token}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `
+                    <!DOCTYPE html>
+                    <script>
+                        const entry = performance.getEntriesByType("navigation")[0];
+                        parent.postMessage({
+                            type: "navigation-timing-unload-result",
+                            label: "${label}",
+                            unloadEventStart: entry.unloadEventStart,
+                            unloadEventEnd: entry.unloadEventEnd,
+                        }, "*");
+                    <\/script>
+                `,
+            });
+        }
+
+        async function createSource(label) {
+            return server.createEcho("GET", `/navigation-timing-unload-source-${label}-${token}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `
+                    <!DOCTYPE html>
+                    <script>
+                        addEventListener("unload", () => {
+                            const end = performance.now() + 10;
+                            while (performance.now() < end) {}
+                        });
+                        addEventListener("message", event => {
+                            if (event.data.type === "navigate")
+                                location.href = event.data.url;
+                        });
+                        parent.postMessage({ type: "navigation-timing-unload-ready", label: "${label}" }, "*");
+                    <\/script>
+                `,
+            });
+        }
+
+        const sameOriginDestination = await createDestination("same-origin");
+        const redirectedDestination = await createDestination("cross-origin-redirect");
+
+        const intermediateURL = new URL(await server.createEcho("GET", `/navigation-timing-unload-intermediate-${token}`, {
+            status: 302,
+            headers: { Location: redirectedDestination },
+        }));
+        intermediateURL.hostname = uniqueLocalhostHostname("navigation-timing-unload-intermediate");
+
+        const crossOriginRedirectDestination = await server.createEcho("GET", `/navigation-timing-unload-redirect-${token}`, {
+            status: 302,
+            headers: { Location: intermediateURL.href },
+        });
+
+        const destinations = {
+            "same-origin": sameOriginDestination,
+            "cross-origin-redirect": crossOriginRedirectDestination,
+        };
+        const results = {};
+
+        addEventListener("message", event => {
+            if (event.data.type === "navigation-timing-unload-ready") {
+                event.source.postMessage({ type: "navigate", url: destinations[event.data.label] }, "*");
+                return;
+            }
+
+            if (event.data.type !== "navigation-timing-unload-result")
+                return;
+
+            results[event.data.label] = event.data;
+            if (Object.keys(results).length !== 2)
+                return;
+
+            const sameOrigin = results["same-origin"];
+            println(`same-origin unload start is positive: ${sameOrigin.unloadEventStart > 0}`);
+            println(`same-origin unload end follows start: ${sameOrigin.unloadEventEnd > sameOrigin.unloadEventStart}`);
+
+            const crossOriginRedirect = results["cross-origin-redirect"];
+            println(`cross-origin redirect unload start: ${crossOriginRedirect.unloadEventStart}`);
+            println(`cross-origin redirect unload end: ${crossOriginRedirect.unloadEventEnd}`);
+            done();
+        });
+
+        for (const label of Object.keys(destinations)) {
+            const frame = document.createElement("iframe");
+            frame.src = await createSource(label);
+            document.body.appendChild(frame);
+        }
+    });
+</script>
