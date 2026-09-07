@@ -1522,9 +1522,13 @@ impl LayoutNodeArena {
             return true;
         }
         let step = (upper - lower) / (descendant_count + 1);
-        if step < 2 {
+        // NB: Merely restoring strict order can leave the subtree dense enough to need another
+        //     relabel on the next insertion. Restore the normal insertion spacing, or try a larger
+        //     ancestor. The root already uses all available label space, so it cannot expand further.
+        if step < MAXIMUM_PRE_ORDER_LABEL_STRIDE && !self.data(subtree_root).parent.get().is_invalid() {
             return false;
         }
+        assert!(step >= 2, "pre-order label space exhausted");
         let mut position_in_subtree = 0u64;
         self.for_each_node_in_layout_subtree_in_pre_order(subtree_root, |node| {
             if node == subtree_root {
