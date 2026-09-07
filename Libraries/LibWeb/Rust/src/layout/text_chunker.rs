@@ -6,7 +6,9 @@
 
 use super::*;
 
-use libgfx_rust::font::{EmojiPresentation, FontCascadeListRef, FontRef, emoji_presentation_for_code_point};
+use libgfx_rust::font::{
+    EmojiPresentation, FontCascadeListHandle, FontCascadeListRef, FontRef, emoji_presentation_for_code_point,
+};
 
 unsafe extern "C" {
     fn unicode_layout_grapheme_segmenter_create(text: *const u16, length_in_code_units: usize) -> *mut c_void;
@@ -41,7 +43,7 @@ pub(crate) struct TextChunk {
 
 pub(crate) struct TextChunkInputs<'text> {
     pub text: &'text [u16],
-    pub font_cascade_list: *const c_void,
+    pub font_cascade_list: &'text FontCascadeListHandle,
     pub white_space_collapse: u8,
     pub word_break: u8,
     pub font_variant_emoji: u8,
@@ -230,9 +232,7 @@ impl<'text> TextChunker<'text> {
     fn new(inputs: TextChunkInputs<'text>) -> Self {
         Self {
             text: inputs.text,
-            // SAFETY: The caller guarantees the cascade list outlives the
-            // chunking run (layout retains the style that owns it).
-            font_cascade_list: unsafe { FontCascadeListRef::from_raw(inputs.font_cascade_list) },
+            font_cascade_list: inputs.font_cascade_list.as_ref(),
             grapheme_segmenter: GraphemeSegmenter::new(inputs.text),
             line_segmenter: LineSegmenter::new(inputs.text),
             word_break: inputs.word_break,
@@ -611,13 +611,13 @@ pub(crate) fn text_chunks(
         white_space_collapse: parent_style.white_space_collapse(),
         word_break: parent_style.word_break(),
         font_variant_emoji: parent_style.font_variant_emoji(),
-        font_cascade_list: parent_style.font_cascade_list(),
+        font_cascade_list: parent_style.font_cascade_list().clone(),
     };
     let text = &callbacks.text_content(node).text;
-    callbacks.text_content(node).text_chunks(key, || {
+    callbacks.text_content(node).text_chunks(&key, || {
         chunk_text(TextChunkInputs {
             text,
-            font_cascade_list: key.font_cascade_list,
+            font_cascade_list: &key.font_cascade_list,
             white_space_collapse: key.white_space_collapse,
             word_break: key.word_break,
             font_variant_emoji: key.font_variant_emoji,

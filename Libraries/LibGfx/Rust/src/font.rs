@@ -337,12 +337,3 @@ retained_ffi_handle!(
     ladybird_gfx_font_unref,
     "Gfx::Font"
 );
-
-retained_ffi_handle!(
-    /// A strong reference to a `Gfx::FontCascadeList`, keeping the list and every
-    /// font it can resolve alive until dropped.
-    RetainedFontCascadeList,
-    ladybird_gfx_font_cascade_list_ref,
-    ladybird_gfx_font_cascade_list_unref,
-    "Gfx::FontCascadeList"
-);
