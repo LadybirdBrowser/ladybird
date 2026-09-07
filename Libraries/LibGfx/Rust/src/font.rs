@@ -10,7 +10,6 @@ use std::rc::Rc;
 
 unsafe extern "C" {
     fn ladybird_gfx_font_snapshot(font: *const c_void, out_snapshot: *mut FfiFontSnapshot);
-    fn ladybird_gfx_font_glyph_width(font: *const c_void, code_point: u32) -> f32;
     fn ladybird_gfx_font_glyph_id(font: *const c_void, code_point: u32) -> u32;
     fn ladybird_gfx_font_contains_glyph(font: *const c_void, code_point: u32) -> bool;
     fn ladybird_gfx_font_is_emoji_font(font: *const c_void) -> bool;
@@ -125,8 +124,11 @@ impl FontHandle {
     }
 
     pub fn glyph_width(&self, code_point: u32) -> f32 {
-        // SAFETY: The entry's retained reference keeps the font live.
-        unsafe { ladybird_gfx_font_glyph_width(self.as_raw(), code_point) }
+        let mut utf16 = [0u16; 2];
+        let encoded = char::from_u32(code_point)
+            .unwrap_or(char::REPLACEMENT_CHARACTER)
+            .encode_utf16(&mut utf16);
+        crate::text_layout::shaped_text_width(self, encoded, crate::text_layout::TextType::Common, 0.0, 0.0)
     }
 
     pub fn glyph_id_for_code_point(&self, code_point: u32) -> u32 {
