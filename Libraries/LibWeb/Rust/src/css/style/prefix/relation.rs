@@ -31,6 +31,7 @@ pub(in crate::css::style) struct PrefixRelation {
     departures: Vec<usize>,
     compound_matches: Vec<Vec<usize>>,
     matches: Vec<Vec<u32>>,
+    walk_truth: PrefixWalkMemo,
     // Step identities are in dispatch order, so dependency order must be retained separately.
     queue: Vec<(usize, PrefixOutputKind)>,
     step_ranks: Vec<usize>,
@@ -124,6 +125,7 @@ impl PrefixRelation {
             + self.departures.shallow_capacity_bytes()
             + self.compound_matches.shallow_capacity_bytes()
             + self.matches.shallow_capacity_bytes()
+            + self.walk_truth.shallow_capacity_bytes()
             + self.queue.shallow_capacity_bytes()
             + self.step_ranks.shallow_capacity_bytes()
             + self.compound_steps.shallow_capacity_bytes()
@@ -585,9 +587,8 @@ impl PrefixRelation {
         let mut terminal_changes = Vec::new();
         let mut affected = Vec::new();
         let mut following_parents = HashSet::default();
-        let mut ancestor_truth: HashMap<usize, bool> = HashMap::default();
+        let mut walk_truth = std::mem::take(&mut self.walk_truth);
         let mut ancestor_chain = Vec::new();
-        let mut sibling_truth: HashMap<usize, bool> = HashMap::default();
         // Every local change is seeded before evaluation. Dependency order ensures that a step
         // runs once, after all changes to its predecessor, and only propagates a changed result.
         while let Some(rank) = self.pending_steps.pop_first() {
@@ -680,7 +681,7 @@ impl PrefixRelation {
                                         .filter(|position| candidates.binary_search(position).is_ok()),
                                 );
                             } else {
-                                ancestor_truth.clear();
+                                walk_truth.clear();
                                 for &position in candidates {
                                     ancestor_chain.clear();
                                     let mut source = self.parents[position];
@@ -690,7 +691,7 @@ impl PrefixRelation {
                                             found = true;
                                             break;
                                         }
-                                        if let Some(&truth) = ancestor_truth.get(&source) {
+                                        if let Some(truth) = walk_truth.get(source) {
                                             found = truth;
                                             break;
                                         }
@@ -698,7 +699,7 @@ impl PrefixRelation {
                                         source = self.parents[source];
                                     }
                                     for &source in &ancestor_chain {
-                                        ancestor_truth.insert(source, found);
+                                        walk_truth.insert(source, found);
                                     }
                                     if found {
                                         affected.push(position);
@@ -732,8 +733,7 @@ impl PrefixRelation {
                 if affected.is_empty() {
                     continue;
                 }
-                ancestor_truth.clear();
-                sibling_truth.clear();
+                walk_truth.clear();
                 let mut changes = Vec::new();
                 for &position in &affected {
                     let mut matched = candidates.binary_search(&position).is_ok();
@@ -758,7 +758,7 @@ impl PrefixRelation {
                                         found = true;
                                         break;
                                     }
-                                    if let Some(&truth) = ancestor_truth.get(&current) {
+                                    if let Some(truth) = walk_truth.get(current) {
                                         found = truth;
                                         break;
                                     }
@@ -766,7 +766,7 @@ impl PrefixRelation {
                                     current = self.parents[current];
                                 }
                                 for &ancestor in &ancestor_chain {
-                                    ancestor_truth.insert(ancestor, found);
+                                    walk_truth.insert(ancestor, found);
                                 }
                                 found
                             }
@@ -779,7 +779,7 @@ impl PrefixRelation {
                                         found = true;
                                         break;
                                     }
-                                    if let Some(&truth) = sibling_truth.get(&source) {
+                                    if let Some(truth) = walk_truth.get(source) {
                                         found = truth;
                                         break;
                                     }
@@ -787,7 +787,7 @@ impl PrefixRelation {
                                     source = self.previous[source];
                                 }
                                 for &source in &ancestor_chain {
-                                    sibling_truth.insert(source, found);
+                                    walk_truth.insert(source, found);
                                 }
                                 found
                             }
@@ -869,6 +869,7 @@ impl PrefixRelation {
         }
         self.departures.clear();
         self.old_previous.clear();
+        self.walk_truth = walk_truth;
         self.refresh_capacity_bytes();
         self.verify_answers(evaluation);
     }
@@ -1136,6 +1137,7 @@ impl PrefixAutomaton {
             departures: Vec::new(),
             compound_matches,
             matches,
+            walk_truth: PrefixWalkMemo::default(),
             queue,
             step_ranks,
             compound_steps,
@@ -1158,6 +1160,47 @@ impl PrefixAutomaton {
         relation.refresh_capacity_bytes();
         relation.verify_answers(evaluation);
         relation
+    }
+}
+
+// Walks only memoize stable relation slots. Reuse their storage across selector steps
+// and transactions; a fresh generation separates queries without clearing or hashing
+// the visited nodes. The column grows only when a walk records a result.
+struct PrefixWalkMemo {
+    stamps: Column<u64>,
+    generation: u64,
+}
+
+impl Default for PrefixWalkMemo {
+    fn default() -> Self {
+        Self {
+            stamps: Column::default(),
+            generation: 2,
+        }
+    }
+}
+
+impl ShallowCapacityBytes for PrefixWalkMemo {
+    fn shallow_capacity_bytes(&self) -> u64 {
+        self.stamps.shallow_capacity_bytes()
+    }
+}
+
+impl PrefixWalkMemo {
+    fn clear(&mut self) {
+        self.generation = self
+            .generation
+            .checked_add(2)
+            .expect("prefix walk generation overflowed");
+    }
+
+    fn get(&self, position: usize) -> Option<bool> {
+        let stamp = *self.stamps.get(position)?;
+        (stamp & !1 == self.generation).then_some(stamp & 1 != 0)
+    }
+
+    fn insert(&mut self, position: usize, truth: bool) {
+        self.stamps.insert(position, self.generation | u64::from(truth));
     }
 }
 
@@ -1264,7 +1307,23 @@ impl PendingPrefixSteps {
 
 #[cfg(test)]
 mod tests {
-    use super::{PendingPrefixSteps, toggle_members};
+    use super::{PendingPrefixSteps, PrefixWalkMemo, toggle_members};
+
+    #[test]
+    fn prefix_walk_memo_separates_true_false_and_unknown_across_queries() {
+        let mut memo = PrefixWalkMemo::default();
+        for query in 0..128 {
+            for position in [0, 63, 64, 128] {
+                assert_eq!(memo.get(position), None);
+                let truth = (position + query) % 2 == 0;
+                memo.insert(position, truth);
+                assert_eq!(memo.get(position), Some(truth));
+                memo.insert(position, !truth);
+                assert_eq!(memo.get(position), Some(!truth));
+            }
+            memo.clear();
+        }
+    }
 
     #[test]
     fn batched_membership_flips_preserve_the_unchanged_ranges() {
