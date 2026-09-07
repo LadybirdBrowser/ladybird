@@ -491,7 +491,7 @@ pub struct FontValues {
     pub font_x_height: f32,
     pub font_zero_advance: f32,
     pub first_available_font: *const std::ffi::c_void,
-    pub font_cascade_list: *const std::ffi::c_void,
+    pub font_cascade_list: libgfx_rust::font::FontCascadeListHandle,
     pub font_weight: f64,
     pub font_width: f64,
     pub math_shift: u8,

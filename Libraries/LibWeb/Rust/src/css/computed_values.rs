@@ -3093,7 +3093,7 @@ impl FontValues {
             font_x_height: 0.0,
             font_zero_advance: 0.0,
             first_available_font: std::ptr::null(),
-            font_cascade_list: std::ptr::null(),
+            font_cascade_list: libgfx_rust::font::FontCascadeListHandle::null(),
             font_weight: 400.0,
             font_width: 100.0,
             math_shift: 0,

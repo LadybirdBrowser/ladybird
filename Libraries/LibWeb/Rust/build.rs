@@ -2982,6 +2982,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "ComputedOverflowClipMargin".to_string(),
         "MiscResetValues".to_string(),
         "FontValues".to_string(),
+        "FontCascadeListHandle".to_string(),
         "FfiFontGroupBuildInputs".to_string(),
         "TextResetValues".to_string(),
         "AnchorValues".to_string(),
@@ -2994,9 +2995,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     ];
     expose_css_pixel_types_as_web_types(&mut computed_values_config);
 
+    let libgfx_font_source = manifest_dir.join("../../LibGfx/Rust/src/font.rs");
+    println!("cargo:rerun-if-changed={}", libgfx_font_source.display());
     generate_ffi_header(
         computed_values_config,
         &[
+            libgfx_font_source,
             manifest_dir.join("src/css/computed_values.rs"),
             manifest_dir.join("src/css/property_metadata.rs"),
             manifest_dir.join("src/css/style_compute.rs"),
