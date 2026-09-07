@@ -926,6 +926,8 @@ pub(super) struct PatchCover {
     prefix_max_end: Vec<u32>,
     keys: Vec<(RuleID, EntryID)>,
     unindexed: Vec<(ImpactRegion, (RuleID, EntryID))>,
+    /// Exact-node attributions without preorder coordinates, sorted by node and rule key.
+    exact_nodes: Vec<(StyleNodeID, (RuleID, EntryID))>,
 }
 
 /// The normalized impact plan for one transaction.
@@ -1428,37 +1430,45 @@ impl ImpactRegions {
     #[must_use]
     /// Compile the transaction's patch coverage: the unattributed regions as the full
     /// re-derivation trigger, and the attributed emissions as stabbable preorder intervals
-    /// carrying rule keys. Extents without preorder coordinates retain their rule attribution
-    /// and are queried through tree relationships.
+    /// carrying rule keys. Exact-node extents without coordinates are indexed by identity; other
+    /// extents retain their rule attribution and are queried through tree relationships.
     pub(super) fn compile_patch_cover(&self, tree: &StyleNodeTree, document_root: Option<StyleNodeID>) -> PatchCover {
         let mut keys: Vec<(RuleID, EntryID)> = Vec::new();
         let mut key_indices: super::HashMap<(RuleID, EntryID), u32> = super::HashMap::default();
         let mut intervals: Vec<(u32, u32, u32)> = Vec::new();
         let mut unindexed = Vec::new();
+        let mut exact_nodes = Vec::new();
         let mut scratch: Vec<PreorderInterval> = Vec::new();
-        if let Some(topology) = &self.topology {
-            for &(region, key) in &self.attributions {
-                scratch.clear();
-                if !topology.collect_region_intervals(region, tree, document_root, &mut scratch) {
-                    unindexed.push((region, key));
-                    continue;
+        for &(region, key) in &self.attributions {
+            scratch.clear();
+            if !self
+                .topology
+                .as_ref()
+                .is_some_and(|topology| topology.collect_region_intervals(region, tree, document_root, &mut scratch))
+            {
+                // OPTIMIZATION: Exact-node coverage needs no tree coordinates. Index it by identity
+                //               instead of scanning every such attribution for every visited node.
+                match region {
+                    ImpactRegion::Node(node) => exact_nodes.push((node, key)),
+                    _ => unindexed.push((region, key)),
                 }
-                let key_index = match key_indices.get(&key).copied() {
-                    Some(index) => index,
-                    None => {
-                        let index = u32::try_from(keys.len()).expect("patch attribution key space exhausted");
-                        keys.push(key);
-                        key_indices.insert(key, index);
-                        index
-                    }
-                };
-                for interval in &scratch {
-                    intervals.push((interval.start, interval.end, key_index));
-                }
+                continue;
             }
-        } else {
-            unindexed.extend_from_slice(&self.attributions);
+            let key_index = match key_indices.get(&key).copied() {
+                Some(index) => index,
+                None => {
+                    let index = u32::try_from(keys.len()).expect("patch attribution key space exhausted");
+                    keys.push(key);
+                    key_indices.insert(key, index);
+                    index
+                }
+            };
+            for interval in &scratch {
+                intervals.push((interval.start, interval.end, key_index));
+            }
         }
+        exact_nodes.sort_unstable();
+        exact_nodes.dedup();
         intervals.sort_unstable();
         intervals.dedup();
         let mut prefix_max_end = Vec::with_capacity(intervals.len());
@@ -1473,6 +1483,7 @@ impl ImpactRegions {
             prefix_max_end,
             keys,
             unindexed,
+            exact_nodes,
         }
     }
 
@@ -1494,6 +1505,13 @@ impl ImpactRegions {
         out: &mut Vec<(RuleID, EntryID)>,
     ) -> bool {
         out.clear();
+        let first = cover.exact_nodes.partition_point(|&(candidate, _)| candidate < node);
+        out.extend(
+            cover.exact_nodes[first..]
+                .iter()
+                .take_while(|&&(candidate, _)| candidate == node)
+                .map(|&(_, key)| key),
+        );
         out.extend(
             cover
                 .unindexed
@@ -2132,5 +2150,51 @@ mod tests {
         assert!(regions.is_covered_by_subtree(ImpactRegion::Node(fixture.nodes[4]), &fixture.tree));
         assert!(regions.is_covered_by_subtree(ImpactRegion::Children(fixture.nodes[5]), &fixture.tree));
         assert!(!regions.is_covered_by_subtree(ImpactRegion::Subtree(fixture.nodes[2]), &fixture.tree));
+    }
+
+    #[test]
+    fn exact_patch_attributions_are_indexed_without_preorder_coordinates() {
+        let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+        let mut tree = StyleNodeTree::new(&mut memory);
+        let root = tree.allocate_element(&mut memory);
+        let host = tree.allocate_element(&mut memory);
+        let shadow_root = tree.allocate_element(&mut memory);
+        tree.set_first_element_child(root, Some(host));
+        tree.set_parent(host, Some(root));
+        tree.enable_tree_scopes(&mut memory);
+        tree.set_tree_scope(shadow_root, TreeScopeID(1));
+        tree.set_shadow_root(host, shadow_root, &mut memory);
+        let nodes: Vec<_> = (0..128).map(|_| tree.allocate_element(&mut memory)).collect();
+        tree.set_first_element_child(shadow_root, Some(nodes[0]));
+        for (index, &node) in nodes.iter().enumerate() {
+            tree.set_parent(node, Some(shadow_root));
+            tree.set_tree_scope(node, TreeScopeID(1));
+            tree.set_next_element_sibling(node, nodes.get(index + 1).copied());
+        }
+        for with_topology in [false, true] {
+            let mut regions = if with_topology {
+                ImpactRegions::with_topology(&tree, root)
+            } else {
+                ImpactRegions::new()
+            };
+            for (index, &node) in nodes.iter().enumerate() {
+                let key = (RuleID(index as u32 + 1), EntryID(index as u32 + 1));
+                regions.attribute_extent(ImpactRegion::Node(node), key);
+                regions.attribute_extent(ImpactRegion::Node(node), key);
+            }
+            let cover = regions.compile_patch_cover(&tree, Some(root));
+            assert!(
+                cover.unindexed.is_empty(),
+                "exact nodes must not require per-node region scans"
+            );
+            let mut sweep = AttributionSweep::default();
+            let mut covering = Vec::new();
+            for (index, &node) in nodes.iter().enumerate().rev() {
+                assert!(regions.covering_attributions(&cover, &tree, &mut sweep, node, &mut covering));
+                assert_eq!(covering, [(RuleID(index as u32 + 1), EntryID(index as u32 + 1))]);
+            }
+            assert!(regions.covering_attributions(&cover, &tree, &mut sweep, host, &mut covering));
+            assert!(covering.is_empty());
+        }
     }
 }
