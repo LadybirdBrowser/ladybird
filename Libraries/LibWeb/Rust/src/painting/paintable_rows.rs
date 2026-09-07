@@ -539,14 +539,14 @@ impl LayoutNodeArena {
         self.needs_full_scrollable_overflow_recalculation.set(true);
     }
 
-    /// Rebuilds the contained-boxes index from the committed rows under `root`.
+    /// Rebuilds the supplemental contained-boxes index from committed rows under `root`.
     pub(crate) fn rebuild_scrollable_overflow_contained_boxes(&self, root: NodeSlotId) {
         let paintable_rows = self.paintable_rows();
         let mut paint_state = self.paint_state().borrow_mut();
         crate::painting::scrollable_overflow::refill_contained_boxes_index(
             &paintable_rows,
             root,
-            &mut paint_state.scrollable_overflow_contained_boxes,
+            &mut paint_state.scrollable_overflow_non_child_boxes,
         );
     }
 

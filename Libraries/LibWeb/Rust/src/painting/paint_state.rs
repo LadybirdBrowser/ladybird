@@ -19,7 +19,7 @@ pub struct PaintState {
     pub(crate) recorded_has_blocking_wheel_event_region_covering_viewport: Option<bool>,
     pub(crate) recorded_canvas_color: Option<libgfx_rust::Color>,
     pub(crate) selection: Option<crate::painting::selection::SelectionRange>,
-    pub(crate) scrollable_overflow_contained_boxes: std::collections::HashMap<NodeSlotId, Vec<NodeSlotId>>,
+    pub(crate) scrollable_overflow_non_child_boxes: std::collections::HashMap<NodeSlotId, Vec<NodeSlotId>>,
     pub(crate) per_recording_memo_tables: RefCell<crate::painting::record::scratch::PerRecordingMemoTables>,
 }
 

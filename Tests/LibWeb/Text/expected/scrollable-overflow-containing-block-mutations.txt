@@ -1,0 +1,9 @@
+containing block skips parent: 200x190
+parent establishes containing block: 220x220
+containing block skips parent again: 200x190
+direct child: 200x190
+nested child: 200x190
+removed child: 100x100
+reattached child: 200x190
+in-flow child: 100x100
+positioned child again: 200x190

@@ -19,12 +19,14 @@ use crate::painting::{paintable_geometry, style_queries, text_fragment};
 use libgfx_rust::matrix::{AffineTransform, FloatMatrix4x4};
 use std::collections::HashMap;
 
+/// Index boxes whose containing block differs from their layout parent. Direct children are
+/// enumerated from the layout tree when measuring overflow.
 pub(crate) fn refill_contained_boxes_index(
     layout_arena: &impl PaintableRowsRead,
     root: NodeSlotId,
-    contained_boxes_by_containing_block: &mut HashMap<NodeSlotId, Vec<NodeSlotId>>,
+    non_child_boxes_by_containing_block: &mut HashMap<NodeSlotId, Vec<NodeSlotId>>,
 ) {
-    for contained_boxes in contained_boxes_by_containing_block.values_mut() {
+    for contained_boxes in non_child_boxes_by_containing_block.values_mut() {
         contained_boxes.clear();
     }
     if !layout_arena.shell_if_live(root).is_null() {
@@ -38,21 +40,25 @@ pub(crate) fn refill_contained_boxes_index(
             if let Some(first_child) = layout_arena.node_first_child_if_live(node) {
                 stack.push(first_child);
             }
+            let Some(containing_block) = layout_arena.node_containing_block_if_live(node) else {
+                continue;
+            };
+            if layout_arena.node_parent_if_live(node) == Some(containing_block) {
+                continue;
+            }
             let node_is_box_kind = layout_arena
                 .node_kind_if_live(node)
                 .is_some_and(node_facts::kind_is_box);
             if !node_is_box_kind || !layout_arena.paintable_row_is_populated(node) {
                 continue;
             }
-            if let Some(containing_block) = layout_arena.node_containing_block_if_live(node) {
-                contained_boxes_by_containing_block
-                    .entry(containing_block)
-                    .or_default()
-                    .push(node);
-            }
+            non_child_boxes_by_containing_block
+                .entry(containing_block)
+                .or_default()
+                .push(node);
         }
     }
-    contained_boxes_by_containing_block.retain(|_, contained_boxes| !contained_boxes.is_empty());
+    non_child_boxes_by_containing_block.retain(|_, contained_boxes| !contained_boxes.is_empty());
 }
 
 pub(crate) struct PhysicalOverflowDirections {
@@ -340,7 +346,7 @@ fn store_overflow_data(
 // https://drafts.csswg.org/css-overflow-3/#scrollable-overflow-calculation
 pub(crate) fn measure_scrollable_overflow(
     layout_arena: &impl PaintableRowsRead,
-    contained_boxes_by_containing_block: &HashMap<NodeSlotId, Vec<NodeSlotId>>,
+    non_child_boxes_by_containing_block: &HashMap<NodeSlotId, Vec<NodeSlotId>>,
     visual_context_callbacks: &FfiVisualContextHostCallbacks,
     overflow_callbacks: &FfiScrollableOverflowHostCallbacks,
     box_paintable: NodeSlotId,
@@ -350,7 +356,7 @@ pub(crate) fn measure_scrollable_overflow(
     let mut assignments = Vec::new();
     measure_scrollable_overflow_impl(
         layout_arena,
-        contained_boxes_by_containing_block,
+        non_child_boxes_by_containing_block,
         visual_context_callbacks,
         overflow_callbacks,
         box_paintable,
@@ -361,7 +367,7 @@ pub(crate) fn measure_scrollable_overflow(
 
 fn measure_scrollable_overflow_impl(
     layout_arena: &impl PaintableRowsRead,
-    contained_boxes_by_containing_block: &HashMap<NodeSlotId, Vec<NodeSlotId>>,
+    non_child_boxes_by_containing_block: &HashMap<NodeSlotId, Vec<NodeSlotId>>,
     visual_context_callbacks: &FfiVisualContextHostCallbacks,
     overflow_callbacks: &FfiScrollableOverflowHostCallbacks,
     box_paintable: NodeSlotId,
@@ -460,165 +466,175 @@ fn measure_scrollable_overflow_impl(
     //   wholly in the negative scrollable overflow region,
     //   FIXME: accounting for 3D transforms by projecting each box onto the plane of the element that establishes
     //          its 3D rendering context. [CSS3-TRANSFORMS]
-    if let Some(contained_boxes) = contained_boxes_by_containing_block.get(&box_node) {
-        for &child_node in contained_boxes {
-            if !layout_arena.paintable_row_is_populated(child_node)
-                || layout_arena.node_containing_block_if_live(child_node) != Some(box_node)
+    // OPTIMIZATION: The layout tree already indexes direct children. Retain only boxes whose
+    //               containing block differs from their parent in the supplemental index.
+    let direct_children = std::iter::successors(layout_arena.node_first_child_if_live(box_node), |&child| {
+        layout_arena.node_next_sibling_if_live(child)
+    });
+    let other_contained_boxes = non_child_boxes_by_containing_block
+        .get(&box_node)
+        .into_iter()
+        .flatten()
+        .copied();
+    for child_node in direct_children.chain(other_contained_boxes) {
+        if !layout_arena
+            .node_kind_if_live(child_node)
+            .is_some_and(node_facts::kind_is_box)
+            || !layout_arena.paintable_row_is_populated(child_node)
+            || layout_arena.node_containing_block_if_live(child_node) != Some(box_node)
+        {
+            continue;
+        }
+
+        let child_style = layout_arena.node_style_if_live(child_node);
+        let child_position = child_style.map_or(positioning::STATIC, |style| style.position());
+        let child_is_absolutely_positioned = matches!(child_position, positioning::ABSOLUTE | positioning::FIXED);
+
+        // https://drafts.csswg.org/css-position/#fixed-positioning-containing-block
+        // [..] As a result, parts of fixed-positioned boxes that extend outside the layout viewport/page area
+        //      cannot be scrolled to and will not print.
+        // FIXME: Properly establish the fixed positioning containing block for `position: fixed`
+        if child_position == positioning::FIXED {
+            continue;
+        }
+
+        let child_has_css_transform =
+            child_style.is_some_and(|style| style_queries::has_css_transform(layout_arena, child_node, style));
+        let child_flags = layout_arena.node_flags_if_live(child_node);
+        let child_is_flex_or_grid_item = child_flags & (NodeFlag::IsFlexItem as u32 | NodeFlag::IsGridItem as u32) != 0;
+        let child_is_floating = !child_is_flex_or_grid_item && child_style.is_some_and(|style| style.is_floating());
+        if style_queries::is_invisible_for_line_clamp(layout_arena, child_node) {
+            continue;
+        }
+        let child_display = child_style.map_or_else(FfiDisplay::block, |style| style.display());
+
+        {
+            let child_data = layout_arena.paintable_data(child_node);
+            if child_position == positioning::STATIC
+                && child_display.is_inline_outside()
+                && !child_is_floating
+                && !child_has_css_transform
+                && layout_arena
+                    .paintable_side_data(child_node)
+                    .overflow_valid_across_recommits
+                    .get()
             {
-                continue;
-            }
-
-            let child_style = layout_arena.node_style_if_live(child_node);
-            let child_position = child_style.map_or(positioning::STATIC, |style| style.position());
-            let child_is_absolutely_positioned = matches!(child_position, positioning::ABSOLUTE | positioning::FIXED);
-
-            // https://drafts.csswg.org/css-position/#fixed-positioning-containing-block
-            // [..] As a result, parts of fixed-positioned boxes that extend outside the layout viewport/page area
-            //      cannot be scrolled to and will not print.
-            // FIXME: Properly establish the fixed positioning containing block for `position: fixed`
-            if child_position == positioning::FIXED {
-                continue;
-            }
-
-            let child_has_css_transform =
-                child_style.is_some_and(|style| style_queries::has_css_transform(layout_arena, child_node, style));
-            let child_flags = layout_arena.node_flags_if_live(child_node);
-            let child_is_flex_or_grid_item =
-                child_flags & (NodeFlag::IsFlexItem as u32 | NodeFlag::IsGridItem as u32) != 0;
-            let child_is_floating = !child_is_flex_or_grid_item && child_style.is_some_and(|style| style.is_floating());
-            if style_queries::is_invisible_for_line_clamp(layout_arena, child_node) {
-                continue;
-            }
-            let child_display = child_style.map_or_else(FfiDisplay::block, |style| style.display());
-
-            {
-                let child_data = layout_arena.paintable_data(child_node);
-                if child_position == positioning::STATIC
-                    && child_display.is_inline_outside()
-                    && !child_is_floating
-                    && !child_has_css_transform
-                    && layout_arena
-                        .paintable_side_data(child_node)
-                        .overflow_valid_across_recommits
-                        .get()
-                {
-                    let border = crate::painting::paintable_geometry::committed_border(layout_arena, child_node);
-                    let zero = CssPixels::from_raw(0);
-                    let has_border =
-                        border.top != zero || border.right != zero || border.bottom != zero || border.left != zero;
-                    if !has_border {
-                        let padding = crate::painting::paintable_geometry::committed_padding(layout_arena, child_node);
-                        let content_size =
-                            crate::painting::paintable_geometry::committed_content_size(layout_arena, child_node);
-                        let content_box_relative_to_padding_box =
-                            CssPixelRect::new(padding.left, padding.top, content_size.width, content_size.height);
-                        // The committed line fragment already contributes this content box. A box with no border whose
-                        // cached overflow fits inside the content box cannot expand its containing block's overflow.
-                        if content_box_relative_to_padding_box
-                            .contains_rect(child_data.overflow_relative_to_padding_box.rect.into())
-                        {
-                            continue;
-                        }
+                let border = crate::painting::paintable_geometry::committed_border(layout_arena, child_node);
+                let zero = CssPixels::from_raw(0);
+                let has_border =
+                    border.top != zero || border.right != zero || border.bottom != zero || border.left != zero;
+                if !has_border {
+                    let padding = crate::painting::paintable_geometry::committed_padding(layout_arena, child_node);
+                    let content_size =
+                        crate::painting::paintable_geometry::committed_content_size(layout_arena, child_node);
+                    let content_box_relative_to_padding_box =
+                        CssPixelRect::new(padding.left, padding.top, content_size.width, content_size.height);
+                    // The committed line fragment already contributes this content box. A box with no border whose
+                    // cached overflow fits inside the content box cannot expand its containing block's overflow.
+                    if content_box_relative_to_padding_box
+                        .contains_rect(child_data.overflow_relative_to_padding_box.rect.into())
+                    {
+                        continue;
                     }
                 }
             }
+        }
 
-            let untransformed_child_border_box = paintable_geometry::absolute_border_box_rect(layout_arena, child_node);
-            let mut child_border_box = apply_css_transform_to_scrollable_overflow_rect(
+        let untransformed_child_border_box = paintable_geometry::absolute_border_box_rect(layout_arena, child_node);
+        let mut child_border_box = apply_css_transform_to_scrollable_overflow_rect(
+            layout_arena,
+            visual_context_callbacks,
+            child_node,
+            untransformed_child_border_box,
+            child_has_css_transform,
+        );
+        if !child_is_absolutely_positioned {
+            child_border_box = clip_in_flow(child_border_box);
+        }
+        // NOTE: Only boxes that are not wholly in the unreachable scrollable overflow region contribute.
+        let wholly_in_unreachable_horizontal_axis = if overflow_directions.horizontal_axis_is_positive {
+            child_border_box.right() < paintable_absolute_padding_box.x
+        } else {
+            child_border_box.x > paintable_absolute_padding_box.right()
+        };
+        let wholly_in_unreachable_vertical_axis = if overflow_directions.vertical_axis_is_positive {
+            child_border_box.bottom() < paintable_absolute_padding_box.y
+        } else {
+            child_border_box.y > paintable_absolute_padding_box.bottom()
+        };
+        if wholly_in_unreachable_horizontal_axis || wholly_in_unreachable_vertical_axis {
+            continue;
+        }
+
+        // Border boxes with zero area do not affect the scrollable overflow area.
+        if !child_border_box.is_empty() {
+            scrollable_overflow_rect.unite(child_border_box);
+
+            let untransformed_child_margin_box = if child_is_flex_or_grid_item {
+                let child_margin = paintable_geometry::committed_margin(layout_arena, child_node);
+                let zero = CssPixels::from_raw(0);
+                Some(untransformed_child_border_box.inflated(
+                    child_margin.top.min(zero),
+                    child_margin.right.min(zero),
+                    child_margin.bottom.min(zero),
+                    child_margin.left.min(zero),
+                ))
+            } else {
+                None
+            };
+
+            let child_is_in_flow = !(child_is_floating || child_is_absolutely_positioned);
+            if child_is_in_flow || child_is_floating {
+                if let Some(child_margin_box) = untransformed_child_margin_box {
+                    // Use negative flex and grid item margin edges to determine whether the container's end
+                    // padding has already been consumed by in-flow content.
+                    in_flow_and_floated_content_bounds.unite_horizontally(child_margin_box);
+                    in_flow_and_floated_content_bounds.unite_vertically(child_margin_box);
+                } else {
+                    in_flow_and_floated_content_bounds.unite(untransformed_child_border_box);
+                }
+            }
+        }
+
+        // - The scrollable overflow areas of all of the above boxes (including zero-area boxes and accounting for
+        //   transforms as described above), provided they themselves have overflow: visible (i.e. do not themselves
+        //   trap the overflow) and that scrollable overflow is not already clipped (e.g. by the clip property or the
+        //   contain property).
+        // Scrollable overflow is already clipped by the contain property.
+        if child_style.is_some_and(|style| {
+            style_queries::has_layout_containment(layout_arena, child_node, style)
+                || style_queries::has_paint_containment(layout_arena, child_node, style)
+        }) {
+            continue;
+        }
+
+        let child_overflow_x = child_style.map_or(overflow::VISIBLE, |style| style.overflow_x());
+        let child_overflow_y = child_style.map_or(overflow::VISIBLE, |style| style.overflow_y());
+        if child_overflow_x == overflow::VISIBLE || child_overflow_y == overflow::VISIBLE {
+            let untransformed_child_scrollable_overflow = measure_scrollable_overflow_impl(
+                layout_arena,
+                non_child_boxes_by_containing_block,
+                visual_context_callbacks,
+                overflow_callbacks,
+                child_node,
+                assignments,
+            );
+            let mut child_scrollable_overflow = apply_css_transform_to_scrollable_overflow_rect(
                 layout_arena,
                 visual_context_callbacks,
                 child_node,
-                untransformed_child_border_box,
+                untransformed_child_scrollable_overflow,
                 child_has_css_transform,
             );
             if !child_is_absolutely_positioned {
-                child_border_box = clip_in_flow(child_border_box);
+                child_scrollable_overflow = clip_in_flow(child_scrollable_overflow);
             }
-            // NOTE: Only boxes that are not wholly in the unreachable scrollable overflow region contribute.
-            let wholly_in_unreachable_horizontal_axis = if overflow_directions.horizontal_axis_is_positive {
-                child_border_box.right() < paintable_absolute_padding_box.x
-            } else {
-                child_border_box.x > paintable_absolute_padding_box.right()
-            };
-            let wholly_in_unreachable_vertical_axis = if overflow_directions.vertical_axis_is_positive {
-                child_border_box.bottom() < paintable_absolute_padding_box.y
-            } else {
-                child_border_box.y > paintable_absolute_padding_box.bottom()
-            };
-            if wholly_in_unreachable_horizontal_axis || wholly_in_unreachable_vertical_axis {
-                continue;
-            }
-
-            // Border boxes with zero area do not affect the scrollable overflow area.
-            if !child_border_box.is_empty() {
-                scrollable_overflow_rect.unite(child_border_box);
-
-                let untransformed_child_margin_box = if child_is_flex_or_grid_item {
-                    let child_margin = paintable_geometry::committed_margin(layout_arena, child_node);
-                    let zero = CssPixels::from_raw(0);
-                    Some(untransformed_child_border_box.inflated(
-                        child_margin.top.min(zero),
-                        child_margin.right.min(zero),
-                        child_margin.bottom.min(zero),
-                        child_margin.left.min(zero),
-                    ))
-                } else {
-                    None
-                };
-
-                let child_is_in_flow = !(child_is_floating || child_is_absolutely_positioned);
-                if child_is_in_flow || child_is_floating {
-                    if let Some(child_margin_box) = untransformed_child_margin_box {
-                        // Use negative flex and grid item margin edges to determine whether the container's end
-                        // padding has already been consumed by in-flow content.
-                        in_flow_and_floated_content_bounds.unite_horizontally(child_margin_box);
-                        in_flow_and_floated_content_bounds.unite_vertically(child_margin_box);
-                    } else {
-                        in_flow_and_floated_content_bounds.unite(untransformed_child_border_box);
-                    }
+            if !child_scrollable_overflow.is_empty() {
+                if child_overflow_x == overflow::VISIBLE {
+                    scrollable_overflow_rect.unite_horizontally(child_scrollable_overflow);
                 }
-            }
-
-            // - The scrollable overflow areas of all of the above boxes (including zero-area boxes and accounting for
-            //   transforms as described above), provided they themselves have overflow: visible (i.e. do not themselves
-            //   trap the overflow) and that scrollable overflow is not already clipped (e.g. by the clip property or the
-            //   contain property).
-            // Scrollable overflow is already clipped by the contain property.
-            if child_style.is_some_and(|style| {
-                style_queries::has_layout_containment(layout_arena, child_node, style)
-                    || style_queries::has_paint_containment(layout_arena, child_node, style)
-            }) {
-                continue;
-            }
-
-            let child_overflow_x = child_style.map_or(overflow::VISIBLE, |style| style.overflow_x());
-            let child_overflow_y = child_style.map_or(overflow::VISIBLE, |style| style.overflow_y());
-            if child_overflow_x == overflow::VISIBLE || child_overflow_y == overflow::VISIBLE {
-                let untransformed_child_scrollable_overflow = measure_scrollable_overflow_impl(
-                    layout_arena,
-                    contained_boxes_by_containing_block,
-                    visual_context_callbacks,
-                    overflow_callbacks,
-                    child_node,
-                    assignments,
-                );
-                let mut child_scrollable_overflow = apply_css_transform_to_scrollable_overflow_rect(
-                    layout_arena,
-                    visual_context_callbacks,
-                    child_node,
-                    untransformed_child_scrollable_overflow,
-                    child_has_css_transform,
-                );
-                if !child_is_absolutely_positioned {
-                    child_scrollable_overflow = clip_in_flow(child_scrollable_overflow);
-                }
-                if !child_scrollable_overflow.is_empty() {
-                    if child_overflow_x == overflow::VISIBLE {
-                        scrollable_overflow_rect.unite_horizontally(child_scrollable_overflow);
-                    }
-                    if child_overflow_y == overflow::VISIBLE {
-                        scrollable_overflow_rect.unite_vertically(child_scrollable_overflow);
-                    }
+                if child_overflow_y == overflow::VISIBLE {
+                    scrollable_overflow_rect.unite_vertically(child_scrollable_overflow);
                 }
             }
         }
