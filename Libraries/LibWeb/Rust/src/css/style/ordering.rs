@@ -969,11 +969,17 @@ impl StyleEngine {
         matches: &[RuleMatch],
         node: Option<StyleNodeID>,
     ) -> bool {
-        self.cascade_winner_inventory_is_complete_for_target(matches, node, None)
-            && matches
+        // Checking every target covers every match. Check each inventory once instead
+        // of scanning the answer again for every rule matching the same pseudo target.
+        !matches.iter().any(|entry| {
+            self.program.rule_is_gated_by_container_query(entry.rule)
+                || !self.program.declarations_are_complete_for(entry.rule)
+                || entry.tree_scope != TreeScopeID::DOCUMENT
+        }) && !node.is_some_and(|node| {
+            ElementDeclarationKind::ALL
                 .iter()
-                .filter_map(|entry| entry.pseudo_element)
-                .all(|pseudo| self.cascade_winner_inventory_is_complete_for_target(matches, node, Some(pseudo)))
+                .any(|&kind| !self.facts.element_declared_properties(node, kind).1)
+        })
     }
 
     /// Exactly match every style node in the document scope against the attached program.
