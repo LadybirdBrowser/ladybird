@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        const events = [];
+        const { promise, resolve } = Promise.withResolvers();
+        requestIdleCallback(() => {
+            events.push("first");
+            const cancelled = requestIdleCallback(() => events.push("cancelled"));
+            cancelIdleCallback(cancelled);
+            requestIdleCallback(() => {
+                events.push("nested");
+                resolve();
+            });
+            queueMicrotask(() => events.push("microtask"));
+        });
+        requestIdleCallback(() => events.push("second"));
+        await promise;
+        println(events.join(", "));
+        // A later registration must wake the idle scheduler after the old queue has drained.
+        await new Promise(resolve => requestIdleCallback(resolve));
+        println("later callback ran");
+        done();
+    });
+</script>

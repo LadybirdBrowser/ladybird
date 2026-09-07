@@ -159,6 +159,7 @@ public:
     WebIDL::ExceptionOr<GC::Ref<Storage>> session_storage();
 
     void start_an_idle_period();
+    bool has_idle_callbacks() const { return !m_idle_request_callbacks.is_empty() || !m_runnable_idle_callbacks.is_empty(); }
 
     // https://html.spec.whatwg.org/multipage/interaction.html#sticky-activation
     bool has_sticky_activation() const;

@@ -160,6 +160,7 @@ private:
     double m_last_idle_period_start_time { 0 };
 
     GC::Ptr<Platform::Timer> m_system_event_loop_timer;
+    GC::Ptr<Platform::Timer> m_idle_period_timer;
 
     // https://html.spec.whatwg.org/multipage/webappapis.html#performing-a-microtask-checkpoint
     bool m_performing_a_microtask_checkpoint { false };
