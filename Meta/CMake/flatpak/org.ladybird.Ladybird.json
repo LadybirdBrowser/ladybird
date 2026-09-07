@@ -1,7 +1,7 @@
 {
   "app-id": "org.ladybird.Ladybird",
   "runtime": "org.kde.Platform",
-  "runtime-version": "6.9",
+  "runtime-version": "6.10",
   "sdk": "org.kde.Sdk",
   "sdk-extensions": [
     "org.freedesktop.Sdk.Extension.llvm20",
