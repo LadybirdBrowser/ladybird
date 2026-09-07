@@ -209,7 +209,7 @@ Vector<DevToolsStyleDeclaration> parse_css_declaration_block_for_devtools(Parsin
 }
 
 // https://drafts.csswg.org/cssom/#parse-a-css-declaration-block
-Vector<Descriptor> Parser::parse_as_descriptor_declaration_block(AtRuleID at_rule_id)
+RustDescriptorBlock Parser::parse_as_descriptor_declaration_block(AtRuleID at_rule_id)
 {
     auto context_type = [at_rule_id] {
         switch (at_rule_id) {
@@ -231,30 +231,9 @@ Vector<Descriptor> Parser::parse_as_descriptor_declaration_block(AtRuleID at_rul
 
     // 1. Let declarations be the returned declarations from invoking parse a block’s contents with string.
     m_rule_context.append(context_type);
-    auto declarations_and_at_rules = RustSyntaxParser::parse_block_contents(*this, m_rule_context);
+    auto declarations = RustSyntaxParser::parse_descriptor_block(*this, m_rule_context);
     m_rule_context.take_last();
-
-    // 2. Let parsed declarations be a new empty list.
-    Vector<Descriptor> parsed_declarations;
-
-    // 3. For each item declaration in declarations, follow these substeps:
-    for (auto const& rule_or_list : declarations_and_at_rules) {
-        if (rule_or_list.has<Rule>())
-            continue;
-
-        auto& rule_declarations = rule_or_list.get<DeclarationList>().declarations();
-        for (auto const& declaration : rule_declarations) {
-            // 1. Let parsed declaration be the result of parsing declaration according to the appropriate CSS
-            //    specifications, dropping parts that are said to be ignored. If the whole declaration is dropped, let
-            //    parsed declaration be null.
-            // 2. If parsed declaration is not null, append it to parsed declarations.
-            if (declaration.descriptor_name_and_id.has_value() && declaration.parsed_value)
-                parsed_declarations.append({ declaration.descriptor_name_and_id.value(), NonnullRefPtr { *declaration.parsed_value } });
-        }
-    }
-
-    // 4. Return parsed declarations.
-    return parsed_declarations;
+    return declarations;
 }
 
 RefPtr<StyleValue const> Parser::parse_as_css_value(PropertyID property_id)

@@ -1,0 +1,6 @@
+first: 31px, Changed
+updated lengths: 4, 2
+removed expanded descriptor: 13px
+second: 13px, 色
+detached: 7px, Detached
+second unchanged: 29px, 色

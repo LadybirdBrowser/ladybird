@@ -1,0 +1,8 @@
+updated order: margin-top, margin-left
+reinserted order: margin-left, margin-top
+expanded: 5px, 6px, 7px, 8px
+removed shorthand: 0
+replaced: margin-left: 9px;, true
+font order: font-family, src
+font family: Changed
+font replacement: Final, 2

@@ -18,6 +18,7 @@
 #include <LibWeb/CSS/Parser/RuleContext.h>
 #include <LibWeb/CSS/Parser/RustSyntaxHandle.h>
 #include <LibWeb/CSS/RustDeclarationBlock.h>
+#include <LibWeb/CSS/RustDescriptorBlock.h>
 #include <LibWeb/CSS/RustQueryHandle.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleProperty.h>
@@ -75,11 +76,13 @@ public:
     DeclarationList(RustStyleSheetParse const&, ValueParserFFI::FfiSyntaxItem const&);
     Vector<Declaration> const& declarations() const;
     RustDeclarationBlock const& properties() const { return m_properties; }
+    RustDescriptorBlock const& descriptors() const { return m_descriptors.value(); }
     Optional<SourcePosition> source_position() const;
 
 private:
     RustStyleSheetParse m_parse;
     RustDeclarationBlock m_properties;
+    Optional<RustDescriptorBlock> m_descriptors;
     size_t m_start;
     size_t m_count;
     mutable Optional<Vector<Declaration>> m_declarations;
@@ -135,7 +138,7 @@ struct AtRule {
     ValueParserFFI::FfiRuleKind kind;
     Utf16FlyString name;
     ParsedRulePrelude parsed_prelude;
-    Vector<Descriptor> descriptors;
+    Optional<RustDescriptorBlock> descriptors;
     Optional<RustDeclarationBlock> declarations;
     Vector<RuleOrListOfDeclarations> child_rules_and_lists_of_declarations;
     bool is_block_rule { false };
@@ -185,6 +188,7 @@ public:
     static void parse_stylesheet_off_thread(ParsingParams const&, Utf16String, Function<void(RustStyleSheetParse)>);
     static Vector<Rule> stylesheet_rules(RustStyleSheetParse const&);
     static RustDeclarationBlock parse_declaration_block(Parser&, ReadonlySpan<RuleContext>);
+    static RustDescriptorBlock parse_descriptor_block(Parser&, ReadonlySpan<RuleContext>);
     static Vector<RuleOrListOfDeclarations> parse_block_contents(Parser&, ReadonlySpan<RuleContext>, PreservePropertySourceText = PreservePropertySourceText::No);
     static Vector<RuleOrListOfDeclarations> parse_block_contents(Parser&, Utf16View, ReadonlySpan<RuleContext>, PreservePropertySourceText = PreservePropertySourceText::No);
     static RefPtr<StyleValue const> parse_descriptor(Parser&, AtRuleID, DescriptorNameAndID const&);

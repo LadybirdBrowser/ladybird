@@ -300,7 +300,7 @@ GC::Ref<FontFace> FontFace::create_css_connected(JS::Realm& realm, CSSFontFaceRu
     font_face->m_css_font_face_rule = &rule;
     font_face->reparse_connected_css_font_face_rule_descriptors();
 
-    if (auto src_value = rule.descriptors()->descriptor(DescriptorNameAndID::from_id(DescriptorID::Src))) {
+    if (auto src_value = rule.descriptor_block().descriptor(DescriptorNameAndID::from_id(DescriptorID::Src))) {
         font_face->m_urls = ParsedFontFace::sources_from_style_value(*src_value);
         font_face->m_urls.remove_all_matching(is_unsupported_source);
     }
@@ -312,19 +312,19 @@ GC::Ref<FontFace> FontFace::create_css_connected(JS::Realm& realm, CSSFontFaceRu
 
 void FontFace::reparse_connected_css_font_face_rule_descriptors()
 {
-    auto const& descriptors = m_css_font_face_rule->descriptors();
+    auto const& descriptors = m_css_font_face_rule->descriptor_block();
 
-    set_family_impl(*descriptors->descriptor(DescriptorNameAndID::from_id(DescriptorID::FontFamily)));
-    set_style_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontStyle)));
-    set_weight_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontWeight)));
-    set_stretch_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontWidth)));
-    set_unicode_range_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::UnicodeRange)));
-    set_feature_settings_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontFeatureSettings)));
-    set_variation_settings_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontVariationSettings)));
-    set_display_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::FontDisplay)));
-    set_ascent_override_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::AscentOverride)));
-    set_descent_override_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::DescentOverride)));
-    set_line_gap_override_impl(*descriptors->descriptor_or_initial_value(DescriptorNameAndID::from_id(DescriptorID::LineGapOverride)));
+    set_family_impl(*descriptors.descriptor(DescriptorNameAndID::from_id(DescriptorID::FontFamily)));
+    set_style_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontStyle)));
+    set_weight_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontWeight)));
+    set_stretch_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontWidth)));
+    set_unicode_range_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::UnicodeRange)));
+    set_feature_settings_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontFeatureSettings)));
+    set_variation_settings_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontVariationSettings)));
+    set_display_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::FontDisplay)));
+    set_ascent_override_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::AscentOverride)));
+    set_descent_override_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::DescentOverride)));
+    set_line_gap_override_impl(*descriptors.descriptor_or_initial_value(AtRuleID::FontFace, DescriptorNameAndID::from_id(DescriptorID::LineGapOverride)));
 }
 
 ParsedFontFace FontFace::parsed_font_face() const
@@ -335,7 +335,7 @@ ParsedFontFace FontFace::parsed_font_face() const
     // FIXME: The ParsedFontFace is kind of expensive to create. We should be using a shared sub-object for the data
     return ParsedFontFace {
         // Create a dummy CSSFontFaceRule so that we load relative to the document's base URL
-        CSSFontFaceRule::create(CSSFontFaceDescriptors::create({})),
+        CSSFontFaceRule::create(RustDescriptorBlock { Vector<Descriptor> {} }),
         m_family,
         m_cached_weight_range,
         m_cached_slope,
@@ -412,7 +412,7 @@ Optional<FontComputer&> FontFace::font_computer() const
 Optional<ComputationContext> FontFace::computation_context() const
 {
     if (m_css_font_face_rule) {
-        if (auto document = m_css_font_face_rule->descriptors()->parent_rule()->parent_style_sheet()->owning_document())
+        if (auto document = m_css_font_face_rule->parent_style_sheet()->owning_document())
             return ComputationContext { .length_resolution_context = Length::ResolutionContext::for_document(*document) };
     }
     if (auto document = m_environment->responsible_document())

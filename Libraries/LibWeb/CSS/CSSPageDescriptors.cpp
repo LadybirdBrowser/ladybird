@@ -12,12 +12,12 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSPageDescriptors);
 
-GC::Ref<CSSPageDescriptors> CSSPageDescriptors::create(Vector<Descriptor> descriptors)
+GC::Ref<CSSPageDescriptors> CSSPageDescriptors::create(RustDescriptorBlock descriptors)
 {
     return GC::Heap::the().allocate<CSSPageDescriptors>(move(descriptors));
 }
 
-CSSPageDescriptors::CSSPageDescriptors(Vector<Descriptor> descriptors)
+CSSPageDescriptors::CSSPageDescriptors(RustDescriptorBlock descriptors)
     : CSSDescriptors(AtRuleID::Page, move(descriptors))
 {
 }

@@ -8,6 +8,7 @@
 #include <LibGC/Heap.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontStyleMapping.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/CSS/CSSFontFaceRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/FontComputer.h>
@@ -22,16 +23,29 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSFontFaceRule);
 
-GC::Ref<CSSFontFaceRule> CSSFontFaceRule::create(GC::Ref<CSSFontFaceDescriptors> style)
+GC::Ref<CSSFontFaceRule> CSSFontFaceRule::create(RustDescriptorBlock descriptors)
 {
-    return GC::Heap::the().allocate<CSSFontFaceRule>(style);
+    return GC::Heap::the().allocate<CSSFontFaceRule>(move(descriptors));
 }
 
-CSSFontFaceRule::CSSFontFaceRule(GC::Ref<CSSFontFaceDescriptors> style)
+CSSFontFaceRule::CSSFontFaceRule(RustDescriptorBlock descriptors)
     : CSSRule(Type::FontFace)
-    , m_style(style)
+    , m_descriptors(move(descriptors))
 {
-    m_style->set_parent_rule(*this);
+}
+
+size_t CSSFontFaceRule::external_memory_size() const
+{
+    return JS::saturating_add_external_memory_size(Base::external_memory_size(), m_descriptors.external_memory_size());
+}
+
+GC::Ref<CSSFontFaceDescriptors> CSSFontFaceRule::descriptors() const
+{
+    if (!m_style) {
+        m_style = CSSFontFaceDescriptors::create(m_descriptors.retain());
+        m_style->set_parent_rule(const_cast<CSSFontFaceRule&>(*this));
+    }
+    return *m_style;
 }
 
 bool CSSFontFaceRule::is_valid() const
@@ -39,19 +53,19 @@ bool CSSFontFaceRule::is_valid() const
     // @font-face rules require a font-family and src descriptor; if either of these are missing, the @font-face rule
     // must not be considered when performing the font matching algorithm.
     // https://drafts.csswg.org/css-fonts-4/#font-face-rule
-    return !m_style->descriptor(DescriptorNameAndID::from_id(DescriptorID::FontFamily)).is_null()
-        && !m_style->descriptor(DescriptorNameAndID::from_id(DescriptorID::Src)).is_null();
+    return !m_descriptors.descriptor(DescriptorNameAndID::from_id(DescriptorID::FontFamily)).is_null()
+        && !m_descriptors.descriptor(DescriptorNameAndID::from_id(DescriptorID::Src)).is_null();
 }
 
 ParsedFontFace CSSFontFaceRule::font_face() const
 {
-    return ParsedFontFace::from_descriptors(m_style);
+    return ParsedFontFace::from_descriptors(const_cast<CSSFontFaceRule&>(*this));
 }
 
 // https://drafts.csswg.org/cssom/#ref-for-cssfontfacerule
 Utf16String CSSFontFaceRule::serialized() const
 {
-    auto& descriptors = *m_style;
+    auto const& descriptors = m_descriptors;
 
     Utf16StringBuilder builder;
     // The result of concatenating the following:

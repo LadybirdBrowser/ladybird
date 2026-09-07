@@ -221,7 +221,7 @@ void CSSFunctionRule::for_each_effective_declaration(DOM::AbstractElement& root_
             if (!container_rule->matches(root_element))
                 return;
         }
-        for (auto const& descriptor : declarations.style()->descriptors())
+        for (auto const& descriptor : declarations.descriptor_block().descriptors())
             callback(descriptor.descriptor_name_and_id.name(), descriptor.value);
     });
 }

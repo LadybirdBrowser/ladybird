@@ -5,6 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/CSS/CSSPageRule.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Serialize.h>
@@ -17,17 +18,30 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSPageRule);
 
-GC::Ref<CSSPageRule> CSSPageRule::create(PageSelectorList&& selectors, GC::Ref<CSSPageDescriptors> style, CSSRuleList& rules)
+GC::Ref<CSSPageRule> CSSPageRule::create(PageSelectorList&& selectors, RustDescriptorBlock descriptors, CSSRuleList& rules)
 {
-    return GC::Heap::the().allocate<CSSPageRule>(move(selectors), style, rules);
+    return GC::Heap::the().allocate<CSSPageRule>(move(selectors), move(descriptors), rules);
 }
 
-CSSPageRule::CSSPageRule(PageSelectorList&& selectors, GC::Ref<CSSPageDescriptors> style, CSSRuleList& rules)
+CSSPageRule::CSSPageRule(PageSelectorList&& selectors, RustDescriptorBlock descriptors, CSSRuleList& rules)
     : CSSGroupingRule(rules, Type::Page)
     , m_selectors(move(selectors))
-    , m_style(style)
+    , m_descriptors(move(descriptors))
 {
-    m_style->set_parent_rule(*this);
+}
+
+size_t CSSPageRule::external_memory_size() const
+{
+    return JS::saturating_add_external_memory_size(Base::external_memory_size(), m_descriptors.external_memory_size());
+}
+
+GC::Ref<CSSPageDescriptors> CSSPageRule::style() const
+{
+    if (!m_style) {
+        m_style = CSSPageDescriptors::create(m_descriptors.retain());
+        m_style->set_parent_rule(const_cast<CSSPageRule&>(*this));
+    }
+    return *m_style;
 }
 
 // https://drafts.csswg.org/cssom/#dom-csspagerule-selectortext
@@ -63,8 +77,6 @@ void CSSPageRule::set_selector_text(Utf16View text)
 // https://drafts.csswg.org/cssom/#ref-for-csspagerule
 Utf16String CSSPageRule::serialized() const
 {
-    auto& descriptors = *m_style;
-
     Utf16StringBuilder builder;
 
     // AD-HOC: There's no spec for this yet, but Chrome puts declarations before margin rules.
@@ -74,8 +86,8 @@ Utf16String CSSPageRule::serialized() const
         builder.append_ascii(' ');
     }
     builder.append_ascii("{ "sv);
-    if (descriptors.length() > 0) {
-        builder.append(descriptors.serialized());
+    if (m_descriptors.size() > 0) {
+        builder.append(style()->serialized());
         builder.append_ascii(' ');
     }
     for (size_t i = 0; i < css_rules().length(); i++) {
@@ -104,7 +116,7 @@ void CSSPageRule::dump(StringBuilder& builder, int indent_levels) const
 
     dump_indent(builder, indent_levels + 1);
     builder.appendff("Selector: {}\n", selector_text().to_utf8());
-    dump_descriptors(builder, descriptors(), indent_levels + 1);
+    dump_descriptors(builder, style(), indent_levels + 1);
 
     dump_indent(builder, indent_levels + 1);
     builder.appendff("Rules ({}):\n", css_rules().length());

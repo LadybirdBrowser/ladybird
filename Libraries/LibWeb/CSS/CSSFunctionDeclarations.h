@@ -17,21 +17,23 @@ class CSSFunctionDeclarations final : public CSSRule {
     GC_DECLARE_ALLOCATOR(CSSFunctionDeclarations);
 
 public:
-    static constexpr size_t style_offset() { return offsetof(CSSFunctionDeclarations, m_style); }
     [[nodiscard]] static GC::Ref<CSSFunctionDeclarations> create(Parser::Parser&, Parser::DeclarationList const&);
 
     virtual ~CSSFunctionDeclarations() override = default;
 
-    GC::Ref<CSSFunctionDescriptors> style() const { return m_style; }
+    GC::Ref<CSSFunctionDescriptors> style() const;
+    RustDescriptorBlock const& descriptor_block() const { return m_descriptors; }
 
 private:
-    CSSFunctionDeclarations(GC::Ref<CSSFunctionDescriptors>);
+    CSSFunctionDeclarations(RustDescriptorBlock);
 
+    virtual size_t external_memory_size() const override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual Utf16String serialized() const override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
-    GC::Ref<CSSFunctionDescriptors> m_style;
+    RustDescriptorBlock m_descriptors;
+    mutable GC::Ptr<CSSFunctionDescriptors> m_style;
 };
 
 template<>

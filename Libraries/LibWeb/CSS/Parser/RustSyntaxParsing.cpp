@@ -303,31 +303,10 @@ static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
     };
 }
 
-static Vector<Descriptor> descriptors(FfiSyntaxParseData const& data, size_t start, size_t count)
-{
-    VERIFY(start <= data.descriptor_count);
-    VERIFY(count <= data.descriptor_count - start);
-    Vector<Descriptor> result;
-    result.ensure_capacity(count);
-    for (size_t index = 0; index < count; ++index) {
-        auto const& descriptor = data.descriptors[start + index];
-        VERIFY(descriptor.descriptor_id <= to_underlying(DescriptorID::Custom));
-        VERIFY(descriptor.value);
-        auto descriptor_id = static_cast<DescriptorID>(descriptor.descriptor_id);
-        auto name_and_id = descriptor_id == DescriptorID::Custom
-            ? DescriptorNameAndID::from_custom_name(Utf16FlyString::from_utf16(utf16_value(data, descriptor.name_offset, descriptor.name_length)))
-            : DescriptorNameAndID::from_id(descriptor_id);
-        result.unchecked_append({
-            .descriptor_name_and_id = move(name_and_id),
-            .value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(descriptor.value))),
-        });
-    }
-    return result;
-}
-
 DeclarationList::DeclarationList(RustStyleSheetParse const& parse, FfiSyntaxItem const& item)
     : m_parse(parse.retain())
     , m_properties(rust_declaration_block_from_data(item.declaration_block))
+    , m_descriptors(item.descriptor_block ? Optional<RustDescriptorBlock> { RustDescriptorBlock { rust_descriptor_block_from_data(item.descriptor_block) } } : OptionalNone {})
     , m_start(item.start)
     , m_count(item.count)
 {
@@ -437,7 +416,7 @@ static Rule rule(RustStyleSheetParse const& parse, FfiSyntaxParseData const& dat
             .kind = rule.rule_kind,
             .name = Utf16FlyString::from_utf16(utf16_value(data, rule.name_offset, rule.name_length)),
             .parsed_prelude = parsed_rule_prelude(data, rule),
-            .descriptors = descriptors(data, rule.descriptors_start, rule.descriptor_count),
+            .descriptors = rule.descriptor_block ? Optional<RustDescriptorBlock> { RustDescriptorBlock { rust_descriptor_block_from_data(rule.descriptor_block) } } : OptionalNone {},
             .declarations = rule.declaration_block ? Optional<RustDeclarationBlock> { RustDeclarationBlock { rust_declaration_block_from_data(rule.declaration_block) } } : OptionalNone {},
             .child_rules_and_lists_of_declarations = items(parse, data, rule.children_start, rule.child_count),
             .is_block_rule = rule.has_block,
@@ -540,6 +519,19 @@ RustDeclarationBlock RustSyntaxParser::parse_declaration_block(Parser& parser, R
         report_item_declaration_errors(data, item);
     }
     return RustDeclarationBlock { rust_css_syntax_parse_declaration_block(handle) };
+}
+
+RustDescriptorBlock RustSyntaxParser::parse_descriptor_block(Parser& parser, ReadonlySpan<RuleContext> contexts)
+{
+    static_assert(sizeof(RuleContext) == sizeof(u8));
+    auto context = parser.make_parse_context(Parser::ParseContextMode::Syntax);
+    auto* handle = rust_parse_css_block_syntax(ffi_utf16_view(parser.m_source), reinterpret_cast<u8 const*>(contexts.data()), contexts.size(), &context.context, false);
+    RustStyleSheetParse parse { handle };
+    auto data = parse.data();
+    report_diagnostics(data);
+    for (size_t index = 0; index < data.root_count; ++index)
+        report_item_declaration_errors(data, data.items[data.roots[index]]);
+    return RustDescriptorBlock { rust_css_syntax_parse_descriptor_block(handle) };
 }
 
 Vector<RuleOrListOfDeclarations> RustSyntaxParser::parse_block_contents(Parser& parser, ReadonlySpan<RuleContext> contexts, PreservePropertySourceText preserve_property_source_text)

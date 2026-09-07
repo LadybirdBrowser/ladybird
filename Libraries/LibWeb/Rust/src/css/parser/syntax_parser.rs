@@ -10,6 +10,7 @@ use crate::css::css_tokenizer::{
     CssNumberType, ParserString, ParserToken, ParserTokenKind, SourcePosition, TokenizerInput, tokenize_for_parser,
 };
 use crate::css::declaration_block::{DeclarationBlockData, DeclaredProperty};
+use crate::css::descriptor_block::{DescriptorBlockData, DescriptorData};
 use crate::css::descriptor_metadata::{CUSTOM_DESCRIPTOR_ID, descriptor_longhands};
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::parser::component_value::{
@@ -2038,15 +2039,6 @@ pub enum FfiDeclarationRejection {
 
 #[derive(Clone, Copy)]
 #[repr(C)]
-pub struct FfiSyntaxDescriptor {
-    pub name_offset: usize,
-    pub name_length: usize,
-    pub descriptor_id: u8,
-    pub value: *const c_void,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
 pub struct FfiSyntaxRule {
     pub rule_type: u8,
     pub rule_kind: FfiRuleKind,
@@ -2071,8 +2063,7 @@ pub struct FfiSyntaxRule {
     pub parsed_prelude_syntax: *const c_void,
     pub page_selector_list: *const FfiPageSelectorList,
     pub selector_list: *mut c_void,
-    pub descriptors_start: usize,
-    pub descriptor_count: usize,
+    pub descriptor_block: *const DescriptorBlockData,
 }
 
 #[derive(Clone, Copy)]
@@ -2095,6 +2086,7 @@ pub struct FfiSyntaxItem {
     pub start: usize,
     pub count: usize,
     pub declaration_block: *const DeclarationBlockData,
+    pub descriptor_block: *const DescriptorBlockData,
 }
 
 struct ParsedItem {
@@ -2102,6 +2094,7 @@ struct ParsedItem {
     start: usize,
     count: usize,
     declaration_block: Option<Arc<DeclarationBlockData>>,
+    descriptor_block: Option<Arc<DescriptorBlockData>>,
 }
 
 fn declaration_block_from_items(items: &[ParsedItem], indices: &[usize]) -> Arc<DeclarationBlockData> {
@@ -2135,6 +2128,7 @@ impl ParsedItem {
             start: self.start,
             count: self.count,
             declaration_block: self.declaration_block.as_ref().map_or(std::ptr::null(), Arc::as_ptr),
+            descriptor_block: self.descriptor_block.as_ref().map_or(std::ptr::null(), Arc::as_ptr),
         }
     }
 }
@@ -2203,8 +2197,6 @@ pub struct FfiSyntaxParseData {
     pub value_count: usize,
     pub declarations: *const FfiSyntaxDeclaration,
     pub declaration_count: usize,
-    pub descriptors: *const FfiSyntaxDescriptor,
-    pub descriptor_count: usize,
     pub rules: *const FfiSyntaxRule,
     pub rule_count: usize,
     pub items: *const FfiSyntaxItem,
@@ -2239,13 +2231,6 @@ struct ParsedDeclaration {
     font_feature_value_count: usize,
 }
 
-struct ParsedDescriptorData {
-    name_offset: usize,
-    name_length: usize,
-    descriptor_id: u8,
-    value: Arc<StyleValueData>,
-}
-
 struct ParsedRule {
     rule_type: u8,
     rule_kind: FfiRuleKind,
@@ -2270,8 +2255,7 @@ struct ParsedRule {
     parsed_prelude_syntax: Option<Arc<SyntaxNode>>,
     page_selector_list: Option<Arc<FfiPageSelectorList>>,
     selector_list: Option<Arc<RustParsedSelectorList>>,
-    descriptors_start: usize,
-    descriptor_count: usize,
+    descriptor_block: Option<Arc<DescriptorBlockData>>,
 }
 
 struct ParsedPreludeItemData {
@@ -2289,7 +2273,6 @@ struct ParsedPreludeItemData {
 struct SyntaxParseBuilder {
     values: Vec<u16>,
     declarations: Vec<ParsedDeclaration>,
-    descriptors: Vec<ParsedDescriptorData>,
     descriptor_parse_cache: ParsedDescriptorCache,
     rules: Vec<ParsedRule>,
     items: Vec<ParsedItem>,
@@ -2308,7 +2291,6 @@ pub(super) struct ParsedStyleSheet {
     pub(super) cache_metadata: Option<CachedParseMetadata>,
     values: Box<[u16]>,
     declarations: Box<[ParsedDeclaration]>,
-    descriptors: Box<[ParsedDescriptorData]>,
     rules: Box<[ParsedRule]>,
     items: Box<[ParsedItem]>,
     item_indices: Box<[usize]>,
@@ -2332,7 +2314,6 @@ pub struct FfiSyntaxParse {
 struct FfiSyntaxParseViews {
     items: Box<[FfiSyntaxItem]>,
     declarations: Box<[FfiSyntaxDeclaration]>,
-    descriptors: Box<[FfiSyntaxDescriptor]>,
     rules: Box<[FfiSyntaxRule]>,
     prelude_items: Box<[FfiSyntaxPreludeItem]>,
 }
@@ -2355,17 +2336,6 @@ impl ParsedDeclaration {
             parsed_value: self.parsed_value.as_ref().map_or(std::ptr::null(), Arc::as_ptr).cast(),
             font_feature_values_start: self.font_feature_values_start,
             font_feature_value_count: self.font_feature_value_count,
-        }
-    }
-}
-
-impl ParsedDescriptorData {
-    fn ffi_view(&self) -> FfiSyntaxDescriptor {
-        FfiSyntaxDescriptor {
-            name_offset: self.name_offset,
-            name_length: self.name_length,
-            descriptor_id: self.descriptor_id,
-            value: Arc::as_ptr(&self.value).cast(),
         }
     }
 }
@@ -2405,8 +2375,7 @@ impl ParsedRule {
                 .map_or(std::ptr::null(), Arc::as_ptr)
                 .cast_mut()
                 .cast(),
-            descriptors_start: self.descriptors_start,
-            descriptor_count: self.descriptor_count,
+            descriptor_block: self.descriptor_block.as_ref().map_or(std::ptr::null(), Arc::as_ptr),
         }
     }
 }
@@ -2471,7 +2440,7 @@ fn append_collected_descriptor(descriptors: &mut Vec<CollectedDescriptor>, descr
 }
 
 /// Memoizes `parse_descriptor` outcomes by declaration address, so a rule whose
-/// descriptors feed both the declaration array and the descriptor array parses
+/// descriptors feed both the declaration array and the descriptor block parses
 /// each value once.
 type ParsedDescriptorCache = HashMap<usize, Option<ParsedDescriptor>>;
 
@@ -2752,7 +2721,6 @@ impl SyntaxParseBuilder {
             cache_metadata: None,
             values: self.values.into_boxed_slice(),
             declarations: self.declarations.into_boxed_slice(),
-            descriptors: self.descriptors.into_boxed_slice(),
             rules: self.rules.into_boxed_slice(),
             items: self.items.into_boxed_slice(),
             item_indices: self.item_indices.into_boxed_slice(),
@@ -2785,7 +2753,6 @@ impl SyntaxParseBuilder {
         Self {
             values: Vec::new(),
             declarations: Vec::new(),
-            descriptors: Vec::new(),
             descriptor_parse_cache: HashMap::new(),
             rules: Vec::new(),
             items: Vec::new(),
@@ -3089,11 +3056,39 @@ impl SyntaxParseBuilder {
         } else {
             None
         };
+        let descriptor_block = match item {
+            RuleOrDeclarations::Declarations(declarations)
+                if declarations
+                    .first()
+                    .is_some_and(|declaration| descriptor_at_rule(declaration.rule_context).is_some()) =>
+            {
+                Some(Arc::new(DescriptorBlockData {
+                    descriptors: self.declarations[start..start + count]
+                        .iter()
+                        .filter_map(|declaration| {
+                            if declaration.is_property || declaration.descriptor_id == u8::MAX {
+                                return None;
+                            }
+                            Some(DescriptorData {
+                                name: CssString::from_utf16(
+                                    &self.values
+                                        [declaration.name_offset..declaration.name_offset + declaration.name_length],
+                                ),
+                                id: declaration.descriptor_id,
+                                value: declaration.parsed_value.clone()?,
+                            })
+                        })
+                        .collect(),
+                }))
+            }
+            _ => None,
+        };
         self.items.push(ParsedItem {
             item_type,
             start,
             count,
             declaration_block,
+            descriptor_block,
         });
         index
     }
@@ -3113,29 +3108,35 @@ impl SyntaxParseBuilder {
         Some(Arc::new(selector_list))
     }
 
-    fn append_rule_descriptors(&mut self, rule: &Rule) -> (usize, usize) {
-        let start = self.descriptors.len();
-        let Some(context) = (unsafe { self.parse_context.as_ref() }) else {
-            return (start, 0);
-        };
+    fn parse_rule_descriptors(&mut self, rule: &Rule) -> Option<Arc<DescriptorBlockData>> {
         let Rule::At(rule) = rule else {
-            return (start, 0);
+            return None;
         };
         let declarations = rule.children.iter().flat_map(|child| match child {
             RuleOrDeclarations::Declarations(declarations) => declarations.as_slice(),
             RuleOrDeclarations::Rule(_) => &[],
         });
-        let collected = collect_descriptors(declarations, context, &mut self.descriptor_parse_cache);
-        for descriptor in collected {
-            let (name_offset, name_length) = self.append_value(descriptor.name.as_ref());
-            self.descriptors.push(ParsedDescriptorData {
-                name_offset,
-                name_length,
-                descriptor_id: descriptor.id,
-                value: descriptor.value,
-            });
+        let collected = unsafe { self.parse_context.as_ref() }
+            .map(|context| collect_descriptors(declarations, context, &mut self.descriptor_parse_cache))
+            .unwrap_or_default();
+        if collected.is_empty()
+            && !matches!(
+                at_rule_kind(&rule.name),
+                FfiRuleKind::FontFace | FfiRuleKind::Page | FfiRuleKind::CounterStyle
+            )
+        {
+            return None;
         }
-        (start, self.descriptors.len() - start)
+        Some(Arc::new(DescriptorBlockData {
+            descriptors: collected
+                .into_iter()
+                .map(|descriptor| DescriptorData {
+                    name: CssString::from_utf16(descriptor.name.as_ref()),
+                    id: descriptor.id,
+                    value: descriptor.value,
+                })
+                .collect(),
+        }))
     }
 
     fn append_rule(&mut self, rule: &Rule) -> usize {
@@ -3171,7 +3172,7 @@ impl SyntaxParseBuilder {
         };
         let (declarations_start, declaration_count) = self.append_declarations(declarations, None);
         let (children_start, child_count) = self.append_items(children, font_feature_maximum_value_count);
-        let (descriptors_start, descriptor_count) = self.append_rule_descriptors(rule);
+        let descriptor_block = self.parse_rule_descriptors(rule);
         let selector_list = match rule {
             Rule::Qualified(rule) if rule.prelude_is_selector => self.parse_selector_list(
                 &rule.prelude,
@@ -3479,8 +3480,7 @@ impl SyntaxParseBuilder {
             parsed_prelude_syntax,
             page_selector_list,
             selector_list,
-            descriptors_start,
-            descriptor_count,
+            descriptor_block,
         });
         index
     }
@@ -3565,7 +3565,6 @@ impl FfiSyntaxParse {
         let views = self.views.get_or_init(|| FfiSyntaxParseViews {
             items: parsed.items.iter().map(ParsedItem::ffi_view).collect(),
             declarations: parsed.declarations.iter().map(ParsedDeclaration::ffi_view).collect(),
-            descriptors: parsed.descriptors.iter().map(ParsedDescriptorData::ffi_view).collect(),
             rules: parsed.rules.iter().map(ParsedRule::ffi_view).collect(),
             prelude_items: parsed
                 .prelude_items
@@ -3578,8 +3577,6 @@ impl FfiSyntaxParse {
             value_count: parsed.values.len(),
             declarations: views.declarations.as_ptr(),
             declaration_count: views.declarations.len(),
-            descriptors: views.descriptors.as_ptr(),
-            descriptor_count: views.descriptors.len(),
             rules: views.rules.as_ptr(),
             rule_count: views.rules.len(),
             items: views.items.as_ptr(),
@@ -3772,6 +3769,41 @@ pub unsafe extern "C" fn rust_css_syntax_parse_declaration_block(
         &parsed.items,
         &parsed.roots,
     ))))
+}
+
+/// Retains parsed descriptor lists from block contents, ignoring rules.
+///
+/// # Safety
+/// `parse` must be a live result of `rust_parse_css_block_syntax`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_css_syntax_parse_descriptor_block(
+    parse: *const FfiSyntaxParse,
+) -> *mut crate::css::descriptor_block::FfiDescriptorBlock {
+    use crate::css::descriptor_block::FfiDescriptorBlock;
+    let parsed = &unsafe { &*parse }.parsed;
+    // https://drafts.csswg.org/cssom/#parse-a-css-declaration-block
+    // 2. Let parsed declarations be a new empty list.
+    let mut descriptors: Option<Arc<DescriptorBlockData>> = None;
+    // 3. For each item declaration in declarations, follow these substeps:
+    for &index in &parsed.roots {
+        let Some(block) = &parsed.items[index].descriptor_block else {
+            continue;
+        };
+        // 1. Let parsed declaration be the result of parsing declaration according to the appropriate CSS
+        //    specifications, dropping parts that are said to be ignored. If the whole declaration is dropped, let
+        //    parsed declaration be null.
+        // 2. If parsed declaration is not null, append it to parsed declarations.
+        // NB: Declaration-list items already own their parsed descriptors.
+        if let Some(descriptors) = &mut descriptors {
+            Arc::make_mut(descriptors)
+                .descriptors
+                .extend(block.descriptors.iter().cloned());
+        } else {
+            descriptors = Some(block.clone());
+        }
+    }
+    // 4. Return parsed declarations.
+    Box::into_raw(Box::new(FfiDescriptorBlock::new(descriptors.unwrap_or_default())))
 }
 
 /// Parses block contents into a Rust-owned arena.

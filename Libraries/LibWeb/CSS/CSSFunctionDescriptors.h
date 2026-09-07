@@ -18,7 +18,7 @@ class CSSFunctionDescriptors final : public CSSDescriptors {
     GC_DECLARE_ALLOCATOR(CSSFunctionDescriptors);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSFunctionDescriptors> create(Vector<Descriptor>);
+    [[nodiscard]] static GC::Ref<CSSFunctionDescriptors> create(RustDescriptorBlock);
 
     virtual ~CSSFunctionDescriptors() override = default;
 
@@ -26,7 +26,7 @@ public:
     WebIDL::ExceptionOr<void> set_result(Utf16View value);
 
 private:
-    explicit CSSFunctionDescriptors(Vector<Descriptor> descriptors)
+    explicit CSSFunctionDescriptors(RustDescriptorBlock descriptors)
         : CSSDescriptors(AtRuleID::Function, move(descriptors))
     {
     }

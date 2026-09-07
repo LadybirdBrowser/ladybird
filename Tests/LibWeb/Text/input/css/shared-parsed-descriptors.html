@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const text = '@page { margin: 13px 29px } @font-face { FONT-FAMILY: 色; src: local(色) }';
+        const elements = Array.from({ length: 2 }, () => {
+            const element = document.createElement("style");
+            element.textContent = text;
+            document.head.append(element);
+            return element;
+        });
+        const [first, second] = elements.map(element => element.sheet);
+        const page = first.cssRules[0].style;
+        const font = first.cssRules[1].style;
+        page.marginTop = "31px";
+        font.setProperty("font-family", "Changed");
+        println(`first: ${page.marginTop}, ${font.getPropertyValue("font-family")}`);
+        println(`updated lengths: ${page.length}, ${font.length}`);
+        println(`removed expanded descriptor: ${page.removeProperty("margin-bottom")}`);
+        println(`second: ${second.cssRules[0].style.marginTop}, ${second.cssRules[1].style.getPropertyValue("font-family")}`);
+        first.deleteRule(1);
+        first.deleteRule(0);
+        page.cssText = "margin-left: 7px";
+        font.cssText = "font-family: Detached";
+        println(`detached: ${page.marginLeft}, ${font.getPropertyValue("font-family")}`);
+        println(`second unchanged: ${second.cssRules[0].style.marginLeft}, ${second.cssRules[1].style.getPropertyValue("font-family")}`);
+    });
+</script>

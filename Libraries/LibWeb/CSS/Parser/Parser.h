@@ -100,7 +100,7 @@ public:
 
     RustDeclarationBlock parse_as_property_declaration_block();
     Vector<DevToolsStyleDeclaration> parse_as_devtools_property_declaration_block();
-    Vector<Descriptor> parse_as_descriptor_declaration_block(AtRuleID);
+    RustDescriptorBlock parse_as_descriptor_declaration_block(AtRuleID);
     CSSRule* parse_as_css_rule(bool nested = false);
     GC::Ptr<CSSKeyframeRule> parse_as_keyframe_rule();
     Vector<Percentage> parse_as_keyframe_selectors();
@@ -136,9 +136,6 @@ public:
 
     NonnullRefPtr<StyleValue const> parse_with_a_syntax(Utf16View input, RustSyntaxHandle const& syntax);
     NonnullRefPtr<StyleValue const> parse_with_a_syntax(RustSyntaxHandle const& syntax) { return parse_with_a_syntax(m_source, syntax); }
-
-    template<typename Descriptors>
-    GC::Ref<Descriptors> convert_to_descriptors(AtRuleID, Vector<Declaration> const& declarations);
 
     enum class ParseError : u8 {
         SyntaxError,
@@ -249,7 +246,7 @@ namespace Web {
 GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams const&, StringView, Optional<::URL::URL> location = {}, GC::Ptr<CSS::MediaList> media_list = {});
 GC::Ref<CSS::CSSStyleSheet> parse_css_stylesheet(CSS::Parser::ParsingParams const&, Utf16View, Optional<::URL::URL> location = {}, GC::Ptr<CSS::MediaList> media_list = {});
 CSS::RustDeclarationBlock parse_css_property_declaration_block(CSS::Parser::ParsingParams const&, Utf16View);
-Vector<CSS::Descriptor> parse_css_descriptor_declaration_block(CSS::Parser::ParsingParams const&, CSS::AtRuleID, Utf16View);
+CSS::RustDescriptorBlock parse_css_descriptor_declaration_block(CSS::Parser::ParsingParams const&, CSS::AtRuleID, Utf16View);
 RefPtr<CSS::StyleValue const> parse_css_value(CSS::Parser::ParsingParams const&, StringView, CSS::PropertyID);
 RefPtr<CSS::StyleValue const> parse_css_value(CSS::Parser::ParsingParams const&, Utf16View, CSS::PropertyID);
 RefPtr<CSS::StyleValue const> parse_css_type(CSS::Parser::ParsingParams const&, Utf16View, CSS::ValueType);

@@ -2915,6 +2915,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/css/parser/descriptor_parser.rs"),
             manifest_dir.join("src/css/parser/query_parser.rs"),
             manifest_dir.join("src/css/declaration_block.rs"),
+            manifest_dir.join("src/css/descriptor_block.rs"),
             manifest_dir.join("src/css/ffi_support.rs"),
         ],
         &out_dir,
