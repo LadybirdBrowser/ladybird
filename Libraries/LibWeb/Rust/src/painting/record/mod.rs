@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::painting::record::trace::Observer;
+use crate::painting::record::trace::{Observer, Operation};
 
 pub mod async_scroll_metadata;
 pub mod cache;
 pub mod hit_test_items;
-pub mod masks;
 pub mod paint;
 pub(crate) mod scratch;
+pub mod svg_resources;
 pub mod trace;
 pub mod traversal;
 pub(crate) mod verify;
@@ -26,13 +26,13 @@ use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
 use crate::painting::hit_test::HitTestList;
 use crate::painting::host::{
-    FfiHitTestHostCallbacks, FfiHitTestTextNodeFacts, FfiMaskDisplayListRegistration, FfiPaintHostCallbacks,
-    FfiRecordingInputs, FfiRootBackgroundSource, FfiVisualContextHostCallbacks, FfiVisualContextTreeInputs,
+    FfiHitTestHostCallbacks, FfiHitTestTextNodeFacts, FfiPaintHostCallbacks, FfiRecordingInputs,
+    FfiRootBackgroundSource, FfiVisualContextHostCallbacks, FfiVisualContextTreeInputs,
 };
 use crate::painting::paintable_data::{InlineBoxPieceRecord, PaintableData};
 use crate::painting::paintable_rows::PaintableRowsRef;
 use crate::painting::record::cache::{OpenCapture, RecordGen};
-use crate::painting::visual_context::nested::NestedAssignments;
+use crate::painting::record::svg_resources::SvgResourceWalk;
 use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
@@ -85,7 +85,6 @@ pub struct RecordingOutput {
     pub display_list: Rc<RecordedDisplayList>,
     pub has_blocking_wheel_event_listeners: bool,
     pub wheel_event_listener_state_generation: u64,
-    pub mask_display_lists: Vec<FfiMaskDisplayListRegistration>,
     pub is_identical_to_cache_source: bool,
     pub(crate) capture_log_for_verification: Option<verify::CaptureLog>,
 }
@@ -108,10 +107,6 @@ impl PaintPhase {
         1 << self as u8
     }
 }
-pub(crate) struct NestedRecordingState {
-    pub(crate) assignments: NestedAssignments,
-}
-
 pub(crate) struct DeferredWholeTapeSplice {
     pub(crate) source_display_list: Rc<RecordedDisplayList>,
     pub(crate) prologue_byte_count: usize,
@@ -126,15 +121,12 @@ pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) inputs: RecordingInputs,
     pub(crate) recorder: DisplayListRecorder,
     pub(crate) converter: DevicePixelConverter,
-    pub(crate) draw_svg_geometry_for_clip_path: bool,
     pub(crate) visual_context_host: &'a FfiVisualContextHostCallbacks,
-    pub(crate) nested: Option<NestedRecordingState>,
-    pub(crate) nested_tree: Option<crate::painting::visual_context::VisualContextTree>,
-    pub(crate) prerecorded: crate::painting::record::masks::PrerecordedNestedDisplayLists,
+    pub(crate) svg_resource_walk: Option<SvgResourceWalk>,
+    pattern_tile_records: HashMap<PatternTileKey, Rc<Vec<u8>>>,
     pub(crate) viewport: NodeSlotId,
     command_cache_source: Option<Rc<RecordingOutput>>,
     item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
-    hit_test_list_generation: u64,
     open_capture_stack: Vec<OpenCapture>,
     deferred_whole_tape_splice: Option<DeferredWholeTapeSplice>,
     pub(crate) blocking_wheel_event_region_count: u32,
@@ -161,7 +153,7 @@ pub(crate) struct BasePaintFacts {
     pub paint_phase_mask: u8,
 }
 
-impl<'a, O: Observer> PaintRecorder<'a, O> {
+impl<O: Observer> PaintRecorder<'_, O> {
     pub(crate) fn mark_open_captures_unsplicable(&mut self) {
         self.uncacheable_paint_generation = self
             .uncacheable_paint_generation
@@ -227,47 +219,6 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         let answer = Rc::new(paint::text::SelectionStyleAnswer { facts, shadows });
         self.selection_style_cache.insert(key, answer.clone());
         answer
-    }
-
-    pub(crate) fn nested_recording_session(
-        &self,
-        recorder: DisplayListRecorder,
-        nested: Option<NestedRecordingState>,
-        nested_tree: Option<crate::painting::visual_context::VisualContextTree>,
-        draw_svg_geometry_for_clip_path: bool,
-    ) -> PaintRecorder<'a, O> {
-        PaintRecorder {
-            layout_arena: self.layout_arena,
-            paint_state: self.paint_state,
-            host: self.host,
-            paint_host: self.paint_host,
-            inputs: self.inputs,
-            recorder,
-            converter: self.converter,
-            draw_svg_geometry_for_clip_path,
-            visual_context_host: self.visual_context_host,
-            nested,
-            nested_tree,
-            prerecorded: crate::painting::record::masks::PrerecordedNestedDisplayLists::default(),
-            viewport: self.viewport,
-            command_cache_source: None,
-            item_cache_source: None,
-            hit_test_list_generation: self.hit_test_list_generation,
-            open_capture_stack: Vec::new(),
-            deferred_whole_tape_splice: None,
-            blocking_wheel_event_region_count: 0,
-            uncacheable_paint_generation: 0,
-            observer: self.observer.clone(),
-            list: HitTestList::default(),
-            memo_tables: self.memo_tables,
-            completed_record_gen: self.completed_record_gen,
-            all_paint_caches_dirty: self.all_paint_caches_dirty,
-            all_descendant_subtree_caches_dirty: self.all_descendant_subtree_caches_dirty,
-            text_node_facts_cache: HashMap::new(),
-            registered_font_ids: HashSet::new(),
-            selection_style_cache: HashMap::new(),
-            wheel_hit_test_target_cache: HashMap::new(),
-        }
     }
 
     pub(crate) fn border_radii(&mut self, paintable: NodeSlotId) -> BorderRadii {
@@ -373,19 +324,36 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
     }
 
     pub(crate) fn own_context(&self, paintable: NodeSlotId) -> ContextRef {
-        if let Some(nested) = &self.nested
-            && let Some((own, _)) = nested.assignments.paintable_contexts.get(&paintable.index)
-        {
-            return *own;
+        if let Some(walk) = &self.svg_resource_walk {
+            return walk.enclosing_context;
         }
         self.data(paintable).accumulated_visual_context
     }
 
+    pub(crate) fn is_recording_svg_resource_content(&self) -> bool {
+        self.svg_resource_walk.is_some()
+    }
+
+    pub(crate) fn draws_clip_path_geometry(&self) -> bool {
+        self.svg_resource_walk.is_some_and(|walk| walk.draws_clip_path_geometry)
+    }
+
     pub(crate) fn accumulated_2d_scale_at(&self, spatial: SpatialNodeIndex) -> libgfx_rust::FloatSize {
+        if self.svg_resource_walk.is_some() {
+            let transform = self
+                .recorder
+                .ambient_inline_transform()
+                .unwrap_or_else(libgfx_rust::AffineTransform::identity);
+            return libgfx_rust::FloatSize {
+                width: transform.x_scale(),
+                height: transform.y_scale(),
+            };
+        }
         let tree = self
-            .nested_tree
-            .as_ref()
-            .or(self.paint_state.visual_context.tree.as_deref())
+            .paint_state
+            .visual_context
+            .tree
+            .as_deref()
             .expect("recording runs against a visual context tree");
         tree.accumulated_2d_scale(
             spatial,
@@ -397,4 +365,35 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
     pub(crate) fn own_accumulated_2d_scale(&self, paintable: NodeSlotId) -> libgfx_rust::FloatSize {
         self.accumulated_2d_scale_at(self.own_context(paintable).spatial)
     }
+
+    pub(crate) fn pattern_tile_records(
+        &mut self,
+        pattern: NodeSlotId,
+        tile_content_transform: libgfx_rust::FloatMatrix4x4,
+    ) -> Rc<Vec<u8>> {
+        let root_transform = tile_content_transform.extract_2d_affine();
+        let key = PatternTileKey {
+            pattern: pattern.index,
+            root_transform_bits: root_transform.values.map(f32::to_bits),
+        };
+        if let Some(records) = self.pattern_tile_records.get(&key) {
+            return records.clone();
+        }
+        let detached = self.recorder.begin_detached_records();
+        // Pattern tiles exclude the root's own transform: patternTransform reaches the replay-side
+        // tile shader instead, so the tiling grid repeats under it rather than the content scaling
+        // twice.
+        self.trace_paint(Operation::Producer(Some(pattern), "svg-pattern"), |this| {
+            this.walk_svg_resource(pattern, root_transform, false, false);
+        });
+        let records = Rc::new(self.recorder.finish_detached_records(detached));
+        self.pattern_tile_records.insert(key, records.clone());
+        records
+    }
+}
+
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+struct PatternTileKey {
+    pattern: u32,
+    root_transform_bits: [u32; 6],
 }

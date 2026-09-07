@@ -11,9 +11,9 @@ AccumulatedVisualContext Tree:
       [e1 in s2 out=c0] mask=[-10,-10 120x120] kind=alpha origin=svg-mask (SVGGeometryBox<rect>)
 
 DisplayList:
+DeclareMaskContent@s2/c0/e1 rect=[-10,-10 120x120] effect=e1
+  FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x50]
 FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x100]
-MaskDisplayList for effect e1:
-  FillPath@s0 path_bounding_rect=[0,0 100x50]
 
 After switching to mask-type luminance:
 AccumulatedVisualContext Tree:
@@ -28,7 +28,7 @@ AccumulatedVisualContext Tree:
       [e1 in s2 out=c0] mask=[-10,-10 120x120] kind=luminance origin=svg-mask (SVGGeometryBox<rect>)
 
 DisplayList:
+DeclareMaskContent@s2/c0/e1 rect=[-10,-10 120x120] effect=e1
+  FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x50]
 FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x100]
-MaskDisplayList for effect e1:
-  FillPath@s0 path_bounding_rect=[0,0 100x50]
 

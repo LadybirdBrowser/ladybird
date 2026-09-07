@@ -8,10 +8,10 @@ AccumulatedVisualContext Tree:
       [e1 in s1] mask=[8,8 100x100] kind=alpha origin=css-mask-layers (BlockContainer<DIV>#box.box)
 
 DisplayList:
+DeclareMaskContent@s1/e1 rect=[8,8 100x100] effect=e1
+  PaintLinearGradient@s1/e1 rect=[8,8 100x100] inline_clips=[clip=[8,8 100x100]]
 FillRect@s1/e1 rect=[8,8 100x100] color=rgb(173, 216, 230)
 DrawGlyphRun@s1/e1 rect=[8,8 30x16] translation=[8,20.796875] color=rgb(0, 0, 0)
-MaskDisplayList for effect e1:
-  PaintLinearGradient@s0 rect=[0,0 100x100] inline_clips=[clip=[0,0 100x100]]
 
 After mask-image removal:
 AccumulatedVisualContext Tree:
@@ -35,8 +35,8 @@ AccumulatedVisualContext Tree:
       [e1 in s1] mask=[8,8 100x100] kind=alpha origin=css-mask-layers (BlockContainer<DIV>#box.box)
 
 DisplayList:
+DeclareMaskContent@s1/e1 rect=[8,8 100x100] effect=e1
+  PaintLinearGradient@s1/e1 rect=[8,8 100x100] inline_clips=[clip=[8,8 100x100]]
 FillRect@s1/e1 rect=[8,8 100x100] color=rgb(173, 216, 230)
 DrawGlyphRun@s1/e1 rect=[8,8 30x16] translation=[8,20.796875] color=rgb(0, 0, 0)
-MaskDisplayList for effect e1:
-  PaintLinearGradient@s0 rect=[0,0 100x100] inline_clips=[clip=[0,0 100x100]]
 

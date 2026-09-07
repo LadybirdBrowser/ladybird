@@ -1958,8 +1958,6 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
                 && output.recorded_structural_epoch == source.recorded_structural_epoch
                 && output.wheel_event_listener_state_generation == source.wheel_event_listener_state_generation
                 && output.has_blocking_wheel_event_listeners == source.has_blocking_wheel_event_listeners
-                && output.mask_display_lists.is_empty()
-                && source.mask_display_lists.is_empty()
         });
     let list = std::mem::take(&mut output.hit_test_list);
     let previous_list_is_the_source = paint_state
@@ -3062,24 +3060,17 @@ pub unsafe extern "C" fn visual_context_tree_live_node_count(tree: *const c_void
 /// # Safety
 ///
 /// `tree` must be a live retained tree handle; `command_runs` must address `command_run_count`
-/// runs and `mask_effects` `mask_effect_count` effect indices for the call.
+/// runs for the call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn display_list_references_only_live_visual_context_nodes(
     tree: *const c_void,
     command_runs: *const crate::painting::display_list::commands::DisplayListCommandRun,
     command_run_count: usize,
-    mask_effects: *const EffectNodeIndex,
-    mask_effect_count: usize,
 ) -> bool {
     let tree = unsafe { tree_from_handle(tree) };
-    // SAFETY: The caller guarantees the slices address the stated number of values.
-    let (command_runs, mask_effects) = unsafe {
-        (
-            ffi_slice(command_runs, command_run_count),
-            ffi_slice(mask_effects, mask_effect_count),
-        )
-    };
-    tree.display_list_references_only_live_nodes(command_runs, mask_effects)
+    // SAFETY: The caller guarantees the slice addresses the stated number of runs.
+    let command_runs = unsafe { ffi_slice(command_runs, command_run_count) };
+    tree.display_list_references_only_live_nodes(command_runs)
 }
 
 /// # Safety
@@ -3965,7 +3956,7 @@ pub unsafe extern "C" fn layout_arena_recorded_display_list(arena: *mut c_void) 
         .last_recording
         .as_ref()
         .map_or_else(FfiRecordedDisplayList::empty, |recording| {
-            FfiRecordedDisplayList::with_mask_registrations(&recording.display_list, &recording.mask_display_lists)
+            FfiRecordedDisplayList::from(&*recording.display_list)
         })
 }
 

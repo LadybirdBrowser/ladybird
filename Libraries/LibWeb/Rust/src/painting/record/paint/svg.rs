@@ -207,95 +207,13 @@ fn paint_style_from_ffi<O: Observer>(
             end_center: style.end,
             end_radius: style.end_radius,
         }),
-        FfiSvgPaintStyleKind::Pattern => Some(
-            recorder
-                .prerecorded
-                .pattern_paint_styles
-                .get(&style.pattern_paintable.index)
-                .expect("a resolved pattern without a prerecorded paint style")
-                .clone(),
-        ),
+        FfiSvgPaintStyleKind::Pattern => Some(PaintStyle::Pattern {
+            tile_records: recorder.pattern_tile_records(style.pattern_paintable, style.tile_content_transform),
+            tile_rect: style.tile_rect,
+            content_scale: style.content_scale,
+            pattern_transform: style.pattern_transform,
+        }),
         FfiSvgPaintStyleKind::None => None,
-    }
-}
-
-pub(crate) fn record_pattern_paint_styles<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
-    if !recorder
-        .layout_arena
-        .node_kind_if_live(paintable)
-        .is_some_and(node_painting::is_svg_path)
-    {
-        return;
-    }
-    if recorder.draw_svg_geometry_for_clip_path {
-        return;
-    }
-    let Some(computed_path) = crate::painting::paintable_geometry::committed_svg_path(recorder.layout_arena, paintable)
-    else {
-        return;
-    };
-    if !recorder.is_visible(paintable) {
-        return;
-    }
-    let (facts, _dash_array) = svg_paint_facts(recorder, paintable);
-    let device_scale = recorder.inputs.device_pixels_per_css_pixel as f32;
-    let paint_transform = [device_scale, 0.0, 0.0, device_scale, 0.0, 0.0];
-    let content_scale = recorder.own_accumulated_2d_scale(paintable);
-    let paint_context = crate::painting::host::FfiSvgPaintContext {
-        viewport: if facts.has_viewport {
-            FloatRect::from_array(facts.viewport)
-        } else {
-            FloatRect::default()
-        },
-        path_bounding_box: FloatRect::from_array(computed_path.bounding_box()),
-        paint_transform: affine(paint_transform),
-        content_scale,
-    };
-    for is_stroke in [false, true] {
-        let (style, _stops) =
-            recorder
-                .paint_host
-                .svg_paint_style(recorder.layout_node_shell(paintable), is_stroke, &paint_context);
-        if style.kind != FfiSvgPaintStyleKind::Pattern {
-            continue;
-        }
-        if recorder
-            .prerecorded
-            .pattern_paint_styles
-            .contains_key(&style.pattern_paintable.index)
-        {
-            continue;
-        }
-        let paint_style = record_pattern_paint_style(recorder, &style);
-        recorder
-            .prerecorded
-            .pattern_paint_styles
-            .insert(style.pattern_paintable.index, paint_style);
-    }
-}
-
-fn record_pattern_paint_style<O: Observer>(
-    recorder: &mut PaintRecorder<'_, O>,
-    style: &FfiSvgPaintStyle,
-) -> PaintStyle {
-    let root_transform = crate::painting::visual_context::TransformData {
-        matrix: style.tile_content_transform,
-        origin: libgfx_rust::FloatPoint::default(),
-        sorting_context_root_index: None,
-        flattens_inherited_transform: false,
-        role: crate::painting::visual_context::TransformDataRole::CssTransform,
-        synthetic_plane: false,
-        establishes_sorting_context: false,
-    };
-    // Pattern tiles exclude the root's own transform: patternTransform reaches the replay-side tile
-    // shader instead, so the tiling grid repeats under it rather than the content scaling twice.
-    let tile_display_list_id =
-        recorder.record_nested_svg_display_list(style.pattern_paintable, root_transform, false, false);
-    PaintStyle::Pattern {
-        tile_display_list_id,
-        tile_rect: style.tile_rect,
-        content_scale: style.content_scale,
-        pattern_transform: style.pattern_transform,
     }
 }
 
@@ -311,7 +229,7 @@ pub(crate) fn paint_path<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paint
     if output_is_resolved_through_another_element {
         recorder.mark_open_captures_unsplicable();
     }
-    if recorder.draw_svg_geometry_for_clip_path {
+    if recorder.draws_clip_path_geometry() {
         if !facts.contributes_to_clip_path {
             return;
         }
@@ -332,7 +250,7 @@ pub(crate) fn paint_path<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paint
     let path = computed_path.copy_transformed(paint_transform);
     let anti_alias = should_anti_alias(facts.should_anti_alias);
 
-    if recorder.draw_svg_geometry_for_clip_path {
+    if recorder.draws_clip_path_geometry() {
         // https://drafts.fxtf.org/css-masking/#ClipPathElement: the raw geometry of each child
         // element, exclusive of rendering properties, defines a 1-bit mask.
         recorder.recorder.fill_path(FillPathParams {
@@ -466,7 +384,7 @@ pub(crate) fn paint_image_element<O: Observer>(
     phase: PaintPhase,
 ) {
     // NB: An image has no geometry, so it contributes nothing to a clipping path.
-    if recorder.draw_svg_geometry_for_clip_path {
+    if recorder.draws_clip_path_geometry() {
         return;
     }
     if !recorder.is_visible(paintable) {

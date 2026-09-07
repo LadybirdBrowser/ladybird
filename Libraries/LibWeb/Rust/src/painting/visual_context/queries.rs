@@ -782,13 +782,8 @@ impl VisualContextTree {
     pub fn display_list_references_only_live_nodes(
         &self,
         command_runs: &[crate::painting::display_list::commands::DisplayListCommandRun],
-        mask_effects: &[EffectNodeIndex],
     ) -> bool {
         command_runs.iter().all(|run| self.context_is_valid(run.context))
-            && mask_effects.iter().all(|effect| {
-                self.effect_is_live(*effect)
-                    && matches!(self.effect_nodes[effect.0 as usize].data, EffectNodeData::Mask(_))
-            })
     }
 
     pub fn spatial_nodes_in_subtrees_of(&self, roots: &[SpatialNodeIndex]) -> Vec<bool> {
@@ -1662,41 +1657,18 @@ mod tests {
             effect: dead_effect,
             ..ContextRef::default()
         };
-        let mask_effect = tree.append_effect(
-            EffectNodeData::Mask(crate::painting::visual_context::MaskData {
-                rect: IntRect::new(0, 0, 4, 4),
-                kind: libgfx_rust::MaskKind::Alpha,
-                origin: crate::painting::visual_context::MaskLayerOrigin::CssMaskLayers,
-            }),
-            EffectNodeIndex::NONE,
-            live_spatial,
-            ClipNodeIndex::NONE,
-        );
         assert!(tree.tombstone_spatial_slot(dead_spatial));
         assert!(tree.tombstone_effect_slot(dead_effect));
         let run = |context: ContextRef| DisplayListCommandRun {
             context,
             ..DisplayListCommandRun::default()
         };
-        assert!(tree.display_list_references_only_live_nodes(&[run(context_of(live_spatial, live_context))], &[]));
+        assert!(tree.display_list_references_only_live_nodes(&[run(context_of(live_spatial, live_context))]));
+        assert!(tree.display_list_references_only_live_nodes(&[run(context_of(live_spatial, ContextRef::default()))]));
+        assert!(!tree.display_list_references_only_live_nodes(&[run(context_of(dead_spatial, ContextRef::default()))]));
         assert!(
-            tree.display_list_references_only_live_nodes(&[run(context_of(live_spatial, ContextRef::default()))], &[])
+            !tree.display_list_references_only_live_nodes(&[run(context_of(live_spatial, context_of_dead_effect))])
         );
-        assert!(
-            !tree.display_list_references_only_live_nodes(&[run(context_of(dead_spatial, ContextRef::default()))], &[])
-        );
-        assert!(
-            !tree
-                .display_list_references_only_live_nodes(&[run(context_of(live_spatial, context_of_dead_effect))], &[])
-        );
-        assert!(
-            tree.display_list_references_only_live_nodes(
-                &[run(context_of(live_spatial, live_context))],
-                &[mask_effect]
-            )
-        );
-        assert!(!tree.display_list_references_only_live_nodes(&[], &[dead_effect]));
-        assert!(!tree.display_list_references_only_live_nodes(&[], &[live_effect]));
     }
 
     #[test]

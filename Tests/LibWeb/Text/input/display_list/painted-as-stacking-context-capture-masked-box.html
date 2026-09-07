@@ -17,8 +17,6 @@ displayListTest({
             name: "quiet masked root",
             expect: `
                 @canvas RECORD (empty)
-                BlockContainer<DIV>#root/css-mask RECORD
-                  BlockContainer<DIV>#root/mask-layers RECORD
                 @viewport WALK
                   @viewport/background/hit-test REUSE
                   @viewport/scroll-metadata RECORD (empty)
@@ -38,6 +36,7 @@ displayListTest({
                     BlockContainer<HTML>#html/foreground REUSE
                     BlockContainer<BODY>#body/descendants(foreground) REUSE WHOLE CAPTURE
                     BlockContainer<DIV>#root WALK
+                      BlockContainer<DIV>#root/css-mask RECORD
                       BlockContainer<DIV>#root/background/hit-test REUSE
                       BlockContainer<DIV>#root/scroll-metadata RECORD (empty)
                       BlockContainer<DIV>#root/background SKIP
@@ -61,8 +60,6 @@ displayListTest({
             check: equal => { equal(document.elementFromPoint(10, 30).id, "r1", "hit target"); },
             expect: `
                 @canvas RECORD (empty)
-                BlockContainer<DIV>#root/css-mask RECORD
-                  BlockContainer<DIV>#root/mask-layers RECORD
                 @viewport WALK
                   @viewport/background/hit-test REUSE
                   @viewport/scroll-metadata RECORD (empty)
@@ -93,6 +90,7 @@ displayListTest({
                       BlockContainer<BODY>#body/overlay/hit-test REUSE
                       BlockContainer<BODY>#body/overlay SKIP
                     BlockContainer<DIV>#root WALK
+                      BlockContainer<DIV>#root/css-mask RECORD
                       BlockContainer<DIV>#root/background/hit-test REUSE
                       BlockContainer<DIV>#root/scroll-metadata RECORD (empty)
                       BlockContainer<DIV>#root/background SKIP

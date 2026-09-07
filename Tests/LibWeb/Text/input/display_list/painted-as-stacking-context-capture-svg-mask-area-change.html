@@ -64,16 +64,6 @@ displayListTest({
             check: equal => { equal(document.elementFromPoint(50, 50), masked, "expanded mask includes hit"); },
             expect: `
                 @canvas RECORD (empty)
-                SVGGraphicsBox<g>#group/svg-mask RECORD
-                  SVGMaskBox<mask>#m/nested-svg RECORD
-                    SVGMaskBox<mask>#m/background RECORD (empty)
-                    SVGMaskBox<mask>#m/border RECORD (empty)
-                    SVGMaskBox<mask>#m/svg WALK
-                      SVGMaskBox<mask>#m/foreground/hit-test RECORD (empty)
-                      SVGMaskBox<mask>#m/foreground RECORD (empty)
-                      SVGGeometryBox<rect>#mask-rect/svg WALK
-                        SVGGeometryBox<rect>#mask-rect/foreground/hit-test RECORD (empty)
-                        SVGGeometryBox<rect>#mask-rect/foreground RECORD
                 @viewport WALK
                   @viewport/background/hit-test REUSE
                   @viewport/scroll-metadata RECORD (empty)
@@ -104,6 +94,13 @@ displayListTest({
                           SVGSVGBox<svg>#svg/foreground/hit-test RECORD (empty)
                           SVGSVGBox<svg>#svg/foreground RECORD (empty)
                           SVGGraphicsBox<g>#group/svg WALK
+                            SVGGraphicsBox<g>#group/svg-mask RECORD
+                              SVGMaskBox<mask>#m/background RECORD (empty)
+                              SVGMaskBox<mask>#m/border RECORD (empty)
+                              SVGMaskBox<mask>#m/svg WALK
+                                SVGMaskBox<mask>#m/foreground RECORD (empty)
+                                SVGGeometryBox<rect>#mask-rect/svg WALK
+                                  SVGGeometryBox<rect>#mask-rect/foreground RECORD
                             SVGGraphicsBox<g>#group/foreground/hit-test RECORD (empty)
                             SVGGraphicsBox<g>#group/foreground RECORD (empty)
                             SVGGeometryBox<rect>#masked/svg WALK

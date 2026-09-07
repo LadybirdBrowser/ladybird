@@ -25,14 +25,13 @@ DisplayList::DisplayList(u64 compatible_visual_context_tree_structural_epoch)
 {
 }
 
-DisplayList::DisplayList(u64 compatible_visual_context_tree_structural_epoch, u64 id, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata> async_scrolling_metadata, HashMap<EffectNodeIndex, DisplayListResourceId>&& mask_display_lists)
+DisplayList::DisplayList(u64 compatible_visual_context_tree_structural_epoch, u64 id, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata> async_scrolling_metadata)
     : m_compatible_visual_context_tree_structural_epoch(compatible_visual_context_tree_structural_epoch)
     , m_id(id)
     , m_command_bytes(move(command_bytes))
     , m_command_runs(move(command_runs))
     , m_surface_clear_color(surface_clear_color)
     , m_async_scrolling_metadata(move(async_scrolling_metadata))
-    , m_mask_display_lists(move(mask_display_lists))
 {
 }
 
@@ -72,12 +71,8 @@ Vector<DisplayListCommandRun> compute_display_list_command_runs(ReadonlyBytes co
 
 ErrorOr<void> validate_display_list_references_live_visual_context_nodes(DisplayList const& display_list, AccumulatedVisualContextTree const& visual_context_tree)
 {
-    Vector<EffectNodeIndex> mask_effects;
-    mask_effects.ensure_capacity(display_list.mask_display_lists().size());
-    for (auto const& mask_display_list : display_list.mask_display_lists())
-        mask_effects.unchecked_append(mask_display_list.key);
     auto command_runs = display_list.command_runs();
-    if (!Layout::RustFFI::display_list_references_only_live_visual_context_nodes(visual_context_tree.rust_handle(), command_runs.data(), command_runs.size(), mask_effects.data(), mask_effects.size()))
+    if (!Layout::RustFFI::display_list_references_only_live_visual_context_nodes(visual_context_tree.rust_handle(), command_runs.data(), command_runs.size()))
         return Error::from_string_literal("Display list references a visual context node that is not live");
     return {};
 }
@@ -210,9 +205,20 @@ void DisplayListPlayer::execute_command_bytes(ReadonlyBytes command_bytes, Scrol
     });
 }
 
+void DisplayListPlayer::declare_mask_content(EffectNodeIndex effect, ReadonlyBytes content)
+{
+    m_declared_mask_contents.set(effect.value(), content);
+}
+
+Optional<ReadonlyBytes> DisplayListPlayer::declared_mask_content(EffectNodeIndex effect) const
+{
+    return m_declared_mask_contents.get(effect.value());
+}
+
 void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStateSnapshot const& scroll_state)
 {
     TemporaryChange active_scroll_state_change { m_active_scroll_state, &scroll_state };
+    TemporaryChange declared_mask_contents_change { m_declared_mask_contents, HashMap<u32, ReadonlyBytes> {} };
     auto const& visual_context_tree = active_visual_context_tree();
     VERIFY(display_list.compatible_visual_context_tree_structural_epoch() == visual_context_tree.structural_epoch());
     VERIFY(m_surface);
@@ -233,13 +239,7 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
         .push_clip_path = [](void* context, void const* path, Gfx::WindingRule winding_rule) { static_cast<ReplayContext*>(context)->player.push_clip_path(*static_cast<Gfx::Path const*>(path), winding_rule); },
         .push_layer = [](void* context, ReplayLayer const* layer) { static_cast<ReplayContext*>(context)->player.push_layer(*layer); },
         .push_mask = [](void* context, ReplayMask const* mask) { static_cast<ReplayContext*>(context)->player.push_mask(*mask); },
-        .pop_mask = [](void* context, ReplayMask const* mask, EffectNodeIndex effect) {
-            auto& replay = *static_cast<ReplayContext*>(context);
-            Optional<DisplayListResourceId> mask_content;
-            if (auto display_list_id = replay.player.active_display_list().mask_display_list_id(effect);
-                display_list_id.has_value() && replay.player.resource_storage().has_display_list(*display_list_id))
-                mask_content = *display_list_id;
-            replay.player.pop_mask(*mask, mask_content); },
+        .pop_mask = [](void* context, ReplayMask const* mask, EffectNodeIndex effect) { static_cast<ReplayContext*>(context)->player.pop_mask(*mask, effect); },
         .pop = [](void* context) { static_cast<ReplayContext*>(context)->player.pop(); },
         .push_device_space_plane_clip = [](void* context, Gfx::FloatVector3 const* vertices, size_t vertex_count) {
             Gfx::Path path;
@@ -291,7 +291,6 @@ ErrorOr<void> encode(Encoder& encoder, Web::Painting::DisplayList const& display
     TRY(encoder.encode(display_list.m_compatible_visual_context_tree_structural_epoch));
     TRY(encoder.encode(display_list.m_surface_clear_color));
     TRY(encoder.encode(display_list.m_async_scrolling_metadata));
-    TRY(encoder.encode(display_list.m_mask_display_lists));
     // Trivially copyable records, so they travel as raw bytes like the command tape does.
     auto const& command_runs = display_list.m_command_runs;
     TRY(encoder.encode_size(command_runs.size()));
@@ -314,14 +313,13 @@ ErrorOr<NonnullRefPtr<Web::Painting::DisplayList>> decode(Decoder& decoder)
     auto compatible_visual_context_tree_structural_epoch = TRY(decoder.decode<u64>());
     auto surface_clear_color = TRY(decoder.decode<Optional<Gfx::Color>>());
     auto async_scrolling_metadata = TRY(decoder.decode<Optional<Web::Painting::DisplayList::AsyncScrollingMetadata>>());
-    auto mask_display_lists = TRY(decoder.decode<HashMap<Web::Painting::EffectNodeIndex, Web::Painting::DisplayListResourceId>>());
     auto command_run_count = TRY(decoder.decode_size());
     Vector<Web::Painting::DisplayListCommandRun> command_runs;
     TRY(command_runs.try_resize(command_run_count));
     if (!command_runs.is_empty())
         TRY(decoder.decode_into(Bytes { reinterpret_cast<u8*>(command_runs.data()), command_runs.size() * sizeof(Web::Painting::DisplayListCommandRun) }));
     TRY(Web::Painting::validate_display_list_command_runs(command_bytes, command_runs));
-    return adopt_ref(*new Web::Painting::DisplayList(compatible_visual_context_tree_structural_epoch, id, move(command_bytes), move(command_runs), surface_clear_color, move(async_scrolling_metadata), move(mask_display_lists)));
+    return adopt_ref(*new Web::Painting::DisplayList(compatible_visual_context_tree_structural_epoch, id, move(command_bytes), move(command_runs), surface_clear_color, move(async_scrolling_metadata)));
 }
 
 }

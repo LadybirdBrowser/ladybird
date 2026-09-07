@@ -115,21 +115,21 @@ fn zero_resource_ids_minted_per_recording(
             let command = read_command::<DrawRepeatedTile>(payload);
             zero_resource_ids_inside_span(payload, command.tile, enclosing_capture_is_video);
         }
+        DisplayListCommandType::DeclareMaskContent => {
+            let command = read_command::<DeclareMaskContent>(payload);
+            zero_resource_ids_inside_span(payload, command.content, enclosing_capture_is_video);
+        }
         DisplayListCommandType::FillPath => {
-            zero_field(
-                payload,
-                std::mem::offset_of!(FillPath, paint_style)
-                    + std::mem::offset_of!(DisplayListPaintStyle, pattern_tile_display_list_id),
-                id_size,
-            );
+            let command = read_command::<FillPath>(payload);
+            if command.paint_style.paint_style_type == DisplayListPaintStyleType::Pattern {
+                zero_resource_ids_inside_span(payload, command.paint_style.pattern_tile, enclosing_capture_is_video);
+            }
         }
         DisplayListCommandType::StrokePath => {
-            zero_field(
-                payload,
-                std::mem::offset_of!(StrokePath, paint_style)
-                    + std::mem::offset_of!(DisplayListPaintStyle, pattern_tile_display_list_id),
-                id_size,
-            );
+            let command = read_command::<StrokePath>(payload);
+            if command.paint_style.paint_style_type == DisplayListPaintStyleType::Pattern {
+                zero_resource_ids_inside_span(payload, command.paint_style.pattern_tile, enclosing_capture_is_video);
+            }
         }
         DisplayListCommandType::DrawScaledDecodedImageFrame if enclosing_capture_is_video => {
             zero_field(
@@ -259,20 +259,6 @@ pub(crate) fn verify_spliced_recording_matches_fresh(
         "paint cache verification failed: hit-test item counts differ"
     );
 
-    let with_splices_mask_effects: Vec<EffectNodeIndex> = recording_with_splices
-        .mask_display_lists
-        .iter()
-        .map(|registration| registration.effect)
-        .collect();
-    let from_scratch_mask_effects: Vec<EffectNodeIndex> = recording_from_scratch
-        .mask_display_lists
-        .iter()
-        .map(|registration| registration.effect)
-        .collect();
-    assert_eq!(
-        with_splices_mask_effects, from_scratch_mask_effects,
-        "paint cache verification failed: mask display list registrations differ"
-    );
     let region_count = |commands: &[DecodedCommand]| {
         commands
             .iter()

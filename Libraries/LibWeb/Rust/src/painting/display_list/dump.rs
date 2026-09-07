@@ -10,8 +10,8 @@ use crate::css::color_resolution::format_to_8bit_compatible;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::dump::{
-    push_affine_transform, push_float_like_ak, push_float_point, push_float_rect, push_float_size, push_int_point,
-    push_int_rect, push_int_size,
+    format_float_like_ak, push_affine_transform, push_float_like_ak, push_float_point, push_float_rect,
+    push_float_size, push_int_point, push_int_rect, push_int_size,
 };
 #[cfg(test)]
 use crate::painting::visual_context::VisualContextTree;
@@ -34,13 +34,6 @@ pub struct FfiPaintingDumpCallbacks {
     pub command_bytes:
         unsafe extern "C" fn(context: *mut c_void, display_list: *const c_void, byte_count: *mut usize) -> *const u8,
     pub nested_display_list: unsafe extern "C" fn(context: *mut c_void, display_list_id: u64) -> *const c_void,
-    pub mask_display_list_count: unsafe extern "C" fn(context: *mut c_void, display_list: *const c_void) -> usize,
-    pub mask_display_lists: unsafe extern "C" fn(
-        context: *mut c_void,
-        display_list: *const c_void,
-        effects: *mut u32,
-        display_list_ids: *mut u64,
-    ),
     pub append_text: unsafe extern "C" fn(context: *mut c_void, bytes: *const u8, byte_count: usize),
 }
 
@@ -71,29 +64,6 @@ impl FfiPaintingDumpCallbacks {
         let display_list = unsafe { (self.nested_display_list)(self.context, display_list_id.0) };
         assert!(!display_list.is_null());
         display_list
-    }
-
-    fn mask_display_lists(&self, display_list: *const c_void) -> Vec<(EffectNodeIndex, DisplayListResourceId)> {
-        // SAFETY: The host reports how many mask entries this display list holds.
-        let count = unsafe { (self.mask_display_list_count)(self.context, display_list) };
-        let mut effects = vec![0; count];
-        let mut display_list_ids = vec![0; count];
-        // SAFETY: Both buffers hold the `count` entries the host just reported.
-        unsafe {
-            (self.mask_display_lists)(
-                self.context,
-                display_list,
-                effects.as_mut_ptr(),
-                display_list_ids.as_mut_ptr(),
-            );
-        };
-        let mut masks: Vec<_> = effects
-            .into_iter()
-            .zip(display_list_ids)
-            .map(|(effect, id)| (EffectNodeIndex(effect), DisplayListResourceId(id)))
-            .collect();
-        masks.sort_unstable_by_key(|(effect, _)| *effect);
-        masks
     }
 
     fn append_text(&self, text: &str) {
@@ -195,11 +165,6 @@ fn dump_commands(
     base_indent: usize,
 ) {
     dump_command_bytes(output, callbacks, callbacks.command_bytes(display_list), base_indent);
-    for (effect, id) in callbacks.mask_display_lists(display_list) {
-        push_indent(output, base_indent);
-        writeln!(output, "MaskDisplayList for effect e{}:", effect.0).unwrap();
-        dump_commands(output, callbacks, callbacks.nested_display_list(id), base_indent + 1);
-    }
 }
 
 fn dump_command_bytes(
@@ -269,8 +234,50 @@ fn dump_records_inside(
             let command = read_command::<DrawRepeatedTile>(payload);
             dump_command_bytes(output, callbacks, span_bytes(payload, command.tile), indent);
         }
+        DisplayListCommandType::DeclareMaskContent => {
+            let command = read_command::<DeclareMaskContent>(payload);
+            dump_command_bytes(output, callbacks, span_bytes(payload, command.content), indent);
+        }
+        DisplayListCommandType::FillPath => {
+            dump_pattern_tile(
+                output,
+                callbacks,
+                payload,
+                read_command::<FillPath>(payload).paint_style,
+                indent,
+            );
+        }
+        DisplayListCommandType::StrokePath => {
+            dump_pattern_tile(
+                output,
+                callbacks,
+                payload,
+                read_command::<StrokePath>(payload).paint_style,
+                indent,
+            );
+        }
         _ => {}
     }
+}
+
+fn dump_pattern_tile(
+    output: &mut String,
+    callbacks: &FfiPaintingDumpCallbacks,
+    payload: &[u8],
+    paint_style: DisplayListPaintStyle,
+    indent: usize,
+) {
+    if paint_style.paint_style_type != DisplayListPaintStyleType::Pattern {
+        return;
+    }
+    push_indent(output, indent);
+    output.push_str("PatternTile:\n");
+    dump_command_bytes(
+        output,
+        callbacks,
+        span_bytes(payload, paint_style.pattern_tile),
+        indent + 1,
+    );
 }
 
 fn span_bytes(payload: &[u8], span: DisplayListDataSpan) -> &[u8] {
@@ -498,7 +505,15 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
         }
         DisplayListCommandType::DrawIsolatedGroup => {
             let command = read_command::<DrawIsolatedGroup>(payload);
-            write_field(output, "rect", command.rect);
+            if let Some(clip_rect) = command.clip_rect.get() {
+                write_field(output, "clip_rect", clip_rect);
+            }
+            if command.opacity != 1.0 {
+                write!(output, " opacity={}", format_float_like_ak(command.opacity)).unwrap();
+            }
+            if !command.filter.is_empty() {
+                output.push_str(" has_filter=true");
+            }
             write_blend_mode(output, command.compositing_and_blending_operator);
             if !command.mask.is_empty() {
                 write!(
@@ -512,6 +527,11 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
                 )
                 .unwrap();
             }
+        }
+        DisplayListCommandType::DeclareMaskContent => {
+            let command = read_command::<DeclareMaskContent>(payload);
+            write_field(output, "rect", command.rect);
+            write!(output, " effect=e{}", command.effect.0).unwrap();
         }
         DisplayListCommandType::CompositorScrollNode => {
             let command = read_command::<CompositorScrollNode>(payload);

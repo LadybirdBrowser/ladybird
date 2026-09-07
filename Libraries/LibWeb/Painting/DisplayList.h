@@ -60,6 +60,8 @@ protected:
     ScrollStateSnapshot const& active_scroll_state() const { return *m_active_scroll_state; }
     void execute_display_list_into_surface(DisplayList const&, AccumulatedVisualContextTree const&, Gfx::PaintingSurface&);
     void execute_command_bytes_into_surface(ReadonlyBytes, Gfx::PaintingSurface&);
+    void declare_mask_content(EffectNodeIndex, ReadonlyBytes content);
+    Optional<ReadonlyBytes> declared_mask_content(EffectNodeIndex) const;
     void execute_nested_display_list(DisplayList const&, AccumulatedVisualContextTree const&, ScrollStateSnapshot const&);
 
 private:
@@ -76,7 +78,7 @@ private:
     virtual void push_transform(Gfx::AffineTransform const&) = 0;
     virtual void push_layer(ReplayLayer const&) = 0;
     virtual void push_mask(ReplayMask const&) = 0;
-    virtual void pop_mask(ReplayMask const&, Optional<DisplayListResourceId> mask_content) = 0;
+    virtual void pop_mask(ReplayMask const&, EffectNodeIndex) = 0;
     virtual void pop() = 0;
     virtual void push_device_space_plane_clip(Gfx::Path const&) = 0;
 
@@ -87,6 +89,7 @@ private:
     RefPtr<Gfx::PaintingSurface> m_surface;
     ReadonlyBytes m_current_command_payload;
     ScrollStateSnapshot const* m_active_scroll_state { nullptr };
+    HashMap<u32, ReadonlyBytes> m_declared_mask_contents;
 };
 
 class DisplayList : public AtomicRefCounted<DisplayList> {
@@ -115,10 +118,6 @@ public:
     Optional<Gfx::Color> surface_clear_color() const { return m_surface_clear_color; }
     void set_async_scrolling_metadata(AsyncScrollingMetadata metadata) { m_async_scrolling_metadata = metadata; }
     Optional<AsyncScrollingMetadata> const& async_scrolling_metadata() const { return m_async_scrolling_metadata; }
-    // The mask content of a mask effect node, replayed once when that node's layer exits.
-    Optional<DisplayListResourceId> mask_display_list_id(EffectNodeIndex effect) const { return m_mask_display_lists.get(effect); }
-    void set_mask_display_list_id(EffectNodeIndex effect, DisplayListResourceId display_list_id) { m_mask_display_lists.set(effect, display_list_id); }
-    HashMap<EffectNodeIndex, DisplayListResourceId> const& mask_display_lists() const { return m_mask_display_lists; }
 
     static constexpr size_t command_alignment = 16;
 
@@ -145,7 +144,7 @@ public:
 
 private:
     explicit DisplayList(u64 compatible_visual_context_tree_structural_epoch);
-    DisplayList(u64 compatible_visual_context_tree_structural_epoch, u64 id, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata>, HashMap<EffectNodeIndex, DisplayListResourceId>&& mask_display_lists);
+    DisplayList(u64 compatible_visual_context_tree_structural_epoch, u64 id, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata>);
 
     u64 m_compatible_visual_context_tree_structural_epoch { 0 };
     u64 m_id { 0 };
@@ -153,7 +152,6 @@ private:
     Vector<DisplayListCommandRun> m_command_runs;
     Optional<Gfx::Color> m_surface_clear_color;
     Optional<AsyncScrollingMetadata> m_async_scrolling_metadata;
-    HashMap<EffectNodeIndex, DisplayListResourceId> m_mask_display_lists;
 
     template<typename T>
     friend ErrorOr<void> IPC::encode(IPC::Encoder&, T const&);

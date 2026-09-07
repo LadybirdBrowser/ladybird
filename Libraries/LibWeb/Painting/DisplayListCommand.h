@@ -43,6 +43,7 @@ namespace Web::Painting {
     V(DrawRect, draw_rect)                                                             \
     V(PaintNestedDisplayList, paint_nested_display_list)                               \
     V(DrawIsolatedGroup, draw_isolated_group)                                          \
+    V(DeclareMaskContent, declare_mask_content)                                        \
     V(CompositorScrollNode, compositor_scroll_node)                                    \
     V(CompositorWheelHitTestTarget, compositor_wheel_hit_test_target)                  \
     V(CompositorWheelHitTestTargetWithCornerRadii,                                     \

@@ -9,8 +9,8 @@ DisplayList:
 PaintNestedDisplayList@s1/e0 rect=[8,13 300x200]
   FillPath@s6/e0 path_bounding_rect=[0,0 100x100]
   FillPath@s6/e0 path_bounding_rect=[0,100 100x100]
+  DeclareMaskContent@s7/e1 rect=[0,20 100x100] effect=e1
+    FillPath@s7/e1 path_bounding_rect=[0,0 100x100] inline_transform=[1,0,0,1,0,20]
   FillPath@s7/e1 path_bounding_rect=[0,0 100x100]
   FillPath@s7/e1 path_bounding_rect=[0,100 100x100]
-  MaskDisplayList for effect e1:
-    FillPath@s1 path_bounding_rect=[0,0 100x100]
 
