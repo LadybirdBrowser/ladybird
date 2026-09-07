@@ -26,6 +26,34 @@
 namespace Web::CSS::Parser {
 
 class Parser;
+struct ParsingParams;
+
+// A uniquely owned Rust parse result can be transferred from a worker to the document thread.
+class RustStyleSheetParse {
+    AK_MAKE_NONCOPYABLE(RustStyleSheetParse);
+
+public:
+    explicit RustStyleSheetParse(ValueParserFFI::FfiSyntaxParse* parse)
+        : m_parse(parse)
+    {
+        VERIFY(m_parse);
+    }
+    RustStyleSheetParse(RustStyleSheetParse&& other)
+        : m_parse(exchange(other.m_parse, nullptr))
+    {
+    }
+    ~RustStyleSheetParse()
+    {
+        if (m_parse)
+            ValueParserFFI::rust_css_syntax_parse_free(m_parse);
+    }
+
+    ValueParserFFI::FfiSyntaxParseData data() const { return ValueParserFFI::rust_css_syntax_parse_data(m_parse); }
+    RustStyleSheetParse share() const { return RustStyleSheetParse { ValueParserFFI::rust_css_syntax_parse_share(m_parse) }; }
+
+private:
+    ValueParserFFI::FfiSyntaxParse* m_parse;
+};
 
 inline ValueParserFFI::FfiUtf16View ffi_utf16_view(Utf16View view)
 {
@@ -136,7 +164,9 @@ class RustSyntaxParser {
 public:
     static Optional<Rule> parse_rule(Parser&, ReadonlySpan<RuleContext>, RuleNesting);
     static ParsedRulePrelude parse_keyframe_selectors(Parser&);
-    static Vector<Rule> parse_stylesheet(Parser&);
+    static RustStyleSheetParse parse_stylesheet(Parser&);
+    static void parse_stylesheet_off_thread(ParsingParams const&, Utf16String, Function<void(RustStyleSheetParse)>);
+    static Vector<Rule> stylesheet_rules(RustStyleSheetParse const&);
     static Vector<RuleOrListOfDeclarations> parse_block_contents(Parser&, ReadonlySpan<RuleContext>, PreservePropertySourceText = PreservePropertySourceText::No);
     static Vector<RuleOrListOfDeclarations> parse_block_contents(Parser&, Utf16View, ReadonlySpan<RuleContext>, PreservePropertySourceText = PreservePropertySourceText::No);
     static RefPtr<StyleValue const> parse_descriptor(Parser&, AtRuleID, DescriptorNameAndID const&);

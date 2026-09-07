@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const text = ".target { color: red; } @media all { .target { background-color: blue; } }";
+        const createSheet = () => {
+            const style = document.createElement("style");
+            style.textContent = text;
+            document.head.append(style);
+            return style.sheet;
+        };
+        const first = createSheet();
+        const second = createSheet();
+        const originalRule = second.cssRules[0];
+        first.cssRules[0].style.color = "green";
+        first.cssRules[1].cssRules[0].style.backgroundColor = "yellow";
+        first.insertRule(".extra { width: 10px }", 0);
+        println(`second unchanged: ${second.cssRules[0].style.color}, ${second.cssRules[1].cssRules[0].style.backgroundColor}`);
+        println(`rule identity: ${second.cssRules[0] === originalRule}`);
+        const third = createSheet();
+        println(`new sheet unchanged: ${third.cssRules[0].style.color}, ${third.cssRules[1].cssRules[0].style.backgroundColor}`);
+        first.deleteRule(1);
+        println(`independent rule counts: ${first.cssRules.length}, ${second.cssRules.length}, ${third.cssRules.length}`);
+    });
+</script>

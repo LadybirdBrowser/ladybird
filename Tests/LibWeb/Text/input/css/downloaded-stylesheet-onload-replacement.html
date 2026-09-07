@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const link = document.createElement("link");
+        link.rel = "stylesheet";
+        let loadCount = 0;
+        link.onload = () => {
+            ++loadCount;
+            println(`load ${loadCount}: ${getComputedStyle(document.documentElement).color}`);
+            println(`sheets: ${document.styleSheets.length}`);
+            if (loadCount === 1) {
+                link.sheet.insertRule("html { color: rgb(0, 128, 0) !important }", 0);
+                println(`CSSOM mutation: ${getComputedStyle(document.documentElement).color}`);
+                link.href = "data:text/css,html { color: rgb(0, 0, 255) }";
+            } else {
+                println(`content: ${link.sheet.cssRules[1].style.content}`);
+                done();
+            }
+        };
+        link.onerror = () => {
+            println("unexpected load error");
+            done();
+        };
+        link.href = "data:text/css,html { color: rgb(255, 0, 0) }";
+        document.head.append(link);
+
+        // Supersede the second request in the same event dispatch, without using a timer.
+        link.addEventListener("load", () => {
+            if (loadCount === 1)
+                link.href = `data:text/css,${encodeURIComponent('html { color: rgb(0, 0, 255) } html::before { content: "é😀" }')}`;
+        });
+    });
+</script>

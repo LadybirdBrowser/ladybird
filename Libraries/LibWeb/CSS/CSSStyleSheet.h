@@ -33,6 +33,12 @@ class ViewTransition;
 
 namespace Web::CSS {
 
+namespace Parser {
+
+class RustStyleSheetParse;
+
+}
+
 class CSSImportRule;
 class StyleScope;
 struct StyleCache;
@@ -150,6 +156,7 @@ public:
 
     void set_source_text(Utf16String source) { m_source_text = move(source); }
     Optional<Utf16String> source_text() const { return m_source_text; }
+    void retain_parsed_source(Parser::RustStyleSheetParse const&);
 
     void add_critical_subresource(Subresource&);
     void remove_critical_subresource(Subresource&);
@@ -176,6 +183,8 @@ private:
     Parser::ParsingParams make_parsing_params() const;
 
     Optional<Utf16String> m_source_text;
+    // The immutable source parse remains shareable even if this sheet's CSSOM is mutated.
+    OwnPtr<Parser::RustStyleSheetParse> m_parsed_source;
 
     GC::Ptr<CSSRuleList> m_rules;
     GC::Ptr<CSSNamespaceRule> m_default_namespace_rule;

@@ -96,6 +96,7 @@ public:
 
     GC::RootVector<GC::Ref<CSSRule>> convert_rules(Vector<Rule> const& raw_rules);
     GC::Ref<CSS::CSSStyleSheet> parse_as_css_stylesheet(Optional<::URL::URL> location, GC::Ptr<MediaList> = {});
+    GC::Ref<CSSStyleSheet> create_css_stylesheet(RustStyleSheetParse const&, Optional<::URL::URL> location, GC::Ptr<MediaList> = {});
 
     struct PropertiesAndCustomProperties {
         Vector<StyleProperty> properties;

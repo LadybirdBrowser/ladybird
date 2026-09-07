@@ -14,6 +14,7 @@ pub(crate) mod grid_parser;
 pub(crate) mod images_gradients_parser;
 pub(crate) mod positions_shapes_parser;
 pub(crate) mod query_parser;
+mod stylesheet_cache;
 pub(crate) mod syntax;
 pub(crate) mod syntax_parser;
 pub(crate) mod token_stream;

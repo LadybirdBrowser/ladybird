@@ -92,19 +92,27 @@ GC::RootVector<GC::Ref<CSSRule>> Parser::convert_rules(Vector<Rule> const& raw_r
 
 GC::RootVector<GC::Ref<CSSRule>> Parser::parse_as_stylesheet_contents()
 {
-    auto rules = RustSyntaxParser::parse_stylesheet(*this);
-    return convert_rules(rules);
+    auto parse = RustSyntaxParser::parse_stylesheet(*this);
+    return convert_rules(RustSyntaxParser::stylesheet_rules(parse));
 }
 
 // https://drafts.csswg.org/css-syntax/#parse-a-css-stylesheet
 GC::Ref<CSS::CSSStyleSheet> Parser::parse_as_css_stylesheet(Optional<::URL::URL> location, GC::Ptr<MediaList> media_list)
 {
     // To parse a CSS stylesheet, first parse a stylesheet.
-    auto rules = RustSyntaxParser::parse_stylesheet(*this);
+    auto parse = RustSyntaxParser::parse_stylesheet(*this);
+    return create_css_stylesheet(parse, move(location), media_list);
+}
+
+GC::Ref<CSSStyleSheet> Parser::create_css_stylesheet(RustStyleSheetParse const& parse, Optional<::URL::URL> location, GC::Ptr<MediaList> media_list)
+{
+    auto rules = RustSyntaxParser::stylesheet_rules(parse);
     auto rule_list = CSSRuleList::create(convert_rules(rules));
     if (!media_list)
         media_list = MediaList::create({});
-    return CSSStyleSheet::create(rule_list, *media_list, move(location));
+    auto sheet = CSSStyleSheet::create(rule_list, *media_list, move(location));
+    sheet->retain_parsed_source(parse);
+    return sheet;
 }
 
 CSSRule* Parser::parse_as_css_rule(bool nested)

@@ -1,0 +1,5 @@
+nested sheet ready: true
+owner rule preserved: true
+color at load: rgb(1, 2, 3)
+UTF-16 value: "é😀"
+CSSOM mutation: rgb(4, 5, 6)

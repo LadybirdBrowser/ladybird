@@ -1,0 +1,4 @@
+second unchanged: red, blue
+rule identity: true
+new sheet unchanged: red, blue
+independent rule counts: 2, 2, 2

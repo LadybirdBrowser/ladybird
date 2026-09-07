@@ -10,6 +10,7 @@
 #include <AK/Debug.h>
 #include <AK/ScopeGuard.h>
 #include <AK/Utf16StringBuilder.h>
+#include <LibGC/Root.h>
 #include <LibTextCodec/Decoder.h>
 #include <LibWeb/CSS/CSSImportRule.h>
 #include <LibWeb/CSS/CSSLayerBlockRule.h>
@@ -19,6 +20,7 @@
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/MIME.h>
@@ -175,10 +177,14 @@ void CSSImportRule::fetch()
         .parent_style_sheet_origin_clean = {},
     };
     (void)fetch_a_style_resource(URL { href() }, rule_or_declaration, Fetch::Infrastructure::Request::Destination::Style, CorsMode::NoCors,
-        [strong_this = GC::Ref { *this }, parent_style_sheet = GC::Ref { parent_style_sheet }, document = m_document](auto response, auto maybe_byte_stream) {
+        [strong_this = GC::Ref { *this }, parent_style_sheet = GC::Ref { parent_style_sheet }, document = m_document, load_event_delayer = DOM::DocumentLoadEventDelayer(*m_document, DOM::DocumentLoadEventDelayerReason::StyleSheetRequest)](auto response, auto maybe_byte_stream) mutable {
             // AD-HOC: Stop delaying the load event.
-            ScopeGuard guard = [strong_this, document] {
+            auto finish_loading = [strong_this, document, load_event_delayer = move(load_event_delayer)] {
                 document->remove_pending_css_import_rule({}, strong_this);
+                if (!strong_this->m_style_sheet) {
+                    strong_this->set_loading_state(CSSStyleSheet::LoadingState::Error);
+                    return;
+                }
                 if (strong_this->loading_state() != CSSStyleSheet::LoadingState::Error) {
                     // If we have no critical subresources, or they're loaded already, we can report that immediately.
                     auto sheet_loading_state = strong_this->m_style_sheet->loading_state();
@@ -187,6 +193,7 @@ void CSSImportRule::fetch()
                     }
                 }
             };
+            ArmedScopeGuard guard = [&] { finish_loading(); };
 
             // 1. If byteStream is not a byte stream, return.
             auto byte_stream = maybe_byte_stream.template get_pointer<Core::ImmutableBytes>();
@@ -226,18 +233,24 @@ void CSSImportRule::fetch()
                 dbgln_if(CSS_LOADER_DEBUG, "CSSImportRule: Failed to decode CSS file: {}", url);
                 return;
             }
-            auto decoded = decoded_or_error.release_value();
-            auto imported_style_sheet = parse_css_stylesheet(Parser::ParsingParams(*strong_this->m_document), decoded, url, strong_this->m_media);
+            Parser::RustSyntaxParser::parse_stylesheet_off_thread(
+                Parser::ParsingParams { *document }, decoded_or_error.release_value(),
+                [strong_this = GC::make_root(strong_this), parent_style_sheet = GC::make_root(parent_style_sheet), document = GC::make_root(document), url = move(url), is_cors_same_origin = response->is_cors_same_origin(), finish_loading = move(finish_loading)](Parser::RustStyleSheetParse parsed) mutable {
+                    ScopeGuard guard = move(finish_loading);
+                    auto parser = Parser::Parser::create(Parser::ParsingParams { *document }, u""sv);
+                    auto imported_style_sheet = parser.create_css_stylesheet(parsed, move(url), strong_this->m_media);
 
-            // 5. Set importedStylesheet’s origin-clean flag to parentStylesheet’s origin-clean flag.
-            imported_style_sheet->set_origin_clean(parent_style_sheet->is_origin_clean());
+                    // 5. Set importedStylesheet’s origin-clean flag to parentStylesheet’s origin-clean flag.
+                    imported_style_sheet->set_origin_clean(parent_style_sheet->is_origin_clean());
 
-            // 6. If response is not CORS-same-origin, unset importedStylesheet’s origin-clean flag.
-            if (!response->is_cors_same_origin())
-                imported_style_sheet->set_origin_clean(false);
+                    // 6. If response is not CORS-same-origin, unset importedStylesheet’s origin-clean flag.
+                    if (!is_cors_same_origin)
+                        imported_style_sheet->set_origin_clean(false);
 
-            // 7. Set rule’s styleSheet to importedStylesheet.
-            strong_this->set_style_sheet(imported_style_sheet);
+                    // 7. Set rule’s styleSheet to importedStylesheet.
+                    strong_this->set_style_sheet(imported_style_sheet);
+                });
+            guard.disarm();
         });
 }
 

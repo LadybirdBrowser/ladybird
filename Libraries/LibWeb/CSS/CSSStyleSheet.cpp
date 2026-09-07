@@ -151,6 +151,11 @@ CSSStyleSheet::CSSStyleSheet(CSSRuleList& rules, MediaList& media, Optional<::UR
 
 CSSStyleSheet::~CSSStyleSheet() = default;
 
+void CSSStyleSheet::retain_parsed_source(Parser::RustStyleSheetParse const& parse)
+{
+    m_parsed_source = make<Parser::RustStyleSheetParse>(parse.share());
+}
+
 void CSSStyleSheet::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);

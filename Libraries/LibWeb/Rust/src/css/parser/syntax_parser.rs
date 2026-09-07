@@ -4,9 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-// Style values are shared only across the thread-confined CSS object graph.
-#![allow(clippy::arc_with_non_send_sync)]
-
 use crate::css::css_enums::{keyword_from_ascii_case_insensitive, keyword_to_generic_font_family};
 use crate::css::css_tokenizer::{
     CssNumberType, ParserString, ParserToken, ParserTokenKind, SourcePosition, TokenizerInput, tokenize_for_parser,
@@ -24,6 +21,7 @@ use crate::css::parser::query_parser::{
     parse_media_query_list_from_component_values, parse_supports_condition_from_component_values,
     parse_supports_declaration_from_component_values, resolve_query_feature, supports_feature_matches,
 };
+use crate::css::parser::stylesheet_cache::{CachedParseMetadata, parse_with_cache};
 use crate::css::parser::syntax::{SyntaxNode, parse_syntax, parse_with_syntax};
 use crate::css::parser::value_parser::{
     FfiValueParsingContext, FfiValueParsingContextKind, ParseContext, ParseOutcome, is_valid_custom_ident,
@@ -35,10 +33,10 @@ use crate::css::serialize::serialize_component_values_to_utf16;
 use crate::css::style_compute::value_is_computationally_independent;
 use crate::css::style_value::{RetainedRequestUrlModifierList, RetainedString, StyleValueData};
 use std::borrow::Cow;
+use std::cell::OnceCell;
 use std::collections::HashMap;
 use std::ffi::c_void;
 use std::fmt;
-use std::pin::Pin;
 use std::rc::Rc;
 use std::sync::Arc;
 
@@ -151,10 +149,10 @@ struct ParsedPreludeItem {
     value: Option<ParserString>,
     number_value: f64,
     kind: u8,
-    selector_list: *mut c_void,
-    query: *const c_void,
-    syntax: *const c_void,
-    style_value: *const c_void,
+    selector_list: Option<Arc<RustParsedSelectorList>>,
+    query: Option<Arc<FfiQueryHandle>>,
+    syntax: Option<Arc<SyntaxNode>>,
+    style_value: Option<Arc<StyleValueData>>,
 }
 
 impl Default for ParsedPreludeItem {
@@ -163,10 +161,10 @@ impl Default for ParsedPreludeItem {
             value: None,
             number_value: 0.0,
             kind: UNUSED_PRELUDE_ITEM_KIND,
-            selector_list: std::ptr::null_mut(),
-            query: std::ptr::null(),
-            syntax: std::ptr::null(),
-            style_value: std::ptr::null(),
+            selector_list: None,
+            query: None,
+            syntax: None,
+            style_value: None,
         }
     }
 }
@@ -2177,35 +2175,211 @@ pub struct FfiSyntaxParseData {
     pub diagnostic_count: usize,
 }
 
-// All pointers in the exported views borrow data owned by this parse result.
-pub struct FfiSyntaxParse {
+struct ParsedDeclaration {
+    name_offset: usize,
+    name_length: usize,
+    value_source_offset: usize,
+    value_source_length: usize,
+    is_property: bool,
+    important: bool,
+    start_line: usize,
+    start_column: usize,
+    preserve_source_text: bool,
+    property_id: u16,
+    descriptor_id: u8,
+    rejection: FfiDeclarationRejection,
+    parsed_value: Option<Arc<StyleValueData>>,
+    font_feature_values_start: usize,
+    font_feature_value_count: usize,
+}
+
+struct ParsedDescriptorData {
+    name_offset: usize,
+    name_length: usize,
+    descriptor_id: u8,
+    value: Arc<StyleValueData>,
+}
+
+struct ParsedRule {
+    rule_type: u8,
+    rule_kind: FfiRuleKind,
+    name_offset: usize,
+    name_length: usize,
+    declarations_start: usize,
+    declaration_count: usize,
+    children_start: usize,
+    child_count: usize,
+    has_block: bool,
+    has_source_position: bool,
+    start_line: usize,
+    start_column: usize,
+    parsed_prelude_kind: u8,
+    parsed_prelude_name_offset: usize,
+    parsed_prelude_name_length: usize,
+    parsed_prelude_secondary_offset: usize,
+    parsed_prelude_secondary_length: usize,
+    parsed_prelude_items_start: usize,
+    parsed_prelude_item_count: usize,
+    parsed_prelude_syntax: Option<Arc<SyntaxNode>>,
+    page_selector_list: Option<Arc<FfiPageSelectorList>>,
+    selector_list: Option<Arc<RustParsedSelectorList>>,
+    descriptors_start: usize,
+    descriptor_count: usize,
+}
+
+struct ParsedPreludeItemData {
+    value_offset: usize,
+    value_length: usize,
+    number_value: f64,
+    kind: u8,
+    selector_list: Option<Arc<RustParsedSelectorList>>,
+    query: Option<Arc<FfiQueryHandle>>,
+    syntax: Option<Arc<SyntaxNode>>,
+    style_value: Option<Arc<StyleValueData>>,
+}
+
+// Parser state is discarded before publishing the owned result.
+struct SyntaxParseBuilder {
     values: Vec<u16>,
-    declarations: Vec<FfiSyntaxDeclaration>,
-    descriptors: Vec<FfiSyntaxDescriptor>,
+    declarations: Vec<ParsedDeclaration>,
+    descriptors: Vec<ParsedDescriptorData>,
     descriptor_parse_cache: ParsedDescriptorCache,
-    rules: Vec<FfiSyntaxRule>,
+    rules: Vec<ParsedRule>,
     items: Vec<FfiSyntaxItem>,
     item_indices: Vec<usize>,
     roots: Vec<usize>,
-    prelude_items: Vec<FfiSyntaxPreludeItem>,
+    prelude_items: Vec<ParsedPreludeItemData>,
     font_feature_values: Vec<u32>,
-    // Each pointee has a stable address exposed through FfiSyntaxRule.
-    #[allow(clippy::vec_box)]
-    page_selector_lists: Vec<Box<FfiPageSelectorList>>,
-    selector_lists: Vec<Pin<Box<RustParsedSelectorList>>>,
-    query_handles: Vec<Arc<FfiQueryHandle>>,
-    style_values: Vec<Arc<StyleValueData>>,
-    syntaxes: Vec<Arc<SyntaxNode>>,
     diagnostics: Vec<FfiSyntaxDiagnostic>,
     declared_namespaces: Vec<ParserString>,
     parse_context: *const ParseContext,
     preserve_property_source_text: bool,
 }
 
-fn retain_parse_data<T>(storage: &mut Vec<Arc<T>>, value: Arc<T>) -> *const c_void {
-    let pointer = Arc::as_ptr(&value).cast();
-    storage.push(value);
-    pointer
+// The shared graph owns typed Rust payloads, independently of any FFI views.
+pub(super) struct ParsedStyleSheet {
+    pub(super) cache_metadata: Option<CachedParseMetadata>,
+    values: Box<[u16]>,
+    declarations: Box<[ParsedDeclaration]>,
+    descriptors: Box<[ParsedDescriptorData]>,
+    rules: Box<[ParsedRule]>,
+    items: Box<[FfiSyntaxItem]>,
+    item_indices: Box<[usize]>,
+    roots: Box<[usize]>,
+    prelude_items: Box<[ParsedPreludeItemData]>,
+    font_feature_values: Box<[u32]>,
+    diagnostics: Box<[FfiSyntaxDiagnostic]>,
+}
+
+const _: () = {
+    const fn assert_send_sync<T: Send + Sync>() {}
+    assert_send_sync::<ParsedStyleSheet>();
+};
+
+// Each consumer owns its borrowed FFI views separately from the shared graph.
+pub struct FfiSyntaxParse {
+    parsed: Arc<ParsedStyleSheet>,
+    views: OnceCell<FfiSyntaxParseViews>,
+}
+
+struct FfiSyntaxParseViews {
+    declarations: Box<[FfiSyntaxDeclaration]>,
+    descriptors: Box<[FfiSyntaxDescriptor]>,
+    rules: Box<[FfiSyntaxRule]>,
+    prelude_items: Box<[FfiSyntaxPreludeItem]>,
+}
+
+impl ParsedDeclaration {
+    fn ffi_view(&self) -> FfiSyntaxDeclaration {
+        FfiSyntaxDeclaration {
+            name_offset: self.name_offset,
+            name_length: self.name_length,
+            value_source_offset: self.value_source_offset,
+            value_source_length: self.value_source_length,
+            is_property: self.is_property,
+            important: self.important,
+            start_line: self.start_line,
+            start_column: self.start_column,
+            preserve_source_text: self.preserve_source_text,
+            property_id: self.property_id,
+            descriptor_id: self.descriptor_id,
+            rejection: self.rejection,
+            parsed_value: self.parsed_value.as_ref().map_or(std::ptr::null(), Arc::as_ptr).cast(),
+            font_feature_values_start: self.font_feature_values_start,
+            font_feature_value_count: self.font_feature_value_count,
+        }
+    }
+}
+
+impl ParsedDescriptorData {
+    fn ffi_view(&self) -> FfiSyntaxDescriptor {
+        FfiSyntaxDescriptor {
+            name_offset: self.name_offset,
+            name_length: self.name_length,
+            descriptor_id: self.descriptor_id,
+            value: Arc::as_ptr(&self.value).cast(),
+        }
+    }
+}
+
+impl ParsedRule {
+    fn ffi_view(&self) -> FfiSyntaxRule {
+        FfiSyntaxRule {
+            rule_type: self.rule_type,
+            rule_kind: self.rule_kind,
+            name_offset: self.name_offset,
+            name_length: self.name_length,
+            declarations_start: self.declarations_start,
+            declaration_count: self.declaration_count,
+            children_start: self.children_start,
+            child_count: self.child_count,
+            has_block: self.has_block,
+            has_source_position: self.has_source_position,
+            start_line: self.start_line,
+            start_column: self.start_column,
+            parsed_prelude_kind: self.parsed_prelude_kind,
+            parsed_prelude_name_offset: self.parsed_prelude_name_offset,
+            parsed_prelude_name_length: self.parsed_prelude_name_length,
+            parsed_prelude_secondary_offset: self.parsed_prelude_secondary_offset,
+            parsed_prelude_secondary_length: self.parsed_prelude_secondary_length,
+            parsed_prelude_items_start: self.parsed_prelude_items_start,
+            parsed_prelude_item_count: self.parsed_prelude_item_count,
+            parsed_prelude_syntax: self
+                .parsed_prelude_syntax
+                .as_ref()
+                .map_or(std::ptr::null(), Arc::as_ptr)
+                .cast(),
+            page_selector_list: self.page_selector_list.as_ref().map_or(std::ptr::null(), Arc::as_ptr),
+            selector_list: self
+                .selector_list
+                .as_ref()
+                .map_or(std::ptr::null(), Arc::as_ptr)
+                .cast_mut()
+                .cast(),
+            descriptors_start: self.descriptors_start,
+            descriptor_count: self.descriptor_count,
+        }
+    }
+}
+
+impl ParsedPreludeItemData {
+    fn ffi_view(&self) -> FfiSyntaxPreludeItem {
+        FfiSyntaxPreludeItem {
+            value_offset: self.value_offset,
+            value_length: self.value_length,
+            number_value: self.number_value,
+            kind: self.kind,
+            selector_list: self
+                .selector_list
+                .as_ref()
+                .map_or(std::ptr::null(), Arc::as_ptr)
+                .cast_mut()
+                .cast(),
+            query: self.query.as_ref().map_or(std::ptr::null(), Arc::as_ptr).cast(),
+            syntax: self.syntax.as_ref().map_or(std::ptr::null(), Arc::as_ptr).cast(),
+            style_value: self.style_value.as_ref().map_or(std::ptr::null(), Arc::as_ptr).cast(),
+        }
+    }
 }
 
 fn component_list_source(values: &[ComponentValue]) -> Cow<'_, [u16]> {
@@ -2523,12 +2697,29 @@ fn invalid_location_inner_name(rule: &Rule, rule_kind: FfiRuleKind, outer_name: 
     }
 }
 
-impl FfiSyntaxParse {
-    fn into_handle(mut self) -> *mut Self {
-        // Parsing context storage belongs to the caller and is only borrowed while building.
-        self.parse_context = std::ptr::null();
-        self.descriptor_parse_cache = HashMap::new();
-        Rc::into_raw(Rc::new(self)).cast_mut()
+impl SyntaxParseBuilder {
+    fn finish(self) -> ParsedStyleSheet {
+        ParsedStyleSheet {
+            cache_metadata: None,
+            values: self.values.into_boxed_slice(),
+            declarations: self.declarations.into_boxed_slice(),
+            descriptors: self.descriptors.into_boxed_slice(),
+            rules: self.rules.into_boxed_slice(),
+            items: self.items.into_boxed_slice(),
+            item_indices: self.item_indices.into_boxed_slice(),
+            roots: self.roots.into_boxed_slice(),
+            prelude_items: self.prelude_items.into_boxed_slice(),
+            font_feature_values: self.font_feature_values.into_boxed_slice(),
+            diagnostics: self.diagnostics.into_boxed_slice(),
+        }
+    }
+
+    fn into_handle(self) -> *mut FfiSyntaxParse {
+        Rc::into_raw(Rc::new(FfiSyntaxParse {
+            parsed: Arc::new(self.finish()),
+            views: OnceCell::new(),
+        }))
+        .cast_mut()
     }
 
     pub(crate) fn new(parse_context: *const ParseContext, preserve_property_source_text: bool) -> Self {
@@ -2553,11 +2744,6 @@ impl FfiSyntaxParse {
             roots: Vec::new(),
             prelude_items: Vec::new(),
             font_feature_values: Vec::new(),
-            page_selector_lists: Vec::new(),
-            selector_lists: Vec::new(),
-            query_handles: Vec::new(),
-            style_values: Vec::new(),
-            syntaxes: Vec::new(),
             diagnostics: Vec::new(),
             declared_namespaces,
             parse_context,
@@ -2649,7 +2835,7 @@ impl FfiSyntaxParse {
             (0, 0)
         };
         let index = self.declarations.len();
-        self.declarations.push(FfiSyntaxDeclaration {
+        self.declarations.push(ParsedDeclaration {
             name_offset,
             name_length,
             value_source_offset,
@@ -2673,13 +2859,13 @@ impl FfiSyntaxParse {
         &mut self,
         declaration: &Declaration,
         source_utf16: &[u16],
-    ) -> (u16, u8, FfiDeclarationRejection, *const c_void) {
+    ) -> (u16, u8, FfiDeclarationRejection, Option<Arc<StyleValueData>>) {
         if self.parse_context.is_null() {
-            return (u16::MAX, u8::MAX, FfiDeclarationRejection::None, std::ptr::null());
+            return (u16::MAX, u8::MAX, FfiDeclarationRejection::None, None);
         }
         if !declaration.is_property {
             let Some(at_rule) = descriptor_at_rule(declaration.rule_context) else {
-                return (u16::MAX, u8::MAX, FfiDeclarationRejection::None, std::ptr::null());
+                return (u16::MAX, u8::MAX, FfiDeclarationRejection::None, None);
             };
             let parse_context = unsafe { &*self.parse_context };
             return match parse_descriptor(
@@ -2693,9 +2879,9 @@ impl FfiSyntaxParse {
                     u16::MAX,
                     descriptor.id,
                     FfiDeclarationRejection::None,
-                    retain_parse_data(&mut self.style_values, descriptor.value),
+                    Some(descriptor.value),
                 ),
-                None => (u16::MAX, u8::MAX, FfiDeclarationRejection::None, std::ptr::null()),
+                None => (u16::MAX, u8::MAX, FfiDeclarationRejection::None, None),
             };
         }
         let Some(property_id) = property_id_from_name(declaration.name.as_ref()) else {
@@ -2706,7 +2892,7 @@ impl FfiSyntaxParse {
             } else {
                 FfiDeclarationRejection::UnknownProperty
             };
-            return (u16::MAX, u8::MAX, rejection, std::ptr::null());
+            return (u16::MAX, u8::MAX, rejection, None);
         };
 
         let parse_context = unsafe { &*self.parse_context };
@@ -2732,24 +2918,16 @@ impl FfiSyntaxParse {
             *random_function_index = 0;
         }
         match outcome {
-            ParseOutcome::Parsed(value) => (
-                property_id,
-                u8::MAX,
-                FfiDeclarationRejection::None,
-                retain_parse_data(&mut self.style_values, value),
-            ),
-            ParseOutcome::Invalid | ParseOutcome::NotHandled => (
-                property_id,
-                u8::MAX,
-                FfiDeclarationRejection::InvalidValue,
-                std::ptr::null(),
-            ),
+            ParseOutcome::Parsed(value) => (property_id, u8::MAX, FfiDeclarationRejection::None, Some(value)),
+            ParseOutcome::Invalid | ParseOutcome::NotHandled => {
+                (property_id, u8::MAX, FfiDeclarationRejection::InvalidValue, None)
+            }
         }
     }
 
     fn append_collected_declaration(&mut self, descriptor: CollectedDescriptor) {
         let (name_offset, name_length) = self.append_value(descriptor.name.as_ref());
-        self.declarations.push(FfiSyntaxDeclaration {
+        self.declarations.push(ParsedDeclaration {
             name_offset,
             name_length,
             value_source_offset: 0,
@@ -2762,7 +2940,7 @@ impl FfiSyntaxParse {
             property_id: u16::MAX,
             descriptor_id: descriptor.id,
             rejection: FfiDeclarationRejection::None,
-            parsed_value: retain_parse_data(&mut self.style_values, descriptor.value),
+            parsed_value: Some(descriptor.value),
             font_feature_values_start: usize::MAX,
             font_feature_value_count: 0,
         });
@@ -2822,7 +3000,11 @@ impl FfiSyntaxParse {
         index
     }
 
-    fn append_selector_list(&mut self, values: &[ComponentValue], selector_type: SelectorType) -> Option<*mut c_void> {
+    fn parse_selector_list(
+        &self,
+        values: &[ComponentValue],
+        selector_type: SelectorType,
+    ) -> Option<Arc<RustParsedSelectorList>> {
         let declared_namespaces = self
             .declared_namespaces
             .iter()
@@ -2830,20 +3012,7 @@ impl FfiSyntaxParse {
             .collect::<Vec<_>>();
         let selector_list =
             parse_selector_list_from_component_values(values, &declared_namespaces, selector_type).ok()?;
-        Some(self.retain_selector_list(selector_list))
-    }
-
-    fn retain_selector_list(&mut self, selector_list: RustParsedSelectorList) -> *mut c_void {
-        let mut selector_list = Box::pin(selector_list);
-        let pointer = std::ptr::from_mut(selector_list.as_mut().get_mut()).cast::<c_void>();
-        self.selector_lists.push(selector_list);
-        pointer
-    }
-
-    fn append_query_handle(&mut self, handle: Arc<FfiQueryHandle>) -> *const c_void {
-        let pointer = Arc::as_ptr(&handle).cast::<c_void>();
-        self.query_handles.push(handle);
-        pointer
+        Some(Arc::new(selector_list))
     }
 
     fn append_rule_descriptors(&mut self, rule: &Rule) -> (usize, usize) {
@@ -2861,11 +3030,11 @@ impl FfiSyntaxParse {
         let collected = collect_descriptors(declarations, context, &mut self.descriptor_parse_cache);
         for descriptor in collected {
             let (name_offset, name_length) = self.append_value(descriptor.name.as_ref());
-            self.descriptors.push(FfiSyntaxDescriptor {
+            self.descriptors.push(ParsedDescriptorData {
                 name_offset,
                 name_length,
                 descriptor_id: descriptor.id,
-                value: retain_parse_data(&mut self.style_values, descriptor.value),
+                value: descriptor.value,
             });
         }
         (start, self.descriptors.len() - start)
@@ -2906,17 +3075,15 @@ impl FfiSyntaxParse {
         let (children_start, child_count) = self.append_items(children, font_feature_maximum_value_count);
         let (descriptors_start, descriptor_count) = self.append_rule_descriptors(rule);
         let selector_list = match rule {
-            Rule::Qualified(rule) if rule.prelude_is_selector => self
-                .append_selector_list(
-                    &rule.prelude,
-                    if rule.prelude_is_relative {
-                        SelectorType::Relative
-                    } else {
-                        SelectorType::Standalone
-                    },
-                )
-                .unwrap_or(std::ptr::null_mut()),
-            _ => std::ptr::null_mut(),
+            Rule::Qualified(rule) if rule.prelude_is_selector => self.parse_selector_list(
+                &rule.prelude,
+                if rule.prelude_is_relative {
+                    SelectorType::Relative
+                } else {
+                    SelectorType::Standalone
+                },
+            ),
+            _ => None,
         };
         let parse_context = unsafe { self.parse_context.as_ref() };
         let declared_namespaces = self
@@ -2932,7 +3099,7 @@ impl FfiSyntaxParse {
             &resolve_query_feature,
         );
         let validation_code =
-            structural_validation_code(rule, original_rule_kind, &parsed_prelude, !selector_list.is_null());
+            structural_validation_code(rule, original_rule_kind, &parsed_prelude, selector_list.is_some());
         let rule_kind = if let Some(code) = validation_code {
             self.append_rule_validation_diagnostic(rule, original_rule_kind, code, prelude_source.as_ref());
             FfiRuleKind::Invalid
@@ -2950,9 +3117,9 @@ impl FfiSyntaxParse {
         };
         let mut parsed_prelude_name = None;
         let mut parsed_prelude_secondary = None;
-        let mut parsed_prelude_syntax = std::ptr::null();
+        let mut parsed_prelude_syntax = None;
         let mut parsed_items: Vec<ParsedPreludeItem> = Vec::new();
-        let mut page_selector_list = std::ptr::null();
+        let mut page_selector_list = None;
         let parsed_prelude_kind = match parsed_prelude {
             ParsedRulePrelude::Unparsed => 0,
             ParsedRulePrelude::Invalid => 1,
@@ -2981,12 +3148,11 @@ impl FfiSyntaxParse {
                 6
             }
             ParsedRulePrelude::PageSelectors(selectors) => {
-                let mut list = Box::new(FfiPageSelectorList::with_capacity(selectors.len()));
+                let mut list = FfiPageSelectorList::with_capacity(selectors.len());
                 for selector in selectors {
                     list.push(selector);
                 }
-                page_selector_list = std::ptr::from_ref(list.as_ref());
-                self.page_selector_lists.push(list);
+                page_selector_list = Some(Arc::new(list));
                 7
             }
             ParsedRulePrelude::FontFamilyNames(names) => {
@@ -2998,7 +3164,7 @@ impl FfiSyntaxParse {
             }
             ParsedRulePrelude::Scope { start, end } => {
                 if let Some(start) = start {
-                    let selector_list = self.retain_selector_list(start);
+                    let selector_list = Some(Arc::new(start));
                     parsed_items.push(ParsedPreludeItem {
                         kind: FfiScopePreludeItemKind::Start as u8,
                         selector_list,
@@ -3006,7 +3172,7 @@ impl FfiSyntaxParse {
                     });
                 }
                 if let Some(end) = end {
-                    let selector_list = self.retain_selector_list(end);
+                    let selector_list = Some(Arc::new(end));
                     parsed_items.push(ParsedPreludeItem {
                         kind: FfiScopePreludeItemKind::End as u8,
                         selector_list,
@@ -3018,7 +3184,7 @@ impl FfiSyntaxParse {
             ParsedRulePrelude::Import(import) => {
                 parsed_items.push(ParsedPreludeItem {
                     kind: import.url_kind as u8,
-                    style_value: retain_parse_data(&mut self.style_values, import.url.0),
+                    style_value: Some(import.url.0),
                     ..Default::default()
                 });
                 if let Some(layer) = import.layer {
@@ -3035,7 +3201,7 @@ impl FfiSyntaxParse {
                     });
                 }
                 if let Some(selectors) = import.scope_start {
-                    let selectors = self.retain_selector_list(selectors);
+                    let selectors = Some(Arc::new(selectors));
                     parsed_items.push(ParsedPreludeItem {
                         kind: FfiImportPreludeItemKind::ScopeStart as u8,
                         selector_list: selectors,
@@ -3043,7 +3209,7 @@ impl FfiSyntaxParse {
                     });
                 }
                 if let Some(selectors) = import.scope_end {
-                    let selectors = self.retain_selector_list(selectors);
+                    let selectors = Some(Arc::new(selectors));
                     parsed_items.push(ParsedPreludeItem {
                         kind: FfiImportPreludeItemKind::ScopeEnd as u8,
                         selector_list: selectors,
@@ -3051,7 +3217,7 @@ impl FfiSyntaxParse {
                     });
                 }
                 if let Some(supports) = import.supports {
-                    let supports = self.append_query_handle(expression_query_handle(supports, QueryKind::Supports));
+                    let supports = Some(expression_query_handle(supports, QueryKind::Supports));
                     parsed_items.push(ParsedPreludeItem {
                         kind: FfiImportPreludeItemKind::Supports as u8,
                         query: supports,
@@ -3059,7 +3225,7 @@ impl FfiSyntaxParse {
                     });
                 }
                 for media_query in import.media_queries {
-                    let media_query = self.append_query_handle(media_query_handle(media_query));
+                    let media_query = Some(media_query_handle(media_query));
                     parsed_items.push(ParsedPreludeItem {
                         kind: FfiImportPreludeItemKind::Media as u8,
                         query: media_query,
@@ -3074,15 +3240,13 @@ impl FfiSyntaxParse {
                 return_type,
             } => {
                 parsed_prelude_name = Some(name);
-                parsed_prelude_syntax = retain_parse_data(&mut self.syntaxes, return_type);
+                parsed_prelude_syntax = Some(return_type);
                 for parameter in parameters {
                     parsed_items.push(ParsedPreludeItem {
                         value: Some(parameter.name),
                         kind: FfiFunctionParameterItemKind::Parameter as u8,
-                        syntax: retain_parse_data(&mut self.syntaxes, parameter.syntax),
-                        style_value: parameter.default_value.map_or(std::ptr::null(), |value| {
-                            retain_parse_data(&mut self.style_values, value.0)
-                        }),
+                        syntax: Some(parameter.syntax),
+                        style_value: parameter.default_value.map(|value| value.0),
                         ..Default::default()
                     });
                 }
@@ -3097,23 +3261,21 @@ impl FfiSyntaxParse {
             } => {
                 parsed_prelude_name = Some(name);
                 parsed_prelude_secondary = Some(syntax_source);
-                parsed_prelude_syntax = retain_parse_data(&mut self.syntaxes, syntax);
+                parsed_prelude_syntax = Some(syntax);
                 parsed_items.push(ParsedPreludeItem {
                     kind: if inherits {
                         FfiPropertyPreludeItemKind::InheritsTrue as u8
                     } else {
                         FfiPropertyPreludeItemKind::InheritsFalse as u8
                     },
-                    style_value: initial_value.map_or(std::ptr::null(), |value| {
-                        retain_parse_data(&mut self.style_values, value.0)
-                    }),
+                    style_value: initial_value.map(|value| value.0),
                     ..Default::default()
                 });
                 15
             }
             ParsedRulePrelude::MediaQueries(queries) => {
                 for query in queries {
-                    let query = self.append_query_handle(media_query_handle(query));
+                    let query = Some(media_query_handle(query));
                     parsed_items.push(ParsedPreludeItem {
                         query,
                         ..Default::default()
@@ -3122,7 +3284,7 @@ impl FfiSyntaxParse {
                 12
             }
             ParsedRulePrelude::SupportsCondition(expression) => {
-                let query = self.append_query_handle(expression_query_handle(expression, QueryKind::Supports));
+                let query = Some(expression_query_handle(expression, QueryKind::Supports));
                 parsed_items.push(ParsedPreludeItem {
                     query,
                     ..Default::default()
@@ -3133,10 +3295,7 @@ impl FfiSyntaxParse {
                 for condition in conditions {
                     let query = condition
                         .query
-                        .map(|expression| {
-                            self.append_query_handle(expression_query_handle(expression, QueryKind::Size))
-                        })
-                        .unwrap_or(std::ptr::null());
+                        .map(|expression| expression_query_handle(expression, QueryKind::Size));
                     parsed_items.push(ParsedPreludeItem {
                         value: condition.name,
                         query,
@@ -3160,7 +3319,7 @@ impl FfiSyntaxParse {
         let parsed_prelude_items_start = self.prelude_items.len();
         for item in parsed_items {
             let (value_offset, value_length) = self.append_optional_value(item.value.as_deref());
-            self.prelude_items.push(FfiSyntaxPreludeItem {
+            self.prelude_items.push(ParsedPreludeItemData {
                 value_offset,
                 value_length,
                 number_value: item.number_value,
@@ -3173,7 +3332,7 @@ impl FfiSyntaxParse {
         }
         let parsed_prelude_item_count = self.prelude_items.len() - parsed_prelude_items_start;
         let index = self.rules.len();
-        self.rules.push(FfiSyntaxRule {
+        self.rules.push(ParsedRule {
             rule_type,
             rule_kind,
             name_offset,
@@ -3274,29 +3433,42 @@ impl FfiSyntaxParse {
     fn append_root_items(&mut self, items: &[RuleOrDeclarations]) {
         self.roots = items.iter().map(|item| self.append_item(item, None)).collect();
     }
+}
 
+impl FfiSyntaxParse {
     pub(crate) fn data(&self) -> FfiSyntaxParseData {
+        let parsed = &self.parsed;
+        let views = self.views.get_or_init(|| FfiSyntaxParseViews {
+            declarations: parsed.declarations.iter().map(ParsedDeclaration::ffi_view).collect(),
+            descriptors: parsed.descriptors.iter().map(ParsedDescriptorData::ffi_view).collect(),
+            rules: parsed.rules.iter().map(ParsedRule::ffi_view).collect(),
+            prelude_items: parsed
+                .prelude_items
+                .iter()
+                .map(ParsedPreludeItemData::ffi_view)
+                .collect(),
+        });
         FfiSyntaxParseData {
-            values: self.values.as_ptr(),
-            value_count: self.values.len(),
-            declarations: self.declarations.as_ptr(),
-            declaration_count: self.declarations.len(),
-            descriptors: self.descriptors.as_ptr(),
-            descriptor_count: self.descriptors.len(),
-            rules: self.rules.as_ptr(),
-            rule_count: self.rules.len(),
-            items: self.items.as_ptr(),
-            item_count: self.items.len(),
-            item_indices: self.item_indices.as_ptr(),
-            item_index_count: self.item_indices.len(),
-            roots: self.roots.as_ptr(),
-            root_count: self.roots.len(),
-            prelude_items: self.prelude_items.as_ptr(),
-            prelude_item_count: self.prelude_items.len(),
-            font_feature_values: self.font_feature_values.as_ptr(),
-            font_feature_value_count: self.font_feature_values.len(),
-            diagnostics: self.diagnostics.as_ptr(),
-            diagnostic_count: self.diagnostics.len(),
+            values: parsed.values.as_ptr(),
+            value_count: parsed.values.len(),
+            declarations: views.declarations.as_ptr(),
+            declaration_count: views.declarations.len(),
+            descriptors: views.descriptors.as_ptr(),
+            descriptor_count: views.descriptors.len(),
+            rules: views.rules.as_ptr(),
+            rule_count: views.rules.len(),
+            items: parsed.items.as_ptr(),
+            item_count: parsed.items.len(),
+            item_indices: parsed.item_indices.as_ptr(),
+            item_index_count: parsed.item_indices.len(),
+            roots: parsed.roots.as_ptr(),
+            root_count: parsed.roots.len(),
+            prelude_items: views.prelude_items.as_ptr(),
+            prelude_item_count: views.prelude_items.len(),
+            font_feature_values: parsed.font_feature_values.as_ptr(),
+            font_feature_value_count: parsed.font_feature_values.len(),
+            diagnostics: parsed.diagnostics.as_ptr(),
+            diagnostic_count: parsed.diagnostics.len(),
         }
     }
 }
@@ -3339,12 +3511,21 @@ pub unsafe extern "C" fn rust_parse_css_stylesheet_syntax(
     let Some(source) = (unsafe { source.units() }) else {
         return std::ptr::null_mut();
     };
-    let (mut parser, diagnostics) = Parser::from_source(source, Vec::new());
-    let mut parse = FfiSyntaxParse::new(parse_context, false);
-    parse.diagnostics = diagnostics;
-    let rules = parser.consume_stylesheet_contents();
-    parse.append_roots(&rules);
-    parse.into_handle()
+    let parsed = unsafe {
+        parse_with_cache(source, parse_context, || {
+            let (mut parser, diagnostics) = Parser::from_source(source, Vec::new());
+            let mut parse = SyntaxParseBuilder::new(parse_context, false);
+            parse.diagnostics = diagnostics;
+            let rules = parser.consume_stylesheet_contents();
+            parse.append_roots(&rules);
+            parse.finish()
+        })
+    };
+    Rc::into_raw(Rc::new(FfiSyntaxParse {
+        parsed,
+        views: OnceCell::new(),
+    }))
+    .cast_mut()
 }
 
 /// Parses exactly one CSS rule into a Rust-owned arena.
@@ -3380,7 +3561,7 @@ pub unsafe extern "C" fn rust_parse_css_rule_syntax(
         return std::ptr::null_mut();
     };
     let (parser, diagnostics) = Parser::from_source(source, contexts);
-    let mut parse = FfiSyntaxParse::new(parse_context, false);
+    let mut parse = SyntaxParseBuilder::new(parse_context, false);
     parse.diagnostics = diagnostics;
     let rule = parse_rule_from_tokens(parser.tokens, parser.rule_context, nested);
     if let Some(rule) = rule {
@@ -3404,7 +3585,7 @@ pub unsafe extern "C" fn rust_parse_css_keyframe_selectors_syntax(
     let tokens = tokenize_for_parser(source);
     let diagnostics = token_diagnostics(&tokens);
     let prelude = consume_a_list_of_component_values(tokens).unwrap_or_default();
-    let mut parse = FfiSyntaxParse::new(parse_context, false);
+    let mut parse = SyntaxParseBuilder::new(parse_context, false);
     parse.diagnostics = diagnostics;
     parse.append_roots(&[Rule::Qualified(QualifiedRule {
         prelude,
@@ -3485,7 +3666,7 @@ pub unsafe extern "C" fn rust_parse_css_block_syntax(
         return std::ptr::null_mut();
     };
     let (mut parser, diagnostics) = Parser::from_source(source, contexts);
-    let mut parse = FfiSyntaxParse::new(parse_context, preserve_property_source_text);
+    let mut parse = SyntaxParseBuilder::new(parse_context, preserve_property_source_text);
     parse.diagnostics = diagnostics;
     let items = parser.consume_block_contents();
     parse.append_root_items(&items);
@@ -3498,6 +3679,7 @@ pub unsafe extern "C" fn rust_parse_css_block_syntax(
 /// `parse` must be a live handle returned by a Rust syntax parse function.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_css_syntax_parse_data(parse: *const FfiSyntaxParse) -> FfiSyntaxParseData {
+    // All exported pointers are read-only and must not be freed independently.
     unsafe { &*parse }.data()
 }
 
@@ -3509,6 +3691,21 @@ pub unsafe extern "C" fn rust_css_syntax_parse_data(parse: *const FfiSyntaxParse
 pub unsafe extern "C" fn rust_css_syntax_parse_retain(parse: *mut FfiSyntaxParse) -> *mut FfiSyntaxParse {
     unsafe { Rc::increment_strong_count(parse) };
     parse
+}
+
+/// Creates an independent consumer of the same immutable graph.
+/// The returned handle has its own lazy FFI views and can be transferred to another thread.
+///
+/// # Safety
+/// `parse` must be a live syntax parse handle on the current thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_css_syntax_parse_share(parse: *const FfiSyntaxParse) -> *mut FfiSyntaxParse {
+    let parsed = Arc::clone(&unsafe { &*parse }.parsed);
+    Rc::into_raw(Rc::new(FfiSyntaxParse {
+        parsed,
+        views: OnceCell::new(),
+    }))
+    .cast_mut()
 }
 
 /// # Safety
@@ -3525,11 +3722,11 @@ pub unsafe extern "C" fn rust_css_syntax_parse_free(parse: *mut FfiSyntaxParse) 
 mod tests {
     use super::{
         Declaration, FfiFontFeatureValuesRuleKind, FfiImportPreludeItemKind, FfiPageSelectorItemKind, FfiRuleKind,
-        FfiSyntaxDiagnosticCode, FfiSyntaxParse, ParsedRulePrelude, Rule, RuleContext, RuleOrDeclarations, SyntaxNode,
-        at_rule_is_supported, at_rule_kind, collect_descriptors, consume_a_list_of_component_values,
-        has_ignored_vendor_prefix, parse_block_contents, parse_font_feature_values, parse_keyframe_selectors,
-        parse_page_selector_list, parse_rule, parse_rule_prelude, parse_stylesheet, rule_kind, token_diagnostics,
-        tokenize_for_parser,
+        FfiSyntaxDiagnosticCode, ParsedRulePrelude, ParsedStyleSheet, Rule, RuleContext, RuleOrDeclarations,
+        SyntaxNode, SyntaxParseBuilder, at_rule_is_supported, at_rule_kind, collect_descriptors,
+        consume_a_list_of_component_values, has_ignored_vendor_prefix, parse_block_contents, parse_font_feature_values,
+        parse_keyframe_selectors, parse_page_selector_list, parse_rule, parse_rule_prelude, parse_stylesheet,
+        rule_kind, token_diagnostics, tokenize_for_parser,
     };
     use crate::css::parser::value_parser::ParseContext;
 
@@ -3565,29 +3762,35 @@ mod tests {
         parse_rule_prelude(rule, rule_kind(rule), Some(&parse_context()), &[], &|_, _| None)
     }
 
-    fn ffi_parse_stylesheet(source: &[u8]) -> FfiSyntaxParse {
+    fn parse_test_stylesheet(source: &[u8]) -> ParsedStyleSheet {
         let rules = parse_stylesheet(source);
         let context = parse_context();
-        let mut parse = FfiSyntaxParse::new(&raw const context, false);
+        let mut parse = SyntaxParseBuilder::new(&raw const context, false);
         parse.append_roots(&rules);
-        parse
+        parse.finish()
     }
 
     #[test]
     fn parse_result_owns_values_and_syntaxes_until_released() {
-        let parse = ffi_parse_stylesheet(
+        let parse = parse_test_stylesheet(
             b"a { width: 13px } @property --size { syntax: '<length>'; inherits: false; initial-value: 7px }",
         );
-        assert!(!parse.style_values.is_empty());
-        assert!(!parse.syntaxes.is_empty());
         let values = parse
-            .style_values
+            .declarations
             .iter()
+            .filter_map(|declaration| declaration.parsed_value.as_ref())
+            .chain(parse.prelude_items.iter().filter_map(|item| item.style_value.as_ref()))
             .filter(|value| matches!(value.as_ref(), crate::css::style_value::StyleValueData::Length { .. }))
             .map(std::sync::Arc::downgrade)
             .collect::<Vec<_>>();
         assert!(values.len() >= 2);
-        let syntaxes = parse.syntaxes.iter().map(std::sync::Arc::downgrade).collect::<Vec<_>>();
+        let syntaxes = parse
+            .rules
+            .iter()
+            .filter_map(|rule| rule.parsed_prelude_syntax.as_ref())
+            .map(std::sync::Arc::downgrade)
+            .collect::<Vec<_>>();
+        assert!(!syntaxes.is_empty());
         drop(parse);
         assert!(values.iter().all(|value| value.upgrade().is_none()));
         assert!(syntaxes.iter().all(|syntax| syntax.upgrade().is_none()));
@@ -3595,10 +3798,8 @@ mod tests {
 
     #[test]
     fn consumers_can_retain_the_same_parsed_value_independently() {
-        let parse = ffi_parse_stylesheet(b"a { width: 13px }");
-        let pointer = parse.declarations[0]
-            .parsed_value
-            .cast::<crate::css::style_value::StyleValueData>();
+        let parse = parse_test_stylesheet(b"a { width: 13px }");
+        let pointer = std::sync::Arc::as_ptr(parse.declarations[0].parsed_value.as_ref().unwrap());
         let retain = || unsafe {
             std::sync::Arc::increment_strong_count(pointer);
             std::sync::Arc::from_raw(pointer)
@@ -3625,7 +3826,7 @@ mod tests {
 
     #[test]
     fn exposes_token_diagnostics_with_source_spans() {
-        let mut parse = FfiSyntaxParse::new(std::ptr::null(), false);
+        let mut parse = SyntaxParseBuilder::new(std::ptr::null(), false);
         let tokens =
             crate::css::css_tokenizer::tokenize_for_parser(&utf16("a { color: \"bad\n; background: url(foo\"bar) }"));
         parse.diagnostics = token_diagnostics(&tokens);
@@ -3639,7 +3840,7 @@ mod tests {
 
     #[test]
     fn classifies_structurally_invalid_and_misplaced_rules() {
-        let parse = ffi_parse_stylesheet(
+        let parse = parse_test_stylesheet(
             b"undeclared|element {} @font-face serif {} @import url('data:text/css,'); \
               @namespace known 'urn:known'; known|element {}",
         );
@@ -3671,7 +3872,7 @@ mod tests {
                 .any(|diagnostic| diagnostic.code == FfiSyntaxDiagnosticCode::FontFacePreludeNotAllowed)
         );
 
-        let parse = ffi_parse_stylesheet(b"element {} @import url('data:text/css,'); @namespace late 'urn:late';");
+        let parse = parse_test_stylesheet(b"element {} @import url('data:text/css,'); @namespace late 'urn:late';");
         assert_eq!(parse.rules[parse.roots[1]].rule_kind, FfiRuleKind::Invalid);
         assert_eq!(parse.rules[parse.roots[2]].rule_kind, FfiRuleKind::Invalid);
         assert!(
@@ -3692,7 +3893,7 @@ mod tests {
     fn stray_feature_value_rules_do_not_close_ordering_windows() {
         // A feature value rule is only valid inside @font-feature-values. Anywhere else it is
         // dropped, so it must not count as a "valid at-rule" for @import and @namespace ordering.
-        let parse = ffi_parse_stylesheet(
+        let parse = parse_test_stylesheet(
             b"@styleset {} @import url('data:text/css,'); @namespace known 'urn:known'; known|element {}",
         );
         let root_kinds = parse
@@ -3710,7 +3911,7 @@ mod tests {
             ]
         );
 
-        let parse = ffi_parse_stylesheet(b"@media all { @styleset {} } @font-feature-values Family { @styleset {} }");
+        let parse = parse_test_stylesheet(b"@media all { @styleset {} } @font-feature-values Family { @styleset {} }");
         let media_child = parse.rules[parse.items[parse.rules[parse.roots[0]].children_start].start].rule_kind;
         assert_eq!(media_child, FfiRuleKind::Invalid);
         let font_feature_values_child =
@@ -3720,7 +3921,7 @@ mod tests {
 
     #[test]
     fn validates_nested_rule_contexts_without_flattening_them() {
-        let parse = ffi_parse_stylesheet(b"a { @layer direct; } @scope { @layer scoped; }");
+        let parse = parse_test_stylesheet(b"a { @layer direct; } @scope { @layer scoped; }");
         let layer_rules = parse
             .rules
             .iter()
@@ -3834,16 +4035,16 @@ mod tests {
     #[test]
     fn parses_selector_preludes_from_component_values() {
         let rules = parse_stylesheet(b"a {} :heading(1.0) {} a { > b {} @scope (> .start) to (> .end) {} }");
-        let mut parse = FfiSyntaxParse::new(std::ptr::null(), false);
+        let mut parse = SyntaxParseBuilder::new(std::ptr::null(), false);
         parse.append_roots(&rules);
 
-        assert!(!parse.rules[parse.roots[0]].selector_list.is_null());
-        assert!(parse.rules[parse.roots[1]].selector_list.is_null());
+        assert!(parse.rules[parse.roots[0]].selector_list.is_some());
+        assert!(parse.rules[parse.roots[1]].selector_list.is_none());
 
         let valid_selector_count = parse
             .rules
             .iter()
-            .filter(|rule| rule.rule_type == 1 && !rule.selector_list.is_null())
+            .filter(|rule| rule.rule_type == 1 && rule.selector_list.is_some())
             .count();
         assert_eq!(valid_selector_count, 3);
 
@@ -3852,15 +4053,15 @@ mod tests {
         for item in &parse.prelude_items[scope_rule.parsed_prelude_items_start
             ..scope_rule.parsed_prelude_items_start + scope_rule.parsed_prelude_item_count]
         {
-            assert!(!item.selector_list.is_null());
+            assert!(item.selector_list.is_some());
             assert_eq!(item.value_offset, usize::MAX);
         }
 
         let rules = parse_stylesheet(b"@media all { > b {} @scope (> .start) {} }");
-        let mut parse = FfiSyntaxParse::new(std::ptr::null(), false);
+        let mut parse = SyntaxParseBuilder::new(std::ptr::null(), false);
         parse.append_roots(&rules);
         let group_child = parse.rules.iter().find(|rule| rule.rule_type == 1).unwrap();
-        assert!(group_child.selector_list.is_null());
+        assert!(group_child.selector_list.is_none());
         let scope_rule = parse
             .rules
             .iter()
@@ -3915,18 +4116,18 @@ mod tests {
         let rules = parse_stylesheet(
             b"@media screen and (width > 1px) {} @supports (display: grid) {} @container card (width > 1px), style(--theme: dark) {} @supports {}",
         );
-        let mut parse = FfiSyntaxParse::new(std::ptr::null(), false);
+        let mut parse = SyntaxParseBuilder::new(std::ptr::null(), false);
         parse.append_roots(&rules);
 
         let media = &parse.rules[parse.roots[0]];
         assert_eq!(media.parsed_prelude_kind, 12);
         assert_eq!(media.parsed_prelude_item_count, 1);
-        assert!(!parse.prelude_items[media.parsed_prelude_items_start].query.is_null());
+        assert!(parse.prelude_items[media.parsed_prelude_items_start].query.is_some());
 
         let supports = &parse.rules[parse.roots[1]];
         assert_eq!(supports.parsed_prelude_kind, 13);
         assert_eq!(supports.parsed_prelude_item_count, 1);
-        assert!(!parse.prelude_items[supports.parsed_prelude_items_start].query.is_null());
+        assert!(parse.prelude_items[supports.parsed_prelude_items_start].query.is_some());
 
         let container = &parse.rules[parse.roots[2]];
         assert_eq!(container.parsed_prelude_kind, 14);
@@ -3934,9 +4135,9 @@ mod tests {
         let conditions = &parse.prelude_items[container.parsed_prelude_items_start
             ..container.parsed_prelude_items_start + container.parsed_prelude_item_count];
         assert_ne!(conditions[0].value_offset, usize::MAX);
-        assert!(!conditions[0].query.is_null());
+        assert!(conditions[0].query.is_some());
         assert_eq!(conditions[1].value_offset, usize::MAX);
-        assert!(!conditions[1].query.is_null());
+        assert!(conditions[1].query.is_some());
 
         let invalid_supports = &parse.rules[parse.roots[3]];
         assert_eq!(invalid_supports.parsed_prelude_kind, 1);

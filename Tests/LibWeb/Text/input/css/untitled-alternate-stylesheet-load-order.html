@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const alternate = document.createElement("link");
+        alternate.rel = "alternate stylesheet";
+        alternate.href = "data:text/css,html { color: red !important }";
+        alternate.onload = () => {
+            println(`untitled alternate disabled: ${alternate.sheet.disabled}`);
+            const preferred = document.createElement("link");
+            preferred.rel = "stylesheet";
+            preferred.title = "preferred";
+            preferred.href = "data:text/css,html { color: green }";
+            preferred.onload = () => {
+                println(`preferred enabled: ${!preferred.sheet.disabled}`);
+                println(`color: ${getComputedStyle(document.documentElement).color}`);
+                done();
+            };
+            document.head.append(preferred);
+        };
+        document.head.append(alternate);
+    });
+</script>
