@@ -12,7 +12,7 @@
                 <!DOCTYPE html>
                 <script>
                     const entry = performance.getEntriesByType("navigation")[0];
-                    top.postMessage({ source: "second child", type: entry ? entry.type : "missing" }, "*");
+                    top.postMessage({ source: "second child", type: entry ? entry.type : "missing", legacyType: performance.navigation.type }, "*");
                     addEventListener("message", event => {
                         if (event.data === "reload")
                             location.reload();
@@ -27,7 +27,7 @@
                 <!DOCTYPE html>
                 <script>
                     const entry = performance.getEntriesByType("navigation")[0];
-                    top.postMessage({ source: "first child", type: entry ? entry.type : "missing" }, "*");
+                    top.postMessage({ source: "first child", type: entry ? entry.type : "missing", legacyType: performance.navigation.type }, "*");
                     addEventListener("message", event => {
                         if (event.data === "navigate")
                             location.href = ${JSON.stringify(secondChildURL)};
@@ -59,6 +59,7 @@
         addEventListener("message", event => {
             if (state === "initial child" && event.data.source === "first child") {
                 println(`initial child navigation type: ${event.data.type}`);
+                println(`initial child legacy navigation type: ${event.data.legacyType}`);
                 state = "second child";
                 event.source.postMessage("navigate", "*");
                 return;
@@ -66,6 +67,7 @@
 
             if (state === "second child" && event.data.source === "second child") {
                 println(`second child navigation type: ${event.data.type}`);
+                println(`second child legacy navigation type: ${event.data.legacyType}`);
                 state = "second parent";
                 parentFrame.src = secondParentURL;
                 return;
@@ -79,6 +81,7 @@
 
             if (state === "reconstructed child" && event.data.source === "second child") {
                 println(`reconstructed child navigation type: ${event.data.type}`);
+                println(`reconstructed child legacy navigation type: ${event.data.legacyType}`);
                 state = "reloaded child";
                 event.source.postMessage("reload", "*");
                 return;
@@ -86,6 +89,7 @@
 
             if (state === "reloaded child" && event.data.source === "second child") {
                 println(`reloaded child navigation type: ${event.data.type}`);
+                println(`reloaded child legacy navigation type: ${event.data.legacyType}`);
                 done();
             }
         });

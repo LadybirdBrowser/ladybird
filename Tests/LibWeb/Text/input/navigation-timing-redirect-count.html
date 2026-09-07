@@ -16,6 +16,7 @@
                         parent.postMessage({
                             label: "${label}",
                             redirectCount: entry ? entry.redirectCount : "missing",
+                            legacyRedirectCount: performance.navigation.redirectCount,
                             fetchStartFollowsRedirects: entry ? entry.fetchStart > 0 && entry.fetchStart >= entry.redirectEnd : "missing",
                             redirectEndExposed: entry ? entry.redirectEnd > 0 : "missing",
                         }, "*");
@@ -69,6 +70,7 @@
             results.sort((a, b) => a.label.localeCompare(b.label));
             for (const result of results) {
                 println(`${result.label} redirect count: ${result.redirectCount}`);
+                println(`${result.label} legacy redirect count: ${result.legacyRedirectCount}`);
                 println(`${result.label} fetch start follows redirects: ${result.fetchStartFollowsRedirects}`);
                 println(`${result.label} redirect end exposed: ${result.redirectEndExposed}`);
             }

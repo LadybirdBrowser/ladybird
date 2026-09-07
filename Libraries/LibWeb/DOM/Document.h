@@ -928,6 +928,7 @@ public:
     DocumentUnloadTimingInfo const& previous_document_unload_timing() const { return m_previous_document_unload_timing; }
     void set_previous_document_unload_timing(DocumentUnloadTimingInfo const& previous_document_unload_timing) { m_previous_document_unload_timing = previous_document_unload_timing; }
 
+    GC::Ptr<NavigationTiming::PerformanceNavigationTiming> navigation_timing_entry() const { return m_navigation_timing_entry; }
     void set_navigation_timing_entry(GC::Ref<NavigationTiming::PerformanceNavigationTiming> entry) { m_navigation_timing_entry = entry; }
 
     // https://w3c.github.io/editing/docs/execCommand/

@@ -1,4 +1,8 @@
 initial child navigation type: navigate
+initial child legacy navigation type: 0
 second child navigation type: navigate
+second child legacy navigation type: 0
 reconstructed child navigation type: back_forward
+reconstructed child legacy navigation type: 2
 reloaded child navigation type: reload
+reloaded child legacy navigation type: 1

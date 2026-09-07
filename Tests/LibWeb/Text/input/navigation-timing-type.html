@@ -11,7 +11,7 @@
                 <!DOCTYPE html>
                 <script>
                     const entry = performance.getEntriesByType("navigation")[0];
-                    parent.postMessage(entry ? entry.type : "missing", "*");
+                    parent.postMessage({ type: entry ? entry.type : "missing", legacyType: performance.navigation.type }, "*");
                     addEventListener("message", event => {
                         if (event.data === "reload")
                             location.reload();
@@ -28,8 +28,10 @@
                 return;
             }
 
-            println(`initial navigation type: ${types[0]}`);
-            println(`reload navigation type: ${types[1]}`);
+            println(`initial navigation type: ${types[0].type}`);
+            println(`initial legacy navigation type: ${types[0].legacyType}`);
+            println(`reload navigation type: ${types[1].type}`);
+            println(`reload legacy navigation type: ${types[1].legacyType}`);
             done();
         });
 
