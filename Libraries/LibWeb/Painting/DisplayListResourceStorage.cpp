@@ -577,6 +577,12 @@ static void for_each_command_byte_range_inside(Command const& command, ReadonlyB
             callback(inline_data(payload, command.mask));
     } else if constexpr (IsSame<Command, DrawRepeatedTile>) {
         callback(inline_data(payload, command.tile));
+    } else if constexpr (IsSame<Command, DeclareMaskContent>) {
+        callback(inline_data(payload, command.content));
+    } else if constexpr (requires { command.paint_style; command.paint_kind; }) {
+        if (command.paint_kind == decltype(command.paint_kind)::PaintStyle
+            && command.paint_style.paint_style_type == DisplayListPaintStyleType::Pattern)
+            callback(inline_data(payload, command.paint_style.pattern_tile));
     }
 }
 
@@ -656,9 +662,6 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
     };
     scan_records(list_resource.display_list->command_bytes(), false);
 
-    for (auto const& mask_display_list : list_resource.display_list->mask_display_lists())
-        recurse_into_nested_display_list(mask_display_list.value);
-
     resource.requires_direct_replay = requires_direct_replay;
     return requires_direct_replay;
 }
@@ -673,16 +676,19 @@ void DisplayListResourceStorage::collect_referenced_resources(
 
     DisplayList::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
         visit_display_list_command(header.command_type, payload, [&](auto const& command) {
+            using Command = RemoveCVReference<decltype(command)>;
             if constexpr (requires { command.font_id; })
                 referenced_resources.fonts.set(command.font_id, AK::HashSetExistingEntryBehavior::Keep);
             if constexpr (requires { command.frame_id; })
                 referenced_resources.image_frames.set(command.frame_id, AK::HashSetExistingEntryBehavior::Keep);
             if constexpr (requires { command.video_sink_id; })
                 referenced_resources.video_sinks.set(command.video_sink_id, AK::HashSetExistingEntryBehavior::Keep);
-            if constexpr (requires { command.paint_style; command.paint_kind; }) {
-                if (command.paint_kind == decltype(command.paint_kind)::PaintStyle
-                    && command.paint_style.paint_style_type == DisplayListPaintStyleType::Pattern)
-                    add_display_list_resource(command.paint_style.pattern_tile_display_list_id);
+            if constexpr (IsSame<Command, DrawIsolatedGroup>) {
+                if (command.filter.size != 0) {
+                    Gfx::for_each_filter_image_frame_id(inline_data(payload, command.filter), [&](u64 image_id) {
+                        referenced_resources.image_frames.set(ImageFrameResourceId { image_id }, AK::HashSetExistingEntryBehavior::Keep);
+                    });
+                }
             }
             if constexpr (requires { command.display_list_id; }) {
                 add_display_list_resource(command.display_list_id);
@@ -699,8 +705,6 @@ void DisplayListResourceStorage::collect_referenced_resources(
     DisplayListResourceSet& referenced_resources) const
 {
     collect_referenced_resources(display_list.command_bytes(), referenced_resources);
-    for (auto const& mask_display_list : display_list.mask_display_lists())
-        add_referenced_display_list(mask_display_list.value, referenced_resources);
 }
 
 void DisplayListResourceStorage::add_referenced_display_list(DisplayListResourceId id, DisplayListResourceSet& referenced_resources) const

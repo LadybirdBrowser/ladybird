@@ -351,10 +351,6 @@ impl ForceDarkResolver {
         }
     }
 
-    pub fn settings(&self) -> ForceDarkSettings {
-        self.settings
-    }
-
     pub fn resolve(&mut self, color: Color, role: ForceDarkRole) -> Color {
         self.resolve_against_backdrop(color, role, None)
     }

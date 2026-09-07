@@ -17,7 +17,7 @@ use crate::painting::display_list::commands::ContextRef;
 use crate::painting::display_list::commands::{
     DisplayListResourceId, ImageFrameResourceId, OptionalAffineTransform, Repeat,
 };
-use crate::painting::display_list::recorder::{DisplayListRecorder, FillPathParams, PaintStyle, PaintStyleOrColor};
+use crate::painting::display_list::recorder::{FillPathParams, PaintStyle, PaintStyleOrColor};
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::host::{FfiImagePaintFacts, FfiLayerImagePrepareFacts};
 use crate::painting::node_painting;
@@ -29,10 +29,9 @@ use crate::painting::record::paint::background_resolution::{
 };
 use crate::painting::record::paint::gradient_resolution::{gradient_paint_value, record_gradient_fill};
 use crate::painting::record::paint::table_backgrounds;
-use crate::painting::visual_context::VisualContextTree;
 use libgfx_rust::{
-    CompositingAndBlendingOperator, FloatRect, IntPoint, IntRect, IntSize, MaskKind, ScalingMode, ShouldAntiAlias,
-    WindingRule, enclosing_int_rect,
+    AffineTransform, CompositingAndBlendingOperator, FloatRect, IntRect, IntSize, MaskKind, ScalingMode,
+    ShouldAntiAlias, WindingRule, enclosing_int_rect,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -796,8 +795,8 @@ fn paint_image_layer<O: Observer>(
     {
         // A not-decoded-image repeating background otherwise records a separate painting command
         // for every tile — which for very-large tile counts can lead to enough commands that we
-        // crash. So, instead record a single tile into a nested display list, and fill the area
-        // with a repeating pattern. The painter does the tiling.
+        // crash. So, instead record a single tile's records into the fill command, and fill the
+        // area with a repeating pattern. The painter does the tiling.
         let mut tile_device_rect = converter.rounded_device_rect(image_rect);
         // If the tile's dimensions were rounded to zero then they need to be restored to avoid a crash.
         if tile_device_rect.width == 0 {
@@ -807,9 +806,18 @@ fn paint_image_layer<O: Observer>(
             tile_device_rect.height = 1;
         }
 
-        let force_dark_settings = recorder.recorder.force_dark_settings();
-        let outer_recorder = std::mem::replace(&mut recorder.recorder, DisplayListRecorder::new(force_dark_settings));
         let tile_dest_rect = tile_device_rect.to_float();
+        let detached = recorder.recorder.begin_detached_records();
+        recorder
+            .recorder
+            .set_ambient_inline_transform(Some(AffineTransform::new(
+                1.0,
+                0.0,
+                0.0,
+                1.0,
+                -tile_dest_rect.x,
+                -tile_dest_rect.y,
+            )));
         recorder.trace_paint(Operation::Producer(Some(paintable), "background-tile"), |recorder| {
             if let Some(gradient) = &resolved_gradient {
                 record_gradient_fill(
@@ -835,13 +843,7 @@ fn paint_image_layer<O: Observer>(
                 }
             }
         });
-        let tile_recorder = std::mem::replace(&mut recorder.recorder, outer_recorder);
-        let tile = tile_recorder.into_builder().finish();
-        let tile_tree = VisualContextTree::create_with_content_offset(IntPoint {
-            x: -tile_device_rect.x,
-            y: -tile_device_rect.y,
-        });
-        let tile_display_list_id = recorder.paint_host.nested_display_list_from_tree(&tile, tile_tree, &[]);
+        let tile_records = std::rc::Rc::new(recorder.recorder.finish_detached_records(detached));
 
         // A pattern repeats along both axes. On any non-repeating axis, constrain the coverage to a single tile.
         let mut coverage = clip_rect;
@@ -871,7 +873,7 @@ fn paint_image_layer<O: Observer>(
                 path: &path,
                 opacity: 1.0,
                 paint_style_or_color: PaintStyleOrColor::PaintStyle(PaintStyle::Pattern {
-                    tile_display_list_id,
+                    tile_records,
                     tile_rect: tile_dest_rect,
                     content_scale: libgfx_rust::FloatSize {
                         width: 1.0,

@@ -37,6 +37,7 @@ pub enum DisplayListCommandType {
     DrawRect,
     PaintNestedDisplayList,
     DrawIsolatedGroup,
+    DeclareMaskContent,
     CompositorScrollNode,
     CompositorWheelHitTestTarget,
     CompositorWheelHitTestTargetWithCornerRadii,
@@ -98,6 +99,7 @@ impl DisplayListCommandType {
             Self::DrawRect => "DrawRect",
             Self::PaintNestedDisplayList => "PaintNestedDisplayList",
             Self::DrawIsolatedGroup => "DrawIsolatedGroup",
+            Self::DeclareMaskContent => "DeclareMaskContent",
             Self::CompositorScrollNode => "CompositorScrollNode",
             Self::CompositorWheelHitTestTarget => "CompositorWheelHitTestTarget",
             Self::CompositorWheelHitTestTargetWithCornerRadii => "CompositorWheelHitTestTargetWithCornerRadii",
@@ -637,7 +639,7 @@ pub struct DisplayListPaintStyle {
     pub radial_gradient_start_radius: f32,
     pub radial_gradient_end_center: FloatPoint,
     pub radial_gradient_end_radius: f32,
-    pub pattern_tile_display_list_id: DisplayListResourceId,
+    pub pattern_tile: DisplayListDataSpan,
     pub pattern_tile_rect: FloatRect,
     pub pattern_content_scale: FloatSize,
     pub pattern_transform: OptionalAffineTransform,
@@ -651,7 +653,7 @@ ffi_bytes_fields!(DisplayListPaintStyle {
     radial_gradient_start_radius,
     radial_gradient_end_center,
     radial_gradient_end_radius,
-    pattern_tile_display_list_id,
+    pattern_tile,
     pattern_tile_rect,
     pattern_content_scale,
     pattern_transform
@@ -668,7 +670,7 @@ impl Default for DisplayListPaintStyle {
             radial_gradient_start_radius: 0.0,
             radial_gradient_end_center: FloatPoint::default(),
             radial_gradient_end_radius: 0.0,
-            pattern_tile_display_list_id: DisplayListResourceId(0),
+            pattern_tile: DisplayListDataSpan::default(),
             pattern_tile_rect: FloatRect::default(),
             pattern_content_scale: FloatSize {
                 width: 1.0,
@@ -1315,32 +1317,52 @@ impl DisplayListCommand for PaintNestedDisplayList {
     }
 }
 
-// Plays the content records inside an internally scoped saveLayer, optionally
-// masked by a second run of records composited with DestinationIn, so a group
-// that must not blend with the canvas needs no clips or effects. Both runs
-// are recorded in place inside this command's payload under its context.
+// Plays the content records inside an internally scoped saveLayer that carries
+// the group's opacity, blend and filter, optionally masked by a second run of
+// records composited with DestinationIn, so a group that must not blend with
+// the canvas needs no clips or effects. Both runs are recorded in place inside
+// this command's payload under its context.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct DrawIsolatedGroup {
-    pub rect: FloatRect,
+    pub clip_rect: OptionalFloatRect,
     pub content: DisplayListDataSpan,
     pub mask: DisplayListDataSpan,
+    pub filter: DisplayListDataSpan,
+    pub opacity: f32,
     pub compositing_and_blending_operator: CompositingAndBlendingOperator,
     pub mask_kind: MaskKind,
 }
 ffi_bytes_fields!(DrawIsolatedGroup {
-    rect,
+    clip_rect,
     content,
     mask,
+    filter,
+    opacity,
     compositing_and_blending_operator,
     mask_kind
 });
-const _: () = assert!(std::mem::size_of::<DrawIsolatedGroup>() == 40);
 
 impl DisplayListCommand for DrawIsolatedGroup {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::DrawIsolatedGroup;
     fn bounding_rect(&self) -> Option<IntRect> {
-        Some(enclosing_int_rect(self.rect))
+        self.clip_rect.get().map(enclosing_int_rect)
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct DeclareMaskContent {
+    pub rect: IntRect,
+    pub effect: EffectNodeIndex,
+    pub content: DisplayListDataSpan,
+}
+ffi_bytes_fields!(DeclareMaskContent { rect, effect, content });
+
+impl DisplayListCommand for DeclareMaskContent {
+    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::DeclareMaskContent;
+    fn bounding_rect(&self) -> Option<IntRect> {
+        Some(self.rect)
     }
 }
 

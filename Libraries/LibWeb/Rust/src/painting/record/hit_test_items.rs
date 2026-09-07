@@ -119,7 +119,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
     }
 
     pub(crate) fn record_hit_test_items(&mut self, paintable: NodeSlotId, phase: PaintPhase) {
-        if self.nested.is_some() {
+        if self.is_recording_svg_resource_content() {
             return;
         }
         if node_painting::is_inline(self.layout_arena, paintable) {

@@ -687,16 +687,6 @@ Utf16String serialize_painting_dump(DOM::Document const& document, AccumulatedVi
             auto& context = *static_cast<DumpContext*>(context_pointer);
             return &context.resource_storage.display_list(DisplayListResourceId { display_list_id });
         },
-        .mask_display_list_count = [](void*, void const* display_list_pointer) -> size_t {
-            return static_cast<DisplayList const*>(display_list_pointer)->mask_display_lists().size();
-        },
-        .mask_display_lists = [](void*, void const* display_list_pointer, u32* effects, u64* display_list_ids) {
-            size_t index = 0;
-            for (auto const& entry : static_cast<DisplayList const*>(display_list_pointer)->mask_display_lists()) {
-                effects[index] = entry.key.value();
-                display_list_ids[index] = entry.value.value();
-                ++index;
-            } },
         .append_text = [](void* context_pointer, u8 const* bytes, size_t byte_count) { static_cast<DumpContext*>(context_pointer)->dump = Utf16String::from_utf8_without_validation(StringView { bytes, byte_count }); },
     };
     auto command_runs = display_list.command_runs();
@@ -861,10 +851,7 @@ static NonnullRefPtr<DisplayList> display_list_from_rust_recording(AccumulatedVi
     VERIFY(recorded.byte_count % DisplayList::command_alignment == 0);
     auto command_bytes = MUST(ByteBuffer::copy(recorded.bytes, recorded.byte_count));
     Vector<DisplayListCommandRun> command_runs { ReadonlySpan<DisplayListCommandRun> { recorded.command_runs, recorded.command_run_count } };
-    auto display_list = DisplayList::create_from_command_bytes(visual_context_tree, move(command_bytes), move(command_runs));
-    for (auto const& registration : ReadonlySpan<Layout::RustFFI::FfiMaskDisplayListRegistration> { recorded.mask_registrations, recorded.mask_registration_count })
-        display_list->set_mask_display_list_id(registration.effect, DisplayListResourceId { registration.display_list_id });
-    return display_list;
+    return DisplayList::create_from_command_bytes(visual_context_tree, move(command_bytes), move(command_runs));
 }
 
 static Optional<u64> composited_context_id_for_navigable_container(HTML::NavigableContainer const& navigable_container)
@@ -1222,11 +1209,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                     style.pattern_transform = pattern.device_pattern_transform;
                 });
             return style;
-        },
-        .nested_display_list_from_tree = [](void* context_pointer, Layout::RustFFI::FfiRecordedDisplayList recorded, void const* retained_tree) -> u64 {
-            auto& context = *static_cast<PaintHostContext*>(context_pointer);
-            auto visual_context_tree = AccumulatedVisualContextTree::adopt_rust_handle(retained_tree);
-            return context.resource_storage.add_display_list(display_list_from_rust_recording(visual_context_tree, recorded), visual_context_tree).value();
         },
     };
 }

@@ -6,7 +6,7 @@
 
 use crate::layout::used_values;
 use crate::painting::display_list::builder::RecordedDisplayList;
-use crate::painting::display_list::commands::{DisplayListCommandRun, DisplayListResourceId, EffectNodeIndex};
+use crate::painting::display_list::commands::DisplayListCommandRun;
 use crate::painting::display_list::commands::{OptionalAffineTransform, OptionalColor};
 use libgfx_rust::{AffineTransform, Color, FloatMatrix4x4, FloatRect, FloatSize, IntRect, InterpolationColorSpace};
 use std::ffi::c_void;
@@ -355,22 +355,6 @@ pub struct FfiImagePaintFacts {
 
 // A recording lent to C++ for the duration of one call. An empty Vec's pointer is dangling, so
 // the C++ side never dereferences a pointer whose count is zero.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiMaskDisplayListRegistration {
-    pub effect: EffectNodeIndex,
-    pub display_list_id: u64,
-}
-
-impl From<(EffectNodeIndex, DisplayListResourceId)> for FfiMaskDisplayListRegistration {
-    fn from((effect, display_list_id): (EffectNodeIndex, DisplayListResourceId)) -> Self {
-        Self {
-            effect,
-            display_list_id: display_list_id.0,
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiRecordedDisplayList {
@@ -378,8 +362,6 @@ pub struct FfiRecordedDisplayList {
     pub byte_count: usize,
     pub command_runs: *const DisplayListCommandRun,
     pub command_run_count: usize,
-    pub mask_registrations: *const FfiMaskDisplayListRegistration,
-    pub mask_registration_count: usize,
 }
 
 impl FfiRecordedDisplayList {
@@ -389,19 +371,6 @@ impl FfiRecordedDisplayList {
             byte_count: 0,
             command_runs: std::ptr::null(),
             command_run_count: 0,
-            mask_registrations: std::ptr::null(),
-            mask_registration_count: 0,
-        }
-    }
-
-    pub fn with_mask_registrations(
-        recorded: &RecordedDisplayList,
-        mask_registrations: &[FfiMaskDisplayListRegistration],
-    ) -> Self {
-        Self {
-            mask_registrations: mask_registrations.as_ptr(),
-            mask_registration_count: mask_registrations.len(),
-            ..Self::from(recorded)
         }
     }
 }
@@ -413,8 +382,6 @@ impl From<&RecordedDisplayList> for FfiRecordedDisplayList {
             byte_count: recorded.bytes.len(),
             command_runs: recorded.command_runs.as_ptr(),
             command_run_count: recorded.command_runs.len(),
-            mask_registrations: std::ptr::null(),
-            mask_registration_count: 0,
         }
     }
 }
@@ -461,7 +428,6 @@ pub struct FfiPaintHostCallbacks {
         *const FfiSvgPaintContext,
         *mut c_void,
     ) -> FfiSvgPaintStyle,
-    pub nested_display_list_from_tree: unsafe extern "C" fn(*mut c_void, FfiRecordedDisplayList, *const c_void) -> u64,
 }
 
 #[derive(Default)]
@@ -599,23 +565,5 @@ impl FfiPaintHostCallbacks {
             )
         };
         (style, sink)
-    }
-    pub(crate) fn nested_display_list_from_tree(
-        &self,
-        recorded: &RecordedDisplayList,
-        tree: crate::painting::visual_context::VisualContextTree,
-        mask_registrations: &[FfiMaskDisplayListRegistration],
-    ) -> DisplayListResourceId {
-        let retained_tree = std::rc::Rc::into_raw(std::rc::Rc::new(tree)).cast();
-        // SAFETY: The C++ host copies the recording and its mask registrations synchronously and
-        // takes ownership of the retained tree handle.
-        let id = unsafe {
-            (self.nested_display_list_from_tree)(
-                self.context,
-                FfiRecordedDisplayList::with_mask_registrations(recorded, mask_registrations),
-                retained_tree,
-            )
-        };
-        DisplayListResourceId(id)
     }
 }

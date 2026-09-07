@@ -17,16 +17,14 @@ use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
 use crate::painting::force_dark::{ForceDarkRole, ForceDarkSettings};
 use crate::painting::hit_test::*;
-use crate::painting::host::{
-    FfiHitTestHostCallbacks, FfiMaskDisplayListRegistration, FfiPaintHostCallbacks, FfiVisualContextHostCallbacks,
-};
+use crate::painting::host::{FfiHitTestHostCallbacks, FfiPaintHostCallbacks, FfiVisualContextHostCallbacks};
 use crate::painting::node_painting;
 use crate::painting::record::RecordingInputs;
 use crate::painting::record::cache::{
     CachedSubtreeCapture, CaptureAddress, CaptureKind, CaptureSite, EnclosingCaptureAnchor, OpenCapture, RecordGen,
     SourceTapePosition, SubtreeCaptureWalkOutcome, narrow_record_gen, resolve_capture_address_in_source_tape,
 };
-use crate::painting::record::masks::MaskLayerSet;
+use crate::painting::record::svg_resources::MaskLayerSet;
 use crate::painting::record::trace::{Action, Operation};
 use crate::painting::record::verify::LoggedCapture;
 use crate::painting::record::{DeferredWholeTapeSplice, RecordingOutput};
@@ -135,14 +133,11 @@ fn record_display_list_impl<O: Observer>(
         inputs,
         recorder: DisplayListRecorder::new(force_dark_settings),
         converter: DevicePixelConverter::new(inputs.device_pixels_per_css_pixel),
-        draw_svg_geometry_for_clip_path: false,
         visual_context_host,
-        nested: None,
-        nested_tree: None,
-        prerecorded: crate::painting::record::masks::PrerecordedNestedDisplayLists::default(),
+        svg_resource_walk: None,
+        pattern_tile_records: HashMap::new(),
         command_cache_source,
         item_cache_source,
-        hit_test_list_generation,
         open_capture_stack: Vec::new(),
         deferred_whole_tape_splice: None,
         viewport,
@@ -185,7 +180,6 @@ fn record_display_list_impl<O: Observer>(
         this.recorder
             .fill_rect(inputs.bitmap_rect, inputs.background_color, ForceDarkRole::Background);
     });
-    recorder.prerecord_nested_display_lists();
     recorder.paint_and_capture_as_stacking_context(viewport);
     if inputs.has_inspector_highlight
         || inputs.grid_overlay_count > 0
@@ -197,12 +191,6 @@ fn record_display_list_impl<O: Observer>(
             crate::painting::record::paint::inspector_overlay::record_inspector_overlays,
         );
     }
-    let mask_display_lists: Vec<FfiMaskDisplayListRegistration> = recorder
-        .recorder
-        .take_mask_display_lists()
-        .into_iter()
-        .map(FfiMaskDisplayListRegistration::from)
-        .collect();
     let mut hit_test_list = recorder.list;
     hit_test_list.generation = hit_test_list_generation;
     let recorded = recorder.recorder.into_builder().finish();
@@ -218,7 +206,6 @@ fn record_display_list_impl<O: Observer>(
         display_list,
         has_blocking_wheel_event_listeners: recorder.blocking_wheel_event_region_count > 0,
         wheel_event_listener_state_generation: inputs.wheel_event_listener_state_generation,
-        mask_display_lists,
         is_identical_to_cache_source: false,
         capture_log_for_verification: recorder.observer.finish(),
     }
@@ -303,7 +290,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             self.recorder.fill_rect_transparent(device_rect);
         }
 
-        self.register_mask_display_lists(paintable, MaskLayerSet::CssAndSvg);
+        self.declare_mask_contents(paintable, MaskLayerSet::CssAndSvg);
 
         let context_before_children = self.recorder.accumulated_visual_context();
         self.with_context(context_before_children, |this| this.paint_internal(paintable));
@@ -543,7 +530,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         });
         self.trace_scope(Operation::Capture(site), Action::Walk, body);
         self.open_capture_stack.pop();
-        if self.nested.is_some() {
+        if self.is_recording_svg_resource_content() {
             return;
         }
         let command_range = CommandRange {
@@ -696,7 +683,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     fn try_splice_cached_subtree_capture(&mut self, site: CaptureSite) -> bool {
-        if self.nested.is_some() {
+        if self.is_recording_svg_resource_content() {
             return false;
         }
         let Some(command_source) = self.command_cache_source.as_ref() else {
@@ -911,6 +898,14 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     fn paint_svg_box_impl(&mut self, svg_box: NodeSlotId, phase: PaintPhase) {
+        if self.is_recording_svg_resource_content() {
+            let parent_to_enclosing_space = self
+                .recorder
+                .ambient_inline_transform()
+                .unwrap_or_else(libgfx_rust::AffineTransform::identity);
+            self.paint_svg_box_inside_resource(svg_box, parent_to_enclosing_space, true);
+            return;
+        }
         let context = self.own_context(svg_box);
         self.recorder.set_accumulated_visual_context(context);
 
@@ -924,7 +919,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             self.recorder.fill_rect_transparent(device_rect);
         }
 
-        if self.register_mask_display_lists(svg_box, MaskLayerSet::SvgOnly) {
+        if self.declare_mask_contents(svg_box, MaskLayerSet::SvgOnly) {
             return;
         }
         let before = self.list.items.len();
@@ -978,10 +973,8 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     fn for_descendants_context(&self, paintable: NodeSlotId) -> ContextRef {
-        if let Some(nested) = &self.nested
-            && let Some((_, for_descendants)) = nested.assignments.paintable_contexts.get(&paintable.index)
-        {
-            return *for_descendants;
+        if let Some(walk) = &self.svg_resource_walk {
+            return walk.enclosing_context;
         }
         self.data(paintable).accumulated_visual_context_for_descendants
     }
@@ -998,7 +991,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         }
     }
 
-    fn paint_node(&mut self, paintable: NodeSlotId, phase: PaintPhase) {
+    pub(crate) fn paint_node(&mut self, paintable: NodeSlotId, phase: PaintPhase) {
         let context = self.context_for_phase(paintable, phase);
         self.recorder.set_accumulated_visual_context(context);
 
@@ -1007,7 +1000,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             phase,
             PaintPhase::Background | PaintPhase::Foreground | PaintPhase::Overlay
         );
-        let is_nested = self.nested.is_some();
+        let is_nested = self.is_recording_svg_resource_content();
         let data = self.data(paintable);
         // Scrolling repaints without invalidating paint caches, so scroll-offset-dependent
         // captures can never be reused.

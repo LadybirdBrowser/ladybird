@@ -544,7 +544,6 @@ pub(crate) struct LayoutNodeArena {
     fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore,
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
-    svg_pattern_referencing_nodes: RefCell<Vec<NodeSlotId>>,
     pub(crate) partial_relayout_boundary_roots: RefCell<Vec<NodeSlotId>>,
     /// Attribution of pending updates for partial relayout. Invariant: every update recorded
     /// since the last layout pass is either attributed to a boundary in the root set above, or
@@ -590,7 +589,6 @@ impl LayoutNodeArena {
             fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore::default(),
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
-            svg_pattern_referencing_nodes: RefCell::new(Vec::new()),
             partial_relayout_boundary_roots: RefCell::new(Vec::new()),
             pending_updates_escape_partial_relayout: Cell::new(false),
             boxes_needing_scrollable_overflow_recalculation: RefCell::new(Vec::new()),
@@ -599,21 +597,6 @@ impl LayoutNodeArena {
             nodes_enrolled_for_replaced_content_facts_sync: RefCell::new(Vec::new()),
             owner_thread: thread::current().id(),
         }
-    }
-
-    pub(crate) fn register_svg_pattern_referencing_node(&self, node: NodeSlotId) {
-        let mut nodes = self.svg_pattern_referencing_nodes.borrow_mut();
-        nodes.retain(|candidate| self.slot_is_live(*candidate));
-        if nodes.contains(&node) {
-            return;
-        }
-        nodes.push(node);
-    }
-
-    pub(crate) fn svg_pattern_referencing_nodes(&self) -> Vec<NodeSlotId> {
-        let mut nodes = self.svg_pattern_referencing_nodes.borrow_mut();
-        nodes.retain(|candidate| self.slot_is_live(*candidate));
-        nodes.clone()
     }
 
     /// Drops one node's cached intrinsic sizes outright, for the wrap of its epoch:

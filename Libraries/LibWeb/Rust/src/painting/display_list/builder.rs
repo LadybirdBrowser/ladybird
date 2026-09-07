@@ -135,6 +135,7 @@ pub struct OpenGroup {
     fixed_payload_size: usize,
     content_start: usize,
     mask_start: Option<usize>,
+    trailing_inline_data_start: Option<usize>,
     suspended_inline_clips: Vec<PendingInlineClip>,
 }
 
@@ -144,9 +145,13 @@ impl OpenGroup {
     }
 
     fn span_from(&self, start: usize, end: usize) -> DisplayListDataSpan {
+        self.span_from_with_size(start, end - start)
+    }
+
+    fn span_from_with_size(&self, start: usize, size: usize) -> DisplayListDataSpan {
         DisplayListDataSpan {
             offset: u32::try_from(start - self.payload_start()).expect("display list payload exceeds u32"),
-            size: u32::try_from(end - start).expect("display list payload exceeds u32"),
+            size: u32::try_from(size).expect("display list payload exceeds u32"),
         }
     }
 }
@@ -253,6 +258,7 @@ impl DisplayListBuilder {
             fixed_payload_size,
             content_start,
             mask_start: None,
+            trailing_inline_data_start: None,
             suspended_inline_clips: inline_clips_applying_to_the_group_record,
         }
     }
@@ -263,15 +269,32 @@ impl DisplayListBuilder {
         group.mask_start = Some(self.bytes.len());
     }
 
+    fn group_nested_records_end(&self, group: &OpenGroup) -> usize {
+        group.trailing_inline_data_start.unwrap_or(self.bytes.len())
+    }
+
     pub fn group_content_span(&self, group: &OpenGroup) -> DisplayListDataSpan {
-        group.span_from(group.content_start, group.mask_start.unwrap_or(self.bytes.len()))
+        group.span_from(
+            group.content_start,
+            group.mask_start.unwrap_or(self.group_nested_records_end(group)),
+        )
     }
 
     pub fn group_mask_span(&self, group: &OpenGroup) -> DisplayListDataSpan {
         match group.mask_start {
-            Some(mask_start) => group.span_from(mask_start, self.bytes.len()),
+            Some(mask_start) => group.span_from(mask_start, self.group_nested_records_end(group)),
             None => DisplayListDataSpan::default(),
         }
+    }
+
+    pub fn append_group_inline_data(&mut self, group: &mut OpenGroup, bytes: &[u8]) -> DisplayListDataSpan {
+        debug_assert!(self.open_group_depth > 0);
+        let start = self.bytes.len();
+        group.trailing_inline_data_start.get_or_insert(start);
+        let padded_end = (start + bytes.len()).next_multiple_of(COMMAND_ALIGNMENT);
+        self.bytes.extend_from_slice(bytes);
+        self.bytes.resize(padded_end, 0);
+        group.span_from_with_size(start, bytes.len())
     }
 
     pub fn finish_group_clipped_to<C: DisplayListCommand>(
@@ -295,7 +318,8 @@ impl DisplayListBuilder {
             "a group must be finished with the command type it was begun with"
         );
         self.open_group_depth -= 1;
-        let nested_records_end = self.bytes.len();
+        let payload_end = self.bytes.len();
+        let nested_records_end = self.group_nested_records_end(&group);
         let payload_start = group.payload_start();
         if cfg!(debug_assertions) {
             for_each_command(&self.bytes[group.content_start..nested_records_end], |header, _, _| {
@@ -304,7 +328,7 @@ impl DisplayListBuilder {
         }
         let inline_clips = group.suspended_inline_clips;
         let (path_spans, unpadded_payload_size) =
-            Self::place_inline_clip_paths(&inline_clips, nested_records_end - payload_start);
+            Self::place_inline_clip_paths(&inline_clips, payload_end - payload_start);
         let entries_size = Self::tail_entries_size(&inline_clips, None);
         let padded_record_size =
             (HEADER_SIZE + unpadded_payload_size + entries_size).next_multiple_of(COMMAND_ALIGNMENT);

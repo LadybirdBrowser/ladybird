@@ -11,7 +11,6 @@ pub mod delta;
 pub mod dirty;
 pub mod dump;
 pub mod incremental;
-pub mod nested;
 pub mod node_values;
 pub mod queries;
 pub mod reconcile;
