@@ -51,6 +51,8 @@ private:
     void play();
     void toggle_playback();
     void set_current_time(double);
+    void seek_while_scrubbing(double);
+    void submit_pending_scrub_seek();
     void set_volume(double);
     void toggle_mute();
     void toggle_fullscreen();
@@ -88,6 +90,8 @@ private:
         WhilePlaying,
     };
     Scrubbing m_scrubbing_timeline { Scrubbing::No };
+    Optional<double> m_pending_scrub_seek_time;
+    RefPtr<Core::Timer> m_scrub_seek_preemption_timer;
     bool m_scrubbing_volume { false };
     bool m_hovering_controls { false };
 

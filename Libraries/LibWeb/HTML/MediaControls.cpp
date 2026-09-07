@@ -169,6 +169,8 @@ void MediaControls::set_up_event_listeners()
     });
     add_event_listener(realm, media_element, HTML::EventNames::seeked, [this] {
         update_placeholder_visibility();
+        if (m_scrubbing_timeline != Scrubbing::No)
+            submit_pending_scrub_seek();
         return true;
     });
     add_event_listener(realm, media_element, HTML::EventNames::timeupdate, [this] {
@@ -249,7 +251,8 @@ void MediaControls::set_up_event_listeners()
             m_scrubbing_timeline = Scrubbing::WhilePlaying;
         }
 
-        set_current_time(*progress * duration);
+        m_pending_scrub_seek_time = *progress * duration;
+        submit_pending_scrub_seek();
         set_timeline_progress(*progress);
         set_timestamp(*progress * duration, duration);
 
@@ -265,7 +268,7 @@ void MediaControls::set_up_event_listeners()
             if (!progress.has_value())
                 return false;
 
-            set_current_time(*progress * duration);
+            seek_while_scrubbing(*progress * duration);
             set_timeline_progress(*progress);
             set_timestamp(*progress * duration, duration);
             return true;
@@ -277,6 +280,8 @@ void MediaControls::set_up_event_listeners()
 
             auto was_playing = m_scrubbing_timeline == Scrubbing::WhilePlaying;
             m_scrubbing_timeline = Scrubbing::No;
+            m_pending_scrub_seek_time.clear();
+            m_scrub_seek_preemption_timer.clear();
 
             auto duration = m_media_element->duration();
             auto progress = compute_timeline_progress(event, *m_dom->timeline_element, duration);
@@ -465,6 +470,33 @@ void MediaControls::set_current_time(double time)
     update_timeline();
     update_timestamp();
     show_controls();
+}
+
+void MediaControls::seek_while_scrubbing(double time)
+{
+    m_pending_scrub_seek_time = time;
+    if (m_media_element->seeking())
+        return;
+    submit_pending_scrub_seek();
+}
+
+void MediaControls::submit_pending_scrub_seek()
+{
+    if (!m_pending_scrub_seek_time.has_value())
+        return;
+    auto time = m_pending_scrub_seek_time.release_value();
+
+    if (!m_scrub_seek_preemption_timer) {
+        constexpr int scrub_seek_preemption_timeout_ms = 500;
+        m_scrub_seek_preemption_timer = Core::Timer::create_single_shot(scrub_seek_preemption_timeout_ms, [this] {
+            submit_pending_scrub_seek();
+        });
+        m_scrub_seek_preemption_timer->start();
+    } else {
+        m_scrub_seek_preemption_timer->restart();
+    }
+
+    set_current_time(time);
 }
 
 void MediaControls::set_volume(double volume)
