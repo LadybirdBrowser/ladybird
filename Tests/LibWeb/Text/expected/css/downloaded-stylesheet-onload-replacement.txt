@@ -1,0 +1,6 @@
+load 1: rgb(255, 0, 0)
+sheets: 1
+CSSOM mutation: rgb(0, 128, 0)
+load 2: rgb(0, 0, 255)
+sheets: 1
+content: "é😀"

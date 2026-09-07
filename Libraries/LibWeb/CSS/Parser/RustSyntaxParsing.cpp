@@ -6,10 +6,14 @@
 
 #include <AK/ScopeGuard.h>
 #include <AK/Utf16View.h>
+#include <LibCore/EventLoop.h>
+#include <LibGC/Root.h>
+#include <LibThreading/ThreadPool.h>
 #include <LibWeb/CSS/Parser/ErrorReporter.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/RustQueryParsing.h>
 #include <LibWeb/CSS/Parser/RustSyntaxParsing.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/StyleValueRustFFI.h>
 #include <LibWeb/ValueParserRustFFI.h>
 
@@ -428,13 +432,38 @@ static Rule rule(FfiSyntaxParseData const& data, size_t index)
     };
 }
 
-Vector<Rule> RustSyntaxParser::parse_stylesheet(Parser& parser)
+RustStyleSheetParse RustSyntaxParser::parse_stylesheet(Parser& parser)
 {
     auto context = parser.make_parse_context(Parser::ParseContextMode::Syntax);
-    auto* parse = rust_parse_css_stylesheet_syntax(ffi_utf16_view(parser.m_source), &context.context);
-    VERIFY(parse);
-    ScopeGuard free_parse = [&] { rust_css_syntax_parse_free(parse); };
-    auto data = rust_css_syntax_parse_data(parse);
+    return RustStyleSheetParse { rust_parse_css_stylesheet_syntax(ffi_utf16_view(parser.m_source), &context.context) };
+}
+
+void RustSyntaxParser::parse_stylesheet_off_thread(ParsingParams const& params, Utf16String source, Function<void(RustStyleSheetParse)> on_complete)
+{
+    auto parser = adopt_own(*new Parser(params, move(source)));
+    auto context = make<Parser::ParseContextStorage>(*parser, Parser::ParseContextMode::Syntax, Optional<PropertyID> {});
+    auto input = ffi_utf16_view(parser->m_source);
+    auto const* parse_context = &context->context;
+
+    // NB: Retain all borrowed input storage and GC roots on the main thread. The worker only
+    //     accesses the immutable source and context snapshots, plus this private parser's counter.
+    auto* callback = new Function<void(RustStyleSheetParse)>(
+        [parser = move(parser), context = move(context), document = GC::Root<DOM::Document const>::create(params.document.ptr()), on_complete = move(on_complete)](RustStyleSheetParse result) mutable {
+            on_complete(move(result));
+        });
+    auto& main_thread_event_loop = Core::EventLoop::current();
+    Threading::ThreadPool::the().submit([input, parse_context, callback, &main_thread_event_loop] {
+        RustStyleSheetParse result { rust_parse_css_stylesheet_syntax(input, parse_context) };
+        main_thread_event_loop.deferred_invoke([result = move(result), callback]() mutable {
+            (*callback)(move(result));
+            delete callback;
+        });
+    });
+}
+
+Vector<Rule> RustSyntaxParser::stylesheet_rules(RustStyleSheetParse const& parse)
+{
+    auto data = parse.data();
     report_diagnostics(data);
     Vector<Rule> result;
     result.ensure_capacity(data.root_count);

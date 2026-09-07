@@ -173,6 +173,8 @@ private:
     void process_linked_resource(bool success, Fetch::Infrastructure::Response const&, Core::ImmutableBytes const*);
     void process_icon_resource(bool success, Fetch::Infrastructure::Response const&, ByteBuffer);
     void process_stylesheet_resource(bool success, Fetch::Infrastructure::Response const&, ReadonlyBytes);
+    void finish_processing_stylesheet_resource(u64 fetch_generation);
+    void cancel_pending_stylesheet_processing();
 
     bool should_fetch_and_process_resource_type() const;
 
@@ -203,6 +205,7 @@ private:
     GC::Ptr<DOM::DOMTokenList> m_sizes;
     unsigned m_relationship { 0 };
     u64 m_current_fetch_generation { 0 };
+    bool m_stylesheet_processing_pending { false };
 
     // https://html.spec.whatwg.org/multipage/semantics.html#explicitly-enabled
     bool m_explicitly_enabled { false };

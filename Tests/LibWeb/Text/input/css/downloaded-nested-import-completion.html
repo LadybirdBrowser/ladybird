@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+    const cssURL = text => `data:text/css,${encodeURIComponent(text)}`;
+    const leafURL = cssURL('.é😀 { color: rgb(1, 2, 3); --text: "é😀" }');
+    const middleURL = cssURL(`@import url("${leafURL}");`);
+    const importedStyle = document.createElement("style");
+    importedStyle.textContent = `@import url("${middleURL}");`;
+    document.head.append(importedStyle);
+
+    asyncTest(done => {
+        window.addEventListener("load", () => {
+            const middle = importedStyle.sheet.cssRules[0].styleSheet;
+            const importRule = middle.cssRules[0];
+            const leaf = importRule.styleSheet;
+            const target = document.querySelector(".é😀");
+            println(`nested sheet ready: ${leaf !== null}`);
+            println(`owner rule preserved: ${leaf.ownerRule === importRule}`);
+            println(`color at load: ${getComputedStyle(target).color}`);
+            println(`UTF-16 value: ${leaf.cssRules[0].style.getPropertyValue("--text")}`);
+            leaf.cssRules[0].style.color = "rgb(4, 5, 6)";
+            println(`CSSOM mutation: ${getComputedStyle(target).color}`);
+            done();
+        }, { once: true });
+    });
+</script>
+<div class="é😀">target</div>

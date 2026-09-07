@@ -9,6 +9,7 @@
 #include <LibThreading/Thread.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
+#include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/SelectorRustFFI.h>
 #include <LibWeb/StyleValueRustFFI.h>
 #include <LibWeb/ValueParserRustFFI.h>
@@ -134,6 +135,189 @@ TEST_CASE(retain_parsed_declarations_independently)
     ValueParserFFI::rust_css_syntax_parse_free(retained_parse);
     EXPECT_EQ(StyleValueFFI::rust_style_value_computed_length_value(second), 13.0);
     StyleValueFFI::rust_style_value_release(second);
+}
+
+TEST_CASE(publish_parse_result_after_worker_exit)
+{
+    IGNORE_USE_IN_ESCAPING_LAMBDA ValueParserFFI::FfiSyntaxParse* parse = nullptr;
+    auto thread = Threading::Thread::construct("CSS parser"sv, [&] {
+        auto source = Utf16String::from_utf16(u".é😀 { width: 13px; --é😀: value }"sv);
+        auto view = source.utf16_view();
+        ValueParserFFI::ParseContext context {};
+        parse = ValueParserFFI::rust_parse_css_stylesheet_syntax(
+            { nullptr, reinterpret_cast<u16 const*>(view.utf16_span().data()), view.length_in_code_units() }, &context);
+        return 0;
+    });
+    thread->start();
+    MUST(thread->join());
+
+    VERIFY(parse);
+    auto data = ValueParserFFI::rust_css_syntax_parse_data(parse);
+    EXPECT_EQ(data.rule_count, 1u);
+    EXPECT_EQ(data.declaration_count, 2u);
+    VERIFY(data.rule_count == 1 && data.declaration_count == 2);
+    EXPECT(data.rules[0].selector_list);
+    auto const& declaration = data.declarations[1];
+    EXPECT_EQ((Utf16View { reinterpret_cast<char16_t const*>(data.values + declaration.name_offset), declaration.name_length }), u"--é😀"sv);
+    auto* value = static_cast<StyleValueFFI::StyleValueData const*>(data.declarations[0].parsed_value);
+    VERIFY(value);
+    EXPECT_EQ(StyleValueFFI::rust_style_value_computed_length_value(value), 13.0);
+    ValueParserFFI::rust_css_syntax_parse_free(parse);
+}
+
+TEST_CASE(share_parsed_stylesheet_between_threads)
+{
+    auto source = u".é😀 { width: 13px } @supports (display: grid) { a { height: 7px } } @property --size { syntax: '<length>'; inherits: false; initial-value: 3px } @page :left { margin: 2px }"sv;
+    ValueParserFFI::ParseContext context {};
+    auto* parse = ValueParserFFI::rust_parse_css_stylesheet_syntax(
+        { nullptr, reinterpret_cast<u16 const*>(source.utf16_span().data()), source.length_in_code_units() }, &context);
+    VERIFY(parse);
+    auto data = ValueParserFFI::rust_css_syntax_parse_data(parse);
+    VERIFY(data.declaration_count > 0);
+    auto* expected_value = data.declarations[0].parsed_value;
+    auto* expected_text = data.values;
+    auto make_thread = [&] {
+        auto* shared = ValueParserFFI::rust_css_syntax_parse_share(parse);
+        return Threading::Thread::construct("CSS consumer"sv, [shared, expected_value, expected_text] {
+            auto view = ValueParserFFI::rust_css_syntax_parse_data(shared);
+            VERIFY(view.values == expected_text);
+            VERIFY(view.declaration_count > 0);
+            VERIFY(view.declarations[0].parsed_value == expected_value);
+            VERIFY(StyleValueFFI::rust_style_value_computed_length_value(static_cast<StyleValueFFI::StyleValueData const*>(expected_value)) == 13.0);
+            bool saw_selectors = false;
+            bool saw_syntax = false;
+            bool saw_page_selectors = false;
+            bool saw_supports = false;
+            for (size_t index = 0; index < view.rule_count; ++index) {
+                auto const& rule = view.rules[index];
+                if (rule.selector_list) {
+                    auto* selectors = static_cast<SelectorFFI::RustParsedSelectorList const*>(rule.selector_list);
+                    VERIFY(SelectorFFI::rust_parsed_selector_list_length(selectors) == 1);
+                    saw_selectors = true;
+                }
+                if (rule.parsed_prelude_syntax) {
+                    VERIFY(ValueParserFFI::rust_syntax_is_single_component(rule.parsed_prelude_syntax));
+                    saw_syntax = true;
+                }
+                if (rule.page_selector_list) {
+                    auto page_selectors = ValueParserFFI::rust_page_selector_list_data(rule.page_selector_list);
+                    VERIFY(page_selectors.selector_count == 1);
+                    saw_page_selectors = true;
+                }
+            }
+            for (size_t index = 0; index < view.prelude_item_count; ++index) {
+                if (auto* query = view.prelude_items[index].query) {
+                    VERIFY(ValueParserFFI::css_query_evaluate_supports(static_cast<ValueParserFFI::FfiQueryHandle const*>(query)) == 1);
+                    saw_supports = true;
+                }
+            }
+            VERIFY(saw_selectors && saw_syntax && saw_page_selectors && saw_supports);
+            auto second_view = ValueParserFFI::rust_css_syntax_parse_data(shared);
+            VERIFY(view.declarations == second_view.declarations);
+            VERIFY(view.rules == second_view.rules);
+            ValueParserFFI::rust_css_syntax_parse_free(shared);
+            return 0;
+        });
+    };
+    auto first = make_thread();
+    auto second = make_thread();
+    ValueParserFFI::rust_css_syntax_parse_free(parse);
+    first->start();
+    second->start();
+    MUST(first->join());
+    MUST(second->join());
+}
+
+TEST_CASE(cache_stylesheets_by_text_and_parsing_context)
+{
+    auto source = u".é😀 { width: 13px; background-image: url(image.png) }"sv;
+    auto parse = [&](ValueParserFFI::ParseContext const& context) {
+        return ValueParserFFI::rust_parse_css_stylesheet_syntax(
+            { nullptr, reinterpret_cast<u16 const*>(source.utf16_span().data()), source.length_in_code_units() }, &context);
+    };
+    ValueParserFFI::ParseContext context {};
+    auto* first = parse(context);
+    auto* second = parse(context);
+    auto data = ValueParserFFI::rust_css_syntax_parse_data(first);
+    auto second_data = ValueParserFFI::rust_css_syntax_parse_data(second);
+    EXPECT_EQ(data.values, second_data.values);
+    EXPECT_NE(data.declarations, second_data.declarations);
+
+    context.in_quirks_mode = true;
+    auto* quirks = parse(context);
+    EXPECT_NE(data.values, ValueParserFFI::rust_css_syntax_parse_data(quirks).values);
+    context.in_quirks_mode = false;
+
+    auto base_url = "https://example.com/directory/"sv;
+    context.document_base_url = reinterpret_cast<u8 const*>(base_url.characters_without_null_termination());
+    context.document_base_url_length = base_url.length();
+    auto* with_base_url = parse(context);
+    EXPECT_NE(data.values, ValueParserFFI::rust_css_syntax_parse_data(with_base_url).values);
+    context.document_base_url = nullptr;
+    context.document_base_url_length = 0;
+
+    ComputedValuesFFI::FfiLengthResolutionContext lengths {};
+    context.length_resolution_context = &lengths;
+    auto* with_lengths = parse(context);
+    lengths.viewport_width = 800;
+    auto* resized = parse(context);
+    EXPECT_NE(ValueParserFFI::rust_css_syntax_parse_data(with_lengths).values, ValueParserFFI::rust_css_syntax_parse_data(resized).values);
+    bool resolved_viewport_length = false;
+    lengths.resolved_viewport_relative_length = &resolved_viewport_length;
+    auto* tracked = parse(context);
+    auto* tracked_again = parse(context);
+    EXPECT_NE(ValueParserFFI::rust_css_syntax_parse_data(tracked).values, ValueParserFFI::rust_css_syntax_parse_data(tracked_again).values);
+    context.length_resolution_context = nullptr;
+
+    size_t random_index = 7;
+    context.random_function_index = &random_index;
+    auto* with_counter = parse(context);
+    auto final_index = random_index;
+    random_index = 7;
+    auto* with_counter_again = parse(context);
+    EXPECT_EQ(random_index, final_index);
+    EXPECT_EQ(ValueParserFFI::rust_css_syntax_parse_data(with_counter).values, ValueParserFFI::rust_css_syntax_parse_data(with_counter_again).values);
+
+    for (auto* sheet : { first, second, quirks, with_base_url, with_lengths, resized, tracked, tracked_again, with_counter, with_counter_again })
+        ValueParserFFI::rust_css_syntax_parse_free(sheet);
+}
+
+TEST_CASE(cache_stylesheets_across_native_string_representations)
+{
+    auto ascii = ".cached { width: 13px }"sv;
+    auto utf16 = u".cached { width: 13px }"sv;
+    ValueParserFFI::ParseContext context {};
+    auto* first = ValueParserFFI::rust_parse_css_stylesheet_syntax(
+        { reinterpret_cast<u8 const*>(ascii.characters_without_null_termination()), nullptr, ascii.length() }, &context);
+    auto* second = ValueParserFFI::rust_parse_css_stylesheet_syntax(
+        { nullptr, reinterpret_cast<u16 const*>(utf16.utf16_span().data()), utf16.length_in_code_units() }, &context);
+    EXPECT_EQ(ValueParserFFI::rust_css_syntax_parse_data(first).values, ValueParserFFI::rust_css_syntax_parse_data(second).values);
+    ValueParserFFI::rust_css_syntax_parse_free(first);
+    ValueParserFFI::rust_css_syntax_parse_free(second);
+}
+
+TEST_CASE(stylesheet_cache_does_not_keep_graphs_alive)
+{
+    auto source = u".weak-cache-owner { width: 13px }"sv;
+    ValueParserFFI::ParseContext context {};
+    auto parse = [&] {
+        return ValueParserFFI::rust_parse_css_stylesheet_syntax(
+            { nullptr, reinterpret_cast<u16 const*>(source.utf16_span().data()), source.length_in_code_units() }, &context);
+    };
+    auto* first = parse();
+    auto data = ValueParserFFI::rust_css_syntax_parse_data(first);
+    VERIFY(data.declaration_count == 1);
+    auto* retained_value = StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(data.declarations[0].parsed_value));
+    ValueParserFFI::rust_css_syntax_parse_free(first);
+
+    auto* second = parse();
+    auto second_data = ValueParserFFI::rust_css_syntax_parse_data(second);
+    VERIFY(second_data.declaration_count == 1);
+    // Keeping one value alive must not keep its entire originating parse in the cache.
+    EXPECT_NE(second_data.declarations[0].parsed_value, retained_value);
+    EXPECT_EQ(StyleValueFFI::rust_style_value_computed_length_value(retained_value), 13.0);
+    StyleValueFFI::rust_style_value_release(retained_value);
+    ValueParserFFI::rust_css_syntax_parse_free(second);
 }
 
 TEST_CASE(bind_parsed_selectors_independently)

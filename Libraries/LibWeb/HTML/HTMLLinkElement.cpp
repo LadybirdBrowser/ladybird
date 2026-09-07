@@ -95,6 +95,7 @@ void HTMLLinkElement::inserted()
 void HTMLLinkElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, Node& old_root)
 {
     Base::removed_from(is_subtree_root, old_ancestor, old_root);
+    cancel_pending_stylesheet_processing();
 
     if (m_loaded_style_sheet) {
         // NB: We can't use `old_root` here. When this link element is nested
@@ -444,6 +445,8 @@ GC::Ptr<Fetch::Infrastructure::Request> HTMLLinkElement::create_link_request(HTM
 void HTMLLinkElement::fetch_and_process_linked_resource()
 {
     auto fetch_generation = ++m_current_fetch_generation;
+
+    cancel_pending_stylesheet_processing();
 
     if (m_fetch_controller) {
         m_fetch_controller->stop_fetch();
@@ -1002,6 +1005,7 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
 {
     if (!document().is_fully_active())
         return;
+    auto fetch_generation = m_current_fetch_generation;
 
     // 1. If the resource's Content-Type metadata is not text/css, then set success to false.
     auto mime_type_string = m_mime_type;
@@ -1069,28 +1073,50 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
             dispatch_event(create_event_for_element(*this, HTML::EventNames::error));
         } else {
             VERIFY(!response.url_list().is_empty());
-            auto media = attribute(HTML::AttributeNames::media);
-            auto media_value = media.has_value() ? media->utf16_view() : u""sv;
-            auto title = in_a_document_tree() ? attribute(HTML::AttributeNames::title) : Optional<Utf16String> {};
-            m_loaded_style_sheet = document_or_shadow_root_style_sheets().create_a_css_style_sheet(
-                maybe_decoded_string.release_value(),
-                this,
-                media_value,
-                title.has_value() ? title.release_value() : Utf16String {},
-                (m_relationship & Relationship::Alternate && !m_explicitly_enabled) ? CSS::StyleSheetList::Alternate::Yes : CSS::StyleSheetList::Alternate::No,
-                CSS::StyleSheetList::OriginClean::Yes,
-                response.url_list().first(),
-                nullptr,
-                nullptr);
+            m_stylesheet_processing_pending = true;
+            CSS::Parser::RustSyntaxParser::parse_stylesheet_off_thread(
+                CSS::Parser::ParsingParams { document() }, maybe_decoded_string.release_value(),
+                [link = GC::make_root(*this), loaded_document = GC::make_root(document()), fetch_generation = m_current_fetch_generation, location = response.url_list().first()](CSS::Parser::RustStyleSheetParse parsed) mutable {
+                    if (fetch_generation != link->m_current_fetch_generation || !link->m_stylesheet_processing_pending)
+                        return;
+                    // NB: An inactive document's element tasks cannot run. Release its result here.
+                    if (&link->document() != loaded_document.ptr() || !loaded_document->is_fully_active()) {
+                        loaded_document->remove_from_script_blocking_style_sheet_set(*link);
+                        link->cancel_pending_stylesheet_processing();
+                        return;
+                    }
+                    link->queue_an_element_task(Task::Source::Networking,
+                        [link = move(link), loaded_document = move(loaded_document), fetch_generation, location = move(location), parsed = move(parsed)] {
+                            if (fetch_generation != link->m_current_fetch_generation || !link->m_stylesheet_processing_pending)
+                                return;
+                            if (&link->document() != loaded_document.ptr() || !loaded_document->is_fully_active()
+                                || !link->is_browsing_context_connected() || !(link->m_relationship & Relationship::Stylesheet)) {
+                                loaded_document->remove_from_script_blocking_style_sheet_set(*link);
+                                link->finish_processing_stylesheet_resource(fetch_generation);
+                                return;
+                            }
 
-            // NB: Removing the disabled attribute explicitly enables the style sheet, regardless of which style sheet
-            //     set is currently preferred. Creating the sheet may have disabled it based on its title, so restore
-            //     the state requested by the link element.
-            if (m_explicitly_enabled)
-                m_loaded_style_sheet->set_disabled(false);
+                            auto parser = CSS::Parser::Parser::create(CSS::Parser::ParsingParams { *loaded_document }, u""sv);
+                            auto sheet = parser.create_css_stylesheet(parsed, location);
+                            auto media = link->attribute(HTML::AttributeNames::media);
+                            auto title = link->in_a_document_tree() ? link->attribute(HTML::AttributeNames::title) : Optional<Utf16String> {};
+                            link->document_or_shadow_root_style_sheets().initialize_a_css_style_sheet(
+                                *sheet, link.ptr(), media.has_value() ? media->utf16_view() : u""sv,
+                                title.has_value() ? title.release_value() : Utf16String {},
+                                (link->m_relationship & Relationship::Alternate && !link->m_explicitly_enabled) ? CSS::StyleSheetList::Alternate::Yes : CSS::StyleSheetList::Alternate::No,
+                                CSS::StyleSheetList::OriginClean::Yes, nullptr, nullptr);
+                            link->m_loaded_style_sheet = sheet;
 
-            // 2. Fire an event named load at el.
-            dispatch_event(create_event_for_element(*this, HTML::EventNames::load));
+                            // NB: Removing disabled explicitly enables the sheet, even if its title would disable it.
+                            if (link->m_explicitly_enabled)
+                                sheet->set_disabled(false);
+
+                            // 2. Fire an event named load at el.
+                            link->dispatch_event(create_event_for_element(*link, HTML::EventNames::load));
+                            link->finish_processing_stylesheet_resource(fetch_generation);
+                        });
+                });
+            return;
         }
     }
     // 5. Otherwise, fire an event named error at el.
@@ -1098,8 +1124,23 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
         dispatch_event(create_event_for_element(*this, HTML::EventNames::error));
     }
 
+    finish_processing_stylesheet_resource(fetch_generation);
+}
+
+void HTMLLinkElement::cancel_pending_stylesheet_processing()
+{
+    if (!m_stylesheet_processing_pending)
+        return;
+    m_stylesheet_processing_pending = false;
+    document().remove_from_script_blocking_style_sheet_set(*this);
+    unblock_rendering();
+    m_document_load_event_delayer.clear();
+}
+
+void HTMLLinkElement::finish_processing_stylesheet_resource(u64 fetch_generation)
+{
     // 6. If el contributes a script-blocking style sheet, then:
-    if (contributes_a_script_blocking_style_sheet()) {
+    if (document().script_blocking_style_sheet_set().contains(*this)) {
         // 1. Assert: el's node document's script-blocking style sheet set contains el.
         VERIFY(document().script_blocking_style_sheet_set().contains(*this));
 
@@ -1109,6 +1150,11 @@ void HTMLLinkElement::process_stylesheet_resource(bool success, Fetch::Infrastru
 
     // 7. Unblock rendering on el.
     unblock_rendering();
+
+    // NB: Loading completion is element-based, but a newer parse may already be pending after
+    //     event dispatch. Do not mark that worker result as canceled.
+    if (fetch_generation == m_current_fetch_generation)
+        m_stylesheet_processing_pending = false;
 
     if (m_loaded_style_sheet) {
         auto style_sheet_loading_state = m_loaded_style_sheet->loading_state();

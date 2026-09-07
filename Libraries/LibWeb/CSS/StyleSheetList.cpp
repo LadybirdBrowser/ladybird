@@ -56,8 +56,9 @@ void StyleSheetList::add_a_css_style_sheet(CSS::CSSStyleSheet& sheet, StyleEngin
     // HTML specification says that the title element must be specified with a non-empty value for alternative style sheets.
     // See: https://html.spec.whatwg.org/multipage/links.html#the-link-is-an-alternative-stylesheet
     if ((sheet.title().is_empty() && !sheet.is_alternate())
-        || (!m_last_css_style_sheet_set_name.has_value() && sheet.title().equals_ignoring_ascii_case(m_preferred_css_style_sheet_set_name))
-        || (m_last_css_style_sheet_set_name.has_value() && sheet.title().equals_ignoring_ascii_case(m_last_css_style_sheet_set_name.value()))) {
+        || (!sheet.title().is_empty()
+            && ((!m_last_css_style_sheet_set_name.has_value() && sheet.title().equals_ignoring_ascii_case(m_preferred_css_style_sheet_set_name))
+                || (m_last_css_style_sheet_set_name.has_value() && sheet.title().equals_ignoring_ascii_case(m_last_css_style_sheet_set_name.value()))))) {
         sheet.set_disabled(false);
         return;
     }
@@ -72,19 +73,22 @@ GC::Ref<CSSStyleSheet> StyleSheetList::create_a_css_style_sheet(Utf16View css_te
     // 1. Create a new CSS style sheet object and set its properties as specified.
     // AD-HOC: The spec never tells us when to parse this style sheet, but the most logical place is here.
     auto sheet = parse_css_stylesheet(Parser::ParsingParams { document() }, css_text, location);
+    initialize_a_css_style_sheet(*sheet, owner_node, media, move(title), alternate, origin_clean, parent_style_sheet, owner_rule, style_engine_update);
+    return sheet;
+}
 
-    sheet->set_parent_css_style_sheet(parent_style_sheet);
-    sheet->set_owner_css_rule(owner_rule);
-    sheet->set_owner_node(owner_node);
-    sheet->set_media(move(media));
-    sheet->set_title(move(title));
-    sheet->set_alternate(alternate == Alternate::Yes);
-    sheet->set_origin_clean(origin_clean == OriginClean::Yes);
+void StyleSheetList::initialize_a_css_style_sheet(CSSStyleSheet& sheet, DOM::Element* owner_node, Utf16View media, Utf16String title, Alternate alternate, OriginClean origin_clean, CSSStyleSheet* parent_style_sheet, CSSRule* owner_rule, StyleEngineUpdate style_engine_update)
+{
+    sheet.set_parent_css_style_sheet(parent_style_sheet);
+    sheet.set_owner_css_rule(owner_rule);
+    sheet.set_owner_node(owner_node);
+    sheet.set_media(move(media));
+    sheet.set_title(move(title));
+    sheet.set_alternate(alternate == Alternate::Yes);
+    sheet.set_origin_clean(origin_clean == OriginClean::Yes);
 
     // 2. Then run the add a CSS style sheet steps for the newly created CSS style sheet.
-    add_a_css_style_sheet(*sheet, style_engine_update);
-
-    return sheet;
+    add_a_css_style_sheet(sheet, style_engine_update);
 }
 
 void StyleSheetList::add_sheet(CSSStyleSheet& sheet, StyleEngineUpdate style_engine_update)
