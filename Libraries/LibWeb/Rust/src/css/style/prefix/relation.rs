@@ -434,6 +434,10 @@ impl PrefixRelation {
                 }
             }
         }
+        // Transaction rows can come from several fact stores. Intern within each store so
+        // representative row indices are never interpreted in another store's columns.
+        let mut local_facts = HashMap::default();
+        let mut local_matches = HashMap::default();
         for &node in changed_nodes {
             let Some(&position) = node
                 .element_index()
@@ -461,37 +465,46 @@ impl PrefixRelation {
                 0
             };
             self.positional[position] = positional;
+            let store = std::ptr::from_ref(row.facts);
+            let identity = local_facts
+                .entry(store)
+                .or_insert_with(super::LocalFactInterner::new)
+                .intern(row.facts, row.row, counters);
+            let is_root = evaluation.tree.parent(node).is_none();
             for key in &keys {
                 let Some(compounds) = self.compounds_by_key.get(key) else {
                     continue;
                 };
                 for &index in compounds {
                     let compound = &automaton.compounds[index];
-                    counters.bump(Counter::PrefixCompoundsEvaluated);
-                    let matched = self.live[position]
-                        && match &compound.predicate {
-                            PrefixPredicate::Features {
-                                feature_start,
-                                feature_len,
-                                required_positional_bits,
-                            } => {
-                                positional & required_positional_bits == *required_positional_bits
-                                    && automaton
-                                        .features_for(*feature_start, *feature_len)
-                                        .iter()
-                                        .all(|&feature| matches_feature(row.facts, row.row, feature))
+                    let matched = *local_matches
+                        .entry((store, identity, is_root, positional, index))
+                        .or_insert_with(|| {
+                            counters.bump(Counter::PrefixCompoundsEvaluated);
+                            match &compound.predicate {
+                                PrefixPredicate::Features {
+                                    feature_start,
+                                    feature_len,
+                                    required_positional_bits,
+                                } => {
+                                    positional & required_positional_bits == *required_positional_bits
+                                        && automaton
+                                            .features_for(*feature_start, *feature_len)
+                                            .iter()
+                                            .all(|&feature| matches_feature(row.facts, row.row, feature))
+                                }
+                                PrefixPredicate::Program { program, local } => evaluation
+                                    .evaluator
+                                    .matches_prefix_local(
+                                        *program,
+                                        evaluation.programs.get(*program),
+                                        *local,
+                                        node,
+                                        counters,
+                                    )
+                                    .unwrap(),
                             }
-                            PrefixPredicate::Program { program, local } => evaluation
-                                .evaluator
-                                .matches_prefix_local(
-                                    *program,
-                                    evaluation.programs.get(*program),
-                                    *local,
-                                    node,
-                                    counters,
-                                )
-                                .unwrap(),
-                        };
+                        });
                     if self.compound_matches[index].binary_search(&position).is_ok() != matched {
                         changed_compounds.entry(index).or_default().push(position);
                     }

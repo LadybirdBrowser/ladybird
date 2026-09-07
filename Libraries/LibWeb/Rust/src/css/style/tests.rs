@@ -5156,7 +5156,7 @@ fn update_test_prefix_relation(
     old_facts: &StyleNodeFacts,
     changed: &[StyleNodeID],
     geometry_root: Option<StyleNodeID>,
-) {
+) -> Counters {
     let workspace = MatchEvaluationWorkspace::default();
     let facts = engine.facts.primary();
     let evaluator =
@@ -5204,10 +5204,11 @@ fn update_test_prefix_relation(
         &changed,
         &mut counters,
     );
+    counters
 }
 
 #[test]
-fn prefix_relation_construction_reuses_local_facts_without_sharing_position() {
+fn prefix_relation_reuses_local_facts_without_sharing_position() {
     let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
     let mut raw = [0; 65];
     engine.allocate_style_nodes(&mut raw);
@@ -5253,11 +5254,18 @@ fn prefix_relation_construction_reuses_local_facts_without_sharing_position() {
     }
     discard_transaction(&mut engine);
     let before = engine.counters.get(Counter::PrefixCompoundsEvaluated);
-    let (_, relation) = test_prefix_relation(&mut engine, nodes[0]);
+    let (dispatch, mut relation) = test_prefix_relation(&mut engine, nodes[0]);
     let evaluations = engine.counters.get(Counter::PrefixCompoundsEvaluated) - before;
     assert!(
         evaluations < 16,
         "repeated local facts required {evaluations} evaluations"
+    );
+    let old_facts = engine.facts.primary().clone();
+    let counters = update_test_prefix_relation(&engine, &dispatch, &mut relation, &old_facts, &nodes, None);
+    let evaluations = counters.get(Counter::PrefixCompoundsEvaluated);
+    assert!(
+        evaluations < 16,
+        "repeated local facts required {evaluations} update evaluations"
     );
     let mut states = PrefixStates::new(0);
     relation.install_answers(&mut states);
@@ -5340,31 +5348,30 @@ fn prefix_relation_local_fact_cache_separates_predicates_and_tracks_changes() {
             );
         }
 
-        // Move one element between fact groups in each direction. Other members
-        // must keep their answers, and rebuilding must agree with the update.
+        // Move every element between fact groups. Shared positive and negative
+        // answers must change, and rebuilding must agree with the update.
         let old_facts = engine.facts.primary().clone();
-        add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(selected));
-        remove_feature(&mut engine, nodes[2], LocalFeatureKey::Class(selected));
+        for (index, &node) in nodes.iter().enumerate() {
+            if index % 2 == 0 {
+                remove_feature(&mut engine, node, LocalFeatureKey::Class(selected));
+            } else {
+                add_feature(&mut engine, node, LocalFeatureKey::Class(selected));
+            }
+        }
         discard_transaction(&mut engine);
-        update_test_prefix_relation(
-            &engine,
-            &dispatch,
-            &mut relation,
-            &old_facts,
-            &[nodes[1], nodes[2]],
-            None,
+        let counters = update_test_prefix_relation(&engine, &dispatch, &mut relation, &old_facts, &nodes, None);
+        let evaluations = counters.get(Counter::PrefixCompoundsEvaluated);
+        assert!(
+            evaluations < 16,
+            "repeated local facts required {evaluations} update evaluations"
         );
-        assert_eq!(relation.changed_answers.len(), 2);
+        assert_eq!(relation.changed_answers.len(), nodes.len());
         relation.install_answers(&mut states);
         let (_, rebuilt) = test_prefix_relation(&mut engine, nodes[0]);
         let mut rebuilt_states = PrefixStates::new(0);
         rebuilt.install_answers(&mut rebuilt_states);
         for (index, &node) in nodes.iter().enumerate() {
-            let selected = match index {
-                1 => true,
-                2 => false,
-                _ => index % 2 == 0,
-            };
+            let selected = index % 2 != 0;
             let matches = states.retained_matches_for(node).unwrap();
             assert_eq!(matches.len(), 1 + usize::from(selected != negate));
             assert_eq!(matches, rebuilt_states.retained_matches_for(node).unwrap());
