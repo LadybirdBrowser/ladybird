@@ -469,6 +469,17 @@ impl ComputedLonghandTable {
         self.metadata.effective_color_scheme
     }
 
+    /// Only the values and their hash sum carry over from `source`; flags, provenance, metadata and
+    /// the inheritance-dependent records start fresh, as for a drive from an empty table.
+    pub(crate) fn seeded_with_values_from(source: &ComputedLonghandTable) -> Self {
+        ffi_stats::bump(FfiOp::LonghandTableClone);
+        let mut table = Self::new();
+        table.storage.slots.clone_from(&source.storage.slots);
+        table.storage.value_view.clone_from(&source.storage.value_view);
+        table.slot_hash_sum.set(source.slot_hash_sum.get());
+        table
+    }
+
     pub(crate) fn copied_for_drive(source: &ComputedLonghandTable) -> Self {
         let mut table = Self::new();
         table.copy_values_and_metadata_from(source);
@@ -1377,5 +1388,21 @@ mod tests {
             Some(&[property_id::OPACITY][..])
         );
         assert_eq!(resolutions, 1);
+    }
+
+    #[test]
+    fn seeded_table_carries_only_the_source_values() {
+        let mut source = ComputedLonghandTable::new();
+        source.set(property_id::OPACITY, retained_number(0.5), 7);
+        source.set_important(property_id::OPACITY, true);
+        let seeded = ComputedLonghandTable::seeded_with_values_from(&source);
+        assert_eq!(
+            seeded.get(property_id::OPACITY).unwrap().pointer(),
+            source.get(property_id::OPACITY).unwrap().pointer()
+        );
+        assert_eq!(seeded.slot_hash_sum(), source.slot_hash_sum());
+        assert_eq!(seeded.source_slot(property_id::OPACITY), None);
+        assert!(!seeded.is_important(property_id::OPACITY));
+        assert!(seeded.evaluated_bits().iter().all(|&bits| bits == 0));
     }
 }

@@ -5064,7 +5064,12 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
             .expect("a partial style drive must have a previous style record");
         previous_style.longhand_table_for_partial_drive()
     } else {
-        ComputedLonghandTable::new()
+        // An element that already has a style starts from that style's values, so a longhand
+        // computing to the same value keeps it instead of allocating and hashing a fresh copy.
+        previous_style
+            .as_ref()
+            .and_then(|view| view.longhand_table_seeded_with_values())
+            .unwrap_or_else(ComputedLonghandTable::new)
     };
     unsafe {
         (input.prepare_longhand_drive)(
