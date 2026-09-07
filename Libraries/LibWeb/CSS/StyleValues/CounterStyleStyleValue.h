@@ -33,11 +33,11 @@ public:
     {
         auto const& data = m_value->counter_style;
         if (!data.is_symbols)
-            return Utf16FlyString::from_raw(data.name.raw);
+            return css_string_from_rust(&data.name);
         Vector<Utf16FlyString> symbols;
         symbols.ensure_capacity(data.symbols.length);
         for (size_t i = 0; i < data.symbols.length; ++i)
-            symbols.unchecked_append(Utf16FlyString::from_raw(data.symbols.pointer[i].raw));
+            symbols.unchecked_append(css_string_from_rust(&data.symbols.pointer[i]));
         return SymbolsFunction { static_cast<SymbolsType>(data.symbols_type), move(symbols) };
     }
 

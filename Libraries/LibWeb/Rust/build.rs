@@ -2851,12 +2851,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     // an FFI call.
     let mut style_value_config = base_config.clone();
     style_value_config.namespaces = Some(vec!["Web".to_string(), "CSS".to_string(), "StyleValueFFI".to_string()]);
-    style_value_config.export.include = vec!["StyleValueData".to_string()];
+    style_value_config.export.include = vec!["StyleValueData".to_string(), "RetainedGridTrackEntry".to_string()];
 
     generate_ffi_header(
         style_value_config,
         &[
             manifest_dir.join("src/css/style_value.rs"),
+            manifest_dir.join("src/css/css_string.rs"),
             manifest_dir.join("src/css/retained_fly_string.rs"),
             manifest_dir.join("src/css/color_interpolation.rs"),
             manifest_dir.join("src/css/animation.rs"),

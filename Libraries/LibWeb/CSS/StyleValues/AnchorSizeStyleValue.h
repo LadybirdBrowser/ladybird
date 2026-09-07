@@ -21,7 +21,7 @@ public:
     {
         if (!m_value->anchor_size.has_anchor_name)
             return {};
-        return Utf16FlyString::from_raw(m_value->anchor_size.anchor_name.raw);
+        return css_string_from_rust(&m_value->anchor_size.anchor_name);
     }
     Optional<AnchorSize> anchor_size() const
     {

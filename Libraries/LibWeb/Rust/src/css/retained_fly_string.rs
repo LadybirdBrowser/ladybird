@@ -96,6 +96,15 @@ impl PartialEq for RetainedUtf16FlyString {
 
 impl Eq for RetainedUtf16FlyString {}
 
+impl<'a> From<&'a RetainedUtf16FlyString> for crate::css::css_tokenizer::TokenizerInput<'a> {
+    fn from(string: &'a RetainedUtf16FlyString) -> Self {
+        match unsafe { ak::utf16_string_units(string.raw_word()) } {
+            ak::Utf16StringUnits::Ascii(bytes) => Self::Ascii(bytes),
+            ak::Utf16StringUnits::Utf16(units) => Self::Utf16(units),
+        }
+    }
+}
+
 impl std::fmt::Debug for RetainedUtf16FlyString {
     fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         formatter
@@ -115,19 +124,6 @@ pub struct RetainedUtf16FlyStringList {
 impl RetainedUtf16FlyStringList {
     pub(crate) fn from_retained_strings(strings: Vec<RetainedUtf16FlyString>) -> Self {
         let slice = strings.into_boxed_slice();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice) as *mut RetainedUtf16FlyString;
-        Self { pointer, length }
-    }
-
-    /// Takes ownership of one leaked reference to each string.
-    ///
-    /// # Safety
-    /// `strings` must point to `length` valid leaked string raws.
-    pub(crate) unsafe fn from_raw(strings: *const usize, length: usize) -> Self {
-        let slice: Box<[RetainedUtf16FlyString]> = (0..length)
-            .map(|i| unsafe { RetainedUtf16FlyString::from_leaked_raw(*strings.add(i)) })
-            .collect();
         let length = slice.len();
         let pointer = Box::into_raw(slice) as *mut RetainedUtf16FlyString;
         Self { pointer, length }

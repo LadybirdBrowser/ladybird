@@ -23,7 +23,7 @@ public:
     {
         if (!m_value->anchor.has_anchor_name)
             return {};
-        return Utf16FlyString::from_raw(m_value->anchor.anchor_name.raw);
+        return css_string_from_rust(&m_value->anchor.anchor_name);
     }
     ValueComparingNonnullRefPtr<StyleValue const> anchor_side() const
     {

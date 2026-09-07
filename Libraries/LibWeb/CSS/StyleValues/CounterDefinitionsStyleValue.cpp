@@ -22,7 +22,7 @@ Vector<CounterDefinition> CounterDefinitionsStyleValue::counter_definitions() co
     for (size_t i = 0; i < list.length; ++i) {
         auto const& definition = list.pointer[i];
         counter_definitions.unchecked_append(CounterDefinition {
-            .name = Utf16FlyString::from_raw(definition.name.raw),
+            .name = css_string_from_rust(&definition.name),
             .is_reversed = definition.is_reversed,
             .value = wrap_rust_child_or_null(definition.value),
         });

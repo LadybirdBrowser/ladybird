@@ -71,6 +71,6 @@
         println(`string-bearing family: ${getComputedStyle(stringBearing).fontFamily}`);
 
         const stringBearingCounters = internals.styleFfiCounters();
-        println(`string-bearing callback parse: ${stringBearingCounters.substitutionCallbackParseRequests > registeredCounters.substitutionCallbackParseRequests}`);
+        println(`string-bearing callback parse requests: ${stringBearingCounters.substitutionCallbackParseRequests - registeredCounters.substitutionCallbackParseRequests}`);
     });
 </script>

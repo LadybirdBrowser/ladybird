@@ -18,11 +18,6 @@
 
 namespace Web::CSS::Parser {
 
-static size_t retain_utf16_fly_string(u16 const* code_units, size_t length)
-{
-    return Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(code_units), length }).to_raw_leaked();
-}
-
 Parser::ParseContextStorage::ParseContextStorage(Parser& parser, ParseContextMode mode, Optional<PropertyID> direct_property_context)
 {
     if (mode != ParseContextMode::Syntax) {
@@ -102,7 +97,6 @@ Parser::ParseContextStorage::ParseContextStorage(Parser& parser, ParseContextMod
         .document_url_length = document_url.size(),
         .document_base_url = document_base_url.data(),
         .document_base_url_length = document_base_url.size(),
-        .intern_utf16_fly_string = retain_utf16_fly_string,
         .length_resolution_context = length_resolution_context.has_value() ? &*length_resolution_context : nullptr,
         .random_function_index = &parser.m_random_function_index,
     };

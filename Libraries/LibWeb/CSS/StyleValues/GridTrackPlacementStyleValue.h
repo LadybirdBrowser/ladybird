@@ -44,7 +44,7 @@ private:
         auto const& placement = data->grid_track_placement;
         Optional<Utf16FlyString> name;
         if (placement.has_name)
-            name = Utf16FlyString::from_raw(placement.name.raw);
+            name = css_string_from_rust(&placement.name);
         auto* value_data = static_cast<StyleValueFFI::StyleValueData const*>(placement.value.pointer);
         switch (placement.kind) {
         case 0:

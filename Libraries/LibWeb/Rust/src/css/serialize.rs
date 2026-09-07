@@ -17,7 +17,6 @@ use std::ffi::c_void;
 use crate::css::css_enums::keyword;
 use crate::css::css_tokenizer::TokenizerInput;
 use crate::css::parser::component_value::{ComponentSerializationMode, serialize_component_values_into};
-use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style_value::{RetainedColorStopList, RetainedString, StyleValueData};
 
 include!(concat!(env!("OUT_DIR"), "/transform_functions_generated.rs"));
@@ -49,18 +48,20 @@ impl SerializationMode {
     }
 }
 
-/// The decoded storage of a fly string: ASCII bytes or UTF-16 code units.
+/// A borrowed string's storage: ASCII bytes or UTF-16 code units.
 pub(crate) enum StringUnits<'a> {
     Ascii(&'a [u8]),
     Utf16(&'a [u16]),
 }
 
-/// Calls `f` with a view of the fly string's contents.
-pub(crate) fn with_fly_string_units<R>(string: &RetainedUtf16FlyString, f: impl FnOnce(StringUnits) -> R) -> R {
-    // SAFETY: The retained owner remains borrowed for the returned view's lifetime.
-    let units = match unsafe { ak::utf16_string_units(string.raw_word()) } {
-        ak::Utf16StringUnits::Ascii(bytes) => StringUnits::Ascii(bytes),
-        ak::Utf16StringUnits::Utf16(units) => StringUnits::Utf16(units),
+/// Calls `f` with a view of a Rust CSS string or a bound AK fly string.
+pub(crate) fn with_fly_string_units<'a, R>(
+    string: impl Into<TokenizerInput<'a>>,
+    f: impl FnOnce(StringUnits) -> R,
+) -> R {
+    let units = match string.into() {
+        TokenizerInput::Ascii(bytes) => StringUnits::Ascii(bytes),
+        TokenizerInput::Utf16(units) => StringUnits::Utf16(units),
     };
     f(units)
 }

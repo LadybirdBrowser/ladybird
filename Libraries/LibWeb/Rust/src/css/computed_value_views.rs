@@ -805,13 +805,9 @@ impl<'a> ComputedValuesView<'a> {
     }
 
     /// The raw fly-string representation of the computed position-anchor
-    /// name, borrowed from the surround payload for the duration of the pass.
+    /// name, borrowed from the anchor payload for the duration of the pass.
     pub(crate) fn position_anchor_name(self) -> usize {
-        let pointer = self.surround().position_anchor.pointer.cast::<StyleValueData>();
-        match unsafe { pointer.as_ref() } {
-            Some(StyleValueData::CustomIdent { custom_ident }) => custom_ident.raw(),
-            _ => 0,
-        }
+        self.anchor().position_anchor_name.raw()
     }
 
     pub(crate) fn first_available_font(self) -> libgfx_rust::font::FontHandle {

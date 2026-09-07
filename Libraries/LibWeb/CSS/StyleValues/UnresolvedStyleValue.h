@@ -63,8 +63,6 @@ private:
 
     static Utf16String string_from_rust_data(StyleValueFFI::RetainedReadableString const& string)
     {
-        if (string.raw != 0)
-            return Utf16String::from_raw(string.raw);
         if (string.ascii_units)
             return Utf16String::from_utf8_without_validation({ string.ascii_units, string.length });
         return Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(string.code_units), string.length });

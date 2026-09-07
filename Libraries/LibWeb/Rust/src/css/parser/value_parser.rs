@@ -4,9 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-// Parsed values use the thread-confined shared graph owned by the C++ style objects.
-#![allow(clippy::arc_with_non_send_sync)]
-
 use crate::css::css_enums::{
     background_box, display_inside, display_outside, keyword, keyword_from_ascii_case_insensitive,
     keyword_to_background_box, keyword_to_counter_style_name_keyword, keyword_to_cross_origin_modifier_value,
@@ -16,6 +13,7 @@ use crate::css::css_enums::{
     symbols_type, text_underline_position_horizontal, text_underline_position_vertical,
 };
 use crate::css::css_pixels::CssPixels;
+use crate::css::css_string::{CssString, CssStringList};
 use crate::css::css_tokenizer::{
     CssNumberType, ParserTokenKind, TokenizerInput, tokenize_for_parser, tokenize_for_parser_without_source,
 };
@@ -49,7 +47,6 @@ use crate::css::property_metadata::{
     property_is_positional_value_list_shorthand, property_is_shorthand, property_maximum_value_count,
     property_numeric_ranges, property_percentages_resolve_to, property_resolve_legacy_value_alias,
 };
-use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
 use crate::css::style_compute::{LENGTH_UNIT_NAMES, px_length_unit};
 use crate::css::style_value::{
     RetainedByteList, RetainedCounterDefinition, RetainedCounterDefinitionList, RetainedNumericRangeList,
@@ -154,7 +151,6 @@ pub struct ParseContext {
     pub document_url_length: usize,
     pub document_base_url: *const u8,
     pub document_base_url_length: usize,
-    pub intern_utf16_fly_string: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
     pub length_resolution_context: *const c_void,
     pub random_function_index: *mut usize,
 }
@@ -165,32 +161,22 @@ pub(crate) enum ParseOutcome {
     NotHandled,
 }
 
-struct SharedKeywordValues(Box<[Arc<StyleValueData>]>);
-
-// SAFETY: This cache only contains the pointer-free `Keyword` variant. Other
-// `StyleValueData` variants remain thread-bound and are never inserted here.
-unsafe impl Send for SharedKeywordValues {}
-// SAFETY: The cached keyword values are immutable after initialization.
-unsafe impl Sync for SharedKeywordValues {}
-
 fn shared_style_value(value: StyleValueData) -> Arc<StyleValueData> {
     let StyleValueData::Keyword { keyword } = value else {
         return Arc::new(value);
     };
 
-    static KEYWORD_VALUES: OnceLock<SharedKeywordValues> = OnceLock::new();
+    static KEYWORD_VALUES: OnceLock<Box<[Arc<StyleValueData>]>> = OnceLock::new();
     let values = KEYWORD_VALUES.get_or_init(|| {
-        SharedKeywordValues(
-            (0..keyword::NAMES.len())
-                .map(|keyword| {
-                    Arc::new(StyleValueData::Keyword {
-                        keyword: keyword as u16,
-                    })
+        (0..keyword::NAMES.len())
+            .map(|keyword| {
+                Arc::new(StyleValueData::Keyword {
+                    keyword: keyword as u16,
                 })
-                .collect(),
-        )
+            })
+            .collect()
     });
-    values.0[usize::from(keyword)].clone()
+    values[usize::from(keyword)].clone()
 }
 
 fn single_non_whitespace_value(values: &[ComponentValue]) -> Option<&ComponentValue> {
@@ -383,26 +369,19 @@ pub(crate) fn is_valid_custom_ident(identifier: &[u16], blacklist: &[&str]) -> b
     )
 }
 
-pub(crate) fn retain_fly_string(context: &ParseContext, string: &[u16]) -> Option<RetainedUtf16FlyString> {
-    let callback = context.intern_utf16_fly_string?;
-    crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::InternUtf16FlyStringCallback);
-    let raw = unsafe { callback(string.as_ptr(), string.len()) };
-    Some(unsafe { RetainedUtf16FlyString::from_leaked_raw(raw) })
-}
-
-pub(crate) fn string_style_value(context: &ParseContext, string: &[u16]) -> Option<StyleValueData> {
-    Some(StyleValueData::String {
-        string: retain_fly_string(context, string)?,
+pub(crate) fn string_style_value(string: &[u16]) -> StyleValueData {
+    StyleValueData::String {
+        string: CssString::from_utf16(string),
         is_valid_animation_name_custom_ident: is_valid_custom_ident(string, &["none"]),
-    })
+    }
 }
 
-pub(crate) fn parse_string_value(context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
-    string_style_value(context, value.string()?)
+pub(crate) fn parse_string_value(_context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
+    value.string().map(string_style_value)
 }
 
 pub(crate) fn parse_custom_ident_value(
-    context: &ParseContext,
+    _context: &ParseContext,
     value: &ComponentValue,
     blacklist: &[&str],
 ) -> Option<StyleValueData> {
@@ -411,17 +390,17 @@ pub(crate) fn parse_custom_ident_value(
         return None;
     }
     Some(StyleValueData::CustomIdent {
-        custom_ident: retain_fly_string(context, identifier)?,
+        custom_ident: CssString::from_utf16(identifier),
     })
 }
 
-fn parse_dashed_ident_value(context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
+fn parse_dashed_ident_value(_context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
     let identifier = value.ident()?;
     if !identifier.starts_with(&[u16::from(b'-'), u16::from(b'-')]) || !is_valid_custom_ident(identifier, &[]) {
         return None;
     }
     Some(StyleValueData::CustomIdent {
-        custom_ident: retain_fly_string(context, identifier)?,
+        custom_ident: CssString::from_utf16(identifier),
     })
 }
 
@@ -429,7 +408,7 @@ fn single_modifier_argument(values: &[ComponentValue]) -> Option<&ComponentValue
     single_non_whitespace_value(values)
 }
 
-pub(crate) fn parse_url_value(context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
+pub(crate) fn parse_url_value(_context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
     let (url, url_type, modifiers) = match &value.kind {
         ComponentKind::Token(ParserTokenKind::Url(url)) => (url.as_ref(), 0, Vec::new()),
         ComponentKind::Function { name, values }
@@ -450,7 +429,7 @@ pub(crate) fn parse_url_value(context: &ParseContext, value: &ComponentValue) ->
                     let string = single_modifier_argument(arguments)?.string()?;
                     (
                         1,
-                        RetainedRequestUrlModifier::from_string(1, retain_fly_string(context, string)?),
+                        RetainedRequestUrlModifier::from_string(1, CssString::from_utf16(string)),
                     )
                 } else if equals_ascii_case_insensitive(name, b"referrer-policy") {
                     let keyword = keyword_from_ascii_case_insensitive(single_modifier_argument(arguments)?.ident()?)?;
@@ -1246,7 +1225,6 @@ pub(crate) fn parse_calculated_numeric_value_with_ranges(
             percentages_resolve_as,
             property,
             random_function_index: context.random_function_index,
-            intern_utf16_fly_string: context.intern_utf16_fly_string,
             allowed_color_channels: 0,
             allow_random_functions: context_allows_random_functions(context),
             parse_context: context,
@@ -1817,9 +1795,7 @@ fn parse_math_depth_property(context: &ParseContext, property: u16, values: &[Co
     if stream.has_next_token() {
         return ParseOutcome::Invalid;
     }
-    let Some(name) = retain_fly_string(context, &"add".encode_utf16().collect::<Vec<_>>()) else {
-        return ParseOutcome::NotHandled;
-    };
+    let name = CssString::from_utf16(&"add".encode_utf16().collect::<Vec<_>>());
     ParseOutcome::Parsed(shared_style_value(StyleValueData::Function {
         name,
         value: RetainedStyleValueData::from_owned(integer),
@@ -2767,7 +2743,7 @@ fn parse_special_text_property(context: &ParseContext, property: u16, values: &[
                 .iter()
                 .rposition(|code_unit| !matches!(*code_unit, 0x09..=0x0d | 0x20))
                 .map(|index| index + 1)?;
-            string_style_value(context, &string[..trimmed_length])
+            Some(string_style_value(&string[..trimmed_length]))
         }),
         property_id::TRANSITION_PROPERTY => {
             if let Some(none) = single_value.and_then(|value| parse_specific_keyword(value, &[keyword::NONE])) {
@@ -2813,7 +2789,7 @@ fn parse_special_text_property(context: &ParseContext, property: u16, values: &[
     })
 }
 
-fn parse_color_scheme_property(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+fn parse_color_scheme_property(_context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
     let non_whitespace = values.iter().filter(|value| !value.is_whitespace()).collect::<Vec<_>>();
     if non_whitespace.len() == 1
         && non_whitespace[0]
@@ -2821,7 +2797,7 @@ fn parse_color_scheme_property(context: &ParseContext, values: &[ComponentValue]
             .is_some_and(|ident| equals_ascii_case_insensitive(ident, b"normal"))
     {
         return ParseOutcome::Parsed(shared_style_value(StyleValueData::ColorScheme {
-            schemes: RetainedUtf16FlyStringList::from_retained_strings(Vec::new()),
+            schemes: CssStringList::from_strings(Vec::new()),
             scheme_codes: RetainedByteList::from_bytes(Vec::new()),
             only: false,
         }));
@@ -2844,9 +2820,7 @@ fn parse_color_scheme_property(context: &ParseContext, values: &[ComponentValue]
         if !is_valid_custom_ident(identifier, &["normal"]) {
             return ParseOutcome::Invalid;
         }
-        let Some(scheme) = retain_fly_string(context, identifier) else {
-            return ParseOutcome::NotHandled;
-        };
+        let scheme = CssString::from_utf16(identifier);
         schemes.push(scheme);
         scheme_codes.push(if equals_ascii_case_insensitive(identifier, b"dark") {
             1
@@ -2860,13 +2834,13 @@ fn parse_color_scheme_property(context: &ParseContext, values: &[ComponentValue]
         return ParseOutcome::Invalid;
     }
     ParseOutcome::Parsed(shared_style_value(StyleValueData::ColorScheme {
-        schemes: RetainedUtf16FlyStringList::from_retained_strings(schemes),
+        schemes: CssStringList::from_strings(schemes),
         scheme_codes: RetainedByteList::from_bytes(scheme_codes),
         only,
     }))
 }
 
-fn parse_quotes_property(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
+fn parse_quotes_property(_context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
     if let Some(value) = single_non_whitespace_value(values)
         && let Some(keyword) = parse_specific_keyword(value, &[keyword::AUTO, keyword::NONE])
     {
@@ -2875,7 +2849,7 @@ fn parse_quotes_property(context: &ParseContext, values: &[ComponentValue]) -> P
     let strings = values
         .iter()
         .filter(|value| !value.is_whitespace())
-        .map(|value| string_style_value(context, value.string()?))
+        .map(|value| value.string().map(string_style_value))
         .collect::<Option<Vec<_>>>();
     let Some(strings) = strings else {
         return ParseOutcome::Invalid;
@@ -2907,9 +2881,7 @@ fn parse_counter_definitions_property(
             if !is_valid_custom_ident(identifier, &["none"]) {
                 return ParseOutcome::Invalid;
             }
-            let Some(name) = retain_fly_string(context, identifier) else {
-                return ParseOutcome::NotHandled;
-            };
+            let name = CssString::from_utf16(identifier);
             tokens.discard_a_token();
             (name, false)
         } else if allow_reversed {
@@ -2925,9 +2897,7 @@ fn parse_counter_definitions_property(
             if !is_valid_custom_ident(identifier, &["none"]) {
                 return ParseOutcome::Invalid;
             }
-            let Some(name) = retain_fly_string(context, identifier) else {
-                return ParseOutcome::NotHandled;
-            };
+            let name = CssString::from_utf16(identifier);
             tokens.discard_a_token();
             (name, true)
         } else {
@@ -2961,7 +2931,7 @@ fn parse_counter_definitions_property(
     }))
 }
 
-fn parse_counter_style(context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
+fn parse_counter_style(_context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
     if let Some(identifier) = value.ident() {
         if !is_valid_custom_ident(identifier, &["none"]) {
             return None;
@@ -2985,9 +2955,9 @@ fn parse_counter_style(context: &ParseContext, value: &ComponentValue) -> Option
         };
         return Some(StyleValueData::CounterStyle {
             is_symbols: false,
-            name: retain_fly_string(context, &name)?,
+            name: CssString::from_utf16(&name),
             symbols_type: symbols_type::SYMBOLIC,
-            symbols: RetainedUtf16FlyStringList::from_retained_strings(Vec::new()),
+            symbols: CssStringList::from_strings(Vec::new()),
         });
     }
 
@@ -3010,7 +2980,7 @@ fn parse_counter_style(context: &ParseContext, value: &ComponentValue) -> Option
     tokens.discard_whitespace();
     let mut symbols = Vec::new();
     while let Some(string) = tokens.next_token().string() {
-        symbols.push(retain_fly_string(context, string)?);
+        symbols.push(CssString::from_utf16(string));
         tokens.discard_a_token();
         tokens.discard_whitespace();
     }
@@ -3022,16 +2992,16 @@ fn parse_counter_style(context: &ParseContext, value: &ComponentValue) -> Option
     }
     Some(StyleValueData::CounterStyle {
         is_symbols: true,
-        name: RetainedUtf16FlyString::none(),
+        name: CssString::none(),
         symbols_type: symbol_type,
-        symbols: RetainedUtf16FlyStringList::from_retained_strings(symbols),
+        symbols: CssStringList::from_strings(symbols),
     })
 }
 
 fn parse_list_style_type_property(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
     let parsed = single_non_whitespace_value(values).and_then(|value| {
         parse_specific_keyword(value, &[keyword::NONE])
-            .or_else(|| string_style_value(context, value.string()?))
+            .or_else(|| value.string().map(string_style_value))
             .or_else(|| parse_counter_style(context, value))
     });
     parsed.map_or(ParseOutcome::Invalid, |parsed| {
@@ -3057,9 +3027,9 @@ fn parse_counter_function(context: &ParseContext, value: &ComponentValue) -> Opt
         return None;
     }
     let join_string = if function == 1 {
-        retain_fly_string(context, single_non_whitespace_value(parts[1])?.string()?)?
+        CssString::from_utf16(single_non_whitespace_value(parts[1])?.string()?)
     } else {
-        retain_fly_string(context, &[])?
+        CssString::from_utf16(&[])
     };
     let style_index = function + 1;
     let counter_style = if parts.len() > style_index {
@@ -3067,14 +3037,14 @@ fn parse_counter_function(context: &ParseContext, value: &ComponentValue) -> Opt
     } else {
         StyleValueData::CounterStyle {
             is_symbols: false,
-            name: retain_fly_string(context, &"decimal".encode_utf16().collect::<Vec<_>>())?,
+            name: CssString::from_utf16(&"decimal".encode_utf16().collect::<Vec<_>>()),
             symbols_type: symbols_type::SYMBOLIC,
-            symbols: RetainedUtf16FlyStringList::from_retained_strings(Vec::new()),
+            symbols: CssStringList::from_strings(Vec::new()),
         }
     };
     Some(StyleValueData::Counter {
         function: function as u8,
-        counter_name: retain_fly_string(context, counter_name)?,
+        counter_name: CssString::from_utf16(counter_name),
         counter_style: RetainedStyleValueData::from_owned(counter_style),
         join_string,
     })
@@ -3102,8 +3072,9 @@ fn parse_content_property(context: &ParseContext, values: &[ComponentValue]) -> 
             continue;
         }
         let value = tokens.next_token();
-        let parsed = string_style_value(context, value.string().unwrap_or(&[]))
-            .filter(|_| value.string().is_some())
+        let parsed = value
+            .string()
+            .map(string_style_value)
             .or_else(|| parse_counter_function(context, value))
             .or_else(|| {
                 let identifier = value.ident()?;
@@ -3251,20 +3222,16 @@ fn parse_view_timeline_inset_from_stream(
     (!inset_values.is_empty()).then(|| value_list(inset_values, 0, true))
 }
 
-fn retained_function(
-    context: &ParseContext,
-    name: &[u8],
-    arguments: Vec<RetainedStyleValueData>,
-) -> Option<StyleValueData> {
-    Some(StyleValueData::Function {
-        name: retain_fly_string(context, &name.iter().map(|byte| u16::from(*byte)).collect::<Vec<_>>())?,
+fn retained_function(name: &[u8], arguments: Vec<RetainedStyleValueData>) -> StyleValueData {
+    StyleValueData::Function {
+        name: CssString::from_utf16(&name.iter().map(|byte| u16::from(*byte)).collect::<Vec<_>>()),
         value: RetainedStyleValueData::from_owned(StyleValueData::Tuple {
             values: RetainedStyleValueDataList::from_retained_values(arguments),
         }),
-    })
+    }
 }
 
-fn parse_scroll_function(context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
+fn parse_scroll_function(_context: &ParseContext, value: &ComponentValue) -> Option<StyleValueData> {
     let (name, arguments) = value.function()?;
     if !equals_ascii_case_insensitive(name, b"scroll") {
         return None;
@@ -3299,14 +3266,13 @@ fn parse_scroll_function(context: &ParseContext, value: &ComponentValue) -> Opti
             return None;
         }
     }
-    retained_function(
-        context,
+    Some(retained_function(
         b"scroll",
         vec![
             scroller.map_or_else(RetainedStyleValueData::none, RetainedStyleValueData::from_owned),
             axis.map_or_else(RetainedStyleValueData::none, RetainedStyleValueData::from_owned),
         ],
-    )
+    ))
 }
 
 fn parse_view_function(context: &ParseContext, property: u16, value: &ComponentValue) -> Option<StyleValueData> {
@@ -3349,14 +3315,13 @@ fn parse_view_function(context: &ParseContext, property: u16, value: &ComponentV
         tokens.discard_a_token();
         axis = (keyword != keyword::BLOCK).then_some(StyleValueData::Keyword { keyword });
     }
-    retained_function(
-        context,
+    Some(retained_function(
         b"view",
         vec![
             axis.map_or_else(RetainedStyleValueData::none, RetainedStyleValueData::from_owned),
             inset.map_or_else(RetainedStyleValueData::none, RetainedStyleValueData::from_owned),
         ],
-    )
+    ))
 }
 
 fn parse_animation_timeline_property(context: &ParseContext, values: &[ComponentValue]) -> ParseOutcome {
@@ -6172,10 +6137,6 @@ mod tests {
     use super::*;
     use crate::css::property_metadata::{FIRST_LONGHAND_PROPERTY_ID, property_initial_value, property_name};
 
-    unsafe extern "C" fn discard_interned_string(_: *const u16, _: usize) -> usize {
-        0
-    }
-
     fn utf16(source: &str) -> Vec<u16> {
         source.encode_utf16().collect()
     }
@@ -6201,7 +6162,6 @@ mod tests {
             document_url_length: 0,
             document_base_url: std::ptr::null(),
             document_base_url_length: 0,
-            intern_utf16_fly_string: Some(discard_interned_string),
             length_resolution_context: std::ptr::null(),
             random_function_index: std::ptr::null_mut(),
         }

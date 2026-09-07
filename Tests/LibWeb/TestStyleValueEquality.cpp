@@ -1098,8 +1098,8 @@ TEST_CASE(rust_basic_shape_handles_retain_polygon_point_data)
 TEST_CASE(rust_counter_definition_handles_retain_value_data)
 {
     auto value = IntegerStyleValue::create(2);
-    StyleValueFFI::RetainedCounterDefinition definition {
-        { Utf16FlyString::from_utf8("item"sv).to_raw_leaked() },
+    StyleValueFFI::FfiCounterDefinition definition {
+        Utf16FlyString::from_utf8("item"sv).to_raw_leaked(),
         false,
         { StyleValueFFI::rust_style_value_retain(value->rust_style_value_data()) },
     };
@@ -1307,7 +1307,7 @@ TEST_CASE(rust_grid_track_list_handles_retain_size_data)
     auto list = StyleValue::adopt_rust_style_value_data(data);
     EXPECT(list->is_grid_track_size_list());
     auto const* retained_size_data = static_cast<StyleValueFFI::StyleValueData const*>(
-        list->rust_style_value_data()->grid_track_size_list.entries.pointer[0].size_value.pointer);
+        static_cast<StyleValueFFI::RetainedGridTrackEntry const*>(list->rust_style_value_data()->grid_track_size_list.entries.pointer)[0].size_value.pointer);
     auto retained_size = StyleValue::adopt_rust_style_value_data(
         StyleValueFFI::rust_style_value_retain(retained_size_data));
     list = KeywordStyleValue::create(Keyword::None);
@@ -1339,11 +1339,11 @@ TEST_CASE(rust_cursor_handles_retain_image_data)
 
 TEST_CASE(rust_image_set_handles_retain_option_data)
 {
-    StyleValueFFI::RetainedImageSetOption option {
+    StyleValueFFI::FfiImageSetOption option {
         { create_test_image("candidate.png"sv) },
         { StyleValueFFI::rust_style_value_create_resolution(1, 0) },
         false,
-        { 0 },
+        0,
     };
     auto image_set = StyleValue::adopt_rust_style_value_data(
         StyleValueFFI::rust_style_value_create_image_set(&option, 1));

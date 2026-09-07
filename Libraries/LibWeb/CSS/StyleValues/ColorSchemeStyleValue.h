@@ -20,7 +20,7 @@ public:
         Vector<Utf16FlyString> schemes;
         schemes.ensure_capacity(list.length);
         for (size_t i = 0; i < list.length; ++i)
-            schemes.unchecked_append(Utf16FlyString::from_raw(list.pointer[i].raw));
+            schemes.unchecked_append(css_string_from_rust(&list.pointer[i]));
         return schemes;
     }
     bool only() const { return m_value->color_scheme.only; }

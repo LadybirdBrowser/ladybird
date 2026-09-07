@@ -27,7 +27,7 @@ use crate::css::css_enums::keyword_to_channel_keyword;
 use crate::css::serialize::TextSink;
 use crate::css::style_compute::FfiLengthResolutionContext;
 use crate::css::style_value::{
-    ColorBase, RetainedStyleValueData, RetainedUtf16FlyString, StyleValueData, value_depends_on_current_color,
+    ColorBase, CssString, RetainedStyleValueData, StyleValueData, value_depends_on_current_color,
 };
 
 /// Mirrors Gfx::Color: 8-bit unpremultiplied sRGB with alpha 255 meaning fully opaque.
@@ -280,7 +280,7 @@ pub(crate) fn resolved_srgb_style_value(color: Rgba) -> StyleValueData {
             value: f64::from(color.a) / 255.0,
         }),
         has_name: false,
-        name: RetainedUtf16FlyString::none(),
+        name: CssString::none(),
         origin_color: retained_null(),
     }
 }
@@ -1254,7 +1254,7 @@ pub(crate) fn resolve_relative_form(value: &StyleValueData, input: &ColorResolut
         channel_2: retained_value(resolve_channel(channel_2, 2)),
         alpha: retained_value(resolved_alpha),
         has_name: false,
-        name: RetainedUtf16FlyString::none(),
+        name: CssString::none(),
         origin_color: retained_null(),
     })
 }
@@ -1863,7 +1863,7 @@ mod tests {
             channel_2: retained_value(c2),
             alpha: alpha.map_or_else(retained_null, retained_value),
             has_name: false,
-            name: RetainedUtf16FlyString::none(),
+            name: CssString::none(),
             origin_color: retained_null(),
         }
     }

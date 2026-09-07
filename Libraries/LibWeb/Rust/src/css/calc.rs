@@ -354,7 +354,6 @@ pub(crate) fn serialize_context_free_calculation(
             percentages_resolve_as: None,
             property: 0,
             random_function_index: std::ptr::null_mut(),
-            intern_utf16_fly_string: None,
             allowed_color_channels: 0,
             allow_random_functions: false,
             parse_context: std::ptr::null(),
@@ -897,6 +896,10 @@ mod tests {
 pub struct CalcNodeHandle {
     node: *const CalcNode,
 }
+
+// SAFETY: This handle owns an Arc reference and only exposes shared access to the calculation tree.
+unsafe impl Send for CalcNodeHandle where CalcNode: Send + Sync {}
+unsafe impl Sync for CalcNodeHandle where CalcNode: Send + Sync {}
 
 impl CalcNodeHandle {
     /// # Safety
@@ -4176,7 +4179,7 @@ pub(crate) fn absolutize_calculation_value(
                 fixed_value: fixed_number,
                 is_auto: false,
                 has_name: false,
-                name: crate::css::style_value::RetainedUtf16FlyString::none(),
+                name: crate::css::style_value::CssString::none(),
                 element_shared: false,
             }));
             let resolved = unsafe { RetainedStyleValueData::from_retained_pointer(resolved) };

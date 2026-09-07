@@ -67,6 +67,9 @@ endforeach()
 
 
 target_link_libraries(TestContentBlocker PRIVATE LibURL)
+if (NOT WIN32)
+    target_link_libraries(TestCSSSyntaxParser PRIVATE LibThreading)
+endif()
 target_link_libraries(TestSiteCompatibility PRIVATE LibURL)
 target_link_libraries(TestControlMessageQueue PRIVATE LibSync)
 target_link_libraries(TestDisplayListCommandRuns PRIVATE LibGfx)

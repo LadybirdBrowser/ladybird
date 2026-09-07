@@ -14,12 +14,12 @@ use crate::css::css_enums::{
     keyword_to_channel_keyword, keyword_to_hue_interpolation_method, keyword_to_polar_color_space,
     keyword_to_rectangular_color_space, rectangular_color_space,
 };
+use crate::css::css_string::CssString;
 use crate::css::css_tokenizer::{CssNumberType, ParserTokenKind, TokenizerInput};
 use crate::css::named_colors::named_color_from_name;
 use crate::css::parser::calc_parser::{CalcParseError, CalcParserContext, parse_a_calc_function_node};
 use crate::css::parser::component_value::{ComponentKind, ComponentValue};
 use crate::css::parser::token_stream::TokenStream;
-use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style_value::{ColorBase, RetainedNumericRangeList, RetainedStyleValueData, StyleValueData};
 
 use super::value_parser::{ParseContext, context_allows_random_functions, equals_ascii_case_insensitive};
@@ -58,19 +58,12 @@ fn retained_optional(value: Option<StyleValueData>) -> RetainedStyleValueData {
     value.map_or_else(RetainedStyleValueData::none, retained)
 }
 
-fn retain_fly_string(context: &ParseContext, string: &[u16]) -> Option<RetainedUtf16FlyString> {
-    let callback = context.intern_utf16_fly_string?;
-    crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::InternUtf16FlyStringCallback);
-    let raw = unsafe { callback(string.as_ptr(), string.len()) };
-    Some(unsafe { RetainedUtf16FlyString::from_leaked_raw(raw) })
-}
-
 fn make_color_function(
     color_type: u8,
     channels: [StyleValueData; 3],
     alpha: Option<StyleValueData>,
     syntax: u8,
-    name: Option<RetainedUtf16FlyString>,
+    name: Option<CssString>,
     origin_color: Option<StyleValueData>,
 ) -> StyleValueData {
     let [channel_0, channel_1, channel_2] = channels;
@@ -81,13 +74,13 @@ fn make_color_function(
         channel_2: retained(channel_2),
         alpha: retained_optional(alpha),
         has_name: name.is_some(),
-        name: name.unwrap_or_else(RetainedUtf16FlyString::none),
+        name: name.unwrap_or_else(CssString::none),
         origin_color: retained_optional(origin_color),
     }
 }
 
-fn make_legacy_color(context: &ParseContext, rgba: [u8; 4], name: Option<&[u16]>) -> Option<StyleValueData> {
-    Some(make_color_function(
+fn make_legacy_color(rgba: [u8; 4], name: Option<&[u16]>) -> StyleValueData {
+    make_color_function(
         color_conversion::RGB,
         [
             StyleValueData::Number {
@@ -104,12 +97,9 @@ fn make_legacy_color(context: &ParseContext, rgba: [u8; 4], name: Option<&[u16]>
             value: f64::from(rgba[3]) / 255.0,
         }),
         COLOR_SYNTAX_LEGACY,
-        match name {
-            Some(name) => Some(retain_fly_string(context, name)?),
-            None => None,
-        },
+        name.map(CssString::from_utf16),
         None,
-    ))
+    )
 }
 
 fn hex_nibble(value: u16) -> Option<u8> {
@@ -387,7 +377,6 @@ fn parse_calculated_numeric(
             percentages_resolve_as: None,
             property,
             random_function_index: context.random_function_index,
-            intern_utf16_fly_string: context.intern_utf16_fly_string,
             allowed_color_channels,
             allow_random_functions: context_allows_random_functions(context),
             parse_context: context,
@@ -1049,16 +1038,14 @@ pub(crate) fn parse_color_value(
             return Some(StyleValueData::Keyword { keyword });
         }
         if equals_ascii_case_insensitive(identifier, b"transparent") {
-            // NB: The retained name only preserves source spelling during serialization. A
-            //     callback-free worker parse can omit it without changing computed color semantics.
-            let name = context.intern_utf16_fly_string.is_some().then_some(identifier);
-            let color = make_legacy_color(context, [0, 0, 0, 0], name)?;
+            let name = Some(identifier);
+            let color = make_legacy_color([0, 0, 0, 0], name);
             stream.discard_a_token();
             return Some(color);
         }
         if let Some(rgba) = named_color_from_name(identifier.into()) {
-            let name = context.intern_utf16_fly_string.is_some().then_some(identifier);
-            let color = make_legacy_color(context, rgba, name)?;
+            let name = Some(identifier);
+            let color = make_legacy_color(rgba, name);
             stream.discard_a_token();
             return Some(color);
         }
@@ -1070,7 +1057,7 @@ pub(crate) fn parse_color_value(
         return Some(color);
     }
     if let ComponentKind::Token(ParserTokenKind::Hash { value, .. }) = &value.kind {
-        let color = make_legacy_color(context, parse_hex_color(value)?, None)?;
+        let color = make_legacy_color(parse_hex_color(value)?, None);
         stream.discard_a_token();
         return Some(color);
     }
@@ -1079,7 +1066,7 @@ pub(crate) fn parse_color_value(
         if !matches!(digits.len(), 3 | 6) {
             return None;
         }
-        let color = make_legacy_color(context, parse_hex_color(&digits)?, None)?;
+        let color = make_legacy_color(parse_hex_color(&digits)?, None);
         stream.discard_a_token();
         return Some(color);
     }
@@ -1102,10 +1089,6 @@ mod tests {
     use crate::css::css_tokenizer::tokenize_for_parser;
     use crate::css::parser::component_value::consume_a_list_of_component_values;
 
-    unsafe extern "C" fn discard_interned_string(_: *const u16, _: usize) -> usize {
-        0
-    }
-
     fn context() -> ParseContext {
         ParseContext {
             in_quirks_mode: false,
@@ -1121,7 +1104,6 @@ mod tests {
             document_url_length: 0,
             document_base_url: std::ptr::null(),
             document_base_url_length: 0,
-            intern_utf16_fly_string: Some(discard_interned_string),
             length_resolution_context: std::ptr::null(),
             random_function_index: std::ptr::null_mut(),
         }

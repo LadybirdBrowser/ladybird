@@ -29,9 +29,9 @@ use crate::css::property_metadata::{
     FIRST_LONGHAND_PROPERTY_ID, LAST_LONGHAND_PROPERTY_ID, LONGHAND_WORD_COUNT, NUMBER_OF_LONGHAND_PROPERTIES,
     property_is_in_logical_group, property_logical_group,
 };
+use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style_compute::{expand_shorthands_with, font_family_is_monospace};
 use crate::css::style_value::RetainedStyleValueData;
-use crate::css::style_value::RetainedUtf16FlyString;
 use crate::css::style_value::StyleValueData;
 
 /// Mirrors the C++ `enum class CascadeOrigin : u8`; the C++ side static_asserts
@@ -533,7 +533,7 @@ pub const CASCADED_ENVIRONMENT_NEEDS_STYLE_SHEET_CONTEXT: u8 = 1 << 1;
 #[repr(C)]
 pub struct FfiUnfixedRandomSharing {
     pub source: *const c_void,
-    pub name: usize,
+    pub name: *const c_void,
     pub element_shared: bool,
 }
 
@@ -771,7 +771,7 @@ pub(crate) unsafe fn collect_style_computation_requirements(
             };
             FfiUnfixedRandomSharing {
                 source: source.cast(),
-                name: if *has_name { name.raw() } else { 0 },
+                name: if *has_name { name.as_ptr() } else { std::ptr::null() },
                 element_shared: *element_shared || !*is_auto,
             }
         })
@@ -897,7 +897,6 @@ pub(crate) fn parse_substituted_without_callbacks(
         document_url_length: input.document_url.len(),
         document_base_url: input.document_base_url.as_ptr(),
         document_base_url_length: input.document_base_url.len(),
-        intern_utf16_fly_string: None,
         length_resolution_context: std::ptr::null(),
         random_function_index: &raw mut random_function_index,
     };

@@ -53,7 +53,7 @@ public:
     {
         if (!m_value->color_function.has_name)
             return {};
-        return Utf16FlyString::from_raw(m_value->color_function.name.raw);
+        return css_string_from_rust(&m_value->color_function.name);
     }
     ValueComparingRefPtr<StyleValue const> origin_color() const { return wrap_rust_child_or_null(m_value->color_function.origin_color); }
 

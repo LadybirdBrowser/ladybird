@@ -120,7 +120,7 @@ Optional<SelectorList> parse_selector_list_in_rust(Utf16View input, HashTable<Ut
     return selectors;
 }
 
-SelectorList selector_list_from_rust(SelectorFFI::RustParsedSelectorList* parsed)
+SelectorList selector_list_from_rust(SelectorFFI::RustParsedSelectorList const* parsed)
 {
     VERIFY(parsed);
     Vector<Utf16FlyString> names;
@@ -134,13 +134,14 @@ SelectorList selector_list_from_rust(SelectorFFI::RustParsedSelectorList* parsed
     leaked_name_raws.ensure_capacity(names.size());
     for (auto const& name : names)
         leaked_name_raws.unchecked_append(name.to_raw_leaked());
-    SelectorFFI::rust_parsed_selector_list_bind_interned_names(parsed, leaked_name_raws.data(), leaked_name_raws.size());
+    auto* bound = SelectorFFI::rust_parsed_selector_list_bind_interned_names(parsed, leaked_name_raws.data(), leaked_name_raws.size());
 
     SelectorList selectors;
     auto selector_count = SelectorFFI::rust_parsed_selector_list_length(parsed);
     selectors.ensure_capacity(selector_count);
     for (size_t index = 0; index < selector_count; ++index)
-        selectors.append(Selector::create(SelectorFFI::rust_parsed_selector_list_selector(parsed, index)));
+        selectors.append(Selector::create(SelectorFFI::rust_bound_selector_list_selector(bound, index)));
+    SelectorFFI::rust_bound_selector_list_destroy(bound);
     return selectors;
 }
 

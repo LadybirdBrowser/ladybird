@@ -837,8 +837,9 @@ unsafe extern "C" fn resolve_anchor_non_math_function(context: *mut c_void, shel
         return std::ptr::null();
     };
     let style = engine.style(context.positioned_box);
-    let anchor_name = if *has_anchor_name {
-        Some(explicit_anchor_name.raw())
+    let bound_anchor_name = has_anchor_name.then(|| explicit_anchor_name.to_fly_string());
+    let anchor_name = if let Some(name) = &bound_anchor_name {
+        Some(name.raw())
     } else if style.has_position_anchor() {
         Some(style.position_anchor_name())
     } else {

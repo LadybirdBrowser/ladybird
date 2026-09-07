@@ -413,7 +413,7 @@ fn polygon_to_path(points: &crate::css::style_value::RetainedShapePointList, ref
     path.build()
 }
 
-fn svg_path_data_to_path(path_string: &crate::css::retained_fly_string::RetainedUtf16FlyString) -> OwnedPath {
+fn svg_path_data_to_path(path_string: &crate::css::css_string::CssString) -> OwnedPath {
     with_fly_string_units(path_string, |units| {
         let path = match units {
             StringUnits::Ascii(bytes) => crate::svg::parse_ascii_path(bytes, true),

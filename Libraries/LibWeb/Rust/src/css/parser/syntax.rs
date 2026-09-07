@@ -4,9 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-// Parsed values use the thread-confined shared graph owned by the C++ style objects.
-#![allow(clippy::arc_with_non_send_sync)]
-
 use crate::css::css_enums::keyword_from_ascii_case_insensitive;
 use crate::css::css_tokenizer::tokenize_for_parser;
 use crate::css::ffi_support::FfiUtf16View;
@@ -20,11 +17,11 @@ use crate::css::parser::token_stream::TokenStream;
 use crate::css::parser::transforms_effects_parser::{parse_transform, parse_transform_function};
 use crate::css::parser::value_parser::{
     FfiParseStatus, ParseContext, is_valid_custom_ident, parse_custom_ident_value, parse_string_value,
-    parse_syntax_numeric_value, parse_url_value, retain_fly_string, unresolved_value, value_list,
+    parse_syntax_numeric_value, parse_url_value, unresolved_value, value_list,
 };
 use crate::css::property_metadata::property_id;
 use crate::css::serialize::{StringUnits, TextSink, serialize_an_identifier};
-use crate::css::style_value::StyleValueData;
+use crate::css::style_value::{CssString, StyleValueData};
 use std::ffi::c_void;
 use std::sync::Arc;
 
@@ -356,7 +353,7 @@ fn parse_node(context: &ParseContext, syntax: &SyntaxNode, tokens: &mut TokenStr
                 StyleValueData::Keyword { keyword }
             } else {
                 StyleValueData::CustomIdent {
-                    custom_ident: retain_fly_string(context, value)?,
+                    custom_ident: CssString::from_utf16(value),
                 }
             }
         }
@@ -551,7 +548,6 @@ mod tests {
             document_url_length: 0,
             document_base_url: std::ptr::null(),
             document_base_url_length: 0,
-            intern_utf16_fly_string: None,
             length_resolution_context: std::ptr::null(),
             random_function_index,
         }

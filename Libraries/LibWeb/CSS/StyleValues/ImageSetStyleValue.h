@@ -56,7 +56,7 @@ private:
             auto const& option = list.pointer[i];
             Optional<Utf16String> type;
             if (option.has_type)
-                type = Utf16String::from_raw(option.type_string.raw);
+                type = css_string_from_rust(&option.type_string).to_utf16_string();
             options.unchecked_append(Option {
                 .image = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(
                                                                      static_cast<StyleValueFFI::StyleValueData const*>(option.image.pointer)))

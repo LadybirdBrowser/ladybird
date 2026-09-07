@@ -22,8 +22,8 @@ use crate::css::parser::query_parser::{
 };
 use crate::css::parser::syntax::{SyntaxNode, clone_syntax_handle, parse_syntax, parse_with_syntax};
 use crate::css::parser::value_parser::{FfiValueParsingContext, FfiValueParsingContextKind, ParseContext};
+use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use crate::css::style_value::RetainedStyleValueData;
-use crate::css::style_value::RetainedUtf16FlyString;
 use crate::css::style_value::StyleValueData;
 
 include!(concat!(env!("OUT_DIR"), "/environment_variables_generated.rs"));
@@ -126,7 +126,6 @@ pub struct CustomPropertyRegistry {
     registrations: HashMap<Vec<u16>, RegisteredCustomProperty>,
     document_url: Vec<u8>,
     document_base_url: Vec<u8>,
-    intern_utf16_fly_string: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
 }
 
 struct RegisteredCustomProperty {
@@ -190,7 +189,6 @@ pub struct FfiCustomPropertyRegistryContext {
     pub document_url_length: usize,
     pub document_base_url: *const u8,
     pub document_base_url_length: usize,
-    pub intern_utf16_fly_string: Option<unsafe extern "C" fn(*const u16, usize) -> usize>,
 }
 
 #[repr(C)]
@@ -245,7 +243,6 @@ impl CustomPropertyRegistry {
             document_url_length: self.document_url.len(),
             document_base_url: self.document_base_url.as_ptr(),
             document_base_url_length: self.document_base_url.len(),
-            intern_utf16_fly_string: self.intern_utf16_fly_string,
             length_resolution_context: std::ptr::null(),
             random_function_index,
         }
@@ -2718,7 +2715,6 @@ pub extern "C" fn rust_custom_property_registry_create() -> *mut c_void {
         registrations: HashMap::new(),
         document_url: Vec::new(),
         document_base_url: Vec::new(),
-        intern_utf16_fly_string: None,
     }))
     .cast()
 }
@@ -2751,7 +2747,6 @@ pub unsafe extern "C" fn rust_custom_property_registry_update(
         unsafe { crate::bytes_from_raw(context.document_base_url, context.document_base_url_length) }
             .unwrap_or_default()
             .to_vec();
-    registry.intern_utf16_fly_string = context.intern_utf16_fly_string;
     registry.registrations.clear();
     registry.registrations.reserve(registrations.len());
     for registration in registrations {

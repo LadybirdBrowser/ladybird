@@ -259,7 +259,7 @@ fn make_result(color_type: u8, components: [f32; 4], missing: [bool; 4]) -> Styl
         channel_2: retained_component(components[2], missing[2]),
         alpha: retained_component(components[3], missing[3]),
         has_name: false,
-        name: unsafe { crate::css::style_value::RetainedUtf16FlyString::from_leaked_raw(0) },
+        name: unsafe { crate::css::style_value::CssString::from_leaked_raw(0) },
         origin_color: unsafe { RetainedStyleValueData::from_retained_optional_pointer(std::ptr::null()) },
     }
 }

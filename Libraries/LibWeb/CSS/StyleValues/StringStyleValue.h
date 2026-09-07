@@ -20,7 +20,7 @@ public:
     }
     virtual ~StringStyleValue() override = default;
 
-    Utf16FlyString string_value() const { return Utf16FlyString::from_raw(m_value->string.string.raw); }
+    Utf16FlyString string_value() const { return css_string_from_rust(&m_value->string.string); }
 
 private:
     friend class StyleValue;

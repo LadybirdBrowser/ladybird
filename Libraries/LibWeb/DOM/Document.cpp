@@ -322,11 +322,6 @@ Document::HTMLCollectionAttributeInvalidationTypes Document::html_collection_att
     return types;
 }
 
-static size_t retain_registered_property_utf16_fly_string(u16 const* code_units, size_t length)
-{
-    return Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(code_units), length }).to_raw_leaked();
-}
-
 GC_DEFINE_ALLOCATOR(Document);
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#initialise-the-document-object
@@ -11052,7 +11047,6 @@ void Document::sync_custom_property_registrations_to_rust()
         .document_url_length = document_url.bytes().size(),
         .document_base_url = document_base_url.bytes().data(),
         .document_base_url_length = document_base_url.bytes().size(),
-        .intern_utf16_fly_string = retain_registered_property_utf16_fly_string,
     };
     CSS::ComputedValuesFFI::rust_custom_property_registry_update(
         m_rust_custom_property_registry, &context, registrations.data(), registrations.size());

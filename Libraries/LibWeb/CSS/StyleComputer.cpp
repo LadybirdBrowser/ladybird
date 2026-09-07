@@ -139,11 +139,6 @@ static Utf16View utf16_view(ComputedValuesFFI::FfiUtf16View view)
     return { reinterpret_cast<char16_t const*>(view.utf16), view.length };
 }
 
-static size_t retain_utf16_fly_string_for_substitution(u16 const* code_units, size_t length)
-{
-    return Utf16FlyString::from_utf16(Utf16View { reinterpret_cast<char16_t const*>(code_units), length }).to_raw_leaked();
-}
-
 struct SubstitutionData {
     struct Attribute {
         Utf16String name;
@@ -208,7 +203,6 @@ struct SubstitutionData {
             .document_url_length = document_url.bytes().size(),
             .document_base_url = document_base_url.bytes().data(),
             .document_base_url_length = document_base_url.bytes().size(),
-            .intern_utf16_fly_string = retain_utf16_fly_string_for_substitution,
             .length_resolution_context = nullptr,
             .random_function_index = nullptr,
         };
@@ -1125,9 +1119,9 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         Vector<ComputedValuesFFI::FfiRandomBaseValue> random_base_values;
         random_base_values.ensure_capacity(resolved_batch.unfixed_random_sharing_count);
         for (auto const& sharing : ReadonlySpan<StyleValueFFI::FfiAnimationUnfixedRandomSharing> { resolved_batch.unfixed_random_sharings, resolved_batch.unfixed_random_sharing_count }) {
-            VERIFY(sharing.name != 0);
+            VERIFY(sharing.name);
             RandomCachingKey random_caching_key {
-                .name = Utf16FlyString::from_raw(sharing.name),
+                .name = css_string_from_rust(sharing.name),
                 .element_id = sharing.element_shared
                     ? Optional<UniqueNodeID> { OptionalNone {} }
                     : Optional<UniqueNodeID> { abstract_element.element().unique_id() },
@@ -5643,9 +5637,9 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                 state.tree_counting_context = abstract_element.tree_counting_function_resolution_context();
             state.random_base_values.ensure_capacity(computation_requirements->unfixed_random_sharing_count);
             for (auto const& sharing : ReadonlySpan<ComputedValuesFFI::FfiUnfixedRandomSharing> { computation_requirements->unfixed_random_sharings, computation_requirements->unfixed_random_sharing_count }) {
-                VERIFY(sharing.name != 0);
+                VERIFY(sharing.name);
                 RandomCachingKey random_caching_key {
-                    .name = Utf16FlyString::from_raw(sharing.name),
+                    .name = css_string_from_rust(sharing.name),
                     .element_id = sharing.element_shared
                         ? Optional<UniqueNodeID> { OptionalNone {} }
                         : Optional<UniqueNodeID> { abstract_element.element().unique_id() },
@@ -5855,7 +5849,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                     .delay = animation.delay,
                     .fill_mode = static_cast<AnimationFillMode>(animation.fill_mode),
                     .composition = static_cast<AnimationComposition>(animation.composition),
-                    .name = Utf16FlyString::from_raw(animation.name_raw),
+                    .name = css_string_from_rust(animation.name),
                     .timeline = timeline,
                 });
             }

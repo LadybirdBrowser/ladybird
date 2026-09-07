@@ -18,6 +18,7 @@ pub(crate) mod computed_value_views;
 pub mod computed_values;
 pub mod css_enums;
 pub mod css_pixels;
+pub(crate) mod css_string;
 pub(crate) mod css_tokenizer;
 pub mod custom_properties;
 pub(crate) mod descriptor_metadata;

@@ -55,7 +55,7 @@ public:
         case 1:
             return Fixed { wrap_rust_child_or_null(data.first_symbol) };
         default:
-            return Extends { Utf16FlyString::from_raw(data.name.raw) };
+            return Extends { css_string_from_rust(&data.name) };
         }
     }
 

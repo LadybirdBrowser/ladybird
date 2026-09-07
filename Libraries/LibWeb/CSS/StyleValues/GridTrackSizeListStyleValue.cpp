@@ -92,7 +92,7 @@ static GridTrackSizeList materialize_grid_track_size_list(bool is_subgrid, bool 
         case StyleValueFFI::GridTrackEntryKind::LineNames: {
             GridLineNames names;
             for (size_t j = 0; j < entry.names.length; ++j)
-                names.append(Utf16FlyString::from_raw(entry.names.pointer[j].raw));
+                names.append(css_string_from_rust(&entry.names.pointer[j]));
             list.append(move(names));
             break;
         }
@@ -103,7 +103,7 @@ static GridTrackSizeList materialize_grid_track_size_list(bool is_subgrid, bool 
             list.append(ExplicitGridTrack { GridMinMax { GridSize { *materialize_style_value(entry.min_value.pointer) }, GridSize { *materialize_style_value(entry.max_value.pointer) } } });
             break;
         case StyleValueFFI::GridTrackEntryKind::Repeat: {
-            auto nested = materialize_grid_track_size_list(entry.repeat_is_subgrid, entry.repeat_preserve_line_name_sets, entry.repeat_entries_pointer, entry.repeat_entries_length);
+            auto nested = materialize_grid_track_size_list(entry.repeat_is_subgrid, entry.repeat_preserve_line_name_sets, static_cast<StyleValueFFI::RetainedGridTrackEntry const*>(entry.repeat_entries.pointer), entry.repeat_entries.length);
             list.append(ExplicitGridTrack { GridRepeat { static_cast<GridRepeatType>(entry.repeat_type), move(nested), materialize_style_value(entry.repeat_count.pointer) } });
             break;
         }
@@ -115,7 +115,7 @@ static GridTrackSizeList materialize_grid_track_size_list(bool is_subgrid, bool 
 CSS::GridTrackSizeList GridTrackSizeListStyleValue::grid_track_size_list() const
 {
     auto const& data = m_value->grid_track_size_list;
-    return materialize_grid_track_size_list(data.is_subgrid, data.preserve_line_name_sets, data.entries.pointer, data.entries.length);
+    return materialize_grid_track_size_list(data.is_subgrid, data.preserve_line_name_sets, static_cast<StyleValueFFI::RetainedGridTrackEntry const*>(data.entries.pointer), data.entries.length);
 }
 
 ValueComparingNonnullRefPtr<GridTrackSizeListStyleValue const> GridTrackSizeListStyleValue::create(CSS::GridTrackSizeList grid_track_size_list)

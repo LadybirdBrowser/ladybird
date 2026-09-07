@@ -2796,6 +2796,10 @@ extern "C" fn ladybird_string_unref(_raw: usize) {}
 #[unsafe(no_mangle)]
 extern "C" fn ladybird_utf16_fly_string_unref(_raw: usize) {}
 #[unsafe(no_mangle)]
+extern "C" fn ladybird_utf16_fly_string_from_utf16(_data: *const u16, _length: usize) -> usize {
+    panic!("style replay must use recorded atoms instead of the document-thread string interner");
+}
+#[unsafe(no_mangle)]
 extern "C" fn ladybird_gfx_font_cascade_list_ref(_list: *const c_void) {}
 #[unsafe(no_mangle)]
 extern "C" fn ladybird_gfx_font_cascade_list_unref(_list: *const c_void) {}

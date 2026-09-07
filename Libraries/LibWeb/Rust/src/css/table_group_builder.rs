@@ -419,8 +419,8 @@ impl GridGroupArena {
         index
     }
 
-    fn intern_borrowed(&mut self, name: &RetainedUtf16FlyString) -> u32 {
-        self.intern_retained(name.clone())
+    fn intern_borrowed(&mut self, name: &crate::css::css_string::CssString) -> u32 {
+        self.intern_retained(name.to_fly_string())
     }
 }
 
@@ -2183,7 +2183,9 @@ unsafe fn build_inherited_ui_group(
     let Some(StyleValueData::ColorScheme { schemes, only, .. }) = values.value(property_id::COLOR_SCHEME) else {
         unreachable!("a computed color-scheme is a color-scheme value");
     };
-    let color_schemes = RetainedUtf16FlyStringList::from_retained_strings(schemes.as_slice().to_vec());
+    let color_schemes = RetainedUtf16FlyStringList::from_retained_strings(
+        schemes.as_slice().iter().map(|name| name.to_fly_string()).collect(),
+    );
 
     unsafe {
         crate::css::computed_values::build_group_payload_with_rust_fill(
@@ -2698,7 +2700,7 @@ unsafe fn build_anchor_group(
         let mut names = Vec::new();
         let mut append = |data: &StyleValueData| {
             if let StyleValueData::CustomIdent { custom_ident } = data {
-                names.push(custom_ident.clone());
+                names.push(custom_ident.to_fly_string());
             }
         };
         match values.value(property) {
@@ -2720,7 +2722,7 @@ unsafe fn build_anchor_group(
     let anchor_scope_names = custom_idents(property_id::ANCHOR_SCOPE);
 
     let (position_anchor_type, position_anchor_name) = match values.value(property_id::POSITION_ANCHOR) {
-        Some(StyleValueData::CustomIdent { custom_ident }) => (3u8, custom_ident.clone()),
+        Some(StyleValueData::CustomIdent { custom_ident }) => (3u8, custom_ident.to_fly_string()),
         Some(StyleValueData::Keyword { keyword: code }) => match *code {
             keyword::NORMAL => (0u8, RetainedUtf16FlyString::none()),
             keyword::NONE => (1u8, RetainedUtf16FlyString::none()),
@@ -2750,7 +2752,7 @@ unsafe fn build_anchor_group(
         };
         let apply_item = |fallback: &mut ComputedPositionTryFallback, data: &StyleValueData| {
             if let StyleValueData::CustomIdent { custom_ident } = data {
-                fallback.name = custom_ident.clone();
+                fallback.name = custom_ident.to_fly_string();
             } else if let Some(tactic) = keyword_of(data).and_then(crate::css::css_enums::keyword_to_try_tactic) {
                 assert!(
                     fallback.tactic_count < 3,
@@ -3104,10 +3106,10 @@ unsafe fn build_box_group(
                 let StyleValueData::CustomIdent { custom_ident } = item.data() else {
                     unreachable!("a computed container-name item is a custom ident");
                 };
-                container_names.push(custom_ident.clone());
+                container_names.push(custom_ident.to_fly_string());
             }
         }
-        Some(StyleValueData::CustomIdent { custom_ident }) => container_names.push(custom_ident.clone()),
+        Some(StyleValueData::CustomIdent { custom_ident }) => container_names.push(custom_ident.to_fly_string()),
         _ => unreachable!("a computed container-name is none or custom idents"),
     }
 

@@ -11,7 +11,7 @@ use super::component_value::{ComponentKind, ComponentValue};
 use super::token_stream::TokenStream;
 use super::value_parser::{
     NumericRange, ParseContext, ParseOutcome, equals_ascii_case_insensitive, parse_length_from_stream,
-    parse_length_percentage_from_stream, parse_number_from_stream, retain_fly_string,
+    parse_length_percentage_from_stream, parse_number_from_stream,
 };
 use crate::css::css_enums::{keyword, keyword_from_ascii_case_insensitive};
 use crate::css::property_metadata::{
@@ -19,8 +19,8 @@ use crate::css::property_metadata::{
 };
 use crate::css::style_compute::px_length_unit;
 use crate::css::style_value::{
-    RetainedPropertyIdList, RetainedShapePoint, RetainedShapePointList, RetainedStyleValueData,
-    RetainedStyleValueDataList, RetainedUtf16FlyString, StyleValueData,
+    CssString, RetainedPropertyIdList, RetainedShapePoint, RetainedShapePointList, RetainedStyleValueData,
+    RetainedStyleValueDataList, StyleValueData,
 };
 use std::sync::Arc;
 
@@ -735,7 +735,7 @@ fn basic_shape(
     values: Vec<StyleValueData>,
     fill_rule: u8,
     points: Vec<RetainedShapePoint>,
-    path_string: RetainedUtf16FlyString,
+    path_string: CssString,
 ) -> StyleValueData {
     let mut values = values.into_iter().map(retained).collect::<Vec<_>>();
     values.resize_with(5, RetainedStyleValueData::none);
@@ -814,7 +814,7 @@ fn parse_inset_shape(context: &ParseContext, property: u16, arguments: &[Compone
         ],
         0,
         vec![],
-        RetainedUtf16FlyString::none(),
+        CssString::none(),
     ))
 }
 
@@ -858,7 +858,7 @@ fn parse_xywh_shape(context: &ParseContext, property: u16, arguments: &[Componen
         vec![x, y, width, height, radius],
         0,
         vec![],
-        RetainedUtf16FlyString::none(),
+        CssString::none(),
     ))
 }
 
@@ -886,7 +886,7 @@ fn parse_rect_shape(context: &ParseContext, property: u16, arguments: &[Componen
         return None;
     }
     sides.push(radius);
-    Some(basic_shape(2, sides, 0, vec![], RetainedUtf16FlyString::none()))
+    Some(basic_shape(2, sides, 0, vec![], CssString::none()))
 }
 
 fn parse_circle_or_ellipse(
@@ -936,7 +936,7 @@ fn parse_circle_or_ellipse(
         v4: RetainedStyleValueData::none(),
         fill_rule: 0,
         points: RetainedShapePointList::from_retained_points(vec![]),
-        path_string: RetainedUtf16FlyString::none(),
+        path_string: CssString::none(),
     })
 }
 
@@ -977,13 +977,7 @@ fn parse_polygon(context: &ParseContext, property: u16, arguments: &[ComponentVa
             Some(RetainedShapePoint::from_retained_values(retained(x), retained(y)))
         })
         .collect::<Option<Vec<_>>>()?;
-    Some(basic_shape(
-        5,
-        vec![],
-        fill_rule,
-        points,
-        RetainedUtf16FlyString::none(),
-    ))
+    Some(basic_shape(5, vec![], fill_rule, points, CssString::none()))
 }
 
 fn parse_path(context: &ParseContext, arguments: &[ComponentValue]) -> Option<StyleValueData> {
@@ -1008,7 +1002,7 @@ fn parse_path(context: &ParseContext, arguments: &[ComponentValue]) -> Option<St
         return None;
     }
     let serialized = path.serialize().encode_utf16().collect::<Vec<_>>();
-    let path_string = super::value_parser::retain_fly_string(context, &serialized)?;
+    let path_string = CssString::from_utf16(&serialized);
     Some(basic_shape(6, vec![], fill_rule, vec![], path_string))
 }
 
@@ -1105,9 +1099,9 @@ fn is_border_radius_longhand(property: u16) -> bool {
     )
 }
 
-fn dashed_ident(context: &ParseContext, value: &ComponentValue) -> Option<RetainedUtf16FlyString> {
+fn dashed_ident(_context: &ParseContext, value: &ComponentValue) -> Option<CssString> {
     let identifier = value.ident()?;
-    (identifier.starts_with(&[u16::from(b'-'), u16::from(b'-')])).then(|| retain_fly_string(context, identifier))?
+    (identifier.starts_with(&[u16::from(b'-'), u16::from(b'-')])).then(|| CssString::from_utf16(identifier))
 }
 
 fn anchor_side(value: &ComponentValue) -> Option<StyleValueData> {
@@ -1231,7 +1225,7 @@ pub(crate) fn parse_anchor_function(
     };
     Some(StyleValueData::Anchor {
         has_anchor_name: anchor_name.is_some(),
-        anchor_name: anchor_name.unwrap_or_else(RetainedUtf16FlyString::none),
+        anchor_name: anchor_name.unwrap_or_else(CssString::none),
         anchor_side: retained(side?),
         fallback_value: fallback.map_or_else(RetainedStyleValueData::none, retained),
     })
@@ -1354,7 +1348,7 @@ fn parse_anchor_size_function(context: &ParseContext, property: u16, value: &Com
     }
     Some(StyleValueData::AnchorSize {
         has_anchor_name: anchor_name.is_some(),
-        anchor_name: anchor_name.unwrap_or_else(RetainedUtf16FlyString::none),
+        anchor_name: anchor_name.unwrap_or_else(CssString::none),
         has_anchor_size: anchor_size.is_some(),
         anchor_size: anchor_size.unwrap_or(0),
         fallback_value: fallback.map_or_else(RetainedStyleValueData::none, retained),
@@ -1405,7 +1399,7 @@ fn parse_fit_content(context: &ParseContext, property: u16, values: &[ComponentV
         return None;
     }
     Some(StyleValueData::Function {
-        name: retain_fly_string(context, &"fit-content".encode_utf16().collect::<Vec<_>>())?,
+        name: CssString::from_utf16(&"fit-content".encode_utf16().collect::<Vec<_>>()),
         value: retained(argument),
     })
 }
@@ -1633,10 +1627,6 @@ mod tests {
     use crate::css::css_tokenizer::tokenize_for_parser;
     use crate::css::parser::component_value::consume_a_list_of_component_values;
 
-    unsafe extern "C" fn discard_interned_string(_: *const u16, _: usize) -> usize {
-        0
-    }
-
     fn context() -> ParseContext {
         ParseContext {
             in_quirks_mode: false,
@@ -1652,7 +1642,6 @@ mod tests {
             document_url_length: 0,
             document_base_url: std::ptr::null(),
             document_base_url_length: 0,
-            intern_utf16_fly_string: Some(discard_interned_string),
             length_resolution_context: std::ptr::null(),
             random_function_index: std::ptr::null_mut(),
         }

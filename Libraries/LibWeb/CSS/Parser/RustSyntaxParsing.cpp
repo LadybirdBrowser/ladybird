@@ -238,7 +238,7 @@ static Declaration declaration(FfiSyntaxParseData const& data, size_t index)
     Optional<StylePropertyAndName> property;
     if (declaration.parsed_value) {
         VERIFY(declaration.rejection == FfiDeclarationRejection::None);
-        auto value = StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(declaration.parsed_value));
+        auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(declaration.parsed_value)));
         if (declaration.is_property) {
             VERIFY(parsed_property_id.has_value());
             auto custom_name = *parsed_property_id == PropertyID::Custom ? Utf16FlyString::from_utf16(name_view) : Utf16FlyString {};
@@ -311,7 +311,7 @@ static Vector<Descriptor> descriptors(FfiSyntaxParseData const& data, size_t sta
             : DescriptorNameAndID::from_id(descriptor_id);
         result.unchecked_append({
             .descriptor_name_and_id = move(name_and_id),
-            .value = StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(descriptor.value)),
+            .value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(descriptor.value))),
         });
     }
     return result;
@@ -346,16 +346,16 @@ static ParsedRulePrelude parsed_rule_prelude(FfiSyntaxParseData const& data, Ffi
         auto const& item = data.prelude_items[rule.parsed_prelude_items_start + index];
         Optional<SelectorList> selectors;
         if (item.selector_list)
-            selectors = selector_list_from_rust(static_cast<SelectorFFI::RustParsedSelectorList*>(item.selector_list));
+            selectors = selector_list_from_rust(static_cast<SelectorFFI::RustParsedSelectorList const*>(item.selector_list));
         Optional<RustQueryHandle> query;
         if (item.query)
             query = RustQueryHandle::retained(static_cast<FfiQueryHandle const*>(item.query));
         Optional<RustSyntaxHandle> syntax;
         if (item.syntax)
-            syntax = RustSyntaxHandle { item.syntax };
+            syntax = RustSyntaxHandle { rust_syntax_retain(item.syntax) };
         RefPtr<StyleValue const> style_value;
         if (item.style_value)
-            style_value = StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(item.style_value));
+            style_value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(item.style_value)));
         items.unchecked_append({
             .value = optional_string(item.value_offset, item.value_length),
             .selectors = move(selectors),
@@ -370,7 +370,7 @@ static ParsedRulePrelude parsed_rule_prelude(FfiSyntaxParseData const& data, Ffi
         .kind = kind,
         .name = optional_string(rule.parsed_prelude_name_offset, rule.parsed_prelude_name_length),
         .secondary = optional_string(rule.parsed_prelude_secondary_offset, rule.parsed_prelude_secondary_length),
-        .syntax = rule.parsed_prelude_syntax ? Optional<RustSyntaxHandle> { RustSyntaxHandle { rule.parsed_prelude_syntax } } : OptionalNone {},
+        .syntax = rule.parsed_prelude_syntax ? Optional<RustSyntaxHandle> { RustSyntaxHandle { rust_syntax_retain(rule.parsed_prelude_syntax) } } : OptionalNone {},
         .items = move(items),
         .page_selectors = rule.page_selector_list ? page_selector_list_from_rust(rust_page_selector_list_data(rule.page_selector_list)) : PageSelectorList {},
     };
@@ -417,7 +417,7 @@ static Rule rule(FfiSyntaxParseData const& data, size_t index)
     VERIFY(rule.rule_type == 1);
     Optional<SelectorList> selectors;
     if (rule.selector_list)
-        selectors = selector_list_from_rust(static_cast<SelectorFFI::RustParsedSelectorList*>(rule.selector_list));
+        selectors = selector_list_from_rust(static_cast<SelectorFFI::RustParsedSelectorList const*>(rule.selector_list));
     return QualifiedRule {
         .kind = rule.rule_kind,
         .selectors = move(selectors),
