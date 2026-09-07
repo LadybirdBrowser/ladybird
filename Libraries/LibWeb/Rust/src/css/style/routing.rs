@@ -1731,32 +1731,32 @@ impl StyleEngine {
             return;
         }
 
-        let mut anchors = Vec::new();
-        match anchor.match_in_shadow_tree {
-            true => possible_hosting_anchors(anchor.axis, witness, &self.tree, |candidate| {
-                anchors.push(candidate);
-            }),
-            false => possible_anchors(anchor.axis, witness, &self.tree, None, |candidate| {
-                anchors.push(candidate);
-            }),
-        }
-        self.counters
-            .add(Counter::RelationalAnchorsConsidered, anchors.len() as u64);
-
-        let anchor_posting = anchor
-            .anchor_dispatch
-            .has_selector_posting()
-            .then_some(anchor.anchor_dispatch);
-        for candidate in anchors {
-            // An ancestor that does not carry the anchor compound's feature is not an anchor of
-            // this query at all.
-            if let Some(key) = anchor_posting {
-                match self.facts.postings().lookup(key) {
-                    Lookup::Known(posting) if !posting.contains(candidate) => continue,
-                    Lookup::KnownAbsent => continue,
-                    Lookup::Known(_) | Lookup::Missing(_) => {}
-                }
+        // OPTIMIZATION: Resolve the anchor posting once before walking the inverse axis. A known
+        //               empty posting rules out every anchor, regardless of the number of witnesses.
+        let anchor_posting = if anchor.anchor_dispatch.has_selector_posting() {
+            match self.facts.postings().lookup(anchor.anchor_dispatch) {
+                Lookup::Known(posting) => Some(posting),
+                Lookup::KnownAbsent => return,
+                Lookup::Missing(_) => None,
             }
+        } else {
+            None
+        };
+        let mut anchors = Vec::new();
+        let mut considered = 0;
+        let mut visit = |candidate| {
+            considered += 1;
+            if anchor_posting.is_none_or(|posting| posting.contains(candidate)) {
+                anchors.push(candidate);
+            }
+        };
+        match anchor.match_in_shadow_tree {
+            true => possible_hosting_anchors(anchor.axis, witness, &self.tree, &mut visit),
+            false => possible_anchors(anchor.axis, witness, &self.tree, None, &mut visit),
+        }
+        self.counters.add(Counter::RelationalAnchorsConsidered, considered);
+
+        for candidate in anchors {
             // An anchor whose retained witness still witnesses it was true and stays true: only
             // zero/nonzero witness transitions can affect selector truth, so nothing reached
             // through this anchor has moved and it drops out of the plan. A position-testing
