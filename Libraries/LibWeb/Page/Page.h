@@ -125,12 +125,14 @@ public:
     void insert_remote_navigable(HTML::RemoteNavigableDescriptor);
     void remove_remote_navigable(HTML::CrossProcessId);
     void update_remote_navigable(HTML::CrossProcessId, HTML::ReplicatedNavigableState);
+    void content_navigable_completely_finished_loading(HTML::CrossProcessId);
 
     GC::Ref<HTML::LocalNavigable> begin_hosting(HTML::CrossProcessId, HTML::SessionHistoryEntryDescriptor const& current_history_entry, HTML::VisibilityState system_visibility_state);
     void adopt_hosted(HTML::LocalNavigable&);
     void discard_provisional_navigable(HTML::CrossProcessId);
     void stop_hosting(HTML::CrossProcessId, HTML::ReplicatedNavigableState);
     void stop_hosting(HTML::LocalNavigable&, HTML::ReplicatedNavigableState);
+    void host_navigable(HTML::CrossProcessId, HTML::SessionHistoryEntryDescriptor const& current_history_entry, HTML::VisibilityState system_visibility_state);
 
     void discard();
 
@@ -401,6 +403,7 @@ private:
     void for_each_canvas_element(Callback&& callback);
 
     Vector<GC::Root<DOM::Document>> documents_in_active_window() const;
+    void discard_provisional_navigable_of(HTML::RemoteNavigable&);
 
     enum class SearchDirection {
         Forward,
@@ -552,10 +555,10 @@ public:
     virtual void navigation_population_failed(HTML::CrossProcessId, Utf16String const&) { }
     virtual void page_did_create_child_frame(HTML::CrossProcessId, HTML::CrossProcessId, HTML::ReplicatedNavigableState const&) { }
     virtual void page_did_change_replicated_navigable_state([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::ReplicatedNavigableState const& state) { }
+    virtual void page_did_completely_finish_loading([[maybe_unused]] HTML::CrossProcessId navigable_id) { }
     virtual void page_did_change_navigable_container_state([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::ReplicatedContainerState const& state) { }
     virtual void page_did_update_child_frame_viewport(HTML::CrossProcessId, CSSPixelRect) { }
     virtual void page_did_destroy_child_frame(HTML::CrossProcessId) { }
-    virtual Optional<Compositor::CompositorContextId> compositor_context_id_for_remote_child_frame(HTML::CrossProcessId) const { return {}; }
     virtual String dump_site_isolation_process_tree_for_testing() { return {}; }
     virtual void crash_remote_frame_processes_for_testing() { }
     virtual void send_bad_ipc_message_for_testing([[maybe_unused]] StringView kind, [[maybe_unused]] URL::URL const& active_document_url) { }

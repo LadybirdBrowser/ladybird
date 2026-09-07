@@ -360,8 +360,9 @@ void CanonicalNavigable::discard_pending_host()
     if (has_remote_host() && client.ptr() == m_remote_client.ptr() && page_id == m_remote_page_id)
         return;
 
-    // The page holding the container hosts the displayed document itself, and created no provisional navigable.
-    if (client.ptr() == m_reporting_client.ptr() && page_id == m_reporting_page_id)
+    // The chosen page drops the provisional navigable it created for a document another page displays. A page holding
+    // the container hosts the displayed document itself when the navigable has no remote host, and created none.
+    if (client.ptr() == m_reporting_client.ptr() && page_id == m_reporting_page_id && !has_remote_host())
         return;
     client->async_discard_provisional_navigable(page_id, id());
     top_level_traversable().release_page_if_unused(*client, page_id);
@@ -398,10 +399,15 @@ void CanonicalNavigable::update_replicated_state(Web::HTML::ReplicatedNavigableS
     top_level_traversable().for_each_page_representing(*this, [&](WebContentClient& client, Web::PageId page_id) {
         client.async_update_remote_navigable(page_id, id(), *m_replicated_state);
     });
+}
 
-    // The page holding the container paints the document through the compositor context its host reports.
-    if (has_remote_host())
-        reporting_client().async_set_remote_child_frame_compositor_context(reporting_page_id(), id(), m_replicated_state->compositor_context_id);
+void CanonicalNavigable::active_document_completely_finished_loading()
+{
+    // The navigable's container runs the load event steps in the page hosting its parent's document, which is among
+    // the pages representing the navigable.
+    top_level_traversable().for_each_page_representing(*this, [&](WebContentClient& client, Web::PageId page_id) {
+        client.async_content_navigable_completely_finished_loading(page_id, id());
+    });
 }
 
 void CanonicalNavigable::set_current_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const& entry)

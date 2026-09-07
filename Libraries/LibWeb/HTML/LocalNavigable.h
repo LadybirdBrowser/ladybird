@@ -88,11 +88,14 @@ public:
     GC::Ptr<RemoteNavigable> provisional_for() const { return m_provisional_for; }
     void clear_provisional_for() { m_provisional_for = nullptr; }
     static GC::Ref<LocalNavigable> create_stand_in(Badge<Page>, RemoteNavigable&, SessionHistoryEntryDescriptor const&, VisibilityState system_visibility_state);
-    void set_parent_compositor_context(Optional<Compositor::CompositorContextId>);
     void set_root_container_state(ReplicatedContainerState);
+    void set_parent_compositor_context(Optional<Compositor::CompositorContextId>);
 
     bool is_closing() const { return m_closing; }
     void set_closing(bool value);
+    void report_replicated_state();
+    void report_state_to_remote_container();
+    void unload_document_for_host_change();
     bool is_script_closable();
 
     void stop_loading();
@@ -232,10 +235,7 @@ public:
 
     // https://github.com/whatwg/html/issues/9690
     [[nodiscard]] virtual bool has_been_destroyed() const override { return m_has_been_destroyed; }
-    void set_has_been_destroyed();
-    void report_child_frame_destroyed();
-    void unload_child_navigable_before_destruction(GC::Ref<GC::Function<void()>> after_all_unloads);
-    void continue_child_navigable_destruction(UnloadDisplayedDocument);
+    virtual void set_has_been_destroyed() override;
     void remove_from_all_local_navigables();
 
     CSSPixelPoint to_page_position(CSSPixelPoint);
@@ -519,14 +519,9 @@ private:
     NavigationObserver::NavigationObserversList m_navigation_observers;
 
     bool m_has_been_destroyed { false };
+    GC::Ptr<RemoteNavigable> m_provisional_for;
 
     ReplicatedContainerState m_root_container_state;
-    bool m_child_frame_destruction_reported { false };
-
-    // The destroy-a-child-navigable continuation parked while the UI process unloads this navigable's document tree.
-    GC::Ptr<GC::Function<void()>> m_pending_child_navigable_unload;
-
-    GC::Ptr<RemoteNavigable> m_provisional_for;
 
     CSSPixelSize m_viewport_size;
     CSSPixelPoint m_viewport_scroll_offset;

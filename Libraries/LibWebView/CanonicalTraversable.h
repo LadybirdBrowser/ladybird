@@ -97,6 +97,7 @@ public:
     Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigable_graph() const;
 
     void for_each_hosting_page(Function<void(WebContentClient&, Web::PageId page_id)> const&) const;
+    // The open pages of this tab that represent a navigable: every page not hosting its document.
     void for_each_page_representing(CanonicalNavigable const&, Function<void(WebContentClient&, Web::PageId page_id)> const&) const;
     bool hosts(CanonicalNavigable const&, WebContentClient const&, Web::PageId page_id) const;
     bool page_hosts_any(WebContentClient const&, Web::PageId page_id) const;

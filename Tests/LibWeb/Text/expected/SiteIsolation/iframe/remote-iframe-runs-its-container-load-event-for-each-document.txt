@@ -1,0 +1,5 @@
+first document loaded with the frame remote: true
+second document loaded: true
+third document loaded: true
+WebContent#0
+  iframe#0: remote WebContent#1

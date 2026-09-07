@@ -1,0 +1,7 @@
+initial document is accessible: true
+same WindowProxy while remote: true
+document access while remote: SecurityError
+same WindowProxy when local again: true
+document is accessible again: true
+WebContent#0
+  iframe#0: local

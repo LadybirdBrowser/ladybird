@@ -146,6 +146,7 @@ public:
     Optional<Web::HTML::ReplicatedNavigableState> const& replicated_state() const { return m_replicated_state; }
     void set_replicated_state(Web::HTML::ReplicatedNavigableState);
     void update_replicated_state(Web::HTML::ReplicatedNavigableState);
+    void active_document_completely_finished_loading();
     void update_container_state(Web::HTML::ReplicatedContainerState);
 
     Optional<Web::HTML::SessionHistoryEntryIdentity> const& current_session_history_entry_identity() const { return m_current_session_history_entry_identity; }

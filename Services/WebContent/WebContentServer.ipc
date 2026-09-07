@@ -60,6 +60,7 @@ endpoint WebContentServer
     insert_remote_navigable(Web::PageId page_id, Web::HTML::RemoteNavigableDescriptor navigable) =|
     remove_remote_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     update_remote_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState state) =|
+    content_navigable_completely_finished_loading(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     update_local_root_container_state(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState state) =|
     close_server() =|
 
@@ -91,12 +92,12 @@ endpoint WebContentServer
     create_navigation_params(Web::PageId page_id, Web::HTML::NavigationPopulationRequest request) =|
     cancel_navigation_params_creation(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) =|
     navigate_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::PreparedNavigationDescriptor navigation) =|
+    deliver_posted_message(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::PostedMessageDescriptor message) =|
     begin_hosting_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor current_history_entry, Web::HTML::VisibilityState system_visibility_state) =|
     discard_provisional_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     stop_hosting_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState replicated_state) =|
+    host_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor current_history_entry, Web::HTML::VisibilityState system_visibility_state) =|
     set_hosted_root_viewport(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::DevicePixelSize size, double device_pixel_ratio) =|
-    deliver_posted_message(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::PostedMessageDescriptor message) =|
-    set_remote_child_frame_compositor_context(Web::PageId page_id, Web::HTML::CrossProcessId frame_id, Optional<Web::Compositor::CompositorContextId> context_id) =|
     history_operation_started(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Optional<Web::ReconstructedChildNavigation> reconstructed_child_navigation) =|
     run_history_step_unload_cancelation_job(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Vector<Web::HTML::CrossProcessId> navigables_crossing_documents, Web::HTML::UserNavigationInvolvement user_involvement) =|
     run_history_step_beforeunload_check(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Vector<Web::HTML::CrossProcessId> navigable_ids, Web::HTML::UnloadPromptShown unload_prompt_shown) =|
@@ -107,7 +108,7 @@ endpoint WebContentServer
     prepare_changing_navigable_for_unload(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) =|
     apply_changing_navigable_continuation(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index, Vector<Web::HTML::SessionHistoryEntryDescriptor> entries_for_navigation_api, Web::HTML::VisibilityState system_visibility_state, Web::HTML::UnloadDisplayedDocument unload_displayed_document) =|
     run_descendant_unload_task(Web::PageId page_id, Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::StopHostingAfterUnload stop_hosting_after_unload) =|
-    continue_child_navigable_destruction(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::UnloadDisplayedDocument unload_displayed_document) =|
+    continue_child_navigable_destruction(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     run_traversable_close_unload_task(Web::PageId page_id, Web::HTML::CrossProcessId operation_id) =|
     update_nonchanging_navigable_history_state(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index) =|
     complete_history_operation(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Optional<i32> committed_step, u64 session_history_entry_count) =|

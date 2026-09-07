@@ -57,6 +57,9 @@ struct ReplicatedNavigableState {
 
     ReplicatedContainerState container;
 
+    bool delays_the_load_event_of_its_container { false };
+    bool has_session_history_entry_and_ready_for_navigation { false };
+
     Optional<Compositor::CompositorContextId> compositor_context_id;
 };
 

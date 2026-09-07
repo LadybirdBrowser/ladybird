@@ -42,10 +42,12 @@
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/NavigationPopulationRequest.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Infra/SerializedURL.h>
@@ -335,6 +337,11 @@ void PageClient::page_did_change_replicated_navigable_state(Web::HTML::CrossProc
     client().async_did_change_replicated_navigable_state(m_id, navigable_id, state);
 }
 
+void PageClient::page_did_completely_finish_loading(Web::HTML::CrossProcessId navigable_id)
+{
+    client().async_did_completely_finish_loading(m_id, navigable_id);
+}
+
 void PageClient::page_did_change_navigable_container_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState const& state)
 {
     client().async_did_change_navigable_container_state(m_id, navigable_id, state);
@@ -352,22 +359,7 @@ void PageClient::page_did_update_child_frame_viewport(Web::HTML::CrossProcessId 
 
 void PageClient::page_did_destroy_child_frame(Web::HTML::CrossProcessId frame_id)
 {
-    m_remote_child_frame_compositor_contexts.remove(frame_id);
     client().async_did_destroy_child_frame(m_id, frame_id);
-}
-
-void PageClient::set_remote_child_frame_compositor_context(Web::HTML::CrossProcessId frame_id, Optional<Web::Compositor::CompositorContextId> context_id)
-{
-    if (context_id.has_value())
-        m_remote_child_frame_compositor_contexts.set(frame_id, *context_id);
-    else
-        m_remote_child_frame_compositor_contexts.remove(frame_id);
-    request_frame();
-}
-
-Optional<Web::Compositor::CompositorContextId> PageClient::compositor_context_id_for_remote_child_frame(Web::HTML::CrossProcessId frame_id) const
-{
-    return m_remote_child_frame_compositor_contexts.get(frame_id);
 }
 
 Gfx::Palette PageClient::palette() const

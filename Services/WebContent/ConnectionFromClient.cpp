@@ -65,6 +65,7 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
+#include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/SelectedFile.h>
@@ -219,6 +220,12 @@ void ConnectionFromClient::update_remote_navigable(Web::PageId page_id, Web::HTM
         page->page().update_remote_navigable(navigable_id, move(state));
 }
 
+void ConnectionFromClient::content_navigable_completely_finished_loading(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->page().content_navigable_completely_finished_loading(navigable_id);
+}
+
 void ConnectionFromClient::update_local_root_container_state(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState state)
 {
     auto page = this->page(page_id);
@@ -250,16 +257,18 @@ void ConnectionFromClient::stop_hosting_navigable(Web::PageId page_id, Web::HTML
     }
 }
 
+void ConnectionFromClient::host_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor current_history_entry, Web::HTML::VisibilityState system_visibility_state)
+{
+    if (auto page = this->page(page_id); page.has_value()) {
+        page->page().host_navigable(navigable_id, current_history_entry, system_visibility_state);
+        page->page().client().request_frame();
+    }
+}
+
 void ConnectionFromClient::set_hosted_root_viewport(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::DevicePixelSize size, double device_pixel_ratio)
 {
     if (auto page = this->page(page_id); page.has_value())
         page->set_hosted_root_viewport(navigable_id, size, device_pixel_ratio);
-}
-
-void ConnectionFromClient::set_remote_child_frame_compositor_context(Web::PageId page_id, Web::HTML::CrossProcessId frame_id, Optional<Web::Compositor::CompositorContextId> context_id)
-{
-    if (auto page = this->page(page_id); page.has_value())
-        page->set_remote_child_frame_compositor_context(frame_id, context_id);
 }
 
 void ConnectionFromClient::run_navigation_unload_check(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id)
@@ -629,15 +638,19 @@ void ConnectionFromClient::run_descendant_unload_task(Web::PageId page_id, Web::
     }));
 }
 
-void ConnectionFromClient::continue_child_navigable_destruction(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::UnloadDisplayedDocument unload_displayed_document)
+void ConnectionFromClient::continue_child_navigable_destruction(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
 {
     auto page = this->page(page_id);
-    auto navigable = Web::HTML::local_navigable_with_id(navigable_id);
-    if (!page.has_value() || !navigable)
+    if (!page.has_value())
         return;
-    VERIFY(&navigable->page() == &page->page());
 
-    navigable->continue_child_navigable_destruction(unload_displayed_document);
+    // The child has already been marked as destroyed, so a lookup through the page no longer finds it.
+    GC::Ptr<Web::HTML::Navigable> navigable = Web::HTML::local_navigable_with_id(navigable_id);
+    if (!navigable || &navigable->page() != &page->page())
+        navigable = Web::HTML::remote_navigable_with_id(page->page(), navigable_id);
+    if (!navigable)
+        return;
+    Web::HTML::NavigableContainer::continue_destroying_the_child_navigable(*navigable);
 }
 
 void ConnectionFromClient::run_traversable_close_unload_task(Web::PageId page_id, Web::HTML::CrossProcessId)

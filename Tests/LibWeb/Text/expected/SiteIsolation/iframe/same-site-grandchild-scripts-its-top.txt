@@ -1,0 +1,10 @@
+grandchild-ran: true
+top-is-not-parent: true
+parent-parent-is-top: true
+top-document-readable: true
+top-title-matches: true
+top-first-child-is-parent: true
+top-document-body-has-iframe: true
+WebContent#0
+  iframe#0: remote WebContent#1
+    iframe#0: remote WebContent#0

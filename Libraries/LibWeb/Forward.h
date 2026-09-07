@@ -942,6 +942,7 @@ struct POSTResource;
 struct SerializedFormData;
 struct SerializedPolicyContainer;
 struct SerializedTransferRecord;
+struct SessionHistoryEntryDescriptor;
 struct SourceSnapshotParams;
 struct TargetSnapshotParams;
 struct ToggleTaskTracker;

@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A cross-site iframe's container runs the iframe load event steps for each document the frame's process
+    // finishes loading: the one the parent navigates the frame to, and the one that document navigates the frame to.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const childHostname = uniqueLocalhostHostname("oop-iframe-load-event-each-document");
+
+        const createChildUrl = async (name, body) => {
+            const url = new URL(
+                await httpServer.createEcho("GET", `/oop-iframe-load-event-${name}-${runId}`, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html" },
+                    body,
+                })
+            );
+            url.hostname = childHostname;
+            return url;
+        };
+        const thirdUrl = await createChildUrl("third", "<!DOCTYPE html>third");
+        const secondUrl = await createChildUrl(
+            "second",
+            `<!DOCTYPE html>second<script>addEventListener("load", () => { location.href = ${JSON.stringify(thirdUrl.href)}; });<\/script>`
+        );
+        const firstUrl = await createChildUrl("first", "<!DOCTYPE html>first");
+
+        const iframe = document.createElement("iframe");
+        let loadCount = 0;
+        iframe.addEventListener("load", () => ++loadCount);
+        const nextLoad = () => new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+
+        let loaded = nextLoad();
+        iframe.src = firstUrl;
+        document.body.appendChild(iframe);
+        await loaded;
+        println(`first document loaded with the frame remote: ${loadCount === 1 && remoteFrameCount() === 1}`);
+
+        loaded = nextLoad();
+        iframe.src = secondUrl;
+        await loaded;
+        println(`second document loaded: ${loadCount === 2}`);
+
+        await nextLoad();
+        println(`third document loaded: ${loadCount === 3}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>
