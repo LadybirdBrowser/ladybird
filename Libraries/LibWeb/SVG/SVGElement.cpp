@@ -131,6 +131,17 @@ static ReadonlySpan<NamedPropertyID> attribute_style_properties()
     return properties;
 }
 
+static HashMap<Utf16FlyString, NamedPropertyID const*> const& attribute_style_properties_by_name()
+{
+    static auto const& properties_by_name = *[] {
+        auto* map = new HashMap<Utf16FlyString, NamedPropertyID const*>;
+        for (auto const& property : attribute_style_properties())
+            map->set(property.name, &property);
+        return map;
+    }();
+    return properties_by_name;
+}
+
 static Optional<CSS::PropertyID> property_id_for_presentational_attribute(Utf16FlyString const& name, Utf16FlyString const& tag_name)
 {
     // https://svgwg.org/svg2-draft/styling.html#PresentationAttributes
@@ -140,17 +151,12 @@ static Optional<CSS::PropertyID> property_id_for_presentational_attribute(Utf16F
         && (tag_name == TagNames::pattern || tag_name == TagNames::linearGradient || tag_name == TagNames::radialGradient))
         return {};
 
-    for (auto const& property : attribute_style_properties()) {
-        if (!property.name.equals_ignoring_ascii_case(name))
-            continue;
-
-        if (!property.supported_elements.is_empty() && !property.supported_elements.contains_slow(tag_name))
-            continue;
-
-        return property.id;
-    }
-
-    return {};
+    auto const* property = attribute_style_properties_by_name().get(name).value_or(nullptr);
+    if (!property)
+        return {};
+    if (!property->supported_elements.is_empty() && !property->supported_elements.contains_slow(tag_name))
+        return {};
+    return property->id;
 }
 
 bool SVGElement::is_presentational_hint(Utf16FlyString const& name) const
