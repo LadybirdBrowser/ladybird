@@ -146,11 +146,7 @@ void CanonicalTraversable::for_each_hosting_page(Function<void(WebContentClient&
 
 void CanonicalTraversable::for_each_page_representing(CanonicalNavigable const& navigable, Function<void(WebContentClient&, Web::PageId page_id)> const& callback) const
 {
-    // NB: The view's page hosts the traversable, whose subtree is the whole tab, so it represents no navigable until
-    //     a container can hold a navigable hosted elsewhere.
     for_each_hosting_page([&](WebContentClient& client, Web::PageId page_id) {
-        if (client.is_view_page(page_id))
-            return;
         if (!hosts(navigable, client, page_id))
             callback(client, page_id);
     });
@@ -320,6 +316,8 @@ void CanonicalTraversable::create_a_new_top_level_traversable(Optional<Canonical
         .active_document_is_completely_loaded = false,
         .is_closing = false,
         .container = {},
+        .delays_the_load_event_of_its_container = false,
+        .has_session_history_entry_and_ready_for_navigation = true,
         // The process hosting the traversable reports the compositor context it paints through.
         .compositor_context_id = {},
     });
@@ -1793,14 +1791,15 @@ void CanonicalTraversable::did_receive_child_navigable_unload_request(WebContent
 {
     auto navigable = find(navigable_id);
     if (!navigable.has_value()) {
-        source_client.async_continue_child_navigable_destruction(source_page_id, navigable_id, Web::HTML::UnloadDisplayedDocument::Yes);
+        source_client.async_continue_child_navigable_destruction(source_page_id, navigable_id);
         return;
     }
 
     // AD-HOC: Child removal unloads the document tree before continuing the destroy a child navigable algorithm.
-    unload_a_document_and_its_descendants({}, navigable_id, { &source_client, source_page_id }, [client = NonnullRefPtr<WebContentClient>(source_client), source_page_id, navigable_id](UnloadedInItsHost unloaded_in_its_host) {
-        auto unload_displayed_document = unloaded_in_its_host == UnloadedInItsHost::Yes ? Web::HTML::UnloadDisplayedDocument::No : Web::HTML::UnloadDisplayedDocument::Yes;
-        client->async_continue_child_navigable_destruction(source_page_id, navigable_id, unload_displayed_document);
+    // NB: The container holds a local navigable exactly when the requesting page hosts the document, so that page
+    //     unloads it as it continues; a remote navigable's document has been unloaded in its host by now.
+    unload_a_document_and_its_descendants({}, navigable_id, { &source_client, source_page_id }, [client = NonnullRefPtr<WebContentClient>(source_client), source_page_id, navigable_id](UnloadedInItsHost) {
+        client->async_continue_child_navigable_destruction(source_page_id, navigable_id);
     });
 }
 

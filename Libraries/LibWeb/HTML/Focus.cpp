@@ -416,8 +416,13 @@ static GC::Ptr<DOM::Node> get_focusable_area(DOM::Node& focus_target, FocusTrigg
     // navigable container's content navigable's active document.
     if (auto* navigable_container = as_if<NavigableContainer>(&focus_target)) {
         if (!is_inert_for_focus(*navigable_container) && navigable_container->meets_focusable_area_rendering_requirements()) {
-            if (auto content_navigable = navigable_container->content_navigable())
-                return as<LocalNavigable>(*content_navigable).active_document();
+            if (auto content_navigable = navigable_container->content_navigable()) {
+                // FIXME: Focus a document hosted by another process there.
+                auto* local_navigable = as_if<LocalNavigable>(*content_navigable);
+                if (!local_navigable)
+                    return nullptr;
+                return local_navigable->active_document();
+            }
         }
     }
 
@@ -473,8 +478,13 @@ void run_focusing_steps(GC::Ptr<DOM::Node> new_focus_target, GC::Ptr<DOM::Node> 
 
     // 3. If new focus target is a navigable container with non-null content navigable, then set new focus target to the content navigable's active document.
     if (auto* navigable_container = as_if<NavigableContainer>(*new_focus_target)) {
-        if (auto content_navigable = navigable_container->content_navigable())
-            new_focus_target = as<LocalNavigable>(*content_navigable).active_document();
+        if (auto content_navigable = navigable_container->content_navigable()) {
+            // FIXME: Focus a document hosted by another process there.
+            auto* local_navigable = as_if<LocalNavigable>(*content_navigable);
+            if (!local_navigable)
+                return;
+            new_focus_target = local_navigable->active_document();
+        }
     }
 
     // 4. If new focus target is a focusable area and its DOM anchor is inert, then return.

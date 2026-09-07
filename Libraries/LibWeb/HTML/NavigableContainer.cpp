@@ -15,14 +15,19 @@
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/DocumentState.h>
+#include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
 #include <LibWeb/HTML/HistoryExecutor.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/NavigationParams.h>
+#include <LibWeb/HTML/RemoteNavigable.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
+#include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
@@ -156,7 +161,12 @@ DOM::Document const* NavigableContainer::content_document() const
         return nullptr;
 
     // 2. Let document be container's content navigable's active document.
-    auto document = as<LocalNavigable>(*m_content_navigable).active_document();
+    // NB: A document hosted by another process is never same origin-domain with container's node document here, until
+    //     same-origin documents of different pages are stitched together.
+    auto* local_navigable = as_if<LocalNavigable>(*m_content_navigable);
+    if (!local_navigable)
+        return nullptr;
+    auto document = local_navigable->active_document();
 
     // AD-HOC: The active document can be null during navigation, after the old document
     //         has been destroyed but before the new document has been set.
@@ -176,7 +186,11 @@ DOM::Document const* NavigableContainer::content_document_without_origin_check()
     if (!m_content_navigable)
         return nullptr;
 
-    return as<LocalNavigable>(*m_content_navigable).active_document().ptr();
+    // A document hosted by another process is not here.
+    auto* local_navigable = as_if<LocalNavigable>(*m_content_navigable);
+    if (!local_navigable)
+        return nullptr;
+    return local_navigable->active_document().ptr();
 }
 
 // https://html.spec.whatwg.org/multipage/embedded-content-other.html#dom-media-getsvgdocument
@@ -305,60 +319,50 @@ void NavigableContainer::destroy_the_child_navigable()
     if (!navigable)
         return;
 
-    auto& local_navigable = as<LocalNavigable>(*navigable);
-
-    if (local_navigable.has_been_destroyed())
+    if (navigable->has_been_destroyed())
         return;
-    local_navigable.set_has_been_destroyed();
+    navigable->set_has_been_destroyed();
 
     // 3. Set container's content navigable to null.
     m_content_navigable = nullptr;
-    local_navigable.set_container({}, nullptr);
+    navigable->set_container({}, nullptr);
     document().schedule_html_parser_end_check();
     if (auto* layout_node = unsafe_layout_node())
         layout_node->refresh_dom_paint_facts();
     set_needs_repaint();
 
-    // AD-HOC: Clear the navigable's "is delaying load events" flag.
-    //         This removes the DocumentLoadEventDelayer on the parent document that was
-    //         created when the navigable started loading (navigate algorithm step 15).
-    //         Without this, the delayer lingers until GC collects the LocalNavigable, which can
-    //         block the parent document's load event indefinitely.
-    local_navigable.set_delaying_load_events(false);
+    // The load-event delays and navigation API of the navigable's document are where the document is.
+    if (auto* local_navigable = as_if<LocalNavigable>(*navigable)) {
+        // AD-HOC: Clear the navigable's "is delaying load events" flag.
+        //         This removes the DocumentLoadEventDelayer on the parent document that was
+        //         created when the navigable started loading (navigate algorithm step 15).
+        //         Without this, the delayer lingers until GC collects the LocalNavigable, which can
+        //         block the parent document's load event indefinitely.
+        local_navigable->set_delaying_load_events(false);
 
-    // AD-HOC: Clear the navigation load event guard that may have been set by
-    //         finalize_a_cross_document_navigation. Without this, the guard's
-    //         DocumentLoadEventDelayer on the parent document persists until GC,
-    //         blocking the parent's load event indefinitely.
-    local_navigable.clear_navigation_load_event_guard();
+        // AD-HOC: Clear the navigation load event guard that may have been set by
+        //         finalize_a_cross_document_navigation. Without this, the guard's
+        //         DocumentLoadEventDelayer on the parent document persists until GC,
+        //         blocking the parent's load event indefinitely.
+        local_navigable->clear_navigation_load_event_guard();
 
-    // 4. Inform the navigation API about child navigable destruction given navigable.
-    local_navigable.inform_the_navigation_api_about_child_navigable_destruction();
+        // 4. Inform the navigation API about child navigable destruction given navigable.
+        local_navigable->inform_the_navigation_api_about_child_navigable_destruction();
 
-    // NB: The container may have been inserted into another document by the time the unload below finishes, so capture
-    //     its node navigable now for steps 6 and 8.
-    auto parent_navigable = this->navigable();
-
-    auto after_document_destruction = GC::create_function(GC::Heap::the(), [navigable, parent_navigable] {
-        // Not in the spec:
-        as<LocalNavigable>(*navigable).report_child_frame_destroyed();
-        as<LocalNavigable>(*navigable).remove_from_all_local_navigables();
-
-        // 6. Let parentDocState be container's node navigable's active session history entry's document state.
-        auto parent_doc_state = parent_navigable->active_session_history_entry()->document_state();
-
-        // 7. Remove the nested history from parentDocState's nested histories whose id equals navigable's id.
-        // NB: The UI process performs this step in canonical session history.
-
-        // 8. Let traversable be container's node navigable's traversable navigable.
-        // 9. Append the following session history traversal steps to traversable:
-        // 1. Update for navigable creation/destruction given traversable.
-        parent_navigable->page().history_executor().request_history_operation(NavigableDestructionHistoryOperationParameters {
-            .parent_navigable_id = parent_navigable->id(),
-            .parent_document_state_id = parent_doc_state->cross_process_id(),
-            .navigable_id = navigable->id(),
-        });
-    });
+        // AD-HOC: The spec assumes the active document is non-null in step 5, but during an ancestor
+        //         unload the child documents are unloaded (and destroyed) before the ancestor's
+        //         pagehide fires. If that pagehide handler then removes a subtree containing this
+        //         container, we reach step 5 with navigable's active document already null. We
+        //         treat the unload step as a no-op in that case and proceed with the remaining
+        //         post-destruction cleanup.
+        if (!local_navigable->active_document()) {
+            finish_destroying_the_child_navigable(*navigable);
+            return;
+        }
+    } else {
+        // FIXME: Inform the navigation API of a navigable hosted by another process, in that process, before its
+        //        document is unloaded there.
+    }
 
     // 5. Destroy a document and its descendants given navigable's active document.
     // AD-HOC: We unload the document and its descendants, instead of just destroying. Unloading fires pagehide at the
@@ -368,16 +372,123 @@ void NavigableContainer::destroy_the_child_navigable()
     //         fire those events, and report such documents as hidden. This also means starting a view transition in a
     //         removed document skips the transition — since startViewTransition() skips transitions for hidden docs.
     //         See https://github.com/whatwg/html/issues/12288
-    // AD-HOC: The spec assumes the active document is non-null here, but during an ancestor
-    //         unload the child documents are unloaded (and destroyed) before the ancestor's
-    //         pagehide fires. If that pagehide handler then removes a subtree containing this
-    //         container, we reach step 5 with navigable's active document already null. We
-    //         treat the unload step as a no-op in that case and proceed with the remaining
-    //         post-destruction cleanup.
-    if (local_navigable.active_document())
-        local_navigable.unload_child_navigable_before_destruction(after_document_destruction);
+    // NB: The UI process runs the walk over the navigable's subtree, unloading each document in the page hosting it,
+    //     and the navigable's own document too when another page hosts it. It then continues the destruction here.
+    document().page().client().page_did_request_child_navigable_unload(navigable->id());
+}
+
+// https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document-and-its-descendants
+// NB: The UI process continues the unload of destroy_the_child_navigable() here, once it has unloaded the documents of
+//     navigable's descendants where they are hosted.
+void NavigableContainer::continue_destroying_the_child_navigable(Navigable& navigable)
+{
+    // 6. Queue a global task on the navigation and traversal task source given document's relevant global object to
+    //    perform the following steps:
+    queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr, GC::create_function(navigable.heap(), [navigable = GC::Ref { navigable }] {
+        // 1. If firePageSwapSteps is given, then run firePageSwapSteps.
+        // 2. Unload document, passing along newDocument if it is not null.
+        // NB: The document of a navigable hosted by another process was unloaded there by the UI process.
+        if (auto* local_navigable = as_if<LocalNavigable>(*navigable)) {
+            if (auto active_document = local_navigable->active_document())
+                active_document->unload();
+        }
+
+        // 3. If afterAllUnloads was given, then run it.
+        finish_destroying_the_child_navigable(*navigable);
+    }));
+}
+
+// https://html.spec.whatwg.org/multipage/document-sequences.html#destroy-a-child-navigable
+void NavigableContainer::finish_destroying_the_child_navigable(Navigable& navigable)
+{
+    // Not in the spec:
+    navigable.page().client().page_did_destroy_child_frame(navigable.id());
+    if (auto* local_navigable = as_if<LocalNavigable>(navigable))
+        local_navigable->remove_from_all_local_navigables();
     else
-        after_document_destruction->function()();
+        as<RemoteNavigable>(navigable).remove_from_all_remote_navigables();
+
+    // 6. Let parentDocState be container's node navigable's active session history entry's document state.
+    // NB: The container may have been inserted into another document by the time the unload finishes, and navigable's
+    //     parent is the container's node navigable from when navigable was destroyed.
+    auto& parent_navigable = as<LocalNavigable>(*navigable.parent());
+    // AD-HOC: The container's node navigable can have been destroyed while the UI process unloaded navigable's subtree.
+    if (parent_navigable.has_been_destroyed())
+        return;
+    auto parent_doc_state = parent_navigable.active_session_history_entry()->document_state();
+
+    // 7. Remove the nested history from parentDocState's nested histories whose id equals navigable's id.
+    // NB: The UI process performs this step in canonical session history.
+
+    // 8. Let traversable be container's node navigable's traversable navigable.
+    // 9. Append the following session history traversal steps to traversable:
+    // 1. Update for navigable creation/destruction given traversable.
+    parent_navigable.page().history_executor().request_history_operation(NavigableDestructionHistoryOperationParameters {
+        .parent_navigable_id = parent_navigable.id(),
+        .parent_document_state_id = parent_doc_state->cross_process_id(),
+        .navigable_id = navigable.id(),
+    });
+}
+
+// AD-HOC: The UI process chose another process to host the content navigable's next document. A RemoteNavigable
+//         represents the navigable here from then on, with the WindowProxy scripts hold for it.
+void NavigableContainer::swap_content_navigable_to_remote(Badge<Page>, ReplicatedNavigableState replicated_state)
+{
+    auto& local_navigable = as<LocalNavigable>(*m_content_navigable);
+    auto remote_navigable = RemoteNavigable::create(document().page(), local_navigable.id(), local_navigable.parent(), move(replicated_state));
+    remote_navigable->set_container({}, this);
+    if (auto browsing_context = local_navigable.active_browsing_context()) {
+        auto& window_proxy = *browsing_context->window_proxy();
+        remote_navigable->set_window_proxy(window_proxy);
+        window_proxy.set_window(remote_navigable->active_window());
+    }
+    m_content_navigable = remote_navigable;
+    if (auto* layout_node = unsafe_layout_node())
+        layout_node->refresh_dom_paint_facts();
+    set_needs_repaint();
+
+    local_navigable.set_container({}, nullptr);
+    local_navigable.set_delaying_load_events(false);
+    local_navigable.clear_navigation_load_event_guard();
+    local_navigable.unload_document_for_host_change();
+}
+
+// AD-HOC: The document of the local navigable that stood beside the content navigable's RemoteNavigable activated,
+//         or stands in for the next document after the host went away: it is the content navigable from now on, and
+//         the navigable standing for the document hosted elsewhere is done with.
+void NavigableContainer::swap_content_navigable_to_local(Badge<Page>, LocalNavigable& navigable)
+{
+    auto& remote_navigable = as<RemoteNavigable>(*m_content_navigable);
+    VERIFY(remote_navigable.provisional_navigable().ptr() == &navigable);
+
+    m_content_navigable = navigable;
+    if (auto* layout_node = unsafe_layout_node())
+        layout_node->refresh_dom_paint_facts();
+    set_needs_repaint();
+
+    remote_navigable.set_container({}, nullptr);
+}
+
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#completely-finish-loading
+void NavigableContainer::content_navigable_completely_finished_loading()
+{
+    // NB: container is this element.
+    // 4. If container is an iframe element, then queue an element task on the DOM manipulation task source given container to run the iframe load event steps given container.
+    if (is<HTMLIFrameElement>(*this)) {
+        queue_an_element_task(Task::Source::DOMManipulation, [this] {
+            run_iframe_load_event_steps(static_cast<HTMLIFrameElement&>(*this));
+        });
+    }
+    // 5. Otherwise, if container is non-null, then queue an element task on the DOM manipulation task source given container to fire an event named load at container.
+    else {
+        queue_an_element_task(Task::Source::DOMManipulation, [this] {
+            dispatch_event(DOM::Event::create(EventNames::load, HighResolutionTime::current_high_resolution_time(relevant_global_object(*this))));
+        });
+    }
+
+    // AD-HOC: Finishing a child document can unblock its parent's load-event-delay phase, so wake the parent parser end
+    //         state after queueing the container's load event.
+    document().schedule_html_parser_end_check();
 }
 
 // https://html.spec.whatwg.org/multipage/iframe-embed-object.html#potentially-delays-the-load-event

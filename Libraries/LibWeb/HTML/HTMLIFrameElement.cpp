@@ -227,13 +227,16 @@ void run_iframe_load_event_steps(HTMLIFrameElement& element)
     // child document (including a replacement parser created by document.open()) delays
     // that document's load event. The task may already be queued when a descendant is
     // reopened, so check again when the task runs and try again after the child unblocks.
-    auto& local_navigable = as<LocalNavigable>(*element.content_navigable());
-    if (auto active_document = local_navigable.active_document(); active_document && active_document->anything_is_delaying_the_load_event()) {
-        auto element_ref = GC::Ref(element);
-        element.queue_an_element_task(HTML::Task::Source::DOMManipulation, [element_ref] {
-            run_iframe_load_event_steps(element_ref);
-        });
-        return;
+    // NB: The steps for a navigable hosted by another process run once its replicated state says its document is
+    //     completely loaded, which is after anything delaying that document's load event.
+    if (auto* local_navigable = as_if<LocalNavigable>(*element.content_navigable())) {
+        if (auto active_document = local_navigable->active_document(); active_document && active_document->anything_is_delaying_the_load_event()) {
+            auto element_ref = GC::Ref(element);
+            element.queue_an_element_task(HTML::Task::Source::DOMManipulation, [element_ref] {
+                run_iframe_load_event_steps(element_ref);
+            });
+            return;
+        }
     }
 
     // FIXME: 2. Let childDocument be element's content navigable's active document.

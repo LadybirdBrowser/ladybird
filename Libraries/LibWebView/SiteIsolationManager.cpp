@@ -216,6 +216,10 @@ ErrorOr<SiteIsolationManager::DocumentHost> SiteIsolationManager::obtain_child_d
     // hosting the displayed document keeps it.
     auto host = agent.hosting_process();
     if (host && host.ptr() == navigable.reporting_client_if_any()) {
+        // The page holding the container populates the document in a provisional navigable while another page hosts
+        // the displayed document.
+        if (navigable.has_remote_host())
+            host->async_begin_hosting_navigable(navigable.reporting_page_id(), navigable.id(), *current_entry, traversable.system_visibility_state());
         navigable.set_pending_host(*host, navigable.reporting_page_id());
         return DocumentHost { *host, navigable.reporting_page_id() };
     }
@@ -224,8 +228,8 @@ ErrorOr<SiteIsolationManager::DocumentHost> SiteIsolationManager::obtain_child_d
         return DocumentHost { *host, navigable.remote_host_page_id() };
     }
 
-    // A process holds one page per tab, with the tab's whole graph: a process other than the one displaying the tab
-    // hosts a document in the page it has for the tab, or in a page created for it.
+    // A process holds one page per tab, with the tab's whole graph: the process displaying the tab hosts a document
+    // in the view's page, another process in the page it has for the tab, or in a page created for it.
     Web::PageId page_id;
     if (host && host->page_id_for_traversable(traversable).has_value()) {
         page_id = *host->page_id_for_traversable(traversable);
@@ -262,25 +266,47 @@ void SiteIsolationManager::set_child_document_host(CanonicalNavigable& navigable
     }
 }
 
+// A local navigable taking a child's container back starts from a document standing in for the canonical current
+// entry's, as the root of an embedded page does.
+static Optional<Web::HTML::SessionHistoryEntryDescriptor> current_history_entry_for(CanonicalNavigable& navigable)
+{
+    auto& traversable = navigable.top_level_traversable();
+    auto current_step = traversable.session_history().current_step();
+    if (!current_step.has_value())
+        return {};
+    // NB: The canonical session history can still lack the nested history of a newly created navigable.
+    auto const* current_entry = traversable.session_history().get_the_target_history_entry(navigable, *current_step);
+    if (!current_entry)
+        return {};
+    return *current_entry;
+}
+
 void SiteIsolationManager::transition_child_frame_to_remote(WebContentClient& parent_client, Web::PageId page_id, Web::HTML::CrossProcessId frame_id, NonnullRefPtr<WebContentClient> remote_client, Web::PageId remote_page_id)
 {
     auto child_frame = parent_client.child_frame(page_id, frame_id);
     if (!child_frame.has_value())
         return;
 
-    transition_child_frame_to_local(*child_frame);
+    detach_child_frame_host(*child_frame);
 
     child_frame->set_remote_host(move(remote_client), remote_page_id);
-    // The page holding the container paints the child through the compositor context its host reports with the
-    // navigable's state.
-    parent_client.async_set_remote_child_frame_compositor_context(page_id, child_frame->id(),
-        child_frame->replicated_state().has_value() ? child_frame->replicated_state()->compositor_context_id : Optional<Web::Compositor::CompositorContextId> {});
+    // The page holding the container represents the child from its replicated state, which names the compositor
+    // context the host paints it through.
+    parent_client.async_stop_hosting_navigable(page_id, child_frame->id(), *child_frame->replicated_state());
 }
 
+// The child's next document, or none after its host went away, is hosted by the page holding its container.
 void SiteIsolationManager::transition_child_frame_to_local(CanonicalNavigable& child_frame)
 {
-    child_frame.reporting_client().async_set_remote_child_frame_compositor_context(child_frame.reporting_page_id(), child_frame.id(), {});
+    detach_child_frame_host(child_frame);
+    auto current_history_entry = current_history_entry_for(child_frame);
+    if (!current_history_entry.has_value())
+        return;
+    child_frame.reporting_client().async_host_navigable(child_frame.reporting_page_id(), child_frame.id(), current_history_entry.release_value(), child_frame.top_level_traversable().system_visibility_state());
+}
 
+void SiteIsolationManager::detach_child_frame_host(CanonicalNavigable& child_frame)
+{
     // The frames of the closed remote page (this frame's children) die with it; that
     // page's process is going away and will not report their destruction.
     if (child_frame.has_remote_host()) {
@@ -297,7 +323,7 @@ void SiteIsolationManager::remove_child_frame_subtree(CanonicalNavigable& child_
         remove_child_frame_subtree(*child_frame.children().last());
 
     if (child_frame.has_remote_host())
-        transition_child_frame_to_local(child_frame);
+        detach_child_frame_host(child_frame);
 
     child_frame.top_level_traversable().remove(child_frame);
 }

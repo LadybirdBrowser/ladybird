@@ -146,7 +146,6 @@ public:
     void deliver_posted_message(Web::HTML::CrossProcessId navigable_id, Web::HTML::PostedMessageDescriptor);
     void cancel_navigation_params_creation(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id);
     void populate_navigation(Web::HTML::NavigationPopulationRequest, Web::HTML::NavigationPopulationResult);
-    void set_remote_child_frame_compositor_context(Web::HTML::CrossProcessId, Optional<Web::Compositor::CompositorContextId>);
     void cancel_download(u64 download_id);
     void clear_pending_dom_mutations();
     void did_delete_all_cookies(u64 request_id);
@@ -168,11 +167,11 @@ private:
     };
 
     void request_rendering_opportunity_if_needed();
-    void schedule_local_rendering_opportunity();
-    void schedule_compositor_watchdog();
     void hurry_outstanding_rendering_opportunity();
     Optional<Web::Compositor::CompositorContextHandle&> rendering_opportunity_context();
     bool hosted_documents_are_hidden() const;
+    void schedule_local_rendering_opportunity();
+    void schedule_compositor_watchdog();
     void frame_timer_fired();
     void grant_rendering_opportunity(double frame_time, Web::HTML::EventLoop::RenderingOpportunitySource);
     void deliver_granted_rendering_opportunity();
@@ -187,11 +186,11 @@ private:
     virtual void history_navigation_params_creation_finished(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryNavigationPopulation) override;
     virtual void navigation_population_failed(Web::HTML::CrossProcessId, Utf16String const&) override;
     virtual void page_did_change_replicated_navigable_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState const&) override;
+    virtual void page_did_completely_finish_loading(Web::HTML::CrossProcessId navigable_id) override;
     virtual void page_did_change_navigable_container_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState const&) override;
     virtual void page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState const&) override;
     virtual void page_did_update_child_frame_viewport(Web::HTML::CrossProcessId frame_id, Web::CSSPixelRect) override;
     virtual void page_did_destroy_child_frame(Web::HTML::CrossProcessId frame_id) override;
-    virtual Optional<Web::Compositor::CompositorContextId> compositor_context_id_for_remote_child_frame(Web::HTML::CrossProcessId) const override;
     virtual String dump_site_isolation_process_tree_for_testing() override;
     virtual void crash_remote_frame_processes_for_testing() override;
     virtual void send_bad_ipc_message_for_testing(StringView kind, URL::URL const& active_document_url) override;
@@ -383,7 +382,6 @@ private:
     Optional<double> m_granted_rendering_opportunity_time;
     Web::HTML::EventLoop::RenderingOpportunitySource m_granted_rendering_opportunity_source { Web::HTML::EventLoop::RenderingOpportunitySource::LocalTimer };
     Queue<PendingDOMMutation> m_pending_dom_mutations;
-    HashMap<Web::HTML::CrossProcessId, Web::Compositor::CompositorContextId> m_remote_child_frame_compositor_contexts;
     Optional<Web::HTML::CrossProcessId> m_pending_root_navigable_id;
 
     u64 m_devtools_client_count { 0 };

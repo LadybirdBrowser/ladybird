@@ -732,13 +732,26 @@ void Page::update_remote_navigable(HTML::CrossProcessId id, HTML::ReplicatedNavi
     navigable->set_replicated_state(move(state));
 }
 
-static void discard_provisional_navigable_of(HTML::RemoteNavigable& remote_navigable)
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#completely-finish-loading
+void Page::content_navigable_completely_finished_loading(HTML::CrossProcessId id)
+{
+    // NB: The document completely finished loading in the process hosting it. Its container, whose document this page
+    //     hosts, runs steps 4 and 5 here.
+    auto navigable = HTML::remote_navigable_with_id(*this, id);
+    if (!navigable)
+        return;
+    if (auto container = navigable->container())
+        container->content_navigable_completely_finished_loading();
+}
+
+void Page::discard_provisional_navigable_of(HTML::RemoteNavigable& remote_navigable)
 {
     auto navigable = remote_navigable.provisional_navigable();
     if (!navigable)
         return;
     remote_navigable.set_provisional_navigable(nullptr);
     navigable->clear_provisional_for();
+    navigable->set_container({}, nullptr);
     navigable->set_has_been_destroyed();
     if (auto document = navigable->active_document())
         document->destroy_a_document_and_its_descendants();
@@ -759,7 +772,10 @@ void Page::adopt_hosted(HTML::LocalNavigable& navigable)
     auto remote_navigable = navigable.provisional_for();
     VERIFY(remote_navigable && remote_navigable->provisional_navigable().ptr() == &navigable);
 
-    as<HTML::RemoteNavigable>(*remote_navigable->parent()).replace_child(*remote_navigable, navigable);
+    if (auto container = remote_navigable->container())
+        container->swap_content_navigable_to_local({}, navigable);
+    else
+        as<HTML::RemoteNavigable>(*remote_navigable->parent()).replace_child(*remote_navigable, navigable);
 
     navigable.clear_provisional_for();
     remote_navigable->set_provisional_navigable(nullptr);
@@ -789,6 +805,11 @@ void Page::stop_hosting(HTML::CrossProcessId id, HTML::ReplicatedNavigableState 
 
 void Page::stop_hosting(HTML::LocalNavigable& local_navigable, HTML::ReplicatedNavigableState state)
 {
+    if (auto container = local_navigable.container()) {
+        container->swap_content_navigable_to_remote({}, move(state));
+        return;
+    }
+
     // A local root whose parent's document another process hosts: the RemoteNavigable takes its place among the
     // parent's children.
     auto& parent = as<HTML::RemoteNavigable>(*local_navigable.parent());
@@ -815,6 +836,15 @@ void Page::discard()
         navigable->remove_from_all_local_navigables();
     }
     client().page_did_close();
+}
+
+void Page::host_navigable(HTML::CrossProcessId id, HTML::SessionHistoryEntryDescriptor const& current_history_entry, HTML::VisibilityState system_visibility_state)
+{
+    // The provisional navigable took the node over when its document activated; the hand-over follows it.
+    auto navigable = navigable_with_id(id);
+    if (!navigable || is<HTML::LocalNavigable>(*navigable))
+        return;
+    adopt_hosted(begin_hosting(id, current_history_entry, system_visibility_state));
 }
 
 HTML::BrowsingContextGroup& Page::browsing_context_group()

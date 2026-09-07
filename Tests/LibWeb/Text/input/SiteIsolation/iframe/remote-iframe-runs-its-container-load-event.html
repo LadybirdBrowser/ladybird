@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A cross-site iframe's document loads in another process. Its container still gets the iframe load event, and
+    // the container's WindowProxy stands for the navigable hosted there.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-iframe-load-event-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>child",
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("oop-iframe-load-event");
+
+        const iframe = document.createElement("iframe");
+        const loaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+        await loaded;
+
+        println(`load fired with the frame remote: ${remoteFrameCount() === 1}`);
+        println(`contentDocument is null: ${iframe.contentDocument === null}`);
+        println(`contentWindow is frames[0]: ${iframe.contentWindow === frames[0]}`);
+        println(`window.length: ${window.length}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

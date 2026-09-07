@@ -28,7 +28,7 @@ public:
         GC::Ref<DOM::Document> document;
     };
 
-    static BrowsingContextAndDocument create_a_new_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<DOM::Document> creator, GC::Ptr<DOM::Element> embedder);
+    static BrowsingContextAndDocument create_a_new_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<DOM::Document> creator, GC::Ptr<DOM::Element> embedder, GC::Ptr<WindowProxy> existing_window_proxy = {});
     static BrowsingContextAndDocument create_a_new_auxiliary_browsing_context_and_document(GC::Ref<Page> page, GC::Ref<HTML::BrowsingContext> opener);
 
     virtual ~BrowsingContext() override;

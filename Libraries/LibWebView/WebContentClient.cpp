@@ -363,22 +363,24 @@ void WebContentClient::register_embedded_page(Web::PageId page_id, CanonicalTrav
         view->send_preferences_to_page({}, *this, page_id);
 }
 
-void WebContentClient::unregister_embedded_page(Web::PageId page_id)
-{
-    m_embedded_pages.remove(page_id);
-    m_needs_beforeunload_check_by_page.remove(page_id);
-    close_server_if_unused();
-}
-
 Optional<Web::PageId> WebContentClient::page_id_for_traversable(CanonicalTraversable const& traversable) const
 {
-    // NB: The view's page displays the tab and hosts nothing of it but the traversable's document until a container
-    //     can hold a navigable hosted elsewhere.
+    for (auto const& view : m_views) {
+        if (&view.value->traversable() == &traversable)
+            return view.key;
+    }
     for (auto const& embedded_page : m_embedded_pages) {
         if (embedded_page.value.ptr() == &traversable)
             return embedded_page.key;
     }
     return {};
+}
+
+void WebContentClient::unregister_embedded_page(Web::PageId page_id)
+{
+    m_embedded_pages.remove(page_id);
+    m_needs_beforeunload_check_by_page.remove(page_id);
+    close_server_if_unused();
 }
 
 CanonicalTraversable* WebContentClient::traversable_for_page(Web::PageId page_id)
@@ -1099,6 +1101,15 @@ void WebContentClient::did_change_replicated_navigable_state(Web::PageId page_id
     }
 
     navigable->update_replicated_state(move(state));
+}
+
+void WebContentClient::did_completely_finish_loading(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+{
+    // Only the process hosting a navigable's active document speaks for it.
+    auto navigable = hosted_navigable_for_page(page_id, navigable_id);
+    if (!navigable.has_value())
+        return;
+    navigable->active_document_completely_finished_loading();
 }
 
 void WebContentClient::did_change_navigable_container_state(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState state)
