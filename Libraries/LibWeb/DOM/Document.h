@@ -219,9 +219,9 @@ struct DocumentLoadTimingInfo {
 // https://html.spec.whatwg.org/multipage/dom.html#document-unload-timing-info
 struct DocumentUnloadTimingInfo {
     // https://html.spec.whatwg.org/multipage/dom.html#unload-event-start-time
-    double unload_event_start_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp unload_event_start_time { 0 };
     // https://html.spec.whatwg.org/multipage/dom.html#unload-event-end-time
-    double unload_event_end_time { 0 };
+    HighResolutionTime::DOMHighResTimeStamp unload_event_end_time { 0 };
 };
 
 enum class PolicyControlledFeature : u8 {
@@ -1810,6 +1810,9 @@ private:
 
     // https://html.spec.whatwg.org/multipage/dom.html#previous-document-unload-timing
     DocumentUnloadTimingInfo m_previous_document_unload_timing;
+
+    // https://html.spec.whatwg.org/multipage/dom.html#was-created-via-cross-origin-redirects
+    bool m_was_created_via_cross_origin_redirects { false };
 
     // https://w3c.github.io/navigation-timing/#dfn-navigation-timing-entry
     GC::Ptr<NavigationTiming::PerformanceNavigationTiming> m_navigation_timing_entry;

@@ -435,8 +435,8 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     //    active sandboxing flag set: navigationParams's final sandboxing flag set
     //    FIXME: opener policy: navigationParams's opener policy
     //    load timing info: loadTimingInfo
-    //    FIXME: was created via cross-origin redirects: true if navigationParams's response's redirect taint is not
-    //           "same-origin"; otherwise false
+    //    was created via cross-origin redirects: true if navigationParams's response's redirect taint is not
+    //    "same-origin"; otherwise false
     //    during-loading navigation ID for WebDriver BiDi: navigationParams's id
     //    URL: creationURL
     //    current document readiness: "loading"
@@ -453,6 +453,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     document->m_active_sandboxing_flag_set = navigation_params.final_sandboxing_flag_set;
     document->m_navigation_id = navigation_params.id;
     document->set_load_timing_info(load_timing_info);
+    document->m_was_created_via_cross_origin_redirects = navigation_params.response->redirect_taint() != Fetch::Infrastructure::RedirectTaint::SameOrigin;
     document->m_about_base_url = navigation_params.about_base_url;
     document->set_url(*creation_url);
     document->m_readiness = HTML::DocumentReadyState::Loading;
@@ -5971,16 +5972,20 @@ void Document::set_browsing_context(GC::Ptr<HTML::BrowsingContext> browsing_cont
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document
-void Document::unload(GC::Ptr<Document>)
+void Document::unload(GC::Ptr<Document> new_document)
 {
     // FIXME: 1. Assert: this is running as part of a task queued on oldDocument's event loop.
 
-    // FIXME: 2. Let unloadTimingInfo be a new document unload timing info.
+    // 2. Let unloadTimingInfo be a new document unload timing info.
+    Optional<DocumentUnloadTimingInfo> unload_timing_info { DocumentUnloadTimingInfo {} };
 
-    // FIXME: 3. If newDocument is not given, then set unloadTimingInfo to null.
+    // 3. If newDocument is not given, then set unloadTimingInfo to null.
+    if (!new_document)
+        unload_timing_info.clear();
 
-    // FIXME: 4. Otherwise, if newDocument's event loop is not oldDocument's event loop, then the user agent may be unloading
+    // 4. Otherwise, if newDocument's event loop is not oldDocument's event loop, then the user agent may be unloading
     //    oldDocument in parallel. In that case, the user agent should set unloadTimingInfo to null.
+    // NOTE: We unload oldDocument synchronously, so unloadTimingInfo remains non-null when newDocument is given.
 
     // 5. Let intendToStoreInBfcache be true if the user agent intends to keep oldDocument alive in a session history
     //    entry, such that it can later be used for history traversal.
@@ -6018,9 +6023,14 @@ void Document::unload(GC::Ptr<Document>)
     if (m_ready_for_post_load_tasks)
         update_the_visibility_state(HTML::VisibilityState::Hidden);
 
-    // FIXME: 11. If unloadTimingInfo is not null, then set unloadTimingInfo's unload event start time to the current high
+    // 11. If unloadTimingInfo is not null, then set unloadTimingInfo's unload event start time to the current high
     //     resolution time given newDocument's relevant global object, coarsened given oldDocument's relevant settings
     //     object's cross-origin isolated capability.
+    if (unload_timing_info.has_value()) {
+        VERIFY(new_document);
+        auto current_high_resolution_time = HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*new_document));
+        unload_timing_info->unload_event_start_time = HighResolutionTime::coarsen_time(current_high_resolution_time, HTML::relevant_settings_object(*this).cross_origin_isolated_capability());
+    }
 
     // 12. If oldDocument's salvageable state is false, then fire an event named unload at oldDocument's relevant global
     //     object, with legacy target override flag set.
@@ -6034,9 +6044,14 @@ void Document::unload(GC::Ptr<Document>)
         HTML::relevant_window(*this).dispatch_event(event);
     }
 
-    // FIXME: 13. If unloadTimingInfo is not null, then set unloadTimingInfo's unload event end time to the current high
+    // 13. If unloadTimingInfo is not null, then set unloadTimingInfo's unload event end time to the current high
     //     resolution time given newDocument's relevant global object, coarsened given oldDocument's relevant settings
     //     object's cross-origin isolated capability.
+    if (unload_timing_info.has_value()) {
+        VERIFY(new_document);
+        auto current_high_resolution_time = HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*new_document));
+        unload_timing_info->unload_event_end_time = HighResolutionTime::coarsen_time(current_high_resolution_time, HTML::relevant_settings_object(*this).cross_origin_isolated_capability());
+    }
 
     // 14. Decrease eventLoop's termination nesting level by 1.
     event_loop.decrement_termination_nesting_level();
@@ -6051,16 +6066,23 @@ void Document::unload(GC::Ptr<Document>)
     //     applicable specifications.
     run_unloading_cleanup_steps();
 
-    // 19. If oldDocument's salvageable state is false, then destroy oldDocument.
+    // FIXME: 19. If oldDocument's node navigable is a top-level traversable, build not restored reasons for a top-level
+    //     traversable and its descendants given oldDocument's node navigable.
+
+    // 20. If oldDocument's salvageable state is false, then destroy oldDocument.
     if (!m_salvageable)
         destroy();
 
-    // 20. Decrease oldDocument's unload counter by 1.
+    // 21. Decrease oldDocument's unload counter by 1.
     m_unload_counter -= 1;
 
-    // FIXME: 21. If newDocument is given, newDocument's was created via cross-origin redirects is false, and newDocument's
+    // 22. If newDocument is given, newDocument's was created via cross-origin redirects is false, and newDocument's
     //     origin is the same as oldDocument's origin, then set newDocument's previous document unload timing to
     //     unloadTimingInfo.
+    if (new_document && !new_document->m_was_created_via_cross_origin_redirects && new_document->origin().is_same_origin(origin())) {
+        VERIFY(unload_timing_info.has_value());
+        new_document->set_previous_document_unload_timing(unload_timing_info.release_value());
+    }
 
     did_stop_being_active_document_in_navigable();
 }

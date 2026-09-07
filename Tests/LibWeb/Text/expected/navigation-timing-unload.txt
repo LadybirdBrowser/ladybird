@@ -1,0 +1,4 @@
+same-origin unload start is positive: true
+same-origin unload end follows start: true
+cross-origin redirect unload start: 0
+cross-origin redirect unload end: 0
