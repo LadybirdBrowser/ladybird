@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; font: 20px/20px monospace; }
+    .row { display: flex; width: 100px; }
+    .card { width: 100px; }
+    .title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow: hidden; }
+    select { width: 100px; height: 40px; padding: 0; border: 0; font: inherit; }
+</style>
+<div class="row"><div class="card"><div class="title">first second third fourth</div><div><select><option>Tea</option></select></div></div></div>
+<div class="card"><div class="title">first second third fourth</div><div><select><option>Tea</option></select></div></div>
+<div class="row"><div class="card"><div class="title">first second third fourth</div></div></div>
+<div class="row"><div class="card"><div><select><option>Tea</option></select></div></div></div>
+<script>
+    test(() => {
+        for (const card of document.querySelectorAll(".card")) {
+            println(`card: ${card.getBoundingClientRect().height}`);
+            for (const child of card.children)
+                println(`child: ${child.getBoundingClientRect().height}`);
+        }
+    });
+</script>

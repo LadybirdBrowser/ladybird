@@ -259,8 +259,11 @@ impl<'pass> BlockFormattingContext<'pass> {
                 .treat_block_axis_percentage_insets_as_auto_beyond_root,
             previous_line_data: run.previous_line_data.clone(),
             is_line_clamp_container,
+            // NB: Measurements at a definite inline size need the clamped block size, just like committed layout.
             max_lines: Cell::new(
-                ((!run.purpose.is_measurement() || style.writing_mode() != writing_mode::HORIZONTAL_TB)
+                ((!run.purpose.is_measurement()
+                    || run.records.used_values(run.box_).has_definite_inline_size()
+                    || style.writing_mode() != writing_mode::HORIZONTAL_TB)
                     && is_line_clamp_container
                     && style.max_lines() > 0)
                     .then_some(style.max_lines() as usize),
