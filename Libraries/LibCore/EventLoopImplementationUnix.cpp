@@ -250,7 +250,7 @@ void EventLoopManagerUnix::wait_for_events(EventLoopImplementation::PumpMode mod
 
     bool has_pending_events = ThreadEventQueue::current().has_pending_events();
 
-    auto time_at_iteration_start = MonotonicTime::now_coarse();
+    auto time_at_iteration_start = MonotonicTime::now();
     thread_data.timeouts.absolutize_relative_timeouts(time_at_iteration_start);
 
     // Figure out how long to wait at maximum.
@@ -273,7 +273,7 @@ void EventLoopManagerUnix::wait_for_events(EventLoopImplementation::PumpMode mod
 try_select_again:
     // select() and wait for file system events, calls to wake(), POSIX signals, or timer expirations.
     auto error_or_marked_fd_count = System::poll(thread_data.poll_fds, should_wait_forever ? -1 : timeout);
-    auto time_after_poll = MonotonicTime::now_coarse();
+    auto time_after_poll = MonotonicTime::now();
     // Because POSIX, we might spuriously return from select() with EINTR; just select again.
     if (error_or_marked_fd_count.is_error()) {
         if (error_or_marked_fd_count.error().code() == EINTR)
@@ -556,7 +556,10 @@ intptr_t EventLoopManagerUnix::register_timer(EventReceiver& object, int millise
     timer->owner_thread = thread_data.thread_id;
     timer->owner = object;
     timer->interval = AK::Duration::from_milliseconds(milliseconds);
-    timer->reload(MonotonicTime::now_coarse());
+    // NB: The timer is armed and expired on the precise clock. CLOCK_MONOTONIC_COARSE lags it by up to a scheduler
+    //     tick on Linux, so a timer armed against the coarse clock could fire that much before its deadline on the
+    //     clock everything else measures with, performance.now() included.
+    timer->reload(MonotonicTime::now());
     timer->should_reload = should_reload;
     thread_data.timeouts.schedule_absolute(timer);
     return bit_cast<intptr_t>(timer);
