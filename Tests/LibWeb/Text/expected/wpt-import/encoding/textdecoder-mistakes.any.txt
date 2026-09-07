@@ -2,8 +2,7 @@ Harness status: OK
 
 Found 87 tests
 
-84 Pass
-3 Fail
+87 Pass
 Pass	Invalid Unicode input is replaced: utf-8
 Pass	Invalid Unicode input is replaced: utf-16le
 Pass	Invalid Unicode input is replaced: utf-16be
@@ -77,9 +76,9 @@ Pass	BOM splitting / repeats: utf-16be
 Pass	stream: utf-8
 Pass	stream: gbk
 Pass	stream: gb18030
-Fail	stream: big5
-Fail	stream: shift_jis
-Fail	stream: euc-kr
+Pass	stream: big5
+Pass	stream: shift_jis
+Pass	stream: euc-kr
 Pass	stream: euc-jp
 Pass	stream: iso-2022-jp
 Pass	fatal stream: utf-8

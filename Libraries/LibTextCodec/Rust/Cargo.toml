@@ -7,7 +7,7 @@ edition = "2024"
 crate-type = ["staticlib"]
 
 [dependencies]
-encoding_rs = "0.8.35"
+encoding_rs = "0.8.40"
 
 [build-dependencies]
 cbindgen = "0.29"
