@@ -130,10 +130,32 @@ pub struct RecordedDisplayList {
     pub command_runs: Vec<DisplayListCommandRun>,
 }
 
+pub struct OpenGroup {
+    record_start: usize,
+    fixed_payload_size: usize,
+    content_start: usize,
+    mask_start: Option<usize>,
+    suspended_inline_clips: Vec<PendingInlineClip>,
+}
+
+impl OpenGroup {
+    fn payload_start(&self) -> usize {
+        self.record_start + HEADER_SIZE
+    }
+
+    fn span_from(&self, start: usize, end: usize) -> DisplayListDataSpan {
+        DisplayListDataSpan {
+            offset: u32::try_from(start - self.payload_start()).expect("display list payload exceeds u32"),
+            size: u32::try_from(end - start).expect("display list payload exceeds u32"),
+        }
+    }
+}
+
 #[derive(Default)]
 pub struct DisplayListBuilder {
     bytes: Vec<u8>,
     runs: Vec<DisplayListCommandRun>,
+    open_group_depth: usize,
 }
 
 impl DisplayListBuilder {
@@ -172,8 +194,118 @@ impl DisplayListBuilder {
         inline_clips: &[PendingInlineClip],
     ) {
         debug_assert_eq!(self.bytes.len() % COMMAND_ALIGNMENT, 0);
-        let inline_clip_count = u8::try_from(inline_clips.len()).expect("too many inline clips on one command");
-        let mut unpadded_payload_size = std::mem::size_of::<C>() + inline_data.len();
+        let (path_spans, unpadded_payload_size) =
+            Self::place_inline_clip_paths(inline_clips, std::mem::size_of::<C>() + inline_data.len());
+        let entries_size = inline_clips.len() * INLINE_CLIP_ENTRY_SIZE;
+        let padded_record_size =
+            (HEADER_SIZE + unpadded_payload_size + entries_size).next_multiple_of(COMMAND_ALIGNMENT);
+        let payload_size = padded_record_size - HEADER_SIZE;
+        let entries_offset = payload_size - entries_size;
+        debug_assert_eq!(entries_offset % COMMAND_ALIGNMENT, 0);
+        let header = Self::header_for(command, inline_clips, context, payload_size);
+        let start = self.bytes.len();
+        self.bytes.resize(start + padded_record_size, 0);
+        header.write_ffi_bytes(&mut self.bytes[start..start + HEADER_SIZE]);
+        let payload_start = start + HEADER_SIZE;
+        command.write_ffi_bytes(&mut self.bytes[payload_start..payload_start + std::mem::size_of::<C>()]);
+        let inline_start = payload_start + std::mem::size_of::<C>();
+        self.bytes[inline_start..inline_start + inline_data.len()].copy_from_slice(inline_data);
+        self.write_inline_clip_entries(inline_clips, &path_spans, payload_start, entries_offset, &header);
+        if self.open_group_depth == 0 {
+            note_command(&mut self.runs, &header, start, padded_record_size);
+        }
+    }
+
+    pub fn open_group_depth(&self) -> usize {
+        self.open_group_depth
+    }
+
+    pub fn begin_group<C: DisplayListCommand>(
+        &mut self,
+        inline_clips_applying_to_the_group_record: Vec<PendingInlineClip>,
+    ) -> OpenGroup {
+        debug_assert_eq!(self.bytes.len() % COMMAND_ALIGNMENT, 0);
+        let record_start = self.bytes.len();
+        let fixed_payload_size = std::mem::size_of::<C>().next_multiple_of(COMMAND_ALIGNMENT);
+        let content_start = record_start + HEADER_SIZE + fixed_payload_size;
+        self.bytes.resize(content_start, 0);
+        self.open_group_depth += 1;
+        OpenGroup {
+            record_start,
+            fixed_payload_size,
+            content_start,
+            mask_start: None,
+            suspended_inline_clips: inline_clips_applying_to_the_group_record,
+        }
+    }
+
+    pub fn begin_group_mask(&mut self, group: &mut OpenGroup) {
+        debug_assert!(group.mask_start.is_none());
+        debug_assert_eq!(self.bytes.len() % COMMAND_ALIGNMENT, 0);
+        group.mask_start = Some(self.bytes.len());
+    }
+
+    pub fn group_content_span(&self, group: &OpenGroup) -> DisplayListDataSpan {
+        group.span_from(group.content_start, group.mask_start.unwrap_or(self.bytes.len()))
+    }
+
+    pub fn group_mask_span(&self, group: &OpenGroup) -> DisplayListDataSpan {
+        match group.mask_start {
+            Some(mask_start) => group.span_from(mask_start, self.bytes.len()),
+            None => DisplayListDataSpan::default(),
+        }
+    }
+
+    pub fn finish_group_clipped_to<C: DisplayListCommand>(
+        &mut self,
+        mut group: OpenGroup,
+        command: &C,
+        context: ContextRef,
+        clip: IntRect,
+    ) {
+        group
+            .suspended_inline_clips
+            .push(PendingInlineClip::intersecting_device_rect(clip));
+        self.finish_group(group, command, context);
+    }
+
+    pub fn finish_group<C: DisplayListCommand>(&mut self, group: OpenGroup, command: &C, context: ContextRef) {
+        debug_assert!(self.open_group_depth > 0);
+        debug_assert_eq!(self.bytes.len() % COMMAND_ALIGNMENT, 0);
+        assert!(
+            std::mem::size_of::<C>() <= group.fixed_payload_size,
+            "a group must be finished with the command type it was begun with"
+        );
+        self.open_group_depth -= 1;
+        let nested_records_end = self.bytes.len();
+        let payload_start = group.payload_start();
+        if cfg!(debug_assertions) {
+            for_each_command(&self.bytes[group.content_start..nested_records_end], |header, _, _| {
+                assert_eq!(header.context, context, "a group's nested records share its context");
+            });
+        }
+        let inline_clips = group.suspended_inline_clips;
+        let (path_spans, unpadded_payload_size) =
+            Self::place_inline_clip_paths(&inline_clips, nested_records_end - payload_start);
+        let entries_size = inline_clips.len() * INLINE_CLIP_ENTRY_SIZE;
+        let padded_record_size =
+            (HEADER_SIZE + unpadded_payload_size + entries_size).next_multiple_of(COMMAND_ALIGNMENT);
+        let payload_size = padded_record_size - HEADER_SIZE;
+        let entries_offset = payload_size - entries_size;
+        let header = Self::header_for(command, &inline_clips, context, payload_size);
+        self.bytes.resize(group.record_start + padded_record_size, 0);
+        header.write_ffi_bytes(&mut self.bytes[group.record_start..group.record_start + HEADER_SIZE]);
+        command.write_ffi_bytes(&mut self.bytes[payload_start..payload_start + std::mem::size_of::<C>()]);
+        self.write_inline_clip_entries(&inline_clips, &path_spans, payload_start, entries_offset, &header);
+        if self.open_group_depth == 0 {
+            note_command(&mut self.runs, &header, group.record_start, padded_record_size);
+        }
+    }
+
+    fn place_inline_clip_paths(
+        inline_clips: &[PendingInlineClip],
+        mut unpadded_payload_size: usize,
+    ) -> (Vec<DisplayListDataSpan>, usize) {
         let mut path_spans = vec![DisplayListDataSpan::default(); inline_clips.len()];
         for (index, clip) in inline_clips.iter().enumerate() {
             let Some(path_bytes) = &clip.serialized_path_bytes else {
@@ -186,12 +318,16 @@ impl DisplayListBuilder {
             };
             unpadded_payload_size = path_offset + path_bytes.len();
         }
-        let entries_size = inline_clips.len() * INLINE_CLIP_ENTRY_SIZE;
-        let padded_record_size =
-            (HEADER_SIZE + unpadded_payload_size + entries_size).next_multiple_of(COMMAND_ALIGNMENT);
-        let payload_size = padded_record_size - HEADER_SIZE;
-        let entries_offset = payload_size - entries_size;
-        debug_assert_eq!(entries_offset % COMMAND_ALIGNMENT, 0);
+        (path_spans, unpadded_payload_size)
+    }
+
+    fn header_for<C: DisplayListCommand>(
+        command: &C,
+        inline_clips: &[PendingInlineClip],
+        context: ContextRef,
+        payload_size: usize,
+    ) -> DisplayListCommandHeader {
+        let inline_clip_count = u8::try_from(inline_clips.len()).expect("too many inline clips on one command");
         let mut bounding_rect = command.bounding_rect();
         for clip in inline_clips {
             if let Some(restriction) = clip.header_bounding_rect_restriction() {
@@ -201,21 +337,24 @@ impl DisplayListBuilder {
                 });
             }
         }
-        let header = DisplayListCommandHeader {
+        DisplayListCommandHeader {
             command_type: C::COMMAND_TYPE,
             has_bounding_rect: bounding_rect.is_some(),
             inline_clip_count,
             payload_size: u32::try_from(payload_size).expect("display list payload exceeds u32"),
             context,
             bounding_rect: bounding_rect.unwrap_or_default(),
-        };
-        let start = self.bytes.len();
-        self.bytes.resize(start + padded_record_size, 0);
-        header.write_ffi_bytes(&mut self.bytes[start..start + HEADER_SIZE]);
-        let payload_start = start + HEADER_SIZE;
-        command.write_ffi_bytes(&mut self.bytes[payload_start..payload_start + std::mem::size_of::<C>()]);
-        let inline_start = payload_start + std::mem::size_of::<C>();
-        self.bytes[inline_start..inline_start + inline_data.len()].copy_from_slice(inline_data);
+        }
+    }
+
+    fn write_inline_clip_entries(
+        &mut self,
+        inline_clips: &[PendingInlineClip],
+        path_spans: &[DisplayListDataSpan],
+        payload_start: usize,
+        entries_offset: usize,
+        header: &DisplayListCommandHeader,
+    ) {
         for (index, clip) in inline_clips.iter().enumerate() {
             if let Some(path_bytes) = &clip.serialized_path_bytes {
                 let path_start = payload_start + path_spans[index].offset as usize;
@@ -236,7 +375,6 @@ impl DisplayListBuilder {
             let entry_start = payload_start + entries_offset + index * INLINE_CLIP_ENTRY_SIZE;
             entry.write_ffi_bytes(&mut self.bytes[entry_start..entry_start + INLINE_CLIP_ENTRY_SIZE]);
         }
-        note_command(&mut self.runs, &header, start, padded_record_size);
     }
 
     pub fn append_command_range(
@@ -245,6 +383,7 @@ impl DisplayListBuilder {
         range: CommandRange,
         rewrite: Option<ContextRewrite>,
     ) -> u32 {
+        debug_assert_eq!(self.open_group_depth, 0, "captures are never spliced inside a group");
         debug_assert_eq!(self.bytes.len() % COMMAND_ALIGNMENT, 0);
         debug_assert_eq!(range.size as usize % COMMAND_ALIGNMENT, 0);
         let destination_offset = self.bytes.len();
@@ -285,7 +424,7 @@ impl DisplayListBuilder {
                 );
                 continue;
             }
-            let Self { bytes, runs } = self;
+            let Self { bytes, runs, .. } = self;
             let destination_end = destination_offset + (end - range.offset) as usize;
             for_each_command(&bytes[destination_start..destination_end], |header, offset, payload| {
                 note_command(runs, header, destination_start + offset, HEADER_SIZE + payload.len());
@@ -296,7 +435,7 @@ impl DisplayListBuilder {
     // Folds the records appended from `start` on into the run table, first rewriting their
     // contexts when a spliced capture is replayed under different ones.
     fn note_appended_records(&mut self, start: usize, rewrite: Option<ContextRewrite>) {
-        let Self { bytes, runs } = self;
+        let Self { bytes, runs, .. } = self;
         let mut offset = start;
         while offset < bytes.len() {
             let mut header = read_header(&bytes[offset..]);
@@ -398,6 +537,14 @@ pub fn for_each_command<'a>(bytes: &'a [u8], mut f: impl FnMut(&DisplayListComma
         bytes.len(),
         "display list byte range does not end on a record boundary"
     );
+}
+
+pub fn read_command<C: Copy>(payload: &[u8]) -> C {
+    assert!(payload.len() >= std::mem::size_of::<C>());
+    // SAFETY: Display-list records are native-layout copies of these `Copy` command structs. The
+    // byte stream is validated at the C++ boundary, and `read_unaligned` does not require the
+    // payload pointer to have `C`'s alignment.
+    unsafe { std::ptr::read_unaligned(payload.as_ptr().cast::<C>()) }
 }
 
 pub fn read_header(bytes: &[u8]) -> DisplayListCommandHeader {

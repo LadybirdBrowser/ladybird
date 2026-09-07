@@ -132,6 +132,13 @@ void DisplayListPlayer::execute_display_list_into_surface(DisplayList const& dis
     execute_impl(display_list, scroll_state_snapshot);
 }
 
+void DisplayListPlayer::execute_command_bytes_into_surface(ReadonlyBytes command_bytes, Gfx::PaintingSurface& target_surface)
+{
+    TemporaryChange surface_change { m_surface, RefPtr<Gfx::PaintingSurface> { target_surface } };
+    ScrollStateSnapshot scroll_state_snapshot;
+    execute_command_bytes(command_bytes, scroll_state_snapshot);
+}
+
 void DisplayListPlayer::execute_nested_display_list(
     DisplayList const& display_list,
     AccumulatedVisualContextTree const& visual_context_tree,
@@ -146,7 +153,12 @@ void DisplayListPlayer::execute_nested_display_list(
 
 void DisplayListPlayer::execute_run_commands(DisplayListCommandRun const& run, ScrollStateSnapshot const& scroll_state)
 {
-    DisplayList::for_each_command_header(active_display_list().command_bytes_of_run(run), [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
+    execute_command_bytes(active_display_list().command_bytes_of_run(run), scroll_state);
+}
+
+void DisplayListPlayer::execute_command_bytes(ReadonlyBytes command_bytes, ScrollStateSnapshot const& scroll_state)
+{
+    DisplayList::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
         if (display_list_command_is_compositor_metadata(header.command_type))
             return;
 
@@ -195,6 +207,7 @@ void DisplayListPlayer::execute_run_commands(DisplayListCommandRun const& run, S
 
 void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStateSnapshot const& scroll_state)
 {
+    TemporaryChange active_scroll_state_change { m_active_scroll_state, &scroll_state };
     auto const& visual_context_tree = active_visual_context_tree();
     VERIFY(display_list.compatible_visual_context_tree_structural_epoch() == visual_context_tree.structural_epoch());
     VERIFY(m_surface);

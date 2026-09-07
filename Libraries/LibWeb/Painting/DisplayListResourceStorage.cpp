@@ -6,6 +6,7 @@
 
 #include <AK/BitCast.h>
 #include <AK/ByteBuffer.h>
+#include <AK/Function.h>
 #include <AK/Math.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/ColorSpace.h>
@@ -45,13 +46,15 @@ struct DisplayListStoredImageFrameResource {
     mutable RefPtr<Gfx::SkiaBackendContext> skia_backend_context;
 };
 
-struct DisplayListCachedSkiaImageResource {
-    DisplayListCachedSkiaImageResource(Gfx::IntSize tile_size, RefPtr<Gfx::SkiaBackendContext> skia_backend_context, sk_sp<SkImage> image)
+struct DisplayListCachedRepeatedTileRaster {
+    DisplayListCachedRepeatedTileRaster(Gfx::IntSize tile_size, RefPtr<Gfx::SkiaBackendContext> skia_backend_context, sk_sp<SkImage> image)
         : tile_size(tile_size)
         , skia_backend_context(move(skia_backend_context))
         , image(move(image))
     {
     }
+
+    size_t byte_size() const { return static_cast<size_t>(tile_size.width()) * tile_size.height() * 4; }
 
     Gfx::IntSize tile_size;
     RefPtr<Gfx::SkiaBackendContext> skia_backend_context;
@@ -365,24 +368,33 @@ sk_sp<SkImage> DisplayListResourceStorage::skia_image_for_video_sink(VideoSinkRe
     return image;
 }
 
-sk_sp<SkImage> DisplayListResourceStorage::cached_skia_image_for_display_list(DisplayListResourceId id, Gfx::IntSize tile_size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context) const
+sk_sp<SkImage> DisplayListResourceStorage::cached_repeated_tile_raster(u64 tile_key, Gfx::IntSize tile_size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context) const
 {
-    auto cached_image = m_display_list_cached_skia_images.find(id.value());
-    if (cached_image == m_display_list_cached_skia_images.end())
+    auto cached_raster = m_repeated_tile_rasters.find(tile_key);
+    if (cached_raster == m_repeated_tile_rasters.end())
         return nullptr;
 
-    auto const& image = *cached_image->value;
-    if (image.tile_size != tile_size)
+    auto const& raster = *cached_raster->value;
+    if (raster.tile_size != tile_size)
         return nullptr;
-    if (image.skia_backend_context.ptr() != skia_backend_context.ptr())
+    if (raster.skia_backend_context.ptr() != skia_backend_context.ptr())
         return nullptr;
 
-    return image.image;
+    return raster.image;
 }
 
-void DisplayListResourceStorage::set_cached_skia_image_for_display_list(DisplayListResourceId id, Gfx::IntSize tile_size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, sk_sp<SkImage> image) const
+void DisplayListResourceStorage::add_cached_repeated_tile_raster(u64 tile_key, Gfx::IntSize tile_size, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, sk_sp<SkImage> image) const
 {
-    m_display_list_cached_skia_images.set(id.value(), make<DisplayListCachedSkiaImageResource>(tile_size, skia_backend_context, move(image)));
+    constexpr size_t max_repeated_tile_raster_bytes = 64 * MiB;
+    auto raster = make<DisplayListCachedRepeatedTileRaster>(tile_size, skia_backend_context, move(image));
+    if (m_repeated_tile_raster_bytes + raster->byte_size() > max_repeated_tile_raster_bytes) {
+        m_repeated_tile_rasters.clear();
+        m_repeated_tile_raster_bytes = 0;
+    }
+    if (auto existing = m_repeated_tile_rasters.get(tile_key); existing.has_value())
+        m_repeated_tile_raster_bytes -= (*existing)->byte_size();
+    m_repeated_tile_raster_bytes += raster->byte_size();
+    m_repeated_tile_rasters.set(tile_key, move(raster));
 }
 
 sk_sp<SkImage> DisplayListResourceStorage::cached_nested_display_list_raster(DisplayListResourceId id, RefPtr<Gfx::SkiaBackendContext> const& skia_backend_context, Gfx::IntRect visible_rect_in_list_space, Gfx::IntRect& raster_rect_in_list_space) const
@@ -550,6 +562,24 @@ void DisplayListResourceStorage::remove_text_blobs_without_font()
     });
 }
 
+static ReadonlyBytes inline_data(ReadonlyBytes payload, DisplayListDataSpan span)
+{
+    VERIFY(static_cast<size_t>(span.offset) + span.size <= payload.size());
+    return payload.slice(span.offset, span.size);
+}
+
+template<typename Command, typename Callback>
+static void for_each_command_byte_range_inside(Command const& command, ReadonlyBytes payload, Callback&& callback)
+{
+    if constexpr (IsSame<Command, DrawIsolatedGroup>) {
+        callback(inline_data(payload, command.content));
+        if (command.mask.size != 0)
+            callback(inline_data(payload, command.mask));
+    } else if constexpr (IsSame<Command, DrawRepeatedTile>) {
+        callback(inline_data(payload, command.tile));
+    }
+}
+
 bool DisplayListResourceStorage::should_cache_nested_display_list_raster(DisplayListResourceId id) const
 {
     // Only rasterize a list that has been painted before: content that is re-recorded for every update gets a
@@ -593,35 +623,38 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
             requires_direct_replay = requires_direct_replay || nested_display_list_requires_direct_replay(nested_display_list_id, visited_display_lists);
     };
 
-    DisplayList::for_each_command_header(list_resource.display_list->command_bytes(), [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
-        if (requires_direct_replay)
-            return;
-        visit_display_list_command(header.command_type, payload, [&](auto const& command) {
-            using Command = RemoveCVReference<decltype(command)>;
-            if constexpr (IsSame<Command, DrawVideoFrame> || IsSame<Command, DrawCanvas> || IsSame<Command, DrawCompositedContext>) {
-                requires_direct_replay = true;
-            } else if constexpr (IsSame<Command, PaintNestedDisplayList>) {
-                // NB: A nested list's live content matters at any depth, and its unisolated destination reads
-                //     matter when this command is not enclosed in a layer; recursing unconditionally is slightly
-                //     conservative for the latter. Pattern tile display lists are always rasterized into
-                //     standalone surfaces and cannot read the destination, so they are not followed.
-                recurse_into_nested_display_list(command.display_list_id);
-            } else if constexpr (IsSame<Command, DrawIsolatedDisplayList>) {
-                recurse_into_nested_display_list(command.display_list_id);
-                if (command.mask_display_list_id.value() != 0)
-                    recurse_into_nested_display_list(command.mask_display_list_id);
-            }
-            if constexpr (requires { command.compositing_and_blending_operator; }) {
-                bool blends_with_isolated_backdrop_color = false;
-                if constexpr (requires { command.isolated_backdrop_color; })
-                    blends_with_isolated_backdrop_color = command.isolated_backdrop_color.has_value();
-                if (command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal
-                    && !blends_with_isolated_backdrop_color
-                    && !visual_context_tree.effect_is_isolated_by_layer(header.context.effect))
+    Function<void(ReadonlyBytes, bool)> scan_records = [&](ReadonlyBytes command_bytes, bool inside_isolated_group) {
+        DisplayList::for_each_command_header(command_bytes, [&](DisplayListCommandHeader const& header, ReadonlyBytes payload) {
+            if (requires_direct_replay)
+                return;
+            visit_display_list_command(header.command_type, payload, [&](auto const& command) {
+                using Command = RemoveCVReference<decltype(command)>;
+                if constexpr (IsSame<Command, DrawVideoFrame> || IsSame<Command, DrawCanvas> || IsSame<Command, DrawCompositedContext>) {
                     requires_direct_replay = true;
-            }
+                } else if constexpr (IsSame<Command, PaintNestedDisplayList>) {
+                    // NB: A nested list's live content matters at any depth, and its unisolated destination reads
+                    //     matter when this command is not enclosed in a layer; recursing unconditionally is slightly
+                    //     conservative for the latter. Pattern tile display lists are always rasterized into
+                    //     standalone surfaces and cannot read the destination, so they are not followed.
+                    recurse_into_nested_display_list(command.display_list_id);
+                }
+                if constexpr (requires { command.compositing_and_blending_operator; }) {
+                    bool blends_with_isolated_backdrop_color = false;
+                    if constexpr (requires { command.isolated_backdrop_color; })
+                        blends_with_isolated_backdrop_color = command.isolated_backdrop_color.has_value();
+                    if (command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal
+                        && !blends_with_isolated_backdrop_color
+                        && !inside_isolated_group
+                        && !visual_context_tree.effect_is_isolated_by_layer(header.context.effect))
+                        requires_direct_replay = true;
+                }
+                for_each_command_byte_range_inside(command, payload, [&](ReadonlyBytes nested_records) {
+                    scan_records(nested_records, true);
+                });
+            });
         });
-    });
+    };
+    scan_records(list_resource.display_list->command_bytes(), false);
 
     for (auto const& mask_display_list : list_resource.display_list->mask_display_lists())
         recurse_into_nested_display_list(mask_display_list.value);
@@ -654,10 +687,9 @@ void DisplayListResourceStorage::collect_referenced_resources(
             if constexpr (requires { command.display_list_id; }) {
                 add_display_list_resource(command.display_list_id);
             }
-            if constexpr (requires { command.mask_display_list_id; }) {
-                if (command.mask_display_list_id.value() != 0)
-                    add_display_list_resource(command.mask_display_list_id);
-            }
+            for_each_command_byte_range_inside(command, payload, [&](ReadonlyBytes nested_records) {
+                collect_referenced_resources(nested_records, referenced_resources);
+            });
         });
     });
 }
@@ -790,8 +822,6 @@ void DisplayListResourceStorage::apply_transaction(DisplayListResourceTransactio
     for (auto id : transaction.display_list_ids_to_remove)
         m_display_lists.remove(id.value());
     for (auto id : transaction.display_list_ids_to_remove)
-        m_display_list_cached_skia_images.remove(id.value());
-    for (auto id : transaction.display_list_ids_to_remove)
         m_display_list_cached_nested_rasters.remove(id.value());
 }
 
@@ -810,9 +840,6 @@ void DisplayListResourceStorage::retain_only(DisplayListResourceSet const& resou
     m_video_sink_handles.remove_all_matching([&](auto id, auto const&) { return should_remove_video_resource(id); });
     m_video_sinks.remove_all_matching([&](auto id, auto const&) { return should_remove_video_resource(id); });
     m_display_lists.remove_all_matching([&](auto id, auto const&) {
-        return !resource_set.display_lists.contains(DisplayListResourceId { id });
-    });
-    m_display_list_cached_skia_images.remove_all_matching([&](auto id, auto const&) {
         return !resource_set.display_lists.contains(DisplayListResourceId { id });
     });
     m_display_list_cached_nested_rasters.remove_all_matching([&](auto id, auto const&) {

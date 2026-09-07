@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::builder::for_each_command;
+use super::builder::{for_each_command, read_command};
 use super::commands::*;
 use crate::css::color_resolution::format_to_8bit_compatible;
 use crate::layout::LayoutNodeArena;
@@ -194,7 +194,21 @@ fn dump_commands(
     display_list: *const c_void,
     base_indent: usize,
 ) {
-    for_each_command(callbacks.command_bytes(display_list), |header, _, payload| {
+    dump_command_bytes(output, callbacks, callbacks.command_bytes(display_list), base_indent);
+    for (effect, id) in callbacks.mask_display_lists(display_list) {
+        push_indent(output, base_indent);
+        writeln!(output, "MaskDisplayList for effect e{}:", effect.0).unwrap();
+        dump_commands(output, callbacks, callbacks.nested_display_list(id), base_indent + 1);
+    }
+}
+
+fn dump_command_bytes(
+    output: &mut String,
+    callbacks: &FfiPaintingDumpCallbacks,
+    command_bytes: &[u8],
+    base_indent: usize,
+) {
+    for_each_command(command_bytes, |header, _, payload| {
         push_indent(output, base_indent);
         write!(output, "{}@", header.command_type.name()).unwrap();
         write_context(output, header.context);
@@ -204,6 +218,7 @@ fn dump_commands(
         }
         output.push('\n');
 
+        dump_records_inside(output, callbacks, header.command_type, payload, base_indent + 1);
         let Some(nested) = nested_display_lists(header.command_type, payload) else {
             return;
         };
@@ -213,40 +228,49 @@ fn dump_commands(
             callbacks.nested_display_list(nested.display_list),
             base_indent + 1,
         );
-        if let Some(mask) = nested.mask {
-            push_indent(output, base_indent + 1);
-            output.push_str("Mask:\n");
-            dump_commands(output, callbacks, callbacks.nested_display_list(mask), base_indent + 2);
-        }
     });
-
-    for (effect, id) in callbacks.mask_display_lists(display_list) {
-        push_indent(output, base_indent);
-        writeln!(output, "MaskDisplayList for effect e{}:", effect.0).unwrap();
-        dump_commands(output, callbacks, callbacks.nested_display_list(id), base_indent + 1);
-    }
 }
 
 struct NestedDisplayLists {
     display_list: DisplayListResourceId,
-    mask: Option<DisplayListResourceId>,
 }
 
 fn nested_display_lists(command_type: DisplayListCommandType, payload: &[u8]) -> Option<NestedDisplayLists> {
     match command_type {
         DisplayListCommandType::PaintNestedDisplayList => Some(NestedDisplayLists {
             display_list: read_command::<PaintNestedDisplayList>(payload).display_list_id,
-            mask: None,
         }),
-        DisplayListCommandType::DrawIsolatedDisplayList => {
-            let command = read_command::<DrawIsolatedDisplayList>(payload);
-            Some(NestedDisplayLists {
-                display_list: command.display_list_id,
-                mask: (command.mask_display_list_id != NO_MASK_DISPLAY_LIST).then_some(command.mask_display_list_id),
-            })
-        }
         _ => None,
     }
+}
+
+fn dump_records_inside(
+    output: &mut String,
+    callbacks: &FfiPaintingDumpCallbacks,
+    command_type: DisplayListCommandType,
+    payload: &[u8],
+    indent: usize,
+) {
+    match command_type {
+        DisplayListCommandType::DrawIsolatedGroup => {
+            let command = read_command::<DrawIsolatedGroup>(payload);
+            dump_command_bytes(output, callbacks, span_bytes(payload, command.content), indent);
+            if !command.mask.is_empty() {
+                push_indent(output, indent);
+                output.push_str("Mask:\n");
+                dump_command_bytes(output, callbacks, span_bytes(payload, command.mask), indent + 1);
+            }
+        }
+        DisplayListCommandType::DrawRepeatedTile => {
+            let command = read_command::<DrawRepeatedTile>(payload);
+            dump_command_bytes(output, callbacks, span_bytes(payload, command.tile), indent);
+        }
+        _ => {}
+    }
+}
+
+fn span_bytes(payload: &[u8], span: DisplayListDataSpan) -> &[u8] {
+    &payload[span.offset as usize..(span.offset + span.size) as usize]
 }
 
 trait DumpValue {
@@ -284,14 +308,6 @@ fn write_field(output: &mut String, label: &str, value: impl DumpValue) {
     output.push_str(label);
     output.push('=');
     value.push_dump(output);
-}
-
-fn read_command<C: Copy>(payload: &[u8]) -> C {
-    assert!(payload.len() >= std::mem::size_of::<C>());
-    // SAFETY: Display-list records are native-layout copies of these `Copy` command structs. The
-    // byte stream is validated at the C++ boundary, and `read_unaligned` does not require the
-    // payload pointer to have `C`'s alignment.
-    unsafe { std::ptr::read_unaligned(payload.as_ptr().cast::<C>()) }
 }
 
 fn dump_command(output: &mut String, command_type: DisplayListCommandType, payload: &[u8]) {
@@ -334,8 +350,8 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
                 write_field(output, "isolated_backdrop_color", color);
             }
         }
-        DisplayListCommandType::DrawRepeatedDisplayList => {
-            let command = read_command::<DrawRepeatedDisplayList>(payload);
+        DisplayListCommandType::DrawRepeatedTile => {
+            let command = read_command::<DrawRepeatedTile>(payload);
             write_field(output, "dst_rect", command.dst_rect);
             write_field(output, "clip_rect", command.clip_rect);
             write!(output, " scaling_mode={}", scaling_mode_name(command.scaling_mode)).unwrap();
@@ -476,12 +492,11 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
             let command = read_command::<PaintNestedDisplayList>(payload);
             write_field(output, "rect", command.rect);
         }
-        DisplayListCommandType::DrawIsolatedDisplayList => {
-            let command = read_command::<DrawIsolatedDisplayList>(payload);
+        DisplayListCommandType::DrawIsolatedGroup => {
+            let command = read_command::<DrawIsolatedGroup>(payload);
             write_field(output, "rect", command.rect);
-            write_field(output, "list_size", command.list_size);
             write_blend_mode(output, command.compositing_and_blending_operator);
-            if command.mask_display_list_id != NO_MASK_DISPLAY_LIST {
+            if !command.mask.is_empty() {
                 write!(
                     output,
                     " has_mask={}",

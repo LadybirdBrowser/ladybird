@@ -139,7 +139,6 @@ fn record_display_list_impl<O: Observer>(
         visual_context_host,
         nested: None,
         nested_tree: None,
-        recording_into_context_free_nested_list: false,
         prerecorded: crate::painting::record::masks::PrerecordedNestedDisplayLists::default(),
         command_cache_source,
         item_cache_source,

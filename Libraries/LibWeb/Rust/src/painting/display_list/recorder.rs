@@ -5,7 +5,7 @@
  */
 
 use super::builder::{
-    CommandRange, ContextRewrite, DisplayListBuilder, HEADER_SIZE, PendingInlineClip, RecordedDisplayList,
+    CommandRange, ContextRewrite, DisplayListBuilder, HEADER_SIZE, OpenGroup, PendingInlineClip, RecordedDisplayList,
 };
 use super::commands::*;
 use crate::painting::display_list::ffi_bytes::FfiBytes;
@@ -235,6 +235,12 @@ pub struct GlyphRunForRecording<'a> {
     pub font_smoothing: u8,
     pub font_id: FontResourceId,
     pub glyphs: &'a [DisplayListGlyph],
+}
+
+pub struct OpenRecorderGroup {
+    group: OpenGroup,
+    context: ContextRef,
+    suspended_ambient_inline_clips: Vec<PendingInlineClip>,
 }
 
 #[derive(Default)]
@@ -837,31 +843,72 @@ impl DisplayListRecorder {
         );
     }
 
-    pub fn draw_repeated_display_list(
+    pub fn begin_isolated_group(&mut self) -> OpenRecorderGroup {
+        self.begin_group::<DrawIsolatedGroup>()
+    }
+
+    pub fn begin_repeated_tile(&mut self) -> OpenRecorderGroup {
+        self.begin_group::<DrawRepeatedTile>()
+    }
+
+    fn begin_group<C: DisplayListCommand>(&mut self) -> OpenRecorderGroup {
+        let suspended_ambient_inline_clips = std::mem::take(&mut self.ambient_inline_clips);
+        OpenRecorderGroup {
+            group: self.builder.begin_group::<C>(suspended_ambient_inline_clips.clone()),
+            context: self.context,
+            suspended_ambient_inline_clips,
+        }
+    }
+
+    pub fn begin_group_mask(&mut self, group: &mut OpenRecorderGroup) {
+        self.builder.begin_group_mask(&mut group.group);
+    }
+
+    pub fn is_recording_inside_group(&self) -> bool {
+        self.builder.open_group_depth() > 0
+    }
+
+    pub fn finish_isolated_group(
         &mut self,
+        group: OpenRecorderGroup,
+        rect: FloatRect,
+        compositing_and_blending_operator: CompositingAndBlendingOperator,
+        mask_kind: MaskKind,
+    ) {
+        debug_assert_eq!(self.context, group.context);
+        let command = DrawIsolatedGroup {
+            rect,
+            content: self.builder.group_content_span(&group.group),
+            mask: self.builder.group_mask_span(&group.group),
+            compositing_and_blending_operator,
+            mask_kind,
+        };
+        self.builder.finish_group(group.group, &command, group.context);
+        self.ambient_inline_clips = group.suspended_ambient_inline_clips;
+    }
+
+    pub fn finish_repeated_tile(
+        &mut self,
+        group: OpenRecorderGroup,
         dst_rect: IntRect,
         clip_rect: IntRect,
-        display_list_id: DisplayListResourceId,
         scaling_mode: ScalingMode,
         compositing_and_blending_operator: CompositingAndBlendingOperator,
         repeat: Repeat,
     ) {
-        if dst_rect.is_empty() || clip_rect.is_empty() {
-            return;
-        }
-        self.record_clipped_to(clip_rect, |recorder| {
-            recorder.append_command(
-                &DrawRepeatedDisplayList {
-                    dst_rect,
-                    clip_rect,
-                    display_list_id,
-                    scaling_mode,
-                    compositing_and_blending_operator,
-                    repeat,
-                },
-                &[],
-            );
-        });
+        debug_assert_eq!(self.context, group.context);
+        debug_assert!(!dst_rect.is_empty() && !clip_rect.is_empty());
+        let command = DrawRepeatedTile {
+            dst_rect,
+            clip_rect,
+            tile: self.builder.group_content_span(&group.group),
+            scaling_mode,
+            compositing_and_blending_operator,
+            repeat,
+        };
+        self.builder
+            .finish_group_clipped_to(group.group, &command, group.context, clip_rect);
+        self.ambient_inline_clips = group.suspended_ambient_inline_clips;
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -1104,28 +1151,6 @@ impl DisplayListRecorder {
                 thumb_color,
                 track_color,
                 vertical,
-            },
-            &[],
-        );
-    }
-
-    pub fn draw_isolated_display_list(
-        &mut self,
-        display_list_id: DisplayListResourceId,
-        mask_display_list_id: DisplayListResourceId,
-        rect: FloatRect,
-        list_size: IntSize,
-        compositing_and_blending_operator: CompositingAndBlendingOperator,
-        mask_kind: MaskKind,
-    ) {
-        self.append_command(
-            &DrawIsolatedDisplayList {
-                display_list_id,
-                mask_display_list_id,
-                rect,
-                list_size,
-                compositing_and_blending_operator,
-                mask_kind,
             },
             &[],
         );

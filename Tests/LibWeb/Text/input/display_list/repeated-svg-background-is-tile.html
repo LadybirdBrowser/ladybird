@@ -16,7 +16,7 @@
             await animationFrame();
 
             const displayList = internals.dumpDisplayList();
-            if (displayList.includes("DrawRepeatedDisplayList")) {
+            if (displayList.includes("DrawRepeatedTile")) {
                 println(displayList);
                 return;
             }

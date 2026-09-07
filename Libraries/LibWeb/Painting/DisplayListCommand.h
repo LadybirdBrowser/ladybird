@@ -21,7 +21,7 @@ namespace Web::Painting {
     V(PaintCaret, paint_caret)                                                         \
     V(DrawScaledDecodedImageFrame, draw_scaled_decoded_image_frame)                    \
     V(DrawRepeatedDecodedImageFrame, draw_repeated_decoded_image_frame)                \
-    V(DrawRepeatedDisplayList, draw_repeated_display_list)                             \
+    V(DrawRepeatedTile, draw_repeated_tile)                                            \
     V(DrawTiledDecodedImageFrame, draw_tiled_decoded_image_frame)                      \
     V(DrawCompositedContext, draw_composited_context)                                  \
     V(DrawCanvas, draw_canvas)                                                         \
@@ -40,7 +40,7 @@ namespace Web::Painting {
     V(BackdropFilterRegion, backdrop_filter_region)                                    \
     V(DrawRect, draw_rect)                                                             \
     V(PaintNestedDisplayList, paint_nested_display_list)                               \
-    V(DrawIsolatedDisplayList, draw_isolated_display_list)                             \
+    V(DrawIsolatedGroup, draw_isolated_group)                                          \
     V(CompositorScrollNode, compositor_scroll_node)                                    \
     V(CompositorWheelHitTestTarget, compositor_wheel_hit_test_target)                  \
     V(CompositorWheelHitTestTargetWithCornerRadii,                                     \
