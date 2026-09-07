@@ -22,7 +22,7 @@
 //! by reference count with every `ComputedValues` built from those
 //! properties and with the style record publication that interns it.
 
-use std::cell::Cell;
+use std::cell::{Cell, OnceCell};
 use std::ffi::c_void;
 use std::sync::Arc;
 
@@ -166,6 +166,9 @@ pub struct ComputedLonghandTable {
     /// values the drive changed; a table that starts empty computes the sum once, when it is
     /// first published.
     slot_hash_sum: Cell<Option<u64>>,
+    /// The longhands the table's `transition-*` values make transitionable, resolved once per
+    /// frozen table because every drive seeded from it asks for them.
+    frozen_transition_longhands: OnceCell<Box<[u16]>>,
     frozen: bool,
 }
 
@@ -199,6 +202,7 @@ impl ComputedLonghandTable {
             },
             post_compute_restore_values: None,
             slot_hash_sum: Cell::new(None),
+            frozen_transition_longhands: OnceCell::new(),
             frozen: false,
         }
     }
@@ -295,6 +299,13 @@ impl ComputedLonghandTable {
             .fold(0_u64, |sum, (slot, &value)| {
                 sum.wrapping_add(longhand_slot_hash(slot, value))
             })
+    }
+
+    pub(crate) fn frozen_transition_longhands(&self, compute: impl FnOnce(&Self) -> Box<[u16]>) -> Option<&[u16]> {
+        if !self.frozen {
+            return None;
+        }
+        Some(self.frozen_transition_longhands.get_or_init(|| compute(self)))
     }
 
     pub(crate) fn set_important(&mut self, property_id: u16, important: bool) {
@@ -1345,5 +1356,26 @@ mod tests {
         assert!(table.is_inherited(property_id::Z_INDEX));
         assert!(!table.is_important(property_id::OPACITY));
         assert!(!table.is_inherited(property_id::OPACITY));
+    }
+
+    #[test]
+    fn frozen_transition_longhands_resolve_once() {
+        let mut table = ComputedLonghandTable::new();
+        let mut resolutions = 0;
+        let mut resolve = |_: &ComputedLonghandTable| {
+            resolutions += 1;
+            Box::from([property_id::OPACITY])
+        };
+        assert!(table.frozen_transition_longhands(&mut resolve).is_none());
+        table.freeze();
+        assert_eq!(
+            table.frozen_transition_longhands(&mut resolve),
+            Some(&[property_id::OPACITY][..])
+        );
+        assert_eq!(
+            table.frozen_transition_longhands(&mut resolve),
+            Some(&[property_id::OPACITY][..])
+        );
+        assert_eq!(resolutions, 1);
     }
 }
