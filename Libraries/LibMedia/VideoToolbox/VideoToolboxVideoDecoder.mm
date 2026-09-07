@@ -4,9 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ByteBuffer.h>
 #include <AK/HashMap.h>
 #include <AK/NeverDestroyed.h>
 #include <LibMedia/Codecs/AV1.h>
+#include <LibMedia/Codecs/H264.h>
+#include <LibMedia/Codecs/NALUnit.h>
 #include <LibMedia/Codecs/VP9.h>
 #include <LibMedia/CodedFrame.h>
 #include <LibMedia/VideoFrame.h>
@@ -96,6 +99,8 @@ CMVideoCodecType codec_type_from_codec_id(CodecID codec_id)
         return kCMVideoCodecType_VP9;
     case CodecID::AV1:
         return kCMVideoCodecType_AV1;
+    case CodecID::H264:
+        return kCMVideoCodecType_H264;
     default:
         return 0;
     }
@@ -148,6 +153,7 @@ struct DecoderFormat {
     RetainedRef<CFMutableDictionaryRef> specification;
     RetainedRef<CFMutableDictionaryRef> destination_attributes;
     CodingIndependentCodePoints cicp;
+    u8 reorder_frame_count { 0 };
 };
 
 // Left to choose for itself, a decoder hands back layouts that pack samples across element boundaries, which nothing
@@ -251,12 +257,95 @@ ParsedCodec normalize_parsed_codec_for_support_keying(ParsedCodec const& codec)
         parameters.optional_fields.cicp = {};
         return ParsedCodec { parameters };
     }
+    case CodecID::H264: {
+        auto parameters = codec.h264_parameters();
+        if (!parameters.has_value())
+            return codec;
+        auto profile = parameters->profile();
+        if (!profile.has_value())
+            return codec;
+        return ParsedCodec { Codecs::H264::canonical_parameters_for_profile(*profile) };
+    }
     default:
         return codec;
     }
 }
 
-Optional<DecoderFormat> decoder_format_for_parsed_codec(ParsedCodec const& codec)
+}
+
+struct H264State {
+    Codecs::H264::ParameterSetStore parameter_sets;
+    u8 nal_unit_length_size { 4 };
+    bool dirty { true };
+
+    DecoderErrorOr<void> apply_nal_unit(ReadonlyBytes nal_unit)
+    {
+        auto result = parameter_sets.apply_nal_unit(nal_unit);
+        if (result.is_error()) {
+            auto error = result.release_error();
+            if (error.is_errno() && error.code() == ENOMEM)
+                return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to store H.264 parameter set"sv);
+            return DecoderError::corrupted(error.string_literal());
+        }
+        dirty |= result.release_value();
+        return {};
+    }
+
+    DecoderErrorOr<void> apply_configuration(ReadonlyBytes configuration)
+    {
+        if (configuration.is_empty())
+            return {};
+        auto sets = Codecs::H264::parse_parameter_sets_from_configuration_record(configuration);
+        if (!sets.has_value())
+            return DecoderError::corrupted("Invalid H.264 configuration record"sv);
+
+        parameter_sets = {};
+        nal_unit_length_size = sets->nal_unit_length_size;
+        dirty = true;
+
+        for (auto nal_unit : sets->sequence)
+            TRY(apply_nal_unit(nal_unit));
+        for (auto nal_unit : sets->picture)
+            TRY(apply_nal_unit(nal_unit));
+        return {};
+    }
+
+    Optional<DecoderFormat> decoder_format() const
+    {
+        // All retained definitions fit inline, so assembling the platform's arrays never allocates.
+        Vector<u8 const*, 288> set_pointers;
+        Vector<size_t, 288> set_sizes;
+        u8 reorder_frame_count = 0;
+        for (auto const& set : parameter_sets.sequence_parameter_sets()) {
+            set_pointers.append(set.nal_unit.data());
+            set_sizes.append(set.nal_unit.size());
+            // Bound every SPS a slice could select, without parsing slice headers to track activation.
+            reorder_frame_count = max(reorder_frame_count, set.parameters.max_num_reorder_frames);
+        }
+        if (set_pointers.is_empty())
+            return {};
+        auto sequence_count = set_pointers.size();
+        for (auto const& set : parameter_sets.picture_parameter_sets()) {
+            // A PPS may arrive before the SPS it references. Retain it until that SPS is available.
+            if (!parameter_sets.sequence_parameter_set(set.parameters.seq_parameter_set_id))
+                continue;
+            set_pointers.append(set.nal_unit.data());
+            set_sizes.append(set.nal_unit.size());
+        }
+        if (set_pointers.size() == sequence_count)
+            return {};
+
+        CMVideoFormatDescriptionRef description = nullptr;
+        if (CMVideoFormatDescriptionCreateFromH264ParameterSets(kCFAllocatorDefault, set_pointers.size(), set_pointers.data(), set_sizes.data(), nal_unit_length_size, &description) != noErr)
+            return {};
+
+        RetainedRef<CFMutableDictionaryRef> specification { CFDictionaryCreateMutable(kCFAllocatorDefault, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks) };
+        CFDictionarySetValue(specification.ref(), kVTVideoDecoderSpecification_RequireHardwareAcceleratedVideoDecoder, kCFBooleanTrue);
+        return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, move(specification), destination_attributes_for_bit_depth(8), CodingIndependentCodePoints {}, reorder_frame_count };
+    }
+};
+
+static Optional<DecoderFormat> decoder_format_for_parsed_codec(ParsedCodec const& codec)
 {
     static constexpr Gfx::IntSize GENERALLY_SUPPORTED_SIZE { 640, 480 };
 
@@ -277,16 +366,28 @@ Optional<DecoderFormat> decoder_format_for_parsed_codec(ParsedCodec const& codec
             return {};
         return av1_decoder_format(codec_type, *parameters, GENERALLY_SUPPORTED_SIZE);
     }
+    case CodecID::H264: {
+        auto parameters = codec.h264_parameters();
+        if (!parameters.has_value())
+            return {};
+        auto profile = parameters->profile();
+        if (!profile.has_value())
+            return {};
+        auto record = Codecs::H264::representative_configuration_record_for_profile(*profile);
+        H264State state;
+        if (state.apply_configuration(record).is_error())
+            return {};
+        return state.decoder_format();
+    }
     default:
         return {};
     }
 }
 
-}
-
 static bool hardware_can_decode(ParsedCodec const& codec)
 {
-    VTRegisterSupplementalVideoDecoderIfAvailable(codec_type_from_codec_id(codec.codec_id()));
+    auto codec_type = codec_type_from_codec_id(codec.codec_id());
+    VTRegisterSupplementalVideoDecoderIfAvailable(codec_type);
 
     auto format = decoder_format_for_parsed_codec(codec);
     if (!format.has_value())
@@ -323,7 +424,7 @@ Optional<DecoderCapabilities> VideoToolboxVideoDecoder::capabilities(ParsedCodec
     return DecoderCapabilities { .smooth = true, .power_efficient = true };
 }
 
-DecoderErrorOr<NonnullOwnPtr<VideoToolboxVideoDecoder>> VideoToolboxVideoDecoder::try_create(CodecID codec_id, ReadonlyBytes)
+DecoderErrorOr<NonnullOwnPtr<VideoToolboxVideoDecoder>> VideoToolboxVideoDecoder::try_create(CodecID codec_id, ReadonlyBytes codec_initialization_data)
 {
     if (codec_type_from_codec_id(codec_id) == 0)
         return DecoderError::format(DecoderErrorCategory::NotImplemented, "VideoToolbox has no decoder for codec {}", codec_id);
@@ -332,7 +433,12 @@ DecoderErrorOr<NonnullOwnPtr<VideoToolboxVideoDecoder>> VideoToolboxVideoDecoder
     if (surface_pool_result.is_error())
         return DecoderError::format(DecoderErrorCategory::Memory, "Failed to create a video surface pool: {}", surface_pool_result.release_error());
 
-    return DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) VideoToolboxVideoDecoder(codec_id, surface_pool_result.release_value())));
+    auto decoder = DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) VideoToolboxVideoDecoder(codec_id, surface_pool_result.release_value())));
+    if (codec_id == CodecID::H264) {
+        decoder->m_h264_state = DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) H264State));
+        TRY(decoder->m_h264_state->apply_configuration(codec_initialization_data));
+    }
+    return decoder;
 }
 
 VideoToolboxVideoDecoder::VideoToolboxVideoDecoder(CodecID codec_id, NonnullRefPtr<VideoFrameSurfacePool> surface_pool)
@@ -350,11 +456,36 @@ VideoToolboxVideoDecoder::~VideoToolboxVideoDecoder()
 
 DecoderErrorOr<void> VideoToolboxVideoDecoder::ensure_session_for_frame(CodedFrame const& coded_frame)
 {
-    auto format = decoder_format_for_frame(m_codec_id, coded_frame);
+    Optional<DecoderFormat> format;
+    if (m_h264_state) {
+        if (auto configuration = coded_frame.new_codec_configuration(); configuration.has_value())
+            TRY(m_h264_state->apply_configuration(*configuration));
+
+        Codecs::NALUnitIterator iterator { coded_frame.data(), m_h264_state->nal_unit_length_size };
+        for (auto nal_unit = iterator.next(); nal_unit.has_value(); nal_unit = iterator.next())
+            TRY(m_h264_state->apply_nal_unit(*nal_unit));
+        if (iterator.has_error())
+            return DecoderError::corrupted("Invalid H.264 NAL unit length"sv);
+
+        if (!m_h264_state->dirty && m_session)
+            return {};
+        format = m_h264_state->decoder_format();
+        if (!format.has_value())
+            return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "H.264 parameter sets do not yet describe a usable format"sv);
+    } else {
+        format = decoder_format_for_frame(m_codec_id, coded_frame);
+    }
 
     if (m_session != nullptr) {
-        if (!format.has_value() || CMFormatDescriptionEqual(format->description.ref(), m_session->format_description))
+        if (!format.has_value())
             return {};
+        if (CMFormatDescriptionEqual(format->description.ref(), m_session->format_description)) {
+            if (m_h264_state)
+                m_h264_state->dirty = false;
+            Sync::MutexLocker locker { m_output_mutex };
+            m_reorder_frame_count = format->reorder_frame_count;
+            return {};
+        }
     }
 
     if (!format.has_value())
@@ -382,6 +513,12 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::ensure_session_for_frame(CodedFra
     if (VTDecompressionSessionCreate(kCFAllocatorDefault, session->format_description, format->specification.ref(), format->destination_attributes.ref(), &callback, &session->session) != noErr)
         return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "VideoToolbox has no hardware decoder for this format"sv);
 
+    {
+        Sync::MutexLocker locker { m_output_mutex };
+        m_reorder_frame_count = format->reorder_frame_count;
+    }
+    if (m_h264_state)
+        m_h264_state->dirty = false;
     m_session = move(session);
     return {};
 }
@@ -414,6 +551,14 @@ void VideoToolboxVideoDecoder::note_decode_failure_while_locked(i32 status)
     m_decode_failure = DecoderError::format(DecoderErrorCategory::Corrupted, "VideoToolbox failed to decode a frame with status {}", status);
 }
 
+void VideoToolboxVideoDecoder::insert_output_in_presentation_order_while_locked(DecodedOutput&& output)
+{
+    auto insertion_index = m_outputs.size();
+    while (insertion_index > 0 && m_outputs[insertion_index - 1].timestamp > output.timestamp)
+        insertion_index--;
+    m_outputs.insert(insertion_index, move(output));
+}
+
 void VideoToolboxVideoDecoder::enqueue_decoded_output_while_locked(CodingIndependentCodePoints const& cicp, void* image_buffer, AK::Duration timestamp, AK::Duration duration)
 {
     auto* pixel_buffer = static_cast<CVPixelBufferRef>(image_buffer);
@@ -431,7 +576,7 @@ void VideoToolboxVideoDecoder::enqueue_decoded_output_while_locked(CodingIndepen
     if (m_decode_failure.has_value())
         return;
 
-    m_outputs.enqueue({
+    DecodedOutput output {
         .surface = surface_or_error.release_value(),
         .timestamp = timestamp,
         .duration = duration,
@@ -439,7 +584,8 @@ void VideoToolboxVideoDecoder::enqueue_decoded_output_while_locked(CodingIndepen
         .bit_depth = static_cast<u8>(is_ten_bit ? 10 : 8),
         .subsampling = Subsampling::yuv420(),
         .cicp = cicp,
-    });
+    };
+    insert_output_in_presentation_order_while_locked(move(output));
 }
 
 DecoderErrorOr<void> VideoToolboxVideoDecoder::receive_coded_data(CodedFrame const& coded_frame, DecodeIntent intent)
@@ -467,7 +613,7 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::receive_coded_data(CodedFrame con
         CMSampleTimingInfo timing {
             .duration = cm_time_from_duration(coded_frame.duration()),
             .presentationTimeStamp = cm_time_from_duration(coded_frame.presentation_timestamp()),
-            .decodeTimeStamp = kCMTimeInvalid,
+            .decodeTimeStamp = cm_time_from_duration(coded_frame.decode_timestamp()),
         };
         size_t sample_size = data.size();
         RetainedRef<CMSampleBufferRef> sample_buffer;
@@ -505,21 +651,32 @@ void VideoToolboxVideoDecoder::signal_end_of_stream()
     m_reached_end_of_stream = true;
 }
 
+bool VideoToolboxVideoDecoder::may_pull_frame_from_reorder_queue_while_locked() const
+{
+    auto frames_that_may_still_be_preceded = m_reorder_frame_count;
+    if (m_reached_end_of_stream)
+        frames_that_may_still_be_preceded = 0;
+    return m_outputs.size() > frames_that_may_still_be_preceded;
+}
+
 DecoderErrorOr<NonnullRefPtr<VideoFrame>> VideoToolboxVideoDecoder::take_next_output(CodingIndependentCodePoints const& container_cicp)
 {
     Sync::MutexLocker locker { m_output_mutex };
-    while (m_outputs.is_empty()) {
+    while (true) {
+        if (may_pull_frame_from_reorder_queue_while_locked())
+            break;
+
         if (m_decode_failure.has_value())
             return m_decode_failure.release_value();
         if (m_reached_end_of_stream)
             return DecoderError::with_description(DecoderErrorCategory::EndOfStream, "VideoToolbox has been drained"sv);
         if (m_frames_in_flight < MAXIMUM_FRAMES_IN_FLIGHT)
-            return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "VideoToolbox has no decoded frames available"sv);
+            return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "VideoToolbox has no frame that later ones cannot precede"sv);
 
         m_output_arrived.wait();
     }
 
-    auto const& output = m_outputs.head();
+    auto const& output = m_outputs.first();
 
     auto acquired_slot = m_surface_pool->try_acquire(output.surface);
     if (!acquired_slot.has_value())
@@ -535,7 +692,7 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> VideoToolboxVideoDecoder::take_next_ou
     auto frame = DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(
         output.timestamp, output.duration, output.size.to_type<u32>(),
         output.bit_depth, output.subsampling, cicp, pool_slot_result.release_value()));
-    m_outputs.dequeue();
+    m_outputs.remove(0);
     return frame;
 }
 
