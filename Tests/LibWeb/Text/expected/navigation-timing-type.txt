@@ -1,2 +1,4 @@
 initial navigation type: navigate
+initial legacy navigation type: 0
 reload navigation type: reload
+reload legacy navigation type: 1

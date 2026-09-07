@@ -1,9 +1,12 @@
 cross-origin redirect count: 0
+cross-origin legacy redirect count: 0
 cross-origin fetch start follows redirects: true
 cross-origin redirect end exposed: false
 cross-origin-with-tao redirect count: 2
+cross-origin-with-tao legacy redirect count: 2
 cross-origin-with-tao fetch start follows redirects: true
 cross-origin-with-tao redirect end exposed: true
 same-origin redirect count: 1
+same-origin legacy redirect count: 1
 same-origin fetch start follows redirects: true
 same-origin redirect end exposed: true

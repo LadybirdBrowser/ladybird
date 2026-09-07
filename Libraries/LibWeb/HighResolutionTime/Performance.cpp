@@ -55,11 +55,9 @@ GC::Ptr<NavigationTiming::PerformanceTiming> Performance::timing()
 GC::Ptr<NavigationTiming::PerformanceNavigation> Performance::navigation()
 {
     if (!m_navigation) {
-        // FIXME: actually determine values for these
-        u16 type = 0;
-        u16 redirect_count = 0;
-
-        m_navigation = NavigationTiming::PerformanceNavigation::create(type, redirect_count);
+        auto* window = HTML::window_from_global_object(relevant_global_object());
+        VERIFY(window);
+        m_navigation = NavigationTiming::PerformanceNavigation::create(*window);
     }
     return m_navigation;
 }
