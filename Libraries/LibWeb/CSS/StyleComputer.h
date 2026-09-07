@@ -340,6 +340,8 @@ private:
     void publish_animated_custom_properties(ComputedStyleWorkingSet&, DOM::AbstractElement) const;
     void invalidate_animated_custom_property_readers(DOM::AbstractElement, OrderedHashMap<Utf16FlyString, NonnullRefPtr<StyleValue const>> const& animated_values) const;
     Vector<GC::Ref<Animations::KeyframeEffect>> start_needed_transitions(ComputedStyleWorkingSet&, DOM::AbstractElement) const;
+    [[nodiscard]] bool has_provisional_transition_states(DOM::AbstractElement) const;
+    [[nodiscard]] RefPtr<ComputedStyleWorkingSet> start_needed_transitions_on_shared_style(DOM::AbstractElement, ComputedValues const& shared_values) const;
     void finalize_style(ComputedStyleWorkingSet&, DOM::AbstractElement, ComputedValuesFFI::FfiStyleFinalizationMode) const;
 
     [[nodiscard]] CSSPixelRect viewport_rect() const { return m_viewport_rect; }

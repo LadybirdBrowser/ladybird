@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .item {
+        color: rgb(0, 0, 0);
+        transition: color 10s steps(1, jump-both);
+    }
+    .item.done { color: rgb(200, 200, 200); }
+    .item.bold { font-weight: bold; }
+    .item.same { color: rgb(0, 0, 0); }
+    .item.fast { transition-duration: 0.01s; }
+</style>
+<div id="donor" class="item done bold">donor</div>
+<div id="stale" class="item">stale</div>
+<div id="settled" class="item">settled</div>
+<div id="partial" class="item">partial</div>
+<script>
+    asyncTest(async done => {
+        const donor = document.getElementById("donor");
+        const stale = document.getElementById("stale");
+        const settled = document.getElementById("settled");
+        const partial = document.getElementById("partial");
+        internals.updateStyle();
+        const sharedComputations = () => internals.getStyleInvalidationCounters().elementStyleSharedComputations;
+
+        // The donor recomputes first to the style the stale element is changing to, without changing its color,
+        // so the stale element takes that style from the sharing cache instead of deriving it. The transition
+        // must still start from the stale element's own previous color.
+        donor.className = "item done";
+        stale.className = "item done";
+        const before = sharedComputations();
+        internals.updateStyle();
+        println(`shared computations: ${sharedComputations() - before}`);
+        println(`donor: color=${getComputedStyle(donor).color} animations=${donor.getAnimations().length}`);
+        println(`stale: color=${getComputedStyle(stale).color} animations=${stale.getAnimations().length}`);
+
+        // A recomputation whose cascade came out as it did last time is skipped, and starts nothing.
+        settled.className = "item same";
+        internals.updateStyle();
+        println(`settled: color=${getComputedStyle(settled).color} animations=${settled.getAnimations().length}`);
+
+        // An element with a completed transition and a registered transition-property entry rebuilds only the
+        // groups its changed declarations reach, and must start a transition from that rebuild.
+        partial.className = "item done fast";
+        internals.updateStyle();
+        const quick = partial.getAnimations();
+        println(`partial quick animations=${quick.length}`);
+        await quick[0].finished;
+        partial.className = "item";
+        internals.updateStyle();
+        println(`partial: color=${getComputedStyle(partial).color} animations=${partial.getAnimations().length}`);
+        done();
+    });
+</script>
