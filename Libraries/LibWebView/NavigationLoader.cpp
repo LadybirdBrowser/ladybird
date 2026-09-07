@@ -37,6 +37,7 @@ Optional<NavigationLoader::ResponseDocument> NavigationLoader::response_document
     if (navigation_params.has<Web::HTML::NavigationParamsNullOrError>()) {
         auto origin = URL::Origin::create_opaque();
         return ResponseDocument {
+            .is_inline_content = true,
             .coop_enforcement_result = { .url = URL::about_error(), .origin = origin, .opener_policy = {} },
             .url = URL::about_error(),
             .origin = origin,
@@ -55,6 +56,7 @@ Optional<NavigationLoader::ResponseDocument> NavigationLoader::response_document
     if (fetched_navigation_params.response.status == 204 || fetched_navigation_params.response.status == 205)
         return {};
     return ResponseDocument {
+        .is_inline_content = false,
         .coop_enforcement_result = fetched_navigation_params.coop_enforcement_result,
         // The COOP enforcement result still describes the source document until an opener policy is enforced.
         // Placement uses the response's final URL, including any redirects.
