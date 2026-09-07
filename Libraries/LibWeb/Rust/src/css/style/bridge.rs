@@ -267,7 +267,6 @@ pub struct FfiFontResolutionRequest {
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
 pub struct FfiResolvedFont {
-    pub handle: *const c_void,
     pub first_available_font: *const c_void,
     pub font_cascade_list: *const c_void,
     pub ascent: f32,
@@ -1142,20 +1141,16 @@ pub extern "C" fn style_engine_install_raw_atom_callbacks(
 /// Installs the document's synchronous platform font resolver once.
 ///
 /// # Safety
-/// The context and callbacks must remain valid until the engine is destroyed.
+/// The context and callback must remain valid until the engine is destroyed.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn style_engine_install_font_resolver(
     engine: *mut c_void,
     context: *mut c_void,
     resolve: unsafe extern "C" fn(*mut c_void, FfiFontResolutionRequest) -> FfiResolvedFont,
-    retain: unsafe extern "C" fn(*const c_void),
-    release: unsafe extern "C" fn(*const c_void),
 ) {
     let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
     assert!(engine.font_resolver.is_none(), "font resolver is installed once");
-    engine.font_resolver = Some(super::font_resolution::FontResolver::new(
-        context, resolve, retain, release,
-    ));
+    engine.font_resolver = Some(super::font_resolution::FontResolver::new(context, resolve));
 }
 
 /// Creates a replay engine whose atom keys are opaque capture tokens rather than live fly strings.

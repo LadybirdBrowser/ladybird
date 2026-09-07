@@ -39,30 +39,18 @@ static StyleEngineFFI::FfiResolvedFont resolve_font(void* context, StyleEngineFF
         static_cast<FontOpticalSizing>(request.font_optical_sizing),
         {},
         {});
-    font_computer.pin_font_list_for_style_record(font_list);
     // The metric probe must not load a face: the first available font answers without one.
     auto const& first_available_font = font_list->first_available_font();
     auto const metrics = first_available_font.pixel_metrics();
-    auto* handle = &font_list.leak_ref();
+    // The engine's resolver cache adopts this reference and releases it on eviction.
     return {
-        .handle = handle,
         .first_available_font = &first_available_font,
-        .font_cascade_list = handle,
+        .font_cascade_list = &font_list.leak_ref(),
         .ascent = metrics.ascent,
         .descent = metrics.descent,
         .x_height = metrics.x_height,
         .zero_advance = metrics.advance_of_ascii_zero,
     };
-}
-
-static void retain_resolved_font(void const* handle)
-{
-    static_cast<Gfx::FontCascadeList const*>(handle)->ref();
-}
-
-static void release_resolved_font(void const* handle)
-{
-    static_cast<Gfx::FontCascadeList const*>(handle)->unref();
 }
 
 static_assert(StyleEngineFFI::LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND == to_underlying(last_synthetic_pseudo_element));
@@ -78,12 +66,7 @@ StyleEngine::StyleEngine(DeviceClass device_class, StyleComputer* style_computer
     StyleEngineFFI::style_engine_install_raw_atom_callbacks(ladybird_utf16_fly_string_ref_raw, ladybird_utf16_fly_string_unref_raw);
     if (m_style_computer) {
         set_pseudo_element_style_deferred(to_underlying(PseudoElement::Selection), true);
-        StyleEngineFFI::style_engine_install_font_resolver(
-            m_impl,
-            m_style_computer.ptr(),
-            resolve_font,
-            retain_resolved_font,
-            release_resolved_font);
+        StyleEngineFFI::style_engine_install_font_resolver(m_impl, m_style_computer.ptr(), resolve_font);
     }
 }
 
