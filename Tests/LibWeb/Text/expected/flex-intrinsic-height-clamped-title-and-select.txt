@@ -1,0 +1,10 @@
+card: 60
+child: 20
+child: 40
+card: 60
+child: 20
+child: 40
+card: 20
+child: 20
+card: 40
+child: 40

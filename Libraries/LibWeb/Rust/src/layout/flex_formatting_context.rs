@@ -3032,19 +3032,6 @@ impl<'pass> FlexFormattingContext<'pass> {
         let available_space = layout_input.available_space;
         // This implements https://www.w3.org/TR/css-flexbox-1/#layout-algorithm
 
-        // OPTIMIZATION: If we're in intrinsic sizing layout, but the flex container is not the
-        //               box being measured, we can skip everything here.
-        //               The parent formatting context has already figured out our size anyway.
-        //               However, an inline-level container must still lay out its items, since the
-        //               parent inline formatting context derives the fragment's baseline from them.
-        if self.layout_mode == LayoutMode::IntrinsicSizing
-            && !available_space.inline_size.is_intrinsic_sizing_constraint()
-            && !available_space.block_size.is_intrinsic_sizing_constraint()
-            && !self.facts(self.flex_container).display().is_inline_outside()
-        {
-            return;
-        }
-
         self.available_space = Some(available_space);
         self.layout_input = Some(layout_input);
         self.item_percentage_bases =
