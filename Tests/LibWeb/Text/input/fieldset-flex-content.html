@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    fieldset { display: flex; flex-wrap: wrap; gap: 10px; width: 200px; margin: 0; padding: 0; border: 0; }
+    legend { width: 30px; height: 20px; padding: 0; }
+    .item { display: flex; flex: none; width: 80px; height: 30px; }
+</style>
+<fieldset id="with-legend"><legend></legend><div class="item"></div><div class="item"></div><div class="item"></div></fieldset>
+<fieldset id="without-legend"><div class="item"></div><div class="item"></div><div class="item"></div></fieldset>
+<fieldset id="column" style="flex-direction: column; align-items: flex-end"><legend></legend><div class="item"></div><div class="item"></div></fieldset>
+<fieldset id="inline" style="display: inline-flex; justify-content: flex-end"><legend></legend><div class="item"></div><div class="item"></div></fieldset>
+<script>
+    test(() => {
+        for (const fieldset of document.querySelectorAll("fieldset")) {
+            println(fieldset.id);
+            const origin = fieldset.getBoundingClientRect();
+            for (const child of fieldset.children) {
+                const rect = child.getBoundingClientRect();
+                println(`${child.tagName}: ${rect.x - origin.x},${rect.y - origin.y} ${rect.width}x${rect.height}`);
+            }
+        }
+    });
+</script>

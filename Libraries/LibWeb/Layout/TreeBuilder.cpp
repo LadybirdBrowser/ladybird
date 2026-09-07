@@ -1364,7 +1364,7 @@ RustFFI::FfiTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_tree_builder_ca
             //     column-width, flex-direction, flex-wrap, grid (grid-auto-columns, grid-auto-flow, grid-auto-rows,
             //     grid-column-gap, grid-row-gap, grid-template-areas, grid-template-columns, grid-template-rows),
             //     justify-content, justify-items, overflow, padding, text-overflow, unicode-bidi
-            // FIXME: Transfer all of these properties, not just overflow.
+            // FIXME: Transfer the remaining properties besides overflow and alignment.
             RustFFI::FfiAnonymousStyleOverrides overrides {
                 .inline_block_wrapper = false,
                 .overflow_x = to_underlying(fieldset_box.overflow_x()),

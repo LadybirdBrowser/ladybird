@@ -3383,7 +3383,7 @@ fn wrap_fieldset_contents_if_needed(host: &TreeBuilderHost<'_>, layout_node: Lay
     // rendered legend, if there is one.
     if host.data(layout_node).kind.get() == NodeKind::FieldSetBox {
         let legend = rendered_legend(host, layout_node);
-        if legend.is_invalid() {
+        if legend.is_invalid() && !host.display(layout_node).is_flex_inside() {
             return;
         }
 
