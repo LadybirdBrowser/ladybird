@@ -1674,11 +1674,20 @@ impl<'pass> BlockFormattingContext<'pass> {
         containing_input: LayoutInput,
         available_space: AvailableSpace,
     ) -> LayoutInput {
+        let sizing = self.sizing();
+        let containing_block_constraints =
+            sizing.constraints_for_child_context(containing_block, containing_input.containing_block_constraints);
+        let mut available_space = available_space;
+        if sizing.is_anonymous_button_content_box(containing_block)
+            && let Some(block_size) = containing_block_constraints.percentage_basis_block_size
+        {
+            // NB: Percentage heights inside the anonymous content box use the button's height, including during
+            //     intrinsic measurement of the content box itself.
+            available_space.block_size = AvailableSize::definite(block_size);
+        }
         LayoutInput {
             available_space,
-            containing_block_constraints: self
-                .sizing()
-                .constraints_for_child_context(containing_block, containing_input.containing_block_constraints),
+            containing_block_constraints,
             content_box_position_in_bfc_root: containing_input.content_box_position_in_bfc_root,
             sizing: RootSizingDirectives::default(),
             participation: ParticipationInParentFormattingContext::BlockLevel,

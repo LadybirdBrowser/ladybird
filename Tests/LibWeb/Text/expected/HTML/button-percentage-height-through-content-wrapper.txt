@@ -1,0 +1,7 @@
+ratio: button 60x75, image 60x75 at 0,0
+fixed: button 60x75, image 60x75 at 0,0
+padded: button 80x100, image 60x80 at 10,10
+half: button 60x75, image 60x37.5 at 0,18.75
+auto: button 60x60, image 60x60 at 0,0
+nested: button 60x75, image 60x60 at 0,7.5
+ratio: button 80x100, image 80x100 at 0,0
