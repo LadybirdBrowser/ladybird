@@ -14,6 +14,7 @@
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/TypefaceSkia.h>
 #include <LibGfx/TextLayout.h>
+#include <RustFFI.h>
 
 #if defined(USE_FONTCONFIG)
 #    include <LibGfx/Font/GlobalFontConfig.h>
@@ -27,6 +28,7 @@
 #include <harfbuzz/hb.h>
 
 extern "C" {
+void ladybird_gfx_font_snapshot(void const*, Gfx::FFI::FfiFontSnapshot*);
 u64 ladybird_gfx_font_id(void const*);
 float ladybird_gfx_font_glyph_width(void const*, u32);
 u32 ladybird_gfx_font_glyph_id(void const*, u32);
@@ -246,6 +248,23 @@ bool Font::is_emoji_font() const
     return m_is_emoji_font == TriState::True;
 }
 
+}
+
+extern "C" void ladybird_gfx_font_snapshot(void const* font, Gfx::FFI::FfiFontSnapshot* out_snapshot)
+{
+    VERIFY(font);
+    VERIFY(out_snapshot);
+    auto const& typed_font = *static_cast<Gfx::Font const*>(font);
+    auto const& metrics = typed_font.pixel_metrics();
+    *out_snapshot = {
+        .id = typed_font.id(),
+        .ascent = metrics.ascent,
+        .descent = metrics.descent,
+        .x_height = metrics.x_height,
+        .zero_advance = metrics.advance_of_ascii_zero,
+        .pixel_size = typed_font.pixel_size(),
+        .point_size = typed_font.point_size(),
+    };
 }
 
 extern "C" u64 ladybird_gfx_font_id(void const* font)
