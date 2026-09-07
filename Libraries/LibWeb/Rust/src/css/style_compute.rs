@@ -3223,45 +3223,51 @@ fn store_computed_value(longhand_table: &mut ComputedLonghandTable, entry: &Comp
         RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(entry.data.cast()))
     });
     longhand_table.set_drive_inheritance_dependent_value(entry.property_id, specified_value);
-    let retained = match entry.computed_kind {
-        COMPUTED_KIND_UNCHANGED => unsafe {
-            RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
-                entry.data.cast(),
-            ))
-        },
-        COMPUTED_KIND_PX_LENGTH => retained_new(StyleValueData::Length {
-            value: entry.value,
-            unit: px_length_unit(),
-        }),
-        COMPUTED_KIND_INTEGER => retained_new(StyleValueData::Integer {
-            value: entry.value as i32,
-        }),
-        COMPUTED_KIND_SUPERELLIPSE => retained_new(StyleValueData::Superellipse {
-            parameter: retained_new(StyleValueData::Number { value: entry.value }),
-        }),
-        COMPUTED_KIND_NUMBER => retained_new(StyleValueData::Number { value: entry.value }),
-        COMPUTED_KIND_PERCENTAGE => retained_new(StyleValueData::Percentage { value: entry.value }),
-        COMPUTED_KIND_FONT_STYLE => retained_new(StyleValueData::FontStyle {
-            font_style: entry.value as u8,
-            angle_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(std::ptr::null()) },
-        }),
-        COMPUTED_KIND_KEYWORD => retained_new(StyleValueData::Keyword {
-            keyword: entry.value as u16,
-        }),
-        COMPUTED_KIND_DISPLAY => retained_new(StyleValueData::Display {
-            raw: entry.value as u32,
-        }),
-        COMPUTED_KIND_STYLE_VALUE => unsafe {
-            RetainedStyleValueData::from_retained_pointer(entry.computed_data.cast())
-        },
-        _ => unreachable!("unknown computed longhand store kind"),
-    };
     let source_slot = if entry.has_style_sheet_context && entry.computed_kind == COMPUTED_KIND_UNCHANGED {
         entry.source_slot
     } else {
         -1
     };
-    longhand_table.set(entry.property_id, retained, source_slot);
+    let computed = match entry.computed_kind {
+        COMPUTED_KIND_UNCHANGED => {
+            let retained = unsafe {
+                RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(
+                    entry.data.cast(),
+                ))
+            };
+            longhand_table.set_or_keep_equal(entry.property_id, retained, source_slot);
+            return;
+        }
+        COMPUTED_KIND_STYLE_VALUE => {
+            let retained = unsafe { RetainedStyleValueData::from_retained_pointer(entry.computed_data.cast()) };
+            longhand_table.set_or_keep_equal(entry.property_id, retained, source_slot);
+            return;
+        }
+        COMPUTED_KIND_PX_LENGTH => StyleValueData::Length {
+            value: entry.value,
+            unit: px_length_unit(),
+        },
+        COMPUTED_KIND_INTEGER => StyleValueData::Integer {
+            value: entry.value as i32,
+        },
+        COMPUTED_KIND_SUPERELLIPSE => StyleValueData::Superellipse {
+            parameter: retained_new(StyleValueData::Number { value: entry.value }),
+        },
+        COMPUTED_KIND_NUMBER => StyleValueData::Number { value: entry.value },
+        COMPUTED_KIND_PERCENTAGE => StyleValueData::Percentage { value: entry.value },
+        COMPUTED_KIND_FONT_STYLE => StyleValueData::FontStyle {
+            font_style: entry.value as u8,
+            angle_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(std::ptr::null()) },
+        },
+        COMPUTED_KIND_KEYWORD => StyleValueData::Keyword {
+            keyword: entry.value as u16,
+        },
+        COMPUTED_KIND_DISPLAY => StyleValueData::Display {
+            raw: entry.value as u32,
+        },
+        _ => unreachable!("unknown computed longhand store kind"),
+    };
+    longhand_table.set_computed(entry.property_id, computed, source_slot);
 }
 
 /// Drives the property computation loop: iterates every longhand in
