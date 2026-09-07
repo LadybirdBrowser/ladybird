@@ -375,6 +375,7 @@ public:
     void unsafe_set_shape(Shape&);
 
     void convert_to_prototype_if_needed();
+    void invalidate_property_lookup_caches();
 
     template<typename T>
     bool fast_is() const = delete;

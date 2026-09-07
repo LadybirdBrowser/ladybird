@@ -8762,6 +8762,12 @@ static bool is_potentially_named_element_by_id(DOM::Element const& element)
     return is<HTML::HTMLObjectElement>(element) || is<HTML::HTMLImageElement>(element);
 }
 
+// https://html.spec.whatwg.org/multipage/dom.html#dom-document-nameditem-filter
+static bool is_named_element_by_id(DOM::Element const& element)
+{
+    return is<HTML::HTMLObjectElement>(element) || (is<HTML::HTMLImageElement>(element) && element.name().has_value());
+}
+
 static void insert_in_tree_order(Vector<GC::Ref<DOM::Element>>& elements, DOM::Element& element)
 {
     for (auto& el : elements) {
@@ -8783,10 +8789,13 @@ void Document::element_id_changed(Badge<DOM::Element>, GC::Ref<DOM::Element> ele
     for (auto* form_associated_element : m_form_associated_elements_with_form_attribute)
         form_associated_element->element_id_changed({});
 
-    if (element->id().has_value())
+    if (element->id().has_value()) {
         insert_in_tree_order(m_potentially_named_elements, element);
-    else if (!element->name().has_value())
+        if (is_named_element_by_id(*element))
+            did_add_supported_property_name();
+    } else if (!element->name().has_value()) {
         (void)m_potentially_named_elements.remove_first_matching([element](auto& e) { return e == element; });
+    }
 
     auto new_id = element->id();
     if (old_id.has_value()) {
@@ -8802,8 +8811,11 @@ void Document::element_with_id_was_added(Badge<DOM::Element>, GC::Ref<DOM::Eleme
     for (auto* form_associated_element : m_form_associated_elements_with_form_attribute)
         form_associated_element->element_with_id_was_added_or_removed({});
 
-    if (is_potentially_named_element_by_id(*element))
+    if (is_potentially_named_element_by_id(*element)) {
         insert_in_tree_order(m_potentially_named_elements, element);
+        if (is_named_element_by_id(*element))
+            did_add_supported_property_name();
+    }
 
     if (auto id = element->id(); id.has_value()) {
         element->document_or_shadow_root_element_by_id_map().add(id.value(), element);
@@ -8826,6 +8838,8 @@ void Document::element_name_changed(Badge<DOM::Element>, GC::Ref<DOM::Element> e
 {
     if (element->name().has_value()) {
         insert_in_tree_order(m_potentially_named_elements, element);
+        if (is_potentially_named_element(element))
+            did_add_supported_property_name();
     } else {
         if (is_potentially_named_element_by_id(element) && element->id().has_value())
             return;
@@ -8835,8 +8849,16 @@ void Document::element_name_changed(Badge<DOM::Element>, GC::Ref<DOM::Element> e
 
 void Document::element_with_name_was_added(Badge<DOM::Element>, GC::Ref<DOM::Element> element)
 {
-    if (is_potentially_named_element(element))
+    if (is_potentially_named_element(element)) {
         insert_in_tree_order(m_potentially_named_elements, element);
+        did_add_supported_property_name();
+    }
+}
+
+void Document::did_add_supported_property_name()
+{
+    if (auto wrapper = cached_main_world_wrapper())
+        wrapper->invalidate_property_lookup_caches();
 }
 
 void Document::element_with_name_was_removed(Badge<DOM::Element>, GC::Ref<DOM::Element> element)

@@ -1,0 +1,4 @@
+form named images: true
+object with id forms: true
+image with only an id: false
+iframe renamed after insertion: true

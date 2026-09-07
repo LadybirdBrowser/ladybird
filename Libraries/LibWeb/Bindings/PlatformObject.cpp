@@ -300,8 +300,10 @@ bool PlatformObject::is_cacheable_for_inherited_property() const
 {
     if (!is_legacy_platform_object())
         return true;
-    return !(m_legacy_platform_object_flags->supports_named_properties
-        && m_legacy_platform_object_flags->has_legacy_override_built_ins_interface_extended_attribute);
+    if (!m_legacy_platform_object_flags->supports_named_properties
+        || !m_legacy_platform_object_flags->has_legacy_override_built_ins_interface_extended_attribute)
+        return true;
+    return is<DOM::Document>(wrappable_impl()) && host_defined_wrapper_world(realm()).is_main_world();
 }
 
 // https://webidl.spec.whatwg.org/#legacy-platform-object-getownproperty
