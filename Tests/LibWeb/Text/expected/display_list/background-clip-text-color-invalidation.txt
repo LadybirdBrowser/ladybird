@@ -3,24 +3,24 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-  frames:
-    [f0 in s0] effects=[]
+  effects:
+    [e0 in s0] effects=[]
 
 DisplayList:
-DrawGlyphRun@s1/f0 rect=[8,13 71x30] translation=[8,37] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[8,13 71x30] translation=[8,37] color=rgb(0, 0, 0)
 
 After background-color change:
 AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-  frames:
-    [f0 in s0] effects=[]
+  effects:
+    [e0 in s0] effects=[]
 
 DisplayList:
-DrawIsolatedDisplayList@s1/f0 rect=[8,13 100x50] list_size=[100x50] has_mask=alpha
+DrawIsolatedDisplayList@s1/e0 rect=[8,13 100x50] list_size=[100x50] has_mask=alpha
   FillRect@s0 rect=[8,13 100x50] color=rgb(0, 0, 255)
   Mask:
     DrawGlyphRun@s0 rect=[8,13 71x30] translation=[8,37] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/f0 rect=[8,13 71x30] translation=[8,37] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[8,13 71x30] translation=[8,37] color=rgb(0, 0, 0)
 

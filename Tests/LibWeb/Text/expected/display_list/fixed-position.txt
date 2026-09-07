@@ -2,13 +2,14 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-  frames:
-    [f0 in s0] effects=[]
-      [f1 in s1] clip=[8,8 200x100] (BlockContainer<DIV>.scroll-container)
+  clips:
+    [c0 in s1] clip=[8,8 200x100] (BlockContainer<DIV>.scroll-container)
+  effects:
+    [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s1/f1 rect=[8,8 150x50] color=rgb(0, 128, 0)
-DrawGlyphRun@s1/f1 rect=[8,8 56x16] translation=[8,20.796875] color=rgb(0, 0, 0)
-FillRect@s0/f0 rect=[10,10 80x40] color=rgb(255, 0, 0)
-DrawGlyphRun@s0/f0 rect=[10,10 44x16] translation=[10,22.796875] color=rgb(0, 0, 0)
+FillRect@s1/c0/e0 rect=[8,8 150x50] color=rgb(0, 128, 0)
+DrawGlyphRun@s1/c0/e0 rect=[8,8 56x16] translation=[8,20.796875] color=rgb(0, 0, 0)
+FillRect@s0/e0 rect=[10,10 80x40] color=rgb(255, 0, 0)
+DrawGlyphRun@s0/e0 rect=[10,10 44x16] translation=[10,22.796875] color=rgb(0, 0, 0)
 

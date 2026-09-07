@@ -113,12 +113,13 @@ impl ContextRewrite {
         } else {
             context.spatial
         };
-        let frame = if context.frame == self.recorded_context.frame {
-            self.current_context.frame
-        } else {
-            context.frame
-        };
-        ContextRef { spatial, frame }
+        let (clip, effect) =
+            if context.clip == self.recorded_context.clip && context.effect == self.recorded_context.effect {
+                (self.current_context.clip, self.current_context.effect)
+            } else {
+                (context.clip, context.effect)
+            };
+        ContextRef { spatial, clip, effect }
     }
 }
 
@@ -306,7 +307,7 @@ impl DisplayListBuilder {
                     let field_offset = offset + std::mem::offset_of!(DisplayListCommandHeader, context);
                     context.write_ffi_bytes(&mut bytes[field_offset..field_offset + std::mem::size_of::<ContextRef>()]);
                 }
-                rewrite_background_color_animation_frame(bytes, offset, &header, rewrite);
+                rewrite_background_color_animation_effect(bytes, offset, &header, rewrite);
             }
             let record_size = HEADER_SIZE + header.payload_size as usize;
             note_command(runs, &header, offset, record_size);
@@ -316,28 +317,28 @@ impl DisplayListBuilder {
     }
 }
 
-fn rewrite_background_color_animation_frame(
+fn rewrite_background_color_animation_effect(
     bytes: &mut [u8],
     record_offset: usize,
     header: &DisplayListCommandHeader,
     rewrite: ContextRewrite,
 ) {
     let payload_field_offset = match header.command_type {
-        DisplayListCommandType::FillRect => std::mem::offset_of!(FillRect, background_color_animation_frame),
+        DisplayListCommandType::FillRect => std::mem::offset_of!(FillRect, background_color_animation_effect),
         DisplayListCommandType::FillRectWithRoundedCorners => {
-            std::mem::offset_of!(FillRectWithRoundedCorners, background_color_animation_frame)
+            std::mem::offset_of!(FillRectWithRoundedCorners, background_color_animation_effect)
         }
         _ => return,
     };
     let field_offset = record_offset + HEADER_SIZE + payload_field_offset;
-    let field_size = std::mem::size_of::<FrameNodeIndex>();
-    let frame = FrameNodeIndex(u32::from_ne_bytes(
+    let field_size = std::mem::size_of::<EffectNodeIndex>();
+    let effect = EffectNodeIndex(u32::from_ne_bytes(
         bytes[field_offset..field_offset + field_size].try_into().unwrap(),
     ));
-    if !frame.is_none() && frame == rewrite.recorded_context.frame {
+    if !effect.is_none() && effect == rewrite.recorded_context.effect {
         rewrite
             .current_context
-            .frame
+            .effect
             .write_ffi_bytes(&mut bytes[field_offset..field_offset + field_size]);
     }
 }
@@ -414,7 +415,8 @@ pub fn read_header(bytes: &[u8]) -> DisplayListCommandHeader {
             let base = std::mem::offset_of!(DisplayListCommandHeader, context);
             ContextRef {
                 spatial: SpatialNodeIndex(cursor.u32_at(base + std::mem::offset_of!(ContextRef, spatial))),
-                frame: FrameNodeIndex(cursor.u32_at(base + std::mem::offset_of!(ContextRef, frame))),
+                clip: ClipNodeIndex(cursor.u32_at(base + std::mem::offset_of!(ContextRef, clip))),
+                effect: EffectNodeIndex(cursor.u32_at(base + std::mem::offset_of!(ContextRef, effect))),
             }
         },
         bounding_rect: {
@@ -453,10 +455,11 @@ mod tests {
     use super::*;
     use libgfx_rust::{Color, CompositingAndBlendingOperator, FloatRect, IntRect};
 
-    fn context(spatial: u32, frame: Option<u32>) -> ContextRef {
+    fn context(spatial: u32, effect: Option<u32>) -> ContextRef {
         ContextRef {
             spatial: SpatialNodeIndex(spatial),
-            frame: frame.map_or(FrameNodeIndex::NONE, FrameNodeIndex),
+            clip: ClipNodeIndex::NONE,
+            effect: effect.map_or(EffectNodeIndex::NONE, EffectNodeIndex),
         }
     }
 
@@ -465,7 +468,7 @@ mod tests {
             rect: IntRect::new(x, y, width, height),
             color: Color::default(),
             compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
-            background_color_animation_frame: FrameNodeIndex::NONE,
+            background_color_animation_effect: EffectNodeIndex::NONE,
         }
     }
 
@@ -496,21 +499,21 @@ mod tests {
         contexts
     }
 
-    fn background_color_animation_frames(builder: &DisplayListBuilder) -> Vec<FrameNodeIndex> {
-        let mut frames = Vec::new();
+    fn background_color_animation_effects(builder: &DisplayListBuilder) -> Vec<EffectNodeIndex> {
+        let mut effects = Vec::new();
         for_each_command(builder.bytes(), |header, _, payload| {
             let field_offset = match header.command_type {
                 DisplayListCommandType::FillRect => {
-                    std::mem::offset_of!(FillRect, background_color_animation_frame)
+                    std::mem::offset_of!(FillRect, background_color_animation_effect)
                 }
                 DisplayListCommandType::FillRectWithRoundedCorners => {
-                    std::mem::offset_of!(FillRectWithRoundedCorners, background_color_animation_frame)
+                    std::mem::offset_of!(FillRectWithRoundedCorners, background_color_animation_effect)
                 }
                 _ => return,
             };
-            frames.push(FrameNodeIndex(HeaderReader { bytes: payload }.u32_at(field_offset)));
+            effects.push(EffectNodeIndex(HeaderReader { bytes: payload }.u32_at(field_offset)));
         });
-        frames
+        effects
     }
 
     fn assert_runs_cover_tape(builder: &DisplayListBuilder) {
@@ -721,7 +724,7 @@ mod tests {
     }
 
     #[test]
-    fn a_spliced_capture_leaves_frames_other_than_the_phase_frame_untouched() {
+    fn a_spliced_capture_leaves_other_effects_untouched() {
         let mut source = DisplayListBuilder::new();
         source.append(&fill_rect(0, 0, 10, 10), &[], context(2, Some(5)));
         source.append(&fill_rect(20, 20, 10, 10), &[], context(2, Some(6)));
@@ -748,13 +751,37 @@ mod tests {
     }
 
     #[test]
-    fn a_spliced_capture_rewrites_background_color_animation_frames() {
+    fn a_spliced_capture_rewrites_clip_and_effect_together_and_preserves_unclipped_content() {
+        let recorded = context(2, Some(1));
+        let current = ContextRef {
+            clip: ClipNodeIndex(3),
+            ..context(4, Some(5))
+        };
+        let unclipped = ContextRef::spatial_only(recorded.spatial);
+        let mut source = DisplayListBuilder::new();
+        source.append(&fill_rect(0, 0, 10, 10), &[], recorded);
+        source.append(&fill_rect(20, 20, 10, 10), &[], unclipped);
+        let mut builder = DisplayListBuilder::new();
+        builder.append_command_range(
+            &finished(&source),
+            whole_tape(&source),
+            Some(rewrite(recorded, current)),
+        );
+        assert_eq!(
+            header_contexts(&builder),
+            vec![current, ContextRef::spatial_only(current.spatial)]
+        );
+        assert_runs_cover_tape(&builder);
+    }
+
+    #[test]
+    fn a_spliced_capture_rewrites_background_color_animation_effects() {
         let recorded = context(2, Some(1));
         let current = context(3, Some(7));
         let mut source = DisplayListBuilder::new();
         source.append(
             &FillRect {
-                background_color_animation_frame: recorded.frame,
+                background_color_animation_effect: recorded.effect,
                 ..fill_rect(0, 0, 10, 10)
             },
             &[],
@@ -765,7 +792,7 @@ mod tests {
                 rect: IntRect::new(20, 20, 10, 10),
                 color: Color::default(),
                 corner_radii: CornerRadii::default(),
-                background_color_animation_frame: recorded.frame,
+                background_color_animation_effect: recorded.effect,
             },
             &[],
             recorded,
@@ -776,7 +803,7 @@ mod tests {
                 rect: IntRect::new(60, 60, 10, 10),
                 color: Color::default(),
                 corner_radii: CornerRadii::default(),
-                background_color_animation_frame: FrameNodeIndex(5),
+                background_color_animation_effect: EffectNodeIndex(5),
             },
             &[],
             recorded,
@@ -790,8 +817,13 @@ mod tests {
         );
 
         assert_eq!(
-            background_color_animation_frames(&builder),
-            vec![current.frame, current.frame, FrameNodeIndex::NONE, FrameNodeIndex(5)]
+            background_color_animation_effects(&builder),
+            vec![
+                current.effect,
+                current.effect,
+                EffectNodeIndex::NONE,
+                EffectNodeIndex(5)
+            ]
         );
     }
 

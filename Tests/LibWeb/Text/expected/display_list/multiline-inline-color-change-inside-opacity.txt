@@ -3,44 +3,44 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-  frames:
-    [f0 in s0] effects=[]
-      [f1 in s1] effects=[opacity=0.5] (InlineNode<SPAN>#outer)
+  effects:
+    [e0 in s0] effects=[]
+      [e1 in s1] effects=[opacity=0.5] (InlineNode<SPAN>#outer)
 
 DisplayList:
-DrawGlyphRun@s1/f0 rect=[8,85 46x13] translation=[8,95.390625] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/f1 rect=[8,8 82x16] translation=[8,20.796875] color=rgb(0, 0, 255)
-DrawGlyphRun@s1/f1 rect=[8,24 48x16] translation=[8,36.796875] color=rgb(0, 0, 255)
-DrawGlyphRun@s1/f1 rect=[8,40 60x16] translation=[8,52.796875] color=rgb(0, 0, 255)
-DrawGlyphRun@s1/f1 rect=[8,56 37x16] translation=[8,68.796875] color=rgb(0, 0, 255)
+DrawGlyphRun@s1/e0 rect=[8,85 46x13] translation=[8,95.390625] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e1 rect=[8,8 82x16] translation=[8,20.796875] color=rgb(0, 0, 255)
+DrawGlyphRun@s1/e1 rect=[8,24 48x16] translation=[8,36.796875] color=rgb(0, 0, 255)
+DrawGlyphRun@s1/e1 rect=[8,40 60x16] translation=[8,52.796875] color=rgb(0, 0, 255)
+DrawGlyphRun@s1/e1 rect=[8,56 37x16] translation=[8,68.796875] color=rgb(0, 0, 255)
 
 After:
 AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-  frames:
-    [f0 in s0] effects=[]
-      [f1 in s1] effects=[opacity=0.5] (InlineNode<SPAN>#outer)
+  effects:
+    [e0 in s0] effects=[]
+      [e1 in s1] effects=[opacity=0.5] (InlineNode<SPAN>#outer)
 
 DisplayList:
-DrawGlyphRun@s1/f0 rect=[8,85 46x13] translation=[8,95.390625] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/f0 rect=[8,98 214x13] translation=[8,108.390625] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/f0 rect=[8,111 60x13] translation=[8,121.390625] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/f0 rect=[8,124 440x13] translation=[8,134.39062] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/f0 rect=[8,137 264x13] translation=[8,147.39062] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/f0 rect=[8,150 61x13] translation=[8,160.39062] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/f0 rect=[8,163 160x13] translation=[8,173.39062] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/f0 rect=[8,176 415x13] translation=[8,186.39062] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/f0 rect=[8,202 74x13] translation=[8,212.39062] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/f0 rect=[8,215 544x13] translation=[8,225.39062] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/f0 rect=[8,228 549x13] translation=[8,238.39062] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/f0 rect=[8,241 554x13] translation=[8,251.39062] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/f0 rect=[8,254 555x13] translation=[8,264.39062] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/f0 rect=[8,267 555x13] translation=[8,277.39062] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/f0 rect=[8,293 40x13] translation=[8,303.39062] color=rgb(0, 0, 0)
-DrawGlyphRun@s1/f1 rect=[8,8 82x16] translation=[8,20.796875] color=rgb(255, 0, 0)
-DrawGlyphRun@s1/f1 rect=[8,24 48x16] translation=[8,36.796875] color=rgb(255, 0, 0)
-DrawGlyphRun@s1/f1 rect=[8,40 60x16] translation=[8,52.796875] color=rgb(255, 0, 0)
-DrawGlyphRun@s1/f1 rect=[8,56 37x16] translation=[8,68.796875] color=rgb(255, 0, 0)
+DrawGlyphRun@s1/e0 rect=[8,85 46x13] translation=[8,95.390625] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[8,98 214x13] translation=[8,108.390625] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[8,111 60x13] translation=[8,121.390625] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[8,124 440x13] translation=[8,134.39062] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[8,137 264x13] translation=[8,147.39062] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[8,150 62x13] translation=[8,160.39062] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[8,163 162x13] translation=[8,173.39062] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[8,176 417x13] translation=[8,186.39062] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[8,202 74x13] translation=[8,212.39062] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[8,215 546x13] translation=[8,225.39062] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[8,228 551x13] translation=[8,238.39062] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[8,241 556x13] translation=[8,251.39062] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[8,254 557x13] translation=[8,264.39062] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[8,267 557x13] translation=[8,277.39062] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e0 rect=[8,293 40x13] translation=[8,303.39062] color=rgb(0, 0, 0)
+DrawGlyphRun@s1/e1 rect=[8,8 82x16] translation=[8,20.796875] color=rgb(255, 0, 0)
+DrawGlyphRun@s1/e1 rect=[8,24 48x16] translation=[8,36.796875] color=rgb(255, 0, 0)
+DrawGlyphRun@s1/e1 rect=[8,40 60x16] translation=[8,52.796875] color=rgb(255, 0, 0)
+DrawGlyphRun@s1/e1 rect=[8,56 37x16] translation=[8,68.796875] color=rgb(255, 0, 0)
 

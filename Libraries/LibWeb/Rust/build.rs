@@ -2600,7 +2600,8 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
             "ClipMode",
             "FfiChromeMetrics",
             "SpatialNodeIndex",
-            "FrameNodeIndex",
+            "ClipNodeIndex",
+            "EffectNodeIndex",
             "ContextRef",
             "DisplayListCommandRun",
             "ReplayClip",
@@ -2645,7 +2646,8 @@ fn expose_shared_abi_types_as_cpp_types(config: &mut cbindgen::Config) {
         ("ClipMode", "Web::Painting::ClipMode"),
         ("FfiChromeMetrics", "Web::ChromeMetrics"),
         ("SpatialNodeIndex", "Web::Painting::SpatialNodeIndex"),
-        ("FrameNodeIndex", "Web::Painting::FrameNodeIndex"),
+        ("ClipNodeIndex", "Web::Painting::ClipNodeIndex"),
+        ("EffectNodeIndex", "Web::Painting::EffectNodeIndex"),
         ("ContextRef", "Web::Painting::ContextRef"),
         ("DisplayListCommandRun", "Web::Painting::DisplayListCommandRun"),
         ("ReplayClip", "Web::Painting::ReplayClip"),
@@ -3167,11 +3169,13 @@ fn main() -> Result<(), Box<dyn Error>> {
     );
 
     let mut display_list_commands_config = base_config;
+    display_list_commands_config.layout.aligned_n = Some("alignas".to_string());
     display_list_commands_config.namespaces = Some(vec!["Web".to_string(), "Painting".to_string()]);
     let commands_source = manifest_dir.join("src/painting/display_list/commands.rs");
     let types_with_existing_cpp_definitions = [
         "SpatialNodeIndex",
-        "FrameNodeIndex",
+        "ClipNodeIndex",
+        "EffectNodeIndex",
         "ContextRef",
         "FontResourceId",
         "ImageFrameResourceId",

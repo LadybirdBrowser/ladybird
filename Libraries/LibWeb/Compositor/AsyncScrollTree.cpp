@@ -203,8 +203,7 @@ void AsyncScrollTree::rebuild_wheel_hit_test_targets(RefPtr<Painting::DisplayLis
     m_visual_context_tree_structural_epoch = visual_context_tree->structural_epoch();
 
     auto context_is_valid = [&](Painting::ContextRef context) {
-        return context.spatial.value() < visual_context_tree->spatial_node_count()
-            && (context.frame == Painting::NO_FRAME_NODE || context.frame.value() < visual_context_tree->frame_node_count());
+        return visual_context_tree->context_is_valid(context);
     };
 
     Vector<Painting::SpatialNodeIndex> animated_spatial_nodes;
@@ -318,8 +317,7 @@ WheelHitTestResult AsyncScrollTree::hit_test_scroll_node_for_wheel(Painting::Acc
         return {};
 
     auto context_is_valid = [&](Painting::ContextRef context) {
-        return context.spatial.value() < visual_context_tree.spatial_node_count()
-            && (context.frame == Painting::NO_FRAME_NODE || context.frame.value() < visual_context_tree.frame_node_count());
+        return visual_context_tree.context_is_valid(context);
     };
 
     if (m_has_blocking_wheel_event_region_covering_viewport)

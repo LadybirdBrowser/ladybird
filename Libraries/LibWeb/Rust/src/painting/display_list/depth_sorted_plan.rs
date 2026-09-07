@@ -11,6 +11,7 @@ use libgfx_rust::bsp_tree::{
 use libgfx_rust::{FloatMatrix4x4, FloatRect, FloatVector3};
 
 use super::commands::{DisplayListCommandRun, SpatialNodeIndex};
+use crate::painting::visual_context::queries::TreeCullingScratch;
 use crate::painting::visual_context::{NO_SORTING_CONTEXT, SortingContexts};
 
 struct LeafBounds {
@@ -298,7 +299,7 @@ fn partition_command_runs_into_plane_chunks(
     transform_palette: &[FloatMatrix4x4],
     draw_space: &[SpatialNodeIndex],
     backface_culled: &[bool],
-    frame_has_empty_effective_clip: &[bool],
+    culling: &TreeCullingScratch,
 ) -> Vec<CommandChunk> {
     let mut mappings = Vec::new();
     let mut mappings_key = None;
@@ -328,7 +329,7 @@ fn partition_command_runs_into_plane_chunks(
         if run.ink_bounds.is_empty() || sorting_context == NO_SORTING_CONTEXT || backface_culled[spatial.0 as usize] {
             continue;
         }
-        if !run.context.frame.is_none() && frame_has_empty_effective_clip[run.context.frame.0 as usize] {
+        if culling.context_culls_everything(run.context) {
             continue;
         }
         ensure_mappings(
@@ -415,7 +416,7 @@ pub fn build_depth_sorted_replay_plan(
     leaf_to_context_palette: &[FloatMatrix4x4],
     draw_space: &[SpatialNodeIndex],
     backface_culled: &[bool],
-    frame_has_empty_effective_clip: &[bool],
+    culling: &TreeCullingScratch,
 ) -> DepthSortedReplayPlan {
     let chunks = partition_command_runs_into_plane_chunks(
         command_runs,
@@ -423,7 +424,7 @@ pub fn build_depth_sorted_replay_plan(
         transform_palette,
         draw_space,
         backface_culled,
-        frame_has_empty_effective_clip,
+        culling,
     );
     let mut builder = DepthSortedPlanBuilder {
         contexts,
@@ -523,7 +524,7 @@ mod tests {
             &leaf_to_context_palette(&contexts, &palette),
             &draw_space,
             &backface_culled,
-            &[],
+            &TreeCullingScratch::default(),
         );
         assert_eq!(run_spans(&plan), vec![(0, 2)]);
         assert!(plan.vertices.is_empty());
@@ -543,7 +544,7 @@ mod tests {
             &leaf_to_context_palette(&contexts, &palette),
             &draw_space,
             &backface_culled,
-            &[],
+            &TreeCullingScratch::default(),
         );
         assert_eq!(run_spans(&plan), vec![(1, 1), (0, 1)]);
         assert!(
@@ -566,7 +567,7 @@ mod tests {
             &leaf_to_context_palette(&contexts, &palette),
             &draw_space,
             &backface_culled,
-            &[],
+            &TreeCullingScratch::default(),
         );
         let push_steps: Vec<_> = plan
             .steps
@@ -602,7 +603,7 @@ mod tests {
             &leaf_to_context_palette(&contexts, &palette),
             &draw_space,
             &backface_culled,
-            &[],
+            &TreeCullingScratch::default(),
         );
         let push_count = plan
             .steps
@@ -632,7 +633,7 @@ mod tests {
             &leaf_to_context_palette(&contexts, &palette),
             &draw_space,
             &backface_culled,
-            &[],
+            &TreeCullingScratch::default(),
         );
         assert_eq!(run_spans(&plan), vec![(0, 1), (1, 1)]);
         assert!(
@@ -654,7 +655,7 @@ mod tests {
             &leaf_to_context_palette(&contexts, &palette),
             &draw_space,
             &backface_culled,
-            &[],
+            &TreeCullingScratch::default(),
         );
         assert_eq!(run_spans(&plan), vec![(0, 1), (1, 1)]);
     }
@@ -679,7 +680,7 @@ mod tests {
             &leaf_to_context_palette(&contexts, &palette),
             &draw_space,
             &backface_culled,
-            &[],
+            &TreeCullingScratch::default(),
         );
         assert_eq!(run_spans(&plan), vec![(2, 1), (1, 1), (0, 1)]);
     }

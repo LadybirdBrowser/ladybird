@@ -73,16 +73,18 @@ public:
     void set_visual_animations(RefPtr<VisualAnimationList const> animations) { m_visual_animations = move(animations); }
     WEB_API void set_visual_animations(Vector<Compositor::VisualAnimation>);
 
+    // Node counts cover all slots, live or dead, or only live slots.
     WEB_API size_t spatial_node_count() const;
-    WEB_API size_t frame_node_count() const;
-    WEB_API size_t live_spatial_node_count() const;
-    WEB_API size_t live_frame_node_count() const;
+    WEB_API bool context_is_valid(ContextRef) const;
+    WEB_API size_t node_count() const;
+    WEB_API size_t live_node_count() const;
     WEB_API TransformWithOrigin visual_viewport_transform() const;
     WEB_API AccumulatedVisualContextTree with_visual_viewport_transform(TransformWithOrigin const&) const;
     WEB_API AccumulatedVisualContextTree with_visual_animation_samples(i64 monotonic_time_ns) const;
     WEB_API bool visual_animation_targets_are_valid(Compositor::VisualAnimation const&) const;
-    WEB_API Optional<float> effects_opacity(FrameNodeIndex) const;
-    WEB_API Optional<Gfx::Color> sampled_background_color(FrameNodeIndex) const;
+    WEB_API Optional<float> effects_opacity(EffectNodeIndex) const;
+    // The sampled background color of a recorded fill's animation effect.
+    WEB_API Optional<Gfx::Color> sampled_background_color(EffectNodeIndex) const;
     WEB_API Vector<bool> spatial_nodes_in_subtrees_of(ReadonlySpan<SpatialNodeIndex> roots) const;
 
     WEB_API Optional<Gfx::FloatPoint> transform_point_for_hit_test(ContextRef, Gfx::FloatPoint, ScrollStateSnapshot const&, ClipBehavior = ClipBehavior::Respect) const;
@@ -92,8 +94,8 @@ public:
     WEB_API Gfx::FloatPoint cumulative_scroll_chain_offset(SpatialNodeIndex, ScrollStateSnapshot const&) const;
     WEB_API Gfx::FloatMatrix4x4 accumulated_matrix(SpatialNodeIndex, ScrollStateSnapshot const&, IncludeVisualViewportTransform) const;
 
-    WEB_API bool frame_is_isolated_by_layer_frame(FrameNodeIndex) const;
-    WEB_API bool has_unisolated_blending_frame() const;
+    WEB_API bool effect_is_isolated_by_layer(EffectNodeIndex) const;
+    WEB_API bool has_unisolated_blending_effect() const;
     WEB_API void for_each_effects_filter_bytes(Function<void(ReadonlyBytes)> const&) const;
 
 private:

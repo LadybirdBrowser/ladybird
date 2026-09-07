@@ -32,7 +32,7 @@ use libgfx_rust::{
 use scroll_state::{NO_SCROLL_STATE_SLOT, ScrollStateSlot};
 
 pub use crate::painting::display_list::commands::{
-    ClipMode, ContextRef, FrameNodeIndex, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
+    ClipMode, ClipNodeIndex, ContextRef, EffectNodeIndex, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
 };
 pub use queries::{ClipBehavior, should_cull_back_face};
 
@@ -95,17 +95,19 @@ pub struct EffectsData {
     pub filter: Option<std::rc::Rc<Vec<u8>>>,
 }
 
-impl FrameData {
+impl EffectNodeData {
     pub fn layer_blending_with(blend_mode: CompositingAndBlendingOperator) -> Self {
-        FrameData::Effects(EffectsData {
+        EffectNodeData::Effects(EffectsData {
             opacity: 1.0,
             blend_mode,
             filter: None,
         })
     }
+}
 
+impl ClipNodeData {
     pub fn rect_clip(rect: FloatRect) -> Self {
-        FrameData::Clip(ClipData {
+        ClipNodeData::Rect(ClipData {
             rect,
             corner_radii: CornerRadii::default(),
             mode: ClipMode::Intersect,
@@ -244,13 +246,21 @@ pub enum SpatialData {
     Dead,
 }
 
+// The clip tree holds what narrows the painted region without a layer: rectangle (possibly rounded,
+// possibly subtractive) clips and clip paths. The effect tree holds what needs a layer or a
+// per-box marker: opacity/blend/filter layers, masks and compositor background-color animations.
 #[derive(Clone)]
-pub enum FrameData {
-    BackgroundColorAnimation,
-    Clip(ClipData),
-    ClipPath(ClipPathData),
+pub enum ClipNodeData {
+    Rect(ClipData),
+    Path(ClipPathData),
+    Dead,
+}
+
+#[derive(Clone)]
+pub enum EffectNodeData {
     Effects(EffectsData),
     Mask(MaskData),
+    BackgroundColorAnimation,
     Dead,
 }
 
@@ -264,21 +274,35 @@ impl SpatialData {
     }
 }
 
-impl FrameData {
+impl ClipNodeData {
     pub fn clips_everything(&self) -> bool {
         match self {
-            Self::Clip(clip) => clip.mode == ClipMode::Intersect && (clip.rect.width <= 0.0 || clip.rect.height <= 0.0),
-            Self::ClipPath(clip_path) => {
+            Self::Rect(clip) => clip.mode == ClipMode::Intersect && (clip.rect.width <= 0.0 || clip.rect.height <= 0.0),
+            Self::Path(clip_path) => {
                 let [_, _, width, height] = clip_path.path.bounding_box();
                 width <= 0.0 || height <= 0.0
             }
-            Self::BackgroundColorAnimation | Self::Effects(_) | Self::Dead => false,
-            Self::Mask(mask) => mask.rect.is_empty(),
+            Self::Dead => false,
         }
     }
 
     pub fn is_live(&self) -> bool {
         !matches!(self, Self::Dead)
+    }
+}
+
+impl EffectNodeData {
+    pub fn is_live(&self) -> bool {
+        !matches!(self, Self::Dead)
+    }
+
+    pub fn pushes_layer(&self) -> bool {
+        matches!(self, Self::Effects(_) | Self::Mask(_))
+    }
+
+    // An empty mask leaves nothing of the content it wraps.
+    pub fn culls_everything(&self) -> bool {
+        matches!(self, Self::Mask(mask) if mask.rect.is_empty())
     }
 }
 
@@ -289,15 +313,15 @@ pub struct SpatialNode {
 }
 
 #[derive(Clone)]
-pub struct FrameNode {
-    pub data: FrameData,
-    pub parent: FrameNodeIndex,
+pub struct ClipNode {
+    pub data: ClipNodeData,
+    pub parent: ClipNodeIndex,
     pub spatial: SpatialNodeIndex,
     pub clips_everything: bool,
 }
 
-impl FrameNode {
-    pub fn new(data: FrameData, parent: FrameNodeIndex, spatial: SpatialNodeIndex) -> Self {
+impl ClipNode {
+    pub fn new(data: ClipNodeData, parent: ClipNodeIndex, spatial: SpatialNodeIndex) -> Self {
         let clips_everything = data.clips_everything();
         Self {
             data,
@@ -305,6 +329,176 @@ impl FrameNode {
             spatial,
             clips_everything,
         }
+    }
+}
+
+// An effect's layer is pushed inside `output_clip`, the deepest clip shared by every context that
+// records under the effect; the clips below it are pushed inside the layer.
+#[derive(Clone)]
+pub struct EffectNode {
+    pub data: EffectNodeData,
+    pub parent: EffectNodeIndex,
+    pub spatial: SpatialNodeIndex,
+    // New effects have no resolved clip until finalization. Rebuilt effects retain their
+    // previous result so finalization can compare the old and new layer placement.
+    resolved_output_clip: Option<ClipNodeIndex>,
+}
+
+impl EffectNode {
+    pub fn new(
+        data: EffectNodeData,
+        parent: EffectNodeIndex,
+        spatial: SpatialNodeIndex,
+        resolved_output_clip: Option<ClipNodeIndex>,
+    ) -> Self {
+        Self {
+            data,
+            parent,
+            spatial,
+            resolved_output_clip,
+        }
+    }
+
+    pub fn output_clip(&self) -> ClipNodeIndex {
+        self.resolved_output_clip
+            .expect("an effect's output clip is resolved before use")
+    }
+}
+
+// The slot lifecycle every node kind shares: a slot is allocated from the free list or by growing
+// the array, retired into quarantine until the recording that may still name it completes, and
+// released to the free list afterwards.
+pub trait SlotNode: Sized {
+    type Index: Copy + PartialEq + std::fmt::Debug;
+    fn index(raw: u32) -> Self::Index;
+    fn raw(index: Self::Index) -> u32;
+    fn is_live(&self) -> bool;
+    fn dead() -> Self;
+    fn tombstone(&mut self);
+}
+
+#[derive(Clone)]
+struct SlotAccounting<Index> {
+    live_count: u32,
+    free: Vec<Index>,
+    quarantined: Vec<Index>,
+}
+
+impl<Index> Default for SlotAccounting<Index> {
+    fn default() -> Self {
+        Self {
+            live_count: 0,
+            free: Vec::new(),
+            quarantined: Vec::new(),
+        }
+    }
+}
+
+impl<Index: Copy> SlotAccounting<Index> {
+    fn release_quarantined(&mut self) {
+        self.free.append(&mut self.quarantined);
+    }
+}
+
+fn allocate_slot<N: SlotNode>(nodes: &mut Vec<N>, accounting: &mut SlotAccounting<N::Index>) -> (N::Index, bool) {
+    if let Some(index) = accounting.free.pop() {
+        debug_assert!(!nodes[N::raw(index) as usize].is_live());
+        return (index, true);
+    }
+    nodes.push(N::dead());
+    (N::index((nodes.len() - 1) as u32), false)
+}
+
+fn tombstone_slot<N: SlotNode>(nodes: &mut [N], accounting: &mut SlotAccounting<N::Index>, index: N::Index) -> bool {
+    let node = &mut nodes[N::raw(index) as usize];
+    if !node.is_live() {
+        return false;
+    }
+    node.tombstone();
+    accounting.live_count -= 1;
+    accounting.quarantined.push(index);
+    true
+}
+
+fn replace_slot<N: SlotNode>(
+    nodes: &mut [N],
+    accounting: &mut SlotAccounting<N::Index>,
+    index: N::Index,
+    node: N,
+) -> bool {
+    debug_assert!(node.is_live(), "slots are retired by tombstoning");
+    let slot = &mut nodes[N::raw(index) as usize];
+    let was_live = slot.is_live();
+    *slot = node;
+    if !was_live {
+        accounting.live_count += 1;
+    }
+    was_live
+}
+
+impl SlotNode for SpatialNode {
+    type Index = SpatialNodeIndex;
+    fn index(raw: u32) -> SpatialNodeIndex {
+        SpatialNodeIndex(raw)
+    }
+    fn raw(index: SpatialNodeIndex) -> u32 {
+        index.0
+    }
+    fn is_live(&self) -> bool {
+        self.data.is_live()
+    }
+    fn dead() -> Self {
+        Self {
+            data: SpatialData::Dead,
+            parent: VISUAL_VIEWPORT_NODE_INDEX,
+        }
+    }
+    fn tombstone(&mut self) {
+        self.data = SpatialData::Dead;
+    }
+}
+
+impl SlotNode for ClipNode {
+    type Index = ClipNodeIndex;
+    fn index(raw: u32) -> ClipNodeIndex {
+        ClipNodeIndex(raw)
+    }
+    fn raw(index: ClipNodeIndex) -> u32 {
+        index.0
+    }
+    fn is_live(&self) -> bool {
+        self.data.is_live()
+    }
+    fn dead() -> Self {
+        Self::new(ClipNodeData::Dead, ClipNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX)
+    }
+    fn tombstone(&mut self) {
+        self.data = ClipNodeData::Dead;
+        self.clips_everything = false;
+    }
+}
+
+impl SlotNode for EffectNode {
+    type Index = EffectNodeIndex;
+    fn index(raw: u32) -> EffectNodeIndex {
+        EffectNodeIndex(raw)
+    }
+    fn raw(index: EffectNodeIndex) -> u32 {
+        index.0
+    }
+    fn is_live(&self) -> bool {
+        self.data.is_live()
+    }
+    fn dead() -> Self {
+        Self::new(
+            EffectNodeData::Dead,
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            Some(ClipNodeIndex::NONE),
+        )
+    }
+    fn tombstone(&mut self) {
+        self.data = EffectNodeData::Dead;
     }
 }
 
@@ -485,16 +679,16 @@ impl VisualContextState {
 #[derive(Clone)]
 pub struct VisualContextTree {
     pub spatial_nodes: Vec<SpatialNode>,
-    pub frame_nodes: Vec<FrameNode>,
+    pub clip_nodes: Vec<ClipNode>,
+    pub effect_nodes: Vec<EffectNode>,
     pub root_is_visual_viewport: bool,
-    pub root_isolation_frame: Option<FrameNodeIndex>,
+    // The layer at the root of the effect tree that 3D plane clips are pushed right above.
+    pub root_isolation_effect: Option<EffectNodeIndex>,
     pub structural_epoch: u64,
-    pub live_spatial_node_count: u32,
-    pub live_frame_node_count: u32,
-    free_spatial_slots: Vec<SpatialNodeIndex>,
-    free_frame_slots: Vec<FrameNodeIndex>,
-    quarantined_spatial_slots: Vec<SpatialNodeIndex>,
-    quarantined_frame_slots: Vec<FrameNodeIndex>,
+    spatial_slots: SlotAccounting<SpatialNodeIndex>,
+    clip_slots: SlotAccounting<ClipNodeIndex>,
+    effect_slots: SlotAccounting<EffectNodeIndex>,
+    // Keyed by effect node index.
     sampled_background_colors: HashMap<u32, libgfx_rust::Color>,
 }
 
@@ -625,16 +819,46 @@ impl VisualContextTree {
                 data: SpatialData::Transform(root_transform),
                 parent: VISUAL_VIEWPORT_NODE_INDEX,
             }],
-            frame_nodes: Vec::new(),
+            clip_nodes: Vec::new(),
+            effect_nodes: Vec::new(),
             root_is_visual_viewport,
-            root_isolation_frame: None,
+            root_isolation_effect: None,
             structural_epoch: allocate_structural_epoch(),
-            live_spatial_node_count: 1,
-            live_frame_node_count: 0,
-            free_spatial_slots: Vec::new(),
-            free_frame_slots: Vec::new(),
-            quarantined_spatial_slots: Vec::new(),
-            quarantined_frame_slots: Vec::new(),
+            spatial_slots: SlotAccounting {
+                live_count: 1,
+                ..SlotAccounting::default()
+            },
+            clip_slots: SlotAccounting::default(),
+            effect_slots: SlotAccounting::default(),
+            sampled_background_colors: HashMap::new(),
+        }
+    }
+
+    // A tree over decoded arrays: no slot is free or quarantined, the live counts are recounted.
+    pub(crate) fn from_nodes(
+        spatial_nodes: Vec<SpatialNode>,
+        clip_nodes: Vec<ClipNode>,
+        effect_nodes: Vec<EffectNode>,
+        root_is_visual_viewport: bool,
+        root_isolation_effect: Option<EffectNodeIndex>,
+        structural_epoch: u64,
+    ) -> Self {
+        fn accounting<N: SlotNode>(nodes: &[N]) -> SlotAccounting<N::Index> {
+            SlotAccounting {
+                live_count: nodes.iter().filter(|node| node.is_live()).count() as u32,
+                ..SlotAccounting::default()
+            }
+        }
+        Self {
+            spatial_slots: accounting(&spatial_nodes),
+            clip_slots: accounting(&clip_nodes),
+            effect_slots: accounting(&effect_nodes),
+            spatial_nodes,
+            clip_nodes,
+            effect_nodes,
+            root_is_visual_viewport,
+            root_isolation_effect,
+            structural_epoch,
             sampled_background_colors: HashMap::new(),
         }
     }
@@ -645,46 +869,65 @@ impl VisualContextTree {
             .is_some_and(|node| node.data.is_live())
     }
 
-    pub fn frame_is_live(&self, index: FrameNodeIndex) -> bool {
-        self.frame_nodes
+    pub fn clip_is_live(&self, index: ClipNodeIndex) -> bool {
+        self.clip_nodes
             .get(index.0 as usize)
             .is_some_and(|node| node.data.is_live())
     }
 
+    pub fn effect_is_live(&self, index: EffectNodeIndex) -> bool {
+        self.effect_nodes
+            .get(index.0 as usize)
+            .is_some_and(|node| node.data.is_live())
+    }
+
+    // The absent node passes for live where a reference may be absent.
+    pub fn clip_is_none_or_live(&self, index: ClipNodeIndex) -> bool {
+        index.is_none() || self.clip_is_live(index)
+    }
+
+    pub fn effect_is_none_or_live(&self, index: EffectNodeIndex) -> bool {
+        index.is_none() || self.effect_is_live(index)
+    }
+
+    pub fn live_spatial_node_count(&self) -> u32 {
+        self.spatial_slots.live_count
+    }
+
+    pub fn live_clip_node_count(&self) -> u32 {
+        self.clip_slots.live_count
+    }
+
+    pub fn live_effect_node_count(&self) -> u32 {
+        self.effect_slots.live_count
+    }
+
+    pub fn live_node_count(&self) -> usize {
+        (self.spatial_slots.live_count + self.clip_slots.live_count + self.effect_slots.live_count) as usize
+    }
+
+    pub fn node_count(&self) -> usize {
+        self.spatial_nodes.len() + self.clip_nodes.len() + self.effect_nodes.len()
+    }
+
     pub fn dead_node_count(&self) -> usize {
-        self.spatial_nodes.len() + self.frame_nodes.len()
-            - self.live_spatial_node_count as usize
-            - self.live_frame_node_count as usize
+        self.node_count() - self.live_node_count()
     }
 
     pub fn should_compact(&self) -> bool {
-        let live = self.live_spatial_node_count as usize + self.live_frame_node_count as usize;
-        self.dead_node_count() > live.max(COMPACTION_DEAD_NODE_THRESHOLD)
+        self.dead_node_count() > self.live_node_count().max(COMPACTION_DEAD_NODE_THRESHOLD)
     }
 
     pub fn allocate_spatial_slot(&mut self) -> (SpatialNodeIndex, bool) {
-        if let Some(index) = self.free_spatial_slots.pop() {
-            debug_assert!(!self.spatial_nodes[index.0 as usize].data.is_live());
-            return (index, true);
-        }
-        self.spatial_nodes.push(SpatialNode {
-            data: SpatialData::Dead,
-            parent: VISUAL_VIEWPORT_NODE_INDEX,
-        });
-        (SpatialNodeIndex((self.spatial_nodes.len() - 1) as u32), false)
+        allocate_slot(&mut self.spatial_nodes, &mut self.spatial_slots)
     }
 
-    pub fn allocate_frame_slot(&mut self) -> (FrameNodeIndex, bool) {
-        if let Some(index) = self.free_frame_slots.pop() {
-            debug_assert!(!self.frame_nodes[index.0 as usize].data.is_live());
-            return (index, true);
-        }
-        self.frame_nodes.push(FrameNode::new(
-            FrameData::Dead,
-            FrameNodeIndex::NONE,
-            VISUAL_VIEWPORT_NODE_INDEX,
-        ));
-        (FrameNodeIndex((self.frame_nodes.len() - 1) as u32), false)
+    pub fn allocate_clip_slot(&mut self) -> (ClipNodeIndex, bool) {
+        allocate_slot(&mut self.clip_nodes, &mut self.clip_slots)
+    }
+
+    pub fn allocate_effect_slot(&mut self) -> (EffectNodeIndex, bool) {
+        allocate_slot(&mut self.effect_nodes, &mut self.effect_slots)
     }
 
     pub fn tombstone_spatial_slot(&mut self, index: SpatialNodeIndex) -> bool {
@@ -692,67 +935,47 @@ impl VisualContextTree {
             index, VISUAL_VIEWPORT_NODE_INDEX,
             "the visual viewport node is never tombstoned"
         );
-        let node = &mut self.spatial_nodes[index.0 as usize];
-        if !node.data.is_live() {
-            return false;
-        }
-        node.data = SpatialData::Dead;
-        self.live_spatial_node_count -= 1;
-        self.quarantined_spatial_slots.push(index);
-        true
+        tombstone_slot(&mut self.spatial_nodes, &mut self.spatial_slots, index)
     }
 
-    pub fn tombstone_frame_slot(&mut self, index: FrameNodeIndex) -> bool {
+    pub fn tombstone_clip_slot(&mut self, index: ClipNodeIndex) -> bool {
+        tombstone_slot(&mut self.clip_nodes, &mut self.clip_slots, index)
+    }
+
+    pub fn tombstone_effect_slot(&mut self, index: EffectNodeIndex) -> bool {
         assert_ne!(
             Some(index),
-            self.root_isolation_frame,
-            "the root isolation frame is never tombstoned"
+            self.root_isolation_effect,
+            "the root isolation effect is never tombstoned"
         );
-        let node = &mut self.frame_nodes[index.0 as usize];
-        if !node.data.is_live() {
-            return false;
-        }
-        node.data = FrameData::Dead;
-        node.clips_everything = false;
-        self.live_frame_node_count -= 1;
-        self.quarantined_frame_slots.push(index);
-        true
+        tombstone_slot(&mut self.effect_nodes, &mut self.effect_slots, index)
     }
 
     pub fn replace_spatial_node(&mut self, index: SpatialNodeIndex, node: SpatialNode) -> bool {
-        debug_assert!(node.data.is_live(), "slots are retired through tombstone_spatial_slot");
-        let slot = &mut self.spatial_nodes[index.0 as usize];
-        let was_live = slot.data.is_live();
-        *slot = node;
-        if !was_live {
-            self.live_spatial_node_count += 1;
-        }
-        was_live
+        replace_slot(&mut self.spatial_nodes, &mut self.spatial_slots, index, node)
     }
 
-    pub fn replace_frame_node(&mut self, index: FrameNodeIndex, node: FrameNode) -> bool {
-        debug_assert!(node.data.is_live(), "slots are retired through tombstone_frame_slot");
-        let slot = &mut self.frame_nodes[index.0 as usize];
-        let was_live = slot.data.is_live();
-        *slot = node;
-        if !was_live {
-            self.live_frame_node_count += 1;
-        }
-        was_live
+    pub fn replace_clip_node(&mut self, index: ClipNodeIndex, node: ClipNode) -> bool {
+        replace_slot(&mut self.clip_nodes, &mut self.clip_slots, index, node)
+    }
+
+    pub fn replace_effect_node(&mut self, index: EffectNodeIndex, node: EffectNode) -> bool {
+        replace_slot(&mut self.effect_nodes, &mut self.effect_slots, index, node)
     }
 
     pub fn release_quarantined_slots_after_recording(&mut self) {
-        self.free_spatial_slots.append(&mut self.quarantined_spatial_slots);
-        self.free_frame_slots.append(&mut self.quarantined_frame_slots);
+        self.spatial_slots.release_quarantined();
+        self.clip_slots.release_quarantined();
+        self.effect_slots.release_quarantined();
         self.debug_assert_slot_accounting();
     }
 
     pub fn free_slot_count(&self) -> usize {
-        self.free_spatial_slots.len() + self.free_frame_slots.len()
+        self.spatial_slots.free.len() + self.clip_slots.free.len() + self.effect_slots.free.len()
     }
 
     pub fn quarantined_slot_count(&self) -> usize {
-        self.quarantined_spatial_slots.len() + self.quarantined_frame_slots.len()
+        self.spatial_slots.quarantined.len() + self.clip_slots.quarantined.len() + self.effect_slots.quarantined.len()
     }
 
     pub(crate) fn debug_assert_slot_accounting(&self) {
@@ -770,7 +993,7 @@ impl VisualContextTree {
         );
         assert!(data.is_live(), "appended spatial nodes are live");
         self.spatial_nodes.push(SpatialNode { data, parent });
-        self.live_spatial_node_count += 1;
+        self.spatial_slots.live_count += 1;
         SpatialNodeIndex((self.spatial_nodes.len() - 1) as u32)
     }
 
@@ -781,35 +1004,130 @@ impl VisualContextTree {
         }
     }
 
-    pub fn append_frame_under(&mut self, context: ContextRef, data: FrameData) -> ContextRef {
-        ContextRef {
-            frame: self.append_frame(data, context.frame, context.spatial),
-            ..context
-        }
-    }
-
-    pub fn append_frame(
+    pub fn append_clip(
         &mut self,
-        data: FrameData,
-        parent: FrameNodeIndex,
+        data: ClipNodeData,
+        parent: ClipNodeIndex,
         spatial: SpatialNodeIndex,
-    ) -> FrameNodeIndex {
+    ) -> ClipNodeIndex {
         assert!(
             self.spatial_is_live(spatial),
-            "a frame node's spatial node must be a live node"
+            "a clip node's spatial node must be a live node"
         );
-        assert!(data.is_live(), "appended frame nodes are live");
+        assert!(data.is_live(), "appended clip nodes are live");
         if !parent.is_none() {
-            assert!(self.frame_is_live(parent), "a frame node's parent must be a live node");
-            let parent_node = &self.frame_nodes[parent.0 as usize];
+            assert!(self.clip_is_live(parent), "a clip node's parent must be a live node");
+            let parent_node = &self.clip_nodes[parent.0 as usize];
             debug_assert!(self.spatial_is_ancestor_or_self(parent_node.spatial, spatial));
         }
-        self.frame_nodes.push(FrameNode::new(data, parent, spatial));
-        self.live_frame_node_count += 1;
-        FrameNodeIndex((self.frame_nodes.len() - 1) as u32)
+        self.clip_nodes.push(ClipNode::new(data, parent, spatial));
+        self.clip_slots.live_count += 1;
+        ClipNodeIndex((self.clip_nodes.len() - 1) as u32)
     }
 
-    fn spatial_is_ancestor_or_self(&self, ancestor: SpatialNodeIndex, mut node: SpatialNodeIndex) -> bool {
+    pub fn append_effect(
+        &mut self,
+        data: EffectNodeData,
+        parent: EffectNodeIndex,
+        spatial: SpatialNodeIndex,
+        output_clip: ClipNodeIndex,
+    ) -> EffectNodeIndex {
+        assert!(
+            self.spatial_is_live(spatial),
+            "an effect node's spatial node must be a live node"
+        );
+        assert!(data.is_live(), "appended effect nodes are live");
+        assert!(
+            self.clip_is_none_or_live(output_clip),
+            "an effect node's output clip must be a live node"
+        );
+        if !parent.is_none() {
+            assert!(
+                self.effect_is_live(parent),
+                "an effect node's parent must be a live node"
+            );
+        }
+        self.effect_nodes
+            .push(EffectNode::new(data, parent, spatial, Some(output_clip)));
+        self.effect_slots.live_count += 1;
+        EffectNodeIndex((self.effect_nodes.len() - 1) as u32)
+    }
+
+    pub fn clip_is_ancestor_or_self(&self, ancestor: ClipNodeIndex, node: ClipNodeIndex) -> bool {
+        VisualContextNodeSink::clip_is_ancestor_or_self(self, ancestor, node)
+    }
+
+    // An effect only this chain records under already has its final output clip.
+    pub fn append_effect_node_under(&mut self, context: ContextRef, data: EffectNodeData) -> ContextRef {
+        let effect = self.append_effect(data, context.effect, context.spatial, context.clip);
+        ContextRef { effect, ..context }
+    }
+
+    // Resolve layer placement from the clips where effects begin and from positioned
+    // descendants that escape clips. These constraints belong to the boxes that build them;
+    // they have no identity or lifetime in the published tree. Report changes to previously
+    // resolved clips; resolving a newly allocated effect does not invalidate existing handles.
+    pub fn resolve_effect_output_clips(&mut self, constraints: &[EffectClipConstraint]) -> bool {
+        let clip_depths = self.clip_depths();
+        let depth_of = |index: ClipNodeIndex| {
+            if index.is_none() {
+                0
+            } else {
+                clip_depths[index.0 as usize]
+            }
+        };
+        let parent_of = |index: ClipNodeIndex| self.clip_nodes[index.0 as usize].parent;
+        let mut shared: Vec<Option<ClipNodeIndex>> = vec![None; self.effect_nodes.len()];
+        let narrow = |shared: &mut Option<ClipNodeIndex>, clip: ClipNodeIndex| {
+            *shared = Some(match *shared {
+                Some(current) => clip_lowest_common_ancestor_with_depths(parent_of, depth_of, current, clip),
+                None => clip,
+            });
+        };
+        if let Some(effect) = self.root_isolation_effect {
+            narrow(&mut shared[effect.0 as usize], ClipNodeIndex::NONE);
+        }
+        for constraint in constraints {
+            if !constraint.effect.is_none() {
+                narrow(&mut shared[constraint.effect.0 as usize], constraint.clip);
+            }
+        }
+        // Parents come first in the dependency order, so walking it backwards folds every
+        // effect's clip into its parent's before the parent is read.
+        for &index in self.effect_dependency_order().iter().rev() {
+            let parent = self.effect_nodes[index as usize].parent;
+            if parent.is_none() {
+                continue;
+            }
+            if let Some(clip) = shared[index as usize] {
+                narrow(&mut shared[parent.0 as usize], clip);
+            }
+        }
+        let mut changed = false;
+        for (node, shared) in self.effect_nodes.iter_mut().zip(&shared) {
+            if let Some(clip) = *shared {
+                changed |= node.resolved_output_clip.is_some_and(|previous| previous != clip);
+                node.resolved_output_clip = Some(clip);
+            }
+        }
+        changed
+    }
+
+    // Root path lengths of the clip nodes; the absent clip has depth 0.
+    pub fn clip_depths(&self) -> Vec<u32> {
+        let mut depths = vec![0; self.clip_nodes.len()];
+        for index in self.clip_dependency_order() {
+            let parent = self.clip_nodes[index as usize].parent;
+            depths[index as usize] = if parent.is_none() {
+                1
+            } else {
+                depths[parent.0 as usize] + 1
+            };
+        }
+        depths
+    }
+
+    pub fn spatial_is_ancestor_or_self(&self, ancestor: SpatialNodeIndex, mut node: SpatialNodeIndex) -> bool {
         loop {
             if node == ancestor {
                 return true;
@@ -952,12 +1270,26 @@ impl VisualContextTree {
         )
     }
 
-    pub(crate) fn frame_dependency_order_with_back_edges(&self) -> NodeDependencyOrder {
+    pub(crate) fn clip_dependency_order_with_back_edges(&self) -> NodeDependencyOrder {
         dependency_order(
-            self.frame_nodes.len(),
-            |index| self.frame_nodes[index].data.is_live(),
+            self.clip_nodes.len(),
+            |index| self.clip_nodes[index].data.is_live(),
             |index, references| {
-                let parent = self.frame_nodes[index].parent;
+                let parent = self.clip_nodes[index].parent;
+                if !parent.is_none() {
+                    references.push(parent.0 as usize);
+                }
+            },
+        )
+    }
+
+    // Output clips live in the clip tree, so they are validated separately rather than ordered here.
+    pub(crate) fn effect_dependency_order_with_back_edges(&self) -> NodeDependencyOrder {
+        dependency_order(
+            self.effect_nodes.len(),
+            |index| self.effect_nodes[index].data.is_live(),
+            |index, references| {
+                let parent = self.effect_nodes[index].parent;
                 if !parent.is_none() {
                     references.push(parent.0 as usize);
                 }
@@ -976,11 +1308,22 @@ impl VisualContextTree {
         dependency_order.order
     }
 
-    pub fn frame_dependency_order(&self) -> Vec<u32> {
-        let dependency_order = self.frame_dependency_order_with_back_edges();
+    pub fn clip_dependency_order(&self) -> Vec<u32> {
+        let dependency_order = self.clip_dependency_order_with_back_edges();
         debug_assert!(
             dependency_order.back_edges.is_empty() && dependency_order.dangling_references.is_empty(),
-            "frame node parents form a cycle or dangle: {:?} {:?}",
+            "clip node parents form a cycle or dangle: {:?} {:?}",
+            dependency_order.back_edges,
+            dependency_order.dangling_references
+        );
+        dependency_order.order
+    }
+
+    pub fn effect_dependency_order(&self) -> Vec<u32> {
+        let dependency_order = self.effect_dependency_order_with_back_edges();
+        debug_assert!(
+            dependency_order.back_edges.is_empty() && dependency_order.dangling_references.is_empty(),
+            "effect node parents form a cycle or dangle: {:?} {:?}",
             dependency_order.back_edges,
             dependency_order.dangling_references
         );
@@ -1015,17 +1358,60 @@ impl VisualContextTree {
     }
 }
 
+pub fn clip_is_ancestor_or_self(
+    parent_of: impl Fn(ClipNodeIndex) -> ClipNodeIndex,
+    ancestor: ClipNodeIndex,
+    mut node: ClipNodeIndex,
+) -> bool {
+    loop {
+        if node == ancestor {
+            return true;
+        }
+        if node.is_none() {
+            return false;
+        }
+        node = parent_of(node);
+    }
+}
+
+// The deepest clip on both root paths; the absent clip when the paths only share the root. The
+// deeper node climbs first, then both climb together.
+pub fn clip_lowest_common_ancestor_with_depths(
+    parent_of: impl Fn(ClipNodeIndex) -> ClipNodeIndex,
+    depth_of: impl Fn(ClipNodeIndex) -> u32,
+    mut a: ClipNodeIndex,
+    mut b: ClipNodeIndex,
+) -> ClipNodeIndex {
+    if a == b {
+        return a;
+    }
+    let mut a_depth = depth_of(a);
+    let mut b_depth = depth_of(b);
+    while a_depth > b_depth {
+        a = parent_of(a);
+        a_depth -= 1;
+    }
+    while b_depth > a_depth {
+        b = parent_of(b);
+        b_depth -= 1;
+    }
+    while a != b {
+        a = parent_of(a);
+        b = parent_of(b);
+    }
+    a
+}
+
 pub trait VisualContextNodeSink {
     fn append_spatial_node(&mut self, data: SpatialData, parent: SpatialNodeIndex) -> SpatialNodeIndex;
-    fn append_frame_node(
+    fn append_clip_node(
         &mut self,
-        data: FrameData,
-        parent: FrameNodeIndex,
+        data: ClipNodeData,
+        parent: ClipNodeIndex,
         spatial: SpatialNodeIndex,
-    ) -> FrameNodeIndex;
+    ) -> ClipNodeIndex;
     fn spatial_node_at(&self, index: SpatialNodeIndex) -> &SpatialNode;
-    fn next_spatial_node_index(&self) -> SpatialNodeIndex;
-    fn next_frame_node_index(&self) -> FrameNodeIndex;
+    fn clip_node_at(&self, index: ClipNodeIndex) -> &ClipNode;
 
     fn append_spatial_node_under(&mut self, context: ContextRef, data: SpatialData) -> ContextRef {
         ContextRef {
@@ -1034,11 +1420,13 @@ pub trait VisualContextNodeSink {
         }
     }
 
-    fn append_frame_node_under(&mut self, context: ContextRef, data: FrameData) -> ContextRef {
-        ContextRef {
-            frame: self.append_frame_node(data, context.frame, context.spatial),
-            ..context
-        }
+    fn append_clip_node_under(&mut self, context: ContextRef, data: ClipNodeData) -> ContextRef {
+        let clip = self.append_clip_node(data, context.clip, context.spatial);
+        ContextRef { clip, ..context }
+    }
+
+    fn clip_is_ancestor_or_self(&self, ancestor: ClipNodeIndex, node: ClipNodeIndex) -> bool {
+        clip_is_ancestor_or_self(|index| self.clip_node_at(index).parent, ancestor, node)
     }
 }
 
@@ -1047,48 +1435,44 @@ impl VisualContextNodeSink for VisualContextTree {
         self.append_spatial(data, parent)
     }
 
-    fn append_frame_node(
+    fn append_clip_node(
         &mut self,
-        data: FrameData,
-        parent: FrameNodeIndex,
+        data: ClipNodeData,
+        parent: ClipNodeIndex,
         spatial: SpatialNodeIndex,
-    ) -> FrameNodeIndex {
-        self.append_frame(data, parent, spatial)
+    ) -> ClipNodeIndex {
+        self.append_clip(data, parent, spatial)
     }
 
     fn spatial_node_at(&self, index: SpatialNodeIndex) -> &SpatialNode {
         &self.spatial_nodes[index.0 as usize]
     }
 
-    fn next_spatial_node_index(&self) -> SpatialNodeIndex {
-        SpatialNodeIndex(self.spatial_nodes.len() as u32)
-    }
-
-    fn next_frame_node_index(&self) -> FrameNodeIndex {
-        FrameNodeIndex(self.frame_nodes.len() as u32)
+    fn clip_node_at(&self, index: ClipNodeIndex) -> &ClipNode {
+        &self.clip_nodes[index.0 as usize]
     }
 }
 
+// The nodes a box appended, by kind. The chain units end at the box's own accumulated
+// context; the descendant units hold what only descendants record under (the overflow clip).
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct BoxVisualContextNodeHandles {
     pub spatial: Vec<SpatialNodeIndex>,
-    pub chain_frames: Vec<FrameNodeIndex>,
-    pub descendant_frames: Vec<FrameNodeIndex>,
+    pub chain_clips: Vec<ClipNodeIndex>,
+    pub descendant_clips: Vec<ClipNodeIndex>,
+    pub effects: Vec<EffectNodeIndex>,
 }
 
 pub static EMPTY_BOX_VISUAL_CONTEXT_NODE_HANDLES: BoxVisualContextNodeHandles = BoxVisualContextNodeHandles {
     spatial: Vec::new(),
-    chain_frames: Vec::new(),
-    descendant_frames: Vec::new(),
+    chain_clips: Vec::new(),
+    descendant_clips: Vec::new(),
+    effects: Vec::new(),
 };
 
 impl BoxVisualContextNodeHandles {
-    pub fn frame_handles(&self) -> impl Iterator<Item = FrameNodeIndex> + '_ {
-        self.chain_frames.iter().chain(&self.descendant_frames).copied()
-    }
-
-    pub fn contains_frame(&self, frame: FrameNodeIndex) -> bool {
-        self.frame_handles().any(|handle| handle == frame)
+    pub fn clip_handles(&self) -> impl Iterator<Item = ClipNodeIndex> + '_ {
+        self.chain_clips.iter().chain(&self.descendant_clips).copied()
     }
 }
 
@@ -1102,17 +1486,37 @@ pub(crate) struct NearestScrollNodeIndices {
     pub continuing_through_fixed_position_ancestors: SpatialNodeIndex,
 }
 
+// One positioning chain; effects are shared by all three chains.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct PositioningContext {
+    pub spatial: SpatialNodeIndex,
+    pub clip: ClipNodeIndex,
+    pub nearest_scroll_nodes: NearestScrollNodeIndices,
+    pub plane_root: SpatialNodeIndex,
+}
+
+impl PositioningContext {
+    pub fn with_effect(self, effect: EffectNodeIndex) -> ContextRef {
+        ContextRef {
+            spatial: self.spatial,
+            clip: self.clip,
+            effect,
+        }
+    }
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct EffectClipConstraint {
+    pub effect: EffectNodeIndex,
+    pub clip: ClipNodeIndex,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct DescendantVisualContexts {
-    pub normal: ContextRef,
-    pub absolute_position: ContextRef,
-    pub fixed_position: ContextRef,
-    pub normal_nearest_scroll_nodes: NearestScrollNodeIndices,
-    pub absolute_position_nearest_scroll_nodes: NearestScrollNodeIndices,
-    pub fixed_position_nearest_scroll_nodes: NearestScrollNodeIndices,
-    pub normal_plane_root: SpatialNodeIndex,
-    pub absolute_position_plane_root: SpatialNodeIndex,
-    pub fixed_position_plane_root: SpatialNodeIndex,
+    pub effect: EffectNodeIndex,
+    pub normal: PositioningContext,
+    pub absolute_position: PositioningContext,
+    pub fixed_position: PositioningContext,
     pub flattens_inherited_transform: bool,
     pub sorting_context_root: Option<SpatialNodeIndex>,
     pub enclosing_stacking_context: NodeSlotId,
@@ -1123,6 +1527,7 @@ pub(crate) struct PaintableVisualContextRecord {
     pub inherited_input: DescendantVisualContexts,
     pub output_for_descendants: DescendantVisualContexts,
     pub node_handles: BoxVisualContextNodeHandles,
+    pub effect_clip_constraints: Vec<EffectClipConstraint>,
     pub has_mask_nodes: bool,
     pub may_be_root_element: bool,
     pub owns_geometry_dependent_nodes: bool,
@@ -1155,16 +1560,16 @@ mod tests {
         VisualContextTree::create(transform(0.0))
     }
 
-    fn effects() -> FrameData {
-        FrameData::Effects(EffectsData {
+    fn effects() -> EffectNodeData {
+        EffectNodeData::Effects(EffectsData {
             opacity: 1.0,
             blend_mode: CompositingAndBlendingOperator::Normal,
             filter: None,
         })
     }
 
-    fn clip(rect: FloatRect, mode: ClipMode) -> FrameData {
-        FrameData::Clip(ClipData {
+    fn clip(rect: FloatRect, mode: ClipMode) -> ClipNodeData {
+        ClipNodeData::Rect(ClipData {
             rect,
             corner_radii: CornerRadii::default(),
             mode,
@@ -1296,16 +1701,78 @@ mod tests {
     }
 
     #[test]
-    fn frame_dependency_order_follows_parents_only() {
+    fn clip_and_effect_dependency_orders_follow_parents_only() {
         let mut tree = tree();
-        let root_isolation_frame = tree.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
-        let child = tree.append_frame(effects(), root_isolation_frame, VISUAL_VIEWPORT_NODE_INDEX);
-        let parent = tree.append_frame(effects(), root_isolation_frame, VISUAL_VIEWPORT_NODE_INDEX);
-        tree.frame_nodes[child.0 as usize].parent = parent;
-        assert_eq!(
-            tree.frame_dependency_order(),
-            vec![root_isolation_frame.0, parent.0, child.0]
+        let root_effect = tree.append_effect(
+            effects(),
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
         );
+        let child = tree.append_effect(effects(), root_effect, VISUAL_VIEWPORT_NODE_INDEX, ClipNodeIndex::NONE);
+        let parent = tree.append_effect(effects(), root_effect, VISUAL_VIEWPORT_NODE_INDEX, ClipNodeIndex::NONE);
+        tree.effect_nodes[child.0 as usize].parent = parent;
+        assert_eq!(tree.effect_dependency_order(), vec![root_effect.0, parent.0, child.0]);
+
+        let outer = tree.append_clip(
+            clip(FloatRect::new(0.0, 0.0, 1.0, 1.0), ClipMode::Intersect),
+            ClipNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let inner_child = tree.append_clip(
+            clip(FloatRect::new(0.0, 0.0, 1.0, 1.0), ClipMode::Intersect),
+            outer,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let inner = tree.append_clip(
+            clip(FloatRect::new(0.0, 0.0, 1.0, 1.0), ClipMode::Intersect),
+            outer,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        tree.clip_nodes[inner_child.0 as usize].parent = inner;
+        assert_eq!(tree.clip_dependency_order(), vec![outer.0, inner.0, inner_child.0]);
+    }
+
+    #[test]
+    fn the_lowest_common_clip_ancestor_is_the_deepest_shared_clip() {
+        let mut tree = tree();
+        let rect = || clip(FloatRect::new(0.0, 0.0, 1.0, 1.0), ClipMode::Intersect);
+        let root = tree.append_clip(rect(), ClipNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        let left = tree.append_clip(rect(), root, VISUAL_VIEWPORT_NODE_INDEX);
+        let left_leaf = tree.append_clip(rect(), left, VISUAL_VIEWPORT_NODE_INDEX);
+        let right = tree.append_clip(rect(), root, VISUAL_VIEWPORT_NODE_INDEX);
+        let other_root = tree.append_clip(rect(), ClipNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        let depths = tree.clip_depths();
+        let common_ancestor = |a, b| {
+            clip_lowest_common_ancestor_with_depths(
+                |index| tree.clip_nodes[index.0 as usize].parent,
+                |index| if index.is_none() { 0 } else { depths[index.0 as usize] },
+                a,
+                b,
+            )
+        };
+        assert_eq!(common_ancestor(left_leaf, right), root);
+        assert_eq!(common_ancestor(left_leaf, left), left);
+        assert_eq!(common_ancestor(left, left_leaf), left);
+        assert_eq!(common_ancestor(left_leaf, left_leaf), left_leaf);
+        assert_eq!(common_ancestor(left_leaf, other_root), ClipNodeIndex::NONE);
+        assert_eq!(common_ancestor(ClipNodeIndex::NONE, right), ClipNodeIndex::NONE);
+        assert!(tree.clip_is_ancestor_or_self(ClipNodeIndex::NONE, left_leaf));
+        assert!(tree.clip_is_ancestor_or_self(root, left_leaf));
+        assert!(!tree.clip_is_ancestor_or_self(right, left_leaf));
+    }
+
+    #[test]
+    fn contexts_name_spatial_clip_and_effect_nodes_directly() {
+        let mut tree = tree();
+        let root = ContextRef::spatial_only(VISUAL_VIEWPORT_NODE_INDEX);
+        let clipped = tree.append_clip_node_under(root, clip(FloatRect::new(0.0, 0.0, 1.0, 1.0), ClipMode::Intersect));
+        let layered = tree.append_effect_node_under(clipped, effects());
+        assert_eq!(layered.spatial, root.spatial);
+        assert_eq!(layered.clip, clipped.clip);
+        assert_eq!(clipped.effect, EffectNodeIndex::NONE);
+        assert_eq!(tree.effect_nodes[layered.effect.0 as usize].output_clip(), clipped.clip);
+        assert_eq!(tree.live_node_count(), 3);
     }
 
     #[test]
@@ -1399,30 +1866,79 @@ mod tests {
     }
 
     #[test]
+    fn effect_clip_constraints_include_positioned_escapes_and_descendant_effects() {
+        let mut tree = tree();
+        let rect = || clip(FloatRect::new(0.0, 0.0, 1.0, 1.0), ClipMode::Intersect);
+        let outer = tree.append_clip(rect(), ClipNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        let inner = tree.append_clip(rect(), outer, VISUAL_VIEWPORT_NODE_INDEX);
+        let sibling = tree.append_clip(rect(), outer, VISUAL_VIEWPORT_NODE_INDEX);
+        let layer = tree.append_effect(
+            effects(),
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
+        );
+        let nested = tree.append_effect(effects(), layer, VISUAL_VIEWPORT_NODE_INDEX, ClipNodeIndex::NONE);
+        let mut constraints = vec![
+            EffectClipConstraint {
+                effect: layer,
+                clip: inner,
+            },
+            EffectClipConstraint {
+                effect: nested,
+                clip: inner,
+            },
+        ];
+        assert!(tree.resolve_effect_output_clips(&constraints));
+        assert_eq!(tree.effect_nodes[layer.0 as usize].output_clip(), inner);
+        assert_eq!(tree.effect_nodes[nested.0 as usize].output_clip(), inner);
+        assert!(!tree.resolve_effect_output_clips(&constraints));
+        constraints.push(EffectClipConstraint {
+            effect: nested,
+            clip: sibling,
+        });
+        assert!(tree.resolve_effect_output_clips(&constraints));
+        assert_eq!(tree.effect_nodes[nested.0 as usize].output_clip(), outer);
+        assert_eq!(tree.effect_nodes[layer.0 as usize].output_clip(), outer);
+        constraints.pop();
+        assert!(tree.resolve_effect_output_clips(&constraints));
+        assert_eq!(tree.effect_nodes[layer.0 as usize].output_clip(), inner);
+        assert!(!tree.resolve_effect_output_clips(&constraints));
+    }
+
+    #[test]
     fn tombstones_keep_their_links_and_leave_the_live_counts() {
         let mut tree = tree();
         let transform = tree.append_spatial(SpatialData::Transform(transform(0.0)), VISUAL_VIEWPORT_NODE_INDEX);
-        let empty_clip = tree.append_frame(
+        let empty_clip = tree.append_clip(
             clip(FloatRect::new(0.0, 0.0, 0.0, 0.0), ClipMode::Intersect),
-            FrameNodeIndex::NONE,
+            ClipNodeIndex::NONE,
             transform,
         );
-        assert_eq!(tree.live_spatial_node_count, 2);
-        assert_eq!(tree.live_frame_node_count, 1);
-        assert!(tree.frame_nodes[empty_clip.0 as usize].clips_everything);
-        assert!(tree.tombstone_frame_slot(empty_clip));
+        let effect = tree.append_effect(effects(), EffectNodeIndex::NONE, transform, empty_clip);
+        assert_eq!(tree.live_spatial_node_count(), 2);
+        assert_eq!(tree.live_clip_node_count(), 1);
+        assert_eq!(tree.live_effect_node_count(), 1);
+        assert!(tree.clip_nodes[empty_clip.0 as usize].clips_everything);
+        assert!(tree.tombstone_effect_slot(effect));
+        assert!(tree.tombstone_clip_slot(empty_clip));
         assert!(tree.tombstone_spatial_slot(transform));
         assert!(!tree.tombstone_spatial_slot(transform));
+        assert!(!tree.tombstone_clip_slot(empty_clip));
         assert!(!tree.spatial_is_live(transform));
-        assert!(!tree.frame_is_live(empty_clip));
+        assert!(!tree.clip_is_live(empty_clip));
+        assert!(!tree.effect_is_live(effect));
         assert_eq!(
             tree.spatial_nodes[transform.0 as usize].parent,
             VISUAL_VIEWPORT_NODE_INDEX
         );
-        assert!(!tree.frame_nodes[empty_clip.0 as usize].clips_everything);
-        assert_eq!(tree.live_spatial_node_count, 1);
-        assert_eq!(tree.live_frame_node_count, 0);
-        assert_eq!(tree.dead_node_count(), 2);
+        assert_eq!(tree.clip_nodes[empty_clip.0 as usize].parent, ClipNodeIndex::NONE);
+        assert!(!tree.clip_nodes[empty_clip.0 as usize].clips_everything);
+        assert_eq!(tree.effect_nodes[effect.0 as usize].output_clip(), empty_clip);
+        assert_eq!(tree.live_spatial_node_count(), 1);
+        assert_eq!(tree.live_clip_node_count(), 0);
+        assert_eq!(tree.live_effect_node_count(), 0);
+        assert_eq!(tree.dead_node_count(), 3);
         assert!(!tree.should_compact());
     }
 
@@ -1454,38 +1970,57 @@ mod tests {
     #[test]
     fn released_slots_are_reused_before_the_arrays_grow() {
         let mut tree = tree();
-        let first = tree.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
-        let second = tree.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
-        assert!(tree.tombstone_frame_slot(first));
-        assert!(tree.tombstone_frame_slot(second));
+        let first = tree.append_effect(
+            effects(),
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
+        );
+        let second = tree.append_effect(
+            effects(),
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
+        );
+
+        assert!(tree.tombstone_effect_slot(first));
+        assert!(tree.tombstone_effect_slot(second));
         tree.release_quarantined_slots_after_recording();
-        let frame_count = tree.frame_nodes.len();
-        assert_eq!(tree.allocate_frame_slot(), (second, true));
-        assert_eq!(tree.allocate_frame_slot(), (first, true));
-        assert_eq!(tree.frame_nodes.len(), frame_count);
-        assert_eq!(tree.allocate_frame_slot(), (FrameNodeIndex(frame_count as u32), false));
+        let effect_count = tree.effect_nodes.len();
+        assert_eq!(tree.allocate_effect_slot(), (second, true));
+        assert_eq!(tree.allocate_effect_slot(), (first, true));
+        assert_eq!(tree.effect_nodes.len(), effect_count);
+        assert_eq!(
+            tree.allocate_effect_slot(),
+            (EffectNodeIndex(effect_count as u32), false)
+        );
     }
 
     #[test]
     fn dead_node_count_counts_free_and_quarantined_slots() {
         let mut tree = tree();
         let transform_node = tree.append_spatial(SpatialData::Transform(transform(0.0)), VISUAL_VIEWPORT_NODE_INDEX);
-        let clip_frame = tree.append_frame(
+        let clip_node = tree.append_clip(
             clip(FloatRect::new(0.0, 0.0, 1.0, 1.0), ClipMode::Intersect),
-            FrameNodeIndex::NONE,
+            ClipNodeIndex::NONE,
             transform_node,
         );
-        assert!(tree.tombstone_frame_slot(clip_frame));
+
+        assert!(tree.tombstone_clip_slot(clip_node));
         tree.release_quarantined_slots_after_recording();
         assert!(tree.tombstone_spatial_slot(transform_node));
         assert_eq!(tree.dead_node_count(), 2);
         assert_eq!(tree.free_slot_count(), 1);
         assert_eq!(tree.quarantined_slot_count(), 1);
-        let (slot, reused) = tree.allocate_frame_slot();
+        let (slot, reused) = tree.allocate_clip_slot();
         assert!(reused);
-        assert!(!tree.replace_frame_node(
+        assert!(!tree.replace_clip_node(
             slot,
-            FrameNode::new(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX)
+            ClipNode::new(
+                clip(FloatRect::new(0.0, 0.0, 1.0, 1.0), ClipMode::Intersect),
+                ClipNodeIndex::NONE,
+                VISUAL_VIEWPORT_NODE_INDEX
+            )
         ));
         assert_eq!(tree.dead_node_count(), 1);
         tree.debug_assert_slot_accounting();
@@ -1496,14 +2031,21 @@ mod tests {
         let mut tree = tree();
         let stale = tree.append_spatial(SpatialData::Transform(transform(0.0)), VISUAL_VIEWPORT_NODE_INDEX);
         let other = tree.append_spatial(SpatialData::Transform(transform(0.0)), VISUAL_VIEWPORT_NODE_INDEX);
-        let frame = tree.append_frame(effects(), FrameNodeIndex::NONE, other);
+        let effect = tree.append_effect(effects(), EffectNodeIndex::NONE, other, ClipNodeIndex::NONE);
+        let clip_node = tree.append_clip(
+            clip(FloatRect::new(0.0, 0.0, 1.0, 1.0), ClipMode::Intersect),
+            ClipNodeIndex::NONE,
+            other,
+        );
         assert!(tree.tombstone_spatial_slot(stale));
-        assert!(tree.tombstone_frame_slot(frame));
+        assert!(tree.tombstone_effect_slot(effect));
+        assert!(tree.tombstone_clip_slot(clip_node));
         let order = tree.spatial_dependency_order_with_back_edges();
         assert_eq!(order.order, vec![VISUAL_VIEWPORT_NODE_INDEX.0, other.0]);
         assert!(order.back_edges.is_empty());
         assert!(order.dangling_references.is_empty());
-        assert!(tree.frame_dependency_order().is_empty());
+        assert!(tree.effect_dependency_order().is_empty());
+        assert!(tree.clip_dependency_order().is_empty());
     }
 
     #[test]

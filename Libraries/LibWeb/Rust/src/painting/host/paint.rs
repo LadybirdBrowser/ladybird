@@ -7,7 +7,7 @@
 use crate::css::computed_value_types::ComputedStyleValueHandle;
 use crate::layout::used_values;
 use crate::painting::display_list::builder::RecordedDisplayList;
-use crate::painting::display_list::commands::{DisplayListCommandRun, DisplayListResourceId, FrameNodeIndex};
+use crate::painting::display_list::commands::{DisplayListCommandRun, DisplayListResourceId, EffectNodeIndex};
 use crate::painting::display_list::commands::{OptionalAffineTransform, OptionalColor};
 use crate::painting::host::visual_context::{FfiResolvedSvgFilter, ResolvedSvgFilter};
 use libgfx_rust::{AffineTransform, Color, FloatMatrix4x4, FloatRect, FloatSize, IntRect, InterpolationColorSpace};
@@ -383,14 +383,14 @@ pub struct FfiImagePaintFacts {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(C)]
 pub struct FfiMaskDisplayListRegistration {
-    pub frame: FrameNodeIndex,
+    pub effect: EffectNodeIndex,
     pub display_list_id: u64,
 }
 
-impl From<(FrameNodeIndex, DisplayListResourceId)> for FfiMaskDisplayListRegistration {
-    fn from((frame, display_list_id): (FrameNodeIndex, DisplayListResourceId)) -> Self {
+impl From<(EffectNodeIndex, DisplayListResourceId)> for FfiMaskDisplayListRegistration {
+    fn from((effect, display_list_id): (EffectNodeIndex, DisplayListResourceId)) -> Self {
         Self {
-            frame,
+            effect,
             display_list_id: display_list_id.0,
         }
     }

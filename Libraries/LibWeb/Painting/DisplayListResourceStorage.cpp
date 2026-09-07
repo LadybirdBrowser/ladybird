@@ -562,7 +562,7 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
     auto const& list_resource = display_list_resource(id);
 
     auto const& visual_context_tree = list_resource.visual_context_tree;
-    bool requires_direct_replay = visual_context_tree.has_unisolated_blending_frame();
+    bool requires_direct_replay = visual_context_tree.has_unisolated_blending_effect();
 
     auto recurse_into_nested_display_list = [&](DisplayListResourceId nested_display_list_id) {
         if (visited_display_lists.set(nested_display_list_id.value()) != HashSetResult::InsertedNewEntry)
@@ -577,7 +577,7 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
         visit_display_list_command(header.command_type, payload, [&](auto const& command) {
             using Command = RemoveCVReference<decltype(command)>;
             if constexpr (IsSame<Command, ApplyBackdropFilter>) {
-                if (command.has_backdrop_filter && !visual_context_tree.frame_is_isolated_by_layer_frame(header.context.frame))
+                if (command.has_backdrop_filter && !visual_context_tree.effect_is_isolated_by_layer(header.context.effect))
                     requires_direct_replay = true;
             } else if constexpr (IsSame<Command, DrawVideoFrame> || IsSame<Command, DrawCanvas> || IsSame<Command, DrawCompositedContext>) {
                 requires_direct_replay = true;
@@ -598,7 +598,7 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
                     blends_with_isolated_backdrop_color = command.isolated_backdrop_color.has_value();
                 if (command.compositing_and_blending_operator != Gfx::CompositingAndBlendingOperator::Normal
                     && !blends_with_isolated_backdrop_color
-                    && !visual_context_tree.frame_is_isolated_by_layer_frame(header.context.frame))
+                    && !visual_context_tree.effect_is_isolated_by_layer(header.context.effect))
                     requires_direct_replay = true;
             }
         });

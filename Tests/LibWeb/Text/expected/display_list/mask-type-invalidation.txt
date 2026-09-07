@@ -4,18 +4,15 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
         [s2] svg-viewport-transform=[1,0,0,1,8,8] origin=(0,0) (SVGSVGBox<svg>)
-  frames:
-    [f0 in s0] effects=[]
-      [f1 in s1] clip=[8,8 200x200] (SVGSVGBox<svg>)
-        [f2 in s2] mask=[-10,-10 120x120] kind=alpha origin=svg-mask (SVGGeometryBox<rect>)
+  clips:
+    [c0 in s1] clip=[8,8 200x200] (SVGSVGBox<svg>)
+  effects:
+    [e0 in s0] effects=[]
+      [e1 in s2 out=c0] mask=[-10,-10 120x120] kind=alpha origin=svg-mask (SVGGeometryBox<rect>)
 
 DisplayList:
-FillPath@s2/f2 path_bounding_rect=[0,0 100x100]
-MaskDisplayList for frame f2:
-  FillPath@s0 path_bounding_rect=[0,0 100x50]
-MaskDisplayList for frame f3:
-  FillPath@s0 path_bounding_rect=[0,0 100x50]
-MaskDisplayList for frame f4:
+FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x100]
+MaskDisplayList for effect e1:
   FillPath@s0 path_bounding_rect=[0,0 100x50]
 
 After switching to mask-type luminance:
@@ -24,17 +21,14 @@ AccumulatedVisualContext Tree:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
         [s2] svg-viewport-transform=[1,0,0,1,8,8] origin=(0,0) (SVGSVGBox<svg>)
-  frames:
-    [f0 in s0] effects=[]
-      [f1 in s1] clip=[8,8 200x200] (SVGSVGBox<svg>)
-        [f2 in s2] mask=[-10,-10 120x120] kind=luminance origin=svg-mask (SVGGeometryBox<rect>)
+  clips:
+    [c0 in s1] clip=[8,8 200x200] (SVGSVGBox<svg>)
+  effects:
+    [e0 in s0] effects=[]
+      [e1 in s2 out=c0] mask=[-10,-10 120x120] kind=luminance origin=svg-mask (SVGGeometryBox<rect>)
 
 DisplayList:
-FillPath@s2/f2 path_bounding_rect=[0,0 100x100]
-MaskDisplayList for frame f2:
-  FillPath@s0 path_bounding_rect=[0,0 100x50]
-MaskDisplayList for frame f3:
-  FillPath@s0 path_bounding_rect=[0,0 100x50]
-MaskDisplayList for frame f4:
+FillPath@s2/c0/e1 path_bounding_rect=[0,0 100x100]
+MaskDisplayList for effect e1:
   FillPath@s0 path_bounding_rect=[0,0 100x50]
 

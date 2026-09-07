@@ -2,10 +2,10 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-  frames:
-    [f0 in s0] effects=[]
+  effects:
+    [e0 in s0] effects=[]
 
 DisplayList:
-CompositorMainThreadWheelEventRegion@s1/f0 rect=[0,0 120x80]
-DrawCompositedContext@s1/f0 dst_rect=[0,0 120x80] inline_clips=[clip=[0,0 120x80]]
+CompositorMainThreadWheelEventRegion@s1/e0 rect=[0,0 120x80]
+DrawCompositedContext@s1/e0 dst_rect=[0,0 120x80] inline_clips=[clip=[0,0 120x80]]
 

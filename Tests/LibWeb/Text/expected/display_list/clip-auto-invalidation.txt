@@ -3,21 +3,22 @@ AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-  frames:
-    [f0 in s0] effects=[]
+  effects:
+    [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s1/f0 rect=[8,13 100x100] color=rgb(0, 128, 0)
+FillRect@s1/e0 rect=[8,13 100x100] color=rgb(0, 128, 0)
 
 After clip change:
 AccumulatedVisualContext Tree:
   spatial:
     [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
       [s1] scroll (Viewport<#document>)
-  frames:
-    [f0 in s0] effects=[]
-      [f1 in s1] clip=[8,13 50x50] (BlockContainer<DIV>#box)
+  clips:
+    [c0 in s1] clip=[8,13 50x50] (BlockContainer<DIV>#box)
+  effects:
+    [e0 in s0] effects=[]
 
 DisplayList:
-FillRect@s1/f1 rect=[8,13 100x100] color=rgb(0, 128, 0)
+FillRect@s1/c0/e0 rect=[8,13 100x100] color=rgb(0, 128, 0)
 

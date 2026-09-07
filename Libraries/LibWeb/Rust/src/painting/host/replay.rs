@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::painting::display_list::commands::{FrameNodeIndex, ReplayClip, ReplayLayer, ReplayMask};
+use crate::painting::display_list::commands::{EffectNodeIndex, ReplayClip, ReplayLayer, ReplayMask};
 use crate::painting::display_list::replay::ReplayPainter;
 use libgfx_rust::path::OwnedPath;
 use libgfx_rust::{FloatMatrix4x4, FloatVector3, IntRect, WindingRule};
@@ -21,7 +21,7 @@ pub struct FfiDisplayListReplayCallbacks {
     pub push_clip_path: unsafe extern "C" fn(*mut c_void, *const c_void, WindingRule),
     pub push_layer: unsafe extern "C" fn(*mut c_void, *const ReplayLayer),
     pub push_mask: unsafe extern "C" fn(*mut c_void, *const ReplayMask),
-    pub pop_mask: unsafe extern "C" fn(*mut c_void, *const ReplayMask, FrameNodeIndex),
+    pub pop_mask: unsafe extern "C" fn(*mut c_void, *const ReplayMask, EffectNodeIndex),
     pub pop: unsafe extern "C" fn(*mut c_void),
     pub push_device_space_plane_clip: unsafe extern "C" fn(*mut c_void, *const FloatVector3, usize),
     pub execute_run: unsafe extern "C" fn(*mut c_void, usize),
@@ -63,9 +63,9 @@ impl ReplayPainter for FfiDisplayListReplayCallbacks {
         unsafe { (self.push_mask)(self.context, mask) };
     }
 
-    fn pop_mask(&mut self, mask: &ReplayMask, frame: FrameNodeIndex) {
+    fn pop_mask(&mut self, mask: &ReplayMask, effect: EffectNodeIndex) {
         // SAFETY: The C++ painter reads the mask synchronously.
-        unsafe { (self.pop_mask)(self.context, mask, frame) };
+        unsafe { (self.pop_mask)(self.context, mask, effect) };
     }
 
     fn pop(&mut self) {

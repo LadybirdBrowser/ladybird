@@ -97,19 +97,19 @@ size_t AccumulatedVisualContextTree::spatial_node_count() const
     return Layout::RustFFI::visual_context_tree_spatial_node_count(m_rust_tree);
 }
 
-size_t AccumulatedVisualContextTree::frame_node_count() const
+bool AccumulatedVisualContextTree::context_is_valid(ContextRef context) const
 {
-    return Layout::RustFFI::visual_context_tree_frame_node_count(m_rust_tree);
+    return Layout::RustFFI::visual_context_tree_context_is_valid(m_rust_tree, context);
 }
 
-size_t AccumulatedVisualContextTree::live_spatial_node_count() const
+size_t AccumulatedVisualContextTree::node_count() const
 {
-    return Layout::RustFFI::visual_context_tree_live_spatial_node_count(m_rust_tree);
+    return Layout::RustFFI::visual_context_tree_node_count(m_rust_tree);
 }
 
-size_t AccumulatedVisualContextTree::live_frame_node_count() const
+size_t AccumulatedVisualContextTree::live_node_count() const
 {
-    return Layout::RustFFI::visual_context_tree_live_frame_node_count(m_rust_tree);
+    return Layout::RustFFI::visual_context_tree_live_node_count(m_rust_tree);
 }
 
 TransformWithOrigin AccumulatedVisualContextTree::visual_viewport_transform() const
@@ -135,10 +135,10 @@ void AccumulatedVisualContextTree::set_visual_animations(Vector<Compositor::Visu
 
 AccumulatedVisualContextTree AccumulatedVisualContextTree::with_visual_animation_samples(i64 monotonic_time_ns) const
 {
-    Vector<Layout::RustFFI::FfiFrameOpacitySample> opacity_samples;
-    Vector<Layout::RustFFI::FfiFrameBackgroundColorSample> background_color_samples;
+    Vector<Layout::RustFFI::FfiEffectOpacitySample> opacity_samples;
+    Vector<Layout::RustFFI::FfiEffectBackgroundColorSample> background_color_samples;
     Vector<ByteBuffer> filter_sample_storage;
-    Vector<Layout::RustFFI::FfiFrameFilterSample> filter_samples;
+    Vector<Layout::RustFFI::FfiEffectFilterSample> filter_samples;
     Vector<Layout::RustFFI::FfiSpatialTransformSample> transform_samples;
     filter_sample_storage.ensure_capacity(visual_animations().size());
     for (auto const& animation : visual_animations()) {
@@ -155,12 +155,12 @@ AccumulatedVisualContextTree AccumulatedVisualContextTree::with_visual_animation
         }
         for (auto node_index : animation.visual_context_node_indices) {
             if (animation.target_kind == Compositor::VisualAnimation::TargetKind::Opacity)
-                opacity_samples.append({ .frame = node_index, .opacity = sample->opacity });
+                opacity_samples.append({ .effect = node_index, .opacity = sample->opacity });
             else if (animation.target_kind == Compositor::VisualAnimation::TargetKind::BackgroundColor)
-                background_color_samples.append({ .frame = node_index, .color = *sample->background_color });
+                background_color_samples.append({ .effect = node_index, .color = *sample->background_color });
             else if (animation.target_kind == Compositor::VisualAnimation::TargetKind::Filter)
                 filter_samples.append({
-                    .frame = node_index,
+                    .effect = node_index,
                     .filter_bytes = filter_bytes.has_value() ? filter_bytes->data() : nullptr,
                     .filter_size = filter_bytes.has_value() ? filter_bytes->size() : 0,
                 });
@@ -196,18 +196,18 @@ bool AccumulatedVisualContextTree::visual_animation_targets_are_valid(Compositor
     return Layout::RustFFI::visual_context_tree_visual_animation_targets_are_valid(m_rust_tree, target_kind, targets.data(), targets.size());
 }
 
-Optional<float> AccumulatedVisualContextTree::effects_opacity(FrameNodeIndex frame) const
+Optional<float> AccumulatedVisualContextTree::effects_opacity(EffectNodeIndex effect) const
 {
     float opacity = 1;
-    if (!Layout::RustFFI::visual_context_tree_effects_opacity(m_rust_tree, frame, &opacity))
+    if (!Layout::RustFFI::visual_context_tree_effects_opacity(m_rust_tree, effect, &opacity))
         return {};
     return opacity;
 }
 
-Optional<Gfx::Color> AccumulatedVisualContextTree::sampled_background_color(FrameNodeIndex frame) const
+Optional<Gfx::Color> AccumulatedVisualContextTree::sampled_background_color(EffectNodeIndex effect) const
 {
     Gfx::Color color;
-    if (!Layout::RustFFI::visual_context_tree_sampled_background_color(m_rust_tree, frame, &color))
+    if (!Layout::RustFFI::visual_context_tree_sampled_background_color(m_rust_tree, effect, &color))
         return {};
     return color;
 }
@@ -252,14 +252,14 @@ Gfx::FloatMatrix4x4 AccumulatedVisualContextTree::accumulated_matrix(SpatialNode
     return Layout::RustFFI::visual_context_tree_accumulated_matrix(m_rust_tree, index, scroll_offsets.data(), scroll_offsets.size(), include_visual_viewport_transform == IncludeVisualViewportTransform::Yes);
 }
 
-bool AccumulatedVisualContextTree::frame_is_isolated_by_layer_frame(FrameNodeIndex frame) const
+bool AccumulatedVisualContextTree::effect_is_isolated_by_layer(EffectNodeIndex effect) const
 {
-    return Layout::RustFFI::visual_context_tree_frame_is_isolated_by_layer_frame(m_rust_tree, frame);
+    return Layout::RustFFI::visual_context_tree_effect_is_isolated_by_layer(m_rust_tree, effect);
 }
 
-bool AccumulatedVisualContextTree::has_unisolated_blending_frame() const
+bool AccumulatedVisualContextTree::has_unisolated_blending_effect() const
 {
-    return Layout::RustFFI::visual_context_tree_has_unisolated_blending_frame(m_rust_tree);
+    return Layout::RustFFI::visual_context_tree_has_unisolated_blending_effect(m_rust_tree);
 }
 
 void AccumulatedVisualContextTree::for_each_effects_filter_bytes(Function<void(ReadonlyBytes)> const& visit) const

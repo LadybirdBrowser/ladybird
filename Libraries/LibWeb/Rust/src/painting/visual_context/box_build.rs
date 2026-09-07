@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::reconcile::BoxNodeWriter;
 use super::scroll_state::{NO_SCROLL_STATE_SLOT, ScrollState, ScrollStateSlot};
 use super::*;
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
@@ -77,11 +78,6 @@ impl PaintableVisualContextAssignment {
         }
         layout_arena.set_paintable_visual_context_record(self.slot, self.record);
     }
-}
-
-pub(crate) struct BoxVisualContextBuildOutput {
-    pub assignment: PaintableVisualContextAssignment,
-    pub descendant_contexts: DescendantVisualContexts,
 }
 
 fn scroll_state_slot_for_spatial_node(sink: &impl VisualContextNodeSink, index: SpatialNodeIndex) -> ScrollStateSlot {
@@ -203,17 +199,32 @@ fn append_anchor_scroll_shift_nodes<Arena: PaintableRowsRead, Sink: VisualContex
     own_state
 }
 
-pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: VisualContextNodeSink>(
-    env: &BoxBuildEnvironment<'_, Arena>,
+// Positioned descendants skip intermediate overflow clips. Share the new clip when
+// their spatial and clip chains coincide; otherwise append it under their own chain.
+fn append_clip_to_positioned_chain<Sink: VisualContextNodeSink>(
     sink: &mut Sink,
+    chain: PositioningContext,
+    normal_before: ContextRef,
+    normal_after: ContextRef,
+    data: ClipNodeData,
+) -> PositioningContext {
+    let clip = if chain.spatial == normal_before.spatial && chain.clip == normal_before.clip {
+        normal_after.clip
+    } else {
+        sink.append_clip_node(data, chain.clip, chain.spatial)
+    };
+    PositioningContext { clip, ..chain }
+}
+
+pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
+    env: &BoxBuildEnvironment<'_, Arena>,
+    sink: &mut BoxNodeWriter<'_>,
     slot: NodeSlotId,
     inherited: DescendantVisualContexts,
     may_be_root_element: bool,
     anchor_scroll_shift_resolver: Option<&dyn AnchorScrollShiftResolver>,
-) -> BoxVisualContextBuildOutput {
+) -> PaintableVisualContextAssignment {
     let layout_arena = env.layout_arena;
-    let first_spatial_node_index = sink.next_spatial_node_index().0;
-    let first_frame_node_index = sink.next_frame_node_index().0;
     let facts = super::build::BoxFacts::gather(layout_arena, env.callbacks, slot, env.pixel_ratio, true);
     let position = crate::painting::style_queries::position(layout_arena, slot);
     let is_fixed = position == crate::css::css_enums::positioning::FIXED;
@@ -232,6 +243,7 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
             inherited_input: inherited,
             output_for_descendants: inherited,
             node_handles: BoxVisualContextNodeHandles::default(),
+            effect_clip_constraints: Vec::new(),
             has_mask_nodes: false,
             may_be_root_element,
             owns_geometry_dependent_nodes: false,
@@ -249,13 +261,14 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
         NearestScrollNodeIndices {
             stopping_at_fixed_position_ancestors: VISUAL_VIEWPORT_NODE_INDEX,
             continuing_through_fixed_position_ancestors: inherited
-                .fixed_position_nearest_scroll_nodes
+                .fixed_position
+                .nearest_scroll_nodes
                 .continuing_through_fixed_position_ancestors,
         }
     } else if is_absolute {
-        inherited.absolute_position_nearest_scroll_nodes
+        inherited.absolute_position.nearest_scroll_nodes
     } else {
-        inherited.normal_nearest_scroll_nodes
+        inherited.normal.nearest_scroll_nodes
     };
     let nearest_ancestor_scroll_node_index = if is_sticky {
         nearest_scroll_nodes_for_descendants.continuing_through_fixed_position_ancestors
@@ -268,7 +281,7 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
 
     let creates_sticky_scroll_node = is_sticky;
 
-    let inherited_state = if is_fixed {
+    let inherited_chain = if is_fixed {
         inherited.fixed_position
     } else if is_absolute {
         inherited.absolute_position
@@ -278,7 +291,16 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
         inherited.normal
     };
     // Build this element's own state from inherited state.
-    let mut own_state = inherited_state;
+    let mut own_state = inherited_chain.with_effect(inherited.effect);
+    // Ordinary clip additions only narrow a chain already observed where its effect began.
+    // A positioned box can instead select an ancestor or sibling clip chain; that escape
+    // constrains every enclosing layer even if this box introduces no effect of its own.
+    if inherited_chain.clip != inherited.normal.clip && !inherited.effect.is_none() {
+        assignment.record.effect_clip_constraints.push(EffectClipConstraint {
+            effect: inherited.effect,
+            clip: inherited_chain.clip,
+        });
+    }
 
     match anchor_scroll_shift_resolver {
         Some(resolver) => {
@@ -304,17 +326,40 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
     let mut state_for_absolute_position_descendants = inherited.absolute_position;
     let mut state_for_fixed_position_descendants = inherited.fixed_position;
 
-    macro_rules! append_frame_to_own_and_positioned_descendant_contexts {
+    macro_rules! append_clip_to_own_and_positioned_descendant_contexts {
         ($make:expr) => {{
-            own_state = sink.append_frame_node_under(own_state, $make);
+            let normal_before = own_state;
+            own_state = sink.append_clip_node_under(own_state, $make);
+            let normal_after = own_state;
             if !establishes_absolute_cb {
-                state_for_absolute_position_descendants =
-                    sink.append_frame_node_under(state_for_absolute_position_descendants, $make);
+                state_for_absolute_position_descendants = append_clip_to_positioned_chain(
+                    sink,
+                    state_for_absolute_position_descendants,
+                    normal_before,
+                    normal_after,
+                    $make,
+                );
             }
             if !establishes_fixed_cb {
-                state_for_fixed_position_descendants =
-                    sink.append_frame_node_under(state_for_fixed_position_descendants, $make);
+                state_for_fixed_position_descendants = append_clip_to_positioned_chain(
+                    sink,
+                    state_for_fixed_position_descendants,
+                    normal_before,
+                    normal_after,
+                    $make,
+                );
             }
+        }};
+    }
+
+    macro_rules! append_shared_effect {
+        ($make:expr) => {{
+            let effect = sink.append_effect_node($make, own_state.effect, own_state.spatial);
+            assignment.record.effect_clip_constraints.push(EffectClipConstraint {
+                effect,
+                clip: own_state.clip,
+            });
+            own_state.effect = effect;
         }};
     }
 
@@ -341,7 +386,7 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
     let transform_data = facts.transform;
 
     if facts.effects.is_some() {
-        append_frame_to_own_and_positioned_descendant_contexts!(FrameData::Effects(facts.effects_data().unwrap()));
+        append_shared_effect!(EffectNodeData::Effects(facts.effects_data().unwrap()));
     }
 
     let flattens_inherited_transform = inherited.flattens_inherited_transform;
@@ -360,11 +405,11 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
     }
 
     let inherited_plane_root = if is_fixed {
-        inherited.fixed_position_plane_root
+        inherited.fixed_position.plane_root
     } else if is_absolute {
-        inherited.absolute_position_plane_root
+        inherited.absolute_position.plane_root
     } else {
-        inherited.normal_plane_root
+        inherited.normal.plane_root
     };
     let establishes_or_extends_3d_rendering_context = facts.establishes_or_extends_3d_rendering_context;
     let node_data_flags = layout_arena.node_flags_if_live(layout_node);
@@ -452,31 +497,31 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
     }
 
     if let Some(css_clip) = facts.css_clip {
-        append_frame_to_own_and_positioned_descendant_contexts!(FrameData::Clip(css_clip));
+        append_clip_to_own_and_positioned_descendant_contexts!(ClipNodeData::Rect(css_clip));
     }
 
     if let Some(line_clamp_float_clip) = facts.line_clamp_float_clip {
-        append_frame_to_own_and_positioned_descendant_contexts!(FrameData::Clip(line_clamp_float_clip));
+        append_clip_to_own_and_positioned_descendant_contexts!(ClipNodeData::Rect(line_clamp_float_clip));
     }
 
     if facts.clip_path.is_some() {
-        append_frame_to_own_and_positioned_descendant_contexts!(FrameData::ClipPath(facts.clip_path_data().unwrap()));
+        append_clip_to_own_and_positioned_descendant_contexts!(ClipNodeData::Path(facts.clip_path_data().unwrap()));
     }
 
     if !facts.mask_layers.is_empty() {
         assignment.record.has_mask_nodes = true;
     }
     for mask_layer in &facts.mask_layers {
-        append_frame_to_own_and_positioned_descendant_contexts!(FrameData::Mask(*mask_layer));
+        append_shared_effect!(EffectNodeData::Mask(*mask_layer));
     }
 
-    if facts.needs_compositor_background_color_frame {
-        append_frame_to_own_and_positioned_descendant_contexts!(FrameData::BackgroundColorAnimation);
+    if facts.needs_compositor_background_color_effect {
+        append_shared_effect!(EffectNodeData::BackgroundColorAnimation);
     }
 
     assignment.has_accumulated_visual_context = true;
     assignment.accumulated_visual_context = own_state;
-    let chain_frames_end = sink.next_frame_node_index().0;
+    sink.begin_descendants();
 
     if super::node_values::wants_fixed_background_visual_context(
         layout_arena,
@@ -485,7 +530,7 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
         may_be_root_element,
     ) {
         // Rooted above every scroll-like node on the box's root path, the background stays put
-        // under scrolling while the box's own frames keep clipping it in their scrolled spaces.
+        // under scrolling while the box's own clips keep clipping it in their scrolled spaces.
         let mut fixed_background_spatial = own_state.spatial;
         let mut index = own_state.spatial;
         while index != VISUAL_VIEWPORT_NODE_INDEX {
@@ -497,7 +542,7 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
         }
         assignment.fixed_background_visual_context = ContextRef {
             spatial: fixed_background_spatial,
-            frame: own_state.frame,
+            ..own_state
         };
         assignment.has_fixed_background_visual_context = true;
     }
@@ -524,7 +569,7 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
     if facts.may_have_clip
         && let Some(overflow_clip) = facts.overflow_clip
     {
-        state_for_descendants = sink.append_frame_node_under(state_for_descendants, FrameData::Clip(overflow_clip));
+        state_for_descendants = sink.append_clip_node_under(state_for_descendants, ClipNodeData::Rect(overflow_clip));
     }
 
     if paintable_geometry::has_scrollable_overflow(layout_arena, slot) {
@@ -552,7 +597,12 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
     // Positioned descendants that escape into a viewport-establishing containing block lay
     // out in the box's own coordinate space, not the viewport's user units, so they hang
     // above the viewport transform node.
-    let state_for_positioned_descendants = state_for_descendants;
+    let state_for_positioned_descendants = PositioningContext {
+        spatial: state_for_descendants.spatial,
+        clip: state_for_descendants.clip,
+        nearest_scroll_nodes: nearest_scroll_nodes_for_descendants,
+        plane_root: plane_root_for_descendants,
+    };
     if let Some(svg_viewport_transform) = super::build::svg_viewport_transform_of(layout_arena, slot) {
         let mut viewport_transform_data = super::build::compute_svg_viewport_transform_data(
             layout_arena,
@@ -567,38 +617,23 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
     }
 
     assignment.accumulated_visual_context_for_descendants = state_for_descendants;
-    let spatial_end = sink.next_spatial_node_index().0;
-    let descendant_frames_end = sink.next_frame_node_index().0;
-    assignment.record.node_handles = BoxVisualContextNodeHandles {
-        spatial: (first_spatial_node_index..spatial_end).map(SpatialNodeIndex).collect(),
-        chain_frames: (first_frame_node_index..chain_frames_end).map(FrameNodeIndex).collect(),
-        descendant_frames: (chain_frames_end..descendant_frames_end).map(FrameNodeIndex).collect(),
-    };
-    let mut absolute_position_nearest_scroll_nodes = inherited.absolute_position_nearest_scroll_nodes;
-    let mut fixed_position_nearest_scroll_nodes = inherited.fixed_position_nearest_scroll_nodes;
-    let mut absolute_position_plane_root = inherited.absolute_position_plane_root;
-    let mut fixed_position_plane_root = inherited.fixed_position_plane_root;
     if establishes_absolute_cb {
         state_for_absolute_position_descendants = state_for_positioned_descendants;
-        absolute_position_nearest_scroll_nodes = nearest_scroll_nodes_for_descendants;
-        absolute_position_plane_root = plane_root_for_descendants;
     }
     if establishes_fixed_cb {
         state_for_fixed_position_descendants = state_for_positioned_descendants;
-        fixed_position_nearest_scroll_nodes = nearest_scroll_nodes_for_descendants;
-        fixed_position_plane_root = plane_root_for_descendants;
     }
 
     let descendant_contexts = DescendantVisualContexts {
-        normal: state_for_descendants,
+        effect: own_state.effect,
+        normal: PositioningContext {
+            spatial: state_for_descendants.spatial,
+            clip: state_for_descendants.clip,
+            nearest_scroll_nodes: nearest_scroll_nodes_for_descendants,
+            plane_root: plane_root_for_descendants,
+        },
         absolute_position: state_for_absolute_position_descendants,
         fixed_position: state_for_fixed_position_descendants,
-        normal_nearest_scroll_nodes: nearest_scroll_nodes_for_descendants,
-        absolute_position_nearest_scroll_nodes,
-        fixed_position_nearest_scroll_nodes,
-        normal_plane_root: plane_root_for_descendants,
-        absolute_position_plane_root,
-        fixed_position_plane_root,
         flattens_inherited_transform: descendants_flatten_inherited_transform,
         sorting_context_root: sorting_context_root_for_descendants,
         enclosing_stacking_context: if stacking_context_facts.establishes_stacking_context {
@@ -608,8 +643,5 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead, Sink: Vis
         },
     };
     assignment.record.output_for_descendants = descendant_contexts;
-    BoxVisualContextBuildOutput {
-        assignment,
-        descendant_contexts,
-    }
+    assignment
 }

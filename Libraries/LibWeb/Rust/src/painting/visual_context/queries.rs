@@ -5,8 +5,9 @@
  */
 
 use super::{
-    ClipData, ClipMode, ContextRef, FrameData, FrameNode, FrameNodeIndex, IncludeVisualViewportTransform, SpatialData,
-    SpatialNodeIndex, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree, device_offset_for_index,
+    ClipData, ClipMode, ClipNode, ClipNodeData, ClipNodeIndex, ContextRef, EffectNodeData, EffectNodeIndex,
+    IncludeVisualViewportTransform, SpatialData, SpatialNodeIndex, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX,
+    VisualContextTree, device_offset_for_index,
 };
 use libgfx_rust::{
     CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, FloatRect, IntPoint, IntRect, map_rect_through_matrix,
@@ -59,9 +60,9 @@ impl ClipData {
     }
 }
 
-// One root path of spatial nodes with the screen point mapped down it one inverse step at a time. Frames attach
-// to a path in non-decreasing depth order, so the steps still to apply before a frame always start where the
-// previous frame left off.
+// One root path of spatial nodes with the screen point mapped down it one inverse step at a time. Clips attach
+// to a path in non-decreasing depth order, so the steps still to apply before a clip always start where the
+// previous clip left off.
 struct SpatialChainWalk {
     chain: Vec<SpatialNodeIndex>,
     needs_accumulated_matrices: bool,
@@ -72,21 +73,63 @@ struct SpatialChainWalk {
     applied_steps: usize,
 }
 
-impl VisualContextTree {
-    pub fn fill_frames_with_empty_effective_clip(&self, empty: &mut Vec<bool>) {
-        empty.clear();
-        empty.resize(self.frame_nodes.len(), false);
-        for index in self.frame_dependency_order() {
-            let node = &self.frame_nodes[index as usize];
-            let parent_is_empty = !node.parent.is_none() && empty[node.parent.0 as usize];
-            empty[index as usize] = node.clips_everything || parent_is_empty;
-        }
+// Whether nothing painted under a node can show, plus the clip
+// depths the replay needs to place effects on a context's clip chain. Depth counts the absent clip
+// as 0, so a node's depth is the length of its root path.
+#[derive(Default)]
+pub struct TreeCullingScratch {
+    pub clip_depths: Vec<u32>,
+    clip_has_empty_effective_clip: Vec<bool>,
+    effect_culls_everything: Vec<bool>,
+}
+
+impl TreeCullingScratch {
+    pub fn clear(&mut self) {
+        self.clip_depths.clear();
+        self.clip_has_empty_effective_clip.clear();
+        self.effect_culls_everything.clear();
     }
 
-    pub fn frames_with_empty_effective_clip(&self) -> Vec<bool> {
-        let mut empty = Vec::new();
-        self.fill_frames_with_empty_effective_clip(&mut empty);
-        empty
+    pub fn context_culls_everything(&self, context: ContextRef) -> bool {
+        (!context.clip.is_none() && self.clip_has_empty_effective_clip[context.clip.0 as usize])
+            || (!context.effect.is_none() && self.effect_culls_everything[context.effect.0 as usize])
+    }
+
+    pub fn clip_depth(&self, index: ClipNodeIndex) -> u32 {
+        if index.is_none() {
+            0
+        } else {
+            self.clip_depths[index.0 as usize]
+        }
+    }
+}
+
+impl VisualContextTree {
+    pub fn fill_culling_scratch(&self, scratch: &mut TreeCullingScratch) {
+        scratch.clear();
+        scratch.clip_depths.resize(self.clip_nodes.len(), 0);
+        scratch
+            .clip_has_empty_effective_clip
+            .resize(self.clip_nodes.len(), false);
+        for index in self.clip_dependency_order() {
+            let node = &self.clip_nodes[index as usize];
+            let (parent_depth, parent_is_empty) = if node.parent.is_none() {
+                (0, false)
+            } else {
+                (
+                    scratch.clip_depths[node.parent.0 as usize],
+                    scratch.clip_has_empty_effective_clip[node.parent.0 as usize],
+                )
+            };
+            scratch.clip_depths[index as usize] = parent_depth + 1;
+            scratch.clip_has_empty_effective_clip[index as usize] = node.clips_everything || parent_is_empty;
+        }
+        scratch.effect_culls_everything.resize(self.effect_nodes.len(), false);
+        for index in self.effect_dependency_order() {
+            let node = &self.effect_nodes[index as usize];
+            let parent_culls = !node.parent.is_none() && scratch.effect_culls_everything[node.parent.0 as usize];
+            scratch.effect_culls_everything[index as usize] = node.data.culls_everything() || parent_culls;
+        }
     }
 
     fn chain_contains_3d_transform(&self, index: SpatialNodeIndex) -> bool {
@@ -272,13 +315,12 @@ impl VisualContextTree {
         }
     }
 
-    fn point_passes_frame(frame: &FrameNode, point: FloatPoint, clip_behavior: ClipBehavior) -> bool {
+    fn point_passes_clip(clip: &ClipNode, point: FloatPoint, clip_behavior: ClipBehavior) -> bool {
         if clip_behavior == ClipBehavior::Ignore {
             return true;
         }
-        match &frame.data {
-            FrameData::BackgroundColorAnimation => true,
-            FrameData::Clip(clip) => {
+        match &clip.data {
+            ClipNodeData::Rect(clip) => {
                 // NOTE: The clip rect is in absolute device-pixel coordinates. After inverse-transforming, `point`
                 //       is also in device-pixel coordinates, so we compare them directly.
                 let inside = clip.contains(point);
@@ -288,7 +330,7 @@ impl VisualContextTree {
                     !inside
                 }
             }
-            FrameData::ClipPath(clip_path) => {
+            ClipNodeData::Path(clip_path) => {
                 // NOTE: The clip path is in absolute device-pixel coordinates. After inverse-transforming, `point`
                 //       is also in device-pixel coordinates, so we compare them directly.
                 if !clip_path.bounding_rect.contains_point(IntPoint {
@@ -299,7 +341,7 @@ impl VisualContextTree {
                 }
                 clip_path.path.contains(point.x, point.y, clip_path.fill_rule as i32)
             }
-            FrameData::Effects(_) | FrameData::Mask(_) | FrameData::Dead => true,
+            ClipNodeData::Dead => true,
         }
     }
 
@@ -310,31 +352,32 @@ impl VisualContextTree {
         scroll_offsets: &[FloatPoint],
         clip_behavior: ClipBehavior,
     ) -> Option<FloatPoint> {
-        let mut frame_chain: Vec<FrameNodeIndex> = Vec::with_capacity(8);
-        let mut frame = context.frame;
-        while frame != FrameNodeIndex::NONE {
-            frame_chain.push(frame);
-            frame = self.frame_nodes[frame.0 as usize].parent;
+        // Effects never clip a point, so only the clip chain takes part.
+        let mut clip_chain: Vec<ClipNodeIndex> = Vec::with_capacity(8);
+        let mut clip = context.clip;
+        while !clip.is_none() {
+            clip_chain.push(clip);
+            clip = self.clip_nodes[clip.0 as usize].parent;
         }
-        frame_chain.reverse();
+        clip_chain.reverse();
 
         // The backface test needs forward matrices, but this walk only applies inverses. When the chain contains
         // backface markers, we accumulate the forward matrices as we walk, from the root down, so a marker can look up
         // the matrix at its plane root by chain position.
         let mut context_walk = self.begin_hit_test_walk(context.spatial, screen_point);
-        for frame_index in frame_chain {
-            let frame = &self.frame_nodes[frame_index.0 as usize];
-            let mut frame_walk;
-            let walk = if context_walk.chain.contains(&frame.spatial) {
+        for clip_index in clip_chain {
+            let clip = &self.clip_nodes[clip_index.0 as usize];
+            let mut clip_walk;
+            let walk = if context_walk.chain.contains(&clip.spatial) {
                 &mut context_walk
             } else {
-                // A fixed-background context is rooted above the scroll nodes its frames record in, so such a frame
+                // A fixed-background context is rooted above the scroll nodes its clips record in, so such a clip
                 // hangs below the context's node and takes its own walk from the root.
-                frame_walk = self.begin_hit_test_walk(frame.spatial, screen_point);
-                &mut frame_walk
+                clip_walk = self.begin_hit_test_walk(clip.spatial, screen_point);
+                &mut clip_walk
             };
-            if !self.apply_hit_test_spatial_steps_through_node(walk, frame.spatial, screen_point, scroll_offsets)
-                || !Self::point_passes_frame(frame, walk.point, clip_behavior)
+            if !self.apply_hit_test_spatial_steps_through_node(walk, clip.spatial, screen_point, scroll_offsets)
+                || !Self::point_passes_clip(clip, walk.point, clip_behavior)
             {
                 return None;
             }
@@ -615,21 +658,22 @@ impl VisualContextTree {
 }
 
 impl VisualContextTree {
-    pub fn frame_is_isolated_by_layer_frame(&self, mut frame: FrameNodeIndex) -> bool {
-        while !frame.is_none() {
-            let node = &self.frame_nodes[frame.0 as usize];
-            if matches!(node.data, FrameData::Effects(_) | FrameData::Mask(_)) {
+    // Whether the effect or one of its ancestors pushes a layer.
+    pub fn effect_is_isolated_by_layer(&self, mut effect: EffectNodeIndex) -> bool {
+        while !effect.is_none() {
+            let node = &self.effect_nodes[effect.0 as usize];
+            if node.data.pushes_layer() {
                 return true;
             }
-            frame = node.parent;
+            effect = node.parent;
         }
         false
     }
 
-    pub fn has_unisolated_blending_frame(&self) -> bool {
-        self.frame_nodes.iter().any(|node| {
-            matches!(&node.data, FrameData::Effects(effects) if effects.blend_mode != CompositingAndBlendingOperator::Normal)
-                && !self.frame_is_isolated_by_layer_frame(node.parent)
+    pub fn has_unisolated_blending_effect(&self) -> bool {
+        self.effect_nodes.iter().any(|node| {
+            matches!(&node.data, EffectNodeData::Effects(effects) if effects.blend_mode != CompositingAndBlendingOperator::Normal)
+                && !self.effect_is_isolated_by_layer(node.parent)
         })
     }
 }
@@ -637,22 +681,26 @@ impl VisualContextTree {
 impl VisualContextTree {
     pub fn with_sampled_visual_animation_values(
         &self,
-        frame_opacities: &[(FrameNodeIndex, f32)],
-        frame_background_colors: &[(FrameNodeIndex, libgfx_rust::Color)],
-        frame_filters: &[(FrameNodeIndex, Option<std::rc::Rc<Vec<u8>>>)],
+        effect_opacities: &[(EffectNodeIndex, f32)],
+        effect_background_colors: &[(EffectNodeIndex, libgfx_rust::Color)],
+        effect_filters: &[(EffectNodeIndex, Option<std::rc::Rc<Vec<u8>>>)],
         spatial_matrices: &[(SpatialNodeIndex, FloatMatrix4x4)],
     ) -> VisualContextTree {
         let mut sampled = self.clone();
-        for (frame, opacity) in frame_opacities {
-            if let Some(FrameData::Effects(effects)) =
-                sampled.frame_nodes.get_mut(frame.0 as usize).map(|node| &mut node.data)
+        for (effect, opacity) in effect_opacities {
+            if let Some(EffectNodeData::Effects(effects)) = sampled
+                .effect_nodes
+                .get_mut(effect.0 as usize)
+                .map(|node| &mut node.data)
             {
                 effects.opacity = *opacity;
             }
         }
-        for (frame, filter) in frame_filters {
-            if let Some(FrameData::Effects(effects)) =
-                sampled.frame_nodes.get_mut(frame.0 as usize).map(|node| &mut node.data)
+        for (effect, filter) in effect_filters {
+            if let Some(EffectNodeData::Effects(effects)) = sampled
+                .effect_nodes
+                .get_mut(effect.0 as usize)
+                .map(|node| &mut node.data)
             {
                 effects.filter = filter.clone();
             }
@@ -667,8 +715,8 @@ impl VisualContextTree {
             }
         }
         sampled.sampled_background_colors.clear();
-        for (frame, color) in frame_background_colors {
-            sampled.sampled_background_colors.insert(frame.0, *color);
+        for (effect, color) in effect_background_colors {
+            sampled.sampled_background_colors.insert(effect.0, *color);
         }
         sampled
     }
@@ -681,12 +729,12 @@ impl VisualContextTree {
         use crate::painting::host::FfiVisualAnimationTargetKind;
         match target_kind {
             FfiVisualAnimationTargetKind::Opacity | FfiVisualAnimationTargetKind::Filter => matches!(
-                self.frame_nodes.get(target as usize).map(|node| &node.data),
-                Some(FrameData::Effects(_))
+                self.effect_nodes.get(target as usize).map(|node| &node.data),
+                Some(EffectNodeData::Effects(_))
             ),
             FfiVisualAnimationTargetKind::BackgroundColor => matches!(
-                self.frame_nodes.get(target as usize).map(|node| &node.data),
-                Some(FrameData::BackgroundColorAnimation)
+                self.effect_nodes.get(target as usize).map(|node| &node.data),
+                Some(EffectNodeData::BackgroundColorAnimation)
             ),
             FfiVisualAnimationTargetKind::Transform => matches!(
                 self.spatial_nodes.get(target as usize).map(|node| &node.data),
@@ -695,8 +743,9 @@ impl VisualContextTree {
         }
     }
 
-    pub fn sampled_background_color(&self, frame: FrameNodeIndex) -> Option<libgfx_rust::Color> {
-        self.sampled_background_colors.get(&frame.0).copied()
+    // A recorded fill directly names its background-color animation effect.
+    pub fn sampled_background_color(&self, effect: EffectNodeIndex) -> Option<libgfx_rust::Color> {
+        self.sampled_background_colors.get(&effect.0).copied()
     }
 
     pub fn visual_animation_targets_are_valid(
@@ -709,24 +758,32 @@ impl VisualContextTree {
             .all(|&target| self.visual_animation_target_is_valid(target_kind, target))
     }
 
-    pub fn effects_opacity(&self, frame: FrameNodeIndex) -> Option<f32> {
-        match self.frame_nodes.get(frame.0 as usize).map(|node| &node.data) {
-            Some(FrameData::Effects(effects)) => Some(effects.opacity),
+    pub fn effects_opacity(&self, effect: EffectNodeIndex) -> Option<f32> {
+        match self.effect_nodes.get(effect.0 as usize).map(|node| &node.data) {
+            Some(EffectNodeData::Effects(effects)) => Some(effects.opacity),
             _ => None,
         }
+    }
+
+    pub fn context_is_valid(&self, context: ContextRef) -> bool {
+        self.spatial_is_live(context.spatial)
+            && self.clip_is_none_or_live(context.clip)
+            && self.effect_is_none_or_live(context.effect)
+            && (context.effect.is_none()
+                || self.effect_nodes[context.effect.0 as usize]
+                    .resolved_output_clip
+                    .is_some_and(|clip| self.clip_is_ancestor_or_self(clip, context.clip)))
     }
 
     pub fn display_list_references_only_live_nodes(
         &self,
         command_runs: &[crate::painting::display_list::commands::DisplayListCommandRun],
-        mask_frames: &[FrameNodeIndex],
+        mask_effects: &[EffectNodeIndex],
     ) -> bool {
-        let context_is_live = |context: ContextRef| {
-            self.spatial_is_live(context.spatial) && (context.frame.is_none() || self.frame_is_live(context.frame))
-        };
-        command_runs.iter().all(|run| context_is_live(run.context))
-            && mask_frames.iter().all(|frame| {
-                self.frame_is_live(*frame) && matches!(self.frame_nodes[frame.0 as usize].data, FrameData::Mask(_))
+        command_runs.iter().all(|run| self.context_is_valid(run.context))
+            && mask_effects.iter().all(|effect| {
+                self.effect_is_live(*effect)
+                    && matches!(self.effect_nodes[effect.0 as usize].data, EffectNodeData::Mask(_))
             })
     }
 
@@ -754,8 +811,8 @@ mod tests {
     use super::*;
     use crate::layout::node_data::NodeSlotId;
     use crate::painting::visual_context::{
-        BackfaceVisibilityData, ClipData, ClipMode, EffectsData, FrameData, PerspectiveData, ScrollData, SpatialData,
-        SpatialNode, StickyData, TransformData, TransformDataRole, scroll_state::NO_SCROLL_STATE_SLOT,
+        BackfaceVisibilityData, ClipData, ClipMode, EffectsData, PerspectiveData, ScrollData, SpatialData, SpatialNode,
+        StickyData, TransformData, TransformDataRole, scroll_state::NO_SCROLL_STATE_SLOT,
     };
     use libgfx_rust::{CornerRadii, FloatMatrix4x4, FloatSize, perspective_matrix, scale_matrix, translation_matrix};
 
@@ -783,28 +840,44 @@ mod tests {
         })
     }
 
-    fn clip(rect: FloatRect, mode: ClipMode) -> FrameData {
-        FrameData::Clip(ClipData {
+    fn clip(rect: FloatRect, mode: ClipMode) -> ClipNodeData {
+        ClipNodeData::Rect(ClipData {
             rect,
             corner_radii: CornerRadii::default(),
             mode,
         })
     }
 
+    fn empty_clip_flags(tree: &VisualContextTree) -> Vec<bool> {
+        let mut scratch = TreeCullingScratch::default();
+        tree.fill_culling_scratch(&mut scratch);
+        scratch.clip_has_empty_effective_clip
+    }
+
+    // A context under a fresh clip node with no effect.
+    fn clip_context(tree: &mut VisualContextTree, data: ClipNodeData, spatial: SpatialNodeIndex) -> ContextRef {
+        let clip = tree.append_clip(data, ClipNodeIndex::NONE, spatial);
+        ContextRef {
+            clip,
+            effect: EffectNodeIndex::NONE,
+            ..ContextRef::default()
+        }
+    }
+
     fn point(x: f32, y: f32) -> FloatPoint {
         FloatPoint { x, y }
     }
 
-    fn context_of(spatial: SpatialNodeIndex, frame: FrameNodeIndex) -> ContextRef {
-        ContextRef { spatial, frame }
+    fn context_of(spatial: SpatialNodeIndex, context: ContextRef) -> ContextRef {
+        ContextRef { spatial, ..context }
     }
 
     fn rotate_y_180_degrees() -> FloatMatrix4x4 {
         scale_matrix(-1.0, 1.0, -1.0)
     }
 
-    fn effects(opacity: f32, blend_mode: CompositingAndBlendingOperator) -> FrameData {
-        FrameData::Effects(EffectsData {
+    fn effects(opacity: f32, blend_mode: CompositingAndBlendingOperator) -> EffectNodeData {
+        EffectNodeData::Effects(EffectsData {
             opacity,
             blend_mode,
             filter: None,
@@ -812,61 +885,139 @@ mod tests {
     }
 
     #[test]
-    fn a_frame_is_isolated_by_an_effects_or_mask_ancestor_or_self() {
+    fn direct_contexts_validate_each_index_and_the_effect_output_clip() {
         let mut tree = identity_tree();
-        let clip_frame = tree.append_frame(
+        let outer = tree.append_clip(
+            clip(FloatRect::new(0.0, 0.0, 20.0, 20.0), ClipMode::Intersect),
+            ClipNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let inner = tree.append_clip(
             clip(FloatRect::new(0.0, 0.0, 10.0, 10.0), ClipMode::Intersect),
-            FrameNodeIndex::NONE,
+            outer,
             VISUAL_VIEWPORT_NODE_INDEX,
         );
-        let effects_frame = tree.append_frame(
+        let effect = tree.append_effect(
             effects(0.5, CompositingAndBlendingOperator::Normal),
-            clip_frame,
+            EffectNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
+            inner,
         );
-        let nested_clip_frame = tree.append_frame(
-            clip(FloatRect::new(0.0, 0.0, 5.0, 5.0), ClipMode::Intersect),
-            effects_frame,
-            VISUAL_VIEWPORT_NODE_INDEX,
-        );
-        assert!(!tree.frame_is_isolated_by_layer_frame(FrameNodeIndex::NONE));
-        assert!(!tree.frame_is_isolated_by_layer_frame(clip_frame));
-        assert!(tree.frame_is_isolated_by_layer_frame(effects_frame));
-        assert!(tree.frame_is_isolated_by_layer_frame(nested_clip_frame));
+        let context = ContextRef {
+            clip: inner,
+            effect,
+            ..ContextRef::default()
+        };
+        assert!(tree.context_is_valid(context));
+        assert!(tree.context_is_valid(ContextRef::default()));
+        assert!(!tree.context_is_valid(ContextRef {
+            spatial: SpatialNodeIndex(50),
+            ..context
+        }));
+        assert!(!tree.context_is_valid(ContextRef {
+            clip: ClipNodeIndex(50),
+            ..context
+        }));
+        assert!(!tree.context_is_valid(ContextRef {
+            effect: EffectNodeIndex(50),
+            ..context
+        }));
+        assert!(!tree.context_is_valid(ContextRef { clip: outer, ..context }));
+        assert!(!tree.context_is_valid(ContextRef {
+            clip: ClipNodeIndex::NONE,
+            ..context
+        }));
+        assert!(tree.tombstone_effect_slot(effect));
+        assert!(!tree.context_is_valid(context));
     }
 
     #[test]
-    fn a_blending_frame_counts_as_unisolated_only_without_a_layer_ancestor() {
+    fn a_context_is_isolated_by_an_effects_or_mask_ancestor_or_self() {
         let mut tree = identity_tree();
-        assert!(!tree.has_unisolated_blending_frame());
-        let opacity_frame = tree.append_frame(
+        let outer_clip = tree.append_clip(
+            clip(FloatRect::new(0.0, 0.0, 10.0, 10.0), ClipMode::Intersect),
+            ClipNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let clip_context = ContextRef {
+            clip: outer_clip,
+            effect: EffectNodeIndex::NONE,
+            ..ContextRef::default()
+        };
+        let effect = tree.append_effect(
             effects(0.5, CompositingAndBlendingOperator::Normal),
-            FrameNodeIndex::NONE,
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            outer_clip,
+        );
+        let effects_context = ContextRef {
+            clip: outer_clip,
+            effect,
+            ..ContextRef::default()
+        };
+        let nested_clip = tree.append_clip(
+            clip(FloatRect::new(0.0, 0.0, 5.0, 5.0), ClipMode::Intersect),
+            outer_clip,
             VISUAL_VIEWPORT_NODE_INDEX,
         );
-        tree.append_frame(
+        let nested_clip_context = ContextRef {
+            clip: nested_clip,
+            effect,
+            ..ContextRef::default()
+        };
+        let marker = tree.append_effect(
+            EffectNodeData::BackgroundColorAnimation,
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
+        );
+        let marker_context = ContextRef {
+            clip: ClipNodeIndex::NONE,
+            effect: marker,
+            ..ContextRef::default()
+        };
+        assert!(!tree.effect_is_isolated_by_layer(EffectNodeIndex::NONE));
+        assert!(!tree.effect_is_isolated_by_layer(clip_context.effect));
+        assert!(tree.effect_is_isolated_by_layer(effects_context.effect));
+        assert!(tree.effect_is_isolated_by_layer(nested_clip_context.effect));
+        assert!(!tree.effect_is_isolated_by_layer(marker_context.effect));
+    }
+
+    #[test]
+    fn a_blending_context_counts_as_unisolated_only_without_a_layer_ancestor() {
+        let mut tree = identity_tree();
+        assert!(!tree.has_unisolated_blending_effect());
+        let opacity_effect = tree.append_effect(
+            effects(0.5, CompositingAndBlendingOperator::Normal),
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
+        );
+        tree.append_effect(
             effects(1.0, CompositingAndBlendingOperator::Multiply),
-            opacity_frame,
+            opacity_effect,
             VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
         );
-        assert!(!tree.has_unisolated_blending_frame());
-        tree.append_frame(
+        assert!(!tree.has_unisolated_blending_effect());
+        tree.append_effect(
             effects(1.0, CompositingAndBlendingOperator::Multiply),
-            FrameNodeIndex::NONE,
+            EffectNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
         );
-        assert!(tree.has_unisolated_blending_frame());
+        assert!(tree.has_unisolated_blending_effect());
     }
 
     #[test]
     fn a_difference_clip_passes_only_points_outside_its_rect() {
         let mut tree = identity_tree();
-        let frame = tree.append_frame(
+        let context = clip_context(
+            &mut tree,
             clip(FloatRect::new(10.0, 10.0, 20.0, 20.0), ClipMode::Difference),
-            FrameNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
         );
-        let context = context_of(VISUAL_VIEWPORT_NODE_INDEX, frame);
+        let context = context_of(VISUAL_VIEWPORT_NODE_INDEX, context);
         assert!(
             tree.transform_point_for_hit_test(context, point(15.0, 15.0), &[], ClipBehavior::Respect)
                 .is_none()
@@ -880,12 +1031,12 @@ mod tests {
     #[test]
     fn a_fractional_clip_rect_contains_points_by_float_containment() {
         let mut tree = identity_tree();
-        let frame = tree.append_frame(
+        let context = clip_context(
+            &mut tree,
             clip(FloatRect::new(10.5, 10.5, 20.0, 20.0), ClipMode::Intersect),
-            FrameNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
         );
-        let context = context_of(VISUAL_VIEWPORT_NODE_INDEX, frame);
+        let context = context_of(VISUAL_VIEWPORT_NODE_INDEX, context);
         assert!(
             tree.transform_point_for_hit_test(context, point(10.25, 15.0), &[], ClipBehavior::Respect)
                 .is_none()
@@ -899,12 +1050,12 @@ mod tests {
     #[test]
     fn an_integral_clip_rect_contains_points_by_integer_containment() {
         let mut tree = identity_tree();
-        let frame = tree.append_frame(
+        let context = clip_context(
+            &mut tree,
             clip(FloatRect::new(10.0, 10.0, 20.0, 20.0), ClipMode::Intersect),
-            FrameNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
         );
-        let context = context_of(VISUAL_VIEWPORT_NODE_INDEX, frame);
+        let context = context_of(VISUAL_VIEWPORT_NODE_INDEX, context);
         assert!(
             tree.transform_point_for_hit_test(context, point(9.5, 15.0), &[], ClipBehavior::Respect)
                 .is_none()
@@ -922,16 +1073,16 @@ mod tests {
     #[test]
     fn a_rounded_clip_rejects_points_outside_its_corner_ellipses() {
         let mut tree = identity_tree();
-        let frame = tree.append_frame(
-            FrameData::Clip(ClipData {
+        let context = clip_context(
+            &mut tree,
+            ClipNodeData::Rect(ClipData {
                 rect: FloatRect::new(0.0, 0.0, 100.0, 100.0),
                 corner_radii: CornerRadii::uniform(20.0 as i32),
                 mode: ClipMode::Intersect,
             }),
-            FrameNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
         );
-        let context = context_of(VISUAL_VIEWPORT_NODE_INDEX, frame);
+        let context = context_of(VISUAL_VIEWPORT_NODE_INDEX, context);
         assert!(
             tree.transform_point_for_hit_test(context, point(1.0, 1.0), &[], ClipBehavior::Respect)
                 .is_none()
@@ -966,7 +1117,7 @@ mod tests {
 
         let local = tree
             .transform_point_for_hit_test(
-                context_of(scroll_node, FrameNodeIndex::NONE),
+                context_of(scroll_node, ContextRef::default()),
                 point(40.0, 60.0),
                 &scroll_offsets,
                 ClipBehavior::Respect,
@@ -998,7 +1149,7 @@ mod tests {
         );
         let local = tree
             .transform_point_for_hit_test(
-                context_of(lifted, FrameNodeIndex::NONE),
+                context_of(lifted, ContextRef::default()),
                 point(100.0, 100.0),
                 &[],
                 ClipBehavior::Respect,
@@ -1047,7 +1198,7 @@ mod tests {
         assert_eq!(rect.width, 100000.0);
         assert!(
             tree.transform_point_for_hit_test(
-                context_of(on_the_eye_plane, FrameNodeIndex::NONE),
+                context_of(on_the_eye_plane, ContextRef::default()),
                 point(100.0, 100.0),
                 &[],
                 ClipBehavior::Respect,
@@ -1072,7 +1223,7 @@ mod tests {
         );
         assert!(
             tree.transform_point_for_hit_test(
-                context_of(marker, FrameNodeIndex::NONE),
+                context_of(marker, ContextRef::default()),
                 point(0.0, 0.0),
                 &[],
                 ClipBehavior::Respect
@@ -1090,7 +1241,7 @@ mod tests {
         );
         assert_eq!(
             front_facing_tree.transform_point_for_hit_test(
-                context_of(front_marker, FrameNodeIndex::NONE),
+                context_of(front_marker, ContextRef::default()),
                 point(3.0, 4.0),
                 &[],
                 ClipBehavior::Respect
@@ -1100,17 +1251,17 @@ mod tests {
     }
 
     #[test]
-    fn a_frame_below_the_context_node_takes_its_own_walk_from_the_root() {
+    fn a_context_below_the_context_node_takes_its_own_walk_from_the_root() {
         let mut tree = identity_tree();
         let scroll_node = tree.append_spatial(scroll(), VISUAL_VIEWPORT_NODE_INDEX);
-        let frame = tree.append_frame(
+        let context = clip_context(
+            &mut tree,
             clip(FloatRect::new(0.0, 0.0, 50.0, 50.0), ClipMode::Intersect),
-            FrameNodeIndex::NONE,
             scroll_node,
         );
         let mut scroll_offsets = vec![FloatPoint::default(); 2];
         scroll_offsets[scroll_node.0 as usize] = point(0.0, -100.0);
-        let fixed_background_context = context_of(VISUAL_VIEWPORT_NODE_INDEX, frame);
+        let fixed_background_context = context_of(VISUAL_VIEWPORT_NODE_INDEX, context);
 
         assert!(
             tree.transform_point_for_hit_test(
@@ -1330,8 +1481,11 @@ mod tests {
                 parent: map(node.parent),
             };
         }
-        for (index, node) in tree.frame_nodes.iter().enumerate() {
-            permuted.frame_nodes[index].spatial = map(node.spatial);
+        for (index, node) in tree.clip_nodes.iter().enumerate() {
+            permuted.clip_nodes[index].spatial = map(node.spatial);
+        }
+        for (index, node) in tree.effect_nodes.iter().enumerate() {
+            permuted.effect_nodes[index].spatial = map(node.spatial);
         }
         permuted
     }
@@ -1360,19 +1514,29 @@ mod tests {
         );
         let outer_sticky = in_order.append_spatial(sticky(scroll_node, None, 100.0), scroll_node);
         let inner_sticky = in_order.append_spatial(sticky(scroll_node, Some(outer_sticky), 120.0), outer_sticky);
-        let outer_clip = in_order.append_frame(
+        let outer_clip = in_order.append_clip(
             clip(FloatRect::new(0.0, 0.0, 0.0, 0.0), ClipMode::Intersect),
-            FrameNodeIndex::NONE,
+            ClipNodeIndex::NONE,
             sorted_transform,
         );
-        in_order.append_frame(
+        in_order.append_clip(
             clip(FloatRect::new(0.0, 0.0, 50.0, 50.0), ClipMode::Intersect),
             outer_clip,
             sorted_transform,
         );
-        in_order.frame_nodes.swap(0, 1);
-        in_order.frame_nodes[0].parent = FrameNodeIndex(1);
-        in_order.frame_nodes[1].parent = FrameNodeIndex::NONE;
+        in_order.clip_nodes.swap(0, 1);
+        in_order.clip_nodes[0].parent = ClipNodeIndex(1);
+        in_order.clip_nodes[1].parent = ClipNodeIndex::NONE;
+        ContextRef {
+            clip: ClipNodeIndex(0),
+            effect: EffectNodeIndex::NONE,
+            ..ContextRef::default()
+        };
+        ContextRef {
+            clip: ClipNodeIndex(1),
+            effect: EffectNodeIndex::NONE,
+            ..ContextRef::default()
+        };
 
         let permutation = [0, 6, 5, 4, 3, 2, 1];
         let permuted = permuted_tree(&in_order, &permutation);
@@ -1420,11 +1584,8 @@ mod tests {
             assert_eq!(permuted_subtree[permutation[index] as usize], in_order_subtree[index]);
         }
 
-        assert_eq!(
-            permuted.frames_with_empty_effective_clip(),
-            in_order.frames_with_empty_effective_clip()
-        );
-        assert_eq!(in_order.frames_with_empty_effective_clip(), vec![true, true]);
+        assert_eq!(empty_clip_flags(&permuted), empty_clip_flags(&in_order));
+        assert_eq!(empty_clip_flags(&in_order), vec![true, true]);
     }
 
     #[test]
@@ -1439,41 +1600,63 @@ mod tests {
             SpatialData::Transform(transform_data(FloatMatrix4x4::identity(), FloatPoint::default())),
             VISUAL_VIEWPORT_NODE_INDEX,
         );
-        let live_frame = tree.append_frame(
+        let live_effect = tree.append_effect(
             effects(1.0, CompositingAndBlendingOperator::Normal),
-            FrameNodeIndex::NONE,
+            EffectNodeIndex::NONE,
             live_spatial,
+            ClipNodeIndex::NONE,
         );
-        let dead_frame = tree.append_frame(
+        let live_context = ContextRef {
+            clip: ClipNodeIndex::NONE,
+            effect: live_effect,
+            ..ContextRef::default()
+        };
+        let dead_effect = tree.append_effect(
             effects(1.0, CompositingAndBlendingOperator::Normal),
-            FrameNodeIndex::NONE,
+            EffectNodeIndex::NONE,
             live_spatial,
+            ClipNodeIndex::NONE,
         );
-        let mask_frame = tree.append_frame(
-            FrameData::Mask(crate::painting::visual_context::MaskData {
+        let context_of_dead_effect = ContextRef {
+            clip: ClipNodeIndex::NONE,
+            effect: dead_effect,
+            ..ContextRef::default()
+        };
+        let mask_effect = tree.append_effect(
+            EffectNodeData::Mask(crate::painting::visual_context::MaskData {
                 rect: IntRect::new(0, 0, 4, 4),
                 kind: libgfx_rust::MaskKind::Alpha,
                 origin: crate::painting::visual_context::MaskLayerOrigin::CssMaskLayers,
             }),
-            FrameNodeIndex::NONE,
+            EffectNodeIndex::NONE,
             live_spatial,
+            ClipNodeIndex::NONE,
         );
         assert!(tree.tombstone_spatial_slot(dead_spatial));
-        assert!(tree.tombstone_frame_slot(dead_frame));
+        assert!(tree.tombstone_effect_slot(dead_effect));
         let run = |context: ContextRef| DisplayListCommandRun {
             context,
             ..DisplayListCommandRun::default()
         };
-        assert!(tree.display_list_references_only_live_nodes(&[run(context_of(live_spatial, live_frame))], &[]));
+        assert!(tree.display_list_references_only_live_nodes(&[run(context_of(live_spatial, live_context))], &[]));
         assert!(
-            !tree.display_list_references_only_live_nodes(&[run(context_of(dead_spatial, FrameNodeIndex::NONE))], &[])
+            tree.display_list_references_only_live_nodes(&[run(context_of(live_spatial, ContextRef::default()))], &[])
         );
-        assert!(!tree.display_list_references_only_live_nodes(&[run(context_of(live_spatial, dead_frame))], &[]));
         assert!(
-            tree.display_list_references_only_live_nodes(&[run(context_of(live_spatial, live_frame))], &[mask_frame])
+            !tree.display_list_references_only_live_nodes(&[run(context_of(dead_spatial, ContextRef::default()))], &[])
         );
-        assert!(!tree.display_list_references_only_live_nodes(&[], &[dead_frame]));
-        assert!(!tree.display_list_references_only_live_nodes(&[], &[live_frame]));
+        assert!(
+            !tree
+                .display_list_references_only_live_nodes(&[run(context_of(live_spatial, context_of_dead_effect))], &[])
+        );
+        assert!(
+            tree.display_list_references_only_live_nodes(
+                &[run(context_of(live_spatial, live_context))],
+                &[mask_effect]
+            )
+        );
+        assert!(!tree.display_list_references_only_live_nodes(&[], &[dead_effect]));
+        assert!(!tree.display_list_references_only_live_nodes(&[], &[live_effect]));
     }
 
     #[test]

@@ -13,13 +13,14 @@ use crate::painting::visual_context::build::{
     BoxFacts, compute_svg_viewport_transform_data, svg_viewport_transform_of,
 };
 use crate::painting::visual_context::{
-    ContextRef, FrameData, FrameNodeIndex, MaskLayerOrigin, SpatialData, TransformData, VisualContextTree,
+    ClipNodeData, ContextRef, EffectNodeData, EffectNodeIndex, MaskLayerOrigin, SpatialData, TransformData,
+    VisualContextNodeSink, VisualContextTree,
 };
 
 #[derive(Default)]
 pub struct NestedAssignments {
     pub paintable_contexts: HashMap<u32, (ContextRef, ContextRef)>,
-    pub mask_frames: HashMap<u32, Vec<FrameNodeIndex>>,
+    pub mask_effects: HashMap<u32, Vec<EffectNodeIndex>>,
 }
 
 struct NestedBuilder<'a, Arena> {
@@ -35,7 +36,9 @@ impl<Arena: PaintableRowsRead> NestedBuilder<'_, Arena> {
         let facts = BoxFacts::gather(self.layout_arena, self.callbacks, slot, self.pixel_ratio, false);
         let mut own_state = inherited_state;
         if let Some(effects) = facts.effects_data() {
-            own_state = self.tree.append_frame_under(own_state, FrameData::Effects(effects));
+            own_state = self
+                .tree
+                .append_effect_node_under(own_state, EffectNodeData::Effects(effects));
         }
 
         if include_element_transform && let Some(transform) = facts.transform {
@@ -49,12 +52,14 @@ impl<Arena: PaintableRowsRead> NestedBuilder<'_, Arena> {
             .iter()
             .filter(|layer| layer.origin != MaskLayerOrigin::CssMaskLayers)
         {
-            own_state = self.tree.append_frame_under(own_state, FrameData::Mask(*mask_layer));
+            own_state = self
+                .tree
+                .append_effect_node_under(own_state, EffectNodeData::Mask(*mask_layer));
             self.assignments
-                .mask_frames
+                .mask_effects
                 .entry(slot.index)
                 .or_default()
-                .push(own_state.frame);
+                .push(own_state.effect);
         }
 
         let mut state_for_descendants = own_state;
@@ -64,7 +69,7 @@ impl<Arena: PaintableRowsRead> NestedBuilder<'_, Arena> {
         {
             state_for_descendants = self
                 .tree
-                .append_frame_under(state_for_descendants, FrameData::Clip(clip));
+                .append_clip_node_under(state_for_descendants, ClipNodeData::Rect(clip));
         }
 
         if let Some(svg_viewport_transform) = svg_viewport_transform_of(self.layout_arena, slot) {

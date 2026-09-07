@@ -49,10 +49,11 @@ public:
     SpatialNodeIndex append_transform(SpatialNodeIndex parent, Gfx::FloatMatrix4x4 const&, Gfx::FloatPoint origin = {});
     SpatialNodeIndex append_scroll(SpatialNodeIndex parent);
     SpatialNodeIndex append_sticky(SpatialNodeIndex parent, StickyConstraints const&);
-    FrameNodeIndex append_background_color_animation_frame(FrameNodeIndex parent, SpatialNodeIndex spatial);
-    FrameNodeIndex append_clip_frame(FrameNodeIndex parent, SpatialNodeIndex spatial, Gfx::FloatRect, Gfx::CornerRadii = {}, ClipMode = ClipMode::Intersect);
-    FrameNodeIndex append_clip_path_frame(FrameNodeIndex parent, SpatialNodeIndex spatial, Gfx::Path const&, Gfx::IntRect bounding_rect, Gfx::WindingRule);
-    FrameNodeIndex append_effects_frame(FrameNodeIndex parent, SpatialNodeIndex spatial, float opacity = 1.0f, Gfx::CompositingAndBlendingOperator = Gfx::CompositingAndBlendingOperator::Normal);
+    ClipNodeIndex append_clip(ClipNodeIndex parent, SpatialNodeIndex spatial, Gfx::FloatRect, Gfx::CornerRadii = {}, ClipMode = ClipMode::Intersect);
+    ClipNodeIndex append_clip_path(ClipNodeIndex parent, SpatialNodeIndex spatial, Gfx::Path const&, Gfx::IntRect bounding_rect, Gfx::WindingRule);
+    EffectNodeIndex append_effects(EffectNodeIndex parent, SpatialNodeIndex spatial, ClipNodeIndex output_clip = NO_CLIP_NODE, float opacity = 1.0f, Gfx::CompositingAndBlendingOperator = Gfx::CompositingAndBlendingOperator::Normal);
+    EffectNodeIndex append_background_color_animation(EffectNodeIndex parent, SpatialNodeIndex spatial, ClipNodeIndex output_clip = NO_CLIP_NODE);
+    // The frame a context names for recording under the given clip and effect.
 
     AccumulatedVisualContextTree finish();
     AccumulatedVisualContextTree finish_with_structural_epoch(u64 structural_epoch);

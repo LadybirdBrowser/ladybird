@@ -50,7 +50,7 @@ TEST_CASE(wheel_hit_testing_rejects_a_different_visual_context_tree_structural_e
     auto visual_context_tree = make_visual_context_tree();
     Web::Compositor::AsyncScrollingState state;
     state.main_thread_wheel_event_regions.append({
-        .context = { Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Web::Painting::NO_FRAME_NODE },
+        .context = { Web::Painting::VISUAL_VIEWPORT_NODE_INDEX },
         .rect = { 0, 0, 100, 100 },
     });
 
@@ -72,7 +72,7 @@ TEST_CASE(wheel_hit_testing_ignores_invalid_visual_context_indices)
     auto visual_context_tree = make_visual_context_tree();
     Web::Compositor::AsyncScrollingState state;
     state.main_thread_wheel_event_regions.append({
-        .context = { Web::Painting::SpatialNodeIndex { 100 }, Web::Painting::NO_FRAME_NODE },
+        .context = { Web::Painting::SpatialNodeIndex { 100 } },
         .rect = { 0, 0, 100, 100 },
     });
 
@@ -94,7 +94,7 @@ TEST_CASE(wheel_hit_testing_prefilters_static_targets_but_tracks_animated_target
     auto make_scroll_tree = [](Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Web::Painting::SpatialNodeIndex spatial) {
         Web::Compositor::AsyncScrollingState state;
         state.main_thread_wheel_event_regions.append({
-            .context = { spatial, Web::Painting::NO_FRAME_NODE },
+            .context = { spatial },
             .rect = { 0, 0, 10, 10 },
         });
         Web::Compositor::AsyncScrollTree scroll_tree;
@@ -143,7 +143,7 @@ TEST_CASE(blocking_wheel_event_hit_testing_fails_closed_for_invalid_visual_conte
     Web::Compositor::AsyncScrollingState state;
     state.has_blocking_wheel_event_listeners = true;
     state.blocking_wheel_event_regions.append({
-        .context = { Web::Painting::SpatialNodeIndex { 100 }, Web::Painting::NO_FRAME_NODE },
+        .context = { Web::Painting::SpatialNodeIndex { 100 } },
         .rect = { 0, 0, 100, 100 },
     });
 

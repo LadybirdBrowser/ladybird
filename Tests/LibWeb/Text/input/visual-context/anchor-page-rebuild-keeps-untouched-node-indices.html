@@ -52,11 +52,11 @@
             lines.push(`${label}: epoch advanced: ${internals.visualContextTreeStructuralEpoch() !== epoch}`);
         };
 
-        lines.push(`b owns nodes: ${internals.visualContextNodeIndices(b).frames.length > 0 && internals.visualContextNodeIndices(b).spatial.length > 0}`);
-        swap("clipped", "clip frame swap");
+        lines.push(`b owns nodes: ${internals.visualContextNodeIndices(b).clips.length > 0 && internals.visualContextNodeIndices(b).spatial.length > 0}`);
+        swap("clipped", "clip swap");
         swap("lift", "transform swap");
         lines.push(`dead nodes after the swaps: ${internals.visualContextTreeDeadNodeCount() > 0}`);
-        lines.push(`d owns the moved nodes: ${internals.visualContextNodeIndices(d).frames.length > 0 && internals.visualContextNodeIndices(d).spatial.length > 0}`);
+        lines.push(`d owns the moved nodes: ${internals.visualContextNodeIndices(d).clips.length > 0 && internals.visualContextNodeIndices(d).spatial.length > 0}`);
 
         for (const line of lines)
             println(line);

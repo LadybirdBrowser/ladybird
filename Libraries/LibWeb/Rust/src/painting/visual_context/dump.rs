@@ -5,8 +5,8 @@
  */
 
 use super::{
-    ClipMode, FrameData, FrameNodeIndex, MaskLayerOrigin, SpatialData, SpatialNodeIndex, TransformDataRole,
-    VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree,
+    ClipMode, ClipNodeData, ClipNodeIndex, EffectNodeData, EffectNodeIndex, MaskLayerOrigin, SpatialData,
+    SpatialNodeIndex, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree,
 };
 use crate::painting::display_list::commands::DisplayListCommandRun;
 use crate::painting::dump::{
@@ -15,6 +15,13 @@ use crate::painting::dump::{
 use libgfx_rust::{CompositingAndBlendingOperator, FloatPoint, FloatRect, FloatSize, IntRect, MaskKind};
 use std::collections::{HashMap, HashSet};
 use std::fmt::Write;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum SlotKind {
+    Spatial,
+    Clip,
+    Effect,
+}
 
 fn format_point(point: FloatPoint) -> String {
     let mut text = String::new();
@@ -128,11 +135,10 @@ impl VisualContextTree {
         text
     }
 
-    pub fn dump_frame_node(&self, index: FrameNodeIndex) -> String {
+    pub fn dump_clip_node(&self, index: ClipNodeIndex) -> String {
         let mut text = String::new();
-        match &self.frame_nodes[index.0 as usize].data {
-            FrameData::BackgroundColorAnimation => text.push_str("background-color-animation"),
-            FrameData::Clip(clip) => {
+        match &self.clip_nodes[index.0 as usize].data {
+            ClipNodeData::Rect(clip) => {
                 let _ = write!(text, "clip={}", format_rect(clip.rect));
                 if clip.corner_radii.has_any_radius() {
                     let corner_radii = clip.corner_radii;
@@ -149,7 +155,7 @@ impl VisualContextTree {
                     text.push_str(" mode=difference");
                 }
             }
-            FrameData::ClipPath(clip_path) => {
+            ClipNodeData::Path(clip_path) => {
                 let svg_path = clip_path.path.to_svg_string();
                 let has_curves_with_host_dependent_control_points = svg_path.contains('Q') || svg_path.contains('C');
                 if has_curves_with_host_dependent_control_points {
@@ -172,7 +178,15 @@ impl VisualContextTree {
                     );
                 }
             }
-            FrameData::Effects(effects) => {
+            ClipNodeData::Dead => text.push_str("tombstone"),
+        }
+        text
+    }
+
+    pub fn dump_effect_node(&self, index: EffectNodeIndex) -> String {
+        let mut text = String::new();
+        match &self.effect_nodes[index.0 as usize].data {
+            EffectNodeData::Effects(effects) => {
                 text.push_str("effects=[");
                 let mut has_content = false;
                 if effects.opacity < 1.0 {
@@ -194,7 +208,7 @@ impl VisualContextTree {
                 }
                 text.push(']');
             }
-            FrameData::Mask(mask) => {
+            EffectNodeData::Mask(mask) => {
                 let kind = if mask.kind == MaskKind::Alpha {
                     "alpha"
                 } else {
@@ -213,24 +227,41 @@ impl VisualContextTree {
                     origin
                 );
             }
-            FrameData::Dead => text.push_str("tombstone"),
+            EffectNodeData::BackgroundColorAnimation => text.push_str("background-color-animation"),
+            EffectNodeData::Dead => text.push_str("tombstone"),
         }
         text
     }
 }
 
 impl VisualContextTree {
+    // The nodes the runs record under, each tree in first-seen order. An effect's output clip
+    // chain counts as reachable, since replay enters it before the effect.
     pub fn dump_nodes_reachable_from_runs(
         &self,
         command_runs: &[DisplayListCommandRun],
-        mut owner_label: impl FnMut(bool, u32) -> Option<String>,
+        mut owner_label: impl FnMut(SlotKind, u32) -> Option<String>,
     ) -> String {
         let mut visited_spatial_nodes: HashSet<u32> = HashSet::new();
-        let mut visited_frame_nodes: HashSet<u32> = HashSet::new();
+        let mut visited_clip_nodes: HashSet<u32> = HashSet::new();
+        let mut visited_effect_nodes: HashSet<u32> = HashSet::new();
         let mut spatial_children: HashMap<u32, Vec<u32>> = HashMap::new();
-        let mut frame_children: HashMap<u32, Vec<u32>> = HashMap::new();
-        let mut frame_roots: Vec<u32> = Vec::new();
+        let mut clip_children: HashMap<u32, Vec<u32>> = HashMap::new();
+        let mut clip_roots: Vec<u32> = Vec::new();
+        let mut effect_children: HashMap<u32, Vec<u32>> = HashMap::new();
+        let mut effect_roots: Vec<u32> = Vec::new();
 
+        let mut visit_clip_chain = |mut clip: ClipNodeIndex| {
+            while !clip.is_none() && visited_clip_nodes.insert(clip.0) {
+                let parent = self.clip_nodes[clip.0 as usize].parent;
+                if parent.is_none() {
+                    clip_roots.push(clip.0);
+                } else {
+                    clip_children.entry(parent.0).or_default().push(clip.0);
+                }
+                clip = parent;
+            }
+        };
         for run in command_runs {
             let mut spatial = run.context.spatial;
             while visited_spatial_nodes.insert(spatial.0) {
@@ -241,21 +272,23 @@ impl VisualContextTree {
                 spatial_children.entry(parent.0).or_default().push(spatial.0);
                 spatial = parent;
             }
-            let mut frame = run.context.frame;
-            while !frame.is_none() && visited_frame_nodes.insert(frame.0) {
-                let parent = self.frame_nodes[frame.0 as usize].parent;
-                if parent.is_none() {
-                    frame_roots.push(frame.0);
+            visit_clip_chain(run.context.clip);
+            let mut effect = run.context.effect;
+            while !effect.is_none() && visited_effect_nodes.insert(effect.0) {
+                let node = &self.effect_nodes[effect.0 as usize];
+                visit_clip_chain(node.output_clip());
+                if node.parent.is_none() {
+                    effect_roots.push(effect.0);
                 } else {
-                    frame_children.entry(parent.0).or_default().push(frame.0);
+                    effect_children.entry(node.parent.0).or_default().push(effect.0);
                 }
-                frame = parent;
+                effect = node.parent;
             }
         }
 
         let mut text = String::from("AccumulatedVisualContext Tree:\n");
-        let mut append_owner = |text: &mut String, is_frame: bool, index: u32| {
-            if let Some(label) = owner_label(is_frame, index) {
+        let mut append_owner = |text: &mut String, kind: SlotKind, index: u32| {
+            if let Some(label) = owner_label(kind, index) {
                 let _ = write!(text, " ({label})");
             }
             text.push('\n');
@@ -284,24 +317,49 @@ impl VisualContextTree {
             &mut text,
             &spatial_children,
             &|index: u32| format!("[s{index}] {}", self.dump_spatial_node(SpatialNodeIndex(index))),
-            &mut |text: &mut String, index: u32| append_owner(text, false, index),
+            &mut |text: &mut String, index: u32| append_owner(text, SlotKind::Spatial, index),
             VISUAL_VIEWPORT_NODE_INDEX.0,
             2,
         );
-        if !frame_roots.is_empty() {
-            text.push_str("  frames:\n");
-            for root in frame_roots {
+        if !clip_roots.is_empty() {
+            text.push_str("  clips:\n");
+            for root in clip_roots {
                 dump_subtree(
                     &mut text,
-                    &frame_children,
+                    &clip_children,
                     &|index: u32| {
                         format!(
-                            "[f{index} in s{}] {}",
-                            self.frame_nodes[index as usize].spatial.0,
-                            self.dump_frame_node(FrameNodeIndex(index))
+                            "[c{index} in s{}] {}",
+                            self.clip_nodes[index as usize].spatial.0,
+                            self.dump_clip_node(ClipNodeIndex(index))
                         )
                     },
-                    &mut |text: &mut String, index: u32| append_owner(text, true, index),
+                    &mut |text: &mut String, index: u32| append_owner(text, SlotKind::Clip, index),
+                    root,
+                    2,
+                );
+            }
+        }
+        if !effect_roots.is_empty() {
+            text.push_str("  effects:\n");
+            for root in effect_roots {
+                dump_subtree(
+                    &mut text,
+                    &effect_children,
+                    &|index: u32| {
+                        let node = &self.effect_nodes[index as usize];
+                        let output_clip = if node.output_clip().is_none() {
+                            String::new()
+                        } else {
+                            format!(" out=c{}", node.output_clip().0)
+                        };
+                        format!(
+                            "[e{index} in s{}{output_clip}] {}",
+                            node.spatial.0,
+                            self.dump_effect_node(EffectNodeIndex(index))
+                        )
+                    },
+                    &mut |text: &mut String, index: u32| append_owner(text, SlotKind::Effect, index),
                     root,
                     2,
                 );
@@ -315,9 +373,10 @@ impl VisualContextTree {
 mod node_dump_tests {
     use crate::layout::node_data::NodeSlotId;
     use crate::painting::visual_context::{
-        AnchorScrollShift, BackfaceVisibilityData, ClipData, ClipMode, EffectsData, FrameData, FrameNodeIndex,
-        MaskData, MaskLayerOrigin, PerspectiveData, ScrollData, SpatialData, StickyData, TransformData,
-        TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree, scroll_state::NO_SCROLL_STATE_SLOT,
+        AnchorScrollShift, BackfaceVisibilityData, ClipData, ClipMode, ClipNodeData, ClipNodeIndex, EffectNodeData,
+        EffectNodeIndex, EffectsData, MaskData, MaskLayerOrigin, PerspectiveData, ScrollData, SpatialData, StickyData,
+        TransformData, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree,
+        scroll_state::NO_SCROLL_STATE_SLOT,
     };
     use libgfx_rust::{
         CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, IntRect,
@@ -467,91 +526,101 @@ mod node_dump_tests {
     }
 
     #[test]
-    fn frame_nodes_dump_like_the_display_list_expectations() {
+    fn clip_and_effect_nodes_dump_like_the_display_list_expectations() {
         let mut tree = tree();
-        let plain_clip = tree.append_frame(
-            FrameData::Clip(ClipData {
+        let plain_clip = tree.append_clip(
+            ClipNodeData::Rect(ClipData {
                 rect: FloatRect::new(11.0, 10.0, 100.0, 16.0),
                 corner_radii: CornerRadii::default(),
                 mode: ClipMode::Intersect,
             }),
-            FrameNodeIndex::NONE,
+            ClipNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
         );
-        let rounded_difference_clip = tree.append_frame(
-            FrameData::Clip(ClipData {
+        let rounded_difference_clip = tree.append_clip(
+            ClipNodeData::Rect(ClipData {
                 rect: FloatRect::new(0.5, 0.0, 10.0, 10.0),
                 corner_radii: CornerRadii::uniform(3),
                 mode: ClipMode::Difference,
             }),
-            FrameNodeIndex::NONE,
+            ClipNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
         );
-        let plain_effects = tree.append_frame(
-            FrameData::Effects(EffectsData {
+        let plain_effects = tree.append_effect(
+            EffectNodeData::Effects(EffectsData {
                 opacity: 1.0,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
             }),
-            FrameNodeIndex::NONE,
+            EffectNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
         );
-        let full_effects = tree.append_frame(
-            FrameData::Effects(EffectsData {
+        let full_effects = tree.append_effect(
+            EffectNodeData::Effects(EffectsData {
                 opacity: 0.5,
                 blend_mode: CompositingAndBlendingOperator::Multiply,
                 filter: Some(std::rc::Rc::new(vec![1, 2, 3])),
             }),
-            FrameNodeIndex::NONE,
+            EffectNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
         );
-        let mask = tree.append_frame(
-            FrameData::Mask(MaskData {
+        let mask = tree.append_effect(
+            EffectNodeData::Mask(MaskData {
                 rect: IntRect::new(1, 2, 30, 40),
                 kind: MaskKind::Luminance,
                 origin: MaskLayerOrigin::SvgMask,
             }),
-            FrameNodeIndex::NONE,
+            EffectNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
+        );
+        let marker = tree.append_effect(
+            EffectNodeData::BackgroundColorAnimation,
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
         );
 
-        assert_eq!(tree.dump_frame_node(plain_clip), "clip=[11,10 100x16]");
+        assert_eq!(tree.dump_clip_node(plain_clip), "clip=[11,10 100x16]");
         assert_eq!(
-            tree.dump_frame_node(rounded_difference_clip),
+            tree.dump_clip_node(rounded_difference_clip),
             "clip=[0.5,0 10x10] radii=(3,3,3,3) mode=difference"
         );
-        assert_eq!(tree.dump_frame_node(plain_effects), "effects=[]");
+        assert_eq!(tree.dump_effect_node(plain_effects), "effects=[]");
         assert_eq!(
-            tree.dump_frame_node(full_effects),
+            tree.dump_effect_node(full_effects),
             format!(
                 "effects=[opacity=0.5 blend_mode={} filter]",
                 CompositingAndBlendingOperator::Multiply as i32
             )
         );
         assert_eq!(
-            tree.dump_frame_node(mask),
+            tree.dump_effect_node(mask),
             "mask=[1,2 30x40] kind=luminance origin=svg-mask"
         );
+        assert_eq!(tree.dump_effect_node(marker), "background-color-animation");
     }
 }
 
 #[cfg(test)]
 mod section_dump_tests {
+    use super::SlotKind;
     use crate::layout::node_data::NodeSlotId;
-    use crate::painting::display_list::commands::{
-        ContextRef, DisplayListCommandRun, FrameNodeIndex, SpatialNodeIndex,
-    };
+    use crate::painting::display_list::commands::{ContextRef, DisplayListCommandRun, SpatialNodeIndex};
     use crate::painting::visual_context::{
-        ClipData, ClipMode, EffectsData, FrameData, ScrollData, SpatialData, TransformData, TransformDataRole,
-        VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree, scroll_state::NO_SCROLL_STATE_SLOT,
+        ClipData, ClipMode, ClipNodeData, ClipNodeIndex, EffectNodeData, EffectNodeIndex, EffectsData, ScrollData,
+        SpatialData, TransformData, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree,
+        scroll_state::NO_SCROLL_STATE_SLOT,
     };
     use libgfx_rust::{CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, IntRect};
 
-    fn run(spatial: SpatialNodeIndex, frame: FrameNodeIndex) -> DisplayListCommandRun {
+    fn run(spatial: SpatialNodeIndex, context: ContextRef) -> DisplayListCommandRun {
         DisplayListCommandRun {
             offset: 0,
             size: 0,
-            context: ContextRef { spatial, frame },
+            context: ContextRef { spatial, ..context },
             ink_bounds: IntRect::default(),
             has_unbounded_draw: false,
             has_compositor_metadata: false,
@@ -585,37 +654,60 @@ mod section_dump_tests {
             }),
             VISUAL_VIEWPORT_NODE_INDEX,
         );
-        let clip_frame = tree.append_frame(
-            FrameData::Clip(ClipData {
+        let outer_clip = tree.append_clip(
+            ClipNodeData::Rect(ClipData {
                 rect: FloatRect::new(1.0, 2.0, 3.0, 4.0),
                 corner_radii: CornerRadii::default(),
                 mode: ClipMode::Intersect,
             }),
-            FrameNodeIndex::NONE,
+            ClipNodeIndex::NONE,
             scroll_node,
         );
-        let effects_frame = tree.append_frame(
-            FrameData::Effects(EffectsData {
+        let effect = tree.append_effect(
+            EffectNodeData::Effects(EffectsData {
                 opacity: 0.5,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
             }),
-            clip_frame,
+            EffectNodeIndex::NONE,
+            scroll_node,
+            outer_clip,
+        );
+        let inner_clip = tree.append_clip(
+            ClipNodeData::rect_clip(FloatRect::new(5.0, 6.0, 7.0, 8.0)),
+            outer_clip,
             scroll_node,
         );
-        let _ = unreachable_node;
+        let unreachable_clip = tree.append_clip(
+            ClipNodeData::rect_clip(FloatRect::new(9.0, 9.0, 9.0, 9.0)),
+            ClipNodeIndex::NONE,
+            scroll_node,
+        );
+        let inner_context = ContextRef {
+            clip: inner_clip,
+            effect,
+            ..ContextRef::default()
+        };
+        let escaping_context = ContextRef {
+            clip: outer_clip,
+            effect,
+            ..ContextRef::default()
+        };
+        let _ = (unreachable_node, unreachable_clip);
         let runs = [
-            run(scroll_node, effects_frame),
-            run(VISUAL_VIEWPORT_NODE_INDEX, FrameNodeIndex::NONE),
+            run(scroll_node, inner_context),
+            run(scroll_node, escaping_context),
+            run(VISUAL_VIEWPORT_NODE_INDEX, ContextRef::default()),
         ];
-        let text = tree.dump_nodes_reachable_from_runs(&runs, |is_frame, index| match (is_frame, index) {
-            (false, 1) => Some("BlockContainer<DIV>#scroller".to_string()),
-            (true, 0) => Some("BlockContainer<DIV>#scroller".to_string()),
+        let text = tree.dump_nodes_reachable_from_runs(&runs, |kind, index| match (kind, index) {
+            (SlotKind::Spatial, 1) => Some("BlockContainer<DIV>#scroller".to_string()),
+            (SlotKind::Clip, 0) => Some("BlockContainer<DIV>#scroller".to_string()),
+            (SlotKind::Effect, 0) => Some("BlockContainer<DIV>#faded".to_string()),
             _ => None,
         });
         assert_eq!(
             text,
-            "AccumulatedVisualContext Tree:\n  spatial:\n    [s0] transform=[1,0,0,1,0,0] origin=(0,0)\n      [s1] scroll (BlockContainer<DIV>#scroller)\n  frames:\n    [f0 in s1] clip=[1,2 3x4] (BlockContainer<DIV>#scroller)\n      [f1 in s1] effects=[opacity=0.5]\n"
+            "AccumulatedVisualContext Tree:\n  spatial:\n    [s0] transform=[1,0,0,1,0,0] origin=(0,0)\n      [s1] scroll (BlockContainer<DIV>#scroller)\n  clips:\n    [c0 in s1] clip=[1,2 3x4] (BlockContainer<DIV>#scroller)\n      [c1 in s1] clip=[5,6 7x8]\n  effects:\n    [e0 in s1 out=c0] effects=[opacity=0.5] (BlockContainer<DIV>#faded)\n"
         );
     }
 }

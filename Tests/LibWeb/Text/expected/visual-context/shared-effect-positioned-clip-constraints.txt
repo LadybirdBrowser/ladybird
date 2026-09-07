@@ -1,0 +1,21 @@
+both positioned children: one owned effect: true
+both positioned children: one shared layer: true
+both positioned children: layer inside overflow clip: false
+absolute escapes: true
+fixed escapes: true
+normal stays clipped: true
+fixed child remains: one owned effect: true
+fixed child remains: one shared layer: true
+fixed child remains: layer inside overflow clip: false
+no positioned children: one owned effect: true
+no positioned children: one shared layer: true
+no positioned children: layer inside overflow clip: true
+absolute child restored: one owned effect: true
+absolute child restored: one shared layer: true
+absolute child restored: layer inside overflow clip: false
+both restored: one owned effect: true
+both restored: one shared layer: true
+both restored: layer inside overflow clip: false
+fresh tree: one owned effect: true
+fresh tree: one shared layer: true
+fresh tree: layer inside overflow clip: false

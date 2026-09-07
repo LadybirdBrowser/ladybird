@@ -13,6 +13,9 @@ use crate::painting::dump::{
     push_float_like_ak, push_float_point, push_float_rect, push_float_size, push_int_point, push_int_rect,
     push_int_size,
 };
+#[cfg(test)]
+use crate::painting::visual_context::VisualContextTree;
+use crate::painting::visual_context::dump::SlotKind;
 use libgfx_rust::path::OwnedPath;
 use libgfx_rust::{
     Color, CompositingAndBlendingOperator, CornerRadii, FloatPoint, FloatRect, FloatSize, IntPoint, IntRect, IntSize,
@@ -35,7 +38,7 @@ pub struct FfiPaintingDumpCallbacks {
     pub mask_display_lists: unsafe extern "C" fn(
         context: *mut c_void,
         display_list: *const c_void,
-        frames: *mut u32,
+        effects: *mut u32,
         display_list_ids: *mut u64,
     ),
     pub append_text: unsafe extern "C" fn(context: *mut c_void, bytes: *const u8, byte_count: usize),
@@ -70,26 +73,26 @@ impl FfiPaintingDumpCallbacks {
         display_list
     }
 
-    fn mask_display_lists(&self, display_list: *const c_void) -> Vec<(FrameNodeIndex, DisplayListResourceId)> {
+    fn mask_display_lists(&self, display_list: *const c_void) -> Vec<(EffectNodeIndex, DisplayListResourceId)> {
         // SAFETY: The host reports how many mask entries this display list holds.
         let count = unsafe { (self.mask_display_list_count)(self.context, display_list) };
-        let mut frames = vec![0; count];
+        let mut effects = vec![0; count];
         let mut display_list_ids = vec![0; count];
         // SAFETY: Both buffers hold the `count` entries the host just reported.
         unsafe {
             (self.mask_display_lists)(
                 self.context,
                 display_list,
-                frames.as_mut_ptr(),
+                effects.as_mut_ptr(),
                 display_list_ids.as_mut_ptr(),
             );
         };
-        let mut masks: Vec<_> = frames
+        let mut masks: Vec<_> = effects
             .into_iter()
             .zip(display_list_ids)
-            .map(|(frame, id)| (FrameNodeIndex(frame), DisplayListResourceId(id)))
+            .map(|(effect, id)| (EffectNodeIndex(effect), DisplayListResourceId(id)))
             .collect();
-        masks.sort_unstable_by_key(|(frame, _)| *frame);
+        masks.sort_unstable_by_key(|(effect, _)| *effect);
         masks
     }
 
@@ -101,7 +104,8 @@ impl FfiPaintingDumpCallbacks {
 
 struct VisualContextNodeOwners {
     spatial: HashMap<u32, NodeSlotId>,
-    frame: HashMap<u32, NodeSlotId>,
+    clip: HashMap<u32, NodeSlotId>,
+    effect: HashMap<u32, NodeSlotId>,
 }
 
 impl VisualContextNodeOwners {
@@ -109,7 +113,8 @@ impl VisualContextNodeOwners {
         let paintable_rows = arena.paintable_rows();
         let mut owners = Self {
             spatial: HashMap::new(),
-            frame: HashMap::new(),
+            clip: HashMap::new(),
+            effect: HashMap::new(),
         };
         owners.spatial.insert(VISUAL_VIEWPORT_NODE_INDEX.0, viewport);
         owners.spatial.insert(
@@ -122,8 +127,11 @@ impl VisualContextNodeOwners {
                 for spatial in &handles.spatial {
                     owners.spatial.insert(spatial.0, slot);
                 }
-                for frame in handles.frame_handles() {
-                    owners.frame.insert(frame.0, slot);
+                for clip in handles.clip_handles() {
+                    owners.clip.insert(clip.0, slot);
+                }
+                for effect in &handles.effects {
+                    owners.effect.insert(effect.0, slot);
                 }
             });
             let mut child = arena.node_first_child_if_live(slot);
@@ -135,11 +143,11 @@ impl VisualContextNodeOwners {
         owners
     }
 
-    fn owner(&self, is_frame: bool, index: u32) -> Option<NodeSlotId> {
-        if is_frame {
-            self.frame.get(&index).copied()
-        } else {
-            self.spatial.get(&index).copied()
+    fn owner(&self, kind: SlotKind, index: u32) -> Option<NodeSlotId> {
+        match kind {
+            SlotKind::Spatial => self.spatial.get(&index).copied(),
+            SlotKind::Clip => self.clip.get(&index).copied(),
+            SlotKind::Effect => self.effect.get(&index).copied(),
         }
     }
 }
@@ -167,8 +175,8 @@ pub unsafe extern "C" fn painting_dump(
     let visual_context_tree = unsafe { crate::painting::ffi::tree_from_handle(visual_context_tree) };
     let command_runs = unsafe { crate::painting::ffi::ffi_slice(command_runs, command_run_count) };
     let owners = VisualContextNodeOwners::collect(arena, viewport);
-    let mut output = visual_context_tree.dump_nodes_reachable_from_runs(command_runs, |is_frame, index| {
-        let shell = arena.shell_if_live(owners.owner(is_frame, index)?);
+    let mut output = visual_context_tree.dump_nodes_reachable_from_runs(command_runs, |kind, index| {
+        let shell = arena.shell_if_live(owners.owner(kind, index)?);
         (!shell.is_null()).then(|| callbacks.debug_description(shell))
     });
     output.push_str("\nDisplayList:\n");
@@ -212,9 +220,9 @@ fn dump_commands(
         }
     });
 
-    for (frame, id) in callbacks.mask_display_lists(display_list) {
+    for (effect, id) in callbacks.mask_display_lists(display_list) {
         push_indent(output, base_indent);
-        writeln!(output, "MaskDisplayList for frame f{}:", frame.0).unwrap();
+        writeln!(output, "MaskDisplayList for effect e{}:", effect.0).unwrap();
         dump_commands(output, callbacks, callbacks.nested_display_list(id), base_indent + 1);
     }
 }
@@ -593,10 +601,14 @@ fn dump_inline_clips(output: &mut String, header: &DisplayListCommandHeader, pay
     output.push(']');
 }
 
+// A context prints its spatial, clip and effect nodes.
 fn write_context(output: &mut String, context: ContextRef) {
     write_spatial_node_index(output, context.spatial);
-    if !context.frame.is_none() {
-        write!(output, "/f{}", context.frame.0).unwrap();
+    if !context.clip.is_none() {
+        write!(output, "/c{}", context.clip.0).unwrap();
+    }
+    if !context.effect.is_none() {
+        write!(output, "/e{}", context.effect.0).unwrap();
     }
 }
 
@@ -665,29 +677,74 @@ mod tests {
 
     #[test]
     fn command_dump_matches_the_canonical_format() {
-        let mut builder = DisplayListBuilder::new();
-        builder.append(
-            &FillRect {
-                rect: IntRect::new(1, 2, 30, 40),
-                color: Color::from_rgba(101, 2, 0, 204),
-                compositing_and_blending_operator: CompositingAndBlendingOperator::Multiply,
-                background_color_animation_frame: FrameNodeIndex::NONE,
-            },
-            &[],
-            ContextRef {
-                spatial: SpatialNodeIndex(3),
-                frame: FrameNodeIndex(4),
-            },
+        use crate::painting::visual_context::{
+            ClipNodeData, ClipNodeIndex, EffectNodeData, EffectNodeIndex, TransformData, TransformDataRole,
+        };
+        let mut tree = VisualContextTree::create(TransformData {
+            matrix: libgfx_rust::FloatMatrix4x4::identity(),
+            origin: libgfx_rust::FloatPoint::default(),
+            sorting_context_root_index: None,
+            flattens_inherited_transform: false,
+            role: TransformDataRole::CssTransform,
+            synthetic_plane: false,
+            establishes_sorting_context: false,
+        });
+        let clip = tree.append_clip(
+            ClipNodeData::rect_clip(libgfx_rust::FloatRect::new(0.0, 0.0, 9.0, 9.0)),
+            ClipNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
         );
-        let bytes = builder.bytes();
-        let header = read_header(bytes);
-        let payload = &bytes[HEADER_SIZE..HEADER_SIZE + header.payload_size as usize];
-        let mut output = format!("{}@", header.command_type.name());
-        write_context(&mut output, header.context);
-        dump_command(&mut output, header.command_type, payload);
+        let effect = tree.append_effect(
+            EffectNodeData::BackgroundColorAnimation,
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
+        );
+        let effect_only = ContextRef {
+            clip: ClipNodeIndex::NONE,
+            effect,
+            ..ContextRef::default()
+        };
+        let clip_and_effect = ContextRef {
+            clip,
+            effect,
+            ..ContextRef::default()
+        };
+        let fill = FillRect {
+            rect: IntRect::new(1, 2, 30, 40),
+            color: Color::from_rgba(101, 2, 0, 204),
+            compositing_and_blending_operator: CompositingAndBlendingOperator::Multiply,
+            background_color_animation_effect: EffectNodeIndex::NONE,
+        };
+        let dump = |context: ContextRef| {
+            let mut builder = DisplayListBuilder::new();
+            builder.append(
+                &fill,
+                &[],
+                ContextRef {
+                    spatial: SpatialNodeIndex(0),
+                    ..context
+                },
+            );
+            let bytes = builder.bytes();
+            let header = read_header(bytes);
+            let payload = &bytes[HEADER_SIZE..HEADER_SIZE + header.payload_size as usize];
+            let mut output = format!("{}@", header.command_type.name());
+            write_context(&mut output, header.context);
+            dump_command(&mut output, header.command_type, payload);
+            output
+        };
         assert_eq!(
-            output,
-            "FillRect@s3/f4 rect=[1,2 30x40] color=rgba(101, 2, 0, 0.8) blend_mode=2"
+            dump(clip_and_effect),
+            "FillRect@s0/c0/e0 rect=[1,2 30x40] color=rgba(101, 2, 0, 0.8) blend_mode=2"
+        );
+        assert_eq!(
+            dump(effect_only),
+            "FillRect@s0/e0 rect=[1,2 30x40] color=rgba(101, 2, 0, 0.8) blend_mode=2"
+        );
+        assert_eq!(
+            dump(ContextRef::default()),
+            "FillRect@s0 rect=[1,2 30x40] color=rgba(101, 2, 0, 0.8) blend_mode=2"
         );
     }
 }

@@ -15,7 +15,9 @@ use crate::painting::node_painting;
 use crate::painting::paintable_geometry::absolute_border_box_rect;
 use crate::painting::record::{NestedRecordingState, PaintPhase, PaintRecorder};
 use crate::painting::visual_context::nested::{NestedAssignments, build_nested_svg_visual_context_tree};
-use crate::painting::visual_context::{FrameData, FrameNodeIndex, MaskLayerOrigin, TransformData, TransformDataRole};
+use crate::painting::visual_context::{
+    EffectNodeData, EffectNodeIndex, MaskLayerOrigin, TransformData, TransformDataRole,
+};
 use libgfx_rust::{AffineTransform, FloatPoint};
 use libgfx_rust::{affine_to_matrix, translated_then_multiplied};
 use std::collections::HashMap;
@@ -117,23 +119,24 @@ impl PaintRecorder<'_> {
             );
             return false;
         };
-        let mut mask_frames: Vec<(FrameNodeIndex, MaskLayerOrigin)> = Vec::new();
+        // One mask effect node per mask layer: the chains a positioned descendant escapes into share it.
+        let mut mask_effects: Vec<(EffectNodeIndex, MaskLayerOrigin)> = Vec::new();
         if let Some(nested) = &self.nested {
-            if let Some(frames) = nested.assignments.mask_frames.get(&paintable.index) {
-                for frame in frames {
+            if let Some(effects) = nested.assignments.mask_effects.get(&paintable.index) {
+                for effect in effects {
                     if let Some(tree) = &self.nested_tree
-                        && let FrameData::Mask(mask) = &tree.frame_nodes[frame.0 as usize].data
+                        && let EffectNodeData::Mask(mask) = &tree.effect_nodes[effect.0 as usize].data
                     {
-                        mask_frames.push((*frame, mask.origin));
+                        mask_effects.push((*effect, mask.origin));
                     }
                 }
             }
         } else if let Some(tree) = self.paint_state.visual_context.tree.as_deref() {
             self.layout_arena
                 .with_paintable_visual_context_node_handles(paintable, |handles| {
-                    for index in handles.frame_handles() {
-                        if let FrameData::Mask(mask) = &tree.frame_nodes[index.0 as usize].data {
-                            mask_frames.push((index, mask.origin));
+                    for index in &handles.effects {
+                        if let EffectNodeData::Mask(mask) = &tree.effect_nodes[index.0 as usize].data {
+                            mask_effects.push((*index, mask.origin));
                         }
                     }
                 });
@@ -151,13 +154,13 @@ impl PaintRecorder<'_> {
             let Some(display_list_id) = layer.display_list_id else {
                 continue;
             };
-            let frames: Vec<FrameNodeIndex> = mask_frames
+            let mut effects = mask_effects
                 .iter()
                 .filter(|(_, origin)| *origin == layer.origin)
-                .map(|(frame, _)| *frame)
-                .collect();
-            assert!(!frames.is_empty(), "a mask display list without a mask node");
-            self.recorder.register_mask_display_list(&frames, display_list_id);
+                .map(|(effect, _)| *effect);
+            let effect = effects.next().expect("a mask display list without a mask node");
+            debug_assert!(effects.next().is_none(), "a mask layer has one mask node");
+            self.recorder.register_mask_display_list(effect, display_list_id);
         }
         any_svg_mask_layer_area_is_empty
     }
@@ -191,7 +194,7 @@ impl PaintRecorder<'_> {
             .as_ref()
             .expect("the nested pre-pass runs with nested assignments")
             .assignments
-            .mask_frames
+            .mask_effects
             .contains_key(&root.index);
         if has_mask_nodes && self.record_mask_entry(root, MaskLayerSet::SvgOnly) {
             return;

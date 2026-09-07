@@ -5,10 +5,10 @@
  */
 
 use super::{
-    AnchorScrollShift, BackfaceVisibilityData, ClipData, ClipMode, ClipPathData, EffectsData, FrameData, FrameNode,
-    FrameNodeIndex, MaskData, MaskLayerOrigin, PerspectiveData, ScrollData, SpatialData, SpatialNode, SpatialNodeIndex,
-    StickyData, TransformData, TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree,
-    scroll_state::NO_SCROLL_STATE_SLOT,
+    AnchorScrollShift, BackfaceVisibilityData, ClipData, ClipMode, ClipNode, ClipNodeData, ClipNodeIndex, ClipPathData,
+    EffectNode, EffectNodeData, EffectNodeIndex, EffectsData, MaskData, MaskLayerOrigin, PerspectiveData, ScrollData,
+    SpatialData, SpatialNode, SpatialNodeIndex, StickyData, TransformData, TransformDataRole,
+    VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree, scroll_state::NO_SCROLL_STATE_SLOT,
 };
 use crate::layout::node_data::NodeSlotId;
 use libgfx_rust::path::OwnedPath;
@@ -19,7 +19,7 @@ use libgfx_rust::{
 use std::rc::Rc;
 
 const SERIALIZED_TREE_MAGIC: u32 = 0x5443_5641;
-const SERIALIZED_TREE_FORMAT: u32 = 1;
+const SERIALIZED_TREE_FORMAT: u32 = 3;
 
 const SPATIAL_KIND_SCROLL: u8 = 0;
 const SPATIAL_KIND_STICKY: u8 = 1;
@@ -29,15 +29,18 @@ const SPATIAL_KIND_BACKFACE_VISIBILITY: u8 = 4;
 const SPATIAL_KIND_ANCHOR_SCROLL_SHIFT: u8 = 5;
 const SPATIAL_KIND_DEAD: u8 = 6;
 
-const FRAME_KIND_CLIP: u8 = 0;
-const FRAME_KIND_CLIP_PATH: u8 = 1;
-const FRAME_KIND_EFFECTS: u8 = 2;
-const FRAME_KIND_MASK: u8 = 3;
-const FRAME_KIND_DEAD: u8 = 4;
-const FRAME_KIND_BACKGROUND_COLOR_ANIMATION: u8 = 5;
+const CLIP_KIND_RECT: u8 = 0;
+const CLIP_KIND_PATH: u8 = 1;
+const CLIP_KIND_DEAD: u8 = 2;
+
+const EFFECT_KIND_EFFECTS: u8 = 0;
+const EFFECT_KIND_MASK: u8 = 1;
+const EFFECT_KIND_BACKGROUND_COLOR_ANIMATION: u8 = 2;
+const EFFECT_KIND_DEAD: u8 = 3;
 
 const MINIMUM_SERIALIZED_SPATIAL_NODE_SIZE: usize = 5;
-const MINIMUM_SERIALIZED_FRAME_NODE_SIZE: usize = 9;
+const MINIMUM_SERIALIZED_CLIP_NODE_SIZE: usize = 9;
+const MINIMUM_SERIALIZED_EFFECT_NODE_SIZE: usize = 13;
 
 #[derive(Default)]
 struct TreeByteWriter {
@@ -74,7 +77,10 @@ impl TreeByteWriter {
         self.bool(index.is_some());
         self.u32(index.map_or(0, |index| index.0));
     }
-    fn frame_index(&mut self, index: FrameNodeIndex) {
+    fn clip_index(&mut self, index: ClipNodeIndex) {
+        self.u32(index.0);
+    }
+    fn effect_index(&mut self, index: EffectNodeIndex) {
         self.u32(index.0);
     }
     fn point(&mut self, point: FloatPoint) {
@@ -176,8 +182,11 @@ impl<'a> TreeByteReader<'a> {
         let index = self.u32()?;
         Some(has_value.then_some(SpatialNodeIndex(index)))
     }
-    fn frame_index(&mut self) -> Option<FrameNodeIndex> {
-        self.u32().map(FrameNodeIndex)
+    fn clip_index(&mut self) -> Option<ClipNodeIndex> {
+        self.u32().map(ClipNodeIndex)
+    }
+    fn effect_index(&mut self) -> Option<EffectNodeIndex> {
+        self.u32().map(EffectNodeIndex)
     }
     fn point(&mut self) -> Option<FloatPoint> {
         Some(FloatPoint {
@@ -370,73 +379,86 @@ fn read_spatial_data(reader: &mut TreeByteReader<'_>) -> Option<SpatialData> {
     })
 }
 
-fn write_frame_data(writer: &mut TreeByteWriter, data: &FrameData) {
+fn write_clip_data(writer: &mut TreeByteWriter, data: &ClipNodeData) {
     match data {
-        FrameData::BackgroundColorAnimation => writer.u8(FRAME_KIND_BACKGROUND_COLOR_ANIMATION),
-        FrameData::Clip(clip) => {
-            writer.u8(FRAME_KIND_CLIP);
+        ClipNodeData::Rect(clip) => {
+            writer.u8(CLIP_KIND_RECT);
             writer.float_rect(clip.rect);
             writer.corner_radii(clip.corner_radii);
             writer.u8(clip.mode as u8);
         }
-        FrameData::ClipPath(clip_path) => {
-            writer.u8(FRAME_KIND_CLIP_PATH);
+        ClipNodeData::Path(clip_path) => {
+            writer.u8(CLIP_KIND_PATH);
             writer.int_rect(clip_path.bounding_rect);
             writer.i32(clip_path.fill_rule as i32);
             writer.length_prefixed_bytes(&clip_path.path.serialize_to_bytes());
         }
-        FrameData::Effects(effects) => {
-            writer.u8(FRAME_KIND_EFFECTS);
-            writer.f32(effects.opacity);
-            writer.i32(effects.blend_mode as i32);
-            writer.bool(effects.filter.is_some());
-            writer.length_prefixed_bytes(effects.filter.as_deref().map_or(&[], Vec::as_slice));
-        }
-        FrameData::Mask(mask) => {
-            writer.u8(FRAME_KIND_MASK);
-            writer.int_rect(mask.rect);
-            writer.i32(mask.kind as i32);
-            writer.u8(mask.origin as u8);
-        }
-        FrameData::Dead => writer.u8(FRAME_KIND_DEAD),
+        ClipNodeData::Dead => writer.u8(CLIP_KIND_DEAD),
     }
 }
 
-fn read_frame_data(reader: &mut TreeByteReader<'_>) -> Option<FrameData> {
+fn read_clip_data(reader: &mut TreeByteReader<'_>) -> Option<ClipNodeData> {
     Some(match reader.u8()? {
-        FRAME_KIND_BACKGROUND_COLOR_ANIMATION => FrameData::BackgroundColorAnimation,
-        FRAME_KIND_CLIP => FrameData::Clip(ClipData {
+        CLIP_KIND_RECT => ClipNodeData::Rect(ClipData {
             rect: reader.float_rect()?,
             corner_radii: reader.corner_radii()?,
             mode: reader.clip_mode()?,
         }),
-        FRAME_KIND_CLIP_PATH => {
+        CLIP_KIND_PATH => {
             let bounding_rect = reader.int_rect()?;
             let fill_rule = reader.winding_rule()?;
             let path = OwnedPath::from_serialized_bytes(reader.length_prefixed_bytes()?);
-            FrameData::ClipPath(ClipPathData {
+            ClipNodeData::Path(ClipPathData {
                 path: Rc::new(path),
                 bounding_rect,
                 fill_rule,
             })
         }
-        FRAME_KIND_EFFECTS => {
+        CLIP_KIND_DEAD => ClipNodeData::Dead,
+        _ => return None,
+    })
+}
+
+fn write_effect_data(writer: &mut TreeByteWriter, data: &EffectNodeData) {
+    match data {
+        EffectNodeData::Effects(effects) => {
+            writer.u8(EFFECT_KIND_EFFECTS);
+            writer.f32(effects.opacity);
+            writer.i32(effects.blend_mode as i32);
+            writer.bool(effects.filter.is_some());
+            writer.length_prefixed_bytes(effects.filter.as_deref().map_or(&[], Vec::as_slice));
+        }
+        EffectNodeData::Mask(mask) => {
+            writer.u8(EFFECT_KIND_MASK);
+            writer.int_rect(mask.rect);
+            writer.i32(mask.kind as i32);
+            writer.u8(mask.origin as u8);
+        }
+        EffectNodeData::BackgroundColorAnimation => writer.u8(EFFECT_KIND_BACKGROUND_COLOR_ANIMATION),
+        EffectNodeData::Dead => writer.u8(EFFECT_KIND_DEAD),
+    }
+}
+
+fn read_effect_data(reader: &mut TreeByteReader<'_>) -> Option<EffectNodeData> {
+    Some(match reader.u8()? {
+        EFFECT_KIND_EFFECTS => {
             let opacity = reader.f32()?;
             let blend_mode = reader.compositing_and_blending_operator()?;
             let has_filter = reader.bool()?;
             let filter_bytes = reader.length_prefixed_bytes()?;
-            FrameData::Effects(EffectsData {
+            EffectNodeData::Effects(EffectsData {
                 opacity,
                 blend_mode,
                 filter: has_filter.then(|| Rc::new(filter_bytes.to_vec())),
             })
         }
-        FRAME_KIND_MASK => FrameData::Mask(MaskData {
+        EFFECT_KIND_MASK => EffectNodeData::Mask(MaskData {
             rect: reader.int_rect()?,
             kind: reader.mask_kind()?,
             origin: reader.mask_layer_origin()?,
         }),
-        FRAME_KIND_DEAD => FrameData::Dead,
+        EFFECT_KIND_BACKGROUND_COLOR_ANIMATION => EffectNodeData::BackgroundColorAnimation,
+        EFFECT_KIND_DEAD => EffectNodeData::Dead,
         _ => return None,
     })
 }
@@ -452,7 +474,7 @@ fn spatial_node_has_ancestor(nodes: &[SpatialNode], mut node: usize, ancestor: S
 }
 
 impl VisualContextTree {
-    pub(super) fn node_references_are_consistent(&self) -> bool {
+    pub(crate) fn node_references_are_consistent(&self) -> bool {
         let spatial_nodes = &self.spatial_nodes;
         let root = &spatial_nodes[VISUAL_VIEWPORT_NODE_INDEX.0 as usize];
         if root.parent != VISUAL_VIEWPORT_NODE_INDEX || !matches!(root.data, SpatialData::Transform(_)) {
@@ -486,20 +508,59 @@ impl VisualContextTree {
                 _ => {}
             }
         }
-        for node in &self.frame_nodes {
-            let spatial_is_out_of_range = node.spatial.0 as usize >= spatial_nodes.len();
-            let live_frame_in_a_tombstone = node.data.is_live() && !self.spatial_is_live(node.spatial);
-            if spatial_is_out_of_range || live_frame_in_a_tombstone {
+        // A node's spatial node is in range, and live where the node is live.
+        let spatial_reference_is_consistent = |spatial: SpatialNodeIndex, is_live: bool| {
+            (spatial.0 as usize) < spatial_nodes.len() && (!is_live || self.spatial_is_live(spatial))
+        };
+        if !self
+            .clip_nodes
+            .iter()
+            .all(|node| spatial_reference_is_consistent(node.spatial, node.data.is_live()))
+        {
+            return false;
+        }
+        let clip_order = self.clip_dependency_order_with_back_edges();
+        if !clip_order.back_edges.is_empty() || !clip_order.dangling_references.is_empty() {
+            return false;
+        }
+        for node in &self.effect_nodes {
+            if !spatial_reference_is_consistent(node.spatial, node.data.is_live()) {
+                return false;
+            }
+            if node.data.is_live()
+                && node
+                    .resolved_output_clip
+                    .is_none_or(|clip| !self.clip_is_none_or_live(clip))
+            {
                 return false;
             }
         }
-        let frame_order = self.frame_dependency_order_with_back_edges();
-        if !frame_order.back_edges.is_empty() || !frame_order.dangling_references.is_empty() {
+        let effect_order = self.effect_dependency_order_with_back_edges();
+        if !effect_order.back_edges.is_empty() || !effect_order.dangling_references.is_empty() {
             return false;
         }
-        if let Some(root_isolation_frame) = self.root_isolation_frame {
-            let index = root_isolation_frame.0 as usize;
-            if index >= self.frame_nodes.len() || !matches!(self.frame_nodes[index].data, FrameData::Effects(_)) {
+        // Replay pushes each effect's layer inside its output clip and the remaining clips inside
+        // the layer, which needs the output clips nested along the effect chain. Display-list
+        // contexts are validated against these clips separately. The clip tree has
+        // just been checked for cycles.
+        for node in &self.effect_nodes {
+            if !node.data.is_live() || node.parent.is_none() {
+                continue;
+            }
+            let parent_output_clip = self.effect_nodes[node.parent.0 as usize].output_clip();
+            if !self.clip_is_ancestor_or_self(parent_output_clip, node.output_clip()) {
+                return false;
+            }
+        }
+        // Plane clips are pushed immediately above this root isolation layer.
+        if let Some(effect) = self.root_isolation_effect {
+            let Some(node) = self.effect_nodes.get(effect.0 as usize) else {
+                return false;
+            };
+            if !matches!(node.data, EffectNodeData::Effects(_))
+                || !node.parent.is_none()
+                || !node.output_clip().is_none()
+            {
                 return false;
             }
         }
@@ -514,17 +575,24 @@ impl VisualContextTree {
         writer.u32(SERIALIZED_TREE_FORMAT);
         writer.u64(self.structural_epoch);
         writer.bool(self.root_is_visual_viewport);
-        writer.frame_index(self.root_isolation_frame.unwrap_or(FrameNodeIndex::NONE));
+        writer.effect_index(self.root_isolation_effect.unwrap_or(EffectNodeIndex::NONE));
         writer.u32(self.spatial_nodes.len() as u32);
-        writer.u32(self.frame_nodes.len() as u32);
+        writer.u32(self.clip_nodes.len() as u32);
+        writer.u32(self.effect_nodes.len() as u32);
         for node in &self.spatial_nodes {
             writer.spatial_index(node.parent);
             write_spatial_data(&mut writer, &node.data);
         }
-        for node in &self.frame_nodes {
-            writer.frame_index(node.parent);
+        for node in &self.clip_nodes {
+            writer.clip_index(node.parent);
             writer.spatial_index(node.spatial);
-            write_frame_data(&mut writer, &node.data);
+            write_clip_data(&mut writer, &node.data);
+        }
+        for node in &self.effect_nodes {
+            writer.effect_index(node.parent);
+            writer.spatial_index(node.spatial);
+            writer.clip_index(node.output_clip());
+            write_effect_data(&mut writer, &node.data);
         }
         writer.bytes
     }
@@ -536,12 +604,14 @@ impl VisualContextTree {
         }
         let structural_epoch = reader.u64()?;
         let root_is_visual_viewport = reader.bool()?;
-        let root_isolation_frame = reader.frame_index()?;
+        let root_isolation_effect = reader.effect_index()?;
         let spatial_count = reader.u32()? as usize;
-        let frame_count = reader.u32()? as usize;
+        let clip_count = reader.u32()? as usize;
+        let effect_count = reader.u32()? as usize;
         if spatial_count == 0
             || spatial_count > reader.remaining() / MINIMUM_SERIALIZED_SPATIAL_NODE_SIZE
-            || frame_count > reader.remaining() / MINIMUM_SERIALIZED_FRAME_NODE_SIZE
+            || clip_count > reader.remaining() / MINIMUM_SERIALIZED_CLIP_NODE_SIZE
+            || effect_count > reader.remaining() / MINIMUM_SERIALIZED_EFFECT_NODE_SIZE
         {
             return None;
         }
@@ -553,34 +623,40 @@ impl VisualContextTree {
             spatial_nodes.push(SpatialNode { data, parent });
         }
 
-        let mut frame_nodes = Vec::with_capacity(frame_count);
-        for _ in 0..frame_count {
-            let parent = reader.frame_index()?;
+        let mut clip_nodes = Vec::with_capacity(clip_count);
+        for _ in 0..clip_count {
+            let parent = reader.clip_index()?;
             let spatial = reader.spatial_index()?;
-            let data = read_frame_data(&mut reader)?;
-            frame_nodes.push(FrameNode::new(data, parent, spatial));
+            let data = read_clip_data(&mut reader)?;
+            clip_nodes.push(ClipNode::new(data, parent, spatial));
+        }
+
+        let mut effect_nodes = Vec::with_capacity(effect_count);
+        for _ in 0..effect_count {
+            let parent = reader.effect_index()?;
+            let spatial = reader.spatial_index()?;
+            let output_clip = reader.clip_index()?;
+            let data = read_effect_data(&mut reader)?;
+            effect_nodes.push(EffectNode {
+                data,
+                parent,
+                spatial,
+                resolved_output_clip: Some(output_clip),
+            });
         }
 
         if reader.remaining() != 0 {
             return None;
         }
 
-        let live_spatial_node_count = spatial_nodes.iter().filter(|node| node.data.is_live()).count() as u32;
-        let live_frame_node_count = frame_nodes.iter().filter(|node| node.data.is_live()).count() as u32;
-        let tree = Self {
+        let tree = Self::from_nodes(
             spatial_nodes,
-            frame_nodes,
+            clip_nodes,
+            effect_nodes,
             root_is_visual_viewport,
-            root_isolation_frame: (!root_isolation_frame.is_none()).then_some(root_isolation_frame),
+            (!root_isolation_effect.is_none()).then_some(root_isolation_effect),
             structural_epoch,
-            live_spatial_node_count,
-            live_frame_node_count,
-            free_spatial_slots: Vec::new(),
-            free_frame_slots: Vec::new(),
-            quarantined_spatial_slots: Vec::new(),
-            quarantined_frame_slots: Vec::new(),
-            sampled_background_colors: std::collections::HashMap::new(),
-        };
+        );
         tree.node_references_are_consistent().then_some(tree)
     }
 }
@@ -698,8 +774,8 @@ mod tests {
             scroll_node,
         );
 
-        let clip = tree.append_frame(
-            FrameData::Clip(ClipData {
+        let clip = tree.append_clip(
+            ClipNodeData::Rect(ClipData {
                 rect: FloatRect::new(0.5, 1.0, 20.0, 30.0),
                 corner_radii: CornerRadii {
                     top_left: CornerRadius {
@@ -721,46 +797,50 @@ mod tests {
                 },
                 mode: ClipMode::Difference,
             }),
-            FrameNodeIndex::NONE,
+            ClipNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
         );
-        let effects = tree.append_frame(
-            FrameData::Effects(EffectsData {
-                opacity: 0.25,
-                blend_mode: CompositingAndBlendingOperator::PlusLighter,
-                filter: Some(Rc::new(vec![1, 2, 3, 4])),
+        let clip_path = tree.append_clip(
+            ClipNodeData::Path(ClipPathData {
+                path: Rc::new(OwnedPath::from_serialized_bytes(&[])),
+                bounding_rect: IntRect::new(5, 6, 7, 8),
+                fill_rule: WindingRule::EvenOdd,
             }),
             clip,
             scroll_node,
         );
-        tree.append_frame(
-            FrameData::Effects(EffectsData {
+        let root_effect = tree.append_effect(
+            EffectNodeData::Effects(EffectsData {
                 opacity: 1.0,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
             }),
-            effects,
-            scroll_node,
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
         );
-        tree.append_frame(
-            FrameData::Mask(MaskData {
+        let effects = tree.append_effect(
+            EffectNodeData::Effects(EffectsData {
+                opacity: 0.25,
+                blend_mode: CompositingAndBlendingOperator::PlusLighter,
+                filter: Some(Rc::new(vec![1, 2, 3, 4])),
+            }),
+            root_effect,
+            scroll_node,
+            clip,
+        );
+        let mask = tree.append_effect(
+            EffectNodeData::Mask(MaskData {
                 rect: IntRect::new(1, 2, 3, 4),
                 kind: MaskKind::Luminance,
                 origin: MaskLayerOrigin::SvgClip,
             }),
             effects,
             sorting_root,
+            clip_path,
         );
-        tree.append_frame(
-            FrameData::ClipPath(ClipPathData {
-                path: Rc::new(OwnedPath::from_serialized_bytes(&[])),
-                bounding_rect: IntRect::new(5, 6, 7, 8),
-                fill_rule: WindingRule::EvenOdd,
-            }),
-            FrameNodeIndex::NONE,
-            scroll_node,
-        );
-        tree.root_isolation_frame = Some(effects);
+        tree.append_effect(EffectNodeData::BackgroundColorAnimation, mask, sorting_root, clip_path);
+        tree.root_isolation_effect = Some(root_effect);
         tree
     }
 
@@ -784,18 +864,25 @@ mod tests {
         }
     }
 
-    fn frame_data_matches(a: &FrameData, b: &FrameData) -> bool {
+    fn clip_data_matches(a: &ClipNodeData, b: &ClipNodeData) -> bool {
         match (a, b) {
-            (FrameData::BackgroundColorAnimation, FrameData::BackgroundColorAnimation) => true,
-            (FrameData::Clip(a), FrameData::Clip(b)) => a == b,
-            (FrameData::ClipPath(a), FrameData::ClipPath(b)) => {
+            (ClipNodeData::Rect(a), ClipNodeData::Rect(b)) => a == b,
+            (ClipNodeData::Path(a), ClipNodeData::Path(b)) => {
                 a.bounding_rect == b.bounding_rect && a.fill_rule == b.fill_rule
             }
-            (FrameData::Effects(a), FrameData::Effects(b)) => {
+            (ClipNodeData::Dead, ClipNodeData::Dead) => true,
+            _ => false,
+        }
+    }
+
+    fn effect_data_matches(a: &EffectNodeData, b: &EffectNodeData) -> bool {
+        match (a, b) {
+            (EffectNodeData::Effects(a), EffectNodeData::Effects(b)) => {
                 a.opacity == b.opacity && a.blend_mode == b.blend_mode && a.filter == b.filter
             }
-            (FrameData::Mask(a), FrameData::Mask(b)) => a == b,
-            (FrameData::Dead, FrameData::Dead) => true,
+            (EffectNodeData::Mask(a), EffectNodeData::Mask(b)) => a == b,
+            (EffectNodeData::BackgroundColorAnimation, EffectNodeData::BackgroundColorAnimation) => true,
+            (EffectNodeData::Dead, EffectNodeData::Dead) => true,
             _ => false,
         }
     }
@@ -803,19 +890,28 @@ mod tests {
     fn assert_trees_match(a: &VisualContextTree, b: &VisualContextTree) {
         assert_eq!(a.structural_epoch, b.structural_epoch);
         assert_eq!(a.root_is_visual_viewport, b.root_is_visual_viewport);
-        assert_eq!(a.root_isolation_frame, b.root_isolation_frame);
+        assert_eq!(a.root_isolation_effect, b.root_isolation_effect);
         assert_eq!(a.spatial_nodes.len(), b.spatial_nodes.len());
-        assert_eq!(a.frame_nodes.len(), b.frame_nodes.len());
-        assert_eq!(a.live_spatial_node_count, b.live_spatial_node_count);
-        assert_eq!(a.live_frame_node_count, b.live_frame_node_count);
+        assert_eq!(a.clip_nodes.len(), b.clip_nodes.len());
+        assert_eq!(a.effect_nodes.len(), b.effect_nodes.len());
+        assert_eq!(a.live_spatial_node_count(), b.live_spatial_node_count());
+        assert_eq!(a.live_clip_node_count(), b.live_clip_node_count());
+        assert_eq!(a.live_effect_node_count(), b.live_effect_node_count());
         for (node, other) in a.spatial_nodes.iter().zip(&b.spatial_nodes) {
             assert_eq!(node.parent, other.parent);
             assert!(spatial_data_matches(&node.data, &other.data));
         }
-        for (node, other) in a.frame_nodes.iter().zip(&b.frame_nodes) {
+        for (node, other) in a.clip_nodes.iter().zip(&b.clip_nodes) {
             assert_eq!(node.parent, other.parent);
             assert_eq!(node.spatial, other.spatial);
-            assert!(frame_data_matches(&node.data, &other.data));
+            assert_eq!(node.clips_everything, other.clips_everything);
+            assert!(clip_data_matches(&node.data, &other.data));
+        }
+        for (node, other) in a.effect_nodes.iter().zip(&b.effect_nodes) {
+            assert_eq!(node.parent, other.parent);
+            assert_eq!(node.spatial, other.spatial);
+            assert_eq!(node.output_clip(), other.output_clip());
+            assert!(effect_data_matches(&node.data, &other.data));
         }
     }
 
@@ -836,23 +932,31 @@ mod tests {
             SpatialData::Transform(transform(FloatMatrix4x4::identity())),
             scroll_node,
         );
-        let stale_frame = tree.append_frame(
-            FrameData::Effects(EffectsData {
+        let stale_effect = tree.append_effect(
+            EffectNodeData::Effects(EffectsData {
                 opacity: 0.5,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
             }),
-            FrameNodeIndex::NONE,
+            EffectNodeIndex::NONE,
+            scroll_node,
+            ClipNodeIndex::NONE,
+        );
+        let stale_clip = tree.append_clip(
+            ClipNodeData::rect_clip(FloatRect::new(0.0, 0.0, 1.0, 1.0)),
+            ClipNodeIndex::NONE,
             scroll_node,
         );
         assert!(tree.tombstone_spatial_slot(stale_transform));
-        assert!(tree.tombstone_frame_slot(stale_frame));
+        assert!(tree.tombstone_effect_slot(stale_effect));
+        assert!(tree.tombstone_clip_slot(stale_clip));
         let bytes = tree.to_bytes();
         let decoded = VisualContextTree::from_bytes(&bytes).expect("a serialized tree decodes");
         assert_trees_match(&tree, &decoded);
         assert!(!decoded.spatial_is_live(stale_transform));
-        assert!(!decoded.frame_is_live(stale_frame));
-        assert_eq!(decoded.dead_node_count(), 2);
+        assert!(!decoded.clip_is_live(stale_clip));
+        assert!(!decoded.effect_is_live(stale_effect));
+        assert_eq!(decoded.dead_node_count(), 3);
         assert_eq!(decoded.to_bytes(), bytes);
     }
 
@@ -919,35 +1023,76 @@ mod tests {
         assert!(VisualContextTree::from_bytes(&encode_tree(&child_under_tombstone)).is_none());
 
         let effects = || {
-            FrameData::Effects(EffectsData {
+            EffectNodeData::Effects(EffectsData {
                 opacity: 1.0,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
             })
         };
-        let mut frame_under_tombstone = VisualContextTree::create(transform(FloatMatrix4x4::identity()));
-        let parent_frame =
-            frame_under_tombstone.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
-        frame_under_tombstone.append_frame(effects(), parent_frame, VISUAL_VIEWPORT_NODE_INDEX);
-        assert!(frame_under_tombstone.tombstone_frame_slot(parent_frame));
-        assert!(!frame_under_tombstone.node_references_are_consistent());
-        assert!(VisualContextTree::from_bytes(&encode_tree(&frame_under_tombstone)).is_none());
+        let rect = || ClipNodeData::rect_clip(FloatRect::new(0.0, 0.0, 1.0, 1.0));
+        let fresh = || VisualContextTree::create(transform(FloatMatrix4x4::identity()));
+        let rejected = |tree: &VisualContextTree| {
+            assert!(!tree.node_references_are_consistent());
+            assert!(VisualContextTree::from_bytes(&encode_tree(tree)).is_none());
+        };
 
-        let mut frame_in_tombstone = VisualContextTree::create(transform(FloatMatrix4x4::identity()));
-        let spatial = frame_in_tombstone.append_spatial(
+        let mut effect_under_tombstone = fresh();
+        let parent_effect = effect_under_tombstone.append_effect(
+            effects(),
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
+        );
+        effect_under_tombstone.append_effect(
+            effects(),
+            parent_effect,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
+        );
+        assert!(effect_under_tombstone.tombstone_effect_slot(parent_effect));
+        rejected(&effect_under_tombstone);
+
+        let mut clip_under_tombstone = fresh();
+        let parent_clip = clip_under_tombstone.append_clip(rect(), ClipNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        clip_under_tombstone.append_clip(rect(), parent_clip, VISUAL_VIEWPORT_NODE_INDEX);
+        assert!(clip_under_tombstone.tombstone_clip_slot(parent_clip));
+        rejected(&clip_under_tombstone);
+
+        let mut nodes_in_tombstone = fresh();
+        let spatial = nodes_in_tombstone.append_spatial(
             SpatialData::Transform(transform(FloatMatrix4x4::identity())),
             VISUAL_VIEWPORT_NODE_INDEX,
         );
-        frame_in_tombstone.append_frame(effects(), FrameNodeIndex::NONE, spatial);
-        assert!(frame_in_tombstone.tombstone_spatial_slot(spatial));
-        assert!(VisualContextTree::from_bytes(&encode_tree(&frame_in_tombstone)).is_none());
+        let mut clip_in_tombstone = nodes_in_tombstone.clone();
+        clip_in_tombstone.append_clip(rect(), ClipNodeIndex::NONE, spatial);
+        assert!(clip_in_tombstone.tombstone_spatial_slot(spatial));
+        rejected(&clip_in_tombstone);
+        nodes_in_tombstone.append_effect(effects(), EffectNodeIndex::NONE, spatial, ClipNodeIndex::NONE);
+        assert!(nodes_in_tombstone.tombstone_spatial_slot(spatial));
+        rejected(&nodes_in_tombstone);
 
-        let mut tombstoned_isolation_frame = VisualContextTree::create(transform(FloatMatrix4x4::identity()));
-        let isolation_frame =
-            tombstoned_isolation_frame.append_frame(effects(), FrameNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
-        assert!(tombstoned_isolation_frame.tombstone_frame_slot(isolation_frame));
-        tombstoned_isolation_frame.root_isolation_frame = Some(isolation_frame);
-        assert!(VisualContextTree::from_bytes(&encode_tree(&tombstoned_isolation_frame)).is_none());
+        let mut effect_under_tombstoned_output_clip = fresh();
+        let output_clip =
+            effect_under_tombstoned_output_clip.append_clip(rect(), ClipNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        effect_under_tombstoned_output_clip.append_effect(
+            effects(),
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            output_clip,
+        );
+        assert!(effect_under_tombstoned_output_clip.tombstone_clip_slot(output_clip));
+        rejected(&effect_under_tombstoned_output_clip);
+
+        let mut tombstoned_isolation_effect = fresh();
+        let isolation_effect = tombstoned_isolation_effect.append_effect(
+            effects(),
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
+        );
+        assert!(tombstoned_isolation_effect.tombstone_effect_slot(isolation_effect));
+        tombstoned_isolation_effect.root_isolation_effect = Some(isolation_effect);
+        rejected(&tombstoned_isolation_effect);
     }
 
     #[test]
@@ -1011,23 +1156,41 @@ mod tests {
             )),
             SpatialNodeIndex(1),
         );
-        tree.append_frame(
-            FrameData::Effects(EffectsData {
-                opacity: 1.0,
-                blend_mode: CompositingAndBlendingOperator::Normal,
-                filter: None,
-            }),
-            FrameNodeIndex::NONE,
+        // Clips: c0 at the root, c1 under it in s2. Effects: e0 at the root under no clip, e1 under
+        // e0 with output clip c0.
+        tree.append_clip(
+            ClipNodeData::rect_clip(FloatRect::new(0.0, 0.0, 10.0, 10.0)),
+            ClipNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
         );
-        tree.append_frame(
-            FrameData::Clip(ClipData {
+        tree.append_clip(
+            ClipNodeData::Rect(ClipData {
                 rect: FloatRect::default(),
                 corner_radii: CornerRadii::default(),
                 mode: ClipMode::Intersect,
             }),
-            FrameNodeIndex(0),
+            ClipNodeIndex(0),
             SpatialNodeIndex(2),
+        );
+        tree.append_effect(
+            EffectNodeData::Effects(EffectsData {
+                opacity: 1.0,
+                blend_mode: CompositingAndBlendingOperator::Normal,
+                filter: None,
+            }),
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
+        );
+        tree.append_effect(
+            EffectNodeData::Effects(EffectsData {
+                opacity: 0.5,
+                blend_mode: CompositingAndBlendingOperator::Normal,
+                filter: None,
+            }),
+            EffectNodeIndex(0),
+            SpatialNodeIndex(2),
+            ClipNodeIndex(0),
         );
         tree
     }
@@ -1040,12 +1203,17 @@ mod tests {
             data: SpatialData::Transform(transform(translation_matrix(5.0, 5.0, 0.0))),
             parent: VISUAL_VIEWPORT_NODE_INDEX,
         };
-        child_stored_below_its_parent.frame_nodes[0].parent = FrameNodeIndex(1);
-        child_stored_below_its_parent.frame_nodes[1].parent = FrameNodeIndex::NONE;
+        child_stored_below_its_parent.clip_nodes[0].parent = ClipNodeIndex(1);
+        child_stored_below_its_parent.clip_nodes[1].parent = ClipNodeIndex::NONE;
+        child_stored_below_its_parent.effect_nodes[0].parent = EffectNodeIndex(1);
+        child_stored_below_its_parent.effect_nodes[1].parent = EffectNodeIndex::NONE;
+        child_stored_below_its_parent.effect_nodes[1].resolved_output_clip = Some(ClipNodeIndex::NONE);
+        child_stored_below_its_parent.effect_nodes[0].resolved_output_clip = Some(ClipNodeIndex(1));
         let decoded = VisualContextTree::from_bytes(&encode_tree(&child_stored_below_its_parent))
             .expect("acyclic forward references decode");
         assert_eq!(decoded.spatial_dependency_order(), vec![0, 2, 1]);
-        assert_eq!(decoded.frame_dependency_order(), vec![1, 0]);
+        assert_eq!(decoded.clip_dependency_order(), vec![1, 0]);
+        assert_eq!(decoded.effect_dependency_order(), vec![1, 0]);
         assert_eq!(
             decoded.transform_rect_to_viewport(
                 SpatialNodeIndex(1),
@@ -1170,52 +1338,101 @@ mod tests {
     }
 
     #[test]
-    fn frame_reference_cycles_and_ranges_are_rejected() {
-        let mut frame_parent_cycle = hostile_tree();
-        frame_parent_cycle.frame_nodes[0].parent = FrameNodeIndex(1);
-        assert!(VisualContextTree::from_bytes(&encode_tree(&frame_parent_cycle)).is_none());
+    fn clip_and_effect_reference_cycles_and_ranges_are_rejected() {
+        let rejected = |tree: &VisualContextTree| assert!(VisualContextTree::from_bytes(&encode_tree(tree)).is_none());
 
-        let mut frame_parent_out_of_range = hostile_tree();
-        frame_parent_out_of_range.frame_nodes[1].parent = FrameNodeIndex(4);
-        assert!(VisualContextTree::from_bytes(&encode_tree(&frame_parent_out_of_range)).is_none());
+        let mut clip_parent_cycle = hostile_tree();
+        clip_parent_cycle.clip_nodes[0].parent = ClipNodeIndex(1);
+        rejected(&clip_parent_cycle);
 
-        let mut frame_spatial_out_of_range = hostile_tree();
-        frame_spatial_out_of_range.frame_nodes[1].spatial = SpatialNodeIndex(3);
-        assert!(VisualContextTree::from_bytes(&encode_tree(&frame_spatial_out_of_range)).is_none());
+        let mut clip_parent_out_of_range = hostile_tree();
+        clip_parent_out_of_range.clip_nodes[1].parent = ClipNodeIndex(4);
+        rejected(&clip_parent_out_of_range);
 
-        let mut isolation_frame_out_of_range = hostile_tree();
-        isolation_frame_out_of_range.root_isolation_frame = Some(FrameNodeIndex(2));
-        assert!(VisualContextTree::from_bytes(&encode_tree(&isolation_frame_out_of_range)).is_none());
+        let mut clip_spatial_out_of_range = hostile_tree();
+        clip_spatial_out_of_range.clip_nodes[1].spatial = SpatialNodeIndex(3);
+        rejected(&clip_spatial_out_of_range);
 
-        let mut isolation_frame_is_a_clip = hostile_tree();
-        isolation_frame_is_a_clip.root_isolation_frame = Some(FrameNodeIndex(1));
-        assert!(VisualContextTree::from_bytes(&encode_tree(&isolation_frame_is_a_clip)).is_none());
+        let mut effect_parent_cycle = hostile_tree();
+        effect_parent_cycle.effect_nodes[0].parent = EffectNodeIndex(1);
+        rejected(&effect_parent_cycle);
 
-        let mut isolation_frame_is_effects = hostile_tree();
-        isolation_frame_is_effects.root_isolation_frame = Some(FrameNodeIndex(0));
-        assert!(VisualContextTree::from_bytes(&encode_tree(&isolation_frame_is_effects)).is_some());
+        let mut effect_parent_out_of_range = hostile_tree();
+        effect_parent_out_of_range.effect_nodes[1].parent = EffectNodeIndex(4);
+        rejected(&effect_parent_out_of_range);
+
+        let mut effect_spatial_out_of_range = hostile_tree();
+        effect_spatial_out_of_range.effect_nodes[1].spatial = SpatialNodeIndex(3);
+        rejected(&effect_spatial_out_of_range);
+
+        let mut output_clip_out_of_range = hostile_tree();
+        output_clip_out_of_range.effect_nodes[1].resolved_output_clip = Some(ClipNodeIndex(9));
+        rejected(&output_clip_out_of_range);
+
+        // e0's output clip moves below e1's.
+        let mut output_clip_outside_the_parents = hostile_tree();
+        output_clip_outside_the_parents.effect_nodes[0].resolved_output_clip = Some(ClipNodeIndex(1));
+        rejected(&output_clip_outside_the_parents);
+
+        let mut isolation_effect_out_of_range = hostile_tree();
+        isolation_effect_out_of_range.root_isolation_effect = Some(EffectNodeIndex(2));
+        rejected(&isolation_effect_out_of_range);
+
+        let mut isolation_effect_is_a_mask = hostile_tree();
+        isolation_effect_is_a_mask.effect_nodes[0].data = EffectNodeData::Mask(MaskData {
+            rect: IntRect::new(0, 0, 1, 1),
+            kind: MaskKind::Alpha,
+            origin: MaskLayerOrigin::CssMaskLayers,
+        });
+        isolation_effect_is_a_mask.root_isolation_effect = Some(EffectNodeIndex(0));
+        rejected(&isolation_effect_is_a_mask);
+
+        // The isolation layer must be a root effect.
+        let mut isolation_effect_has_a_parent = hostile_tree();
+        isolation_effect_has_a_parent.root_isolation_effect = Some(EffectNodeIndex(1));
+        rejected(&isolation_effect_has_a_parent);
+
+        let mut isolation_effect_at_the_root = hostile_tree();
+        isolation_effect_at_the_root.root_isolation_effect = Some(EffectNodeIndex(0));
+        assert!(VisualContextTree::from_bytes(&encode_tree(&isolation_effect_at_the_root)).is_some());
     }
 
     #[test]
     fn out_of_range_discriminants_and_absurd_counts_are_rejected() {
         let tree = hostile_tree();
         let bytes = tree.to_bytes();
-        let header_size = 4 + 4 + 8 + 1 + 4 + 4 + 4;
+        let header_size = 4 + 4 + 8 + 1 + 4 + 4 + 4 + 4;
         let root_spatial_kind_offset = header_size + 4;
         let mut bad_spatial_kind = bytes.clone();
         bad_spatial_kind[root_spatial_kind_offset] = 200;
         assert!(VisualContextTree::from_bytes(&bad_spatial_kind).is_none());
 
         let mut bad_bool = bytes.clone();
-        bad_bool[header_size - 4 - 4 - 4] = 2;
+        bad_bool[4 + 4 + 8] = 2;
         assert!(VisualContextTree::from_bytes(&bad_bool).is_none());
 
-        let mut absurd_spatial_count = bytes.clone();
-        absurd_spatial_count[header_size - 8..header_size - 4].copy_from_slice(&u32::MAX.to_ne_bytes());
-        assert!(VisualContextTree::from_bytes(&absurd_spatial_count).is_none());
+        let count_offset = |slot: usize| header_size - 12 + slot * 4;
+        for slot in 0..3 {
+            let mut absurd_count = bytes.clone();
+            absurd_count[count_offset(slot)..count_offset(slot) + 4].copy_from_slice(&u32::MAX.to_ne_bytes());
+            assert!(
+                VisualContextTree::from_bytes(&absurd_count).is_none(),
+                "an absurd count in slot {slot} decoded"
+            );
+        }
 
-        let mut absurd_frame_count = bytes;
-        absurd_frame_count[header_size - 4..header_size].copy_from_slice(&u32::MAX.to_ne_bytes());
-        assert!(VisualContextTree::from_bytes(&absurd_frame_count).is_none());
+        // The first clip node starts right after the spatial nodes; its kind byte follows its
+        // parent and spatial indices.
+        let spatial_nodes_size = {
+            let mut probe = tree.clone();
+            probe.clip_nodes.clear();
+            probe.effect_nodes.clear();
+            probe.root_isolation_effect = None;
+            probe.to_bytes().len() - header_size
+        };
+        let first_clip_kind_offset = header_size + spatial_nodes_size + 4 + 4;
+        let mut bad_clip_kind = bytes.clone();
+        bad_clip_kind[first_clip_kind_offset] = 200;
+        assert!(VisualContextTree::from_bytes(&bad_clip_kind).is_none());
     }
 }
