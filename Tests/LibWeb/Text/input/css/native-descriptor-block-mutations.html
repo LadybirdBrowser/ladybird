@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const sheet = new CSSStyleSheet();
+        sheet.replaceSync("@page { margin-top: 1px; margin-left: 2px; } @font-face { font-family: Example; src: local(Example); }");
+        const page = sheet.cssRules[0].style;
+        const names = style => Array.from({ length: style.length }, (_, index) => style.item(index)).join(", ");
+        page.setProperty("margin-top", "3px");
+        println(`updated order: ${names(page)}`);
+        page.removeProperty("margin-top");
+        page.setProperty("margin-top", "4px");
+        println(`reinserted order: ${names(page)}`);
+        page.setProperty("margin", "5px 6px 7px 8px");
+        println(`expanded: ${page.marginTop}, ${page.marginRight}, ${page.marginBottom}, ${page.marginLeft}`);
+        page.removeProperty("margin");
+        println(`removed shorthand: ${page.length}`);
+        page.cssText = "margin-left: 9px";
+        println(`replaced: ${page.cssText}, ${sheet.cssRules[0].style === page}`);
+
+        const font = sheet.cssRules[1].style;
+        font.setProperty("font-family", "Changed");
+        println(`font order: ${names(font)}`);
+        println(`font family: ${font.getPropertyValue("font-family")}`);
+        font.cssText = "font-family: Final; src: local(Final)";
+        println(`font replacement: ${font.getPropertyValue("font-family")}, ${font.length}`);
+    });
+</script>

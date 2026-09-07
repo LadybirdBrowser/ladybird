@@ -19,7 +19,7 @@ class CSSFontFaceDescriptors final
     GC_DECLARE_ALLOCATOR(CSSFontFaceDescriptors);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSFontFaceDescriptors> create(Vector<Descriptor>);
+    [[nodiscard]] static GC::Ref<CSSFontFaceDescriptors> create(RustDescriptorBlock);
 
     virtual ~CSSFontFaceDescriptors() override;
 
@@ -68,7 +68,7 @@ public:
     Utf16String unicode_range() const;
 
 private:
-    explicit CSSFontFaceDescriptors(Vector<Descriptor>);
+    explicit CSSFontFaceDescriptors(RustDescriptorBlock);
 };
 
 }

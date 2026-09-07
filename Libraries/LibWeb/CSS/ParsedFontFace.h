@@ -26,7 +26,7 @@ public:
     };
 
     static Vector<Source> sources_from_style_value(StyleValue const&);
-    static ParsedFontFace from_descriptors(CSSFontFaceDescriptors const&);
+    static ParsedFontFace from_descriptors(CSSFontFaceRule&);
 
     ParsedFontFace(GC::Ref<CSSRule> parent_rule, Utf16FlyString font_family, Optional<FontWeightRange> weight, Optional<int> slope, Optional<int> width, Vector<Source> sources, Vector<Gfx::UnicodeRange> unicode_ranges, Optional<Percentage> ascent_override, Optional<Percentage> descent_override, Optional<Percentage> line_gap_override, FontDisplay font_display, Optional<Utf16FlyString> font_named_instance, Optional<Utf16FlyString> font_language_override, Optional<OrderedHashMap<Utf16FlyString, i32>> font_feature_settings, Optional<OrderedHashMap<Utf16FlyString, double>> font_variation_settings);
     ~ParsedFontFace() = default;

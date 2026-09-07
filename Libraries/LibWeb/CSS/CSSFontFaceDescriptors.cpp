@@ -13,12 +13,12 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSFontFaceDescriptors);
 
-GC::Ref<CSSFontFaceDescriptors> CSSFontFaceDescriptors::create(Vector<Descriptor> descriptors)
+GC::Ref<CSSFontFaceDescriptors> CSSFontFaceDescriptors::create(RustDescriptorBlock descriptors)
 {
     return GC::Heap::the().allocate<CSSFontFaceDescriptors>(move(descriptors));
 }
 
-CSSFontFaceDescriptors::CSSFontFaceDescriptors(Vector<Descriptor> descriptors)
+CSSFontFaceDescriptors::CSSFontFaceDescriptors(RustDescriptorBlock descriptors)
     : CSSDescriptors(AtRuleID::FontFace, move(descriptors))
 {
 }

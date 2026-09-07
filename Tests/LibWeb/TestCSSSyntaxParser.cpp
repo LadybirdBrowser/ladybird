@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/RustDeclarationBlock.h>
+#include <LibWeb/CSS/RustDescriptorBlock.h>
 #include <LibWeb/CSS/StyleEngineBridge.h>
 #include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/SelectorRustFFI.h>
@@ -17,6 +18,174 @@
 #include <LibWeb/ValueParserRustFFI.h>
 
 namespace Web::CSS::Parser {
+
+static RustDeclarationBlock parse_native_declaration_block(Utf16View);
+
+TEST_CASE(parse_native_function_descriptor_block_on_a_worker)
+{
+    StyleValueFFI::rust_style_ffi_counters_reset();
+    IGNORE_USE_IN_ESCAPING_LAMBDA ValueParserFFI::FfiDescriptorBlock* block = nullptr;
+    auto thread = Threading::Thread::construct("CSS function descriptors"sv, [&] {
+        auto source = u"--色: 13px; result: var(--色)"sv;
+        ValueParserFFI::ParseContext context {};
+        u8 rule_context = to_underlying(RuleContext::AtFunction);
+        auto* parse = ValueParserFFI::rust_parse_css_block_syntax(ffi_utf16_view(source), &rule_context, 1, &context, false);
+        auto data = ValueParserFFI::rust_css_syntax_parse_data(parse);
+        VERIFY(data.root_count == 1);
+        auto const& item = data.items[data.roots[0]];
+        VERIFY(item.descriptor_block);
+        block = ValueParserFFI::rust_css_syntax_parse_descriptor_block(parse);
+        auto* item_block = ValueParserFFI::rust_descriptor_block_from_data(item.descriptor_block);
+        auto view = ValueParserFFI::rust_descriptor_block_view(block);
+        VERIFY(view.count == 2);
+        EXPECT_EQ(view.descriptors[0].value, ValueParserFFI::rust_descriptor_block_view(item_block).descriptors[0].value);
+        ValueParserFFI::rust_descriptor_block_destroy(item_block);
+        ValueParserFFI::rust_css_syntax_parse_free(parse);
+        EXPECT_EQ(view.descriptors[0].name.utf16[2], 0x8272u);
+        return 0;
+    });
+    thread->start();
+    MUST(thread->join());
+    for (size_t index = 0; index < StyleValueFFI::rust_style_ffi_counter_count(); ++index) {
+        auto const* name_data = reinterpret_cast<char const*>(StyleValueFFI::rust_style_ffi_counter_name(index));
+        auto name = StringView { name_data, strlen(name_data) };
+        if (name == "stringRetainReleaseCallbacks"sv || name == "internUtf16FlyStringCallbacks"sv)
+            EXPECT_EQ(StyleValueFFI::rust_style_ffi_counter_value(index), 0u);
+    }
+    RustDescriptorBlock descriptors { block };
+    EXPECT_EQ(descriptors.size(), 2u);
+    EXPECT_EQ(descriptors.descriptors()[1].value->to_utf16_string(SerializationMode::Normal), u"var(--色)"sv);
+}
+
+TEST_CASE(retained_descriptor_blocks_observe_replacement_and_keep_borrowed_views)
+{
+    auto values = parse_native_declaration_block(u"width: 13px; height: 29px"sv);
+    auto name = DescriptorNameAndID::from_custom_name("--色"_utf16_fly_string);
+    ValueParserFFI::FfiDescriptor descriptor { ffi_utf16_view(name.name()), to_underlying(name.id()), values.properties()[0].value->rust_style_value_data() };
+    RustDescriptorBlock block { ValueParserFFI::rust_descriptor_block_create(&descriptor, 1) };
+    auto retained = block.retain();
+    auto shared = block.share();
+    auto borrowed = ValueParserFFI::rust_descriptor_block_view(retained.handle());
+    auto revision = ValueParserFFI::rust_descriptor_block_revision(block.handle());
+    EXPECT(!retained.set(name, *values.properties()[0].value));
+    EXPECT_EQ(ValueParserFFI::rust_descriptor_block_revision(block.handle()), revision);
+    // Refresh after the no-op mutation, which may release this handle's views.
+    borrowed = ValueParserFFI::rust_descriptor_block_view(retained.handle());
+    EXPECT(block.set(name, *values.properties()[1].value));
+    EXPECT_EQ(StyleValueFFI::rust_style_value_computed_length_value(static_cast<StyleValueFFI::StyleValueData const*>(borrowed.descriptors[0].value)), 13.0);
+    EXPECT_EQ(retained.descriptor(name)->to_utf16_string(SerializationMode::Normal), u"29px"sv);
+    EXPECT_EQ(shared.descriptor(name)->to_utf16_string(SerializationMode::Normal), u"13px"sv);
+    borrowed = ValueParserFFI::rust_descriptor_block_view(retained.handle());
+    block.replace(shared);
+    EXPECT_EQ(borrowed.descriptors[0].name.utf16[2], 0x8272u);
+    EXPECT_EQ(StyleValueFFI::rust_style_value_computed_length_value(static_cast<StyleValueFFI::StyleValueData const*>(borrowed.descriptors[0].value)), 29.0);
+    EXPECT_EQ(retained.descriptor(name)->to_utf16_string(SerializationMode::Normal), u"13px"sv);
+    EXPECT(retained.remove(name));
+    EXPECT_EQ(block.size(), 0u);
+    EXPECT_EQ(shared.size(), 1u);
+    block.replace(shared);
+    auto survivor = [&] {
+        auto owner = shared.share();
+        return owner.retain();
+    }();
+    EXPECT_EQ(survivor.descriptor(name)->to_utf16_string(SerializationMode::Normal), u"13px"sv);
+    EXPECT_EQ(block.size(), 1u);
+}
+
+TEST_CASE(parsed_descriptor_blocks_survive_worker_and_parse_result)
+{
+    StyleValueFFI::rust_style_ffi_counters_reset();
+    IGNORE_USE_IN_ESCAPING_LAMBDA ValueParserFFI::FfiDescriptorBlock* font = nullptr;
+    auto thread = Threading::Thread::construct("CSS descriptor parser"sv, [&] {
+        auto source = u"@page { margin-top: 13px; margin-left: 29px; margin-top: 17px } @font-face { font-family: 色; src: local(色) }"sv;
+        ValueParserFFI::FfiUtf16View input { nullptr, reinterpret_cast<u16 const*>(source.utf16_span().data()), source.length_in_code_units() };
+        ValueParserFFI::ParseContext context {};
+        auto* parse = ValueParserFFI::rust_parse_css_stylesheet_syntax(input, &context);
+        auto* cached = ValueParserFFI::rust_parse_css_stylesheet_syntax(input, &context);
+        auto data = ValueParserFFI::rust_css_syntax_parse_data(parse);
+        auto cached_data = ValueParserFFI::rust_css_syntax_parse_data(cached);
+        VERIFY(data.rule_count == 2 && cached_data.rule_count == 2);
+        EXPECT_EQ(data.rules[0].descriptor_block, cached_data.rules[0].descriptor_block);
+        auto* page = ValueParserFFI::rust_descriptor_block_from_data(data.rules[0].descriptor_block);
+        auto* shared = ValueParserFFI::rust_descriptor_block_from_data(cached_data.rules[0].descriptor_block);
+        font = ValueParserFFI::rust_descriptor_block_from_data(data.rules[1].descriptor_block);
+        ValueParserFFI::rust_css_syntax_parse_free(parse);
+        ValueParserFFI::rust_css_syntax_parse_free(cached);
+
+        auto view = ValueParserFFI::rust_descriptor_block_view(page);
+        VERIFY(view.count == 2);
+        EXPECT_EQ(view.descriptors[0].id, to_underlying(DescriptorID::MarginLeft));
+        EXPECT_EQ(view.descriptors[1].id, to_underlying(DescriptorID::MarginTop));
+        auto descriptor = view.descriptors[1];
+        auto* original_value = descriptor.value;
+        descriptor.value = view.descriptors[0].value;
+        EXPECT(ValueParserFFI::rust_descriptor_block_set(page, &descriptor));
+        EXPECT_EQ(ValueParserFFI::rust_descriptor_block_view(shared).descriptors[1].value, original_value);
+        EXPECT_EQ(ValueParserFFI::rust_descriptor_block_view(page).descriptors[1].value, descriptor.value);
+        ValueParserFFI::rust_descriptor_block_destroy(page);
+        ValueParserFFI::rust_descriptor_block_destroy(shared);
+        return 0;
+    });
+    thread->start();
+    MUST(thread->join());
+    for (size_t index = 0; index < StyleValueFFI::rust_style_ffi_counter_count(); ++index) {
+        auto const* name_data = reinterpret_cast<char const*>(StyleValueFFI::rust_style_ffi_counter_name(index));
+        auto name = StringView { name_data, strlen(name_data) };
+        if (name == "stringRetainReleaseCallbacks"sv || name == "internUtf16FlyStringCallbacks"sv)
+            EXPECT_EQ(StyleValueFFI::rust_style_ffi_counter_value(index), 0u);
+    }
+    RustDescriptorBlock font_block { font };
+    EXPECT_EQ(font_block.size(), 2u);
+    EXPECT_EQ(font_block.descriptors()[0].value->to_utf16_string(SerializationMode::Normal), u"色"sv);
+}
+
+TEST_CASE(native_descriptor_blocks_preserve_order_and_copy_on_write)
+{
+    auto values = parse_native_declaration_block(u"width: 13px; height: 29px"sv);
+    auto first_value = values.properties()[0].value;
+    auto second_value = values.properties()[1].value;
+    auto first_name = DescriptorNameAndID::from_custom_name(Utf16FlyString::from_utf16(u"--first"sv));
+    auto custom = DescriptorNameAndID::from_custom_name(Utf16FlyString::from_utf16(u"--色"sv));
+    auto name_view = [](Utf16View name) -> ValueParserFFI::FfiUtf16View {
+        return { nullptr, reinterpret_cast<u16 const*>(name.utf16_span().data()), name.length_in_code_units() };
+    };
+    ValueParserFFI::FfiDescriptor descriptors[] {
+        { name_view(u"--first"sv), to_underlying(DescriptorID::Custom), first_value->rust_style_value_data() },
+        { name_view(u"--色"sv), to_underlying(DescriptorID::Custom), second_value->rust_style_value_data() },
+    };
+    RustDescriptorBlock block { ValueParserFFI::rust_descriptor_block_create(descriptors, 2) };
+    auto shared = block.share();
+    auto unchanged_value = block.descriptors()[1].value;
+    EXPECT(!block.set(first_name, *first_value));
+    EXPECT(block.set(first_name, *second_value));
+    EXPECT(block.descriptors()[0].descriptor_name_and_id == first_name);
+    EXPECT_EQ(block.descriptors()[1].value.ptr(), unchanged_value.ptr());
+    EXPECT_EQ(shared.descriptors()[0].value->to_utf16_string(SerializationMode::Normal), u"13px"sv);
+    EXPECT(block.remove(custom));
+    EXPECT(!block.remove(custom));
+    EXPECT_EQ(block.size(), 1u);
+    EXPECT_EQ(shared.size(), 2u);
+    EXPECT_EQ(shared.descriptors()[1].descriptor_name_and_id.name(), custom.name());
+
+    auto* worker_block = ValueParserFFI::rust_descriptor_block_share(shared.handle());
+    auto thread = Threading::Thread::construct("CSS descriptors"sv, [worker_block] {
+        auto view = ValueParserFFI::rust_descriptor_block_view(worker_block);
+        EXPECT_EQ(view.count, 2u);
+        EXPECT_EQ(view.descriptors[1].name.utf16[2], 0x8272u);
+        auto descriptor = view.descriptors[0];
+        descriptor.value = view.descriptors[1].value;
+        EXPECT(ValueParserFFI::rust_descriptor_block_set(worker_block, &descriptor));
+        view = ValueParserFFI::rust_descriptor_block_view(worker_block);
+        EXPECT(ValueParserFFI::rust_descriptor_block_remove(worker_block, view.descriptors[1].id, view.descriptors[1].name));
+        EXPECT_EQ(ValueParserFFI::rust_descriptor_block_length(worker_block), 1u);
+        ValueParserFFI::rust_descriptor_block_destroy(worker_block);
+        return 0;
+    });
+    thread->start();
+    MUST(thread->join());
+    EXPECT_EQ(shared.size(), 2u);
+    EXPECT_EQ(shared.descriptors()[0].value->to_utf16_string(SerializationMode::Normal), u"13px"sv);
+}
 
 static RustDeclarationBlock parse_native_declaration_block(Utf16View source)
 {

@@ -11,7 +11,7 @@ namespace Web::CSS {
 
 GC_DEFINE_ALLOCATOR(CSSFunctionDescriptors);
 
-GC::Ref<CSSFunctionDescriptors> CSSFunctionDescriptors::create(Vector<Descriptor> descriptors)
+GC::Ref<CSSFunctionDescriptors> CSSFunctionDescriptors::create(RustDescriptorBlock descriptors)
 {
     return GC::Heap::the().allocate<CSSFunctionDescriptors>(move(descriptors));
 }

@@ -18,7 +18,7 @@ class CSSPageDescriptors final : public CSSDescriptors {
     GC_DECLARE_ALLOCATOR(CSSPageDescriptors);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSPageDescriptors> create(Vector<Descriptor>);
+    [[nodiscard]] static GC::Ref<CSSPageDescriptors> create(RustDescriptorBlock);
 
     virtual ~CSSPageDescriptors() override;
 
@@ -50,7 +50,7 @@ public:
     Utf16String bleed() const;
 
 private:
-    explicit CSSPageDescriptors(Vector<Descriptor>);
+    explicit CSSPageDescriptors(RustDescriptorBlock);
 };
 
 }

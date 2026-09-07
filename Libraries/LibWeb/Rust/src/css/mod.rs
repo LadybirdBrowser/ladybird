@@ -22,6 +22,7 @@ pub(crate) mod css_string;
 pub(crate) mod css_tokenizer;
 pub mod custom_properties;
 pub(crate) mod declaration_block;
+pub(crate) mod descriptor_block;
 pub(crate) mod descriptor_metadata;
 pub mod display;
 pub mod ffi_stats;

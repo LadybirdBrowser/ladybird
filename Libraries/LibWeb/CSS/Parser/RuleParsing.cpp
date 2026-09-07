@@ -46,15 +46,6 @@
 
 namespace Web::CSS::Parser {
 
-static Vector<Descriptor> copy_descriptors(ReadonlySpan<Descriptor> descriptors)
-{
-    Vector<Descriptor> copy;
-    copy.ensure_capacity(descriptors.size());
-    for (auto const& descriptor : descriptors)
-        copy.unchecked_append({ descriptor.descriptor_name_and_id, descriptor.value });
-    return copy;
-}
-
 template<typename NestedDeclarationsRule>
 GC::Ptr<CSSRule> Parser::convert_to_rule(Rule const& rule, Nested nested)
 {
@@ -389,7 +380,7 @@ GC::Ptr<CSSCounterStyleRule> Parser::convert_to_counter_style_rule(AtRule const&
     auto name = rule.parsed_prelude.name.value();
 
     auto descriptor_value = [&rule](DescriptorID id) -> RefPtr<StyleValue const> {
-        auto descriptor = rule.descriptors.first_matching([id](auto const& descriptor) {
+        auto descriptor = rule.descriptors->descriptors().first_matching([id](auto const& descriptor) {
             return descriptor.descriptor_name_and_id.id() == id;
         });
         if (!descriptor.has_value())
@@ -406,8 +397,7 @@ GC::Ptr<CSSFontFaceRule> Parser::convert_to_font_face_rule(AtRule const& rule)
     VERIFY(rule.is_block_rule);
     VERIFY(rule.parsed_prelude.kind == ParsedRulePreludeKind::Empty);
 
-    auto font_face_descriptors = CSSFontFaceDescriptors::create(copy_descriptors(rule.descriptors));
-    return CSSFontFaceRule::create(font_face_descriptors);
+    return CSSFontFaceRule::create(rule.descriptors->share());
 }
 
 GC::Ptr<CSSFontFeatureValuesRule> Parser::convert_to_font_feature_values_rule(AtRule const& rule)
@@ -511,7 +501,7 @@ GC::Ptr<CSSPageRule> Parser::convert_to_page_rule(AtRule const& page_rule)
         [](auto&) {});
 
     auto rule_list = CSSRuleList::create(child_rules);
-    return CSSPageRule::create(move(page_selectors), CSSPageDescriptors::create(copy_descriptors(page_rule.descriptors)), rule_list);
+    return CSSPageRule::create(move(page_selectors), page_rule.descriptors->share(), rule_list);
 }
 
 GC::Ptr<CSSMarginRule> Parser::convert_to_margin_rule(AtRule const& rule)
@@ -530,21 +520,6 @@ GC::Ptr<CSSMarginRule> Parser::convert_to_margin_rule(AtRule const& rule)
     auto style = CSSStyleProperties::create(rule.declarations->share());
     return CSSMarginRule::create(rule.name, style);
 }
-
-template<typename Descriptors>
-GC::Ref<Descriptors> Parser::convert_to_descriptors(AtRuleID, Vector<Declaration> const& declarations)
-{
-    Vector<Descriptor> descriptors;
-    descriptors.ensure_capacity(declarations.size());
-    for (auto const& declaration : declarations) {
-        if (!declaration.descriptor_name_and_id.has_value() || !declaration.parsed_value)
-            continue;
-        descriptors.unchecked_append({ declaration.descriptor_name_and_id.value(), NonnullRefPtr { *declaration.parsed_value } });
-    }
-    return Descriptors::create(move(descriptors));
-}
-
-template GC::Ref<CSSFunctionDescriptors> Parser::convert_to_descriptors(AtRuleID at_rule_id, Vector<Declaration> const& declarations);
 
 template GC::Ptr<CSSRule> Parser::convert_to_rule<CSSNestedDeclarations>(Rule const&, Nested);
 template GC::Ptr<CSSRule> Parser::convert_to_rule<CSSFunctionDeclarations>(Rule const&, Nested);

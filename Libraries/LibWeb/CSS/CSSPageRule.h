@@ -20,26 +20,26 @@ class CSSPageRule final : public CSSGroupingRule {
     GC_DECLARE_ALLOCATOR(CSSPageRule);
 
 public:
-    static constexpr size_t style_offset() { return offsetof(CSSPageRule, m_style); }
-    [[nodiscard]] static GC::Ref<CSSPageRule> create(PageSelectorList&&, GC::Ref<CSSPageDescriptors>, CSSRuleList&);
+    [[nodiscard]] static GC::Ref<CSSPageRule> create(PageSelectorList&&, RustDescriptorBlock, CSSRuleList&);
 
     virtual ~CSSPageRule() override = default;
 
     Utf16String selector_text() const;
     void set_selector_text(Utf16View);
 
-    GC::Ref<CSSPageDescriptors> style() { return m_style; }
-    GC::Ref<CSSPageDescriptors const> descriptors() const { return m_style; }
+    GC::Ref<CSSPageDescriptors> style() const;
 
 private:
-    CSSPageRule(PageSelectorList&&, GC::Ref<CSSPageDescriptors>, CSSRuleList&);
+    CSSPageRule(PageSelectorList&&, RustDescriptorBlock, CSSRuleList&);
 
+    virtual size_t external_memory_size() const override;
     virtual Utf16String serialized() const override;
     virtual void visit_edges(Visitor&) override;
     virtual void dump(StringBuilder&, int indent_levels) const override;
 
     PageSelectorList m_selectors;
-    GC::Ref<CSSPageDescriptors> m_style;
+    RustDescriptorBlock m_descriptors;
+    mutable GC::Ptr<CSSPageDescriptors> m_style;
 };
 
 }

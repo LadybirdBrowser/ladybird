@@ -1,4 +1,4 @@
 [Exposed=Window]
 interface CSSFunctionDeclarations : CSSRule {
-    [DirectGetter, SameObject, PutForwards=cssText] readonly attribute CSSFunctionDescriptors style;
+    [SameObject, PutForwards=cssText] readonly attribute CSSFunctionDescriptors style;
 };

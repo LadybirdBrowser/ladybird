@@ -54,10 +54,10 @@ CSS::RustDeclarationBlock parse_css_property_declaration_block(CSS::Parser::Pars
     return CSS::Parser::Parser::create(context, css).parse_as_property_declaration_block();
 }
 
-Vector<CSS::Descriptor> parse_css_descriptor_declaration_block(CSS::Parser::ParsingParams const& parsing_params, CSS::AtRuleID at_rule_id, Utf16View css)
+CSS::RustDescriptorBlock parse_css_descriptor_declaration_block(CSS::Parser::ParsingParams const& parsing_params, CSS::AtRuleID at_rule_id, Utf16View css)
 {
     if (css.is_empty())
-        return {};
+        return CSS::RustDescriptorBlock { Vector<CSS::Descriptor> {} };
     return CSS::Parser::Parser::create(parsing_params, css).parse_as_descriptor_declaration_block(at_rule_id);
 }
 

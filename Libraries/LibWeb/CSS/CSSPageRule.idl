@@ -2,5 +2,5 @@
 [Exposed=Window]
 interface CSSPageRule : CSSGroupingRule {
     attribute CSSOMString selectorText;
-    [DirectGetter, SameObject, PutForwards=cssText] readonly attribute CSSPageDescriptors style;
+    [SameObject, PutForwards=cssText] readonly attribute CSSPageDescriptors style;
 };
