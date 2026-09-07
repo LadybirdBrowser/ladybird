@@ -1225,12 +1225,15 @@ impl RetainedMatchAnswers {
         mut visit: impl FnMut(StyleNodeID),
     ) {
         debug_assert!(rules.is_sorted());
+        let mut contains_rule = HashMap::default();
         self.for_each_answer_node(|node| {
             let index = node.element_index().unwrap() as usize;
-            if catalog
-                .retained_answer(self.column[index])
-                .is_some_and(|answer| answer.iter().any(|matched| rules.binary_search(&matched.rule).is_ok()))
-            {
+            let answer = self.column[index];
+            if *contains_rule.entry(answer).or_insert_with(|| {
+                catalog
+                    .retained_answer(answer)
+                    .is_some_and(|answer| answer.iter().any(|matched| rules.binary_search(&matched.rule).is_ok()))
+            }) {
                 visit(node);
             }
         });
