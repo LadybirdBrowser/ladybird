@@ -15,6 +15,7 @@
 //! Element-bound inputs, such as container sizes and tree positions, are
 //! snapshotted by C++ before entering the Rust computation drive.
 
+use std::borrow::Cow;
 use std::ffi::c_void;
 use std::sync::{Arc, OnceLock};
 
@@ -4689,15 +4690,21 @@ fn time_value_to_milliseconds(value: &StyleValueData) -> f64 {
     crate::css::calc::time_to_milliseconds(*value, *unit)
 }
 
-fn append_transition_longhands(properties: &mut Vec<u16>, property: u16, writing_mode: u8, direction: u8) {
+/// The axes are read only when a logical alias needs mapping.
+fn append_transition_longhands(
+    properties: &mut Vec<u16>,
+    property: u16,
+    writing_mode_and_direction: &mut impl FnMut() -> (u8, u8),
+) {
     use crate::css::property_metadata::{longhand_is_logical_alias, property_id as prop};
 
     if property_is_shorthand(property) {
         for &longhand in longhands_for_shorthand(property) {
-            append_transition_longhands(properties, longhand, writing_mode, direction);
+            append_transition_longhands(properties, longhand, writing_mode_and_direction);
         }
     } else if property != prop::CUSTOM {
         properties.push(if longhand_is_logical_alias(property) {
+            let (writing_mode, direction) = writing_mode_and_direction();
             map_logical_alias_to_physical(property, writing_mode, direction)
         } else {
             property
@@ -4742,24 +4749,28 @@ fn active_transition_property_ids(table: &ComputedLonghandTable) -> impl Iterato
 }
 
 pub(crate) fn has_active_transition_properties(table: &ComputedLonghandTable) -> bool {
-    fn has_longhand(property: u16) -> bool {
-        if property_is_shorthand(property) {
-            longhands_for_shorthand(property).iter().copied().any(has_longhand)
-        } else {
-            property != crate::css::property_metadata::property_id::CUSTOM
-        }
-    }
-
-    active_transition_property_ids(table).any(has_longhand)
+    !active_transition_longhands(table).is_empty()
 }
 
-fn active_transition_properties(table: &ComputedLonghandTable) -> Vec<u16> {
-    let (writing_mode, direction) = computed_writing_mode_and_direction(table);
-    let mut properties = Vec::new();
-    for property in active_transition_property_ids(table) {
-        append_transition_longhands(&mut properties, property, writing_mode, direction);
+/// The physical longhands the table's `transition-*` values make transitionable: every
+/// `transition-property` entry with a positive combined duration and delay, expanded from
+/// shorthands and mapped from logical aliases.
+pub(crate) fn active_transition_longhands(table: &ComputedLonghandTable) -> Cow<'_, [u16]> {
+    fn resolve(table: &ComputedLonghandTable) -> Vec<u16> {
+        let mut writing_mode_and_direction = None;
+        let mut writing_mode_and_direction =
+            || *writing_mode_and_direction.get_or_insert_with(|| computed_writing_mode_and_direction(table));
+        let mut properties = Vec::new();
+        for property in active_transition_property_ids(table) {
+            append_transition_longhands(&mut properties, property, &mut writing_mode_and_direction);
+        }
+        properties
     }
-    properties
+
+    match table.frozen_transition_longhands(|table| resolve(table).into_boxed_slice()) {
+        Some(longhands) => Cow::Borrowed(longhands),
+        None => Cow::Owned(resolve(table)),
+    }
 }
 
 fn build_computed_transition_list(table: &ComputedLonghandTable) -> FfiComputedTransitionList {
@@ -4782,7 +4793,7 @@ fn build_computed_transition_list(table: &ComputedLonghandTable) -> FfiComputedT
         };
         let mut properties = Vec::new();
         if let Some(transition_property) = transition_property {
-            append_transition_longhands(&mut properties, transition_property, writing_mode, direction);
+            append_transition_longhands(&mut properties, transition_property, &mut || (writing_mode, direction));
         }
         let properties = properties.into_boxed_slice();
         transitions.push(FfiComputedTransition {
@@ -4985,7 +4996,7 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
     let mut selected_transition_properties = previous_style
         .as_ref()
         .and_then(|view| unsafe { view.longhand_table.as_ref() })
-        .map(active_transition_properties)
+        .map(|table| active_transition_longhands(table).into_owned())
         .unwrap_or_default();
     let has_retained_transition_candidates = !selected_transition_properties.is_empty();
     if input.selected_transition_property_count != 0 {
