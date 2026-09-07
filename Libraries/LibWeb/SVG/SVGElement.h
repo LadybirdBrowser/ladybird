@@ -72,7 +72,8 @@ private:
     virtual bool is_svg_element() const final { return true; }
 
     RefPtr<CSS::StyleValue const> parse_presentation_attribute(CSS::PropertyID, Utf16View) const;
-    void update_presentation_attribute_style(Utf16FlyString const&, Optional<Utf16FlyString> const& namespace_);
+    Vector<CSS::StyleProperty> const& presentation_attribute_style() const;
+    void update_presentation_attribute_style(Utf16FlyString const& name, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_);
     void publish_presentation_attribute_style();
 
     GC::Ptr<SVGAnimatedString> m_class_name_animated_string;

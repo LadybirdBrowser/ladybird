@@ -170,24 +170,25 @@ bool SVGElement::is_presentational_hint(Utf16FlyString const& name) const
 void SVGElement::apply_presentational_hints(Vector<CSS::StyleProperty>& properties) const
 {
     Base::apply_presentational_hints(properties);
+    properties.extend(presentation_attribute_style());
+}
 
-    if (m_presentation_attribute_style.has_value()) {
-        properties.extend(*m_presentation_attribute_style);
-        return;
-    }
+Vector<CSS::StyleProperty> const& SVGElement::presentation_attribute_style() const
+{
+    if (m_presentation_attribute_style.has_value())
+        return *m_presentation_attribute_style;
 
     Vector<CSS::StyleProperty> presentation_attribute_style;
     for_each_attribute([&](DOM::QualifiedName const& name, Utf16View const& value) {
         if (name.namespace_().has_value())
             return;
         if (auto property_id = property_id_for_presentational_attribute(name.as_string(), local_name()); property_id.has_value()) {
-            auto style_value = parse_presentation_attribute(*property_id, value);
-            if (style_value)
+            if (auto style_value = parse_presentation_attribute(*property_id, value))
                 presentation_attribute_style.append({ .property_id = *property_id, .value = style_value.release_nonnull() });
         }
     });
     m_presentation_attribute_style = move(presentation_attribute_style);
-    properties.extend(*m_presentation_attribute_style);
+    return *m_presentation_attribute_style;
 }
 
 RefPtr<CSS::StyleValue const> SVGElement::parse_presentation_attribute(CSS::PropertyID property_id, Utf16View value) const
@@ -226,7 +227,7 @@ RefPtr<CSS::StyleValue const> SVGElement::parse_presentation_attribute(CSS::Prop
     return parse_css_value(parsing_context, value, property_id);
 }
 
-void SVGElement::update_presentation_attribute_style(Utf16FlyString const& name, Optional<Utf16FlyString> const& namespace_)
+void SVGElement::update_presentation_attribute_style(Utf16FlyString const& name, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)
 {
     if (!m_presentation_attribute_style.has_value() || namespace_.has_value())
         return;
@@ -235,18 +236,23 @@ void SVGElement::update_presentation_attribute_style(Utf16FlyString const& name,
     if (!property_id.has_value())
         return;
 
-    m_presentation_attribute_style->remove_all_matching([&](auto const& property) {
-        return property.property_id == property_id;
+    RefPtr<CSS::StyleValue const> style_value;
+    if (value.has_value())
+        style_value = parse_presentation_attribute(*property_id, *value);
+    auto existing_index = m_presentation_attribute_style->find_first_index_if([&](auto const& property) {
+        return property.property_id == *property_id;
     });
-
-    for_each_attribute([&](DOM::QualifiedName const& attribute_name, Utf16View const& attribute_value) {
-        if (attribute_name.namespace_().has_value())
-            return;
-        if (property_id_for_presentational_attribute(attribute_name.as_string(), local_name()) != property_id)
-            return;
-        if (auto style_value = parse_presentation_attribute(*property_id, attribute_value); style_value)
+    if (style_value) {
+        if (existing_index.has_value()) {
+            (*m_presentation_attribute_style)[*existing_index].value = style_value.release_nonnull();
+        } else {
             m_presentation_attribute_style->append({ .property_id = *property_id, .value = style_value.release_nonnull() });
-    });
+        }
+    } else if (existing_index.has_value()) {
+        m_presentation_attribute_style->remove(*existing_index);
+    } else {
+        return;
+    }
 
     publish_presentation_attribute_style();
 }
@@ -257,17 +263,20 @@ void SVGElement::publish_presentation_attribute_style()
 
     Vector<CSS::StyleProperty> properties;
     Base::apply_presentational_hints(properties);
-    properties.extend(*m_presentation_attribute_style);
-
-    HashTable<CSS::PropertyID> seen_properties;
-    for (size_t i = properties.size(); i > 0; --i) {
-        if (seen_properties.set(properties[i - 1].property_id) != AK::HashSetResult::InsertedNewEntry)
-            properties.remove(i - 1);
+    ReadonlySpan<CSS::StyleProperty> hints = *m_presentation_attribute_style;
+    if (!properties.is_empty()) {
+        properties.extend(*m_presentation_attribute_style);
+        HashTable<CSS::PropertyID> seen_properties;
+        for (size_t i = properties.size(); i > 0; --i) {
+            if (seen_properties.set(properties[i - 1].property_id) != AK::HashSetResult::InsertedNewEntry)
+                properties.remove(i - 1);
+        }
+        hints = properties;
     }
 
-    if (presentational_hint_properties_need_publication(properties)
-        && CSS::record_element_presentational_hint_properties(*this, properties))
-        did_publish_presentational_hint_properties(properties);
+    if (presentational_hint_properties_need_publication(hints)
+        && CSS::record_element_presentational_hint_properties(*this, hints))
+        did_publish_presentational_hint_properties(hints);
 }
 
 bool SVGElement::should_include_in_accessibility_tree() const
@@ -321,7 +330,7 @@ void SVGElement::attribute_changed(Utf16FlyString const& local_name, Optional<Ut
     HTMLOrSVGOrMathMLElement::attribute_changed(local_name, old_value, value, namespace_);
 
     if (old_value != value)
-        update_presentation_attribute_style(local_name, namespace_);
+        update_presentation_attribute_style(local_name, value, namespace_);
     update_use_elements_that_reference_this();
 }
 
