@@ -1,0 +1,44 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const scriptUrl = await server.createEcho("GET", "/resource-timing-network-phases.js", {
+            status: 200,
+            headers: {
+                "Cache-Control": "no-store",
+                "Content-Type": "text/javascript",
+                "Timing-Allow-Origin": "*",
+            },
+            body: "",
+        });
+
+        const script = document.createElement("script");
+        script.src = scriptUrl;
+        await new Promise((resolve, reject) => {
+            script.onload = resolve;
+            script.onerror = reject;
+            document.head.appendChild(script);
+        });
+
+        let entry;
+        for (let attempt = 0; attempt < 50; ++attempt) {
+            entry = performance.getEntriesByName(scriptUrl, "resource").at(-1);
+            if (entry) break;
+            await timeout(10);
+        }
+
+        println(`Resource timing entry found: ${entry !== undefined}`);
+        if (!entry) return;
+
+        println(`domainLookupStart follows fetchStart: ${entry.domainLookupStart >= entry.fetchStart}`);
+        println(`domainLookupEnd follows domainLookupStart: ${entry.domainLookupEnd >= entry.domainLookupStart}`);
+        println(`connectStart follows domainLookupEnd: ${entry.connectStart >= entry.domainLookupEnd}`);
+        println(`connectEnd follows connectStart: ${entry.connectEnd >= entry.connectStart}`);
+        println(`secureConnectionStart is 0 over http: ${entry.secureConnectionStart === 0}`);
+        println(`requestStart follows connectEnd: ${entry.requestStart >= entry.connectEnd}`);
+        println(`responseStart follows requestStart: ${entry.responseStart >= entry.requestStart}`);
+        println(`responseStart is positive: ${entry.responseStart > 0}`);
+        println(`responseEnd follows responseStart: ${entry.responseEnd >= entry.responseStart}`);
+    });
+</script>

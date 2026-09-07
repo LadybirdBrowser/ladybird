@@ -11,6 +11,7 @@
 #include <LibJS/Runtime/ErrorTypes.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Fetch/Fetching/FetchedDataReceiver.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -23,6 +24,7 @@
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
+#include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Streams/ReadableStream.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -237,7 +239,7 @@ static GC::Ptr<Fetch::Infrastructure::Request> create_navigation_request_from_de
     return request;
 }
 
-static GC::Ptr<Fetch::Infrastructure::Body> adopt_navigation_response_body(JS::Realm& realm, NavigationResponseBodyHandle handle, Fetch::Infrastructure::Response& response)
+static GC::Ptr<Fetch::Infrastructure::Body> adopt_navigation_response_body(JS::Realm& realm, NavigationResponseBodyHandle handle, Fetch::Infrastructure::Response& response, GC::Ptr<Fetch::Infrastructure::FetchTimingInfo> timing_info)
 {
     if (!ResourceLoader::is_initialized() || !ResourceLoader::the().request_client())
         return {};
@@ -270,6 +272,7 @@ static GC::Ptr<Fetch::Infrastructure::Body> adopt_navigation_response_body(JS::R
     receiver->set_response(response);
     receiver->set_body(body);
     auto receiver_root = GC::make_root(receiver);
+    auto cross_origin_isolated_capability = Bindings::principal_host_defined_environment_settings_object(realm).cross_origin_isolated_capability();
 
     request->set_unbuffered_request_callbacks(
         [](NonnullRefPtr<HTTP::HeaderList>, Optional<u32>, Optional<String> const&, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CameFromCache) {},
@@ -279,9 +282,15 @@ static GC::Ptr<Fetch::Infrastructure::Body> adopt_navigation_response_body(JS::R
         [receiver_root](Core::ImmutableBytes data) {
             receiver_root->set_cached_response_body(move(data));
         },
-        [receiver_root, stream = GC::make_root(stream), body = GC::make_root(body), &realm](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> network_error) {
+        [receiver_root, stream = GC::make_root(stream), body = GC::make_root(body), timing_info = GC::make_root(timing_info), cross_origin_isolated_capability, &realm](u64, Requests::RequestTimingInfo const& request_timing_info, Optional<Requests::NetworkError> network_error) {
             TemporaryExecutionContext execution_context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
             if (!network_error.has_value()) {
+                // AD-HOC: Nothing reports timing for a navigation fetch, so record the network phases and end time here
+                //         for the Document's navigation timing entry.
+                if (timing_info) {
+                    timing_info->update_final_timings(request_timing_info, cross_origin_isolated_capability);
+                    timing_info->set_end_time(HighResolutionTime::unsafe_shared_current_time());
+                }
                 receiver_root->handle_network_data(realm, Requests::ResponseData::from_bytes({}), Fetch::Fetching::FetchedDataReceiver::NetworkState::Complete);
                 return;
             }
@@ -299,7 +308,7 @@ static GC::Ptr<Fetch::Infrastructure::Body> adopt_navigation_response_body(JS::R
     return body;
 }
 
-static ErrorOr<GC::Ref<Fetch::Infrastructure::Response>> create_navigation_response_from_descriptor(JS::Realm& realm, NavigationResponseDescriptor descriptor)
+static ErrorOr<GC::Ref<Fetch::Infrastructure::Response>> create_navigation_response_from_descriptor(JS::Realm& realm, NavigationResponseDescriptor descriptor, GC::Ptr<Fetch::Infrastructure::FetchTimingInfo> timing_info)
 {
     auto response = descriptor.network_error_message.has_value()
         ? Fetch::Infrastructure::Response::network_error(realm.vm(), move(*descriptor.network_error_message))
@@ -315,7 +324,7 @@ static ErrorOr<GC::Ref<Fetch::Infrastructure::Response>> create_navigation_respo
     if (descriptor.body.has<ByteBuffer>()) {
         response->set_body(Fetch::Infrastructure::byte_sequence_as_body(realm, descriptor.body.get<ByteBuffer>().bytes()));
     } else if (descriptor.body.has<NavigationResponseBodyHandle>()) {
-        auto body = adopt_navigation_response_body(realm, descriptor.body.get<NavigationResponseBodyHandle>(), response);
+        auto body = adopt_navigation_response_body(realm, descriptor.body.get<NavigationResponseBodyHandle>(), response, timing_info);
         if (!body)
             return Error::from_string_literal("Unable to adopt transferred navigation response body");
         response->set_body(body);
@@ -345,7 +354,10 @@ ErrorOr<NavigationParamsVariant> create_navigation_params_from_descriptor(JS::Re
     auto params = descriptor.get<NavigationParamsDescriptor>();
     VERIFY(params.navigable_id == navigable.id());
     auto request = create_navigation_request_from_descriptor(realm, navigable, params.request);
-    auto response = TRY(create_navigation_response_from_descriptor(realm, move(params.response)));
+    GC::Ptr<Fetch::Infrastructure::FetchTimingInfo> fetch_timing_info;
+    if (params.fetch_timing_info.has_value())
+        fetch_timing_info = create_navigation_fetch_timing_info_from_descriptor(*params.fetch_timing_info);
+    auto response = TRY(create_navigation_response_from_descriptor(realm, move(params.response), fetch_timing_info));
     GC::Ptr<Environment> reserved_environment;
     if (params.reserved_environment.has_value()) {
         reserved_environment = Environment::create(
@@ -373,8 +385,7 @@ ErrorOr<NavigationParamsVariant> create_navigation_params_from_descriptor(JS::Re
         params.navigation_timing_type,
         move(params.about_base_url),
         params.user_involvement);
-    if (params.fetch_timing_info.has_value())
-        navigation_params->fetch_timing_info = create_navigation_fetch_timing_info_from_descriptor(*params.fetch_timing_info);
+    navigation_params->fetch_timing_info = fetch_timing_info;
     return navigation_params;
 }
 

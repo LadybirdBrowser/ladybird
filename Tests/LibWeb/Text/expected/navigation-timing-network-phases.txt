@@ -1,0 +1,8 @@
+domainLookupStartFollowsFetchStart: true
+connectStartFollowsDomainLookupEnd: true
+secureConnectionStartIsZeroOverHttp: true
+requestStartFollowsConnectEnd: true
+responseStartFollowsRequestStart: true
+responseStartIsPositive: true
+responseEndFollowsResponseStart: true
+responseEndIsPositive: true
