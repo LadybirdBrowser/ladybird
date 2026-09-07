@@ -526,6 +526,294 @@ TEST_CASE(nal_unit_iterator_distinguishes_end_from_invalid_lengths)
     EXPECT(!empty.has_error());
 }
 
+// The video, sequence and picture parameter sets from the hvcC record of an HEVC Main profile file. The sequence
+// set's 0x000003 sequences are emulation prevention bytes, so its ids only land correctly if they are dropped.
+static constexpr Array<u8, 24> hevc_video_parameter_set {
+    0x40, 0x01, 0x0c, 0x01, 0xff, 0xff, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03,
+    0x00, 0x00, 0x03, 0x00, 0x3f, 0x95, 0x98, 0x09
+};
+static constexpr Array<u8, 42> hevc_sequence_parameter_set {
+    0x42, 0x01, 0x01, 0x01, 0x60, 0x00, 0x00, 0x03, 0x00, 0x90, 0x00, 0x00, 0x03, 0x00, 0x00, 0x03,
+    0x00, 0x3f, 0xa0, 0x05, 0x02, 0x01, 0x69, 0x65, 0x95, 0x9a, 0x49, 0x32, 0xbc, 0x04, 0x04, 0x00,
+    0x00, 0x03, 0x00, 0x04, 0x00, 0x00, 0x03, 0x00, 0x78, 0x20
+};
+static constexpr Array<u8, 7> hevc_picture_parameter_set { 0x44, 0x01, 0xc1, 0x72, 0xb4, 0x62, 0x40 };
+
+static Vector<u8> hevc_configuration_record_from(ReadonlyBytes video, ReadonlyBytes sequence, ReadonlyBytes picture)
+{
+    Array<u8, 23> fixed_header {};
+    fixed_header[0] = 1;     // configurationVersion
+    fixed_header[21] = 0xf3; // lengthSizeMinusOne of 3, so a four-byte prefix
+    fixed_header[22] = 3;    // numOfArrays
+
+    Vector<u8> record;
+    record.append(fixed_header.data(), fixed_header.size());
+
+    auto append_array = [&](u8 nal_unit_type, ReadonlyBytes nal_unit) {
+        record.append(0x80 | nal_unit_type); // array_completeness
+        record.append(0);
+        record.append(1); // numNalus
+        record.append(static_cast<u8>(nal_unit.size() >> 8));
+        record.append(static_cast<u8>(nal_unit.size()));
+        record.append(nal_unit.data(), nal_unit.size());
+    };
+    append_array(32, video);
+    append_array(33, sequence);
+    append_array(34, picture);
+    return record;
+}
+
+TEST_CASE(h265_nal_unit_header_spans_two_bytes)
+{
+    auto header = Media::Codecs::H265::parse_nal_unit_header(hevc_sequence_parameter_set);
+    EXPECT(header.has_value());
+    if (!header.has_value())
+        return;
+    EXPECT_EQ(header->nal_unit_type, 33);
+    EXPECT_EQ(header->nuh_layer_id, 0);
+    EXPECT_EQ(header->temporal_id, 0);
+    EXPECT(!Media::Codecs::H265::is_coded_slice(*header));
+
+    // The type occupies the six bits below the forbidden zero bit, so H.264's mask would read 2 rather than 33.
+    EXPECT_EQ(hevc_sequence_parameter_set[0] & 0x1f, 2);
+
+    auto nal_unit = hevc_sequence_parameter_set;
+    EXPECT(!Media::Codecs::H265::parse_nal_unit_header(nal_unit.span().trim(1)).has_value());
+    nal_unit[0] |= 0x80; // forbidden_zero_bit
+    EXPECT(!Media::Codecs::H265::parse_nal_unit_header(nal_unit).has_value());
+    nal_unit = hevc_sequence_parameter_set;
+    nal_unit[1] &= ~0x07; // nuh_temporal_id_plus1 of zero
+    EXPECT(!Media::Codecs::H265::parse_nal_unit_header(nal_unit).has_value());
+}
+
+TEST_CASE(h265_sequence_parameter_set_returns_its_ids_and_reorder_depth)
+{
+    auto parameter_set = Media::Codecs::H265::parse_sequence_parameter_set(hevc_sequence_parameter_set);
+    EXPECT(parameter_set.has_value());
+    if (!parameter_set.has_value())
+        return;
+    EXPECT_EQ(parameter_set->sps_seq_parameter_set_id, 0);
+    EXPECT_EQ(parameter_set->sps_video_parameter_set_id, 0);
+    EXPECT_EQ(parameter_set->sps_max_num_reorder_pics, 2);
+
+    EXPECT(!Media::Codecs::H265::parse_sequence_parameter_set(hevc_video_parameter_set).has_value());
+    EXPECT(!Media::Codecs::H265::parse_sequence_parameter_set(hevc_sequence_parameter_set.span().trim(6)).has_value());
+}
+
+TEST_CASE(h265_video_and_picture_parameter_sets_return_their_ids)
+{
+    auto video_parameter_set = Media::Codecs::H265::parse_video_parameter_set(hevc_video_parameter_set);
+    EXPECT(video_parameter_set.has_value());
+    if (video_parameter_set.has_value())
+        EXPECT_EQ(video_parameter_set->vps_video_parameter_set_id, 0);
+
+    auto picture_parameter_set = Media::Codecs::H265::parse_picture_parameter_set(hevc_picture_parameter_set);
+    EXPECT(picture_parameter_set.has_value());
+    if (picture_parameter_set.has_value()) {
+        EXPECT_EQ(picture_parameter_set->pps_pic_parameter_set_id, 0);
+        EXPECT_EQ(picture_parameter_set->pps_seq_parameter_set_id, 0);
+    }
+
+    EXPECT(!Media::Codecs::H265::parse_video_parameter_set(hevc_picture_parameter_set).has_value());
+    EXPECT(!Media::Codecs::H265::parse_picture_parameter_set(hevc_video_parameter_set).has_value());
+}
+
+TEST_CASE(h265_representative_records_match_the_profiles_they_stand_in_for)
+{
+    struct ProfileCase {
+        u8 profile_idc;
+        Array<u8, 6> constraint_indicator_flags;
+        u8 bit_depth;
+    };
+    // The range extensions profiles share profile_idc 4 and are told apart by their constraint flags.
+    Array<ProfileCase, 8> cases { {
+        { 1, { 0x90, 0, 0, 0, 0, 0 }, 8 },
+        { 2, { 0x90, 0, 0, 0, 0, 0 }, 10 },
+        { 4, { 0x99, 0x88, 0, 0, 0, 0 }, 12 },
+        { 4, { 0x9d, 0x08, 0, 0, 0, 0 }, 10 },
+        { 4, { 0x99, 0x08, 0, 0, 0, 0 }, 12 },
+        { 4, { 0x9e, 0x08, 0, 0, 0, 0 }, 8 },
+        { 4, { 0x9c, 0x08, 0, 0, 0, 0 }, 10 },
+        { 4, { 0x98, 0x08, 0, 0, 0, 0 }, 12 },
+    } };
+
+    for (auto const& profile_case : cases) {
+        Media::Codecs::H265::Parameters parameters {};
+        parameters.profile_idc = profile_case.profile_idc;
+        parameters.constraint_indicator_flags = profile_case.constraint_indicator_flags;
+        auto profile = parameters.profile();
+        EXPECT(profile.has_value());
+        if (!profile.has_value())
+            continue;
+
+        auto record = Media::Codecs::H265::representative_configuration_record_for_profile(*profile);
+        EXPECT(!record.is_empty());
+
+        // The record has to describe the profile it is filed under, or it would answer for the wrong one.
+        auto record_parameters = Media::Codecs::H265::parse_configuration_record(record);
+        EXPECT(record_parameters.has_value());
+        if (record_parameters.has_value()) {
+            EXPECT_EQ(record_parameters->profile_idc, profile_case.profile_idc);
+            EXPECT_EQ(record_parameters->constraint_indicator_flags, profile_case.constraint_indicator_flags);
+        }
+
+        auto sets = Media::Codecs::H265::parse_parameter_sets_from_configuration_record(record);
+        EXPECT(sets.has_value());
+        if (!sets.has_value())
+            continue;
+        EXPECT_EQ(sets->video.size(), 1u);
+        EXPECT_EQ(sets->sequence.size(), 1u);
+        EXPECT_EQ(sets->picture.size(), 1u);
+
+        // The bit depth a profile allows is what a decoder judges, so the stored set has to carry it.
+        if (sets->sequence.size() == 1) {
+            auto sequence_set = Media::Codecs::H265::parse_sequence_parameter_set(sets->sequence[0]);
+            EXPECT(sequence_set.has_value());
+            if (sequence_set.has_value())
+                EXPECT_EQ(sequence_set->bit_depth_luma, profile_case.bit_depth);
+        }
+    }
+}
+
+TEST_CASE(h265_profiles_cover_the_ones_that_only_constrain_others)
+{
+    using Profile = Media::Codecs::H265::Profile;
+    auto profile_of = [](u8 profile_space, u8 profile_idc, Array<u8, 6> const& flags, u32 compatibility_flags = 0) {
+        Media::Codecs::H265::Parameters parameters {};
+        parameters.profile_space = profile_space;
+        parameters.profile_idc = profile_idc;
+        parameters.constraint_indicator_flags = flags;
+        parameters.profile_compatibility_flags = compatibility_flags;
+        return parameters.profile();
+    };
+    auto expect_profile = [&](Array<u8, 6> const& flags, Profile expected) {
+        auto profile = profile_of(0, 4, flags);
+        EXPECT(profile.has_value());
+        if (profile.has_value())
+            EXPECT_EQ(to_underlying(*profile), to_underlying(expected));
+    };
+
+    // A profile allowing more than the stream states covers it, so these resolve to the profile they constrain.
+    expect_profile({ 0x9f, 0xa8, 0, 0, 0, 0 }, Profile::Main);    // Main Still Picture
+    expect_profile({ 0x9d, 0xa8, 0, 0, 0, 0 }, Profile::Main10);  // Main 10 Intra
+    expect_profile({ 0x9e, 0x28, 0, 0, 0, 0 }, Profile::Main444); // Main 4:4:4 Intra
+
+    // ITU-T H.265 (07/2024), A.3.2: stated conformance to a tighter profile is what a decoder need only support,
+    // whatever profile the stream names.
+    auto expect_claimed_profile = [&](u8 profile_idc, Array<u8, 6> const& flags, u32 compatibility_flags, Profile expected) {
+        auto profile = profile_of(0, profile_idc, flags, compatibility_flags);
+        EXPECT(profile.has_value());
+        if (profile.has_value())
+            EXPECT_EQ(to_underlying(*profile), to_underlying(expected));
+    };
+    expect_claimed_profile(4, { 0x99, 0x88, 0, 0, 0, 0 }, 1u << 1, Profile::Main);
+    expect_claimed_profile(4, { 0x98, 0x08, 0, 0, 0, 0 }, 1u << 2, Profile::Main10);
+    // A Main 10 stream that is really 8-bit says so, and needs only a Main decoder.
+    expect_claimed_profile(2, { 0x90, 0, 0, 0, 0, 0 }, (1u << 1) | (1u << 2), Profile::Main);
+    // Naming Main 10 without claiming Main leaves it at Main 10.
+    expect_claimed_profile(2, { 0x90, 0, 0, 0, 0, 0 }, 1u << 2, Profile::Main10);
+
+    // A profile space other than zero names a different set of profiles entirely.
+    EXPECT(!profile_of(1, 1, { 0x90, 0, 0, 0, 0, 0 }).has_value());
+    // Profiles no record was captured for are left unanswerable.
+    for (u8 profile_idc : { 0, 3, 5, 9, 11 })
+        EXPECT(!profile_of(0, profile_idc, { 0x90, 0, 0, 0, 0, 0 }).has_value());
+    // Monochrome and bit depths beyond 12 have no record to answer with.
+    EXPECT(!profile_of(0, 4, { 0x9e, 0x40, 0, 0, 0, 0 }).has_value());
+    EXPECT(!profile_of(0, 4, { 0x80, 0x08, 0, 0, 0, 0 }).has_value());
+}
+
+TEST_CASE(h265_canonical_parameters_resolve_back_to_their_profile)
+{
+    using Profile = Media::Codecs::H265::Profile;
+    for (auto profile : { Profile::Main, Profile::Main10, Profile::Main12, Profile::Main422_10,
+             Profile::Main422_12, Profile::Main444, Profile::Main444_10, Profile::Main444_12 }) {
+        auto parameters = Media::Codecs::H265::canonical_parameters_for_profile(profile);
+        auto resolved = parameters.profile();
+        EXPECT(resolved.has_value());
+        if (resolved.has_value())
+            EXPECT_EQ(to_underlying(*resolved), to_underlying(profile));
+        EXPECT(!Media::Codecs::H265::representative_configuration_record_for_profile(profile).is_empty());
+    }
+}
+
+TEST_CASE(h265_configuration_supplies_every_parameter_set_type)
+{
+    auto record = hevc_configuration_record_from(hevc_video_parameter_set, hevc_sequence_parameter_set, hevc_picture_parameter_set);
+    auto sets = Media::Codecs::H265::parse_parameter_sets_from_configuration_record(record);
+    EXPECT(sets.has_value());
+    if (!sets.has_value())
+        return;
+    EXPECT_EQ(sets->nal_unit_length_size, 4);
+    EXPECT_EQ(sets->video.size(), 1u);
+    EXPECT_EQ(sets->sequence.size(), 1u);
+    EXPECT_EQ(sets->picture.size(), 1u);
+    if (sets->sequence.size() == 1)
+        EXPECT_EQ(sets->sequence[0].size(), hevc_sequence_parameter_set.size());
+    if (sets->picture.size() == 1)
+        EXPECT_EQ(sets->picture[0].size(), hevc_picture_parameter_set.size());
+}
+
+TEST_CASE(h265_configuration_rejects_records_it_cannot_walk)
+{
+    auto record = hevc_configuration_record_from(hevc_video_parameter_set, hevc_sequence_parameter_set, hevc_picture_parameter_set);
+    EXPECT(Media::Codecs::H265::parse_parameter_sets_from_configuration_record(record).has_value());
+
+    // Shorter than configurationVersion through numOfArrays.
+    EXPECT(!Media::Codecs::H265::parse_parameter_sets_from_configuration_record(record.span().trim(22)).has_value());
+
+    auto rejected = record;
+    rejected[0] = 2; // configurationVersion
+    EXPECT(!Media::Codecs::H265::parse_parameter_sets_from_configuration_record(rejected).has_value());
+
+    rejected = record;
+    rejected[21] = 0xf2; // lengthSizeMinusOne of 2
+    EXPECT(!Media::Codecs::H265::parse_parameter_sets_from_configuration_record(rejected).has_value());
+
+    // A record cut short of the sets it promises keeps what it managed to carry.
+    auto truncated = Media::Codecs::H265::parse_parameter_sets_from_configuration_record(record.span().trim(record.size() - 20));
+    EXPECT(truncated.has_value());
+    if (truncated.has_value()) {
+        EXPECT_EQ(truncated->video.size(), 1u);
+        EXPECT_EQ(truncated->picture.size(), 0u);
+    }
+}
+
+TEST_CASE(h265_parameter_store_keys_every_set_type_by_id)
+{
+    Media::Codecs::H265::ParameterSetStore store;
+    EXPECT_EQ(MUST(store.apply_nal_unit(hevc_video_parameter_set)), true);
+    EXPECT_EQ(MUST(store.apply_nal_unit(hevc_sequence_parameter_set)), true);
+    EXPECT_EQ(MUST(store.apply_nal_unit(hevc_picture_parameter_set)), true);
+
+    // A repeated definition is not a change.
+    EXPECT_EQ(MUST(store.apply_nal_unit(hevc_sequence_parameter_set)), false);
+
+    EXPECT_EQ(store.video_parameter_sets().size(), 1u);
+    EXPECT_EQ(store.sequence_parameter_sets().size(), 1u);
+    EXPECT_EQ(store.picture_parameter_sets().size(), 1u);
+    EXPECT(store.video_parameter_set(0) != nullptr);
+    EXPECT(store.sequence_parameter_set(0) != nullptr);
+    EXPECT(store.picture_parameter_set(0) != nullptr);
+    EXPECT(store.sequence_parameter_set(1) == nullptr);
+    if (store.sequence_parameter_set(0) != nullptr)
+        EXPECT_EQ(store.sequence_parameter_set(0)->parameters.sps_max_num_reorder_pics, 2);
+}
+
+TEST_CASE(h265_parameter_store_ignores_enhancement_layer_sets)
+{
+    Media::Codecs::H265::ParameterSetStore store;
+    auto enhancement_layer_set = hevc_sequence_parameter_set;
+    enhancement_layer_set[1] |= 0x08; // nuh_layer_id of one
+
+    EXPECT_EQ(MUST(store.apply_nal_unit(enhancement_layer_set)), false);
+    EXPECT_EQ(store.sequence_parameter_sets().size(), 0u);
+
+    // The base layer's set of the same id is still accepted afterwards.
+    EXPECT_EQ(MUST(store.apply_nal_unit(hevc_sequence_parameter_set)), true);
+    EXPECT_EQ(store.sequence_parameter_sets().size(), 1u);
+}
+
 TEST_CASE(h264_configuration_supplies_both_sequence_and_picture_sets)
 {
     // One sequence parameter set of 30 bytes, then one picture parameter set of 6, then trailing bytes.

@@ -9,6 +9,7 @@
 #include <AK/NeverDestroyed.h>
 #include <LibMedia/Codecs/AV1.h>
 #include <LibMedia/Codecs/H264.h>
+#include <LibMedia/Codecs/H265.h>
 #include <LibMedia/Codecs/NALUnit.h>
 #include <LibMedia/Codecs/VP9.h>
 #include <LibMedia/CodedFrame.h>
@@ -101,6 +102,8 @@ CMVideoCodecType codec_type_from_codec_id(CodecID codec_id)
         return kCMVideoCodecType_AV1;
     case CodecID::H264:
         return kCMVideoCodecType_H264;
+    case CodecID::H265:
+        return kCMVideoCodecType_HEVC;
     default:
         return 0;
     }
@@ -266,6 +269,15 @@ ParsedCodec normalize_parsed_codec_for_support_keying(ParsedCodec const& codec)
             return codec;
         return ParsedCodec { Codecs::H264::canonical_parameters_for_profile(*profile) };
     }
+    case CodecID::H265: {
+        auto parameters = codec.h265_parameters();
+        if (!parameters.has_value())
+            return codec;
+        auto profile = parameters->profile();
+        if (!profile.has_value())
+            return codec;
+        return ParsedCodec { Codecs::H265::canonical_parameters_for_profile(*profile) };
+    }
     default:
         return codec;
     }
@@ -273,11 +285,22 @@ ParsedCodec normalize_parsed_codec_for_support_keying(ParsedCodec const& codec)
 
 }
 
-struct H264State {
+struct ParameterSetState {
+    virtual ~ParameterSetState() = default;
+
+    // Takes the frame's configuration record, if it carries one, and every parameter set among its NAL units.
+    virtual DecoderErrorOr<void> apply_coded_frame(CodedFrame const&) = 0;
+    virtual Optional<DecoderFormat> decoder_format() const = 0;
+
+    // Set while the retained sets describe a format the current session was not built for.
+    bool dirty { true };
+    // Whether every coded slice of the last frame belongs to a picture nothing will reference.
+    bool access_unit_is_non_reference { false };
+};
+
+struct H264State final : ParameterSetState {
     Codecs::H264::ParameterSetStore parameter_sets;
     u8 nal_unit_length_size { 4 };
-    bool dirty { true };
-    bool access_unit_is_non_reference { false };
 
     DecoderErrorOr<void> apply_nal_unit(ReadonlyBytes nal_unit)
     {
@@ -289,6 +312,28 @@ struct H264State {
             return DecoderError::corrupted(error.string_literal());
         }
         dirty |= result.release_value();
+        return {};
+    }
+
+    virtual DecoderErrorOr<void> apply_coded_frame(CodedFrame const& coded_frame) override
+    {
+        if (auto configuration = coded_frame.new_codec_configuration(); configuration.has_value())
+            TRY(apply_configuration(*configuration));
+
+        auto saw_coded_slice = false;
+        auto every_coded_slice_is_non_reference = true;
+        Codecs::NALUnitIterator iterator { coded_frame.data(), nal_unit_length_size };
+        for (auto nal_unit = iterator.next(); nal_unit.has_value(); nal_unit = iterator.next()) {
+            TRY(apply_nal_unit(*nal_unit));
+            if (!Codecs::H264::is_coded_slice((*nal_unit)[0]))
+                continue;
+            saw_coded_slice = true;
+            if (Codecs::H264::nal_ref_idc((*nal_unit)[0]) != 0)
+                every_coded_slice_is_non_reference = false;
+        }
+        if (iterator.has_error())
+            return DecoderError::corrupted("Invalid H.264 NAL unit length"sv);
+        access_unit_is_non_reference = saw_coded_slice && every_coded_slice_is_non_reference;
         return {};
     }
 
@@ -311,7 +356,7 @@ struct H264State {
         return {};
     }
 
-    Optional<DecoderFormat> decoder_format() const
+    virtual Optional<DecoderFormat> decoder_format() const override
     {
         // All retained definitions fit inline, so assembling the platform's arrays never allocates.
         Vector<u8 const*, 288> set_pointers;
@@ -346,6 +391,114 @@ struct H264State {
     }
 };
 
+struct H265State final : ParameterSetState {
+    Codecs::H265::ParameterSetStore parameter_sets;
+    u8 nal_unit_length_size { 4 };
+
+    DecoderErrorOr<void> apply_nal_unit(ReadonlyBytes nal_unit)
+    {
+        auto result = parameter_sets.apply_nal_unit(nal_unit);
+        if (result.is_error()) {
+            auto error = result.release_error();
+            if (error.is_errno() && error.code() == ENOMEM)
+                return DecoderError::with_description(DecoderErrorCategory::Memory, "Failed to store H.265 parameter set"sv);
+            return DecoderError::corrupted(error.string_literal());
+        }
+        dirty |= result.release_value();
+        return {};
+    }
+
+    virtual DecoderErrorOr<void> apply_coded_frame(CodedFrame const& coded_frame) override
+    {
+        if (auto configuration = coded_frame.new_codec_configuration(); configuration.has_value())
+            TRY(apply_configuration(*configuration));
+
+        Codecs::NALUnitIterator iterator { coded_frame.data(), nal_unit_length_size };
+        for (auto nal_unit = iterator.next(); nal_unit.has_value(); nal_unit = iterator.next())
+            TRY(apply_nal_unit(*nal_unit));
+        if (iterator.has_error())
+            return DecoderError::corrupted("Invalid H.265 NAL unit length"sv);
+        return {};
+    }
+
+    DecoderErrorOr<void> apply_configuration(ReadonlyBytes configuration)
+    {
+        if (configuration.is_empty())
+            return {};
+        auto sets = Codecs::H265::parse_parameter_sets_from_configuration_record(configuration);
+        if (!sets.has_value())
+            return DecoderError::corrupted("Invalid H.265 configuration record"sv);
+
+        parameter_sets = {};
+        nal_unit_length_size = sets->nal_unit_length_size;
+        dirty = true;
+
+        for (auto nal_unit : sets->video)
+            TRY(apply_nal_unit(nal_unit));
+        for (auto nal_unit : sets->sequence)
+            TRY(apply_nal_unit(nal_unit));
+        for (auto nal_unit : sets->picture)
+            TRY(apply_nal_unit(nal_unit));
+        return {};
+    }
+
+    virtual Optional<DecoderFormat> decoder_format() const override
+    {
+        // All retained definitions fit inline, so assembling the platform's arrays never allocates.
+        Vector<u8 const*, 96> set_pointers;
+        Vector<size_t, 96> set_sizes;
+        auto append = [&](auto const& set) {
+            set_pointers.append(set.nal_unit.data());
+            set_sizes.append(set.nal_unit.size());
+        };
+
+        // A set is only usable once everything it names has arrived. The platform requires at least one of each type,
+        // and takes them in this order.
+        u8 reorder_frame_count = 0;
+        u8 bit_depth = 8;
+        for (auto const& set : parameter_sets.video_parameter_sets()) {
+            auto is_referenced = false;
+            for (auto const& sequence_set : parameter_sets.sequence_parameter_sets())
+                is_referenced |= sequence_set.parameters.sps_video_parameter_set_id == set.parameters.vps_video_parameter_set_id;
+            if (is_referenced)
+                append(set);
+        }
+        if (set_pointers.is_empty())
+            return {};
+
+        auto video_count = set_pointers.size();
+        for (auto const& set : parameter_sets.sequence_parameter_sets()) {
+            if (!parameter_sets.video_parameter_set(set.parameters.sps_video_parameter_set_id))
+                continue;
+            append(set);
+            // Bound every sequence set a slice could select, without parsing slice headers to track activation.
+            reorder_frame_count = max(reorder_frame_count, set.parameters.sps_max_num_reorder_pics);
+            bit_depth = max(bit_depth, set.parameters.bit_depth_luma);
+        }
+        if (set_pointers.size() == video_count)
+            return {};
+
+        auto sequence_count = set_pointers.size();
+        for (auto const& set : parameter_sets.picture_parameter_sets()) {
+            // A picture set may arrive before the sequence set it names, which in turn needs its own video set.
+            auto const* sequence_set = parameter_sets.sequence_parameter_set(set.parameters.pps_seq_parameter_set_id);
+            if (sequence_set == nullptr || !parameter_sets.video_parameter_set(sequence_set->parameters.sps_video_parameter_set_id))
+                continue;
+            append(set);
+        }
+        if (set_pointers.size() == sequence_count)
+            return {};
+
+        CMVideoFormatDescriptionRef description = nullptr;
+        if (CMVideoFormatDescriptionCreateFromHEVCParameterSets(kCFAllocatorDefault, set_pointers.size(), set_pointers.data(), set_sizes.data(), nal_unit_length_size, nullptr, &description) != noErr)
+            return {};
+
+        RetainedRef<CFMutableDictionaryRef> specification { CFDictionaryCreateMutable(kCFAllocatorDefault, 1, &kCFTypeDictionaryKeyCallBacks, &kCFTypeDictionaryValueCallBacks) };
+        CFDictionarySetValue(specification.ref(), kVTVideoDecoderSpecification_RequireHardwareAcceleratedVideoDecoder, kCFBooleanTrue);
+        return DecoderFormat { RetainedRef<CMVideoFormatDescriptionRef> { description }, move(specification), destination_attributes_for_bit_depth(bit_depth), CodingIndependentCodePoints {}, reorder_frame_count };
+    }
+};
+
 static Optional<DecoderFormat> decoder_format_for_parsed_codec(ParsedCodec const& codec)
 {
     static constexpr Gfx::IntSize GENERALLY_SUPPORTED_SIZE { 640, 480 };
@@ -376,6 +529,19 @@ static Optional<DecoderFormat> decoder_format_for_parsed_codec(ParsedCodec const
             return {};
         auto record = Codecs::H264::representative_configuration_record_for_profile(*profile);
         H264State state;
+        if (state.apply_configuration(record).is_error())
+            return {};
+        return state.decoder_format();
+    }
+    case CodecID::H265: {
+        auto parameters = codec.h265_parameters();
+        if (!parameters.has_value())
+            return {};
+        auto profile = parameters->profile();
+        if (!profile.has_value())
+            return {};
+        auto record = Codecs::H265::representative_configuration_record_for_profile(*profile);
+        H265State state;
         if (state.apply_configuration(record).is_error())
             return {};
         return state.decoder_format();
@@ -436,8 +602,14 @@ DecoderErrorOr<NonnullOwnPtr<VideoToolboxVideoDecoder>> VideoToolboxVideoDecoder
 
     auto decoder = DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) VideoToolboxVideoDecoder(codec_id, surface_pool_result.release_value())));
     if (codec_id == CodecID::H264) {
-        decoder->m_h264_state = DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) H264State));
-        TRY(decoder->m_h264_state->apply_configuration(codec_initialization_data));
+        auto state = DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) H264State));
+        TRY(state->apply_configuration(codec_initialization_data));
+        decoder->m_parameter_set_state = move(state);
+    }
+    if (codec_id == CodecID::H265) {
+        auto state = DECODER_TRY_ALLOC(adopt_nonnull_own_or_enomem(new (nothrow) H265State));
+        TRY(state->apply_configuration(codec_initialization_data));
+        decoder->m_parameter_set_state = move(state);
     }
     return decoder;
 }
@@ -458,30 +630,14 @@ VideoToolboxVideoDecoder::~VideoToolboxVideoDecoder()
 DecoderErrorOr<void> VideoToolboxVideoDecoder::ensure_session_for_frame(CodedFrame const& coded_frame)
 {
     Optional<DecoderFormat> format;
-    if (m_h264_state) {
-        if (auto configuration = coded_frame.new_codec_configuration(); configuration.has_value())
-            TRY(m_h264_state->apply_configuration(*configuration));
+    if (m_parameter_set_state) {
+        TRY(m_parameter_set_state->apply_coded_frame(coded_frame));
 
-        auto saw_coded_slice = false;
-        auto every_coded_slice_is_non_reference = true;
-        Codecs::NALUnitIterator iterator { coded_frame.data(), m_h264_state->nal_unit_length_size };
-        for (auto nal_unit = iterator.next(); nal_unit.has_value(); nal_unit = iterator.next()) {
-            TRY(m_h264_state->apply_nal_unit(*nal_unit));
-            if (!Codecs::H264::is_coded_slice((*nal_unit)[0]))
-                continue;
-            saw_coded_slice = true;
-            if (Codecs::H264::nal_ref_idc((*nal_unit)[0]) != 0)
-                every_coded_slice_is_non_reference = false;
-        }
-        if (iterator.has_error())
-            return DecoderError::corrupted("Invalid H.264 NAL unit length"sv);
-        m_h264_state->access_unit_is_non_reference = saw_coded_slice && every_coded_slice_is_non_reference;
-
-        if (!m_h264_state->dirty && m_session)
+        if (!m_parameter_set_state->dirty && m_session)
             return {};
-        format = m_h264_state->decoder_format();
+        format = m_parameter_set_state->decoder_format();
         if (!format.has_value())
-            return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "H.264 parameter sets do not yet describe a usable format"sv);
+            return DecoderError::with_description(DecoderErrorCategory::NeedsMoreInput, "Parameter sets do not yet describe a usable format"sv);
     } else {
         format = decoder_format_for_frame(m_codec_id, coded_frame);
     }
@@ -490,8 +646,8 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::ensure_session_for_frame(CodedFra
         if (!format.has_value())
             return {};
         if (CMFormatDescriptionEqual(format->description.ref(), m_session->format_description)) {
-            if (m_h264_state)
-                m_h264_state->dirty = false;
+            if (m_parameter_set_state)
+                m_parameter_set_state->dirty = false;
             Sync::MutexLocker locker { m_output_mutex };
             m_reorder_frame_count = format->reorder_frame_count;
             return {};
@@ -527,8 +683,8 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::ensure_session_for_frame(CodedFra
         Sync::MutexLocker locker { m_output_mutex };
         m_reorder_frame_count = format->reorder_frame_count;
     }
-    if (m_h264_state)
-        m_h264_state->dirty = false;
+    if (m_parameter_set_state)
+        m_parameter_set_state->dirty = false;
     m_session = move(session);
     return {};
 }
@@ -606,7 +762,7 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::receive_coded_data(CodedFrame con
     TRY(ensure_session_for_frame(coded_frame));
 
     if (intent == DecodeIntent::Reference) {
-        if (m_h264_state && m_h264_state->access_unit_is_non_reference)
+        if (m_parameter_set_state && m_parameter_set_state->access_unit_is_non_reference)
             return {};
     }
 

@@ -23,8 +23,8 @@
 
 namespace Media::VideoToolbox {
 
-// The parameter sets an H.264 stream is configured from, tracked across the frames that carry them.
-struct H264State;
+// The parameter sets a stream is configured from, tracked across the frames that carry them.
+struct ParameterSetState;
 
 // Decodes on the platform's media engine, which allocates the surfaces it decodes into and hands them back rather
 // than filling ones we provide.
@@ -69,7 +69,9 @@ private:
 
     CodecID const m_codec_id;
     NonnullRefPtr<VideoFrameSurfacePool> m_surface_pool;
-    OwnPtr<H264State> m_h264_state;
+    // Codecs that configure a decoder from parameter sets carried in the stream track them here. The rest describe
+    // their format in each frame, and leave this null.
+    OwnPtr<ParameterSetState> m_parameter_set_state;
     OwnPtr<Session> m_session;
     bool m_reached_end_of_stream { false };
 

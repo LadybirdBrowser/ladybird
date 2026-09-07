@@ -280,6 +280,34 @@ TEST_CASE(decodes_h264_onto_surfaces_in_display_order)
     EXPECT_EQ(frame_count, 50u);
 }
 
+TEST_CASE(decodes_h265_onto_surfaces_in_display_order)
+{
+    auto decoding = open_decoding("./hevc_10bit.mp4"sv, Media::CodecID::H265);
+
+    auto last_timestamp = AK::Duration::min();
+    size_t frame_count = 0;
+
+    while (true) {
+        auto frame_result = decoding.next_frame();
+        if (frame_result.is_error()) {
+            if (hardware_decoding_is_unavailable(frame_result.error()))
+                return;
+            EXPECT_EQ(frame_result.error().category(), Media::DecoderErrorCategory::EndOfStream);
+            break;
+        }
+        auto frame = frame_result.release_value();
+
+        EXPECT_NE(frame->surface(), nullptr);
+        EXPECT_EQ(frame->size(), Gfx::Size<u32>(560, 320));
+        EXPECT_EQ(frame->bit_depth(), 10);
+        EXPECT(last_timestamp <= frame->timestamp());
+        last_timestamp = frame->timestamp();
+        frame_count++;
+    }
+
+    EXPECT_EQ(frame_count, 30u);
+}
+
 TEST_CASE(h264_parameter_sets_can_arrive_separately_and_outlive_their_frames)
 {
     for (bool sequence_in_band : { false, true }) {
