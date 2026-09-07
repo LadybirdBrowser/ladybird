@@ -362,6 +362,10 @@
           "url": "https://github.com/google/woff2.git",
           "tag": "v1.0.2",
           "disable-submodules": true
+        },
+        {
+          "type": "patch",
+          "path": "woff2/output-h-add-missing-stdint-include.patch"
         }
       ],
       "config-opts": [
