@@ -4698,7 +4698,10 @@ fn append_transition_longhands(
 ) {
     use crate::css::property_metadata::{longhand_is_logical_alias, property_id as prop};
 
-    if property_is_shorthand(property) {
+    if property == prop::ALL {
+        let (writing_mode, direction) = writing_mode_and_direction();
+        properties.extend_from_slice(all_transition_longhands(writing_mode, direction));
+    } else if property_is_shorthand(property) {
         for &longhand in longhands_for_shorthand(property) {
             append_transition_longhands(properties, longhand, writing_mode_and_direction);
         }
@@ -4710,6 +4713,24 @@ fn append_transition_longhands(
             property
         });
     }
+}
+
+/// The physical longhands `transition-property: all` names under one writing mode and direction,
+/// expanded once per pair: `all` is the initial value, so nearly every table carries it.
+fn all_transition_longhands(writing_mode: u8, direction: u8) -> &'static [u16] {
+    const WRITING_MODE_COUNT: usize = 5;
+    const DIRECTION_COUNT: usize = 2;
+    static LONGHANDS: [OnceLock<Box<[u16]>>; WRITING_MODE_COUNT * DIRECTION_COUNT] =
+        [const { OnceLock::new() }; WRITING_MODE_COUNT * DIRECTION_COUNT];
+
+    let index = usize::from(writing_mode) * DIRECTION_COUNT + usize::from(direction);
+    LONGHANDS[index].get_or_init(|| {
+        let mut properties = Vec::new();
+        for &longhand in longhands_for_shorthand(crate::css::property_metadata::property_id::ALL) {
+            append_transition_longhands(&mut properties, longhand, &mut || (writing_mode, direction));
+        }
+        properties.into_boxed_slice()
+    })
 }
 
 fn computed_writing_mode_and_direction(table: &ComputedLonghandTable) -> (u8, u8) {
