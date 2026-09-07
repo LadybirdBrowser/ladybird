@@ -561,12 +561,6 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
     return compute_font_for_style_values(move(font_families), font_size, font_slope, font_weight, font_width, font_optical_sizing, font_variation_settings, font_feature_data);
 }
 
-void FontComputer::pin_font_list_for_style_record(NonnullRefPtr<Gfx::FontCascadeList const> font_list) const
-{
-    if (!m_style_record_font_list_pins.contains_slow(font_list))
-        m_style_record_font_list_pins.append(move(font_list));
-}
-
 NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_values_impl(ReadonlySpan<ComputedFontFamily const> font_families, CSSPixels const& font_size, int slope, double font_weight, Percentage const& font_width, FontOpticalSizing font_optical_sizing, HashMap<Utf16FlyString, double> const& font_variation_settings, FontFeatureData const& font_feature_data) const
 {
     // FIXME: We round to int here as that is what is expected by our font infrastructure below
@@ -872,6 +866,7 @@ void FontComputer::did_load_font(FontFaceKey const& changed_face)
     // selections which now resolve to it. Compare those selections before discarding their cache
     // entries, then find the elements holding the discarded cascade identities.
     HashTable<Gfx::FontCascadeList const*> invalidated_font_lists;
+    Vector<NonnullRefPtr<Gfx::FontCascadeList const>> invalidated_font_lists_kept_alive_for_the_walk;
     m_computed_font_cache.remove_all_matching([&](auto const& key, auto const& font_list) {
         if (!any_of(key.font_families, [&](ComputedFontFamily const& family) {
                 return family.has<ComputedFontFamilyName>()
@@ -882,6 +877,7 @@ void FontComputer::did_load_font(FontFaceKey const& changed_face)
         if (!font_list->has_pending_faces() && font_list->equals(*updated_font_list))
             return false;
         invalidated_font_lists.set(font_list.ptr());
+        invalidated_font_lists_kept_alive_for_the_walk.append(font_list);
         return true;
     });
     if (invalidated_font_lists.is_empty())
