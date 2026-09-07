@@ -1,0 +1,10 @@
+Resource timing entry found: true
+domainLookupStart follows fetchStart: true
+domainLookupEnd follows domainLookupStart: true
+connectStart follows domainLookupEnd: true
+connectEnd follows connectStart: true
+secureConnectionStart is 0 over http: true
+requestStart follows connectEnd: true
+responseStart follows requestStart: true
+responseStart is positive: true
+responseEnd follows responseStart: true

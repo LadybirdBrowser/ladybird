@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const token = crypto.randomUUID();
+        const url = await server.createEcho("GET", `/navigation-timing-network-phases-${token}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `
+                <!DOCTYPE html>
+                <script>
+                    addEventListener("load", () => setTimeout(() => {
+                        const entry = performance.getEntriesByType("navigation")[0];
+                        parent.postMessage({
+                            domainLookupStartFollowsFetchStart: entry.domainLookupStart >= entry.fetchStart,
+                            connectStartFollowsDomainLookupEnd: entry.connectStart >= entry.domainLookupEnd,
+                            secureConnectionStartIsZeroOverHttp: entry.secureConnectionStart === 0,
+                            requestStartFollowsConnectEnd: entry.requestStart >= entry.connectEnd,
+                            responseStartFollowsRequestStart: entry.responseStart >= entry.requestStart,
+                            responseStartIsPositive: entry.responseStart > 0,
+                            responseEndFollowsResponseStart: entry.responseEnd >= entry.responseStart,
+                            responseEndIsPositive: entry.responseEnd > 0,
+                        }, "*");
+                    }, 0));
+                <\/script>
+            `,
+        });
+
+        addEventListener("message", event => {
+            for (const [name, value] of Object.entries(event.data))
+                println(`${name}: ${value}`);
+            done();
+        });
+
+        const frame = document.createElement("iframe");
+        frame.src = url;
+        document.body.appendChild(frame);
+    });
+</script>
