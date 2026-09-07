@@ -23,7 +23,7 @@ pub struct InlineContent {
 
 impl PartialEq for GlyphRunRecord {
     fn eq(&self, other: &Self) -> bool {
-        self.font.as_raw() == other.font.as_raw() && self.glyphs == other.glyphs
+        self.font == other.font && self.glyphs == other.glyphs
     }
 }
 
@@ -67,22 +67,16 @@ impl LineRecord {
 
 pub struct GlyphRunRecord {
     pub glyphs: Vec<libgfx_rust::text_layout::DrawGlyph>,
-    pub font: libgfx_rust::font::RetainedFont,
+    pub font: libgfx_rust::font::FontHandle,
 }
 
 impl GlyphRunRecord {
-    fn font_ref(&self) -> libgfx_rust::font::FontRef<'_> {
-        // SAFETY: The record's RetainedFont keeps the font live for the
-        // lifetime of the returned borrow.
-        unsafe { libgfx_rust::font::FontRef::from_raw(self.font.as_raw()) }
-    }
-
     pub fn bounding_box(&self, scale: f32) -> [f32; 4] {
-        libgfx_rust::text_layout::glyph_run_bounding_box(self.font_ref(), &self.glyphs, scale)
+        libgfx_rust::text_layout::glyph_run_bounding_box(&self.font, &self.glyphs, scale)
     }
 
     pub fn glyph_intercepts(&self, scale: f32, y_top: f32, y_bottom: f32) -> Vec<f32> {
-        libgfx_rust::text_layout::glyph_run_glyph_intercepts(self.font_ref(), &self.glyphs, scale, y_top, y_bottom)
+        libgfx_rust::text_layout::glyph_run_glyph_intercepts(&self.font, &self.glyphs, scale, y_top, y_bottom)
     }
 }
 
@@ -153,9 +147,7 @@ impl InlineContent {
                 fragment.record.glyph_run = fragment.glyphs.take().map(|glyph_data| {
                     Rc::new(GlyphRunRecord {
                         glyphs: glyph_data.glyphs,
-                        // SAFETY: The layout pass borrowed the font from a live cascade list; retaining
-                        // it here keeps it alive for as long as the fragment record.
-                        font: unsafe { libgfx_rust::font::RetainedFont::retain(glyph_data.font) },
+                        font: glyph_data.font,
                     })
                 });
                 fragment.record.line_index = line_index as u32;

@@ -89,8 +89,8 @@ fn apply_text_overflow_to_line(line: &mut line_box::LineBoxData) {
         let Some(glyph_data) = &line.fragments[index].glyphs else {
             continue;
         };
-        let font = glyph_data.font;
-        let ellipsis_inline_size = font::font_glyph_width(font, ELLIPSIS_CODE_POINT);
+        let font = glyph_data.font.clone();
+        let ellipsis_inline_size = font.glyph_width(ELLIPSIS_CODE_POINT);
         let available_in_fragment = (available_inline_size - fragment_start).raw_value() as f32 / 64.0;
         let max_text_inline_size = available_in_fragment - ellipsis_inline_size;
 
@@ -115,7 +115,7 @@ fn apply_text_overflow_to_line(line: &mut line_box::LineBoxData) {
             y: glyph_block_offset,
             length_in_code_units: 1,
             glyph_width: ellipsis_inline_size,
-            glyph_id: font::font_glyph_id(font, ELLIPSIS_CODE_POINT),
+            glyph_id: font.glyph_id_for_code_point(ELLIPSIS_CODE_POINT),
             should_paint: true,
         });
         line.fragments[index].inline_length = CssPixels::nearest_value_for_f32(last_kept_end + ellipsis_inline_size);
@@ -147,13 +147,11 @@ fn apply_block_ellipsis(
     let presentation = libgfx_rust::font::emoji_presentation_for_code_point(first_code_point, None);
     let font = style
         .font_cascade_list()
-        .as_ref()
-        .font_for_code_point(first_code_point, presentation)
-        .as_raw();
-    let shaped_ellipsis = font::shape_text_with_font(
-        font,
+        .font_for_code_point(first_code_point, presentation, None);
+    let shaped_ellipsis = libgfx_rust::text_layout::shape_text(
+        &font,
         ellipsis_text,
-        line_box_fragment::GLYPH_TEXT_TYPE_COMMON,
+        libgfx_rust::text_layout::TextType::Common,
         0.0,
         style.letter_spacing().to_double() as f32,
         style.word_spacing().to_double() as f32,

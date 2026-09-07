@@ -450,14 +450,17 @@ mod tests {
         let chunk = TextChunk {
             start: 0,
             length: 5,
-            font: std::ptr::dangling(),
+            font: unsafe { libgfx_rust::font::FontHandle::intern(std::ptr::dangling()) },
             has_breaking_newline: false,
             has_breaking_tab: false,
             is_all_whitespace: false,
             can_break_after: true,
             text_type: 0,
         };
-        let original = arena.text_content(node).unwrap().text_chunks(&key, || vec![chunk]);
+        let original = arena
+            .text_content(node)
+            .unwrap()
+            .text_chunks(&key, || vec![chunk.clone()]);
         let hit = arena
             .text_content(node)
             .unwrap()
@@ -473,7 +476,7 @@ mod tests {
             Vec::new,
         );
         assert!(replacement.is_empty());
-        assert_eq!(&**original, &[chunk]);
+        assert_eq!(&**original, std::slice::from_ref(&chunk));
         assert_eq!(Rc::strong_count(&original), 1);
         drop(original);
         assert!(original_weak.upgrade().is_none());
@@ -483,8 +486,11 @@ mod tests {
         assert_eq!(Rc::strong_count(&replacement), 2);
         arena.set_text_content(node, content("goodbye", 0, 7, Vec::new()));
         assert_eq!(Rc::strong_count(&replacement), 1);
-        let new_chunks = arena.text_content(node).unwrap().text_chunks(&key, || vec![chunk]);
-        assert_eq!(&**new_chunks, &[chunk]);
+        let new_chunks = arena
+            .text_content(node)
+            .unwrap()
+            .text_chunks(&key, || vec![chunk.clone()]);
+        assert_eq!(&**new_chunks, std::slice::from_ref(&chunk));
         drop(replacement);
         assert!(replacement_weak.upgrade().is_none());
         arena.free_subtree(node);

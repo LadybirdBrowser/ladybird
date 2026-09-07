@@ -374,7 +374,7 @@ pub(crate) fn first_available_font(
     let source = style_source(layout_arena, fragment);
     layout_arena
         .node_style_if_live(source)
-        .map(|style| style.first_available_font())
+        .map(|style| style.first_available_font_pointer())
 }
 
 struct GraphemeEdgeTracker {

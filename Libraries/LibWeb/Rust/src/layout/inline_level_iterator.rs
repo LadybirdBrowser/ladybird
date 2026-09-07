@@ -40,13 +40,22 @@ pub(crate) struct Item {
 
 fn shape_glyph_data(
     text: &[u16],
-    font: *const c_void,
+    font: libgfx_rust::font::FontHandle,
     text_type: u8,
     baseline_start_x: f32,
     letter_spacing: f32,
     word_spacing: f32,
 ) -> (line_box_fragment::GlyphData, line_box_fragment::TrailingWhitespace) {
-    let shaped = font::shape_text_with_font(font, text, text_type, baseline_start_x, letter_spacing, word_spacing);
+    let shaped_text_type =
+        libgfx_rust::text_layout::TextType::try_from(text_type).expect("invalid Gfx::GlyphRun::TextType");
+    let shaped = libgfx_rust::text_layout::shape_text(
+        &font,
+        text,
+        shaped_text_type,
+        baseline_start_x,
+        letter_spacing,
+        word_spacing,
+    );
     let trailing_whitespace = line_box_fragment::TrailingWhitespace {
         length_in_code_units: shaped.trailing_whitespace_length_in_code_units(),
         inline_size: CssPixels::nearest_value_for_f32(shaped.trailing_whitespace_advance()),
@@ -215,7 +224,7 @@ impl Item {
 
         let glyph_data = self.glyphs.as_mut().unwrap();
         let split_x = glyph_data.glyphs[split_glyph_index].x;
-        let font = glyph_data.font;
+        let font = glyph_data.font.clone();
         let text_type = glyph_data.text_type;
         let remainder_glyphs = glyph_data.glyphs.split_off(split_glyph_index);
         let prefix_glyphs = std::mem::replace(&mut glyph_data.glyphs, remainder_glyphs);
@@ -229,7 +238,7 @@ impl Item {
             self.offset_in_node + split_code_units,
             line_box_fragment::GlyphData {
                 glyphs: prefix_glyphs,
-                font,
+                font: font.clone(),
                 text_type,
                 width: split_x,
             },
@@ -255,7 +264,7 @@ impl Item {
         if glyph_data.text_type == line_box_fragment::GLYPH_TEXT_TYPE_RTL {
             return None;
         }
-        let font = glyph_data.font;
+        let font = glyph_data.font.clone();
         let text_type = glyph_data.text_type;
         let start = self.offset_in_node;
         let end = start + self.length_in_node;
@@ -273,8 +282,9 @@ impl Item {
             return None;
         }
 
-        let shape =
-            |text_range: &[u16]| shape_glyph_data(text_range, font, text_type, 0.0, letter_spacing, word_spacing).0;
+        let shape = |text_range: &[u16]| {
+            shape_glyph_data(text_range, font.clone(), text_type, 0.0, letter_spacing, word_spacing).0
+        };
 
         let leading_edge_inline_size = self.margin_start + self.border_start + self.padding_start;
         let prefix_fits = |boundary: usize| {
@@ -628,7 +638,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         let mut text_context = self.text_node_context.take().unwrap();
         let chunks = &text_context.chunks;
         let is_first_chunk = text_context.next_chunk_index == 0;
-        let chunk = chunks.get(text_context.next_chunk_index).copied();
+        let chunk = chunks.get(text_context.next_chunk_index).cloned();
         if chunk.is_some() {
             text_context.next_chunk_index += 1;
         }
@@ -689,7 +699,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         let word_spacing = style.word_spacing();
         if chunk.has_breaking_tab {
             let tab_inline_size = if style.tab_size_is_number() {
-                let space = font::font_glyph_width(chunk.font, b' ' as u32);
+                let space = chunk.font.glyph_width(b' ' as u32);
                 CssPixels::nearest_value_for(
                     style.tab_size_number()
                         * (space + word_spacing.to_double() as f32 + style.letter_spacing().to_double() as f32) as f64,
@@ -703,7 +713,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             } else {
                 tab_inline_size
             };
-            let zero_width = font::font_glyph_width(chunk.font, b'0' as u32);
+            let zero_width = chunk.font.glyph_width(b'0' as u32);
             if tab_stop_distance.to_double() < f64::from(zero_width) * 0.5 {
                 tab_stop_distance += tab_inline_size;
             }
@@ -719,7 +729,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         let shaped_text = &full_text[shaped_start..shaped_start + shaped_length];
         let (glyphs, shaped_trailing_whitespace) = shape_glyph_data(
             shaped_text,
-            chunk.font,
+            chunk.font.clone(),
             text_type,
             inline_offset,
             style.letter_spacing().to_double() as f32,

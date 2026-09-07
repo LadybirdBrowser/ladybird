@@ -136,11 +136,6 @@ impl<'a> FontRef<'a> {
     }
 
     #[inline]
-    pub(crate) fn as_ptr(self) -> *const c_void {
-        self.raw.as_ptr()
-    }
-
-    #[inline]
     pub fn as_raw(self) -> *const c_void {
         self.raw.as_ptr()
     }

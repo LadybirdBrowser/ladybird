@@ -48,7 +48,7 @@ fn first_available_font(
     node: crate::layout::node_data::NodeSlotId,
 ) -> Option<libgfx_rust::font::FontRef<'static>> {
     let style = arena.node_style_if_live(node)?;
-    let font = style.first_available_font();
+    let font = style.first_available_font_pointer();
     if font.is_null() {
         return None;
     }
