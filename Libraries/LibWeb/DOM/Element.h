@@ -327,6 +327,7 @@ public:
 
     virtual bool is_presentational_hint(Utf16FlyString const&) const { return false; }
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const;
+    virtual bool publishes_presentational_hints_on_arrival() const { return false; }
     bool presentational_hint_properties_need_publication(ReadonlySpan<CSS::StyleProperty>) const;
     void did_publish_presentational_hint_properties(ReadonlySpan<CSS::StyleProperty>);
 

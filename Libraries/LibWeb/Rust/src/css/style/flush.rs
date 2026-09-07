@@ -690,7 +690,11 @@ impl StyleEngine {
             .inputs
             .iter()
             .filter_map(|input| match input.key {
-                InputKey::ElementDeclaration(node, _) => Some(node),
+                InputKey::ElementDeclaration(node, kind)
+                    if kind != ElementDeclarationKind::SvgPresentationAttribute =>
+                {
+                    Some(node)
+                }
                 _ => None,
             })
             .collect();

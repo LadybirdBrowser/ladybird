@@ -1,34 +1,30 @@
 <!DOCTYPE html>
 <script src="../../include.js"></script>
-<svg id="svg" width="100" height="100"></svg>
+<div id="container"></div>
 <script>
-    function makeRect(x, fill) {
-        const rect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
-        rect.setAttribute("x", x);
-        rect.setAttribute("y", "1");
-        rect.setAttribute("width", "10");
-        rect.setAttribute("height", "10");
-        rect.setAttribute("fill", fill);
-        return rect;
+    function makeFont(color) {
+        const font = document.createElement("font");
+        font.setAttribute("color", color);
+        font.textContent = "text";
+        return font;
     }
 
-    function measure(label, x, fill) {
-        svg.replaceChildren(makeRect("1", "red"));
+    function measure(label, color) {
+        container.replaceChildren(makeFont("red"));
         internals.updateStyle();
         const before = internals.getStyleInvalidationCounters();
 
-        const rect = makeRect(x, fill);
-        svg.append(rect);
+        const font = makeFont(color);
+        container.append(font);
         internals.updateStyle();
 
         const after = internals.getStyleInvalidationCounters();
         println(`${label}: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations} longhand evaluations`);
-        const style = getComputedStyle(rect);
-        println(`${label}: x ${style.x}, fill ${style.fill}, width ${style.width}`);
+        println(`${label}: color ${getComputedStyle(font).color}`);
     }
 
     test(() => {
-        measure("differing sibling", "20", "blue");
-        measure("identical sibling", "1", "red");
+        measure("differing sibling", "blue");
+        measure("identical sibling", "red");
     });
 </script>

@@ -1,0 +1,14 @@
+insertion: 1 engine records, 0 C++ recomputations
+insertion: x 20px, fill rgb(0, 0, 255), width 10px
+x rewrite: 1 engine records, 0 C++ recomputations
+x rewrite: x 30px, fill rgb(0, 0, 255), width 10px
+x and fill rewrite: 1 engine records, 0 C++ recomputations
+x and fill rewrite: x 40px, fill rgb(255, 0, 0), width 10px
+fill removal: 1 engine records, 0 C++ recomputations
+fill removal: x 40px, fill rgb(0, 0, 0), width 10px
+fill beaten by a rule: 1 engine records, 0 C++ recomputations
+fill beaten by a rule: x 40px, fill rgb(0, 128, 0), width 10px
+attribute under the rule: 0 engine records, 1 C++ recomputations
+attribute under the rule: x 40px, fill rgb(0, 128, 0), width 10px
+rule removed: 1 engine records, 0 C++ recomputations
+rule removed: x 40px, fill rgb(255, 0, 0), width 10px
