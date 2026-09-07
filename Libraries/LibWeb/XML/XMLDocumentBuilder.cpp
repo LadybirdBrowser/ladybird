@@ -403,7 +403,8 @@ void XMLDocumentBuilder::document_end()
         // Completely finish loading the Document.
         document->completely_finish_loading();
 
-        // FIXME: Queue the navigation timing entry for the Document.
+        // Queue the navigation timing entry for the Document.
+        document->queue_navigation_timing_entry();
     }));
 
     // FIXME: If the Document's print when loaded flag is set, then run the printing steps.
