@@ -5208,6 +5208,41 @@ fn update_test_prefix_relation(
 }
 
 #[test]
+fn prefix_completion_reuses_positive_and_negative_relation_answers() {
+    let (mut engine, nodes) = nested_document();
+    let guard = StyleAtomID(200);
+    let target = StyleAtomID(201);
+    add_guard_target_rule(&mut engine, guard, target);
+    add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(guard));
+    add_feature(&mut engine, nodes[3], LocalFeatureKey::Class(target));
+    discard_transaction(&mut engine);
+    let (dispatch, relation) = test_prefix_relation(&mut engine, nodes[0]);
+    let facts = engine.facts.primary();
+    let evaluator = MatchEvaluator::new(&engine.tree, facts);
+    let evaluation = PrefixEvaluation::new(
+        dispatch.prefixes(),
+        &engine.tree,
+        facts,
+        &engine.programs,
+        &evaluator,
+        None,
+        None,
+    );
+    let mut counters = Counters::default();
+    let mut states = PrefixStates::new(facts.row_count());
+    assert!(!states.complete_nodes_with_budget(&evaluation, nodes.iter().copied(), 0, &mut counters));
+    relation.install_answers(&mut states);
+    states.relation = Some(Box::new(relation));
+    assert!(states.retained_matches_for(nodes[0]).unwrap().is_empty());
+    assert_eq!(states.retained_matches_for(nodes[3]).unwrap().len(), 1);
+    for budget in [0, usize::MAX] {
+        assert!(states.complete_nodes_with_budget(&evaluation, nodes.iter().copied(), budget, &mut counters));
+        assert_eq!(counters.get(Counter::PrefixCompoundsEvaluated), 0);
+        assert_eq!(counters.get(Counter::PrefixTransitionMemoMisses), 0);
+    }
+}
+
+#[test]
 fn prefix_relations_share_program_predicates_without_merging_their_paths() {
     let (mut engine, nodes) = nested_document();
     let attribute_name = StyleAtomID(200);
