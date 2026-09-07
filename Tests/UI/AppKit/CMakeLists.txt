@@ -22,3 +22,12 @@ ladybird_test("TestClipboardTypes.mm" UI/AppKit NAME TestAppKitClipboardTypes LI
 target_sources(TestAppKitClipboardTypes PRIVATE "${LADYBIRD_SOURCE_DIR}/UI/AppKit/Application/ClipboardTypes.mm")
 target_include_directories(TestAppKitClipboardTypes PRIVATE "${LADYBIRD_SOURCE_DIR}/UI/AppKit")
 target_link_libraries(TestAppKitClipboardTypes PRIVATE "-framework Cocoa")
+
+ladybird_test("TestSelectDropdown.mm" UI/AppKit NAME TestAppKitSelectDropdown LIBS LibWeb LibGfx LibIPC LibURL)
+target_sources(TestAppKitSelectDropdown PRIVATE
+    "${LADYBIRD_SOURCE_DIR}/UI/AppKit/Interface/SelectDropdown.mm"
+    "${LADYBIRD_SOURCE_DIR}/UI/AppKit/Utilities/Conversions.mm"
+)
+target_include_directories(TestAppKitSelectDropdown PRIVATE "${LADYBIRD_SOURCE_DIR}/UI/AppKit")
+target_compile_options(TestAppKitSelectDropdown PRIVATE $<$<COMPILE_LANGUAGE:CXX>:-fobjc-arc>)
+target_link_libraries(TestAppKitSelectDropdown PRIVATE "-framework Cocoa")

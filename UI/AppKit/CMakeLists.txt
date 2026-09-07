@@ -15,6 +15,7 @@ add_library(ladybird_impl STATIC
     Interface/Menu.mm
     Interface/Palette.mm
     Interface/SearchPanel.mm
+    Interface/SelectDropdown.mm
     Interface/Tab.mm
     Interface/TabController.mm
     Utilities/ApplicationIcon.mm

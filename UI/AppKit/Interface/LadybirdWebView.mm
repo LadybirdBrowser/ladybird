@@ -20,6 +20,7 @@
 #import <Interface/Event.h>
 #import <Interface/LadybirdWebView.h>
 #import <Interface/Menu.h>
+#import <Interface/SelectDropdown.h>
 #import <Metal/Metal.h>
 #import <QuartzCore/CAMetalLayer.h>
 #import <UniformTypeIdentifiers/UniformTypeIdentifiers.h>
@@ -139,7 +140,7 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
 @property (nonatomic, strong) NSMenu* selected_text_link_context_menu;
 @property (nonatomic, strong) NSMenu* image_context_menu;
 @property (nonatomic, strong) NSMenu* media_context_menu;
-@property (nonatomic, strong) NSMenu* select_dropdown;
+@property (nonatomic, strong) SelectDropdown* select_dropdown;
 @property (nonatomic, strong) NSTextField* status_label;
 @property (nonatomic, strong) NSBox* crash_overlay;
 @property (nonatomic, strong) NSTextField* crash_overlay_url;
@@ -147,7 +148,6 @@ static Web::DevicePixelPoint node_picker_position_for(Ladybird::WebViewBridge co
 @property (nonatomic, strong) NSAlert* external_url_confirmation_dialog;
 @property (nonatomic, strong) NSOpenPanel* file_picker;
 @property (nonatomic, strong) NSMagnificationGestureRecognizer* pinch_recognizer;
-@property (nonatomic, assign) BOOL suppress_select_dropdown_close;
 
 // NSEvent does not provide a way to mark whether it has been handled, nor can we attach user data to the event. So
 // when we dispatch the event for a second time after WebContent has had a chance to handle it, we must track that
@@ -473,10 +473,7 @@ static __weak LadybirdWebView* s_color_panel_owner;
             //     complete the pending external URL request.
             [[self window] endSheet:[self.external_url_confirmation_dialog window] returnCode:NSModalResponseCancel];
         }
-        if (self.select_dropdown != nil) {
-            self.suppress_select_dropdown_close = YES;
-            [self.select_dropdown cancelTracking];
-        }
+        [self.select_dropdown closeWithoutReporting];
 
         auto* color_panel = [NSColorPanel sharedColorPanel];
         [[NSNotificationCenter defaultCenter] removeObserver:self name:NSWindowWillCloseNotification object:color_panel];
@@ -986,51 +983,22 @@ static __weak LadybirdWebView* s_color_panel_owner;
                       }];
     };
 
-    self.select_dropdown = [[NSMenu alloc] initWithTitle:@"Select Dropdown"];
-    [self.select_dropdown setDelegate:self];
+    self.select_dropdown = [[SelectDropdown alloc] init];
+    [self.select_dropdown setOnClosed:[weak_self](Optional<u32> const& selected_item_id) {
+        LadybirdWebView* self = weak_self;
+        if (self == nil) {
+            return;
+        }
+        m_web_view_bridge->select_dropdown_closed(selected_item_id);
+    }];
 
     m_web_view_bridge->on_request_select_dropdown = [weak_self](Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) {
         LadybirdWebView* self = weak_self;
         if (self == nil) {
             return;
         }
-        self.suppress_select_dropdown_close = NO;
-        [self.select_dropdown removeAllItems];
-        self.select_dropdown.minimumWidth = minimum_width;
-
-        auto add_menu_item = [self](Web::HTML::SelectItemOption const& item_option, bool in_option_group) {
-            auto label = in_option_group ? Utf16String::formatted("    {}", item_option.label) : item_option.label;
-            NSMenuItem* menuItem = [[NSMenuItem alloc]
-                initWithTitle:Ladybird::utf16_string_to_ns_string(label)
-                       action:item_option.disabled ? nil : @selector(selectDropdownAction:)
-                keyEquivalent:@""];
-            menuItem.representedObject = [NSNumber numberWithUnsignedInt:item_option.id];
-            menuItem.state = item_option.selected ? NSControlStateValueOn : NSControlStateValueOff;
-            [self.select_dropdown addItem:menuItem];
-        };
-
-        for (auto const& item : items) {
-            if (item.has<Web::HTML::SelectItemOptionGroup>()) {
-                auto const& item_option_group = item.get<Web::HTML::SelectItemOptionGroup>();
-                NSMenuItem* subtitle = [[NSMenuItem alloc]
-                    initWithTitle:Ladybird::utf16_string_to_ns_string(item_option_group.label)
-                           action:nil
-                    keyEquivalent:@""];
-                [self.select_dropdown addItem:subtitle];
-
-                for (auto const& item_option : item_option_group.items)
-                    add_menu_item(item_option, true);
-            }
-
-            if (item.has<Web::HTML::SelectItemOption>())
-                add_menu_item(item.get<Web::HTML::SelectItemOption>(), false);
-
-            if (item.has<Web::HTML::SelectItemSeparator>())
-                [self.select_dropdown addItem:[NSMenuItem separatorItem]];
-        }
-
         auto* event = Ladybird::create_context_menu_mouse_event(self, content_position);
-        [NSMenu popUpContextMenu:self.select_dropdown withEvent:event forView:self];
+        [self.select_dropdown openWithEvent:event forView:self minimumWidth:minimum_width items:items];
     };
 
     m_web_view_bridge->on_restore_window = [weak_self]() {
@@ -1159,22 +1127,6 @@ static __weak LadybirdWebView* s_color_panel_owner;
     m_web_view_bridge->enqueue_input_event(move(key_event));
 
     self.current_key_down_event = nil;
-}
-
-- (void)selectDropdownAction:(NSMenuItem*)menuItem
-{
-    NSNumber* data = [menuItem representedObject];
-    m_web_view_bridge->select_dropdown_closed([data unsignedIntValue]);
-}
-
-- (void)menuDidClose:(NSMenu*)menu
-{
-    if (self.suppress_select_dropdown_close) {
-        self.suppress_select_dropdown_close = NO;
-        return;
-    }
-    if (!menu.highlightedItem)
-        m_web_view_bridge->select_dropdown_closed({});
 }
 
 - (void)colorPickerUpdate:(NSColorPanel*)colorPanel

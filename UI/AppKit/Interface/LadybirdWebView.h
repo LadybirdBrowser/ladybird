@@ -43,7 +43,7 @@
 
 @end
 
-@interface LadybirdWebView : NSView <NSMenuDelegate, NSTextInputClient>
+@interface LadybirdWebView : NSView <NSTextInputClient>
 
 - (instancetype)init:(id<LadybirdWebViewObserver>)observer
            isPrivate:(WebView::IsPrivate)is_private;
