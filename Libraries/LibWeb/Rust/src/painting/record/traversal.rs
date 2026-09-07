@@ -125,7 +125,7 @@ pub(crate) fn record_display_list(
         all_paint_caches_dirty: layout_arena.all_paint_caches_dirty(),
         all_descendant_subtree_caches_dirty: layout_arena.all_descendant_subtree_caches_dirty(),
         text_node_facts_cache: HashMap::new(),
-        font_resource_id_cache: HashMap::new(),
+        registered_font_ids: std::collections::HashSet::new(),
         selection_style_cache: HashMap::new(),
         wheel_hit_test_target_cache: HashMap::new(),
     };

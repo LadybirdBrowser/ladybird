@@ -253,14 +253,14 @@ pub(crate) fn rect_for_selection_offsets(
     layout_arena: &impl PaintableRowsRead,
     fragment: &FragmentRecord,
     offsets: SelectionOffsets,
-    first_available_font: impl FnOnce() -> Option<*const std::ffi::c_void>,
+    first_available_font: impl FnOnce() -> Option<libgfx_rust::font::FontHandle>,
 ) -> CssPixelRect {
     let horizontal = is_horizontal(fragment);
     let mut rect = absolute_rect(layout_arena, fragment);
     let length = fragment.length_in_code_units;
 
-    let font_raw = match &fragment.glyph_run {
-        Some(run) => Some(run.font.as_raw()),
+    let font = match &fragment.glyph_run {
+        Some(run) => Some(run.font.clone()),
         None => first_available_font(),
     };
 
@@ -299,11 +299,8 @@ pub(crate) fn rect_for_selection_offsets(
     }
 
     if offsets.start > length || offsets.end > length {
-        let space_width = match font_raw {
-            // SAFETY: The font is retained by the glyph run or by the node's style for the call.
-            Some(raw) => CssPixels::nearest_value_for_f32(
-                unsafe { libgfx_rust::font::FontRef::from_raw(raw) }.glyph_width(' ' as u32),
-            ),
+        let space_width = match &font {
+            Some(font) => CssPixels::nearest_value_for_f32(font.glyph_width(' ' as u32)),
             None => CssPixels::from_raw(0),
         };
         let trailing_units_before_start = offsets.start.saturating_sub(length);
@@ -324,11 +321,9 @@ pub(crate) fn rect_for_selection_offsets(
         rect.height = pixel_width;
     }
 
-    if let Some(font_raw) = font_raw {
-        // SAFETY: The font is retained by the glyph run or by the node's style for the duration
-        // of this call.
-        let font = unsafe { libgfx_rust::font::FontRef::from_raw(font_raw) };
-        let (ascent_f, descent_f) = font.pixel_metrics_ascent_descent();
+    if let Some(font) = &font {
+        let ascent_f = font.facts().ascent;
+        let descent_f = font.facts().descent;
         if ascent_f > 0.0 || descent_f > 0.0 {
             let ascent = CssPixels::nearest_value_for_f32(ascent_f);
             let descent = CssPixels::nearest_value_for_f32(descent_f);
@@ -348,7 +343,7 @@ pub(crate) fn rect_for_selection_offsets(
 pub(crate) fn whole_range_rect(
     layout_arena: &impl PaintableRowsRead,
     fragment: &FragmentRecord,
-    first_available_font: impl FnOnce() -> Option<*const std::ffi::c_void>,
+    first_available_font: impl FnOnce() -> Option<libgfx_rust::font::FontHandle>,
 ) -> CssPixelRect {
     let offsets = SelectionOffsets {
         start: 0,
@@ -370,11 +365,11 @@ pub(crate) fn style_source(_layout_arena: &impl PaintableRowsRead, fragment: &Fr
 pub(crate) fn first_available_font(
     layout_arena: &impl PaintableRowsRead,
     fragment: &FragmentRecord,
-) -> Option<*const std::ffi::c_void> {
+) -> Option<libgfx_rust::font::FontHandle> {
     let source = style_source(layout_arena, fragment);
     layout_arena
         .node_style_if_live(source)
-        .map(|style| style.first_available_font_pointer())
+        .map(|style| style.first_available_font())
 }
 
 struct GraphemeEdgeTracker {
@@ -476,13 +471,12 @@ pub(crate) fn index_in_node_for_point(
     }
 
     if !reached_target && fragment.trailing_whitespace_length_in_code_units > 0 {
-        let font_raw = match &fragment.glyph_run {
-            Some(run) => Some(run.font.as_raw()),
+        let font = match &fragment.glyph_run {
+            Some(run) => Some(run.font.clone()),
             None => first_available_font(layout_arena, fragment),
         };
-        if let Some(raw) = font_raw {
-            // SAFETY: The font is retained by the glyph run or by the node's style for the call.
-            let space_width = unsafe { libgfx_rust::font::FontRef::from_raw(raw) }.glyph_width(' ' as u32);
+        if let Some(font) = font {
+            let space_width = font.glyph_width(' ' as u32);
             for _ in 0..fragment.trailing_whitespace_length_in_code_units {
                 if !tracker.update(1, space_width) {
                     break;

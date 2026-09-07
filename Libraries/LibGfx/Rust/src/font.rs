@@ -5,20 +5,15 @@
  */
 
 use std::ffi::c_void;
-use std::marker::PhantomData;
 use std::ptr::NonNull;
 use std::rc::Rc;
 
 unsafe extern "C" {
     fn ladybird_gfx_font_snapshot(font: *const c_void, out_snapshot: *mut FfiFontSnapshot);
-    fn ladybird_gfx_font_id(font: *const c_void) -> u64;
     fn ladybird_gfx_font_glyph_width(font: *const c_void, code_point: u32) -> f32;
     fn ladybird_gfx_font_glyph_id(font: *const c_void, code_point: u32) -> u32;
     fn ladybird_gfx_font_contains_glyph(font: *const c_void, code_point: u32) -> bool;
     fn ladybird_gfx_font_is_emoji_font(font: *const c_void) -> bool;
-    fn ladybird_gfx_font_pixel_metrics(font: *const c_void, ascent: *mut f32, descent: *mut f32);
-    fn ladybird_gfx_font_pixel_size(font: *const c_void) -> f32;
-    fn ladybird_gfx_font_x_height(font: *const c_void) -> f32;
     fn ladybird_gfx_font_measure_text_width(
         font: *const c_void,
         text_utf16: *const u16,
@@ -30,7 +25,6 @@ unsafe extern "C" {
         emoji_presentation: bool,
         forced_presentation: bool,
     ) -> *const c_void;
-    fn ladybird_gfx_font_cascade_list_first(list: *const c_void) -> *const c_void;
     fn ladybird_gfx_font_ref(font: *const c_void);
     fn ladybird_gfx_font_unref(font: *const c_void);
     fn ladybird_gfx_font_cascade_list_ref(list: *const c_void);
@@ -40,105 +34,6 @@ unsafe extern "C" {
         next_code_point: u32,
         has_next_code_point: bool,
     ) -> u8;
-}
-
-#[derive(Clone, Copy)]
-pub struct FontRef<'a> {
-    raw: NonNull<c_void>,
-    _lifetime: PhantomData<&'a c_void>,
-}
-
-impl PartialEq for FontRef<'_> {
-    fn eq(&self, other: &Self) -> bool {
-        self.raw == other.raw
-    }
-}
-
-impl Eq for FontRef<'_> {}
-
-impl<'a> FontRef<'a> {
-    /// # Safety
-    ///
-    /// `raw` must point to a live `Gfx::Font` for the returned reference's
-    /// lifetime.
-    #[inline]
-    pub unsafe fn from_raw(raw: *const c_void) -> Self {
-        Self {
-            raw: NonNull::new(raw.cast_mut()).expect("Gfx::Font pointer must not be null"),
-            _lifetime: PhantomData,
-        }
-    }
-
-    /// The font's process-unique id. Ids are never recycled, so a dead font's
-    /// id can never alias a live font's.
-    #[inline]
-    pub fn id(self) -> u64 {
-        // SAFETY: FontRef's constructor requires the Gfx::Font to remain live
-        // for this reference's lifetime.
-        unsafe { ladybird_gfx_font_id(self.raw.as_ptr()) }
-    }
-
-    #[inline]
-    pub fn glyph_width(self, code_point: u32) -> f32 {
-        // SAFETY: FontRef's constructor requires the Gfx::Font to remain live
-        // for this reference's lifetime.
-        unsafe { ladybird_gfx_font_glyph_width(self.raw.as_ptr(), code_point) }
-    }
-
-    #[inline]
-    pub fn glyph_id_for_code_point(self, code_point: u32) -> u32 {
-        // SAFETY: FontRef's constructor requires the Gfx::Font to remain live
-        // for this reference's lifetime.
-        unsafe { ladybird_gfx_font_glyph_id(self.raw.as_ptr(), code_point) }
-    }
-
-    #[inline]
-    pub fn contains_glyph(self, code_point: u32) -> bool {
-        // SAFETY: FontRef's constructor requires the Gfx::Font to remain live
-        // for this reference's lifetime.
-        unsafe { ladybird_gfx_font_contains_glyph(self.raw.as_ptr(), code_point) }
-    }
-
-    #[inline]
-    pub fn pixel_metrics_ascent_descent(self) -> (f32, f32) {
-        let mut ascent = 0.0f32;
-        let mut descent = 0.0f32;
-        // SAFETY: The font is live for the lifetime of this reference; the out-pointers address
-        // local floats.
-        unsafe { ladybird_gfx_font_pixel_metrics(self.raw.as_ptr(), &raw mut ascent, &raw mut descent) };
-        (ascent, descent)
-    }
-
-    #[inline]
-    pub fn pixel_size(self) -> f32 {
-        // SAFETY: FontRef's constructor requires the Gfx::Font to remain live
-        // for this reference's lifetime.
-        unsafe { ladybird_gfx_font_pixel_size(self.raw.as_ptr()) }
-    }
-
-    #[inline]
-    pub fn x_height(self) -> f32 {
-        // SAFETY: FontRef's constructor requires the Gfx::Font to remain live
-        // for this reference's lifetime.
-        unsafe { ladybird_gfx_font_x_height(self.raw.as_ptr()) }
-    }
-
-    pub fn measure_text_width(self, text: &[u16]) -> f32 {
-        // SAFETY: The font is live for this reference's lifetime, and the text
-        // slice stays valid for the synchronous measuring call.
-        unsafe { ladybird_gfx_font_measure_text_width(self.raw.as_ptr(), text.as_ptr(), text.len()) }
-    }
-
-    pub fn is_emoji_font(self) -> bool {
-        // SAFETY: FontRef's constructor requires the Gfx::Font to remain live
-        // for this reference's lifetime.
-        unsafe { ladybird_gfx_font_is_emoji_font(self.raw.as_ptr()) }
-    }
-
-    #[inline]
-    pub fn as_raw(self) -> *const c_void {
-        self.raw.as_ptr()
-    }
 }
 
 #[repr(C)]
@@ -284,46 +179,6 @@ pub fn emoji_presentation_for_code_point(code_point: u32, next_code_point: Optio
     }
 }
 
-#[derive(Clone, Copy)]
-pub struct FontCascadeListRef<'a> {
-    raw: NonNull<c_void>,
-    _lifetime: PhantomData<&'a c_void>,
-}
-
-impl<'a> FontCascadeListRef<'a> {
-    /// # Safety
-    ///
-    /// `raw` must point to a live `Gfx::FontCascadeList` for the returned
-    /// reference's lifetime.
-    #[inline]
-    pub unsafe fn from_raw(raw: *const c_void) -> Self {
-        Self {
-            raw: NonNull::new(raw.cast_mut()).expect("Gfx::FontCascadeList pointer must not be null"),
-            _lifetime: PhantomData,
-        }
-    }
-
-    pub fn font_for_code_point(self, code_point: u32, presentation: EmojiPresentation) -> FontRef<'a> {
-        // SAFETY: The constructor requires the Gfx::FontCascadeList to remain
-        // live for this reference's lifetime, and the fonts it resolves are
-        // owned by it.
-        unsafe {
-            FontRef::from_raw(ladybird_gfx_font_cascade_list_font_for_code_point(
-                self.raw.as_ptr(),
-                code_point,
-                presentation.is_emoji,
-                presentation.forced,
-            ))
-        }
-    }
-
-    pub fn first(self) -> FontRef<'a> {
-        // SAFETY: The constructor requires the Gfx::FontCascadeList to remain
-        // live for this reference's lifetime.
-        unsafe { FontRef::from_raw(ladybird_gfx_font_cascade_list_first(self.raw.as_ptr())) }
-    }
-}
-
 #[repr(C)]
 pub struct FontCascadeListHandle {
     pointer: *const c_void,
@@ -366,13 +221,6 @@ impl FontCascadeListHandle {
     #[inline]
     pub fn as_raw(&self) -> *const c_void {
         self.pointer
-    }
-
-    #[inline]
-    pub fn as_ref(&self) -> FontCascadeListRef<'_> {
-        // SAFETY: A non-null handle holds a reference that keeps the list live
-        // for the lifetime of the returned borrow.
-        unsafe { FontCascadeListRef::from_raw(self.pointer) }
     }
 
     pub fn font_for_code_point(

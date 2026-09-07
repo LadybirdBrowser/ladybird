@@ -825,15 +825,6 @@ impl<'a> ComputedValuesView<'a> {
         unsafe { libgfx_rust::font::FontHandle::intern(font.first_available_font) }
     }
 
-    pub(crate) fn first_available_font_pointer(self) -> *const c_void {
-        let font = self.font().first_available_font;
-        debug_assert!(
-            !font.is_null(),
-            "layout read a font group that never received a font list"
-        );
-        font
-    }
-
     pub(crate) fn font_cascade_list(self) -> &'a libgfx_rust::font::FontCascadeListHandle {
         let list = &self.font().font_cascade_list;
         debug_assert!(
