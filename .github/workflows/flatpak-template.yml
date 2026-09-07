@@ -15,7 +15,7 @@ jobs:
     runs-on: ${{ fromJSON(inputs.runner_labels) }}
 
     container:
-      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.9
+      image: ghcr.io/flathub-infra/flatpak-github-actions:kde-6.10
       options: --privileged
 
     steps:
