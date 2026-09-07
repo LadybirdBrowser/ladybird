@@ -513,22 +513,23 @@ impl StyleEngine {
                 .filter(|&kind| kind <= bridge::LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND)
                 .map_or(0, |kind| 1u64 << kind)
         };
-        if let Some(answer) = self.published_match_answers.lookup(node)
-            && let Some(matches) = self.published_match_answers.matches_for(answer)
-        {
-            return Some(
-                matches
-                    .iter()
-                    .fold(0, |mask, rule_match| mask | bit(rule_match.pseudo_element)),
-            );
+        if let Some(answer) = self.published_match_answers.lookup(node) {
+            if let Some(identity) = answer.cascade_input {
+                return self.match_answers.synthetic_pseudo_mask(identity, &self.programs);
+            }
+            if let Some(matches) = self.published_match_answers.matches_for(answer) {
+                return Some(
+                    matches
+                        .iter()
+                        .fold(0, |mask, rule_match| mask | bit(rule_match.pseudo_element)),
+                );
+            }
         }
-        let Lookup::Known(answer) = self.retained_match_answer(node) else {
+        let Lookup::Known(&identity) = self.retained_match_answers.lookup(node) else {
             return None;
         };
-        Some(answer.iter().fold(0, |mask, rule_match| {
-            let entry = &self.programs.get(rule_match.program).entries()[rule_match.entry as usize];
-            mask | bit(entry.pseudo_element)
-        }))
+        self.match_answers.retained_answer(identity)?;
+        self.match_answers.synthetic_pseudo_mask(identity, &self.programs)
     }
 }
 

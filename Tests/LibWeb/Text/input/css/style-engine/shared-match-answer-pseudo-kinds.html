@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style id="rules">
+    .target::before { content: "present"; }
+</style>
+<div class="target"></div>
+<div class="target"></div>
+<div class="target"></div>
+<script>
+    test(() => {
+        const targets = [...document.querySelectorAll(".target")];
+        const sheet = document.getElementById("rules").sheet;
+        function snapshot(label) {
+            internals.updateStyle();
+            println(`${label}: ${targets.map(target =>
+                `${getComputedStyle(target, "::before").content}/${getComputedStyle(target, "::after").content}`
+            ).join(", ")}`);
+        }
+        snapshot("initial");
+        sheet.cssRules[0].selectorText = ".target::after";
+        snapshot("replaced selector");
+        targets[0].className = "other";
+        snapshot("one element leaves");
+        sheet.cssRules[0].selectorText = ".target::before, .other::after";
+        snapshot("two pseudo kinds");
+        sheet.deleteRule(0);
+        snapshot("rule removed");
+        sheet.insertRule('.target::after { content: "returned"; }');
+        snapshot("rule inserted");
+        targets[0].className = "target";
+        snapshot("element rejoins");
+    });
+</script>
