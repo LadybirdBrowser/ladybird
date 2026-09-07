@@ -1,0 +1,13 @@
+diff --git a/include/woff2/output.h b/include/woff2/output.h
+index 377e66c..7889e29 100644
+--- a/include/woff2/output.h
++++ b/include/woff2/output.h
+@@ -9,6 +9,8 @@
+ #ifndef WOFF2_WOFF2_OUT_H_
+ #define WOFF2_WOFF2_OUT_H_
+ 
++#include <stdint.h>
++
+ #include <algorithm>
+ #include <cstring>
+ #include <memory>
