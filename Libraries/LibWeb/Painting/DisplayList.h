@@ -73,6 +73,7 @@ private:
 
     virtual void push_clip(ReplayClip const&) = 0;
     virtual void push_clip_path(Gfx::Path const&, Gfx::WindingRule) = 0;
+    virtual void push_transform(Gfx::AffineTransform const&) = 0;
     virtual void push_layer(ReplayLayer const&) = 0;
     virtual void push_mask(ReplayMask const&) = 0;
     virtual void pop_mask(ReplayMask const&, Optional<DisplayListResourceId> mask_content) = 0;

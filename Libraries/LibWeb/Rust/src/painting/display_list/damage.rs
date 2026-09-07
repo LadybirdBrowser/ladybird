@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::painting::display_list::builder::for_each_command;
+use crate::painting::display_list::builder::{for_each_command, inline_transform_entry_offset};
 use crate::painting::display_list::commands::{
     ContextRef, DisplayListCommandHeader, DisplayListCommandType, DisplayListDataSpan, DisplayListInlineClip,
     DrawGlyphRun, DrawScaledDecodedImageFrame, INLINE_CLIP_ENTRY_SIZE, OptionalColor, OptionalFloatRect,
@@ -15,7 +15,7 @@ use crate::painting::visual_context::{
     ClipNodeData, EffectNodeData, IncludeVisualViewportTransform, SpatialData, VisualContextTree,
     device_offset_for_index,
 };
-use libgfx_rust::{FloatPoint, FloatRect, IntRect, enclosing_int_rect};
+use libgfx_rust::{AffineTransform, FloatPoint, FloatRect, IntRect, enclosing_int_rect};
 use std::mem::offset_of;
 use std::rc::Rc;
 
@@ -122,16 +122,31 @@ fn inline_clip_lists_are_equal(a: &CommandReference<'_>, b: &CommandReference<'_
     })
 }
 
+fn inline_transforms_are_equal(a: &CommandReference<'_>, b: &CommandReference<'_>) -> bool {
+    match (
+        inline_transform_entry_offset(&a.header, a.payload),
+        inline_transform_entry_offset(&b.header, b.payload),
+    ) {
+        (None, None) => true,
+        (Some(a_offset), Some(b_offset)) => {
+            let transform_size = std::mem::size_of::<AffineTransform>();
+            a.payload[a_offset..a_offset + transform_size] == b.payload[b_offset..b_offset + transform_size]
+        }
+        _ => false,
+    }
+}
+
 fn display_list_commands_are_equal(a: &CommandReference<'_>, b: &CommandReference<'_>) -> bool {
     if a.header.command_type != b.header.command_type
         || a.header.has_bounding_rect != b.header.has_bounding_rect
         || a.header.inline_clip_count != b.header.inline_clip_count
+        || a.header.has_inline_transform != b.header.has_inline_transform
         || a.header.bounding_rect != b.header.bounding_rect
     {
         return false;
     }
 
-    if !inline_clip_lists_are_equal(a, b) {
+    if !inline_clip_lists_are_equal(a, b) || !inline_transforms_are_equal(a, b) {
         return false;
     }
 
@@ -740,6 +755,7 @@ mod tests {
             command_type: C::COMMAND_TYPE,
             has_bounding_rect: bounding_rect.is_some(),
             inline_clip_count: inline_clips.len() as u8,
+            has_inline_transform: false,
             payload_size: (padded_record_size - HEADER_SIZE) as u32,
             context,
             bounding_rect: bounding_rect.unwrap_or_default(),

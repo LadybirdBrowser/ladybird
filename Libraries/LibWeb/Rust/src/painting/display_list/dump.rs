@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use super::builder::{for_each_command, read_command};
+use super::builder::{for_each_command, inline_transform_of, read_command};
 use super::commands::*;
 use crate::css::color_resolution::format_to_8bit_compatible;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::dump::{
-    push_float_like_ak, push_float_point, push_float_rect, push_float_size, push_int_point, push_int_rect,
-    push_int_size,
+    push_affine_transform, push_float_like_ak, push_float_point, push_float_rect, push_float_size, push_int_point,
+    push_int_rect, push_int_size,
 };
 #[cfg(test)]
 use crate::painting::visual_context::VisualContextTree;
@@ -215,6 +215,10 @@ fn dump_command_bytes(
         dump_command(output, header.command_type, payload);
         if header.inline_clip_count > 0 {
             dump_inline_clips(output, header, payload);
+        }
+        if let Some(transform) = inline_transform_of(header, payload) {
+            output.push_str(" inline_transform=");
+            push_affine_transform(output, transform);
         }
         output.push('\n');
 

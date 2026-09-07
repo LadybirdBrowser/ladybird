@@ -487,6 +487,7 @@ pub struct DisplayListCommandHeader {
     pub command_type: DisplayListCommandType,
     pub has_bounding_rect: bool,
     pub inline_clip_count: u8,
+    pub has_inline_transform: bool,
     pub payload_size: u32,
     pub context: ContextRef,
     pub bounding_rect: IntRect,
@@ -495,6 +496,7 @@ ffi_bytes_fields!(DisplayListCommandHeader {
     command_type,
     has_bounding_rect,
     inline_clip_count,
+    has_inline_transform,
     payload_size,
     context,
     bounding_rect
@@ -534,6 +536,16 @@ ffi_bytes_fields!(DisplayListInlineClip {
 });
 pub const INLINE_CLIP_ENTRY_SIZE: usize = std::mem::size_of::<DisplayListInlineClip>();
 const _: () = assert!(INLINE_CLIP_ENTRY_SIZE == 64);
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct DisplayListInlineTransform {
+    pub transform: AffineTransform,
+    pub padding: [u32; 2],
+}
+ffi_bytes_fields!(DisplayListInlineTransform { transform, padding });
+pub const INLINE_TRANSFORM_ENTRY_SIZE: usize = std::mem::size_of::<DisplayListInlineTransform>();
+const _: () = assert!(INLINE_TRANSFORM_ENTRY_SIZE == 32);
 
 // A maximal sequence of consecutive commands sharing one visual context, summarized as the tape is
 // built so that replay can enter a context, cull, and depth-sort per run instead of rediscovering

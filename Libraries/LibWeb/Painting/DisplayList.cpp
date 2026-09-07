@@ -178,6 +178,9 @@ void DisplayListPlayer::execute_command_bytes(ReadonlyBytes command_bytes, Scrol
                 push_clip(ReplayClip { .rect = inline_clip.clip_rect_or_path_device_bounds, .corner_radii = inline_clip.corner_radii, .mode = inline_clip.mode });
             }
         });
+        auto inline_transform = display_list_inline_transform(header, payload);
+        if (inline_transform.has_value())
+            push_transform(*inline_transform);
         auto dispatch_command = [&]<DisplayListCommand Command>(auto&& callback) {
             auto command = read_display_list_command_payload<Command>(payload);
             if constexpr (IsSame<Command, PaintScrollBar>) {
@@ -200,6 +203,8 @@ void DisplayListPlayer::execute_command_bytes(ReadonlyBytes command_bytes, Scrol
             ENUMERATE_DISPLAY_LIST_COMMANDS(DISPATCH_DISPLAY_LIST_COMMAND)
 #undef DISPATCH_DISPLAY_LIST_COMMAND
         }
+        if (inline_transform.has_value())
+            pop();
         for (u8 index = 0; index < header.inline_clip_count; ++index)
             pop();
     });

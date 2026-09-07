@@ -60,6 +60,7 @@ private:
 
     void push_clip(ReplayClip const&) override;
     void push_clip_path(Gfx::Path const&, Gfx::WindingRule) override;
+    void push_transform(Gfx::AffineTransform const&) override;
     void push_layer(ReplayLayer const&) override;
     void push_mask(ReplayMask const&) override;
     void pop_mask(ReplayMask const&, Optional<DisplayListResourceId> mask_content) override;

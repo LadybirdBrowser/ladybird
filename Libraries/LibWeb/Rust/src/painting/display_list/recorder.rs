@@ -254,6 +254,7 @@ pub struct DisplayListRecorder {
     context: ContextRef,
     mask_display_lists: Vec<(EffectNodeIndex, DisplayListResourceId)>,
     ambient_inline_clips: Vec<PendingInlineClip>,
+    ambient_inline_transform: Option<AffineTransform>,
 }
 
 impl DisplayListRecorder {
@@ -277,6 +278,14 @@ impl DisplayListRecorder {
 
     pub fn ambient_inline_clip_depth(&self) -> usize {
         self.ambient_inline_clips.len()
+    }
+
+    pub fn ambient_inline_transform(&self) -> Option<AffineTransform> {
+        self.ambient_inline_transform
+    }
+
+    pub fn set_ambient_inline_transform(&mut self, transform: Option<AffineTransform>) -> Option<AffineTransform> {
+        std::mem::replace(&mut self.ambient_inline_transform, transform)
     }
 
     pub fn push_ambient_inline_clips(&mut self, inline_clips: &[PendingInlineClip]) {
@@ -419,8 +428,13 @@ impl DisplayListRecorder {
     }
 
     fn append_command<C: DisplayListCommand>(&mut self, command: &C, inline_data: &[u8]) {
-        self.builder
-            .append_with_inline_clips(command, inline_data, self.context, &self.ambient_inline_clips);
+        self.builder.append_with_inline_state(
+            command,
+            inline_data,
+            self.context,
+            &self.ambient_inline_clips,
+            self.ambient_inline_transform,
+        );
     }
 
     pub fn append_cached_command_range(

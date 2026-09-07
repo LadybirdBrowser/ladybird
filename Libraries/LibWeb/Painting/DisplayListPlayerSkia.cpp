@@ -1282,6 +1282,13 @@ void DisplayListPlayerSkia::push_clip_path(Gfx::Path const& path, Gfx::WindingRu
     clip_path(path, winding_rule, true);
 }
 
+void DisplayListPlayerSkia::push_transform(Gfx::AffineTransform const& transform)
+{
+    auto& canvas = surface().canvas();
+    canvas.save();
+    canvas.concat(to_skia_matrix(transform));
+}
+
 // https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty
 // Skia reads a layer's backdrop from the layer's parent, so the filtered backdrop has to become the
 // layer's initial content here, where the layer is opened. The canvas clip is not narrowed to the

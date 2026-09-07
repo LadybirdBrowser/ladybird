@@ -8,8 +8,10 @@
 
 #include <AK/Assertions.h>
 #include <AK/Forward.h>
+#include <AK/Optional.h>
 #include <AK/Span.h>
 #include <AK/StdLibExtras.h>
+#include <LibGfx/AffineTransform.h>
 #include <LibGfx/Rect.h>
 #include <LibWeb/Painting/DisplayListCommandsGenerated.h>
 
@@ -143,6 +145,8 @@ static_assert(sizeof(DisplayListCommandRun) == 40);
 static_assert(IsTriviallyCopyable<DisplayListGlyph>);
 static_assert(IsTriviallyCopyable<DisplayListInlineClip>);
 static_assert(sizeof(DisplayListInlineClip) == 64);
+static_assert(IsTriviallyCopyable<DisplayListInlineTransform>);
+static_assert(sizeof(DisplayListInlineTransform) == 32);
 
 template<typename Callback>
 void for_each_display_list_inline_clip(DisplayListCommandHeader const& header, ReadonlyBytes payload, Callback&& callback)
@@ -152,6 +156,15 @@ void for_each_display_list_inline_clip(DisplayListCommandHeader const& header, R
     size_t entry_offset = payload.size() - entries_size;
     for (u8 index = 0; index < header.inline_clip_count; ++index, entry_offset += sizeof(DisplayListInlineClip))
         callback(read_display_list_object<DisplayListInlineClip>(payload.slice(entry_offset)));
+}
+
+inline Optional<Gfx::AffineTransform> display_list_inline_transform(DisplayListCommandHeader const& header, ReadonlyBytes payload)
+{
+    if (!header.has_inline_transform)
+        return {};
+    size_t entries_size = header.inline_clip_count * sizeof(DisplayListInlineClip) + sizeof(DisplayListInlineTransform);
+    VERIFY(entries_size <= payload.size());
+    return read_display_list_object<DisplayListInlineTransform>(payload.slice(payload.size() - entries_size)).transform;
 }
 
 inline bool operator==(DisplayListCommandRun const& a, DisplayListCommandRun const& b)

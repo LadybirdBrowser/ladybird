@@ -311,6 +311,17 @@ pub(crate) fn push_int_rect(output: &mut String, rect: IntRect) {
     output.push(']');
 }
 
+pub(crate) fn push_affine_transform(output: &mut String, transform: libgfx_rust::AffineTransform) {
+    output.push('[');
+    for (index, value) in transform.values.iter().enumerate() {
+        if index > 0 {
+            output.push(',');
+        }
+        push_float_like_ak(output, *value);
+    }
+    output.push(']');
+}
+
 pub(crate) fn push_float_rect(output: &mut String, rect: FloatRect) {
     output.push('[');
     push_float_like_ak(output, rect.x);
