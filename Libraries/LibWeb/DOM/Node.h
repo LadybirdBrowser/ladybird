@@ -266,6 +266,8 @@ public:
     WebIDL::ExceptionOr<GC::Ref<Node>> remove_child(GC::Ref<Node>);
 
     void insert_before(GC::Ref<Node> node, GC::Ptr<Node> child, bool suppress_observers = false);
+    void parser_insert_before(GC::Ref<Node> node, GC::Ptr<Node> child);
+    void parser_append_child(GC::Ref<Node> node) { parser_insert_before(node, nullptr); }
     void remove(bool suppress_observers = false);
     void remove_all_children(bool suppress_observers = false);
 

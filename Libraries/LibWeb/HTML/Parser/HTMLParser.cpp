@@ -1409,13 +1409,13 @@ GC::Ptr<DOM::DocumentFragment> HTMLParser::try_parse_html_fragment_fast(DOM::Ele
             auto& html_element = as<HTMLElement>(*element);
             if (html_element.is_form_associated_element() && html_element.is_resettable())
                 html_element.reset_algorithm();
-            MUST(parent.append_child(element));
+            parent.parser_append_child(element);
             if (!is_void)
                 parents.append(element);
         },
         [&] { parents.take_last(); },
         [&](StringView text) {
-            MUST(parents.last()->append_child(DOM::Text::create(context.document(), Utf16String::from_utf8_without_validation(text))));
+            parents.last()->parser_append_child(DOM::Text::create(context.document(), Utf16String::from_utf8_without_validation(text)));
         });
     VERIFY(success);
     return fragment;
@@ -2456,6 +2456,19 @@ struct NodeAndOffset {
     }
 };
 
+static void insert_node_for_parser(DOM::Node& parent, DOM::Node& node, DOM::Node* child)
+{
+    if (!parent.is_connected()) {
+        parent.parser_insert_before(node, child);
+        return;
+    }
+    if (child) {
+        parent.insert_before(node, child, false);
+    } else {
+        MUST(parent.append_child(node));
+    }
+}
+
 static u64 s_parser_non_append_insertions { 0 };
 
 u64 parser_non_append_insertions()
@@ -2528,14 +2541,8 @@ extern "C" void ladybird_html_parser_insert_text(size_t parent, size_t offset, u
         return;
     }
 
-    if (auto* before_node = insertion_location.child_at_offset()) {
-        auto text = DOM::Text::create(parent_node.document(), data);
-        parent_node.insert_before(*text, before_node);
-        return;
-    }
-
     auto text = DOM::Text::create(parent_node.document(), data);
-    MUST(parent_node.append_child(*text));
+    insert_node_for_parser(parent_node, *text, insertion_location.child_at_offset());
 }
 
 extern "C" void ladybird_html_parser_add_missing_attribute(size_t element, size_t local_name_raw, u16 const* value_ptr, size_t value_len)
@@ -2617,7 +2624,7 @@ extern "C" size_t ladybird_html_parser_create_element(void* parser, size_t inten
 
 extern "C" void ladybird_html_parser_append_child(size_t parent, size_t child)
 {
-    MUST(node_from_html_parser_ffi(parent).append_child(node_from_html_parser_ffi(child)));
+    insert_node_for_parser(node_from_html_parser_ffi(parent), node_from_html_parser_ffi(child), nullptr);
 }
 
 extern "C" void ladybird_html_parser_insert_node(size_t parent, size_t offset, size_t child, bool queue_custom_element_reactions)
@@ -2629,10 +2636,7 @@ extern "C" void ladybird_html_parser_insert_node(size_t parent, size_t offset, s
     if (queue_custom_element_reactions && child_element)
         relevant_similar_origin_window_agent(*child_element).custom_element_reactions_stack.element_queue_stack.append({});
 
-    if (auto* before_node = insertion_location.child_at_offset())
-        parent_node.insert_before(child_node, before_node, false);
-    else
-        MUST(parent_node.append_child(child_node));
+    insert_node_for_parser(parent_node, child_node, insertion_location.child_at_offset());
 
     if (queue_custom_element_reactions && child_element) {
         auto queue = relevant_similar_origin_window_agent(*child_element).custom_element_reactions_stack.element_queue_stack.take_last();

@@ -1,0 +1,4 @@
+Children of the detached parent: 3
+DIV#host gained DIV#a
+DIV#host gained DIV#b
+DIV#b gained SPAN#c
