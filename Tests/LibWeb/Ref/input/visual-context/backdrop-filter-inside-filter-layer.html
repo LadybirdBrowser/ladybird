@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/visual-context/backdrop-filter-inverted-backdrop-ref.html">
+<style>
+body {
+    margin: 0;
+    background: white;
+}
+.backdrop {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 300px;
+    height: 200px;
+    background: rgb(0, 255, 0);
+}
+.filtered {
+    position: absolute;
+    left: 100px;
+    top: 50px;
+    width: 100px;
+    height: 100px;
+    backdrop-filter: invert(1);
+    filter: grayscale(0);
+}
+</style>
+<!-- The box's own filter layer is opened with the filtered backdrop as its initial content; the backdrop
+     filter must not read the box's own, still empty, layer. -->
+<div class="backdrop"></div>
+<div class="filtered"></div>

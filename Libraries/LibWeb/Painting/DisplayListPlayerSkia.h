@@ -70,6 +70,7 @@ private:
 
     SkPaint paint_style_to_skia_paint(DisplayListPaintStyle const&, Gfx::FloatRect const& bounding_rect);
     sk_sp<SkImageFilter> layer_image_filter(ReplayLayer const&);
+    sk_sp<SkImageFilter> backdrop_image_filter(ReplayLayer const&, bool limited_to_region);
     Gfx::Path path_from_data(DisplayListDataSpan) const;
     ReadonlySpan<Color> gradient_colors(DisplayListGradientColorStops) const;
     ReadonlySpan<float> gradient_positions(DisplayListGradientColorStops) const;

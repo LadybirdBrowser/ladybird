@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<!-- Changing one backdrop filter for another patches the box's effect in place: the recorded display list
+     only marks the region and needs no new recording. -->
+<div id="box" style="width: 100px; height: 100px; backdrop-filter: invert(1)"></div>
+<script>
+    test(() => {
+        const settle = () => document.elementFromPoint(0, 0);
+        const box = document.getElementById("box");
+        settle();
+        const liveNodes = internals.visualContextTreeNodeCount();
+        const capacity = internals.visualContextTreeNodeCapacity();
+        const epoch = internals.visualContextTreeStructuralEpoch();
+        const fullBuilds = internals.accumulatedVisualContextTreeBuildCount();
+        const incrementalUpdates = internals.accumulatedVisualContextIncrementalUpdateCount();
+
+        box.style.backdropFilter = "invert(0.5)";
+        settle();
+        const needsDisplayListRecord = internals.needsDisplayListRecord;
+
+        const lines = [
+            `needs display list record: ${needsDisplayListRecord}`,
+            `full builds: ${internals.accumulatedVisualContextTreeBuildCount() - fullBuilds}`,
+            `incremental updates: ${internals.accumulatedVisualContextIncrementalUpdateCount() - incrementalUpdates}`,
+            `live nodes unchanged: ${internals.visualContextTreeNodeCount() === liveNodes}`,
+            `capacity unchanged: ${internals.visualContextTreeNodeCapacity() === capacity}`,
+            `epoch unchanged: ${internals.visualContextTreeStructuralEpoch() === epoch}`,
+        ];
+        for (const line of lines)
+            println(line);
+    });
+</script>

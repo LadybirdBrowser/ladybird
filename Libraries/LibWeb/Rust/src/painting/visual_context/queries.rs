@@ -670,10 +670,14 @@ impl VisualContextTree {
         false
     }
 
-    pub fn has_unisolated_blending_effect(&self) -> bool {
+    // A blend mode or a backdrop filter reads what the canvas holds outside the effect's own layer.
+    pub fn has_unisolated_destination_reading_effect(&self) -> bool {
         self.effect_nodes.iter().any(|node| {
-            matches!(&node.data, EffectNodeData::Effects(effects) if effects.blend_mode != CompositingAndBlendingOperator::Normal)
-                && !self.effect_is_isolated_by_layer(node.parent)
+            matches!(
+                &node.data,
+                EffectNodeData::Effects(effects)
+                    if effects.blend_mode != CompositingAndBlendingOperator::Normal || effects.backdrop_filter.is_some()
+            ) && !self.effect_is_isolated_by_layer(node.parent)
         })
     }
 }
@@ -881,6 +885,7 @@ mod tests {
             opacity,
             blend_mode,
             filter: None,
+            backdrop_filter: None,
         })
     }
 
@@ -984,9 +989,9 @@ mod tests {
     }
 
     #[test]
-    fn a_blending_context_counts_as_unisolated_only_without_a_layer_ancestor() {
+    fn a_destination_reading_effect_counts_as_unisolated_only_without_a_layer_ancestor() {
         let mut tree = identity_tree();
-        assert!(!tree.has_unisolated_blending_effect());
+        assert!(!tree.has_unisolated_destination_reading_effect());
         let opacity_effect = tree.append_effect(
             effects(0.5, CompositingAndBlendingOperator::Normal),
             EffectNodeIndex::NONE,
@@ -999,14 +1004,49 @@ mod tests {
             VISUAL_VIEWPORT_NODE_INDEX,
             ClipNodeIndex::NONE,
         );
-        assert!(!tree.has_unisolated_blending_effect());
+        assert!(!tree.has_unisolated_destination_reading_effect());
         tree.append_effect(
             effects(1.0, CompositingAndBlendingOperator::Multiply),
             EffectNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
             ClipNodeIndex::NONE,
         );
-        assert!(tree.has_unisolated_blending_effect());
+        assert!(tree.has_unisolated_destination_reading_effect());
+
+        // A backdrop filter reads outside its own layer, so only an enclosing layer isolates it.
+        let backdrop_effects = || {
+            EffectNodeData::Effects(EffectsData {
+                opacity: 1.0,
+                blend_mode: CompositingAndBlendingOperator::Normal,
+                filter: None,
+                backdrop_filter: Some(crate::painting::visual_context::BackdropFilterData {
+                    filter: std::rc::Rc::new(vec![1]),
+                    region: IntRect::new(0, 0, 10, 10),
+                    corner_radii: libgfx_rust::CornerRadii::default(),
+                }),
+            })
+        };
+        let mut tree = identity_tree();
+        let opacity_effect = tree.append_effect(
+            effects(0.5, CompositingAndBlendingOperator::Normal),
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
+        );
+        tree.append_effect(
+            backdrop_effects(),
+            opacity_effect,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
+        );
+        assert!(!tree.has_unisolated_destination_reading_effect());
+        tree.append_effect(
+            backdrop_effects(),
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            ClipNodeIndex::NONE,
+        );
+        assert!(tree.has_unisolated_destination_reading_effect());
     }
 
     #[test]

@@ -37,7 +37,7 @@ namespace Web::Painting {
     V(StrokePath, stroke_path)                                                         \
     V(DrawEllipse, draw_ellipse)                                                       \
     V(DrawLine, draw_line)                                                             \
-    V(ApplyBackdropFilter, apply_backdrop_filter)                                      \
+    V(BackdropFilterRegion, backdrop_filter_region)                                    \
     V(DrawRect, draw_rect)                                                             \
     V(PaintNestedDisplayList, paint_nested_display_list)                               \
     V(DrawIsolatedDisplayList, draw_isolated_display_list)                             \

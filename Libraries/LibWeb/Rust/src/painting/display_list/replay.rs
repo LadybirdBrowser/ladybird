@@ -14,7 +14,7 @@ use crate::painting::visual_context::{
     resolve_leaf_to_context_matrices, should_cull_back_face,
 };
 use libgfx_rust::path::OwnedPath;
-use libgfx_rust::{FloatMatrix4x4, FloatPoint, FloatVector3, IntRect, WindingRule, translation_matrix};
+use libgfx_rust::{CornerRadii, FloatMatrix4x4, FloatPoint, FloatVector3, IntRect, WindingRule, translation_matrix};
 use std::cell::RefCell;
 
 pub trait ReplayPainter {
@@ -131,11 +131,25 @@ fn replay_layer_of(effects: &crate::painting::visual_context::EffectsData, effec
         Some(bytes) => (bytes.as_ptr(), bytes.len()),
         None => (std::ptr::null(), 0),
     };
+    let (backdrop_filter_bytes, backdrop_filter_bytes_size, backdrop_region, backdrop_corner_radii) =
+        match &effects.backdrop_filter {
+            Some(backdrop) => (
+                backdrop.filter.as_ptr(),
+                backdrop.filter.len(),
+                backdrop.region,
+                backdrop.corner_radii,
+            ),
+            None => (std::ptr::null(), 0, IntRect::default(), CornerRadii::default()),
+        };
     ReplayLayer {
         opacity: effects.opacity,
         blend_mode: effects.blend_mode,
         filter_bytes,
         filter_bytes_size,
+        backdrop_filter_bytes,
+        backdrop_filter_bytes_size,
+        backdrop_region,
+        backdrop_corner_radii,
         effect,
     }
 }
@@ -573,8 +587,8 @@ mod tests {
     use crate::painting::display_list::commands::ContextRef;
     use crate::painting::display_list::commands::VISUAL_VIEWPORT_NODE_INDEX;
     use crate::painting::visual_context::{
-        BackfaceVisibilityData, ClipData, ClipMode, EffectsData, MaskData, MaskLayerOrigin, SpatialData, TransformData,
-        TransformDataRole,
+        BackdropFilterData, BackfaceVisibilityData, ClipData, ClipMode, EffectsData, MaskData, MaskLayerOrigin,
+        SpatialData, TransformData, TransformDataRole,
     };
     use libgfx_rust::{
         CompositingAndBlendingOperator, CornerRadii, FloatRect, MaskKind, scale_matrix, translation_matrix,
@@ -776,6 +790,7 @@ mod tests {
             opacity,
             blend_mode: CompositingAndBlendingOperator::Normal,
             filter: None,
+            backdrop_filter: None,
         })
     }
 
@@ -1228,6 +1243,38 @@ mod tests {
                 PainterEvent::SetMatrix(base),
             ]
         );
+    }
+
+    #[test]
+    fn a_layer_carries_its_backdrop_filter() {
+        let filter = std::rc::Rc::new(vec![1, 2, 3]);
+        let region = IntRect::new(1, 2, 30, 40);
+        let radii = CornerRadii::uniform(5);
+        let with_backdrop = EffectsData {
+            opacity: 0.5,
+            blend_mode: CompositingAndBlendingOperator::Normal,
+            filter: None,
+            backdrop_filter: Some(BackdropFilterData {
+                filter: filter.clone(),
+                region,
+                corner_radii: radii,
+            }),
+        };
+        let layer = replay_layer_of(&with_backdrop, EffectNodeIndex(3));
+        assert_eq!(layer.opacity, 0.5);
+        assert_eq!(layer.backdrop_filter_bytes, filter.as_ptr());
+        assert_eq!(layer.backdrop_filter_bytes_size, 3);
+        assert_eq!(layer.backdrop_region, region);
+        assert_eq!(layer.backdrop_corner_radii, radii);
+        assert_eq!(layer.effect, EffectNodeIndex(3));
+
+        let EffectNodeData::Effects(without_backdrop) = effects(0.5) else {
+            unreachable!()
+        };
+        let layer = replay_layer_of(&without_backdrop, EffectNodeIndex(4));
+        assert!(layer.backdrop_filter_bytes.is_null());
+        assert_eq!(layer.backdrop_filter_bytes_size, 0);
+        assert_eq!(layer.backdrop_region, IntRect::default());
     }
 
     // A background-color animation marker is an effect without canvas state: entering or leaving

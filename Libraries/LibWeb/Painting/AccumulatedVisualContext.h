@@ -95,7 +95,7 @@ public:
     WEB_API Gfx::FloatMatrix4x4 accumulated_matrix(SpatialNodeIndex, ScrollStateSnapshot const&, IncludeVisualViewportTransform) const;
 
     WEB_API bool effect_is_isolated_by_layer(EffectNodeIndex) const;
-    WEB_API bool has_unisolated_blending_effect() const;
+    WEB_API bool has_unisolated_destination_reading_effect() const;
     WEB_API void for_each_effects_filter_bytes(Function<void(ReadonlyBytes)> const&) const;
 
 private:

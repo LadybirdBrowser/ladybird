@@ -33,7 +33,7 @@ pub enum DisplayListCommandType {
     StrokePath,
     DrawEllipse,
     DrawLine,
-    ApplyBackdropFilter,
+    BackdropFilterRegion,
     DrawRect,
     PaintNestedDisplayList,
     DrawIsolatedDisplayList,
@@ -94,7 +94,7 @@ impl DisplayListCommandType {
             Self::StrokePath => "StrokePath",
             Self::DrawEllipse => "DrawEllipse",
             Self::DrawLine => "DrawLine",
-            Self::ApplyBackdropFilter => "ApplyBackdropFilter",
+            Self::BackdropFilterRegion => "BackdropFilterRegion",
             Self::DrawRect => "DrawRect",
             Self::PaintNestedDisplayList => "PaintNestedDisplayList",
             Self::DrawIsolatedDisplayList => "DrawIsolatedDisplayList",
@@ -184,6 +184,10 @@ pub struct ReplayLayer {
     pub blend_mode: CompositingAndBlendingOperator,
     pub filter_bytes: *const u8,
     pub filter_bytes_size: usize,
+    pub backdrop_filter_bytes: *const u8,
+    pub backdrop_filter_bytes_size: usize,
+    pub backdrop_region: IntRect,
+    pub backdrop_corner_radii: CornerRadii,
     pub effect: EffectNodeIndex,
 }
 
@@ -1190,25 +1194,19 @@ impl DisplayListCommand for DrawLine {
     }
 }
 
+// The backdrop filter is applied by the effect the box records under. This command holds the box's
+// place in paint order, so the effect is entered there even when the box paints nothing else.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
-pub struct ApplyBackdropFilter {
-    pub backdrop_region: IntRect,
-    pub corner_radii: CornerRadii,
-    pub has_backdrop_filter: bool,
-    pub backdrop_filter_data: DisplayListDataSpan,
+pub struct BackdropFilterRegion {
+    pub rect: IntRect,
 }
-ffi_bytes_fields!(ApplyBackdropFilter {
-    backdrop_region,
-    corner_radii,
-    has_backdrop_filter,
-    backdrop_filter_data
-});
+ffi_bytes_fields!(BackdropFilterRegion { rect });
 
-impl DisplayListCommand for ApplyBackdropFilter {
-    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::ApplyBackdropFilter;
+impl DisplayListCommand for BackdropFilterRegion {
+    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::BackdropFilterRegion;
     fn bounding_rect(&self) -> Option<IntRect> {
-        Some(self.backdrop_region)
+        Some(self.rect)
     }
 }
 

@@ -253,7 +253,8 @@ pub(crate) fn box_owns_geometry_dependent_nodes(
             EffectNodeData::BackgroundColorAnimation => false,
             EffectNodeData::Mask(_) => true,
             EffectNodeData::Effects(effects) => {
-                effects.filter.is_some() && effects_filter_is_resolved_by_the_host_against_geometry
+                effects.backdrop_filter.is_some()
+                    || (effects.filter.is_some() && effects_filter_is_resolved_by_the_host_against_geometry)
             }
             EffectNodeData::Dead => false,
         }
@@ -714,6 +715,7 @@ mod tests {
             opacity: 0.5,
             blend_mode: CompositingAndBlendingOperator::Normal,
             filter: None,
+            backdrop_filter: None,
         })
     }
 

@@ -234,7 +234,10 @@ fn effect_data_is_equal(a: &EffectNodeData, b: &EffectNodeData) -> bool {
     match (a, b) {
         (EffectNodeData::BackgroundColorAnimation, EffectNodeData::BackgroundColorAnimation) => true,
         (EffectNodeData::Effects(data), EffectNodeData::Effects(other)) => {
-            data.opacity == other.opacity && data.blend_mode == other.blend_mode && data.filter == other.filter
+            data.opacity == other.opacity
+                && data.blend_mode == other.blend_mode
+                && data.filter == other.filter
+                && data.backdrop_filter == other.backdrop_filter
         }
         // Mask content is per-recording and invisible here, so mask chains always damage.
         (EffectNodeData::Mask(_), EffectNodeData::Mask(_)) => false,
@@ -697,14 +700,14 @@ mod tests {
     use crate::layout::node_data::NodeSlotId;
     use crate::painting::display_list::builder::HEADER_SIZE;
     use crate::painting::display_list::commands::{
-        CanvasId, CompositorMainThreadWheelEventRegion, DisplayListCommand, DisplayListGlyph, DrawCanvas, FillRect,
-        FontResourceId, ImageFrameResourceId, InlineClipKind,
+        BackdropFilterRegion, CanvasId, CompositorMainThreadWheelEventRegion, DisplayListCommand, DisplayListGlyph,
+        DrawCanvas, FillRect, FontResourceId, ImageFrameResourceId, InlineClipKind,
     };
     use crate::painting::display_list::ffi_bytes::FfiBytes;
     use crate::painting::visual_context::scroll_state::NO_SCROLL_STATE_SLOT;
     use crate::painting::visual_context::{
-        ClipData, ClipMode, ClipNodeData, ClipNodeIndex, EffectNodeData, EffectNodeIndex, EffectsData, MaskData,
-        MaskLayerOrigin, ScrollData, SpatialData, TransformData, TransformDataRole,
+        BackdropFilterData, ClipData, ClipMode, ClipNodeData, ClipNodeIndex, EffectNodeData, EffectNodeIndex,
+        EffectsData, MaskData, MaskLayerOrigin, ScrollData, SpatialData, TransformData, TransformDataRole,
     };
     use libgfx_rust::filter::Filter;
     use libgfx_rust::{
@@ -866,6 +869,7 @@ mod tests {
             opacity: 1.0,
             blend_mode: CompositingAndBlendingOperator::Normal,
             filter: Some(Rc::new(filter)),
+            backdrop_filter: None,
         })
     }
 
@@ -1218,6 +1222,56 @@ mod tests {
         );
     }
 
+    fn backdrop_effects(filter: Vec<u8>, region: IntRect) -> EffectNodeData {
+        EffectNodeData::Effects(EffectsData {
+            opacity: 1.0,
+            blend_mode: CompositingAndBlendingOperator::Normal,
+            filter: None,
+            backdrop_filter: Some(BackdropFilterData {
+                filter: Rc::new(filter),
+                region,
+                corner_radii: CornerRadii::default(),
+            }),
+        })
+    }
+
+    // A backdrop filter's output is limited to its region, which the region command records, so a
+    // changed backdrop filter damages that region even when it widens the filter's extent.
+    #[test]
+    fn changed_backdrop_filter_damages_its_region() {
+        let region = IntRect::new(10, 10, 20, 20);
+        let mut old_tree = identity_tree();
+        let old_context = effect_context(&mut old_tree, backdrop_effects(blur_filter(1.0), region));
+        let mut new_tree = identity_tree();
+        let new_context = effect_context(&mut new_tree, backdrop_effects(blur_filter(10.0), region));
+        let mut unchanged_tree = identity_tree();
+        let unchanged_context = effect_context(&mut unchanged_tree, backdrop_effects(blur_filter(1.0), region));
+        let marker = BackdropFilterRegion { rect: region };
+        let old_display_list = command_bytes(
+            &marker,
+            Some(region),
+            context_in(VISUAL_VIEWPORT_NODE_INDEX, old_context),
+        );
+        let new_display_list = command_bytes(
+            &marker,
+            Some(region),
+            context_in(VISUAL_VIEWPORT_NODE_INDEX, new_context),
+        );
+        let unchanged_display_list = command_bytes(
+            &marker,
+            Some(region),
+            context_in(VISUAL_VIEWPORT_NODE_INDEX, unchanged_context),
+        );
+        assert_eq!(
+            damage(&old_display_list, &old_tree, &new_display_list, &new_tree),
+            Some(IntRect::new(9, 9, 22, 22))
+        );
+        assert_eq!(
+            damage(&old_display_list, &old_tree, &unchanged_display_list, &unchanged_tree),
+            Some(IntRect::default())
+        );
+    }
+
     #[test]
     fn mask_visual_context_damages_affected_commands() {
         let mut old_tree = identity_tree();
@@ -1314,6 +1368,7 @@ mod tests {
                 opacity: 0.5,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
+                backdrop_filter: None,
             }),
         );
         let new_command_spatial = new_tree.append_spatial(

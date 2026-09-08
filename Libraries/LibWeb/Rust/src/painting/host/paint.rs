@@ -4,12 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::computed_value_types::ComputedStyleValueHandle;
 use crate::layout::used_values;
 use crate::painting::display_list::builder::RecordedDisplayList;
 use crate::painting::display_list::commands::{DisplayListCommandRun, DisplayListResourceId, EffectNodeIndex};
 use crate::painting::display_list::commands::{OptionalAffineTransform, OptionalColor};
-use crate::painting::host::visual_context::{FfiResolvedSvgFilter, ResolvedSvgFilter};
 use libgfx_rust::{AffineTransform, Color, FloatMatrix4x4, FloatRect, FloatSize, IntRect, InterpolationColorSpace};
 use std::ffi::c_void;
 
@@ -455,8 +453,6 @@ pub struct FfiPaintHostCallbacks {
     pub replaced_paint_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiReplacedPaintFacts,
     pub replaced_image_paint:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FloatRect, FloatSize) -> FfiImagePaintFacts,
-    pub resolve_svg_filter:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, *const c_void, *mut c_void) -> FfiResolvedSvgFilter,
     pub svg_image_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiSvgImageFacts,
     pub svg_paint_style: unsafe extern "C" fn(
         *mut c_void,
@@ -580,24 +576,6 @@ impl FfiPaintHostCallbacks {
     ) -> FfiImagePaintFacts {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
         unsafe { (self.replaced_image_paint)(self.context, layout_node_shell, dest, accumulated_scale) }
-    }
-    pub(crate) fn resolve_svg_filter(
-        &self,
-        layout_node_shell: *mut c_void,
-        url_value: &ComputedStyleValueHandle,
-        device_pixels_per_css_pixel: f64,
-    ) -> ResolvedSvgFilter {
-        // SAFETY: The C++ host answers synchronously from a live layout node shell and only pushes
-        // into the builder whose pointer it receives.
-        unsafe {
-            ResolvedSvgFilter::from_host(
-                self.resolve_svg_filter,
-                self.context,
-                layout_node_shell,
-                url_value,
-                device_pixels_per_css_pixel,
-            )
-        }
     }
     pub(crate) fn svg_image_facts(&self, layout_node_shell: *mut c_void) -> FfiSvgImageFacts {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.

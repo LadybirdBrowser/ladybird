@@ -247,42 +247,11 @@ pub(crate) fn paint_backdrop_filter<O: Observer>(
     if !facts.has_backdrop_filter {
         return;
     }
-    let backdrop_region =
-        recorder
-            .converter
-            .rounded_device_rect(crate::painting::paintable_geometry::absolute_border_box_rect(
-                recorder.layout_arena,
-                paintable,
-            ));
-    let border_radii = recorder.border_radii(paintable);
-    let filter_bytes = recorder.layout_arena.node_style_if_live(paintable).and_then(|style| {
-        let backdrop_filter = &style.effects().backdrop_filter;
-        if crate::painting::filter_bytes::contains_url(backdrop_filter) {
-            let layout_node_shell = recorder.layout_node_shell(paintable);
-            let resolved_svg_filter =
-                crate::painting::filter_bytes::resolve_svg_filter_references(backdrop_filter, |url_value| {
-                    recorder.paint_host.resolve_svg_filter(
-                        layout_node_shell,
-                        url_value,
-                        recorder.inputs.device_pixels_per_css_pixel,
-                    )
-                });
-            crate::painting::filter_bytes::serialize_filter_with_resolved_svg(
-                backdrop_filter,
-                resolved_svg_filter,
-                recorder.inputs.device_pixels_per_css_pixel,
-            )
-        } else {
-            crate::painting::filter_bytes::serialize_non_url_filter(
-                backdrop_filter,
-                recorder.inputs.device_pixels_per_css_pixel,
-            )
-        }
-    });
-    if let Some(filter_bytes) = filter_bytes {
-        let corner_radii = border_radii.as_corners(&recorder.converter);
-        recorder
-            .recorder
-            .apply_backdrop_filter(backdrop_region, corner_radii, &filter_bytes);
-    }
+    let region = recorder
+        .converter
+        .rounded_device_rect(crate::painting::paintable_geometry::absolute_border_box_rect(
+            recorder.layout_arena,
+            paintable,
+        ));
+    recorder.recorder.backdrop_filter_region(region);
 }

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    #transformed {
+        position: absolute;
+        left: 20px;
+        top: 20px;
+        width: 100px;
+        height: 100px;
+        border-radius: 10px;
+        transform: translate(5px, 5px);
+        clip-path: inset(0 50px 0 0);
+        opacity: 0.5;
+        backdrop-filter: invert(1);
+    }
+    #plain {
+        position: absolute;
+        left: 200px;
+        top: 20px;
+        width: 100px;
+        height: 100px;
+        transform: translate(5px, 5px);
+        opacity: 0.5;
+        background: rgb(0, 128, 0);
+    }
+    #empty {
+        position: absolute;
+        left: 400px;
+        top: 20px;
+        width: 50px;
+        height: 50px;
+        backdrop-filter: blur(2px);
+    }
+</style>
+<!-- The layer that carries a backdrop filter is entered in the box's own transformed space and inside
+     its clip path; a layer without one stays in the parent space, outside the box's transform. An empty
+     box with a backdrop filter still records a region so the layer is entered in paint order. -->
+<div id="transformed"></div>
+<div id="plain"></div>
+<div id="empty"></div>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

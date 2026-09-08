@@ -558,9 +558,12 @@ pub(crate) fn compute_effects_data(
         crate::painting::filter_bytes::serialize_non_url_filter(&effects_values.filter, device_pixels_per_css_pixel)
             .map(std::rc::Rc::new)
     };
+    let backdrop_filter =
+        compute_backdrop_filter_data(layout_arena, callbacks, slot, style, device_pixels_per_css_pixel);
     let needs_compositor_effects_layer = layout_arena
         .node_has_compositor_animation_frame(slot, crate::layout::node_data::CompositorAnimationFrameKind::Opacity);
     if filter.is_none()
+        && backdrop_filter.is_none()
         && effects_values.opacity == 1.0
         && effects_values.mix_blend_mode == mix_blend_mode::NORMAL
         && !needs_compositor_effects_layer
@@ -571,12 +574,48 @@ pub(crate) fn compute_effects_data(
         opacity: effects_values.opacity,
         blend_mode: mix_blend_mode_to_compositing_and_blending_operator(effects_values.mix_blend_mode),
         filter,
+        backdrop_filter,
     };
-    let needs_layer = effects.opacity < 1.0
-        || effects.blend_mode != CompositingAndBlendingOperator::Normal
-        || effects.filter.is_some()
-        || needs_compositor_effects_layer;
+    let needs_layer = effects.needs_layer() || needs_compositor_effects_layer;
     needs_layer.then_some(effects)
+}
+
+// https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty
+fn compute_backdrop_filter_data(
+    layout_arena: &impl PaintableRowsRead,
+    callbacks: &FfiVisualContextHostCallbacks,
+    slot: NodeSlotId,
+    style: ComputedValuesView<'_>,
+    device_pixels_per_css_pixel: f64,
+) -> Option<super::BackdropFilterData> {
+    let backdrop_filter = &style.effects().backdrop_filter;
+    if backdrop_filter.operations.length == 0 {
+        return None;
+    }
+    let converter = DevicePixelConverter::new(device_pixels_per_css_pixel);
+    let region = converter.rounded_device_rect(paintable_geometry::absolute_border_box_rect(layout_arena, slot));
+    if region.is_empty() {
+        return None;
+    }
+    let filter = if crate::painting::filter_bytes::contains_url(backdrop_filter) {
+        let layout_node_shell = layout_arena.shell_if_live(slot);
+        let resolved_svg_filter =
+            crate::painting::filter_bytes::resolve_svg_filter_references(backdrop_filter, |url_value| {
+                callbacks.resolve_svg_filter(layout_node_shell, url_value, device_pixels_per_css_pixel)
+            });
+        crate::painting::filter_bytes::serialize_filter_with_resolved_svg(
+            backdrop_filter,
+            resolved_svg_filter,
+            device_pixels_per_css_pixel,
+        )
+    } else {
+        crate::painting::filter_bytes::serialize_non_url_filter(backdrop_filter, device_pixels_per_css_pixel)
+    }?;
+    Some(super::BackdropFilterData {
+        filter: std::rc::Rc::new(filter),
+        region,
+        corner_radii: border_radii_data(style, layout_arena, slot).as_corners(&converter),
+    })
 }
 
 fn any_background_layer_has_an_image_with_attachment(style: ComputedValuesView<'_>, wanted_attachment: u16) -> bool {

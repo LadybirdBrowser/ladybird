@@ -1,0 +1,19 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+        [s2] transform=[1,0,0,1,5,5] origin=(70,70) (BlockContainer<DIV>#transformed)
+        [s3] transform=[1,0,0,1,5,5] origin=(250,70) (BlockContainer<DIV>#plain)
+  clips:
+    [c0 in s2] clip_path=[bounds: 20,20 100x100, path: M20 20L70 20L70 120L20 120L20 20Z] (BlockContainer<DIV>#transformed)
+  effects:
+    [e0 in s0] effects=[]
+      [e1 in s2 out=c0] effects=[opacity=0.5 backdrop-filter=[20,20 100x100]] (BlockContainer<DIV>#transformed)
+      [e2 in s1] effects=[opacity=0.5] (BlockContainer<DIV>#plain)
+      [e3 in s1] effects=[backdrop-filter=[400,20 50x50]] (BlockContainer<DIV>#empty)
+
+DisplayList:
+BackdropFilterRegion@s2/c0/e1 rect=[20,20 100x100]
+FillRect@s3/e2 rect=[200,20 100x100] color=rgb(0, 128, 0)
+BackdropFilterRegion@s1/e3 rect=[400,20 50x50]
+

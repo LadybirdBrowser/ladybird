@@ -88,11 +88,21 @@ pub struct ClipPathData {
     pub fill_rule: WindingRule,
 }
 
+// The filtered backdrop, limited to the box's rounded border box, is the initial content of the box's
+// layer, so the layer's opacity, blend mode and filter apply to it along with the box's content.
+#[derive(Clone, PartialEq)]
+pub struct BackdropFilterData {
+    pub filter: Rc<Vec<u8>>,
+    pub region: IntRect,
+    pub corner_radii: CornerRadii,
+}
+
 #[derive(Clone)]
 pub struct EffectsData {
     pub opacity: f32,
     pub blend_mode: CompositingAndBlendingOperator,
     pub filter: Option<std::rc::Rc<Vec<u8>>>,
+    pub backdrop_filter: Option<BackdropFilterData>,
 }
 
 impl EffectNodeData {
@@ -101,6 +111,7 @@ impl EffectNodeData {
             opacity: 1.0,
             blend_mode,
             filter: None,
+            backdrop_filter: None,
         })
     }
 }
@@ -117,7 +128,10 @@ impl ClipNodeData {
 
 impl EffectsData {
     pub fn needs_layer(&self) -> bool {
-        self.opacity < 1.0 || self.blend_mode != CompositingAndBlendingOperator::Normal || self.filter.is_some()
+        self.opacity < 1.0
+            || self.blend_mode != CompositingAndBlendingOperator::Normal
+            || self.filter.is_some()
+            || self.backdrop_filter.is_some()
     }
 }
 
@@ -1565,6 +1579,7 @@ mod tests {
             opacity: 1.0,
             blend_mode: CompositingAndBlendingOperator::Normal,
             filter: None,
+            backdrop_filter: None,
         })
     }
 

@@ -205,6 +205,17 @@ impl VisualContextTree {
                         text.push(' ');
                     }
                     text.push_str("filter");
+                    has_content = true;
+                }
+                if let Some(backdrop_filter) = &effects.backdrop_filter {
+                    if has_content {
+                        text.push(' ');
+                    }
+                    let _ = write!(
+                        text,
+                        "backdrop-filter=[{}]",
+                        format_int_rect_components(backdrop_filter.region)
+                    );
                 }
                 text.push(']');
             }
@@ -551,6 +562,7 @@ mod node_dump_tests {
                 opacity: 1.0,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
+                backdrop_filter: None,
             }),
             EffectNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
@@ -561,6 +573,7 @@ mod node_dump_tests {
                 opacity: 0.5,
                 blend_mode: CompositingAndBlendingOperator::Multiply,
                 filter: Some(std::rc::Rc::new(vec![1, 2, 3])),
+                backdrop_filter: None,
             }),
             EffectNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
@@ -668,6 +681,7 @@ mod section_dump_tests {
                 opacity: 0.5,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
+                backdrop_filter: None,
             }),
             EffectNodeIndex::NONE,
             scroll_node,

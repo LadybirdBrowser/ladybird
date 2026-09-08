@@ -315,8 +315,7 @@ fn transform_value_is_invertible(property: u16, values: ComputedValuesView<'_>) 
 fn accumulated_visual_context_property_always_requires_repaint(property: u16) -> bool {
     matches!(
         property,
-        property_id::BACKDROP_FILTER
-            | property_id::BACKGROUND_ATTACHMENT
+        property_id::BACKGROUND_ATTACHMENT
             | property_id::BACKGROUND_IMAGE
             | property_id::BORDER_BOTTOM_LEFT_RADIUS
             | property_id::BORDER_BOTTOM_RIGHT_RADIUS
@@ -498,6 +497,7 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
                 | property_id::SCALE
                 | property_id::OPACITY
                 | property_id::FILTER
+                | property_id::BACKDROP_FILTER
                 | property_id::MIX_BLEND_MODE
                 | property_id::PERSPECTIVE
         ) && value_creates_stacking_context(property, old)
