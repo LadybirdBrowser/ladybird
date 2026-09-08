@@ -443,6 +443,9 @@ void MediaControls::set_up_event_listeners()
         case UIEvents::KeyCode::Key_M:
             toggle_mute();
             break;
+        case UIEvents::KeyCode::Key_F:
+            toggle_fullscreen();
+            break;
         default:
             return false;
         }
