@@ -33,7 +33,7 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
                     SVGGeometryBox <path.speaker> at [4,4] [0+0+0 8 0+0+0] [0+0+0 16 0+0+0] children: not-inline
                       SVGClipBox <clipPath#muted-clip> at [0,0] [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] children: not-inline
                         SVGGeometryBox <path> at [0,0] [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] children: not-inline
-                Box <div.control-button.fullscreen-button> at [276,127] flex-container(row) flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] [FFC] children: not-inline
+                Box <button.control-button.fullscreen-button> at [276,127] flex-container(row) flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] [FFC] children: not-inline
                   SVGSVGBox <svg.icon.fullscreen-icon> at [276,127] flex-item [0+0+0 24 0+0+0] [0+0+0 24 0+0+0] viewport-transform=[1 0 0 1 0 0] [SVG] children: not-inline
                     SVGGeometryBox <path.fullscreen-maximize-path> at [3,3] [0+0+0 18 0+0+0] [0+0+0 18 0+0+0] children: not-inline
       TextNode <#text> (not painted)
