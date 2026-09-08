@@ -1,0 +1,12 @@
+LTR before text: true
+LTR after text: true
+LTR between text nodes: true
+RTL before text: true
+RTL after text: true
+RTL between text nodes: true
+vertical before text: true
+vertical after text: true
+vertical between text nodes: true
+first character caret: true
+second character advances: true
+caret height stays stable: true
