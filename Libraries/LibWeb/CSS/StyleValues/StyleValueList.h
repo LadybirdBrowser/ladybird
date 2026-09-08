@@ -28,10 +28,17 @@ public:
         return adopt_ref(*new (nothrow) StyleValueList(move(values), separator, collapsible));
     }
 
-    size_t size() const { return m_values.size(); }
+    size_t size() const { return m_value->value_list.values.length; }
     StyleValueVector values() const
     {
-        return m_values;
+        auto const& values = m_value->value_list.values;
+        StyleValueVector result;
+        result.ensure_capacity(values.length);
+        for (size_t i = 0; i < values.length; ++i) {
+            auto* child_data = static_cast<StyleValueFFI::StyleValueData const*>(values.pointer[i].pointer);
+            result.unchecked_append(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data)));
+        }
+        return result;
     }
     ValueComparingNonnullRefPtr<StyleValue const> value_at(size_t i, bool allow_loop) const
     {
@@ -55,23 +62,17 @@ private:
     explicit StyleValueList(StyleValueFFI::StyleValueData const* data)
         : StyleValueWithDefaultOperators(Type::ValueList, data)
     {
-        auto const& values = data->value_list.values;
-        m_values.ensure_capacity(values.length);
-        for (size_t i = 0; i < values.length; ++i) {
-            auto* child_data = static_cast<StyleValueFFI::StyleValueData const*>(values.pointer[i].pointer);
-            m_values.unchecked_append(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data)));
-        }
     }
 
     StyleValueList(StyleValueVector&& values, Separator separator, Collapsible collapsible = Collapsible::Yes)
         : StyleValueWithDefaultOperators(Type::ValueList, make_value_list_data(values, separator, collapsible))
-        , m_values(move(values))
     {
     }
 
     ValueComparingNonnullRefPtr<StyleValue const> value_at(size_t i) const
     {
-        return m_values[i];
+        auto* child_data = static_cast<StyleValueFFI::StyleValueData const*>(m_value->value_list.values.pointer[i].pointer);
+        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data));
     }
 
     static StyleValueFFI::StyleValueData const* make_value_list_data(StyleValueVector const& values, Separator separator, Collapsible collapsible)
@@ -84,8 +85,6 @@ private:
     }
 
     Collapsible collapsible() const { return m_value->value_list.collapsible ? Collapsible::Yes : Collapsible::No; }
-
-    StyleValueVector m_values;
 };
 
 }

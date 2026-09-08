@@ -302,7 +302,8 @@ static WebIDL::ExceptionOr<GC::Ref<GC::HeapVector<NonnullRefPtr<FontFaceState>>>
 
     // 3. Let font family list be the list of font families parsed from font, and font style be the other font style
     //    attributes parsed from font.
-    auto const& font_family_list = property->as_shorthand().longhand(PropertyID::FontFamily)->as_value_list();
+    auto font_family_value = property->as_shorthand().longhand(PropertyID::FontFamily);
+    auto const& font_family_list = font_family_value->as_value_list();
 
     // 5. Let matched font faces initially be an empty list.
     auto matched_font_faces = GC::Heap::the().allocate<GC::HeapVector<NonnullRefPtr<FontFaceState>>>();

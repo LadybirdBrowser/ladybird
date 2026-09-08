@@ -296,7 +296,6 @@ set(SOURCES
     CSS/StyleValues/TimeStyleValue.cpp
     CSS/StyleValues/TransformationStyleValue.cpp
     CSS/StyleValues/TreeCountingFunctionStyleValue.cpp
-    CSS/StyleValues/TupleStyleValue.cpp
     CSS/StyleValues/UnresolvedStyleValue.cpp
     CSS/Supports.cpp
     CSS/SyntaxHighlighter/SyntaxHighlighter.cpp

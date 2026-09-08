@@ -5,7 +5,6 @@
  */
 
 #include "CounterDefinitionsStyleValue.h"
-#include <LibWeb/CSS/Serialize.h>
 
 namespace Web::CSS {
 
