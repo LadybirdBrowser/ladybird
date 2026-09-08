@@ -655,6 +655,16 @@ fn finish_slow_path_call(
         Opcode::JumpNegativeToExit => [];
     );
 
+    let transfer = emit.unique_label("slow_path_transfer");
+    let continuation_bit = emit.constant(crate::frontend::layout::KnownLayoutConstant::SlowPathContinuationBit)?;
+    emit!(emit.output, X86_64;
+        Opcode::BitTest64Immediate => [register result_scratch, immediate continuation_bit];
+        Opcode::JumpCondition(super::Condition::NotCarry) => [label transfer.clone()];
+    );
+    emit!(emit.output, X86_64; Opcode::Move32Register => [register R13, register result_scratch];);
+    dispatch_from_instruction_pointer(emit, result_scratch);
+    emit!(emit.output, X86_64; Opcode::Label => [label transfer];);
+
     vm_load(emit, state_scratch);
     push_load(
         emit,

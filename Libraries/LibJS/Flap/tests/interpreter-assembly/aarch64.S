@@ -1747,6 +1747,12 @@ asm_handler_Exp:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_exp_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_Exp.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_Exp.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -5655,6 +5661,12 @@ asm_handler_ExpRhsInt32:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_exp_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_ExpRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ExpRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -6838,6 +6850,12 @@ asm_handler_Add_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_add_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_Add.slow_path_transfer_1
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_Add.slow_path_transfer_1:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -6930,6 +6948,12 @@ asm_handler_Sub_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_sub_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_Sub.slow_path_transfer_1
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_Sub.slow_path_transfer_1:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7021,6 +7045,12 @@ asm_handler_Mul_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_mul_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_Mul.slow_path_transfer_1
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_Mul.slow_path_transfer_1:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7051,6 +7081,12 @@ asm_handler_ConcatString:
     mov x2, x21
     bl CSYM(asm_slow_path_concat_string)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_ConcatString.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ConcatString.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7071,6 +7107,12 @@ asm_handler_CopyObjectExcludingProperties:
     mov x2, x21
     bl CSYM(asm_slow_path_copy_object_excluding_properties)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CopyObjectExcludingProperties.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CopyObjectExcludingProperties.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7091,6 +7133,12 @@ asm_handler_ImportCall:
     mov x2, x21
     bl CSYM(asm_slow_path_import_call)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_ImportCall.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ImportCall.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7111,6 +7159,12 @@ asm_handler_NewClass:
     mov x2, x21
     bl CSYM(asm_slow_path_new_class)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_NewClass.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_NewClass.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7180,6 +7234,12 @@ asm_handler_JumpLessThan_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_less_than_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_JumpLessThan.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_JumpLessThan.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7234,6 +7294,12 @@ asm_handler_JumpGreaterThan_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_greater_than_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_JumpGreaterThan.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_JumpGreaterThan.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7288,6 +7354,12 @@ asm_handler_JumpLessThanEquals_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_less_than_equals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_JumpLessThanEquals.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_JumpLessThanEquals.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7342,6 +7414,12 @@ asm_handler_JumpGreaterThanEquals_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_greater_than_equals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_JumpGreaterThanEquals.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_JumpGreaterThanEquals.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7376,6 +7454,12 @@ asm_handler_JumpLooselyEquals_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_loosely_equals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_JumpLooselyEquals.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_JumpLooselyEquals.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7410,6 +7494,12 @@ asm_handler_JumpLooselyInequals_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_loosely_inequals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_JumpLooselyInequals.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_JumpLooselyInequals.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7444,6 +7534,12 @@ asm_handler_JumpStrictlyEquals_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_strictly_equals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_JumpStrictlyEquals.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_JumpStrictlyEquals.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7478,6 +7574,12 @@ asm_handler_JumpStrictlyInequals_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_strictly_inequals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_JumpStrictlyInequals.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_JumpStrictlyInequals.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7510,6 +7612,12 @@ asm_handler_Increment_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_increment)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_Increment.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_Increment.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7542,6 +7650,12 @@ asm_handler_Decrement_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_decrement)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_Decrement.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_Decrement.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7571,6 +7685,12 @@ asm_handler_GetImportMeta:
     mov x2, x21
     bl CSYM(asm_slow_path_get_import_meta)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GetImportMeta.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetImportMeta.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7591,6 +7711,12 @@ asm_handler_GetNewTarget:
     mov x2, x21
     bl CSYM(asm_slow_path_get_new_target)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GetNewTarget.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetNewTarget.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7611,6 +7737,12 @@ asm_handler_GetSuperConstructor:
     mov x2, x21
     bl CSYM(asm_slow_path_get_super_constructor)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GetSuperConstructor.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetSuperConstructor.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7634,6 +7766,12 @@ asm_handler_GetBinding_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_get_binding)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GetBinding.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetBinding.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7652,6 +7790,12 @@ asm_handler_DynamicGetBinding_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_dynamic_get_binding)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_DynamicGetBinding.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_DynamicGetBinding.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7672,6 +7816,12 @@ asm_handler_DynamicGetInitializedBinding_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_dynamic_get_initialized_binding)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_DynamicGetInitializedBinding.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_DynamicGetInitializedBinding.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7694,6 +7844,12 @@ asm_handler_DynamicInitializeLexicalBinding_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_dynamic_initialize_lexical_binding)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_DynamicInitializeLexicalBinding.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_DynamicInitializeLexicalBinding.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7712,6 +7868,12 @@ asm_handler_DynamicInitializeVariableBinding_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_dynamic_initialize_variable_binding)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_DynamicInitializeVariableBinding.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_DynamicInitializeVariableBinding.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7730,6 +7892,12 @@ asm_handler_SetLexicalBinding_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_set_lexical_binding)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_SetLexicalBinding.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_SetLexicalBinding.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7748,6 +7916,12 @@ asm_handler_SetVariableBinding_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_set_variable_binding)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_SetVariableBinding.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_SetVariableBinding.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7766,6 +7940,12 @@ asm_handler_DynamicSetLexicalBinding_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_dynamic_set_lexical_binding)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_DynamicSetLexicalBinding.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_DynamicSetLexicalBinding.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7784,6 +7964,12 @@ asm_handler_DynamicSetVariableBinding_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_dynamic_set_variable_binding)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_DynamicSetVariableBinding.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_DynamicSetVariableBinding.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7801,6 +7987,12 @@ asm_handler_ResolveBinding:
     mov x2, x21
     bl CSYM(asm_slow_path_resolve_binding)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_ResolveBinding.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ResolveBinding.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7821,6 +8013,12 @@ asm_handler_ResolveSuperBase:
     mov x2, x21
     bl CSYM(asm_slow_path_resolve_super_base)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_ResolveSuperBase.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ResolveSuperBase.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7841,6 +8039,12 @@ asm_handler_SetResolvedBinding:
     mov x2, x21
     bl CSYM(asm_slow_path_set_resolved_binding)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_SetResolvedBinding.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_SetResolvedBinding.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7861,6 +8065,12 @@ asm_handler_TypeofBinding:
     mov x2, x21
     bl CSYM(asm_slow_path_typeof_binding)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_TypeofBinding.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_TypeofBinding.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7881,6 +8091,12 @@ asm_handler_DynamicTypeofBinding:
     mov x2, x21
     bl CSYM(asm_slow_path_dynamic_typeof_binding)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_DynamicTypeofBinding.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_DynamicTypeofBinding.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7901,6 +8117,12 @@ asm_handler_HasPrivateId:
     mov x2, x21
     bl CSYM(asm_slow_path_has_private_id)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_HasPrivateId.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_HasPrivateId.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7921,6 +8143,12 @@ asm_handler_SetFunctionName:
     mov x2, x21
     bl CSYM(asm_slow_path_set_function_name)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_SetFunctionName.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_SetFunctionName.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7941,6 +8169,12 @@ asm_handler_NewArrayWithLength:
     mov x2, x21
     bl CSYM(asm_slow_path_new_array_with_length)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_NewArrayWithLength.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_NewArrayWithLength.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7961,6 +8195,12 @@ asm_handler_ArrayAppend:
     mov x2, x21
     bl CSYM(asm_slow_path_array_append)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_ArrayAppend.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ArrayAppend.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -7981,6 +8221,12 @@ asm_handler_CreateVariable:
     mov x2, x21
     bl CSYM(asm_slow_path_create_variable)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CreateVariable.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CreateVariable.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8001,6 +8247,12 @@ asm_handler_EnterObjectEnvironment:
     mov x2, x21
     bl CSYM(asm_slow_path_enter_object_environment)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_EnterObjectEnvironment.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_EnterObjectEnvironment.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8036,6 +8288,12 @@ asm_handler_PostfixIncrement_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_postfix_increment)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_PostfixIncrement.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_PostfixIncrement.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8056,6 +8314,12 @@ asm_handler_Div_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_div_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_Div.slow_path_transfer_1
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_Div.slow_path_transfer_1:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8110,6 +8374,12 @@ asm_handler_LessThan_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_less_than_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_LessThan.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_LessThan.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8161,6 +8431,12 @@ asm_handler_LessThanEquals_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_less_than_equals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_LessThanEquals.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_LessThanEquals.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8212,6 +8488,12 @@ asm_handler_GreaterThan_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_greater_than_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GreaterThan.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GreaterThan.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8263,6 +8545,12 @@ asm_handler_GreaterThanEquals_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_greater_than_equals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GreaterThanEquals.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GreaterThanEquals.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8314,6 +8602,12 @@ asm_handler_BitwiseXor_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_bitwise_xor_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_BitwiseXor.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_BitwiseXor.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8347,6 +8641,12 @@ asm_handler_UnaryPlus_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_unary_plus)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_UnaryPlus.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_UnaryPlus.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8372,6 +8672,12 @@ asm_handler_ThrowIfTDZ_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_throw_if_tdz)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_ThrowIfTDZ.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ThrowIfTDZ.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8390,6 +8696,12 @@ asm_handler_ThrowIfNotObject_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_throw_if_not_object)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_ThrowIfNotObject.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ThrowIfNotObject.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8408,6 +8720,12 @@ asm_handler_ThrowIfNullish_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_throw_if_nullish)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_ThrowIfNullish.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ThrowIfNullish.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8425,6 +8743,12 @@ asm_handler_ThrowConstAssignment:
     mov x2, x21
     bl CSYM(asm_slow_path_throw_const_assignment)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_ThrowConstAssignment.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ThrowConstAssignment.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8445,6 +8769,12 @@ asm_handler_Throw:
     mov x2, x21
     bl CSYM(asm_slow_path_throw)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_Throw.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_Throw.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8465,6 +8795,12 @@ asm_handler_Debugger:
     mov x2, x21
     bl CSYM(asm_slow_path_debugger)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_Debugger.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_Debugger.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8485,6 +8821,12 @@ asm_handler_Await:
     mov x2, x21
     bl CSYM(asm_slow_path_await)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_Await.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_Await.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8505,6 +8847,12 @@ asm_handler_Yield:
     mov x2, x21
     bl CSYM(asm_slow_path_yield)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_Yield.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_Yield.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8525,6 +8873,12 @@ asm_handler_YieldIteratorResult:
     mov x2, x21
     bl CSYM(asm_slow_path_yield_iterator_result)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_YieldIteratorResult.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_YieldIteratorResult.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8545,6 +8899,12 @@ asm_handler_ToString:
     mov x2, x21
     bl CSYM(asm_slow_path_to_string)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_ToString.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ToString.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8565,6 +8925,12 @@ asm_handler_ToPrimitiveWithStringHint:
     mov x2, x21
     bl CSYM(asm_slow_path_to_primitive_with_string_hint)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_ToPrimitiveWithStringHint.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ToPrimitiveWithStringHint.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8585,6 +8951,12 @@ asm_handler_ToObject:
     mov x2, x21
     bl CSYM(asm_slow_path_to_object)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_ToObject.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ToObject.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8605,6 +8977,12 @@ asm_handler_ToLength:
     mov x2, x21
     bl CSYM(asm_slow_path_to_length)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_ToLength.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ToLength.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8626,6 +9004,12 @@ asm_handler_BitwiseNot_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_bitwise_not)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_BitwiseNot.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_BitwiseNot.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8677,6 +9061,12 @@ asm_handler_BitwiseAnd_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_bitwise_and_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_BitwiseAnd.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_BitwiseAnd.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8739,6 +9129,12 @@ asm_handler_BitwiseOr_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_bitwise_or_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_BitwiseOr.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_BitwiseOr.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8770,6 +9166,12 @@ asm_handler_LeftShift_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_left_shift_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_LeftShift.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_LeftShift.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8790,6 +9192,12 @@ asm_handler_RightShift_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_right_shift_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_RightShift.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_RightShift.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8819,6 +9227,12 @@ asm_handler_UnsignedRightShift_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_unsigned_right_shift_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_UnsignedRightShift.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_UnsignedRightShift.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8928,6 +9342,12 @@ asm_handler_Mod_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_mod_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_Mod.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_Mod.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8959,6 +9379,12 @@ asm_handler_StrictlyEquals_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_strictly_equals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_StrictlyEquals.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_StrictlyEquals.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -8990,6 +9416,12 @@ asm_handler_StrictlyInequals_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_strictly_inequals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_StrictlyInequals.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_StrictlyInequals.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9008,6 +9440,12 @@ asm_handler_GetCalleeAndThisFromEnvironment_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_get_callee_and_this)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GetCalleeAndThisFromEnvironment.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetCalleeAndThisFromEnvironment.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9026,6 +9464,12 @@ asm_handler_DynamicGetCalleeAndThisFromEnvironment_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_dynamic_get_callee_and_this)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_DynamicGetCalleeAndThisFromEnvironment.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_DynamicGetCalleeAndThisFromEnvironment.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9058,6 +9502,12 @@ asm_handler_LooselyEquals_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_loosely_equals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_LooselyEquals.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_LooselyEquals.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9090,6 +9540,12 @@ asm_handler_LooselyInequals_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_loosely_inequals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_LooselyInequals.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_LooselyInequals.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9131,6 +9587,12 @@ asm_handler_UnaryMinus_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_unary_minus)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_UnaryMinus.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_UnaryMinus.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9171,6 +9633,12 @@ asm_handler_PostfixDecrement_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_postfix_decrement)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_PostfixDecrement.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_PostfixDecrement.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9204,6 +9672,12 @@ asm_handler_ToInt32_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_to_int32)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_ToInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ToInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9263,6 +9737,12 @@ asm_handler_PutByValue_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_put_by_value)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_PutByValue.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_PutByValue.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9399,6 +9879,12 @@ asm_handler_GetById_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_get_by_id_cached_accessor)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GetById.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetById.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9476,6 +9962,12 @@ asm_handler_GetById_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_get_by_id)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GetById.slow_path_transfer_1
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetById.slow_path_transfer_1:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9495,6 +9987,12 @@ asm_handler_GetByIdWithThis:
     mov x2, x21
     bl CSYM(asm_slow_path_get_by_id_with_this)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GetByIdWithThis.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetByIdWithThis.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9526,6 +10024,12 @@ asm_handler_PutById_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_put_by_id)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_PutById.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_PutById.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9543,6 +10047,12 @@ asm_handler_PutByIdWithThis:
     mov x2, x21
     bl CSYM(asm_slow_path_put_by_id_with_this)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_PutByIdWithThis.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_PutByIdWithThis.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9583,6 +10093,12 @@ asm_handler_GetByValue_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_get_by_value)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GetByValue.slow_path_transfer_1
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetByValue.slow_path_transfer_1:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9603,6 +10119,12 @@ asm_handler_GetByValueWithThis:
     mov x2, x21
     bl CSYM(asm_slow_path_get_by_value_with_this)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GetByValueWithThis.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetByValueWithThis.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9623,6 +10145,12 @@ asm_handler_PutByValueWithThis:
     mov x2, x21
     bl CSYM(asm_slow_path_put_by_value_with_this)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_PutByValueWithThis.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_PutByValueWithThis.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9643,6 +10171,12 @@ asm_handler_PutBySpread:
     mov x2, x21
     bl CSYM(asm_slow_path_put_by_spread)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_PutBySpread.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_PutBySpread.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9673,6 +10207,12 @@ asm_handler_GetLength_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_get_length)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GetLength.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetLength.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9690,6 +10230,12 @@ asm_handler_GetLengthWithThis:
     mov x2, x21
     bl CSYM(asm_slow_path_get_length_with_this)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GetLengthWithThis.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetLengthWithThis.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9710,6 +10256,12 @@ asm_handler_GetMethod:
     mov x2, x21
     bl CSYM(asm_slow_path_get_method)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GetMethod.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetMethod.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9730,6 +10282,12 @@ asm_handler_GetIterator:
     mov x2, x21
     bl CSYM(asm_slow_path_get_iterator)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GetIterator.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetIterator.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9751,6 +10309,12 @@ asm_handler_GetGlobal_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_get_global)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GetGlobal.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetGlobal.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9789,6 +10353,12 @@ asm_handler_SetGlobal_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_set_global)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_SetGlobal.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_SetGlobal.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9820,6 +10390,12 @@ asm_handler_Call_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_call)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_Call.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_Call.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9851,6 +10427,12 @@ asm_handler_CallBuiltinMathAbs_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_abs)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinMathAbs.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinMathAbs.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9869,6 +10451,12 @@ asm_handler_CallBuiltinMathFloor_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_floor)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinMathFloor.slow_path_transfer_1
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinMathFloor.slow_path_transfer_1:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9890,6 +10478,12 @@ asm_handler_CallBuiltinMathCeil_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_ceil)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinMathCeil.slow_path_transfer_1
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinMathCeil.slow_path_transfer_1:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9911,6 +10505,12 @@ asm_handler_CallBuiltinMathSqrt_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_sqrt)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinMathSqrt.slow_path_transfer_1
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinMathSqrt.slow_path_transfer_1:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9932,6 +10532,12 @@ asm_handler_CallBuiltinMathExp_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_exp)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinMathExp.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinMathExp.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9949,6 +10555,12 @@ asm_handler_CallBuiltinMathLog:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_log)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinMathLog.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinMathLog.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9969,6 +10581,12 @@ asm_handler_CallBuiltinMathPow:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_pow)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinMathPow.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinMathPow.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -9989,6 +10607,12 @@ asm_handler_CallBuiltinMathImul:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_imul)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinMathImul.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinMathImul.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10009,6 +10633,12 @@ asm_handler_CallBuiltinMathRandom:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_random)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinMathRandom.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinMathRandom.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10029,6 +10659,12 @@ asm_handler_CallBuiltinMathRound:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_round)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinMathRound.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinMathRound.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10049,6 +10685,12 @@ asm_handler_CallBuiltinMathSin:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_sin)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinMathSin.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinMathSin.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10069,6 +10711,12 @@ asm_handler_CallBuiltinMathCos:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_cos)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinMathCos.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinMathCos.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10089,6 +10737,12 @@ asm_handler_CallBuiltinMathTan:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_math_tan)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinMathTan.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinMathTan.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10109,6 +10763,12 @@ asm_handler_CallBuiltinRegExpPrototypeExec:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_regexp_prototype_exec)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinRegExpPrototypeExec.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinRegExpPrototypeExec.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10129,6 +10789,12 @@ asm_handler_CallBuiltinRegExpPrototypeReplace:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_regexp_prototype_replace)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinRegExpPrototypeReplace.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinRegExpPrototypeReplace.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10149,6 +10815,12 @@ asm_handler_CallBuiltinRegExpPrototypeSplit:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_regexp_prototype_split)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinRegExpPrototypeSplit.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinRegExpPrototypeSplit.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10169,6 +10841,12 @@ asm_handler_CallBuiltinOrdinaryHasInstance:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_ordinary_has_instance)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinOrdinaryHasInstance.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinOrdinaryHasInstance.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10189,6 +10867,12 @@ asm_handler_CallBuiltinArrayIteratorPrototypeNext:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_array_iterator_prototype_next)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinArrayIteratorPrototypeNext.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinArrayIteratorPrototypeNext.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10209,6 +10893,12 @@ asm_handler_CallBuiltinMapIteratorPrototypeNext:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_map_iterator_prototype_next)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinMapIteratorPrototypeNext.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinMapIteratorPrototypeNext.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10229,6 +10919,12 @@ asm_handler_CallBuiltinSetIteratorPrototypeNext:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_set_iterator_prototype_next)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinSetIteratorPrototypeNext.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinSetIteratorPrototypeNext.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10249,6 +10945,12 @@ asm_handler_CallBuiltinStringIteratorPrototypeNext:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_string_iterator_prototype_next)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinStringIteratorPrototypeNext.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinStringIteratorPrototypeNext.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10270,6 +10972,12 @@ asm_handler_CallBuiltinStringFromCharCode_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_string_from_char_code)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinStringFromCharCode.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinStringFromCharCode.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10296,6 +11004,12 @@ asm_handler_CallBuiltinStringPrototypeCharCodeAt_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_string_prototype_char_code_at)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinStringPrototypeCharCodeAt.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinStringPrototypeCharCodeAt.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10323,6 +11037,12 @@ asm_handler_CallBuiltinStringPrototypeCharAt_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_call_builtin_string_prototype_char_at)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallBuiltinStringPrototypeCharAt.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallBuiltinStringPrototypeCharAt.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10340,6 +11060,12 @@ asm_handler_GetObjectPropertyIterator:
     mov x2, x21
     bl CSYM(asm_slow_path_get_object_property_iterator)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GetObjectPropertyIterator.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetObjectPropertyIterator.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10361,6 +11087,12 @@ asm_handler_ObjectPropertyIteratorNext_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_object_property_iterator_next)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_ObjectPropertyIteratorNext.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ObjectPropertyIteratorNext.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10378,6 +11110,12 @@ asm_handler_IteratorClose:
     mov x2, x21
     bl CSYM(asm_slow_path_iterator_close)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_IteratorClose.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_IteratorClose.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10398,6 +11136,12 @@ asm_handler_IteratorNext:
     mov x2, x21
     bl CSYM(asm_slow_path_iterator_next)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_IteratorNext.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_IteratorNext.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10418,6 +11162,12 @@ asm_handler_IteratorNextUnpack:
     mov x2, x21
     bl CSYM(asm_slow_path_iterator_next_unpack)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_IteratorNextUnpack.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_IteratorNextUnpack.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10438,6 +11188,12 @@ asm_handler_IteratorToArray:
     mov x2, x21
     bl CSYM(asm_slow_path_iterator_to_array)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_IteratorToArray.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_IteratorToArray.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10458,6 +11214,12 @@ asm_handler_CallConstruct:
     mov x2, x21
     bl CSYM(asm_slow_path_call_construct)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallConstruct.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallConstruct.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10478,6 +11240,12 @@ asm_handler_CallDirectEval:
     mov x2, x21
     bl CSYM(asm_slow_path_call_direct_eval)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallDirectEval.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallDirectEval.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10498,6 +11266,12 @@ asm_handler_CallWithArgumentArray:
     mov x2, x21
     bl CSYM(asm_slow_path_call_with_argument_array)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallWithArgumentArray.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallWithArgumentArray.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10518,6 +11292,12 @@ asm_handler_CallDirectEvalWithArgumentArray:
     mov x2, x21
     bl CSYM(asm_slow_path_call_direct_eval_with_argument_array)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallDirectEvalWithArgumentArray.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallDirectEvalWithArgumentArray.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10538,6 +11318,12 @@ asm_handler_CallConstructWithArgumentArray:
     mov x2, x21
     bl CSYM(asm_slow_path_call_construct_with_argument_array)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CallConstructWithArgumentArray.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CallConstructWithArgumentArray.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10558,6 +11344,12 @@ asm_handler_SuperCallWithArgumentArray:
     mov x2, x21
     bl CSYM(asm_slow_path_super_call_with_argument_array)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_SuperCallWithArgumentArray.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_SuperCallWithArgumentArray.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10578,6 +11370,12 @@ asm_handler_NewObject:
     mov x2, x21
     bl CSYM(asm_slow_path_new_object)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_NewObject.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_NewObject.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10598,6 +11396,12 @@ asm_handler_NewObjectWithNoPrototype:
     mov x2, x21
     bl CSYM(asm_slow_path_new_object_with_no_prototype)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_NewObjectWithNoPrototype.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_NewObjectWithNoPrototype.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10618,6 +11422,12 @@ asm_handler_CacheObjectShape:
     mov x2, x21
     bl CSYM(asm_slow_path_cache_object_shape)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CacheObjectShape.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CacheObjectShape.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10638,6 +11448,12 @@ asm_handler_InitObjectLiteralProperty:
     mov x2, x21
     bl CSYM(asm_slow_path_init_object_literal_property)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_InitObjectLiteralProperty.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_InitObjectLiteralProperty.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10658,6 +11474,12 @@ asm_handler_NewArray:
     mov x2, x21
     bl CSYM(asm_slow_path_new_array)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_NewArray.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_NewArray.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10678,6 +11500,12 @@ asm_handler_NewPrimitiveArray:
     mov x2, x21
     bl CSYM(asm_slow_path_new_primitive_array)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_NewPrimitiveArray.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_NewPrimitiveArray.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10698,6 +11526,12 @@ asm_handler_NewRegExp:
     mov x2, x21
     bl CSYM(asm_slow_path_new_regexp)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_NewRegExp.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_NewRegExp.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10718,6 +11552,12 @@ asm_handler_NewReferenceError:
     mov x2, x21
     bl CSYM(asm_slow_path_new_reference_error)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_NewReferenceError.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_NewReferenceError.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10738,6 +11578,12 @@ asm_handler_NewTypeError:
     mov x2, x21
     bl CSYM(asm_slow_path_new_type_error)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_NewTypeError.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_NewTypeError.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10758,6 +11604,12 @@ asm_handler_InstanceOf:
     mov x2, x21
     bl CSYM(asm_slow_path_instance_of)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_InstanceOf.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_InstanceOf.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10778,6 +11630,12 @@ asm_handler_In:
     mov x2, x21
     bl CSYM(asm_slow_path_in)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_In.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_In.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10800,6 +11658,12 @@ asm_handler_IsConstructor:
     mov x2, x21
     bl CSYM(asm_slow_path_is_constructor)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_IsConstructor.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_IsConstructor.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10820,6 +11684,12 @@ asm_handler_AddPrivateName:
     mov x2, x21
     bl CSYM(asm_slow_path_add_private_name)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_AddPrivateName.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_AddPrivateName.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10840,6 +11710,12 @@ asm_handler_CreateAsyncFromSyncIterator:
     mov x2, x21
     bl CSYM(asm_slow_path_create_async_from_sync_iterator)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CreateAsyncFromSyncIterator.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CreateAsyncFromSyncIterator.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10860,6 +11736,12 @@ asm_handler_CreateDataPropertyOrThrow:
     mov x2, x21
     bl CSYM(asm_slow_path_create_data_property_or_throw)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CreateDataPropertyOrThrow.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CreateDataPropertyOrThrow.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10880,6 +11762,12 @@ asm_handler_CreateImmutableBinding:
     mov x2, x21
     bl CSYM(asm_slow_path_create_immutable_binding)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CreateImmutableBinding.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CreateImmutableBinding.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10900,6 +11788,12 @@ asm_handler_CreateMutableBinding:
     mov x2, x21
     bl CSYM(asm_slow_path_create_mutable_binding)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CreateMutableBinding.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CreateMutableBinding.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10920,6 +11814,12 @@ asm_handler_CreateRestParams:
     mov x2, x21
     bl CSYM(asm_slow_path_create_rest_params)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CreateRestParams.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CreateRestParams.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10940,6 +11840,12 @@ asm_handler_CreateArguments:
     mov x2, x21
     bl CSYM(asm_slow_path_create_arguments)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CreateArguments.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CreateArguments.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10960,6 +11866,12 @@ asm_handler_CreateLexicalEnvironment:
     mov x2, x21
     bl CSYM(asm_slow_path_create_lexical_environment)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CreateLexicalEnvironment.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CreateLexicalEnvironment.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -10980,6 +11892,12 @@ asm_handler_CreatePrivateEnvironment:
     mov x2, x21
     bl CSYM(asm_slow_path_create_private_environment)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CreatePrivateEnvironment.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CreatePrivateEnvironment.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11000,6 +11918,12 @@ asm_handler_CreateVariableEnvironment:
     mov x2, x21
     bl CSYM(asm_slow_path_create_variable_environment)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_CreateVariableEnvironment.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_CreateVariableEnvironment.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11020,6 +11944,12 @@ asm_handler_DeleteById:
     mov x2, x21
     bl CSYM(asm_slow_path_delete_by_id)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_DeleteById.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_DeleteById.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11040,6 +11970,12 @@ asm_handler_DeleteByValue:
     mov x2, x21
     bl CSYM(asm_slow_path_delete_by_value)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_DeleteByValue.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_DeleteByValue.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11060,6 +11996,12 @@ asm_handler_DeleteVariable:
     mov x2, x21
     bl CSYM(asm_slow_path_delete_variable)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_DeleteVariable.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_DeleteVariable.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11080,6 +12022,12 @@ asm_handler_GetCompletionFields:
     mov x2, x21
     bl CSYM(asm_slow_path_get_completion_fields)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GetCompletionFields.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetCompletionFields.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11100,6 +12048,12 @@ asm_handler_SetCompletionType:
     mov x2, x21
     bl CSYM(asm_slow_path_set_completion_type)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_SetCompletionType.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_SetCompletionType.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11120,6 +12074,12 @@ asm_handler_GetTemplateObject:
     mov x2, x21
     bl CSYM(asm_slow_path_get_template_object)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GetTemplateObject.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetTemplateObject.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11140,6 +12100,12 @@ asm_handler_NewFunction:
     mov x2, x21
     bl CSYM(asm_slow_path_new_function)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_NewFunction.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_NewFunction.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11160,6 +12126,12 @@ asm_handler_Typeof:
     mov x2, x21
     bl CSYM(asm_slow_path_typeof)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_Typeof.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_Typeof.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11183,6 +12155,12 @@ asm_handler_ResolveThisBinding_cold:
     mov x2, x21
     bl CSYM(asm_slow_path_resolve_this_binding)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_ResolveThisBinding.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ResolveThisBinding.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11200,6 +12178,12 @@ asm_handler_GetPrivateById:
     mov x2, x21
     bl CSYM(asm_slow_path_get_private_by_id)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GetPrivateById.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetPrivateById.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11220,6 +12204,12 @@ asm_handler_PutPrivateById:
     mov x2, x21
     bl CSYM(asm_slow_path_put_private_by_id)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_PutPrivateById.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_PutPrivateById.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11259,6 +12249,12 @@ asm_handler_AddLhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_add_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_AddLhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_AddLhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11289,8 +12285,8 @@ asm_handler_AddLhsInt32_cold:
 .Lasm_AddLhsInt32.ssa_box_number_6_not_integer:
     fmov x0, d0
     fcmp d0, d0
-    b.vs .Lasm_AddLhsInt32.canon_nan_0
-.Lasm_AddLhsInt32.canon_nan_0_ret:
+    b.vs .Lasm_AddLhsInt32.canon_nan_1
+.Lasm_AddLhsInt32.canon_nan_1_ret:
 .Lasm_AddLhsInt32.ssa_box_number_6_done:
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
@@ -11311,9 +12307,9 @@ asm_handler_AddLhsInt32_cold:
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_AddLhsInt32.canon_nan_0:
+.Lasm_AddLhsInt32.canon_nan_1:
     fmov x0, d8
-    b .Lasm_AddLhsInt32.canon_nan_0_ret
+    b .Lasm_AddLhsInt32.canon_nan_1_ret
 asm_handler_AddLhsInt32_cold_end:
 asm_handler_AddRhsInt32_cold:
 // Cold paths for AddRhsInt32
@@ -11378,6 +12374,12 @@ asm_handler_AddRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_add_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_AddRhsInt32.slow_path_transfer_1
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_AddRhsInt32.slow_path_transfer_1:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11453,6 +12455,12 @@ asm_handler_SubRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_sub_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_SubRhsInt32.slow_path_transfer_1
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_SubRhsInt32.slow_path_transfer_1:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11482,6 +12490,12 @@ asm_handler_MulRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_mul_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_MulRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_MulRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11512,8 +12526,8 @@ asm_handler_MulRhsInt32_cold:
 .Lasm_MulRhsInt32.ssa_box_number_8_not_integer:
     fmov x0, d0
     fcmp d0, d0
-    b.vs .Lasm_MulRhsInt32.canon_nan_0
-.Lasm_MulRhsInt32.canon_nan_0_ret:
+    b.vs .Lasm_MulRhsInt32.canon_nan_1
+.Lasm_MulRhsInt32.canon_nan_1_ret:
 .Lasm_MulRhsInt32.ssa_box_number_8_done:
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
@@ -11542,9 +12556,9 @@ asm_handler_MulRhsInt32_cold:
     add x21, x21, #16
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_MulRhsInt32.canon_nan_0:
+.Lasm_MulRhsInt32.canon_nan_1:
     fmov x0, d8
-    b .Lasm_MulRhsInt32.canon_nan_0_ret
+    b .Lasm_MulRhsInt32.canon_nan_1_ret
 asm_handler_MulRhsInt32_cold_end:
 asm_handler_ExpRhsInt32_cold:
 asm_handler_ExpRhsInt32_cold_end:
@@ -11561,6 +12575,12 @@ asm_handler_DivRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_div_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_DivRhsInt32.slow_path_transfer_1
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_DivRhsInt32.slow_path_transfer_1:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11618,6 +12638,12 @@ asm_handler_BitwiseXorRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_bitwise_xor_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_BitwiseXorRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_BitwiseXorRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11683,6 +12709,12 @@ asm_handler_BitwiseAndRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_bitwise_and_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_BitwiseAndRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_BitwiseAndRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11748,6 +12780,12 @@ asm_handler_BitwiseOrRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_bitwise_or_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_BitwiseOrRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_BitwiseOrRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11781,6 +12819,12 @@ asm_handler_LeftShiftRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_left_shift_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_LeftShiftRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_LeftShiftRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11803,6 +12847,12 @@ asm_handler_RightShiftRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_right_shift_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_RightShiftRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_RightShiftRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11834,6 +12884,12 @@ asm_handler_UnsignedRightShiftRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_unsigned_right_shift_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_UnsignedRightShiftRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_UnsignedRightShiftRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11924,6 +12980,12 @@ asm_handler_ModRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_mod_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_ModRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_ModRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11950,6 +13012,12 @@ asm_handler_LessThanRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_less_than_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_LessThanRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_LessThanRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -11984,6 +13052,12 @@ asm_handler_LessThanEqualsRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_less_than_equals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_LessThanEqualsRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_LessThanEqualsRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -12018,6 +13092,12 @@ asm_handler_GreaterThanRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_greater_than_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GreaterThanRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GreaterThanRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -12052,6 +13132,12 @@ asm_handler_GreaterThanEqualsRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_greater_than_equals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_GreaterThanEqualsRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GreaterThanEqualsRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -12089,6 +13175,12 @@ asm_handler_JumpLessThanRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_less_than_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_JumpLessThanRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_JumpLessThanRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -12126,6 +13218,12 @@ asm_handler_JumpLessThanEqualsRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_less_than_equals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_JumpLessThanEqualsRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_JumpLessThanEqualsRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -12163,6 +13261,12 @@ asm_handler_JumpGreaterThanRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_greater_than_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_JumpGreaterThanRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_JumpGreaterThanRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -12200,6 +13304,12 @@ asm_handler_JumpGreaterThanEqualsRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_greater_than_equals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_JumpGreaterThanEqualsRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_JumpGreaterThanEqualsRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -12240,6 +13350,12 @@ asm_handler_StrictlyEqualsRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_strictly_equals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_StrictlyEqualsRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_StrictlyEqualsRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -12272,6 +13388,12 @@ asm_handler_StrictlyInequalsRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_strictly_inequals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_StrictlyInequalsRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_StrictlyInequalsRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -12304,6 +13426,12 @@ asm_handler_LooselyEqualsRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_loosely_equals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_LooselyEqualsRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_LooselyEqualsRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -12336,6 +13464,12 @@ asm_handler_LooselyInequalsRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_loosely_inequals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_LooselyInequalsRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_LooselyInequalsRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -12370,6 +13504,12 @@ asm_handler_JumpStrictlyEqualsRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_strictly_equals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_JumpStrictlyEqualsRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_JumpStrictlyEqualsRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -12404,6 +13544,12 @@ asm_handler_JumpStrictlyInequalsRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_strictly_inequals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_JumpStrictlyInequalsRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_JumpStrictlyInequalsRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -12438,6 +13584,12 @@ asm_handler_JumpLooselyEqualsRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_loosely_equals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_JumpLooselyEqualsRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_JumpLooselyEqualsRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]
@@ -12472,6 +13624,12 @@ asm_handler_JumpLooselyInequalsRhsInt32_cold:
     str w1, [x28, #64]
     bl CSYM(asm_slow_path_jump_loosely_inequals_values)
     tbnz x0, #63, .Lexit_veneer
+    tbz x0, #32, .Lasm_JumpLooselyInequalsRhsInt32.slow_path_transfer_0
+    add x21, x26, w0, uxtw
+    ldrb w9, [x21]
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_JumpLooselyInequalsRhsInt32.slow_path_transfer_0:
     ldr x28, [x20, #15288]
     ldr x9, [x28, #88]
     ldr x26, [x9, #80]

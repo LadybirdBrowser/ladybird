@@ -343,6 +343,7 @@ impl MachineProgram {
             .iter()
             .chain(
                 [
+                    SlowPathContinuationBit,
                     VmRunningExecutionContext,
                     VmBreakpointController,
                     VmHeapRegionBase,

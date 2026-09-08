@@ -1233,6 +1233,7 @@ mod tests {
                 &crate::frontend::layout::LayoutConstants::from_values([
                     ("VM_RUNNING_EXECUTION_CONTEXT".into(), 8),
                     ("VM_BREAKPOINT_CONTROLLER".into(), 16),
+                    ("SLOW_PATH_CONTINUATION_BIT".into(), 32),
                     ("VM_HEAP_REGION_BASE".into(), 24),
                     ("CANON_NAN_BITS".into(), 0x7ff8_0000_0000_0000u64 as i64),
                     ("INT32_TAG".into(), 0xfffau64 as i64),

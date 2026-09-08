@@ -65,6 +65,7 @@ define_known_layout_constants! {
     VmRunningExecutionContext => "VM_RUNNING_EXECUTION_CONTEXT";
     VmHeapRegionBase => "VM_HEAP_REGION_BASE";
     VmBreakpointController => "VM_BREAKPOINT_CONTROLLER";
+    SlowPathContinuationBit => "SLOW_PATH_CONTINUATION_BIT";
     ExecutionContextExecutable => "EXECUTION_CONTEXT_EXECUTABLE";
     ExecutionContextProgramCounter => "EXECUTION_CONTEXT_PROGRAM_COUNTER";
     ExecutableBytecodeData => "EXECUTABLE_BYTECODE_DATA";

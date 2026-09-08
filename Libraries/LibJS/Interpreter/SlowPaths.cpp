@@ -13,6 +13,7 @@
 #include <LibJS/Bytecode/PropertyAccess.h>
 #include <LibJS/Bytecode/PropertyNameIterator.h>
 #include <LibJS/Debugger.h>
+#include <LibJS/Interpreter/SlowPathResult.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/AsyncFromSyncIteratorPrototype.h>
@@ -44,7 +45,7 @@
 // ===== Slow path functions callable from assembly =====
 // All slow path functions follow the same convention:
 //   i64 func(VM* vm, u32 pc, Op::Foo const* instruction)
-//   Returns >= 0: new program counter to dispatch to
+//   Returns >= 0: new PC in the low word; bit 32 marks normal same-frame continuation
 //   Returns < 0: should exit the interpreter
 
 using namespace JS;
@@ -74,7 +75,7 @@ static i64 advance_or_continue(u32 pc, i64 next_pc)
 {
     if (next_pc != static_cast<i64>(pc))
         return next_pc;
-    return static_cast<i64>(pc + sizeof(Op));
+    return continue_after_slow_path(pc + sizeof(Op));
 }
 
 template<typename EnvironmentPointer>
@@ -551,7 +552,7 @@ static i64 finish_binary_slow_path_value(VM& vm, u32 pc, Operand destination, Va
 {
     vm.set(destination, result);
     auto const* instruction = bit_cast<Instruction const*>(vm.current_executable().bytecode.data() + pc);
-    return static_cast<i64>(pc + instruction->length());
+    return continue_after_slow_path(pc + instruction->length());
 }
 
 template<typename Result>
@@ -775,7 +776,7 @@ i64 asm_fallback_handler(VM*, u32, u8 const*)
 // ===== Specific slow paths for asm-optimized instructions =====
 // These are called from asm handlers when the fast path fails.
 // Convention: i64 func(VM*, u32 pc, Op::Foo const* instruction)
-//   Returns >= 0: new pc
+//   Returns >= 0: new PC, optionally marked by continue_after_slow_path()
 //   Returns < 0: exit
 
 i64 asm_slow_path_add_values(VM* vm, u32 pc, Operand destination, Value lhs, Value rhs)
@@ -855,7 +856,7 @@ i64 asm_slow_path_increment(VM* vm, u32 pc, Op::Increment const* instruction)
         vm->set(instruction->dst(), Value(old_value.as_double() + 1));
     else
         vm->set(instruction->dst(), BigInt::create(*vm, old_value.as_bigint().big_integer().plus(Crypto::SignedBigInteger { 1 })));
-    return static_cast<i64>(pc + sizeof(Op::Increment));
+    return continue_after_slow_path(pc + sizeof(Op::Increment));
 }
 
 i64 asm_slow_path_decrement(VM* vm, u32 pc, Op::Decrement const* instruction)
@@ -865,7 +866,7 @@ i64 asm_slow_path_decrement(VM* vm, u32 pc, Op::Decrement const* instruction)
         vm->set(instruction->dst(), Value(old_value.as_double() - 1));
     else
         vm->set(instruction->dst(), BigInt::create(*vm, old_value.as_bigint().big_integer().minus(Crypto::SignedBigInteger { 1 })));
-    return static_cast<i64>(pc + sizeof(Op::Decrement));
+    return continue_after_slow_path(pc + sizeof(Op::Decrement));
 }
 
 // Comparison jump slow paths return one of two target PCs.
@@ -944,7 +945,7 @@ i64 asm_slow_path_get_callee_and_this(VM* vm, u32 pc, Op::GetCalleeAndThisFromEn
     if (auto base_object = environment->with_base_object()) [[unlikely]]
         this_value = base_object;
     vm->set(instruction->this_value(), this_value);
-    return static_cast<i64>(pc + sizeof(Op::GetCalleeAndThisFromEnvironment));
+    return continue_after_slow_path(pc + sizeof(Op::GetCalleeAndThisFromEnvironment));
 }
 
 i64 asm_slow_path_dynamic_get_callee_and_this(VM* vm, u32 pc, Op::DynamicGetCalleeAndThisFromEnvironment const* instruction)
@@ -962,7 +963,7 @@ i64 asm_slow_path_postfix_increment(VM* vm, u32 pc, Op::PostfixIncrement const* 
         vm->set(instruction->src(), Value(old_value.as_double() + 1));
     else
         vm->set(instruction->src(), BigInt::create(*vm, old_value.as_bigint().big_integer().plus(Crypto::SignedBigInteger { 1 })));
-    return static_cast<i64>(pc + sizeof(Op::PostfixIncrement));
+    return continue_after_slow_path(pc + sizeof(Op::PostfixIncrement));
 }
 
 i64 asm_slow_path_get_by_id(VM* vm, u32 pc, Op::GetById const* instruction)
@@ -971,7 +972,7 @@ i64 asm_slow_path_get_by_id(VM* vm, u32 pc, Op::GetById const* instruction)
     auto& cache = vm->current_executable().property_lookup_caches[instruction->cache()];
     auto value = ASM_TRY(*vm, pc, get_by_id<GetByIdMode::Normal>(*vm, [&] { return vm->get_identifier(instruction->base_identifier()); }, [&] -> PropertyKey const& { return vm->get_property_key(instruction->property()); }, base_value, base_value, cache, CachePropertyAbsence::Yes));
     vm->set(instruction->dst(), value);
-    return static_cast<i64>(pc + sizeof(Op::GetById));
+    return continue_after_slow_path(pc + sizeof(Op::GetById));
 }
 
 i64 asm_slow_path_get_by_id_cached_accessor(VM* vm, u32 pc, Op::GetById const* instruction)
@@ -995,7 +996,7 @@ i64 asm_slow_path_get_by_id_cached_accessor(VM* vm, u32 pc, Op::GetById const* i
         }
     }
     vm->set(instruction->dst(), result);
-    return static_cast<i64>(pc + sizeof(Op::GetById));
+    return continue_after_slow_path(pc + sizeof(Op::GetById));
 }
 
 i64 asm_slow_path_get_by_id_with_this(VM* vm, u32 pc, Op::GetByIdWithThis const* instruction)
@@ -1005,7 +1006,7 @@ i64 asm_slow_path_get_by_id_with_this(VM* vm, u32 pc, Op::GetByIdWithThis const*
     auto& cache = vm->current_executable().property_lookup_caches[instruction->cache()];
     auto value = ASM_TRY(*vm, pc, get_by_id<GetByIdMode::Normal>(*vm, [] { return Optional<Utf16FlyString const&> {}; }, [&] -> PropertyKey const& { return vm->get_property_key(instruction->property()); }, base_value, this_value, cache));
     vm->set(instruction->dst(), value);
-    return static_cast<i64>(pc + sizeof(Op::GetByIdWithThis));
+    return continue_after_slow_path(pc + sizeof(Op::GetByIdWithThis));
 }
 
 i64 asm_slow_path_put_by_id(VM* vm, u32 pc, Op::PutById const* instruction)
@@ -1018,7 +1019,7 @@ i64 asm_slow_path_put_by_id(VM* vm, u32 pc, Op::PutById const* instruction)
     auto const& property_key = vm->get_property_key(instruction->property());
     auto& cache = vm->current_executable().property_lookup_caches[instruction->cache()];
     ASM_TRY(*vm, pc, put_by_property_key(*vm, base, base, value, base_identifier, property_key, instruction->kind(), instruction->strict(), &cache));
-    return static_cast<i64>(pc + sizeof(Op::PutById));
+    return continue_after_slow_path(pc + sizeof(Op::PutById));
 }
 
 i64 asm_slow_path_put_by_id_with_this(VM* vm, u32 pc, Op::PutByIdWithThis const* instruction)
@@ -1028,7 +1029,7 @@ i64 asm_slow_path_put_by_id_with_this(VM* vm, u32 pc, Op::PutByIdWithThis const*
     auto const& name = vm->get_property_key(instruction->property());
     auto& cache = vm->current_executable().property_lookup_caches[instruction->cache()];
     ASM_TRY(*vm, pc, put_by_property_key(*vm, base, vm->get(instruction->this_value()), value, {}, name, instruction->kind(), instruction->strict(), &cache));
-    return static_cast<i64>(pc + sizeof(Op::PutByIdWithThis));
+    return continue_after_slow_path(pc + sizeof(Op::PutByIdWithThis));
 }
 
 i64 asm_slow_path_get_by_value(VM* vm, u32 pc, Op::GetByValue const* instruction)
@@ -1044,11 +1045,11 @@ i64 asm_slow_path_get_by_value(VM* vm, u32 pc, Op::GetByValue const* instruction
         auto string_value = ASM_TRY(*vm, pc, base_value.as_string().get(*vm, property_key));
         if (string_value.has_value()) {
             vm->set(instruction->dst(), *string_value);
-            return static_cast<i64>(pc + sizeof(Op::GetByValue));
+            return continue_after_slow_path(pc + sizeof(Op::GetByValue));
         }
     }
     vm->set(instruction->dst(), ASM_TRY(*vm, pc, get_by_value_with_keyed_cache(*vm, *object, base_value, property_key)));
-    return static_cast<i64>(pc + sizeof(Op::GetByValue));
+    return continue_after_slow_path(pc + sizeof(Op::GetByValue));
 }
 
 i64 asm_slow_path_get_by_value_with_this(VM* vm, u32 pc, Op::GetByValueWithThis const* instruction)
@@ -1058,7 +1059,7 @@ i64 asm_slow_path_get_by_value_with_this(VM* vm, u32 pc, Op::GetByValueWithThis 
     auto property_key = ASM_TRY(*vm, pc, property_key_value.to_property_key(*vm));
     auto value = ASM_TRY(*vm, pc, get_by_value_with_keyed_cache(*vm, *object, vm->get(instruction->this_value()), property_key));
     vm->set(instruction->dst(), value);
-    return static_cast<i64>(pc + sizeof(Op::GetByValueWithThis));
+    return continue_after_slow_path(pc + sizeof(Op::GetByValueWithThis));
 }
 
 i64 asm_slow_path_get_length(VM* vm, u32 pc, Op::GetLength const* instruction)
@@ -1068,7 +1069,7 @@ i64 asm_slow_path_get_length(VM* vm, u32 pc, Op::GetLength const* instruction)
     auto& cache = executable.property_lookup_caches[instruction->cache()];
     auto value = ASM_TRY(*vm, pc, get_by_id<GetByIdMode::Length>(*vm, [&] { return vm->get_identifier(instruction->base_identifier()); }, [&] -> PropertyKey const& { return executable.get_property_key(*executable.length_identifier); }, base_value, base_value, cache));
     vm->set(instruction->dst(), value);
-    return static_cast<i64>(pc + sizeof(Op::GetLength));
+    return continue_after_slow_path(pc + sizeof(Op::GetLength));
 }
 
 i64 asm_slow_path_get_length_with_this(VM* vm, u32 pc, Op::GetLengthWithThis const* instruction)
@@ -1079,7 +1080,7 @@ i64 asm_slow_path_get_length_with_this(VM* vm, u32 pc, Op::GetLengthWithThis con
     auto& cache = executable.property_lookup_caches[instruction->cache()];
     auto value = ASM_TRY(*vm, pc, get_by_id<GetByIdMode::Length>(*vm, [] { return Optional<Utf16FlyString const&> {}; }, [&] -> PropertyKey const& { return executable.get_property_key(*executable.length_identifier); }, base_value, this_value, cache));
     vm->set(instruction->dst(), value);
-    return static_cast<i64>(pc + sizeof(Op::GetLengthWithThis));
+    return continue_after_slow_path(pc + sizeof(Op::GetLengthWithThis));
 }
 
 i64 asm_slow_path_get_method(VM* vm, u32 pc, Op::GetMethod const* instruction)
@@ -1087,7 +1088,7 @@ i64 asm_slow_path_get_method(VM* vm, u32 pc, Op::GetMethod const* instruction)
     auto const& property_key = vm->get_property_key(instruction->property());
     auto method = ASM_TRY(*vm, pc, vm->get(instruction->object()).get_method(*vm, property_key));
     vm->set(instruction->dst(), method ?: js_undefined());
-    return static_cast<i64>(pc + sizeof(Op::GetMethod));
+    return continue_after_slow_path(pc + sizeof(Op::GetMethod));
 }
 
 i64 asm_slow_path_get_iterator(VM* vm, u32 pc, Op::GetIterator const* instruction)
@@ -1096,26 +1097,26 @@ i64 asm_slow_path_get_iterator(VM* vm, u32 pc, Op::GetIterator const* instructio
     vm->set(instruction->dst_iterator_object(), iterator_record.iterator);
     vm->set(instruction->dst_iterator_next(), iterator_record.next_method);
     vm->set(instruction->dst_iterator_done(), Value(iterator_record.done));
-    return static_cast<i64>(pc + sizeof(Op::GetIterator));
+    return continue_after_slow_path(pc + sizeof(Op::GetIterator));
 }
 
 i64 asm_slow_path_get_import_meta(VM* vm, u32 pc, Op::GetImportMeta const* instruction)
 {
     vm->set(instruction->dst(), vm->get_import_meta());
-    return static_cast<i64>(pc + sizeof(Op::GetImportMeta));
+    return continue_after_slow_path(pc + sizeof(Op::GetImportMeta));
 }
 
 i64 asm_slow_path_get_new_target(VM* vm, u32 pc, Op::GetNewTarget const* instruction)
 {
     vm->set(instruction->dst(), vm->get_new_target());
-    return static_cast<i64>(pc + sizeof(Op::GetNewTarget));
+    return continue_after_slow_path(pc + sizeof(Op::GetNewTarget));
 }
 
 i64 asm_slow_path_get_super_constructor(VM* vm, u32 pc, Op::GetSuperConstructor const* instruction)
 {
     auto* super_constructor = get_super_constructor(*vm);
     vm->set(instruction->dst(), super_constructor ? Value(super_constructor) : js_null());
-    return static_cast<i64>(pc + sizeof(Op::GetSuperConstructor));
+    return continue_after_slow_path(pc + sizeof(Op::GetSuperConstructor));
 }
 
 i64 asm_try_get_global_env_binding(VM* vm, u32, Op::GetGlobal const* instruction)
@@ -1154,7 +1155,7 @@ i64 asm_slow_path_get_global(VM* vm, u32 pc, Op::GetGlobal const* instruction)
         if (entry && &shape == entry->shape.ptr() && (!shape.is_dictionary() || shape.dictionary_generation() == entry->shape_dictionary_generation)) {
             auto value = binding_object.get_direct(entry->property_offset);
             vm->set(instruction->dst(), ASM_TRY(*vm, pc, get_cached_property_value(*vm, value, &binding_object)));
-            return static_cast<i64>(pc + sizeof(Op::GetGlobal));
+            return continue_after_slow_path(pc + sizeof(Op::GetGlobal));
         }
 
         if (cache.has_environment_binding_index) {
@@ -1166,7 +1167,7 @@ i64 asm_slow_path_get_global(VM* vm, u32 pc, Op::GetGlobal const* instruction)
                 value = ASM_TRY(*vm, pc, declarative_record.get_binding_value_direct(*vm, cache.environment_binding_index));
             }
             vm->set(instruction->dst(), value);
-            return static_cast<i64>(pc + sizeof(Op::GetGlobal));
+            return continue_after_slow_path(pc + sizeof(Op::GetGlobal));
         }
     }
 
@@ -1184,10 +1185,10 @@ i64 asm_slow_path_get_global(VM* vm, u32 pc, Op::GetGlobal const* instruction)
                 cache.has_environment_binding_index = true;
                 cache.in_module_environment = true;
                 vm->set(instruction->dst(), ASM_TRY(*vm, pc, module_environment.get_binding_value_direct(*vm, index.value())));
-                return static_cast<i64>(pc + sizeof(Op::GetGlobal));
+                return continue_after_slow_path(pc + sizeof(Op::GetGlobal));
             }
             vm->set(instruction->dst(), ASM_TRY(*vm, pc, module_environment.get_binding_value(*vm, identifier, true)));
-            return static_cast<i64>(pc + sizeof(Op::GetGlobal));
+            return continue_after_slow_path(pc + sizeof(Op::GetGlobal));
         }
     }
 
@@ -1197,7 +1198,7 @@ i64 asm_slow_path_get_global(VM* vm, u32 pc, Op::GetGlobal const* instruction)
         cache.has_environment_binding_index = true;
         cache.in_module_environment = false;
         vm->set(instruction->dst(), ASM_TRY(*vm, pc, declarative_record.get_binding_value(*vm, identifier, instruction->strict() == Strict::Yes)));
-        return static_cast<i64>(pc + sizeof(Op::GetGlobal));
+        return continue_after_slow_path(pc + sizeof(Op::GetGlobal));
     }
 
     if (ASM_TRY(*vm, pc, binding_object.has_property(identifier))) [[likely]] {
@@ -1215,7 +1216,7 @@ i64 asm_slow_path_get_global(VM* vm, u32 pc, Op::GetGlobal const* instruction)
             });
         }
         vm->set(instruction->dst(), value);
-        return static_cast<i64>(pc + sizeof(Op::GetGlobal));
+        return continue_after_slow_path(pc + sizeof(Op::GetGlobal));
     }
 
     auto completion = vm->throw_completion<ReferenceError>(ErrorType::UnknownIdentifier, identifier);
@@ -1262,7 +1263,7 @@ i64 asm_slow_path_set_global(VM* vm, u32 pc, Op::SetGlobal const* instruction)
                 ASM_TRY(*vm, pc, call(*vm, value.as_accessor().setter(), &binding_object, src));
             else
                 binding_object.put_direct(entry->property_offset, src);
-            return static_cast<i64>(pc + sizeof(Op::SetGlobal));
+            return continue_after_slow_path(pc + sizeof(Op::SetGlobal));
         }
 
         if (cache.has_environment_binding_index) {
@@ -1272,7 +1273,7 @@ i64 asm_slow_path_set_global(VM* vm, u32 pc, Op::SetGlobal const* instruction)
             } else {
                 ASM_TRY(*vm, pc, declarative_record.set_mutable_binding_direct(*vm, cache.environment_binding_index, src, instruction->strict() == Strict::Yes));
             }
-            return static_cast<i64>(pc + sizeof(Op::SetGlobal));
+            return continue_after_slow_path(pc + sizeof(Op::SetGlobal));
         }
     }
 
@@ -1290,10 +1291,10 @@ i64 asm_slow_path_set_global(VM* vm, u32 pc, Op::SetGlobal const* instruction)
                 cache.has_environment_binding_index = true;
                 cache.in_module_environment = true;
                 ASM_TRY(*vm, pc, module_environment.set_mutable_binding_direct(*vm, index.value(), src, instruction->strict() == Strict::Yes));
-                return static_cast<i64>(pc + sizeof(Op::SetGlobal));
+                return continue_after_slow_path(pc + sizeof(Op::SetGlobal));
             }
             ASM_TRY(*vm, pc, module_environment.set_mutable_binding(*vm, identifier, src, instruction->strict() == Strict::Yes));
-            return static_cast<i64>(pc + sizeof(Op::SetGlobal));
+            return continue_after_slow_path(pc + sizeof(Op::SetGlobal));
         }
     }
 
@@ -1303,7 +1304,7 @@ i64 asm_slow_path_set_global(VM* vm, u32 pc, Op::SetGlobal const* instruction)
         cache.has_environment_binding_index = true;
         cache.in_module_environment = false;
         ASM_TRY(*vm, pc, declarative_record.set_mutable_binding(*vm, identifier, src, instruction->strict() == Strict::Yes));
-        return static_cast<i64>(pc + sizeof(Op::SetGlobal));
+        return continue_after_slow_path(pc + sizeof(Op::SetGlobal));
     }
 
     if (ASM_TRY(*vm, pc, binding_object.has_property(identifier))) {
@@ -1332,19 +1333,19 @@ i64 asm_slow_path_set_global(VM* vm, u32 pc, Op::SetGlobal const* instruction)
                     entry.shape_dictionary_generation = shape.dictionary_generation();
             });
         }
-        return static_cast<i64>(pc + sizeof(Op::SetGlobal));
+        return continue_after_slow_path(pc + sizeof(Op::SetGlobal));
     }
 
     auto reference = ASM_TRY(*vm, pc, vm->resolve_binding(identifier, instruction->strict(), &declarative_record));
     ASM_TRY(*vm, pc, reference.put_value(*vm, src));
-    return static_cast<i64>(pc + sizeof(Op::SetGlobal));
+    return continue_after_slow_path(pc + sizeof(Op::SetGlobal));
 }
 
 i64 asm_slow_path_concat_string(VM* vm, u32 pc, Op::ConcatString const* instruction)
 {
     auto string = ASM_TRY(*vm, pc, vm->get(instruction->src()).to_primitive_string(*vm));
     vm->set(instruction->dst(), PrimitiveString::create(*vm, vm->get(instruction->dst()).as_string(), string));
-    return static_cast<i64>(pc + sizeof(Op::ConcatString));
+    return continue_after_slow_path(pc + sizeof(Op::ConcatString));
 }
 
 i64 asm_slow_path_copy_object_excluding_properties(VM* vm, u32 pc, Op::CopyObjectExcludingProperties const* instruction)
@@ -1360,7 +1361,7 @@ i64 asm_slow_path_copy_object_excluding_properties(VM* vm, u32 pc, Op::CopyObjec
 
     ASM_TRY(*vm, pc, to_object->copy_data_properties(*vm, from_object, excluded_names));
     vm->set(instruction->dst(), to_object);
-    return static_cast<i64>(pc + instruction->length());
+    return continue_after_slow_path(pc + instruction->length());
 }
 
 i64 asm_slow_path_exp_values(VM* vm, u32 pc, Operand destination, Value lhs, Value rhs)
@@ -1373,7 +1374,7 @@ i64 asm_slow_path_import_call(VM* vm, u32 pc, Op::ImportCall const* instruction)
     auto specifier = vm->get(instruction->specifier());
     auto options_value = vm->get(instruction->options());
     vm->set(instruction->dst(), ASM_TRY(*vm, pc, perform_import_call(*vm, specifier, options_value)));
-    return static_cast<i64>(pc + sizeof(Op::ImportCall));
+    return continue_after_slow_path(pc + sizeof(Op::ImportCall));
 }
 
 i64 asm_slow_path_new_class(VM* vm, u32 pc, Op::NewClass const* instruction)
@@ -1408,7 +1409,7 @@ i64 asm_slow_path_new_class(VM* vm, u32 pc, Op::NewClass const* instruction)
 
     auto retval = ASM_TRY(*vm, pc, construct_class(*vm, blueprint, vm->current_executable(), class_environment, outer_environment, super_class, element_keys, binding_name, class_name));
     vm->set(instruction->dst(), retval);
-    return static_cast<i64>(pc + instruction->length());
+    return continue_after_slow_path(pc + instruction->length());
 }
 
 static COLD Completion throw_type_error_for_asm_callee(VM& vm, Value callee, StringView callee_type, Optional<StringTableIndex> const expression_string)
@@ -1487,7 +1488,7 @@ NEVER_INLINE static ThrowCompletionOr<void> execute_asm_call(
 i64 asm_slow_path_call(VM* vm, u32 pc, Op::Call const* instruction)
 {
     ASM_TRY(*vm, pc, execute_asm_call(Op::CallType::Call, *vm, vm->get(instruction->callee()), vm->get(instruction->this_value()), instruction->arguments(), instruction->dst(), instruction->expression_string(), instruction->strict()));
-    return static_cast<i64>(pc + instruction->length());
+    return continue_after_slow_path(pc + instruction->length());
 }
 
 static ThrowCompletionOr<void> call_direct_eval(
@@ -1538,7 +1539,7 @@ static ThrowCompletionOr<void> call_direct_eval(
 i64 asm_slow_path_call_direct_eval(VM* vm, u32 pc, Op::CallDirectEval const* instruction)
 {
     ASM_TRY(*vm, pc, call_direct_eval(*vm, vm->get(instruction->callee()), vm->get(instruction->this_value()), instruction->arguments(), instruction->dst(), instruction->expression_string(), instruction->strict()));
-    return static_cast<i64>(pc + instruction->length());
+    return continue_after_slow_path(pc + instruction->length());
 }
 
 static ThrowCompletionOr<void> call_with_argument_array(
@@ -1603,20 +1604,20 @@ static ThrowCompletionOr<void> call_with_argument_array(
 i64 asm_slow_path_call_with_argument_array(VM* vm, u32 pc, Op::CallWithArgumentArray const* instruction)
 {
     ASM_TRY(*vm, pc, call_with_argument_array(Op::CallType::Call, *vm, vm->get(instruction->callee()), vm->get(instruction->this_value()), vm->get(instruction->arguments()), instruction->dst(), instruction->expression_string(), instruction->strict()));
-    return static_cast<i64>(pc + sizeof(Op::CallWithArgumentArray));
+    return continue_after_slow_path(pc + sizeof(Op::CallWithArgumentArray));
 }
 
 i64 asm_slow_path_call_direct_eval_with_argument_array(VM* vm, u32 pc, Op::CallDirectEvalWithArgumentArray const* instruction)
 {
     ASM_TRY(*vm, pc, call_with_argument_array(Op::CallType::DirectEval, *vm, vm->get(instruction->callee()), vm->get(instruction->this_value()), vm->get(instruction->arguments()), instruction->dst(), instruction->expression_string(), instruction->strict()));
-    return static_cast<i64>(pc + sizeof(Op::CallDirectEvalWithArgumentArray));
+    return continue_after_slow_path(pc + sizeof(Op::CallDirectEvalWithArgumentArray));
 }
 
 i64 asm_slow_path_get_object_property_iterator(VM* vm, u32 pc, Op::GetObjectPropertyIterator const* instruction)
 {
     auto* cache = &vm->current_executable().object_property_iterator_caches[instruction->cache()];
     vm->set(instruction->dst_iterator(), ASM_TRY(*vm, pc, asm_get_object_property_iterator(*vm, vm->get(instruction->object()), cache)));
-    return static_cast<i64>(pc + sizeof(Op::GetObjectPropertyIterator));
+    return continue_after_slow_path(pc + sizeof(Op::GetObjectPropertyIterator));
 }
 
 i64 asm_slow_path_object_property_iterator_next(VM* vm, u32 pc, Op::ObjectPropertyIteratorNext const* instruction)
@@ -1628,7 +1629,7 @@ i64 asm_slow_path_object_property_iterator_next(VM* vm, u32 pc, Op::ObjectProper
     vm->set(instruction->dst_done(), Value(done));
     if (!done)
         vm->set(instruction->dst_value(), value);
-    return static_cast<i64>(pc + sizeof(Op::ObjectPropertyIteratorNext));
+    return continue_after_slow_path(pc + sizeof(Op::ObjectPropertyIteratorNext));
 }
 
 i64 asm_slow_path_iterator_close(VM* vm, u32 pc, Op::IteratorClose const* instruction)
@@ -1639,7 +1640,7 @@ i64 asm_slow_path_iterator_close(VM* vm, u32 pc, Op::IteratorClose const* instru
     IteratorRecordImpl iterator_record { .done = iterator_done_property, .iterator = iterator_object, .next_method = iterator_next_method };
 
     ASM_TRY(*vm, pc, iterator_close(*vm, iterator_record, Completion { instruction->completion_type(), vm->get(instruction->completion_value()) }));
-    return static_cast<i64>(pc + sizeof(Op::IteratorClose));
+    return continue_after_slow_path(pc + sizeof(Op::IteratorClose));
 }
 
 i64 asm_slow_path_iterator_next(VM* vm, u32 pc, Op::IteratorNext const* instruction)
@@ -1652,7 +1653,7 @@ i64 asm_slow_path_iterator_next(VM* vm, u32 pc, Op::IteratorNext const* instruct
     if (iterator_record.done)
         vm->set(instruction->iterator_done(), Value(true));
     vm->set(instruction->dst(), ASM_TRY(*vm, pc, result));
-    return static_cast<i64>(pc + sizeof(Op::IteratorNext));
+    return continue_after_slow_path(pc + sizeof(Op::IteratorNext));
 }
 
 i64 asm_slow_path_iterator_next_unpack(VM* vm, u32 pc, Op::IteratorNextUnpack const* instruction)
@@ -1667,7 +1668,7 @@ i64 asm_slow_path_iterator_next_unpack(VM* vm, u32 pc, Op::IteratorNextUnpack co
     auto iteration_result_or_done = ASM_TRY(*vm, pc, iteration_result_or_done_or_error);
     if (iteration_result_or_done.has<IterationDone>()) {
         vm->set(instruction->dst_done(), Value(true));
-        return static_cast<i64>(pc + sizeof(Op::IteratorNextUnpack));
+        return continue_after_slow_path(pc + sizeof(Op::IteratorNextUnpack));
     }
     auto& iteration_result = iteration_result_or_done.get<IterationResult>();
     vm->set(instruction->dst_done(), ASM_TRY(*vm, pc, iteration_result.done));
@@ -1675,7 +1676,7 @@ i64 asm_slow_path_iterator_next_unpack(VM* vm, u32 pc, Op::IteratorNextUnpack co
     if (value.is_throw_completion())
         vm->set(instruction->iterator_done(), Value(true));
     vm->set(instruction->dst_value(), ASM_TRY(*vm, pc, value));
-    return static_cast<i64>(pc + sizeof(Op::IteratorNextUnpack));
+    return continue_after_slow_path(pc + sizeof(Op::IteratorNextUnpack));
 }
 
 i64 asm_slow_path_iterator_to_array(VM* vm, u32 pc, Op::IteratorToArray const* instruction)
@@ -1695,7 +1696,7 @@ i64 asm_slow_path_iterator_to_array(VM* vm, u32 pc, Op::IteratorToArray const* i
         auto value = ASM_TRY(*vm, pc, value_or_error);
         if (!value.has_value()) {
             vm->set(instruction->dst(), array);
-            return static_cast<i64>(pc + sizeof(Op::IteratorToArray));
+            return continue_after_slow_path(pc + sizeof(Op::IteratorToArray));
         }
 
         MUST(array->create_data_property_or_throw(index, value.release_value()));
@@ -1710,10 +1711,10 @@ i64 asm_slow_path_iterator_to_array(VM* vm, u32 pc, Op::IteratorToArray const* i
         auto callee = vm->get(instruction->callee());                                                                                                                                                    \
         if (callee.is_function() && callee.as_function().builtin() == Builtin::name) {                                                                                                                   \
             vm->set(instruction->dst(), ASM_TRY(*vm, pc, implementation(*vm, vm->get(instruction->argument()))));                                                                                        \
-            return static_cast<i64>(pc + sizeof(Op::CallBuiltin##name));                                                                                                                                 \
+            return continue_after_slow_path(pc + sizeof(Op::CallBuiltin##name));                                                                                                                         \
         }                                                                                                                                                                                                \
         ASM_TRY(*vm, pc, execute_asm_call(Op::CallType::Call, *vm, callee, vm->get(instruction->this_value()), arguments, instruction->dst(), instruction->expression_string(), instruction->strict())); \
-        return static_cast<i64>(pc + sizeof(Op::CallBuiltin##name));                                                                                                                                     \
+        return continue_after_slow_path(pc + sizeof(Op::CallBuiltin##name));                                                                                                                             \
     }
 
 #define JS_DEFINE_BINARY_BUILTIN_CALL_SLOW_PATH(name, snake_case_name, implementation)                                                                                                                   \
@@ -1723,10 +1724,10 @@ i64 asm_slow_path_iterator_to_array(VM* vm, u32 pc, Op::IteratorToArray const* i
         auto callee = vm->get(instruction->callee());                                                                                                                                                    \
         if (callee.is_function() && callee.as_function().builtin() == Builtin::name) {                                                                                                                   \
             vm->set(instruction->dst(), ASM_TRY(*vm, pc, implementation(*vm, vm->get(instruction->argument0()), vm->get(instruction->argument1()))));                                                    \
-            return static_cast<i64>(pc + sizeof(Op::CallBuiltin##name));                                                                                                                                 \
+            return continue_after_slow_path(pc + sizeof(Op::CallBuiltin##name));                                                                                                                         \
         }                                                                                                                                                                                                \
         ASM_TRY(*vm, pc, execute_asm_call(Op::CallType::Call, *vm, callee, vm->get(instruction->this_value()), arguments, instruction->dst(), instruction->expression_string(), instruction->strict())); \
-        return static_cast<i64>(pc + sizeof(Op::CallBuiltin##name));                                                                                                                                     \
+        return continue_after_slow_path(pc + sizeof(Op::CallBuiltin##name));                                                                                                                             \
     }
 
 #define JS_DEFINE_NULLARY_BUILTIN_CALL_SLOW_PATH(name, snake_case_name, implementation)                                                                                                           \
@@ -1735,17 +1736,17 @@ i64 asm_slow_path_iterator_to_array(VM* vm, u32 pc, Op::IteratorToArray const* i
         auto callee = vm->get(instruction->callee());                                                                                                                                             \
         if (callee.is_function() && callee.as_function().builtin() == Builtin::name) {                                                                                                            \
             vm->set(instruction->dst(), implementation());                                                                                                                                        \
-            return static_cast<i64>(pc + sizeof(Op::CallBuiltin##name));                                                                                                                          \
+            return continue_after_slow_path(pc + sizeof(Op::CallBuiltin##name));                                                                                                                  \
         }                                                                                                                                                                                         \
         ASM_TRY(*vm, pc, execute_asm_call(Op::CallType::Call, *vm, callee, vm->get(instruction->this_value()), {}, instruction->dst(), instruction->expression_string(), instruction->strict())); \
-        return static_cast<i64>(pc + sizeof(Op::CallBuiltin##name));                                                                                                                              \
+        return continue_after_slow_path(pc + sizeof(Op::CallBuiltin##name));                                                                                                                      \
     }
 
 #define JS_DEFINE_GENERIC_BUILTIN_CALL_SLOW_PATH(name, snake_case_name, ...)                                                                                                                                              \
     i64 asm_slow_path_call_builtin_##snake_case_name(VM* vm, u32 pc, Op::CallBuiltin##name const* instruction)                                                                                                            \
     {                                                                                                                                                                                                                     \
         ASM_TRY(*vm, pc, execute_asm_call(Op::CallType::Call, *vm, vm->get(instruction->callee()), vm->get(instruction->this_value()), {}, instruction->dst(), instruction->expression_string(), instruction->strict())); \
-        return static_cast<i64>(pc + sizeof(Op::CallBuiltin##name));                                                                                                                                                      \
+        return continue_after_slow_path(pc + sizeof(Op::CallBuiltin##name));                                                                                                                                              \
     }
 
 #define JS_DEFINE_UNARY_GENERIC_BUILTIN_CALL_SLOW_PATH(name, snake_case_name, ...)                                                                                                                                               \
@@ -1753,7 +1754,7 @@ i64 asm_slow_path_iterator_to_array(VM* vm, u32 pc, Op::IteratorToArray const* i
     {                                                                                                                                                                                                                            \
         Operand arguments[] { instruction->argument() };                                                                                                                                                                         \
         ASM_TRY(*vm, pc, execute_asm_call(Op::CallType::Call, *vm, vm->get(instruction->callee()), vm->get(instruction->this_value()), arguments, instruction->dst(), instruction->expression_string(), instruction->strict())); \
-        return static_cast<i64>(pc + sizeof(Op::CallBuiltin##name));                                                                                                                                                             \
+        return continue_after_slow_path(pc + sizeof(Op::CallBuiltin##name));                                                                                                                                                     \
     }
 
 #define JS_DEFINE_BINARY_GENERIC_BUILTIN_CALL_SLOW_PATH(name, snake_case_name, ...)                                                                                                                                              \
@@ -1761,7 +1762,7 @@ i64 asm_slow_path_iterator_to_array(VM* vm, u32 pc, Op::IteratorToArray const* i
     {                                                                                                                                                                                                                            \
         Operand arguments[] { instruction->argument0(), instruction->argument1() };                                                                                                                                              \
         ASM_TRY(*vm, pc, execute_asm_call(Op::CallType::Call, *vm, vm->get(instruction->callee()), vm->get(instruction->this_value()), arguments, instruction->dst(), instruction->expression_string(), instruction->strict())); \
-        return static_cast<i64>(pc + sizeof(Op::CallBuiltin##name));                                                                                                                                                             \
+        return continue_after_slow_path(pc + sizeof(Op::CallBuiltin##name));                                                                                                                                                     \
     }
 
 JS_DEFINE_UNARY_BUILTIN_CALL_SLOW_PATH(MathAbs, math_abs, MathObject::abs_impl)
@@ -1799,13 +1800,13 @@ JS_DEFINE_UNARY_GENERIC_BUILTIN_CALL_SLOW_PATH(StringPrototypeCharAt, string_pro
 i64 asm_slow_path_call_construct(VM* vm, u32 pc, Op::CallConstruct const* instruction)
 {
     ASM_TRY(*vm, pc, execute_asm_call(Op::CallType::Construct, *vm, vm->get(instruction->callee()), js_undefined(), instruction->arguments(), instruction->dst(), instruction->expression_string(), instruction->strict()));
-    return static_cast<i64>(pc + instruction->length());
+    return continue_after_slow_path(pc + instruction->length());
 }
 
 i64 asm_slow_path_call_construct_with_argument_array(VM* vm, u32 pc, Op::CallConstructWithArgumentArray const* instruction)
 {
     ASM_TRY(*vm, pc, call_with_argument_array(Op::CallType::Construct, *vm, vm->get(instruction->callee()), js_undefined(), vm->get(instruction->arguments()), instruction->dst(), instruction->expression_string(), instruction->strict()));
-    return static_cast<i64>(pc + sizeof(Op::CallConstructWithArgumentArray));
+    return continue_after_slow_path(pc + sizeof(Op::CallConstructWithArgumentArray));
 }
 
 i64 asm_slow_path_super_call_with_argument_array(VM* vm, u32 pc, Op::SuperCallWithArgumentArray const* instruction)
@@ -1878,7 +1879,7 @@ i64 asm_slow_path_super_call_with_argument_array(VM* vm, u32 pc, Op::SuperCallWi
     ASM_TRY(*vm, pc, result->initialize_instance_elements(f));
 
     vm->set(instruction->dst(), result);
-    return static_cast<i64>(pc + sizeof(Op::SuperCallWithArgumentArray));
+    return continue_after_slow_path(pc + sizeof(Op::SuperCallWithArgumentArray));
 }
 
 i64 asm_slow_path_new_object(VM* vm, u32 pc, Op::NewObject const* instruction)
@@ -1890,19 +1891,19 @@ i64 asm_slow_path_new_object(VM* vm, u32 pc, Op::NewObject const* instruction)
         auto cached_shape = cache.shape.ptr();
         if (cached_shape) {
             vm->set(instruction->dst(), Object::create_with_premade_shape(*cached_shape));
-            return static_cast<i64>(pc + sizeof(Op::NewObject));
+            return continue_after_slow_path(pc + sizeof(Op::NewObject));
         }
     }
 
     vm->set(instruction->dst(), Object::create(realm, realm.intrinsics().object_prototype().ptr()));
-    return static_cast<i64>(pc + sizeof(Op::NewObject));
+    return continue_after_slow_path(pc + sizeof(Op::NewObject));
 }
 
 i64 asm_slow_path_new_object_with_no_prototype(VM* vm, u32 pc, Op::NewObjectWithNoPrototype const* instruction)
 {
     auto& realm = *vm->current_realm();
     vm->set(instruction->dst(), Object::create(realm, nullptr));
-    return static_cast<i64>(pc + sizeof(Op::NewObjectWithNoPrototype));
+    return continue_after_slow_path(pc + sizeof(Op::NewObjectWithNoPrototype));
 }
 
 i64 asm_slow_path_cache_object_shape(VM* vm, u32 pc, Op::CacheObjectShape const* instruction)
@@ -1913,7 +1914,7 @@ i64 asm_slow_path_cache_object_shape(VM* vm, u32 pc, Op::CacheObjectShape const*
         if (!object.shape().is_dictionary())
             cache.shape = &object.shape();
     }
-    return static_cast<i64>(pc + sizeof(Op::CacheObjectShape));
+    return continue_after_slow_path(pc + sizeof(Op::CacheObjectShape));
 }
 
 i64 asm_slow_path_init_object_literal_property(VM* vm, u32 pc, Op::InitObjectLiteralProperty const* instruction)
@@ -1925,7 +1926,7 @@ i64 asm_slow_path_init_object_literal_property(VM* vm, u32 pc, Op::InitObjectLit
     auto cached_shape = cache.shape.ptr();
     if (cached_shape && &object.shape() == cached_shape && instruction->property_slot() < cache.property_offsets.size()) {
         object.put_direct(cache.property_offsets[instruction->property_slot()], value);
-        return static_cast<i64>(pc + sizeof(Op::InitObjectLiteralProperty));
+        return continue_after_slow_path(pc + sizeof(Op::InitObjectLiteralProperty));
     }
 
     auto const& property_key = vm->current_executable().get_property_key(instruction->property());
@@ -1940,7 +1941,7 @@ i64 asm_slow_path_init_object_literal_property(VM* vm, u32 pc, Op::InitObjectLit
         }
     }
 
-    return static_cast<i64>(pc + sizeof(Op::InitObjectLiteralProperty));
+    return continue_after_slow_path(pc + sizeof(Op::InitObjectLiteralProperty));
 }
 
 i64 asm_slow_path_new_array(VM* vm, u32 pc, Op::NewArray const* instruction)
@@ -1949,7 +1950,7 @@ i64 asm_slow_path_new_array(VM* vm, u32 pc, Op::NewArray const* instruction)
     for (size_t i = 0; i < instruction->element_count(); ++i)
         array->indexed_put(i, vm->get(instruction->elements()[i]));
     vm->set(instruction->dst(), array);
-    return static_cast<i64>(pc + instruction->length());
+    return continue_after_slow_path(pc + instruction->length());
 }
 
 i64 asm_slow_path_new_primitive_array(VM* vm, u32 pc, Op::NewPrimitiveArray const* instruction)
@@ -1958,7 +1959,7 @@ i64 asm_slow_path_new_primitive_array(VM* vm, u32 pc, Op::NewPrimitiveArray cons
     for (size_t i = 0; i < instruction->element_count(); ++i)
         array->indexed_put(i, instruction->elements()[i]);
     vm->set(instruction->dst(), array);
-    return static_cast<i64>(pc + instruction->length());
+    return continue_after_slow_path(pc + instruction->length());
 }
 
 i64 asm_slow_path_new_regexp(VM* vm, u32 pc, Op::NewRegExp const* instruction)
@@ -1971,21 +1972,21 @@ i64 asm_slow_path_new_regexp(VM* vm, u32 pc, Op::NewRegExp const* instruction)
     regexp_object->set_realm(realm);
     regexp_object->set_legacy_features_enabled(true);
     vm->set(instruction->dst(), regexp_object);
-    return static_cast<i64>(pc + sizeof(Op::NewRegExp));
+    return continue_after_slow_path(pc + sizeof(Op::NewRegExp));
 }
 
 i64 asm_slow_path_new_reference_error(VM* vm, u32 pc, Op::NewReferenceError const* instruction)
 {
     auto& realm = *vm->current_realm();
     vm->set(instruction->dst(), ReferenceError::create(realm, vm->current_executable().get_string(instruction->error_string())));
-    return static_cast<i64>(pc + sizeof(Op::NewReferenceError));
+    return continue_after_slow_path(pc + sizeof(Op::NewReferenceError));
 }
 
 i64 asm_slow_path_new_type_error(VM* vm, u32 pc, Op::NewTypeError const* instruction)
 {
     auto& realm = *vm->current_realm();
     vm->set(instruction->dst(), TypeError::create(realm, vm->current_executable().get_string(instruction->error_string())));
-    return static_cast<i64>(pc + sizeof(Op::NewTypeError));
+    return continue_after_slow_path(pc + sizeof(Op::NewTypeError));
 }
 
 i64 asm_slow_path_bitwise_xor(VM* vm, u32 pc, Op::BitwiseXor const* instruction)
@@ -2084,41 +2085,41 @@ i64 asm_slow_path_loosely_inequals_values(VM* vm, u32 pc, Operand destination, V
 i64 asm_slow_path_unary_minus(VM* vm, u32 pc, Op::UnaryMinus const* instruction)
 {
     vm->set(instruction->dst(), ASM_TRY(*vm, pc, unary_minus(*vm, vm->get(instruction->src()))));
-    return static_cast<i64>(pc + sizeof(Op::UnaryMinus));
+    return continue_after_slow_path(pc + sizeof(Op::UnaryMinus));
 }
 
 i64 asm_slow_path_to_string(VM* vm, u32 pc, Op::ToString const* instruction)
 {
     auto result = ASM_TRY(*vm, pc, vm->get(instruction->value()).to_primitive_string(*vm));
     vm->set(instruction->dst(), Value { result });
-    return static_cast<i64>(pc + sizeof(Op::ToString));
+    return continue_after_slow_path(pc + sizeof(Op::ToString));
 }
 
 i64 asm_slow_path_to_primitive_with_string_hint(VM* vm, u32 pc, Op::ToPrimitiveWithStringHint const* instruction)
 {
     auto result = ASM_TRY(*vm, pc, vm->get(instruction->value()).to_primitive(*vm, Value::PreferredType::String));
     vm->set(instruction->dst(), result);
-    return static_cast<i64>(pc + sizeof(Op::ToPrimitiveWithStringHint));
+    return continue_after_slow_path(pc + sizeof(Op::ToPrimitiveWithStringHint));
 }
 
 i64 asm_slow_path_to_object(VM* vm, u32 pc, Op::ToObject const* instruction)
 {
     auto result = ASM_TRY(*vm, pc, vm->get(instruction->value()).to_object(*vm));
     vm->set(instruction->dst(), result);
-    return static_cast<i64>(pc + sizeof(Op::ToObject));
+    return continue_after_slow_path(pc + sizeof(Op::ToObject));
 }
 
 i64 asm_slow_path_to_length(VM* vm, u32 pc, Op::ToLength const* instruction)
 {
     auto result = ASM_TRY(*vm, pc, vm->get(instruction->value()).to_length(*vm));
     vm->set(instruction->dst(), Value { result });
-    return static_cast<i64>(pc + sizeof(Op::ToLength));
+    return continue_after_slow_path(pc + sizeof(Op::ToLength));
 }
 
 i64 asm_slow_path_typeof(VM* vm, u32 pc, Op::Typeof const* instruction)
 {
     vm->set(instruction->dst(), vm->get(instruction->src()).typeof_(*vm));
-    return static_cast<i64>(pc + sizeof(Op::Typeof));
+    return continue_after_slow_path(pc + sizeof(Op::Typeof));
 }
 
 i64 asm_slow_path_postfix_decrement(VM* vm, u32 pc, Op::PostfixDecrement const* instruction)
@@ -2129,13 +2130,13 @@ i64 asm_slow_path_postfix_decrement(VM* vm, u32 pc, Op::PostfixDecrement const* 
         vm->set(instruction->src(), Value(old_value.as_double() - 1));
     else
         vm->set(instruction->src(), BigInt::create(*vm, old_value.as_bigint().big_integer().minus(Crypto::SignedBigInteger { 1 })));
-    return static_cast<i64>(pc + sizeof(Op::PostfixDecrement));
+    return continue_after_slow_path(pc + sizeof(Op::PostfixDecrement));
 }
 
 i64 asm_slow_path_to_int32(VM* vm, u32 pc, Op::ToInt32 const* instruction)
 {
     vm->set(instruction->dst(), Value(ASM_TRY(*vm, pc, vm->get(instruction->value()).to_i32(*vm))));
-    return static_cast<i64>(pc + sizeof(Op::ToInt32));
+    return continue_after_slow_path(pc + sizeof(Op::ToInt32));
 }
 
 i64 asm_slow_path_put_by_value(VM* vm, u32 pc, Op::PutByValue const* instruction)
@@ -2148,7 +2149,7 @@ i64 asm_slow_path_put_by_value(VM* vm, u32 pc, Op::PutByValue const* instruction
     auto property = vm->get(instruction->property());
     auto property_key = ASM_TRY(*vm, pc, property.to_property_key(*vm));
     ASM_TRY(*vm, pc, put_by_property_key(*vm, base, base, value, base_identifier, property_key, instruction->kind(), instruction->strict()));
-    return static_cast<i64>(pc + sizeof(Op::PutByValue));
+    return continue_after_slow_path(pc + sizeof(Op::PutByValue));
 }
 
 i64 asm_slow_path_put_by_value_with_this(VM* vm, u32 pc, Op::PutByValueWithThis const* instruction)
@@ -2158,7 +2159,7 @@ i64 asm_slow_path_put_by_value_with_this(VM* vm, u32 pc, Op::PutByValueWithThis 
     auto this_value = vm->get(instruction->this_value());
     auto property_key = ASM_TRY(*vm, pc, vm->get(instruction->property()).to_property_key(*vm));
     ASM_TRY(*vm, pc, put_by_property_key(*vm, base, this_value, value, {}, property_key, instruction->kind(), instruction->strict()));
-    return static_cast<i64>(pc + sizeof(Op::PutByValueWithThis));
+    return continue_after_slow_path(pc + sizeof(Op::PutByValueWithThis));
 }
 
 i64 asm_slow_path_put_by_spread(VM* vm, u32 pc, Op::PutBySpread const* instruction)
@@ -2170,7 +2171,7 @@ i64 asm_slow_path_put_by_spread(VM* vm, u32 pc, Op::PutBySpread const* instructi
     auto object = ASM_TRY(*vm, pc, base.to_object(*vm));
 
     ASM_TRY(*vm, pc, object->copy_data_properties(*vm, value, {}));
-    return static_cast<i64>(pc + sizeof(Op::PutBySpread));
+    return continue_after_slow_path(pc + sizeof(Op::PutBySpread));
 }
 
 i64 asm_try_put_by_value_holey_array(VM* vm, u32, Op::PutByValue const* instruction)
@@ -2451,12 +2452,12 @@ i64 asm_slow_path_resolve_binding(VM* vm, u32 pc, Op::ResolveBinding const* inst
     auto reference = ASM_TRY(*vm, pc, vm->resolve_binding(identifier, instruction->strict()));
     if (reference.is_unresolvable()) {
         vm->set(instruction->dst(), js_null());
-        return static_cast<i64>(pc + sizeof(Op::ResolveBinding));
+        return continue_after_slow_path(pc + sizeof(Op::ResolveBinding));
     }
 
     VERIFY(reference.is_environment_reference());
     vm->set(instruction->dst(), &reference.base_environment());
-    return static_cast<i64>(pc + sizeof(Op::ResolveBinding));
+    return continue_after_slow_path(pc + sizeof(Op::ResolveBinding));
 }
 
 i64 asm_slow_path_resolve_super_base(VM* vm, u32 pc, Op::ResolveSuperBase const* instruction)
@@ -2466,7 +2467,7 @@ i64 asm_slow_path_resolve_super_base(VM* vm, u32 pc, Op::ResolveSuperBase const*
     VERIFY(environment.has_super_binding());
     auto base_value = ASM_TRY(*vm, pc, environment.get_super_base());
     vm->set(instruction->dst(), base_value);
-    return static_cast<i64>(pc + sizeof(Op::ResolveSuperBase));
+    return continue_after_slow_path(pc + sizeof(Op::ResolveSuperBase));
 }
 
 i64 asm_slow_path_set_resolved_binding(VM* vm, u32 pc, Op::SetResolvedBinding const* instruction)
@@ -2477,7 +2478,7 @@ i64 asm_slow_path_set_resolved_binding(VM* vm, u32 pc, Op::SetResolvedBinding co
         ? Reference { Reference::BaseType::Unresolvable, PropertyKey { identifier }, instruction->strict() }
         : Reference { as<Environment>(environment.as_cell()), identifier, instruction->strict() };
     ASM_TRY(*vm, pc, reference.put_value(*vm, vm->get(instruction->src())));
-    return static_cast<i64>(pc + sizeof(Op::SetResolvedBinding));
+    return continue_after_slow_path(pc + sizeof(Op::SetResolvedBinding));
 }
 
 i64 asm_slow_path_typeof_binding(VM* vm, u32 pc, Op::TypeofBinding const* instruction)
@@ -2490,7 +2491,7 @@ i64 asm_slow_path_typeof_binding(VM* vm, u32 pc, Op::TypeofBinding const* instru
 
     auto value = ASM_TRY(*vm, pc, static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(*vm, instruction->cache().index));
     vm->set(instruction->dst(), value.typeof_(*vm));
-    return static_cast<i64>(pc + sizeof(Op::TypeofBinding));
+    return continue_after_slow_path(pc + sizeof(Op::TypeofBinding));
 }
 
 i64 asm_slow_path_dynamic_typeof_binding(VM* vm, u32 pc, Op::DynamicTypeofBinding const* instruction)
@@ -2500,19 +2501,19 @@ i64 asm_slow_path_dynamic_typeof_binding(VM* vm, u32 pc, Op::DynamicTypeofBindin
     if (auto const* environment = asm_get_cached_environment(current_environment, cache)) [[likely]] {
         auto value = ASM_TRY(*vm, pc, static_cast<DeclarativeEnvironment const&>(*environment).get_binding_value_direct(*vm, cache.index));
         vm->set(instruction->dst(), value.typeof_(*vm));
-        return static_cast<i64>(pc + sizeof(Op::DynamicTypeofBinding));
+        return continue_after_slow_path(pc + sizeof(Op::DynamicTypeofBinding));
     }
 
     auto reference = ASM_TRY(*vm, pc, vm->resolve_binding(vm->get_identifier(instruction->identifier()), instruction->strict()));
     if (reference.is_unresolvable()) {
         vm->set(instruction->dst(), PrimitiveString::create(*vm, "undefined"_utf16_fly_string));
-        return static_cast<i64>(pc + sizeof(Op::DynamicTypeofBinding));
+        return continue_after_slow_path(pc + sizeof(Op::DynamicTypeofBinding));
     }
 
     asm_update_environment_coordinate_cache(current_environment, reference, cache);
     auto value = ASM_TRY(*vm, pc, reference.get_value(*vm));
     vm->set(instruction->dst(), value.typeof_(*vm));
-    return static_cast<i64>(pc + sizeof(Op::DynamicTypeofBinding));
+    return continue_after_slow_path(pc + sizeof(Op::DynamicTypeofBinding));
 }
 
 static Optional<StringView> asm_function_name_prefix_to_string(Op::FunctionNamePrefix prefix)
@@ -2540,18 +2541,18 @@ i64 asm_slow_path_has_private_id(VM* vm, u32 pc, Op::HasPrivateId const* instruc
     VERIFY(private_environment);
     auto private_name = private_environment->resolve_private_identifier(vm->get_identifier(instruction->property()));
     vm->set(instruction->dst(), Value(base.as_object().private_element_find(private_name) != nullptr));
-    return static_cast<i64>(pc + sizeof(Op::HasPrivateId));
+    return continue_after_slow_path(pc + sizeof(Op::HasPrivateId));
 }
 
 i64 asm_slow_path_set_function_name(VM* vm, u32 pc, Op::SetFunctionName const* instruction)
 {
     auto function = vm->get(instruction->function()).as_if<ECMAScriptFunctionObject>();
     if (!function || !function->name().is_empty())
-        return static_cast<i64>(pc + sizeof(Op::SetFunctionName));
+        return continue_after_slow_path(pc + sizeof(Op::SetFunctionName));
 
     auto property_key = ASM_TRY(*vm, pc, vm->get(instruction->name()).to_property_key(*vm));
     function->set_inferred_name(Variant<PropertyKey, PrivateName> { move(property_key) }, asm_function_name_prefix_to_string(instruction->prefix()));
-    return static_cast<i64>(pc + sizeof(Op::SetFunctionName));
+    return continue_after_slow_path(pc + sizeof(Op::SetFunctionName));
 }
 
 i64 asm_slow_path_new_array_with_length(VM* vm, u32 pc, Op::NewArrayWithLength const* instruction)
@@ -2559,7 +2560,7 @@ i64 asm_slow_path_new_array_with_length(VM* vm, u32 pc, Op::NewArrayWithLength c
     auto length = static_cast<u64>(vm->get(instruction->array_length()).as_double());
     auto array = ASM_TRY(*vm, pc, JS::Array::create(vm->realm(), length));
     vm->set(instruction->dst(), array);
-    return static_cast<i64>(pc + sizeof(Op::NewArrayWithLength));
+    return continue_after_slow_path(pc + sizeof(Op::NewArrayWithLength));
 }
 
 i64 asm_slow_path_array_append(VM* vm, u32 pc, Op::ArrayAppend const* instruction)
@@ -2597,7 +2598,7 @@ i64 asm_slow_path_array_append(VM* vm, u32 pc, Op::ArrayAppend const* instructio
                     auto elements = rhs_array->indexed_packed_elements_span();
                     if (elements.size() <= NumericLimits<u32>::max() - lhs_size) {
                         lhs_array.indexed_append(elements);
-                        return static_cast<i64>(pc + sizeof(Op::ArrayAppend));
+                        return continue_after_slow_path(pc + sizeof(Op::ArrayAppend));
                     }
                 }
             }
@@ -2613,7 +2614,7 @@ i64 asm_slow_path_array_append(VM* vm, u32 pc, Op::ArrayAppend const* instructio
                     break;
                 lhs_array.indexed_put(i++, iterator_value.release_value());
             }
-            return static_cast<i64>(pc + sizeof(Op::ArrayAppend));
+            return continue_after_slow_path(pc + sizeof(Op::ArrayAppend));
         }
 
         auto result = get_iterator_values(*vm, rhs, [&i, &lhs_array](Value iterator_value) -> Optional<Completion> {
@@ -2627,14 +2628,14 @@ i64 asm_slow_path_array_append(VM* vm, u32 pc, Op::ArrayAppend const* instructio
         lhs_array.indexed_put(lhs_size, rhs);
     }
 
-    return static_cast<i64>(pc + sizeof(Op::ArrayAppend));
+    return continue_after_slow_path(pc + sizeof(Op::ArrayAppend));
 }
 
 i64 asm_slow_path_create_variable(VM* vm, u32 pc, Op::CreateVariable const* instruction)
 {
     auto const& name = vm->get_identifier(instruction->identifier());
     ASM_TRY(*vm, pc, asm_create_variable(*vm, name, instruction->mode(), instruction->is_global(), instruction->is_immutable(), instruction->is_strict()));
-    return static_cast<i64>(pc + sizeof(Op::CreateVariable));
+    return continue_after_slow_path(pc + sizeof(Op::CreateVariable));
 }
 
 i64 asm_slow_path_enter_object_environment(VM* vm, u32 pc, Op::EnterObjectEnvironment const* instruction)
@@ -2644,32 +2645,32 @@ i64 asm_slow_path_enter_object_environment(VM* vm, u32 pc, Op::EnterObjectEnviro
     auto new_environment = new_object_environment(*object, true, old_environment.ptr());
     vm->set(instruction->dst(), new_environment);
     vm->running_execution_context().lexical_environment = new_environment;
-    return static_cast<i64>(pc + sizeof(Op::EnterObjectEnvironment));
+    return continue_after_slow_path(pc + sizeof(Op::EnterObjectEnvironment));
 }
 
 i64 asm_slow_path_bitwise_not(VM* vm, u32 pc, Op::BitwiseNot const* instruction)
 {
     vm->set(instruction->dst(), ASM_TRY(*vm, pc, bitwise_not(*vm, vm->get(instruction->src()))));
-    return static_cast<i64>(pc + sizeof(Op::BitwiseNot));
+    return continue_after_slow_path(pc + sizeof(Op::BitwiseNot));
 }
 
 i64 asm_slow_path_unary_plus(VM* vm, u32 pc, Op::UnaryPlus const* instruction)
 {
     vm->set(instruction->dst(), ASM_TRY(*vm, pc, unary_plus(*vm, vm->get(instruction->src()))));
-    return static_cast<i64>(pc + sizeof(Op::UnaryPlus));
+    return continue_after_slow_path(pc + sizeof(Op::UnaryPlus));
 }
 
 i64 asm_slow_path_is_constructor(VM* vm, u32 pc, Op::IsConstructor const* instruction)
 {
     vm->set(instruction->dst(), Value(vm->get(instruction->value()).is_constructor()));
-    return static_cast<i64>(pc + sizeof(Op::IsConstructor));
+    return continue_after_slow_path(pc + sizeof(Op::IsConstructor));
 }
 
 i64 asm_slow_path_add_private_name(VM* vm, u32 pc, Op::AddPrivateName const* instruction)
 {
     auto const& name = vm->get_identifier(instruction->name());
     vm->running_execution_context().private_environment->add_private_name(name);
-    return static_cast<i64>(pc + sizeof(Op::AddPrivateName));
+    return continue_after_slow_path(pc + sizeof(Op::AddPrivateName));
 }
 
 i64 asm_slow_path_create_async_from_sync_iterator(VM* vm, u32 pc, Op::CreateAsyncFromSyncIterator const* instruction)
@@ -2689,7 +2690,7 @@ i64 asm_slow_path_create_async_from_sync_iterator(VM* vm, u32 pc, Op::CreateAsyn
     iterator_object->define_direct_property(vm->names.done, Value { async_from_sync_iterator.done }, default_attributes);
 
     vm->set(instruction->dst(), iterator_object);
-    return static_cast<i64>(pc + sizeof(Op::CreateAsyncFromSyncIterator));
+    return continue_after_slow_path(pc + sizeof(Op::CreateAsyncFromSyncIterator));
 }
 
 i64 asm_slow_path_create_data_property_or_throw(VM* vm, u32 pc, Op::CreateDataPropertyOrThrow const* instruction)
@@ -2698,21 +2699,21 @@ i64 asm_slow_path_create_data_property_or_throw(VM* vm, u32 pc, Op::CreateDataPr
     auto property = ASM_TRY(*vm, pc, vm->get(instruction->property()).to_property_key(*vm));
     auto value = vm->get(instruction->value());
     ASM_TRY(*vm, pc, object.create_data_property_or_throw(property, value));
-    return static_cast<i64>(pc + sizeof(Op::CreateDataPropertyOrThrow));
+    return continue_after_slow_path(pc + sizeof(Op::CreateDataPropertyOrThrow));
 }
 
 i64 asm_slow_path_create_immutable_binding(VM* vm, u32 pc, Op::CreateImmutableBinding const* instruction)
 {
     auto& environment = as<Environment>(vm->get(instruction->environment()).as_cell());
     ASM_TRY(*vm, pc, environment.create_immutable_binding(*vm, vm->get_identifier(instruction->identifier()), instruction->strict_binding()));
-    return static_cast<i64>(pc + sizeof(Op::CreateImmutableBinding));
+    return continue_after_slow_path(pc + sizeof(Op::CreateImmutableBinding));
 }
 
 i64 asm_slow_path_create_mutable_binding(VM* vm, u32 pc, Op::CreateMutableBinding const* instruction)
 {
     auto& environment = as<Environment>(vm->get(instruction->environment()).as_cell());
     ASM_TRY(*vm, pc, environment.create_mutable_binding(*vm, vm->get_identifier(instruction->identifier()), instruction->can_be_deleted()));
-    return static_cast<i64>(pc + sizeof(Op::CreateMutableBinding));
+    return continue_after_slow_path(pc + sizeof(Op::CreateMutableBinding));
 }
 
 i64 asm_slow_path_create_rest_params(VM* vm, u32 pc, Op::CreateRestParams const* instruction)
@@ -2723,7 +2724,7 @@ i64 asm_slow_path_create_rest_params(VM* vm, u32 pc, Op::CreateRestParams const*
     for (size_t rest_index = instruction->rest_index(); rest_index < arguments_count; ++rest_index)
         array->indexed_append(arguments[rest_index]);
     vm->set(instruction->dst(), array);
-    return static_cast<i64>(pc + sizeof(Op::CreateRestParams));
+    return continue_after_slow_path(pc + sizeof(Op::CreateRestParams));
 }
 
 i64 asm_slow_path_create_arguments(VM* vm, u32 pc, Op::CreateArguments const* instruction)
@@ -2743,7 +2744,7 @@ i64 asm_slow_path_create_arguments(VM* vm, u32 pc, Op::CreateArguments const* in
 
     if (instruction->dst().has_value()) {
         vm->set(*instruction->dst(), arguments_object);
-        return static_cast<i64>(pc + sizeof(Op::CreateArguments));
+        return continue_after_slow_path(pc + sizeof(Op::CreateArguments));
     }
 
     if (instruction->is_immutable()) {
@@ -2752,7 +2753,7 @@ i64 asm_slow_path_create_arguments(VM* vm, u32 pc, Op::CreateArguments const* in
         MUST(environment->create_mutable_binding(*vm, vm->names.arguments.as_string(), false));
     }
     MUST(environment->initialize_binding(*vm, vm->names.arguments.as_string(), arguments_object, Environment::InitializeBindingHint::Normal));
-    return static_cast<i64>(pc + sizeof(Op::CreateArguments));
+    return continue_after_slow_path(pc + sizeof(Op::CreateArguments));
 }
 
 i64 asm_slow_path_await(VM* vm, [[maybe_unused]] u32 pc, Op::Await const* instruction)
@@ -2774,7 +2775,7 @@ i64 asm_slow_path_create_lexical_environment(VM* vm, u32 pc, Op::CreateLexicalEn
     environment->set_is_catch_environment(instruction->is_catch_environment());
     vm->set(instruction->dst(), environment);
     vm->running_execution_context().lexical_environment = environment;
-    return static_cast<i64>(pc + sizeof(Op::CreateLexicalEnvironment));
+    return continue_after_slow_path(pc + sizeof(Op::CreateLexicalEnvironment));
 }
 
 i64 asm_slow_path_create_private_environment(VM* vm, u32 pc, Op::CreatePrivateEnvironment const*)
@@ -2782,7 +2783,7 @@ i64 asm_slow_path_create_private_environment(VM* vm, u32 pc, Op::CreatePrivateEn
     auto& running_execution_context = vm->running_execution_context();
     auto outer_private_environment = running_execution_context.private_environment;
     running_execution_context.private_environment = new_private_environment(*vm, outer_private_environment.ptr());
-    return static_cast<i64>(pc + sizeof(Op::CreatePrivateEnvironment));
+    return continue_after_slow_path(pc + sizeof(Op::CreatePrivateEnvironment));
 }
 
 i64 asm_slow_path_create_variable_environment(VM* vm, u32 pc, Op::CreateVariableEnvironment const* instruction)
@@ -2794,7 +2795,7 @@ i64 asm_slow_path_create_variable_environment(VM* vm, u32 pc, Op::CreateVariable
     var_environment->ensure_capacity(instruction->capacity());
     running_execution_context.variable_environment = var_environment;
     running_execution_context.lexical_environment = var_environment;
-    return static_cast<i64>(pc + sizeof(Op::CreateVariableEnvironment));
+    return continue_after_slow_path(pc + sizeof(Op::CreateVariableEnvironment));
 }
 
 i64 asm_slow_path_delete_by_id(VM* vm, u32 pc, Op::DeleteById const* instruction)
@@ -2803,7 +2804,7 @@ i64 asm_slow_path_delete_by_id(VM* vm, u32 pc, Op::DeleteById const* instruction
     auto reference = Reference { vm->get(instruction->base()), property_key, {}, instruction->strict() };
     auto result = ASM_TRY(*vm, pc, reference.delete_(*vm));
     vm->set(instruction->dst(), Value(result));
-    return static_cast<i64>(pc + sizeof(Op::DeleteById));
+    return continue_after_slow_path(pc + sizeof(Op::DeleteById));
 }
 
 i64 asm_slow_path_delete_by_value(VM* vm, u32 pc, Op::DeleteByValue const* instruction)
@@ -2812,7 +2813,7 @@ i64 asm_slow_path_delete_by_value(VM* vm, u32 pc, Op::DeleteByValue const* instr
     auto reference = Reference { vm->get(instruction->base()), property_key, {}, instruction->strict() };
     auto result = ASM_TRY(*vm, pc, reference.delete_(*vm));
     vm->set(instruction->dst(), Value(result));
-    return static_cast<i64>(pc + sizeof(Op::DeleteByValue));
+    return continue_after_slow_path(pc + sizeof(Op::DeleteByValue));
 }
 
 i64 asm_slow_path_delete_variable(VM* vm, u32 pc, Op::DeleteVariable const* instruction)
@@ -2821,7 +2822,7 @@ i64 asm_slow_path_delete_variable(VM* vm, u32 pc, Op::DeleteVariable const* inst
     auto reference = ASM_TRY(*vm, pc, vm->resolve_binding(string, instruction->strict()));
     auto result = ASM_TRY(*vm, pc, reference.delete_(*vm));
     vm->set(instruction->dst(), Value(result));
-    return static_cast<i64>(pc + sizeof(Op::DeleteVariable));
+    return continue_after_slow_path(pc + sizeof(Op::DeleteVariable));
 }
 
 i64 asm_slow_path_get_completion_fields(VM* vm, u32 pc, Op::GetCompletionFields const* instruction)
@@ -2831,13 +2832,13 @@ i64 asm_slow_path_get_completion_fields(VM* vm, u32 pc, Op::GetCompletionFields 
         auto const& generator = as<GeneratorObject>(completion_source);
         vm->set(instruction->value_dst(), generator.pending_completion_value());
         vm->set(instruction->type_dst(), Value(to_underlying(generator.pending_completion_type())));
-        return static_cast<i64>(pc + sizeof(Op::GetCompletionFields));
+        return continue_after_slow_path(pc + sizeof(Op::GetCompletionFields));
     }
 
     auto const& async_generator = as<AsyncGenerator>(completion_source);
     vm->set(instruction->value_dst(), async_generator.pending_completion_value());
     vm->set(instruction->type_dst(), Value(to_underlying(async_generator.pending_completion_type())));
-    return static_cast<i64>(pc + sizeof(Op::GetCompletionFields));
+    return continue_after_slow_path(pc + sizeof(Op::GetCompletionFields));
 }
 
 i64 asm_slow_path_set_completion_type(VM* vm, u32 pc, Op::SetCompletionType const* instruction)
@@ -2845,11 +2846,11 @@ i64 asm_slow_path_set_completion_type(VM* vm, u32 pc, Op::SetCompletionType cons
     auto& completion_source = vm->get(instruction->completion()).as_object();
     if (is<GeneratorObject>(completion_source)) {
         as<GeneratorObject>(completion_source).set_pending_completion_type(instruction->completion_type());
-        return static_cast<i64>(pc + sizeof(Op::SetCompletionType));
+        return continue_after_slow_path(pc + sizeof(Op::SetCompletionType));
     }
 
     as<AsyncGenerator>(completion_source).set_pending_completion_type(instruction->completion_type());
-    return static_cast<i64>(pc + sizeof(Op::SetCompletionType));
+    return continue_after_slow_path(pc + sizeof(Op::SetCompletionType));
 }
 
 i64 asm_slow_path_get_template_object(VM* vm, u32 pc, Op::GetTemplateObject const* instruction)
@@ -2858,7 +2859,7 @@ i64 asm_slow_path_get_template_object(VM* vm, u32 pc, Op::GetTemplateObject cons
 
     if (cache.cached_template_object) {
         vm->set(instruction->dst(), cache.cached_template_object);
-        return static_cast<i64>(pc + instruction->length());
+        return continue_after_slow_path(pc + instruction->length());
     }
 
     auto& realm = *vm->current_realm();
@@ -2878,7 +2879,7 @@ i64 asm_slow_path_get_template_object(VM* vm, u32 pc, Op::GetTemplateObject cons
 
     cache.cached_template_object = template_object;
     vm->set(instruction->dst(), template_object);
-    return static_cast<i64>(pc + instruction->length());
+    return continue_after_slow_path(pc + instruction->length());
 }
 
 i64 asm_slow_path_new_function(VM* vm, u32 pc, Op::NewFunction const* instruction)
@@ -2913,7 +2914,7 @@ i64 asm_slow_path_new_function(VM* vm, u32 pc, Op::NewFunction const* instructio
     }
 
     vm->set(instruction->dst(), function);
-    return static_cast<i64>(pc + sizeof(Op::NewFunction));
+    return continue_after_slow_path(pc + sizeof(Op::NewFunction));
 }
 
 i64 asm_slow_path_throw(VM* vm, u32 pc, Op::Throw const* instruction)
@@ -2928,7 +2929,7 @@ i64 asm_slow_path_throw_if_tdz(VM* vm, u32 pc, Op::ThrowIfTDZ const* instruction
         auto completion = vm->throw_completion<ReferenceError>(ErrorType::BindingNotInitialized, value);
         return handle_asm_exception(*vm, pc, completion.value());
     }
-    return static_cast<i64>(pc + sizeof(Op::ThrowIfTDZ));
+    return continue_after_slow_path(pc + sizeof(Op::ThrowIfTDZ));
 }
 
 i64 asm_slow_path_throw_if_not_object(VM* vm, u32 pc, Op::ThrowIfNotObject const* instruction)
@@ -2938,7 +2939,7 @@ i64 asm_slow_path_throw_if_not_object(VM* vm, u32 pc, Op::ThrowIfNotObject const
         auto completion = vm->throw_completion<TypeError>(ErrorType::NotAnObject, src);
         return handle_asm_exception(*vm, pc, completion.value());
     }
-    return static_cast<i64>(pc + sizeof(Op::ThrowIfNotObject));
+    return continue_after_slow_path(pc + sizeof(Op::ThrowIfNotObject));
 }
 
 i64 asm_slow_path_throw_if_nullish(VM* vm, u32 pc, Op::ThrowIfNullish const* instruction)
@@ -2948,7 +2949,7 @@ i64 asm_slow_path_throw_if_nullish(VM* vm, u32 pc, Op::ThrowIfNullish const* ins
         auto completion = vm->throw_completion<TypeError>(ErrorType::NotObjectCoercible, value);
         return handle_asm_exception(*vm, pc, completion.value());
     }
-    return static_cast<i64>(pc + sizeof(Op::ThrowIfNullish));
+    return continue_after_slow_path(pc + sizeof(Op::ThrowIfNullish));
 }
 
 i64 asm_slow_path_throw_const_assignment(VM* vm, u32 pc, Op::ThrowConstAssignment const*)
@@ -2962,7 +2963,7 @@ i64 asm_slow_path_debugger(VM* vm, u32 pc, Op::Debugger const*)
     // NB: Don't pause twice if the debugger trampoline already paused before this instruction.
     if (auto* debugger = vm->debugger(); debugger && !debugger->did_pause_before_current_instruction())
         debugger->pause_execution(vm->current_executable(), pc, Debugger::PauseReason::DebuggerStatement);
-    return static_cast<i64>(pc + sizeof(Op::Debugger));
+    return continue_after_slow_path(pc + sizeof(Op::Debugger));
 }
 
 i64 asm_slow_path_yield(VM* vm, [[maybe_unused]] u32 pc, Op::Yield const* instruction)
@@ -3157,32 +3158,32 @@ i64 asm_slow_path_instance_of(VM* vm, u32 pc, Op::InstanceOf const* instruction)
 {
     auto result = ASM_TRY(*vm, pc, instance_of(*vm, vm->get(instruction->lhs()), vm->get(instruction->rhs())));
     vm->set(instruction->dst(), result);
-    return static_cast<i64>(pc + sizeof(Op::InstanceOf));
+    return continue_after_slow_path(pc + sizeof(Op::InstanceOf));
 }
 
 i64 asm_slow_path_in(VM* vm, u32 pc, Op::In const* instruction)
 {
     auto result = ASM_TRY(*vm, pc, in(*vm, vm->get(instruction->lhs()), vm->get(instruction->rhs())));
     vm->set(instruction->dst(), result);
-    return static_cast<i64>(pc + sizeof(Op::In));
+    return continue_after_slow_path(pc + sizeof(Op::In));
 }
 
 i64 asm_slow_path_resolve_this_binding(VM* vm, u32 pc, Op::ResolveThisBinding const*)
 {
     auto& cached_this_value = vm->reg(Register::this_value());
     if (!cached_this_value.is_special_empty_value())
-        return static_cast<i64>(pc + sizeof(Op::ResolveThisBinding));
+        return continue_after_slow_path(pc + sizeof(Op::ResolveThisBinding));
 
     auto& running_execution_context = vm->running_execution_context();
     if (auto function = running_execution_context.function; function && is<ECMAScriptFunctionObject>(*function)) {
         auto& ecmascript_function = static_cast<ECMAScriptFunctionObject&>(*function);
         if (!ecmascript_function.allocates_function_environment() && !ecmascript_function.this_value_needs_environment_resolution()) {
             cached_this_value = running_execution_context.this_value.value();
-            return static_cast<i64>(pc + sizeof(Op::ResolveThisBinding));
+            return continue_after_slow_path(pc + sizeof(Op::ResolveThisBinding));
         }
     }
     cached_this_value = ASM_TRY(*vm, pc, vm->resolve_this_binding());
-    return static_cast<i64>(pc + sizeof(Op::ResolveThisBinding));
+    return continue_after_slow_path(pc + sizeof(Op::ResolveThisBinding));
 }
 
 // Direct handler for GetPrivateById: bypasses Reference indirection.
@@ -3197,7 +3198,7 @@ i64 asm_slow_path_get_private_by_id(VM* vm, u32 pc, Op::GetPrivateById const* in
         auto private_name = make_private_reference(current_vm, base_value, name);
         auto result = ASM_TRY(*vm, pc, private_name.get_value(current_vm));
         vm->set(instruction->dst(), result);
-        return static_cast<i64>(pc + sizeof(Op::GetPrivateById));
+        return continue_after_slow_path(pc + sizeof(Op::GetPrivateById));
     }
 
     auto const& name = current_vm.get_identifier(instruction->property());
@@ -3206,7 +3207,7 @@ i64 asm_slow_path_get_private_by_id(VM* vm, u32 pc, Op::GetPrivateById const* in
     auto private_name = private_environment->resolve_private_identifier(name);
     auto result = ASM_TRY(*vm, pc, base_value.as_object().private_get(private_name));
     vm->set(instruction->dst(), result);
-    return static_cast<i64>(pc + sizeof(Op::GetPrivateById));
+    return continue_after_slow_path(pc + sizeof(Op::GetPrivateById));
 }
 
 // Direct handler for PutPrivateById: bypasses Reference indirection.
@@ -3221,7 +3222,7 @@ i64 asm_slow_path_put_private_by_id(VM* vm, u32 pc, Op::PutPrivateById const* in
         auto const& name = current_vm.get_identifier(instruction->property());
         auto private_reference = make_private_reference(current_vm, object, name);
         ASM_TRY(*vm, pc, private_reference.put_value(current_vm, value));
-        return static_cast<i64>(pc + sizeof(Op::PutPrivateById));
+        return continue_after_slow_path(pc + sizeof(Op::PutPrivateById));
     }
 
     auto const& name = current_vm.get_identifier(instruction->property());
@@ -3229,7 +3230,7 @@ i64 asm_slow_path_put_private_by_id(VM* vm, u32 pc, Op::PutPrivateById const* in
     VERIFY(private_environment);
     auto private_name = private_environment->resolve_private_identifier(name);
     ASM_TRY(*vm, pc, base_value.as_object().private_set(private_name, value));
-    return static_cast<i64>(pc + sizeof(Op::PutPrivateById));
+    return continue_after_slow_path(pc + sizeof(Op::PutPrivateById));
 }
 
 // Helper: convert value to boolean (called from asm jump handlers)

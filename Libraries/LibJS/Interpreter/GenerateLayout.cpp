@@ -16,6 +16,7 @@
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/PropertyNameIterator.h>
 #include <LibJS/Bytecode/PutKind.h>
+#include <LibJS/Interpreter/SlowPathResult.h>
 #include <LibJS/Runtime/Accessor.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
@@ -162,6 +163,8 @@ int main()
     EMIT_FIELD(PROPERTY_NAME_ITERATOR_SHAPE_IS_DICTIONARY, PropertyNameIterator, shape_is_dictionary, bool, PropertyNameIterator, m_shape_is_dictionary, 1, nullable, scalar);
     EMIT_FIELD(PROPERTY_NAME_ITERATOR_SHAPE_DICTIONARY_GENERATION, PropertyNameIterator, shape_dictionary_generation, u32, PropertyNameIterator, m_shape_dictionary_generation, 4, nullable, scalar);
     EMIT_FIELD(PROPERTY_NAME_ITERATOR_FAST_PATH, PropertyNameIterator, fast_path, u8, PropertyNameIterator, m_fast_path, 1, nullable, scalar);
+
+    outln("const SLOW_PATH_CONTINUATION_BIT = {}", slow_path_continuation_bit);
 
     // Executable layout
     outln("\n# Executable layout");
