@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    const server = httpTestServer();
+    const previousCacheSetting = internals.setHttpMemoryCacheEnabled(true);
+    const bytes = new Uint8Array(await (await fetch("../../../Assets/NotoSansEthiopic.woff2")).arrayBuffer());
+    let binary = "";
+    for (const byte of bytes)
+        binary += String.fromCharCode(byte);
+    const fontBody = btoa(binary);
+    const warmToken = crypto.randomUUID();
+    const warmURL = await server.createEcho("GET", `/font-cache-warm-${warmToken}.woff2`, {
+        status: 200,
+        headers: {
+            "Content-Type": "font/woff2",
+            "Cache-Control": "max-age=3600",
+            "Access-Control-Expose-Headers": "X-Ladybird-Disk-Cache-Status",
+        },
+        body: fontBody,
+        body_encoding: "base64",
+    });
+    // Opt into the test runner's disk cache when priming it, without creating or decoding a FontFace.
+    await server.createEcho("OPTIONS", `/font-cache-warm-${warmToken}.woff2`, {
+        status: 200,
+        headers: {
+            "Access-Control-Allow-Origin": "*",
+            "Access-Control-Allow-Headers": "X-Ladybird-Enable-Disk-Cache",
+        },
+    });
+    const primedResponse = await fetch(warmURL, { headers: { "X-Ladybird-Enable-Disk-Cache": "1" } });
+    await primedResponse.arrayBuffer();
+    if (primedResponse.headers.get("X-Ladybird-Disk-Cache-Status") !== "written-to-cache")
+        throw new Error("Failed to prime the disk cache");
+
+    async function checkFirstPaint(url, enableMemoryCache = true) {
+        const iframe = document.createElement("iframe");
+        const painted = new Promise(resolve => window.reportFirstPaint = resolve);
+        iframe.srcdoc = `<!DOCTYPE html>
+            <style>@font-face { font-family: Test; src: url("${url}"); font-display: swap; }
+                body { font: 40px Test, monospace; }</style>
+            <script>
+                internals.setHttpMemoryCacheEnabled(${enableMemoryCache});
+                const face = [...document.fonts][0];
+                // Freeze the clock so a slow test machine cannot exhaust the cache wait budget.
+                internals.setFontDisplayTime(face, 0);
+                requestAnimationFrame(function check() {
+                    if (internals.hasCompletedInitialPaint)
+                        parent.reportFirstPaint({ pending: internals.initialPaintHadPendingFonts, status: face.status });
+                    else
+                        requestAnimationFrame(check);
+                });
+            <\/script><body>ሀሀሀሀ`;
+        document.body.append(iframe);
+        return { iframe, result: await painted };
+    }
+    const warm = await checkFirstPaint(warmURL);
+    println(`Warm cache: first paint had pending fonts = ${warm.result.pending}, font = ${warm.result.status}`);
+    warm.iframe.remove();
+
+    internals.setHttpMemoryCacheEnabled(false);
+    const disk = await checkFirstPaint(warmURL, false);
+    println(`Disk cache: first paint had pending fonts = ${disk.result.pending}, font = ${disk.result.status}`);
+    disk.iframe.remove();
+
+    const coldToken = crypto.randomUUID();
+    const coldURL = await server.createEcho("GET", `/font-cache-cold-${coldToken}.woff2`, {
+        status: 200,
+        headers: { "Content-Type": "font/woff2", "Cache-Control": "no-store" },
+        body: fontBody,
+        body_encoding: "base64",
+        wait_for_unblock: coldToken,
+    });
+    // A cache miss must allow first paint even though the server has not sent response headers yet.
+    const cold = await checkFirstPaint(coldURL);
+    println(`Cold cache: first paint had pending fonts = ${cold.result.pending}, font = ${cold.result.status}`);
+    await fetch(`${server.baseURL}/unblock/${coldToken}`);
+    await cold.iframe.contentDocument.fonts.ready;
+    println(`Cold font eventually loads: ${[...cold.iframe.contentDocument.fonts][0].status}`);
+    cold.iframe.remove();
+    internals.setHttpMemoryCacheEnabled(previousCacheSetting);
+});
+</script>

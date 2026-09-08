@@ -5,6 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibGC/Weak.h>
 #include <LibJS/Runtime/VM.h>
 #include <LibRequests/Request.h>
 #include <LibWeb/Fetch/Fetching/PendingResponse.h>
@@ -39,6 +40,12 @@ void FetchController::visit_edges(JS::Cell::Visitor& visitor)
 void FetchController::set_pending_request(RefPtr<Requests::Request> const& request)
 {
     m_pending_request = request;
+    m_has_started_request |= !!request;
+    if (request && m_fetch_params && m_fetch_params->request()->destination() == Request::Destination::Font) {
+        request->on_requires_network = GC::weak_callback(*this, [](auto& controller) {
+            controller.m_requires_network = true;
+        });
+    }
 }
 
 void FetchController::set_report_timing_steps(Function<void(JS::Object&)> report_timing_steps)

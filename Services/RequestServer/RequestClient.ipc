@@ -9,6 +9,7 @@
 
 endpoint RequestClient
 {
+    request_requires_network(u64 request_id) =|
     request_started(u64 request_id, IPC::File fd) =|
     request_body_file_available(u64 request_id, IPC::File fd, u64 offset, u64 size) =|
     request_cached_body_file_available(u64 request_id, IPC::File fd, u64 offset, u64 size) =|

@@ -118,6 +118,16 @@ bool FontLoader::is_loading() const
     return m_fetch_controller && !m_typeface;
 }
 
+bool FontLoader::may_finish_from_cache() const
+{
+    return !m_fetch_controller || !m_fetch_controller->requires_network();
+}
+
+bool FontLoader::has_started_request() const
+{
+    return m_fetch_controller && m_fetch_controller->has_started_request();
+}
+
 void FontLoader::did_request_for_rendering()
 {
     // INTEROP: Delay the document load event til the fetch for this font has settled. Blink, Gecko, and WebKit all
@@ -146,6 +156,7 @@ void FontLoader::start_loading_next_url()
     // To fetch a font given a selected <url> url for @font-face rule, fetch url, with ruleOrDeclaration being rule,
     // destination "font", CORS mode "cors", and processResponse being the following steps given response res and null,
     // failure or a byte stream stream:
+    m_has_received_font_data = false;
     m_fetch_controller = fetch_a_style_resource(m_urls.take_first(), m_rule_or_declaration, Fetch::Infrastructure::Request::Destination::Font, CorsMode::Cors,
         [loader = this](auto response, auto stream) {
             // 1. If stream is null, return.
@@ -161,6 +172,7 @@ void FontLoader::start_loading_next_url()
                 }
                 return;
             }
+            loader->m_has_received_font_data = true;
             auto bytes = immutable_bytes->copy_to_byte_buffer().release_value_but_fixme_should_propagate_errors();
 
             auto mime_type_essence = loader->try_load_font_mime_type_essence(response, bytes);
@@ -814,6 +826,25 @@ void FontComputer::clear_computed_font_cache_for_families(Vector<Utf16FlyString>
 void FontComputer::clear_font_feature_values_cache(Utf16FlyString const& family_name)
 {
     m_font_feature_values_cache.remove(family_name);
+}
+
+bool FontComputer::should_defer_initial_paint()
+{
+    if (m_has_completed_initial_paint)
+        return false;
+    bool has_pending_fonts = false;
+    // OPTIMIZATION: Finish cache lookups and decode cache-resident fonts before the first paint. A cache miss
+    //               releases this wait before any network activity; subsequent paints use the font display timeline.
+    for (auto const& entry : m_font_faces) {
+        for (auto const& face : entry.value) {
+            if (face->is_pending_rendering_from_cache())
+                return true;
+            has_pending_fonts |= face->has_pending_rendering();
+        }
+    }
+    m_initial_paint_had_pending_fonts = has_pending_fonts;
+    m_has_completed_initial_paint = true;
+    return false;
 }
 
 void FontComputer::did_load_font(Utf16FlyString const& family_name)

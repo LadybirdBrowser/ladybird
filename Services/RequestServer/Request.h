@@ -52,7 +52,8 @@ public:
         Optional<ByteString> alt_svc_cache_path,
         Core::ProxyData proxy_data,
         Optional<Requests::RequestTransferLeaseKey>,
-        Optional<u32> address_selection_hint);
+        Optional<u32> address_selection_hint,
+        bool notify_on_cache_miss);
 
     static NonnullOwnPtr<Request> connect(
         u64 request_id,
@@ -241,6 +242,8 @@ private:
 
     RefPtr<AIACollector> m_aia_collector;
     size_t m_aia_fetch_count { 0 };
+    bool m_notify_on_cache_miss { false };
+    bool m_informed_client_requires_network { false };
     bool m_informed_client_request_started { false };
     Optional<int> m_curl_result_code;
 
