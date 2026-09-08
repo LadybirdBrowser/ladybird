@@ -378,6 +378,15 @@ impl StyleEngine {
         let old = relations(old);
         let new = relations(new);
 
+        // A node whose parent departed in the same transaction departed with it, so nothing that
+        // remains was its sibling or in its sequence.
+        if new.is_none()
+            && let Some(old) = old
+            && old.parent.is_some_and(|parent| !self.tree.is_live(parent))
+        {
+            return;
+        }
+
         if new.is_some()
             && (old.is_none()
                 || old.and_then(|relations| relations.parent) != new.and_then(|relations| relations.parent))
