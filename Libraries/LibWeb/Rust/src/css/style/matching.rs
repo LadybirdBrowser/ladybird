@@ -2889,8 +2889,18 @@ impl StyleEngine {
         self.remember_prepared_retained_match_answer(node, answer);
         let cascade_winners_updated =
             self.apply_cascade_winner_match_deltas(node, &materialized, deltas, &mut patch.cascade_candidates);
-        let new_input =
-            self.matches_for_cascade_with_scratch(materialized, false, None, &mut patch.cascade_compaction_workspace);
+        let mut new_input = materialized;
+        if !(cascade_winners_updated
+            && cascade_winners_are_complete
+            && self.compact_matches_from_updated_winners(node, &mut new_input))
+        {
+            self.compact_matches_for_cascade_with_scratch(
+                &mut new_input,
+                false,
+                None,
+                &mut patch.cascade_compaction_workspace,
+            );
+        }
         let new_cascade_input = self.intern_cascade_input(&new_input);
         let changed = old_cascade_input != new_cascade_input;
         if changed {

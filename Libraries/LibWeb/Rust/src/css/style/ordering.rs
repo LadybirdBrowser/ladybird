@@ -704,6 +704,63 @@ impl StyleEngine {
         self.memory.release(MemoryCategory::BatchScratch, scratch_bytes);
     }
 
+    /// Reuse a complete, freshly updated element winner state instead of reducing declarations
+    /// again. Author pseudo rules and cascade continuations retain the general compaction path.
+    pub(super) fn compact_matches_from_updated_winners(&mut self, node: StyleNodeID, all: &mut Vec<RuleMatch>) -> bool {
+        if self.node_has_element_declaration_input(node)
+            || all.iter().any(|entry| {
+                (entry.pseudo_element.is_some()
+                    && self.program.sheet_origin(self.program.rule_sheet(entry.rule)) == CascadeOrigin::Author)
+                    || self.program.declared_properties_of(entry.rule).iter().any(|declared| {
+                        matches!(
+                            declared.operator,
+                            CascadeOperator::Revert | CascadeOperator::RevertLayer
+                        )
+                    })
+            })
+        {
+            return false;
+        }
+        let Some((_, state)) = self
+            .winner_groups
+            .token_for(WinnerGroupKey::current(node, self.program.version()))
+            .sparse()
+            .ok()
+        else {
+            return false;
+        };
+        let mut rules: SmallVec<[RuleID; 32]> = SmallVec::new();
+        for winner in self.winner_groups.winners_in_state(state) {
+            let WinnerSource::Rule(rule) = winner.source else {
+                return false;
+            };
+            if winner.key.continuation != CascadeContinuationID::default() {
+                return false;
+            }
+            rules.push(rule);
+        }
+        rules.sort_unstable();
+        rules.dedup();
+        let scratch_bytes = if rules.spilled() {
+            (rules.capacity() * size_of::<RuleID>()) as u64
+        } else {
+            0
+        };
+        self.memory
+            .reserve_required(MemoryCategory::BatchScratch, scratch_bytes);
+        self.counters
+            .add(Counter::CascadeMatchesBeforeCompaction, all.len() as u64);
+        all.retain(|entry| {
+            self.program.sheet_origin(self.program.rule_sheet(entry.rule)) != CascadeOrigin::Author
+                || rules.binary_search(&entry.rule).is_ok()
+        });
+        self.memory.release(MemoryCategory::BatchScratch, scratch_bytes);
+        verify_style_answer_patch(self, |verifier| {
+            verifier.verify_cascade_answer(all, node, "compaction from updated winners");
+        });
+        true
+    }
+
     pub(super) fn matches_for_cascade(
         &mut self,
         mut all: Vec<RuleMatch>,
