@@ -4265,152 +4265,6 @@ asm_handler_GetById:
     add r13d, 24
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_GetById.ssa_block_13:
-    cmp BYTE PTR [rcx + 12], 0
-    jz .Lasm_GetById.ssa_block_3
-    mov ecx, DWORD PTR [rax + 108]
-    mov rcx, QWORD PTR [rdx + rcx * 8]
-    test rcx, rcx
-    jz .Lasm_GetById.ssa_block_3
-    mov esi, DWORD PTR [rax + 116]
-    mov r8, QWORD PTR [rcx + rsi * 8]
-    test r8, r8
-    jz .Lasm_GetById.ssa_block_3
-    mov edi, DWORD PTR [rax + 120]
-    mov r8, QWORD PTR [r8 + rdi * 8]
-    cmp r8, rdx
-    jne .Lasm_GetById.ssa_block_3
-    mov eax, DWORD PTR [rax + 112]
-    mov rax, QWORD PTR [rcx + rax * 8]
-    test rax, rax
-    jnz .Lasm_GetById.ssa_block_25
-    movabs rcx, 9223090561878065152
-    jmp .Lasm_GetById.ssa_block_26
-.Lasm_GetById.ssa_block_25:
-    mov rax, QWORD PTR [rax + rsi * 8]
-    test rax, rax
-    jz .Lasm_GetById.ssa_block_3
-    mov rcx, QWORD PTR [rax + rdi * 8]
-    test rcx, rcx
-    jz .Lasm_GetById.ssa_block_3
-    movzx eax, WORD PTR [rcx + 10]
-    test eax, 2048
-    jnz .Lasm_GetById.ssa_block_3
-    movabs rax, 4398046511103
-    and rcx, rax
-    movabs rax, -1970324836974592
-    or rcx, rax
-.Lasm_GetById.ssa_block_26:
-    mov r11d, DWORD PTR [r14 + r13 + 4]
-    mov QWORD PTR [rbx + r11 * 8], rcx
-    add r13d, 24
-    movzx eax, BYTE PTR [r14 + r13]
-    jmp [r12 + rax * 8]
-.Lasm_GetById.ssa_block_14:
-    mov esi, DWORD PTR [rax + 104]
-    mov rcx, QWORD PTR [rbp - 48]
-    mov rcx, QWORD PTR [rcx + 16704]
-    shl rsi, 4
-    add rsi, rcx
-    mov edi, DWORD PTR [rsi + 8]
-    mov rcx, QWORD PTR [rbp - 48]
-    mov r9, QWORD PTR [rcx + 15376]
-    mov rcx, QWORD PTR [rcx + 15368]
-    lea r8, [rcx + 128]
-    cmp r8, r9
-    ja .Lasm_GetById.ssa_block_3
-    mov r9, QWORD PTR [rbp - 48]
-    mov r10, QWORD PTR [r9 + 15336]
-    mov r9, r10
-    add r9, 32768
-    cmp r9, rbp
-    ja .Lasm_GetById.ssa_block_3
-    mov r9, QWORD PTR [rbp - 48]
-    mov QWORD PTR [r9 + 15368], r8
-    mov DWORD PTR [rcx + 116], edi
-    mov DWORD PTR [rcx + 120], edi
-    mov DWORD PTR [rcx + 104], 0
-    mov rdi, QWORD PTR [rax + 24]
-    mov rdi, QWORD PTR [rdi + 16]
-    mov QWORD PTR [rcx], rax
-    mov QWORD PTR [rcx + 8], rdi
-    mov rax, QWORD PTR [rbx - 96]
-    mov rdi, QWORD PTR [rbx - 88]
-    mov QWORD PTR [rcx + 32], rax
-    mov QWORD PTR [rcx + 40], rdi
-    mov rax, QWORD PTR [rbx - 80]
-    mov QWORD PTR [rcx + 48], rax
-    movabs rax, 4398046511103
-    and rdx, rax
-    movabs rax, -1970324836974592
-    or rdx, rax
-    mov QWORD PTR [rcx + 80], rdx
-    xor rax, rax
-    lea rdx, [rcx + 16]
-    mov QWORD PTR [rdx], rax
-    mov QWORD PTR [rdx + 8], rax
-    mov QWORD PTR [rcx + 88], 0
-    mov DWORD PTR [rcx + 64], 0
-    mov DWORD PTR [rcx + 68], 0
-    mov DWORD PTR [rcx + 72], 4294967295
-    mov BYTE PTR [rcx + 76], 0
-    mov BYTE PTR [rcx + 77], 0
-    mov BYTE PTR [rcx + 78], 0
-    mov eax, r13d
-    mov edx, DWORD PTR [r14 + r13 + 4]
-    mov edi, DWORD PTR [r14 + r13 + 8]
-    mov DWORD PTR [rbx - 64], eax
-    lea r11, [rbx - 128]
-    mov QWORD PTR [rcx + 96], r11
-    lea rax, [rax + 1]
-    mov DWORD PTR [rcx + 108], eax
-    mov DWORD PTR [rcx + 112], edx
-    mov rax, QWORD PTR [rbp - 48]
-    mov QWORD PTR [rax + 15288], rcx
-    lea rbx, [rcx + 128]
-    mov rdx, QWORD PTR [rsi]
-    mov r11, rdx
-    mov rdi, QWORD PTR [rbp - 48]
-    call r11
-    mov rcx, rdx
-    mov rdx, rax
-    and rcx, 255
-    test rcx, rcx
-    jnz .Lasm_GetById.ssa_block_6
-    mov rax, QWORD PTR [rbx - 32]
-    mov rcx, QWORD PTR [rbp - 48]
-    mov QWORD PTR [rcx + 15288], rax
-    lea r11, [rbx - 128]
-    mov QWORD PTR [rcx + 15368], r11
-    lea rbx, [rax + 128]
-    mov r11d, DWORD PTR [r14 + r13 + 4]
-    mov QWORD PTR [rbx + r11 * 8], rdx
-    add r13d, 24
-    movzx eax, BYTE PTR [r14 + r13]
-    jmp [r12 + rax * 8]
-.Lasm_GetById.ssa_block_4:
-    mov DWORD PTR [rbx + -64], r13d
-    mov rdi, QWORD PTR [rbp - 48]
-    mov esi, r13d
-    lea rdx, [r14 + r13]
-    call CSYM(asm_slow_path_get_by_id_cached_accessor)
-    test rax, rax
-    js .Lexit
-    mov rcx, QWORD PTR [rbp - 48]
-    mov rbx, QWORD PTR [rcx + 15288]
-    add rbx, 128
-    mov rcx, QWORD PTR [rbx + -40]
-    mov r14, QWORD PTR [rcx + 80]
-    mov r13d, eax
-    movzx eax, BYTE PTR [r14 + r13]
-    jmp [r12 + rax * 8]
-.Lasm_GetById.ssa_block_5:
-    movabs r11, 9222809086901354496
-    mov eax, DWORD PTR [r14 + r13 + 4]
-    mov QWORD PTR [rbx + rax * 8], r11
-    add r13d, 24
-    movzx eax, BYTE PTR [r14 + r13]
-    jmp [r12 + rax * 8]
 asm_handler_GetById_hot_end:
 
 .p2align 6
@@ -9559,6 +9413,152 @@ asm_handler_PutByValue_cold:
 asm_handler_PutByValue_cold_end:
 asm_handler_GetById_cold:
 # Cold paths for GetById
+.Lasm_GetById.ssa_block_13:
+    cmp BYTE PTR [rcx + 12], 0
+    jz .Lasm_GetById.ssa_block_3
+    mov ecx, DWORD PTR [rax + 108]
+    mov rcx, QWORD PTR [rdx + rcx * 8]
+    test rcx, rcx
+    jz .Lasm_GetById.ssa_block_3
+    mov esi, DWORD PTR [rax + 116]
+    mov r8, QWORD PTR [rcx + rsi * 8]
+    test r8, r8
+    jz .Lasm_GetById.ssa_block_3
+    mov edi, DWORD PTR [rax + 120]
+    mov r8, QWORD PTR [r8 + rdi * 8]
+    cmp r8, rdx
+    jne .Lasm_GetById.ssa_block_3
+    mov eax, DWORD PTR [rax + 112]
+    mov rax, QWORD PTR [rcx + rax * 8]
+    test rax, rax
+    jnz .Lasm_GetById.ssa_block_25
+    movabs rcx, 9223090561878065152
+    jmp .Lasm_GetById.ssa_block_26
+.Lasm_GetById.ssa_block_25:
+    mov rax, QWORD PTR [rax + rsi * 8]
+    test rax, rax
+    jz .Lasm_GetById.ssa_block_3
+    mov rcx, QWORD PTR [rax + rdi * 8]
+    test rcx, rcx
+    jz .Lasm_GetById.ssa_block_3
+    movzx eax, WORD PTR [rcx + 10]
+    test eax, 2048
+    jnz .Lasm_GetById.ssa_block_3
+    movabs rax, 4398046511103
+    and rcx, rax
+    movabs rax, -1970324836974592
+    or rcx, rax
+.Lasm_GetById.ssa_block_26:
+    mov r11d, DWORD PTR [r14 + r13 + 4]
+    mov QWORD PTR [rbx + r11 * 8], rcx
+    add r13d, 24
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_GetById.ssa_block_14:
+    mov esi, DWORD PTR [rax + 104]
+    mov rcx, QWORD PTR [rbp - 48]
+    mov rcx, QWORD PTR [rcx + 16704]
+    shl rsi, 4
+    add rsi, rcx
+    mov edi, DWORD PTR [rsi + 8]
+    mov rcx, QWORD PTR [rbp - 48]
+    mov r9, QWORD PTR [rcx + 15376]
+    mov rcx, QWORD PTR [rcx + 15368]
+    lea r8, [rcx + 128]
+    cmp r8, r9
+    ja .Lasm_GetById.ssa_block_3
+    mov r9, QWORD PTR [rbp - 48]
+    mov r10, QWORD PTR [r9 + 15336]
+    mov r9, r10
+    add r9, 32768
+    cmp r9, rbp
+    ja .Lasm_GetById.ssa_block_3
+    mov r9, QWORD PTR [rbp - 48]
+    mov QWORD PTR [r9 + 15368], r8
+    mov DWORD PTR [rcx + 116], edi
+    mov DWORD PTR [rcx + 120], edi
+    mov DWORD PTR [rcx + 104], 0
+    mov rdi, QWORD PTR [rax + 24]
+    mov rdi, QWORD PTR [rdi + 16]
+    mov QWORD PTR [rcx], rax
+    mov QWORD PTR [rcx + 8], rdi
+    mov rax, QWORD PTR [rbx - 96]
+    mov rdi, QWORD PTR [rbx - 88]
+    mov QWORD PTR [rcx + 32], rax
+    mov QWORD PTR [rcx + 40], rdi
+    mov rax, QWORD PTR [rbx - 80]
+    mov QWORD PTR [rcx + 48], rax
+    movabs rax, 4398046511103
+    and rdx, rax
+    movabs rax, -1970324836974592
+    or rdx, rax
+    mov QWORD PTR [rcx + 80], rdx
+    xor rax, rax
+    lea rdx, [rcx + 16]
+    mov QWORD PTR [rdx], rax
+    mov QWORD PTR [rdx + 8], rax
+    mov QWORD PTR [rcx + 88], 0
+    mov DWORD PTR [rcx + 64], 0
+    mov DWORD PTR [rcx + 68], 0
+    mov DWORD PTR [rcx + 72], 4294967295
+    mov BYTE PTR [rcx + 76], 0
+    mov BYTE PTR [rcx + 77], 0
+    mov BYTE PTR [rcx + 78], 0
+    mov eax, r13d
+    mov edx, DWORD PTR [r14 + r13 + 4]
+    mov edi, DWORD PTR [r14 + r13 + 8]
+    mov DWORD PTR [rbx - 64], eax
+    lea r11, [rbx - 128]
+    mov QWORD PTR [rcx + 96], r11
+    lea rax, [rax + 1]
+    mov DWORD PTR [rcx + 108], eax
+    mov DWORD PTR [rcx + 112], edx
+    mov rax, QWORD PTR [rbp - 48]
+    mov QWORD PTR [rax + 15288], rcx
+    lea rbx, [rcx + 128]
+    mov rdx, QWORD PTR [rsi]
+    mov r11, rdx
+    mov rdi, QWORD PTR [rbp - 48]
+    call r11
+    mov rcx, rdx
+    mov rdx, rax
+    and rcx, 255
+    test rcx, rcx
+    jnz .Lasm_GetById.ssa_block_6
+    mov rax, QWORD PTR [rbx - 32]
+    mov rcx, QWORD PTR [rbp - 48]
+    mov QWORD PTR [rcx + 15288], rax
+    lea r11, [rbx - 128]
+    mov QWORD PTR [rcx + 15368], r11
+    lea rbx, [rax + 128]
+    mov r11d, DWORD PTR [r14 + r13 + 4]
+    mov QWORD PTR [rbx + r11 * 8], rdx
+    add r13d, 24
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_GetById.ssa_block_4:
+    mov DWORD PTR [rbx + -64], r13d
+    mov rdi, QWORD PTR [rbp - 48]
+    mov esi, r13d
+    lea rdx, [r14 + r13]
+    call CSYM(asm_slow_path_get_by_id_cached_accessor)
+    test rax, rax
+    js .Lexit
+    mov rcx, QWORD PTR [rbp - 48]
+    mov rbx, QWORD PTR [rcx + 15288]
+    add rbx, 128
+    mov rcx, QWORD PTR [rbx + -40]
+    mov r14, QWORD PTR [rcx + 80]
+    mov r13d, eax
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_GetById.ssa_block_5:
+    movabs r11, 9222809086901354496
+    mov eax, DWORD PTR [r14 + r13 + 4]
+    mov QWORD PTR [rbx + rax * 8], r11
+    add r13d, 24
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
 .Lasm_GetById.ssa_block_8:
     movabs r11, 4398046511103
     and rax, r11
