@@ -24,6 +24,7 @@
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/Bindings/DOMRectReadOnly.h>
+#include <LibWeb/CSS/FontComputer.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
@@ -46,6 +47,7 @@
 #include <LibWeb/HTML/Path2D.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/TextMetrics.h>
+#include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/CharacterTypes.h>
 #include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/Page/Page.h>
@@ -969,7 +971,20 @@ RefPtr<Gfx::FontCascadeList const> Canvas2DContextBase::font_cascade_list()
         set_font(u"10px sans-serif"sv);
     }
 
-    // Get current loaded font
+    auto* document = canvas_element().visit(
+        [](GC::Ref<HTMLCanvasElement> canvas) -> DOM::Document* { return &canvas->document(); },
+        [](GC::Ref<OffscreenCanvas> canvas) -> DOM::Document* {
+            if (auto* window = window_from_global_object(canvas->relevant_global_object()))
+                return &window->associated_document();
+            return nullptr;
+        });
+    // NB: Drawing states, including saved states, retain their cascades across font loads and font-display
+    //     transitions. Refresh them lazily so cached invisible fallback glyphs and metrics cannot outlive
+    //     the font environment that selected them.
+    if (document && drawing_state().font_environment_generation != document->font_computer().environment_generation()) {
+        auto font = drawing_state().font_style_value->to_utf16_string(CSS::SerializationMode::ResolvedValue);
+        set_font(font);
+    }
     return drawing_state().current_font_cascade_list;
 }
 

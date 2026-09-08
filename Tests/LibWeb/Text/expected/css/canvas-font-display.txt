@@ -1,0 +1,14 @@
+0: block has ink = false
+1: block has ink = false
+0: swap has ink = true
+0: swap uses fallback = true
+1: swap has ink = true
+1: swap uses fallback = true
+0: loaded has ink = true
+0: loaded uses downloaded font = true
+0: restored has ink = true
+0: restored uses downloaded font = true
+1: loaded has ink = true
+1: loaded uses downloaded font = true
+1: restored has ink = true
+1: restored uses downloaded font = true
