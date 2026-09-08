@@ -459,11 +459,6 @@ void MediaControls::set_up_event_listeners()
     request_timeline_update();
 }
 
-void MediaControls::play()
-{
-    m_media_element->play_from_user_interaction();
-}
-
 void MediaControls::toggle_playback()
 {
     if (m_scrubbing_timeline != Scrubbing::No)
