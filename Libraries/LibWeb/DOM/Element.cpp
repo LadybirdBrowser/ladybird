@@ -1085,7 +1085,7 @@ WebIDL::ExceptionOr<GC::Ref<Attr>> Element::remove_attribute_node(GC::Ref<Attr> 
 // https://dom.spec.whatwg.org/#dom-element-hasattribute
 bool Element::has_attribute(Utf16FlyString const& name) const
 {
-    return attribute(name).has_value();
+    return find_attribute_index(name).has_value();
 }
 
 // https://dom.spec.whatwg.org/#dom-element-hasattributens

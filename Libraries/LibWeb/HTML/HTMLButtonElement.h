@@ -33,7 +33,7 @@ public:
 #undef __ENUMERATE_HTML_BUTTON_TYPE_ATTRIBUTE
     };
 
-    TypeAttributeState type_state() const;
+    TypeAttributeState type_state() const { return m_type_state; }
     Utf16FlyString type_for_bindings() const;
     void set_type_for_bindings(Utf16View);
 
@@ -97,6 +97,9 @@ private:
     // ^DOM::Element
     virtual i32 default_tab_index_value() const override;
 
+    static TypeAttributeState parse_type_attribute(Optional<Utf16String> const&);
+
+    TypeAttributeState m_type_state { TypeAttributeState::Auto };
     GC::Ptr<DOM::Element> m_command_for_element;
 };
 
