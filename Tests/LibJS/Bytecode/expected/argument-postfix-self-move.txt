@@ -1,4 +1,4 @@
-$12cfcca1 argument-postfix-self-move.js:5:1
+$9431c529 argument-postfix-self-move.js:5:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,16 +6,18 @@ $12cfcca1 argument-postfix-self-move.js:5:1
     [1] = Int32(10)
 
 block0:
-  [   0] GetGlobal dst:reg6, `f`
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(10)]
-  [  38] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `f`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(10)]
+  [  40] End value:reg5
 
 
-f$833b82e7 argument-postfix-self-move.js:2:6
+f$01d98a5f argument-postfix-self-move.js:2:6
   Registers: 6
   Blocks:    1
 
 block0:
-  [   0] PostfixDecrement dst:reg5, src:arg0
-  [  10] Mov dst:arg0, src:arg0
-  [  20] Return value:arg0
+  [   0] Enter
+  [   8] PostfixDecrement dst:reg5, src:arg0
+  [  18] Mov dst:arg0, src:arg0
+  [  28] Return value:arg0

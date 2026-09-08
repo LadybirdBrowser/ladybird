@@ -1,17 +1,18 @@
-$ac6f5d19 for-of-continue-with-block-scope.js:13:1
+$2b0d6491 for-of-continue-with-block-scope.js:13:1
   Registers: 8
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] GetGlobal dst:reg6, `f`
-  [  10] NewArray dst:reg7
-  [  20] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
-  [  48] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `f`
+  [  18] NewArray dst:reg7
+  [  28] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
+  [  50] End value:reg5
 
 
-f$a6e23ba8 for-of-continue-with-block-scope.js:2:15
+f$28443430 for-of-continue-with-block-scope.js:2:15
   Registers: 18
   Blocks:    11
   Locals:    o~0, t~1
@@ -21,64 +22,65 @@ f$a6e23ba8 for-of-continue-with-block-scope.js:2:15
     [2] = Int32(2)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] NewArray dst:t~1
-  [  18] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
-  [  30] CreateVariable `r`, is_immutable:false, is_global:false, is_strict:false
-  [  40] SetLexicalEnvironment environment:reg4
-  [  48] GetIterator dst_iterator_object:reg5, dst_iterator_next:reg6, dst_iterator_done:reg7, iterable:arg0
-  [  60] Jump target:block2
+  [   0] Enter
+  [   8] GetLexicalEnvironment dst:reg4
+  [  10] NewArray dst:t~1
+  [  20] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  38] CreateVariable `r`, is_immutable:false, is_global:false, is_strict:false
+  [  48] SetLexicalEnvironment environment:reg4
+  [  50] GetIterator dst_iterator_object:reg5, dst_iterator_next:reg6, dst_iterator_done:reg7, iterable:arg0
+  [  68] Jump target:block2
 
 block1:
-  [  68] Return value:t~1
+  [  70] Return value:t~1
 
 block2:
-  [  70] IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg5, iterator_next:reg6, iterator_done:reg7
-  [  88] JumpIf condition:reg11, true_target:block1, false_target:block4
+  [  78] IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg5, iterator_next:reg6, iterator_done:reg7
+  [  90] JumpIf condition:reg11, true_target:block1, false_target:block4
 
 block3:
-  [  98] Catch dst:reg9
-  [  a0] SetLexicalEnvironment environment:reg4
-  [  a8] Mov dst:reg8, src:Int32(1)
-  [  b8] JumpStrictlyEqualsRhsInt32 lhs:reg8, rhs:1, true_target:block7, false_target:block8
+  [  a0] Catch dst:reg9
+  [  a8] SetLexicalEnvironment environment:reg4
+  [  b0] Mov dst:reg8, src:Int32(1)
+  [  c0] JumpStrictlyEqualsRhsInt32 lhs:reg8, rhs:1, true_target:block7, false_target:block8
 
 block4:
-  [  d0] CreateLexicalEnvironment dst:reg12, parent:reg4, capacity:0, is_catch_environment:false
-  [  e8] CreateVariable `r`, is_immutable:true, is_global:false, is_strict:true
-  [  f8] InitializeLexicalBinding `r`, src:reg10
-  [ 110] GetBinding dst:reg14, `r`
-  [ 128] Not dst:reg13, src:reg14
-  [ 138] JumpFalse condition:reg13, target:block6
+  [  d8] CreateLexicalEnvironment dst:reg12, parent:reg4, capacity:0, is_catch_environment:false
+  [  f0] CreateVariable `r`, is_immutable:true, is_global:false, is_strict:true
+  [ 100] InitializeLexicalBinding `r`, src:reg10
+  [ 118] GetBinding dst:reg14, `r`
+  [ 130] Not dst:reg13, src:reg14
+  [ 140] JumpFalse condition:reg13, target:block6
 
 block5:
-  [ 148] GetById dst:reg15, base:t~1, `push` (t.push)
-  [ 160] Mov dst:reg16, src:t~1
-  [ 170] GetBinding dst:reg17, `r`
-  [ 188] Call dst:reg14, callee:reg15, this_value:reg16, t.push, arguments:[reg17]
-  [ 1b0] SetLexicalEnvironment environment:reg4
-  [ 1b8] Jump target:block2
+  [ 150] GetById dst:reg15, base:t~1, `push` (t.push)
+  [ 168] Mov dst:reg16, src:t~1
+  [ 178] GetBinding dst:reg17, `r`
+  [ 190] Call dst:reg14, callee:reg15, this_value:reg16, t.push, arguments:[reg17]
+  [ 1b8] SetLexicalEnvironment environment:reg4
+  [ 1c0] Jump target:block2
 
 block6:
-  [ 1c0] GetById dst:reg13, base:t~1, `find` (t.find)
-  [ 1d8] Mov dst:reg14, src:t~1
-  [ 1e8] NewFunction dst:reg15, shared_function_data_index:0
-  [ 200] Call dst:o~0, callee:reg13, this_value:reg14, t.find, arguments:[reg15]
-  [ 228] SetLexicalEnvironment environment:reg4
-  [ 230] Jump target:block2
+  [ 1c8] GetById dst:reg13, base:t~1, `find` (t.find)
+  [ 1e0] Mov dst:reg14, src:t~1
+  [ 1f0] NewFunction dst:reg15, shared_function_data_index:0
+  [ 208] Call dst:o~0, callee:reg13, this_value:reg14, t.find, arguments:[reg15]
+  [ 230] SetLexicalEnvironment environment:reg4
+  [ 238] Jump target:block2
 
 block7:
-  [ 238] IteratorClose iterator_object:reg5, iterator_next:reg6, iterator_done:reg7, completion_value:reg9
-  [ 250] Throw src:reg9
+  [ 240] IteratorClose iterator_object:reg5, iterator_next:reg6, iterator_done:reg7, completion_value:reg9
+  [ 258] Throw src:reg9
 
 block8:
-  [ 258] IteratorClose iterator_object:reg5, iterator_next:reg6, iterator_done:reg7, completion_value:Undefined
-  [ 270] JumpStrictlyEqualsRhsInt32 lhs:reg8, rhs:2, true_target:block9, false_target:block10
+  [ 260] IteratorClose iterator_object:reg5, iterator_next:reg6, iterator_done:reg7, completion_value:Undefined
+  [ 278] JumpStrictlyEqualsRhsInt32 lhs:reg8, rhs:2, true_target:block9, false_target:block10
 
 block9:
-  [ 288] Return value:reg9
+  [ 290] Return value:reg9
 
 block10:
-  [ 290] Throw src:reg9
+  [ 298] Throw src:reg9
 
 Exception handlers:
-  [  d0 ..  238] => handler block3
+  [  d8 ..  240] => handler block3

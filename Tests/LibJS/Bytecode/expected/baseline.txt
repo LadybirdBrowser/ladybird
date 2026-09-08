@@ -1,4 +1,4 @@
-$04fc1751 baseline.js:5:1
+$865e0fd9 baseline.js:5:1
   Registers: 10
   Blocks:    1
   Constants:
@@ -7,21 +7,23 @@ $04fc1751 baseline.js:5:1
     [2] = Int32(2)
 
 block0:
-  [   0] GetGlobal dst:reg6, `console`
-  [  10] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  28] GetGlobal dst:reg9, `add`
-  [  38] Call dst:reg8, callee:reg9, this_value:Undefined, add, arguments:[Int32(1), Int32(2)]
-  [  60] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  88] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `console`
+  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  30] GetGlobal dst:reg9, `add`
+  [  40] Call dst:reg8, callee:reg9, this_value:Undefined, add, arguments:[Int32(1), Int32(2)]
+  [  68] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  90] End value:reg5
 
 
-add$9f351e1b baseline.js:2:5
+add$1b0f3483 baseline.js:2:5
   Registers: 6
   Blocks:    1
 
 block0:
-  [   0] Add dst:reg5, lhs:arg0, rhs:arg1
-  [  10] Return value:reg5
+  [   0] Enter
+  [   8] Add dst:reg5, lhs:arg0, rhs:arg1
+  [  18] Return value:reg5
 
 
 3

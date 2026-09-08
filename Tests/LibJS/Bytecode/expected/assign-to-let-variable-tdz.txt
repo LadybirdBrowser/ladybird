@@ -1,4 +1,4 @@
-$495ef8a0 assign-to-let-variable-tdz.js:12:1
+$bced3bd8 assign-to-let-variable-tdz.js:12:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -6,15 +6,16 @@ $495ef8a0 assign-to-let-variable-tdz.js:12:1
     [1] = String("hello")
 
 block0:
-  [   0] GetGlobal dst:reg6, `f`
-  [  10] NewObject dst:reg7
-  [  20] InitObjectLiteralProperty object:reg7, `location`, src:String("hello"), shape_cache_index:0, property_slot:0
-  [  38] CacheObjectShape object:reg7
-  [  48] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
-  [  70] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `f`
+  [  18] NewObject dst:reg7
+  [  28] InitObjectLiteralProperty object:reg7, `location`, src:String("hello"), shape_cache_index:0, property_slot:0
+  [  40] CacheObjectShape object:reg7
+  [  50] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[reg7]
+  [  78] End value:reg5
 
 
-f$d3dfd701 assign-to-let-variable-tdz.js:7:5
+f$4cf5fc59 assign-to-let-variable-tdz.js:7:5
   Registers: 10
   Blocks:    3
   Locals:    a~0
@@ -23,27 +24,29 @@ f$d3dfd701 assign-to-let-variable-tdz.js:7:5
     [1] = Undefined
 
 block0:
-  [   0] ThrowIfNullish src:arg0
-  [   8] GetById dst:reg5, base:arg0, `location`
-  [  20] Mov dst:a~0, src:reg5
-  [  30] Typeof dst:reg5, src:a~0
-  [  40] LooselyEquals dst:reg6, lhs:String("string"), rhs:reg5
-  [  50] Mov dst:reg5, src:reg6
-  [  60] JumpFalse condition:reg6, target:block2
+  [   0] Enter
+  [   8] ThrowIfNullish src:arg0
+  [  10] GetById dst:reg5, base:arg0, `location`
+  [  28] Mov dst:a~0, src:reg5
+  [  38] Typeof dst:reg5, src:a~0
+  [  48] LooselyEquals dst:reg6, lhs:String("string"), rhs:reg5
+  [  58] Mov dst:reg5, src:reg6
+  [  68] JumpFalse condition:reg6, target:block2
 
 block1:
-  [  70] GetGlobal dst:reg8, `g`
-  [  80] Mov dst:reg9, src:a~0
-  [  90] Call dst:reg7, callee:reg8, this_value:Undefined, g, arguments:[reg9]
-  [  b8] Mov2 c0_dst:a~0, c0_src:reg7, c1_dst:reg5, c1_src:reg7
+  [  78] GetGlobal dst:reg8, `g`
+  [  88] Mov dst:reg9, src:a~0
+  [  98] Call dst:reg7, callee:reg8, this_value:Undefined, g, arguments:[reg9]
+  [  c0] Mov2 c0_dst:a~0, c0_src:reg7, c1_dst:reg5, c1_src:reg7
 
 block2:
-  [  d0] Return value:a~0
+  [  d8] Return value:a~0
 
 
-g$f452072f assign-to-let-variable-tdz.js:4:17
+g$702c1d97 assign-to-let-variable-tdz.js:4:17
   Registers: 5
   Blocks:    1
 
 block0:
-  [   0] Return value:arg0
+  [   0] Enter
+  [   8] Return value:arg0

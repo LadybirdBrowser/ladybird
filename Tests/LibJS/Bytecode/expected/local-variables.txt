@@ -1,20 +1,21 @@
-$dd76a6f8 local-variables.js:20:1
+$53c8db40 local-variables.js:20:1
   Registers: 8
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] GetGlobal dst:reg6, `simple_let`
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, simple_let
-  [  30] GetGlobal dst:reg7, `simple_const`
-  [  40] Call dst:reg6, callee:reg7, this_value:Undefined, simple_const
-  [  60] GetGlobal dst:reg7, `multiple_locals`
-  [  70] Call dst:reg5, callee:reg7, this_value:Undefined, multiple_locals
-  [  90] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `simple_let`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, simple_let
+  [  38] GetGlobal dst:reg7, `simple_const`
+  [  48] Call dst:reg6, callee:reg7, this_value:Undefined, simple_const
+  [  68] GetGlobal dst:reg7, `multiple_locals`
+  [  78] Call dst:reg5, callee:reg7, this_value:Undefined, multiple_locals
+  [  98] End value:reg5
 
 
-simple_let$40478631 local-variables.js:5:5
+simple_let$bee58da9 local-variables.js:5:5
   Registers: 5
   Blocks:    1
   Locals:    x~0
@@ -22,11 +23,12 @@ simple_let$40478631 local-variables.js:5:5
     [0] = Int32(1)
 
 block0:
-  [   0] Mov dst:x~0, src:Int32(1)
-  [  10] Return value:x~0
+  [   0] Enter
+  [   8] Mov dst:x~0, src:Int32(1)
+  [  18] Return value:x~0
 
 
-simple_const$80d5d79e local-variables.js:10:5
+simple_const$f7280be6 local-variables.js:10:5
   Registers: 5
   Blocks:    1
   Locals:    y~0
@@ -34,11 +36,12 @@ simple_const$80d5d79e local-variables.js:10:5
     [0] = Int32(2)
 
 block0:
-  [   0] Mov dst:y~0, src:Int32(2)
-  [  10] Return value:y~0
+  [   0] Enter
+  [   8] Mov dst:y~0, src:Int32(2)
+  [  18] Return value:y~0
 
 
-multiple_locals$77559ec6 local-variables.js:15:5
+multiple_locals$f8b7974e local-variables.js:15:5
   Registers: 6
   Blocks:    1
   Locals:    a~0, b~1
@@ -47,6 +50,7 @@ multiple_locals$77559ec6 local-variables.js:15:5
     [1] = Int32(2)
 
 block0:
-  [   0] Mov2 c0_dst:a~0, c0_src:Int32(1), c1_dst:b~1, c1_src:Int32(2)
-  [  18] Add dst:reg5, lhs:a~0, rhs:b~1
-  [  28] Return value:reg5
+  [   0] Enter
+  [   8] Mov2 c0_dst:a~0, c0_src:Int32(1), c1_dst:b~1, c1_src:Int32(2)
+  [  20] Add dst:reg5, lhs:a~0, rhs:b~1
+  [  30] Return value:reg5

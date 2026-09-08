@@ -1,23 +1,25 @@
-$bacf2c68 async-return-bare.js:4:1
+$2b997e90 async-return-bare.js:4:1
   Registers: 7
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] GetGlobal dst:reg6, `f`
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, f
-  [  30] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `f`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f
+  [  38] End value:reg5
 
 
-f$e16999cc async-return-bare.js:2:5
+f$6007a144 async-return-bare.js:2:5
   Registers: 5
   Blocks:    2
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] Yield continuation_label:block1, value:Undefined
+  [   0] Enter
+  [   8] Yield continuation_label:block1, value:Undefined
 
 block1:
-  [  10] Yield value:Undefined
+  [  18] Yield value:Undefined

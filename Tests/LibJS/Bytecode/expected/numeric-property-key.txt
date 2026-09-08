@@ -1,4 +1,4 @@
-$28d58d80 numeric-property-key.js:4:1
+$aa378608 numeric-property-key.js:4:1
   Registers: 6
   Blocks:    1
   Constants:
@@ -7,8 +7,9 @@ $28d58d80 numeric-property-key.js:4:1
     [2] = Undefined
 
 block0:
-  [   0] NewObject dst:reg5
-  [  10] ToPrimitiveWithStringHint dst:Int32(20), value:Int32(20)
-  [  20] PutByValue base:reg5, property:Int32(20), src:Int32(3), kind:Own
-  [  38] SetGlobal `obj`, src:reg5
-  [  48] End value:Undefined
+  [   0] Enter
+  [   8] NewObject dst:reg5
+  [  18] ToPrimitiveWithStringHint dst:Int32(20), value:Int32(20)
+  [  28] PutByValue base:reg5, property:Int32(20), src:Int32(3), kind:Own
+  [  40] SetGlobal `obj`, src:reg5
+  [  50] End value:Undefined

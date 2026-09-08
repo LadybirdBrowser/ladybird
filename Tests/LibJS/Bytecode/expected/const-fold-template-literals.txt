@@ -1,4 +1,4 @@
-$e22de836 const-fold-template-literals.js:20:1
+$638fe0be const-fold-template-literals.js:20:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -12,95 +12,102 @@ $e22de836 const-fold-template-literals.js:20:1
     [7] = Int32(3)
 
 block0:
-  [   0] DynamicInitializeLexicalBinding `a`, src:String("abcxyz")
-  [  10] DynamicInitializeLexicalBinding `b`, src:String("abcxyz")
-  [  20] DynamicInitializeLexicalBinding `c`, src:String("abcxyz")
-  [  30] DynamicInitializeLexicalBinding `d`, src:String("abcxyz")
-  [  40] DynamicInitializeLexicalBinding `e`, src:String("abcxyz")
-  [  50] DynamicInitializeLexicalBinding `f`, src:String("abcxyz")
-  [  60] Mov dst:reg5, src:String("abc")
-  [  70] ConcatString dst:reg5, src:String("xyz")
-  [  80] DynamicInitializeLexicalBinding `g`, src:reg5
-  [  90] GetGlobal dst:reg6, `prefix`
-  [  a0] Call dst:reg5, callee:reg6, this_value:Undefined, prefix, arguments:[String("abc")]
-  [  c8] DynamicInitializeLexicalBinding `_prefix`, src:reg5
-  [  d8] GetGlobal dst:reg6, `suffix`
-  [  e8] Call dst:reg5, callee:reg6, this_value:Undefined, suffix, arguments:[String("abc")]
-  [ 110] DynamicInitializeLexicalBinding `_suffix`, src:reg5
-  [ 120] GetGlobal dst:reg6, `tostring`
-  [ 130] Call dst:reg5, callee:reg6, this_value:Undefined, tostring, arguments:[String("abc")]
-  [ 158] DynamicInitializeLexicalBinding `_tostring`, src:reg5
-  [ 168] GetGlobal dst:reg6, `multi`
-  [ 178] Call dst:reg5, callee:reg6, this_value:Undefined, multi, arguments:[Int32(1), Int32(2), Int32(3)]
-  [ 1a8] DynamicInitializeLexicalBinding `_multi`, src:reg5
-  [ 1b8] GetGlobal dst:reg6, `literal`
-  [ 1c8] Call dst:reg5, callee:reg6, this_value:Undefined, literal
-  [ 1e8] DynamicInitializeLexicalBinding `_literal`, src:reg5
-  [ 1f8] GetGlobal dst:reg6, `empty`
-  [ 208] Call dst:reg5, callee:reg6, this_value:Undefined, empty
-  [ 228] DynamicInitializeLexicalBinding `_empty`, src:reg5
-  [ 238] End value:Undefined
+  [   0] Enter
+  [   8] DynamicInitializeLexicalBinding `a`, src:String("abcxyz")
+  [  18] DynamicInitializeLexicalBinding `b`, src:String("abcxyz")
+  [  28] DynamicInitializeLexicalBinding `c`, src:String("abcxyz")
+  [  38] DynamicInitializeLexicalBinding `d`, src:String("abcxyz")
+  [  48] DynamicInitializeLexicalBinding `e`, src:String("abcxyz")
+  [  58] DynamicInitializeLexicalBinding `f`, src:String("abcxyz")
+  [  68] Mov dst:reg5, src:String("abc")
+  [  78] ConcatString dst:reg5, src:String("xyz")
+  [  88] DynamicInitializeLexicalBinding `g`, src:reg5
+  [  98] GetGlobal dst:reg6, `prefix`
+  [  a8] Call dst:reg5, callee:reg6, this_value:Undefined, prefix, arguments:[String("abc")]
+  [  d0] DynamicInitializeLexicalBinding `_prefix`, src:reg5
+  [  e0] GetGlobal dst:reg6, `suffix`
+  [  f0] Call dst:reg5, callee:reg6, this_value:Undefined, suffix, arguments:[String("abc")]
+  [ 118] DynamicInitializeLexicalBinding `_suffix`, src:reg5
+  [ 128] GetGlobal dst:reg6, `tostring`
+  [ 138] Call dst:reg5, callee:reg6, this_value:Undefined, tostring, arguments:[String("abc")]
+  [ 160] DynamicInitializeLexicalBinding `_tostring`, src:reg5
+  [ 170] GetGlobal dst:reg6, `multi`
+  [ 180] Call dst:reg5, callee:reg6, this_value:Undefined, multi, arguments:[Int32(1), Int32(2), Int32(3)]
+  [ 1b0] DynamicInitializeLexicalBinding `_multi`, src:reg5
+  [ 1c0] GetGlobal dst:reg6, `literal`
+  [ 1d0] Call dst:reg5, callee:reg6, this_value:Undefined, literal
+  [ 1f0] DynamicInitializeLexicalBinding `_literal`, src:reg5
+  [ 200] GetGlobal dst:reg6, `empty`
+  [ 210] Call dst:reg5, callee:reg6, this_value:Undefined, empty
+  [ 230] DynamicInitializeLexicalBinding `_empty`, src:reg5
+  [ 240] End value:Undefined
 
 
-prefix$722bd91a const-fold-template-literals.js:2:5
+prefix$ee05ef82 const-fold-template-literals.js:2:5
   Registers: 6
   Blocks:    1
   Constants:
     [0] = String("prefix-")
 
 block0:
-  [   0] Mov dst:reg5, src:String("prefix-")
-  [  10] ConcatString dst:reg5, src:arg0
-  [  20] Return value:reg5
+  [   0] Enter
+  [   8] Mov dst:reg5, src:String("prefix-")
+  [  18] ConcatString dst:reg5, src:arg0
+  [  28] Return value:reg5
 
 
-suffix$a92a9be2 const-fold-template-literals.js:5:5
+suffix$2d50857a const-fold-template-literals.js:5:5
   Registers: 6
   Blocks:    1
   Constants:
     [0] = String("-suffix")
 
 block0:
-  [   0] ToString dst:reg5, value:arg0
-  [  10] ConcatString dst:reg5, src:String("-suffix")
-  [  20] Return value:reg5
+  [   0] Enter
+  [   8] ToString dst:reg5, value:arg0
+  [  18] ConcatString dst:reg5, src:String("-suffix")
+  [  28] Return value:reg5
 
 
-tostring$ba142bc6 const-fold-template-literals.js:8:5
+tostring$38b2333e const-fold-template-literals.js:8:5
   Registers: 6
   Blocks:    1
 
 block0:
-  [   0] ToString dst:reg5, value:arg0
-  [  10] Return value:reg5
+  [   0] Enter
+  [   8] ToString dst:reg5, value:arg0
+  [  18] Return value:reg5
 
 
-multi$05431102 const-fold-template-literals.js:11:5
+multi$78d1543a const-fold-template-literals.js:11:5
   Registers: 6
   Blocks:    1
 
 block0:
-  [   0] ToString dst:reg5, value:arg0
-  [  10] ConcatString dst:reg5, src:arg1
-  [  20] ConcatString dst:reg5, src:arg2
-  [  30] Return value:reg5
+  [   0] Enter
+  [   8] ToString dst:reg5, value:arg0
+  [  18] ConcatString dst:reg5, src:arg1
+  [  28] ConcatString dst:reg5, src:arg2
+  [  38] Return value:reg5
 
 
-literal$12c5c655 const-fold-template-literals.js:14:5
+literal$96ebafed const-fold-template-literals.js:14:5
   Registers: 6
   Blocks:    1
   Constants:
     [0] = String("hello world")
 
 block0:
-  [   0] Return value:String("hello world")
+  [   0] Enter
+  [   8] Return value:String("hello world")
 
 
-empty$4890c274 const-fold-template-literals.js:17:5
+empty$c72ec9ec const-fold-template-literals.js:17:5
   Registers: 5
   Blocks:    1
   Constants:
     [0] = String("")
 
 block0:
-  [   0] Return value:String("")
+  [   0] Enter
+  [   8] Return value:String("")

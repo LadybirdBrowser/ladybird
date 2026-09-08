@@ -1,4 +1,4 @@
-$b6d86a12 for-try-finally-continue.js:1:1
+$3dc244ba for-try-finally-continue.js:1:1
   Registers: 11
   Blocks:    16
   Locals:    e~0
@@ -12,71 +12,72 @@ $b6d86a12 for-try-finally-continue.js:1:1
     [6] = String("bad")
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] SetGlobal `i`, src:Int32(0)
-  [  18] MovSrcUndefined dst:reg5
-  [  20] Jump target:block3
+  [   0] Enter
+  [   8] GetLexicalEnvironment dst:reg4
+  [  10] SetGlobal `i`, src:Int32(0)
+  [  20] MovSrcUndefined dst:reg5
+  [  28] Jump target:block3
 
 block1:
-  [  28] Jump target:block8
+  [  30] Jump target:block8
 
 block2:
-  [  30] GetGlobal dst:reg7, `i`
-  [  40] PostfixIncrement dst:reg6, src:reg7
-  [  50] SetGlobal `i`, src:reg7
+  [  38] GetGlobal dst:reg7, `i`
+  [  48] PostfixIncrement dst:reg6, src:reg7
+  [  58] SetGlobal `i`, src:reg7
 
 block3:
-  [  60] GetGlobal dst:reg6, `i`
-  [  70] JumpLessThanRhsInt32 lhs:reg6, rhs:5, true_target:block1, false_target:block4
+  [  68] GetGlobal dst:reg6, `i`
+  [  78] JumpLessThanRhsInt32 lhs:reg6, rhs:5, true_target:block1, false_target:block4
 
 block4:
-  [  88] GetGlobal dst:reg10, `i`
-  [  98] StrictlyInequalsRhsInt32 dst:reg8, lhs:reg10, rhs:5
-  [  a8] MovSrcUndefined dst:reg10
-  [  b0] JumpIf condition:reg8, true_target:block14, false_target:block15
+  [  90] GetGlobal dst:reg10, `i`
+  [  a0] StrictlyInequalsRhsInt32 dst:reg8, lhs:reg10, rhs:5
+  [  b0] MovSrcUndefined dst:reg10
+  [  b8] JumpIf condition:reg8, true_target:block14, false_target:block15
 
 block5:
-  [  c0] Catch dst:reg7
-  [  c8] SetLexicalEnvironment environment:reg4
-  [  d0] Mov dst:reg6, src:Int32(1)
+  [  c8] Catch dst:reg7
+  [  d0] SetLexicalEnvironment environment:reg4
+  [  d8] Mov dst:reg6, src:Int32(1)
 
 block6:
-  [  e0] MovSrcUndefined dst:reg9
-  [  e8] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:0, true_target:block9, false_target:block10
+  [  e8] MovSrcUndefined dst:reg9
+  [  f0] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:0, true_target:block9, false_target:block10
 
 block7:
-  [ 100] Catch dst:reg8
-  [ 108] SetLexicalEnvironment environment:reg4
-  [ 110] Mov3 c0_dst:e~0, c0_src:reg8, c1_dst:reg9, c1_src:Undefined, c2_dst:reg10, c2_src:reg9
-  [ 130] Mov dst:reg6, src:Int32(0)
-  [ 140] Jump target:block6
+  [ 108] Catch dst:reg8
+  [ 110] SetLexicalEnvironment environment:reg4
+  [ 118] Mov3 c0_dst:e~0, c0_src:reg8, c1_dst:reg9, c1_src:Undefined, c2_dst:reg10, c2_src:reg9
+  [ 138] Mov dst:reg6, src:Int32(0)
+  [ 148] Jump target:block6
 
 block8:
-  [ 148] Mov3 c0_dst:reg8, c0_src:Undefined, c1_dst:reg5, c1_src:reg8, c2_dst:reg6, c2_src:Int32(3)
-  [ 168] Jump target:block6
+  [ 150] Mov3 c0_dst:reg8, c0_src:Undefined, c1_dst:reg5, c1_src:reg8, c2_dst:reg6, c2_src:Int32(3)
+  [ 170] Jump target:block6
 
 block9:
-  [ 170] Mov dst:reg5, src:reg10
-  [ 180] Jump target:block2
+  [ 178] Mov dst:reg5, src:reg10
+  [ 188] Jump target:block2
 
 block10:
-  [ 188] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:3, true_target:block2, false_target:block11
+  [ 190] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:3, true_target:block2, false_target:block11
 
 block11:
-  [ 1a0] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:2, true_target:block12, false_target:block13
+  [ 1a8] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:2, true_target:block12, false_target:block13
 
 block12:
-  [ 1b8] Return value:reg7
+  [ 1c0] Return value:reg7
 
 block13:
-  [ 1c0] Throw src:reg7
+  [ 1c8] Throw src:reg7
 
 block14:
-  [ 1c8] Throw src:String("bad")
+  [ 1d0] Throw src:String("bad")
 
 block15:
-  [ 1d0] End value:reg10
+  [ 1d8] End value:reg10
 
 Exception handlers:
-  [ 100 ..  148] => handler block5
-  [ 148 ..  170] => handler block7
+  [ 108 ..  150] => handler block5
+  [ 150 ..  178] => handler block7

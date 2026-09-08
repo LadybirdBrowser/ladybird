@@ -1,4 +1,4 @@
-$01294703 nested-function-decl-source-order.js:15:1
+$7fc74e7b nested-function-decl-source-order.js:15:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -6,17 +6,18 @@ $01294703 nested-function-decl-source-order.js:15:1
     [1] = String(",")
 
 block0:
-  [   0] GetGlobal dst:reg6, `console`
-  [  10] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  28] GetGlobal dst:reg10, `outer`
-  [  38] Call dst:reg9, callee:reg10, this_value:Undefined, outer
-  [  58] GetById dst:reg10, base:reg9, `join`
-  [  70] Call dst:reg8, callee:reg10, this_value:reg9, <object>.join, arguments:[String(",")]
-  [  98] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  c0] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `console`
+  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  30] GetGlobal dst:reg10, `outer`
+  [  40] Call dst:reg9, callee:reg10, this_value:Undefined, outer
+  [  60] GetById dst:reg10, base:reg9, `join`
+  [  78] Call dst:reg8, callee:reg10, this_value:reg9, <object>.join, arguments:[String(",")]
+  [  a0] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  c8] End value:reg5
 
 
-outer$8801e542 nested-function-decl-source-order.js:12:5
+outer$03dbfbaa nested-function-decl-source-order.js:12:5
   Registers: 11
   Blocks:    1
   Locals:    alpha~0, beta~1, dup~2, gamma~3, delta~4
@@ -24,70 +25,76 @@ outer$8801e542 nested-function-decl-source-order.js:12:5
     [0] = Undefined
 
 block0:
-  [   0] MovUndefined3 c0_dst:alpha~0, c1_dst:beta~1, c2_dst:dup~2
-  [  10] MovUndefined2 c0_dst:gamma~3, c1_dst:delta~4
-  [  20] NewFunction dst:alpha~0, shared_function_data_index:0
-  [  38] NewFunction dst:beta~1, shared_function_data_index:1
-  [  50] NewFunction dst:gamma~3, shared_function_data_index:2
-  [  68] NewFunction dst:dup~2, shared_function_data_index:3
-  [  80] NewFunction dst:delta~4, shared_function_data_index:4
-  [  98] Call dst:reg5, callee:alpha~0, this_value:Undefined, alpha
-  [  b8] Call dst:reg6, callee:beta~1, this_value:Undefined, beta
-  [  d8] Call dst:reg7, callee:gamma~3, this_value:Undefined, gamma
-  [  f8] Call dst:reg8, callee:delta~4, this_value:Undefined, delta
-  [ 118] Call dst:reg9, callee:dup~2, this_value:Undefined, dup
-  [ 138] NewArray dst:reg10, elements:[reg5, reg6, reg7, reg8, reg9]
-  [ 160] Return value:reg10
+  [   0] Enter
+  [   8] MovUndefined3 c0_dst:alpha~0, c1_dst:beta~1, c2_dst:dup~2
+  [  18] MovUndefined2 c0_dst:gamma~3, c1_dst:delta~4
+  [  28] NewFunction dst:alpha~0, shared_function_data_index:0
+  [  40] NewFunction dst:beta~1, shared_function_data_index:1
+  [  58] NewFunction dst:gamma~3, shared_function_data_index:2
+  [  70] NewFunction dst:dup~2, shared_function_data_index:3
+  [  88] NewFunction dst:delta~4, shared_function_data_index:4
+  [  a0] Call dst:reg5, callee:alpha~0, this_value:Undefined, alpha
+  [  c0] Call dst:reg6, callee:beta~1, this_value:Undefined, beta
+  [  e0] Call dst:reg7, callee:gamma~3, this_value:Undefined, gamma
+  [ 100] Call dst:reg8, callee:delta~4, this_value:Undefined, delta
+  [ 120] Call dst:reg9, callee:dup~2, this_value:Undefined, dup
+  [ 140] NewArray dst:reg10, elements:[reg5, reg6, reg7, reg8, reg9]
+  [ 168] Return value:reg10
 
 
-alpha$ddf1e99f nested-function-decl-source-order.js:6:24
+alpha$5f53e227 nested-function-decl-source-order.js:6:24
   Registers: 5
   Blocks:    1
   Constants:
     [0] = Int32(1)
 
 block0:
-  [   0] Return value:Int32(1)
+  [   0] Enter
+  [   8] Return value:Int32(1)
 
 
-beta$cbe393ff nested-function-decl-source-order.js:7:23
+beta$4d458c87 nested-function-decl-source-order.js:7:23
   Registers: 5
   Blocks:    1
   Constants:
     [0] = Int32(2)
 
 block0:
-  [   0] Return value:Int32(2)
+  [   0] Enter
+  [   8] Return value:Int32(2)
 
 
-gamma$4c5374eb nested-function-decl-source-order.js:9:24
+gamma$c82d8b53 nested-function-decl-source-order.js:9:24
   Registers: 5
   Blocks:    1
   Constants:
     [0] = Int32(3)
 
 block0:
-  [   0] Return value:Int32(3)
+  [   0] Enter
+  [   8] Return value:Int32(3)
 
 
-delta$fd075126 nested-function-decl-source-order.js:11:24
+delta$812d3abe nested-function-decl-source-order.js:11:24
   Registers: 5
   Blocks:    1
   Constants:
     [0] = Int32(4)
 
 block0:
-  [   0] Return value:Int32(4)
+  [   0] Enter
+  [   8] Return value:Int32(4)
 
 
-dup$5f4e2278 nested-function-decl-source-order.js:10:22
+dup$db2838e0 nested-function-decl-source-order.js:10:22
   Registers: 5
   Blocks:    1
   Constants:
     [0] = String("second")
 
 block0:
-  [   0] Return value:String("second")
+  [   0] Enter
+  [   8] Return value:String("second")
 
 
 "1,2,3,4,second"

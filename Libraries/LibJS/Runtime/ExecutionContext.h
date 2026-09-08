@@ -11,6 +11,7 @@
 
 #include <AK/Checked.h>
 #include <AK/Span.h>
+#include <LibJS/Bytecode/Register.h>
 #include <LibJS/Export.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Module.h>
@@ -43,10 +44,9 @@ public:
         registers_and_constants_and_locals_and_arguments_count = registers_and_locals_count + constants.size() + arguments_count_;
         argument_count = arguments_count_;
         auto* values = registers_and_constants_and_locals_and_arguments();
-        for (size_t i = 0; i < registers_and_locals_count; ++i)
+        // NB: Enter initializes the remaining registers, locals, and constants.
+        for (size_t i = 0; i < min(registers_and_locals_count, Bytecode::Register::reserved_register_count); ++i)
             values[i] = js_special_empty_value();
-        for (size_t i = 0; i < constants.size(); ++i)
-            values[registers_and_locals_count + i] = constants[i];
     }
 
     void operator delete(void* ptr);
@@ -74,6 +74,7 @@ public:
     bool yield_is_await { false };
     bool yield_value_is_iterator_result { false };
     bool caller_is_construct { false };
+    bool frame_initialized { false };
 
     Optional<Value> this_value;
 

@@ -1,4 +1,4 @@
-$f7367586 annex-b-function-in-if.js:13:1
+$80e4413e annex-b-function-in-if.js:13:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -7,74 +7,78 @@ $f7367586 annex-b-function-in-if.js:13:1
     [2] = Bool(false)
 
 block0:
-  [   0] GetGlobal dst:reg6, `console`
-  [  10] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  28] GetGlobal dst:reg9, `annexBFunctionInIf`
-  [  38] Call dst:reg8, callee:reg9, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(true)]
-  [  60] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  88] GetGlobal dst:reg6, `console`
-  [  98] GetById dst:reg8, base:reg6, `log` (console.log)
-  [  b0] GetGlobal dst:reg10, `annexBFunctionInIf`
-  [  c0] Call dst:reg9, callee:reg10, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(false)]
-  [  e8] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
-  [ 110] End value:reg7
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `console`
+  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  30] GetGlobal dst:reg9, `annexBFunctionInIf`
+  [  40] Call dst:reg8, callee:reg9, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(true)]
+  [  68] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  90] GetGlobal dst:reg6, `console`
+  [  a0] GetById dst:reg8, base:reg6, `log` (console.log)
+  [  b8] GetGlobal dst:reg10, `annexBFunctionInIf`
+  [  c8] Call dst:reg9, callee:reg10, this_value:Undefined, annexBFunctionInIf, arguments:[Bool(false)]
+  [  f0] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+  [ 118] End value:reg7
 
 
-annexBFunctionInIf$f1f2b149 annex-b-function-in-if.js:2:5
+annexBFunctionInIf$6dccc7b1 annex-b-function-in-if.js:2:5
   Registers: 8
   Blocks:    4
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateVariable `inner`, is_immutable:false, is_global:false, is_strict:false
-  [  18] InitializeVariableBinding `inner`, src:Undefined
-  [  30] JumpFalse condition:arg0, target:block2
+  [   0] Enter
+  [   8] GetLexicalEnvironment dst:reg4
+  [  10] CreateVariable `inner`, is_immutable:false, is_global:false, is_strict:false
+  [  20] InitializeVariableBinding `inner`, src:Undefined
+  [  38] JumpFalse condition:arg0, target:block2
 
 block1:
-  [  40] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
-  [  58] CreateMutableBinding environment:reg5, `inner`, can_be_deleted:false
-  [  68] NewFunction dst:reg6, shared_function_data_index:0
-  [  80] InitializeLexicalBinding `inner`, src:reg6
-  [  98] GetBinding dst:reg6, `inner`
-  [  b0] SetVariableBinding `inner`, src:reg6
-  [  c8] SetLexicalEnvironment environment:reg4
-  [  d0] Jump target:block3
+  [  48] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  60] CreateMutableBinding environment:reg5, `inner`, can_be_deleted:false
+  [  70] NewFunction dst:reg6, shared_function_data_index:0
+  [  88] InitializeLexicalBinding `inner`, src:reg6
+  [  a0] GetBinding dst:reg6, `inner`
+  [  b8] SetVariableBinding `inner`, src:reg6
+  [  d0] SetLexicalEnvironment environment:reg4
+  [  d8] Jump target:block3
 
 block2:
-  [  d8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
-  [  f0] CreateMutableBinding environment:reg5, `inner`, can_be_deleted:false
-  [ 100] NewFunction dst:reg6, shared_function_data_index:1
-  [ 118] InitializeLexicalBinding `inner`, src:reg6
-  [ 130] GetBinding dst:reg6, `inner`
-  [ 148] SetVariableBinding `inner`, src:reg6
-  [ 160] SetLexicalEnvironment environment:reg4
+  [  e0] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  f8] CreateMutableBinding environment:reg5, `inner`, can_be_deleted:false
+  [ 108] NewFunction dst:reg6, shared_function_data_index:1
+  [ 120] InitializeLexicalBinding `inner`, src:reg6
+  [ 138] GetBinding dst:reg6, `inner`
+  [ 150] SetVariableBinding `inner`, src:reg6
+  [ 168] SetLexicalEnvironment environment:reg4
 
 block3:
-  [ 168] GetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `inner`
-  [ 180] Call dst:reg5, callee:reg6, this_value:reg7, inner
-  [ 1a0] Return value:reg5
+  [ 170] GetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `inner`
+  [ 188] Call dst:reg5, callee:reg6, this_value:reg7, inner
+  [ 1a8] Return value:reg5
 
 
-inner$b5b8e95a annex-b-function-in-if.js:4:13
+inner$3192ffc2 annex-b-function-in-if.js:4:13
   Registers: 5
   Blocks:    1
   Constants:
     [0] = String("true branch")
 
 block0:
-  [   0] Return value:String("true branch")
+  [   0] Enter
+  [   8] Return value:String("true branch")
 
 
-inner$8980a116 annex-b-function-in-if.js:8:13
+inner$081ea88e annex-b-function-in-if.js:8:13
   Registers: 5
   Blocks:    1
   Constants:
     [0] = String("false branch")
 
 block0:
-  [   0] Return value:String("false branch")
+  [   0] Enter
+  [   8] Return value:String("false branch")
 
 
 "true branch"

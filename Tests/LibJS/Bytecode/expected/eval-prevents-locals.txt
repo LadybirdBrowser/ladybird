@@ -1,18 +1,19 @@
-$9d7300ea eval-prevents-locals.js:22:1
+$1ed4f972 eval-prevents-locals.js:22:1
   Registers: 8
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] GetGlobal dst:reg6, `with_eval`
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, with_eval
-  [  30] GetGlobal dst:reg7, `outer_eval`
-  [  40] Call dst:reg6, callee:reg7, this_value:Undefined, outer_eval
-  [  60] End value:reg6
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `with_eval`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, with_eval
+  [  38] GetGlobal dst:reg7, `outer_eval`
+  [  48] Call dst:reg6, callee:reg7, this_value:Undefined, outer_eval
+  [  68] End value:reg6
 
 
-with_eval$b4b96665 eval-prevents-locals.js:6:5
+with_eval$43ef143d eval-prevents-locals.js:6:5
   Registers: 9
   Blocks:    1
   Constants:
@@ -20,28 +21,30 @@ with_eval$b4b96665 eval-prevents-locals.js:6:5
     [1] = String("")
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateArguments is_immutable:false
-  [  18] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
-  [  30] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
-  [  40] InitializeLexicalBinding `x`, src:Int32(1)
-  [  58] DynamicGetCalleeAndThisFromEnvironment callee:reg7, this_value:reg8, `eval`
-  [  70] CallDirectEval dst:reg6, callee:reg7, this_value:reg8, eval, arguments:[String("")]
-  [  98] GetBinding dst:reg6, `x`
-  [  b0] Return value:reg6
+  [   0] Enter
+  [   8] GetLexicalEnvironment dst:reg4
+  [  10] CreateArguments is_immutable:false
+  [  20] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:1, is_catch_environment:false
+  [  38] CreateVariable `x`, is_immutable:false, is_global:false, is_strict:false
+  [  48] InitializeLexicalBinding `x`, src:Int32(1)
+  [  60] DynamicGetCalleeAndThisFromEnvironment callee:reg7, this_value:reg8, `eval`
+  [  78] CallDirectEval dst:reg6, callee:reg7, this_value:reg8, eval, arguments:[String("")]
+  [  a0] GetBinding dst:reg6, `x`
+  [  b8] Return value:reg6
 
 
-eval$b72141f3
+eval$3b472b8b
   Registers: 5
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] End value:Undefined
+  [   0] Enter
+  [   8] End value:Undefined
 
 
-outer_eval$6785167a eval-prevents-locals.js:14:9
+outer_eval$e35f2ce2 eval-prevents-locals.js:14:9
   Registers: 8
   Blocks:    1
   Constants:
@@ -49,29 +52,31 @@ outer_eval$6785167a eval-prevents-locals.js:14:9
     [1] = String("")
 
 block0:
-  [   0] CreateArguments is_immutable:false
-  [  10] CreateVariable `inner`, is_immutable:false, is_global:false, is_strict:false
-  [  20] InitializeVariableBinding `inner`, src:Undefined
-  [  38] NewFunction dst:reg5, shared_function_data_index:0
-  [  50] SetVariableBinding `inner`, src:reg5
-  [  68] DynamicGetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `eval`
-  [  80] CallDirectEval dst:reg5, callee:reg6, this_value:reg7, eval, arguments:[String("")]
-  [  a8] GetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `inner`
-  [  c0] Call dst:reg5, callee:reg6, this_value:reg7, inner
-  [  e0] Return value:reg5
+  [   0] Enter
+  [   8] CreateArguments is_immutable:false
+  [  18] CreateVariable `inner`, is_immutable:false, is_global:false, is_strict:false
+  [  28] InitializeVariableBinding `inner`, src:Undefined
+  [  40] NewFunction dst:reg5, shared_function_data_index:0
+  [  58] SetVariableBinding `inner`, src:reg5
+  [  70] DynamicGetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `eval`
+  [  88] CallDirectEval dst:reg5, callee:reg6, this_value:reg7, eval, arguments:[String("")]
+  [  b0] GetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `inner`
+  [  c8] Call dst:reg5, callee:reg6, this_value:reg7, inner
+  [  e8] Return value:reg5
 
 
-eval$b72141f3
+eval$3b472b8b
   Registers: 5
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] End value:Undefined
+  [   0] Enter
+  [   8] End value:Undefined
 
 
-inner$1897993a eval-prevents-locals.js:16:9
+inner$99f991c2 eval-prevents-locals.js:16:9
   Registers: 5
   Blocks:    1
   Locals:    y~0
@@ -79,5 +84,6 @@ inner$1897993a eval-prevents-locals.js:16:9
     [0] = Int32(2)
 
 block0:
-  [   0] Mov dst:y~0, src:Int32(2)
-  [  10] Return value:y~0
+  [   0] Enter
+  [   8] Mov dst:y~0, src:Int32(2)
+  [  18] Return value:y~0

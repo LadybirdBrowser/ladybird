@@ -1,4 +1,4 @@
-$23ab7524 string-prototype-char-at-builtin.js:4:13
+$811a2fdc string-prototype-char-at-builtin.js:4:13
   Registers: 8
   Blocks:    1
   Constants:
@@ -7,8 +7,9 @@ $23ab7524 string-prototype-char-at-builtin.js:4:13
     [2] = String("charAt")
 
 block0:
-  [   0] GetById dst:reg6, base:String("abc"), `charAt` ('abc'.charAt)
-  [  18] CallBuiltinStringPrototypeCharAt dst:reg5, callee:reg6, this_value:String("abc"), argument:Int32(1), 'abc'.charAt
-  [  30] GetById dst:reg7, base:String("abc"), `charAt`
-  [  48] Call dst:reg6, callee:reg7, this_value:String("abc"), 'abc'['charAt'], arguments:[Int32(1)]
-  [  70] End value:reg6
+  [   0] Enter
+  [   8] GetById dst:reg6, base:String("abc"), `charAt` ('abc'.charAt)
+  [  20] CallBuiltinStringPrototypeCharAt dst:reg5, callee:reg6, this_value:String("abc"), argument:Int32(1), 'abc'.charAt
+  [  38] GetById dst:reg7, base:String("abc"), `charAt`
+  [  50] Call dst:reg6, callee:reg7, this_value:String("abc"), 'abc'['charAt'], arguments:[Int32(1)]
+  [  78] End value:reg6

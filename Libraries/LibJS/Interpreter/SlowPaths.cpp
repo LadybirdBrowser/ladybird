@@ -750,6 +750,10 @@ void asm_debugger_check_breakpoint(VM* vm, u32 pc)
     if (!debugger)
         return;
 
+    // NB: Debugger callbacks must not inspect slots before Enter initializes them.
+    if (!vm->running_execution_context().frame_initialized)
+        return;
+
     auto& executable = vm->current_executable();
     debugger->register_executable(executable);
     auto reason = [&]() -> Optional<Debugger::PauseReason> {

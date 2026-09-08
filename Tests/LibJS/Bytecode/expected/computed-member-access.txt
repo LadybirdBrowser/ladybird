@@ -1,4 +1,4 @@
-$41132570 computed-member-access.js:12:1
+$bfb12ce8 computed-member-access.js:12:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -6,32 +6,35 @@ $41132570 computed-member-access.js:12:1
     [1] = Int32(0)
 
 block0:
-  [   0] GetGlobal dst:reg6, `computed_read`
-  [  10] NewPrimitiveArray dst:reg7, elements:[1]
-  [  28] Call dst:reg5, callee:reg6, this_value:Undefined, computed_read, arguments:[reg7]
-  [  50] GetGlobal dst:reg7, `computed_read_expression`
-  [  60] NewPrimitiveArray dst:reg8, elements:[1]
-  [  78] Call dst:reg6, callee:reg7, this_value:Undefined, computed_read_expression, arguments:[reg8, Int32(0)]
-  [  a0] End value:reg6
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `computed_read`
+  [  18] NewPrimitiveArray dst:reg7, elements:[1]
+  [  30] Call dst:reg5, callee:reg6, this_value:Undefined, computed_read, arguments:[reg7]
+  [  58] GetGlobal dst:reg7, `computed_read_expression`
+  [  68] NewPrimitiveArray dst:reg8, elements:[1]
+  [  80] Call dst:reg6, callee:reg7, this_value:Undefined, computed_read_expression, arguments:[reg8, Int32(0)]
+  [  a8] End value:reg6
 
 
-computed_read$f0ef6ac1 computed-member-access.js:5:5
+computed_read$72516349 computed-member-access.js:5:5
   Registers: 7
   Blocks:    1
   Constants:
     [0] = Int32(0)
 
 block0:
-  [   0] Mov dst:reg5, src:arg0
-  [  10] GetByValue dst:reg6, base:reg5, property:Int32(0) (a[Int32(0)])
-  [  28] Return value:reg6
+  [   0] Enter
+  [   8] Mov dst:reg5, src:arg0
+  [  18] GetByValue dst:reg6, base:reg5, property:Int32(0) (a[Int32(0)])
+  [  30] Return value:reg6
 
 
-computed_read_expression$c18fd380 computed-member-access.js:9:5
+computed_read_expression$42f1cc08 computed-member-access.js:9:5
   Registers: 7
   Blocks:    1
 
 block0:
-  [   0] Mov dst:reg5, src:arg0
-  [  10] GetByValue dst:reg6, base:reg5, property:arg1 (a[arg1])
-  [  28] Return value:reg6
+  [   0] Enter
+  [   8] Mov dst:reg5, src:arg0
+  [  18] GetByValue dst:reg6, base:reg5, property:arg1 (a[arg1])
+  [  30] Return value:reg6

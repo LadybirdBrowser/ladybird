@@ -1671,27 +1671,27 @@ impl Generator {
     /// 4. Encode to bytes and build source map + exception handlers
     pub fn assemble(&mut self) -> AssembledBytecode {
         let saved_environment = Operand::register(Register::SAVED_LEXICAL_ENVIRONMENT);
-        let synthetic_load_block = self.basic_blocks.iter().position(|block| {
+        let synthetic_load = self.basic_blocks.iter().enumerate().find_map(|(block_index, block)| {
+            let (instruction_index, (instruction, _, _)) = block
+                .instructions
+                .iter()
+                .enumerate()
+                .find(|(_, (instruction, _, _))| !matches!(instruction, Instruction::Enter))?;
             matches!(
-                block.instructions.first(),
-                Some((
-                    Instruction::GetLexicalEnvironment {
-                        dst,
-                    },
-                    _,
-                    _
-                )) if *dst == saved_environment
+                instruction,
+                Instruction::GetLexicalEnvironment { dst } if *dst == saved_environment
             )
+            .then_some((block_index, instruction_index))
         });
 
-        if let Some(load_block_index) = synthetic_load_block {
+        if let Some((load_block_index, load_instruction_index)) = synthetic_load {
             let saved_environment_is_used = self.basic_blocks.iter().enumerate().any(|(block_index, block)| {
                 block
                     .instructions
                     .iter()
                     .enumerate()
                     .any(|(instruction_index, (instruction, _, _))| {
-                        if block_index == load_block_index && instruction_index == 0 {
+                        if block_index == load_block_index && instruction_index == load_instruction_index {
                             return false;
                         }
                         let mut instruction = instruction.clone();
@@ -1706,7 +1706,9 @@ impl Generator {
             });
 
             if !saved_environment_is_used {
-                self.basic_blocks[load_block_index].instructions.remove(0);
+                self.basic_blocks[load_block_index]
+                    .instructions
+                    .remove(load_instruction_index);
             }
         }
 

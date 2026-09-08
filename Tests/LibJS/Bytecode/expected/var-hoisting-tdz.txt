@@ -1,16 +1,17 @@
-$89d6cbb5 var-hoisting-tdz.js:9:1
+$fd650eed var-hoisting-tdz.js:9:1
   Registers: 7
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] GetGlobal dst:reg6, `isect`
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, isect
-  [  30] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `isect`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, isect
+  [  38] End value:reg5
 
 
-isect$63c4d7d5 var-hoisting-tdz.js:5:5
+isect$e526d05d var-hoisting-tdz.js:5:5
   Registers: 6
   Blocks:    7
   Locals:    i~0
@@ -20,24 +21,25 @@ isect$63c4d7d5 var-hoisting-tdz.js:5:5
     [2] = Int32(3)
 
 block0:
-  [   0] Mov2 c0_dst:i~0, c0_src:Undefined, c1_dst:i~0, c1_src:Int32(0)
-  [  18] Jump target:block2
+  [   0] Enter
+  [   8] Mov2 c0_dst:i~0, c0_src:Undefined, c1_dst:i~0, c1_src:Int32(0)
+  [  20] Jump target:block2
 
 block1:
-  [  20] PostfixIncrement dst:reg5, src:i~0
+  [  28] PostfixIncrement dst:reg5, src:i~0
 
 block2:
-  [  30] JumpLessThanRhsInt32 lhs:i~0, rhs:3, true_target:block1, false_target:block3
+  [  38] JumpLessThanRhsInt32 lhs:i~0, rhs:3, true_target:block1, false_target:block3
 
 block3:
-  [  48] Mov dst:i~0, src:Int32(0)
-  [  58] Jump target:block5
+  [  50] Mov dst:i~0, src:Int32(0)
+  [  60] Jump target:block5
 
 block4:
-  [  60] PostfixIncrement dst:reg5, src:i~0
+  [  68] PostfixIncrement dst:reg5, src:i~0
 
 block5:
-  [  70] JumpLessThanRhsInt32 lhs:i~0, rhs:3, true_target:block4, false_target:block6
+  [  78] JumpLessThanRhsInt32 lhs:i~0, rhs:3, true_target:block4, false_target:block6
 
 block6:
-  [  88] End value:Undefined
+  [  90] End value:Undefined

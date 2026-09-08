@@ -1,16 +1,17 @@
-$afbf6828 global-variables.js:4:1
+$2089ba50 global-variables.js:4:1
   Registers: 9
   Blocks:    1
   Constants:
     [0] = Int32(1)
 
 block0:
-  [   0] SetGlobal `x`, src:Int32(1)
-  [  10] GetGlobal dst:reg6, `console`
-  [  20] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  38] GetGlobal dst:reg8, `x`
-  [  48] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  70] End value:reg5
+  [   0] Enter
+  [   8] SetGlobal `x`, src:Int32(1)
+  [  18] GetGlobal dst:reg6, `console`
+  [  28] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  40] GetGlobal dst:reg8, `x`
+  [  50] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  78] End value:reg5
 
 
 1

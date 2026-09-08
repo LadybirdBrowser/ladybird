@@ -1,16 +1,17 @@
-$bacf2c68 arguments-with-arguments-fn.js:4:1
+$2b997e90 arguments-with-arguments-fn.js:4:1
   Registers: 7
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] GetGlobal dst:reg6, `f`
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, f
-  [  30] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `f`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f
+  [  38] End value:reg5
 
 
-f$6cd6eab3
+f$f684b66b
   Registers: 6
   Blocks:    3
   Locals:    arguments~0
@@ -19,12 +20,13 @@ f$6cd6eab3
     [1] = Undefined
 
 block0:
-  [   0] JumpUndefined condition:arg0, true_target:block1, false_target:block2
+  [   0] Enter
+  [   8] JumpUndefined condition:arg0, true_target:block1, false_target:block2
 
 block1:
-  [  10] Mov dst:arg0, src:Int32(1)
+  [  18] Mov dst:arg0, src:Int32(1)
 
 block2:
-  [  20] Mov2 c0_dst:reg5, c0_src:Undefined, c1_dst:arguments~0, c1_src:reg5
-  [  38] NewFunction dst:arguments~0, shared_function_data_index:0
-  [  50] End value:Undefined
+  [  28] Mov2 c0_dst:reg5, c0_src:Undefined, c1_dst:arguments~0, c1_src:reg5
+  [  40] NewFunction dst:arguments~0, shared_function_data_index:0
+  [  58] End value:Undefined

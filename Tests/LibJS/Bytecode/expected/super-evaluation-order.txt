@@ -1,4 +1,4 @@
-$460e17ea super-evaluation-order.js:1:1
+$c7701072 super-evaluation-order.js:1:1
   Registers: 9
   Blocks:    1
   Constants:
@@ -8,56 +8,59 @@ $460e17ea super-evaluation-order.js:1:1
     [3] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
-  [  20] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:true
-  [  30] GetGlobal dst:reg6, `Object`
-  [  40] SetLexicalEnvironment environment:reg4
-  [  48] NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("read"), element_keys:String("write"), element_keys:String("update")]
-  [  78] DynamicInitializeLexicalBinding `A`, src:reg7
-  [  88] GetGlobal dst:reg6, `A`
-  [  98] CallConstruct dst:reg5, callee:reg6, A
-  [  b0] GetById dst:reg6, base:reg5, `read`
-  [  c8] Call dst:reg7, callee:reg6, this_value:reg5, <object>.read
-  [  e8] GetGlobal dst:reg8, `A`
-  [  f8] CallConstruct dst:reg5, callee:reg8, A
-  [ 110] GetById dst:reg8, base:reg5, `write`
-  [ 128] Call dst:reg6, callee:reg8, this_value:reg5, <object>.write
-  [ 148] GetGlobal dst:reg5, `A`
-  [ 158] CallConstruct dst:reg8, callee:reg5, A
-  [ 170] GetById dst:reg5, base:reg8, `update`
-  [ 188] Call dst:reg7, callee:reg5, this_value:reg8, <object>.update
-  [ 1a8] End value:reg7
+  [   0] Enter
+  [   8] GetLexicalEnvironment dst:reg4
+  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  28] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:true
+  [  38] GetGlobal dst:reg6, `Object`
+  [  48] SetLexicalEnvironment environment:reg4
+  [  50] NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("read"), element_keys:String("write"), element_keys:String("update")]
+  [  80] DynamicInitializeLexicalBinding `A`, src:reg7
+  [  90] GetGlobal dst:reg6, `A`
+  [  a0] CallConstruct dst:reg5, callee:reg6, A
+  [  b8] GetById dst:reg6, base:reg5, `read`
+  [  d0] Call dst:reg7, callee:reg6, this_value:reg5, <object>.read
+  [  f0] GetGlobal dst:reg8, `A`
+  [ 100] CallConstruct dst:reg5, callee:reg8, A
+  [ 118] GetById dst:reg8, base:reg5, `write`
+  [ 130] Call dst:reg6, callee:reg8, this_value:reg5, <object>.write
+  [ 150] GetGlobal dst:reg5, `A`
+  [ 160] CallConstruct dst:reg8, callee:reg5, A
+  [ 178] GetById dst:reg5, base:reg8, `update`
+  [ 190] Call dst:reg7, callee:reg5, this_value:reg8, <object>.update
+  [ 1b0] End value:reg7
 
 
-A$3a3ed48c super-evaluation-order.js:1:1
+A$9ff96274 super-evaluation-order.js:1:1
   Registers: 8
   Blocks:    1
 
 block0:
-  [   0] CreateVariable `args`, is_immutable:false, is_global:false, is_strict:false
-  [  10] CreateRestParams dst:arg0, rest_index:0
-  [  20] InitializeLexicalBinding `args`, src:arg0
-  [  38] GetSuperConstructor dst:reg5
-  [  40] GetBinding dst:reg6, `args`
-  [  58] SuperCallWithArgumentArray dst:reg7, super_constructor:reg5, arguments:reg6, is_synthetic:true
-  [  70] Return value:reg7
+  [   0] Enter
+  [   8] CreateVariable `args`, is_immutable:false, is_global:false, is_strict:false
+  [  18] CreateRestParams dst:arg0, rest_index:0
+  [  28] InitializeLexicalBinding `args`, src:arg0
+  [  40] GetSuperConstructor dst:reg5
+  [  48] GetBinding dst:reg6, `args`
+  [  60] SuperCallWithArgumentArray dst:reg7, super_constructor:reg5, arguments:reg6, is_synthetic:true
+  [  78] Return value:reg7
 
 
-read$5dc3ca35 super-evaluation-order.js:3:9
+read$df25c2bd super-evaluation-order.js:3:9
   Registers: 7
   Blocks:    1
   Constants:
     [0] = String("x")
 
 block0:
-  [   0] ResolveThisBinding
-  [   8] ResolveSuperBase dst:reg5
-  [  10] GetByIdWithThis dst:reg6, base:reg5, `x`, this_value:this
-  [  28] Return value:reg6
+  [   0] Enter
+  [   8] ResolveThisBinding
+  [  10] ResolveSuperBase dst:reg5
+  [  18] GetByIdWithThis dst:reg6, base:reg5, `x`, this_value:this
+  [  30] Return value:reg6
 
 
-write$7ede70d2 super-evaluation-order.js:6:20
+write$03045a6a super-evaluation-order.js:6:20
   Registers: 6
   Blocks:    1
   Constants:
@@ -66,22 +69,24 @@ write$7ede70d2 super-evaluation-order.js:6:20
     [2] = Undefined
 
 block0:
-  [   0] ResolveThisBinding
-  [   8] ResolveSuperBase dst:reg5
-  [  10] PutByIdWithThis base:reg5, this_value:this, `x`, src:Int32(42), kind:Normal
-  [  30] End value:Undefined
+  [   0] Enter
+  [   8] ResolveThisBinding
+  [  10] ResolveSuperBase dst:reg5
+  [  18] PutByIdWithThis base:reg5, this_value:this, `x`, src:Int32(42), kind:Normal
+  [  38] End value:Undefined
 
 
-update$85af5ccd super-evaluation-order.js:9:16
+update$044d6445 super-evaluation-order.js:9:16
   Registers: 8
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] ResolveThisBinding
-  [   8] ResolveSuperBase dst:reg5
-  [  10] GetByIdWithThis dst:reg6, base:reg5, `x`, this_value:this
-  [  28] PostfixIncrement dst:reg7, src:reg6
-  [  38] PutByIdWithThis base:reg5, this_value:this, `x`, src:reg6, kind:Normal
-  [  58] End value:Undefined
+  [   0] Enter
+  [   8] ResolveThisBinding
+  [  10] ResolveSuperBase dst:reg5
+  [  18] GetByIdWithThis dst:reg6, base:reg5, `x`, this_value:this
+  [  30] PostfixIncrement dst:reg7, src:reg6
+  [  40] PutByIdWithThis base:reg5, this_value:this, `x`, src:reg6, kind:Normal
+  [  60] End value:Undefined

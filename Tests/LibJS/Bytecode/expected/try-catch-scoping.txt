@@ -1,18 +1,19 @@
-$3ec36167 try-catch-scoping.js:11:1
+$bd6168df try-catch-scoping.js:11:1
   Registers: 8
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] GetGlobal dst:reg6, `tryCatchWithBlocks`
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, tryCatchWithBlocks
-  [  30] GetGlobal dst:reg7, `tryCatchFinallyWithBlocks`
-  [  40] Call dst:reg6, callee:reg7, this_value:Undefined, tryCatchFinallyWithBlocks
-  [  60] End value:reg6
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `tryCatchWithBlocks`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, tryCatchWithBlocks
+  [  38] GetGlobal dst:reg7, `tryCatchFinallyWithBlocks`
+  [  48] Call dst:reg6, callee:reg7, this_value:Undefined, tryCatchFinallyWithBlocks
+  [  68] End value:reg6
 
 
-tryCatchWithBlocks$04cb6df0 try-catch-scoping.js:2:5
+tryCatchWithBlocks$7de19348 try-catch-scoping.js:2:5
   Registers: 11
   Blocks:    3
   Locals:    y~0, z~1, e~2, x~3
@@ -23,30 +24,31 @@ tryCatchWithBlocks$04cb6df0 try-catch-scoping.js:2:5
     [3] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov dst:x~3, src:Int32(1)
-  [  18] Jump target:block2
+  [   0] Enter
+  [   8] GetLexicalEnvironment dst:reg4
+  [  10] Mov dst:x~3, src:Int32(1)
+  [  20] Jump target:block2
 
 block1:
-  [  20] Catch dst:reg5
-  [  28] SetLexicalEnvironment environment:reg4
-  [  30] Mov2 c0_dst:e~2, c0_src:reg5, c1_dst:z~1, c1_src:Int32(3)
-  [  48] GetGlobal dst:reg7, `console`
-  [  58] GetById dst:reg8, base:reg7, `log` (console.log)
-  [  70] Add dst:reg9, lhs:x~3, rhs:e~2
-  [  80] Add dst:reg10, lhs:reg9, rhs:z~1
-  [  90] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg10]
-  [  b8] End value:Undefined
+  [  28] Catch dst:reg5
+  [  30] SetLexicalEnvironment environment:reg4
+  [  38] Mov2 c0_dst:e~2, c0_src:reg5, c1_dst:z~1, c1_src:Int32(3)
+  [  50] GetGlobal dst:reg7, `console`
+  [  60] GetById dst:reg8, base:reg7, `log` (console.log)
+  [  78] Add dst:reg9, lhs:x~3, rhs:e~2
+  [  88] Add dst:reg10, lhs:reg9, rhs:z~1
+  [  98] Call dst:reg6, callee:reg8, this_value:reg7, console.log, arguments:[reg10]
+  [  c0] End value:Undefined
 
 block2:
-  [  c0] Mov dst:y~0, src:Int32(2)
-  [  d0] Throw src:y~0
+  [  c8] Mov dst:y~0, src:Int32(2)
+  [  d8] Throw src:y~0
 
 Exception handlers:
-  [  c0 ..   d8] => handler block1
+  [  c8 ..   e0] => handler block1
 
 
-tryCatchFinallyWithBlocks$ae3c37ba try-catch-scoping.js:14:5
+tryCatchFinallyWithBlocks$2cda3f32 try-catch-scoping.js:14:5
   Registers: 12
   Blocks:    9
   Locals:    y~0, e~1, z~2, x~3
@@ -58,53 +60,54 @@ tryCatchFinallyWithBlocks$ae3c37ba try-catch-scoping.js:14:5
     [4] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov dst:x~3, src:Int32(1)
-  [  18] Jump target:block4
+  [   0] Enter
+  [   8] GetLexicalEnvironment dst:reg4
+  [  10] Mov dst:x~3, src:Int32(1)
+  [  20] Jump target:block4
 
 block1:
-  [  20] Catch dst:reg6
-  [  28] SetLexicalEnvironment environment:reg4
-  [  30] Mov dst:reg5, src:Int32(1)
+  [  28] Catch dst:reg6
+  [  30] SetLexicalEnvironment environment:reg4
+  [  38] Mov dst:reg5, src:Int32(1)
 
 block2:
-  [  40] Mov dst:z~2, src:Int32(3)
-  [  50] GetGlobal dst:reg8, `console`
-  [  60] GetById dst:reg10, base:reg8, `log` (console.log)
-  [  78] Mov dst:reg9, src:z~2
-  [  88] Call dst:reg7, callee:reg10, this_value:reg8, console.log, arguments:[reg9]
-  [  b0] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:0, true_target:block5, false_target:block6
+  [  48] Mov dst:z~2, src:Int32(3)
+  [  58] GetGlobal dst:reg8, `console`
+  [  68] GetById dst:reg10, base:reg8, `log` (console.log)
+  [  80] Mov dst:reg9, src:z~2
+  [  90] Call dst:reg7, callee:reg10, this_value:reg8, console.log, arguments:[reg9]
+  [  b8] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:0, true_target:block5, false_target:block6
 
 block3:
-  [  c8] Catch dst:reg7
-  [  d0] SetLexicalEnvironment environment:reg4
-  [  d8] Mov dst:e~1, src:reg7
-  [  e8] GetGlobal dst:reg9, `console`
-  [  f8] GetById dst:reg10, base:reg9, `log` (console.log)
-  [ 110] Mov dst:reg11, src:e~1
-  [ 120] Call dst:reg8, callee:reg10, this_value:reg9, console.log, arguments:[reg11]
-  [ 148] Mov dst:reg5, src:Int32(0)
-  [ 158] Jump target:block2
+  [  d0] Catch dst:reg7
+  [  d8] SetLexicalEnvironment environment:reg4
+  [  e0] Mov dst:e~1, src:reg7
+  [  f0] GetGlobal dst:reg9, `console`
+  [ 100] GetById dst:reg10, base:reg9, `log` (console.log)
+  [ 118] Mov dst:reg11, src:e~1
+  [ 128] Call dst:reg8, callee:reg10, this_value:reg9, console.log, arguments:[reg11]
+  [ 150] Mov dst:reg5, src:Int32(0)
+  [ 160] Jump target:block2
 
 block4:
-  [ 160] Mov dst:y~0, src:Int32(2)
-  [ 170] Throw src:y~0
+  [ 168] Mov dst:y~0, src:Int32(2)
+  [ 178] Throw src:y~0
 
 block5:
-  [ 178] End value:Undefined
+  [ 180] End value:Undefined
 
 block6:
-  [ 180] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:2, true_target:block7, false_target:block8
+  [ 188] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:2, true_target:block7, false_target:block8
 
 block7:
-  [ 198] Return value:reg6
+  [ 1a0] Return value:reg6
 
 block8:
-  [ 1a0] Throw src:reg6
+  [ 1a8] Throw src:reg6
 
 Exception handlers:
-  [  c8 ..  160] => handler block1
-  [ 160 ..  178] => handler block3
+  [  d0 ..  168] => handler block1
+  [ 168 ..  180] => handler block3
 
 
 6

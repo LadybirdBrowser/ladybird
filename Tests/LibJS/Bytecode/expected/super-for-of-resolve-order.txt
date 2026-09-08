@@ -1,22 +1,23 @@
-$00cee19d super-for-of-resolve-order.js:1:1
+$87b8bc45 super-for-of-resolve-order.js:1:1
   Registers: 7
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
-  [  20] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
-  [  30] SetLexicalEnvironment environment:reg4
-  [  38] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0
-  [  58] DynamicInitializeLexicalBinding `C`, src:reg6
-  [  68] GetGlobal dst:reg5, `C`
-  [  78] CallConstruct dst:reg6, callee:reg5, C
-  [  90] End value:reg6
+  [   0] Enter
+  [   8] GetLexicalEnvironment dst:reg4
+  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  28] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
+  [  38] SetLexicalEnvironment environment:reg4
+  [  40] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0
+  [  60] DynamicInitializeLexicalBinding `C`, src:reg6
+  [  70] GetGlobal dst:reg5, `C`
+  [  80] CallConstruct dst:reg6, callee:reg5, C
+  [  98] End value:reg6
 
 
-C$9d8b2466 super-for-of-resolve-order.js:3:28
+C$21b10dfe super-for-of-resolve-order.js:3:28
   Registers: 13
   Blocks:    9
   Constants:
@@ -26,43 +27,44 @@ C$9d8b2466 super-for-of-resolve-order.js:3:28
     [3] = Int32(2)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] NewPrimitiveArray dst:reg5, elements:[1, 2]
-  [  28] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5
-  [  40] Jump target:block2
+  [   0] Enter
+  [   8] GetLexicalEnvironment dst:reg4
+  [  10] NewPrimitiveArray dst:reg5, elements:[1, 2]
+  [  30] GetIterator dst_iterator_object:reg6, dst_iterator_next:reg7, dst_iterator_done:reg8, iterable:reg5
+  [  48] Jump target:block2
 
 block1:
-  [  48] End value:Undefined
+  [  50] End value:Undefined
 
 block2:
-  [  50] IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
-  [  68] JumpIf condition:reg11, true_target:block1, false_target:block4
+  [  58] IteratorNextUnpack dst_value:reg10, dst_done:reg11, iterator_object:reg6, iterator_next:reg7, iterator_done:reg8
+  [  70] JumpIf condition:reg11, true_target:block1, false_target:block4
 
 block3:
-  [  78] Catch dst:reg9
-  [  80] SetLexicalEnvironment environment:reg4
-  [  88] Mov dst:reg5, src:Int32(1)
-  [  98] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:1, true_target:block5, false_target:block6
+  [  80] Catch dst:reg9
+  [  88] SetLexicalEnvironment environment:reg4
+  [  90] Mov dst:reg5, src:Int32(1)
+  [  a0] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:1, true_target:block5, false_target:block6
 
 block4:
-  [  b0] ResolveThisBinding
-  [  b8] ResolveSuperBase dst:reg12
-  [  c0] PutByIdWithThis base:reg12, this_value:this, `prop`, src:reg10, kind:Normal
-  [  e0] Jump target:block2
+  [  b8] ResolveThisBinding
+  [  c0] ResolveSuperBase dst:reg12
+  [  c8] PutByIdWithThis base:reg12, this_value:this, `prop`, src:reg10, kind:Normal
+  [  e8] Jump target:block2
 
 block5:
-  [  e8] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
-  [ 100] Throw src:reg9
+  [  f0] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:reg9
+  [ 108] Throw src:reg9
 
 block6:
-  [ 108] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
-  [ 120] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:2, true_target:block7, false_target:block8
+  [ 110] IteratorClose iterator_object:reg6, iterator_next:reg7, iterator_done:reg8, completion_value:Undefined
+  [ 128] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:2, true_target:block7, false_target:block8
 
 block7:
-  [ 138] Return value:reg9
+  [ 140] Return value:reg9
 
 block8:
-  [ 140] Throw src:reg9
+  [ 148] Throw src:reg9
 
 Exception handlers:
-  [  b0 ..   e8] => handler block3
+  [  b8 ..   f0] => handler block3

@@ -894,6 +894,35 @@ inline fn load_primitive_string_utf16_code_unit(
 
 # Bytecode handlers are kept in native layout order.
 
+handler Enter() {
+    let executable = exec_ctx.executable;
+    assert_nonzero(executable);
+    let registers_and_locals_count = executable.registers_and_locals_count;
+    let empty_tag: Value = Value<Empty>;
+    let mut slot_index: u64 = RESERVED_REGISTER_COUNT;
+    while slot_index + 1 < alias(registers_and_locals_count) {
+        let next_slot_index = slot_index + 1;
+        values[slot_index] = empty_tag;
+        values[next_slot_index] = empty_tag;
+        slot_index = slot_index + 2;
+    }
+    if slot_index < alias(registers_and_locals_count) {
+        values[slot_index] = empty_tag;
+    }
+    let constant_count = executable.asm_constants_size;
+    let constant_data = executable.asm_constants_data;
+    let mut write_index: u64 = alias(registers_and_locals_count);
+    let mut constant_index: u64 = 0;
+    while constant_index < alias(constant_count) {
+        assert_nonzero(constant_data);
+        values[write_index] = constant_data[constant_index];
+        constant_index = constant_index + 1;
+        write_index = write_index + 1;
+    }
+    exec_ctx.frame_initialized = true;
+    dispatch_next;
+}
+
 handler Mov(
     dst: out Operand,
     src: in Operand
@@ -2419,6 +2448,7 @@ handler GetById(
         native_frame.yield_is_await = false;
         native_frame.yield_value_is_iterator_result = false;
         native_frame.caller_is_construct = false;
+        native_frame.frame_initialized = false;
         let native_pc: u32 = pc;
         let [destination_offset, _] = load_pair32(
             [pb, pc, dst],
@@ -2909,35 +2939,14 @@ handler Call(
     frame.yield_is_await = false;
     frame.yield_value_is_iterator_result = false;
     frame.caller_is_construct = false;
+    frame.frame_initialized = false;
     frame.caller_frame = exec_ctx;
     let [_, return_pc, return_destination] = call_site_info(length, dst);
     frame.caller_return_pc = return_pc;
     frame.caller_dst_raw = return_destination;
-    let mut slot_index: u64 = RESERVED_REGISTER_COUNT;
-    while slot_index + 1 < alias(registers_and_locals_count) {
-        let next_slot_index = slot_index + 1;
-        frame_values[slot_index] = empty_tag;
-        frame_values[next_slot_index] = empty_tag;
-        slot_index = slot_index + 2;
-    }
-    if slot_index < alias(registers_and_locals_count) {
-        frame_values[slot_index] = empty_tag;
-    }
-    let executable = frame.executable;
-    assert_nonzero(executable);
-    let constant_count = executable.asm_constants_size;
-    let constant_data = executable.asm_constants_data;
-    let mut write_index: u64 = alias(registers_and_locals_count);
-    let mut constant_index: u64 = 0;
-    while constant_index < alias(constant_count) {
-        assert_nonzero(constant_data);
-        frame_values[write_index] = constant_data[constant_index];
-        constant_index = constant_index + 1;
-        write_index = write_index + 1;
-    }
     let actual_argument_count = load(argument_count);
     assert_ge_unsigned(formal_count, actual_argument_count);
-    write_index = alias(registers_and_locals_count) + alias(constant_count);
+    let mut write_index: u64 = alias(callee_slot_count);
     let caller_values = exec_ctx.slots;
     let argument_operand_indices = &arguments;
     let mut argument_index: u32 = 0;
@@ -3027,6 +3036,7 @@ handler Call(
         native_frame.yield_is_await = false;
         native_frame.yield_value_is_iterator_result = false;
         native_frame.caller_is_construct = false;
+        native_frame.frame_initialized = false;
         let [native_pc, after_pc, destination_offset] = call_site_info(length, dst);
         exec_ctx.program_counter = native_pc;
         native_frame.caller_frame = exec_ctx;

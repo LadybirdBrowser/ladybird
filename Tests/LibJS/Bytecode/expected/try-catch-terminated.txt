@@ -1,16 +1,17 @@
-$546ebce0 try-catch-terminated.js:12:1
+$c7fd0018 try-catch-terminated.js:12:1
   Registers: 7
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] GetGlobal dst:reg6, `try_return`
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, try_return
-  [  30] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `try_return`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, try_return
+  [  38] End value:reg5
 
 
-try_return$6825fe97 try-catch-terminated.js:5:5
+try_return$e987f71f try-catch-terminated.js:5:5
   Registers: 6
   Blocks:    3
   Locals:    e~0
@@ -18,17 +19,18 @@ try_return$6825fe97 try-catch-terminated.js:5:5
     [0] = Int32(1)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Jump target:block2
+  [   0] Enter
+  [   8] GetLexicalEnvironment dst:reg4
+  [  10] Jump target:block2
 
 block1:
-  [  10] Catch dst:reg5
-  [  18] SetLexicalEnvironment environment:reg4
-  [  20] Mov dst:e~0, src:reg5
-  [  30] Return value:e~0
+  [  18] Catch dst:reg5
+  [  20] SetLexicalEnvironment environment:reg4
+  [  28] Mov dst:e~0, src:reg5
+  [  38] Return value:e~0
 
 block2:
-  [  38] Throw src:Int32(1)
+  [  40] Throw src:Int32(1)
 
 Exception handlers:
-  [  38 ..   40] => handler block1
+  [  40 ..   48] => handler block1

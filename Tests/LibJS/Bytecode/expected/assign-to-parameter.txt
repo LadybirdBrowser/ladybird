@@ -1,21 +1,23 @@
-$a2a07da4 assign-to-parameter.js:8:1
+$162ec0dc assign-to-parameter.js:8:1
   Registers: 7
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] GetGlobal dst:reg6, `isect`
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, isect
-  [  30] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `isect`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, isect
+  [  38] End value:reg5
 
 
-isect$41c8d351 assign-to-parameter.js:5:9
+isect$cb769f09 assign-to-parameter.js:5:9
   Registers: 5
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] Mov dst:arg0, src:arg1
-  [  10] End value:Undefined
+  [   0] Enter
+  [   8] Mov dst:arg0, src:arg1
+  [  18] End value:Undefined
