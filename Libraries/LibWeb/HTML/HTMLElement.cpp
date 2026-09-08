@@ -2213,7 +2213,7 @@ void HTMLElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor
 
         // The control took its constraints out of the form and fieldsets it was under, and they
         // answer for `:valid`/`:invalid` on behalf of what is left.
-        if (old_ancestor)
+        if (old_ancestor && document().has_form_or_fieldset_element())
             CSS::Invalidation::invalidate_style_after_form_control_left(*old_ancestor);
     }
 

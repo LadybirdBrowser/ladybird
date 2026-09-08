@@ -5,6 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
@@ -50,6 +51,14 @@ bool HTMLFieldSetElement::is_disabled() const
     }
 
     return false;
+}
+
+void HTMLFieldSetElement::inserted()
+{
+    Base::inserted();
+
+    if (is_connected())
+        document().set_has_form_or_fieldset_element();
 }
 
 void HTMLFieldSetElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_)

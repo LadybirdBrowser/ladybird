@@ -79,6 +79,9 @@ void HTMLFormElement::inserted()
 {
     Base::inserted();
 
+    if (is_connected())
+        document().set_has_form_or_fieldset_element();
+
     auto* default_button = this->default_button();
     m_default_button_for_style_invalidation = default_button ? &default_button->form_associated_element_to_html_element() : nullptr;
     m_default_button_for_style_invalidation_initialized = true;

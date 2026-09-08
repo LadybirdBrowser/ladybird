@@ -49,6 +49,7 @@ private:
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void attribute_changed(Utf16FlyString const&, Optional<Utf16String> const&, Optional<Utf16String> const&, Optional<Utf16FlyString> const&) override;
+    virtual void inserted() override;
 
     virtual bool is_html_fieldset_element() const override { return true; }
 

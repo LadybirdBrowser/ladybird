@@ -3197,6 +3197,8 @@ void Element::inserted()
         // building their rules.
         if (namespace_uri() == Namespace::MathML || namespace_uri() == Namespace::SVG)
             document().set_needs_mathml_and_svg_user_agent_style_sheets();
+        if (has_auto_directionality())
+            document().set_has_element_with_auto_directionality();
         if (m_id.has_value())
             document().element_with_id_was_added({}, *this);
         if (m_has_name)
@@ -4108,6 +4110,11 @@ void Element::exit_fullscreen_on_element_removal()
 {
     // 1. Let document be removedNode’s node document.
     auto& document = this->document();
+
+    // OPTIMIZATION: An element with its fullscreen flag set is in the top layer, so without a fullscreen element
+    //               the document holds no such element.
+    if (!document.fullscreen_element())
+        return;
 
     // 2. Let nodes be removedNode’s shadow-including inclusive descendants that have their fullscreen flag set, in
     //    shadow-including tree order.
@@ -6203,6 +6210,8 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
                 ensure_element_rare_data().dir = dir;
             else if (auto* rare_data = element_rare_data())
                 rare_data->dir = {};
+            if (is_connected() && has_auto_directionality())
+                document().set_has_element_with_auto_directionality();
         }
         if (is_dir)
             CSS::Invalidation::invalidate_style_after_directionality_change(*this);
