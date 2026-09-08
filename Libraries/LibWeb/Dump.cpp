@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/QuickSort.h>
 #include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
 #include <LibWeb/CSS/CSSDescriptors.h>
@@ -27,7 +26,6 @@
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/CSSSupportsRule.h>
-#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
@@ -145,14 +143,14 @@ void dump_tree(StringBuilder& builder, DOM::Node const& node)
     --indent;
 }
 
-void dump_tree(Layout::Node const& layout_node, bool show_computed_properties)
+void dump_tree(Layout::Node const& layout_node)
 {
     StringBuilder builder;
-    dump_tree(builder, layout_node, show_computed_properties, true);
+    dump_tree(builder, layout_node, true);
     dbgln("{}", builder.string_view());
 }
 
-void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool show_computed_properties, bool interactive)
+void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool interactive)
 {
     static size_t indent = 0;
     builder.append_repeated("  "sv, indent);
@@ -338,7 +336,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
                 builder.append("\n"sv);
                 if (auto const* nested_layout_root = document->layout_node()) {
                     ++indent;
-                    dump_tree(builder, *nested_layout_root, show_computed_properties, interactive);
+                    dump_tree(builder, *nested_layout_root, interactive);
                     --indent;
                 }
             }
@@ -361,7 +359,7 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
                         builder.append("  "sv);
                     builder.append("(SVG-as-image isolated context)\n"sv);
 
-                    dump_tree(builder, *svg_data.svg_document().unsafe_layout_node(), show_computed_properties, interactive);
+                    dump_tree(builder, *svg_data.svg_document().unsafe_layout_node(), interactive);
                     --indent;
                 }
             }
@@ -393,29 +391,9 @@ void dump_tree(StringBuilder& builder, Layout::Node const& layout_node, bool sho
             append_dumped_fragments);
     }
 
-    if (show_computed_properties && layout_node.dom_node() && layout_node.dom_node()->is_element() && as<DOM::Element>(layout_node.dom_node())->computed_style()) {
-        struct NameAndValue {
-            Utf16FlyString name;
-            String value;
-        };
-        Vector<NameAndValue> properties;
-        auto computed_values = as<DOM::Element>(*layout_node.dom_node()).computed_style();
-        for (auto i = to_underlying(CSS::first_longhand_property_id); i <= to_underlying(CSS::last_longhand_property_id); ++i) {
-            auto property_id = static_cast<CSS::PropertyID>(i);
-            auto value = computed_values->computed_style_value(property_id);
-            properties.append({ CSS::string_from_property_id(property_id), value->to_string(CSS::SerializationMode::Normal) });
-        }
-        quick_sort(properties, [](auto& a, auto& b) { return a.name < b.name; });
-
-        for (auto& property : properties) {
-            builder.append_repeated("    "sv, indent);
-            builder.appendff("  ({}: {})\n", property.name, property.value);
-        }
-    }
-
     ++indent;
     layout_node.for_each_child([&](auto& child) {
-        dump_tree(builder, child, show_computed_properties, interactive);
+        dump_tree(builder, child, interactive);
         return IterationDecision::Continue;
     });
     --indent;

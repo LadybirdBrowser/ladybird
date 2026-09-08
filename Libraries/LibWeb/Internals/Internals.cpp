@@ -1481,7 +1481,7 @@ GC::Ref<JS::Object> Internals::compare_layout_tree_with_full_rebuild()
         VERIFY(document.layout_node());
 
         StringBuilder builder;
-        Web::dump_tree(builder, *document.layout_node(), false, false);
+        Web::dump_tree(builder, *document.layout_node());
         return builder.to_string_without_validation();
     };
 
