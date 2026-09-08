@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::Observer;
+
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
@@ -109,7 +111,7 @@ pub(crate) fn fieldset_borders_data(
     }
 }
 
-pub(crate) fn paint_background(recorder: &mut PaintRecorder<'_>, fieldset: NodeSlotId) {
+pub(crate) fn paint_background<O: Observer>(recorder: &mut PaintRecorder<'_, O>, fieldset: NodeSlotId) {
     let device_border_rect = recorder
         .converter
         .rounded_device_rect(visual_border_box_rect(recorder.layout_arena, fieldset));
@@ -119,7 +121,7 @@ pub(crate) fn paint_background(recorder: &mut PaintRecorder<'_>, fieldset: NodeS
     });
 }
 
-pub(crate) fn paint_border(recorder: &mut PaintRecorder<'_>, fieldset: NodeSlotId) {
+pub(crate) fn paint_border<O: Observer>(recorder: &mut PaintRecorder<'_, O>, fieldset: NodeSlotId) {
     let Some(legend) = legend_paintable(recorder.layout_arena, fieldset) else {
         super::paint_base(recorder, fieldset, crate::painting::record::PaintPhase::Border);
         return;

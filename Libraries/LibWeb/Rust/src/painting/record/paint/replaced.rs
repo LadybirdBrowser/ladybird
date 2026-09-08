@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::Observer;
+
 use crate::css::css_enums::{image_rendering, object_fit};
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelRect, CssPixelSize};
@@ -20,8 +22,8 @@ use crate::painting::record::paint::background::{paint_image, to_gfx_scaling_mod
 use crate::painting::visual_context::node_values::padding_edge_border_radii;
 use libgfx_rust::{Color, CornerRadii, FloatRect, IntRect, ScalingMode};
 
-fn replaced_content_clip_geometry(
-    recorder: &PaintRecorder<'_>,
+fn replaced_content_clip_geometry<O: Observer>(
+    recorder: &PaintRecorder<'_, O>,
     paintable: NodeSlotId,
 ) -> (FloatRect, Option<CornerRadii>) {
     let content_rect = recorder
@@ -152,8 +154,8 @@ pub(crate) fn run_default_sizing_algorithm(
     default_size
 }
 
-pub(crate) fn get_replaced_box_painting_area(
-    recorder: &mut PaintRecorder<'_>,
+pub(crate) fn get_replaced_box_painting_area<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
     mut object_fit: u8,
     content_size: CssPixelSize,
@@ -240,13 +242,13 @@ pub(crate) fn get_replaced_box_painting_area(
     ))
 }
 
-fn replaced_facts(recorder: &PaintRecorder<'_>, paintable: NodeSlotId) -> FfiReplacedPaintFacts {
+fn replaced_facts<O: Observer>(recorder: &PaintRecorder<'_, O>, paintable: NodeSlotId) -> FfiReplacedPaintFacts {
     recorder
         .paint_host
         .replaced_paint_facts(recorder.layout_node_shell(paintable))
 }
 
-fn replaced_style(recorder: &PaintRecorder<'_>, paintable: NodeSlotId) -> (u8, u8) {
+fn replaced_style<O: Observer>(recorder: &PaintRecorder<'_, O>, paintable: NodeSlotId) -> (u8, u8) {
     recorder
         .layout_arena
         .node_style_if_live(paintable)
@@ -255,7 +257,7 @@ fn replaced_style(recorder: &PaintRecorder<'_>, paintable: NodeSlotId) -> (u8, u
         })
 }
 
-pub(crate) fn paint_image_foreground(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
+pub(crate) fn paint_image_foreground<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
     let facts = replaced_facts(recorder, paintable);
     let (object_fit, image_rendering) = replaced_style(recorder, paintable);
     let image_rect = absolute_rect(recorder.layout_arena, paintable);
@@ -318,7 +320,7 @@ pub(crate) fn paint_image_foreground(recorder: &mut PaintRecorder<'_>, paintable
     }
 }
 
-pub(crate) fn paint_canvas_foreground(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
+pub(crate) fn paint_canvas_foreground<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
     let facts = replaced_facts(recorder, paintable);
     let (_, image_rendering) = replaced_style(recorder, paintable);
     let canvas_rect = recorder
@@ -345,7 +347,7 @@ pub(crate) fn paint_canvas_foreground(recorder: &mut PaintRecorder<'_>, paintabl
     });
 }
 
-pub(crate) fn paint_video_foreground(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
+pub(crate) fn paint_video_foreground<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
     let facts = replaced_facts(recorder, paintable);
     let (object_fit, image_rendering) = replaced_style(recorder, paintable);
     let video_rect = recorder
@@ -422,7 +424,10 @@ pub(crate) fn paint_video_foreground(recorder: &mut PaintRecorder<'_>, paintable
     });
 }
 
-pub(crate) fn paint_navigable_container_foreground(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
+pub(crate) fn paint_navigable_container_foreground<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    paintable: NodeSlotId,
+) {
     let facts = replaced_facts(recorder, paintable);
     if !facts.has_composited_context {
         return;

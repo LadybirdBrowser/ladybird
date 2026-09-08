@@ -1,29 +1,121 @@
 <!doctype html>
+<html id="html">
 <script src="../include.js"></script>
+<script src="recording-test.js"></script>
 <style>
     body { margin: 0; }
 </style>
-<svg width="200" height="200">
+<body id="body">
+<svg id="svg" width="200" height="200">
     <mask id="m" maskUnits="userSpaceOnUse" x="0" y="0" width="0" height="200">
-        <rect width="200" height="200" fill="white"/>
+        <rect id="mask-rect" width="200" height="200" fill="white"/>
     </mask>
-    <g mask="url(#m)"><rect id="masked" width="100" height="100"/></g>
+    <g id="group" mask="url(#m)"><rect id="masked" width="100" height="100"/></g>
 </svg>
 <script>
-    test(() => {
-        internals.asyncScrollingState();
-        internals.asyncScrollingState();
-        const hitWhileEmpty = document.elementFromPoint(50, 50) === masked;
-        const visitedWhileEmpty = internals.paintCacheCaptureSiteVisitCount();
-
-        m.setAttribute("width", "200");
-        internals.asyncScrollingState();
-        const visitedAfterChange = internals.paintCacheCaptureSiteVisitCount();
-        const hitAfterChange = document.elementFromPoint(50, 50) === masked;
-
-        println(`a mask reference keeps the roots above it walked: ${visitedWhileEmpty > 1}`);
-        println(`the rect is not hit while its mask area is empty: ${!hitWhileEmpty}`);
-        println(`a mask area change re-records the masked subtree: ${visitedAfterChange > 1}`);
-        println(`the rect is hit once its mask area covers it: ${hitAfterChange}`);
-    });
+displayListTest({
+    setup: removeBodyWhitespace,
+    steps: [
+        {
+            name: "quiet empty mask",
+            check: equal => { equal(document.elementFromPoint(50, 50) === masked, false, "empty mask excludes hit"); },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test REUSE
+                  @viewport/scroll-metadata RECORD (empty)
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                  @viewport/foreground/hit-test REUSE
+                  @viewport/foreground REUSE
+                  BlockContainer<HTML>#html/descendants(foreground) REUSE WHOLE CAPTURE
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test REUSE
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background REUSE
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                    BlockContainer<BODY>#body/descendants(inline-background-and-borders) REUSE WHOLE CAPTURE
+                    BlockContainer<HTML>#html/foreground/hit-test REUSE
+                    BlockContainer<HTML>#html/foreground REUSE
+                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/foreground/hit-test REUSE
+                      BlockContainer<BODY>#body/foreground REUSE
+                      SVGSVGBox<svg>#svg/descendants(foreground) WALK
+                        SVGSVGBox<svg>#svg/background/hit-test REUSE
+                        SVGSVGBox<svg>#svg/scroll-metadata RECORD (empty)
+                        SVGSVGBox<svg>#svg/background SKIP
+                        SVGSVGBox<svg>#svg/border SKIP
+                        SVGSVGBox<svg>#svg/svg WALK
+                          SVGSVGBox<svg>#svg/foreground/hit-test RECORD (empty)
+                          SVGSVGBox<svg>#svg/foreground RECORD (empty)
+                          SVGGraphicsBox<g>#group/svg WALK
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test REUSE
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline SKIP
+            `
+        },
+        {
+            name: "expand mask area",
+            mutate: () => { m.setAttribute("width", "200"); },
+            check: equal => { equal(document.elementFromPoint(50, 50), masked, "expanded mask includes hit"); },
+            expect: `
+                @canvas RECORD (empty)
+                SVGGraphicsBox<g>#group/svg-mask RECORD
+                  SVGMaskBox<mask>#m/nested-svg RECORD
+                    SVGMaskBox<mask>#m/background RECORD (empty)
+                    SVGMaskBox<mask>#m/border RECORD (empty)
+                    SVGMaskBox<mask>#m/svg WALK
+                      SVGMaskBox<mask>#m/foreground/hit-test RECORD (empty)
+                      SVGMaskBox<mask>#m/foreground RECORD (empty)
+                      SVGGeometryBox<rect>#mask-rect/svg WALK
+                        SVGGeometryBox<rect>#mask-rect/foreground/hit-test RECORD (empty)
+                        SVGGeometryBox<rect>#mask-rect/foreground RECORD
+                @viewport WALK
+                  @viewport/background/hit-test REUSE
+                  @viewport/scroll-metadata RECORD (empty)
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                  @viewport/foreground/hit-test REUSE
+                  @viewport/foreground REUSE
+                  BlockContainer<HTML>#html/descendants(foreground) REUSE WHOLE CAPTURE
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test REUSE
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background REUSE
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                    BlockContainer<BODY>#body/descendants(inline-background-and-borders) REUSE WHOLE CAPTURE
+                    BlockContainer<HTML>#html/foreground/hit-test REUSE
+                    BlockContainer<HTML>#html/foreground REUSE
+                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/foreground/hit-test REUSE
+                      BlockContainer<BODY>#body/foreground REUSE
+                      SVGSVGBox<svg>#svg/descendants(foreground) WALK
+                        SVGSVGBox<svg>#svg/background/hit-test REUSE
+                        SVGSVGBox<svg>#svg/scroll-metadata RECORD (empty)
+                        SVGSVGBox<svg>#svg/background SKIP
+                        SVGSVGBox<svg>#svg/border SKIP
+                        SVGSVGBox<svg>#svg/svg WALK
+                          SVGSVGBox<svg>#svg/foreground/hit-test RECORD (empty)
+                          SVGSVGBox<svg>#svg/foreground RECORD (empty)
+                          SVGGraphicsBox<g>#group/svg WALK
+                            SVGGraphicsBox<g>#group/foreground/hit-test RECORD (empty)
+                            SVGGraphicsBox<g>#group/foreground RECORD (empty)
+                            SVGGeometryBox<rect>#masked/svg WALK
+                              SVGGeometryBox<rect>#masked/foreground/hit-test RECORD
+                              SVGGeometryBox<rect>#masked/foreground RECORD
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test REUSE
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline SKIP
+            `
+        }
+    ]
+});
 </script>

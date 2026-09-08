@@ -1,27 +1,83 @@
 <!doctype html>
+<html id="html">
 <meta name="color-scheme" content="light dark">
 <script src="../include.js"></script>
+<script src="recording-test.js"></script>
 <style>
     body { margin: 0; }
     #tall { height: 3000px; }
 </style>
+<body id="body">
 <div id="tall"></div>
 <script>
-    test(() => {
+displayListTest({
+    setup: () => {
+        removeBodyWhitespace();
         internals.setPreferredColorScheme("light");
-        internals.asyncScrollingState();
-        internals.asyncScrollingState();
-        const visitedQuiet = internals.paintCacheCaptureSiteVisitCount();
-
-        internals.setPreferredColorScheme("dark");
-        internals.asyncScrollingState();
-        const visitedAfterSchemeChange = internals.paintCacheCaptureSiteVisitCount();
-        internals.asyncScrollingState();
-        const visitedQuietAgain = internals.paintCacheCaptureSiteVisitCount();
-        internals.setPreferredColorScheme("auto");
-
-        println(`quiet recording visits only the viewport root: ${visitedQuiet === 1}`);
-        println(`a canvas color change re-records the viewport root: ${visitedAfterSchemeChange > 1}`);
-        println(`the next quiet recording hits the viewport root again: ${visitedQuietAgain === 1}`);
-    });
+    },
+    cleanup: () => { internals.setPreferredColorScheme("auto"); },
+    steps: [
+        {
+            name: "quiet light canvas",
+            expect: `
+                @canvas RECORD (empty)
+                @viewport REUSE WHOLE CAPTURE
+            `
+        },
+        {
+            name: "change canvas to dark",
+            mutate: () => { internals.setPreferredColorScheme("dark"); },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test RECORD
+                  @viewport/scroll-metadata RECORD
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
+                  @viewport/foreground/hit-test RECORD (empty)
+                  @viewport/foreground RECORD (empty)
+                  BlockContainer<HTML>#html/descendants(foreground) WALK
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test RECORD
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background RECORD (empty)
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
+                      BlockContainer<BODY>#body/background/hit-test RECORD
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#tall/descendants(background-and-borders) WALK
+                        BlockContainer<DIV>#tall/background/hit-test RECORD
+                        BlockContainer<DIV>#tall/scroll-metadata RECORD (empty)
+                        BlockContainer<DIV>#tall/background SKIP
+                        BlockContainer<DIV>#tall/border SKIP
+                    BlockContainer<HTML>#html/foreground/hit-test RECORD (empty)
+                    BlockContainer<HTML>#html/foreground RECORD (empty)
+                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/foreground/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/foreground RECORD (empty)
+                      BlockContainer<DIV>#tall/descendants(foreground) WALK
+                        BlockContainer<DIV>#tall/foreground/hit-test RECORD (empty)
+                        BlockContainer<DIV>#tall/foreground RECORD (empty)
+                        BlockContainer<DIV>#tall/outline SKIP
+                        BlockContainer<DIV>#tall/overlay/hit-test RECORD (empty)
+                        BlockContainer<DIV>#tall/overlay SKIP
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline SKIP
+            `
+        },
+        {
+            name: "quiet dark canvas",
+            expect: `
+                @canvas RECORD (empty)
+                @viewport REUSE WHOLE CAPTURE
+            `
+        }
+    ]
+});
 </script>

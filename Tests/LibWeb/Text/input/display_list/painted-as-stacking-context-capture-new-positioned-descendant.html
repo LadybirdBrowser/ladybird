@@ -1,34 +1,148 @@
 <!doctype html>
+<html id="html">
 <script src="../include.js"></script>
+<script src="recording-test.js"></script>
 <style>
     body { margin: 0; font: 16px/20px monospace; }
     #a, #b { position: relative; width: 200px; }
     .row { height: 20px; }
 </style>
-<div id="a"><div class="row">A 0</div><div class="row">A 1</div></div>
-<div id="b"><div class="row">B 0</div></div>
+<body id="body">
+<div id="a"><div class="row" id="a0">A 0</div><div class="row" id="a1">A 1</div></div>
+<div id="b"><div class="row" id="b0">B 0</div></div>
 <script>
-    test(() => {
-        internals.asyncScrollingState();
-        internals.asyncScrollingState();
-        const visitedQuiet = internals.paintCacheCaptureSiteVisitCount();
-
-        const inserted = document.createElement("div");
-        inserted.id = "inserted";
-        inserted.className = "row";
-        inserted.style.position = "relative";
-        inserted.textContent = "B 1";
-        b.appendChild(inserted);
-        internals.asyncScrollingState();
-        const visitedAfterInsert = internals.paintCacheCaptureSiteVisitCount();
-        const hit = document.elementFromPoint(10, 70).id;
-
-        internals.asyncScrollingState();
-        const visitedQuietAgain = internals.paintCacheCaptureSiteVisitCount();
-
-        println(`quiet recording visits only the viewport root: ${visitedQuiet === 1}`);
-        println(`inserting a positioned box walks B: ${visitedAfterInsert > 1}`);
-        println(`the new box is hit-testable: ${hit}`);
-        println(`the next quiet recording hits the viewport root again: ${visitedQuietAgain === 1}`);
-    });
+displayListTest({
+    setup: removeBodyWhitespace,
+    steps: [
+        {
+            name: "quiet before insertion",
+            expect: `
+                @canvas RECORD (empty)
+                @viewport REUSE WHOLE CAPTURE
+            `
+        },
+        {
+            // Insertion currently relayouts both siblings, including A. Keep that work visible.
+            name: "insert positioned child into B",
+            mutate: () => { const inserted = document.createElement("div"); inserted.id = "inserted"; inserted.className = "row"; inserted.style.position = "relative"; inserted.textContent = "B 1"; b.appendChild(inserted); },
+            check: equal => { equal(document.elementFromPoint(10, 70).id, "inserted", "hit target"); },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test RECORD
+                  @viewport/scroll-metadata RECORD (empty)
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
+                  @viewport/foreground/hit-test RECORD (empty)
+                  @viewport/foreground RECORD (empty)
+                  BlockContainer<HTML>#html/descendants(foreground) WALK
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test RECORD
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background RECORD (empty)
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
+                      BlockContainer<BODY>#body/background/hit-test RECORD
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#a/descendants(background-and-borders) WALK
+                      BlockContainer<DIV>#b/descendants(background-and-borders) WALK
+                    BlockContainer<HTML>#html/foreground/hit-test RECORD (empty)
+                    BlockContainer<HTML>#html/foreground RECORD (empty)
+                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/foreground/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/foreground RECORD (empty)
+                      BlockContainer<DIV>#a/descendants(foreground) WALK
+                      BlockContainer<DIV>#b/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<DIV>#a WALK
+                      BlockContainer<DIV>#a/background/hit-test RECORD
+                      BlockContainer<DIV>#a/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#a/background SKIP
+                      BlockContainer<DIV>#a/border SKIP
+                      BlockContainer<DIV>#a0.row/descendants(background-and-borders) WALK
+                        BlockContainer<DIV>#a0.row/background/hit-test RECORD
+                        BlockContainer<DIV>#a0.row/scroll-metadata RECORD (empty)
+                        BlockContainer<DIV>#a0.row/background SKIP
+                        BlockContainer<DIV>#a0.row/border SKIP
+                      BlockContainer<DIV>#a1.row/descendants(background-and-borders) WALK
+                        BlockContainer<DIV>#a1.row/background/hit-test RECORD
+                        BlockContainer<DIV>#a1.row/scroll-metadata RECORD (empty)
+                        BlockContainer<DIV>#a1.row/background SKIP
+                        BlockContainer<DIV>#a1.row/border SKIP
+                      BlockContainer<DIV>#a0.row/descendants(floats) WALK
+                      BlockContainer<DIV>#a1.row/descendants(floats) WALK
+                      BlockContainer<DIV>#a0.row/descendants(inline-background-and-borders) WALK
+                      BlockContainer<DIV>#a1.row/descendants(inline-background-and-borders) WALK
+                      BlockContainer<DIV>#a/foreground/hit-test RECORD (empty)
+                      BlockContainer<DIV>#a/foreground RECORD (empty)
+                      BlockContainer<DIV>#a0.row/descendants(foreground) WALK
+                        BlockContainer<DIV>#a0.row/foreground/hit-test RECORD
+                        BlockContainer<DIV>#a0.row/foreground RECORD
+                        BlockContainer<DIV>#a0.row/outline SKIP
+                        BlockContainer<DIV>#a0.row/overlay/hit-test RECORD (empty)
+                        BlockContainer<DIV>#a0.row/overlay SKIP
+                      BlockContainer<DIV>#a1.row/descendants(foreground) WALK
+                        BlockContainer<DIV>#a1.row/foreground/hit-test RECORD
+                        BlockContainer<DIV>#a1.row/foreground RECORD
+                        BlockContainer<DIV>#a1.row/outline SKIP
+                        BlockContainer<DIV>#a1.row/overlay/hit-test RECORD (empty)
+                        BlockContainer<DIV>#a1.row/overlay SKIP
+                      BlockContainer<DIV>#a/outline SKIP
+                      BlockContainer<DIV>#a/overlay/hit-test RECORD (empty)
+                      BlockContainer<DIV>#a/overlay SKIP
+                    BlockContainer<DIV>#b WALK
+                      BlockContainer<DIV>#b/background/hit-test RECORD
+                      BlockContainer<DIV>#b/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#b/background SKIP
+                      BlockContainer<DIV>#b/border SKIP
+                      BlockContainer<DIV>#b0.row/descendants(background-and-borders) WALK
+                        BlockContainer<DIV>#b0.row/background/hit-test RECORD
+                        BlockContainer<DIV>#b0.row/scroll-metadata RECORD (empty)
+                        BlockContainer<DIV>#b0.row/background SKIP
+                        BlockContainer<DIV>#b0.row/border SKIP
+                      BlockContainer<DIV>#inserted.row/descendants(background-and-borders) WALK
+                      BlockContainer<DIV>#b0.row/descendants(floats) WALK
+                      BlockContainer<DIV>#inserted.row/descendants(floats) WALK
+                      BlockContainer<DIV>#b0.row/descendants(inline-background-and-borders) WALK
+                      BlockContainer<DIV>#inserted.row/descendants(inline-background-and-borders) WALK
+                      BlockContainer<DIV>#b/foreground/hit-test RECORD (empty)
+                      BlockContainer<DIV>#b/foreground RECORD (empty)
+                      BlockContainer<DIV>#b0.row/descendants(foreground) WALK
+                        BlockContainer<DIV>#b0.row/foreground/hit-test RECORD
+                        BlockContainer<DIV>#b0.row/foreground RECORD
+                        BlockContainer<DIV>#b0.row/outline SKIP
+                        BlockContainer<DIV>#b0.row/overlay/hit-test RECORD (empty)
+                        BlockContainer<DIV>#b0.row/overlay SKIP
+                      BlockContainer<DIV>#inserted.row/descendants(foreground) WALK
+                      BlockContainer<DIV>#b/outline SKIP
+                      BlockContainer<DIV>#b/overlay/hit-test RECORD (empty)
+                      BlockContainer<DIV>#b/overlay SKIP
+                    BlockContainer<DIV>#inserted.row WALK
+                      BlockContainer<DIV>#inserted.row/background/hit-test RECORD
+                      BlockContainer<DIV>#inserted.row/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#inserted.row/background SKIP
+                      BlockContainer<DIV>#inserted.row/border SKIP
+                      BlockContainer<DIV>#inserted.row/foreground/hit-test RECORD
+                      BlockContainer<DIV>#inserted.row/foreground RECORD
+                      BlockContainer<DIV>#inserted.row/outline SKIP
+                      BlockContainer<DIV>#inserted.row/overlay/hit-test RECORD (empty)
+                      BlockContainer<DIV>#inserted.row/overlay SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline SKIP
+            `
+        },
+        {
+            name: "quiet after insertion",
+            expect: `
+                @canvas RECORD (empty)
+                @viewport REUSE WHOLE CAPTURE
+            `
+        }
+    ]
+});
 </script>

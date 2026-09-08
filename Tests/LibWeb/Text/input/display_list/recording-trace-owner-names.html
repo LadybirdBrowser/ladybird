@@ -1,0 +1,129 @@
+<!doctype html>
+<html id="html">
+<script src="../include.js"></script>
+<script src="recording-test.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    #first, #second { position: relative; width: 200px; }
+</style>
+<body id="body">
+<div id="first"></div>
+<div id="second"></div>
+<script>
+displayListTest({
+    setup: () => {
+        removeBodyWhitespace();
+        first.attachShadow({ mode: "open" }).innerHTML =
+            '<style>#item::before { content: "pseudo"; display: block; background: lime; }</style>' +
+            'anonymous before<div id="item">first</div>anonymous after';
+        second.attachShadow({ mode: "open" }).innerHTML = '<div id="item">second</div>';
+    },
+    steps: [
+        {
+            name: "change one shadow owner with a pseudo-element",
+            mutate: () => { first.shadowRoot.getElementById("item").style.color = "red"; },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test REUSE
+                  @viewport/scroll-metadata RECORD (empty)
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
+                  @viewport/foreground/hit-test REUSE
+                  @viewport/foreground REUSE
+                  BlockContainer<HTML>#html/descendants(foreground) WALK
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test REUSE
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background REUSE
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
+                      BlockContainer<BODY>#body/background/hit-test REUSE
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#first/descendants(background-and-borders) WALK
+                      BlockContainer<DIV>#second/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                    BlockContainer<HTML>#html/foreground/hit-test REUSE
+                    BlockContainer<HTML>#html/foreground REUSE
+                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/foreground/hit-test REUSE
+                      BlockContainer<BODY>#body/foreground REUSE
+                      BlockContainer<DIV>#first/descendants(foreground) WALK
+                      BlockContainer<DIV>#second/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test REUSE
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<DIV>#first WALK
+                      BlockContainer<DIV>#first/background/hit-test REUSE
+                      BlockContainer<DIV>#first/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#first/background SKIP
+                      BlockContainer<DIV>#first/border SKIP
+                      BlockContainer(anonymous)/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#item/descendants(background-and-borders) WALK
+                        BlockContainer<DIV>#item/background/hit-test RECORD
+                        BlockContainer<DIV>#item/scroll-metadata RECORD (empty)
+                        BlockContainer<DIV>#item/background SKIP
+                        BlockContainer<DIV>#item/border SKIP
+                        BlockContainer(anonymous)/descendants(background-and-borders) WALK
+                          BlockContainer(anonymous)/background/hit-test RECORD
+                          BlockContainer(anonymous)/scroll-metadata RECORD (empty)
+                          BlockContainer(anonymous)/background RECORD
+                          BlockContainer(anonymous)/border SKIP
+                        BlockContainer(anonymous)/descendants(background-and-borders) WALK
+                          BlockContainer(anonymous)/background/hit-test RECORD (empty)
+                          BlockContainer(anonymous)/scroll-metadata RECORD (empty)
+                          BlockContainer(anonymous)/background SKIP
+                          BlockContainer(anonymous)/border SKIP
+                      BlockContainer(anonymous)/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer(anonymous)/descendants(floats) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#item/descendants(floats) WALK
+                        BlockContainer(anonymous)/descendants(floats) WALK
+                        BlockContainer(anonymous)/descendants(floats) WALK
+                      BlockContainer(anonymous)/descendants(floats) REUSE WHOLE CAPTURE
+                      BlockContainer(anonymous)/descendants(inline-background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#item/descendants(inline-background-and-borders) WALK
+                        BlockContainer(anonymous)/descendants(inline-background-and-borders) WALK
+                        BlockContainer(anonymous)/descendants(inline-background-and-borders) WALK
+                      BlockContainer(anonymous)/descendants(inline-background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#first/foreground/hit-test REUSE
+                      BlockContainer<DIV>#first/foreground REUSE
+                      BlockContainer(anonymous)/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#item/descendants(foreground) WALK
+                        BlockContainer<DIV>#item/foreground/hit-test RECORD (empty)
+                        BlockContainer<DIV>#item/foreground RECORD (empty)
+                        BlockContainer(anonymous)/descendants(foreground) WALK
+                          BlockContainer(anonymous)/foreground/hit-test RECORD
+                          BlockContainer(anonymous)/foreground RECORD
+                          BlockContainer(anonymous)/outline SKIP
+                          BlockContainer(anonymous)/overlay/hit-test RECORD (empty)
+                          BlockContainer(anonymous)/overlay SKIP
+                        BlockContainer(anonymous)/descendants(foreground) WALK
+                          BlockContainer(anonymous)/foreground/hit-test RECORD
+                          BlockContainer(anonymous)/foreground RECORD
+                          BlockContainer(anonymous)/outline SKIP
+                          BlockContainer(anonymous)/overlay/hit-test RECORD (empty)
+                          BlockContainer(anonymous)/overlay SKIP
+                        BlockContainer<DIV>#item/outline SKIP
+                        BlockContainer<DIV>#item/overlay/hit-test RECORD (empty)
+                        BlockContainer<DIV>#item/overlay SKIP
+                      BlockContainer(anonymous)/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#first/outline SKIP
+                      BlockContainer<DIV>#first/overlay/hit-test REUSE
+                      BlockContainer<DIV>#first/overlay SKIP
+                    BlockContainer<DIV>#second REUSE WHOLE CAPTURE
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline SKIP
+            `,
+        },
+        {
+            name: "quiet shadow trees",
+            expect: `
+                @canvas RECORD (empty)
+                @viewport REUSE WHOLE CAPTURE
+            `,
+        },
+    ],
+});
+</script>

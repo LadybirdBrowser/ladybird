@@ -841,6 +841,13 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
 {
     return {
         .context = &context,
+        .debug_description = [](void*, void* shell, void* sink) {
+            auto description = static_cast<Layout::Node const*>(shell)->debug_description();
+            auto bytes = description.bytes();
+            Layout::RustFFI::layout_arena_paint_push_bytes(sink, bytes.data(), bytes.size()); },
+        .recording_trace = [](void* context_pointer, u8 const* bytes, size_t count) {
+            auto& context = *static_cast<PaintHostContext*>(context_pointer);
+            const_cast<DOM::Document&>(*context.document).paint_state().append_recording_trace(MUST(String::from_utf8(ReadonlyBytes { bytes, count }))); },
         .async_scroll_facts = [](void*, void* layout_node_shell) -> Layout::RustFFI::FfiAsyncScrollFacts {
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
             Layout::RustFFI::FfiAsyncScrollFacts facts {};
@@ -1321,13 +1328,8 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     }
 
     auto recorded = Layout::RustFFI::layout_arena_recorded_display_list(arena);
-    if (rust_painting_timing_enabled()) {
-        auto stats = Layout::RustFFI::layout_arena_last_recording_stats(arena);
-        dbgln("PAINT_RECORD rust={} µs commands={} bytes box_phase_visits={} painted_as_stacking_context={}/{} descendant_subtrees={}/{} box_phase_commands={}/{} box_phase_hit_test_items={} hit_test_items_copied={} command_bytes_spliced={}",
-            rust_timer.elapsed_time().to_microseconds(), recorded.byte_count,
-            stats.box_phase_visits, stats.painted_as_stacking_context_capture_hits, stats.painted_as_stacking_context_capture_attempts, stats.descendant_subtree_capture_hits, stats.descendant_subtree_capture_attempts,
-            stats.box_phase_command_capture_hits, stats.box_phase_command_capture_attempts, stats.box_phase_hit_test_item_capture_hits, stats.hit_test_items_copied_from_source, stats.command_bytes_spliced_from_source);
-    }
+    if (rust_painting_timing_enabled())
+        dbgln("PAINT_RECORD rust={} µs commands={} bytes", rust_timer.elapsed_time().to_microseconds(), recorded.byte_count);
 
     auto display_list = display_list_from_rust_recording(document.visual_context_tree(), recorded);
     if (auto color = placeholder_display_list.surface_clear_color(); color.has_value())

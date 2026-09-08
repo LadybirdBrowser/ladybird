@@ -1,31 +1,128 @@
 <!doctype html>
+<html id="html">
 <script src="../include.js"></script>
+<script src="recording-test.js"></script>
 <style>
     body { margin: 0; }
     #a, #b { position: absolute; left: 0; top: 0; width: 100px; height: 100px; }
     #a { background: red; z-index: 0; }
     #b { background: blue; z-index: 1; }
 </style>
+<body id="body">
 <div id="a"></div>
 <div id="b"></div>
 <script>
-    test(() => {
-        internals.asyncScrollingState();
-        internals.asyncScrollingState();
-        const onTopBefore = document.elementFromPoint(50, 50).id;
-
-        b.style.zIndex = "-1";
-        internals.asyncScrollingState();
-        const spliced = internals.paintCacheSplicedCaptureCount();
-        const onTopAfter = document.elementFromPoint(50, 50).id;
-
-        b.style.zIndex = "1";
-        internals.asyncScrollingState();
-        const onTopAgain = document.elementFromPoint(50, 50).id;
-
-        println(`on top before: ${onTopBefore}`);
-        println(`on top after flipping to a negative z-index: ${onTopAfter}`);
-        println(`on top after flipping back: ${onTopAgain}`);
-        println(`A splices while the order changes: ${spliced > 0}`);
-    });
+displayListTest({
+    setup: removeBodyWhitespace,
+    steps: [
+        {
+            name: "quiet before reordering",
+            check: equal => { equal(document.elementFromPoint(50, 50).id, "b", "hit target"); },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport REUSE WHOLE CAPTURE
+            `
+        },
+        {
+            name: "move B behind A",
+            mutate: () => { b.style.zIndex = "-1"; },
+            check: equal => { equal(document.elementFromPoint(50, 50).id, "a", "hit target"); },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test REUSE
+                  @viewport/scroll-metadata RECORD (empty)
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
+                  @viewport/foreground/hit-test REUSE
+                  @viewport/foreground REUSE
+                  BlockContainer<HTML>#html/descendants(foreground) WALK
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test REUSE
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background REUSE
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<DIV>#b WALK
+                      BlockContainer<DIV>#b/background/hit-test RECORD
+                      BlockContainer<DIV>#b/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#b/background RECORD
+                      BlockContainer<DIV>#b/border SKIP
+                      BlockContainer<DIV>#b/foreground/hit-test RECORD (empty)
+                      BlockContainer<DIV>#b/foreground RECORD (empty)
+                      BlockContainer<DIV>#b/outline SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
+                      BlockContainer<BODY>#body/background/hit-test REUSE
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#a/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b/descendants(background-and-borders) WALK
+                    BlockContainer<HTML>#html/foreground/hit-test REUSE
+                    BlockContainer<HTML>#html/foreground REUSE
+                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/foreground/hit-test REUSE
+                      BlockContainer<BODY>#body/foreground REUSE
+                      BlockContainer<DIV>#a/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test REUSE
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<DIV>#a REUSE WHOLE CAPTURE
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline SKIP
+            `
+        },
+        {
+            name: "move B in front of A",
+            mutate: () => { b.style.zIndex = "1"; },
+            check: equal => { equal(document.elementFromPoint(50, 50).id, "b", "hit target"); },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test REUSE
+                  @viewport/scroll-metadata RECORD (empty)
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
+                  @viewport/foreground/hit-test REUSE
+                  @viewport/foreground REUSE
+                  BlockContainer<HTML>#html/descendants(foreground) WALK
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test REUSE
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background REUSE
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
+                      BlockContainer<BODY>#body/background/hit-test REUSE
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#a/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b/descendants(background-and-borders) WALK
+                    BlockContainer<HTML>#html/foreground/hit-test REUSE
+                    BlockContainer<HTML>#html/foreground REUSE
+                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/foreground/hit-test REUSE
+                      BlockContainer<BODY>#body/foreground REUSE
+                      BlockContainer<DIV>#a/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test REUSE
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<DIV>#a REUSE WHOLE CAPTURE
+                    BlockContainer<DIV>#b WALK
+                      BlockContainer<DIV>#b/background/hit-test RECORD
+                      BlockContainer<DIV>#b/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#b/background RECORD
+                      BlockContainer<DIV>#b/border SKIP
+                      BlockContainer<DIV>#b/foreground/hit-test RECORD (empty)
+                      BlockContainer<DIV>#b/foreground RECORD (empty)
+                      BlockContainer<DIV>#b/outline SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline SKIP
+            `
+        }
+    ]
+});
 </script>

@@ -137,8 +137,11 @@ public:
     WebIDL::UnsignedLongLong table_cell_measurement_cache_miss_count();
     WebIDL::UnsignedLongLong intrinsic_measurement_count();
     WebIDL::UnsignedLongLong accumulated_visual_context_tree_build_count();
-    WebIDL::UnsignedLongLong paint_cache_spliced_capture_count();
-    WebIDL::UnsignedLongLong paint_cache_capture_site_visit_count();
+    void begin_display_list_trace();
+    Utf16String take_display_list_trace();
+    GC::Ref<JS::Object> recorded_async_scrolling_state_object();
+    bool recorded_display_list_blocks_wheel_event_at(double x, double y);
+    void record_display_list_for_testing(bool paint_overlay, bool cold);
     void set_autoplay_policy(Utf16String const& policy);
 
     Utf16String get_computed_role(DOM::Element& element);

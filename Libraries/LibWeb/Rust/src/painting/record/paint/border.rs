@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::Observer;
+
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_enums::line_style;
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
@@ -1306,8 +1308,8 @@ pub(crate) fn edge_geometries(
     ]
 }
 
-pub(crate) fn paint_box_borders_from_style(
-    recorder: &mut PaintRecorder<'_>,
+pub(crate) fn paint_box_borders_from_style<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
     facts: &BasePaintFacts,
 ) {
@@ -1332,8 +1334,8 @@ pub(crate) fn paint_box_borders_from_style(
     );
 }
 
-pub(crate) fn paint_box_borders(
-    recorder: &mut PaintRecorder<'_>,
+pub(crate) fn paint_box_borders<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
     facts: &BasePaintFacts,
     border_box_rect: CssPixelRect,

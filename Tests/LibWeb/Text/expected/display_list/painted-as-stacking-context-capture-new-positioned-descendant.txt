@@ -1,4 +1,3 @@
-quiet recording visits only the viewport root: true
-inserting a positioned box walks B: true
-the new box is hit-testable: inserted
-the next quiet recording hits the viewport root again: true
+PASS: quiet before insertion (work)
+PASS: insert positioned child into B (work + checks)
+PASS: quiet after insertion (work)

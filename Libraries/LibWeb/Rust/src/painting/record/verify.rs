@@ -26,7 +26,9 @@ pub(crate) struct LoggedCapture {
 }
 
 #[derive(Default, Debug)]
-pub(crate) struct CaptureLog {
+pub struct CaptureLog {
+    pub(crate) events: Vec<super::trace::Event>,
+    pub(crate) open_events: Vec<usize>,
     pub(crate) command_byte_captures: Vec<LoggedCapture>,
     pub(crate) hit_test_item_captures: Vec<LoggedCapture>,
 }

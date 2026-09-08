@@ -1,0 +1,239 @@
+<!doctype html>
+<html id="html">
+<script src="../include.js"></script>
+<script src="recording-test.js"></script>
+<style>
+    body { margin: 0; font: 16px/20px monospace; }
+    .context { position: absolute; top: 0; width: 200px; height: 120px; border: 2px solid black; background: #eee; }
+    #a { left: 0; z-index: 0; }
+    #b { left: 240px; z-index: 1; }
+    .label { height: 24px; background: #ddd; border-bottom: 1px solid black; }
+    .underlay { position: absolute; left: 8px; top: 32px; width: 160px; height: 56px; z-index: -1; background: lightblue; }
+    .detail { position: absolute; left: 32px; top: 48px; width: 112px; height: 24px; z-index: 1; background: yellow; transform: translate(4px, 2px); opacity: 0.75; }
+</style>
+<body id="body">
+<!-- Each sibling is a real stacking context with text, borders, and negative/positive nested contexts. -->
+<div class="context" id="a"><div class="label" id="a-label">A label</div><div class="underlay" id="a-underlay">A underlay</div><div class="detail" id="a-detail">A detail</div></div>
+<div class="context" id="b"><div class="label" id="b-label">B label</div><div class="underlay" id="b-underlay">B underlay</div><div class="detail" id="b-detail">B detail</div></div>
+<script>
+function checkHitTargets(equal) {
+    equal(document.elementFromPoint(20, 80).id, "a-underlay", "A negative context hit target");
+    equal(document.elementFromPoint(60, 60).id, "a-detail", "A transformed positive context hit target");
+    equal(document.elementFromPoint(260, 80).id, "b-underlay", "B negative context hit target");
+    equal(document.elementFromPoint(300, 60).id, "b-detail", "B transformed positive context hit target");
+}
+
+displayListTest({
+    setup: removeBodyWhitespace,
+    steps: [
+        {
+            name: "change B positive context and splice all of A",
+            mutate: () => { document.getElementById("b-detail").style.color = "red"; },
+            check: checkHitTargets,
+            // A must be a single reuse leaf, covering both nested contexts and their content.
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test REUSE
+                  @viewport/scroll-metadata RECORD (empty)
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
+                  @viewport/foreground/hit-test REUSE
+                  @viewport/foreground REUSE
+                  BlockContainer<HTML>#html/descendants(foreground) WALK
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test REUSE
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background REUSE
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
+                      BlockContainer<BODY>#body/background/hit-test REUSE
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#a.context/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b.context/descendants(background-and-borders) WALK
+                    BlockContainer<HTML>#html/foreground/hit-test REUSE
+                    BlockContainer<HTML>#html/foreground REUSE
+                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/foreground/hit-test REUSE
+                      BlockContainer<BODY>#body/foreground REUSE
+                      BlockContainer<DIV>#a.context/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b.context/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test REUSE
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<DIV>#a.context REUSE WHOLE CAPTURE
+                    BlockContainer<DIV>#b.context WALK
+                      BlockContainer<DIV>#b.context/background/hit-test REUSE
+                      BlockContainer<DIV>#b.context/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#b.context/background REUSE
+                      BlockContainer<DIV>#b.context/border REUSE
+                      BlockContainer<DIV>#b-underlay.underlay REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b-label.label/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b-underlay.underlay/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b-detail.detail/descendants(background-and-borders) WALK
+                      BlockContainer<DIV>#b.context/foreground/hit-test REUSE
+                      BlockContainer<DIV>#b.context/foreground REUSE
+                      BlockContainer<DIV>#b-label.label/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b-underlay.underlay/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b-detail.detail/descendants(foreground) WALK
+                      BlockContainer<DIV>#b-detail.detail WALK
+                        BlockContainer<DIV>#b-detail.detail/background/hit-test RECORD
+                        BlockContainer<DIV>#b-detail.detail/scroll-metadata RECORD (empty)
+                        BlockContainer<DIV>#b-detail.detail/background RECORD
+                        BlockContainer<DIV>#b-detail.detail/border SKIP
+                        BlockContainer<DIV>#b-detail.detail/foreground/hit-test RECORD
+                        BlockContainer<DIV>#b-detail.detail/foreground RECORD
+                        BlockContainer<DIV>#b-detail.detail/outline SKIP
+                      BlockContainer<DIV>#b.context/outline SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline SKIP
+            `
+        },
+        {
+            name: "quiet recording covers both contexts",
+            check: checkHitTargets,
+            expect: `
+                @canvas RECORD (empty)
+                @viewport REUSE WHOLE CAPTURE
+            `
+        },
+        {
+            name: "change A background and splice all of B after a quiet recording",
+            mutate: () => { document.getElementById("a-label").style.background = "linear-gradient(red, blue)"; },
+            check: checkHitTargets,
+            // Changing the command size before B also tests relocation of B's complete capture.
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test REUSE
+                  @viewport/scroll-metadata RECORD (empty)
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
+                  @viewport/foreground/hit-test REUSE
+                  @viewport/foreground REUSE
+                  BlockContainer<HTML>#html/descendants(foreground) WALK
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test REUSE
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background REUSE
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
+                      BlockContainer<BODY>#body/background/hit-test REUSE
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#a.context/descendants(background-and-borders) WALK
+                      BlockContainer<DIV>#b.context/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                    BlockContainer<HTML>#html/foreground/hit-test REUSE
+                    BlockContainer<HTML>#html/foreground REUSE
+                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/foreground/hit-test REUSE
+                      BlockContainer<BODY>#body/foreground REUSE
+                      BlockContainer<DIV>#a.context/descendants(foreground) WALK
+                      BlockContainer<DIV>#b.context/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test REUSE
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<DIV>#a.context WALK
+                      BlockContainer<DIV>#a.context/background/hit-test REUSE
+                      BlockContainer<DIV>#a.context/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#a.context/background REUSE
+                      BlockContainer<DIV>#a.context/border REUSE
+                      BlockContainer<DIV>#a-underlay.underlay REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#a-label.label/descendants(background-and-borders) WALK
+                        BlockContainer<DIV>#a-label.label/background/hit-test RECORD
+                        BlockContainer<DIV>#a-label.label/scroll-metadata RECORD (empty)
+                        BlockContainer<DIV>#a-label.label/background RECORD
+                        BlockContainer<DIV>#a-label.label/border RECORD
+                      BlockContainer<DIV>#a-underlay.underlay/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#a-detail.detail/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#a.context/foreground/hit-test REUSE
+                      BlockContainer<DIV>#a.context/foreground REUSE
+                      BlockContainer<DIV>#a-label.label/descendants(foreground) WALK
+                        BlockContainer<DIV>#a-label.label/foreground/hit-test RECORD
+                        BlockContainer<DIV>#a-label.label/foreground RECORD
+                        BlockContainer<DIV>#a-label.label/outline SKIP
+                        BlockContainer<DIV>#a-label.label/overlay/hit-test RECORD (empty)
+                        BlockContainer<DIV>#a-label.label/overlay SKIP
+                      BlockContainer<DIV>#a-underlay.underlay/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#a-detail.detail/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#a-detail.detail REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#a.context/outline SKIP
+                    BlockContainer<DIV>#b.context REUSE WHOLE CAPTURE
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline SKIP
+            `
+        },
+        {
+            name: "change B negative context after its parent was spliced",
+            mutate: () => { document.getElementById("b-underlay").style.color = "blue"; },
+            check: checkHitTargets,
+            // Descend into the previously spliced B, reusing its positive context from the first step.
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test REUSE
+                  @viewport/scroll-metadata RECORD (empty)
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
+                  @viewport/foreground/hit-test REUSE
+                  @viewport/foreground REUSE
+                  BlockContainer<HTML>#html/descendants(foreground) WALK
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test REUSE
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background REUSE
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
+                      BlockContainer<BODY>#body/background/hit-test REUSE
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#a.context/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b.context/descendants(background-and-borders) WALK
+                    BlockContainer<HTML>#html/foreground/hit-test REUSE
+                    BlockContainer<HTML>#html/foreground REUSE
+                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/foreground/hit-test REUSE
+                      BlockContainer<BODY>#body/foreground REUSE
+                      BlockContainer<DIV>#a.context/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b.context/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test REUSE
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<DIV>#a.context REUSE WHOLE CAPTURE
+                    BlockContainer<DIV>#b.context WALK
+                      BlockContainer<DIV>#b.context/background/hit-test REUSE
+                      BlockContainer<DIV>#b.context/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#b.context/background REUSE
+                      BlockContainer<DIV>#b.context/border REUSE
+                      BlockContainer<DIV>#b-underlay.underlay WALK
+                        BlockContainer<DIV>#b-underlay.underlay/background/hit-test RECORD
+                        BlockContainer<DIV>#b-underlay.underlay/scroll-metadata RECORD (empty)
+                        BlockContainer<DIV>#b-underlay.underlay/background RECORD
+                        BlockContainer<DIV>#b-underlay.underlay/border SKIP
+                        BlockContainer<DIV>#b-underlay.underlay/foreground/hit-test RECORD
+                        BlockContainer<DIV>#b-underlay.underlay/foreground RECORD
+                        BlockContainer<DIV>#b-underlay.underlay/outline SKIP
+                      BlockContainer<DIV>#b-label.label/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b-underlay.underlay/descendants(background-and-borders) WALK
+                      BlockContainer<DIV>#b-detail.detail/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b.context/foreground/hit-test REUSE
+                      BlockContainer<DIV>#b.context/foreground REUSE
+                      BlockContainer<DIV>#b-label.label/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b-underlay.underlay/descendants(foreground) WALK
+                      BlockContainer<DIV>#b-detail.detail/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b-detail.detail REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b.context/outline SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline SKIP
+            `
+        }
+    ]
+});
+</script>

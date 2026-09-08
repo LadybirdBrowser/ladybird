@@ -45,8 +45,8 @@ public:
     u64 accumulated_visual_context_tree_incremental_update_count() const { return m_accumulated_visual_context_tree_incremental_update_count; }
     bool has_painted_navigable_container_foreground() const { return m_has_painted_navigable_container_foreground; }
     void set_has_painted_navigable_container_foreground() { m_has_painted_navigable_container_foreground = true; }
-    u64 last_recording_spliced_capture_count() const;
-    u64 last_recording_capture_site_visit_count() const;
+    void append_recording_trace(String trace) { m_recording_traces.append(move(trace)); }
+    Vector<String> take_recording_traces() { return exchange(m_recording_traces, {}); }
 
     void recompute_selection_states(DOM::Document&, DOM::Range&);
     void reset_selection_states(DOM::Document&);
@@ -61,6 +61,8 @@ public:
     Vector<Layout::RustFFI::NodeSlotId> const& boxes_with_auto_content_visibility() const { return m_boxes_with_auto_content_visibility; }
 
     AccumulatedVisualContextTree visual_context_tree(DOM::Document const&) const;
+    // Passive access for consumers of an already settled recording.
+    AccumulatedVisualContextTree visual_context_tree_without_update(DOM::Document const&) const;
     u64 visual_context_tree_structural_epoch(DOM::Document const&) const;
 
     void set_display_list_used_as_paint_command_cache_source(RefPtr<DisplayList> display_list, DisplayListResourceSet referenced_resources)
@@ -74,8 +76,8 @@ public:
     void append_paint_command_cache_source_resources(DisplayListResourceSet&) const;
 
 private:
+    Vector<String> m_recording_traces;
     void ensure_visual_context_tree(DOM::Document const&) const;
-    AccumulatedVisualContextTree visual_context_tree_without_update(DOM::Document const&) const;
     void clear_scroll_state(DOM::Document&);
 
     NonnullRefPtr<Layout::NodeArena> m_layout_node_arena;

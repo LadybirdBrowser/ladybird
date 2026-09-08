@@ -894,20 +894,43 @@ WebIDL::UnsignedLongLong Internals::accumulated_visual_context_tree_build_count(
     return document.paint_state().accumulated_visual_context_tree_build_count();
 }
 
-WebIDL::UnsignedLongLong Internals::paint_cache_spliced_capture_count()
+void Internals::begin_display_list_trace()
 {
     auto& document = window().associated_document();
-    if (!document.has_committed_viewport_box())
-        return 0;
-    return document.paint_state().last_recording_spliced_capture_count();
+    (void)document.paint_state().take_recording_traces();
+    Layout::RustFFI::layout_arena_set_recording_trace_enabled(document.layout_node_arena().handle(), true);
 }
 
-WebIDL::UnsignedLongLong Internals::paint_cache_capture_site_visit_count()
+Utf16String Internals::take_display_list_trace()
 {
     auto& document = window().associated_document();
-    if (!document.has_committed_viewport_box())
-        return 0;
-    return document.paint_state().last_recording_capture_site_visit_count();
+    Layout::RustFFI::layout_arena_set_recording_trace_enabled(document.layout_node_arena().handle(), false);
+    StringBuilder builder;
+    for (auto const& trace : document.paint_state().take_recording_traces())
+        builder.append(trace);
+    return Utf16String::from_utf8_without_validation(builder.string_view());
+}
+
+bool Internals::recorded_display_list_blocks_wheel_event_at(double x, double y)
+{
+    auto& document = window().associated_document();
+    auto* display_list = document.paint_state().display_list_used_as_paint_command_cache_source();
+    if (!display_list)
+        return false;
+    auto tree = document.paint_state().visual_context_tree_without_update(document);
+    auto state = Compositor::async_scrolling_state_from_display_list(*display_list);
+    return Compositor::blocks_wheel_event_at_position(state, display_list, &tree, document.scroll_state_snapshot(), { static_cast<float>(x), static_cast<float>(y) });
+}
+
+void Internals::record_display_list_for_testing(bool paint_overlay, bool cold)
+{
+    auto& document = window().associated_document();
+    document.update_layout(DOM::UpdateLayoutReason::InternalsHitTest);
+    if (!document.navigable() || !document.has_committed_viewport_box())
+        return;
+    if (cold)
+        document.paint_state().invalidate_all_cached_paint(document);
+    (void)document.record_display_list(HTML::PaintConfig { .paint_overlay = paint_overlay }, document.navigable()->display_list_resource_storage(), Painting::PaintCommandCacheMode::ReadWrite);
 }
 
 void Internals::set_autoplay_policy(Utf16String const& policy)
@@ -2097,10 +2120,9 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
     return object;
 }
 
-GC::Ref<JS::Object> Internals::async_scrolling_state_object()
+static GC::Ref<JS::Object> async_scrolling_state_to_object(HTML::Window& window, Compositor::AsyncScrollingState const& state)
 {
-    auto& realm = HTML::relevant_realm(window());
-    auto state = async_scrolling_state();
+    auto& realm = HTML::relevant_realm(window);
     auto object = JS::Object::create(realm, nullptr);
 
     auto scroll_nodes = MUST(JS::Array::create(realm, state.scroll_nodes.size()));
@@ -2124,6 +2146,18 @@ GC::Ref<JS::Object> Internals::async_scrolling_state_object()
     object->define_direct_property("blockingWheelEventRegionsAreCurrent"_utf16_fly_string, JS::Value(state.has_blocking_wheel_event_listeners), JS::default_attributes);
     object->define_direct_property("hasBlockingWheelEventRegionCoveringViewport"_utf16_fly_string, JS::Value(state.has_blocking_wheel_event_region_covering_viewport), JS::default_attributes);
     return object;
+}
+
+GC::Ref<JS::Object> Internals::async_scrolling_state_object()
+{
+    return async_scrolling_state_to_object(window(), async_scrolling_state());
+}
+
+GC::Ref<JS::Object> Internals::recorded_async_scrolling_state_object()
+{
+    auto* display_list = window().associated_document().paint_state().display_list_used_as_paint_command_cache_source();
+    auto state = display_list ? Compositor::async_scrolling_state_from_display_list(*display_list) : Compositor::AsyncScrollingState {};
+    return async_scrolling_state_to_object(window(), state);
 }
 
 }

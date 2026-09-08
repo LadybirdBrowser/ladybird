@@ -4,12 +4,15 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::Observer;
+
 pub mod async_scroll_metadata;
 pub mod cache;
 pub mod hit_test_items;
 pub mod masks;
 pub mod paint;
 pub(crate) mod scratch;
+pub mod trace;
 pub mod traversal;
 pub(crate) mod verify;
 
@@ -24,8 +27,7 @@ use crate::painting::display_list::recorder::DisplayListRecorder;
 use crate::painting::hit_test::HitTestList;
 use crate::painting::host::{
     FfiHitTestHostCallbacks, FfiHitTestTextNodeFacts, FfiMaskDisplayListRegistration, FfiPaintHostCallbacks,
-    FfiPaintRecordingStats, FfiRecordingInputs, FfiRootBackgroundSource, FfiVisualContextHostCallbacks,
-    FfiVisualContextTreeInputs,
+    FfiRecordingInputs, FfiRootBackgroundSource, FfiVisualContextHostCallbacks, FfiVisualContextTreeInputs,
 };
 use crate::painting::paintable_data::{InlineBoxPieceRecord, PaintableData};
 use crate::painting::paintable_rows::PaintableRowsRef;
@@ -84,7 +86,6 @@ pub struct RecordingOutput {
     pub has_blocking_wheel_event_listeners: bool,
     pub wheel_event_listener_state_generation: u64,
     pub mask_display_lists: Vec<FfiMaskDisplayListRegistration>,
-    pub recording_stats: FfiPaintRecordingStats,
     pub is_identical_to_cache_source: bool,
     pub(crate) capture_log_for_verification: Option<verify::CaptureLog>,
 }
@@ -117,7 +118,7 @@ pub(crate) struct DeferredWholeTapeSplice {
     pub(crate) source_range: CommandRange,
 }
 
-pub struct PaintRecorder<'a> {
+pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) layout_arena: &'a PaintableRowsRef<'a>,
     pub(crate) paint_state: &'a crate::painting::paint_state::PaintState,
     pub(crate) host: &'a FfiHitTestHostCallbacks,
@@ -138,9 +139,8 @@ pub struct PaintRecorder<'a> {
     open_capture_stack: Vec<OpenCapture>,
     deferred_whole_tape_splice: Option<DeferredWholeTapeSplice>,
     pub(crate) blocking_wheel_event_region_count: u32,
-    pub(crate) recording_stats: FfiPaintRecordingStats,
     uncacheable_paint_generation: u64,
-    pub(crate) capture_log_for_verification: Option<verify::CaptureLog>,
+    pub(crate) observer: O,
     list: HitTestList,
     pub(crate) memo_tables: &'a RefCell<scratch::PerRecordingMemoTables>,
     pub(crate) completed_record_gen: RecordGen,
@@ -162,7 +162,7 @@ pub(crate) struct BasePaintFacts {
     pub paint_phase_mask: u8,
 }
 
-impl<'a> PaintRecorder<'a> {
+impl<'a, O: Observer> PaintRecorder<'a, O> {
     pub(crate) fn mark_open_captures_unsplicable(&mut self) {
         self.uncacheable_paint_generation = self
             .uncacheable_paint_generation
@@ -236,7 +236,7 @@ impl<'a> PaintRecorder<'a> {
         nested: Option<NestedRecordingState>,
         nested_tree: Option<crate::painting::visual_context::VisualContextTree>,
         draw_svg_geometry_for_clip_path: bool,
-    ) -> PaintRecorder<'a> {
+    ) -> PaintRecorder<'a, O> {
         PaintRecorder {
             layout_arena: self.layout_arena,
             paint_state: self.paint_state,
@@ -258,9 +258,8 @@ impl<'a> PaintRecorder<'a> {
             open_capture_stack: Vec::new(),
             deferred_whole_tape_splice: None,
             blocking_wheel_event_region_count: 0,
-            recording_stats: FfiPaintRecordingStats::default(),
             uncacheable_paint_generation: 0,
-            capture_log_for_verification: None,
+            observer: self.observer.clone(),
             list: HitTestList::default(),
             memo_tables: self.memo_tables,
             completed_record_gen: self.completed_record_gen,

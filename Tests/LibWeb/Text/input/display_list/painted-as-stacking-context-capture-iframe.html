@@ -1,29 +1,101 @@
 <!doctype html>
+<html id="html">
 <script src="../include.js"></script>
+<script src="recording-test.js"></script>
 <style>
     body { margin: 0; font: 16px/20px monospace; }
     #root { position: relative; width: 200px; }
     iframe { display: block; width: 100px; height: 60px; border: 0; }
     #after { height: 20px; }
 </style>
+<body id="body">
 <div id="root"><iframe id="frame" srcdoc="<div style='height:60px;background:lime'></div>"></iframe><div id="after">after</div></div>
 <script>
-    test(() => {
-        internals.asyncScrollingState();
-        internals.asyncScrollingState();
-        const visitedQuiet = internals.paintCacheCaptureSiteVisitCount();
-
-        after.style.color = "red";
-        internals.asyncScrollingState();
-        const visitedAfterChange = internals.paintCacheCaptureSiteVisitCount();
-        const hit = document.elementFromPoint(50, 30).id;
-
-        internals.asyncScrollingState();
-        const visitedQuietAgain = internals.paintCacheCaptureSiteVisitCount();
-
-        println(`quiet recording visits only the viewport root: ${visitedQuiet === 1}`);
-        println(`a change next to the iframe walks the root: ${visitedAfterChange > 1}`);
-        println(`the iframe is hit-testable: ${hit}`);
-        println(`the next quiet recording hits the viewport root again: ${visitedQuietAgain === 1}`);
-    });
+displayListTest({
+    setup: removeBodyWhitespace,
+    steps: [
+        {
+            name: "quiet iframe",
+            expect: `
+                @canvas RECORD (empty)
+                @viewport REUSE WHOLE CAPTURE
+            `
+        },
+        {
+            name: "change next to iframe",
+            mutate: () => { after.style.color = "red"; },
+            check: equal => { equal(document.elementFromPoint(50, 30).id, "frame", "hit target"); },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test REUSE
+                  @viewport/scroll-metadata RECORD (empty)
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
+                  @viewport/foreground/hit-test REUSE
+                  @viewport/foreground REUSE
+                  BlockContainer<HTML>#html/descendants(foreground) WALK
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test REUSE
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background REUSE
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
+                      BlockContainer<BODY>#body/background/hit-test REUSE
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#root/descendants(background-and-borders) WALK
+                    BlockContainer<BODY>#body/descendants(inline-background-and-borders) WALK
+                      BlockContainer<DIV>#root/descendants(inline-background-and-borders) WALK
+                    BlockContainer<HTML>#html/foreground/hit-test REUSE
+                    BlockContainer<HTML>#html/foreground REUSE
+                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/foreground/hit-test REUSE
+                      BlockContainer<BODY>#body/foreground REUSE
+                      BlockContainer<DIV>#root/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test REUSE
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<DIV>#root WALK
+                      BlockContainer<DIV>#root/background/hit-test REUSE
+                      BlockContainer<DIV>#root/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#root/background SKIP
+                      BlockContainer<DIV>#root/border SKIP
+                      NavigableContainerViewport<IFRAME>#frame/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#after/descendants(background-and-borders) WALK
+                        BlockContainer<DIV>#after/background/hit-test RECORD
+                        BlockContainer<DIV>#after/scroll-metadata RECORD (empty)
+                        BlockContainer<DIV>#after/background SKIP
+                        BlockContainer<DIV>#after/border SKIP
+                      NavigableContainerViewport<IFRAME>#frame/descendants(floats) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#after/descendants(floats) WALK
+                      NavigableContainerViewport<IFRAME>#frame/descendants(inline-background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#after/descendants(inline-background-and-borders) WALK
+                      BlockContainer<DIV>#root/foreground/hit-test REUSE
+                      BlockContainer<DIV>#root/foreground REUSE
+                      NavigableContainerViewport<IFRAME>#frame/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#after/descendants(foreground) WALK
+                        BlockContainer<DIV>#after/foreground/hit-test RECORD
+                        BlockContainer<DIV>#after/foreground RECORD
+                        BlockContainer<DIV>#after/outline SKIP
+                        BlockContainer<DIV>#after/overlay/hit-test RECORD (empty)
+                        BlockContainer<DIV>#after/overlay SKIP
+                      BlockContainer<DIV>#root/outline SKIP
+                      BlockContainer<DIV>#root/overlay/hit-test REUSE
+                      BlockContainer<DIV>#root/overlay SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline SKIP
+            `
+        },
+        {
+            name: "quiet after adjacent change",
+            expect: `
+                @canvas RECORD (empty)
+                @viewport REUSE WHOLE CAPTURE
+            `
+        }
+    ]
+});
 </script>

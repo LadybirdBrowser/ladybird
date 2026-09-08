@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::Observer;
+
 use crate::css::css_enums::line_style;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::NodeSlotId;
@@ -128,8 +130,8 @@ fn joint_end_coordinate(line: CssPixels, joint: JointOutcome) -> CssPixels {
 /// The device pixels covered by the CSS pixel rectangle with the given edges. Each edge is snapped to the nearest
 /// device pixel on its own, like the edges of the boxes around the border, so that the painted border meets the cell
 /// backgrounds and the borders it joins without gaps or overlaps even on a fractional grid line. None if empty.
-fn device_rect(
-    recorder: &PaintRecorder<'_>,
+fn device_rect<O: Observer>(
+    recorder: &PaintRecorder<'_, O>,
     left: CssPixels,
     top: CssPixels,
     right: CssPixels,
@@ -143,7 +145,7 @@ fn device_rect(
     (width > 0 && height > 0).then_some(IntRect { x, y, width, height })
 }
 
-fn paint_edge(recorder: &mut PaintRecorder<'_>, rect: IntRect, edge: Edge, direction: EdgeDirection) {
+fn paint_edge<O: Observer>(recorder: &mut PaintRecorder<'_, O>, rect: IntRect, edge: Edge, direction: EdgeDirection) {
     let line_style = match edge.line_style {
         line_style::DOTTED => Some(LineStyle::Dotted),
         line_style::DASHED => Some(LineStyle::Dashed),
@@ -182,7 +184,7 @@ fn paint_edge(recorder: &mut PaintRecorder<'_>, rect: IntRect, edge: Edge, direc
     recorder.recorder.fill_rect(rect, edge.color, ForceDarkRole::Border);
 }
 
-pub(crate) fn paint_table_borders(recorder: &mut PaintRecorder<'_>, table_paintable: NodeSlotId) {
+pub(crate) fn paint_table_borders<O: Observer>(recorder: &mut PaintRecorder<'_, O>, table_paintable: NodeSlotId) {
     // Painting according to the collapsing border model:
     // https://www.w3.org/TR/CSS22/tables.html#collapsing-borders
     let Some(borders) =

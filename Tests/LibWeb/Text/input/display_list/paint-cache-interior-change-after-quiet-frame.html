@@ -1,34 +1,154 @@
 <!doctype html>
+<html id="html">
 <script src="../include.js"></script>
+<script src="recording-test.js"></script>
 <style>
     body { margin: 0; font: 16px/20px monospace; }
     #container { display: flow-root; padding: 4px; }
     .card { display: flow-root; margin: 0 0 4px; padding: 4px; border: 1px solid #ccc; }
 </style>
+<body id="body">
 <div id="container"></div>
 <script>
-    test(() => {
-        const container = document.getElementById("container");
-        for (let i = 0; i < 8; ++i) {
+displayListTest({
+    setup: () => {
+        removeBodyWhitespace();
+        for (let i = 0; i < 2; ++i) {
             const card = document.createElement("div");
+            card.id = `card${i}`;
             card.className = "card";
-            card.textContent = "Card " + i;
+            card.textContent = `Card ${i}`;
             container.appendChild(card);
         }
-        internals.asyncScrollingState();
-
-        container.children[0].style.color = "red";
-        internals.asyncScrollingState();
-        const splicedAfterFirstChange = internals.paintCacheSplicedCaptureCount();
-
-        internals.asyncScrollingState();
-        const splicedWhenQuiet = internals.paintCacheSplicedCaptureCount();
-
-        container.children[0].style.color = "blue";
-        internals.asyncScrollingState();
-        const splicedAfterSecondChange = internals.paintCacheSplicedCaptureCount();
-
-        println(`quiet recording splices fewer captures than a change: ${splicedWhenQuiet < splicedAfterFirstChange}`);
-        println(`siblings splice after a quiet frame: ${splicedAfterSecondChange === splicedAfterFirstChange}`);
-    });
+    },
+    steps: [
+        {
+            name: "first interior change",
+            mutate: () => { card0.style.color = "red"; },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test REUSE
+                  @viewport/scroll-metadata RECORD (empty)
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
+                  @viewport/foreground/hit-test REUSE
+                  @viewport/foreground REUSE
+                  BlockContainer<HTML>#html/descendants(foreground) WALK
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test REUSE
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background REUSE
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
+                      BlockContainer<BODY>#body/background/hit-test REUSE
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#container/descendants(background-and-borders) WALK
+                        BlockContainer<DIV>#container/background/hit-test REUSE
+                        BlockContainer<DIV>#container/scroll-metadata RECORD (empty)
+                        BlockContainer<DIV>#container/background SKIP
+                        BlockContainer<DIV>#container/border SKIP
+                        BlockContainer<DIV>#card0.card/descendants(background-and-borders) WALK
+                          BlockContainer<DIV>#card0.card/background/hit-test RECORD
+                          BlockContainer<DIV>#card0.card/scroll-metadata RECORD (empty)
+                          BlockContainer<DIV>#card0.card/background SKIP
+                          BlockContainer<DIV>#card0.card/border RECORD
+                        BlockContainer<DIV>#card1.card/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                    BlockContainer<HTML>#html/foreground/hit-test REUSE
+                    BlockContainer<HTML>#html/foreground REUSE
+                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/foreground/hit-test REUSE
+                      BlockContainer<BODY>#body/foreground REUSE
+                      BlockContainer<DIV>#container/descendants(foreground) WALK
+                        BlockContainer<DIV>#container/foreground/hit-test REUSE
+                        BlockContainer<DIV>#container/foreground REUSE
+                        BlockContainer<DIV>#card0.card/descendants(foreground) WALK
+                          BlockContainer<DIV>#card0.card/foreground/hit-test RECORD
+                          BlockContainer<DIV>#card0.card/foreground RECORD
+                          BlockContainer<DIV>#card0.card/outline SKIP
+                          BlockContainer<DIV>#card0.card/overlay/hit-test RECORD (empty)
+                          BlockContainer<DIV>#card0.card/overlay SKIP
+                        BlockContainer<DIV>#card1.card/descendants(foreground) REUSE WHOLE CAPTURE
+                        BlockContainer<DIV>#container/outline SKIP
+                        BlockContainer<DIV>#container/overlay/hit-test REUSE
+                        BlockContainer<DIV>#container/overlay SKIP
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test REUSE
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline SKIP
+            `
+        },
+        {
+            name: "quiet recording",
+            expect: `
+                @canvas RECORD (empty)
+                @viewport REUSE WHOLE CAPTURE
+            `
+        },
+        {
+            name: "second interior change",
+            mutate: () => { card0.style.color = "blue"; },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test REUSE
+                  @viewport/scroll-metadata RECORD (empty)
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
+                  @viewport/foreground/hit-test REUSE
+                  @viewport/foreground REUSE
+                  BlockContainer<HTML>#html/descendants(foreground) WALK
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test REUSE
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background REUSE
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
+                      BlockContainer<BODY>#body/background/hit-test REUSE
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#container/descendants(background-and-borders) WALK
+                        BlockContainer<DIV>#container/background/hit-test REUSE
+                        BlockContainer<DIV>#container/scroll-metadata RECORD (empty)
+                        BlockContainer<DIV>#container/background SKIP
+                        BlockContainer<DIV>#container/border SKIP
+                        BlockContainer<DIV>#card0.card/descendants(background-and-borders) WALK
+                          BlockContainer<DIV>#card0.card/background/hit-test RECORD
+                          BlockContainer<DIV>#card0.card/scroll-metadata RECORD (empty)
+                          BlockContainer<DIV>#card0.card/background SKIP
+                          BlockContainer<DIV>#card0.card/border RECORD
+                        BlockContainer<DIV>#card1.card/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                    BlockContainer<HTML>#html/foreground/hit-test REUSE
+                    BlockContainer<HTML>#html/foreground REUSE
+                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/foreground/hit-test REUSE
+                      BlockContainer<BODY>#body/foreground REUSE
+                      BlockContainer<DIV>#container/descendants(foreground) WALK
+                        BlockContainer<DIV>#container/foreground/hit-test REUSE
+                        BlockContainer<DIV>#container/foreground REUSE
+                        BlockContainer<DIV>#card0.card/descendants(foreground) WALK
+                          BlockContainer<DIV>#card0.card/foreground/hit-test RECORD
+                          BlockContainer<DIV>#card0.card/foreground RECORD
+                          BlockContainer<DIV>#card0.card/outline SKIP
+                          BlockContainer<DIV>#card0.card/overlay/hit-test RECORD (empty)
+                          BlockContainer<DIV>#card0.card/overlay SKIP
+                        BlockContainer<DIV>#card1.card/descendants(foreground) REUSE WHOLE CAPTURE
+                        BlockContainer<DIV>#container/outline SKIP
+                        BlockContainer<DIV>#container/overlay/hit-test REUSE
+                        BlockContainer<DIV>#container/overlay SKIP
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test REUSE
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline SKIP
+            `
+        }
+    ]
+});
 </script>

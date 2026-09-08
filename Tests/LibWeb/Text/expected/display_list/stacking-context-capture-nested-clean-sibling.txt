@@ -1,0 +1,4 @@
+PASS: change B positive context and splice all of A (work + checks)
+PASS: quiet recording covers both contexts (work + checks)
+PASS: change A background and splice all of B after a quiet recording (work + checks)
+PASS: change B negative context after its parent was spliced (work + checks)

@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::Observer;
+
 use super::{PaintPhase, PaintRecorder};
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
@@ -15,7 +17,6 @@ use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
 use crate::painting::force_dark::{ForceDarkRole, ForceDarkSettings};
 use crate::painting::hit_test::*;
-use crate::painting::host::FfiPaintRecordingStats;
 use crate::painting::host::{
     FfiHitTestHostCallbacks, FfiMaskDisplayListRegistration, FfiPaintHostCallbacks, FfiVisualContextHostCallbacks,
 };
@@ -26,7 +27,8 @@ use crate::painting::record::cache::{
     SourceTapePosition, SubtreeCaptureWalkOutcome, narrow_record_gen, resolve_capture_address_in_source_tape,
 };
 use crate::painting::record::masks::MaskLayerSet;
-use crate::painting::record::verify::{CaptureLog, LoggedCapture};
+use crate::painting::record::trace::{Action, Operation};
+use crate::painting::record::verify::LoggedCapture;
 use crate::painting::record::{DeferredWholeTapeSplice, RecordingOutput};
 use crate::painting::style_queries;
 use std::collections::HashMap;
@@ -75,6 +77,43 @@ pub(crate) fn record_display_list(
     hit_test_list_generation: u64,
     command_cache_source: Option<Rc<RecordingOutput>>,
     item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
+    trace: bool,
+) -> RecordingOutput {
+    macro_rules! record {
+        ($observer:ty) => {
+            record_display_list_impl::<$observer>(
+                layout_arena,
+                paint_state,
+                viewport,
+                host,
+                paint_host,
+                visual_context_host,
+                inputs,
+                hit_test_list_generation,
+                command_cache_source,
+                item_cache_source,
+            )
+        };
+    }
+    if trace {
+        record!(super::trace::Trace)
+    } else {
+        record!(super::trace::NoTrace)
+    }
+}
+
+#[allow(clippy::too_many_arguments)]
+fn record_display_list_impl<O: Observer>(
+    layout_arena: &LayoutNodeArena,
+    paint_state: &crate::painting::paint_state::PaintState,
+    viewport: NodeSlotId,
+    host: &FfiHitTestHostCallbacks,
+    paint_host: &FfiPaintHostCallbacks,
+    visual_context_host: &FfiVisualContextHostCallbacks,
+    inputs: RecordingInputs,
+    hit_test_list_generation: u64,
+    command_cache_source: Option<Rc<RecordingOutput>>,
+    item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
 ) -> RecordingOutput {
     let structural_epoch = paint_state.visual_context.structural_epoch();
     let command_cache_source = command_cache_source
@@ -109,10 +148,8 @@ pub(crate) fn record_display_list(
         deferred_whole_tape_splice: None,
         viewport,
         blocking_wheel_event_region_count: 0,
-        recording_stats: FfiPaintRecordingStats::default(),
         uncacheable_paint_generation: 0,
-        capture_log_for_verification: crate::painting::record::verify::enabled_by_environment()
-            .then(CaptureLog::default),
+        observer: O::default(),
         list: HitTestList {
             item_capacity_hint_from_previous_list: paint_state
                 .hit_test_list
@@ -129,29 +166,38 @@ pub(crate) fn record_display_list(
         selection_style_cache: HashMap::new(),
         wheel_hit_test_target_cache: HashMap::new(),
     };
-    if inputs.canvas_fill_rect.has_value {
-        recorder.recorder.fill_rect(
-            inputs.canvas_fill_rect.value,
-            inputs.canvas_color,
-            ForceDarkRole::Background,
-        );
-    }
-    // .. in the case of embedded documents typically rendered over a transparent canvas
-    // (such as provided via an HTML iframe element), if the used color scheme of the element
-    // and the used color scheme of the embedded document’s root element do not match,
-    // then the UA must use an opaque canvas of the Canvas color appropriate to the
-    // embedded document’s used color scheme instead of a transparent canvas.
-    if inputs.opaque_canvas {
-        recorder
-            .recorder
-            .fill_rect(inputs.bitmap_rect, inputs.canvas_color, ForceDarkRole::Background);
-    }
-    recorder
-        .recorder
-        .fill_rect(inputs.bitmap_rect, inputs.background_color, ForceDarkRole::Background);
+    recorder.trace_paint(Operation::Producer(None, "canvas"), |this| {
+        if inputs.canvas_fill_rect.has_value {
+            this.recorder.fill_rect(
+                inputs.canvas_fill_rect.value,
+                inputs.canvas_color,
+                ForceDarkRole::Background,
+            );
+        }
+        // .. in the case of embedded documents typically rendered over a transparent canvas
+        // (such as provided via an HTML iframe element), if the used color scheme of the element
+        // and the used color scheme of the embedded document’s root element do not match,
+        // then the UA must use an opaque canvas of the Canvas color appropriate to the
+        // embedded document’s used color scheme instead of a transparent canvas.
+        if inputs.opaque_canvas {
+            this.recorder
+                .fill_rect(inputs.bitmap_rect, inputs.canvas_color, ForceDarkRole::Background);
+        }
+        this.recorder
+            .fill_rect(inputs.bitmap_rect, inputs.background_color, ForceDarkRole::Background);
+    });
     recorder.prerecord_nested_display_lists();
     recorder.paint_and_capture_as_stacking_context(viewport);
-    crate::painting::record::paint::inspector_overlay::record_inspector_overlays(&mut recorder);
+    if inputs.has_inspector_highlight
+        || inputs.grid_overlay_count > 0
+        || inputs.flex_overlay_count > 0
+        || inputs.caret_debug_rect.has_value
+    {
+        recorder.trace_paint(
+            Operation::Producer(None, "inspector-overlays"),
+            crate::painting::record::paint::inspector_overlay::record_inspector_overlays,
+        );
+    }
     let mask_display_lists: Vec<FfiMaskDisplayListRegistration> = recorder
         .recorder
         .take_mask_display_lists()
@@ -174,9 +220,8 @@ pub(crate) fn record_display_list(
         has_blocking_wheel_event_listeners: recorder.blocking_wheel_event_region_count > 0,
         wheel_event_listener_state_generation: inputs.wheel_event_listener_state_generation,
         mask_display_lists,
-        recording_stats: recorder.recording_stats,
         is_identical_to_cache_source: false,
-        capture_log_for_verification: recorder.capture_log_for_verification,
+        capture_log_for_verification: recorder.observer.finish(),
     }
 }
 
@@ -205,7 +250,7 @@ fn materialize_deferred_whole_tape_splice(
     builder.finish()
 }
 
-impl PaintRecorder<'_> {
+impl<O: Observer> PaintRecorder<'_, O> {
     fn z_index(&mut self, paintable: NodeSlotId) -> Option<i32> {
         crate::painting::style_queries::z_index(self.layout_arena, paintable)
     }
@@ -484,6 +529,8 @@ impl PaintRecorder<'_> {
 
     fn splice_or_record_capture(&mut self, site: CaptureSite, body: impl FnOnce(&mut Self)) {
         if self.try_splice_cached_subtree_capture(site) {
+            self.observer
+                .observe(|log| log.leaf(Operation::Capture(site), Action::Reuse, false));
             return;
         }
         let command_byte_start = self.recorder.byte_size();
@@ -495,7 +542,7 @@ impl PaintRecorder<'_> {
             command_byte_start: command_byte_start as u32,
             hit_test_item_start: hit_test_item_start as u32,
         });
-        body(self);
+        self.trace_scope(Operation::Capture(site), Action::Walk, body);
         self.open_capture_stack.pop();
         if self.nested.is_some() {
             return;
@@ -653,15 +700,6 @@ impl PaintRecorder<'_> {
         if self.nested.is_some() {
             return false;
         }
-        match site.kind {
-            CaptureKind::PaintedAsStackingContext => {
-                self.recording_stats.painted_as_stacking_context_capture_attempts += 1;
-            }
-            CaptureKind::DescendantSubtreePhase(_) => {
-                self.recording_stats.descendant_subtree_capture_attempts += 1;
-            }
-            CaptureKind::BoxPhase(_) => unreachable!("per-phase captures are spliced by paint_node"),
-        }
         let Some(command_source) = self.command_cache_source.as_ref() else {
             return false;
         };
@@ -750,14 +788,6 @@ impl PaintRecorder<'_> {
                 },
             );
         }
-        match site.kind {
-            CaptureKind::PaintedAsStackingContext => {
-                self.recording_stats.painted_as_stacking_context_capture_hits += 1;
-            }
-            _ => self.recording_stats.descendant_subtree_capture_hits += 1,
-        }
-        self.recording_stats.command_bytes_spliced_from_source += command_range.size as usize;
-        self.recording_stats.hit_test_items_copied_from_source += cached.hit_test_item_count as usize;
         true
     }
 
@@ -799,7 +829,14 @@ impl PaintRecorder<'_> {
         range: CommandRange,
         spliced_from_cache: bool,
     ) {
-        if let Some(log) = self.capture_log_for_verification.as_mut() {
+        self.observer.observe(|log| {
+            if spliced_from_cache && matches!(kind, CaptureKind::BoxPhase(_)) {
+                log.leaf(
+                    Operation::Capture(CaptureSite { paintable, kind }),
+                    Action::Reuse,
+                    range.size == 0,
+                );
+            }
             log.command_byte_captures.push(LoggedCapture {
                 start: range.offset,
                 length: range.size,
@@ -807,7 +844,7 @@ impl PaintRecorder<'_> {
                 kind,
                 spliced_from_cache,
             });
-        }
+        });
     }
 
     fn log_hit_test_item_capture_for_verification(
@@ -818,7 +855,18 @@ impl PaintRecorder<'_> {
         count: usize,
         spliced_from_cache: bool,
     ) {
-        if let Some(log) = self.capture_log_for_verification.as_mut() {
+        self.observer.observe(|log| {
+            if let CaptureKind::BoxPhase(phase) = kind {
+                log.leaf(
+                    Operation::HitTest(paintable, phase),
+                    if spliced_from_cache {
+                        Action::Reuse
+                    } else {
+                        Action::Record
+                    },
+                    count == 0,
+                );
+            }
             log.hit_test_item_captures.push(LoggedCapture {
                 start: start as u32,
                 length: count as u32,
@@ -826,7 +874,7 @@ impl PaintRecorder<'_> {
                 kind,
                 spliced_from_cache,
             });
-        }
+        });
     }
 
     fn captured_position_at_recording_start(&self, paintable: NodeSlotId) -> used_values::FfiCssPixelPoint {
@@ -858,6 +906,12 @@ impl PaintRecorder<'_> {
     }
 
     fn paint_svg_box(&mut self, svg_box: NodeSlotId, phase: PaintPhase) {
+        self.trace_scope(Operation::Producer(Some(svg_box), "svg"), Action::Walk, |this| {
+            this.paint_svg_box_impl(svg_box, phase);
+        });
+    }
+
+    fn paint_svg_box_impl(&mut self, svg_box: NodeSlotId, phase: PaintPhase) {
         let context = self.own_context(svg_box);
         self.recorder.set_accumulated_visual_context(context);
 
@@ -874,7 +928,15 @@ impl PaintRecorder<'_> {
         if self.register_mask_display_lists(svg_box, MaskLayerSet::SvgOnly) {
             return;
         }
+        let before = self.list.items.len();
         self.record_hit_test_items(svg_box, phase);
+        self.observer.observe(|log| {
+            log.leaf(
+                Operation::HitTest(svg_box, phase),
+                Action::Record,
+                self.list.items.len() == before,
+            );
+        });
         if self.layout_kind(svg_box) == Some(NodeKind::SVGForeignObjectBox) {
             self.record_foreign_object_descendant_hit_test_items(svg_box);
         }
@@ -883,9 +945,21 @@ impl PaintRecorder<'_> {
             && !kind.is_some_and(node_painting::is_svg)
             && kind.is_some_and(node_facts::kind_is_replaced_box)
         {
-            crate::painting::record::paint::paint(self, svg_box, PaintPhase::Background);
+            self.trace_paint(
+                Operation::Capture(CaptureSite {
+                    paintable: svg_box,
+                    kind: CaptureKind::BoxPhase(PaintPhase::Background),
+                }),
+                |this| crate::painting::record::paint::paint(this, svg_box, PaintPhase::Background),
+            );
         }
-        crate::painting::record::paint::paint(self, svg_box, PaintPhase::Foreground);
+        self.trace_paint(
+            Operation::Capture(CaptureSite {
+                paintable: svg_box,
+                kind: CaptureKind::BoxPhase(PaintPhase::Foreground),
+            }),
+            |this| crate::painting::record::paint::paint(this, svg_box, PaintPhase::Foreground),
+        );
         self.svg_paint_descendants(svg_box, phase);
     }
 
@@ -948,9 +1022,6 @@ impl PaintRecorder<'_> {
         }
         let skip_phase_capture = skip_cache || phase_records_scrollbars_with_scroll_node_indices;
         let cache_writes_enabled = self.inputs.paint_command_cache_read_write && !is_nested;
-        if !is_nested {
-            self.recording_stats.box_phase_visits += 1;
-        }
 
         if phase_can_record_hit_test_items && !is_nested {
             let own_context = self.own_context(paintable);
@@ -976,8 +1047,7 @@ impl PaintRecorder<'_> {
                     count,
                     true,
                 );
-                self.recording_stats.box_phase_hit_test_item_capture_hits += 1;
-                self.recording_stats.hit_test_items_copied_from_source += count;
+
                 if cache_writes_enabled {
                     self.set_cached_hit_test_items(
                         paintable,
@@ -1013,12 +1083,24 @@ impl PaintRecorder<'_> {
         }
 
         if phase == PaintPhase::Background && !is_nested {
-            self.record_async_scrolling_metadata(paintable);
+            self.trace_paint(Operation::Producer(Some(paintable), "scroll-metadata"), |this| {
+                this.record_async_scrolling_metadata(paintable);
+            });
         }
 
         // A visually empty phase can still contribute hit-test and scrolling metadata.
         // Only skip command capture, after recording that metadata above.
         if self.base_paint_facts(paintable).paint_phase_mask & phase.bit() == 0 {
+            self.observer.observe(|log| {
+                log.leaf(
+                    Operation::Capture(CaptureSite {
+                        paintable,
+                        kind: CaptureKind::BoxPhase(phase),
+                    }),
+                    Action::Skip,
+                    true,
+                );
+            });
             self.recorder.set_accumulated_visual_context(ContextRef::default());
             return;
         }
@@ -1028,7 +1110,6 @@ impl PaintRecorder<'_> {
         let cached_commands = if skip_phase_capture || is_nested {
             None
         } else {
-            self.recording_stats.box_phase_command_capture_attempts += 1;
             self.valid_cached_commands(paintable, phase)
         };
         if let Some((source, cached_range, recorded_context)) = cached_commands {
@@ -1044,11 +1125,15 @@ impl PaintRecorder<'_> {
             if cache_writes_enabled {
                 self.set_cached_commands(paintable, phase, destination_range, phase_context);
             }
-            self.recording_stats.box_phase_command_capture_hits += 1;
-            self.recording_stats.command_bytes_spliced_from_source += destination_range.size as usize;
         } else {
             let command_range_start = self.recorder.byte_size();
-            self.paint(paintable, phase);
+            self.trace_paint(
+                Operation::Capture(CaptureSite {
+                    paintable,
+                    kind: CaptureKind::BoxPhase(phase),
+                }),
+                |this| this.paint(paintable, phase),
+            );
             let command_range_end = self.recorder.byte_size();
             let command_range = CommandRange {
                 offset: command_range_start as u32,

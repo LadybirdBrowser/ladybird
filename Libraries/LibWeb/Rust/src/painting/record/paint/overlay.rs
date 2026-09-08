@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::Observer;
+
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::chrome_geometry::{
@@ -16,7 +18,7 @@ use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::record::PaintRecorder;
 use libgfx_rust::{Color, FloatPoint, IntRect, LineStyle, ShouldAntiAlias, WindingRule};
 
-pub(crate) fn paint_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
+pub(crate) fn paint_overlay<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
     let is_viewport = recorder.layout_arena.node_kind_if_live(paintable) == Some(NodeKind::Viewport);
     let own_scroll_node_index = recorder.data(paintable).own_scroll_node_index;
     if !is_viewport
@@ -112,7 +114,7 @@ pub(crate) fn paint_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlo
     paint_middle_button_scroll_indicator(recorder, paintable);
 }
 
-fn paint_middle_button_scroll_indicator(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
+fn paint_middle_button_scroll_indicator<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
     const CIRCLE_COLOR: Color = Color::from_rgba(255, 255, 255, 220);
     const ARROW_COLOR: Color = Color::from_rgb(64, 64, 64);
     const RADIUS: i32 = 16;

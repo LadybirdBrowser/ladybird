@@ -1,4 +1,3 @@
-quiet recording visits only the viewport root: true
-a change next to the iframe walks the root: true
-the iframe is hit-testable: frame
-the next quiet recording hits the viewport root again: true
+PASS: quiet iframe (work)
+PASS: change next to iframe (work + checks)
+PASS: quiet after adjacent change (work)
