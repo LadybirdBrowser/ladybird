@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Pseudo-Elements Test: ::selection on visited and unvisited links</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo/#highlight-selectors">
+<meta name="assert" content="This test checks that ::selection works as expected when both unvisited and visited links have pseudo style.">
+<link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/selection-link-003-ref.html">
+<script src="support/selections.js"></script>
+<style>
+  a {
+    text-decoration: none;
+    color: black;
+  }
+  a:visited::selection {
+    color: green;
+  }
+  a:link::selection {
+    color: green;
+  }
+</style>
+
+<p>Test passes if when selecting the content both "visited" and "unvisited" have a green color and white background.</p>
+<main>
+  <a href="">visited</a>
+  <a href="#">unvisited</a>
+</main>
+
+<script>selectNodeContents(document.querySelector("main"));</script>

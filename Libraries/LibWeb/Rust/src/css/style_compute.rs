@@ -22,9 +22,12 @@ use std::sync::{Arc, OnceLock};
 use crate::abort_on_panic;
 use crate::css::animated_overlay::{AnimatedOverlay, overlay_wins};
 use crate::css::cascaded_properties::{
-    CascadedPropertyStore, FfiCustomPropertyDriveInput, FfiCustomPropertyResolutionStats, FfiResolvedCustomProperties,
+    CascadeOrigin, CascadedPropertyStore, FfiCustomPropertyDriveInput, FfiCustomPropertyResolutionStats,
+    FfiResolvedCustomProperties,
 };
-use crate::css::computed_longhand_table::ComputedLonghandTable;
+use crate::css::computed_longhand_table::{
+    ComputedLonghandTable, HIGHLIGHT_COLOR_IS_CURRENT_COLOR, HIGHLIGHT_COLORS_AUTHORED,
+};
 use crate::css::css_pixels::CssPixels;
 use crate::css::display::FfiDisplay;
 use crate::css::property_metadata::longhands_for_shorthand;
@@ -3018,6 +3021,8 @@ pub(crate) struct ParentSnapshot<'a> {
     stored_animated_overlay: Option<&'a AnimatedOverlay>,
     font_metrics_depend_on_viewport_metrics: bool,
     in_display_none_subtree: bool,
+    highlight_colors_authored: bool,
+    highlight_color_is_current_color: bool,
 }
 
 impl<'a> ParentSnapshot<'a> {
@@ -3034,6 +3039,8 @@ impl<'a> ParentSnapshot<'a> {
             stored_animated_overlay,
             font_metrics_depend_on_viewport_metrics,
             in_display_none_subtree,
+            highlight_colors_authored: table.dependency_flags() & HIGHLIGHT_COLORS_AUTHORED != 0,
+            highlight_color_is_current_color: table.dependency_flags() & HIGHLIGHT_COLOR_IS_CURRENT_COLOR != 0,
         }
     }
     fn is_important(&self, property_id: u16) -> bool {
@@ -3105,6 +3112,8 @@ pub(crate) fn parent_snapshot_for_style_record<'a>(
         stored_animated_overlay: unsafe { view.animated_overlay.as_ref() },
         font_metrics_depend_on_viewport_metrics: view.dependency_flags & (1 << 1) != 0,
         in_display_none_subtree: view.dependency_flags & (1 << 2) != 0,
+        highlight_colors_authored: view.dependency_flags & HIGHLIGHT_COLORS_AUTHORED != 0,
+        highlight_color_is_current_color: view.dependency_flags & HIGHLIGHT_COLOR_IS_CURRENT_COLOR != 0,
     }
 }
 
@@ -3137,6 +3146,10 @@ pub struct FfiLonghandDriverResults {
     pub explicitly_inherited_non_inherited_style_groups: u32,
     pub uses_tree_counting_function: bool,
     pub post_adjusted_longhands: u8,
+    /// https://drafts.csswg.org/css-pseudo-4/#paired-defaults
+    pub highlight_colors_authored: bool,
+    /// https://drafts.csswg.org/css-pseudo-4/#highlight-text
+    pub highlight_color_is_current_color: bool,
 }
 
 #[derive(Clone, Copy)]
@@ -3159,6 +3172,8 @@ pub(crate) fn empty_longhand_driver_results() -> FfiLonghandDriverResults {
         explicitly_inherited_non_inherited_style_groups: 0,
         uses_tree_counting_function: false,
         post_adjusted_longhands: 0,
+        highlight_colors_authored: false,
+        highlight_color_is_current_color: false,
     }
 }
 
@@ -3515,6 +3530,27 @@ pub(crate) unsafe fn drive_property_computation(
             } else {
                 None
             };
+            // https://drafts.csswg.org/css-pseudo-4/#paired-defaults
+            // Paired default highlight colors must only be used when neither 'color' nor
+            // 'background-color' yield a cascaded value from the author origin (or inherit their
+            // value from the author origin).
+            if highlight.is_some() && (property_id == prop::COLOR || property_id == prop::BACKGROUND_COLOR) {
+                results.highlight_colors_authored |= store.winning_origin(property_id) == Some(CascadeOrigin::Author)
+                    || highlight_parent_snapshot.is_some_and(|snapshot| snapshot.highlight_colors_authored);
+            }
+            // https://drafts.csswg.org/css-pseudo-4/#highlight-text
+            // currentColor on a highlight pseudo-element's 'color' property represents the color of
+            // the next active highlight pseudo-element layer below, falling back finally to the
+            // colors that would otherwise have been used.
+            // NB: The computed value is still the originating element's color; the flag tells the
+            //     painter to draw the layer below instead.
+            if highlight.is_some() && property_id == prop::COLOR {
+                results.highlight_color_is_current_color = if highlight_inherits {
+                    highlight_parent_snapshot.is_none_or(|snapshot| snapshot.highlight_color_is_current_color)
+                } else {
+                    matches!(cascaded_value, Some(StyleValueData::Keyword { keyword }) if *keyword == keyword::CURRENTCOLOR)
+                };
+            }
             let inherit_fetch_attempted = if highlight_parent_snapshot.is_some() {
                 true
             } else if highlight_inherits {
@@ -4500,6 +4536,8 @@ pub(crate) unsafe fn drive_property_computation(
         longhand_table.merge_dependency_flags(
             results.depends_on_viewport_metrics,
             results.font_metrics_depend_on_viewport_metrics,
+            results.highlight_colors_authored,
+            results.highlight_color_is_current_color,
         );
         if pending_effective_color_scheme >= 0 {
             longhand_table.set_effective_color_scheme(pending_effective_color_scheme);
@@ -5299,6 +5337,8 @@ pub unsafe extern "C" fn rust_create_document_longhand_table(
     longhand_table.merge_dependency_flags(
         results.depends_on_viewport_metrics,
         results.font_metrics_depend_on_viewport_metrics,
+        results.highlight_colors_authored,
+        results.highlight_color_is_current_color,
     );
     longhand_table.set(
         property_id::WIDTH,

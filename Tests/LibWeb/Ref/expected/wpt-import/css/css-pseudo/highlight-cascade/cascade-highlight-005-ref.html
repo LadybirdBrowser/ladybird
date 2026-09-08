@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Reftest Reference</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+
+  <link rel="stylesheet" href="../support/highlights.css">
+
+  <style>
+  div
+    {
+      background-color: green;
+      color: yellow;
+      display: inline;
+      font-size: 300%;
+    }
+
+  span
+    {
+      color: orange;
+    }
+  </style>
+
+  <p>Test passes if "Text selected" has a green background throughout, if "Tex" and "cted" are yellow and if "t sele" are orange.
+
+  <div class="highlight_reftest">Tex<span>t sele</span>cted</div>

@@ -170,6 +170,17 @@ pub struct ComputedLonghandTable {
     frozen: bool,
 }
 
+/// The dependency-flag bit of a highlight pseudo-element record whose `color` or `background-color`
+/// comes from the author origin, on itself or up its highlight chain, so the paired default colors
+/// do not apply. Bits 0 to 4 are the viewport, font-metric, display-none, swap-eligibility and image
+/// flags.
+/// https://drafts.csswg.org/css-pseudo-4/#paired-defaults
+pub(crate) const HIGHLIGHT_COLORS_AUTHORED: u8 = 1 << 5;
+/// The dependency-flag bit of a highlight pseudo-element record whose `color` is currentColor: the
+/// computed value is the originating element's color, but painting draws the layer below instead.
+/// https://drafts.csswg.org/css-pseudo-4/#highlight-text
+pub(crate) const HIGHLIGHT_COLOR_IS_CURRENT_COLOR: u8 = 1 << 6;
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiComputedStyleMetadata {
@@ -361,9 +372,13 @@ impl ComputedLonghandTable {
         &mut self,
         depends_on_viewport_metrics: bool,
         font_metrics_depend_on_viewport_metrics: bool,
+        highlight_colors_authored: bool,
+        highlight_color_is_current_color: bool,
     ) {
-        self.metadata.dependency_flags |=
-            u8::from(depends_on_viewport_metrics) | (u8::from(font_metrics_depend_on_viewport_metrics) << 1);
+        self.metadata.dependency_flags |= u8::from(depends_on_viewport_metrics)
+            | (u8::from(font_metrics_depend_on_viewport_metrics) << 1)
+            | (u8::from(highlight_colors_authored) * HIGHLIGHT_COLORS_AUTHORED)
+            | (u8::from(highlight_color_is_current_color) * HIGHLIGHT_COLOR_IS_CURRENT_COLOR);
     }
 
     pub(crate) fn dependency_flags(&self) -> u8 {
@@ -1335,13 +1350,13 @@ mod tests {
     #[test]
     fn dependency_flags_follow_the_table() {
         let mut source = ComputedLonghandTable::new();
-        source.merge_dependency_flags(true, false);
+        source.merge_dependency_flags(true, false, false, false);
 
         let mut copy = ComputedLonghandTable::new();
         copy.copy_from(&source);
         assert_eq!(copy.dependency_flags(), 1);
 
-        copy.merge_dependency_flags(false, true);
+        copy.merge_dependency_flags(false, true, false, false);
         assert_eq!(copy.dependency_flags(), 3);
     }
 

@@ -286,6 +286,7 @@ pub struct FfiSelectionShadowLayer {
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct FfiSelectionStyleFacts {
+    pub colors_authored: bool,
     pub background_color: Color,
     pub text_color: OptionalColor,
     pub has_text_shadow: bool,

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Pseudo-Elements Test: ::selection background color</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo/#selectordef-selection">
+<meta name="assert" content="This test checks that ::selection background color is not modified when it matches the text color">
+<link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/../reference/ref-filled-green-100px-square.xht">
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css" />
+<script src="support/selections.js"></script>
+<style>
+  div {
+    color: green;
+    font: 100px/1 Ahem;
+  }
+  ::selection {
+    background-color: green;
+  }
+</style>
+<p>Test passes if there is a filled green square and <strong>no red</strong>.</p>
+<div>&nbsp;</div>
+<script>selectNodeContents(document.querySelector("div"));</script>

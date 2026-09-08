@@ -35,7 +35,9 @@ use super::memory::MemoryLease;
 use super::tree::PseudoElementKind;
 use super::tree::PseudoElementTarget;
 use super::tree::StyleNodeID;
-use crate::css::computed_longhand_table::{ComputedLonghandTable, longhand_slot_hash};
+use crate::css::computed_longhand_table::{
+    ComputedLonghandTable, HIGHLIGHT_COLOR_IS_CURRENT_COLOR, HIGHLIGHT_COLORS_AUTHORED, longhand_slot_hash,
+};
 use crate::css::computed_values::computed_group_output_mask;
 use crate::css::computed_values::release_group_payload;
 use crate::css::computed_values::replay_style_group_identity;
@@ -75,7 +77,10 @@ pub(super) struct EngineComputedAssembly {
     /// Whether the node's group tuple identity stayed put, so nothing propagates from it.
     pub(super) group_set_unchanged: bool,
 }
-const COMPUTED_VALUE_DEPENDENCY_FLAGS: u8 = (INHERITED_GROUP_SWAP_ELIGIBLE - 1) | HOLDS_IMAGE_VALUES;
+const COMPUTED_VALUE_DEPENDENCY_FLAGS: u8 = (INHERITED_GROUP_SWAP_ELIGIBLE - 1)
+    | HOLDS_IMAGE_VALUES
+    | HIGHLIGHT_COLORS_AUTHORED
+    | HIGHLIGHT_COLOR_IS_CURRENT_COLOR;
 
 define_id! { pub struct ComputedGroupID(); }
 

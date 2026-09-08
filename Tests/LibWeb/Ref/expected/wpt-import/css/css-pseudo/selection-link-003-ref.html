@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<meta charset="utf-8" />
+<title>CSS Pseudo-Elements Test: Reference file</title>
+<link rel="author" title="Manuel Rego Casasnovas" href="mailto:rego@igalia.com">
+<script src="support/selections.js"></script>
+<style>
+  span::selection {
+    color: green;
+  }
+</style>
+
+<p>Test passes if when selecting the content both "visited" and "unvisited" have a green color and white background.</p>
+<main>
+  <span>visited</span>
+  <span>unvisited</span>
+</main>
+
+<script>selectNodeContents(document.querySelector("main"));</script>

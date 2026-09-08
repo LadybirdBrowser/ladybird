@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Test Reference</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<script src="support/selections.js"></script>
+<style>
+  div {
+    font-size: 300%;
+  }
+</style>
+<p>Test passes if "Selected Text" does <strong>not</strong> appear selected using the OS selection background color.
+<div id="test">Selected Text</div>
+<script>selectNodeContents(document.getElementById("test"));</script>

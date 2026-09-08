@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-paired-default-colors-ref.html">
+<style>
+    p {
+        font-size: 20px;
+        line-height: 1.5;
+        margin: 10px 0;
+        color: rgb(0, 0, 200);
+    }
+    #color-only::selection {
+        color: green;
+    }
+    #transparent-background::selection {
+        background-color: transparent;
+    }
+    #current-color::selection {
+        color: currentColor;
+    }
+    #parent::selection {
+        color: green;
+    }
+    #parent span {
+        color: rgb(200, 0, 0);
+    }
+</style>
+<div id="container">
+    <p id="color-only">An authored color suppresses the default background</p>
+    <p id="transparent-background">An authored transparent background is honored</p>
+    <p id="current-color">currentColor keeps the text color and suppresses the default background</p>
+    <p id="parent">A child inherits the authored color, <span>even with its own text color</span></p>
+</div>
+<script>
+    const range = document.createRange();
+    range.selectNodeContents(document.getElementById("container"));
+    getSelection().addRange(range);
+</script>

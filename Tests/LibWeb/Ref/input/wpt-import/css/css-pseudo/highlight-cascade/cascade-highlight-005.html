@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Pseudo-Elements Test: inheritance of selection highlight background color from its parent element</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-pseudo-4/#highlight-cascade">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-pseudo/highlight-cascade/cascade-highlight-005-ref.html">
+
+  <meta name="assert" content="In this test, 'background-color' has not been specified a value for the highlight pseudo-element of the span element. Since the span's parent element has an highlight pseudo-element also, then the span's background color for its highlight pseudo-element should be inherited from its parent highlight pseudo-element. Therefore the span element should have a green background color.">
+
+  <!--
+
+  This is a modified version of Example 11
+  https://www.w3.org/TR/css-pseudo-4/#example-c35bf49a
+  found in § 3.5 Cascading and Per-Element Highlight Styles
+  https://www.w3.org/TR/css-pseudo-4/#highlight-cascade
+
+  -->
+
+  <!--
+  When any supported property is not given a value by the
+  cascade, its value is determined by inheritance from the
+  corresponding highlight pseudo-element of its originating
+  element's parent element (regardless of whether that property
+  is an inherited property).
+  https://www.w3.org/TR/css-pseudo-4/#highlight-cascade
+  -->
+
+  <link rel="stylesheet" href="../support/highlights.css">
+
+  <style>
+  div
+    {
+      font-size: 300%;
+    }
+
+  div::selection
+    {
+      background-color: green;
+      color: yellow;
+    }
+
+  span::selection
+    {
+      color: orange;
+    }
+  </style>
+
+  <script>
+  function startTest()
+  {
+  var targetRange = document.createRange();
+  /* We first create an empty range */
+  targetRange.selectNodeContents(document.getElementById("test"));
+  /* Then we set the range boundaries to the children of div#test */
+  window.getSelection().addRange(targetRange);
+  /* Finally, we now select such range of content */
+  }
+  </script>
+
+  <body onload="startTest();">
+
+  <p>Test passes if "Text selected" has a green background throughout, if "Tex" and "cted" are yellow and if "t sele" are orange.
+
+  <div id="test" class="highlight_reftest">Tex<span>t sele</span>cted</div>

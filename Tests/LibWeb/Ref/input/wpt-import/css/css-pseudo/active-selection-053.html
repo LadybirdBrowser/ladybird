@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Pseudo-Elements Test: active selection and invalid color value</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-pseudo-4/#highlight-cascade">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/active-selection-051-ref.html">
+
+  <meta content="invalid should" name="flags">
+  <meta name="assert" content="In this test, 'color' has an invalid value which makes the declaration invalid; therefore, it is ignored. Therefore, the div::selection selector has neither color nor background-color specified. In such case, the UA should use the OS-default highlight colors for div::selection.">
+
+  <style>
+  div
+    {
+      color: transparent;
+      font-size: 300%;
+    }
+
+  div::selection
+    {
+      color: foo;
+    }
+  </style>
+
+  <script>
+  function startTest()
+  {
+  var targetRange = document.createRange();
+  /* We first create an empty range */
+  targetRange.selectNodeContents(document.getElementById("test"));
+  /* Then we set the range boundaries to the children of div#test */
+  window.getSelection().addRange(targetRange);
+  /* Finally, we now select such range of content */
+  }
+  </script>
+
+  <body onload="startTest();">
+
+  <p>Test passes if "Selected Text" appears selected using the OS selection colors.
+
+  <div id="test">Selected Text</div>

@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Pseudo-Elements Test: reverted ::selection background-color</title>
+<link rel="author" title="Emilio Cobos Álvarez" href="mailto:emilio@crisal.io">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#highlight-cascade">
+<link rel="help" href="https://drafts.csswg.org/css-cascade-4/#default">
+<link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/selection-background-color-revert-ref.html">
+<meta name="assert" content="'background-color: revert' in an author ::selection rule rolls back to the UA origin, so the selection is painted using the default highlight colors.">
+<script src="support/selections.js"></script>
+<style>
+  div {
+    font-size: 300%;
+  }
+  div::selection {
+    background-color: red;
+    background-color: revert;
+  }
+</style>
+<p>Test passes if "Selected Text" appears selected using the OS selection colors, and there is <strong>no red</strong>.
+<div id="test">Selected Text</div>
+<script>selectNodeContents(document.getElementById("test"));</script>

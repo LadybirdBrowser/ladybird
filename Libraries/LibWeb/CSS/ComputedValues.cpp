@@ -843,6 +843,8 @@ ComputedStyleRecordView::ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordV
     m_values.m_depends_on_viewport_metrics = view.dependency_flags & to_underlying(StyleRecordDependencyFlag::DependsOnViewportMetrics);
     m_values.m_font_metrics_depend_on_viewport_metrics = view.dependency_flags & to_underlying(StyleRecordDependencyFlag::FontMetricsDependOnViewportMetrics);
     m_values.m_in_display_none_subtree = view.dependency_flags & to_underlying(StyleRecordDependencyFlag::InDisplayNoneSubtree);
+    m_values.m_highlight_colors_authored = view.dependency_flags & to_underlying(StyleRecordDependencyFlag::HighlightColorsAuthored);
+    m_values.m_highlight_color_is_current_color = view.dependency_flags & to_underlying(StyleRecordDependencyFlag::HighlightColorIsCurrentColor);
     m_values.m_computed_longhand_table = view.longhand_table;
     if (m_values.m_computed_longhand_table)
         m_values.refresh_computed_longhand_table_views();
@@ -855,6 +857,8 @@ ComputedStyleRecordView::ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordV
         m_base_values->m_depends_on_viewport_metrics = m_values.m_depends_on_viewport_metrics;
         m_base_values->m_font_metrics_depend_on_viewport_metrics = m_values.m_font_metrics_depend_on_viewport_metrics;
         m_base_values->m_in_display_none_subtree = m_values.m_in_display_none_subtree;
+        m_base_values->m_highlight_colors_authored = m_values.m_highlight_colors_authored;
+        m_base_values->m_highlight_color_is_current_color = m_values.m_highlight_color_is_current_color;
         m_base_values->m_inheritance_dependent_specified_values = m_values.m_inheritance_dependent_specified_values;
         m_base_values->m_computed_longhand_table = m_values.m_computed_longhand_table;
         if (m_base_values->m_computed_longhand_table)
@@ -1599,6 +1603,8 @@ NonnullRefPtr<ComputedValues const> ComputedValues::create_internal(ComputedStyl
     computed_values.set_depends_on_viewport_metrics(computed_style.depends_on_viewport_metrics());
     computed_values.set_font_metrics_depend_on_viewport_metrics(computed_style.font_metrics_depend_on_viewport_metrics());
     computed_values.set_in_display_none_subtree(computed_style.in_display_none_subtree());
+    computed_values.set_highlight_colors_authored(computed_style.highlight_colors_authored());
+    computed_values.set_highlight_color_is_current_color(computed_style.highlight_color_is_current_color());
     u64 pseudo_element_styles = 0;
     for (auto i = 0; i < to_underlying(PseudoElement::KnownPseudoElementCount); ++i) {
         auto pseudo_element = static_cast<PseudoElement>(i);
