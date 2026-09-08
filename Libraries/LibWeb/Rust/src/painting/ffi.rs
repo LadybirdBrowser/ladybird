@@ -3409,14 +3409,14 @@ pub unsafe extern "C" fn visual_context_tree_mark_spatial_subtrees(
 ///
 /// `tree` must be a live retained tree handle.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn visual_context_tree_has_unisolated_blending_effect(tree: *const c_void) -> bool {
-    unsafe { tree_from_handle(tree) }.has_unisolated_blending_effect()
+pub unsafe extern "C" fn visual_context_tree_has_unisolated_destination_reading_effect(tree: *const c_void) -> bool {
+    unsafe { tree_from_handle(tree) }.has_unisolated_destination_reading_effect()
 }
 
 /// # Safety
 ///
 /// `tree` must be a live retained tree handle; `visit` is called synchronously with `context` for every
-/// effect node that carries a filter.
+/// filter and backdrop filter an effect node carries.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn visual_context_tree_for_each_effects_filter_bytes(
     tree: *const c_void,
@@ -3425,9 +3425,11 @@ pub unsafe extern "C" fn visual_context_tree_for_each_effects_filter_bytes(
 ) {
     let tree = unsafe { tree_from_handle(tree) };
     for node in &tree.effect_nodes {
-        if let crate::painting::visual_context::EffectNodeData::Effects(effects) = &node.data
-            && let Some(filter_bytes) = &effects.filter
-        {
+        let crate::painting::visual_context::EffectNodeData::Effects(effects) = &node.data else {
+            continue;
+        };
+        let backdrop_filter_bytes = effects.backdrop_filter.as_ref().map(|backdrop| &backdrop.filter);
+        for filter_bytes in effects.filter.iter().chain(backdrop_filter_bytes) {
             // SAFETY: The C++ visitor reads the bytes synchronously.
             unsafe { visit(context, filter_bytes.as_ptr(), filter_bytes.len()) };
         }
@@ -3648,6 +3650,7 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_effects(
             opacity,
             blend_mode,
             filter: None,
+            backdrop_filter: None,
         }),
         EffectNodeIndex(parent_effect),
         SpatialNodeIndex(spatial),

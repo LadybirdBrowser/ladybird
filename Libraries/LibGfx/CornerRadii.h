@@ -26,6 +26,8 @@ struct CornerRadius {
     {
         return horizontal_radius > 0 && vertical_radius > 0;
     }
+
+    bool operator==(CornerRadius const&) const = default;
 };
 
 struct CornerRadii {
@@ -38,6 +40,8 @@ struct CornerRadii {
     {
         return top_left || top_right || bottom_right || bottom_left;
     }
+
+    bool operator==(CornerRadii const&) const = default;
 
     void adjust_corners_for_spread_distance(int spread_distance);
 

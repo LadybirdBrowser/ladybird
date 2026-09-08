@@ -385,7 +385,8 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
 
     let transform_data = facts.transform;
 
-    if facts.effects.is_some() {
+    let effects_layer_is_inside_transform_and_clips = facts.effects_layer_is_inside_transform_and_clips();
+    if facts.effects.is_some() && !effects_layer_is_inside_transform_and_clips {
         append_shared_effect!(EffectNodeData::Effects(facts.effects_data().unwrap()));
     }
 
@@ -506,6 +507,13 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
 
     if facts.clip_path.is_some() {
         append_clip_to_own_and_positioned_descendant_contexts!(ClipNodeData::Path(facts.clip_path_data().unwrap()));
+    }
+
+    // A backdrop filter is limited to the box's rounded border box in the box's own space, and a clip
+    // path clips the filtered backdrop along with the content, so its layer sits under the transform
+    // and clip nodes rather than above them.
+    if effects_layer_is_inside_transform_and_clips {
+        append_shared_effect!(EffectNodeData::Effects(facts.effects_data().unwrap()));
     }
 
     if !facts.mask_layers.is_empty() {

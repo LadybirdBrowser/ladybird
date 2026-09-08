@@ -462,9 +462,9 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
                 write_field(output, "alternate_color", command.alternate_color);
             }
         }
-        DisplayListCommandType::ApplyBackdropFilter => {
-            let command = read_command::<ApplyBackdropFilter>(payload);
-            write_field(output, "backdrop_region", command.backdrop_region);
+        DisplayListCommandType::BackdropFilterRegion => {
+            let command = read_command::<BackdropFilterRegion>(payload);
+            write_field(output, "rect", command.rect);
         }
         DisplayListCommandType::DrawRect => {
             let command = read_command::<DrawRect>(payload);

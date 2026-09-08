@@ -546,8 +546,9 @@ bool DisplayListResourceStorage::should_cache_nested_display_list_raster(Display
 }
 
 // Determines whether reusing a rasterization of the display list can produce different pixels than replaying it
-// in place on every frame. That is the case when a destination-reading operation (a non-normal blend mode or a
-// backdrop filter) can see canvas content painted before the display list began, or when the list draws live
+// in place on every frame. That is the case when a destination-reading operation (a non-normal blend mode on a
+// command or a visual context effect, or a backdrop filter carried by a visual context effect) can see canvas
+// content painted before the display list began, or when the list draws live
 // content that changes underneath its immutable command stream (video frames are updated in place under a stable
 // resource id, canvas surfaces and composited child contexts are resolved at replay time). Destination-reading
 // operations enclosed in a save layer recorded within the list only ever read within-list content, so they do
@@ -564,7 +565,7 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
     auto const& list_resource = display_list_resource(id);
 
     auto const& visual_context_tree = list_resource.visual_context_tree;
-    bool requires_direct_replay = visual_context_tree.has_unisolated_blending_effect();
+    bool requires_direct_replay = visual_context_tree.has_unisolated_destination_reading_effect();
 
     auto recurse_into_nested_display_list = [&](DisplayListResourceId nested_display_list_id) {
         if (visited_display_lists.set(nested_display_list_id.value()) != HashSetResult::InsertedNewEntry)
@@ -578,10 +579,7 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
             return;
         visit_display_list_command(header.command_type, payload, [&](auto const& command) {
             using Command = RemoveCVReference<decltype(command)>;
-            if constexpr (IsSame<Command, ApplyBackdropFilter>) {
-                if (command.has_backdrop_filter && !visual_context_tree.effect_is_isolated_by_layer(header.context.effect))
-                    requires_direct_replay = true;
-            } else if constexpr (IsSame<Command, DrawVideoFrame> || IsSame<Command, DrawCanvas> || IsSame<Command, DrawCompositedContext>) {
+            if constexpr (IsSame<Command, DrawVideoFrame> || IsSame<Command, DrawCanvas> || IsSame<Command, DrawCompositedContext>) {
                 requires_direct_replay = true;
             } else if constexpr (IsSame<Command, PaintNestedDisplayList>) {
                 // NB: A nested list's live content matters at any depth, and its unisolated destination reads
@@ -613,12 +611,6 @@ bool DisplayListResourceStorage::nested_display_list_requires_direct_replay(Disp
     return requires_direct_replay;
 }
 
-static ReadonlyBytes inline_data(ReadonlyBytes payload, DisplayListDataSpan span)
-{
-    VERIFY(static_cast<size_t>(span.offset) + span.size <= payload.size());
-    return payload.slice(span.offset, span.size);
-}
-
 void DisplayListResourceStorage::collect_referenced_resources(
     ReadonlyBytes command_bytes,
     DisplayListResourceSet& referenced_resources) const
@@ -639,20 +631,6 @@ void DisplayListResourceStorage::collect_referenced_resources(
                 if (command.paint_kind == decltype(command.paint_kind)::PaintStyle
                     && command.paint_style.paint_style_type == DisplayListPaintStyleType::Pattern)
                     add_display_list_resource(command.paint_style.pattern_tile_display_list_id);
-            }
-            if constexpr (requires { command.backdrop_filter_data; }) {
-                if (command.has_backdrop_filter) {
-                    Gfx::for_each_filter_image_frame_id(inline_data(payload, command.backdrop_filter_data), [&](u64 image_id) {
-                        referenced_resources.image_frames.set(ImageFrameResourceId { image_id }, AK::HashSetExistingEntryBehavior::Keep);
-                    });
-                }
-            }
-            if constexpr (requires { command.filter_data; }) {
-                if (command.has_filter) {
-                    Gfx::for_each_filter_image_frame_id(inline_data(payload, command.filter_data), [&](u64 image_id) {
-                        referenced_resources.image_frames.set(ImageFrameResourceId { image_id }, AK::HashSetExistingEntryBehavior::Keep);
-                    });
-                }
             }
             if constexpr (requires { command.display_list_id; }) {
                 add_display_list_resource(command.display_list_id);

@@ -5,10 +5,10 @@
  */
 
 use super::{
-    AnchorScrollShift, BackfaceVisibilityData, ClipData, ClipMode, ClipNode, ClipNodeData, ClipNodeIndex, ClipPathData,
-    EffectNode, EffectNodeData, EffectNodeIndex, EffectsData, MaskData, MaskLayerOrigin, PerspectiveData, ScrollData,
-    SpatialData, SpatialNode, SpatialNodeIndex, StickyData, TransformData, TransformDataRole,
-    VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree, scroll_state::NO_SCROLL_STATE_SLOT,
+    AnchorScrollShift, BackdropFilterData, BackfaceVisibilityData, ClipData, ClipMode, ClipNode, ClipNodeData,
+    ClipNodeIndex, ClipPathData, EffectNode, EffectNodeData, EffectNodeIndex, EffectsData, MaskData, MaskLayerOrigin,
+    PerspectiveData, ScrollData, SpatialData, SpatialNode, SpatialNodeIndex, StickyData, TransformData,
+    TransformDataRole, VISUAL_VIEWPORT_NODE_INDEX, VisualContextTree, scroll_state::NO_SCROLL_STATE_SLOT,
 };
 use crate::layout::node_data::NodeSlotId;
 use libgfx_rust::path::OwnedPath;
@@ -427,6 +427,12 @@ fn write_effect_data(writer: &mut TreeByteWriter, data: &EffectNodeData) {
             writer.i32(effects.blend_mode as i32);
             writer.bool(effects.filter.is_some());
             writer.length_prefixed_bytes(effects.filter.as_deref().map_or(&[], Vec::as_slice));
+            writer.bool(effects.backdrop_filter.is_some());
+            if let Some(backdrop_filter) = &effects.backdrop_filter {
+                writer.int_rect(backdrop_filter.region);
+                writer.corner_radii(backdrop_filter.corner_radii);
+                writer.length_prefixed_bytes(&backdrop_filter.filter);
+            }
         }
         EffectNodeData::Mask(mask) => {
             writer.u8(EFFECT_KIND_MASK);
@@ -446,10 +452,20 @@ fn read_effect_data(reader: &mut TreeByteReader<'_>) -> Option<EffectNodeData> {
             let blend_mode = reader.compositing_and_blending_operator()?;
             let has_filter = reader.bool()?;
             let filter_bytes = reader.length_prefixed_bytes()?;
+            let backdrop_filter = if reader.bool()? {
+                Some(BackdropFilterData {
+                    region: reader.int_rect()?,
+                    corner_radii: reader.corner_radii()?,
+                    filter: Rc::new(reader.length_prefixed_bytes()?.to_vec()),
+                })
+            } else {
+                None
+            };
             EffectNodeData::Effects(EffectsData {
                 opacity,
                 blend_mode,
                 filter: has_filter.then(|| Rc::new(filter_bytes.to_vec())),
+                backdrop_filter,
             })
         }
         EFFECT_KIND_MASK => EffectNodeData::Mask(MaskData {
@@ -814,6 +830,7 @@ mod tests {
                 opacity: 1.0,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
+                backdrop_filter: None,
             }),
             EffectNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
@@ -824,6 +841,17 @@ mod tests {
                 opacity: 0.25,
                 blend_mode: CompositingAndBlendingOperator::PlusLighter,
                 filter: Some(Rc::new(vec![1, 2, 3, 4])),
+                backdrop_filter: Some(BackdropFilterData {
+                    filter: Rc::new(vec![5, 6, 7]),
+                    region: IntRect::new(9, 10, 11, 12),
+                    corner_radii: CornerRadii {
+                        top_left: CornerRadius {
+                            horizontal_radius: 1,
+                            vertical_radius: 2,
+                        },
+                        ..CornerRadii::default()
+                    },
+                }),
             }),
             root_effect,
             scroll_node,
@@ -878,7 +906,10 @@ mod tests {
     fn effect_data_matches(a: &EffectNodeData, b: &EffectNodeData) -> bool {
         match (a, b) {
             (EffectNodeData::Effects(a), EffectNodeData::Effects(b)) => {
-                a.opacity == b.opacity && a.blend_mode == b.blend_mode && a.filter == b.filter
+                a.opacity == b.opacity
+                    && a.blend_mode == b.blend_mode
+                    && a.filter == b.filter
+                    && a.backdrop_filter == b.backdrop_filter
             }
             (EffectNodeData::Mask(a), EffectNodeData::Mask(b)) => a == b,
             (EffectNodeData::BackgroundColorAnimation, EffectNodeData::BackgroundColorAnimation) => true,
@@ -937,6 +968,7 @@ mod tests {
                 opacity: 0.5,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
+                backdrop_filter: None,
             }),
             EffectNodeIndex::NONE,
             scroll_node,
@@ -1027,6 +1059,7 @@ mod tests {
                 opacity: 1.0,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
+                backdrop_filter: None,
             })
         };
         let rect = || ClipNodeData::rect_clip(FloatRect::new(0.0, 0.0, 1.0, 1.0));
@@ -1177,6 +1210,7 @@ mod tests {
                 opacity: 1.0,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
+                backdrop_filter: None,
             }),
             EffectNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
@@ -1187,6 +1221,7 @@ mod tests {
                 opacity: 0.5,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
+                backdrop_filter: None,
             }),
             EffectNodeIndex(0),
             SpatialNodeIndex(2),

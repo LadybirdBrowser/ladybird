@@ -80,7 +80,14 @@ impl BoxFacts {
             opacity: effects.opacity,
             blend_mode: effects.blend_mode,
             filter: effects.filter.clone(),
+            backdrop_filter: effects.backdrop_filter.clone(),
         })
+    }
+
+    pub(crate) fn effects_layer_is_inside_transform_and_clips(&self) -> bool {
+        self.effects
+            .as_ref()
+            .is_some_and(|effects| effects.backdrop_filter.is_some())
     }
 
     pub(crate) fn gather(

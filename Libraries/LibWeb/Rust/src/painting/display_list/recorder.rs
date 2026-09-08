@@ -957,19 +957,11 @@ impl DisplayListRecorder {
         self.append_command(&command, payload.inline_data());
     }
 
-    pub fn apply_backdrop_filter(&mut self, backdrop_region: IntRect, corner_radii: CornerRadii, filter_bytes: &[u8]) {
-        if backdrop_region.is_empty() {
+    pub fn backdrop_filter_region(&mut self, rect: IntRect) {
+        if rect.is_empty() {
             return;
         }
-        let mut payload = CommandPayloadBuilder::new::<ApplyBackdropFilter>(&self.builder);
-        let filter_data = payload.append_data(filter_bytes, std::mem::align_of::<u32>());
-        let command = ApplyBackdropFilter {
-            backdrop_region,
-            corner_radii,
-            has_backdrop_filter: true,
-            backdrop_filter_data: filter_data,
-        };
-        self.append_command(&command, payload.inline_data());
+        self.append_command(&BackdropFilterRegion { rect }, &[]);
     }
 
     pub fn paint_outer_box_shadow(&mut self, mut shadow: PaintOuterBoxShadow, force_dark_role: ForceDarkRole) {

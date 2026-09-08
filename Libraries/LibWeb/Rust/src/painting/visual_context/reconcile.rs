@@ -608,6 +608,7 @@ mod tests {
                 opacity: 0.7,
                 blend_mode: CompositingAndBlendingOperator::Normal,
                 filter: None,
+                backdrop_filter: None,
             }),
             ROOT_ISOLATION_EFFECT,
             BOX_A_SPATIAL,

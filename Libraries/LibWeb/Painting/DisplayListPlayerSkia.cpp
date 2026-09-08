@@ -47,7 +47,15 @@ struct DisplayListPlayerSkia::LayerImageFilterCache {
         ByteBuffer filter_bytes;
         sk_sp<SkImageFilter> image_filter;
     };
+    struct BackdropEntry {
+        ByteBuffer filter_bytes;
+        Gfx::IntRect region;
+        Gfx::CornerRadii corner_radii;
+        bool limited_to_region { false };
+        sk_sp<SkImageFilter> image_filter;
+    };
     HashMap<u64, HashMap<u32, Entry>> entries_by_tree_structural_epoch_and_effect;
+    HashMap<u64, HashMap<u32, BackdropEntry>> backdrop_entries_by_tree_structural_epoch_and_effect;
     u64 tree_structural_epoch { 0 };
 };
 
@@ -78,6 +86,7 @@ void DisplayListPlayerSkia::execute(
     TemporaryChange composited_context_resolver_change { m_composited_context_resolver, composited_context_resolver };
     if (m_layer_image_filter_cache->tree_structural_epoch != visual_context_tree.structural_epoch()) {
         m_layer_image_filter_cache->entries_by_tree_structural_epoch_and_effect.clear();
+        m_layer_image_filter_cache->backdrop_entries_by_tree_structural_epoch_and_effect.clear();
         m_layer_image_filter_cache->tree_structural_epoch = visual_context_tree.structural_epoch();
     }
     DisplayListPlayer::execute(
@@ -1009,21 +1018,9 @@ void DisplayListPlayerSkia::play_command(DrawLine const& command)
     canvas.drawLine(from, to, paint);
 }
 
-void DisplayListPlayerSkia::play_command(ApplyBackdropFilter const& command)
+// The backdrop filter is applied by the layer of the effect the command records under.
+void DisplayListPlayerSkia::play_command(BackdropFilterRegion const&)
 {
-    auto& canvas = surface().canvas();
-
-    canvas.save();
-    clip_to_rounded_rect(canvas, command.backdrop_region, command.corner_radii, SkClipOp::kIntersect);
-    ScopeGuard guard = [&] { canvas.restore(); };
-
-    if (command.has_backdrop_filter) {
-        auto image_filter = Gfx::to_skia_image_filter(inline_data(command.backdrop_filter_data), [&](u64 image_id) -> Gfx::DecodedImageFrame const& {
-            return resource_storage().image_frame(ImageFrameResourceId { image_id });
-        });
-        canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, nullptr, image_filter.get(), 0));
-        canvas.restore();
-    }
 }
 
 void DisplayListPlayerSkia::play_command(DrawRect const& command)
@@ -1273,21 +1270,84 @@ void DisplayListPlayerSkia::push_clip_path(Gfx::Path const& path, Gfx::WindingRu
     clip_path(path, winding_rule, true);
 }
 
+// https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty
+// Skia reads a layer's backdrop from the layer's parent, so the filtered backdrop has to become the
+// layer's initial content here, where the layer is opened. The canvas clip is not narrowed to the
+// backdrop region, since that would clip the box's overflowing content along with it.
 void DisplayListPlayerSkia::push_layer(ReplayLayer const& layer)
 {
     auto& canvas = surface().canvas();
     SkPaint paint;
+    bool paint_has_effects = false;
 
-    if (layer.opacity < 1.0f)
+    if (layer.opacity < 1.0f) {
         paint.setAlphaf(layer.opacity);
+        paint_has_effects = true;
+    }
 
-    if (layer.blend_mode != Gfx::CompositingAndBlendingOperator::Normal)
+    if (layer.blend_mode != Gfx::CompositingAndBlendingOperator::Normal) {
         paint.setBlender(Gfx::to_skia_blender(layer.blend_mode));
+        paint_has_effects = true;
+    }
 
-    if (layer.filter_bytes_size)
+    if (layer.filter_bytes_size) {
         paint.setImageFilter(layer_image_filter(layer));
+        paint_has_effects = true;
+    }
 
-    canvas.saveLayer(nullptr, &paint);
+    if (!layer.backdrop_filter_bytes_size) {
+        canvas.saveLayer(nullptr, &paint);
+        return;
+    }
+
+    if (!paint_has_effects) {
+        // Source-over is associative, so compositing the filtered backdrop in place and painting the
+        // content over it gives the same pixels without a layer the size of the clip. The plain save
+        // balances the pop that closes the layer.
+        canvas.save();
+        clip_to_rounded_rect(canvas, layer.backdrop_region, layer.backdrop_corner_radii, SkClipOp::kIntersect);
+        canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, nullptr, backdrop_image_filter(layer, false).get(), 0));
+        canvas.restore();
+        canvas.restore();
+        canvas.save();
+        return;
+    }
+
+    canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, &paint, backdrop_image_filter(layer, true).get(), 0));
+}
+
+// With `limited_to_region`, the filtered backdrop is cropped to the rounded region inside the filter
+// graph, which also bounds what the filter reads.
+sk_sp<SkImageFilter> DisplayListPlayerSkia::backdrop_image_filter(ReplayLayer const& layer, bool limited_to_region)
+{
+    ReadonlyBytes filter_bytes { layer.backdrop_filter_bytes, layer.backdrop_filter_bytes_size };
+    auto& entries_by_effect = m_layer_image_filter_cache->backdrop_entries_by_tree_structural_epoch_and_effect.ensure(active_visual_context_tree().structural_epoch());
+    if (auto cached = entries_by_effect.get(layer.effect.value());
+        cached.has_value()
+        && cached->filter_bytes.bytes() == filter_bytes
+        && cached->region == layer.backdrop_region
+        && cached->corner_radii == layer.backdrop_corner_radii
+        && cached->limited_to_region == limited_to_region)
+        return cached->image_filter;
+
+    auto image_filter = Gfx::to_skia_image_filter(filter_bytes, [&](u64 image_id) -> Gfx::DecodedImageFrame const& {
+        return resource_storage().image_frame(ImageFrameResourceId { image_id });
+    });
+    if (limited_to_region) {
+        auto region = to_skia_rect(layer.backdrop_region);
+        image_filter = SkImageFilters::Crop(region, SkTileMode::kDecal, move(image_filter));
+        if (layer.backdrop_corner_radii.has_any_radius()) {
+            SkPictureRecorder recorder;
+            auto* picture_canvas = recorder.beginRecording(region);
+            SkPaint mask_paint;
+            mask_paint.setAntiAlias(true);
+            mask_paint.setColor(SK_ColorWHITE);
+            picture_canvas->drawRRect(to_skia_rrect(layer.backdrop_region, layer.backdrop_corner_radii), mask_paint);
+            image_filter = SkImageFilters::Blend(SkBlendMode::kDstIn, move(image_filter), SkImageFilters::Picture(recorder.finishRecordingAsPicture()));
+        }
+    }
+    entries_by_effect.set(layer.effect.value(), LayerImageFilterCache::BackdropEntry { MUST(ByteBuffer::copy(filter_bytes)), layer.backdrop_region, layer.backdrop_corner_radii, limited_to_region, image_filter });
+    return image_filter;
 }
 
 sk_sp<SkImageFilter> DisplayListPlayerSkia::layer_image_filter(ReplayLayer const& layer)

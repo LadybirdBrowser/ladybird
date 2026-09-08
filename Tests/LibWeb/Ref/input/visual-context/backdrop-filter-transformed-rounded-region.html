@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/visual-context/backdrop-filter-transformed-rounded-region-ref.html">
+<meta name="fuzzy" content="maxDifference=0-8;totalPixels=0-40">
+<style>
+body {
+    margin: 0;
+    background: white;
+}
+.backdrop {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 300px;
+    height: 200px;
+    background: rgb(0, 255, 0);
+}
+.filtered {
+    position: absolute;
+    left: 100px;
+    top: 50px;
+    width: 50px;
+    height: 50px;
+    border-radius: 10px;
+    transform: scale(2);
+    backdrop-filter: invert(1);
+    opacity: 0.5;
+}
+</style>
+<!-- The filtered backdrop is limited to the box's rounded border box in the box's own transformed space,
+     so the corners are rounded by 20 device pixels and the rest of the box's layer stays empty. Only the
+     anti-aliased edge of the rounded region may differ from the reference (two pixels here). -->
+<div class="backdrop"></div>
+<div class="filtered"></div>

@@ -8,7 +8,12 @@
 <div>before <span id="wrap">filtered</span> after</div>
 <script>
     test(() => {
-        const lines = internals.dumpDisplayList().split("\n").filter(line => line.toLowerCase().includes("backdrop"));
-        println(`backdrop commands: ${lines.length}`);
+        const lines = internals.dumpDisplayList().split("\n");
+        const regionCommands = lines.filter(line => line.startsWith("BackdropFilterRegion"));
+        const backdropEffects = lines.filter(line => line.includes("backdrop-filter="));
+        println(`backdrop region commands: ${regionCommands.length}`);
+        println(`backdrop filter effects: ${backdropEffects.length}`);
+        for (const line of backdropEffects)
+            println(line.replace(/\[[-\d]+,[-\d]+ \d+x\d+\]/g, "[rect]"));
     });
 </script>

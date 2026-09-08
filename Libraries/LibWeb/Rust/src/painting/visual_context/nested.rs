@@ -35,7 +35,8 @@ impl<Arena: PaintableRowsRead> NestedBuilder<'_, Arena> {
     fn build_subtree(&mut self, slot: NodeSlotId, inherited_state: ContextRef, include_element_transform: bool) {
         let facts = BoxFacts::gather(self.layout_arena, self.callbacks, slot, self.pixel_ratio, false);
         let mut own_state = inherited_state;
-        if let Some(effects) = facts.effects_data() {
+        let effects_layer_is_inside_transform = facts.effects_layer_is_inside_transform_and_clips();
+        if !effects_layer_is_inside_transform && let Some(effects) = facts.effects_data() {
             own_state = self
                 .tree
                 .append_effect_node_under(own_state, EffectNodeData::Effects(effects));
@@ -45,6 +46,12 @@ impl<Arena: PaintableRowsRead> NestedBuilder<'_, Arena> {
             own_state = self
                 .tree
                 .append_spatial_under(own_state, SpatialData::Transform(transform));
+        }
+
+        if effects_layer_is_inside_transform && let Some(effects) = facts.effects_data() {
+            own_state = self
+                .tree
+                .append_effect_node_under(own_state, EffectNodeData::Effects(effects));
         }
 
         for mask_layer in facts

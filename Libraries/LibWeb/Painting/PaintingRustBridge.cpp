@@ -1093,11 +1093,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 write_image_paint_facts(*paint, context, facts);
             return facts;
         },
-        .resolve_svg_filter = [](void* context_pointer, void* layout_node_shell, void const* url_value, void* sink) -> Layout::RustFFI::FfiResolvedSvgFilter {
-            auto& context = *static_cast<PaintHostContext*>(context_pointer);
-            auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
-            return push_svg_filter_reference(url_value, layout_node, &context.resource_storage, sink);
-        },
         .svg_image_facts = [](void*, void* layout_node_shell) -> Layout::RustFFI::FfiSvgImageFacts {
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
             auto const* row = committed_row(layout_node);

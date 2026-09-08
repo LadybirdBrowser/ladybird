@@ -174,6 +174,7 @@ pub(crate) fn effect_payloads_are_equal(a: &EffectNodeData, b: &EffectNodeData) 
             a.opacity == b.opacity
                 && a.blend_mode == b.blend_mode
                 && effects_filters_are_equal(a.filter.as_ref(), b.filter.as_ref())
+                && a.backdrop_filter == b.backdrop_filter
         }
         (EffectNodeData::Mask(a), EffectNodeData::Mask(b)) => a == b,
         (EffectNodeData::BackgroundColorAnimation, EffectNodeData::BackgroundColorAnimation) => true,

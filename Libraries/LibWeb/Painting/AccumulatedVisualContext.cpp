@@ -257,9 +257,9 @@ bool AccumulatedVisualContextTree::effect_is_isolated_by_layer(EffectNodeIndex e
     return Layout::RustFFI::visual_context_tree_effect_is_isolated_by_layer(m_rust_tree, effect);
 }
 
-bool AccumulatedVisualContextTree::has_unisolated_blending_effect() const
+bool AccumulatedVisualContextTree::has_unisolated_destination_reading_effect() const
 {
-    return Layout::RustFFI::visual_context_tree_has_unisolated_blending_effect(m_rust_tree);
+    return Layout::RustFFI::visual_context_tree_has_unisolated_destination_reading_effect(m_rust_tree);
 }
 
 void AccumulatedVisualContextTree::for_each_effects_filter_bytes(Function<void(ReadonlyBytes)> const& visit) const
