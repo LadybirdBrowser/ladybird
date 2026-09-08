@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<video id="video" controls></video>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const video = document.getElementById("video");
+        const shadowRoot = internals.getShadowRoot(video);
+        const timestamp = shadowRoot.querySelector(".timestamp");
+        const timeline = shadowRoot.querySelector(".timeline");
+
+        const mediaSource = new MediaSource();
+        video.src = URL.createObjectURL(mediaSource);
+        await new Promise(resolve => mediaSource.addEventListener("sourceopen", resolve, { once: true }));
+
+        async function setDuration(duration) {
+            mediaSource.duration = duration;
+            await new Promise(resolve => video.addEventListener("durationchange", resolve, { once: true }));
+        }
+
+        await setDuration(30);
+        println(`bounded timestamp: "${timestamp.textContent}"`);
+
+        await setDuration(Infinity);
+        println(`unbounded timestamp: "${timestamp.textContent}"`);
+
+        const timelineRect = timeline.getBoundingClientRect();
+        timeline.dispatchEvent(new MouseEvent("mousedown", {
+            clientX: timelineRect.left + timelineRect.width / 2,
+            bubbles: true,
+        }));
+        println(`current time after scrubbing an unbounded timeline: ${video.currentTime}`);
+
+        // 0x23 is the End key.
+        video.dispatchEvent(new KeyboardEvent("keydown", { keyCode: 0x23, bubbles: true }));
+        println(`current time after End on an unbounded resource: ${video.currentTime}`);
+    });
+</script>
