@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Time.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
@@ -98,13 +99,7 @@ public:
     Vector<Gfx::UnicodeRange> const& unicode_ranges() const { return m_unicode_ranges; }
     bool has_urls() const { return !m_urls.is_empty(); }
 
-    bool has_non_default_unicode_range() const
-    {
-        if (m_unicode_ranges.size() != 1)
-            return true;
-        auto const& range = m_unicode_ranges.first();
-        return range.min_code_point() != 0 || range.max_code_point() != 0x10FFFF;
-    }
+    void set_font_display_time_for_testing(u32 milliseconds);
 
     FontFaceLoadStatus status() const { return m_status; }
 
@@ -124,6 +119,23 @@ private:
     void reject_status_promise(WebIDL::Exception);
 
     Optional<FontComputer&> font_computer() const;
+
+    // https://drafts.csswg.org/css-fonts-4/#font-display-timeline
+    enum class FontDisplayPeriod : u8 {
+        Block,
+        Swap,
+        Failure,
+    };
+    Gfx::PendingFontState resolve_for_rendering();
+    void update_font_display_period();
+    void invalidate_font_display();
+    FontDisplay m_font_display { FontDisplay::Auto };
+    FontDisplayPeriod m_font_display_period { FontDisplayPeriod::Block };
+    Optional<MonotonicTime> m_font_download_timer_start;
+    GC::Ptr<Platform::Timer> m_font_download_timer;
+    Optional<u32> m_font_display_time_for_testing;
+    bool m_font_display_failed { false };
+    bool m_font_download_completed { false };
 
     [[nodiscard]] Optional<ComputationContext> computation_context() const;
 

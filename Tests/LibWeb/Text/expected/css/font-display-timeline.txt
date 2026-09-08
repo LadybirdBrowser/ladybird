@@ -1,0 +1,21 @@
+auto: fallback metrics = true, status = loading
+block: fallback metrics = true, status = loading
+swap: fallback metrics = true, status = loading
+fallback: fallback metrics = true, status = loading
+optional: fallback metrics = true, status = loading
+auto: loaded = loaded, uses downloaded font = true
+auto: unchanged after deadline = true
+block: loaded = loaded, uses downloaded font = true
+block: unchanged after deadline = true
+swap: loaded = loaded, uses downloaded font = true
+swap: unchanged after deadline = true
+fallback: loaded = loaded, uses downloaded font = false
+fallback: unchanged after deadline = false
+optional: loaded = loaded, uses downloaded font = false
+optional: unchanged after deadline = false
+Font loaded during block period remains usable: true
+Preloaded optional font is usable: true
+Loaded preferred face leaves fallback unloaded: unloaded
+Pending preferred face leaves fallback unloaded: unloaded
+Changing display preserves fallback metrics: true
+Network failure uses fallback: error, true

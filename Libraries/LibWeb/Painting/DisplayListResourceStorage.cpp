@@ -463,6 +463,8 @@ static u64 text_blob_glyph_hash(ReadonlySpan<DisplayListGlyph> glyphs)
 
 static sk_sp<SkTextBlob> make_text_blob(Gfx::Font const& font, float scale, ReadonlySpan<DisplayListGlyph> glyphs)
 {
+    if (font.is_invisible())
+        return nullptr;
     auto sk_font = font.skia_font(scale);
     SkTextBlobBuilder builder;
     auto const& run = builder.allocRunPos(sk_font, glyphs.size());

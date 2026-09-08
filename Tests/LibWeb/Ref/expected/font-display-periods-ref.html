@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<style>
+body { margin: 0; }
+.row { font: 16px/16px monospace; white-space: pre; }
+.sample { color: green; text-shadow: 1px 1px green; }
+.invisible { color: transparent; text-shadow: none; }
+</style>
+<body>
+<script>
+const token = new URLSearchParams(location.search).get("unblock");
+if (token)
+    fetch(`/unblock/${token}`);
+for (const display of ["auto", "block", "swap", "fallback", "optional"]) {
+    for (const elapsed of [0, 99, 100, 2999, 3000, 3099, 3100]) {
+        const family = `${display}-${elapsed}`;
+        const hidden = (display === "auto" || display === "block") ? elapsed < 3000
+            : (display === "fallback" || display === "optional") && elapsed < 100;
+        const row = document.createElement("div");
+        row.className = "row";
+        row.append(`${family.padEnd(14)} `);
+        const sample = document.createElement("span");
+        sample.className = "sample";
+        const first = document.createElement("span");
+        first.className = hidden ? "invisible" : "";
+        first.textContent = "A";
+        sample.append(first, "B");
+        row.append(sample);
+        document.body.append(row);
+    }
+}
+</script>

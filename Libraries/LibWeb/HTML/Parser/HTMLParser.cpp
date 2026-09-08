@@ -748,10 +748,9 @@ void HTMLParserEndState::check_progress()
 
     case Phase::WaitingForLoadEventDelay:
         // 8. Spin the event loop until there is nothing that delays the load event in the Document.
-        // AD-HOC: Update style first — so any font fetches that the computed styles depend on get started; an in-flight
-        //         font fetch delays the load event.
+        // AD-HOC: Update layout first so font loads selected by text shaping can delay the load event.
         // INTEROP: Gecko also flushes layout before firing the load event — so lazily-started font loads hold it back.
-        m_document->update_style();
+        m_document->update_layout(DOM::UpdateLayoutReason::DocumentReadinessComplete);
         if (m_document->anything_is_delaying_the_load_event())
             return;
 

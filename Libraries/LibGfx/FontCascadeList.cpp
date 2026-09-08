@@ -51,8 +51,9 @@ void FontCascadeList::add(NonnullRefPtr<Font const> font, Vector<UnicodeRange> u
         } });
 }
 
-void FontCascadeList::add_pending_face(Vector<UnicodeRange> unicode_ranges, Function<void()> start_load)
+void FontCascadeList::add_pending_face(Vector<UnicodeRange> unicode_ranges, Function<PendingFontState()> resolve)
 {
+    m_ascii_cache.fill(nullptr);
     if (unicode_ranges.is_empty())
         return;
 
@@ -63,17 +64,16 @@ void FontCascadeList::add_pending_face(Vector<UnicodeRange> unicode_ranges, Func
         highest_code_point = max(highest_code_point, range.max_code_point());
     }
 
-    m_pending_faces.append(adopt_ref(*new PendingFace(
-        UnicodeRange { lowest_code_point, highest_code_point },
-        move(unicode_ranges),
-        move(start_load))));
+    m_pending_faces.append({ m_fonts.size(), adopt_ref(*new PendingFace(UnicodeRange { lowest_code_point, highest_code_point }, move(unicode_ranges), move(resolve))) });
 }
 
 void FontCascadeList::extend(FontCascadeList const& other)
 {
+    m_ascii_cache.fill(nullptr);
     m_first_available_font_cache = nullptr;
+    for (auto const& pending : other.m_pending_faces)
+        m_pending_faces.append({ m_fonts.size() + pending.font_index, pending.face });
     m_fonts.extend(other.m_fonts);
-    m_pending_faces.extend(other.m_pending_faces);
 }
 
 void FontCascadeList::extend_fallback(FontCascadeList const& other)
@@ -115,28 +115,24 @@ Gfx::Font const& FontCascadeList::first_available_font() const
 
 Gfx::Font const& FontCascadeList::font_for_code_point(u32 code_point, EmojiPresentationResult emoji_presentation) const
 {
-    // Walk pending entries first: if this codepoint falls in an unloaded face's unicode-range we kick off the fetch
-    // and drop the entry — a fallback font that happens to cover the codepoint shouldn't prevent the real face from
-    // loading. FontComputer::clear_computed_font_cache() rebuilds the cascade once the fetch completes, so later
-    // shapes pick up the loaded face. Run before the ASCII cache lookup so a previously-cached codepoint still
-    // triggers a newly-added face.
-    m_pending_faces.remove_all_matching([code_point](auto const& pending) {
-        if (!pending->covers(code_point))
-            return false;
-        pending->start_load();
-        return true;
-    });
-
     auto use_ascii_cache = code_point < m_ascii_cache.size() && emoji_presentation.presentation == EmojiPresentation::Text && emoji_presentation.forced == ForcedPresentation::No;
     if (use_ascii_cache) {
         if (auto const* cached = m_ascii_cache[code_point])
             return *cached;
     }
 
+    bool invisible = false;
     auto cache_and_return = [&](Font const& font) -> Font const& {
+        auto const* selected_font = &font;
+        if (invisible) {
+            // https://drafts.csswg.org/css-fonts-4/#invisible-fallback
+            // Create an anonymous font face with the same metrics as the selected font face
+            // but with all glyphs "invisible" (containing no "ink"), and use that for rendering text.
+            selected_font = m_invisible_fonts.ensure(&font, [&] { return font.invisible_variant(); }).ptr();
+        }
         if (use_ascii_cache)
-            m_ascii_cache[code_point] = &font;
-        return font;
+            m_ascii_cache[code_point] = selected_font;
+        return *selected_font;
     };
 
     auto presentation_matches = [wants_emoji = emoji_presentation.presentation == EmojiPresentation::Emoji](Font const& font) {
@@ -155,8 +151,28 @@ Gfx::Font const& FontCascadeList::font_for_code_point(u32 code_point, EmojiPrese
         return false;
     };
 
+    size_t pending_index = 0;
+    bool rendering_with_fallback = false;
+    auto resolve_pending_faces = [&](size_t font_index) {
+        while (!rendering_with_fallback && pending_index < m_pending_faces.size()
+            && m_pending_faces[pending_index].font_index <= font_index) {
+            auto const& pending = m_pending_faces[pending_index++].face;
+            if (!pending->covers(code_point))
+                continue;
+            auto state = pending->resolve();
+            if (state == PendingFontState::Failed)
+                continue;
+            invisible = state == PendingFontState::Invisible;
+            // https://drafts.csswg.org/css-fonts-4/#font-display-timeline
+            // Doing this must not trigger loads of any of the fallback fonts.
+            rendering_with_fallback = true;
+        }
+    };
+
     Font const* author_glyph_match = nullptr;
-    for (auto const& entry : m_fonts) {
+    for (size_t font_index = 0; font_index < m_fonts.size(); ++font_index) {
+        resolve_pending_faces(font_index);
+        auto const& entry = m_fonts[font_index];
         if (!entry_contains_glyph(entry))
             continue;
         if (emoji_presentation.forced == ForcedPresentation::No || presentation_matches(*entry.font))
@@ -164,6 +180,8 @@ Gfx::Font const& FontCascadeList::font_for_code_point(u32 code_point, EmojiPrese
         if (!author_glyph_match)
             author_glyph_match = entry.font.ptr();
     }
+
+    resolve_pending_faces(m_fonts.size());
 
     Font const* fallback_glyph_match = nullptr;
     for (auto const& entry : m_fallback_fonts) {
@@ -194,6 +212,8 @@ Gfx::Font const& FontCascadeList::font_for_code_point(u32 code_point, EmojiPrese
 
 bool FontCascadeList::equals(FontCascadeList const& other) const
 {
+    if (!m_pending_faces.is_empty() || !other.m_pending_faces.is_empty())
+        return false;
     if (m_fonts.size() != other.m_fonts.size())
         return false;
     for (size_t i = 0; i < m_fonts.size(); ++i) {

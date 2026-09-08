@@ -67,6 +67,13 @@ Font::Font(NonnullRefPtr<Typeface const> typeface, float point_width, float poin
 
 float Font::width(Utf16View const& view) const { return measure_text_width(view, *this); }
 
+NonnullRefPtr<Font> Font::invisible_variant() const
+{
+    auto font = adopt_ref(*new Font(m_typeface, m_point_width, m_point_height, m_font_variation_settings, m_shape_features));
+    font->m_is_invisible = true;
+    return font;
+}
+
 NonnullRefPtr<Font> Font::with_size(float point_size) const
 {
     if (point_size == m_point_height && point_size == m_point_width)
