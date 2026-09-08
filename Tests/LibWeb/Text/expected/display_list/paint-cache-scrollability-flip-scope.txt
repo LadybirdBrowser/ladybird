@@ -1,4 +1,4 @@
-inner reports no element scroller as its parent while outer does not scroll: true
-inner reports outer as its parent once outer scrolls: true
-outer becoming scrollable visits about as many captures as a change inside one box: true
-inserting a box with scrollable overflow visits about as many captures as a change inside one box: true
+PASS: quiet before scrollability change (work + checks)
+PASS: change an unrelated box (work)
+PASS: make outer scrollable (work + checks)
+PASS: insert scrollable box in second row (work)

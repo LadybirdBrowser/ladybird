@@ -1,5 +1,7 @@
 <!doctype html>
+<html id="html">
 <script src="../include.js"></script>
+<script src="recording-test.js"></script>
 <style>
     body { margin: 0; font: 16px/20px monospace; }
     .row { display: flex; flex-wrap: wrap; width: 400px; }
@@ -8,52 +10,324 @@
     #inner { overflow: auto; width: 40px; height: 20px; }
     .tall { height: 200px; }
 </style>
+<body id="body">
 <div id="row" class="row"></div>
 <div id="second-row" class="row"></div>
 <script>
-    test(() => {
-        function fillRow(row, count) {
-            for (let i = 0; i < count; ++i) {
+function nestedElementScrollers() {
+    const nodes = internals.recordedAsyncScrollingState().scrollNodes.filter(node => !node.isViewport);
+    return nodes.filter(node => nodes.some(parent => parent.documentID === node.parentDocumentID && parent.scrollNodeIndex === node.parentScrollNodeIndex)).length;
+}
+displayListTest({
+    setup: () => {
+        removeBodyWhitespace();
+        for (const id of ["row", "second-row"]) {
+            const row = document.getElementById(id);
+            for (let i = 0; i < 3; ++i) {
                 const box = document.createElement("div");
+                box.id = `${id}-${i}`;
                 box.className = "box";
-                box.textContent = "B" + i;
+                box.textContent = `B${i}`;
                 row.appendChild(box);
             }
         }
-        const row = document.getElementById("row");
-        const secondRow = document.getElementById("second-row");
-        fillRow(row, 60);
-        fillRow(secondRow, 5);
-        const outer = row.children[5];
+        const outer = document.getElementById("row-1");
         outer.id = "outer";
-        outer.innerHTML = '<div id="inner"><div class="tall"></div></div><div id="filler"></div>';
-        function scrollersNestedBelowAnotherScroller() {
-            const elementScrollers = internals.asyncScrollingState().scrollNodes.filter(node => !node.isViewport);
-            return elementScrollers.filter(node => elementScrollers.some(parent => parent.documentID === node.parentDocumentID && parent.scrollNodeIndex === node.parentScrollNodeIndex)).length;
+        outer.innerHTML = '<div id="inner"><div id="inner-content" class="tall"></div></div><div id="filler"></div>';
+    },
+    steps: [
+        {
+            name: "quiet before scrollability change",
+            check: equal => { equal(nestedElementScrollers(), 0, "inner has no element scroller parent"); },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport REUSE WHOLE CAPTURE
+            `
+        },
+        {
+            name: "change an unrelated box",
+            mutate: () => { document.getElementById("row-2").style.color = "red"; },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test REUSE
+                  @viewport/scroll-metadata RECORD
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
+                  @viewport/foreground/hit-test REUSE
+                  @viewport/foreground REUSE
+                  BlockContainer<HTML>#html/descendants(foreground) WALK
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test REUSE
+                    BlockContainer<HTML>#html/scroll-metadata RECORD
+                    BlockContainer<HTML>#html/background REUSE
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
+                      BlockContainer<BODY>#body/background/hit-test REUSE
+                      BlockContainer<BODY>#body/scroll-metadata RECORD
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      Box<DIV>#row.row/descendants(background-and-borders) WALK
+                        Box<DIV>#row.row/background/hit-test REUSE
+                        Box<DIV>#row.row/scroll-metadata RECORD
+                        Box<DIV>#row.row/background SKIP
+                        Box<DIV>#row.row/border SKIP
+                        BlockContainer<DIV>#row-0.box/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                        BlockContainer<DIV>#outer.box/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                        BlockContainer<DIV>#row-2.box/descendants(background-and-borders) WALK
+                      Box<DIV>#second-row.row/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                    BlockContainer<HTML>#html/foreground/hit-test REUSE
+                    BlockContainer<HTML>#html/foreground REUSE
+                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/foreground/hit-test REUSE
+                      BlockContainer<BODY>#body/foreground REUSE
+                      Box<DIV>#row.row/descendants(foreground) WALK
+                        Box<DIV>#row.row/foreground/hit-test REUSE
+                        Box<DIV>#row.row/foreground REUSE
+                        BlockContainer<DIV>#row-0.box/descendants(foreground) REUSE WHOLE CAPTURE
+                        BlockContainer<DIV>#outer.box/descendants(foreground) REUSE WHOLE CAPTURE
+                        BlockContainer<DIV>#row-2.box/descendants(foreground) WALK
+                        Box<DIV>#row.row/outline SKIP
+                        Box<DIV>#row.row/overlay/hit-test REUSE
+                        Box<DIV>#row.row/overlay SKIP
+                      Box<DIV>#second-row.row/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test REUSE
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<DIV>#row-0.box REUSE WHOLE CAPTURE
+                    BlockContainer<DIV>#outer.box REUSE WHOLE CAPTURE
+                    BlockContainer<DIV>#row-2.box WALK
+                      BlockContainer<DIV>#row-2.box/background/hit-test RECORD
+                      BlockContainer<DIV>#row-2.box/scroll-metadata RECORD
+                      BlockContainer<DIV>#row-2.box/background SKIP
+                      BlockContainer<DIV>#row-2.box/border RECORD
+                      BlockContainer<DIV>#row-2.box/foreground/hit-test RECORD
+                      BlockContainer<DIV>#row-2.box/foreground RECORD
+                      BlockContainer<DIV>#row-2.box/outline SKIP
+                      BlockContainer<DIV>#row-2.box/overlay/hit-test RECORD (empty)
+                      BlockContainer<DIV>#row-2.box/overlay SKIP
+                    BlockContainer<DIV>#second-row-0.box REUSE WHOLE CAPTURE
+                    BlockContainer<DIV>#second-row-1.box REUSE WHOLE CAPTURE
+                    BlockContainer<DIV>#second-row-2.box REUSE WHOLE CAPTURE
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline SKIP
+            `
+        },
+        {
+            name: "make outer scrollable",
+            mutate: () => { filler.className = "tall"; },
+            check: equal => { equal(nestedElementScrollers(), 1, "inner reports outer as its parent"); },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test RECORD
+                  @viewport/scroll-metadata RECORD
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
+                  @viewport/foreground/hit-test RECORD (empty)
+                  @viewport/foreground RECORD (empty)
+                  BlockContainer<HTML>#html/descendants(foreground) WALK
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test RECORD
+                    BlockContainer<HTML>#html/scroll-metadata RECORD
+                    BlockContainer<HTML>#html/background RECORD (empty)
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
+                      BlockContainer<BODY>#body/background/hit-test RECORD
+                      BlockContainer<BODY>#body/scroll-metadata RECORD
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      Box<DIV>#row.row/descendants(background-and-borders) WALK
+                        Box<DIV>#row.row/background/hit-test RECORD
+                        Box<DIV>#row.row/scroll-metadata RECORD
+                        Box<DIV>#row.row/background SKIP
+                        Box<DIV>#row.row/border SKIP
+                        BlockContainer<DIV>#row-0.box/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                        BlockContainer<DIV>#outer.box/descendants(background-and-borders) WALK
+                        BlockContainer<DIV>#row-2.box/descendants(background-and-borders) WALK
+                      Box<DIV>#second-row.row/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                    BlockContainer<HTML>#html/foreground/hit-test RECORD (empty)
+                    BlockContainer<HTML>#html/foreground RECORD (empty)
+                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/foreground/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/foreground RECORD (empty)
+                      Box<DIV>#row.row/descendants(foreground) WALK
+                        Box<DIV>#row.row/foreground/hit-test RECORD (empty)
+                        Box<DIV>#row.row/foreground RECORD (empty)
+                        BlockContainer<DIV>#row-0.box/descendants(foreground) REUSE WHOLE CAPTURE
+                        BlockContainer<DIV>#outer.box/descendants(foreground) WALK
+                        BlockContainer<DIV>#row-2.box/descendants(foreground) WALK
+                        Box<DIV>#row.row/outline SKIP
+                        Box<DIV>#row.row/overlay/hit-test RECORD (empty)
+                        Box<DIV>#row.row/overlay SKIP
+                      Box<DIV>#second-row.row/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<DIV>#row-0.box REUSE WHOLE CAPTURE
+                    BlockContainer<DIV>#outer.box WALK
+                      BlockContainer<DIV>#outer.box/background/hit-test RECORD
+                      BlockContainer<DIV>#outer.box/scroll-metadata RECORD
+                      BlockContainer<DIV>#outer.box/background SKIP
+                      BlockContainer<DIV>#outer.box/border RECORD
+                      BlockContainer<DIV>#inner/descendants(background-and-borders) WALK
+                        BlockContainer<DIV>#inner/background/hit-test RECORD
+                        BlockContainer<DIV>#inner/scroll-metadata RECORD
+                        BlockContainer<DIV>#inner/background SKIP
+                        BlockContainer<DIV>#inner/border SKIP
+                        BlockContainer<DIV>#inner-content.tall/descendants(background-and-borders) WALK
+                          BlockContainer<DIV>#inner-content.tall/background/hit-test REUSE
+                          BlockContainer<DIV>#inner-content.tall/scroll-metadata RECORD
+                          BlockContainer<DIV>#inner-content.tall/background SKIP
+                          BlockContainer<DIV>#inner-content.tall/border SKIP
+                      BlockContainer<DIV>#filler.tall/descendants(background-and-borders) WALK
+                        BlockContainer<DIV>#filler.tall/background/hit-test RECORD
+                        BlockContainer<DIV>#filler.tall/scroll-metadata RECORD
+                        BlockContainer<DIV>#filler.tall/background SKIP
+                        BlockContainer<DIV>#filler.tall/border SKIP
+                      BlockContainer<DIV>#inner/descendants(floats) WALK
+                        BlockContainer<DIV>#inner-content.tall/descendants(floats) WALK
+                      BlockContainer<DIV>#filler.tall/descendants(floats) WALK
+                      BlockContainer<DIV>#inner/descendants(inline-background-and-borders) WALK
+                        BlockContainer<DIV>#inner-content.tall/descendants(inline-background-and-borders) WALK
+                      BlockContainer<DIV>#filler.tall/descendants(inline-background-and-borders) WALK
+                      BlockContainer<DIV>#outer.box/foreground/hit-test RECORD (empty)
+                      BlockContainer<DIV>#outer.box/foreground RECORD (empty)
+                      BlockContainer<DIV>#inner/descendants(foreground) WALK
+                        BlockContainer<DIV>#inner/foreground/hit-test RECORD (empty)
+                        BlockContainer<DIV>#inner/foreground RECORD (empty)
+                        BlockContainer<DIV>#inner-content.tall/descendants(foreground) WALK
+                          BlockContainer<DIV>#inner-content.tall/foreground/hit-test REUSE
+                          BlockContainer<DIV>#inner-content.tall/foreground REUSE
+                          BlockContainer<DIV>#inner-content.tall/outline SKIP
+                          BlockContainer<DIV>#inner-content.tall/overlay/hit-test REUSE
+                          BlockContainer<DIV>#inner-content.tall/overlay SKIP
+                        BlockContainer<DIV>#inner/outline SKIP
+                        BlockContainer<DIV>#inner/overlay/hit-test RECORD
+                        BlockContainer<DIV>#inner/overlay RECORD
+                      BlockContainer<DIV>#filler.tall/descendants(foreground) WALK
+                        BlockContainer<DIV>#filler.tall/foreground/hit-test RECORD (empty)
+                        BlockContainer<DIV>#filler.tall/foreground RECORD (empty)
+                        BlockContainer<DIV>#filler.tall/outline SKIP
+                        BlockContainer<DIV>#filler.tall/overlay/hit-test RECORD (empty)
+                        BlockContainer<DIV>#filler.tall/overlay SKIP
+                      BlockContainer<DIV>#outer.box/outline SKIP
+                      BlockContainer<DIV>#outer.box/overlay/hit-test RECORD
+                      BlockContainer<DIV>#outer.box/overlay RECORD
+                    BlockContainer<DIV>#row-2.box WALK
+                      BlockContainer<DIV>#row-2.box/background/hit-test RECORD
+                      BlockContainer<DIV>#row-2.box/scroll-metadata RECORD
+                      BlockContainer<DIV>#row-2.box/background SKIP
+                      BlockContainer<DIV>#row-2.box/border RECORD
+                      BlockContainer<DIV>#row-2.box/foreground/hit-test RECORD
+                      BlockContainer<DIV>#row-2.box/foreground RECORD
+                      BlockContainer<DIV>#row-2.box/outline SKIP
+                      BlockContainer<DIV>#row-2.box/overlay/hit-test RECORD (empty)
+                      BlockContainer<DIV>#row-2.box/overlay SKIP
+                    BlockContainer<DIV>#second-row-0.box REUSE WHOLE CAPTURE
+                    BlockContainer<DIV>#second-row-1.box REUSE WHOLE CAPTURE
+                    BlockContainer<DIV>#second-row-2.box REUSE WHOLE CAPTURE
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline SKIP
+            `
+        },
+        {
+            name: "insert scrollable box in second row",
+            mutate: () => { const inserted = document.createElement("div"); inserted.id = "inserted"; inserted.className = "box"; inserted.style.overflow = "hidden"; inserted.innerHTML = '<div id="inserted-content" class="tall"></div>'; document.getElementById("second-row-1").after(inserted); },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test RECORD
+                  @viewport/scroll-metadata RECORD
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
+                  @viewport/foreground/hit-test RECORD (empty)
+                  @viewport/foreground RECORD (empty)
+                  BlockContainer<HTML>#html/descendants(foreground) WALK
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test RECORD
+                    BlockContainer<HTML>#html/scroll-metadata RECORD
+                    BlockContainer<HTML>#html/background RECORD (empty)
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
+                      BlockContainer<BODY>#body/background/hit-test RECORD
+                      BlockContainer<BODY>#body/scroll-metadata RECORD
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      Box<DIV>#row.row/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      Box<DIV>#second-row.row/descendants(background-and-borders) WALK
+                        Box<DIV>#second-row.row/background/hit-test RECORD
+                        Box<DIV>#second-row.row/scroll-metadata RECORD
+                        Box<DIV>#second-row.row/background SKIP
+                        Box<DIV>#second-row.row/border SKIP
+                        BlockContainer<DIV>#second-row-0.box/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                        BlockContainer<DIV>#second-row-1.box/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                        BlockContainer<DIV>#inserted.box/descendants(background-and-borders) WALK
+                        BlockContainer<DIV>#second-row-2.box/descendants(background-and-borders) WALK
+                    BlockContainer<HTML>#html/foreground/hit-test RECORD (empty)
+                    BlockContainer<HTML>#html/foreground RECORD (empty)
+                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/foreground/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/foreground RECORD (empty)
+                      Box<DIV>#row.row/descendants(foreground) REUSE WHOLE CAPTURE
+                      Box<DIV>#second-row.row/descendants(foreground) WALK
+                        Box<DIV>#second-row.row/foreground/hit-test RECORD (empty)
+                        Box<DIV>#second-row.row/foreground RECORD (empty)
+                        BlockContainer<DIV>#second-row-0.box/descendants(foreground) REUSE WHOLE CAPTURE
+                        BlockContainer<DIV>#second-row-1.box/descendants(foreground) REUSE WHOLE CAPTURE
+                        BlockContainer<DIV>#inserted.box/descendants(foreground) WALK
+                        BlockContainer<DIV>#second-row-2.box/descendants(foreground) WALK
+                        Box<DIV>#second-row.row/outline SKIP
+                        Box<DIV>#second-row.row/overlay/hit-test RECORD (empty)
+                        Box<DIV>#second-row.row/overlay SKIP
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<DIV>#row-0.box REUSE WHOLE CAPTURE
+                    BlockContainer<DIV>#outer.box REUSE WHOLE CAPTURE
+                    BlockContainer<DIV>#row-2.box REUSE WHOLE CAPTURE
+                    BlockContainer<DIV>#second-row-0.box REUSE WHOLE CAPTURE
+                    BlockContainer<DIV>#second-row-1.box REUSE WHOLE CAPTURE
+                    BlockContainer<DIV>#inserted.box WALK
+                      BlockContainer<DIV>#inserted.box/background/hit-test RECORD
+                      BlockContainer<DIV>#inserted.box/scroll-metadata RECORD
+                      BlockContainer<DIV>#inserted.box/background SKIP
+                      BlockContainer<DIV>#inserted.box/border RECORD
+                      BlockContainer<DIV>#inserted-content.tall/descendants(background-and-borders) WALK
+                        BlockContainer<DIV>#inserted-content.tall/background/hit-test RECORD
+                        BlockContainer<DIV>#inserted-content.tall/scroll-metadata RECORD
+                        BlockContainer<DIV>#inserted-content.tall/background SKIP
+                        BlockContainer<DIV>#inserted-content.tall/border SKIP
+                      BlockContainer<DIV>#inserted-content.tall/descendants(floats) WALK
+                      BlockContainer<DIV>#inserted-content.tall/descendants(inline-background-and-borders) WALK
+                      BlockContainer<DIV>#inserted.box/foreground/hit-test RECORD (empty)
+                      BlockContainer<DIV>#inserted.box/foreground RECORD (empty)
+                      BlockContainer<DIV>#inserted-content.tall/descendants(foreground) WALK
+                        BlockContainer<DIV>#inserted-content.tall/foreground/hit-test RECORD (empty)
+                        BlockContainer<DIV>#inserted-content.tall/foreground RECORD (empty)
+                        BlockContainer<DIV>#inserted-content.tall/outline SKIP
+                        BlockContainer<DIV>#inserted-content.tall/overlay/hit-test RECORD (empty)
+                        BlockContainer<DIV>#inserted-content.tall/overlay SKIP
+                      BlockContainer<DIV>#inserted.box/outline SKIP
+                      BlockContainer<DIV>#inserted.box/overlay/hit-test RECORD (empty)
+                      BlockContainer<DIV>#inserted.box/overlay RECORD (empty)
+                    BlockContainer<DIV>#second-row-2.box WALK
+                      BlockContainer<DIV>#second-row-2.box/background/hit-test RECORD
+                      BlockContainer<DIV>#second-row-2.box/scroll-metadata RECORD
+                      BlockContainer<DIV>#second-row-2.box/background SKIP
+                      BlockContainer<DIV>#second-row-2.box/border RECORD
+                      BlockContainer<DIV>#second-row-2.box/foreground/hit-test RECORD
+                      BlockContainer<DIV>#second-row-2.box/foreground RECORD
+                      BlockContainer<DIV>#second-row-2.box/outline SKIP
+                      BlockContainer<DIV>#second-row-2.box/overlay/hit-test RECORD (empty)
+                      BlockContainer<DIV>#second-row-2.box/overlay SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline SKIP
+            `
         }
-        internals.asyncScrollingState();
-        const nestedBeforeFlip = scrollersNestedBelowAnotherScroller();
-
-        row.children[30].style.color = "red";
-        internals.asyncScrollingState();
-        const visitedWithOneBoxWalked = internals.paintCacheCaptureSiteVisitCount();
-
-        document.getElementById("filler").className = "tall";
-        internals.asyncScrollingState();
-        const visitedWithOuterFlipped = internals.paintCacheCaptureSiteVisitCount();
-        const nestedAfterFlip = scrollersNestedBelowAnotherScroller();
-
-        const inserted = document.createElement("div");
-        inserted.className = "box";
-        inserted.style.overflow = "hidden";
-        inserted.innerHTML = '<div class="tall"></div>';
-        secondRow.children[2].after(inserted);
-        internals.asyncScrollingState();
-        const visitedWithScrollableBoxInserted = internals.paintCacheCaptureSiteVisitCount();
-
-        println(`inner reports no element scroller as its parent while outer does not scroll: ${nestedBeforeFlip === 0}`);
-        println(`inner reports outer as its parent once outer scrolls: ${nestedAfterFlip === 1}`);
-        println(`outer becoming scrollable visits about as many captures as a change inside one box: ${visitedWithOuterFlipped < visitedWithOneBoxWalked * 1.5}`);
-        println(`inserting a box with scrollable overflow visits about as many captures as a change inside one box: ${visitedWithScrollableBoxInserted < visitedWithOneBoxWalked * 1.5}`);
-    });
+    ]
+});
 </script>

@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::Observer;
+
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
 use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::painting::display_list::commands::{DisplayListGlyph, FontResourceId};
@@ -46,8 +48,8 @@ pub(crate) struct SelectionStyleAnswer {
     pub shadows: Vec<ShadowLayer>,
 }
 
-fn selection_offsets_for_fragment(
-    recorder: &mut PaintRecorder<'_>,
+fn selection_offsets_for_fragment<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     fragment: &FragmentRecord,
 ) -> Option<SelectionOffsets> {
     let drop_degenerate = |offsets: Option<SelectionOffsets>| offsets.filter(|offsets| offsets.start != offsets.end);
@@ -71,8 +73,8 @@ fn selection_offsets_for_fragment(
     ))
 }
 
-fn compute_render_spans(
-    recorder: &mut PaintRecorder<'_>,
+fn compute_render_spans<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     block: NodeSlotId,
     owned_fragment_indices: &[u32],
 ) -> Vec<RenderSpan> {
@@ -235,8 +237,8 @@ pub(crate) fn glyph_run_emission(
     }
 }
 
-pub(crate) fn paint_fragments_foreground(
-    recorder: &mut PaintRecorder<'_>,
+pub(crate) fn paint_fragments_foreground<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     block: NodeSlotId,
     owner: Option<NodeSlotId>,
 ) {
@@ -273,7 +275,7 @@ pub(crate) fn paint_fragments_foreground(
     }
 }
 
-fn selection_rect(recorder: &PaintRecorder<'_>, block: NodeSlotId, span: &RenderSpan) -> CssPixelRect {
+fn selection_rect<O: Observer>(recorder: &PaintRecorder<'_, O>, block: NodeSlotId, span: &RenderSpan) -> CssPixelRect {
     let Some(offsets) = span.selection_offsets else {
         return CssPixelRect::default();
     };
@@ -284,7 +286,7 @@ fn selection_rect(recorder: &PaintRecorder<'_>, block: NodeSlotId, span: &Render
     })
 }
 
-fn paint_text_shadow(recorder: &mut PaintRecorder<'_>, block: NodeSlotId, span: &RenderSpan) {
+fn paint_text_shadow<O: Observer>(recorder: &mut PaintRecorder<'_, O>, block: NodeSlotId, span: &RenderSpan) {
     if span.shadow_layers.is_empty() {
         return;
     }
@@ -367,8 +369,8 @@ fn paint_text_shadow(recorder: &mut PaintRecorder<'_>, block: NodeSlotId, span: 
     }
 }
 
-fn paint_text_fragment(
-    recorder: &mut PaintRecorder<'_>,
+fn paint_text_fragment<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     block: NodeSlotId,
     span: &RenderSpan,
     decoration_sets: &[crate::painting::record::paint::text_decoration::TextDecorationSet],
@@ -481,7 +483,11 @@ fn paint_text_fragment(
 
 // Paints the caret when it sits in a fragment owned by `owner`; the block itself
 // (owner == None) also handles blank lines and empty editable elements.
-pub(crate) fn paint_cursor(recorder: &mut PaintRecorder<'_>, block: NodeSlotId, owner: Option<NodeSlotId>) {
+pub(crate) fn paint_cursor<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    block: NodeSlotId,
+    owner: Option<NodeSlotId>,
+) {
     let caret = recorder.inputs.caret;
     if caret.kind != FfiCaretPaintKind::InBlock
         || caret.block != block

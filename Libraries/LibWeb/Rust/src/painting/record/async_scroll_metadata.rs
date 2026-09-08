@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::Observer;
+
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::chrome_geometry::{
@@ -43,7 +45,7 @@ fn css_rect_to_device_rect(rect: CssPixelRect, device_pixels_per_css_pixel: f64)
     }
 }
 
-impl PaintRecorder<'_> {
+impl<O: Observer> PaintRecorder<'_, O> {
     fn could_be_scrolled_by_wheel_event(&mut self, paintable: NodeSlotId) -> bool {
         let facts = self.hit_test_facts(paintable);
         facts.could_be_scrolled_horizontally || facts.could_be_scrolled_vertically

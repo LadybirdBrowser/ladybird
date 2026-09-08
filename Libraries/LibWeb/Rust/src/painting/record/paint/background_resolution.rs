@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::Observer;
+
 use crate::css::computed_value_views::{ComputedValuesView, LengthPercentageRef};
 use crate::css::css_enums;
 use crate::css::css_pixels::CssPixels;
@@ -377,8 +379,8 @@ enum LayerType {
 /// Mirrors `resolve_layers()` in BackgroundPainting.cpp.
 /// https://drafts.fxtf.org/css-masking-1/#the-mask-image
 #[allow(clippy::too_many_arguments)]
-fn resolve_layers<'a>(
-    recorder: &PaintRecorder<'_>,
+fn resolve_layers<'a, O: Observer>(
+    recorder: &PaintRecorder<'_, O>,
     paintable: NodeSlotId,
     layers: Vec<ComputedLayer<'a>>,
     background_color: libgfx_rust::Color,
@@ -614,8 +616,8 @@ struct LayerImageIntrinsics<'a> {
     selected_image_value: Option<&'a StyleValueData>,
 }
 
-fn image_intrinsic_facts<'a>(
-    recorder: &PaintRecorder<'_>,
+fn image_intrinsic_facts<'a, O: Observer>(
+    recorder: &PaintRecorder<'_, O>,
     paintable: NodeSlotId,
     image: &LayerImageSource<'a>,
 ) -> LayerImageIntrinsics<'a> {
@@ -659,8 +661,8 @@ fn image_intrinsic_facts<'a>(
 }
 
 #[allow(clippy::too_many_arguments)]
-pub(crate) fn resolve_background_layers<'a>(
-    recorder: &PaintRecorder<'_>,
+pub(crate) fn resolve_background_layers<'a, O: Observer>(
+    recorder: &PaintRecorder<'_, O>,
     paintable: NodeSlotId,
     style: ComputedValuesView<'a>,
     image_list: FfiLayerImageList,
@@ -682,8 +684,8 @@ pub(crate) fn resolve_background_layers<'a>(
     )
 }
 
-pub(crate) fn resolve_mask_layers<'a>(
-    recorder: &PaintRecorder<'_>,
+pub(crate) fn resolve_mask_layers<'a, O: Observer>(
+    recorder: &PaintRecorder<'_, O>,
     paintable: NodeSlotId,
     style: ComputedValuesView<'a>,
     border_rect: CssPixelRect,
@@ -722,8 +724,8 @@ pub(crate) fn has_background_to_paint(
     })
 }
 
-pub(crate) fn resolve_background_for_paint<'a>(
-    recorder: &PaintRecorder<'a>,
+pub(crate) fn resolve_background_for_paint<'a, O: Observer>(
+    recorder: &PaintRecorder<'a, O>,
     paintable: NodeSlotId,
 ) -> Option<BackgroundPaintInputs<'a>> {
     if !has_background_to_paint(recorder.layout_arena, paintable, recorder.inputs.root_background_source) {

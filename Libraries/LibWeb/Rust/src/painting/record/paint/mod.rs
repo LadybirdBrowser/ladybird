@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::Observer;
+
 pub mod background;
 pub mod background_resolution;
 pub mod border;
@@ -29,8 +31,8 @@ use crate::painting::node_painting;
 use crate::painting::record::{BasePaintFacts, PaintPhase, PaintRecorder};
 use crate::painting::style_queries;
 
-pub(crate) fn paint_phase_mask(
-    recorder: &PaintRecorder<'_>,
+pub(crate) fn paint_phase_mask<O: Observer>(
+    recorder: &PaintRecorder<'_, O>,
     paintable: NodeSlotId,
     style: ComputedValuesView<'_>,
     facts: &BasePaintFacts,
@@ -76,7 +78,7 @@ pub(crate) fn paint_phase_mask(
     phases
 }
 
-pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, phase: PaintPhase) {
+pub(crate) fn paint<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId, phase: PaintPhase) {
     let Some(kind) = recorder.layout_arena.node_kind_if_live(paintable) else {
         return;
     };
@@ -169,15 +171,15 @@ pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, pha
     }
 }
 
-pub(crate) fn paint_base(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, phase: PaintPhase) {
+pub(crate) fn paint_base<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId, phase: PaintPhase) {
     paint_base_with(recorder, paintable, phase, background::paint_background);
 }
 
-pub(crate) fn paint_base_with(
-    recorder: &mut PaintRecorder<'_>,
+pub(crate) fn paint_base_with<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
     phase: PaintPhase,
-    paint_background: fn(&mut PaintRecorder<'_>, NodeSlotId),
+    paint_background: fn(&mut PaintRecorder<'_, O>, NodeSlotId),
 ) {
     if phase == PaintPhase::Foreground {
         return;
@@ -226,8 +228,8 @@ pub(crate) fn paint_base_with(
 
 /// Hands force-dark the color the box's borders and selections sit against: its own background as authored.
 /// Returns the previous scope for the caller to restore.
-fn set_own_background_as_contrast_backdrop(
-    recorder: &mut PaintRecorder<'_>,
+fn set_own_background_as_contrast_backdrop<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
 ) -> Option<libgfx_rust::Color> {
     let backdrop = recorder
@@ -237,8 +239,8 @@ fn set_own_background_as_contrast_backdrop(
     recorder.recorder.set_contrast_backdrop(backdrop)
 }
 
-pub(crate) fn paint_backdrop_filter(
-    recorder: &mut PaintRecorder<'_>,
+pub(crate) fn paint_backdrop_filter<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
     facts: &crate::painting::record::BasePaintFacts,
 ) {

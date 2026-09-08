@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::Observer;
+
 use crate::css::computed_value_views::LengthPercentageRef;
 use crate::css::css_enums::border_image_repeat;
 use crate::css::css_pixels::{CssPixelFraction, CssPixels};
@@ -89,8 +91,8 @@ fn rounded_repeated_border_image_tile_size(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn paint_border_image_slice(
-    recorder: &mut PaintRecorder<'_>,
+fn paint_border_image_slice<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     frame_id: ImageFrameResourceId,
     source_rect: FloatRect,
     dest_rect: IntRect,
@@ -386,8 +388,8 @@ fn resolve_border_image_geometry(
     }
 }
 
-pub(crate) fn paint_border_image(
-    recorder: &mut PaintRecorder<'_>,
+pub(crate) fn paint_border_image<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
     css_border_widths: [CssPixels; 4],
     border_box_rect: CssPixelRect,

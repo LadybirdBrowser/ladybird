@@ -122,8 +122,11 @@ interface Internals {
     unsigned long long tableCellMeasurementCacheMissCount();
     unsigned long long intrinsicMeasurementCount();
     unsigned long long accumulatedVisualContextTreeBuildCount();
-    unsigned long long paintCacheSplicedCaptureCount();
-    unsigned long long paintCacheCaptureSiteVisitCount();
+    undefined beginDisplayListTrace();
+    DOMString takeDisplayListTrace();
+    [ImplementedAs=recorded_async_scrolling_state_object] object recordedAsyncScrollingState();
+    boolean recordedDisplayListBlocksWheelEventAt(double x, double y);
+    undefined recordDisplayListForTesting(optional boolean paintOverlay = false, optional boolean cold = false);
     undefined setAutoplayPolicy(DOMString policy);
 
     DOMString getComputedRole(Element element);

@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::Observer;
+
 use crate::css::color_resolution::{ColorResolutionInput, Rgba, to_color};
 use crate::css::computed_value_views::ComputedValuesView;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
@@ -925,8 +927,8 @@ pub(crate) fn resolve_gradient_paint_with_input(
     }
 }
 
-pub(crate) fn record_gradient_fill(
-    recorder: &mut PaintRecorder<'_>,
+pub(crate) fn record_gradient_fill<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     paint: &ResolvedGradientPaint,
     dest_rect: FloatRect,
     compositing_and_blending_operator: CompositingAndBlendingOperator,

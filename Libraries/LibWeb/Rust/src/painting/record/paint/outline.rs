@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::Observer;
+
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::border_radii::BorderRadii;
@@ -15,7 +17,7 @@ use crate::painting::record::paint::border::{BorderDataDevicePixels, BordersData
 use crate::painting::style_queries::OutlineGeometry;
 use libgfx_rust::{CapStyle, Color, JoinStyle, ShouldAntiAlias};
 
-pub(crate) fn paint_outline_phase(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
+pub(crate) fn paint_outline_phase<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
     let node = paintable;
     let outline = crate::painting::style_queries::outline_data(
         recorder.layout_arena,
@@ -89,8 +91,8 @@ pub(crate) fn outline_borders_data(
     }
 }
 
-pub(crate) fn paint_outline(
-    recorder: &mut PaintRecorder<'_>,
+pub(crate) fn paint_outline<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     outline: Option<crate::painting::style_queries::OutlineData>,
     outline_offset: CssPixels,
     border_box_rect: crate::css::css_pixels::CssPixelRect,
@@ -118,7 +120,7 @@ pub(crate) fn paint_outline(
     );
 }
 
-fn paint_focused_area_outline(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
+fn paint_focused_area_outline<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
     // https://html.spec.whatwg.org/multipage/interaction.html#focusable-area
     // The shapes of area elements in an image map associated with an img element that is being rendered and is not
     // inert.

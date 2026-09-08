@@ -1,3 +1,4 @@
-quiet recordings visit only the viewport root: true
-second change visits the same captures as the first: true
-second change splices the same captures as the first: true
+PASS: first interior change (work)
+PASS: first quiet recording (work)
+PASS: second quiet recording (work)
+PASS: second interior change (work)

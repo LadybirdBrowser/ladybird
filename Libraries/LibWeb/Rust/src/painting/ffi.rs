@@ -1849,9 +1849,14 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             paint_state.hit_test_list_generation + 1,
             command_cache_source,
             paint_state.hit_test_item_cache_source.clone(),
+            paint_state.trace_recordings || crate::painting::record::verify::enabled_by_environment(),
         );
         if crate::painting::record::verify::enabled_by_environment()
-            && output.recording_stats.spliced_capture_count() > 0
+            && output.capture_log_for_verification.as_ref().is_some_and(|log| {
+                log.command_byte_captures
+                    .iter()
+                    .any(|capture| capture.spliced_from_cache)
+            })
             && !inputs.should_show_line_box_borders
         {
             let mut inputs_for_recording_from_scratch = inputs;
@@ -1867,6 +1872,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
                 paint_state.hit_test_list_generation + 1,
                 None,
                 None,
+                false,
             );
             crate::painting::record::verify::verify_spliced_recording_matches_fresh(
                 arena,
@@ -1877,6 +1883,29 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         arena.set_paint_recording_in_progress(false);
         output
     };
+    if arena.paint_state().borrow().trace_recordings
+        && let Some(log) = &output.capture_log_for_verification
+    {
+        let mut name = |slot| {
+            if slot == viewport {
+                return "@viewport".into();
+            }
+            let mut name = Vec::<u8>::new();
+            // SAFETY: the recording's paintable shells and callback context are still live.
+            unsafe {
+                (paint_callbacks.debug_description)(
+                    paint_callbacks.context,
+                    arena.shell_if_live(slot),
+                    (&raw mut name).cast(),
+                );
+            };
+            String::from_utf8(name).expect("trace label must be UTF-8")
+        };
+        let text = log.format(&mut name);
+        let text = format!("recording (overlay={})\n{}", inputs.should_paint_overlay, text);
+        // SAFETY: the host copies the text synchronously.
+        unsafe { (paint_callbacks.recording_trace)(paint_callbacks.context, text.as_ptr(), text.len()) };
+    }
     let mut paint_state = arena.paint_state().borrow_mut();
     output.is_identical_to_cache_source = paint_state
         .paint_command_cache_source
@@ -2064,21 +2093,6 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
     }
     let recorded = recorder.into_builder().finish();
     unsafe { consume(context, (&recorded).into(), Rc::into_raw(Rc::new(tree)).cast()) };
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_last_recording_stats(
-    arena: *mut c_void,
-) -> crate::painting::host::FfiPaintRecordingStats {
-    let arena = unsafe { arena_from_handle(arena) };
-    let paint_state = arena.paint_state().borrow();
-    paint_state
-        .last_recording
-        .as_ref()
-        .map_or_else(Default::default, |recording| recording.recording_stats)
 }
 
 /// # Safety
@@ -4268,4 +4282,14 @@ pub unsafe extern "C" fn layout_arena_hit_test_push_line_break_caret_target(
     // SAFETY: `sink` is the Vec pointer handed out by FfiHitTestHostCallbacks::line_break_caret_targets.
     let targets = unsafe { &mut *sink.cast::<Vec<crate::painting::host::FfiLineBreakCaretTarget>>() };
     targets.push(target);
+}
+
+/// # Safety
+/// `arena` is live and used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_recording_trace_enabled(arena: *mut c_void, enabled: bool) {
+    unsafe { arena_from_handle(arena) }
+        .paint_state()
+        .borrow_mut()
+        .trace_recordings = enabled;
 }

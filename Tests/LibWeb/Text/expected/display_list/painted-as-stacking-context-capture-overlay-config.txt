@@ -1,3 +1,4 @@
-quiet recording visits only the viewport root: true
-recording after an overlay paint walks the roots: true
-next quiet recording hits the viewport root again: true
+PASS: quiet without overlays (work)
+PASS: enable overlays (work)
+PASS: disable overlays (work)
+PASS: quiet without overlays again (work)

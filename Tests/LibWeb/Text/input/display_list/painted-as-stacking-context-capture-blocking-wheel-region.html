@@ -1,44 +1,176 @@
 <!doctype html>
+<html id="html">
 <script src="../include.js"></script>
+<script src="recording-test.js"></script>
 <style>
     body { margin: 0; }
     #a, #b { position: relative; width: 100px; height: 100px; }
     #target { width: 100px; height: 100px; }
 </style>
+<body id="body">
 <div id="a"></div>
 <div id="b"><div id="target"></div></div>
 <script>
-    test(() => {
-        internals.asyncScrollingState();
-        internals.asyncScrollingState();
-        const blockedBefore = internals.asyncScrollingStateBlocksWheelEventAt(50, 150);
-        const visitedQuiet = internals.paintCacheCaptureSiteVisitCount();
-
-        const passive = () => {};
-        target.addEventListener("wheel", passive, { passive: true });
-        internals.asyncScrollingStateBlocksWheelEventAt(50, 150);
-        const visitedAfterPassive = internals.paintCacheCaptureSiteVisitCount();
-
-        const blocking = () => {};
-        target.addEventListener("wheel", blocking, { passive: false });
-        const blockedAfterAdding = internals.asyncScrollingStateBlocksWheelEventAt(50, 150);
-        const visitedAfterAdding = internals.paintCacheCaptureSiteVisitCount();
-
-        const blockedWhenQuiet = internals.asyncScrollingStateBlocksWheelEventAt(50, 150);
-        const visitedQuietWithListener = internals.paintCacheCaptureSiteVisitCount();
-
-        target.removeEventListener("wheel", blocking);
-        const blockedAfterRemoving = internals.asyncScrollingStateBlocksWheelEventAt(50, 150);
-        const visitedAfterRemoving = internals.paintCacheCaptureSiteVisitCount();
-
-        println(`blocked before adding the listener: ${blockedBefore}`);
-        println(`quiet recording visits only the viewport root: ${visitedQuiet === 1}`);
-        println(`a passive listener leaves the viewport root hitting: ${visitedAfterPassive === 1}`);
-        println(`blocked after adding the listener: ${blockedAfterAdding}`);
-        println(`adding the listener re-records B: ${visitedAfterAdding > 1}`);
-        println(`a quiet recording with the listener hits the viewport root: ${visitedQuietWithListener === 1}`);
-        println(`and still blocks: ${blockedWhenQuiet}`);
-        println(`blocked after removing the listener: ${blockedAfterRemoving}`);
-        println(`removing the listener re-records B: ${visitedAfterRemoving > 1}`);
-    });
+const passive = () => {};
+const blocking = () => {};
+displayListTest({
+    setup: removeBodyWhitespace,
+    steps: [
+        {
+            name: "quiet without listeners",
+            check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(50, 150), false, "blocking wheel region"); },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport REUSE WHOLE CAPTURE
+            `
+        },
+        {
+            name: "add passive listener",
+            mutate: () => { target.addEventListener("wheel", passive, { passive: true }); },
+            check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(50, 150), false, "blocking wheel region"); },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport REUSE WHOLE CAPTURE
+            `
+        },
+        {
+            name: "add blocking listener",
+            mutate: () => { target.addEventListener("wheel", blocking, { passive: false }); },
+            check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(50, 150), true, "blocking wheel region"); },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test REUSE
+                  @viewport/scroll-metadata RECORD (empty)
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
+                  @viewport/foreground/hit-test REUSE
+                  @viewport/foreground REUSE
+                  BlockContainer<HTML>#html/descendants(foreground) WALK
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test REUSE
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background REUSE
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
+                      BlockContainer<BODY>#body/background/hit-test REUSE
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#a/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b/descendants(background-and-borders) WALK
+                    BlockContainer<HTML>#html/foreground/hit-test REUSE
+                    BlockContainer<HTML>#html/foreground REUSE
+                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/foreground/hit-test REUSE
+                      BlockContainer<BODY>#body/foreground REUSE
+                      BlockContainer<DIV>#a/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test REUSE
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<DIV>#a REUSE WHOLE CAPTURE
+                    BlockContainer<DIV>#b WALK
+                      BlockContainer<DIV>#b/background/hit-test REUSE
+                      BlockContainer<DIV>#b/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#b/background SKIP
+                      BlockContainer<DIV>#b/border SKIP
+                      BlockContainer<DIV>#target/descendants(background-and-borders) WALK
+                        BlockContainer<DIV>#target/background/hit-test RECORD
+                        BlockContainer<DIV>#target/scroll-metadata RECORD
+                        BlockContainer<DIV>#target/background SKIP
+                        BlockContainer<DIV>#target/border SKIP
+                      BlockContainer<DIV>#target/descendants(floats) WALK
+                      BlockContainer<DIV>#target/descendants(inline-background-and-borders) WALK
+                      BlockContainer<DIV>#b/foreground/hit-test REUSE
+                      BlockContainer<DIV>#b/foreground REUSE
+                      BlockContainer<DIV>#target/descendants(foreground) WALK
+                        BlockContainer<DIV>#target/foreground/hit-test RECORD (empty)
+                        BlockContainer<DIV>#target/foreground RECORD (empty)
+                        BlockContainer<DIV>#target/outline SKIP
+                        BlockContainer<DIV>#target/overlay/hit-test RECORD (empty)
+                        BlockContainer<DIV>#target/overlay SKIP
+                      BlockContainer<DIV>#b/outline SKIP
+                      BlockContainer<DIV>#b/overlay/hit-test REUSE
+                      BlockContainer<DIV>#b/overlay SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline SKIP
+            `
+        },
+        {
+            name: "quiet with blocking listener",
+            check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(50, 150), true, "blocking wheel region"); },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport REUSE WHOLE CAPTURE
+            `
+        },
+        {
+            name: "remove blocking listener",
+            mutate: () => { target.removeEventListener("wheel", blocking); },
+            check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(50, 150), false, "blocking wheel region"); },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test REUSE
+                  @viewport/scroll-metadata RECORD (empty)
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
+                  @viewport/foreground/hit-test REUSE
+                  @viewport/foreground REUSE
+                  BlockContainer<HTML>#html/descendants(foreground) WALK
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test REUSE
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background REUSE
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
+                      BlockContainer<BODY>#body/background/hit-test REUSE
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#a/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b/descendants(background-and-borders) WALK
+                    BlockContainer<HTML>#html/foreground/hit-test REUSE
+                    BlockContainer<HTML>#html/foreground REUSE
+                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/foreground/hit-test REUSE
+                      BlockContainer<BODY>#body/foreground REUSE
+                      BlockContainer<DIV>#a/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#b/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test REUSE
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<DIV>#a REUSE WHOLE CAPTURE
+                    BlockContainer<DIV>#b WALK
+                      BlockContainer<DIV>#b/background/hit-test REUSE
+                      BlockContainer<DIV>#b/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#b/background SKIP
+                      BlockContainer<DIV>#b/border SKIP
+                      BlockContainer<DIV>#target/descendants(background-and-borders) WALK
+                        BlockContainer<DIV>#target/background/hit-test RECORD
+                        BlockContainer<DIV>#target/scroll-metadata RECORD (empty)
+                        BlockContainer<DIV>#target/background SKIP
+                        BlockContainer<DIV>#target/border SKIP
+                      BlockContainer<DIV>#target/descendants(floats) WALK
+                      BlockContainer<DIV>#target/descendants(inline-background-and-borders) WALK
+                      BlockContainer<DIV>#b/foreground/hit-test REUSE
+                      BlockContainer<DIV>#b/foreground REUSE
+                      BlockContainer<DIV>#target/descendants(foreground) WALK
+                        BlockContainer<DIV>#target/foreground/hit-test RECORD (empty)
+                        BlockContainer<DIV>#target/foreground RECORD (empty)
+                        BlockContainer<DIV>#target/outline SKIP
+                        BlockContainer<DIV>#target/overlay/hit-test RECORD (empty)
+                        BlockContainer<DIV>#target/overlay SKIP
+                      BlockContainer<DIV>#b/outline SKIP
+                      BlockContainer<DIV>#b/overlay/hit-test REUSE
+                      BlockContainer<DIV>#b/overlay SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline SKIP
+            `
+        }
+    ]
+});
 </script>

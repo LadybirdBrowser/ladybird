@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::Observer;
+
 use crate::css::css_pixels::CssPixelRect;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::force_dark::ForceDarkRole;
@@ -14,7 +16,7 @@ use crate::painting::record::paint::{background, outline, text};
 use crate::painting::record::{PaintPhase, PaintRecorder};
 use crate::painting::style_queries;
 
-pub(crate) fn paint(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, phase: PaintPhase) {
+pub(crate) fn paint<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId, phase: PaintPhase) {
     let root = {
         let block = recorder.data(paintable).containing_block;
         if block.is_invalid()

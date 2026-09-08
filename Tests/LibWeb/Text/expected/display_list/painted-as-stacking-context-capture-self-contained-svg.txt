@@ -1,4 +1,3 @@
-quiet recording visits only the viewport root: true
-a fill change walks the svg: true
-the path is hit-testable after the change: p
-the next quiet recording hits the viewport root again: true
+PASS: quiet SVG (work)
+PASS: change SVG fill (work + checks)
+PASS: quiet after SVG change (work)

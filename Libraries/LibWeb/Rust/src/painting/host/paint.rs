@@ -123,29 +123,6 @@ pub struct FfiInspectorHighlightLabel {
     pub text_byte_count: usize,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiPaintRecordingStats {
-    pub box_phase_visits: usize,
-    pub painted_as_stacking_context_capture_attempts: usize,
-    pub painted_as_stacking_context_capture_hits: usize,
-    pub descendant_subtree_capture_attempts: usize,
-    pub descendant_subtree_capture_hits: usize,
-    pub box_phase_command_capture_attempts: usize,
-    pub box_phase_command_capture_hits: usize,
-    pub box_phase_hit_test_item_capture_hits: usize,
-    pub hit_test_items_copied_from_source: usize,
-    pub command_bytes_spliced_from_source: usize,
-}
-
-impl FfiPaintRecordingStats {
-    pub fn spliced_capture_count(&self) -> usize {
-        self.painted_as_stacking_context_capture_hits
-            + self.descendant_subtree_capture_hits
-            + self.box_phase_command_capture_hits
-    }
-}
-
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiGridOverlayInput {
@@ -448,6 +425,8 @@ impl From<&RecordedDisplayList> for FfiRecordedDisplayList {
 #[repr(C)]
 pub struct FfiPaintHostCallbacks {
     pub context: *mut c_void,
+    pub debug_description: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
+    pub recording_trace: unsafe extern "C" fn(*mut c_void, *const u8, usize),
     pub async_scroll_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiAsyncScrollFacts,
     pub image_intrinsic_facts:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiLayerImageList, u32) -> FfiImageIntrinsicFacts,

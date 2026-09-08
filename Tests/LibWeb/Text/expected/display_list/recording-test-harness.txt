@@ -1,0 +1,8 @@
+PASS: indentation in a template literal
+PASS: an unrelated sibling walk
+PASS: extra empty painting
+PASS: skipping an empty painter
+PASS: reusing a changed phase
+PASS: missing work
+PASS: unexpected recording
+PASS: wrong paint order

@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::Observer;
+
 use crate::css::computed_value_types::{ComputedSvgPaint, SVG_PAINT_COLOR, SVG_PAINT_NONE, SVG_PAINT_URL};
 use crate::css::css_enums::paint_order;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
@@ -58,7 +60,10 @@ pub(crate) fn svg_paint_color(paint: &ComputedSvgPaint) -> Option<u32> {
     }
 }
 
-fn svg_paint_facts(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) -> (SvgPaintFacts, Vec<f32>) {
+fn svg_paint_facts<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    paintable: NodeSlotId,
+) -> (SvgPaintFacts, Vec<f32>) {
     use crate::css::css_enums::{fill_rule, overflow, stroke_linecap, stroke_linejoin, vector_effect};
     let layout_arena = recorder.layout_arena;
     let kind = layout_arena.node_kind_if_live(paintable);
@@ -166,8 +171,8 @@ fn affine(values: [f32; 6]) -> AffineTransform {
     AffineTransform { values }
 }
 
-fn paint_style_from_ffi(
-    recorder: &mut PaintRecorder<'_>,
+fn paint_style_from_ffi<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     style: &FfiSvgPaintStyle,
     stops: &crate::painting::host::ColorStopSink,
 ) -> Option<PaintStyle> {
@@ -214,7 +219,7 @@ fn paint_style_from_ffi(
     }
 }
 
-pub(crate) fn record_pattern_paint_styles(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
+pub(crate) fn record_pattern_paint_styles<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
     if !recorder
         .layout_arena
         .node_kind_if_live(paintable)
@@ -269,7 +274,10 @@ pub(crate) fn record_pattern_paint_styles(recorder: &mut PaintRecorder<'_>, pain
     }
 }
 
-fn record_pattern_paint_style(recorder: &mut PaintRecorder<'_>, style: &FfiSvgPaintStyle) -> PaintStyle {
+fn record_pattern_paint_style<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    style: &FfiSvgPaintStyle,
+) -> PaintStyle {
     let root_transform = crate::painting::visual_context::TransformData {
         matrix: style.tile_content_transform,
         origin: libgfx_rust::FloatPoint::default(),
@@ -291,7 +299,7 @@ fn record_pattern_paint_style(recorder: &mut PaintRecorder<'_>, style: &FfiSvgPa
     }
 }
 
-pub(crate) fn paint_path(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, phase: PaintPhase) {
+pub(crate) fn paint_path<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId, phase: PaintPhase) {
     let Some(computed_path) = crate::painting::paintable_geometry::committed_svg_path(recorder.layout_arena, paintable)
     else {
         return;
@@ -452,7 +460,11 @@ pub(crate) fn svg_image_unquantized_device_rect(
     )
 }
 
-pub(crate) fn paint_image_element(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, phase: PaintPhase) {
+pub(crate) fn paint_image_element<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    paintable: NodeSlotId,
+    phase: PaintPhase,
+) {
     // NB: An image has no geometry, so it contributes nothing to a clipping path.
     if recorder.draw_svg_geometry_for_clip_path {
         return;

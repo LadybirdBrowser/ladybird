@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::Observer;
+
 use super::{PaintPhase, PaintRecorder};
 use crate::css::css_enums;
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
@@ -82,7 +84,7 @@ pub(crate) fn hit_test_facts(
     }
 }
 
-impl<'a> PaintRecorder<'a> {
+impl<'a, O: Observer> PaintRecorder<'a, O> {
     fn text_node_facts(&mut self, text_node: NodeSlotId) -> FfiHitTestTextNodeFacts {
         let key = text_node.index;
         if let Some(facts) = self.text_node_facts_cache.get(&key) {

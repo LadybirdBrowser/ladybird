@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::{Observer, Operation};
+
 use crate::css::css_enums;
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
@@ -66,7 +68,7 @@ impl LayerBackdrop {
     }
 }
 
-pub(crate) fn paint_background(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
+pub(crate) fn paint_background<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
     if table_backgrounds::paints_background_in_cells(recorder.display(paintable)) {
         table_backgrounds::paint_table_part_background(recorder, paintable);
         return;
@@ -77,8 +79,8 @@ pub(crate) fn paint_background(recorder: &mut PaintRecorder<'_>, paintable: Node
     paint_resolved_background(recorder, paintable, &inputs);
 }
 
-pub(crate) fn paint_background_within(
-    recorder: &mut PaintRecorder<'_>,
+pub(crate) fn paint_background_within<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
     background_rect: CssPixelRect,
     border_radii: BorderRadii,
@@ -106,8 +108,8 @@ pub(crate) fn paint_background_within(
     paint_resolved_background(recorder, paintable, &inputs);
 }
 
-pub(crate) fn paint_resolved_background(
-    recorder: &mut PaintRecorder<'_>,
+pub(crate) fn paint_resolved_background<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
     inputs: &BackgroundPaintInputs<'_>,
 ) {
@@ -150,28 +152,30 @@ pub(crate) fn paint_resolved_background(
             .rounded_device_rect(background_rect)
             .united(converter.enclosing_device_rect(color_box.rect))
     };
-    let record_into_nested_list = |recorder: &mut PaintRecorder<'_>, record: &mut dyn FnMut(&mut PaintRecorder<'_>)| {
-        let force_dark_settings = recorder.recorder.force_dark_settings();
-        let outer_recorder = std::mem::replace(&mut recorder.recorder, DisplayListRecorder::new(force_dark_settings));
-        let recording_into_enclosing_nested_list =
-            std::mem::replace(&mut recorder.recording_into_context_free_nested_list, true);
-        record(recorder);
-        recorder.recording_into_context_free_nested_list = recording_into_enclosing_nested_list;
-        let group_recorder = std::mem::replace(&mut recorder.recorder, outer_recorder);
-        let group = group_recorder.into_builder().finish();
-        let group_tree = VisualContextTree::create_with_content_offset(IntPoint {
-            x: -group_device_rect.x,
-            y: -group_device_rect.y,
-        });
-        recorder
-            .paint_host
-            .nested_display_list_from_tree(&group, group_tree, &[])
-    };
-    let group_display_list_id = record_into_nested_list(recorder, &mut |recorder| {
+    let record_into_nested_list =
+        |recorder: &mut PaintRecorder<'_, O>, label, record: &mut dyn FnMut(&mut PaintRecorder<'_, O>)| {
+            let force_dark_settings = recorder.recorder.force_dark_settings();
+            let outer_recorder =
+                std::mem::replace(&mut recorder.recorder, DisplayListRecorder::new(force_dark_settings));
+            let recording_into_enclosing_nested_list =
+                std::mem::replace(&mut recorder.recording_into_context_free_nested_list, true);
+            recorder.trace_paint(Operation::Producer(Some(paintable), label), |recorder| record(recorder));
+            recorder.recording_into_context_free_nested_list = recording_into_enclosing_nested_list;
+            let group_recorder = std::mem::replace(&mut recorder.recorder, outer_recorder);
+            let group = group_recorder.into_builder().finish();
+            let group_tree = VisualContextTree::create_with_content_offset(IntPoint {
+                x: -group_device_rect.x,
+                y: -group_device_rect.y,
+            });
+            recorder
+                .paint_host
+                .nested_display_list_from_tree(&group, group_tree, &[])
+        };
+    let group_display_list_id = record_into_nested_list(recorder, "background-group", &mut |recorder| {
         paint_background_layers(recorder, paintable, inputs, backdrop);
     });
     let mask_display_list_id = if needs_text_clip {
-        record_into_nested_list(recorder, &mut |recorder| {
+        record_into_nested_list(recorder, "background-text-mask", &mut |recorder| {
             append_text_clip_paths(recorder, paintable);
         })
     } else {
@@ -190,16 +194,17 @@ pub(crate) fn paint_resolved_background(
     );
 }
 
-fn record_into_context_free_nested_list(
-    recorder: &mut PaintRecorder<'_>,
+fn record_into_context_free_nested_list<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    paintable: NodeSlotId,
     content_origin: IntPoint,
-    record: impl FnOnce(&mut PaintRecorder<'_>),
+    record: impl FnOnce(&mut PaintRecorder<'_, O>),
 ) -> DisplayListResourceId {
     let force_dark_settings = recorder.recorder.force_dark_settings();
     let outer_recorder = std::mem::replace(&mut recorder.recorder, DisplayListRecorder::new(force_dark_settings));
     let recording_into_enclosing_nested_list =
         std::mem::replace(&mut recorder.recording_into_context_free_nested_list, true);
-    record(recorder);
+    recorder.trace_paint(Operation::Producer(Some(paintable), "mask-layer"), record);
     recorder.recording_into_context_free_nested_list = recording_into_enclosing_nested_list;
     let content_recorder = std::mem::replace(&mut recorder.recorder, outer_recorder);
     let content = content_recorder.into_builder().finish();
@@ -212,8 +217,8 @@ fn record_into_context_free_nested_list(
         .nested_display_list_from_tree(&content, content_tree, &[])
 }
 
-fn paint_background_layers(
-    recorder: &mut PaintRecorder<'_>,
+fn paint_background_layers<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
     inputs: &BackgroundPaintInputs<'_>,
     backdrop: LayerBackdrop,
@@ -332,6 +337,7 @@ fn paint_background_layers(
             // operator, and the command's own clip bounds the erase.
             let content_display_list_id = record_into_context_free_nested_list(
                 recorder,
+                paintable,
                 IntPoint {
                     x: unshrunken_clip_rect.x,
                     y: unshrunken_clip_rect.y,
@@ -365,7 +371,7 @@ fn paint_background_layers(
             continue;
         }
 
-        let paint_layer = |recorder: &mut PaintRecorder<'_>| {
+        let paint_layer = |recorder: &mut PaintRecorder<'_, O>| {
             if layer.image.is_some() {
                 paint_image_layer(
                     recorder,
@@ -430,8 +436,8 @@ pub(crate) fn to_gfx_scaling_mode(image_rendering: u8, source: (i32, i32), targe
     }
 }
 
-pub(crate) fn paint_image(
-    recorder: &mut PaintRecorder<'_>,
+pub(crate) fn paint_image<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     facts: &FfiImagePaintFacts,
     dest_rect: FloatRect,
     image_rendering: u8,
@@ -445,8 +451,8 @@ pub(crate) fn paint_image(
     );
 }
 
-pub(crate) fn paint_image_with_compositing_and_blending_operator(
-    recorder: &mut PaintRecorder<'_>,
+pub(crate) fn paint_image_with_compositing_and_blending_operator<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     facts: &FfiImagePaintFacts,
     dest_rect: FloatRect,
     image_rendering: u8,
@@ -504,8 +510,8 @@ pub(crate) fn paint_image_with_compositing_and_blending_operator(
 }
 
 #[allow(clippy::too_many_arguments)]
-fn paint_image_layer(
-    recorder: &mut PaintRecorder<'_>,
+fn paint_image_layer<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
     layer: &ResolvedBackgroundLayer<'_>,
     image_rendering: u8,
@@ -838,29 +844,31 @@ fn paint_image_layer(
         let force_dark_settings = recorder.recorder.force_dark_settings();
         let outer_recorder = std::mem::replace(&mut recorder.recorder, DisplayListRecorder::new(force_dark_settings));
         let tile_dest_rect = tile_device_rect.to_float();
-        if let Some(gradient) = &resolved_gradient {
-            record_gradient_fill(
-                recorder,
-                gradient,
-                tile_dest_rect,
-                CompositingAndBlendingOperator::Normal,
-            );
-        } else {
-            let paint = recorder.paint_host.layer_image_paint(
-                shell,
-                image.list,
-                image.computed_index,
-                tile_dest_rect,
-                image_rendering,
-                libgfx_rust::FloatSize {
-                    width: 1.0,
-                    height: 1.0,
-                },
-            );
-            if paint.image_paint_kind != crate::painting::host::FfiImagePaintKind::None {
-                paint_image(recorder, &paint, tile_dest_rect, image_rendering);
+        recorder.trace_paint(Operation::Producer(Some(paintable), "background-tile"), |recorder| {
+            if let Some(gradient) = &resolved_gradient {
+                record_gradient_fill(
+                    recorder,
+                    gradient,
+                    tile_dest_rect,
+                    CompositingAndBlendingOperator::Normal,
+                );
+            } else {
+                let paint = recorder.paint_host.layer_image_paint(
+                    shell,
+                    image.list,
+                    image.computed_index,
+                    tile_dest_rect,
+                    image_rendering,
+                    libgfx_rust::FloatSize {
+                        width: 1.0,
+                        height: 1.0,
+                    },
+                );
+                if paint.image_paint_kind != crate::painting::host::FfiImagePaintKind::None {
+                    paint_image(recorder, &paint, tile_dest_rect, image_rendering);
+                }
             }
-        }
+        });
         let tile_recorder = std::mem::replace(&mut recorder.recorder, outer_recorder);
         let tile = tile_recorder.into_builder().finish();
         let tile_tree = VisualContextTree::create_with_content_offset(IntPoint {
@@ -973,11 +981,11 @@ fn source_rect_for_visible_image_part(
     )
 }
 
-fn append_text_clip_paths(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
+fn append_text_clip_paths<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
     let converter = recorder.converter;
     let scale = recorder.inputs.device_pixels_per_css_pixel;
 
-    let append_fragment = |recorder: &mut PaintRecorder<'_>, owner: NodeSlotId, fragment_index: usize| {
+    let append_fragment = |recorder: &mut PaintRecorder<'_, O>, owner: NodeSlotId, fragment_index: usize| {
         let side = recorder.layout_arena.paintable_side_data(owner);
         let fragment = &side.fragments()[fragment_index];
         let is_text = recorder

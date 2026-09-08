@@ -1,2 +1,3 @@
-quiet recording splices fewer captures than a change: true
-siblings splice after a quiet frame: true
+PASS: first interior change (work)
+PASS: quiet recording (work)
+PASS: second interior change (work)

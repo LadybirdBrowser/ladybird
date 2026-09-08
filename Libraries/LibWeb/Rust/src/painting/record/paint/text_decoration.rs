@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::Observer;
+
 use crate::css::css_enums::{
     text_decoration_line, text_decoration_skip_ink, text_decoration_style, text_underline_position_horizontal,
 };
@@ -82,8 +84,8 @@ fn resolve_text_decoration_thickness(
 }
 
 // https://drafts.csswg.org/css-text-decor-4/#text-line-constancy
-fn anchor_for_decorating_box(
-    recorder: &PaintRecorder<'_>,
+fn anchor_for_decorating_box<O: Observer>(
+    recorder: &PaintRecorder<'_, O>,
     block: NodeSlotId,
     fragment: &crate::painting::paintable_data::FragmentRecord,
     decorating_node: crate::layout::node_data::NodeSlotId,
@@ -111,8 +113,8 @@ fn anchor_for_decorating_box(
     )
 }
 
-pub(crate) fn decoration_sets_for_span(
-    recorder: &PaintRecorder<'_>,
+pub(crate) fn decoration_sets_for_span<O: Observer>(
+    recorder: &PaintRecorder<'_, O>,
     block: NodeSlotId,
     span: &crate::painting::record::paint::text::RenderSpan,
 ) -> Vec<TextDecorationSet> {
@@ -266,8 +268,8 @@ struct DecorationSegment {
 
 // https://drafts.csswg.org/css-text-decor-4/#text-decoration-skip-ink-property
 #[allow(clippy::too_many_arguments)]
-fn compute_skip_ink_segments(
-    recorder: &mut PaintRecorder<'_>,
+fn compute_skip_ink_segments<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     block: NodeSlotId,
     fragment_index: u32,
     span_start_x: i32,
@@ -403,8 +405,8 @@ fn build_triangle_wave_path(from: IntPoint, to: IntPoint, amplitude: f32) -> Pat
     path
 }
 
-pub(crate) fn paint_decoration_lines(
-    recorder: &mut PaintRecorder<'_>,
+pub(crate) fn paint_decoration_lines<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     block: NodeSlotId,
     fragment_index: u32,
     fragment_box: CssPixelRect,
@@ -527,7 +529,7 @@ pub(crate) fn paint_decoration_lines(
 
         let line_y = line_start_point.y;
         let draw_line_for_segment =
-            |recorder: &mut PaintRecorder<'_>, segment: DecorationSegment, y: i32, style: LineStyle| {
+            |recorder: &mut PaintRecorder<'_, O>, segment: DecorationSegment, y: i32, style: LineStyle| {
                 recorder.recorder.draw_line(
                     IntPoint { x: segment.start_x, y },
                     IntPoint { x: segment.end_x, y },

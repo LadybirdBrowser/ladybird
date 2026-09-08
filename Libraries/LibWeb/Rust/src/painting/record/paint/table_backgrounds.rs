@@ -6,6 +6,8 @@
 
 //! Backgrounds of table rows, row groups, columns and column groups.
 
+use crate::painting::record::trace::Observer;
+
 use crate::css::display::FfiDisplay;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::border_radii::BorderRadii;
@@ -39,7 +41,7 @@ pub(crate) fn paints_background_in_cells(display: FfiDisplay) -> bool {
 /// https://www.w3.org/TR/CSS22/tables.html#separated-borders
 /// So the background layers are resolved against the part's own box and painted once per originating cell, clipped
 /// to that cell's border box.
-pub(crate) fn paint_table_part_background(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
+pub(crate) fn paint_table_part_background<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
     let layout_arena = recorder.layout_arena;
     let Some(style) = layout_arena.node_style_if_live(paintable) else {
         return;

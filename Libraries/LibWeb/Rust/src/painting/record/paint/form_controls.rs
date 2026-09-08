@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::Observer;
+
 use crate::painting::force_dark::ForceDarkRole;
 use libgfx_rust::path::{OwnedPath, PathBuilder};
 
@@ -62,7 +64,11 @@ fn compute_input_colors(facts: &FfiReplacedPaintFacts) -> InputColors {
     }
 }
 
-fn centered_square_device_rect(recorder: &PaintRecorder<'_>, outer_rect: CssPixelRect, size: CssPixels) -> IntRect {
+fn centered_square_device_rect<O: Observer>(
+    recorder: &PaintRecorder<'_, O>,
+    outer_rect: CssPixelRect,
+    size: CssPixels,
+) -> IntRect {
     let center_x = outer_rect.x + outer_rect.width / 2usize;
     let center_y = outer_rect.y + outer_rect.height / 2usize;
     let rect = CssPixelRect::new(center_x - size / 2usize, center_y - size / 2usize, size, size);
@@ -87,7 +93,7 @@ fn check_mark_path(checkbox_rect: IntRect) -> OwnedPath {
     path.copy_transformed([scale_x, 0.0, 0.0, scale_y, 0.0, 0.0])
 }
 
-pub(crate) fn paint_check_box_foreground(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
+pub(crate) fn paint_check_box_foreground<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
     let facts = recorder
         .paint_host
         .replaced_paint_facts(recorder.layout_node_shell(paintable));
@@ -188,7 +194,7 @@ pub(crate) fn paint_check_box_foreground(recorder: &mut PaintRecorder<'_>, paint
     }
 }
 
-pub(crate) fn paint_radio_button_foreground(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
+pub(crate) fn paint_radio_button_foreground<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
     let facts = recorder
         .paint_host
         .replaced_paint_facts(recorder.layout_node_shell(paintable));
@@ -229,7 +235,7 @@ pub(crate) fn paint_radio_button_foreground(recorder: &mut PaintRecorder<'_>, pa
     let inner_border_width = 2.max((radio_button_rect.width as f32 / 4.0).ceil() as i32);
 
     let draw_circle =
-        |recorder: &mut PaintRecorder<'_>, rect: IntRect, color: Color, force_dark_role: ForceDarkRole| {
+        |recorder: &mut PaintRecorder<'_, O>, rect: IntRect, color: Color, force_dark_role: ForceDarkRole| {
             // Note: Doing this is a bit more forgiving than draw_circle() which will round to the nearest even radius.
             // This will fudge it (which works better here).
             recorder

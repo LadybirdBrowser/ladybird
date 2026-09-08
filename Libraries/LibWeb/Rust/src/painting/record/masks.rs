@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::{Action, Observer, Operation};
+
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
@@ -47,7 +49,7 @@ struct MaskLayerPresence {
     area: CssPixelRect,
 }
 
-impl PaintRecorder<'_> {
+impl<O: Observer> PaintRecorder<'_, O> {
     fn mask_layer_presence(&mut self, paintable: NodeSlotId, set: MaskLayerSet) -> Vec<MaskLayerPresence> {
         crate::painting::visual_context::node_values::mask_layer_presence(
             self.layout_arena,
@@ -74,7 +76,11 @@ impl PaintRecorder<'_> {
         for layer in presence {
             match layer.origin {
                 MaskLayerOrigin::CssMaskLayers => {
-                    let id = self.paint_css_mask_layers_to_display_list(paintable, layer.area);
+                    let id = self.trace_scope(
+                        Operation::Producer(Some(paintable), "css-mask"),
+                        Action::Record,
+                        |this| this.paint_css_mask_layers_to_display_list(paintable, layer.area),
+                    );
                     layers.push(PrerecordedMaskLayer {
                         origin: layer.origin,
                         mask_layer_area_is_empty: layer.area.is_empty(),
@@ -95,9 +101,17 @@ impl PaintRecorder<'_> {
                         continue;
                     }
                     let id = if layer.origin == MaskLayerOrigin::SvgMask {
-                        self.calculate_svg_mask_display_list(paintable, layer.device_rect)
+                        self.trace_scope(
+                            Operation::Producer(Some(paintable), "svg-mask"),
+                            Action::Record,
+                            |this| this.calculate_svg_mask_display_list(paintable, layer.device_rect),
+                        )
                     } else {
-                        self.calculate_svg_clip_display_list(paintable, layer.device_rect)
+                        self.trace_scope(
+                            Operation::Producer(Some(paintable), "svg-clip"),
+                            Action::Record,
+                            |this| this.calculate_svg_clip_display_list(paintable, layer.device_rect),
+                        )
                     };
                     layers.push(PrerecordedMaskLayer {
                         origin: layer.origin,
@@ -382,7 +396,9 @@ impl PaintRecorder<'_> {
             image_rendering: crate::css::css_enums::image_rendering::AUTO,
             is_root_element,
         };
-        crate::painting::record::paint::background::paint_resolved_background(&mut session, paintable, &inputs);
+        session.trace_paint(Operation::Producer(Some(paintable), "mask-layers"), |session| {
+            crate::painting::record::paint::background::paint_resolved_background(session, paintable, &inputs);
+        });
         let tree = session
             .nested_tree
             .take()
@@ -392,6 +408,18 @@ impl PaintRecorder<'_> {
     }
 
     pub(crate) fn record_nested_svg_display_list(
+        &mut self,
+        root: NodeSlotId,
+        root_transform: TransformData,
+        include_root_element_transform: bool,
+        is_clip_path: bool,
+    ) -> DisplayListResourceId {
+        self.trace_scope(Operation::Producer(Some(root), "nested-svg"), Action::Record, |this| {
+            this.record_nested_svg_display_list_impl(root, root_transform, include_root_element_transform, is_clip_path)
+        })
+    }
+
+    fn record_nested_svg_display_list_impl(
         &mut self,
         root: NodeSlotId,
         root_transform: TransformData,

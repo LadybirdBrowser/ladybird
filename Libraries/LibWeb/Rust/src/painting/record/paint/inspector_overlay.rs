@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::Observer;
+
 use crate::css::css_enums::flex_direction;
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
@@ -17,7 +19,7 @@ use crate::painting::paintable_geometry;
 use crate::painting::record::PaintRecorder;
 use libgfx_rust::{Color, FloatPoint, IntPoint, IntRect, LineStyle, Orientation};
 
-pub(crate) fn record_inspector_overlays(recorder: &mut PaintRecorder<'_>) {
+pub(crate) fn record_inspector_overlays<O: Observer>(recorder: &mut PaintRecorder<'_, O>) {
     let inputs = recorder.inputs;
     recorder.recorder.set_accumulated_visual_context(ContextRef::default());
     if inputs.has_inspector_highlight {
@@ -52,10 +54,10 @@ pub(crate) fn record_inspector_overlays(recorder: &mut PaintRecorder<'_>) {
     }
 }
 
-fn with_highlight_context(
-    recorder: &mut PaintRecorder<'_>,
+fn with_highlight_context<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
-    callback: impl FnOnce(&mut PaintRecorder<'_>, NodeSlotId),
+    callback: impl FnOnce(&mut PaintRecorder<'_, O>, NodeSlotId),
 ) {
     if paintable.is_invalid() || !recorder.layout_arena.paintable_row_is_populated(paintable) {
         return;
@@ -66,7 +68,7 @@ fn with_highlight_context(
     recorder.with_context(context, |recorder| callback(recorder, paintable));
 }
 
-fn paint_box_model_highlight(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId) {
+fn paint_box_model_highlight<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
     let content_rect = paintable_geometry::absolute_rect(recorder.layout_arena, paintable);
     let margin = paintable_geometry::committed_margin(recorder.layout_arena, paintable);
     let border = paintable_geometry::committed_border(recorder.layout_arena, paintable);
@@ -81,7 +83,7 @@ fn paint_box_model_highlight(recorder: &mut PaintRecorder<'_>, paintable: NodeSl
     let padding_rect = paintable_geometry::absolute_padding_box_rect(recorder.layout_arena, paintable);
 
     let converter = recorder.converter;
-    let paint_inspector_rect = |recorder: &mut PaintRecorder<'_>, rect: CssPixelRect, color: Color| {
+    let paint_inspector_rect = |recorder: &mut PaintRecorder<'_, O>, rect: CssPixelRect, color: Color| {
         let device_rect = converter.enclosing_device_rect(rect);
         recorder
             .recorder
@@ -115,7 +117,11 @@ fn paint_box_model_highlight(recorder: &mut PaintRecorder<'_>, paintable: NodeSl
     draw_label(recorder, &label, device_rect, inputs.tooltip_text_color);
 }
 
-fn paint_flex_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, input: &FfiFlexOverlayInput) {
+fn paint_flex_overlay<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    paintable: NodeSlotId,
+    input: &FfiFlexOverlayInput,
+) {
     let Some(flex_layout_data) =
         crate::painting::paintable_geometry::committed_flex_layout_data(recorder.layout_arena, paintable)
     else {
@@ -139,7 +145,7 @@ fn paint_flex_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, i
     );
 
     let converter = recorder.converter;
-    let paint_rect = |recorder: &mut PaintRecorder<'_>, rect: CssPixelRect, rect_color: Color| {
+    let paint_rect = |recorder: &mut PaintRecorder<'_, O>, rect: CssPixelRect, rect_color: Color| {
         let visible_rect = rect.intersected(viewport_rect);
         if visible_rect.is_empty() {
             return;
@@ -150,7 +156,7 @@ fn paint_flex_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, i
             ForceDarkRole::None,
         );
     };
-    let paint_outline = |recorder: &mut PaintRecorder<'_>, rect: CssPixelRect, rect_color: Color| {
+    let paint_outline = |recorder: &mut PaintRecorder<'_, O>, rect: CssPixelRect, rect_color: Color| {
         let visible_rect = rect.intersected(viewport_rect);
         if visible_rect.is_empty() {
             return;
@@ -252,7 +258,11 @@ fn paint_flex_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, i
     }
 }
 
-fn paint_grid_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, input: &FfiGridOverlayInput) {
+fn paint_grid_overlay<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    paintable: NodeSlotId,
+    input: &FfiGridOverlayInput,
+) {
     let Some(grid_layout_data) =
         crate::painting::paintable_geometry::committed_grid_layout_data(recorder.layout_arena, paintable)
     else {
@@ -269,12 +279,12 @@ fn paint_grid_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, i
     let two = CssPixels::from_integer(2);
 
     let converter = recorder.converter;
-    let paint_rect = |recorder: &mut PaintRecorder<'_>, rect: CssPixelRect, rect_color: Color| {
+    let paint_rect = |recorder: &mut PaintRecorder<'_, O>, rect: CssPixelRect, rect_color: Color| {
         recorder
             .recorder
             .fill_rect(converter.enclosing_device_rect(rect), rect_color, ForceDarkRole::None);
     };
-    let paint_label = |recorder: &mut PaintRecorder<'_>, top_left: CssPixelPoint, text: &[u16]| {
+    let paint_label = |recorder: &mut PaintRecorder<'_, O>, top_left: CssPixelPoint, text: &[u16]| {
         let label = shape_overlay_label(recorder, text, recorder.inputs.grid_label_fonts);
         let label_width = label_width_for(&label);
         let label_rect = CssPixelRect {
@@ -293,7 +303,7 @@ fn paint_grid_overlay(recorder: &mut PaintRecorder<'_>, paintable: NodeSlotId, i
             .draw_rect(label_device_rect, color.with_alpha(255), false, ForceDarkRole::None);
         draw_label(recorder, &label, label_device_rect, input.label_foreground_color);
     };
-    let paint_centered_label = |recorder: &mut PaintRecorder<'_>, rect: CssPixelRect, text: &[u16]| {
+    let paint_centered_label = |recorder: &mut PaintRecorder<'_, O>, rect: CssPixelRect, text: &[u16]| {
         let label = shape_overlay_label(recorder, text, recorder.inputs.grid_label_fonts);
         let label_width = label_width_for(&label);
         let top_left = CssPixelPoint {
@@ -469,7 +479,11 @@ struct OverlayLabel {
     glyphs: Vec<DisplayListGlyph>,
 }
 
-fn shape_overlay_label(recorder: &mut PaintRecorder<'_>, text: &[u16], fonts: FfiOverlayLabelFonts) -> OverlayLabel {
+fn shape_overlay_label<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    text: &[u16],
+    fonts: FfiOverlayLabelFonts,
+) -> OverlayLabel {
     // SAFETY: The host resolves both fonts from the platform font caches, which keep them live
     // through the recording call; the handles keep them alive for the rest of it.
     let css_font = unsafe { libgfx_rust::font::FontHandle::intern(fonts.css_font) };
@@ -512,7 +526,7 @@ fn label_width_for(label: &OverlayLabel) -> CssPixels {
     CssPixels::nearest_value_for_f32(label.css_width) + label_padding * 2usize
 }
 
-fn draw_label(recorder: &mut PaintRecorder<'_>, label: &OverlayLabel, rect: IntRect, color: Color) {
+fn draw_label<O: Observer>(recorder: &mut PaintRecorder<'_, O>, label: &OverlayLabel, rect: IntRect, color: Color) {
     if rect.width <= 0 || rect.height <= 0 || color.alpha() == 0 {
         return;
     }
@@ -543,7 +557,7 @@ fn draw_label(recorder: &mut PaintRecorder<'_>, label: &OverlayLabel, rect: IntR
     );
 }
 
-fn paint_caret_debug_marker(recorder: &mut PaintRecorder<'_>, css_rect: CssPixelRect) {
+fn paint_caret_debug_marker<O: Observer>(recorder: &mut PaintRecorder<'_, O>, css_rect: CssPixelRect) {
     let caret_rect = recorder.converter.enclosing_device_rect(css_rect);
     let caret_x = caret_rect.x;
     let caret_top = caret_rect.y;

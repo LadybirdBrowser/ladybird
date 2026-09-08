@@ -1,0 +1,26 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script src="recording-test.js"></script>
+<script>
+test(() => {
+    const expected = `
+        @viewport WALK
+          #target/foreground RECORD (empty)
+          #sibling REUSE WHOLE CAPTURE
+    `;
+    const cases = [
+        ["indentation in a template literal", expected, expected, false],
+        ["an unrelated sibling walk", expected, expected.replace("#sibling REUSE WHOLE CAPTURE", "#sibling WALK"), true],
+        ["extra empty painting", expected, expected + "  #sibling/foreground RECORD (empty)\n", true],
+        ["skipping an empty painter", expected, expected.replace("RECORD (empty)", "SKIP"), true],
+        ["reusing a changed phase", expected, expected.replace("RECORD (empty)", "REUSE"), true],
+        ["missing work", expected, "@viewport WALK", true],
+        ["unexpected recording", expected, expected + expected, true],
+        ["wrong paint order", "#a REUSE\n#b RECORD", "#b RECORD\n#a REUSE", true],
+    ];
+    for (const [name, expected, actual, differs] of cases) {
+        const result = (displayListTraceDifference(expected, actual) !== null) === differs;
+        println(`${result ? "PASS" : "FAIL"}: ${name}`);
+    }
+});
+</script>

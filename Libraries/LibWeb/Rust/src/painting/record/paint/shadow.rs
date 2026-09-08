@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::painting::record::trace::Observer;
+
 use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::NodeSlotId;
@@ -38,8 +40,8 @@ fn adjust_corners_for_spread_distance(corner_radii: &mut CornerRadii, spread_dis
     add_spread_distance_to_border_radius(&mut corner_radii.bottom_left.vertical_radius, spread_distance);
 }
 
-pub(crate) fn paint_box_shadow(
-    recorder: &mut PaintRecorder<'_>,
+pub(crate) fn paint_box_shadow<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
     bordered_content_rect: CssPixelRect,
     borderless_content_rect: CssPixelRect,
@@ -62,8 +64,8 @@ pub(crate) fn paint_box_shadow(
     );
 }
 
-fn paint_box_shadow_layers(
-    recorder: &mut PaintRecorder<'_>,
+fn paint_box_shadow_layers<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
     bordered_content_rect: CssPixelRect,
     borderless_content_rect: CssPixelRect,
     border_radii: BorderRadii,

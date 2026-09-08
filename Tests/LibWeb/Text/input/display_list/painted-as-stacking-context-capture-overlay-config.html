@@ -1,28 +1,134 @@
 <!doctype html>
+<html id="html">
 <script src="../include.js"></script>
+<script src="recording-test.js"></script>
 <style>
     body { margin: 0; font: 16px/20px monospace; }
     #root { position: relative; z-index: 0; width: 200px; }
     #scroller { position: relative; z-index: 0; overflow: scroll; height: 60px; }
     #content { height: 300px; }
 </style>
+<body id="body">
 <div id="root"><div id="scroller"><div id="content">scrollable</div></div></div>
 <script>
-    asyncTest(async (done) => {
-        internals.asyncScrollingState();
-        internals.asyncScrollingState();
-        const visitedQuiet = internals.paintCacheCaptureSiteVisitCount();
-
-        await animationFrame();
-        await animationFrame();
-        internals.asyncScrollingState();
-        const visitedAfterOverlayPaint = internals.paintCacheCaptureSiteVisitCount();
-        internals.asyncScrollingState();
-        const visitedQuietAgain = internals.paintCacheCaptureSiteVisitCount();
-
-        println(`quiet recording visits only the viewport root: ${visitedQuiet === 1}`);
-        println(`recording after an overlay paint walks the roots: ${visitedAfterOverlayPaint > 1}`);
-        println(`next quiet recording hits the viewport root again: ${visitedQuietAgain === 1}`);
-        done();
-    });
+displayListTest({
+    setup: removeBodyWhitespace,
+    steps: [
+        {
+            name: "quiet without overlays",
+            expect: `
+                @canvas RECORD (empty)
+                @viewport REUSE WHOLE CAPTURE
+            `
+        },
+        {
+            name: "enable overlays",
+            paintOverlay: true,
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test REUSE
+                  @viewport/scroll-metadata RECORD
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                  @viewport/foreground/hit-test REUSE
+                  @viewport/foreground REUSE
+                  BlockContainer<HTML>#html/descendants(foreground) REUSE WHOLE CAPTURE
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test REUSE
+                    BlockContainer<HTML>#html/scroll-metadata RECORD
+                    BlockContainer<HTML>#html/background REUSE
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                    BlockContainer<HTML>#html/foreground/hit-test REUSE
+                    BlockContainer<HTML>#html/foreground REUSE
+                    BlockContainer<BODY>#body/descendants(foreground) REUSE WHOLE CAPTURE
+                    BlockContainer<DIV>#root WALK
+                      BlockContainer<DIV>#root/background/hit-test REUSE
+                      BlockContainer<DIV>#root/scroll-metadata RECORD
+                      BlockContainer<DIV>#root/background SKIP
+                      BlockContainer<DIV>#root/border SKIP
+                      BlockContainer<DIV>#scroller/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#root/foreground/hit-test REUSE
+                      BlockContainer<DIV>#root/foreground REUSE
+                      BlockContainer<DIV>#scroller/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#scroller WALK
+                        BlockContainer<DIV>#scroller/background/hit-test REUSE
+                        BlockContainer<DIV>#scroller/scroll-metadata RECORD
+                        BlockContainer<DIV>#scroller/background SKIP
+                        BlockContainer<DIV>#scroller/border SKIP
+                        BlockContainer<DIV>#content/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                        BlockContainer<DIV>#scroller/foreground/hit-test REUSE
+                        BlockContainer<DIV>#scroller/foreground REUSE
+                        BlockContainer<DIV>#content/descendants(foreground) REUSE WHOLE CAPTURE
+                        BlockContainer<DIV>#scroller/outline SKIP
+                        BlockContainer<DIV>#scroller/overlay/hit-test RECORD
+                        BlockContainer<DIV>#scroller/overlay RECORD
+                      BlockContainer<DIV>#root/outline SKIP
+                      BlockContainer<DIV>#root/overlay/hit-test RECORD (empty)
+                      BlockContainer<DIV>#root/overlay SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                    BlockContainer<HTML>#html/overlay/hit-test RECORD (empty)
+                    BlockContainer<HTML>#html/overlay SKIP
+                  @viewport/outline SKIP
+                  @viewport/overlay/hit-test RECORD (empty)
+                  @viewport/overlay RECORD (empty)
+            `
+        },
+        {
+            name: "disable overlays",
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test REUSE
+                  @viewport/scroll-metadata RECORD
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                  @viewport/foreground/hit-test REUSE
+                  @viewport/foreground REUSE
+                  BlockContainer<HTML>#html/descendants(foreground) REUSE WHOLE CAPTURE
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test REUSE
+                    BlockContainer<HTML>#html/scroll-metadata RECORD
+                    BlockContainer<HTML>#html/background REUSE
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                    BlockContainer<HTML>#html/foreground/hit-test REUSE
+                    BlockContainer<HTML>#html/foreground REUSE
+                    BlockContainer<BODY>#body/descendants(foreground) REUSE WHOLE CAPTURE
+                    BlockContainer<DIV>#root WALK
+                      BlockContainer<DIV>#root/background/hit-test REUSE
+                      BlockContainer<DIV>#root/scroll-metadata RECORD
+                      BlockContainer<DIV>#root/background SKIP
+                      BlockContainer<DIV>#root/border SKIP
+                      BlockContainer<DIV>#scroller/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#root/foreground/hit-test REUSE
+                      BlockContainer<DIV>#root/foreground REUSE
+                      BlockContainer<DIV>#scroller/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#scroller WALK
+                        BlockContainer<DIV>#scroller/background/hit-test REUSE
+                        BlockContainer<DIV>#scroller/scroll-metadata RECORD
+                        BlockContainer<DIV>#scroller/background SKIP
+                        BlockContainer<DIV>#scroller/border SKIP
+                        BlockContainer<DIV>#content/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                        BlockContainer<DIV>#scroller/foreground/hit-test REUSE
+                        BlockContainer<DIV>#scroller/foreground REUSE
+                        BlockContainer<DIV>#content/descendants(foreground) REUSE WHOLE CAPTURE
+                        BlockContainer<DIV>#scroller/outline SKIP
+                      BlockContainer<DIV>#root/outline SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline SKIP
+            `
+        },
+        {
+            name: "quiet without overlays again",
+            expect: `
+                @canvas RECORD (empty)
+                @viewport REUSE WHOLE CAPTURE
+            `
+        }
+    ]
+});
 </script>

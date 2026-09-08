@@ -1,24 +1,124 @@
 <!doctype html>
+<html id="html">
 <script src="../include.js"></script>
+<script src="recording-test.js"></script>
 <style>
     body { margin: 0; font: 16px/20px monospace; }
     #root { position: relative; width: 200px; mask-image: linear-gradient(black, transparent); }
     .row { height: 20px; }
 </style>
+<body id="body">
 <div id="root"><div class="row" id="r0">R 0</div><div class="row" id="r1">R 1</div><div class="row" id="r2">R 2</div></div>
 <script>
-    test(() => {
-        internals.asyncScrollingState();
-        internals.asyncScrollingState();
-        const visitedQuiet = internals.paintCacheCaptureSiteVisitCount();
-        const splicedQuiet = internals.paintCacheSplicedCaptureCount();
-
-        r1.style.color = "red";
-        internals.asyncScrollingState();
-        const hit = document.elementFromPoint(10, 30).id;
-
-        println(`quiet recording walks the masked root: ${visitedQuiet > 1}`);
-        println(`captures inside the masked root splice: ${splicedQuiet > 0}`);
-        println(`hit test inside the masked root after a change: ${hit}`);
-    });
+displayListTest({
+    setup: removeBodyWhitespace,
+    steps: [
+        {
+            name: "quiet masked root",
+            expect: `
+                @canvas RECORD (empty)
+                BlockContainer<DIV>#root/css-mask RECORD
+                  BlockContainer<DIV>#root/mask-layers RECORD
+                @viewport WALK
+                  @viewport/background/hit-test REUSE
+                  @viewport/scroll-metadata RECORD (empty)
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                  @viewport/foreground/hit-test REUSE
+                  @viewport/foreground REUSE
+                  BlockContainer<HTML>#html/descendants(foreground) REUSE WHOLE CAPTURE
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test REUSE
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background REUSE
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                    BlockContainer<HTML>#html/foreground/hit-test REUSE
+                    BlockContainer<HTML>#html/foreground REUSE
+                    BlockContainer<BODY>#body/descendants(foreground) REUSE WHOLE CAPTURE
+                    BlockContainer<DIV>#root WALK
+                      BlockContainer<DIV>#root/background/hit-test REUSE
+                      BlockContainer<DIV>#root/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#root/background SKIP
+                      BlockContainer<DIV>#root/border SKIP
+                      BlockContainer<DIV>#r0.row/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#r1.row/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#r2.row/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#root/foreground/hit-test REUSE
+                      BlockContainer<DIV>#root/foreground REUSE
+                      BlockContainer<DIV>#r0.row/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#r1.row/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#r2.row/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#root/outline SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline SKIP
+            `
+        },
+        {
+            name: "change inside masked root",
+            mutate: () => { r1.style.color = "red"; },
+            check: equal => { equal(document.elementFromPoint(10, 30).id, "r1", "hit target"); },
+            expect: `
+                @canvas RECORD (empty)
+                BlockContainer<DIV>#root/css-mask RECORD
+                  BlockContainer<DIV>#root/mask-layers RECORD
+                @viewport WALK
+                  @viewport/background/hit-test REUSE
+                  @viewport/scroll-metadata RECORD (empty)
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
+                  @viewport/foreground/hit-test REUSE
+                  @viewport/foreground REUSE
+                  BlockContainer<HTML>#html/descendants(foreground) WALK
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test REUSE
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background REUSE
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
+                      BlockContainer<BODY>#body/background/hit-test REUSE
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#root/descendants(background-and-borders) WALK
+                    BlockContainer<HTML>#html/foreground/hit-test REUSE
+                    BlockContainer<HTML>#html/foreground REUSE
+                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/foreground/hit-test REUSE
+                      BlockContainer<BODY>#body/foreground REUSE
+                      BlockContainer<DIV>#root/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test REUSE
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<DIV>#root WALK
+                      BlockContainer<DIV>#root/background/hit-test REUSE
+                      BlockContainer<DIV>#root/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#root/background SKIP
+                      BlockContainer<DIV>#root/border SKIP
+                      BlockContainer<DIV>#r0.row/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#r1.row/descendants(background-and-borders) WALK
+                        BlockContainer<DIV>#r1.row/background/hit-test RECORD
+                        BlockContainer<DIV>#r1.row/scroll-metadata RECORD (empty)
+                        BlockContainer<DIV>#r1.row/background SKIP
+                        BlockContainer<DIV>#r1.row/border SKIP
+                      BlockContainer<DIV>#r2.row/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#root/foreground/hit-test REUSE
+                      BlockContainer<DIV>#root/foreground REUSE
+                      BlockContainer<DIV>#r0.row/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#r1.row/descendants(foreground) WALK
+                        BlockContainer<DIV>#r1.row/foreground/hit-test RECORD
+                        BlockContainer<DIV>#r1.row/foreground RECORD
+                        BlockContainer<DIV>#r1.row/outline SKIP
+                        BlockContainer<DIV>#r1.row/overlay/hit-test RECORD (empty)
+                        BlockContainer<DIV>#r1.row/overlay SKIP
+                      BlockContainer<DIV>#r2.row/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#root/outline SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                  @viewport/outline SKIP
+            `
+        }
+    ]
+});
 </script>

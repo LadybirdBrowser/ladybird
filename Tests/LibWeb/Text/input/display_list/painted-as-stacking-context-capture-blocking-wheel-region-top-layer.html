@@ -1,33 +1,177 @@
 <!doctype html>
+<html id="html">
 <script src="../include.js"></script>
+<script src="recording-test.js"></script>
 <style>
     body { margin: 0; }
     #host { position: relative; width: 100px; height: 100px; }
     dialog { margin: 0; border: 0; padding: 0; inset: auto; left: 200px; top: 200px; width: 100px; height: 100px; }
     dialog::backdrop { background: rgba(0, 0, 0, 0.1); }
 </style>
+<body id="body">
 <div id="host"><dialog id="modal"></dialog></div>
 <script>
-    test(() => {
+const blocking = () => {};
+displayListTest({
+    setup: () => {
+        removeBodyWhitespace();
         modal.showModal();
-        internals.asyncScrollingState();
-        internals.asyncScrollingState();
-        const blockedBefore = internals.asyncScrollingStateBlocksWheelEventAt(250, 250);
-        const visitedQuiet = internals.paintCacheCaptureSiteVisitCount();
-
-        host.style.height = "101px";
-        const blocking = () => {};
-        host.addEventListener("wheel", blocking, { passive: false });
-        const blockedAfterAdding = internals.asyncScrollingStateBlocksWheelEventAt(250, 250);
-        const blockedWhenQuiet = internals.asyncScrollingStateBlocksWheelEventAt(250, 250);
-
-        host.removeEventListener("wheel", blocking);
-        const blockedAfterRemoving = internals.asyncScrollingStateBlocksWheelEventAt(250, 250);
-
-        println(`quiet recording visits only the viewport root: ${visitedQuiet === 1}`);
-        println(`blocked over the modal before adding the listener: ${blockedBefore}`);
-        println(`blocked over the modal after adding the listener on its DOM ancestor: ${blockedAfterAdding}`);
-        println(`still blocked on a quiet recording: ${blockedWhenQuiet}`);
-        println(`blocked over the modal after removing the listener: ${blockedAfterRemoving}`);
-    });
+    },
+    steps: [
+        {
+            name: "quiet modal",
+            check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(250, 250), false, "blocking wheel region"); },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport REUSE WHOLE CAPTURE
+            `
+        },
+        {
+            name: "add listener on modal DOM ancestor",
+            mutate: () => { host.style.height = "101px"; host.addEventListener("wheel", blocking, { passive: false }); },
+            check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(250, 250), true, "blocking wheel region"); },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test RECORD
+                  @viewport/scroll-metadata RECORD (empty)
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
+                  BlockContainer(anonymous)/descendants(background-and-borders) WALK
+                  BlockContainer<DIALOG>#modal/descendants(background-and-borders) WALK
+                  @viewport/foreground/hit-test RECORD (empty)
+                  @viewport/foreground RECORD (empty)
+                  BlockContainer<HTML>#html/descendants(foreground) WALK
+                  BlockContainer(anonymous)/descendants(foreground) WALK
+                  BlockContainer<DIALOG>#modal/descendants(foreground) WALK
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test RECORD
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background RECORD (empty)
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
+                      BlockContainer<BODY>#body/background/hit-test RECORD
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#host/descendants(background-and-borders) WALK
+                    BlockContainer<HTML>#html/foreground/hit-test RECORD (empty)
+                    BlockContainer<HTML>#html/foreground RECORD (empty)
+                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/foreground/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/foreground RECORD (empty)
+                      BlockContainer<DIV>#host/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test RECORD (empty)
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<DIV>#host WALK
+                      BlockContainer<DIV>#host/background/hit-test RECORD
+                      BlockContainer<DIV>#host/scroll-metadata RECORD
+                      BlockContainer<DIV>#host/background SKIP
+                      BlockContainer<DIV>#host/border SKIP
+                      BlockContainer<DIV>#host/foreground/hit-test RECORD (empty)
+                      BlockContainer<DIV>#host/foreground RECORD (empty)
+                      BlockContainer<DIV>#host/outline SKIP
+                      BlockContainer<DIV>#host/overlay/hit-test RECORD (empty)
+                      BlockContainer<DIV>#host/overlay SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                  BlockContainer(anonymous) WALK
+                    BlockContainer(anonymous)/background/hit-test RECORD
+                    BlockContainer(anonymous)/scroll-metadata RECORD (empty)
+                    BlockContainer(anonymous)/background RECORD
+                    BlockContainer(anonymous)/border SKIP
+                    BlockContainer(anonymous)/foreground/hit-test RECORD (empty)
+                    BlockContainer(anonymous)/foreground RECORD (empty)
+                    BlockContainer(anonymous)/outline SKIP
+                  BlockContainer<DIALOG>#modal WALK
+                    BlockContainer<DIALOG>#modal/background/hit-test RECORD
+                    BlockContainer<DIALOG>#modal/scroll-metadata RECORD
+                    BlockContainer<DIALOG>#modal/background RECORD
+                    BlockContainer<DIALOG>#modal/border SKIP
+                    BlockContainer<DIALOG>#modal/foreground/hit-test RECORD (empty)
+                    BlockContainer<DIALOG>#modal/foreground RECORD (empty)
+                    BlockContainer<DIALOG>#modal/outline SKIP
+                  @viewport/outline SKIP
+            `
+        },
+        {
+            name: "quiet modal with listener",
+            check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(250, 250), true, "blocking wheel region"); },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport REUSE WHOLE CAPTURE
+            `
+        },
+        {
+            name: "remove ancestor listener",
+            mutate: () => { host.removeEventListener("wheel", blocking); },
+            check: equal => { equal(internals.recordedDisplayListBlocksWheelEventAt(250, 250), false, "blocking wheel region"); },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test REUSE
+                  @viewport/scroll-metadata RECORD (empty)
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>#html/descendants(background-and-borders) WALK
+                  BlockContainer(anonymous)/descendants(background-and-borders) WALK
+                  BlockContainer<DIALOG>#modal/descendants(background-and-borders) WALK
+                  @viewport/foreground/hit-test REUSE
+                  @viewport/foreground REUSE
+                  BlockContainer<HTML>#html/descendants(foreground) WALK
+                  BlockContainer(anonymous)/descendants(foreground) WALK
+                  BlockContainer<DIALOG>#modal/descendants(foreground) WALK
+                  BlockContainer<HTML>#html WALK
+                    BlockContainer<HTML>#html/background/hit-test REUSE
+                    BlockContainer<HTML>#html/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>#html/background REUSE
+                    BlockContainer<HTML>#html/border SKIP
+                    BlockContainer<BODY>#body/descendants(background-and-borders) WALK
+                      BlockContainer<BODY>#body/background/hit-test REUSE
+                      BlockContainer<BODY>#body/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>#body/background SKIP
+                      BlockContainer<BODY>#body/border SKIP
+                      BlockContainer<DIV>#host/descendants(background-and-borders) WALK
+                    BlockContainer<HTML>#html/foreground/hit-test REUSE
+                    BlockContainer<HTML>#html/foreground REUSE
+                    BlockContainer<BODY>#body/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/foreground/hit-test REUSE
+                      BlockContainer<BODY>#body/foreground REUSE
+                      BlockContainer<DIV>#host/descendants(foreground) WALK
+                      BlockContainer<BODY>#body/outline SKIP
+                      BlockContainer<BODY>#body/overlay/hit-test REUSE
+                      BlockContainer<BODY>#body/overlay SKIP
+                    BlockContainer<DIV>#host WALK
+                      BlockContainer<DIV>#host/background/hit-test RECORD
+                      BlockContainer<DIV>#host/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#host/background SKIP
+                      BlockContainer<DIV>#host/border SKIP
+                      BlockContainer<DIV>#host/foreground/hit-test RECORD (empty)
+                      BlockContainer<DIV>#host/foreground RECORD (empty)
+                      BlockContainer<DIV>#host/outline SKIP
+                      BlockContainer<DIV>#host/overlay/hit-test RECORD (empty)
+                      BlockContainer<DIV>#host/overlay SKIP
+                    BlockContainer<HTML>#html/outline SKIP
+                  BlockContainer(anonymous) WALK
+                    BlockContainer(anonymous)/background/hit-test RECORD
+                    BlockContainer(anonymous)/scroll-metadata RECORD (empty)
+                    BlockContainer(anonymous)/background RECORD
+                    BlockContainer(anonymous)/border SKIP
+                    BlockContainer(anonymous)/foreground/hit-test RECORD (empty)
+                    BlockContainer(anonymous)/foreground RECORD (empty)
+                    BlockContainer(anonymous)/outline SKIP
+                  BlockContainer<DIALOG>#modal WALK
+                    BlockContainer<DIALOG>#modal/background/hit-test RECORD
+                    BlockContainer<DIALOG>#modal/scroll-metadata RECORD (empty)
+                    BlockContainer<DIALOG>#modal/background RECORD
+                    BlockContainer<DIALOG>#modal/border SKIP
+                    BlockContainer<DIALOG>#modal/foreground/hit-test RECORD (empty)
+                    BlockContainer<DIALOG>#modal/foreground RECORD (empty)
+                    BlockContainer<DIALOG>#modal/outline SKIP
+                  @viewport/outline SKIP
+            `
+        }
+    ]
+});
 </script>
