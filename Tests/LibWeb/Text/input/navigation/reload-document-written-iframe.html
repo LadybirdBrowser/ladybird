@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const frame = document.createElement("iframe");
+        let loads = 0;
+        window.addEventListener("message", event => {
+            if (event.source !== frame.contentWindow)
+                return;
+            println(`${loads === 0 ? "Initial load" : "Reload"}: ${event.data}`);
+            if (++loads < 3) {
+                frame.contentWindow.postMessage("reload", "*");
+            } else {
+                const history = JSON.parse(internals.dumpUIProcessSessionHistory());
+                const entry = history.entries.find(entry => entry.current);
+                const childHistory = entry.nestedHistories[0].entries[0];
+                println(`Child histories after reload: ${childHistory.nestedHistories.length}`);
+                frame.remove();
+                done();
+            }
+        });
+        frame.src = "../../data/reload-document-written-iframe.html";
+        document.body.append(frame);
+    });
+</script>

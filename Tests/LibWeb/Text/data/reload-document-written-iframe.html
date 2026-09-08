@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Reload a document-written iframe</title>
+<body>Outer page
+<p>Reload twice. The iframe should keep displaying "Editor".</p>
+<script>
+    if (window === top || window.frameElement?.id !== "editor") {
+        const editor = document.createElement("iframe");
+        editor.id = "editor";
+        editor.src = "javascript:false";
+        document.body.append(editor);
+        editor.contentDocument.open();
+        editor.contentDocument.write("<!DOCTYPE html><body contenteditable>Editor</body>");
+        editor.contentDocument.close();
+        addEventListener("load", () => {
+            parent.postMessage(editor.contentDocument.body.firstChild.textContent.trim(), "*");
+        }, { once: true });
+        addEventListener("message", event => {
+            if (event.source === parent && event.data === "reload")
+                location.reload();
+        });
+    }
+</script>

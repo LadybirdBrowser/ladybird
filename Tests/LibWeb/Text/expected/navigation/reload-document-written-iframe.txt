@@ -1,0 +1,4 @@
+Initial load: Editor
+Reload: Editor
+Reload: Editor
+Child histories after reload: 1
