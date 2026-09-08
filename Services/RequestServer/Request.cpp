@@ -1802,10 +1802,12 @@ Requests::RequestTimingInfo Request::acquire_timing_info() const
         return time_value;
     };
 
-    auto queue_time = get_timing_info(CURLINFO_QUEUE_TIME_T);
-    auto domain_lookup_time = get_timing_info(CURLINFO_NAMELOOKUP_TIME_T);
-    auto connect_time = get_timing_info(CURLINFO_CONNECT_TIME_T);
-    auto secure_connect_time = get_timing_info(CURLINFO_APPCONNECT_TIME_T);
+    // Every value is measured from the start of this transfer, so they are offsets along one timeline rather than
+    // durations to add up.
+    auto queue_end_time = get_timing_info(CURLINFO_QUEUE_TIME_T);
+    auto domain_lookup_end_time = get_timing_info(CURLINFO_NAMELOOKUP_TIME_T);
+    auto connect_end_time = get_timing_info(CURLINFO_CONNECT_TIME_T);
+    auto secure_connect_end_time = get_timing_info(CURLINFO_APPCONNECT_TIME_T);
     auto request_start_time = get_timing_info(CURLINFO_PRETRANSFER_TIME_T);
     auto response_start_time = get_timing_info(CURLINFO_STARTTRANSFER_TIME_T);
     auto response_end_time = get_timing_info(CURLINFO_TOTAL_TIME_T);
@@ -1834,15 +1836,18 @@ Requests::RequestTimingInfo Request::acquire_timing_info() const
         break;
     }
 
+    // APPCONNECT is 0 without a TLS handshake, in which case the connection is established once TCP connects.
+    bool used_tls = secure_connect_end_time != 0;
+
     return Requests::RequestTimingInfo {
-        .domain_lookup_start_microseconds = queue_time,
-        .domain_lookup_end_microseconds = queue_time + domain_lookup_time,
-        .connect_start_microseconds = queue_time + domain_lookup_time,
-        .connect_end_microseconds = queue_time + domain_lookup_time + connect_time + secure_connect_time,
-        .secure_connect_start_microseconds = queue_time + domain_lookup_time + connect_time,
-        .request_start_microseconds = queue_time + domain_lookup_time + connect_time + secure_connect_time + request_start_time,
-        .response_start_microseconds = queue_time + domain_lookup_time + connect_time + secure_connect_time + response_start_time,
-        .response_end_microseconds = queue_time + domain_lookup_time + connect_time + secure_connect_time + response_end_time,
+        .domain_lookup_start_microseconds = queue_end_time,
+        .domain_lookup_end_microseconds = domain_lookup_end_time,
+        .connect_start_microseconds = domain_lookup_end_time,
+        .connect_end_microseconds = used_tls ? secure_connect_end_time : connect_end_time,
+        .secure_connect_start_microseconds = used_tls ? connect_end_time : 0,
+        .request_start_microseconds = request_start_time,
+        .response_start_microseconds = response_start_time,
+        .response_end_microseconds = response_end_time,
         .encoded_body_size = encoded_body_size,
         .http_version_alpn_identifier = http_version_alpn,
     };
