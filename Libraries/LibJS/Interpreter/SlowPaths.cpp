@@ -1170,6 +1170,7 @@ i64 asm_slow_path_get_global(VM* vm, u32 pc, Op::GetGlobal const* instruction)
         }
     }
 
+    cache = {};
     cache.environment_serial_number = declarative_record.environment_serial_number();
 
     auto& identifier = vm->get_identifier(instruction->identifier());
@@ -1275,6 +1276,7 @@ i64 asm_slow_path_set_global(VM* vm, u32 pc, Op::SetGlobal const* instruction)
         }
     }
 
+    cache = {};
     cache.environment_serial_number = declarative_record.environment_serial_number();
 
     auto& identifier = vm->get_identifier(instruction->identifier());
