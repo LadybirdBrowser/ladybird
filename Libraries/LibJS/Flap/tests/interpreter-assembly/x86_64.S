@@ -2442,6 +2442,14 @@ asm_handler_Return:
     mov rax, QWORD PTR [rbx - 32]
     test rax, rax
     jz .Lasm_Return.ssa_block_1
+    cmp BYTE PTR [rbx - 50], 0
+    jz .Lasm_Return.ssa_block_7
+    mov r11, rcx
+    shr r11, 48
+    cmp r11w, 65529
+    je .Lasm_Return.ssa_block_7
+    mov rcx, QWORD PTR [rbx - 48]
+.Lasm_Return.ssa_block_7:
     mov edx, DWORD PTR [rbx - 20]
     mov esi, DWORD PTR [rbx - 16]
     mov DWORD PTR [rax + 64], edx
@@ -2470,6 +2478,14 @@ asm_handler_End:
     mov rax, QWORD PTR [rbx - 32]
     test rax, rax
     jz .Lasm_End.ssa_block_1
+    cmp BYTE PTR [rbx - 50], 0
+    jz .Lasm_End.ssa_block_5
+    mov r11, rcx
+    shr r11, 48
+    cmp r11w, 65529
+    je .Lasm_End.ssa_block_5
+    mov rcx, QWORD PTR [rbx - 48]
+.Lasm_End.ssa_block_5:
     mov edx, DWORD PTR [rbx - 20]
     mov esi, DWORD PTR [rbx - 16]
     mov DWORD PTR [rax + 64], edx

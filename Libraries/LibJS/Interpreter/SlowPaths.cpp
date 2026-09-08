@@ -1799,6 +1799,22 @@ JS_DEFINE_UNARY_GENERIC_BUILTIN_CALL_SLOW_PATH(StringPrototypeCharAt, string_pro
 
 i64 asm_slow_path_call_construct(VM* vm, u32 pc, Op::CallConstruct const* instruction)
 {
+    auto callee = vm->get(instruction->callee());
+    if (callee.is_object() && is<ECMAScriptFunctionObject>(callee.as_object())) {
+        auto& function = static_cast<ECMAScriptFunctionObject&>(callee.as_object());
+        if (function.can_inline_call() && callee.is_constructor() && function.constructor_kind() == ConstructorKind::Base && !function.has_class_data()) {
+            auto* prototype = ASM_TRY(*vm, pc, get_prototype_from_constructor(*vm, function, &Intrinsics::object_prototype));
+            auto this_object = Object::create(*function.realm(), prototype);
+            auto* context = vm->push_inline_frame(function, function.inline_call_executable(), instruction->arguments(), pc + instruction->length(), instruction->dst().raw(), this_object, &function, true);
+            if (!context) [[unlikely]] {
+                ASM_TRY(*vm, pc, vm->throw_completion<InternalError>(ErrorType::CallStackSizeExceeded));
+                VERIFY_NOT_REACHED();
+            }
+            // Constructors retain their receiver even when the body never reads this.
+            context->this_value = this_object;
+            return 0;
+        }
+    }
     ASM_TRY(*vm, pc, execute_asm_call(Op::CallType::Construct, *vm, vm->get(instruction->callee()), js_undefined(), instruction->arguments(), instruction->dst(), instruction->expression_string(), instruction->strict()));
     return continue_after_slow_path(pc + instruction->length());
 }
