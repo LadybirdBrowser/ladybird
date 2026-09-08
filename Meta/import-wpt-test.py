@@ -29,7 +29,7 @@ download_exclude_list = {
     # Modified to use a relative path, which the importer can't rewrite.
     "/fonts/ahem.css",
 }
-visited_paths = set()
+visited_destinations = set()
 
 
 class TestType(Enum):
@@ -259,22 +259,22 @@ def download_files(filepaths, wpt_base_url, skip_existing):
     for file in filepaths:
         normalized_path = remove_repeated_url_slashes(file.source)
         print(f"Source {normalized_path}, Destination {file.destination}")
-        if normalized_path in visited_paths:
-            continue
         if normalized_path in download_exclude_list:
             print(f"Skipping {file.source} as it is in the exclude list")
-            visited_paths.add(normalized_path)
             continue
 
         source = urljoin(wpt_base_url, normalized_path)
         destination = Path(os.path.normpath(file.destination))
 
+        # A test and its reference page can share a relative resource, which then has to exist next to each of
+        # them, so what has been downloaded is tracked by destination rather than by source.
+        if destination in visited_destinations:
+            continue
+        visited_destinations.add(destination)
+
         if skip_existing and destination.exists():
             print(f"Skipping {destination} as it already exists")
-            visited_paths.add(normalized_path)
             continue
-
-        visited_paths.add(normalized_path)
 
         print(f"Downloading {source} to {destination}")
 
@@ -297,19 +297,16 @@ def download_headers_files(filepaths, wpt_base_url, skip_existing):
     for file in filepaths:
         normalized_path = remove_repeated_url_slashes(file.source)
         headers_path = normalized_path + ".headers"
-
-        if headers_path in visited_paths:
-            continue
-
         source = urljoin(wpt_base_url, headers_path)
         destination = Path(os.path.normpath(str(file.destination) + ".headers"))
 
+        if destination in visited_destinations:
+            continue
+        visited_destinations.add(destination)
+
         if skip_existing and destination.exists():
             print(f"Skipping {destination} as it already exists")
-            visited_paths.add(headers_path)
             continue
-
-        visited_paths.add(headers_path)
 
         try:
             connection = urlopen(source)
