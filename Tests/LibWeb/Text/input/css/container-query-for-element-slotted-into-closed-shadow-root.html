@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .slotted {
+        color: black;
+    }
+
+    @container slot-container (min-width: 100px) {
+        .slotted {
+            color: green;
+        }
+    }
+</style>
+<div id="open-host"><span class="slotted" id="open-slotted">open</span></div>
+<div id="closed-host"><span class="slotted" id="closed-slotted">closed</span></div>
+<script>
+    test(() => {
+        for (const mode of ["open", "closed"]) {
+            const host = document.getElementById(`${mode}-host`);
+            const shadowRoot = host.attachShadow({ mode });
+            shadowRoot.innerHTML = `
+                <div style="container: slot-container / inline-size; width: 200px; opacity: 0">
+                    <slot></slot>
+                </div>`;
+            const slotted = document.getElementById(`${mode}-slotted`);
+            println(`${mode} shadow root: slotted color ${getComputedStyle(slotted).color}`);
+            println(`${mode} shadow root: slotted checkVisibility({ opacityProperty: true }) ${slotted.checkVisibility({ opacityProperty: true })}`);
+        }
+    });
+</script>

@@ -1,0 +1,4 @@
+open shadow root: slotted color rgb(0, 128, 0)
+open shadow root: slotted checkVisibility({ opacityProperty: true }) false
+closed shadow root: slotted color rgb(0, 128, 0)
+closed shadow root: slotted checkVisibility({ opacityProperty: true }) false

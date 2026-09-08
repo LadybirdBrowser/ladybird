@@ -2526,11 +2526,8 @@ Element* Node::parent_or_shadow_host_element()
 ParentNode* Node::flat_tree_parent()
 {
     // If we're assigned to a slot, that slot is our flat tree parent.
-    if (is_slottable()) {
-        auto& slottable = as_slottable().visit([](auto& node) -> SlottableMixin& { return *node; });
-        if (auto slot = slottable.assigned_slot())
-            return slot.ptr();
-    }
+    if (auto slot = assigned_slot_for_node(*this))
+        return slot.ptr();
 
     // Otherwise, this is the parent or shadow host.
     return parent_or_shadow_host();
