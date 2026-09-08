@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>backdrop-filter: Only filter objects painted before</title>
+<link rel="author" href="mailto:masonf@chromium.org">
+
+
+
+<div>
+  <p>Expected: A pure white box with a blue border, surrounded by green.<br>
+  No green should be observed within the white box.<br>
+  No dark/black should be observed within the white box either.</p>
+</div>
+
+<div class="filterbox"></div>
+<div class="greenbox top"></div>
+<div class="greenbox right"></div>
+<div class="greenbox bottom"></div>
+<style>
+.filterbox {
+  position: absolute;
+  width: 100px;
+  height: 100px;
+  top: 150px;
+  left: 0px;
+  border: 1px solid blue;
+
+
+}
+.greenbox {
+  position:absolute;
+  width: 150px;
+  height: 50px;
+  background: green;
+}
+.top {
+  top:100px;
+  left: 10px;
+}
+.right {
+  top:130px;
+  left: 102px;
+  width: 58px;
+  height: 150px;
+}
+.bottom {
+  top:252px;
+  left: 10px;
+}
+</style>
+

@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>backdrop-filter: Basic operation of filter with opacity</title>
+<link rel="author" href="mailto:masonf@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty">
+<link rel="match"  href="../../../../expected/wpt-import/css/filter-effects/backdrop-filter-basic-opacity-2-ref.html">
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-10000">
+
+<div>
+  <p>Expected: Just a single grey box.</p>
+</div>
+<div class="box colorbox"></div>
+<div class="box filterbox"></div>
+
+<style>
+.box {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    left: 10px;
+    top: 100px;
+}
+.colorbox {
+    background: green;
+}
+.filterbox {
+    backdrop-filter: invert(1);
+    opacity: 0.5;
+    /* An invert backdrop-filter with opacity 0.5 should always give a grey
+       result. It will always mix the background color with its inverse, in
+       equal proportion.*/
+}
+</style>
+

@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>backdrop-filter should not be ignored when mix-blend-mode is set</title>
+<link rel="help" href="https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty">
+<link rel="match" href="../../../../expected/wpt-import/css/filter-effects/backdrop-filter-with-mix-blend-mode-same-element-ref.html">
+<style>
+  .backdrop {
+    width: 100px;
+    height: 100px;
+    background: white;
+  }
+  .box {
+    width: 100px;
+    height: 100px;
+    backdrop-filter: invert(1);
+    mix-blend-mode: darken;
+  }
+</style>
+
+<!--
+  Test: backdrop-filter must apply even when mix-blend-mode is set on
+  the same element.
+
+  backdrop-filter:invert(1) on white = black.
+  mix-blend-mode: since this element has no content or background,
+  the blend mode has no effect.
+
+  Expected: a 100x100 black box.
+-->
+<div class="backdrop">
+  <div class="box"></div>
+</div>
