@@ -83,6 +83,7 @@ struct DrawingState {
     Gfx::CompositingAndBlendingOperator current_compositing_and_blending_operator = Gfx::CompositingAndBlendingOperator::SourceOver;
     RefPtr<CSS::StyleValue const> font_style_value { nullptr };
     RefPtr<Gfx::FontCascadeList const> current_font_cascade_list { nullptr };
+    u64 font_environment_generation { 0 };
     CanvasTextAlign text_align { CanvasTextAlign::Start };
     CanvasTextBaseline text_baseline { CanvasTextBaseline::Alphabetic };
     CanvasDirection direction { CanvasDirection::Inherit };

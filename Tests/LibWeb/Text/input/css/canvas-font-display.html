@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    const server = httpTestServer();
+    const token = crypto.randomUUID();
+    const bytes = new Uint8Array(await (await fetch("../../../Assets/HashSans.woff")).arrayBuffer());
+    const url = await server.createEcho("GET", `/canvas-font-display-${token}.woff`, {
+        status: 200,
+        headers: { "Content-Type": "font/woff", "Access-Control-Allow-Origin": "*", "Cache-Control": "no-store" },
+        body: btoa(String.fromCharCode(...bytes)),
+        body_encoding: "base64",
+        wait_for_unblock: token,
+    });
+    const face = new FontFace("CanvasDisplay", `url("${url}")`, { display: "block" });
+    // Neither the blocking period nor the download can end without this test explicitly advancing them.
+    internals.setFontDisplayTime(face, 0);
+    document.fonts.add(face);
+    // Exercise both connected and detached canvas elements.
+    const contexts = [document.body.appendChild(document.createElement("canvas")), document.createElement("canvas")].map(canvas => canvas.getContext("2d"));
+    function hasInk(context) {
+        context.clearRect(0, 0, 300, 150);
+        context.fillText("AAAA", 10, 60);
+        return context.getImageData(0, 0, 300, 150).data.some((value, index) => index % 4 === 3 && value !== 0);
+    }
+    const fallbackWidths = contexts.map(context => {
+        context.font = "40px monospace";
+        const width = context.measureText("AAAA").width;
+        context.font = "40px CanvasDisplay, monospace";
+        return width;
+    });
+    for (const [index, context] of contexts.entries()) {
+        println(`${index}: block has ink = ${hasInk(context)}`);
+        // Preserve a second copy of the pending cascade in the saved drawing state.
+        context.save();
+    }
+    internals.setFontDisplayTime(face, 3000);
+    for (const [index, context] of contexts.entries()) {
+        println(`${index}: swap has ink = ${hasInk(context)}`);
+        println(`${index}: swap uses fallback = ${context.measureText("AAAA").width === fallbackWidths[index]}`);
+    }
+    await fetch(`${server.baseURL}/unblock/${token}`);
+    await face.loaded;
+    for (const [index, context] of contexts.entries()) {
+        println(`${index}: loaded has ink = ${hasInk(context)}`);
+        println(`${index}: loaded uses downloaded font = ${context.measureText("AAAA").width !== fallbackWidths[index]}`);
+        context.restore();
+        println(`${index}: restored has ink = ${hasInk(context)}`);
+        println(`${index}: restored uses downloaded font = ${context.measureText("AAAA").width !== fallbackWidths[index]}`);
+    }
+});
+</script>

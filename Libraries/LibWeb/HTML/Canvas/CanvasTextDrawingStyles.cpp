@@ -168,6 +168,7 @@ void CanvasTextDrawingStyles<CanvasType>::set_font(Utf16View font)
 
     auto font_list = font_source.visit(
         [&](DOM::Document* document) -> RefPtr<Gfx::FontCascadeList const> {
+            drawing_state().font_environment_generation = document->font_computer().environment_generation();
             return document->font_computer().compute_font_for_style_values(
                 font_family,
                 computed_font_size->as_length().length().absolute_length_to_px(),
