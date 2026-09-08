@@ -1199,6 +1199,16 @@ bool KeyframeEffect::can_skip_per_frame_animation_tick() const
     return true;
 }
 
+static bool is_in_display_none_subtree_ignoring_animations(DOM::AbstractElement abstract_element)
+{
+    if (abstract_element.pseudo_element().has_value()) {
+        auto pseudo_style = abstract_element.computed_style();
+        if (pseudo_style && pseudo_style->base_values().display().is_none())
+            return true;
+    }
+    return abstract_element.element().has_inclusive_ancestor_with_display_none_ignoring_animations();
+}
+
 void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)
 {
     auto target = this->target();
@@ -1207,12 +1217,12 @@ void KeyframeEffect::update_computed_properties(AnimationUpdateContext& context)
 
     // An effect that animates `display` can be the very thing holding its `display: none` target visible, and
     // the update being skipped is the one that applies or removes that override, so it must always run.
-    if (!target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Display))) {
-        auto style_record = target->style_record_identity();
-        auto dependency_flags = target->document().style_computer().style_engine().style_record_dependency_flags(style_record);
-        if (dependency_flags & to_underlying(CSS::StyleRecordDependencyFlag::InDisplayNoneSubtree))
-            return;
-    }
+    // NB: A descendant's retained style can still describe a display-none subtree while ancestor visibility
+    //     reactions are propagating, so inspect the current target and ancestor styles before skipping its update.
+    DOM::AbstractElement abstract_element { *target, pseudo_element_type() };
+    if (!target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Display))
+        && is_in_display_none_subtree_ignoring_animations(abstract_element))
+        return;
 
     target->update_animated_properties({}, pseudo_element_type(), *this, context);
 }

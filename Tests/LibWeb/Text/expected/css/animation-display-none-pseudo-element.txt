@@ -1,0 +1,2 @@
+pseudo-element is hidden: true
+hidden pseudo-element skips animation sampling: true

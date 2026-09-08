@@ -1,0 +1,2 @@
+visible descendant samples its animation: true
+animation restores the base opacity: true
