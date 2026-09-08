@@ -121,6 +121,7 @@
   },
   "selection": {
     "spec": "https://drafts.csswg.org/css-pseudo-4/#selectordef-selection",
+    "is-highlight": true,
     "property-whitelist": [
       "color",
       "background-color",

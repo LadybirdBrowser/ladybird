@@ -75,6 +75,7 @@ WEB_API StringView pseudo_element_name(PseudoElement);
 
 bool is_tree_abiding_pseudo_element(PseudoElement);
 bool is_pseudo_element_root(PseudoElement);
+bool is_highlight_pseudo_element(PseudoElement);
 inline bool is_synthetic_pseudo_element(PseudoElement pseudo_element) {{ return pseudo_element >= first_synthetic_pseudo_element && pseudo_element <= last_synthetic_pseudo_element; }}
 inline bool is_element_reference_pseudo_element(PseudoElement pseudo_element) {{ return pseudo_element >= first_element_reference_pseudo_element && pseudo_element <= last_element_reference_pseudo_element; }}
 
@@ -139,6 +140,27 @@ bool is_pseudo_element_root(PseudoElement pseudo_element)
         if is_alias(pseudo_element):
             continue
         if not pseudo_element.get("is-pseudo-root", False):
+            continue
+        out.write(f"""
+    case PseudoElement::{title_casify(name)}:
+        return true;
+""")
+
+    out.write("""
+    default:
+        return false;
+    }
+}
+
+bool is_highlight_pseudo_element(PseudoElement pseudo_element)
+{
+    switch (pseudo_element) {
+""")
+
+    for name, pseudo_element in pseudo_elements_data.items():
+        if is_alias(pseudo_element):
+            continue
+        if not pseudo_element.get("is-highlight", False):
             continue
         out.write(f"""
     case PseudoElement::{title_casify(name)}:

@@ -180,6 +180,18 @@ pub(crate) fn pseudo_element_supports_property(pseudo_element: u8, property_id: 
     }
 }
 
+/// Whether a pseudo-element's own whitelist names the property, leaving out the properties every
+/// pseudo-element accepts.
+pub(crate) fn pseudo_element_whitelist_names_property(pseudo_element: u8, property_id: u16) -> bool {
+    PSEUDO_ELEMENT_PROPERTY_WHITELISTS[pseudo_element as usize]
+        .is_some_and(|whitelist| whitelist.binary_search(&property_id).is_ok())
+}
+
+/// https://drafts.csswg.org/css-pseudo-4/#highlight-pseudos
+pub(crate) fn pseudo_element_is_highlight(pseudo_element: u8) -> bool {
+    PSEUDO_ELEMENT_IS_HIGHLIGHT[pseudo_element as usize]
+}
+
 /// An accepted numeric range for one CSS value type.
 #[repr(C)]
 pub struct FfiPropertyNumericRange {

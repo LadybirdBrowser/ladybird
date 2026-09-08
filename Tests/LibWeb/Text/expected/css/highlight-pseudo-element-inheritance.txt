@@ -1,0 +1,29 @@
+--- without a selection
+outer: rgb(100, 110, 120) / rgb(130, 140, 150)
+inner inherits both colors: rgb(100, 110, 120) / rgb(130, 140, 150)
+inner keeps its own text-shadow: rgb(160, 170, 180) 10px 0px 0px
+inner resolves em against its own font-size: 10px
+decoration colors use each originating element's custom property: rgb(40, 50, 60), rgb(70, 80, 90)
+unset inherits: rgb(100, 110, 120) / rgb(130, 140, 150)
+unset inherits the computed text-shadow: rgb(160, 170, 180) 10px 0px 0px
+initial background: rgba(0, 0, 0, 0)
+currentColor is the originating element's color: rgb(10, 20, 30) / rgb(10, 20, 30)
+root-level color falls back to the originating element's: rgb(0, 0, 0) / rgba(0, 0, 0, 0)
+shadow tree inherits from the host: rgb(190, 200, 210)
+slotted content inherits through the slot: rgb(220, 230, 240)
+--- with a selection
+outer: rgb(100, 110, 120) / rgb(130, 140, 150)
+inner inherits both colors: rgb(100, 110, 120) / rgb(130, 140, 150)
+inner keeps its own text-shadow: rgb(160, 170, 180) 10px 0px 0px
+inner resolves em against its own font-size: 10px
+decoration colors use each originating element's custom property: rgb(40, 50, 60), rgb(70, 80, 90)
+unset inherits: rgb(100, 110, 120) / rgb(130, 140, 150)
+unset inherits the computed text-shadow: rgb(160, 170, 180) 10px 0px 0px
+initial background: rgba(0, 0, 0, 0)
+currentColor is the originating element's color: rgb(10, 20, 30) / rgb(10, 20, 30)
+root-level color falls back to the originating element's: rgb(0, 0, 0) / rgba(0, 0, 0, 0)
+shadow tree inherits from the host: rgb(190, 200, 210)
+slotted content inherits through the slot: rgb(220, 230, 240)
+text-shadows after the originating font-size change: rgb(160, 170, 180) 30px 0px 0px, rgb(160, 170, 180) 30px 0px 0px
+inner background after the parent's rule change: rgb(1, 2, 3)
+unset background after the parent's rule change: rgb(1, 2, 3)

@@ -1,0 +1,68 @@
+/**
+ * Container for the interesting part of a highlight reftest, to be
+ * used on both the test page and any reference pages.
+ */
+.highlight_reftest {
+    /*
+        https://drafts.csswg.org/css-pseudo-4/#highlight-bounds
+        For text, the corresponding overlay must cover at least
+        the entire em box and may extend further above/below the
+        em box to the line box edges.
+    */
+    line-height: 1;
+}
+
+/**
+ * Container for layers. All text is transparent by default, and each direct
+ * child creates a layer that overlaps any text content.
+ */
+.hrt_layers,
+.hrt_layers * {
+    color: transparent;
+}
+.hrt_layers {
+    position: relative;
+}
+.hrt_layers > * {
+    position: absolute;
+}
+
+/**
+ * Cover to clip text from the right. Usage:
+ *
+ *  <div class="hrt_layers">
+ *      <div><!-- content to clip to “foo” from right --></div>
+ *      <div><span class="hrt_cover">bar</span>foobar</div>
+ *      foobar
+ *  </div>
+ */
+.hrt_cover {
+    background: white;
+    position: absolute;
+    padding: 0.5em 0;
+    top: -0.5em;
+    right: 0;
+}
+
+/**
+ * Hider to clip text from the left. Usage:
+ *
+ *  <div class="hrt_layers">
+ *      <div>foo<span class="hrt_hider">
+ *          <div><!-- content to clip to “bar” from left --></div>
+ *          bar
+ *      </span></div>
+ *      foobar
+ *  </div>
+ */
+.hrt_hider {
+    display: inline-block;
+    overflow: hidden;
+    position: relative;
+    padding: 0.5em 0;
+    top: -0.5em;
+}
+.hrt_hider > * {
+    position: absolute;
+    right: 0;
+}

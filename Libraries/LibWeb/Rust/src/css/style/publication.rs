@@ -3404,6 +3404,16 @@ mod pseudo_kind {
     pub(super) const MARKER: u8 = 5;
     pub(super) const SELECTION: u8 = 6;
     pub(super) const SYNTHETIC_COUNT: usize = 8;
+
+    pub(super) fn is_highlight(kind: usize) -> bool {
+        kind < SYNTHETIC_COUNT && crate::css::property_metadata::pseudo_element_is_highlight(kind as u8)
+    }
+
+    pub(super) fn highlight_mask() -> u64 {
+        (0..SYNTHETIC_COUNT)
+            .filter(|&kind| is_highlight(kind))
+            .fold(0, |mask, kind| mask | 1 << kind)
+    }
 }
 
 /// The element facts a pseudo-element's computation reads: the C++ adjustments for what the

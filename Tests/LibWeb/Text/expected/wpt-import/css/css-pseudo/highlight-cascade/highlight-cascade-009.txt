@@ -1,0 +1,10 @@
+Harness status: OK
+
+Found 5 tests
+
+5 Pass
+Pass	body ::selection uses the originating custom property
+Pass	body ::selection uses its own custom property
+Pass	div::selection uses the originating element custom property
+Pass	div::selection uses its own custom property
+Pass	div::selection properties are not present on the originating element

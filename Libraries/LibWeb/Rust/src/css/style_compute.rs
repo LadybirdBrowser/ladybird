@@ -2515,6 +2515,20 @@ fn longhand_decision(value: Option<&StyleValueData>, property_id: u16) -> FfiLon
     }
 }
 
+// https://drafts.csswg.org/css-pseudo-4/#highlight-cascade
+// When any supported property is not given a value by the cascade, or given a value of inherit or
+// unset, its specified value is determined by inheritance from the corresponding highlight
+// pseudo-element of its originating element's parent element. This occurs regardless of whether
+// that property is an inherited property.
+fn highlight_longhand_inherits(value: Option<&StyleValueData>, pseudo_kind: u8, property_id: u16) -> bool {
+    crate::css::property_metadata::pseudo_element_whitelist_names_property(pseudo_kind, property_id)
+        && match value {
+            None => true,
+            Some(StyleValueData::Keyword { keyword }) => *keyword == keyword::INHERIT || *keyword == keyword::UNSET,
+            Some(_) => false,
+        }
+}
+
 /// The number of writing-mode and direction values represented in the
 /// generated logical-property mapping tables.
 pub const WRITING_MODE_COUNT: usize = 5;
@@ -2696,6 +2710,7 @@ pub struct FfiComputePropertiesInput {
     pub pseudo_kind: u8,
     pub previous_style_record: u64,
     pub inheritance_parent_style_record: u64,
+    pub highlight_parent_style_record: u64,
     pub initial_computed_group_mask: u32,
     pub all_computed_groups: u32,
     pub use_retained_style_computation_selection: bool,
@@ -3093,6 +3108,14 @@ pub(crate) fn parent_snapshot_for_style_record<'a>(
     }
 }
 
+/// https://drafts.csswg.org/css-pseudo-4/#highlight-cascade
+/// What a highlight pseudo-element's applicable properties inherit from: the record of the
+/// corresponding highlight pseudo-element of the originating element's parent, when it has one.
+pub(crate) struct HighlightInheritance<'a> {
+    pseudo_kind: u8,
+    snapshot: Option<ParentSnapshot<'a>>,
+}
+
 fn keyframe_parent_snapshot_for_style_record(
     style_engine: &crate::css::style::StyleEngine,
     style_record: u64,
@@ -3299,6 +3322,7 @@ pub(crate) unsafe fn drive_property_computation(
     animated_overlay: *mut AnimatedOverlay,
     store: *const CascadedPropertyStore,
     snapshot: Option<&ParentSnapshot<'_>>,
+    highlight: Option<&HighlightInheritance<'_>>,
     environment: *const FfiStyleComputationEnvironment,
     computed_group_mask: u32,
     computed_property_words: *const u64,
@@ -3472,25 +3496,41 @@ pub(crate) unsafe fn drive_property_computation(
                 unsafe { &mut *longhand_table }.set_raw_cascaded_font_size(None);
             }
 
-            let decision = longhand_decision(
-                if value.is_null() {
-                    None
-                } else {
-                    Some(unsafe { &*(value as *const StyleValueData) })
-                },
-                property_id,
-            );
+            let cascaded_value = if value.is_null() {
+                None
+            } else {
+                Some(unsafe { &*(value as *const StyleValueData) })
+            };
+            let decision = longhand_decision(cascaded_value, property_id);
 
             // The computation-need level to compare against depends on which source wins;
             // cascaded is the baseline and is overridden by the inherit and initial paths.
             let mut required_level = REQUIRES_COMPUTATION_CASCADED;
 
-            let inherit_fetch_attempted = decision.should_inherit && has_inheritance_parent;
+            let highlight_inherits = highlight.is_some_and(|highlight| {
+                highlight_longhand_inherits(cascaded_value, highlight.pseudo_kind, property_id)
+            });
+            let highlight_parent_snapshot = if highlight_inherits {
+                highlight.and_then(|highlight| highlight.snapshot.as_ref())
+            } else {
+                None
+            };
+            let inherit_fetch_attempted = if highlight_parent_snapshot.is_some() {
+                true
+            } else if highlight_inherits {
+                // Additionally, for highlight pseudo-elements originating from the root element the
+                // inherited value of 'color' is currentColor, not the initial value.
+                // NB: currentColor on a highlight pseudo-element is the color of the layer below,
+                //     which without another highlight is the originating element's own.
+                property_id == prop::COLOR && has_inheritance_parent
+            } else {
+                decision.should_inherit && has_inheritance_parent
+            };
             if inherit_fetch_attempted {
                 source_slot = -1;
                 has_style_sheet_context = false;
                 external_dependencies = None;
-                let snapshot = snapshot.unwrap();
+                let snapshot = highlight_parent_snapshot.or(snapshot).unwrap();
                 set_longhand_bit(&mut inherited_words, property_id);
                 if decision.explicitly_inherits_non_inherited_property {
                     results.explicitly_inherited_non_inherited_style_groups |=
@@ -4566,6 +4606,7 @@ pub(crate) fn is_required_driver_input(property_id: u16) -> bool {
 unsafe fn compute_longhands(
     input: &FfiLonghandDriveInput,
     parent_snapshot: Option<&ParentSnapshot<'_>>,
+    highlight: Option<&HighlightInheritance<'_>>,
 ) -> (FfiLonghandDriveResult, FfiInputLineHeightMetrics) {
     let mut driver_results = empty_longhand_driver_results();
     let driver_results_pointer = &raw mut driver_results;
@@ -4577,6 +4618,7 @@ unsafe fn compute_longhands(
                 input.animated_overlay,
                 input.store,
                 parent_snapshot,
+                highlight,
                 input.environment,
                 input.computed_group_mask,
                 input.computed_property_words,
@@ -5055,6 +5097,13 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
     } else {
         None
     };
+    let highlight = (input.pseudo_kind != crate::css::cascaded_properties::NO_PSEUDO_ELEMENT
+        && crate::css::property_metadata::pseudo_element_is_highlight(input.pseudo_kind))
+    .then(|| HighlightInheritance {
+        pseudo_kind: input.pseudo_kind,
+        snapshot: (input.highlight_parent_style_record != 0)
+            .then(|| parent_snapshot_for_style_record(style_engine, input.highlight_parent_style_record, None)),
+    });
     let mut drive_input = std::mem::MaybeUninit::<FfiLonghandDriveInput>::uninit();
     let rebuilds_over_previous_properties =
         requirements.computed_group_mask != input.all_computed_groups || requirements.has_computed_property_selection;
@@ -5088,7 +5137,7 @@ pub unsafe extern "C" fn rust_compute_properties(input: *const FfiComputePropert
             || snapshot.has_animated_property(property_id::DIRECTION)
     });
     let (mut result, mut finalization_line_height_metrics) =
-        unsafe { compute_longhands(&drive_input, parent_snapshot.as_ref()) };
+        unsafe { compute_longhands(&drive_input, parent_snapshot.as_ref(), highlight.as_ref()) };
     if !input.stop_after_longhand_drive {
         result.transitions = build_computed_transition_list(unsafe { &*drive_input.longhand_table });
         result.animations = build_computed_animation_list(unsafe { &*drive_input.longhand_table });
@@ -5232,6 +5281,7 @@ pub unsafe extern "C" fn rust_create_document_longhand_table(
                 &raw mut longhand_table,
                 std::ptr::null_mut(),
                 &raw const store,
+                None,
                 None,
                 &raw const environment,
                 u32::MAX,
@@ -5476,6 +5526,7 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
                     std::ptr::null_mut(),
                     &raw const store,
                     parent_snapshot.as_ref(),
+                    None,
                     &raw const environment,
                     u32::MAX,
                     selected_longhands.as_ptr(),
@@ -7430,6 +7481,58 @@ mod tests {
             .value,
             f64::NEG_INFINITY
         );
+    }
+
+    #[test]
+    fn highlight_longhand_inheritance() {
+        use crate::css::property_metadata::property_id;
+        let selection = crate::css::selector::PseudoElementType::Selection as u8;
+        let inherit = StyleValueData::Keyword {
+            keyword: keyword::INHERIT,
+        };
+        let unset = StyleValueData::Keyword {
+            keyword: keyword::UNSET,
+        };
+        let initial = StyleValueData::Keyword {
+            keyword: keyword::INITIAL,
+        };
+        let currentcolor = StyleValueData::Keyword {
+            keyword: keyword::CURRENTCOLOR,
+        };
+
+        // A supported property without a cascaded value, or with inherit or unset, takes the parent
+        // highlight's value whether or not it is an inherited property.
+        assert!(highlight_longhand_inherits(
+            None,
+            selection,
+            property_id::BACKGROUND_COLOR
+        ));
+        assert!(highlight_longhand_inherits(
+            Some(&inherit),
+            selection,
+            property_id::BACKGROUND_COLOR
+        ));
+        assert!(highlight_longhand_inherits(
+            Some(&unset),
+            selection,
+            property_id::BACKGROUND_COLOR
+        ));
+        assert!(highlight_longhand_inherits(None, selection, property_id::COLOR));
+
+        // Any other cascaded value stands, currentcolor included.
+        assert!(!highlight_longhand_inherits(
+            Some(&initial),
+            selection,
+            property_id::BACKGROUND_COLOR
+        ));
+        assert!(!highlight_longhand_inherits(
+            Some(&currentcolor),
+            selection,
+            property_id::COLOR
+        ));
+
+        // A property the highlight cannot carry keeps the ordinary decision.
+        assert!(!highlight_longhand_inherits(None, selection, property_id::DISPLAY));
     }
 
     #[test]

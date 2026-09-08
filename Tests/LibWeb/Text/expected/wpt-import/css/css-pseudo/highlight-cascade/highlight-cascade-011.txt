@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	div::selection does not inherit custom properties from the highlight parent
+Pass	--background-color has no computed value on div::selection

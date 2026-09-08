@@ -23,7 +23,8 @@ impl StyleEngine {
                 continue;
             }
             let kind = usize::from(pseudo.kind.0);
-            if kind >= pseudo_kind::SYNTHETIC_COUNT || kind == usize::from(BACKDROP) {
+            if kind >= pseudo_kind::SYNTHETIC_COUNT || kind == usize::from(BACKDROP) || pseudo_kind::is_highlight(kind)
+            {
                 continue;
             }
             if version != self.program.version() || !priority_current {
@@ -39,6 +40,7 @@ impl StyleEngine {
         if let Some(deferred) = self.deferred_pseudo_element {
             required &= !(1_u64 << deferred.0);
         }
+        required &= !pseudo_kind::highlight_mask();
         if required & !available == 0 {
             return true;
         }
@@ -127,8 +129,9 @@ impl StyleEngine {
                 continue;
             }
             // A ::backdrop is materialized for a top-layer element only, which C++ decides; the
-            // rules for it match every element. A stale row is no answer.
-            if kind == BACKDROP {
+            // rules for it match every element. A stale row is no answer. A highlight
+            // pseudo-element inherits from its parent element's, which C++ settles as well.
+            if kind == BACKDROP || pseudo_kind::is_highlight(usize::from(kind)) {
                 continue;
             }
             if version != program_version || !priority_current {
@@ -224,7 +227,9 @@ impl StyleEngine {
         };
         let mut pseudo_uses_substitution = false;
         for kind in [BEFORE, AFTER, FIRST_LETTER, SELECTION, MARKER] {
-            if self.deferred_pseudo_element == Some(tree::PseudoElementKind(u16::from(kind))) {
+            if self.deferred_pseudo_element == Some(tree::PseudoElementKind(u16::from(kind)))
+                || pseudo_kind::is_highlight(usize::from(kind))
+            {
                 continue;
             }
             let target = computed::ComputedStyleTarget::new(node, kind);

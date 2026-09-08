@@ -17,7 +17,8 @@
         const target = container.firstElementChild;
         println(`unselected query: ${getComputedStyle(target, "::selection").color}`);
         const afterQuery = internals.styleEngineCounters().computedPseudoAssignmentsPublished;
-        println(`query stays local: ${afterQuery - after <= 2}`);
+        // A highlight pseudo-element inherits from its ancestors', so a query computes that chain and nothing else.
+        println(`query stays local: ${afterQuery - after < container.children.length}`);
 
         getComputedStyle(container.lastElementChild, "::selection").backgroundColor;
         target.getBoundingClientRect();

@@ -262,6 +262,7 @@ Each entry has the following properties:
 | `implementation`     | Unless `type` is "function | Nothing        | How this pseudo-element is implemented, either `"synthetic"` or `"element-reference"` - see below.                                                                     |
 | `is-allowed-in-has`  | No                         | `false`        | Whether this is a [`:has`-allowed pseudo-element](https://drafts.csswg.org/selectors/#has-allowed-pseudo-element).                                                     |
 | `is-element-backed`  | No                         | `false`        | Whether this is an [element-backed pseudo-element](https://drafts.csswg.org/css-pseudo-4/#element-backed).                                                             |
+| `is-highlight`       | No                         | `false`        | Whether this is a [highlight pseudo-element](https://drafts.csswg.org/css-pseudo-4/#highlight-pseudos).                                                                |
 | `is-pseudo-root`     | No                         | `false`        | Whether this is a [pseudo-element root](https://drafts.csswg.org/css-view-transitions/#pseudo-element-root).                                                           |
 | `is-tree-abiding`    | No                         | `false`        | Whether this is a [tree-abiding pseudo-element](https://drafts.csswg.org/css-pseudo-4/#tree-abiding).                                                                  |
 | `property-whitelist` | No                         | Nothing        | Some pseudo-elements only permit certain properties. If so, name them in an array here. Some special values are allowed here for categories of properties - see below. |
@@ -273,6 +274,7 @@ The generated code provides:
 - `StringView pseudo_element_name(PseudoElement)` to convert a `PseudoElement` back into a string
 - `bool is_tree_abiding_pseudo_element(PseudoElement)` returns whether the pseudo-element is tree-abiding
 - `bool is_pseudo_element_root(PseudoElement)` returns whether the pseudo-element is a [pseudo-element root](https://drafts.csswg.org/css-view-transitions/#pseudo-element-root)
+- `bool is_highlight_pseudo_element(PseudoElement)` returns whether the pseudo-element is a [highlight pseudo-element](https://drafts.csswg.org/css-pseudo-4/#highlight-pseudos)
 
 ### `property-whitelist`
 
