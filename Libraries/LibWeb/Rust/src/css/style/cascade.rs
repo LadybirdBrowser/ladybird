@@ -1404,6 +1404,15 @@ impl WinnerGroups {
         self.states[state].iter().flat_map(|&group| self.group_winners(group))
     }
 
+    pub(super) fn rules_for_compaction(&self, state: CascadeStateID) -> Option<&[RuleID]> {
+        self.winners_in_state(state)
+            .all(|winner| {
+                matches!(winner.source, WinnerSource::Rule(_))
+                    && winner.key.continuation == CascadeContinuationID::default()
+            })
+            .then(|| self.state_winning_rules[state.0 as usize].as_ref())
+    }
+
     pub(super) fn states_are_semantically_equal(&self, left: CascadeStateID, right: CascadeStateID) -> bool {
         left == right
             || self.states[left]
@@ -2501,6 +2510,42 @@ mod tests {
 
         let different = groups.intern_sorted(&[winner(1, 5, 2)], None);
         assert_ne!(first, different);
+    }
+
+    #[test]
+    fn compaction_rules_require_direct_rule_winners() {
+        let mut groups = WinnerGroups::new();
+        let state = groups.intern_sorted(&[winner(1, 1, 5), winner(2, 2, 3), winner(33, 3, 5)], None);
+        assert_eq!(
+            groups.rules_for_compaction(state),
+            Some([RuleID(3), RuleID(5)].as_slice())
+        );
+
+        for source in [
+            WinnerSource::Element(ElementDeclarationKind::InlineStyle),
+            WinnerSource::ExactCascade,
+        ] {
+            let mut non_rule = winner(1, 1, 3);
+            non_rule.source = source;
+            let state = groups.intern_sorted(&[non_rule], None);
+            assert!(groups.rules_for_compaction(state).is_none());
+        }
+
+        let mut candidates = [candidate(
+            1,
+            3,
+            CascadeOperator::Revert,
+            CascadeOrigin::Author,
+            false,
+            CascadeLayerID::UNLAYERED,
+            0,
+        )];
+        let reverted = groups.resolve_candidates(&mut candidates).unwrap();
+        let state = groups.intern_sorted(&[reverted], None);
+        assert!(groups.rules_for_compaction(state).is_none());
+
+        let empty = groups.intern_sorted(&[], None);
+        assert_eq!(groups.rules_for_compaction(empty), Some([].as_slice()));
     }
 
     #[test]
