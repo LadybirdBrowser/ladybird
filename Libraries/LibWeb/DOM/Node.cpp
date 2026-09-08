@@ -2455,8 +2455,16 @@ void Node::moved_from(IsSubtreeRoot, GC::Ptr<Node>)
 
 static bool is_root_wheel_event_target(Node const& node)
 {
+    if (node.is_document())
+        return true;
+    if (!node.is_element())
+        return false;
     auto& document = node.document();
-    return &node == &document || &node == document.document_element() || &node == document.body();
+    if (&node == document.document_element())
+        return true;
+    if (!node.is_html_body_element() && !node.is_html_frameset_element())
+        return false;
+    return &node == document.body();
 }
 
 bool Node::update_inside_blocking_wheel_event_handler_state()
