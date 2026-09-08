@@ -27,8 +27,10 @@
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
+#include <LibWeb/HTML/HTMLImageElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLVideoElement.h>
+#include <LibWeb/HTML/ImageRequest.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/Layout/Box.h>
@@ -60,6 +62,7 @@
 #include <LibWeb/Painting/ShadowData.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
+#include <LibWeb/SVG/SVGDecodedImageData.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
 #include <LibWeb/SVG/SVGGradientElement.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
@@ -701,6 +704,11 @@ Utf16String serialize_painting_dump(DOM::Document const& document, AccumulatedVi
     return move(context.dump);
 }
 
+static void append_bytes_to_string_builder(void* context, u8 const* bytes, size_t byte_count)
+{
+    static_cast<StringBuilder*>(context)->append(StringView { bytes, byte_count });
+}
+
 void dump_stacking_context_tree(StringBuilder& builder, DOM::Document const& document)
 {
     Layout::RustFFI::FfiStackingContextDumpCallbacks callbacks {
@@ -709,10 +717,66 @@ void dump_stacking_context_tree(StringBuilder& builder, DOM::Document const& doc
             auto description = static_cast<Layout::Node const*>(layout_node_shell)->debug_description();
             auto bytes = description.bytes();
             Layout::RustFFI::layout_arena_paint_push_bytes(description_sink, bytes.data(), bytes.size()); },
-        .append_text = [](void* context, u8 const* bytes, size_t byte_count) { static_cast<StringBuilder*>(context)->append(StringView { bytes, byte_count }); },
+        .append_text = append_bytes_to_string_builder,
     };
     Layout::RustFFI::layout_arena_dump_stacking_context_tree(
         layout_arena_handle(document), viewport_row_slot(document), callbacks);
+}
+
+static void push_bytes_to_dump_sink(void* sink, ReadonlyBytes bytes)
+{
+    Layout::RustFFI::layout_arena_paint_push_bytes(sink, bytes.data(), bytes.size());
+}
+
+static void dump_layout_tree(Layout::Node const& root, size_t initial_indent, bool interactive, void* output_context, void (*append_text)(void*, u8 const*, size_t))
+{
+    auto& document = const_cast<DOM::Document&>(root.document());
+    Layout::RustFFI::FfiLayoutTreeDumpCallbacks callbacks {
+        .context = output_context,
+        .describe_dom_node = [](void*, void* dom_node_pointer, void* tag_name_sink, void* identifier_sink) {
+            auto const& dom_node = *static_cast<DOM::Node const*>(dom_node_pointer);
+            auto const* element = as_if<DOM::Element>(dom_node);
+            StringBuilder tag_name_builder;
+            tag_name_builder.append(element ? element->local_name() : dom_node.node_name());
+            push_bytes_to_dump_sink(tag_name_sink, tag_name_builder.string_view().bytes());
+            if (!element)
+                return;
+            StringBuilder identifier_builder;
+            if (element->id().has_value() && !element->id()->is_empty()) {
+                identifier_builder.append('#');
+                identifier_builder.append(*element->id());
+            }
+            for (auto const& class_name : element->class_names()) {
+                identifier_builder.append('.');
+                identifier_builder.append(class_name);
+            }
+            push_bytes_to_dump_sink(identifier_sink, identifier_builder.string_view().bytes()); },
+        .navigable_container_content_document = [](void*, void* dom_node_pointer, void* url_sink) -> Layout::RustFFI::FfiNestedLayoutRoot {
+            auto const* content_document = as<HTML::NavigableContainer>(*static_cast<DOM::Node const*>(dom_node_pointer)).content_document_without_origin_check();
+            if (!content_document)
+                return { .has_document = false, .layout_root_shell = nullptr };
+            auto serialized_url = content_document->url().serialize();
+            push_bytes_to_dump_sink(url_sink, serialized_url.bytes());
+            return { .has_document = true, .layout_root_shell = const_cast<Layout::Viewport*>(content_document->layout_node()) }; },
+        .svg_as_image_layout_root = [](void*, void* dom_node_pointer) -> void* {
+            auto const* image_element = as_if<HTML::HTMLImageElement>(*static_cast<DOM::Node const*>(dom_node_pointer));
+            if (!image_element)
+                return nullptr;
+            auto const* svg_image_data = as_if<SVG::SVGDecodedImageData>(image_element->current_request().image_data().ptr());
+            if (!svg_image_data)
+                return nullptr;
+            return const_cast<Layout::Viewport*>(svg_image_data->svg_document().unsafe_layout_node()); },
+        .dump_nested_layout_tree = [](void*, void* layout_root_shell, size_t indent, bool interactive, void* output_sink) { dump_layout_tree(*static_cast<Layout::Node const*>(layout_root_shell), indent, interactive, output_sink, Layout::RustFFI::layout_arena_paint_push_bytes); },
+        .append_text = append_text,
+        .visual_context = visual_context_host_callbacks(document),
+        .scrollable_overflow = scrollable_overflow_host_callbacks(),
+    };
+    Layout::RustFFI::layout_arena_dump_layout_tree(root.arena_handle(), Layout::Node::slot_id(&root), viewport_row_slot(document), initial_indent, interactive, callbacks);
+}
+
+void dump_layout_tree(StringBuilder& builder, Layout::Node const& root, bool interactive)
+{
+    dump_layout_tree(root, 0, interactive, &builder, append_bytes_to_string_builder);
 }
 
 namespace {

@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::css_pixels::{CssPixelRect, CssPixels};
+use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
 use crate::layout::node_data::NodeKind;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::node_facts;
@@ -15,7 +15,7 @@ use crate::painting::text_fragment;
 use libgfx_rust::{FloatPoint, FloatRect, FloatSize, IntPoint, IntRect, IntSize};
 use std::fmt::Write;
 
-fn push_class_name(out: &mut Vec<u8>, kind: NodeKind) {
+pub(crate) fn push_class_name(out: &mut Vec<u8>, kind: NodeKind) {
     debug_assert!(kind != NodeKind::Unset, "Unset layout node kind has no class name");
     out.extend_from_slice(format!("{kind:?}").as_bytes());
 }
@@ -48,6 +48,14 @@ pub(crate) fn push_css_pixels(output: &mut impl Write, value: CssPixels) {
         }
         let _ = write!(output, ".{digits}");
     }
+}
+
+pub(crate) fn push_css_pixel_point(output: &mut impl Write, point: CssPixelPoint) {
+    let _ = output.write_char('[');
+    push_css_pixels(output, point.x);
+    let _ = output.write_char(',');
+    push_css_pixels(output, point.y);
+    let _ = output.write_char(']');
 }
 
 pub(crate) fn push_css_pixel_rect(output: &mut impl Write, rect: CssPixelRect) {
@@ -84,7 +92,7 @@ fn push_text_wtf8(out: &mut Vec<u8>, code_units: &[u16]) {
     crate::css::serialize::for_each_code_point_utf16(code_units, |code_point| push_code_point(out, code_point));
 }
 
-fn push_indent(out: &mut Vec<u8>, indent: usize) {
+pub(crate) fn push_indent(out: &mut Vec<u8>, indent: usize) {
     for _ in 0..indent {
         out.extend_from_slice(b"  ");
     }

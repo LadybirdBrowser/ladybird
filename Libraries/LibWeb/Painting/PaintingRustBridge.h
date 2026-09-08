@@ -25,6 +25,7 @@ struct ImagePaint;
 struct ImagePaintRequest;
 
 WEB_API void dump_stacking_context_tree(StringBuilder&, DOM::Document const&);
+WEB_API void dump_layout_tree(StringBuilder&, Layout::Node const&, bool interactive);
 
 WEB_API Layout::RustFFI::FfiVisualContextUpdateOutcome rust_update_accumulated_visual_contexts(DOM::Document&);
 WEB_API Vector<u32> rust_owned_visual_context_node_indices(Layout::Node const&, Layout::RustFFI::FfiVisualContextBoxNodeList);

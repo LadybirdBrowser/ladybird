@@ -17,7 +17,7 @@ namespace Web {
 WEB_API void dump_tree(HTML::LocalNavigable&);
 void dump_tree(StringBuilder&, DOM::Node const&);
 WEB_API void dump_tree(DOM::Node const&);
-WEB_API void dump_tree(StringBuilder&, Layout::Node const&, bool colorize = false);
+WEB_API void dump_tree(StringBuilder&, Layout::Node const&, bool interactive = false);
 WEB_API void dump_tree(Layout::Node const&);
 void dump_sheet(StringBuilder&, CSS::StyleSheet const&, int indent_levels = 0);
 WEB_API void dump_sheet(CSS::StyleSheet const&);
