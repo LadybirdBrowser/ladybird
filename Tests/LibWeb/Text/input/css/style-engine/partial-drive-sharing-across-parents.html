@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .item { background-color: red; }
+    .warm .item { background-color: green; }
+    .changed .item { background-color: blue; }
+    .inherit .item { padding-left: inherit; }
+    .substitute .item { padding-left: var(--missing, inherit); }
+    .own-color .item { color: red; }
+</style>
+<div id="host"></div>
+<script>
+    test(() => {
+        for (let index = 0; index < 4; ++index) {
+            const parent = document.createElement("div");
+            parent.style.paddingLeft = `${index + 1}px`;
+            parent.append(document.createElement("span"));
+            parent.firstChild.className = "item";
+            host.append(parent);
+        }
+        internals.updateStyle();
+        host.className = "warm";
+        internals.updateStyle();
+        const before = internals.styleEngineCounters();
+        host.className = "changed";
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+        println(`shared across different parent padding: ${after.engineComputedRecordCohortHits - before.engineComputedRecordCohortHits >= 3}`);
+        println(`updated backgrounds: ${Array.from(host.querySelectorAll(".item")).every(item => getComputedStyle(item).backgroundColor === "rgb(0, 0, 255)")}`);
+        for (const className of ["inherit", "substitute"]) {
+            host.className = `changed ${className}`;
+            internals.updateStyle();
+            println(`${className} padding: ${Array.from(host.querySelectorAll(".item"), item => getComputedStyle(item).paddingLeft).join(", ")}`);
+        }
+        host.className = "changed own-color";
+        for (const [index, parent] of Array.from(host.children).entries())
+            parent.style.color = `rgb(${index + 1}, 0, 0)`;
+        internals.updateStyle();
+        host.className = "changed";
+        internals.updateStyle();
+        println(`inherited colors: ${Array.from(host.querySelectorAll(".item"), item => getComputedStyle(item).color).join("; ")}`);
+    });
+</script>
