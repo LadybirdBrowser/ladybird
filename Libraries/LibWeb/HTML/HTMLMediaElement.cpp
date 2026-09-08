@@ -441,6 +441,7 @@ GC::Ref<TimeRanges> HTMLMediaElement::seekable() const
 {
     // The seekable attribute must return a new static normalized TimeRanges object that represents the ranges of the media resource, if any, that the
     // user agent is able to seek to, at the time the attribute is evaluated.
+    // FIXME: Implement the seekable steps from the Media Source Extensions spec to handle unbounded resources.
     auto time_ranges = TimeRanges::create();
     time_ranges->add_range(0, m_duration);
     return time_ranges;

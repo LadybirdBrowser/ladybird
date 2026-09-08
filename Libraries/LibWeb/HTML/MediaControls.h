@@ -57,6 +57,16 @@ private:
     void toggle_mute();
     void toggle_fullscreen();
 
+    struct TimelineRange {
+        double start { 0 };
+        double end { 0 };
+
+        double span() const { return end - start; }
+        double time_at(double progress) const { return start + (progress * span()); }
+        double progress_at(double time) const { return (time - start) / span(); }
+    };
+    Optional<TimelineRange> timeline_range() const;
+
     void update_play_pause_icon();
     void update_timeline();
     void set_timeline_progress(double);
@@ -108,7 +118,7 @@ private:
 
     double m_last_timeline_progress { 0.0 };
     i64 m_last_timestamp_time { -1 };
-    i64 m_last_timestamp_duration { -1 };
+    Optional<i64> m_last_timestamp_duration;
 
     struct BufferedRange {
         GC::Weak<DOM::Element> element;

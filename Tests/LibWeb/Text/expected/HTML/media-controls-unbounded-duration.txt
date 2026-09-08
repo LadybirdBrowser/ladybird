@@ -1,0 +1,4 @@
+bounded timestamp: "00:00 / 00:30"
+unbounded timestamp: "00:00"
+current time after scrubbing an unbounded timeline: 0
+current time after End on an unbounded resource: 0
