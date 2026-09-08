@@ -15,26 +15,38 @@ class RustMediaList {
     AK_MAKE_NONCOPYABLE(RustMediaList);
 
 public:
+    enum class Ownership {
+        Adopt,
+        Borrow,
+    };
+
     RustMediaList()
         : RustMediaList(Parser::ValueParserFFI::rust_media_list_create())
     {
     }
-    explicit RustMediaList(Parser::ValueParserFFI::MediaList* list)
+    explicit RustMediaList(Parser::ValueParserFFI::MediaList const* list, Ownership ownership = Ownership::Adopt)
         : m_list(list)
+        , m_ownership(ownership)
     {
         VERIFY(list);
     }
     RustMediaList(RustMediaList&& other)
         : m_list(exchange(other.m_list, nullptr))
+        , m_ownership(exchange(other.m_ownership, Ownership::Adopt))
     {
     }
     RustMediaList& operator=(RustMediaList&& other)
     {
         RustMediaList moved(move(other));
         swap(m_list, moved.m_list);
+        swap(m_ownership, moved.m_ownership);
         return *this;
     }
-    ~RustMediaList() { Parser::ValueParserFFI::rust_media_list_free(m_list); }
+    ~RustMediaList()
+    {
+        if (m_ownership == Ownership::Adopt)
+            Parser::ValueParserFFI::rust_media_list_free(const_cast<Parser::ValueParserFFI::MediaList*>(m_list));
+    }
     RustMediaList retain() const { return RustMediaList { Parser::ValueParserFFI::rust_media_list_retain(m_list) }; }
     RustMediaList share() const { return RustMediaList { Parser::ValueParserFFI::rust_media_list_share(m_list) }; }
     size_t length() const { return Parser::ValueParserFFI::rust_media_list_length(m_list); }
@@ -73,7 +85,8 @@ private:
     {
         *static_cast<Utf16String*>(context) = Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(data), length });
     }
-    Parser::ValueParserFFI::MediaList* m_list;
+    Parser::ValueParserFFI::MediaList const* m_list;
+    Ownership m_ownership { Ownership::Adopt };
 };
 
 }

@@ -20,9 +20,9 @@ public:
     using MediaState = Parser::ValueParserFFI::NativeStyleSheetMediaState;
 
     RustStyleSheet(RustRuleList rules, RustMediaList media)
-        : m_rules(move(rules))
-        , m_media(move(media))
-        , m_sheet(Parser::ValueParserFFI::rust_style_sheet_create(m_rules.handle(), m_media.handle()))
+        : m_sheet(Parser::ValueParserFFI::rust_style_sheet_create(rules.handle(), media.handle()))
+        , m_rules(Parser::ValueParserFFI::rust_style_sheet_rules(m_sheet), RustRuleList::Ownership::Borrow)
+        , m_media(Parser::ValueParserFFI::rust_style_sheet_media(m_sheet), RustMediaList::Ownership::Borrow)
     {
     }
     ~RustStyleSheet() { Parser::ValueParserFFI::rust_style_sheet_release(m_sheet); }
@@ -41,11 +41,10 @@ public:
     Parser::ValueParserFFI::NativeStyleSheet const* handle() const { return m_sheet; }
 
 private:
-    // Retain direct handles for hot rule/media traversal without allocating temporary FFI handles.
-    // The Rust sheet also owns these lists and can outlive this facade.
+    // These are non-owning views into the Rust sheet. NativeStyleSheet owns the lists.
+    Parser::ValueParserFFI::NativeStyleSheet const* m_sheet;
     RustRuleList m_rules;
     RustMediaList m_media;
-    Parser::ValueParserFFI::NativeStyleSheet const* m_sheet;
 };
 
 }

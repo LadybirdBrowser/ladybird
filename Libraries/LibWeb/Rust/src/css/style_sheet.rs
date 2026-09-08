@@ -462,6 +462,16 @@ pub unsafe extern "C" fn rust_style_sheet_release(sheet: *const NativeStyleSheet
     }
 }
 
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_sheet_rules(sheet: &NativeStyleSheet) -> *const NativeRuleList {
+    Rc::as_ptr(&sheet.rules)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_style_sheet_media(sheet: &NativeStyleSheet) -> *const MediaList {
+    &raw const sheet.media
+}
+
 /// Attach a loaded sheet to its import rule, or remove the edge when the rule is detached.
 ///
 /// # Safety
