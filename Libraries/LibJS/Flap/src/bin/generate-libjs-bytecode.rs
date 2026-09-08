@@ -5,7 +5,8 @@
  */
 
 use flapc::metadata::{
-    Field, InstructionDefinition, derive_specialized_instructions, parse_flap_metadata, parse_specializations,
+    Field, InstructionDefinition, ParameterMode, derive_specialized_instructions, parse_flap_metadata,
+    parse_specializations,
 };
 use flapc::validate_specializations;
 use std::env;
@@ -150,6 +151,27 @@ fn generate_class(output: &mut String, op: &InstructionDefinition) -> Result<(),
     }
 
     writeln!(output).unwrap();
+    writeln!(output, "    struct Values {{").unwrap();
+    for field in &op.fields {
+        if field.ty == "Operand" || field.ty == "Optional<Operand>" {
+            let name = parameter_name(&field.name);
+            let suffix = if field.is_array { "[]" } else { "" };
+            writeln!(output, "        Value {name}{suffix};").unwrap();
+        }
+    }
+    if let Some(field) = op
+        .fields
+        .iter()
+        .find(|field| field.ty == "Operand" && !field.is_array && field.mode == ParameterMode::Out)
+    {
+        writeln!(
+            output,
+            "        Value const& primary_output() const {{ return {}; }}",
+            parameter_name(&field.name)
+        )
+        .unwrap();
+    }
+    writeln!(output, "    }};").unwrap();
     writeln!(output, "private:").unwrap();
     for field in &op.fields {
         if field.is_array {
@@ -160,7 +182,84 @@ fn generate_class(output: &mut String, op: &InstructionDefinition) -> Result<(),
     }
     writeln!(output, "}};").unwrap();
     writeln!(output, "static_assert(IsTriviallyDestructible<{}>);", op.name).unwrap();
+    generate_slow_path_interface(output, op);
     Ok(())
+}
+
+fn generate_slow_path_interface(output: &mut String, op: &InstructionDefinition) {
+    let name = &op.name;
+    let layout = flapc::metadata::SlowPathLayout::new(op);
+    let scalar = layout.uses_scalar_arguments();
+    let scalar_inputs = layout.array.is_none();
+    if scalar_inputs {
+        writeln!(output, "#ifndef AK_OS_WINDOWS").unwrap();
+        let result_type = if scalar { "AsmSlowPathResult" } else { "i64" };
+        let results_parameter = if scalar {
+            String::new()
+        } else {
+            format!(", Op::{name}::Values& outputs")
+        };
+        let inputs: Vec<_> = op
+            .fields
+            .iter()
+            .filter(|field| {
+                (field.ty == "Operand" || field.ty == "Optional<Operand>") && field.mode != ParameterMode::Out
+            })
+            .collect();
+        let parameters = inputs
+            .iter()
+            .map(|field| format!(", Value {}", parameter_name(&field.name)))
+            .collect::<String>();
+        writeln!(
+            output,
+            "#define JS_DECLARE_SLOW_PATH_{name}(slow_path_function) {result_type} slow_path_function(VM*, u32, Op::{name} const*{results_parameter}{parameters})"
+        )
+        .unwrap();
+        writeln!(output, "#define JS_DEFINE_SLOW_PATH_{name}(slow_path_function) \\").unwrap();
+        writeln!(
+            output,
+            "    static ALWAYS_INLINE i64 slow_path_function##_impl(VM*, u32, Op::{name} const*, Op::{name}::Values&); \\"
+        )
+        .unwrap();
+        writeln!(
+            output,
+            "    {result_type} slow_path_function(VM* vm, u32 pc, Op::{name} const* instruction{results_parameter}{parameters}) {{ \\"
+        )
+        .unwrap();
+        writeln!(output, "        Op::{name}::Values values; \\").unwrap();
+        for field in inputs {
+            let field_name = parameter_name(&field.name);
+            writeln!(output, "        values.{field_name} = {field_name}; \\").unwrap();
+        }
+        if scalar {
+            writeln!(output, "        return make_asm_slow_path_result(slow_path_function##_impl(vm, pc, instruction, values), values); \\").unwrap();
+        } else {
+            writeln!(
+                output,
+                "        auto control = slow_path_function##_impl(vm, pc, instruction, values); \\"
+            )
+            .unwrap();
+            for field in op.fields.iter().filter(|field| {
+                (field.ty == "Operand" || field.ty == "Optional<Operand>") && field.mode != ParameterMode::In
+            }) {
+                let field_name = parameter_name(&field.name);
+                writeln!(output, "        outputs.{field_name} = values.{field_name}; \\").unwrap();
+            }
+            writeln!(output, "        return control; \\").unwrap();
+        }
+        writeln!(output, "    }} \\").unwrap();
+        writeln!(output, "    static ALWAYS_INLINE i64 slow_path_function##_impl([[maybe_unused]] VM* vm, [[maybe_unused]] u32 pc, [[maybe_unused]] Op::{name} const* instruction, [[maybe_unused]] Op::{name}::Values& values)").unwrap();
+        writeln!(output, "#else").unwrap();
+    }
+    writeln!(output, "#define JS_DECLARE_SLOW_PATH_{name}(slow_path_function) i64 slow_path_function(VM*, u32, Op::{name} const*, Op::{name}::Values&)").unwrap();
+    writeln!(
+        output,
+        "#define JS_DEFINE_SLOW_PATH_{name}(slow_path_function) DEFINE_RECORD_SLOW_PATH(slow_path_function, Op::{name})"
+    )
+    .unwrap();
+    if scalar_inputs {
+        writeln!(output, "#endif").unwrap();
+    }
 }
 
 fn generate_op_header(ops: &[InstructionDefinition]) -> Result<String, String> {
@@ -294,5 +393,76 @@ specialize Add(rhs: Int32);
         .unwrap_err();
 
         assert_eq!(error, "duplicate specialization name 'AddRhsInt32'");
+    }
+
+    #[test]
+    fn generates_named_values_only_for_operands() {
+        let op = parse_flap_metadata(
+            "test.flap",
+            "handler Call(length: u32, dst: out Operand, callee: in Operand, argument_count: u32, arguments: Operand[]) { dispatch_next; }",
+        )
+        .unwrap()
+        .remove(0);
+        let mut output = String::new();
+        generate_class(&mut output, &op).unwrap();
+        assert!(output.contains(
+            "    struct Values {\n        Value dst;\n        Value callee;\n        Value arguments[];\n        Value const& primary_output() const { return dst; }\n    };"
+        ));
+    }
+
+    #[test]
+    fn generates_scalar_arguments_with_a_windows_record_fallback() {
+        let op = parse_flap_metadata(
+            "test.flap",
+            "handler Get(dst: out Operand, base: Operand, property: Optional<Operand>) { dispatch_next; }",
+        )
+        .unwrap()
+        .remove(0);
+        let mut output = String::new();
+        generate_class(&mut output, &op).unwrap();
+        assert!(output.contains("#ifndef AK_OS_WINDOWS"));
+        assert!(
+            output
+                .contains("AsmSlowPathResult slow_path_function(VM*, u32, Op::Get const*, Value base, Value property)")
+        );
+        assert!(output.contains("values.base = base;"));
+        assert!(output.contains("values.property = property;"));
+        assert!(output.contains("i64 slow_path_function(VM*, u32, Op::Get const*, Op::Get::Values&)"));
+    }
+
+    #[test]
+    fn generates_scalar_inputs_and_record_outputs_for_multiple_results() {
+        let op = parse_flap_metadata(
+            "test.flap",
+            "handler Next(value: out Operand, done: out Operand, state: inout Operand, iterator: Operand) { dispatch_next; }",
+        )
+        .unwrap()
+        .remove(0);
+        let mut output = String::new();
+        generate_class(&mut output, &op).unwrap();
+        assert!(output.contains(
+            "i64 slow_path_function(VM*, u32, Op::Next const*, Op::Next::Values& outputs, Value state, Value iterator)"
+        ));
+        assert!(output.contains("values.state = state;"));
+        assert!(output.contains("values.iterator = iterator;"));
+        assert!(output.contains("outputs.value = values.value;"));
+        assert!(output.contains("outputs.done = values.done;"));
+        assert!(output.contains("outputs.state = values.state;"));
+        assert!(!output.contains("outputs.iterator ="));
+    }
+
+    #[test]
+    fn generates_scalar_arguments_without_outputs_or_colliding_with_name_operands() {
+        let op = parse_flap_metadata(
+            "test.flap",
+            "handler SetName(function: Operand, name: Operand) { dispatch_next; }",
+        )
+        .unwrap()
+        .remove(0);
+        let mut output = String::new();
+        generate_class(&mut output, &op).unwrap();
+        assert!(output.contains("#define JS_DEFINE_SLOW_PATH_SetName(slow_path_function)"));
+        assert!(output.contains("values.name = name;"));
+        assert!(output.contains("Value function, Value name)"));
     }
 }

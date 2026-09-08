@@ -1118,12 +1118,12 @@ handler Exp(
     dst: out Operand,
     lhs: in Operand,
     rhs: in Operand
-) {
+) @cold {
     call_binary_slow_path(exp_values, dst, load(lhs), load(rhs));
 }
 
 handler ConcatString(
-    dst: out Operand,
+    dst: inout Operand,
     src: Operand
 ) @cold = call_slow_path(concat_string);
 
@@ -1698,7 +1698,7 @@ handler NewArrayWithLength(
 ) @cold = call_slow_path(new_array_with_length);
 
 handler ArrayAppend(
-    dst: out Operand,
+    dst: in Operand,
     src: Operand,
     is_spread: bool
 ) @cold = call_slow_path(array_append);
@@ -2360,7 +2360,13 @@ handler GetById(
     cache: PropertyLookupCacheIndex
 ) {
     let try_cache = || @cold {
-        guard call_interp(asm_try_get_by_id_cache) == 0 else slow;
+        let executable = exec_ctx.executable;
+        let caches: u64 = alias(executable.property_lookup_caches);
+        let cache_index: u64 = alias(load(cache));
+        let cache_pointer = caches + cache_index * PROPERTY_LOOKUP_CACHE_SIZE;
+        let result: Value = call_helper_with_two_arguments(asm_try_get_by_id_cache, load(base), cache_pointer);
+        guard result is not Value<Empty> else slow;
+        store(dst, result);
         dispatch_next;
     };
 
@@ -3526,7 +3532,7 @@ handler IteratorNext(
     dst: out Operand,
     iterator_object: Operand,
     iterator_next: Operand,
-    iterator_done: Operand
+    iterator_done: inout Operand
 ) @cold = call_slow_path(asm_slow_path_iterator_next);
 
 handler IteratorNextUnpack(
@@ -3534,14 +3540,14 @@ handler IteratorNextUnpack(
     dst_done: out Operand,
     iterator_object: Operand,
     iterator_next: Operand,
-    iterator_done: Operand
+    iterator_done: inout Operand
 ) @cold = call_slow_path(iterator_next_unpack);
 
 handler IteratorToArray(
     dst: out Operand,
     iterator_object: Operand,
     iterator_next_method: Operand,
-    iterator_done_property: Operand
+    iterator_done_property: inout Operand
 ) @cold = call_slow_path(iterator_to_array);
 
 handler CallConstruct(
@@ -3750,8 +3756,8 @@ handler DeleteVariable(
 ) @cold = call_slow_path(delete_variable);
 
 handler GetCompletionFields(
-    type_dst: Operand,
-    value_dst: Operand,
+    type_dst: out Operand,
+    value_dst: out Operand,
     completion: Operand
 ) @cold = call_slow_path(get_completion_fields);
 

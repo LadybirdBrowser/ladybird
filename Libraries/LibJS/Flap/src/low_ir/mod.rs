@@ -504,12 +504,14 @@ pub(crate) struct Handler {
 #[derive(Clone, Default)]
 pub(crate) struct RuntimeConstants {
     values: [Option<i64>; KnownLayoutConstant::COUNT],
+    pub(crate) slow_paths: HashMap<String, crate::metadata::SlowPathLayout>,
 }
 
 impl RuntimeConstants {
     pub(crate) fn from_layout(constants: &LayoutConstants) -> Self {
         Self {
             values: KnownLayoutConstant::ALL.map(|constant| constants.known(constant).map(|value| value.value())),
+            slow_paths: HashMap::default(),
         }
     }
 

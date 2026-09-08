@@ -311,16 +311,6 @@ impl<O: ControlFlowOperand, C: ControlFlowOpcode> ControlFlowGraph<O, C> {
         Ok(BlockLayout { hot, cold })
     }
 
-    pub(crate) fn single_instruction(&self) -> Option<&Instruction<O, C>> {
-        let [block] = self.blocks.as_slice() else {
-            return None;
-        };
-        let [instruction] = block.instructions.as_slice() else {
-            return None;
-        };
-        Some(instruction)
-    }
-
     /// Tidy the graph after an edit: thread branches through jump-only blocks,
     /// drop jump blocks nothing reaches, and drop blocks control cannot reach.
     ///
@@ -893,7 +883,8 @@ mod tests {
         }])
         .unwrap();
 
-        assert!(graph.single_instruction().is_some());
+        assert_eq!(graph.blocks.len(), 1);
+        assert_eq!(graph.blocks[0].instructions.len(), 1);
     }
 
     #[test]

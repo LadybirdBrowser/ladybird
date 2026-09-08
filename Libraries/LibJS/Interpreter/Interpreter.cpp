@@ -230,7 +230,7 @@ VM::HandleExceptionResponse VM::handle_exception(u32 program_counter, Value exce
 ExecutionContext* VM::push_inline_frame(
     ECMAScriptFunctionObject& callee_function,
     Executable& callee_executable,
-    ReadonlySpan<Operand> arguments,
+    ReadonlySpan<Value> arguments,
     u32 return_pc,
     u32 dst_raw,
     Value this_value,
@@ -247,10 +247,10 @@ ExecutionContext* VM::push_inline_frame(
     if (!callee_context) [[unlikely]]
         return nullptr;
 
-    // Copy arguments from caller's registers into callee's argument slots.
+    // Copy the supplied arguments into the callee's argument slots.
     auto* callee_argument_values = callee_context->arguments_data();
     for (u32 i = 0; i < insn_argument_count; ++i)
-        callee_argument_values[i] = get(arguments[i]);
+        callee_argument_values[i] = arguments[i];
     for (size_t i = insn_argument_count; i < argument_count; ++i)
         callee_argument_values[i] = js_undefined();
     callee_context->passed_argument_count = insn_argument_count;

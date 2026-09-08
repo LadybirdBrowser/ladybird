@@ -27,6 +27,12 @@ use super::registers::PhysicalRegister;
 use crate::CompileError;
 use crate::low_ir::Label;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum HelperCallKind {
+    Try,
+    SlowPath,
+}
+
 pub(crate) trait Backend: Sync {
     fn branch_float(
         &self,
@@ -93,9 +99,9 @@ pub(crate) trait Backend: Sync {
         failure: &Label,
     );
 
-    fn helper_call(&self, emit: &mut Emit<'_>, function: crate::low_ir::Relocation);
+    fn helper_call(&self, emit: &mut Emit<'_>, function: crate::low_ir::Relocation, argument_count: usize);
 
-    fn interpreter_call(&self, emit: &mut Emit<'_>, function: crate::low_ir::Relocation);
+    fn interpreter_call(&self, emit: &mut Emit<'_>, function: crate::low_ir::Relocation) -> Result<(), CompileError>;
 
     fn raw_native_call(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]);
 

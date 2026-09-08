@@ -814,6 +814,24 @@ fn lookup_operation(operation: Operation) -> &'static InstructionDescription {
                     .aarch64(spec().outputs(&[X0]).fixed(&[(1, X0)]))
             }
         }
+        Operation::Call(CallKind::HelperWithTwoArguments) => {
+            &const {
+                plain(&[FuncSymbol, GprIn, GprIn, GprOut])
+                    .call()
+                    .x86_64(
+                        spec()
+                            .inputs(&[RCX, RDX])
+                            .outputs(&[RAX])
+                            .fixed(&[(1, RCX), (2, RDX), (3, RAX)]),
+                    )
+                    .aarch64(
+                        spec()
+                            .inputs(&[X0, X1])
+                            .outputs(&[X0])
+                            .fixed(&[(1, X0), (2, X1), (3, X0)]),
+                    )
+            }
+        }
         Operation::Call(CallKind::RawNative) => {
             &const {
                 plain(&[GprIn, GprOut, GprOut])

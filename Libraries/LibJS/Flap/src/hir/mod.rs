@@ -1938,19 +1938,27 @@ impl<'a> Checker<'a> {
                 ))
             }
             ExpressionKind::Call { callee, arguments }
-                if callee == "call_helper" && arguments.len() == 2 && expected.is_some() =>
+                if ((callee == "call_helper" && arguments.len() == 2)
+                    || (callee == "call_helper_with_two_arguments" && arguments.len() == 3))
+                    && expected.is_some() =>
             {
                 let return_type = expected.expect("guarded by expected.is_some()");
                 if !is_gpr_type(return_type) {
-                    return self.error(expression.span, format!("call_helper cannot return {return_type}"));
+                    return self.error(expression.span, format!("{callee} cannot return {return_type}"));
+                }
+                let operation = if arguments.len() == 2 {
+                    CallOperation::Helper
+                } else {
+                    CallOperation::HelperWithTwoArguments
+                };
+                let mut values = vec![self.check_value(&arguments[0], &Type::FunctionSymbol)?];
+                for argument in &arguments[1..] {
+                    values.push(self.check_materialized_gpr_value(argument)?);
                 }
                 Ok(Call::new(
-                    CallTarget::Intrinsic(Intrinsic::Call(CallOperation::Helper)),
-                    vec![
-                        self.check_value(&arguments[0], &Type::FunctionSymbol)?,
-                        self.check_materialized_gpr_value(&arguments[1])?,
-                    ],
-                    vec![ParameterMode::In, ParameterMode::In],
+                    CallTarget::Intrinsic(Intrinsic::Call(operation)),
+                    values,
+                    vec![ParameterMode::In; arguments.len()],
                     Some(return_type.clone()),
                 ))
             }

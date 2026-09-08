@@ -63,6 +63,8 @@ define_known_layout_constants! {
     NullValue => "NULL_VALUE";
     ShiftedIsCellPattern => "SHIFTED_IS_CELL_PATTERN";
     VmRunningExecutionContext => "VM_RUNNING_EXECUTION_CONTEXT";
+    VmStackInfoBase => "VM_STACK_INFO_BASE";
+    VmStackSpaceLimit => "VM_STACK_SPACE_LIMIT";
     VmHeapRegionBase => "VM_HEAP_REGION_BASE";
     VmBreakpointController => "VM_BREAKPOINT_CONTROLLER";
     SlowPathContinuationBit => "SLOW_PATH_CONTINUATION_BIT";

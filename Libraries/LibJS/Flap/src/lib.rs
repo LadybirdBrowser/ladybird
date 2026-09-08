@@ -545,6 +545,14 @@ impl Compiler {
     pub fn lower(&self, prepared: &PreparedProgram) -> Result<LowProgram, CompileError> {
         let mut program = LowProgram::new();
         program.runtime = low_ir::RuntimeConstants::from_layout(&prepared.constants);
+        for (handler, layout) in prepared.handlers.iter().zip(&prepared.bytecode.handler_layouts) {
+            if let Some(layout) = &layout.slow_path {
+                program
+                    .runtime
+                    .slow_paths
+                    .insert(handler.name().to_string(), layout.clone());
+            }
+        }
         program.dispatch_handlers = prepared.bytecode.dispatch_handlers.clone();
 
         for template in &prepared.handlers {
