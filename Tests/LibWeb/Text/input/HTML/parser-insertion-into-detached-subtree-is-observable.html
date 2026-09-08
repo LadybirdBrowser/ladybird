@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="host"><script>
+    const host = document.getElementById("host");
+    host.remove();
+    const children = host.children;
+    children.length;
+    const records = [];
+    const observer = new MutationObserver(list => records.push(...list));
+    observer.observe(host, { childList: true, subtree: true });
+</script><div id="a"></div><div id="b"><span id="c"></span></div></div>
+<script>
+    test(() => {
+        records.push(...observer.takeRecords());
+        println(`Children of the detached parent: ${children.length}`);
+        for (const record of records) {
+            const added = Array.from(record.addedNodes, node => node.nodeType === Node.TEXT_NODE ? "#text" : `${node.nodeName}#${node.id}`);
+            println(`${record.target.nodeName}#${record.target.id} gained ${added.join(", ")}`);
+        }
+    });
+</script>

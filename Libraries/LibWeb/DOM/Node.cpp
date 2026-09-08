@@ -1055,6 +1055,95 @@ void Node::insert_nodes_before(ReadonlySpan<GC::Root<Node>> nodes, GC::Ptr<Node>
     bump_dom_tree_version();
 }
 
+// https://dom.spec.whatwg.org/#concept-node-insert
+void Node::parser_insert_before(GC::Ref<Node> node, GC::Ptr<Node> child)
+{
+    // AD-HOC: The insertion of one node the parser has just created into a tree that is not connected. Script can
+    //         hold such a tree, so observers, live ranges and collection caches are served, but style, layout, custom
+    //         element reactions and the post-connection steps have nothing to do until the tree is connected.
+
+    VERIFY(!is_connected());
+
+    // 5. If child is non-null:
+    if (child) {
+        // 1. For each live range whose start node is parent and start offset is greater than child’s index:
+        //    increase its start offset by count.
+        // 2. For each live range whose end node is parent and end offset is greater than child’s index:
+        //    increase its end offset by count.
+        auto child_index = child->index();
+        for (auto& range : document().live_ranges()) {
+            if (range.start_container().ptr() == this && range.start_offset() > child_index)
+                range.increase_start_offset(1);
+            if (range.end_container().ptr() == this && range.end_offset() > child_index)
+                range.increase_end_offset(1);
+        }
+    }
+
+    // 6. Let previousSibling be child’s previous sibling or parent’s last child if child is null.
+    GC::Ptr<Node> previous_sibling = child ? child->previous_sibling() : last_child();
+
+    // 7. For each node in nodes, in tree order:
+    // 1. Adopt node into parent’s node document.
+    document().adopt_node_steps(*node);
+
+    // 2. If child is null, then append node to parent’s children.
+    // 3. Otherwise, insert node into parent’s children before child’s index.
+    insert_before_impl(node, child);
+
+    // 4. If parent is a shadow host whose shadow root’s slot assignment is "named" and node is a slottable, then
+    //    assign a slot for node.
+    if (auto* element = as_if<DOM::Element>(*this)) {
+        auto is_named_shadow_host = element->is_shadow_host()
+            && element->shadow_root()->slot_assignment() == SlotAssignmentMode::Named;
+
+        if (is_named_shadow_host && node->is_slottable())
+            assign_a_slot(node->as_slottable());
+    }
+
+    // 5. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then run
+    //    signal a slot change for parent.
+    if (auto* this_slot_element = as_if<HTML::HTMLSlotElement>(*this); this_slot_element && root().is_shadow_root()) {
+        if (this_slot_element->assigned_nodes_internal().is_empty())
+            signal_a_slot_change(*this_slot_element);
+    }
+
+    // AD-HOC: Register any slot elements in the inserted subtree with the shadow root’s slot registry
+    //         before running assign_slottables_for_a_tree, so the registry is up-to-date.
+    if (auto* shadow_root = as_if<ShadowRoot>(node->root())) {
+        node->for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
+            shadow_root->register_slot(slot);
+            return TraversalDecision::Continue;
+        });
+    }
+
+    // 6. Run assign slottables for a tree with node’s root.
+    assign_slottables_for_a_tree(node->root());
+
+    // 7. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree order:
+    //    1. Run the insertion steps with inclusiveDescendant.
+    //    2. If inclusiveDescendant is not connected, then continue.
+    node->for_each_shadow_including_inclusive_descendant([](Node& inclusive_descendant) {
+        inclusive_descendant.inserted();
+        return TraversalDecision::Continue;
+    });
+
+    // 8. If suppressObservers is false, then queue a tree mutation record for parent with nodes, « », previousSibling,
+    //    and child.
+    // OPTIMIZATION: Without an observer of tree mutations, the root the record needs is never allocated.
+    if (document().has_mutation_observers_of_type(MutationType::childList) || document().page().listen_for_dom_mutations()) {
+        auto single_node = GC::make_root(*node);
+        queue_tree_mutation_record({ &single_node, 1 }, {}, previous_sibling.ptr(), child.ptr());
+    }
+
+    // 9. Run the children changed steps for parent.
+    auto affects_elements = mutation_affects_elements(*node);
+    ChildrenChangedMetadata metadata { ChildrenChangedMetadata::Type::Inserted, node, affects_elements };
+    children_changed(metadata);
+    invalidate_html_collection_caches_in_ancestors(affects_elements);
+
+    bump_dom_tree_version();
+}
+
 // https://dom.spec.whatwg.org/#concept-node-pre-insert
 WebIDL::ExceptionOr<GC::Ref<Node>> Node::pre_insert(GC::Ref<Node> node, GC::Ptr<Node> child)
 {
