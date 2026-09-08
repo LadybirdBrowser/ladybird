@@ -1,0 +1,1 @@
+first document collected while the second load is stalled: true

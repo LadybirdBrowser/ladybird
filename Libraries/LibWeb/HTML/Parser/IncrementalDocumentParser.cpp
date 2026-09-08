@@ -204,6 +204,11 @@ void IncrementalDocumentParser::process_body_chunk(ByteBuffer bytes)
 
 void IncrementalDocumentParser::process_end_of_body()
 {
+    // The body's stream lives in the realm of the document that started this navigation, and this parser stays attached
+    // to the new document until its load event. So, drop the body as soon as it's exhausted — rather than keeping the
+    // previous document alive until the new one has finished loading. Blink, WebKit, and Gecko all do this too.
+    m_body = nullptr;
+
     if (!should_continue()) {
         release_encoding_change_buffers();
         return;
@@ -270,6 +275,7 @@ void IncrementalDocumentParser::release_encoding_change_buffers()
 
 void IncrementalDocumentParser::process_body_error(JS::Value)
 {
+    m_body = nullptr;
     release_encoding_change_buffers();
     dbgln("FIXME: Load html page with an error if incremental read of body failed.");
     HTMLParser::the_end(m_document, m_parser);

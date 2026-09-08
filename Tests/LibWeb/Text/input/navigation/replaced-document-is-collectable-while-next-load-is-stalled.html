@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A navigation's response body is read through a stream created in the realm of the document that started the
+    // navigation — and the new document's parser stays attached until its load event. So, the parser has to let go of
+    // the body as soon as the body is exhausted. Otherwise, a load that stalls on a subresource — e.g. an image that
+    // never arrives — keeps the replaced document alive for as long as the load stalls.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        // Repeated runs of this test share the echo server, so its echoes and the image's unblock token are per-run.
+        const runId = crypto.randomUUID();
+        const token = `stalled-load-${runId}`;
+        const blockedImageURL = await server.createEcho("GET", `/stalled-load-image-${runId}`, {
+            status: 404,
+            headers: { "Cache-Control": "no-store" },
+            body: "",
+            wait_for_unblock: token,
+        });
+        const firstURL = await server.createEcho("GET", `/stalled-load-first-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: "<!DOCTYPE html><p>first</p>",
+        });
+        const secondURL = await server.createEcho("GET", `/stalled-load-second-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html>
+                <img src="${blockedImageURL}">
+                <script>
+                    document.addEventListener("DOMContentLoaded", () => parent.postMessage("second document parsed", "*"));
+                <\/script>`,
+        });
+
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+
+        // The first document is recorded in a nested function, so that it doesn't linger in a register of this
+        // function's frame while it's expected to be collected.
+        const weakFirstDocument = await (async () => {
+            await new Promise(resolve => {
+                iframe.addEventListener("load", resolve, { once: true });
+                iframe.src = firstURL;
+            });
+            return new WeakRef(iframe.contentDocument);
+        })();
+
+        // The second document's body has been read to its end once DOMContentLoaded fires in it, while its load event
+        // still waits on the blocked image.
+        await new Promise(resolve => {
+            window.addEventListener("message", resolve, { once: true });
+            iframe.src = secondURL;
+        });
+
+        const maximumGcRoundsWhileRequestTeardownTasksDrain = 100;
+        for (let round = 0; round < maximumGcRoundsWhileRequestTeardownTasksDrain; ++round) {
+            await timeout(0);
+            await internals.gcAsync();
+            if (weakFirstDocument.deref() === undefined)
+                break;
+        }
+        println(`first document collected while the second load is stalled: ${weakFirstDocument.deref() === undefined}`);
+
+        // Let the second load finish, so the test ends with the iframe settled.
+        const secondLoaded = new Promise(resolve => iframe.addEventListener("load", resolve, { once: true }));
+        await fetch(new URL(`/unblock/${token}`, blockedImageURL));
+        await secondLoaded;
+        iframe.remove();
+    });
+</script>
