@@ -812,7 +812,6 @@ static SkPaint gradient_paint_style_to_skia_paint(
     DisplayListGradientPaintStyle const& paint_style,
     ReadonlySpan<Color> color_stop_colors,
     ReadonlySpan<float> color_stop_positions,
-    Gfx::FloatRect const& bounding_rect,
     MakeShader make_shader)
 {
     SkPaint paint;
@@ -830,7 +829,7 @@ static SkPaint gradient_paint_style_to_skia_paint(
         positions.unchecked_append(position);
 
     SkMatrix matrix;
-    matrix.setTranslate(bounding_rect.x(), bounding_rect.y());
+    matrix.setIdentity();
     if (paint_style.gradient_transform.has_value())
         matrix = matrix * to_skia_matrix(paint_style.gradient_transform.value());
 
@@ -844,14 +843,13 @@ static SkPaint gradient_paint_style_to_skia_paint(
     return paint;
 }
 
-SkPaint DisplayListPlayerSkia::paint_style_to_skia_paint(DisplayListPaintStyle const& paint_style, Gfx::FloatRect const& bounding_rect)
+SkPaint DisplayListPlayerSkia::paint_style_to_skia_paint(DisplayListPaintStyle const& paint_style, Gfx::FloatRect const&)
 {
     auto make_gradient_paint = [&](auto make_shader) {
         return gradient_paint_style_to_skia_paint(
             paint_style.gradient,
             gradient_colors(paint_style.gradient.color_stops),
             gradient_positions(paint_style.gradient.color_stops),
-            bounding_rect,
             make_shader);
     };
 

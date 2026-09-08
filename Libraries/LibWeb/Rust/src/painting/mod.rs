@@ -34,6 +34,7 @@ pub mod selection;
 pub mod stacking_context;
 pub mod style_queries;
 pub(crate) mod svg_filter;
+pub(crate) mod svg_paint;
 pub(crate) mod svg_viewport;
 pub mod text_fragment;
 pub mod visual_context;

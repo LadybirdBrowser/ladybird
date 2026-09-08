@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/gradient-coordinate-spaces-ref.html">
+<style>body { margin: 0 } svg { display: block }</style>
+<svg width="300" height="100">
+  <defs>
+    <radialGradient id="ellipse"><stop stop-color="red"/><stop offset="1" stop-color="blue"/></radialGradient>
+    <linearGradient id="diagonal" x2="1" y2="1"><stop stop-color="red"/><stop offset="1" stop-color="blue"/></linearGradient>
+    <linearGradient id="empty"/>
+  </defs>
+  <rect x="10" y="10" width="200" height="40" fill="url(#ellipse)"/>
+  <rect x="10" y="60" width="200" height="30" fill="url(#diagonal)"/>
+  <rect x="220" width="80" height="100" fill="green"/>
+  <rect x="220" width="80" height="100" fill="url(#empty) red"/>
+</svg>

@@ -19,8 +19,6 @@ public:
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
-    virtual Optional<Painting::PaintStyle> to_gfx_paint_style(SVGPaintContext const&) const override;
-
     // https://w3c.github.io/svgwg/svg2-draft/pservers.html#__svg__SVGRadialGradientElement__cx
     REFLECT_ANIMATED_LENGTH_ATTRIBUTE(cx, Horizontal, SVGLengthValue::percentage(50));
 
@@ -43,26 +41,8 @@ protected:
     SVGRadialGradientElement(DOM::Document&, DOM::QualifiedName);
 
 private:
-    GC::Ptr<SVGRadialGradientElement const> linked_radial_gradient(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
-    {
-        if (auto gradient = linked_gradient(seen_gradients); gradient && is<SVGRadialGradientElement>(*gradient))
-            return &as<SVGRadialGradientElement>(*gradient);
-        return {};
-    }
-
-    NumberPercentage start_circle_x() const;
-    NumberPercentage start_circle_y() const;
-    NumberPercentage start_circle_radius() const;
-    NumberPercentage end_circle_x() const;
-    NumberPercentage end_circle_y() const;
-    NumberPercentage end_circle_radius() const;
-
-    NumberPercentage start_circle_x_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
-    NumberPercentage start_circle_y_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
-    NumberPercentage start_circle_radius_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
-    NumberPercentage end_circle_x_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
-    NumberPercentage end_circle_y_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
-    NumberPercentage end_circle_radius_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
+    virtual bool is_radial_gradient() const override { return true; }
+    virtual void collect_gradient_attributes(GradientAttributes&) const override;
 
     Optional<NumberPercentage> m_cx;
     Optional<NumberPercentage> m_cy;

@@ -5,8 +5,8 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Matrix4x4.h>
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/FragmentIdentifier.h>
 #include <LibWeb/SVG/SVGGradientElement.h>
@@ -36,92 +36,72 @@ void SVGGradientElement::attribute_changed(Utf16FlyString const& name, Optional<
     }
 }
 
-GradientUnits SVGGradientElement::gradient_units() const
+ResolvedGradient SVGGradientElement::resolve_gradient() const
 {
-    GC::RootHashTable<SVGGradientElement const*> seen_gradients;
-    return gradient_units_impl(seen_gradients);
+    ResolvedGradient result;
+    result.is_radial = is_radial_gradient();
+    GradientAttributes attributes;
+    Optional<GradientUnits> units;
+    Optional<SpreadMethod> spread;
+    Optional<Gfx::AffineTransform> transform;
+    bool can_inherit_coordinates = true;
+    bool found_stops = false;
+    GC::RootHashTable<SVGGradientElement const*> seen;
+    for (GC::Ptr<SVGGradientElement const> gradient = this; gradient && seen.set(gradient.ptr()) == AK::HashSetResult::InsertedNewEntry; gradient = gradient->linked_gradient()) {
+        if (!units.has_value())
+            units = gradient->m_gradient_units;
+        if (!spread.has_value())
+            spread = gradient->m_spread_method;
+        if (!transform.has_value()) {
+            // The cascade can override gradientTransform, including with transform:none.
+            auto style = gradient->computed_style();
+            if (style && (style->has_transformations() || gradient->m_gradient_transform.has_value())) {
+                auto matrix = Gfx::FloatMatrix4x4::identity();
+                style->for_each_transformation([&](auto const& css_transform) {
+                    matrix = matrix * css_transform.to_matrix(nullptr);
+                });
+                transform = extract_2d_affine_transform(matrix);
+            }
+        }
+        can_inherit_coordinates &= gradient->is_radial_gradient() == result.is_radial;
+        if (can_inherit_coordinates)
+            gradient->collect_gradient_attributes(attributes);
+        if (!found_stops) {
+            float largest_offset = 0;
+            gradient->for_each_child_of_type<SVGStopElement>([&](auto& stop) {
+                found_stops = true;
+                auto offset = max(largest_offset, clamp(stop.stop_offset(), 0.0f, 1.0f));
+                largest_offset = offset;
+                result.stops.append({ offset, stop.stop_color().with_opacity(stop.stop_opacity()) });
+                return IterationDecision::Continue;
+            });
+        }
+    }
+    result.units = units.value_or(GradientUnits::ObjectBoundingBox);
+    result.spread_method = spread.value_or(SpreadMethod::Pad);
+    result.transform = transform.value_or(Gfx::AffineTransform {});
+    if (auto style = computed_style())
+        result.color_space = CSS::to_interpolation_color_space(style->color_interpolation());
+    auto zero = NumberPercentage::create_percentage(0);
+    auto half = NumberPercentage::create_percentage(50);
+    if (result.is_radial) {
+        result.end_x = attributes.cx.value_or(half);
+        result.end_y = attributes.cy.value_or(half);
+        result.end_radius = attributes.r.value_or(half);
+        // Defaults apply to the referencing gradient after the template chain is exhausted.
+        result.start_x = attributes.fx.value_or(result.end_x);
+        result.start_y = attributes.fy.value_or(result.end_y);
+        result.start_radius = attributes.fr.value_or(zero);
+    } else {
+        result.start_x = attributes.x1.value_or(zero);
+        result.start_y = attributes.y1.value_or(zero);
+        result.end_x = attributes.x2.value_or(NumberPercentage::create_percentage(100));
+        result.end_y = attributes.y2.value_or(zero);
+    }
+    return result;
 }
 
-GradientUnits SVGGradientElement::gradient_units_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
-{
-    if (m_gradient_units.has_value())
-        return *m_gradient_units;
-    if (auto gradient = linked_gradient(seen_gradients))
-        return gradient->gradient_units_impl(seen_gradients);
-    return GradientUnits::ObjectBoundingBox;
-}
-
-SpreadMethod SVGGradientElement::spread_method() const
-{
-    GC::RootHashTable<SVGGradientElement const*> seen_gradients;
-    return spread_method_impl(seen_gradients);
-}
-
-SpreadMethod SVGGradientElement::spread_method_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
-{
-    if (m_spread_method.has_value())
-        return *m_spread_method;
-    if (auto gradient = linked_gradient(seen_gradients))
-        return gradient->spread_method_impl(seen_gradients);
-    return SpreadMethod::Pad;
-}
-
-Gfx::InterpolationColorSpace SVGGradientElement::color_space() const
-{
-    auto style = computed_style();
-    VERIFY(style);
-    return CSS::to_interpolation_color_space(style->color_interpolation());
-}
-
-Optional<Gfx::AffineTransform> SVGGradientElement::gradient_transform() const
-{
-    GC::RootHashTable<SVGGradientElement const*> seen_gradients;
-    return gradient_transform_impl(seen_gradients);
-}
-
-Optional<Gfx::AffineTransform> SVGGradientElement::gradient_transform_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
-{
-    if (m_gradient_transform.has_value())
-        return m_gradient_transform;
-    if (auto gradient = linked_gradient(seen_gradients))
-        return gradient->gradient_transform_impl(seen_gradients);
-    return {};
-}
-
-// The gradient transform, appropriately scaled and combined with the paint transform.
-Gfx::AffineTransform SVGGradientElement::gradient_paint_transform(SVGPaintContext const& paint_context) const
-{
-    auto gradient_paint_transform = Gfx::AffineTransform {};
-    gradient_paint_transform.set_translation(-paint_context.paint_transform.map(paint_context.path_bounding_box).location())
-        .multiply(paint_context.paint_transform);
-
-    if (auto transform = gradient_transform(); transform.has_value())
-        gradient_paint_transform.multiply(transform.value());
-
-    return gradient_paint_transform;
-}
-
-void SVGGradientElement::add_color_stops(Painting::GradientPaintStyle& paint_style) const
-{
-    auto largest_offset = 0.0f;
-    for_each_color_stop([&](auto& stop) {
-        // https://svgwg.org/svg2-draft/pservers.html#StopNotes
-        // Gradient offset values less than 0 (or less than 0%) are rounded up to 0%.
-        // Gradient offset values greater than 1 (or greater than 100%) are rounded down to 100%.
-        float stop_offset = AK::clamp(stop.stop_offset(), 0.0f, 1.0f);
-
-        // Each gradient offset value is required to be equal to or greater than the previous gradient
-        // stop's offset value. If a given gradient stop's offset value is not equal to or greater than all
-        // previous offset values, then the offset value is adjusted to be equal to the largest of all previous
-        // offset values.
-        stop_offset = AK::max(stop_offset, largest_offset);
-        largest_offset = stop_offset;
-
-        paint_style.add_color_stop(stop_offset, stop.stop_color().with_opacity(stop.stop_opacity()));
-    });
-}
-
-GC::Ptr<SVGGradientElement const> SVGGradientElement::linked_gradient(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
+GC::Ptr<SVGGradientElement const> SVGGradientElement::linked_gradient() const
 {
     // FIXME: This entire function is an ad-hoc hack!
 
@@ -144,8 +124,6 @@ GC::Ptr<SVGGradientElement const> SVGGradientElement::linked_gradient(GC::RootHa
         if (element == GC::Ref { *this })
             return {};
         if (!is<SVGGradientElement>(*element))
-            return {};
-        if (seen_gradients.set(&as<SVGGradientElement>(*element)) != AK::HashSetResult::InsertedNewEntry)
             return {};
         return &as<SVGGradientElement>(*element);
     }

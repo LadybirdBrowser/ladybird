@@ -50,7 +50,6 @@
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/ImagePaint.h>
-#include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/PaintingRustFFI.h>
 #include <LibWeb/Painting/ResizeHandle.h>
@@ -65,6 +64,7 @@
 #include <LibWeb/SVG/SVGGraphicsElement.h>
 #include <LibWeb/SVG/SVGImageElement.h>
 #include <LibWeb/SVG/SVGMaskElement.h>
+#include <LibWeb/SVG/SVGPatternElement.h>
 
 namespace Web::Painting {
 
@@ -770,6 +770,7 @@ namespace {
 struct PaintHostContext {
     DisplayListResourceStorage& resource_storage;
     GC::Ref<DOM::Document const> document;
+    HashMap<i64, SVG::ResolvedGradient> gradients;
     u64 paint_generation_id { 0 };
     double device_pixels_per_css_pixel { 1 };
 };
@@ -1110,10 +1111,10 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 facts.natural_size = natural_size->to_type<float>();
             return facts;
         },
-        .svg_paint_style = [](void* context_pointer, void* layout_node_shell, bool is_stroke, Layout::RustFFI::FfiSvgPaintContext const* ffi_paint_context, void* sink) -> Layout::RustFFI::FfiSvgPaintStyle {
+        .svg_paint_server = [](void* context_pointer, void* layout_node_shell, bool is_stroke, Layout::RustFFI::FfiSvgPaintContext const* ffi_paint_context, void* sink) -> Layout::RustFFI::FfiSvgPaintServer {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
-            Layout::RustFFI::FfiSvgPaintStyle style {};
+            Layout::RustFFI::FfiSvgPaintServer style {};
             SVG::SVGPaintContext paint_context {
                 .viewport = ffi_paint_context->viewport,
                 .path_bounding_box = ffi_paint_context->path_bounding_box,
@@ -1121,47 +1122,37 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 .content_scale = ffi_paint_context->content_scale,
             };
             auto const& graphics_element = as<SVG::SVGGraphicsElement>(*layout_node.dom_node());
-            auto paint_server = is_stroke ? graphics_element.stroke_paint_server(paint_context, context.device_pixels_per_css_pixel) : graphics_element.fill_paint_server(paint_context, context.device_pixels_per_css_pixel);
-            if (!paint_server.has_value())
-                return style;
-            auto write_gradient = [&](GradientPaintStyle const& gradient) {
-                style.gradient_transform = gradient.gradient_transform();
-                style.spread_method = static_cast<Layout::RustFFI::FfiSvgGradientSpreadMethod>(to_underlying(gradient.spread_method()));
-                style.color_space = gradient.color_space();
-                auto colors = gradient.color_stop_colors();
-                auto positions = gradient.color_stop_positions();
-                for (size_t i = 0; i < colors.size(); ++i)
-                    Layout::RustFFI::layout_arena_paint_push_color_stop(sink, colors[i], positions[i]);
-            };
-            paint_server->visit(
-                [&](PaintStyle const& paint_style) {
-                    paint_style.visit(
-                        [&](LinearGradientPaintStyle const& linear) {
-                            style.kind = Layout::RustFFI::FfiSvgPaintStyleKind::LinearGradient;
-                            write_gradient(linear);
-                            style.start = linear.start_point();
-                            style.end = linear.end_point();
-                        },
-                        [&](RadialGradientPaintStyle const& radial) {
-                            style.kind = Layout::RustFFI::FfiSvgPaintStyleKind::RadialGradient;
-                            write_gradient(radial);
-                            style.start = radial.start_center();
-                            style.start_radius = radial.start_radius();
-                            style.end = radial.end_center();
-                            style.end_radius = radial.end_radius();
-                        },
-                        [&](PatternPaintStyle const&) {
-                            VERIFY_NOT_REACHED();
-                        });
-                },
-                [&](SVG::SVGGraphicsElement::PatternPaintServer const& pattern) {
-                    style.kind = Layout::RustFFI::FfiSvgPaintStyleKind::Pattern;
-                    style.pattern_paintable = committed_row_slot(*pattern.pattern_layout_node);
-                    style.tile_content_transform = pattern.tile_content_transform;
-                    style.tile_rect = pattern.tile_rect;
-                    style.content_scale = pattern.content_scale;
-                    style.pattern_transform = pattern.device_pattern_transform;
-                });
+            auto paint_server = graphics_element.paint_server(is_stroke);
+            if (auto* gradient = as_if<SVG::SVGGradientElement>(paint_server.ptr())) {
+                auto const& definition = context.gradients.ensure(gradient->unique_id().value(), [&] { return gradient->resolve_gradient(); });
+                style.kind = definition.is_radial ? Layout::RustFFI::FfiSvgPaintServerKind::RadialGradient : Layout::RustFFI::FfiSvgPaintServerKind::LinearGradient;
+                auto number = [](SVG::NumberPercentage value) -> Layout::RustFFI::FfiSvgNumberPercentage {
+                    return { .value = value.value(), .is_percentage = value.is_percentage() };
+                };
+                style.gradient = {
+                    .object_bounding_box = definition.units == SVG::GradientUnits::ObjectBoundingBox,
+                    .transform = definition.transform,
+                    .spread_method = static_cast<Layout::RustFFI::FfiSvgGradientSpreadMethod>(to_underlying(definition.spread_method)),
+                    .color_space = definition.color_space,
+                    .start_x = number(definition.start_x),
+                    .start_y = number(definition.start_y),
+                    .end_x = number(definition.end_x),
+                    .end_y = number(definition.end_y),
+                    .start_radius = number(definition.start_radius),
+                    .end_radius = number(definition.end_radius),
+                };
+                for (auto const& stop : definition.stops)
+                    Layout::RustFFI::layout_arena_paint_push_color_stop(sink, stop.color, stop.offset);
+            } else if (auto* pattern = as_if<SVG::SVGPatternElement>(paint_server.ptr())) {
+                if (auto geometry = pattern->resolve_paint_geometry(paint_context, context.device_pixels_per_css_pixel, layout_node); geometry.has_value()) {
+                    style.kind = Layout::RustFFI::FfiSvgPaintServerKind::Pattern;
+                    style.pattern_paintable = committed_row_slot(*geometry->pattern_layout_node);
+                    style.tile_content_transform = geometry->tile_content_transform;
+                    style.tile_rect = geometry->tile_rect;
+                    style.content_scale = geometry->content_scale;
+                    style.pattern_transform = geometry->device_pattern_transform;
+                }
+            }
             return style;
         },
         .nested_display_list_from_tree = [](void* context_pointer, Layout::RustFFI::FfiRecordedDisplayList recorded, void const* retained_tree) -> u64 {
@@ -1300,7 +1291,7 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
         inputs.background_color = document.background_color();
     }
     invalidate_navigable_containers_whose_composited_context_changed(document);
-    PaintHostContext paint_host_context { resource_storage, document, paint_generation_id, device_pixels_per_css_pixel };
+    PaintHostContext paint_host_context { resource_storage, document, {}, paint_generation_id, device_pixels_per_css_pixel };
     auto rust_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
     auto generation = Layout::RustFFI::layout_arena_record_display_list(arena, viewport_row_slot(document), hit_test_host_callbacks(), paint_host_callbacks(paint_host_context), visual_context_host_callbacks(document), inputs);
     if (generation == 0)

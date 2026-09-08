@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/gradient-template-resolution-ref.html">
+<style>body { margin: 0 } svg { display: block }</style>
+<svg width="400" height="100">
+  <defs>
+    <linearGradient id="stops"><stop stop-color="red"/><stop offset="1" stop-color="blue"/></linearGradient>
+    <linearGradient id="middle" href="#stops" y2="1"/>
+    <linearGradient id="linear" href="#middle" x2="0"/>
+    <radialGradient id="radial-base" href="#stops"/>
+    <radialGradient id="radial" href="#radial-base" cx="25%" cy="75%"/>
+    <linearGradient id="transformed" href="#stops" gradientTransform="rotate(90)" style="transform: scale(2)"/>
+    <linearGradient id="cycle-a" href="#cycle-b" x1="25%"/>
+    <linearGradient id="cycle-b" href="#cycle-a" x2="75%"><stop stop-color="red"/><stop offset="1" stop-color="blue"/></linearGradient>
+  </defs>
+  <rect width="100" height="100" fill="url(#linear)"/>
+  <rect x="100" width="100" height="100" fill="url(#radial)"/>
+  <rect x="200" width="100" height="100" fill="url(#transformed)"/>
+  <rect x="300" width="100" height="100" fill="url(#cycle-a)"/>
+</svg>

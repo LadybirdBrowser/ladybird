@@ -233,7 +233,7 @@ pub struct FfiSvgPaintContext {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
-pub enum FfiSvgPaintStyleKind {
+pub enum FfiSvgPaintServerKind {
     #[default]
     None,
     LinearGradient,
@@ -252,15 +252,24 @@ pub enum FfiSvgGradientSpreadMethod {
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct FfiSvgPaintStyle {
-    pub kind: FfiSvgPaintStyleKind,
-    pub gradient_transform: OptionalAffineTransform,
+pub struct FfiResolvedSvgGradient {
+    pub object_bounding_box: bool,
+    pub transform: AffineTransform,
     pub spread_method: FfiSvgGradientSpreadMethod,
     pub color_space: InterpolationColorSpace,
-    pub start: libgfx_rust::FloatPoint,
-    pub end: libgfx_rust::FloatPoint,
-    pub start_radius: f32,
-    pub end_radius: f32,
+    pub start_x: crate::layout::svg_formatting_context::FfiSvgNumberPercentage,
+    pub start_y: crate::layout::svg_formatting_context::FfiSvgNumberPercentage,
+    pub end_x: crate::layout::svg_formatting_context::FfiSvgNumberPercentage,
+    pub end_y: crate::layout::svg_formatting_context::FfiSvgNumberPercentage,
+    pub start_radius: crate::layout::svg_formatting_context::FfiSvgNumberPercentage,
+    pub end_radius: crate::layout::svg_formatting_context::FfiSvgNumberPercentage,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiSvgPaintServer {
+    pub kind: FfiSvgPaintServerKind,
+    pub gradient: FfiResolvedSvgGradient,
     pub pattern_paintable: crate::layout::node_data::NodeSlotId,
     pub tile_content_transform: FloatMatrix4x4,
     pub tile_rect: FloatRect,
@@ -458,13 +467,13 @@ pub struct FfiPaintHostCallbacks {
     pub resolve_svg_filter:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *const c_void, *mut c_void) -> FfiResolvedSvgFilter,
     pub svg_image_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiSvgImageFacts,
-    pub svg_paint_style: unsafe extern "C" fn(
+    pub svg_paint_server: unsafe extern "C" fn(
         *mut c_void,
         *mut c_void,
         bool,
         *const FfiSvgPaintContext,
         *mut c_void,
-    ) -> FfiSvgPaintStyle,
+    ) -> FfiSvgPaintServer,
     pub nested_display_list_from_tree: unsafe extern "C" fn(*mut c_void, FfiRecordedDisplayList, *const c_void) -> u64,
 }
 
@@ -603,16 +612,16 @@ impl FfiPaintHostCallbacks {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
         unsafe { (self.svg_image_facts)(self.context, layout_node_shell) }
     }
-    pub(crate) fn svg_paint_style(
+    pub(crate) fn svg_paint_server(
         &self,
         layout_node_shell: *mut c_void,
         is_stroke: bool,
         paint_context: &FfiSvgPaintContext,
-    ) -> (FfiSvgPaintStyle, ColorStopSink) {
+    ) -> (FfiSvgPaintServer, ColorStopSink) {
         let mut sink = ColorStopSink::default();
         // SAFETY: The C++ host answers synchronously, pushing color stops into the sink through the exported function.
         let style = unsafe {
-            (self.svg_paint_style)(
+            (self.svg_paint_server)(
                 self.context,
                 layout_node_shell,
                 is_stroke,

@@ -19,8 +19,6 @@ public:
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
-    virtual Optional<Painting::PaintStyle> to_gfx_paint_style(SVGPaintContext const&) const override;
-
     // https://w3c.github.io/svgwg/svg2-draft/pservers.html#__svg__SVGLinearGradientElement__x1
     REFLECT_ANIMATED_LENGTH_ATTRIBUTE(x1, Horizontal, SVGLengthValue::percentage(0));
 
@@ -37,22 +35,8 @@ protected:
     SVGLinearGradientElement(DOM::Document&, DOM::QualifiedName);
 
 private:
-    GC::Ptr<SVGLinearGradientElement const> linked_linear_gradient(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
-    {
-        if (auto gradient = linked_gradient(seen_gradients); gradient && is<SVGLinearGradientElement>(*gradient))
-            return &as<SVGLinearGradientElement>(*gradient);
-        return {};
-    }
-
-    NumberPercentage start_x() const;
-    NumberPercentage start_y() const;
-    NumberPercentage end_x() const;
-    NumberPercentage end_y() const;
-
-    NumberPercentage start_x_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
-    NumberPercentage start_y_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
-    NumberPercentage end_x_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
-    NumberPercentage end_y_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
+    virtual bool is_radial_gradient() const override { return false; }
+    virtual void collect_gradient_attributes(GradientAttributes&) const override;
 
     Optional<NumberPercentage> m_x1;
     Optional<NumberPercentage> m_y1;

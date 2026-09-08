@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<style>body { margin: 0 } svg { display: block }</style>
+<svg width="300" height="100">
+  <defs>
+    <radialGradient id="circle" gradientUnits="userSpaceOnUse" cx="0.5" cy="0.5" r="0.5"><stop stop-color="red"/><stop offset="1" stop-color="blue"/></radialGradient>
+    <linearGradient id="diagonal" gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1" y2="1"><stop stop-color="red"/><stop offset="1" stop-color="blue"/></linearGradient>
+  </defs>
+  <rect width="1" height="1" transform="translate(10 10) scale(200 40)" fill="url(#circle)"/>
+  <rect width="1" height="1" transform="translate(10 60) scale(200 30)" fill="url(#diagonal)"/>
+  <rect x="220" width="80" height="100" fill="green"/>
+</svg>

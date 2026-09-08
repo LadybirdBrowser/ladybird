@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/SVGRadialGradientElement.h>
 
@@ -38,167 +37,20 @@ void SVGRadialGradientElement::attribute_changed(Utf16FlyString const& name, Opt
     }
 }
 
-// https://svgwg.org/svg2-draft/pservers.html#RadialGradientElementFXAttribute
-NumberPercentage SVGRadialGradientElement::start_circle_x() const
+void SVGRadialGradientElement::collect_gradient_attributes(GradientAttributes& attributes) const
 {
-    GC::RootHashTable<SVGGradientElement const*> seen_gradients;
-    return start_circle_x_impl(seen_gradients);
-}
-
-NumberPercentage SVGRadialGradientElement::start_circle_x_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
-{
-    if (m_fx.has_value())
-        return *m_fx;
-    // If the element references an element that specifies a value for 'fx', then the value of 'fx' is
-    // inherited from the referenced element.
-    if (auto gradient = linked_radial_gradient(seen_gradients))
-        return gradient->start_circle_x_impl(seen_gradients);
-    // If attribute ‘fx’ is not specified, ‘fx’ will coincide with the presentational value of ‘cx’ for
-    // the element whether the value for 'cx' was inherited or not.
-    return end_circle_x();
-}
-
-// https://svgwg.org/svg2-draft/pservers.html#RadialGradientElementFYAttribute
-NumberPercentage SVGRadialGradientElement::start_circle_y() const
-{
-    GC::RootHashTable<SVGGradientElement const*> seen_gradients;
-    return start_circle_y_impl(seen_gradients);
-}
-
-NumberPercentage SVGRadialGradientElement::start_circle_y_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
-{
-    if (m_fy.has_value())
-        return *m_fy;
-    // If the element references an element that specifies a value for 'fy', then the value of 'fy' is
-    // inherited from the referenced element.
-    if (auto gradient = linked_radial_gradient(seen_gradients))
-        return gradient->start_circle_y_impl(seen_gradients);
-    // If attribute ‘fy’ is not specified, ‘fy’ will coincide with the presentational value of ‘cy’ for
-    // the element whether the value for 'cy' was inherited or not.
-    return end_circle_y();
-}
-
-// https://svgwg.org/svg2-draft/pservers.html#RadialGradientElementFRAttribute
-NumberPercentage SVGRadialGradientElement::start_circle_radius() const
-{
-    GC::RootHashTable<SVGGradientElement const*> seen_gradients;
-    return start_circle_radius_impl(seen_gradients);
-}
-
-NumberPercentage SVGRadialGradientElement::start_circle_radius_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
-{
-    // Note: A negative value is an error.
-    if (m_fr.has_value() && m_fr->value() >= 0)
-        return *m_fr;
-    // if the element references an element that specifies a value for 'fr', then the value of
-    // 'fr' is inherited from the referenced element.
-    if (auto gradient = linked_radial_gradient(seen_gradients))
-        return gradient->start_circle_radius_impl(seen_gradients);
-    // If the attribute is not specified, the effect is as if a value of '0%' were specified.
-    return NumberPercentage::create_percentage(0);
-}
-
-// https://svgwg.org/svg2-draft/pservers.html#RadialGradientElementCXAttribute
-NumberPercentage SVGRadialGradientElement::end_circle_x() const
-{
-    GC::RootHashTable<SVGGradientElement const*> seen_gradients;
-    return end_circle_x_impl(seen_gradients);
-}
-
-NumberPercentage SVGRadialGradientElement::end_circle_x_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
-{
-    if (m_cx.has_value())
-        return *m_cx;
-    if (auto gradient = linked_radial_gradient(seen_gradients))
-        return gradient->end_circle_x_impl(seen_gradients);
-    return NumberPercentage::create_percentage(50);
-}
-
-// https://svgwg.org/svg2-draft/pservers.html#RadialGradientElementCYAttribute
-NumberPercentage SVGRadialGradientElement::end_circle_y() const
-{
-    GC::RootHashTable<SVGGradientElement const*> seen_gradients;
-    return end_circle_y_impl(seen_gradients);
-}
-
-NumberPercentage SVGRadialGradientElement::end_circle_y_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
-{
-    if (m_cy.has_value())
-        return *m_cy;
-    if (auto gradient = linked_radial_gradient(seen_gradients))
-        return gradient->end_circle_y_impl(seen_gradients);
-    return NumberPercentage::create_percentage(50);
-}
-
-// https://svgwg.org/svg2-draft/pservers.html#RadialGradientElementRAttribute
-NumberPercentage SVGRadialGradientElement::end_circle_radius() const
-{
-    GC::RootHashTable<SVGGradientElement const*> seen_gradients;
-    return end_circle_radius_impl(seen_gradients);
-}
-
-NumberPercentage SVGRadialGradientElement::end_circle_radius_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
-{
-    // Note: A negative value is an error.
-    if (m_r.has_value() && m_r->value() >= 0)
-        return *m_r;
-    if (auto gradient = linked_radial_gradient(seen_gradients))
-        return gradient->end_circle_radius_impl(seen_gradients);
-    return NumberPercentage::create_percentage(50);
-}
-
-Optional<Painting::PaintStyle> SVGRadialGradientElement::to_gfx_paint_style(SVGPaintContext const& paint_context) const
-{
-    auto units = gradient_units();
-    Gfx::FloatPoint start_center;
-    float start_radius = 0.0f;
-    Gfx::FloatPoint end_center;
-    float end_radius = 0.0f;
-
-    // FIXME: Where in the spec does it say what axis the radius is relative to?
-    if (units == GradientUnits::ObjectBoundingBox) {
-        // If gradientUnits="objectBoundingBox", the user coordinate system for attributes ‘cx’, ‘cy’, ‘r’, ‘fx’, ‘fy’, and ‘fr’
-        // is established using the bounding box of the element to which the gradient is applied (see Object bounding box units)
-        // and then applying the transform specified by attribute ‘gradientTransform’. Percentages represent values relative
-        // to the bounding box for the object.
-        auto const& bounding_box = paint_context.path_bounding_box;
-        start_center = {
-            bounding_box.location().x() + start_circle_x().value() * bounding_box.width(),
-            bounding_box.location().y() + start_circle_y().value() * bounding_box.height(),
-        };
-        start_radius = start_circle_radius().value() * bounding_box.width();
-        end_center = {
-            bounding_box.location().x() + end_circle_x().value() * bounding_box.width(),
-            bounding_box.location().y() + end_circle_y().value() * bounding_box.height(),
-        };
-        end_radius = end_circle_radius().value() * bounding_box.width();
-    } else {
-        // GradientUnits::UserSpaceOnUse
-        // If gradientUnits="userSpaceOnUse", ‘cx’, ‘cy’, ‘r’, ‘fx’, ‘fy’, and ‘fr’ represent values in the coordinate system
-        // that results from taking the current user coordinate system in place at the time when the gradient element is
-        // referenced (i.e., the user coordinate system for the element referencing the gradient element via a fill or stroke property)
-        // and then applying the transform specified by attribute ‘gradientTransform’.
-        // Percentages represent values relative to the current SVG viewport.
-        // Note: The start/end centers will be in relative units here.
-        // They will be resolved at paint time using the gradient paint transform.
-        start_center = Gfx::FloatPoint {
-            start_circle_x().resolve_relative_to(paint_context.viewport.width()),
-            start_circle_y().resolve_relative_to(paint_context.viewport.height()),
-        };
-        start_radius = start_circle_radius().resolve_relative_to(paint_context.viewport.width());
-        end_center = Gfx::FloatPoint {
-            end_circle_x().resolve_relative_to(paint_context.viewport.width()),
-            end_circle_y().resolve_relative_to(paint_context.viewport.height()),
-        };
-        end_radius = end_circle_radius().resolve_relative_to(paint_context.viewport.width());
-    }
-
-    Painting::RadialGradientPaintStyle paint_style { start_center, start_radius, end_center, end_radius };
-    add_color_stops(paint_style);
-    paint_style.set_gradient_transform(gradient_paint_transform(paint_context));
-    paint_style.set_spread_method(to_painting_spread_method(spread_method()));
-    paint_style.set_color_space(color_space());
-    return Painting::PaintStyle { move(paint_style) };
+    if (!attributes.cx.has_value() && m_cx.has_value())
+        attributes.cx = m_cx;
+    if (!attributes.cy.has_value() && m_cy.has_value())
+        attributes.cy = m_cy;
+    if (!attributes.r.has_value() && m_r.has_value() && m_r->value() >= 0)
+        attributes.r = m_r;
+    if (!attributes.fx.has_value() && m_fx.has_value())
+        attributes.fx = m_fx;
+    if (!attributes.fy.has_value() && m_fy.has_value())
+        attributes.fy = m_fy;
+    if (!attributes.fr.has_value() && m_fr.has_value() && m_fr->value() >= 0)
+        attributes.fr = m_fr;
 }
 
 }

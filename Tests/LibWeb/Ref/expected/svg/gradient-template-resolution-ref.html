@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<style>body { margin: 0 } svg { display: block }</style>
+<svg width="400" height="100">
+  <defs>
+    <linearGradient id="linear" x2="0" y2="1"><stop stop-color="red"/><stop offset="1" stop-color="blue"/></linearGradient>
+    <radialGradient id="radial" cx="25%" cy="75%" fx="25%" fy="75%"><stop stop-color="red"/><stop offset="1" stop-color="blue"/></radialGradient>
+    <linearGradient id="transformed" gradientTransform="scale(2)"><stop stop-color="red"/><stop offset="1" stop-color="blue"/></linearGradient>
+    <linearGradient id="cycle" x1="25%" x2="75%"><stop stop-color="red"/><stop offset="1" stop-color="blue"/></linearGradient>
+  </defs>
+  <rect width="100" height="100" fill="url(#linear)"/>
+  <rect x="100" width="100" height="100" fill="url(#radial)"/>
+  <rect x="200" width="100" height="100" fill="url(#transformed)"/>
+  <rect x="300" width="100" height="100" fill="url(#cycle)"/>
+</svg>

@@ -71,8 +71,6 @@ class DisplayListResourceStorage;
 struct DisplayListResourceSet;
 enum class CompositorScrollNodeKind : u8;
 enum class PaintCommandCacheMode : u8;
-struct GradientPaintStyle;
-struct PatternPaintStyle;
 class ScrollStateSnapshot;
 
 }

@@ -8,7 +8,9 @@
 
 #include <AK/IterationDecision.h>
 #include <LibGC/RootHashTable.h>
-#include <LibWeb/Painting/PaintStyle.h>
+#include <LibGfx/AffineTransform.h>
+#include <LibGfx/Color.h>
+#include <LibGfx/InterpolationColorSpace.h>
 #include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/SVG/SVGStopElement.h>
@@ -23,19 +25,30 @@ struct SVGPaintContext {
     Gfx::FloatSize content_scale;
 };
 
-inline Painting::GradientPaintStyle::SpreadMethod to_painting_spread_method(SpreadMethod spread_method)
-{
-    switch (spread_method) {
-    case SpreadMethod::Pad:
-        return Painting::GradientPaintStyle::SpreadMethod::Pad;
-    case SpreadMethod::Reflect:
-        return Painting::GradientPaintStyle::SpreadMethod::Reflect;
-    case SpreadMethod::Repeat:
-        return Painting::GradientPaintStyle::SpreadMethod::Repeat;
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
+struct GradientAttributes {
+    Optional<NumberPercentage> x1, y1, x2, y2;
+    Optional<NumberPercentage> cx, cy, r, fx, fy, fr;
+};
+
+// Template attributes and styled stops, independent of the geometry using the gradient.
+struct ResolvedGradient {
+    bool is_radial { false };
+    GradientUnits units { GradientUnits::ObjectBoundingBox };
+    SpreadMethod spread_method { SpreadMethod::Pad };
+    Gfx::AffineTransform transform;
+    Gfx::InterpolationColorSpace color_space { Gfx::InterpolationColorSpace::SRGB };
+    NumberPercentage start_x { 0, false };
+    NumberPercentage start_y { 0, false };
+    NumberPercentage end_x { 0, false };
+    NumberPercentage end_y { 0, false };
+    NumberPercentage start_radius { 0, false };
+    NumberPercentage end_radius { 0, false };
+    struct Stop {
+        float offset;
+        Gfx::Color color;
+    };
+    Vector<Stop> stops;
+};
 
 class SVGGradientElement
     : public SVGElement
@@ -47,54 +60,19 @@ public:
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
-    virtual Optional<Painting::PaintStyle> to_gfx_paint_style(SVGPaintContext const&) const = 0;
-
-    GradientUnits gradient_units() const;
-
-    SpreadMethod spread_method() const;
-
-    Gfx::InterpolationColorSpace color_space() const;
-
-    Optional<Gfx::AffineTransform> gradient_transform() const;
+    ResolvedGradient resolve_gradient() const;
 
 protected:
     SVGGradientElement(DOM::Document&, DOM::QualifiedName);
     virtual void visit_edges(Cell::Visitor&) override;
 
-    GC::Ptr<SVGGradientElement const> linked_gradient(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
-
-    Gfx::AffineTransform gradient_paint_transform(SVGPaintContext const&) const;
-
-    template<VoidFunction<SVGStopElement> Callback>
-    void for_each_color_stop(Callback const& callback) const
-    {
-        GC::RootHashTable<SVGGradientElement const*> seen_gradients;
-        return for_each_color_stop_impl(callback, seen_gradients);
-    }
-
-    void add_color_stops(Painting::GradientPaintStyle&) const;
+    virtual bool is_radial_gradient() const = 0;
+    virtual void collect_gradient_attributes(GradientAttributes&) const = 0;
 
 private:
     virtual bool is_svg_gradient_element() const final { return true; }
 
-    template<VoidFunction<SVGStopElement> Callback>
-    void for_each_color_stop_impl(Callback const& callback, GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const
-    {
-        bool color_stops_found = false;
-        for_each_child_of_type<SVG::SVGStopElement>([&](auto& stop) {
-            color_stops_found = true;
-            callback(stop);
-            return IterationDecision::Continue;
-        });
-        if (!color_stops_found) {
-            if (auto gradient = linked_gradient(seen_gradients))
-                gradient->for_each_color_stop_impl(callback, seen_gradients);
-        }
-    }
-
-    GradientUnits gradient_units_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
-    SpreadMethod spread_method_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
-    Optional<Gfx::AffineTransform> gradient_transform_impl(GC::RootHashTable<SVGGradientElement const*>& seen_gradients) const;
+    GC::Ptr<SVGGradientElement const> linked_gradient() const;
 
     // https://svgwg.org/svg2-draft/pservers.html#LinearGradientAttributes
     Optional<GradientUnits> m_gradient_units = {};

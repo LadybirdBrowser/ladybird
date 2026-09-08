@@ -10,12 +10,11 @@ use crate::css::computed_value_types::{ComputedSvgPaint, SVG_PAINT_COLOR, SVG_PA
 use crate::css::css_enums::paint_order;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::display_list::builder::PendingInlineClip;
-use crate::painting::display_list::commands::DisplayListGradientSpreadMethod;
 use crate::painting::display_list::recorder::{
     ColorStops, FillPathParams, PaintStyle, PaintStyleOrColor, StrokePathParams,
 };
 use crate::painting::force_dark::ForceDarkRole;
-use crate::painting::host::{FfiSvgGradientSpreadMethod, FfiSvgPaintStyle, FfiSvgPaintStyleKind};
+use crate::painting::host::{FfiSvgPaintServer, FfiSvgPaintServerKind};
 use crate::painting::node_painting;
 use crate::painting::paintable_geometry::absolute_rect;
 use crate::painting::paintable_rows::PaintableRowsRead;
@@ -173,41 +172,24 @@ fn affine(values: [f32; 6]) -> AffineTransform {
 
 fn paint_style_from_ffi<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
-    style: &FfiSvgPaintStyle,
-    stops: &crate::painting::host::ColorStopSink,
+    style: &FfiSvgPaintServer,
+    stops: crate::painting::host::ColorStopSink,
+    context: &crate::painting::host::FfiSvgPaintContext,
 ) -> Option<PaintStyle> {
-    let color_stops = ColorStops {
-        colors: stops.colors.clone(),
-        positions: stops.positions.clone(),
-        repeating: false,
-    };
-    let gradient_transform = style.gradient_transform;
-    let spread_method = match style.spread_method {
-        FfiSvgGradientSpreadMethod::Pad => DisplayListGradientSpreadMethod::Pad,
-        FfiSvgGradientSpreadMethod::Repeat => DisplayListGradientSpreadMethod::Repeat,
-        FfiSvgGradientSpreadMethod::Reflect => DisplayListGradientSpreadMethod::Reflect,
-    };
-    let color_space = style.color_space;
     match style.kind {
-        FfiSvgPaintStyleKind::LinearGradient => Some(PaintStyle::LinearGradient {
-            gradient_transform,
-            spread_method,
-            color_space,
-            color_stops,
-            start_point: style.start,
-            end_point: style.end,
-        }),
-        FfiSvgPaintStyleKind::RadialGradient => Some(PaintStyle::RadialGradient {
-            gradient_transform,
-            spread_method,
-            color_space,
-            color_stops,
-            start_center: style.start,
-            start_radius: style.start_radius,
-            end_center: style.end,
-            end_radius: style.end_radius,
-        }),
-        FfiSvgPaintStyleKind::Pattern => Some(
+        FfiSvgPaintServerKind::LinearGradient | FfiSvgPaintServerKind::RadialGradient => {
+            crate::painting::svg_paint::instantiate_gradient(
+                &style.gradient,
+                style.kind == FfiSvgPaintServerKind::RadialGradient,
+                ColorStops {
+                    colors: stops.colors,
+                    positions: stops.positions,
+                    repeating: false,
+                },
+                context,
+            )
+        }
+        FfiSvgPaintServerKind::Pattern => Some(
             recorder
                 .prerecorded
                 .pattern_paint_styles
@@ -215,7 +197,7 @@ fn paint_style_from_ffi<O: Observer>(
                 .expect("a resolved pattern without a prerecorded paint style")
                 .clone(),
         ),
-        FfiSvgPaintStyleKind::None => None,
+        FfiSvgPaintServerKind::None => None,
     }
 }
 
@@ -255,8 +237,8 @@ pub(crate) fn record_pattern_paint_styles<O: Observer>(recorder: &mut PaintRecor
         let (style, _stops) =
             recorder
                 .paint_host
-                .svg_paint_style(recorder.layout_node_shell(paintable), is_stroke, &paint_context);
-        if style.kind != FfiSvgPaintStyleKind::Pattern {
+                .svg_paint_server(recorder.layout_node_shell(paintable), is_stroke, &paint_context);
+        if style.kind != FfiSvgPaintServerKind::Pattern {
             continue;
         }
         if recorder
@@ -276,7 +258,7 @@ pub(crate) fn record_pattern_paint_styles<O: Observer>(recorder: &mut PaintRecor
 
 fn record_pattern_paint_style<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
-    style: &FfiSvgPaintStyle,
+    style: &FfiSvgPaintServer,
 ) -> PaintStyle {
     let root_transform = crate::painting::visual_context::TransformData {
         matrix: style.tile_content_transform,
@@ -365,8 +347,8 @@ pub(crate) fn paint_path<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paint
                 let (style, stops) =
                     recorder
                         .paint_host
-                        .svg_paint_style(recorder.layout_node_shell(paintable), false, &paint_context);
-                if let Some(paint_style) = paint_style_from_ffi(recorder, &style, &stops) {
+                        .svg_paint_server(recorder.layout_node_shell(paintable), false, &paint_context);
+                if let Some(paint_style) = paint_style_from_ffi(recorder, &style, stops, &paint_context) {
                     recorder.recorder.fill_path(FillPathParams {
                         force_dark_role: ForceDarkRole::Svg,
                         path: &path,
@@ -375,7 +357,9 @@ pub(crate) fn paint_path<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paint
                         winding_rule: fill_winding,
                         should_anti_alias: anti_alias,
                     });
-                } else if let Some(fill_color) = facts.fill_color {
+                } else if style.kind == FfiSvgPaintServerKind::None
+                    && let Some(fill_color) = facts.fill_color
+                {
                     recorder.recorder.fill_path(FillPathParams {
                         force_dark_role: ForceDarkRole::Svg,
                         path: &path,
@@ -406,8 +390,8 @@ pub(crate) fn paint_path<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paint
                 let (style, stops) =
                     recorder
                         .paint_host
-                        .svg_paint_style(recorder.layout_node_shell(paintable), true, &paint_context);
-                if let Some(paint_style) = paint_style_from_ffi(recorder, &style, &stops) {
+                        .svg_paint_server(recorder.layout_node_shell(paintable), true, &paint_context);
+                if let Some(paint_style) = paint_style_from_ffi(recorder, &style, stops, &paint_context) {
                     recorder.recorder.stroke_path(StrokePathParams {
                         force_dark_role: ForceDarkRole::Svg,
                         cap_style: facts.cap_style,
@@ -421,7 +405,9 @@ pub(crate) fn paint_path<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paint
                         thickness: stroke_thickness,
                         should_anti_alias: anti_alias,
                     });
-                } else if let Some(stroke_color) = facts.stroke_color {
+                } else if style.kind == FfiSvgPaintServerKind::None
+                    && let Some(stroke_color) = facts.stroke_color
+                {
                     recorder.recorder.stroke_path(StrokePathParams {
                         force_dark_role: ForceDarkRole::Svg,
                         cap_style: facts.cap_style,
