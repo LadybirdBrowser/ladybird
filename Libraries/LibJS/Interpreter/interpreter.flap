@@ -365,10 +365,16 @@ inline fn return_to_caller(
 ) {
     let caller_frame = exec_ctx.caller_frame;
     guard caller_frame != 0 else top_level;
+    let mut result = return_value;
+    if exec_ctx.caller_is_construct {
+        if result is not Value<Object> {
+            result = exec_ctx.this_value;
+        }
+    }
     let return_pc = exec_ctx.caller_return_pc;
     let destination_index = exec_ctx.caller_dst_raw;
     caller_frame.program_counter = return_pc;
-    caller_frame.slots[destination_index] = return_value;
+    caller_frame.slots[destination_index] = result;
     let vm = current_vm();
     vm.running_execution_context = caller_frame;
     vm.interpreter_stack_top = alias(exec_ctx);

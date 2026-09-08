@@ -2486,6 +2486,14 @@ asm_handler_Return:
 .Lasm_Return.ssa_block_3:
     ldr x0, [x28, #96]
     cbz x0, .Lasm_Return.ssa_block_1
+    ldrb w9, [x28, #78]
+    cbz w9, .Lasm_Return.ssa_block_7
+    lsr x9, x1, #48
+    mov w10, #65529
+    cmp x9, x10
+    b.eq .Lasm_Return.ssa_block_7
+    ldr x1, [x28, #80]
+.Lasm_Return.ssa_block_7:
     ldp w2, w3, [x28, #108]
     str w2, [x0, #64]
     add x9, x0, #128
@@ -2518,6 +2526,14 @@ asm_handler_End:
     ldr x1, [x27, x0, lsl #3]
     ldr x0, [x28, #96]
     cbz x0, .Lasm_End.ssa_block_1
+    ldrb w9, [x28, #78]
+    cbz w9, .Lasm_End.ssa_block_5
+    lsr x9, x1, #48
+    mov w10, #65529
+    cmp x9, x10
+    b.eq .Lasm_End.ssa_block_5
+    ldr x1, [x28, #80]
+.Lasm_End.ssa_block_5:
     ldp w2, w3, [x28, #108]
     str w2, [x0, #64]
     add x9, x0, #128
