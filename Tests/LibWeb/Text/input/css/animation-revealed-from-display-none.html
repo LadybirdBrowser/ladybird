@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #parent {
+        display: none;
+    }
+
+    #child {
+        width: 100px;
+        height: 100px;
+        opacity: 0.3;
+    }
+</style>
+<div id="parent"><div><div><div><div id="child"></div></div></div></div></div>
+<script>
+    asyncTest(async done => {
+        const parentElement = document.querySelector("#parent");
+        const childElement = document.querySelector("#child");
+        getComputedStyle(childElement).opacity;
+        parentElement.style.display = "block";
+        const animation = childElement.animate({ opacity: [0, 1] }, 1000);
+        animation.pause();
+        animation.currentTime = 500;
+        await new Promise(requestAnimationFrame);
+
+        println(`visible descendant samples its animation: ${getComputedStyle(childElement).opacity === "0.5"}`);
+        animation.finish();
+        await animation.finished;
+        await new Promise(requestAnimationFrame);
+        println(`animation restores the base opacity: ${getComputedStyle(childElement).opacity === "0.3"}`);
+        done();
+    });
+</script>

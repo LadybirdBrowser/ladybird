@@ -6,4 +6,5 @@ finite effects request one end frame: true
 wake-up timer leaves animation updates to frames: true
 forwards fill retains opacity: true
 no fill restores transform: true
+no fill restores opacity: true
 terminal values remain stable: true

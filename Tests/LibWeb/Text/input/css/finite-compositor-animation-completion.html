@@ -20,9 +20,15 @@
         transform: translateX(7px);
         animation: finite-transform 300ms linear none;
     }
+
+    #opacity-without-fill {
+        opacity: 0.3;
+        animation: finite-opacity 300ms linear none;
+    }
 </style>
 <div id="opacity"></div>
 <div id="transform"></div>
+<div id="opacity-without-fill"></div>
 <script>
     asyncTest(async done => {
         let animationEndEvents = 0;
@@ -37,23 +43,25 @@
 
         await new Promise(requestAnimationFrame);
         await new Promise(requestAnimationFrame);
-        const animations = [...opacity.getAnimations(), ...transform.getAnimations()];
-        println(`finite effects use the compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 2}`);
+        const opacityWithoutFill = document.querySelector("#opacity-without-fill");
+        const animations = [...opacity.getAnimations(), ...transform.getAnimations(), ...opacityWithoutFill.getAnimations()];
+        println(`finite effects use the compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 3}`);
 
         internals.resetStyleInvalidationCounters();
         let finishedPromises = 0;
         await Promise.all(animations.map(animation => animation.finished.then(() => ++finishedPromises)));
         await new Promise(requestAnimationFrame);
 
-        println(`finished promises resolve: ${finishedPromises === 2}`);
+        println(`finished promises resolve: ${finishedPromises === 3}`);
         println(`animationend events fire: ${animationEndEvents === 2}`);
         println(`animationend sees terminal style: ${eventHandlerSawTerminalStyle}`);
         println(`finite effects request one end frame: ${internals.getStyleInvalidationCounters().animationFramePumpRequests === 1}`);
         println(`wake-up timer leaves animation updates to frames: ${animationUpdatesAtEndEvent === 2}`);
         println(`forwards fill retains opacity: ${getComputedStyle(opacity).opacity === "0.8"}`);
         println(`no fill restores transform: ${getComputedStyle(transform).transform === "matrix(1, 0, 0, 1, 7, 0)"}`);
+        println(`no fill restores opacity: ${getComputedStyle(opacityWithoutFill).opacity === "0.3"}`);
         await Promise.resolve();
-        println(`terminal values remain stable: ${getComputedStyle(opacity).opacity === "0.8" && getComputedStyle(transform).transform === "matrix(1, 0, 0, 1, 7, 0)"}`);
+        println(`terminal values remain stable: ${getComputedStyle(opacity).opacity === "0.8" && getComputedStyle(transform).transform === "matrix(1, 0, 0, 1, 7, 0)" && getComputedStyle(opacityWithoutFill).opacity === "0.3"}`);
         done();
     });
 </script>

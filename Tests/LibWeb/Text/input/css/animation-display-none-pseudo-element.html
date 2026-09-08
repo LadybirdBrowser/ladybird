@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target::before {
+        content: "";
+        display: none;
+        opacity: 0.3;
+    }
+</style>
+<div id="target"></div>
+<script>
+    asyncTest(async done => {
+        const target = document.querySelector("#target");
+        println(`pseudo-element is hidden: ${getComputedStyle(target, "::before").display === "none"}`);
+        internals.resetStyleInvalidationCounters();
+        const animation = target.animate({ opacity: [0, 1] }, { duration: 1000, pseudoElement: "::before" });
+        animation.pause();
+        animation.currentTime = 500;
+        await new Promise(requestAnimationFrame);
+
+        println(`hidden pseudo-element skips animation sampling: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds === 0}`);
+        done();
+    });
+</script>
