@@ -1133,6 +1133,29 @@ void Node::live_range_pre_remove()
     }
 }
 
+void Node::live_range_pre_remove_all_children()
+{
+    for (auto& range : document().live_ranges()) {
+        if (range.start_container().ptr() == this) {
+            range.set_start_offset(0);
+        } else if (is_ancestor_of(range.start_container())) {
+            MUST(range.set_start(*this, 0));
+        }
+        if (range.end_container().ptr() == this) {
+            range.set_end_offset(0);
+        } else if (is_ancestor_of(range.end_container())) {
+            MUST(range.set_end(*this, 0));
+        }
+    }
+}
+
+void Node::run_node_iterator_pre_removing_steps()
+{
+    document().for_each_node_iterator([&](NodeIterator& node_iterator) {
+        node_iterator.run_pre_removing_steps(*this);
+    });
+}
+
 static bool node_contributes_to_layout_tree(Node const& node)
 {
     if (node.unsafe_layout_node())
@@ -1260,6 +1283,23 @@ public:
         release_dom_style_records();
     }
 
+    void pin_style_records_before_removal(Node& node, bool was_connected)
+    {
+        if (!was_connected)
+            return;
+        pin_layout_style_records(node);
+        pin_dom_style_records_for_removing_steps(node);
+    }
+
+    void pin_style_records_after_removal(Node& node, bool was_connected)
+    {
+        if (was_connected)
+            return;
+        // Detached subtrees do not need DOM-held record pins, but layout nodes can still outlive removing steps and
+        // keep their detachment pins.
+        pin_layout_style_records(node);
+    }
+
     void pin_layout_style_records(Node& node)
     {
         node.for_each_shadow_including_inclusive_descendant([](Node& inclusive_descendant) {
@@ -1311,111 +1351,77 @@ private:
     Vector<CSS::StyleRecordID> m_dom_style_record_pins;
 };
 
-// https://dom.spec.whatwg.org/#concept-node-remove
-void Node::remove(bool suppress_observers)
+void Node::schedule_list_item_renumber_for_removal()
 {
-    // NB: Mutations during a recorded editing command must go through the Editing proxy functions.
-    if (auto history = document().editing_history_if_exists())
-        history->notify_dom_mutation();
+    auto* element = as_if<Element>(*this);
+    if (!element)
+        return;
+    auto style = element->computed_style();
+    // A removed list item can renumber the list-item counter for its list owner's whole list. Removing the final item
+    // from a forward counter does not change any surviving counter value.
+    if ((is_html_li_element() || (style && style->display().is_list_item()))
+        && !final_direct_list_item_does_not_renumber_existing_content(*element)) {
+        element->schedule_list_item_renumber_for_list_owner();
+    }
+}
 
-    // 1. Let parent be node’s parent
-    auto* parent = this->parent();
-
-    // 2. Assert: parent is non-null.
-    VERIFY(parent);
-
-    document().flush_deferred_style_change_event();
-    bool const was_connected = is_connected();
-    RemovalStyleRecordPins removal_style_record_pins { document().style_computer() };
-
-    // 3. Run the live range pre-remove steps, given node.
-    live_range_pre_remove();
-
-    // 4. For each NodeIterator object iterator whose root’s node document is node’s node document:
-    //    run the NodeIterator pre-removing steps given node and iterator.
-    document().for_each_node_iterator([&](NodeIterator& node_iterator) {
-        node_iterator.run_pre_removing_steps(*this);
-    });
-
-    // 5. Let oldPreviousSibling be node’s previous sibling.
-    GC::Ptr<Node> old_previous_sibling = previous_sibling();
-
-    // 6. Let oldNextSibling be node’s next sibling.
-    GC::Ptr<Node> old_next_sibling = next_sibling();
-
-    // AD-HOC: A removed list item can renumber the list-item counter for its list owner's whole list.
-    //         Removing the final item from a forward counter does not change any surviving counter value.
-    if (is_element()) {
-        auto* this_element = static_cast<Element*>(this);
-        auto style = this_element->computed_style();
-        if ((is_html_li_element() || (style && style->display().is_list_item()))
-            && !final_direct_list_item_does_not_renumber_existing_content(*this_element)) {
-            this_element->schedule_list_item_renumber_for_list_owner();
+void Node::report_removal_to_style_engine(Node& parent)
+{
+    // A text or comment node leaving connects no element to record a delta from, but it can
+    // leave its parent empty, and `:empty` is about the parent.
+    if (!is<Element>(*this)) {
+        if (auto* parent_element = as_if<Element>(parent)) {
+            auto const* text = as_if<Text>(*this);
+            CSS::record_element_emptiness_changed(*parent_element, *this, text && !text->data().is_empty(), false);
         }
     }
 
-    if (was_connected) {
-        // NB: record_subtree_disconnecting() makes the style engine give up ownership of
-        //     disconnected records before removed_from() clears the DOM-held identities.
-        //     Preserve those identities only across the removing callback window.
-        removal_style_record_pins.pin_layout_style_records(*this);
-        removal_style_record_pins.pin_dom_style_records_for_removing_steps(*this);
+    // NB: Recorded here rather than in removed_from(), because StyleEngine's tree delta carries
+    //     the old relations and this is the last point at which they are still readable.
+    CSS::record_subtree_disconnecting(*this);
+}
 
-        // A text or comment node leaving connects no element to record a delta from, but it can
-        // leave its parent empty, and `:empty` is about the parent.
-        if (!is<Element>(*this)) {
-            if (auto* parent = as_if<Element>(parent_node())) {
-                auto const* text = as_if<Text>(*this);
-                CSS::record_element_emptiness_changed(*parent, *this, text && !text->data().is_empty(), false);
-            }
-        }
+void Node::update_layout_tree_for_removal(Node& parent, LayoutSubtreeRemoval removal, AncestorsMayHaveFirstLetter ancestors_may_have_first_letter)
+{
+    // A display: contents element has no principal layout node of its own, but removing it also removes
+    // all of its children's boxes from the parent's layout subtree.
+    if (!node_contributes_to_layout_tree(*this))
+        return;
 
-        // NB: Recorded here rather than in removed_from(), because StyleEngine's tree delta carries
-        //     the old relations and this is the last point at which they are still readable.
-        CSS::record_subtree_disconnecting(*this);
-
-        // A display: contents element has no principal layout node of its own, but removing it also removes
-        // all of its children's boxes from the parent's layout subtree.
-        // NB: Called during DOM removal, layout is not up to date.
-        if (node_contributes_to_layout_tree(*this)) {
-            // A suppressed-observer removal may be the first half of a compound mutation that immediately reinserts
-            // this node. Keep the old parent on the conservative rebuild path so the later insertion can relocate it.
-            if (auto* first_letter_owner = first_letter_owner_for_layout_subtree_from(*parent)) {
-                first_letter_owner->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
-            } else if (!suppress_observers && can_detach_layout_subtree_for_removal(*this, *parent)) {
-                auto* layout_node = unsafe_layout_node();
-                layout_node->for_each_in_inclusive_subtree([](Layout::Node& node) {
-                    node.clear_committed_box();
-                    return TraversalDecision::Continue;
-                });
-                layout_node->prepare_subtree_for_detach_from_layout_tree();
-                VERIFY(Layout::destroy_layout_subtree(*layout_node));
-                if (auto* parent_layout_node = parent->unsafe_layout_node(); !parent_layout_node->has_children())
-                    parent_layout_node->set_children_are_inline(false);
-                parent->set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate);
-            } else {
-                parent->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
-            }
+    if (ancestors_may_have_first_letter == AncestorsMayHaveFirstLetter::Yes) {
+        if (auto* first_letter_owner = first_letter_owner_for_layout_subtree_from(parent)) {
+            first_letter_owner->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
+            return;
         }
     }
 
-    // 7. Remove node from its parent’s children.
-    parent->remove_child_impl(*this);
+    if (removal == LayoutSubtreeRemoval::DetachInPlace && can_detach_layout_subtree_for_removal(*this, parent)) {
+        auto* layout_node = unsafe_layout_node();
+        layout_node->for_each_in_inclusive_subtree([](Layout::Node& node) {
+            node.clear_committed_box();
+            return TraversalDecision::Continue;
+        });
+        layout_node->prepare_subtree_for_detach_from_layout_tree();
+        VERIFY(Layout::destroy_layout_subtree(*layout_node));
+        if (auto* parent_layout_node = parent.unsafe_layout_node(); !parent_layout_node->has_children())
+            parent_layout_node->set_children_are_inline(false);
+        parent.set_needs_layout_update(SetNeedsLayoutReason::LayoutTreeUpdate);
+        return;
+    }
 
-    // 8. If node is assigned, then run assign slottables for node’s assigned slot.
+    parent.set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
+}
+
+void Node::assign_slottables_after_removal(Node& parent, Node& parent_root)
+{
     if (auto assigned_slot = assigned_slot_for_node(*this))
         assign_slottables(*assigned_slot);
 
-    auto& parent_root = parent->root();
-
-    // 9. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then run
-    //    signal a slot change for parent.
     if (auto* parent_slot_element = as_if<HTML::HTMLSlotElement>(parent); parent_slot_element && parent_root.is_shadow_root()) {
         if (parent_slot_element->assigned_nodes_internal().is_empty())
             signal_a_slot_change(*parent_slot_element);
     }
 
-    // 10. If node has an inclusive descendant that is a slot, then:
     if (auto* shadow_root = as_if<ShadowRoot>(parent_root)) {
         Vector<GC::Ref<HTML::HTMLSlotElement>> descendant_slots;
         for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
@@ -1434,36 +1440,23 @@ void Node::remove(bool suppress_observers)
                 assign_slottables(slot);
         }
     }
+}
 
-    // NB: Detached subtrees do not need DOM-held record pins, but layout nodes can still outlive
-    //     removing steps and keep their detachment pins.
-    if (!was_connected)
-        removal_style_record_pins.pin_layout_style_records(*this);
-
-    // 11. Run the removing steps with node, true, and parent.
+void Node::run_removing_steps(Node& parent, Node& parent_root, bool was_connected)
+{
     if (was_connected) {
         if (auto* element = as_if<Element>(*this))
             element->cancel_css_animations_and_transitions();
     }
-    removed_from(IsSubtreeRoot::Yes, parent, parent_root);
+    removed_from(IsSubtreeRoot::Yes, &parent, parent_root);
 
-    // A subtree holding the focused or hovered node takes `:focus-within` and `:hover` out of the
-    // chain it hung off. Nothing about any element in that chain moved, so it has to be told.
-    CSS::Invalidation::invalidate_style_after_subtree_place_changed(*this, parent);
+    bool is_parent_connected = parent.is_connected();
 
-    // 12. Let isParentConnected be parent’s connected.
-    bool is_parent_connected = parent->is_connected();
-
-    // 13. If node is custom and isParentConnected is true, then enqueue a custom element callback reaction with node,
-    //     callback name "disconnectedCallback", and an empty argument list.
-    // Spec Note: It is intentional for now that custom elements do not get parent passed.
-    //            This might change in the future if there is a need.
     if (auto* element = as_if<DOM::Element>(*this)) {
         if (element->is_custom() && is_parent_connected)
             element->enqueue_a_custom_element_callback_reaction(HTML::CustomElementReactionNames::disconnectedCallback);
     }
 
-    // 14. For each shadow-including descendant descendant of node, in shadow-including tree order:
     for_each_shadow_including_descendant([&](Node& descendant) {
         if (was_connected) {
             if (auto* element = as_if<Element>(descendant))
@@ -1471,7 +1464,7 @@ void Node::remove(bool suppress_observers)
         }
 
         // 1. Run the removing steps with descendant, false, and parent.
-        descendant.removed_from(IsSubtreeRoot::No, parent, parent_root);
+        descendant.removed_from(IsSubtreeRoot::No, &parent, parent_root);
 
         // 2. If descendant is custom and isParentConnected is true, then enqueue a custom element callback reaction
         //    with descendant, callback name "disconnectedCallback", and « ».
@@ -1482,14 +1475,11 @@ void Node::remove(bool suppress_observers)
 
         return TraversalDecision::Continue;
     });
+}
 
-    removal_style_record_pins.release_dom_style_records();
-
-    // 15. For each inclusive ancestor inclusiveAncestor of parent, and then for each registered of inclusiveAncestor’s
-    //     registered observer list, if registered’s options["subtree"] is true, then append a new transient registered
-    //     observer whose observer is registered’s observer, options is registered’s options, and source is registered
-    //     to node’s registered observer list.
-    for (auto* inclusive_ancestor = parent; inclusive_ancestor; inclusive_ancestor = inclusive_ancestor->parent()) {
+void Node::add_transient_registered_observers_for_removal(Node& parent)
+{
+    for (auto* inclusive_ancestor = &parent; inclusive_ancestor; inclusive_ancestor = inclusive_ancestor->parent()) {
         auto* registered_observer_list = inclusive_ancestor->registered_observer_list();
         if (!registered_observer_list)
             continue;
@@ -1501,13 +1491,90 @@ void Node::remove(bool suppress_observers)
             }
         }
     }
+}
+
+void Node::queue_tree_mutation_record_for_removal(Node& parent, GC::Ptr<Node> old_previous_sibling, GC::Ptr<Node> old_next_sibling)
+{
+    auto removed_node = GC::make_root(*this);
+    parent.queue_tree_mutation_record({}, { &removed_node, 1 }, old_previous_sibling.ptr(), old_next_sibling.ptr());
+}
+
+// https://dom.spec.whatwg.org/#concept-node-remove
+void Node::remove(bool suppress_observers)
+{
+    // NB: Mutations during a recorded editing command must go through the Editing proxy functions.
+    if (auto history = document().editing_history_if_exists())
+        history->notify_dom_mutation();
+
+    // 1. Let parent be node’s parent
+    auto* parent = this->parent();
+
+    // 2. Assert: parent is non-null.
+    VERIFY(parent);
+
+    document().flush_deferred_style_change_event();
+    bool const was_connected = is_connected();
+
+    // 3. Run the live range pre-remove steps, given node.
+    live_range_pre_remove();
+
+    // 4. For each NodeIterator object iterator whose root’s node document is node’s node document:
+    //    run the NodeIterator pre-removing steps given node and iterator.
+    run_node_iterator_pre_removing_steps();
+
+    // 5. Let oldPreviousSibling be node’s previous sibling.
+    GC::Ptr<Node> old_previous_sibling = previous_sibling();
+
+    // 6. Let oldNextSibling be node’s next sibling.
+    GC::Ptr<Node> old_next_sibling = next_sibling();
+
+    schedule_list_item_renumber_for_removal();
+
+    RemovalStyleRecordPins removal_style_record_pins { document().style_computer() };
+    removal_style_record_pins.pin_style_records_before_removal(*this, was_connected);
+    if (was_connected) {
+        report_removal_to_style_engine(*parent);
+        // A suppressed-observer removal may be the first half of a compound mutation that immediately reinserts
+        // this node. Keep the old parent on the conservative rebuild path so the later insertion can relocate it.
+        auto layout_subtree_removal = suppress_observers ? LayoutSubtreeRemoval::RebuildParent : LayoutSubtreeRemoval::DetachInPlace;
+        update_layout_tree_for_removal(*parent, layout_subtree_removal, AncestorsMayHaveFirstLetter::Yes);
+    }
+
+    // 7. Remove node from its parent’s children.
+    parent->remove_child_impl(*this);
+
+    // 8. If node is assigned, then run assign slottables for node’s assigned slot.
+    // 9. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then run
+    //    signal a slot change for parent.
+    // 10. If node has an inclusive descendant that is a slot, then:
+    auto& parent_root = parent->root();
+    assign_slottables_after_removal(*parent, parent_root);
+
+    removal_style_record_pins.pin_style_records_after_removal(*this, was_connected);
+
+    // 11. Run the removing steps with node, true, and parent.
+    // 12. Let isParentConnected be parent’s connected.
+    // 13. If node is custom and isParentConnected is true, then enqueue a custom element callback reaction with node,
+    //     callback name "disconnectedCallback", and an empty argument list.
+    // 14. For each shadow-including descendant descendant of node, in shadow-including tree order:
+    run_removing_steps(*parent, parent_root, was_connected);
+
+    removal_style_record_pins.release_dom_style_records();
+
+    // A subtree holding the focused or hovered node takes `:focus-within` and `:hover` out of the
+    // chain it hung off. Nothing about any element in that chain moved, so it has to be told.
+    CSS::Invalidation::invalidate_style_after_subtree_place_changed(*this, parent);
+
+    // 15. For each inclusive ancestor inclusiveAncestor of parent, and then for each registered of inclusiveAncestor’s
+    //     registered observer list, if registered’s options["subtree"] is true, then append a new transient registered
+    //     observer whose observer is registered’s observer, options is registered’s options, and source is registered
+    //     to node’s registered observer list.
+    add_transient_registered_observers_for_removal(*parent);
 
     // 16. If suppressObservers is false, then queue a tree mutation record for parent with « », « node »,
     //     oldPreviousSibling, and oldNextSibling.
-    if (!suppress_observers) {
-        auto removed_node = GC::make_root(*this);
-        parent->queue_tree_mutation_record({}, { &removed_node, 1 }, old_previous_sibling.ptr(), old_next_sibling.ptr());
-    }
+    if (!suppress_observers)
+        queue_tree_mutation_record_for_removal(*parent, old_previous_sibling, old_next_sibling);
 
     // 17. Run the children changed steps for parent.
     auto affects_elements = ChildrenChangedMetadata::AffectsElements::No;
@@ -2625,10 +2692,120 @@ Vector<GC::Root<Node>> Node::children_as_vector() const
     return nodes;
 }
 
+// https://dom.spec.whatwg.org/#concept-node-remove
 void Node::remove_all_children(bool suppress_observers)
 {
-    while (GC::Ptr<Node> child = first_child())
-        child->remove(suppress_observers);
+    // AD-HOC: The remove algorithm for each child in tree order. The steps that concern only the parent run once for
+    //         all of the children, as noted under each.
+
+    if (!has_children())
+        return;
+
+    // NB: Mutations during a recorded editing command must go through the Editing proxy functions.
+    if (auto history = document().editing_history_if_exists())
+        history->notify_dom_mutation();
+
+    document().flush_deferred_style_change_event();
+    bool const was_connected = is_connected();
+
+    // 1. Let parent be node’s parent
+    // NB: This node is the parent of every child removed here.
+
+    // 2. Assert: parent is non-null.
+    // NB: The parent is this node, so there is nothing to check.
+    auto& parent_root = root();
+
+    // 3. Run the live range pre-remove steps, given node.
+    // NB: Run once for all of the children before any is removed. Each child is the first child when its turn comes,
+    //     and the steps for every child together leave each boundary point that was in a child or on this node at
+    //     (this, 0). Nothing that runs between the removals can observe a live range.
+    live_range_pre_remove_all_children();
+
+    // Whether a removed box carries an ancestor's first letter is only a question when an ancestor has one.
+    auto ancestors_may_have_first_letter = AncestorsMayHaveFirstLetter::No;
+    if (was_connected) {
+        for (auto const* ancestor = this; ancestor; ancestor = ancestor->parent_or_shadow_host_node()) {
+            auto const* element = as_if<Element>(*ancestor);
+            if (element && element->has_style(CSS::PseudoElement::FirstLetter)) {
+                ancestors_may_have_first_letter = AncestorsMayHaveFirstLetter::Yes;
+                break;
+            }
+        }
+    }
+    bool const track_affected_elements = document().has_valid_html_collection_caches();
+    auto affects_elements = ChildrenChangedMetadata::AffectsElements::No;
+    bool const a_child_holds_a_propagating_state_source = CSS::Invalidation::descendants_hold_a_propagating_state_source(*this);
+
+    while (GC::Ptr<Node> child = first_child()) {
+        // 4. For each NodeIterator object iterator whose root’s node document is node’s node document:
+        //    run the NodeIterator pre-removing steps given node and iterator.
+        child->run_node_iterator_pre_removing_steps();
+
+        // 5. Let oldPreviousSibling be node’s previous sibling.
+        // NB: The child removed is always the first, so oldPreviousSibling is always null.
+
+        // 6. Let oldNextSibling be node’s next sibling.
+        GC::Ptr<Node> old_next_sibling = child->next_sibling();
+
+        if (track_affected_elements && mutation_affects_elements(*child) == ChildrenChangedMetadata::AffectsElements::Yes)
+            affects_elements = ChildrenChangedMetadata::AffectsElements::Yes;
+
+        child->schedule_list_item_renumber_for_removal();
+
+        RemovalStyleRecordPins removal_style_record_pins { document().style_computer() };
+        removal_style_record_pins.pin_style_records_before_removal(*child, was_connected);
+        if (was_connected) {
+            child->report_removal_to_style_engine(*this);
+            child->update_layout_tree_for_removal(*this, LayoutSubtreeRemoval::RebuildParent, ancestors_may_have_first_letter);
+        }
+
+        // 7. Remove node from its parent’s children.
+        remove_child_impl(*child);
+
+        // 8. If node is assigned, then run assign slottables for node’s assigned slot.
+        // 9. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then run
+        //    signal a slot change for parent.
+        // 10. If node has an inclusive descendant that is a slot, then:
+        child->assign_slottables_after_removal(*this, parent_root);
+
+        removal_style_record_pins.pin_style_records_after_removal(*child, was_connected);
+
+        // 11. Run the removing steps with node, true, and parent.
+        // 12. Let isParentConnected be parent’s connected.
+        // 13. If node is custom and isParentConnected is true, then enqueue a custom element callback reaction with
+        //     node, callback name "disconnectedCallback", and an empty argument list.
+        // 14. For each shadow-including descendant descendant of node, in shadow-including tree order:
+        child->run_removing_steps(*this, parent_root, was_connected);
+
+        removal_style_record_pins.release_dom_style_records();
+
+        if (a_child_holds_a_propagating_state_source)
+            CSS::Invalidation::invalidate_style_after_subtree_place_changed(*child, this);
+
+        // 15. For each inclusive ancestor inclusiveAncestor of parent, and then for each registered of
+        //     inclusiveAncestor’s registered observer list, if registered’s options["subtree"] is true, then append a
+        //     new transient registered observer whose observer is registered’s observer, options is registered’s
+        //     options, and source is registered to node’s registered observer list.
+        child->add_transient_registered_observers_for_removal(*this);
+
+        // 16. If suppressObservers is false, then queue a tree mutation record for parent with « », « node »,
+        //     oldPreviousSibling, and oldNextSibling.
+        if (!suppress_observers)
+            child->queue_tree_mutation_record_for_removal(*this, nullptr, old_next_sibling);
+
+        // 17. Run the children changed steps for parent.
+        // NB: Run once after the last child has left. No script can run between two removals, so the runs in between
+        //     would only redo work on children that are about to leave.
+
+        child->bump_dom_tree_version();
+    }
+
+    // 17. Run the children changed steps for parent.
+    ChildrenChangedMetadata metadata { ChildrenChangedMetadata::Type::AllChildrenRemoved, *this, affects_elements };
+    children_changed(metadata);
+    invalidate_html_collection_caches_in_ancestors(affects_elements);
+
+    bump_dom_tree_version();
 }
 
 // https://dom.spec.whatwg.org/#dom-node-comparedocumentposition

@@ -90,6 +90,40 @@ void invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass pseudo_cl
     walk_and_invalidate(new_state, old_chain, true);
 }
 
+struct PropagatingState {
+    CSS::PseudoClass pseudo_class;
+    GC::Ptr<DOM::Node> source;
+};
+
+static Array<PropagatingState, 2> propagating_states(DOM::Document& document)
+{
+    return { {
+        { CSS::PseudoClass::FocusWithin, document.focused_area() },
+        { CSS::PseudoClass::Hover, document.hovered_node() },
+    } };
+}
+
+static bool subtree_holds_propagating_state_source(DOM::Node const& subtree, CSS::PseudoClass pseudo_class, DOM::Node const& source)
+{
+    if (ancestor_traversal_for_pseudo_class(pseudo_class) == AncestorTraversal::FlatTree) {
+        for (auto const* node = &source; node; node = node->flat_tree_parent()) {
+            if (node == &subtree)
+                return true;
+        }
+        return false;
+    }
+    return subtree.is_shadow_including_inclusive_ancestor_of(source);
+}
+
+bool descendants_hold_a_propagating_state_source(DOM::Node& node)
+{
+    for (auto const& [pseudo_class, source] : propagating_states(node.document())) {
+        if (source && source.ptr() != &node && subtree_holds_propagating_state_source(node, pseudo_class, *source))
+            return true;
+    }
+    return false;
+}
+
 // A state that propagates to ancestors is a statement about the subtree below them, so moving a
 // subtree that holds one moves the state: the chain above where it was stops holding it and the
 // chain above where it landed starts, and no feature of any element in either chain moved to say
@@ -97,7 +131,6 @@ void invalidate_style_after_pseudo_class_state_change(CSS::PseudoClass pseudo_cl
 // than being told a transition.
 void invalidate_style_after_subtree_place_changed(DOM::Node& subtree, GC::Ptr<DOM::Node> old_parent)
 {
-    auto& document = subtree.document();
     auto republish = [](CSS::PseudoClass pseudo_class, GC::Ptr<DOM::Node> from) {
         if (!from)
             return;
@@ -111,30 +144,8 @@ void invalidate_style_after_subtree_place_changed(DOM::Node& subtree, GC::Ptr<DO
         });
     };
 
-    struct PropagatingState {
-        CSS::PseudoClass pseudo_class;
-        GC::Ptr<DOM::Node> source;
-    };
-    Array<PropagatingState, 2> const states { {
-        { CSS::PseudoClass::FocusWithin, document.focused_area() },
-        { CSS::PseudoClass::Hover, document.hovered_node() },
-    } };
-    for (auto const& [pseudo_class, source] : states) {
-        if (!source)
-            continue;
-        auto traversal = ancestor_traversal_for_pseudo_class(pseudo_class);
-        bool source_is_in_subtree = false;
-        if (traversal == AncestorTraversal::FlatTree) {
-            for (auto* node = source.ptr(); node; node = node->flat_tree_parent()) {
-                if (node == &subtree) {
-                    source_is_in_subtree = true;
-                    break;
-                }
-            }
-        } else {
-            source_is_in_subtree = subtree.is_shadow_including_inclusive_ancestor_of(*source);
-        }
-        if (!source_is_in_subtree)
+    for (auto const& [pseudo_class, source] : propagating_states(subtree.document())) {
+        if (!source || !subtree_holds_propagating_state_source(subtree, pseudo_class, *source))
             continue;
         republish(pseudo_class, source);
         republish(pseudo_class, old_parent);
