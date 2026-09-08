@@ -438,6 +438,18 @@ impl RetainedStyleValueData {
         unsafe { Self::from_retained_pointer(pointer) }
     }
 
+    /// Borrow the handles' pointer storage without copying or transferring ownership.
+    pub(crate) fn pointer_slice(values: &[Self]) -> &[*const c_void] {
+        const {
+            assert!(size_of::<RetainedStyleValueData>() == size_of::<*const c_void>());
+            assert!(align_of::<RetainedStyleValueData>() == align_of::<*const c_void>());
+        }
+        // SAFETY: This repr(C) type has exactly one field, a *const c_void, so its
+        //         size, alignment and layout match that pointer. The shared slice
+        //         borrows the handles and cannot outlive or modify their storage.
+        unsafe { std::slice::from_raw_parts(values.as_ptr().cast(), values.len()) }
+    }
+
     pub(crate) fn pointer(&self) -> *const StyleValueData {
         self.pointer.cast()
     }
