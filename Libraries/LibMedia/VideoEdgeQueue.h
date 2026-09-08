@@ -30,25 +30,20 @@ struct VideoEdgeItem {
 };
 static_assert(IsTriviallyCopyable<VideoEdgeItem>);
 
-// The coverage end of the latest frame the producer has enqueued, stamped with its seek ID. The consumer reads it to
-// resolve a forward seek within the buffered lookahead without re-fetching.
-struct VideoEdgeAvailableUpperBound {
-    AK::Duration timestamp;
-    u32 seek_id { 0 };
-};
-static_assert(IsTriviallyCopyable<VideoEdgeAvailableUpperBound>);
-
 // The producer's pipeline status, stamped with the seek ID it reflects, so the consumer can ignore a status
 // left over from before a seek (which would otherwise resolve the seek with no frame).
 struct VideoEdgeStatus {
     PipelineStatus status { PipelineStatus::Pending };
     u32 seek_id { 0 };
+
+    bool operator==(VideoEdgeStatus const&) const = default;
 };
 static_assert(IsTriviallyCopyable<VideoEdgeStatus>);
 
 // The shared-memory edge between a RemoteVideoSink (producer) and a RemoteVideoProducer (consumer).
-// Holds an SPSC queue of video frame handles, the available upper bounding timestamp, and the status to produce when
-// the queue runs dry.
+// Holds an SPSC queue of video frame handles and the status to produce when the queue runs dry. The queue's contents
+// are also the consumer's lookahead: a seek that lands between its head and its newest frame resolves without
+// going upstream.
 class VideoEdgeQueue {
 public:
     static constexpr size_t QUEUE_SIZE = 16;
@@ -84,18 +79,22 @@ public:
     }
     bool can_enqueue() const { return m_ring.can_enqueue(); }
     void set_status(PipelineStatus status, u32 seek_id) { m_header->status.store({ status, seek_id }); }
-    void set_available_upper_bound(AK::Duration timestamp, u32 seek_id) { m_header->available_upper_bound.store({ timestamp, seek_id }); }
+    u32 requested_seek_id() const { return m_header->requested_seek_id.load(AK::MemoryOrder::memory_order_relaxed); }
 
     // Consumer side. The status is consulted only when the ring is empty.
     Optional<VideoEdgeItem> peek() const { return m_ring.peek(); }
+    Optional<VideoEdgeItem> peek_newest() const { return m_ring.peek_newest(); }
     void consume() { (void)m_ring.dequeue(); }
     Optional<VideoEdgeStatus> status() const { return m_header->status.read(); }
-    Optional<VideoEdgeAvailableUpperBound> available_upper_bound() const { return m_header->available_upper_bound.read(); }
+    void set_requested_seek_id(u32 seek_id) { m_header->requested_seek_id.store(seek_id, AK::MemoryOrder::memory_order_relaxed); }
 
 private:
     struct Header {
         SeqLock<VideoEdgeStatus> status;
-        SeqLock<VideoEdgeAvailableUpperBound> available_upper_bound;
+        // The seek the consumer is deciding on or has sent upstream. The producer side stops pumping while it has
+        // yet to apply it, so the frames the seek may land in stay upstream where its fast path can find them. The
+        // accesses are relaxed; the seq_cst fences on both sides order them against the ring.
+        Atomic<u32> requested_seek_id { 0 };
     };
 
     VideoEdgeQueue(Ring ring, Core::AnonymousBuffer header_buffer, Header* header)
