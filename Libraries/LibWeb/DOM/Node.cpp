@@ -3449,6 +3449,10 @@ void Node::queue_mutation_record(Utf16FlyString const& type, Optional<Utf16FlySt
     auto& document = this->document();
     auto& page = document.page();
 
+    // OPTIMIZATION: Without an observer of this type in the document, interestedObservers stays empty.
+    if (!document.has_mutation_observers_of_type(type) && !page.listen_for_dom_mutations())
+        return;
+
     // NOTE: We defer garbage collection until the end of the scope, since we can't safely use MutationObserver* as a hashmap key otherwise.
     // FIXME: This is a total hack.
     GC::DeferGC defer_gc(heap());
@@ -4135,6 +4139,7 @@ void Node::add_registered_observer(RegisteredObserver& registered_observer)
     if (!registered_observer_list)
         registered_observer_list = make<Vector<GC::Ref<RegisteredObserver>>>();
     registered_observer_list->append(registered_observer);
+    document().add_mutation_observer_types(registered_observer.options());
 }
 
 Vector<GC::Ref<RegisteredObserver>>* Node::registered_observer_list()

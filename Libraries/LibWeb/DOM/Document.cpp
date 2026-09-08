@@ -118,6 +118,8 @@
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOM/InputEventsTarget.h>
 #include <LibWeb/DOM/LiveNodeList.h>
+#include <LibWeb/DOM/MutationObserver.h>
+#include <LibWeb/DOM/MutationType.h>
 #include <LibWeb/DOM/NodeIterator.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/ProcessingInstruction.h>
@@ -1344,6 +1346,27 @@ void Document::set_dir(Utf16View dir)
     // attribute must return the empty string and do nothing on setting.
     if (auto html = html_element())
         html->set_dir(dir);
+}
+
+void Document::add_mutation_observer_types(MutationObserverOptions const& options)
+{
+    if (options.child_list)
+        m_mutation_observer_types |= to_underlying(MutationObserverType::ChildList);
+    if (options.attributes.value_or(false))
+        m_mutation_observer_types |= to_underlying(MutationObserverType::Attributes);
+    if (options.character_data.value_or(false))
+        m_mutation_observer_types |= to_underlying(MutationObserverType::CharacterData);
+}
+
+bool Document::has_mutation_observers_of_type(Utf16FlyString const& type) const
+{
+    if (type == MutationType::childList)
+        return m_mutation_observer_types & to_underlying(MutationObserverType::ChildList);
+    if (type == MutationType::attributes)
+        return m_mutation_observer_types & to_underlying(MutationObserverType::Attributes);
+    if (type == MutationType::characterData)
+        return m_mutation_observer_types & to_underlying(MutationObserverType::CharacterData);
+    return true;
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#the-body-element-2
@@ -3698,6 +3721,11 @@ void Document::adopt_node_steps(Node& node)
         node.for_each_shadow_including_inclusive_descendant([&](DOM::Node& inclusive_descendant) {
             // 1. Set inclusiveDescendant’s node document to document.
             inclusive_descendant.set_document(Badge<Document> {}, *this);
+
+            if (auto const* registered_observers = inclusive_descendant.registered_observer_list()) {
+                for (auto const& registered_observer : *registered_observers)
+                    add_mutation_observer_types(registered_observer->options());
+            }
 
             // 2. If inclusiveDescendant is a shadow root and if any of the following are true:
             //    - inclusiveDescendant’s custom element registry is null and inclusiveDescendant’s keep custom element

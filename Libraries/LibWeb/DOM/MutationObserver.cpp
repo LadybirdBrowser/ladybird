@@ -9,6 +9,7 @@
 #include <LibWeb/Bindings/MutationRecord.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/MutationObserver.h>
 #include <LibWeb/DOM/Node.h>
@@ -122,6 +123,7 @@ WebIDL::ExceptionOr<void> MutationObserver::observe(Node& target, MutationObserv
 
             // 2. Set registered’s options to options.
             registered_observer->set_options(move(options));
+            target.document().add_mutation_observer_types(registered_observer->options());
             break;
         }
     }
