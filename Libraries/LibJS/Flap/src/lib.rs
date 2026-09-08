@@ -640,6 +640,7 @@ const EXECUTION_CONTEXT_PROGRAM_COUNTER = 56
 const SIZEOF_EXECUTION_CONTEXT = 120
 const VM_RUNNING_EXECUTION_CONTEXT = 15288
 const VM_BREAKPOINT_CONTROLLER = 16664
+const SLOW_PATH_CONTINUATION_BIT = 32
 const EXECUTABLE_BYTECODE_DATA = 104
 const INT32_TAG = 0x7FFA
 const BOOLEAN_TAG = 0x7FF9
@@ -1037,7 +1038,7 @@ specialize Clear(dst: Undefined);
         assert!(
             emission_error
                 .message
-                .contains("required runtime constant 'VM_RUNNING_EXECUTION_CONTEXT'")
+                .contains("required runtime constant 'SLOW_PATH_CONTINUATION_BIT'")
         );
     }
 

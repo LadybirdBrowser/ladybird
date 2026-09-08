@@ -888,6 +888,16 @@ fn finish_slow_path_call(
     let [execution_context, executable, _, bytecode, values_offset] = interpreter_layout(emit.runtime, emit.handler)?;
     emit!(emit.output, Aarch64; Opcode::BranchBitSetToExit(63) => [register X0];);
 
+    let transfer = emit.unique_label("slow_path_transfer");
+    let continuation_bit = emit.constant(KnownLayoutConstant::SlowPathContinuationBit)?;
+    emit!(emit.output, Aarch64;
+        Opcode::TestBitAndBranch { width: IntegerWidth::U64, condition: TestCondition::Clear } => [register X0, immediate continuation_bit, label transfer.clone()];
+        Opcode::SetInstructionPointer => [register X0];
+    );
+    dispatch_from_instruction_pointer(emit, dispatch_register, dispatch_scratch)
+        .map_err(|error| memory_address_compile_error(emit.handler, error))?;
+    emit!(emit.output, Aarch64; Opcode::Label => [label transfer];);
+
     load(
         emit,
         MemoryWidth::DoubleWord,
