@@ -52,7 +52,7 @@ private:
     bool should_continue() const;
 
     GC::Ref<DOM::Document> m_document;
-    GC::Ref<Fetch::Infrastructure::Body> m_body;
+    GC::Ptr<Fetch::Infrastructure::Body> m_body;
     URL::URL m_url;
     Optional<MimeSniff::MimeType> m_mime_type;
     HTMLParser::AllowDeclarativeShadowRoots m_allow_declarative_shadow_roots { HTMLParser::AllowDeclarativeShadowRoots::Yes };
