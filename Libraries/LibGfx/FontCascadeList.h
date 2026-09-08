@@ -8,6 +8,7 @@
 
 #include <AK/Array.h>
 #include <AK/Function.h>
+#include <AK/HashMap.h>
 #include <AK/RefCounted.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/UnicodeRange.h>
@@ -30,6 +31,12 @@ struct EmojiPresentationResult {
 };
 
 EmojiPresentationResult emoji_presentation_for_code_point(u32 code_point, Optional<u32> next_code_point);
+
+enum class PendingFontState : u8 {
+    Invisible,
+    Visible,
+    Failed,
+};
 
 class FontCascadeList : public RefCounted<FontCascadeList> {
 public:
@@ -54,9 +61,8 @@ public:
     void add(NonnullRefPtr<Font const> font);
     void add(NonnullRefPtr<Font const> font, Vector<UnicodeRange> unicode_ranges);
 
-    // Register an unloaded face covering `unicode_ranges`. The cascade invokes
-    // `start_load` the first time a rendered codepoint falls within one of the ranges.
-    void add_pending_face(Vector<UnicodeRange> unicode_ranges, Function<void()> start_load);
+    // Resolve a pending face only when it is selected for a rendered code point.
+    void add_pending_face(Vector<UnicodeRange> unicode_ranges, Function<PendingFontState()> resolve);
 
     void extend(FontCascadeList const& other);
 
@@ -80,10 +86,10 @@ public:
 
     class PendingFace : public RefCounted<PendingFace> {
     public:
-        PendingFace(UnicodeRange enclosing, Vector<UnicodeRange> ranges, Function<void()> start_load)
+        PendingFace(UnicodeRange enclosing, Vector<UnicodeRange> ranges, Function<PendingFontState()> resolve)
             : m_enclosing_range(enclosing)
             , m_unicode_ranges(move(ranges))
-            , m_start_load(move(start_load))
+            , m_resolve(move(resolve))
         {
         }
 
@@ -98,12 +104,12 @@ public:
             return false;
         }
 
-        void start_load() { m_start_load(); }
+        PendingFontState resolve() const { return m_resolve(); }
 
     private:
         UnicodeRange m_enclosing_range;
         Vector<UnicodeRange> m_unicode_ranges;
-        Function<void()> m_start_load;
+        Function<PendingFontState()> m_resolve;
     };
 
     void set_last_resort_font(NonnullRefPtr<Font> font)
@@ -117,7 +123,12 @@ private:
     RefPtr<Font const> m_last_resort_font;
     mutable Vector<Entry> m_fonts;
     mutable Vector<Entry> m_fallback_fonts;
-    mutable Vector<NonnullRefPtr<PendingFace>> m_pending_faces;
+    struct PendingEntry {
+        size_t font_index;
+        NonnullRefPtr<PendingFace> face;
+    };
+    Vector<PendingEntry> m_pending_faces;
+    mutable HashMap<Font const*, NonnullRefPtr<Font>> m_invisible_fonts;
     SystemFontFallbackCallback m_system_font_fallback_callback;
 
     // OPTIMIZATION: Cache of resolved fonts for ASCII code points. Since m_fonts only grows and the cascade returns

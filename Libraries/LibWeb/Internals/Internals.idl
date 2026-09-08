@@ -23,6 +23,8 @@ interface Internals {
     unsigned long long layoutTreePreOrderRelabelCount();
     undefined loadReferenceTestMetadata();
 
+    // Freezes the font display clock at the given elapsed time, without starting a font load.
+    undefined setFontDisplayTime(FontFace fontFace, unsigned long milliseconds);
     DOMString setTimeZone(DOMString timeZone);
 
     undefined gc();

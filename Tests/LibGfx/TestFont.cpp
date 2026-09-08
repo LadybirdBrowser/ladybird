@@ -9,6 +9,7 @@
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/PathFontProvider.h>
 #include <LibGfx/Font/Typeface.h>
+#include <LibGfx/FontCascadeList.h>
 #include <LibGfx/TextLayout.h>
 #include <LibTest/TestCase.h>
 #include <harfbuzz/hb.h>
@@ -150,4 +151,71 @@ TEST_CASE(glyph_run_intercepts)
 
     // A degenerate scale produces nothing.
     EXPECT(Gfx::glyph_run_glyph_intercepts(font, run->glyphs(), 0, mid_x_height - 1, mid_x_height + 1).is_empty());
+}
+
+TEST_CASE(invisible_fallback_preserves_metrics_and_shaping)
+{
+    auto font = load_text_font(16);
+    auto invisible = font->invisible_variant();
+    EXPECT(invisible->is_invisible());
+    EXPECT(!font->is_invisible());
+    EXPECT_EQ(invisible->pixel_metrics().ascent, font->pixel_metrics().ascent);
+    EXPECT_EQ(invisible->pixel_metrics().descent, font->pixel_metrics().descent);
+    EXPECT_EQ(shape(*invisible, "abc"sv)->width(), shape(*font, "abc"sv)->width());
+}
+
+TEST_CASE(pending_font_only_hides_its_unicode_range)
+{
+    auto font = load_text_font(16);
+    auto cascade = Gfx::FontCascadeList::create();
+    cascade->add_pending_face({ { 'a', 'a' } }, [] { return Gfx::PendingFontState::Invisible; });
+    cascade->add(font);
+    cascade->set_last_resort_font(font);
+    EXPECT(cascade->font_for_code_point('a').is_invisible());
+    EXPECT(!cascade->font_for_code_point('b').is_invisible());
+    EXPECT_EQ(&cascade->font_for_code_point('a'), &cascade->font_for_code_point('a'));
+    EXPECT_EQ(cascade->first_available_font().pixel_size(), font->pixel_size());
+}
+
+TEST_CASE(pending_font_does_not_load_fallback_fonts)
+{
+    auto font = load_text_font(16);
+    auto cascade = Gfx::FontCascadeList::create();
+    u32 fallback_loads = 0;
+    cascade->add_pending_face({ { 0, 0x10FFFF } }, [] { return Gfx::PendingFontState::Visible; });
+    cascade->add_pending_face({ { 0, 0x10FFFF } }, [&] {
+        ++fallback_loads;
+        return Gfx::PendingFontState::Invisible;
+    });
+    cascade->add(font);
+    cascade->set_last_resort_font(font);
+    EXPECT_EQ(&cascade->font_for_code_point('a'), font.ptr());
+    EXPECT_EQ(fallback_loads, 0u);
+}
+
+TEST_CASE(loaded_font_precedes_pending_font_after_extending_cascade)
+{
+    auto font = load_text_font(16);
+    auto cascade = Gfx::FontCascadeList::create();
+    cascade->add(font);
+    auto later_family = Gfx::FontCascadeList::create();
+    u32 loads = 0;
+    later_family->add_pending_face({ { 0, 0x10FFFF } }, [&] {
+        ++loads;
+        return Gfx::PendingFontState::Invisible;
+    });
+    cascade->extend(*later_family);
+    cascade->set_last_resort_font(font);
+    EXPECT_EQ(&cascade->font_for_code_point('a'), font.ptr());
+    EXPECT_EQ(loads, 0u);
+}
+
+TEST_CASE(failed_font_allows_loading_the_next_face)
+{
+    auto font = load_text_font(16);
+    auto cascade = Gfx::FontCascadeList::create();
+    cascade->add_pending_face({ { 0, 0x10FFFF } }, [] { return Gfx::PendingFontState::Failed; });
+    cascade->add_pending_face({ { 0, 0x10FFFF } }, [] { return Gfx::PendingFontState::Invisible; });
+    cascade->set_last_resort_font(font);
+    EXPECT(cascade->font_for_code_point('a').is_invisible());
 }

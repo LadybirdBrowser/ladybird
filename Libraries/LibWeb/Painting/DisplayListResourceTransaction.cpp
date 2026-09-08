@@ -43,6 +43,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::Painting::DisplayListFontResource co
     TRY(encoder.encode(font.point_size()));
     TRY(encoder.encode(font.variation_settings()));
     TRY(encoder.encode(font.features()));
+    TRY(encoder.encode(font.is_invisible()));
     return {};
 }
 
@@ -54,10 +55,14 @@ ErrorOr<Web::Painting::DisplayListFontResource> decode(Decoder& decoder)
     auto point_size = TRY(decoder.decode<float>());
     auto variations = TRY(decoder.decode<Gfx::FontVariationSettings>());
     auto features = TRY(decoder.decode<Gfx::ShapeFeatures>());
+    auto invisible = TRY(decoder.decode<bool>());
+    auto font = typeface->font(point_size, move(variations), move(features));
+    if (invisible)
+        font = font->invisible_variant();
 
     return Web::Painting::DisplayListFontResource {
         .id = id,
-        .font = typeface->font(point_size, move(variations), move(features)),
+        .font = move(font),
     };
 }
 

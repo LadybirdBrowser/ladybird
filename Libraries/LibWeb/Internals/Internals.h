@@ -63,6 +63,7 @@ public:
     u64 layout_tree_pre_order_relabel_count();
     WebIDL::ExceptionOr<void> load_reference_test_metadata();
 
+    void set_font_display_time(CSS::FontFace&, u32 milliseconds);
     WebIDL::ExceptionOr<Utf16String> set_time_zone(Utf16String const& time_zone);
 
     void gc();

@@ -179,6 +179,8 @@ void PathImplSkia::cubic_bezier_curve_to(FloatPoint c1, FloatPoint c2, FloatPoin
 
 void PathImplSkia::glyph_run(GlyphRun const& glyph_run)
 {
+    if (glyph_run.font().is_invisible())
+        return;
     auto sk_font = glyph_run.font().skia_font(1);
     auto& path_builder = sk_path_builder();
     path_builder.setFillType(SkPathFillType::kWinding);
@@ -208,6 +210,8 @@ NonnullOwnPtr<PathImpl> PathImplSkia::place_glyph_runs_along(ReadonlySpan<Nonnul
 
     bool reached_end_of_path = false;
     for (auto const& glyph_run : glyph_runs) {
+        if (glyph_run->font().is_invisible())
+            continue;
         auto sk_font = glyph_run->font().skia_font(1);
         for (auto const& glyph : glyph_run->glyphs()) {
             SkScalar glyph_distance = offset + glyph.position.x();

@@ -8,6 +8,7 @@
 #include <AK/ByteBuffer.h>
 #include <LibCore/Promise.h>
 #include <LibGC/Heap.h>
+#include <LibGC/Weak.h>
 #include <LibGfx/Font/FontSupport.h>
 #include <LibGfx/Font/Typeface.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
@@ -37,6 +38,7 @@
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
 #include <LibWeb/HTML/Window.h>
+#include <LibWeb/Platform/Timer.h>
 #include <LibWeb/WebIDL/AbstractOperations.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/Promise.h>
@@ -340,14 +342,14 @@ ParsedFontFace FontFace::parsed_font_face() const
         m_cached_width,
         m_urls,
         m_unicode_ranges,
-        {},                // FIXME: ascent_override
-        {},                // FIXME: descent_override
-        {},                // FIXME: line_gap_override
-        FontDisplay::Auto, // FIXME: font_display
-        {},                // font-named-instance doesn't exist in FontFace
-        {},                // font-language-override doesn't exist in FontFace
-        {},                // FIXME: feature_settings
-        {},                // FIXME: variation_settings
+        {}, // FIXME: ascent_override
+        {}, // FIXME: descent_override
+        {}, // FIXME: line_gap_override
+        m_font_display,
+        {}, // font-named-instance doesn't exist in FontFace
+        {}, // font-language-override doesn't exist in FontFace
+        {}, // FIXME: feature_settings
+        {}, // FIXME: variation_settings
     };
 }
 
@@ -362,7 +364,7 @@ FontFace::~FontFace() = default;
 
 bool FontFace::should_be_registered_with_font_computer() const
 {
-    return is_css_connected() || status() == FontFaceLoadStatus::Loaded;
+    return is_css_connected() || has_urls() || status() == FontFaceLoadStatus::Loaded;
 }
 
 void FontFace::visit_edges(GC::Cell::Visitor& visitor)
@@ -373,6 +375,7 @@ void FontFace::visit_edges(GC::Cell::Visitor& visitor)
     visitor.visit(m_font_status_promise);
     visitor.visit(m_css_font_face_rule);
     visitor.visit(m_font_loader);
+    visitor.visit(m_font_download_timer);
     for (auto const& font_face_set : m_containing_sets)
         visitor.visit(font_face_set);
 }
@@ -424,16 +427,131 @@ void FontFace::disconnect_from_css_rule()
 
 RefPtr<Gfx::FontCascadeList const> FontFace::font_with_point_size(float point_size, Gfx::FontVariationSettings const& variations, Gfx::ShapeFeatures const& shape_features) const
 {
+    if (m_font_display_failed || m_status == FontFaceLoadStatus::Error)
+        return {};
     auto font_list = Gfx::FontCascadeList::create();
-    if (m_font_loader) {
-        if (auto font = m_font_loader->font_with_point_size(point_size, variations, shape_features))
-            font_list->add(*font, m_font_loader->unicode_ranges());
-    } else if (m_parsed_font) {
+    if (m_parsed_font) {
         font_list->add(m_parsed_font->font(point_size, variations, shape_features), m_unicode_ranges);
+    } else if (has_urls()) {
+        // NB: Document-owned cascades must not root faces, which trace back to their owning document.
+        font_list->add_pending_face(m_unicode_ranges, [weak_face = GC::Weak<FontFace> { const_cast<FontFace*>(this) }] {
+            if (weak_face)
+                return weak_face->resolve_for_rendering();
+            return Gfx::PendingFontState::Failed;
+        });
     }
     if (font_list->is_empty())
         return {};
     return font_list;
+}
+
+// https://drafts.csswg.org/css-fonts-4/#font-display-timeline
+Gfx::PendingFontState FontFace::resolve_for_rendering()
+{
+    if (m_font_display_failed || m_status == FontFaceLoadStatus::Error)
+        return Gfx::PendingFontState::Failed;
+    if (m_status == FontFaceLoadStatus::Loaded)
+        return Gfx::PendingFontState::Visible;
+
+    // At the moment the user agent first attempts to use a given downloaded font face on a page,
+    // the font face's font download timer is started.
+    if (!m_font_download_timer_start.has_value()) {
+        m_font_download_timer_start = MonotonicTime::now();
+        if (m_font_display == FontDisplay::Swap)
+            m_font_display_period = FontDisplayPeriod::Swap;
+        update_font_display_period();
+    }
+
+    // https://drafts.csswg.org/css-font-loading/#font-face-load
+    // When this happens, they must act as if they had called the corresponding FontFace’s load() method described here.
+    load();
+    if (m_font_loader)
+        m_font_loader->did_request_for_rendering();
+    switch (m_font_display_period) {
+    case FontDisplayPeriod::Block:
+        // During this period, if the font face is not loaded, any element attempting to use it must instead
+        // render with an invisible fallback font face.
+        return Gfx::PendingFontState::Invisible;
+    case FontDisplayPeriod::Swap:
+        // During this period, if the font face is not loaded, any element attempting to use it must instead
+        // render with a fallback font face.
+        return Gfx::PendingFontState::Visible;
+    case FontDisplayPeriod::Failure:
+        return Gfx::PendingFontState::Failed;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+void FontFace::invalidate_font_display()
+{
+    if (auto font_computer = this->font_computer(); font_computer.has_value())
+        font_computer->did_load_font(m_family);
+}
+
+// https://drafts.csswg.org/css-fonts-4/#font-display-desc
+void FontFace::update_font_display_period()
+{
+    if (m_font_download_timer)
+        m_font_download_timer->stop();
+    if (!m_font_download_timer_start.has_value() || m_font_download_completed || m_status == FontFaceLoadStatus::Loaded || m_status == FontFaceLoadStatus::Error)
+        return;
+
+    // INTEROP: Use WebKit's timeouts: 3 seconds for auto/block, 100 milliseconds for fallback/optional,
+    //          and a further 3 seconds of swapping for fallback. Blink also uses no block period for swap.
+    i64 block_period = 0;
+    Optional<i64> failure_period_start;
+    switch (m_font_display) {
+    case FontDisplay::Auto:
+    case FontDisplay::Block:
+        block_period = 3000;
+        break;
+    case FontDisplay::Swap:
+        break;
+    case FontDisplay::Fallback:
+        block_period = 100;
+        failure_period_start = 3100;
+        break;
+    case FontDisplay::Optional:
+        block_period = 100;
+        failure_period_start = 100;
+        break;
+    }
+
+    auto elapsed = m_font_display_time_for_testing.has_value()
+        ? static_cast<i64>(*m_font_display_time_for_testing)
+        : (MonotonicTime::now() - *m_font_download_timer_start).to_milliseconds();
+    auto previous_period = m_font_display_period;
+    Optional<i64> next_deadline;
+    if (m_font_display_failed || (failure_period_start.has_value() && elapsed >= *failure_period_start)) {
+        // If the font face is not yet loaded when this period starts, it's marked as a failed load,
+        // causing normal font fallback.
+        // NB: This failure only affects rendering. The Font Loading API can still finish loading the font.
+        m_font_display_period = FontDisplayPeriod::Failure;
+        m_font_display_failed = true;
+    } else if (elapsed < block_period) {
+        m_font_display_period = FontDisplayPeriod::Block;
+        next_deadline = block_period;
+    } else {
+        m_font_display_period = FontDisplayPeriod::Swap;
+        next_deadline = failure_period_start;
+    }
+
+    if (previous_period != m_font_display_period)
+        invalidate_font_display();
+    if (!next_deadline.has_value() || m_font_display_time_for_testing.has_value())
+        return;
+    if (!m_font_download_timer) {
+        m_font_download_timer = Platform::Timer::create_single_shot(heap(), 0, GC::create_function(heap(), [this] {
+            update_font_display_period();
+        }));
+    }
+    m_font_download_timer->start(static_cast<int>(*next_deadline - elapsed));
+}
+
+void FontFace::set_font_display_time_for_testing(u32 milliseconds)
+{
+    m_font_display_time_for_testing = milliseconds;
+    update_font_display_period();
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-family
@@ -686,6 +804,8 @@ WebIDL::ExceptionOr<void> FontFace::set_display(Utf16View string)
 void FontFace::set_display_impl(NonnullRefPtr<StyleValue const> const& value)
 {
     m_display = serialize_style_value_to_utf16(*value);
+    m_font_display = keyword_to_font_display(value->to_keyword()).value_or(FontDisplay::Auto);
+    update_font_display_period();
 }
 
 // https://drafts.csswg.org/css-font-loading/#dom-fontface-ascentoverride
@@ -796,6 +916,10 @@ GC::Ref<WebIDL::Promise> FontFace::load()
 
     // 5. When the load operation completes, successfully or not, queue a task to run the following steps synchronously:
     auto on_load = GC::create_function(GC::Heap::the(), [this](RefPtr<Gfx::Typeface const> maybe_typeface) {
+        update_font_display_period();
+        m_font_download_completed = true;
+        if (m_font_download_timer)
+            m_font_download_timer->stop();
         HTML::queue_global_task(HTML::Task::Source::FontLoading, task_global_object(), GC::create_function(GC::Heap::the(), [this, maybe_typeface] {
             HTML::TemporaryExecutionContext context(*m_environment, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
             // 1. If the attempt to load fails, reject font face’s [[FontStatusPromise]] with a DOMException whose name
@@ -804,6 +928,7 @@ GC::Ref<WebIDL::Promise> FontFace::load()
                 // NB: reject_status_promise() also marks the promise as handled: A font that fails to load must not
                 //     surface an unhandled rejection on a page that never looks at the FontFace API.
                 reject_status_promise(WebIDL::NetworkError::create("Failed to load font"_utf16));
+                invalidate_font_display();
 
                 // For each FontFaceSet font face is in:
                 for (auto& font_face_set : m_containing_sets) {

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link id="reference" rel="match" href="../expected/font-display-periods-ref.html">
+<script src="../../Text/input/include.js"></script>
+<style>
+body { margin: 0; }
+#out { display: none; }
+.row { font: 16px/16px monospace; white-space: pre; }
+.sample { color: green; text-shadow: 1px 1px green; }
+</style>
+<body>
+<script>
+addEventListener("load", async () => {
+    const server = httpTestServer();
+    const token = crypto.randomUUID();
+    const url = await server.createEcho("GET", `/font-display-periods-${token}.woff`, {
+        status: 404,
+        headers: { "Access-Control-Allow-Origin": "*" },
+        wait_for_unblock: token,
+    });
+    document.getElementById("reference").href += `?unblock=${token}`;
+    for (const display of ["auto", "block", "swap", "fallback", "optional"]) {
+        for (const elapsed of [0, 99, 100, 2999, 3000, 3099, 3100]) {
+            const family = `${display}-${elapsed}`;
+            const style = document.createElement("style");
+            style.textContent = `@font-face { font-family: "${family}"; src: url("${url}"); font-display: ${display}; unicode-range: U+0041; }`;
+            document.head.append(style);
+            const face = [...document.fonts].find(face => face.family === family);
+            internals.setFontDisplayTime(face, 0);
+            const row = document.createElement("div");
+            row.className = "row";
+            row.append(`${family.padEnd(14)} `);
+            const sample = document.createElement("span");
+            sample.className = "sample";
+            sample.style.fontFamily = `"${family}", monospace`;
+            sample.textContent = "AB";
+            row.append(sample);
+            document.body.append(row);
+            row.getBoundingClientRect();
+            internals.setFontDisplayTime(face, elapsed);
+        }
+    }
+    document.documentElement.className = "";
+});
+</script>
+</html>

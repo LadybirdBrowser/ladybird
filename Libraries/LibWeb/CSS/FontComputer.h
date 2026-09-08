@@ -80,18 +80,14 @@ class FontLoader final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(FontLoader);
 
 public:
-    FontLoader(FontComputer&, RuleOrDeclaration, Utf16FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<URL> urls, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load = {});
+    FontLoader(FontComputer&, RuleOrDeclaration, Vector<URL> urls, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load = {});
 
     virtual ~FontLoader();
 
-    Vector<Gfx::UnicodeRange> const& unicode_ranges() const { return m_unicode_ranges; }
-
-    RefPtr<Gfx::Font const> font_with_point_size(float point_size, Gfx::FontVariationSettings const& variations, Gfx::ShapeFeatures const& shape_features);
     void start_loading_next_url();
 
     bool is_loading() const;
-
-    Utf16FlyString family_name() const { return m_family_name; }
+    void did_request_for_rendering();
 
     void subscribe(GC::Ref<GC::Function<void(RefPtr<Gfx::Typeface const>)>>);
 
@@ -104,8 +100,6 @@ private:
 
     GC::Ref<FontComputer> m_font_computer;
     RuleOrDeclaration m_rule_or_declaration;
-    Utf16FlyString m_family_name;
-    Vector<Gfx::UnicodeRange> m_unicode_ranges;
     RefPtr<Gfx::Typeface const> m_typeface;
     Vector<URL> m_urls;
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;

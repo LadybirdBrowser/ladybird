@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    const server = httpTestServer();
+    const token = crypto.randomUUID();
+    const bytes = new Uint8Array(await (await fetch("../../../Assets/HashSans.woff")).arrayBuffer());
+    const url = await server.createEcho("GET", `/font-display-${token}.woff`, {
+        status: 200,
+        headers: { "Content-Type": "font/woff", "Access-Control-Allow-Origin": "*" },
+        body: btoa(String.fromCharCode(...bytes)),
+        body_encoding: "base64",
+        wait_for_unblock: token,
+    });
+    const samples = [];
+    function sample(family) {
+        const element = document.createElement("span");
+        element.style.cssText = `display:inline-block;font:40px "${family}",monospace`;
+        element.textContent = "AAAA";
+        document.body.append(element);
+        return element;
+    }
+    const fallbackWidth = sample("MissingFont").getBoundingClientRect().width;
+    for (const display of ["auto", "block", "swap", "fallback", "optional"]) {
+        const face = new FontFace(`Test-${display}`, `url("${url}")`, { display });
+        internals.setFontDisplayTime(face, 0);
+        document.fonts.add(face);
+        const element = sample(face.family);
+        println(`${display}: fallback metrics = ${element.getBoundingClientRect().width === fallbackWidth}, status = ${face.status}`);
+        samples.push({ face, element });
+    }
+    const early = new FontFace("EarlyFallback", `url("${url}")`, { display: "fallback" });
+    internals.setFontDisplayTime(early, 0);
+    document.fonts.add(early);
+    const earlyElement = sample(early.family);
+    earlyElement.getBoundingClientRect();
+
+    // Each face has its own deadline despite sharing the same download.
+    for (const { face } of samples)
+        internals.setFontDisplayTime(face, 3100);
+    await fetch(`${server.baseURL}/unblock/${token}`);
+    await Promise.all(samples.map(({ face }) => face.loaded));
+    for (const { face, element } of samples) {
+        println(`${face.display}: loaded = ${face.status}, uses downloaded font = ${element.getBoundingClientRect().width !== fallbackWidth}`);
+        // Once loaded in time, a font remains usable past its deadline.
+        internals.setFontDisplayTime(face, 10000);
+        println(`${face.display}: unchanged after deadline = ${element.getBoundingClientRect().width !== fallbackWidth}`);
+    }
+
+    await early.loaded;
+    internals.setFontDisplayTime(early, 10000);
+    println(`Font loaded during block period remains usable: ${earlyElement.getBoundingClientRect().width !== fallbackWidth}`);
+
+    const preloaded = new FontFace("Preloaded", `url("${url}")`, { display: "optional" });
+    await preloaded.load();
+    internals.setFontDisplayTime(preloaded, 10000);
+    document.fonts.add(preloaded);
+    println(`Preloaded optional font is usable: ${sample(preloaded.family).getBoundingClientRect().width !== fallbackWidth}`);
+
+    const unused = new FontFace("UnusedFallback", `url("${url}?unused")`);
+    document.fonts.add(unused);
+    const preferred = document.createElement("span");
+    preferred.style.font = '40px Preloaded, UnusedFallback, monospace';
+    preferred.textContent = "AAAA";
+    document.body.append(preferred);
+    preferred.getBoundingClientRect();
+    println(`Loaded preferred face leaves fallback unloaded: ${unused.status}`);
+
+    const otherToken = crypto.randomUUID();
+    const failedURL = await server.createEcho("GET", `/font-display-error-${otherToken}.woff`, {
+        status: 404,
+        wait_for_unblock: otherToken,
+    });
+    const pending = new FontFace("Pending", `url("${failedURL}")`, { display: "block" });
+    internals.setFontDisplayTime(pending, 0);
+    document.fonts.add(pending);
+    const pendingElement = sample(pending.family);
+    pendingElement.style.fontFamily = 'Pending, UnusedFallback, monospace';
+    pendingElement.getBoundingClientRect();
+    println(`Pending preferred face leaves fallback unloaded: ${unused.status}`);
+    pending.display = "swap";
+    println(`Changing display preserves fallback metrics: ${pendingElement.getBoundingClientRect().width === fallbackWidth}`);
+    const failed = pending.loaded.catch(() => {});
+    await fetch(`${server.baseURL}/unblock/${otherToken}`);
+    await failed;
+    pendingElement.style.fontFamily = 'Pending, monospace';
+    println(`Network failure uses fallback: ${pending.status}, ${pendingElement.getBoundingClientRect().width === fallbackWidth}`);
+});
+</script>

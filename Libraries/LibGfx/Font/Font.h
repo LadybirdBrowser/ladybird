@@ -82,6 +82,8 @@ public:
     FlyString const& family() const { return m_typeface->family(); }
 
     NonnullRefPtr<Font> with_size(float point_size) const;
+    NonnullRefPtr<Font> invisible_variant() const;
+    bool is_invisible() const { return m_is_invisible; }
 
     Typeface const& typeface() const { return m_typeface; }
 
@@ -95,6 +97,7 @@ public:
     bool is_emoji_font() const;
 
 private:
+    bool m_is_invisible { false };
     u64 m_id { 0 };
 
 #if defined(USE_FONTCONFIG)

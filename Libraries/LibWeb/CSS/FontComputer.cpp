@@ -81,11 +81,9 @@ struct Traits<Web::CSS::ComputedFontCacheKey> : public DefaultTraits<Web::CSS::C
 
 namespace Web::CSS {
 
-FontLoader::FontLoader(FontComputer& font_computer, RuleOrDeclaration rule_or_declaration, Utf16FlyString family_name, Vector<Gfx::UnicodeRange> unicode_ranges, Vector<URL> urls, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load)
+FontLoader::FontLoader(FontComputer& font_computer, RuleOrDeclaration rule_or_declaration, Vector<URL> urls, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load)
     : m_font_computer(font_computer)
     , m_rule_or_declaration(rule_or_declaration)
-    , m_family_name(move(family_name))
-    , m_unicode_ranges(move(unicode_ranges))
     , m_urls(move(urls))
 {
     if (on_load)
@@ -120,19 +118,13 @@ bool FontLoader::is_loading() const
     return m_fetch_controller && !m_typeface;
 }
 
-RefPtr<Gfx::Font const> FontLoader::font_with_point_size(float point_size, Gfx::FontVariationSettings const& variations, Gfx::ShapeFeatures const& shape_features)
+void FontLoader::did_request_for_rendering()
 {
-    if (!m_typeface) {
-        if (!m_fetch_controller)
-            start_loading_next_url();
-        // INTEROP: Delay the document load event til the fetch for this font has settled. Blink, Gecko, and WebKit all
-        //          keep the document from completing while a font load requested for rendering is pending — so pages
-        //          that measure font-dependent geometry in a load-event handler see the loaded font, not a fallback.
-        if (is_loading() && !m_document_load_event_delayer.has_value())
-            m_document_load_event_delayer.emplace(m_font_computer->document());
-        return nullptr;
-    }
-    return m_typeface->font(point_size, variations, shape_features);
+    // INTEROP: Delay the document load event til the fetch for this font has settled. Blink, Gecko, and WebKit all
+    //          keep the document from completing while a font load requested for rendering is pending — so pages
+    //          that measure font-dependent geometry in a load-event handler see the loaded font, not a fallback.
+    if (is_loading() && !m_document_load_event_delayer.has_value())
+        m_document_load_event_delayer.emplace(m_font_computer->document());
 }
 
 void FontLoader::start_loading_next_url()
@@ -319,27 +311,8 @@ struct FontComputer::MatchingFontCandidate {
 
         auto font_list = Gfx::FontCascadeList::create();
         for (auto const& face : it->value) {
-            // https://drafts.csswg.org/css-font-loading/#font-face-load
-            // User agents can initiate font loads on their own, whenever they determine that a given font face is
-            // necessary to render something on the page. When this happens, they must act as if they had called the
-            // corresponding FontFace’s load() method described here.
-            // NB: An unloaded face with no subsetting unicode-range starts loading once a style actually selects
-            //     it. Loading happens via FontFace::load(). The font_with_point_size() call below then observes the
-            //     fetch in flight — and so delays the document load event until the fetch has settled.
-            if (face->has_urls() && !face->has_non_default_unicode_range() && face->status() == FontFaceLoadStatus::Unloaded)
-                face->load();
-            if (auto face_fonts = face->font_with_point_size(point_size, variations, shape_features)) {
+            if (auto face_fonts = face->font_with_point_size(point_size, variations, shape_features))
                 font_list->extend(*face_fonts);
-                continue;
-            }
-            // Unloaded subset face: surface it as a pending entry so the fetch only
-            // fires once font_for_code_point() sees a codepoint in its unicode-range.
-            if (face->has_urls() && face->has_non_default_unicode_range()) {
-                GC::Root<FontFace> rooted_face(*face);
-                font_list->add_pending_face(face->unicode_ranges(), [rooted_face = move(rooted_face)] {
-                    const_cast<FontFace&>(*rooted_face).load();
-                });
-            }
         }
         if (font_list->is_empty())
             return {};
@@ -1023,7 +996,7 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face
         return it->value;
     }
 
-    auto loader = GC::Heap::the().allocate<FontLoader>(*this, rule_or_declaration, font_face.font_family(), font_face.unicode_ranges(), move(urls), move(on_load));
+    auto loader = GC::Heap::the().allocate<FontLoader>(*this, rule_or_declaration, move(urls), move(on_load));
     m_loaders_by_url.set(move(key), loader);
     return loader;
 }

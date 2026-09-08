@@ -39,6 +39,7 @@
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/CSSStyleSheet.h>
 #include <LibWeb/CSS/ComputedValues.h>
+#include <LibWeb/CSS/FontFace.h>
 #include <LibWeb/CSS/PreferredColorScheme.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/PseudoElement.h>
@@ -379,6 +380,11 @@ WebIDL::ExceptionOr<void> Internals::mark_as_garbage(Utf16String const& variable
     (void)TRY(reference.delete_(vm));
     vm.heap().uproot_cell(&value.as_cell());
     return {};
+}
+
+void Internals::set_font_display_time(CSS::FontFace& font_face, u32 milliseconds)
+{
+    font_face.set_font_display_time_for_testing(milliseconds);
 }
 
 WebIDL::ExceptionOr<Utf16String> Internals::set_time_zone(Utf16String const& time_zone)
