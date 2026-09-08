@@ -1,0 +1,12 @@
+font-family, src, font-weight
+out of bounds: ""
+font-family: "雪😀"; src: local("雪😀"); font-weight: 400;
+uppercase: "雪😀"
+missing: ""
+after change: font-family, src, font-weight
+removed: 400
+font-family: "雨😀"; src: local("雪😀"); font-weight: 700;
+shared sheet: font-family: "雪😀"; src: local("雪😀"); font-weight: 400;
+replacement: font-style, font-family
+font-style: italic; font-family: "風";
+retained wrapper: "風"

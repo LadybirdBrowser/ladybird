@@ -4,12 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/Utf16StringBuilder.h>
 #include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/CSS/CSSDescriptors.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
-#include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleSheetState.h>
 #include <LibWeb/CSS/StyleValues/ShorthandStyleValue.h>
@@ -44,10 +42,7 @@ Utf16String CSSDescriptors::item(size_t index) const
 {
     // The item(index) method must return the property name of the CSS declaration at position index.
     // If there is no indexth object in the collection, then the method must return the empty string.
-    if (index >= length())
-        return {};
-
-    return descriptors()[index].descriptor_name_and_id.name().to_utf16_string();
+    return m_descriptors.item(index);
 }
 
 // https://drafts.csswg.org/cssom/#set-a-css-declaration
@@ -190,11 +185,8 @@ Utf16String CSSDescriptors::get_property_value(Utf16FlyString const& property) c
     // 2. If property is a case-sensitive match for a property name of a CSS declaration in the declarations, then
     //    return the result of invoking serialize a CSS value of that declaration.
     auto descriptor_name_and_id = DescriptorNameAndID::from_name(m_at_rule_id, property);
-    if (descriptor_name_and_id.has_value()) {
-        auto match = descriptors().first_matching([descriptor_name_and_id](Descriptor const& entry) { return entry.descriptor_name_and_id == descriptor_name_and_id; });
-        if (match.has_value())
-            return match->value->to_utf16_string(SerializationMode::Normal);
-    }
+    if (descriptor_name_and_id.has_value())
+        return m_descriptors.property_value(*descriptor_name_and_id);
 
     // 3. Return the empty string.
     return {};
@@ -210,46 +202,7 @@ Utf16String CSSDescriptors::get_property_priority(Utf16FlyString const&) const
 // https://drafts.csswg.org/cssom/#serialize-a-css-declaration-block
 Utf16String CSSDescriptors::serialized() const
 {
-    // 1. Let list be an empty array.
-    Vector<Utf16String> list;
-    list.ensure_capacity(m_descriptors.size());
-
-    // 2. Let already serialized be an empty array.
-    // AD-HOC: Not needed as we don't have shorthands.
-
-    // 3. Declaration loop: For each CSS declaration declaration in declaration block’s declarations, follow these substeps:
-    for (auto const& descriptor : descriptors()) {
-        // 1. Let property be declaration’s property name.
-        auto property = descriptor.descriptor_name_and_id.name();
-
-        // 2. If property is in already serialized, continue with the steps labeled declaration loop.
-        // AD-HOC: Not needed as we don't have shorthands.
-
-        // 3. If property maps to one or more shorthand properties, let shorthands be an array of those shorthand properties, in preferred order.
-        // 4. Shorthand loop: For each shorthand in shorthands, follow these substeps: ...
-        // NB: Descriptors can't be shorthands.
-
-        // 5. Let value be the result of invoking serialize a CSS value of declaration.
-        auto value = descriptor.value->to_utf16_string(SerializationMode::Normal);
-
-        // 6. Let serialized declaration be the result of invoking serialize a CSS declaration with property name property, value value, and the important flag set if declaration has its important flag set.
-        auto serialized_declaration = serialize_a_css_declaration_to_utf16(property, value, Important::No);
-
-        // 7. Append serialized declaration to list.
-        list.append(move(serialized_declaration));
-
-        // 8. Append property to already serialized.
-        // AD-HOC: Not needed as we don't have shorthands.
-    }
-
-    // 4. Return list joined with " " (U+0020).
-    Utf16StringBuilder builder;
-    for (size_t i = 0; i < list.size(); ++i) {
-        if (i != 0)
-            builder.append_ascii(' ');
-        builder.append(list[i]);
-    }
-    return builder.to_string();
+    return m_descriptors.serialized();
 }
 
 // https://drafts.csswg.org/cssom/#dom-cssstyledeclaration-csstext

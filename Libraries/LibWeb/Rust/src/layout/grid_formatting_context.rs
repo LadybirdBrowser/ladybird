@@ -256,23 +256,6 @@ pub(crate) enum GridTrackState {
     Removed,
 }
 
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiUsedGridLine {
-    pub names: *const usize,
-    pub name_count: usize,
-}
-
-#[derive(Clone, Copy, Debug)]
-#[repr(C)]
-pub struct FfiUsedGridTrackList {
-    pub is_subgrid: bool,
-    pub lines: *const FfiUsedGridLine,
-    pub line_count: usize,
-    pub track_sizes: *const crate::layout::CssPixels,
-    pub track_count: usize,
-}
-
 #[derive(PartialEq, Eq)]
 pub(crate) struct GridLayoutLine {
     pub(crate) names: Vec<String>,
@@ -330,14 +313,37 @@ pub(crate) struct OwnedUsedGridTrackList {
 }
 
 impl OwnedUsedGridTrackList {
-    fn ffi_lines(&self) -> Vec<FfiUsedGridLine> {
-        self.lines
-            .iter()
-            .map(|names| FfiUsedGridLine {
-                names: names.as_ptr(),
-                name_count: names.len(),
-            })
-            .collect()
+    // https://www.w3.org/TR/css-grid-2/#resolved-track-list-standalone
+    pub(crate) fn style_value(&self) -> crate::css::style_value::StyleValueData {
+        use crate::css::css_string::CssString;
+        use crate::css::style_value::{RetainedGridTrackEntry, RetainedGridTrackEntryList, StyleValueData};
+        assert!(if self.is_subgrid {
+            self.track_sizes.is_empty()
+        } else {
+            self.track_sizes.len() + 1 == self.lines.len()
+        });
+        let mut entries = Vec::with_capacity(self.lines.len() + self.track_sizes.len());
+        for (index, names) in self.lines.iter().enumerate() {
+            if self.is_subgrid || !names.is_empty() {
+                entries.push(RetainedGridTrackEntry::line_names(
+                    names
+                        .iter()
+                        .map(|name| unsafe { CssString::from_borrowed_raw(*name) })
+                        .collect(),
+                ));
+            }
+            if let Some(size) = self.track_sizes.get(index) {
+                entries.push(RetainedGridTrackEntry::size(StyleValueData::Length {
+                    value: size.to_double(),
+                    unit: crate::css::style_compute::px_length_unit(),
+                }));
+            }
+        }
+        StyleValueData::GridTrackSizeList {
+            is_subgrid: self.is_subgrid,
+            preserve_line_name_sets: self.is_subgrid,
+            entries: RetainedGridTrackEntryList::from_retained_entries(entries),
+        }
     }
 }
 
@@ -345,28 +351,6 @@ impl OwnedUsedGridTrackList {
 pub(crate) struct OwnedUsedGridTracks {
     pub(crate) columns: OwnedUsedGridTrackList,
     pub(crate) rows: OwnedUsedGridTrackList,
-}
-
-impl OwnedUsedGridTracks {
-    pub(crate) fn with_ffi_views(&self, callback: impl FnOnce(&FfiUsedGridTrackList, &FfiUsedGridTrackList)) {
-        let column_lines = self.columns.ffi_lines();
-        let row_lines = self.rows.ffi_lines();
-        let columns = FfiUsedGridTrackList {
-            is_subgrid: self.columns.is_subgrid,
-            lines: column_lines.as_ptr(),
-            line_count: column_lines.len(),
-            track_sizes: self.columns.track_sizes.as_ptr(),
-            track_count: self.columns.track_sizes.len(),
-        };
-        let rows = FfiUsedGridTrackList {
-            is_subgrid: self.rows.is_subgrid,
-            lines: row_lines.as_ptr(),
-            line_count: row_lines.len(),
-            track_sizes: self.rows.track_sizes.as_ptr(),
-            track_count: self.rows.track_sizes.len(),
-        };
-        callback(&columns, &rows);
-    }
 }
 
 // https://drafts.csswg.org/css-grid/#overlarge-grids

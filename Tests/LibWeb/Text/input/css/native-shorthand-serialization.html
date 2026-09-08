@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const style = document.createElement("div").style;
+    for (const [property, values] of Object.entries({
+        animation: ["none", "2s ease 1s 3 alternate both paused 雪", "1s linear linear, 2s ease-in 雨"],
+        transition: ["all", "opacity 1s ease 2s, color 3s linear", "ease 1s"],
+        "scroll-timeline": ["--雪", "--雪 inline, --雨 block"],
+        "view-timeline": ["--雪", "--雪 inline auto, --雨 block 10%"],
+        background: ["none", "red url(a.png) left top / 20px 30px no-repeat fixed padding-box content-box", "url(a.png), linear-gradient(red, blue)"],
+        "background-position": ["left top, right bottom", "10px 20px"],
+        mask: ["none", "url(a.svg) left top / 20px 30px no-repeat padding-box no-clip", "url(a.svg), url(b.svg)"],
+        border: ["medium none currentcolor", "1px solid red"],
+        "border-block": ["1px solid red", "medium solid currentcolor"],
+        "border-inline": ["1px solid red", "medium solid currentcolor"],
+        font: ["16px serif", "italic small-caps bold condensed 20px / 1.5 '雪'"],
+        "font-variant": ["normal", "none", "small-caps oldstyle-nums"],
+        grid: ["none", "auto-flow dense 20px / 1fr 2fr", "20px / auto-flow dense 30px"],
+        "grid-template": ["none", "[start] '雪 雨' minmax(10px, 1fr) [end] / 1fr 2fr", "20px 30px / 1fr"],
+        "grid-area": ["auto", "1 / 2 / 3 / 4", "雪", "雪 / 雨"],
+        rotate: ["calc(1 + 1) 0 0 30deg", "0 calc(2) 0 40deg"],
+        scale: ["calc(1 + 1) calc(50%)", "calc(1) calc(1) calc(1)"],
+        transform: ["scale(0.00001%)", "scale(1e23%)", "scale(33.33333333333333%)", "scale(-0%)"],
+    })) {
+        for (const value of values) {
+            style.cssText = "";
+            style.setProperty(property, value);
+            println(`${property}: ${value} => ${style.getPropertyValue(property)}`);
+        }
+    }
+});
+</script>

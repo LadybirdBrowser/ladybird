@@ -26,7 +26,9 @@ public:
     RustDescriptorBlock retain() const;
     void replace(RustDescriptorBlock const&);
     size_t size() const;
-    Vector<Descriptor> const& descriptors() const;
+    Utf16String item(size_t index) const;
+    Utf16String serialized() const;
+    Utf16String property_value(DescriptorNameAndID const&) const;
     RefPtr<StyleValue const> descriptor(DescriptorNameAndID const&) const;
     RefPtr<StyleValue const> descriptor_or_initial_value(AtRuleID, DescriptorNameAndID const&) const;
     bool set(DescriptorNameAndID const&, StyleValue const&);
@@ -36,8 +38,6 @@ public:
 
 private:
     Parser::ValueParserFFI::FfiDescriptorBlock* m_block;
-    mutable Vector<Descriptor> m_descriptors;
-    mutable Optional<u64> m_view_revision;
 };
 
 }

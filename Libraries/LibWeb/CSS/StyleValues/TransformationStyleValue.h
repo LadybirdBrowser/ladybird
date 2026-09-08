@@ -32,7 +32,6 @@ public:
     bool can_be_converted_to_matrix_without_reference_box() const;
     FloatMatrix4x4 to_matrix(Layout::Node const*) const;
 
-    void serialize(StringBuilder&, SerializationMode) const;
     GC::Ptr<CSSTransformComponent> reify_a_transform_function() const;
 
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;

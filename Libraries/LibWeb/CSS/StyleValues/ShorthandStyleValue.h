@@ -18,23 +18,12 @@ public:
     }
     virtual ~ShorthandStyleValue() override;
 
-    Vector<PropertyID> sub_properties() const
-    {
-        auto const& list = m_value->shorthand.sub_properties;
-        Vector<PropertyID> sub_properties;
-        sub_properties.ensure_capacity(list.length);
-        for (size_t i = 0; i < list.length; ++i)
-            sub_properties.unchecked_append(static_cast<PropertyID>(list.pointer[i]));
-        return sub_properties;
-    }
     StyleValueVector values() const
     {
         return m_values;
     }
 
     ValueComparingRefPtr<StyleValue const> longhand(PropertyID) const;
-
-    void serialize(StringBuilder&, SerializationMode) const;
 
 private:
     explicit ShorthandStyleValue(StyleValueFFI::StyleValueData const* data)
@@ -78,8 +67,6 @@ private:
     {
         return m_values[i];
     }
-
-    PropertyID shorthand_property() const { return static_cast<PropertyID>(m_value->shorthand.shorthand_property); }
 
     StyleValueVector m_values;
 };

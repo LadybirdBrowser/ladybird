@@ -110,19 +110,6 @@ WEB_API Utf16FlyString css_string_from_rust(void const*);
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(URL, url, URLStyleValue)                                                                  \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(ValueList, value_list, StyleValueList)
 
-// The last style value types whose serialization still lives in C++. The Rust serializer in
-// Rust/src/css/serialize.rs covers everything else; these remain because their Rust arms can
-// still decline: EmptyOptional deliberately preserves the C++ VERIFY on serialization attempts,
-// Shorthand has property cases still blocked on the parser port, Transformation has
-// String::number percentage formatting in the scale family plus calc-typed rotate3d axes, and
-// ValueList declines whenever a contained Transformation does (e.g. the transform property).
-// The macro disappears with them once those gaps close.
-#define ENUMERATE_CSS_STYLE_VALUE_TYPES_WITH_CPP_SERIALIZATION                                 \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(EmptyOptional, empty_optional, EmptyOptionalStyleValue)   \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Shorthand, shorthand, ShorthandStyleValue)                \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Transformation, transformation, TransformationStyleValue) \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(ValueList, value_list, StyleValueList)
-
 // Style value types whose absolutization still has a C++ fallback. The Rust recursion in
 // Rust/src/css/absolutize.rs runs first and declines back to these: the element-bound values
 // (tree counting, random sharing, image base URLs) decline by design, lengths decline for
@@ -147,8 +134,6 @@ WEB_API Utf16FlyString css_string_from_rust(void const*);
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Filter, filter, FilterStyleValue)                                             \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(FontStyle, font_style, FontStyleStyleValue)                                   \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Function, function, FunctionStyleValue)                                       \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(GridTrackPlacement, grid_track_placement, GridTrackPlacementStyleValue)       \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(GridTrackSizeList, grid_track_size_list, GridTrackSizeListStyleValue)         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Image, image, ImageStyleValue)                                                \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(ImageSet, image_set, ImageSetStyleValue)                                      \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Length, length, LengthStyleValue)                                             \

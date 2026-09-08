@@ -395,24 +395,13 @@ Optional<Gfx::AffineTransform> svg_viewport_transform(Layout::Node const& node)
     return Gfx::AffineTransform { transform.a, transform.b, transform.c, transform.d, transform.e, transform.f };
 }
 
-Optional<UsedGridTrackList> used_values_for_grid_template_columns(Layout::Node const& node)
+CSS::RustStyleValueHandle used_value_for_grid_template(Layout::Node const& node, CSS::PropertyID property)
 {
-    Optional<UsedGridTrackList> result;
-    Layout::RustFFI::layout_arena_paintable_used_grid_tracks(node.arena_handle(), committed_row_slot(node), &result,
-        [](void* context, Layout::RustFFI::FfiUsedGridTrackList const* columns, Layout::RustFFI::FfiUsedGridTrackList const*) {
-            *static_cast<Optional<UsedGridTrackList>*>(context) = Layout::build_used_grid_track_list(*columns);
-        });
-    return result;
-}
-
-Optional<UsedGridTrackList> used_values_for_grid_template_rows(Layout::Node const& node)
-{
-    Optional<UsedGridTrackList> result;
-    Layout::RustFFI::layout_arena_paintable_used_grid_tracks(node.arena_handle(), committed_row_slot(node), &result,
-        [](void* context, Layout::RustFFI::FfiUsedGridTrackList const*, Layout::RustFFI::FfiUsedGridTrackList const* rows) {
-            *static_cast<Optional<UsedGridTrackList>*>(context) = Layout::build_used_grid_track_list(*rows);
-        });
-    return result;
+    VERIFY(property == CSS::PropertyID::GridTemplateColumns || property == CSS::PropertyID::GridTemplateRows);
+    auto* value = Layout::RustFFI::layout_arena_paintable_used_grid_tracks(node.arena_handle(), committed_row_slot(node), property == CSS::PropertyID::GridTemplateColumns);
+    if (!value)
+        return {};
+    return CSS::RustStyleValueHandle { static_cast<CSS::StyleValueFFI::StyleValueData const*>(value) };
 }
 
 CSSPixelPoint box_type_agnostic_position(Layout::Node const& node)

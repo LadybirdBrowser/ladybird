@@ -9,10 +9,10 @@
 //! Serializes Rust-owned [`StyleValueData`] into text without crossing the FFI per component.
 //! The output stays ASCII until the first non-ASCII code unit forces UTF-16 storage, matching
 //! AK::Utf16String's ASCII-or-UTF16 representation, then moves a native string owner to C++.
-//! Value types whose serialization has not been ported yet return no string, and the C++
-//! dispatcher falls back to the legacy per-class serializer.
 
 use std::ffi::c_void;
+
+mod shorthand;
 
 use crate::css::css_enums::keyword;
 use crate::css::css_tokenizer::TokenizerInput;
@@ -172,6 +172,14 @@ impl TextSink {
             self.promote_to_utf16();
         }
         self.utf16.extend_from_slice(&other.utf16);
+    }
+
+    pub(crate) fn is_ascii_whitespace(&self) -> bool {
+        self.ascii
+            .iter()
+            .map(|&byte| u16::from(byte))
+            .chain(self.utf16.iter().copied())
+            .all(|unit| matches!(unit, 9..=13 | 32))
     }
 
     /// Content equality across storage representations.
@@ -543,8 +551,8 @@ fn serialize_request_url_modifier(sink: &mut TextSink, modifier: &crate::css::st
     sink.push_ascii(")");
 }
 
-/// Serializes one style value into `sink`. Returns false when the value's serialization has not
-/// been ported yet; the sink contents are unspecified in that case and must be discarded.
+/// Serializes one style value into `sink`. Returns false for an invalid value graph;
+/// the sink contents are unspecified in that case and must be discarded.
 pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData, mode: SerializationMode) -> bool {
     use crate::css::calc::{
         ANGLE_UNIT_CANONICAL_RATIOS, ANGLE_UNIT_NAMES, FLEX_UNIT_CANONICAL_RATIOS, FLEX_UNIT_NAMES,
@@ -2088,9 +2096,12 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                         return serialize_style_value(sink, angle, mode);
                     }
                     _ => {
-                        // rotate3d: resolve the axis to plain numbers; calc axes fall back to C++.
+                        // Resolve the axis without document-dependent length metrics.
                         let axis = |index: usize| match entry_data(index) {
                             Some(StyleValueData::Number { value }) => Some(*value),
+                            Some(value @ StyleValueData::Calculated { .. }) => {
+                                Some(crate::css::calc::resolve_calculated_number_without_context(value).unwrap_or(0.0))
+                            }
                             None => Some(0.0),
                             _ => None,
                         };
@@ -2118,7 +2129,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 }
             }
             if *property == property_id::SCALE {
-                // Numbers and percentages resolve to plain numbers; calc components fall back.
+                // Numbers, percentages, and resolvable calculations serialize as plain numbers.
                 let resolve = |index: usize| -> Option<Option<TextSink>> {
                     match entry_data(index) {
                         None => Some(None),
@@ -2132,7 +2143,20 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                             serialize_a_number(&mut resolved, value * 0.01, mode);
                             Some(Some(resolved))
                         }
-                        Some(_) => None,
+                        Some(value) => {
+                            let mut resolved = TextSink::new();
+                            if let Some(number) = crate::css::calc::resolve_calculated_number_without_context(value)
+                                .or_else(|| {
+                                    crate::css::calc::resolve_calculated_percentage_without_context(value)
+                                        .map(|percentage| percentage * 0.01)
+                                })
+                            {
+                                serialize_a_number(&mut resolved, number, mode);
+                            } else if !serialize_style_value(&mut resolved, value, mode) {
+                                return None;
+                            }
+                            Some(Some(resolved))
+                        }
                     }
                 };
                 let (Some(Some(x)), Some(Some(y))) = (resolve(0), resolve(1)) else {
@@ -2216,10 +2240,26 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                 let Some(value) = value.optional_data() else {
                     return false;
                 };
-                if scale_family && matches!(value, StyleValueData::Percentage { .. }) {
-                    // The C++ serializer prints these through String::number, whose shortest
-                    // round-trip formatting is not ported; decline so C++ serializes them.
-                    return false;
+                if scale_family && let StyleValueData::Percentage { value } = value {
+                    // Preserve the shortest round-trip formatting used for scale() percentages.
+                    let number = value * 0.01;
+                    if number == 0.0 {
+                        sink.push_ascii("0");
+                    } else if number.is_nan() {
+                        sink.push_ascii("nan");
+                    } else if number.is_finite() && (number.abs() < 1e-6 || number.abs() >= 1e21) {
+                        let formatted = format!("{number:e}");
+                        let (mantissa, exponent) = formatted.split_once('e').unwrap();
+                        sink.push_ascii(mantissa);
+                        sink.push_ascii("e");
+                        if !exponent.starts_with('-') {
+                            sink.push_ascii("+");
+                        }
+                        sink.push_ascii(exponent);
+                    } else {
+                        sink.push_ascii(&number.to_string());
+                    }
+                    continue;
                 }
                 if !serialize_style_value(sink, value, mode) {
                     return false;
@@ -2503,7 +2543,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             sink.push_ascii(")");
             true
         }
-        _ => false,
+        StyleValueData::EmptyOptional => unreachable!("optional placeholders must be skipped by their containing list"),
     }
 }
 
@@ -2629,7 +2669,7 @@ fn literal_piece_text(bytes: *const u8, length: usize) -> &'static str {
 }
 
 /// Port of Web::CSS::serialize_a_positional_value_list: 2 or 4 values with equal-serialization
-/// suffixes dropped. Returns false when a value's serialization has not been ported yet.
+/// suffixes dropped. Returns false for an invalid value graph.
 fn serialize_a_positional_value_list(sink: &mut TextSink, values: &[&StyleValueData], mode: SerializationMode) -> bool {
     let mut serialized = Vec::with_capacity(values.len());
     for value in values {
@@ -3205,8 +3245,7 @@ fn serialize_display(sink: &mut TextSink, raw: u32) {
     }
 }
 
-/// Port of ShorthandStyleValue::serialize. Property cases whose C++ serializer needs the
-/// parser (the coordinating-value-list shorthands) or unported machinery decline.
+/// Serialize shorthand values directly from their native longhands.
 fn serialize_shorthand(
     sink: &mut TextSink,
     whole_value: &StyleValueData,
@@ -3283,14 +3322,15 @@ fn serialize_shorthand(
             let Some(value) = value.optional_data() else {
                 return false;
             };
-            let Some(initial_source) = initial_source(sub_properties[index]) else {
-                return false;
-            };
             let Some(value_sink) = sub_sink(value) else {
                 return false;
             };
             let mut initial_sink = TextSink::new();
-            initial_sink.push_ascii(initial_source);
+            if let Some(source) = initial_source(sub_properties[index]) {
+                initial_sink.push_ascii(source);
+            } else if !serialize_style_value(&mut initial_sink, &shorthand::initial(sub_properties[index]), mode) {
+                return false;
+            }
             if value_sink.content_equals(&initial_sink)
                 || value_sink.content_equals_ascii_case_insensitive(&initial_sink)
             {
@@ -3649,9 +3689,7 @@ fn serialize_shorthand(
         }
         return default_serialize(sink);
     }
-    // The remaining special-cased shorthands (animation, background and its position, font and
-    // font-variant, the grid family, mask, the timeline pair and transition) still serialize in
-    // C++: their rules need the parser or per-layer coordination that has not been ported.
+    // Shorthands requiring per-layer coordination or grammar disambiguation.
     if [
         property_id::ANIMATION,
         property_id::BACKGROUND,
@@ -3669,7 +3707,7 @@ fn serialize_shorthand(
     ]
     .contains(&shorthand_property)
     {
-        return false;
+        return shorthand::serialize(sink, whole_value, shorthand_property, mode, default_serialize);
     }
     if POSITIONAL_VALUE_LIST_SHORTHANDS.contains(&shorthand_property) {
         let entries: Vec<&StyleValueData> = match values.as_slice().iter().map(|value| value.optional_data()).collect()
@@ -3690,7 +3728,7 @@ pub struct FfiSerializedText {
 }
 
 impl FfiSerializedText {
-    fn unported() -> Self {
+    fn invalid() -> Self {
         Self {
             raw: 0,
             has_value: false,
@@ -3712,8 +3750,7 @@ pub(crate) fn sink_into_ffi(sink: TextSink) -> FfiSerializedText {
     }
 }
 
-/// Serializes a style value, or returns the null serialization when the value's type has not
-/// been ported yet so the C++ dispatcher falls back to the legacy serializer.
+/// Serializes a style value into native ASCII-or-UTF-16 storage.
 ///
 /// # Safety
 /// `value` must point at live style value data.
@@ -3723,7 +3760,7 @@ pub unsafe extern "C" fn rust_style_value_serialize(value: *const c_void, mode: 
     let value = unsafe { &*value.cast::<StyleValueData>() };
     let mut sink = TextSink::new();
     if !serialize_style_value(&mut sink, value, SerializationMode::from_ffi(mode)) {
-        return FfiSerializedText::unported();
+        return FfiSerializedText::invalid();
     }
     sink_into_ffi(sink)
 }

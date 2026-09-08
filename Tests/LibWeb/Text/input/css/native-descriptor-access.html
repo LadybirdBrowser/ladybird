@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const text = '@font-face { font-family: "雪😀"; src: local("雪😀"); font-weight: 400; }';
+    const first = new CSSStyleSheet();
+    const second = new CSSStyleSheet();
+    first.replaceSync(text);
+    second.replaceSync(text);
+    const style = first.cssRules[0].style;
+    const names = () => Array.from({ length: style.length }, (_, index) => style.item(index)).join(", ");
+    println(names());
+    println(`out of bounds: ${JSON.stringify(style.item(999))}`);
+    println(style.cssText);
+    println(`uppercase: ${style.getPropertyValue("FONT-FAMILY")}`);
+    println(`missing: ${JSON.stringify(style.getPropertyValue("not-a-descriptor"))}`);
+    style.fontFamily = '"雨😀"';
+    println(`after change: ${names()}`);
+    println(`removed: ${style.removeProperty("font-weight")}`);
+    style.fontWeight = "700";
+    internals.gc();
+    println(style.cssText);
+    println(`shared sheet: ${second.cssRules[0].style.cssText}`);
+    style.cssText = 'font-style: italic; font-family: "風";';
+    println(`replacement: ${names()}`);
+    println(style.cssText);
+    first.deleteRule(0);
+    internals.gc();
+    println(`retained wrapper: ${style.fontFamily}`);
+});
+</script>

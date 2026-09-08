@@ -41,6 +41,4 @@ String serialize_a_number(double value);
 Utf16String serialize_a_css_declaration_to_utf16(StringView property, Utf16View value, Important = Important::No);
 Utf16String serialize_a_css_declaration_to_utf16(Utf16View property, Utf16View value, Important = Important::No);
 
-String serialize_a_positional_value_list(ReadonlySpan<ValueComparingNonnullRefPtr<StyleValue const>> values, SerializationMode mode);
-
 }

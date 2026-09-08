@@ -35,44 +35,6 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValueList::absolutized(Comput
     return *this;
 }
 
-void StyleValueList::serialize(StringBuilder& builder, SerializationMode mode) const
-{
-    auto values = this->values();
-    if (values.is_empty())
-        return;
-
-    auto separator_string = ""sv;
-    switch (separator()) {
-    case Separator::Space:
-        separator_string = " "sv;
-        break;
-    case Separator::Comma:
-        separator_string = ", "sv;
-        break;
-    default:
-        VERIFY_NOT_REACHED();
-    }
-
-    auto first_value = values.first();
-    if (all_of(values, [&](auto const& property) { return property == first_value; }) && separator() != Separator::Comma && collapsible() == Collapsible::Yes && !first_value->is_empty_optional()) {
-        first_value->serialize(builder, mode);
-        return;
-    }
-
-    bool first = true;
-
-    for (size_t i = 0; i < values.size(); ++i) {
-        if (values[i]->is_empty_optional())
-            continue;
-
-        if (!first)
-            builder.append(separator_string);
-
-        first = false;
-        values[i]->serialize(builder, mode);
-    }
-}
-
 void StyleValueList::set_style_sheet(StyleSheetState* style_sheet)
 {
     for (auto& value : values())

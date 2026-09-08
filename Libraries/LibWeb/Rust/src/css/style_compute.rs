@@ -2441,6 +2441,11 @@ pub unsafe extern "C" fn rust_style_metadata_set_initial_value_table(entries: *c
 }
 
 /// Returns the initial value data of a longhand property.
+pub(crate) fn initial_value_if_available(property_id: u16) -> Option<&'static crate::css::style_value::StyleValueData> {
+    use crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
+    INITIAL_VALUE_TABLE.get()?.values[(property_id - FIRST_LONGHAND_PROPERTY_ID) as usize].optional_data()
+}
+
 pub(crate) fn initial_value_data(property_id: u16) -> *const crate::css::style_value::StyleValueData {
     use crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID;
     let table = INITIAL_VALUE_TABLE.get().expect("initial value table not installed");
