@@ -540,9 +540,9 @@ impl<'pass> BlockFormattingContext<'pass> {
         matches!(
             formatting_context::formatting_context_type_created_by_box(self.facts(node)),
             Some(
-                formatting_context::FfiFormattingContextType::Block
-                    | formatting_context::FfiFormattingContextType::Flex
-                    | formatting_context::FfiFormattingContextType::Grid
+                formatting_context::FormattingContextType::Block
+                    | formatting_context::FormattingContextType::Flex
+                    | formatting_context::FormattingContextType::Grid
             )
         )
     }
@@ -1882,7 +1882,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let is_list_item_box = facts.is_list_item_box();
         let marker = facts.list_item_marker();
 
-        let is_table_formatting_context = independent_type == Some(formatting_context::FfiFormattingContextType::Table);
+        let is_table_formatting_context = independent_type == Some(formatting_context::FormattingContextType::Table);
         let mut pending_position = None;
         if box_is_positioned_by_fieldset_layout {
             self.pending_legend_flow_position.set(Some(geometry::LogicalOffset {

@@ -18,7 +18,7 @@ pub(super) fn compute_inline_sizes(
     // NB: These contexts can couple inline size to block layout or have special content sizing rules.
     if !facts.children_are_inline()
         || formatting_context::independent_formatting_context_type(node, &callbacks)
-            != formatting_context::FfiFormattingContextType::Block
+            != formatting_context::FormattingContextType::Block
         || facts.is_table_wrapper()
         || facts.is_fieldset_box()
         || facts.uses_button_layout()

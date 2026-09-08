@@ -815,7 +815,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         let style = self.context().style(node);
         if self.atomic_sizing == AtomicInlineSizing::InlineSize
             && formatting_context::independent_formatting_context_type(node, &self.context().callbacks)
-                == formatting_context::FfiFormattingContextType::Block
+                == formatting_context::FormattingContextType::Block
             && style.writing_mode() == writing_mode::HORIZONTAL_TB
             && !facts.has_preferred_aspect_ratio()
             && !facts.has_auto_content_box_size()

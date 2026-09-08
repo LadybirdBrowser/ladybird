@@ -736,13 +736,8 @@ pub(crate) fn derive_baselines(
     }
 }
 
-const NO_FORMATTING_CONTEXT: u8 = u8::MAX;
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-// NB: Some variants are only constructed by C++ through the FFI.
-#[allow(dead_code)]
-pub enum FfiFormattingContextType {
+pub enum FormattingContextType {
     Block,
     Inline,
     Flex,
@@ -964,17 +959,17 @@ pub(crate) fn formatting_context_type_created_by_node_data(
     data: &NodeData,
     style: Option<ComputedValuesView<'_>>,
     parent_style: Option<ComputedValuesView<'_>>,
-) -> Option<FfiFormattingContextType> {
+) -> Option<FormattingContextType> {
     if data.kind.get() == crate::layout::node_data::NodeKind::SVGSVGBox {
-        return Some(FfiFormattingContextType::Svg);
+        return Some(FormattingContextType::Svg);
     }
     let is_replaced_box = node_facts::kind_is_replaced_box(data.kind.get());
     let can_have_children = node_facts::node_can_have_children(data);
     if is_replaced_box && can_have_children {
-        return Some(FfiFormattingContextType::ReplacedWithChildren);
+        return Some(FormattingContextType::ReplacedWithChildren);
     }
     if is_replaced_box {
-        return Some(FfiFormattingContextType::InternalReplaced);
+        return Some(FormattingContextType::InternalReplaced);
     }
     if !can_have_children {
         return None;
@@ -986,9 +981,9 @@ pub(crate) fn formatting_context_type_created_by_node_data(
         })
     {
         return Some(if node_facts::kind_is_block_container(data.kind.get()) {
-            FfiFormattingContextType::Block
+            FormattingContextType::Block
         } else {
-            FfiFormattingContextType::InternalReplaced
+            FormattingContextType::InternalReplaced
         });
     }
     let display = style.map(|style| style.display());
@@ -997,21 +992,21 @@ pub(crate) fn formatting_context_type_created_by_node_data(
     if data.kind.get() == crate::layout::node_data::NodeKind::FieldSetBox
         && display.is_some_and(|display| display.is_flex_inside())
     {
-        return Some(FfiFormattingContextType::Block);
+        return Some(FormattingContextType::Block);
     }
     if display.is_some_and(|display| display.is_flex_inside()) {
-        return Some(FfiFormattingContextType::Flex);
+        return Some(FormattingContextType::Flex);
     }
     if display.is_some_and(|display| display.is_table_inside()) {
-        return Some(FfiFormattingContextType::Table);
+        return Some(FormattingContextType::Table);
     }
     if display.is_some_and(|display| display.is_grid_inside()) {
-        return Some(FfiFormattingContextType::Grid);
+        return Some(FormattingContextType::Grid);
     }
     if display.is_some_and(|display| display.is_math_inside())
         || node_facts::node_creates_block_formatting_context(data, style, parent_style)
     {
-        return Some(FfiFormattingContextType::Block);
+        return Some(FormattingContextType::Block);
     }
     if node_facts::has_flag(data, NodeFlag::ChildrenAreInline)
         || display.is_some_and(|display| {
@@ -1026,12 +1021,12 @@ pub(crate) fn formatting_context_type_created_by_node_data(
         return None;
     }
     if !display.is_some_and(|display| display.is_flow_inside()) {
-        return Some(FfiFormattingContextType::InternalDummy);
+        return Some(FormattingContextType::InternalDummy);
     }
     None
 }
 
-pub(crate) fn formatting_context_type_created_by_box(facts: NodeFacts<'_>) -> Option<FfiFormattingContextType> {
+pub(crate) fn formatting_context_type_created_by_box(facts: NodeFacts<'_>) -> Option<FormattingContextType> {
     formatting_context_type_created_by_node_data(
         facts.data(),
         facts.computed_values_view_if_styled(),
@@ -1039,56 +1034,31 @@ pub(crate) fn formatting_context_type_created_by_box(facts: NodeFacts<'_>) -> Op
     )
 }
 
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiFormattingContextArenaFacts {
-    pub arena: *mut c_void,
-    pub node: NodeSlotId,
-}
-
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_layout_formatting_context_type_for_box(facts: FfiFormattingContextArenaFacts) -> u8 {
-    // SAFETY: The C++ caller borrows the box's arena for this synchronous
-    // classification.
-    let arena = unsafe { LayoutNodeArena::from_handle(facts.arena) };
-    let data = arena.data(facts.node);
-    let style = arena
-        .style_payloads(facts.node)
-        .map(|payloads| ComputedValuesView::new(&payloads.groups));
-    let parent_style = (!data.parent.get().is_invalid())
-        .then(|| arena.style_payloads(data.parent.get()))
-        .flatten()
-        .map(|payloads| ComputedValuesView::new(&payloads.groups));
-    formatting_context_type_created_by_node_data(data, style, parent_style)
-        .map(|type_| type_ as u8)
-        .unwrap_or(NO_FORMATTING_CONTEXT)
-}
-
 fn create_formatting_context_implementation<'pass>(
     run: &FormattingContextRun<'pass>,
     parent_grid: Option<&grid_formatting_context::GridFormattingContext<'pass>>,
-    fc_type: FfiFormattingContextType,
+    fc_type: FormattingContextType,
 ) -> FormattingContextImplementation<'pass> {
     match fc_type {
-        FfiFormattingContextType::Block => {
+        FormattingContextType::Block => {
             FormattingContextImplementation::Block(Box::new(block_formatting_context::BlockFormattingContext::new(run)))
         }
-        FfiFormattingContextType::Flex => {
+        FormattingContextType::Flex => {
             FormattingContextImplementation::Flex(Box::new(flex_formatting_context::FlexFormattingContext::new(run)))
         }
-        FfiFormattingContextType::Grid => FormattingContextImplementation::Grid(Box::new(
+        FormattingContextType::Grid => FormattingContextImplementation::Grid(Box::new(
             grid_formatting_context::GridFormattingContext::new(run, parent_grid),
         )),
-        FfiFormattingContextType::Table => {
+        FormattingContextType::Table => {
             FormattingContextImplementation::Table(Box::new(table_formatting_context::TableFormattingContext::new(run)))
         }
-        FfiFormattingContextType::Svg => {
+        FormattingContextType::Svg => {
             FormattingContextImplementation::Svg(Box::new(svg_formatting_context::SvgFormattingContext::new(run)))
         }
-        FfiFormattingContextType::ReplacedWithChildren => FormattingContextImplementation::ReplacedWithChildren,
-        FfiFormattingContextType::InternalReplaced => FormattingContextImplementation::InternalReplaced,
-        FfiFormattingContextType::InternalDummy => FormattingContextImplementation::InternalDummy,
-        FfiFormattingContextType::Inline => panic!("no Rust implementation for inline formatting contexts"),
+        FormattingContextType::ReplacedWithChildren => FormattingContextImplementation::ReplacedWithChildren,
+        FormattingContextType::InternalReplaced => FormattingContextImplementation::InternalReplaced,
+        FormattingContextType::InternalDummy => FormattingContextImplementation::InternalDummy,
+        FormattingContextType::Inline => panic!("no Rust implementation for inline formatting contexts"),
     }
 }
 
@@ -1225,14 +1195,14 @@ struct RootSizingOutcome {
 fn apply_root_sizing_directives(
     run: &FormattingContextRun,
     input: &LayoutInput,
-    fc_type: FfiFormattingContextType,
+    fc_type: FormattingContextType,
 ) -> RootSizingOutcome {
     let mut atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above = None;
     let body_input = match input.participation {
         ParticipationInParentFormattingContext::BlockLevel => dimension_block_level_root(run, input),
         ParticipationInParentFormattingContext::Float => body_input_with_inner_available_space(run, input),
         ParticipationInParentFormattingContext::AtomicInline => {
-            let run_cache_may_store_this_block_formatting_context_run = fc_type == FfiFormattingContextType::Block
+            let run_cache_may_store_this_block_formatting_context_run = fc_type == FormattingContextType::Block
                 && run.layout_mode == LayoutMode::Normal
                 && !run.purpose.is_measurement()
                 && fc_run_cache::fc_run_cache_mode_from_environment() != fc_run_cache::FcRunCacheMode::Disabled;
@@ -1446,7 +1416,7 @@ pub(super) fn run_formatting_context(
     parent_used: &UsedValues,
     box_: Node,
     parent_grid: Option<&grid_formatting_context::GridFormattingContext>,
-    fc_type: FfiFormattingContextType,
+    fc_type: FormattingContextType,
     layout_mode: LayoutMode,
     should_collect_devtools_layout_data: bool,
     callbacks: LayoutPass<'_>,
@@ -1506,7 +1476,7 @@ fn execute_formatting_context_run(
     root_cells: used_values::UsedValuesCellState,
     box_: Node,
     parent_grid: Option<&grid_formatting_context::GridFormattingContext>,
-    fc_type: FfiFormattingContextType,
+    fc_type: FormattingContextType,
     layout_mode: LayoutMode,
     should_collect_devtools_layout_data: bool,
     callbacks: LayoutPass<'_>,
@@ -1573,7 +1543,7 @@ fn execute_formatting_context_run(
                 input.participation,
                 ParticipationInParentFormattingContext::AtomicInline
             )
-            && fc_type == FfiFormattingContextType::Block
+            && fc_type == FormattingContextType::Block
             && callbacks.first_child(box_).is_invalid()
         {
             // An empty atomic block context has no body output. Root sizing and finalization still
@@ -1870,7 +1840,7 @@ pub(crate) fn layout_inside_child(
             input.participation,
             ParticipationInParentFormattingContext::AtomicInline
         )
-        && formatting_context_type_created_by_box(facts) == Some(FfiFormattingContextType::Block)
+        && formatting_context_type_created_by_box(facts) == Some(FormattingContextType::Block)
         && run.callbacks.first_child(child).is_invalid()
     {
         // OPTIMIZATION: An empty atomic block has no formatting-context body output. Size it in the
@@ -1921,7 +1891,7 @@ pub(crate) fn layout_inside_child(
     }
     let creates_replaced_context = matches!(
         formatting_context_type_created_by_box(facts),
-        Some(FfiFormattingContextType::InternalReplaced | FfiFormattingContextType::ReplacedWithChildren)
+        Some(FormattingContextType::InternalReplaced | FormattingContextType::ReplacedWithChildren)
     );
     if !facts.can_have_children() && !creates_replaced_context {
         size_skipped_independent_root(run, parent_block, child, &input);
@@ -1999,20 +1969,20 @@ fn absorb_run_outputs(
     result
 }
 
-pub(super) fn independent_formatting_context_type(box_: Node, callbacks: &LayoutPass<'_>) -> FfiFormattingContextType {
+pub(super) fn independent_formatting_context_type(box_: Node, callbacks: &LayoutPass<'_>) -> FormattingContextType {
     let facts = NodeFacts::new(callbacks, box_);
     if let Some(fc_type) = formatting_context_type_created_by_box(facts) {
         return fc_type;
     }
     if facts.is_block_container() {
-        return FfiFormattingContextType::Block;
+        return FormattingContextType::Block;
     }
 
     // HACK: Instead of crashing in scenarios that assume the formatting context can be created, create a dummy formatting context that does nothing.
     eprintln!(
         "FIXME: An independent formatting context was requested from a Box that does not have a formatting context type. A dummy formatting context will be created instead."
     );
-    FfiFormattingContextType::InternalDummy
+    FormattingContextType::InternalDummy
 }
 
 pub(crate) fn resolve_block_axis_percentage_inset_basis_is_definite(

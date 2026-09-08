@@ -389,42 +389,6 @@ static RustFFI::FfiSvgPathResult compute_svg_path(NodeWithStyle const& node, Rus
     };
 }
 
-Optional<RustFFI::FfiFormattingContextType> formatting_context_type_created_by_box(Box const& box)
-{
-    auto type = RustFFI::rust_layout_formatting_context_type_for_box({
-        .arena = box.arena_handle(),
-        .node = Node::slot_id(&box),
-    });
-    if (type == NumericLimits<u8>::max())
-        return {};
-    return static_cast<RustFFI::FfiFormattingContextType>(type);
-}
-
-StringView formatting_context_type_name(RustFFI::FfiFormattingContextType type)
-{
-    switch (type) {
-    case RustFFI::FfiFormattingContextType::Block:
-        return "BFC"sv;
-    case RustFFI::FfiFormattingContextType::Inline:
-        return "IFC"sv;
-    case RustFFI::FfiFormattingContextType::Flex:
-        return "FFC"sv;
-    case RustFFI::FfiFormattingContextType::Grid:
-        return "GFC"sv;
-    case RustFFI::FfiFormattingContextType::Table:
-        return "TFC"sv;
-    case RustFFI::FfiFormattingContextType::Svg:
-        return "SVG"sv;
-    case RustFFI::FfiFormattingContextType::ReplacedWithChildren:
-        return "Replaced, with children"sv;
-    case RustFFI::FfiFormattingContextType::InternalReplaced:
-        return "Replaced"sv;
-    case RustFFI::FfiFormattingContextType::InternalDummy:
-        return "Dummy"sv;
-    }
-    VERIFY_NOT_REACHED();
-}
-
 static size_t s_active_layout_pass_count { 0 };
 
 bool layout_pass_currently_running()
