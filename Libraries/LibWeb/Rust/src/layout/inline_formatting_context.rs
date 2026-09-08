@@ -1380,6 +1380,7 @@ impl<'context> InlineFormattingContext<'context> {
                     || fragment.inline_offset != expected_inline_offset
                     || fragment.inline_length != item.inline_size
                     || fragment.block_length != used.content_block_size.get()
+                    || fragment.content_baselines != Some(item.content_baselines)
                     || fragment.border_box_block_start != used.border_box_top(false)
                 {
                     matched = false;
@@ -1402,9 +1403,12 @@ impl<'context> InlineFormattingContext<'context> {
             reused_lines.push(line);
         }
 
-        // Additional content can fit on the old final line, so that line is
-        // damaged even when every old fragment before the insertion matches.
-        if item_index < iterator.items().len() && reused_lines.len() == previous.lines.len() {
+        // Changed content can fit on the last reused line, including when an insertion
+        // precedes an existing line. Removing all following lines also changes its final-break
+        // state. Resume there even if all its old fragments still match.
+        if !reused_lines.is_empty()
+            && (item_index < iterator.items().len() || reused_lines.len() < previous.lines.len())
+        {
             reused_lines.pop();
             item_index = item_count_before_last_line;
         }
