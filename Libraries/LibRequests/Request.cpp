@@ -114,8 +114,10 @@ void Request::release_transfer_lease()
     if (!m_transfer_lease.has_value())
         return;
 
+    // Releasing the lease can unregister this request from its client, which may hold the last reference to it.
+    NonnullRefPtr protector { *this };
     if (auto client = m_client.strong_ref())
-        client->release_request_transfer_lease({}, m_transfer_lease.release_value());
+        client->release_request_transfer_lease({}, *this, m_transfer_lease.release_value());
 }
 
 bool Request::has_file_backed_response_body() const
@@ -256,6 +258,8 @@ void Request::set_stop_callback(RequestStopped on_stop)
 
 void Request::did_finish(Badge<RequestClient>, u64 total_size, RequestTimingInfo const& timing_info, Optional<NetworkError> const& network_error)
 {
+    m_finished = true;
+
     auto effective_network_error = m_body_delivery_error.has_value() ? m_body_delivery_error : network_error;
     if (on_finish)
         on_finish(total_size, timing_info, effective_network_error);
@@ -336,6 +340,8 @@ void Request::set_up_internal_stream_data(DataReceived on_data_available)
             m_internal_stream_data->read_notifier->close();
             m_internal_stream_data->read_notifier = nullptr;
             m_internal_stream_data->read_stream = nullptr;
+            // The request has finished for its owner, so a stop or transfer that follows has nothing left to report.
+            m_on_stop = nullptr;
             user_on_finish(m_internal_stream_data->total_size, m_internal_stream_data->timing_info, m_internal_stream_data->network_error);
             defer_teardown();
         }

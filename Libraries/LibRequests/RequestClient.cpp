@@ -139,9 +139,13 @@ bool RequestClient::stop_request(Badge<Request>, Request& request)
     return true;
 }
 
-void RequestClient::release_request_transfer_lease(Badge<Request>, RequestTransferLeaseKey transfer_lease)
+void RequestClient::release_request_transfer_lease(Badge<Request>, Request& request, RequestTransferLeaseKey transfer_lease)
 {
     release_request_transfer_lease(transfer_lease);
+
+    // A request that has finished stays registered only for the sake of its lease — so it goes along with the lease.
+    if (request.is_finished())
+        m_requests.remove(request.id());
 }
 
 void RequestClient::release_request_transfer_lease(RequestTransferLeaseKey transfer_lease)
@@ -236,10 +240,19 @@ void RequestClient::request_cached_body_file_available(u64 request_id, IPC::File
 
 void RequestClient::request_finished(u64 request_id, u64 total_size, RequestTimingInfo timing_info, Optional<NetworkError> network_error)
 {
-    if (RefPtr<Request> request = m_requests.get(request_id).value_or(nullptr)) {
-        request->did_finish({}, total_size, timing_info, network_error);
+    RefPtr<Request> request = m_requests.get(request_id).value_or(nullptr);
+    if (!request)
+        return;
+
+    request->did_finish({}, total_size, timing_info, network_error);
+
+    // A leased request stays registered after it finishes — just as RequestServer keeps a leased request alive after
+    // completion: Another client may still adopt it — and the request_transferred that follows has to find the request
+    // here to tear it down. It's unregistered when it's transferred, when its lease is released, or when it's stopped.
+    // Gecko and WebKit work the same way: The process a navigation response is taken away from keeps its state for the
+    // request until the one notification telling it to let go — and nothing tears it down before that notification.
+    if (!request->has_transfer_lease())
         m_requests.remove(request_id);
-    }
 }
 
 void RequestClient::headers_became_available(u64 request_id, Vector<HTTP::Header> response_headers, Optional<u32> status_code, Optional<String> reason_phrase, Optional<IPC::File> javascript_bytecode_file, u64 javascript_bytecode_size, Optional<u64> javascript_bytecode_cache_vary_key, CameFromCache came_from_cache)
