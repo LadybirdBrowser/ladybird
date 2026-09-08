@@ -41,7 +41,8 @@ public:
 
     AK::Duration timestamp() const { return m_timestamp; }
     AK::Duration duration() const { return m_duration; }
-    AK::Duration conservative_end() const { return m_timestamp + m_duration.scaled_by(3, 2); }
+    static AK::Duration conservative_end_of(AK::Duration timestamp, AK::Duration duration) { return timestamp + duration.scaled_by(3, 2); }
+    AK::Duration conservative_end() const { return conservative_end_of(m_timestamp, m_duration); }
 
     Gfx::Size<u32> size() const { return m_size; }
     u32 width() const { return size().width(); }
