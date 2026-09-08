@@ -8,6 +8,7 @@
 #include <LibWeb/CSS/PseudoClass.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/CSS/StyleScope.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/PseudoElement.h>
 #include <LibWeb/DOM/ShadowRoot.h>
@@ -94,6 +95,9 @@ void invalidate_style_after_slot_assignment_change(HTML::HTMLSlotElement& slot)
 // resolves to, for its whole subtree, because a directionality inherits.
 void invalidate_style_after_text_change_under(DOM::Element& parent_of_text)
 {
+    if (!parent_of_text.document().has_element_with_auto_directionality())
+        return;
+
     bool ancestor_chain_has_assigned_slot = false;
     for (auto ancestor = GC::Ptr<DOM::Element> { parent_of_text }; ancestor; ancestor = ancestor->parent_element()) {
         if (ancestor->assigned_slot_internal()) {

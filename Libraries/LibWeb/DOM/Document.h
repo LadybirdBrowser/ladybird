@@ -612,6 +612,13 @@ public:
     bool needs_mathml_and_svg_user_agent_style_sheets() const { return m_needs_mathml_and_svg_user_agent_style_sheets; }
     void set_needs_mathml_and_svg_user_agent_style_sheets();
 
+    // Whether an element of the kind has ever connected. Neither is cleared, so a document that never
+    // held one can skip the removal-time bookkeeping that only such an element makes necessary.
+    bool has_element_with_auto_directionality() const { return m_has_element_with_auto_directionality; }
+    void set_has_element_with_auto_directionality() { m_has_element_with_auto_directionality = true; }
+    bool has_form_or_fieldset_element() const { return m_has_form_or_fieldset_element; }
+    void set_has_form_or_fieldset_element() { m_has_form_or_fieldset_element = true; }
+
     bool parser_cannot_change_the_mode() const { return m_parser_cannot_change_the_mode; }
     void set_parser_cannot_change_the_mode(bool parser_cannot_change_the_mode) { m_parser_cannot_change_the_mode = parser_cannot_change_the_mode; }
 
@@ -1625,6 +1632,8 @@ private:
     Optional<CSS::PreferredColorScheme> m_svg_image_color_scheme;
 
     bool m_needs_mathml_and_svg_user_agent_style_sheets { false };
+    bool m_has_element_with_auto_directionality { false };
+    bool m_has_form_or_fieldset_element { false };
 
     bool m_parser_cannot_change_the_mode { false };
 
