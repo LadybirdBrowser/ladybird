@@ -39,6 +39,8 @@ define_counters! {
     // Typed input deltas, counted by kind. A generic version bump would hide exactly the
     // distinction that decides how much work a change causes.
     TreeDeltas => "treeDeltas",
+    TreeDepartureDeltas => "treeDepartureDeltas",
+    StyleNodesRetired => "styleNodesRetired",
     LocalFeatureDeltas => "localFeatureDeltas",
     StateDeltas => "stateDeltas",
     ElementDeclarationDeltas => "elementDeclarationDeltas",
