@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/empty-caret-with-placeholder-ref.html">
+<style>
+    div { font: 20px/40px monospace; }
+    p::before { content: "Placeholder"; position: absolute; color: gray; }
+</style>
+<div contenteditable><p><br></p></div>
+<script>
+    document.querySelector("div").focus();
+    getSelection().collapse(document.querySelector("p"), 0);
+</script>

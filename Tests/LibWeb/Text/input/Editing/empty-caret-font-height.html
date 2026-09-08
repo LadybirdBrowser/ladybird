@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #editor { font: 20px/40px monospace; }
+</style>
+<div id="editor" contenteditable></div>
+<script>
+    test(() => {
+        editor.focus();
+        const selection = getSelection();
+        for (const [label, markup] of [
+            ["empty block", ""],
+            ["empty paragraph", "<p><br></p>"],
+            ["empty inline", "<span></span>"],
+        ]) {
+            editor.innerHTML = markup;
+            const target = editor.firstChild || editor;
+            selection.collapse(target, 0);
+            const empty = internals.currentCaretRect();
+            target.textContent = "a";
+            selection.collapse(target.firstChild, 0);
+            const filled = internals.currentCaretRect();
+            println(`${label} uses text height: ${empty.height === filled.height}`);
+            println(`${label} aligns with text: ${empty.y === filled.y}`);
+        }
+    });
+</script>

@@ -432,6 +432,15 @@ static bool has_content(Layout::Node const& node)
         || Layout::RustFFI::layout_arena_paintable_has_child_paintables(node.arena_handle(), committed_row_slot(node));
 }
 
+static CSSPixelRect caret_rect_for_empty_line(Layout::NodeWithStyle const& node, CSSPixelPoint position)
+{
+    // NB: Match the font-height caret used by text fragments, centered in the empty line's line-height box.
+    auto const& font_metrics = node.first_available_font().pixel_metrics();
+    auto line_height = node.line_height();
+    auto caret_height = min(line_height, CSSPixels::nearest_value_for(font_metrics.ascent + font_metrics.descent));
+    return { position.x(), position.y() + (line_height - caret_height) / 2, 1, caret_height };
+}
+
 // Caret rect for a cursor parked on this paintable's DOM node at the given child offset, e.g. on an empty line
 // rendered by a <br> child or in an empty editable element.
 CSSPixelRect caret_rect_for_child_offset(Layout::Node const& block, size_t offset)
@@ -442,7 +451,8 @@ CSSPixelRect caret_rect_for_child_offset(Layout::Node const& block, size_t offse
 
     auto content_box = absolute_padding_box_rect(block);
     auto line_height = styled_block.line_height();
-    CSSPixelRect rect { content_box.x(), content_box.y(), 1, line_height };
+    auto rect = caret_rect_for_empty_line(styled_block, content_box.location());
+    auto caret_offset_in_line = rect.y() - content_box.y();
 
     auto dom_node = block.dom_node();
     if (!dom_node)
@@ -521,7 +531,7 @@ CSSPixelRect caret_rect_for_child_offset(Layout::Node const& block, size_t offse
         return TraversalDecision::Continue;
     });
 
-    rect.set_y(preceding_content_bottom.value_or(content_box.y()) + line_height * preceding_empty_lines);
+    rect.set_y(preceding_content_bottom.value_or(content_box.y()) + line_height * preceding_empty_lines + caret_offset_in_line);
     return rect;
 }
 
@@ -604,7 +614,7 @@ Layout::RustFFI::FfiCaretPaint resolve_document_caret_paint(DOM::Document& docum
         if (has_content(*layout_node))
             return caret;
         auto position = box_type_agnostic_position(*layout_node);
-        fill(Layout::RustFFI::FfiCaretPaintKind::EmptyInline, committed_row_slot(*layout_node), no_slot, CSSPixelRect { position.x(), position.y(), 1, styled_node.line_height() }, styled_node.caret_color());
+        fill(Layout::RustFFI::FfiCaretPaintKind::EmptyInline, committed_row_slot(*layout_node), no_slot, caret_rect_for_empty_line(styled_node, position), styled_node.caret_color());
         return caret;
     }
     if (!is_visible(*layout_node))

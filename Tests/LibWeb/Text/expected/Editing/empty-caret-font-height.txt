@@ -1,0 +1,6 @@
+empty block uses text height: true
+empty block aligns with text: true
+empty paragraph uses text height: true
+empty paragraph aligns with text: true
+empty inline uses text height: true
+empty inline aligns with text: true
