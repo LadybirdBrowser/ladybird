@@ -581,6 +581,21 @@ Layout::RustFFI::FfiScrollableOverflowUpdateOutcome rust_update_scrollable_overf
         nullptr, clamp_scroll_offset_if_nonzero);
 }
 
+static CSS::PreferredColorScheme image_color_scheme(Layout::NodeWithStyle const& layout_node)
+{
+    auto supports_color_scheme = [](ReadonlySpan<Utf16FlyString> schemes) {
+        return schemes.contains_slow("light"_utf16) || schemes.contains_slow("dark"_utf16);
+    };
+    if (supports_color_scheme(layout_node.color_schemes()))
+        return layout_node.color_scheme();
+    auto& document = layout_node.document();
+    if (auto schemes = document.supported_color_schemes(); schemes.has_value() && supports_color_scheme(*schemes))
+        return layout_node.color_scheme();
+    // INTEROP: Like Firefox, images use the preferred scheme when neither the element nor
+    //          its document opts into a supported scheme. Controls still default to light.
+    return document.svg_image_color_scheme().value_or(document.page().preferred_color_scheme());
+}
+
 CSS::ColorResolutionContext gradient_stop_color_resolution_context(Layout::NodeWithStyle const& layout_node)
 {
     void const* current_color_style_value_data = nullptr;
@@ -919,7 +934,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             auto [image, decoded_image_data] = layer_image_for(layout_node, list, computed_index);
             if (!image || !is<CSS::ImageStyleValue>(*image) || !decoded_image_data)
                 return facts;
-            if (auto display_list = decoded_image_data->record_display_list(dest.size(), layout_node.color_scheme(), context.resource_storage); display_list.has_value()) {
+            if (auto display_list = decoded_image_data->record_display_list(dest.size(), image_color_scheme(layout_node), context.resource_storage); display_list.has_value()) {
                 facts.has_nested_display_list = true;
                 facts.nested_display_list_id = context.resource_storage.add_display_list(display_list->display_list, display_list->visual_context_tree).value();
             }
@@ -951,7 +966,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 .document = layout_node.document(),
                 .dest_rect = decoded_image_data ? dest_rect.to_type<int>().to_type<float>() : dest_rect,
                 .image_rendering = static_cast<CSS::ImageRendering>(image_rendering_raw),
-                .color_scheme = layout_node.color_scheme(),
+                .color_scheme = image_color_scheme(layout_node),
                 .gradient_stop_color_resolution_context = gradient_stop_color_resolution_context(layout_node),
                 .accumulated_scale = accumulated_scale,
                 .resource_storage = context.resource_storage,
@@ -1061,7 +1076,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 .document = layout_node.document(),
                 .dest_rect = dest_rect,
                 .image_rendering = layout_node.image_rendering(),
-                .color_scheme = layout_node.color_scheme(),
+                .color_scheme = image_color_scheme(layout_node),
                 .gradient_stop_color_resolution_context = {},
                 .accumulated_scale = accumulated_scale,
                 .resource_storage = context.resource_storage,
