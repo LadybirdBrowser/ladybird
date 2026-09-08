@@ -1,0 +1,2 @@
+keydown: instanceof Event = true, instanceof KeyboardEvent = true, prototype chain ends in Object.prototype = true
+click: instanceof Event = true, instanceof PointerEvent = true, prototype chain ends in Object.prototype = true
