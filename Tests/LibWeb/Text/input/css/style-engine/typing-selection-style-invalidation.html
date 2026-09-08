@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    ::selection { color: rgb(10, 20, 30); background-color: rgb(40, 50, 60); }
+</style>
+<div id="unrelated"></div>
+<div id="editor" contenteditable>text</div>
+<script>
+    test(() => {
+        for (let index = 0; index < 64; ++index) {
+            const child = unrelated.appendChild(document.createElement("div"));
+            child.textContent = "selectable text";
+        }
+        editor.focus();
+        const selection = document.getSelection();
+        selection.collapse(editor.firstChild, 4);
+        internals.updateStyle();
+
+        function type(label, text) {
+            internals.resetStyleInvalidationCounters();
+            internals.sendText(editor, text);
+            internals.updateStyle();
+            println(`${label} stays local: ${internals.getStyleInvalidationCounters().elementStyleRecomputations < 16}`);
+            println(`${label} leaves a caret: ${selection.isCollapsed}`);
+        }
+
+        type("typing", "a");
+        type("repeated typing", "b");
+        document.execCommand("bold");
+        type("typing with a formatting override", "c");
+        println(`inserted text: ${editor.textContent}`);
+        println(`formatting preserved: ${getComputedStyle(selection.anchorNode.parentElement).fontWeight}`);
+        println(`selection query: ${getComputedStyle(editor, "::selection").color}`);
+
+        const beforeSelection = internals.styleEngineCounters().computedPseudoAssignmentsPublished;
+        editor.addEventListener("input", () => {
+            selection.selectAllChildren(editor);
+            internals.updateStyle();
+            println(`input handler selection: ${getComputedStyle(editor, "::selection").backgroundColor}`);
+        }, { once: true });
+        internals.sendText(editor, "d");
+        println(`input handler leaves a selection: ${!selection.isCollapsed}`);
+        println(`selection styles activated: ${internals.styleEngineCounters().computedPseudoAssignmentsPublished - beforeSelection >= 64}`);
+    });
+</script>

@@ -1,0 +1,12 @@
+typing stays local: true
+typing leaves a caret: true
+repeated typing stays local: true
+repeated typing leaves a caret: true
+typing with a formatting override stays local: true
+typing with a formatting override leaves a caret: true
+inserted text: textabc
+formatting preserved: 700
+selection query: rgb(10, 20, 30)
+input handler selection: rgb(40, 50, 60)
+input handler leaves a selection: true
+selection styles activated: true
