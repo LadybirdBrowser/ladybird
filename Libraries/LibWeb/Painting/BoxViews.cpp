@@ -448,6 +448,28 @@ CSSPixelRect caret_rect_for_child_offset(Layout::Node const& block, size_t offse
     if (!dom_node)
         return rect;
 
+    // NB: A boundary beside a text child has the same geometry as the corresponding text offset.
+    //     Editors can leave the selection on the parent after inserting their first character.
+    //     Use the text fragment's position and font metrics instead of the empty-block fallback.
+    auto caret_rect_in_text = [&](DOM::Node const* node, size_t text_offset) -> Optional<CSSPixelRect> {
+        auto const* text = as_if<DOM::Text>(node);
+        auto const* layout_node = text ? text->unsafe_layout_node() : nullptr;
+        if (!layout_node)
+            return {};
+        auto result = Layout::RustFFI::layout_arena_text_caret_rect_for_position(
+            block.arena_handle(), Layout::Node::slot_id(layout_node), text_offset, true);
+        if (result.found)
+            return result.rect;
+        return {};
+    };
+    if (offset > 0) {
+        auto const* previous_child = dom_node->child_at_index(offset - 1);
+        if (auto text_rect = caret_rect_in_text(previous_child, previous_child ? previous_child->length() : 0); text_rect.has_value())
+            return *text_rect;
+    }
+    if (auto text_rect = caret_rect_in_text(dom_node->child_at_index(offset), 0); text_rect.has_value())
+        return *text_rect;
+
     // A boundary immediately after an atomic inline element paints after that element. Atomic inline elements have
     if (offset > 0) {
         auto* previous_child = dom_node->child_at_index(offset - 1);

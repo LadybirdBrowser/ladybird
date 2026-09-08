@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #editor { font: 20px/40px monospace; }
+</style>
+<div id="editor" contenteditable></div>
+<script>
+    test(() => {
+        editor.focus();
+        const selection = getSelection();
+        function rectAt(node, offset) {
+            selection.collapse(node, offset);
+            return internals.currentCaretRect();
+        }
+        function sameRect(a, b) {
+            return a && b && a.x === b.x && a.y === b.y && a.width === b.width && a.height === b.height;
+        }
+        for (const [label, style, text] of [
+            ["LTR", "", "ab"],
+            ["RTL", "direction: rtl", "אב"],
+            ["vertical", "writing-mode: vertical-rl", "ab"],
+        ]) {
+            editor.style = style;
+            editor.textContent = text;
+            println(`${label} before text: ${sameRect(rectAt(editor, 0), rectAt(editor.firstChild, 0))}`);
+            println(`${label} after text: ${sameRect(rectAt(editor, 1), rectAt(editor.firstChild, text.length))}`);
+            editor.firstChild.splitText(1);
+            println(`${label} between text nodes: ${sameRect(rectAt(editor, 1), rectAt(editor.firstChild, 1))}`);
+        }
+        editor.style = "";
+        editor.innerHTML = "<p><br></p>";
+        const paragraph = editor.firstChild;
+        selection.collapse(paragraph, 0);
+        editor.addEventListener("input", () => {
+            selection.collapse(paragraph, paragraph.childNodes.length);
+        }, { once: true });
+        internals.sendText(editor, "a");
+        const firstCaret = internals.currentCaretRect();
+        println(`first character caret: ${sameRect(firstCaret, rectAt(paragraph.firstChild, 1))}`);
+        internals.sendText(editor, "b");
+        const secondCaret = internals.currentCaretRect();
+        println(`second character advances: ${secondCaret.x > firstCaret.x}`);
+        println(`caret height stays stable: ${firstCaret.height === secondCaret.height}`);
+    });
+</script>

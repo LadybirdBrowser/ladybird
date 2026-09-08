@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/caret-after-first-character-ref.html">
+<style>
+    div { font: 20px/40px monospace; }
+</style>
+<div contenteditable><p>a</p></div>
+<script>
+    document.querySelector("div").focus();
+    getSelection().collapse(document.querySelector("p"), 1);
+</script>
