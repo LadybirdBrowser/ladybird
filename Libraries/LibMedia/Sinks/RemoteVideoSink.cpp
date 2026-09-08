@@ -146,17 +146,14 @@ RemoteVideoSink::ThreadData::ThreadData(VideoEdgeQueue edge, Delegates delegates
 
 ErrorOr<void> RemoteVideoSink::ThreadData::connect_input(NonnullRefPtr<VideoProducer> const& producer)
 {
-    {
-        Sync::MutexLocker locker { m_mutex };
-        VERIFY(m_input == nullptr);
-        m_input = producer;
-    }
     producer->set_wake_handler([this] {
         Sync::MutexLocker locker { m_mutex };
         m_wake_pending = true;
         m_wait_condition.broadcast();
     });
     Sync::MutexLocker locker { m_mutex };
+    VERIFY(m_input == nullptr);
+    m_input = producer;
     m_wake_pending = true;
     m_wait_condition.broadcast();
     return {};
@@ -231,44 +228,70 @@ void RemoteVideoSink::ThreadData::wait_on_pump_thread(Sync::MutexLocker<Sync::Mu
 
 void RemoteVideoSink::ThreadData::pump_thread_loop()
 {
-    Optional<u32> last_transmitted_seek_id;
-    auto last_transmitted_status = PipelineStatus::Pending;
+    Optional<VideoEdgeStatus> published_status;
+    auto publish_status = [&](VideoEdgeStatus status) {
+        if (published_status == status)
+            return false;
+        published_status = status;
+        m_edge.set_status(status.status, status.seek_id);
+        return true;
+    };
+
+    // The seek ID a frame was enqueued under, while it has yet to be consumed from the input.
+    Optional<u32> enqueued_frame_seek_id;
 
     while (true) {
+        if (enqueued_frame_seek_id.has_value()) {
+            {
+                Sync::MutexLocker locker { m_mutex };
+                if (m_exit_requested)
+                    break;
+                // Paired with the fence in RemoteVideoProducer::seek(): either that seek's look at the ring saw this
+                // frame, or its request is visible here and the frame stays in the input for the seek to find.
+                AK::atomic_thread_fence(AK::MemoryOrder::memory_order_seq_cst);
+                if (m_actual_seek_id != *enqueued_frame_seek_id) {
+                    // A seek was applied since the peek, so the input's head is re-peeked; if unchanged, it is
+                    // re-pumped under the new stamp and the consumer drops the old copy.
+                    enqueued_frame_seek_id = {};
+                    continue;
+                }
+                if (m_edge.requested_seek_id() != m_actual_seek_id) {
+                    wait_on_pump_thread(locker);
+                    continue;
+                }
+                if (m_input)
+                    m_input->consume();
+            }
+            publish_status({ PipelineStatus::Pending, *enqueued_frame_seek_id });
+            enqueued_frame_seek_id = {};
+            m_delegates.ring_data_available();
+            continue;
+        }
+
         u32 seek_id;
         VideoProducerOutput output;
-        RefPtr<VideoProducer> input;
         {
             Sync::MutexLocker locker { m_mutex };
             if (m_exit_requested)
                 break;
-            input = m_input;
-            if (input == nullptr || !m_edge.can_enqueue()) {
+            auto seek_request_is_pending = m_edge.requested_seek_id() != m_actual_seek_id;
+            if (m_input == nullptr || !m_edge.can_enqueue() || seek_request_is_pending) {
                 wait_on_pump_thread(locker);
                 continue;
             }
             seek_id = m_actual_seek_id;
-            output = input->peek();
+            output = m_input->peek();
         }
 
         if (output.status == PipelineStatus::HaveData) {
             VERIFY(output.frame);
             enqueue_frame(*output.frame, seek_id);
-            input->consume();
-            m_edge.set_status(PipelineStatus::Pending, seek_id);
-            last_transmitted_seek_id = seek_id;
-            last_transmitted_status = PipelineStatus::Pending;
-            m_delegates.ring_data_available();
+            enqueued_frame_seek_id = seek_id;
             continue;
         }
 
-        if (last_transmitted_seek_id != seek_id || last_transmitted_status != output.status) {
-            last_transmitted_seek_id = seek_id;
-            last_transmitted_status = output.status;
-            m_edge.set_status(output.status, seek_id);
-            if (output.status == PipelineStatus::Suspended || is_terminal(output.status))
-                m_delegates.ring_data_available();
-        }
+        if (publish_status({ output.status, seek_id }) && (output.status == PipelineStatus::Suspended || is_terminal(output.status)))
+            m_delegates.ring_data_available();
         Sync::MutexLocker locker { m_mutex };
         wait_on_pump_thread(locker);
     }
@@ -282,7 +305,6 @@ void RemoteVideoSink::ThreadData::enqueue_frame(VideoFrame const& frame, u32 see
     VERIFY(pool_slot != nullptr);
     lend_slot(*pool_slot);
     MUST(m_edge.enqueue(VideoFrameHandle::for_frame(frame), seek_id));
-    m_edge.set_available_upper_bound(frame.conservative_end(), seek_id);
 }
 
 void RemoteVideoSink::ThreadData::lend_slot(PooledVideoFrameSlot const& pool_slot)

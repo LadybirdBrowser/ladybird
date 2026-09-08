@@ -69,3 +69,36 @@ TEST_CASE(consumer_maps_the_same_edge_through_fds)
     consumer.consume();
     EXPECT(!consumer.peek().has_value());
 }
+
+TEST_CASE(requested_seek_id_is_shared_through_the_header)
+{
+    auto producer = MUST(VideoEdgeQueue::create());
+    auto ring_fd = MUST(Core::System::dup(producer.ring_fd()));
+    auto consumer = MUST(VideoEdgeQueue::create(ring_fd, producer.header_buffer()));
+
+    EXPECT_EQ(producer.requested_seek_id(), 0u);
+    consumer.set_requested_seek_id(3);
+    EXPECT_EQ(producer.requested_seek_id(), 3u);
+}
+
+TEST_CASE(peek_newest_reads_the_last_enqueued_item)
+{
+    auto edge = MUST(VideoEdgeQueue::create());
+    EXPECT(!edge.peek_newest().has_value());
+
+    for (u32 i = 1; i <= 3; i++) {
+        VideoFrameHandle handle;
+        handle.timestamp = AK::Duration::from_milliseconds(100 * i);
+        MUST(edge.enqueue(handle, 1));
+    }
+    EXPECT_EQ(edge.peek()->handle.timestamp, AK::Duration::from_milliseconds(100));
+    EXPECT_EQ(edge.peek_newest()->handle.timestamp, AK::Duration::from_milliseconds(300));
+
+    // Consuming leaves the newest item in place until it is the one consumed.
+    edge.consume();
+    edge.consume();
+    EXPECT_EQ(edge.peek()->handle.timestamp, AK::Duration::from_milliseconds(300));
+    EXPECT_EQ(edge.peek_newest()->handle.timestamp, AK::Duration::from_milliseconds(300));
+    edge.consume();
+    EXPECT(!edge.peek_newest().has_value());
+}

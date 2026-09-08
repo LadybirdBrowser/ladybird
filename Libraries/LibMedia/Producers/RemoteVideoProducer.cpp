@@ -49,30 +49,47 @@ void RemoteVideoProducer::release_ring_contents_if_suspended()
     release_all_ring_frames();
 }
 
+void RemoteVideoProducer::discard_ring_head(VideoEdgeItem const& head)
+{
+    // A head already resolved into the current frame releases its lend through that frame instead.
+    if (m_current_frame)
+        m_current_frame = nullptr;
+    else
+        release_lent_slot(head.handle.pool_id, head.handle.slot_index);
+    m_edge.consume();
+}
+
+void RemoteVideoProducer::discard_stale_ring_heads()
+{
+    auto discarded_any_frames = false;
+    while (true) {
+        auto head = m_edge.peek();
+        if (!head.has_value() || head->seek_id == m_expected_seek_id)
+            break;
+        discard_ring_head(*head);
+        discarded_any_frames = true;
+    }
+    if (discarded_any_frames)
+        m_delegates.notify_space_available();
+}
+
 void RemoteVideoProducer::release_all_ring_frames()
 {
     auto released_any_frames = false;
-    if (m_current_frame) {
-        m_current_frame.clear();
-        m_edge.consume();
-        released_any_frames = true;
-    }
     while (true) {
-        auto item = m_edge.peek();
-        if (!item.has_value())
+        auto head = m_edge.peek();
+        if (!head.has_value())
             break;
-        release_lent_slot(item->handle.pool_id, item->handle.slot_index);
-        m_edge.consume();
+        discard_ring_head(*head);
         released_any_frames = true;
     }
-    if (released_any_frames && m_delegates.notify_space_available)
+    if (released_any_frames)
         m_delegates.notify_space_available();
 }
 
 void RemoteVideoProducer::start()
 {
-    if (m_delegates.request_start)
-        m_delegates.request_start();
+    m_delegates.request_start();
 }
 
 void RemoteVideoProducer::set_wake_handler(PipelineWakeHandler handler)
@@ -82,77 +99,66 @@ void RemoteVideoProducer::set_wake_handler(PipelineWakeHandler handler)
 
 void RemoteVideoProducer::seek(AK::Duration timestamp)
 {
-    if (can_satisfy_seek_locally(timestamp))
+    discard_stale_ring_heads();
+
+    // Announced before the ring is consulted, paired with the fence in the pump before it consumes an enqueued frame
+    // from its input: either the look below sees the frame, or the pump sees the request and leaves the frame in its
+    // input for the seek to find. A locally satisfied seek withdraws the announcement; the pump is woken by the
+    // consume that follows.
+    auto requested_seek_id = m_expected_seek_id + 1;
+    m_edge.set_requested_seek_id(requested_seek_id);
+    AK::atomic_thread_fence(AK::MemoryOrder::memory_order_seq_cst);
+    if (can_satisfy_seek_locally(timestamp)) {
+        m_edge.set_requested_seek_id(m_expected_seek_id);
         return;
-    m_expected_seek_id++;
+    }
+    m_expected_seek_id = requested_seek_id;
 
     release_all_ring_frames();
-
-    if (m_delegates.request_seek)
-        m_delegates.request_seek(timestamp);
+    m_delegates.request_seek(timestamp);
 }
 
 bool RemoteVideoProducer::can_satisfy_seek_locally(AK::Duration timestamp) const
 {
-    auto upper_bound = m_edge.available_upper_bound();
-    if (!upper_bound.has_value() || upper_bound->seek_id != m_expected_seek_id)
-        return false;
-    if (timestamp > upper_bound->timestamp) {
-        auto status = m_edge.status();
-        if (!status.has_value() || status->seek_id != m_expected_seek_id || status->status != PipelineStatus::EndOfStream)
-            return false;
-    }
-
-    if (m_current_frame)
-        return timestamp >= m_current_frame->timestamp();
+    // The lookahead is the ring itself, from its head to the conservative end of its newest frame. Only this side
+    // moves the head, so the two reads describe one snapshot of the ring.
     auto head = m_edge.peek();
-    return head.has_value() && head->seek_id == m_expected_seek_id && timestamp >= head->handle.timestamp;
+    if (!head.has_value() || head->seek_id != m_expected_seek_id || timestamp < head->handle.timestamp)
+        return false;
+    if (timestamp < m_edge.peek_newest()->handle.conservative_end())
+        return true;
+    auto status = m_edge.status();
+    return status.has_value() && status->seek_id == m_expected_seek_id && status->status == PipelineStatus::EndOfStream;
 }
 
 VideoProducerOutput RemoteVideoProducer::peek()
 {
-    while (true) {
-        auto item = m_edge.peek();
-        if (!item.has_value()) {
-            auto status = m_edge.status();
-            if (!status.has_value() || status->seek_id != m_expected_seek_id)
-                return { nullptr, PipelineStatus::Pending };
-            return { nullptr, status->status };
-        }
-
-        if (item->seek_id != m_expected_seek_id) {
-            // If we have a current frame here, we've resolved it in a previous peek() without consume()ing it, so it
-            // will take care of releasing automatically.
-            if (m_current_frame)
-                m_current_frame = nullptr;
-            else
-                release_lent_slot(item->handle.pool_id, item->handle.slot_index);
-            m_edge.consume();
-            if (m_delegates.notify_space_available)
-                m_delegates.notify_space_available();
-            continue;
-        }
-
-        if (!m_current_frame)
-            m_current_frame = resolve(item->handle);
-        if (!m_current_frame)
+    discard_stale_ring_heads();
+    auto head = m_edge.peek();
+    if (!head.has_value()) {
+        auto status = m_edge.status();
+        if (!status.has_value() || status->seek_id != m_expected_seek_id)
             return { nullptr, PipelineStatus::Pending };
-        return { m_current_frame, PipelineStatus::HaveData };
+        return { nullptr, status->status };
     }
+
+    if (!m_current_frame)
+        m_current_frame = resolve(head->handle);
+    if (!m_current_frame)
+        return { nullptr, PipelineStatus::Pending };
+    return { m_current_frame, PipelineStatus::HaveData };
 }
 
 void RemoteVideoProducer::consume()
 {
     m_current_frame = nullptr;
     m_edge.consume();
-    if (m_delegates.notify_space_available)
-        m_delegates.notify_space_available();
+    m_delegates.notify_space_available();
 }
 
 void RemoteVideoProducer::release_lent_slot(VideoFramePoolID pool_id, u32 slot_index) const
 {
-    if (m_delegates.release_slot)
-        m_delegates.release_slot(pool_id, slot_index);
+    m_delegates.release_slot(pool_id, slot_index);
 }
 
 RefPtr<VideoFrame> RemoteVideoProducer::resolve(VideoFrameHandle const& handle)

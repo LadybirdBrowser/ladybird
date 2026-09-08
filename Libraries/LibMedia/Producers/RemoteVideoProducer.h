@@ -52,6 +52,8 @@ private:
     void release_lent_slot(VideoFramePoolID, u32 slot_index) const;
     bool can_satisfy_seek_locally(AK::Duration timestamp) const;
     void release_ring_contents_if_suspended();
+    void discard_ring_head(VideoEdgeItem const&);
+    void discard_stale_ring_heads();
     void release_all_ring_frames();
 
     VideoEdgeQueue m_edge;

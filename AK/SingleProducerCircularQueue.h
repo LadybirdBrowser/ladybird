@@ -116,6 +116,16 @@ public:
         return m_data->m_data[head % Size];
     }
 
+    // Only the consumer advances head, so the newest slot cannot be overwritten during a consumer-side read.
+    Optional<ValueType> peek_newest() const
+    {
+        VERIFY(m_data);
+        auto tail = m_data->m_tail.load(AK::MemoryOrder::memory_order_acquire);
+        if (m_data->m_head.load(AK::MemoryOrder::memory_order_relaxed) == tail)
+            return {};
+        return m_data->m_data[(tail - 1) % Size];
+    }
+
     ErrorOr<ValueType, QueueStatus> dequeue()
     {
         VERIFY(m_data);

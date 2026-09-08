@@ -14,6 +14,7 @@
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/Subsampling.h>
+#include <LibMedia/VideoFrame.h>
 
 namespace Media {
 
@@ -24,6 +25,8 @@ AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, VideoFramePoolID);
 // validating the slot acquisition ID.
 struct MEDIA_API VideoFrameHandle {
     static VideoFrameHandle for_frame(VideoFrame const&);
+
+    AK::Duration conservative_end() const { return VideoFrame::conservative_end_of(timestamp, duration); }
 
     VideoFramePoolID pool_id { 0 };
     u32 slot_index { 0 };
