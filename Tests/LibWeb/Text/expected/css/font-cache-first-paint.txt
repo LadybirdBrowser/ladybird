@@ -1,0 +1,4 @@
+Warm cache: first paint had pending fonts = false, font = loaded
+Disk cache: first paint had pending fonts = false, font = loaded
+Cold cache: first paint had pending fonts = true, font = loading
+Cold font eventually loads: loaded

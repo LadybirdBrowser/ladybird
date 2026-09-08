@@ -448,10 +448,12 @@ NonnullOwnPtr<Request> Request::fetch(
     Optional<ByteString> alt_svc_cache_path,
     Core::ProxyData proxy_data,
     Optional<Requests::RequestTransferLeaseKey> transfer_lease,
-    Optional<u32> address_selection_hint)
+    Optional<u32> address_selection_hint,
+    bool notify_on_cache_miss)
 {
     auto request = adopt_own(*new Request { request_id, RequestType::Fetch, disk_cache, cache_mode, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path), proxy_data, move(transfer_lease) });
     request->m_address_selection_hint = address_selection_hint;
+    request->m_notify_on_cache_miss = notify_on_cache_miss;
     request->process();
 
     return request;
@@ -722,6 +724,12 @@ void Request::retry_after_aia(Badge<ConnectionFromClient>)
 
 void Request::transition_to_state(State state)
 {
+    // Let clients stop waiting for a cache-only result before DNS or a stalled cache writer can delay the response.
+    if (m_notify_on_cache_miss && !m_informed_client_requires_network
+        && (state == State::DNSLookup || state == State::WaitForCache)) {
+        m_informed_client_requires_network = true;
+        m_client->async_request_requires_network(m_request_id);
+    }
     dbgln_if(REQUESTSERVER_DEBUG, "Request::Transition[{}]: {} -> {} ({} {})", m_request_id, state_name(m_state), state_name(state), m_method, m_url);
     m_state = state;
     mark_activity();

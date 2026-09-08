@@ -517,9 +517,7 @@ void FontFace::update_font_display_period()
         break;
     }
 
-    auto elapsed = m_font_display_time_for_testing.has_value()
-        ? static_cast<i64>(*m_font_display_time_for_testing)
-        : (MonotonicTime::now() - *m_font_download_timer_start).to_milliseconds();
+    auto elapsed = font_download_elapsed_time();
     auto previous_period = m_font_display_period;
     Optional<i64> next_deadline;
     if (m_font_display_failed || (failure_period_start.has_value() && elapsed >= *failure_period_start)) {
@@ -546,6 +544,28 @@ void FontFace::update_font_display_period()
         }));
     }
     m_font_download_timer->start(static_cast<int>(*next_deadline - elapsed));
+}
+
+i64 FontFace::font_download_elapsed_time() const
+{
+    VERIFY(m_font_download_timer_start.has_value());
+    return m_font_display_time_for_testing.has_value()
+        ? static_cast<i64>(*m_font_display_time_for_testing)
+        : (MonotonicTime::now() - *m_font_download_timer_start).to_milliseconds();
+}
+
+bool FontFace::has_pending_rendering() const
+{
+    return m_font_download_timer_start.has_value() && m_status == FontFaceLoadStatus::Loading && !m_font_display_failed;
+}
+
+bool FontFace::is_pending_rendering_from_cache() const
+{
+    // OPTIMIZATION: Once RequestServer is checking the cache, wait for its result and local font decoding.
+    //               Cache misses release the wait before network activity. Bound the wait for requests that
+    //               have not reached RequestServer, including pending service worker responses.
+    return has_pending_rendering() && m_font_loader && m_font_loader->may_finish_from_cache()
+        && (m_font_loader->has_started_request() || m_font_loader->has_received_font_data() || font_download_elapsed_time() < 100);
 }
 
 void FontFace::set_font_display_time_for_testing(u32 milliseconds)

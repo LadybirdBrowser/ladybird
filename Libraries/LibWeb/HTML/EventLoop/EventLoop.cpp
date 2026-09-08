@@ -708,8 +708,11 @@ void EventLoop::update_the_rendering()
             continue;
         if (navigable->is_svg_page())
             continue;
-        if (auto document = navigable->active_document())
+        if (auto document = navigable->active_document()) {
             document->update_layout(DOM::UpdateLayoutReason::HTMLEventLoopRenderingUpdate);
+            if (document->font_computer().should_defer_initial_paint())
+                continue;
+        }
         navigable->paint_next_frame();
         ++m_rendering_scheduler_counters.paints;
         if (navigable->is_local_root())

@@ -500,7 +500,10 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
         return nullptr;
     }
 
-    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), request.headers(), request.body(), request.cache_mode(), request.include_credentials(), proxy, transfer_lease);
+    auto cache_miss_notification = request.destination() == Fetch::Infrastructure::Request::Destination::Font
+        ? Requests::RequestClient::CacheMissNotification::Yes
+        : Requests::RequestClient::CacheMissNotification::No;
+    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), request.headers(), request.body(), request.cache_mode(), request.include_credentials(), proxy, transfer_lease, {}, cache_miss_notification);
     if (!protocol_request) {
         log_failure(request, "Failed to initiate load"sv);
         return nullptr;

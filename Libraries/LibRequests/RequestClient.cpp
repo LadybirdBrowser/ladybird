@@ -80,7 +80,7 @@ void RequestClient::die()
     }
 }
 
-RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL const& url, Optional<HTTP::HeaderList const&> request_headers, ReadonlyBytes request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, Core::ProxyData const& proxy_data, TransferLease transfer_lease, Optional<u32> address_selection_hint)
+RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL const& url, Optional<HTTP::HeaderList const&> request_headers, ReadonlyBytes request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, Core::ProxyData const& proxy_data, TransferLease transfer_lease, Optional<u32> address_selection_hint, CacheMissNotification cache_miss_notification)
 {
     auto request_id = m_next_request_id++;
     auto headers = request_headers.map([](auto const& headers) { return headers.headers().span(); }).value_or({});
@@ -88,7 +88,7 @@ RefPtr<Request> RequestClient::start_request(ByteString const& method, URL::URL 
     auto transfer_lease_key = transfer_lease == TransferLease::Yes
         ? Optional<RequestTransferLeaseKey> { { m_request_server_client_id, request_id } }
         : Optional<RequestTransferLeaseKey> {};
-    IPCProxy::async_start_request(request_id, method, url, headers, request_body, cache_mode, include_credentials, proxy_data, transfer_lease_key.has_value(), address_selection_hint);
+    IPCProxy::async_start_request(request_id, method, url, headers, request_body, cache_mode, include_credentials, proxy_data, transfer_lease_key.has_value(), address_selection_hint, cache_miss_notification == CacheMissNotification::Yes);
     auto request = Request::create_from_id({}, *this, request_id, move(transfer_lease_key));
     m_requests.set(request_id, request);
     return request;
@@ -200,6 +200,14 @@ void RequestClient::removed_cache_entries(u64 clear_cache_request_id)
 {
     if (auto promise = m_pending_clear_cache_requests.take(clear_cache_request_id); promise.has_value())
         (*promise)->resolve({});
+}
+
+void RequestClient::request_requires_network(u64 request_id)
+{
+    if (auto request = m_requests.get(request_id); request.has_value()) {
+        if ((*request)->on_requires_network)
+            (*request)->on_requires_network();
+    }
 }
 
 void RequestClient::request_started(u64 request_id, IPC::File response_file)

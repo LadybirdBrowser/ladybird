@@ -99,6 +99,8 @@ public:
     Vector<Gfx::UnicodeRange> const& unicode_ranges() const { return m_unicode_ranges; }
     bool has_urls() const { return !m_urls.is_empty(); }
 
+    bool is_pending_rendering_from_cache() const;
+    bool has_pending_rendering() const;
     void set_font_display_time_for_testing(u32 milliseconds);
 
     FontFaceLoadStatus status() const { return m_status; }
@@ -128,6 +130,7 @@ private:
     };
     Gfx::PendingFontState resolve_for_rendering();
     void update_font_display_period();
+    i64 font_download_elapsed_time() const;
     void invalidate_font_display();
     FontDisplay m_font_display { FontDisplay::Auto };
     FontDisplayPeriod m_font_display_period { FontDisplayPeriod::Block };

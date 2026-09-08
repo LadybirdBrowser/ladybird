@@ -382,6 +382,16 @@ WebIDL::ExceptionOr<void> Internals::mark_as_garbage(Utf16String const& variable
     return {};
 }
 
+bool Internals::has_completed_initial_paint() const
+{
+    return window().associated_document().font_computer().has_completed_initial_paint();
+}
+
+bool Internals::initial_paint_had_pending_fonts() const
+{
+    return window().associated_document().font_computer().initial_paint_had_pending_fonts();
+}
+
 void Internals::set_font_display_time(CSS::FontFace& font_face, u32 milliseconds)
 {
     font_face.set_font_display_time_for_testing(milliseconds);

@@ -250,7 +250,7 @@ public:
             { ByteString { HTTP::TEST_CACHE_ENABLED_HEADER }, "1"sv },
         };
 
-        auto message = make<Messages::RequestServer::StartRequest>(request_id, ByteString { "GET" }, move(url), move(request_headers), ByteBuffer {}, HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials::No, Core::ProxyData {}, false, Optional<u32> {});
+        auto message = make<Messages::RequestServer::StartRequest>(request_id, ByteString { "GET" }, move(url), move(request_headers), ByteBuffer {}, HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials::No, Core::ProxyData {}, false, Optional<u32> {}, false);
         auto response = MUST(static_cast<RequestServerEndpoint::Stub&>(*m_connection).handle(move(message)));
         VERIFY(!response);
     }
