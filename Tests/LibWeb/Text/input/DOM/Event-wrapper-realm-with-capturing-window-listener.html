@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<textarea id="target"></textarea>
+<script src="../include.js"></script>
+<script>
+    // Events fired by the engine are wrapped when the first listener receives them. A capturing listener on the window
+    // runs first, so the wrapper it triggers must belong to the page's realm rather than the realm the WindowProxy was
+    // created in. Otherwise, every later listener sees prototypes from the wrong realm.
+    test(() => {
+        const target = document.getElementById("target");
+        const results = [];
+
+        window.addEventListener("keydown", () => {}, true);
+        window.addEventListener("click", () => {}, true);
+
+        for (const type of ["keydown", "click"]) {
+            target.addEventListener(type, event => {
+                let chainEnd = event;
+                while (Object.getPrototypeOf(chainEnd) !== null)
+                    chainEnd = Object.getPrototypeOf(chainEnd);
+                results.push(`${type}: instanceof Event = ${event instanceof Event}, `
+                    + `instanceof ${event.constructor.name} = ${event instanceof window[event.constructor.name]}, `
+                    + `prototype chain ends in Object.prototype = ${chainEnd === Object.prototype}`);
+            });
+        }
+
+        target.focus();
+        internals.sendKey(target, "A");
+        target.click();
+
+        for (const result of results)
+            println(result);
+    });
+</script>

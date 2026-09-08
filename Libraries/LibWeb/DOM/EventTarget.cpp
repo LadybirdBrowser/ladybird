@@ -161,7 +161,7 @@ JS::Completion invoke_event_listener(WebIDL::CallbackType& callback, DOM::Event&
 {
     auto& callback_realm = callback.callback->shape().realm();
     auto this_value = current_target_wrapper(callback_realm, event);
-    auto& event_realm = this_value ? this_value->realm() : callback_realm;
+    auto& event_realm = this_value ? this_value_realm(callback_realm, this_value) : callback_realm;
     auto wrapped_event = Bindings::event(event_realm, GC::Ref { event });
 
     return WebIDL::call_user_object_operation(callback, "handleEvent"_utf16_fly_string, this_value.ptr(), { { wrapped_event } });
@@ -185,7 +185,7 @@ JS::Completion invoke_event_handler(WebIDL::CallbackType& callback, DOM::Event& 
 
     auto& callback_realm = callback.callback->shape().realm();
     auto this_value = current_target_wrapper(callback_realm, event);
-    auto& event_realm = this_value ? this_value->realm() : callback_realm;
+    auto& event_realm = this_value ? this_value_realm(callback_realm, this_value) : callback_realm;
     auto wrapped_event = Bindings::event(event_realm, GC::Ref { event });
 
     return WebIDL::invoke_callback(callback, this_value.ptr(), { { wrapped_event } });
