@@ -703,11 +703,7 @@ WebIDL::ExceptionOr<GC::Ref<Storage>> Window::local_storage()
         return GC::Ref { *storage };
 
     // 2. Let map be the result of running obtain a local storage bottle map with this's relevant settings object and "localStorage".
-    GC::Ptr<StorageAPI::LocalStorageBottle> map;
-    auto storage_key = StorageAPI::obtain_a_storage_key(this->relevant_settings_object());
-    if (storage_key.has_value()) {
-        map = StorageAPI::LocalStorageBottle::create(page(), StorageAPI::StorageEndpointType::LocalStorage, storage_key.value(), StorageAPI::StorageEndpoint::LOCAL_STORAGE_QUOTA);
-    }
+    auto map = StorageAPI::obtain_a_local_storage_bottle_map(this->relevant_settings_object(), StorageAPI::StorageEndpointType::LocalStorage);
 
     // 3. If map is failure, then throw a "SecurityError" DOMException.
     if (!map)
