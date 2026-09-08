@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/flex/min-height-align-items-center-ref.html" />
+<style>
+    .container {
+        align-items: center;
+        background: red;
+        display: flex;
+        flex-wrap: wrap;
+        min-height: 400px;
+    }
+
+    .item {
+        background: blue;
+        flex-basis: calc((100% - 16px) / 2);
+        height: 100px;
+    }
+</style>
+<div class="container">
+    <div class="item"></div>
+    <div class="item"></div>
+</div>

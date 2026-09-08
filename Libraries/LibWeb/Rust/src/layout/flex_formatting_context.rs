@@ -1789,8 +1789,10 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     // https://drafts.csswg.org/css-flexbox-1/#algo-line-stretch
     fn handle_align_content_stretch(&mut self) {
-        // If the flex container has a definite cross size,
-        if !self.has_definite_cross_size_used(&self.container_used())
+        // If the flex container has a definite cross size, or its automatic
+        // cross size is increased by a minimum cross size,
+        if (!self.has_definite_cross_size_used(&self.container_used())
+            && self.computed_cross_min_size(self.flex_container).0.is_auto())
             // align-content is stretch,
             || !matches!(
                 self.style(self.flex_container).align_content(),
