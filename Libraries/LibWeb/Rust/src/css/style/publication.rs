@@ -459,19 +459,24 @@ impl StyleEngine {
                     || matches!(property, prop::DISPLAY | prop::POSITION | prop::FLOAT)
             });
         let delta_property_count = delta.properties().len() as u64;
-        // Both drive paths may inherit values from the parent. A partial drive does so when a
-        // previously declared longhand becomes undeclared, so alike derivations share only under
-        // alike parents.
-        let parent_record = self
-            .tree
-            .flat_tree_parent(node)
-            .and_then(|parent| self.computed_group_sets.assigned_style_record(parent))
-            .map_or(0, |record| record.raw());
+        // Partial drives can share across parents whose inherited inputs agree. Keep the full
+        // parent record in the key when a non-inherited property explicitly inherits, including
+        // through substitution, or when a full drive may read more of the parent's style.
+        let parent = self.tree.flat_tree_parent(node);
+        let parent_record = parent.and_then(|parent| self.computed_group_sets.assigned_style_record(parent));
+        let mut cohort_parent = RecordDeltaParent::Exact(parent_record.map_or(0, |record| record.raw()));
+        if !full_drive
+            && let (Some(parent), Some(parent_record)) = (parent, parent_record)
+            && !self.state_has_substitutions(node, state)
+            && let Some(inputs) = self.cold_record_parent(node, parent, parent_record, state)
+        {
+            cohort_parent = RecordDeltaParent::Inputs(inputs);
+        }
         let cohort = (
             old_style_record.raw(),
             state,
             facts,
-            parent_record,
+            cohort_parent,
             environment.unwrap_or(0),
         );
         if let Some(&new_style_record) = scratch.cohorts.get(&cohort) {
@@ -3306,7 +3311,7 @@ impl ParentInputsMoved {
 
 #[derive(Default)]
 pub(super) struct EngineComputedRecordScratch {
-    pub(super) cohorts: HashMap<(u64, CascadeStateID, u32, u64, u64), computed::FinalStyleRecordID>,
+    cohorts: HashMap<(u64, CascadeStateID, u32, RecordDeltaParent, u64), computed::FinalStyleRecordID>,
     /// The nodes whose record this flush settled: what their descendants inherit from is in
     /// place.
     pub(super) settled_nodes: HashSet<StyleNodeID>,
@@ -3324,6 +3329,12 @@ pub(super) struct EngineComputedRecordScratch {
     pub(super) flipped_pseudo_rules: Vec<FlippedRule>,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+enum RecordDeltaParent {
+    Exact(u64),
+    Inputs(ColdRecordParent),
+}
+
 /// A rule that came to match or stopped matching a node, by the pseudo-element it decides for,
 /// if any.
 #[derive(Clone, Copy)]
@@ -3333,8 +3344,12 @@ pub(super) struct FlippedRule {
 
 impl EngineComputedRecordScratch {
     pub(super) fn capacity_bytes(&self) -> u64 {
-        ((self.cohorts.capacity() + self.cold_cohorts.capacity())
-            * size_of::<((u64, CascadeStateID), computed::FinalStyleRecordID)>()
+        (self.cohorts.capacity()
+            * size_of::<(
+                (u64, CascadeStateID, u32, RecordDeltaParent, u64),
+                computed::FinalStyleRecordID,
+            )>()
+            + self.cold_cohorts.capacity() * size_of::<(ColdRecordKey, ColdRecord)>()
             + self.pseudo_cohorts.capacity() * size_of::<(PseudoCohortKey, computed::FinalStyleRecordID)>()
             + (self.stores.capacity() + self.pseudo_stores.capacity())
                 * size_of::<((u8, CascadeStateID), std::rc::Rc<CascadedPropertyStore>)>()
