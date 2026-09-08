@@ -41,6 +41,7 @@ pub struct LineRecord {
     pub block_length: CssPixels,
     pub block_start: CssPixels,
     pub block_end: CssPixels,
+    pub(crate) next_line_block_offset: CssPixels,
     pub baseline: CssPixels,
     pub block_level_box_block_end_margin: CssPixels,
     pub direction: u8,

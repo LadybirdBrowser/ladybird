@@ -1,0 +1,5 @@
+insertion fits preceding line: true
+insertion tail wraps: true
+removal pulls following item back: true
+fractional line positions match fresh layout: true
+changed baselines match fresh layout: true

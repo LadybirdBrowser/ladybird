@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    .wrapper { width: 40px; }
+    .container { display: inline-block; height: 10px; font-size: 10px; line-height: 10px; }
+    .item { display: inline-block; height: 10px; }
+    .wide { width: 30px; }
+    .narrow { width: 10px; }
+    #fractional { line-height: 10.25px; }
+    #fractional .wide:not(.seed)::before { content: ""; display: inline-block; width: 1px; }
+</style>
+<div class="wrapper"><div id="insertion" class="container"></div></div>
+<div class="wrapper"><div id="removal" class="container"></div></div>
+<div class="wrapper"><div id="fractional" class="container"></div></div>
+<div class="wrapper"><div id="baselines" class="container"></div></div>
+<script>
+    function item(container, width) {
+        const node = document.createElement("span");
+        node.className = width === 30 ? "item wide" : "item narrow";
+        container.appendChild(node);
+        return node;
+    }
+
+    test(() => {
+        item(insertion, 30);
+        const insertionTail = item(insertion, 30);
+        item(removal, 30);
+        const removed = item(removal, 30);
+        const removalTail = item(removal, 10);
+        for (let i = 0; i < 8; ++i) {
+            const fractionalItem = item(fractional, 30);
+            if (i === 0)
+                fractionalItem.classList.add("seed");
+            item(item(baselines, 30), 30);
+        }
+        document.body.offsetHeight;
+
+        const inserted = item(insertion, 10);
+        insertion.insertBefore(inserted, insertionTail);
+        removed.remove();
+        const fractionalInserted = item(fractional, 10);
+        fractional.insertBefore(fractionalInserted, fractional.children[5]);
+        item(baselines.children[1], 30);
+        document.body.offsetHeight;
+        println(`insertion fits preceding line: ${inserted.offsetLeft - insertion.firstChild.offsetLeft === 30 && inserted.offsetTop === insertion.firstChild.offsetTop}`);
+        println(`insertion tail wraps: ${insertionTail.offsetLeft === insertion.firstChild.offsetLeft && insertionTail.offsetTop > insertion.firstChild.offsetTop}`);
+        println(`removal pulls following item back: ${removalTail.offsetLeft - removal.firstChild.offsetLeft === 30 && removalTail.offsetTop === removal.firstChild.offsetTop}`);
+
+        const positions = container => {
+            const origin = container.getBoundingClientRect();
+            return Array.from(container.children, child => {
+                const rect = child.getBoundingClientRect();
+                return [rect.left - origin.left, rect.top - origin.top];
+            });
+        };
+        const reused = positions(fractional);
+        fractional.style.height = "11px";
+        const fresh = positions(fractional);
+        println(`fractional line positions match fresh layout: ${JSON.stringify(reused) === JSON.stringify(fresh)}`);
+        const reusedBaselines = positions(baselines);
+        baselines.style.height = "11px";
+        println(`changed baselines match fresh layout: ${JSON.stringify(reusedBaselines) === JSON.stringify(positions(baselines))}`);
+    });
+</script>
