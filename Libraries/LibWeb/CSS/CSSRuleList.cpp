@@ -26,18 +26,6 @@ CSSRuleList::~CSSRuleList() = default;
 
 GC_DEFINE_ALLOCATOR(CSSRuleList);
 
-GC::Ref<CSSRuleList> CSSRuleList::create(ReadonlySpan<GC::Ref<CSSRule>> rules)
-{
-    auto rule_list = GC::Heap::the().allocate<CSSRuleList>();
-    for (auto rule : rules)
-        rule_list->insert(rule_list->length(), rule);
-    return rule_list;
-}
-
-CSSRuleList::CSSRuleList()
-{
-}
-
 GC::Ref<CSSRuleList> CSSRuleList::create(RustRuleList rules, GC::Ptr<DOM::Document> document)
 {
     return GC::Heap::the().allocate<CSSRuleList>(move(rules), document);
@@ -93,12 +81,6 @@ void CSSRuleList::set_parent_style_sheet(StyleSheetState* sheet)
     m_parent_style_sheet = sheet;
     m_parent_cssom_sheet = sheet ? &sheet->cssom_sheet() : nullptr;
     for_each_existing_rule([&](CSSRule& rule) { rule.set_parent_style_sheet(sheet); });
-}
-
-void CSSRuleList::insert(size_t index, GC::Ref<CSSRule> rule)
-{
-    m_rules.insert(index, rule->native_rule());
-    m_wrappers.set(rule->native_rule().identity(), rule);
 }
 
 CSSRule const* CSSRuleList::rule_for_identity(u64 identity) const

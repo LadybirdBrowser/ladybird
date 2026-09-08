@@ -10,9 +10,9 @@
 #include <LibWeb/CSS/Frequency.h>
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Resolution.h>
-#include <LibWeb/CSS/RustStyleBridge.h>
 #include <LibWeb/CSS/Time.h>
 #include <LibWeb/CSS/ValueType.h>
+#include <LibWeb/StyleValueRustFFI.h>
 
 namespace Web::CSS {
 
@@ -194,7 +194,7 @@ static Optional<NumericType> operate(StyleValueFFI::FfiNumericTypeOperation oper
 {
     auto ffi_first = to_ffi_numeric_type(first);
     auto ffi_second = second ? to_ffi_numeric_type(*second) : StyleValueFFI::FfiNumericType {};
-    return from_ffi_numeric_type(invoke_rust_numeric_type_operate(operation, &ffi_first, second ? &ffi_second : nullptr));
+    return from_ffi_numeric_type(StyleValueFFI::rust_numeric_type_operate(operation, &ffi_first, second ? &ffi_second : nullptr));
 }
 
 Optional<NumericType> NumericType::added_to(NumericType const& other) const
@@ -215,7 +215,7 @@ NumericType NumericType::inverted() const
 static bool matches(StyleValueFFI::FfiNumericTypeMatch match_kind, NumericType const& type, NumericType::BaseType base_type, Optional<ValueType> percentages_resolve_as)
 {
     auto ffi_type = to_ffi_numeric_type(type);
-    return invoke_rust_numeric_type_matches(
+    return StyleValueFFI::rust_numeric_type_matches(
         match_kind,
         &ffi_type,
         to_underlying(base_type),

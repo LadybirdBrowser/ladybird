@@ -10,7 +10,7 @@
 #include <AK/NumericLimits.h>
 #include <AK/StdLibExtras.h>
 #include <AK/Types.h>
-#include <LibWeb/CSS/RustStyleBridge.h>
+#include <LibWeb/ComputedValuesRustFFI.h>
 #include <LibWeb/Export.h>
 #include <stdlib.h>
 
@@ -147,12 +147,12 @@ private:
         if (count.load(AK::memory_order_relaxed) == style_group_static_refcount)
             return;
         if (count.fetch_sub(1, AK::memory_order_acq_rel) == 1)
-            free_rust_style_group(T::style_group_index, m_payload);
+            ComputedValuesFFI::rust_style_group_free(T::style_group_index, m_payload);
     }
 
     static T* clone_payload(T const* source)
     {
-        return static_cast<T*>(clone_rust_style_group(T::style_group_index, source));
+        return static_cast<T*>(ComputedValuesFFI::rust_style_group_clone(T::style_group_index, source));
     }
 
     static void const* default_payload()

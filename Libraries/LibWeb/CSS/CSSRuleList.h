@@ -28,7 +28,6 @@ class WEB_API CSSRuleList : public Bindings::GCAllocatedWrappable {
     GC_DECLARE_ALLOCATOR(CSSRuleList);
 
 public:
-    [[nodiscard]] static GC::Ref<CSSRuleList> create(ReadonlySpan<GC::Ref<CSSRule>> = {});
     [[nodiscard]] static GC::Ref<CSSRuleList> create(RustRuleList, GC::Ptr<DOM::Document>);
 
     virtual ~CSSRuleList() override;
@@ -94,7 +93,6 @@ public:
     Function<void()> on_change;
 
 private:
-    explicit CSSRuleList();
     CSSRuleList(RustRuleList, GC::Ptr<DOM::Document>);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
@@ -103,7 +101,6 @@ private:
     void remove_a_css_rule_without_validation(u32 index);
     Vector<Parser::RuleContext> rule_context() const;
     GC::Ref<CSSRule> const& wrapper_at(size_t index) const;
-    void insert(size_t index, GC::Ref<CSSRule>);
 
     RustRuleList m_rules;
     mutable HashMap<u64, GC::Ref<CSSRule>> m_wrappers;

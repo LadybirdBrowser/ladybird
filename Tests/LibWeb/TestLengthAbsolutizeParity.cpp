@@ -6,7 +6,6 @@
 
 #include <LibGfx/Font/Font.h>
 #include <LibTest/TestCase.h>
-#include <LibWeb/CSS/RustStyleBridge.h>
 #include <LibWeb/CSS/StyleComputeFFI.h>
 
 // The Rust style computation core resolves lengths independently of the C++
@@ -49,7 +48,7 @@ TEST_CASE(rust_length_resolution_matches_cpp)
             auto cpp_context = make_context(&cpp_resolved_viewport);
             auto ffi_context = to_ffi_length_resolution_context(cpp_context);
 
-            auto rust_result = invoke_rust_absolutize_length(value, to_underlying(unit), &ffi_context);
+            auto rust_result = ComputedValuesFFI::rust_absolutize_length(value, to_underlying(unit), &ffi_context);
             EXPECT(rust_result.handled);
 
             Length length { value, unit };
@@ -75,17 +74,17 @@ TEST_CASE(css_pixels_arithmetic_matches_cpp)
     for (auto left : raw_values) {
         for (auto right : raw_values) {
             auto cpp_product = CSSPixels::from_raw(left) * CSSPixels::from_raw(right);
-            EXPECT_EQ(rust_css_pixels_multiply(left, right), cpp_product.raw_value());
+            EXPECT_EQ(ComputedValuesFFI::rust_css_pixels_multiply(left, right), cpp_product.raw_value());
 
             if (right != 0) {
                 CSSPixels cpp_quotient = CSSPixelFraction(CSSPixels::from_raw(left), CSSPixels::from_raw(right));
-                EXPECT_EQ(rust_css_pixels_divide_as_fraction(left, right), cpp_quotient.raw_value());
+                EXPECT_EQ(ComputedValuesFFI::rust_css_pixels_divide_as_fraction(left, right), cpp_quotient.raw_value());
             }
         }
         auto value = CSSPixels::from_raw(left).to_double();
         for (auto factor : { 0.71, 1.0 / 0.71, 1.5, -2.25, 0.015625, 1000000.0 }) {
-            EXPECT_EQ(rust_css_pixels_nearest_value_for(value * factor), CSSPixels::nearest_value_for(value * factor).raw_value());
-            EXPECT_EQ(rust_css_pixels_scaled(left, factor), CSSPixels::from_raw(left).scaled(factor).raw_value());
+            EXPECT_EQ(ComputedValuesFFI::rust_css_pixels_nearest_value_for(value * factor), CSSPixels::nearest_value_for(value * factor).raw_value());
+            EXPECT_EQ(ComputedValuesFFI::rust_css_pixels_scaled(left, factor), CSSPixels::from_raw(left).scaled(factor).raw_value());
         }
     }
 }
@@ -95,7 +94,7 @@ TEST_CASE(container_relative_units_fall_back_to_cpp)
     bool unused = false;
     auto cpp_context = make_context(&unused);
     auto ffi_context = to_ffi_length_resolution_context(cpp_context);
-    auto result = invoke_rust_absolutize_length(1.0, to_underlying(LengthUnit::Cqw), &ffi_context);
+    auto result = ComputedValuesFFI::rust_absolutize_length(1.0, to_underlying(LengthUnit::Cqw), &ffi_context);
     EXPECT(!result.handled);
 }
 
