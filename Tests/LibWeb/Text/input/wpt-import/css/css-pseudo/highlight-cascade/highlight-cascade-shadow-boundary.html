@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Pseudo-Elements Test: highlight cascade: inheritance across a shadow boundary</title>
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#highlight-cascade">
+<meta name="assert" content="This test verifies that highlight inheritance follows the flat tree, so that a highlight pseudo-element in a shadow tree inherits from the corresponding highlight pseudo-element of the shadow host, and slotted content inherits through the slot.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #host::selection { background-color: rgb(1, 2, 3); }
+  #slotHost::selection { background-color: rgb(4, 5, 6); }
+</style>
+<div id="host"></div>
+<div id="slotHost"><span id="slotted">text</span></div>
+<script>
+const host = document.getElementById("host");
+const slotHost = document.getElementById("slotHost");
+host.attachShadow({ mode: "open" }).innerHTML = "<span id='inner'>text</span>";
+slotHost.attachShadow({ mode: "open" }).innerHTML = "<slot></slot>";
+
+const background = element => getComputedStyle(element, "::selection").backgroundColor;
+
+test(() => {
+    assert_equals(background(host.shadowRoot.getElementById("inner")), "rgb(1, 2, 3)");
+}, "A highlight pseudo-element in a shadow tree inherits from the shadow host's");
+
+test(() => {
+    assert_equals(background(document.getElementById("slotted")), "rgb(4, 5, 6)");
+}, "A highlight pseudo-element of slotted content inherits through the slot");
+</script>

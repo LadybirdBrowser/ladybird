@@ -116,6 +116,24 @@ Optional<AbstractElement> AbstractElement::element_to_inherit_style_from() const
     return AbstractElement { const_cast<DOM::Element&>(*element) };
 }
 
+// https://drafts.csswg.org/css-pseudo-4/#highlight-cascade
+// When any supported property is not given a value by the cascade, or given a value of inherit or unset, its
+// specified value is determined by inheritance from the corresponding highlight pseudo-element of its originating
+// element's parent element.
+Optional<AbstractElement> AbstractElement::highlight_inheritance_parent() const
+{
+    if (!m_pseudo_element.has_value() || !CSS::is_highlight_pseudo_element(*m_pseudo_element))
+        return OptionalNone {};
+
+    // An ancestor without a record for this pseudo-element has no declarations for it, so the nearest record is
+    // what its own would have inherited anyway.
+    for (auto ancestor = m_element->element_to_inherit_style_from({}); ancestor; ancestor = ancestor->element_to_inherit_style_from({})) {
+        if (!!ancestor->style_record_identity(*m_pseudo_element))
+            return AbstractElement { *ancestor, m_pseudo_element };
+    }
+    return OptionalNone {};
+}
+
 Optional<AbstractElement> AbstractElement::walk_layout_tree(WalkMethod walk_method)
 {
     // NB: Called during style recalculation.

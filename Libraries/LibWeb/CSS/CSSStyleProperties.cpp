@@ -647,13 +647,23 @@ static void ensure_pseudo_element_style_for_cssom(DOM::AbstractElement abstract_
     };
     auto& style_computer = abstract_element.document().style_computer();
 
-    bool did_change_custom_properties = false;
-    StyleEngine::StyleRecordDelta style_record_delta {};
-    auto style = style_computer.compute_pseudo_element_style_if_needed(abstract_element, did_change_custom_properties, nullptr, style_record_delta);
-    if (style)
-        abstract_element.element().set_computed_style(*pseudo_element, style_record_delta.new_style_record);
-    else
-        abstract_element.element().set_computed_style(*pseudo_element, 0);
+    auto compute = [&](DOM::AbstractElement target) {
+        bool did_change_custom_properties = false;
+        StyleEngine::StyleRecordDelta style_record_delta {};
+        auto style = style_computer.compute_pseudo_element_style_if_needed(target, did_change_custom_properties, nullptr, style_record_delta);
+        target.element().set_computed_style(*pseudo_element, style ? style_record_delta.new_style_record : StyleRecordID {});
+    };
+
+    // A highlight pseudo-element inherits from its parent element's, which nothing keeps current while selection
+    // styles are unobservable, so the chain is computed outermost first.
+    if (is_highlight_pseudo_element(*pseudo_element) && !document.selection_styles_are_observable()) {
+        Vector<DOM::AbstractElement> ancestors;
+        for (auto ancestor = abstract_element.element().element_to_inherit_style_from({}); ancestor; ancestor = ancestor->element_to_inherit_style_from({}))
+            ancestors.append({ *ancestor, pseudo_element });
+        for (auto& ancestor : ancestors.in_reverse())
+            compute(ancestor);
+    }
+    compute(abstract_element);
 }
 
 static RefPtr<StyleValue const> resolve_color_style_value(StyleValue const&, Color, ColorResolutionContext const* = nullptr);

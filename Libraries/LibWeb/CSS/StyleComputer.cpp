@@ -4384,9 +4384,12 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         // rules matched.
         auto has_implicit_style = ComputedValuesFFI::rust_pseudo_element_has_implicit_style(to_underlying(*abstract_element.pseudo_element()));
 
+        // A highlight pseudo-element inherits from its parent element's, so it has a style whenever that does.
+        auto inherits_highlight_style = abstract_element.highlight_inheritance_parent().has_value();
+
         // Bail if no pseudo-element rules matched. Clear any stale custom property data so
         // getComputedStyle() doesn't return values from a previous match.
-        if (!did_match_any_pseudo_element_rules && !has_implicit_style) {
+        if (!did_match_any_pseudo_element_rules && !has_implicit_style && !inherits_highlight_style) {
             abstract_element.set_custom_property_data(nullptr);
             return {};
         }
@@ -4404,6 +4407,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
     auto const inheritance_parent = abstract_element.element_to_inherit_style_from();
     auto const inheritance_parent_style_record_identity = inheritance_parent.has_value() ? inheritance_parent->style_record_identity() : StyleRecordID {};
     auto const inheritance_parent_style_record = m_style_engine.style_record_view(inheritance_parent_style_record_identity);
+    auto const highlight_inheritance_parent = abstract_element.highlight_inheritance_parent();
     auto previous_style_record_identity = abstract_element.style_record_identity();
     auto const previous_style_record = m_style_engine.style_record_view(previous_style_record_identity);
     if (sharing) {
@@ -4451,7 +4455,7 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             sharing->key.computation_inputs.append(bit_cast<FlatPtr>(group));
         sharing->pinned_parent_groups.set(inherited_group_identities);
         sharing->pinned_parent_custom_property_data = inheritable_custom_property_data(*inheritance_parent);
-        sharing->key.computation_inputs.append(0);
+        sharing->key.computation_inputs.append(highlight_inheritance_parent.has_value() ? highlight_inheritance_parent->style_record_identity().value() : 0);
         if (previous_style_record.present) {
             auto const* inherited_box = static_cast<ComputedValuesFFI::InheritedBoxValues const*>(previous_style_record.payloads[to_underlying(StyleGroupIndex::InheritedBoxValues)]);
             sharing->key.computation_inputs.append(inherited_box->writing_mode + 1);
@@ -5570,6 +5574,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         .prepare_phase_context = prepare_phase_context,
         .state = nullptr,
     };
+    auto const highlight_inheritance_parent = abstract_element.highlight_inheritance_parent();
     ComputedValuesFFI::FfiComputePropertiesInput const input {
         .store = cascaded_properties.rust_store(),
         .style_engine = m_style_engine.rust_handle(),
@@ -5577,6 +5582,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         .pseudo_kind = pseudo_element_to_ffi(abstract_element.pseudo_element()),
         .previous_style_record = previous_style_record.value(),
         .inheritance_parent_style_record = inheritance_parent.has_value() ? inheritance_parent->style_record_identity().value() : 0,
+        .highlight_parent_style_record = highlight_inheritance_parent.has_value() ? highlight_inheritance_parent->style_record_identity().value() : 0,
         .initial_computed_group_mask = initial_computed_group_mask,
         .all_computed_groups = ComputedValues::all_style_groups,
         .use_retained_style_computation_selection = use_retained_style_computation_selection,

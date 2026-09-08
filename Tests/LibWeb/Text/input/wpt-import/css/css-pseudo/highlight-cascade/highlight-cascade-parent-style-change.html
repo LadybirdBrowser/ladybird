@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Pseudo-Elements Test: highlight cascade: inheritance after a parent style change</title>
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#highlight-cascade">
+<meta name="assert" content="This test verifies that a highlight pseudo-element inherits from the current style of the corresponding highlight pseudo-element of its parent element, not from a previously resolved one.">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  #parent { font-size: 10px; }
+  #parent::selection { text-shadow: green 1em 0; }
+</style>
+<div id="parent"><span id="child">text</span></div>
+<script>
+test(() => {
+    const parent = document.getElementById("parent");
+    const child = document.getElementById("child");
+    const shadow = element => getComputedStyle(element, "::selection").textShadow;
+
+    // Resolves and caches the highlight styles of both, the child inheriting from the parent.
+    assert_equals(shadow(parent), "rgb(0, 128, 0) 10px 0px 0px", "parent");
+    assert_equals(shadow(child), "rgb(0, 128, 0) 10px 0px 0px", "child");
+
+    // The parent's own highlight text-shadow is in em, so this changes it, and the child inherits
+    // that computed value through the highlight chain.
+    parent.style.fontSize = "40px";
+
+    assert_equals(shadow(parent), "rgb(0, 128, 0) 40px 0px 0px", "parent after the change");
+    assert_equals(shadow(child), "rgb(0, 128, 0) 40px 0px 0px", "child after the change");
+}, "A highlight pseudo-element inherits from the parent's new style, not its previous one");
+</script>

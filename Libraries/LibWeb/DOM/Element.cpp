@@ -1559,9 +1559,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
     auto recompute_pseudo_element_style = [&](CSS::PseudoElement pseudo_element, bool has_implicit_style = false) {
         // A synthetic pseudo-element the style engine settled beside the element's record takes the engine's
         // answer; one the engine left alone is unchanged. The engine never settles a ::backdrop, whose
-        // materialization is the top layer's to decide.
+        // materialization is the top layer's to decide, nor a highlight pseudo-element, which inherits from
+        // its parent element's.
         Optional<CSS::StyleRecordID> engine_record;
-        if (engine_pseudo_element_records && CSS::is_synthetic_pseudo_element(pseudo_element) && pseudo_element != CSS::PseudoElement::Backdrop) {
+        if (engine_pseudo_element_records && CSS::is_synthetic_pseudo_element(pseudo_element) && pseudo_element != CSS::PseudoElement::Backdrop && !CSS::is_highlight_pseudo_element(pseudo_element)) {
             engine_record = engine_pseudo_element_records->at(to_underlying(pseudo_element));
             if (!engine_record.has_value())
                 return;
@@ -1575,10 +1576,12 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             return;
         }
         auto preserved_style_record = preserved_pseudo_element_styles ? preserved_pseudo_element_styles->at(to_underlying(pseudo_element)) : CSS::StyleRecordID {};
+        auto inherits_highlight_style = AbstractElement { *this, pseudo_element }.highlight_inheritance_parent().has_value();
         // Most elements have no style for most pseudo-elements. Decide that from the record
         // identities before materializing any record view.
         if (!engine_record.has_value()
             && !has_implicit_style
+            && !inherits_highlight_style
             && !old_style_record
             && !preserved_style_record
             && !(old_originating_style && old_originating_style->has_pseudo_element_style(pseudo_element))
@@ -1608,6 +1611,7 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
         }
         auto should_recompute = engine_record.has_value()
             || has_implicit_style
+            || inherits_highlight_style
             || pseudo_element_values
             || (old_originating_style && old_originating_style->has_pseudo_element_style(pseudo_element))
             || (originating_style && originating_style->has_pseudo_element_style(pseudo_element))
@@ -1696,6 +1700,12 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
                 set_computed_style(pseudo_element, style_record_delta.new_style_record);
         } else if (auto existing_pseudo_element = get_synthetic_pseudo_element(pseudo_element); existing_pseudo_element.has_value())
             existing_pseudo_element->clear_computed_style(move(style_to_preserve_for_detachment));
+
+        // Descendants' highlight pseudo-elements inherit from this one, and nothing else names it as their input.
+        if (CSS::is_highlight_pseudo_element(pseudo_element) && !style_record_is_unchanged(style_record_delta)) {
+            style_computer.style_engine().record_flat_tree_descendant_style_input_changes(style_node_id(),
+                CSS::StyleEngine::RecomputeStyle | CSS::StyleEngine::PseudoInputsMayHaveChanged);
+        }
     };
 
     recompute_pseudo_element_style(CSS::PseudoElement::Before);

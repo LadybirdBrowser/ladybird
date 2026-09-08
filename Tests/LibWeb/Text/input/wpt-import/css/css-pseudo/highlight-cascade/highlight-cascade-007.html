@@ -1,0 +1,75 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Pseudo-Elements Test: highlight cascade: inheritance with both universal and non-universal rules</title>
+<link rel="author" title="Delan Azabani" href="mailto:dazabani@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#highlight-cascade">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/7591">
+<meta name="assert" content="This test verifies that non-applicable property declarations are ignored in highlight pseudos, that the computed values of ‘font-size’ and ‘line-height’ in highlight pseudos are taken from the originating element, and that ‘text-shadow’ in highlight pseudos respects these values when given ‘em’ and ‘lh’ units.">
+<script src="../support/selections.js"></script>
+<link rel="stylesheet" href="../support/highlights.css">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+    main {
+        font-size: 12px;
+        line-height: 13px;
+    }
+    main span {
+        font-size: 18px;
+        line-height: 19px;
+    }
+    /* * (universal) */::selection {
+        font-size: 42px;
+        line-height: 43px;
+    }
+    main .M::selection {
+        text-shadow: green 1em 0;
+    }
+    main .W::selection {
+        text-shadow: green 0 1lh;
+    }
+    /* * (universal) */::selection {
+        text-decoration-thickness: 1em;
+    }
+</style>
+<main>
+    <div class="M"><div><span>M</span></div></div>
+    <div class="W"><div><span>W</span></div></div>
+    <div class="U"><div><span>U</span></div></div>
+</main>
+<script>
+    selectNodeContents(document.querySelector("main"));
+
+    const m = getComputedStyle(document.querySelector("main .M"), "::selection");
+    const mSpan = getComputedStyle(document.querySelector("main .M span"), "::selection");
+    test(() => void assert_equals(m.fontSize, "12px"),
+        "M::selection’s font-size is the same as in M");
+    test(() => void assert_equals(mSpan.fontSize, "18px"),
+        "M span::selection’s font-size is the same as in M span");
+    test(() => void assert_equals(m.textShadow, "rgb(0, 128, 0) 12px 0px 0px"),
+        "M::selection’s own text-shadow respects M’s font-size");
+    test(() => void assert_equals(mSpan.textShadow, "rgb(0, 128, 0) 12px 0px 0px"),
+        "M span::selection’s inherited text-shadow respects M’s font-size");
+
+    const w = getComputedStyle(document.querySelector("main .W"), "::selection");
+    const wSpan = getComputedStyle(document.querySelector("main .W span"), "::selection");
+    test(() => void assert_equals(w.lineHeight, "13px"),
+        "W::selection’s line-height is the same as in W");
+    test(() => void assert_equals(wSpan.lineHeight, "19px"),
+        "W span::selection’s line-height is the same as in W span");
+    test(() => void assert_equals(w.textShadow, "rgb(0, 128, 0) 0px 13px 0px"),
+        "W::selection’s own text-shadow respects W’s line-height");
+    test(() => void assert_equals(wSpan.textShadow, "rgb(0, 128, 0) 0px 13px 0px"),
+        "W span::selection’s inherited text-shadow respects W’s line-height");
+
+    const u = getComputedStyle(document.querySelector("main .U"), "::selection");
+    const uSpan = getComputedStyle(document.querySelector("main .U span"), "::selection");
+    test(() => void assert_equals(u.fontSize, "12px"),
+        "U::selection’s font-size is the same as in U");
+    test(() => void assert_equals(uSpan.fontSize, "18px"),
+        "U span::selection’s font-size is the same as in U span");
+    test(() => void assert_equals(u.textDecorationThickness, "12px"),
+        "U::selection’s own text-decoration-thickness respects U’s font-size");
+    test(() => void assert_equals(uSpan.textDecorationThickness, "18px"),
+        "U span::selection’s own text-decoration-thickness respects U span’s font-size");
+</script>

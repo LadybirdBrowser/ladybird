@@ -1,0 +1,31 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Pseudo-Elements Test: highlight cascade: inheritance of custom properties</title>
+<link rel="author" title="Stephen Chenney" href="mailto:schenney@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#highlight-cascade">
+<link rel="help" href="https://github.com/w3c/csswg-drafts/issues/6641">
+<meta name="assert" content="This test verifies that custom properties used in highlight pseudos are taken from the highlight and originating element.">
+<script src="../support/selections.js"></script>
+<link rel="stylesheet" href="../support/highlights.css">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<style>
+  :root::selection {
+    --background-color: red;
+  }
+  div::selection {
+    background-color: var(--background-color, green);
+  }
+</style>
+<body>
+  <div>Some text</div>
+</body>
+<script>
+    selectNodeContents(document.querySelector("body"));
+
+    const div_selection = getComputedStyle(document.querySelector("div"), "::selection");
+    test(() => void assert_equals(div_selection.backgroundColor, "rgb(0, 128, 0)"),
+        "div::selection does not inherit custom properties from the highlight parent");
+    test(() => void assert_equals(div_selection.getPropertyValue("--background-color"), ""),
+        "--background-color has no computed value on div::selection");
+</script>

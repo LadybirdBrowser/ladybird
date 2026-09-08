@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	A highlight pseudo-element inherits from the parent's new style, not its previous one

@@ -1,0 +1,17 @@
+Harness status: OK
+
+Found 12 tests
+
+12 Pass
+Pass	M::selection’s font-size is the same as in M
+Pass	M span::selection’s font-size is the same as in M span
+Pass	M::selection’s own text-shadow respects M’s font-size
+Pass	M span::selection’s inherited text-shadow respects M’s font-size
+Pass	W::selection’s line-height is the same as in W
+Pass	W span::selection’s line-height is the same as in W span
+Pass	W::selection’s own text-shadow respects W’s line-height
+Pass	W span::selection’s inherited text-shadow respects W’s line-height
+Pass	U::selection’s font-size is the same as in U
+Pass	U span::selection’s font-size is the same as in U span
+Pass	U::selection’s own text-decoration-thickness respects U’s font-size
+Pass	U span::selection’s own text-decoration-thickness respects U span’s font-size

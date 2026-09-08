@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	A highlight pseudo-element in a shadow tree inherits from the shadow host's
+Pass	A highlight pseudo-element of slotted content inherits through the slot
