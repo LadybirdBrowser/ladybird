@@ -310,7 +310,7 @@ impl MatchAnswerCatalog {
         if !self.needs_compaction {
             return;
         }
-        self.answers.shrink_to_fit();
+        self.answers.shrink_excess_capacity();
         self.needs_compaction = false;
     }
 
