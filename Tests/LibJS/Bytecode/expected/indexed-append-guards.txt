@@ -1,4 +1,4 @@
-$0c4fbf6d indexed-append-guards.js:16:1
+$8db1b7f5 indexed-append-guards.js:16:1
   Registers: 11
   Blocks:    7
   Constants:
@@ -14,68 +14,69 @@ $0c4fbf6d indexed-append-guards.js:16:1
     [9] = String("Array append mutated")
 
 block0:
-  [   0] GetGlobal dst:reg6, `Object`
-  [  10] GetById dst:reg7, base:reg6, `preventExtensions` (Object.preventExtensions)
-  [  28] NewObject dst:reg8
-  [  38] ToPrimitiveWithStringHint dst:Int32(0), value:Int32(0)
-  [  48] PutByValue base:reg8, property:Int32(0), src:Int32(1), kind:Own
-  [  60] Call dst:reg5, callee:reg7, this_value:reg6, Object.preventExtensions, arguments:[reg8]
-  [  88] DynamicInitializeLexicalBinding `object`, src:reg5
-  [  98] GetGlobal dst:reg7, `expect_type_error`
-  [  a8] NewFunction dst:reg6, shared_function_data_index:0
-  [  c0] Call dst:reg5, callee:reg7, this_value:Undefined, expect_type_error, arguments:[reg6]
-  [  e8] GetGlobal dst:reg7, `object`
-  [  f8] GetByValue dst:reg6, base:reg7, property:Int32(1) (object[Int32(1)])
-  [ 110] StrictlyInequals dst:reg7, lhs:reg6, rhs:Undefined
-  [ 120] MovSrcUndefined dst:reg6
-  [ 128] JumpFalse condition:reg7, target:block2
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `Object`
+  [  18] GetById dst:reg7, base:reg6, `preventExtensions` (Object.preventExtensions)
+  [  30] NewObject dst:reg8
+  [  40] ToPrimitiveWithStringHint dst:Int32(0), value:Int32(0)
+  [  50] PutByValue base:reg8, property:Int32(0), src:Int32(1), kind:Own
+  [  68] Call dst:reg5, callee:reg7, this_value:reg6, Object.preventExtensions, arguments:[reg8]
+  [  90] DynamicInitializeLexicalBinding `object`, src:reg5
+  [  a0] GetGlobal dst:reg7, `expect_type_error`
+  [  b0] NewFunction dst:reg6, shared_function_data_index:0
+  [  c8] Call dst:reg5, callee:reg7, this_value:Undefined, expect_type_error, arguments:[reg6]
+  [  f0] GetGlobal dst:reg7, `object`
+  [ 100] GetByValue dst:reg6, base:reg7, property:Int32(1) (object[Int32(1)])
+  [ 118] StrictlyInequals dst:reg7, lhs:reg6, rhs:Undefined
+  [ 128] MovSrcUndefined dst:reg6
+  [ 130] JumpFalse condition:reg7, target:block2
 
 block1:
-  [ 138] GetGlobal dst:reg9, `Error`
-  [ 148] CallConstruct dst:reg8, callee:reg9, Error, arguments:[String("Indexed object append mutated")]
-  [ 168] Throw src:reg8
+  [ 140] GetGlobal dst:reg9, `Error`
+  [ 150] CallConstruct dst:reg8, callee:reg9, Error, arguments:[String("Indexed object append mutated")]
+  [ 170] Throw src:reg8
 
 block2:
-  [ 170] NewPrimitiveArray dst:reg5, elements:[1, 2]
-  [ 190] DynamicInitializeLexicalBinding `array`, src:reg5
-  [ 1a0] GetGlobal dst:reg7, `Object`
-  [ 1b0] GetById dst:reg8, base:reg7, `defineProperty` (Object.defineProperty)
-  [ 1c8] GetGlobal dst:reg9, `array`
-  [ 1d8] NewObject dst:reg10
-  [ 1e8] InitObjectLiteralProperty object:reg10, `writable`, src:Bool(false), shape_cache_index:0, property_slot:0
-  [ 200] CacheObjectShape object:reg10
-  [ 210] Call dst:reg5, callee:reg8, this_value:reg7, Object.defineProperty, arguments:[reg9, String("length"), reg10]
-  [ 240] GetGlobal dst:reg8, `expect_type_error`
-  [ 250] NewFunction dst:reg7, shared_function_data_index:1
-  [ 268] Call dst:reg6, callee:reg8, this_value:Undefined, expect_type_error, arguments:[reg7]
-  [ 290] GetGlobal dst:reg5, `array`
-  [ 2a0] GetLength dst:reg8, base:reg5 (array.length)
-  [ 2b8] StrictlyInequalsRhsInt32 dst:reg5, lhs:reg8, rhs:2
-  [ 2c8] MovSrcUndefined dst:reg8
-  [ 2d0] JumpFalse condition:reg5, target:block4
+  [ 178] NewPrimitiveArray dst:reg5, elements:[1, 2]
+  [ 198] DynamicInitializeLexicalBinding `array`, src:reg5
+  [ 1a8] GetGlobal dst:reg7, `Object`
+  [ 1b8] GetById dst:reg8, base:reg7, `defineProperty` (Object.defineProperty)
+  [ 1d0] GetGlobal dst:reg9, `array`
+  [ 1e0] NewObject dst:reg10
+  [ 1f0] InitObjectLiteralProperty object:reg10, `writable`, src:Bool(false), shape_cache_index:0, property_slot:0
+  [ 208] CacheObjectShape object:reg10
+  [ 218] Call dst:reg5, callee:reg8, this_value:reg7, Object.defineProperty, arguments:[reg9, String("length"), reg10]
+  [ 248] GetGlobal dst:reg8, `expect_type_error`
+  [ 258] NewFunction dst:reg7, shared_function_data_index:1
+  [ 270] Call dst:reg6, callee:reg8, this_value:Undefined, expect_type_error, arguments:[reg7]
+  [ 298] GetGlobal dst:reg5, `array`
+  [ 2a8] GetLength dst:reg8, base:reg5 (array.length)
+  [ 2c0] StrictlyInequalsRhsInt32 dst:reg5, lhs:reg8, rhs:2
+  [ 2d0] MovSrcUndefined dst:reg8
+  [ 2d8] JumpFalse condition:reg5, target:block4
 
 block3:
-  [ 2e0] GetGlobal dst:reg10, `Error`
-  [ 2f0] CallConstruct dst:reg7, callee:reg10, Error, arguments:[String("Array length changed")]
-  [ 310] Throw src:reg7
+  [ 2e8] GetGlobal dst:reg10, `Error`
+  [ 2f8] CallConstruct dst:reg7, callee:reg10, Error, arguments:[String("Array length changed")]
+  [ 318] Throw src:reg7
 
 block4:
-  [ 318] GetGlobal dst:reg6, `array`
-  [ 328] GetByValue dst:reg5, base:reg6, property:Int32(2) (array[Int32(2)])
-  [ 340] StrictlyInequals dst:reg6, lhs:reg5, rhs:Undefined
-  [ 350] MovSrcUndefined dst:reg5
-  [ 358] JumpFalse condition:reg6, target:block6
+  [ 320] GetGlobal dst:reg6, `array`
+  [ 330] GetByValue dst:reg5, base:reg6, property:Int32(2) (array[Int32(2)])
+  [ 348] StrictlyInequals dst:reg6, lhs:reg5, rhs:Undefined
+  [ 358] MovSrcUndefined dst:reg5
+  [ 360] JumpFalse condition:reg6, target:block6
 
 block5:
-  [ 368] GetGlobal dst:reg10, `Error`
-  [ 378] CallConstruct dst:reg7, callee:reg10, Error, arguments:[String("Array append mutated")]
-  [ 398] Throw src:reg7
+  [ 370] GetGlobal dst:reg10, `Error`
+  [ 380] CallConstruct dst:reg7, callee:reg10, Error, arguments:[String("Array append mutated")]
+  [ 3a0] Throw src:reg7
 
 block6:
-  [ 3a0] End value:reg5
+  [ 3a8] End value:reg5
 
 
-expect_type_error$fc915998 indexed-append-guards.js:4:5
+expect_type_error$7df35220 indexed-append-guards.js:4:5
   Registers: 9
   Blocks:    8
   Locals:    error~0, did_throw~1
@@ -86,46 +87,47 @@ expect_type_error$fc915998 indexed-append-guards.js:4:5
     [3] = String("Expected TypeError")
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Mov dst:did_throw~1, src:Bool(false)
-  [  18] Jump target:block5
+  [   0] Enter
+  [   8] GetLexicalEnvironment dst:reg4
+  [  10] Mov dst:did_throw~1, src:Bool(false)
+  [  20] Jump target:block5
 
 block1:
-  [  20] Catch dst:reg5
-  [  28] SetLexicalEnvironment environment:reg4
-  [  30] Mov dst:error~0, src:reg5
-  [  40] GetGlobal dst:reg7, `TypeError`
-  [  50] InstanceOf dst:reg8, lhs:error~0, rhs:reg7
-  [  60] Not dst:reg6, src:reg8
-  [  70] JumpFalse condition:reg6, target:block3
+  [  28] Catch dst:reg5
+  [  30] SetLexicalEnvironment environment:reg4
+  [  38] Mov dst:error~0, src:reg5
+  [  48] GetGlobal dst:reg7, `TypeError`
+  [  58] InstanceOf dst:reg8, lhs:error~0, rhs:reg7
+  [  68] Not dst:reg6, src:reg8
+  [  78] JumpFalse condition:reg6, target:block3
 
 block2:
-  [  80] Throw src:error~0
+  [  88] Throw src:error~0
 
 block3:
-  [  88] Mov dst:did_throw~1, src:Bool(true)
+  [  90] Mov dst:did_throw~1, src:Bool(true)
 
 block4:
-  [  98] Not dst:reg5, src:did_throw~1
-  [  a8] JumpIf condition:reg5, true_target:block6, false_target:block7
+  [  a0] Not dst:reg5, src:did_throw~1
+  [  b0] JumpIf condition:reg5, true_target:block6, false_target:block7
 
 block5:
-  [  b8] Call dst:reg5, callee:arg0, this_value:Undefined, callback
-  [  d8] Jump target:block4
+  [  c0] Call dst:reg5, callee:arg0, this_value:Undefined, callback
+  [  e0] Jump target:block4
 
 block6:
-  [  e0] GetGlobal dst:reg8, `Error`
-  [  f0] CallConstruct dst:reg6, callee:reg8, Error, arguments:[String("Expected TypeError")]
-  [ 110] Throw src:reg6
+  [  e8] GetGlobal dst:reg8, `Error`
+  [  f8] CallConstruct dst:reg6, callee:reg8, Error, arguments:[String("Expected TypeError")]
+  [ 118] Throw src:reg6
 
 block7:
-  [ 118] End value:Undefined
+  [ 120] End value:Undefined
 
 Exception handlers:
-  [  b8 ..   e0] => handler block1
+  [  c0 ..   e8] => handler block1
 
 
-$ec717972 indexed-append-guards.js:18:5
+$6dd371fa indexed-append-guards.js:18:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -134,12 +136,13 @@ $ec717972 indexed-append-guards.js:18:5
     [2] = Undefined
 
 block0:
-  [   0] GetGlobal dst:reg5, `object`
-  [  10] PutByValue base:reg5, property:Int32(1), src:Int32(2), kind:Normal (object[Int32(1)])
-  [  28] End value:Undefined
+  [   0] Enter
+  [   8] GetGlobal dst:reg5, `object`
+  [  18] PutByValue base:reg5, property:Int32(1), src:Int32(2), kind:Normal (object[Int32(1)])
+  [  30] End value:Undefined
 
 
-$01eb2052 indexed-append-guards.js:26:5
+$7b0145aa indexed-append-guards.js:26:5
   Registers: 8
   Blocks:    1
   Constants:
@@ -147,8 +150,9 @@ $01eb2052 indexed-append-guards.js:26:5
     [1] = Undefined
 
 block0:
-  [   0] GetGlobal dst:reg5, `array`
-  [  10] GetGlobal dst:reg6, `array`
-  [  20] GetLength dst:reg7, base:reg6 (array.length)
-  [  38] PutByValue base:reg5, property:reg7, src:Int32(3), kind:Normal (array[reg7])
-  [  50] End value:Undefined
+  [   0] Enter
+  [   8] GetGlobal dst:reg5, `array`
+  [  18] GetGlobal dst:reg6, `array`
+  [  28] GetLength dst:reg7, base:reg6 (array.length)
+  [  40] PutByValue base:reg5, property:reg7, src:Int32(3), kind:Normal (array[reg7])
+  [  58] End value:Undefined

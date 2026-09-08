@@ -1,4 +1,4 @@
-$0d47ea81 const-assignment-no-extra-tdz.js:5:1
+$8ea9e309 const-assignment-no-extra-tdz.js:5:1
   Registers: 9
   Blocks:    3
   Locals:    e~0
@@ -6,27 +6,28 @@ $0d47ea81 const-assignment-no-extra-tdz.js:5:1
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Jump target:block2
+  [   0] Enter
+  [   8] GetLexicalEnvironment dst:reg4
+  [  10] Jump target:block2
 
 block1:
-  [  10] Catch dst:reg5
-  [  18] SetLexicalEnvironment environment:reg4
-  [  20] Mov3 c0_dst:e~0, c0_src:reg5, c1_dst:reg6, c1_src:Undefined, c2_dst:reg7, c2_src:reg6
-  [  40] End value:reg6
+  [  18] Catch dst:reg5
+  [  20] SetLexicalEnvironment environment:reg4
+  [  28] Mov3 c0_dst:e~0, c0_src:reg5, c1_dst:reg6, c1_src:Undefined, c2_dst:reg7, c2_src:reg6
+  [  48] End value:reg6
 
 block2:
-  [  48] MovSrcUndefined dst:reg5
-  [  50] GetGlobal dst:reg8, `f`
-  [  60] Call dst:reg6, callee:reg8, this_value:Undefined, f
-  [  80] Mov2 c0_dst:reg5, c0_src:reg6, c1_dst:reg6, c1_src:reg5
-  [  98] End value:reg6
+  [  50] MovSrcUndefined dst:reg5
+  [  58] GetGlobal dst:reg8, `f`
+  [  68] Call dst:reg6, callee:reg8, this_value:Undefined, f
+  [  88] Mov2 c0_dst:reg5, c0_src:reg6, c1_dst:reg6, c1_src:reg5
+  [  a0] End value:reg6
 
 Exception handlers:
-  [  48 ..   a0] => handler block1
+  [  50 ..   a8] => handler block1
 
 
-f$e16999cc const-assignment-no-extra-tdz.js:2:5
+f$6007a144 const-assignment-no-extra-tdz.js:2:5
   Registers: 5
   Blocks:    1
   Locals:    x~0
@@ -36,6 +37,7 @@ f$e16999cc const-assignment-no-extra-tdz.js:2:5
     [2] = Undefined
 
 block0:
-  [   0] Mov dst:x~0, src:Int32(1)
-  [  10] ThrowConstAssignment
-  [  18] End value:Undefined
+  [   0] Enter
+  [   8] Mov dst:x~0, src:Int32(1)
+  [  18] ThrowConstAssignment
+  [  20] End value:Undefined

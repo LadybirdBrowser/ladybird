@@ -1,4 +1,4 @@
-$e8d1e772 delete-expression-register.js:6:1
+$6a33dffa delete-expression-register.js:6:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,12 +6,13 @@ $e8d1e772 delete-expression-register.js:6:1
     [1] = Int32(1)
 
 block0:
-  [   0] GetGlobal dst:reg6, `f`
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
-  [  38] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `f`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
+  [  40] End value:reg5
 
 
-f$04c49ea7 delete-expression-register.js:3:7
+f$9f0a10bf delete-expression-register.js:3:7
   Registers: 7
   Blocks:    3
   Locals:    x~0, arguments~1
@@ -21,14 +22,15 @@ f$04c49ea7 delete-expression-register.js:3:7
     [2] = Int32(0)
 
 block0:
-  [   0] CreateArguments dst:arguments~1, is_immutable:false
-  [  10] Mov3 c0_dst:x~0, c0_src:Undefined, c1_dst:x~0, c1_src:Bool(false), c2_dst:reg5, c2_src:x~0
-  [  30] JumpTrue condition:x~0, target:block2
+  [   0] Enter
+  [   8] CreateArguments dst:arguments~1, is_immutable:false
+  [  18] Mov3 c0_dst:x~0, c0_src:Undefined, c1_dst:x~0, c1_src:Bool(false), c2_dst:reg5, c2_src:x~0
+  [  38] JumpTrue condition:x~0, target:block2
 
 block1:
-  [  40] DeleteByValue dst:reg6, base:arguments~1, property:Int32(0)
-  [  50] Mov dst:reg5, src:reg6
+  [  48] DeleteByValue dst:reg6, base:arguments~1, property:Int32(0)
+  [  58] Mov dst:reg5, src:reg6
 
 block2:
-  [  60] Mov dst:x~0, src:reg5
-  [  70] Return value:x~0
+  [  68] Mov dst:x~0, src:reg5
+  [  78] Return value:x~0

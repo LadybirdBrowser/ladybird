@@ -1,4 +1,4 @@
-$08de21bf int32-comparison-specializations.js:35:1
+$6e98afa7 int32-comparison-specializations.js:35:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -6,33 +6,35 @@ $08de21bf int32-comparison-specializations.js:35:1
     [1] = Int32(1)
 
 block0:
-  [   0] GetGlobal dst:reg6, `comparison_results`
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, comparison_results, arguments:[Int32(1)]
-  [  38] GetGlobal dst:reg7, `comparison_jumps`
-  [  48] Call dst:reg6, callee:reg7, this_value:Undefined, comparison_jumps, arguments:[Int32(1)]
-  [  70] End value:reg6
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `comparison_results`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, comparison_results, arguments:[Int32(1)]
+  [  40] GetGlobal dst:reg7, `comparison_jumps`
+  [  50] Call dst:reg6, callee:reg7, this_value:Undefined, comparison_jumps, arguments:[Int32(1)]
+  [  78] End value:reg6
 
 
-comparison_results$cb56ba16 int32-comparison-specializations.js:2:5
+comparison_results$4f7ca3ae int32-comparison-specializations.js:2:5
   Registers: 14
   Blocks:    1
   Constants:
     [0] = Int32(2)
 
 block0:
-  [   0] LessThanRhsInt32 dst:reg5, lhs:arg0, rhs:2
-  [  10] LessThanEqualsRhsInt32 dst:reg6, lhs:arg0, rhs:2
-  [  20] GreaterThanRhsInt32 dst:reg7, lhs:arg0, rhs:2
-  [  30] GreaterThanEqualsRhsInt32 dst:reg8, lhs:arg0, rhs:2
-  [  40] StrictlyEqualsRhsInt32 dst:reg9, lhs:arg0, rhs:2
-  [  50] StrictlyInequalsRhsInt32 dst:reg10, lhs:arg0, rhs:2
-  [  60] LooselyEqualsRhsInt32 dst:reg11, lhs:arg0, rhs:2
-  [  70] LooselyInequalsRhsInt32 dst:reg12, lhs:arg0, rhs:2
-  [  80] NewArray dst:reg13, elements:[reg5, reg6, reg7, reg8, reg9, reg10, reg11, reg12]
-  [  b0] Return value:reg13
+  [   0] Enter
+  [   8] LessThanRhsInt32 dst:reg5, lhs:arg0, rhs:2
+  [  18] LessThanEqualsRhsInt32 dst:reg6, lhs:arg0, rhs:2
+  [  28] GreaterThanRhsInt32 dst:reg7, lhs:arg0, rhs:2
+  [  38] GreaterThanEqualsRhsInt32 dst:reg8, lhs:arg0, rhs:2
+  [  48] StrictlyEqualsRhsInt32 dst:reg9, lhs:arg0, rhs:2
+  [  58] StrictlyInequalsRhsInt32 dst:reg10, lhs:arg0, rhs:2
+  [  68] LooselyEqualsRhsInt32 dst:reg11, lhs:arg0, rhs:2
+  [  78] LooselyInequalsRhsInt32 dst:reg12, lhs:arg0, rhs:2
+  [  88] NewArray dst:reg13, elements:[reg5, reg6, reg7, reg8, reg9, reg10, reg11, reg12]
+  [  b8] Return value:reg13
 
 
-comparison_jumps$ed0f09b6 int32-comparison-specializations.js:15:5
+comparison_jumps$6bad112e int32-comparison-specializations.js:15:5
   Registers: 8
   Blocks:    17
   Locals:    result~0
@@ -48,69 +50,70 @@ comparison_jumps$ed0f09b6 int32-comparison-specializations.js:15:5
     [8] = Int32(128)
 
 block0:
-  [   0] Mov dst:result~0, src:Int32(0)
-  [  10] JumpLessThanRhsInt32 lhs:arg0, rhs:2, true_target:block1, false_target:block2
+  [   0] Enter
+  [   8] Mov dst:result~0, src:Int32(0)
+  [  18] JumpLessThanRhsInt32 lhs:arg0, rhs:2, true_target:block1, false_target:block2
 
 block1:
-  [  28] Mov dst:reg6, src:result~0
-  [  38] AddRhsInt32 dst:reg7, lhs:reg6, rhs:1
-  [  48] Mov dst:result~0, src:reg7
+  [  30] Mov dst:reg6, src:result~0
+  [  40] AddRhsInt32 dst:reg7, lhs:reg6, rhs:1
+  [  50] Mov dst:result~0, src:reg7
 
 block2:
-  [  58] JumpLessThanEqualsRhsInt32 lhs:arg0, rhs:2, true_target:block3, false_target:block4
+  [  60] JumpLessThanEqualsRhsInt32 lhs:arg0, rhs:2, true_target:block3, false_target:block4
 
 block3:
-  [  70] Mov dst:reg7, src:result~0
-  [  80] AddRhsInt32 dst:reg6, lhs:reg7, rhs:2
-  [  90] Mov dst:result~0, src:reg6
+  [  78] Mov dst:reg7, src:result~0
+  [  88] AddRhsInt32 dst:reg6, lhs:reg7, rhs:2
+  [  98] Mov dst:result~0, src:reg6
 
 block4:
-  [  a0] JumpGreaterThanRhsInt32 lhs:arg0, rhs:2, true_target:block5, false_target:block6
+  [  a8] JumpGreaterThanRhsInt32 lhs:arg0, rhs:2, true_target:block5, false_target:block6
 
 block5:
-  [  b8] Mov dst:reg6, src:result~0
-  [  c8] AddRhsInt32 dst:reg7, lhs:reg6, rhs:4
-  [  d8] Mov dst:result~0, src:reg7
+  [  c0] Mov dst:reg6, src:result~0
+  [  d0] AddRhsInt32 dst:reg7, lhs:reg6, rhs:4
+  [  e0] Mov dst:result~0, src:reg7
 
 block6:
-  [  e8] JumpGreaterThanEqualsRhsInt32 lhs:arg0, rhs:2, true_target:block7, false_target:block8
+  [  f0] JumpGreaterThanEqualsRhsInt32 lhs:arg0, rhs:2, true_target:block7, false_target:block8
 
 block7:
-  [ 100] Mov dst:reg7, src:result~0
-  [ 110] AddRhsInt32 dst:reg6, lhs:reg7, rhs:8
-  [ 120] Mov dst:result~0, src:reg6
+  [ 108] Mov dst:reg7, src:result~0
+  [ 118] AddRhsInt32 dst:reg6, lhs:reg7, rhs:8
+  [ 128] Mov dst:result~0, src:reg6
 
 block8:
-  [ 130] JumpStrictlyEqualsRhsInt32 lhs:arg0, rhs:2, true_target:block9, false_target:block10
+  [ 138] JumpStrictlyEqualsRhsInt32 lhs:arg0, rhs:2, true_target:block9, false_target:block10
 
 block9:
-  [ 148] Mov dst:reg6, src:result~0
-  [ 158] AddRhsInt32 dst:reg7, lhs:reg6, rhs:16
-  [ 168] Mov dst:result~0, src:reg7
+  [ 150] Mov dst:reg6, src:result~0
+  [ 160] AddRhsInt32 dst:reg7, lhs:reg6, rhs:16
+  [ 170] Mov dst:result~0, src:reg7
 
 block10:
-  [ 178] JumpStrictlyInequalsRhsInt32 lhs:arg0, rhs:2, true_target:block11, false_target:block12
+  [ 180] JumpStrictlyInequalsRhsInt32 lhs:arg0, rhs:2, true_target:block11, false_target:block12
 
 block11:
-  [ 190] Mov dst:reg7, src:result~0
-  [ 1a0] AddRhsInt32 dst:reg6, lhs:reg7, rhs:32
-  [ 1b0] Mov dst:result~0, src:reg6
+  [ 198] Mov dst:reg7, src:result~0
+  [ 1a8] AddRhsInt32 dst:reg6, lhs:reg7, rhs:32
+  [ 1b8] Mov dst:result~0, src:reg6
 
 block12:
-  [ 1c0] JumpLooselyEqualsRhsInt32 lhs:arg0, rhs:2, true_target:block13, false_target:block14
+  [ 1c8] JumpLooselyEqualsRhsInt32 lhs:arg0, rhs:2, true_target:block13, false_target:block14
 
 block13:
-  [ 1d8] Mov dst:reg6, src:result~0
-  [ 1e8] AddRhsInt32 dst:reg7, lhs:reg6, rhs:64
-  [ 1f8] Mov dst:result~0, src:reg7
+  [ 1e0] Mov dst:reg6, src:result~0
+  [ 1f0] AddRhsInt32 dst:reg7, lhs:reg6, rhs:64
+  [ 200] Mov dst:result~0, src:reg7
 
 block14:
-  [ 208] JumpLooselyInequalsRhsInt32 lhs:arg0, rhs:2, true_target:block15, false_target:block16
+  [ 210] JumpLooselyInequalsRhsInt32 lhs:arg0, rhs:2, true_target:block15, false_target:block16
 
 block15:
-  [ 220] Mov dst:reg7, src:result~0
-  [ 230] AddRhsInt32 dst:reg6, lhs:reg7, rhs:128
-  [ 240] Mov dst:result~0, src:reg6
+  [ 228] Mov dst:reg7, src:result~0
+  [ 238] AddRhsInt32 dst:reg6, lhs:reg7, rhs:128
+  [ 248] Mov dst:result~0, src:reg6
 
 block16:
-  [ 250] Return value:result~0
+  [ 258] Return value:result~0

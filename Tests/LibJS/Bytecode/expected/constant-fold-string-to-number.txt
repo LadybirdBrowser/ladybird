@@ -1,4 +1,4 @@
-$e26385ed constant-fold-string-to-number.js:1:1
+$5e3d9c55 constant-fold-string-to-number.js:1:1
   Registers: 5
   Blocks:    1
   Constants:
@@ -13,8 +13,9 @@ $e26385ed constant-fold-string-to-number.js:1:1
     [8] = Undefined
 
 block0:
-  [   0] SetGlobal `a`, src:Int32(12345)
-  [  10] SetGlobal `b`, src:Int32(123450)
-  [  20] SetGlobal `c`, src:Int32(-42)
-  [  30] SetGlobal `d`, src:Int32(-6)
-  [  40] End value:Undefined
+  [   0] Enter
+  [   8] SetGlobal `a`, src:Int32(12345)
+  [  18] SetGlobal `b`, src:Int32(123450)
+  [  28] SetGlobal `c`, src:Int32(-42)
+  [  38] SetGlobal `d`, src:Int32(-6)
+  [  48] End value:Undefined

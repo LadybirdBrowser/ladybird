@@ -1,74 +1,80 @@
-$df07c6c2 function-decl-source-order.js:17:1
+$5559fb0a function-decl-source-order.js:17:1
   Registers: 14
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] GetGlobal dst:reg6, `console`
-  [  10] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  28] GetGlobal dst:reg9, `alpha`
-  [  38] Call dst:reg8, callee:reg9, this_value:Undefined, alpha
-  [  58] GetGlobal dst:reg10, `beta`
-  [  68] Call dst:reg9, callee:reg10, this_value:Undefined, beta
-  [  88] GetGlobal dst:reg11, `gamma`
-  [  98] Call dst:reg10, callee:reg11, this_value:Undefined, gamma
-  [  b8] GetGlobal dst:reg12, `delta`
-  [  c8] Call dst:reg11, callee:reg12, this_value:Undefined, delta
-  [  e8] GetGlobal dst:reg13, `dup`
-  [  f8] Call dst:reg12, callee:reg13, this_value:Undefined, dup
-  [ 118] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8, reg9, reg10, reg11, reg12]
-  [ 150] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `console`
+  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  30] GetGlobal dst:reg9, `alpha`
+  [  40] Call dst:reg8, callee:reg9, this_value:Undefined, alpha
+  [  60] GetGlobal dst:reg10, `beta`
+  [  70] Call dst:reg9, callee:reg10, this_value:Undefined, beta
+  [  90] GetGlobal dst:reg11, `gamma`
+  [  a0] Call dst:reg10, callee:reg11, this_value:Undefined, gamma
+  [  c0] GetGlobal dst:reg12, `delta`
+  [  d0] Call dst:reg11, callee:reg12, this_value:Undefined, delta
+  [  f0] GetGlobal dst:reg13, `dup`
+  [ 100] Call dst:reg12, callee:reg13, this_value:Undefined, dup
+  [ 120] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8, reg9, reg10, reg11, reg12]
+  [ 158] End value:reg5
 
 
-alpha$29e24060 function-decl-source-order.js:5:20
+alpha$ae0829f8 function-decl-source-order.js:5:20
   Registers: 5
   Blocks:    1
   Constants:
     [0] = Int32(1)
 
 block0:
-  [   0] Return value:Int32(1)
+  [   0] Enter
+  [   8] Return value:Int32(1)
 
 
-beta$565e177b function-decl-source-order.js:7:19
+beta$d7c01003 function-decl-source-order.js:7:19
   Registers: 5
   Blocks:    1
   Constants:
     [0] = Int32(2)
 
 block0:
-  [   0] Return value:Int32(2)
+  [   0] Enter
+  [   8] Return value:Int32(2)
 
 
-gamma$03071905 function-decl-source-order.js:11:20
+gamma$81a5207d function-decl-source-order.js:11:20
   Registers: 5
   Blocks:    1
   Constants:
     [0] = Int32(3)
 
 block0:
-  [   0] Return value:Int32(3)
+  [   0] Enter
+  [   8] Return value:Int32(3)
 
 
-delta$3c1404ee function-decl-source-order.js:15:20
+delta$bd75fd76 function-decl-source-order.js:15:20
   Registers: 5
   Blocks:    1
   Constants:
     [0] = Int32(4)
 
 block0:
-  [   0] Return value:Int32(4)
+  [   0] Enter
+  [   8] Return value:Int32(4)
 
 
-dup$7c6f066b function-decl-source-order.js:13:18
+dup$f8491cd3 function-decl-source-order.js:13:18
   Registers: 5
   Blocks:    1
   Constants:
     [0] = String("second")
 
 block0:
-  [   0] Return value:String("second")
+  [   0] Enter
+  [   8] Return value:String("second")
 
 
 1 2 3 4 "second"

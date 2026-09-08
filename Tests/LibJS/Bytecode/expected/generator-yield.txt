@@ -1,23 +1,24 @@
-$205805b7 generator-yield.js:11:1
+$aa05d16f generator-yield.js:11:1
   Registers: 9
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] GetGlobal dst:reg6, `multi_yield`
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, multi_yield
-  [  30] SetGlobal `g`, src:reg5
-  [  40] GetGlobal dst:reg6, `g`
-  [  50] GetById dst:reg7, base:reg6, `next` (g.next)
-  [  68] Call dst:reg5, callee:reg7, this_value:reg6, g.next
-  [  88] GetGlobal dst:reg6, `g`
-  [  98] GetById dst:reg8, base:reg6, `next` (g.next)
-  [  b0] Call dst:reg7, callee:reg8, this_value:reg6, g.next
-  [  d0] End value:reg7
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `multi_yield`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, multi_yield
+  [  38] SetGlobal `g`, src:reg5
+  [  48] GetGlobal dst:reg6, `g`
+  [  58] GetById dst:reg7, base:reg6, `next` (g.next)
+  [  70] Call dst:reg5, callee:reg7, this_value:reg6, g.next
+  [  90] GetGlobal dst:reg6, `g`
+  [  a0] GetById dst:reg8, base:reg6, `next` (g.next)
+  [  b8] Call dst:reg7, callee:reg8, this_value:reg6, g.next
+  [  d8] End value:reg7
 
 
-multi_yield$7e2d183f generator-yield.js:7:5
+multi_yield$ff8f10c7 generator-yield.js:7:5
   Registers: 10
   Blocks:    12
   Constants:
@@ -27,41 +28,42 @@ multi_yield$7e2d183f generator-yield.js:7:5
     [3] = Int32(2)
 
 block0:
-  [   0] Yield continuation_label:block1, value:Undefined
+  [   0] Enter
+  [   8] Yield continuation_label:block1, value:Undefined
 
 block1:
-  [  10] Yield continuation_label:block2, value:Int32(1)
+  [  18] Yield continuation_label:block2, value:Int32(1)
 
 block2:
-  [  20] Mov dst:reg5, src:reg0
-  [  30] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [  40] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:1, true_target:block3, false_target:block4
+  [  28] Mov dst:reg5, src:reg0
+  [  38] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+  [  48] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:1, true_target:block3, false_target:block4
 
 block3:
-  [  58] Yield continuation_label:block7, value:Int32(2)
+  [  60] Yield continuation_label:block7, value:Int32(2)
 
 block4:
-  [  68] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:5, true_target:block5, false_target:block6
+  [  70] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:5, true_target:block5, false_target:block6
 
 block5:
-  [  80] Throw src:reg7
+  [  88] Throw src:reg7
 
 block6:
-  [  88] Yield value:reg7
+  [  90] Yield value:reg7
 
 block7:
-  [  98] Mov dst:reg7, src:reg0
-  [  a8] GetCompletionFields type_dst:reg5, value_dst:reg6, completion:reg7
-  [  b8] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:1, true_target:block8, false_target:block9
+  [  a0] Mov dst:reg7, src:reg0
+  [  b0] GetCompletionFields type_dst:reg5, value_dst:reg6, completion:reg7
+  [  c0] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:1, true_target:block8, false_target:block9
 
 block8:
-  [  d0] Yield value:Undefined
+  [  d8] Yield value:Undefined
 
 block9:
-  [  e0] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:5, true_target:block10, false_target:block11
+  [  e8] JumpStrictlyEqualsRhsInt32 lhs:reg5, rhs:5, true_target:block10, false_target:block11
 
 block10:
-  [  f8] Throw src:reg6
+  [ 100] Throw src:reg6
 
 block11:
-  [ 100] Yield value:reg6
+  [ 108] Yield value:reg6

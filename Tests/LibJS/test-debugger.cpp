@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Bytecode/Op.h>
 #include <LibJS/Debugger.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/GlobalObject.h>
@@ -27,7 +28,7 @@ TEST_CASE(debugger_statement_pauses_execution)
     vm->debugger()->set_pause_callback([&](JS::Debugger::PauseInfo const& pause_info) {
         did_pause = true;
         EXPECT_EQ(pause_info.reason, JS::Debugger::PauseReason::DebuggerStatement);
-        EXPECT_EQ(pause_info.bytecode_offset, 0u);
+        EXPECT_EQ(pause_info.bytecode_offset, sizeof(JS::Bytecode::Op::Enter));
         VERIFY(pause_info.source_range.has_value());
         EXPECT_EQ(pause_info.source_range->filename(), "debugger.js"_utf16);
         EXPECT_EQ(pause_info.source_range->start.line, 1u);
@@ -601,6 +602,31 @@ TEST_CASE(pause_on_next_bytecode_execution_is_one_shot)
     result = vm->run(*script_or_error.value());
     EXPECT(!result.is_error());
     EXPECT_EQ(pause_count, 1u);
+}
+
+TEST_CASE(pause_on_empty_script_waits_for_frame_initialization)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto script_or_error = JS::Script::parse(""sv, realm, "empty.js"sv);
+    VERIFY(!script_or_error.is_error());
+
+    vm->enable_debugging();
+    vm->debugger()->request_pause_on_next_bytecode_execution();
+
+    bool did_pause = false;
+    vm->debugger()->set_pause_callback([&](JS::Debugger::PauseInfo const& pause_info) {
+        did_pause = true;
+        EXPECT(vm->running_execution_context().frame_initialized);
+        EXPECT_EQ(pause_info.bytecode_offset, sizeof(JS::Bytecode::Op::Enter));
+        vm->debugger()->continue_execution();
+    });
+
+    auto result = vm->run(*script_or_error.value());
+    EXPECT(!result.is_error());
+    EXPECT(did_pause);
 }
 
 TEST_CASE(pause_on_next_bytecode_execution_waits_for_a_callback)

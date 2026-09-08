@@ -1,4 +1,4 @@
-$e7eb680d try-catch-completion-ordering.js:1:1
+$63c57e75 try-catch-completion-ordering.js:1:1
   Registers: 8
   Blocks:    3
   Locals:    e~0
@@ -8,19 +8,20 @@ $e7eb680d try-catch-completion-ordering.js:1:1
     [2] = Null
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] Jump target:block2
+  [   0] Enter
+  [   8] GetLexicalEnvironment dst:reg4
+  [  10] Jump target:block2
 
 block1:
-  [  10] Catch dst:reg5
-  [  18] SetLexicalEnvironment environment:reg4
-  [  20] Mov3 c0_dst:e~0, c0_src:reg5, c1_dst:reg6, c1_src:Undefined, c2_dst:reg6, c2_src:Int32(42)
-  [  40] Mov dst:reg7, src:reg6
-  [  50] End value:reg7
+  [  18] Catch dst:reg5
+  [  20] SetLexicalEnvironment environment:reg4
+  [  28] Mov3 c0_dst:e~0, c0_src:reg5, c1_dst:reg6, c1_src:Undefined, c2_dst:reg6, c2_src:Int32(42)
+  [  48] Mov dst:reg7, src:reg6
+  [  58] End value:reg7
 
 block2:
-  [  58] MovSrcUndefined dst:reg5
-  [  60] Throw src:Null
+  [  60] MovSrcUndefined dst:reg5
+  [  68] Throw src:Null
 
 Exception handlers:
-  [  58 ..   68] => handler block1
+  [  60 ..   70] => handler block1

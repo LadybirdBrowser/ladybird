@@ -1,4 +1,4 @@
-$091ab4cd expression-identifier-number-format.js:1:1
+$84f4cb35 expression-identifier-number-format.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -6,12 +6,13 @@ $091ab4cd expression-identifier-number-format.js:1:1
     [1] = Int32(42)
 
 block0:
-  [   0] NewObject dst:reg5
-  [  10] SetGlobal `x`, src:reg5
-  [  20] GetGlobal dst:reg5, `x`
-  [  30] NewObject dst:reg6
-  [  40] PutByValue base:reg5, property:Double(1.1e-32), src:reg6, kind:Normal (x[Double(1.1e-32)])
-  [  58] GetGlobal dst:reg5, `x`
-  [  68] GetByValue dst:reg7, base:reg5, property:Double(1.1e-32) (x[Double(1.1e-32)])
-  [  80] PutById base:reg7, `foo`, src:Int32(42), kind:Normal (x[1.1e-32].foo)
-  [  a0] End value:Int32(42)
+  [   0] Enter
+  [   8] NewObject dst:reg5
+  [  18] SetGlobal `x`, src:reg5
+  [  28] GetGlobal dst:reg5, `x`
+  [  38] NewObject dst:reg6
+  [  48] PutByValue base:reg5, property:Double(1.1e-32), src:reg6, kind:Normal (x[Double(1.1e-32)])
+  [  60] GetGlobal dst:reg5, `x`
+  [  70] GetByValue dst:reg7, base:reg5, property:Double(1.1e-32) (x[Double(1.1e-32)])
+  [  88] PutById base:reg7, `foo`, src:Int32(42), kind:Normal (x[1.1e-32].foo)
+  [  a8] End value:Int32(42)

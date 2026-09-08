@@ -1,23 +1,24 @@
-$091ab4cd super-computed-string-to-id.js:1:1
+$84f4cb35 super-computed-string-to-id.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
-  [  20] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
-  [  30] GetGlobal dst:reg6, `Object`
-  [  40] SetLexicalEnvironment environment:reg4
-  [  48] NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0
-  [  68] DynamicInitializeLexicalBinding `C`, src:reg7
-  [  78] GetGlobal dst:reg5, `C`
-  [  88] CallConstruct dst:reg7, callee:reg5, C
-  [  a0] End value:reg7
+  [   0] Enter
+  [   8] GetLexicalEnvironment dst:reg4
+  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  28] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
+  [  38] GetGlobal dst:reg6, `Object`
+  [  48] SetLexicalEnvironment environment:reg4
+  [  50] NewClass dst:reg7, super_class:reg6, class_environment:reg5, class_blueprint_index:0
+  [  70] DynamicInitializeLexicalBinding `C`, src:reg7
+  [  80] GetGlobal dst:reg5, `C`
+  [  90] CallConstruct dst:reg7, callee:reg5, C
+  [  a8] End value:reg7
 
 
-C$bb96c1c3 super-computed-string-to-id.js:3:14
+C$3a34c93b super-computed-string-to-id.js:3:14
   Registers: 8
   Blocks:    1
   Constants:
@@ -26,10 +27,11 @@ C$bb96c1c3 super-computed-string-to-id.js:3:14
     [2] = Undefined
 
 block0:
-  [   0] GetSuperConstructor dst:reg5
-  [   8] NewArray dst:reg6
-  [  18] SuperCallWithArgumentArray dst:reg7, super_constructor:reg5, arguments:reg6, is_synthetic:false
-  [  30] ResolveThisBinding
-  [  38] ResolveSuperBase dst:reg7
-  [  40] PutByIdWithThis base:reg7, this_value:this, `foo`, src:Int32(1), kind:Normal
-  [  60] End value:Undefined
+  [   0] Enter
+  [   8] GetSuperConstructor dst:reg5
+  [  10] NewArray dst:reg6
+  [  20] SuperCallWithArgumentArray dst:reg7, super_constructor:reg5, arguments:reg6, is_synthetic:false
+  [  38] ResolveThisBinding
+  [  40] ResolveSuperBase dst:reg7
+  [  48] PutByIdWithThis base:reg7, this_value:this, `foo`, src:Int32(1), kind:Normal
+  [  68] End value:Undefined

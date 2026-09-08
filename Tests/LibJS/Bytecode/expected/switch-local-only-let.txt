@@ -1,4 +1,4 @@
-$3e1caa20 switch-local-only-let.js:15:1
+$bcbab198 switch-local-only-let.js:15:1
   Registers: 11
   Blocks:    1
   Constants:
@@ -8,25 +8,26 @@ $3e1caa20 switch-local-only-let.js:15:1
     [3] = Int32(3)
 
 block0:
-  [   0] GetGlobal dst:reg6, `console`
-  [  10] GetById dst:reg7, base:reg6, `log` (console.log)
-  [  28] GetGlobal dst:reg9, `switchLocalOnly`
-  [  38] Call dst:reg8, callee:reg9, this_value:Undefined, switchLocalOnly, arguments:[Int32(1)]
-  [  60] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
-  [  88] GetGlobal dst:reg6, `console`
-  [  98] GetById dst:reg8, base:reg6, `log` (console.log)
-  [  b0] GetGlobal dst:reg10, `switchLocalOnly`
-  [  c0] Call dst:reg9, callee:reg10, this_value:Undefined, switchLocalOnly, arguments:[Int32(2)]
-  [  e8] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
-  [ 110] GetGlobal dst:reg8, `console`
-  [ 120] GetById dst:reg6, base:reg8, `log` (console.log)
-  [ 138] GetGlobal dst:reg10, `switchLocalOnly`
-  [ 148] Call dst:reg9, callee:reg10, this_value:Undefined, switchLocalOnly, arguments:[Int32(3)]
-  [ 170] Call dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
-  [ 198] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `console`
+  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  30] GetGlobal dst:reg9, `switchLocalOnly`
+  [  40] Call dst:reg8, callee:reg9, this_value:Undefined, switchLocalOnly, arguments:[Int32(1)]
+  [  68] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  90] GetGlobal dst:reg6, `console`
+  [  a0] GetById dst:reg8, base:reg6, `log` (console.log)
+  [  b8] GetGlobal dst:reg10, `switchLocalOnly`
+  [  c8] Call dst:reg9, callee:reg10, this_value:Undefined, switchLocalOnly, arguments:[Int32(2)]
+  [  f0] Call dst:reg7, callee:reg8, this_value:reg6, console.log, arguments:[reg9]
+  [ 118] GetGlobal dst:reg8, `console`
+  [ 128] GetById dst:reg6, base:reg8, `log` (console.log)
+  [ 140] GetGlobal dst:reg10, `switchLocalOnly`
+  [ 150] Call dst:reg9, callee:reg10, this_value:Undefined, switchLocalOnly, arguments:[Int32(3)]
+  [ 178] Call dst:reg5, callee:reg6, this_value:reg8, console.log, arguments:[reg9]
+  [ 1a0] End value:reg5
 
 
-switchLocalOnly$fc47fb27 switch-local-only-let.js:4:5
+switchLocalOnly$6a4e5c3f switch-local-only-let.js:4:5
   Registers: 6
   Blocks:    7
   Locals:    a~0, b~1
@@ -39,27 +40,28 @@ switchLocalOnly$fc47fb27 switch-local-only-let.js:4:5
     [5] = Undefined
 
 block0:
-  [   0] JumpStrictlyEquals lhs:Int32(1), rhs:arg0, true_target:block3, false_target:block1
+  [   0] Enter
+  [   8] JumpStrictlyEquals lhs:Int32(1), rhs:arg0, true_target:block3, false_target:block1
 
 block1:
-  [  18] JumpStrictlyEquals lhs:Int32(2), rhs:arg0, true_target:block4, false_target:block2
+  [  20] JumpStrictlyEquals lhs:Int32(2), rhs:arg0, true_target:block4, false_target:block2
 
 block2:
-  [  30] Return value:Int32(0)
+  [  38] Return value:Int32(0)
 
 block3:
-  [  38] Mov dst:a~0, src:Int32(10)
-  [  48] Return value:a~0
+  [  40] Mov dst:a~0, src:Int32(10)
+  [  50] Return value:a~0
 
 block4:
-  [  50] Mov dst:b~1, src:Int32(20)
-  [  60] Return value:b~1
+  [  58] Mov dst:b~1, src:Int32(20)
+  [  68] Return value:b~1
 
 block5:
-  [  68] Return value:Int32(0)
+  [  70] Return value:Int32(0)
 
 block6:
-  [  70] End value:Undefined
+  [  78] End value:Undefined
 
 
 10

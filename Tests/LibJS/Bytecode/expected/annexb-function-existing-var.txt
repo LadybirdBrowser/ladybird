@@ -1,16 +1,17 @@
-$49b95e06 annexb-function-existing-var.js:10:1
+$d36729be annexb-function-existing-var.js:10:1
   Registers: 7
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] GetGlobal dst:reg6, `test`
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, test
-  [  30] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `test`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, test
+  [  38] End value:reg5
 
 
-test$02c02c04 annexb-function-existing-var.js:2:5
+test$aa255e47 annexb-function-existing-var.js:2:5
   Registers: 7
   Blocks:    1
   Constants:
@@ -19,16 +20,17 @@ test$02c02c04 annexb-function-existing-var.js:2:5
     [2] = Bool(true)
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateVariable `f`, is_immutable:false, is_global:false, is_strict:false
-  [  18] InitializeVariableBinding `f`, src:Undefined
-  [  30] SetLexicalBinding `f`, src:Int32(123)
-  [  48] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
-  [  60] CreateMutableBinding environment:reg5, `f`, can_be_deleted:false
-  [  70] NewFunction dst:reg6, shared_function_data_index:0
-  [  88] InitializeLexicalBinding `f`, src:reg6
-  [  a0] GetBinding dst:reg6, `f`
-  [  b8] SetVariableBinding `f`, src:reg6
-  [  d0] SetLexicalEnvironment environment:reg4
-  [  d8] GetInitializedBinding dst:reg5, `f`
-  [  f0] Return value:reg5
+  [   0] Enter
+  [   8] GetLexicalEnvironment dst:reg4
+  [  10] CreateVariable `f`, is_immutable:false, is_global:false, is_strict:false
+  [  20] InitializeVariableBinding `f`, src:Undefined
+  [  38] SetLexicalBinding `f`, src:Int32(123)
+  [  50] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  68] CreateMutableBinding environment:reg5, `f`, can_be_deleted:false
+  [  78] NewFunction dst:reg6, shared_function_data_index:0
+  [  90] InitializeLexicalBinding `f`, src:reg6
+  [  a8] GetBinding dst:reg6, `f`
+  [  c0] SetVariableBinding `f`, src:reg6
+  [  d8] SetLexicalEnvironment environment:reg4
+  [  e0] GetInitializedBinding dst:reg5, `f`
+  [  f8] Return value:reg5

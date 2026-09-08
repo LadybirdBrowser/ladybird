@@ -1,4 +1,4 @@
-$79e506f5 private-method-call-description.js:1:1
+$fb46ff7d private-method-call-description.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -6,47 +6,51 @@ $79e506f5 private-method-call-description.js:1:1
     [1] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
-  [  20] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
-  [  30] CreatePrivateEnvironment
-  [  38] AddPrivateName `#m`
-  [  40] SetLexicalEnvironment environment:reg4
-  [  48] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("call")]
-  [  70] LeavePrivateEnvironment
-  [  78] DynamicInitializeLexicalBinding `C`, src:reg6
-  [  88] GetGlobal dst:reg7, `C`
-  [  98] CallConstruct dst:reg5, callee:reg7, C
-  [  b0] GetById dst:reg7, base:reg5, `call`
-  [  c8] Call dst:reg6, callee:reg7, this_value:reg5, <object>.call
-  [  e8] End value:reg6
+  [   0] Enter
+  [   8] GetLexicalEnvironment dst:reg4
+  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  28] CreateVariable `C`, is_immutable:true, is_global:false, is_strict:true
+  [  38] CreatePrivateEnvironment
+  [  40] AddPrivateName `#m`
+  [  48] SetLexicalEnvironment environment:reg4
+  [  50] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("call")]
+  [  78] LeavePrivateEnvironment
+  [  80] DynamicInitializeLexicalBinding `C`, src:reg6
+  [  90] GetGlobal dst:reg7, `C`
+  [  a0] CallConstruct dst:reg5, callee:reg7, C
+  [  b8] GetById dst:reg7, base:reg5, `call`
+  [  d0] Call dst:reg6, callee:reg7, this_value:reg5, <object>.call
+  [  f0] End value:reg6
 
 
-C$e7b179de
+C$638b9046
   Registers: 5
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] End value:Undefined
+  [   0] Enter
+  [   8] End value:Undefined
 
 
-call$c4371728 private-method-call-description.js:6:9
+call$4b20f1d0 private-method-call-description.js:6:9
   Registers: 7
   Blocks:    1
 
 block0:
-  [   0] GetPrivateById dst:reg6, base:this, `#m`
-  [  10] Call dst:reg5, callee:reg6, this_value:this, this.#m
-  [  30] Return value:reg5
+  [   0] Enter
+  [   8] GetPrivateById dst:reg6, base:this, `#m`
+  [  18] Call dst:reg5, callee:reg6, this_value:this, this.#m
+  [  38] Return value:reg5
 
 
-#m$a16f05d1 private-method-call-description.js:3:9
+#m$2594ef69 private-method-call-description.js:3:9
   Registers: 5
   Blocks:    1
   Constants:
     [0] = Int32(42)
 
 block0:
-  [   0] Return value:Int32(42)
+  [   0] Enter
+  [   8] Return value:Int32(42)

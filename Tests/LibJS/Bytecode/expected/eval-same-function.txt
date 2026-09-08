@@ -1,16 +1,17 @@
-$49b95e06 eval-same-function.js:10:1
+$d36729be eval-same-function.js:10:1
   Registers: 7
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] GetGlobal dst:reg6, `foo`
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, foo
-  [  30] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `foo`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, foo
+  [  38] End value:reg5
 
 
-foo$3e35f384 eval-same-function.js:6:9
+foo$c25bdd1c eval-same-function.js:6:9
   Registers: 8
   Blocks:    1
   Constants:
@@ -19,15 +20,16 @@ foo$3e35f384 eval-same-function.js:6:9
     [2] = Int32(42)
 
 block0:
-  [   0] CreateArguments is_immutable:false
-  [  10] DynamicGetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `eval`
-  [  28] CallDirectEval dst:reg5, callee:reg6, this_value:reg7, eval, arguments:[String("var x = 1")]
-  [  50] DynamicGetBinding dst:reg6, `Number`
-  [  60] CallConstruct dst:reg5, callee:reg6, Number, arguments:[Int32(42)]
-  [  80] Return value:reg5
+  [   0] Enter
+  [   8] CreateArguments is_immutable:false
+  [  18] DynamicGetCalleeAndThisFromEnvironment callee:reg6, this_value:reg7, `eval`
+  [  30] CallDirectEval dst:reg5, callee:reg6, this_value:reg7, eval, arguments:[String("var x = 1")]
+  [  58] DynamicGetBinding dst:reg6, `Number`
+  [  68] CallConstruct dst:reg5, callee:reg6, Number, arguments:[Int32(42)]
+  [  88] Return value:reg5
 
 
-eval$e1340763 line 1, column 1
+eval$5fd20edb line 1, column 1
   Registers: 6
   Blocks:    1
   Constants:
@@ -35,6 +37,7 @@ eval$e1340763 line 1, column 1
     [1] = Undefined
 
 block0:
-  [   0] ResolveBinding dst:reg5, `x`
-  [  10] SetResolvedBinding environment:reg5, `x`, src:Int32(1)
-  [  20] End value:Undefined
+  [   0] Enter
+  [   8] ResolveBinding dst:reg5, `x`
+  [  18] SetResolvedBinding environment:reg5, `x`, src:Int32(1)
+  [  28] End value:Undefined

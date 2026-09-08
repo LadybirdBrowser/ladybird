@@ -1,16 +1,17 @@
-$a2a07da4 double-constant-deduplication.js:8:1
+$162ec0dc double-constant-deduplication.js:8:1
   Registers: 7
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] GetGlobal dst:reg6, `foo`
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, foo
-  [  30] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `foo`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, foo
+  [  38] End value:reg5
 
 
-foo$9e71f40c double-constant-deduplication.js:2:5
+foo$1fd3ec94 double-constant-deduplication.js:2:5
   Registers: 7
   Blocks:    1
   Locals:    a~0, b~1, c~2
@@ -18,7 +19,8 @@ foo$9e71f40c double-constant-deduplication.js:2:5
     [0] = Double(0.5)
 
 block0:
-  [   0] Mov3 c0_dst:a~0, c0_src:Double(0.5), c1_dst:b~1, c1_src:Double(0.5), c2_dst:c~2, c2_src:Double(0.5)
-  [  20] Add dst:reg5, lhs:a~0, rhs:b~1
-  [  30] Add dst:reg6, lhs:reg5, rhs:c~2
-  [  40] Return value:reg6
+  [   0] Enter
+  [   8] Mov3 c0_dst:a~0, c0_src:Double(0.5), c1_dst:b~1, c1_src:Double(0.5), c2_dst:c~2, c2_src:Double(0.5)
+  [  28] Add dst:reg5, lhs:a~0, rhs:b~1
+  [  38] Add dst:reg6, lhs:reg5, rhs:c~2
+  [  48] Return value:reg6

@@ -1,16 +1,17 @@
-$bacf2c68 numeric-index-object-literal.js:4:1
+$2b997e90 numeric-index-object-literal.js:4:1
   Registers: 7
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] GetGlobal dst:reg6, `test`
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, test
-  [  30] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `test`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, test
+  [  38] End value:reg5
 
 
-test$7e9a426c numeric-index-object-literal.js:2:5
+test$fd3849e4 numeric-index-object-literal.js:2:5
   Registers: 6
   Blocks:    1
   Constants:
@@ -22,11 +23,12 @@ test$7e9a426c numeric-index-object-literal.js:2:5
     [5] = Int32(3)
 
 block0:
-  [   0] NewObject dst:reg5
-  [  10] ToPrimitiveWithStringHint dst:Int32(100), value:Int32(100)
-  [  20] PutByValue base:reg5, property:Int32(100), src:Int32(1), kind:Own
-  [  38] ToPrimitiveWithStringHint dst:Int32(200), value:Int32(200)
-  [  48] PutByValue base:reg5, property:Int32(200), src:Int32(2), kind:Own
-  [  60] ToPrimitiveWithStringHint dst:Int32(300), value:Int32(300)
-  [  70] PutByValue base:reg5, property:Int32(300), src:Int32(3), kind:Own
-  [  88] Return value:reg5
+  [   0] Enter
+  [   8] NewObject dst:reg5
+  [  18] ToPrimitiveWithStringHint dst:Int32(100), value:Int32(100)
+  [  28] PutByValue base:reg5, property:Int32(100), src:Int32(1), kind:Own
+  [  40] ToPrimitiveWithStringHint dst:Int32(200), value:Int32(200)
+  [  50] PutByValue base:reg5, property:Int32(200), src:Int32(2), kind:Own
+  [  68] ToPrimitiveWithStringHint dst:Int32(300), value:Int32(300)
+  [  78] PutByValue base:reg5, property:Int32(300), src:Int32(3), kind:Own
+  [  90] Return value:reg5

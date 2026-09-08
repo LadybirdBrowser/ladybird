@@ -1,4 +1,4 @@
-$dc8f51ec super-length-access.js:3:1
+$5df14a74 super-length-access.js:3:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -7,65 +7,70 @@ $dc8f51ec super-length-access.js:3:1
     [2] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
-  [  20] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:true
-  [  30] SetLexicalEnvironment environment:reg4
-  [  38] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("length")]
-  [  60] DynamicInitializeLexicalBinding `A`, src:reg6
-  [  70] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0, is_catch_environment:false
-  [  88] CreateVariable `B`, is_immutable:true, is_global:false, is_strict:true
-  [  98] GetGlobal dst:reg5, `A`
-  [  a8] SetLexicalEnvironment environment:reg4
-  [  b0] NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1, element_keys:[element_keys:String("m")]
-  [  d8] DynamicInitializeLexicalBinding `B`, src:reg7
-  [  e8] GetGlobal dst:reg5, `B`
-  [  f8] CallConstruct dst:reg6, callee:reg5, B
-  [ 110] GetById dst:reg5, base:reg6, `m`
-  [ 128] Call dst:reg7, callee:reg5, this_value:reg6, <object>.m
-  [ 148] End value:reg7
+  [   0] Enter
+  [   8] GetLexicalEnvironment dst:reg4
+  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  28] CreateVariable `A`, is_immutable:true, is_global:false, is_strict:true
+  [  38] SetLexicalEnvironment environment:reg4
+  [  40] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0, element_keys:[element_keys:String("length")]
+  [  68] DynamicInitializeLexicalBinding `A`, src:reg6
+  [  78] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0, is_catch_environment:false
+  [  90] CreateVariable `B`, is_immutable:true, is_global:false, is_strict:true
+  [  a0] GetGlobal dst:reg5, `A`
+  [  b0] SetLexicalEnvironment environment:reg4
+  [  b8] NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1, element_keys:[element_keys:String("m")]
+  [  e0] DynamicInitializeLexicalBinding `B`, src:reg7
+  [  f0] GetGlobal dst:reg5, `B`
+  [ 100] CallConstruct dst:reg6, callee:reg5, B
+  [ 118] GetById dst:reg5, base:reg6, `m`
+  [ 130] Call dst:reg7, callee:reg5, this_value:reg6, <object>.m
+  [ 150] End value:reg7
 
 
-B$ce9c9421 super-length-access.js:7:1
+B$73f1ca79 super-length-access.js:7:1
   Registers: 8
   Blocks:    1
 
 block0:
-  [   0] CreateVariable `args`, is_immutable:false, is_global:false, is_strict:false
-  [  10] CreateRestParams dst:arg0, rest_index:0
-  [  20] InitializeLexicalBinding `args`, src:arg0
-  [  38] GetSuperConstructor dst:reg5
-  [  40] GetBinding dst:reg6, `args`
-  [  58] SuperCallWithArgumentArray dst:reg7, super_constructor:reg5, arguments:reg6, is_synthetic:true
-  [  70] Return value:reg7
+  [   0] Enter
+  [   8] CreateVariable `args`, is_immutable:false, is_global:false, is_strict:false
+  [  18] CreateRestParams dst:arg0, rest_index:0
+  [  28] InitializeLexicalBinding `args`, src:arg0
+  [  40] GetSuperConstructor dst:reg5
+  [  48] GetBinding dst:reg6, `args`
+  [  60] SuperCallWithArgumentArray dst:reg7, super_constructor:reg5, arguments:reg6, is_synthetic:true
+  [  78] Return value:reg7
 
 
-A$ef0589ec
+A$70678274
   Registers: 5
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] End value:Undefined
+  [   0] Enter
+  [   8] End value:Undefined
 
 
-m$6cadcac8 super-length-access.js:9:9
+m$eb4bd240 super-length-access.js:9:9
   Registers: 7
   Blocks:    1
 
 block0:
-  [   0] ResolveThisBinding
-  [   8] ResolveSuperBase dst:reg5
-  [  10] GetLengthWithThis dst:reg6, base:reg5, this_value:this
-  [  28] Return value:reg6
+  [   0] Enter
+  [   8] ResolveThisBinding
+  [  10] ResolveSuperBase dst:reg5
+  [  18] GetLengthWithThis dst:reg6, base:reg5, this_value:this
+  [  30] Return value:reg6
 
 
-get length$e8de8dcf super-length-access.js:4:20
+get length$64b8a437 super-length-access.js:4:20
   Registers: 5
   Blocks:    1
   Constants:
     [0] = Int32(42)
 
 block0:
-  [   0] Return value:Int32(42)
+  [   0] Enter
+  [   8] Return value:Int32(42)

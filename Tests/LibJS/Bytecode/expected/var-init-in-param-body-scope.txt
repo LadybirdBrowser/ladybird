@@ -1,16 +1,17 @@
-$bacf2c68 var-init-in-param-body-scope.js:4:1
+$2b997e90 var-init-in-param-body-scope.js:4:1
   Registers: 7
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] GetGlobal dst:reg6, `f`
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, f
-  [  30] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `f`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f
+  [  38] End value:reg5
 
 
-f$6f9adbc3
+f$ee38e33b
   Registers: 6
   Blocks:    3
   Locals:    x~0
@@ -20,11 +21,12 @@ f$6f9adbc3
     [2] = String("inside")
 
 block0:
-  [   0] JumpUndefined condition:arg0, true_target:block1, false_target:block2
+  [   0] Enter
+  [   8] JumpUndefined condition:arg0, true_target:block1, false_target:block2
 
 block1:
-  [  10] Mov dst:arg0, src:Int32(1)
+  [  18] Mov dst:arg0, src:Int32(1)
 
 block2:
-  [  20] Mov3 c0_dst:reg5, c0_src:Undefined, c1_dst:x~0, c1_src:reg5, c2_dst:x~0, c2_src:String("inside")
-  [  40] End value:Undefined
+  [  28] Mov3 c0_dst:reg5, c0_src:Undefined, c1_dst:x~0, c1_src:reg5, c2_dst:x~0, c2_src:String("inside")
+  [  48] End value:Undefined

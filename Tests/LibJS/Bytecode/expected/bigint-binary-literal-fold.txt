@@ -1,4 +1,4 @@
-$ccf7ed9d
+$4e59e625
   Registers: 5
   Blocks:    1
   Constants:
@@ -7,4 +7,5 @@ $ccf7ed9d
     [2] = BigInt(1n)
 
 block0:
-  [   0] End value:BigInt(1n)
+  [   0] Enter
+  [   8] End value:BigInt(1n)

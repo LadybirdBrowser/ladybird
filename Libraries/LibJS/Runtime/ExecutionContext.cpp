@@ -103,7 +103,6 @@ void ExecutionContext::operator delete(void* ptr)
 NonnullOwnPtr<ExecutionContext> ExecutionContext::copy() const
 {
     // NB: We pass the entire non-argument count as registers_and_locals_count with 0 constants.
-    //     This means all slots get initialized to empty, but we immediately overwrite them below.
     auto copy = create(registers_and_constants_and_locals_and_arguments_count - argument_count, ReadonlySpan<Value> {}, argument_count);
     copy->function = function;
     copy->realm = realm;
@@ -117,12 +116,16 @@ NonnullOwnPtr<ExecutionContext> ExecutionContext::copy() const
     copy->yield_is_await = yield_is_await;
     copy->yield_value_is_iterator_result = yield_value_is_iterator_result;
     copy->caller_is_construct = caller_is_construct;
+    copy->frame_initialized = frame_initialized;
     copy->this_value = this_value;
     copy->executable = executable;
     copy->passed_argument_count = passed_argument_count;
     copy->registers_and_constants_and_locals_and_arguments_count = registers_and_constants_and_locals_and_arguments_count;
-    for (size_t i = 0; i < registers_and_constants_and_locals_and_arguments_count; ++i)
+    for (size_t i = 0; i < registers_and_constants_and_locals_and_arguments_count; ++i) {
+        if (!frame_initialized && i >= Bytecode::Register::reserved_register_count && i < registers_and_constants_and_locals_and_arguments_count - argument_count)
+            continue;
         copy->registers_and_constants_and_locals_and_arguments()[i] = registers_and_constants_and_locals_and_arguments()[i];
+    }
     copy->argument_count = argument_count;
     return copy;
 }
@@ -148,7 +151,16 @@ void ExecutionContext::visit_edges(Cell::Visitor& visitor)
     visitor.visit(private_environment);
     visitor.visit(this_value);
     visitor.visit(executable);
-    visitor.visit(registers_and_constants_and_locals_and_arguments_span());
+    auto values = registers_and_constants_and_locals_and_arguments_span();
+    if (frame_initialized) {
+        visitor.visit(values);
+    } else {
+        // NB: Call setup can trigger GC before Enter initializes the frame.
+        //     Only the reserved registers and arguments are live at that point.
+        auto non_argument_count = registers_and_constants_and_locals_and_arguments_count - argument_count;
+        visitor.visit(values.slice(0, min(non_argument_count, Bytecode::Register::reserved_register_count)));
+        visitor.visit(arguments_span());
+    }
     visitor.visit(script_or_module);
 }
 

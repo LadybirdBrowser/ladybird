@@ -191,6 +191,7 @@ int main()
     EMIT_FIELD(EXECUTION_CONTEXT_YIELD_IS_AWAIT, ExecutionContext, yield_is_await, bool, ExecutionContext, yield_is_await, 1, nullable, scalar);
     EMIT_FIELD(EXECUTION_CONTEXT_YIELD_VALUE_IS_ITERATOR_RESULT, ExecutionContext, yield_value_is_iterator_result, bool, ExecutionContext, yield_value_is_iterator_result, 1, nullable, scalar);
     EMIT_FIELD(EXECUTION_CONTEXT_CALLER_IS_CONSTRUCT, ExecutionContext, caller_is_construct, bool, ExecutionContext, caller_is_construct, 1, nullable, scalar);
+    EMIT_FIELD(EXECUTION_CONTEXT_FRAME_INITIALIZED, ExecutionContext, frame_initialized, bool, ExecutionContext, frame_initialized, 1, nullable, scalar);
     EMIT_PAIRED_FIELD(EXECUTION_CONTEXT_THIS_VALUE, ExecutionContext, this_value, Value, ExecutionContext, this_value, 8, scalar, this_and_executable);
     EMIT_PAIRED_FIELD(EXECUTION_CONTEXT_EXECUTABLE, ExecutionContext, executable, Executable, ExecutionContext, executable, 8, cell, this_and_executable);
     EMIT_FIELD(EXECUTION_CONTEXT_CALLER_FRAME, ExecutionContext, caller_frame, ExecutionContext, ExecutionContext, caller_frame, 8, nullable, scalar);

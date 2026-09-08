@@ -1,4 +1,4 @@
-$ba9d77cf logical-or-preferred-dst.js:11:1
+$393b7f47 logical-or-preferred-dst.js:11:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,33 +6,37 @@ $ba9d77cf logical-or-preferred-dst.js:11:1
     [1] = Bool(false)
 
 block0:
-  [   0] GetGlobal dst:reg6, `blocked`
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, blocked, arguments:[Bool(false)]
-  [  38] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `blocked`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, blocked, arguments:[Bool(false)]
+  [  40] End value:reg5
 
 
-blocked$0b29b642 logical-or-preferred-dst.js:6:9
+blocked$89c7bdba logical-or-preferred-dst.js:6:9
   Registers: 6
-  Blocks:    6
+  Blocks:    7
   Constants:
     [0] = Int32(0)
     [1] = Undefined
 
 block0:
-  [   0] Mov dst:reg5, src:arg0
-  [  10] JumpIf condition:arg0, true_target:block3, false_target:block2
+  [   0] Enter
 
 block1:
-  [  20] End value:Undefined
+  [   8] Mov dst:reg5, src:arg0
+  [  18] JumpIf condition:arg0, true_target:block4, false_target:block3
 
 block2:
-  [  28] GreaterThanRhsInt32 dst:reg5, lhs:arg0, rhs:0
+  [  28] End value:Undefined
 
 block3:
-  [  38] JumpFalse condition:reg5, target:block5
+  [  30] GreaterThanRhsInt32 dst:reg5, lhs:arg0, rhs:0
 
 block4:
-  [  48] Jump target:block0
+  [  40] JumpFalse condition:reg5, target:block6
 
 block5:
   [  50] Jump target:block1
+
+block6:
+  [  58] Jump target:block2

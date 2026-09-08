@@ -1,4 +1,4 @@
-$a37cd2a2 super-computed-eval-order.js:1:1
+$1f56e90a super-computed-eval-order.js:1:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -6,56 +6,60 @@ $a37cd2a2 super-computed-eval-order.js:1:1
     [1] = Undefined
 
 block0:
-  [   0] GetLexicalEnvironment dst:reg4
-  [   8] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
-  [  20] CreateVariable `Base`, is_immutable:true, is_global:false, is_strict:true
-  [  30] SetLexicalEnvironment environment:reg4
-  [  38] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0
-  [  58] DynamicInitializeLexicalBinding `Base`, src:reg6
-  [  68] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0, is_catch_environment:false
-  [  80] CreateVariable `Derived`, is_immutable:true, is_global:false, is_strict:true
-  [  90] GetGlobal dst:reg5, `Base`
-  [  a0] SetLexicalEnvironment environment:reg4
-  [  a8] NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1, element_keys:[element_keys:String("test")]
-  [  d0] DynamicInitializeLexicalBinding `Derived`, src:reg7
-  [  e0] GetGlobal dst:reg5, `Derived`
-  [  f0] CallConstruct dst:reg6, callee:reg5, Derived
-  [ 108] GetById dst:reg5, base:reg6, `test`
-  [ 120] Call dst:reg7, callee:reg5, this_value:reg6, <object>.test
-  [ 140] End value:reg7
+  [   0] Enter
+  [   8] GetLexicalEnvironment dst:reg4
+  [  10] CreateLexicalEnvironment dst:reg5, parent:reg4, capacity:0, is_catch_environment:false
+  [  28] CreateVariable `Base`, is_immutable:true, is_global:false, is_strict:true
+  [  38] SetLexicalEnvironment environment:reg4
+  [  40] NewClass dst:reg6, class_environment:reg5, class_blueprint_index:0
+  [  60] DynamicInitializeLexicalBinding `Base`, src:reg6
+  [  70] CreateLexicalEnvironment dst:reg6, parent:reg4, capacity:0, is_catch_environment:false
+  [  88] CreateVariable `Derived`, is_immutable:true, is_global:false, is_strict:true
+  [  98] GetGlobal dst:reg5, `Base`
+  [  a8] SetLexicalEnvironment environment:reg4
+  [  b0] NewClass dst:reg7, super_class:reg5, class_environment:reg6, class_blueprint_index:1, element_keys:[element_keys:String("test")]
+  [  d8] DynamicInitializeLexicalBinding `Derived`, src:reg7
+  [  e8] GetGlobal dst:reg5, `Derived`
+  [  f8] CallConstruct dst:reg6, callee:reg5, Derived
+  [ 110] GetById dst:reg5, base:reg6, `test`
+  [ 128] Call dst:reg7, callee:reg5, this_value:reg6, <object>.test
+  [ 148] End value:reg7
 
 
-Derived$704ace62 super-computed-eval-order.js:4:14
+Derived$eee8d5da super-computed-eval-order.js:4:14
   Registers: 8
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] GetSuperConstructor dst:reg5
-  [   8] NewArray dst:reg6
-  [  18] SuperCallWithArgumentArray dst:reg7, super_constructor:reg5, arguments:reg6, is_synthetic:false
-  [  30] End value:Undefined
+  [   0] Enter
+  [   8] GetSuperConstructor dst:reg5
+  [  10] NewArray dst:reg6
+  [  20] SuperCallWithArgumentArray dst:reg7, super_constructor:reg5, arguments:reg6, is_synthetic:false
+  [  38] End value:Undefined
 
 
-Base$a461b108
+Base$25c3a990
   Registers: 5
   Blocks:    1
   Constants:
     [0] = Undefined
 
 block0:
-  [   0] End value:Undefined
+  [   0] Enter
+  [   8] End value:Undefined
 
 
-test$37ca7115 super-computed-eval-order.js:7:9
+test$b92c699d super-computed-eval-order.js:7:9
   Registers: 7
   Blocks:    1
   Constants:
     [0] = Int32(0)
 
 block0:
-  [   0] ResolveThisBinding
-  [   8] ResolveSuperBase dst:reg5
-  [  10] GetByValueWithThis dst:reg6, base:reg5, property:Int32(0), this_value:this
-  [  28] Return value:reg6
+  [   0] Enter
+  [   8] ResolveThisBinding
+  [  10] ResolveSuperBase dst:reg5
+  [  18] GetByValueWithThis dst:reg6, base:reg5, property:Int32(0), this_value:this
+  [  30] Return value:reg6

@@ -1,4 +1,4 @@
-$d0083583 async-generator-yield.js:7:1
+$516a2e0b async-generator-yield.js:7:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,12 +6,13 @@ $d0083583 async-generator-yield.js:7:1
     [1] = Int32(1)
 
 block0:
-  [   0] GetGlobal dst:reg6, `f`
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
-  [  38] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `f`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(1)]
+  [  40] End value:reg5
 
 
-f$aa186530 async-generator-yield.js:5:5
+f$28b66ca8 async-generator-yield.js:5:5
   Registers: 10
   Blocks:    16
   Constants:
@@ -21,58 +22,59 @@ f$aa186530 async-generator-yield.js:5:5
     [3] = Int32(5)
 
 block0:
-  [   0] Yield continuation_label:block1, value:Undefined
+  [   0] Enter
+  [   8] Yield continuation_label:block1, value:Undefined
 
 block1:
-  [  10] Await continuation_label:block3, argument:arg0
+  [  18] Await continuation_label:block3, argument:arg0
 
 block2:
-  [  20] Mov dst:reg5, src:reg0
-  [  30] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [  40] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:1, true_target:block12, false_target:block13
+  [  28] Mov dst:reg5, src:reg0
+  [  38] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+  [  48] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:1, true_target:block12, false_target:block13
 
 block3:
-  [  58] Mov dst:reg5, src:reg0
-  [  68] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [  78] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:1, true_target:block4, false_target:block5
+  [  60] Mov dst:reg5, src:reg0
+  [  70] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+  [  80] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:1, true_target:block4, false_target:block5
 
 block4:
-  [  90] Yield continuation_label:block6, value:reg7
+  [  98] Yield continuation_label:block6, value:reg7
 
 block5:
-  [  a0] Throw src:reg7
+  [  a8] Throw src:reg7
 
 block6:
-  [  a8] Mov dst:reg5, src:reg0
-  [  b8] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [  c8] JumpStrictlyInequalsRhsInt32 lhs:reg6, rhs:4, true_target:block2, false_target:block7
+  [  b0] Mov dst:reg5, src:reg0
+  [  c0] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+  [  d0] JumpStrictlyInequalsRhsInt32 lhs:reg6, rhs:4, true_target:block2, false_target:block7
 
 block7:
-  [  e0] Await continuation_label:block8, argument:reg7
+  [  e8] Await continuation_label:block8, argument:reg7
 
 block8:
-  [  f0] Mov dst:reg5, src:reg0
-  [ 100] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
-  [ 110] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:1, true_target:block9, false_target:block10
+  [  f8] Mov dst:reg5, src:reg0
+  [ 108] GetCompletionFields type_dst:reg6, value_dst:reg7, completion:reg5
+  [ 118] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:1, true_target:block9, false_target:block10
 
 block9:
-  [ 128] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:5, true_target:block2, false_target:block11
+  [ 130] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:5, true_target:block2, false_target:block11
 
 block10:
-  [ 140] Throw src:reg7
+  [ 148] Throw src:reg7
 
 block11:
-  [ 148] SetCompletionType completion:reg5
-  [ 158] Jump target:block2
+  [ 150] SetCompletionType completion:reg5
+  [ 160] Jump target:block2
 
 block12:
-  [ 160] Yield value:Undefined
+  [ 168] Yield value:Undefined
 
 block13:
-  [ 170] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:5, true_target:block14, false_target:block15
+  [ 178] JumpStrictlyEqualsRhsInt32 lhs:reg6, rhs:5, true_target:block14, false_target:block15
 
 block14:
-  [ 188] Throw src:reg7
+  [ 190] Throw src:reg7
 
 block15:
-  [ 190] Yield value:reg7
+  [ 198] Yield value:reg7

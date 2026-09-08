@@ -1,4 +1,4 @@
-$495ef8a0 argument-variables.js:12:1
+$bced3bd8 argument-variables.js:12:1
   Registers: 8
   Blocks:    1
   Constants:
@@ -7,25 +7,28 @@ $495ef8a0 argument-variables.js:12:1
     [2] = Int32(2)
 
 block0:
-  [   0] GetGlobal dst:reg6, `identity`
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, identity, arguments:[Int32(1)]
-  [  38] GetGlobal dst:reg7, `swap`
-  [  48] Call dst:reg6, callee:reg7, this_value:Undefined, swap, arguments:[Int32(1), Int32(2)]
-  [  70] End value:reg6
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `identity`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, identity, arguments:[Int32(1)]
+  [  40] GetGlobal dst:reg7, `swap`
+  [  50] Call dst:reg6, callee:reg7, this_value:Undefined, swap, arguments:[Int32(1), Int32(2)]
+  [  78] End value:reg6
 
 
-identity$753f961b argument-variables.js:5:5
+identity$f6a18ea3 argument-variables.js:5:5
   Registers: 5
   Blocks:    1
 
 block0:
-  [   0] Return value:arg0
+  [   0] Enter
+  [   8] Return value:arg0
 
 
-swap$556fb42c argument-variables.js:9:5
+swap$d149ca94 argument-variables.js:9:5
   Registers: 6
   Blocks:    1
 
 block0:
-  [   0] Add dst:reg5, lhs:arg1, rhs:arg0
-  [  10] Return value:reg5
+  [   0] Enter
+  [   8] Add dst:reg5, lhs:arg1, rhs:arg0
+  [  18] Return value:reg5

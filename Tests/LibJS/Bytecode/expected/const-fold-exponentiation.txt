@@ -1,4 +1,4 @@
-$e26385ed const-fold-exponentiation.js:1:1
+$5e3d9c55 const-fold-exponentiation.js:1:1
   Registers: 5
   Blocks:    1
   Constants:
@@ -13,8 +13,9 @@ $e26385ed const-fold-exponentiation.js:1:1
     [8] = Undefined
 
 block0:
-  [   0] DynamicInitializeLexicalBinding `a`, src:Double(nan)
-  [  10] DynamicInitializeLexicalBinding `b`, src:Double(nan)
-  [  20] DynamicInitializeLexicalBinding `c`, src:Double(nan)
-  [  30] DynamicInitializeLexicalBinding `d`, src:Int32(1024)
-  [  40] End value:Undefined
+  [   0] Enter
+  [   8] DynamicInitializeLexicalBinding `a`, src:Double(nan)
+  [  18] DynamicInitializeLexicalBinding `b`, src:Double(nan)
+  [  28] DynamicInitializeLexicalBinding `c`, src:Double(nan)
+  [  38] DynamicInitializeLexicalBinding `d`, src:Int32(1024)
+  [  48] End value:Undefined

@@ -1,4 +1,4 @@
-$ba9d77cf assign-to-argument-no-tdz.js:11:1
+$393b7f47 assign-to-argument-no-tdz.js:11:1
   Registers: 7
   Blocks:    1
   Constants:
@@ -6,12 +6,13 @@ $ba9d77cf assign-to-argument-no-tdz.js:11:1
     [1] = Int32(0)
 
 block0:
-  [   0] GetGlobal dst:reg6, `f`
-  [  10] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(0)]
-  [  38] End value:reg5
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `f`
+  [  18] Call dst:reg5, callee:reg6, this_value:Undefined, f, arguments:[Int32(0)]
+  [  40] End value:reg5
 
 
-f$44906188 assign-to-argument-no-tdz.js:6:5
+f$c32e6900 assign-to-argument-no-tdz.js:6:5
   Registers: 5
   Blocks:    1
   Locals:    y~0
@@ -19,5 +20,6 @@ f$44906188 assign-to-argument-no-tdz.js:6:5
     [0] = Int32(1)
 
 block0:
-  [   0] Mov2 c0_dst:y~0, c0_src:Int32(1), c1_dst:arg0, c1_src:y~0
-  [  18] Return value:arg0
+  [   0] Enter
+  [   8] Mov2 c0_dst:y~0, c0_src:Int32(1), c1_dst:arg0, c1_src:y~0
+  [  20] Return value:arg0
