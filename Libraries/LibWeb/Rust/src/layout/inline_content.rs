@@ -126,11 +126,15 @@ pub struct InlineBoxPieceRecord {
 impl InlineContent {
     pub(crate) fn finish(data: used_values::LineData, arena: &LayoutNodeArena, content_inline_size: CssPixels) -> Self {
         let mut lines = Vec::with_capacity(data.line_boxes.len());
-        let mut fragments = Vec::new();
-        for (line_index, line) in data.line_boxes.into_iter().enumerate() {
+        let mut fragment_count = 0usize;
+        for line in &data.line_boxes {
+            let visible_fragment_count = line.visible_fragments().count();
+            fragment_count = fragment_count
+                .checked_add(visible_fragment_count)
+                .expect("fragment count overflowed");
             lines.push(LineRecord {
-                rect: inline_formatting_context::line_rect(&line, content_inline_size),
-                fragment_count: line.visible_fragments().count() as u32,
+                rect: inline_formatting_context::line_rect(line, content_inline_size),
+                fragment_count: visible_fragment_count as u32,
                 reusable_atomic_prefix: !line.fragments.is_empty()
                     && !line.has_block_level_box
                     && line.static_position_markers.is_empty()
@@ -141,6 +145,9 @@ impl InlineContent {
                         .all(|fragment| fragment.is_atomic_inline && !fragment.is_fully_truncated),
                 ..line.retained_metrics()
             });
+        }
+        let mut fragments = Vec::with_capacity(fragment_count);
+        for (line_index, line) in data.line_boxes.into_iter().enumerate() {
             for mut fragment in line.fragments {
                 if fragment.is_fully_truncated {
                     continue;
