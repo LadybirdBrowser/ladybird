@@ -1869,19 +1869,21 @@ impl<'pass> SizingContext<'pass> {
         if let Some(width) = auto_size.width {
             return width;
         }
-        let definite_block_size =
-            if facts.is_replaced_box() && auto_size.height.is_none() && self.used(node).has_definite_block_size() {
-                Some(self.used(node).content_block_size.get())
-            } else {
-                None
+        if facts.is_replaced_box() {
+            let definite_block_size =
+                if facts.is_replaced_box() && auto_size.height.is_none() && self.used(node).has_definite_block_size() {
+                    Some(self.used(node).content_block_size.get())
+                } else {
+                    None
+                };
+            let max_content_available = AvailableSize::MaxContent;
+            let intrinsic_available_space = AvailableSpace {
+                inline_size: max_content_available,
+                block_size: AvailableSize::Indefinite,
             };
-        let max_content_available = AvailableSize::MaxContent;
-        let intrinsic_available_space = AvailableSpace {
-            inline_size: max_content_available,
-            block_size: AvailableSize::Indefinite,
-        };
-        let resolve_destination_inline_size =
-            |size: &ComputedSize, property: formatting_context::CyclicPercentageSizeProperty| -> Option<CssPixels> {
+            let resolve_destination_inline_size = |size: &ComputedSize,
+                                                   property: formatting_context::CyclicPercentageSizeProperty|
+             -> Option<CssPixels> {
                 if !size.is_length_percentage() {
                     return None;
                 }
@@ -1906,8 +1908,9 @@ impl<'pass> SizingContext<'pass> {
                     }
                 }
             };
-        let resolve_block_size =
-            |size: &ComputedSize, property: formatting_context::CyclicPercentageSizeProperty| -> Option<CssPixels> {
+            let resolve_block_size = |size: &ComputedSize,
+                                      property: formatting_context::CyclicPercentageSizeProperty|
+             -> Option<CssPixels> {
                 if !size.is_length_percentage() {
                     return None;
                 }
@@ -1930,74 +1933,75 @@ impl<'pass> SizingContext<'pass> {
                 }
             };
 
-        let definite_minimum_inline_size = resolve_destination_inline_size(
-            style.min_width(),
-            formatting_context::CyclicPercentageSizeProperty::MinSize,
-        );
-        let definite_minimum_block_size = resolve_block_size(
-            style.min_height(),
-            formatting_context::CyclicPercentageSizeProperty::MinSize,
-        );
-        let replaced_constraints = formatting_context::ReplacedMaxContentSizeConstraints {
-            definite_size_in_ratio_determining_axis: definite_block_size,
-            minimum_inline_size: definite_minimum_inline_size,
-            minimum_block_size: definite_minimum_block_size,
-        };
-        if let Some(max_content_inline_size) = self.max_content_size_for_replaced_element_without_natural_size(
-            node,
-            auto_size,
-            formatting_context::SizeDimension::Inline,
-            replaced_constraints,
-        ) {
-            if definite_block_size.is_none()
-                && facts.has_preferred_aspect_ratio()
-                && let Some(definite_maximum_block_size) = resolve_block_size(
-                    style.max_height(),
-                    formatting_context::CyclicPercentageSizeProperty::PreferredOrMaxSize,
-                )
-            {
-                // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-size-transfers
-                // First, any definite minimum size is converted and transferred from the origin to destination axis.
-                // This transferred minimum is capped by any definite preferred or maximum size in the destination axis.
-                let mut transferred_minimum =
-                    definite_minimum_block_size.map(|value| self.content_inline_size_from_aspect_ratio(node, value));
-                if let Some(value) = transferred_minimum {
-                    transferred_minimum = resolve_destination_inline_size(
+            let definite_minimum_inline_size = resolve_destination_inline_size(
+                style.min_width(),
+                formatting_context::CyclicPercentageSizeProperty::MinSize,
+            );
+            let definite_minimum_block_size = resolve_block_size(
+                style.min_height(),
+                formatting_context::CyclicPercentageSizeProperty::MinSize,
+            );
+            let replaced_constraints = formatting_context::ReplacedMaxContentSizeConstraints {
+                definite_size_in_ratio_determining_axis: definite_block_size,
+                minimum_inline_size: definite_minimum_inline_size,
+                minimum_block_size: definite_minimum_block_size,
+            };
+            if let Some(max_content_inline_size) = self.max_content_size_for_replaced_element_without_natural_size(
+                node,
+                auto_size,
+                formatting_context::SizeDimension::Inline,
+                replaced_constraints,
+            ) {
+                if definite_block_size.is_none()
+                    && facts.has_preferred_aspect_ratio()
+                    && let Some(definite_maximum_block_size) = resolve_block_size(
+                        style.max_height(),
+                        formatting_context::CyclicPercentageSizeProperty::PreferredOrMaxSize,
+                    )
+                {
+                    // https://drafts.csswg.org/css-sizing-4/#aspect-ratio-size-transfers
+                    // First, any definite minimum size is converted and transferred from the origin to destination axis.
+                    // This transferred minimum is capped by any definite preferred or maximum size in the destination axis.
+                    let mut transferred_minimum = definite_minimum_block_size
+                        .map(|value| self.content_inline_size_from_aspect_ratio(node, value));
+                    if let Some(value) = transferred_minimum {
+                        transferred_minimum = resolve_destination_inline_size(
+                            style.width(),
+                            formatting_context::CyclicPercentageSizeProperty::PreferredOrMaxSize,
+                        )
+                        .map_or(Some(value), |resolved| Some(value.min(resolved)));
+                        let value = transferred_minimum.unwrap();
+                        transferred_minimum = resolve_destination_inline_size(
+                            style.max_width(),
+                            formatting_context::CyclicPercentageSizeProperty::PreferredOrMaxSize,
+                        )
+                        .map_or(Some(value), |resolved| Some(value.min(resolved)));
+                    }
+
+                    // Then, any definite maximum size is converted and transferred from the origin to destination.
+                    // This transferred maximum is floored by any definite preferred or minimum size in the destination axis
+                    // as well as by the transferred minimum, if any.
+                    let mut transferred_maximum =
+                        self.content_inline_size_from_aspect_ratio(node, definite_maximum_block_size);
+                    if let Some(resolved) = resolve_destination_inline_size(
                         style.width(),
                         formatting_context::CyclicPercentageSizeProperty::PreferredOrMaxSize,
-                    )
-                    .map_or(Some(value), |resolved| Some(value.min(resolved)));
-                    let value = transferred_minimum.unwrap();
-                    transferred_minimum = resolve_destination_inline_size(
-                        style.max_width(),
-                        formatting_context::CyclicPercentageSizeProperty::PreferredOrMaxSize,
-                    )
-                    .map_or(Some(value), |resolved| Some(value.min(resolved)));
+                    ) {
+                        transferred_maximum = transferred_maximum.max(resolved);
+                    }
+                    if let Some(resolved) = resolve_destination_inline_size(
+                        style.min_width(),
+                        formatting_context::CyclicPercentageSizeProperty::MinSize,
+                    ) {
+                        transferred_maximum = transferred_maximum.max(resolved);
+                    }
+                    if let Some(transferred_minimum) = transferred_minimum {
+                        transferred_maximum = transferred_maximum.max(transferred_minimum);
+                    }
+                    return max_content_inline_size.min(transferred_maximum);
                 }
-
-                // Then, any definite maximum size is converted and transferred from the origin to destination.
-                // This transferred maximum is floored by any definite preferred or minimum size in the destination axis
-                // as well as by the transferred minimum, if any.
-                let mut transferred_maximum =
-                    self.content_inline_size_from_aspect_ratio(node, definite_maximum_block_size);
-                if let Some(resolved) = resolve_destination_inline_size(
-                    style.width(),
-                    formatting_context::CyclicPercentageSizeProperty::PreferredOrMaxSize,
-                ) {
-                    transferred_maximum = transferred_maximum.max(resolved);
-                }
-                if let Some(resolved) = resolve_destination_inline_size(
-                    style.min_width(),
-                    formatting_context::CyclicPercentageSizeProperty::MinSize,
-                ) {
-                    transferred_maximum = transferred_maximum.max(resolved);
-                }
-                if let Some(transferred_minimum) = transferred_minimum {
-                    transferred_maximum = transferred_maximum.max(transferred_minimum);
-                }
-                return max_content_inline_size.min(transferred_maximum);
+                return max_content_inline_size;
             }
-            return max_content_inline_size;
         }
         // Boxes with no children have zero intrinsic inline size.
         if !self.has_children(node) {
