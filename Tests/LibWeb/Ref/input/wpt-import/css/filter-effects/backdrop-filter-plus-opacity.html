@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>backdrop-filter: Correctly apply backdrop-filter with opacity</title>
+<link rel="author" href="mailto:masonf@chromium.org">
+<link rel="help" href="https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty">
+<link rel="match"  href="../../../../expected/wpt-import/css/filter-effects/backdrop-filter-plus-opacity-ref.html">
+
+<p>Expected: A green box.</p>
+
+<div class="greenbox"></div>
+<div class="filter"></div>
+
+<style>
+.greenbox {
+  position: absolute;
+  background: green;
+  width: 100px;
+  height: 100px;
+  top: 100px;
+  left: 60px;
+}
+.filter {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  top: 50px;
+  left: 10px;
+  backdrop-filter: invert(1);
+  opacity: 0;
+}
+</style>

@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>backdrop-filter: Zero-size div with backdrop filter shouldn't filter anything</title>
+<link rel="author" href="mailto:masonf@chromium.org">
+
+
+
+<p>Expected: A single green box.</p>
+<div></div>
+
+
+
+
+<style>
+div {
+    position: absolute;
+    width: 100px;
+    height: 100px;
+    background: green;
+    left: 10px;
+    top: 100px;
+}
+</style>
