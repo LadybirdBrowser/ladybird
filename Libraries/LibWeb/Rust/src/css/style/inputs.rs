@@ -1328,6 +1328,9 @@ impl StyleEngine {
             InputValue::TreeRelations(old),
             InputValue::TreeRelations(new),
         );
+        if old.is_some() && new.is_none() {
+            self.counters.bump(Counter::TreeDepartureDeltas);
+        }
         self.tree_staging.stage_row(node, old_if_unstaged, new);
     }
 
@@ -1456,16 +1459,21 @@ impl StyleEngine {
                 self.tree.recompute_subtree_depth(node);
             }
         }
+        let live_animation_overlays_before = self.computed_group_sets.live_animation_overlay_records();
+        let mut retired_nodes: Vec<StyleNodeID> = Vec::new();
         for &(node, _, relations) in &staged_rows {
             if relations.is_some() || !self.tree.is_live(node) {
                 continue;
             }
             self.winner_groups.remove(node);
-            let live_animation_overlays_before = self.computed_group_sets.live_animation_overlay_records();
             self.computed_group_sets.remove(node);
             self.pending_element_style_computation_selections.remove(&node);
             self.pending_pseudo_style_computation_selections.remove(&node);
             self.nodes_with_substituted_records.remove(&node);
+            retired_nodes.push(node);
+        }
+        if !retired_nodes.is_empty() {
+            self.tree.retire_elements(&retired_nodes, &mut self.memory);
             let live_animation_overlays_after = self.computed_group_sets.live_animation_overlay_records();
             self.settle_computed_memory();
             self.counters.add(
@@ -1476,7 +1484,8 @@ impl StyleEngine {
                 Counter::LiveAnimationOverlayRecords,
                 live_animation_overlays_after as u64,
             );
-            self.tree.retire_element(node, &mut self.memory);
+            self.counters
+                .add(Counter::StyleNodesRetired, retired_nodes.len() as u64);
         }
         self.tree_staging.mark_applied();
         self.publish_budget_inputs();

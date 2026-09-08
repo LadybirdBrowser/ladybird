@@ -592,25 +592,32 @@ impl StyleNodeTree {
     /// Retire an element identity. The slot stays reserved until [`Self::release_retired_identities`]
     /// runs at epoch retirement, so no reader can observe a reused identity.
     pub fn retire_element(&mut self, node: StyleNodeID, memory: &mut MemoryController) {
+        self.retire_elements(&[node], memory);
+    }
+
+    /// Retire a batch of element identities, accounting once for the capacity they release.
+    pub fn retire_elements(&mut self, nodes: &[StyleNodeID], memory: &mut MemoryController) {
         let before = self.retirement_capacity_bytes();
-        let index = node
-            .element_index()
-            .expect("retire_element requires an element identity");
-        assert!(
-            self.live.contains(index as usize),
-            "retiring an identity that is not live"
-        );
-        if let Some(shadow) = &mut self.shadow {
-            shadow.retire_node(node);
+        for &node in nodes {
+            let index = node
+                .element_index()
+                .expect("retire_element requires an element identity");
+            assert!(
+                self.live.contains(index as usize),
+                "retiring an identity that is not live"
+            );
+            if let Some(shadow) = &mut self.shadow {
+                shadow.retire_node(node);
+            }
+            self.live.set(index as usize, false);
+            self.parent[index as usize] = None;
+            self.first_element_child[index as usize] = None;
+            self.next_element_sibling[index as usize] = None;
+            self.previous_element_sibling[index as usize] = None;
+            self.depth[index as usize] = 0;
+            self.connected_element_count -= 1;
+            self.pending_reuse.push(index);
         }
-        self.live.set(index as usize, false);
-        self.parent[index as usize] = None;
-        self.first_element_child[index as usize] = None;
-        self.next_element_sibling[index as usize] = None;
-        self.previous_element_sibling[index as usize] = None;
-        self.depth[index as usize] = 0;
-        self.connected_element_count -= 1;
-        self.pending_reuse.push(index);
         let current = self.retirement_capacity_bytes();
         self.record_capacity_change(memory, before, current);
     }
@@ -794,6 +801,14 @@ impl StyleNodeTree {
     /// Slot assignment changes flat-tree identity even when the DOM parent does not move, which is
     /// why it is its own relation rather than a derived view of the DOM tree.
     pub fn set_assigned_slot(&mut self, node: StyleNodeID, slot: Option<StyleNodeID>, memory: &mut MemoryController) {
+        if slot.is_none()
+            && self
+                .shadow
+                .as_ref()
+                .is_none_or(|shadow| shadow.assigned_slot.get(node).is_none())
+        {
+            return;
+        }
         let before = self.shadow_capacity_bytes();
         let shadow = self.shadow_mut();
         if let Some(previous) = shadow.assigned_slot.remove(node)
