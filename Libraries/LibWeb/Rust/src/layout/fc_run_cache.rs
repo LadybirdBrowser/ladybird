@@ -38,7 +38,7 @@ pub(super) fn fc_run_cache_mode_from_environment() -> FcRunCacheMode {
 /// invalidation for viewport-dependent computed values.
 #[derive(Clone, Copy, PartialEq)]
 pub(super) struct FcRunCacheKey {
-    fc_type: formatting_context::FfiFormattingContextType,
+    fc_type: formatting_context::FormattingContextType,
     input: LayoutInput,
     root_cells: used_values::UsedValuesCellState,
 }
@@ -440,7 +440,7 @@ impl FcRunCacheAttempt {
         purpose: formatting_context::LayoutPurpose,
         box_: Node,
         parent_grid_is_present: bool,
-        fc_type: formatting_context::FfiFormattingContextType,
+        fc_type: formatting_context::FormattingContextType,
         layout_mode: LayoutMode,
         should_collect_devtools_layout_data: bool,
         callbacks: &LayoutPass<'_>,
@@ -463,18 +463,18 @@ impl FcRunCacheAttempt {
             || input.participation == ParticipationInParentFormattingContext::Root
             || matches!(
                 fc_type,
-                formatting_context::FfiFormattingContextType::InternalReplaced | formatting_context::FfiFormattingContextType::InternalDummy
+                formatting_context::FormattingContextType::InternalReplaced | formatting_context::FormattingContextType::InternalDummy
             )
             // The direct normal-layout path for an empty atomic block only sizes and snapshots its root.
             // Replaying a stored output costs more than rebuilding it and retains an entry needlessly.
-            || (fc_type == formatting_context::FfiFormattingContextType::Block
+            || (fc_type == formatting_context::FormattingContextType::Block
                 && input.participation == ParticipationInParentFormattingContext::AtomicInline
                 && callbacks.first_child(box_).is_invalid())
         {
             drop_superseded_entry();
             return Ok(Self::Bypass);
         }
-        if fc_type == formatting_context::FfiFormattingContextType::Grid
+        if fc_type == formatting_context::FormattingContextType::Grid
             && parent_grid_is_present
             && grid_formatting_context::grid_template_declares_a_subgrid_axis(callbacks, box_)
         {
@@ -840,7 +840,7 @@ mod tests {
 
     fn key(available_inline: AvailableSize, percentage_basis_inline_size: Option<CssPixels>) -> FcRunCacheKey {
         FcRunCacheKey {
-            fc_type: formatting_context::FfiFormattingContextType::Block,
+            fc_type: formatting_context::FormattingContextType::Block,
             input: LayoutInput::new(
                 AvailableSpace {
                     inline_size: available_inline,

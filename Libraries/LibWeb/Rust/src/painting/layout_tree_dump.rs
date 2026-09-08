@@ -6,7 +6,7 @@
 
 use crate::css::css_enums::{flex_direction, positioning};
 use crate::layout::LayoutNodeArena;
-use crate::layout::formatting_context::{FfiFormattingContextType, formatting_context_type_created_by_node_data};
+use crate::layout::formatting_context::{FormattingContextType, formatting_context_type_created_by_node_data};
 use crate::layout::node_data::{NodeData, NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts;
 use crate::layout::svg_formatting_context::FfiAffineTransform;
@@ -176,13 +176,13 @@ impl DumpPalette {
     }
 }
 
-fn formatting_context_name(formatting_context_type: FfiFormattingContextType) -> Option<&'static str> {
+fn formatting_context_name(formatting_context_type: FormattingContextType) -> Option<&'static str> {
     match formatting_context_type {
-        FfiFormattingContextType::Block => Some("BFC"),
-        FfiFormattingContextType::Flex => Some("FFC"),
-        FfiFormattingContextType::Grid => Some("GFC"),
-        FfiFormattingContextType::Table => Some("TFC"),
-        FfiFormattingContextType::Svg => Some("SVG"),
+        FormattingContextType::Block => Some("BFC"),
+        FormattingContextType::Flex => Some("FFC"),
+        FormattingContextType::Grid => Some("GFC"),
+        FormattingContextType::Table => Some("TFC"),
+        FormattingContextType::Svg => Some("SVG"),
         _ => None,
     }
 }

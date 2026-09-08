@@ -55,7 +55,7 @@ pub(super) fn layout_replaced_with_children(
         &wrapper_state,
         wrapper,
         None,
-        formatting_context::FfiFormattingContextType::Block,
+        formatting_context::FormattingContextType::Block,
         run.layout_mode,
         run.should_collect_devtools_layout_data,
         run.callbacks,

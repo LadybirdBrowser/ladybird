@@ -51,9 +51,6 @@ private:
     Box const* m_commit_root { nullptr };
 };
 
-[[nodiscard]] Optional<RustFFI::FfiFormattingContextType> formatting_context_type_created_by_box(Box const&);
-[[nodiscard]] StringView formatting_context_type_name(RustFFI::FfiFormattingContextType);
-
 [[nodiscard]] Painting::UsedGridTrackList build_used_grid_track_list(RustFFI::FfiUsedGridTrackList const&);
 
 // True while a synchronous Rust layout pass (including its commit) is on the
