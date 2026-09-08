@@ -96,7 +96,6 @@ set(SOURCES
     CSS/Clip.cpp
     CSS/ComputedStyleWorkingSet.cpp
     CSS/ComputedValues.cpp
-    CSS/RustStyleBridge.cpp
     CSS/RustDeclarationBlock.cpp
     CSS/RustDescriptorBlock.cpp
     CSS/ContainerQuery.cpp

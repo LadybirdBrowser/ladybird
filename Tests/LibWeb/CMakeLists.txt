@@ -17,7 +17,6 @@ set(TEST_SOURCES
     TestHTMLTokenizer.cpp
     TestHighResolutionTime.cpp
     TestImageData.cpp
-    TestLengthAbsolutizeParity.cpp
     TestMicrosyntax.cpp
     TestMimeSniff.cpp
     TestNumbers.cpp
@@ -33,8 +32,6 @@ set(TEST_SOURCES
     TestStructuredSerializeFormat.cpp
     TestStructuredSerializeHardening.cpp
     TestStyleEngineBridge.cpp
-    TestStylePropertyMetadataParity.cpp
-    TestStyleStructRef.cpp
     TestTextureUpload.cpp
     TestTrackBufferDemuxer.cpp
     TestVisualAnimation.cpp
@@ -49,6 +46,9 @@ if (NOT WIN32)
     list(APPEND TEST_SOURCES
         # These call Rust FFI symbols directly, which the lagom-web DLL does not export.
         TestCSSSyntaxParser.cpp
+        TestLengthAbsolutizeParity.cpp
+        TestStylePropertyMetadataParity.cpp
+        TestStyleStructRef.cpp
         TestStyleValueEquality.cpp
     )
 endif()
