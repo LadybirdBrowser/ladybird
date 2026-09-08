@@ -2467,23 +2467,22 @@ handler GetById(
     guard let property_cache = load_property_lookup_cache(cache) else try_cache;
     guard property_cache.shape == shape else try_cache;
     guard property_cache.entry_type != PROPERTY_LOOKUP_CACHE_ENTRY_TYPE_GET_MISSING_PROPERTY else try_cache;
-    let cached_prototype = property_cache.prototype;
+    let load_cached_value = |holder: Object, object: Object, property_cache: PropertyLookupCache, shape: Shape| {
+        guard property_cache.shape_dictionary_generation == shape.dictionary_generation else try_cache;
+        let value = holder.named_properties[property_cache.property_offset];
+        guard value is not Value<Accessor> else invoke_accessor(value, object, property_cache);
+        store(dst, value);
+        dispatch_next;
+    };
 
-    # FIXME: Restore a value-producing if once SSA destruction can coalesce its
-    #        holder phi with object without adding a hot-path jump.
-    let mut holder = object;
-    if cached_prototype != 0 {
+    let cached_prototype = property_cache.prototype;
+    guard cached_prototype == 0 else @cold {
         let prototype_chain_validity = property_cache.prototype_chain_validity;
         guard prototype_chain_validity != 0 else try_cache;
         guard prototype_chain_validity.valid != 0 else try_cache;
-        holder = cached_prototype;
-    }
-
-    guard property_cache.shape_dictionary_generation == shape.dictionary_generation else try_cache;
-    let value = holder.named_properties[property_cache.property_offset];
-    guard value is not Value<Accessor> else invoke_accessor(value, object, property_cache);
-    store(dst, value);
-    dispatch_next;
+        goto load_cached_value(cached_prototype, object, property_cache, shape);
+    };
+    goto load_cached_value(object, object, property_cache, shape);
 }
 
 handler GetByIdWithThis(
