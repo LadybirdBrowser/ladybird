@@ -27,7 +27,7 @@ class StorageBottle : public GC::Cell {
     GC_CELL(StorageBottle, GC::Cell);
 
 public:
-    static GC::Ref<StorageBottle> create(GC::Ref<Page> page, StorageType type, StorageKey key, Optional<u64> quota);
+    static GC::Ref<StorageBottle> create(GC::Ref<Page> page, StorageEndpoint const& endpoint, StorageKey key);
 
     virtual ~StorageBottle() = default;
 
@@ -57,9 +57,9 @@ class LocalStorageBottle final : public StorageBottle {
     GC_DECLARE_ALLOCATOR(LocalStorageBottle);
 
 public:
-    static GC::Ref<LocalStorageBottle> create(GC::Ref<Page> page, StorageKey key, Optional<u64> quota)
+    static GC::Ref<LocalStorageBottle> create(GC::Ref<Page> page, StorageEndpointType endpoint_type, StorageKey key, Optional<u64> quota)
     {
-        return GC::Heap::the().allocate<LocalStorageBottle>(page, StorageEndpointType::LocalStorage, key, quota);
+        return GC::Heap::the().allocate<LocalStorageBottle>(page, endpoint_type, move(key), quota);
     }
 
     virtual size_t size() const override;
@@ -90,9 +90,9 @@ class SessionStorageBottle final : public StorageBottle {
     GC_DECLARE_ALLOCATOR(SessionStorageBottle);
 
 public:
-    static GC::Ref<SessionStorageBottle> create(GC::Ref<Page> page, StorageKey key, Optional<u64> quota)
+    static GC::Ref<SessionStorageBottle> create(GC::Ref<Page> page, StorageEndpointType endpoint_type, StorageKey key, Optional<u64> quota)
     {
-        return GC::Heap::the().allocate<SessionStorageBottle>(page, StorageEndpointType::SessionStorage, move(key), quota);
+        return GC::Heap::the().allocate<SessionStorageBottle>(page, endpoint_type, move(key), quota);
     }
 
     virtual size_t size() const override;
