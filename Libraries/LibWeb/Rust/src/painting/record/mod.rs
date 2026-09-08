@@ -271,10 +271,10 @@ impl<O: Observer> PaintRecorder<'_, O> {
             return answer.clone();
         }
         let style_source = self.layout_arena.data(node).parent.get();
-        let answer = self
+        let committed = self
             .first_non_anonymous_ancestor_row(node)
-            .and_then(|element_row| self.committed_selection_pseudo_style(node, element_row))
-            .unwrap_or_else(|| Rc::new(self.default_selection_style(node, style_source)));
+            .and_then(|element_row| self.committed_selection_pseudo_style(node, element_row));
+        let answer = self.selection_style_answer(committed, node, style_source);
         self.selection_style_cache.insert(key, answer.clone());
         answer
     }
@@ -287,11 +287,33 @@ impl<O: Observer> PaintRecorder<'_, O> {
         if let Some(answer) = self.selection_style_cache.get(&key) {
             return answer.clone();
         }
-        let answer = self
-            .committed_selection_pseudo_style(element_row, element_row)
-            .unwrap_or_else(|| Rc::new(self.default_selection_style(element_row, element_row)));
+        let committed = self.committed_selection_pseudo_style(element_row, element_row);
+        let answer = self.selection_style_answer(committed, element_row, element_row);
         self.selection_style_cache.insert(key, answer.clone());
         answer
+    }
+
+    /// A committed style that authored neither color takes the paired default background and
+    /// keeps its shadows and decorations.
+    fn selection_style_answer(
+        &self,
+        committed: Option<Rc<paint::text::SelectionStyleAnswer>>,
+        node: crate::layout::node_data::NodeSlotId,
+        style_source: crate::layout::node_data::NodeSlotId,
+    ) -> Rc<paint::text::SelectionStyleAnswer> {
+        match committed {
+            Some(answer) if answer.facts.colors_authored => answer,
+            None => Rc::new(self.default_selection_style(node, style_source)),
+            Some(answer) => {
+                let mut defaults = self.default_selection_style(node, style_source);
+                defaults.facts = crate::painting::host::FfiSelectionStyleFacts {
+                    background_color: defaults.facts.background_color,
+                    ..answer.facts
+                };
+                defaults.shadows = answer.shadows.clone();
+                Rc::new(defaults)
+            }
+        }
     }
 
     fn committed_selection_pseudo_style(

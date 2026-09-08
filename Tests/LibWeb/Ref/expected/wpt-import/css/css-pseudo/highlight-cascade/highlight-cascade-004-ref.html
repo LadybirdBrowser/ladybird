@@ -1,0 +1,13 @@
+<!DOCTYPE html>
+<title>Initial custom property values in div::selection rule</title>
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#highlight-cascade">
+<script src="../support/selections.js"></script>
+<style>
+  div::selection {
+    background-color: green;
+  }
+</style>
+<div>PASS if background-color is green when selected</div>
+<script>
+  selectNodeContents(document.querySelector("div"));
+</script>

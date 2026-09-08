@@ -792,23 +792,31 @@ static SelectionPseudoStyleFacts selection_pseudo_style_facts_of_element(DOM::El
 
     SelectionPseudoStyleFacts result;
     auto& facts = result.facts;
-    facts.background_color = computed_selection_style->background_color();
 
-    // Only use text color if it was explicitly set in the ::selection rule, not inherited.
-    if (!computed_selection_style->is_property_inherited(CSS::PropertyID::Color))
-        facts.text_color = computed_selection_style->color();
+    // https://drafts.csswg.org/css-pseudo-4/#paired-defaults
+    // Paired default highlight colors must only be used when neither 'color' nor 'background-color' yield a
+    // cascaded value from the author origin (or inherit their value from the author origin).
+    facts.colors_authored = computed_selection_style->highlight_colors_authored();
+    if (facts.colors_authored) {
+        facts.background_color = computed_selection_style->background_color();
+        // https://drafts.csswg.org/css-pseudo-4/#highlight-text
+        // currentColor on a highlight pseudo-element's 'color' property represents the color of the next active
+        // highlight pseudo-element layer below, falling back finally to the colors that would otherwise have been
+        // used.
+        if (!computed_selection_style->highlight_color_is_current_color())
+            facts.text_color = computed_selection_style->color();
+    }
 
-    // Only use text-shadow if it was explicitly set in the ::selection rule, not inherited.
-    if (!computed_selection_style->is_property_inherited(CSS::PropertyID::TextShadow)) {
+    auto const& shadows = computed_selection_style->text_shadow();
+    if (!shadows.is_empty()) {
         facts.has_text_shadow = true;
-        for (auto const& shadow : computed_selection_style->text_shadow())
+        for (auto const& shadow : shadows)
             result.shadows.append({ .color = shadow.color, .offset_x = shadow.offset_x, .offset_y = shadow.offset_y, .blur_radius = shadow.blur_radius });
     }
 
-    // Only use text-decoration if it was explicitly set in the ::selection rule, not inherited.
-    if (!computed_selection_style->is_property_inherited(CSS::PropertyID::TextDecorationLine)) {
+    auto lines = computed_selection_style->text_decoration_line();
+    if (!lines.is_empty()) {
         facts.has_text_decoration = true;
-        auto lines = computed_selection_style->text_decoration_line();
         facts.text_decoration_line_count = min(lines.size(), array_size(facts.text_decoration_lines));
         for (size_t i = 0; i < facts.text_decoration_line_count; ++i)
             facts.text_decoration_lines[i] = to_underlying(lines[i]);
@@ -816,7 +824,7 @@ static SelectionPseudoStyleFacts selection_pseudo_style_facts_of_element(DOM::El
         facts.text_decoration_color = computed_selection_style->text_decoration_color();
     }
 
-    result.has_styling = facts.background_color.alpha() > 0 || facts.text_color.has_value() || facts.has_text_shadow || facts.has_text_decoration;
+    result.has_styling = facts.colors_authored || facts.has_text_shadow || facts.has_text_decoration;
     return result;
 }
 

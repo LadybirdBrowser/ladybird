@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<title>Custom property values from the originating element</title>
+<link rel="author" title="Stephen Chenney" href="mailto:schenney@chromium.org">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#highlight-cascade">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-pseudo/highlight-cascade/highlight-cascade-008-ref.html">
+<meta name="assert" value="This test verifies that custom properties from the originating element are used to resolve var() on highlight pseudos.">
+<meta name="fuzzy" content="0-255;0-10">
+<script src="../support/selections.js"></script>
+<style>
+  :root {
+    --background-color: green;
+    --decoration-color: yellow;
+  }
+  :root::selection {
+    --background-color: cyan;
+    --decoration-color: magenta;
+  }
+  div::selection {
+    background-color: var(--background-color, red);
+    text-decoration-line: underline;
+    text-decoration-style: line;
+    text-decoration-color: var(--decoration-color, red);
+  }
+  span {
+    --background-color: purple;
+  }
+  span::selection {
+    --background-color: blue;
+    background-color: var(--background-color, red);
+  }
+</style>
+<div style="width: 300px">PASS if background-color is green when selected, <span>except this which is blue</span>, and underline is yellow.</div>
+<script>
+  selectNodeContents(document.querySelector("div"));
+</script>

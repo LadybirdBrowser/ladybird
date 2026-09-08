@@ -978,6 +978,11 @@ enum class StyleRecordDependencyFlag : u8 {
     // Bit 3 is the engine's publication-time inherited-group swap eligibility, never stored on a record.
     // The record holds an <image> in a property whose images a layout node loads and observes.
     HoldsImageValues = 1 << 4,
+    // A highlight pseudo-element whose color or background-color the author origin decided, on itself or up
+    // its highlight chain.
+    HighlightColorsAuthored = 1 << 5,
+    // A highlight pseudo-element whose color is currentColor: the layer below shows through.
+    HighlightColorIsCurrentColor = 1 << 6,
 };
 
 // The box group payload stores display values in the Rust-defined explicit
@@ -1204,6 +1209,8 @@ public:
     bool depends_on_viewport_metrics() const { return m_depends_on_viewport_metrics; }
     bool font_metrics_depend_on_viewport_metrics() const { return m_font_metrics_depend_on_viewport_metrics; }
     bool in_display_none_subtree() const { return m_in_display_none_subtree; }
+    bool highlight_colors_authored() const { return m_highlight_colors_authored; }
+    bool highlight_color_is_current_color() const { return m_highlight_color_is_current_color; }
     bool has_pseudo_element_style(PseudoElement pseudo_element) const { return m_pseudo_element_styles & (1ull << to_underlying(pseudo_element)); }
     u64 pseudo_element_style_mask() const { return m_pseudo_element_styles; }
     ReadonlySpan<ComputedValuesFFI::FfiTableInheritanceDependentValue const> inheritance_dependent_specified_values() const { return m_inheritance_dependent_specified_values; }
@@ -2064,6 +2071,8 @@ private:
     bool m_depends_on_viewport_metrics { false };
     bool m_font_metrics_depend_on_viewport_metrics { false };
     bool m_in_display_none_subtree { false };
+    bool m_highlight_colors_authored { false };
+    bool m_highlight_color_is_current_color { false };
     bool m_is_style_record_view { false };
 };
 
@@ -2153,6 +2162,8 @@ public:
     void set_depends_on_viewport_metrics(bool value) { m_values.m_depends_on_viewport_metrics = value; }
     void set_font_metrics_depend_on_viewport_metrics(bool value) { m_values.m_font_metrics_depend_on_viewport_metrics = value; }
     void set_in_display_none_subtree(bool value) { m_values.m_in_display_none_subtree = value; }
+    void set_highlight_colors_authored(bool value) { m_values.m_highlight_colors_authored = value; }
+    void set_highlight_color_is_current_color(bool value) { m_values.m_highlight_color_is_current_color = value; }
     void set_pseudo_element_styles(u64 value) { m_values.m_pseudo_element_styles = value; }
     void set_computed_longhand_table(void const* table) { m_values.adopt_computed_longhand_table(table); }
     void set_base_values(NonnullRefPtr<ComputedValues const> value)
@@ -2534,6 +2545,8 @@ public:
         m_values->m_depends_on_viewport_metrics = values.m_depends_on_viewport_metrics;
         m_values->m_font_metrics_depend_on_viewport_metrics = values.m_font_metrics_depend_on_viewport_metrics;
         m_values->m_in_display_none_subtree = values.m_in_display_none_subtree;
+        m_values->m_highlight_colors_authored = values.m_highlight_colors_authored;
+        m_values->m_highlight_color_is_current_color = values.m_highlight_color_is_current_color;
     }
 
     static Builder create_inheriting_from(ComputedValues const& values)

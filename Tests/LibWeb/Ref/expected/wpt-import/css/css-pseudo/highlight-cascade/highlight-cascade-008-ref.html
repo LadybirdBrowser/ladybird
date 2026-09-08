@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<title>Custom property values from the root element</title>
+<script src="../support/selections.js"></script>
+<style>
+  div::selection {
+    background-color: green;
+    text-decoration-line: underline;
+    text-decoration-style: line;
+    text-decoration-thickness: 1px;
+    text-decoration-color: yellow;
+  }
+  span::selection {
+    background-color: blue;
+  }
+</style>
+<div style="width: 300px">PASS if background-color is green when selected, <span>except this which is blue</span>, and underline is yellow.<script>
+  selectNodeContents(document.querySelector("div"));
+</script>

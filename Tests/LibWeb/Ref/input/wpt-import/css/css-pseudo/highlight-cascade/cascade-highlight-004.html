@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Pseudo-Elements Test: inheritance of selection highlight colors from its parent element</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-pseudo-4/#highlight-cascade">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-pseudo/highlight-cascade/cascade-highlight-004-ref.html">
+
+  <meta name="assert" content="In this test, 'color' and 'background-color' have not been given a value for the span element. Since its parent element has an highlight pseudo-element, then these values should be inherited. Therefore the span element should be green on a yellow background and should not use the OS default selection highlight color values.">
+
+  <!--
+  When any supported property is not given a value by the
+  cascade, its value is determined by inheritance from the
+  corresponding highlight pseudo-element of its originating
+  element's parent element (regardless of whether that property
+  is an inherited property).
+  https://www.w3.org/TR/css-pseudo-4/#highlight-cascade
+  -->
+
+  <link rel="stylesheet" href="../support/highlights.css">
+  <style>
+  div
+    {
+      font-size: 300%;
+    }
+
+  div::selection
+    {
+      background-color: yellow;
+      color: green;
+    }
+  </style>
+
+  <script>
+  function startTest()
+  {
+  var targetRange = document.createRange();
+  /* We first create an empty range */
+  targetRange.selectNodeContents(document.getElementById("test"));
+  /* Then we set the range boundaries to the children of div#test */
+  window.getSelection().addRange(targetRange);
+  /* Finally, we now select such range of content */
+  }
+  </script>
+
+  <body onload="startTest();">
+
+  <p>Test passes if "Text sample" is green and if its background color is yellow.
+
+  <div id="test" class="highlight_reftest"><span>Text sample</span></div>

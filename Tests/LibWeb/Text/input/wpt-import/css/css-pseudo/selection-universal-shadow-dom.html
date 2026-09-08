@@ -1,0 +1,30 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Pseudo-Elements Test: Universal ::selection in Shadow DOM</title>
+<link rel="help" href="https://drafts.csswg.org/css-pseudo/#highlight-selectors">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+  ::selection {
+    background-color: pink;
+    color: red;
+  }
+</style>
+<div id="host"></div>
+<script>
+  const root = host.attachShadow({mode:"open"});
+  root.innerHTML = `
+    <style>
+      ::selection {
+        background-color: green;
+        color: lime;
+      }
+    </style>
+    <div id="target"></div>
+  `;
+  test(() => {
+    const style = getComputedStyle(root.querySelector("#target"), "::selection");
+    assert_equals(style.backgroundColor, "rgb(0, 128, 0)", "Background color is green.");
+    assert_equals(style.color, "rgb(0, 255, 0)", "Color is lime.");
+  }, "getComputedStyle() for #target ::selection");
+</script>

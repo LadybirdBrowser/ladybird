@@ -1,0 +1,18 @@
+<?xml version="1.0"?><!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml"><head>
+<meta charset="utf-8"/>
+<title>CSS Pseudo-Elements Test: highlight cascade: inheritance with both universal and namespace-universal rules</title>
+<link rel="author" title="Delan Azabani" href="mailto:dazabani@igalia.com"/>
+<script src="../support/selections.js"></script>
+<style>
+    main * { all: initial; display: block; }
+    ::selection { color: green; }
+</style>
+</head><body>
+<main xmlns:other="http://example.org/other">
+    <div class="red"><span class="bar"><other:a>green</other:a></span></div>
+    <div class="red"><empty xmlns=""><other:b>green</other:b></empty></div>
+    <div class="red"><foo xmlns="http://example.org/foo"><other:c>green</other:c></foo></div>
+    <div class="red"><default xmlns="http://example.org/default"><other:d>green</other:d></default></div>
+</main>
+<script>selectNodeContents(document.body);</script>
+</body></html>

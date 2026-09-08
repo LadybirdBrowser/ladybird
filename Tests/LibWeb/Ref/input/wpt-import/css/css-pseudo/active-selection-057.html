@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Pseudo-Elements Test: active selection and 3 empty elements</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-pseudo-4/#highlight-selectors">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/../reference/ref-nothing-below.xht">
+
+  <meta name="assert" content="The &lt;div id=&quot;subtest1&quot;&gt; element and the &lt;hr&gt; element in this test are empty elements. Their background color can be painted but specifying their 'color' should generate no rendering effect of any kind. Since the 'background-color' has not been specified in the ::selection pseudo-element, then it defaults to 'transparent'. The &lt;div id=&quot;subtest3&quot;&gt; element is also an empty element since the 2 &amp;NewLine; character references are line break control characters. Their background color can not be painted. Therefore, in this test, nothing should be painted or viewable. The fact that lines break at preserved newline characters thanks to 'white-space: pre' does not change that.">
+
+  <style>
+  div#subtest1 , hr#subtest2
+    {
+      background-color: transparent; /* or initial or unset */
+      height: 100px;
+    }
+
+  hr#subtest2
+    {
+      border: none 0px;
+    }
+
+  div#subtest1::selection , hr#subtest2::selection
+    {
+      color: red;
+    }
+
+  div#subtest3
+    {
+      background-color: transparent; /* or initial or unset */
+      font-size: 100px;
+      white-space: pre; /* or pre-line or pre-wrap or break-spaces */
+    }
+
+  div#subtest3::selection
+    {
+      background-color: red;
+    }
+  </style>
+
+  <script>
+  function startTest()
+  {
+  var targetRange = document.createRange();
+  /* We first create an empty range */
+  targetRange.selectNodeContents(document.getElementById("test"));
+  /* Then we set the range boundaries to the children of div#test */
+  window.getSelection().addRange(targetRange);
+  /* Finally, we now select such range of content */
+  }
+  </script>
+
+  <body onload="startTest();">
+
+  <p>Test passes if there is nothing below.</p>
+
+  <div id="test">
+
+    <div id="subtest1">&nbsp;</div>
+
+    <hr id="subtest2">
+
+    <div id="subtest3">&NewLine;&NewLine;</div>
+
+  </div>

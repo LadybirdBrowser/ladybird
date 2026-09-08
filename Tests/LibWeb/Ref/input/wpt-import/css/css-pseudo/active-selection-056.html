@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Pseudo-Elements Test: active selection and 3 consecutive &lt;br&gt; elements</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-pseudo-4/#highlight-selectors">
+  <link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/../reference/ref-nothing-below.xht">
+
+  <!--
+
+  Issue 1018465: [CSS4-Pseudo] Active selection and hard wrap (or hard return)
+  line break: ::selection should not select <br>
+  https://bugs.chromium.org/p/chromium/issues/detail?id=1018465
+
+  -->
+
+  <meta name="assert" content="The &lt;br&gt; element is an empty element. Its background color can be painted but specifying its color should generate no rendering effect of any kind. Since the 'background-color' has been specified as 'transparent', then nothing should be painted or viewable in this test.">
+
+  <style>
+  div
+    {
+      font-size: 100px;
+    }
+
+  div::selection
+    {
+      background-color: transparent;
+      color: red;
+    }
+  </style>
+
+  <script>
+  function startTest()
+  {
+  var targetRange = document.createRange();
+  /* We first create an empty range */
+  targetRange.selectNodeContents(document.getElementById("test"));
+  /* Then we set the range boundaries to the children of div#test */
+  window.getSelection().addRange(targetRange);
+  /* Finally, we now select such range of content */
+  }
+  </script>
+
+  <body onload="startTest();">
+
+  <p>Test passes if there is nothing below.
+
+  <div id="test">&nbsp;<br><br><br>&nbsp;</div>

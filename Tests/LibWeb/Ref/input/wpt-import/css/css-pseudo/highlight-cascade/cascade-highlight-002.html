@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+
+  <meta charset="UTF-8">
+
+  <title>CSS Pseudo-Elements Test: tag selector missing (Example 12)</title>
+
+  <link rel="author" title="Gérard Talbot" href="http://www.gtalbot.org/BrowserBugsSection/css21testsuite/">
+  <link rel="help" href="https://www.w3.org/TR/css-pseudo-4/#highlight-cascade">
+  <link rel="match" href="../../../../../expected/wpt-import/css/css-pseudo/highlight-cascade/cascade-highlight-001-ref.html">
+
+  <!--
+  Example 12 is
+  https://www.w3.org/TR/css-pseudo-4/#example-97480f68
+  -->
+
+  <meta name="assert" content="This test is an adaptation (or modified version) of Example 12 (#example-97480f68). In this test, &ltspan&gt; element's ::selection matches the ::selection { background-color: green; } rule and not the div#test::selection rule because '*' is implied when a tag selector is missing.">
+
+  <link rel="stylesheet" href="../support/highlights.css">
+  <style>
+  div
+    {
+      font-size: 300%;
+    }
+
+  ::selection
+    {
+      background-color: green;
+      color: yellow;
+    }
+
+  div#test::selection
+    {
+      background-color: red;
+      color: black;
+    }
+  </style>
+
+  <script>
+  function startTest()
+  {
+  var targetRange = document.createRange();
+  /* We first create an empty range */
+  targetRange.selectNodeContents(document.getElementById("test"));
+  /* Then we set the range boundaries to the children of div#test */
+  window.getSelection().addRange(targetRange);
+  /* Finally, we now select such range of content */
+  }
+  </script>
+
+  <body onload="startTest();">
+
+  <p>Test passes if background color of "Text sample" is green and <strong>not red</strong>.
+
+  <div id="test" class="highlight_reftest"><span>Text sample</span></div>

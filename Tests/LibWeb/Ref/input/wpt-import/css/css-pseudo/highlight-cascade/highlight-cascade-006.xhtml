@@ -1,0 +1,34 @@
+<?xml version="1.0"?><!DOCTYPE html><html xmlns="http://www.w3.org/1999/xhtml"><head>
+<meta charset="utf-8"/>
+<title>CSS Pseudo-Elements Test: highlight cascade: inheritance with both universal and namespace-universal rules</title>
+<link rel="author" title="Delan Azabani" href="mailto:dazabani@igalia.com"/>
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#highlight-cascade"/>
+<link rel="match" href="../../../../../expected/wpt-import/css/css-pseudo/highlight-cascade/highlight-cascade-006-ref.xhtml"/>
+<meta name="assert" content="This test verifies that, given both universal ::selection rules and ::selection rules that are actually non-universal due to an explicit namespace prefix or default @namespace rule, the non-universal rules are not erroneously treated as universal."/>
+<script src="../support/selections.js"></script>
+<style>
+    main * { all: initial; display: block; }
+    ::selection { color: green; } /* 1. universal (* means *|* if there is no default @namespace) */
+    .red::selection { color: red; } /* 2. not universal; matches only .red */
+</style>
+<style>
+    @namespace "http://example.org/default";
+    @namespace foo "http://example.org/foo";
+    *|*.bar::selection { color: red; } /* 3. not universal; matches only .bar */
+    |*::selection { color: red; } /* 4. not universal; matches only no/empty xmlns */
+    foo|*::selection { color: red; } /* 5. not universal; matches only xmlns http://example.org/foo */
+    ::selection { color: red; } /* 6. not universal; matches only xmlns http://example.org/default */
+</style>
+</head><body>
+<main xmlns:other="http://example.org/other">
+    <!-- div.red is red (1+2), span.bar is red (1+3), other:a is green (1) -->
+    <div class="red"><span class="bar"><other:a>green</other:a></span></div>
+    <!-- div.red is red (1+2), empty is red (1+4), other:b is green (1) -->
+    <div class="red"><empty xmlns=""><other:b>green</other:b></empty></div>
+    <!-- div.red is red (1+2), foo is red (1+5), other:c is green (1) -->
+    <div class="red"><foo xmlns="http://example.org/foo"><other:c>green</other:c></foo></div>
+    <!-- div.red is red (1+2), default is red (1+6), other:d is green (1) -->
+    <div class="red"><default xmlns="http://example.org/default"><other:d>green</other:d></default></div>
+</main>
+<script>selectNodeContents(document.body);</script>
+</body></html>

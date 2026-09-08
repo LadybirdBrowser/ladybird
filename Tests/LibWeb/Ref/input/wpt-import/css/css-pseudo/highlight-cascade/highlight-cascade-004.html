@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<title>Initial custom property values in div::selection rule</title>
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#highlight-cascade">
+<link rel="match" href="../../../../../expected/wpt-import/css/css-pseudo/highlight-cascade/highlight-cascade-004-ref.html">
+<meta name="assert" value="This test verifies that the initial value given in a custom property registration is respected, when the property is referenced in ::selection styles but no value is defined. The initial value is not the guaranteed-invalid value, so the fallback value in var() is not used.">
+<script src="../support/selections.js"></script>
+<style>
+  @property --bg {
+    syntax: "<color>";
+    inherits: false;
+    initial-value: green;
+  }
+  div::selection {
+    background-color: var(--bg, red);
+  }
+</style>
+<div>PASS if background-color is green when selected</div>
+<script>
+  selectNodeContents(document.querySelector("div"));
+</script>

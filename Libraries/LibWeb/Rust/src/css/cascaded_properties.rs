@@ -323,6 +323,10 @@ impl CascadedPropertyStore {
         })
     }
 
+    pub(crate) fn winning_origin(&self, property_id: u16) -> Option<CascadeOrigin> {
+        self.last_entry(property_id).map(|entry| entry.origin)
+    }
+
     fn winning_entries(&self) -> impl Iterator<Item = (u16, &Entry)> + '_ {
         self.contained
             .iter()
