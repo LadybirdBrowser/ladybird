@@ -1,0 +1,10 @@
+<!DOCTYPE html>
+<style>
+    div { font: 20px/40px monospace; color: transparent; caret-color: black; }
+    p::before { content: "Placeholder"; position: absolute; color: gray; }
+</style>
+<div contenteditable><p>a</p></div>
+<script>
+    document.querySelector("div").focus();
+    getSelection().collapse(document.querySelector("p").firstChild, 0);
+</script>
