@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/svg/preferred-color-scheme-normal-ref.html">
+<script>
+    addEventListener("pagehide", () => internals.setPreferredColorScheme("auto"));
+    internals.setPreferredColorScheme("dark");
+</script>
+<style>
+    body { display: flex; }
+    img, .background { display: block; width: 32px; height: 32px; }
+    .background { background-image: url(../wpt-import/css/mediaqueries/resources/prefers-color-scheme.svg); }
+</style>
+<div>
+    <img src="../wpt-import/css/mediaqueries/resources/prefers-color-scheme.svg">
+    <div class="background"></div>
+</div>
+<div style="color-scheme: light">
+    <img src="../wpt-import/css/mediaqueries/resources/prefers-color-scheme.svg">
+    <div class="background"></div>
+</div>
+<div style="color-scheme: dark">
+    <img src="../wpt-import/css/mediaqueries/resources/prefers-color-scheme.svg">
+    <div class="background"></div>
+</div>
+<div style="color-scheme: custom">
+    <img src="../wpt-import/css/mediaqueries/resources/prefers-color-scheme.svg">
+    <div class="background"></div>
+</div>
