@@ -869,7 +869,7 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
                 )
             };
             self.line_mut(line_index).fragments[fragment_index].baseline = fragment_baseline;
-            if self.line_relative_aligned_subtree_root(style_source).is_some() {
+            if has_line_relative_aligned_subtree && self.line_relative_aligned_subtree_root(style_source).is_some() {
                 continue;
             }
             let alignment_style = self.alignment_style(style_source, style);
@@ -941,7 +941,9 @@ impl<'builder, 'context> LineBuilder<'builder, 'context> {
             let containing_block = self.context().containing_block;
             let new_inline_offset = inline_offset + snapshot.inline_offset;
             let own_alignment_is_line_relative = line_relative_alignment(style).is_some();
-            let aligned_subtree = self.line_relative_aligned_subtree_root(snapshot.style_source);
+            let aligned_subtree = has_line_relative_aligned_subtree
+                .then(|| self.line_relative_aligned_subtree_root(snapshot.style_source))
+                .flatten();
             let alignment_style = if aligned_subtree.is_some_and(|(root, _)| root == snapshot.style_source) {
                 style.with_vertical_align_keyword(vertical_align::BASELINE)
             } else {
