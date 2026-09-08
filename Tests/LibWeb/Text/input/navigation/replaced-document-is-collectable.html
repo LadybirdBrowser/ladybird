@@ -1,0 +1,49 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A navigation fetches its response with a transfer lease, so that the UI process can adopt the response — and a
+    // small document's fetch finishes before that adoption. The fetch's network request belongs to the document that
+    // started the navigation — and has to be torn down once the response is transferred. Otherwise its callbacks keep
+    // that document's realm rooted for good — and every navigation pins the document it replaced.
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const url = await server.createEcho("GET", "/replaced-document-is-collectable", {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: "<!DOCTYPE html><p>replaced</p>",
+        });
+
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+
+        const navigate = url =>
+            new Promise(resolve => {
+                iframe.addEventListener("load", resolve, { once: true });
+                iframe.src = url;
+            });
+
+        // Record each document, then navigate away from it. The recording runs in a nested function — so that no
+        // document lingers in a register of this function's frame while the documents are expected to be collected.
+        const weakDocuments = await (async () => {
+            const weakDocuments = [];
+            await navigate(`${url}?0`);
+            for (let i = 1; i <= 5; i++) {
+                weakDocuments.push(new WeakRef(iframe.contentDocument));
+                await navigate(`${url}?${i}`);
+            }
+            return weakDocuments;
+        })();
+
+        const maximumGcRoundsWhileRequestTeardownTasksDrain = 100;
+        for (let round = 0; round < maximumGcRoundsWhileRequestTeardownTasksDrain; ++round) {
+            await timeout(0);
+            await internals.gcAsync();
+            if (weakDocuments.every(weak => weak.deref() === undefined))
+                break;
+        }
+
+        const collected = weakDocuments.filter(weak => weak.deref() === undefined).length;
+        println(`collected ${collected} of ${weakDocuments.length} replaced documents`);
+        iframe.remove();
+    });
+</script>
