@@ -169,7 +169,10 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
     };
 
     // 5. Take the action for command, passing value to the instructions as an argument.
-    auto command_result = command_definition.action(*this, value);
+    auto command_result = [&] {
+        TemporaryChange running_action { m_running_editing_command_action, true };
+        return command_definition.action(*this, value);
+    }();
 
     // INTEROP: Chromium removes the trailing placeholder line break after pasting into an existing text node. The
     //          execCommand draft only removes it when insertion creates a new text node. Perform this while the paste

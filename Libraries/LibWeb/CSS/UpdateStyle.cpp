@@ -1275,6 +1275,13 @@ namespace Web::DOM {
 
 void Document::update_selection_style_observability()
 {
+    // NB: Editing commands temporarily select content to restore its formatting. Style reads
+    //     during the action must not activate selection styles throughout the document for these
+    //     intermediate ranges. Observe the final selection after the action, including in input
+    //     event handlers. Explicit ::selection queries can still compute their style on demand.
+    if (m_running_editing_command_action)
+        return;
+
     auto selection = get_selection();
     bool observable = selection && !selection->is_collapsed();
     if (auto const* text_control = as_if<HTML::FormAssociatedTextControlElement>(focused_area().ptr()))

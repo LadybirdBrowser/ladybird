@@ -2001,6 +2001,7 @@ private:
     GC::Ptr<Editing::EditingHistory> m_editing_history;
 
     bool m_inside_exec_command { false };
+    bool m_running_editing_command_action { false };
     bool m_preserve_selection_offsets_during_identical_character_data_replacement { false };
 
     // https://w3c.github.io/editing/docs/execCommand/#default-single-line-container-name
