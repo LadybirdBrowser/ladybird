@@ -50,10 +50,7 @@ GC::Ptr<StorageBottle> obtain_a_storage_bottle_map(StorageType type, HTML::Envir
     // 3. Otherwise:
     //     1. Assert: type is "session".
     //     2. Set shed to environment’s global object’s associated Document’s node navigable’s traversable navigable’s storage shed.
-    // NB: The user agent’s storage shed and each traversable navigable’s storage shed are kept by the browser process,
-    //     in a StorageJar, which the bottles here proxy. Bottles of type "local" bypass this function entirely.
-    VERIFY(type == StorageType::Session);
-    VERIFY(endpoint_type == StorageEndpointType::SessionStorage);
+    // NB: Both sheds are kept by the browser process, in a StorageJar, which the bottle returned here proxies.
 
     // 4. Let shelf be the result of running obtain a storage shelf, with shed, environment, and type.
     // 5. If shelf is failure, then return failure.
@@ -63,11 +60,24 @@ GC::Ptr<StorageBottle> obtain_a_storage_bottle_map(StorageType type, HTML::Envir
 
     // 6. Let bucket be shelf’s bucket map["default"].
     // 7. Let bottle be bucket’s bottle map[identifier].
+    // NB: The bucket's bottle map holds a bottle for each registered storage endpoint whose types contain type, with
+    //     that endpoint's quota.
+    auto endpoint = StorageEndpoint::registered_endpoints().first_matching([&](auto const& endpoint) { return endpoint.identifier == endpoint_type; });
+    VERIFY(endpoint.has_value() && endpoint->type == type);
+
     // 8. Let proxyMap be a new storage proxy map whose backing map is bottle’s map.
     // 9. Append proxyMap to bottle’s proxy map reference set.
     // 10. Return proxyMap.
     auto& page = HTML::relevant_window(environment.global_object()).page();
-    return SessionStorageBottle::create(page, StorageEndpointType::SessionStorage, key.release_value(), StorageEndpoint::SESSION_STORAGE_QUOTA);
+    return StorageBottle::create(page, *endpoint, key.release_value());
+}
+
+// https://storage.spec.whatwg.org/#obtain-a-local-storage-bottle-map
+GC::Ptr<StorageBottle> obtain_a_local_storage_bottle_map(HTML::EnvironmentSettingsObject& environment, StorageEndpointType identifier)
+{
+    // To obtain a local storage bottle map, given an environment settings object environment and storage identifier identifier,
+    // return the result of running obtain a storage bottle map with "local", environment, and identifier.
+    return obtain_a_storage_bottle_map(StorageType::Local, environment, identifier);
 }
 
 // https://storage.spec.whatwg.org/#obtain-a-session-storage-bottle-map
