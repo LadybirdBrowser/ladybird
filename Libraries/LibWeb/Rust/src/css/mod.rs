@@ -19,6 +19,7 @@ pub mod computed_values;
 pub(crate) mod container_conditions;
 pub(crate) mod counter_style;
 pub mod css_enums;
+pub mod css_path;
 pub mod css_pixels;
 pub(crate) mod css_string;
 pub(crate) mod css_tokenizer;

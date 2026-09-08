@@ -91,6 +91,60 @@ pub(crate) struct ParsedPath {
 }
 
 impl ParsedPath {
+    pub(crate) fn normalize_for_serialization(&mut self) {
+        let normalize = |values: &mut [f32]| {
+            for value in values {
+                *value = if *value == 0.0 {
+                    0.0
+                } else {
+                    value.clamp(f32::MIN, f32::MAX)
+                };
+            }
+        };
+        for instruction in &mut self.instructions {
+            match instruction {
+                PathInstruction::MoveTo { point, .. }
+                | PathInstruction::LineTo { point, .. }
+                | PathInstruction::SmoothQuadraticBezierCurveTo { point, .. } => normalize(point),
+                PathInstruction::ClosePath => {}
+                PathInstruction::HorizontalLineTo { x, .. } | PathInstruction::VerticalLineTo { y: x, .. } => {
+                    normalize(std::slice::from_mut(x));
+                }
+                PathInstruction::CurveTo {
+                    control_point_1,
+                    control_point_2,
+                    point,
+                    ..
+                } => {
+                    normalize(control_point_1);
+                    normalize(control_point_2);
+                    normalize(point);
+                }
+                PathInstruction::SmoothCurveTo {
+                    control_point_2: control_point,
+                    point,
+                    ..
+                }
+                | PathInstruction::QuadraticBezierCurveTo {
+                    control_point, point, ..
+                } => {
+                    normalize(control_point);
+                    normalize(point);
+                }
+                PathInstruction::EllipticalArc {
+                    radius,
+                    x_axis_rotation,
+                    point,
+                    ..
+                } => {
+                    normalize(radius);
+                    normalize(std::slice::from_mut(x_axis_rotation));
+                    normalize(point);
+                }
+            }
+        }
+    }
+
     pub(crate) fn is_empty(&self) -> bool {
         self.instructions.is_empty()
     }
@@ -268,10 +322,28 @@ impl ParsedPath {
 
     pub(crate) fn serialize(&self) -> String {
         let mut output = String::new();
+        self.serialize_into(&mut output);
+        output
+    }
+
+    pub(crate) fn serialize_utf16(&self) -> Vec<u16> {
+        struct Utf16Output(Vec<u16>);
+        impl Write for Utf16Output {
+            fn write_str(&mut self, text: &str) -> std::fmt::Result {
+                self.0.extend(text.encode_utf16());
+                Ok(())
+            }
+        }
+        let mut output = Utf16Output(Vec::new());
+        self.serialize_into(&mut output);
+        output.0
+    }
+
+    fn serialize_into(&self, output: &mut impl Write) {
         let number = |value| SerializedNumber(value);
         for (index, instruction) in self.instructions.iter().enumerate() {
             if index > 0 {
-                output.push(' ');
+                output.write_char(' ').unwrap();
             }
             match instruction {
                 PathInstruction::MoveTo { absolute, point } => {
@@ -284,7 +356,7 @@ impl ParsedPath {
                     )
                     .unwrap();
                 }
-                PathInstruction::ClosePath => output.push('Z'),
+                PathInstruction::ClosePath => output.write_char('Z').unwrap(),
                 PathInstruction::LineTo { absolute, point } => {
                     write!(
                         output,
@@ -386,11 +458,11 @@ impl ParsedPath {
                 }
             }
         }
-        output
     }
 }
 
-pub(crate) fn parse_ascii_path(input: &[u8], allow_error_recovery: bool) -> Option<ParsedPath> {
+#[cfg(test)]
+fn parse_ascii_path(input: &[u8], allow_error_recovery: bool) -> Option<ParsedPath> {
     Parser::new(Input::Ascii(input))
         .parse(allow_error_recovery)
         .map(|instructions| ParsedPath { instructions })

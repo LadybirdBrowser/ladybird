@@ -7,7 +7,6 @@
 use crate::css::computed_value_views::LengthPercentageRef;
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
-use crate::css::serialize::{StringUnits, with_fly_string_units};
 use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::border_radii::normalize_border_radii_data;
@@ -413,16 +412,6 @@ fn polygon_to_path(points: &crate::css::style_value::RetainedShapePointList, ref
     path.build()
 }
 
-fn svg_path_data_to_path(path_string: &crate::css::css_string::CssString) -> OwnedPath {
-    with_fly_string_units(path_string, |units| {
-        let path = match units {
-            StringUnits::Ascii(bytes) => crate::svg::parse_ascii_path(bytes, true),
-            StringUnits::Utf16(code_units) => crate::svg::parse_utf16_path(code_units, true),
-        };
-        path.unwrap_or_default().to_gfx_path()
-    })
-}
-
 pub(crate) fn compute_basic_shape_clip_path_data(
     layout_arena: &impl PaintableRowsRead,
     slot: NodeSlotId,
@@ -440,7 +429,7 @@ pub(crate) fn compute_basic_shape_clip_path_data(
         v4,
         fill_rule,
         points,
-        path_string,
+        path,
     } = clip_path
     else {
         return None;
@@ -459,7 +448,7 @@ pub(crate) fn compute_basic_shape_clip_path_data(
         basic_shape_kind::CIRCLE => circle_to_path(v0, v1, reference_box),
         basic_shape_kind::ELLIPSE => ellipse_to_path(v0, v1, reference_box),
         basic_shape_kind::POLYGON => polygon_to_path(points, reference_box),
-        basic_shape_kind::PATH => svg_path_data_to_path(path_string),
+        basic_shape_kind::PATH => path.to_gfx_path(),
         _ => unreachable!("computed clip-path basic shape holds an unlowered kind"),
     };
     let resolved_fill_rule = match *kind {

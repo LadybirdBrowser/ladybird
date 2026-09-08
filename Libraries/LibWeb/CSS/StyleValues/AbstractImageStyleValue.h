@@ -51,7 +51,6 @@ struct ColorStopListElement {
     } color_stop;
 
     bool operator==(ColorStopListElement const&) const = default;
-    ColorStopListElement absolutized(ComputationContext const& context) const;
 };
 
 namespace StyleValueFFI {
@@ -64,7 +63,5 @@ struct RetainedColorStop;
 // to each non-null sub-value.
 StyleValueFFI::RetainedColorStop retain_color_stop_for_rust(ColorStopListElement const&);
 Vector<StyleValueFFI::RetainedColorStop> retain_color_stops_for_rust(ReadonlySpan<ColorStopListElement>);
-ColorStopListElement color_stop_from_rust_data(StyleValueFFI::RetainedColorStop const&);
-Vector<ColorStopListElement> color_stops_from_rust_data(StyleValueFFI::RetainedColorStop const*, size_t);
 
 }

@@ -2906,6 +2906,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             manifest_dir.join("src/css/style_value.rs"),
             manifest_dir.join("src/css/ffi_support.rs"),
             manifest_dir.join("src/css/css_string.rs"),
+            manifest_dir.join("src/css/css_path.rs"),
             manifest_dir.join("src/css/retained_fly_string.rs"),
             manifest_dir.join("src/css/color_interpolation.rs"),
             manifest_dir.join("src/css/animation.rs"),

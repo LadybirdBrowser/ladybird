@@ -45,24 +45,6 @@ public:
     }
 
     virtual ~LinearGradientStyleValue() override = default;
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-
-    Vector<ColorStopListElement> color_stop_list() const
-    {
-        auto const& list = m_value->linear_gradient.color_stop_list;
-        return color_stops_from_rust_data(list.pointer, list.length);
-    }
-
-    GradientDirection direction() const
-    {
-        auto const& gradient = m_value->linear_gradient;
-        if (!gradient.has_direction_value)
-            return static_cast<SideOrCorner>(gradient.side_or_corner);
-        return NonnullRefPtr<StyleValue const> { wrap_rust_child(gradient.direction_value) };
-    }
-
-    bool is_repeating() const { return m_value->linear_gradient.repeating; }
-
     Optional<Painting::ImagePaint> image_paint(Painting::ImagePaintRequest const&) const override;
 
     bool is_paintable(GC::Ptr<HTML::DecodedImageData>) const override { return true; }
@@ -78,10 +60,6 @@ private:
     explicit LinearGradientStyleValue(StyleValueFFI::StyleValueData const*);
 
     static StyleValueFFI::StyleValueData const* make_linear_gradient_data(GradientDirection const&, Vector<ColorStopListElement> const&, GradientType, GradientRepeating, RefPtr<StyleValue const> const&, ColorSyntax);
-
-    ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return wrap_rust_child_or_null(m_value->linear_gradient.color_interpolation_method); }
-    GradientType gradient_type() const { return static_cast<GradientType>(m_value->linear_gradient.gradient_type); }
-    ColorSyntax gradient_color_syntax() const { return static_cast<ColorSyntax>(m_value->linear_gradient.color_syntax); }
 };
 
 }

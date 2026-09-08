@@ -1,0 +1,36 @@
+<!doctype html>
+<script src="../include.js"></script>
+<div style="container-type: size; width: 200px; height: 100px">
+    <div id="target" style="font-size: 10px"></div>
+</div>
+<svg><path id="path"></path></svg>
+<script>
+test(() => {
+    const target = document.getElementById("target");
+    for (const easing of ["linear(0, 0.5 25%, 1)", "cubic-bezier(0, calc(1 / 2), 1, 1)", "steps(calc(2 + 2), jump-start)"]) {
+        const animation = target.animate({ opacity: [0, 1] }, { duration: 1000, easing, fill: "both" });
+        animation.pause();
+        animation.currentTime = 500;
+        println(`${animation.effect.getTiming().easing}: ${getComputedStyle(target).opacity}`);
+        animation.cancel();
+    }
+    for (const shape of [
+        "inset(1em 2em round 1em)",
+        "xywh(1em 2em 3em 4em)",
+        "rect(auto 3em 4em auto)",
+        "circle(2em at 25% 75%)",
+        "ellipse(2em 3em at 25% 75%)",
+        "polygon(evenodd, 0 0, 2em 0, 0 3em)",
+        'path(evenodd, "M0 0 L30 40 Z")',
+        "inset(1cqw round 1cqh)",
+    ]) {
+        target.style.clipPath = shape;
+        println(getComputedStyle(target).clipPath);
+    }
+    const path = document.getElementById("path");
+    path.style.d = 'path("M0 0 L30 40")';
+    println(`path length: ${path.getTotalLength()}`);
+    path.style.d = 'path("M0 0 L60 80")';
+    println(`mutated path length: ${path.getTotalLength()}`);
+});
+</script>

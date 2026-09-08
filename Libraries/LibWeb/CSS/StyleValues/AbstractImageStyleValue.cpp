@@ -31,33 +31,6 @@ Vector<StyleValueFFI::RetainedColorStop> retain_color_stops_for_rust(ReadonlySpa
     return stops;
 }
 
-ColorStopListElement color_stop_from_rust_data(StyleValueFFI::RetainedColorStop const& stop)
-{
-    auto adopt = [](auto const& retained) -> ValueComparingRefPtr<StyleValue const> {
-        auto const* data = static_cast<StyleValueFFI::StyleValueData const*>(retained.pointer);
-        if (!data)
-            return nullptr;
-        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(data));
-    };
-    return {
-        .transition_hint = adopt(stop.transition_hint),
-        .color_stop = {
-            .color = adopt(stop.color),
-            .position = adopt(stop.position),
-            .second_position = adopt(stop.second_position),
-        },
-    };
-}
-
-Vector<ColorStopListElement> color_stops_from_rust_data(StyleValueFFI::RetainedColorStop const* color_stop_list, size_t size)
-{
-    Vector<ColorStopListElement> stops;
-    stops.ensure_capacity(size);
-    for (size_t i = 0; i < size; ++i)
-        stops.unchecked_append(color_stop_from_rust_data(color_stop_list[i]));
-    return stops;
-}
-
 // https://drafts.css-houdini.org/css-typed-om-1/#reify-stylevalue
 GC::Ref<CSSStyleValue> AbstractImageStyleValue::reify(Utf16FlyString const&) const
 {
@@ -93,24 +66,6 @@ SizeWithAspectRatio AbstractImageStyleValue::natural_size(HTML::DecodedImageData
 Optional<Painting::ImagePaint> AbstractImageStyleValue::image_paint(Painting::ImagePaintRequest const&) const
 {
     return {};
-}
-
-ColorStopListElement ColorStopListElement::absolutized(ComputationContext const& context) const
-{
-    auto absolutize_if_nonnull = [&context](RefPtr<StyleValue const> const& input) -> RefPtr<StyleValue const> {
-        if (!input)
-            return {};
-        return input->absolutized(context);
-    };
-
-    return {
-        .transition_hint = absolutize_if_nonnull(transition_hint),
-        .color_stop = {
-            .color = absolutize_if_nonnull(color_stop.color),
-            .position = absolutize_if_nonnull(color_stop.position),
-            .second_position = absolutize_if_nonnull(color_stop.second_position),
-        },
-    };
 }
 
 }

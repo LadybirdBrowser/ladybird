@@ -668,6 +668,9 @@ macro_rules! retained_list {
                 Self { pointer, length }
             }
         }
+        retained_list!($list, $element, native);
+    };
+    ($list:ident, $element:ty, native) => {
         retained_list_drop!($list);
         impl Clone for $list {
             fn clone(&self) -> Self {
@@ -1433,7 +1436,7 @@ pub struct RetainedLinearEasingStopList {
     length: usize,
 }
 
-retained_list!(RetainedLinearEasingStopList, RetainedLinearEasingStop);
+retained_list!(RetainedLinearEasingStopList, RetainedLinearEasingStop, native);
 
 /// The kind of one grid track list entry.
 #[repr(u8)]
@@ -1594,7 +1597,7 @@ pub struct RetainedShapePointList {
     length: usize,
 }
 
-retained_list!(RetainedShapePointList, RetainedShapePoint);
+retained_list!(RetainedShapePointList, RetainedShapePoint, native);
 
 /// An accepted numeric range for one value type (the C++ `enum class ValueType : u8`, opaque
 /// to Rust).
@@ -1786,7 +1789,7 @@ pub enum StyleValueData {
         v4: RetainedStyleValueData,
         fill_rule: u8,
         points: RetainedShapePointList,
-        path_string: CssString,
+        path: crate::css::css_path::CssPath,
     },
     /// A calc() or other math function: the retained calculation node tree root, its resolved
     /// numeric type, and the parse-time calculation context.
@@ -2434,7 +2437,7 @@ impl StyleValueData {
                 v4,
                 fill_rule,
                 points: _,
-                path_string,
+                path,
             } => {
                 hasher.write_u8(*kind);
                 write_value(hasher, v0);
@@ -2443,7 +2446,7 @@ impl StyleValueData {
                 write_value(hasher, v3);
                 write_value(hasher, v4);
                 hasher.write_u8(*fill_rule);
-                write_fly(hasher, path_string);
+                path.units().hash(hasher);
             }
             Self::Calculated {
                 rust_calculation: _,
@@ -3796,60 +3799,6 @@ pub unsafe extern "C" fn rust_style_value_create_radial_gradient(
             RetainedStyleValueData::from_retained_optional_pointer(color_interpolation_method)
         },
         color_syntax,
-    }))
-}
-
-/// Takes ownership of one strong reference to each non-null value and of the stops' retained
-/// values.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_easing(
-    kind: u8,
-    linear_stops: *const RetainedLinearEasingStop,
-    linear_stop_count: usize,
-    x1: *const StyleValueData,
-    y1: *const StyleValueData,
-    x2: *const StyleValueData,
-    y2: *const StyleValueData,
-    number_of_intervals: *const StyleValueData,
-    step_position: u8,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::Easing {
-        kind,
-        linear_stops: unsafe { RetainedLinearEasingStopList::from_raw(linear_stops, linear_stop_count) },
-        x1: unsafe { RetainedStyleValueData::from_retained_optional_pointer(x1) },
-        y1: unsafe { RetainedStyleValueData::from_retained_optional_pointer(y1) },
-        x2: unsafe { RetainedStyleValueData::from_retained_optional_pointer(x2) },
-        y2: unsafe { RetainedStyleValueData::from_retained_optional_pointer(y2) },
-        number_of_intervals: unsafe { RetainedStyleValueData::from_retained_optional_pointer(number_of_intervals) },
-        step_position,
-    }))
-}
-
-/// Takes ownership of one strong reference to each non-null value, of the points' retained
-/// values and of one leaked reference to the path string when present.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_basic_shape(
-    kind: u8,
-    v0: *const StyleValueData,
-    v1: *const StyleValueData,
-    v2: *const StyleValueData,
-    v3: *const StyleValueData,
-    v4: *const StyleValueData,
-    fill_rule: u8,
-    points: *const RetainedShapePoint,
-    point_count: usize,
-    path_string: usize,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::BasicShape {
-        kind,
-        v0: unsafe { RetainedStyleValueData::from_retained_optional_pointer(v0) },
-        v1: unsafe { RetainedStyleValueData::from_retained_optional_pointer(v1) },
-        v2: unsafe { RetainedStyleValueData::from_retained_optional_pointer(v2) },
-        v3: unsafe { RetainedStyleValueData::from_retained_optional_pointer(v3) },
-        v4: unsafe { RetainedStyleValueData::from_retained_optional_pointer(v4) },
-        fill_rule,
-        points: unsafe { RetainedShapePointList::from_raw(points, point_count) },
-        path_string: unsafe { CssString::from_leaked_raw(path_string) },
     }))
 }
 

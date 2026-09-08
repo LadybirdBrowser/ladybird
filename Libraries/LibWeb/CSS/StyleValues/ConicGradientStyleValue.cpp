@@ -34,21 +34,4 @@ Optional<Painting::ImagePaint> ConicGradientStyleValue::image_paint(Painting::Im
     return Painting::ImagePaint { Painting::ImagePaint::Gradient { *this } };
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> ConicGradientStyleValue::absolutized(ComputationContext const& context) const
-{
-    Vector<ColorStopListElement> absolutized_color_stops;
-    absolutized_color_stops.ensure_capacity(color_stop_list().size());
-    for (auto const& color_stop : color_stop_list()) {
-        absolutized_color_stops.unchecked_append(color_stop.absolutized(context));
-    }
-    RefPtr<StyleValue const> absolutized_from_angle;
-    if (from_angle_value())
-        absolutized_from_angle = from_angle_value()->absolutized(context);
-    ValueComparingNonnullRefPtr<PositionStyleValue const> absolutized_position = position_value()->absolutized(context)->as_position();
-
-    auto absolutized_color_interpolation_method = color_interpolation_method_value() ? ValueComparingRefPtr<StyleValue const> { color_interpolation_method_value()->absolutized(context) } : nullptr;
-
-    return create(move(absolutized_from_angle), move(absolutized_position), move(absolutized_color_stops), (is_repeating() ? GradientRepeating::Yes : GradientRepeating::No), move(absolutized_color_interpolation_method), gradient_color_syntax());
-}
-
 }
