@@ -156,20 +156,31 @@ class RustRuleList {
     AK_MAKE_NONCOPYABLE(RustRuleList);
 
 public:
+    enum class Ownership {
+        Adopt,
+        Borrow,
+    };
+
     RustRuleList()
         : m_list(Parser::ValueParserFFI::rust_rule_list_create())
     {
     }
     // Adopt an owned reference returned by Rust.
-    explicit RustRuleList(Parser::ValueParserFFI::NativeRuleList const* list)
+    explicit RustRuleList(Parser::ValueParserFFI::NativeRuleList const* list, Ownership ownership = Ownership::Adopt)
         : m_list(list)
+        , m_ownership(ownership)
     {
     }
     RustRuleList(RustRuleList&& other)
         : m_list(exchange(other.m_list, nullptr))
+        , m_ownership(exchange(other.m_ownership, Ownership::Adopt))
     {
     }
-    ~RustRuleList() { Parser::ValueParserFFI::rust_rule_list_release(m_list); }
+    ~RustRuleList()
+    {
+        if (m_ownership == Ownership::Adopt)
+            Parser::ValueParserFFI::rust_rule_list_release(m_list);
+    }
     size_t size() const { return Parser::ValueParserFFI::rust_rule_list_count(m_list); }
     void for_each_rule(Function<bool(RustRuleView const&)> const& callback) const
     {
@@ -197,6 +208,7 @@ public:
 
 private:
     Parser::ValueParserFFI::NativeRuleList const* m_list;
+    Ownership m_ownership { Ownership::Adopt };
 };
 
 }
