@@ -26,7 +26,14 @@ public:
     TransformFunction transform_function() const { return static_cast<TransformFunction>(m_value->transformation.transform_function); }
     StyleValueVector values() const
     {
-        return m_values;
+        auto const& values = m_value->transformation.values;
+        StyleValueVector result;
+        result.ensure_capacity(values.length);
+        for (size_t i = 0; i < values.length; ++i) {
+            auto* child_data = static_cast<StyleValueFFI::StyleValueData const*>(values.pointer[i].pointer);
+            result.unchecked_append(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data)));
+        }
+        return result;
     }
 
     bool can_be_converted_to_matrix_without_reference_box() const;
@@ -42,17 +49,10 @@ private:
     explicit TransformationStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValueWithDefaultOperators(Type::Transformation, data)
     {
-        auto const& values = data->transformation.values;
-        m_values.ensure_capacity(values.length);
-        for (size_t i = 0; i < values.length; ++i) {
-            auto* child_data = static_cast<StyleValueFFI::StyleValueData const*>(values.pointer[i].pointer);
-            m_values.unchecked_append(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data)));
-        }
     }
 
     TransformationStyleValue(PropertyID property, TransformFunction transform_function, StyleValueVector&& values)
         : StyleValueWithDefaultOperators(Type::Transformation, make_transformation_data(property, transform_function, values))
-        , m_values(move(values))
     {
     }
 
@@ -65,13 +65,15 @@ private:
         return StyleValueFFI::rust_style_value_create_transformation(to_underlying(property), static_cast<u8>(to_underlying(transform_function)), pointers.data(), pointers.size());
     }
 
-    size_t size() const { return m_values.size(); }
+    size_t size() const { return m_value->transformation.values.length; }
 
-    ValueComparingNonnullRefPtr<StyleValue const> value_at(size_t i) const { return m_values[i]; }
+    ValueComparingNonnullRefPtr<StyleValue const> value_at(size_t i) const
+    {
+        auto* child_data = static_cast<StyleValueFFI::StyleValueData const*>(m_value->transformation.values.pointer[i].pointer);
+        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data));
+    }
 
     PropertyID property() const { return static_cast<PropertyID>(m_value->transformation.property); }
-
-    StyleValueVector m_values;
 };
 
 // The transform functions of a computed or freshly parsed transform value:

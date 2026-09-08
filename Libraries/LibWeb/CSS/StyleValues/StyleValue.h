@@ -148,7 +148,6 @@ WEB_API Utf16FlyString css_string_from_rust(void const*);
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(TextIndent, text_indent, TextIndentStyleValue)                                \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Transformation, transformation, TransformationStyleValue)                     \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(TreeCountingFunction, tree_counting_function, TreeCountingFunctionStyleValue) \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(Tuple, tuple, TupleStyleValue)                                                \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(ValueList, value_list, StyleValueList)
 
 struct ColorResolutionContext {

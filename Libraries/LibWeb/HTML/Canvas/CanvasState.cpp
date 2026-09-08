@@ -63,7 +63,8 @@ CSS::ComputationContext CanvasState::computation_context_for_drawing_state() con
 
         VERIFY(m_drawing_state.current_font_cascade_list);
         auto const& first_font = m_drawing_state.current_font_cascade_list->first_available_font();
-        auto const& font_size = m_drawing_state.font_style_value->as_shorthand().longhand(CSS::PropertyID::FontSize)->as_length().length().absolute_length_to_px();
+        auto font_size_value = m_drawing_state.font_style_value->as_shorthand().longhand(CSS::PropertyID::FontSize);
+        auto font_size = font_size_value->as_length().length().absolute_length_to_px();
 
         return CSS::Length::FontMetrics { font_size, first_font.pixel_metrics(), CSS::InitialValues::line_height() };
     }();

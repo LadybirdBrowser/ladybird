@@ -20,7 +20,14 @@ public:
 
     StyleValueVector values() const
     {
-        return m_values;
+        auto const& values = m_value->shorthand.values;
+        StyleValueVector result;
+        result.ensure_capacity(values.length);
+        for (size_t i = 0; i < values.length; ++i) {
+            auto const* child_data = static_cast<StyleValueFFI::StyleValueData const*>(values.pointer[i].pointer);
+            result.unchecked_append(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data)));
+        }
+        return result;
     }
 
     ValueComparingRefPtr<StyleValue const> longhand(PropertyID) const;
@@ -29,12 +36,6 @@ private:
     explicit ShorthandStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValueWithDefaultOperators(Type::Shorthand, data)
     {
-        auto const& values = m_value->shorthand.values;
-        m_values.ensure_capacity(values.length);
-        for (size_t i = 0; i < values.length; ++i) {
-            auto const* child_data = static_cast<StyleValueFFI::StyleValueData const*>(values.pointer[i].pointer);
-            m_values.unchecked_append(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data)));
-        }
     }
 
     ShorthandStyleValue(PropertyID shorthand, Vector<PropertyID> sub_properties, Vector<ValueComparingNonnullRefPtr<StyleValue const>> values);
@@ -65,10 +66,9 @@ private:
 
     ValueComparingNonnullRefPtr<StyleValue const> value_at(size_t i) const
     {
-        return m_values[i];
+        auto const* child_data = static_cast<StyleValueFFI::StyleValueData const*>(m_value->shorthand.values.pointer[i].pointer);
+        return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data));
     }
-
-    StyleValueVector m_values;
 };
 
 }

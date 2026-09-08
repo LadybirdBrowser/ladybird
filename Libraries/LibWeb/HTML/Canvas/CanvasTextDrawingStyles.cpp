@@ -93,7 +93,7 @@ void CanvasTextDrawingStyles<CanvasType>::set_font(Utf16View font)
     auto computed_math_depth = CSS::InitialValues::math_depth();
 
     // FIXME: We will need to absolutize this once we support ident() functions
-    auto& font_family = *font_style_value.longhand(CSS::PropertyID::FontFamily);
+    auto font_family = font_style_value.longhand(CSS::PropertyID::FontFamily);
 
     Optional<DOM::AbstractElement> inheritance_parent;
 
@@ -141,7 +141,7 @@ void CanvasTextDrawingStyles<CanvasType>::set_font(Utf16View font)
         },
         {
             // Set explicitly
-            font_family,
+            *font_family,
             computed_font_size,
             computed_font_width,
             computed_font_style,
@@ -170,7 +170,7 @@ void CanvasTextDrawingStyles<CanvasType>::set_font(Utf16View font)
         [&](DOM::Document* document) -> RefPtr<Gfx::FontCascadeList const> {
             drawing_state().font_environment_generation = document->font_computer().environment_generation();
             return document->font_computer().compute_font_for_style_values(
-                font_family,
+                *font_family,
                 computed_font_size->as_length().length().absolute_length_to_px(),
                 computed_font_style->as_font_style().to_font_slope(),
                 computed_font_weight->as_number().number(),

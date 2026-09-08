@@ -441,7 +441,7 @@ static Box& create_content_image_box(DOM::Document& document, GC::Ptr<DOM::Eleme
     return image_box;
 }
 
-static CSS::AbstractImageStyleValue const* content_replacement_image(CSS::StyleValue const& content)
+static RefPtr<CSS::AbstractImageStyleValue const> content_replacement_image(CSS::StyleValue const& content)
 {
     if (!content.is_content())
         return nullptr;
@@ -1206,7 +1206,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             switch (kind) {
             case RustFFI::FfiElementLayoutKind::ContentReplacement: {
                 auto computed_content = computed_values->computed_content();
-                auto const* replacement_image = content_replacement_image(computed_content);
+                auto replacement_image = content_replacement_image(computed_content);
                 VERIFY(replacement_image);
                 frame.layout_node = &create_content_image_box(element.document(), element, style, const_cast<CSS::AbstractImageStyleValue&>(*replacement_image));
                 break;

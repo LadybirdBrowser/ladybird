@@ -20,10 +20,18 @@ public:
 
     StyleValueTuple tuple() const
     {
-        return m_values;
+        auto const& values = m_value->tuple.values;
+        StyleValueTuple result;
+        result.ensure_capacity(values.length);
+        for (size_t i = 0; i < values.length; ++i) {
+            auto* child_data = static_cast<StyleValueFFI::StyleValueData const*>(values.pointer[i].pointer);
+            if (child_data)
+                result.unchecked_append(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data)));
+            else
+                result.unchecked_append(nullptr);
+        }
+        return result;
     }
-
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
     // FIXME: Support tokenization and reification
 
@@ -66,20 +74,10 @@ private:
     explicit TupleStyleValue(StyleValueFFI::StyleValueData const* data)
         : StyleValueWithDefaultOperators(Type::Tuple, data)
     {
-        auto const& values = data->tuple.values;
-        m_values.ensure_capacity(values.length);
-        for (size_t i = 0; i < values.length; ++i) {
-            auto* child_data = static_cast<StyleValueFFI::StyleValueData const*>(values.pointer[i].pointer);
-            if (child_data)
-                m_values.unchecked_append(StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child_data)));
-            else
-                m_values.unchecked_append(nullptr);
-        }
     }
 
     explicit TupleStyleValue(StyleValueTuple values)
         : StyleValueWithDefaultOperators(Type::Tuple, make_tuple_data(values))
-        , m_values(move(values))
     {
     }
 
@@ -95,8 +93,6 @@ private:
         }
         return StyleValueFFI::rust_style_value_create_tuple(pointers.data(), pointers.size());
     }
-
-    StyleValueTuple m_values;
 };
 
 }
