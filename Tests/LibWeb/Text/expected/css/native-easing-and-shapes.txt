@@ -1,0 +1,13 @@
+linear(0, 0.5 25%, 1): 0.666667
+cubic-bezier(0, calc(0.5), 1, 1): 0.6875
+steps(4, jump-start): 0.75
+inset(10px 20px round 10px)
+inset(20px calc(100% - 40px) calc(100% - 60px) 10px)
+inset(0% calc(100% - 30px) calc(100% - 40px) 0%)
+circle(20px at 25% 75%)
+ellipse(20px 30px at 25% 75%)
+polygon(evenodd, 0px 0px, 20px 0px, 0px 30px)
+path(evenodd, "M 0 0 L 30 40 Z")
+inset(2px round 1px)
+path length: 50
+mutated path length: 100

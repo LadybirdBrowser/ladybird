@@ -1949,7 +1949,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             v4,
             fill_rule,
             points,
-            path_string,
+            path,
         } => {
             // BasicShape kinds: inset 0, xywh 1, rect 2, circle 3, ellipse 4, polygon 5, path 6;
             // fill rules follow Gfx::WindingRule (Nonzero 0, EvenOdd 1).
@@ -2066,7 +2066,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
                     if !(mode.is_resolved() && *fill_rule == 0) {
                         sink.push_ascii(if *fill_rule == 0 { "nonzero, " } else { "evenodd, " });
                     }
-                    with_fly_string_units(path_string, |units| serialize_a_string(sink, &units));
+                    serialize_a_string(sink, &StringUnits::Utf16(path.units()));
                     sink.push_ascii(")");
                 }
             }

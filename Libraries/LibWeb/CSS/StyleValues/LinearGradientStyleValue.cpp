@@ -50,20 +50,6 @@ LinearGradientStyleValue::LinearGradientStyleValue(StyleValueFFI::StyleValueData
 {
 }
 
-ValueComparingNonnullRefPtr<StyleValue const> LinearGradientStyleValue::absolutized(ComputationContext const& context) const
-{
-    Vector<ColorStopListElement> absolutized_color_stops;
-    absolutized_color_stops.ensure_capacity(color_stop_list().size());
-    for (auto const& color_stop : color_stop_list()) {
-        absolutized_color_stops.unchecked_append(color_stop.absolutized(context));
-    }
-
-    auto color_interpolation_method_value = this->color_interpolation_method_value();
-    auto absolutized_color_interpolation_method = color_interpolation_method_value ? ValueComparingRefPtr<StyleValue const> { color_interpolation_method_value->absolutized(context) } : nullptr;
-
-    return create(direction(), move(absolutized_color_stops), gradient_type(), (is_repeating() ? GradientRepeating::Yes : GradientRepeating::No), move(absolutized_color_interpolation_method));
-}
-
 Optional<Painting::ImagePaint> LinearGradientStyleValue::image_paint(Painting::ImagePaintRequest const&) const
 {
     return Painting::ImagePaint { Painting::ImagePaint::Gradient { *this } };

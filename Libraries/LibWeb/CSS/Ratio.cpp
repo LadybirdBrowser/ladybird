@@ -5,7 +5,6 @@
  */
 
 #include "Ratio.h"
-#include <LibWeb/CSS/Serialize.h>
 #include <math.h>
 
 namespace Web::CSS {
@@ -21,19 +20,6 @@ bool Ratio::is_degenerate() const
 {
     return !isfinite(m_first_value) || m_first_value == 0
         || !isfinite(m_second_value) || m_second_value == 0;
-}
-
-String Ratio::to_string() const
-{
-    // https://drafts.csswg.org/cssom/#serialize-a-css-value
-    // -> <ratio>
-    // The numerator serialized as per <number> followed by the literal string " / ", followed by the denominator
-    // serialized as per <number>.
-    StringBuilder builder;
-    serialize_a_number(builder, m_first_value);
-    builder.append(" / "sv);
-    serialize_a_number(builder, m_second_value);
-    return builder.to_string_without_validation();
 }
 
 }

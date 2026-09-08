@@ -14,6 +14,7 @@ use super::value_parser::{
     parse_length_percentage_from_stream, parse_number_from_stream,
 };
 use crate::css::css_enums::{keyword, keyword_from_ascii_case_insensitive};
+use crate::css::css_path::CssPath;
 use crate::css::property_metadata::{
     longhands_for_shorthand, property_accepted_value_types, property_has_coordinating_list_multiplicity, property_id,
 };
@@ -735,7 +736,7 @@ fn basic_shape(
     values: Vec<StyleValueData>,
     fill_rule: u8,
     points: Vec<RetainedShapePoint>,
-    path_string: CssString,
+    path: CssPath,
 ) -> StyleValueData {
     let mut values = values.into_iter().map(retained).collect::<Vec<_>>();
     values.resize_with(5, RetainedStyleValueData::none);
@@ -748,7 +749,7 @@ fn basic_shape(
         v4: values.remove(0),
         fill_rule,
         points: RetainedShapePointList::from_retained_points(points),
-        path_string,
+        path,
     }
 }
 
@@ -814,7 +815,7 @@ fn parse_inset_shape(context: &ParseContext, property: u16, arguments: &[Compone
         ],
         0,
         vec![],
-        CssString::none(),
+        CssPath::none(),
     ))
 }
 
@@ -858,7 +859,7 @@ fn parse_xywh_shape(context: &ParseContext, property: u16, arguments: &[Componen
         vec![x, y, width, height, radius],
         0,
         vec![],
-        CssString::none(),
+        CssPath::none(),
     ))
 }
 
@@ -886,7 +887,7 @@ fn parse_rect_shape(context: &ParseContext, property: u16, arguments: &[Componen
         return None;
     }
     sides.push(radius);
-    Some(basic_shape(2, sides, 0, vec![], CssString::none()))
+    Some(basic_shape(2, sides, 0, vec![], CssPath::none()))
 }
 
 fn parse_circle_or_ellipse(
@@ -936,7 +937,7 @@ fn parse_circle_or_ellipse(
         v4: RetainedStyleValueData::none(),
         fill_rule: 0,
         points: RetainedShapePointList::from_retained_points(vec![]),
-        path_string: CssString::none(),
+        path: CssPath::none(),
     })
 }
 
@@ -977,7 +978,7 @@ fn parse_polygon(context: &ParseContext, property: u16, arguments: &[ComponentVa
             Some(RetainedShapePoint::from_retained_values(retained(x), retained(y)))
         })
         .collect::<Option<Vec<_>>>()?;
-    Some(basic_shape(5, vec![], fill_rule, points, CssString::none()))
+    Some(basic_shape(5, vec![], fill_rule, points, CssPath::none()))
 }
 
 fn parse_path(context: &ParseContext, arguments: &[ComponentValue]) -> Option<StyleValueData> {
@@ -990,20 +991,18 @@ fn parse_path(context: &ParseContext, arguments: &[ComponentValue]) -> Option<St
     } else {
         0
     };
-    let mut tokens = TokenStream::new(arguments[arguments.len() - 1]);
-    tokens.discard_whitespace();
-    let path = tokens.consume_a_token().string()?.to_vec();
-    tokens.discard_whitespace();
-    if tokens.has_next_token() {
+    let mut values = arguments[arguments.len() - 1]
+        .iter()
+        .filter(|value| !value.is_whitespace());
+    let path = values.next()?.string()?;
+    if values.next().is_some() {
         return None;
     }
-    let path = crate::svg::parse_utf16_path(&path, context.is_svg_presentation_attribute)?;
+    let path = crate::svg::parse_utf16_path(path, context.is_svg_presentation_attribute)?;
     if path.is_empty() {
         return None;
     }
-    let serialized = path.serialize().encode_utf16().collect::<Vec<_>>();
-    let path_string = CssString::from_utf16(&serialized);
-    Some(basic_shape(6, vec![], fill_rule, vec![], path_string))
+    Some(basic_shape(6, vec![], fill_rule, vec![], CssPath::new(path)))
 }
 
 fn parse_basic_shape(context: &ParseContext, property: u16, values: &[ComponentValue]) -> Option<StyleValueData> {

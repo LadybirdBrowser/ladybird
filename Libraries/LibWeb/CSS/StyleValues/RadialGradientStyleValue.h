@@ -30,14 +30,6 @@ public:
         return adopt_ref(*new (nothrow) RadialGradientStyleValue(ending_shape, move(size), move(position), move(color_stop_list), repeating, move(color_interpolation_method), any_non_legacy ? ColorSyntax::Modern : ColorSyntax::Legacy));
     }
 
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
-
-    Vector<ColorStopListElement> color_stop_list() const
-    {
-        auto const& list = m_value->radial_gradient.color_stop_list;
-        return color_stops_from_rust_data(list.pointer, list.length);
-    }
-
     bool is_paintable(GC::Ptr<HTML::DecodedImageData>) const override { return true; }
 
     Optional<Painting::ImagePaint> image_paint(Painting::ImagePaintRequest const&) const override;
@@ -57,13 +49,6 @@ private:
     explicit RadialGradientStyleValue(StyleValueFFI::StyleValueData const*);
 
     static StyleValueFFI::StyleValueData const* make_radial_gradient_data(EndingShape, NonnullRefPtr<StyleValue const> const&, NonnullRefPtr<PositionStyleValue const> const&, Vector<ColorStopListElement> const&, GradientRepeating, RefPtr<StyleValue const> const&, ColorSyntax);
-
-    ValueComparingNonnullRefPtr<StyleValue const> size_value() const { return wrap_rust_child(m_value->radial_gradient.size); }
-    ValueComparingNonnullRefPtr<PositionStyleValue const> position_value() const { return wrap_rust_child(m_value->radial_gradient.position)->as_position(); }
-    EndingShape ending_shape() const { return static_cast<EndingShape>(m_value->radial_gradient.ending_shape); }
-    ColorSyntax gradient_color_syntax() const { return static_cast<ColorSyntax>(m_value->radial_gradient.color_syntax); }
-
-    ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return wrap_rust_child_or_null(m_value->radial_gradient.color_interpolation_method); }
 };
 
 }

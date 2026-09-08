@@ -151,6 +151,60 @@ pub struct FfiEasingDescriptor {
     pub step_position: u8,
 }
 
+/// Construct a CSS value from resolved animation easing parameters.
+///
+/// # Safety
+/// The descriptor and its control-point slice must remain valid during the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_style_value_from_easing(descriptor: &FfiEasingDescriptor) -> *const StyleValueData {
+    use crate::css::style_value::{RetainedLinearEasingStop, RetainedLinearEasingStopList};
+    let retain = |value| unsafe { RetainedStyleValueData::from_retained_pointer(Arc::into_raw(Arc::new(value))) };
+    let mut stops = Vec::new();
+    let mut x1 = empty_retained_style_value();
+    let mut y1 = empty_retained_style_value();
+    let mut x2 = empty_retained_style_value();
+    let mut y2 = empty_retained_style_value();
+    let mut number_of_intervals = empty_retained_style_value();
+    match descriptor.kind {
+        FfiEasingKind::Linear => {
+            assert!(descriptor.linear_point_count > 0);
+            let points = unsafe { std::slice::from_raw_parts(descriptor.linear_points, descriptor.linear_point_count) };
+            stops = points
+                .iter()
+                .map(|point| {
+                    RetainedLinearEasingStop::from_retained_values(
+                        retain(StyleValueData::Number { value: point.output }),
+                        retain(StyleValueData::Percentage {
+                            value: point.input * 100.0,
+                        }),
+                    )
+                })
+                .collect();
+        }
+        FfiEasingKind::CubicBezier => {
+            x1 = retain(StyleValueData::Number { value: descriptor.x1 });
+            y1 = retain(StyleValueData::Number { value: descriptor.y1 });
+            x2 = retain(StyleValueData::Number { value: descriptor.x2 });
+            y2 = retain(StyleValueData::Number { value: descriptor.y2 });
+        }
+        FfiEasingKind::Steps => {
+            number_of_intervals = retain(StyleValueData::Integer {
+                value: descriptor.interval_count,
+            });
+        }
+    }
+    Arc::into_raw(Arc::new(StyleValueData::Easing {
+        kind: descriptor.kind as u8,
+        linear_stops: RetainedLinearEasingStopList::from_retained_elements(stops),
+        x1,
+        y1,
+        x2,
+        y2,
+        number_of_intervals,
+        step_position: descriptor.step_position,
+    }))
+}
+
 fn evaluate_linear_easing(points: &[FfiLinearEasingPoint], input_progress: f64, before_flag: bool) -> f64 {
     // https://drafts.csswg.org/css-easing/#linear-easing-function-output
     // To calculate linear easing output progress for a given linear easing function func,
@@ -2640,7 +2694,7 @@ fn interpolate_basic_shape(
                 v4: interpolate_basic_shape_component(property_id, from_v4, to_v4, delta),
                 fill_rule: 0,
                 points: empty_shape_points(),
-                path_string: empty_retained_fly_string(),
+                path: crate::css::css_path::CssPath::none(),
             })
         }
         BASIC_SHAPE_CIRCLE | BASIC_SHAPE_ELLIPSE => {
@@ -2688,7 +2742,7 @@ fn interpolate_basic_shape(
                 v4: empty(),
                 fill_rule: 0,
                 points: empty_shape_points(),
-                path_string: empty_retained_fly_string(),
+                path: crate::css::css_path::CssPath::none(),
             })
         }
         BASIC_SHAPE_POLYGON => {
@@ -2719,7 +2773,7 @@ fn interpolate_basic_shape(
                 v4: empty(),
                 fill_rule: *from_fill_rule,
                 points: RetainedShapePointList::from_retained_points(points),
-                path_string: empty_retained_fly_string(),
+                path: crate::css::css_path::CssPath::none(),
             })
         }
         _ => None,
@@ -2834,7 +2888,7 @@ fn composite_basic_shape(
             v4: composite_retained_value(underlying_v4, animated_v4, operation)?,
             fill_rule: 0,
             points: empty_shape_points(),
-            path_string: empty_retained_fly_string(),
+            path: crate::css::css_path::CssPath::none(),
         }),
         BASIC_SHAPE_CIRCLE | BASIC_SHAPE_ELLIPSE => {
             let position = match (underlying_v1.optional_data(), animated_v1.optional_data()) {
@@ -2866,7 +2920,7 @@ fn composite_basic_shape(
                 v4: empty(),
                 fill_rule: 0,
                 points: empty_shape_points(),
-                path_string: empty_retained_fly_string(),
+                path: crate::css::css_path::CssPath::none(),
             })
         }
         BASIC_SHAPE_POLYGON => {
@@ -2897,7 +2951,7 @@ fn composite_basic_shape(
                 v4: empty(),
                 fill_rule: *underlying_fill_rule,
                 points: RetainedShapePointList::from_retained_points(points),
-                path_string: empty_retained_fly_string(),
+                path: crate::css::css_path::CssPath::none(),
             })
         }
         _ => None,
@@ -7673,6 +7727,42 @@ mod tests {
             percentages_resolve_as: 0,
             resolve_numbers_as_integers: false,
             accepted_ranges: RetainedNumericRangeList::empty(),
+        }
+    }
+
+    #[test]
+    fn constructs_easing_values_without_child_wrappers() {
+        let points = [
+            FfiLinearEasingPoint {
+                input: 0.0,
+                output: 0.0,
+            },
+            FfiLinearEasingPoint {
+                input: 1.0,
+                output: 1.0,
+            },
+        ];
+        for (kind, expected) in [
+            (FfiEasingKind::Linear, "linear(0 0%, 1 100%)"),
+            (FfiEasingKind::CubicBezier, "cubic-bezier(0, 0, 1, 1)"),
+            (FfiEasingKind::Steps, "steps(4)"),
+        ] {
+            let descriptor = FfiEasingDescriptor {
+                kind,
+                linear_points: points.as_ptr(),
+                linear_point_count: points.len(),
+                x1: 0.0,
+                y1: 0.0,
+                x2: 1.0,
+                y2: 1.0,
+                interval_count: 4,
+                step_position: 1,
+            };
+            let value = unsafe { Arc::from_raw(rust_style_value_from_easing(&descriptor)) };
+            assert_eq!(
+                crate::css::serialize::serialize_style_value_to_utf16(&value).unwrap(),
+                expected.encode_utf16().collect::<Vec<_>>()
+            );
         }
     }
 

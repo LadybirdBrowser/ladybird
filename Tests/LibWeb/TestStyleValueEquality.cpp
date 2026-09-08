@@ -4,7 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <LibGfx/WindingRule.h>
 #include <LibTest/TestCase.h>
 #include <LibWeb/CSS/PropertyID.h>
 #include <LibWeb/CSS/StyleValues/AnchorSizeStyleValue.h>
@@ -932,30 +931,6 @@ TEST_CASE(rust_calculated_handles_create_typed_wrappers)
     EXPECT_EQ(retained_calculated->to_string(SerializationMode::Normal), "calc(10px)"sv);
 }
 
-TEST_CASE(rust_basic_shape_handles_retain_polygon_point_data)
-{
-    auto x = LengthStyleValue::create(Length::make_px(1));
-    auto y = LengthStyleValue::create(Length::make_px(2));
-    StyleValueFFI::RetainedShapePoint point {
-        { StyleValueFFI::rust_style_value_retain(x->rust_style_value_data()) },
-        { StyleValueFFI::rust_style_value_retain(y->rust_style_value_data()) },
-    };
-    auto data = StyleValueFFI::rust_style_value_create_basic_shape(5, nullptr, nullptr, nullptr, nullptr, nullptr, to_underlying(Gfx::WindingRule::Nonzero), &point, 1, 0);
-
-    x = LengthStyleValue::create(Length::make_px(3));
-    y = LengthStyleValue::create(Length::make_px(4));
-    auto shape = StyleValue::adopt_rust_style_value_data(data);
-    EXPECT(shape->is_basic_shape());
-    auto const& retained_point = shape->rust_style_value_data()->basic_shape.points.pointer[0];
-    auto point_x = StyleValue::adopt_rust_style_value_data(
-        StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(retained_point.x.pointer)));
-    auto point_y = StyleValue::adopt_rust_style_value_data(
-        StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(retained_point.y.pointer)));
-    shape = KeywordStyleValue::create(Keyword::None);
-    EXPECT_EQ(point_x->to_string(SerializationMode::Normal), "1px"sv);
-    EXPECT_EQ(point_y->to_string(SerializationMode::Normal), "2px"sv);
-}
-
 TEST_CASE(rust_counter_definition_handles_retain_value_data)
 {
     auto value = IntegerStyleValue::create(2);
@@ -972,28 +947,6 @@ TEST_CASE(rust_counter_definition_handles_retain_value_data)
     auto retained_value = definitions->as_counter_definitions().counter_definitions()[0].value;
     definitions = KeywordStyleValue::create(Keyword::None);
     EXPECT_EQ(retained_value->to_string(SerializationMode::Normal), "2"sv);
-}
-
-TEST_CASE(rust_easing_handles_retain_linear_stop_data)
-{
-    auto output = NumberStyleValue::create(1);
-    auto input = PercentageStyleValue::create(Percentage { 50 });
-    StyleValueFFI::RetainedLinearEasingStop stop {
-        { StyleValueFFI::rust_style_value_retain(output->rust_style_value_data()) },
-        { StyleValueFFI::rust_style_value_retain(input->rust_style_value_data()) },
-    };
-    auto data = StyleValueFFI::rust_style_value_create_easing(0, &stop, 1, nullptr, nullptr, nullptr, nullptr, nullptr, 0);
-
-    output = NumberStyleValue::create(2);
-    input = PercentageStyleValue::create(Percentage { 75 });
-    auto easing = StyleValue::adopt_rust_style_value_data(data);
-    EXPECT(easing->is_easing());
-    EXPECT_EQ(easing->to_string(SerializationMode::Normal), "linear(1 50%)"sv);
-    auto const& retained_stop = easing->rust_style_value_data()->easing.linear_stops.pointer[0];
-    auto retained_output = StyleValue::adopt_rust_style_value_data(
-        StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(retained_stop.output.pointer)));
-    easing = KeywordStyleValue::create(Keyword::None);
-    EXPECT_EQ(retained_output->to_string(SerializationMode::Normal), "1"sv);
 }
 
 TEST_CASE(rust_color_function_handles_retain_channel_data)

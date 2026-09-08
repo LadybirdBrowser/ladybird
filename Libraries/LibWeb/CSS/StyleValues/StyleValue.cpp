@@ -475,9 +475,11 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::absolutized(Computatio
     }
 
     switch (type()) {
+    case Type::BasicShape:
+    case Type::Easing:
     case Type::GridTrackPlacement:
     case Type::GridTrackSizeList:
-        return adopt_rust_style_value_data(StyleValueFFI::rust_grid_style_value_absolutize(
+        return adopt_rust_style_value_data(StyleValueFFI::rust_composite_style_value_absolutize(
             m_value.operator->(), &context, [](void const* opaque_context, StyleValueFFI::StyleValueData const* child) {
                 auto value = adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child));
                 auto resolved = value->absolutized(*static_cast<ComputationContext const*>(opaque_context));

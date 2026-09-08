@@ -30,9 +30,16 @@ Gfx::Path SVGPathElement::get_path(CSSPixelSize, CSS::ComputedValues const& comp
         return {};
     }
 
-    // NB: The reference box is not used for path() values and is only required to maintain compatibility with other
-    //     basic shapes.
-    return computed_d->as_basic_shape().basic_shape().get<CSS::Path>().to_path({ 0, 0, 0, 0 });
+    VERIFY(computed_d->is_basic_shape());
+    auto const& shape = computed_d->rust_style_value_data()->basic_shape;
+    VERIFY(shape.kind == 6);
+    auto* native_path = static_cast<Gfx::Path*>(CSS::StyleValueFFI::rust_css_path_to_gfx_path(&shape.path));
+    auto path = move(*native_path);
+    delete native_path;
+    static_assert(to_underlying(Gfx::WindingRule::Nonzero) == 0);
+    static_assert(to_underlying(Gfx::WindingRule::EvenOdd) == 1);
+    path.set_fill_type(static_cast<Gfx::WindingRule>(shape.fill_rule));
+    return path;
 }
 
 }
