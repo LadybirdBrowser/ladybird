@@ -1,0 +1,20 @@
+<!doctype html>
+<html>
+    <style>
+        @function --bar() {
+            result: calc(1 + 1);
+        }
+
+        #foo {
+            --test: --bar();
+            z-index: var(--test);
+        }
+    </style>
+    <div id="foo"></div>
+    <script src="../include.js"></script>
+    <script>
+        test(() => {
+            println(getComputedStyle(foo).zIndex == "2" ? "PASS" : "FAIL");
+        });
+    </script>
+</html>

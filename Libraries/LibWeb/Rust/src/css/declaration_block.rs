@@ -124,6 +124,15 @@ impl DeclarationBlockData {
                 );
             dependencies.declares_animation_name |= property.property_id == property_id::ANIMATION_NAME;
         }
+        for custom_property in &self.custom_properties {
+            dependencies.has_custom_functions |= matches!(
+                &*custom_property.declaration.value,
+                StyleValueData::Unresolved {
+                    presence_dashed_function: true,
+                    ..
+                }
+            );
+        }
         dependencies
     }
 
