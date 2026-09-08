@@ -2465,6 +2465,7 @@ fn lower_instruction(
                 CallOperation::BinarySlowPath => 4,
                 CallOperation::JumpSlowPath => 5,
                 CallOperation::Helper => 2,
+                CallOperation::HelperWithTwoArguments => 3,
             };
             if inputs.len() != expected_inputs || results.len() != operation.result_count() {
                 return Err(format!("'{}' has invalid SSA operand arity", operation.name()));

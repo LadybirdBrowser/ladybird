@@ -34,6 +34,7 @@ struct FieldLayout {
 #[derive(Debug)]
 pub(crate) struct HandlerLayout {
     pub(crate) size: Option<usize>,
+    pub(crate) slow_path: Option<crate::metadata::SlowPathLayout>,
     fields: Vec<FieldLayout>,
 }
 
@@ -79,6 +80,7 @@ impl HandlerLayout {
             .collect::<Result<Vec<_>, _>>()?;
         Ok(Self {
             size: layout.and_then(|layout| layout.size),
+            slow_path: op.map(crate::metadata::SlowPathLayout::new),
             fields,
         })
     }

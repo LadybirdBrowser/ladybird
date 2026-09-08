@@ -21,7 +21,6 @@
 #include <LibGC/RootVector.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Bytecode/Label.h>
-#include <LibJS/Bytecode/Operand.h>
 #include <LibJS/Bytecode/Register.h>
 #include <LibJS/CyclicModule.h>
 #include <LibJS/Export.h>
@@ -114,15 +113,6 @@ public:
         return m_running_execution_context->registers_and_constants_and_locals_and_arguments()[r.index()];
     }
 
-    ALWAYS_INLINE Value get(Bytecode::Operand op) const
-    {
-        return m_running_execution_context->registers_and_constants_and_locals_and_arguments()[op.raw()];
-    }
-    ALWAYS_INLINE void set(Bytecode::Operand op, Value value)
-    {
-        m_running_execution_context->registers_and_constants_and_locals_and_arguments_span().data()[op.raw()] = value;
-    }
-
     void do_return(Value value)
     {
         if (value.is_special_empty_value())
@@ -164,7 +154,7 @@ public:
     ExecutionContext* push_inline_frame(
         ECMAScriptFunctionObject& callee_function,
         Bytecode::Executable& callee_executable,
-        ReadonlySpan<Bytecode::Operand> arguments,
+        ReadonlySpan<Value> arguments,
         u32 return_pc,
         u32 dst_raw,
         Value this_value,

@@ -19,6 +19,74 @@ pub struct Field {
     pub name: String,
     pub ty: String,
     pub is_array: bool,
+    pub mode: ParameterMode,
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ParameterMode {
+    In,
+    Out,
+    InOut,
+}
+
+#[derive(Debug, Clone)]
+pub struct SlowPathField {
+    pub instruction_offset: usize,
+    pub value_offset: usize,
+    pub mode: ParameterMode,
+    pub optional: bool,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct SlowPathLayout {
+    pub fields: Vec<SlowPathField>,
+    /// Instruction offsets of the operand array and its count, and whether its entries are optional.
+    pub array: Option<(usize, usize, bool)>,
+}
+
+impl SlowPathLayout {
+    pub fn uses_scalar_arguments(&self) -> bool {
+        self.array.is_none()
+            && self
+                .fields
+                .iter()
+                .filter(|field| field.mode == ParameterMode::Out)
+                .count()
+                <= 1
+            && self
+                .fields
+                .iter()
+                .all(|field| field.mode == ParameterMode::In || (field.mode == ParameterMode::Out && !field.optional))
+    }
+
+    pub fn new(op: &InstructionDefinition) -> Self {
+        // Match the generated Op::Values record: one Value per scalar operand,
+        // followed by the variable-length input operands. Non-value metadata
+        // remains in the instruction and is not copied into this record.
+        let mut layout = Self::default();
+        for field in &op.fields {
+            if field.ty != "Operand" && field.ty != "Optional<Operand>" {
+                continue;
+            }
+            let optional = field.ty == "Optional<Operand>";
+            if field.is_array {
+                let array = op.array.as_ref().expect("operand array has a count");
+                layout.array = Some((
+                    array.offset,
+                    op.layout.field_offsets[&op.fields[array.count_field_index].name],
+                    optional,
+                ));
+            } else {
+                layout.fields.push(SlowPathField {
+                    instruction_offset: op.layout.field_offsets[&field.name],
+                    value_offset: layout.fields.len() * 8,
+                    mode: field.mode,
+                    optional,
+                });
+            }
+        }
+        layout
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -300,6 +368,13 @@ fn parse_handler_fields(source_name: &str, line: usize, source: &str) -> Result<
                     ));
                 }
                 let ty = ty.trim();
+                let mode = if ty.starts_with("out ") {
+                    ParameterMode::Out
+                } else if ty.starts_with("inout ") {
+                    ParameterMode::InOut
+                } else {
+                    ParameterMode::In
+                };
                 let ty = ["inout ", "in ", "out "]
                     .into_iter()
                     .find_map(|mode| ty.strip_prefix(mode))
@@ -323,6 +398,7 @@ fn parse_handler_fields(source_name: &str, line: usize, source: &str) -> Result<
                     name: format!("m_{name}"),
                     ty: ty.to_string(),
                     is_array,
+                    mode,
                 });
             }
             _ => {}
@@ -713,6 +789,7 @@ pub fn derive_specialized_instructions(
                             name: format!("m_{specialized_name}"),
                             ty: ty.to_string(),
                             is_array: field.is_array,
+                            mode: field.mode,
                         });
                         SpecializedParameterBinding::Field(specialized_name)
                     }
@@ -747,6 +824,52 @@ pub fn derive_specialized_instructions(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn lays_out_explicit_helper_values_with_operand_modes() {
+        let ops = parse_flap_metadata(
+            "test.flap",
+            "handler Call(length: u32, dst: out Operand, callee: in Operand, state: inout Optional<Operand>, argument_count: u32, arguments: Operand[]) = call_slow_path(call);",
+        )
+        .unwrap();
+        let op = &ops[0];
+        let layout = SlowPathLayout::new(op);
+        assert!(!layout.uses_scalar_arguments());
+        assert_eq!(layout.fields.len(), 3);
+        for (index, (name, mode)) in [
+            ("m_dst", ParameterMode::Out),
+            ("m_callee", ParameterMode::In),
+            ("m_state", ParameterMode::InOut),
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            assert_eq!(layout.fields[index].instruction_offset, op.layout.field_offsets[name]);
+            assert_eq!(layout.fields[index].value_offset, index * 8);
+            assert_eq!(layout.fields[index].mode, mode);
+            assert_eq!(layout.fields[index].optional, index == 2);
+        }
+        assert_eq!(
+            layout.array,
+            Some((
+                op.array.as_ref().unwrap().offset,
+                op.layout.field_offsets["m_argument_count"],
+                false
+            ))
+        );
+    }
+
+    #[test]
+    fn uses_scalar_arguments_for_at_most_one_required_output_without_inout_operands() {
+        let ops = parse_flap_metadata(
+            "test.flap",
+            "handler Get(dst: out Operand, base: Operand, property: Optional<Operand>) { dispatch_next; }\nhandler Update(dst: out Operand, src: inout Operand) { dispatch_next; }\nhandler OptionalOutput(dst: out Optional<Operand>) { dispatch_next; }\nhandler Put(base: Operand, value: Operand) { dispatch_next; }",
+        ).unwrap();
+        assert!(SlowPathLayout::new(&ops[0]).uses_scalar_arguments());
+        assert!(!SlowPathLayout::new(&ops[1]).uses_scalar_arguments());
+        assert!(!SlowPathLayout::new(&ops[2]).uses_scalar_arguments());
+        assert!(SlowPathLayout::new(&ops[3]).uses_scalar_arguments());
+    }
 
     #[test]
     fn parses_operations_fields_and_annotations() {

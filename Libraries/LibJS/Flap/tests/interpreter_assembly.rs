@@ -64,3 +64,14 @@ fn interpreter_assembly_matches_snapshots() {
     compare_or_rebaseline("x86_64.S", &compile_interpreter(Architecture::X86_64));
     compare_or_rebaseline("aarch64.S", &compile_interpreter(Architecture::Aarch64));
 }
+
+#[test]
+fn keeps_helper_setup_out_of_the_hot_handler_region() {
+    for architecture in [Architecture::X86_64, Architecture::Aarch64] {
+        let assembly = compile_interpreter(architecture);
+        let cold_start = assembly.find("asm_cold_handler_paths:").unwrap();
+        for handler in ["Exp", "ExpRhsInt32"] {
+            assert!(assembly.find(&format!("asm_handler_{handler}:")).unwrap() > cold_start);
+        }
+    }
+}

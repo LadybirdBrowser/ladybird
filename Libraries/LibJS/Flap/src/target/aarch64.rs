@@ -779,10 +779,7 @@ pub(crate) fn generate(program: &Program, options: &CompileOptions) -> String {
                 "//",
                 |out, _| emit_handler_alignment(out, object_format),
                 emit_instruction,
-                |out| {
-                    w!(out, ".Lexit_veneer:");
-                    w!(out, "    b .Lexit");
-                },
+                |_| {},
             )
         },
         |out| generate_exit_point(out, object_format),
@@ -1163,6 +1160,31 @@ fn shift_mnemonic(operation: ShiftOperation) -> &'static str {
 fn emit_instruction(out: &mut String, insn: &MachineInstruction, handler: &Handler) {
     let opcode = insn.opcode.aarch64();
     debug_assert!(!opcode.is_pseudo());
+    // Cold blocks follow all hot handlers and may exceed the test-bit branch's
+    // +/-32 KiB reach. Use a local inverted test followed by a full-range branch.
+    let bit_branch = match opcode {
+        Opcode::TestBitAndBranch { width, condition } => Some((width, condition, insn.immediate(1), 2)),
+        Opcode::BranchOnBit31(condition) => Some((
+            IntegerWidth::U32,
+            condition.select(TestCondition::Set, TestCondition::Clear),
+            31,
+            1,
+        )),
+        _ => None,
+    };
+    if let Some((width, condition, bit, target_index)) = bit_branch {
+        let target = &insn.operands[target_index];
+        if handler.cold_instructions.iter().any(|instruction| {
+            instruction.opcode.aarch64() == Opcode::Label && instruction.operands.first() == Some(target)
+        }) {
+            let register = insn.physical_register(0).integer_name(width);
+            let inverse = condition.select("tbz", "tbnz");
+            w!(out, "    {inverse} {register}, #{bit}, 1f");
+            w!(out, "    b {}", super::emitter::resolve_label(target, handler));
+            w!(out, "1:");
+            return;
+        }
+    }
     if emit_simple_instruction(out, insn, opcode.simple_instruction(), |operand| match operand {
         Operand::Label(_) => super::emitter::resolve_label(operand, handler),
         Operand::Address(address) => match opcode {
@@ -1186,10 +1208,9 @@ fn emit_instruction(out: &mut String, insn: &MachineInstruction, handler: &Handl
 }
 
 fn emit_branch_bit_set_to_exit(out: &mut String, register: PhysicalRegister, bit: u8) {
-    // A test-bit branch only has a +/-32 KiB range, while the shared exit point
-    // follows all interpreter handlers. Branch to the veneer between the hot
-    // and cold regions, which can reach the exit using a wider-range branch.
-    w!(out, "    tbnz {register}, #{bit}, .Lexit_veneer");
+    w!(out, "    tbz {register}, #{bit}, 1f");
+    w!(out, "    b .Lexit");
+    w!(out, "1:");
 }
 
 #[cfg(test)]
@@ -1305,7 +1326,7 @@ mod tests {
     }
 
     #[test]
-    fn bit_test_exit_branch_uses_the_shared_veneer() {
+    fn bit_test_exit_branch_uses_a_full_range_branch() {
         let program = machine_coff_program(Vec::new());
         let handler = &program.functions[0];
         let instruction = MachineInstruction {
@@ -1316,17 +1337,14 @@ mod tests {
 
         emit_instruction(&mut out, &instruction, handler);
 
-        assert_eq!(out, "    tbnz x0, #63, .Lexit_veneer\n");
+        assert_eq!(out, "    tbz x0, #63, 1f\n    b .Lexit\n1:\n");
     }
 
     #[test]
-    fn emits_one_exit_veneer_between_hot_and_cold_handlers() {
+    fn exit_branches_do_not_depend_on_a_shared_veneer() {
         let output = generate(&coff_program(Vec::new()));
 
-        assert_eq!(output.matches(".Lexit_veneer:").count(), 1);
-        assert!(output.contains("    tbnz x0, #63, .Lexit_veneer"));
-        assert!(output.contains(".Lexit_veneer:\n    b .Lexit\n"));
-        assert!(output.find(".Lexit_veneer:") < output.find("// Cold handler paths"));
+        assert!(output.contains("    tbz x0, #63, 1f\n    b .Lexit\n1:\n"));
     }
 
     #[test]

@@ -33,34 +33,16 @@ fn finalize_function_for_target(
 ) -> Result<MachineFunction, CompileError> {
     let backend = backend_for(options.target.architecture);
     let mut emit = Emit::new(runtime, &function.name, function.size, options);
-    let (hot_instructions, mut cold_instructions) = if function.is_cold {
-        let instruction = function
-            .cfg
-            .single_instruction()
-            .ok_or_else(|| finalization_error(&function.name, "cold handler must consist solely of call_slow_path"))?;
-        if instruction.opcode.operation() != Operation::Call(CallKind::SlowPath) {
-            return Err(finalization_error(
-                &function.name,
-                "cold handler must consist solely of call_slow_path",
-            ));
-        }
-        (
-            finalize_instructions(vec![instruction.clone()], backend, &mut emit)?,
-            Vec::new(),
-        )
-    } else {
-        let layout = function
-            .cfg
-            .layout_hot_and_cold()
-            .map_err(|message| finalization_error(&function.name, message))?;
-        // Nothing reads the graph after this, so it hands its instructions over
-        // rather than being copied out of.
-        let (hot, cold) = std::mem::take(&mut function.cfg).linearize_hot_and_cold(&layout);
-        (
-            finalize_instructions(hot, backend, &mut emit)?,
-            finalize_instructions(cold, backend, &mut emit)?,
-        )
-    };
+    let layout = function
+        .cfg
+        .layout_hot_and_cold()
+        .map_err(|message| finalization_error(&function.name, message))?;
+    // Nothing reads the graph after this, so it hands its instructions over
+    // rather than being copied out of. Whole cold handlers use the same layout;
+    // the emitter places both parts together in the cold region.
+    let (hot, cold) = std::mem::take(&mut function.cfg).linearize_hot_and_cold(&layout);
+    let hot_instructions = finalize_instructions(hot, backend, &mut emit)?;
+    let mut cold_instructions = finalize_instructions(cold, backend, &mut emit)?;
 
     cold_instructions.extend(emit.cold);
     let machine = MachineFunction {
@@ -234,8 +216,9 @@ fn finalize_call(
     operands: &[AllocatedOperand],
 ) -> Result<(), CompileError> {
     match kind {
-        CallKind::Helper => backend.helper_call(emit, operands.relocation(0)),
-        CallKind::Interpreter => backend.interpreter_call(emit, operands.relocation(0)),
+        CallKind::Helper => backend.helper_call(emit, operands.relocation(0), 1),
+        CallKind::HelperWithTwoArguments => backend.helper_call(emit, operands.relocation(0), 2),
+        CallKind::Interpreter => backend.interpreter_call(emit, operands.relocation(0))?,
         CallKind::RawNative => backend.raw_native_call(emit, operands),
         CallKind::SlowPath => backend.slow_path_call(emit, operands)?,
         CallKind::BinarySlowPath => backend.binary_slow_path_call(emit, operands)?,
@@ -539,7 +522,7 @@ mod tests {
     }
 
     #[test]
-    fn rejects_non_terminal_cold_handler() {
+    fn finalizes_cold_handlers_with_instruction_bodies() {
         let function = allocated_function(
             vec![Instruction {
                 opcode: Operation::Control(ControlOperation::DispatchNext),
@@ -548,10 +531,10 @@ mod tests {
             true,
         );
 
-        let error = finalize_function(function, &runtime()).unwrap_err();
-        assert_eq!(error.stage, CompileStage::Finalization);
-        assert_eq!(error.handler.as_deref(), Some("Test"));
-        assert_eq!(error.message, "cold handler must consist solely of call_slow_path");
+        let machine = finalize_function(function, &runtime()).unwrap();
+        assert!(machine.is_cold);
+        assert_eq!(machine.hot_instructions.len(), 3);
+        assert!(machine.cold_instructions.is_empty());
     }
 
     #[test]

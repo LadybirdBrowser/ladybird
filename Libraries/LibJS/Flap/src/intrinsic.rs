@@ -824,6 +824,7 @@ define_named_intrinsic_enum! {
         JumpSlowPath => "call_jump_slow_path" signatures [signature!([In SlowPath, In Value, In Value, In BytecodeOffset, In BytecodeOffset])];
         Interpreter => "call_interp" signatures [signature!([In FunctionSymbol] -> I32), signature!([In FunctionSymbol, Out AnyGpr])];
         Helper => "call_helper" signatures [signature!([In FunctionSymbol, In AnyGpr, Out AnyGpr])];
+        HelperWithTwoArguments => "call_helper_with_two_arguments" signatures [signature!([In FunctionSymbol, In AnyGpr, In AnyGpr, Out AnyGpr])];
         RawNative => "call_raw_native" signatures [signature!([In AnyGpr] -> (Value, U64)), signature!([In AnyGpr, Out AnyGpr, Out AnyGpr])];
     }
 }
@@ -832,7 +833,7 @@ impl CallOperation {
     pub(crate) fn result_count(self) -> usize {
         match self {
             Self::SlowPath | Self::BinarySlowPath | Self::JumpSlowPath => 0,
-            Self::Interpreter | Self::Helper => 1,
+            Self::Interpreter | Self::Helper | Self::HelperWithTwoArguments => 1,
             Self::RawNative => 2,
         }
     }

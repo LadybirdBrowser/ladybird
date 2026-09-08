@@ -878,6 +878,485 @@ fn store_slow_path_program_counter(
     .map_err(|error| memory_address_compile_error(emit.handler, error))
 }
 
+fn call_values_load(
+    emit: &mut Emit<'_>,
+    width: MemoryWidth,
+    destination: PhysicalRegister,
+    address: MachineMemoryAddress,
+) -> Result<(), CompileError> {
+    use crate::target::registers::aarch64::X15;
+    load(emit, width, false, destination, address, &[X15])
+        .map_err(|error| memory_address_compile_error(emit.handler, error))
+}
+
+fn call_values_store(
+    emit: &mut Emit<'_>,
+    width: MemoryWidth,
+    address: MachineMemoryAddress,
+    source: PhysicalRegister,
+) -> Result<(), CompileError> {
+    use crate::target::registers::aarch64::{X15, X16};
+    store(emit, width, address, StoreSource::Register(source), [X15, X16])
+        .map_err(|error| memory_address_compile_error(emit.handler, error))
+}
+
+fn call_values_add(emit: &mut Emit<'_>, destination: PhysicalRegister, source: PhysicalRegister, value: i64) {
+    emit!(emit.output, Aarch64;
+        Opcode::AddSubtractImmediate { operation: AddSubtractOperation::Add, shift: super::ImmediateShift::None, flags: FlagUpdate::Preserve } => [register destination, register source, immediate value];
+    );
+}
+
+fn call_with_scalar_values(
+    emit: &mut Emit<'_>,
+    function: crate::low_ir::Relocation,
+    layout: &crate::metadata::SlowPathLayout,
+) -> Result<(), CompileError> {
+    use crate::metadata::ParameterMode;
+    use crate::target::registers::aarch64::{SP, X0, X1, X3, X4, X5, X6, X7, X9, X10, X11, X21, X27};
+    let registers = [X3, X4, X5, X6, X7];
+    let inputs: Vec<_> = layout
+        .fields
+        .iter()
+        .filter(|field| field.mode == ParameterMode::In)
+        .collect();
+    let stack_size = (inputs.len().saturating_sub(registers.len()) as i64 * 8 + 15) & !15;
+    if stack_size != 0 {
+        emit!(emit.output, Aarch64;
+            Opcode::AddSubtractImmediate { operation: AddSubtractOperation::Subtract, shift: super::ImmediateShift::None, flags: FlagUpdate::Preserve } => [register SP, register SP, immediate stack_size];
+        );
+    }
+    for (index, field) in inputs.iter().enumerate() {
+        let ready = emit.unique_label("scalar_value_ready");
+        call_values_load(
+            emit,
+            MemoryWidth::Word,
+            X9,
+            MachineMemoryAddress::offset(X21, field.instruction_offset as i64),
+        )?;
+        if field.optional {
+            let empty = emit.constant(KnownLayoutConstant::EmptyValue)?;
+            move_immediate(emit, X10, empty, IntegerWidth::U64);
+            move_immediate(emit, X11, -1, IntegerWidth::U32);
+            emit!(emit.output, Aarch64;
+                Opcode::CompareRegister(IntegerWidth::U32) => [register X9, register X11];
+                Opcode::BranchCondition(super::Condition::Equal) => [label ready.clone()];
+            );
+        }
+        call_values_load(
+            emit,
+            MemoryWidth::DoubleWord,
+            X10,
+            MachineMemoryAddress {
+                scale: Some(8),
+                ..MachineMemoryAddress::indexed(X27, X9)
+            },
+        )?;
+        emit!(emit.output, Aarch64; Opcode::Label => [label ready];);
+        if let Some(register) = registers.get(index) {
+            emit!(emit.output, Aarch64; Opcode::MoveRegister(IntegerWidth::U64) => [register *register, register X10];);
+        } else {
+            call_values_store(
+                emit,
+                MemoryWidth::DoubleWord,
+                MachineMemoryAddress::offset(SP, (index - registers.len()) as i64 * 8),
+                X10,
+            )?;
+        }
+    }
+    interpreter_call_arguments(emit);
+    direct_call(emit, function);
+    if stack_size != 0 {
+        call_values_add(emit, SP, SP, stack_size);
+    }
+    let done = emit.unique_label("scalar_result_done");
+    let continuation_bit = emit.constant(KnownLayoutConstant::SlowPathContinuationBit)?;
+    emit!(emit.output, Aarch64;
+        Opcode::TestBitAndBranch { width: IntegerWidth::U64, condition: TestCondition::Set } => [register X0, immediate 63, label done.clone()];
+        Opcode::TestBitAndBranch { width: IntegerWidth::U64, condition: TestCondition::Clear } => [register X0, immediate continuation_bit, label done.clone()];
+    );
+    if let Some(output) = layout.fields.iter().find(|field| field.mode == ParameterMode::Out) {
+        call_values_load(
+            emit,
+            MemoryWidth::Word,
+            X9,
+            MachineMemoryAddress::offset(X21, output.instruction_offset as i64),
+        )?;
+        call_values_store(
+            emit,
+            MemoryWidth::DoubleWord,
+            MachineMemoryAddress {
+                scale: Some(8),
+                ..MachineMemoryAddress::indexed(X27, X9)
+            },
+            X1,
+        )?;
+    }
+    emit!(emit.output, Aarch64; Opcode::SetInstructionPointer => [register X0];);
+    dispatch_from_instruction_pointer(emit, X9, X10)
+        .map_err(|error| memory_address_compile_error(emit.handler, error))?;
+    emit!(emit.output, Aarch64; Opcode::Label => [label done];);
+    Ok(())
+}
+
+fn call_with_values(
+    emit: &mut Emit<'_>,
+    function: crate::low_ir::Relocation,
+    kind: crate::target::backend::HelperCallKind,
+) -> Result<(), CompileError> {
+    use super::Condition;
+    use crate::metadata::ParameterMode;
+    use crate::target::description::ShiftOperation;
+    use crate::target::registers::aarch64::{
+        SP, X0, X3, X4, X5, X6, X7, X9, X10, X11, X12, X13, X14, X20, X21, X27, X28,
+    };
+
+    let Some(layout) = emit.runtime.slow_paths.get(emit.handler).cloned() else {
+        interpreter_call_arguments(emit);
+        direct_call(emit, function);
+        return Ok(());
+    };
+    if kind == crate::target::backend::HelperCallKind::SlowPath
+        && emit.object_format != crate::ObjectFormat::Coff
+        && layout.uses_scalar_arguments()
+    {
+        return call_with_scalar_values(emit, function, &layout);
+    }
+    let scalar_inputs = kind == crate::target::backend::HelperCallKind::SlowPath
+        && emit.object_format != crate::ObjectFormat::Coff
+        && layout.array.is_none();
+    let input_registers = [X4, X5, X6, X7];
+    let input_count = layout
+        .fields
+        .iter()
+        .filter(|field| field.mode != ParameterMode::Out)
+        .count();
+    let stack_arguments_size = if scalar_inputs {
+        (input_count.saturating_sub(input_registers.len()) as i64 * 8 + 15) & !15
+    } else {
+        0
+    };
+    let values_offset = if layout.array.is_some() { 16 } else { 0 } + stack_arguments_size;
+    let fixed_size = values_offset + layout.fields.len() as i64 * 8;
+    let empty = emit.constant(KnownLayoutConstant::EmptyValue)?;
+    let done = emit.unique_label("values_call_done");
+    if let Some((_, count_offset, _)) = layout.array {
+        call_values_add(emit, X9, SP, 0);
+        let allocate = emit.unique_label("values_allocate");
+        let probe = emit.unique_label("values_probe");
+        let allocated = emit.unique_label("values_allocated");
+        let base_offset = emit.constant(KnownLayoutConstant::VmStackInfoBase)?;
+        let stack_space_limit = emit.constant(KnownLayoutConstant::VmStackSpaceLimit)?;
+        call_values_load(
+            emit,
+            MemoryWidth::Word,
+            X10,
+            MachineMemoryAddress::offset(X21, count_offset as i64),
+        )?;
+        emit!(emit.output, Aarch64;
+            Opcode::ShiftImmediate { operation: ShiftOperation::Left, width: IntegerWidth::U64 } => [register X10, register X10, immediate 3];
+        );
+        call_values_add(emit, X10, X10, fixed_size + 15);
+        emit!(emit.output, Aarch64;
+            Opcode::LogicalImmediate { operation: super::LogicalOperation::And, width: IntegerWidth::U64 } => [register X10, register X10, immediate -16];
+            Opcode::AddSubtractRegister { operation: AddSubtractOperation::Subtract, flags: FlagUpdate::Preserve } => [register X14, register X9, register X10];
+        );
+        call_values_load(
+            emit,
+            MemoryWidth::DoubleWord,
+            X12,
+            MachineMemoryAddress::offset(X20, base_offset),
+        )?;
+        move_immediate(emit, X13, stack_space_limit, IntegerWidth::U64);
+        address_add_register(emit, X12, X12, X13);
+        emit!(emit.output, Aarch64;
+            Opcode::CompareRegister(IntegerWidth::U64) => [register X14, register X12];
+            Opcode::BranchCondition(Condition::UnsignedGreaterOrEqual) => [label allocate.clone()];
+        );
+        if kind == crate::target::backend::HelperCallKind::SlowPath {
+            vm_pc_arguments(emit);
+            direct_call(
+                emit,
+                crate::low_ir::Relocation::function_call(crate::identity::ExternalSymbol::new(
+                    "asm_slow_path_stack_overflow",
+                )),
+            );
+        } else {
+            move_immediate(emit, X0, 1, IntegerWidth::U64);
+        }
+        emit!(emit.output, Aarch64;
+            Opcode::Branch => [label done.clone()];
+            Opcode::Label => [label allocate];
+            Opcode::Label => [label probe.clone()];
+            Opcode::AddSubtractImmediate { operation: AddSubtractOperation::Subtract, shift: super::ImmediateShift::Twelve, flags: FlagUpdate::Preserve } => [register X10, register SP, immediate 1];
+            Opcode::CompareRegister(IntegerWidth::U64) => [register X10, register X14];
+            Opcode::BranchCondition(Condition::UnsignedLessOrEqual) => [label allocated.clone()];
+        );
+        call_values_add(emit, SP, X10, 0);
+        call_values_store(emit, MemoryWidth::DoubleWord, MachineMemoryAddress::offset(SP, 0), XZR)?;
+        emit!(emit.output, Aarch64;
+            Opcode::Branch => [label probe];
+            Opcode::Label => [label allocated];
+        );
+        call_values_add(emit, SP, X14, 0);
+    } else {
+        emit!(emit.output, Aarch64;
+            Opcode::AddSubtractImmediate { operation: AddSubtractOperation::Subtract, shift: super::ImmediateShift::None, flags: FlagUpdate::Preserve } => [register SP, register SP, immediate (fixed_size + 15) & !15];
+        );
+    }
+    if layout.array.is_some() {
+        call_values_store(emit, MemoryWidth::DoubleWord, MachineMemoryAddress::offset(SP, 0), X9)?;
+    }
+    let mut input_index = 0;
+    for field in &layout.fields {
+        if field.mode == ParameterMode::Out {
+            continue;
+        }
+        let ready = emit.unique_label("value_ready");
+        if field.optional {
+            move_immediate(emit, X11, empty, IntegerWidth::U64);
+        }
+        call_values_load(
+            emit,
+            MemoryWidth::Word,
+            X12,
+            MachineMemoryAddress::offset(X21, field.instruction_offset as i64),
+        )?;
+        if field.optional {
+            move_immediate(emit, X13, -1, IntegerWidth::U32);
+            emit!(emit.output, Aarch64;
+                Opcode::CompareRegister(IntegerWidth::U32) => [register X12, register X13];
+                Opcode::BranchCondition(Condition::Equal) => [label ready.clone()];
+            );
+        }
+        call_values_load(
+            emit,
+            MemoryWidth::DoubleWord,
+            X11,
+            MachineMemoryAddress {
+                scale: Some(8),
+                ..MachineMemoryAddress::indexed(X27, X12)
+            },
+        )?;
+        emit!(emit.output, Aarch64; Opcode::Label => [label ready];);
+        if scalar_inputs {
+            if let Some(register) = input_registers.get(input_index) {
+                emit!(emit.output, Aarch64; Opcode::MoveRegister(IntegerWidth::U64) => [register *register, register X11];);
+            } else {
+                call_values_store(
+                    emit,
+                    MemoryWidth::DoubleWord,
+                    MachineMemoryAddress::offset(SP, (input_index - input_registers.len()) as i64 * 8),
+                    X11,
+                )?;
+            }
+        } else {
+            call_values_store(
+                emit,
+                MemoryWidth::DoubleWord,
+                MachineMemoryAddress::offset(SP, values_offset + field.value_offset as i64),
+                X11,
+            )?;
+        }
+        input_index += 1;
+    }
+    if let Some((array_offset, count_offset, optional)) = layout.array {
+        let next = emit.unique_label("array_value_next");
+        let ready = emit.unique_label("array_value_ready");
+        let end = emit.unique_label("array_values_end");
+        move_immediate(emit, X9, 0, IntegerWidth::U64);
+        call_values_load(
+            emit,
+            MemoryWidth::Word,
+            X10,
+            MachineMemoryAddress::offset(X21, count_offset as i64),
+        )?;
+        call_values_add(emit, X14, SP, fixed_size);
+        call_values_add(emit, X3, X21, array_offset as i64);
+        emit!(emit.output, Aarch64;
+            Opcode::Label => [label next.clone()];
+            Opcode::CompareRegister(IntegerWidth::U64) => [register X9, register X10];
+            Opcode::BranchCondition(Condition::UnsignedGreaterOrEqual) => [label end.clone()];
+        );
+        call_values_load(
+            emit,
+            MemoryWidth::Word,
+            X12,
+            MachineMemoryAddress {
+                scale: Some(4),
+                ..MachineMemoryAddress::indexed(X3, X9)
+            },
+        )?;
+        if optional {
+            move_immediate(emit, X11, empty, IntegerWidth::U64);
+            move_immediate(emit, X13, -1, IntegerWidth::U32);
+            emit!(emit.output, Aarch64;
+                Opcode::CompareRegister(IntegerWidth::U32) => [register X12, register X13];
+                Opcode::BranchCondition(Condition::Equal) => [label ready.clone()];
+            );
+        }
+        call_values_load(
+            emit,
+            MemoryWidth::DoubleWord,
+            X11,
+            MachineMemoryAddress {
+                scale: Some(8),
+                ..MachineMemoryAddress::indexed(X27, X12)
+            },
+        )?;
+        emit!(emit.output, Aarch64; Opcode::Label => [label ready];);
+        call_values_store(
+            emit,
+            MemoryWidth::DoubleWord,
+            MachineMemoryAddress {
+                scale: Some(8),
+                ..MachineMemoryAddress::indexed(X14, X9)
+            },
+            X11,
+        )?;
+        call_values_add(emit, X9, X9, 1);
+        emit!(emit.output, Aarch64;
+            Opcode::Branch => [label next];
+            Opcode::Label => [label end];
+        );
+    }
+    interpreter_call_arguments(emit);
+    call_values_add(emit, X3, SP, values_offset);
+    direct_call(emit, function);
+    let restore = emit.unique_label("values_restore_stack");
+    if layout.fields.iter().any(|field| field.mode != ParameterMode::In) {
+        // Normal continuation guarantees the original frame. On exceptions,
+        // only input/output operands are valid, and only while that frame lives.
+        let exceptional = emit.unique_label("values_exceptional_outputs");
+        if kind == crate::target::backend::HelperCallKind::SlowPath {
+            let continuation_bit = emit.constant(KnownLayoutConstant::SlowPathContinuationBit)?;
+            emit!(emit.output, Aarch64;
+                Opcode::TestBitAndBranch { width: IntegerWidth::U64, condition: TestCondition::Set } => [register X0, immediate 63, label exceptional.clone()];
+                Opcode::TestBitAndBranch { width: IntegerWidth::U64, condition: TestCondition::Clear } => [register X0, immediate continuation_bit, label exceptional.clone()];
+            );
+        } else {
+            let execution_context = emit.constant(KnownLayoutConstant::VmRunningExecutionContext)?;
+            call_values_load(
+                emit,
+                MemoryWidth::DoubleWord,
+                X9,
+                MachineMemoryAddress::offset(X20, execution_context),
+            )?;
+            emit!(emit.output, Aarch64;
+                Opcode::CompareRegister(IntegerWidth::U64) => [register X9, register X28];
+                Opcode::BranchCondition(Condition::NotEqual) => [label restore.clone()];
+            );
+            emit!(emit.output, Aarch64;
+                Opcode::CompareAndBranchZero { width: IntegerWidth::U64, condition: ZeroCondition::NonZero } => [register X0, label exceptional.clone()];
+            );
+        }
+        for field in &layout.fields {
+            if field.mode == ParameterMode::In {
+                continue;
+            }
+            let skip = emit.unique_label("skip_output_value");
+            call_values_load(
+                emit,
+                MemoryWidth::Word,
+                X12,
+                MachineMemoryAddress::offset(X21, field.instruction_offset as i64),
+            )?;
+            if field.optional {
+                move_immediate(emit, X13, -1, IntegerWidth::U32);
+                emit!(emit.output, Aarch64;
+                    Opcode::CompareRegister(IntegerWidth::U32) => [register X12, register X13];
+                    Opcode::BranchCondition(Condition::Equal) => [label skip.clone()];
+                );
+            }
+            call_values_load(
+                emit,
+                MemoryWidth::DoubleWord,
+                X11,
+                MachineMemoryAddress::offset(SP, values_offset + field.value_offset as i64),
+            )?;
+            call_values_store(
+                emit,
+                MemoryWidth::DoubleWord,
+                MachineMemoryAddress {
+                    scale: Some(8),
+                    ..MachineMemoryAddress::indexed(X27, X12)
+                },
+                X11,
+            )?;
+            emit!(emit.output, Aarch64; Opcode::Label => [label skip];);
+        }
+        if kind == crate::target::backend::HelperCallKind::SlowPath {
+            if layout.array.is_some() {
+                call_values_load(emit, MemoryWidth::DoubleWord, X9, MachineMemoryAddress::offset(SP, 0))?;
+                call_values_add(emit, SP, X9, 0);
+            } else {
+                call_values_add(emit, SP, SP, (fixed_size + 15) & !15);
+            }
+            emit!(emit.output, Aarch64; Opcode::SetInstructionPointer => [register X0];);
+            dispatch_from_instruction_pointer(emit, X9, X10)
+                .map_err(|error| memory_address_compile_error(emit.handler, error))?;
+        } else {
+            emit!(emit.output, Aarch64; Opcode::Branch => [label restore.clone()];);
+        }
+        emit!(emit.output, Aarch64; Opcode::Label => [label exceptional];);
+        if kind == crate::target::backend::HelperCallKind::SlowPath
+            && layout.fields.iter().any(|field| field.mode == ParameterMode::InOut)
+        {
+            let execution_context = emit.constant(KnownLayoutConstant::VmRunningExecutionContext)?;
+            call_values_load(
+                emit,
+                MemoryWidth::DoubleWord,
+                X9,
+                MachineMemoryAddress::offset(X20, execution_context),
+            )?;
+            emit!(emit.output, Aarch64;
+                Opcode::CompareRegister(IntegerWidth::U64) => [register X9, register X28];
+                Opcode::BranchCondition(Condition::NotEqual) => [label restore.clone()];
+            );
+        }
+        for field in layout.fields.iter().filter(|field| field.mode == ParameterMode::InOut) {
+            let skip = emit.unique_label("skip_exceptional_output");
+            call_values_load(
+                emit,
+                MemoryWidth::Word,
+                X12,
+                MachineMemoryAddress::offset(X21, field.instruction_offset as i64),
+            )?;
+            if field.optional {
+                move_immediate(emit, X13, -1, IntegerWidth::U32);
+                emit!(emit.output, Aarch64;
+                    Opcode::CompareRegister(IntegerWidth::U32) => [register X12, register X13];
+                    Opcode::BranchCondition(Condition::Equal) => [label skip.clone()];
+                );
+            }
+            call_values_load(
+                emit,
+                MemoryWidth::DoubleWord,
+                X11,
+                MachineMemoryAddress::offset(SP, values_offset + field.value_offset as i64),
+            )?;
+            call_values_store(
+                emit,
+                MemoryWidth::DoubleWord,
+                MachineMemoryAddress {
+                    scale: Some(8),
+                    ..MachineMemoryAddress::indexed(X27, X12)
+                },
+                X11,
+            )?;
+            emit!(emit.output, Aarch64; Opcode::Label => [label skip];);
+        }
+    }
+    emit!(emit.output, Aarch64; Opcode::Label => [label restore];);
+    if layout.array.is_some() {
+        call_values_load(emit, MemoryWidth::DoubleWord, X9, MachineMemoryAddress::offset(SP, 0))?;
+        call_values_add(emit, SP, X9, 0);
+    } else {
+        call_values_add(emit, SP, SP, (fixed_size + 15) & !15);
+    }
+    emit!(emit.output, Aarch64; Opcode::Label => [label done];);
+    Ok(())
+}
+
 fn finish_slow_path_call(
     emit: &mut Emit<'_>,
     dispatch_register: PhysicalRegister,
@@ -1186,13 +1665,12 @@ impl Backend for Aarch64Backend {
         );
     }
 
-    fn helper_call(&self, emit: &mut Emit<'_>, function: crate::low_ir::Relocation) {
+    fn helper_call(&self, emit: &mut Emit<'_>, function: crate::low_ir::Relocation, _argument_count: usize) {
         direct_call(emit, function);
     }
 
-    fn interpreter_call(&self, emit: &mut Emit<'_>, function: crate::low_ir::Relocation) {
-        interpreter_call_arguments(emit);
-        direct_call(emit, function);
+    fn interpreter_call(&self, emit: &mut Emit<'_>, function: crate::low_ir::Relocation) -> Result<(), CompileError> {
+        call_with_values(emit, function, crate::target::backend::HelperCallKind::Try)
     }
 
     fn raw_native_call(&self, emit: &mut Emit<'_>, operands: &[AllocatedOperand]) {
@@ -1241,8 +1719,7 @@ impl Backend for Aarch64Backend {
 
         vm_pc_arguments(emit);
         store_slow_path_program_counter(emit, dispatch_register, dispatch_scratch)?;
-        instruction_argument(emit);
-        direct_call(emit, function);
+        call_with_values(emit, function, crate::target::backend::HelperCallKind::SlowPath)?;
         finish_slow_path_call(emit, dispatch_register, dispatch_scratch)
     }
 
@@ -1254,12 +1731,45 @@ impl Backend for Aarch64Backend {
             operands.physical_register(3),
         ];
         let [dispatch_register, dispatch_scratch] = [operands.physical_register(4), operands.physical_register(5)];
-        use crate::target::registers::aarch64::{X2, X3, X4};
+        use crate::target::registers::aarch64::{SP, X0, X2, X3, X4, X9, X10, X27};
 
-        push_parallel_register_moves(emit, &[(X2, destination), (X3, lhs), (X4, rhs)], dispatch_scratch);
+        emit!(emit.output, Aarch64;
+            Opcode::AddSubtractImmediate { operation: AddSubtractOperation::Subtract, shift: super::ImmediateShift::None, flags: FlagUpdate::Preserve } => [register SP, register SP, immediate 16];
+        );
+        call_values_store(
+            emit,
+            MemoryWidth::Word,
+            MachineMemoryAddress::offset(SP, 8),
+            destination,
+        )?;
+        push_parallel_register_moves(emit, &[(X3, lhs), (X4, rhs)], dispatch_scratch);
+        call_values_add(emit, X2, SP, 0);
         vm_pc_arguments(emit);
         store_slow_path_program_counter(emit, dispatch_register, dispatch_scratch)?;
         direct_call(emit, function);
+        let restore = emit.unique_label("binary_result_restore");
+        let continuation_bit = emit.constant(KnownLayoutConstant::SlowPathContinuationBit)?;
+        emit!(emit.output, Aarch64;
+            Opcode::TestBitAndBranch { width: IntegerWidth::U64, condition: TestCondition::Set } => [register X0, immediate 63, label restore.clone()];
+            Opcode::TestBitAndBranch { width: IntegerWidth::U64, condition: TestCondition::Clear } => [register X0, immediate continuation_bit, label restore.clone()];
+        );
+        call_values_load(emit, MemoryWidth::Word, X9, MachineMemoryAddress::offset(SP, 8))?;
+        call_values_load(emit, MemoryWidth::DoubleWord, X10, MachineMemoryAddress::offset(SP, 0))?;
+        call_values_store(
+            emit,
+            MemoryWidth::DoubleWord,
+            MachineMemoryAddress {
+                scale: Some(8),
+                ..MachineMemoryAddress::indexed(X27, X9)
+            },
+            X10,
+        )?;
+        call_values_add(emit, SP, SP, 16);
+        emit!(emit.output, Aarch64; Opcode::SetInstructionPointer => [register X0];);
+        dispatch_from_instruction_pointer(emit, dispatch_register, dispatch_scratch)
+            .map_err(|error| memory_address_compile_error(emit.handler, error))?;
+        emit!(emit.output, Aarch64; Opcode::Label => [label restore];);
+        call_values_add(emit, SP, SP, 16);
         finish_slow_path_call(emit, dispatch_register, dispatch_scratch)
     }
 

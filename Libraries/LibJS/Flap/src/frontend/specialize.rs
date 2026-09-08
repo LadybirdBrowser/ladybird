@@ -182,10 +182,14 @@ pub(crate) fn expand_declarative_specializations(
                 span,
             }
         };
+        let temperature = match specialization.components.as_slice() {
+            [component] => handlers[&component.bytecode].temperature,
+            _ => BlockTemperature::Default,
+        };
         program.declarations.push(Declaration::Handler(HandlerDeclaration {
             name: specialization.definition.name.clone(),
             parameters,
-            temperature: BlockTemperature::Default,
+            temperature,
             body,
             span,
         }));
@@ -416,6 +420,24 @@ mod tests {
     use super::*;
 
     #[test]
+    fn preserves_single_component_handler_temperature() {
+        let source = "handler Source(src: Operand) @cold { dispatch_next; }";
+        let mut program = super::super::parser::parse("test.flap", source).unwrap();
+        let operations = crate::metadata::parse_flap_metadata("test.flap", source).unwrap();
+        let declarations =
+            crate::metadata::parse_specializations("test.flap", "specialize Source(src: Int32);").unwrap();
+        let specializations = crate::metadata::derive_specialized_instructions(&operations, &declarations).unwrap();
+
+        expand_declarative_specializations("test.flap", &mut program, &specializations).unwrap();
+
+        let Some(Declaration::Handler(specialized)) = program.declarations.last() else {
+            panic!("expected specialized handler");
+        };
+        assert_eq!(specialized.name, "SourceSrcInt32");
+        assert_eq!(specialized.temperature, BlockTemperature::Cold);
+    }
+
+    #[test]
     fn accepts_handlerless_programs_without_specializations() {
         let mut program = Program {
             declarations: Vec::new(),
@@ -460,6 +482,7 @@ mod tests {
                     name: "m_field".to_string(),
                     ty: "Operand".to_string(),
                     is_array: false,
+                    mode: crate::metadata::ParameterMode::In,
                 }],
                 is_terminator: false,
                 layout: Default::default(),
