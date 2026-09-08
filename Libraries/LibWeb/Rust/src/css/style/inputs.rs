@@ -874,8 +874,9 @@ impl StyleEngine {
         }
 
         let route_liveness = self.routing.route_liveness(&self.program, &self.programs);
+        let mut checked_keys = HashSet::default();
         self.journal.inputs().any(|input| {
-            let mut keys = match input.key {
+            let keys = match input.key {
                 InputKey::LocalFeature(_, LocalFeatureKey::PartExposure | LocalFeatureKey::ArrivingFacts) => {
                     return true;
                 }
@@ -891,9 +892,12 @@ impl StyleEngine {
                 InputKey::LocalFeature(..) | InputKey::State(..) => routing_keys_for_input(&input),
                 _ => return true,
             };
-            keys.sort_unstable();
-            keys.dedup();
             keys.into_iter().any(|key| {
+                // Geometry independence depends on the routing key's rules, not the node.
+                // Reuse that proof when several journal inputs reach the same key.
+                if !checked_keys.insert(key) {
+                    return false;
+                }
                 self.routing.routes_for(key).iter().copied().any(|route| {
                     if !route_liveness.contains(route.index()) {
                         return false;
