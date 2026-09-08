@@ -1,0 +1,4 @@
+timeline fill is narrower than its track: true
+timeline fill starts at track start: true
+volume fill is narrower than its track: true
+volume fill starts at track start: false

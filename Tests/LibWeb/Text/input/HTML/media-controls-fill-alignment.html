@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<center>
+    <audio id="audio" controls></audio>
+</center>
+<script>
+    const audio = document.getElementById("audio");
+
+    promiseTest(async () => {
+        audio.src = "../../../Assets/test-webm-audio.ogg";
+        await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, { once: true }));
+
+        // Give both fills a width that is neither zero nor the full track, so that a centered fill is displaced.
+        audio.currentTime = audio.duration / 2;
+        await new Promise(resolve => audio.addEventListener("seeked", resolve, { once: true }));
+
+        audio.volume = 0.5;
+        await new Promise(resolve => audio.addEventListener("volumechange", resolve, { once: true }));
+
+        const shadowRoot = internals.getShadowRoot(audio);
+        for (const name of ["timeline", "volume"]) {
+            const trackRect = shadowRoot.querySelector(`.${name}`).getBoundingClientRect();
+            const fillRect = shadowRoot.querySelector(`.${name}-fill`).getBoundingClientRect();
+            println(`${name} fill is narrower than its track: ${fillRect.width > 0 && fillRect.width < trackRect.width}`);
+            println(`${name} fill starts at track start: ${fillRect.left === trackRect.left}`);
+        }
+    });
+</script>
