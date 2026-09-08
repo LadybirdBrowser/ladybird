@@ -16,6 +16,7 @@ pub(crate) struct SizingContext<'pass> {
     purpose: formatting_context::LayoutPurpose,
     records: &'pass RunRecords<'pass>,
     callbacks: LayoutPass<'pass>,
+    style_cache: Cell<Option<(Node, &'pass FfiStylePayloads)>>,
 }
 
 impl<'pass> SizingContext<'pass> {
@@ -28,6 +29,7 @@ impl<'pass> SizingContext<'pass> {
             purpose,
             records,
             callbacks,
+            style_cache: Cell::new(None),
         }
     }
 
@@ -36,7 +38,14 @@ impl<'pass> SizingContext<'pass> {
     }
 
     pub(super) fn style(&self, node: Node) -> StyleValues<'pass> {
-        StyleValues::for_node(&self.callbacks, node)
+        if let Some((cached_node, payloads)) = self.style_cache.get()
+            && cached_node == node
+        {
+            return StyleValues::new(payloads);
+        }
+        let payloads = self.callbacks.style_payloads(node);
+        self.style_cache.set(Some((node, payloads)));
+        StyleValues::new(payloads)
     }
 
     #[track_caller]
