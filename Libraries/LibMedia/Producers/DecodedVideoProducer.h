@@ -103,6 +103,7 @@ private:
         bool handle_seek();
         void resolve_seek(u32 seek_id);
         bool is_within_available_range_while_locked(AK::Duration) const;
+        void re_emit_last_frame_if_at_end_of_stream_while_locked();
         void push_data_and_decode_some_frames();
 
         void enter_halting_state(PipelineStatus, Optional<DecoderError>);
@@ -149,6 +150,7 @@ private:
         bool m_decoder_needs_codec_configuration_next_seek { true };
 
         FrameQueue m_queue;
+        RefPtr<VideoFrame> m_last_queued_frame;
         AK::Duration m_earliest_available_timestamp;
         AK::Duration m_latest_available_timestamp;
         ErrorHandler m_error_handler;

@@ -340,6 +340,7 @@ void DecodedVideoProducer::ThreadData::seek(AK::Duration timestamp)
     m_downstream_needs_wake = true;
 
     if (is_within_available_range_while_locked(timestamp)) {
+        re_emit_last_frame_if_at_end_of_stream_while_locked();
         if (m_last_processed_seek_id != m_seek_id) {
             resolve_seek(m_seek_id.load());
             m_demuxer->reset_blocking_reads_aborted_for_track(m_track);
@@ -402,6 +403,7 @@ bool DecodedVideoProducer::ThreadData::handle_auto_suspension()
     VERIFY(!m_auto_suspended);
 
     m_queue.clear();
+    m_last_queued_frame = nullptr;
     m_latest_available_timestamp = m_earliest_available_timestamp;
     m_decoder.clear();
     m_decoder_needs_keyframe_next_seek = true;
@@ -429,6 +431,7 @@ bool DecodedVideoProducer::ThreadData::handle_auto_suspension()
 void DecodedVideoProducer::ThreadData::queue_frame(NonnullRefPtr<VideoFrame> const& frame)
 {
     m_queue.enqueue({ frame });
+    m_last_queued_frame = frame;
     m_latest_available_timestamp = max(m_latest_available_timestamp, frame->conservative_end());
     dispatch_wake_if_needed_while_locked();
 }
@@ -443,6 +446,13 @@ bool DecodedVideoProducer::ThreadData::is_within_available_range_while_locked(AK
 {
     return timestamp >= m_earliest_available_timestamp
         && (timestamp < m_latest_available_timestamp || m_current_halting_status == PipelineStatus::EndOfStream);
+}
+
+void DecodedVideoProducer::ThreadData::re_emit_last_frame_if_at_end_of_stream_while_locked()
+{
+    if (m_current_halting_status != PipelineStatus::EndOfStream || !m_queue.is_empty() || m_last_queued_frame == nullptr)
+        return;
+    queue_frame(*m_last_queued_frame);
 }
 
 void DecodedVideoProducer::ThreadData::resolve_seek(u32 seek_id)
@@ -479,12 +489,14 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
             m_demuxer->reset_blocking_reads_aborted_for_track(m_track);
 
             if (is_within_available_range_while_locked(timestamp)) {
+                re_emit_last_frame_if_at_end_of_stream_while_locked();
                 resolve_seek(seek_id);
                 dispatch_wake_if_needed_while_locked();
                 return true;
             }
 
             m_queue.clear();
+            m_last_queued_frame = nullptr;
             m_earliest_available_timestamp = timestamp;
             m_latest_available_timestamp = timestamp;
             m_current_halting_status = PipelineStatus::Pending;

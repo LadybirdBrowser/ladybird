@@ -204,8 +204,13 @@ TEST_CASE(video_producer_seeks_past_the_end_resolve_within_queued_data)
     producer->consume();
     EXPECT(pump_until([&] { return producer->peek().status == Media::PipelineStatus::EndOfStream; }));
 
-    // With the final frame consumed, later seeks past the end resolve immediately at end of stream.
+    // With the final frame consumed, nothing downstream is guaranteed to still hold it, so a later seek past the
+    // end re-emits that same frame before reporting end of stream again.
     producer->seek(past_end + AK::Duration::from_seconds(2));
+    auto re_emitted = producer->peek();
+    EXPECT_EQ(re_emitted.status, Media::PipelineStatus::HaveData);
+    EXPECT(re_emitted.frame.ptr() == output.frame.ptr());
+    producer->consume();
     EXPECT_EQ(producer->peek().status, Media::PipelineStatus::EndOfStream);
 }
 
