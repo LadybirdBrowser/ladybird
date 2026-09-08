@@ -1346,6 +1346,17 @@ void CanonicalTraversable::send_changing_navigable_continuation_task(HistoryOper
     VERIFY(pending_job.has_value());
     VERIFY(pending_job.value()->continuation.has_value());
 
+    auto const& target_entry = pending_job.value()->job.target_entry;
+    if (unload_displayed_document == Web::HTML::UnloadDisplayedDocument::Yes && target_entry.document_state.reload_pending) {
+        // INTEROP: Reloading rebuilds the child history tree from the replacement document, as in WebKit.
+        //          Keep the old entries until population succeeds so an abandoned reload preserves them.
+        auto navigable = find(navigable_id);
+        if (navigable.has_value()) {
+            for (auto const& nested_history : target_entry.document_state.nested_histories)
+                remove_nested_history(*navigable, target_entry.document_state.id, nested_history.id);
+        }
+    }
+
     auto continuation = *pending_job.value()->continuation;
     endpoint->client->async_apply_changing_navigable_continuation(
         endpoint->page_id, operation.operation_id, navigable_id,

@@ -983,6 +983,12 @@ void LocalNavigable::continue_navigation_at_population(NavigationPopulationReque
 
 void LocalNavigable::prepare_child_navigable_history_reconstruction(SessionHistoryDocumentStateDescriptor const& document_state_descriptor)
 {
+    // INTEROP: Reloading rebuilds child frames from the new document instead of restoring their previous entries.
+    if (document_state_descriptor.reload_pending) {
+        set_child_navigable_history_reconstruction_ids({});
+        return;
+    }
+
     Vector<Optional<CrossProcessId>> child_navigable_ids;
     child_navigable_ids.ensure_capacity(document_state_descriptor.nested_histories.size());
     for (auto const& nested_history : document_state_descriptor.nested_histories)
