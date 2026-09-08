@@ -148,43 +148,41 @@ GC::Ref<Object> Object::create_with_premade_shape(Shape& shape)
     return shape.realm().create<Object>(shape);
 }
 
+// This is the global object
 Object::Object(GlobalObjectTag, Realm& realm, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
+    : m_shape(heap().allocate<Shape>(realm))
 {
     set_global_object_flag();
     if (may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
         set_may_interfere_with_indexed_property_access();
-    // This is the global object
-    m_shape = heap().allocate<Shape>(realm);
 }
 
 Object::Object(ConstructWithoutPrototypeTag, Realm& realm, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
+    : m_shape(heap().allocate<Shape>(realm))
 {
     if (may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
         set_may_interfere_with_indexed_property_access();
-    m_shape = heap().allocate<Shape>(realm);
 }
 
 Object::Object(Realm& realm, GC::Ptr<Object> prototype, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
+    : m_shape(realm.intrinsics().empty_object_shape())
 {
     if (may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
         set_may_interfere_with_indexed_property_access();
-    m_shape = realm.intrinsics().empty_object_shape();
-    VERIFY(m_shape);
     if (prototype)
         set_prototype(prototype);
 }
 
 Object::Object(ConstructWithPrototypeTag, Object& prototype, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
+    : m_shape(prototype.shape().realm().intrinsics().empty_object_shape())
 {
     if (may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
         set_may_interfere_with_indexed_property_access();
-    m_shape = prototype.shape().realm().intrinsics().empty_object_shape();
-    VERIFY(m_shape);
     set_prototype(&prototype);
 }
 
 Object::Object(Shape& shape, MayInterfereWithIndexedPropertyAccess may_interfere_with_indexed_property_access)
-    : m_shape(&shape)
+    : m_shape(shape)
 {
     if (may_interfere_with_indexed_property_access == MayInterfereWithIndexedPropertyAccess::Yes)
         set_may_interfere_with_indexed_property_access();

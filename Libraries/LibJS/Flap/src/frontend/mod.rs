@@ -9,5 +9,7 @@
 pub(crate) mod ast;
 pub(crate) mod diagnostic;
 pub(crate) mod layout;
+pub(crate) mod layout_source;
+pub(crate) mod object_symbols;
 pub(crate) mod parser;
 pub(crate) mod specialize;
