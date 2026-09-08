@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<audio id="audio" controls></audio>
+<script>
+    function describeVolumeControls(shadowRoot) {
+        const muteButton = shadowRoot.querySelector(".mute-button");
+        const volumeArea = shadowRoot.querySelector(".volume-area");
+        const volumeFill = shadowRoot.querySelector(".volume-fill");
+        const iconState = ["low", "high"].find(name => muteButton.classList.contains(name)) ?? "empty";
+
+        return `muted: ${muteButton.classList.contains("muted")}, icon: ${iconState}, `
+            + `area hidden: ${volumeArea.classList.contains("hidden")}, fill width: ${volumeFill.style.width}`;
+    }
+
+    promiseTest(async () => {
+        const audio = document.getElementById("audio");
+        const shadowRoot = internals.getShadowRoot(audio);
+
+        println(`no source: ${describeVolumeControls(shadowRoot)}`);
+
+        audio.src = "../../../Assets/test-webm-audio.ogg";
+        await new Promise(resolve => audio.addEventListener("loadedmetadata", resolve, { once: true }));
+        println(`loaded:    ${describeVolumeControls(shadowRoot)}`);
+
+        audio.removeAttribute("src");
+        audio.load();
+        await new Promise(resolve => audio.addEventListener("emptied", resolve, { once: true }));
+        println(`emptied:   ${describeVolumeControls(shadowRoot)}`);
+    });
+</script>

@@ -196,7 +196,11 @@ void MediaControls::set_up_event_listeners()
         update_volume_and_mute_indicator();
         return true;
     });
-    add_event_listener(realm, media_element, HTML::EventNames::addtrack, [this] {
+    add_event_listener(realm, *media_element.audio_tracks(), HTML::EventNames::addtrack, [this] {
+        update_volume_and_mute_indicator();
+        return true;
+    });
+    add_event_listener(realm, *media_element.audio_tracks(), HTML::EventNames::removetrack, [this] {
         update_volume_and_mute_indicator();
         return true;
     });
@@ -204,6 +208,7 @@ void MediaControls::set_up_event_listeners()
         update_placeholder_visibility();
         update_timeline();
         update_timestamp();
+        update_volume_and_mute_indicator();
         return true;
     });
 

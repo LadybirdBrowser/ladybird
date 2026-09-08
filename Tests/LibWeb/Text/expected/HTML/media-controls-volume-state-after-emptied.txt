@@ -1,0 +1,3 @@
+no source: muted: true, icon: high, area hidden: true, fill width: 0px
+loaded:    muted: false, icon: high, area hidden: false, fill width: 100%
+emptied:   muted: true, icon: high, area hidden: true, fill width: 0px
