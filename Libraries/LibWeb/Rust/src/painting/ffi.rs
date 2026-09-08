@@ -498,9 +498,7 @@ pub unsafe extern "C" fn layout_arena_paintable_row(arena: *mut c_void, slot: No
 pub unsafe extern "C" fn layout_arena_paintable_overflow_is_valid(arena: *mut c_void, slot: NodeSlotId) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
     let rows = arena.paintable_rows();
-    rows.paintable_row_is_populated(slot)
-        && (rows.paintable_data(slot).overflow_measured_this_commit
-            || arena.paintable_side_data(slot).overflow_valid_across_recommits.get())
+    rows.paintable_row_is_populated(slot) && crate::painting::paintable_geometry::overflow_is_valid(&rows, slot)
 }
 
 /// # Safety
@@ -775,6 +773,49 @@ unsafe fn measure_scrollable_overflow_for_slot(
     for assignment in assignments {
         assignment.apply(&mut paintable_rows);
     }
+}
+
+/// Mirrors the lazy measurement behind `Painting::has_scrollable_overflow`: a box whose overflow
+/// has not been measured since the last commit is measured on demand, which needs the arena
+/// exclusively, so no borrow may be alive across the call.
+///
+/// # Safety
+///
+/// `arena_handle` must be a live handle from `layout_arena_create`, used on the document thread,
+/// with no outstanding borrows of the arena.
+pub(crate) unsafe fn scrollable_overflow_rect_measuring_if_missing(
+    arena_handle: *mut c_void,
+    slot: NodeSlotId,
+    viewport: NodeSlotId,
+    visual_context_callbacks: &crate::painting::host::FfiVisualContextHostCallbacks,
+    overflow_callbacks: &crate::painting::host::FfiScrollableOverflowHostCallbacks,
+) -> Option<crate::css::css_pixels::CssPixelRect> {
+    let needs_measurement = {
+        // SAFETY: Guaranteed by the caller; the borrow ends with this block.
+        let arena = unsafe { arena_from_handle(arena_handle) };
+        let rows = arena.paintable_rows();
+        if !rows.paintable_row_is_populated(slot) {
+            return None;
+        }
+        !crate::painting::paintable_geometry::overflow_is_valid(&rows, slot)
+            && arena
+                .node_kind_if_live(slot)
+                .is_some_and(crate::layout::node_facts::kind_is_box)
+            && rows.paintable_row_is_populated(viewport)
+    };
+    if needs_measurement {
+        // SAFETY: No arena borrow is alive here.
+        unsafe {
+            measure_scrollable_overflow_for_slot(arena_handle, slot, visual_context_callbacks, overflow_callbacks);
+        }
+    }
+    // SAFETY: The measurement's exclusive borrow ended with its call.
+    let arena = unsafe { arena_from_handle(arena_handle) };
+    let rows = arena.paintable_rows();
+    if !crate::painting::paintable_geometry::has_scrollable_overflow(&rows, slot) {
+        return None;
+    }
+    crate::painting::paintable_geometry::scrollable_overflow_rect(&rows, slot)
 }
 
 #[repr(C)]
@@ -2826,62 +2867,6 @@ pub unsafe extern "C" fn layout_arena_stacking_context_structure_verification_re
     if !report.is_empty() {
         // SAFETY: The consumer copies the byte span synchronously.
         unsafe { consume(context, report.as_ptr(), report.len()) };
-    }
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_dump_block_fragments(
-    arena: *mut c_void,
-    paintable: NodeSlotId,
-    indent: usize,
-    interactive: bool,
-    context: *mut c_void,
-    consume: unsafe extern "C" fn(*mut c_void, *const u8, usize),
-) {
-    let arena = unsafe { arena_from_handle(arena) };
-    let paintable_rows = arena.paintable_rows();
-    if !paintable_rows.paintable_row_is_populated(paintable) {
-        return;
-    }
-    let mut out = Vec::new();
-    crate::painting::dump::dump_block_fragments(&mut out, &paintable_rows, paintable, indent, interactive);
-    if !out.is_empty() {
-        // SAFETY: The consumer copies the byte span synchronously.
-        unsafe { consume(context, out.as_ptr(), out.len()) };
-    }
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_dump_inline_piece_fragments(
-    arena: *mut c_void,
-    inline_paintable: NodeSlotId,
-    indent: usize,
-    interactive: bool,
-    context: *mut c_void,
-    consume: unsafe extern "C" fn(*mut c_void, *const u8, usize),
-) {
-    let arena = unsafe { arena_from_handle(arena) };
-    let paintable_rows = arena.paintable_rows();
-    if !paintable_rows.paintable_row_is_populated(inline_paintable) {
-        return;
-    }
-    let mut out = Vec::new();
-    crate::painting::dump::dump_inline_piece_fragments(
-        &mut out,
-        &paintable_rows,
-        inline_paintable,
-        indent,
-        interactive,
-    );
-    if !out.is_empty() {
-        // SAFETY: The consumer copies the byte span synchronously.
-        unsafe { consume(context, out.as_ptr(), out.len()) };
     }
 }
 
