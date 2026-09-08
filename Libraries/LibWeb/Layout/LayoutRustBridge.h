@@ -27,12 +27,6 @@ class Size;
 
 }
 
-namespace Web::Painting {
-
-struct UsedGridTrackList;
-
-}
-
 namespace Web::Layout {
 
 class LayoutRustBridge {
@@ -50,8 +44,6 @@ private:
 
     Box const* m_commit_root { nullptr };
 };
-
-[[nodiscard]] Painting::UsedGridTrackList build_used_grid_track_list(RustFFI::FfiUsedGridTrackList const&);
 
 // True while a synchronous Rust layout pass (including its commit) is on the
 // stack. Computed values must never be replaced in that window: the pass

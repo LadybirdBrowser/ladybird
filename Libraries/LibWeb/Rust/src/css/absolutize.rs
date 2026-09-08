@@ -20,6 +20,96 @@
 use std::cell::Cell;
 use std::sync::Arc;
 
+#[cfg(test)]
+mod grid_tests {
+    use super::*;
+    use crate::css::css_tokenizer::{TokenizerInput, tokenize_for_parser};
+    use crate::css::parser::component_value::consume_a_list_of_component_values;
+    use crate::css::parser::value_parser::{ParseContext, ParseOutcome, parse_css_value};
+    use crate::css::property_metadata::property_id;
+
+    fn parse(property: u16, source: &str) -> Arc<StyleValueData> {
+        let units: Vec<_> = source.encode_utf16().collect();
+        let values = consume_a_list_of_component_values(tokenize_for_parser(TokenizerInput::Utf16(&units))).unwrap();
+        // All fields are scalars or nullable pointers.
+        let context: ParseContext = unsafe { std::mem::zeroed() };
+        let ParseOutcome::Parsed(value) = parse_css_value(&context, property, &values) else {
+            panic!("invalid test value");
+        };
+        value
+    }
+
+    #[test]
+    fn grid_leaf_resolution_preserves_identity_and_retained_children() {
+        unsafe extern "C" fn unchanged(_: *const core::ffi::c_void, value: &StyleValueData) -> *const StyleValueData {
+            unsafe { Arc::increment_strong_count(value) };
+            value
+        }
+        for (property, source) in [
+            (property_id::GRID_ROW_START, "3"),
+            (
+                property_id::GRID_TEMPLATE_COLUMNS,
+                "[雪] repeat(2, minmax(10px, 1fr)) [雨]",
+            ),
+        ] {
+            let value = parse(property, source);
+            let original = crate::css::serialize::serialize_style_value_to_utf16(&value).unwrap();
+            let same = unsafe { Arc::from_raw(rust_grid_style_value_absolutize(&value, std::ptr::null(), unchanged)) };
+            assert!(Arc::ptr_eq(&value, &same));
+            let mut retained = Vec::new();
+            let mapped = map_grid_values(&value, &mut |child| {
+                if child.optional_data().is_some() {
+                    retained.push(child.clone());
+                }
+                Some(child.clone())
+            })
+            .unwrap();
+            drop(value);
+            drop(same);
+            assert!(!retained.is_empty());
+            assert_eq!(
+                crate::css::serialize::serialize_style_value_to_utf16(&mapped).unwrap(),
+                original
+            );
+            drop(mapped);
+            for child in retained {
+                assert!(crate::css::serialize::serialize_style_value_to_utf16(child.data()).is_some());
+            }
+        }
+    }
+
+    #[test]
+    fn grid_leaf_resolution_rebuilds_nested_tracks_without_changing_the_source() {
+        unsafe extern "C" fn resolve(_: *const core::ffi::c_void, value: &StyleValueData) -> *const StyleValueData {
+            match value {
+                StyleValueData::Length { value, unit } => Arc::into_raw(Arc::new(StyleValueData::Length {
+                    value: value * 2.0,
+                    unit: *unit,
+                })),
+                _ => {
+                    unsafe { Arc::increment_strong_count(value) };
+                    value
+                }
+            }
+        }
+        let value = parse(
+            property_id::GRID_TEMPLATE_COLUMNS,
+            "[雪] repeat(2, minmax(10px, 1fr)) [雨]",
+        );
+        let resolved = unsafe { Arc::from_raw(rust_grid_style_value_absolutize(&value, std::ptr::null(), resolve)) };
+        assert!(!Arc::ptr_eq(&value, &resolved));
+        for (value, expected) in [
+            (&value, "[雪] repeat(2, minmax(10px, 1fr)) [雨]"),
+            (&resolved, "[雪] repeat(2, minmax(20px, 1fr)) [雨]"),
+        ] {
+            assert_eq!(
+                crate::css::serialize::serialize_style_value_to_utf16(value).unwrap(),
+                expected.encode_utf16().collect::<Vec<_>>()
+            );
+        }
+    }
+}
+
 use crate::css::color_resolution::{
     ColorResolutionInput, EMPTY_INPUT, PREFERRED_COLOR_SCHEME_DARK, RECTANGULAR_COLOR_SPACE_OKLAB,
     descriptor_for_color_type, normalize_percentage_pair, percentage_from_style_value, resolve_alpha,
@@ -886,33 +976,93 @@ fn absolutize_basic_shape(value: &StyleValueData, context: &AbsolutizationContex
 }
 
 /// Absolutizes a grid track entry list, recursing through repeat() entries.
-fn absolutize_grid_track_entries(
+fn map_grid_track_entries(
     entries: &[crate::css::style_value::RetainedGridTrackEntry],
-    context: &AbsolutizationContext,
-    any_changed: &mut bool,
+    map: &mut impl FnMut(&RetainedStyleValueData) -> Option<RetainedStyleValueData>,
 ) -> Option<Vec<crate::css::style_value::RetainedGridTrackEntry>> {
     use crate::css::style_value::RetainedGridTrackEntry;
-    let mut absolutized = Vec::with_capacity(entries.len());
-    for entry in entries {
-        let size_value = absolutize_child(&entry.size_value, context, any_changed)?;
-        let min_value = absolutize_child(&entry.min_value, context, any_changed)?;
-        let max_value = absolutize_child(&entry.max_value, context, any_changed)?;
-        let repeat_count = absolutize_child(&entry.repeat_count, context, any_changed)?;
-        let nested = absolutize_grid_track_entries(entry.repeat_entries(), context, any_changed)?;
-        absolutized.push(RetainedGridTrackEntry {
-            kind: entry.kind,
-            names: entry.names.clone(),
-            size_value,
-            min_value,
-            max_value,
-            repeat_type: entry.repeat_type,
-            repeat_count,
-            repeat_is_subgrid: entry.repeat_is_subgrid,
-            repeat_preserve_line_name_sets: entry.repeat_preserve_line_name_sets,
-            repeat_entries: RetainedGridTrackEntryList::from_retained_entries(nested),
-        });
+    entries
+        .iter()
+        .map(|entry| {
+            Some(RetainedGridTrackEntry {
+                kind: entry.kind,
+                names: entry.names.clone(),
+                size_value: map(&entry.size_value)?,
+                min_value: map(&entry.min_value)?,
+                max_value: map(&entry.max_value)?,
+                repeat_type: entry.repeat_type,
+                repeat_count: map(&entry.repeat_count)?,
+                repeat_is_subgrid: entry.repeat_is_subgrid,
+                repeat_preserve_line_name_sets: entry.repeat_preserve_line_name_sets,
+                repeat_entries: RetainedGridTrackEntryList::from_retained_entries(map_grid_track_entries(
+                    entry.repeat_entries(),
+                    map,
+                )?),
+            })
+        })
+        .collect()
+}
+
+fn map_grid_values(
+    value: &StyleValueData,
+    map: &mut impl FnMut(&RetainedStyleValueData) -> Option<RetainedStyleValueData>,
+) -> Option<StyleValueData> {
+    Some(match value {
+        StyleValueData::GridTrackPlacement {
+            kind,
+            value,
+            has_name,
+            name,
+            implicit_start_name,
+            implicit_end_name,
+        } => StyleValueData::GridTrackPlacement {
+            kind: *kind,
+            value: map(value)?,
+            has_name: *has_name,
+            name: name.clone(),
+            implicit_start_name: implicit_start_name.clone(),
+            implicit_end_name: implicit_end_name.clone(),
+        },
+        StyleValueData::GridTrackSizeList {
+            is_subgrid,
+            preserve_line_name_sets,
+            entries,
+        } => StyleValueData::GridTrackSizeList {
+            is_subgrid: *is_subgrid,
+            preserve_line_name_sets: *preserve_line_name_sets,
+            entries: RetainedGridTrackEntryList::from_retained_entries(map_grid_track_entries(
+                entries.as_slice(),
+                map,
+            )?),
+        },
+        _ => unreachable!(),
+    })
+}
+
+/// Resolve context-dependent leaves without materializing a C++ grid value graph.
+///
+/// # Safety
+/// The value must be a live grid value. The callback must return one retained reference
+/// for each borrowed leaf and must not mutate the input graph.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_grid_style_value_absolutize(
+    value: &StyleValueData,
+    context: *const core::ffi::c_void,
+    resolve: unsafe extern "C" fn(*const core::ffi::c_void, &StyleValueData) -> *const StyleValueData,
+) -> *const StyleValueData {
+    let mapped = map_grid_values(value, &mut |child| {
+        Some(match child.optional_data() {
+            None => child.clone(),
+            Some(data) => unsafe { RetainedStyleValueData::from_retained_pointer(resolve(context, data)) },
+        })
+    })
+    .unwrap();
+    if mapped == *value {
+        unsafe { Arc::increment_strong_count(value) };
+        value
+    } else {
+        Arc::into_raw(Arc::new(mapped))
     }
-    Some(absolutized)
 }
 
 fn canonicalized_dimension(value: f64, unit: u8, ratios: &[f64]) -> Option<(f64, u8)> {
@@ -1480,43 +1630,10 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
                 }
             )
         }
-        StyleValueData::GridTrackPlacement {
-            kind,
-            value,
-            has_name,
-            name,
-            implicit_start_name,
-            implicit_end_name,
-        } => {
+        StyleValueData::GridTrackPlacement { .. } | StyleValueData::GridTrackSizeList { .. } => {
             let mut changed = false;
-            let value = absolutize_child(value, context, &mut changed)?;
-            rebuild!(
-                changed,
-                StyleValueData::GridTrackPlacement {
-                    kind: *kind,
-                    value,
-                    has_name: *has_name,
-                    name: name.clone(),
-                    implicit_start_name: implicit_start_name.clone(),
-                    implicit_end_name: implicit_end_name.clone(),
-                }
-            )
-        }
-        StyleValueData::GridTrackSizeList {
-            is_subgrid,
-            preserve_line_name_sets,
-            entries,
-        } => {
-            let mut changed = false;
-            let entries = absolutize_grid_track_entries(entries.as_slice(), context, &mut changed)?;
-            rebuild!(
-                changed,
-                StyleValueData::GridTrackSizeList {
-                    is_subgrid: *is_subgrid,
-                    preserve_line_name_sets: *preserve_line_name_sets,
-                    entries: crate::css::style_value::RetainedGridTrackEntryList::from_retained_entries(entries),
-                }
-            )
+            let mapped = map_grid_values(value, &mut |child| absolutize_child(child, context, &mut changed))?;
+            rebuild!(changed, mapped)
         }
 
         // Tree-counting functions resolve from immutable sibling facts captured before the

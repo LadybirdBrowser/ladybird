@@ -11,7 +11,7 @@ use crate::layout::node_data::NodeSlotId;
 use crate::layout::used_values::FfiCssPixelPoint;
 use crate::layout::used_values::FfiCssPixelRect;
 use crate::layout::used_values::FfiCssPixelSize;
-use crate::layout::{grid_formatting_context, svg_formatting_context, used_values};
+use crate::layout::{svg_formatting_context, used_values};
 use crate::painting::display_list::commands::SpatialNodeIndex;
 use crate::painting::display_list::commands::{ClipNodeIndex, ContextRef, EffectNodeIndex};
 use crate::painting::filter_bytes::filter_functions_graph;
@@ -2919,20 +2919,17 @@ pub unsafe extern "C" fn layout_arena_paintable_flex_layout_json(
 pub unsafe extern "C" fn layout_arena_paintable_used_grid_tracks(
     arena: *mut c_void,
     paintable: NodeSlotId,
-    context: *mut c_void,
-    consume: unsafe extern "C" fn(
-        *mut c_void,
-        *const grid_formatting_context::FfiUsedGridTrackList,
-        *const grid_formatting_context::FfiUsedGridTrackList,
-    ),
-) {
+    columns: bool,
+) -> *const c_void {
     let arena = unsafe { arena_from_handle(arena) };
     if !arena.paintable_row_is_populated(paintable) {
-        return;
+        return std::ptr::null();
     }
-    if let Some(tracks) = crate::painting::paintable_geometry::committed_used_grid_tracks(arena, paintable) {
-        tracks.with_ffi_views(|columns, rows| unsafe { consume(context, columns, rows) });
-    }
+    let Some(tracks) = crate::painting::paintable_geometry::committed_used_grid_tracks(arena, paintable) else {
+        return std::ptr::null();
+    };
+    let list = if columns { &tracks.columns } else { &tracks.rows };
+    std::sync::Arc::into_raw(std::sync::Arc::new(list.style_value())).cast()
 }
 
 /// # Safety

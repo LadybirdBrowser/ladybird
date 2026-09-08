@@ -1,0 +1,13 @@
+columns: [雪] 100px 100px [雨]
+rows: 40px 60px
+subgrid: "subgrid [子] [] [末]"
+columns: [雪] 150px 150px [雨]
+rows: 40px 60px
+subgrid: "subgrid [子] [] [末]"
+columns: [初] 20px [中] 280px [終]
+rows: 40px 60px
+subgrid: "subgrid [子] [] [末]"
+placement: 2 / span 1
+columns: none
+rows: 40px 60px
+subgrid: ""

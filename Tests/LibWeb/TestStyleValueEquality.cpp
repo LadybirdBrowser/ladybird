@@ -27,7 +27,6 @@
 #include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -690,23 +689,6 @@ TEST_CASE(rust_overflow_clip_margin_handles_retain_offset_data)
     EXPECT_EQ(offset->to_string(SerializationMode::Normal), "10px"sv);
 }
 
-TEST_CASE(rust_grid_track_placement_handles_retain_line_data)
-{
-    auto data = StyleValueFFI::rust_style_value_create_grid_track_placement(
-        2,
-        StyleValueFFI::rust_style_value_create_integer(3),
-        false,
-        0,
-        0,
-        0);
-
-    auto placement = StyleValue::adopt_rust_style_value_data(data);
-    EXPECT(placement->is_grid_track_placement());
-    auto line = placement->as_grid_track_placement().grid_track_placement().line_number();
-    placement = KeywordStyleValue::create(Keyword::None);
-    EXPECT_EQ(line->to_string(SerializationMode::Normal), "3"sv);
-}
-
 TEST_CASE(rust_counter_handles_retain_counter_style_data)
 {
     auto data = StyleValueFFI::rust_style_value_create_counter(
@@ -1171,25 +1153,6 @@ TEST_CASE(rust_radial_gradient_handles_retain_size_data)
     auto retained_size = StyleValue::adopt_rust_style_value_data(
         StyleValueFFI::rust_style_value_retain(retained_size_data));
     gradient = KeywordStyleValue::create(Keyword::None);
-    EXPECT_EQ(retained_size->to_string(SerializationMode::Normal), "10px"sv);
-}
-
-TEST_CASE(rust_grid_track_list_handles_retain_size_data)
-{
-    auto size = LengthStyleValue::create(Length::make_px(10));
-    StyleValueFFI::GridTrackEntryInput entry {};
-    entry.kind = StyleValueFFI::GridTrackEntryKind::Size;
-    entry.size_value = StyleValueFFI::rust_style_value_retain(size->rust_style_value_data());
-    auto data = StyleValueFFI::rust_style_value_create_grid_track_size_list(false, false, &entry, 1);
-
-    size = LengthStyleValue::create(Length::make_px(20));
-    auto list = StyleValue::adopt_rust_style_value_data(data);
-    EXPECT(list->is_grid_track_size_list());
-    auto const* retained_size_data = static_cast<StyleValueFFI::StyleValueData const*>(
-        static_cast<StyleValueFFI::RetainedGridTrackEntry const*>(list->rust_style_value_data()->grid_track_size_list.entries.pointer)[0].size_value.pointer);
-    auto retained_size = StyleValue::adopt_rust_style_value_data(
-        StyleValueFFI::rust_style_value_retain(retained_size_data));
-    list = KeywordStyleValue::create(Keyword::None);
     EXPECT_EQ(retained_size->to_string(SerializationMode::Normal), "10px"sv);
 }
 

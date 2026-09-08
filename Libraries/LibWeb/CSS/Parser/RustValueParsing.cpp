@@ -21,44 +21,23 @@ namespace Web::CSS::Parser {
 Parser::ParseContextStorage::ParseContextStorage(Parser& parser, ParseContextMode mode, Optional<PropertyID> direct_property_context)
 {
     if (mode != ParseContextMode::Syntax) {
-        if (direct_property_context.has_value()) {
-            VERIFY(parser.m_value_context.is_empty());
-            single_property_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
-            single_property_context.value = to_underlying(*direct_property_context);
-            context.value_contexts = &single_property_context;
-            context.value_context_count = 1;
-        } else if (parser.m_value_context.size() == 1 && parser.m_value_context[0].has<PropertyID>()) {
-            single_property_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
-            single_property_context.value = to_underlying(parser.m_value_context[0].get<PropertyID>());
-            context.value_contexts = &single_property_context;
-            context.value_context_count = 1;
-        } else {
-            value_contexts.ensure_capacity(parser.m_value_context.size());
-            for (auto const& value_context : parser.m_value_context) {
-                ValueParserFFI::FfiValueParsingContext ffi_context {};
-                value_context.visit(
-                    [&](PropertyID property_id) {
-                        ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
-                        ffi_context.value = to_underlying(property_id);
-                    },
-                    [&](FunctionContext const& function_context) {
-                        ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Function;
-                        ffi_context.name = ffi_utf16_view(function_context.name);
-                    },
-                    [&](DescriptorContext const& descriptor_context) {
-                        ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Descriptor;
-                        ffi_context.value = to_underlying(descriptor_context.at_rule);
-                        ffi_context.secondary_value = to_underlying(descriptor_context.descriptor);
-                    },
-                    [&](SpecialContext special_context) {
-                        ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Special;
-                        ffi_context.value = to_underlying(special_context);
-                    });
-                value_contexts.append(ffi_context);
-            }
-            context.value_contexts = value_contexts.data();
-            context.value_context_count = value_contexts.size();
+        for (auto const& value_context : parser.m_value_context) {
+            ValueParserFFI::FfiValueParsingContext ffi_context {};
+            value_context.visit(
+                [&](PropertyID property_id) {
+                    ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Property;
+                    ffi_context.value = to_underlying(property_id);
+                },
+                [&](SpecialContext special_context) {
+                    ffi_context.kind = ValueParserFFI::FfiValueParsingContextKind::Special;
+                    ffi_context.value = to_underlying(special_context);
+                });
+            value_contexts.append(ffi_context);
         }
+        if (direct_property_context.has_value())
+            value_contexts.append({ .kind = ValueParserFFI::FfiValueParsingContextKind::Property, .value = to_underlying(*direct_property_context), .secondary_value = 0, .name = {} });
+        context.value_contexts = value_contexts.data();
+        context.value_context_count = value_contexts.size();
     }
 
     ReadonlyBytes document_url;
@@ -143,17 +122,11 @@ NonnullRefPtr<StyleValue const> Parser::parse_with_a_syntax(Utf16View source, Ru
 
 Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value_from_source(PropertyID property_id, Utf16View source)
 {
-    if (m_value_context.is_empty()) {
-        return parse_css_value_in_rust(property_id, source, property_id);
-    }
-
-    auto context_guard = push_temporary_value_parsing_context(property_id);
-    return parse_css_value_in_rust(property_id, source);
-}
-
-Parser::ParseErrorOr<NonnullRefPtr<StyleValue const>> Parser::parse_css_value_in_rust(PropertyID property_id, Utf16View source, Optional<PropertyID> direct_property_context)
-{
-    auto context = make_parse_context(ParseContextMode::Value, direct_property_context);
+    ScopeGuard reset_random_index = [&] {
+        if (!m_value_context.is_empty() && !m_value_context.find_first_index_if([](auto const& context) { return context.template has<PropertyID>(); }).has_value())
+            m_random_function_index = 0;
+    };
+    auto context = make_parse_context(ParseContextMode::Value, property_id);
     ValueParserFFI::FfiParseStatus status { ValueParserFFI::FfiParseStatus::NotHandled };
     auto const* parsed_value = ValueParserFFI::rust_parse_css_value(
         &context.context, to_underlying(property_id), ffi_utf16_view(source), &status);

@@ -7,6 +7,9 @@
 use crate::css::css_string::CssString;
 use crate::css::descriptor_metadata::CUSTOM_DESCRIPTOR_ID;
 use crate::css::ffi_support::FfiUtf16View;
+use crate::css::serialize::{
+    SerializationMode, StringUnits, TextSink, serialize_an_identifier, serialize_style_value, sink_into_ffi,
+};
 use crate::css::style_value::StyleValueData;
 use std::cell::RefCell;
 use std::ffi::c_void;
@@ -30,10 +33,7 @@ const _: () = {
     assert_send_sync::<DescriptorBlockData>();
 };
 
-struct DescriptorBlockOwner {
-    data: Arc<DescriptorBlockData>,
-    revision: u64,
-}
+type DescriptorBlockOwner = Arc<DescriptorBlockData>;
 
 #[cfg(test)]
 thread_local! {
@@ -59,6 +59,7 @@ pub struct FfiDescriptor {
 }
 
 impl DescriptorData {
+    #[cfg(test)]
     pub(crate) fn view(&self) -> FfiDescriptor {
         FfiDescriptor {
             name: FfiUtf16View {
@@ -76,7 +77,7 @@ impl FfiDescriptorBlock {
     pub(crate) fn data(&self) -> Arc<DescriptorBlockData> {
         match &*self.state.borrow() {
             DescriptorBlockState::Immutable(data) => data.clone(),
-            DescriptorBlockState::Mutable(owner) => owner.borrow().data.clone(),
+            DescriptorBlockState::Mutable(owner) => owner.borrow().clone(),
         }
     }
 
@@ -91,10 +92,7 @@ impl FfiDescriptorBlock {
         if let DescriptorBlockState::Immutable(data) = &*state {
             #[cfg(test)]
             DESCRIPTOR_OWNER_ALLOCATIONS.with(|count| count.set(count.get().checked_add(1).unwrap()));
-            *state = DescriptorBlockState::Mutable(Rc::new(RefCell::new(DescriptorBlockOwner {
-                data: data.clone(),
-                revision: 0,
-            })));
+            *state = DescriptorBlockState::Mutable(Rc::new(RefCell::new(data.clone())));
         }
         let DescriptorBlockState::Mutable(owner) = &*state else {
             unreachable!()
@@ -105,14 +103,7 @@ impl FfiDescriptorBlock {
     fn mutate(&mut self, mutation: impl FnOnce(&mut DescriptorBlockData) -> bool) -> bool {
         let owner = self.owner();
         let mut owner = owner.borrow_mut();
-        if !mutation(Arc::make_mut(&mut owner.data)) {
-            return false;
-        }
-        owner.revision = owner
-            .revision
-            .checked_add(1)
-            .expect("descriptor block revision overflow");
-        true
+        mutation(Arc::make_mut(&mut owner))
     }
 }
 
@@ -157,23 +148,11 @@ pub extern "C" fn rust_descriptor_block_retain(block: &FfiDescriptorBlock) -> *m
 }
 
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_descriptor_block_revision(block: &FfiDescriptorBlock) -> u64 {
-    match &*block.state.borrow() {
-        DescriptorBlockState::Immutable(_) => 0,
-        DescriptorBlockState::Mutable(owner) => owner.borrow().revision,
-    }
-}
-
-#[unsafe(no_mangle)]
 pub extern "C" fn rust_descriptor_block_replace(block: &mut FfiDescriptorBlock, source: &FfiDescriptorBlock) {
     let data = source.data();
     let owner = block.owner();
     let mut owner = owner.borrow_mut();
-    owner.data = data;
-    owner.revision = owner
-        .revision
-        .checked_add(1)
-        .expect("descriptor block revision overflow");
+    *owner = data;
 }
 
 #[unsafe(no_mangle)]
@@ -188,15 +167,72 @@ pub extern "C" fn rust_descriptor_block_length(block: &FfiDescriptorBlock) -> us
     block.data().descriptors.len()
 }
 
+// The block owns the returned value until its next mutation.
 #[unsafe(no_mangle)]
-pub extern "C" fn rust_descriptor_block_visit(
+pub unsafe extern "C" fn rust_descriptor_block_get(
     block: &FfiDescriptorBlock,
-    context: *mut c_void,
-    visit: extern "C" fn(*mut c_void, &FfiDescriptor),
-) {
-    for descriptor in &block.data().descriptors {
-        visit(context, &descriptor.view());
+    id: u8,
+    name: FfiUtf16View,
+) -> *const c_void {
+    let name = unsafe { name.units() }.unwrap();
+    block
+        .data()
+        .descriptors
+        .iter()
+        .find(|descriptor| {
+            descriptor.id == id
+                && (id != CUSTOM_DESCRIPTOR_ID
+                    || (descriptor.name.units().len() == name.len()
+                        && descriptor
+                            .name
+                            .units()
+                            .iter()
+                            .enumerate()
+                            .all(|(index, unit)| *unit == name.code_unit_at(index))))
+        })
+        .map_or(std::ptr::null(), |descriptor| Arc::as_ptr(&descriptor.value).cast())
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_descriptor_block_item(block: &FfiDescriptorBlock, index: usize) -> usize {
+    let data = block.data();
+    let name = data
+        .descriptors
+        .get(index)
+        .map_or(&[][..], |descriptor| descriptor.name.units());
+    ak::Utf16String::from_utf16(name).into_raw()
+}
+
+// https://drafts.csswg.org/cssom/#serialize-a-css-declaration-block
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_descriptor_block_serialize(block: &FfiDescriptorBlock, result: &mut usize) -> bool {
+    let Some(sink) = serialize_descriptors(&block.data()) else {
+        return false;
+    };
+    *result = sink_into_ffi(sink).raw;
+    true
+}
+
+fn serialize_descriptors(data: &DescriptorBlockData) -> Option<TextSink> {
+    let mut sink = TextSink::new();
+    for (index, descriptor) in data.descriptors.iter().enumerate() {
+        if index != 0 {
+            sink.push_ascii(" ");
+        }
+        // AD-HOC: Descriptors have no shorthand serialization or important flags.
+        // Escape names consistently with serialize a CSS declaration.
+        serialize_an_identifier(&mut sink, &StringUnits::Utf16(descriptor.name.units()));
+        sink.push_ascii(": ");
+        let mut value = TextSink::new();
+        if !serialize_style_value(&mut value, &descriptor.value, SerializationMode::Normal) {
+            return None;
+        }
+        if !value.is_ascii_whitespace() {
+            sink.push_sink(&value);
+        }
+        sink.push_ascii(";");
     }
+    Some(sink)
 }
 
 #[unsafe(no_mangle)]
@@ -308,7 +344,18 @@ mod tests {
         let old_data = Arc::downgrade(&snapshot);
         assert_eq!(snapshot.descriptors.len(), 2);
         assert_eq!(rust_descriptor_block_length(block), 2);
-        assert_eq!(rust_descriptor_block_revision(block), 0);
+        let allocations = DESCRIPTOR_OWNER_ALLOCATIONS.get();
+        let descriptor = snapshot.descriptors[0].view();
+        let value = unsafe { rust_descriptor_block_get(block, descriptor.id, descriptor.name) };
+        assert_eq!(value, descriptor.value);
+        assert_eq!(
+            serialize_descriptors(&block.data()).unwrap().into_utf16(),
+            "font-family: 文字; src: url(\"font.woff\");"
+                .encode_utf16()
+                .collect::<Vec<_>>()
+        );
+        assert_eq!(DESCRIPTOR_OWNER_ALLOCATIONS.get(), allocations);
+        assert!(matches!(*block.state.borrow(), DescriptorBlockState::Immutable(_)));
         assert!(rust_descriptor_block_external_memory_size(block) > 0);
         let mut fork = unsafe { Box::from_raw(rust_descriptor_block_share(block)) };
         assert!(!unsafe { rust_descriptor_block_remove(&mut fork, CUSTOM_DESCRIPTOR_ID, FfiUtf16View::default()) });
@@ -321,7 +368,6 @@ mod tests {
         let descriptor = snapshot.descriptors[0].view();
         assert!(unsafe { rust_descriptor_block_remove(&mut retained, descriptor.id, descriptor.name) });
         assert_eq!(rust_descriptor_block_length(block), 1);
-        assert_eq!(rust_descriptor_block_revision(block), 1);
         // The pinned snapshot still owns the removed descriptor.
         assert_eq!(
             unsafe { descriptor.name.to_utf16().unwrap() },
@@ -330,7 +376,6 @@ mod tests {
         assert_eq!(fork.data().descriptors.len(), 2);
         rust_descriptor_block_replace(&mut retained, &fork);
         assert_eq!(rust_descriptor_block_length(block), 2);
-        assert_eq!(rust_descriptor_block_revision(block), 2);
         assert!(matches!(*fork.state.borrow(), DescriptorBlockState::Immutable(_)));
         drop(rules);
         let first = &snapshot.descriptors[0];

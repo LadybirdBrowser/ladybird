@@ -287,24 +287,6 @@ static NonnullRefPtr<StyleValue const> style_value_for_css_pixels(CSSPixels css_
     return LengthStyleValue::create(Length::make_px(css_pixels));
 }
 
-// https://www.w3.org/TR/css-grid-2/#resolved-track-list-standalone
-static NonnullRefPtr<StyleValue const> style_value_for_used_grid_track_list(Painting::UsedGridTrackList const& used_values)
-{
-    auto result = used_values.is_subgrid ? GridTrackSizeList::make_subgrid() : GridTrackSizeList::make_none();
-    for (size_t line_index = 0; line_index < used_values.lines.size(); ++line_index) {
-        auto line_names = used_values.lines[line_index];
-        if (used_values.is_subgrid || !line_names.is_empty())
-            result.append(move(line_names));
-
-        if (line_index < used_values.track_sizes.size()) {
-            result.append(ExplicitGridTrack {
-                GridSize { LengthStyleValue::create(Length::make_px(used_values.track_sizes[line_index])) },
-            });
-        }
-    }
-    return GridTrackSizeListStyleValue::create(move(result));
-}
-
 static NonnullRefPtr<StyleValue const> style_value_for_length_percentage(LengthPercentage const& length_percentage)
 {
     if (length_percentage.is_percentage())
@@ -959,9 +941,7 @@ static bool property_computed_value_may_be_stored_as_style_value_handle(Property
     }
 }
 
-// Serializes the stored value through the Rust serializer. An empty Optional means Rust declined
-// (Shorthand/Transformation/ValueList serialization is still property-aware C++) and the caller
-// must take the wrapper path.
+// Serialize native value data without constructing a C++ style value wrapper.
 static Optional<Utf16String> serialize_style_value_handle(RustStyleValueHandle const& handle, SerializationMode mode)
 {
     auto text = StyleValueFFI::rust_style_value_serialize(handle.data(), to_underlying(mode));
@@ -998,15 +978,12 @@ Optional<Utf16String> CSSStyleProperties::serialized_computed_value_from_stored_
         return {};
 
     // grid-template-columns/rows: with a laid-out grid box, the resolved value reflects the used
-    // track sizes, so only serialize the computed value when no used track list exists.
+    // track sizes rather than the computed track definitions.
     // https://www.w3.org/TR/css-grid-2/#resolved-track-list-standalone
     if (property_id == PropertyID::GridTemplateColumns || property_id == PropertyID::GridTemplateRows) {
         if (layout_node && Painting::has_committed_box(*layout_node)) {
-            auto const& used_values = property_id == PropertyID::GridTemplateColumns
-                ? Painting::used_values_for_grid_template_columns(*layout_node)
-                : Painting::used_values_for_grid_template_rows(*layout_node);
-            if (used_values.has_value())
-                return {};
+            if (auto value = Painting::used_value_for_grid_template(*layout_node, property_id))
+                return serialize_style_value_handle(value, SerializationMode::ResolvedValue);
         }
     }
 
@@ -1428,16 +1405,9 @@ RefPtr<StyleValue const> CSSStyleProperties::style_value_for_computed_property(L
     default:
         // For grid-template-columns and grid-template-rows the resolved value is the used value.
         // https://www.w3.org/TR/css-grid-2/#resolved-track-list-standalone
-        if (property_id == PropertyID::GridTemplateColumns) {
-            if (Painting::has_committed_box(layout_node)) {
-                if (auto const& used_values = Painting::used_values_for_grid_template_columns(layout_node); used_values.has_value())
-                    return style_value_for_used_grid_track_list(*used_values);
-            }
-        } else if (property_id == PropertyID::GridTemplateRows) {
-            if (Painting::has_committed_box(layout_node)) {
-                if (auto const& used_values = Painting::used_values_for_grid_template_rows(layout_node); used_values.has_value())
-                    return style_value_for_used_grid_track_list(*used_values);
-            }
+        if ((property_id == PropertyID::GridTemplateColumns || property_id == PropertyID::GridTemplateRows) && Painting::has_committed_box(layout_node)) {
+            if (auto value = Painting::used_value_for_grid_template(layout_node, property_id))
+                return StyleValue::adopt_rust_style_value_data(value.leak_data());
         }
 
         if (!property_is_shorthand(property_id)) {

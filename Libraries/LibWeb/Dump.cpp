@@ -195,9 +195,10 @@ void dump_descriptors(StringBuilder& builder, CSS::CSSDescriptors const& descrip
 {
     dump_indent(builder, indent_levels);
     builder.appendff("Declarations ({}):\n", descriptors.length());
-    for (auto const& descriptor : descriptors.descriptors()) {
+    for (size_t index = 0; index < descriptors.length(); ++index) {
+        auto name = descriptors.item(index);
         dump_indent(builder, indent_levels);
-        builder.appendff("  {}: '{}'", descriptor.descriptor_name_and_id.name(), descriptor.value->to_string(CSS::SerializationMode::Normal));
+        builder.appendff("  {}: '{}'", name, descriptors.get_property_value(Utf16FlyString::from_utf16(name.utf16_view())));
         builder.append('\n');
     }
 }

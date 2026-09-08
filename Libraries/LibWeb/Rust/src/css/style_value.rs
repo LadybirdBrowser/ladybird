@@ -1447,24 +1447,6 @@ pub enum GridTrackEntryKind {
     Repeat,
 }
 
-/// Borrowed input description of one grid track list entry, used when creating a grid track
-/// size list.
-#[repr(C)]
-pub struct GridTrackEntryInput {
-    kind: GridTrackEntryKind,
-    names: *const usize,
-    name_count: usize,
-    size_value: *const StyleValueData,
-    min_value: *const StyleValueData,
-    max_value: *const StyleValueData,
-    repeat_type: u8,
-    repeat_count: *const StyleValueData,
-    repeat_is_subgrid: bool,
-    repeat_preserve_line_name_sets: bool,
-    repeat_entries: *const GridTrackEntryInput,
-    repeat_entry_count: usize,
-}
-
 /// A Rust-owned array of retained grid track list entries.
 #[repr(C)]
 pub struct RetainedGridTrackEntryList {
@@ -1473,7 +1455,7 @@ pub struct RetainedGridTrackEntryList {
     length: usize,
 }
 
-/// A retained, Rust-owned grid track list entry (see [`GridTrackEntryInput`] for the kinds).
+/// A retained, Rust-owned grid track list entry.
 #[repr(C)]
 #[derive(Clone, PartialEq)]
 pub struct RetainedGridTrackEntry {
@@ -1499,36 +1481,6 @@ impl RetainedGridTrackEntryList {
 
     pub(crate) fn from_retained_entries(entries: Vec<RetainedGridTrackEntry>) -> Self {
         let slice = entries.into_boxed_slice();
-        let length = slice.len();
-        let pointer = Box::into_raw(slice).cast();
-        Self { pointer, length }
-    }
-
-    /// Takes ownership of the entries' retained values and names, recursively for nested
-    /// repeat lists.
-    ///
-    /// # Safety
-    /// `entries` must point to `length` valid entry descriptions.
-    unsafe fn from_raw(entries: *const GridTrackEntryInput, length: usize) -> Self {
-        let slice: Box<[RetainedGridTrackEntry]> = (0..length)
-            .map(|i| {
-                let input = unsafe { &*entries.add(i) };
-                RetainedGridTrackEntry {
-                    kind: input.kind,
-                    names: unsafe { CssStringList::from_raw(input.names, input.name_count) },
-                    size_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(input.size_value) },
-                    min_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(input.min_value) },
-                    max_value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(input.max_value) },
-                    repeat_type: input.repeat_type,
-                    repeat_count: unsafe { RetainedStyleValueData::from_retained_optional_pointer(input.repeat_count) },
-                    repeat_is_subgrid: input.repeat_is_subgrid,
-                    repeat_preserve_line_name_sets: input.repeat_preserve_line_name_sets,
-                    repeat_entries: unsafe {
-                        RetainedGridTrackEntryList::from_raw(input.repeat_entries, input.repeat_entry_count)
-                    },
-                }
-            })
-            .collect();
         let length = slice.len();
         let pointer = Box::into_raw(slice).cast();
         Self { pointer, length }
@@ -3650,27 +3602,6 @@ pub unsafe extern "C" fn rust_style_value_create_counter_definitions(
     }))
 }
 
-/// Takes ownership of one strong reference to the value and one leaked reference to the name
-/// when they are present.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_grid_track_placement(
-    kind: u8,
-    value: *const StyleValueData,
-    has_name: bool,
-    name: usize,
-    implicit_start_name: usize,
-    implicit_end_name: usize,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::GridTrackPlacement {
-        kind,
-        value: unsafe { RetainedStyleValueData::from_retained_optional_pointer(value) },
-        has_name,
-        name: unsafe { CssString::from_leaked_raw(name) },
-        implicit_start_name: unsafe { CssString::from_leaked_raw(implicit_start_name) },
-        implicit_end_name: unsafe { CssString::from_leaked_raw(implicit_end_name) },
-    }))
-}
-
 /// Takes ownership of one strong reference to the first symbol and one leaked reference to the
 /// name when they are present.
 #[unsafe(no_mangle)]
@@ -3891,21 +3822,6 @@ pub unsafe extern "C" fn rust_style_value_create_easing(
         y2: unsafe { RetainedStyleValueData::from_retained_optional_pointer(y2) },
         number_of_intervals: unsafe { RetainedStyleValueData::from_retained_optional_pointer(number_of_intervals) },
         step_position,
-    }))
-}
-
-/// Takes ownership of the entries' retained values and names, recursively.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_grid_track_size_list(
-    is_subgrid: bool,
-    preserve_line_name_sets: bool,
-    entries: *const GridTrackEntryInput,
-    entry_count: usize,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::GridTrackSizeList {
-        is_subgrid,
-        preserve_line_name_sets,
-        entries: unsafe { RetainedGridTrackEntryList::from_raw(entries, entry_count) },
     }))
 }
 

@@ -28,7 +28,6 @@ public:
     virtual Utf16String get_property_value(Utf16FlyString const& property) const override;
     virtual Utf16String get_property_priority(Utf16FlyString const& property) const override;
 
-    Vector<Descriptor> const& descriptors() const { return m_descriptors.descriptors(); }
     RefPtr<StyleValue const> descriptor(DescriptorNameAndID const&) const;
     RefPtr<StyleValue const> descriptor_or_initial_value(DescriptorNameAndID const&) const;
     virtual Utf16String serialized() const override;

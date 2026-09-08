@@ -40,7 +40,6 @@ public:
         return value_at(i);
     }
 
-    void serialize(StringBuilder&, SerializationMode) const;
     GC::Ref<CSSStyleValue> reify(Utf16FlyString const& associated_property) const;
     StyleValueVector subdivide_into_iterations(PropertyNameAndID const&) const;
 

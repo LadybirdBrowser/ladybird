@@ -302,9 +302,7 @@ TEST_CASE(retained_descriptor_blocks_observe_replacement_and_keep_values_alive)
     auto retained = block.retain();
     auto shared = block.share();
     auto borrowed = retained.descriptor(name);
-    auto revision = ValueParserFFI::rust_descriptor_block_revision(block.handle());
     EXPECT(!retained.set(name, *values.properties()[0].value));
-    EXPECT_EQ(ValueParserFFI::rust_descriptor_block_revision(block.handle()), revision);
     EXPECT(block.set(name, *values.properties()[1].value));
     EXPECT_EQ(borrowed->to_utf16_string(SerializationMode::Normal), u"13px"sv);
     EXPECT_EQ(retained.descriptor(name)->to_utf16_string(SerializationMode::Normal), u"29px"sv);
@@ -341,17 +339,17 @@ TEST_CASE(native_descriptor_blocks_preserve_order_and_copy_on_write)
     };
     RustDescriptorBlock block { ValueParserFFI::rust_descriptor_block_create(descriptors, 2) };
     auto shared = block.share();
-    auto unchanged_value = block.descriptors()[1].value;
+    auto unchanged_value = block.descriptor(custom);
     EXPECT(!block.set(first_name, *first_value));
     EXPECT(block.set(first_name, *second_value));
-    EXPECT(block.descriptors()[0].descriptor_name_and_id == first_name);
-    EXPECT_EQ(block.descriptors()[1].value.ptr(), unchanged_value.ptr());
-    EXPECT_EQ(shared.descriptors()[0].value->to_utf16_string(SerializationMode::Normal), u"13px"sv);
+    EXPECT(block.item(0) == first_name.name());
+    EXPECT_EQ(block.descriptor(custom)->rust_style_value_data(), unchanged_value->rust_style_value_data());
+    EXPECT_EQ(shared.property_value(first_name), u"13px"sv);
     EXPECT(block.remove(custom));
     EXPECT(!block.remove(custom));
     EXPECT_EQ(block.size(), 1u);
     EXPECT_EQ(shared.size(), 2u);
-    EXPECT_EQ(shared.descriptors()[1].descriptor_name_and_id.name(), custom.name());
+    EXPECT_EQ(shared.item(1), custom.name());
 }
 
 static RustDeclarationBlock parse_native_declaration_block(Utf16View source)

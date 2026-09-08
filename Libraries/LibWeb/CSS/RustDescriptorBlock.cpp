@@ -4,8 +4,6 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/HashMap.h>
-#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/CSS/Parser/RustSyntaxParsing.h>
 #include <LibWeb/CSS/RustDescriptorBlock.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
@@ -20,10 +18,9 @@ static FfiDescriptor descriptor_view(DescriptorNameAndID const& name, StyleValue
 }
 
 RustDescriptorBlock::RustDescriptorBlock(Vector<Descriptor> descriptors)
-    : m_descriptors(move(descriptors))
 {
     Vector<FfiDescriptor> views;
-    for (auto const& descriptor : m_descriptors)
+    for (auto const& descriptor : descriptors)
         views.append(descriptor_view(descriptor.descriptor_name_and_id, *descriptor.value));
     m_block = rust_descriptor_block_create(views.data(), views.size());
 }
@@ -41,8 +38,6 @@ RustDescriptorBlock::~RustDescriptorBlock()
 
 RustDescriptorBlock::RustDescriptorBlock(RustDescriptorBlock&& other)
     : m_block(exchange(other.m_block, nullptr))
-    , m_descriptors(move(other.m_descriptors))
-    , m_view_revision(other.m_view_revision)
 {
 }
 
@@ -50,8 +45,6 @@ RustDescriptorBlock& RustDescriptorBlock::operator=(RustDescriptorBlock&& other)
 {
     RustDescriptorBlock moved(move(other));
     swap(m_block, moved.m_block);
-    swap(m_descriptors, moved.m_descriptors);
-    swap(m_view_revision, moved.m_view_revision);
     return *this;
 }
 
@@ -76,43 +69,34 @@ size_t RustDescriptorBlock::size() const
     return rust_descriptor_block_length(m_block);
 }
 
-Vector<Descriptor> const& RustDescriptorBlock::descriptors() const
+Utf16String RustDescriptorBlock::item(size_t index) const
 {
-    auto revision = rust_descriptor_block_revision(m_block);
-    if (m_view_revision == revision)
-        return m_descriptors;
-    HashMap<void const*, NonnullRefPtr<StyleValue const>> existing_values;
-    for (auto const& descriptor : m_descriptors)
-        existing_values.set(descriptor.value->rust_style_value_data(), descriptor.value);
-    m_descriptors.clear();
-    struct Context {
-        Vector<Descriptor>& descriptors;
-        HashMap<void const*, NonnullRefPtr<StyleValue const>>& values;
-    } context { m_descriptors, existing_values };
-    rust_descriptor_block_visit(m_block, &context, [](void* raw_context, FfiDescriptor const* borrowed) {
-        auto& context = *static_cast<Context*>(raw_context);
-        auto const& descriptor = *borrowed;
-        auto id = static_cast<DescriptorID>(descriptor.id);
-        auto name = id == DescriptorID::Custom
-            ? DescriptorNameAndID::from_custom_name(Utf16FlyString::from_utf16({ reinterpret_cast<char16_t const*>(descriptor.name.utf16), descriptor.name.length }))
-            : DescriptorNameAndID::from_id(id);
-        auto value = context.values.ensure(descriptor.value, [&] {
-            return NonnullRefPtr<StyleValue const> { StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(reinterpret_cast<StyleValueFFI::StyleValueData const*>(descriptor.value))) };
-        });
-        context.descriptors.append({ move(name), move(value) });
-    });
-    m_view_revision = revision;
-    return m_descriptors;
+    return Utf16String::adopt_raw(rust_descriptor_block_item(m_block, index));
+}
+
+Utf16String RustDescriptorBlock::serialized() const
+{
+    size_t result = 0;
+    VERIFY(rust_descriptor_block_serialize(m_block, &result));
+    return Utf16String::adopt_raw(result);
+}
+
+Utf16String RustDescriptorBlock::property_value(DescriptorNameAndID const& name) const
+{
+    auto* value = rust_descriptor_block_get(m_block, to_underlying(name.id()), Parser::ffi_utf16_view(name.name()));
+    if (!value)
+        return {};
+    auto text = StyleValueFFI::rust_style_value_serialize(value, to_underlying(SerializationMode::Normal));
+    VERIFY(text.has_value);
+    return Utf16String::adopt_raw(text.raw);
 }
 
 RefPtr<StyleValue const> RustDescriptorBlock::descriptor(DescriptorNameAndID const& name) const
 {
-    auto match = descriptors().first_matching([&](Descriptor const& descriptor) {
-        return descriptor.descriptor_name_and_id == name;
-    });
-    if (match.has_value())
-        return match->value;
-    return nullptr;
+    auto* value = rust_descriptor_block_get(m_block, to_underlying(name.id()), Parser::ffi_utf16_view(name.name()));
+    if (!value)
+        return nullptr;
+    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(static_cast<StyleValueFFI::StyleValueData const*>(value)));
 }
 
 RefPtr<StyleValue const> RustDescriptorBlock::descriptor_or_initial_value(AtRuleID at_rule, DescriptorNameAndID const& name) const
@@ -135,7 +119,7 @@ bool RustDescriptorBlock::remove(DescriptorNameAndID const& name)
 
 size_t RustDescriptorBlock::external_memory_size() const
 {
-    return JS::saturating_add_external_memory_size(rust_descriptor_block_external_memory_size(m_block), JS::vector_external_memory_size(m_descriptors));
+    return rust_descriptor_block_external_memory_size(m_block);
 }
 
 }

@@ -9,7 +9,6 @@
 #include <AK/Optional.h>
 #include <AK/Vector.h>
 #include <LibGfx/Color.h>
-#include <LibWeb/CSS/GridTrackSize.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/ShadowData.h>
 #include <LibWeb/PixelUnits.h>
@@ -36,16 +35,6 @@ enum class SelectionState : u8 {
     End,
     StartAndEnd,
     Full,
-};
-
-// Used grid track data captured at layout time as plain values; getComputedStyle
-// reflection mints style values from it on demand.
-struct UsedGridTrackList {
-    bool is_subgrid { false };
-    // One entry per grid line (one more line than there are tracks, unless subgrid);
-    // a line's name list may be empty.
-    Vector<CSS::GridLineNames> lines;
-    Vector<CSSPixels> track_sizes;
 };
 
 struct TextDecorationStyle {

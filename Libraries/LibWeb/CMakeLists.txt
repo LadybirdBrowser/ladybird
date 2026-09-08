@@ -181,8 +181,6 @@ set(SOURCES
     CSS/FontFaceSetLoadEvent.cpp
     CSS/FontFeatureData.cpp
     CSS/Frequency.cpp
-    CSS/GridTrackPlacement.cpp
-    CSS/GridTrackSize.cpp
     CSS/HypotheticalElement.cpp
     CSS/Invalidation/AdoptedStyleSheetInvalidator.cpp
     CSS/Invalidation/AttributeInvalidator.cpp
@@ -271,9 +269,6 @@ set(SOURCES
     CSS/StyleValues/FontSourceStyleValue.cpp
     CSS/StyleValues/FontStyleStyleValue.cpp
     CSS/StyleValues/FrequencyStyleValue.cpp
-    CSS/StyleValues/GridTemplateAreaStyleValue.cpp
-    CSS/StyleValues/GridTrackPlacementStyleValue.cpp
-    CSS/StyleValues/GridTrackSizeListStyleValue.cpp
     CSS/StyleValues/ImageSetStyleValue.cpp
     CSS/StyleValues/ImageStyleValue.cpp
     CSS/StyleValues/IntegerStyleValue.cpp

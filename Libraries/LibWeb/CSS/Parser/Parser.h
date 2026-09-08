@@ -30,14 +30,6 @@
 
 namespace Web::CSS::Parser {
 
-struct FunctionContext {
-    Utf16FlyString name;
-};
-
-struct DescriptorContext {
-    AtRuleID at_rule;
-    DescriptorID descriptor;
-};
 enum SpecialContext : u8 {
     CanvasContextGenericValue,
     DOMMatrixInitString,
@@ -45,7 +37,7 @@ enum SpecialContext : u8 {
     OnScreenCanvasContextFontValue
 };
 // FIXME: Use PropertyNameAndID instead of PropertyID as the context, for registered custom properties.
-using ValueParsingContext = Variant<PropertyID, FunctionContext, DescriptorContext, SpecialContext>;
+using ValueParsingContext = Variant<PropertyID, SpecialContext>;
 
 enum class ParsingMode {
     Normal,
@@ -148,17 +140,14 @@ private:
     public:
         ParseContextStorage(Parser&, ParseContextMode, Optional<PropertyID>);
 
-        Vector<ValueParserFFI::FfiValueParsingContext, 1> value_contexts;
-        ValueParserFFI::FfiValueParsingContext single_property_context {};
+        Vector<ValueParserFFI::FfiValueParsingContext, 2> value_contexts;
         Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_resolution_context;
         ValueParserFFI::ParseContext context {};
     };
 
     ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value_from_source(PropertyID, Utf16View);
-    ParseErrorOr<NonnullRefPtr<StyleValue const>> parse_css_value_in_rust(PropertyID, Utf16View source, Optional<PropertyID> direct_property_context = {});
     ParseContextStorage make_parse_context(ParseContextMode, Optional<PropertyID> direct_property_context = {});
 
-    DOM::Document const* document() const;
     bool in_quirks_mode() const;
     bool is_parsing_svg_presentation_attribute() const;
 
@@ -170,17 +159,6 @@ private:
 
     Vector<ValueParsingContext> m_value_context;
     size_t m_random_function_index = 0;
-    auto push_temporary_value_parsing_context(ValueParsingContext&& context)
-    {
-        m_value_context.append(context);
-        return ScopeGuard { [&] {
-            auto removed_context = m_value_context.take_last();
-
-            // Reset the random function index when we leave the top-level property parsing context
-            if (removed_context.has<PropertyID>() && !m_value_context.find_first_index_if([](ValueParsingContext context) { return context.has<PropertyID>(); }).has_value())
-                m_random_function_index = 0;
-        } };
-    }
     Vector<RuleContext> m_rule_context;
     RustNamespaceContext m_declared_namespaces;
 };

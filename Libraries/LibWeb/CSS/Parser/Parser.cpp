@@ -130,11 +130,6 @@ NonnullRefPtr<StyleValue const> Parser::parse_as_sizes_attribute(Utf16View sourc
     return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(parsed));
 }
 
-DOM::Document const* Parser::document() const
-{
-    return m_document.ptr();
-}
-
 bool Parser::in_quirks_mode() const
 {
     return m_document ? m_document->in_quirks_mode() : false;

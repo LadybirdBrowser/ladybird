@@ -4,11 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-#include <AK/GenericShorthands.h>
 #include <AK/StringBuilder.h>
 #include <AK/Utf8View.h>
 #include <LibWeb/CSS/Serialize.h>
-#include <LibWeb/CSS/StyleValues/StyleValue.h>
 #include <LibWeb/Infra/Strings.h>
 
 namespace Web::CSS {
@@ -352,40 +350,6 @@ Utf16String serialize_a_css_declaration_to_utf16(StringView property, Utf16View 
 
     // 7. Return s.
     return builder.to_string();
-}
-
-String serialize_a_positional_value_list(ReadonlySpan<ValueComparingNonnullRefPtr<StyleValue const>> values, SerializationMode mode)
-{
-    switch (values.size()) {
-    case 2: {
-        auto first_property_serialized = values[0]->to_string(mode);
-        auto second_property_serialized = values[1]->to_string(mode);
-
-        if (first_property_serialized == second_property_serialized)
-            return first_property_serialized;
-
-        return MUST(String::formatted("{} {}", first_property_serialized, second_property_serialized));
-    }
-    case 4: {
-        auto first_property_serialized = values[0]->to_string(mode);
-        auto second_property_serialized = values[1]->to_string(mode);
-        auto third_property_serialized = values[2]->to_string(mode);
-        auto fourth_property_serialized = values[3]->to_string(mode);
-
-        if (first_is_equal_to_all_of(first_property_serialized, second_property_serialized, third_property_serialized, fourth_property_serialized))
-            return first_property_serialized;
-
-        if (first_property_serialized == third_property_serialized && second_property_serialized == fourth_property_serialized)
-            return MUST(String::formatted("{} {}", first_property_serialized, second_property_serialized));
-
-        if (second_property_serialized == fourth_property_serialized)
-            return MUST(String::formatted("{} {} {}", first_property_serialized, second_property_serialized, third_property_serialized));
-
-        return MUST(String::formatted("{} {} {} {}", first_property_serialized, second_property_serialized, third_property_serialized, fourth_property_serialized));
-    }
-    default:
-        VERIFY_NOT_REACHED();
-    }
 }
 
 }
