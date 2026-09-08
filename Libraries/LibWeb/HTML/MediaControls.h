@@ -48,7 +48,6 @@ private:
     void remove_event_listeners();
     void set_up_event_listeners();
 
-    void play();
     void toggle_playback();
     void set_current_time(double);
     void seek_while_scrubbing(double);
