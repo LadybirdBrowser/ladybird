@@ -4232,24 +4232,16 @@ asm_handler_GetById:
     test rcx, rcx
     jz .Lasm_GetById.ssa_block_1
     and rcx, -4
-    mov rdi, QWORD PTR [rcx + 24]
-    mov rax, QWORD PTR [rcx + 32]
-    cmp rdi, rsi
+    cmp QWORD PTR [rcx + 24], rsi
     jne .Lasm_GetById.ssa_block_1
-    mov edi, DWORD PTR [rcx]
-    cmp edi, 6
+    mov eax, DWORD PTR [rcx]
+    cmp eax, 6
     je .Lasm_GetById.ssa_block_1
+    mov rax, QWORD PTR [rcx + 32]
     test rax, rax
     jnz .Lasm_GetById.ssa_block_10
     mov rax, rdx
-    jmp .Lasm_GetById.ssa_block_11
-.Lasm_GetById.ssa_block_10:
-    mov rdi, QWORD PTR [rcx + 40]
-    test rdi, rdi
-    jz .Lasm_GetById.ssa_block_1
-    cmp BYTE PTR [rdi + 10], 0
-    jz .Lasm_GetById.ssa_block_1
-.Lasm_GetById.ssa_block_11:
+.Lasm_GetById.ssa_block_8:
     mov edi, DWORD PTR [rcx + 4]
     mov r8d, DWORD PTR [rcx + 8]
     cmp DWORD PTR [rsi + 92], r8d
@@ -4259,7 +4251,7 @@ asm_handler_GetById:
     mov r11, rax
     shr r11, 48
     cmp r11w, 65532
-    je .Lasm_GetById.ssa_block_8
+    je .Lasm_GetById.ssa_block_9
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rax
     add r13d, 24
@@ -9431,10 +9423,10 @@ asm_handler_GetById_cold:
     mov eax, DWORD PTR [rax + 112]
     mov rax, QWORD PTR [rcx + rax * 8]
     test rax, rax
-    jnz .Lasm_GetById.ssa_block_25
+    jnz .Lasm_GetById.ssa_block_26
     movabs rcx, 9223090561878065152
-    jmp .Lasm_GetById.ssa_block_26
-.Lasm_GetById.ssa_block_25:
+    jmp .Lasm_GetById.ssa_block_27
+.Lasm_GetById.ssa_block_26:
     mov rax, QWORD PTR [rax + rsi * 8]
     test rax, rax
     jz .Lasm_GetById.ssa_block_3
@@ -9448,7 +9440,7 @@ asm_handler_GetById_cold:
     and rcx, rax
     movabs rax, -1970324836974592
     or rcx, rax
-.Lasm_GetById.ssa_block_26:
+.Lasm_GetById.ssa_block_27:
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rcx
     add r13d, 24
@@ -9559,7 +9551,14 @@ asm_handler_GetById_cold:
     add r13d, 24
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_GetById.ssa_block_8:
+.Lasm_GetById.ssa_block_10:
+    mov rdi, QWORD PTR [rcx + 40]
+    test rdi, rdi
+    jz .Lasm_GetById.ssa_block_1
+    cmp BYTE PTR [rdi + 10], 0
+    jz .Lasm_GetById.ssa_block_1
+    jmp .Lasm_GetById.ssa_block_8
+.Lasm_GetById.ssa_block_9:
     movabs r11, 4398046511103
     and rax, r11
     add rax, r15

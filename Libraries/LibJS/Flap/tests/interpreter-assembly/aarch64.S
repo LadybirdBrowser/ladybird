@@ -4217,21 +4217,16 @@ asm_handler_GetById:
     ldr x0, [x0, x3, lsl #3]
     cbz x0, .Lasm_GetById.ssa_block_1
     and x0, x0, #0xfffffffffffffffc
-    ldp x4, x3, [x0, #24]
-    cmp x4, x1
+    ldr x9, [x0, #24]
+    cmp x9, x1
     b.ne .Lasm_GetById.ssa_block_1
-    ldr w4, [x0]
-    cmp w4, #6
+    ldr w3, [x0]
+    cmp w3, #6
     b.eq .Lasm_GetById.ssa_block_1
+    ldr x3, [x0, #32]
     cbnz x3, .Lasm_GetById.ssa_block_10
     mov x3, x2
-    b .Lasm_GetById.ssa_block_11
-.Lasm_GetById.ssa_block_10:
-    ldr x4, [x0, #40]
-    cbz x4, .Lasm_GetById.ssa_block_1
-    ldrb w9, [x4, #10]
-    cbz w9, .Lasm_GetById.ssa_block_1
-.Lasm_GetById.ssa_block_11:
+.Lasm_GetById.ssa_block_8:
     ldp w4, w5, [x0, #4]
     ldr w9, [x1, #92]
     cmp w9, w5
@@ -4241,7 +4236,7 @@ asm_handler_GetById:
     lsr x9, x1, #48
     mov w10, #65532
     cmp x9, x10
-    b.eq .Lasm_GetById.ssa_block_8
+    b.eq .Lasm_GetById.ssa_block_9
     ldr w9, [x21, #4]
     str x1, [x27, x9, lsl #3]
     ldrb w9, [x21, #24]
@@ -9304,10 +9299,10 @@ asm_handler_GetById_cold:
     b.ne .Lasm_GetById.ssa_block_3
     ldr w1, [x1, #112]
     ldr x0, [x0, x1, lsl #3]
-    cbnz x0, .Lasm_GetById.ssa_block_25
+    cbnz x0, .Lasm_GetById.ssa_block_26
     movz x0, #0x7fff, lsl #48
-    b .Lasm_GetById.ssa_block_26
-.Lasm_GetById.ssa_block_25:
+    b .Lasm_GetById.ssa_block_27
+.Lasm_GetById.ssa_block_26:
     ldr x0, [x0, x3, lsl #3]
     cbz x0, .Lasm_GetById.ssa_block_3
     ldr x0, [x0, x4, lsl #3]
@@ -9317,7 +9312,7 @@ asm_handler_GetById_cold:
     and x0, x0, #0x3ffffffffff
     movz x1, #0xfff9, lsl #48
     orr x0, x0, x1
-.Lasm_GetById.ssa_block_26:
+.Lasm_GetById.ssa_block_27:
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #24]
@@ -9420,7 +9415,13 @@ asm_handler_GetById_cold:
     add x21, x21, #24
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_GetById.ssa_block_8:
+.Lasm_GetById.ssa_block_10:
+    ldr x4, [x0, #40]
+    cbz x4, .Lasm_GetById.ssa_block_1
+    ldrb w9, [x4, #10]
+    cbz w9, .Lasm_GetById.ssa_block_1
+    b .Lasm_GetById.ssa_block_8
+.Lasm_GetById.ssa_block_9:
     and x1, x1, #0x3ffffffffff
     add x1, x1, x24
     ldr x1, [x1, #16]
