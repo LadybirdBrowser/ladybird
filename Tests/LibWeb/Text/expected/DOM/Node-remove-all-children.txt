@@ -1,0 +1,15 @@
+Iterator reference before: two
+Color with focus inside: rgb(1, 2, 3)
+Range inside the children: list:0 - list:0
+Range on the parent: list:0 - after#text:1
+Range ending in a child: BODY:0 - list:0
+Unrelated range: after#text:0 - after#text:3
+Iterator reference after: list
+Color after removal: rgb(0, 0, 0)
+Children after removal: 0
+Range across an innerHTML replacement: list:0 - list:0
+Children after replacement: 1
+Caret on the parent, removing one at a time: 0, selection at list:0
+Caret on the parent, removing all at once: 0, selection at list:0
+Caret at the start of the parent, removing one at a time: 0, selection at list:0
+Caret at the start of the parent, removing all at once: 0, selection at list:0

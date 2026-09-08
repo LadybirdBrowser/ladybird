@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #list:focus-within {
+        color: rgb(1, 2, 3);
+    }
+</style>
+<ul id="list"><li id="one">one</li><li id="two">two<input></li><li id="three">three</li></ul>
+<span id="after">after</span>
+<script>
+    promiseTest(async () => {
+        const list = document.getElementById("list");
+        const [one, two, three] = list.children;
+        const after = document.getElementById("after");
+        const name = node => node.nodeType === Node.TEXT_NODE ? `${node.parentNode.id}#text` : node.id || node.nodeName;
+        const describe = range => `${name(range.startContainer)}:${range.startOffset} - ${name(range.endContainer)}:${range.endOffset}`;
+
+        const insideChildren = document.createRange();
+        insideChildren.setStart(one.firstChild, 1);
+        insideChildren.setEnd(three.firstChild, 2);
+        const onParent = document.createRange();
+        onParent.setStart(list, 2);
+        onParent.setEnd(after.firstChild, 1);
+        const intoChild = document.createRange();
+        intoChild.setStart(document.body, 0);
+        intoChild.setEnd(two.firstChild, 1);
+        const unrelated = document.createRange();
+        unrelated.setStart(after.firstChild, 0);
+        unrelated.setEnd(after.firstChild, 3);
+
+        const iterator = document.createNodeIterator(list, NodeFilter.SHOW_ELEMENT);
+        iterator.nextNode();
+        iterator.nextNode();
+        iterator.nextNode();
+        println(`Iterator reference before: ${name(iterator.referenceNode)}`);
+
+        two.querySelector("input").focus();
+        println(`Color with focus inside: ${getComputedStyle(list).color}`);
+
+        list.textContent = "";
+
+        println(`Range inside the children: ${describe(insideChildren)}`);
+        println(`Range on the parent: ${describe(onParent)}`);
+        println(`Range ending in a child: ${describe(intoChild)}`);
+        println(`Unrelated range: ${describe(unrelated)}`);
+        println(`Iterator reference after: ${name(iterator.referenceNode)}`);
+        println(`Color after removal: ${getComputedStyle(list).color}`);
+        println(`Children after removal: ${list.childNodes.length}`);
+
+        list.innerHTML = "<li id='four'>four</li><li id='five'>five</li>";
+        const replaced = document.createRange();
+        replaced.setStart(list.firstChild.firstChild, 1);
+        replaced.setEnd(list, 2);
+        list.innerHTML = "<li>six</li>";
+        println(`Range across an innerHTML replacement: ${describe(replaced)}`);
+        println(`Children after replacement: ${list.childNodes.length}`);
+
+        const selection = getSelection();
+        let selectionChanges = 0;
+        document.addEventListener("selectionchange", () => selectionChanges++);
+        const selectionChangesFromRemoval = async (offset, remove) => {
+            list.innerHTML = "<li>seven</li><li>eight</li>";
+            selection.collapse(list, offset);
+            await timeout(0);
+            selectionChanges = 0;
+            remove();
+            await timeout(0);
+            return `${selectionChanges}, selection at ${name(selection.anchorNode)}:${selection.anchorOffset}`;
+        };
+        const oneAtATime = () => {
+            while (list.firstChild)
+                list.firstChild.remove();
+        };
+        const allAtOnce = () => list.textContent = "";
+        println(`Caret on the parent, removing one at a time: ${await selectionChangesFromRemoval(2, oneAtATime)}`);
+        println(`Caret on the parent, removing all at once: ${await selectionChangesFromRemoval(2, allAtOnce)}`);
+        println(`Caret at the start of the parent, removing one at a time: ${await selectionChangesFromRemoval(0, oneAtATime)}`);
+        println(`Caret at the start of the parent, removing all at once: ${await selectionChangesFromRemoval(0, allAtOnce)}`);
+    });
+</script>
