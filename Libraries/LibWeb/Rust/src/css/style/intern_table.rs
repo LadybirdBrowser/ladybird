@@ -102,9 +102,12 @@ impl<Identity: InternIdentity, Payload> InternTable<Identity, Payload> {
         self.free_identities.pop()
     }
 
-    pub(super) fn shrink_to_fit(&mut self) {
-        self.entries.shrink_to_fit();
-        self.identities.shrink_to_fit(|candidate| candidate.hash);
+    pub(super) fn shrink_excess_capacity(&mut self) {
+        // Retain growth headroom so a batch of removals does not force the next
+        // insertion to allocate and copy the table again.
+        self.entries.shrink_to(self.entries.len().saturating_mul(2));
+        self.identities
+            .shrink_to(self.identities.len().saturating_mul(2), |candidate| candidate.hash);
     }
 
     #[cfg(test)]
