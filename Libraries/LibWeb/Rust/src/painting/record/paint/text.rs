@@ -38,8 +38,14 @@ pub(crate) struct RenderSpan {
     pub end_code_unit: usize,
     pub text_color: u32,
     pub background_color: u32,
+    /// The text's own `text-shadow`, which a highlight overlay paints over.
     pub shadow_layers: Vec<ShadowLayer>,
     pub selection_offsets: Option<SelectionOffsets>,
+    pub selected: bool,
+    pub highlight_shadow_layers: Vec<ShadowLayer>,
+    /// The highlight's color when it has one of its own, which its redraw of the text's original
+    /// decorations takes as well.
+    pub decoration_color: Option<u32>,
     pub selection_text_decoration: Option<SpanTextDecoration>,
 }
 
@@ -122,6 +128,9 @@ fn compute_render_spans<O: Observer>(
                 background_color: 0,
                 shadow_layers: base_shadows(),
                 selection_offsets: None,
+                selected: false,
+                highlight_shadow_layers: Vec::new(),
+                decoration_color: None,
                 selection_text_decoration: None,
             });
             continue;
@@ -148,6 +157,9 @@ fn compute_render_spans<O: Observer>(
                 background_color: 0,
                 shadow_layers: base_shadows(),
                 selection_offsets: Some(selection_offsets),
+                selected: false,
+                highlight_shadow_layers: Vec::new(),
+                decoration_color: None,
                 selection_text_decoration: None,
             });
         }
@@ -159,12 +171,15 @@ fn compute_render_spans<O: Observer>(
                 end_code_unit: selection_end,
                 text_color: selection_text_color,
                 background_color: facts.background_color.0,
-                shadow_layers: if facts.has_text_shadow {
+                shadow_layers: base_shadows(),
+                selection_offsets: Some(selection_offsets),
+                selected: true,
+                highlight_shadow_layers: if facts.has_text_shadow {
                     answer.shadows.clone()
                 } else {
-                    base_shadows()
+                    Vec::new()
                 },
-                selection_offsets: Some(selection_offsets),
+                decoration_color: facts.text_color.has_value.then_some(facts.text_color.value.0),
                 selection_text_decoration: facts.has_text_decoration.then_some(SpanTextDecoration {
                     lines: facts.text_decoration_lines,
                     line_count: facts.text_decoration_line_count,
@@ -183,6 +198,9 @@ fn compute_render_spans<O: Observer>(
                 background_color: 0,
                 shadow_layers: base_shadows(),
                 selection_offsets: Some(selection_offsets),
+                selected: false,
+                highlight_shadow_layers: Vec::new(),
+                decoration_color: None,
                 selection_text_decoration: None,
             });
         }
@@ -248,11 +266,26 @@ pub(crate) fn paint_fragments_foreground<O: Observer>(
     filter.for_each_owned_fragment_index(fragment_count, |index| owned_fragment_indices.push(index as u32));
     let spans = compute_render_spans(recorder, block, &owned_fragment_indices);
 
+    // https://drafts.csswg.org/css-pseudo-4/#highlight-painting
+    // A highlight pseudo-element suppresses the normal drawing of any associated text, and the text
+    // decorations (other than shadows) that had been applied to that text. Instead the topmost active
+    // highlight overlay redraws that text (and those decorations) over all the highlight overlay
+    // backgrounds using that highlight's own color.
+    for span in &spans {
+        paint_text_shadow(recorder, block, span, &span.shadow_layers);
+    }
+    for span in spans.iter().filter(|span| !span.selected) {
+        let sets = crate::painting::record::paint::text_decoration::decoration_sets_for_span(recorder, block, span);
+        paint_text_fragment(recorder, block, span, &sets);
+    }
+
+    // Each highlight pseudo-element draws its background over the corresponding portion of the
+    // highlight overlay, painting it immediately below any positioned descendants.
     let selection_backdrop = recorder
         .layout_arena
         .node_style_if_live(block)
         .map(|style| Color(style.background().background_color));
-    for span in &spans {
+    for span in spans.iter().filter(|span| span.selected) {
         if Color(span.background_color).alpha() > 0 {
             let selection_rect = selection_rect(recorder, block, span);
             let converter = recorder.converter;
@@ -266,10 +299,12 @@ pub(crate) fn paint_fragments_foreground<O: Observer>(
         }
     }
 
-    for span in &spans {
-        paint_text_shadow(recorder, block, span);
+    // Any text-shadow applying to a highlight pseudo-element is drawn over its corresponding
+    // highlight overlay background.
+    for span in spans.iter().filter(|span| span.selected) {
+        paint_text_shadow(recorder, block, span, &span.highlight_shadow_layers);
     }
-    for span in &spans {
+    for span in spans.iter().filter(|span| span.selected) {
         let sets = crate::painting::record::paint::text_decoration::decoration_sets_for_span(recorder, block, span);
         paint_text_fragment(recorder, block, span, &sets);
     }
@@ -286,8 +321,13 @@ fn selection_rect<O: Observer>(recorder: &PaintRecorder<'_, O>, block: NodeSlotI
     })
 }
 
-fn paint_text_shadow<O: Observer>(recorder: &mut PaintRecorder<'_, O>, block: NodeSlotId, span: &RenderSpan) {
-    if span.shadow_layers.is_empty() {
+fn paint_text_shadow<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    block: NodeSlotId,
+    span: &RenderSpan,
+    shadow_layers: &[ShadowLayer],
+) {
+    if shadow_layers.is_empty() {
         return;
     }
     let side = recorder.layout_arena.paintable_side_data(block);
@@ -330,7 +370,7 @@ fn paint_text_shadow<O: Observer>(recorder: &mut PaintRecorder<'_, O>, block: No
     let font_id = recorder.register_font(&run.font);
 
     // Shadow layers are ordered front-to-back, so we paint them in reverse.
-    for layer in span.shadow_layers.iter().rev() {
+    for layer in shadow_layers.iter().rev() {
         let blur_radius = converter.rounded_device_pixels(layer.blur_radius);
         // Space around the painted text to allow it to blur.
         let margin = blur_radius * 2;

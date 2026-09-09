@@ -171,23 +171,6 @@ pub(crate) fn decoration_sets_for_span<O: Observer>(
         sets.push(set);
     };
 
-    // A span with an explicit text decoration (from ::selection) replaces the decorations this text would
-    // otherwise be painted with.
-    if let Some(selection_text_decoration) = &span.selection_text_decoration {
-        let glyph_height = first_available_font(arena, text_parent).map_or(CssPixels::from_raw(0), |font| {
-            CssPixels::nearest_value_for_f32(font.facts().pixel_size)
-        });
-        let thickness = resolve_text_decoration_thickness(arena, text_parent, text_parent, glyph_height);
-        push_set(
-            text_parent,
-            &selection_text_decoration.lines[..selection_text_decoration.line_count as usize],
-            selection_text_decoration.style,
-            selection_text_decoration.color,
-            thickness,
-        );
-        return sets;
-    }
-
     let block_node = block;
     // https://drafts.csswg.org/css-text-decor-4/#decorating-box
     // When specified on or propagated to an inline box, that box becomes a decorating box for that decoration,
@@ -210,7 +193,7 @@ pub(crate) fn decoration_sets_for_span<O: Observer>(
                     current,
                     lines,
                     text_reset.text_decoration_style,
-                    text_reset.text_decoration_color,
+                    span.decoration_color.unwrap_or(text_reset.text_decoration_color),
                     thickness,
                 );
             }
@@ -246,7 +229,7 @@ pub(crate) fn decoration_sets_for_span<O: Observer>(
                         block_node,
                         lines,
                         text_reset.text_decoration_style,
-                        text_reset.text_decoration_color,
+                        span.decoration_color.unwrap_or(text_reset.text_decoration_color),
                         thickness,
                     );
                 }
@@ -256,6 +239,23 @@ pub(crate) fn decoration_sets_for_span<O: Observer>(
             }
             propagated = arena.node_parent_if_live(current);
         }
+    }
+
+    // https://drafts.csswg.org/css-pseudo-4/#highlight-text
+    // Any text decorations introduced by each highlight pseudo-element are stacked in the same order as their
+    // backgrounds over the text's original decorations and are all drawn, each decoration in its own color.
+    if let Some(selection_text_decoration) = &span.selection_text_decoration {
+        let glyph_height = first_available_font(arena, text_parent).map_or(CssPixels::from_raw(0), |font| {
+            CssPixels::nearest_value_for_f32(font.facts().pixel_size)
+        });
+        let thickness = resolve_text_decoration_thickness(arena, text_parent, text_parent, glyph_height);
+        push_set(
+            text_parent,
+            &selection_text_decoration.lines[..selection_text_decoration.line_count as usize],
+            selection_text_decoration.style,
+            selection_text_decoration.color,
+            thickness,
+        );
     }
     sets
 }

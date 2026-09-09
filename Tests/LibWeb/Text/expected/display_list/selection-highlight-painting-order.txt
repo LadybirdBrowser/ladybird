@@ -1,0 +1,21 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  effects:
+    [e0 in s0] effects=[]
+
+DisplayList:
+PaintTextShadow@s1/e0 shadow_rect=[2,22 56x20] rect=[2,22 56x20] translation=[2,38] blur_radius=0 color=rgb(4, 5, 6) orientation=Horizontal
+PaintTextShadow@s1/e0 shadow_rect=[2,22 56x20] rect=[2,22 56x20] translation=[2,38] blur_radius=0 color=rgb(4, 5, 6) orientation=Horizontal
+PaintTextShadow@s1/e0 shadow_rect=[2,22 56x20] rect=[2,22 56x20] translation=[2,38] blur_radius=0 color=rgb(4, 5, 6) orientation=Horizontal
+DrawGlyphRun@s1/e0 rect=[0,20 56x20] translation=[0,36] color=rgb(1, 2, 3) inline_clips=[clip=[0,20 12x18]]
+DrawLine@s1/e0 from=[0,39] to=[12,39] color=rgb(7, 8, 9) thickness=2 style=Solid
+DrawGlyphRun@s1/e0 rect=[0,20 56x20] translation=[0,36] color=rgb(1, 2, 3) inline_clips=[clip=[44,20 11x18]]
+DrawLine@s1/e0 from=[44,39] to=[55,39] color=rgb(7, 8, 9) thickness=2 style=Solid
+FillRect@s1/e0 rect=[12,20 32x20] color=rgb(13, 14, 15)
+PaintTextShadow@s1/e0 shadow_rect=[4,24 56x20] rect=[4,24 56x20] translation=[4,40] blur_radius=0 color=rgb(16, 17, 18) orientation=Horizontal
+DrawGlyphRun@s1/e0 rect=[0,20 56x20] translation=[0,36] color=rgb(10, 11, 12) inline_clips=[clip=[12,20 32x18]]
+DrawLine@s1/e0 from=[12,39] to=[44,39] color=rgb(10, 11, 12) thickness=2 style=Solid
+DrawLine@s1/e0 from=[12,29] to=[44,29] color=rgb(19, 20, 21) thickness=2 style=Solid
+

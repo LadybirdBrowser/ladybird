@@ -1,0 +1,42 @@
+<!doctype html>
+<meta charset="utf-8">
+<!-- see “Selection regression tests” in README.md -->
+<title>CSS Pseudo-Elements Test: originating line-through decorations paint over ::selection backgrounds on selected text</title>
+<link rel="author" name="Delan Azabani" href="mailto:dazabani@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#highlight-painting">
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-4/#painting">
+<link rel="help" href="https://www.w3.org/TR/CSS22/zindex.html#painting-order">
+<link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/selection-originating-strikethrough-order-ref.html">
+<meta name="assert" value="This test verifies that originating line-through decorations on selected text are not obscured by ::selection background.">
+<script src="support/selections.js"></script>
+<link rel="stylesheet" href="support/highlights.css">
+<link rel="stylesheet" href="../../fonts/ahem.css">
+<style>
+    main {
+        font: 80px/1 Ahem;
+        margin: 0.5em;
+        width: min-content;
+        color: black;
+        text-decoration: 1em black solid line-through;
+    }
+    main::selection {
+        /*
+            Safari on macOS: with an opaque selection background, the
+            used value will be translucent. The ref shouldn’t need to
+            take this into account, as the selected text and its
+            decorations should entirely obscure the background.
+        */
+        background: white;
+        color: black;
+    }
+</style>
+<p>Test passes if there is one line of constant thickness below.
+<main class="highlight_reftest">ppppp</main>
+<script>
+    const target = document.querySelector("main");
+    selectRangeWith(range => {
+        range.selectNodeContents(target);
+        range.setStart(target.childNodes[0], 1);
+        range.setEnd(target.childNodes[0], 4);
+    });
+</script>

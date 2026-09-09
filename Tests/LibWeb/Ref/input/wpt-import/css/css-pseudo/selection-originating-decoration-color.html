@@ -1,0 +1,36 @@
+<!doctype html>
+<meta charset="utf-8">
+<!-- see “Selection regression tests” in README.md -->
+<title>CSS Pseudo-Elements Test: originating decorations on unselected parts remain in originating text-decoration-color when selecting text</title>
+<link rel="author" name="Delan Azabani" href="mailto:dazabani@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#highlight-painting">
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-4/#painting">
+<link rel="help" href="https://www.w3.org/TR/CSS22/zindex.html#painting-order">
+<link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/selection-originating-decoration-color-ref.html">
+<meta name="assert" value="This test verifies that selecting text does not cause originating decorations on unselected parts, which should always paint in originating text-decoration-color, to paint in a different color. Such decorations should only recolor to ::selection color in the selected part.">
+<script src="support/selections.js"></script>
+<link rel="stylesheet" href="support/highlights.css">
+<link rel="stylesheet" href="../../fonts/ahem.css">
+<style>
+    main {
+        font: 80px/1 Ahem;
+        margin: 0.5em;
+        width: min-content;
+        color: black;
+        text-decoration: 0.125em black solid line-through;
+    }
+    main::selection {
+        background: transparent;
+        color: green;
+    }
+</style>
+<p>Test passes if there are two green lines of the same length.
+<main class="highlight_reftest">ppppp</main>
+<script>
+    const target = document.querySelector("main");
+    selectRangeWith(range => {
+        range.selectNodeContents(target);
+        range.setStart(target.childNodes[0], 1);
+        range.setEnd(target.childNodes[0], 4);
+    });
+</script>
