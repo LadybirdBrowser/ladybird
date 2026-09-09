@@ -853,10 +853,24 @@ bool VideoToolboxVideoDecoder::may_pull_frame_from_reorder_queue_while_locked() 
     return m_outputs.size() > frames_that_may_still_be_preceded;
 }
 
-DecoderErrorOr<NonnullRefPtr<VideoFrame>> VideoToolboxVideoDecoder::take_next_output(CodingIndependentCodePoints const& container_cicp)
+DecoderErrorOr<NonnullRefPtr<VideoFrame>> VideoToolboxVideoDecoder::take_next_output(CodingIndependentCodePoints const& container_cicp, Optional<AK::Duration> target)
 {
     Sync::MutexLocker locker { m_output_mutex };
     while (true) {
+        // The frame covering a target is the one the caller is after, and nothing decoded later can precede it, so
+        // it need not wait behind the reorder window.
+        if (target.has_value()) {
+            for (size_t index = 0; index < m_outputs.size(); index++) {
+                auto const& output = m_outputs[index];
+                if (*target < output.timestamp || *target >= output.timestamp + output.duration)
+                    continue;
+                auto frame = TRY(adopt_output_while_locked(container_cicp, index));
+                // Everything the covering frame was queued behind precedes the target.
+                m_outputs.remove(0, index + 1);
+                return frame;
+            }
+        }
+
         if (may_pull_frame_from_reorder_queue_while_locked())
             break;
 
@@ -870,7 +884,14 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> VideoToolboxVideoDecoder::take_next_ou
         m_output_arrived.wait();
     }
 
-    auto const& output = m_outputs.first();
+    auto frame = TRY(adopt_output_while_locked(container_cicp, 0));
+    m_outputs.remove(0);
+    return frame;
+}
+
+DecoderErrorOr<NonnullRefPtr<VideoFrame>> VideoToolboxVideoDecoder::adopt_output_while_locked(CodingIndependentCodePoints const& container_cicp, size_t index)
+{
+    auto const& output = m_outputs[index];
 
     auto acquired_slot = m_surface_pool->try_acquire(output.surface);
     if (!acquired_slot.has_value())
@@ -883,11 +904,9 @@ DecoderErrorOr<NonnullRefPtr<VideoFrame>> VideoToolboxVideoDecoder::take_next_ou
     auto cicp = container_cicp;
     cicp.adopt_specified_values(output.cicp);
 
-    auto frame = DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(
+    return DECODER_TRY_ALLOC(try_make_ref_counted<VideoFrame>(
         output.timestamp, output.duration, output.size.to_type<u32>(),
         output.bit_depth, output.subsampling, cicp, pool_slot_result.release_value()));
-    m_outputs.remove(0);
-    return frame;
 }
 
 void VideoToolboxVideoDecoder::flush()

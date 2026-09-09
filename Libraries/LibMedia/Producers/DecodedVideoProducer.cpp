@@ -568,7 +568,7 @@ bool DecodedVideoProducer::ThreadData::handle_seek()
             VERIFY(m_decoder);
 
             while (new_seek_id == seek_id) {
-                auto frame_result = m_decoder->take_next_output(m_track.video_data().cicp);
+                auto frame_result = m_decoder->take_next_output(m_track.video_data().cicp, timestamp);
                 if (frame_result.is_error()) {
                     if (frame_result.error().category() == DecoderErrorCategory::EndOfStream) {
                         auto error_or_decoder_was_replaced = replace_drained_decoder();

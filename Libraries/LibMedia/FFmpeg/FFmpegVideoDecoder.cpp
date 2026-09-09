@@ -176,7 +176,7 @@ void FFmpegVideoDecoder::signal_end_of_stream()
     VERIFY(result == 0 || result == AVERROR_EOF);
 }
 
-DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVideoDecoder::take_next_output(CodingIndependentCodePoints const& container_cicp)
+DecoderErrorOr<NonnullRefPtr<VideoFrame>> FFmpegVideoDecoder::take_next_output(CodingIndependentCodePoints const& container_cicp, [[maybe_unused]] Optional<AK::Duration> target)
 {
     while (!m_has_pending_frame) {
         auto result = avcodec_receive_frame(m_codec_context, m_frame);
