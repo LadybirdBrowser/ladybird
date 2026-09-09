@@ -54,6 +54,7 @@ pub struct PaintableData {
 
     pub enclosing_scroll_node_index: SpatialNodeIndex,
     pub own_scroll_node_index: SpatialNodeIndex,
+    pub scrollable_node_identity: i64,
     pub has_accumulated_visual_context: bool,
     pub accumulated_visual_context: ContextRef,
     pub accumulated_visual_context_for_descendants: ContextRef,
@@ -78,6 +79,7 @@ impl Default for PaintableData {
             establishes_stacking_context: false,
             enclosing_scroll_node_index: SpatialNodeIndex::default(),
             own_scroll_node_index: SpatialNodeIndex::default(),
+            scrollable_node_identity: 0,
             has_accumulated_visual_context: false,
             accumulated_visual_context: ContextRef::default(),
             accumulated_visual_context_for_descendants: ContextRef::default(),

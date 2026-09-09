@@ -32,6 +32,7 @@ pub(crate) struct PaintableVisualContextAssignment {
     pub slot: NodeSlotId,
     pub enclosing_scroll_node_index: SpatialNodeIndex,
     pub own_scroll_node_index: SpatialNodeIndex,
+    pub scrollable_node_identity: i64,
     pub has_accumulated_visual_context: bool,
     pub accumulated_visual_context: ContextRef,
     pub accumulated_visual_context_for_descendants: ContextRef,
@@ -48,6 +49,7 @@ impl PaintableVisualContextAssignment {
             slot,
             enclosing_scroll_node_index: data.enclosing_scroll_node_index,
             own_scroll_node_index: data.own_scroll_node_index,
+            scrollable_node_identity: data.scrollable_node_identity,
             has_accumulated_visual_context: data.has_accumulated_visual_context,
             accumulated_visual_context: data.accumulated_visual_context,
             accumulated_visual_context_for_descendants: data.accumulated_visual_context_for_descendants,
@@ -65,6 +67,7 @@ impl PaintableVisualContextAssignment {
             data.establishes_stacking_context = self.record.stacking_context.establishes_stacking_context;
             data.enclosing_scroll_node_index = self.enclosing_scroll_node_index;
             data.own_scroll_node_index = self.own_scroll_node_index;
+            data.scrollable_node_identity = self.scrollable_node_identity;
             data.has_accumulated_visual_context = self.has_accumulated_visual_context;
             data.accumulated_visual_context = self.accumulated_visual_context;
             data.accumulated_visual_context_for_descendants = self.accumulated_visual_context_for_descendants;
@@ -253,6 +256,7 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
     );
     assignment.enclosing_scroll_node_index = VISUAL_VIEWPORT_NODE_INDEX;
     assignment.own_scroll_node_index = VISUAL_VIEWPORT_NODE_INDEX;
+    assignment.scrollable_node_identity = 0;
     assignment.fixed_background_visual_context = ContextRef::default();
     assignment.has_fixed_background_visual_context = false;
     assignment.has_scroll_offset_dependent_background = false;
@@ -596,6 +600,7 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
         );
         let scroll_node_index = state_for_descendants.spatial;
         assignment.own_scroll_node_index = scroll_node_index;
+        assignment.scrollable_node_identity = env.callbacks.scroll_node_identity(layout_arena.shell_if_live(slot));
         nearest_scroll_nodes_for_descendants = NearestScrollNodeIndices {
             stopping_at_fixed_position_ancestors: scroll_node_index,
             continuing_through_fixed_position_ancestors: scroll_node_index,
