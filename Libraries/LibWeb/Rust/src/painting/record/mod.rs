@@ -89,6 +89,7 @@ pub struct RecordingOutput {
     pub is_identical_to_cache_source: bool,
     pub(crate) capture_log_for_verification: Option<verify::CaptureLog>,
     pub(crate) newly_referenced_fonts: Vec<libgfx_rust::font::FontHandle>,
+    pub(crate) newly_referenced_image_frames: Vec<libgfx_rust::image_frame::ImageFrameHandle>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -140,6 +141,8 @@ pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) all_descendant_subtree_caches_dirty: bool,
     registered_font_ids: HashSet<libgfx_rust::font::FontId>,
     newly_referenced_fonts: Vec<libgfx_rust::font::FontHandle>,
+    registered_image_frame_ids: HashSet<u64>,
+    newly_referenced_image_frames: Vec<libgfx_rust::image_frame::ImageFrameHandle>,
     selection_style_cache: HashMap<u32, Rc<paint::text::SelectionStyleAnswer>>,
     pub(crate) wheel_hit_test_target_cache: HashMap<NodeSlotId, SpatialNodeIndex>,
 }
@@ -188,6 +191,16 @@ impl<O: Observer> PaintRecorder<'_, O> {
             self.newly_referenced_fonts.push(font.clone());
         }
         font.id().0
+    }
+
+    pub(crate) fn register_image_frame(
+        &mut self,
+        frame: &libgfx_rust::image_frame::ImageFrameHandle,
+    ) -> crate::painting::display_list::commands::ImageFrameResourceId {
+        if self.registered_image_frame_ids.insert(frame.id()) {
+            self.newly_referenced_image_frames.push(frame.clone());
+        }
+        crate::painting::display_list::commands::ImageFrameResourceId(frame.id())
     }
 
     pub(crate) fn own_scroll_container_offset(&self, paintable: NodeSlotId) -> crate::css::css_pixels::CssPixelPoint {

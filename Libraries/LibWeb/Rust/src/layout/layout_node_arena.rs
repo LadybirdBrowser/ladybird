@@ -549,7 +549,8 @@ pub(crate) struct LayoutNodeArena {
     replaced_content_facts: Vec<ReplacedContentFactsSlot>,
     raw_table_column_spans: HashMap<NodeSlotId, u32>,
     replaced_paint_facts: RefCell<HashMap<NodeSlotId, crate::painting::replaced_paint_facts::ReplacedPaintFacts>>,
-    layer_image_paint_facts: RefCell<HashMap<NodeSlotId, Vec<crate::painting::host::FfiLayerImagePaintFactsEntry>>>,
+    layer_image_paint_facts:
+        RefCell<HashMap<NodeSlotId, Vec<crate::painting::layer_image_paint_facts::LayerImagePaintFactsEntry>>>,
     run_used_records: RefCell<Vec<RunRecordSlot>>,
     next_run_nonce: Cell<u64>,
     rows_sharing_dom_node: RefCell<HashMap<*mut c_void, RowsSharingDomNode>>,
@@ -1196,19 +1197,19 @@ impl LayoutNodeArena {
         id: NodeSlotId,
         list: crate::painting::host::FfiLayerImageList,
         computed_index: u32,
-    ) -> Option<crate::painting::host::FfiLayerImagePaintFacts> {
+    ) -> Option<crate::painting::layer_image_paint_facts::LayerImagePaintFacts> {
         let table = self.layer_image_paint_facts.borrow();
         let entries = table.get(&id)?;
         entries
             .iter()
             .find(|entry| entry.list == list && entry.computed_index == computed_index)
-            .map(|entry| entry.facts)
+            .map(|entry| entry.facts.clone())
     }
 
     pub(crate) fn set_layer_image_paint_facts(
         &self,
         id: NodeSlotId,
-        entries: Vec<crate::painting::host::FfiLayerImagePaintFactsEntry>,
+        entries: Vec<crate::painting::layer_image_paint_facts::LayerImagePaintFactsEntry>,
     ) -> bool {
         self.assert_owner_thread();
         if !self.slot_is_live(id) {

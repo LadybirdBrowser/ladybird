@@ -811,8 +811,10 @@ static Layout::RustFFI::FfiRecordingPublishCallbacks recording_publish_callbacks
         .context = &context,
         .add_font = [](void* context_pointer, void const* font) {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
-            context.resource_storage.add_font(*static_cast<Gfx::Font const*>(font));
-        },
+            context.resource_storage.add_font(*static_cast<Gfx::Font const*>(font)); },
+        .add_image_frame = [](void* context_pointer, void const* frame) {
+            auto& context = *static_cast<PaintHostContext*>(context_pointer);
+            context.resource_storage.add_image_frame(*static_cast<Gfx::DecodedImageFrame const*>(frame)); },
     };
 }
 
@@ -844,21 +846,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             if (auto display_list = decoded_image_data->record_display_list(dest.size(), image_color_scheme(layout_node), context.resource_storage); display_list.has_value()) {
                 facts.has_nested_display_list = true;
                 facts.nested_display_list_id = context.resource_storage.add_display_list(display_list->display_list, display_list->visual_context_tree).value();
-            }
-            return facts;
-        },
-        .layer_image_current_frame = [](void* context_pointer, void* layout_node_shell, Layout::RustFFI::FfiLayerImageList list, u32 computed_index, Gfx::IntRect dest) -> Layout::RustFFI::FfiLayerImageFrameFacts {
-            auto& context = *static_cast<PaintHostContext*>(context_pointer);
-            auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
-            Layout::RustFFI::FfiLayerImageFrameFacts facts {};
-            auto [image, decoded_image_data] = layer_image_for(layout_node, list, computed_index);
-            if (!image || !decoded_image_data)
-                return facts;
-            if (auto frame = decoded_image_data->current_frame(dest.size()); frame.has_value()) {
-                facts.has_frame = true;
-                facts.frame_id = context.resource_storage.add_image_frame(*frame).value();
-                facts.frame_width = frame->size().width();
-                facts.frame_height = frame->size().height();
             }
             return facts;
         },

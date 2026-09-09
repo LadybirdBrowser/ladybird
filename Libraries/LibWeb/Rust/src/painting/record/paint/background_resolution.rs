@@ -622,7 +622,7 @@ struct LayerImageIntrinsics<'a> {
 pub(crate) fn committed_layer_image_paint_facts<O: Observer>(
     recorder: &PaintRecorder<'_, O>,
     image: &LayerImageSource<'_>,
-) -> crate::painting::host::FfiLayerImagePaintFacts {
+) -> crate::painting::layer_image_paint_facts::LayerImagePaintFacts {
     recorder
         .layout_arena
         .layer_image_paint_facts(image.facts_owner, image.list, image.computed_index)
@@ -647,10 +647,10 @@ fn layer_image_intrinsics<'a, O: Observer>(
         },
         _ => {
             let facts = committed_layer_image_paint_facts(recorder, image);
-            let selected_image_value = match image.value {
-                StyleValueData::ImageSet { options } if facts.has_image_set_selected_option => options
+            let selected_image_value = match (image.value, facts.image_set_selected_option_index) {
+                (StyleValueData::ImageSet { options }, Some(option_index)) => options
                     .as_slice()
-                    .get(facts.image_set_selected_option_index as usize)
+                    .get(option_index as usize)
                     .map(|option| option.values()[0].data()),
                 _ => None,
             };
@@ -659,10 +659,9 @@ fn layer_image_intrinsics<'a, O: Observer>(
                 natural: SizeWithAspectRatio {
                     width: facts.natural_width.has_value.then_some(facts.natural_width.value),
                     height: facts.natural_height.has_value.then_some(facts.natural_height.value),
-                    aspect_ratio: facts.has_natural_aspect_ratio.then_some(Fraction {
-                        numerator: facts.natural_aspect_ratio_numerator,
-                        denominator: facts.natural_aspect_ratio_denominator,
-                    }),
+                    aspect_ratio: facts
+                        .natural_aspect_ratio
+                        .map(|(numerator, denominator)| Fraction { numerator, denominator }),
                 },
                 selected_image_value,
             }

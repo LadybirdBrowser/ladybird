@@ -8,6 +8,30 @@
 #include <LibGfx/ShareableBitmap.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
+#include <RustFFI.h>
+
+extern "C" {
+void* ladybird_gfx_decoded_image_frame_retain(void const*, Gfx::FFI::FfiImageFrameSnapshot*);
+void ladybird_gfx_decoded_image_frame_release(void*);
+}
+
+extern "C" void* ladybird_gfx_decoded_image_frame_retain(void const* frame, Gfx::FFI::FfiImageFrameSnapshot* out_snapshot)
+{
+    VERIFY(frame);
+    VERIFY(out_snapshot);
+    auto const& typed_frame = *static_cast<Gfx::DecodedImageFrame const*>(frame);
+    *out_snapshot = {
+        .id = typed_frame.id(),
+        .width = typed_frame.width(),
+        .height = typed_frame.height(),
+    };
+    return new Gfx::DecodedImageFrame(typed_frame);
+}
+
+extern "C" void ladybird_gfx_decoded_image_frame_release(void* frame)
+{
+    delete static_cast<Gfx::DecodedImageFrame*>(frame);
+}
 
 namespace IPC {
 

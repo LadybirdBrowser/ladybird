@@ -21,6 +21,9 @@ pub(crate) fn publish_recording(
     for font in &output.newly_referenced_fonts {
         publish.add_font(font);
     }
+    for frame in &output.newly_referenced_image_frames {
+        publish.add_image_frame(frame);
+    }
     if let Some(recording_from_scratch) = &recording_from_scratch {
         crate::painting::record::verify::verify_spliced_recording_matches_fresh(arena, &output, recording_from_scratch);
     }
