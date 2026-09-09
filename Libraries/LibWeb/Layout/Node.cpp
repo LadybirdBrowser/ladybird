@@ -47,6 +47,8 @@ static u8 dom_paint_facts_of(GC::Ptr<DOM::Node const> node)
     u8 facts = 0;
     if (node->is_inert())
         facts |= static_cast<u8>(RustFFI::DomPaintFact::Inert);
+    if (node->is_editable_or_editing_host())
+        facts |= static_cast<u8>(RustFFI::DomPaintFact::EditableOrEditingHost);
     return facts;
 }
 
