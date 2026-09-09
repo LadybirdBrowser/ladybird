@@ -1052,34 +1052,31 @@ pub struct PaintTextShadow {
     pub font_id: FontResourceId,
     pub glyphs: DisplayListDataSpan,
     pub shadow_bounding_rect: IntRect,
-    pub text_rect: IntRect,
-    pub draw_location: FloatPoint,
+    pub rect: IntRect,
+    pub translation: FloatPoint,
     pub scale: f32,
     pub blur_radius: i32,
     pub color: Color,
+    pub orientation: Orientation,
     pub font_smoothing: u8,
 }
 ffi_bytes_fields!(PaintTextShadow {
     font_id,
     glyphs,
     shadow_bounding_rect,
-    text_rect,
-    draw_location,
+    rect,
+    translation,
     scale,
     blur_radius,
     color,
+    orientation,
     font_smoothing
 });
 
 impl DisplayListCommand for PaintTextShadow {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::PaintTextShadow;
     fn bounding_rect(&self) -> Option<IntRect> {
-        Some(IntRect::new(
-            self.draw_location.x as i32,
-            self.draw_location.y as i32,
-            self.shadow_bounding_rect.width,
-            self.shadow_bounding_rect.height,
-        ))
+        Some(self.shadow_bounding_rect)
     }
 }
 

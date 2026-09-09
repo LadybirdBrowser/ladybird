@@ -1098,12 +1098,13 @@ impl DisplayListRecorder {
     pub fn paint_text_shadow(
         &mut self,
         blur_radius: i32,
-        bounding_rect: IntRect,
-        text_rect: IntRect,
+        shadow_bounding_rect: IntRect,
+        rect: IntRect,
+        translation: FloatPoint,
         run: GlyphRunForRecording<'_>,
         glyph_run_scale: f64,
         color: Color,
-        draw_location: FloatPoint,
+        orientation: Orientation,
         force_dark_role: ForceDarkRole,
     ) {
         let color = self.resolve_color(color, force_dark_role);
@@ -1113,12 +1114,13 @@ impl DisplayListRecorder {
             font_smoothing: run.font_smoothing,
             font_id: run.font_id,
             glyphs,
-            shadow_bounding_rect: bounding_rect,
-            text_rect,
-            draw_location,
+            shadow_bounding_rect,
+            rect,
+            translation,
             scale: glyph_run_scale as f32,
             blur_radius,
             color,
+            orientation,
         };
         self.append_command(&command, payload.inline_data());
     }

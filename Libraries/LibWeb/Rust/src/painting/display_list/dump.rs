@@ -416,10 +416,15 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
         DisplayListCommandType::PaintTextShadow => {
             let command = read_command::<PaintTextShadow>(payload);
             write_field(output, "shadow_rect", command.shadow_bounding_rect);
-            write_field(output, "text_rect", command.text_rect);
-            write_field(output, "draw_location", command.draw_location);
+            write_field(output, "rect", command.rect);
+            write_field(output, "translation", command.translation);
             write!(output, " blur_radius={}", command.blur_radius).unwrap();
             write_field(output, "color", command.color);
+            let orientation = match command.orientation {
+                libgfx_rust::Orientation::Horizontal => "Horizontal",
+                libgfx_rust::Orientation::Vertical => "Vertical",
+            };
+            write!(output, " orientation={orientation}").unwrap();
         }
         DisplayListCommandType::FillRectWithRoundedCorners => {
             let command = read_command::<FillRectWithRoundedCorners>(payload);

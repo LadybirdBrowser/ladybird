@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        font: 20px monospace;
+        writing-mode: vertical-rl;
+    }
+    p {
+        text-shadow: 2px 2px 0 red;
+    }
+</style>
+<p>abc</p>
+<script>
+    test(() => {
+        println(internals.dumpDisplayList());
+    });
+</script>

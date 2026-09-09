@@ -788,12 +788,12 @@ void DisplayListPlayerSkia::play_command(PaintTextShadow const& command)
     canvas.saveLayer(SkCanvas::SaveLayerRec(nullptr, &blur_paint, nullptr, 0));
     play_command(DrawGlyphRun { .font_id = command.font_id,
         .glyphs = command.glyphs,
-        .rect = command.text_rect,
+        .rect = command.rect,
         .glyph_bounding_rect = command.shadow_bounding_rect,
-        .translation = command.draw_location + command.text_rect.location().to_type<float>(),
+        .translation = command.translation,
         .scale = command.scale,
         .color = command.color.with_alpha(255),
-        .orientation = Gfx::Orientation::Horizontal,
+        .orientation = command.orientation,
         .font_smoothing = command.font_smoothing });
     canvas.restore();
 }
