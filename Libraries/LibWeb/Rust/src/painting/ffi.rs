@@ -1842,11 +1842,12 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
     paint_callbacks: crate::painting::host::FfiPaintHostCallbacks,
     visual_context_callbacks: crate::painting::host::FfiVisualContextHostCallbacks,
     inputs: crate::painting::host::FfiRecordingInputs,
-) -> u64 {
+) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
     {
         let mut paint_state = arena.paint_state().borrow_mut();
         paint_state.pending_recording_trace = None;
+        paint_state.pending_recording = None;
         let has_blocking_wheel_event_region_covering_viewport =
             inputs.has_blocking_wheel_event_region_covering_viewport;
         if paint_state.recorded_has_blocking_wheel_event_region_covering_viewport
@@ -1861,10 +1862,10 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             paint_state.recorded_canvas_color = Some(inputs.canvas_color);
         }
     }
-    let mut output = {
+    let (output, recording_from_scratch) = {
         let paint_state = arena.paint_state().borrow();
         if !arena.paintable_row_is_populated(viewport) || arena.stacking_context_entries(viewport).is_none() {
-            return 0;
+            return false;
         }
         let visual_context = &paint_state.visual_context;
         let inputs = crate::painting::record::RecordingInputs::from_host_and_last_visual_context_update(
@@ -1893,37 +1894,32 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             paint_state.hit_test_item_cache_source.clone(),
             paint_state.trace_recordings || crate::painting::record::verify::enabled_by_environment(),
         );
-        if crate::painting::record::verify::enabled_by_environment()
+        let recording_from_scratch = (crate::painting::record::verify::enabled_by_environment()
             && output.capture_log_for_verification.as_ref().is_some_and(|log| {
                 log.command_byte_captures
                     .iter()
                     .any(|capture| capture.spliced_from_cache)
             })
-            && !inputs.should_show_line_box_borders
-        {
-            let mut inputs_for_recording_from_scratch = inputs;
-            inputs_for_recording_from_scratch.paint_command_cache_read_write = false;
-            let recording_from_scratch = crate::painting::record::traversal::record_display_list(
-                arena,
-                &paint_state,
-                viewport,
-                &callbacks,
-                &paint_callbacks,
-                &visual_context_callbacks,
-                inputs_for_recording_from_scratch,
-                paint_state.hit_test_list_generation + 1,
-                None,
-                None,
-                false,
-            );
-            crate::painting::record::verify::verify_spliced_recording_matches_fresh(
-                arena,
-                &output,
-                &recording_from_scratch,
-            );
-        }
+            && !inputs.should_show_line_box_borders)
+            .then(|| {
+                let mut inputs_for_recording_from_scratch = inputs;
+                inputs_for_recording_from_scratch.paint_command_cache_read_write = false;
+                crate::painting::record::traversal::record_display_list(
+                    arena,
+                    &paint_state,
+                    viewport,
+                    &callbacks,
+                    &paint_callbacks,
+                    &visual_context_callbacks,
+                    inputs_for_recording_from_scratch,
+                    paint_state.hit_test_list_generation + 1,
+                    None,
+                    None,
+                    false,
+                )
+            });
         arena.set_paint_recording_in_progress(false);
-        output
+        (output, recording_from_scratch)
     };
     let mut paint_state = arena.paint_state().borrow_mut();
     if paint_state.trace_recordings && output.capture_log_for_verification.is_some() {
@@ -1932,46 +1928,28 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             should_paint_overlay: inputs.should_paint_overlay,
         });
     }
-    output.is_identical_to_cache_source = paint_state
-        .paint_command_cache_source
-        .as_ref()
-        .zip(paint_state.hit_test_item_cache_source.as_ref())
-        .is_some_and(|(source, item_source)| {
-            std::rc::Rc::ptr_eq(&output.display_list, &source.display_list)
-                && std::rc::Rc::ptr_eq(&output.hit_test_list.items, &item_source.items)
-                && output.recorded_structural_epoch == source.recorded_structural_epoch
-                && output.wheel_event_listener_state_generation == source.wheel_event_listener_state_generation
-                && output.has_blocking_wheel_event_listeners == source.has_blocking_wheel_event_listeners
-        });
-    let list = std::mem::take(&mut output.hit_test_list);
-    let previous_list_is_the_source = paint_state
-        .hit_test_list
-        .as_ref()
-        .zip(paint_state.hit_test_item_cache_source.as_ref())
-        .is_some_and(|(list, source)| std::rc::Rc::ptr_eq(&list.items, &source.items));
-    if output.is_identical_to_cache_source && previous_list_is_the_source {
-        drop(list);
-    } else {
-        paint_state.hit_test_list_generation += 1;
-        debug_assert_eq!(list.generation, paint_state.hit_test_list_generation);
-        if inputs.paint_command_cache_read_write {
-            paint_state.hit_test_item_cache_source = Some(std::rc::Rc::new(
-                crate::painting::record::cache::HitTestItemCacheSource {
-                    items: list.items.clone(),
-                },
-            ));
-        }
-        paint_state.hit_test_list = Some(list);
-    }
-    let output = std::rc::Rc::new(output);
-    if inputs.paint_command_cache_read_write {
-        paint_state.paint_command_cache_source = Some(output.clone());
-        // Read-only recordings commit nothing and must not age dirty stamps out.
-        arena.note_paint_record_completed_with_cache_writes();
-        paint_state.visual_context.quarantined_slots_are_releasable = true;
-    }
-    paint_state.last_recording = Some(output);
-    list_generation_of(&paint_state)
+    paint_state.pending_recording = Some(crate::painting::paint_state::PendingRecording {
+        output,
+        recording_from_scratch,
+        paint_command_cache_read_write: inputs.paint_command_cache_read_write,
+    });
+    true
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`; the callbacks in `publish` are
+/// called synchronously with their context while the recording's resources are live.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_publish_recording(
+    arena: *mut c_void,
+    publish: crate::painting::host::FfiRecordingPublishCallbacks,
+) -> u64 {
+    let arena = unsafe { arena_from_handle(arena) };
+    let Some(pending) = arena.paint_state().borrow_mut().pending_recording.take() else {
+        return 0;
+    };
+    crate::painting::record::publish::publish_recording(arena, pending, &publish)
 }
 
 /// # Safety
