@@ -2381,9 +2381,10 @@ void WebGLRenderingContextImpl::uniform1f(GC::Ptr<WebGLUniformLocation> location
 {
     m_context->make_current();
 
-    GLuint location_handle = 0;
-    if (location)
-        location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
+    if (!location)
+        return;
+
+    GLuint location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
 
     m_context->uniform1f(location_handle, x);
 }
@@ -2392,9 +2393,10 @@ void WebGLRenderingContextImpl::uniform2f(GC::Ptr<WebGLUniformLocation> location
 {
     m_context->make_current();
 
-    GLuint location_handle = 0;
-    if (location)
-        location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
+    if (!location)
+        return;
+
+    GLuint location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
 
     m_context->uniform2f(location_handle, x, y);
 }
@@ -2403,9 +2405,10 @@ void WebGLRenderingContextImpl::uniform3f(GC::Ptr<WebGLUniformLocation> location
 {
     m_context->make_current();
 
-    GLuint location_handle = 0;
-    if (location)
-        location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
+    if (!location)
+        return;
+
+    GLuint location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
 
     m_context->uniform3f(location_handle, x, y, z);
 }
@@ -2414,9 +2417,10 @@ void WebGLRenderingContextImpl::uniform4f(GC::Ptr<WebGLUniformLocation> location
 {
     m_context->make_current();
 
-    GLuint location_handle = 0;
-    if (location)
-        location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
+    if (!location)
+        return;
+
+    GLuint location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
 
     m_context->uniform4f(location_handle, x, y, z, w);
 }
@@ -2425,9 +2429,10 @@ void WebGLRenderingContextImpl::uniform1i(GC::Ptr<WebGLUniformLocation> location
 {
     m_context->make_current();
 
-    GLuint location_handle = 0;
-    if (location)
-        location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
+    if (!location)
+        return;
+
+    GLuint location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
 
     m_context->uniform1i(location_handle, x);
 }
@@ -2436,9 +2441,10 @@ void WebGLRenderingContextImpl::uniform2i(GC::Ptr<WebGLUniformLocation> location
 {
     m_context->make_current();
 
-    GLuint location_handle = 0;
-    if (location)
-        location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
+    if (!location)
+        return;
+
+    GLuint location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
 
     m_context->uniform2i(location_handle, x, y);
 }
@@ -2447,9 +2453,10 @@ void WebGLRenderingContextImpl::uniform3i(GC::Ptr<WebGLUniformLocation> location
 {
     m_context->make_current();
 
-    GLuint location_handle = 0;
-    if (location)
-        location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
+    if (!location)
+        return;
+
+    GLuint location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
 
     m_context->uniform3i(location_handle, x, y, z);
 }
@@ -2458,9 +2465,10 @@ void WebGLRenderingContextImpl::uniform4i(GC::Ptr<WebGLUniformLocation> location
 {
     m_context->make_current();
 
-    GLuint location_handle = 0;
-    if (location)
-        location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
+    if (!location)
+        return;
+
+    GLuint location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
 
     m_context->uniform4i(location_handle, x, y, z, w);
 }
