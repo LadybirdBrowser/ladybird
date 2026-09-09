@@ -1,0 +1,13 @@
+AccumulatedVisualContext Tree:
+  spatial:
+    [s0] transform=[1,0,0,1,0,0] origin=(0,0) (Viewport<#document>)
+      [s1] scroll (Viewport<#document>)
+  effects:
+    [e0 in s0] effects=[]
+
+DisplayList:
+DrawGlyphRun@s1/e0 rect=[760,0 20x56] translation=[760,16] color=rgb(0, 0, 0) inline_clips=[clip=[762,0 18x12]]
+DrawGlyphRun@s1/e0 rect=[760,0 20x56] translation=[760,16] color=rgb(0, 0, 0) inline_clips=[clip=[762,44 18x11]]
+FillRect@s1/e0 rect=[760,12 20x32] color=rgb(1, 2, 3)
+DrawGlyphRun@s1/e0 rect=[760,0 20x56] translation=[760,16] color=rgb(0, 0, 0) inline_clips=[clip=[762,12 18x32]]
+

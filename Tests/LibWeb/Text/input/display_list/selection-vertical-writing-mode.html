@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        font: 20px monospace;
+        writing-mode: vertical-rl;
+    }
+    p::selection {
+        background-color: rgb(1, 2, 3);
+    }
+</style>
+<p id="target">abcde</p>
+<script>
+    test(() => {
+        const text = target.firstChild;
+        const range = document.createRange();
+        range.setStart(text, 1);
+        range.setEnd(text, 4);
+        getSelection().addRange(range);
+        println(internals.dumpDisplayList());
+    });
+</script>
