@@ -17,6 +17,7 @@
 #include <LibWeb/HTML/WorkerAgentTypes.h>
 #include <LibWeb/Worker/WebWorkerClientEndpoint.h>
 #include <LibWeb/Worker/WebWorkerServerEndpoint.h>
+#include <LibWebView/BlobURLStore.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/PrivateBrowsing.h>
 
@@ -43,6 +44,9 @@ public:
     virtual void did_fail_loading_worker_script() override;
     virtual void did_report_worker_exception(Utf16String message, Utf16String filename, u32 lineno, u32 colno) override;
     virtual Messages::WebWorkerClient::DidRequestCookieResponse did_request_cookie(URL::URL, HTTP::Cookie::Source) override;
+    virtual void did_add_blob_url_entry(Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry) override;
+    virtual void did_remove_blob_url_entries(Vector<Utf16String> urls, URL::Origin origin) override;
+    virtual Messages::WebWorkerClient::DidRequestBlobUrlEntryResponse did_request_blob_url_entry(Utf16String url) override;
     virtual void did_request_file(ByteString path, i32 request_id) override;
     virtual void did_store_hsts_policy(String domain, HTTP::HSTS::ParsedHSTSPolicy policy) override;
     virtual Messages::WebWorkerClient::DidIsKnownHstsHostResponse did_is_known_hsts_host(String domain) override;

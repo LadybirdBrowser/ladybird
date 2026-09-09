@@ -11,10 +11,11 @@
 #include <AK/IPv6Address.h>
 #include <LibGC/Heap.h>
 #include <LibURL/Parser.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/DOMURL/DOMURL.h>
-#include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/Infra/SerializedURL.h>
+#include <LibWeb/Page/Page.h>
 
 namespace Web::DOMURL {
 
@@ -118,6 +119,11 @@ void DOMURL::revoke_object_url(Utf16String const& url)
     if (url_record->scheme() != "blob"sv)
         return;
 
+    // NB: The browser process runs steps 3 to 7 over every process's entries. The steps below run them again here,
+    //     for the entry this process created.
+    auto& settings = HTML::current_settings_object();
+    Bindings::principal_host_defined_page(settings.realm()).client().page_did_remove_blob_url_entries({ utf16_string_from_url_ascii(url_record->serialize()) }, settings.origin());
+
     // 3. Let entry be urlRecord’s blob URL entry.
     auto const& entry = url_record->blob_url_entry();
 
@@ -126,7 +132,7 @@ void DOMURL::revoke_object_url(Utf16String const& url)
         return;
 
     // 5. Let isAuthorized be the result of checking for same-partition blob URL usage with entry and the current settings object.
-    bool is_authorized = FileAPI::check_for_same_partition_blob_url_usage(entry.value(), HTML::current_settings_object());
+    bool is_authorized = FileAPI::check_for_same_partition_blob_url_usage(entry->environment.origin, HTML::current_settings_object());
 
     // 6. If isAuthorized is false, then return.
     if (!is_authorized)
@@ -449,20 +455,7 @@ static Optional<URL::URL> finish_parsing(Optional<URL::URL> url)
         return url.release_value();
 
     // 4. Set url’s blob URL entry to the result of resolving the blob URL url, if that did not return failure, and null otherwise.
-    auto blob_url_entry = FileAPI::resolve_a_blob_url(*url);
-    if (blob_url_entry.has_value()) {
-        url->set_blob_url_entry(URL::BlobURLEntry {
-            .object = blob_url_entry->object.visit(
-                [](GC::Ref<FileAPI::Blob> const& blob) -> URL::BlobURLEntry::Object {
-                    return URL::BlobURLEntry::Blob {
-                        .type = blob->type().to_utf8(),
-                        .data = MUST(ByteBuffer::copy(blob->raw_bytes())),
-                    };
-                },
-                [](GC::Ref<MediaSourceExtensions::MediaSource> const&) -> URL::BlobURLEntry::Object { return URL::BlobURLEntry::MediaSource {}; }),
-            .environment { .origin = blob_url_entry->environment->origin() },
-        });
-    }
+    url->set_blob_url_entry(FileAPI::resolve_a_blob_url(*url));
 
     // 5. Return url
     return url.release_value();

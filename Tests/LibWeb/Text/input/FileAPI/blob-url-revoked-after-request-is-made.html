@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A URL record keeps the blob URL entry it was parsed with, so a Request made, or an XMLHttpRequest opened,
+    // before revokeObjectURL still fetches the blob. A URL parsed afterwards does not.
+    asyncTest(async done => {
+        const url = URL.createObjectURL(new Blob(["still here"], { type: "text/plain" }));
+        const request = new Request(url);
+        const xhr = new XMLHttpRequest();
+        xhr.open("GET", url);
+        URL.revokeObjectURL(url);
+
+        try {
+            println(`fetch of the Request: ${await (await fetch(request)).text()}`);
+        } catch (e) {
+            println(`fetch of the Request: ${e.message}`);
+        }
+        await new Promise(resolve => {
+            xhr.onload = () => { println(`send of the XMLHttpRequest: ${xhr.responseText}`); resolve(); };
+            xhr.onerror = () => { println("send of the XMLHttpRequest: error"); resolve(); };
+            xhr.send();
+        });
+        try {
+            await fetch(url);
+            println("fetch of the string: no error");
+        } catch (e) {
+            println(`fetch of the string: ${e.message}`);
+        }
+        done();
+    });
+</script>

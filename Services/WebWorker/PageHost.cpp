@@ -118,6 +118,21 @@ void PageHost::request_file(Web::FileRequest request)
     m_client.request_file(move(request));
 }
 
+void PageHost::page_did_add_blob_url_entry(Utf16String const& url, Web::FileAPI::SerializedBlobURLEntry const& entry)
+{
+    m_client.did_add_blob_url_entry(url, entry);
+}
+
+void PageHost::page_did_remove_blob_url_entries(Vector<Utf16String> const& urls, URL::Origin const& origin)
+{
+    m_client.did_remove_blob_url_entries(urls, origin);
+}
+
+Optional<Web::FileAPI::SerializedBlobURLEntry> PageHost::page_did_request_blob_url_entry(Utf16String const& url)
+{
+    return m_client.did_request_blob_url_entry(url);
+}
+
 Web::HTML::WorkerAgentId PageHost::start_worker_agent(Web::HTML::WorkerAgentStartRequest&& request)
 {
     return m_client.start_worker_agent(move(request));

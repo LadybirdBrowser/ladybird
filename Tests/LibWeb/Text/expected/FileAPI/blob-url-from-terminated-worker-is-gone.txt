@@ -1,0 +1,2 @@
+before terminate: from worker
+after terminate: Request has an invalid 'blob:' URL

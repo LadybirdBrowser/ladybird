@@ -46,6 +46,7 @@
 #include <LibWeb/DOM/EventDispatcher.h>
 #include <LibWeb/DOM/HTMLCollection.h>
 #include <LibWeb/DOMURL/DOMURL.h>
+#include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/HTML/AnimationFrameCallbackDriver.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CloseWatcherManager.h>
@@ -378,12 +379,15 @@ WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> Window::window_open_steps(Utf16View ur
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#get-noopener-for-window-open
-static TokenizedFeature::NoOpener get_noopener_for_window_open(DOM::Document const& source_document, TokenizedFeature::Map const& tokenized_features, Optional<URL::URL> const& url)
+static TokenizedFeature::NoOpener get_noopener_for_window_open(DOM::Document& source_document, TokenizedFeature::Map const& tokenized_features, Optional<URL::URL> const& url)
 {
     // 1. If url is not null and url's blob URL entry is not null:
-    if (url.has_value() && url->blob_url_entry().has_value()) {
+    Optional<URL::BlobURLEntry> blob_url_entry;
+    if (url.has_value())
+        blob_url_entry = FileAPI::blob_url_entry_in_the_user_agent_store(source_document.page(), *url);
+    if (blob_url_entry.has_value()) {
         // 1. Let blobOrigin be url's blob URL entry's environment's origin.
-        auto blob_origin = url->blob_url_entry()->environment.origin;
+        auto blob_origin = blob_url_entry->environment.origin;
 
         // 2. Let topLevelOrigin be sourceDocument's relevant settings object's top-level origin.
         auto top_level_origin = source_document.relevant_settings_object().top_level_origin;

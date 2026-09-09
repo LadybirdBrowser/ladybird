@@ -1,0 +1,3 @@
+fetch of the Request: still here
+send of the XMLHttpRequest: still here
+fetch of the string: Request has an invalid 'blob:' URL

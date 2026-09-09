@@ -1,29 +1,84 @@
 /*
  * Copyright (c) 2023, Tim Flynn <trflynn89@serenityos.org>
  * Copyright (c) 2024, Andreas Kling <andreas@ladybird.org>
- * Copyright (c) 2024-2025, Shannon Booth <shannon@serenityos.org>
+ * Copyright (c) 2024-2026, Shannon Booth <shannon@serenityos.org>
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
 #include <AK/NeverDestroyed.h>
 #include <AK/Utf16StringBuilder.h>
+#include <LibGC/ConservativeHashMap.h>
 #include <LibURL/Origin.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Crypto/Crypto.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/FileAPI/Blob.h>
 #include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/Infra/SerializedURL.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/StorageAPI/StorageKey.h>
 
 namespace Web::FileAPI {
 
-BlobURLStore& blob_url_store()
+// https://w3c.github.io/FileAPI/#BlobURLStore
+// NB: Only the entries this process created. The browser process keeps every process's entries, and is asked for
+//     them by blob_url_entry_in_the_user_agent_store().
+static GC::ConservativeHashMap<Utf16String, BlobURLEntry>& blob_url_store()
 {
     static NeverDestroyed<GC::ConservativeHashMap<Utf16String, BlobURLEntry>> store;
     return *store;
+}
+
+// The entry as a URL record carries it: a Blob's type and bytes, and the environment's origin.
+static ErrorOr<URL::BlobURLEntry> blob_url_entry_for_url_record(BlobURLEntry const& entry)
+{
+    auto object = TRY(entry.object.visit(
+        [](GC::Ref<Blob> const& blob) -> ErrorOr<URL::BlobURLEntry::Object> {
+            return URL::BlobURLEntry::Blob { .type = blob->type().to_utf8(), .data = TRY(ByteBuffer::copy(blob->raw_bytes())) };
+        },
+        [](GC::Ref<MediaSourceExtensions::MediaSource> const&) -> ErrorOr<URL::BlobURLEntry::Object> {
+            return URL::BlobURLEntry::MediaSource {};
+        }));
+
+    return URL::BlobURLEntry { .object = move(object), .environment { .origin = entry.environment->origin() } };
+}
+
+// The entry as the user agent's blob URL store has it, with a Blob's bytes in shared memory so that every process
+// reading the store reads the same bytes.
+static ErrorOr<SerializedBlobURLEntry> serialize_blob_url_entry(BlobURLEntry const& entry)
+{
+    auto object = TRY(entry.object.visit(
+        [](GC::Ref<Blob> const& blob) -> ErrorOr<SerializedBlobURLEntry::Object> {
+            auto bytes = blob->raw_bytes();
+            Core::AnonymousBuffer buffer;
+            if (!bytes.is_empty()) {
+                buffer = TRY(Core::AnonymousBuffer::create_with_size(bytes.size(), Core::AnonymousBuffer::Sealability::Sealable));
+                bytes.copy_to({ buffer.data<u8>(), buffer.size() });
+            }
+            return SerializedBlobURLEntry::Blob { .type = blob->type().to_utf8(), .data = move(buffer) };
+        },
+        [](GC::Ref<MediaSourceExtensions::MediaSource> const&) -> ErrorOr<SerializedBlobURLEntry::Object> {
+            return SerializedBlobURLEntry::MediaSource {};
+        }));
+
+    return SerializedBlobURLEntry { .object = move(object), .origin = entry.environment->origin() };
+}
+
+// The entry a URL record carries, from the entry the store answered with.
+static URL::BlobURLEntry blob_url_entry_for_url_record(SerializedBlobURLEntry const& entry)
+{
+    auto object = entry.object.visit(
+        [](SerializedBlobURLEntry::Blob const& blob) -> URL::BlobURLEntry::Object {
+            return URL::BlobURLEntry::Blob { .type = blob.type, .data = MUST(ByteBuffer::copy(blob.data.bytes())) };
+        },
+        [](SerializedBlobURLEntry::MediaSource const&) -> URL::BlobURLEntry::Object {
+            return URL::BlobURLEntry::MediaSource {};
+        });
+
+    return URL::BlobURLEntry { .object = move(object), .environment { .origin = entry.origin } };
 }
 
 // https://w3c.github.io/FileAPI/#unicodeBlobURL
@@ -72,9 +127,11 @@ ErrorOr<Utf16String> add_entry_to_blob_url_store(BlobURLEntry::Object object)
     auto url = generate_new_blob_url();
 
     // 3. Let entry be a new blob URL entry consisting of object and the current settings object.
-    BlobURLEntry entry { object, HTML::current_settings_object() };
+    auto& settings = HTML::current_settings_object();
+    BlobURLEntry entry { object, settings };
 
     // 4. Set store[url] to entry.
+    Bindings::principal_host_defined_page(settings.realm()).client().page_did_add_blob_url_entry(url, TRY(serialize_blob_url_entry(entry)));
     store.set(url, move(entry));
 
     // 5. Return url.
@@ -82,13 +139,23 @@ ErrorOr<Utf16String> add_entry_to_blob_url_store(BlobURLEntry::Object object)
 }
 
 // https://www.w3.org/TR/FileAPI/#check-for-same-partition-blob-url-usage
-bool check_for_same_partition_blob_url_usage(URL::BlobURLEntry const& blob_url_entry, GC::Ref<HTML::Environment> environment)
+bool check_for_same_partition_blob_url_usage(URL::Origin const& blob_url_entry_origin, GC::Ref<HTML::Environment> environment)
 {
-    // 1. Let blobStorageKey be the result of obtaining a storage key for non-storage purposes with blobUrlEntry’s environment.
-    auto blob_storage_key = StorageAPI::obtain_a_storage_key_for_non_storage_purposes(blob_url_entry.environment.origin);
-
     // 2. Let environmentStorageKey be the result of obtaining a storage key for non-storage purposes with environment.
     auto environment_storage_key = StorageAPI::obtain_a_storage_key_for_non_storage_purposes(environment);
+
+    return check_for_same_partition_blob_url_usage(blob_url_entry_origin, environment_storage_key.origin);
+}
+
+// https://www.w3.org/TR/FileAPI/#check-for-same-partition-blob-url-usage
+// NB: A storage key for non-storage purposes is just an origin, which is all the browser process has of an environment.
+bool check_for_same_partition_blob_url_usage(URL::Origin const& blob_url_entry_origin, URL::Origin const& environment_origin)
+{
+    // 1. Let blobStorageKey be the result of obtaining a storage key for non-storage purposes with blobUrlEntry’s environment.
+    auto blob_storage_key = StorageAPI::obtain_a_storage_key_for_non_storage_purposes(blob_url_entry_origin);
+
+    // 2. Let environmentStorageKey be the result of obtaining a storage key for non-storage purposes with environment.
+    auto environment_storage_key = StorageAPI::obtain_a_storage_key_for_non_storage_purposes(environment_origin);
 
     // 3. If blobStorageKey is not equal to environmentStorageKey, then return false.
     if (blob_storage_key != environment_storage_key)
@@ -106,7 +173,7 @@ Optional<URL::BlobURLEntry::Object> obtain_a_blob_object(URL::BlobURLEntry const
 
     // 2. If environment is an environment settings object, then set isAuthorized to the result of checking for same-partition blob URL usage with blobUrlEntry and environment.
     if (environment.has<GC::Ref<HTML::Environment>>())
-        is_authorized = check_for_same_partition_blob_url_usage(blob_url_entry, environment.get<GC::Ref<HTML::Environment>>());
+        is_authorized = check_for_same_partition_blob_url_usage(blob_url_entry.environment.origin, environment.get<GC::Ref<HTML::Environment>>());
 
     // 3. If isAuthorized is false, then return failure.
     if (!is_authorized)
@@ -139,13 +206,20 @@ void run_unloading_cleanup_steps(GC::Ref<DOM::Document> document)
     auto& store = FileAPI::blob_url_store();
 
     // 3. Remove from store any entries for which the value's environment is equal to environment.
-    store.remove_all_matching([&](auto&, auto& value) {
-        return value.environment.ptr() == &environment;
+    Vector<Utf16String> urls;
+    store.remove_all_matching([&](auto const& url, auto const& entry) {
+        if (entry.environment.ptr() != &environment)
+            return false;
+        urls.append(url);
+        return true;
     });
+    // NB: Remove them from the browser process's store too, as revokeObjectURL would.
+    if (!urls.is_empty())
+        document->page().client().page_did_remove_blob_url_entries(urls, environment.origin());
 }
 
 // https://w3c.github.io/FileAPI/#blob-url-resolve
-Optional<BlobURLEntry const&> resolve_a_blob_url(URL::URL const& url)
+Optional<URL::BlobURLEntry> resolve_a_blob_url(URL::URL const& url)
 {
     // 1. Assert: url’s scheme is "blob".
     VERIFY(url.scheme() == "blob"sv);
@@ -157,7 +231,40 @@ Optional<BlobURLEntry const&> resolve_a_blob_url(URL::URL const& url)
     auto url_string = utf16_string_from_url_ascii(url.serialize(URL::ExcludeFragment::Yes));
 
     // 4. If store[url string] exists, return store[url string]; otherwise return failure.
-    return store.get(url_string);
+    auto entry = store.get(url_string);
+    if (!entry.has_value())
+        return {};
+    auto entry_for_url_record = blob_url_entry_for_url_record(*entry);
+    if (entry_for_url_record.is_error())
+        return {};
+    return entry_for_url_record.release_value();
+}
+
+// https://url.spec.whatwg.org/#concept-url-blob-entry
+// The blob URL entry of url as the user agent's blob URL store has it. The parser sets the entry of a blob URL this
+// process created. For one another process created, the browser process, which keeps every process's entries, is
+// asked, so an entry it revoked or dropped with its process is gone here too.
+Optional<URL::BlobURLEntry> blob_url_entry_in_the_user_agent_store(Page& page, URL::URL const& url)
+{
+    if (url.scheme() != "blob"sv || url.blob_url_entry().has_value())
+        return url.blob_url_entry();
+
+    // https://w3c.github.io/FileAPI/#blob-url-resolve
+    // 3. Let url string be the result of serializing url with the exclude fragment flag set.
+    auto url_string = utf16_string_from_url_ascii(url.serialize(URL::ExcludeFragment::Yes));
+
+    // 4. If store[url string] exists, return store[url string]; otherwise return failure.
+    auto entry = page.client().page_did_request_blob_url_entry(url_string);
+    if (!entry.has_value())
+        return {};
+    return blob_url_entry_for_url_record(*entry);
+}
+
+// The entry as this process's own store has it, for callers that need the object itself and not a copy of its bytes.
+Optional<BlobURLEntry const&> local_blob_url_entry(URL::URL const& url)
+{
+    auto url_string = utf16_string_from_url_ascii(url.serialize(URL::ExcludeFragment::Yes));
+    return blob_url_store().get(url_string);
 }
 
 }

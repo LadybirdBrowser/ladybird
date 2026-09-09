@@ -6,6 +6,7 @@ set(SOURCES
     AutocompleteMuxer.cpp
     AutocompleteRanker.cpp
     AutocompleteService.cpp
+    BlobURLStore.cpp
     BookmarkStore.cpp
     CanonicalBrowsingContext.cpp
     CanonicalBrowsingContextGroup.cpp

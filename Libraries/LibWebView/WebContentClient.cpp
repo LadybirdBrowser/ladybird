@@ -21,6 +21,7 @@
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/WebDriver/Error.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalTraversable.h>
@@ -70,6 +71,21 @@ Messages::WebContentClient::ResolveGenericFontResponse WebContentClient::resolve
     if (!resolved.has_value())
         return Optional<String> {};
     return Optional<String> { resolved->to_string() };
+}
+
+void WebContentClient::did_add_blob_url_entry(Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry)
+{
+    Application::blob_url_store(m_is_private).add_entry(move(url), move(entry), WeakPtr<WebContentClient> { *this });
+}
+
+void WebContentClient::did_remove_blob_url_entries(Vector<Utf16String> urls, URL::Origin origin)
+{
+    Application::blob_url_store(m_is_private).remove_entries(urls, origin, WeakPtr<WebContentClient> { *this });
+}
+
+Messages::WebContentClient::DidRequestBlobUrlEntryResponse WebContentClient::did_request_blob_url_entry(Utf16String url)
+{
+    return Application::blob_url_store(m_is_private).resolve(url);
 }
 
 HashTable<WebContentClient*>& WebContentClient::clients()
@@ -125,6 +141,7 @@ WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport, IsPr
 WebContentClient::~WebContentClient()
 {
     cancel_navigation_transactions();
+    Application::remove_blob_url_entries_added_by(WeakPtr<WebContentClient> { *this }, m_is_private);
     WorkerProcessManager::the().remove_web_content_owner(*this);
     clients().remove(this);
 
@@ -155,6 +172,7 @@ void WebContentClient::die()
 
     cancel_navigation_transactions();
     fail_renderer_owned_downloads();
+    Application::remove_blob_url_entries_added_by(WeakPtr<WebContentClient> { *this }, m_is_private);
 }
 
 void WebContentClient::report_unexpected_debugger_response()

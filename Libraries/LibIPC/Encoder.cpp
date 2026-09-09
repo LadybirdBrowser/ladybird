@@ -135,17 +135,20 @@ template<>
 ErrorOr<void> encode(Encoder& encoder, URL::URL const& value)
 {
     TRY(encoder.encode(value.serialize()));
+    TRY(encoder.encode(value.blob_url_entry()));
+    return {};
+}
 
-    if (!value.blob_url_entry().has_value())
-        return encoder.encode(false);
-
-    TRY(encoder.encode(true));
-
-    auto const& entry = value.blob_url_entry().value();
-
-    TRY(encoder.encode(entry.object));
+template<>
+ErrorOr<void> encode(Encoder& encoder, URL::BlobURLEntry const& entry)
+{
+    auto const* blob = entry.object.get_pointer<URL::BlobURLEntry::Blob>();
+    TRY(encoder.encode(blob != nullptr));
+    if (blob) {
+        TRY(encoder.encode(blob->type));
+        TRY(encoder.encode(blob->data));
+    }
     TRY(encoder.encode(entry.environment.origin));
-
     return {};
 }
 
@@ -200,20 +203,6 @@ ErrorOr<void> encode(Encoder& encoder, Core::AnonymousBuffer const& buffer)
         TRY(encoder.encode(TRY(IPC::File::clone_fd(buffer.fd()))));
     }
 
-    return {};
-}
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, URL::BlobURLEntry::Blob const& blob)
-{
-    TRY(encoder.encode(blob.type));
-    TRY(encoder.encode(blob.data));
-    return {};
-}
-
-template<>
-ErrorOr<void> encode(Encoder&, URL::BlobURLEntry::MediaSource const&)
-{
     return {};
 }
 

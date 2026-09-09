@@ -82,6 +82,7 @@
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
+#include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/Geometry/DOMRectList.h>
 #include <LibWeb/HTML/BrowsingContext.h>
@@ -463,7 +464,7 @@ Utf16String Element::get_an_elements_target(Optional<Utf16String> target) const
 }
 
 // https://html.spec.whatwg.org/multipage/links.html#get-an-element's-noopener
-HTML::TokenizedFeature::NoOpener Element::get_an_elements_noopener(URL::URL const& url, Utf16View target) const
+HTML::TokenizedFeature::NoOpener Element::get_an_elements_noopener(URL::URL const& url, Utf16View target)
 {
     // To get an element's noopener, given an a, area, or form element element, a URL record url, and a string target,
     // perform the following steps. They return a boolean.
@@ -491,9 +492,9 @@ HTML::TokenizedFeature::NoOpener Element::get_an_elements_noopener(URL::URL cons
         return HTML::TokenizedFeature::NoOpener::Yes;
 
     // 3. If url's blob URL entry is not null:
-    if (url.blob_url_entry().has_value()) {
+    if (auto blob_url_entry = FileAPI::blob_url_entry_in_the_user_agent_store(document().page(), url); blob_url_entry.has_value()) {
         // 1. Let blobOrigin be url's blob URL entry's environment's origin.
-        auto const& blob_origin = url.blob_url_entry()->environment.origin;
+        auto blob_origin = blob_url_entry->environment.origin;
 
         // 2. Let topLevelOrigin be element's relevant settings object's top-level origin.
         auto const& top_level_origin = HTML::relevant_settings_object(*this).top_level_origin;
