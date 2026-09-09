@@ -1,0 +1,6 @@
+webgl: pixel before: close to [51,51,0,255], error: 0
+webgl: error after null-location setters: 0
+webgl: pixel after: close to [51,51,0,255]
+webgl2: pixel before: close to [51,51,51,255], error: 0
+webgl2: error after null-location setters: 0
+webgl2: pixel after: close to [51,51,51,255]

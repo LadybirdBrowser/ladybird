@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<canvas id="canvas1" width="8" height="8"></canvas>
+<canvas id="canvas2" width="8" height="8"></canvas>
+<script>
+    // Every uniform is active, so one of them sits at location 0: the location an implementation that substitutes 0
+    // for null would write to. The fragment color exposes the uniform values, and 7 clamps to 255 in every channel.
+    const shaders = {
+        webgl: {
+            vertex: "void main() { gl_Position = vec4(0.0, 0.0, 0.0, 1.0); gl_PointSize = 8.0; }",
+            fragment: "precision mediump float; uniform float f; uniform int i; void main() { gl_FragColor = vec4(f, float(i) * 0.2, 0.0, 1.0); }",
+            uniforms: ["f", "i"],
+            expected: [51, 51, 0, 255],
+        },
+        webgl2: {
+            vertex: "#version 300 es\nvoid main() { gl_Position = vec4(0.0, 0.0, 0.0, 1.0); gl_PointSize = 8.0; }",
+            fragment: "#version 300 es\nprecision mediump float; uniform float f; uniform int i; uniform uint u; out vec4 color; void main() { color = vec4(f, float(i) * 0.2, float(u) * 0.2, 1.0); }",
+            uniforms: ["f", "i", "u"],
+            expected: [51, 51, 51, 255],
+        },
+    };
+
+    function compile(gl, type, source) {
+        const shader = gl.createShader(type);
+        gl.shaderSource(shader, source);
+        gl.compileShader(shader);
+        return shader;
+    }
+
+    function setViaNull(gl) {
+        gl.uniform1f(null, 7);
+        gl.uniform2f(null, 7, 7);
+        gl.uniform3f(null, 7, 7, 7);
+        gl.uniform4f(null, 7, 7, 7, 7);
+        gl.uniform1i(null, 7);
+        gl.uniform2i(null, 7, 7);
+        gl.uniform3i(null, 7, 7, 7);
+        gl.uniform4i(null, 7, 7, 7, 7);
+        if (gl instanceof WebGL2RenderingContext) {
+            gl.uniform1ui(null, 7);
+            gl.uniform2ui(null, 7, 7);
+            gl.uniform3ui(null, 7, 7, 7);
+            gl.uniform4ui(null, 7, 7, 7, 7);
+        }
+    }
+
+    function centerPixel(gl) {
+        gl.clearColor(0, 0, 0, 0);
+        gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.drawArrays(gl.POINTS, 0, 1);
+        const pixel = new Uint8Array(4);
+        gl.readPixels(4, 4, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, pixel);
+        return Array.from(pixel);
+    }
+
+    function describe(pixel, expected) {
+        const matches = pixel.every((value, index) => Math.abs(value - expected[index]) <= 2);
+        return matches ? `close to [${expected}]` : `[${pixel}], expected [${expected}]`;
+    }
+
+    test(() => {
+        for (const [kind, canvasId] of [["webgl", "canvas1"], ["webgl2", "canvas2"]]) {
+            const gl = document.getElementById(canvasId).getContext(kind);
+            const program = gl.createProgram();
+            gl.attachShader(program, compile(gl, gl.VERTEX_SHADER, shaders[kind].vertex));
+            gl.attachShader(program, compile(gl, gl.FRAGMENT_SHADER, shaders[kind].fragment));
+            gl.linkProgram(program);
+            gl.useProgram(program);
+
+            const locations = shaders[kind].uniforms.map(name => gl.getUniformLocation(program, name));
+            gl.uniform1f(locations[0], 0.2);
+            gl.uniform1i(locations[1], 1);
+            if (kind === "webgl2")
+                gl.uniform1ui(locations[2], 1);
+            println(`${kind}: pixel before: ${describe(centerPixel(gl), shaders[kind].expected)}, error: ${gl.getError()}`);
+
+            setViaNull(gl);
+
+            println(`${kind}: error after null-location setters: ${gl.getError()}`);
+            println(`${kind}: pixel after: ${describe(centerPixel(gl), shaders[kind].expected)}`);
+        }
+    });
+</script>

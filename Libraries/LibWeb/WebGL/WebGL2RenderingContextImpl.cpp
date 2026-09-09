@@ -281,9 +281,10 @@ void WebGL2RenderingContextImpl::uniform1ui(GC::Ptr<WebGLUniformLocation> locati
 {
     m_context->make_current();
 
-    GLuint location_handle = 0;
-    if (location)
-        location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
+    if (!location)
+        return;
+
+    GLuint location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
 
     m_context->uniform1ui(location_handle, v0);
 }
@@ -292,9 +293,10 @@ void WebGL2RenderingContextImpl::uniform2ui(GC::Ptr<WebGLUniformLocation> locati
 {
     m_context->make_current();
 
-    GLuint location_handle = 0;
-    if (location)
-        location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
+    if (!location)
+        return;
+
+    GLuint location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
 
     m_context->uniform2ui(location_handle, v0, v1);
 }
@@ -303,9 +305,10 @@ void WebGL2RenderingContextImpl::uniform3ui(GC::Ptr<WebGLUniformLocation> locati
 {
     m_context->make_current();
 
-    GLuint location_handle = 0;
-    if (location)
-        location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
+    if (!location)
+        return;
+
+    GLuint location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
 
     m_context->uniform3ui(location_handle, v0, v1, v2);
 }
@@ -314,9 +317,10 @@ void WebGL2RenderingContextImpl::uniform4ui(GC::Ptr<WebGLUniformLocation> locati
 {
     m_context->make_current();
 
-    GLuint location_handle = 0;
-    if (location)
-        location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
+    if (!location)
+        return;
+
+    GLuint location_handle = SET_ERROR_VALUE_IF_ERROR(location->handle(m_current_program), GL_INVALID_OPERATION);
 
     m_context->uniform4ui(location_handle, v0, v1, v2, v3);
 }
