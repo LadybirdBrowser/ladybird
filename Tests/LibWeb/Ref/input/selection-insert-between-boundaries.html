@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-insert-between-boundaries-ref.html">
+<style>
+span::selection { background: lime; color: black; }
+</style>
+<div id="selected"><span id="first">first</span><span id="last">last</span></div>
+<div><span id="moved">middle</span></div>
+<script>
+    const range = document.createRange();
+    range.setStart(first.firstChild, 0);
+    range.setEnd(last.firstChild, 4);
+    getSelection().addRange(range);
+    selected.getBoundingClientRect();
+    selected.insertBefore(moved, last);
+    selected.getBoundingClientRect();
+</script>

@@ -20,6 +20,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Node.h>
 #include <LibWeb/DOM/PseudoElement.h>
+#include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/HTML/FormAssociatedElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
@@ -714,6 +715,13 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 element->invalidate_descendant_styles_depending_on_style_container_query();
             }
 
+            // NB: Making deferred pseudo-element styles observable changes only their inputs.
+            //     The originating element's cascade and computed style remain valid.
+            if (!needs_regular_style_recompute && !needs_inherited_style_recompute && !needs_full_custom_property_recompute
+                && (reaction.reaction & StyleEngine::PseudoInputsMayHaveChanged) && element->has_style()) {
+                invalidation |= element->recompute_pseudo_element_styles();
+            }
+
             auto const* current_inherited_box_values = element->style_group<ComputedValues::InheritedBoxValues>();
             if (previous_visibility.has_value() && current_inherited_box_values
                 && *previous_visibility != static_cast<Visibility>(current_inherited_box_values->visibility)) {
@@ -1283,26 +1291,43 @@ void Document::update_selection_style_observability()
         return;
 
     auto selection = get_selection();
+    auto* text_control = as_if<HTML::FormAssociatedTextControlElement>(focused_area().ptr());
     bool observable = selection && !selection->is_collapsed();
-    if (auto const* text_control = as_if<HTML::FormAssociatedTextControlElement>(focused_area().ptr()))
-        observable |= text_control->selection_start() != text_control->selection_end();
-    if (observable == m_selection_styles_are_observable)
+    bool text_control_selection_is_observable = text_control && text_control->selection_start() != text_control->selection_end();
+    observable |= text_control_selection_is_observable;
+    if (observable == m_selection_styles_are_observable && !m_needs_selection_style_update)
         return;
+    m_needs_selection_style_update = false;
     m_selection_styles_are_observable = observable;
     style_computer().style_engine().set_pseudo_element_style_deferred(to_underlying(CSS::PseudoElement::Selection), !observable);
     if (!observable)
         return;
-    for_each_shadow_including_inclusive_descendant([&](Node& node) {
-        auto* element = as_if<Element>(node);
-        if (!element)
-            return TraversalDecision::Continue;
-        auto style = element->computed_style();
-        if (style) {
+
+    auto record_element = [&](Node& node) {
+        if (auto* element = as_if<Element>(node); element && element->has_style()) {
             style_computer().style_engine().record_element_style_input_change(element->style_node_id(),
-                CSS::StyleEngine::PublishedStyle | CSS::StyleEngine::RecomputeStyle | CSS::StyleEngine::PseudoInputsMayHaveChanged);
+                CSS::StyleEngine::PseudoInputsMayHaveChanged);
         }
-        return TraversalDecision::Continue;
-    });
+    };
+    auto record_subtree = [&](Node& root, Range const* range) {
+        // NB: Ancestors supply inherited highlight styles, and text controls paint through
+        //     their internal shadow trees. Neither requires visiting unrelated subtrees.
+        for (auto* ancestor = root.parent_or_shadow_host(); ancestor; ancestor = ancestor->parent_or_shadow_host())
+            record_element(*ancestor);
+        root.for_each_shadow_including_inclusive_descendant([&](Node& node) {
+            if (range && &node.root() == &range->start_container()->root() && !range->intersects_node(node))
+                return TraversalDecision::SkipChildrenAndContinue;
+            record_element(node);
+            return TraversalDecision::Continue;
+        });
+    };
+    if (selection && !selection->is_collapsed()) {
+        auto range = selection->range();
+        auto root = range->common_ancestor_container();
+        record_subtree(root, range.ptr());
+    }
+    if (text_control_selection_is_observable)
+        record_subtree(*focused_area(), nullptr);
 }
 
 void Document::update_style()

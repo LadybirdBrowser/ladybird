@@ -40,6 +40,7 @@
         }, { once: true });
         internals.sendText(editor, "d");
         println(`input handler leaves a selection: ${!selection.isCollapsed}`);
-        println(`selection styles activated: ${internals.styleEngineCounters().computedPseudoAssignmentsPublished - beforeSelection >= 64}`);
+        const activated = internals.styleEngineCounters().computedPseudoAssignmentsPublished - beforeSelection;
+        println(`selection styles activated locally: ${activated > 0 && activated < 16}`);
     });
 </script>

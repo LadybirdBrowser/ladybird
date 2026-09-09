@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-focus-between-text-controls-ref.html">
+<style>
+input { outline: none; }
+input::selection { background: lime; color: black; }
+</style>
+<input id="first" value="first">
+<input id="second" value="second">
+<script>
+    first.focus();
+    first.select();
+    first.getBoundingClientRect();
+    second.select();
+    second.getBoundingClientRect();
+    second.focus();
+    second.getBoundingClientRect();
+</script>

@@ -18,5 +18,5 @@ replace selection: rgb(255, 192, 203)
 detach stays selective: true
 detach color: rgb(0, 0, 128)
 detach selection: rgb(0, 0, 255)
-unqueried selection activated: true
+unqueried selection activated locally: true
 active selection: rgb(0, 0, 255)

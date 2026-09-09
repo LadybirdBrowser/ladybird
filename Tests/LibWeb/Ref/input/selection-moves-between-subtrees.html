@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-moves-between-subtrees-ref.html">
+<style id="rules">
+    span::selection { background: red; color: black; }
+</style>
+<div><span id="first">first</span></div>
+<div><span id="second">second</span></div>
+<script>
+    const selection = getSelection();
+    selection.selectAllChildren(first);
+    first.getBoundingClientRect();
+    selection.removeAllRanges();
+    second.getBoundingClientRect();
+    rules.sheet.cssRules[0].style.backgroundColor = "lime";
+    second.getBoundingClientRect();
+    selection.selectAllChildren(first);
+    first.getBoundingClientRect();
+    // Move an already active selection before its queued selectionchange event fires.
+    selection.selectAllChildren(second);
+    second.getBoundingClientRect();
+</script>

@@ -9,4 +9,4 @@ formatting preserved: 700
 selection query: rgb(10, 20, 30)
 input handler selection: rgb(40, 50, 60)
 input handler leaves a selection: true
-selection styles activated: true
+selection styles activated locally: true
