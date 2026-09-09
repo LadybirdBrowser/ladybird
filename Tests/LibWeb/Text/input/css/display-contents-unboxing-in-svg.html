@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .contents {
+        display: contents;
+    }
+</style>
+<svg id="outer" class="contents">
+    <svg id="inner" class="contents">
+        <a id="a" class="contents">
+            <g id="g" class="contents">
+                <switch id="switch" class="contents"></switch>
+            </g>
+        </a>
+        <text id="text" class="contents">
+            <tspan id="tspan" class="contents">x</tspan>
+            <textPath id="textPath" class="contents">y</textPath>
+        </text>
+        <use id="use" class="contents"></use>
+        <defs id="defs" class="contents"><symbol id="symbol" class="contents"></symbol></defs>
+        <foreignObject id="foreignObject" class="contents"></foreignObject>
+        <rect id="rect" class="contents"></rect>
+    </svg>
+</svg>
+<script>
+    test(() => {
+        const ids = ["outer", "inner", "a", "g", "switch", "text", "tspan", "textPath", "use", "defs", "symbol",
+            "foreignObject", "rect"];
+        for (const id of ids)
+            println(`${id}: ${getComputedStyle(document.getElementById(id)).display}`);
+    });
+</script>
