@@ -25,23 +25,33 @@ add_subdirectory(Meta)
 if (NOT WIN32)
     # FIXME: Provide standalone implementations of the C++ FFI callbacks
     #        required by Rust test binaries on Windows.
-    add_test(
-        NAME RustWorkspace
-        COMMAND "${CMAKE_COMMAND}" -E env
+    set(rust_workspace_test_command
+        "${CMAKE_COMMAND}" -E env
             "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/cargo/build"
-            "${RUST_CARGO}" test --workspace --target "${RUST_TARGET_TRIPLE}"
-        WORKING_DIRECTORY "${LADYBIRD_SOURCE_DIR}"
+            "${RUST_CARGO}" test --workspace
+                --manifest-path "${LADYBIRD_SOURCE_DIR}/Cargo.toml"
+                --target "${RUST_TARGET_TRIPLE}"
     )
-
-    add_test(
-        NAME Flap
-        COMMAND "${CMAKE_COMMAND}" -E env
+    set(flap_test_command
+        "${CMAKE_COMMAND}" -E env
             "CARGO_TARGET_DIR=${CMAKE_BINARY_DIR}/cargo/flap-tests"
             "${RUST_CARGO}" test
                 --manifest-path "${LADYBIRD_SOURCE_DIR}/Libraries/LibJS/Flap/Cargo.toml"
                 --target "${RUST_TARGET_TRIPLE}"
                 --all-targets
     )
+
+    add_custom_target(rust-tests ALL
+        COMMAND ${rust_workspace_test_command} --no-run --quiet
+        COMMAND ${flap_test_command} --no-run --quiet
+        WORKING_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}"
+        COMMENT "Building Rust test binaries"
+        JOB_POOL cargo
+        COMMAND_EXPAND_LISTS
+    )
+
+    add_test(NAME RustWorkspace COMMAND ${rust_workspace_test_command})
+    add_test(NAME Flap COMMAND ${flap_test_command})
 endif()
 
 if (ENABLE_GUI_TARGETS)
