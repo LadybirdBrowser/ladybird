@@ -52,6 +52,7 @@
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/ImagePaint.h>
+#include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/PaintingRustFFI.h>
@@ -814,40 +815,6 @@ static NonnullRefPtr<DisplayList> display_list_from_rust_recording(AccumulatedVi
     return DisplayList::create_from_command_bytes(visual_context_tree, move(command_bytes), move(command_runs));
 }
 
-static Optional<u64> composited_context_id_for_navigable_container(HTML::NavigableContainer const& navigable_container)
-{
-    auto content_navigable = navigable_container.content_navigable();
-    if (!content_navigable)
-        return {};
-    auto const& local_navigable = as<HTML::LocalNavigable>(*content_navigable);
-    if (local_navigable.has_been_destroyed())
-        return {};
-    auto context_id = navigable_container.document().page().client().compositor_context_id_for_remote_child_frame(content_navigable->id());
-    if (!context_id.has_value() && local_navigable.has_compositor_context()) {
-        auto const* hosted_document = navigable_container.content_document_without_origin_check();
-        if (!hosted_document || !hosted_document->is_render_blocked())
-            context_id = local_navigable.compositor_context().id();
-    }
-    if (!context_id.has_value())
-        return {};
-    return context_id->value();
-}
-
-static void invalidate_navigable_containers_whose_composited_context_changed(DOM::Document& document)
-{
-    if (!document.paint_state().has_painted_navigable_container_foreground())
-        return;
-    for (auto* container : HTML::NavigableContainer::all_instances()) {
-        if (&container->document() != &document || !container->has_painted_foreground())
-            continue;
-        auto const* layout_node = container->layout_node();
-        if (!layout_node || !has_committed_box(*layout_node))
-            continue;
-        if (container->compositor_context_id_at_last_paint() != composited_context_id_for_navigable_container(*container))
-            invalidate_paint_cache(*layout_node);
-    }
-}
-
 static Layout::RustFFI::FfiRecordingPublishCallbacks recording_publish_callbacks(PaintHostContext& context)
 {
     return {
@@ -1011,15 +978,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 case HTML::HTMLVideoElement::Representation::TransparentBlack:
                     facts.video_representation = Layout::RustFFI::FfiVideoRepresentation::TransparentBlack;
                     break;
-                }
-            } else if (is_navigable_container_viewport_paintable(layout_node)) {
-                auto& navigable_container = const_cast<HTML::NavigableContainer&>(as<HTML::NavigableContainer>(*layout_node.dom_node()));
-                auto context_id = composited_context_id_for_navigable_container(navigable_container);
-                navigable_container.set_compositor_context_id_at_last_paint(context_id);
-                const_cast<DOM::Document&>(*context.document).paint_state().set_has_painted_navigable_container_foreground();
-                if (context_id.has_value()) {
-                    facts.has_composited_context = true;
-                    facts.composited_context_id = *context_id;
                 }
             }
             return facts;
@@ -1255,7 +1213,7 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
         inputs.bitmap_rect = bitmap_rect;
         inputs.background_color = document.background_color();
     }
-    invalidate_navigable_containers_whose_composited_context_changed(document);
+    reconcile_navigable_container_paint_facts(document);
     PaintHostContext paint_host_context { resource_storage, document, paint_generation_id, device_pixels_per_css_pixel };
     auto rust_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
     if (!Layout::RustFFI::layout_arena_record_display_list(arena, viewport_row_slot(document), paint_host_callbacks(paint_host_context), visual_context_host_callbacks(document), inputs))

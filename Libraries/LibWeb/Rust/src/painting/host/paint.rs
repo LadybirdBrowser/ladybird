@@ -203,8 +203,6 @@ pub struct FfiReplacedPaintFacts {
     pub poster_frame_id: u64,
     pub poster_width: i32,
     pub poster_height: i32,
-    pub has_composited_context: bool,
-    pub composited_context_id: u64,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -385,6 +383,13 @@ pub struct FfiCanvasPaintFacts {
     pub content_height: i32,
     pub canvas_id: u64,
     pub content_generation: u64,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiNavigableContainerPaintFacts {
+    pub has_composited_context: bool,
+    pub composited_context_id: u64,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

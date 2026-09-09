@@ -1972,6 +1972,22 @@ pub unsafe extern "C" fn layout_arena_set_canvas_paint_facts(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_navigable_container_paint_facts(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+    facts: crate::painting::host::FfiNavigableContainerPaintFacts,
+) -> bool {
+    let arena = unsafe { arena_from_handle(arena) };
+    arena.set_replaced_paint_facts(
+        slot,
+        crate::painting::replaced_paint_facts::ReplacedPaintFacts::NavigableContainer(facts),
+    )
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_scroll_snap_axes(
     arena: *mut c_void,
     snap_container: NodeSlotId,
