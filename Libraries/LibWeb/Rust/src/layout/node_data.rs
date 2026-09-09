@@ -194,6 +194,7 @@ pub enum FfiNodeLink {
 pub enum DomPaintFact {
     Inert = 1 << 0,
     EditableOrEditingHost = 1 << 1,
+    InsideBlockingWheelEventHandler = 1 << 2,
 }
 
 #[derive(Clone, Copy)]

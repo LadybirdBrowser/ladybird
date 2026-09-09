@@ -7,7 +7,7 @@
 use crate::painting::record::trace::Observer;
 
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
-use crate::layout::node_data::{NodeKind, NodeSlotId};
+use crate::layout::node_data::{DomPaintFact, NodeKind, NodeSlotId};
 use crate::painting::chrome_geometry::{
     ChromeGeometry, maximum_scroll_offset, minimum_scroll_offset, scrollbar_colors_for_paint,
 };
@@ -169,7 +169,10 @@ impl<O: Observer> PaintRecorder<'_, O> {
         if !self.is_visible(paintable) || !self.visible_for_hit_testing(paintable) {
             return;
         }
-        if !self.hit_test_facts(paintable).inside_blocking_wheel_event_handler {
+        if !self
+            .layout_arena
+            .node_has_dom_paint_fact(paintable, DomPaintFact::InsideBlockingWheelEventHandler)
+        {
             return;
         }
         let rect = css_rect_to_device_rect(

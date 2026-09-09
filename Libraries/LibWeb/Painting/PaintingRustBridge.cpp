@@ -788,7 +788,6 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
                         facts.svg_clip_path_units_object_bbox = as<SVG::SVGClipPathElement>(*child->dom_node()).clip_path_units() == SVG::ClipPathUnits::ObjectBoundingBox;
                 }
             }
-            facts.inside_blocking_wheel_event_handler = dom_node && dom_node->inside_blocking_wheel_event_handler();
             return facts;
         },
         .line_break_caret_targets = [](void*, void* layout_node_shell, void* sink) {

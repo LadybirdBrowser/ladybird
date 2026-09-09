@@ -1,0 +1,3 @@
+before listener: 0
+with blocking listener: 1
+after listener removed: 0
