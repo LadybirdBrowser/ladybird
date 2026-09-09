@@ -797,7 +797,6 @@ set(SOURCES
     Loader/DownloadFilename.cpp
     Loader/FileRequest.cpp
     Loader/GeneratedPagesLoader.cpp
-    Loader/ProxyMappings.cpp
     Loader/ResourceLoader.cpp
     Loader/SiteCompatibility.cpp
     MathML/AttributeNames.cpp

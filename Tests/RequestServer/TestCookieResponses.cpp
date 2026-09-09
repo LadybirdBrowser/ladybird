@@ -77,7 +77,7 @@ public:
     void start_request(u64 request_id)
     {
         auto url = URL::Parser::basic_parse("http://localhost"sv).release_value();
-        auto message = make<Messages::RequestServer::StartRequest>(request_id, ByteString { "GET" }, move(url), Vector<HTTP::Header> {}, ByteBuffer {}, HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials::Yes, Core::ProxyData {}, true, Optional<u32> {}, false);
+        auto message = make<Messages::RequestServer::StartRequest>(request_id, ByteString { "GET" }, move(url), Vector<HTTP::Header> {}, ByteBuffer {}, HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials::Yes, true, Optional<u32> {}, false);
         auto response = dispatch(move(message));
         VERIFY(!response);
     }

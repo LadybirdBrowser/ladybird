@@ -18,7 +18,6 @@
 #include <AK/Utf16String.h>
 #include <AK/Utf16View.h>
 #include <LibCore/AnonymousBuffer.h>
-#include <LibCore/Proxy.h>
 #include <LibIPC/Attachment.h>
 #include <LibIPC/Encoder.h>
 #include <LibIPC/File.h>
@@ -201,15 +200,6 @@ ErrorOr<void> encode(Encoder& encoder, Core::AnonymousBuffer const& buffer)
         TRY(encoder.encode(TRY(IPC::File::clone_fd(buffer.fd()))));
     }
 
-    return {};
-}
-
-template<>
-ErrorOr<void> encode(Encoder& encoder, Core::ProxyData const& proxy)
-{
-    TRY(encoder.encode(proxy.type));
-    TRY(encoder.encode(proxy.host_ipv4));
-    TRY(encoder.encode(proxy.port));
     return {};
 }
 

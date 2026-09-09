@@ -144,9 +144,6 @@ template<>
 ErrorOr<Core::AnonymousBuffer> decode(Decoder&);
 
 template<>
-ErrorOr<Core::ProxyData> decode(Decoder&);
-
-template<>
 ErrorOr<URL::BlobURLEntry::Blob> decode(Decoder&);
 
 template<>

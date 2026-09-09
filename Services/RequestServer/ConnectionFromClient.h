@@ -65,7 +65,7 @@ public:
 
     IsPrivate is_private() const { return m_is_private; }
 
-    void start_revalidation_request(Badge<Request>, ByteString method, URL::URL, NonnullRefPtr<HTTP::HeaderList> request_headers, ByteBuffer request_body, HTTP::Cookie::IncludeCredentials, Core::ProxyData proxy_data);
+    void start_revalidation_request(Badge<Request>, ByteString method, URL::URL, NonnullRefPtr<HTTP::HeaderList> request_headers, ByteBuffer request_body, HTTP::Cookie::IncludeCredentials);
     void request_complete(Badge<Request>, Request const&);
     void fetch_aia_intermediate(Badge<Request>, ByteString const& url, u64 for_request_id);
 
@@ -82,7 +82,7 @@ private:
     virtual Messages::RequestServer::GetClientIdResponse get_client_id() override;
     virtual void set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally) override;
     virtual void set_use_system_dns() override;
-    virtual void start_request(u64 request_id, ByteString, URL::URL, Vector<HTTP::Header>, ByteBuffer, HTTP::CacheMode, HTTP::Cookie::IncludeCredentials, Core::ProxyData, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss) override;
+    virtual void start_request(u64 request_id, ByteString, URL::URL, Vector<HTTP::Header>, ByteBuffer, HTTP::CacheMode, HTTP::Cookie::IncludeCredentials, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss) override;
     virtual void adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id, bool preserve_transfer_lease) override;
     virtual void release_request_transfer_lease(int source_client_id, u64 source_request_id) override;
     virtual Messages::RequestServer::StopRequestResponse stop_request(u64 request_id) override;

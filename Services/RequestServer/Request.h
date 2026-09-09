@@ -12,7 +12,6 @@
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <AK/Time.h>
-#include <LibCore/Proxy.h>
 #include <LibCore/Timer.h>
 #include <LibDNS/Resolver.h>
 #include <LibHTTP/Cache/CacheMode.h>
@@ -50,7 +49,6 @@ public:
         ByteBuffer request_body,
         HTTP::Cookie::IncludeCredentials include_credentials,
         Optional<ByteString> alt_svc_cache_path,
-        Core::ProxyData proxy_data,
         Optional<Requests::RequestTransferLeaseKey>,
         Optional<u32> address_selection_hint,
         bool notify_on_cache_miss);
@@ -74,8 +72,7 @@ public:
         NonnullRefPtr<HTTP::HeaderList> request_headers,
         ByteBuffer request_body,
         HTTP::Cookie::IncludeCredentials include_credentials,
-        Optional<ByteString> alt_svc_cache_path,
-        Core::ProxyData proxy_data);
+        Optional<ByteString> alt_svc_cache_path);
 
     virtual ~Request() override;
 
@@ -174,7 +171,6 @@ private:
         ByteBuffer request_body,
         HTTP::Cookie::IncludeCredentials include_credentials,
         Optional<ByteString> alt_svc_cache_path,
-        Core::ProxyData proxy_data,
         Optional<Requests::RequestTransferLeaseKey> = {});
 
     Request(
@@ -262,7 +258,6 @@ private:
     HTTP::Cookie::IncludeCredentials m_include_credentials { HTTP::Cookie::IncludeCredentials::Yes };
 
     Optional<ByteString> m_alt_svc_cache_path;
-    Core::ProxyData m_proxy_data;
 
     Optional<u32> m_status_code;
     Optional<String> m_reason_phrase;
