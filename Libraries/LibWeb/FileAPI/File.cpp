@@ -98,7 +98,7 @@ WebIDL::ExceptionOr<void> File::serialization_steps(HTML::StructuredSerializeWri
     serialized.encode(m_type);
 
     // 2. Set serialized.[[ByteSequence]] to value’s underlying byte sequence.
-    serialized.encode(m_byte_buffer);
+    serialized.encode(raw_bytes());
 
     // 3. Set serialized.[[Name]] to the value of value’s name attribute.
     serialized.encode(m_name);
@@ -118,7 +118,7 @@ WebIDL::ExceptionOr<void> File::deserialization_steps(JS::Realm& realm, HTML::St
     m_type = TRY(HTML::decode_or_throw_data_clone_error<Utf16String>(realm, serialized));
 
     // 2. Set value’s underlying byte sequence to serialized.[[ByteSequence]].
-    m_byte_buffer = TRY(HTML::decode_or_throw_data_clone_error<ByteBuffer>(realm, serialized));
+    m_byte_sequence = TRY(HTML::decode_or_throw_data_clone_error<ByteBuffer>(realm, serialized));
 
     // 3. Initialize the value of value’s name attribute to serialized.[[Name]].
     m_name = TRY(HTML::decode_or_throw_data_clone_error<Utf16String>(realm, serialized));

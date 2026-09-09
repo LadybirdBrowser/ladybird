@@ -6,6 +6,7 @@
  */
 
 #include <AK/GenericLexer.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibGC/Heap.h>
 #include <LibJS/Runtime/ArrayBuffer.h>
 #include <LibJS/Runtime/Completion.h>
@@ -29,9 +30,34 @@ namespace Web::FileAPI {
 
 GC_DEFINE_ALLOCATOR(Blob);
 
+ReadonlyBytes Blob::raw_bytes() const
+{
+    return m_byte_sequence.visit(
+        [](ByteBuffer const& bytes) { return bytes.bytes(); },
+        [](Core::AnonymousBuffer const& buffer) { return buffer.bytes(); });
+}
+
+ErrorOr<Core::AnonymousBuffer> Blob::shared_bytes()
+{
+    if (auto* bytes = m_byte_sequence.get_pointer<ByteBuffer>()) {
+        Core::AnonymousBuffer buffer;
+        if (!bytes->is_empty()) {
+            buffer = TRY(Core::AnonymousBuffer::create_with_size(bytes->size()));
+            bytes->bytes().copy_to({ buffer.data<u8>(), buffer.size() });
+        }
+        m_byte_sequence = move(buffer);
+    }
+    return m_byte_sequence.get<Core::AnonymousBuffer>();
+}
+
 GC::Ref<Blob> Blob::create(ByteBuffer byte_buffer, Utf16String type)
 {
     return GC::Heap::the().allocate<Blob>(move(byte_buffer), move(type));
+}
+
+GC::Ref<Blob> Blob::create(Core::AnonymousBuffer bytes, Utf16String type)
+{
+    return GC::Heap::the().allocate<Blob>(move(bytes), move(type));
 }
 
 // https://w3c.github.io/FileAPI/#convert-line-endings-to-native
@@ -139,13 +165,19 @@ Blob::Blob()
 }
 
 Blob::Blob(ByteBuffer byte_buffer, Utf16String type)
-    : m_byte_buffer(move(byte_buffer))
+    : m_byte_sequence(move(byte_buffer))
+    , m_type(move(type))
+{
+}
+
+Blob::Blob(Core::AnonymousBuffer bytes, Utf16String type)
+    : m_byte_sequence(move(bytes))
     , m_type(move(type))
 {
 }
 
 Blob::Blob(ByteBuffer byte_buffer)
-    : m_byte_buffer(move(byte_buffer))
+    : m_byte_sequence(move(byte_buffer))
 {
 }
 
@@ -160,7 +192,7 @@ WebIDL::ExceptionOr<void> Blob::serialization_steps(HTML::StructuredSerializeWri
     serialized.encode(m_type);
 
     // 2. Set serialized.[[ByteSequence]] to value’s underlying byte sequence.
-    serialized.encode(m_byte_buffer);
+    serialized.encode(raw_bytes());
 
     return {};
 }
@@ -174,7 +206,7 @@ WebIDL::ExceptionOr<void> Blob::deserialization_steps(JS::Realm& realm, HTML::St
     m_type = TRY(HTML::decode_or_throw_data_clone_error<Utf16String>(realm, serialized));
 
     // 2. Set value’s underlying byte sequence to serialized.[[ByteSequence]].
-    m_byte_buffer = TRY(HTML::decode_or_throw_data_clone_error<ByteBuffer>(realm, serialized));
+    m_byte_sequence = TRY(HTML::decode_or_throw_data_clone_error<ByteBuffer>(realm, serialized));
 
     return {};
 }
@@ -305,7 +337,7 @@ ErrorOr<GC::Ref<Blob>> Blob::slice_blob(Optional<i64> start, Optional<i64> end, 
     // a. S refers to span consecutive bytes from blob’s associated byte sequence, beginning with the byte at byte-order position relativeStart.
     // b. S.size = span.
     // c. S.type = relativeContentType.
-    auto byte_buffer = TRY(m_byte_buffer.slice(relative_start, span));
+    auto byte_buffer = TRY(ByteBuffer::copy(raw_bytes().slice(relative_start, span)));
     return create(move(byte_buffer), move(relative_content_type));
 }
 
@@ -331,7 +363,7 @@ GC::Ref<Streams::ReadableStream> Blob::get_stream(JS::Realm& realm)
         //    NOTE: for simplicity the chunk is the entire buffer for now.
         {
             // 1. Let bytes be the byte sequence that results from reading a chunk from blob, or failure if a chunk cannot be read.
-            auto bytes = m_byte_buffer;
+            auto bytes = MUST(ByteBuffer::copy(raw_bytes()));
 
             // 2. Queue a global task on the file reading task source given blob’s relevant global object to perform the following steps:
             HTML::queue_global_task(HTML::Task::Source::FileReading, realm.global_object(), GC::create_function(GC::Heap::the(), [&realm, stream, bytes = move(bytes)]() {

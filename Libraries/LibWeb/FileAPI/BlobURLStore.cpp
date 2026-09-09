@@ -52,13 +52,7 @@ static ErrorOr<SerializedBlobURLEntry> serialize_blob_url_entry(BlobURLEntry con
 {
     auto object = TRY(entry.object.visit(
         [](GC::Ref<Blob> const& blob) -> ErrorOr<SerializedBlobURLEntry::Object> {
-            auto bytes = blob->raw_bytes();
-            Core::AnonymousBuffer buffer;
-            if (!bytes.is_empty()) {
-                buffer = TRY(Core::AnonymousBuffer::create_with_size(bytes.size(), Core::AnonymousBuffer::Sealability::Sealable));
-                bytes.copy_to({ buffer.data<u8>(), buffer.size() });
-            }
-            return SerializedBlobURLEntry::Blob { .type = blob->type().to_utf8(), .data = move(buffer) };
+            return SerializedBlobURLEntry::Blob { .type = blob->type().to_utf8(), .data = TRY(blob->shared_bytes()) };
         },
         [](GC::Ref<MediaSourceExtensions::MediaSource> const&) -> ErrorOr<SerializedBlobURLEntry::Object> {
             return SerializedBlobURLEntry::MediaSource {};
