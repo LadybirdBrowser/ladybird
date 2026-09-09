@@ -1542,7 +1542,7 @@ impl<'context> InlineFormattingContext<'context> {
             }
             let line_is_empty = self.line_data().line_boxes.last().is_some_and(|line| line.is_empty());
             if line_is_empty && line_builder.current_line_has_no_space_left_by_floats() {
-                line_builder.break_line(line_builder::ForcedBreak::No, None);
+                line_builder.break_line(line_builder::ForcedBreak::No, NodeSlotId::INVALID, None);
                 continue;
             }
             let split_item = item.split_for_overflow_break(
@@ -1557,11 +1557,15 @@ impl<'context> InlineFormattingContext<'context> {
                 if line_is_empty {
                     return;
                 }
-                line_builder.break_line(line_builder::ForcedBreak::No, Some(item.border_box_inline_size()));
+                line_builder.break_line(
+                    line_builder::ForcedBreak::No,
+                    NodeSlotId::INVALID,
+                    Some(item.border_box_inline_size()),
+                );
                 continue;
             };
             line_builder.append_text_item(&mut prefix, style.line_height());
-            line_builder.break_line(line_builder::ForcedBreak::No, None);
+            line_builder.break_line(line_builder::ForcedBreak::No, NodeSlotId::INVALID, None);
         }
     }
 
@@ -1633,7 +1637,7 @@ impl<'context> InlineFormattingContext<'context> {
             match item.type_ {
                 inline_level_iterator::ItemType::ForcedBreak => {
                     let continuation = iterator.next_inline_run_size(self);
-                    line_builder.break_line(line_builder::ForcedBreak::Yes, continuation);
+                    line_builder.break_line(line_builder::ForcedBreak::Yes, item.node, continuation);
                     if !item.node.is_invalid() && self.clear_floating_boxes(item.node) {
                         line_builder.did_introduce_clearance(self.block_axis_float_clearance.get());
                         self.reset_parent_margin_state();

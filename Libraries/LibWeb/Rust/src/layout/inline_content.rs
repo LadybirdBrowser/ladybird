@@ -49,6 +49,7 @@ pub struct LineRecord {
     pub original_available_inline_size: AvailableSize,
     pub has_break: bool,
     pub has_forced_break: bool,
+    pub forced_break_node: NodeSlotId,
     pub has_block_level_box: bool,
 }
 
