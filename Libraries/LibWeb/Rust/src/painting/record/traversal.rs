@@ -17,7 +17,6 @@ use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
 use crate::painting::force_dark::{ForceDarkRole, ForceDarkSettings};
 use crate::painting::hit_test::*;
-use crate::painting::host::FfiPaintHostCallbacks;
 use crate::painting::node_painting;
 use crate::painting::record::RecordingInputs;
 use crate::painting::record::cache::{
@@ -68,7 +67,6 @@ pub(crate) fn record_display_list(
     layout_arena: &LayoutNodeArena,
     paint_state: &crate::painting::paint_state::PaintState,
     viewport: NodeSlotId,
-    paint_host: &FfiPaintHostCallbacks,
     inputs: RecordingInputs,
     hit_test_list_generation: u64,
     command_cache_source: Option<Rc<RecordingOutput>>,
@@ -81,7 +79,6 @@ pub(crate) fn record_display_list(
                 layout_arena,
                 paint_state,
                 viewport,
-                paint_host,
                 inputs,
                 hit_test_list_generation,
                 command_cache_source,
@@ -101,7 +98,6 @@ fn record_display_list_impl<O: Observer>(
     layout_arena: &LayoutNodeArena,
     paint_state: &crate::painting::paint_state::PaintState,
     viewport: NodeSlotId,
-    paint_host: &FfiPaintHostCallbacks,
     inputs: RecordingInputs,
     hit_test_list_generation: u64,
     command_cache_source: Option<Rc<RecordingOutput>>,
@@ -122,7 +118,6 @@ fn record_display_list_impl<O: Observer>(
     let mut recorder = PaintRecorder {
         layout_arena: &paintable_rows,
         paint_state,
-        paint_host,
         inputs,
         recorder: DisplayListRecorder::new(force_dark_settings),
         converter: DevicePixelConverter::new(inputs.device_pixels_per_css_pixel),

@@ -15,14 +15,14 @@ use crate::painting::display_list::recorder::{
     ColorStops, FillPathParams, PaintStyle, PaintStyleOrColor, StrokePathParams,
 };
 use crate::painting::force_dark::ForceDarkRole;
-use crate::painting::host::{
-    FfiSvgGradientKind, FfiSvgGradientSpreadMethod, FfiSvgPaintContext, FfiSvgPaintStyle, FfiSvgPaintStyleKind,
-};
+use crate::painting::host::{FfiSvgGradientKind, FfiSvgGradientSpreadMethod};
 use crate::painting::node_painting;
 use crate::painting::paintable_geometry::absolute_rect;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::record::{PaintPhase, PaintRecorder};
-use crate::painting::svg_paint_resources::{PublishedSvgGradient, PublishedSvgPaintServer, SvgPaintResourceKind};
+use crate::painting::svg_paint_resources::{
+    PublishedSvgGradient, PublishedSvgPaintServer, PublishedSvgPattern, SvgPaintResourceKind,
+};
 use libgfx_rust::{AffineTransform, CapStyle, Color, FloatRect, JoinStyle, ShouldAntiAlias, WindingRule};
 
 #[derive(Clone, Copy, Default)]
@@ -163,12 +163,9 @@ fn spread_method_of(spread_method: FfiSvgGradientSpreadMethod) -> DisplayListGra
     }
 }
 
-/// The transform that takes the gradient's coordinates, which are in the painted path's user
-/// space, into the recorded space: the path's bounding box origin moves to zero, the paint
-/// transform scales to device pixels, and gradientTransform applies last.
 fn gradient_paint_transform(
     gradient: &PublishedSvgGradient,
-    paint_context: &FfiSvgPaintContext,
+    paint_context: &SvgPaintContext,
 ) -> crate::painting::display_list::commands::OptionalAffineTransform {
     use libgfx_rust::matrix::multiply_affine;
     let mapped_bounding_box = paint_context.paint_transform.map_rect(paint_context.path_bounding_box);
@@ -185,10 +182,7 @@ fn gradient_paint_transform(
     }
 }
 
-/// Builds the paint style of a gradient a fill or stroke references, resolving its coordinates
-/// the way SVG defines them: fractions of the painted path's bounding box for
-/// objectBoundingBox units, and user units with percentages of the viewport otherwise.
-fn gradient_paint_style(gradient: &PublishedSvgGradient, paint_context: &FfiSvgPaintContext) -> PaintStyle {
+fn gradient_paint_style(gradient: &PublishedSvgGradient, paint_context: &SvgPaintContext) -> PaintStyle {
     let description = &gradient.description;
     let bounding_box = paint_context.path_bounding_box;
     let viewport = paint_context.viewport;
@@ -264,28 +258,119 @@ fn gradient_paint_style(gradient: &PublishedSvgGradient, paint_context: &FfiSvgP
     }
 }
 
-fn pattern_paint_style_from_ffi<O: Observer>(
-    recorder: &mut PaintRecorder<'_, O>,
-    style: &FfiSvgPaintStyle,
-) -> Option<PaintStyle> {
-    match style.kind {
-        FfiSvgPaintStyleKind::Pattern => Some(PaintStyle::Pattern {
-            tile_records: recorder.pattern_tile_records(style.pattern_paintable, style.tile_content_transform),
-            tile_rect: style.tile_rect,
-            content_scale: style.content_scale,
-            pattern_transform: style.pattern_transform,
-        }),
-        _ => None,
-    }
+pub(crate) struct SvgPaintContext {
+    pub viewport: FloatRect,
+    pub path_bounding_box: FloatRect,
+    pub paint_transform: AffineTransform,
+    pub content_scale: libgfx_rust::FloatSize,
 }
 
-/// The paint style a fill or stroke url() resolves to, from the description the sync pass
-/// published; a pattern's geometry still comes from the host.
+fn pattern_paint_style<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    pattern: &PublishedSvgPattern,
+    paint_context: &SvgPaintContext,
+) -> Option<PaintStyle> {
+    use libgfx_rust::matrix::{affine_to_matrix, multiply_affine};
+    let description = &pattern.description;
+    let pattern_box = description.pattern_box;
+    if !recorder.layout_arena.paintable_row_is_populated(pattern_box) {
+        return None;
+    }
+    let bounding_box = paint_context.path_bounding_box;
+    let viewport = paint_context.viewport;
+    let (tile_x, tile_y, tile_width, tile_height) = if description.units_are_object_bounding_box {
+        (
+            description.x.value * bounding_box.width + bounding_box.x,
+            description.y.value * bounding_box.height + bounding_box.y,
+            description.width.value * bounding_box.width,
+            description.height.value * bounding_box.height,
+        )
+    } else {
+        (
+            description.x.resolve_relative_to(viewport.width),
+            description.y.resolve_relative_to(viewport.height),
+            description.width.resolve_relative_to(viewport.width),
+            description.height.resolve_relative_to(viewport.height),
+        )
+    };
+    if tile_width <= 0.0 || tile_height <= 0.0 {
+        return None;
+    }
+    let tile_rect = paint_context
+        .paint_transform
+        .map_rect(FloatRect::new(tile_x, tile_y, tile_width, tile_height));
+    if tile_rect.is_empty() {
+        return None;
+    }
+    let mut content_scale = paint_context.content_scale;
+    if !(content_scale.width > 0.0 && content_scale.height > 0.0) {
+        content_scale = libgfx_rust::FloatSize {
+            width: 1.0,
+            height: 1.0,
+        };
+    }
+    let device_scale = recorder.inputs.device_pixels_per_css_pixel as f32;
+    let mut recorded_to_surface = AffineTransform::identity().scaled(content_scale.width, content_scale.height);
+    if !description.has_view_box {
+        let mut content_to_tile_transform = AffineTransform::identity();
+        if description.content_units_are_object_bounding_box {
+            content_to_tile_transform = AffineTransform::identity()
+                .translated(bounding_box.x * device_scale, bounding_box.y * device_scale)
+                .scaled(bounding_box.width, bounding_box.height);
+        }
+        recorded_to_surface = multiply_affine(
+            recorded_to_surface.translated(-tile_rect.x, -tile_rect.y),
+            content_to_tile_transform,
+        );
+    }
+    let tile_content_transform = affine_to_matrix(recorded_to_surface);
+    let mut pattern_transform = crate::painting::display_list::commands::OptionalAffineTransform::default();
+    let user_space_pattern_transform = if pattern.css_transform.is_empty() {
+        description
+            .pattern_transform_attribute
+            .has_value
+            .then_some(description.pattern_transform_attribute.value)
+    } else {
+        let pattern_box_style = recorder.layout_arena.node_style_if_live(pattern_box)?;
+        let reference_box = crate::painting::visual_context::node_values::transform_reference_box(
+            pattern_box_style,
+            recorder.layout_arena,
+            pattern_box,
+        );
+        Some(
+            crate::painting::visual_context::node_values::multiply_transform_functions(
+                libgfx_rust::FloatMatrix4x4::identity(),
+                &pattern.css_transform,
+                reference_box,
+            )
+            .extract_2d_affine(),
+        )
+    };
+    if let Some(user_space_pattern_transform) = user_space_pattern_transform {
+        user_space_pattern_transform.inverse()?;
+        if let Some(inverse) = paint_context.paint_transform.inverse() {
+            pattern_transform = crate::painting::display_list::commands::OptionalAffineTransform {
+                value: multiply_affine(
+                    multiply_affine(paint_context.paint_transform, user_space_pattern_transform),
+                    inverse,
+                ),
+                has_value: true,
+            };
+        }
+    }
+    Some(PaintStyle::Pattern {
+        tile_records: recorder.pattern_tile_records(pattern_box, tile_content_transform),
+        tile_rect,
+        content_scale,
+        pattern_transform,
+    })
+}
+
 fn paint_server_style<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
     is_stroke: bool,
-    paint_context: &FfiSvgPaintContext,
+    paint_context: &SvgPaintContext,
 ) -> Option<PaintStyle> {
     let kind = if is_stroke {
         SvgPaintResourceKind::Stroke
@@ -298,13 +383,7 @@ fn paint_server_style<O: Observer>(
         .published_paint_server(paintable, kind)?;
     match &*published {
         PublishedSvgPaintServer::Gradient(gradient) => Some(gradient_paint_style(gradient, paint_context)),
-        PublishedSvgPaintServer::Pattern => {
-            let style =
-                recorder
-                    .paint_host
-                    .svg_paint_style(recorder.layout_node_shell(paintable), is_stroke, paint_context);
-            pattern_paint_style_from_ffi(recorder, &style)
-        }
+        PublishedSvgPaintServer::Pattern(pattern) => pattern_paint_style(recorder, pattern, paint_context),
         PublishedSvgPaintServer::None => None,
     }
 }
@@ -355,7 +434,7 @@ pub(crate) fn paint_path<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paint
         return;
     }
 
-    let paint_context = crate::painting::host::FfiSvgPaintContext {
+    let paint_context = SvgPaintContext {
         viewport: if facts.has_viewport {
             FloatRect::from_array(facts.viewport)
         } else {

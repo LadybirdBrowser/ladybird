@@ -33,8 +33,8 @@ static void push_svg_paint_server_description(Layout::NodeWithStyle const& layou
     auto paint_server_element = graphics_element->paint_server_element(is_stroke ? layout_node.stroke() : layout_node.fill());
     if (auto const* gradient = as_if<SVG::SVGGradientElement>(paint_server_element.ptr()))
         gradient->push_paint_server_description(sink);
-    else if (is<SVG::SVGPatternElement>(paint_server_element.ptr()))
-        Layout::RustFFI::layout_arena_svg_paint_resources_push_pattern(sink);
+    else if (auto const* pattern = as_if<SVG::SVGPatternElement>(paint_server_element.ptr()))
+        pattern->push_paint_server_description(sink, layout_node);
 }
 
 bool sync_svg_paint_resources(DOM::Document& document)

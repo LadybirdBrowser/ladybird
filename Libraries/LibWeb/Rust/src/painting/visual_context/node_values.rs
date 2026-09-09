@@ -117,6 +117,21 @@ fn resolved_transform_to_matrix(
     libgfx_rust::FloatMatrix4x4 { elements }
 }
 
+pub(crate) fn multiply_transform_functions(
+    mut matrix: libgfx_rust::FloatMatrix4x4,
+    entries: &[crate::css::computed_value_types::ComputedResolvedTransform],
+    reference_box: CssPixelRect,
+) -> libgfx_rust::FloatMatrix4x4 {
+    for entry in entries {
+        matrix = matrix.multiplied(resolved_transform_to_matrix(
+            entry,
+            reference_box.width,
+            reference_box.height,
+        ));
+    }
+    matrix
+}
+
 // https://drafts.csswg.org/css-transforms-2/#ctm
 pub(crate) fn compute_transform(
     layout_arena: &impl PaintableRowsRead,
@@ -157,8 +172,6 @@ pub(crate) fn compute_transform(
 
     // 1. Start with the identity matrix.
     // 2. Translate by the computed X, Y, and Z values of transform-origin.
-    let mut matrix = translation_matrix(0.0, 0.0, origin_z);
-
     // 3. Translate by the computed X, Y, and Z values of translate.
     // 4. Rotate by the computed <angle> about the specified axis of rotate.
     // 5. Scale by the computed X, Y, and Z values of scale.
@@ -166,13 +179,11 @@ pub(crate) fn compute_transform(
     // 7. Multiply by each of the transform functions in transform from left to right.
     // NB: The resolved transform list carries translate, rotate, scale, and the
     //     transform functions pre-lowered in exactly that order.
-    for entry in transform_values.resolved_transforms.as_slice() {
-        matrix = matrix.multiplied(resolved_transform_to_matrix(
-            entry,
-            reference_box.width,
-            reference_box.height,
-        ));
-    }
+    let mut matrix = multiply_transform_functions(
+        translation_matrix(0.0, 0.0, origin_z),
+        transform_values.resolved_transforms.as_slice(),
+        reference_box,
+    );
 
     // The x and y properties of <use> define an additional translation applied after any
     // transformations specified with other properties.

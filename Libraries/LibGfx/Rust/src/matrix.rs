@@ -85,6 +85,25 @@ impl AffineTransform {
         self.c().hypot(self.d())
     }
 
+    pub fn translated(mut self, x: f32, y: f32) -> Self {
+        if self.is_identity_or_translation() {
+            self.values[4] += x;
+            self.values[5] += y;
+            return self;
+        }
+        self.values[4] += x * self.a() + y * self.c();
+        self.values[5] += x * self.b() + y * self.d();
+        self
+    }
+
+    pub fn scaled(mut self, x: f32, y: f32) -> Self {
+        self.values[0] *= x;
+        self.values[1] *= x;
+        self.values[2] *= y;
+        self.values[3] *= y;
+        self
+    }
+
     pub fn map_point(self, point: FloatPoint) -> FloatPoint {
         FloatPoint {
             x: self.a() * point.x + self.c() * point.y + self.e(),

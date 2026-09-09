@@ -16,13 +16,6 @@
 
 namespace Web::SVG {
 
-struct SVGPaintContext {
-    Gfx::FloatRect viewport;
-    Gfx::FloatRect path_bounding_box;
-    Gfx::AffineTransform paint_transform;
-    Gfx::FloatSize content_scale;
-};
-
 class SVGGradientElement
     : public SVGElement
     , public SVGURIReferenceMixin<SupportsXLinkHref::Yes> {
@@ -33,7 +26,6 @@ public:
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
-    // Pushes the gradient's description into the sink the SVG paint resource sync hands over.
     virtual void push_paint_server_description(void* sink) const = 0;
 
     GradientUnits gradient_units() const;

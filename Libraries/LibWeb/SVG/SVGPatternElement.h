@@ -53,14 +53,7 @@ public:
 
     GC::Ptr<SVGPatternElement const> pattern_content_element() const;
 
-    struct PaintGeometry {
-        Layout::NodeWithStyle const* pattern_layout_node;
-        Gfx::FloatRect tile_rect;
-        Gfx::FloatSize content_scale;
-        Gfx::FloatMatrix4x4 tile_content_transform;
-        Optional<Gfx::AffineTransform> device_pattern_transform;
-    };
-    Optional<PaintGeometry> resolve_paint_geometry(SVGPaintContext const&, double device_pixels_per_css_pixel, Layout::Node const& target_layout_node) const;
+    void push_paint_server_description(void* sink, Layout::Node const& target_layout_node) const;
 
     virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override { return nullptr; }
 

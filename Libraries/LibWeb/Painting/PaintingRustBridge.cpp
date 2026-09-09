@@ -52,7 +52,6 @@
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/ImagePaint.h>
 #include <LibWeb/Painting/PaintFacts.h>
-#include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/PaintingRustFFI.h>
 #include <LibWeb/Painting/ResizeHandle.h>
@@ -769,28 +768,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
 {
     return {
         .context = &context,
-        .svg_paint_style = [](void* context_pointer, void* layout_node_shell, bool is_stroke, Layout::RustFFI::FfiSvgPaintContext const* ffi_paint_context) -> Layout::RustFFI::FfiSvgPaintStyle {
-            auto& context = *static_cast<PaintHostContext*>(context_pointer);
-            auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
-            Layout::RustFFI::FfiSvgPaintStyle style {};
-            SVG::SVGPaintContext paint_context {
-                .viewport = ffi_paint_context->viewport,
-                .path_bounding_box = ffi_paint_context->path_bounding_box,
-                .paint_transform = ffi_paint_context->paint_transform,
-                .content_scale = ffi_paint_context->content_scale,
-            };
-            auto const& graphics_element = as<SVG::SVGGraphicsElement>(*layout_node.dom_node());
-            auto pattern = is_stroke ? graphics_element.stroke_pattern_paint_server(paint_context, context.device_pixels_per_css_pixel) : graphics_element.fill_pattern_paint_server(paint_context, context.device_pixels_per_css_pixel);
-            if (!pattern.has_value())
-                return style;
-            style.kind = Layout::RustFFI::FfiSvgPaintStyleKind::Pattern;
-            style.pattern_paintable = committed_row_slot(*pattern->pattern_layout_node);
-            style.tile_content_transform = pattern->tile_content_transform;
-            style.tile_rect = pattern->tile_rect;
-            style.content_scale = pattern->content_scale;
-            style.pattern_transform = pattern->device_pattern_transform;
-            return style;
-        },
     };
 }
 

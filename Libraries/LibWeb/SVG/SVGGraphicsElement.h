@@ -79,21 +79,10 @@ public:
         return {};
     }
 
-    struct PatternPaintServer {
-        Layout::NodeWithStyle const* pattern_layout_node;
-        Gfx::FloatRect tile_rect;
-        Gfx::FloatSize content_scale;
-        Gfx::FloatMatrix4x4 tile_content_transform;
-        Optional<Gfx::AffineTransform> device_pattern_transform;
-    };
-    Optional<PatternPaintServer> fill_pattern_paint_server(SVGPaintContext const&, double device_pixels_per_css_pixel) const;
-    Optional<PatternPaintServer> stroke_pattern_paint_server(SVGPaintContext const&, double device_pixels_per_css_pixel) const;
     GC::Ptr<DOM::Element> paint_server_element(Optional<CSS::SVGPaint> const&) const;
 
 protected:
     SVGGraphicsElement(DOM::Document&, DOM::QualifiedName);
-
-    Optional<PatternPaintServer> svg_paint_computed_value_to_pattern_paint_server(SVGPaintContext const& paint_context, Optional<CSS::SVGPaint> const& paint_value, double device_pixels_per_css_pixel) const;
 
     GC::Ptr<DOM::Element> resolve_url_to_element(CSS::URL const& url) const;
     GC::Ptr<DOM::Element> resolve_url_to_element(Utf16String const& url) const;
