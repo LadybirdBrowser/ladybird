@@ -71,6 +71,9 @@ def main():
         "run", help="Runs the application on the build host", parents=[preset_parser, compiler_parser, target_parser]
     )
     run_parser.add_argument(
+        "--no-build", action="store_true", help="Run an existing binary without configuring or building"
+    )
+    run_parser.add_argument(
         "args", nargs=argparse.REMAINDER, help="Additional arguments passed through to the application"
     )
 
@@ -144,7 +147,11 @@ def main():
     if platform.host_system != HostSystem.Windows and os.geteuid() == 0:
         print("Do not run ladybird.py as root, your Build directory will become root-owned", file=sys.stderr)
         sys.exit(1)
-    elif platform.host_system == HostSystem.Windows and "VCINSTALLDIR" not in os.environ:
+    elif (
+        platform.host_system == HostSystem.Windows
+        and "VCINSTALLDIR" not in os.environ
+        and not (args.command == "run" and args.no_build)
+    ):
         print("ladybird.py must be run from a Visual Studio enabled environment", file=sys.stderr)
         sys.exit(1)
 
@@ -172,8 +179,11 @@ def main():
             os.environ["UBSAN_OPTIONS"] = os.environ.get(
                 "UBSAN_OPTIONS", "print_stacktrace=1:print_summary=1:halt_on_error=1"
             )
-        build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.jobs, args.gui)
-        build_main(build_dir, args.jobs, args.target)
+        if args.no_build:
+            build_dir, _ = configure_build_env(platform, args.preset, args.jobs)
+        else:
+            build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.jobs, args.gui)
+            build_main(build_dir, args.jobs, args.target)
         run_main(platform.host_system, build_dir, args.target, args.args)
     elif args.command == "debug":
         build_dir = configure_main(platform, args.preset, args.cc, args.cxx, args.jobs, args.gui)
@@ -443,7 +453,11 @@ def run_main(host_system: HostSystem, build_dir: Path, target: str, args: list[s
 
     run_args.extend(args)
 
-    run_command(run_args, exit_on_failure=True)
+    try:
+        run_command(run_args, exit_on_failure=True)
+    except FileNotFoundError:
+        print(f"Executable not found: {run_args[0]}. Build the target before running it.", file=sys.stderr)
+        sys.exit(1)
 
 
 def debug_main(host_system: HostSystem, build_dir: Path, target: str, debugger: str, debugger_commands: list[str]):

@@ -233,6 +233,18 @@ Note that debug symbols are available in both Release and Debug builds.
 If you want to run other applications, such as the JS REPL or the WebAssembly REPL, specify an executable with
 `./Meta/ladybird.py run <executable_name>`.
 
+To launch an existing binary without configuring, preparing dependencies, or building, use `--no-build`:
+
+```bash
+./Meta/ladybird.py run --no-build
+./Meta/ladybird.py run --no-build js --evaluate 'console.log(1 + 1)'
+./Meta/ladybird.py run --no-build --preset Debug js
+```
+
+Put `--no-build` before the executable name; arguments after the name are passed to the executable.
+The command uses the selected preset's existing build and retains the usual runtime environment,
+including sanitizer options. It does not update the binary or change its build configuration.
+
 ### The User Interfaces
 
 Ladybird will be built with one of the following browser frontends, depending on the platform:
