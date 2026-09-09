@@ -26,8 +26,8 @@ use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
 use crate::painting::hit_test::HitTestList;
 use crate::painting::host::{
-    FfiHitTestHostCallbacks, FfiHitTestTextNodeFacts, FfiPaintHostCallbacks, FfiRecordingInputs,
-    FfiRootBackgroundSource, FfiVisualContextHostCallbacks, FfiVisualContextTreeInputs,
+    FfiHitTestHostCallbacks, FfiPaintHostCallbacks, FfiRecordingInputs, FfiRootBackgroundSource,
+    FfiVisualContextHostCallbacks, FfiVisualContextTreeInputs,
 };
 use crate::painting::paintable_data::{InlineBoxPieceRecord, PaintableData};
 use crate::painting::paintable_rows::PaintableRowsRef;
@@ -137,7 +137,6 @@ pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) completed_record_gen: RecordGen,
     pub(crate) all_paint_caches_dirty: bool,
     pub(crate) all_descendant_subtree_caches_dirty: bool,
-    text_node_facts_cache: HashMap<u32, FfiHitTestTextNodeFacts>,
     registered_font_ids: HashSet<libgfx_rust::font::FontId>,
     selection_style_cache: HashMap<u32, Rc<paint::text::SelectionStyleAnswer>>,
     pub(crate) wheel_hit_test_target_cache: HashMap<NodeSlotId, SpatialNodeIndex>,

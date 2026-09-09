@@ -49,6 +49,7 @@ public:
 
     virtual ~Node();
     static void delete_arena_owned_shell(Node&);
+    static void rebind_dom_node_to_surviving_shell(DOM::Node&, Node& shell);
     StringView class_name() const;
 
     static RustFFI::NodeSlotId slot_id(Node const*);
@@ -310,6 +311,7 @@ public:
 
     bool is_editing_host() const { return has_flag(RustFFI::NodeFlag::IsEditingHost); }
     void set_is_editing_host(bool value) { set_flag(RustFFI::NodeFlag::IsEditingHost, value); }
+    bool refresh_dom_paint_facts();
 
     // https://drafts.csswg.org/css-ui/#propdef-user-select
     CSS::UserSelect user_select_used_value() const;

@@ -3111,6 +3111,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut tree_builder_config = base_config.clone();
     tree_builder_config.namespaces = Some(vec!["Web".to_string(), "Layout".to_string(), "RustFFI".to_string()]);
     tree_builder_config.export.include = vec![
+        "DomPaintFact".to_string(),
         "FfiCodePointCategoryFacts".to_string(),
         "FfiNodeKindFacts".to_string(),
         "FfiReplacedContentFacts".to_string(),

@@ -680,3 +680,8 @@ extern "C" WEB_API void ladybird_layout_node_shell_destroy(void* shell)
 {
     Web::Layout::Node::delete_arena_owned_shell(*static_cast<Web::Layout::Node*>(shell));
 }
+
+extern "C" WEB_API void ladybird_layout_node_rebind_dom_node(void* dom_node, void* shell)
+{
+    Web::Layout::Node::rebind_dom_node_to_surviving_shell(*static_cast<Web::DOM::Node*>(dom_node), *static_cast<Web::Layout::Node*>(shell));
+}

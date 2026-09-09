@@ -155,7 +155,6 @@ fn record_display_list_impl<O: Observer>(
         completed_record_gen: narrow_record_gen(layout_arena.paint_cache_completed_record_gen()),
         all_paint_caches_dirty: layout_arena.all_paint_caches_dirty(),
         all_descendant_subtree_caches_dirty: layout_arena.all_descendant_subtree_caches_dirty(),
-        text_node_facts_cache: HashMap::new(),
         registered_font_ids: std::collections::HashSet::new(),
         selection_style_cache: HashMap::new(),
         wheel_hit_test_target_cache: HashMap::new(),

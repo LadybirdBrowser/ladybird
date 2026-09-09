@@ -779,7 +779,6 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
             Layout::RustFFI::FfiHitTestPaintableFacts facts {};
             auto dom_node = layout_node.dom_node();
-            facts.is_inert = dom_node && dom_node->is_inert();
             facts.dom_node_has_parent = dom_node && dom_node->parent();
             facts.is_editable_or_editing_host = dom_node && dom_node->is_editable_or_editing_host();
             if (auto const* graphics_element = as_if<SVG::SVGGraphicsElement>(dom_node); graphics_element && graphics_element->unsafe_layout_node()) {
@@ -792,13 +791,6 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
             }
             facts.inside_blocking_wheel_event_handler = dom_node && dom_node->inside_blocking_wheel_event_handler();
             return facts;
-        },
-        .text_node_facts = [](void*, void* node_shell) -> Layout::RustFFI::FfiHitTestTextNodeFacts {
-            auto const& text_node = *static_cast<Layout::TextNode const*>(node_shell);
-            auto const* dom_text = text_node.dom_text();
-            return {
-                .is_inert = dom_text && dom_text->is_inert(),
-            };
         },
         .line_break_caret_targets = [](void*, void* layout_node_shell, void* sink) {
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
