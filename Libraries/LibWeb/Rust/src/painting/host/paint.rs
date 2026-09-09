@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use crate::css::css_pixels::CssPixels;
 use crate::layout::used_values;
 use crate::painting::display_list::builder::RecordedDisplayList;
 use crate::painting::display_list::commands::DisplayListCommandRun;
@@ -38,6 +39,11 @@ pub struct FfiRecordingInputs {
     pub paint_command_cache_read_write: bool,
     pub window_is_focused: bool,
     pub outline_auto_color: Color,
+    pub selection_background_from_palette: Color,
+    pub selection_background_light: Color,
+    pub selection_background_dark: Color,
+    pub palette_is_dark: bool,
+    pub document_has_supported_color_schemes: bool,
     pub has_inspector_highlight: bool,
     pub inspector_highlight_paintable: crate::layout::node_data::NodeSlotId,
     pub tooltip_color: Color,
@@ -268,6 +274,15 @@ pub struct FfiSvgPaintStyle {
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
+pub struct FfiSelectionShadowLayer {
+    pub color: Color,
+    pub offset_x: CssPixels,
+    pub offset_y: CssPixels,
+    pub blur_radius: CssPixels,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
 pub struct FfiSelectionStyleFacts {
     pub background_color: Color,
     pub text_color: OptionalColor,
@@ -392,7 +407,6 @@ pub struct FfiPaintHostCallbacks {
     pub context: *mut c_void,
     pub image_intrinsic_facts:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiLayerImageList, u32) -> FfiImageIntrinsicFacts,
-    pub selection_style_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiSelectionStyleFacts,
     pub layer_image_prepare:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiLayerImageList, u32) -> FfiLayerImagePrepareFacts,
     pub layer_image_nested_display_list: unsafe extern "C" fn(
@@ -433,19 +447,6 @@ pub struct ColorStopSink {
 }
 
 impl FfiPaintHostCallbacks {
-    pub(crate) fn selection_style_facts(
-        &self,
-        layout_node_shell: *mut c_void,
-    ) -> (
-        FfiSelectionStyleFacts,
-        Vec<crate::painting::record::paint::text::ShadowLayer>,
-    ) {
-        let mut shadows: Vec<crate::painting::record::paint::text::ShadowLayer> = Vec::new();
-        // SAFETY: The C++ host answers synchronously, pushing shadow layers into
-        // the sink through the exported function.
-        let facts = unsafe { (self.selection_style_facts)(self.context, layout_node_shell, (&raw mut shadows).cast()) };
-        (facts, shadows)
-    }
     pub(crate) fn layer_image_prepare(
         &self,
         layout_node_shell: *mut c_void,

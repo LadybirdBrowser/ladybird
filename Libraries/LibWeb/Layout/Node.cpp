@@ -847,6 +847,8 @@ void NodeWithStyle::publish_style_record_to_node_data()
     VERIFY(payloads);
     m_style_payloads = payloads;
     RustFFI::layout_arena_set_node_style(arena_handle(), slot_id(this), m_style_record_identity.value(), payloads);
+    if (auto const* element = as_if<DOM::Element>(dom_node()); element && element->computed_style(CSS::PseudoElement::Selection))
+        Painting::push_selection_pseudo_style(*element);
     if (content_visibility() == CSS::ContentVisibility::Auto)
         document().note_content_visibility_auto_style();
 

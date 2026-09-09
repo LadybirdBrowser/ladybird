@@ -23,6 +23,7 @@ TextNode::TextNode(DOM::Document& document, DOM::Text& text, AttachToDOMNode att
 {
     invalidate_text_for_rendering();
     update_produces_line_box_fragment_when_empty_flag();
+    Painting::push_selection_pseudo_style_of_parent(*this);
 }
 
 TextNode::TextNode(DOM::Document& document, RustFFI::NodeKind kind)

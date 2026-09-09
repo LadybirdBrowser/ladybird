@@ -23,6 +23,7 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
+#include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
@@ -834,59 +835,110 @@ SelectionStyle selection_style_for_node(Layout::Node const& layout_node, GC::Ptr
     auto use_palette_for_normal_color_scheme = color_scheme_is_normal && !layout_node.document().supported_color_schemes().has_value();
     auto default_style = default_style_for_color_scheme(style_source.color_scheme(), use_palette_for_normal_color_scheme);
 
-    auto style_from_element = [&](DOM::Element const& element) -> Optional<SelectionStyle> {
-        auto computed_selection_style = element.computed_style(CSS::PseudoElement::Selection);
-        if (!computed_selection_style)
-            return {};
-
-        SelectionStyle style;
-        style.background_color = computed_selection_style->background_color();
-
-        // Only use text color if it was explicitly set in the ::selection rule, not inherited.
-        if (!computed_selection_style->is_property_inherited(CSS::PropertyID::Color))
-            style.text_color = computed_selection_style->color();
-
-        // Only use text-shadow if it was explicitly set in the ::selection rule, not inherited.
-        if (!computed_selection_style->is_property_inherited(CSS::PropertyID::TextShadow)) {
-            auto const& css_shadows = computed_selection_style->text_shadow();
-            Vector<ShadowData> shadows;
-            shadows.ensure_capacity(css_shadows.size());
-            for (auto const& shadow : css_shadows)
-                shadows.unchecked_append(ShadowData::from_css(shadow));
-            style.text_shadow = move(shadows);
-        }
-
-        // Only use text-decoration if it was explicitly set in the ::selection rule, not inherited.
-        if (!computed_selection_style->is_property_inherited(CSS::PropertyID::TextDecorationLine)) {
-            style.text_decoration = TextDecorationStyle {
-                .line = Vector<CSS::TextDecorationLine> { computed_selection_style->text_decoration_line() },
-                .style = computed_selection_style->text_decoration_style(),
-                .color = computed_selection_style->text_decoration_color(),
-            };
-        }
-
-        // Only return a style if there's a meaningful customization. This allows us to continue checking shadow hosts
-        // when the current element only has UA default styles.
-        if (!style.has_styling())
-            return {};
-
-        return style;
-    };
-
     // Check the element itself.
-    if (auto style = style_from_element(*element); style.has_value())
+    if (auto style = selection_pseudo_style_of_element(*element); style.has_value())
         return style.release_value();
 
     // If inside a shadow tree, check the shadow host. This enables ::selection styling on elements like <input> to
     // apply to text rendered inside their shadow DOM.
     if (auto shadow_root = element->containing_shadow_root(); shadow_root && shadow_root->is_user_agent_internal()) {
         if (auto const* host = shadow_root->host()) {
-            if (auto style = style_from_element(*host); style.has_value())
+            if (auto style = selection_pseudo_style_of_element(*host); style.has_value())
                 return style.release_value();
         }
     }
 
     return default_style;
+}
+
+Optional<SelectionStyle> selection_pseudo_style_of_element(DOM::Element const& element)
+{
+    auto computed_selection_style = element.computed_style(CSS::PseudoElement::Selection);
+    if (!computed_selection_style)
+        return {};
+
+    SelectionStyle style;
+    style.background_color = computed_selection_style->background_color();
+
+    // Only use text color if it was explicitly set in the ::selection rule, not inherited.
+    if (!computed_selection_style->is_property_inherited(CSS::PropertyID::Color))
+        style.text_color = computed_selection_style->color();
+
+    // Only use text-shadow if it was explicitly set in the ::selection rule, not inherited.
+    if (!computed_selection_style->is_property_inherited(CSS::PropertyID::TextShadow)) {
+        auto const& css_shadows = computed_selection_style->text_shadow();
+        Vector<ShadowData> shadows;
+        shadows.ensure_capacity(css_shadows.size());
+        for (auto const& shadow : css_shadows)
+            shadows.unchecked_append(ShadowData::from_css(shadow));
+        style.text_shadow = move(shadows);
+    }
+
+    // Only use text-decoration if it was explicitly set in the ::selection rule, not inherited.
+    if (!computed_selection_style->is_property_inherited(CSS::PropertyID::TextDecorationLine)) {
+        style.text_decoration = TextDecorationStyle {
+            .line = Vector<CSS::TextDecorationLine> { computed_selection_style->text_decoration_line() },
+            .style = computed_selection_style->text_decoration_style(),
+            .color = computed_selection_style->text_decoration_color(),
+        };
+    }
+
+    // Only return a style if there's a meaningful customization. This allows us to continue checking shadow hosts
+    // when the current element only has UA default styles.
+    if (!style.has_styling())
+        return {};
+
+    return style;
+}
+
+static void push_selection_pseudo_style_onto(Layout::Node const& layout_node, Optional<SelectionStyle> const& style)
+{
+    Layout::RustFFI::FfiSelectionStyleFacts facts {};
+    Vector<Layout::RustFFI::FfiSelectionShadowLayer> shadows;
+    if (style.has_value()) {
+        facts.background_color = style->background_color;
+        facts.text_color = style->text_color;
+        if (style->text_shadow.has_value()) {
+            facts.has_text_shadow = true;
+            for (auto const& layer : *style->text_shadow)
+                shadows.append({ .color = layer.color, .offset_x = layer.offset_x, .offset_y = layer.offset_y, .blur_radius = layer.blur_radius });
+        }
+        if (style->text_decoration.has_value()) {
+            facts.has_text_decoration = true;
+            facts.text_decoration_line_count = min(style->text_decoration->line.size(), array_size(facts.text_decoration_lines));
+            for (size_t i = 0; i < facts.text_decoration_line_count; ++i)
+                facts.text_decoration_lines[i] = to_underlying(style->text_decoration->line[i]);
+            facts.text_decoration_style = to_underlying(style->text_decoration->style);
+            facts.text_decoration_color = style->text_decoration->color;
+        }
+    }
+    Layout::RustFFI::layout_arena_set_node_selection_pseudo_style(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node), style.has_value(), facts, shadows.data(), shadows.size());
+}
+
+void push_selection_pseudo_style(DOM::Element const& element)
+{
+    auto style = selection_pseudo_style_of_element(element);
+    if (auto const* layout_node = element.unsafe_layout_node()) {
+        push_selection_pseudo_style_onto(*layout_node, style);
+        return;
+    }
+    for (auto const* child = element.first_child(); child; child = child->next_sibling()) {
+        if (!is<DOM::Text>(*child))
+            continue;
+        if (auto const* text_layout_node = child->unsafe_layout_node())
+            push_selection_pseudo_style_onto(*text_layout_node, style);
+    }
+}
+
+void push_selection_pseudo_style_of_parent(Layout::TextNode& text_layout_node)
+{
+    auto const* text = text_layout_node.dom_text();
+    auto const* parent_element = text ? text->parent_element().ptr() : nullptr;
+    if (!parent_element || parent_element->unsafe_layout_node())
+        return;
+    if (!parent_element->computed_style(CSS::PseudoElement::Selection))
+        return;
+    push_selection_pseudo_style_onto(text_layout_node, selection_pseudo_style_of_element(*parent_element));
 }
 
 class BoxViewRepaintAccess {

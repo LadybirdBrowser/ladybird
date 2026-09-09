@@ -644,6 +644,7 @@ pub(crate) fn system_color_for_keyword(keyword_code: u16, dark: bool) -> Option<
 
 // PreferredColorScheme.h: Auto = 0, Dark = 1, Light = 2.
 pub(crate) const PREFERRED_COLOR_SCHEME_DARK: u8 = 1;
+pub(crate) const PREFERRED_COLOR_SCHEME_LIGHT: u8 = 2;
 
 // Gfx::RectangularColorSpace::Oklab, asserted against C++ in ColorMixStyleValue.cpp.
 pub(crate) const RECTANGULAR_COLOR_SPACE_OKLAB: u8 = 8;
