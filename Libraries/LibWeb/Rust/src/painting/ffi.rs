@@ -2001,6 +2001,24 @@ pub unsafe extern "C" fn layout_arena_set_layer_image_paint_facts(
 
 /// # Safety
 ///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
+/// `facts.frame` must be null or point to a live `Gfx::DecodedImageFrame`.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_replaced_image_paint_facts(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+    facts: crate::painting::host::FfiReplacedImagePaintFacts,
+) -> bool {
+    let arena = unsafe { arena_from_handle(arena) };
+    let facts = unsafe { crate::painting::replaced_paint_facts::ImagePaintFacts::from_ffi(&facts) };
+    arena.set_replaced_paint_facts(
+        slot,
+        crate::painting::replaced_paint_facts::ReplacedPaintFacts::Image(facts),
+    )
+}
+
+/// # Safety
+///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_navigable_container_paint_facts(

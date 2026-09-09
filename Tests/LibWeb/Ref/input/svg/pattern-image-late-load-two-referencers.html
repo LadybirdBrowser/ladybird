@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../expected/svg/pattern-image-late-load-two-referencers-ref.html">
+<style>
+    body {
+        margin: 0;
+    }
+</style>
+<svg width="220" height="100" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+        <pattern id="tile" width="10" height="10" patternUnits="userSpaceOnUse">
+            <image id="tile-image" width="10" height="10" />
+        </pattern>
+    </defs>
+    <rect width="100" height="100" fill="url(#tile)" />
+    <rect x="120" width="100" height="100" fill="url(#tile)" />
+</svg>
+<script>
+    const tileImage = document.getElementById("tile-image");
+    const finish = () => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                if (window.internals)
+                    internals.signalTestIsDone("PASS");
+                else
+                    document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    };
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            tileImage.addEventListener("load", finish);
+            tileImage.setAttribute("href", "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAD0lEQVR4nGNgaGBAIOI4ANA0CAF5jtVRAAAAAElFTkSuQmCC");
+        });
+    });
+</script>
+</html>

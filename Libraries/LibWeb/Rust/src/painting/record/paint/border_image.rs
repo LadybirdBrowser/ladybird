@@ -408,7 +408,7 @@ pub(crate) fn paint_border_image<O: Observer>(
         return false;
     }
     let image_rendering = style.image_rendering();
-    let Some(crate::painting::layer_image_paint_facts::LayerImageContent::Raster(Some(frame))) = recorder
+    let Some(crate::painting::image_content::ImageContent::Raster(Some(frame))) = recorder
         .layout_arena
         .layer_image_paint_facts(paintable, FfiLayerImageList::BorderImageSource, 0)
         .map(|facts| facts.content)

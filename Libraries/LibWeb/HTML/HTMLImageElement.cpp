@@ -144,15 +144,21 @@ void HTMLImageElement::set_needs_layout_update_or_repaint_after_image_data_chang
     }
 
     if (!image_box || image_element_dimensions_may_depend_on_intrinsic_size(*image_box)) {
+        image_provider_contents_changed();
         set_needs_layout_update(reason);
         return;
     }
 
     reset_intrinsic_size_caches_after_image_data_change(*image_box);
-    set_needs_repaint();
+    image_provider_contents_changed();
 }
 
 GC_DEFINE_ALLOCATOR(HTMLImageElement);
+
+Layout::Node const* HTMLImageElement::image_provider_layout_node() const
+{
+    return unsafe_layout_node();
+}
 
 static GC::Ref<DOM::Event> create_event_for_element(HTMLElement& element, Utf16FlyString const& event_name)
 {

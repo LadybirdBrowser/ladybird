@@ -92,6 +92,11 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HTMLInputElement);
 
+Layout::Node const* HTMLInputElement::image_provider_layout_node() const
+{
+    return unsafe_layout_node();
+}
+
 static GC::Ref<DOM::Event> create_event_for_element(HTMLElement& element, Utf16FlyString const& event_name, DOM::EventInit const& event_init = {})
 {
     return DOM::Event::create(

@@ -42,6 +42,11 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(HTMLObjectElement);
 
+Layout::Node const* HTMLObjectElement::image_provider_layout_node() const
+{
+    return unsafe_layout_node();
+}
+
 static GC::Ref<DOM::Event> create_event_for_element(HTMLElement& element, Utf16FlyString const& event_name)
 {
     return DOM::Event::create(event_name, HighResolutionTime::current_high_resolution_time(relevant_global_object(element)));

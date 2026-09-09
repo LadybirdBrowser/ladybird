@@ -149,7 +149,7 @@ pub struct FfiFlexOverlayInput {
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
-pub enum FfiLayerImageContentKind {
+pub enum FfiImageContentKind {
     #[default]
     None,
     Raster,
@@ -167,7 +167,8 @@ pub struct FfiLayerImagePaintFacts {
     pub natural_aspect_ratio_denominator: crate::css::css_pixels::CssPixels,
     pub has_image_set_selected_option: bool,
     pub image_set_selected_option_index: u32,
-    pub content_kind: FfiLayerImageContentKind,
+    pub content_kind: FfiImageContentKind,
+    pub vector_content_identity: u64,
     pub frame: *const c_void,
     pub single_pixel_color: OptionalColor,
 }
@@ -189,16 +190,23 @@ pub enum FfiVideoRepresentation {
     TransparentBlack,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct FfiReplacedPaintFacts {
+pub struct FfiReplacedImagePaintFacts {
     pub has_decoded_image_data: bool,
     pub natural_width: used_values::OptionalCssPixels,
     pub natural_height: used_values::OptionalCssPixels,
     pub has_natural_aspect_ratio: bool,
     pub natural_aspect_ratio_numerator: crate::css::css_pixels::CssPixels,
     pub natural_aspect_ratio_denominator: crate::css::css_pixels::CssPixels,
-    pub selection_background_color: Color,
+    pub content_kind: FfiImageContentKind,
+    pub vector_content_identity: u64,
+    pub frame: *const c_void,
+}
+
+#[derive(Clone, Copy, Debug, Default)]
+#[repr(C)]
+pub struct FfiReplacedPaintFacts {
     pub video_representation: FfiVideoRepresentation,
     pub has_video_frame: bool,
     pub video_src_width: i32,
@@ -208,13 +216,6 @@ pub struct FfiReplacedPaintFacts {
     pub poster_frame_id: u64,
     pub poster_width: i32,
     pub poster_height: i32,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiSvgImageFacts {
-    pub has_decoded_image_data: bool,
-    pub natural_size: used_values::OptionalFloatSize,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -430,7 +431,6 @@ pub struct FfiPaintHostCallbacks {
     pub replaced_paint_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiReplacedPaintFacts,
     pub replaced_image_paint:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FloatRect, FloatSize) -> FfiImagePaintFacts,
-    pub svg_image_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiSvgImageFacts,
     pub svg_paint_style: unsafe extern "C" fn(
         *mut c_void,
         *mut c_void,
@@ -499,10 +499,6 @@ impl FfiPaintHostCallbacks {
     ) -> FfiImagePaintFacts {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
         unsafe { (self.replaced_image_paint)(self.context, layout_node_shell, dest, accumulated_scale) }
-    }
-    pub(crate) fn svg_image_facts(&self, layout_node_shell: *mut c_void) -> FfiSvgImageFacts {
-        // SAFETY: The C++ host answers synchronously from a live layout node shell.
-        unsafe { (self.svg_image_facts)(self.context, layout_node_shell) }
     }
     pub(crate) fn svg_paint_style(
         &self,

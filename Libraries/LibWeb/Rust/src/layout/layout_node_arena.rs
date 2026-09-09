@@ -1189,7 +1189,7 @@ impl LayoutNodeArena {
         &self,
         id: NodeSlotId,
     ) -> Option<crate::painting::replaced_paint_facts::ReplacedPaintFacts> {
-        self.replaced_paint_facts.borrow().get(&id).copied()
+        self.replaced_paint_facts.borrow().get(&id).cloned()
     }
 
     pub(crate) fn layer_image_paint_facts(
@@ -1241,7 +1241,7 @@ impl LayoutNodeArena {
             if table.get(&row) == Some(&facts) {
                 continue;
             }
-            table.insert(row, facts);
+            table.insert(row, facts.clone());
             drop(table);
             any_changed = true;
             if row != id {

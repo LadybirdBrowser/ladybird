@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/object-image-late-load-ref.html">
+<style>
+    body {
+        margin: 0;
+    }
+    #target::before {
+        content: url("../data/smiley.png?content-url-image-late-load");
+        display: block;
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<div id="target"></div>
+<script>
+    const image = new Image();
+    image.src = "../data/smiley.png?content-url-image-late-load";
+    image.decode().then(() => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                if (window.internals)
+                    internals.signalTestIsDone("PASS");
+                else
+                    document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>

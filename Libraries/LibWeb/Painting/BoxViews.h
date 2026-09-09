@@ -100,11 +100,8 @@ WEB_API CSSPixelRect caret_rect_for_child_offset(Layout::Node const&, size_t off
 WEB_API Layout::RustFFI::FfiCaretPaint resolve_document_caret_paint(DOM::Document&);
 WEB_API Layout::RustFFI::FfiFocusedTextControlSelection resolve_focused_text_control_selection(DOM::Document const&);
 WEB_API Layout::RustFFI::FfiFocusedAreaOutline resolve_focused_area_outline(DOM::Document const&, Vector<u8>& path_bytes);
-WEB_API SelectionStyle selection_style(Layout::Node const&);
-WEB_API Optional<SelectionStyle> selection_pseudo_style_of_element(DOM::Element const&);
 WEB_API void push_selection_pseudo_style(DOM::Element const&);
 WEB_API void push_selection_pseudo_style_of_parent(Layout::TextNode&);
-WEB_API SelectionStyle selection_style_for_node(Layout::Node const&, GC::Ptr<DOM::Node const>);
 
 WEB_API void set_needs_repaint(Layout::Node const&, InvalidateDisplayList = InvalidateDisplayList::Yes);
 WEB_API void set_needs_repaint_in_subtree(Layout::Node const&);

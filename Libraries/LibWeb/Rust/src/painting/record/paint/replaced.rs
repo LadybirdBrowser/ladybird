@@ -248,6 +248,38 @@ fn replaced_facts<O: Observer>(recorder: &PaintRecorder<'_, O>, paintable: NodeS
         .replaced_paint_facts(recorder.layout_node_shell(paintable))
 }
 
+pub(crate) fn paint_replaced_image_content<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    paintable: NodeSlotId,
+    content: &crate::painting::image_content::ImageContent,
+    dest_rect: FloatRect,
+    image_rendering: u8,
+) {
+    match content {
+        crate::painting::image_content::ImageContent::Raster(Some(frame)) => {
+            crate::painting::record::paint::background::paint_decoded_image_frame(
+                recorder,
+                frame,
+                dest_rect,
+                image_rendering,
+            );
+        }
+        crate::painting::image_content::ImageContent::Vector { .. } => {
+            let accumulated_scale =
+                recorder.accumulated_2d_scale_at(recorder.recorder.accumulated_visual_context().spatial);
+            let paint = recorder.paint_host.replaced_image_paint(
+                recorder.layout_node_shell(paintable),
+                dest_rect,
+                accumulated_scale,
+            );
+            if paint.image_paint_kind != crate::painting::host::FfiImagePaintKind::None {
+                paint_image(recorder, &paint, dest_rect, image_rendering);
+            }
+        }
+        _ => {}
+    }
+}
+
 fn replaced_style<O: Observer>(recorder: &PaintRecorder<'_, O>, paintable: NodeSlotId) -> (u8, u8) {
     recorder
         .layout_arena
@@ -258,7 +290,11 @@ fn replaced_style<O: Observer>(recorder: &PaintRecorder<'_, O>, paintable: NodeS
 }
 
 pub(crate) fn paint_image_foreground<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
-    let facts = replaced_facts(recorder, paintable);
+    let facts = recorder
+        .layout_arena
+        .replaced_paint_facts(paintable)
+        .and_then(|facts| facts.image())
+        .unwrap_or_default();
     let (object_fit, image_rendering) = replaced_style(recorder, paintable);
     let image_rect = absolute_rect(recorder.layout_arena, paintable);
     let image_rect_device_pixels = recorder.converter.rounded_device_rect(image_rect);
@@ -267,12 +303,9 @@ pub(crate) fn paint_image_foreground<O: Observer>(recorder: &mut PaintRecorder<'
         let natural_size = SizeWithAspectRatio {
             width: facts.natural_width.has_value.then_some(facts.natural_width.value),
             height: facts.natural_height.has_value.then_some(facts.natural_height.value),
-            aspect_ratio: facts.has_natural_aspect_ratio.then(|| {
-                Fraction::of(
-                    facts.natural_aspect_ratio_numerator,
-                    facts.natural_aspect_ratio_denominator,
-                )
-            }),
+            aspect_ratio: facts
+                .natural_aspect_ratio
+                .map(|(numerator, denominator)| Fraction::of(numerator, denominator)),
         };
         let concrete_object_size = run_default_sizing_algorithm(None, None, &natural_size, image_rect.size());
 
@@ -288,22 +321,13 @@ pub(crate) fn paint_image_foreground<O: Observer>(recorder: &mut PaintRecorder<'
             }
             let dest_rect = draw_rect.to_float();
             recorder.record_with_inline_clips(&inline_clips, |recorder| {
-                let accumulated_scale =
-                    recorder.accumulated_2d_scale_at(recorder.recorder.accumulated_visual_context().spatial);
-                let paint = recorder.paint_host.replaced_image_paint(
-                    recorder.layout_node_shell(paintable),
-                    dest_rect,
-                    accumulated_scale,
-                );
-                if paint.image_paint_kind != crate::painting::host::FfiImagePaintKind::None {
-                    paint_image(recorder, &paint, dest_rect, image_rendering);
-                }
+                paint_replaced_image_content(recorder, paintable, &facts.content, dest_rect, image_rendering);
             });
         }
     }
 
     if recorder.data(paintable).selection_state != 0 {
-        let selection_background_color = facts.selection_background_color;
+        let selection_background_color = recorder.element_selection_style(paintable).facts.background_color;
         if selection_background_color.alpha() > 0 {
             let backdrop = recorder
                 .layout_arena

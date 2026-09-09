@@ -25,6 +25,11 @@ namespace Web::SVG {
 
 GC_DEFINE_ALLOCATOR(SVGImageElement);
 
+Layout::Node const* SVGImageElement::image_provider_layout_node() const
+{
+    return unsafe_layout_node();
+}
+
 SVGImageElement::SVGImageElement(DOM::Document& document, DOM::QualifiedName qualified_name)
     : SVGGraphicsElement(document, move(qualified_name))
 {
@@ -128,6 +133,7 @@ void SVGImageElement::fetch_the_document(URL::URL const& url)
         [this, resource_request = GC::Root { m_resource_request }] {
             m_load_event_delayer.clear();
             register_with_decoded_image_data_if_needed();
+            image_provider_contents_changed();
             document().style_computer().style_engine().record_element_style_input_change(style_node_id());
             set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGImageElementFetchTheDocument);
 

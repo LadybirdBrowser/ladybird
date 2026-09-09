@@ -240,22 +240,39 @@ impl<O: Observer> PaintRecorder<'_, O> {
         if let Some(answer) = self.selection_style_cache.get(&key) {
             return answer.clone();
         }
+        let style_source = self.layout_arena.data(node).parent.get();
         let answer = self
-            .committed_selection_pseudo_style_for_text(node)
-            .unwrap_or_else(|| Rc::new(self.default_selection_style_for_text(node)));
+            .first_non_anonymous_ancestor_row(node)
+            .and_then(|element_row| self.committed_selection_pseudo_style(node, element_row))
+            .unwrap_or_else(|| Rc::new(self.default_selection_style(node, style_source)));
         self.selection_style_cache.insert(key, answer.clone());
         answer
     }
 
-    fn committed_selection_pseudo_style_for_text(
+    pub(crate) fn element_selection_style(
+        &mut self,
+        element_row: crate::layout::node_data::NodeSlotId,
+    ) -> Rc<paint::text::SelectionStyleAnswer> {
+        let key = element_row.index;
+        if let Some(answer) = self.selection_style_cache.get(&key) {
+            return answer.clone();
+        }
+        let answer = self
+            .committed_selection_pseudo_style(element_row, element_row)
+            .unwrap_or_else(|| Rc::new(self.default_selection_style(element_row, element_row)));
+        self.selection_style_cache.insert(key, answer.clone());
+        answer
+    }
+
+    fn committed_selection_pseudo_style(
         &self,
-        text_node: crate::layout::node_data::NodeSlotId,
+        node: crate::layout::node_data::NodeSlotId,
+        element_row: crate::layout::node_data::NodeSlotId,
     ) -> Option<Rc<paint::text::SelectionStyleAnswer>> {
         let styles = &self.paint_state.selection_pseudo_styles;
-        if let Some(answer) = styles.get(&text_node) {
+        if let Some(answer) = styles.get(&node) {
             return Some(answer.clone());
         }
-        let element_row = self.first_non_anonymous_ancestor_row(text_node)?;
         if let Some(answer) = styles.get(&element_row) {
             return Some(answer.clone());
         }
@@ -288,13 +305,13 @@ impl<O: Observer> PaintRecorder<'_, O> {
         None
     }
 
-    fn default_selection_style_for_text(
+    fn default_selection_style(
         &self,
-        text_node: crate::layout::node_data::NodeSlotId,
+        node: crate::layout::node_data::NodeSlotId,
+        style_source: crate::layout::node_data::NodeSlotId,
     ) -> paint::text::SelectionStyleAnswer {
         use crate::css::color_resolution::{PREFERRED_COLOR_SCHEME_DARK, PREFERRED_COLOR_SCHEME_LIGHT};
         let inputs = &self.inputs;
-        let style_source = self.layout_arena.data(text_node).parent.get();
         let (color_scheme, color_scheme_is_normal) =
             self.layout_arena
                 .node_style_if_live(style_source)
@@ -302,7 +319,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
                     let ui = style.inherited_ui();
                     (ui.color_scheme, ui.color_schemes.as_slice().is_empty())
                 });
-        let use_palette_for_normal_color_scheme = self.layout_arena.node_dom_node(text_node).is_null()
+        let use_palette_for_normal_color_scheme = self.layout_arena.node_dom_node(node).is_null()
             || (color_scheme_is_normal && !inputs.document_has_supported_color_schemes);
         let palette_color_scheme = if inputs.palette_is_dark {
             PREFERRED_COLOR_SCHEME_DARK

@@ -149,7 +149,8 @@ private:
     void update_alt_text_shadow_tree();
     void set_needs_layout_update_or_repaint_after_image_data_change(DOM::SetNeedsLayoutReason);
 
-    virtual void decoded_image_data_did_update() override { set_needs_repaint(); }
+    virtual void decoded_image_data_did_update() override { image_provider_contents_changed(); }
+    virtual Layout::Node const* image_provider_layout_node() const override;
 
     Optional<DOM::DocumentLoadEventDelayer> m_load_event_delayer;
 
