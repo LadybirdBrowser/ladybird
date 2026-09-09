@@ -15,15 +15,13 @@ use crate::painting::svg_filter::SvgFilterGraphBuilder;
 use libgfx_rust::filter::Filter;
 use libgfx_rust::{
     Color, CompositingAndBlendingOperator, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, IntRect,
-    InterpolationColorSpace, MaskKind, ScalingMode,
+    InterpolationColorSpace, ScalingMode,
 };
 use std::ffi::c_void;
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct FfiSvgMaskFacts {
-    pub mask_area: OptionalCssPixelRect,
-    pub mask_kind: MaskKind,
     pub clip_area: OptionalCssPixelRect,
 }
 

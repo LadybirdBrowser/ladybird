@@ -415,10 +415,6 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM
         .svg_mask_facts = [](void*, void* layout_node_shell) -> Layout::RustFFI::FfiSvgMaskFacts {
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
             Layout::RustFFI::FfiSvgMaskFacts facts {};
-            if (auto area = mask_area(layout_node); area.has_value()) {
-                facts.mask_area = *area;
-                facts.mask_kind = mask_type(layout_node).value_or(Gfx::MaskKind::Alpha);
-            }
             facts.clip_area = clip_area(layout_node);
             return facts;
         },

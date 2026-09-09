@@ -80,6 +80,30 @@ pub struct FfiSvgElementFacts {
     pub pattern_units: u8,
     pub pattern_width: FfiSvgNumberPercentage,
     pub pattern_height: FfiSvgNumberPercentage,
+    pub mask_units: u8,
+    pub mask_x: FfiSvgNumberPercentage,
+    pub mask_y: FfiSvgNumberPercentage,
+    pub mask_width: FfiSvgNumberPercentage,
+    pub mask_height: FfiSvgNumberPercentage,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct SvgMaskAreaFacts {
+    pub units_are_object_bounding_box: bool,
+    pub x: FfiSvgNumberPercentage,
+    pub y: FfiSvgNumberPercentage,
+    pub width: FfiSvgNumberPercentage,
+    pub height: FfiSvgNumberPercentage,
+}
+
+impl FfiSvgNumberPercentage {
+    pub(crate) fn resolve_relative_to(self, length: f32) -> f32 {
+        if self.is_percentage {
+            self.value * length
+        } else {
+            self.value
+        }
+    }
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -485,6 +509,13 @@ impl<'pass> SvgFormattingContext<'pass> {
         rare.svg_view_box = facts.has_active_view_box.then_some(facts.active_view_box);
         rare.svg_additional_element_transform =
             (!facts.additional_element_transform.is_identity()).then_some(facts.additional_element_transform);
+        rare.svg_mask_area_facts = (self.node_kind(node) == NodeKind::SVGMaskBox).then_some(SvgMaskAreaFacts {
+            units_are_object_bounding_box: facts.mask_units == SVG_UNITS_OBJECT_BOUNDING_BOX,
+            x: facts.mask_x,
+            y: facts.mask_y,
+            width: facts.mask_width,
+            height: facts.mask_height,
+        });
         rare.svg_viewport_percentage_basis = facts.viewport_percentage_basis;
         rare.svg_resource_content_units_are_object_bounding_box = facts.content_units == SVG_UNITS_OBJECT_BOUNDING_BOX;
     }

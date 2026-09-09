@@ -18,6 +18,7 @@
 #include <LibWeb/Forward.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Layout/TreeBuilderRustFFI.h>
+#include <LibWeb/SVG/AttributeParsing.h>
 
 namespace Web::CSS {
 
@@ -50,6 +51,11 @@ private:
 // caches decoded style and borrows payload pointers that a replacement would
 // invalidate under it.
 [[nodiscard]] WEB_API bool layout_pass_currently_running();
+
+inline RustFFI::FfiSvgNumberPercentage to_ffi_number_percentage(SVG::NumberPercentage value)
+{
+    return { .value = value.value(), .is_percentage = value.is_percentage() };
+}
 
 }
 

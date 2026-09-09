@@ -342,6 +342,7 @@ pub(crate) struct UsedValuesRareData {
     pub(crate) svg_viewport_size: Option<FfiCssPixelSize>,
     pub(crate) svg_view_box: Option<svg_formatting_context::FfiSvgViewBox>,
     pub(crate) svg_additional_element_transform: Option<svg_formatting_context::FfiAffineTransform>,
+    pub(crate) svg_mask_area_facts: Option<svg_formatting_context::SvgMaskAreaFacts>,
     pub(crate) svg_viewport_percentage_basis: CssPixels,
     pub(crate) svg_resource_content_units_are_object_bounding_box: bool,
     pub(crate) grid_layout_data: Option<std::rc::Rc<grid_formatting_context::GridLayoutData>>,
@@ -359,6 +360,7 @@ impl UsedValuesRareData {
             svg_viewport_size,
             svg_view_box,
             svg_additional_element_transform,
+            svg_mask_area_facts,
             svg_viewport_percentage_basis,
             svg_resource_content_units_are_object_bounding_box,
             grid_layout_data,
@@ -376,6 +378,7 @@ impl UsedValuesRareData {
             && svg_viewport_size.is_none()
             && svg_view_box.is_none()
             && svg_additional_element_transform.is_none()
+            && svg_mask_area_facts.is_none()
             && svg_viewport_percentage_basis == CssPixels::default()
             && !svg_resource_content_units_are_object_bounding_box
             && grid_layout_data.is_none()
@@ -400,6 +403,9 @@ impl UsedValuesRareData {
         }
         if let Some(transform) = svg_additional_element_transform {
             rare.svg_additional_element_transform = Some(transform);
+        }
+        if let Some(facts) = svg_mask_area_facts {
+            rare.svg_mask_area_facts = Some(facts);
         }
         rare.svg_viewport_percentage_basis = svg_viewport_percentage_basis;
         rare.svg_resource_content_units_are_object_bounding_box = svg_resource_content_units_are_object_bounding_box;

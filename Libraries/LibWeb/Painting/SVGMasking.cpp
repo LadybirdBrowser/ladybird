@@ -27,11 +27,6 @@ static Layout::Box const* first_child_layout_box_of_kind(SVG::SVGGraphicsElement
     return nullptr;
 }
 
-static Layout::Box const* get_mask_box(SVG::SVGGraphicsElement const& graphics_element)
-{
-    return first_child_layout_box_of_kind(graphics_element, Layout::RustFFI::NodeKind::SVGMaskBox);
-}
-
 static Layout::Box const* get_clip_box(SVG::SVGGraphicsElement const& graphics_element)
 {
     return first_child_layout_box_of_kind(graphics_element, Layout::RustFFI::NodeKind::SVGClipBox);
@@ -110,53 +105,6 @@ static Gfx::AffineTransform object_bounding_box_content_units_transform(SVG::SVG
     return Gfx::AffineTransform {}
         .translate(bounding_box.location().to_type<float>())
         .scale({ bounding_box.width().to_float(), bounding_box.height().to_float() });
-}
-
-Optional<CSSPixelRect> mask_area(Layout::Node const& node)
-{
-    if (!Layout::RustFFI::layout_arena_paintable_supports_svg_masking(node.arena_handle(), committed_row_slot(node)))
-        return {};
-    auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*node.dom_node());
-    auto* mask_box = get_mask_box(graphics_element);
-    if (!mask_box)
-        return {};
-
-    auto const& target = as<Layout::Box>(*graphics_element.unsafe_layout_node());
-    if (!Painting::has_committed_box(target))
-        return {};
-
-    // Percentages in a userSpaceOnUse masking area resolve against the SVG viewport. The whole
-    // computation stays in the target's user space: that is the coordinate space of the mask node
-    // in the visual context tree.
-    Gfx::FloatSize viewport_size {};
-    auto viewport_rect = Layout::RustFFI::layout_arena_paintable_svg_viewport_user_rect(mask_box->arena_handle(), committed_row_slot(*mask_box));
-    if (viewport_rect.has_value())
-        viewport_size = viewport_rect.value().size().to_type<float>();
-
-    auto target_object_bounding_box = target_user_space_object_bounding_box(target);
-    return as<SVG::SVGMaskElement>(*mask_box->dom_node()).resolve_masking_area(target_object_bounding_box, viewport_size, Gfx::AffineTransform {});
-}
-
-static Gfx::MaskKind mask_type_to_gfx_mask_kind(CSS::MaskType mask_type)
-{
-    switch (mask_type) {
-    case CSS::MaskType::Alpha:
-        return Gfx::MaskKind::Alpha;
-    case CSS::MaskType::Luminance:
-        return Gfx::MaskKind::Luminance;
-    default:
-        VERIFY_NOT_REACHED();
-    }
-}
-
-Optional<Gfx::MaskKind> mask_type(Layout::Node const& node)
-{
-    if (!Layout::RustFFI::layout_arena_paintable_supports_svg_masking(node.arena_handle(), committed_row_slot(node)))
-        return {};
-    auto const& graphics_element = as<SVG::SVGGraphicsElement const>(*node.dom_node());
-    if (auto* mask_box = get_mask_box(graphics_element))
-        return mask_type_to_gfx_mask_kind(mask_box->mask_type());
-    return {};
 }
 
 Optional<CSSPixelRect> clip_area(Layout::Node const& node)
