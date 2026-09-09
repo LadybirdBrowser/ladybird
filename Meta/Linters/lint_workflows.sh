@@ -37,14 +37,9 @@ else
 fi
 
 if (( ${#files[@]} )); then
-    if ! command -v actionlint >/dev/null 2>&1 ; then
-        echo "Please install actionlint: pip3 install -r Meta/Linters/requirements.txt"
-        exit 1
-    fi
-
     # actionlint hands the contents of `run:` steps to shellcheck and pyflakes when it finds them on the PATH, which
     # makes its output depend on what happens to be installed. Disable both so that everyone sees the same results.
-    actionlint -shellcheck= -pyflakes= "${files[@]}"
+    python3 Meta/Linters/run.py actionlint -shellcheck= -pyflakes= "${files[@]}"
 else
     echo "No workflow files to check."
 fi

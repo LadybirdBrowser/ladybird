@@ -43,24 +43,14 @@ else
 fi
 
 if (( ${#files[@]} )); then
-    if ! command -v pyright >/dev/null 2>&1 ; then
-        echo "Please install pyright: pip3 install pyright"
-        exit 1
-    fi
-
-    if ! command -v ruff >/dev/null 2>&1 ; then
-        echo "Please install ruff: pip3 install ruff"
-        exit 1
-    fi
-
-    pyright "${files[@]}"
+    python3 Meta/Linters/run.py pyright "${files[@]}"
 
     if [[ ${overwrite} -eq 0 ]] ; then
-        ruff check "${files[@]}"
-        ruff format --check "${files[@]}"
+        python3 Meta/Linters/run.py ruff check "${files[@]}"
+        python3 Meta/Linters/run.py ruff format --check "${files[@]}"
     else
-        ruff check --fix "${files[@]}"
-        ruff format "${files[@]}"
+        python3 Meta/Linters/run.py ruff check --fix "${files[@]}"
+        python3 Meta/Linters/run.py ruff format "${files[@]}"
     fi
 else
     echo "No py files to check."
