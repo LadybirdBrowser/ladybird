@@ -9,6 +9,7 @@
 #include <LibCore/Directory.h>
 #include <LibSandbox/Sandbox.h>
 #include <LibSandbox/Seccomp.h>
+#include <RequestServer/ResourceSubstitutionMap.h>
 #include <RequestServer/Sandbox.h>
 
 namespace RequestServer {
@@ -34,6 +35,13 @@ ErrorOr<void> apply_sandbox(Vector<ByteString> const& certificates, StringView c
             certificate_path = ".";
 
         TRY(Sandbox::add_landlock_path_if_exists(paths, certificate_path, Sandbox::LandlockPath::Access::ReadOnly));
+    }
+
+    if (g_resource_substitution_map) {
+        TRY(g_resource_substitution_map->for_each_substitution([&](auto const& substitution) -> ErrorOr<void> {
+            TRY(Sandbox::add_landlock_path_if_exists(paths, substitution.file_path, Sandbox::LandlockPath::Access::ReadOnly));
+            return {};
+        }));
     }
 
     TRY(Sandbox::add_landlock_path_if_exists(paths, cache_path, Sandbox::LandlockPath::Access::ReadWrite));
