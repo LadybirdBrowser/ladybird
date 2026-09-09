@@ -15,6 +15,7 @@
 #include <AK/StringView.h>
 #include <AK/Utf16View.h>
 #include <AK/Vector.h>
+#include <LibURL/BlobURLEntry.h>
 #include <LibURL/Host.h>
 #include <LibURL/Origin.h>
 
@@ -39,28 +40,6 @@ enum class PercentEncodeSet {
 enum class ExcludeFragment {
     No,
     Yes
-};
-
-// https://w3c.github.io/FileAPI/#blob-url-entry
-struct BlobURLEntry {
-    // This represents the raw bytes behind a 'Blob'
-    struct Blob {
-        String type;
-        ByteBuffer data;
-    };
-
-    // This represents a MediaSource
-    struct MediaSource { };
-
-    using Object = Variant<Blob, MediaSource>;
-
-    // This represents the parts of HTML::Environment that we need for a BlobURL entry.
-    struct Environment {
-        Origin origin;
-    };
-
-    Object object;
-    Environment environment;
 };
 
 void append_percent_encoded_if_necessary(StringBuilder&, u32 code_point, PercentEncodeSet set = PercentEncodeSet::Userinfo);
