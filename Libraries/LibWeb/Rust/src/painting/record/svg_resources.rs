@@ -222,24 +222,19 @@ impl<O: Observer> PaintRecorder<'_, O> {
         origin: MaskLayerOrigin,
         target_to_enclosing_space: AffineTransform,
     ) {
-        let (resource_kind, content_units_object_bbox, draws_clip_path_geometry, producer) = match origin {
-            MaskLayerOrigin::SvgMask => (
-                NodeKind::SVGMaskBox,
-                self.hit_test_facts(target).svg_mask_content_units_object_bbox,
-                false,
-                "svg-mask",
-            ),
-            MaskLayerOrigin::SvgClip => (
-                NodeKind::SVGClipBox,
-                self.hit_test_facts(target).svg_clip_path_units_object_bbox,
-                true,
-                "svg-clip",
-            ),
+        let (resource_kind, draws_clip_path_geometry, producer) = match origin {
+            MaskLayerOrigin::SvgMask => (NodeKind::SVGMaskBox, false, "svg-mask"),
+            MaskLayerOrigin::SvgClip => (NodeKind::SVGClipBox, true, "svg-clip"),
             MaskLayerOrigin::CssMaskLayers => unreachable!("CSS mask layers are painted, not walked"),
         };
         let Some(resource_box) = self.first_child_paintable_of_kind(target, resource_kind) else {
             return;
         };
+        let content_units_object_bbox =
+            crate::painting::paintable_geometry::committed_svg_resource_content_units_are_object_bounding_box(
+                self.layout_arena,
+                resource_box,
+            );
         let mut content_units_transform_in_recorded_space = if content_units_object_bbox {
             self.object_bounding_box_content_units_transform(target)
         } else {

@@ -37,6 +37,7 @@ pub(crate) struct Fragment {
     pub(crate) svg_viewport_size: Option<FfiCssPixelSize>,
     pub(crate) svg_view_box: Option<svg_formatting_context::FfiSvgViewBox>,
     pub(crate) svg_viewport_percentage_basis: CssPixels,
+    pub(crate) svg_resource_content_units_are_object_bounding_box: bool,
     pub(crate) computed_svg_path: Option<std::rc::Rc<libgfx_rust::path::OwnedPath>>,
     pub(crate) has_line_clamp_point: bool,
     pub(crate) is_invisible_for_line_clamp: bool,
@@ -97,6 +98,8 @@ impl Fragment {
             && self.svg_viewport_size == previous.svg_viewport_size
             && self.svg_view_box == previous.svg_view_box
             && self.svg_viewport_percentage_basis == previous.svg_viewport_percentage_basis
+            && self.svg_resource_content_units_are_object_bounding_box
+                == previous.svg_resource_content_units_are_object_bounding_box
             && same_allocation(self.computed_svg_path.as_ref(), previous.computed_svg_path.as_ref())
             && self.has_line_clamp_point == previous.has_line_clamp_point
             && self.is_invisible_for_line_clamp == previous.is_invisible_for_line_clamp
@@ -265,6 +268,7 @@ fn snapshot_fragment(
             rare.svg_viewport_size,
             rare.svg_view_box,
             rare.svg_viewport_percentage_basis,
+            rare.svg_resource_content_units_are_object_bounding_box,
             rare.computed_svg_path.take(),
         )
     });
@@ -277,6 +281,7 @@ fn snapshot_fragment(
         svg_viewport_size,
         svg_view_box,
         svg_viewport_percentage_basis,
+        svg_resource_content_units_are_object_bounding_box,
         computed_svg_path,
     ) = rare_payloads.unwrap_or_default();
     let mut fragment = Fragment {
@@ -310,6 +315,7 @@ fn snapshot_fragment(
         svg_viewport_size,
         svg_view_box,
         svg_viewport_percentage_basis,
+        svg_resource_content_units_are_object_bounding_box,
         computed_svg_path,
         has_line_clamp_point: used.has_line_clamp_point.get(),
         is_invisible_for_line_clamp: used.is_invisible_for_line_clamp.get(),

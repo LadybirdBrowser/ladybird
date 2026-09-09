@@ -3377,6 +3377,7 @@ mod tests {
                 svg_viewport_size: None,
                 svg_view_box: None,
                 svg_viewport_percentage_basis: CssPixels::default(),
+                svg_resource_content_units_are_object_bounding_box: false,
                 computed_svg_path: None,
                 has_line_clamp_point: false,
                 is_invisible_for_line_clamp: false,

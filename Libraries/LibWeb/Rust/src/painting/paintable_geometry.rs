@@ -187,6 +187,15 @@ pub(crate) fn committed_svg_view_box(
     arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.fragment.svg_view_box))
 }
 
+pub(crate) fn committed_svg_resource_content_units_are_object_bounding_box(
+    arena: &impl PaintableRowsRead,
+    slot: NodeSlotId,
+) -> bool {
+    arena.with_committed_fragment_link(slot, |link| {
+        link.is_some_and(|link| link.fragment.svg_resource_content_units_are_object_bounding_box)
+    })
+}
+
 pub(crate) fn committed_svg_viewport_percentage_basis(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> CssPixels {
     arena.with_committed_fragment_link(slot, |link| {
         link.map_or_else(CssPixels::default, |link| link.fragment.svg_viewport_percentage_basis)
