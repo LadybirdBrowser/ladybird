@@ -70,6 +70,20 @@ pub(crate) const fn is_svg_path(kind: NodeKind) -> bool {
     )
 }
 
+pub(crate) const fn is_svg_paintable(kind: NodeKind) -> bool {
+    matches!(
+        kind,
+        NodeKind::SVGGraphicsBox
+            | NodeKind::SVGGeometryBox
+            | NodeKind::SVGTextBox
+            | NodeKind::SVGTextPathBox
+            | NodeKind::SVGImageBox
+            | NodeKind::SVGMaskBox
+            | NodeKind::SVGClipBox
+            | NodeKind::SVGPatternBox
+    )
+}
+
 pub(crate) const fn supports_svg_masking(kind: NodeKind) -> bool {
     matches!(
         kind,

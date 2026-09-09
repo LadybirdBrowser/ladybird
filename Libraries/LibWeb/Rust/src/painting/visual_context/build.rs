@@ -139,7 +139,7 @@ impl BoxFacts {
         facts.clip_path = super::basic_shapes::compute_basic_shape_clip_path_data(layout_arena, slot, pixel_ratio)
             .map(|(path, bounding_rect, fill_rule)| (std::rc::Rc::new(path), bounding_rect, fill_rule));
         let converter = crate::painting::display_list::device_pixels::DevicePixelConverter::new(pixel_ratio);
-        facts.mask_layers = super::node_values::mask_layer_presence(layout_arena, callbacks, slot, true)
+        facts.mask_layers = super::node_values::mask_layer_presence(layout_arena, slot, true)
             .into_iter()
             .map(|layer| MaskData {
                 rect: converter.enclosing_device_rect(layer.area),
