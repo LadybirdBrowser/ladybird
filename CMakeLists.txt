@@ -47,9 +47,9 @@ endif()
 set(LADYBIRD_SOURCE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
 list(APPEND CMAKE_MODULE_PATH "${LADYBIRD_SOURCE_DIR}/Meta/CMake")
 
+include(cmake_options)
 include(compile_options)
 include(check_for_dependencies)
-include(cmake_options)
 include(ladybird_helper_processes)
 
 if(ENABLE_ALL_THE_DEBUG_MACROS)
