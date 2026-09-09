@@ -33,7 +33,14 @@ impl ImagePaintFacts {
                 facts.natural_aspect_ratio_numerator,
                 facts.natural_aspect_ratio_denominator,
             )),
-            content: unsafe { ImageContent::from_ffi(facts.content_kind, facts.frame, facts.vector_content_identity) },
+            content: unsafe {
+                ImageContent::from_ffi(
+                    facts.content_kind,
+                    facts.frame,
+                    facts.vector_content_identity,
+                    facts.vector_has_active_view_box,
+                )
+            },
         }
     }
 }

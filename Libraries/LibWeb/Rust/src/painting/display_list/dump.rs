@@ -6,6 +6,7 @@
 
 use super::builder::{for_each_command, inline_transform_of, read_command};
 use super::commands::*;
+use super::nested_records::{NestedRecordsRole, for_each_nested_record_span, span_bytes};
 use crate::css::color_resolution::format_to_8bit_compatible;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
@@ -220,68 +221,22 @@ fn dump_records_inside(
     payload: &[u8],
     indent: usize,
 ) {
-    match command_type {
-        DisplayListCommandType::DrawIsolatedGroup => {
-            let command = read_command::<DrawIsolatedGroup>(payload);
-            dump_command_bytes(output, callbacks, span_bytes(payload, command.content), indent);
-            if !command.mask.is_empty() {
-                push_indent(output, indent);
-                output.push_str("Mask:\n");
-                dump_command_bytes(output, callbacks, span_bytes(payload, command.mask), indent + 1);
-            }
+    for_each_nested_record_span(command_type, payload, |role, span| {
+        let label = match role {
+            NestedRecordsRole::IsolatedGroupMask => Some("Mask:\n"),
+            NestedRecordsRole::PatternTile => Some("PatternTile:\n"),
+            NestedRecordsRole::IsolatedGroupContent
+            | NestedRecordsRole::RepeatedTile
+            | NestedRecordsRole::MaskContent => None,
+        };
+        let mut nested_indent = indent;
+        if let Some(label) = label {
+            push_indent(output, indent);
+            output.push_str(label);
+            nested_indent += 1;
         }
-        DisplayListCommandType::DrawRepeatedTile => {
-            let command = read_command::<DrawRepeatedTile>(payload);
-            dump_command_bytes(output, callbacks, span_bytes(payload, command.tile), indent);
-        }
-        DisplayListCommandType::DeclareMaskContent => {
-            let command = read_command::<DeclareMaskContent>(payload);
-            dump_command_bytes(output, callbacks, span_bytes(payload, command.content), indent);
-        }
-        DisplayListCommandType::FillPath => {
-            dump_pattern_tile(
-                output,
-                callbacks,
-                payload,
-                read_command::<FillPath>(payload).paint_style,
-                indent,
-            );
-        }
-        DisplayListCommandType::StrokePath => {
-            dump_pattern_tile(
-                output,
-                callbacks,
-                payload,
-                read_command::<StrokePath>(payload).paint_style,
-                indent,
-            );
-        }
-        _ => {}
-    }
-}
-
-fn dump_pattern_tile(
-    output: &mut String,
-    callbacks: &FfiPaintingDumpCallbacks,
-    payload: &[u8],
-    paint_style: DisplayListPaintStyle,
-    indent: usize,
-) {
-    if paint_style.paint_style_type != DisplayListPaintStyleType::Pattern {
-        return;
-    }
-    push_indent(output, indent);
-    output.push_str("PatternTile:\n");
-    dump_command_bytes(
-        output,
-        callbacks,
-        span_bytes(payload, paint_style.pattern_tile),
-        indent + 1,
-    );
-}
-
-fn span_bytes(payload: &[u8], span: DisplayListDataSpan) -> &[u8] {
-    &payload[span.offset as usize..(span.offset + span.size) as usize]
+        dump_command_bytes(output, callbacks, span_bytes(payload, span), nested_indent);
+    });
 }
 
 trait DumpValue {

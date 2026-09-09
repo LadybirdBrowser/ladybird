@@ -47,6 +47,7 @@ public:
     virtual size_t external_memory_size() const override;
 
     virtual Optional<Painting::ImagePaint> image_paint(Painting::ImagePaintRequest const&) const override;
+    bool has_active_view_box() const;
 
     // The scheme the SVG document currently answers `prefers-color-scheme` with. Held on the image
     // rather than on the page, because the page is shared with every other image.

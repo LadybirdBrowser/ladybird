@@ -15,6 +15,7 @@ pub(crate) mod scratch;
 pub mod svg_resources;
 pub mod trace;
 pub mod traversal;
+pub(crate) mod vector_images;
 pub(crate) mod verify;
 
 use crate::css::css_enums;
@@ -90,6 +91,7 @@ pub struct RecordingOutput {
     pub(crate) capture_log_for_verification: Option<verify::CaptureLog>,
     pub(crate) newly_referenced_fonts: Vec<libgfx_rust::font::FontHandle>,
     pub(crate) newly_referenced_image_frames: Vec<libgfx_rust::image_frame::ImageFrameHandle>,
+    pub(crate) vector_image_render_requests: Vec<vector_images::VectorImageRenderRequest>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -143,6 +145,8 @@ pub struct PaintRecorder<'a, O: Observer> {
     newly_referenced_fonts: Vec<libgfx_rust::font::FontHandle>,
     registered_image_frame_ids: HashSet<u64>,
     newly_referenced_image_frames: Vec<libgfx_rust::image_frame::ImageFrameHandle>,
+    vector_image_render_requests: Vec<vector_images::VectorImageRenderRequest>,
+    vector_image_request_indices: HashMap<vector_images::VectorImageRenderRequest, u32>,
     selection_style_cache: HashMap<u32, Rc<paint::text::SelectionStyleAnswer>>,
     pub(crate) wheel_hit_test_target_cache: HashMap<NodeSlotId, SpatialNodeIndex>,
 }
@@ -201,6 +205,58 @@ impl<O: Observer> PaintRecorder<'_, O> {
             self.newly_referenced_image_frames.push(frame.clone());
         }
         crate::painting::display_list::commands::ImageFrameResourceId(frame.id())
+    }
+
+    pub(crate) fn vector_image_placeholder(
+        &mut self,
+        request: vector_images::VectorImageRenderRequest,
+    ) -> crate::painting::display_list::commands::DisplayListResourceId {
+        let next_index = self.vector_image_render_requests.len() as u32;
+        let index = *self.vector_image_request_indices.entry(request).or_insert_with(|| {
+            self.vector_image_render_requests.push(request);
+            next_index
+        });
+        crate::painting::display_list::commands::DisplayListResourceId(
+            vector_images::VECTOR_IMAGE_PLACEHOLDER_TAG | u64::from(index),
+        )
+    }
+
+    pub(crate) fn paint_vector_image(
+        &mut self,
+        source: vector_images::VectorImageSource,
+        has_active_view_box: bool,
+        dest_rect: libgfx_rust::FloatRect,
+        accumulated_scale: libgfx_rust::FloatSize,
+        compositing_and_blending_operator: libgfx_rust::CompositingAndBlendingOperator,
+    ) {
+        use libgfx_rust::CompositingAndBlendingOperator;
+        let geometry = vector_images::vector_image_render_geometry(dest_rect, accumulated_scale, has_active_view_box);
+        let display_list_id = self.vector_image_placeholder(vector_images::VectorImageRenderRequest::new(
+            source,
+            geometry.css_width,
+            geometry.css_height,
+            geometry.raster_scale,
+        ));
+        if compositing_and_blending_operator != CompositingAndBlendingOperator::Normal {
+            let dest_device_rect = libgfx_rust::enclosing_int_rect(dest_rect);
+            if dest_device_rect.is_empty() {
+                return;
+            }
+            let group = self.recorder.begin_repeated_tile();
+            self.recorder
+                .paint_nested_display_list(display_list_id, dest_device_rect.to_float(), geometry.list_size);
+            self.recorder.finish_repeated_tile(
+                group,
+                dest_device_rect,
+                dest_device_rect,
+                libgfx_rust::ScalingMode::Bilinear,
+                compositing_and_blending_operator,
+                crate::painting::display_list::commands::Repeat { x: false, y: false },
+            );
+            return;
+        }
+        self.recorder
+            .paint_nested_display_list(display_list_id, dest_rect, geometry.list_size);
     }
 
     pub(crate) fn own_scroll_container_offset(&self, paintable: NodeSlotId) -> crate::css::css_pixels::CssPixelPoint {

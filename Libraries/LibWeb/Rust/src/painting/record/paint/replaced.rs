@@ -18,7 +18,7 @@ use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::host::FfiReplacedPaintFacts;
 use crate::painting::paintable_geometry::absolute_rect;
 use crate::painting::record::PaintRecorder;
-use crate::painting::record::paint::background::{paint_image, to_gfx_scaling_mode};
+use crate::painting::record::paint::background::{paint_image_content, to_gfx_scaling_mode};
 use crate::painting::visual_context::node_values::padding_edge_border_radii;
 use libgfx_rust::{Color, CornerRadii, FloatRect, IntRect, ScalingMode};
 
@@ -255,29 +255,16 @@ pub(crate) fn paint_replaced_image_content<O: Observer>(
     dest_rect: FloatRect,
     image_rendering: u8,
 ) {
-    match content {
-        crate::painting::image_content::ImageContent::Raster(Some(frame)) => {
-            crate::painting::record::paint::background::paint_decoded_image_frame(
-                recorder,
-                frame,
-                dest_rect,
-                image_rendering,
-            );
-        }
-        crate::painting::image_content::ImageContent::Vector { .. } => {
-            let accumulated_scale =
-                recorder.accumulated_2d_scale_at(recorder.recorder.accumulated_visual_context().spatial);
-            let paint = recorder.paint_host.replaced_image_paint(
-                recorder.layout_node_shell(paintable),
-                dest_rect,
-                accumulated_scale,
-            );
-            if paint.image_paint_kind != crate::painting::host::FfiImagePaintKind::None {
-                paint_image(recorder, &paint, dest_rect, image_rendering);
-            }
-        }
-        _ => {}
-    }
+    let accumulated_scale = recorder.accumulated_2d_scale_at(recorder.recorder.accumulated_visual_context().spatial);
+    paint_image_content(
+        recorder,
+        crate::painting::record::vector_images::VectorImageSource::ReplacedContent { owner: paintable },
+        content,
+        dest_rect,
+        image_rendering,
+        accumulated_scale,
+        libgfx_rust::CompositingAndBlendingOperator::Normal,
+    );
 }
 
 fn replaced_style<O: Observer>(recorder: &PaintRecorder<'_, O>, paintable: NodeSlotId) -> (u8, u8) {

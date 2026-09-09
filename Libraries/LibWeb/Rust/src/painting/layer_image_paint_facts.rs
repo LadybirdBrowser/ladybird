@@ -26,7 +26,14 @@ impl LayerImagePaintFacts {
     ///
     /// `facts.frame` must be null or point to a live `Gfx::DecodedImageFrame`.
     pub(crate) unsafe fn from_ffi(facts: &FfiLayerImagePaintFacts) -> Self {
-        let content = unsafe { ImageContent::from_ffi(facts.content_kind, facts.frame, facts.vector_content_identity) };
+        let content = unsafe {
+            ImageContent::from_ffi(
+                facts.content_kind,
+                facts.frame,
+                facts.vector_content_identity,
+                facts.vector_has_active_view_box,
+            )
+        };
         Self {
             is_paintable: facts.is_paintable,
             natural_width: facts.natural_width,

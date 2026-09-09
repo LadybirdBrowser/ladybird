@@ -124,7 +124,7 @@ impl ContextRewrite {
 }
 
 // A finished tape together with the run table summarizing it.
-#[derive(Default)]
+#[derive(Clone, Default)]
 pub struct RecordedDisplayList {
     pub bytes: Vec<u8>,
     pub command_runs: Vec<DisplayListCommandRun>,

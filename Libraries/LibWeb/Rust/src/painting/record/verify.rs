@@ -6,7 +6,7 @@
 
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
-use crate::painting::display_list::builder::{HEADER_SIZE, for_each_command, read_command, read_header};
+use crate::painting::display_list::builder::{HEADER_SIZE, for_each_command, read_header};
 use crate::painting::display_list::commands::*;
 use crate::painting::record::RecordingOutput;
 use crate::painting::record::cache::CaptureKind;
@@ -106,31 +106,6 @@ fn zero_resource_ids_minted_per_recording(
                 id_size,
             );
         }
-        DisplayListCommandType::DrawIsolatedGroup => {
-            let command = read_command::<DrawIsolatedGroup>(payload);
-            zero_resource_ids_inside_span(payload, command.content, enclosing_capture_is_video);
-            zero_resource_ids_inside_span(payload, command.mask, enclosing_capture_is_video);
-        }
-        DisplayListCommandType::DrawRepeatedTile => {
-            let command = read_command::<DrawRepeatedTile>(payload);
-            zero_resource_ids_inside_span(payload, command.tile, enclosing_capture_is_video);
-        }
-        DisplayListCommandType::DeclareMaskContent => {
-            let command = read_command::<DeclareMaskContent>(payload);
-            zero_resource_ids_inside_span(payload, command.content, enclosing_capture_is_video);
-        }
-        DisplayListCommandType::FillPath => {
-            let command = read_command::<FillPath>(payload);
-            if command.paint_style.paint_style_type == DisplayListPaintStyleType::Pattern {
-                zero_resource_ids_inside_span(payload, command.paint_style.pattern_tile, enclosing_capture_is_video);
-            }
-        }
-        DisplayListCommandType::StrokePath => {
-            let command = read_command::<StrokePath>(payload);
-            if command.paint_style.paint_style_type == DisplayListPaintStyleType::Pattern {
-                zero_resource_ids_inside_span(payload, command.paint_style.pattern_tile, enclosing_capture_is_video);
-            }
-        }
         DisplayListCommandType::DrawScaledDecodedImageFrame if enclosing_capture_is_video => {
             zero_field(
                 payload,
@@ -139,6 +114,13 @@ fn zero_resource_ids_minted_per_recording(
             );
         }
         _ => {}
+    }
+    let mut nested_spans = Vec::new();
+    crate::painting::display_list::nested_records::for_each_nested_record_span(command_type, payload, |_, span| {
+        nested_spans.push(span);
+    });
+    for span in nested_spans {
+        zero_resource_ids_inside_span(payload, span, enclosing_capture_is_video);
     }
 }
 

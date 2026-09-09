@@ -155,6 +155,8 @@ fn record_display_list_impl<O: Observer>(
         newly_referenced_fonts: Vec::new(),
         registered_image_frame_ids: std::collections::HashSet::new(),
         newly_referenced_image_frames: Vec::new(),
+        vector_image_render_requests: Vec::new(),
+        vector_image_request_indices: HashMap::new(),
         selection_style_cache: HashMap::new(),
         wheel_hit_test_target_cache: HashMap::new(),
     };
@@ -208,6 +210,7 @@ fn record_display_list_impl<O: Observer>(
         capture_log_for_verification: recorder.observer.finish(),
         newly_referenced_fonts: recorder.newly_referenced_fonts,
         newly_referenced_image_frames: recorder.newly_referenced_image_frames,
+        vector_image_render_requests: recorder.vector_image_render_requests,
     }
 }
 

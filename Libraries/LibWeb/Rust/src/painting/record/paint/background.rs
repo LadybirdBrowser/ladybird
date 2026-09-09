@@ -14,12 +14,9 @@ use crate::layout::node_facts;
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::builder::PendingInlineClip;
 use crate::painting::display_list::commands::ContextRef;
-use crate::painting::display_list::commands::{
-    DisplayListResourceId, ImageFrameResourceId, OptionalAffineTransform, Repeat,
-};
+use crate::painting::display_list::commands::{OptionalAffineTransform, Repeat};
 use crate::painting::display_list::recorder::{FillPathParams, PaintStyle, PaintStyleOrColor};
 use crate::painting::force_dark::ForceDarkRole;
-use crate::painting::host::FfiImagePaintFacts;
 use crate::painting::node_painting;
 use crate::painting::paintable_data::FfiPixelBox;
 use crate::painting::record::PaintRecorder;
@@ -31,7 +28,7 @@ use crate::painting::record::paint::gradient_resolution::{gradient_paint_value, 
 use crate::painting::record::paint::table_backgrounds;
 use libgfx_rust::{
     AffineTransform, CompositingAndBlendingOperator, FloatRect, IntRect, IntSize, MaskKind, ScalingMode,
-    ShouldAntiAlias, WindingRule, enclosing_int_rect,
+    ShouldAntiAlias, WindingRule,
 };
 
 #[derive(Clone, Copy, Debug)]
@@ -379,26 +376,12 @@ pub(crate) fn to_gfx_scaling_mode(image_rendering: u8, source: (i32, i32), targe
     }
 }
 
-pub(crate) fn paint_image<O: Observer>(
-    recorder: &mut PaintRecorder<'_, O>,
-    facts: &FfiImagePaintFacts,
-    dest_rect: FloatRect,
-    image_rendering: u8,
-) {
-    paint_image_with_compositing_and_blending_operator(
-        recorder,
-        facts,
-        dest_rect,
-        image_rendering,
-        CompositingAndBlendingOperator::Normal,
-    );
-}
-
 pub(crate) fn paint_decoded_image_frame<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
     frame: &libgfx_rust::image_frame::ImageFrameHandle,
     dest_rect: FloatRect,
     image_rendering: u8,
+    compositing_and_blending_operator: CompositingAndBlendingOperator,
 ) {
     let frame_id = recorder.register_image_frame(frame);
     let frame_size = (frame.width(), frame.height());
@@ -419,77 +402,40 @@ pub(crate) fn paint_decoded_image_frame<O: Observer>(
         None,
         frame_id,
         scaling_mode,
-        CompositingAndBlendingOperator::Normal,
+        compositing_and_blending_operator,
         None,
         force_dark_role,
     );
 }
 
-pub(crate) fn paint_image_with_compositing_and_blending_operator<O: Observer>(
+pub(crate) fn paint_image_content<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
-    facts: &FfiImagePaintFacts,
+    source: crate::painting::record::vector_images::VectorImageSource,
+    content: &crate::painting::image_content::ImageContent,
     dest_rect: FloatRect,
     image_rendering: u8,
+    accumulated_scale: libgfx_rust::FloatSize,
     compositing_and_blending_operator: CompositingAndBlendingOperator,
 ) {
-    match facts.image_paint_kind {
-        crate::painting::host::FfiImagePaintKind::DecodedFrame => {
-            let target = (
-                dest_rect.width.round_ties_even() as i32,
-                dest_rect.height.round_ties_even() as i32,
-            );
-            let scaling_mode =
-                to_gfx_scaling_mode(image_rendering, (facts.natural_width, facts.natural_height), target);
-            let force_dark_role = crate::painting::force_dark::role_for_image(
-                ForceDarkRole::Background,
-                dest_rect.width,
-                dest_rect.height,
-                recorder.inputs.device_pixels_per_css_pixel,
-                (facts.natural_width, facts.natural_height),
-            );
-            recorder.recorder.draw_scaled_decoded_image_frame(
-                dest_rect,
-                None,
-                ImageFrameResourceId(facts.frame_id),
-                scaling_mode,
-                compositing_and_blending_operator,
-                None,
-                force_dark_role,
-            );
-        }
-        crate::painting::host::FfiImagePaintKind::NestedDisplayList => {
-            let list_size = IntSize {
-                width: facts.list_width,
-                height: facts.list_height,
-            };
-            if compositing_and_blending_operator != CompositingAndBlendingOperator::Normal {
-                let dest_device_rect = enclosing_int_rect(dest_rect);
-                if dest_device_rect.is_empty() {
-                    return;
-                }
-                let group = recorder.recorder.begin_repeated_tile();
-                recorder.recorder.paint_nested_display_list(
-                    DisplayListResourceId(facts.nested_display_list_id),
-                    dest_device_rect.to_float(),
-                    list_size,
-                );
-                recorder.recorder.finish_repeated_tile(
-                    group,
-                    dest_device_rect,
-                    dest_device_rect,
-                    ScalingMode::Bilinear,
-                    compositing_and_blending_operator,
-                    Repeat { x: false, y: false },
-                );
-                return;
-            }
-            recorder.recorder.paint_nested_display_list(
-                DisplayListResourceId(facts.nested_display_list_id),
-                dest_rect,
-                list_size,
-            );
-        }
-        crate::painting::host::FfiImagePaintKind::None => {}
+    use crate::painting::image_content::ImageContent;
+    match content {
+        ImageContent::Raster(Some(frame)) => paint_decoded_image_frame(
+            recorder,
+            frame,
+            dest_rect,
+            image_rendering,
+            compositing_and_blending_operator,
+        ),
+        ImageContent::Vector {
+            has_active_view_box, ..
+        } => recorder.paint_vector_image(
+            source,
+            *has_active_view_box,
+            dest_rect,
+            accumulated_scale,
+            compositing_and_blending_operator,
+        ),
+        ImageContent::None | ImageContent::Raster(None) => {}
     }
 }
 
@@ -506,7 +452,11 @@ fn paint_image_layer<O: Observer>(
 ) {
     let converter = recorder.converter;
     let image = layer.image.expect("an imageless layer never reaches the image paint");
-    let shell = recorder.layout_node_shell(image.facts_owner);
+    let vector_image_source = crate::painting::record::vector_images::VectorImageSource::Layer {
+        owner: image.facts_owner,
+        list: image.list,
+        computed_index: image.computed_index,
+    };
     let facts =
         crate::painting::record::paint::background_resolution::committed_layer_image_paint_facts(recorder, &image);
     let mut image_rect = layer.image_rect;
@@ -709,11 +659,7 @@ fn paint_image_layer<O: Observer>(
         if dest_rect.height == 0 {
             dest_rect.height = 1;
         }
-        let nested =
-            recorder
-                .paint_host
-                .layer_image_nested_display_list(shell, image.list, image.computed_index, dest_rect);
-        if nested.has_nested_display_list {
+        if let crate::painting::image_content::ImageContent::Vector { .. } = &facts.content {
             if clip_rect.is_empty() {
                 return;
             }
@@ -722,9 +668,17 @@ fn paint_image_layer<O: Observer>(
                 (dest_rect.width, dest_rect.height),
                 (dest_rect.width, dest_rect.height),
             );
+            let display_list_id = recorder.vector_image_placeholder(
+                crate::painting::record::vector_images::VectorImageRenderRequest::new(
+                    vector_image_source,
+                    CssPixels::from_integer(i64::from(dest_rect.width)),
+                    CssPixels::from_integer(i64::from(dest_rect.height)),
+                    1.0,
+                ),
+            );
             let group = recorder.recorder.begin_repeated_tile();
             recorder.recorder.paint_nested_display_list(
-                DisplayListResourceId(nested.nested_display_list_id),
+                display_list_id,
                 dest_rect.to_float(),
                 IntSize {
                     width: dest_rect.width,
@@ -843,21 +797,6 @@ fn paint_image_layer<O: Observer>(
                     tile_dest_rect,
                     CompositingAndBlendingOperator::Normal,
                 );
-            } else {
-                let paint = recorder.paint_host.layer_image_paint(
-                    shell,
-                    image.list,
-                    image.computed_index,
-                    tile_dest_rect,
-                    image_rendering,
-                    libgfx_rust::FloatSize {
-                        width: 1.0,
-                        height: 1.0,
-                    },
-                );
-                if paint.image_paint_kind != crate::painting::host::FfiImagePaintKind::None {
-                    paint_image(recorder, &paint, tile_dest_rect, image_rendering);
-                }
             }
         });
         let tile_records = std::rc::Rc::new(recorder.recorder.finish_detached_records(detached));
@@ -912,23 +851,15 @@ fn paint_image_layer<O: Observer>(
             }
             let accumulated_scale =
                 recorder.accumulated_2d_scale_at(recorder.recorder.accumulated_visual_context().spatial);
-            let paint = recorder.paint_host.layer_image_paint(
-                shell,
-                image.list,
-                image.computed_index,
+            paint_image_content(
+                recorder,
+                vector_image_source,
+                &facts.content,
                 dest_rect,
                 image_rendering,
                 accumulated_scale,
+                inline_operator,
             );
-            if paint.image_paint_kind != crate::painting::host::FfiImagePaintKind::None {
-                paint_image_with_compositing_and_blending_operator(
-                    recorder,
-                    &paint,
-                    dest_rect,
-                    image_rendering,
-                    inline_operator,
-                );
-            }
         }
     }
 }
