@@ -549,6 +549,7 @@ pub(crate) struct LayoutNodeArena {
     replaced_content_facts: Vec<ReplacedContentFactsSlot>,
     raw_table_column_spans: HashMap<NodeSlotId, u32>,
     replaced_paint_facts: RefCell<HashMap<NodeSlotId, crate::painting::replaced_paint_facts::ReplacedPaintFacts>>,
+    layer_image_paint_facts: RefCell<HashMap<NodeSlotId, Vec<crate::painting::host::FfiLayerImagePaintFactsEntry>>>,
     run_used_records: RefCell<Vec<RunRecordSlot>>,
     next_run_nonce: Cell<u64>,
     rows_sharing_dom_node: RefCell<HashMap<*mut c_void, RowsSharingDomNode>>,
@@ -597,6 +598,7 @@ impl LayoutNodeArena {
             replaced_content_facts: Vec::new(),
             raw_table_column_spans: HashMap::default(),
             replaced_paint_facts: RefCell::new(HashMap::default()),
+            layer_image_paint_facts: RefCell::new(HashMap::default()),
             run_used_records: RefCell::new(Vec::new()),
             next_run_nonce: Cell::new(1),
             rows_sharing_dom_node: RefCell::new(HashMap::default()),
@@ -887,6 +889,7 @@ impl LayoutNodeArena {
         self.fc_run_cache_store.remove_entry(index);
         self.raw_table_column_spans.remove(&id);
         self.replaced_paint_facts.get_mut().remove(&id);
+        self.layer_image_paint_facts.get_mut().remove(&id);
         self.paint_state.get_mut().selection_pseudo_styles.remove(&id);
         let data = self.data_mut(index);
         debug_assert!(
@@ -1186,6 +1189,40 @@ impl LayoutNodeArena {
         id: NodeSlotId,
     ) -> Option<crate::painting::replaced_paint_facts::ReplacedPaintFacts> {
         self.replaced_paint_facts.borrow().get(&id).copied()
+    }
+
+    pub(crate) fn layer_image_paint_facts(
+        &self,
+        id: NodeSlotId,
+        list: crate::painting::host::FfiLayerImageList,
+        computed_index: u32,
+    ) -> Option<crate::painting::host::FfiLayerImagePaintFacts> {
+        let table = self.layer_image_paint_facts.borrow();
+        let entries = table.get(&id)?;
+        entries
+            .iter()
+            .find(|entry| entry.list == list && entry.computed_index == computed_index)
+            .map(|entry| entry.facts)
+    }
+
+    pub(crate) fn set_layer_image_paint_facts(
+        &self,
+        id: NodeSlotId,
+        entries: Vec<crate::painting::host::FfiLayerImagePaintFactsEntry>,
+    ) -> bool {
+        self.assert_owner_thread();
+        if !self.slot_is_live(id) {
+            return false;
+        }
+        let mut table = self.layer_image_paint_facts.borrow_mut();
+        if entries.is_empty() {
+            return table.remove(&id).is_some_and(|previous| !previous.is_empty());
+        }
+        if table.get(&id) == Some(&entries) {
+            return false;
+        }
+        table.insert(id, entries);
+        true
     }
 
     pub(crate) fn set_replaced_paint_facts(

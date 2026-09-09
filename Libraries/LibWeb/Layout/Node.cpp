@@ -448,6 +448,7 @@ void NodeWithStyle::ImageObserver::image_style_value_did_update(CSS::ImageStyleV
 {
     VERIFY(m_owner);
 
+    Painting::push_layer_image_paint_facts(*m_owner);
     if (Painting::has_committed_box(*m_owner))
         Painting::set_needs_repaint(*m_owner);
 }
@@ -552,7 +553,7 @@ void NodeWithStyle::attach_style_resources()
     if (!(dependency_flags & to_underlying(CSS::StyleRecordDependencyFlag::HoldsImageValues))) {
         m_cursor_style_values.clear();
         clear_image_observers();
-        Painting::push_paint_facts_after_style_attach(*this);
+        Painting::push_paint_facts_after_style_attach(*this, Painting::StyleHoldsImageValues::No);
         return;
     }
 
@@ -577,7 +578,7 @@ void NodeWithStyle::attach_style_resources()
     load_image(list_style_image());
 
     rebuild_image_observers();
-    Painting::push_paint_facts_after_style_attach(*this);
+    Painting::push_paint_facts_after_style_attach(*this, Painting::StyleHoldsImageValues::Yes);
 }
 
 CSS::StyleScope const& NodeWithStyle::style_scope() const

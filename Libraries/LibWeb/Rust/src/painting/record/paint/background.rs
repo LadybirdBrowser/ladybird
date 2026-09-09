@@ -19,7 +19,7 @@ use crate::painting::display_list::commands::{
 };
 use crate::painting::display_list::recorder::{FillPathParams, PaintStyle, PaintStyleOrColor};
 use crate::painting::force_dark::ForceDarkRole;
-use crate::painting::host::{FfiImagePaintFacts, FfiLayerImagePrepareFacts};
+use crate::painting::host::FfiImagePaintFacts;
 use crate::painting::node_painting;
 use crate::painting::paintable_data::FfiPixelBox;
 use crate::painting::record::PaintRecorder;
@@ -92,7 +92,7 @@ pub(crate) fn paint_background_within<O: Observer>(
         recorder,
         paintable,
         style,
-        crate::painting::host::FfiLayerImageList::Background,
+        paintable,
         libgfx_rust::Color(style.background().background_color),
         style.background().background_color_clip,
         background_rect,
@@ -474,8 +474,10 @@ fn paint_image_layer<O: Observer>(
     backdrop: LayerBackdrop,
 ) {
     let converter = recorder.converter;
-    let shell = recorder.layout_node_shell(paintable);
     let image = layer.image.expect("an imageless layer never reaches the image paint");
+    let shell = recorder.layout_node_shell(image.facts_owner);
+    let facts =
+        crate::painting::record::paint::background_resolution::committed_layer_image_paint_facts(recorder, &image);
     let mut image_rect = layer.image_rect;
     let mut background_positioning_area = layer.background_positioning_area;
 
@@ -584,16 +586,6 @@ fn paint_image_layer<O: Observer>(
         )
     });
 
-    // An SVG used as an image resolves `prefers-color-scheme` from the used `color-scheme` of
-    // the element referencing it.
-    let prepare = if resolved_gradient.is_some() {
-        FfiLayerImagePrepareFacts::default()
-    } else {
-        recorder
-            .paint_host
-            .layer_image_prepare(shell, image.list, image.computed_index)
-    };
-
     let device_rects = |image_rect: CssPixelRect| -> Vec<IntRect> {
         let mut rects = Vec::new();
         let mut rect = image_rect;
@@ -644,7 +636,7 @@ fn paint_image_layer<O: Observer>(
 
     let inline_operator = compositing_and_blending_operator;
 
-    if prepare.single_pixel_color.has_value {
+    if resolved_gradient.is_none() && facts.single_pixel_color.has_value {
         // OPTIMIZATION: If the image is a single pixel, we can just fill the whole area with it.
         //               However, we must first figure out the real coverage area, taking repeat etc into account.
 
@@ -659,18 +651,18 @@ fn paint_image_layer<O: Observer>(
         if inline_operator == CompositingAndBlendingOperator::Normal {
             recorder.recorder.fill_rect(
                 fill_rect.unwrap_or_default(),
-                prepare.single_pixel_color.value,
+                facts.single_pixel_color.value,
                 ForceDarkRole::Background,
             );
         } else {
             recorder.recorder.fill_rect_with_compositing_and_blending_operator(
                 fill_rect.unwrap_or_default(),
-                prepare.single_pixel_color.value,
+                facts.single_pixel_color.value,
                 inline_operator,
                 ForceDarkRole::Background,
             );
         }
-    } else if prepare.is_image_style_value
+    } else if facts.content_kind != crate::painting::host::FfiLayerImageContentKind::None
         && ((repeat_x || repeat_y) || compositing_and_blending_operator != CompositingAndBlendingOperator::Normal)
         && !repeat_x_has_gap
         && !repeat_y_has_gap

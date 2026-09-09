@@ -31,6 +31,7 @@ use libgfx_rust::CompositingAndBlendingOperator;
 #[derive(Clone, Copy)]
 pub(crate) struct LayerImageSource<'a> {
     pub value: &'a StyleValueData,
+    pub facts_owner: NodeSlotId,
     pub list: FfiLayerImageList,
     pub computed_index: u32,
     pub selected_image_value: Option<&'a StyleValueData>,
@@ -123,7 +124,7 @@ pub(crate) fn body_background_is_propagated_to_root(
 
 pub(crate) struct BackgroundPaintSource<'a> {
     pub layers_style_if_live: Option<ComputedValuesView<'a>>,
-    pub image_list: FfiLayerImageList,
+    pub layer_image_facts_owner: NodeSlotId,
     pub background_color: libgfx_rust::Color,
     pub background_color_clip: u8,
     pub background_rect: CssPixelRect,
@@ -151,7 +152,7 @@ pub(crate) fn background_paint_source_from_style_and_geometry(
         if !root_background_source.use_body_background_properties {
             return Some(BackgroundPaintSource {
                 layers_style_if_live: Some(style),
-                image_list: FfiLayerImageList::Background,
+                layer_image_facts_owner: slot,
                 background_color: own_color,
                 background_color_clip,
                 background_rect,
@@ -172,7 +173,7 @@ pub(crate) fn background_paint_source_from_style_and_geometry(
         let image_rendering = body_style.map_or(css_enums::image_rendering::AUTO, ComputedValuesView::image_rendering);
         return Some(BackgroundPaintSource {
             layers_style_if_live: body_style,
-            image_list: FfiLayerImageList::DocumentBackground,
+            layer_image_facts_owner: root_background_source.body_layout_node,
             background_color,
             background_color_clip,
             background_rect,
@@ -196,7 +197,7 @@ pub(crate) fn background_paint_source_from_style_and_geometry(
         };
     Some(BackgroundPaintSource {
         layers_style_if_live: Some(style),
-        image_list: FfiLayerImageList::Background,
+        layer_image_facts_owner: slot,
         background_color: own_color,
         background_color_clip,
         background_rect,
@@ -246,18 +247,20 @@ fn computed_layer_size(size_item: &StyleValueData) -> ComputedLayerSize<'_> {
 
 fn layer_image_source(
     image_item: &StyleValueData,
+    facts_owner: NodeSlotId,
     list: FfiLayerImageList,
     computed_index: u32,
 ) -> Option<LayerImageSource<'_>> {
     style_queries::is_abstract_image(image_item).then_some(LayerImageSource {
         value: image_item,
+        facts_owner,
         list,
         computed_index,
         selected_image_value: None,
     })
 }
 
-fn computed_background_layers(style: ComputedValuesView<'_>, image_list: FfiLayerImageList) -> Vec<ComputedLayer<'_>> {
+fn computed_background_layers(style: ComputedValuesView<'_>, facts_owner: NodeSlotId) -> Vec<ComputedLayer<'_>> {
     let background = style.background();
     let items = |handle| {
         style_queries::handle_value(handle)
@@ -280,7 +283,7 @@ fn computed_background_layers(style: ComputedValuesView<'_>, image_list: FfiLaye
             unreachable!("computed background-repeat holds a repeat-style value");
         };
         layers.push(ComputedLayer {
-            image: layer_image_source(image_item, image_list, index as u32),
+            image: layer_image_source(image_item, facts_owner, FfiLayerImageList::Background, index as u32),
             attachment: css_enums::keyword_to_background_attachment(keyword_of(cycled(&attachment_items, index)))
                 .expect("computed background-attachment holds an attachment keyword"),
             blend_mode: css_enums::keyword_to_mix_blend_mode(keyword_of(cycled(&blend_mode_items, index)))
@@ -318,13 +321,13 @@ pub(crate) fn background_color_can_be_compositor_animated(
         return false;
     }
     !source.layers_style_if_live.is_some_and(|style| {
-        computed_background_layers(style, source.image_list)
+        computed_background_layers(style, source.layer_image_facts_owner)
             .iter()
             .any(|layer| layer.image.is_some() && layer.blend_mode != css_enums::mix_blend_mode::NORMAL)
     })
 }
 
-fn computed_mask_layers(style: ComputedValuesView<'_>) -> Vec<ComputedLayer<'_>> {
+fn computed_mask_layers(style: ComputedValuesView<'_>, facts_owner: NodeSlotId) -> Vec<ComputedLayer<'_>> {
     use css_enums::mix_blend_mode;
     let mask = style.mask();
     let items = |handle| {
@@ -353,7 +356,7 @@ fn computed_mask_layers(style: ComputedValuesView<'_>) -> Vec<ComputedLayer<'_>>
         let origin = css_enums::keyword_to_background_box(keyword_of(cycled(&origin_items, index)))
             .unwrap_or(css_enums::background_box::BORDER_BOX);
         layers.push(ComputedLayer {
-            image: layer_image_source(image_item, FfiLayerImageList::Mask, index as u32),
+            image: layer_image_source(image_item, facts_owner, FfiLayerImageList::Mask, index as u32),
             attachment: css_enums::background_attachment::SCROLL,
             blend_mode: mix_blend_mode::NORMAL,
             clip,
@@ -435,7 +438,7 @@ fn resolve_layers<'a, O: Observer>(
             transparent_mask_layer(&mut resolved_layers);
             continue;
         };
-        let intrinsics = image_intrinsic_facts(recorder, paintable, &image);
+        let intrinsics = layer_image_intrinsics(recorder, &image);
         image.selected_image_value = intrinsics.selected_image_value;
         if !intrinsics.is_paintable {
             transparent_mask_layer(&mut resolved_layers);
@@ -616,9 +619,18 @@ struct LayerImageIntrinsics<'a> {
     selected_image_value: Option<&'a StyleValueData>,
 }
 
-fn image_intrinsic_facts<'a, O: Observer>(
+pub(crate) fn committed_layer_image_paint_facts<O: Observer>(
     recorder: &PaintRecorder<'_, O>,
-    paintable: NodeSlotId,
+    image: &LayerImageSource<'_>,
+) -> crate::painting::host::FfiLayerImagePaintFacts {
+    recorder
+        .layout_arena
+        .layer_image_paint_facts(image.facts_owner, image.list, image.computed_index)
+        .unwrap_or_default()
+}
+
+fn layer_image_intrinsics<'a, O: Observer>(
+    recorder: &PaintRecorder<'_, O>,
     image: &LayerImageSource<'a>,
 ) -> LayerImageIntrinsics<'a> {
     match image.value {
@@ -634,11 +646,14 @@ fn image_intrinsic_facts<'a, O: Observer>(
             selected_image_value: None,
         },
         _ => {
-            let facts = recorder.paint_host.image_intrinsic_facts(
-                recorder.layout_node_shell(paintable),
-                image.list,
-                image.computed_index,
-            );
+            let facts = committed_layer_image_paint_facts(recorder, image);
+            let selected_image_value = match image.value {
+                StyleValueData::ImageSet { options } if facts.has_image_set_selected_option => options
+                    .as_slice()
+                    .get(facts.image_set_selected_option_index as usize)
+                    .map(|option| option.values()[0].data()),
+                _ => None,
+            };
             LayerImageIntrinsics {
                 is_paintable: facts.is_paintable,
                 natural: SizeWithAspectRatio {
@@ -649,12 +664,7 @@ fn image_intrinsic_facts<'a, O: Observer>(
                         denominator: facts.natural_aspect_ratio_denominator,
                     }),
                 },
-                // SAFETY: The selected image's retained value is kept alive by the memoized
-                // layer vector the host resolves `(list, computed_index)` against, which
-                // outlives the recording that borrows `image.value` from the same style.
-                selected_image_value: facts
-                    .has_selected_image_value
-                    .then(|| unsafe { &*facts.selected_image_value.cast::<StyleValueData>() }),
+                selected_image_value,
             }
         }
     }
@@ -665,13 +675,13 @@ pub(crate) fn resolve_background_layers<'a, O: Observer>(
     recorder: &PaintRecorder<'_, O>,
     paintable: NodeSlotId,
     style: ComputedValuesView<'a>,
-    image_list: FfiLayerImageList,
+    layer_image_facts_owner: NodeSlotId,
     background_color: libgfx_rust::Color,
     background_color_clip: u8,
     border_rect: CssPixelRect,
     border_radii: crate::painting::border_radii::BorderRadii,
 ) -> ResolvedBackground<'a> {
-    let layers = computed_background_layers(style, image_list);
+    let layers = computed_background_layers(style, layer_image_facts_owner);
     resolve_layers(
         recorder,
         paintable,
@@ -690,7 +700,7 @@ pub(crate) fn resolve_mask_layers<'a, O: Observer>(
     style: ComputedValuesView<'a>,
     border_rect: CssPixelRect,
 ) -> ResolvedBackground<'a> {
-    let layers = computed_mask_layers(style);
+    let layers = computed_mask_layers(style, paintable);
     resolve_layers(
         recorder,
         paintable,
@@ -741,7 +751,7 @@ pub(crate) fn resolve_background_for_paint<'a, O: Observer>(
             recorder,
             paintable,
             layers_style,
-            source.image_list,
+            source.layer_image_facts_owner,
             source.background_color,
             source.background_color_clip,
             source.background_rect,

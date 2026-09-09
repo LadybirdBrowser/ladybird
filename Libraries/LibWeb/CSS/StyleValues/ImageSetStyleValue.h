@@ -32,7 +32,8 @@ public:
     virtual bool is_paintable(GC::Ptr<HTML::DecodedImageData>) const override;
     virtual SizeWithAspectRatio natural_size(HTML::DecodedImageData const&) const override;
 
-    AbstractImageStyleValue const* selected_image() const { return m_selected_image; }
+    AbstractImageStyleValue const* selected_image() const;
+    Optional<size_t> selected_option_index() const { return m_selected_option_index; }
 
 private:
     explicit ImageSetStyleValue(Vector<Option>);
@@ -43,7 +44,7 @@ private:
     void set_style_sheet(StyleSheetState*);
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
-    Optional<Option> select_option(double device_pixels_per_css_pixel) const;
+    Optional<size_t> select_option_index(double device_pixels_per_css_pixel) const;
 
     Vector<Option> const& options() const
     {
@@ -73,7 +74,7 @@ private:
     static StyleValueFFI::StyleValueData const* make_image_set_data(Vector<Option> const&);
 
     mutable Optional<Vector<Option>> m_options;
-    mutable AbstractImageStyleValue const* m_selected_image { nullptr };
+    mutable Optional<size_t> m_selected_option_index;
     mutable double m_selected_resolution { 1 };
 };
 

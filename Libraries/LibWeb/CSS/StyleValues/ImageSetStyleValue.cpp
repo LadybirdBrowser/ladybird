@@ -52,14 +52,16 @@ ImageSetStyleValue::ImageSetStyleValue(StyleValueFFI::StyleValueData const* data
 {
 }
 
-Optional<ImageSetStyleValue::Option> ImageSetStyleValue::select_option(double device_pixels_per_css_pixel) const
+Optional<size_t> ImageSetStyleValue::select_option_index(double device_pixels_per_css_pixel) const
 {
-    Optional<Option> best_below_or_equal;
+    Optional<size_t> best_below_or_equal;
     Optional<double> best_below_or_equal_resolution;
-    Optional<Option> best_above;
+    Optional<size_t> best_above;
     Optional<double> best_above_resolution;
 
-    for (auto const& option : options()) {
+    auto const& options = this->options();
+    for (size_t option_index = 0; option_index < options.size(); ++option_index) {
+        auto const& option = options[option_index];
         if (option.type.has_value() && !HTML::is_supported_image_type(*option.type))
             continue;
 
@@ -67,14 +69,14 @@ Optional<ImageSetStyleValue::Option> ImageSetStyleValue::select_option(double de
 
         if (resolution >= device_pixels_per_css_pixel) {
             if (!best_above_resolution.has_value() || resolution < *best_above_resolution) {
-                best_above = option;
+                best_above = option_index;
                 best_above_resolution = resolution;
             }
             continue;
         }
 
         if (!best_below_or_equal_resolution.has_value() || resolution > *best_below_or_equal_resolution) {
-            best_below_or_equal = option;
+            best_below_or_equal = option_index;
             best_below_or_equal_resolution = resolution;
         }
     }
@@ -84,15 +86,22 @@ Optional<ImageSetStyleValue::Option> ImageSetStyleValue::select_option(double de
     return best_below_or_equal;
 }
 
+AbstractImageStyleValue const* ImageSetStyleValue::selected_image() const
+{
+    if (!m_selected_option_index.has_value())
+        return nullptr;
+    return options()[*m_selected_option_index].image.ptr();
+}
+
 void ImageSetStyleValue::load_any_resources(DOM::Document& document)
 {
     auto dpr = document.page().client().device_pixels_per_css_pixel();
-    if (auto option = select_option(dpr); option.has_value()) {
-        m_selected_image = option->image.ptr();
-        m_selected_resolution = Resolution::from_style_value(option->resolution).to_dots_per_pixel();
+    if (auto option_index = select_option_index(dpr); option_index.has_value()) {
+        m_selected_option_index = option_index;
+        m_selected_resolution = Resolution::from_style_value(options()[*option_index].resolution).to_dots_per_pixel();
     }
-    if (m_selected_image)
-        const_cast<AbstractImageStyleValue&>(*m_selected_image).load_any_resources(document);
+    if (auto const* selected_image = this->selected_image())
+        const_cast<AbstractImageStyleValue&>(*selected_image).load_any_resources(document);
 }
 
 SizeWithAspectRatio ImageSetStyleValue::natural_size(HTML::DecodedImageData const& decoded_image_data) const
@@ -111,15 +120,15 @@ SizeWithAspectRatio ImageSetStyleValue::natural_size(HTML::DecodedImageData cons
 
 Optional<Painting::ImagePaint> ImageSetStyleValue::image_paint(Painting::ImagePaintRequest const& request) const
 {
-    if (m_selected_image)
-        return m_selected_image->image_paint(request);
+    if (auto const* selected_image = this->selected_image())
+        return selected_image->image_paint(request);
     return {};
 }
 
 bool ImageSetStyleValue::is_paintable(GC::Ptr<HTML::DecodedImageData> decoded_image_data) const
 {
-    if (m_selected_image)
-        return m_selected_image->is_paintable(decoded_image_data);
+    if (auto const* selected_image = this->selected_image())
+        return selected_image->is_paintable(decoded_image_data);
     return false;
 }
 

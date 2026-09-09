@@ -1970,6 +1970,26 @@ pub unsafe extern "C" fn layout_arena_set_canvas_paint_facts(
 
 /// # Safety
 ///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
+/// `entries` must point at `count` readable entries.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_layer_image_paint_facts(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+    entries: *const crate::painting::host::FfiLayerImagePaintFactsEntry,
+    count: usize,
+) -> bool {
+    let arena = unsafe { arena_from_handle(arena) };
+    let entries = if count == 0 {
+        Vec::new()
+    } else {
+        unsafe { std::slice::from_raw_parts(entries, count) }.to_vec()
+    };
+    arena.set_layer_image_paint_facts(slot, entries)
+}
+
+/// # Safety
+///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_navigable_container_paint_facts(
