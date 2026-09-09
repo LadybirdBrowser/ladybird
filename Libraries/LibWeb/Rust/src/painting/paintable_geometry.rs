@@ -180,6 +180,15 @@ pub(crate) fn committed_svg_viewport_size(
     })
 }
 
+pub(crate) fn committed_svg_additional_element_transform(
+    arena: &impl PaintableRowsRead,
+    slot: NodeSlotId,
+) -> Option<svg_formatting_context::FfiAffineTransform> {
+    arena.with_committed_fragment_link(slot, |link| {
+        link.and_then(|link| link.fragment.svg_additional_element_transform)
+    })
+}
+
 pub(crate) fn committed_svg_view_box(
     arena: &impl PaintableRowsRead,
     slot: NodeSlotId,

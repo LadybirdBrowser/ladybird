@@ -84,10 +84,6 @@ pub(crate) fn transform_reference_box(
     }
 }
 
-fn affine_is_identity(transform: AffineTransform) -> bool {
-    transform.values == [1.0, 0.0, 0.0, 1.0, 0.0, 0.0]
-}
-
 fn resolved_translate_axis_px(px: f32, percentage: &ComputedStyleValueHandle, reference: CssPixels) -> f32 {
     let Some(length_percentage) = percentage.length_percentage() else {
         return px;
@@ -124,7 +120,6 @@ fn resolved_transform_to_matrix(
 // https://drafts.csswg.org/css-transforms-2/#ctm
 pub(crate) fn compute_transform(
     layout_arena: &impl PaintableRowsRead,
-    callbacks: &FfiVisualContextHostCallbacks,
     node: NodeSlotId,
     pixel_ratio: f64,
 ) -> Option<(TransformData, bool)> {
@@ -132,11 +127,11 @@ pub(crate) fn compute_transform(
     let node_kind = layout_arena.node_kind_if_live(node)?;
 
     let additional_element_transform = if style_queries::kind_is_svg_element_box(node_kind) {
-        callbacks.svg_additional_element_transform(layout_arena.shell_if_live(node))
+        crate::painting::paintable_geometry::committed_svg_additional_element_transform(layout_arena, node)
+            .map(Into::into)
     } else {
         None
     };
-    let additional_element_transform = additional_element_transform.filter(|transform| !affine_is_identity(*transform));
 
     let transform_values = style.transform();
     let style_has_transform = transform_values.resolved_transforms.length != 0;

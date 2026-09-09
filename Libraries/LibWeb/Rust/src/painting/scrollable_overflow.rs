@@ -10,7 +10,7 @@ use crate::css::display::FfiDisplay;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts;
-use crate::painting::host::{FfiScrollableOverflowHostCallbacks, FfiVisualContextHostCallbacks};
+use crate::painting::host::FfiScrollableOverflowHostCallbacks;
 use crate::painting::paintable_data::FfiOverflowData;
 use crate::painting::paintable_rows::{PaintableRowsMut, PaintableRowsRead};
 use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
@@ -196,7 +196,6 @@ fn affine_map_float_rect(affine: &AffineTransform, rect: FloatRectEdges) -> Floa
 
 fn apply_css_transform_to_scrollable_overflow_rect(
     layout_arena: &impl PaintableRowsRead,
-    visual_context_callbacks: &FfiVisualContextHostCallbacks,
     box_paintable: NodeSlotId,
     rect: CssPixelRect,
     box_has_css_transform: bool,
@@ -204,9 +203,7 @@ fn apply_css_transform_to_scrollable_overflow_rect(
     if !box_has_css_transform {
         return rect;
     }
-    let Some((transform, _is_invertible)) =
-        node_values::compute_transform(layout_arena, visual_context_callbacks, box_paintable, 1.0)
-    else {
+    let Some((transform, _is_invertible)) = node_values::compute_transform(layout_arena, box_paintable, 1.0) else {
         return rect;
     };
 
@@ -347,7 +344,6 @@ fn store_overflow_data(
 pub(crate) fn measure_scrollable_overflow(
     layout_arena: &impl PaintableRowsRead,
     non_child_boxes_by_containing_block: &HashMap<NodeSlotId, Vec<NodeSlotId>>,
-    visual_context_callbacks: &FfiVisualContextHostCallbacks,
     overflow_callbacks: &FfiScrollableOverflowHostCallbacks,
     box_paintable: NodeSlotId,
 ) -> Vec<OverflowAssignment> {
@@ -357,7 +353,6 @@ pub(crate) fn measure_scrollable_overflow(
     measure_scrollable_overflow_impl(
         layout_arena,
         non_child_boxes_by_containing_block,
-        visual_context_callbacks,
         overflow_callbacks,
         box_paintable,
         &mut assignments,
@@ -368,7 +363,6 @@ pub(crate) fn measure_scrollable_overflow(
 fn measure_scrollable_overflow_impl(
     layout_arena: &impl PaintableRowsRead,
     non_child_boxes_by_containing_block: &HashMap<NodeSlotId, Vec<NodeSlotId>>,
-    visual_context_callbacks: &FfiVisualContextHostCallbacks,
     overflow_callbacks: &FfiScrollableOverflowHostCallbacks,
     box_paintable: NodeSlotId,
     assignments: &mut Vec<OverflowAssignment>,
@@ -543,7 +537,6 @@ fn measure_scrollable_overflow_impl(
         let untransformed_child_border_box = paintable_geometry::absolute_border_box_rect(layout_arena, child_node);
         let mut child_border_box = apply_css_transform_to_scrollable_overflow_rect(
             layout_arena,
-            visual_context_callbacks,
             child_node,
             untransformed_child_border_box,
             child_has_css_transform,
@@ -614,14 +607,12 @@ fn measure_scrollable_overflow_impl(
             let untransformed_child_scrollable_overflow = measure_scrollable_overflow_impl(
                 layout_arena,
                 non_child_boxes_by_containing_block,
-                visual_context_callbacks,
                 overflow_callbacks,
                 child_node,
                 assignments,
             );
             let mut child_scrollable_overflow = apply_css_transform_to_scrollable_overflow_rect(
                 layout_arena,
-                visual_context_callbacks,
                 child_node,
                 untransformed_child_scrollable_overflow,
                 child_has_css_transform,

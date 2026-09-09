@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../expected/svg/use-element-geometry-properties-ref.html" />
+<svg width="100" height="100">
+    <defs>
+        <rect id="rect" width="50" height="50" fill="green" />
+    </defs>
+    <use href="#rect"></use>
+    <use id="moved" href="#rect"></use>
+    <use x="50" y="0" href="#rect"></use>
+    <use x="50" y="50" href="#rect"></use>
+</svg>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            const moved = document.getElementById("moved");
+            moved.setAttribute("x", "0");
+            moved.setAttribute("y", "50");
+            requestAnimationFrame(() => {
+                if (window.internals)
+                    internals.signalTestIsDone("PASS");
+                else
+                    document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>

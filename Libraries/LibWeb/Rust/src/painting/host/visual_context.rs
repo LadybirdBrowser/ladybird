@@ -214,8 +214,6 @@ pub struct FfiVisualContextHostCallbacks {
     pub tree_inputs: unsafe extern "C" fn(*mut c_void) -> FfiVisualContextTreeInputs,
     pub scroll_offset: unsafe extern "C" fn(*mut c_void, *mut c_void) -> used_values::FfiCssPixelPoint,
     pub scroll_node_identity: unsafe extern "C" fn(*mut c_void, *mut c_void) -> i64,
-    pub svg_additional_element_transform:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, *mut libgfx_rust::AffineTransform) -> bool,
     pub root_background_source: unsafe extern "C" fn(*mut c_void) -> FfiRootBackgroundSource,
     pub svg_mask_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiSvgMaskFacts,
     pub resolve_svg_filter:
@@ -234,16 +232,6 @@ impl FfiVisualContextHostCallbacks {
     pub(crate) fn scroll_offset(&self, layout_node_shell: *mut c_void) -> used_values::FfiCssPixelPoint {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
         unsafe { (self.scroll_offset)(self.context, layout_node_shell) }
-    }
-    pub(crate) fn svg_additional_element_transform(
-        &self,
-        layout_node_shell: *mut c_void,
-    ) -> Option<libgfx_rust::AffineTransform> {
-        let mut transform = libgfx_rust::AffineTransform::default();
-        // SAFETY: The C++ host writes the transform synchronously when it returns true.
-        let has_transform =
-            unsafe { (self.svg_additional_element_transform)(self.context, layout_node_shell, &raw mut transform) };
-        has_transform.then_some(transform)
     }
     pub(crate) fn root_background_source(&self) -> FfiRootBackgroundSource {
         // SAFETY: The C++ host answers synchronously.

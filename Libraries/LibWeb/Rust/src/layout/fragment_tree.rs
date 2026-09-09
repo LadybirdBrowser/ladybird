@@ -36,6 +36,7 @@ pub(crate) struct Fragment {
     pub(crate) svg_viewport_transform: Option<svg_formatting_context::FfiAffineTransform>,
     pub(crate) svg_viewport_size: Option<FfiCssPixelSize>,
     pub(crate) svg_view_box: Option<svg_formatting_context::FfiSvgViewBox>,
+    pub(crate) svg_additional_element_transform: Option<svg_formatting_context::FfiAffineTransform>,
     pub(crate) svg_viewport_percentage_basis: CssPixels,
     pub(crate) svg_resource_content_units_are_object_bounding_box: bool,
     pub(crate) computed_svg_path: Option<std::rc::Rc<libgfx_rust::path::OwnedPath>>,
@@ -97,6 +98,7 @@ impl Fragment {
             && self.svg_viewport_transform == previous.svg_viewport_transform
             && self.svg_viewport_size == previous.svg_viewport_size
             && self.svg_view_box == previous.svg_view_box
+            && self.svg_additional_element_transform == previous.svg_additional_element_transform
             && self.svg_viewport_percentage_basis == previous.svg_viewport_percentage_basis
             && self.svg_resource_content_units_are_object_bounding_box
                 == previous.svg_resource_content_units_are_object_bounding_box
@@ -267,6 +269,7 @@ fn snapshot_fragment(
             rare.svg_viewport_transform,
             rare.svg_viewport_size,
             rare.svg_view_box,
+            rare.svg_additional_element_transform,
             rare.svg_viewport_percentage_basis,
             rare.svg_resource_content_units_are_object_bounding_box,
             rare.computed_svg_path.take(),
@@ -280,6 +283,7 @@ fn snapshot_fragment(
         svg_viewport_transform,
         svg_viewport_size,
         svg_view_box,
+        svg_additional_element_transform,
         svg_viewport_percentage_basis,
         svg_resource_content_units_are_object_bounding_box,
         computed_svg_path,
@@ -314,6 +318,7 @@ fn snapshot_fragment(
         svg_viewport_transform,
         svg_viewport_size,
         svg_view_box,
+        svg_additional_element_transform,
         svg_viewport_percentage_basis,
         svg_resource_content_units_are_object_bounding_box,
         computed_svg_path,

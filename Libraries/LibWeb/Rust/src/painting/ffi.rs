@@ -722,12 +722,11 @@ pub struct FfiPhysicalOverflowDirections {
 pub unsafe extern "C" fn layout_arena_measure_scrollable_overflow(
     arena: *mut c_void,
     box_paintable: NodeSlotId,
-    visual_context_callbacks: crate::painting::host::FfiVisualContextHostCallbacks,
     overflow_callbacks: crate::painting::host::FfiScrollableOverflowHostCallbacks,
 ) {
     // SAFETY: The C++ caller keeps the arena alive for this synchronous call.
     unsafe {
-        measure_scrollable_overflow_for_slot(arena, box_paintable, &visual_context_callbacks, &overflow_callbacks);
+        measure_scrollable_overflow_for_slot(arena, box_paintable, &overflow_callbacks);
     };
 }
 
@@ -748,7 +747,6 @@ fn box_holds_scroll_state(arena: &LayoutNodeArena, slot: NodeSlotId) -> bool {
 unsafe fn measure_scrollable_overflow_for_slot(
     arena_handle: *mut c_void,
     box_paintable: NodeSlotId,
-    visual_context_callbacks: &crate::painting::host::FfiVisualContextHostCallbacks,
     overflow_callbacks: &crate::painting::host::FfiScrollableOverflowHostCallbacks,
 ) {
     let assignments = {
@@ -762,7 +760,6 @@ unsafe fn measure_scrollable_overflow_for_slot(
         crate::painting::scrollable_overflow::measure_scrollable_overflow(
             &paintable_rows,
             &paint_state.scrollable_overflow_non_child_boxes,
-            visual_context_callbacks,
             overflow_callbacks,
             box_paintable,
         )
@@ -787,7 +784,6 @@ pub(crate) unsafe fn scrollable_overflow_rect_measuring_if_missing(
     arena_handle: *mut c_void,
     slot: NodeSlotId,
     viewport: NodeSlotId,
-    visual_context_callbacks: &crate::painting::host::FfiVisualContextHostCallbacks,
     overflow_callbacks: &crate::painting::host::FfiScrollableOverflowHostCallbacks,
 ) -> Option<crate::css::css_pixels::CssPixelRect> {
     let needs_measurement = {
@@ -806,7 +802,7 @@ pub(crate) unsafe fn scrollable_overflow_rect_measuring_if_missing(
     if needs_measurement {
         // SAFETY: No arena borrow is alive here.
         unsafe {
-            measure_scrollable_overflow_for_slot(arena_handle, slot, visual_context_callbacks, overflow_callbacks);
+            measure_scrollable_overflow_for_slot(arena_handle, slot, overflow_callbacks);
         }
     }
     // SAFETY: The measurement's exclusive borrow ended with its call.
@@ -834,7 +830,6 @@ pub unsafe extern "C" fn layout_arena_update_scrollable_overflow(
     arena: *mut c_void,
     viewport: NodeSlotId,
     handled_by_full_layout_commit: bool,
-    visual_context_callbacks: crate::painting::host::FfiVisualContextHostCallbacks,
     overflow_callbacks: crate::painting::host::FfiScrollableOverflowHostCallbacks,
     scroll_offset_context: *mut c_void,
     clamp_scroll_offset_if_nonzero: unsafe extern "C" fn(*mut c_void, *mut c_void),
@@ -867,7 +862,7 @@ pub unsafe extern "C" fn layout_arena_update_scrollable_overflow(
     let measure_and_clamp = |slot: NodeSlotId| {
         // SAFETY: As above; the callback receives a live shell and does not re-enter.
         unsafe {
-            measure_scrollable_overflow_for_slot(arena, slot, &visual_context_callbacks, &overflow_callbacks);
+            measure_scrollable_overflow_for_slot(arena, slot, &overflow_callbacks);
             let shell = arena_from_handle(arena).node_shell(slot);
             clamp_scroll_offset_if_nonzero(scroll_offset_context, shell);
         }
@@ -1706,12 +1701,11 @@ pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
 pub unsafe extern "C" fn layout_arena_apply_css_transform_to_rect(
     arena: *mut c_void,
     node: NodeSlotId,
-    callbacks: FfiVisualContextHostCallbacks,
     rect: FfiCssPixelRect,
 ) -> FfiCssPixelRect {
     let arena = unsafe { arena_from_handle(arena) };
     let Some((transform, _is_invertible)) =
-        crate::painting::visual_context::node_values::compute_transform(&arena.paintable_rows(), &callbacks, node, 1.0)
+        crate::painting::visual_context::node_values::compute_transform(&arena.paintable_rows(), node, 1.0)
     else {
         return rect;
     };
