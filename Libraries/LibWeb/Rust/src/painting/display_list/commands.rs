@@ -693,6 +693,7 @@ pub struct DrawGlyphRun {
     pub scale: f32,
     pub color: Color,
     pub orientation: Orientation,
+    pub font_smoothing: u8,
 }
 ffi_bytes_fields!(DrawGlyphRun {
     font_id,
@@ -702,7 +703,8 @@ ffi_bytes_fields!(DrawGlyphRun {
     translation,
     scale,
     color,
-    orientation
+    orientation,
+    font_smoothing
 });
 
 impl DisplayListCommand for DrawGlyphRun {
@@ -1034,6 +1036,7 @@ pub struct PaintTextShadow {
     pub scale: f32,
     pub blur_radius: i32,
     pub color: Color,
+    pub font_smoothing: u8,
 }
 ffi_bytes_fields!(PaintTextShadow {
     font_id,
@@ -1043,7 +1046,8 @@ ffi_bytes_fields!(PaintTextShadow {
     draw_location,
     scale,
     blur_radius,
-    color
+    color,
+    font_smoothing
 });
 
 impl DisplayListCommand for PaintTextShadow {

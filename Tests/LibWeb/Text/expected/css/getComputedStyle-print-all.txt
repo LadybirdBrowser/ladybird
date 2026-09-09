@@ -1,3 +1,4 @@
+-webkit-font-smoothing: auto
 -webkit-text-fill-color: rgb(0, 0, 0)
 accent-color: auto
 block-ellipsis: no-ellipsis
@@ -107,7 +108,7 @@ background-position-x: 0%
 background-position-y: 0%
 background-repeat: repeat
 background-size: auto
-block-size: 1417px
+block-size: 1430px
 border-block-end-color: rgb(0, 0, 0)
 border-block-end-style: none
 border-block-end-width: 0px
@@ -208,7 +209,7 @@ grid-row-start: auto
 grid-template-areas: none
 grid-template-columns: none
 grid-template-rows: none
-height: 2730px
+height: 2743px
 inline-size: 784px
 inset-block-end: auto
 inset-block-start: auto
@@ -330,7 +331,7 @@ top: auto
 touch-action: auto
 transform: none
 transform-box: view-box
-transform-origin: 392px 2158px
+transform-origin: 392px 2164.5px
 transform-style: flat
 transition-behavior: normal
 transition-delay: 0s

@@ -614,6 +614,12 @@
     "auto",
     "none"
   ],
+  "font-smoothing": [
+    "auto",
+    "none",
+    "antialiased",
+    "subpixel-antialiased"
+  ],
   "font-style-keyword": [
     "normal",
     "italic",

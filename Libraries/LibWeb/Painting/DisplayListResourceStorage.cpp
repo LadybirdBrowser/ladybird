@@ -16,6 +16,7 @@
 #include <LibGfx/YUVData.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibMedia/VideoFrameHandle.h>
+#include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Layout/LayoutRustFFI.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
@@ -461,11 +462,29 @@ static u64 text_blob_glyph_hash(ReadonlySpan<DisplayListGlyph> glyphs)
     return hash;
 }
 
-static sk_sp<SkTextBlob> make_text_blob(Gfx::Font const& font, float scale, ReadonlySpan<DisplayListGlyph> glyphs)
+static sk_sp<SkTextBlob> make_text_blob(Gfx::Font const& font, float scale, ReadonlySpan<DisplayListGlyph> glyphs, [[maybe_unused]] u8 font_smoothing)
 {
     if (font.is_invisible())
         return nullptr;
     auto sk_font = font.skia_font(scale);
+#ifdef AK_OS_MACOS
+    // INTEROP: Blink disables CoreGraphics outline dilation for antialiased text.
+    // https://source.chromium.org/chromium/chromium/src/+/main:third_party/blink/renderer/platform/fonts/mac/font_platform_data_mac.mm
+    switch (static_cast<CSS::FontSmoothing>(font_smoothing)) {
+    case CSS::FontSmoothing::Antialiased:
+        sk_font.setEdging(SkFont::Edging::kAntiAlias);
+        sk_font.setHinting(SkFontHinting::kNone);
+        break;
+    case CSS::FontSmoothing::None:
+        sk_font.setEdging(SkFont::Edging::kAlias);
+        break;
+    case CSS::FontSmoothing::SubpixelAntialiased:
+        sk_font.setEdging(SkFont::Edging::kSubpixelAntiAlias);
+        break;
+    default:
+        break;
+    }
+#endif
     SkTextBlobBuilder builder;
     auto const& run = builder.allocRunPos(sk_font, glyphs.size());
 
@@ -478,13 +497,13 @@ static sk_sp<SkTextBlob> make_text_blob(Gfx::Font const& font, float scale, Read
     return builder.make();
 }
 
-sk_sp<SkTextBlob> DisplayListResourceStorage::text_blob(FontResourceId font_id, float scale, ReadonlySpan<DisplayListGlyph> glyphs) const
+sk_sp<SkTextBlob> DisplayListResourceStorage::text_blob(FontResourceId font_id, float scale, ReadonlySpan<DisplayListGlyph> glyphs, u8 font_smoothing) const
 {
     constexpr size_t max_text_blob_cache_bytes = 16 * MiB;
     constexpr auto text_blob_idle_duration = AK::Duration::from_milliseconds(250);
 
     ReadonlyBytes glyph_bytes { reinterpret_cast<u8 const*>(glyphs.data()), glyphs.size() * sizeof(DisplayListGlyph) };
-    DisplayListTextBlobCacheKey key { font_id.value(), bit_cast<u32>(scale), text_blob_glyph_hash(glyphs) };
+    DisplayListTextBlobCacheKey key { font_id.value(), bit_cast<u32>(scale), font_smoothing, text_blob_glyph_hash(glyphs) };
     auto now = MonotonicTime::now();
 
     if (auto cached = m_text_blobs.find(key); cached != m_text_blobs.end()) {
@@ -497,7 +516,7 @@ sk_sp<SkTextBlob> DisplayListResourceStorage::text_blob(FontResourceId font_id, 
         m_text_blobs.remove(cached);
     }
 
-    auto blob = make_text_blob(font(font_id), scale, glyphs);
+    auto blob = make_text_blob(font(font_id), scale, glyphs, font_smoothing);
     if (!blob)
         return nullptr;
 

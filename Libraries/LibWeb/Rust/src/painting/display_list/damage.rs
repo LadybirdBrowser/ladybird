@@ -157,7 +157,8 @@ fn display_list_commands_are_equal(a: &CommandReference<'_>, b: &CommandReferenc
     }
 
     if a.header.command_type == DisplayListCommandType::DrawGlyphRun {
-        return first.u64_at(offset_of!(DrawGlyphRun, font_id)) == second.u64_at(offset_of!(DrawGlyphRun, font_id))
+        return same_field(offset_of!(DrawGlyphRun, font_smoothing), 1)
+            && first.u64_at(offset_of!(DrawGlyphRun, font_id)) == second.u64_at(offset_of!(DrawGlyphRun, font_id))
             && first.span_bytes_at(offset_of!(DrawGlyphRun, glyphs))
                 == second.span_bytes_at(offset_of!(DrawGlyphRun, glyphs))
             && first.int_rect_at(offset_of!(DrawGlyphRun, rect)) == second.int_rect_at(offset_of!(DrawGlyphRun, rect))
@@ -171,8 +172,9 @@ fn display_list_commands_are_equal(a: &CommandReference<'_>, b: &CommandReferenc
     }
 
     if a.header.command_type == DisplayListCommandType::PaintTextShadow {
-        return first.u64_at(offset_of!(PaintTextShadow, font_id))
-            == second.u64_at(offset_of!(PaintTextShadow, font_id))
+        return same_field(offset_of!(PaintTextShadow, font_smoothing), 1)
+            && first.u64_at(offset_of!(PaintTextShadow, font_id))
+                == second.u64_at(offset_of!(PaintTextShadow, font_id))
             && first.span_bytes_at(offset_of!(PaintTextShadow, glyphs))
                 == second.span_bytes_at(offset_of!(PaintTextShadow, glyphs))
             && first.int_rect_at(offset_of!(PaintTextShadow, shadow_bounding_rect))
@@ -779,12 +781,13 @@ mod tests {
         )
     }
 
-    fn glyph_run_command_bytes(inline_padding: usize) -> Vec<u8> {
+    fn glyph_run_command_bytes(inline_padding: usize, font_smoothing: u8) -> Vec<u8> {
         let glyph = DisplayListGlyph {
             position: FloatPoint { x: 1.0, y: 2.0 },
             glyph_id: 3,
         };
         let command = DrawGlyphRun {
+            font_smoothing,
             font_id: FontResourceId(1),
             glyphs: DisplayListDataSpan {
                 offset: (std::mem::size_of::<DrawGlyphRun>() + inline_padding) as u32,
@@ -1064,11 +1067,22 @@ mod tests {
     #[test]
     fn inline_payload_alignment_does_not_damage_glyph_runs() {
         let tree = identity_tree();
-        let old_display_list = glyph_run_command_bytes(0);
-        let new_display_list = glyph_run_command_bytes(4);
+        let old_display_list = glyph_run_command_bytes(0, crate::css::css_enums::font_smoothing::AUTO);
+        let new_display_list = glyph_run_command_bytes(4, crate::css::css_enums::font_smoothing::AUTO);
         assert_eq!(
             damage(&old_display_list, &tree, &new_display_list, &tree),
             Some(IntRect::default())
+        );
+    }
+
+    #[test]
+    fn changing_font_smoothing_damages_glyph_runs() {
+        let tree = identity_tree();
+        let old_display_list = glyph_run_command_bytes(0, crate::css::css_enums::font_smoothing::AUTO);
+        let new_display_list = glyph_run_command_bytes(0, crate::css::css_enums::font_smoothing::ANTIALIASED);
+        assert_eq!(
+            damage(&old_display_list, &tree, &new_display_list, &tree),
+            Some(IntRect::new(9, 9, 22, 22))
         );
     }
 
@@ -1116,6 +1130,7 @@ mod tests {
             append_record(
                 &mut bytes,
                 &DrawGlyphRun {
+                    font_smoothing: crate::css::css_enums::font_smoothing::AUTO,
                     font_id: FontResourceId(1),
                     glyphs: DisplayListDataSpan::default(),
                     rect: IntRect::new(10, 10, 20, 20),

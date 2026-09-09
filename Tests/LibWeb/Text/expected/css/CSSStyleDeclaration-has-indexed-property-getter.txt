@@ -1,5 +1,6 @@
 All properties associated with getComputedStyle(document.body):
 [
+    "-webkit-font-smoothing",
     "-webkit-text-fill-color",
     "accent-color",
     "block-ellipsis",

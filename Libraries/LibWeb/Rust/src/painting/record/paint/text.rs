@@ -358,6 +358,12 @@ fn paint_text_shadow<O: Observer>(recorder: &mut PaintRecorder<'_, O>, block: No
                 text_rect.height,
             ),
             GlyphRunForRecording {
+                font_smoothing: recorder
+                    .layout_arena
+                    .node_style_if_live(fragment.style_source)
+                    .unwrap()
+                    .inherited_text()
+                    .font_smoothing,
                 font_id: FontResourceId(font_id),
                 glyphs: span_glyphs,
             },
@@ -425,6 +431,12 @@ fn paint_text_fragment<O: Observer>(
         glyph_bounding_rect,
     } = glyph_run_emission(fragment, run, fragment_absolute_rect, scale);
     let run_for_recording = GlyphRunForRecording {
+        font_smoothing: recorder
+            .layout_arena
+            .node_style_if_live(fragment.style_source)
+            .unwrap()
+            .inherited_text()
+            .font_smoothing,
         font_id: FontResourceId(font_id),
         glyphs: &glyphs,
     };
