@@ -888,17 +888,24 @@ static void invalidate_navigable_containers_whose_composited_context_changed(DOM
     }
 }
 
+static void take_recording_trace_if_pending(DOM::Document& document)
+{
+    StringBuilder trace;
+    bool has_pending_trace = Layout::RustFFI::layout_arena_take_recording_trace(
+        layout_arena_handle(document), &trace,
+        [](void*, void* layout_node_shell, void* description_sink) {
+            auto description = static_cast<Layout::Node const*>(layout_node_shell)->debug_description();
+            auto bytes = description.bytes();
+            Layout::RustFFI::layout_arena_paint_push_bytes(description_sink, bytes.data(), bytes.size()); },
+        append_bytes_to_string_builder);
+    if (has_pending_trace)
+        document.paint_state().append_recording_trace(MUST(trace.to_string()));
+}
+
 Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& context)
 {
     return {
         .context = &context,
-        .debug_description = [](void*, void* shell, void* sink) {
-            auto description = static_cast<Layout::Node const*>(shell)->debug_description();
-            auto bytes = description.bytes();
-            Layout::RustFFI::layout_arena_paint_push_bytes(sink, bytes.data(), bytes.size()); },
-        .recording_trace = [](void* context_pointer, u8 const* bytes, size_t count) {
-            auto& context = *static_cast<PaintHostContext*>(context_pointer);
-            const_cast<DOM::Document&>(*context.document).paint_state().append_recording_trace(MUST(String::from_utf8(ReadonlyBytes { bytes, count }))); },
         .async_scroll_facts = [](void*, void* layout_node_shell) -> Layout::RustFFI::FfiAsyncScrollFacts {
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
             Layout::RustFFI::FfiAsyncScrollFacts facts {};
@@ -1344,6 +1351,7 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     PaintHostContext paint_host_context { resource_storage, document, paint_generation_id, device_pixels_per_css_pixel };
     auto rust_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
     auto generation = Layout::RustFFI::layout_arena_record_display_list(arena, viewport_row_slot(document), hit_test_host_callbacks(), paint_host_callbacks(paint_host_context), visual_context_host_callbacks(document), inputs);
+    take_recording_trace_if_pending(document);
     if (generation == 0)
         return nullptr;
     if (Layout::RustFFI::layout_arena_last_recording_has_blocking_wheel_event_listeners(arena))

@@ -1846,6 +1846,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
     let arena = unsafe { arena_from_handle(arena) };
     {
         let mut paint_state = arena.paint_state().borrow_mut();
+        paint_state.pending_recording_trace = None;
         let has_blocking_wheel_event_region_covering_viewport =
             inputs.has_blocking_wheel_event_region_covering_viewport;
         if paint_state.recorded_has_blocking_wheel_event_region_covering_viewport
@@ -1924,30 +1925,13 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         arena.set_paint_recording_in_progress(false);
         output
     };
-    if arena.paint_state().borrow().trace_recordings
-        && let Some(log) = &output.capture_log_for_verification
-    {
-        let mut name = |slot| {
-            if slot == viewport {
-                return "@viewport".into();
-            }
-            let mut name = Vec::<u8>::new();
-            // SAFETY: the recording's paintable shells and callback context are still live.
-            unsafe {
-                (paint_callbacks.debug_description)(
-                    paint_callbacks.context,
-                    arena.shell_if_live(slot),
-                    (&raw mut name).cast(),
-                );
-            };
-            String::from_utf8(name).expect("trace label must be UTF-8")
-        };
-        let text = log.format(&mut name);
-        let text = format!("recording (overlay={})\n{}", inputs.should_paint_overlay, text);
-        // SAFETY: the host copies the text synchronously.
-        unsafe { (paint_callbacks.recording_trace)(paint_callbacks.context, text.as_ptr(), text.len()) };
-    }
     let mut paint_state = arena.paint_state().borrow_mut();
+    if paint_state.trace_recordings && output.capture_log_for_verification.is_some() {
+        paint_state.pending_recording_trace = Some(crate::painting::paint_state::PendingRecordingTrace {
+            viewport,
+            should_paint_overlay: inputs.should_paint_overlay,
+        });
+    }
     output.is_identical_to_cache_source = paint_state
         .paint_command_cache_source
         .as_ref()
@@ -1988,6 +1972,52 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
     }
     paint_state.last_recording = Some(output);
     list_generation_of(&paint_state)
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`; `describe_node` and `append_text`
+/// are called synchronously with `context`, and the shells handed to `describe_node` are the
+/// last recording's live paintable shells.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_take_recording_trace(
+    arena: *mut c_void,
+    context: *mut c_void,
+    describe_node: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
+    append_text: unsafe extern "C" fn(*mut c_void, *const u8, usize),
+) -> bool {
+    let arena = unsafe { arena_from_handle(arena) };
+    let (pending, recording) = {
+        let mut paint_state = arena.paint_state().borrow_mut();
+        let Some(pending) = paint_state.pending_recording_trace.take() else {
+            return false;
+        };
+        let Some(recording) = paint_state.last_recording.clone() else {
+            return false;
+        };
+        (pending, recording)
+    };
+    let Some(log) = recording.capture_log_for_verification.as_ref() else {
+        return false;
+    };
+    let mut name = |slot| {
+        if slot == pending.viewport {
+            return "@viewport".into();
+        }
+        let mut name = Vec::<u8>::new();
+        // SAFETY: the last recording's paintable shells are still live, and the host copies the
+        // description synchronously into the sink.
+        unsafe { describe_node(context, arena.shell_if_live(slot), (&raw mut name).cast()) };
+        String::from_utf8(name).expect("trace label must be UTF-8")
+    };
+    let text = format!(
+        "recording (overlay={})\n{}",
+        pending.should_paint_overlay,
+        log.format(&mut name)
+    );
+    // SAFETY: the host copies the text synchronously.
+    unsafe { append_text(context, text.as_ptr(), text.len()) };
+    true
 }
 
 /// # Safety
