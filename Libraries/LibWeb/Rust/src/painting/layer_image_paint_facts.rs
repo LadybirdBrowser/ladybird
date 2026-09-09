@@ -6,17 +6,9 @@
 
 use crate::css::css_pixels::CssPixels;
 use crate::layout::used_values::OptionalCssPixels;
-use crate::painting::host::{FfiLayerImageContentKind, FfiLayerImageList, FfiLayerImagePaintFacts};
+use crate::painting::host::{FfiLayerImageList, FfiLayerImagePaintFacts};
+use crate::painting::image_content::ImageContent;
 use libgfx_rust::Color;
-use libgfx_rust::image_frame::ImageFrameHandle;
-
-#[derive(Clone, Debug, Default, PartialEq, Eq)]
-pub(crate) enum LayerImageContent {
-    #[default]
-    None,
-    Raster(Option<ImageFrameHandle>),
-    Vector,
-}
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct LayerImagePaintFacts {
@@ -25,7 +17,7 @@ pub(crate) struct LayerImagePaintFacts {
     pub natural_height: OptionalCssPixels,
     pub natural_aspect_ratio: Option<(CssPixels, CssPixels)>,
     pub image_set_selected_option_index: Option<u32>,
-    pub content: LayerImageContent,
+    pub content: ImageContent,
     pub single_pixel_color: Option<Color>,
 }
 
@@ -34,13 +26,7 @@ impl LayerImagePaintFacts {
     ///
     /// `facts.frame` must be null or point to a live `Gfx::DecodedImageFrame`.
     pub(crate) unsafe fn from_ffi(facts: &FfiLayerImagePaintFacts) -> Self {
-        let content = match facts.content_kind {
-            FfiLayerImageContentKind::None => LayerImageContent::None,
-            FfiLayerImageContentKind::Raster => LayerImageContent::Raster(
-                (!facts.frame.is_null()).then(|| unsafe { ImageFrameHandle::retain(facts.frame) }),
-            ),
-            FfiLayerImageContentKind::Vector => LayerImageContent::Vector,
-        };
+        let content = unsafe { ImageContent::from_ffi(facts.content_kind, facts.frame, facts.vector_content_identity) };
         Self {
             is_paintable: facts.is_paintable,
             natural_width: facts.natural_width,

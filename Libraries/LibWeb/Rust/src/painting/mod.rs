@@ -18,6 +18,7 @@ pub mod force_dark;
 pub mod fragment_ownership;
 pub mod hit_test;
 pub mod host;
+pub(crate) mod image_content;
 pub(crate) mod intersection_observer;
 pub(crate) mod layer_image_paint_facts;
 pub mod layout_tree_dump;

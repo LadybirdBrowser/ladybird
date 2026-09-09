@@ -314,6 +314,7 @@ private:
     // ^Layout::ImageProvider
     virtual bool is_image_pending() const override;
     virtual GC::Ptr<HTML::DecodedImageData> decoded_image_data() const override { return image_data(); }
+    virtual Layout::Node const* image_provider_layout_node() const override;
     virtual void visit_edges(Cell::Visitor&) override;
     virtual void adopted_from(DOM::Document&) override;
 

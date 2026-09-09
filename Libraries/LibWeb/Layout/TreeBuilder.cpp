@@ -384,6 +384,7 @@ public:
     virtual Optional<CSSPixels> intrinsic_width() const override { return natural_size().width; }
     virtual Optional<CSSPixels> intrinsic_height() const override { return natural_size().height; }
     virtual Optional<CSSPixelFraction> intrinsic_aspect_ratio() const override { return natural_size().aspect_ratio; }
+    virtual Layout::Node const* image_provider_layout_node() const override { return m_layout_node.ptr(); }
 
 private:
     class ImageClient final : public CSS::ImageStyleValue::Client {
@@ -403,6 +404,7 @@ private:
         {
             if (!m_owner.m_layout_node)
                 return;
+            m_owner.image_provider_contents_changed();
             m_owner.m_layout_node->set_needs_layout_update(DOM::SetNeedsLayoutReason::GeneratedContentImageFinishedLoading);
         }
 

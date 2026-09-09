@@ -43,6 +43,9 @@ public:
     Optional<Gfx::DecodedImageFrame> default_image_frame(Optional<Gfx::IntSize> size = {}) const;
 
     virtual void layout_node_was_detached() const { }
+
+    virtual Layout::Node const* image_provider_layout_node() const = 0;
+    void image_provider_contents_changed() const;
 };
 
 }

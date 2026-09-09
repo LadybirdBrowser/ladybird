@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/green-100x100-ref.html">
+<style>
+    body {
+        margin: 0;
+    }
+    img {
+        display: block;
+        width: 100px;
+        height: 100px;
+        content: url(data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAD0lEQVR4nGNgaGBAIOI4ANA0CAF5jtVRAAAAAElFTkSuQmCC);
+    }
+</style>
+<img id="target">
+<script>
+    const target = document.getElementById("target");
+    const finish = () => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                if (window.internals)
+                    internals.signalTestIsDone("PASS");
+                else
+                    document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    };
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            target.addEventListener("load", finish, { once: true });
+            target.src = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAQAAAAECAIAAAAmkwkpAAAAEElEQVR4nGP4z8AARwzEcQCukw/x0F8jngAAAABJRU5ErkJggg==";
+        });
+    });
+</script>
+</html>

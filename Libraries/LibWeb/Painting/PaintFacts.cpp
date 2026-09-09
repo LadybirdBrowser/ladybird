@@ -12,12 +12,15 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
+#include <LibWeb/Layout/Box.h>
+#include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
+#include <LibWeb/SVG/SVGImageElement.h>
 
 namespace Web::Painting {
 
@@ -119,9 +122,12 @@ static Layout::RustFFI::FfiLayerImagePaintFacts layer_image_paint_facts_for(CSS:
             facts.natural_aspect_ratio_numerator = natural_size.aspect_ratio->numerator();
             facts.natural_aspect_ratio_denominator = natural_size.aspect_ratio->denominator();
         }
-        facts.content_kind = is<SVG::SVGDecodedImageData>(*decoded_image_data)
-            ? Layout::RustFFI::FfiLayerImageContentKind::Vector
-            : Layout::RustFFI::FfiLayerImageContentKind::Raster;
+        if (auto const* svg_image_data = as_if<SVG::SVGDecodedImageData>(*decoded_image_data)) {
+            facts.content_kind = Layout::RustFFI::FfiImageContentKind::Vector;
+            facts.vector_content_identity = svg_image_data->vector_content_identity();
+        } else {
+            facts.content_kind = Layout::RustFFI::FfiImageContentKind::Raster;
+        }
         facts.single_pixel_color = decoded_image_data->color_if_single_pixel_bitmap();
     }
     if (auto const* image_set = as_if<CSS::ImageSetStyleValue>(image)) {
@@ -154,7 +160,7 @@ void push_layer_image_paint_facts(Layout::NodeWithStyle const& layout_node)
             .facts = layer_image_paint_facts_for(*image, decoded_image_data),
         });
         Optional<Gfx::DecodedImageFrame> current_frame;
-        if (entries.last().facts.content_kind == Layout::RustFFI::FfiLayerImageContentKind::Raster)
+        if (entries.last().facts.content_kind == Layout::RustFFI::FfiImageContentKind::Raster)
             current_frame = decoded_image_data->current_frame();
         current_frames.append(move(current_frame));
     };
@@ -172,6 +178,35 @@ void push_layer_image_paint_facts(Layout::NodeWithStyle const& layout_node)
     Layout::RustFFI::layout_arena_set_layer_image_paint_facts(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node), entries.data(), entries.size());
 }
 
+bool push_replaced_image_paint_facts(Layout::ImageProvider const& image_provider, Layout::Node const& layout_node)
+{
+    if (layout_node.kind() != Layout::RustFFI::NodeKind::ImageBox && layout_node.kind() != Layout::RustFFI::NodeKind::SVGImageBox)
+        return false;
+    Layout::RustFFI::FfiReplacedImagePaintFacts facts {};
+    auto decoded_image_data = image_provider.decoded_image_data();
+    facts.has_decoded_image_data = decoded_image_data != nullptr;
+    facts.natural_width = image_provider.intrinsic_width();
+    facts.natural_height = image_provider.intrinsic_height();
+    if (auto aspect_ratio = image_provider.intrinsic_aspect_ratio(); aspect_ratio.has_value()) {
+        facts.has_natural_aspect_ratio = true;
+        facts.natural_aspect_ratio_numerator = aspect_ratio->numerator();
+        facts.natural_aspect_ratio_denominator = aspect_ratio->denominator();
+    }
+    Optional<Gfx::DecodedImageFrame> current_frame;
+    if (decoded_image_data) {
+        if (auto const* svg_image_data = as_if<SVG::SVGDecodedImageData>(*decoded_image_data)) {
+            facts.content_kind = Layout::RustFFI::FfiImageContentKind::Vector;
+            facts.vector_content_identity = svg_image_data->vector_content_identity();
+        } else {
+            facts.content_kind = Layout::RustFFI::FfiImageContentKind::Raster;
+            current_frame = decoded_image_data->current_frame();
+            if (current_frame.has_value())
+                facts.frame = &current_frame.value();
+        }
+    }
+    return Layout::RustFFI::layout_arena_set_replaced_image_paint_facts(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node), facts);
+}
+
 void push_paint_facts_after_style_attach(Layout::NodeWithStyle& layout_node, StyleHoldsImageValues style_holds_image_values)
 {
     if (style_holds_image_values == StyleHoldsImageValues::Yes)
@@ -182,6 +217,10 @@ void push_paint_facts_after_style_attach(Layout::NodeWithStyle& layout_node, Sty
         push_form_control_paint_facts_onto(as<HTML::HTMLInputElement>(*layout_node.dom_node()), layout_node);
     else if (layout_node.kind() == Layout::RustFFI::NodeKind::CanvasBox)
         push_canvas_paint_facts_onto(as<HTML::HTMLCanvasElement>(*layout_node.dom_node()), layout_node);
+    else if (layout_node.kind() == Layout::RustFFI::NodeKind::ImageBox)
+        push_replaced_image_paint_facts(static_cast<Layout::Box const&>(layout_node).image_provider(), layout_node);
+    else if (layout_node.kind() == Layout::RustFFI::NodeKind::SVGImageBox)
+        push_replaced_image_paint_facts(as<SVG::SVGImageElement>(*layout_node.dom_node()), layout_node);
 }
 
 }

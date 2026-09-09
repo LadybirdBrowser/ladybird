@@ -394,6 +394,37 @@ pub(crate) fn paint_image<O: Observer>(
     );
 }
 
+pub(crate) fn paint_decoded_image_frame<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    frame: &libgfx_rust::image_frame::ImageFrameHandle,
+    dest_rect: FloatRect,
+    image_rendering: u8,
+) {
+    let frame_id = recorder.register_image_frame(frame);
+    let frame_size = (frame.width(), frame.height());
+    let target = (
+        dest_rect.width.round_ties_even() as i32,
+        dest_rect.height.round_ties_even() as i32,
+    );
+    let scaling_mode = to_gfx_scaling_mode(image_rendering, frame_size, target);
+    let force_dark_role = crate::painting::force_dark::role_for_image(
+        ForceDarkRole::Background,
+        dest_rect.width,
+        dest_rect.height,
+        recorder.inputs.device_pixels_per_css_pixel,
+        frame_size,
+    );
+    recorder.recorder.draw_scaled_decoded_image_frame(
+        dest_rect,
+        None,
+        frame_id,
+        scaling_mode,
+        CompositingAndBlendingOperator::Normal,
+        None,
+        force_dark_role,
+    );
+}
+
 pub(crate) fn paint_image_with_compositing_and_blending_operator<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
     facts: &FfiImagePaintFacts,
@@ -662,7 +693,7 @@ fn paint_image_layer<O: Observer>(
                 ForceDarkRole::Background,
             );
         }
-    } else if facts.content != crate::painting::layer_image_paint_facts::LayerImageContent::None
+    } else if facts.content != crate::painting::image_content::ImageContent::None
         && ((repeat_x || repeat_y) || compositing_and_blending_operator != CompositingAndBlendingOperator::Normal)
         && !repeat_x_has_gap
         && !repeat_y_has_gap
@@ -712,8 +743,7 @@ fn paint_image_layer<O: Observer>(
                 },
             );
         } else {
-            let crate::painting::layer_image_paint_facts::LayerImageContent::Raster(Some(frame)) = &facts.content
-            else {
+            let crate::painting::image_content::ImageContent::Raster(Some(frame)) = &facts.content else {
                 return;
             };
             let frame_id = recorder.register_image_frame(frame);

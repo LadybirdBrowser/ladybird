@@ -19,7 +19,6 @@ use crate::painting::host::{FfiSvgGradientSpreadMethod, FfiSvgPaintStyle, FfiSvg
 use crate::painting::node_painting;
 use crate::painting::paintable_geometry::absolute_rect;
 use crate::painting::paintable_rows::PaintableRowsRead;
-use crate::painting::record::paint::background::paint_image;
 use crate::painting::record::{PaintPhase, PaintRecorder};
 use libgfx_rust::{AffineTransform, CapStyle, Color, FloatRect, JoinStyle, ShouldAntiAlias, WindingRule};
 
@@ -43,12 +42,6 @@ struct SvgPaintFacts {
     paint_order_count: u32,
     has_viewport: bool,
     viewport: [f32; 4],
-    has_decoded_image_data: bool,
-    has_natural_size: bool,
-    natural_width: f32,
-    natural_height: f32,
-    overflow_is_visible: bool,
-    image_rendering: u8,
     references_paint_server: bool,
 }
 
@@ -64,10 +57,10 @@ fn svg_paint_facts<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
 ) -> (SvgPaintFacts, Vec<f32>) {
-    use crate::css::css_enums::{fill_rule, overflow, stroke_linecap, stroke_linejoin, vector_effect};
+    use crate::css::css_enums::{fill_rule, stroke_linecap, stroke_linejoin, vector_effect};
     let layout_arena = recorder.layout_arena;
-    let kind = layout_arena.node_kind_if_live(paintable);
-    let viewport = kind
+    let viewport = layout_arena
+        .node_kind_if_live(paintable)
         .is_some_and(node_painting::is_svg_path)
         .then(|| crate::painting::svg_viewport::nearest_svg_viewport_user_rect(layout_arena, paintable))
         .flatten();
@@ -76,15 +69,6 @@ fn svg_paint_facts<O: Observer>(
         viewport: viewport.map_or([0.0; 4], |rect| [rect.x, rect.y, rect.width, rect.height]),
         ..SvgPaintFacts::default()
     };
-    if kind == Some(NodeKind::SVGImageBox) {
-        let image = recorder
-            .paint_host
-            .svg_image_facts(recorder.layout_node_shell(paintable));
-        facts.has_decoded_image_data = image.has_decoded_image_data;
-        facts.has_natural_size = image.natural_size.has_value;
-        facts.natural_width = image.natural_size.value.width;
-        facts.natural_height = image.natural_size.value.height;
-    }
     let Some(style) = layout_arena.node_style_if_live(paintable) else {
         return (facts, Vec::new());
     };
@@ -125,9 +109,6 @@ fn svg_paint_facts<O: Observer>(
     facts.non_scaling_stroke = style.svg_reset().vector_effect == vector_effect::NON_SCALING_STROKE;
     facts.paint_order = svg.paint_order;
     facts.paint_order_count = 3;
-    facts.overflow_is_visible =
-        style.box_values().overflow_x == overflow::VISIBLE && style.box_values().overflow_y == overflow::VISIBLE;
-    facts.image_rendering = style.image_rendering();
 
     let basis = crate::painting::paintable_geometry::committed_svg_viewport_percentage_basis(layout_arena, paintable);
     let resolve = |handle: &crate::css::computed_value_types::ComputedStyleValueHandle, default: f32| {
@@ -224,8 +205,7 @@ pub(crate) fn paint_path<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paint
     };
     let (facts, dash_array) = svg_paint_facts(recorder, paintable);
     let output_is_resolved_through_another_element = facts.references_paint_server
-        || recorder.layout_arena.node_kind_if_live(paintable)
-            == Some(crate::layout::node_data::NodeKind::SVGTextPathBox);
+        || recorder.layout_arena.node_kind_if_live(paintable) == Some(NodeKind::SVGTextPathBox);
     if output_is_resolved_through_another_element {
         recorder.mark_open_captures_unsplicable();
     }
@@ -397,8 +377,12 @@ pub(crate) fn paint_image_element<O: Observer>(
         return;
     }
 
-    let (facts, _) = svg_paint_facts(recorder, paintable);
-    if !facts.has_decoded_image_data {
+    let image = recorder
+        .layout_arena
+        .replaced_paint_facts(paintable)
+        .and_then(|facts| facts.image())
+        .unwrap_or_default();
+    if !image.has_decoded_image_data {
         return;
     }
 
@@ -407,8 +391,11 @@ pub(crate) fn paint_image_element<O: Observer>(
         paintable,
         recorder.inputs.device_pixels_per_css_pixel,
     );
-    let natural_size = if facts.has_natural_size {
-        (facts.natural_width, facts.natural_height)
+    let natural_size = if image.natural_width.has_value && image.natural_height.has_value {
+        (
+            image.natural_width.value.to_float(),
+            image.natural_height.value.to_float(),
+        )
     } else {
         (image_rect.width, image_rect.height)
     };
@@ -432,18 +419,27 @@ pub(crate) fn paint_image_element<O: Observer>(
     // https://svgwg.org/svg2-draft/embedded.html#ImageElement
     // Unless over-ridden by the author, images will therefore be clipped to the positioning
     // rectangle defined by the geometry properties.
-    let draw_rect_needs_clip = !facts.overflow_is_visible && !image_rect.contains_rect(draw_rect);
+    let (overflow_is_visible, image_rendering) =
+        recorder
+            .layout_arena
+            .node_style_if_live(paintable)
+            .map_or((false, 0), |style| {
+                use crate::css::css_enums::overflow;
+                (
+                    style.box_values().overflow_x == overflow::VISIBLE
+                        && style.box_values().overflow_y == overflow::VISIBLE,
+                    style.image_rendering(),
+                )
+            });
+    let draw_rect_needs_clip = !overflow_is_visible && !image_rect.contains_rect(draw_rect);
     let image_rect_clip = draw_rect_needs_clip.then(|| PendingInlineClip::intersecting_float_rect(image_rect));
     recorder.record_with_inline_clips(image_rect_clip.as_slice(), |recorder| {
-        let accumulated_scale =
-            recorder.accumulated_2d_scale_at(recorder.recorder.accumulated_visual_context().spatial);
-        let paint = recorder.paint_host.replaced_image_paint(
-            recorder.layout_node_shell(paintable),
+        crate::painting::record::paint::replaced::paint_replaced_image_content(
+            recorder,
+            paintable,
+            &image.content,
             draw_rect,
-            accumulated_scale,
+            image_rendering,
         );
-        if paint.image_paint_kind != crate::painting::host::FfiImagePaintKind::None {
-            paint_image(recorder, &paint, draw_rect, facts.image_rendering);
-        }
     });
 }

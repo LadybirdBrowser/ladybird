@@ -59,7 +59,6 @@
 #include <LibWeb/Painting/ScrollSnap.h>
 #include <LibWeb/Painting/Scrollbar.h>
 #include <LibWeb/Painting/Scrolling.h>
-#include <LibWeb/Painting/ShadowData.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGDecodedImageData.h>
@@ -877,19 +876,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             VERIFY(row);
             auto kind = layout_node.kind();
             Layout::RustFFI::FfiReplacedPaintFacts facts {};
-            if (kind == Layout::RustFFI::NodeKind::ImageBox) {
-                auto const& image_provider = static_cast<Layout::Box const&>(layout_node).image_provider();
-                facts.has_decoded_image_data = image_provider.decoded_image_data() != nullptr;
-                facts.natural_width = image_provider.intrinsic_width();
-                facts.natural_height = image_provider.intrinsic_height();
-                if (auto aspect_ratio = image_provider.intrinsic_aspect_ratio(); aspect_ratio.has_value()) {
-                    facts.has_natural_aspect_ratio = true;
-                    facts.natural_aspect_ratio_numerator = aspect_ratio->numerator();
-                    facts.natural_aspect_ratio_denominator = aspect_ratio->denominator();
-                }
-                if (selection_state(layout_node) != SelectionState::None)
-                    facts.selection_background_color = selection_style(layout_node).background_color;
-            } else if (kind == Layout::RustFFI::NodeKind::VideoBox) {
+            if (kind == Layout::RustFFI::NodeKind::VideoBox) {
                 auto const& video_element = as<HTML::HTMLVideoElement>(*layout_node.dom_node());
                 switch (video_element.current_representation()) {
                 case HTML::HTMLVideoElement::Representation::FirstVideoFrame:
@@ -950,18 +937,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             auto paint = decoded_image_data->image_paint(request);
             if (paint.has_value())
                 write_image_paint_facts(*paint, context, facts);
-            return facts;
-        },
-        .svg_image_facts = [](void*, void* layout_node_shell) -> Layout::RustFFI::FfiSvgImageFacts {
-            auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
-            auto const* row = committed_row(layout_node);
-            VERIFY(row);
-            VERIFY(layout_node.kind() == Layout::RustFFI::NodeKind::SVGImageBox);
-            Layout::RustFFI::FfiSvgImageFacts facts {};
-            auto const& image_provider = as<SVG::SVGImageElement>(*layout_node.dom_node());
-            facts.has_decoded_image_data = image_provider.decoded_image_data() != nullptr;
-            if (auto natural_size = image_provider.intrinsic_size(); natural_size.has_value())
-                facts.natural_size = natural_size->to_type<float>();
             return facts;
         },
         .svg_paint_style = [](void* context_pointer, void* layout_node_shell, bool is_stroke, Layout::RustFFI::FfiSvgPaintContext const* ffi_paint_context, void* sink) -> Layout::RustFFI::FfiSvgPaintStyle {

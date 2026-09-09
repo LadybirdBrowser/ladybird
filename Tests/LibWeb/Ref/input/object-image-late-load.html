@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/object-image-late-load-ref.html">
+<style>
+    body {
+        margin: 0;
+    }
+    object {
+        display: block;
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<object id="target" type="image/png"></object>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            const target = document.getElementById("target");
+            target.addEventListener("load", () => {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        if (window.internals)
+                            internals.signalTestIsDone("PASS");
+                        else
+                            document.documentElement.classList.remove("reftest-wait");
+                    });
+                });
+            });
+            target.data = "../data/smiley.png";
+        });
+    });
+</script>
+</html>
