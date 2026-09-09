@@ -390,8 +390,6 @@ impl From<&RecordedDisplayList> for FfiRecordedDisplayList {
 #[repr(C)]
 pub struct FfiPaintHostCallbacks {
     pub context: *mut c_void,
-    pub debug_description: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
-    pub recording_trace: unsafe extern "C" fn(*mut c_void, *const u8, usize),
     pub async_scroll_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiAsyncScrollFacts,
     pub image_intrinsic_facts:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiLayerImageList, u32) -> FfiImageIntrinsicFacts,

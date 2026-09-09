@@ -8,9 +8,15 @@ use crate::layout::node_data::NodeSlotId;
 use std::cell::RefCell;
 use std::rc::Rc;
 
+pub(crate) struct PendingRecordingTrace {
+    pub(crate) viewport: NodeSlotId,
+    pub(crate) should_paint_overlay: bool,
+}
+
 #[derive(Default)]
 pub struct PaintState {
     pub(crate) trace_recordings: bool,
+    pub(crate) pending_recording_trace: Option<PendingRecordingTrace>,
     pub(crate) visual_context: crate::painting::visual_context::VisualContextState,
     pub(crate) hit_test_list: Option<crate::painting::hit_test::HitTestList>,
     pub(crate) hit_test_list_generation: u64,
