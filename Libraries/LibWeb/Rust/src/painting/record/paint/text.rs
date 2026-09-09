@@ -339,8 +339,19 @@ fn paint_text_shadow<O: Observer>(
         return;
     }
 
+    let converter = recorder.converter;
+    let scale = recorder.inputs.device_pixels_per_css_pixel;
+    let fragment_absolute_rect = text_fragment::absolute_rect(recorder.layout_arena, fragment);
+    let fragment_device_rect = converter.enclosing_device_rect(fragment_absolute_rect);
+    let font_id = recorder.register_font(&run.font);
+    let GlyphRunEmission {
+        glyphs,
+        baseline_start,
+        orientation,
+        ..
+    } = glyph_run_emission(fragment, run, fragment_absolute_rect, scale);
+
     // If this is a partial span, slice the glyph run to only include the relevant glyphs.
-    let glyphs = glyphs_of(run);
     let mut span_glyphs = glyphs.as_slice();
     if span.start_code_unit != 0 || span.end_code_unit != fragment.length_in_code_units {
         let mut start_glyph = 0usize;
@@ -361,42 +372,34 @@ fn paint_text_shadow<O: Observer>(
         }
     }
 
-    let converter = recorder.converter;
-    let scale = recorder.inputs.device_pixels_per_css_pixel;
-    let fragment_width = converter.enclosing_device_pixels(fragment.physical_horizontal_extent());
-    let fragment_height = converter.enclosing_device_pixels(fragment.physical_vertical_extent());
-    let fragment_baseline = converter.rounded_device_pixels(fragment.baseline);
-    let fragment_absolute_rect = text_fragment::absolute_rect(recorder.layout_arena, fragment);
-    let font_id = recorder.register_font(&run.font);
-
     // Shadow layers are ordered front-to-back, so we paint them in reverse.
     for layer in shadow_layers.iter().rev() {
         let blur_radius = converter.rounded_device_pixels(layer.blur_radius);
         // Space around the painted text to allow it to blur.
         let margin = blur_radius * 2;
-        let text_rect = IntRect::new(margin, margin, fragment_width, fragment_height);
-        let bounding_rect = IntRect::new(
-            0,
-            0,
-            text_rect.width + margin + margin,
-            text_rect.height + margin + margin,
+        let offset_x = layer.offset_x.to_float() * scale as f32;
+        let offset_y = layer.offset_y.to_float() * scale as f32;
+        let rect = IntRect::new(
+            fragment_device_rect.x + offset_x.round() as i32,
+            fragment_device_rect.y + offset_y.round() as i32,
+            fragment_device_rect.width,
+            fragment_device_rect.height,
         );
-
-        // FIXME: this is close but not quite perfect. non integer scale values can be offset by tiny amounts.
-        let css_margin = layer.blur_radius * 2;
-        let draw_location = FloatPoint {
-            x: (fragment_absolute_rect.x + layer.offset_x - css_margin).to_float() * scale as f32,
-            y: (fragment_absolute_rect.y + layer.offset_y - css_margin).to_float() * scale as f32,
+        let shadow_bounding_rect = IntRect::new(
+            rect.x - margin,
+            rect.y - margin,
+            rect.width + margin * 2,
+            rect.height + margin * 2,
+        );
+        let translation = FloatPoint {
+            x: baseline_start.x + offset_x,
+            y: baseline_start.y + offset_y,
         };
         recorder.recorder.paint_text_shadow(
             blur_radius,
-            bounding_rect,
-            IntRect::new(
-                text_rect.x,
-                text_rect.y + fragment_baseline,
-                text_rect.width,
-                text_rect.height,
-            ),
+            shadow_bounding_rect,
+            rect,
+            translation,
             GlyphRunForRecording {
                 font_smoothing: recorder
                     .layout_arena
@@ -409,7 +412,7 @@ fn paint_text_shadow<O: Observer>(
             },
             scale,
             Color(layer.color),
-            draw_location,
+            orientation,
             ForceDarkRole::Foreground,
         );
     }

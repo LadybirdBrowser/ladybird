@@ -194,14 +194,15 @@ fn display_list_commands_are_equal(a: &CommandReference<'_>, b: &CommandReferenc
                 == second.span_bytes_at(offset_of!(PaintTextShadow, glyphs))
             && first.int_rect_at(offset_of!(PaintTextShadow, shadow_bounding_rect))
                 == second.int_rect_at(offset_of!(PaintTextShadow, shadow_bounding_rect))
-            && first.int_rect_at(offset_of!(PaintTextShadow, text_rect))
-                == second.int_rect_at(offset_of!(PaintTextShadow, text_rect))
-            && first.float_point_at(offset_of!(PaintTextShadow, draw_location))
-                == second.float_point_at(offset_of!(PaintTextShadow, draw_location))
+            && first.int_rect_at(offset_of!(PaintTextShadow, rect))
+                == second.int_rect_at(offset_of!(PaintTextShadow, rect))
+            && first.float_point_at(offset_of!(PaintTextShadow, translation))
+                == second.float_point_at(offset_of!(PaintTextShadow, translation))
             && first.f32_at(offset_of!(PaintTextShadow, scale)) == second.f32_at(offset_of!(PaintTextShadow, scale))
             && first.i32_at(offset_of!(PaintTextShadow, blur_radius))
                 == second.i32_at(offset_of!(PaintTextShadow, blur_radius))
-            && same_field(offset_of!(PaintTextShadow, color), 4);
+            && same_field(offset_of!(PaintTextShadow, color), 4)
+            && same_field(offset_of!(PaintTextShadow, orientation), 4);
     }
 
     a.header.payload_size == b.header.payload_size && a.payload == b.payload
