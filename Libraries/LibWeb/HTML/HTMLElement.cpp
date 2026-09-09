@@ -54,6 +54,7 @@
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Namespace.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/UIEvents/EventNames.h>
 #include <LibWeb/UIEvents/PointerEvent.h>
@@ -885,8 +886,11 @@ void HTMLElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16St
     if (is_form_associated_element()) {
         form_node_attribute_changed(name, value);
         form_associated_element_attribute_changed(name, old_value, value, namespace_);
-        if (name == HTML::AttributeNames::disabled)
+        if (name == HTML::AttributeNames::disabled) {
+            if (auto* input = as_if<HTMLInputElement>(*this))
+                Painting::push_form_control_paint_facts(*input);
             set_needs_repaint();
+        }
     }
 }
 

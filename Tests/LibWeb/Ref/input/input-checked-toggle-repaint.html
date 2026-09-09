@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/input-checked-toggle-repaint-ref.html">
+<input id="box" type="checkbox">
+<input id="dot" type="radio">
+<input id="unbox" type="checkbox" checked>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.getElementById("box").checked = true;
+            document.getElementById("dot").checked = true;
+            document.getElementById("unbox").checked = false;
+            requestAnimationFrame(() => {
+                if (window.internals)
+                    internals.signalTestIsDone("PASS");
+                else
+                    document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>

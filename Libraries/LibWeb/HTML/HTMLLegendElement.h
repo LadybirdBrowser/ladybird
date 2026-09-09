@@ -23,6 +23,9 @@ public:
 
 private:
     HTMLLegendElement(DOM::Document&, DOM::QualifiedName);
+
+    virtual void inserted() override;
+    virtual void moved_from(IsSubtreeRoot, GC::Ptr<DOM::Node> old_ancestor) override;
 };
 
 }

@@ -210,13 +210,6 @@ pub struct FfiReplacedPaintFacts {
     pub poster_height: i32,
     pub has_composited_context: bool,
     pub composited_context_id: u64,
-    pub enabled: bool,
-    pub checked: bool,
-    pub indeterminate: bool,
-    pub being_activated: bool,
-    pub canvas_color: Color,
-    pub canvas_text_color: Color,
-    pub accent_color: Color,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -378,6 +371,15 @@ impl From<&RecordedDisplayList> for FfiRecordedDisplayList {
             command_run_count: recorded.command_runs.len(),
         }
     }
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiFormControlPaintFacts {
+    pub enabled: bool,
+    pub checked: bool,
+    pub indeterminate: bool,
+    pub being_activated: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
