@@ -179,8 +179,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         if let Some(facts) = self.memo_tables.borrow().hit_test_facts(paintable) {
             return facts;
         }
-        let dom_facts = self.host.paintable_facts(self.layout_node_shell(paintable));
-        let facts = hit_test_items::hit_test_facts(self.layout_arena, paintable, &self.inputs, dom_facts);
+        let facts = hit_test_items::hit_test_facts(self.layout_arena, paintable, &self.inputs);
         self.memo_tables.borrow_mut().set_hit_test_facts(paintable, facts);
         facts
     }
