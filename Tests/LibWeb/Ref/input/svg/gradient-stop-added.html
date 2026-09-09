@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../expected/svg/green-square-100-ref.html" />
+<svg width="100" height="100">
+    <linearGradient id="g" gradientUnits="userSpaceOnUse" x1="-100" x2="100">
+        <stop offset="0" stop-color="red" />
+    </linearGradient>
+    <rect width="100" height="100" fill="url(#g)" />
+</svg>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            const stop = document.createElementNS("http://www.w3.org/2000/svg", "stop");
+            stop.setAttribute("offset", "0");
+            stop.setAttribute("stop-color", "green");
+            document.getElementById("g").appendChild(stop);
+            requestAnimationFrame(() => {
+                if (window.internals)
+                    internals.signalTestIsDone("PASS");
+                else
+                    document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>
