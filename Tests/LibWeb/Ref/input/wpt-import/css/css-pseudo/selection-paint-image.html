@@ -1,0 +1,17 @@
+<!doctype html>
+<title>CSS Pseudo-Elements Test: Replaced content shown through selection</title>
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#highlight-replaced">
+<link rel="stylesheet" type="text/css" href="../../fonts/ahem.css">
+<link rel="mismatch" href="../../../../expected/wpt-import/css/css-pseudo/selection-paint-image-notref.html">
+<style>
+  div { font: 100px/1 Ahem; }
+  img { vertical-align: top; }
+  ::selection { background-color: green; }
+</style>
+<p>The red image to the right should shine through the green selection.</p>
+<div>&nbsp;<img src="support/100x100-red.png"></div>
+<script>
+  let range = document.createRange();
+  range.selectNodeContents(document.querySelector("div"));
+  window.getSelection().addRange(range);
+</script>

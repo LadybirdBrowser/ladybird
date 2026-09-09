@@ -313,18 +313,16 @@ pub(crate) fn paint_image_foreground<O: Observer>(recorder: &mut PaintRecorder<'
     }
 
     if recorder.data(paintable).selection_state != 0 {
-        let selection_background_color = recorder.element_selection_style(paintable).facts.background_color;
-        if selection_background_color.alpha() > 0 {
+        let selection_wash_color = recorder.element_selection_style(paintable).facts.wash_color;
+        if selection_wash_color.alpha() > 0 {
             let backdrop = recorder
                 .layout_arena
                 .node_style_if_live(paintable)
                 .map(|style| libgfx_rust::Color(style.background().background_color));
             let previous = recorder.recorder.set_contrast_backdrop(backdrop);
-            recorder.recorder.fill_rect(
-                image_rect_device_pixels,
-                selection_background_color,
-                ForceDarkRole::Selection,
-            );
+            recorder
+                .recorder
+                .fill_rect(image_rect_device_pixels, selection_wash_color, ForceDarkRole::Selection);
             recorder.recorder.set_contrast_backdrop(previous);
         }
     }

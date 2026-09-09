@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<link rel="match" href="../expected/selection-with-image-color-fallback-ref.html" />
+<style>
+img {
+    width: 50px;
+    height: 50px;
+}
+img::selection {
+    background-color: transparent;
+}
+#highlight-color::selection {
+    color: rgb(200, 220, 240);
+}
+#element-color {
+    color: rgb(200, 220, 240);
+}
+#transparent-color::selection {
+    color: transparent;
+}
+</style>
+<img id="highlight-color" src="../data/smiley.png"><img id="element-color" src="../data/smiley.png"><img id="transparent-color" src="../data/smiley.png">
+<script>
+getSelection().selectAllChildren(document.body);
+</script>
