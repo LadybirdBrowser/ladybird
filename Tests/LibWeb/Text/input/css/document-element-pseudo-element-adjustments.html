@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    html {
+        font-size: 32px;
+    }
+    html::first-letter {
+        font-size: 2em;
+    }
+</style>
+x
+<script>
+    test(() => {
+        const style = getComputedStyle(document.documentElement, "::first-letter");
+        println(`html::first-letter display: ${style.display}`);
+        println(`html::first-letter font-size: ${style.fontSize}`);
+    });
+</script>

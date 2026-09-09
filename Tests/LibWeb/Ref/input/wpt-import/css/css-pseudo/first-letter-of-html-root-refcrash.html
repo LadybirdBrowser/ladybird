@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<title>CSS Test: ::first-letter of html root element crash in combination with removal of body</title>
+<link rel="help" href="https://crbug.com/993764">
+<link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/first-letter-of-html-root-crash-ref.html">
+<style id="sheet">
+  html::first-letter { font-size: initial }
+</style>FAIL
+<script>
+  const sel = window.getSelection();
+  sel.selectAllChildren(document.documentElement);
+  const range = sel.getRangeAt(0);
+  document.body.remove();
+  document.documentElement.appendChild(document.createTextNode("PASS"));
+  document.documentElement.offsetTop;
+  range.surroundContents(sheet);
+</script>

@@ -5851,7 +5851,7 @@ pub extern "C" fn rust_box_type_transformation_input(
         position: keyword::STATIC,
         float_value: keyword::NONE,
         is_br_element: adjust_element && has(fact::IS_BR),
-        is_document_element: has(fact::IS_DOCUMENT_ELEMENT),
+        is_document_element: adjust_element && has(fact::IS_DOCUMENT_ELEMENT),
         is_mathml_element: has(fact::IS_MATHML),
         is_mathml_mtable: has(fact::IS_MATHML_MTABLE),
         is_mathml_mtr: has(fact::IS_MATHML_MTR),
