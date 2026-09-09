@@ -13,7 +13,6 @@
 #include <AK/Utf16FlyString.h>
 #include <AK/Utf16String.h>
 #include <LibCore/AnonymousBuffer.h>
-#include <LibCore/Proxy.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/File.h>
 #include <LibURL/Parser.h>
@@ -185,16 +184,6 @@ ErrorOr<Core::AnonymousBuffer> decode(Decoder& decoder)
     auto anon_file = TRY(decoder.decode<IPC::File>());
 
     return Core::AnonymousBuffer::create_from_anon_fd(anon_file.take_fd(), size);
-}
-
-template<>
-ErrorOr<Core::ProxyData> decode(Decoder& decoder)
-{
-    auto type = TRY(decoder.decode<Core::ProxyData::Type>());
-    auto host_ipv4 = IPv4Address(TRY(decoder.decode<u32>()));
-    auto port = TRY(decoder.decode<u16>());
-
-    return Core::ProxyData { type, host_ipv4, port };
 }
 
 template<>

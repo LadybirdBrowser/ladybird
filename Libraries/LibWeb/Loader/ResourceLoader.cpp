@@ -23,7 +23,6 @@
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Loader/GeneratedPagesLoader.h>
 #include <LibWeb/Loader/LoadRequest.h>
-#include <LibWeb/Loader/ProxyMappings.h>
 #include <LibWeb/Loader/ResourceLoader.h>
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWeb/Page/Page.h>
@@ -492,8 +491,6 @@ RefPtr<Requests::Request> ResourceLoader::load(LoadRequest& request, GC::Root<On
 
 RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest const& request, Requests::RequestClient::TransferLease transfer_lease)
 {
-    auto proxy = ProxyMappings::the().proxy_for_url(request.url().value());
-
     // FIXME: We could put this request in a queue until the client connection is re-established.
     if (!m_request_client) {
         log_failure(request, "RequestServer is currently unavailable"sv);
@@ -503,7 +500,7 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
     auto cache_miss_notification = request.destination() == Fetch::Infrastructure::Request::Destination::Font
         ? Requests::RequestClient::CacheMissNotification::Yes
         : Requests::RequestClient::CacheMissNotification::No;
-    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), request.headers(), request.body(), request.cache_mode(), request.include_credentials(), proxy, transfer_lease, {}, cache_miss_notification);
+    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), request.headers(), request.body(), request.cache_mode(), request.include_credentials(), transfer_lease, {}, cache_miss_notification);
     if (!protocol_request) {
         log_failure(request, "Failed to initiate load"sv);
         return nullptr;

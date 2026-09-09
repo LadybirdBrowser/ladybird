@@ -446,12 +446,11 @@ NonnullOwnPtr<Request> Request::fetch(
     ByteBuffer request_body,
     HTTP::Cookie::IncludeCredentials include_credentials,
     Optional<ByteString> alt_svc_cache_path,
-    Core::ProxyData proxy_data,
     Optional<Requests::RequestTransferLeaseKey> transfer_lease,
     Optional<u32> address_selection_hint,
     bool notify_on_cache_miss)
 {
-    auto request = adopt_own(*new Request { request_id, RequestType::Fetch, disk_cache, cache_mode, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path), proxy_data, move(transfer_lease) });
+    auto request = adopt_own(*new Request { request_id, RequestType::Fetch, disk_cache, cache_mode, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path), move(transfer_lease) });
     request->m_address_selection_hint = address_selection_hint;
     request->m_notify_on_cache_miss = notify_on_cache_miss;
     request->process();
@@ -484,10 +483,9 @@ NonnullOwnPtr<Request> Request::revalidate(
     NonnullRefPtr<HTTP::HeaderList> request_headers,
     ByteBuffer request_body,
     HTTP::Cookie::IncludeCredentials include_credentials,
-    Optional<ByteString> alt_svc_cache_path,
-    Core::ProxyData proxy_data)
+    Optional<ByteString> alt_svc_cache_path)
 {
-    auto request = adopt_own(*new Request { request_id, RequestType::BackgroundRevalidation, disk_cache, HTTP::CacheMode::Default, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path), proxy_data });
+    auto request = adopt_own(*new Request { request_id, RequestType::BackgroundRevalidation, disk_cache, HTTP::CacheMode::Default, client, curl_multi, resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, move(alt_svc_cache_path) });
     request->process();
 
     return request;
@@ -507,7 +505,6 @@ Request::Request(
     ByteBuffer request_body,
     HTTP::Cookie::IncludeCredentials include_credentials,
     Optional<ByteString> alt_svc_cache_path,
-    Core::ProxyData proxy_data,
     Optional<Requests::RequestTransferLeaseKey> transfer_lease)
     : m_request_id(request_id)
     , m_type(type)
@@ -522,7 +519,6 @@ Request::Request(
     , m_request_body(move(request_body))
     , m_include_credentials(include_credentials)
     , m_alt_svc_cache_path(move(alt_svc_cache_path))
-    , m_proxy_data(proxy_data)
     , m_response_headers(HTTP::HeaderList::create())
     , m_transfer_lease(move(transfer_lease))
 {
@@ -802,7 +798,7 @@ void Request::handle_initial_state()
 
                     if (m_cache_entry_reader.has_value()) {
                         if (m_cache_entry_reader->revalidation_type() == HTTP::CacheEntryReader::RevalidationType::StaleWhileRevalidate)
-                            m_client->start_revalidation_request({}, m_method, m_url, m_request_headers, m_request_body, m_include_credentials, m_proxy_data);
+                            m_client->start_revalidation_request({}, m_method, m_url, m_request_headers, m_request_body, m_include_credentials);
 
                         if (is_revalidation_request())
                             transition_to_state(State::DNSLookup);
@@ -1249,9 +1245,6 @@ void Request::handle_fetch_state()
         set_option(CURLOPT_HTTPHEADER, curl_headers);
         m_curl_string_lists.append(curl_headers);
     }
-
-    // FIXME: Set up proxy if applicable
-    (void)m_proxy_data;
 
     set_option(CURLOPT_HEADERFUNCTION, &on_header_received);
     set_option(CURLOPT_HEADERDATA, this);

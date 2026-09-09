@@ -435,7 +435,7 @@ void expect_leased_request_is_torn_down_when_transferred_after_finishing(TestHtt
     auto url = URL::Parser::basic_parse(ByteString::formatted("http://127.0.0.1:{}/file", server.port()));
     VERIFY(url.has_value());
 
-    auto request = request_client.start_request("GET"sv, *url, {}, {}, HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials::Yes, {}, Requests::RequestClient::TransferLease::Yes);
+    auto request = request_client.start_request("GET"sv, *url, {}, {}, HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials::Yes, Requests::RequestClient::TransferLease::Yes);
     VERIFY(request);
 
     bool finished = false;

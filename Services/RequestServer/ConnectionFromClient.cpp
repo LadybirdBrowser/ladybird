@@ -9,7 +9,6 @@
 #include <AK/NonnullOwnPtr.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/EventLoop.h>
-#include <LibCore/Proxy.h>
 #include <LibCore/Socket.h>
 #include <LibCore/System.h>
 #include <LibHTTP/Cache/DiskCache.h>
@@ -305,7 +304,7 @@ void ConnectionFromClient::set_use_system_dns()
     m_resolver->dns.reset_connection();
 }
 
-void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, Core::ProxyData proxy_data, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss)
+void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss)
 {
     note_event_tick("ipc-start-request"sv);
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {})", request_id, url);
@@ -327,7 +326,7 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
     auto transfer_lease = create_transfer_lease
         ? Optional<Requests::RequestTransferLeaseKey> { { client_id(), request_id } }
         : Optional<Requests::RequestTransferLeaseKey> {};
-    auto request = Request::fetch(request_id, m_disk_cache, cache_mode, *this, m_curl_multi, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), include_credentials, m_alt_svc_cache_path, proxy_data, transfer_lease, address_selection_hint, notify_on_cache_miss);
+    auto request = Request::fetch(request_id, m_disk_cache, cache_mode, *this, m_curl_multi, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), include_credentials, m_alt_svc_cache_path, transfer_lease, address_selection_hint, notify_on_cache_miss);
     m_active_requests.set(request_id, move(request));
 
     if (transfer_lease.has_value())
@@ -408,14 +407,14 @@ void ConnectionFromClient::release_request_transfer_lease(int source_client_id, 
     }
 }
 
-void ConnectionFromClient::start_revalidation_request(Badge<Request>, ByteString method, URL::URL url, NonnullRefPtr<HTTP::HeaderList> request_headers, ByteBuffer request_body, HTTP::Cookie::IncludeCredentials include_credentials, Core::ProxyData proxy_data)
+void ConnectionFromClient::start_revalidation_request(Badge<Request>, ByteString method, URL::URL url, NonnullRefPtr<HTTP::HeaderList> request_headers, ByteBuffer request_body, HTTP::Cookie::IncludeCredentials include_credentials)
 {
     note_event_tick("ipc-start-revalidation"sv);
     auto request_id = m_next_revalidation_request_id++;
 
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_revalidation_request({}, {})", request_id, url);
 
-    auto request = Request::revalidate(request_id, m_disk_cache, *this, m_curl_multi, m_resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, m_alt_svc_cache_path, proxy_data);
+    auto request = Request::revalidate(request_id, m_disk_cache, *this, m_curl_multi, m_resolver, move(url), move(method), move(request_headers), move(request_body), include_credentials, m_alt_svc_cache_path);
     m_active_revalidation_requests.set(request_id, move(request));
 }
 

@@ -148,9 +148,6 @@ template<>
 ErrorOr<void> encode(Encoder&, Core::AnonymousBuffer const&);
 
 template<>
-ErrorOr<void> encode(Encoder&, Core::ProxyData const&);
-
-template<>
 ErrorOr<void> encode(Encoder&, URL::BlobURLEntry::Blob const&);
 
 template<>
