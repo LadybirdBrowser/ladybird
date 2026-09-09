@@ -12,7 +12,7 @@ namespace Media::Codecs {
 
 static bool is_valid_level(u8 level)
 {
-    return first_is_one_of(level, 10, 11, 20, 21, 30, 31, 40, 41, 50, 51, 52, 60, 61, 62);
+    return first_is_one_of(level, 0, 10, 11, 20, 21, 30, 31, 40, 41, 50, 51, 52, 60, 61, 62);
 }
 
 static bool profile_and_color_config_is_valid(u8 profile, u8 bit_depth, Subsampling subsampling)
