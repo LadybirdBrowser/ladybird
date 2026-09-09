@@ -40,6 +40,16 @@
 
 namespace Web::Layout {
 
+static u8 dom_paint_facts_of(GC::Ptr<DOM::Node const> node)
+{
+    if (!node)
+        return 0;
+    u8 facts = 0;
+    if (node->is_inert())
+        facts |= static_cast<u8>(RustFFI::DomPaintFact::Inert);
+    return facts;
+}
+
 static RustFFI::FfiNodeConstructionFacts build_node_construction_facts(DOM::Document& document, GC::Ptr<DOM::Node> node, RustFFI::NodeKind kind, void* shell)
 {
     return {
@@ -54,7 +64,13 @@ static RustFFI::FfiNodeConstructionFacts build_node_construction_facts(DOM::Docu
         .uses_button_layout = node && is<HTML::HTMLElement>(*node) && static_cast<HTML::HTMLElement const&>(*node).uses_button_layout(),
         .is_editing_host = node && node->is_editing_host(),
         .is_body = node && node == GC::Ptr { document.body() },
+        .dom_paint_facts = dom_paint_facts_of(node),
     };
+}
+
+bool Node::refresh_dom_paint_facts()
+{
+    return RustFFI::layout_arena_set_node_dom_paint_facts(m_arena->handle(), m_slot, dom_paint_facts_of(m_dom_node));
 }
 
 Node::Node(DOM::Document& document, GC::Ptr<DOM::Node> node, RustFFI::NodeKind kind, AttachToDOMNode attach_to_dom_node)
@@ -66,7 +82,11 @@ Node::Node(DOM::Document& document, GC::Ptr<DOM::Node> node, RustFFI::NodeKind k
     VERIFY(RustFFI::layout_arena_node_dom_node(m_arena->handle(), m_slot) == m_dom_node.ptr());
     update_has_scroll_offset_flag();
 
-    if (node && attach_to_dom_node == AttachToDOMNode::Yes)
+    if (!node)
+        return;
+    if (auto const* row_already_bound_to_dom_node = node->unsafe_layout_node())
+        RustFFI::layout_arena_note_rows_share_dom_node(m_arena->handle(), row_already_bound_to_dom_node->m_slot, m_slot, attach_to_dom_node == AttachToDOMNode::Yes);
+    if (attach_to_dom_node == AttachToDOMNode::Yes)
         node->set_layout_node({}, *this);
 }
 
@@ -88,6 +108,12 @@ void Node::delete_arena_owned_shell(Node& node)
 {
     node.m_arena_is_destroying_shell = true;
     delete &node;
+}
+
+void Node::rebind_dom_node_to_surviving_shell(DOM::Node& dom_node, Node& shell)
+{
+    VERIFY(shell.m_dom_node.ptr() == &dom_node);
+    dom_node.rebind_layout_node({}, shell);
 }
 
 RustFFI::NodeSlotId Node::slot_id(Node const* node)

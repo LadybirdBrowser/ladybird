@@ -892,20 +892,23 @@ void HTMLElement::attribute_changed(Utf16FlyString const& name, Optional<Utf16St
 
 void HTMLElement::set_subtree_inertness(bool is_inert)
 {
+    auto repaint_if_inertness_reaches_painted_output = [](DOM::Node& node) {
+        auto* layout_node = node.unsafe_layout_node();
+        if (layout_node && layout_node->refresh_dom_paint_facts())
+            node.set_needs_repaint();
+    };
     auto update_inertness = [&](HTMLElement& element) {
         if (element.is_inert() == is_inert)
             return;
         element.set_inert(is_inert);
-        element.set_needs_repaint();
+        repaint_if_inertness_reaches_painted_output(element);
     };
 
     update_inertness(*this);
-    for_each_in_subtree_of_type<Element>([&](auto& element) {
-        auto* html_element = as_if<HTMLElement>(element);
+    for_each_in_subtree([&](DOM::Node& node) {
+        auto* html_element = as_if<HTMLElement>(node);
         if (!html_element) {
-            // Non-HTML elements (SVG, MathML) carry no inert flag and resolve is_inert() through
-            // their nearest HTML ancestor, so their recorded hit-test output must be repainted here.
-            element.set_needs_repaint();
+            repaint_if_inertness_reaches_painted_output(node);
             return TraversalDecision::Continue;
         }
         if (html_element->has_attribute(HTML::AttributeNames::inert))

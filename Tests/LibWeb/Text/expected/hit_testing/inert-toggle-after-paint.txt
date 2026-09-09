@@ -1,0 +1,25 @@
+before inert:
+text: text-row / #text
+contents: contents-row / #text
+pseudo: pseudo / null
+first letter: letter-row / #text
+container inert:
+text: body / body
+contents: body / body
+pseudo: pseudo / null
+first letter: letter-row / null
+container inert removed:
+text: text-row / #text
+contents: contents-row / #text
+pseudo: pseudo / null
+first letter: letter-row / #text
+display: contents span inert:
+text: text-row / #text
+contents: contents-row / null
+pseudo: pseudo / null
+first letter: letter-row / #text
+display: contents span inert removed:
+text: text-row / #text
+contents: contents-row / #text
+pseudo: pseudo / null
+first letter: letter-row / #text

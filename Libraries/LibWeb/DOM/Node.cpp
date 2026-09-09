@@ -2223,6 +2223,11 @@ void Node::set_layout_node(Badge<Layout::Node>, Layout::Node& layout_node)
     m_layout_node = layout_node;
 }
 
+void Node::rebind_layout_node(Badge<Layout::Node>, Layout::Node& layout_node)
+{
+    m_layout_node = layout_node;
+}
+
 void Node::clear_layout_node(Badge<Document>)
 {
     if (m_layout_node)

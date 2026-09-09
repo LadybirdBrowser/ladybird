@@ -9,12 +9,11 @@ use crate::painting::record::trace::Observer;
 use super::{PaintPhase, PaintRecorder};
 use crate::css::css_enums;
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
-use crate::layout::node_data::{NodeFlag, NodeSlotId};
+use crate::layout::node_data::{DomPaintFact, NodeFlag, NodeSlotId};
 use crate::layout::node_facts;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::fragment_ownership;
 use crate::painting::hit_test::*;
-use crate::painting::host::FfiHitTestTextNodeFacts;
 use crate::painting::node_painting;
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_geometry;
@@ -65,7 +64,7 @@ pub(crate) fn hit_test_facts(
     let svg = style.inherited_svg();
     HitTestFacts {
         visible_for_hit_testing: arena.paintable_row_is_populated(paintable)
-            && !dom.is_inert
+            && !arena.node_has_dom_paint_fact(paintable, DomPaintFact::Inert)
             && style.inherited_ui().pointer_events != css_enums::pointer_events::NONE,
         dom_node_has_parent: dom.dom_node_has_parent,
         is_editable_or_editing_host: dom.is_editable_or_editing_host,
@@ -85,16 +84,6 @@ pub(crate) fn hit_test_facts(
 }
 
 impl<'a, O: Observer> PaintRecorder<'a, O> {
-    fn text_node_facts(&mut self, text_node: NodeSlotId) -> FfiHitTestTextNodeFacts {
-        let key = text_node.index;
-        if let Some(facts) = self.text_node_facts_cache.get(&key) {
-            return *facts;
-        }
-        let facts = self.host.text_node_facts(self.layout_arena.shell_if_live(text_node));
-        self.text_node_facts_cache.insert(key, facts);
-        facts
-    }
-
     fn is_anonymous(&self, paintable: NodeSlotId) -> bool {
         crate::painting::style_queries::is_anonymous(self.layout_arena, paintable)
     }
@@ -388,7 +377,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         {
             return None;
         }
-        if self.text_node_facts(node).is_inert {
+        if self.layout_arena.node_has_dom_paint_fact(node, DomPaintFact::Inert) {
             return None;
         }
         // Resolving the hit needs a committed paintable row; without one there is nothing to resolve against.

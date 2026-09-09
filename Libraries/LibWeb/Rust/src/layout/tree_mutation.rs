@@ -10,6 +10,7 @@ use std::ffi::c_void;
 
 unsafe extern "C" {
     fn ladybird_layout_node_shell_destroy(shell: *mut c_void);
+    fn ladybird_layout_node_rebind_dom_node(dom_node: *mut c_void, shell: *mut c_void);
 }
 
 pub(crate) fn destroy_shell(shell: *mut c_void) {
@@ -19,6 +20,12 @@ pub(crate) fn destroy_shell(shell: *mut c_void) {
     // SAFETY: The arena has already freed the shell's slot, and destroying a shell never
     // re-enters the arena.
     unsafe { ladybird_layout_node_shell_destroy(shell) };
+}
+
+pub(crate) fn rebind_dom_node_to_shell(dom_node: *mut c_void, shell: *mut c_void) {
+    // SAFETY: The arena freed the DOM node's bound row in this same mutation, the shell is the
+    // live row that takes over the binding, and rebinding never re-enters the arena.
+    unsafe { ladybird_layout_node_rebind_dom_node(dom_node, shell) };
 }
 
 pub(crate) fn free_subtree_and_destroy_shells(arena: *mut LayoutNodeArena, root: NodeSlotId) {
@@ -115,6 +122,13 @@ impl LayoutNodeArena {
 mod ffi_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_layout_node_shell_destroy(_shell: *mut std::ffi::c_void) {}
+
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_layout_node_rebind_dom_node(
+        _dom_node: *mut std::ffi::c_void,
+        _shell: *mut std::ffi::c_void,
+    ) {
+    }
 }
 
 #[cfg(test)]

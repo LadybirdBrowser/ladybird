@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<style>
+    .row {
+        width: 300px;
+        height: 40px;
+        line-height: 40px;
+    }
+    #contents {
+        display: contents;
+    }
+    #pseudo::before {
+        content: "generated";
+    }
+    #letter-row::first-letter {
+        font-size: 30px;
+    }
+</style>
+<script src="../include.js"></script>
+<div id="container">
+    <div class="row" id="text-row">plain text</div>
+    <div class="row" id="contents-row"><span id="contents">contents text</span></div>
+    <div class="row" id="pseudo"></div>
+    <div class="row" id="letter-row">Letter text</div>
+</div>
+<script>
+    test(() => {
+        const describe = (row, x) => {
+            const { left, top, height } = row.getBoundingClientRect();
+            const y = top + height / 2;
+            const element = document.elementFromPoint(left + x, y);
+            const caret = document.caretPositionFromPoint(left + x, y);
+            const caretNode = caret ? caret.offsetNode : null;
+            const caretName = caretNode ? (caretNode.nodeType === Node.TEXT_NODE ? "#text" : caretNode.id || caretNode.localName) : "null";
+            return `${element ? element.id || element.localName : "null"} / ${caretName}`;
+        };
+        const query = () => [
+            `text: ${describe(document.getElementById("text-row"), 10)}`,
+            `contents: ${describe(document.getElementById("contents-row"), 10)}`,
+            `pseudo: ${describe(document.getElementById("pseudo"), 10)}`,
+            `first letter: ${describe(document.getElementById("letter-row"), 5)}`,
+        ];
+
+        // Query once and then force a re-record, so the queries below run against
+        // steady-state recordings rather than the initial one.
+        query();
+        document.body.style.outline = "1px solid transparent";
+
+        // NB: Results are buffered and printed at the end: println() itself mutates the DOM,
+        //     and any unrelated invalidation between a toggle and its query would rebuild the
+        //     hit-test display list and mask a missed invalidation from the toggle itself.
+        const results = [];
+        results.push("before inert:", ...query());
+
+        container.inert = true;
+        results.push("container inert:", ...query());
+
+        container.inert = false;
+        results.push("container inert removed:", ...query());
+
+        contents.inert = true;
+        results.push("display: contents span inert:", ...query());
+
+        contents.inert = false;
+        results.push("display: contents span inert removed:", ...query());
+
+        for (const result of results)
+            println(result);
+    });
+</script>

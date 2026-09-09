@@ -17,8 +17,8 @@ use crate::layout::ComputedValuesView;
 use crate::layout::CssPixels;
 use crate::layout::FfiReplacedContentFacts;
 use crate::layout::node_data::{
-    FfiNodeConstructionFacts, FfiNodeLink, FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag, NodeKind,
-    NodeSlotId,
+    DomPaintFact, FfiNodeConstructionFacts, FfiNodeLink, FfiStylePayloads, MAX_NODE_SLOT_COUNT, NodeData, NodeFlag,
+    NodeKind, NodeSlotId,
 };
 use std::cell::Cell;
 use std::cell::RefCell;
@@ -480,9 +480,15 @@ fn style_payloads_equal_in_layout_affecting_groups(a: *const c_void, b: *const c
 #[must_use]
 pub(crate) struct FreedSubtree {
     shells: Vec<*mut c_void>,
+    dom_node_rebinds: Vec<(*mut c_void, *mut c_void)>,
     paintable_row_resets: Vec<crate::painting::paintable_rows::PaintableRowReset>,
     arena_pinned_style_records: Vec<u64>,
     style_record_host: Option<FfiStyleRecordHostCallbacks>,
+}
+
+struct RowsSharingDomNode {
+    rows: Vec<NodeSlotId>,
+    bound_row: NodeSlotId,
 }
 
 impl FreedSubtree {
@@ -499,6 +505,9 @@ impl FreedSubtree {
     pub(crate) fn destroy_shells_and_invoke_callbacks(self) {
         for shell in self.shells {
             crate::layout::tree_mutation::destroy_shell(shell);
+        }
+        for (dom_node, shell) in self.dom_node_rebinds {
+            crate::layout::tree_mutation::rebind_dom_node_to_shell(dom_node, shell);
         }
         for reset in self.paintable_row_resets {
             reset.invoke_callback();
@@ -541,6 +550,8 @@ pub(crate) struct LayoutNodeArena {
     raw_table_column_spans: HashMap<NodeSlotId, u32>,
     run_used_records: RefCell<Vec<RunRecordSlot>>,
     next_run_nonce: Cell<u64>,
+    rows_sharing_dom_node: RefCell<HashMap<*mut c_void, RowsSharingDomNode>>,
+    dom_nodes_whose_bound_row_was_freed: Vec<*mut c_void>,
     fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore,
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
@@ -586,6 +597,8 @@ impl LayoutNodeArena {
             raw_table_column_spans: HashMap::default(),
             run_used_records: RefCell::new(Vec::new()),
             next_run_nonce: Cell::new(1),
+            rows_sharing_dom_node: RefCell::new(HashMap::default()),
+            dom_nodes_whose_bound_row_was_freed: Vec::new(),
             fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore::default(),
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
@@ -671,6 +684,7 @@ impl LayoutNodeArena {
         data.shell.set(construction_facts.shell);
         data.flags
             .set(super::node_facts::construction_flags(&construction_facts));
+        data.dom_paint_facts.set(construction_facts.dom_paint_facts);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
     }
 
@@ -767,12 +781,33 @@ impl LayoutNodeArena {
                 paintable_row_resets.push(reset);
             }
         }
+        let dom_node_rebinds = self.take_dom_node_rebinds();
         FreedSubtree {
             shells,
+            dom_node_rebinds,
             paintable_row_resets,
             arena_pinned_style_records,
             style_record_host: self.style_record_host.get(),
         }
+    }
+
+    fn take_dom_node_rebinds(&mut self) -> Vec<(*mut c_void, *mut c_void)> {
+        let mut rebinds: Vec<(*mut c_void, *mut c_void)> = Vec::new();
+        for dom_node in std::mem::take(&mut self.dom_nodes_whose_bound_row_was_freed) {
+            let Some(bound_row) = self
+                .rows_sharing_dom_node
+                .borrow()
+                .get(&dom_node)
+                .map(|entry| entry.bound_row)
+            else {
+                continue;
+            };
+            let shell = self.data(bound_row).shell.get();
+            if !shell.is_null() && !rebinds.iter().any(|(known, _)| *known == dom_node) {
+                rebinds.push((dom_node, shell));
+            }
+        }
+        rebinds
     }
 
     fn assert_node_is_unlinked_from_parent(&self, id: NodeSlotId) {
@@ -816,6 +851,7 @@ impl LayoutNodeArena {
         }
         self.pre_order_labels[index as usize].set(0);
         self.metadata_mut(index).occupied = false;
+        self.forget_row_sharing_dom_node(id);
         self.dom_nodes[index as usize].set(std::ptr::null_mut());
         self.style_records[index as usize].set(0);
         self.style_records_pinned_by_arena[index as usize].set(false);
@@ -1059,6 +1095,7 @@ impl LayoutNodeArena {
                 uses_button_layout: false,
                 is_editing_host: false,
                 is_body: false,
+                dom_paint_facts: 0,
             }));
         self.style_records[slot.slot_index() as usize].set(derived.record);
         self.style_records_pinned_by_arena[slot.slot_index() as usize].set(true);
@@ -1138,6 +1175,85 @@ impl LayoutNodeArena {
             "layout node arena attached a second shell to a slot"
         );
         data.shell.set(shell);
+    }
+
+    pub(crate) fn node_has_dom_paint_fact(&self, id: NodeSlotId, fact: DomPaintFact) -> bool {
+        self.data(id).dom_paint_facts.get() & fact as u8 != 0
+    }
+
+    pub(crate) fn set_node_dom_paint_facts(&self, id: NodeSlotId, facts: u8) -> bool {
+        self.assert_owner_thread();
+        let mut any_changed = false;
+        for row in self.rows_sharing_dom_node_with(id) {
+            let data = self.data(row);
+            if data.dom_paint_facts.get() == facts {
+                continue;
+            }
+            data.dom_paint_facts.set(facts);
+            any_changed = true;
+        }
+        any_changed
+    }
+
+    pub(crate) fn note_rows_share_dom_node(
+        &self,
+        bound_row: NodeSlotId,
+        added_row: NodeSlotId,
+        added_row_takes_binding: bool,
+    ) {
+        self.assert_owner_thread();
+        let dom_node = self.node_dom_node(added_row);
+        assert!(
+            !dom_node.is_null(),
+            "layout node arena shared rows of an anonymous node"
+        );
+        assert_eq!(
+            dom_node,
+            self.node_dom_node(bound_row),
+            "layout node arena shared rows of different DOM nodes"
+        );
+        let mut rows_by_dom_node = self.rows_sharing_dom_node.borrow_mut();
+        let entry = rows_by_dom_node.entry(dom_node).or_insert_with(|| RowsSharingDomNode {
+            rows: Vec::new(),
+            bound_row,
+        });
+        for row in [bound_row, added_row] {
+            if !entry.rows.contains(&row) {
+                entry.rows.push(row);
+            }
+        }
+        entry.bound_row = if added_row_takes_binding { added_row } else { bound_row };
+    }
+
+    pub(crate) fn rows_sharing_dom_node_with(&self, id: NodeSlotId) -> Vec<NodeSlotId> {
+        let rows_by_dom_node = self.rows_sharing_dom_node.borrow();
+        if rows_by_dom_node.is_empty() {
+            return vec![id];
+        }
+        match rows_by_dom_node.get(&self.node_dom_node(id)) {
+            Some(entry) if entry.rows.contains(&id) => entry.rows.clone(),
+            _ => vec![id],
+        }
+    }
+
+    fn forget_row_sharing_dom_node(&mut self, id: NodeSlotId) {
+        let rows_by_dom_node = self.rows_sharing_dom_node.get_mut();
+        if rows_by_dom_node.is_empty() {
+            return;
+        }
+        let dom_node = self.dom_nodes[id.slot_index() as usize].get();
+        let Some(entry) = rows_by_dom_node.get_mut(&dom_node) else {
+            return;
+        };
+        entry.rows.retain(|row| *row != id);
+        if entry.rows.is_empty() {
+            rows_by_dom_node.remove(&dom_node);
+            return;
+        }
+        if entry.bound_row == id {
+            entry.bound_row = entry.rows[0];
+            self.dom_nodes_whose_bound_row_was_freed.push(dom_node);
+        }
     }
 
     pub(crate) fn set_node_flag(&self, id: NodeSlotId, flag: NodeFlag, value: bool) {
@@ -2827,6 +2943,31 @@ pub unsafe extern "C" fn layout_arena_set_replaced_content_facts(
 }
 
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_node_dom_paint_facts(arena: *mut c_void, id: NodeSlotId, facts: u8) -> bool {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and
+    // serializes all access on the document thread.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_node_dom_paint_facts(id, facts)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_note_rows_share_dom_node(
+    arena: *mut c_void,
+    bound_row: NodeSlotId,
+    added_row: NodeSlotId,
+    added_row_takes_binding: bool,
+) {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive for this call and
+    // serializes all access on the document thread.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.note_rows_share_dom_node(
+        bound_row,
+        added_row,
+        added_row_takes_binding,
+    );
+}
+
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_node_flag(arena: *mut c_void, id: NodeSlotId, flag: NodeFlag, value: bool) {
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: The C++ wrapper keeps the arena alive for this call and
@@ -3082,6 +3223,7 @@ mod tests {
             uses_button_layout: false,
             is_editing_host: false,
             is_body: false,
+            dom_paint_facts: 0,
         }
     }
 

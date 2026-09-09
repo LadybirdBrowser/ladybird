@@ -189,6 +189,12 @@ pub enum FfiNodeLink {
     NextSibling,
 }
 
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum DomPaintFact {
+    Inert = 1 << 0,
+}
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiNodeConstructionFacts {
@@ -203,6 +209,7 @@ pub struct FfiNodeConstructionFacts {
     pub uses_button_layout: bool,
     pub is_editing_host: bool,
     pub is_body: bool,
+    pub dom_paint_facts: u8,
 }
 
 #[repr(C)]
@@ -229,6 +236,7 @@ pub(crate) struct NodeData {
     pub compositor_animation_frame_kinds: Cell<u8>,
     pub table_column_span: Cell<u16>,
     pub table_row_span: Cell<u16>,
+    pub dom_paint_facts: Cell<u8>,
     pub style: Cell<*const c_void>,
     pub shell: Cell<*mut c_void>,
 }
@@ -251,6 +259,7 @@ impl Default for NodeData {
             compositor_animation_frame_kinds: Cell::new(0),
             table_column_span: Cell::new(1),
             table_row_span: Cell::new(1),
+            dom_paint_facts: Cell::new(0),
             fragment_cache_epoch: Cell::new(0),
             style: Cell::new(std::ptr::null()),
             shell: Cell::new(std::ptr::null_mut()),
@@ -278,6 +287,7 @@ mod tests {
         assert_eq!(std::mem::offset_of!(NodeData, compositor_animation_frame_kinds), 41);
         assert_eq!(std::mem::offset_of!(NodeData, table_column_span), 42);
         assert_eq!(std::mem::offset_of!(NodeData, table_row_span), 44);
+        assert_eq!(std::mem::offset_of!(NodeData, dom_paint_facts), 46);
         assert_eq!(std::mem::offset_of!(NodeData, style), 48);
         assert_eq!(std::mem::offset_of!(NodeData, shell), 56);
     }
