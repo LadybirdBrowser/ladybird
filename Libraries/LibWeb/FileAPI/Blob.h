@@ -9,6 +9,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
+#include <LibCore/AnonymousBuffer.h>
 #include <LibWeb/Bindings/Blob.h>
 #include <LibWeb/Bindings/Serializable.h>
 #include <LibWeb/Bindings/Wrappable.h>
@@ -40,11 +41,12 @@ public:
 
     [[nodiscard]] static GC::Ref<Blob> create(ByteBuffer, Utf16String type);
     [[nodiscard]] static GC::Ref<Blob> create(ByteBuffer bytes, String type) { return create(move(bytes), Utf16String::from_utf8(type)); }
+    [[nodiscard]] static GC::Ref<Blob> create(Core::AnonymousBuffer, Utf16String type);
     [[nodiscard]] static GC::Ref<Blob> create(Optional<BlobPartsOrByteBuffer> const& blob_parts_or_byte_buffer = {}, Optional<BlobPropertyBag> const& options = {});
     [[nodiscard]] static WebIDL::ExceptionOr<GC::Ref<Blob>> construct_impl(Optional<BlobParts> const& blob_parts, Optional<BlobPropertyBag> const& options);
 
     // https://w3c.github.io/FileAPI/#dfn-size
-    u64 size() const { return m_byte_buffer.size(); }
+    u64 size() const { return raw_bytes().size(); }
     // https://w3c.github.io/FileAPI/#dfn-type
     Utf16String const& type() const { return m_type; }
 
@@ -55,7 +57,8 @@ public:
     GC::Ref<WebIDL::Promise> text(JS::Object const& relevant_global_object);
     GC::Ref<WebIDL::Promise> array_buffer(JS::Object const& relevant_global_object);
     GC::Ref<WebIDL::Promise> bytes(JS::Object const& relevant_global_object);
-    ReadonlyBytes raw_bytes() const LIFETIME_BOUND { return m_byte_buffer.bytes(); }
+    ReadonlyBytes raw_bytes() const LIFETIME_BOUND;
+    ErrorOr<Core::AnonymousBuffer> shared_bytes();
 
     GC::Ref<Streams::ReadableStream> get_stream(JS::Realm&);
 
@@ -64,9 +67,12 @@ public:
 
 protected:
     Blob(ByteBuffer, Utf16String type);
+    Blob(Core::AnonymousBuffer, Utf16String type);
     Blob(ByteBuffer);
 
-    ByteBuffer m_byte_buffer {};
+    // https://w3c.github.io/FileAPI/#dfn-byte-sequence
+    // NB: The bytes move to shared memory the first time they are shared, and stay there.
+    Variant<ByteBuffer, Core::AnonymousBuffer> m_byte_sequence { ByteBuffer {} };
     Utf16String m_type {};
 
 private:
