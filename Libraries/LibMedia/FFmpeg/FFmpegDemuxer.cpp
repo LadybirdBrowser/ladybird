@@ -566,6 +566,9 @@ DecoderErrorOr<DemuxerSeekResult> FFmpegDemuxer::seek_to_most_recent_keyframe(Tr
     auto& stream = *format_context.streams[track.identifier()];
     auto av_timestamp = duration_to_time_units(timestamp, stream.time_base);
 
+    if (has_flag(options, DemuxerSeekOptions::NeedCodecConfiguration))
+        track_context.needs_codec_configuration = true;
+
     auto seek_succeeded = false;
 
     // AVIOContext can skip calling through to the underlying seek callback if the new position lands in its buffer,
@@ -605,8 +608,6 @@ DecoderErrorOr<DemuxerSeekResult> FFmpegDemuxer::seek_to_most_recent_keyframe(Tr
         }
     }
 
-    if (has_flag(options, DemuxerSeekOptions::NeedCodecConfiguration))
-        track_context.needs_codec_configuration = true;
     return DemuxerSeekResult::MovedPosition;
 }
 
