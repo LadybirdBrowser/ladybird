@@ -39,7 +39,7 @@ public:
 
     virtual DecoderErrorOr<void> receive_coded_data(CodedFrame const&, DecodeIntent) override;
     virtual void signal_end_of_stream() override;
-    virtual DecoderErrorOr<NonnullRefPtr<VideoFrame>> take_next_output(CodingIndependentCodePoints const& container_cicp) override;
+    virtual DecoderErrorOr<NonnullRefPtr<VideoFrame>> take_next_output(CodingIndependentCodePoints const& container_cicp, Optional<AK::Duration> target = {}) override;
     virtual void flush() override;
 
 private:
@@ -66,6 +66,7 @@ private:
 
     void insert_output_in_presentation_order_while_locked(DecodedOutput&&);
     bool may_pull_frame_from_reorder_queue_while_locked() const;
+    DecoderErrorOr<NonnullRefPtr<VideoFrame>> adopt_output_while_locked(CodingIndependentCodePoints const& container_cicp, size_t index);
 
     CodecID const m_codec_id;
     NonnullRefPtr<VideoFrameSurfacePool> m_surface_pool;
