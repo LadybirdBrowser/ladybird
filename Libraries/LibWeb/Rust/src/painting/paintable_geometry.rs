@@ -189,6 +189,13 @@ pub(crate) fn committed_svg_additional_element_transform(
     })
 }
 
+pub(crate) fn committed_svg_mask_area_facts(
+    arena: &impl PaintableRowsRead,
+    slot: NodeSlotId,
+) -> Option<svg_formatting_context::SvgMaskAreaFacts> {
+    arena.with_committed_fragment_link(slot, |link| link.and_then(|link| link.fragment.svg_mask_area_facts))
+}
+
 pub(crate) fn committed_svg_view_box(
     arena: &impl PaintableRowsRead,
     slot: NodeSlotId,

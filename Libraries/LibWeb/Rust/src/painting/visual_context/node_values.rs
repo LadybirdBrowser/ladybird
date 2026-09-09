@@ -724,14 +724,14 @@ pub(crate) fn mask_layer_presence(
         .node_kind_if_live(slot)
         .is_some_and(node_painting::supports_svg_masking)
     {
-        let svg_facts = callbacks.svg_mask_facts(layout_arena.shell_if_live(slot));
-        if svg_facts.mask_area.has_value {
+        if let Some(mask_area) = crate::painting::svg_masking::mask_area(layout_arena, slot) {
             layers.push(MaskLayerPresenceEntry {
                 origin: MaskLayerOrigin::SvgMask,
-                area: CssPixelRect::from(svg_facts.mask_area.value),
-                kind: svg_facts.mask_kind,
+                area: mask_area,
+                kind: crate::painting::svg_masking::mask_kind(layout_arena, slot),
             });
         }
+        let svg_facts = callbacks.svg_mask_facts(layout_arena.shell_if_live(slot));
         if svg_facts.clip_area.has_value {
             layers.push(MaskLayerPresenceEntry {
                 origin: MaskLayerOrigin::SvgClip,

@@ -118,11 +118,22 @@ static RustFFI::FfiSvgElementFacts build_svg_element_facts(NodeWithStyle const& 
 
     SVG::SVGUnits content_units {};
     SVG::SVGUnits pattern_units {};
+    SVG::SVGUnits mask_units {};
+    SVG::NumberPercentage mask_x = SVG::NumberPercentage::create_number(0);
+    SVG::NumberPercentage mask_y = SVG::NumberPercentage::create_number(0);
+    SVG::NumberPercentage mask_width = SVG::NumberPercentage::create_number(0);
+    SVG::NumberPercentage mask_height = SVG::NumberPercentage::create_number(0);
     SVG::NumberPercentage pattern_width = SVG::NumberPercentage::create_number(0);
     SVG::NumberPercentage pattern_height = SVG::NumberPercentage::create_number(0);
-    if (node.is_svg_mask_box())
-        content_units = as<SVG::SVGMaskElement>(*node.dom_node()).mask_content_units();
-    else if (node.is_svg_clip_box())
+    if (node.is_svg_mask_box()) {
+        auto const& mask_element = as<SVG::SVGMaskElement>(*node.dom_node());
+        content_units = mask_element.mask_content_units();
+        mask_units = mask_element.mask_units();
+        mask_x = mask_element.mask_x();
+        mask_y = mask_element.mask_y();
+        mask_width = mask_element.mask_width();
+        mask_height = mask_element.mask_height();
+    } else if (node.is_svg_clip_box())
         content_units = as<SVG::SVGClipPathElement>(*node.dom_node()).clip_path_units();
     else if (node.is_svg_pattern_box()) {
         auto const& pattern_element = as<SVG::SVGPatternElement>(*node.dom_node());
@@ -146,14 +157,13 @@ static RustFFI::FfiSvgElementFacts build_svg_element_facts(NodeWithStyle const& 
         .viewport_percentage_basis = viewport_percentage_basis,
         .content_units = static_cast<u8>(to_underlying(content_units)),
         .pattern_units = static_cast<u8>(to_underlying(pattern_units)),
-        .pattern_width = {
-            .value = pattern_width.value(),
-            .is_percentage = pattern_width.is_percentage(),
-        },
-        .pattern_height = {
-            .value = pattern_height.value(),
-            .is_percentage = pattern_height.is_percentage(),
-        },
+        .pattern_width = to_ffi_number_percentage(pattern_width),
+        .pattern_height = to_ffi_number_percentage(pattern_height),
+        .mask_units = static_cast<u8>(to_underlying(mask_units)),
+        .mask_x = to_ffi_number_percentage(mask_x),
+        .mask_y = to_ffi_number_percentage(mask_y),
+        .mask_width = to_ffi_number_percentage(mask_width),
+        .mask_height = to_ffi_number_percentage(mask_height),
     };
 }
 

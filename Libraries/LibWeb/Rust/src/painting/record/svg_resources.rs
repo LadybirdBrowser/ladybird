@@ -5,13 +5,11 @@
  */
 
 use crate::css::css_pixels::CssPixelRect;
-use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::painting::display_list::builder::PendingInlineClip;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::display_list::recorder::{IsolatedGroupEffects, OpenRecorderGroup};
 use crate::painting::node_painting;
-use crate::painting::paintable_geometry::absolute_border_box_rect;
 use crate::painting::record::cache::{CaptureKind, CaptureSite};
 use crate::painting::record::trace::{Action, Observer, Operation};
 use crate::painting::record::{PaintPhase, PaintRecorder};
@@ -173,47 +171,11 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     fn first_child_paintable_of_kind(&self, paintable: NodeSlotId, kind: NodeKind) -> Option<NodeSlotId> {
-        let arena = self.layout_arena;
-        let mut child = arena.node_first_child_if_live(paintable);
-        while let Some(node) = child {
-            if arena.node_kind_if_live(node) == Some(kind) {
-                return self.layout_arena.paintable_row_is_populated(node).then_some(node);
-            }
-            child = arena.node_next_sibling_if_live(node);
-        }
-        None
-    }
-
-    fn target_user_space_object_bounding_box(&self, target: NodeSlotId) -> CssPixelRect {
-        if self
-            .layout_arena
-            .node_kind_if_live(target)
-            .is_some_and(node_painting::is_svg_path)
-            && let Some(path) = crate::painting::paintable_geometry::committed_svg_path(self.layout_arena, target)
-        {
-            let [x, y, width, height] = path.bounding_box();
-            return CssPixelRect::new(
-                CssPixels::nearest_value_for_f32(x),
-                CssPixels::nearest_value_for_f32(y),
-                CssPixels::nearest_value_for_f32(width),
-                CssPixels::nearest_value_for_f32(height),
-            );
-        }
-        absolute_border_box_rect(self.layout_arena, target)
+        crate::painting::svg_masking::first_child_paintable_of_kind(self.layout_arena, paintable, kind)
     }
 
     fn object_bounding_box_content_units_transform(&self, target: NodeSlotId) -> AffineTransform {
-        let bounding_box = self.target_user_space_object_bounding_box(target);
-        AffineTransform {
-            values: [
-                bounding_box.width.to_float(),
-                0.0,
-                0.0,
-                bounding_box.height.to_float(),
-                bounding_box.x.to_float(),
-                bounding_box.y.to_float(),
-            ],
-        }
+        crate::painting::svg_masking::object_bounding_box_content_units_transform(self.layout_arena, target)
     }
 
     fn record_referenced_svg_mask_or_clip_content(
