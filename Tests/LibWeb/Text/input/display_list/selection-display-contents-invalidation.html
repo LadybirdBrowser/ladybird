@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style id="rules">
+    #target { display: contents; }
+    #target::selection { background-color: rgb(10, 20, 30); }
+</style>
+<div id="owner"><span id="target">selected text</span></div>
+<script>
+    test(() => {
+        getSelection().selectAllChildren(target);
+        internals.recordDisplayListForTesting();
+        const layouts = internals.fullLayoutCount() + internals.partialLayoutCount();
+        internals.beginDisplayListTrace();
+        rules.sheet.cssRules[1].style.backgroundColor = "rgb(40, 50, 60)";
+        internals.recordDisplayListForTesting();
+        const trace = internals.takeDisplayListTrace();
+        const unchangedLayout = internals.fullLayoutCount() + internals.partialLayoutCount() === layouts;
+        const displayList = internals.dumpDisplayList();
+        println(`highlight commands rerecorded: ${trace.includes("BlockContainer<DIV>#owner/foreground RECORD")}`);
+        println(`updated highlight color: ${displayList.includes("color=rgb(40, 50, 60)")}`);
+        println(`layout preserved: ${unchangedLayout}`);
+    });
+</script>

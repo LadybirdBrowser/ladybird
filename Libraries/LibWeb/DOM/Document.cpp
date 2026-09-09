@@ -3862,6 +3862,7 @@ void Document::set_focused_area(GC::Ptr<Node> node, InvalidateFocusPseudoClasses
     }
 
     m_focused_area = node;
+    set_needs_selection_style_update();
 
     auto* new_focused_element = as_if<Element>(node.ptr());
     if (new_focused_element)

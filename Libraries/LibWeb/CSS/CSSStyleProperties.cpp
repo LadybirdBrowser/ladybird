@@ -637,7 +637,7 @@ static void ensure_pseudo_element_style_for_cssom(DOM::AbstractElement abstract_
     if (!is_synthetic_pseudo_element(*pseudo_element))
         return;
     if (*pseudo_element != PseudoElement::Backdrop
-        && (*pseudo_element != PseudoElement::Selection || abstract_element.document().selection_styles_are_observable())
+        && *pseudo_element != PseudoElement::Selection
         && abstract_element.computed_style())
         return;
 

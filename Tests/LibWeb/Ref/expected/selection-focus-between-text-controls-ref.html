@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<style>
+input { outline: none; }
+input::selection { background: lime; color: black; }
+</style>
+<input value="first">
+<input id="second" value="second">
+<script>
+    second.focus();
+    second.select();
+</script>

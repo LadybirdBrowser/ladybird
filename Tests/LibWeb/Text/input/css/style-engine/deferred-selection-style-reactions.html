@@ -43,7 +43,8 @@
         document.getSelection().addRange(range);
         const before = internals.styleEngineCounters().computedPseudoAssignmentsPublished;
         internals.updateStyle();
-        println(`unqueried selection activated: ${internals.styleEngineCounters().computedPseudoAssignmentsPublished - before >= 64}`);
+        const activated = internals.styleEngineCounters().computedPseudoAssignmentsPublished - before;
+        println(`unqueried selection activated locally: ${activated > 0 && activated < 16}`);
         println(`active selection: ${getComputedStyle(container.lastElementChild, "::selection").color}`);
         document.getSelection().removeAllRanges();
     });

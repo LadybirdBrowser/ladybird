@@ -909,7 +909,7 @@ AnimationUpdateContext::~AnimationUpdateContext()
             target->document().style_computer().style_engine().record_element_style_input_change(target->style_node_id());
 
         if (!element.pseudo_element().has_value() && invalidation.inherited_style_changed())
-            invalidation |= target->recompute_pseudo_element_styles_after_animation_update({});
+            invalidation |= target->recompute_pseudo_element_styles();
 
         // An animated value can be inherited through shadow and slot boundaries. Publish the exact
         // flat-tree descendants as one feedback batch; the ordinary transaction owns their style

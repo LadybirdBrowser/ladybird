@@ -1,7 +1,16 @@
 selection styles deferred: true
 unselected query: rgb(10, 20, 30)
 query stays local: true
+activation preserves element styles: true
+activation stays local: true
+activation preserves layout: true
 selection styles activated: true
 selected query: rgb(40, 50, 60)
+extension updates only intersecting subtrees: true
 deselected styles deferred: true
 deselected query: rgb(70, 80, 90)
+reactivation preserves element styles: true
+reactivated query: rgb(70, 80, 90)
+unselected query while active: rgb(70, 80, 90)
+activation with pending rule and class changes: rgb(90, 100, 110)
+activation with pending inline style: rgb(120, 130, 140)
