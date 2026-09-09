@@ -12,7 +12,7 @@ allocator = []
 
 [dependencies]
 foldhash = "0.1"
-yuv = "0.8"
+yuv = "0.8.17"
 
 [build-dependencies]
 cbindgen = "0.29"
