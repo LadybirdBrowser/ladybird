@@ -38,5 +38,6 @@ If you have any questions that are not answered here or in the [FAQ](FAQ.md), yo
 * [How to Add a CSS Property](CSSProperties.md)
 * [How to Add an IDL File](AddNewIDLFile.md)
 * [LibWeb Code Style & Patterns](LibWebPatterns.md)
+* [Investigating Websites with WebDriver](WebDriver.md)
 * [CSS Generated Files](CSSGeneratedFiles.md)
 * [Media Pipeline Design](MediaPipelineDesign.md)
