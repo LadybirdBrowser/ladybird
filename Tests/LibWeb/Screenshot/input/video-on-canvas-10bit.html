@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<meta name="fuzzy" content="maxDifference=0-2;totalPixels=0-625000">
+<html class="reftest-wait">
+<canvas id="canvas" width="160" height="120"></canvas>
+<script>
+    // A frame with more than 8 bits per component has to reach the canvas as the pixels it describes, whichever
+    // decoder produced it.
+    const video = document.createElement("video");
+    video.src = "../../Assets/solid-blue-10bit-160x120.webm";
+    video.addEventListener("loadeddata", () => {
+        canvas.getContext("2d").drawImage(video, 0, 0);
+        document.documentElement.classList.remove("reftest-wait");
+    }, { once: true });
+</script>
+</html>
