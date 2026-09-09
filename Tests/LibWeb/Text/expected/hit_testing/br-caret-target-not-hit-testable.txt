@@ -1,0 +1,5 @@
+inert: #text(second) @0
+hidden: #text(second) @0
+no-pointer-events: #text(second) @0
+transparent: #text(second) @0
+plain: span @0

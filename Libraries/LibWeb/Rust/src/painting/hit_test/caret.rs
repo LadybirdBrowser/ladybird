@@ -194,11 +194,12 @@ impl HitTestList {
             .unwrap_or(CaretMatch::None),
             HitTestItemKind::EmptyLine => {
                 let shell = arena.shell_if_live(item.caret_node);
-                if !shell.is_null() && item.caret_offset == offset && callbacks.shell_is_query_node(shell) {
-                    CaretMatch::Direct
+                let matches = if super::resolve::empty_line_is_anchored_to_its_forced_break(arena, item) {
+                    !shell.is_null() && callbacks.query_boundary_precedes_shell(shell)
                 } else {
-                    CaretMatch::None
-                }
+                    !shell.is_null() && item.caret_offset == offset && callbacks.shell_is_query_node(shell)
+                };
+                if matches { CaretMatch::Direct } else { CaretMatch::None }
             }
             HitTestItemKind::EmptyEditable => {
                 let shell = arena.shell_if_live(item.paintable);

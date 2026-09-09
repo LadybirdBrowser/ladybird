@@ -771,31 +771,6 @@ void dump_layout_tree(StringBuilder& builder, Layout::Node const& root, bool int
 
 namespace {
 
-Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
-{
-    return {
-        .context = nullptr,
-        .line_break_caret_targets = [](void*, void* layout_node_shell, void* sink) {
-            auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
-            auto* dom_node = layout_node.dom_node();
-            if (!dom_node)
-                return;
-            for (auto* child = dom_node->first_child(); child; child = child->next_sibling()) {
-                auto* br = as_if<HTML::HTMLBRElement>(*child);
-                if (!br || !br->represents_empty_line())
-                    continue;
-                Layout::RustFFI::FfiLineBreakCaretTarget target {};
-                target.caret_offset = br->index();
-                target.rect = caret_rect_for_child_offset(layout_node, br->index());
-                Layout::RustFFI::layout_arena_hit_test_push_line_break_caret_target(sink, target);
-            } },
-    };
-}
-
-}
-
-namespace {
-
 struct PaintHostContext {
     DisplayListResourceStorage& resource_storage;
     GC::Ref<DOM::Document const> document;
@@ -1332,7 +1307,7 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     invalidate_navigable_containers_whose_composited_context_changed(document);
     PaintHostContext paint_host_context { resource_storage, document, paint_generation_id, device_pixels_per_css_pixel };
     auto rust_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-    if (!Layout::RustFFI::layout_arena_record_display_list(arena, viewport_row_slot(document), hit_test_host_callbacks(), paint_host_callbacks(paint_host_context), visual_context_host_callbacks(document), inputs))
+    if (!Layout::RustFFI::layout_arena_record_display_list(arena, viewport_row_slot(document), paint_host_callbacks(paint_host_context), visual_context_host_callbacks(document), inputs))
         return nullptr;
     Layout::RustFFI::layout_arena_publish_recording(arena, recording_publish_callbacks(paint_host_context));
     take_recording_trace_if_pending(document);

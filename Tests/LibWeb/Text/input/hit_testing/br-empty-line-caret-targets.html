@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<style>
+    p {
+        margin: 0;
+        width: 300px;
+        font-size: 16px;
+        line-height: 20px;
+    }
+    #generated::before {
+        content: "generated";
+    }
+    .float {
+        float: left;
+        width: 40px;
+        height: 8px;
+    }
+</style>
+<script src="../include.js"></script>
+<p id="nested"><span id="wrapper"><br></span>x</p>
+<p id="generated"><br>y</p>
+<p id="float"><span class="float"></span><br>z</p>
+<p id="double">a<br><br>b</p>
+<script>
+    test(() => {
+        const describe = node => {
+            if (!node)
+                return "null";
+            if (node.nodeType === Node.TEXT_NODE)
+                return `#text(${node.data})`;
+            return node.id || node.localName;
+        };
+        const caretOnLine = (element, lineIndex) => {
+            const { left, top } = element.getBoundingClientRect();
+            const position = document.caretPositionFromPoint(left + 5, top + 20 * lineIndex + 10);
+            return position ? `${describe(position.offsetNode)} @${position.offset}` : "null";
+        };
+        println(`br nested in an inline, first line: ${caretOnLine(nested, 0)}`);
+        println(`generated content before the br, first line: ${caretOnLine(generated, 0)}`);
+        println(`float before the br, first line: ${caretOnLine(float, 0)}`);
+        println(`two brs, second line: ${caretOnLine(double, 1)}`);
+    });
+</script>

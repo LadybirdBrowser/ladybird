@@ -12,6 +12,10 @@ use crate::painting::host::FfiResolvedCaret;
 use crate::painting::paintable_data::SELECTION_STATE_START_AND_END;
 use std::ffi::c_void;
 
+pub(crate) fn empty_line_is_anchored_to_its_forced_break(arena: &LayoutNodeArena, item: &HitTestItem) -> bool {
+    arena.node_kind_if_live(item.caret_node) == Some(crate::layout::node_data::NodeKind::BreakNode)
+}
+
 impl HitTestList {
     pub(crate) fn item_target_shell(&self, arena: &LayoutNodeArena, item_index: usize) -> *mut c_void {
         let item = &self.items[item_index];
@@ -101,7 +105,11 @@ impl HitTestList {
             HitTestItemKind::EmptyLine => FfiResolvedCaret {
                 has_position: true,
                 node_shell: arena.shell_if_live(item.caret_node),
-                boundary: FfiCaretBoundaryKind::Offset,
+                boundary: if empty_line_is_anchored_to_its_forced_break(arena, item) {
+                    FfiCaretBoundaryKind::IndexOfNodeInParent
+                } else {
+                    FfiCaretBoundaryKind::Offset
+                },
                 offset: item.caret_offset,
                 has_debug_rect: true,
                 debug_rect: item.caret_rect.into(),

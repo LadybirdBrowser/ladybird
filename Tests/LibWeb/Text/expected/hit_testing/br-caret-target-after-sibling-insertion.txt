@@ -1,0 +1,3 @@
+empty first line: target @0
+after inserting text before the br: #text(first) @1
+after removing it again: target @0

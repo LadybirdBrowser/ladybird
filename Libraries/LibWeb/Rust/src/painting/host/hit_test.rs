@@ -10,29 +10,6 @@ use crate::layout::used_values::OptionalCssPixelRect;
 use crate::painting::display_list::commands::ContextRef;
 use std::ffi::c_void;
 
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiLineBreakCaretTarget {
-    pub caret_offset: usize,
-    pub rect: used_values::FfiCssPixelRect,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiHitTestHostCallbacks {
-    pub context: *mut c_void,
-    pub line_break_caret_targets: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
-}
-
-impl FfiHitTestHostCallbacks {
-    pub(crate) fn line_break_caret_targets(&self, layout_node_shell: *mut c_void) -> Vec<FfiLineBreakCaretTarget> {
-        let mut targets: Vec<FfiLineBreakCaretTarget> = Vec::new();
-        // SAFETY: The C++ host pushes into the Vec through the exported sink function, synchronously.
-        unsafe { (self.line_break_caret_targets)(self.context, layout_node_shell, (&raw mut targets).cast()) };
-        targets
-    }
-}
-
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiHitTestQueryCallbacks {
@@ -69,12 +46,17 @@ pub struct FfiCaretPositionQueryCallbacks {
     pub query_boundary_descends_to_shell: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
     pub query_boundary_follows_shell_end: unsafe extern "C" fn(*mut c_void, *mut c_void, usize) -> bool,
     pub query_is_adjacent_to_shell: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
+    pub query_boundary_precedes_shell: unsafe extern "C" fn(*mut c_void, *mut c_void) -> bool,
 }
 
 impl FfiCaretPositionQueryCallbacks {
     pub(crate) fn shell_is_query_node(&self, shell: *mut c_void) -> bool {
         // SAFETY: The C++ host compares the shell's DOM node synchronously.
         unsafe { (self.shell_is_query_node)(self.context, shell) }
+    }
+    pub(crate) fn query_boundary_precedes_shell(&self, shell: *mut c_void) -> bool {
+        // SAFETY: The C++ host compares the shell's DOM node synchronously.
+        unsafe { (self.query_boundary_precedes_shell)(self.context, shell) }
     }
 
     pub(crate) fn query_boundary_descends_to_shell(&self, shell: *mut c_void) -> bool {
@@ -165,6 +147,7 @@ pub enum FfiCaretBoundaryKind {
     Offset = 0,
     BeforeNode = 1,
     AfterNode = 2,
+    IndexOfNodeInParent = 3,
 }
 
 #[derive(Clone, Copy, Debug, Default)]

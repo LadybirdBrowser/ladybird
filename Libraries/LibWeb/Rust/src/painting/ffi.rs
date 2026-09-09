@@ -1838,7 +1838,6 @@ pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
 pub unsafe extern "C" fn layout_arena_record_display_list(
     arena: *mut c_void,
     viewport: NodeSlotId,
-    callbacks: crate::painting::host::FfiHitTestHostCallbacks,
     paint_callbacks: crate::painting::host::FfiPaintHostCallbacks,
     visual_context_callbacks: crate::painting::host::FfiVisualContextHostCallbacks,
     inputs: crate::painting::host::FfiRecordingInputs,
@@ -1885,7 +1884,6 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             arena,
             &paint_state,
             viewport,
-            &callbacks,
             &paint_callbacks,
             &visual_context_callbacks,
             inputs,
@@ -1908,7 +1906,6 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
                     arena,
                     &paint_state,
                     viewport,
-                    &callbacks,
                     &paint_callbacks,
                     &visual_context_callbacks,
                     inputs_for_recording_from_scratch,
@@ -4253,19 +4250,6 @@ pub unsafe extern "C" fn layout_arena_hit_test_adjacent_line(
             None => Default::default(),
         }
     })
-}
-
-/// # Safety
-///
-/// `sink` must be the pointer handed to the callback, used synchronously.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_hit_test_push_line_break_caret_target(
-    sink: *mut c_void,
-    target: crate::painting::host::FfiLineBreakCaretTarget,
-) {
-    // SAFETY: `sink` is the Vec pointer handed out by FfiHitTestHostCallbacks::line_break_caret_targets.
-    let targets = unsafe { &mut *sink.cast::<Vec<crate::painting::host::FfiLineBreakCaretTarget>>() };
-    targets.push(target);
 }
 
 /// # Safety
