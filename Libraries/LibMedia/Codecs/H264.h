@@ -14,9 +14,9 @@ namespace Media::Codecs {
 class H264 {
 public:
     struct Parameters {
-        u8 profile_idc;
-        u8 constraint_set_flags;
-        u8 level_idc;
+        u8 profile_idc { 0 };
+        u8 constraint_set_flags { 0 };
+        u8 level_idc { 0 };
 
         bool operator==(Parameters const&) const = default;
     };

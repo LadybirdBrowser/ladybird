@@ -28,9 +28,9 @@ public:
     };
 
     struct Parameters {
-        u8 profile;
-        u8 level;
-        u8 bit_depth;
+        u8 profile { 0 };
+        u8 level { 0 };
+        u8 bit_depth { 0 };
         ColorParameters color_parameters;
 
         bool operator==(Parameters const&) const = default;

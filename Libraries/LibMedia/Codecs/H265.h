@@ -16,11 +16,11 @@ class H265 {
 public:
     struct Parameters {
         Array<u8, 6> constraint_indicator_flags;
-        u32 profile_compatibility_flags;
-        u8 profile_space;
-        u8 profile_idc;
-        u8 level_idc;
-        bool tier_flag;
+        u32 profile_compatibility_flags { 0 };
+        u8 profile_space { 0 };
+        u8 profile_idc { 0 };
+        u8 level_idc { 0 };
+        bool tier_flag { false };
 
         bool operator==(Parameters const&) const = default;
     };
