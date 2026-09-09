@@ -156,6 +156,7 @@ fn record_display_list_impl<O: Observer>(
         all_paint_caches_dirty: layout_arena.all_paint_caches_dirty(),
         all_descendant_subtree_caches_dirty: layout_arena.all_descendant_subtree_caches_dirty(),
         registered_font_ids: std::collections::HashSet::new(),
+        newly_referenced_fonts: Vec::new(),
         selection_style_cache: HashMap::new(),
         wheel_hit_test_target_cache: HashMap::new(),
     };
@@ -207,6 +208,7 @@ fn record_display_list_impl<O: Observer>(
         wheel_event_listener_state_generation: inputs.wheel_event_listener_state_generation,
         is_identical_to_cache_source: false,
         capture_log_for_verification: recorder.observer.finish(),
+        newly_referenced_fonts: recorder.newly_referenced_fonts,
     }
 }
 

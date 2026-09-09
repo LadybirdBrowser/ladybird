@@ -880,6 +880,17 @@ static void invalidate_navigable_containers_whose_composited_context_changed(DOM
     }
 }
 
+static Layout::RustFFI::FfiRecordingPublishCallbacks recording_publish_callbacks(PaintHostContext& context)
+{
+    return {
+        .context = &context,
+        .add_font = [](void* context_pointer, void const* font) {
+            auto& context = *static_cast<PaintHostContext*>(context_pointer);
+            context.resource_storage.add_font(*static_cast<Gfx::Font const*>(font));
+        },
+    };
+}
+
 static void take_recording_trace_if_pending(DOM::Document& document)
 {
     StringBuilder trace;
@@ -968,10 +979,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 facts.text_decoration_color = style.text_decoration->color;
             }
             return facts;
-        },
-        .register_font = [](void* context_pointer, void const* font) -> u64 {
-            auto& context = *static_cast<PaintHostContext*>(context_pointer);
-            return context.resource_storage.add_font(*static_cast<Gfx::Font const*>(font)).value();
         },
         .layer_image_prepare = [](void*, void* layout_node_shell, Layout::RustFFI::FfiLayerImageList list, u32 computed_index) -> Layout::RustFFI::FfiLayerImagePrepareFacts {
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
@@ -1342,10 +1349,10 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
     invalidate_navigable_containers_whose_composited_context_changed(document);
     PaintHostContext paint_host_context { resource_storage, document, paint_generation_id, device_pixels_per_css_pixel };
     auto rust_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-    auto generation = Layout::RustFFI::layout_arena_record_display_list(arena, viewport_row_slot(document), hit_test_host_callbacks(), paint_host_callbacks(paint_host_context), visual_context_host_callbacks(document), inputs);
-    take_recording_trace_if_pending(document);
-    if (generation == 0)
+    if (!Layout::RustFFI::layout_arena_record_display_list(arena, viewport_row_slot(document), hit_test_host_callbacks(), paint_host_callbacks(paint_host_context), visual_context_host_callbacks(document), inputs))
         return nullptr;
+    Layout::RustFFI::layout_arena_publish_recording(arena, recording_publish_callbacks(paint_host_context));
+    take_recording_trace_if_pending(document);
     if (Layout::RustFFI::layout_arena_last_recording_has_blocking_wheel_event_listeners(arena))
         wheel_event_region_state.has_blocking_wheel_event_listeners = true;
     auto stamp_async_scrolling_metadata_with_current_viewport_rect = [&](DisplayList& display_list) {

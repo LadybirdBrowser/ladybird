@@ -388,13 +388,26 @@ impl From<&RecordedDisplayList> for FfiRecordedDisplayList {
 
 #[derive(Clone, Copy)]
 #[repr(C)]
+pub struct FfiRecordingPublishCallbacks {
+    pub context: *mut c_void,
+    pub add_font: unsafe extern "C" fn(*mut c_void, *const c_void),
+}
+
+impl FfiRecordingPublishCallbacks {
+    pub(crate) fn add_font(&self, font: &libgfx_rust::font::FontHandle) {
+        // SAFETY: The C++ host registers the live font synchronously.
+        unsafe { (self.add_font)(self.context, font.as_raw()) };
+    }
+}
+
+#[derive(Clone, Copy)]
+#[repr(C)]
 pub struct FfiPaintHostCallbacks {
     pub context: *mut c_void,
     pub async_scroll_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiAsyncScrollFacts,
     pub image_intrinsic_facts:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiLayerImageList, u32) -> FfiImageIntrinsicFacts,
     pub selection_style_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiSelectionStyleFacts,
-    pub register_font: unsafe extern "C" fn(*mut c_void, *const c_void) -> u64,
     pub layer_image_prepare:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiLayerImageList, u32) -> FfiLayerImagePrepareFacts,
     pub layer_image_nested_display_list: unsafe extern "C" fn(
@@ -452,11 +465,6 @@ impl FfiPaintHostCallbacks {
         // the sink through the exported function.
         let facts = unsafe { (self.selection_style_facts)(self.context, layout_node_shell, (&raw mut shadows).cast()) };
         (facts, shadows)
-    }
-    pub(crate) fn register_font(&self, font: *const c_void) -> u64 {
-        // SAFETY: The C++ host registers the live font in the recording's
-        // resource table synchronously.
-        unsafe { (self.register_font)(self.context, font) }
     }
     pub(crate) fn layer_image_prepare(
         &self,

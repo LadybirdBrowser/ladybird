@@ -10,6 +10,7 @@ pub mod async_scroll_metadata;
 pub mod cache;
 pub mod hit_test_items;
 pub mod paint;
+pub(crate) mod publish;
 pub(crate) mod scratch;
 pub mod svg_resources;
 pub mod trace;
@@ -87,6 +88,7 @@ pub struct RecordingOutput {
     pub wheel_event_listener_state_generation: u64,
     pub is_identical_to_cache_source: bool,
     pub(crate) capture_log_for_verification: Option<verify::CaptureLog>,
+    pub(crate) newly_referenced_fonts: Vec<libgfx_rust::font::FontHandle>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -138,6 +140,7 @@ pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) all_paint_caches_dirty: bool,
     pub(crate) all_descendant_subtree_caches_dirty: bool,
     registered_font_ids: HashSet<libgfx_rust::font::FontId>,
+    newly_referenced_fonts: Vec<libgfx_rust::font::FontHandle>,
     selection_style_cache: HashMap<u32, Rc<paint::text::SelectionStyleAnswer>>,
     pub(crate) wheel_hit_test_target_cache: HashMap<NodeSlotId, SpatialNodeIndex>,
 }
@@ -184,8 +187,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
 
     pub(crate) fn register_font(&mut self, font: &libgfx_rust::font::FontHandle) -> u64 {
         if self.registered_font_ids.insert(font.id()) {
-            let resource_id = self.paint_host.register_font(font.as_raw());
-            debug_assert_eq!(resource_id, font.id().0, "font resource ids are Gfx::Font ids");
+            self.newly_referenced_fonts.push(font.clone());
         }
         font.id().0
     }
