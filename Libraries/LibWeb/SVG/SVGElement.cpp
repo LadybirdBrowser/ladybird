@@ -18,8 +18,11 @@
 #include <LibWeb/SVG/SVGAnimatedLength.h>
 #include <LibWeb/SVG/SVGDescElement.h>
 #include <LibWeb/SVG/SVGElement.h>
+#include <LibWeb/SVG/SVGFilterElement.h>
 #include <LibWeb/SVG/SVGForeignObjectElement.h>
+#include <LibWeb/SVG/SVGGradientElement.h>
 #include <LibWeb/SVG/SVGGraphicsElement.h>
+#include <LibWeb/SVG/SVGPatternElement.h>
 #include <LibWeb/SVG/SVGSVGElement.h>
 #include <LibWeb/SVG/SVGSymbolElement.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
@@ -332,6 +335,34 @@ void SVGElement::attribute_changed(Utf16FlyString const& local_name, Optional<Ut
     if (old_value != value)
         update_presentation_attribute_style(local_name, value, namespace_);
     update_use_elements_that_reference_this();
+    note_svg_paint_resource_description_may_have_changed();
+}
+
+bool SVGElement::describes_svg_paint_resource() const
+{
+    for (auto const* element = this; element; element = as_if<SVGElement>(element->parent_element().ptr())) {
+        if (is<SVGGradientElement>(*element) || is<SVGPatternElement>(*element) || is<SVGFilterElement>(*element))
+            return true;
+    }
+    return false;
+}
+
+void SVGElement::note_svg_paint_resource_description_may_have_changed()
+{
+    if (!document().has_enrolled_svg_paint_resources())
+        return;
+    if (describes_svg_paint_resource())
+        document().note_svg_paint_resources_changed();
+}
+
+void SVGElement::moved_from(IsSubtreeRoot is_subtree_root, GC::Ptr<Node> old_ancestor)
+{
+    Base::moved_from(is_subtree_root, old_ancestor);
+    if (!document().has_enrolled_svg_paint_resources())
+        return;
+    auto const* old_svg_ancestor = as_if<SVGElement>(old_ancestor.ptr());
+    if (describes_svg_paint_resource() || (old_svg_ancestor && old_svg_ancestor->describes_svg_paint_resource()))
+        document().note_svg_paint_resources_changed();
 }
 
 void SVGElement::adopted_from(DOM::Document& old_document)
@@ -353,6 +384,7 @@ void SVGElement::inserted()
     HTMLOrSVGOrMathMLElement::inserted();
 
     update_use_elements_that_reference_this();
+    note_svg_paint_resource_description_may_have_changed();
 }
 
 void SVGElement::children_changed(ChildrenChangedMetadata const& metadata)
@@ -360,6 +392,7 @@ void SVGElement::children_changed(ChildrenChangedMetadata const& metadata)
     Base::children_changed(metadata);
 
     update_use_elements_that_reference_this();
+    note_svg_paint_resource_description_may_have_changed();
 }
 
 void SVGElement::update_use_elements_that_reference_this()
@@ -387,6 +420,7 @@ void SVGElement::update_use_elements_that_reference_this()
 void SVGElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor, Node& old_root)
 {
     Base::removed_from(is_subtree_root, old_ancestor, old_root);
+    note_svg_paint_resource_description_may_have_changed();
 
     auto is_use_element_shadow_root = [](Node& node) {
         auto* shadow_root = as_if<DOM::ShadowRoot>(node);

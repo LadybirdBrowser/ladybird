@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../expected/svg/green-square-100-ref.html" />
+<svg width="100" height="100">
+    <filter id="f" x="0" y="0" width="1" height="1">
+        <feFlood flood-color="red" />
+    </filter>
+    <rect width="100" height="100" fill="blue" filter="url(#f)" />
+</svg>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            const flood = document.createElementNS("http://www.w3.org/2000/svg", "feFlood");
+            flood.setAttribute("flood-color", "green");
+            document.getElementById("f").appendChild(flood);
+            requestAnimationFrame(() => {
+                if (window.internals)
+                    internals.signalTestIsDone("PASS");
+                else
+                    document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>

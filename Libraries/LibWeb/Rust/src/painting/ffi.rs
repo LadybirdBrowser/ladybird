@@ -22,7 +22,7 @@ use crate::painting::paintable_data::*;
 use crate::painting::paintable_rows::{PaintableRowsRead, with_inline_pieces};
 use crate::painting::rect_to_viewport_transform::RectToViewportTransform;
 use crate::painting::scroll_chain::ViewportWheelOverflow;
-use crate::painting::svg_filter::{SvgFilterGraphBuilder, SvgFilterPrimitive};
+use crate::painting::svg_filter::SvgFilterPrimitive;
 use libgfx_rust::filter::Filter;
 use std::ffi::c_void;
 use std::rc::Rc;
@@ -1836,7 +1836,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
     arena: *mut c_void,
     viewport: NodeSlotId,
     paint_callbacks: crate::painting::host::FfiPaintHostCallbacks,
-    visual_context_callbacks: crate::painting::host::FfiVisualContextHostCallbacks,
+    _visual_context_callbacks: crate::painting::host::FfiVisualContextHostCallbacks,
     inputs: crate::painting::host::FfiRecordingInputs,
 ) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
@@ -1882,7 +1882,6 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             &paint_state,
             viewport,
             &paint_callbacks,
-            &visual_context_callbacks,
             inputs,
             paint_state.hit_test_list_generation + 1,
             command_cache_source,
@@ -1904,7 +1903,6 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
                     &paint_state,
                     viewport,
                     &paint_callbacks,
-                    &visual_context_callbacks,
                     inputs_for_recording_from_scratch,
                     paint_state.hit_test_list_generation + 1,
                     None,
@@ -4025,25 +4023,105 @@ unsafe fn svg_filter_primitive_from_ffi(primitive: &FfiSvgFilterPrimitive) -> Sv
                 Box::new(<[u8; 256]>::try_from(table).expect("a component transfer table holds 256 entries"))
             })
         }),
+        image_frame: (!primitive.image_frame.is_null())
+            .then(|| unsafe { libgfx_rust::image_frame::ImageFrameHandle::retain(primitive.image_frame) }),
     }
 }
 
-/// Appends one primitive of an SVG `<filter>` to the graph builder a host callback was handed as
-/// its sink.
-///
 /// # Safety
 ///
 /// `sink` must be the pointer handed to the callback, used synchronously; `primitive` must be
 /// readable, with every pointer in it readable for the length that accompanies it, each UTF-16
-/// view satisfying [`FfiUtf16View::units`], and each non-null component transfer table holding
-/// 256 bytes.
+/// view satisfying [`FfiUtf16View::units`], each non-null component transfer table holding
+/// 256 bytes, and `image_frame` null or pointing to a live `Gfx::DecodedImageFrame`.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paint_push_svg_filter_primitive(
     sink: *mut c_void,
     primitive: *const FfiSvgFilterPrimitive,
 ) {
-    let builder = unsafe { &mut *sink.cast::<SvgFilterGraphBuilder>() };
-    builder.push(unsafe { svg_filter_primitive_from_ffi(&*primitive) });
+    let primitives = unsafe { &mut *sink.cast::<Vec<SvgFilterPrimitive>>() };
+    primitives.push(unsafe { svg_filter_primitive_from_ffi(&*primitive) });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_note_svg_paint_resources_changed(arena: *mut c_void) -> bool {
+    let arena = unsafe { arena_from_handle(arena) };
+    arena.svg_paint_resources().note_changed()
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_has_enrolled_svg_paint_resources(arena: *mut c_void) -> bool {
+    let arena = unsafe { arena_from_handle(arena) };
+    arena.svg_paint_resources().has_enrolled_entries()
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
+/// `resolve_filter` must answer synchronously from a live layout node shell and only push into
+/// the sink whose pointer it receives.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_sync_svg_paint_resources(
+    arena: *mut c_void,
+    resolve_filter: unsafe extern "C" fn(*mut c_void, *const c_void, *mut c_void) -> bool,
+) -> bool {
+    use crate::painting::svg_paint_resources::{PublishedSvgFilter, SvgPaintResourceKind};
+    let arena = unsafe { arena_from_handle(arena) };
+    let resources = arena.svg_paint_resources();
+    if !resources.take_needs_sync() {
+        return false;
+    }
+    let mut any_changed = false;
+    for (slot, kind) in resources.enrolled_entries() {
+        let Some(style) = arena.node_style_if_live(slot) else {
+            resources.forget_slot(slot);
+            continue;
+        };
+        let effects = style.effects();
+        let filter_list = match kind {
+            SvgPaintResourceKind::Filter => &effects.filter,
+            SvgPaintResourceKind::BackdropFilter => &effects.backdrop_filter,
+        };
+        if !crate::painting::filter_bytes::contains_url(filter_list) {
+            resources.withdraw(slot, kind);
+            continue;
+        }
+        let shell = arena.shell_if_live(slot);
+        let mut published = PublishedSvgFilter::default();
+        for operation in filter_list.operations.as_slice() {
+            if operation.kind != crate::painting::filter_bytes::FILTER_KIND_URL {
+                continue;
+            }
+            let mut primitives: Vec<SvgFilterPrimitive> = Vec::new();
+            // SAFETY: The host resolves synchronously from the live shell and only pushes into the
+            // primitive list it is handed as its sink.
+            let resolved = unsafe { resolve_filter(shell, operation.url_value.pointer, (&raw mut primitives).cast()) };
+            published = PublishedSvgFilter {
+                failed: !resolved,
+                primitives: if resolved { primitives } else { Vec::new() },
+            };
+            if published.failed {
+                break;
+            }
+        }
+        if resources.publish_filter(slot, kind, published) {
+            any_changed = true;
+            if arena.paintable_row_is_populated(slot) {
+                arena.note_visual_context_box_dirty(
+                    slot,
+                    crate::painting::visual_context::dirty::VisualContextBoxDirtyKind::StyleValueChange,
+                );
+                arena.paintable_rows().mark_paint_cache_self_dirty(slot);
+            }
+        }
+    }
+    any_changed
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

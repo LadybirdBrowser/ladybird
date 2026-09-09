@@ -24,6 +24,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/SVG/SVGElement.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Animations {
@@ -900,6 +901,8 @@ AnimationUpdateContext::~AnimationUpdateContext()
         }
         auto publication = target->document().style_computer().publish_animation_overlay(element, *computed_values);
         target->refresh_computed_style(element.pseudo_element(), publication.new_style_record);
+        if (auto* svg_element = as_if<SVG::SVGElement>(*target); svg_element && !element.pseudo_element().has_value())
+            svg_element->note_svg_paint_resource_description_may_have_changed();
 
         // Box-type, overflow, and text-alignment adjustments consume the unadjusted base values,
         // which an animation-only overlay update deliberately does not reconstruct. Publish an

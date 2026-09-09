@@ -282,7 +282,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
         }
         let facts = BoxFacts::gather(
             self.layout_arena,
-            self.visual_context_host,
             svg_box,
             self.inputs.device_pixels_per_css_pixel,
             false,

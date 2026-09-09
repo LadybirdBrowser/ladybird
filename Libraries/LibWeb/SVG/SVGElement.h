@@ -51,6 +51,7 @@ public:
     virtual bool publishes_presentational_hints_on_arrival() const final override { return true; }
 
     void register_resource_box_referencing_element(Badge<Layout::LayoutTreeBuilderAccess>, DOM::Element&);
+    void note_svg_paint_resource_description_may_have_changed();
 
 protected:
     SVGElement(DOM::Document&, DOM::QualifiedName);
@@ -62,7 +63,9 @@ protected:
     virtual void children_changed(ChildrenChangedMetadata const&) override;
     virtual void inserted() override;
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
+    virtual void moved_from(IsSubtreeRoot, GC::Ptr<Node> old_ancestor) override;
     void update_use_elements_that_reference_this();
+    bool describes_svg_paint_resource() const;
     void remove_from_use_element_that_reference_this();
     void mark_resource_box_referencing_elements_for_layout_tree_update();
     void mark_resource_box_referencing_elements_for_layout_update();

@@ -27,10 +27,9 @@ public:
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
-    // Hands every supported child primitive to the Rust filter graph builder behind `sink` as
-    // attribute facts. The frames an feImage draws are collected for the caller to register with
-    // the display list resource storage under the id the facts name them by.
-    void push_primitives(void* sink, Layout::NodeWithStyle const& referenced_node, Vector<Gfx::DecodedImageFrame>& image_frames);
+    // Hands every supported child primitive to the Rust primitive list behind `sink` as attribute
+    // facts, with the frame an feImage draws for the list to retain.
+    void push_primitives(void* sink);
 
     GC::Ref<SVGAnimatedEnumeration> filter_units() const;
     GC::Ref<SVGAnimatedEnumeration> primitive_units() const;

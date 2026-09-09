@@ -8874,6 +8874,7 @@ void Document::element_id_changed(Badge<DOM::Element>, GC::Ref<DOM::Element> ele
     if (new_id.has_value()) {
         element->document_or_shadow_root_element_by_id_map().add(new_id.value(), element);
     }
+    note_svg_paint_resources_changed();
 }
 
 void Document::element_with_id_was_added(Badge<DOM::Element>, GC::Ref<DOM::Element> element)
@@ -8889,6 +8890,7 @@ void Document::element_with_id_was_added(Badge<DOM::Element>, GC::Ref<DOM::Eleme
 
     if (auto id = element->id(); id.has_value()) {
         element->document_or_shadow_root_element_by_id_map().add(id.value(), element);
+        note_svg_paint_resources_changed();
     }
 }
 
@@ -8901,6 +8903,7 @@ void Document::element_with_id_was_removed(Badge<DOM::Element>, GC::Ref<DOM::Ele
 
     if (auto id = element->id(); id.has_value()) {
         element->document_or_shadow_root_element_by_id_map().remove(id.value(), element);
+        note_svg_paint_resources_changed();
     }
 }
 
@@ -10306,6 +10309,19 @@ void Document::set_needs_accumulated_visual_contexts_update(bool value)
     m_needs_accumulated_visual_contexts_update = value;
     if (value)
         set_needs_repaint(InvalidateDisplayList::No);
+}
+
+void Document::note_svg_paint_resources_changed()
+{
+    if (!m_layout_node_arena)
+        return;
+    if (Layout::RustFFI::layout_arena_note_svg_paint_resources_changed(m_layout_node_arena->handle()))
+        set_needs_accumulated_visual_contexts_update(true);
+}
+
+bool Document::has_enrolled_svg_paint_resources() const
+{
+    return m_layout_node_arena && Layout::RustFFI::layout_arena_has_enrolled_svg_paint_resources(m_layout_node_arena->handle());
 }
 
 void Document::schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason reason)

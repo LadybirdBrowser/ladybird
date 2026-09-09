@@ -228,7 +228,7 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
     anchor_scroll_shift_resolver: Option<&dyn AnchorScrollShiftResolver>,
 ) -> PaintableVisualContextAssignment {
     let layout_arena = env.layout_arena;
-    let facts = super::build::BoxFacts::gather(layout_arena, env.callbacks, slot, env.pixel_ratio, true);
+    let facts = super::build::BoxFacts::gather(layout_arena, slot, env.pixel_ratio, true);
     let position = crate::painting::style_queries::position(layout_arena, slot);
     let is_fixed = position == crate::css::css_enums::positioning::FIXED;
     let is_absolute = position == crate::css::css_enums::positioning::ABSOLUTE;

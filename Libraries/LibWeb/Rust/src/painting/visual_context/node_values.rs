@@ -15,7 +15,7 @@ use crate::layout::node_data::NodeSlotId;
 use crate::layout::node_facts;
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
-use crate::painting::host::{FfiVisualContextHostCallbacks, FfiVisualContextTreeInputs};
+use crate::painting::host::FfiVisualContextTreeInputs;
 use crate::painting::node_painting;
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
@@ -521,9 +521,67 @@ pub(crate) fn mix_blend_mode_to_compositing_and_blending_operator(
     }
 }
 
+/// The referenced filter's region, in the filtered element's user space: the element's border
+/// box, or the whole enclosing viewport rect for an element without geometry of its own.
+fn svg_filter_bounds(layout_arena: &impl PaintableRowsRead, slot: NodeSlotId) -> Option<CssPixelRect> {
+    let bounds = paintable_geometry::absolute_border_box_rect(layout_arena, slot);
+    if !bounds.is_empty() {
+        return Some(bounds);
+    }
+    crate::painting::svg_viewport::nearest_svg_viewport_user_rect(layout_arena, slot).map(|rect| {
+        CssPixelRect::new(
+            CssPixels::nearest_value_for(f64::from(rect.x)),
+            CssPixels::nearest_value_for(f64::from(rect.y)),
+            CssPixels::nearest_value_for(f64::from(rect.width)),
+            CssPixels::nearest_value_for(f64::from(rect.height)),
+        )
+    })
+}
+
+fn published_svg_filter(
+    layout_arena: &impl PaintableRowsRead,
+    slot: NodeSlotId,
+    kind: crate::painting::svg_paint_resources::SvgPaintResourceKind,
+    style: ComputedValuesView<'_>,
+    device_pixels_per_css_pixel: f64,
+) -> crate::painting::host::visual_context::ResolvedSvgFilter {
+    let Some(published) = layout_arena.svg_paint_resources().published_filter(slot, kind) else {
+        return crate::painting::host::visual_context::ResolvedSvgFilter {
+            failed: true,
+            ..Default::default()
+        };
+    };
+    if published.failed {
+        return crate::painting::host::visual_context::ResolvedSvgFilter {
+            failed: true,
+            ..Default::default()
+        };
+    }
+    let mut builder = crate::painting::svg_filter::SvgFilterGraphBuilder::new(device_pixels_per_css_pixel);
+    if layout_arena.paintable_row_is_populated(slot) {
+        let absolute_rect = paintable_geometry::absolute_rect(layout_arena, slot);
+        let dest_rect = libgfx_rust::enclosing_int_rect(libgfx_rust::FloatRect::new(
+            absolute_rect.x.to_float(),
+            absolute_rect.y.to_float(),
+            absolute_rect.width.to_float(),
+            absolute_rect.height.to_float(),
+        ));
+        builder.set_image_target(dest_rect, style.image_rendering());
+    }
+    for primitive in published.primitives.iter().cloned() {
+        builder.push(primitive);
+    }
+    crate::painting::host::visual_context::ResolvedSvgFilter {
+        failed: false,
+        filter: builder.finish(),
+        svg_filter_bounds: svg_filter_bounds(layout_arena, slot)
+            .map(crate::layout::used_values::FfiCssPixelRect::from)
+            .into(),
+    }
+}
+
 pub(crate) fn compute_effects_data(
     layout_arena: &impl PaintableRowsRead,
-    callbacks: &FfiVisualContextHostCallbacks,
     slot: NodeSlotId,
     device_pixels_per_css_pixel: f64,
 ) -> Option<EffectsData> {
@@ -531,11 +589,13 @@ pub(crate) fn compute_effects_data(
     let style = layout_arena.node_style_if_live(slot)?;
     let effects_values = style.effects();
     let filter = if crate::painting::filter_bytes::contains_url(&effects_values.filter) {
-        let layout_node_shell = layout_arena.shell_if_live(slot);
-        let resolved_svg_filter =
-            crate::painting::filter_bytes::resolve_svg_filter_references(&effects_values.filter, |url_value| {
-                callbacks.resolve_svg_filter(layout_node_shell, url_value, device_pixels_per_css_pixel)
-            });
+        let resolved_svg_filter = published_svg_filter(
+            layout_arena,
+            slot,
+            crate::painting::svg_paint_resources::SvgPaintResourceKind::Filter,
+            style,
+            device_pixels_per_css_pixel,
+        );
         layout_arena.paintable_side_data(slot).svg_filter_bounds.set(
             resolved_svg_filter
                 .svg_filter_bounds
@@ -553,8 +613,7 @@ pub(crate) fn compute_effects_data(
         crate::painting::filter_bytes::serialize_non_url_filter(&effects_values.filter, device_pixels_per_css_pixel)
             .map(std::rc::Rc::new)
     };
-    let backdrop_filter =
-        compute_backdrop_filter_data(layout_arena, callbacks, slot, style, device_pixels_per_css_pixel);
+    let backdrop_filter = compute_backdrop_filter_data(layout_arena, slot, style, device_pixels_per_css_pixel);
     let needs_compositor_effects_layer = layout_arena
         .node_has_compositor_animation_frame(slot, crate::layout::node_data::CompositorAnimationFrameKind::Opacity);
     if filter.is_none()
@@ -578,7 +637,6 @@ pub(crate) fn compute_effects_data(
 // https://drafts.fxtf.org/filter-effects-2/#BackdropFilterProperty
 fn compute_backdrop_filter_data(
     layout_arena: &impl PaintableRowsRead,
-    callbacks: &FfiVisualContextHostCallbacks,
     slot: NodeSlotId,
     style: ComputedValuesView<'_>,
     device_pixels_per_css_pixel: f64,
@@ -593,11 +651,13 @@ fn compute_backdrop_filter_data(
         return None;
     }
     let filter = if crate::painting::filter_bytes::contains_url(backdrop_filter) {
-        let layout_node_shell = layout_arena.shell_if_live(slot);
-        let resolved_svg_filter =
-            crate::painting::filter_bytes::resolve_svg_filter_references(backdrop_filter, |url_value| {
-                callbacks.resolve_svg_filter(layout_node_shell, url_value, device_pixels_per_css_pixel)
-            });
+        let resolved_svg_filter = published_svg_filter(
+            layout_arena,
+            slot,
+            crate::painting::svg_paint_resources::SvgPaintResourceKind::BackdropFilter,
+            style,
+            device_pixels_per_css_pixel,
+        );
         crate::painting::filter_bytes::serialize_filter_with_resolved_svg(
             backdrop_filter,
             resolved_svg_filter,

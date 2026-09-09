@@ -54,27 +54,11 @@ static bool body_background_is_propagated_to_root(Layout::NodeWithStyle const& l
     return html_element && html_element->unsafe_layout_node() && html_element->should_use_body_background_properties();
 }
 
-ResolvedSvgFilter resolve_svg_filter_reference(CSS::ComputedValuesFFI::ComputedStyleValueHandle const& url_value, Layout::NodeWithStyle const& layout_node)
+GC::Ptr<SVG::SVGFilterElement> resolve_svg_filter_reference(CSS::ComputedValuesFFI::ComputedStyleValueHandle const& url_value, Layout::NodeWithStyle const& layout_node)
 {
-    ResolvedSvgFilter result;
     auto fragment = CSS::ComputedFilterView::url_fragment(url_value);
     auto referenced_element = fragment.is_empty() ? nullptr : layout_node.document().get_element_by_id(fragment);
-    result.filter_element = referenced_element ? as_if<SVG::SVGFilterElement>(*referenced_element) : nullptr;
-    if (!result.filter_element) {
-        result.failed = true;
-        return result;
-    }
-    // The bounds live in the filtered element's user space; an element without
-    // geometry of its own falls back to the whole enclosing viewport rect there.
-    auto bounds = absolute_border_box_rect(layout_node);
-    if (bounds.is_empty()) {
-        auto viewport_rect = Layout::RustFFI::layout_arena_paintable_svg_viewport_user_rect(layout_node.arena_handle(), committed_row_slot(layout_node));
-        if (viewport_rect.has_value())
-            result.bounds = viewport_rect.value();
-    }
-    if (!bounds.is_empty())
-        result.bounds = bounds;
-    return result;
+    return referenced_element ? as_if<SVG::SVGFilterElement>(*referenced_element) : nullptr;
 }
 
 Layout::RustFFI::NodeSlotId committed_row_slot(Layout::Node const& node)

@@ -61,6 +61,9 @@ pub(crate) fn publish_recording(
     for frame in &output.newly_referenced_image_frames {
         publish.add_image_frame(frame);
     }
+    for frame in arena.svg_paint_resources().published_filter_image_frames() {
+        publish.add_image_frame(&frame);
+    }
     for (resource_id, sink_handle) in &output.newly_referenced_video_sinks {
         publish.add_video_sink(*resource_id, *sink_handle);
     }

@@ -8,7 +8,7 @@ use super::box_build::PaintableVisualContextAssignment;
 use super::scroll_state::NO_SCROLL_STATE_SLOT;
 use super::*;
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::host::{FfiVisualContextHostCallbacks, FfiVisualContextTreeInputs};
+use crate::painting::host::FfiVisualContextTreeInputs;
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::style_queries;
@@ -89,7 +89,6 @@ impl BoxFacts {
 
     pub(crate) fn gather(
         layout_arena: &impl PaintableRowsRead,
-        callbacks: &FfiVisualContextHostCallbacks,
         slot: NodeSlotId,
         pixel_ratio: f64,
         consults_default_scroll_shift_anchors: bool,
@@ -126,8 +125,7 @@ impl BoxFacts {
             facts.transform_is_invertible = transform_is_invertible;
         }
         facts.perspective = super::node_values::compute_perspective_data(layout_arena, slot, pixel_ratio);
-        facts.effects =
-            super::node_values::compute_effects_data(layout_arena, callbacks, slot, pixel_ratio).map(std::rc::Rc::new);
+        facts.effects = super::node_values::compute_effects_data(layout_arena, slot, pixel_ratio).map(std::rc::Rc::new);
         facts.backface_hidden = super::node_values::backface_hidden(layout_arena, slot);
         let node = slot;
         facts.establishes_or_extends_3d_rendering_context =

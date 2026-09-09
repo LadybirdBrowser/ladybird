@@ -28,8 +28,7 @@ use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
 use crate::painting::hit_test::HitTestList;
 use crate::painting::host::{
-    FfiPaintHostCallbacks, FfiRecordingInputs, FfiRootBackgroundSource, FfiVisualContextHostCallbacks,
-    FfiVisualContextTreeInputs,
+    FfiPaintHostCallbacks, FfiRecordingInputs, FfiRootBackgroundSource, FfiVisualContextTreeInputs,
 };
 use crate::painting::paintable_data::{InlineBoxPieceRecord, PaintableData};
 use crate::painting::paintable_rows::PaintableRowsRef;
@@ -126,7 +125,6 @@ pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) inputs: RecordingInputs,
     pub(crate) recorder: DisplayListRecorder,
     pub(crate) converter: DevicePixelConverter,
-    pub(crate) visual_context_host: &'a FfiVisualContextHostCallbacks,
     pub(crate) svg_resource_walk: Option<SvgResourceWalk>,
     pattern_tile_records: HashMap<PatternTileKey, Rc<Vec<u8>>>,
     pub(crate) viewport: NodeSlotId,

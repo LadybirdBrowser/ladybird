@@ -9,7 +9,7 @@
 use libgfx_rust::filter::Filter;
 use libgfx_rust::{Color, ColorFilterType};
 
-use crate::css::computed_value_types::{ComputedFilter, ComputedFilterOperation, ComputedStyleValueHandle};
+use crate::css::computed_value_types::{ComputedFilter, ComputedFilterOperation};
 use crate::css::css_pixels::CssPixels;
 use crate::painting::ffi::{FfiFilterFunction, FfiFilterFunctionKind};
 use crate::painting::host::visual_context::ResolvedSvgFilter;
@@ -18,7 +18,7 @@ const FILTER_KIND_BLUR: u8 = 0;
 const FILTER_KIND_DROP_SHADOW: u8 = 1;
 const FILTER_KIND_HUE_ROTATE: u8 = 2;
 const FILTER_KIND_COLOR: u8 = 3;
-const FILTER_KIND_URL: u8 = 4;
+pub(crate) const FILTER_KIND_URL: u8 = 4;
 
 impl From<FfiFilterFunction> for Filter {
     fn from(function: FfiFilterFunction) -> Self {
@@ -69,23 +69,6 @@ pub(crate) fn serialize_non_url_filter(filter: &ComputedFilter, device_pixels_pe
 /// Resolves the `url()` references of a filter list through the host, one reference at a time.
 /// The last reference's graph and region are the ones that apply; a reference the host cannot
 /// resolve fails the list as a whole.
-pub(crate) fn resolve_svg_filter_references(
-    filter: &ComputedFilter,
-    mut resolve: impl FnMut(&ComputedStyleValueHandle) -> ResolvedSvgFilter,
-) -> ResolvedSvgFilter {
-    let mut resolved = ResolvedSvgFilter::default();
-    for operation in filter.operations.as_slice() {
-        if operation.kind != FILTER_KIND_URL {
-            continue;
-        }
-        resolved = resolve(&operation.url_value);
-        if resolved.failed {
-            break;
-        }
-    }
-    resolved
-}
-
 /// The serialized graph for a filter list whose `url()` references the host has resolved.
 pub(crate) fn serialize_filter_with_resolved_svg(
     filter: &ComputedFilter,
@@ -158,6 +141,7 @@ fn filter_function(operation: &ComputedFilterOperation, device_pixels_per_css_pi
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::css::computed_value_types::ComputedStyleValueHandle;
 
     fn operation(kind: u8) -> ComputedFilterOperation {
         ComputedFilterOperation {
