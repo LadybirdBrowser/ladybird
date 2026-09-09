@@ -413,12 +413,35 @@ struct H265State final : ParameterSetState {
         if (auto configuration = coded_frame.new_codec_configuration(); configuration.has_value())
             TRY(apply_configuration(*configuration));
 
+        auto saw_coded_slice = false;
+        auto every_coded_slice_is_sub_layer_non_reference = true;
+        u8 slice_temporal_id = 0;
         Codecs::NALUnitIterator iterator { coded_frame.data(), nal_unit_length_size };
-        for (auto nal_unit = iterator.next(); nal_unit.has_value(); nal_unit = iterator.next())
+        for (auto nal_unit = iterator.next(); nal_unit.has_value(); nal_unit = iterator.next()) {
             TRY(apply_nal_unit(*nal_unit));
+            auto header = Codecs::H265::parse_nal_unit_header(*nal_unit);
+            if (!header.has_value() || !Codecs::H265::is_coded_slice(*header))
+                continue;
+            saw_coded_slice = true;
+            slice_temporal_id = max(slice_temporal_id, header->temporal_id);
+            if (!Codecs::H265::is_sub_layer_non_reference(*header))
+                every_coded_slice_is_sub_layer_non_reference = false;
+        }
         if (iterator.has_error())
             return DecoderError::corrupted("Invalid H.265 NAL unit length"sv);
+        // ITU-T H.265 (07/2024), 7.4.2.2: an SLNR picture is only discardable for pictures at its own TemporalId.
+        access_unit_is_non_reference = saw_coded_slice && every_coded_slice_is_sub_layer_non_reference
+            && slice_temporal_id == highest_temporal_id();
         return {};
+    }
+
+    // Bound every SPS a slice could select, without parsing slice headers to track activation.
+    u8 highest_temporal_id() const
+    {
+        u8 highest = 0;
+        for (auto const& set : parameter_sets.sequence_parameter_sets())
+            highest = max(highest, set.parameters.sps_max_sub_layers_minus1);
+        return highest;
     }
 
     DecoderErrorOr<void> apply_configuration(ReadonlyBytes configuration)

@@ -72,6 +72,7 @@ public:
     struct SequenceParameterSet {
         u8 sps_seq_parameter_set_id;
         u8 sps_video_parameter_set_id;
+        u8 sps_max_sub_layers_minus1;
         u8 sps_max_num_reorder_pics;
         u8 bit_depth_luma;
     };
@@ -126,6 +127,7 @@ public:
     // Unlike H.264's single byte, an H.265 NAL unit header is two, so it cannot be read from the first byte alone.
     static MEDIA_API Optional<NALUnitHeader> parse_nal_unit_header(ReadonlyBytes nal_unit);
     static MEDIA_API bool is_coded_slice(NALUnitHeader const&);
+    static MEDIA_API bool is_sub_layer_non_reference(NALUnitHeader const&);
 
     // Parse the fields needed for parameter-set tracking and output reordering from a complete NAL unit,
     // including its header. These do not validate the remaining syntax of the parameter set.
