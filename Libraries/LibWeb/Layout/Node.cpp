@@ -237,23 +237,23 @@ bool NodeWithStyle::has_css_transform() const
 //        other containing-block-establishing properties) between this node and its containing block
 //        in the DOM tree. If found, it is stored in the arena's inline_containing_block slot.
 //
-//        We check the DOM tree here (rather than the layout tree) because when a block element is inside
-//        an inline element, the layout tree restructures so the block becomes a sibling of the inline.
-//        But the CSS containing block relationship is based on the DOM structure.
+//        We check the shadow-including DOM tree here (rather than the layout tree) because when a block
+//        element is inside an inline element, the layout tree restructures so the block becomes a sibling
+//        of the inline. But the CSS containing block relationship is based on the DOM structure.
 NodeWithStyle const* Node::find_inline_containing_block(Box const& containing_block) const
 {
     auto const* containing_block_dom_node = containing_block.dom_node();
 
     // For pseudo-elements, we need to start from the generating element itself, since it may
-    // be the inline containing block. For regular elements, start from parent_element().
+    // be the inline containing block. For regular elements, start from the parent or shadow host.
     GC::Ptr<DOM::Element const> first_ancestor_to_check;
     if (is_generated_for_pseudo_element()) {
         first_ancestor_to_check = m_pseudo_element_generator.ptr();
     } else if (auto const* this_dom_node = dom_node()) {
-        first_ancestor_to_check = this_dom_node->parent_element();
+        first_ancestor_to_check = this_dom_node->parent_or_shadow_host_element();
     }
 
-    for (auto dom_ancestor = first_ancestor_to_check; dom_ancestor; dom_ancestor = dom_ancestor->parent_element()) {
+    for (auto dom_ancestor = first_ancestor_to_check; dom_ancestor; dom_ancestor = dom_ancestor->parent_or_shadow_host_element()) {
         // Stop if we reach the DOM node of the containing block.
         if (dom_ancestor.ptr() == containing_block_dom_node)
             break;
