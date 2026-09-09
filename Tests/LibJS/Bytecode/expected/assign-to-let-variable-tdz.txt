@@ -15,7 +15,7 @@ block0:
   [  78] End value:reg5
 
 
-f$4cf5fc59 assign-to-let-variable-tdz.js:7:5
+f$4fb9ed69 assign-to-let-variable-tdz.js:7:5
   Registers: 10
   Blocks:    3
   Locals:    a~0
@@ -26,21 +26,22 @@ f$4cf5fc59 assign-to-let-variable-tdz.js:7:5
 block0:
   [   0] Enter
   [   8] ThrowIfNullish src:arg0
-  [  10] GetById dst:reg5, base:arg0, `location`
-  [  28] Mov dst:a~0, src:reg5
-  [  38] Typeof dst:reg5, src:a~0
-  [  48] LooselyEquals dst:reg6, lhs:String("string"), rhs:reg5
-  [  58] Mov dst:reg5, src:reg6
-  [  68] JumpFalse condition:reg6, target:block2
+  [  10] Mov dst:reg5, src:arg0
+  [  20] GetById dst:reg6, base:reg5, `location`
+  [  38] Mov dst:a~0, src:reg6
+  [  48] Typeof dst:reg5, src:a~0
+  [  58] LooselyEquals dst:reg6, lhs:String("string"), rhs:reg5
+  [  68] Mov dst:reg5, src:reg6
+  [  78] JumpFalse condition:reg6, target:block2
 
 block1:
-  [  78] GetGlobal dst:reg8, `g`
-  [  88] Mov dst:reg9, src:a~0
-  [  98] Call dst:reg7, callee:reg8, this_value:Undefined, g, arguments:[reg9]
-  [  c0] Mov2 c0_dst:a~0, c0_src:reg7, c1_dst:reg5, c1_src:reg7
+  [  88] GetGlobal dst:reg8, `g`
+  [  98] Mov dst:reg9, src:a~0
+  [  a8] Call dst:reg7, callee:reg8, this_value:Undefined, g, arguments:[reg9]
+  [  d0] Mov2 c0_dst:a~0, c0_src:reg7, c1_dst:reg5, c1_src:reg7
 
 block2:
-  [  d8] Return value:a~0
+  [  e8] Return value:a~0
 
 
 g$702c1d97 assign-to-let-variable-tdz.js:4:17

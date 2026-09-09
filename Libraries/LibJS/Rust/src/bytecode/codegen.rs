@@ -7892,6 +7892,10 @@ fn generate_object_binding_pattern(
 ) {
     generator.emit(Instruction::ThrowIfNullish { src: object.operand() });
 
+    // Every property is read from the value the pattern started with, even after an earlier entry
+    // has assigned the variable that value came from (`var { a, b: e } = e`).
+    let object = &generator.copy_if_needed_to_preserve_evaluation_order(object);
+
     let mut excluded_names: Vec<ScopedOperand> = Vec::new();
     let has_rest = pattern.entries.last().is_some_and(|e| e.is_rest);
 
