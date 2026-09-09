@@ -225,10 +225,24 @@ pub(crate) struct GlyphRunEmission {
     pub glyph_bounding_rect: IntRect,
 }
 
+/// The player draws a vertical run by shifting the horizontal blob right by the fragment rect's
+/// width and turning it a quarter turn clockwise about the rect's top-left corner, so the blob's
+/// bounds follow the same mapping.
+fn vertical_glyph_bounds(horizontal_bounds: IntRect, fragment_device_rect: IntRect) -> IntRect {
+    IntRect::new(
+        fragment_device_rect.x + fragment_device_rect.width
+            - (horizontal_bounds.y + horizontal_bounds.height - fragment_device_rect.y),
+        fragment_device_rect.y + (horizontal_bounds.x - fragment_device_rect.x),
+        horizontal_bounds.height,
+        horizontal_bounds.width,
+    )
+}
+
 pub(crate) fn glyph_run_emission(
     fragment: &crate::painting::paintable_data::FragmentRecord,
     run: &crate::painting::paintable_data::GlyphRunRecord,
     fragment_absolute_rect: CssPixelRect,
+    fragment_device_rect: IntRect,
     scale: f64,
 ) -> GlyphRunEmission {
     let bounds = run.bounding_box;
@@ -241,12 +255,16 @@ pub(crate) fn glyph_run_emission(
     } else {
         Orientation::Vertical
     };
-    let glyph_bounding_rect = IntRect::new(
+    let horizontal_bounds = IntRect::new(
         (bounds.x * scale as f32 + baseline_start.x).round_ties_even() as i32,
         (bounds.y * scale as f32 + baseline_start.y).round_ties_even() as i32,
         (bounds.width * scale as f32).round_ties_even() as i32,
         (bounds.height * scale as f32).round_ties_even() as i32,
     );
+    let glyph_bounding_rect = match orientation {
+        Orientation::Horizontal => horizontal_bounds,
+        Orientation::Vertical => vertical_glyph_bounds(horizontal_bounds, fragment_device_rect),
+    };
     GlyphRunEmission {
         glyphs: glyphs_of(run),
         baseline_start,
@@ -349,7 +367,7 @@ fn paint_text_shadow<O: Observer>(
         baseline_start,
         orientation,
         ..
-    } = glyph_run_emission(fragment, run, fragment_absolute_rect, scale);
+    } = glyph_run_emission(fragment, run, fragment_absolute_rect, fragment_device_rect, scale);
 
     // If this is a partial span, slice the glyph run to only include the relevant glyphs.
     let mut span_glyphs = glyphs.as_slice();
@@ -472,7 +490,7 @@ fn paint_text_fragment<O: Observer>(
         baseline_start,
         orientation,
         glyph_bounding_rect,
-    } = glyph_run_emission(fragment, run, fragment_absolute_rect, scale);
+    } = glyph_run_emission(fragment, run, fragment_absolute_rect, fragment_device_rect, scale);
     let run_for_recording = GlyphRunForRecording {
         font_smoothing: recorder
             .layout_arena
@@ -561,4 +579,20 @@ pub(crate) fn paint_cursor<O: Observer>(
         caret.blink_cycle_start_time_ns,
         caret.should_blink,
     );
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn vertical_glyph_bounds_follow_the_players_rotation() {
+        let fragment = IntRect::new(100, 50, 20, 60);
+        // A blob starting two pixels into the fragment, rising four pixels above its top.
+        let horizontal = IntRect::new(102, 46, 40, 24);
+        let vertical = vertical_glyph_bounds(horizontal, fragment);
+        // Its advance runs down the fragment from two pixels in, and its ascent side ends up on the
+        // right, four pixels short of the fragment's right edge.
+        assert_eq!(vertical, IntRect::new(100, 52, 24, 40));
+    }
 }
