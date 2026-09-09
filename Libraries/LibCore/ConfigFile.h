@@ -22,16 +22,7 @@ namespace Core {
 
 class CORE_API ConfigFile : public RefCounted<ConfigFile> {
 public:
-    enum class AllowWriting {
-        Yes,
-        No,
-    };
-
-    static ErrorOr<NonnullRefPtr<ConfigFile>> open_for_lib(ByteString const& lib_name, AllowWriting = AllowWriting::No);
-    static ErrorOr<NonnullRefPtr<ConfigFile>> open_for_app(ByteString const& app_name, AllowWriting = AllowWriting::No);
-    static ErrorOr<NonnullRefPtr<ConfigFile>> open_for_system(ByteString const& app_name, AllowWriting = AllowWriting::No);
-    static ErrorOr<NonnullRefPtr<ConfigFile>> open(ByteString const& filename, AllowWriting = AllowWriting::No);
-    static ErrorOr<NonnullRefPtr<ConfigFile>> open(ByteString const& filename, int fd);
+    static ErrorOr<NonnullRefPtr<ConfigFile>> open(ByteString const& filename);
     static ErrorOr<NonnullRefPtr<ConfigFile>> open(ByteString const& filename, NonnullOwnPtr<Core::File>);
     ~ConfigFile();
 
@@ -40,8 +31,6 @@ public:
 
     Vector<ByteString> groups() const;
     Vector<ByteString> keys(ByteString const& group) const;
-
-    size_t num_groups() const { return m_groups.size(); }
 
     ByteString read_entry(ByteString const& group, ByteString const& key, ByteString const& default_value = {}) const
     {
@@ -59,36 +48,14 @@ public:
         return read_entry(group, key, "").to_number<T>().value_or(default_value);
     }
 
-    void write_entry(ByteString const& group, ByteString const& key, ByteString const& value);
-    void write_bool_entry(ByteString const& group, ByteString const& key, bool value);
-
-    template<Integral T = int>
-    void write_num_entry(ByteString const& group, ByteString const& key, T value)
-    {
-        write_entry(group, key, ByteString::number(value));
-    }
-
-    void dump() const;
-
-    bool is_dirty() const { return m_dirty; }
-
-    ErrorOr<void> sync();
-
-    void add_group(ByteString const& group);
-    void remove_group(ByteString const& group);
-    void remove_entry(ByteString const& group, ByteString const& key);
-
-    ByteString const& filename() const { return m_filename; }
-
 private:
     ConfigFile(ByteString const& filename, OwnPtr<InputBufferedFile> open_file);
 
-    ErrorOr<void> reparse();
+    ErrorOr<void> parse();
 
     ByteString m_filename;
     OwnPtr<InputBufferedFile> m_file;
     HashMap<ByteString, HashMap<ByteString, ByteString>> m_groups;
-    bool m_dirty { false };
 };
 
 }
