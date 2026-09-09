@@ -12,6 +12,11 @@ directory to `Build/release` and then running `ninja <target>`:
 - `ninja lint-shell-scripts`: Checks style of shell scripts in the source tree with shellcheck
 - `ninja all_generated`: Builds all generated code. Useful for running analysis tools that can use compile_commands.json without a full system build
 
+When testing is enabled, the default build also compiles the main Rust
+workspace's test binaries and Flap's test targets on supported platforms.
+It does not run them. Use `ninja rust-tests` to compile just these Rust tests,
+or `ctest -R '^(RustWorkspace|Flap)$' --output-on-failure` to run the suites.
+
 ## CMake build options
 
 There are some optional features that can be enabled during compilation that are intended to help with specific types of development work or introduce experimental features. Currently, the following build options are available:
