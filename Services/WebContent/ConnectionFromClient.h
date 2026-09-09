@@ -210,6 +210,7 @@ private:
     virtual void set_window_size(u64 page_id, Web::DevicePixelSize) override;
     virtual void did_complete_window_rect_request(u64 page_id, u64 completion_id) override;
     virtual void handle_file_return(u64 page_id, i32 error, Optional<IPC::File> file, i32 request_id) override;
+    virtual void blob_url_entry_removed(Utf16String url) override;
     virtual void did_delete_all_cookies(u64 page_id, u64 request_id) override;
     virtual void update_visibility_state(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::VisibilityState) override;
     virtual void reset_zoom(u64 page_id) override;

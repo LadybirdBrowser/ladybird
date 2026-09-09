@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // Opening a blob URL created by a cross-site iframe forces noopener: the entry's origin is not same site with the
+    // opener's top-level origin.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const corsHeaders = { "Access-Control-Allow-Origin": "*" };
+
+        // The child publishes its blob URL as an echo, then releases the parent's request for it.
+        const urlPath = `/echo/oop-blob-popup-url-${runId}`;
+        const urlReady = await httpServer.createEcho("GET", `/oop-blob-popup-ready-${runId}`, {
+            status: 204,
+            headers: corsHeaders,
+            wait_for_unblock: `oop-blob-popup-${runId}`,
+        });
+
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-blob-popup-child-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    const blobURL = URL.createObjectURL(new Blob(["<!DOCTYPE html><script>close()<\\/script>"], { type: "text/html" }));
+                    fetch("${httpServer.baseURL}/echo", {
+                        method: "POST",
+                        mode: "no-cors",
+                        body: JSON.stringify({ method: "GET", path: "${urlPath}", status: 200, headers: ${JSON.stringify(corsHeaders)}, body: blobURL }),
+                    }).then(() => fetch("${httpServer.baseURL}/unblock/oop-blob-popup-${runId}", { mode: "no-cors" }));
+                <\/script>`,
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("oop-blob-popup-child");
+
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+
+        await fetch(urlReady);
+        const blobURL = await (await fetch(`${httpServer.baseURL}${urlPath}`)).text();
+
+        const popup = window.open(blobURL);
+        println(`window.open of the child's blob URL returned null: ${popup === null}`);
+    });
+</script>

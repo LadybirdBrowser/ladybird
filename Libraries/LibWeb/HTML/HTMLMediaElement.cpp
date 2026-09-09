@@ -1289,8 +1289,13 @@ void HTMLMediaElement::load_url_resource(URL::URL const& url_record, Function<vo
             // then set mode to local.
 
             // NB: The subsequent steps for local resources are contained in load_local_resource().
-            auto const& blob_entry = FileAPI::resolve_a_blob_url(url_record).value();
-            load_local_resource(blob_entry.object.get<GC::Ref<MediaSourceExtensions::MediaSource>>(), move(failure_callback));
+            // NB: A MediaSource is only usable from the process that created it.
+            auto blob_entry = FileAPI::local_blob_url_entry(url_record);
+            if (!blob_entry.has_value()) {
+                failure_callback(u"Media provider object was created by another process"_utf16);
+                return;
+            }
+            load_local_resource(blob_entry->object.get<GC::Ref<MediaSourceExtensions::MediaSource>>(), move(failure_callback));
             return;
         }
     }

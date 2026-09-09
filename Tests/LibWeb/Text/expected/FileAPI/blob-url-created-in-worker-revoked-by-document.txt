@@ -1,0 +1,3 @@
+document fetched: from worker
+document fetch after revoke: Request has an invalid 'blob:' URL
+worker fetch failed: Request has an invalid 'blob:' URL

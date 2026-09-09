@@ -41,4 +41,5 @@ endpoint WebWorkerServer {
     broadcast_channel_message(Web::HTML::BroadcastChannelMessage message) =|
 
     handle_file_return(i32 error, Optional<IPC::File> file, i32 request_id) =|
+    blob_url_entry_removed(Utf16String url) =|
 }

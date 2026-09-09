@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A blob URL created in a cross-site iframe navigates a sibling frame to a document with the iframe's origin,
+    // hosted in the iframe's process.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const corsHeaders = { "Access-Control-Allow-Origin": "*" };
+
+        // A reporter publishes its report as an echo, then releases the parent's request for it.
+        const report = async (name, body) => {
+            const path = `/echo/oop-blob-${name}-${runId}`;
+            await fetch(`${httpServer.baseURL}/echo`, {
+                method: "POST",
+                mode: "no-cors",
+                body: JSON.stringify({ method: "GET", path, status: 200, headers: corsHeaders, body }),
+            });
+            fetch(`${httpServer.baseURL}/unblock/oop-blob-${name}-${runId}`, { mode: "no-cors" });
+        };
+        const awaitReport = async name => {
+            const ready = await httpServer.createEcho("GET", `/oop-blob-${name}-ready-${runId}`, {
+                status: 204,
+                headers: corsHeaders,
+                wait_for_unblock: `oop-blob-${name}-${runId}`,
+            });
+            await fetch(ready);
+            return (await fetch(`${httpServer.baseURL}/echo/oop-blob-${name}-${runId}`)).text();
+        };
+
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-blob-creator-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    const report = ${report.toString()};
+                    const httpServer = { baseURL: ${JSON.stringify(httpServer.baseURL)} };
+                    const runId = ${JSON.stringify(runId)};
+                    const corsHeaders = ${JSON.stringify(corsHeaders)};
+                    const html = "<!DOCTYPE html><body>hello from a blob<script>"
+                        + "const report = " + report.toString() + ";"
+                        + "const httpServer = " + JSON.stringify(httpServer) + ", runId = " + JSON.stringify(runId) + ", corsHeaders = " + JSON.stringify(corsHeaders) + ";"
+                        + "const origin = location.origin === " + JSON.stringify(location.origin) + " ? 'origin matches' : 'origin differs';"
+                        + "report('document', origin + ', body: ' + document.body.firstChild.textContent);"
+                        + "<\\/script>";
+                    report("url", URL.createObjectURL(new Blob([html], { type: "text/html" })));
+                <\/script>`,
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("oop-blob-creator");
+
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+
+        const blobFrame = document.createElement("iframe");
+        blobFrame.src = await awaitReport("url");
+        document.body.appendChild(blobFrame);
+
+        println(`blob document: ${await awaitReport("document")}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

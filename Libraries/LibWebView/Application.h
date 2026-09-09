@@ -35,6 +35,7 @@
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/VisibilityState.h>
+#include <LibWebView/BlobURLStore.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/BrowserProcess.h>
 #include <LibWebView/DownloadStore.h>
@@ -149,6 +150,8 @@ public:
     static CookieJar& cookie_jar(IsPrivate);
     static HSTSStore& hsts_store(IsPrivate);
     static StorageJar& storage_jar(IsPrivate);
+    static BlobURLStore& blob_url_store(IsPrivate);
+    static void remove_blob_url_entries_added_by(BlobURLEntryOwner const&, IsPrivate);
     static SessionStore& session_store(IsPrivate);
 
     static ProcessManager& process_manager() { return *the().m_process_manager; }
@@ -563,6 +566,7 @@ private:
     OwnPtr<CookieJar> m_cookie_jar;
     OwnPtr<HSTSStore> m_hsts_store;
     OwnPtr<StorageJar> m_storage_jar;
+    OwnPtr<BlobURLStore> m_blob_url_store;
     OwnPtr<DownloadStore> m_download_store;
     OwnPtr<PrivateBrowsingSession> m_private_browsing_session;
     RefPtr<Database::Database> m_session_database;

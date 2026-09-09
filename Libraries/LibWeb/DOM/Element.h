@@ -211,7 +211,7 @@ public:
     Utf16String get_attribute_value(Utf16FlyString const& local_name, Optional<Utf16FlyString> const& namespace_ = {}) const;
 
     Utf16String get_an_elements_target(Optional<Utf16String> target = {}) const;
-    HTML::TokenizedFeature::NoOpener get_an_elements_noopener(URL::URL const& url, Utf16View target) const;
+    HTML::TokenizedFeature::NoOpener get_an_elements_noopener(URL::URL const& url, Utf16View target);
 
     bool cannot_navigate() const;
 

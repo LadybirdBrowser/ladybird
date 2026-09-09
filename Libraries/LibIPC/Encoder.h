@@ -148,10 +148,7 @@ template<>
 ErrorOr<void> encode(Encoder&, Core::AnonymousBuffer const&);
 
 template<>
-ErrorOr<void> encode(Encoder&, URL::BlobURLEntry::Blob const&);
-
-template<>
-ErrorOr<void> encode(Encoder&, URL::BlobURLEntry::MediaSource const&);
+ErrorOr<void> encode(Encoder&, URL::BlobURLEntry const&);
 
 template<Concepts::Span T>
 requires(!IsArithmetic<typename T::ElementType>)

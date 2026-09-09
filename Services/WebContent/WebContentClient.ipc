@@ -20,6 +20,7 @@
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/StyleSheetIdentifier.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
+#include <LibWeb/FileAPI/SerializedBlobURLEntry.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
 #include <LibWeb/HTML/BroadcastChannelMessage.h>
@@ -63,6 +64,10 @@ endpoint WebContentClient
     match_system_font(String family, u16 weight, u16 width, u8 slope) => (u64 face_id, u32 ttc_index, u8 format, Optional<IPC::File> file)
     match_system_font_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) => (u64 face_id, u32 ttc_index, u8 format, Optional<IPC::File> file)
     resolve_generic_font(String family, u16 weight, u8 slope) => (Optional<String> resolved_family)
+
+    did_add_blob_url_entry(Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry) => ()
+    did_remove_blob_url_entries(Vector<Utf16String> urls, URL::Origin origin) => ()
+    did_request_blob_url_entry(Utf16String url) => (Optional<Web::FileAPI::SerializedBlobURLEntry> entry)
 
     allocate_compositor_context_id(u64 page_id, Web::Compositor::PagePresentationRegistration page_presentation_registration) => (Web::Compositor::CompositorContextId context_id)
     did_destroy_compositor_context(Web::Compositor::CompositorContextId context_id) =|

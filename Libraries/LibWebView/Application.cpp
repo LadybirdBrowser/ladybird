@@ -42,6 +42,7 @@
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/AutocompleteService.h>
+#include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CompositorClient.h>
 #include <LibWebView/CompositorFontServiceConnection.h>
 #include <LibWebView/CookieJar.h>
@@ -282,6 +283,18 @@ StorageJar& Application::storage_jar(IsPrivate is_private)
     return is_private == IsPrivate::Yes
         ? *the().ensure_private_browsing_session().storage_jar
         : *the().m_storage_jar;
+}
+
+BlobURLStore& Application::blob_url_store(IsPrivate is_private)
+{
+    return is_private == IsPrivate::Yes
+        ? *the().ensure_private_browsing_session().blob_url_store
+        : *the().m_blob_url_store;
+}
+
+void Application::remove_blob_url_entries_added_by(BlobURLEntryOwner const& client, IsPrivate is_private)
+{
+    blob_url_store(is_private).remove_entries_added_by(client);
 }
 
 SessionStore& Application::session_store(IsPrivate is_private)
@@ -1145,6 +1158,7 @@ PrivateBrowsingSession& Application::ensure_private_browsing_session()
         m_private_browsing_session = adopt_own(*new PrivateBrowsingSession {
             .cookie_jar = CookieJar::create(IsPrivate::Yes),
             .storage_jar = StorageJar::create(),
+            .blob_url_store = make<BlobURLStore>(),
             .hsts_store = HSTSStore::create(),
             .favicon_store = FaviconStore::create(),
             .history_store = HistoryStore::create_disabled(),
@@ -1623,6 +1637,8 @@ ErrorOr<void> Application::launch_services()
         m_download_store = DownloadStore::create_disabled();
         m_session_store = SessionStore::create();
     }
+
+    m_blob_url_store = make<BlobURLStore>();
 
     if (should_remove_unreferenced_favicons) {
         auto referenced_hashes = m_bookmark_store->favicon_hashes();

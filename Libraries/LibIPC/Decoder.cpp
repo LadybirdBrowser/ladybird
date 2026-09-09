@@ -125,16 +125,21 @@ ErrorOr<URL::URL> decode(Decoder& decoder)
     if (!url.has_value())
         return Error::from_string_view("Failed to parse URL in IPC Decode"sv);
 
-    bool has_blob_url = TRY(decoder.decode<bool>());
-    if (!has_blob_url)
-        return url.release_value();
-
-    url->set_blob_url_entry(URL::BlobURLEntry {
-        .object = TRY(decoder.decode<URL::BlobURLEntry::Object>()),
-        .environment { .origin = TRY(decoder.decode<URL::Origin>()) },
-    });
-
+    url->set_blob_url_entry(TRY(decoder.decode<Optional<URL::BlobURLEntry>>()));
     return url.release_value();
+}
+
+template<>
+ErrorOr<URL::BlobURLEntry> decode(Decoder& decoder)
+{
+    URL::BlobURLEntry::Object object = URL::BlobURLEntry::MediaSource {};
+    if (TRY(decoder.decode<bool>())) {
+        auto type = TRY(decoder.decode<String>());
+        auto data = TRY(decoder.decode<ByteBuffer>());
+        object = URL::BlobURLEntry::Blob { .type = move(type), .data = move(data) };
+    }
+    auto origin = TRY(decoder.decode<URL::Origin>());
+    return URL::BlobURLEntry { .object = move(object), .environment { .origin = move(origin) } };
 }
 
 template<>
@@ -184,21 +189,6 @@ ErrorOr<Core::AnonymousBuffer> decode(Decoder& decoder)
     auto anon_file = TRY(decoder.decode<IPC::File>());
 
     return Core::AnonymousBuffer::create_from_anon_fd(anon_file.take_fd(), size);
-}
-
-template<>
-ErrorOr<URL::BlobURLEntry::Blob> decode<URL::BlobURLEntry::Blob>(Decoder& decoder)
-{
-    return URL::BlobURLEntry::Blob {
-        .type = TRY(decoder.decode<String>()),
-        .data = TRY(decoder.decode<ByteBuffer>())
-    };
-}
-
-template<>
-ErrorOr<URL::BlobURLEntry::MediaSource> decode<URL::BlobURLEntry::MediaSource>(Decoder&)
-{
-    return URL::BlobURLEntry::MediaSource {};
 }
 
 }

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A worker's blob URL entries leave the user agent's blob URL store with the worker.
+    asyncTest(async done => {
+        const workerScript = `
+            const url = URL.createObjectURL(new Blob(["from worker"], { type: "text/plain" }));
+            self.postMessage(url);
+        `;
+        const scriptURL = URL.createObjectURL(new Blob([workerScript], { type: "application/javascript" }));
+        const worker = new Worker(scriptURL);
+
+        worker.onmessage = async event => {
+            const url = event.data;
+            println(`before terminate: ${await (await fetch(url)).text()}`);
+
+            worker.terminate();
+            URL.revokeObjectURL(scriptURL);
+            for (let attempt = 0; attempt < 600; ++attempt) {
+                try {
+                    await fetch(url);
+                } catch (e) {
+                    println(`after terminate: ${e.message}`);
+                    done();
+                    return;
+                }
+                await timeout(25);
+            }
+            println("the blob URL outlived its worker");
+            done();
+        };
+    });
+</script>

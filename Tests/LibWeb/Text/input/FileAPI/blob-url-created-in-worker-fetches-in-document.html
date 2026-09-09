@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A blob URL created in a worker is in the user agent's blob URL store, so its owner document can fetch it.
+    asyncTest(async done => {
+        const workerScript = `
+            const url = URL.createObjectURL(new Blob(["from worker"], { type: "text/plain" }));
+            self.postMessage(url);
+        `;
+        const scriptURL = URL.createObjectURL(new Blob([workerScript], { type: "application/javascript" }));
+        const worker = new Worker(scriptURL);
+
+        worker.onmessage = async event => {
+            const response = await fetch(event.data);
+            println(`fetched: ${await response.text()} (${response.headers.get("Content-Type")})`);
+            worker.terminate();
+            URL.revokeObjectURL(scriptURL);
+            done();
+        };
+    });
+</script>

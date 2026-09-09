@@ -8,6 +8,8 @@
 #include <LibCore/System.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/SharedFontProvider.h>
+#include <LibWeb/DOMURL/DOMURL.h>
+#include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/HTML/BroadcastChannel.h>
 #include <LibWeb/HTML/WorkerAgentParent.h>
 #include <LibWeb/Platform/FontPlugin.h>
@@ -123,6 +125,12 @@ void ConnectionFromClient::request_file(Web::FileRequest request)
     auto path = request.path();
     m_requested_files.set(request_id, move(request));
     async_did_request_file(path, request_id);
+}
+
+void ConnectionFromClient::blob_url_entry_removed(Utf16String url)
+{
+    if (auto url_record = Web::DOMURL::parse(url.utf16_view()); url_record.has_value())
+        Web::FileAPI::remove_entry_from_blob_url_store(*url_record);
 }
 
 ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport)

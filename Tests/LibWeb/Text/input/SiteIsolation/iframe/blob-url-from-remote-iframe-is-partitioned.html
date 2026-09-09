@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A blob URL created in a cross-site iframe is in the user agent's blob URL store: the parent's fetch of it
+    // fails for not being allowed the object, and for having no entry once the child has revoked it.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const corsHeaders = { "Access-Control-Allow-Origin": "*" };
+
+        // The child publishes its blob URLs as an echo, then releases the parent's request for them.
+        const urlsPath = `/echo/oop-blob-urls-${runId}`;
+        const urlsReady = await httpServer.createEcho("GET", `/oop-blob-urls-ready-${runId}`, {
+            status: 204,
+            headers: corsHeaders,
+            wait_for_unblock: `oop-blob-urls-${runId}`,
+        });
+
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-blob-child-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    const kept = URL.createObjectURL(new Blob(["hello"], { type: "text/plain" }));
+                    const revoked = URL.createObjectURL(new Blob(["gone"], { type: "text/plain" }));
+                    URL.revokeObjectURL(revoked);
+                    fetch("${httpServer.baseURL}/echo", {
+                        method: "POST",
+                        mode: "no-cors",
+                        body: JSON.stringify({ method: "GET", path: "${urlsPath}", status: 200, headers: ${JSON.stringify(corsHeaders)}, body: JSON.stringify({ kept, revoked }) }),
+                    }).then(() => fetch("${httpServer.baseURL}/unblock/oop-blob-urls-${runId}", { mode: "no-cors" }));
+                <\/script>`,
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("oop-blob-child");
+
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+
+        await fetch(urlsReady);
+        const urls = await (await fetch(`${httpServer.baseURL}${urlsPath}`)).json();
+
+        const fetchError = async url => {
+            try {
+                await fetch(url, { mode: "no-cors" });
+                return "no error";
+            } catch (e) {
+                return e.message;
+            }
+        };
+        println(`fetch of the child's blob URL: ${await fetchError(urls.kept)}`);
+        println(`fetch of the child's revoked blob URL: ${await fetchError(urls.revoked)}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

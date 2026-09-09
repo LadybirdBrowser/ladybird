@@ -144,10 +144,7 @@ template<>
 ErrorOr<Core::AnonymousBuffer> decode(Decoder&);
 
 template<>
-ErrorOr<URL::BlobURLEntry::Blob> decode(Decoder&);
-
-template<>
-ErrorOr<URL::BlobURLEntry::MediaSource> decode(Decoder&);
+ErrorOr<URL::BlobURLEntry> decode(Decoder&);
 
 template<Concepts::Array T>
 ErrorOr<T> decode(Decoder& decoder)

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A document may revoke a blob URL its same-origin worker created, and the worker cannot use it once told.
+    asyncTest(async done => {
+        const workerScript = `
+            const url = URL.createObjectURL(new Blob(["from worker"], { type: "text/plain" }));
+            self.onmessage = async () => {
+                for (let attempt = 0; attempt < 600; ++attempt) {
+                    try {
+                        await fetch(url);
+                    } catch (e) {
+                        self.postMessage("worker fetch failed: " + e.message);
+                        return;
+                    }
+                    await new Promise(resolve => setTimeout(resolve, 25));
+                }
+                self.postMessage("worker fetched after the revoke");
+            };
+            self.postMessage(url);
+        `;
+        const scriptURL = URL.createObjectURL(new Blob([workerScript], { type: "application/javascript" }));
+        const worker = new Worker(scriptURL);
+
+        worker.onmessage = async event => {
+            const url = event.data;
+            println(`document fetched: ${await (await fetch(url)).text()}`);
+
+            URL.revokeObjectURL(url);
+            try {
+                await fetch(url);
+                println("document fetch after revoke: no error");
+            } catch (e) {
+                println(`document fetch after revoke: ${e.message}`);
+            }
+
+            worker.onmessage = event => {
+                println(event.data);
+                worker.terminate();
+                URL.revokeObjectURL(scriptURL);
+                done();
+            };
+            worker.postMessage("fetch");
+        };
+    });
+</script>

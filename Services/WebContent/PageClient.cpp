@@ -1490,6 +1490,28 @@ void PageClient::request_file(Web::FileRequest file_request)
     client().request_file(m_id, move(file_request));
 }
 
+void PageClient::page_did_add_blob_url_entry(Utf16String const& url, Web::FileAPI::SerializedBlobURLEntry const& entry)
+{
+    if (!client().send_sync_but_allow_failure<Messages::WebContentClient::DidAddBlobUrlEntry>(url, entry))
+        dbgln("WebContent client disconnected during DidAddBlobUrlEntry");
+}
+
+void PageClient::page_did_remove_blob_url_entries(Vector<Utf16String> const& urls, URL::Origin const& origin)
+{
+    if (!client().send_sync_but_allow_failure<Messages::WebContentClient::DidRemoveBlobUrlEntries>(urls, origin))
+        dbgln("WebContent client disconnected during DidRemoveBlobUrlEntries");
+}
+
+Optional<Web::FileAPI::SerializedBlobURLEntry> PageClient::page_did_request_blob_url_entry(Utf16String const& url)
+{
+    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestBlobUrlEntry>(url);
+    if (!response) {
+        dbgln("WebContent client disconnected during DidRequestBlobUrlEntry");
+        return {};
+    }
+    return response->take_entry();
+}
+
 void PageClient::page_did_request_color_picker(Color current_color)
 {
     client().async_did_request_color_picker(m_id, current_color);

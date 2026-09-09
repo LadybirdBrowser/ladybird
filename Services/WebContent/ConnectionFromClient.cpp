@@ -50,8 +50,10 @@
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/Text.h>
+#include <LibWeb/DOMURL/DOMURL.h>
 #include <LibWeb/Dump.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
+#include <LibWeb/FileAPI/BlobURLStore.h>
 #include <LibWeb/Geometry/DOMRect.h>
 #include <LibWeb/HTML/AutoplaySettings.h>
 #include <LibWeb/HTML/BroadcastChannel.h>
@@ -2614,6 +2616,12 @@ void ConnectionFromClient::request_file(u64 page_id, Web::FileRequest file_reque
     m_requested_files.set(id, move(file_request));
 
     async_did_request_file(page_id, path, id);
+}
+
+void ConnectionFromClient::blob_url_entry_removed(Utf16String url)
+{
+    if (auto url_record = Web::DOMURL::parse(url.utf16_view()); url_record.has_value())
+        Web::FileAPI::remove_entry_from_blob_url_store(*url_record);
 }
 
 void ConnectionFromClient::update_visibility_state(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::VisibilityState visibility_state)
