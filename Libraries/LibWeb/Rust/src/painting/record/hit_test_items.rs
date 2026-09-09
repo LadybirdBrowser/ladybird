@@ -30,8 +30,6 @@ pub(crate) struct HitTestFacts {
     pub(crate) could_be_scrolled_vertically: bool,
     pub(crate) svg_path_has_fill: bool,
     pub(crate) svg_path_winding_rule: WindingRule,
-    pub(crate) svg_mask_content_units_object_bbox: bool,
-    pub(crate) svg_clip_path_units_object_bbox: bool,
 }
 
 pub(crate) fn hit_test_facts(
@@ -43,8 +41,6 @@ pub(crate) fn hit_test_facts(
     let Some(style) = arena.node_style_if_live(paintable) else {
         return HitTestFacts {
             dom_node_has_parent: dom.dom_node_has_parent,
-            svg_mask_content_units_object_bbox: dom.svg_mask_content_units_object_bbox,
-            svg_clip_path_units_object_bbox: dom.svg_clip_path_units_object_bbox,
             ..HitTestFacts::default()
         };
     };
@@ -72,8 +68,6 @@ pub(crate) fn hit_test_facts(
         } else {
             WindingRule::Nonzero
         },
-        svg_mask_content_units_object_bbox: dom.svg_mask_content_units_object_bbox,
-        svg_clip_path_units_object_bbox: dom.svg_clip_path_units_object_bbox,
     }
 }
 

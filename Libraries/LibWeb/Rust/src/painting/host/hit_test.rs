@@ -14,8 +14,6 @@ use std::ffi::c_void;
 #[repr(C)]
 pub struct FfiHitTestPaintableFacts {
     pub dom_node_has_parent: bool,
-    pub svg_mask_content_units_object_bbox: bool,
-    pub svg_clip_path_units_object_bbox: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default)]

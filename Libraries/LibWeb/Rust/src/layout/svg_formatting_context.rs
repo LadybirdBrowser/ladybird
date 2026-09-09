@@ -476,6 +476,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         let mut rare = used.rare_data_mut();
         rare.svg_view_box = facts.has_active_view_box.then_some(facts.active_view_box);
         rare.svg_viewport_percentage_basis = facts.viewport_percentage_basis;
+        rare.svg_resource_content_units_are_object_bounding_box = facts.content_units == SVG_UNITS_OBJECT_BOUNDING_BOX;
     }
 
     fn place_child(&self, node: Node, x: CssPixels, y: CssPixels) {

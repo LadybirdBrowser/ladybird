@@ -780,14 +780,6 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
             Layout::RustFFI::FfiHitTestPaintableFacts facts {};
             auto dom_node = layout_node.dom_node();
             facts.dom_node_has_parent = dom_node && dom_node->parent();
-            if (auto const* graphics_element = as_if<SVG::SVGGraphicsElement>(dom_node); graphics_element && graphics_element->unsafe_layout_node()) {
-                for (auto child = graphics_element->unsafe_layout_node()->first_child(); child; child = child->next_sibling()) {
-                    if (child->kind() == Layout::RustFFI::NodeKind::SVGMaskBox)
-                        facts.svg_mask_content_units_object_bbox = as<SVG::SVGMaskElement>(*child->dom_node()).mask_content_units() == SVG::MaskContentUnits::ObjectBoundingBox;
-                    else if (child->kind() == Layout::RustFFI::NodeKind::SVGClipBox)
-                        facts.svg_clip_path_units_object_bbox = as<SVG::SVGClipPathElement>(*child->dom_node()).clip_path_units() == SVG::ClipPathUnits::ObjectBoundingBox;
-                }
-            }
             return facts;
         },
         .line_break_caret_targets = [](void*, void* layout_node_shell, void* sink) {
