@@ -321,12 +321,16 @@ pub(crate) fn paint_image_foreground<O: Observer>(recorder: &mut PaintRecorder<'
 }
 
 pub(crate) fn paint_canvas_foreground<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
-    let facts = replaced_facts(recorder, paintable);
+    let facts = recorder
+        .layout_arena
+        .replaced_paint_facts(paintable)
+        .and_then(|facts| facts.canvas())
+        .unwrap_or_default();
     let (_, image_rendering) = replaced_style(recorder, paintable);
     let canvas_rect = recorder
         .converter
         .rounded_device_rect(absolute_rect(recorder.layout_arena, paintable));
-    if !facts.has_canvas_content {
+    if !facts.has_content {
         return;
     }
     let (content_rect, corner_radii) = replaced_content_clip_geometry(recorder, paintable);
@@ -335,13 +339,13 @@ pub(crate) fn paint_canvas_foreground<O: Observer>(recorder: &mut PaintRecorder<
     recorder.record_with_inline_clips(corner_clip.as_slice(), |recorder| {
         let scaling_mode = to_gfx_scaling_mode(
             image_rendering,
-            (facts.canvas_content_width, facts.canvas_content_height),
+            (facts.content_width, facts.content_height),
             (canvas_rect.width, canvas_rect.height),
         );
         recorder.recorder.draw_canvas(
             canvas_rect,
             CanvasId(facts.canvas_id),
-            facts.canvas_content_generation,
+            facts.content_generation,
             scaling_mode,
         );
     });

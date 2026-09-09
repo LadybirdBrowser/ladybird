@@ -16,7 +16,6 @@
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Layout/Node.h>
-#include <LibWeb/Painting/BoxViews.h>
 
 namespace Web::HTML {
 
@@ -57,11 +56,9 @@ void CanvasRenderingContext2D::did_draw_hook()
 {
     m_element->set_canvas_content_dirty();
 
-    // NB: Invalidate the cached DrawCanvas command so that if another change causes the display list to be recorded, it
-    // contains the new content generation and damages the canvas. Don't request a display list recording here: the new
-    // content reaches the compositor through the canvas surface registry when the canvas is presented.
-    if (auto const* layout_node = m_element->unsafe_layout_node(); layout_node && Painting::has_committed_box(*layout_node))
-        Painting::invalidate_paint_cache(*layout_node);
+    // NB: Don't request a display list recording here: the new content reaches the compositor through the canvas
+    // surface registry when the canvas is presented, and the cached DrawCanvas command is invalidated when the
+    // content generation moves in prepare_for_compositing.
     m_element->set_needs_repaint(InvalidateDisplayList::No);
 }
 

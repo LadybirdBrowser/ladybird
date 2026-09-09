@@ -194,11 +194,6 @@ pub struct FfiReplacedPaintFacts {
     pub natural_aspect_ratio_numerator: crate::css::css_pixels::CssPixels,
     pub natural_aspect_ratio_denominator: crate::css::css_pixels::CssPixels,
     pub selection_background_color: Color,
-    pub has_canvas_content: bool,
-    pub canvas_content_width: i32,
-    pub canvas_content_height: i32,
-    pub canvas_id: u64,
-    pub canvas_content_generation: u64,
     pub video_representation: FfiVideoRepresentation,
     pub has_video_frame: bool,
     pub video_src_width: i32,
@@ -380,6 +375,16 @@ pub struct FfiFormControlPaintFacts {
     pub checked: bool,
     pub indeterminate: bool,
     pub being_activated: bool,
+}
+
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiCanvasPaintFacts {
+    pub has_content: bool,
+    pub content_width: i32,
+    pub content_height: i32,
+    pub canvas_id: u64,
+    pub content_generation: u64,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

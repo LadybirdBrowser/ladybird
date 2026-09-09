@@ -127,7 +127,7 @@ pub(crate) fn paint_check_box_foreground<O: Observer>(recorder: &mut PaintRecord
     let facts = recorder
         .layout_arena
         .replaced_paint_facts(paintable)
-        .map(|facts| facts.form_control())
+        .and_then(|facts| facts.form_control())
         .unwrap_or_default();
     let system_colors = form_control_system_colors(recorder, paintable);
     let enabled = facts.enabled;
@@ -231,7 +231,7 @@ pub(crate) fn paint_radio_button_foreground<O: Observer>(recorder: &mut PaintRec
     let facts = recorder
         .layout_arena
         .replaced_paint_facts(paintable)
-        .map(|facts| facts.form_control())
+        .and_then(|facts| facts.form_control())
         .unwrap_or_default();
     let system_colors = form_control_system_colors(recorder, paintable);
     let canvas_color = system_colors.canvas;

@@ -33,6 +33,7 @@
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Platform/FontPlugin.h>
 #include <LibWeb/WebGL/WebGL2RenderingContext.h>
@@ -215,6 +216,7 @@ void HTMLCanvasElement::notify_context_about_canvas_size_change()
         [](Empty) {
             // Do nothing.
         });
+    Painting::push_canvas_paint_facts(*this);
 }
 
 void HTMLCanvasElement::set_width(unsigned value)
@@ -464,28 +466,29 @@ void HTMLCanvasElement::set_canvas_content_dirty()
 
 void HTMLCanvasElement::prepare_for_compositing()
 {
-    if (!m_canvas_content_dirty)
-        return;
-    m_canvas_content_dirty = false;
+    if (m_canvas_content_dirty) {
+        m_canvas_content_dirty = false;
 
-    // NB: The content generation is recorded into DrawCanvas display list commands, letting display list damage
-    //     computation see that the canvas content changed. Canvases are prepared for compositing before painting
-    //     in the rendering update, so display lists recorded in the same update pick up the new generation.
-    ++m_content_generation;
+        // NB: The content generation is recorded into DrawCanvas display list commands, letting display list damage
+        //     computation see that the canvas content changed. Canvases are prepared for compositing before painting
+        //     in the rendering update, so display lists recorded in the same update pick up the new generation.
+        ++m_content_generation;
 
-    m_context.visit(
-        [](GC::Ref<CanvasRenderingContext2D>& context) {
-            context->prepare_for_compositing();
-        },
-        [](GC::Ref<WebGL::WebGLRenderingContext>& context) {
-            context->prepare_for_compositing();
-        },
-        [](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
-            context->prepare_for_compositing();
-        },
-        [](Empty) {
-            // Do nothing.
-        });
+        m_context.visit(
+            [](GC::Ref<CanvasRenderingContext2D>& context) {
+                context->prepare_for_compositing();
+            },
+            [](GC::Ref<WebGL::WebGLRenderingContext>& context) {
+                context->prepare_for_compositing();
+            },
+            [](GC::Ref<WebGL::WebGL2RenderingContext>& context) {
+                context->prepare_for_compositing();
+            },
+            [](Empty) {
+                // Do nothing.
+            });
+    }
+    Painting::push_canvas_paint_facts(*this);
 }
 
 void HTMLCanvasElement::notify_compositor_backing_storage_lost()
