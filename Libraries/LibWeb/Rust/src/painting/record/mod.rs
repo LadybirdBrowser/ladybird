@@ -227,12 +227,89 @@ impl<O: Observer> PaintRecorder<'_, O> {
         if let Some(answer) = self.selection_style_cache.get(&key) {
             return answer.clone();
         }
-        let (facts, shadows) = self
-            .paint_host
-            .selection_style_facts(self.layout_arena.shell_if_live(node));
-        let answer = Rc::new(paint::text::SelectionStyleAnswer { facts, shadows });
+        let answer = self
+            .committed_selection_pseudo_style_for_text(node)
+            .unwrap_or_else(|| Rc::new(self.default_selection_style_for_text(node)));
         self.selection_style_cache.insert(key, answer.clone());
         answer
+    }
+
+    fn committed_selection_pseudo_style_for_text(
+        &self,
+        text_node: crate::layout::node_data::NodeSlotId,
+    ) -> Option<Rc<paint::text::SelectionStyleAnswer>> {
+        let styles = &self.paint_state.selection_pseudo_styles;
+        if let Some(answer) = styles.get(&text_node) {
+            return Some(answer.clone());
+        }
+        let element_row = self.first_non_anonymous_ancestor_row(text_node)?;
+        if let Some(answer) = styles.get(&element_row) {
+            return Some(answer.clone());
+        }
+        if self.layout_arena.node_flags_if_live(element_row) & NodeFlag::IsInUserAgentShadowTree as u32 == 0 {
+            return None;
+        }
+        let mut host_row = self.layout_arena.data(element_row).parent.get();
+        while !host_row.is_invalid()
+            && self.layout_arena.node_flags_if_live(host_row) & NodeFlag::IsInUserAgentShadowTree as u32 != 0
+        {
+            host_row = self.layout_arena.data(host_row).parent.get();
+        }
+        if host_row.is_invalid() {
+            return None;
+        }
+        styles.get(&host_row).cloned()
+    }
+
+    fn first_non_anonymous_ancestor_row(
+        &self,
+        node: crate::layout::node_data::NodeSlotId,
+    ) -> Option<crate::layout::node_data::NodeSlotId> {
+        let mut row = self.layout_arena.data(node).parent.get();
+        while !row.is_invalid() {
+            if self.layout_arena.node_flags_if_live(row) & NodeFlag::Anonymous as u32 == 0 {
+                return Some(row);
+            }
+            row = self.layout_arena.data(row).parent.get();
+        }
+        None
+    }
+
+    fn default_selection_style_for_text(
+        &self,
+        text_node: crate::layout::node_data::NodeSlotId,
+    ) -> paint::text::SelectionStyleAnswer {
+        use crate::css::color_resolution::{PREFERRED_COLOR_SCHEME_DARK, PREFERRED_COLOR_SCHEME_LIGHT};
+        let inputs = &self.inputs;
+        let style_source = self.layout_arena.data(text_node).parent.get();
+        let (color_scheme, color_scheme_is_normal) =
+            self.layout_arena
+                .node_style_if_live(style_source)
+                .map_or((0, true), |style| {
+                    let ui = style.inherited_ui();
+                    (ui.color_scheme, ui.color_schemes.as_slice().is_empty())
+                });
+        let use_palette_for_normal_color_scheme = self.layout_arena.node_dom_node(text_node).is_null()
+            || (color_scheme_is_normal && !inputs.document_has_supported_color_schemes);
+        let palette_color_scheme = if inputs.palette_is_dark {
+            PREFERRED_COLOR_SCHEME_DARK
+        } else {
+            PREFERRED_COLOR_SCHEME_LIGHT
+        };
+        let background_color = if color_scheme == palette_color_scheme || use_palette_for_normal_color_scheme {
+            inputs.selection_background_from_palette
+        } else if color_scheme == PREFERRED_COLOR_SCHEME_DARK {
+            inputs.selection_background_dark
+        } else {
+            inputs.selection_background_light
+        };
+        paint::text::SelectionStyleAnswer {
+            facts: crate::painting::host::FfiSelectionStyleFacts {
+                background_color,
+                ..Default::default()
+            },
+            shadows: Vec::new(),
+        }
     }
 
     pub(crate) fn border_radii(&mut self, paintable: NodeSlotId) -> BorderRadii {

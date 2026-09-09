@@ -884,6 +884,7 @@ impl LayoutNodeArena {
         }
         self.fc_run_cache_store.remove_entry(index);
         self.raw_table_column_spans.remove(&id);
+        self.paint_state.get_mut().selection_pseudo_styles.remove(&id);
         let data = self.data_mut(index);
         debug_assert!(
             data.parent.get().is_invalid()

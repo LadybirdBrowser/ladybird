@@ -902,29 +902,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
             }
             return facts;
         },
-        .selection_style_facts = [](void*, void* layout_node_shell, void* shadow_sink) -> Layout::RustFFI::FfiSelectionStyleFacts {
-            Layout::RustFFI::FfiSelectionStyleFacts facts {};
-            auto const* text_node = as_if<Layout::TextNode>(static_cast<Layout::Node const*>(layout_node_shell));
-            if (!text_node)
-                return facts;
-            auto style = selection_style_for_node(*text_node, text_node->dom_text());
-            facts.background_color = style.background_color;
-            facts.text_color = style.text_color;
-            if (style.text_shadow.has_value()) {
-                facts.has_text_shadow = true;
-                for (auto const& layer : *style.text_shadow)
-                    Layout::RustFFI::layout_arena_paint_push_selection_shadow(shadow_sink, layer.color, layer.offset_x, layer.offset_y, layer.blur_radius);
-            }
-            if (style.text_decoration.has_value()) {
-                facts.has_text_decoration = true;
-                facts.text_decoration_line_count = min(style.text_decoration->line.size(), array_size(facts.text_decoration_lines));
-                for (size_t i = 0; i < facts.text_decoration_line_count; ++i)
-                    facts.text_decoration_lines[i] = to_underlying(style.text_decoration->line[i]);
-                facts.text_decoration_style = to_underlying(style.text_decoration->style);
-                facts.text_decoration_color = style.text_decoration->color;
-            }
-            return facts;
-        },
         .layer_image_prepare = [](void*, void* layout_node_shell, Layout::RustFFI::FfiLayerImageList list, u32 computed_index) -> Layout::RustFFI::FfiLayerImagePrepareFacts {
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
             Layout::RustFFI::FfiLayerImagePrepareFacts facts {};
@@ -1270,6 +1247,12 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
         auto navigable = document.navigable();
         inputs.window_is_focused = navigable && navigable->is_focused();
         inputs.outline_auto_color = CSS::SystemColor::accent_color(CSS::PreferredColorScheme::Auto);
+        auto palette = document.page().palette();
+        inputs.palette_is_dark = palette.is_dark();
+        inputs.selection_background_from_palette = CSS::SystemColor::transform_selection_background_color(inputs.window_is_focused ? palette.selection() : palette.inactive_selection());
+        inputs.selection_background_light = CSS::SystemColor::transform_selection_background_color(inputs.window_is_focused ? CSS::SystemColor::highlight(CSS::PreferredColorScheme::Light) : CSS::SystemColor::inactive_highlight(CSS::PreferredColorScheme::Light));
+        inputs.selection_background_dark = CSS::SystemColor::transform_selection_background_color(inputs.window_is_focused ? CSS::SystemColor::highlight(CSS::PreferredColorScheme::Dark) : CSS::SystemColor::inactive_highlight(CSS::PreferredColorScheme::Dark));
+        inputs.document_has_supported_color_schemes = document.supported_color_schemes().has_value();
     }
     inputs.caret = resolve_document_caret_paint(document);
     inputs.focused_text_control = resolve_focused_text_control_selection(document);

@@ -2012,24 +2012,45 @@ pub unsafe extern "C" fn layout_arena_take_recording_trace(
 
 /// # Safety
 ///
-/// `sink` must be the pointer handed to the callback, used synchronously.
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread;
+/// `shadows` points at `shadow_count` layers, or is null when the count is zero.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paint_push_selection_shadow(
-    sink: *mut c_void,
-    color: libgfx_rust::Color,
-    offset_x: CssPixels,
-    offset_y: CssPixels,
-    blur_radius: CssPixels,
+pub unsafe extern "C" fn layout_arena_set_node_selection_pseudo_style(
+    arena: *mut c_void,
+    slot: NodeSlotId,
+    has_styling: bool,
+    facts: crate::painting::host::FfiSelectionStyleFacts,
+    shadows: *const crate::painting::host::FfiSelectionShadowLayer,
+    shadow_count: usize,
 ) {
-    // SAFETY: `sink` is the Vec pointer handed out by
-    // FfiPaintHostCallbacks::selection_style_facts.
-    let shadows = unsafe { &mut *sink.cast::<Vec<crate::painting::record::paint::text::ShadowLayer>>() };
-    shadows.push(crate::painting::record::paint::text::ShadowLayer {
-        color: color.0,
-        offset_x,
-        offset_y,
-        blur_radius,
-    });
+    let arena = unsafe { arena_from_handle(arena) };
+    let rows = arena.rows_sharing_dom_node_with(slot);
+    let mut paint_state = arena.paint_state().borrow_mut();
+    if !has_styling {
+        for row in rows {
+            paint_state.selection_pseudo_styles.remove(&row);
+        }
+        return;
+    }
+    let shadows = if shadow_count == 0 {
+        &[][..]
+    } else {
+        // SAFETY: The host passes `shadow_count` layers that stay alive for this call.
+        unsafe { std::slice::from_raw_parts(shadows, shadow_count) }
+    };
+    let shadows = shadows
+        .iter()
+        .map(|layer| crate::painting::record::paint::text::ShadowLayer {
+            color: layer.color.0,
+            offset_x: layer.offset_x,
+            offset_y: layer.offset_y,
+            blur_radius: layer.blur_radius,
+        })
+        .collect();
+    let answer = std::rc::Rc::new(crate::painting::record::paint::text::SelectionStyleAnswer { facts, shadows });
+    for row in rows {
+        paint_state.selection_pseudo_styles.insert(row, answer.clone());
+    }
 }
 
 /// # Safety

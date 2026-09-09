@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/selection-restyle-without-layout-ref.html">
+<style>
+    p {
+        font-size: 20px;
+        line-height: 1.5;
+        margin: 10px 0;
+    }
+    .restyled::selection {
+        background-color: transparent;
+        color: green;
+    }
+</style>
+<p id="target">Restyled after the selection was painted</p>
+<script>
+    const range = document.createRange();
+    range.selectNodeContents(document.getElementById("target").firstChild);
+    getSelection().addRange(range);
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.getElementById("target").className = "restyled";
+            requestAnimationFrame(() => {
+                if (window.internals)
+                    internals.signalTestIsDone("PASS");
+                else
+                    document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>
