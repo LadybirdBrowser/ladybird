@@ -118,6 +118,17 @@
   "-webkit-flex-wrap": {
     "legacy-alias-for": "flex-wrap"
   },
+  "-webkit-font-smoothing": {
+    "style-group": "InheritedTextValues",
+    "affects-layout": false,
+    "animation-type": "discrete",
+    "inherited": true,
+    "initial": "auto",
+    "requires-computation": "never",
+    "valid-types": [
+      "font-smoothing"
+    ]
+  },
   "-webkit-justify-content": {
     "legacy-alias-for": "justify-content"
   },

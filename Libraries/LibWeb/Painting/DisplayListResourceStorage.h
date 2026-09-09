@@ -66,6 +66,7 @@ struct DisplayListVideoSinkResource {
 struct DisplayListTextBlobCacheKey {
     u64 font_id { 0 };
     u32 scale_bits { 0 };
+    u8 font_smoothing { 0 };
     u64 glyph_hash { 0 };
 
     bool operator==(DisplayListTextBlobCacheKey const&) const = default;
@@ -136,7 +137,7 @@ public:
     sk_sp<SkImage> cached_nested_display_list_raster(DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect visible_rect_in_list_space, Gfx::IntRect& raster_rect_in_list_space) const;
     void add_cached_nested_display_list_raster(DisplayListResourceId, RefPtr<Gfx::SkiaBackendContext> const&, Gfx::IntRect rect_in_list_space, sk_sp<SkImage>) const;
     bool should_cache_nested_display_list_raster(DisplayListResourceId) const;
-    sk_sp<SkTextBlob> text_blob(FontResourceId, float scale, ReadonlySpan<DisplayListGlyph>) const;
+    sk_sp<SkTextBlob> text_blob(FontResourceId, float scale, ReadonlySpan<DisplayListGlyph>, u8 font_smoothing) const;
     RefPtr<Media::VideoSink const> video_sink(VideoSinkResourceId id) const;
     Optional<Media::VideoSinkHandle> video_sink_handle(VideoSinkResourceId id) const { return m_video_sink_handles.get(id.value()); }
     HashMap<u64, Media::VideoSinkHandle> const& video_sink_handles() const { return m_video_sink_handles; }
@@ -173,7 +174,7 @@ template<>
 struct Traits<Web::Painting::DisplayListTextBlobCacheKey> : public DefaultTraits<Web::Painting::DisplayListTextBlobCacheKey> {
     static unsigned hash(Web::Painting::DisplayListTextBlobCacheKey const& key)
     {
-        return pair_int_hash(u64_hash(key.font_id ^ key.glyph_hash), key.scale_bits);
+        return pair_int_hash(pair_int_hash(u64_hash(key.font_id ^ key.glyph_hash), key.scale_bits), key.font_smoothing);
     }
 };
 

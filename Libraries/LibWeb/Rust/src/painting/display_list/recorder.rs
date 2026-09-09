@@ -232,6 +232,7 @@ pub struct StrokePathParams<'a> {
 }
 
 pub struct GlyphRunForRecording<'a> {
+    pub font_smoothing: u8,
     pub font_id: FontResourceId,
     pub glyphs: &'a [DisplayListGlyph],
 }
@@ -945,6 +946,7 @@ impl DisplayListRecorder {
         let mut payload = CommandPayloadBuilder::new::<DrawGlyphRun>(&self.builder);
         let glyphs = payload.append_objects(run.glyphs);
         let command = DrawGlyphRun {
+            font_smoothing: run.font_smoothing,
             font_id: run.font_id,
             glyphs,
             rect,
@@ -990,6 +992,7 @@ impl DisplayListRecorder {
         let mut payload = CommandPayloadBuilder::new::<PaintTextShadow>(&self.builder);
         let glyphs = payload.append_objects(run.glyphs);
         let command = PaintTextShadow {
+            font_smoothing: run.font_smoothing,
             font_id: run.font_id,
             glyphs,
             shadow_bounding_rect: bounding_rect,

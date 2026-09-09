@@ -287,6 +287,7 @@ static void register_style_group_field_descriptors()
 
     using InheritedText = ComputedValues::InheritedTextValues;
     constexpr auto inherited_text = to_underlying(StyleGroupIndex::InheritedTextValues);
+    add(inherited_text, PropertyID::WebkitFontSmoothing, offsetof(InheritedText, font_smoothing), GROUP_FIELD_ENUM_KEYWORD, 0, &keyword_code_table<keyword_to_font_smoothing>());
     add(inherited_text, PropertyID::Color, offsetof(InheritedText, color), GROUP_FIELD_COLOR, 0, nullptr);
     add(inherited_text, PropertyID::Color, offsetof(InheritedText, color_style_value), GROUP_FIELD_RETAINED_DATA, 0, nullptr);
     add(inherited_text, PropertyID::WebkitTextFillColor, offsetof(InheritedText, webkit_text_fill_color), GROUP_FIELD_COLOR, 0, nullptr);

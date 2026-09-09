@@ -1,0 +1,13 @@
+initial: auto
+auto: supported=true, parent=auto, child=auto
+none: supported=true, parent=none, child=none
+antialiased: supported=true, parent=antialiased, child=antialiased
+subpixel-antialiased: supported=true, parent=subpixel-antialiased, child=subpixel-antialiased
+invalid grayscale: false
+invalid normal: false
+invalid antialiased auto: false
+invalid 1: false
+initial override: auto
+unset inherits: subpixel-antialiased
+inherited update: antialiased
+IDL: none, computed=none

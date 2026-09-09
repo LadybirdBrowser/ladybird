@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="parent"><span id="child">Text</span></div>
+<script>
+    test(() => {
+        const property = "-webkit-font-smoothing";
+        const parent = document.getElementById("parent");
+        const child = document.getElementById("child");
+        const value = element => getComputedStyle(element).getPropertyValue(property);
+        println(`initial: ${value(child)}`);
+        for (const keyword of ["auto", "none", "antialiased", "subpixel-antialiased"]) {
+            parent.style.setProperty(property, keyword);
+            println(`${keyword}: supported=${CSS.supports(property, keyword)}, parent=${value(parent)}, child=${value(child)}`);
+        }
+        for (const invalid of ["grayscale", "normal", "antialiased auto", "1"]) {
+            println(`invalid ${invalid}: ${CSS.supports(property, invalid)}`);
+        }
+        child.style.setProperty(property, "initial");
+        println(`initial override: ${value(child)}`);
+        child.style.setProperty(property, "unset");
+        println(`unset inherits: ${value(child)}`);
+        parent.style.setProperty(property, "antialiased");
+        println(`inherited update: ${value(child)}`);
+        child.style.webkitFontSmoothing = "none";
+        println(`IDL: ${child.style.webkitFontSmoothing}, computed=${value(child)}`);
+    });
+</script>

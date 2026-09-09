@@ -218,7 +218,7 @@ void DisplayListPlayerSkia::play_command(DrawGlyphRun const& command)
     if (glyphs.is_empty())
         return;
 
-    auto blob = resource_storage().text_blob(command.font_id, command.scale, glyphs);
+    auto blob = resource_storage().text_blob(command.font_id, command.scale, glyphs, command.font_smoothing);
     if (!blob)
         return;
 
@@ -782,7 +782,8 @@ void DisplayListPlayerSkia::play_command(PaintTextShadow const& command)
         .translation = command.draw_location + command.text_rect.location().to_type<float>(),
         .scale = command.scale,
         .color = command.color.with_alpha(255),
-        .orientation = Gfx::Orientation::Horizontal });
+        .orientation = Gfx::Orientation::Horizontal,
+        .font_smoothing = command.font_smoothing });
     canvas.restore();
 }
 

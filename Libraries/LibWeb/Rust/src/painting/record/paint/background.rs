@@ -1009,6 +1009,12 @@ fn append_text_clip_paths<O: Observer>(recorder: &mut PaintRecorder<'_, O>, pain
         recorder.recorder.draw_glyph_run(
             emission.baseline_start,
             crate::painting::display_list::recorder::GlyphRunForRecording {
+                font_smoothing: recorder
+                    .layout_arena
+                    .node_style_if_live(fragment.style_source)
+                    .unwrap()
+                    .inherited_text()
+                    .font_smoothing,
                 font_id: crate::painting::display_list::commands::FontResourceId(font_id),
                 glyphs: &emission.glyphs,
             },
