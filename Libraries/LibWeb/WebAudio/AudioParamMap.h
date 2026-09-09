@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/HashMap.h>
+#include <AK/Utf16FlyString.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -24,15 +24,15 @@ public:
 
     virtual ~AudioParamMap() override;
 
-    OrderedHashMap<FlyString, GC::Ref<AudioParam>> const& entries() const { return m_entries; }
-    void set_entry(FlyString key, GC::Ref<AudioParam> value) { m_entries.set(move(key), value); }
+    OrderedHashMap<Utf16FlyString, GC::Ref<AudioParam>> const& entries() const { return m_entries; }
+    void set_entry(Utf16FlyString key, GC::Ref<AudioParam> value) { m_entries.set(move(key), value); }
 
 private:
     AudioParamMap();
 
     virtual void visit_edges(Cell::Visitor&) override;
 
-    OrderedHashMap<FlyString, GC::Ref<AudioParam>> m_entries;
+    OrderedHashMap<Utf16FlyString, GC::Ref<AudioParam>> m_entries;
 };
 
 }
