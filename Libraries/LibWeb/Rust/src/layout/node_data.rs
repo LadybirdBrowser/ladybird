@@ -195,6 +195,7 @@ pub enum DomPaintFact {
     Inert = 1 << 0,
     EditableOrEditingHost = 1 << 1,
     InsideBlockingWheelEventHandler = 1 << 2,
+    NestedNavigableContainer = 1 << 3,
 }
 
 #[derive(Clone, Copy)]

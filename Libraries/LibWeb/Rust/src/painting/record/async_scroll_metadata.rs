@@ -199,13 +199,23 @@ impl<O: Observer> PaintRecorder<'_, O> {
             .compositor_main_thread_wheel_event_region(CompositorMainThreadWheelEventRegion { rect });
     }
 
-    fn record_scroll_node(&mut self, paintable: NodeSlotId, facts: &crate::painting::host::FfiAsyncScrollFacts) {
-        let scroll_node_kind = match facts.scroll_node_kind {
-            crate::painting::host::FfiScrollNodeKind::Viewport => CompositorScrollNodeKind::Viewport,
-            crate::painting::host::FfiScrollNodeKind::Element => CompositorScrollNodeKind::Element,
-            crate::painting::host::FfiScrollNodeKind::PseudoElement => CompositorScrollNodeKind::PseudoElement,
-            crate::painting::host::FfiScrollNodeKind::None => return,
+    fn record_scroll_node(&mut self, paintable: NodeSlotId) {
+        let generated_for = self.layout_arena.node_generated_for(paintable);
+        let scroll_node_kind = if self.layout_arena.node_kind_if_live(paintable) == Some(NodeKind::Viewport) {
+            CompositorScrollNodeKind::Viewport
+        } else if generated_for != 0 {
+            CompositorScrollNodeKind::PseudoElement
+        } else if self.layout_arena.node_dom_node_is_element(paintable) {
+            CompositorScrollNodeKind::Element
+        } else {
+            return;
         };
+        let scrollable_node_identity = self.data(paintable).scrollable_node_identity;
+        debug_assert!(
+            scrollable_node_identity != 0,
+            "a scroll node's identity is resolved by the visual context update"
+        );
+        let snap_axes = crate::painting::scroll_snap_axes::snap_axes_of_scroll_container(self.layout_arena, paintable);
         let parent_scroll_node_index = match self.nearest_scrollable_ancestor(paintable) {
             Some(ancestor) => self.data(ancestor).own_scroll_node_index,
             None => VISUAL_VIEWPORT_NODE_INDEX,
@@ -229,19 +239,19 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let hit_test_facts = self.hit_test_facts(paintable);
         self.recorder.compositor_scroll_node(CompositorScrollNode {
             document_id: UniqueNodeId(self.inputs.document_id),
-            scrollable_node_id: UniqueNodeId(facts.scrollable_node_id),
+            scrollable_node_id: UniqueNodeId(scrollable_node_identity),
             scroll_node_index: self.data(paintable).own_scroll_node_index,
             parent_scroll_node_index,
             scrollport_rect,
             min_scroll_offset: css_point_to_device_point(minimum_scroll_offset(self.layout_arena, paintable), scale),
             max_scroll_offset: css_point_to_device_point(maximum_scroll_offset(self.layout_arena, paintable), scale),
             scroll_node_kind,
-            pseudo_element_type: facts.pseudo_element_type,
+            pseudo_element_type: generated_for.saturating_sub(1),
             is_viewport,
             can_be_wheel_scrolled_horizontally: hit_test_facts.could_be_scrolled_horizontally,
             can_be_wheel_scrolled_vertically: hit_test_facts.could_be_scrolled_vertically,
-            snaps_scroll_position_horizontally: facts.snaps_scroll_position_horizontally,
-            snaps_scroll_position_vertically: facts.snaps_scroll_position_vertically,
+            snaps_scroll_position_horizontally: snap_axes.x,
+            snaps_scroll_position_vertically: snap_axes.y,
         });
     }
 
@@ -305,17 +315,18 @@ impl<O: Observer> PaintRecorder<'_, O> {
         if !self.inputs.is_recording_async_scrolling_metadata {
             return;
         }
-        let facts = self.paint_host.async_scroll_facts(self.layout_node_shell(paintable));
-
         self.record_wheel_hit_test_target(paintable);
         self.record_blocking_wheel_event_region(paintable);
 
-        if facts.is_nested_navigable_container {
+        if self
+            .layout_arena
+            .node_has_dom_paint_fact(paintable, DomPaintFact::NestedNavigableContainer)
+        {
             self.record_main_thread_wheel_event_region(paintable);
         } else if self.data(paintable).own_scroll_node_index != VISUAL_VIEWPORT_NODE_INDEX
             && self.could_be_scrolled_by_wheel_event(paintable)
         {
-            self.record_scroll_node(paintable, &facts);
+            self.record_scroll_node(paintable);
         }
         self.record_viewport_scrollbar_state(paintable);
     }
