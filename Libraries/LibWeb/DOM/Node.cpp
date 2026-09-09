@@ -2486,7 +2486,12 @@ bool Node::update_inside_blocking_wheel_event_handler_state()
     if (!m_inside_blocking_wheel_event_handler && !is_root_wheel_event_target(*this) && has_blocking_wheel_event_listener())
         m_inside_blocking_wheel_event_handler = true;
 
-    return was_inside_blocking_wheel_event_handler != m_inside_blocking_wheel_event_handler;
+    bool const flipped = was_inside_blocking_wheel_event_handler != m_inside_blocking_wheel_event_handler;
+    if (flipped) {
+        if (auto* layout_node = unsafe_layout_node())
+            layout_node->refresh_dom_paint_facts();
+    }
+    return flipped;
 }
 
 static void set_needs_repaint_of_top_layer_boxes(Element& element, Layout::Node const* layout_node_repainted_by_caller)

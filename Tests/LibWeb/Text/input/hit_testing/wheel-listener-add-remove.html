@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #target {
+        width: 200px;
+        height: 100px;
+    }
+</style>
+<div id="target">wheel target</div>
+<script>
+    function blockingWheelEventRegionCount() {
+        return internals
+            .dumpDisplayList()
+            .split("\n")
+            .filter(line => line.includes("CompositorBlockingWheelEventRegion")).length;
+    }
+
+    test(() => {
+        internals.dumpDisplayList();
+        println(`before listener: ${blockingWheelEventRegionCount()}`);
+
+        const listener = event => event.preventDefault();
+        target.addEventListener("wheel", listener, { passive: false });
+        println(`with blocking listener: ${blockingWheelEventRegionCount()}`);
+
+        target.removeEventListener("wheel", listener, { passive: false });
+        println(`after listener removed: ${blockingWheelEventRegionCount()}`);
+    });
+</script>

@@ -32,7 +32,6 @@ pub(crate) struct HitTestFacts {
     pub(crate) svg_path_winding_rule: WindingRule,
     pub(crate) svg_mask_content_units_object_bbox: bool,
     pub(crate) svg_clip_path_units_object_bbox: bool,
-    pub(crate) inside_blocking_wheel_event_handler: bool,
 }
 
 pub(crate) fn hit_test_facts(
@@ -46,7 +45,6 @@ pub(crate) fn hit_test_facts(
             dom_node_has_parent: dom.dom_node_has_parent,
             svg_mask_content_units_object_bbox: dom.svg_mask_content_units_object_bbox,
             svg_clip_path_units_object_bbox: dom.svg_clip_path_units_object_bbox,
-            inside_blocking_wheel_event_handler: dom.inside_blocking_wheel_event_handler,
             ..HitTestFacts::default()
         };
     };
@@ -76,7 +74,6 @@ pub(crate) fn hit_test_facts(
         },
         svg_mask_content_units_object_bbox: dom.svg_mask_content_units_object_bbox,
         svg_clip_path_units_object_bbox: dom.svg_clip_path_units_object_bbox,
-        inside_blocking_wheel_event_handler: dom.inside_blocking_wheel_event_handler,
     }
 }
 

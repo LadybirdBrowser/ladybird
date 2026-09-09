@@ -16,7 +16,6 @@ pub struct FfiHitTestPaintableFacts {
     pub dom_node_has_parent: bool,
     pub svg_mask_content_units_object_bbox: bool,
     pub svg_clip_path_units_object_bbox: bool,
-    pub inside_blocking_wheel_event_handler: bool,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
