@@ -960,6 +960,15 @@ impl LayoutNodeArena {
         if crate::painting::filter_bytes::contains_url(&effects.backdrop_filter) {
             kinds |= SvgPaintResourceKind::BackdropFilter.bit();
         }
+        if crate::painting::node_painting::is_svg_path(self.data(id).kind.get()) {
+            let svg = style.inherited_svg();
+            if svg.fill.kind == crate::css::computed_value_types::SVG_PAINT_URL {
+                kinds |= SvgPaintResourceKind::Fill.bit();
+            }
+            if svg.stroke.kind == crate::css::computed_value_types::SVG_PAINT_URL {
+                kinds |= SvgPaintResourceKind::Stroke.bit();
+            }
+        }
         self.svg_paint_resources.set_enrolled_kinds(id, kinds);
     }
 

@@ -2169,10 +2169,39 @@ pub unsafe extern "C" fn layout_arena_paint_push_color_stop(
     color: libgfx_rust::Color,
     position: f32,
 ) {
-    // SAFETY: `sink` is the ColorStopSink pointer handed out by FfiPaintHostCallbacks::background_layer_image.
-    let sink = unsafe { &mut *sink.cast::<crate::painting::host::ColorStopSink>() };
-    sink.colors.push(color);
-    sink.positions.push(position);
+    let sink = unsafe { &mut *sink.cast::<crate::painting::svg_paint_resources::PublishedSvgPaintServer>() };
+    if let crate::painting::svg_paint_resources::PublishedSvgPaintServer::Gradient(gradient) = sink {
+        gradient
+            .stops
+            .push(crate::painting::svg_paint_resources::PublishedSvgGradientStop { color, position });
+    }
+}
+
+/// # Safety
+///
+/// `sink` must be the pointer handed to the callback, used synchronously, and `description`
+/// must be readable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_svg_paint_resources_push_gradient(
+    sink: *mut c_void,
+    description: *const crate::painting::host::FfiSvgGradientDescription,
+) {
+    let sink = unsafe { &mut *sink.cast::<crate::painting::svg_paint_resources::PublishedSvgPaintServer>() };
+    *sink = crate::painting::svg_paint_resources::PublishedSvgPaintServer::Gradient(
+        crate::painting::svg_paint_resources::PublishedSvgGradient {
+            description: unsafe { *description },
+            stops: Vec::new(),
+        },
+    );
+}
+
+/// # Safety
+///
+/// `sink` must be the pointer handed to the callback, used synchronously.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_svg_paint_resources_push_pattern(sink: *mut c_void) {
+    let sink = unsafe { &mut *sink.cast::<crate::painting::svg_paint_resources::PublishedSvgPaintServer>() };
+    *sink = crate::painting::svg_paint_resources::PublishedSvgPaintServer::Pattern;
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -4064,14 +4093,15 @@ pub unsafe extern "C" fn layout_arena_has_enrolled_svg_paint_resources(arena: *m
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
-/// `resolve_filter` must answer synchronously from a live layout node shell and only push into
-/// the sink whose pointer it receives.
+/// both resolvers must answer synchronously from a live layout node shell and only push into
+/// the sink whose pointer they receive.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_sync_svg_paint_resources(
     arena: *mut c_void,
     resolve_filter: unsafe extern "C" fn(*mut c_void, *const c_void, *mut c_void) -> bool,
+    resolve_paint_server: unsafe extern "C" fn(*mut c_void, bool, *mut c_void),
 ) -> bool {
-    use crate::painting::svg_paint_resources::{PublishedSvgFilter, SvgPaintResourceKind};
+    use crate::painting::svg_paint_resources::{PublishedSvgFilter, PublishedSvgPaintServer, SvgPaintResourceKind};
     let arena = unsafe { arena_from_handle(arena) };
     let resources = arena.svg_paint_resources();
     if !resources.take_needs_sync() {
@@ -4083,10 +4113,24 @@ pub unsafe extern "C" fn layout_arena_sync_svg_paint_resources(
             resources.forget_slot(slot);
             continue;
         };
+        if matches!(kind, SvgPaintResourceKind::Fill | SvgPaintResourceKind::Stroke) {
+            let is_stroke = kind == SvgPaintResourceKind::Stroke;
+            let mut published = PublishedSvgPaintServer::None;
+            // SAFETY: The host resolves synchronously from the live shell and only pushes into
+            // the sink it is handed.
+            unsafe { resolve_paint_server(arena.shell_if_live(slot), is_stroke, (&raw mut published).cast()) };
+            // A box that references a paint server records afresh on every walk, so a changed
+            // description only has to ask for a recording.
+            if resources.publish_paint_server(slot, kind, published) {
+                any_changed = true;
+            }
+            continue;
+        }
         let effects = style.effects();
         let filter_list = match kind {
             SvgPaintResourceKind::Filter => &effects.filter,
             SvgPaintResourceKind::BackdropFilter => &effects.backdrop_filter,
+            SvgPaintResourceKind::Fill | SvgPaintResourceKind::Stroke => unreachable!(),
         };
         if !crate::painting::filter_bytes::contains_url(filter_list) {
             resources.withdraw(slot, kind);

@@ -9,22 +9,51 @@ use std::collections::HashMap;
 use std::rc::Rc;
 
 use crate::layout::node_data::NodeSlotId;
+use crate::painting::host::FfiSvgGradientDescription;
 use crate::painting::svg_filter::SvgFilterPrimitive;
+use libgfx_rust::Color;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum SvgPaintResourceKind {
     Filter,
     BackdropFilter,
+    Fill,
+    Stroke,
 }
 
 impl SvgPaintResourceKind {
-    pub(crate) const ALL: [Self; 2] = [Self::Filter, Self::BackdropFilter];
+    pub(crate) const ALL: [Self; 4] = [Self::Filter, Self::BackdropFilter, Self::Fill, Self::Stroke];
 
     pub(crate) const fn bit(self) -> u8 {
         1 << self as u8
     }
 }
 
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct PublishedSvgGradientStop {
+    pub color: Color,
+    pub position: f32,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct PublishedSvgGradient {
+    pub description: FfiSvgGradientDescription,
+    pub stops: Vec<PublishedSvgGradientStop>,
+}
+
+/// What a fill or stroke url() resolved to. A pattern's geometry still comes from the host at
+/// record time.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub(crate) enum PublishedSvgPaintServer {
+    #[default]
+    None,
+    Gradient(PublishedSvgGradient),
+    Pattern,
+}
+
+/// What the last url() of a filter list resolved to: `failed` when it named nothing usable as an
+/// SVG filter, which drops the whole filter list, otherwise the referenced filter's primitives in
+/// document order.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct PublishedSvgFilter {
     pub failed: bool,
@@ -36,6 +65,8 @@ struct SvgPaintResourceRow {
     enrolled_kinds: u8,
     filter: Option<Rc<PublishedSvgFilter>>,
     backdrop_filter: Option<Rc<PublishedSvgFilter>>,
+    fill: Option<Rc<PublishedSvgPaintServer>>,
+    stroke: Option<Rc<PublishedSvgPaintServer>>,
 }
 
 impl SvgPaintResourceRow {
@@ -43,6 +74,15 @@ impl SvgPaintResourceRow {
         match kind {
             SvgPaintResourceKind::Filter => self.filter.clone(),
             SvgPaintResourceKind::BackdropFilter => self.backdrop_filter.clone(),
+            SvgPaintResourceKind::Fill | SvgPaintResourceKind::Stroke => unreachable!(),
+        }
+    }
+
+    fn published_paint_server(&self, kind: SvgPaintResourceKind) -> Option<Rc<PublishedSvgPaintServer>> {
+        match kind {
+            SvgPaintResourceKind::Fill => self.fill.clone(),
+            SvgPaintResourceKind::Stroke => self.stroke.clone(),
+            SvgPaintResourceKind::Filter | SvgPaintResourceKind::BackdropFilter => unreachable!(),
         }
     }
 
@@ -50,13 +90,26 @@ impl SvgPaintResourceRow {
         match kind {
             SvgPaintResourceKind::Filter => &mut self.filter,
             SvgPaintResourceKind::BackdropFilter => &mut self.backdrop_filter,
+            SvgPaintResourceKind::Fill | SvgPaintResourceKind::Stroke => unreachable!(),
+        }
+    }
+
+    fn paint_server_entry(&mut self, kind: SvgPaintResourceKind) -> &mut Option<Rc<PublishedSvgPaintServer>> {
+        match kind {
+            SvgPaintResourceKind::Fill => &mut self.fill,
+            SvgPaintResourceKind::Stroke => &mut self.stroke,
+            SvgPaintResourceKind::Filter | SvgPaintResourceKind::BackdropFilter => unreachable!(),
         }
     }
 
     fn forget_published(&mut self, kinds: u8) {
         for kind in SvgPaintResourceKind::ALL {
-            if kinds & kind.bit() != 0 {
-                *self.filter_entry(kind) = None;
+            if kinds & kind.bit() == 0 {
+                continue;
+            }
+            match kind {
+                SvgPaintResourceKind::Filter | SvgPaintResourceKind::BackdropFilter => *self.filter_entry(kind) = None,
+                SvgPaintResourceKind::Fill | SvgPaintResourceKind::Stroke => *self.paint_server_entry(kind) = None,
             }
         }
     }
@@ -159,6 +212,27 @@ impl SvgPaintResources {
             }
         }
         frames
+    }
+
+    pub(crate) fn published_paint_server(
+        &self,
+        slot: NodeSlotId,
+        kind: SvgPaintResourceKind,
+    ) -> Option<Rc<PublishedSvgPaintServer>> {
+        self.rows.borrow().get(&slot)?.published_paint_server(kind)
+    }
+
+    pub(crate) fn publish_paint_server(
+        &self,
+        slot: NodeSlotId,
+        kind: SvgPaintResourceKind,
+        paint_server: PublishedSvgPaintServer,
+    ) -> bool {
+        let mut rows = self.rows.borrow_mut();
+        let Some(row) = rows.get_mut(&slot) else {
+            return false;
+        };
+        publish(row.paint_server_entry(kind), paint_server)
     }
 
     pub(crate) fn publish_filter(
