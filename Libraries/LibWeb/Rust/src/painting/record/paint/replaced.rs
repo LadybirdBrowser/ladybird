@@ -432,7 +432,11 @@ pub(crate) fn paint_navigable_container_foreground<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
 ) {
-    let facts = replaced_facts(recorder, paintable);
+    let facts = recorder
+        .layout_arena
+        .replaced_paint_facts(paintable)
+        .and_then(|facts| facts.navigable_container())
+        .unwrap_or_default();
     if !facts.has_composited_context {
         return;
     }

@@ -43,8 +43,6 @@ public:
     bool has_visual_context_tree() const;
     u64 accumulated_visual_context_tree_build_count() const { return m_accumulated_visual_context_tree_build_count; }
     u64 accumulated_visual_context_tree_incremental_update_count() const { return m_accumulated_visual_context_tree_incremental_update_count; }
-    bool has_painted_navigable_container_foreground() const { return m_has_painted_navigable_container_foreground; }
-    void set_has_painted_navigable_container_foreground() { m_has_painted_navigable_container_foreground = true; }
     void append_recording_trace(String trace) { m_recording_traces.append(move(trace)); }
     Vector<String> take_recording_traces() { return exchange(m_recording_traces, {}); }
 
@@ -95,7 +93,6 @@ private:
     u64 m_accumulated_visual_context_tree_build_count { 0 };
     u64 m_accumulated_visual_context_tree_incremental_update_count { 0 };
     bool m_visual_context_tree_needs_compositor_update { false };
-    bool m_has_painted_navigable_container_foreground { false };
 };
 
 }
