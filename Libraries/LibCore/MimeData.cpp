@@ -30,7 +30,7 @@ static auto make_registered_mime_types()
         { .name = "application/vnd.iccprofile"sv, .common_extensions = { ".icc"sv } },
         { .name = "application/vnd.sqlite3"sv, .common_extensions = { ".sqlite"sv } },
         { .name = "application/wasm"sv, .common_extensions = { ".wasm"sv } },
-        { .name = "application/x-7z-compressed"sv, .common_extensions = { "7z"sv } },
+        { .name = "application/x-7z-compressed"sv, .common_extensions = { ".7z"sv } },
         { .name = "application/x-blender"sv, .common_extensions = { ".blend"sv, ".blended"sv } },
         { .name = "application/x-bzip2"sv, .common_extensions = { ".bz2"sv } },
         { .name = "application/x-sheets+json"sv, .common_extensions = { ".sheets"sv } },
@@ -52,10 +52,10 @@ static auto make_registered_mime_types()
         { .name = "extra/nes-rom"sv, .common_extensions = { ".nes"sv } },
         { .name = "extra/qcow"sv, .common_extensions = { ".qcow"sv, ".qcow2"sv, ".qcow3"sv } },
 
-        { .name = "font/otf"sv, .common_extensions = { "otf"sv } },
-        { .name = "font/ttf"sv, .common_extensions = { "ttf"sv } },
-        { .name = "font/woff"sv, .common_extensions = { "woff"sv } },
-        { .name = "font/woff2"sv, .common_extensions = { "woff2"sv } },
+        { .name = "font/otf"sv, .common_extensions = { ".otf"sv } },
+        { .name = "font/ttf"sv, .common_extensions = { ".ttf"sv } },
+        { .name = "font/woff"sv, .common_extensions = { ".woff"sv } },
+        { .name = "font/woff2"sv, .common_extensions = { ".woff2"sv } },
 
         { .name = "image/avif"sv, .common_extensions = { ".avif"sv } },
         { .name = "image/bmp"sv, .common_extensions = { ".bmp"sv } },
