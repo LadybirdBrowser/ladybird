@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../expected/svg/green-square-100-ref.html" />
+<svg width="100" height="100">
+    <clipPath id="c" clipPathUnits="userSpaceOnUse">
+        <rect width="50" height="100" />
+    </clipPath>
+    <rect width="100" height="100" fill="green" clip-path="url(#c)" />
+</svg>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.getElementById("c").setAttribute("clipPathUnits", "objectBoundingBox");
+            requestAnimationFrame(() => {
+                if (window.internals)
+                    internals.signalTestIsDone("PASS");
+                else
+                    document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>

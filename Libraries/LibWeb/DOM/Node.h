@@ -91,6 +91,7 @@ enum class RootNodeComposed {
     X(LayoutTreeUpdate)                               \
     X(NavigableSetViewportSize)                       \
     X(SVGImageElementFetchTheDocument)                \
+    X(SVGResourceElementAttributeChange)              \
     X(SVGViewBoxChange)                               \
     X(StyleChange)                                    \
     X(TableSpanAttributeChange)

@@ -432,6 +432,13 @@ void SVGElement::mark_resource_box_referencing_elements_for_layout_tree_update()
     m_resource_box_referencing_elements.clear();
 }
 
+void SVGElement::mark_resource_box_referencing_elements_for_layout_update()
+{
+    m_resource_box_referencing_elements.remove_all_matching([](auto& weak_element) { return !weak_element; });
+    for (auto& weak_referencing_element : m_resource_box_referencing_elements)
+        weak_referencing_element->set_needs_layout_update(DOM::SetNeedsLayoutReason::SVGResourceElementAttributeChange);
+}
+
 void SVGElement::remove_from_use_element_that_reference_this()
 {
     if (is<SVGUseElement>(this) || !id().has_value()) {
