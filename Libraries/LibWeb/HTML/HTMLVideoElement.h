@@ -39,7 +39,7 @@ public:
     Optional<Gfx::Size<u32>> natural_media_size() const;
     Optional<CSSPixelSize> natural_element_size() const;
 
-    RefPtr<Gfx::Bitmap> const& poster_frame() const { return m_poster_frame; }
+    Optional<Gfx::DecodedImageFrame> const& poster_frame() const { return m_poster_frame; }
 
     // https://html.spec.whatwg.org/multipage/media.html#the-video-element:the-video-element-7
     // NB: We combine the values of...
@@ -77,7 +77,7 @@ private:
 
     GC::Ptr<HTML::VideoTrack> m_video_track;
     VideoFrame m_current_frame;
-    RefPtr<Gfx::Bitmap> m_poster_frame;
+    Optional<Gfx::DecodedImageFrame> m_poster_frame;
 
     Optional<Gfx::Size<u32>> m_intrinsic_video_dimensions;
     Optional<CSSPixelSize> m_natural_dimensions;

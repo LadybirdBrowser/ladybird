@@ -28,6 +28,7 @@
 #include <LibWeb/HTML/VideoTrackList.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
 #include <LibWeb/Layout/Box.h>
+#include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/Platform/ImageCodecPlugin.h>
 
 namespace Web::HTML {
@@ -144,14 +145,17 @@ void HTMLVideoElement::update_natural_dimensions()
     // resource, if that is available; otherwise the natural height is missing.
     auto natural_dimensions = m_intrinsic_video_dimensions.map([](Gfx::Size<u32> size) { return size.to_type<CSSPixels>(); });
 
-    if (current_representation() == Representation::PosterFrame && m_poster_frame)
+    if (current_representation() == Representation::PosterFrame && m_poster_frame.has_value())
         natural_dimensions = m_poster_frame->size().to_type<CSSPixels>();
 
-    if (natural_dimensions == m_natural_dimensions)
+    if (natural_dimensions == m_natural_dimensions) {
+        Painting::push_video_paint_facts(*this);
         return;
+    }
 
     set_needs_layout_update(DOM::SetNeedsLayoutReason::HTMLVideoElementNaturalDimensionsChanged);
     m_natural_dimensions = natural_dimensions;
+    Painting::push_video_paint_facts(*this);
 }
 
 Optional<Gfx::Size<u32>> HTMLVideoElement::natural_media_size() const
@@ -174,7 +178,9 @@ WebIDL::ExceptionOr<void> HTMLVideoElement::determine_element_poster_frame(Optio
         m_fetch_controller->stop_fetch();
 
     static constexpr auto finalize = [](HTMLVideoElement& self, RefPtr<Gfx::Bitmap> poster_frame) {
-        self.m_poster_frame = move(poster_frame);
+        self.m_poster_frame.clear();
+        if (poster_frame)
+            self.m_poster_frame = Gfx::DecodedImageFrame { *poster_frame };
         self.m_load_event_delayer.clear();
         self.m_fetch_controller = nullptr;
         self.update_natural_dimensions();
@@ -276,14 +282,14 @@ HTMLVideoElement::Representation HTMLVideoElement::current_representation() cons
     //    but the media resource does not have a video channel)
     if (ready_state() == ReadyState::HaveNothing || video_tracks()->length() == 0) {
         // The video element represents its poster frame, if any, or else transparent black with no intrinsic dimensions.
-        return poster_frame() ? Representation::PosterFrame : Representation::TransparentBlack;
+        return poster_frame().has_value() ? Representation::PosterFrame : Representation::TransparentBlack;
     }
 
     // -> When the video element is paused, the current playback position is the first frame of video, and the element's
     //    show poster flag is set
     if (paused() && current_playback_position() == 0 && show_poster()) {
         // The video element represents its poster frame, if any, or else the first frame of the video.
-        return poster_frame() ? Representation::PosterFrame : Representation::FirstVideoFrame;
+        return poster_frame().has_value() ? Representation::PosterFrame : Representation::FirstVideoFrame;
     }
 
     // -> When the video element is paused, and the frame of video corresponding to the current playback position

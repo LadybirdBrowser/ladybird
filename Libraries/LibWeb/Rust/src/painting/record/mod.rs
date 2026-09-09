@@ -92,6 +92,7 @@ pub struct RecordingOutput {
     pub(crate) newly_referenced_fonts: Vec<libgfx_rust::font::FontHandle>,
     pub(crate) newly_referenced_image_frames: Vec<libgfx_rust::image_frame::ImageFrameHandle>,
     pub(crate) vector_image_render_requests: Vec<vector_images::VectorImageRenderRequest>,
+    pub(crate) newly_referenced_video_sinks: Vec<(u64, u64)>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -147,6 +148,8 @@ pub struct PaintRecorder<'a, O: Observer> {
     newly_referenced_image_frames: Vec<libgfx_rust::image_frame::ImageFrameHandle>,
     vector_image_render_requests: Vec<vector_images::VectorImageRenderRequest>,
     vector_image_request_indices: HashMap<vector_images::VectorImageRenderRequest, u32>,
+    registered_video_sink_ids: HashSet<u64>,
+    newly_referenced_video_sinks: Vec<(u64, u64)>,
     selection_style_cache: HashMap<u32, Rc<paint::text::SelectionStyleAnswer>>,
     pub(crate) wheel_hit_test_target_cache: HashMap<NodeSlotId, SpatialNodeIndex>,
 }
@@ -205,6 +208,17 @@ impl<O: Observer> PaintRecorder<'_, O> {
             self.newly_referenced_image_frames.push(frame.clone());
         }
         crate::painting::display_list::commands::ImageFrameResourceId(frame.id())
+    }
+
+    pub(crate) fn register_video_sink(
+        &mut self,
+        resource_id: u64,
+        sink_handle: u64,
+    ) -> crate::painting::display_list::commands::VideoSinkResourceId {
+        if self.registered_video_sink_ids.insert(resource_id) {
+            self.newly_referenced_video_sinks.push((resource_id, sink_handle));
+        }
+        crate::painting::display_list::commands::VideoSinkResourceId(resource_id)
     }
 
     pub(crate) fn vector_image_placeholder(

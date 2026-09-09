@@ -382,6 +382,7 @@ pub(crate) fn paint_decoded_image_frame<O: Observer>(
     dest_rect: FloatRect,
     image_rendering: u8,
     compositing_and_blending_operator: CompositingAndBlendingOperator,
+    force_dark_role: ForceDarkRole,
 ) {
     let frame_id = recorder.register_image_frame(frame);
     let frame_size = (frame.width(), frame.height());
@@ -391,7 +392,7 @@ pub(crate) fn paint_decoded_image_frame<O: Observer>(
     );
     let scaling_mode = to_gfx_scaling_mode(image_rendering, frame_size, target);
     let force_dark_role = crate::painting::force_dark::role_for_image(
-        ForceDarkRole::Background,
+        force_dark_role,
         dest_rect.width,
         dest_rect.height,
         recorder.inputs.device_pixels_per_css_pixel,
@@ -425,6 +426,7 @@ pub(crate) fn paint_image_content<O: Observer>(
             dest_rect,
             image_rendering,
             compositing_and_blending_operator,
+            ForceDarkRole::Background,
         ),
         ImageContent::Vector {
             has_active_view_box, ..

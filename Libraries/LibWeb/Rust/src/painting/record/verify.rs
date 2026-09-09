@@ -4,8 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::layout::LayoutNodeArena;
-use crate::layout::node_data::{NodeKind, NodeSlotId};
+use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::builder::{HEADER_SIZE, for_each_command, read_header};
 use crate::painting::display_list::commands::*;
 use crate::painting::record::RecordingOutput;
@@ -76,51 +75,32 @@ fn zero_field(payload: &mut [u8], offset: usize, size: usize) {
     }
 }
 
-fn zero_resource_ids_inside_span(payload: &mut [u8], span: DisplayListDataSpan, enclosing_capture_is_video: bool) {
+fn zero_resource_ids_inside_span(payload: &mut [u8], span: DisplayListDataSpan) {
     let records = &mut payload[span.offset as usize..(span.offset + span.size) as usize];
     let mut offset = 0;
     while offset < records.len() {
         let header = read_header(&records[offset..]);
         let payload_start = offset + HEADER_SIZE;
         let payload_end = payload_start + header.payload_size as usize;
-        zero_resource_ids_minted_per_recording(
-            header.command_type,
-            enclosing_capture_is_video,
-            &mut records[payload_start..payload_end],
-        );
+        zero_resource_ids_minted_per_recording(header.command_type, &mut records[payload_start..payload_end]);
         offset = payload_end;
     }
 }
 
-fn zero_resource_ids_minted_per_recording(
-    command_type: DisplayListCommandType,
-    enclosing_capture_is_video: bool,
-    payload: &mut [u8],
-) {
-    let id_size = std::mem::size_of::<DisplayListResourceId>();
-    match command_type {
-        DisplayListCommandType::PaintNestedDisplayList => {
-            zero_field(
-                payload,
-                std::mem::offset_of!(PaintNestedDisplayList, display_list_id),
-                id_size,
-            );
-        }
-        DisplayListCommandType::DrawScaledDecodedImageFrame if enclosing_capture_is_video => {
-            zero_field(
-                payload,
-                std::mem::offset_of!(DrawScaledDecodedImageFrame, frame_id),
-                std::mem::size_of::<ImageFrameResourceId>(),
-            );
-        }
-        _ => {}
+fn zero_resource_ids_minted_per_recording(command_type: DisplayListCommandType, payload: &mut [u8]) {
+    if command_type == DisplayListCommandType::PaintNestedDisplayList {
+        zero_field(
+            payload,
+            std::mem::offset_of!(PaintNestedDisplayList, display_list_id),
+            std::mem::size_of::<DisplayListResourceId>(),
+        );
     }
     let mut nested_spans = Vec::new();
     crate::painting::display_list::nested_records::for_each_nested_record_span(command_type, payload, |_, span| {
         nested_spans.push(span);
     });
     for span in nested_spans {
-        zero_resource_ids_inside_span(payload, span, enclosing_capture_is_video);
+        zero_resource_ids_inside_span(payload, span);
     }
 }
 
@@ -151,7 +131,6 @@ fn hexdump(bytes: &[u8]) -> String {
 }
 
 pub(crate) fn verify_spliced_recording_matches_fresh(
-    arena: &LayoutNodeArena,
     recording_with_splices: &RecordingOutput,
     recording_from_scratch: &RecordingOutput,
 ) {
@@ -162,27 +141,14 @@ pub(crate) fn verify_spliced_recording_matches_fresh(
     let with_splices_bytes = &recording_with_splices.display_list.bytes;
     let with_splices_commands = decode_commands(with_splices_bytes);
     let from_scratch_commands = decode_commands(&recording_from_scratch.display_list.bytes);
-    let enclosing_capture_is_video = |offset: usize| {
-        innermost_logged_capture_containing(&log.command_byte_captures, offset)
-            .is_some_and(|record| arena.node_kind_if_live(record.paintable) == Some(NodeKind::VideoBox))
-    };
 
     for (index, (with_splices_command, from_scratch_command)) in
         with_splices_commands.iter().zip(&from_scratch_commands).enumerate()
     {
-        let is_video = enclosing_capture_is_video(with_splices_command.offset);
         let mut with_splices_payload = with_splices_command.payload.to_vec();
         let mut from_scratch_payload = from_scratch_command.payload.to_vec();
-        zero_resource_ids_minted_per_recording(
-            with_splices_command.header.command_type,
-            is_video,
-            &mut with_splices_payload,
-        );
-        zero_resource_ids_minted_per_recording(
-            from_scratch_command.header.command_type,
-            is_video,
-            &mut from_scratch_payload,
-        );
+        zero_resource_ids_minted_per_recording(with_splices_command.header.command_type, &mut with_splices_payload);
+        zero_resource_ids_minted_per_recording(from_scratch_command.header.command_type, &mut from_scratch_payload);
         if with_splices_command.header == from_scratch_command.header && with_splices_payload == from_scratch_payload {
             continue;
         }

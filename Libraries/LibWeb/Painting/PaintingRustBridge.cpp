@@ -801,6 +801,9 @@ static Layout::RustFFI::FfiRecordingPublishCallbacks recording_publish_callbacks
                 return empty_display_list();
             return context.resource_storage.add_display_list(move(*display_list)).value();
         },
+        .add_video_sink = [](void* context_pointer, u64 resource_id, u64 sink_handle) {
+            auto& context = *static_cast<PaintHostContext*>(context_pointer);
+            context.resource_storage.add_video_sink(VideoSinkResourceId { resource_id }, Media::VideoSinkHandle { sink_handle }); },
     };
 }
 
@@ -822,47 +825,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
 {
     return {
         .context = &context,
-        .replaced_paint_facts = [](void* context_pointer, void* layout_node_shell) -> Layout::RustFFI::FfiReplacedPaintFacts {
-            auto& context = *static_cast<PaintHostContext*>(context_pointer);
-            auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
-            auto const* row = committed_row(layout_node);
-            VERIFY(row);
-            auto kind = layout_node.kind();
-            Layout::RustFFI::FfiReplacedPaintFacts facts {};
-            if (kind == Layout::RustFFI::NodeKind::VideoBox) {
-                auto const& video_element = as<HTML::HTMLVideoElement>(*layout_node.dom_node());
-                switch (video_element.current_representation()) {
-                case HTML::HTMLVideoElement::Representation::FirstVideoFrame:
-                case HTML::HTMLVideoElement::Representation::VideoFrame: {
-                    facts.video_representation = Layout::RustFFI::FfiVideoRepresentation::VideoFrame;
-                    auto sink_handle = video_element.video_sink_handle();
-                    if (sink_handle.has_value() && video_element.natural_media_size().has_value()) {
-                        facts.has_video_frame = true;
-                        auto src_size = video_element.natural_media_size()->to_type<int>();
-                        facts.video_src_width = src_size.width();
-                        facts.video_src_height = src_size.height();
-                        facts.video_sink_storage_id = context.resource_storage.add_video_sink(video_element.video_sink_resource_id().value(), *sink_handle).value();
-                    }
-                    break;
-                }
-                case HTML::HTMLVideoElement::Representation::PosterFrame: {
-                    facts.video_representation = Layout::RustFFI::FfiVideoRepresentation::PosterFrame;
-                    if (auto const& poster_frame = video_element.poster_frame()) {
-                        facts.has_poster_frame = true;
-                        auto frame = Gfx::DecodedImageFrame { *poster_frame };
-                        facts.poster_width = frame.size().width();
-                        facts.poster_height = frame.size().height();
-                        facts.poster_frame_id = context.resource_storage.add_image_frame(move(frame)).value();
-                    }
-                    break;
-                }
-                case HTML::HTMLVideoElement::Representation::TransparentBlack:
-                    facts.video_representation = Layout::RustFFI::FfiVideoRepresentation::TransparentBlack;
-                    break;
-                }
-            }
-            return facts;
-        },
         .svg_paint_style = [](void* context_pointer, void* layout_node_shell, bool is_stroke, Layout::RustFFI::FfiSvgPaintContext const* ffi_paint_context, void* sink) -> Layout::RustFFI::FfiSvgPaintStyle {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);

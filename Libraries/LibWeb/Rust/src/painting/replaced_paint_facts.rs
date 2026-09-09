@@ -8,8 +8,51 @@ use crate::css::css_pixels::CssPixels;
 use crate::layout::used_values::OptionalCssPixels;
 use crate::painting::host::{
     FfiCanvasPaintFacts, FfiFormControlPaintFacts, FfiNavigableContainerPaintFacts, FfiReplacedImagePaintFacts,
+    FfiVideoPaintFacts, FfiVideoRepresentation,
 };
 use crate::painting::image_content::ImageContent;
+use libgfx_rust::image_frame::ImageFrameHandle;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) struct VideoFrameFacts {
+    pub src_width: i32,
+    pub src_height: i32,
+    pub sink_resource_id: u64,
+    pub sink_handle: u64,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) enum VideoPaintFacts {
+    VideoFrame(Option<VideoFrameFacts>),
+    PosterFrame(Option<ImageFrameHandle>),
+    TransparentBlack,
+}
+
+impl Default for VideoPaintFacts {
+    fn default() -> Self {
+        Self::VideoFrame(None)
+    }
+}
+
+impl VideoPaintFacts {
+    /// # Safety
+    ///
+    /// `facts.poster_frame` must be null or point to a live `Gfx::DecodedImageFrame`.
+    pub(crate) unsafe fn from_ffi(facts: &FfiVideoPaintFacts) -> Self {
+        match facts.representation {
+            FfiVideoRepresentation::VideoFrame => Self::VideoFrame(facts.has_video_frame.then_some(VideoFrameFacts {
+                src_width: facts.video_src_width,
+                src_height: facts.video_src_height,
+                sink_resource_id: facts.video_sink_resource_id,
+                sink_handle: facts.video_sink_handle,
+            })),
+            FfiVideoRepresentation::PosterFrame => Self::PosterFrame(
+                (!facts.poster_frame.is_null()).then(|| unsafe { ImageFrameHandle::retain(facts.poster_frame) }),
+            ),
+            FfiVideoRepresentation::TransparentBlack => Self::TransparentBlack,
+        }
+    }
+}
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct ImagePaintFacts {
@@ -51,12 +94,20 @@ pub(crate) enum ReplacedPaintFacts {
     Canvas(FfiCanvasPaintFacts),
     NavigableContainer(FfiNavigableContainerPaintFacts),
     Image(ImagePaintFacts),
+    Video(VideoPaintFacts),
 }
 
 impl ReplacedPaintFacts {
     pub(crate) fn image(self) -> Option<ImagePaintFacts> {
         match self {
             Self::Image(facts) => Some(facts),
+            _ => None,
+        }
+    }
+
+    pub(crate) fn video(self) -> Option<VideoPaintFacts> {
+        match self {
+            Self::Video(facts) => Some(facts),
             _ => None,
         }
     }
