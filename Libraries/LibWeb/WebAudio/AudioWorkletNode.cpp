@@ -85,7 +85,7 @@ WebIDL::ExceptionOr<GC::Ref<AudioWorkletNode>> AudioWorkletNode::construct_impl(
             if (auto it = options.parameter_data->find(descriptor.name); it != options.parameter_data->end())
                 TRY(param->set_value(static_cast<float>(it->value)));
         }
-        parameter_map->set_entry(FlyString(descriptor.name.to_utf8()), param);
+        parameter_map->set_entry(descriptor.name, param);
     }
 
     // 4. Let messageChannel be a new MessageChannel (collapsed): node.port and the processor's port are

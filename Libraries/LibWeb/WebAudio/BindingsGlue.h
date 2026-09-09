@@ -6,8 +6,8 @@
 
 #pragma once
 
-#include <AK/FlyString.h>
 #include <AK/Optional.h>
+#include <AK/Utf16View.h>
 #include <LibGC/Forward.h>
 #include <LibJS/Forward.h>
 #include <LibJS/Runtime/Value.h>
@@ -18,7 +18,7 @@ namespace Web::Bindings {
 
 // Maplike glue for AudioParamMap (see Meta/Generators/libweb_bindings/glue_headers.py).
 WEB_API GC::Ref<JS::Map> map_entries(JS::Realm&, WebAudio::AudioParamMap&);
-WEB_API Optional<JS::Value> map_get(JS::Realm&, WebAudio::AudioParamMap&, FlyString const& key);
-WEB_API bool map_has(WebAudio::AudioParamMap&, FlyString const& key);
+WEB_API Optional<JS::Value> map_get(JS::Realm&, WebAudio::AudioParamMap&, Utf16View key);
+WEB_API bool map_has(WebAudio::AudioParamMap&, Utf16View key);
 
 }

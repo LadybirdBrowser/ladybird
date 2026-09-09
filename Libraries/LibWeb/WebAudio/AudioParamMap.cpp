@@ -45,13 +45,13 @@ GC::Ref<JS::Map> map_entries(JS::Realm& realm, WebAudio::AudioParamMap& map)
 {
     auto map_entries = JS::Map::create(realm);
     for (auto const& entry : map.entries()) {
-        auto key = JS::PrimitiveString::create(realm.vm(), Utf16String::from_utf8(entry.key));
+        auto key = JS::PrimitiveString::create(realm.vm(), entry.key);
         map_entries->map_set(JS::Value { key.ptr() }, wrapped_param(realm, entry.value));
     }
     return map_entries;
 }
 
-Optional<JS::Value> map_get(JS::Realm& realm, WebAudio::AudioParamMap& map, FlyString const& key)
+Optional<JS::Value> map_get(JS::Realm& realm, WebAudio::AudioParamMap& map, Utf16View key)
 {
     auto it = map.entries().find(key);
     if (it == map.entries().end())
@@ -59,7 +59,7 @@ Optional<JS::Value> map_get(JS::Realm& realm, WebAudio::AudioParamMap& map, FlyS
     return wrapped_param(realm, it->value);
 }
 
-bool map_has(WebAudio::AudioParamMap& map, FlyString const& key)
+bool map_has(WebAudio::AudioParamMap& map, Utf16View key)
 {
     return map.entries().contains(key);
 }
