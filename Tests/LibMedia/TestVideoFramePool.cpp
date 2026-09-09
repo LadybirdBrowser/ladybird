@@ -659,7 +659,7 @@ TEST_CASE(surface_slots_survive_a_mach_port_round_trip)
     auto lent_surface = pool->slot_surface(acquired.index);
     EXPECT_NE(lent_surface, nullptr);
 
-    auto reimported = Core::IOSurfaceHandle::from_mach_port(lent_surface->create_mach_port());
+    auto reimported = MUST(Core::IOSurfaceHandle::from_mach_port(lent_surface->create_mach_port()));
     EXPECT_EQ(reimported.id(), surface->id());
     EXPECT_EQ(reimported.width(), 16u);
     EXPECT_EQ(reimported.height(), 16u);
