@@ -308,6 +308,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 let mut defaults = self.default_selection_style(node, style_source);
                 defaults.facts = crate::painting::host::FfiSelectionStyleFacts {
                     background_color: defaults.facts.background_color,
+                    wash_color: defaults.facts.wash_color,
                     ..answer.facts
                 };
                 defaults.shadows = answer.shadows.clone();
@@ -388,6 +389,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         paint::text::SelectionStyleAnswer {
             facts: crate::painting::host::FfiSelectionStyleFacts {
                 background_color,
+                wash_color: background_color,
                 ..Default::default()
             },
             shadows: Vec::new(),

@@ -805,6 +805,14 @@ static SelectionPseudoStyleFacts selection_pseudo_style_facts_of_element(DOM::El
         // used.
         if (!computed_selection_style->highlight_color_is_current_color())
             facts.text_color = computed_selection_style->color();
+
+        // https://drafts.csswg.org/css-pseudo-4/#highlight-replaced
+        // This wash should be of the specified 'background-color' if that is not 'transparent', else of the
+        // specified 'color'; however the UA may adjust the alpha channel.
+        auto wash_color = facts.background_color;
+        if (wash_color.alpha() == 0)
+            wash_color = facts.text_color.has_value() ? facts.text_color.value() : element.computed_style()->color();
+        facts.wash_color = CSS::SystemColor::transform_selection_background_color(wash_color);
     }
 
     auto const& shadows = computed_selection_style->text_shadow();
