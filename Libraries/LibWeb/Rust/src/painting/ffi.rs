@@ -1835,7 +1835,7 @@ pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
 pub unsafe extern "C" fn layout_arena_record_display_list(
     arena: *mut c_void,
     viewport: NodeSlotId,
-    paint_callbacks: crate::painting::host::FfiPaintHostCallbacks,
+    _paint_callbacks: crate::painting::host::FfiPaintHostCallbacks,
     _visual_context_callbacks: crate::painting::host::FfiVisualContextHostCallbacks,
     inputs: crate::painting::host::FfiRecordingInputs,
 ) -> bool {
@@ -1881,7 +1881,6 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             arena,
             &paint_state,
             viewport,
-            &paint_callbacks,
             inputs,
             paint_state.hit_test_list_generation + 1,
             command_cache_source,
@@ -1902,7 +1901,6 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
                     arena,
                     &paint_state,
                     viewport,
-                    &paint_callbacks,
                     inputs_for_recording_from_scratch,
                     paint_state.hit_test_list_generation + 1,
                     None,
@@ -2197,11 +2195,29 @@ pub unsafe extern "C" fn layout_arena_svg_paint_resources_push_gradient(
 
 /// # Safety
 ///
-/// `sink` must be the pointer handed to the callback, used synchronously.
+/// `sink` must be the pointer handed to the callback, used synchronously, `description` must be
+/// readable, and `css_transform_entries` must point at `css_transform_count` readable
+/// `ComputedResolvedTransform` values of a live computed style.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_svg_paint_resources_push_pattern(sink: *mut c_void) {
+pub unsafe extern "C" fn layout_arena_svg_paint_resources_push_pattern(
+    sink: *mut c_void,
+    description: *const crate::painting::host::FfiSvgPatternDescription,
+    css_transform_entries: *const c_void,
+    css_transform_count: usize,
+) {
     let sink = unsafe { &mut *sink.cast::<crate::painting::svg_paint_resources::PublishedSvgPaintServer>() };
-    *sink = crate::painting::svg_paint_resources::PublishedSvgPaintServer::Pattern;
+    *sink = crate::painting::svg_paint_resources::PublishedSvgPaintServer::Pattern(
+        crate::painting::svg_paint_resources::PublishedSvgPattern {
+            description: unsafe { *description },
+            css_transform: unsafe {
+                ffi_slice(
+                    css_transform_entries.cast::<crate::css::computed_value_types::ComputedResolvedTransform>(),
+                    css_transform_count,
+                )
+            }
+            .to_vec(),
+        },
+    );
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -4119,8 +4135,6 @@ pub unsafe extern "C" fn layout_arena_sync_svg_paint_resources(
             // SAFETY: The host resolves synchronously from the live shell and only pushes into
             // the sink it is handed.
             unsafe { resolve_paint_server(arena.shell_if_live(slot), is_stroke, (&raw mut published).cast()) };
-            // A box that references a paint server records afresh on every walk, so a changed
-            // description only has to ask for a recording.
             if resources.publish_paint_server(slot, kind, published) {
                 any_changed = true;
             }

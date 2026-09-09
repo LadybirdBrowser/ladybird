@@ -8,8 +8,9 @@ use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use std::rc::Rc;
 
+use crate::css::computed_value_types::ComputedResolvedTransform;
 use crate::layout::node_data::NodeSlotId;
-use crate::painting::host::FfiSvgGradientDescription;
+use crate::painting::host::{FfiSvgGradientDescription, FfiSvgPatternDescription};
 use crate::painting::svg_filter::SvgFilterPrimitive;
 use libgfx_rust::Color;
 
@@ -41,19 +42,20 @@ pub(crate) struct PublishedSvgGradient {
     pub stops: Vec<PublishedSvgGradientStop>,
 }
 
-/// What a fill or stroke url() resolved to. A pattern's geometry still comes from the host at
-/// record time.
+#[derive(Clone, Debug, PartialEq)]
+pub(crate) struct PublishedSvgPattern {
+    pub description: FfiSvgPatternDescription,
+    pub css_transform: Vec<ComputedResolvedTransform>,
+}
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) enum PublishedSvgPaintServer {
     #[default]
     None,
     Gradient(PublishedSvgGradient),
-    Pattern,
+    Pattern(PublishedSvgPattern),
 }
 
-/// What the last url() of a filter list resolved to: `failed` when it named nothing usable as an
-/// SVG filter, which drops the whole filter list, otherwise the referenced filter's primitives in
-/// document order.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct PublishedSvgFilter {
     pub failed: bool,

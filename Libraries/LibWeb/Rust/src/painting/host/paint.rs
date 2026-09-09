@@ -10,7 +10,7 @@ use crate::layout::used_values;
 use crate::painting::display_list::builder::RecordedDisplayList;
 use crate::painting::display_list::commands::DisplayListCommandRun;
 use crate::painting::display_list::commands::{OptionalAffineTransform, OptionalColor};
-use libgfx_rust::{AffineTransform, Color, FloatMatrix4x4, FloatRect, FloatSize, IntRect, InterpolationColorSpace};
+use libgfx_rust::{Color, IntRect, InterpolationColorSpace};
 use std::ffi::c_void;
 
 #[derive(Clone, Copy, Debug)]
@@ -219,25 +219,6 @@ pub struct FfiVideoPaintFacts {
     pub poster_frame: *const c_void,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiSvgPaintContext {
-    pub viewport: FloatRect,
-    pub path_bounding_box: FloatRect,
-    pub paint_transform: AffineTransform,
-    pub content_scale: FloatSize,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiSvgPaintStyleKind {
-    #[default]
-    None,
-    LinearGradient,
-    RadialGradient,
-    Pattern,
-}
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
 pub enum FfiSvgGradientSpreadMethod {
@@ -255,9 +236,6 @@ pub enum FfiSvgGradientKind {
     Radial,
 }
 
-/// A gradient element as the host describes it: its resolved attributes, with the href chain
-/// already followed, in the units the element declares. The coordinates resolve at record time
-/// against the painted path and its viewport.
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct FfiSvgGradientDescription {
@@ -278,15 +256,18 @@ pub struct FfiSvgGradientDescription {
     pub fr: FfiSvgNumberPercentage,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
-pub struct FfiSvgPaintStyle {
-    pub kind: FfiSvgPaintStyleKind,
-    pub pattern_paintable: crate::layout::node_data::NodeSlotId,
-    pub tile_content_transform: FloatMatrix4x4,
-    pub tile_rect: FloatRect,
-    pub content_scale: FloatSize,
-    pub pattern_transform: OptionalAffineTransform,
+pub struct FfiSvgPatternDescription {
+    pub pattern_box: crate::layout::node_data::NodeSlotId,
+    pub units_are_object_bounding_box: bool,
+    pub content_units_are_object_bounding_box: bool,
+    pub has_view_box: bool,
+    pub x: FfiSvgNumberPercentage,
+    pub y: FfiSvgNumberPercentage,
+    pub width: FfiSvgNumberPercentage,
+    pub height: FfiSvgNumberPercentage,
+    pub pattern_transform_attribute: OptionalAffineTransform,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -434,18 +415,6 @@ impl FfiRecordingPublishCallbacks {
 #[repr(C)]
 pub struct FfiPaintHostCallbacks {
     pub context: *mut c_void,
-    pub svg_paint_style:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, bool, *const FfiSvgPaintContext) -> FfiSvgPaintStyle,
 }
 
-impl FfiPaintHostCallbacks {
-    pub(crate) fn svg_paint_style(
-        &self,
-        layout_node_shell: *mut c_void,
-        is_stroke: bool,
-        paint_context: &FfiSvgPaintContext,
-    ) -> FfiSvgPaintStyle {
-        // SAFETY: The C++ host answers synchronously from a live layout node shell.
-        unsafe { (self.svg_paint_style)(self.context, layout_node_shell, is_stroke, paint_context) }
-    }
-}
+impl FfiPaintHostCallbacks {}

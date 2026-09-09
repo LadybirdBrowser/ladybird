@@ -27,9 +27,7 @@ use crate::painting::display_list::commands::{ContextRef, SpatialNodeIndex};
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
 use crate::painting::hit_test::HitTestList;
-use crate::painting::host::{
-    FfiPaintHostCallbacks, FfiRecordingInputs, FfiRootBackgroundSource, FfiVisualContextTreeInputs,
-};
+use crate::painting::host::{FfiRecordingInputs, FfiRootBackgroundSource, FfiVisualContextTreeInputs};
 use crate::painting::paintable_data::{InlineBoxPieceRecord, PaintableData};
 use crate::painting::paintable_rows::PaintableRowsRef;
 use crate::painting::record::cache::{OpenCapture, RecordGen};
@@ -121,7 +119,6 @@ pub(crate) struct DeferredWholeTapeSplice {
 pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) layout_arena: &'a PaintableRowsRef<'a>,
     pub(crate) paint_state: &'a crate::painting::paint_state::PaintState,
-    pub(crate) paint_host: &'a FfiPaintHostCallbacks,
     pub(crate) inputs: RecordingInputs,
     pub(crate) recorder: DisplayListRecorder,
     pub(crate) converter: DevicePixelConverter,
@@ -172,10 +169,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
 
     pub(crate) fn data(&self, paintable: NodeSlotId) -> &PaintableData {
         self.layout_arena.paintable_data(paintable)
-    }
-
-    pub(crate) fn layout_node_shell(&self, paintable: NodeSlotId) -> *mut std::ffi::c_void {
-        self.layout_arena.shell_if_live(paintable)
     }
 
     pub(crate) fn hit_test_facts(&mut self, paintable: NodeSlotId) -> hit_test_items::HitTestFacts {

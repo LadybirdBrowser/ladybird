@@ -856,7 +856,6 @@ set(SOURCES
     Painting/DisplayListResourceStorage.cpp
     Painting/DocumentPaintState.cpp
     Painting/HitTestDisplayList.cpp
-    Painting/PaintStyle.cpp
     Painting/PaintingRustBridge.cpp
     Painting/ResizeHandle.cpp
     Painting/Scrollbar.cpp

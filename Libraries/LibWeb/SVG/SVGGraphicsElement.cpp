@@ -19,7 +19,6 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
-#include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/FragmentIdentifier.h>
@@ -45,37 +44,6 @@ GC::Ptr<DOM::Element> SVGGraphicsElement::paint_server_element(Optional<CSS::SVG
     if (!paint_value.has_value() || !paint_value->is_url())
         return {};
     return resolve_url_to_element(paint_value->as_url());
-}
-
-Optional<SVGGraphicsElement::PatternPaintServer> SVGGraphicsElement::svg_paint_computed_value_to_pattern_paint_server(SVGPaintContext const& paint_context, Optional<CSS::SVGPaint> const& paint_value, double device_pixels_per_css_pixel) const
-{
-    auto pattern = as_if<SVG::SVGPatternElement>(paint_server_element(paint_value).ptr());
-    if (!pattern || !layout_node())
-        return {};
-    auto geometry = pattern->resolve_paint_geometry(paint_context, device_pixels_per_css_pixel, *layout_node());
-    if (!geometry.has_value())
-        return {};
-    return PatternPaintServer {
-        .pattern_layout_node = geometry->pattern_layout_node,
-        .tile_rect = geometry->tile_rect,
-        .content_scale = geometry->content_scale,
-        .tile_content_transform = geometry->tile_content_transform,
-        .device_pattern_transform = geometry->device_pattern_transform,
-    };
-}
-
-Optional<SVGGraphicsElement::PatternPaintServer> SVGGraphicsElement::fill_pattern_paint_server(SVGPaintContext const& paint_context, double device_pixels_per_css_pixel) const
-{
-    if (!unsafe_layout_node())
-        return {};
-    return svg_paint_computed_value_to_pattern_paint_server(paint_context, unsafe_layout_node()->fill(), device_pixels_per_css_pixel);
-}
-
-Optional<SVGGraphicsElement::PatternPaintServer> SVGGraphicsElement::stroke_pattern_paint_server(SVGPaintContext const& paint_context, double device_pixels_per_css_pixel) const
-{
-    if (!unsafe_layout_node())
-        return {};
-    return svg_paint_computed_value_to_pattern_paint_server(paint_context, unsafe_layout_node()->stroke(), device_pixels_per_css_pixel);
 }
 
 GC::Ptr<DOM::Element> SVGGraphicsElement::resolve_url_to_element(CSS::URL const& url) const

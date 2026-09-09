@@ -676,6 +676,7 @@ pub struct TextResetValues {
 /// One transform function lowered for paint. Percentage-bearing translate
 /// axes retain their computed values; every other transform stores a matrix.
 #[repr(C)]
+#[derive(Debug)]
 pub struct ComputedResolvedTransform {
     pub is_translate: bool,
     pub matrix: [f32; 16],

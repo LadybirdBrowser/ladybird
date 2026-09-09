@@ -7,10 +7,9 @@
 #include <LibGfx/Matrix4x4.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/Layout/Box.h>
+#include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/BoxViews.h>
-#include <LibWeb/Painting/DisplayList.h>
-#include <LibWeb/Painting/PaintStyle.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/FragmentIdentifier.h>
@@ -225,11 +224,11 @@ NumberPercentage SVGPatternElement::pattern_height_impl(GC::RootHashTable<SVGPat
     return NumberPercentage::create_number(0);
 }
 
-Optional<SVGPatternElement::PaintGeometry> SVGPatternElement::resolve_paint_geometry(SVGPaintContext const& paint_context, double device_pixels_per_css_pixel, Layout::Node const& target_layout_node) const
+void SVGPatternElement::push_paint_server_description(void* sink, Layout::Node const& target_layout_node) const
 {
     auto content_element = pattern_content_element();
     if (!content_element)
-        return {};
+        return;
 
     Layout::Box const* pattern_box = nullptr;
     target_layout_node.for_each_child_of_type<Layout::Box>([&](auto const& candidate) {
@@ -240,99 +239,22 @@ Optional<SVGPatternElement::PaintGeometry> SVGPatternElement::resolve_paint_geom
         return IterationDecision::Continue;
     });
     if (!pattern_box)
-        return {};
+        return;
 
-    if (!Painting::has_committed_box(*pattern_box))
-        return {};
-
-    float tile_x = 0;
-    float tile_y = 0;
-    float tile_width = 0;
-    float tile_height = 0;
-    if (pattern_units() == SVGUnits::ObjectBoundingBox) {
-        // For objectBoundingBox, values are fractions of the bounding box.
-        // NumberPercentage::value() already normalizes percentages to 0-1 range.
-        auto const& bbox = paint_context.path_bounding_box;
-        tile_x = pattern_x().value() * bbox.width() + bbox.x();
-        tile_y = pattern_y().value() * bbox.height() + bbox.y();
-        tile_width = pattern_width().value() * bbox.width();
-        tile_height = pattern_height().value() * bbox.height();
-    } else {
-        // For userSpaceOnUse, resolve percentages relative to the viewport.
-        auto const& viewport = paint_context.viewport;
-        tile_x = pattern_x().resolve_relative_to(viewport.width());
-        tile_y = pattern_y().resolve_relative_to(viewport.height());
-        tile_width = pattern_width().resolve_relative_to(viewport.width());
-        tile_height = pattern_height().resolve_relative_to(viewport.height());
-    }
-
-    if (tile_width <= 0 || tile_height <= 0)
-        return {};
-
-    auto tile_rect = paint_context.paint_transform.map(Gfx::FloatRect { tile_x, tile_y, tile_width, tile_height });
-
-    if (tile_rect.is_empty())
-        return {};
-
-    auto content_scale = paint_context.content_scale;
-    if (!(content_scale.width() > 0 && content_scale.height() > 0))
-        content_scale = { 1, 1 };
-
-    // Pattern content records in the pattern's own units scaled by the device pixel ratio; the
-    // nested tree root maps it into the tile surface, including the objectBoundingBox content
-    // scaling when patternContentUnits asks for it. A pattern viewBox maps content into
-    // tile-local coordinates through the pattern's viewport transform node instead, and per
-    // https://svgwg.org/svg2-draft/pservers.html#PatternElementViewBoxAttribute it overrides
-    // patternContentUnits — so the root then only applies the surface resolution scale.
-    auto device_scale = static_cast<float>(device_pixels_per_css_pixel);
-    auto recorded_to_surface = Gfx::AffineTransform {}.scale({ content_scale.width(), content_scale.height() });
-    if (!view_box().has_value()) {
-        auto content_to_tile_transform = Gfx::AffineTransform {};
-        if (pattern_content_units() == SVGUnits::ObjectBoundingBox) {
-            auto const& bounding_box = paint_context.path_bounding_box;
-            content_to_tile_transform = Gfx::AffineTransform {}
-                                            .translate({ bounding_box.x() * device_scale, bounding_box.y() * device_scale })
-                                            .scale({ bounding_box.width(), bounding_box.height() });
-        }
-        recorded_to_surface = recorded_to_surface
-                                  .translate(-tile_rect.location())
-                                  .multiply(content_to_tile_transform);
-    }
-    auto tile_content_transform = recorded_to_surface.to_matrix();
-
-    Optional<Gfx::AffineTransform> user_space_pattern_transform;
-    auto style = computed_style();
-    VERIFY(style);
-    if (style->has_transformations()) {
-        auto matrix = Gfx::FloatMatrix4x4::identity();
-        style->for_each_transformation([&](auto const& css_transform) {
-            matrix = matrix * css_transform.to_matrix(pattern_box);
-        });
-
-        user_space_pattern_transform = extract_2d_affine_transform(matrix);
-    } else {
-        user_space_pattern_transform = pattern_transform();
-    }
-
-    Optional<Gfx::AffineTransform> device_pattern_transform;
-    if (user_space_pattern_transform.has_value()) {
-        if (!user_space_pattern_transform->inverse().has_value())
-            return {};
-        // patternTransform is defined in user space, but the tile rect and shader operate in device pixel space.
-        // Convert by conjugating with paint_transform.
-        if (auto inv = paint_context.paint_transform.inverse(); inv.has_value()) {
-            auto transform = paint_context.paint_transform;
-            device_pattern_transform = transform.multiply(*user_space_pattern_transform).multiply(*inv);
-        }
-    }
-
-    return PaintGeometry {
-        .pattern_layout_node = pattern_box,
-        .tile_rect = tile_rect,
-        .content_scale = content_scale,
-        .tile_content_transform = tile_content_transform,
-        .device_pattern_transform = device_pattern_transform,
-    };
+    Layout::RustFFI::FfiSvgPatternDescription description {};
+    description.pattern_box = Layout::Node::slot_id(pattern_box);
+    description.units_are_object_bounding_box = pattern_units() == SVGUnits::ObjectBoundingBox;
+    description.content_units_are_object_bounding_box = pattern_content_units() == SVGUnits::ObjectBoundingBox;
+    description.has_view_box = view_box().has_value();
+    description.x = Layout::to_ffi_number_percentage(pattern_x());
+    description.y = Layout::to_ffi_number_percentage(pattern_y());
+    description.width = Layout::to_ffi_number_percentage(pattern_width());
+    description.height = Layout::to_ffi_number_percentage(pattern_height());
+    description.pattern_transform_attribute = pattern_transform();
+    auto const* transform_values = style_group<CSS::ComputedValues::TransformValues>();
+    auto const* css_transform_entries = transform_values ? transform_values->resolved_transforms.pointer : nullptr;
+    auto css_transform_count = transform_values ? transform_values->resolved_transforms.length : 0;
+    Layout::RustFFI::layout_arena_svg_paint_resources_push_pattern(sink, &description, css_transform_entries, css_transform_count);
 }
 
 // Reflected length accessors are generated by SVGElement's reflection macro.
