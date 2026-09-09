@@ -25,7 +25,6 @@ class File;
 class LocalServer;
 class LocalSocket;
 class MappedFile;
-class MimeData;
 class NetworkJob;
 class Notifier;
 class Process;

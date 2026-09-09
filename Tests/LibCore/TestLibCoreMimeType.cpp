@@ -11,7 +11,6 @@
 static void check_filename_mimetype(Vector<StringView> const& filepaths, StringView expected_mime_type)
 {
     for (auto const& filename : filepaths) {
-        dbgln(filename, "\n");
         auto const& guessed_mime_type = Core::guess_mime_type_based_on_filename(filename);
         EXPECT_EQ(guessed_mime_type, expected_mime_type);
     }
