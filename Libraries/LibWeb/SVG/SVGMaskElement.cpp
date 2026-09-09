@@ -44,7 +44,10 @@ void SVGMaskElement::attribute_changed(Utf16FlyString const& name, Optional<Utf1
         m_width = parse_number_percentage(value.value_or({}));
     } else if (name == AttributeNames::height) {
         m_height = parse_number_percentage(value.value_or({}));
+    } else {
+        return;
     }
+    mark_resource_box_referencing_elements_for_layout_update();
 }
 
 // https://drafts.csswg.org/css-masking/#element-attrdef-mask-maskcontentunits
