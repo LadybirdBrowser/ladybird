@@ -17,6 +17,7 @@ static constexpr u8 VIDEO_PARAMETER_SET_NAL_UNIT_TYPE = 32;
 static constexpr u8 SEQUENCE_PARAMETER_SET_NAL_UNIT_TYPE = 33;
 static constexpr u8 PICTURE_PARAMETER_SET_NAL_UNIT_TYPE = 34;
 static constexpr u8 LAST_CODED_SLICE_NAL_UNIT_TYPE = 31;
+static constexpr u8 FIRST_IRAP_NAL_UNIT_TYPE = 16;
 static constexpr u8 MAXIMUM_REORDER_FRAME_COUNT = 16;
 
 Optional<H265::Parameters> H265::parse_codec_parameters(GenericLexer& lexer)
@@ -135,6 +136,12 @@ bool H265::is_coded_slice(NALUnitHeader const& header)
     return header.nal_unit_type <= LAST_CODED_SLICE_NAL_UNIT_TYPE;
 }
 
+// ITU-T H.265 (07/2024), 7.4.2.2: the even types below the IRAP range are the sub-layer non-reference pictures.
+bool H265::is_sub_layer_non_reference(NALUnitHeader const& header)
+{
+    return header.nal_unit_type < FIRST_IRAP_NAL_UNIT_TYPE && header.nal_unit_type % 2 == 0;
+}
+
 // ITU-T H.265 (07/2024), 7.3.3: the spec notes that the constraint flag branches do not affect the structure's
 // width, so reaching what follows only takes counting bits.
 static void skip_profile_tier_level(RBSPBitReader& reader, u8 max_sub_layers_minus1)
@@ -227,6 +234,7 @@ Optional<H265::SequenceParameterSet> H265::parse_sequence_parameter_set(Readonly
     return SequenceParameterSet {
         .sps_seq_parameter_set_id = static_cast<u8>(sps_seq_parameter_set_id),
         .sps_video_parameter_set_id = sps_video_parameter_set_id,
+        .sps_max_sub_layers_minus1 = sps_max_sub_layers_minus1,
         .sps_max_num_reorder_pics = static_cast<u8>(min(sps_max_num_reorder_pics, static_cast<u32>(MAXIMUM_REORDER_FRAME_COUNT))),
         .bit_depth_luma = static_cast<u8>(bit_depth_luma_minus8 + 8),
     };
