@@ -1962,6 +1962,8 @@ bool Element::apply_box_presence_change_in_place(SetNeedsLayoutTreeUpdateReason 
 void Element::apply_computed_style_to_layout_node_if_needed(CSS::RequiredInvalidationAfterStyleChange const& invalidation)
 {
     auto* layout_node = unsafe_layout_node();
+    if (auto* svg_element = as_if<SVG::SVGElement>(*this))
+        svg_element->note_svg_paint_resource_description_may_have_changed();
     if (invalidation.needs_layout_tree_rebuild())
         return;
 

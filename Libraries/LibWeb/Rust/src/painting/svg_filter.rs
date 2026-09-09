@@ -14,7 +14,7 @@
 use std::collections::HashMap;
 
 use libgfx_rust::filter::{ChannelSelector, ChannelTable, Filter, TurbulenceType};
-use libgfx_rust::{CompositingAndBlendingOperator, IntSize, InterpolationColorSpace};
+use libgfx_rust::{CompositingAndBlendingOperator, IntRect, IntSize, InterpolationColorSpace};
 
 use crate::painting::host::visual_context::{FfiSvgFilterPrimitiveKind, SvgFilterPrimitiveValues};
 
@@ -59,7 +59,7 @@ const fn utf16<const N: usize>(ascii: &[u8; N]) -> [u16; N] {
 
 /// One `<filter>` child as the host hands it over, with the names, lists and tables it borrowed
 /// from the element copied so the builder owns what ends up in the graph.
-#[derive(Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct SvgFilterPrimitive {
     pub values: SvgFilterPrimitiveValues,
     pub in1: Vec<u16>,
@@ -68,6 +68,7 @@ pub(crate) struct SvgFilterPrimitive {
     pub merge_inputs: Vec<Vec<u16>>,
     pub color_matrix_values: Vec<f32>,
     pub component_transfer_tables: [Option<ChannelTable>; 4],
+    pub image_frame: Option<libgfx_rust::image_frame::ImageFrameHandle>,
 }
 
 /// An intermediate result of the graph: the filter producing it, or the source graphic when
@@ -124,6 +125,7 @@ pub(crate) struct SvgFilterGraphBuilder {
     /// latter. The layer replaying the filter applies the accumulated transform, so only the
     /// device pixel ratio converts here.
     scale: f32,
+    image_target: Option<(IntRect, u8)>,
     results_by_name: HashMap<Vec<u16>, FilterResult>,
     /// The output of the last primitive, which is what an unnamed `in` refers to and what the
     /// filter as a whole produces.
@@ -134,9 +136,14 @@ impl SvgFilterGraphBuilder {
     pub(crate) fn new(device_pixels_per_css_pixel: f64) -> Self {
         Self {
             scale: device_pixels_per_css_pixel as f32,
+            image_target: None,
             results_by_name: HashMap::new(),
             last_result: FilterResult::default(),
         }
+    }
+
+    pub(crate) fn set_image_target(&mut self, dest_rect: IntRect, image_rendering: u8) {
+        self.image_target = Some((dest_rect, image_rendering));
     }
 
     pub(crate) fn push(&mut self, mut primitive: SvgFilterPrimitive) {
@@ -266,15 +273,24 @@ impl SvgFilterGraphBuilder {
                     _ => return None,
                 }
             }
-            FfiSvgFilterPrimitiveKind::Image => FilterResult::new(
-                Filter::Image {
-                    frame_id: values.image_frame_id,
-                    src_rect: values.image_src_rect,
-                    dest_rect: values.image_dest_rect,
-                    scaling_mode: values.image_scaling_mode,
-                },
-                InterpolationColorSpace::SRGB,
-            ),
+            FfiSvgFilterPrimitiveKind::Image => {
+                let (dest_rect, image_rendering) = self.image_target?;
+                let frame = primitive.image_frame.as_ref()?;
+                let src_rect = values.image_src_rect;
+                FilterResult::new(
+                    Filter::Image {
+                        frame_id: frame.id(),
+                        src_rect,
+                        dest_rect,
+                        scaling_mode: crate::painting::record::paint::background::to_gfx_scaling_mode(
+                            image_rendering,
+                            (src_rect.width, src_rect.height),
+                            (dest_rect.width, dest_rect.height),
+                        ),
+                    },
+                    InterpolationColorSpace::SRGB,
+                )
+            }
             FfiSvgFilterPrimitiveKind::Merge => in_space(Filter::Merge {
                 inputs: primitive
                     .merge_inputs

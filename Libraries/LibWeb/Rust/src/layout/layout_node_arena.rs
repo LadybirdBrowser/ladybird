@@ -551,6 +551,7 @@ pub(crate) struct LayoutNodeArena {
     replaced_paint_facts: RefCell<HashMap<NodeSlotId, crate::painting::replaced_paint_facts::ReplacedPaintFacts>>,
     layer_image_paint_facts:
         RefCell<HashMap<NodeSlotId, Vec<crate::painting::layer_image_paint_facts::LayerImagePaintFactsEntry>>>,
+    svg_paint_resources: crate::painting::svg_paint_resources::SvgPaintResources,
     run_used_records: RefCell<Vec<RunRecordSlot>>,
     next_run_nonce: Cell<u64>,
     rows_sharing_dom_node: RefCell<HashMap<*mut c_void, RowsSharingDomNode>>,
@@ -600,6 +601,7 @@ impl LayoutNodeArena {
             raw_table_column_spans: HashMap::default(),
             replaced_paint_facts: RefCell::new(HashMap::default()),
             layer_image_paint_facts: RefCell::new(HashMap::default()),
+            svg_paint_resources: crate::painting::svg_paint_resources::SvgPaintResources::default(),
             run_used_records: RefCell::new(Vec::new()),
             next_run_nonce: Cell::new(1),
             rows_sharing_dom_node: RefCell::new(HashMap::default()),
@@ -891,6 +893,7 @@ impl LayoutNodeArena {
         self.raw_table_column_spans.remove(&id);
         self.replaced_paint_facts.get_mut().remove(&id);
         self.layer_image_paint_facts.get_mut().remove(&id);
+        self.svg_paint_resources.forget_slot(id);
         self.paint_state.get_mut().selection_pseudo_styles.remove(&id);
         let data = self.data_mut(index);
         debug_assert!(
@@ -942,6 +945,26 @@ impl LayoutNodeArena {
         self.style_records[id.slot_index() as usize].set(style_record);
         self.enroll_text_children_for_content_sync(id);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(id);
+    }
+
+    pub(crate) fn enroll_node_for_svg_paint_resources_sync(&self, id: NodeSlotId) {
+        use crate::painting::svg_paint_resources::SvgPaintResourceKind;
+        let Some(style) = self.node_style_if_live(id) else {
+            return;
+        };
+        let effects = style.effects();
+        let mut kinds = 0;
+        if crate::painting::filter_bytes::contains_url(&effects.filter) {
+            kinds |= SvgPaintResourceKind::Filter.bit();
+        }
+        if crate::painting::filter_bytes::contains_url(&effects.backdrop_filter) {
+            kinds |= SvgPaintResourceKind::BackdropFilter.bit();
+        }
+        self.svg_paint_resources.set_enrolled_kinds(id, kinds);
+    }
+
+    pub(crate) fn svg_paint_resources(&self) -> &crate::painting::svg_paint_resources::SvgPaintResources {
+        &self.svg_paint_resources
     }
 
     pub(crate) fn node_style_record(&self, id: NodeSlotId) -> u64 {
@@ -3077,7 +3100,9 @@ pub unsafe extern "C" fn layout_arena_set_node_style(
 ) {
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.set_node_style(id, style_record, payloads);
+    let arena = unsafe { &*arena.cast::<LayoutNodeArena>() };
+    arena.set_node_style(id, style_record, payloads);
+    arena.enroll_node_for_svg_paint_resources_sync(id);
 }
 
 #[unsafe(no_mangle)]

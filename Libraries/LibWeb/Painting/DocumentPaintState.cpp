@@ -15,6 +15,7 @@
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
+#include <LibWeb/Painting/SvgPaintResources.h>
 
 namespace Web::Painting {
 
@@ -100,6 +101,7 @@ void DocumentPaintState::clear_scroll_state(DOM::Document& document)
 
 void DocumentPaintState::update_accumulated_visual_contexts(DOM::Document& document)
 {
+    bool svg_paint_resources_changed = sync_svg_paint_resources(document);
     auto result = rust_update_accumulated_visual_contexts(document);
     if (result.performed_full_build) {
         m_scroll_state_snapshot = {};
@@ -108,7 +110,7 @@ void DocumentPaintState::update_accumulated_visual_contexts(DOM::Document& docum
         ++m_accumulated_visual_context_tree_incremental_update_count;
     }
     set_needs_to_refresh_scroll_state(document, true);
-    if (result.requires_display_list_recording)
+    if (result.requires_display_list_recording || svg_paint_resources_changed)
         document.set_needs_to_record_display_list();
     if (result.structural_epoch_changed)
         m_visual_context_tree_visual_animations = nullptr;

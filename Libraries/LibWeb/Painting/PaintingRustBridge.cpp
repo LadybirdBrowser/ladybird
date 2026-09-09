@@ -322,38 +322,6 @@ static bool rust_painting_timing_enabled()
     return enabled;
 }
 
-static DisplayListResourceStorage* visual_context_filter_image_storage(DOM::Document const& document)
-{
-    auto navigable = document.navigable();
-    if (!navigable)
-        return nullptr;
-    return &navigable->display_list_resource_storage();
-}
-
-// Resolves one url() reference of a filter list and hands the referenced <filter>'s primitives to
-// the Rust graph builder the callback was handed as its sink. Frames an feImage draws are
-// registered with the display list resource storage under the id the primitives name them by.
-static Layout::RustFFI::FfiResolvedSvgFilter push_svg_filter_reference(void const* url_value, Layout::NodeWithStyle const& layout_node, DisplayListResourceStorage* image_storage, void* sink)
-{
-    auto resolved_reference = resolve_svg_filter_reference({ .pointer = url_value }, layout_node);
-    Layout::RustFFI::FfiResolvedSvgFilter result {};
-    result.failed = resolved_reference.failed;
-    if (resolved_reference.failed)
-        return result;
-    result.svg_filter_bounds = resolved_reference.bounds;
-    Vector<Gfx::DecodedImageFrame> image_frames;
-    resolved_reference.filter_element->push_primitives(sink, layout_node, image_frames);
-    // A document without a navigable has nowhere to register the frames an feImage draws, so its
-    // filter list is dropped rather than handed over unresolvable; such documents are not painted.
-    if (!image_storage && !image_frames.is_empty()) {
-        result.failed = true;
-        return result;
-    }
-    for (auto const& image_frame : image_frames)
-        image_storage->add_image_frame(image_frame);
-    return result;
-}
-
 static Layout::NodeWithStyle::ImageObserver const* layer_image_observer(Layout::NodeWithStyle const& layout_node, Layout::RustFFI::FfiLayerImageList list, u32 computed_index)
 {
     switch (list) {
@@ -411,11 +379,6 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM
         .root_background_source = [](void* context) -> Layout::RustFFI::FfiRootBackgroundSource {
             auto& document = *static_cast<DOM::Document*>(context);
             return rust_root_background_source(document);
-        },
-        .resolve_svg_filter = [](void* context, void* layout_node_shell, void const* url_value, void* sink) -> Layout::RustFFI::FfiResolvedSvgFilter {
-            auto& document = *static_cast<DOM::Document*>(context);
-            auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
-            return push_svg_filter_reference(url_value, layout_node, visual_context_filter_image_storage(document), sink);
         },
     };
 }

@@ -75,7 +75,7 @@ Layout::RustFFI::FfiUtf16View view_of(Utf16View view)
 }
 
 // https://drafts.fxtf.org/filter-effects-1/#ColorInterpolationFiltersProperty
-void SVGFilterElement::push_primitives(void* sink, Layout::NodeWithStyle const& referenced_node, Vector<Gfx::DecodedImageFrame>& image_frames)
+void SVGFilterElement::push_primitives(void* sink)
 {
     using PrimitiveKind = Layout::RustFFI::FfiSvgFilterPrimitiveKind;
 
@@ -98,6 +98,7 @@ void SVGFilterElement::push_primitives(void* sink, Layout::NodeWithStyle const& 
         Utf16String result;
         Vector<Utf16String> merge_input_names;
         Vector<Layout::RustFFI::FfiUtf16View> merge_inputs;
+        Optional<Gfx::DecodedImageFrame> image_frame;
         Vector<float> color_matrix_values;
 
         auto set_in1 = [&](auto& filter_primitive) { in1 = filter_primitive.in1()->base_val(); };
@@ -175,33 +176,17 @@ void SVGFilterElement::push_primitives(void* sink, Layout::NodeWithStyle const& 
                 return IterationDecision::Continue;
 
             // FIXME: Should we use the dest rect as the size here?
-            auto frame = image_data->default_frame({});
-            if (!frame.has_value())
+            image_frame = image_data->default_frame({});
+            if (!image_frame.has_value())
                 return IterationDecision::Continue;
 
             auto src_rect = image_primitive->content_rect();
             if (!src_rect.has_value())
                 return IterationDecision::Continue;
 
-            auto* dom_node = referenced_node.dom_node();
-            if (!dom_node)
-                return IterationDecision::Continue;
-
-            // NB: We use the unsafe accessor here because this may be called
-            //     during layout update, before the layout-is-up-to-date flag
-            //     has been set. The committed box is valid since layout has
-            //     already been performed at this point.
-            auto const* layout_node = dom_node->unsafe_layout_node();
-            if (!layout_node || !Painting::has_committed_box(*layout_node))
-                return IterationDecision::Continue;
-
-            auto dest_rect = Gfx::enclosing_int_rect(Painting::absolute_rect(*layout_node).to_type<float>());
             values.kind = PrimitiveKind::Image;
-            values.image_frame_id = frame->id();
             values.image_src_rect = *src_rect;
-            values.image_dest_rect = dest_rect;
-            values.image_scaling_mode = CSS::to_gfx_scaling_mode(as<Layout::NodeWithStyle>(*layout_node).image_rendering(), src_rect->size(), dest_rect.size());
-            image_frames.append(*frame);
+            primitive.image_frame = &image_frame.value();
             set_result(*image_primitive);
         } else if (auto* merge_primitive = as_if<SVGFEMergeElement>(node)) {
             values.kind = PrimitiveKind::Merge;

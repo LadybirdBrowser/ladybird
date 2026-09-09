@@ -1172,6 +1172,8 @@ public:
         Structure,
     };
     void set_needs_accumulated_visual_contexts_update(bool);
+    void note_svg_paint_resources_changed();
+    bool has_enrolled_svg_paint_resources() const;
     void schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason);
     bool can_compute_client_rects_without_accumulated_visual_contexts_update(Layout::Node const&) const;
     void schedule_accumulated_visual_context_update(Element&, AccumulatedVisualContextUpdateScope);
