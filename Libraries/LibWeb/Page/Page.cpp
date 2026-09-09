@@ -27,6 +27,7 @@
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/HTMLMediaElement.h>
 #include <LibWeb/HTML/HTMLSelectElement.h>
+#include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/HistoryExecutor.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigationPopulationRequest.h>
@@ -38,6 +39,7 @@
 #include <LibWeb/Loader/ContentBlocker.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/Selection/Selection.h>
 
@@ -850,6 +852,8 @@ void Page::sync_media_element_video_sink_ticking()
 {
     for_each_media_element([&](auto& media_element) {
         media_element.sync_video_sink_ticking();
+        if (auto* video_element = as_if<HTML::HTMLVideoElement>(&media_element))
+            Painting::push_video_paint_facts(*video_element);
     });
 }
 

@@ -61,6 +61,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Page/ScreenWakeLockHandle.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/Platform/EventLoopPlugin.h>
 #include <LibWeb/WebIDL/Promise.h>
 
@@ -1812,6 +1813,8 @@ void HTMLMediaElement::attach_selected_video_track_sink(Media::Track const& trac
     add_current_video_sink(handle);
     if (document().hidden())
         sync_video_sink_ticking();
+    if (auto* video_element = as_if<HTMLVideoElement>(this))
+        Painting::push_video_paint_facts(*video_element);
 }
 
 void HTMLMediaElement::add_current_video_sink(Media::VideoSinkHandle handle)
@@ -1844,6 +1847,8 @@ void HTMLMediaElement::release_active_video_sink()
     m_active_video_sink.clear();
     if (m_playback_manager && handle.has_value())
         m_playback_manager->disable_video_sink_by_handle(*handle);
+    if (auto* video_element = as_if<HTMLVideoElement>(this))
+        Painting::push_video_paint_facts(*video_element);
 }
 
 void HTMLMediaElement::set_selected_video_track(Badge<VideoTrack>, GC::Ptr<HTML::VideoTrack> video_track)

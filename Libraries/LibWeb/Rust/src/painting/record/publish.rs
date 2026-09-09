@@ -61,10 +61,13 @@ pub(crate) fn publish_recording(
     for frame in &output.newly_referenced_image_frames {
         publish.add_image_frame(frame);
     }
+    for (resource_id, sink_handle) in &output.newly_referenced_video_sinks {
+        publish.add_video_sink(*resource_id, *sink_handle);
+    }
     resolve_vector_image_placeholders(&mut output, publish);
     if let Some(recording_from_scratch) = &mut recording_from_scratch {
         resolve_vector_image_placeholders(recording_from_scratch, publish);
-        crate::painting::record::verify::verify_spliced_recording_matches_fresh(arena, &output, recording_from_scratch);
+        crate::painting::record::verify::verify_spliced_recording_matches_fresh(&output, recording_from_scratch);
     }
     let mut paint_state = arena.paint_state().borrow_mut();
     output.is_identical_to_cache_source = paint_state

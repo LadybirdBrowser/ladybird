@@ -10,6 +10,7 @@
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
+#include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/Layout/Box.h>
@@ -209,6 +210,45 @@ bool push_replaced_image_paint_facts(Layout::ImageProvider const& image_provider
     return Layout::RustFFI::layout_arena_set_replaced_image_paint_facts(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node), facts);
 }
 
+static bool push_video_paint_facts_onto(HTML::HTMLVideoElement const& video_element, Layout::Node const& layout_node)
+{
+    Layout::RustFFI::FfiVideoPaintFacts facts {};
+    switch (video_element.current_representation()) {
+    case HTML::HTMLVideoElement::Representation::FirstVideoFrame:
+    case HTML::HTMLVideoElement::Representation::VideoFrame: {
+        facts.representation = Layout::RustFFI::FfiVideoRepresentation::VideoFrame;
+        auto sink_handle = video_element.video_sink_handle();
+        if (sink_handle.has_value() && video_element.natural_media_size().has_value()) {
+            facts.has_video_frame = true;
+            auto src_size = video_element.natural_media_size()->to_type<int>();
+            facts.video_src_width = src_size.width();
+            facts.video_src_height = src_size.height();
+            facts.video_sink_resource_id = video_element.video_sink_resource_id().value().value();
+            facts.video_sink_handle = sink_handle->value();
+        }
+        break;
+    }
+    case HTML::HTMLVideoElement::Representation::PosterFrame:
+        facts.representation = Layout::RustFFI::FfiVideoRepresentation::PosterFrame;
+        if (auto const& poster_frame = video_element.poster_frame(); poster_frame.has_value())
+            facts.poster_frame = &poster_frame.value();
+        break;
+    case HTML::HTMLVideoElement::Representation::TransparentBlack:
+        facts.representation = Layout::RustFFI::FfiVideoRepresentation::TransparentBlack;
+        break;
+    }
+    return Layout::RustFFI::layout_arena_set_video_paint_facts(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node), facts);
+}
+
+void push_video_paint_facts(HTML::HTMLVideoElement const& video_element)
+{
+    auto const* layout_node = video_element.unsafe_layout_node();
+    if (!layout_node || layout_node->kind() != Layout::RustFFI::NodeKind::VideoBox)
+        return;
+    if (push_video_paint_facts_onto(video_element, *layout_node))
+        set_needs_repaint(*layout_node);
+}
+
 void push_paint_facts_after_style_attach(Layout::NodeWithStyle& layout_node, StyleHoldsImageValues style_holds_image_values)
 {
     if (style_holds_image_values == StyleHoldsImageValues::Yes)
@@ -223,6 +263,8 @@ void push_paint_facts_after_style_attach(Layout::NodeWithStyle& layout_node, Sty
         push_replaced_image_paint_facts(static_cast<Layout::Box const&>(layout_node).image_provider(), layout_node);
     else if (layout_node.kind() == Layout::RustFFI::NodeKind::SVGImageBox)
         push_replaced_image_paint_facts(as<SVG::SVGImageElement>(*layout_node.dom_node()), layout_node);
+    else if (layout_node.kind() == Layout::RustFFI::NodeKind::VideoBox)
+        push_video_paint_facts_onto(as<HTML::HTMLVideoElement>(*layout_node.dom_node()), layout_node);
 }
 
 }

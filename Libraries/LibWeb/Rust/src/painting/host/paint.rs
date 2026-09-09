@@ -206,18 +206,16 @@ pub struct FfiReplacedImagePaintFacts {
     pub frame: *const c_void,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct FfiReplacedPaintFacts {
-    pub video_representation: FfiVideoRepresentation,
+pub struct FfiVideoPaintFacts {
+    pub representation: FfiVideoRepresentation,
     pub has_video_frame: bool,
     pub video_src_width: i32,
     pub video_src_height: i32,
-    pub video_sink_storage_id: u64,
-    pub has_poster_frame: bool,
-    pub poster_frame_id: u64,
-    pub poster_width: i32,
-    pub poster_height: i32,
+    pub video_sink_resource_id: u64,
+    pub video_sink_handle: u64,
+    pub poster_frame: *const c_void,
 }
 
 #[derive(Clone, Copy, Debug, Default)]
@@ -381,6 +379,7 @@ pub struct FfiRecordingPublishCallbacks {
     pub add_font: unsafe extern "C" fn(*mut c_void, *const c_void),
     pub add_image_frame: unsafe extern "C" fn(*mut c_void, *const c_void),
     pub resolve_vector_image_display_list: unsafe extern "C" fn(*mut c_void, *const FfiVectorImageRenderRequest) -> u64,
+    pub add_video_sink: unsafe extern "C" fn(*mut c_void, u64, u64),
 }
 
 impl FfiRecordingPublishCallbacks {
@@ -399,13 +398,17 @@ impl FfiRecordingPublishCallbacks {
         // request only for the duration of the call.
         unsafe { (self.resolve_vector_image_display_list)(self.context, request) }
     }
+
+    pub(crate) fn add_video_sink(&self, resource_id: u64, sink_handle: u64) {
+        // SAFETY: The C++ host registers the sink synchronously.
+        unsafe { (self.add_video_sink)(self.context, resource_id, sink_handle) };
+    }
 }
 
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiPaintHostCallbacks {
     pub context: *mut c_void,
-    pub replaced_paint_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiReplacedPaintFacts,
     pub svg_paint_style: unsafe extern "C" fn(
         *mut c_void,
         *mut c_void,
@@ -422,10 +425,6 @@ pub struct ColorStopSink {
 }
 
 impl FfiPaintHostCallbacks {
-    pub(crate) fn replaced_paint_facts(&self, layout_node_shell: *mut c_void) -> FfiReplacedPaintFacts {
-        // SAFETY: The C++ host answers synchronously from a live layout node shell.
-        unsafe { (self.replaced_paint_facts)(self.context, layout_node_shell) }
-    }
     pub(crate) fn svg_paint_style(
         &self,
         layout_node_shell: *mut c_void,
