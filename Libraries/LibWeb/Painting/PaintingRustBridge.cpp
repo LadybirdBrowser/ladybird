@@ -780,7 +780,6 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
             Layout::RustFFI::FfiHitTestPaintableFacts facts {};
             auto dom_node = layout_node.dom_node();
             facts.dom_node_has_parent = dom_node && dom_node->parent();
-            facts.is_editable_or_editing_host = dom_node && dom_node->is_editable_or_editing_host();
             if (auto const* graphics_element = as_if<SVG::SVGGraphicsElement>(dom_node); graphics_element && graphics_element->unsafe_layout_node()) {
                 for (auto child = graphics_element->unsafe_layout_node()->first_child(); child; child = child->next_sibling()) {
                     if (child->kind() == Layout::RustFFI::NodeKind::SVGMaskBox)

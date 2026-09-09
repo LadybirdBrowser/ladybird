@@ -25,7 +25,6 @@ use std::rc::Rc;
 pub(crate) struct HitTestFacts {
     pub(crate) visible_for_hit_testing: bool,
     pub(crate) dom_node_has_parent: bool,
-    pub(crate) is_editable_or_editing_host: bool,
     pub(crate) has_resizer: bool,
     pub(crate) could_be_scrolled_horizontally: bool,
     pub(crate) could_be_scrolled_vertically: bool,
@@ -45,7 +44,6 @@ pub(crate) fn hit_test_facts(
     let Some(style) = arena.node_style_if_live(paintable) else {
         return HitTestFacts {
             dom_node_has_parent: dom.dom_node_has_parent,
-            is_editable_or_editing_host: dom.is_editable_or_editing_host,
             svg_mask_content_units_object_bbox: dom.svg_mask_content_units_object_bbox,
             svg_clip_path_units_object_bbox: dom.svg_clip_path_units_object_bbox,
             inside_blocking_wheel_event_handler: dom.inside_blocking_wheel_event_handler,
@@ -67,7 +65,6 @@ pub(crate) fn hit_test_facts(
             && !arena.node_has_dom_paint_fact(paintable, DomPaintFact::Inert)
             && style.inherited_ui().pointer_events != css_enums::pointer_events::NONE,
         dom_node_has_parent: dom.dom_node_has_parent,
-        is_editable_or_editing_host: dom.is_editable_or_editing_host,
         has_resizer: crate::painting::chrome_geometry::has_resizer(arena, paintable),
         could_be_scrolled_horizontally: wheel_axes.horizontal,
         could_be_scrolled_vertically: wheel_axes.vertical,
@@ -338,7 +335,11 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
     }
 
     fn record_empty_editable_hit_test_item(&mut self, paintable: NodeSlotId) {
-        if self.is_anonymous(paintable) || !self.paintable_facts(paintable).is_editable_or_editing_host {
+        if self.is_anonymous(paintable)
+            || !self
+                .layout_arena
+                .node_has_dom_paint_fact(paintable, DomPaintFact::EditableOrEditingHost)
+        {
             return;
         }
         let rect = paintable_geometry::absolute_border_box_rect(self.layout_arena, paintable);

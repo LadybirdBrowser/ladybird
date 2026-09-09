@@ -193,6 +193,7 @@ pub enum FfiNodeLink {
 #[repr(u8)]
 pub enum DomPaintFact {
     Inert = 1 << 0,
+    EditableOrEditingHost = 1 << 1,
 }
 
 #[derive(Clone, Copy)]
