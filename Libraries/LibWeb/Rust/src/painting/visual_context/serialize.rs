@@ -19,7 +19,7 @@ use libgfx_rust::{
 use std::rc::Rc;
 
 const SERIALIZED_TREE_MAGIC: u32 = 0x5443_5641;
-const SERIALIZED_TREE_FORMAT: u32 = 3;
+const SERIALIZED_TREE_FORMAT: u32 = 4;
 
 const SPATIAL_KIND_SCROLL: u8 = 0;
 const SPATIAL_KIND_STICKY: u8 = 1;
@@ -590,7 +590,6 @@ impl VisualContextTree {
         writer.u32(SERIALIZED_TREE_MAGIC);
         writer.u32(SERIALIZED_TREE_FORMAT);
         writer.u64(self.structural_epoch);
-        writer.bool(self.root_is_visual_viewport);
         writer.effect_index(self.root_isolation_effect.unwrap_or(EffectNodeIndex::NONE));
         writer.u32(self.spatial_nodes.len() as u32);
         writer.u32(self.clip_nodes.len() as u32);
@@ -619,7 +618,6 @@ impl VisualContextTree {
             return None;
         }
         let structural_epoch = reader.u64()?;
-        let root_is_visual_viewport = reader.bool()?;
         let root_isolation_effect = reader.effect_index()?;
         let spatial_count = reader.u32()? as usize;
         let clip_count = reader.u32()? as usize;
@@ -669,7 +667,6 @@ impl VisualContextTree {
             spatial_nodes,
             clip_nodes,
             effect_nodes,
-            root_is_visual_viewport,
             (!root_isolation_effect.is_none()).then_some(root_isolation_effect),
             structural_epoch,
         );
@@ -920,7 +917,6 @@ mod tests {
 
     fn assert_trees_match(a: &VisualContextTree, b: &VisualContextTree) {
         assert_eq!(a.structural_epoch, b.structural_epoch);
-        assert_eq!(a.root_is_visual_viewport, b.root_is_visual_viewport);
         assert_eq!(a.root_isolation_effect, b.root_isolation_effect);
         assert_eq!(a.spatial_nodes.len(), b.spatial_nodes.len());
         assert_eq!(a.clip_nodes.len(), b.clip_nodes.len());
@@ -1126,14 +1122,6 @@ mod tests {
         assert!(tombstoned_isolation_effect.tombstone_effect_slot(isolation_effect));
         tombstoned_isolation_effect.root_isolation_effect = Some(isolation_effect);
         rejected(&tombstoned_isolation_effect);
-    }
-
-    #[test]
-    fn a_content_root_tree_round_trips() {
-        let mut tree = VisualContextTree::create_with_content_root(transform(translation_matrix(-8.0, -9.0, 0.0)));
-        tree.structural_epoch = 7;
-        let decoded = VisualContextTree::from_bytes(&tree.to_bytes()).expect("a serialized tree decodes");
-        assert_trees_match(&tree, &decoded);
     }
 
     #[test]
@@ -1436,15 +1424,11 @@ mod tests {
     fn out_of_range_discriminants_and_absurd_counts_are_rejected() {
         let tree = hostile_tree();
         let bytes = tree.to_bytes();
-        let header_size = 4 + 4 + 8 + 1 + 4 + 4 + 4 + 4;
+        let header_size = 4 + 4 + 8 + 4 + 4 + 4 + 4;
         let root_spatial_kind_offset = header_size + 4;
         let mut bad_spatial_kind = bytes.clone();
         bad_spatial_kind[root_spatial_kind_offset] = 200;
         assert!(VisualContextTree::from_bytes(&bad_spatial_kind).is_none());
-
-        let mut bad_bool = bytes.clone();
-        bad_bool[4 + 4 + 8] = 2;
-        assert!(VisualContextTree::from_bytes(&bad_bool).is_none());
 
         let count_offset = |slot: usize| header_size - 12 + slot * 4;
         for slot in 0..3 {

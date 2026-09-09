@@ -25,8 +25,8 @@ use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::layout::node_data::NodeSlotId;
 use libgfx_rust::{
-    CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, IntPoint, IntRect,
-    MaskKind, WindingRule, translation_matrix,
+    CompositingAndBlendingOperator, CornerRadii, FloatMatrix4x4, FloatPoint, FloatRect, FloatSize, IntRect, MaskKind,
+    WindingRule, translation_matrix,
 };
 use scroll_state::{NO_SCROLL_STATE_SLOT, ScrollStateSlot};
 
@@ -694,7 +694,6 @@ pub struct VisualContextTree {
     pub spatial_nodes: Vec<SpatialNode>,
     pub clip_nodes: Vec<ClipNode>,
     pub effect_nodes: Vec<EffectNode>,
-    pub root_is_visual_viewport: bool,
     // The layer at the root of the effect tree that 3D plane clips are pushed right above.
     pub root_isolation_effect: Option<EffectNodeIndex>,
     pub structural_epoch: u64,
@@ -807,34 +806,13 @@ fn dependency_order(
 
 impl VisualContextTree {
     pub fn create(visual_viewport_transform: TransformData) -> Self {
-        Self::with_root(visual_viewport_transform, true)
-    }
-
-    pub fn create_with_content_root(content_transform: TransformData) -> Self {
-        Self::with_root(content_transform, false)
-    }
-
-    pub fn create_with_content_offset(content_offset: IntPoint) -> Self {
-        Self::create_with_content_root(TransformData {
-            matrix: translation_matrix(content_offset.x as f32, content_offset.y as f32, 0.0),
-            origin: FloatPoint::default(),
-            sorting_context_root_index: None,
-            flattens_inherited_transform: false,
-            role: TransformDataRole::CssTransform,
-            synthetic_plane: false,
-            establishes_sorting_context: false,
-        })
-    }
-
-    fn with_root(root_transform: TransformData, root_is_visual_viewport: bool) -> Self {
         Self {
             spatial_nodes: vec![SpatialNode {
-                data: SpatialData::Transform(root_transform),
+                data: SpatialData::Transform(visual_viewport_transform),
                 parent: VISUAL_VIEWPORT_NODE_INDEX,
             }],
             clip_nodes: Vec::new(),
             effect_nodes: Vec::new(),
-            root_is_visual_viewport,
             root_isolation_effect: None,
             structural_epoch: allocate_structural_epoch(),
             spatial_slots: SlotAccounting {
@@ -852,7 +830,6 @@ impl VisualContextTree {
         spatial_nodes: Vec<SpatialNode>,
         clip_nodes: Vec<ClipNode>,
         effect_nodes: Vec<EffectNode>,
-        root_is_visual_viewport: bool,
         root_isolation_effect: Option<EffectNodeIndex>,
         structural_epoch: u64,
     ) -> Self {
@@ -869,7 +846,6 @@ impl VisualContextTree {
             spatial_nodes,
             clip_nodes,
             effect_nodes,
-            root_is_visual_viewport,
             root_isolation_effect,
             structural_epoch,
             sampled_background_colors: HashMap::new(),
@@ -1222,7 +1198,6 @@ impl VisualContextTree {
         let mut matrix = FloatMatrix4x4::identity();
         for node_index in chain.into_iter().rev() {
             if node_index == VISUAL_VIEWPORT_NODE_INDEX
-                && self.root_is_visual_viewport
                 && include_visual_viewport_transform == IncludeVisualViewportTransform::No
             {
                 continue;
@@ -1638,19 +1613,6 @@ mod tests {
         );
         assert_eq!(
             tree.accumulated_2d_scale(child, &[], IncludeVisualViewportTransform::Yes),
-            FloatSize {
-                width: 6.0,
-                height: 6.0
-            }
-        );
-    }
-
-    #[test]
-    fn a_content_root_is_always_included() {
-        let mut tree = VisualContextTree::create_with_content_root(scaled(2.0));
-        let child = tree.append_spatial(SpatialData::Transform(scaled(3.0)), VISUAL_VIEWPORT_NODE_INDEX);
-        assert_eq!(
-            tree.accumulated_2d_scale(child, &[], IncludeVisualViewportTransform::No),
             FloatSize {
                 width: 6.0,
                 height: 6.0

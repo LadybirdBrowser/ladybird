@@ -487,7 +487,6 @@ impl VisualContextTree {
         loop {
             let node = &self.spatial_nodes[current.0 as usize];
             if current != VISUAL_VIEWPORT_NODE_INDEX
-                || !self.root_is_visual_viewport
                 || include_visual_viewport_transform == IncludeVisualViewportTransform::Yes
             {
                 match &node.data {
