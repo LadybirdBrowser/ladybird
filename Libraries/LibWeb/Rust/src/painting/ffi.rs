@@ -1490,11 +1490,14 @@ fn fresh_visual_context_tree_build(
     let fresh_tree = {
         let arena = unsafe { arena_from_handle(arena) };
         let paintable_rows = arena.paintable_rows();
-        crate::painting::visual_context::build::create_fresh_tree_with_viewport_nodes(
+        let mut fresh_tree = crate::painting::visual_context::build::create_fresh_tree_with_viewport_nodes(
             &paintable_rows,
             viewport,
             &inputs,
-        )
+        );
+        fresh_tree.viewport_assignment.scrollable_node_identity =
+            callbacks.scroll_node_identity(arena.shell_if_live(viewport));
+        fresh_tree
     };
     {
         let arena = unsafe { arena_from_handle_mut(arena) };
