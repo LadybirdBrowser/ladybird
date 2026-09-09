@@ -769,7 +769,7 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
 {
     return {
         .context = &context,
-        .svg_paint_style = [](void* context_pointer, void* layout_node_shell, bool is_stroke, Layout::RustFFI::FfiSvgPaintContext const* ffi_paint_context, void* sink) -> Layout::RustFFI::FfiSvgPaintStyle {
+        .svg_paint_style = [](void* context_pointer, void* layout_node_shell, bool is_stroke, Layout::RustFFI::FfiSvgPaintContext const* ffi_paint_context) -> Layout::RustFFI::FfiSvgPaintStyle {
             auto& context = *static_cast<PaintHostContext*>(context_pointer);
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
             Layout::RustFFI::FfiSvgPaintStyle style {};
@@ -780,47 +780,15 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 .content_scale = ffi_paint_context->content_scale,
             };
             auto const& graphics_element = as<SVG::SVGGraphicsElement>(*layout_node.dom_node());
-            auto paint_server = is_stroke ? graphics_element.stroke_paint_server(paint_context, context.device_pixels_per_css_pixel) : graphics_element.fill_paint_server(paint_context, context.device_pixels_per_css_pixel);
-            if (!paint_server.has_value())
+            auto pattern = is_stroke ? graphics_element.stroke_pattern_paint_server(paint_context, context.device_pixels_per_css_pixel) : graphics_element.fill_pattern_paint_server(paint_context, context.device_pixels_per_css_pixel);
+            if (!pattern.has_value())
                 return style;
-            auto write_gradient = [&](GradientPaintStyle const& gradient) {
-                style.gradient_transform = gradient.gradient_transform();
-                style.spread_method = static_cast<Layout::RustFFI::FfiSvgGradientSpreadMethod>(to_underlying(gradient.spread_method()));
-                style.color_space = gradient.color_space();
-                auto colors = gradient.color_stop_colors();
-                auto positions = gradient.color_stop_positions();
-                for (size_t i = 0; i < colors.size(); ++i)
-                    Layout::RustFFI::layout_arena_paint_push_color_stop(sink, colors[i], positions[i]);
-            };
-            paint_server->visit(
-                [&](PaintStyle const& paint_style) {
-                    paint_style.visit(
-                        [&](LinearGradientPaintStyle const& linear) {
-                            style.kind = Layout::RustFFI::FfiSvgPaintStyleKind::LinearGradient;
-                            write_gradient(linear);
-                            style.start = linear.start_point();
-                            style.end = linear.end_point();
-                        },
-                        [&](RadialGradientPaintStyle const& radial) {
-                            style.kind = Layout::RustFFI::FfiSvgPaintStyleKind::RadialGradient;
-                            write_gradient(radial);
-                            style.start = radial.start_center();
-                            style.start_radius = radial.start_radius();
-                            style.end = radial.end_center();
-                            style.end_radius = radial.end_radius();
-                        },
-                        [&](PatternPaintStyle const&) {
-                            VERIFY_NOT_REACHED();
-                        });
-                },
-                [&](SVG::SVGGraphicsElement::PatternPaintServer const& pattern) {
-                    style.kind = Layout::RustFFI::FfiSvgPaintStyleKind::Pattern;
-                    style.pattern_paintable = committed_row_slot(*pattern.pattern_layout_node);
-                    style.tile_content_transform = pattern.tile_content_transform;
-                    style.tile_rect = pattern.tile_rect;
-                    style.content_scale = pattern.content_scale;
-                    style.pattern_transform = pattern.device_pattern_transform;
-                });
+            style.kind = Layout::RustFFI::FfiSvgPaintStyleKind::Pattern;
+            style.pattern_paintable = committed_row_slot(*pattern->pattern_layout_node);
+            style.tile_content_transform = pattern->tile_content_transform;
+            style.tile_rect = pattern->tile_rect;
+            style.content_scale = pattern->content_scale;
+            style.pattern_transform = pattern->device_pattern_transform;
             return style;
         },
     };

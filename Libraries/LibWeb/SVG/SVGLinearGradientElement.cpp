@@ -5,7 +5,7 @@
  */
 
 #include <LibWeb/DOM/Document.h>
-#include <LibWeb/Painting/PaintStyle.h>
+#include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/SVG/AttributeNames.h>
 #include <LibWeb/SVG/AttributeParsing.h>
 #include <LibWeb/SVG/SVGLinearGradientElement.h>
@@ -104,50 +104,15 @@ NumberPercentage SVGLinearGradientElement::end_y_impl(GC::RootHashTable<SVGGradi
     return NumberPercentage::create_percentage(0);
 }
 
-Optional<Painting::PaintStyle> SVGLinearGradientElement::to_gfx_paint_style(SVGPaintContext const& paint_context) const
+void SVGLinearGradientElement::push_paint_server_description(void* sink) const
 {
-    Gfx::FloatPoint start_point {};
-    Gfx::FloatPoint end_point {};
-
-    // https://svgwg.org/svg2-draft/pservers.html#LinearGradientElementGradientUnitsAttribute
-    if (gradient_units() == GradientUnits::ObjectBoundingBox) {
-        // If gradientUnits="objectBoundingBox", the user coordinate system for attributes ‘x1’, ‘y1’, ‘x2’ and ‘y2’
-        // is established using the bounding box of the element to which the gradient is applied (see Object bounding
-        // box units) and then applying the transform specified by attribute ‘gradientTransform’. Percentages represent
-        // values relative to the bounding box for the object.
-        // Note: For gradientUnits="objectBoundingBox" both "100%" and "1" are treated the same.
-        auto const& bounding_box = paint_context.path_bounding_box;
-        start_point = {
-            bounding_box.location().x() + start_x().value() * bounding_box.width(),
-            bounding_box.location().y() + start_y().value() * bounding_box.height(),
-        };
-        end_point = {
-            bounding_box.location().x() + end_x().value() * bounding_box.width(),
-            bounding_box.location().y() + end_y().value() * bounding_box.height(),
-        };
-    } else {
-        // GradientUnits::UserSpaceOnUse
-        // If gradientUnits="userSpaceOnUse", ‘x1’, ‘y1’, ‘x2’, and ‘y2’ represent values in the coordinate system
-        // that results from taking the current user coordinate system in place at the time when the gradient element
-        // is referenced (i.e., the user coordinate system for the element referencing the gradient element via a
-        // fill or stroke property) and then applying the transform specified by attribute ‘gradientTransform’.
-        // Percentages represent values relative to the current SVG viewport.
-        start_point = {
-            start_x().resolve_relative_to(paint_context.viewport.width()),
-            start_y().resolve_relative_to(paint_context.viewport.height()),
-        };
-        end_point = {
-            end_x().resolve_relative_to(paint_context.viewport.width()),
-            end_y().resolve_relative_to(paint_context.viewport.height()),
-        };
-    }
-
-    Painting::LinearGradientPaintStyle paint_style { start_point, end_point };
-    add_color_stops(paint_style);
-    paint_style.set_gradient_transform(gradient_paint_transform(paint_context));
-    paint_style.set_spread_method(to_painting_spread_method(spread_method()));
-    paint_style.set_color_space(color_space());
-    return Painting::PaintStyle { move(paint_style) };
+    auto description = base_paint_server_description(Layout::RustFFI::FfiSvgGradientKind::Linear);
+    description.x1 = Layout::to_ffi_number_percentage(start_x());
+    description.y1 = Layout::to_ffi_number_percentage(start_y());
+    description.x2 = Layout::to_ffi_number_percentage(end_x());
+    description.y2 = Layout::to_ffi_number_percentage(end_y());
+    Layout::RustFFI::layout_arena_svg_paint_resources_push_gradient(sink, &description);
+    push_color_stops(sink);
 }
 
 }

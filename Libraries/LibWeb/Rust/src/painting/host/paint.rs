@@ -5,6 +5,7 @@
  */
 
 use crate::css::css_pixels::CssPixels;
+use crate::layout::svg_formatting_context::FfiSvgNumberPercentage;
 use crate::layout::used_values;
 use crate::painting::display_list::builder::RecordedDisplayList;
 use crate::painting::display_list::commands::DisplayListCommandRun;
@@ -246,17 +247,41 @@ pub enum FfiSvgGradientSpreadMethod {
     Reflect,
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(u8)]
+pub enum FfiSvgGradientKind {
+    #[default]
+    Linear,
+    Radial,
+}
+
+/// A gradient element as the host describes it: its resolved attributes, with the href chain
+/// already followed, in the units the element declares. The coordinates resolve at record time
+/// against the painted path and its viewport.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct FfiSvgGradientDescription {
+    pub kind: FfiSvgGradientKind,
+    pub units_are_object_bounding_box: bool,
+    pub spread_method: FfiSvgGradientSpreadMethod,
+    pub color_space: InterpolationColorSpace,
+    pub gradient_transform: OptionalAffineTransform,
+    pub x1: FfiSvgNumberPercentage,
+    pub y1: FfiSvgNumberPercentage,
+    pub x2: FfiSvgNumberPercentage,
+    pub y2: FfiSvgNumberPercentage,
+    pub cx: FfiSvgNumberPercentage,
+    pub cy: FfiSvgNumberPercentage,
+    pub r: FfiSvgNumberPercentage,
+    pub fx: FfiSvgNumberPercentage,
+    pub fy: FfiSvgNumberPercentage,
+    pub fr: FfiSvgNumberPercentage,
+}
+
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct FfiSvgPaintStyle {
     pub kind: FfiSvgPaintStyleKind,
-    pub gradient_transform: OptionalAffineTransform,
-    pub spread_method: FfiSvgGradientSpreadMethod,
-    pub color_space: InterpolationColorSpace,
-    pub start: libgfx_rust::FloatPoint,
-    pub end: libgfx_rust::FloatPoint,
-    pub start_radius: f32,
-    pub end_radius: f32,
     pub pattern_paintable: crate::layout::node_data::NodeSlotId,
     pub tile_content_transform: FloatMatrix4x4,
     pub tile_rect: FloatRect,
@@ -409,19 +434,8 @@ impl FfiRecordingPublishCallbacks {
 #[repr(C)]
 pub struct FfiPaintHostCallbacks {
     pub context: *mut c_void,
-    pub svg_paint_style: unsafe extern "C" fn(
-        *mut c_void,
-        *mut c_void,
-        bool,
-        *const FfiSvgPaintContext,
-        *mut c_void,
-    ) -> FfiSvgPaintStyle,
-}
-
-#[derive(Default)]
-pub struct ColorStopSink {
-    pub colors: Vec<Color>,
-    pub positions: Vec<f32>,
+    pub svg_paint_style:
+        unsafe extern "C" fn(*mut c_void, *mut c_void, bool, *const FfiSvgPaintContext) -> FfiSvgPaintStyle,
 }
 
 impl FfiPaintHostCallbacks {
@@ -430,18 +444,8 @@ impl FfiPaintHostCallbacks {
         layout_node_shell: *mut c_void,
         is_stroke: bool,
         paint_context: &FfiSvgPaintContext,
-    ) -> (FfiSvgPaintStyle, ColorStopSink) {
-        let mut sink = ColorStopSink::default();
-        // SAFETY: The C++ host answers synchronously, pushing color stops into the sink through the exported function.
-        let style = unsafe {
-            (self.svg_paint_style)(
-                self.context,
-                layout_node_shell,
-                is_stroke,
-                paint_context,
-                (&raw mut sink).cast(),
-            )
-        };
-        (style, sink)
+    ) -> FfiSvgPaintStyle {
+        // SAFETY: The C++ host answers synchronously from a live layout node shell.
+        unsafe { (self.svg_paint_style)(self.context, layout_node_shell, is_stroke, paint_context) }
     }
 }

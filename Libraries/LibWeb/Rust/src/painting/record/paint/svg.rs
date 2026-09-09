@@ -15,11 +15,14 @@ use crate::painting::display_list::recorder::{
     ColorStops, FillPathParams, PaintStyle, PaintStyleOrColor, StrokePathParams,
 };
 use crate::painting::force_dark::ForceDarkRole;
-use crate::painting::host::{FfiSvgGradientSpreadMethod, FfiSvgPaintStyle, FfiSvgPaintStyleKind};
+use crate::painting::host::{
+    FfiSvgGradientKind, FfiSvgGradientSpreadMethod, FfiSvgPaintContext, FfiSvgPaintStyle, FfiSvgPaintStyleKind,
+};
 use crate::painting::node_painting;
 use crate::painting::paintable_geometry::absolute_rect;
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::record::{PaintPhase, PaintRecorder};
+use crate::painting::svg_paint_resources::{PublishedSvgGradient, PublishedSvgPaintServer, SvgPaintResourceKind};
 use libgfx_rust::{AffineTransform, CapStyle, Color, FloatRect, JoinStyle, ShouldAntiAlias, WindingRule};
 
 #[derive(Clone, Copy, Default)]
@@ -152,49 +155,157 @@ fn affine(values: [f32; 6]) -> AffineTransform {
     AffineTransform { values }
 }
 
-fn paint_style_from_ffi<O: Observer>(
-    recorder: &mut PaintRecorder<'_, O>,
-    style: &FfiSvgPaintStyle,
-    stops: &crate::painting::host::ColorStopSink,
-) -> Option<PaintStyle> {
-    let color_stops = ColorStops {
-        colors: stops.colors.clone(),
-        positions: stops.positions.clone(),
-        repeating: false,
-    };
-    let gradient_transform = style.gradient_transform;
-    let spread_method = match style.spread_method {
+fn spread_method_of(spread_method: FfiSvgGradientSpreadMethod) -> DisplayListGradientSpreadMethod {
+    match spread_method {
         FfiSvgGradientSpreadMethod::Pad => DisplayListGradientSpreadMethod::Pad,
         FfiSvgGradientSpreadMethod::Repeat => DisplayListGradientSpreadMethod::Repeat,
         FfiSvgGradientSpreadMethod::Reflect => DisplayListGradientSpreadMethod::Reflect,
+    }
+}
+
+/// The transform that takes the gradient's coordinates, which are in the painted path's user
+/// space, into the recorded space: the path's bounding box origin moves to zero, the paint
+/// transform scales to device pixels, and gradientTransform applies last.
+fn gradient_paint_transform(
+    gradient: &PublishedSvgGradient,
+    paint_context: &FfiSvgPaintContext,
+) -> crate::painting::display_list::commands::OptionalAffineTransform {
+    use libgfx_rust::matrix::multiply_affine;
+    let mapped_bounding_box = paint_context.paint_transform.map_rect(paint_context.path_bounding_box);
+    let mut transform = AffineTransform::identity();
+    transform.values[4] = -mapped_bounding_box.x;
+    transform.values[5] = -mapped_bounding_box.y;
+    transform = multiply_affine(transform, paint_context.paint_transform);
+    if gradient.description.gradient_transform.has_value {
+        transform = multiply_affine(transform, gradient.description.gradient_transform.value);
+    }
+    crate::painting::display_list::commands::OptionalAffineTransform {
+        value: transform,
+        has_value: true,
+    }
+}
+
+/// Builds the paint style of a gradient a fill or stroke references, resolving its coordinates
+/// the way SVG defines them: fractions of the painted path's bounding box for
+/// objectBoundingBox units, and user units with percentages of the viewport otherwise.
+fn gradient_paint_style(gradient: &PublishedSvgGradient, paint_context: &FfiSvgPaintContext) -> PaintStyle {
+    let description = &gradient.description;
+    let bounding_box = paint_context.path_bounding_box;
+    let viewport = paint_context.viewport;
+    let point_in_bounding_box = |x: f32, y: f32| libgfx_rust::FloatPoint {
+        x: bounding_box.x + x * bounding_box.width,
+        y: bounding_box.y + y * bounding_box.height,
     };
-    let color_space = style.color_space;
+    let point_in_user_space =
+        |x: crate::layout::svg_formatting_context::FfiSvgNumberPercentage,
+         y: crate::layout::svg_formatting_context::FfiSvgNumberPercentage| {
+            libgfx_rust::FloatPoint {
+                x: x.resolve_relative_to(viewport.width),
+                y: y.resolve_relative_to(viewport.height),
+            }
+        };
+    let color_stops = ColorStops {
+        colors: gradient.stops.iter().map(|stop| stop.color).collect(),
+        positions: gradient.stops.iter().map(|stop| stop.position).collect(),
+        repeating: false,
+    };
+    let gradient_transform = gradient_paint_transform(gradient, paint_context);
+    let spread_method = spread_method_of(description.spread_method);
+    let color_space = description.color_space;
+    match description.kind {
+        FfiSvgGradientKind::Radial => {
+            let (start_center, start_radius, end_center, end_radius) = if description.units_are_object_bounding_box {
+                (
+                    point_in_bounding_box(description.fx.value, description.fy.value),
+                    description.fr.value * bounding_box.width,
+                    point_in_bounding_box(description.cx.value, description.cy.value),
+                    description.r.value * bounding_box.width,
+                )
+            } else {
+                (
+                    point_in_user_space(description.fx, description.fy),
+                    description.fr.resolve_relative_to(viewport.width),
+                    point_in_user_space(description.cx, description.cy),
+                    description.r.resolve_relative_to(viewport.width),
+                )
+            };
+            PaintStyle::RadialGradient {
+                gradient_transform,
+                spread_method,
+                color_space,
+                color_stops,
+                start_center,
+                start_radius,
+                end_center,
+                end_radius,
+            }
+        }
+        FfiSvgGradientKind::Linear => {
+            let (start_point, end_point) = if description.units_are_object_bounding_box {
+                (
+                    point_in_bounding_box(description.x1.value, description.y1.value),
+                    point_in_bounding_box(description.x2.value, description.y2.value),
+                )
+            } else {
+                (
+                    point_in_user_space(description.x1, description.y1),
+                    point_in_user_space(description.x2, description.y2),
+                )
+            };
+            PaintStyle::LinearGradient {
+                gradient_transform,
+                spread_method,
+                color_space,
+                color_stops,
+                start_point,
+                end_point,
+            }
+        }
+    }
+}
+
+fn pattern_paint_style_from_ffi<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    style: &FfiSvgPaintStyle,
+) -> Option<PaintStyle> {
     match style.kind {
-        FfiSvgPaintStyleKind::LinearGradient => Some(PaintStyle::LinearGradient {
-            gradient_transform,
-            spread_method,
-            color_space,
-            color_stops,
-            start_point: style.start,
-            end_point: style.end,
-        }),
-        FfiSvgPaintStyleKind::RadialGradient => Some(PaintStyle::RadialGradient {
-            gradient_transform,
-            spread_method,
-            color_space,
-            color_stops,
-            start_center: style.start,
-            start_radius: style.start_radius,
-            end_center: style.end,
-            end_radius: style.end_radius,
-        }),
         FfiSvgPaintStyleKind::Pattern => Some(PaintStyle::Pattern {
             tile_records: recorder.pattern_tile_records(style.pattern_paintable, style.tile_content_transform),
             tile_rect: style.tile_rect,
             content_scale: style.content_scale,
             pattern_transform: style.pattern_transform,
         }),
-        FfiSvgPaintStyleKind::None => None,
+        _ => None,
+    }
+}
+
+/// The paint style a fill or stroke url() resolves to, from the description the sync pass
+/// published; a pattern's geometry still comes from the host.
+fn paint_server_style<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    paintable: NodeSlotId,
+    is_stroke: bool,
+    paint_context: &FfiSvgPaintContext,
+) -> Option<PaintStyle> {
+    let kind = if is_stroke {
+        SvgPaintResourceKind::Stroke
+    } else {
+        SvgPaintResourceKind::Fill
+    };
+    let published = recorder
+        .layout_arena
+        .svg_paint_resources()
+        .published_paint_server(paintable, kind)?;
+    match &*published {
+        PublishedSvgPaintServer::Gradient(gradient) => Some(gradient_paint_style(gradient, paint_context)),
+        PublishedSvgPaintServer::Pattern => {
+            let style =
+                recorder
+                    .paint_host
+                    .svg_paint_style(recorder.layout_node_shell(paintable), is_stroke, paint_context);
+            pattern_paint_style_from_ffi(recorder, &style)
+        }
+        PublishedSvgPaintServer::None => None,
     }
 }
 
@@ -260,11 +371,7 @@ pub(crate) fn paint_path<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paint
             paint_order::FILL => {
                 let fill_opacity = facts.fill_opacity;
                 let fill_winding = WindingRule::from_raw(facts.fill_winding);
-                let (style, stops) =
-                    recorder
-                        .paint_host
-                        .svg_paint_style(recorder.layout_node_shell(paintable), false, &paint_context);
-                if let Some(paint_style) = paint_style_from_ffi(recorder, &style, &stops) {
+                if let Some(paint_style) = paint_server_style(recorder, paintable, false, &paint_context) {
                     recorder.recorder.fill_path(FillPathParams {
                         force_dark_role: ForceDarkRole::Svg,
                         path: &path,
@@ -301,11 +408,7 @@ pub(crate) fn paint_path<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paint
                 let stroke_dashoffset = facts.stroke_dashoffset * stroke_scale;
                 let stroke_opacity = facts.stroke_opacity;
 
-                let (style, stops) =
-                    recorder
-                        .paint_host
-                        .svg_paint_style(recorder.layout_node_shell(paintable), true, &paint_context);
-                if let Some(paint_style) = paint_style_from_ffi(recorder, &style, &stops) {
+                if let Some(paint_style) = paint_server_style(recorder, paintable, true, &paint_context) {
                     recorder.recorder.stroke_path(StrokePathParams {
                         force_dark_role: ForceDarkRole::Svg,
                         cap_style: facts.cap_style,
