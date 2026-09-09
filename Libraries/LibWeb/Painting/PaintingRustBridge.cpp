@@ -981,15 +981,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                 }
                 if (selection_state(layout_node) != SelectionState::None)
                     facts.selection_background_color = selection_style(layout_node).background_color;
-            } else if (kind == Layout::RustFFI::NodeKind::CanvasBox) {
-                auto& canvas_element = as<HTML::HTMLCanvasElement>(*layout_node.dom_node());
-                if (auto content_size = canvas_element.canvas_surface_content_size(); content_size.has_value()) {
-                    facts.has_canvas_content = true;
-                    facts.canvas_content_width = content_size->width();
-                    facts.canvas_content_height = content_size->height();
-                    facts.canvas_id = canvas_element.canvas_id().value().value();
-                    facts.canvas_content_generation = canvas_element.content_generation();
-                }
             } else if (kind == Layout::RustFFI::NodeKind::VideoBox) {
                 auto const& video_element = as<HTML::HTMLVideoElement>(*layout_node.dom_node());
                 switch (video_element.current_representation()) {

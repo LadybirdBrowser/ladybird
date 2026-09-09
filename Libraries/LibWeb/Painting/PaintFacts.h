@@ -13,5 +13,6 @@ namespace Web::Painting {
 
 WEB_API void push_paint_facts_after_style_attach(Layout::NodeWithStyle&);
 WEB_API void push_form_control_paint_facts(HTML::HTMLInputElement&);
+WEB_API void push_canvas_paint_facts(HTML::HTMLCanvasElement const&);
 
 }
