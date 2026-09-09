@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../expected/svg/green-square-100-ref.html" />
+<svg width="100" height="100">
+    <pattern id="p" patternUnits="userSpaceOnUse" width="100" height="100">
+        <rect width="50" height="100" fill="green" />
+        <rect x="50" width="50" height="100" fill="red" />
+    </pattern>
+    <rect width="100" height="100" fill="url(#p)" />
+</svg>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.getElementById("p").setAttribute("width", "50");
+            requestAnimationFrame(() => {
+                if (window.internals)
+                    internals.signalTestIsDone("PASS");
+                else
+                    document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>

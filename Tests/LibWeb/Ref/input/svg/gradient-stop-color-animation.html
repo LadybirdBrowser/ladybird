@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../../expected/svg/green-square-100-ref.html" />
+<svg width="100" height="100">
+    <linearGradient id="g">
+        <stop id="animated-stop" offset="0" stop-color="red" />
+        <stop offset="1" stop-color="green" />
+    </linearGradient>
+    <rect width="100" height="100" fill="url(#g)" />
+</svg>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            const animation = document.getElementById("animated-stop").animate(
+                [{ stopColor: "red" }, { stopColor: "green" }], { duration: 50, fill: "forwards" });
+            animation.finished.then(() => {
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        if (window.internals)
+                            internals.signalTestIsDone("PASS");
+                        else
+                            document.documentElement.classList.remove("reftest-wait");
+                    });
+                });
+            });
+        });
+    });
+</script>
+</html>
