@@ -266,27 +266,6 @@ pub struct FfiSvgPaintStyle {
     pub pattern_transform: OptionalAffineTransform,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiScrollNodeKind {
-    #[default]
-    None,
-    Viewport,
-    Element,
-    PseudoElement,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiAsyncScrollFacts {
-    pub is_nested_navigable_container: bool,
-    pub scroll_node_kind: FfiScrollNodeKind,
-    pub scrollable_node_id: i64,
-    pub pseudo_element_type: u8,
-    pub snaps_scroll_position_horizontally: bool,
-    pub snaps_scroll_position_vertically: bool,
-}
-
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
 pub struct FfiSelectionStyleFacts {
@@ -411,7 +390,6 @@ impl FfiRecordingPublishCallbacks {
 #[repr(C)]
 pub struct FfiPaintHostCallbacks {
     pub context: *mut c_void,
-    pub async_scroll_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiAsyncScrollFacts,
     pub image_intrinsic_facts:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiLayerImageList, u32) -> FfiImageIntrinsicFacts,
     pub selection_style_facts: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void) -> FfiSelectionStyleFacts,
@@ -455,11 +433,6 @@ pub struct ColorStopSink {
 }
 
 impl FfiPaintHostCallbacks {
-    pub(crate) fn async_scroll_facts(&self, layout_node_shell: *mut c_void) -> FfiAsyncScrollFacts {
-        // SAFETY: The C++ host answers synchronously from a live layout node shell.
-        unsafe { (self.async_scroll_facts)(self.context, layout_node_shell) }
-    }
-
     pub(crate) fn selection_style_facts(
         &self,
         layout_node_shell: *mut c_void,

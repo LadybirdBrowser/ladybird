@@ -877,29 +877,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
 {
     return {
         .context = &context,
-        .async_scroll_facts = [](void*, void* layout_node_shell) -> Layout::RustFFI::FfiAsyncScrollFacts {
-            auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
-            Layout::RustFFI::FfiAsyncScrollFacts facts {};
-            auto dom_node = layout_node.dom_node();
-            facts.is_nested_navigable_container = dom_node && dom_node->is_navigable_container() && as<HTML::NavigableContainer const>(*dom_node).content_navigable();
-            if (is_viewport_paintable(layout_node)) {
-                facts.scroll_node_kind = Layout::RustFFI::FfiScrollNodeKind::Viewport;
-                facts.scrollable_node_id = layout_node.document().unique_id().value();
-            } else if (layout_node.generated_for_pseudo_element().has_value()) {
-                facts.scroll_node_kind = Layout::RustFFI::FfiScrollNodeKind::PseudoElement;
-                facts.scrollable_node_id = layout_node.pseudo_element_generator()->unique_id().value();
-            } else if (dom_node && is<DOM::Element>(*dom_node)) {
-                facts.scroll_node_kind = Layout::RustFFI::FfiScrollNodeKind::Element;
-                facts.scrollable_node_id = dom_node->unique_id().value();
-            }
-            facts.pseudo_element_type = layout_node.generated_for_pseudo_element().has_value() ? static_cast<u8>(to_underlying(*layout_node.generated_for_pseudo_element())) : 0;
-            if (facts.scroll_node_kind != Layout::RustFFI::FfiScrollNodeKind::None) {
-                auto snap_axes = snap_axes_of_scroll_container(layout_node);
-                facts.snaps_scroll_position_horizontally = snap_axes.x;
-                facts.snaps_scroll_position_vertically = snap_axes.y;
-            }
-            return facts;
-        },
         .image_intrinsic_facts = [](void*, void* layout_node_shell, Layout::RustFFI::FfiLayerImageList list, u32 computed_index) -> Layout::RustFFI::FfiImageIntrinsicFacts {
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
             Layout::RustFFI::FfiImageIntrinsicFacts facts {};

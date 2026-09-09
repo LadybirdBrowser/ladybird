@@ -23,6 +23,7 @@
 #include <LibWeb/HTML/HTMLTableCellElement.h>
 #include <LibWeb/HTML/HTMLTableColElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
+#include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/Node.h>
@@ -51,6 +52,8 @@ static u8 dom_paint_facts_of(GC::Ptr<DOM::Node const> node)
         facts |= static_cast<u8>(RustFFI::DomPaintFact::EditableOrEditingHost);
     if (node->inside_blocking_wheel_event_handler())
         facts |= static_cast<u8>(RustFFI::DomPaintFact::InsideBlockingWheelEventHandler);
+    if (auto const* navigable_container = as_if<HTML::NavigableContainer>(*node); navigable_container && navigable_container->content_navigable())
+        facts |= static_cast<u8>(RustFFI::DomPaintFact::NestedNavigableContainer);
     return facts;
 }
 

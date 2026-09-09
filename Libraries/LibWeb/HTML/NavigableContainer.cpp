@@ -24,6 +24,7 @@
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
+#include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
 
 namespace Web::HTML {
@@ -100,6 +101,8 @@ void NavigableContainer::create_new_child_navigable()
     m_content_navigable = navigable;
     navigable->set_container({}, this);
 
+    if (auto* layout_node = unsafe_layout_node())
+        layout_node->refresh_dom_paint_facts();
     set_needs_repaint();
 
     (void)parent_navigable->adopt_canonical_id_for_child_created_during_history_reconstruction(navigable);
@@ -340,6 +343,8 @@ void NavigableContainer::destroy_the_child_navigable()
         if (m_content_navigable == navigable) {
             m_content_navigable = nullptr;
             document().schedule_html_parser_end_check();
+            if (auto* layout_node = unsafe_layout_node())
+                layout_node->refresh_dom_paint_facts();
             set_needs_repaint();
         }
 
