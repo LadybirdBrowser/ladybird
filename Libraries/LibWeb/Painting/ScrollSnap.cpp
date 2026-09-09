@@ -392,28 +392,8 @@ static Optional<SnapAxisChoice> choose_snap_offset_for_axis(Vector<SnapPositionC
 // https://drafts.csswg.org/css-scroll-snap-1/#snap-axis
 SnapAxes snap_axes_of_scroll_container(Layout::Node const& snap_container)
 {
-    auto const* style_source = style_source_for_snap_container(snap_container);
-    if (!style_source)
-        return {};
-
-    auto snap_type = style_source->scroll_snap_type();
-    if (snap_type.strictness == CSS::ScrollSnapStrictness::None)
-        return {};
-
-    bool horizontal_writing_mode = style_source->writing_mode() == CSS::WritingMode::HorizontalTb;
-    switch (snap_type.axis) {
-    case CSS::ScrollSnapAxis::X:
-        return { .x = true, .y = false };
-    case CSS::ScrollSnapAxis::Y:
-        return { .x = false, .y = true };
-    case CSS::ScrollSnapAxis::Inline:
-        return { .x = horizontal_writing_mode, .y = !horizontal_writing_mode };
-    case CSS::ScrollSnapAxis::Block:
-        return { .x = !horizontal_writing_mode, .y = horizontal_writing_mode };
-    case CSS::ScrollSnapAxis::Both:
-        return { .x = true, .y = true };
-    }
-    VERIFY_NOT_REACHED();
+    auto axes = Layout::RustFFI::layout_arena_scroll_snap_axes(snap_container.arena_handle(), Layout::Node::slot_id(&snap_container));
+    return { .x = axes.x, .y = axes.y };
 }
 
 struct SnapCandidateCollection {
