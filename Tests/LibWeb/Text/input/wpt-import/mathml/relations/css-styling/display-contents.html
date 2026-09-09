@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>display: contents</title>
+<link rel="help" href="https://w3c.github.io/mathml-core/#css-styling">
+<meta name="assert" content="Verify that display: contents computes to display: none">
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="../../support/mathml-fragments.js"></script>
+<script>
+  setup({ explicit_done: true });
+  window.addEventListener("load", runTests);
+  function runTests() {
+      var container = document.getElementById("container");
+      for (tag in MathMLFragments) {
+          container.insertAdjacentHTML("beforeend", `<math>${MathMLFragments[tag]}</math>`);
+      }
+      test(function() {
+          Array.from(document.getElementsByClassName("element")).forEach(element => {
+              var style = window.getComputedStyle(element);
+              element.setAttribute("style", "display: contents");
+              assert_equals(style.getPropertyValue("display"), "none", `${tag}`);
+          });
+      }, "display: contents computes to display: none");
+      done();
+  }
+</script>
+</head>
+<body>
+  <div id="log"></div>
+  <div id="container">
+    <math class="element"></math>
+  </div>
+</body>
+</html>

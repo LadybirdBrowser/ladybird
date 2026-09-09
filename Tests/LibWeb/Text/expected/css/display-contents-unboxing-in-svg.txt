@@ -1,0 +1,13 @@
+outer: none
+inner: contents
+a: contents
+g: contents
+switch: contents
+text: none
+tspan: contents
+textPath: contents
+use: contents
+defs: none
+symbol: none
+foreignObject: none
+rect: none

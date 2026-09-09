@@ -394,6 +394,8 @@ static bool element_may_have_presentational_hints(DOM::Element const& element)
 u32 element_box_type_adjustment_facts(DOM::Element const& element)
 {
     bool is_html_element = element.namespace_uri() == Namespace::HTML;
+    bool is_svg_element = element.namespace_uri() == Namespace::SVG;
+    bool is_mathml_element = element.namespace_uri() == Namespace::MathML;
     auto local_name = element.local_name();
 
     bool input_allows_adjustment = false;
@@ -412,29 +414,53 @@ u32 element_box_type_adjustment_facts(DOM::Element const& element)
         input_is_single_line = input_allows_adjustment && input.is_single_line();
     }
 
+    bool is_outermost_svg_element = false;
     bool force_position_static = false;
-    if (element.namespace_uri() == Namespace::SVG) {
+    if (is_svg_element) {
         force_position_static = true;
         if (local_name == "svg"sv) {
-            force_position_static = false;
+            is_outermost_svg_element = true;
             for (auto ancestor = element.parent_element(); ancestor; ancestor = ancestor->parent_element()) {
                 if (ancestor->namespace_uri() == Namespace::SVG && ancestor->local_name() == "foreignObject"sv)
                     break;
                 if (ancestor->namespace_uri() == Namespace::SVG && ancestor->local_name() == "svg"sv) {
-                    force_position_static = true;
+                    is_outermost_svg_element = false;
                     break;
                 }
             }
+            force_position_static = !is_outermost_svg_element;
         }
     }
 
     bool force_symbol_display_inline = false;
-    if (element.namespace_uri() == Namespace::SVG && local_name == "symbol"sv) {
+    if (is_svg_element && local_name == "symbol"sv) {
         if (auto* shadow_root = as_if<DOM::ShadowRoot>(element.parent())) {
             if (auto* host = shadow_root->host())
                 force_symbol_display_inline = host->namespace_uri() == Namespace::SVG && host->local_name() == "use"sv;
         }
     }
+
+    bool display_contents_computes_to_none = false;
+
+    // https://drafts.csswg.org/css-display-3/#unbox-svg
+    // - An svg element that has CSS box layout (this includes all svg whose parent is an HTML element, as well as
+    //   document root elements):
+    //     display: contents computes to display: none.
+    display_contents_computes_to_none |= is_outermost_svg_element;
+
+    // - All other SVG container elements that are also renderable elements
+    // - SVG text content child elements
+    // - <use>
+    //     display: contents strips the element from the formatting tree, and hoists its contents up to display in its
+    //     place. These contents include the shadow-DOM content for use.
+    // - any other SVG elements
+    //     display: contents computes to display: none.
+    display_contents_computes_to_none |= is_svg_element
+        && !first_is_one_of(local_name, "a"sv, "g"sv, "svg"sv, "switch"sv, "textPath"sv, "tspan"sv, "use"sv);
+
+    // https://drafts.csswg.org/css-display-3/#unbox-mathml
+    // For all MathML elements, display: contents computes to display: none.
+    display_contents_computes_to_none |= is_mathml_element;
 
     u32 facts = 0;
     auto set = [&](bool condition, ElementStyleAdjustmentFact fact) {
@@ -443,7 +469,7 @@ u32 element_box_type_adjustment_facts(DOM::Element const& element)
     };
     set(is<HTML::HTMLBRElement>(element), ElementStyleAdjustmentFact::IsBr);
     set(is_html_element && local_name == HTML::TagNames::wbr, ElementStyleAdjustmentFact::IsWbr);
-    set(input_allows_adjustment || (is_html_element && first_is_one_of(local_name, HTML::TagNames::textarea, HTML::TagNames::audio, HTML::TagNames::video, HTML::TagNames::canvas, HTML::TagNames::object, HTML::TagNames::iframe, HTML::TagNames::progress, HTML::TagNames::embed, HTML::TagNames::frame, HTML::TagNames::meter, HTML::TagNames::frameset, HTML::TagNames::img)), ElementStyleAdjustmentFact::DisallowDisplayContents);
+    set(input_allows_adjustment || display_contents_computes_to_none || (is_html_element && first_is_one_of(local_name, HTML::TagNames::textarea, HTML::TagNames::audio, HTML::TagNames::video, HTML::TagNames::canvas, HTML::TagNames::object, HTML::TagNames::iframe, HTML::TagNames::progress, HTML::TagNames::embed, HTML::TagNames::frame, HTML::TagNames::meter, HTML::TagNames::frameset, HTML::TagNames::img)), ElementStyleAdjustmentFact::DisallowDisplayContents);
     set(input_allows_adjustment || (is_html_element && first_is_one_of(local_name, HTML::TagNames::textarea, HTML::TagNames::audio, HTML::TagNames::video, HTML::TagNames::select)), ElementStyleAdjustmentFact::RewriteInlineFlow);
     set(is_html_element && local_name == HTML::TagNames::button, ElementStyleAdjustmentFact::IsButton);
     set(is_html_element && local_name == HTML::TagNames::select, ElementStyleAdjustmentFact::ForceLineHeightNormal);
@@ -452,7 +478,7 @@ u32 element_box_type_adjustment_facts(DOM::Element const& element)
     set(is_html_element && local_name == HTML::TagNames::table, ElementStyleAdjustmentFact::IsTable);
     set(force_position_static, ElementStyleAdjustmentFact::ForcePositionStatic);
     set(force_symbol_display_inline, ElementStyleAdjustmentFact::ForceSymbolDisplayInline);
-    set(element.namespace_uri() == Namespace::MathML, ElementStyleAdjustmentFact::IsMathML);
+    set(is_mathml_element, ElementStyleAdjustmentFact::IsMathML);
     set(local_name.equals_ignoring_ascii_case("mtable"sv), ElementStyleAdjustmentFact::IsMathMLMtable);
     set(local_name.equals_ignoring_ascii_case("mtr"sv), ElementStyleAdjustmentFact::IsMathMLMtr);
     set(local_name.equals_ignoring_ascii_case("mtd"sv), ElementStyleAdjustmentFact::IsMathMLMtd);
