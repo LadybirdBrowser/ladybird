@@ -4,7 +4,10 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ImageSetStyleValue.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/HTMLCanvasElement.h>
 #include <LibWeb/HTML/HTMLInputElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
@@ -14,6 +17,7 @@
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/PaintFacts.h>
+#include <LibWeb/SVG/SVGDecodedImageData.h>
 
 namespace Web::Painting {
 
@@ -102,8 +106,68 @@ void reconcile_navigable_container_paint_facts(DOM::Document const& document)
     }
 }
 
-void push_paint_facts_after_style_attach(Layout::NodeWithStyle& layout_node)
+static Layout::RustFFI::FfiLayerImagePaintFacts layer_image_paint_facts_for(CSS::AbstractImageStyleValue const& image, GC::Ptr<HTML::DecodedImageData> decoded_image_data)
 {
+    Layout::RustFFI::FfiLayerImagePaintFacts facts {};
+    facts.is_paintable = image.is_paintable(decoded_image_data);
+    if (decoded_image_data) {
+        auto natural_size = image.natural_size(*decoded_image_data);
+        facts.natural_width = natural_size.width;
+        facts.natural_height = natural_size.height;
+        if (natural_size.aspect_ratio.has_value()) {
+            facts.has_natural_aspect_ratio = true;
+            facts.natural_aspect_ratio_numerator = natural_size.aspect_ratio->numerator();
+            facts.natural_aspect_ratio_denominator = natural_size.aspect_ratio->denominator();
+        }
+        facts.content_kind = is<SVG::SVGDecodedImageData>(*decoded_image_data)
+            ? Layout::RustFFI::FfiLayerImageContentKind::Vector
+            : Layout::RustFFI::FfiLayerImageContentKind::Raster;
+        facts.single_pixel_color = decoded_image_data->color_if_single_pixel_bitmap();
+    }
+    if (auto const* image_set = as_if<CSS::ImageSetStyleValue>(image)) {
+        if (auto selected_option_index = image_set->selected_option_index(); selected_option_index.has_value()) {
+            facts.has_image_set_selected_option = true;
+            facts.image_set_selected_option_index = *selected_option_index;
+        }
+    }
+    return facts;
+}
+
+static GC::Ptr<HTML::DecodedImageData> decoded_image_data_of(Layout::NodeWithStyle::ImageObserver const* observer)
+{
+    if (!observer)
+        return nullptr;
+    return observer->decoded_image_data();
+}
+
+void push_layer_image_paint_facts(Layout::NodeWithStyle const& layout_node)
+{
+    Vector<Layout::RustFFI::FfiLayerImagePaintFactsEntry> entries;
+    auto append_entry = [&](Layout::RustFFI::FfiLayerImageList list, size_t computed_index, CSS::AbstractImageStyleValue const* image, Layout::NodeWithStyle::ImageObserver const* observer) {
+        if (!image)
+            return;
+        entries.append({
+            .list = list,
+            .computed_index = static_cast<u32>(computed_index),
+            .facts = layer_image_paint_facts_for(*image, decoded_image_data_of(observer)),
+        });
+    };
+    auto const& background_layers = layout_node.background_layers();
+    for (size_t layer_index = 0; layer_index < background_layers.size(); ++layer_index)
+        append_entry(Layout::RustFFI::FfiLayerImageList::Background, layer_index, background_layers[layer_index].background_image.ptr(), layout_node.background_image_observer(layer_index));
+    auto const& mask_layers = layout_node.mask_layers();
+    for (size_t layer_index = 0; layer_index < mask_layers.size(); ++layer_index)
+        append_entry(Layout::RustFFI::FfiLayerImageList::Mask, layer_index, mask_layers[layer_index].background_image.ptr(), layout_node.mask_image_observer(layer_index));
+    append_entry(Layout::RustFFI::FfiLayerImageList::BorderImageSource, 0, layout_node.border_image().source.ptr(), layout_node.border_image_source_observer());
+    Layout::RustFFI::layout_arena_set_layer_image_paint_facts(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node), entries.data(), entries.size());
+}
+
+void push_paint_facts_after_style_attach(Layout::NodeWithStyle& layout_node, StyleHoldsImageValues style_holds_image_values)
+{
+    if (style_holds_image_values == StyleHoldsImageValues::Yes)
+        push_layer_image_paint_facts(layout_node);
+    else
+        Layout::RustFFI::layout_arena_set_layer_image_paint_facts(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node), nullptr, 0);
     if (paints_form_control_from_facts(layout_node))
         push_form_control_paint_facts_onto(as<HTML::HTMLInputElement>(*layout_node.dom_node()), layout_node);
     else if (layout_node.kind() == Layout::RustFFI::NodeKind::CanvasBox)

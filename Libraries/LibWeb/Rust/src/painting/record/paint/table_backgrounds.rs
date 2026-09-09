@@ -12,7 +12,6 @@ use crate::css::display::FfiDisplay;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::builder::PendingInlineClip;
-use crate::painting::host::FfiLayerImageList;
 use crate::painting::paint_order;
 use crate::painting::paintable_geometry;
 use crate::painting::paintable_rows::PaintableRowsRead;
@@ -51,7 +50,7 @@ pub(crate) fn paint_table_part_background<O: Observer>(recorder: &mut PaintRecor
         recorder,
         paintable,
         style,
-        FfiLayerImageList::Background,
+        paintable,
         libgfx_rust::Color(style.background().background_color),
         style.background().background_color_clip,
         part_rect,
