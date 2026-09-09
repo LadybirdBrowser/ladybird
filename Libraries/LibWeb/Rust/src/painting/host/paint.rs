@@ -410,11 +410,3 @@ impl FfiRecordingPublishCallbacks {
         unsafe { (self.add_video_sink)(self.context, resource_id, sink_handle) };
     }
 }
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiPaintHostCallbacks {
-    pub context: *mut c_void,
-}
-
-impl FfiPaintHostCallbacks {}

@@ -1835,8 +1835,6 @@ pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
 pub unsafe extern "C" fn layout_arena_record_display_list(
     arena: *mut c_void,
     viewport: NodeSlotId,
-    _paint_callbacks: crate::painting::host::FfiPaintHostCallbacks,
-    _visual_context_callbacks: crate::painting::host::FfiVisualContextHostCallbacks,
     inputs: crate::painting::host::FfiRecordingInputs,
 ) -> bool {
     let arena = unsafe { arena_from_handle(arena) };

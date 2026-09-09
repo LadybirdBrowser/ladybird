@@ -693,11 +693,9 @@ void dump_layout_tree(StringBuilder& builder, Layout::Node const& root, bool int
 
 namespace {
 
-struct PaintHostContext {
+struct RecordingPublishContext {
     DisplayListResourceStorage& resource_storage;
     GC::Ref<DOM::Document const> document;
-    u64 paint_generation_id { 0 };
-    double device_pixels_per_css_pixel { 1 };
 };
 
 static NonnullRefPtr<DisplayList> display_list_from_rust_recording(AccumulatedVisualContextTree const& visual_context_tree, Layout::RustFFI::FfiRecordedDisplayList const& recorded)
@@ -708,18 +706,18 @@ static NonnullRefPtr<DisplayList> display_list_from_rust_recording(AccumulatedVi
     return DisplayList::create_from_command_bytes(visual_context_tree, move(command_bytes), move(command_runs));
 }
 
-static Layout::RustFFI::FfiRecordingPublishCallbacks recording_publish_callbacks(PaintHostContext& context)
+static Layout::RustFFI::FfiRecordingPublishCallbacks recording_publish_callbacks(RecordingPublishContext& context)
 {
     return {
         .context = &context,
         .add_font = [](void* context_pointer, void const* font) {
-            auto& context = *static_cast<PaintHostContext*>(context_pointer);
+            auto& context = *static_cast<RecordingPublishContext*>(context_pointer);
             context.resource_storage.add_font(*static_cast<Gfx::Font const*>(font)); },
         .add_image_frame = [](void* context_pointer, void const* frame) {
-            auto& context = *static_cast<PaintHostContext*>(context_pointer);
+            auto& context = *static_cast<RecordingPublishContext*>(context_pointer);
             context.resource_storage.add_image_frame(*static_cast<Gfx::DecodedImageFrame const*>(frame)); },
         .resolve_vector_image_display_list = [](void* context_pointer, Layout::RustFFI::FfiVectorImageRenderRequest const* request) -> u64 {
-            auto& context = *static_cast<PaintHostContext*>(context_pointer);
+            auto& context = *static_cast<RecordingPublishContext*>(context_pointer);
             auto const& document = *context.document;
             auto empty_display_list = [&] {
                 return context.resource_storage.add_display_list(DisplayList::create(document.paint_state().visual_context_tree(document)), document.paint_state().visual_context_tree(document)).value();
@@ -745,7 +743,7 @@ static Layout::RustFFI::FfiRecordingPublishCallbacks recording_publish_callbacks
             return context.resource_storage.add_display_list(move(*display_list)).value();
         },
         .add_video_sink = [](void* context_pointer, u64 resource_id, u64 sink_handle) {
-            auto& context = *static_cast<PaintHostContext*>(context_pointer);
+            auto& context = *static_cast<RecordingPublishContext*>(context_pointer);
             context.resource_storage.add_video_sink(VideoSinkResourceId { resource_id }, Media::VideoSinkHandle { sink_handle }); },
     };
 }
@@ -762,13 +760,6 @@ static void take_recording_trace_if_pending(DOM::Document& document)
         append_bytes_to_string_builder);
     if (has_pending_trace)
         document.paint_state().append_recording_trace(MUST(trace.to_string()));
-}
-
-Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& context)
-{
-    return {
-        .context = &context,
-    };
 }
 
 // The platform default font at an overlay label's CSS size and at that size in device pixels, kept alive for the
@@ -794,8 +785,6 @@ static OverlayLabelFonts overlay_label_fonts(float css_size, double device_pixel
 
 RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayList const& placeholder_display_list, DisplayListResourceStorage& resource_storage, PaintCommandCacheMode cache_mode, HTML::PaintConfig const& config, InspectorOverlayInputs const& overlay_inputs)
 {
-    static u64 s_next_paint_generation_id = 0;
-    auto paint_generation_id = s_next_paint_generation_id++;
     auto* arena = layout_arena_handle(document);
     auto device_pixels_per_css_pixel = document.page().client().device_pixels_per_css_pixel();
     auto device_viewport_rect = document.page().css_to_device_rect(document.viewport_rect());
@@ -905,11 +894,11 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
         inputs.background_color = document.background_color();
     }
     reconcile_navigable_container_paint_facts(document);
-    PaintHostContext paint_host_context { resource_storage, document, paint_generation_id, device_pixels_per_css_pixel };
+    RecordingPublishContext publish_context { resource_storage, document };
     auto rust_timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-    if (!Layout::RustFFI::layout_arena_record_display_list(arena, viewport_row_slot(document), paint_host_callbacks(paint_host_context), visual_context_host_callbacks(document), inputs))
+    if (!Layout::RustFFI::layout_arena_record_display_list(arena, viewport_row_slot(document), inputs))
         return nullptr;
-    Layout::RustFFI::layout_arena_publish_recording(arena, recording_publish_callbacks(paint_host_context));
+    Layout::RustFFI::layout_arena_publish_recording(arena, recording_publish_callbacks(publish_context));
     take_recording_trace_if_pending(document);
     if (Layout::RustFFI::layout_arena_last_recording_has_blocking_wheel_event_listeners(arena))
         wheel_event_region_state.has_blocking_wheel_event_listeners = true;
