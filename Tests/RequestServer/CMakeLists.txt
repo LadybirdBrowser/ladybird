@@ -10,3 +10,8 @@ target_include_directories(TestDiskCacheWaiters PRIVATE ${LADYBIRD_SOURCE_DIR}/S
 
 ladybird_test(TestRequestTimingInfo.cpp RequestServer LIBS requestserverservice)
 target_include_directories(TestRequestTimingInfo PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
+
+if (LINUX)
+    ladybird_test(TestResourceMapSandbox.cpp RequestServer LIBS requestserverservice)
+    target_include_directories(TestResourceMapSandbox PRIVATE ${LADYBIRD_SOURCE_DIR}/Services)
+endif()
