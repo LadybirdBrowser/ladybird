@@ -86,7 +86,7 @@ SharedImageBuffer SharedImageBuffer::create(IntSize size)
 SharedImageBuffer SharedImageBuffer::import_from_shared_image(SharedImage shared_image)
 {
 #ifdef AK_OS_MACOS
-    auto iosurface_handle = Core::IOSurfaceHandle::from_mach_port(shared_image.m_port);
+    auto iosurface_handle = Core::IOSurfaceHandle::from_mach_port(shared_image.m_port).release_value_but_fixme_should_propagate_errors();
     auto bitmap = create_bitmap_from_iosurface(iosurface_handle);
     return SharedImageBuffer(move(iosurface_handle), move(bitmap));
 #else

@@ -110,11 +110,12 @@ void IOSurfaceHandle::decrement_use_count()
     IOSurfaceDecrementUseCount(m_ref_wrapper->ref);
 }
 
-IOSurfaceHandle IOSurfaceHandle::from_mach_port(MachPort const& port)
+ErrorOr<IOSurfaceHandle> IOSurfaceHandle::from_mach_port(MachPort const& port)
 {
     // NOTE: This call does not destroy the port
     auto* ref = IOSurfaceLookupFromMachPort(port.port());
-    VERIFY(ref);
+    if (!ref)
+        return Error::from_string_literal("Port is not an IOSurface send right");
     return IOSurfaceHandle(make<IOSurfaceRefWrapper>(ref));
 }
 

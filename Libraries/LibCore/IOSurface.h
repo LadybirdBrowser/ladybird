@@ -22,7 +22,7 @@ public:
     IOSurfaceHandle& operator=(IOSurfaceHandle&& other);
 
     static IOSurfaceHandle create(int width, int height);
-    static IOSurfaceHandle from_mach_port(MachPort const& port);
+    static ErrorOr<IOSurfaceHandle> from_mach_port(MachPort const& port);
 
     // Adopts a surface owned by someone else, such as one a decoder hands back, by retaining it.
     static IOSurfaceHandle from_ref(void* io_surface_ref);
