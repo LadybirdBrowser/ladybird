@@ -1,0 +1,2 @@
+html::first-letter display: inline
+html::first-letter font-size: 64px

@@ -3407,8 +3407,8 @@ mod pseudo_kind {
 }
 
 /// The element facts a pseudo-element's computation reads: the C++ adjustments for what the
-/// originating element is stay off for its pseudo-elements, past the ones about the element's
-/// place in the document and its markup language.
+/// originating element is stay off for its pseudo-elements, past the ones about its markup
+/// language.
 const PSEUDO_ELEMENT_ADJUSTMENT_FACTS: u32 = {
     use bridge::element_adjustment_fact as fact;
     fact::IS_MATHML
@@ -3416,7 +3416,6 @@ const PSEUDO_ELEMENT_ADJUSTMENT_FACTS: u32 = {
         | fact::IS_MATHML_MTR
         | fact::IS_MATHML_MTD
         | fact::IS_TH
-        | fact::IS_DOCUMENT_ELEMENT
         | fact::HAS_ANIMATIONS
 };
 
