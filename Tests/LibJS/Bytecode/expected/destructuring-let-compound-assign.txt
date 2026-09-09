@@ -13,7 +13,7 @@ block0:
   [  60] End value:reg5
 
 
-f$7e72fcf4 destructuring-let-compound-assign.js:2:5
+f$762729c4 destructuring-let-compound-assign.js:2:5
   Registers: 8
   Blocks:    1
   Locals:    a~0
@@ -24,10 +24,11 @@ f$7e72fcf4 destructuring-let-compound-assign.js:2:5
 block0:
   [   0] Enter
   [   8] ThrowIfNullish src:arg0
-  [  10] GetById dst:reg5, base:arg0, `patchFlag`
-  [  28] Mov3 c0_dst:a~0, c0_src:reg5, c1_dst:reg5, c1_src:a~0, c2_dst:reg6, c2_src:arg1
-  [  48] GetById dst:reg7, base:reg6, `patchFlag` (e.patchFlag)
-  [  60] BitwiseAnd dst:reg6, lhs:Int32(16), rhs:reg7
-  [  70] BitwiseOr dst:reg7, lhs:reg5, rhs:reg6
-  [  80] Mov dst:a~0, src:reg7
-  [  90] End value:Undefined
+  [  10] Mov dst:reg5, src:arg0
+  [  20] GetById dst:reg6, base:reg5, `patchFlag`
+  [  38] Mov3 c0_dst:a~0, c0_src:reg6, c1_dst:reg5, c1_src:a~0, c2_dst:reg6, c2_src:arg1
+  [  58] GetById dst:reg7, base:reg6, `patchFlag` (e.patchFlag)
+  [  70] BitwiseAnd dst:reg6, lhs:Int32(16), rhs:reg7
+  [  80] BitwiseOr dst:reg7, lhs:reg5, rhs:reg6
+  [  90] Mov dst:a~0, src:reg7
+  [  a0] End value:Undefined

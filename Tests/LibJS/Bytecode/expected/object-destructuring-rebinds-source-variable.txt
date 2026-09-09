@@ -1,0 +1,48 @@
+$def8dd96 object-destructuring-rebinds-source-variable.js:5:1
+  Registers: 11
+  Blocks:    1
+  Constants:
+    [0] = Undefined
+    [1] = Int32(1)
+    [2] = Int32(2)
+    [3] = Int32(3)
+
+block0:
+  [   0] Enter
+  [   8] GetGlobal dst:reg6, `console`
+  [  18] GetById dst:reg7, base:reg6, `log` (console.log)
+  [  30] GetGlobal dst:reg9, `run`
+  [  40] NewObject dst:reg10
+  [  50] InitObjectLiteralProperty object:reg10, `first`, src:Int32(1), shape_cache_index:0, property_slot:0
+  [  68] InitObjectLiteralProperty object:reg10, `second`, src:Int32(2), shape_cache_index:0, property_slot:1
+  [  80] InitObjectLiteralProperty object:reg10, `third`, src:Int32(3), shape_cache_index:0, property_slot:2
+  [  98] CacheObjectShape object:reg10
+  [  a8] Call dst:reg8, callee:reg9, this_value:Undefined, run, arguments:[reg10]
+  [  d0] Call dst:reg5, callee:reg7, this_value:reg6, console.log, arguments:[reg8]
+  [  f8] End value:reg5
+
+
+run$41ed7d93 object-destructuring-rebinds-source-variable.js:2:5
+  Registers: 9
+  Blocks:    1
+  Locals:    first~0, third~1
+  Constants:
+    [0] = Undefined
+
+block0:
+  [   0] Enter
+  [   8] MovUndefined2 c0_dst:first~0, c1_dst:third~1
+  [  18] ThrowIfNullish src:arg0
+  [  20] Mov dst:reg5, src:arg0
+  [  30] GetById dst:reg6, base:reg5, `first`
+  [  48] Mov dst:first~0, src:reg6
+  [  58] GetById dst:reg6, base:reg5, `second`
+  [  70] Mov dst:arg0, src:reg6
+  [  80] GetById dst:reg6, base:reg5, `third`
+  [  98] Mov3 c0_dst:third~1, c0_src:reg6, c1_dst:reg5, c1_src:first~0, c2_dst:reg6, c2_src:arg0
+  [  b8] Mov dst:reg7, src:third~1
+  [  c8] NewArray dst:reg8, elements:[reg5, reg6, reg7]
+  [  e8] Return value:reg8
+
+
+[ 1, 2, 3 ]
