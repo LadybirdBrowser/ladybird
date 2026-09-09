@@ -155,6 +155,10 @@ AK::Duration MatroskaDemuxer::select_fast_seek_target_for_track(Track const& tra
 DecoderErrorOr<DemuxerSeekResult> MatroskaDemuxer::seek_to_most_recent_keyframe(Track const& track, AK::Duration timestamp, DemuxerSeekOptions options)
 {
     auto& track_status = get_track_status(track);
+
+    if (has_flag(options, DemuxerSeekOptions::NeedCodecConfiguration))
+        track_status.needs_codec_configuration = true;
+
     auto seeked_iterator = TRY(m_reader.seek_to_random_access_point(track_status.iterator, timestamp));
 
     auto last_sample = track_status.iterator.last_timestamp();
@@ -171,8 +175,6 @@ DecoderErrorOr<DemuxerSeekResult> MatroskaDemuxer::seek_to_most_recent_keyframe(
     track_status.block = {};
     track_status.frames = {};
     track_status.frame_index = 0;
-    if (has_flag(options, DemuxerSeekOptions::NeedCodecConfiguration))
-        track_status.needs_codec_configuration = true;
     return DemuxerSeekResult::MovedPosition;
 }
 
