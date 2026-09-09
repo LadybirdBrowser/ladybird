@@ -408,14 +408,6 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM
                 return dom_node->unique_id().value();
             return 0;
         },
-        .svg_additional_element_transform = [](void*, void* layout_node_shell, Gfx::AffineTransform* out) -> bool {
-            auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
-            auto const* graphics_element = as_if<SVG::SVGGraphicsElement>(layout_node.dom_node());
-            if (!graphics_element)
-                return false;
-            *out = graphics_element->additional_element_transform();
-            return true;
-        },
         .root_background_source = [](void* context) -> Layout::RustFFI::FfiRootBackgroundSource {
             auto& document = *static_cast<DOM::Document*>(context);
             return rust_root_background_source(document);
@@ -510,8 +502,7 @@ void const* retain_rust_main_visual_context_tree(DOM::Document const& document)
 
 CSSPixelRect rust_apply_css_transform_to_rect(Layout::Node const& box, CSSPixelRect const& rect)
 {
-    auto& document = const_cast<DOM::Document&>(box.document());
-    return Layout::RustFFI::layout_arena_apply_css_transform_to_rect(box.arena_handle(), committed_row_slot(box), visual_context_host_callbacks(document), rect);
+    return Layout::RustFFI::layout_arena_apply_css_transform_to_rect(box.arena_handle(), committed_row_slot(box), rect);
 }
 
 Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Layout::Node const& box)
@@ -542,7 +533,7 @@ void rust_measure_scrollable_overflow(Layout::Node const& box)
     auto& document = const_cast<DOM::Document&>(box.document());
     if (!document.has_committed_viewport_box())
         return;
-    Layout::RustFFI::layout_arena_measure_scrollable_overflow(box.arena_handle(), committed_row_slot(box), visual_context_host_callbacks(document), scrollable_overflow_host_callbacks());
+    Layout::RustFFI::layout_arena_measure_scrollable_overflow(box.arena_handle(), committed_row_slot(box), scrollable_overflow_host_callbacks());
 }
 
 Layout::RustFFI::FfiScrollableOverflowUpdateOutcome rust_update_scrollable_overflow(DOM::Document& document, bool handled_by_full_layout_commit)
@@ -559,7 +550,7 @@ Layout::RustFFI::FfiScrollableOverflowUpdateOutcome rust_update_scrollable_overf
 
     return Layout::RustFFI::layout_arena_update_scrollable_overflow(
         layout_arena_handle(document), viewport_row_slot(document), handled_by_full_layout_commit,
-        visual_context_host_callbacks(document), scrollable_overflow_host_callbacks(),
+        scrollable_overflow_host_callbacks(),
         nullptr, clamp_scroll_offset_if_nonzero);
 }
 

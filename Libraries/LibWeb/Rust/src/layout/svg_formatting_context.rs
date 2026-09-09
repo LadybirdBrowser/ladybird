@@ -73,6 +73,7 @@ pub struct FfiSvgElementFacts {
     pub preserve_aspect_ratio_align: u8,
     pub preserve_aspect_ratio_meet_or_slice: u8,
     pub element_transform: FfiAffineTransform,
+    pub additional_element_transform: FfiAffineTransform,
     pub visible_stroke_width: f32,
     pub viewport_percentage_basis: CssPixels,
     pub content_units: u8,
@@ -156,6 +157,13 @@ impl SvgCssPixelRect {
         self.width += width;
         self.y -= height / 2;
         self.height += height;
+    }
+}
+
+impl From<FfiAffineTransform> for libgfx_rust::AffineTransform {
+    fn from(transform: FfiAffineTransform) -> Self {
+        let FfiAffineTransform { a, b, c, d, e, f } = transform;
+        Self::new(a, b, c, d, e, f)
     }
 }
 
@@ -475,6 +483,8 @@ impl<'pass> SvgFormattingContext<'pass> {
         let used = self.used_values(node);
         let mut rare = used.rare_data_mut();
         rare.svg_view_box = facts.has_active_view_box.then_some(facts.active_view_box);
+        rare.svg_additional_element_transform =
+            (!facts.additional_element_transform.is_identity()).then_some(facts.additional_element_transform);
         rare.svg_viewport_percentage_basis = facts.viewport_percentage_basis;
         rare.svg_resource_content_units_are_object_bounding_box = facts.content_units == SVG_UNITS_OBJECT_BOUNDING_BOX;
     }

@@ -464,7 +464,6 @@ unsafe fn dump_layout_node(output: &mut Vec<u8>, context: &LayoutTreeDumpContext
             context.arena_handle,
             slot,
             context.viewport,
-            &context.callbacks.visual_context,
             &context.callbacks.scrollable_overflow,
         )
     };

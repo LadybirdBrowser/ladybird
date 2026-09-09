@@ -106,10 +106,12 @@ static RustFFI::FfiSvgElementFacts build_svg_element_facts(NodeWithStyle const& 
         preserve_aspect_ratio = { SVG::PreserveAspectRatio::Align::None, {} };
 
     Gfx::AffineTransform element_transform;
+    Gfx::AffineTransform additional_element_transform;
     float visible_stroke_width = 0;
     CSSPixels viewport_percentage_basis = 0;
     if (auto const* graphics_element = as_if<SVG::SVGGraphicsElement>(*dom_node)) {
         element_transform = node.used_svg_element_transform();
+        additional_element_transform = graphics_element->additional_element_transform();
         visible_stroke_width = graphics_element->visible_stroke_width();
         viewport_percentage_basis = graphics_element->viewport_percentage_basis();
     }
@@ -139,6 +141,7 @@ static RustFFI::FfiSvgElementFacts build_svg_element_facts(NodeWithStyle const& 
         .preserve_aspect_ratio_align = static_cast<u8>(to_underlying(preserve_aspect_ratio.align)),
         .preserve_aspect_ratio_meet_or_slice = static_cast<u8>(to_underlying(preserve_aspect_ratio.meet_or_slice)),
         .element_transform = to_ffi_affine_transform(element_transform),
+        .additional_element_transform = to_ffi_affine_transform(additional_element_transform),
         .visible_stroke_width = visible_stroke_width,
         .viewport_percentage_basis = viewport_percentage_basis,
         .content_units = static_cast<u8>(to_underlying(content_units)),

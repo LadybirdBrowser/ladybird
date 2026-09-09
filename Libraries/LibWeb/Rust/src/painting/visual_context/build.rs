@@ -49,10 +49,7 @@ pub(crate) fn svg_viewport_transform_of(
     layout_arena: &crate::layout::LayoutNodeArena,
     slot: NodeSlotId,
 ) -> Option<AffineTransform> {
-    let t = crate::painting::paintable_geometry::committed_svg_viewport_transform(layout_arena, slot)?;
-    Some(AffineTransform {
-        values: [t.a, t.b, t.c, t.d, t.e, t.f],
-    })
+    crate::painting::paintable_geometry::committed_svg_viewport_transform(layout_arena, slot).map(Into::into)
 }
 
 pub(crate) struct BoxFacts {
@@ -123,7 +120,7 @@ impl BoxFacts {
             },
         };
         if let Some((transform, transform_is_invertible)) =
-            super::node_values::compute_transform(layout_arena, callbacks, slot, pixel_ratio)
+            super::node_values::compute_transform(layout_arena, slot, pixel_ratio)
         {
             facts.transform = Some(transform);
             facts.transform_is_invertible = transform_is_invertible;
