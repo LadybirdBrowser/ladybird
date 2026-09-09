@@ -15,6 +15,7 @@
 #include <LibWeb/HTML/HTMLSelectElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
 #include <LibWeb/Layout/BlockContainer.h>
+#include <LibWeb/Painting/PaintFacts.h>
 
 namespace Web::HTML {
 
@@ -65,15 +66,30 @@ void HTMLFieldSetElement::attribute_changed(Utf16FlyString const& name, Optional
 {
     Base::attribute_changed(name, old_value, value, namespace_);
 
-    if (name == HTML::AttributeNames::disabled) {
-        for_each_in_subtree_of_type<HTMLElement>([](auto& element) {
-            if (element.is_form_associated_custom_element())
-                element.update_face_disabled_state();
-            if (element.is_form_associated_element())
-                element.set_needs_repaint();
-            return TraversalDecision::Continue;
-        });
-    }
+    if (name == HTML::AttributeNames::disabled)
+        refresh_disabled_state_of_descendant_form_controls();
+}
+
+void HTMLFieldSetElement::children_changed(ChildrenChangedMetadata const& metadata)
+{
+    Base::children_changed(metadata);
+
+    if (metadata.type == ChildrenChangedMetadata::Type::Removal && is<HTMLLegendElement>(*metadata.node) && has_attribute(HTML::AttributeNames::disabled))
+        refresh_disabled_state_of_descendant_form_controls();
+}
+
+void HTMLFieldSetElement::refresh_disabled_state_of_descendant_form_controls()
+{
+    for_each_in_subtree_of_type<HTMLElement>([](auto& element) {
+        if (element.is_form_associated_custom_element())
+            element.update_face_disabled_state();
+        if (element.is_form_associated_element()) {
+            if (auto* input = as_if<HTMLInputElement>(element))
+                Painting::push_form_control_paint_facts(*input);
+            element.set_needs_repaint();
+        }
+        return TraversalDecision::Continue;
+    });
 }
 
 // https://html.spec.whatwg.org/multipage/form-elements.html#dom-fieldset-elements

@@ -44,11 +44,14 @@ public:
 
     virtual Layout::Node* create_layout_node(CSS::LayoutStyle) override;
 
+    void refresh_disabled_state_of_descendant_form_controls();
+
 private:
     HTMLFieldSetElement(DOM::Document&, DOM::QualifiedName);
     virtual void visit_edges(Cell::Visitor&) override;
 
     virtual void attribute_changed(Utf16FlyString const&, Optional<Utf16String> const&, Optional<Utf16String> const&, Optional<Utf16FlyString> const&) override;
+    virtual void children_changed(ChildrenChangedMetadata const&) override;
     virtual void inserted() override;
 
     virtual bool is_html_fieldset_element() const override { return true; }

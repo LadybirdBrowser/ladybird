@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/fieldset-disabled-first-legend-change-ref.html">
+<fieldset id="group" disabled>
+    <legend><input type="checkbox" checked></legend>
+</fieldset>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            const legend = document.createElement("legend");
+            legend.style.display = "none";
+            const group = document.getElementById("group");
+            group.insertBefore(legend, group.firstChild);
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (window.internals)
+                        internals.signalTestIsDone("PASS");
+                    else
+                        document.documentElement.classList.remove("reftest-wait");
+                });
+            });
+        });
+    });
+</script>
+</html>

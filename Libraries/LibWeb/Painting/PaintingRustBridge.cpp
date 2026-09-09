@@ -1030,16 +1030,6 @@ Layout::RustFFI::FfiPaintHostCallbacks paint_host_callbacks(PaintHostContext& co
                     facts.has_composited_context = true;
                     facts.composited_context_id = *context_id;
                 }
-            } else if (kind == Layout::RustFFI::NodeKind::CheckBox || kind == Layout::RustFFI::NodeKind::RadioButton) {
-                auto const& input = as<HTML::HTMLInputElement const>(*layout_node.dom_node());
-                facts.enabled = input.enabled();
-                facts.checked = input.checked();
-                facts.indeterminate = input.indeterminate();
-                facts.being_activated = input.is_being_activated();
-                auto color_scheme = layout_node.color_scheme();
-                facts.canvas_color = CSS::SystemColor::canvas(color_scheme);
-                facts.canvas_text_color = CSS::SystemColor::canvas_text(color_scheme);
-                facts.accent_color = layout_node.accent_color().value_or(CSS::SystemColor::accent_color(color_scheme));
             }
             return facts;
         },

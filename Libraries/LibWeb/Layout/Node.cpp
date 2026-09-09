@@ -32,6 +32,7 @@
 #include <LibWeb/Layout/Viewport.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
+#include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/Painting/ScrollSnap.h>
 #include <LibWeb/SVG/SVGClipPathElement.h>
 #include <LibWeb/SVG/SVGFilterElement.h>
@@ -551,6 +552,7 @@ void NodeWithStyle::attach_style_resources()
     if (!(dependency_flags & to_underlying(CSS::StyleRecordDependencyFlag::HoldsImageValues))) {
         m_cursor_style_values.clear();
         clear_image_observers();
+        Painting::push_paint_facts_after_style_attach(*this);
         return;
     }
 
@@ -575,6 +577,7 @@ void NodeWithStyle::attach_style_resources()
     load_image(list_style_image());
 
     rebuild_image_observers();
+    Painting::push_paint_facts_after_style_attach(*this);
 }
 
 CSS::StyleScope const& NodeWithStyle::style_scope() const

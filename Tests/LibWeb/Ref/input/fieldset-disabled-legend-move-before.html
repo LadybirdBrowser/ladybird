@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/fieldset-disabled-legend-move-before-ref.html">
+<fieldset id="group" disabled>
+    <legend id="hidden-legend" style="display: none"></legend>
+    <legend><input type="checkbox" checked></legend>
+</fieldset>
+<div id="outside"></div>
+<script>
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.getElementById("outside").moveBefore(document.getElementById("hidden-legend"), null);
+            requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                    if (window.internals)
+                        internals.signalTestIsDone("PASS");
+                    else
+                        document.documentElement.classList.remove("reftest-wait");
+                });
+            });
+        });
+    });
+</script>
+</html>

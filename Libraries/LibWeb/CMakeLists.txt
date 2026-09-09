@@ -846,6 +846,7 @@ set(SOURCES
     Painting/Blending.cpp
     Painting/BoxModelMetrics.cpp
     Painting/BoxViews.cpp
+    Painting/PaintFacts.cpp
     Painting/Canvas2DCommandStream.cpp
     Painting/ChromeWidget.cpp
     Painting/DisplayList.cpp

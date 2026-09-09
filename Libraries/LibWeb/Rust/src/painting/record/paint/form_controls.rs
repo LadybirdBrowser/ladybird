@@ -13,7 +13,6 @@ use crate::css::css_pixels::CssPixelRect;
 use crate::css::css_pixels::CssPixels;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::recorder::{FillPathParams, PaintStyleOrColor};
-use crate::painting::host::FfiReplacedPaintFacts;
 use crate::painting::paintable_geometry::absolute_rect;
 use crate::painting::record::PaintRecorder;
 use libgfx_rust::{Color, IntRect, ShouldAntiAlias, WindingRule};
@@ -43,12 +42,43 @@ impl InputColors {
     }
 }
 
-fn compute_input_colors(facts: &FfiReplacedPaintFacts) -> InputColors {
+struct FormControlSystemColors {
+    canvas: Color,
+    canvas_text: Color,
+    accent: Color,
+}
+
+fn form_control_system_colors<O: Observer>(
+    recorder: &PaintRecorder<'_, O>,
+    paintable: NodeSlotId,
+) -> FormControlSystemColors {
+    use crate::css::color_resolution::{PREFERRED_COLOR_SCHEME_DARK, system_color_for_keyword};
+    use crate::css::css_enums::keyword;
+    let style = recorder.layout_arena.node_style_if_live(paintable);
+    let (dark, accent_color) = style.map_or((false, None), |style| {
+        let ui = style.inherited_ui();
+        (
+            ui.color_scheme == PREFERRED_COLOR_SCHEME_DARK,
+            (!ui.accent_color.is_auto).then_some(Color(ui.accent_color.used_color)),
+        )
+    });
+    let system_color = |keyword_code: u16| {
+        let rgba = system_color_for_keyword(keyword_code, dark).expect("system color keyword resolves");
+        Color::from_rgba(rgba.r, rgba.g, rgba.b, rgba.a)
+    };
+    FormControlSystemColors {
+        canvas: system_color(keyword::CANVAS),
+        canvas_text: system_color(keyword::CANVASTEXT),
+        accent: accent_color.unwrap_or_else(|| system_color(keyword::ACCENTCOLOR)),
+    }
+}
+
+fn compute_input_colors(system_colors: &FormControlSystemColors) -> InputColors {
     // These shades have been picked to work well for all themes and have enough variation to paint
     // all input states (disabled, enabled, checked, etc).
-    let canvas = facts.canvas_color;
-    let base_text_color = facts.canvas_text_color;
-    let accent = facts.accent_color;
+    let canvas = system_colors.canvas;
+    let base_text_color = system_colors.canvas_text;
+    let accent = system_colors.accent;
     let base = InputColors::get_shade(base_text_color.inverted(), 0.8, canvas);
     let dark_gray = InputColors::get_shade(base_text_color, 0.3, canvas);
     let gray = InputColors::get_shade(dark_gray, 0.4, canvas);
@@ -95,10 +125,13 @@ fn check_mark_path(checkbox_rect: IntRect) -> OwnedPath {
 
 pub(crate) fn paint_check_box_foreground<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
     let facts = recorder
-        .paint_host
-        .replaced_paint_facts(recorder.layout_node_shell(paintable));
+        .layout_arena
+        .replaced_paint_facts(paintable)
+        .map(|facts| facts.form_control())
+        .unwrap_or_default();
+    let system_colors = form_control_system_colors(recorder, paintable);
     let enabled = facts.enabled;
-    let canvas_color = facts.canvas_color;
+    let canvas_color = system_colors.canvas;
 
     // Keep checkboxes painted as square, centered within the space they occupy.
     let outer_rect = absolute_rect(recorder.layout_arena, paintable);
@@ -116,7 +149,7 @@ pub(crate) fn paint_check_box_foreground<O: Observer>(recorder: &mut PaintRecord
         color
     };
 
-    let input_colors = compute_input_colors(&facts);
+    let input_colors = compute_input_colors(&system_colors);
 
     let increase_contrast = |mut color: Color, background: Color| {
         let min_contrast = 2.0;
@@ -196,12 +229,15 @@ pub(crate) fn paint_check_box_foreground<O: Observer>(recorder: &mut PaintRecord
 
 pub(crate) fn paint_radio_button_foreground<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
     let facts = recorder
-        .paint_host
-        .replaced_paint_facts(recorder.layout_node_shell(paintable));
-    let canvas_color = facts.canvas_color;
+        .layout_arena
+        .replaced_paint_facts(paintable)
+        .map(|facts| facts.form_control())
+        .unwrap_or_default();
+    let system_colors = form_control_system_colors(recorder, paintable);
+    let canvas_color = system_colors.canvas;
 
     let enabled = facts.enabled;
-    let input_colors = compute_input_colors(&facts);
+    let input_colors = compute_input_colors(&system_colors);
 
     let mut background_color = input_colors.background_color(enabled);
     let accent = input_colors.accent;

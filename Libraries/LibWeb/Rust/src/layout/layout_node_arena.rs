@@ -548,6 +548,7 @@ pub(crate) struct LayoutNodeArena {
     pub(super) searchable_text: Option<Vec<super::text_queries::MappedText>>,
     replaced_content_facts: Vec<ReplacedContentFactsSlot>,
     raw_table_column_spans: HashMap<NodeSlotId, u32>,
+    replaced_paint_facts: RefCell<HashMap<NodeSlotId, crate::painting::replaced_paint_facts::ReplacedPaintFacts>>,
     run_used_records: RefCell<Vec<RunRecordSlot>>,
     next_run_nonce: Cell<u64>,
     rows_sharing_dom_node: RefCell<HashMap<*mut c_void, RowsSharingDomNode>>,
@@ -595,6 +596,7 @@ impl LayoutNodeArena {
             searchable_text: None,
             replaced_content_facts: Vec::new(),
             raw_table_column_spans: HashMap::default(),
+            replaced_paint_facts: RefCell::new(HashMap::default()),
             run_used_records: RefCell::new(Vec::new()),
             next_run_nonce: Cell::new(1),
             rows_sharing_dom_node: RefCell::new(HashMap::default()),
@@ -884,6 +886,7 @@ impl LayoutNodeArena {
         }
         self.fc_run_cache_store.remove_entry(index);
         self.raw_table_column_spans.remove(&id);
+        self.replaced_paint_facts.get_mut().remove(&id);
         self.paint_state.get_mut().selection_pseudo_styles.remove(&id);
         let data = self.data_mut(index);
         debug_assert!(
@@ -1176,6 +1179,38 @@ impl LayoutNodeArena {
             "layout node arena attached a second shell to a slot"
         );
         data.shell.set(shell);
+    }
+
+    pub(crate) fn replaced_paint_facts(
+        &self,
+        id: NodeSlotId,
+    ) -> Option<crate::painting::replaced_paint_facts::ReplacedPaintFacts> {
+        self.replaced_paint_facts.borrow().get(&id).copied()
+    }
+
+    pub(crate) fn set_replaced_paint_facts(
+        &self,
+        id: NodeSlotId,
+        facts: crate::painting::replaced_paint_facts::ReplacedPaintFacts,
+    ) -> bool {
+        self.assert_owner_thread();
+        if !self.slot_is_live(id) {
+            return false;
+        }
+        let mut any_changed = false;
+        for row in self.rows_sharing_dom_node_with(id) {
+            let mut table = self.replaced_paint_facts.borrow_mut();
+            if table.get(&row) == Some(&facts) {
+                continue;
+            }
+            table.insert(row, facts);
+            drop(table);
+            any_changed = true;
+            if row != id {
+                self.invalidate_for_repaint(row);
+            }
+        }
+        any_changed
     }
 
     pub(crate) fn node_has_dom_paint_fact(&self, id: NodeSlotId, fact: DomPaintFact) -> bool {

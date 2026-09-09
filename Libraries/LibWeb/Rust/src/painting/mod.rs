@@ -29,6 +29,7 @@ pub mod paintable_geometry;
 pub(crate) mod paintable_rows;
 pub mod record;
 pub(crate) mod rect_to_viewport_transform;
+pub(crate) mod replaced_paint_facts;
 pub(crate) mod scroll_chain;
 pub(crate) mod scroll_snap_axes;
 pub mod scrollable_overflow;
