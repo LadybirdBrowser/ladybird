@@ -520,6 +520,11 @@ void SVGDecodedImageData::invalidate_cached_rendering()
     prune_cached_display_list_resources();
 }
 
+bool SVGDecodedImageData::has_active_view_box() const
+{
+    return m_root_element->active_view_box().has_value();
+}
+
 Optional<Painting::ImagePaint> SVGDecodedImageData::image_paint(Painting::ImagePaintRequest const& request) const
 {
     // The destination rect is in the recording's local units, which the visual context chain may

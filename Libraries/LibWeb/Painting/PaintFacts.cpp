@@ -125,6 +125,7 @@ static Layout::RustFFI::FfiLayerImagePaintFacts layer_image_paint_facts_for(CSS:
         if (auto const* svg_image_data = as_if<SVG::SVGDecodedImageData>(*decoded_image_data)) {
             facts.content_kind = Layout::RustFFI::FfiImageContentKind::Vector;
             facts.vector_content_identity = svg_image_data->vector_content_identity();
+            facts.vector_has_active_view_box = svg_image_data->has_active_view_box();
         } else {
             facts.content_kind = Layout::RustFFI::FfiImageContentKind::Raster;
         }
@@ -197,6 +198,7 @@ bool push_replaced_image_paint_facts(Layout::ImageProvider const& image_provider
         if (auto const* svg_image_data = as_if<SVG::SVGDecodedImageData>(*decoded_image_data)) {
             facts.content_kind = Layout::RustFFI::FfiImageContentKind::Vector;
             facts.vector_content_identity = svg_image_data->vector_content_identity();
+            facts.vector_has_active_view_box = svg_image_data->has_active_view_box();
         } else {
             facts.content_kind = Layout::RustFFI::FfiImageContentKind::Raster;
             current_frame = decoded_image_data->current_frame();

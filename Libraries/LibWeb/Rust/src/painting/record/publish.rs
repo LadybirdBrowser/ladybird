@@ -5,8 +5,45 @@
  */
 
 use crate::layout::LayoutNodeArena;
+use crate::painting::display_list::commands::{DisplayListCommandType, DisplayListResourceId, PaintNestedDisplayList};
 use crate::painting::host::FfiRecordingPublishCallbacks;
 use crate::painting::paint_state::PendingRecording;
+use crate::painting::record::RecordingOutput;
+use crate::painting::record::vector_images::{is_vector_image_placeholder, vector_image_placeholder_index};
+
+fn resolve_vector_image_placeholders(output: &mut RecordingOutput, publish: &FfiRecordingPublishCallbacks) {
+    if output.vector_image_render_requests.is_empty() {
+        return;
+    }
+    let resolved_ids: Vec<u64> = output
+        .vector_image_render_requests
+        .iter()
+        .map(|request| publish.resolve_vector_image_display_list(&request.to_ffi()))
+        .collect();
+    let display_list = std::rc::Rc::make_mut(&mut output.display_list);
+    let id_field_offset = std::mem::offset_of!(PaintNestedDisplayList, display_list_id);
+    let mut patch_offsets = Vec::new();
+    crate::painting::display_list::nested_records::for_each_command_including_nested(
+        &display_list.bytes,
+        &mut |command_type, payload_offset, payload| {
+            if command_type != DisplayListCommandType::PaintNestedDisplayList {
+                return;
+            }
+            let id =
+                crate::painting::display_list::builder::read_command::<PaintNestedDisplayList>(payload).display_list_id;
+            if is_vector_image_placeholder(id) {
+                patch_offsets.push((
+                    payload_offset + id_field_offset,
+                    resolved_ids[vector_image_placeholder_index(id)],
+                ));
+            }
+        },
+    );
+    for (offset, resolved_id) in patch_offsets {
+        display_list.bytes[offset..offset + std::mem::size_of::<u64>()]
+            .copy_from_slice(&DisplayListResourceId(resolved_id).0.to_ne_bytes());
+    }
+}
 
 pub(crate) fn publish_recording(
     arena: &LayoutNodeArena,
@@ -15,7 +52,7 @@ pub(crate) fn publish_recording(
 ) -> u64 {
     let PendingRecording {
         mut output,
-        recording_from_scratch,
+        mut recording_from_scratch,
         paint_command_cache_read_write,
     } = pending;
     for font in &output.newly_referenced_fonts {
@@ -24,7 +61,9 @@ pub(crate) fn publish_recording(
     for frame in &output.newly_referenced_image_frames {
         publish.add_image_frame(frame);
     }
-    if let Some(recording_from_scratch) = &recording_from_scratch {
+    resolve_vector_image_placeholders(&mut output, publish);
+    if let Some(recording_from_scratch) = &mut recording_from_scratch {
+        resolve_vector_image_placeholders(recording_from_scratch, publish);
         crate::painting::record::verify::verify_spliced_recording_matches_fresh(arena, &output, recording_from_scratch);
     }
     let mut paint_state = arena.paint_state().borrow_mut();
