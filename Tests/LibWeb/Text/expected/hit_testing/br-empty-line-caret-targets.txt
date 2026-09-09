@@ -1,0 +1,4 @@
+br nested in an inline, first line: wrapper @0
+generated content before the br, first line: #text(y) @0
+float before the br, first line: float @1
+two brs, second line: double @2

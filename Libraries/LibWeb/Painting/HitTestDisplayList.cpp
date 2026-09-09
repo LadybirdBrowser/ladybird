@@ -173,6 +173,13 @@ struct CaretPositionQueryContext {
                     && shell_dom_node->parent() == context.node.ptr()
                     && (context.offset == shell_dom_node->index() || context.offset == shell_dom_node->index() + 1);
             },
+            .query_boundary_precedes_shell = [](void* context_pointer, void* shell) -> bool {
+                auto& context = *static_cast<CaretPositionQueryContext*>(context_pointer);
+                auto const* shell_dom_node = dom_node_for_shell(shell);
+                return shell_dom_node
+                    && shell_dom_node->parent() == context.node.ptr()
+                    && context.offset == shell_dom_node->index();
+            },
         };
     }
 };
@@ -375,12 +382,21 @@ Optional<CaretPosition> HitTestDisplayList::caret_position_for_item(Item item, C
         };
     case Layout::RustFFI::FfiCaretBoundaryKind::BeforeNode:
     case Layout::RustFFI::FfiCaretBoundaryKind::AfterNode:
+    case Layout::RustFFI::FfiCaretBoundaryKind::IndexOfNodeInParent:
         break;
     }
 
     auto* parent = dom_node->parent();
     if (!parent)
         return {};
+    if (resolved.boundary == Layout::RustFFI::FfiCaretBoundaryKind::IndexOfNodeInParent) {
+        return CaretPosition {
+            .paintable = item.paintable(),
+            .arena = *m_arena,
+            .boundary = { *parent, static_cast<WebIDL::UnsignedLong>(dom_node->index()) },
+            .debug_rect = debug_rect,
+        };
+    }
     auto before_boundary = DOM::BoundaryPoint { *parent, static_cast<WebIDL::UnsignedLong>(dom_node->index()) };
     auto after_boundary = DOM::BoundaryPoint { *parent, static_cast<WebIDL::UnsignedLong>(dom_node->index() + 1) };
     auto is_before = resolved.boundary == Layout::RustFFI::FfiCaretBoundaryKind::BeforeNode;

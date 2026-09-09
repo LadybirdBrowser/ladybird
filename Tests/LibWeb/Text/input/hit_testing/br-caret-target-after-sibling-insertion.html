@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<style>
+    p {
+        margin: 0;
+        width: 300px;
+        font-size: 16px;
+        line-height: 20px;
+    }
+</style>
+<script src="../include.js"></script>
+<p id="target"><br>second line</p>
+<script>
+    test(() => {
+        const describe = node => {
+            if (!node)
+                return "null";
+            if (node.nodeType === Node.TEXT_NODE)
+                return `#text(${node.data})`;
+            return node.id || node.localName;
+        };
+        const caretOnFirstLine = () => {
+            const { left, top } = target.getBoundingClientRect();
+            const position = document.caretPositionFromPoint(left + 5, top + 10);
+            return position ? `${describe(position.offsetNode)} @${position.offset}` : "null";
+        };
+        println(`empty first line: ${caretOnFirstLine()}`);
+
+        const inserted = document.createTextNode("first");
+        target.insertBefore(inserted, target.firstChild);
+        println(`after inserting text before the br: ${caretOnFirstLine()}`);
+
+        target.removeChild(inserted);
+        println(`after removing it again: ${caretOnFirstLine()}`);
+    });
+</script>

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<style>
+    p {
+        margin: 0;
+        width: 300px;
+        font-size: 16px;
+        line-height: 20px;
+    }
+</style>
+<script src="../include.js"></script>
+<p id="inert"><span inert><br></span>second</p>
+<p id="hidden"><span style="visibility: hidden"><br></span>second</p>
+<p id="no-pointer-events"><span style="pointer-events: none"><br></span>second</p>
+<p id="transparent"><span style="opacity: 0"><br></span>second</p>
+<p id="plain"><span><br></span>second</p>
+<script>
+    test(() => {
+        const describe = node => {
+            if (!node)
+                return "null";
+            if (node.nodeType === Node.TEXT_NODE)
+                return `#text(${node.data})`;
+            return node.id || node.localName;
+        };
+        const caretOnFirstLine = element => {
+            const { left, top } = element.getBoundingClientRect();
+            const position = document.caretPositionFromPoint(left + 5, top + 10);
+            return position ? `${describe(position.offsetNode)} @${position.offset}` : "null";
+        };
+        for (const id of ["inert", "hidden", "no-pointer-events", "transparent", "plain"])
+            println(`${id}: ${caretOnFirstLine(document.getElementById(id))}`);
+    });
+</script>
