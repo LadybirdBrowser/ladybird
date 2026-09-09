@@ -2717,6 +2717,11 @@ fn read_declaration_kind(payload: &mut PayloadReader) -> Result<FfiElementDeclar
     })
 }
 
+// The standalone tool has no browser crash reporter to notify. abort_on_panic
+// still terminates the process after invoking this callback.
+#[unsafe(no_mangle)]
+extern "C" fn ladybird_rust_panic_will_abort() {}
+
 #[unsafe(no_mangle)]
 extern "C" fn ladybird_utf16_fly_string_unref(_raw: usize) {}
 #[unsafe(no_mangle)]
