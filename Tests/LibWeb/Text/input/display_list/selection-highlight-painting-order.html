@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+        font: 20px monospace;
+    }
+    p {
+        color: rgb(1, 2, 3);
+        text-shadow: 2px 2px 0 rgb(4, 5, 6);
+        text-decoration: underline rgb(7, 8, 9);
+    }
+    p::selection {
+        color: rgb(10, 11, 12);
+        background-color: rgb(13, 14, 15);
+        text-shadow: 4px 4px 0 rgb(16, 17, 18);
+        text-decoration: line-through rgb(19, 20, 21);
+    }
+</style>
+<p id="target">abcde</p>
+<script>
+    test(() => {
+        const text = target.firstChild;
+        const range = document.createRange();
+        range.setStart(text, 1);
+        range.setEnd(text, 4);
+        getSelection().addRange(range);
+        println(internals.dumpDisplayList());
+    });
+</script>

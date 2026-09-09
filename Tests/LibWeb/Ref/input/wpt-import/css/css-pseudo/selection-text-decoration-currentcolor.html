@@ -1,0 +1,23 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>CSS Pseudo-Elements Test: ::selection text-decoration with currentColor</title>
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#highlight-painting">
+<link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/selection-text-decoration-currentcolor-ref.html">
+<meta name="assert" content="This test checks that ::selection text-decoration-color defaults to currentColor.">
+<style>
+  ::selection {
+    color: green;
+    text-decoration: overline;
+  }
+  #target {
+    font-size: 50px;
+  }
+</style>
+<p>The test passes if the text below has a green overline.</p>
+<p id="target">Selected text</p>
+<script>
+  let range = new Range();
+  range.selectNodeContents(target);
+  getSelection().removeAllRanges();
+  getSelection().addRange(range);
+</script>

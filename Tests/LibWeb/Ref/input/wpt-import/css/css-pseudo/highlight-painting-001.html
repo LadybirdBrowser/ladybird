@@ -1,0 +1,30 @@
+<!doctype html>
+<meta charset="utf-8">
+<title>CSS Pseudo-Elements Test: highlight painting</title>
+<link rel="author" name="Delan Azabani" href="mailto:dazabani@igalia.com">
+<link rel="help" href="https://drafts.csswg.org/css-pseudo-4/#highlight-painting">
+<link rel="help" href="https://drafts.csswg.org/css-text-decor-4/#painting">
+<link rel="help" href="https://www.w3.org/TR/CSS22/zindex.html#painting-order">
+<link rel="match" href="../../../../expected/wpt-import/css/css-pseudo/highlight-painting-001-ref.html">
+<meta name="assert" value="::selection overlay is painted in the correct order, including both the element’s shadows and the highlight’s shadows">
+<script src="support/selections.js"></script>
+<link rel="stylesheet" href="support/highlights.css">
+<style>
+    p {
+        font-size: 7em;
+        text-shadow: 0.2500em 0.2500em #C0C000;
+    }
+    p::selection {
+        background: #C0C0C0;
+        text-shadow: 0.5000em 0.5000em #3838E0;
+    }
+</style>
+<p class="highlight_reftest">quick
+<script>
+    const target = document.querySelector("p");
+    selectRangeWith(range => {
+        range.selectNodeContents(target);
+        range.setStart(target.childNodes[0], 1);
+        range.setEnd(target.childNodes[0], 4);
+    });
+</script>
