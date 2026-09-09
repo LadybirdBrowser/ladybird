@@ -386,6 +386,13 @@ impl From<&RecordedDisplayList> for FfiRecordedDisplayList {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiSnapAxes {
+    pub x: bool,
+    pub y: bool,
+}
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiRecordingPublishCallbacks {

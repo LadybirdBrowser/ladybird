@@ -1935,6 +1935,18 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
 
 /// # Safety
 ///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_scroll_snap_axes(
+    arena: *mut c_void,
+    snap_container: NodeSlotId,
+) -> crate::painting::host::FfiSnapAxes {
+    let arena = unsafe { arena_from_handle(arena) };
+    crate::painting::scroll_snap_axes::snap_axes_of_scroll_container(arena, snap_container)
+}
+
+/// # Safety
+///
 /// `arena` must be a live handle from `layout_arena_create`; the callbacks in `publish` are
 /// called synchronously with their context while the recording's resources are live.
 #[unsafe(no_mangle)]
