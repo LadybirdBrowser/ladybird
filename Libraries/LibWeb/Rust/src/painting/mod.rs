@@ -19,6 +19,7 @@ pub mod fragment_ownership;
 pub mod hit_test;
 pub mod host;
 pub(crate) mod intersection_observer;
+pub(crate) mod layer_image_paint_facts;
 pub mod layout_tree_dump;
 pub(crate) mod node_painting;
 pub(crate) mod paint_order;

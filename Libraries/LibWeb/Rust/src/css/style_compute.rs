@@ -6803,6 +6803,22 @@ pub(crate) mod ffi_test_stubs {
     #[unsafe(no_mangle)]
     extern "C" fn ladybird_gfx_font_unref(_raw: *const std::ffi::c_void) {}
     #[unsafe(no_mangle)]
+    unsafe extern "C" fn ladybird_gfx_decoded_image_frame_retain(
+        frame: *const std::ffi::c_void,
+        out_snapshot: *mut libgfx_rust::image_frame::FfiImageFrameSnapshot,
+    ) -> *mut std::ffi::c_void {
+        // Test frames are dangling pointers; their address stands in for the id.
+        unsafe {
+            *out_snapshot = libgfx_rust::image_frame::FfiImageFrameSnapshot {
+                id: frame as usize as u64,
+                ..Default::default()
+            }
+        };
+        frame.cast_mut()
+    }
+    #[unsafe(no_mangle)]
+    extern "C" fn ladybird_gfx_decoded_image_frame_release(_frame: *mut std::ffi::c_void) {}
+    #[unsafe(no_mangle)]
     unsafe extern "C" fn ladybird_gfx_font_snapshot(
         font: *const std::ffi::c_void,
         out_snapshot: *mut libgfx_rust::font::FfiFontSnapshot,

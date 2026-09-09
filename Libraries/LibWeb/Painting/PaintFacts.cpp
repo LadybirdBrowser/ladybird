@@ -143,14 +143,20 @@ static GC::Ptr<HTML::DecodedImageData> decoded_image_data_of(Layout::NodeWithSty
 void push_layer_image_paint_facts(Layout::NodeWithStyle const& layout_node)
 {
     Vector<Layout::RustFFI::FfiLayerImagePaintFactsEntry> entries;
+    Vector<Optional<Gfx::DecodedImageFrame>> current_frames;
     auto append_entry = [&](Layout::RustFFI::FfiLayerImageList list, size_t computed_index, CSS::AbstractImageStyleValue const* image, Layout::NodeWithStyle::ImageObserver const* observer) {
         if (!image)
             return;
+        auto decoded_image_data = decoded_image_data_of(observer);
         entries.append({
             .list = list,
             .computed_index = static_cast<u32>(computed_index),
-            .facts = layer_image_paint_facts_for(*image, decoded_image_data_of(observer)),
+            .facts = layer_image_paint_facts_for(*image, decoded_image_data),
         });
+        Optional<Gfx::DecodedImageFrame> current_frame;
+        if (entries.last().facts.content_kind == Layout::RustFFI::FfiLayerImageContentKind::Raster)
+            current_frame = decoded_image_data->current_frame();
+        current_frames.append(move(current_frame));
     };
     auto const& background_layers = layout_node.background_layers();
     for (size_t layer_index = 0; layer_index < background_layers.size(); ++layer_index)
@@ -159,6 +165,10 @@ void push_layer_image_paint_facts(Layout::NodeWithStyle const& layout_node)
     for (size_t layer_index = 0; layer_index < mask_layers.size(); ++layer_index)
         append_entry(Layout::RustFFI::FfiLayerImageList::Mask, layer_index, mask_layers[layer_index].background_image.ptr(), layout_node.mask_image_observer(layer_index));
     append_entry(Layout::RustFFI::FfiLayerImageList::BorderImageSource, 0, layout_node.border_image().source.ptr(), layout_node.border_image_source_observer());
+    for (size_t entry_index = 0; entry_index < entries.size(); ++entry_index) {
+        if (current_frames[entry_index].has_value())
+            entries[entry_index].facts.frame = &current_frames[entry_index].value();
+    }
     Layout::RustFFI::layout_arena_set_layer_image_paint_facts(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node), entries.data(), entries.size());
 }
 

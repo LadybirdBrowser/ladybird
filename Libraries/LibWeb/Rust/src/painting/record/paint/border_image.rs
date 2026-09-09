@@ -408,15 +408,15 @@ pub(crate) fn paint_border_image<O: Observer>(
         return false;
     }
     let image_rendering = style.image_rendering();
-    let frame = recorder.paint_host.layer_image_current_frame(
-        recorder.layout_node_shell(paintable),
-        FfiLayerImageList::BorderImageSource,
-        0,
-        libgfx_rust::IntRect::default(),
-    );
-    if !frame.has_frame {
+    let Some(crate::painting::layer_image_paint_facts::LayerImageContent::Raster(Some(frame))) = recorder
+        .layout_arena
+        .layer_image_paint_facts(paintable, FfiLayerImageList::BorderImageSource, 0)
+        .map(|facts| facts.content)
+    else {
         return false;
-    }
+    };
+    let frame_id = recorder.register_image_frame(&frame);
+    let frame_size = (frame.width(), frame.height());
 
     let Some(StyleValueData::BorderImageSlice {
         top: slice_top,
@@ -453,7 +453,7 @@ pub(crate) fn paint_border_image<O: Observer>(
         ],
         component_items(width_value),
         component_items(outset_value),
-        (frame.frame_width, frame.frame_height),
+        frame_size,
         border_box_rect,
         css_border_widths,
     );
@@ -464,7 +464,6 @@ pub(crate) fn paint_border_image<O: Observer>(
     let destination_rows = geometry.destination_rows;
     let source_slices = geometry.source_slices;
     let widths = geometry.widths;
-    let frame_id = ImageFrameResourceId(frame.frame_id);
     let scale = recorder.converter.device_pixels_per_css_pixel() as f32;
 
     // A tile keeps the source region's aspect ratio at the scale forced by the border thickness.

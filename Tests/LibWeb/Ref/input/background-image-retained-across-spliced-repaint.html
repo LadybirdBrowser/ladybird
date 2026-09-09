@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/background-image-retained-across-spliced-repaint-ref.html">
+<style>
+    #box {
+        width: 100px;
+        height: 100px;
+        background-image: url("../data/smiley.png");
+        background-size: 100px 100px;
+        background-repeat: no-repeat;
+    }
+    #sibling {
+        width: 100px;
+        height: 20px;
+        background-color: red;
+    }
+</style>
+<div id="box"></div>
+<div id="sibling"></div>
+<script>
+    const image = new Image();
+    image.src = "../data/smiley.png";
+    image.decode().then(() => {
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                document.getElementById("sibling").style.backgroundColor = "green";
+                requestAnimationFrame(() => {
+                    requestAnimationFrame(() => {
+                        if (window.internals)
+                            internals.signalTestIsDone("PASS");
+                        else
+                            document.documentElement.classList.remove("reftest-wait");
+                    });
+                });
+            });
+        });
+    });
+</script>
+</html>

@@ -156,7 +156,7 @@ pub enum FfiLayerImageContentKind {
     Vector,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiLayerImagePaintFacts {
     pub is_paintable: bool,
@@ -168,10 +168,11 @@ pub struct FfiLayerImagePaintFacts {
     pub has_image_set_selected_option: bool,
     pub image_set_selected_option_index: u32,
     pub content_kind: FfiLayerImageContentKind,
+    pub frame: *const c_void,
     pub single_pixel_color: OptionalColor,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq)]
+#[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiLayerImagePaintFactsEntry {
     pub list: FfiLayerImageList,
@@ -299,15 +300,6 @@ pub struct FfiLayerImageNestedDisplayListFacts {
     pub nested_display_list_id: u64,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiLayerImageFrameFacts {
-    pub has_frame: bool,
-    pub frame_id: u64,
-    pub frame_width: i32,
-    pub frame_height: i32,
-}
-
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(u8)]
 pub enum FfiImagePaintKind {
@@ -400,12 +392,18 @@ pub struct FfiSnapAxes {
 pub struct FfiRecordingPublishCallbacks {
     pub context: *mut c_void,
     pub add_font: unsafe extern "C" fn(*mut c_void, *const c_void),
+    pub add_image_frame: unsafe extern "C" fn(*mut c_void, *const c_void),
 }
 
 impl FfiRecordingPublishCallbacks {
     pub(crate) fn add_font(&self, font: &libgfx_rust::font::FontHandle) {
         // SAFETY: The C++ host registers the live font synchronously.
         unsafe { (self.add_font)(self.context, font.as_raw()) };
+    }
+
+    pub(crate) fn add_image_frame(&self, frame: &libgfx_rust::image_frame::ImageFrameHandle) {
+        // SAFETY: The C++ host copies the live frame synchronously.
+        unsafe { (self.add_image_frame)(self.context, frame.as_raw()) };
     }
 }
 
@@ -420,8 +418,6 @@ pub struct FfiPaintHostCallbacks {
         u32,
         IntRect,
     ) -> FfiLayerImageNestedDisplayListFacts,
-    pub layer_image_current_frame:
-        unsafe extern "C" fn(*mut c_void, *mut c_void, FfiLayerImageList, u32, IntRect) -> FfiLayerImageFrameFacts,
     pub layer_image_paint: unsafe extern "C" fn(
         *mut c_void,
         *mut c_void,
@@ -467,18 +463,6 @@ impl FfiPaintHostCallbacks {
                 computed_index,
                 device_dest_rect,
             )
-        }
-    }
-    pub(crate) fn layer_image_current_frame(
-        &self,
-        layout_node_shell: *mut c_void,
-        list: FfiLayerImageList,
-        computed_index: u32,
-        device_dest_rect: libgfx_rust::IntRect,
-    ) -> FfiLayerImageFrameFacts {
-        // SAFETY: The C++ host answers synchronously from a live layout node shell.
-        unsafe {
-            (self.layer_image_current_frame)(self.context, layout_node_shell, list, computed_index, device_dest_rect)
         }
     }
     pub(crate) fn layer_image_paint(

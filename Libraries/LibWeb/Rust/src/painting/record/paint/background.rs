@@ -636,7 +636,7 @@ fn paint_image_layer<O: Observer>(
 
     let inline_operator = compositing_and_blending_operator;
 
-    if resolved_gradient.is_none() && facts.single_pixel_color.has_value {
+    if let (None, Some(single_pixel_color)) = (&resolved_gradient, facts.single_pixel_color) {
         // OPTIMIZATION: If the image is a single pixel, we can just fill the whole area with it.
         //               However, we must first figure out the real coverage area, taking repeat etc into account.
 
@@ -651,18 +651,18 @@ fn paint_image_layer<O: Observer>(
         if inline_operator == CompositingAndBlendingOperator::Normal {
             recorder.recorder.fill_rect(
                 fill_rect.unwrap_or_default(),
-                facts.single_pixel_color.value,
+                single_pixel_color,
                 ForceDarkRole::Background,
             );
         } else {
             recorder.recorder.fill_rect_with_compositing_and_blending_operator(
                 fill_rect.unwrap_or_default(),
-                facts.single_pixel_color.value,
+                single_pixel_color,
                 inline_operator,
                 ForceDarkRole::Background,
             );
         }
-    } else if facts.content_kind != crate::painting::host::FfiLayerImageContentKind::None
+    } else if facts.content != crate::painting::layer_image_paint_facts::LayerImageContent::None
         && ((repeat_x || repeat_y) || compositing_and_blending_operator != CompositingAndBlendingOperator::Normal)
         && !repeat_x_has_gap
         && !repeat_y_has_gap
@@ -712,22 +712,17 @@ fn paint_image_layer<O: Observer>(
                 },
             );
         } else {
-            let frame =
-                recorder
-                    .paint_host
-                    .layer_image_current_frame(shell, image.list, image.computed_index, dest_rect);
-            if !frame.has_frame {
+            let crate::painting::layer_image_paint_facts::LayerImageContent::Raster(Some(frame)) = &facts.content
+            else {
                 return;
-            }
+            };
+            let frame_id = recorder.register_image_frame(frame);
+            let frame_size = (frame.width(), frame.height());
             let tile_device_rect = dest_rect;
             let clip_device_rect = clip_rect;
             let visible_rect = tile_device_rect.intersected(clip_device_rect);
             if tile_count == 1.0 {
-                let source_rect = source_rect_for_visible_image_part(
-                    visible_rect,
-                    tile_device_rect,
-                    (frame.frame_width, frame.frame_height),
-                );
+                let source_rect = source_rect_for_visible_image_part(visible_rect, tile_device_rect, frame_size);
                 let scaling_mode = to_gfx_scaling_mode(
                     image_rendering,
                     (
@@ -743,12 +738,12 @@ fn paint_image_layer<O: Observer>(
                     tile_device_rect.width as f32,
                     tile_device_rect.height as f32,
                     recorder.inputs.device_pixels_per_css_pixel,
-                    (frame.frame_width, frame.frame_height),
+                    frame_size,
                 );
                 recorder.recorder.draw_scaled_decoded_image_frame(
                     visible_rect.to_float(),
                     Some(source_rect),
-                    ImageFrameResourceId(frame.frame_id),
+                    frame_id,
                     scaling_mode,
                     compositing_and_blending_operator,
                     backdrop.opaque_color_under_lone_layer(),
@@ -757,7 +752,7 @@ fn paint_image_layer<O: Observer>(
             } else if tile_count > 1.0 {
                 let scaling_mode = to_gfx_scaling_mode(
                     image_rendering,
-                    (frame.frame_width, frame.frame_height),
+                    frame_size,
                     (tile_device_rect.width, tile_device_rect.height),
                 );
                 let force_dark_role = crate::painting::force_dark::role_for_image(
@@ -765,12 +760,12 @@ fn paint_image_layer<O: Observer>(
                     tile_device_rect.width as f32,
                     tile_device_rect.height as f32,
                     recorder.inputs.device_pixels_per_css_pixel,
-                    (frame.frame_width, frame.frame_height),
+                    frame_size,
                 );
                 recorder.recorder.draw_repeated_decoded_image_frame(
                     tile_device_rect,
                     clip_device_rect,
-                    ImageFrameResourceId(frame.frame_id),
+                    frame_id,
                     scaling_mode,
                     repeat_x,
                     repeat_y,
