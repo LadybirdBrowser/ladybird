@@ -9,7 +9,7 @@ use crate::painting::record::trace::Observer;
 use super::{PaintPhase, PaintRecorder};
 use crate::css::css_enums;
 use crate::css::css_pixels::{CssPixelRect, CssPixels};
-use crate::layout::node_data::{DomPaintFact, NodeFlag, NodeSlotId};
+use crate::layout::node_data::{DomPaintFact, NodeSlotId};
 use crate::layout::node_facts;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::fragment_ownership;
@@ -24,7 +24,6 @@ use std::rc::Rc;
 #[derive(Clone, Copy, Debug, Default)]
 pub(crate) struct HitTestFacts {
     pub(crate) visible_for_hit_testing: bool,
-    pub(crate) dom_node_has_parent: bool,
     pub(crate) has_resizer: bool,
     pub(crate) could_be_scrolled_horizontally: bool,
     pub(crate) could_be_scrolled_vertically: bool,
@@ -36,13 +35,9 @@ pub(crate) fn hit_test_facts(
     arena: &impl crate::painting::paintable_rows::PaintableRowsRead,
     paintable: NodeSlotId,
     inputs: &crate::painting::record::RecordingInputs,
-    dom: crate::painting::host::FfiHitTestPaintableFacts,
 ) -> HitTestFacts {
     let Some(style) = arena.node_style_if_live(paintable) else {
-        return HitTestFacts {
-            dom_node_has_parent: dom.dom_node_has_parent,
-            ..HitTestFacts::default()
-        };
+        return HitTestFacts::default();
     };
     let wheel_axes = crate::painting::chrome_geometry::wheel_scrollable_axes(
         arena,
@@ -58,7 +53,6 @@ pub(crate) fn hit_test_facts(
         visible_for_hit_testing: arena.paintable_row_is_populated(paintable)
             && !arena.node_has_dom_paint_fact(paintable, DomPaintFact::Inert)
             && style.inherited_ui().pointer_events != css_enums::pointer_events::NONE,
-        dom_node_has_parent: dom.dom_node_has_parent,
         has_resizer: crate::painting::chrome_geometry::has_resizer(arena, paintable),
         could_be_scrolled_horizontally: wheel_axes.horizontal,
         could_be_scrolled_vertically: wheel_axes.vertical,
@@ -433,8 +427,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
     }
 
     fn node_has_dom_node(&self, node: NodeSlotId) -> bool {
-        !self.layout_arena.shell_if_live(node).is_null()
-            && self.layout_arena.node_flags_if_live(node) & NodeFlag::Anonymous as u32 == 0
+        !self.layout_arena.node_dom_node(node).is_null()
     }
 
     fn absolute_containing_line_box_rect(&self, paintable: NodeSlotId) -> Option<CssPixelRect> {
@@ -477,8 +470,7 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         let can_produce_caret_position = (self.is_atomic_inline(target) || self.is_replaced_box(target)) && {
             let negative_z =
                 crate::painting::style_queries::effective_z_index(self.layout_arena, target).unwrap_or(0) < 0;
-            let target_node = target;
-            !negative_z && self.node_has_dom_node(target_node) && self.paintable_facts(target).dom_node_has_parent
+            !negative_z && self.node_has_dom_node(target)
         };
         let block_container = self.block_container_of_paintable(paintable_box);
         let item = HitTestItem {

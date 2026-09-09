@@ -12,12 +12,6 @@ use std::ffi::c_void;
 
 #[derive(Clone, Copy, Debug, Default)]
 #[repr(C)]
-pub struct FfiHitTestPaintableFacts {
-    pub dom_node_has_parent: bool,
-}
-
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
 pub struct FfiLineBreakCaretTarget {
     pub caret_offset: usize,
     pub rect: used_values::FfiCssPixelRect,
@@ -27,15 +21,10 @@ pub struct FfiLineBreakCaretTarget {
 #[repr(C)]
 pub struct FfiHitTestHostCallbacks {
     pub context: *mut c_void,
-    pub paintable_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiHitTestPaintableFacts,
     pub line_break_caret_targets: unsafe extern "C" fn(*mut c_void, *mut c_void, *mut c_void),
 }
 
 impl FfiHitTestHostCallbacks {
-    pub(crate) fn paintable_facts(&self, layout_node_shell: *mut c_void) -> FfiHitTestPaintableFacts {
-        // SAFETY: The C++ host answers synchronously from a live layout node shell.
-        unsafe { (self.paintable_facts)(self.context, layout_node_shell) }
-    }
     pub(crate) fn line_break_caret_targets(&self, layout_node_shell: *mut c_void) -> Vec<FfiLineBreakCaretTarget> {
         let mut targets: Vec<FfiLineBreakCaretTarget> = Vec::new();
         // SAFETY: The C++ host pushes into the Vec through the exported sink function, synchronously.

@@ -775,13 +775,6 @@ Layout::RustFFI::FfiHitTestHostCallbacks hit_test_host_callbacks()
 {
     return {
         .context = nullptr,
-        .paintable_facts = [](void*, void* layout_node_shell) -> Layout::RustFFI::FfiHitTestPaintableFacts {
-            auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
-            Layout::RustFFI::FfiHitTestPaintableFacts facts {};
-            auto dom_node = layout_node.dom_node();
-            facts.dom_node_has_parent = dom_node && dom_node->parent();
-            return facts;
-        },
         .line_break_caret_targets = [](void*, void* layout_node_shell, void* sink) {
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
             auto* dom_node = layout_node.dom_node();
