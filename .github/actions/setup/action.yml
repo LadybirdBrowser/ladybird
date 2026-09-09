@@ -69,7 +69,7 @@ runs:
         if ${{ inputs.type == 'build' }} ; then
           pip3 install pyyaml requests six cryptography
         else
-          pip3 install -r "${GITHUB_WORKSPACE}/Meta/Linters/requirements.txt"
+          python3 "${GITHUB_WORKSPACE}/Meta/Linters/run.py"
         fi
 
     - name: Ensure clang-cl is available

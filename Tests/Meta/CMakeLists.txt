@@ -16,4 +16,13 @@ if (NOT WIN32)
     )
     add_test(NAME test-xctrace-time-profile COMMAND "${Python3_EXECUTABLE}" "${CMAKE_BINARY_DIR}/bin/test-xctrace-time-profile.py")
     set_tests_properties(test-xctrace-time-profile PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
+
+    add_custom_target(test-lint-environment ALL DEPENDS "${CMAKE_BINARY_DIR}/bin/test-lint-environment.py")
+    add_custom_command(
+        OUTPUT "${CMAKE_BINARY_DIR}/bin/test-lint-environment.py"
+        COMMAND "${CMAKE_COMMAND}" -E copy "${ladybird_SOURCE_DIR}/Tests/Meta/test-lint-environment.py" "${CMAKE_BINARY_DIR}/bin/test-lint-environment.py"
+        DEPENDS "${ladybird_SOURCE_DIR}/Tests/Meta/test-lint-environment.py"
+    )
+    add_test(NAME test-lint-environment COMMAND "${Python3_EXECUTABLE}" "${CMAKE_BINARY_DIR}/bin/test-lint-environment.py")
+    set_tests_properties(test-lint-environment PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
 endif()
