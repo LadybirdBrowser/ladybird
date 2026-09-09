@@ -104,12 +104,7 @@ fn transformed_int_rect_clip(transform: AffineTransform, rect: libgfx_rust::IntR
 
 impl<O: Observer> PaintRecorder<'_, O> {
     fn mask_layer_presence(&self, paintable: NodeSlotId, set: MaskLayerSet) -> Vec<MaskLayerPresenceEntry> {
-        mask_layer_presence(
-            self.layout_arena,
-            self.visual_context_host,
-            paintable,
-            set == MaskLayerSet::CssAndSvg,
-        )
+        mask_layer_presence(self.layout_arena, paintable, set == MaskLayerSet::CssAndSvg)
     }
 
     fn mask_effect_of_layer(

@@ -412,12 +412,6 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM
             auto& document = *static_cast<DOM::Document*>(context);
             return rust_root_background_source(document);
         },
-        .svg_mask_facts = [](void*, void* layout_node_shell) -> Layout::RustFFI::FfiSvgMaskFacts {
-            auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
-            Layout::RustFFI::FfiSvgMaskFacts facts {};
-            facts.clip_area = clip_area(layout_node);
-            return facts;
-        },
         .resolve_svg_filter = [](void* context, void* layout_node_shell, void const* url_value, void* sink) -> Layout::RustFFI::FfiResolvedSvgFilter {
             auto& document = *static_cast<DOM::Document*>(context);
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);

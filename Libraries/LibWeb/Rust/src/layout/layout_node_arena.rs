@@ -3450,6 +3450,7 @@ mod tests {
                 svg_viewport_transform: None,
                 svg_viewport_size: None,
                 svg_view_box: None,
+                svg_element_transform: None,
                 svg_additional_element_transform: None,
                 svg_mask_area_facts: None,
                 svg_viewport_percentage_basis: CssPixels::default(),

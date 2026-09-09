@@ -36,6 +36,7 @@ pub(crate) struct Fragment {
     pub(crate) svg_viewport_transform: Option<svg_formatting_context::FfiAffineTransform>,
     pub(crate) svg_viewport_size: Option<FfiCssPixelSize>,
     pub(crate) svg_view_box: Option<svg_formatting_context::FfiSvgViewBox>,
+    pub(crate) svg_element_transform: Option<svg_formatting_context::FfiAffineTransform>,
     pub(crate) svg_additional_element_transform: Option<svg_formatting_context::FfiAffineTransform>,
     pub(crate) svg_mask_area_facts: Option<svg_formatting_context::SvgMaskAreaFacts>,
     pub(crate) svg_viewport_percentage_basis: CssPixels,
@@ -99,6 +100,7 @@ impl Fragment {
             && self.svg_viewport_transform == previous.svg_viewport_transform
             && self.svg_viewport_size == previous.svg_viewport_size
             && self.svg_view_box == previous.svg_view_box
+            && self.svg_element_transform == previous.svg_element_transform
             && self.svg_additional_element_transform == previous.svg_additional_element_transform
             && self.svg_mask_area_facts == previous.svg_mask_area_facts
             && self.svg_viewport_percentage_basis == previous.svg_viewport_percentage_basis
@@ -253,6 +255,23 @@ fn previously_committed_fragment_matching(
         })
 }
 
+#[derive(Default)]
+struct CommittedRarePayloads {
+    collapsed_table_borders: Option<std::rc::Rc<table_formatting_context::OwnedCollapsedTableBorders>>,
+    grid_layout_data: Option<std::rc::Rc<grid_formatting_context::GridLayoutData>>,
+    flex_layout_data: Option<std::rc::Rc<formatting_context::FlexLayoutData>>,
+    used_grid_tracks: Option<std::rc::Rc<grid_formatting_context::OwnedUsedGridTracks>>,
+    svg_viewport_transform: Option<svg_formatting_context::FfiAffineTransform>,
+    svg_viewport_size: Option<FfiCssPixelSize>,
+    svg_view_box: Option<svg_formatting_context::FfiSvgViewBox>,
+    svg_element_transform: Option<svg_formatting_context::FfiAffineTransform>,
+    svg_additional_element_transform: Option<svg_formatting_context::FfiAffineTransform>,
+    svg_mask_area_facts: Option<svg_formatting_context::SvgMaskAreaFacts>,
+    svg_viewport_percentage_basis: CssPixels,
+    svg_resource_content_units_are_object_bounding_box: bool,
+    computed_svg_path: Option<std::rc::Rc<libgfx_rust::path::OwnedPath>>,
+}
+
 fn snapshot_fragment(
     callbacks: &LayoutPass<'_>,
     node: crate::layout::node_data::NodeSlotId,
@@ -261,24 +280,30 @@ fn snapshot_fragment(
 ) -> std::rc::Rc<Fragment> {
     static NEXT_IDENTITY: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(1);
     let line_data = used.finish_line_data(callbacks);
-    let rare_payloads = used.rare_data.get().map(|cell| {
-        let mut rare = cell.borrow_mut();
-        (
-            rare.collapsed_table_borders.take(),
-            rare.grid_layout_data.take(),
-            rare.flex_layout_data.take(),
-            rare.used_grid_tracks.take(),
-            rare.svg_viewport_transform,
-            rare.svg_viewport_size,
-            rare.svg_view_box,
-            rare.svg_additional_element_transform,
-            rare.svg_mask_area_facts,
-            rare.svg_viewport_percentage_basis,
-            rare.svg_resource_content_units_are_object_bounding_box,
-            rare.computed_svg_path.take(),
-        )
-    });
-    let (
+    let rare_payloads = used
+        .rare_data
+        .get()
+        .map(|cell| {
+            let mut rare = cell.borrow_mut();
+            CommittedRarePayloads {
+                collapsed_table_borders: rare.collapsed_table_borders.take(),
+                grid_layout_data: rare.grid_layout_data.take(),
+                flex_layout_data: rare.flex_layout_data.take(),
+                used_grid_tracks: rare.used_grid_tracks.take(),
+                svg_viewport_transform: rare.svg_viewport_transform,
+                svg_viewport_size: rare.svg_viewport_size,
+                svg_view_box: rare.svg_view_box,
+                svg_element_transform: rare.svg_element_transform,
+                svg_additional_element_transform: rare.svg_additional_element_transform,
+                svg_mask_area_facts: rare.svg_mask_area_facts,
+                svg_viewport_percentage_basis: rare.svg_viewport_percentage_basis,
+                svg_resource_content_units_are_object_bounding_box: rare
+                    .svg_resource_content_units_are_object_bounding_box,
+                computed_svg_path: rare.computed_svg_path.take(),
+            }
+        })
+        .unwrap_or_default();
+    let CommittedRarePayloads {
         collapsed_table_borders,
         grid_layout_data,
         flex_layout_data,
@@ -286,12 +311,13 @@ fn snapshot_fragment(
         svg_viewport_transform,
         svg_viewport_size,
         svg_view_box,
+        svg_element_transform,
         svg_additional_element_transform,
         svg_mask_area_facts,
         svg_viewport_percentage_basis,
         svg_resource_content_units_are_object_bounding_box,
         computed_svg_path,
-    ) = rare_payloads.unwrap_or_default();
+    } = rare_payloads;
     let mut fragment = Fragment {
         identity: 0,
         node,
@@ -322,6 +348,7 @@ fn snapshot_fragment(
         svg_viewport_transform,
         svg_viewport_size,
         svg_view_box,
+        svg_element_transform,
         svg_additional_element_transform,
         svg_mask_area_facts,
         svg_viewport_percentage_basis,

@@ -19,12 +19,6 @@ use libgfx_rust::{
 };
 use std::ffi::c_void;
 
-#[derive(Clone, Copy, Debug, Default)]
-#[repr(C)]
-pub struct FfiSvgMaskFacts {
-    pub clip_area: OptionalCssPixelRect,
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum FfiVisualContextBoxDirtyKind {
@@ -213,7 +207,6 @@ pub struct FfiVisualContextHostCallbacks {
     pub scroll_offset: unsafe extern "C" fn(*mut c_void, *mut c_void) -> used_values::FfiCssPixelPoint,
     pub scroll_node_identity: unsafe extern "C" fn(*mut c_void, *mut c_void) -> i64,
     pub root_background_source: unsafe extern "C" fn(*mut c_void) -> FfiRootBackgroundSource,
-    pub svg_mask_facts: unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiSvgMaskFacts,
     pub resolve_svg_filter:
         unsafe extern "C" fn(*mut c_void, *mut c_void, *const c_void, *mut c_void) -> FfiResolvedSvgFilter,
 }
@@ -234,10 +227,6 @@ impl FfiVisualContextHostCallbacks {
     pub(crate) fn root_background_source(&self) -> FfiRootBackgroundSource {
         // SAFETY: The C++ host answers synchronously.
         unsafe { (self.root_background_source)(self.context) }
-    }
-    pub(crate) fn svg_mask_facts(&self, layout_node_shell: *mut c_void) -> FfiSvgMaskFacts {
-        // SAFETY: The C++ host answers synchronously from a live layout node shell.
-        unsafe { (self.svg_mask_facts)(self.context, layout_node_shell) }
     }
     pub(crate) fn resolve_svg_filter(
         &self,

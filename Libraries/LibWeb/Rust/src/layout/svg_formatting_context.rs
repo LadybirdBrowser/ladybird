@@ -507,6 +507,7 @@ impl<'pass> SvgFormattingContext<'pass> {
         let used = self.used_values(node);
         let mut rare = used.rare_data_mut();
         rare.svg_view_box = facts.has_active_view_box.then_some(facts.active_view_box);
+        rare.svg_element_transform = (!facts.element_transform.is_identity()).then_some(facts.element_transform);
         rare.svg_additional_element_transform =
             (!facts.additional_element_transform.is_identity()).then_some(facts.additional_element_transform);
         rare.svg_mask_area_facts = (self.node_kind(node) == NodeKind::SVGMaskBox).then_some(SvgMaskAreaFacts {

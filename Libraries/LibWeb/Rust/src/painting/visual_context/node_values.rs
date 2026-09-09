@@ -698,7 +698,6 @@ pub(crate) struct MaskLayerPresenceEntry {
 
 pub(crate) fn mask_layer_presence(
     layout_arena: &impl PaintableRowsRead,
-    callbacks: &FfiVisualContextHostCallbacks,
     slot: NodeSlotId,
     include_css_mask_layers: bool,
 ) -> Vec<MaskLayerPresenceEntry> {
@@ -731,11 +730,10 @@ pub(crate) fn mask_layer_presence(
                 kind: crate::painting::svg_masking::mask_kind(layout_arena, slot),
             });
         }
-        let svg_facts = callbacks.svg_mask_facts(layout_arena.shell_if_live(slot));
-        if svg_facts.clip_area.has_value {
+        if let Some(clip_area) = crate::painting::svg_masking::clip_area(layout_arena, slot) {
             layers.push(MaskLayerPresenceEntry {
                 origin: MaskLayerOrigin::SvgClip,
-                area: CssPixelRect::from(svg_facts.clip_area.value),
+                area: clip_area,
                 kind: libgfx_rust::MaskKind::Alpha,
             });
         }
