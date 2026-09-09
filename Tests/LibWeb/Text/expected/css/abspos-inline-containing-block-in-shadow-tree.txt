@@ -1,0 +1,4 @@
+x: true
+y: true
+width: true
+height: true

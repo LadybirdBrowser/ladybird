@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    positioned-inline { position: relative; }
+</style>
+<div style="height: 100px;"></div>
+<positioned-inline>inline containing block</positioned-inline>
+<script>
+    const host = document.querySelector("positioned-inline");
+    host.attachShadow({ mode: "open" }).innerHTML = `
+        <style>
+            #absolutely-positioned {
+                position: absolute;
+                inset: 0;
+            }
+        </style>
+        <div id="absolutely-positioned"></div>
+        <slot></slot>
+    `;
+
+    test(() => {
+        const hostRect = host.getBoundingClientRect();
+        const absolutelyPositionedRect = host.shadowRoot
+            .querySelector("#absolutely-positioned").getBoundingClientRect();
+
+        println(`x: ${absolutelyPositionedRect.x === hostRect.x}`);
+        println(`y: ${absolutelyPositionedRect.y === hostRect.y}`);
+        println(`width: ${absolutelyPositionedRect.width === hostRect.width}`);
+        println(`height: ${absolutelyPositionedRect.height === hostRect.height}`);
+    });
+</script>
