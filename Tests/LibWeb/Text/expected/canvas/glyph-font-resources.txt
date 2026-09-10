@@ -1,0 +1,6 @@
+interleaved draws, font 0: true
+interleaved draws, font 1: true
+interleaved draws, font 2: true
+after readback, font 0: true
+after readback, font 1: true
+after readback, font 2: true

@@ -6,12 +6,14 @@
 
 #pragma once
 
+#include <AK/HashMap.h>
 #include <AK/RefCounted.h>
 #include <AK/Vector.h>
 #include <LibGfx/CanvasCommandList.h>
 #include <LibIPC/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Painting/DisplayListResourceIds.h>
+#include <LibWeb/Painting/DisplayListResourceStorage.h>
 
 namespace Web::Painting {
 
@@ -37,11 +39,14 @@ public:
     size_t total_command_count() const;
 
     Vector<Canvas2DCommandStreamSegment> take_segments();
+    FontResourceId add_font(Gfx::Font const&);
+    Vector<DisplayListFontResource> take_fonts();
 
 private:
     void append_segment(CanvasId, bool present);
 
     Vector<Canvas2DCommandStreamSegment> m_segments;
+    HashMap<u64, NonnullRefPtr<Gfx::Font const>> m_fonts;
     // The tail segment grows through the reference commands_for() hands out,
     // so its command count is only known at query time.
     size_t m_command_count_excluding_tail { 0 };

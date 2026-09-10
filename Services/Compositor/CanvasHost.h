@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <LibWeb/Painting/DisplayListResourceStorage.h>
+
 #include <AK/ByteBuffer.h>
 #include <AK/Error.h>
 #include <AK/HashMap.h>
@@ -52,7 +54,7 @@ public:
     void destroy_context(Web::Painting::CanvasId);
     bool has_context(Web::Painting::CanvasId) const;
 
-    void execute_canvas_2d_stream(Vector<Web::Painting::Canvas2DCommandStreamSegment> const&);
+    void execute_canvas_2d_stream(Vector<Web::Painting::Canvas2DCommandStreamSegment> const&, Vector<Web::Painting::DisplayListFontResource> const&);
     void execute_webgl_commands(Web::Painting::CanvasId, ReadonlyBytes, Vector<Gfx::DecodedImageFrame> const&);
     void set_webgl_shared_command_buffer(Web::Painting::CanvasId, Web::WebGL::WebGLSharedCommandBuffer);
     [[nodiscard]] bool execute_webgl_commands_from_shared_buffer(Web::Painting::CanvasId, u64 offset, u64 size_in_bytes, u64 flush_sequence_number, Vector<Gfx::DecodedImageFrame> const&);
@@ -80,6 +82,7 @@ private:
     RefPtr<Gfx::SkiaBackendContext> m_skia_backend_context;
     Web::Painting::CanvasSurfaceRegistry& m_canvas_surface_registry;
     HashMap<Web::Painting::CanvasId, Context> m_contexts;
+    Web::Painting::DisplayListResourceStorage m_text_resources;
 };
 
 }

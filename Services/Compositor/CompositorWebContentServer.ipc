@@ -38,7 +38,7 @@ endpoint CompositorWebContentServer
     update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot scroll_state_snapshot) =|
 
     create_canvas_2d_context(Gfx::IntSize size, bool alpha) => (bool success, Web::Painting::CanvasId canvas_id)
-    update_canvas_2d_stream(Vector<Web::Painting::Canvas2DCommandStreamSegment> segments) =|
+    update_canvas_2d_stream(Vector<Web::Painting::Canvas2DCommandStreamSegment> segments, Vector<Web::Painting::DisplayListFontResource> fonts) =|
     destroy_canvas_context(Web::Painting::CanvasId canvas_id) =|
     get_canvas_pixels(Web::Painting::CanvasId canvas_id, Gfx::IntRect rect) => (Gfx::ShareableBitmap pixels)
 

@@ -277,6 +277,14 @@ void PainterSkia::fill_path(Gfx::Path const& path, Gfx::PaintStyle const& paint_
     canvas.drawPath(sk_path, paint);
 }
 
+void PainterSkia::draw_text_blob(SkTextBlob const& blob, FloatPoint translation, PaintStyle const& style, Optional<Filter> filter, float global_alpha, CompositingAndBlendingOperator compositing_and_blending_operator)
+{
+    auto paint = to_skia_paint(style, filter);
+    paint.setAlphaf(paint.getAlphaf() * global_alpha);
+    paint.setBlender(to_skia_blender(compositing_and_blending_operator));
+    m_painting_surface->canvas().drawTextBlob(&blob, translation.x(), translation.y(), paint);
+}
+
 void PainterSkia::save()
 {
     auto& canvas = m_painting_surface->canvas();

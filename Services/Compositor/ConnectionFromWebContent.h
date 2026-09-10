@@ -50,7 +50,7 @@ private:
     virtual void update_scroll_state(Web::Compositor::CompositorContextId, Web::Painting::ScrollStateSnapshot) override;
     virtual void update_image_frame_resources(Web::Compositor::CompositorContextId, Vector<Web::Painting::DisplayListImageFrameResource>) override;
     virtual Messages::CompositorWebContentServer::CreateCanvas2dContextResponse create_canvas_2d_context(Gfx::IntSize, bool) override;
-    virtual void update_canvas_2d_stream(Vector<Web::Painting::Canvas2DCommandStreamSegment>) override;
+    virtual void update_canvas_2d_stream(Vector<Web::Painting::Canvas2DCommandStreamSegment>, Vector<Web::Painting::DisplayListFontResource>) override;
     virtual void destroy_canvas_context(Web::Painting::CanvasId) override;
     virtual Messages::CompositorWebContentServer::GetCanvasPixelsResponse get_canvas_pixels(Web::Painting::CanvasId, Gfx::IntRect) override;
 

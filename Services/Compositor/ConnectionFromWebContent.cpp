@@ -198,9 +198,9 @@ Messages::CompositorWebContentServer::CreateCanvas2dContextResponse ConnectionFr
     return { true, *canvas_id };
 }
 
-void ConnectionFromWebContent::update_canvas_2d_stream(Vector<Web::Painting::Canvas2DCommandStreamSegment> segments)
+void ConnectionFromWebContent::update_canvas_2d_stream(Vector<Web::Painting::Canvas2DCommandStreamSegment> segments, Vector<Web::Painting::DisplayListFontResource> fonts)
 {
-    m_canvas_host.execute_canvas_2d_stream(segments);
+    m_canvas_host.execute_canvas_2d_stream(segments, fonts);
 }
 
 void ConnectionFromWebContent::destroy_canvas_context(Web::Painting::CanvasId canvas_id)

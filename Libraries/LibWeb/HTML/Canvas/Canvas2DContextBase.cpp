@@ -430,10 +430,7 @@ Gfx::Path Canvas2DContextBase::text_path(Utf16View text, float x, float y, Optio
     if (max_width.has_value() && max_width.value() <= 0)
         return {};
 
-    auto& drawing_state = this->drawing_state();
-
     auto const& font_cascade_list = this->font_cascade_list();
-    auto const& font = font_cascade_list->first();
     auto glyph_runs = Gfx::shape_text({ x, y }, text, *font_cascade_list, resolved_letter_spacing());
     Gfx::Path path;
     float text_width = 0;
@@ -441,6 +438,13 @@ Gfx::Path Canvas2DContextBase::text_path(Utf16View text, float x, float y, Optio
         path.glyph_run(glyph_run);
         text_width += glyph_run->width();
     }
+    return path.copy_transformed(text_transform(text_width, max_width));
+}
+
+Gfx::AffineTransform Canvas2DContextBase::text_transform(float text_width, Optional<double> max_width)
+{
+    auto const& drawing_state = this->drawing_state();
+    auto const& font = font_cascade_list()->first();
     Gfx::AffineTransform transform = {};
 
     // https://html.spec.whatwg.org/multipage/canvas.html#text-preparation-algorithm:
@@ -512,7 +516,7 @@ Gfx::Path Canvas2DContextBase::text_path(Utf16View text, float x, float y, Optio
     if (baseline_y_offset != 0.f)
         transform = Gfx::AffineTransform {}.set_translation({ 0, baseline_y_offset }).multiply(transform);
 
-    return path.copy_transformed(transform);
+    return transform;
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-filltext
@@ -521,7 +525,46 @@ void Canvas2DContextBase::fill_text(Utf16View text, float x, float y, Optional<d
     if (!isfinite(x) || !isfinite(y) || (max_width.has_value() && !isfinite(max_width.value())))
         return;
 
-    fill_internal(text_path(text, x, y, max_width), Gfx::WindingRule::Nonzero);
+    auto& state = drawing_state();
+    // Complex text effects continue to use the combined outline so they are applied
+    // once to the entire text, including runs that use different fallback fonts.
+    if (max_width.has_value() || state.shadow_blur != 0 || state.shadow_offset_x != 0 || state.shadow_offset_y != 0) {
+        fill_internal(text_path(text, x, y, max_width), Gfx::WindingRule::Nonzero);
+        return;
+    }
+
+    auto font_cascade = font_cascade_list();
+    auto glyph_runs = Gfx::shape_text({}, text, *font_cascade, resolved_letter_spacing());
+    if (glyph_runs.size() != 1 || glyph_runs.first()->font().is_invisible()) {
+        fill_internal(text_path(text, x, y, max_width), Gfx::WindingRule::Nonzero);
+        return;
+    }
+
+    auto* command_list = canvas_command_list();
+    if (!command_list)
+        return;
+    auto paint_style = state.fill_style.to_gfx_paint_style();
+    if (!paint_style->is_visible() && state.current_compositing_and_blending_operator == Gfx::CompositingAndBlendingOperator::SourceOver)
+        return;
+    auto const& glyph_run = glyph_runs.first();
+    Vector<Gfx::CanvasGlyph> glyphs;
+    glyphs.ensure_capacity(glyph_run->glyphs().size());
+    for (auto const& glyph : glyph_run->glyphs()) {
+        if (glyph.should_paint)
+            glyphs.unchecked_append({ .position = glyph.position, .glyph_id = glyph.glyph_id });
+    }
+    auto font_id = m_transport->shared_stream().add_font(glyph_run->font());
+    auto translation = text_transform(glyph_run->width(), {}).map(Gfx::FloatPoint { x, y });
+    command_list->append(Gfx::CanvasCommands::DrawGlyphRun {
+        .font_id = font_id.value(),
+        .glyphs = move(glyphs),
+        .translation = translation,
+        .style = Gfx::to_canvas_paint_style(*paint_style),
+        .filter = state.filter,
+        .global_alpha = state.global_alpha,
+        .compositing_and_blending_operator = state.current_compositing_and_blending_operator,
+    });
+    did_draw({});
 }
 
 // https://html.spec.whatwg.org/multipage/canvas.html#dom-context-2d-stroketext

@@ -1,0 +1,10 @@
+solid: true
+fractional baseline: true
+alpha: true
+gradient coordinates: true
+copy: true
+destination-in: true
+filter: true
+translation: true
+scale: true
+clip: true
