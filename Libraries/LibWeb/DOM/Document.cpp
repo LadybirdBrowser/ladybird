@@ -6817,7 +6817,7 @@ void Document::restore_the_history_object_state(NonnullRefPtr<HTML::SessionHisto
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#update-document-for-history-step-application
-void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry> entry, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<HTML::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation, bool update_navigation_api)
+void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry> entry, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<HTML::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation)
 {
     (void)previous_entry_for_activation;
 
@@ -6855,13 +6855,11 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
             // NOTE: Not in the spec, but otherwise document's url won't be updated in case of a same-document back/forward navigation.
             set_url(entry->url());
 
-            // AD HOC: Skip this in situations the spec steps don't account for
-            if (update_navigation_api) {
-                // 1. Assert: navigationType is not null.
-                VERIFY(navigation_type.has_value());
-                // 2. Update the navigation API entries for a same-document navigation given navigation, entry, and navigationType.
-                navigation->update_the_navigation_api_entries_for_a_same_document_navigation(entry, navigation_type.value());
-            }
+            // 1. Assert: navigationType is not null.
+            VERIFY(navigation_type.has_value());
+
+            // 2. Update the navigation API entries for a same-document navigation given navigation, entry, and navigationType.
+            navigation->update_the_navigation_api_entries_for_a_same_document_navigation(entry, navigation_type.value());
 
             // 3. Fire an event named popstate at document's relevant global object, using PopStateEvent,
             //    with the state attribute initialized to document's history object's state and hasUAVisualTransition initialized to true
@@ -6898,7 +6896,7 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
         // 5. Otherwise:
         else {
             // 1. Assert: entriesForNavigationAPI is given.
-            VERIFY(!update_navigation_api || entries_for_navigation_api.has_value());
+            VERIFY(entries_for_navigation_api.has_value());
 
             // 2. Restore persisted state given entry.
             if (auto navigable = this->navigable()) {
@@ -6907,9 +6905,7 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
             }
 
             // 3. Initialize the navigation API entries for a new document given navigation, entriesForNavigationAPI, and entry.
-            if (update_navigation_api)
-                navigation->initialize_the_navigation_api_entries_for_a_new_document(
-                    *entries_for_navigation_api, entry);
+            navigation->initialize_the_navigation_api_entries_for_a_new_document(*entries_for_navigation_api, entry);
         }
     }
 

@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const events = [];
+
+        navigation.addEventListener("currententrychange", event => {
+            events.push(`currententrychange ${event.navigationType} hash=${location.hash}`);
+        });
+        window.addEventListener("popstate", () => {
+            events.push(`popstate hash=${location.hash}`);
+        });
+        window.addEventListener("hashchange", () => {
+            events.push(`hashchange hash=${location.hash}`);
+
+            if (location.hash === "#a") {
+                navigation.navigate("#b");
+                return;
+            }
+
+            for (const event of events)
+                println(event);
+            done();
+        });
+
+        // NB: Wait until the document is completely loaded so that the fragment navigations get push semantics.
+        window.addEventListener("load", () => {
+            setTimeout(() => {
+                location.hash = "#a";
+            }, 0);
+        });
+    });
+</script>
