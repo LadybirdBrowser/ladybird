@@ -10471,8 +10471,6 @@ RefPtr<Painting::DisplayList> Document::record_display_list(HTML::PaintConfig co
         page().client().page_did_change_background_color(canvas_background_color);
     }
 
-    document_paint_state.refresh_scroll_state(*this);
-
     Painting::InspectorOverlayInputs overlay_inputs;
     if (auto const* layout_node = highlighted_layout_node(); layout_node && Painting::has_committed_box(*layout_node))
         overlay_inputs.highlighted_layout_node = layout_node;
@@ -10547,7 +10545,6 @@ Optional<Painting::HitTestResult> Document::hit_test(CSSPixelPoint position)
     auto hit_test_display_list = ensure_hit_test_display_list();
     if (!hit_test_display_list)
         return {};
-    paint_state().refresh_scroll_state(*this);
     // https://w3c.github.io/pointerevents/#hit-test
     // 1. Let pos be the x,y coordinates relative to the viewport
     // 2. Return [CSSOM-View]'s elementFromPoint() with pos (the frontmost DOM element at pos)
@@ -10576,7 +10573,6 @@ Optional<Painting::CaretPosition> Document::caret_position_from_point(CSSPixelPo
     auto hit_test_display_list = ensure_hit_test_display_list();
     if (!hit_test_display_list)
         return {};
-    paint_state().refresh_scroll_state(*this);
     return hit_test_display_list->caret_position_from_point(position, *this, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), Painting::CaretPositionMode::Normal);
 }
 
@@ -10585,7 +10581,6 @@ Optional<Painting::CaretPosition> Document::caret_position_from_point_for_select
     auto hit_test_display_list = ensure_hit_test_display_list();
     if (!hit_test_display_list)
         return {};
-    paint_state().refresh_scroll_state(*this);
     return hit_test_display_list->caret_position_from_point(position, *this, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), Painting::CaretPositionMode::SelectionStart);
 }
 
@@ -10594,7 +10589,6 @@ Optional<Painting::CaretPosition> Document::caret_position_from_point_for_select
     auto hit_test_display_list = ensure_hit_test_display_list();
     if (!hit_test_display_list)
         return {};
-    paint_state().refresh_scroll_state(*this);
     return hit_test_display_list->caret_position_from_point(position, *this, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), Painting::CaretPositionMode::Selection, constraint_scope);
 }
 
@@ -10603,7 +10597,6 @@ Optional<Painting::CaretPosition> Document::caret_position_at_line_edge(Node con
     auto hit_test_display_list = ensure_hit_test_display_list();
     if (!hit_test_display_list)
         return {};
-    paint_state().refresh_scroll_state(*this);
     return hit_test_display_list->caret_position_at_line_edge(node, offset, affinity, edge);
 }
 
@@ -10612,7 +10605,6 @@ Optional<Painting::CaretPosition> Document::caret_position_on_adjacent_line(Node
     auto hit_test_display_list = ensure_hit_test_display_list();
     if (!hit_test_display_list)
         return {};
-    paint_state().refresh_scroll_state(*this);
     return hit_test_display_list->caret_position_on_adjacent_line(node, offset, affinity, direction, inline_coordinate, scope);
 }
 
@@ -10621,7 +10613,6 @@ Optional<CSSPixels> Document::caret_line_block_coordinate(Node const& node, size
     auto hit_test_display_list = ensure_hit_test_display_list();
     if (!hit_test_display_list)
         return {};
-    paint_state().refresh_scroll_state(*this);
     return hit_test_display_list->caret_line_block_coordinate(node, offset, affinity);
 }
 
@@ -10630,7 +10621,6 @@ TraversalDecision Document::hit_test_all(CSSPixelPoint position, Function<Traver
     auto hit_test_display_list = ensure_hit_test_display_list();
     if (!hit_test_display_list)
         return TraversalDecision::Continue;
-    paint_state().refresh_scroll_state(*this);
     return hit_test_display_list->hit_test_all(position, *this, page().client().device_pixels_per_css_pixel(), page().chrome_metrics(), callback);
 }
 

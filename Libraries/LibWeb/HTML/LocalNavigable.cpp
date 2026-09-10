@@ -6172,7 +6172,6 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
 
     VERIFY(document->has_committed_viewport_box());
     auto visual_context_tree_needs_compositor_update = document_paint_state.visual_context_tree_needs_compositor_update();
-    document_paint_state.refresh_scroll_state(*document);
 
     Painting::ScrollStateSnapshot scroll_state_snapshot { document_paint_state.scroll_state_snapshot() };
     scroll_state_snapshot.set_adopted_async_scroll_sequence(m_adopted_async_scroll_sequence);
