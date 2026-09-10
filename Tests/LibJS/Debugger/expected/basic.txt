@@ -1,0 +1,32 @@
+Paused at <ladybird>/Tests/LibJS/Debugger/input/basic.js:7:1 (entry)
+Debugger commands:
+    backtrace (bt)
+    break (b) [file:]<line>[:column] [condition]
+    breakpoints
+    continue (c)
+    delete <id>
+    help
+    print (p) <expression>
+    set pause-on-exceptions <none|unhandled|all>
+    show pause-on-exceptions
+    step-into (step, s)
+    step-out (finish, fin)
+    step-over (next, n)
+pause-on-exceptions: none
+pause-on-exceptions: unhandled
+pause-on-exceptions: all
+No breakpoints.
+1: <ladybird>/Tests/LibJS/Debugger/input/basic.js:4 (resolved)
+1: <ladybird>/Tests/LibJS/Debugger/input/basic.js:4 (resolved)
+Deleted breakpoint 1.
+2: <ladybird>/Tests/LibJS/Debugger/input/basic.js:4 (resolved)
+Paused at <ladybird>/Tests/LibJS/Debugger/input/basic.js:4:5 (breakpoint)
+42
+100
+20
+#0 calculate at <ladybird>/Tests/LibJS/Debugger/input/basic.js:4:5
+#1 <global> at <ladybird>/Tests/LibJS/Debugger/input/basic.js:7:10
+#2 <native>
+Deleted breakpoint 2.
+Paused at <ladybird>/Tests/LibJS/Debugger/input/basic.js:10:5 (exception)
+pause-on-exceptions: none

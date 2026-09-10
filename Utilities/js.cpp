@@ -7,6 +7,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Enumerate.h>
+#include <AK/GenericLexer.h>
+#include <AK/HashMap.h>
 #include <AK/LexicalPath.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/Platform.h>
@@ -112,6 +115,10 @@ static String s_history_path = String {};
 [[maybe_unused]] static int s_repl_line_level = 0;
 [[maybe_unused]] static bool s_keep_running_repl = true;
 static int s_exit_code = 0;
+static JS::Debugger::PauseOnExceptions s_pause_on_exceptions { JS::Debugger::PauseOnExceptions::None };
+static HashMap<JS::BreakpointID, Utf16String> s_breakpoint_conditions;
+
+static void print_debugger_evaluation_result(JS::ThrowCompletionOr<JS::Value>);
 
 static StringView debugger_pause_reason(JS::Debugger::PauseReason reason)
 {
@@ -188,25 +195,109 @@ static Optional<BreakpointLocation> parse_breakpoint_location(StringView input, 
 static void print_breakpoint(JS::Breakpoint const& breakpoint)
 {
     auto const* state = g_vm->debugger()->is_breakpoint_resolved(breakpoint.id) ? "resolved" : "pending";
+    StringBuilder location;
+    location.appendff("{}:{}", breakpoint.filename, breakpoint.line);
     if (breakpoint.column.has_value())
-        outln("{}: {}:{}:{} ({})", breakpoint.id, breakpoint.filename, breakpoint.line, *breakpoint.column, state);
+        location.appendff(":{}", *breakpoint.column);
+
+    auto condition = s_breakpoint_conditions.find(breakpoint.id);
+    if (condition == s_breakpoint_conditions.end())
+        outln("{}: {} ({})", breakpoint.id, location.string_view(), state);
     else
-        outln("{}: {}:{} ({})", breakpoint.id, breakpoint.filename, breakpoint.line, state);
+        outln("{}: {} ({}, condition: {})", breakpoint.id, location.string_view(), state, condition->value);
+}
+
+static Optional<JS::Debugger::PauseOnExceptions> parse_pause_on_exceptions(StringView value)
+{
+    if (value == "none"sv)
+        return JS::Debugger::PauseOnExceptions::None;
+    if (value == "unhandled"sv)
+        return JS::Debugger::PauseOnExceptions::Uncaught;
+    if (value == "all"sv)
+        return JS::Debugger::PauseOnExceptions::All;
+    return {};
+}
+
+static StringView pause_on_exceptions_name(JS::Debugger::PauseOnExceptions mode)
+{
+    switch (mode) {
+    case JS::Debugger::PauseOnExceptions::None:
+        return "none"sv;
+    case JS::Debugger::PauseOnExceptions::Uncaught:
+        return "unhandled"sv;
+    case JS::Debugger::PauseOnExceptions::All:
+        return "all"sv;
+    }
+    VERIFY_NOT_REACHED();
+}
+
+static void print_backtrace(JS::Debugger::PauseInfo const& pause_info)
+{
+    for (auto const& [index, frame] : enumerate(pause_info.stack_trace)) {
+        auto* executable = frame.execution_context->executable.ptr();
+        auto function_name = [&] {
+            if (!executable)
+                return "<native>"_utf16;
+            if (executable->name.is_empty())
+                return "<global>"_utf16;
+            return executable->name.to_utf16_string();
+        }();
+        if (frame.source_range.has_value()) {
+            auto const& position = frame.source_range->start;
+            outln("#{} {} at {}:{}:{}", index, function_name, frame.source_range->filename(), position.line, position.column);
+        } else {
+            outln("#{} {}", index, function_name);
+        }
+    }
 }
 
 static void print_debugger_help()
 {
     outln("Debugger commands:");
-    outln("    .break <line>[:column]");
-    outln("    .break <file>:<line>[:column]");
-    outln("    .breakpoints");
-    outln("    .continue");
-    outln("    .delete <id>");
-    outln("    .help");
+    outln("    backtrace (bt)");
+    outln("    break (b) [file:]<line>[:column] [condition]");
+    outln("    breakpoints");
+    outln("    continue (c)");
+    outln("    delete <id>");
+    outln("    help");
+    outln("    print (p) <expression>");
+    outln("    set pause-on-exceptions <none|unhandled|all>");
+    outln("    show pause-on-exceptions");
+    outln("    step-into (step, s)");
+    outln("    step-out (finish, fin)");
+    outln("    step-over (next, n)");
+}
+
+static bool breakpoint_conditions_allow_pause(JS::Debugger::PauseInfo const& pause_info)
+{
+    if (pause_info.reason != JS::Debugger::PauseReason::Breakpoint)
+        return true;
+
+    for (auto breakpoint_id : pause_info.breakpoint_ids) {
+        auto condition = s_breakpoint_conditions.find(breakpoint_id);
+        if (condition == s_breakpoint_conditions.end())
+            return true;
+
+        auto* frame = pause_info.stack_trace.first().execution_context;
+        auto result = g_vm->debugger()->evaluate_in_frame(*frame, condition->value, JS::Debugger::UpdateOriginalBindings::No);
+        if (result.is_error()) {
+            warnln("Breakpoint condition threw: {}", result.throw_completion().value().to_utf16_string_without_side_effects());
+            return true;
+        }
+        if (result.release_value().to_boolean())
+            return true;
+    }
+
+    return false;
 }
 
 static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
 {
+    if (!breakpoint_conditions_allow_pause(pause_info)) {
+        g_vm->debugger()->continue_execution_preserving_step_state();
+        return;
+    }
+
     if (pause_info.source_range.has_value()) {
         auto const& range = *pause_info.source_range;
         if (range.start.line > 0)
@@ -228,7 +319,7 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
             g_vm->debugger()->continue_execution();
             return;
         }
-        auto command = StringView { raw_line, strlen(raw_line) }.trim_whitespace();
+        auto command_line = StringView { raw_line, strlen(raw_line) };
 #else
         auto* raw_line = readline("(debug) ");
         if (!raw_line) {
@@ -238,20 +329,42 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
         ArmedScopeGuard free_raw_line = [&] {
             free(raw_line);
         };
-        auto command = StringView { raw_line, strlen(raw_line) }.trim_whitespace();
+        auto command_line = StringView { raw_line, strlen(raw_line) };
 #endif
 
-        if (command == ".continue"sv) {
+        GenericLexer command { command_line };
+        command.ignore_while(is_ascii_space);
+        auto command_name = command.consume_while([](char ch) {
+            return is_ascii_alphanumeric(ch) || ch == '-';
+        });
+        command.ignore_while(is_ascii_space);
+
+        if ((command_name == "continue"sv || command_name == "c"sv) && command.is_eof()) {
             g_vm->debugger()->continue_execution();
             return;
         }
 
-        if (command == ".help"sv) {
+        if ((command_name == "step-into"sv || command_name == "step"sv || command_name == "s"sv) && command.is_eof()) {
+            g_vm->debugger()->continue_execution(JS::Debugger::ResumeMode::StepInto);
+            return;
+        }
+
+        if ((command_name == "step-out"sv || command_name == "finish"sv || command_name == "fin"sv) && command.is_eof()) {
+            g_vm->debugger()->continue_execution(JS::Debugger::ResumeMode::StepOut);
+            return;
+        }
+
+        if ((command_name == "step-over"sv || command_name == "next"sv || command_name == "n"sv) && command.is_eof()) {
+            g_vm->debugger()->continue_execution(JS::Debugger::ResumeMode::StepOver);
+            return;
+        }
+
+        if (command_name == "help"sv && command.is_eof()) {
             print_debugger_help();
             continue;
         }
 
-        if (command == ".breakpoints"sv) {
+        if (command_name == "breakpoints"sv && command.is_eof()) {
             auto breakpoints = g_vm->debugger()->breakpoints();
             if (breakpoints.is_empty()) {
                 outln("No breakpoints.");
@@ -265,14 +378,35 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
             continue;
         }
 
-        if (command.starts_with(".break "sv)) {
+        if ((command_name == "backtrace"sv || command_name == "bt"sv) && command.is_eof()) {
+            print_backtrace(pause_info);
+            continue;
+        }
+
+        if (command_name == "print"sv || command_name == "p"sv) {
+            auto expression = command.consume_all().trim_whitespace();
+            if (expression.is_empty()) {
+                warnln("Usage: print <expression>");
+                continue;
+            }
+            auto* frame = pause_info.stack_trace.first().execution_context;
+            auto result = g_vm->debugger()->evaluate_in_frame(*frame, Utf16String::from_utf8(expression), JS::Debugger::UpdateOriginalBindings::No);
+            print_debugger_evaluation_result(move(result));
+            continue;
+        }
+
+        if (command_name == "break"sv || command_name == "b"sv) {
             Utf16String current_filename;
             if (pause_info.source_range.has_value())
                 current_filename = pause_info.source_range->filename();
 
-            auto location = parse_breakpoint_location(command.substring_view(7), current_filename);
+            auto location_text = command.consume_while([](char ch) { return !is_ascii_space(ch); });
+            command.ignore_while(is_ascii_space);
+            auto condition = command.consume_all().trim_whitespace();
+
+            auto location = parse_breakpoint_location(location_text, current_filename);
             if (!location.has_value() || location->filename.is_empty()) {
-                warnln("Usage: .break <line>[:column] or .break <file>:<line>[:column]");
+                warnln("Usage: break <line>[:column] [condition] or break <file>:<line>[:column] [condition]");
                 continue;
             }
 
@@ -286,25 +420,53 @@ static void run_debugger_prompt(JS::Debugger::PauseInfo const& pause_info)
                 return breakpoint.id == breakpoint_id.value();
             });
             VERIFY(!breakpoint.is_end());
+            if (condition.is_empty())
+                s_breakpoint_conditions.remove(breakpoint_id.value());
+            else
+                s_breakpoint_conditions.set(breakpoint_id.value(), Utf16String::from_utf8(condition));
             print_breakpoint(*breakpoint);
             continue;
         }
 
-        if (command.starts_with(".delete "sv)) {
-            auto breakpoint_id = command.substring_view(8).trim_whitespace().to_number<JS::BreakpointID>();
+        if (command_name == "set"sv) {
+            auto setting = command.consume_while([](char ch) { return is_ascii_alphanumeric(ch) || ch == '-'; });
+            command.ignore_while(is_ascii_space);
+            auto value = command.consume_all().trim_whitespace();
+            auto mode = parse_pause_on_exceptions(value);
+            if (setting != "pause-on-exceptions"sv || !mode.has_value()) {
+                warnln("Usage: set pause-on-exceptions <none|unhandled|all>");
+                continue;
+            }
+            s_pause_on_exceptions = *mode;
+            g_vm->debugger()->set_pause_on_exceptions(*mode);
+            continue;
+        }
+
+        if (command_name == "show"sv) {
+            if (command.consume_all().trim_whitespace() != "pause-on-exceptions"sv) {
+                warnln("Usage: show pause-on-exceptions");
+                continue;
+            }
+            outln("pause-on-exceptions: {}", pause_on_exceptions_name(s_pause_on_exceptions));
+            continue;
+        }
+
+        if (command_name == "delete"sv) {
+            auto breakpoint_id = command.consume_all().trim_whitespace().to_number<JS::BreakpointID>();
             if (!breakpoint_id.has_value()) {
-                warnln("Usage: .delete <id>");
+                warnln("Usage: delete <id>");
                 continue;
             }
             if (!g_vm->debugger()->remove_breakpoint(*breakpoint_id)) {
                 warnln("No breakpoint with id {}.", *breakpoint_id);
                 continue;
             }
+            s_breakpoint_conditions.remove(*breakpoint_id);
             outln("Deleted breakpoint {}.", *breakpoint_id);
             continue;
         }
 
-        warnln("Unknown debugger command '{}'. Enter .help for a list of commands.", command);
+        warnln("Unknown debugger command '{}'. Enter help for a list of commands.", command_line.trim_whitespace());
     }
 }
 
@@ -345,6 +507,18 @@ static ErrorOr<void> print(JS::Value value, PrintTarget target = PrintTarget::St
         TRY(stream->write_until_depleted("\n"sv));
 
     return {};
+}
+
+static void print_debugger_evaluation_result(JS::ThrowCompletionOr<JS::Value> result)
+{
+    if (result.is_error()) {
+        warn("Evaluation threw: ");
+        (void)print(result.throw_completion().value(), PrintTarget::StandardError);
+        return;
+    }
+
+    if (auto print_result = print(result.release_value()); print_result.is_error())
+        warnln("Unable to print evaluation result: {}", print_result.error());
 }
 
 static ErrorOr<void> print_all_arguments(JS::VM const& vm, PrintTarget target = PrintTarget::StandardOutput, PrintEnd end = PrintEnd::Newline)
@@ -1035,6 +1209,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     bool use_test262_global = false;
     bool parse_only = false;
     bool debug = false;
+    StringView pause_on_exceptions = "none"sv;
     StringView evaluate_script;
     Vector<StringView> script_paths;
 
@@ -1052,10 +1227,18 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     args_parser.add_option(disable_syntax_highlight, "Disable live syntax highlighting", "no-syntax-highlight", 's');
     args_parser.add_option(disable_debug_printing, "Disable debug output", "disable-debug-output", {});
     args_parser.add_option(debug, "Run with the JavaScript debugger", "debug", {});
+    args_parser.add_option(pause_on_exceptions, "Pause on JavaScript exceptions while debugging", "pause-on-exceptions", {}, "none|unhandled|all");
     args_parser.add_option(evaluate_script, "Evaluate argument as a script", "evaluate", 'c', "script");
     args_parser.add_option(use_test262_global, "Use test262 global ($262)", "use-test262-global", {});
     args_parser.add_positional_argument(script_paths, "Path to script files", "scripts", Core::ArgsParser::Required::No);
     args_parser.parse(arguments);
+
+    auto pause_on_exceptions_mode = parse_pause_on_exceptions(pause_on_exceptions);
+    if (!pause_on_exceptions_mode.has_value()) {
+        warnln("Invalid --pause-on-exceptions value '{}'. Expected none, unhandled, or all.", pause_on_exceptions);
+        return 1;
+    }
+    s_pause_on_exceptions = *pause_on_exceptions_mode;
 
     [[maybe_unused]] bool syntax_highlight = !disable_syntax_highlight;
 
@@ -1072,6 +1255,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     if (debug) {
         g_vm->enable_debugging();
         g_vm->debugger()->set_pause_callback(run_debugger_prompt);
+        g_vm->debugger()->set_pause_on_exceptions(s_pause_on_exceptions);
         g_vm->debugger()->request_pause_on_next_bytecode_execution();
     }
 

@@ -84,7 +84,7 @@ void Debugger::continue_execution(ResumeMode mode)
     m_is_paused = false;
 }
 
-ThrowCompletionOr<Value> Debugger::evaluate_in_frame(ExecutionContext& execution_context, Utf16View source_text)
+ThrowCompletionOr<Value> Debugger::evaluate_in_frame(ExecutionContext& execution_context, Utf16View source_text, UpdateOriginalBindings update_original_bindings)
 {
     VERIFY(m_is_paused);
     VERIFY(execution_context.executable);
@@ -116,16 +116,18 @@ ThrowCompletionOr<Value> Debugger::evaluate_in_frame(ExecutionContext& execution
     auto strict_caller = execution_context.executable->is_strict_mode ? CallerMode::Strict : CallerMode::NonStrict;
     auto result = perform_eval(vm, PrimitiveString::create(vm, source_text), strict_caller, EvalMode::Direct);
 
-    for (auto const& [name, location] : binding_locations) {
-        if (!location.is_mutable)
-            continue;
-        auto value = local_environment->get_binding_value(vm, name, false);
-        if (value.is_error())
-            continue;
-        if (location.storage == BindingStorage::Local)
-            execution_context.local_variables()[location.index] = value.release_value();
-        else
-            execution_context.arguments_span()[location.index] = value.release_value();
+    if (update_original_bindings == UpdateOriginalBindings::Yes) {
+        for (auto const& [name, location] : binding_locations) {
+            if (!location.is_mutable)
+                continue;
+            auto value = local_environment->get_binding_value(vm, name, false);
+            if (value.is_error())
+                continue;
+            if (location.storage == BindingStorage::Local)
+                execution_context.local_variables()[location.index] = value.release_value();
+            else
+                execution_context.arguments_span()[location.index] = value.release_value();
+        }
     }
     return result;
 }
