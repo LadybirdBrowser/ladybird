@@ -161,7 +161,7 @@ static void append_autocomplete_bookmarks(Vector<AutocompleteBookmark>& bookmark
                 .title = bookmark.title,
                 .folder = parent_folder,
                 .favicon_png = bookmark.favicon_hash.has_value()
-                    ? Application::favicon_store(IsPrivate::No).favicon_png(*bookmark.favicon_hash)
+                    ? Application::default_session().favicon_store->favicon_png(*bookmark.favicon_hash)
                     : OptionalNone {},
             });
             continue;
@@ -248,60 +248,6 @@ void Application::set_cpu_profiler_process(Core::Process process, OwnPtr<Core::F
     m_cpu_profiler_signal_handlers.append(Core::EventLoop::register_signal(SIGINT, [this](int) { m_event_loop->quit(0); }));
     m_cpu_profiler_signal_handlers.append(Core::EventLoop::register_signal(SIGTERM, [this](int) { m_event_loop->quit(0); }));
 #endif
-}
-
-FaviconStore& Application::favicon_store(IsPrivate is_private)
-{
-    return is_private == IsPrivate::Yes
-        ? *the().ensure_private_browsing_session().favicon_store
-        : *the().m_favicon_store;
-}
-
-HistoryStore& Application::history_store(IsPrivate is_private)
-{
-    return is_private == IsPrivate::Yes
-        ? *the().ensure_private_browsing_session().history_store
-        : *the().m_history_store;
-}
-
-CookieJar& Application::cookie_jar(IsPrivate is_private)
-{
-    return is_private == IsPrivate::Yes
-        ? *the().ensure_private_browsing_session().cookie_jar
-        : *the().m_cookie_jar;
-}
-
-HSTSStore& Application::hsts_store(IsPrivate is_private)
-{
-    return is_private == IsPrivate::Yes
-        ? *the().ensure_private_browsing_session().hsts_store
-        : *the().m_hsts_store;
-}
-
-StorageJar& Application::storage_jar(IsPrivate is_private)
-{
-    return is_private == IsPrivate::Yes
-        ? *the().ensure_private_browsing_session().storage_jar
-        : *the().m_storage_jar;
-}
-
-BlobURLStore& Application::blob_url_store(IsPrivate is_private)
-{
-    return is_private == IsPrivate::Yes
-        ? *the().ensure_private_browsing_session().blob_url_store
-        : *the().m_blob_url_store;
-}
-
-void Application::remove_blob_url_entries_added_by(BlobURLEntryOwner const& client, IsPrivate is_private)
-{
-    blob_url_store(is_private).remove_entries_added_by(client);
-}
-
-SessionStore& Application::session_store(IsPrivate is_private)
-{
-    return is_private == IsPrivate::Yes
-        ? *the().ensure_private_browsing_session().session_store
-        : *the().m_session_store;
 }
 
 Requests::RequestClient& Application::request_server_client(IsPrivate is_private)
@@ -1156,21 +1102,28 @@ Web::HTML::CrossProcessId Application::allocate_ui_process_cross_process_id()
     return m_ui_process_cross_process_id_allocator.allocate();
 }
 
-PrivateBrowsingSession& Application::ensure_private_browsing_session()
+NonnullRefPtr<BrowsingSession> Application::session_for_new_view(IsPrivate is_private)
 {
-    if (!m_private_browsing_session) {
-        m_private_browsing_session = adopt_own(*new PrivateBrowsingSession {
-            .cookie_jar = CookieJar::create(IsPrivate::Yes),
-            .storage_jar = StorageJar::create(),
-            .blob_url_store = make<BlobURLStore>(),
-            .hsts_store = HSTSStore::create(),
-            .favicon_store = FaviconStore::create(),
-            .history_store = HistoryStore::create_disabled(),
-            .session_store = SessionStore::create(),
-        });
-    }
+    if (is_private == IsPrivate::No)
+        return *the().m_default_session;
 
-    return *m_private_browsing_session;
+    if (auto session = the().m_private_session.strong_ref())
+        return *session;
+
+    auto session = BrowsingSession::create(IsPrivate::Yes);
+    the().m_private_session = session;
+    return session;
+}
+
+RefPtr<BrowsingSession> Application::existing_session(IsPrivate is_private)
+{
+    return is_private == IsPrivate::Yes ? the().m_private_session.strong_ref() : the().m_default_session;
+}
+
+SessionStore* Application::session_store(IsPrivate is_private)
+{
+    auto session = existing_session(is_private);
+    return session ? session->session_store.ptr() : nullptr;
 }
 
 WebDriverBrowserConnection* Application::webdriver_browser_connection()
@@ -1230,36 +1183,6 @@ void Application::complete_webdriver_content_command(u64 command_id, Web::WebDri
         m_webdriver_browser_connection->async_command_complete(command_id, move(response));
 }
 
-void Application::maybe_close_private_browsing_session()
-{
-    if (!m_private_browsing_session)
-        return;
-
-    auto has_private_view = false;
-    ViewImplementation::for_each_view([&](ViewImplementation& view) {
-        if (view.is_private() == IsPrivate::No)
-            return IterationDecision::Continue;
-
-        has_private_view = true;
-        return IterationDecision::Break;
-    });
-    if (has_private_view)
-        return;
-
-    auto has_private_client = false;
-    WebContentClient::for_each_client([&](WebContentClient& client) {
-        if (client.is_private() == IsPrivate::No)
-            return IterationDecision::Continue;
-
-        has_private_client = true;
-        return IterationDecision::Break;
-    });
-    if (has_private_client)
-        return;
-
-    m_private_browsing_session = nullptr;
-}
-
 void Application::reset_private_browsing_session()
 {
     m_file_downloader.cancel_private_downloads();
@@ -1271,7 +1194,9 @@ void Application::reset_private_browsing_session()
         return IterationDecision::Continue;
     });
 
-    m_private_browsing_session = nullptr;
+    // NB: Those views own the session until they are deleted, so let go of it here. The private window opened next
+    //     starts a new one rather than picking up what this was asked to clear.
+    m_private_session.clear();
 }
 
 Web::Compositor::CompositorContextId Application::allocate_compositor_context_id()
@@ -1518,6 +1443,8 @@ void Application::launch_spare_web_content_process()
 
 ErrorOr<void> Application::launch_services()
 {
+    m_default_session = BrowsingSession::create(IsPrivate::No);
+
     m_settings_observer = make<ApplicationSettingsObserver>();
     m_bookmark_store_observer = make<ApplicationBookmarkStoreObserver>();
 
@@ -1575,19 +1502,19 @@ ErrorOr<void> Application::launch_services()
         }
 
         if (cookies_outcome == Database::MigrationOutcome::Success)
-            m_cookie_jar = TRY(CookieJar::create(*m_database));
+            m_default_session->cookie_jar = TRY(CookieJar::create(*m_database));
         else
-            m_cookie_jar = CookieJar::create();
+            m_default_session->cookie_jar = CookieJar::create();
 
         if (hsts_outcome == Database::MigrationOutcome::Success)
-            m_hsts_store = TRY(HSTSStore::create(*m_database));
+            m_default_session->hsts_store = TRY(HSTSStore::create(*m_database));
         else
-            m_hsts_store = HSTSStore::create();
+            m_default_session->hsts_store = HSTSStore::create();
 
         if (storage_outcome == Database::MigrationOutcome::Success)
-            m_storage_jar = TRY(StorageJar::create(*m_database));
+            m_default_session->storage_jar = TRY(StorageJar::create(*m_database));
         else
-            m_storage_jar = StorageJar::create();
+            m_default_session->storage_jar = StorageJar::create();
 
         if (downloads_outcome == Database::MigrationOutcome::Success)
             m_download_store = TRY(DownloadStore::create(*m_database));
@@ -1607,14 +1534,14 @@ ErrorOr<void> Application::launch_services()
         }
 
         if (favicons_outcome == Database::MigrationOutcome::Success && history_outcome == Database::MigrationOutcome::Success) {
-            m_favicon_store = TRY(FaviconStore::create(*m_history_database));
-            m_history_store = TRY(HistoryStore::create(*m_history_database));
+            m_default_session->favicon_store = TRY(FaviconStore::create(*m_history_database));
+            m_default_session->history_store = TRY(HistoryStore::create(*m_history_database));
             should_remove_unreferenced_favicons = true;
         } else {
             dbgln("History database was created by a newer Ladybird version; favicons and history will not be persisted this session");
             history_database_directory = {};
-            m_favicon_store = FaviconStore::create();
-            m_history_store = HistoryStore::create(*m_favicon_store);
+            m_default_session->favicon_store = FaviconStore::create();
+            m_default_session->history_store = HistoryStore::create(*m_default_session->favicon_store);
         }
 
         // Fall back without modifying the existing Sessions database.
@@ -1626,34 +1553,34 @@ ErrorOr<void> Application::launch_services()
         }();
         if (session_store.is_error()) {
             dbgln("Sessions will not be persisted this session: {}", session_store.error());
-            m_session_store = SessionStore::create();
+            m_default_session->session_store = SessionStore::create();
         } else {
-            m_session_store = session_store.release_value();
+            m_default_session->session_store = session_store.release_value();
         }
     } else {
         dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] SQL history is disabled, disabling browsing history");
 
-        m_cookie_jar = CookieJar::create();
-        m_favicon_store = FaviconStore::create();
-        m_history_store = HistoryStore::create_disabled();
-        m_hsts_store = HSTSStore::create();
-        m_storage_jar = StorageJar::create();
+        m_default_session->cookie_jar = CookieJar::create();
+        m_default_session->favicon_store = FaviconStore::create();
+        m_default_session->history_store = HistoryStore::create_disabled();
+        m_default_session->hsts_store = HSTSStore::create();
+        m_default_session->storage_jar = StorageJar::create();
         m_download_store = DownloadStore::create_disabled();
-        m_session_store = SessionStore::create();
+        m_default_session->session_store = SessionStore::create();
     }
 
-    m_blob_url_store = make<BlobURLStore>();
+    m_default_session->blob_url_store = make<BlobURLStore>();
 
     if (should_remove_unreferenced_favicons) {
         auto referenced_hashes = m_bookmark_store->favicon_hashes();
-        for (auto& hash : m_history_store->referenced_favicon_hashes())
+        for (auto& hash : m_default_session->history_store->referenced_favicon_hashes())
             referenced_hashes.set(move(hash));
-        m_favicon_store->remove_unreferenced_favicons(referenced_hashes);
+        m_default_session->favicon_store->remove_unreferenced_favicons(referenced_hashes);
     }
 
     m_file_downloader.adopt_download_store({}, *m_download_store);
 
-    m_session_store->on_closed_units_changed = [this] {
+    m_default_session->session_store->on_closed_units_changed = [this] {
         on_recently_closed_entries_changed();
     };
 
@@ -1808,7 +1735,10 @@ ErrorOr<void> Application::launch_request_server()
     TabPerformanceMonitor::request_server_did_restart();
 
     m_request_server_client->on_retrieve_http_cookie = [](URL::URL const& url, RequestServer::IsPrivate is_private) -> String {
-        auto& cookie_jar = Application::cookie_jar(is_private == RequestServer::IsPrivate::Yes ? IsPrivate::Yes : IsPrivate::No);
+        auto session = existing_session(is_private == RequestServer::IsPrivate::Yes ? IsPrivate::Yes : IsPrivate::No);
+        if (!session)
+            return {};
+        auto& cookie_jar = *session->cookie_jar;
         if constexpr (!REQUESTSERVER_WIRE_DEBUG)
             return cookie_jar.get_cookie(url, HTTP::Cookie::Source::Http);
         auto started_at = MonotonicTime::now();
@@ -2282,8 +2212,8 @@ NonnullRefPtr<Core::Promise<Application::BrowsingDataSizes>> Application::estima
 
     m_request_server_client->estimate_cache_size_accessed_since(since)
         ->when_resolved([this, promise, since](Requests::CacheSizes cache_sizes) {
-            auto cookie_sizes = m_cookie_jar->estimate_storage_size_accessed_since(since);
-            auto storage_sizes = m_storage_jar->estimate_storage_size_accessed_since(since);
+            auto cookie_sizes = m_default_session->cookie_jar->estimate_storage_size_accessed_since(since);
+            auto storage_sizes = m_default_session->storage_jar->estimate_storage_size_accessed_since(since);
 
             BrowsingDataSizes sizes;
 
@@ -2320,11 +2250,11 @@ NonnullRefPtr<Core::Promise<Empty>> Application::clear_browsing_data(ClearBrowsi
     }
 
     if (options.delete_history == ClearBrowsingDataOptions::Delete::Yes) {
-        m_history_store->remove_entries_accessed_since(options.since);
-        if (auto result = m_session_store->remove_entries_accessed_since(options.since); result.is_error())
+        m_default_session->history_store->remove_entries_accessed_since(options.since);
+        if (auto result = m_default_session->session_store->remove_entries_accessed_since(options.since); result.is_error())
             dbgln("Unable to remove closed session entries: {}", result.error());
-        if (m_private_browsing_session) {
-            if (auto result = m_private_browsing_session->session_store->remove_entries_accessed_since(options.since); result.is_error())
+        if (auto private_session = m_private_session.strong_ref()) {
+            if (auto result = private_session->session_store->remove_entries_accessed_since(options.since); result.is_error())
                 dbgln("Unable to remove closed private session entries: {}", result.error());
         }
         did_change_history = true;
@@ -2334,14 +2264,14 @@ NonnullRefPtr<Core::Promise<Empty>> Application::clear_browsing_data(ClearBrowsi
         m_file_downloader.remove_inactive_downloads_created_since(options.since);
 
     if (options.delete_site_data == ClearBrowsingDataOptions::Delete::Yes) {
-        m_cookie_jar->expire_cookies_accessed_since(options.since);
-        m_storage_jar->remove_items_accessed_since(options.since);
-        m_hsts_store->remove_policies_observed_since(options.since);
+        m_default_session->cookie_jar->expire_cookies_accessed_since(options.since);
+        m_default_session->storage_jar->remove_items_accessed_since(options.since);
+        m_default_session->hsts_store->remove_policies_observed_since(options.since);
 
-        if (m_private_browsing_session) {
-            m_private_browsing_session->cookie_jar->expire_cookies_accessed_since(options.since);
-            m_private_browsing_session->storage_jar->remove_items_accessed_since(options.since);
-            m_private_browsing_session->hsts_store->remove_policies_observed_since(options.since);
+        if (auto private_session = m_private_session.strong_ref()) {
+            private_session->cookie_jar->expire_cookies_accessed_since(options.since);
+            private_session->storage_jar->remove_items_accessed_since(options.since);
+            private_session->hsts_store->remove_policies_observed_since(options.since);
         }
     }
 
@@ -2601,7 +2531,7 @@ void Application::initialize_actions()
     m_debug_menu->add_action(Action::create("Dump Style Sheets"sv, ActionID::DumpStyleSheets, debug_request("dump-style-sheets"sv)));
     m_debug_menu->add_action(Action::create("Dump All Resolved Styles"sv, ActionID::DumpStyles, debug_request("dump-all-resolved-styles"sv)));
     m_debug_menu->add_action(Action::create("Dump CSS Errors"sv, ActionID::DumpCSSErrors, debug_request("dump-all-css-errors"sv)));
-    m_debug_menu->add_action(Action::create("Dump Cookies"sv, ActionID::DumpCookies, [this]() { m_cookie_jar->dump_cookies(); }));
+    m_debug_menu->add_action(Action::create("Dump Cookies"sv, ActionID::DumpCookies, [this]() { m_default_session->cookie_jar->dump_cookies(); }));
     m_debug_menu->add_action(Action::create("Dump Local Storage"sv, ActionID::DumpLocalStorage, debug_request("dump-local-storage"sv)));
     m_debug_menu->add_action(Action::create("Dump Session Storage"sv, ActionID::DumpSessionStorage, debug_request("dump-session-storage"sv)));
     m_debug_menu->add_action(Action::create("Dump WASM Stats"sv, ActionID::DumpWasmStats, debug_request("dump-wasm-stats"sv)));
@@ -2844,7 +2774,7 @@ void Application::create_bookmark_menu_items(Optional<MenuData> data)
                 });
 
                 action->set_png_icon(bookmark.favicon_hash.has_value()
-                        ? favicon_store(IsPrivate::No).favicon_png(*bookmark.favicon_hash)
+                        ? default_session().favicon_store->favicon_png(*bookmark.favicon_hash)
                         : OptionalNone {});
                 action->set_tooltip(bookmark.url.serialize());
 
@@ -3015,7 +2945,7 @@ Vector<HTTP::Cookie::Cookie> Application::cookies(DevTools::TabDescription const
     if (!view.has_value())
         return {};
 
-    return Application::cookie_jar(view->is_private()).get_all_cookies();
+    return view->session().cookie_jar->get_all_cookies();
 }
 
 ErrorOr<void> Application::set_cookie(DevTools::TabDescription const& description, Optional<HTTP::Cookie::Cookie> old_cookie, HTTP::Cookie::Cookie cookie) const
@@ -3032,7 +2962,7 @@ ErrorOr<void> Application::set_cookie(DevTools::TabDescription const& descriptio
     if (old_cookie.has_value())
         old_key = CookieStorageKey { old_cookie->name, old_cookie->domain, old_cookie->path };
 
-    TRY(Application::cookie_jar(view->is_private()).set_cookie_from_devtools(*url, move(old_key), move(cookie)));
+    TRY(view->session().cookie_jar->set_cookie_from_devtools(*url, move(old_key), move(cookie)));
     return {};
 }
 
@@ -3043,7 +2973,7 @@ void Application::delete_cookies(DevTools::TabDescription const& description, Ve
         return;
 
     for (auto const& cookie : cookies)
-        Application::cookie_jar(view->is_private()).delete_cookie({ cookie.name, cookie.domain, cookie.path });
+        view->session().cookie_jar->delete_cookie({ cookie.name, cookie.domain, cookie.path });
 }
 
 void Application::listen_for_host_cookie_changes(DevTools::TabDescription const& description, OnHostCookieChange on_host_cookie_change) const
@@ -3101,7 +3031,7 @@ ErrorOr<Optional<String>> Application::set_storage_item(DevTools::TabDescription
 
     auto key_utf16 = Utf16String::from_utf8(key);
     auto value_utf16 = Utf16String::from_utf8(value);
-    auto old_value = TRY(storage_set_result_to_error_or_old_value(Application::storage_jar(view->is_private()).set_item(storage_endpoint, storage_key, key_utf16, value_utf16)));
+    auto old_value = TRY(storage_set_result_to_error_or_old_value(view->session().storage_jar->set_item(storage_endpoint, storage_key, key_utf16, value_utf16)));
     if (!old_value.has_value()) {
         view->notify_storage_changed({ storage_endpoint, storage_key, DevTools::DevToolsDelegate::StorageChange::Type::Added, key });
     } else if (*old_value != value) {
@@ -3121,11 +3051,11 @@ ErrorOr<Optional<String>> Application::remove_storage_item(DevTools::TabDescript
         return view->remove_session_storage_item(Utf16String::from_utf8(key)).map([](auto const& old_value) { return old_value.to_utf8(); });
 
     auto key_utf16 = Utf16String::from_utf8(key);
-    auto old_value = Application::storage_jar(view->is_private()).get_item(storage_endpoint, storage_key, key_utf16);
+    auto old_value = view->session().storage_jar->get_item(storage_endpoint, storage_key, key_utf16);
     if (!old_value.has_value())
         return Optional<String> {};
 
-    Application::storage_jar(view->is_private()).remove_item(storage_endpoint, storage_key, key_utf16);
+    view->session().storage_jar->remove_item(storage_endpoint, storage_key, key_utf16);
     view->notify_storage_changed({ storage_endpoint, storage_key, DevTools::DevToolsDelegate::StorageChange::Type::Deleted, key });
     return old_value->to_utf8();
 }
@@ -3141,11 +3071,11 @@ ErrorOr<void> Application::clear_storage(DevTools::TabDescription const& descrip
         return {};
     }
 
-    auto keys = Application::storage_jar(view->is_private()).get_all_keys(storage_endpoint, storage_key);
+    auto keys = view->session().storage_jar->get_all_keys(storage_endpoint, storage_key);
     if (keys.is_empty())
         return {};
 
-    Application::storage_jar(view->is_private()).clear_storage_key(storage_endpoint, storage_key);
+    view->session().storage_jar->clear_storage_key(storage_endpoint, storage_key);
     view->notify_storage_changed({ storage_endpoint, storage_key, DevTools::DevToolsDelegate::StorageChange::Type::Cleared, {} });
     return {};
 }

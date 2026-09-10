@@ -13,8 +13,8 @@
 #include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibWebView/Autocomplete.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Export.h>
-#include <LibWebView/PrivateBrowsing.h>
 
 namespace WebView {
 

@@ -19,9 +19,9 @@
 #include <LibCore/Forward.h>
 #include <LibRequests/Forward.h>
 #include <LibURL/URL.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/OmniboxEngagement.h>
-#include <LibWebView/PrivateBrowsing.h>
 
 namespace WebView {
 

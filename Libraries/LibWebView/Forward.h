@@ -17,6 +17,7 @@ class Application;
 class Autocomplete;
 class AutocompleteService;
 class BlobURLStore;
+class BrowsingSession;
 class BookmarkStore;
 class CanonicalBrowsingContext;
 class CanonicalBrowsingContextGroup;

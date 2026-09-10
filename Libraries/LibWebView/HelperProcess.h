@@ -13,8 +13,8 @@
 #include <LibRequests/RequestClient.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/HTML/CrossProcessId.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
-#include <LibWebView/PrivateBrowsing.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebWorkerClient.h>
 

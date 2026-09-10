@@ -54,6 +54,7 @@
 #include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWeb/WebDriver/Response.h>
 #include <LibWebView/BookmarkStore.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CanonicalTraversable.h>
 #include <LibWebView/DOMNodeProperties.h>
 #include <LibWebView/Debugger.h>
@@ -63,7 +64,6 @@
 #include <LibWebView/HistoryVisitTransition.h>
 #include <LibWebView/PageInfo.h>
 #include <LibWebView/PausedDebuggerOverlay.h>
-#include <LibWebView/PrivateBrowsing.h>
 #include <LibWebView/SessionHistory.h>
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/Settings.h>
@@ -89,6 +89,7 @@ public:
     static Optional<ViewImplementation&> find_view_for_traversable(CanonicalTraversable const&);
 
     IsPrivate is_private() const { return m_is_private; }
+    BrowsingSession& session() const { return *m_session; }
 
     u64 view_id() const { return m_view_id; }
 
@@ -628,6 +629,7 @@ protected:
     } m_client_state;
 
     IsPrivate m_is_private { IsPrivate::No };
+    NonnullRefPtr<BrowsingSession> m_session;
 
     URL::URL m_url { URL::about_blank() };
     Utf16String m_title;

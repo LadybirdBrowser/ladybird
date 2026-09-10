@@ -22,8 +22,8 @@
 #include <LibRequests/Forward.h>
 #include <LibRequests/NetworkError.h>
 #include <LibURL/URL.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
-#include <LibWebView/PrivateBrowsing.h>
 
 namespace Core {
 

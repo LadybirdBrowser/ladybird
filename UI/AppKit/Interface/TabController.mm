@@ -1679,8 +1679,10 @@ private:
             .tab_id = *session_tab_id,
             .closed_at = UnixDateTime::now(),
         };
-        if (auto result = WebView::Application::session_store([self isPrivate]).tab_closed(AK::move(closed)); result.is_error())
-            dbgln("Unable to record the closed tab in the session store: {}", result.error());
+        if (auto* session_store = WebView::Application::session_store([self isPrivate])) {
+            if (auto result = session_store->tab_closed(AK::move(closed)); result.is_error())
+                dbgln("Unable to record the closed tab in the session store: {}", result.error());
+        }
     }
 
     [delegate removeTab:self];

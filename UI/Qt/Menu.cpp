@@ -425,7 +425,7 @@ void update_history_menu(QMenu& menu, WebContentView* view)
     insert_dynamic_history_action(menu, insertion_point, *create_history_navigation_action(menu, *view, view->navigate_forward_action(), QKeySequence::StandardKey::Forward));
     insert_dynamic_history_action(menu, insertion_point, *create_dynamic_history_separator(menu));
 
-    auto entries = WebView::Application::history_store(view->is_private()).list_entries({}, 0, RECENT_HISTORY_MENU_ITEM_LIMIT);
+    auto entries = view->session().history_store->list_entries({}, 0, RECENT_HISTORY_MENU_ITEM_LIMIT);
     for (auto const& entry : entries) {
         auto* action = create_recent_history_menu_action(menu, *view, entry);
         insert_dynamic_history_action(menu, insertion_point, *action);

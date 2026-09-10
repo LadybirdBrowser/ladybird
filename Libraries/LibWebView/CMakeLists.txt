@@ -7,6 +7,7 @@ set(SOURCES
     AutocompleteRanker.cpp
     AutocompleteService.cpp
     BlobURLStore.cpp
+    BrowsingSession.cpp
     BookmarkStore.cpp
     CanonicalBrowsingContext.cpp
     CanonicalBrowsingContextGroup.cpp
@@ -42,7 +43,6 @@ set(SOURCES
     Omnibox.cpp
     OmniboxEngagement.cpp
     Plugins/ImageCodecPlugin.cpp
-    PrivateBrowsing.cpp
     Process.cpp
     ProcessHandle.cpp
     ProcessManager.cpp

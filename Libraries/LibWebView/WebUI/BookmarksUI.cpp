@@ -37,7 +37,7 @@ void BookmarksUI::bookmarks_changed()
 
 void BookmarksUI::load_bookmarks()
 {
-    async_send_message("loadBookmarks"sv, Application::bookmark_store().serialize_items(Application::favicon_store(IsPrivate::No)));
+    async_send_message("loadBookmarks"sv, Application::bookmark_store().serialize_items(*Application::default_session().favicon_store));
 }
 
 void BookmarksUI::move_item(JsonValue const& data)

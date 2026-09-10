@@ -38,12 +38,12 @@
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/BookmarkStore.h>
 #include <LibWebView/BrowserProcess.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/DownloadStore.h>
 #include <LibWebView/ExternalURLHandler.h>
 #include <LibWebView/FileDownloader.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/Options.h>
-#include <LibWebView/PrivateBrowsing.h>
 #include <LibWebView/Process.h>
 #include <LibWebView/ProcessManager.h>
 #include <LibWebView/Profile.h>
@@ -145,14 +145,14 @@ public:
     virtual NonnullRefPtr<BookmarkFolderPromise> display_add_bookmark_folder_dialog(Optional<String const&> default_title = {}) const;
     virtual NonnullRefPtr<BookmarkFolderPromise> display_edit_bookmark_folder_dialog([[maybe_unused]] BookmarkItem::Folder const& current_folder) const;
 
-    static FaviconStore& favicon_store(IsPrivate);
-    static HistoryStore& history_store(IsPrivate);
-    static CookieJar& cookie_jar(IsPrivate);
-    static HSTSStore& hsts_store(IsPrivate);
-    static StorageJar& storage_jar(IsPrivate);
-    static BlobURLStore& blob_url_store(IsPrivate);
-    static void remove_blob_url_entries_added_by(BlobURLEntryOwner const&, IsPrivate);
-    static SessionStore& session_store(IsPrivate);
+    static BrowsingSession& default_session() { return *the().m_default_session; }
+
+    static NonnullRefPtr<BrowsingSession> session_for_new_view(IsPrivate);
+
+    static RefPtr<BrowsingSession> existing_session(IsPrivate);
+
+    // NB: Null once that session has ended, so a closed private tab is not offered back afterwards.
+    static SessionStore* session_store(IsPrivate);
 
     static ProcessManager& process_manager() { return *the().m_process_manager; }
 #if defined(AK_OS_MACOS)
@@ -175,7 +175,6 @@ public:
     Web::HTML::CrossProcessIdAllocator allocate_cross_process_id_allocator();
     Web::HTML::CrossProcessId allocate_ui_process_cross_process_id();
 
-    void maybe_close_private_browsing_session();
     void reset_private_browsing_session();
 
     void notify_webdriver_window_created(String const& handle);
@@ -359,7 +358,6 @@ protected:
 
 private:
     ErrorOr<NonnullRefPtr<WebContentClient>> create_web_content_client(Optional<ViewImplementation&>, IsPrivate, u64 initial_page_id, Optional<Web::HTML::CrossProcessId> navigable_to_adopt = {}, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {});
-    PrivateBrowsingSession& ensure_private_browsing_session();
     ErrorOr<void> launch_services();
     void launch_spare_web_content_process();
     ErrorOr<void> launch_compositor_process();
@@ -499,8 +497,6 @@ private:
     OwnPtr<BookmarkStore> m_bookmark_store;
     OwnPtr<ApplicationBookmarkStoreObserver> m_bookmark_store_observer;
 
-    OwnPtr<FaviconStore> m_favicon_store;
-    OwnPtr<HistoryStore> m_history_store;
     OwnPtr<AutocompleteService> m_autocomplete_service;
 
     Main::Arguments m_arguments;
@@ -563,14 +559,10 @@ private:
 
     RefPtr<Database::Database> m_database;
     RefPtr<Database::Database> m_history_database;
-    OwnPtr<CookieJar> m_cookie_jar;
-    OwnPtr<HSTSStore> m_hsts_store;
-    OwnPtr<StorageJar> m_storage_jar;
-    OwnPtr<BlobURLStore> m_blob_url_store;
     OwnPtr<DownloadStore> m_download_store;
-    OwnPtr<PrivateBrowsingSession> m_private_browsing_session;
+    RefPtr<BrowsingSession> m_default_session;
+    WeakPtr<BrowsingSession> m_private_session;
     RefPtr<Database::Database> m_session_database;
-    OwnPtr<SessionStore> m_session_store;
 
     OwnPtr<Core::GeolocationProvider> m_geolocation_provider;
     OwnPtr<Core::TimeZoneWatcher> m_time_zone_watcher;

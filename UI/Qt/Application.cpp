@@ -163,7 +163,8 @@ public:
 
         m_reopen_recently_closed_tab_action->setText("&Reopen Recently Closed Tab");
         auto* active_window = Application::the().active_window_if_any();
-        m_reopen_recently_closed_tab_action->setEnabled(WebView::Application::session_store(active_window ? active_window->is_private() : WebView::IsPrivate::No).has_closed_units());
+        auto& session = active_window ? active_window->session() : WebView::Application::default_session();
+        m_reopen_recently_closed_tab_action->setEnabled(session.session_store->has_closed_units());
     }
 
 #endif
@@ -559,7 +560,8 @@ void Application::focus_location_editor()
 void Application::reopen_recently_closed_tab()
 {
     auto is_private = m_active_window ? m_active_window->is_private() : WebView::IsPrivate::No;
-    auto closed_unit = WebView::Application::session_store(is_private).take_most_recently_closed();
+    auto& session = m_active_window ? m_active_window->session() : WebView::Application::default_session();
+    auto closed_unit = session.session_store->take_most_recently_closed();
     if (closed_unit.is_error()) {
         dbgln("Unable to reopen the most recently closed session unit: {}", closed_unit.error());
         return;
@@ -627,13 +629,13 @@ void Application::quit()
     if (!confirm_stop_active_downloads(active_window_if_any()))
         return;
 
-    WebView::Application::session_store(WebView::IsPrivate::No).application_quitting();
+    WebView::Application::default_session().session_store->application_quitting();
 
     QApplication::closeAllWindows();
 
     for (auto* widget : QApplication::topLevelWidgets()) {
         if (as_if<BrowserWindow>(widget) && widget->isVisible()) {
-            WebView::Application::session_store(WebView::IsPrivate::No).application_quit_aborted();
+            WebView::Application::default_session().session_store->application_quit_aborted();
             return;
         }
     }

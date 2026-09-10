@@ -13,8 +13,8 @@
 #include <LibURL/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
-#include <LibWebView/PrivateBrowsing.h>
 
 #import <Cocoa/Cocoa.h>
 

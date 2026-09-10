@@ -45,16 +45,18 @@ WebWorkerClient::WebWorkerClient(NonnullOwnPtr<IPC::Transport> transport, IsPriv
     , m_is_private(is_private)
     , m_agent_id(agent_id)
 {
+    if (auto session = Application::existing_session(is_private))
+        m_session = session->make_weak_ptr();
 }
 
 WebWorkerClient::~WebWorkerClient()
 {
-    Application::remove_blob_url_entries_added_by(WeakPtr<WebWorkerClient> { *this }, m_is_private);
+    remove_blob_url_entries();
 }
 
 void WebWorkerClient::die()
 {
-    Application::remove_blob_url_entries_added_by(WeakPtr<WebWorkerClient> { *this }, m_is_private);
+    remove_blob_url_entries();
     WorkerProcessManager::the().worker_did_die(m_agent_id);
 
     // Otherwise nested workers we own would outlive us, in violation of the HTML spec.
@@ -81,26 +83,40 @@ void WebWorkerClient::did_report_worker_exception(Utf16String message, Utf16Stri
     WorkerProcessManager::the().worker_did_report_exception(m_agent_id, move(message), move(filename), lineno, colno);
 }
 
+void WebWorkerClient::remove_blob_url_entries()
+{
+    if (auto session = m_session.strong_ref())
+        session->blob_url_store->remove_entries_added_by(WeakPtr<WebWorkerClient> { *this });
+}
+
 Messages::WebWorkerClient::DidRequestCookieResponse WebWorkerClient::did_request_cookie(URL::URL url, HTTP::Cookie::Source source)
 {
     HTTP::Cookie::VersionedCookie cookie;
-    cookie.cookie = Application::cookie_jar(m_is_private).get_cookie(url, source);
+    if (auto session = m_session.strong_ref())
+        cookie.cookie = session->cookie_jar->get_cookie(url, source);
     return cookie;
 }
 
 Messages::WebWorkerClient::DidAddBlobUrlEntryResponse WebWorkerClient::did_add_blob_url_entry(Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry)
 {
-    return Application::blob_url_store(m_is_private).add_entry(move(url), move(entry), WeakPtr<WebWorkerClient> { *this });
+    auto session = m_session.strong_ref();
+    if (!session)
+        return 0;
+    return session->blob_url_store->add_entry(move(url), move(entry), WeakPtr<WebWorkerClient> { *this });
 }
 
 void WebWorkerClient::did_remove_blob_url_entries(Vector<Utf16String> urls, URL::Origin origin)
 {
-    Application::blob_url_store(m_is_private).remove_entries(urls, origin, WeakPtr<WebWorkerClient> { *this });
+    if (auto session = m_session.strong_ref())
+        session->blob_url_store->remove_entries(urls, origin, WeakPtr<WebWorkerClient> { *this });
 }
 
 Messages::WebWorkerClient::DidRequestBlobUrlEntryResponse WebWorkerClient::did_request_blob_url_entry(Utf16String url, Optional<URL::BlobURLEntry::Token> token)
 {
-    return Application::blob_url_store(m_is_private).resolve(url, token);
+    auto session = m_session.strong_ref();
+    if (!session)
+        return Optional<Web::FileAPI::SerializedBlobURLEntry> {};
+    return session->blob_url_store->resolve(url, token);
 }
 
 void WebWorkerClient::did_request_file(ByteString path, i32 request_id)
@@ -110,12 +126,14 @@ void WebWorkerClient::did_request_file(ByteString path, i32 request_id)
 
 void WebWorkerClient::did_store_hsts_policy(String domain, HTTP::HSTS::ParsedHSTSPolicy policy)
 {
-    Application::hsts_store(m_is_private).store_policy(domain, policy);
+    if (auto session = m_session.strong_ref())
+        session->hsts_store->store_policy(domain, policy);
 }
 
 Messages::WebWorkerClient::DidIsKnownHstsHostResponse WebWorkerClient::did_is_known_hsts_host(String domain)
 {
-    return Application::hsts_store(m_is_private).is_known_hsts_host(domain);
+    auto session = m_session.strong_ref();
+    return session ? session->hsts_store->is_known_hsts_host(domain) : false;
 }
 
 void WebWorkerClient::did_post_broadcast_channel_message(Web::HTML::BroadcastChannelMessage message)

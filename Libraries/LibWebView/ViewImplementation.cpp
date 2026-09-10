@@ -95,6 +95,7 @@ Optional<ViewImplementation&> ViewImplementation::find_view_for_traversable(Cano
 
 ViewImplementation::ViewImplementation(IsPrivate is_private)
     : m_is_private(is_private)
+    , m_session(Application::session_for_new_view(is_private))
     , m_document_cookie_version_buffer(Core::create_shared_version_buffer())
     , m_view_id(s_view_count++)
 {
@@ -140,9 +141,6 @@ ViewImplementation::~ViewImplementation()
     // notification. Do not strand a WebDriver command which raced with that teardown.
     fail_webdriver_content_commands_after_window_close(m_pending_webdriver_command_ids);
     fail_webdriver_content_commands_after_window_close(m_pending_webdriver_crash_command_ids);
-
-    if (m_is_private == IsPrivate::Yes)
-        Application::the().maybe_close_private_browsing_session();
 }
 
 WebContentClient& ViewImplementation::client()
@@ -192,12 +190,12 @@ void ViewImplementation::set_favicon(Badge<WebContentClient>, Optional<Gfx::Bitm
 
     if (favicon.has_value()) {
         if (auto favicon_png = Gfx::PNGWriter::encode(*favicon); !favicon_png.is_error())
-            m_favicon_hash = Application::favicon_store(m_is_private).add_favicon(favicon_png.release_value());
+            m_favicon_hash = m_session->favicon_store->add_favicon(favicon_png.release_value());
 
         if (m_favicon_hash.has_value()) {
             if (m_is_private == IsPrivate::No)
                 Application::bookmark_store().update_favicon(m_url, *m_favicon_hash);
-            Application::history_store(m_is_private).update_favicon(m_url, *m_favicon_hash);
+            m_session->history_store->update_favicon(m_url, *m_favicon_hash);
         }
     }
 
@@ -654,7 +652,7 @@ Vector<ViewImplementation::SessionHistoryTraversalMenuItem> ViewImplementation::
 
     Vector<SessionHistoryTraversalMenuItem> items;
     auto append_item = [&](i32 target_step, TraversableSessionHistory::Entry const& target_entry) {
-        auto history_entry = Application::history_store(m_is_private).entry_for_url(target_entry.url);
+        auto history_entry = m_session->history_store->entry_for_url(target_entry.url);
         auto url = target_entry.url.serialize();
         auto title = history_entry.has_value() && history_entry->title.has_value() && !history_entry->title->is_empty()
             ? move(*history_entry->title)
@@ -2779,7 +2777,7 @@ bool ViewImplementation::register_session_store_tab_for_testing(Badge<WebContent
     if (m_session_tab_id.has_value())
         return true;
 
-    auto tab_id = Application::session_store(is_private()).tab_opened({ .window_id = {}, .initial_url = m_url, .insertion_index = {}, .is_active = SessionStore::IsActive::No });
+    auto tab_id = m_session->session_store->tab_opened({ .window_id = {}, .initial_url = m_url, .insertion_index = {}, .is_active = SessionStore::IsActive::No });
     if (tab_id.is_error())
         return false;
     set_session_tab_id(tab_id.value());
@@ -2807,7 +2805,7 @@ String ViewImplementation::session_store_tab_state_for_testing(Badge<WebContentC
     if (!m_session_tab_id.has_value())
         return serialized.serialized();
 
-    auto cached_state = Application::session_store(is_private()).cached_tab_state_for_testing(*m_session_tab_id);
+    auto cached_state = m_session->session_store->cached_tab_state_for_testing(*m_session_tab_id);
     if (!cached_state.has_value())
         return serialized.serialized();
 
@@ -2835,7 +2833,7 @@ void ViewImplementation::notify_session_history_changed()
         .history = session_history_snapshot(),
         .url = move(url),
     };
-    Application::session_store(is_private()).update_tab_state(move(update));
+    m_session->session_store->update_tab_state(move(update));
 }
 
 NonnullRefPtr<Core::Promise<Empty>> ViewImplementation::reset_session_history_for_testing()

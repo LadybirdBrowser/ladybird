@@ -10,8 +10,8 @@
 #include <AK/Optional.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
-#include <LibWebView/PrivateBrowsing.h>
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/Settings.h>
 #include <UI/Qt/Tab.h>
@@ -133,6 +133,7 @@ public:
 
     WebContentView& view() const { return m_current_tab->view(); }
     WebView::IsPrivate is_private() const { return m_is_private; }
+    WebView::BrowsingSession& session() const { return *m_session; }
     Optional<WebView::SessionWindowId> session_window_id() const { return m_session_window_id; }
 
     int tab_count() { return m_tabs_container->count(); }
@@ -251,6 +252,7 @@ private:
     double m_refresh_rate { 60.0 };
 
     WebView::IsPrivate m_is_private { WebView::IsPrivate::No };
+    NonnullRefPtr<WebView::BrowsingSession> m_session;
 
     TabWidget* m_tabs_container { nullptr };
     Tab* m_current_tab { nullptr };
