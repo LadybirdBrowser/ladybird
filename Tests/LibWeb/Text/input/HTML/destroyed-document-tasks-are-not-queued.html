@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const iframe = document.createElement("iframe");
+        iframe.srcdoc = "<p>frame</p>";
+        document.body.appendChild(iframe);
+        await new Promise(resolve => { iframe.onload = resolve; });
+
+        const removedWindow = iframe.contentWindow;
+        iframe.remove();
+        // The removed iframe's document is destroyed from a queued task; wait for that to have happened.
+        while (!removedWindow.closed)
+            await new Promise(resolve => setTimeout(resolve, 0));
+
+        const queuedBefore = internals.taskQueueLength();
+        for (let i = 0; i < 100; ++i)
+            removedWindow.postMessage("never delivered", "*");
+        println(`tasks queued for the destroyed document: ${internals.taskQueueLength() - queuedBefore}`);
+        done();
+    });
+</script>
