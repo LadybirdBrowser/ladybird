@@ -752,6 +752,10 @@ void HistoryExecutor::apply_changing_navigable_history_step_continuation_impl(GC
         // 1. Let previousEntry be navigable's active session history entry.
         auto previous_entry = navigable->active_session_history_entry();
 
+        // NB: previousEntry's document is unloaded before updateDocument runs, so the fact navigation.activation needs
+        //     from it is captured from the document that was displayed when this step began.
+        auto previous_entry_document_is_initial_about_blank = continuation->displayed_document && continuation->displayed_document->is_initial_about_blank();
+
         // NB: A fresh replacement endpoint temporarily installs targetEntry on its initial about:blank Document.
         //     Preserve the UI-selected target state across activation instead of treating that initial Document's
         //     viewport as outgoing state for targetEntry.
@@ -778,13 +782,13 @@ void HistoryExecutor::apply_changing_navigable_history_step_continuation_impl(GC
         // 3. Let updateDocument be an algorithm step which performs update document for history step application given
         //    targetEntry's document, targetEntry, changingNavigableContinuation's update-only, scriptHistoryLength,
         //    scriptHistoryIndex, navigationType, entriesForNavigationAPI, and previousEntry.
-        auto update_document = [script_history_length, script_history_index, entries_for_navigation_api = move(entries_for_navigation_api), target_entry, update_only, navigation_type, previous_entry, resolved_document, navigable] {
+        auto update_document = [script_history_length, script_history_index, entries_for_navigation_api = move(entries_for_navigation_api), target_entry, update_only, navigation_type, previous_entry, previous_entry_document_is_initial_about_blank, resolved_document, navigable] {
             // NB: The specification initializes the navigation API entries for every newly activated document.
             //     Gating this on a non-null navigationType left documents activated by a creation/destruction
             //     update without an initialized navigation API entry list, which crashes the first same-document
             //     update on them (for example a document.open() on a child that finished loading while the
             //     creation update was still queued).
-            resolved_document->update_for_history_step_application(*target_entry, update_only, script_history_length, script_history_index, navigation_type, entries_for_navigation_api, previous_entry);
+            resolved_document->update_for_history_step_application(*target_entry, update_only, script_history_length, script_history_index, navigation_type, entries_for_navigation_api, previous_entry, previous_entry_document_is_initial_about_blank);
 
             if (update_only)
                 navigable->notify_navigation_observers_navigation_complete();

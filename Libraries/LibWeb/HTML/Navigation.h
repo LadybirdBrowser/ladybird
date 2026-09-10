@@ -88,6 +88,13 @@ public:
     GC::Ptr<NavigationTransition> transition() const { return m_transition; }
     static constexpr size_t transition_offset() { return offsetof(Navigation, m_transition); }
 
+    // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-navigation-activation
+    GC::Ptr<NavigationActivation> activation() const { return m_activation; }
+    static constexpr size_t activation_offset() { return offsetof(Navigation, m_activation); }
+    void set_activation(GC::Ref<NavigationActivation> activation) { m_activation = activation; }
+
+    Vector<GC::Ref<NavigationHistoryEntry>> const& entry_list() const { return m_entry_list; }
+
     bool can_go_back() const;
     bool can_go_forward() const;
 
@@ -191,6 +198,10 @@ private:
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#concept-navigation-transition
     // Each Navigation has a transition, which is a NavigationTransition or null, initially null.
     GC::Ptr<NavigationTransition> m_transition { nullptr };
+
+    // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigation-activation
+    // Each Navigation has an associated activation, which is null or a NavigationActivation object, initially null.
+    GC::Ptr<NavigationActivation> m_activation;
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#ongoing-navigate-event
     GC::Ptr<NavigateEvent> m_ongoing_navigate_event { nullptr };

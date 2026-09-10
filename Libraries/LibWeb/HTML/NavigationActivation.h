@@ -29,6 +29,10 @@ public:
     GC::Ref<NavigationHistoryEntry> entry() const { return m_entry; }
     NavigationType navigation_type() const { return m_navigation_type; }
 
+    void set_from(GC::Ptr<NavigationHistoryEntry> from) { m_from = from; }
+    void set_entry(GC::Ref<NavigationHistoryEntry> entry) { m_entry = entry; }
+    void set_navigation_type(NavigationType navigation_type) { m_navigation_type = navigation_type; }
+
 private:
     NavigationActivation(GC::Ptr<NavigationHistoryEntry> from, GC::Ref<NavigationHistoryEntry> entry, NavigationType);
 

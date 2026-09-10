@@ -5,6 +5,7 @@ interface Navigation : EventTarget {
     readonly attribute NavigationHistoryEntry? currentEntry;
     undefined updateCurrentEntry(NavigationUpdateCurrentEntryOptions options);
     [DirectGetter] readonly attribute NavigationTransition? transition;
+    [DirectGetter] readonly attribute NavigationActivation? activation;
 
     readonly attribute boolean canGoBack;
     readonly attribute boolean canGoForward;

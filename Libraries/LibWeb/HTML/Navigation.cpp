@@ -19,6 +19,7 @@
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
 #include <LibWeb/HTML/NavigateEvent.h>
 #include <LibWeb/HTML/Navigation.h>
+#include <LibWeb/HTML/NavigationActivation.h>
 #include <LibWeb/HTML/NavigationCurrentEntryChangeEvent.h>
 #include <LibWeb/HTML/NavigationDestination.h>
 #include <LibWeb/HTML/NavigationHistoryEntry.h>
@@ -112,6 +113,7 @@ void Navigation::visit_edges(JS::Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     visitor.visit(m_entry_list);
     visitor.visit(m_transition);
+    visitor.visit(m_activation);
     visitor.visit(m_ongoing_navigate_event);
     visitor.visit(m_window);
     visitor.visit(m_ongoing_api_method_tracker);

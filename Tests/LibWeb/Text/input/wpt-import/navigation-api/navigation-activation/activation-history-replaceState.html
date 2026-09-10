@@ -1,0 +1,17 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+promise_test(async t => {
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+
+  assert_equals(navigation.activation.entry, navigation.currentEntry);
+  let activationEntry = navigation.activation.entry;
+  history.replaceState("#fragment", "", "");
+  assert_not_equals(navigation.activation.entry, navigation.currentEntry);
+  assert_equals(navigation.activation.entry, activationEntry);
+  assert_equals(navigation.activation.entry.index, -1);
+}, "navigation.activation.entry should be orphaned by history.replaceState()");
+</script>

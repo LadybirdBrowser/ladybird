@@ -1,0 +1,21 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<iframe id="i" src="../../common/blank.html"></iframe>
+<script>
+promise_test(async t => {
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+
+  i.contentWindow.navigation.reload();
+  await new Promise(resolve => i.onload = () => t.step_timeout(resolve, 0));
+
+  // activation.entry and activation.from are equal after reload
+  assert_equals(i.contentWindow.navigation.entries().length, 1);
+  assert_equals(i.contentWindow.navigation.activation.entry.index, 0);
+  assert_equals(i.contentWindow.navigation.activation.entry,
+                i.contentWindow.navigation.activation.from);
+  assert_equals(i.contentWindow.navigation.activation.navigationType, "reload");
+}, "navigation.activation after reload");
+</script>

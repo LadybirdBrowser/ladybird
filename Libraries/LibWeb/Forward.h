@@ -841,6 +841,7 @@ class Navigable;
 class NavigableContainer;
 class NavigateEvent;
 class Navigation;
+class NavigationActivation;
 class NavigationCurrentEntryChangeEvent;
 class NavigationDestination;
 class NavigationHistoryEntry;
