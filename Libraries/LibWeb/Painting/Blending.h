@@ -33,6 +33,5 @@ namespace Web::Painting {
     E(PlusLighter)
 
 Gfx::CompositingAndBlendingOperator mix_blend_mode_to_compositing_and_blending_operator(CSS::MixBlendMode blend_mode);
-Gfx::CompositingAndBlendingOperator mask_composite_to_compositing_and_blending_operator(CSS::CompositingOperator);
 
 }
