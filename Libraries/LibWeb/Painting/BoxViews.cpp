@@ -293,42 +293,9 @@ bool is_inline_paintable(Layout::Node const& node)
     return has_committed_box(node) && node.is_fragmented_inline();
 }
 
-bool is_svg_paintable(Layout::Node const& node)
-{
-    if (!has_committed_box(node))
-        return false;
-    switch (node.kind()) {
-    case Layout::RustFFI::NodeKind::SVGGraphicsBox:
-    case Layout::RustFFI::NodeKind::SVGGeometryBox:
-    case Layout::RustFFI::NodeKind::SVGTextBox:
-    case Layout::RustFFI::NodeKind::SVGTextPathBox:
-    case Layout::RustFFI::NodeKind::SVGImageBox:
-    case Layout::RustFFI::NodeKind::SVGMaskBox:
-    case Layout::RustFFI::NodeKind::SVGClipBox:
-    case Layout::RustFFI::NodeKind::SVGPatternBox:
-        return true;
-    default:
-        return false;
-    }
-}
-
 bool is_svg_svg_paintable(Layout::Node const& node)
 {
     return has_committed_box(node) && node.kind() == Layout::RustFFI::NodeKind::SVGSVGBox;
-}
-
-bool is_svg_path_paintable(Layout::Node const& node)
-{
-    if (!has_committed_box(node))
-        return false;
-    switch (node.kind()) {
-    case Layout::RustFFI::NodeKind::SVGGeometryBox:
-    case Layout::RustFFI::NodeKind::SVGTextBox:
-    case Layout::RustFFI::NodeKind::SVGTextPathBox:
-        return true;
-    default:
-        return false;
-    }
 }
 
 bool has_accumulated_visual_context(Layout::Node const& node)
