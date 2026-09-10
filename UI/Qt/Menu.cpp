@@ -109,7 +109,10 @@ private:
             if (auto action = weak_action.strong_ref()) {
                 if (action->is_checkable())
                     action->set_checked(checked);
-                action->activate();
+                if (action->id() == WebView::ActionID::OpenProcessesPage)
+                    Application::the().show_process_manager();
+                else
+                    action->activate();
 
                 if (action->id() == WebView::ActionID::BookmarkItem) {
                     if (auto* active_tab = Application::the().active_tab())

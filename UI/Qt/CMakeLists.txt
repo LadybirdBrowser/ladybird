@@ -38,6 +38,7 @@ target_sources(ladybird PRIVATE
     LocationEdit.cpp
     Menu.cpp
     NativeWindowContainer.cpp
+    ProcessManagerWindow.cpp
     SelectDropdown.cpp
     Settings.cpp
     StringUtils.cpp
