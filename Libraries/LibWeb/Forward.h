@@ -250,7 +250,6 @@ namespace Web::CSS {
 class AbstractImageStyleValue;
 class AbstractOrHypotheticalElement;
 class AnchorStyleValue;
-class AnchorSizeStyleValue;
 class Angle;
 class AnglePercentage;
 class AngleStyleValue;

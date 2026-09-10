@@ -1271,6 +1271,7 @@ fn property_allows_anchor_size(property: u16) -> bool {
         )
 }
 
+// https://drafts.csswg.org/css-anchor-position-1/#funcdef-anchor-size
 fn parse_anchor_size_function(context: &ParseContext, property: u16, value: &ComponentValue) -> Option<StyleValueData> {
     if !property_allows_anchor_size(property) {
         return None;

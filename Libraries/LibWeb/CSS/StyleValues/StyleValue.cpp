@@ -16,7 +16,6 @@
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputeFFI.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
-#include <LibWeb/CSS/StyleValues/AnchorSizeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AnchorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
@@ -152,7 +151,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::Anchor:
         return adopt_ref(*new (nothrow) AnchorStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::AnchorSize:
-        return adopt_ref(*new (nothrow) AnchorSizeStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::AnchorSize, data));
     case StyleValueFFI::StyleValueData::Tag::BackgroundSize:
         return adopt_ref(*new (nothrow) BackgroundSizeStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::BasicShape:
