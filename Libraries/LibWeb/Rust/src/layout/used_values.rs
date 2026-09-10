@@ -335,17 +335,47 @@ impl LineDataState {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct CommittedSvgFacts {
+    pub(crate) viewport_transform: Option<svg_formatting_context::FfiAffineTransform>,
+    pub(crate) viewport_size: Option<FfiCssPixelSize>,
+    pub(crate) view_box: Option<svg_formatting_context::FfiSvgViewBox>,
+    pub(crate) element_transform: Option<svg_formatting_context::FfiAffineTransform>,
+    pub(crate) additional_element_transform: Option<svg_formatting_context::FfiAffineTransform>,
+    pub(crate) mask_area_facts: Option<svg_formatting_context::SvgMaskAreaFacts>,
+    pub(crate) viewport_percentage_basis: CssPixels,
+    pub(crate) resource_content_units_are_object_bounding_box: bool,
+}
+
+impl CommittedSvgFacts {
+    fn install_present_into(self, target: &mut Self) {
+        if let Some(transform) = self.viewport_transform {
+            target.viewport_transform = Some(transform);
+        }
+        if let Some(size) = self.viewport_size {
+            target.viewport_size = Some(size);
+        }
+        if let Some(view_box) = self.view_box {
+            target.view_box = Some(view_box);
+        }
+        if let Some(transform) = self.element_transform {
+            target.element_transform = Some(transform);
+        }
+        if let Some(transform) = self.additional_element_transform {
+            target.additional_element_transform = Some(transform);
+        }
+        if let Some(facts) = self.mask_area_facts {
+            target.mask_area_facts = Some(facts);
+        }
+        target.viewport_percentage_basis = self.viewport_percentage_basis;
+        target.resource_content_units_are_object_bounding_box = self.resource_content_units_are_object_bounding_box;
+    }
+}
+
 #[derive(Clone, Default)]
 pub(crate) struct UsedValuesRareData {
     pub(crate) computed_svg_path: Option<std::rc::Rc<libgfx_rust::path::OwnedPath>>,
-    pub(crate) svg_viewport_transform: Option<svg_formatting_context::FfiAffineTransform>,
-    pub(crate) svg_viewport_size: Option<FfiCssPixelSize>,
-    pub(crate) svg_view_box: Option<svg_formatting_context::FfiSvgViewBox>,
-    pub(crate) svg_element_transform: Option<svg_formatting_context::FfiAffineTransform>,
-    pub(crate) svg_additional_element_transform: Option<svg_formatting_context::FfiAffineTransform>,
-    pub(crate) svg_mask_area_facts: Option<svg_formatting_context::SvgMaskAreaFacts>,
-    pub(crate) svg_viewport_percentage_basis: CssPixels,
-    pub(crate) svg_resource_content_units_are_object_bounding_box: bool,
+    pub(crate) svg: CommittedSvgFacts,
     pub(crate) grid_layout_data: Option<std::rc::Rc<grid_formatting_context::GridLayoutData>>,
     pub(crate) flex_layout_data: Option<std::rc::Rc<formatting_context::FlexLayoutData>>,
     pub(crate) used_grid_tracks: Option<std::rc::Rc<grid_formatting_context::OwnedUsedGridTracks>>,
@@ -357,14 +387,7 @@ impl UsedValuesRareData {
     pub(crate) fn install_present_payloads_into(self, record: &UsedValues) {
         let Self {
             computed_svg_path,
-            svg_viewport_transform,
-            svg_viewport_size,
-            svg_view_box,
-            svg_element_transform,
-            svg_additional_element_transform,
-            svg_mask_area_facts,
-            svg_viewport_percentage_basis,
-            svg_resource_content_units_are_object_bounding_box,
+            svg,
             grid_layout_data,
             flex_layout_data,
             used_grid_tracks,
@@ -376,14 +399,7 @@ impl UsedValuesRareData {
             "a run authored a parent-owned rare payload on its root record"
         );
         if computed_svg_path.is_none()
-            && svg_viewport_transform.is_none()
-            && svg_viewport_size.is_none()
-            && svg_view_box.is_none()
-            && svg_element_transform.is_none()
-            && svg_additional_element_transform.is_none()
-            && svg_mask_area_facts.is_none()
-            && svg_viewport_percentage_basis == CssPixels::default()
-            && !svg_resource_content_units_are_object_bounding_box
+            && svg == CommittedSvgFacts::default()
             && grid_layout_data.is_none()
             && flex_layout_data.is_none()
             && used_grid_tracks.is_none()
@@ -395,26 +411,7 @@ impl UsedValuesRareData {
         if let Some(path) = computed_svg_path {
             rare.computed_svg_path = Some(path);
         }
-        if let Some(transform) = svg_viewport_transform {
-            rare.svg_viewport_transform = Some(transform);
-        }
-        if let Some(size) = svg_viewport_size {
-            rare.svg_viewport_size = Some(size);
-        }
-        if let Some(view_box) = svg_view_box {
-            rare.svg_view_box = Some(view_box);
-        }
-        if let Some(transform) = svg_element_transform {
-            rare.svg_element_transform = Some(transform);
-        }
-        if let Some(transform) = svg_additional_element_transform {
-            rare.svg_additional_element_transform = Some(transform);
-        }
-        if let Some(facts) = svg_mask_area_facts {
-            rare.svg_mask_area_facts = Some(facts);
-        }
-        rare.svg_viewport_percentage_basis = svg_viewport_percentage_basis;
-        rare.svg_resource_content_units_are_object_bounding_box = svg_resource_content_units_are_object_bounding_box;
+        svg.install_present_into(&mut rare.svg);
         if let Some(data) = grid_layout_data {
             rare.grid_layout_data = Some(data);
         }

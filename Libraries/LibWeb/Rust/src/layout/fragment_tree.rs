@@ -5,6 +5,7 @@
  */
 
 use super::*;
+use crate::layout::used_values::CommittedSvgFacts;
 
 pub(crate) struct Fragment {
     pub(crate) identity: u64,
@@ -33,14 +34,7 @@ pub(crate) struct Fragment {
     pub(crate) grid_layout_data: Option<std::rc::Rc<grid_formatting_context::GridLayoutData>>,
     pub(crate) flex_layout_data: Option<std::rc::Rc<formatting_context::FlexLayoutData>>,
     pub(crate) used_grid_tracks: Option<std::rc::Rc<grid_formatting_context::OwnedUsedGridTracks>>,
-    pub(crate) svg_viewport_transform: Option<svg_formatting_context::FfiAffineTransform>,
-    pub(crate) svg_viewport_size: Option<FfiCssPixelSize>,
-    pub(crate) svg_view_box: Option<svg_formatting_context::FfiSvgViewBox>,
-    pub(crate) svg_element_transform: Option<svg_formatting_context::FfiAffineTransform>,
-    pub(crate) svg_additional_element_transform: Option<svg_formatting_context::FfiAffineTransform>,
-    pub(crate) svg_mask_area_facts: Option<svg_formatting_context::SvgMaskAreaFacts>,
-    pub(crate) svg_viewport_percentage_basis: CssPixels,
-    pub(crate) svg_resource_content_units_are_object_bounding_box: bool,
+    pub(crate) svg: CommittedSvgFacts,
     pub(crate) computed_svg_path: Option<std::rc::Rc<libgfx_rust::path::OwnedPath>>,
     pub(crate) has_line_clamp_point: bool,
     pub(crate) is_invisible_for_line_clamp: bool,
@@ -97,15 +91,7 @@ impl Fragment {
             && same_allocation(self.grid_layout_data.as_ref(), previous.grid_layout_data.as_ref())
             && same_allocation(self.flex_layout_data.as_ref(), previous.flex_layout_data.as_ref())
             && same_allocation(self.used_grid_tracks.as_ref(), previous.used_grid_tracks.as_ref())
-            && self.svg_viewport_transform == previous.svg_viewport_transform
-            && self.svg_viewport_size == previous.svg_viewport_size
-            && self.svg_view_box == previous.svg_view_box
-            && self.svg_element_transform == previous.svg_element_transform
-            && self.svg_additional_element_transform == previous.svg_additional_element_transform
-            && self.svg_mask_area_facts == previous.svg_mask_area_facts
-            && self.svg_viewport_percentage_basis == previous.svg_viewport_percentage_basis
-            && self.svg_resource_content_units_are_object_bounding_box
-                == previous.svg_resource_content_units_are_object_bounding_box
+            && self.svg == previous.svg
             && same_allocation(self.computed_svg_path.as_ref(), previous.computed_svg_path.as_ref())
             && self.has_line_clamp_point == previous.has_line_clamp_point
             && self.is_invisible_for_line_clamp == previous.is_invisible_for_line_clamp
@@ -261,14 +247,7 @@ struct CommittedRarePayloads {
     grid_layout_data: Option<std::rc::Rc<grid_formatting_context::GridLayoutData>>,
     flex_layout_data: Option<std::rc::Rc<formatting_context::FlexLayoutData>>,
     used_grid_tracks: Option<std::rc::Rc<grid_formatting_context::OwnedUsedGridTracks>>,
-    svg_viewport_transform: Option<svg_formatting_context::FfiAffineTransform>,
-    svg_viewport_size: Option<FfiCssPixelSize>,
-    svg_view_box: Option<svg_formatting_context::FfiSvgViewBox>,
-    svg_element_transform: Option<svg_formatting_context::FfiAffineTransform>,
-    svg_additional_element_transform: Option<svg_formatting_context::FfiAffineTransform>,
-    svg_mask_area_facts: Option<svg_formatting_context::SvgMaskAreaFacts>,
-    svg_viewport_percentage_basis: CssPixels,
-    svg_resource_content_units_are_object_bounding_box: bool,
+    svg: CommittedSvgFacts,
     computed_svg_path: Option<std::rc::Rc<libgfx_rust::path::OwnedPath>>,
 }
 
@@ -290,15 +269,7 @@ fn snapshot_fragment(
                 grid_layout_data: rare.grid_layout_data.take(),
                 flex_layout_data: rare.flex_layout_data.take(),
                 used_grid_tracks: rare.used_grid_tracks.take(),
-                svg_viewport_transform: rare.svg_viewport_transform,
-                svg_viewport_size: rare.svg_viewport_size,
-                svg_view_box: rare.svg_view_box,
-                svg_element_transform: rare.svg_element_transform,
-                svg_additional_element_transform: rare.svg_additional_element_transform,
-                svg_mask_area_facts: rare.svg_mask_area_facts,
-                svg_viewport_percentage_basis: rare.svg_viewport_percentage_basis,
-                svg_resource_content_units_are_object_bounding_box: rare
-                    .svg_resource_content_units_are_object_bounding_box,
+                svg: rare.svg,
                 computed_svg_path: rare.computed_svg_path.take(),
             }
         })
@@ -308,14 +279,7 @@ fn snapshot_fragment(
         grid_layout_data,
         flex_layout_data,
         used_grid_tracks,
-        svg_viewport_transform,
-        svg_viewport_size,
-        svg_view_box,
-        svg_element_transform,
-        svg_additional_element_transform,
-        svg_mask_area_facts,
-        svg_viewport_percentage_basis,
-        svg_resource_content_units_are_object_bounding_box,
+        svg,
         computed_svg_path,
     } = rare_payloads;
     let mut fragment = Fragment {
@@ -345,14 +309,7 @@ fn snapshot_fragment(
         grid_layout_data,
         flex_layout_data,
         used_grid_tracks,
-        svg_viewport_transform,
-        svg_viewport_size,
-        svg_view_box,
-        svg_element_transform,
-        svg_additional_element_transform,
-        svg_mask_area_facts,
-        svg_viewport_percentage_basis,
-        svg_resource_content_units_are_object_bounding_box,
+        svg,
         computed_svg_path,
         has_line_clamp_point: used.has_line_clamp_point.get(),
         is_invisible_for_line_clamp: used.is_invisible_for_line_clamp.get(),

@@ -638,10 +638,7 @@ fn assert_available_inline_size_threshold_matches_after_the_cells_it_derives_fro
 macro_rules! shadow_comparable_rare_payloads {
     ($carrier:expr) => {
         (
-            $carrier.svg_viewport_transform,
-            $carrier.svg_viewport_size,
-            $carrier.svg_view_box,
-            $carrier.svg_viewport_percentage_basis,
+            $carrier.svg,
             &$carrier.computed_svg_path,
             &$carrier.grid_layout_data,
             &$carrier.flex_layout_data,
