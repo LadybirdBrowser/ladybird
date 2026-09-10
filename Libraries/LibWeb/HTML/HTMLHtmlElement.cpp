@@ -27,21 +27,24 @@ bool HTMLHtmlElement::should_use_body_background_properties() const
     // properties from the <body> element to the initial containing block, the viewport, or the canvas background, is
     // disabled. Notably, this affects:
     // - 'background' and its longhands (see CSS Backgrounds 3 § 2.11.2 The Canvas Background and the HTML <body> Element)
-    auto has_containment = [](DOM::Element const& element) {
-        auto const* values = element.style_group<CSS::ComputedValues::BoxValues>();
-        VERIFY(values);
-        return values->size_containment || values->inline_size_containment || values->layout_containment || values->style_containment || values->paint_containment;
+    // NB: Called during rendering, reading style off the layout nodes.
+    auto has_containment = [](Layout::NodeWithStyle const& layout_node) {
+        return !layout_node.contain().is_empty();
     };
-    if (has_containment(*this))
+
+    auto const* layout_node = unsafe_layout_node();
+    if (!layout_node || has_containment(*layout_node))
         return false;
 
-    auto* body_element = first_child_of_type<HTML::HTMLBodyElement>();
-    if (body_element && has_containment(*body_element))
+    auto const* body_element = first_child_of_type<HTML::HTMLBodyElement>();
+    if (!body_element)
+        return false;
+    auto const* body_layout_node = body_element->unsafe_layout_node();
+    if (!body_layout_node || has_containment(*body_layout_node))
         return false;
 
-    // NB: Called during rendering, reading background properties.
-    auto background_color = unsafe_layout_node()->background_color();
-    auto const& background_layers = unsafe_layout_node()->background_layers();
+    auto background_color = layout_node->background_color();
+    auto const& background_layers = layout_node->background_layers();
 
     return !any_of(background_layers, [](auto const& layer) { return layer.background_image != nullptr; }) && background_color == Color::Transparent;
 }

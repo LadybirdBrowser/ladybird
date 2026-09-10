@@ -1,0 +1,8 @@
+<!DOCTYPE html>
+<script>
+    addEventListener("load", () => {
+        const renderedBody = document.body;
+        document.documentElement.insertBefore(document.createElement("body"), renderedBody);
+        renderedBody.style.background = "red";
+    });
+</script>
