@@ -856,7 +856,7 @@ public:
     // root set; the layout node arena keeps the escape bit next to those roots.
     void record_partial_relayout_escape(PartialRelayoutEscapeReason);
 
-    void set_needs_to_refresh_scroll_state(bool b);
+    void invalidate_scroll_state();
 
     bool has_active_favicon() const { return !!m_active_favicon; }
     void check_favicon_after_loading_link_resource();

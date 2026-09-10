@@ -37,11 +37,11 @@ WEB_API Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_di
 WEB_API void rust_measure_scrollable_overflow(Layout::Node const&);
 WEB_API Layout::RustFFI::FfiScrollableOverflowUpdateOutcome rust_update_scrollable_overflow(DOM::Document&, bool handled_by_full_layout_commit);
 WEB_API void rust_update_visual_viewport_transform(DOM::Document&);
-WEB_API void rust_refresh_scroll_state(DOM::Document&);
+WEB_API bool rust_refresh_scroll_state(DOM::Document&);
 WEB_API ScrollStateSnapshot rust_scroll_state_snapshot(DOM::Document&);
 WEB_API bool mirror_rust_refresh_sticky_constraints(DOM::Document&);
 WEB_API void mirror_rust_clear_scroll_state(DOM::Document&);
-WEB_API void mirror_rust_set_needs_to_refresh_scroll_state(DOM::Document&, bool);
+WEB_API void rust_invalidate_scroll_state(DOM::Document&);
 WEB_API void mirror_rust_invalidate_paint_cache(Layout::Node const&);
 WEB_API void rust_invalidate_propagated_text_decoration_caches(Layout::Node const&);
 struct InspectorOverlayInputs {
