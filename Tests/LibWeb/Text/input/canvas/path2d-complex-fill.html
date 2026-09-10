@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const canvas = document.createElement("canvas");
+        canvas.width = 200;
+        canvas.height = 100;
+        const context = canvas.getContext("2d");
+
+        // Trace a self-intersecting star repeatedly to exercise complex path rendering.
+        const path = new Path2D();
+        path.moveTo(50, 0);
+        for (let i = 0; i < 21; ++i) {
+            path.lineTo(80, 90);
+            path.lineTo(0, 35);
+            path.lineTo(100, 35);
+            path.lineTo(20, 90);
+            path.lineTo(50, 0);
+        }
+        path.closePath();
+
+        function pixel(label, x, y) {
+            println(`${label}: ${context.getImageData(x, y, 1, 1).data}`);
+        }
+
+        context.fillStyle = "red";
+        context.fill(path, "nonzero");
+        context.save();
+        context.translate(100, 0);
+        context.fillStyle = "lime";
+        context.fill(path, "evenodd");
+        context.restore();
+
+        pixel("nonzero center", 50, 50);
+        pixel("nonzero arm", 50, 20);
+        pixel("nonzero outside", 5, 5);
+        pixel("evenodd center", 150, 50);
+        pixel("evenodd arm", 150, 20);
+
+        // Interleave a path draw, a canvas copy, and a rectangle after readback.
+        const copy = document.createElement("canvas");
+        copy.width = canvas.width;
+        copy.height = canvas.height;
+        copy.getContext("2d").drawImage(canvas, 0, 0);
+        context.fillStyle = "blue";
+        context.fill(path, "evenodd");
+        context.drawImage(copy, 100, 0, 100, 100, 0, 0, 100, 100);
+        context.fillStyle = "yellow";
+        context.fillRect(0, 0, 10, 10);
+
+        pixel("copied arm", 50, 20);
+        pixel("preserved center", 50, 50);
+        pixel("rectangle", 5, 5);
+
+        // Reuse the path as a clip and paint through its even-odd hole.
+        context.clearRect(0, 0, canvas.width, canvas.height);
+        context.save();
+        context.clip(path, "evenodd");
+        context.fillStyle = "blue";
+        context.fillRect(0, 0, canvas.width, canvas.height);
+        context.restore();
+        pixel("clipped center", 50, 50);
+        pixel("clipped arm", 50, 20);
+        pixel("clipped outside", 5, 5);
+    });
+</script>
