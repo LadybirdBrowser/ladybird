@@ -125,17 +125,15 @@ static void madvise_block_for_decommit(void* block)
         perror("madvise(MADV_FREE_REUSABLE)");
         VERIFY_NOT_REACHED();
     }
-#elif defined(MADV_DONTNEED)
-    // Prefer DONTNEED over FREE on Linux: FREE is lazy and only releases pages
-    // under memory pressure, which leaves freed blocks counted in RSS for
-    // arbitrarily long after a busy page goes idle.
-    if (madvise(block, HeapBlock::BLOCK_SIZE, MADV_DONTNEED) < 0) {
-        perror("madvise(MADV_DONTNEED)");
-        VERIFY_NOT_REACHED();
-    }
 #elif defined(MADV_FREE)
+    // MADV_FREE keeps the pages mapped until the kernel needs them, so a block reused before then takes no page fault.
     if (madvise(block, HeapBlock::BLOCK_SIZE, MADV_FREE) < 0) {
         perror("madvise(MADV_FREE)");
+        VERIFY_NOT_REACHED();
+    }
+#elif defined(MADV_DONTNEED)
+    if (madvise(block, HeapBlock::BLOCK_SIZE, MADV_DONTNEED) < 0) {
+        perror("madvise(MADV_DONTNEED)");
         VERIFY_NOT_REACHED();
     }
 #endif
