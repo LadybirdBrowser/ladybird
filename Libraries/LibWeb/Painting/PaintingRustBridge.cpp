@@ -543,23 +543,13 @@ void rust_update_visual_viewport_transform(DOM::Document& document)
     Layout::RustFFI::layout_arena_update_visual_viewport_transform(layout_arena_handle(document), visual_context_host_callbacks(document));
 }
 
-bool rust_refresh_scroll_state(DOM::Document& document)
+bool rust_refresh_scroll_state(DOM::Document& document, ScrollStateSnapshot& snapshot)
 {
-    return Layout::RustFFI::layout_arena_refresh_scroll_state(layout_arena_handle(document), visual_context_host_callbacks(document));
-}
-
-ScrollStateSnapshot rust_scroll_state_snapshot(DOM::Document& document)
-{
-    auto* arena = layout_arena_handle(document);
-    auto count = Layout::RustFFI::layout_arena_scroll_state_snapshot(arena, nullptr, 0);
-    Vector<Gfx::FloatPoint> values;
-    values.resize(count);
-    if (count > 0)
-        Layout::RustFFI::layout_arena_scroll_state_snapshot(arena, values.data(), values.size());
-    ScrollStateSnapshot snapshot;
-    for (size_t index = 0; index < values.size(); ++index)
-        snapshot.set_device_offset_for_index(SpatialNodeIndex { static_cast<u32>(index) }, values[index]);
-    return snapshot;
+    return Layout::RustFFI::layout_arena_refresh_scroll_state(
+        layout_arena_handle(document), visual_context_host_callbacks(document),
+        &snapshot, [](void* sink, Gfx::FloatPoint const* offsets, size_t count) {
+            static_cast<ScrollStateSnapshot*>(sink)->assign_device_offsets({ offsets, count });
+        });
 }
 
 bool mirror_rust_refresh_sticky_constraints(DOM::Document& document)

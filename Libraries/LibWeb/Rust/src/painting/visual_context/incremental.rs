@@ -633,7 +633,6 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
         tree.structural_epoch = allocate_structural_epoch();
     }
     state.scroll_state = scroll_state;
-    state.scroll_state_snapshot.clear();
     state.needs_to_refresh_scroll_state = true;
     IncrementalUpdateResult::Applied(Box::new(IncrementalUpdateOutcome {
         delta,

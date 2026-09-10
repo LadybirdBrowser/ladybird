@@ -55,6 +55,14 @@ public:
         m_device_offsets[index.value()] = offset;
     }
 
+    // Replaces every offset with a freshly derived dense array, keeping the adopted async scroll
+    // sequence and the node count bound.
+    void assign_device_offsets(ReadonlySpan<Gfx::FloatPoint> offsets)
+    {
+        m_device_offsets.clear_with_capacity();
+        m_device_offsets.append(offsets.data(), min(offsets.size(), m_node_count));
+    }
+
     // Bind the snapshot to the authoritative node count from the AccumulatedVisualContextTree that owns these nodes.
     // Wire-decoded offsets are staged rather than densified. So, this is where a decoded index is first validated:
     // staged pairs are applied through the bounded setter above, dropping any whose index is at or past the node count.
