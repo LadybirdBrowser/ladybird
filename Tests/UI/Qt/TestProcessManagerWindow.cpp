@@ -5,12 +5,10 @@
  */
 
 #include <LibTest/TestCase.h>
-#include <LibWebView/ProcessType.h>
 #include <UI/Qt/ProcessManagerWindow.h>
 
 #include <QLineEdit>
 #include <QPalette>
-#include <QTabBar>
 #include <QTreeWidget>
 
 TEST_CASE(palette_changes_do_not_reenter_style_updates)
@@ -31,19 +29,15 @@ TEST_CASE(palette_changes_do_not_reenter_style_updates)
     EXPECT_EQ(processes->columnCount(), 4);
 }
 
-TEST_CASE(search_and_type_filters_keep_matching_child_processes_visible)
+TEST_CASE(search_keeps_matching_child_processes_visible)
 {
     Ladybird::ProcessManagerWindow window;
     auto* processes = window.findChild<QTreeWidget*>();
     auto* search = window.findChild<QLineEdit*>();
-    auto* filters = window.findChild<QTabBar*>();
 
     auto* browser = new QTreeWidgetItem(processes, { "Browser", "123" });
-    browser->setData(0, Qt::UserRole, static_cast<int>(WebView::ProcessType::Browser));
     auto* page = new QTreeWidgetItem(processes, { "WebContent - Example", "456" });
-    page->setData(0, Qt::UserRole, static_cast<int>(WebView::ProcessType::WebContent));
     auto* frame = new QTreeWidgetItem(page, { "WebContent - Child frame", "789" });
-    frame->setData(0, Qt::UserRole, static_cast<int>(WebView::ProcessType::WebContent));
 
     search->setText("CHILD");
     EXPECT(browser->isHidden());
@@ -55,17 +49,17 @@ TEST_CASE(search_and_type_filters_keep_matching_child_processes_visible)
     EXPECT(!browser->isHidden());
     EXPECT(page->isHidden());
 
-    search->clear();
-    filters->setCurrentIndex(1);
+    search->setText("  example  ");
     EXPECT(browser->isHidden());
     EXPECT(!page->isHidden());
-    EXPECT(!frame->isHidden());
+    EXPECT(frame->isHidden());
 
-    filters->setCurrentIndex(2);
-    EXPECT(!browser->isHidden());
+    search->setText("no matching process");
+    EXPECT(browser->isHidden());
     EXPECT(page->isHidden());
+    EXPECT(frame->isHidden());
 
-    filters->setCurrentIndex(0);
+    search->clear();
     EXPECT(!browser->isHidden());
     EXPECT(!page->isHidden());
     EXPECT(!frame->isHidden());
