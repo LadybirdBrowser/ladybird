@@ -1386,6 +1386,7 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
     let mut affects_stacking_context = vec![false; levels.len()];
     let mut affects_scrollable_overflow = vec![false; levels.len()];
     let mut affects_accumulated_visual_contexts = vec![false; levels.len()];
+    let mut affects_hit_testing = vec![false; levels.len()];
     let mut style_group_indices = vec![u8::MAX; levels.len()];
     let mut initial_values = vec![String::new(); levels.len()];
     let mut numeric_range_rows = vec![String::new(); levels.len()];
@@ -1478,6 +1479,7 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         affects_stacking_context[index] = metadata_flag("affects-stacking-context", false);
         affects_scrollable_overflow[index] = metadata_flag("affects-scrollable-overflow", false);
         affects_accumulated_visual_contexts[index] = metadata_flag("affects-accumulated-visual-contexts", false);
+        affects_hit_testing[index] = metadata_flag("affects-hit-testing", false);
         let style_group = property_field(name, "style-group").and_then(|value| value.as_str().map(str::to_owned));
         style_group_indices[index] = match style_group.as_deref() {
             Some("InheritedTableValues") => 0,
@@ -2219,6 +2221,11 @@ fn generate_property_metadata(manifest_dir: &Path, out_dir: &Path) -> Result<(),
         "pub(crate) static PROPERTY_AFFECTS_ACCUMULATED_VISUAL_CONTEXTS: [bool; {}] = {:?};\n",
         affects_accumulated_visual_contexts.len(),
         affects_accumulated_visual_contexts
+    ));
+    output.push_str(&format!(
+        "pub(crate) static PROPERTY_AFFECTS_HIT_TESTING: [bool; {}] = {:?};\n",
+        affects_hit_testing.len(),
+        affects_hit_testing
     ));
     output.push_str(&format!(
         "pub(crate) static PROPERTY_STYLE_GROUP_INDICES: [u8; {}] = {:?};\n",
