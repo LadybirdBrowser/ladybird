@@ -80,7 +80,6 @@
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ComputationContext.h>
 #include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
-#include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RandomValueSharingStyleValue.h>

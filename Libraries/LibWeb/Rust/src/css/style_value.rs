@@ -3408,19 +3408,6 @@ pub unsafe extern "C" fn rust_style_value_create_random_value_sharing(
     }))
 }
 
-#[unsafe(no_mangle)]
-pub extern "C" fn rust_style_value_create_color_interpolation_method(
-    is_polar: bool,
-    color_space: u8,
-    hue_interpolation_method: u8,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::ColorInterpolationMethod {
-        is_polar,
-        color_space,
-        hue_interpolation_method,
-    }))
-}
-
 /// Takes ownership of one strong reference to each of the `length` values.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_value_list(

@@ -67,13 +67,9 @@
 #include <LibWeb/CSS/StyleValues/CounterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CustomIdentStyleValue.h>
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
-#include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
-#include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
-#include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
@@ -5945,7 +5941,7 @@ static NonnullRefPtr<StyleValue const> resolve_css_wide_keyword_for_custom_prope
     // NB: When resolving function styles (i.e. when we have a hypothetical element), all CSS-wide keywords other than
     //     inherit and initial resolve to the guaranteed-invalid value.
     if (element.has<HypotheticalElement*>())
-        return GuaranteedInvalidStyleValue::create();
+        return StyleValue::create_guaranteed_invalid();
 
     // Unset is the same as inherit for inherited properties, and by default all unregistered custom properties inherit.
     if (keyword_value->is_unset())

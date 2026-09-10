@@ -11,7 +11,6 @@
 #include <LibWeb/CSS/Length.h>
 #include <LibWeb/CSS/Parser/Parser.h>
 #include <LibWeb/CSS/StyleComputer.h>
-#include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 
@@ -36,7 +35,7 @@ NonnullRefPtr<StyleValue const> compute_registered_custom_property_initial_value
     if (registration.computed_initial_value)
         return *registration.computed_initial_value;
 
-    NonnullRefPtr<StyleValue const> computed_initial_value = GuaranteedInvalidStyleValue::create();
+    NonnullRefPtr<StyleValue const> computed_initial_value = StyleValue::create_guaranteed_invalid();
     if (registration.initial_value) {
         ComputationContext computation_context {
             .length_resolution_context = Length::ResolutionContext::for_document(document),
@@ -57,7 +56,7 @@ NonnullRefPtr<StyleValue const> initial_custom_property_value(Optional<CustomPro
 
     // For non-registered properties, the initial value is the guaranteed-invalid value.
     // See: https://drafts.csswg.org/css-variables/#propdef-
-    return GuaranteedInvalidStyleValue::create();
+    return StyleValue::create_guaranteed_invalid();
 }
 
 NonnullRefPtr<StyleValue const> inherited_custom_property_value(Optional<CustomPropertyRegistration const&> registration, AbstractOrHypotheticalElement const& element, Utf16FlyString const& name, ComputedStyleWorkingSet const* computed_style_for_custom_property_resolution)
@@ -83,7 +82,7 @@ NonnullRefPtr<StyleValue const> inherited_custom_property_value(Optional<CustomP
             //   Resolves like an inherit() function with the custom property name as its one and only argument.
             // Note: This ensures that a function parameter defaulted to inherit is reinterpreted using the local parameter type.
             if (computed_parent_value->is_guaranteed_invalid())
-                return GuaranteedInvalidStyleValue::create();
+                return StyleValue::create_guaranteed_invalid();
 
             return UnresolvedStyleValue::create(computed_parent_value->is_unresolved()
                     ? computed_parent_value->as_unresolved().token_source()

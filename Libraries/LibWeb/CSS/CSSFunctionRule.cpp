@@ -14,7 +14,6 @@
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/CSS/StyleComputer.h>
-#include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/CSS/StyleValues/UnresolvedStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 

@@ -245,7 +245,6 @@ set(SOURCES
     CSS/StyleValues/BorderRadiusRectStyleValue.cpp
     CSS/StyleValues/CalculatedStyleValue.cpp
     CSS/StyleValues/ColorFunctionStyleValue.cpp
-    CSS/StyleValues/ColorInterpolationMethodStyleValue.cpp
     CSS/StyleValues/ColorSchemeStyleValue.cpp
     CSS/StyleValues/ColorStyleValue.cpp
     CSS/StyleValues/ConicGradientStyleValue.cpp
@@ -290,7 +289,6 @@ set(SOURCES
     CSS/StyleValues/StyleValueList.cpp
     CSS/StyleValues/SuperellipseStyleValue.cpp
     CSS/StyleValues/TextIndentStyleValue.cpp
-    CSS/StyleValues/TextUnderlinePositionStyleValue.cpp
     CSS/StyleValues/TimeStyleValue.cpp
     CSS/StyleValues/TransformationStyleValue.cpp
     CSS/StyleValues/TreeCountingFunctionStyleValue.cpp

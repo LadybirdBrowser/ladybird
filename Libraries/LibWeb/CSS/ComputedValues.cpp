@@ -31,8 +31,6 @@
 #include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
-#include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageSetStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ImageStyleValue.h>
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
@@ -44,7 +42,6 @@
 #include <LibWeb/CSS/StyleValues/PositionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RatioStyleValue.h>
 #include <LibWeb/CSS/StyleValues/RepeatStyleStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ScrollbarGutterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StringStyleValue.h>
 #include <LibWeb/CSS/StyleValues/StyleValueList.h>
 #include <LibWeb/CSS/StyleValues/SuperellipseStyleValue.h>

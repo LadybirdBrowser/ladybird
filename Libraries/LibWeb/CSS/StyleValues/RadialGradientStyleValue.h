@@ -11,7 +11,7 @@
 
 #include <AK/Vector.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
+#include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/Export.h>
 
 namespace Web::CSS {

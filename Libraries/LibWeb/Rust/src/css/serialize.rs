@@ -1555,7 +1555,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
         } => {
             use crate::css::css_enums::step_position as step_position_enum;
             match kind {
-                // EasingStyleValue kinds: linear is 0, cubic-bezier is 1, steps is 2.
+                // Easing kinds: linear is 0, cubic-bezier is 1, steps is 2.
                 0 => {
                     sink.push_ascii("linear(");
                     for (index, stop) in linear_stops.as_slice().iter().enumerate() {
@@ -2740,7 +2740,7 @@ fn value_has_auto(value: &StyleValueData) -> bool {
     matches!(value, StyleValueData::Keyword { keyword: code } if *code == keyword::AUTO)
 }
 
-/// Port of ColorInterpolationMethodStyleValue::serialize's body, shared by the gradients.
+/// Serialize a color interpolation method shared by the gradient variants.
 fn serialize_color_interpolation_method(
     sink: &mut TextSink,
     is_polar: bool,
