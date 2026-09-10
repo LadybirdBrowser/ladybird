@@ -15,9 +15,7 @@
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ContrastColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
-#include <LibWeb/CSS/StyleValues/LightDarkStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
 
@@ -77,17 +75,7 @@ Optional<Color> ColorStyleValue::to_color(ColorResolutionContext color_resolutio
         if (resolved.resolved)
             return Color(resolved.rgba[0], resolved.rgba[1], resolved.rgba[2], resolved.rgba[3]);
     }
-    switch (m_value->tag) {
-    case StyleValueFFI::StyleValueData::Tag::ColorFunction:
-    case StyleValueFFI::StyleValueData::Tag::ColorMix:
-        return {};
-    case StyleValueFFI::StyleValueData::Tag::ContrastColor:
-        return static_cast<ContrastColorStyleValue const&>(*this).to_color(color_resolution_context);
-    case StyleValueFFI::StyleValueData::Tag::LightDark:
-        return static_cast<LightDarkStyleValue const&>(*this).to_color(color_resolution_context);
-    default:
-        VERIFY_NOT_REACHED();
-    }
+    return {};
 }
 
 ValueComparingNonnullRefPtr<StyleValue const> ColorStyleValue::absolutized(ComputationContext const& context) const
@@ -96,11 +84,9 @@ ValueComparingNonnullRefPtr<StyleValue const> ColorStyleValue::absolutized(Compu
     case StyleValueFFI::StyleValueData::Tag::ColorFunction:
         return static_cast<ColorFunctionStyleValue const&>(*this).absolutized(context);
     case StyleValueFFI::StyleValueData::Tag::ColorMix:
-        VERIFY_NOT_REACHED();
     case StyleValueFFI::StyleValueData::Tag::ContrastColor:
-        return static_cast<ContrastColorStyleValue const&>(*this).absolutized(context);
     case StyleValueFFI::StyleValueData::Tag::LightDark:
-        return static_cast<LightDarkStyleValue const&>(*this).absolutized(context);
+        VERIFY_NOT_REACHED();
     default:
         VERIFY_NOT_REACHED();
     }

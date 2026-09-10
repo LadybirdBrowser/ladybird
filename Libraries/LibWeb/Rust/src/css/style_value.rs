@@ -3077,24 +3077,6 @@ pub extern "C" fn rust_style_value_create_empty_optional() -> *const StyleValueD
     Arc::into_raw(Arc::new(StyleValueData::EmptyOptional))
 }
 
-/// Takes ownership of one strong reference to the color.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_contrast_color(
-    has_color_type: bool,
-    color_type: u8,
-    color_syntax: u8,
-    color: *const StyleValueData,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::ContrastColor {
-        color_base: ColorBase {
-            has_color_type,
-            color_type,
-            color_syntax,
-        },
-        color: unsafe { RetainedStyleValueData::from_retained_pointer(color) },
-    }))
-}
-
 /// Takes ownership of one strong reference to the parameter data.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_superellipse(
@@ -3366,26 +3348,6 @@ pub unsafe extern "C" fn rust_style_value_create_counter(
         counter_name: unsafe { CssString::from_leaked_raw(counter_name) },
         counter_style: unsafe { RetainedStyleValueData::from_retained_pointer(counter_style) },
         join_string: unsafe { CssString::from_leaked_raw(join_string) },
-    }))
-}
-
-/// Takes ownership of one strong reference to each color.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_light_dark(
-    has_color_type: bool,
-    color_type: u8,
-    color_syntax: u8,
-    light: *const StyleValueData,
-    dark: *const StyleValueData,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::LightDark {
-        color_base: ColorBase {
-            has_color_type,
-            color_type,
-            color_syntax,
-        },
-        light: unsafe { RetainedStyleValueData::from_retained_pointer(light) },
-        dark: unsafe { RetainedStyleValueData::from_retained_pointer(dark) },
     }))
 }
 
@@ -3969,6 +3931,11 @@ mod equality_tests {
         unsafe { RetainedStyleValueData::from_retained_pointer(value) }
     }
 
+    fn retained(value: StyleValueData) -> RetainedStyleValueData {
+        let value = Arc::into_raw(Arc::new(value));
+        unsafe { RetainedStyleValueData::from_retained_pointer(value) }
+    }
+
     fn color_function(color_syntax: u8) -> StyleValueData {
         StyleValueData::ColorFunction {
             color_base: ColorBase {
@@ -3992,6 +3959,22 @@ mod equality_tests {
         let modern = color_function(1);
         assert!(legacy != modern);
         assert!(style_values_equal(&legacy, &modern));
+    }
+
+    #[test]
+    fn color_equality_rejects_different_variants() {
+        let color = color_function(0);
+        let light_dark = StyleValueData::LightDark {
+            color_base: ColorBase {
+                has_color_type: false,
+                color_type: 0,
+                color_syntax: 1,
+            },
+            light: retained(color_function(0)),
+            dark: retained(color_function(0)),
+        };
+        assert!(!style_values_equal(&color, &light_dark));
+        assert!(!style_values_equal(&light_dark, &color));
     }
 }
 

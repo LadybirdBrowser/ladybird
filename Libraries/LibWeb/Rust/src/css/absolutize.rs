@@ -125,6 +125,27 @@ mod grid_tests {
     }
 
     #[test]
+    fn composite_resolution_resolves_contrast_color() {
+        unsafe extern "C" fn unchanged(_: *const core::ffi::c_void, value: &StyleValueData) -> *const StyleValueData {
+            unsafe { Arc::increment_strong_count(value) };
+            value
+        }
+        let parsed = parse(property_id::COLOR, "contrast-color(red)");
+        let resolved = unsafe {
+            Arc::from_raw(rust_composite_style_value_absolutize(
+                &parsed,
+                std::ptr::null(),
+                unchanged,
+            ))
+        };
+        assert!(matches!(&*resolved, StyleValueData::ColorFunction { .. }));
+        assert_eq!(
+            to_color(&resolved, &EMPTY_INPUT),
+            Some(crate::css::color_resolution::Rgba::BLACK)
+        );
+    }
+
+    #[test]
     fn composite_resolution_canonicalizes_linear_easing_control_points() {
         unsafe extern "C" fn unchanged(_: *const core::ffi::c_void, value: &StyleValueData) -> *const StyleValueData {
             unsafe { Arc::increment_strong_count(value) };
@@ -1370,23 +1391,48 @@ pub unsafe extern "C" fn rust_composite_style_value_absolutize(
             Some(data) => unsafe { RetainedStyleValueData::from_retained_pointer(resolve(context, data)) },
         })
     };
-    let color_mix_result = if matches!(value, StyleValueData::ColorMix { .. }) {
-        absolutize_color_mix_with_resolved_children(value, &mut map)
-    } else {
-        None
+    let color_result = match value {
+        StyleValueData::ColorMix { .. } => absolutize_color_mix_with_resolved_children(value, &mut map),
+        StyleValueData::ContrastColor { color, .. } => map(color).map(|mapped| {
+            let rebuilt = StyleValueData::ContrastColor {
+                color_base: ColorBase {
+                    has_color_type: false,
+                    color_type: 0,
+                    color_syntax: COLOR_SYNTAX_MODERN,
+                },
+                color: mapped,
+            };
+            if !value_depends_on_current_color(&rebuilt)
+                && let Some(resolved) = to_color(&rebuilt, &EMPTY_INPUT)
+            {
+                return Absolutized::Changed(retain_new(rgb_color_function(
+                    f64::from(resolved.r),
+                    f64::from(resolved.g),
+                    f64::from(resolved.b),
+                    f64::from(resolved.a) / 255.0,
+                    COLOR_SYNTAX_MODERN,
+                )));
+            }
+            if rebuilt == *value {
+                Absolutized::Unchanged
+            } else {
+                Absolutized::Changed(retain_new(rebuilt))
+            }
+        }),
+        _ => None,
     };
     let mut resolve_child = |child: &RetainedStyleValueData, changed: &mut bool| {
         let mapped = map(child)?;
         *changed |= mapped != *child;
         Some(mapped)
     };
-    let result = if let Some(result) = color_mix_result {
+    let result = if let Some(result) = color_result {
         result
     } else {
         match value {
             StyleValueData::BasicShape { .. } => absolutize_basic_shape(value, &mut resolve_child),
             StyleValueData::Easing { .. } => absolutize_easing(value, &mut resolve_child),
-            StyleValueData::ColorMix { .. } => unreachable!(),
+            StyleValueData::ColorMix { .. } | StyleValueData::ContrastColor { .. } => unreachable!(),
             _ => {
                 let mapped = map_grid_values(value, &mut map).unwrap();
                 Some(if mapped == *value {
@@ -1970,8 +2016,9 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
         | StyleValueData::RadialGradient { .. }
         | StyleValueData::ConicGradient { .. } => absolutize_gradient(value, context),
 
-        // Port of ContrastColorStyleValue::absolutized: a resolvable contrast-color computes
-        // to its picked foreground color; otherwise the inner color absolutizes in place.
+        // https://drafts.csswg.org/css-color-5/#contrast-color
+        // A resolvable contrast-color computes to its picked foreground color; otherwise the
+        // inner color absolutizes in place.
         StyleValueData::ContrastColor { color, .. } => {
             let input = color_resolution_input(context);
             if let Some(resolved) = to_color(value, &input) {
@@ -1998,8 +2045,9 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
             )
         }
 
-        // Port of LightDarkStyleValue::absolutized: with no scheme the value computes to
-        // itself; otherwise it collapses to the matching branch's absolutized value.
+        // https://drafts.csswg.org/css-color-5/#funcdef-light-dark
+        // With no scheme the value computes to itself; otherwise it collapses to the matching
+        // branch's absolutized value.
         StyleValueData::LightDark { light, dark, .. } => {
             let Some(scheme) = context.scheme else {
                 return Some(Absolutized::Unchanged);

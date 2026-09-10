@@ -30,7 +30,6 @@
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ContrastColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleSystemStyleValue.h>
@@ -50,7 +49,6 @@
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
-#include <LibWeb/CSS/StyleValues/LightDarkStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LinearGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
@@ -192,7 +190,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::Counter:
         return adopt_ref(*new (nothrow) CounterStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::ContrastColor:
-        return adopt_ref(*new (nothrow) ContrastColorStyleValue(data));
+        return adopt_ref(*new (nothrow) ColorStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Content:
         return adopt_ref(*new (nothrow) ContentStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Edge:
@@ -215,7 +213,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::ImageSet:
         return adopt_ref(*new (nothrow) ImageSetStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::LightDark:
-        return adopt_ref(*new (nothrow) LightDarkStyleValue(data));
+        return adopt_ref(*new (nothrow) ColorStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::LinearGradient:
         return adopt_ref(*new (nothrow) LinearGradientStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Angle:
@@ -484,13 +482,19 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::absolutized(Computatio
                 return StyleValueFFI::rust_style_value_retain(resolved->rust_style_value_data());
             }));
     case Type::Color:
-        if (m_value->tag == StyleValueFFI::StyleValueData::Tag::ColorMix) {
+        if (m_value->tag == StyleValueFFI::StyleValueData::Tag::ColorMix || m_value->tag == StyleValueFFI::StyleValueData::Tag::ContrastColor) {
             return adopt_rust_style_value_data(StyleValueFFI::rust_composite_style_value_absolutize(
                 m_value.operator->(), &context, [](void const* opaque_context, StyleValueFFI::StyleValueData const* child) {
                     auto value = adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child));
                     auto resolved = value->absolutized(*static_cast<ComputationContext const*>(opaque_context));
                     return StyleValueFFI::rust_style_value_retain(resolved->rust_style_value_data());
                 }));
+        }
+        if (m_value->tag == StyleValueFFI::StyleValueData::Tag::LightDark) {
+            if (!context.color_scheme.has_value())
+                return *this;
+            auto child = context.color_scheme == PreferredColorScheme::Dark ? m_value->light_dark.dark : m_value->light_dark.light;
+            return wrap_rust_child(child)->absolutized(context);
         }
         return static_cast<ColorStyleValue const&>(*this).absolutized(context);
 #define __ENUMERATE_CSS_STYLE_VALUE_TYPE(title_case, snake_case, style_value_class_name) \
