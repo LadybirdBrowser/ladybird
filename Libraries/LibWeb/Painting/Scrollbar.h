@@ -15,7 +15,6 @@ class Scrollbar final : public ChromeWidget {
 public:
     static NonnullRefPtr<Scrollbar> create(Layout::NodeArena&, Layout::RustFFI::NodeSlotId, ScrollDirection);
 
-    ScrollDirection direction() const { return m_direction; }
     bool is_enlarged() const { return m_hovered || m_thumb_grab_position.has_value(); }
 
     virtual MouseAction handle_pointer_event(Utf16FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position) override;
