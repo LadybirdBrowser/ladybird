@@ -94,6 +94,7 @@ public:
 
     EncodingConfidence encoding_confidence() const { return m_encoding_confidence; }
     void set_change_encoding_callback(GC::Ref<GC::Function<bool(StringView)>> callback) { m_change_encoding_callback = callback; }
+    void set_ready_for_more_input_callback(GC::Ref<GC::Function<void()>> callback) { m_ready_for_more_input_callback = callback; }
     void set_parsing_complete_callback(GC::Ref<GC::Function<void()>> callback) { m_parsing_complete_callback = callback; }
 
     size_t script_nesting_level() const { return m_script_nesting_level; }
@@ -161,6 +162,7 @@ private:
     // https://html.spec.whatwg.org/multipage/parsing.html#concept-encoding-confidence
     EncodingConfidence m_encoding_confidence;
     GC::Ptr<GC::Function<bool(StringView)>> m_change_encoding_callback;
+    GC::Ptr<GC::Function<void()>> m_ready_for_more_input_callback;
     GC::Ptr<GC::Function<void()>> m_parsing_complete_callback;
 
     Function<void()> m_post_parse_action;

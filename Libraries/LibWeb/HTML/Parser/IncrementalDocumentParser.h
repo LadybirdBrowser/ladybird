@@ -44,12 +44,18 @@ private:
     void process_body_error(JS::Value);
     ErrorOr<bool> change_encoding(StringView);
 
-    void decode_and_process(ReadonlyBytes);
+    void feed_parser();
+    void finish_body();
+    void decode_and_process(size_t length);
     void release_encoding_change_buffers();
+    void discard_input_bytes();
     void append_decoded(Utf16View);
     void pump();
     void register_deferred_start();
     bool should_continue() const;
+    bool tokenizer_will_consume_input_immediately() const;
+    ReadonlyBytes decoded_input_bytes() const;
+    ReadonlyBytes undecoded_input_bytes() const;
 
     GC::Ref<DOM::Document> m_document;
     GC::Ptr<Fetch::Infrastructure::Body> m_body;
@@ -60,9 +66,13 @@ private:
     GC::Ptr<HTMLParser> m_parser;
     OwnPtr<TextCodec::StreamingDecoder> m_decoder;
 
+    // Everything received while a declaration could still change the encoding, and how much of it the decoder has
+    // converted. The bytes past that point are the ones held back from a tokenizer that has not caught up.
     ByteBuffer m_input_bytes;
+    size_t m_decoded_byte_count { 0 };
     Utf16StringBuilder m_source;
-    bool m_reached_end_of_body { false };
+    bool m_body_is_exhausted { false };
+    bool m_processed_implied_eof { false };
 };
 
 }
