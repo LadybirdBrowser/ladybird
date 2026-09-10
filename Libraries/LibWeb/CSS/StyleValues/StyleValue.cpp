@@ -427,8 +427,8 @@ String StyleValue::to_string(SerializationMode mode) const
 Utf16String StyleValue::to_utf16_string(SerializationMode mode) const
 {
     auto text = StyleValueFFI::rust_style_value_serialize(m_value.operator->(), to_underlying(mode));
-    VERIFY(text.has_value);
-    return Utf16String::adopt_raw(text.raw);
+    VERIFY(text);
+    return Utf16String::adopt_raw(text);
 }
 
 void StyleValue::serialize(Utf16StringBuilder& builder, SerializationMode mode) const
