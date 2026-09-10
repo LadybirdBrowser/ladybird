@@ -688,27 +688,6 @@ pub unsafe extern "C" fn layout_arena_selection_clear(arena: *mut c_void, viewpo
     crate::painting::selection::clear(&mut arena.paintable_rows_mut(), viewport);
 }
 
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_clear_overflow_data(arena: *mut c_void, slot: NodeSlotId) {
-    let arena = unsafe { arena_from_handle_mut(arena) };
-    let mut paintable_rows = arena.paintable_rows_mut();
-    if paintable_rows.paintable_row_is_populated(slot) {
-        paintable_rows.paintable_data_mut(slot).overflow_measured_this_commit = false;
-    }
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_clear_cached_overflow_data(arena: *mut c_void, slot: NodeSlotId) {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena.paintable_rows().clear_cached_overflow_data(slot);
-}
-
 #[repr(C)]
 pub struct FfiPhysicalOverflowDirections {
     pub horizontal_axis_is_positive: bool,

@@ -47,7 +47,6 @@ WEB_API CSSPixels outline_offset(Layout::Node const&);
 WEB_API CSSPixelRect transform_reference_box(Layout::Node const&);
 WEB_API Optional<CSSPixelRect> scrollable_overflow_rect(Layout::Node const&);
 WEB_API bool has_scrollable_overflow(Layout::Node const&);
-WEB_API Optional<OverflowData> overflow_data(Layout::Node const&);
 
 WEB_API bool is_visible(Layout::Node const&);
 WEB_API bool visible_for_hit_testing(Layout::Node const&);
@@ -95,8 +94,6 @@ WEB_API void set_needs_repaint(Layout::Node const&, InvalidateDisplayList = Inva
 WEB_API void set_needs_repaint_in_subtree(Layout::Node const&);
 WEB_API void invalidate_paint_cache(Layout::Node const&);
 WEB_API void repaint_after_style_change(Layout::Node const&, CSS::RequiredInvalidationAfterStyleChange const&);
-WEB_API void clear_overflow_data(Layout::Node const&);
-WEB_API void clear_cached_overflow_data(Layout::Node const&);
 
 WEB_API Layout::RustFFI::FfiRectToViewportTransform identity_rect_to_viewport_transform();
 WEB_API Layout::RustFFI::FfiRectToViewportTransform rect_to_viewport_transform(DOM::Document const&, AccumulatedVisualContextTree const&);

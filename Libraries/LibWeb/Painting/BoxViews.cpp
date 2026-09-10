@@ -154,14 +154,6 @@ CSSPixels border_box_height(Layout::Node const& node)
     return content_height(node) + border_box.top + border_box.bottom;
 }
 
-Optional<OverflowData> overflow_data(Layout::Node const& node)
-{
-    auto const* row = committed_row(node);
-    if (!row || !row->overflow_measured_this_commit)
-        return {};
-    return OverflowData { row->overflow_relative_to_padding_box.rect, row->overflow_relative_to_padding_box.has_scrollable_overflow };
-}
-
 static bool overflow_is_valid(Layout::Node const& node)
 {
     return Layout::RustFFI::layout_arena_paintable_overflow_is_valid(node.arena_handle(), committed_row_slot(node));
@@ -880,16 +872,6 @@ void repaint_after_style_change(Layout::Node const& node, CSS::RequiredInvalidat
         if (table_wrapper_carrying_the_moved_table_properties)
             document.schedule_accumulated_visual_context_update(*table_wrapper_carrying_the_moved_table_properties, DOM::Document::AccumulatedVisualContextUpdateScope::Structure);
     }
-}
-
-void clear_overflow_data(Layout::Node const& node)
-{
-    Layout::RustFFI::layout_arena_paintable_clear_overflow_data(node.arena_handle(), committed_row_slot(node));
-}
-
-void clear_cached_overflow_data(Layout::Node const& node)
-{
-    Layout::RustFFI::layout_arena_paintable_clear_cached_overflow_data(node.arena_handle(), committed_row_slot(node));
 }
 
 Layout::RustFFI::FfiRectToViewportTransform identity_rect_to_viewport_transform()
