@@ -68,70 +68,6 @@ double StepsEasingFunction::evaluate_at(double input_progress, bool before_flag)
     return StyleValueFFI::rust_evaluate_easing(&descriptor, input_progress, before_flag);
 }
 
-// https://drafts.csswg.org/css-easing/#linear-canonicalization
-struct UnresolvedLinearEasingControlPoint {
-    Optional<double> input;
-    double output;
-};
-
-static Vector<LinearEasingFunction::ControlPoint> canonicalize_linear_easing_function_control_points(Vector<UnresolvedLinearEasingControlPoint> control_points)
-{
-    // To canonicalize a linear() function’s control points, perform the following:
-    auto canonicalized_control_points = move(control_points);
-
-    // 1. If the first control point lacks an input progress value, set its input progress value to 0.
-    if (!canonicalized_control_points.first().input.has_value())
-        canonicalized_control_points.first().input = 0;
-
-    // 2. If the last control point lacks an input progress value, set its input progress value to 1.
-    if (!canonicalized_control_points.last().input.has_value())
-        canonicalized_control_points.last().input = 1;
-
-    // 3. If any control point has an input progress value that is less than
-    // the input progress value of any preceding control point,
-    // set its input progress value to the largest input progress value of any preceding control point.
-    double largest_input = 0;
-    for (auto& control_point : canonicalized_control_points) {
-        if (control_point.input.has_value()) {
-            if (control_point.input.value() < largest_input) {
-                control_point.input = largest_input;
-            } else {
-                largest_input = control_point.input.value();
-            }
-        }
-    }
-
-    // 4. If any control point still lacks an input progress value,
-    // then for each contiguous run of such control points,
-    // set their input progress values so that they are evenly spaced
-    // between the preceding and following control points with input progress values.
-    Optional<size_t> run_start_idx;
-    for (size_t idx = 0; idx < canonicalized_control_points.size(); idx++) {
-        auto& control_point = canonicalized_control_points[idx];
-        if (control_point.input.has_value() && run_start_idx.has_value()) {
-            // Note: this stop is immediately after a run
-            //       set inputs of [start, idx-1] stops to be evenly spaced between start-1 and idx
-            auto start_input = canonicalized_control_points[run_start_idx.value() - 1].input.value();
-            auto end_input = canonicalized_control_points[idx].input.value();
-            auto run_stop_count = idx - run_start_idx.value() + 1;
-            auto delta = (end_input - start_input) / run_stop_count;
-            for (size_t run_idx = 0; run_idx < run_stop_count; run_idx++) {
-                canonicalized_control_points[run_idx + run_start_idx.value() - 1].input = start_input + delta * run_idx;
-            }
-            run_start_idx = {};
-        } else if (!control_point.input.has_value() && !run_start_idx.has_value()) {
-            // Note: this stop is the start of a run
-            run_start_idx = idx;
-        }
-    }
-
-    Vector<LinearEasingFunction::ControlPoint> resolved_control_points;
-    resolved_control_points.ensure_capacity(canonicalized_control_points.size());
-    for (auto const& control_point : canonicalized_control_points)
-        resolved_control_points.unchecked_append({ control_point.input.value(), control_point.output });
-    return resolved_control_points;
-}
-
 // https://drafts.csswg.org/css-easing-2/#linear-easing-function
 EasingFunction EasingFunction::linear()
 {
@@ -193,18 +129,16 @@ EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
         };
         switch (easing.kind) {
         case 0: {
-            Vector<UnresolvedLinearEasingControlPoint> points;
-            points.ensure_capacity(easing.linear_stops.length);
-            for (auto const& stop : ReadonlySpan<StyleValueFFI::RetainedLinearEasingStop> { easing.linear_stops.pointer, easing.linear_stops.length }) {
-                // https://drafts.csswg.org/css-easing-2/#funcdef-linear
-                // If an argument lacks a <percentage>, its input progress value is initially empty. This is corrected
-                // at used value time by linear() canonicalization.
-                Optional<double> input;
-                if (stop.input.pointer)
-                    input = numeric(stop.input) / 100;
-                points.unchecked_append({ input, numeric(stop.output) });
-            }
-            return LinearEasingFunction { canonicalize_linear_easing_function_control_points(move(points)), style_value.to_utf16_string(SerializationMode::ResolvedValue) };
+            auto canonicalized = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_composite_style_value_absolutize(
+                style_value.rust_style_value_data(), nullptr, [](void const*, StyleValueFFI::StyleValueData const* child) {
+                    return StyleValueFFI::rust_style_value_retain(child);
+                }));
+            auto const& canonical_easing = canonicalized->rust_style_value_data()->easing;
+            Vector<LinearEasingFunction::ControlPoint> points;
+            points.ensure_capacity(canonical_easing.linear_stops.length);
+            for (auto const& stop : ReadonlySpan<StyleValueFFI::RetainedLinearEasingStop> { canonical_easing.linear_stops.pointer, canonical_easing.linear_stops.length })
+                points.unchecked_append({ numeric(stop.input) / 100, numeric(stop.output) });
+            return LinearEasingFunction { move(points), style_value.to_utf16_string(SerializationMode::ResolvedValue) };
         }
         case 1:
             return CubicBezierEasingFunction {
