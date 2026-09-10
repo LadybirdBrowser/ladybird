@@ -4382,7 +4382,7 @@ void LocalNavigable::set_viewport_size(CSSPixelSize size, InvalidateDisplayList 
     }
 
     if (auto document = active_document()) {
-        if (invalidate_display_list == InvalidateDisplayList::Yes)
+        if (invalidate_display_list == InvalidateDisplayList::PaintCommandsAndHitTestList)
             document->record_style_environment_change();
         else
             document->invalidate_style_for_viewport_change();
@@ -6039,7 +6039,7 @@ void LocalNavigable::set_should_show_caret_hit_test_debug_overlay(bool value)
 
     if (auto document = active_document()) {
         if (value)
-            document->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::Yes);
+            document->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::PaintCommandsAndHitTestList);
         else
             document->set_caret_hit_test_debug_rect({});
     }

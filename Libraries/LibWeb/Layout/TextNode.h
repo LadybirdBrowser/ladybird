@@ -39,7 +39,7 @@ public:
     // The returned views survive until the next DOM mutation.
     RustFFI::FfiTextSource text_source() const;
 
-    void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes) const;
+    void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::PaintCommandsAndHitTestList) const;
 
     bool update_produces_line_box_fragment_when_empty_flag();
 

@@ -799,7 +799,7 @@ void set_needs_repaint(Layout::Node const& node, InvalidateDisplayList should_in
         return;
 
     auto& document = const_cast<DOM::Document&>(node.document());
-    if (should_invalidate_display_list == InvalidateDisplayList::Yes) {
+    if (should_invalidate_display_list == InvalidateDisplayList::PaintCommandsAndHitTestList) {
         Layout::RustFFI::layout_arena_paintable_invalidate_for_repaint(node.arena_handle(), committed_row_slot(node));
 
         // The root element paints the body's propagated background, so a body repaint must also refresh the

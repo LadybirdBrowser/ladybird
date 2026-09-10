@@ -9,8 +9,8 @@
 namespace Web {
 
 enum class InvalidateDisplayList {
-    Yes,
     No,
+    PaintCommandsAndHitTestList,
 };
 
 }
