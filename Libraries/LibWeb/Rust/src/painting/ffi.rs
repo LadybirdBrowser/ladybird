@@ -1721,13 +1721,13 @@ pub unsafe extern "C" fn layout_arena_update_visual_viewport_transform(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_needs_to_refresh_scroll_state(arena: *mut c_void, value: bool) {
+pub unsafe extern "C" fn layout_arena_invalidate_scroll_state(arena: *mut c_void) {
     let arena = unsafe { arena_from_handle(arena) };
     arena
         .paint_state()
         .borrow_mut()
         .visual_context
-        .needs_to_refresh_scroll_state = value;
+        .needs_to_refresh_scroll_state = true;
 }
 
 /// # Safety
@@ -1768,6 +1768,9 @@ pub unsafe extern "C" fn layout_arena_refresh_sticky_constraints(
     any_sticky_payload_changed
 }
 
+/// Re-reads the scroll containers' offsets when something invalidated them since the last
+/// refresh. Returns whether that happened, so the caller re-pulls the snapshot only then.
+///
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
@@ -1775,13 +1778,13 @@ pub unsafe extern "C" fn layout_arena_refresh_sticky_constraints(
 pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
     arena: *mut c_void,
     callbacks: FfiVisualContextHostCallbacks,
-) {
+) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
     let paintable_rows = arena.paintable_rows();
     let mut paint_state = arena.paint_state().borrow_mut();
     let state = &mut paint_state.visual_context;
     if !state.needs_to_refresh_scroll_state {
-        return;
+        return false;
     }
     state.needs_to_refresh_scroll_state = false;
     crate::painting::visual_context::refresh::refresh_scroll_state(
@@ -1792,6 +1795,7 @@ pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
     state.scroll_state_snapshot = state
         .scroll_state
         .snapshot(callbacks.tree_inputs().device_pixels_per_css_pixel);
+    true
 }
 
 /// # Safety

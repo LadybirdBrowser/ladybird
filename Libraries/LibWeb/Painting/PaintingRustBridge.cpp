@@ -543,9 +543,9 @@ void rust_update_visual_viewport_transform(DOM::Document& document)
     Layout::RustFFI::layout_arena_update_visual_viewport_transform(layout_arena_handle(document), visual_context_host_callbacks(document));
 }
 
-void rust_refresh_scroll_state(DOM::Document& document)
+bool rust_refresh_scroll_state(DOM::Document& document)
 {
-    Layout::RustFFI::layout_arena_refresh_scroll_state(layout_arena_handle(document), visual_context_host_callbacks(document));
+    return Layout::RustFFI::layout_arena_refresh_scroll_state(layout_arena_handle(document), visual_context_host_callbacks(document));
 }
 
 ScrollStateSnapshot rust_scroll_state_snapshot(DOM::Document& document)
@@ -572,9 +572,9 @@ void mirror_rust_clear_scroll_state(DOM::Document& document)
     Layout::RustFFI::layout_arena_clear_scroll_state(layout_arena_handle(document));
 }
 
-void mirror_rust_set_needs_to_refresh_scroll_state(DOM::Document& document, bool value)
+void rust_invalidate_scroll_state(DOM::Document& document)
 {
-    Layout::RustFFI::layout_arena_set_needs_to_refresh_scroll_state(layout_arena_handle(document), value);
+    Layout::RustFFI::layout_arena_invalidate_scroll_state(layout_arena_handle(document));
 }
 
 void mirror_rust_invalidate_paint_cache(Layout::Node const& node)

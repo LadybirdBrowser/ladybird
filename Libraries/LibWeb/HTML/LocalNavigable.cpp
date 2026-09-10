@@ -4431,7 +4431,7 @@ void LocalNavigable::perform_scroll_of_viewport_scrolling_box(CSSPixelPoint new_
 
         if (auto document = active_document()) {
             document->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::No);
-            document->set_needs_to_refresh_scroll_state(true);
+            document->invalidate_scroll_state();
             document->inform_all_viewport_clients_about_the_current_viewport_rect();
         }
     }
@@ -4494,7 +4494,7 @@ static GC::Ptr<DOM::Element> adopt_async_element_scroll_delta(DOM::Document& doc
 
     element->set_scroll_offset(pseudo_element, scroll_offset);
 
-    document.set_needs_to_refresh_scroll_state(true);
+    document.invalidate_scroll_state();
     document.append_pending_scroll_event({ *element, EventNames::scroll });
     element->set_needs_repaint(InvalidateDisplayList::No);
     return element;

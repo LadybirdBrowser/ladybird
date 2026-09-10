@@ -1913,7 +1913,7 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed, Layout
     m_layout_root->invalidate_text_blocks_cache();
 
     set_needs_to_record_display_list();
-    set_needs_to_refresh_scroll_state(true);
+    invalidate_scroll_state();
 
     // A commit that changed the tree can have replaced boxes referenced by the cached
     // contained-boxes index; refresh it before overflow measurement follows them. A pending full
@@ -9732,11 +9732,11 @@ GC::Ptr<HTML::HTMLElement> Document::topmost_auto_or_hint_popover()
     return {};
 }
 
-void Document::set_needs_to_refresh_scroll_state(bool b)
+void Document::invalidate_scroll_state()
 {
     // NB: Propagating scroll state invalidation.
     if (has_committed_viewport_box())
-        paint_state().set_needs_to_refresh_scroll_state(*this, b);
+        paint_state().invalidate_scroll_state(*this);
 }
 
 Vector<GC::Root<Range>> Document::find_matching_text(Utf16View query, CaseSensitivity case_sensitivity)

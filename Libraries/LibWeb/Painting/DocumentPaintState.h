@@ -31,6 +31,8 @@ public:
 
     BlockingWheelEventRegionState collect_root_blocking_wheel_event_regions(DOM::Document&);
 
+    // Called from Document::update_paint_and_hit_testing_properties_if_needed() once the visual
+    // context tree is settled; every other consumer reaches the scroll state through that update.
     void refresh_scroll_state(DOM::Document&);
     void refresh_sticky_constraints(DOM::Document&);
 
@@ -51,7 +53,7 @@ public:
 
     void invalidate_all_cached_paint(DOM::Document&);
 
-    void set_needs_to_refresh_scroll_state(DOM::Document&, bool);
+    void invalidate_scroll_state(DOM::Document&);
 
     ScrollStateSnapshot const& scroll_state_snapshot() const { return m_scroll_state_snapshot; }
 
@@ -81,7 +83,6 @@ private:
     NonnullRefPtr<Layout::NodeArena> m_layout_node_arena;
 
     ScrollStateSnapshot m_scroll_state_snapshot;
-    bool m_needs_to_refresh_scroll_state { true };
 
     Vector<Layout::RustFFI::NodeSlotId> m_boxes_with_auto_content_visibility;
 
