@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	navigate() to "javascript:void 0" with { history: 'replace' }
+Pass	navigate() to "javascript:'foo'" with { history: 'replace' }
