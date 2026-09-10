@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::painting::display_list::builder::{for_each_command, inline_transform_entry_offset};
+use crate::painting::display_list::builder::{for_each_command, inline_transform_entry_offset, read_command};
 use crate::painting::display_list::commands::{
     ContextRef, DisplayListCommandHeader, DisplayListCommandType, DisplayListDataSpan, DisplayListInlineClip,
     DrawGlyphRun, DrawScaledDecodedImageFrame, INLINE_CLIP_ENTRY_SIZE, OptionalColor, OptionalFloatRect,
-    PaintTextShadow, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
+    PaintScrollBar, PaintTextShadow, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
 };
 use crate::painting::visual_context::queries::TreeCullingScratch;
 use crate::painting::visual_context::{
@@ -612,9 +612,35 @@ pub fn compute_display_list_damage(
             add_old_command_damage(damage, old_command);
             add_new_command_damage(damage, new_command);
         };
+    let add_scrollbar_scroll_damage =
+        |damage: &mut DamageAccumulator, old_command: &CommandReference<'_>, new_command: &CommandReference<'_>| {
+            if old_command.header.command_type != DisplayListCommandType::PaintScrollBar
+                || new_command.header.command_type != DisplayListCommandType::PaintScrollBar
+            {
+                return;
+            }
+
+            let old_scroll_node_index = read_command::<PaintScrollBar>(old_command.payload).scroll_node_index;
+            let new_scroll_node_index = read_command::<PaintScrollBar>(new_command.payload).scroll_node_index;
+
+            if old_scroll_node_index != new_scroll_node_index {
+                return;
+            }
+
+            let old_offset = device_offset_for_index(old_scroll_offsets, old_scroll_node_index);
+            let new_offset = device_offset_for_index(new_scroll_offsets, new_scroll_node_index);
+
+            if old_offset == new_offset {
+                return;
+            }
+
+            add_old_command_damage(damage, old_command);
+            add_new_command_damage(damage, new_command);
+        };
 
     for i in 0..common_prefix_length {
         add_visual_context_damage(&mut damage, &old_commands[i], &new_commands[i]);
+        add_scrollbar_scroll_damage(&mut damage, &old_commands[i], &new_commands[i]);
     }
 
     let mut old_index = common_prefix_length;
@@ -638,6 +664,7 @@ pub fn compute_display_list_damage(
     while old_index < old_end && new_index < new_end {
         if commands_are_equal(&old_commands[old_index], &new_commands[new_index]) {
             add_visual_context_damage(&mut damage, &old_commands[old_index], &new_commands[new_index]);
+            add_scrollbar_scroll_damage(&mut damage, &old_commands[old_index], &new_commands[new_index]);
             old_index += 1;
             new_index += 1;
             continue;
@@ -693,6 +720,11 @@ pub fn compute_display_list_damage(
 
     for i in 0..common_suffix_length {
         add_visual_context_damage(
+            &mut damage,
+            &old_commands[old_commands.len() - common_suffix_length + i],
+            &new_commands[new_commands.len() - common_suffix_length + i],
+        );
+        add_scrollbar_scroll_damage(
             &mut damage,
             &old_commands[old_commands.len() - common_suffix_length + i],
             &new_commands[new_commands.len() - common_suffix_length + i],
@@ -1031,6 +1063,37 @@ mod tests {
         assert_eq!(
             damage(&display_list, &tree, &display_list, &tree),
             Some(IntRect::default())
+        );
+    }
+
+    #[test]
+    fn changed_scroll_offset_damages_scrollbar() {
+        let tree = identity_tree();
+
+        let scrollbar = PaintScrollBar {
+            scroll_node_index: SpatialNodeIndex(1),
+            gutter_rect: IntRect::default(),
+            thumb_rect: IntRect::new(10, 12, 20, 8),
+            track_rect: IntRect::new(10, 10, 80, 12),
+            scroll_size: 0.75,
+            thumb_color: RED,
+            track_color: Color::TRANSPARENT,
+            vertical: false,
+        };
+
+        let display_list = command_bytes(&scrollbar, scrollbar.bounding_rect(), ContextRef::default());
+
+        assert_eq!(
+            compute_display_list_damage(
+                &display_list,
+                &tree,
+                &[FloatPoint::default(), FloatPoint::default()],
+                &display_list,
+                &tree,
+                &[FloatPoint::default(), FloatPoint { x: -40.0, y: 0.0 }],
+                IntRect::new(0, 0, 100, 100),
+            ),
+            Some(IntRect::new(9, 9, 82, 14))
         );
     }
 
