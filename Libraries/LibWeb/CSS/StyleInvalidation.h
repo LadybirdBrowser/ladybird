@@ -72,6 +72,13 @@ struct RequiredInvalidationAfterStyleChange {
     //     when the recalculation has to run as a separate step.
     [[nodiscard]] bool needs_scrollable_overflow_recalculation() const { return m_needs_scrollable_overflow_recalculation && !needs_relayout(); }
     [[nodiscard]] AccumulatedVisualContextInvalidation accumulated_visual_contexts() const { return m_accumulated_visual_contexts; }
+    [[nodiscard]] bool invalidates_hit_test_display_list() const
+    {
+        return affects_hit_testing
+            || needs_relayout()
+            || needs_stacking_context_tree_rebuild()
+            || m_accumulated_visual_contexts == AccumulatedVisualContextInvalidation::Rebuild;
+    }
 
     // A scroll snap property changed, so snap containers must re-evaluate their scroll position and re-snap.
     bool needs_scroll_container_resnap : 1 { false };
@@ -93,6 +100,7 @@ struct RequiredInvalidationAfterStyleChange {
     bool repaint_propagated_text_decorations : 1 { false };
     // Selection highlights are painted by text descendants, even when the element has no box.
     bool repaint_selection : 1 { false };
+    bool affects_hit_testing : 1 { false };
     // A non-inherited property changed without any other invalidation, which happens when a running
     // animation covers the property. Descendants that explicitly inherit non-inherited properties
     // still observe the change.
@@ -116,6 +124,7 @@ struct RequiredInvalidationAfterStyleChange {
         changes_containing_block_establishment |= other.changes_containing_block_establishment;
         repaint_propagated_text_decorations |= other.repaint_propagated_text_decorations;
         repaint_selection |= other.repaint_selection;
+        affects_hit_testing |= other.affects_hit_testing;
         non_inherited_property_inheritance_sources_changed |= other.non_inherited_property_inheritance_sources_changed;
     }
 
@@ -129,6 +138,7 @@ struct RequiredInvalidationAfterStyleChange {
             && !inherited_style_changed()
             && !changes_containing_block_establishment
             && !repaint_selection
+            && !affects_hit_testing
             && !repaint_propagated_text_decorations
             && !non_inherited_property_inheritance_sources_changed;
     }

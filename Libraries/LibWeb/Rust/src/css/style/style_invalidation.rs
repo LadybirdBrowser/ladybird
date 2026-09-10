@@ -39,6 +39,7 @@ struct StyleInvalidation {
     repaint_text_decorations: bool,
     non_inherited_inheritance_source: bool,
     any_computed_value_changed: bool,
+    affects_hit_testing: bool,
 }
 
 impl StyleInvalidation {
@@ -89,6 +90,7 @@ impl StyleInvalidation {
         self.repaint_text_decorations |= other.repaint_text_decorations;
         self.non_inherited_inheritance_source |= other.non_inherited_inheritance_source;
         self.any_computed_value_changed |= other.any_computed_value_changed;
+        self.affects_hit_testing |= other.affects_hit_testing;
     }
 
     fn pack(self) -> u32 {
@@ -108,6 +110,7 @@ impl StyleInvalidation {
             * FfiStyleInvalidationField::NonInheritedInheritanceSource as u32;
         packed |=
             u32::from(self.any_computed_value_changed) * FfiStyleInvalidationField::AnyComputedValueChanged as u32;
+        packed |= u32::from(self.affects_hit_testing) * FfiStyleInvalidationField::AffectsHitTesting as u32;
         packed
     }
 }
@@ -332,7 +335,7 @@ fn clip_path_value_is_a_visual_context_frame(values: ComputedValuesView<'_>) -> 
     matches!(values.mask().clip_path.data(), Some(StyleValueData::BasicShape { .. }))
 }
 
-fn accumulated_visual_context_change_requires_repaint(
+fn accumulated_visual_context_change_alters_hit_test_items(
     property: u16,
     old: ComputedValuesView<'_>,
     new: ComputedValuesView<'_>,
@@ -353,7 +356,7 @@ fn accumulated_visual_context_change_requires_repaint(
     if property == property_id::CLIP {
         return !old.effects().clip_is_rect || !new.effects().clip_is_rect;
     }
-    accumulated_visual_context_property_always_requires_repaint(property)
+    false
 }
 
 fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: ComputedValuesView<'_>) -> StyleInvalidation {
@@ -415,7 +418,10 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
         return result;
     }
 
-    let mut result = StyleInvalidation::default();
+    let mut result = StyleInvalidation {
+        affects_hit_testing: property_metadata::property_affects_hit_testing(property),
+        ..StyleInvalidation::default()
+    };
     if matches!(property, property_id::CONTAINER_NAME | property_id::CONTAINER_TYPE) {
         result.recompute_descendants = true;
     }
@@ -507,14 +513,17 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
         } else {
             VISUAL_CONTEXT_REBUILD
         });
-        if !accumulated_visual_context_change_requires_repaint(property, old, new)
+        let alters_hit_test_items = accumulated_visual_context_change_alters_hit_test_items(property, old, new);
+        result.affects_hit_testing |= alters_hit_test_items;
+        if !alters_hit_test_items
+            && !accumulated_visual_context_property_always_requires_repaint(property)
             && result.level < INVALIDATION_REPAINT
             && !result.recompute_descendants
         {
             needs_repaint = false;
         }
     }
-    if needs_repaint {
+    if needs_repaint || result.affects_hit_testing {
         result.ensure_level(INVALIDATION_REPAINT);
     }
     result

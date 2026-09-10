@@ -94,6 +94,7 @@ pub enum FfiStyleInvalidationField {
     NonInheritedInheritanceSource = 1 << 19,
     AnyComputedValueChanged = 1 << 20,
     CacheHit = 1 << 21,
+    AffectsHitTesting = 1 << 22,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]

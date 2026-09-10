@@ -860,6 +860,7 @@
     ]
   },
   "border-bottom-left-radius": {
+    "affects-hit-testing": true,
     "affects-accumulated-visual-contexts": true,
     "style-group": "BorderValues",
     "affects-layout": false,
@@ -875,6 +876,7 @@
     "percentages-resolve-to": "length"
   },
   "border-bottom-right-radius": {
+    "affects-hit-testing": true,
     "affects-accumulated-visual-contexts": true,
     "style-group": "BorderValues",
     "affects-layout": false,
@@ -1320,6 +1322,7 @@
     ]
   },
   "border-top-left-radius": {
+    "affects-hit-testing": true,
     "affects-accumulated-visual-contexts": true,
     "style-group": "BorderValues",
     "affects-layout": false,
@@ -1335,6 +1338,7 @@
     "percentages-resolve-to": "length"
   },
   "border-top-right-radius": {
+    "affects-hit-testing": true,
     "affects-accumulated-visual-contexts": true,
     "style-group": "BorderValues",
     "affects-layout": false,
@@ -2179,6 +2183,7 @@
     ]
   },
   "fill": {
+    "affects-hit-testing": true,
     "style-group": "InheritedSVGValues",
     "affects-layout": false,
     "animation-type": "by-computed-value",
@@ -2201,6 +2206,7 @@
     ]
   },
   "fill-rule": {
+    "affects-hit-testing": true,
     "style-group": "InheritedSVGValues",
     "affects-layout": false,
     "animation-type": "discrete",
@@ -4073,6 +4079,7 @@
     ]
   },
   "pointer-events": {
+    "affects-hit-testing": true,
     "style-group": "InheritedUIValues",
     "affects-layout": false,
     "animation-type": "discrete",
@@ -4194,6 +4201,7 @@
     ]
   },
   "resize": {
+    "affects-hit-testing": true,
     "style-group": "BoxValues",
     "animation-type": "none",
     "inherited": false,
@@ -5359,6 +5367,7 @@
     ]
   },
   "visibility": {
+    "affects-hit-testing": true,
     "style-group": "InheritedBoxValues",
     "animation-type": "custom",
     "inherited": true,

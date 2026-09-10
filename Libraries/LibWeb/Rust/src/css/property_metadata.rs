@@ -156,6 +156,10 @@ pub(crate) fn property_affects_accumulated_visual_contexts(property_id: u16) -> 
     PROPERTY_AFFECTS_ACCUMULATED_VISUAL_CONTEXTS[longhand_index(property_id)]
 }
 
+pub(crate) fn property_affects_hit_testing(property_id: u16) -> bool {
+    PROPERTY_AFFECTS_HIT_TESTING[longhand_index(property_id)]
+}
+
 pub(crate) fn property_style_group_index(property_id: u16) -> Option<u8> {
     match PROPERTY_STYLE_GROUP_INDICES[longhand_index(property_id)] {
         u8::MAX => None,

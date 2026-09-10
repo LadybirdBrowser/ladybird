@@ -34,6 +34,7 @@ RequiredInvalidationAfterStyleChange decode_style_invalidation(u32 packed)
     result.changes_containing_block_establishment = packed & to_underlying(ChangesContainingBlock);
     result.repaint_propagated_text_decorations = packed & to_underlying(RepaintTextDecorations);
     result.non_inherited_property_inheritance_sources_changed = packed & to_underlying(NonInheritedInheritanceSource);
+    result.affects_hit_testing = packed & to_underlying(AffectsHitTesting);
     return result;
 }
 
