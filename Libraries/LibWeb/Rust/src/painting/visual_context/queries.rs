@@ -552,25 +552,45 @@ impl VisualContextTree {
         offset
     }
 
+    /// The sticky nodes' resolved offsets as `(node, offset)` pairs in dependency order, for a
+    /// consumer that keeps its own copy of the scroll offsets: the compositor overlays them on the
+    /// snapshot it received.
     pub fn resolve_sticky_offsets(&self, scroll_offsets: &[FloatPoint]) -> Vec<(SpatialNodeIndex, FloatPoint)> {
+        let mut resolved_offsets = scroll_offsets.to_vec();
+        let mut resolved_sticky_entries = Vec::new();
+        self.resolve_sticky_offsets_with(&mut resolved_offsets, |node_index, offset| {
+            resolved_sticky_entries.push((node_index, offset));
+        });
+        resolved_sticky_entries
+    }
+
+    /// Resolves every sticky node's offset on top of the scroll containers' entries in `offsets`
+    /// (their negated scroll offsets in device pixels), writing it at the node's own index and
+    /// growing the vector as needed.
+    pub fn resolve_sticky_offsets_in_place(&self, offsets: &mut Vec<FloatPoint>) {
+        self.resolve_sticky_offsets_with(offsets, |_, _| {});
+    }
+
+    fn resolve_sticky_offsets_with(
+        &self,
+        offsets: &mut Vec<FloatPoint>,
+        mut on_entry: impl FnMut(SpatialNodeIndex, FloatPoint),
+    ) {
         if !self
             .spatial_nodes
             .iter()
             .any(|node| matches!(node.data, SpatialData::Sticky(_)))
         {
-            return Vec::new();
+            return;
         }
-        let mut resolved_offsets = scroll_offsets.to_vec();
-        let mut resolved_sticky_entries = Vec::new();
-        let mut record_entry =
-            |resolved_offsets: &mut Vec<FloatPoint>, node_index: SpatialNodeIndex, offset: FloatPoint| {
-                let slot = node_index.0 as usize;
-                if slot >= resolved_offsets.len() {
-                    resolved_offsets.resize(slot + 1, FloatPoint::default());
-                }
-                resolved_offsets[slot] = offset;
-                resolved_sticky_entries.push((node_index, offset));
-            };
+        let mut record_entry = |offsets: &mut Vec<FloatPoint>, node_index: SpatialNodeIndex, offset: FloatPoint| {
+            let slot = node_index.0 as usize;
+            if slot >= offsets.len() {
+                offsets.resize(slot + 1, FloatPoint::default());
+            }
+            offsets[slot] = offset;
+            on_entry(node_index, offset);
+        };
         for index in self.spatial_dependency_order() {
             let node = &self.spatial_nodes[index as usize];
             let SpatialData::Sticky(sticky) = &node.data else {
@@ -578,7 +598,7 @@ impl VisualContextTree {
             };
             let node_index = SpatialNodeIndex(index);
             if sticky.scroller == VISUAL_VIEWPORT_NODE_INDEX {
-                record_entry(&mut resolved_offsets, node_index, FloatPoint::default());
+                record_entry(offsets, node_index, FloatPoint::default());
                 continue;
             }
 
@@ -587,7 +607,7 @@ impl VisualContextTree {
             let mut parent_sticky_offset = FloatPoint::default();
             let mut ancestor = sticky.parent_sticky;
             while let Some(ancestor_index) = ancestor {
-                let entry = device_offset_for_index(&resolved_offsets, ancestor_index);
+                let entry = device_offset_for_index(offsets, ancestor_index);
                 parent_sticky_offset = FloatPoint {
                     x: parent_sticky_offset.x + entry.x,
                     y: parent_sticky_offset.y + entry.y,
@@ -614,7 +634,7 @@ impl VisualContextTree {
             };
 
             // A scroll container's entry is its negated scroll offset.
-            let scroller_entry = device_offset_for_index(&resolved_offsets, sticky.scroller);
+            let scroller_entry = device_offset_for_index(offsets, sticky.scroller);
             let scrollport_rect = FloatRect::new(
                 -scroller_entry.x,
                 -scroller_entry.y,
@@ -650,9 +670,8 @@ impl VisualContextTree {
                     - position_in_scroller.x;
             }
 
-            record_entry(&mut resolved_offsets, node_index, sticky_offset);
+            record_entry(offsets, node_index, sticky_offset);
         }
-        resolved_sticky_entries
     }
 }
 
@@ -1690,6 +1709,28 @@ mod tests {
             tree.spatial_nodes_in_subtrees_of(&[scroll_node]),
             vec![false, true, false, true]
         );
+    }
+
+    #[test]
+    fn resolving_in_place_writes_the_entries_the_pairs_report() {
+        let mut tree = identity_tree();
+        let scroll_node = tree.append_spatial(scroll(), VISUAL_VIEWPORT_NODE_INDEX);
+        let outer_sticky = tree.append_spatial(sticky(scroll_node, None, 100.0), scroll_node);
+        let inner_sticky = tree.append_spatial(sticky(scroll_node, Some(outer_sticky), 110.0), outer_sticky);
+        // Only the scroll containers' entries are present; the sticky nodes' indices lie past the end.
+        let mut scroll_offsets = vec![FloatPoint::default(); scroll_node.0 as usize + 1];
+        scroll_offsets[scroll_node.0 as usize] = point(0.0, -150.0);
+
+        let entries = tree.resolve_sticky_offsets(&scroll_offsets);
+        let mut resolved_in_place = scroll_offsets.clone();
+        tree.resolve_sticky_offsets_in_place(&mut resolved_in_place);
+
+        assert_eq!(resolved_in_place.len(), inner_sticky.0 as usize + 1);
+        assert_eq!(resolved_in_place[..scroll_offsets.len()], scroll_offsets[..]);
+        assert_eq!(entries.len(), 2);
+        for (node, offset) in entries {
+            assert_eq!(resolved_in_place[node.0 as usize], offset);
+        }
     }
 
     #[test]

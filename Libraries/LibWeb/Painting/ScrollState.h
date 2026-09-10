@@ -20,8 +20,8 @@
 namespace Web::Painting {
 
 // Device-pixel offsets keyed by SpatialNodeIndex: the scroll containers' offsets as produced by
-// the document, plus the sticky nodes' offsets that resolve_sticky_offsets() derives from them
-// and the tree. Stored dense in process so display list replay and hit testing index it directly;
+// the document, plus the sticky nodes' offsets derived from them and the tree (by the document's
+// scroll state refresh in process, by resolve_sticky_offsets() in the compositor). Stored dense in process so display list replay and hit testing index it directly;
 // indices that are not scroll-like nodes read as zero offsets. The IPC representation is sparse
 // (index, offset) pairs.
 //

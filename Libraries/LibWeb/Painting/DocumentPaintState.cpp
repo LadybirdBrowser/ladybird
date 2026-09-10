@@ -178,10 +178,7 @@ void DocumentPaintState::refresh_scroll_state(DOM::Document& document)
 {
     if (!rust_refresh_scroll_state(document))
         return;
-    // https://drafts.csswg.org/css-position/#sticky-pos
     m_scroll_state_snapshot = rust_scroll_state_snapshot(document);
-    if (has_visual_context_tree())
-        resolve_sticky_offsets(visual_context_tree_without_update(document), m_scroll_state_snapshot);
 }
 
 void DocumentPaintState::reset_selection_states(DOM::Document& document)
