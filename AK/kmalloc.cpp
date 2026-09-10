@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Platform.h>
 #include <AK/kmalloc.h>
 
 #if __has_feature(address_sanitizer) || defined(__SANITIZE_ADDRESS__)
@@ -57,6 +58,16 @@ void ak_kmalloc_collect()
 }
 
 #else
+
+#    ifdef AK_OS_LINUX
+static struct MimallocConfiguration {
+    MimallocConfiguration()
+    {
+        // mimalloc otherwise purges with MADV_DONTNEED, and every later reuse of a purged page takes a page fault.
+        mi_option_set_default(mi_option_purge_decommits, 0);
+    }
+} s_mimalloc_configuration;
+#    endif
 
 void* ak_kcalloc(size_t count, size_t size)
 {
