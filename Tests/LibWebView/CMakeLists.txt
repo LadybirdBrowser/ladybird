@@ -1,5 +1,6 @@
 set(TEST_SOURCES
     TestApplyHistoryStep.cpp
+    TestBackgroundNetworking.cpp
     TestAutocompleteMuxer.cpp
     TestAutocompleteRanker.cpp
     TestCanonicalBrowsingContextGroup.cpp
