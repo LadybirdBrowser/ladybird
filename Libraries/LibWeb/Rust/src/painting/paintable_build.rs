@@ -127,6 +127,12 @@ impl<'a> PaintableCommit<'a> {
         let arena = self.arena_mut();
         if row_existed_before_this_commit {
             arena.paintable_rows_mut().begin_paintable_row_recommit(node);
+            if node_kind == NodeKind::Viewport {
+                // A recommitted viewport row starts its paint state over: the scroll registry is
+                // dropped here and rebuilt by the next tree update, while the host resets its
+                // snapshot from the row reset notification.
+                arena.paint_state().borrow_mut().visual_context.clear_scroll_state();
+            }
         } else {
             arena.populate_paintable_row(node);
             if node_kind == NodeKind::Viewport {

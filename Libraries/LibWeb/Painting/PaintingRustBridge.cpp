@@ -557,11 +557,6 @@ bool mirror_rust_refresh_sticky_constraints(DOM::Document& document)
     return Layout::RustFFI::layout_arena_refresh_sticky_constraints(layout_arena_handle(document), visual_context_host_callbacks(document));
 }
 
-void mirror_rust_clear_scroll_state(DOM::Document& document)
-{
-    Layout::RustFFI::layout_arena_clear_scroll_state(layout_arena_handle(document));
-}
-
 void rust_invalidate_scroll_state(DOM::Document& document)
 {
     Layout::RustFFI::layout_arena_invalidate_scroll_state(layout_arena_handle(document));

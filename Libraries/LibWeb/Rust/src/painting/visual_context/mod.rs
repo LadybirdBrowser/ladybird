@@ -677,6 +677,11 @@ impl VisualContextState {
         self.tree.as_ref().map_or(0, |tree| tree.structural_epoch)
     }
 
+    pub fn clear_scroll_state(&mut self) {
+        self.scroll_state.clear();
+        self.needs_to_refresh_scroll_state = true;
+    }
+
     pub fn release_quarantined_slots_while_no_handle_is_retained(&mut self) {
         if !self.quarantined_slots_are_releasable {
             return;

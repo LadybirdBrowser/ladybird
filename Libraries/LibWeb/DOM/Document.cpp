@@ -699,7 +699,7 @@ Layout::NodeArena& Document::layout_node_arena()
                 auto& document = *static_cast<Document*>(context);
                 document.chrome_widget_registry().drop_widgets_for_slot(slot);
                 if (kind == Layout::RustFFI::PaintableRowResetKind::Recommitted && Painting::viewport_row_slot(document).index == slot.index)
-                    document.paint_state().viewport_row_was_reset(document);
+                    document.paint_state().viewport_row_was_reset();
             });
     }
     return *m_layout_node_arena;

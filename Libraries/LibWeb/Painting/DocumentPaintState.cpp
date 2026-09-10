@@ -72,9 +72,9 @@ BlockingWheelEventRegionState DocumentPaintState::collect_root_blocking_wheel_ev
     return {};
 }
 
-void DocumentPaintState::viewport_row_was_reset(DOM::Document& document)
+void DocumentPaintState::viewport_row_was_reset()
 {
-    clear_scroll_state(document);
+    m_scroll_state_snapshot = {};
     m_boxes_with_auto_content_visibility.clear();
     m_visual_context_tree_needs_compositor_update = false;
 }
@@ -88,12 +88,6 @@ void DocumentPaintState::refresh_sticky_constraints(DOM::Document& document)
 void DocumentPaintState::invalidate_scroll_state(DOM::Document& document)
 {
     rust_invalidate_scroll_state(document);
-}
-
-void DocumentPaintState::clear_scroll_state(DOM::Document& document)
-{
-    m_scroll_state_snapshot = {};
-    mirror_rust_clear_scroll_state(document);
 }
 
 void DocumentPaintState::update_accumulated_visual_contexts(DOM::Document& document)
