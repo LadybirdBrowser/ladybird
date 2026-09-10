@@ -213,6 +213,7 @@ void HTMLParser::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_root_insertion_target);
     visitor.visit(m_active_speculative_html_parser);
     visitor.visit(m_change_encoding_callback);
+    visitor.visit(m_ready_for_more_input_callback);
     visitor.visit(m_parsing_complete_callback);
 
     rust_html_parser_visit_edges(m_rust_parser, &visitor);
@@ -1133,6 +1134,13 @@ void HTMLParser::resume_after_parser_blocking_script()
     // document.write).
     run();
 
+    // AD-HOC: The spec converts input bytes as the tokenizer consumes them, so a declaration can still re-encode
+    //         anything unconsumed. IncrementalDocumentParser pushes decoded characters instead and withholds bytes
+    //         whose encoding is still in question while the tokenizer is stopped; this hands them over, and can pause
+    //         us again.
+    if (!m_parser_pause_flag && m_ready_for_more_input_callback)
+        m_ready_for_more_input_callback->function()();
+
     if (m_parser_pause_flag)
         return;
 
@@ -1141,8 +1149,13 @@ void HTMLParser::resume_after_parser_blocking_script()
 
 void HTMLParser::invoke_post_parse_action()
 {
-    if (auto callback = exchange(m_parsing_complete_callback, nullptr))
-        callback->function()();
+    // AD-HOC: A resume from a parser-blocking script also lands here, with the input byte stream still open when more
+    //         bytes are on the way. The input retained for a late encoding declaration is only safe to drop once it
+    //         closes.
+    if (m_tokenizer.is_input_stream_closed()) {
+        if (auto callback = exchange(m_parsing_complete_callback, nullptr))
+            callback->function()();
+    }
     if (auto action = exchange(m_post_parse_action, nullptr))
         action();
 }

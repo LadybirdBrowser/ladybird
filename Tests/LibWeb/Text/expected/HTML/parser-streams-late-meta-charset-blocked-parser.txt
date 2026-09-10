@@ -1,6 +1,6 @@
-paused charset: windows-1252
+paused charset: UTF-8
 paused script: true
-paused body: Â©
-resumed charset: windows-1252
+paused body: ©
+resumed charset: UTF-8
 resumed script: true
-resumed body: Â©
+resumed body: ©
