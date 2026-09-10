@@ -1285,7 +1285,7 @@ public:
     GC::Ptr<HTML::LocalNavigable> navigable() const;
     void set_navigable(GC::Ptr<HTML::LocalNavigable>);
 
-    void set_needs_repaint(Badge<Node, Painting::BoxViewRepaintAccess, HTML::LocalNavigable, CSS::VisualViewport, Web::EventHandler>, InvalidateDisplayList should_invalidate_display_list = InvalidateDisplayList::Yes)
+    void set_needs_repaint(Badge<Node, Painting::BoxViewRepaintAccess, HTML::LocalNavigable, CSS::VisualViewport, Web::EventHandler>, InvalidateDisplayList should_invalidate_display_list = InvalidateDisplayList::PaintCommandsAndHitTestList)
     {
         set_needs_repaint(should_invalidate_display_list);
     }
@@ -1488,7 +1488,7 @@ private:
 
     GC::Ref<WebIDL::ObservableArray> adopted_style_sheets() const;
 
-    void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::Yes);
+    void set_needs_repaint(InvalidateDisplayList = InvalidateDisplayList::PaintCommandsAndHitTestList);
 
     // ^JS::Object
     virtual bool is_dom_document() const final { return true; }

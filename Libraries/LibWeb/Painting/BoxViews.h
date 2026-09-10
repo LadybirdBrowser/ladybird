@@ -86,7 +86,7 @@ WEB_API Layout::RustFFI::FfiFocusedAreaOutline resolve_focused_area_outline(DOM:
 WEB_API void push_selection_pseudo_style(DOM::Element const&);
 WEB_API void push_selection_pseudo_style_of_parent(Layout::TextNode&);
 
-WEB_API void set_needs_repaint(Layout::Node const&, InvalidateDisplayList = InvalidateDisplayList::Yes);
+WEB_API void set_needs_repaint(Layout::Node const&, InvalidateDisplayList = InvalidateDisplayList::PaintCommandsAndHitTestList);
 WEB_API void set_needs_repaint_in_subtree(Layout::Node const&);
 WEB_API void invalidate_paint_cache(Layout::Node const&);
 WEB_API void repaint_after_style_change(Layout::Node const&, CSS::RequiredInvalidationAfterStyleChange const&);

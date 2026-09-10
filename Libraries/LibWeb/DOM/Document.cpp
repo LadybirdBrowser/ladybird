@@ -9830,7 +9830,7 @@ void Document::remove_render_blocking_element(GC::Ref<Element> element)
 
     if (auto navigable = this->navigable()) {
         if (auto container = navigable->container())
-            container->set_needs_repaint(InvalidateDisplayList::Yes);
+            container->set_needs_repaint(InvalidateDisplayList::PaintCommandsAndHitTestList);
     }
 
     page().client().request_frame();
@@ -10284,7 +10284,7 @@ void Document::set_needs_repaint(InvalidateDisplayList should_invalidate_display
 {
     auto navigable = this->navigable();
 
-    if (should_invalidate_display_list == InvalidateDisplayList::Yes) {
+    if (should_invalidate_display_list == InvalidateDisplayList::PaintCommandsAndHitTestList) {
         set_needs_to_record_display_list();
     }
 
@@ -10509,7 +10509,7 @@ void Document::set_caret_hit_test_debug_rect(Optional<CSSPixelRect> rect)
         return;
 
     m_caret_hit_test_debug_rect = rect;
-    set_needs_repaint(InvalidateDisplayList::Yes);
+    set_needs_repaint(InvalidateDisplayList::PaintCommandsAndHitTestList);
     page().client().request_frame();
 }
 

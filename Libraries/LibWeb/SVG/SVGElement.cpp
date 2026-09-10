@@ -446,7 +446,7 @@ void SVGElement::removed_from(IsSubtreeRoot is_subtree_root, Node* old_ancestor,
     // build resource boxes, so there may be no layout invalidation to trigger re-recording. Request it explicitly
     // to drop the visual effects of the removed element.
     if (id().has_value())
-        document().set_needs_repaint(Badge<SVGElement> {}, InvalidateDisplayList::Yes);
+        document().set_needs_repaint(Badge<SVGElement> {}, InvalidateDisplayList::PaintCommandsAndHitTestList);
 }
 
 void SVGElement::register_resource_box_referencing_element(Badge<Layout::LayoutTreeBuilderAccess>, DOM::Element& referencing_element)

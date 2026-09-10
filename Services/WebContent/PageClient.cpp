@@ -485,7 +485,7 @@ Web::Compositor::CompositorContextId PageClient::allocate_compositor_context_id(
 void PageClient::set_viewport(Web::DevicePixelSize const& size, double device_pixel_ratio)
 {
     auto invalidate = m_device_pixel_ratio != device_pixel_ratio
-        ? Web::InvalidateDisplayList::Yes
+        ? Web::InvalidateDisplayList::PaintCommandsAndHitTestList
         : Web::InvalidateDisplayList::No;
 
     m_viewport_size = size;
@@ -506,7 +506,7 @@ void PageClient::set_viewport(Web::DevicePixelSize const& size, double device_pi
 void PageClient::set_zoom_level(double zoom_level)
 {
     m_zoom_level = zoom_level;
-    page().local_root_navigable()->set_viewport_size(page().device_to_css_size(m_viewport_size), Web::InvalidateDisplayList::Yes);
+    page().local_root_navigable()->set_viewport_size(page().device_to_css_size(m_viewport_size), Web::InvalidateDisplayList::PaintCommandsAndHitTestList);
 }
 
 void PageClient::request_frame()
