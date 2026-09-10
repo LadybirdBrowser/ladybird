@@ -896,6 +896,8 @@ inline Gfx::InterpolationColorSpace to_interpolation_color_space(ColorInterpolat
     G(SurroundValues, m_noninherited.surround, "surround", true)        \
     G(BoxValues, m_noninherited.box, "box", true)
 
+class StyleEngine;
+
 enum class StyleGroupIndex : size_t {
 #define LIBWEB_STYLE_GROUP_ENUMERATOR(name, ...) name,
     LIBWEB_ENUMERATE_COMPUTED_VALUE_STYLE_GROUPS(LIBWEB_STYLE_GROUP_ENUMERATOR)
@@ -917,6 +919,10 @@ enum class StyleRecordDependencyFlag : u8 {
     // A highlight pseudo-element whose color is currentColor: the layer below shows through.
     HighlightColorIsCurrentColor = 1 << 6,
 };
+
+// Whether a style record publishes display:none, read straight out of its box group payload. This
+// is the same value ComputedValues::display() exposes, without materializing a style record view.
+[[nodiscard]] bool style_record_display_is_none(StyleEngine const&, StyleRecordID);
 
 // The box group payload stores display values in the Rust-defined explicit
 // form; these pins keep the tag discriminants aligned with Display::Type.

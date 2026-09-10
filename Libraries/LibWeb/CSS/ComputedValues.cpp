@@ -790,6 +790,24 @@ void ComputedValues::borrow_style_record_payloads(ReadonlySpan<void const*> payl
     VERIFY(index == payloads.size());
 }
 
+bool style_record_display_is_none(StyleEngine const& style_engine, StyleRecordID style_record)
+{
+    if (!style_record)
+        return false;
+    auto view = style_engine.style_record_view(style_record);
+    if (!view.present)
+        return false;
+    // The record's base payloads are the ones an animation overlay was layered on top of, matching
+    // what ComputedValues::base_values() exposes.
+    auto const* payloads = view.base_payloads ? view.base_payloads : view.payloads;
+    if (!payloads)
+        return false;
+    auto const* box = static_cast<ComputedValuesFFI::BoxValues const*>(payloads[to_underlying(StyleGroupIndex::BoxValues)]);
+    if (!box)
+        return false;
+    return display_from_ffi_display(box->display).is_none();
+}
+
 ComputedStyleRecordView::ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordView const& view, StyleComputer const& style_computer, StyleRecordID style_record_identity, bool owns_style_record_pin)
     : m_style_computer(&style_computer)
     , m_style_record_identity(style_record_identity)
