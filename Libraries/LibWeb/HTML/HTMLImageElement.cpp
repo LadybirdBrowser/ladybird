@@ -476,13 +476,14 @@ int HTMLImageElement::x() const
     // associated with the element, relative to the initial containing block origin, ignoring any transforms that apply
     // to the element and its ancestors, or zero if there is no box.
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLImageElementX);
-    // Scroll frames are created together with the visual context tree at the lazy resolution point,
-    // so resolve it before reading the enclosing scroll node below.
-    const_cast<DOM::Document&>(document()).update_paint_and_hit_testing_properties_if_needed();
 
     auto const* layout_node = this->layout_node();
     if (!layout_node || !Painting::has_committed_box(*layout_node))
         return 0;
+
+    // Scroll frames are created together with the visual context tree at the lazy resolution point,
+    // so resolve it before reading the enclosing scroll node below.
+    const_cast<DOM::Document&>(document()).update_paint_and_hit_testing_properties_if_needed();
 
     return (Painting::absolute_border_box_rect(*layout_node).x() - Painting::cumulative_scroll_compensation(*layout_node).x()).to_int();
 }
@@ -494,13 +495,14 @@ int HTMLImageElement::y() const
     // associated with the element, relative to the initial containing block origin, ignoring any transforms that apply
     // to the element and its ancestors, or zero if there is no box.
     const_cast<DOM::Document&>(document()).update_layout_if_needed_for_node(*this, DOM::UpdateLayoutReason::HTMLImageElementY);
-    // Scroll frames are created together with the visual context tree at the lazy resolution point,
-    // so resolve it before reading the enclosing scroll node below.
-    const_cast<DOM::Document&>(document()).update_paint_and_hit_testing_properties_if_needed();
 
     auto const* layout_node = this->layout_node();
     if (!layout_node || !Painting::has_committed_box(*layout_node))
         return 0;
+
+    // Scroll frames are created together with the visual context tree at the lazy resolution point,
+    // so resolve it before reading the enclosing scroll node below.
+    const_cast<DOM::Document&>(document()).update_paint_and_hit_testing_properties_if_needed();
 
     return (Painting::absolute_border_box_rect(*layout_node).y() - Painting::cumulative_scroll_compensation(*layout_node).y()).to_int();
 }
