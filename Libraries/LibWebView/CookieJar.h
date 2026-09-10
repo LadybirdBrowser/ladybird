@@ -18,8 +18,8 @@
 #include <LibRequests/CacheSizes.h>
 #include <LibURL/Forward.h>
 #include <LibWeb/Forward.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
-#include <LibWebView/PrivateBrowsing.h>
 
 namespace WebView {
 

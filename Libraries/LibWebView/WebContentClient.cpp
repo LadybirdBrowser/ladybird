@@ -69,12 +69,12 @@ Messages::WebContentClient::ResolveGenericFontResponse WebContentClient::resolve
 
 Messages::WebContentClient::DidAddBlobUrlEntryResponse WebContentClient::did_add_blob_url_entry(Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry)
 {
-    return Application::blob_url_store(m_is_private).add_entry(move(url), move(entry), WeakPtr<WebContentClient> { *this });
+    return m_session->blob_url_store->add_entry(move(url), move(entry), WeakPtr<WebContentClient> { *this });
 }
 
 void WebContentClient::did_remove_blob_url_entries(Vector<Utf16String> urls, URL::Origin origin)
 {
-    Application::blob_url_store(m_is_private).remove_entries(urls, origin, WeakPtr<WebContentClient> { *this });
+    m_session->blob_url_store->remove_entries(urls, origin, WeakPtr<WebContentClient> { *this });
 }
 
 void WebContentClient::did_retain_blob_url_token(Web::HTML::CrossProcessId navigable_id, URL::BlobURLEntry::Token token)
@@ -85,7 +85,12 @@ void WebContentClient::did_retain_blob_url_token(Web::HTML::CrossProcessId navig
 
 Messages::WebContentClient::DidRequestBlobUrlEntryResponse WebContentClient::did_request_blob_url_entry(Utf16String url, Optional<URL::BlobURLEntry::Token> token)
 {
-    return Application::blob_url_store(m_is_private).resolve(url, token);
+    return m_session->blob_url_store->resolve(url, token);
+}
+
+void WebContentClient::remove_blob_url_entries()
+{
+    m_session->blob_url_store->remove_entries_added_by(WeakPtr<WebContentClient> { *this });
 }
 
 HashTable<WebContentClient*>& WebContentClient::clients()
@@ -131,22 +136,21 @@ static bool is_download_in_progress(FileDownloader const& file_downloader, u64 d
 WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport, IsPrivate is_private, u64 initial_page_id, Web::HTML::CrossProcessId root_navigable_id)
     : IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(transport))
     , m_is_private(is_private)
+    , m_session(Application::existing_session(is_private))
     , m_initial_page_id(initial_page_id)
     , m_root_navigable_id(root_navigable_id)
 {
     VERIFY(m_initial_page_id > 0);
+    VERIFY(m_session);
     clients().set(this);
 }
 
 WebContentClient::~WebContentClient()
 {
     cancel_navigation_transactions();
-    Application::remove_blob_url_entries_added_by(WeakPtr<WebContentClient> { *this }, m_is_private);
+    remove_blob_url_entries();
     WorkerProcessManager::the().remove_web_content_owner(*this);
     clients().remove(this);
-
-    if (m_is_private == IsPrivate::Yes)
-        Application::the().maybe_close_private_browsing_session();
 }
 
 Optional<WebContentClient&> WebContentClient::client_for_compositor_context_id(Web::Compositor::CompositorContextId context_id)
@@ -172,7 +176,7 @@ void WebContentClient::die()
 
     cancel_navigation_transactions();
     fail_renderer_owned_downloads();
-    Application::remove_blob_url_entries_added_by(WeakPtr<WebContentClient> { *this }, m_is_private);
+    remove_blob_url_entries();
 }
 
 void WebContentClient::report_unexpected_debugger_response()
@@ -1028,7 +1032,7 @@ void WebContentClient::maybe_record_history_visit_for_current_load(u64 page_id, 
     auto transition = HistoryVisitTransition::Link;
     if (auto view = view_for_page_id(page_id); view.has_value())
         transition = view->m_history_visit_transition_for_current_load;
-    Application::history_store(m_is_private).record_visit(url, move(title), UnixDateTime::now(), transition);
+    m_session->history_store->record_visit(url, move(title), UnixDateTime::now(), transition);
     m_history_recorded_urls_for_current_load.set(page_id, normalized_url.release_value());
 }
 
@@ -1181,9 +1185,9 @@ void WebContentClient::did_finish_loading(u64 page_id, Optional<Utf16String> nav
 
         maybe_record_history_visit_for_current_load(page_id, url, title, "load finish"sv);
         if (title.has_value())
-            Application::history_store(m_is_private).update_title(url, *title);
+            m_session->history_store->update_title(url, *title);
         if (view->favicon_hash().has_value())
-            Application::history_store(m_is_private).update_favicon(url, *view->favicon_hash());
+            m_session->history_store->update_favicon(url, *view->favicon_hash());
 
         view->did_finish_navigation();
 
@@ -1268,7 +1272,7 @@ void WebContentClient::did_change_title(u64 page_id, Utf16String title)
                 view->url(),
                 title_utf8);
 
-            Application::history_store(m_is_private).update_title(view->url(), title_utf8);
+            m_session->history_store->update_title(view->url(), title_utf8);
         }
 
         if (title.is_empty())
@@ -1851,23 +1855,23 @@ void WebContentClient::did_request_document_cookie_version_index(u64 page_id, i6
 
 Messages::WebContentClient::DidRequestAllCookiesWebdriverResponse WebContentClient::did_request_all_cookies_webdriver(URL::URL url)
 {
-    return Application::cookie_jar(m_is_private).get_all_cookies_webdriver(url);
+    return m_session->cookie_jar->get_all_cookies_webdriver(url);
 }
 
 Messages::WebContentClient::DidRequestAllCookiesCookiestoreResponse WebContentClient::did_request_all_cookies_cookiestore(URL::URL url)
 {
-    return Application::cookie_jar(m_is_private).get_all_cookies_cookiestore(url);
+    return m_session->cookie_jar->get_all_cookies_cookiestore(url);
 }
 
 Messages::WebContentClient::DidRequestNamedCookieResponse WebContentClient::did_request_named_cookie(URL::URL url, String name)
 {
-    return Application::cookie_jar(m_is_private).get_named_cookie(url, name);
+    return m_session->cookie_jar->get_named_cookie(url, name);
 }
 
 Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_request_cookie(u64 page_id, URL::URL url, HTTP::Cookie::Source source)
 {
     HTTP::Cookie::VersionedCookie cookie;
-    cookie.cookie = Application::cookie_jar(m_is_private).get_cookie(url, source);
+    cookie.cookie = m_session->cookie_jar->get_cookie(url, source);
 
     if (source == HTTP::Cookie::Source::NonHttp) {
         if (auto view = view_for_page_id(page_id); view.has_value())
@@ -1879,33 +1883,33 @@ Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_reque
 
 void WebContentClient::did_set_cookie(URL::URL url, HTTP::Cookie::ParsedCookie cookie, HTTP::Cookie::Source source)
 {
-    Application::cookie_jar(m_is_private).set_cookie(url, cookie, source);
+    m_session->cookie_jar->set_cookie(url, cookie, source);
 }
 
 void WebContentClient::did_update_cookie(HTTP::Cookie::Cookie cookie)
 {
-    Application::cookie_jar(m_is_private).update_cookie(cookie);
+    m_session->cookie_jar->update_cookie(cookie);
 }
 
 void WebContentClient::did_expire_cookies_with_time_offset(AK::Duration offset)
 {
-    Application::cookie_jar(m_is_private).expire_cookies_with_time_offset(offset);
+    m_session->cookie_jar->expire_cookies_with_time_offset(offset);
 }
 
 void WebContentClient::did_request_delete_all_cookies(u64 page_id, u64 request_id, URL::URL url)
 {
-    Application::cookie_jar(m_is_private).delete_all_cookies(url);
+    m_session->cookie_jar->delete_all_cookies(url);
     async_did_delete_all_cookies(page_id, request_id);
 }
 
 void WebContentClient::did_store_hsts_policy(String domain, HTTP::HSTS::ParsedHSTSPolicy policy)
 {
-    Application::hsts_store(m_is_private).store_policy(domain, policy);
+    m_session->hsts_store->store_policy(domain, policy);
 }
 
 Messages::WebContentClient::DidIsKnownHstsHostResponse WebContentClient::did_is_known_hsts_host(String domain)
 {
-    return Application::hsts_store(m_is_private).is_known_hsts_host(domain);
+    return m_session->hsts_store->is_known_hsts_host(domain);
 }
 
 Messages::WebContentClient::DidLoseRequestServerConnectionResponse WebContentClient::did_lose_request_server_connection()
@@ -1936,7 +1940,7 @@ StorageJar* WebContentClient::storage_jar_for_page(u64 page_id, Web::StorageAPI:
         return nullptr;
     }
 
-    return &Application::storage_jar(m_is_private);
+    return m_session->storage_jar.ptr();
 }
 
 Messages::WebContentClient::DidRequestStorageItemResponse WebContentClient::did_request_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key)
@@ -1977,7 +1981,7 @@ void WebContentClient::did_clear_storage(u64 page_id, Web::StorageAPI::StorageEn
 
 Messages::WebContentClient::DidRequestStorageUsageResponse WebContentClient::did_request_storage_usage(u64, String storage_key)
 {
-    return Application::storage_jar(m_is_private).usage(storage_key);
+    return m_session->storage_jar->usage(storage_key);
 }
 
 void WebContentClient::did_change_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String url, Optional<Utf16String> key, Optional<Utf16String> old_value, Optional<Utf16String> new_value)

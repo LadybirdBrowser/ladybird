@@ -158,7 +158,7 @@ public:
             m_url = url;
             m_favicon = {};
             if (view && favicon_hash.has_value()) {
-                if (auto png = WebView::Application::favicon_store(view->is_private()).favicon_png(*favicon_hash); png.has_value())
+                if (auto png = view->session().favicon_store->favicon_png(*favicon_hash); png.has_value())
                     m_favicon = icon_from_png(png->bytes(), 16);
             }
         }

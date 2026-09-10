@@ -561,7 +561,8 @@ void Application::on_devtools_disabled() const
 
     ApplicationDelegate* delegate = [NSApp delegate];
     [delegate reconcileSessionTopology];
-    WebView::Application::session_store(WebView::IsPrivate::No).application_quitting();
+    if (auto* session_store = WebView::Application::session_store(WebView::IsPrivate::No))
+        session_store->application_quitting();
     Core::EventLoop::current().quit(0);
 }
 

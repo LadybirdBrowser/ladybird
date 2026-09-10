@@ -83,7 +83,7 @@ void HistoryUI::load_history_entries(JsonValue const& data)
     else
         limit = DEFAULT_HISTORY_PAGE_SIZE;
 
-    auto entries = Application::history_store(client().is_private()).list_entries(query, offset, *limit + 1);
+    auto entries = client().session().history_store->list_entries(query, offset, *limit + 1);
     auto has_more = entries.size() > *limit;
     if (has_more)
         entries.resize(*limit);
@@ -119,7 +119,7 @@ void HistoryUI::remove_history_entry(JsonValue const& data)
     auto remove_engagements = Application::bookmark_store().is_bookmarked(*parsed_url)
         ? RemoveHistoryEntryEngagements::No
         : RemoveHistoryEntryEngagements::Yes;
-    Application::history_store(client().is_private()).remove_entry_for_url(*parsed_url, remove_engagements);
+    client().session().history_store->remove_entry_for_url(*parsed_url, remove_engagements);
 }
 
 void HistoryUI::forget_history_site(JsonValue const& data)
@@ -135,7 +135,7 @@ void HistoryUI::forget_history_site(JsonValue const& data)
     if (!parsed_url.has_value())
         return;
 
-    Application::history_store(client().is_private()).remove_entries_for_same_site(*parsed_url);
+    client().session().history_store->remove_entries_for_same_site(*parsed_url);
 }
 
 }

@@ -18,8 +18,8 @@
 #include <LibWeb/Worker/WebWorkerClientEndpoint.h>
 #include <LibWeb/Worker/WebWorkerServerEndpoint.h>
 #include <LibWebView/BlobURLStore.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Export.h>
-#include <LibWebView/PrivateBrowsing.h>
 
 namespace WebView {
 
@@ -35,6 +35,7 @@ public:
     ~WebWorkerClient();
 
     IsPrivate is_private() const { return m_is_private; }
+    void remove_blob_url_entries();
 
     pid_t pid() const { return m_pid; }
     void set_pid(pid_t pid) { m_pid = pid; }
@@ -62,6 +63,7 @@ private:
     virtual void die() override;
 
     IsPrivate m_is_private { IsPrivate::No };
+    WeakPtr<BrowsingSession> m_session;
 
     pid_t m_pid { -1 };
     Web::HTML::WorkerAgentId m_agent_id { 0 };

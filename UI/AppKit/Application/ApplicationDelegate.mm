@@ -258,7 +258,10 @@ static char s_tab_group_observation_context;
             continue;
 
         auto is_private = [[representative_controllers objectForKey:tab_group] isPrivate];
-        auto result = WebView::Application::session_store(is_private).window_opened();
+        auto* session_store = WebView::Application::session_store(is_private);
+        if (!session_store)
+            continue;
+        auto result = session_store->window_opened();
         if (result.is_error()) {
             dbgln("Unable to register the new window with the session store: {}", result.error());
             for (auto const& window : newly_opened_windows)
@@ -313,7 +316,8 @@ static char s_tab_group_observation_context;
                         .new_window_id = window_id,
                         .ordinal = static_cast<i64>(tab_order.size()),
                     };
-                    WebView::Application::session_store(is_private).tab_moved(AK::move(moved));
+                    if (auto* session_store = WebView::Application::session_store(is_private))
+                        session_store->tab_moved(AK::move(moved));
                 }
                 tab_order.append(*session_tab_id);
                 if ([tab_group selectedWindow] == window)
@@ -327,10 +331,11 @@ static char s_tab_group_observation_context;
             .window_id = window_id,
             .ordered_tabs = AK::move(tab_order),
         };
-        auto& session_store = WebView::Application::session_store(is_private);
-        session_store.tab_order_changed(AK::move(changed));
-        if (active_tab_id.has_value())
-            session_store.active_tab_changed(*active_tab_id);
+        if (auto* session_store = WebView::Application::session_store(is_private)) {
+            session_store->tab_order_changed(AK::move(changed));
+            if (active_tab_id.has_value())
+                session_store->active_tab_changed(*active_tab_id);
+        }
     }
 
     for (auto window_id : previous_normal_window_ids) {
@@ -365,7 +370,8 @@ static char s_tab_group_observation_context;
 
 - (void)retireSessionWindow:(WebView::SessionWindowId)window_id isPrivate:(WebView::IsPrivate)is_private
 {
-    WebView::Application::session_store(is_private).window_detached(window_id);
+    if (auto* session_store = WebView::Application::session_store(is_private))
+        session_store->window_detached(window_id);
 }
 
 - (void)observeValueForKeyPath:(NSString*)key_path
@@ -571,11 +577,12 @@ static char s_tab_group_observation_context;
         .insertion_index = session_insertion_index,
         .is_active = activate_tab == Web::HTML::ActivateTab::Yes ? WebView::SessionStore::IsActive::Yes : WebView::SessionStore::IsActive::No,
     };
-    auto session_tab_id = WebView::Application::session_store([controller isPrivate]).tab_opened(move(opened));
+    auto& view = [[(Tab*)[controller window] web_view] view];
+    auto session_tab_id = view.session().session_store->tab_opened(move(opened));
     if (session_tab_id.is_error())
         dbgln("Unable to register the new tab with the session store: {}", session_tab_id.error());
     else
-        [[(Tab*)[controller window] web_view] view].set_session_tab_id(session_tab_id.value());
+        view.set_session_tab_id(session_tab_id.value());
 }
 
 - (void)closeCurrentTab:(id)sender
@@ -618,7 +625,10 @@ static char s_tab_group_observation_context;
 {
     auto is_private = [self keyWindowPrivacy];
     [self reconcileSessionTopology];
-    auto closed_unit = WebView::Application::session_store(is_private).take_most_recently_closed();
+    auto* session_store = WebView::Application::session_store(is_private);
+    if (!session_store)
+        return;
+    auto closed_unit = session_store->take_most_recently_closed();
     if (closed_unit.is_error()) {
         dbgln("Unable to reopen the most recently closed session unit: {}", closed_unit.error());
         return;
@@ -886,7 +896,8 @@ static char s_tab_group_observation_context;
         return [[NSApp keyWindow] isKindOfClass:[Tab class]];
     }
     if (action == @selector(reopenClosedTab:)) {
-        return WebView::Application::session_store([self keyWindowPrivacy]).has_closed_units();
+        auto* session_store = WebView::Application::session_store([self keyWindowPrivacy]);
+        return session_store && session_store->has_closed_units();
     }
 
     return YES;

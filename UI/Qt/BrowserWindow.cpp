@@ -224,6 +224,7 @@ static QIcon const& app_icon()
 
 BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<u64> page_index)
     : m_is_private(is_private)
+    , m_session(WebView::Application::session_for_new_view(is_private))
     , m_tabs_container(new TabWidget(this))
     , m_is_popup_window(is_popup_window)
 {
@@ -664,7 +665,7 @@ void BrowserWindow::initialize_tab(Tab* tab)
             .insertion_index = insertion_index >= 0 ? Optional<i64> { insertion_index } : Optional<i64> {},
             .is_active = m_current_tab == tab ? WebView::SessionStore::IsActive::Yes : WebView::SessionStore::IsActive::No,
         };
-        auto session_tab_id = WebView::Application::session_store(m_is_private).tab_opened(AK::move(opened));
+        auto session_tab_id = m_session->session_store->tab_opened(AK::move(opened));
         if (session_tab_id.is_error())
             dbgln("Unable to register the new tab with the session store: {}", session_tab_id.error());
         else
@@ -733,12 +734,12 @@ void BrowserWindow::adopt_tab(Tab& tab, int index)
                 .new_window_id = *m_session_window_id,
                 .ordinal = index,
             };
-            WebView::Application::session_store(m_is_private).tab_moved(AK::move(moved));
+            m_session->session_store->tab_moved(AK::move(moved));
             sync_session_tab_order();
         } else {
             // The source window's reported order no longer includes this tab; it must leave
             // tracking rather than stay mapped there.
-            WebView::Application::session_store(m_is_private).tab_detached(*moved_tab_id);
+            m_session->session_store->tab_detached(*moved_tab_id);
             tab.view().clear_session_tab_id();
         }
     }
@@ -818,7 +819,7 @@ void BrowserWindow::set_current_tab(Tab* tab)
         m_current_tab->view().set_system_visibility_state(Web::HTML::VisibilityState::Visible);
 
         if (auto session_tab_id = m_current_tab->view().session_tab_id(); session_tab_id.has_value())
-            WebView::Application::session_store(m_is_private).active_tab_changed(*session_tab_id);
+            m_session->session_store->active_tab_changed(*session_tab_id);
     }
 
     WebView::Application::the().update_bookmark_action_for_current_web_view();
@@ -856,7 +857,7 @@ bool BrowserWindow::definitely_close_tab(int index)
             .tab_id = *session_tab_id,
             .closed_at = UnixDateTime::now(),
         };
-        if (auto result = WebView::Application::session_store(m_is_private).tab_closed(AK::move(closed)); result.is_error())
+        if (auto result = m_session->session_store->tab_closed(AK::move(closed)); result.is_error())
             dbgln("Unable to record the closed tab in the session store: {}", result.error());
     }
     Application::the().update_reopen_recently_closed_actions();
@@ -874,7 +875,7 @@ void BrowserWindow::update_reopen_recently_closed_action()
         return;
 
     m_reopen_recently_closed_tab_action->setText("&Reopen Recently Closed Tab");
-    m_reopen_recently_closed_tab_action->setEnabled(WebView::Application::session_store(m_is_private).has_closed_units());
+    m_reopen_recently_closed_tab_action->setEnabled(m_session->session_store->has_closed_units());
 }
 
 void BrowserWindow::move_tab(int old_index, int new_index)
@@ -884,7 +885,7 @@ void BrowserWindow::move_tab(int old_index, int new_index)
 
 void BrowserWindow::register_window_with_session_store()
 {
-    if (auto session_window_id = WebView::Application::session_store(m_is_private).window_opened(); session_window_id.is_error())
+    if (auto session_window_id = m_session->session_store->window_opened(); session_window_id.is_error())
         dbgln("Unable to register the new window with the session store: {}", session_window_id.error());
     else
         m_session_window_id = session_window_id.value();
@@ -906,7 +907,7 @@ void BrowserWindow::sync_session_tab_order()
         .window_id = *m_session_window_id,
         .ordered_tabs = AK::move(tab_order),
     };
-    WebView::Application::session_store(m_is_private).tab_order_changed(AK::move(changed));
+    m_session->session_store->tab_order_changed(AK::move(changed));
 }
 
 void BrowserWindow::open_file()
@@ -1686,7 +1687,7 @@ void BrowserWindow::closeEvent(QCloseEvent* event)
             .active_tab_index = active_tab_index,
             .closed_at = UnixDateTime::now(),
         };
-        if (auto result = WebView::Application::session_store(m_is_private).window_closing(AK::move(closing)); result.is_error())
+        if (auto result = m_session->session_store->window_closing(AK::move(closing)); result.is_error())
             dbgln("Unable to record the closing window in the session store: {}", result.error());
         Application::the().update_reopen_recently_closed_actions();
     }

@@ -10,7 +10,7 @@
 #include <AK/Platform.h>
 #include <LibURL/URL.h>
 #include <LibWebView/Application.h>
-#include <LibWebView/PrivateBrowsing.h>
+#include <LibWebView/BrowsingSession.h>
 #include <UI/Qt/BrowserWindow.h>
 
 #include <QApplication>

@@ -12,7 +12,7 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
 #include <LibWeb/Page/InputEvent.h>
-#include <LibWebView/PrivateBrowsing.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/ViewImplementation.h>
 
 namespace Ladybird {

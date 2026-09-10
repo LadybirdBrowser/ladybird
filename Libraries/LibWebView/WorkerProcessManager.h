@@ -18,8 +18,8 @@
 #include <AK/WeakPtr.h>
 #include <LibWeb/HTML/BroadcastChannelMessage.h>
 #include <LibWeb/HTML/WorkerAgentTypes.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
-#include <LibWebView/PrivateBrowsing.h>
 
 namespace WebView {
 

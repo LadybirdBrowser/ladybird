@@ -7,7 +7,7 @@
 #pragma once
 
 #include <AK/Types.h>
-#include <LibWebView/PrivateBrowsing.h>
+#include <LibWebView/BrowsingSession.h>
 
 #import <Cocoa/Cocoa.h>
 #import <Interface/LadybirdWebViewWindow.h>

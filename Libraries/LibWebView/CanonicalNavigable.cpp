@@ -8,7 +8,7 @@
 
 #include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
-#include <LibWebView/Application.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalTraversable.h>
@@ -460,7 +460,7 @@ void CanonicalNavigable::clear_ongoing_navigation()
 
 BlobURLStore* CanonicalNavigable::blob_url_store() const
 {
-    return m_reporting_client ? &Application::blob_url_store(m_reporting_client->is_private()) : nullptr;
+    return m_reporting_client ? m_reporting_client->session().blob_url_store.ptr() : nullptr;
 }
 
 void CanonicalNavigable::retain_blob_url_token(URL::BlobURLEntry::Token token)

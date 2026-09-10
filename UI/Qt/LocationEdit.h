@@ -8,8 +8,8 @@
 #pragma once
 
 #include <AK/Function.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Omnibox.h>
-#include <LibWebView/PrivateBrowsing.h>
 #include <LibWebView/Settings.h>
 
 #include <QLineEdit>

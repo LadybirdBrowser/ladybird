@@ -50,9 +50,9 @@
 #include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWebView/BlobURLStore.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Debugger.h>
 #include <LibWebView/Forward.h>
-#include <LibWebView/PrivateBrowsing.h>
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebContentServerEndpoint.h>
 
@@ -87,6 +87,8 @@ public:
     ~WebContentClient();
 
     IsPrivate is_private() const { return m_is_private; }
+    BrowsingSession& session() const { return *m_session; }
+    void remove_blob_url_entries();
 
     void assign_view(Badge<Application>, ViewImplementation&);
     void set_initial_top_level_history_entry(Badge<Application>, Web::HTML::SessionHistoryEntryDescriptor entry) { m_initial_top_level_history_entry = move(entry); }
@@ -327,6 +329,7 @@ private:
     void fail_renderer_owned_downloads();
 
     IsPrivate m_is_private { IsPrivate::No };
+    RefPtr<BrowsingSession> m_session;
     bool m_process_lost { false };
 
     HashMap<u64, NonnullRawPtr<ViewImplementation>> m_views;

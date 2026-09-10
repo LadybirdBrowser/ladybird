@@ -13,7 +13,7 @@
 #include <AK/Weakable.h>
 #include <LibRequests/Forward.h>
 #include <LibWeb/HTML/NavigationPopulationRequest.h>
-#include <LibWebView/PrivateBrowsing.h>
+#include <LibWebView/BrowsingSession.h>
 
 namespace WebView {
 

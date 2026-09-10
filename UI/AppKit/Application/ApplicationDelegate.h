@@ -10,7 +10,7 @@
 #include <AK/StringView.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/ActivateTab.h>
-#include <LibWebView/PrivateBrowsing.h>
+#include <LibWebView/BrowsingSession.h>
 
 #import <Cocoa/Cocoa.h>
 

@@ -17,7 +17,7 @@
 #include <LibGfx/Rect.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
-#include <LibWebView/PrivateBrowsing.h>
+#include <LibWebView/BrowsingSession.h>
 #include <LibWebView/ViewImplementation.h>
 
 #include <QPixmap>
