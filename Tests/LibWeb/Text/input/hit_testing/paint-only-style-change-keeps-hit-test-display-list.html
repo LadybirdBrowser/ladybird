@@ -1,0 +1,85 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+    #box {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 100px;
+        height: 100px;
+        background: green;
+        opacity: 0.5;
+        transform: scale(1);
+    }
+    #inline-parent {
+        position: absolute;
+        left: 0;
+        top: 200px;
+        font: 20px/1 monospace;
+    }
+    #inline {
+        opacity: 0.5;
+    }
+</style>
+<div id="box"></div>
+<div id="inline-parent"><span id="inline">inline text</span></div>
+<script>
+    promiseTest(async () => {
+        const nextFrame = () => new Promise((resolve) => requestAnimationFrame(resolve));
+        const settle = async () => {
+            await nextFrame();
+            await nextFrame();
+        };
+        const targetAt = (x, y) => {
+            const element = document.elementFromPoint(x, y);
+            return element ? element.id || element.localName : "null";
+        };
+        // NB: Results are buffered and printed at the end: println() itself mutates the DOM,
+        //     and that invalidation would hide whether the mutation under test kept the list.
+        const results = [];
+        const step = async (label, mutate, x, y) => {
+            await settle();
+            mutate();
+            document.body.offsetWidth;
+            const recordPendingBeforeHitTest = internals.needsDisplayListRecord;
+            const target = targetAt(x, y);
+            const recordPendingAfterHitTest = internals.needsDisplayListRecord;
+            results.push(
+                `${label}: target=${target} record pending before hit test=${recordPendingBeforeHitTest} after=${recordPendingAfterHitTest}`
+            );
+        };
+        const reset = async (mutate) => {
+            await settle();
+            mutate();
+            document.body.offsetWidth;
+        };
+        const inlineParent = document.getElementById("inline-parent");
+        const inlineTextX = 30;
+        const inlineTextY = 210;
+
+        await step("color", () => (box.style.color = "red"), 50, 50);
+        await step("background-color", () => (box.style.backgroundColor = "blue"), 50, 50);
+        await step("box-shadow", () => (box.style.boxShadow = "0 0 10px black"), 50, 50);
+        await step("outline", () => (box.style.outline = "2px solid red"), 50, 50);
+        await step("text-decoration", () => (inlineParent.style.textDecoration = "underline"), inlineTextX, inlineTextY);
+        await step("inline color", () => (inline.style.color = "red"), inlineTextX, inlineTextY);
+
+        await step("pointer-events: none", () => (box.style.pointerEvents = "none"), 50, 50);
+        await reset(() => (box.style.pointerEvents = ""));
+        await step("visibility: hidden", () => (box.style.visibility = "hidden"), 50, 50);
+        await reset(() => (box.style.visibility = ""));
+        await step("border-radius corner", () => (box.style.borderRadius = "50px"), 2, 2);
+        await reset(() => (box.style.borderRadius = ""));
+        await step("block opacity: 0", () => (box.style.opacity = "0"), 50, 50);
+        await reset(() => (box.style.opacity = ""));
+        await step("inline opacity: 0", () => (inline.style.opacity = "0"), inlineTextX, inlineTextY);
+        await reset(() => (inline.style.opacity = ""));
+        await step("transform: scale(0)", () => (box.style.transform = "scale(0)"), 50, 50);
+        await reset(() => (box.style.transform = ""));
+
+        for (const result of results) println(result);
+    });
+</script>

@@ -1307,6 +1307,7 @@ public:
     void set_caret_hit_test_debug_rect(Optional<CSSPixelRect>);
 
     void set_needs_to_record_display_list();
+    void set_needs_to_record_display_list_keeping_hit_test_display_list();
 
     Unicode::Segmenter& grapheme_segmenter() const;
     Unicode::Segmenter& line_segmenter() const;

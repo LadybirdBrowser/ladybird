@@ -799,7 +799,7 @@ void set_needs_repaint(Layout::Node const& node, InvalidateDisplayList should_in
         return;
 
     auto& document = const_cast<DOM::Document&>(node.document());
-    if (should_invalidate_display_list == InvalidateDisplayList::PaintCommandsAndHitTestList) {
+    if (should_invalidate_display_list != InvalidateDisplayList::No) {
         Layout::RustFFI::layout_arena_paintable_invalidate_for_repaint(node.arena_handle(), committed_row_slot(node));
 
         // The root element paints the body's propagated background, so a body repaint must also refresh the
@@ -836,7 +836,7 @@ void invalidate_paint_cache(Layout::Node const& node)
 void repaint_after_style_change(Layout::Node const& node, CSS::RequiredInvalidationAfterStyleChange const& invalidation)
 {
     if (invalidation.needs_repaint())
-        set_needs_repaint(node);
+        set_needs_repaint(node, invalidation.invalidates_hit_test_display_list() ? InvalidateDisplayList::PaintCommandsAndHitTestList : InvalidateDisplayList::PaintCommands);
     if (invalidation.repaint_propagated_text_decorations)
         rust_invalidate_propagated_text_decoration_caches(node);
     if (invalidation.needs_stacking_context_tree_rebuild()) {

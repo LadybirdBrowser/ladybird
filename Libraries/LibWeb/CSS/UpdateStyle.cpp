@@ -87,8 +87,12 @@ static void apply_element_style_invalidation_after_style_change(DOM::Element& el
 
 static void apply_document_style_invalidation_after_style_change(DOM::Document& document, RequiredInvalidationAfterStyleChange const& invalidation)
 {
-    if (invalidation.needs_repaint())
+    if (!invalidation.needs_repaint())
+        return;
+    if (invalidation.invalidates_hit_test_display_list())
         document.set_needs_to_record_display_list();
+    else
+        document.set_needs_to_record_display_list_keeping_hit_test_display_list();
 }
 
 // Consume everything recorded since the last transaction boundary and publish its match answers.

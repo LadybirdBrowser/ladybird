@@ -1,0 +1,12 @@
+color: target=box record pending before hit test=true after=true
+background-color: target=box record pending before hit test=true after=true
+box-shadow: target=box record pending before hit test=true after=true
+outline: target=box record pending before hit test=true after=true
+text-decoration: target=inline record pending before hit test=true after=true
+inline color: target=inline record pending before hit test=true after=true
+pointer-events: none: target=html record pending before hit test=true after=false
+visibility: hidden: target=html record pending before hit test=true after=false
+border-radius corner: target=html record pending before hit test=true after=false
+block opacity: 0: target=box record pending before hit test=true after=false
+inline opacity: 0: target=inline-parent record pending before hit test=true after=false
+transform: scale(0): target=html record pending before hit test=true after=false

@@ -10285,8 +10285,15 @@ void Document::set_needs_repaint(InvalidateDisplayList should_invalidate_display
 {
     auto navigable = this->navigable();
 
-    if (should_invalidate_display_list == InvalidateDisplayList::PaintCommandsAndHitTestList) {
+    switch (should_invalidate_display_list) {
+    case InvalidateDisplayList::No:
+        break;
+    case InvalidateDisplayList::PaintCommands:
+        set_needs_to_record_display_list_keeping_hit_test_display_list();
+        break;
+    case InvalidateDisplayList::PaintCommandsAndHitTestList:
         set_needs_to_record_display_list();
+        break;
     }
 
     if (!navigable)
@@ -10445,6 +10452,11 @@ Vector<WeakPtr<Layout::Node const>> Document::collect_scroll_snap_containers()
 void Document::set_needs_to_record_display_list()
 {
     m_hit_test_display_list = nullptr;
+    set_needs_to_record_display_list_keeping_hit_test_display_list();
+}
+
+void Document::set_needs_to_record_display_list_keeping_hit_test_display_list()
+{
     if (auto navigable = this->navigable())
         navigable->set_needs_to_record_display_list();
 }
