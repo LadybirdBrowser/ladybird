@@ -420,6 +420,51 @@ pub fn shape_text(
     })
 }
 
+/// # Safety
+/// `font` must point to a live Gfx::Font, and `text` must contain `length` code
+/// units (or be null when empty). The callback must consume the borrowed glyphs
+/// synchronously and must not reenter the shaping cache.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn ladybird_gfx_shape_text_cached(
+    font: *const c_void,
+    text: *const u16,
+    length: usize,
+    text_type: TextType,
+    letter_spacing: f32,
+    word_spacing: f32,
+    sink: *mut c_void,
+    emit: unsafe extern "C" fn(*mut c_void, *const DrawGlyph, usize, f32, usize, f32),
+) {
+    // SAFETY: The caller supplies a live font and a valid text slice.
+    let font = unsafe { FontHandle::intern(font) };
+    let text = if length == 0 {
+        &[]
+    } else {
+        unsafe { std::slice::from_raw_parts(text, length) }
+    };
+    let params = ShapeParams {
+        text_type,
+        letter_spacing,
+        word_spacing,
+    };
+    SHAPING_CACHE.with_borrow_mut(|cache| {
+        let shape = cache.shape_for(font.id().0, text, params, || {
+            shape_text_uncached(&font, text, text_type, letter_spacing, word_spacing)
+        });
+        // SAFETY: The glyphs remain live for the synchronous callback.
+        unsafe {
+            emit(
+                sink,
+                shape.glyphs.as_ptr(),
+                shape.glyphs.len(),
+                shape.width,
+                shape.trailing_whitespace_length_in_code_units,
+                shape.trailing_whitespace_advance,
+            );
+        }
+    });
+}
+
 #[cfg(test)]
 mod shaping_cache_tests {
     use super::*;

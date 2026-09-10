@@ -590,7 +590,19 @@ static ShapedGlyphs build_origin_relative_shape(Utf16View const& string, Font co
 
 NonnullRefPtr<GlyphRun> shape_text(FloatPoint baseline_start, float letter_spacing, float word_spacing, Utf16View const& string, Font const& font, GlyphRun::TextType text_type, TrailingWhitespace* out_trailing_whitespace)
 {
-    auto shape = build_origin_relative_shape(string, font, text_type, letter_spacing, word_spacing);
+    Vector<u16, 64> code_units;
+    code_units.ensure_capacity(string.length_in_code_units());
+    for (size_t i = 0; i < string.length_in_code_units(); ++i)
+        code_units.unchecked_append(string.code_unit_at(i));
+
+    ShapedGlyphs shape;
+    FFI::ladybird_gfx_shape_text_cached(&font, code_units.data(), code_units.size(), static_cast<FFI::TextType>(text_type), letter_spacing, word_spacing, &shape,
+        [](void* sink, FFI::DrawGlyph const* glyphs, size_t count, float width, size_t trailing_length, float trailing_advance) {
+            auto& shape = *static_cast<ShapedGlyphs*>(sink);
+            shape.glyphs.append(reinterpret_cast<DrawGlyph const*>(glyphs), count);
+            shape.width = width;
+            shape.trailing_whitespace = { trailing_length, trailing_advance };
+        });
     if (out_trailing_whitespace)
         *out_trailing_whitespace = shape.trailing_whitespace;
     if (!baseline_start.is_zero()) {
