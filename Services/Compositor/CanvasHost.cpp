@@ -12,6 +12,8 @@
 #include <LibGfx/SkiaBackendContext.h>
 #include <LibWeb/Painting/Canvas2DCommandStream.h>
 #include <LibWeb/Painting/CanvasSurfaceRegistry.h>
+#include <LibWeb/Painting/DisplayList.h>
+#include <core/SkTextBlob.h>
 
 namespace Compositor {
 
@@ -33,7 +35,7 @@ OwnPtr<Gfx::CanvasCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSi
         return nullptr;
 
     auto format = alpha ? Gfx::BitmapFormat::BGRA8888 : Gfx::BitmapFormat::BGRx8888;
-    auto player = make<Gfx::CanvasCommandPlayer>(m_skia_backend_context, size, format, Gfx::AlphaType::Premultiplied, [this](u64 canvas_id) -> Gfx::PaintingSurface const* {
+    auto canvas_surface_resolver = [this](u64 canvas_id) -> Gfx::PaintingSurface const* {
         // A 2D source resolves to its live draw surface: the shared command
         // stream replays in recording order, so at this point the surface holds
         // exactly the commands recorded before the referencing DrawCanvas.
@@ -43,7 +45,17 @@ OwnPtr<Gfx::CanvasCommandPlayer> CanvasHost::create_2d_command_player(Gfx::IntSi
         }
         // WebGL sources are presented separately and resolve via the registry.
         return m_canvas_surface_registry.canvas_surface(Web::Painting::CanvasId { canvas_id });
-    });
+    };
+    auto text_blob_resolver = [this](u64 font_id, ReadonlySpan<Gfx::CanvasGlyph> glyphs) {
+        if (!m_text_resources.has_font(Web::Painting::FontResourceId { font_id }))
+            return sk_sp<SkTextBlob> {};
+        Vector<Web::Painting::DisplayListGlyph> display_list_glyphs;
+        display_list_glyphs.ensure_capacity(glyphs.size());
+        for (auto const& glyph : glyphs)
+            display_list_glyphs.unchecked_append({ .position = glyph.position, .glyph_id = glyph.glyph_id });
+        return m_text_resources.text_blob(Web::Painting::FontResourceId { font_id }, 1, display_list_glyphs, 0, Web::Painting::TextRasterizationMode::Unhinted);
+    };
+    auto player = make<Gfx::CanvasCommandPlayer>(m_skia_backend_context, size, format, Gfx::AlphaType::Premultiplied, move(canvas_surface_resolver), move(text_blob_resolver));
 
     // https://html.spec.whatwg.org/multipage/canvas.html#the-canvas-settings:concept-canvas-alpha
     // "Thus, the bitmap of such a context starts off as opaque black instead of transparent black"
@@ -131,8 +143,16 @@ void CanvasHost::present_canvas_2d_context(Web::Painting::CanvasId canvas_id, Ca
     context.has_uncommitted_commands = false;
 }
 
-void CanvasHost::execute_canvas_2d_stream(Vector<Web::Painting::Canvas2DCommandStreamSegment> const& segments)
+void CanvasHost::execute_canvas_2d_stream(Vector<Web::Painting::Canvas2DCommandStreamSegment> const& segments, Vector<Web::Painting::DisplayListFontResource> const& fonts)
 {
+    Web::Painting::DisplayListResourceSet resources;
+    for (auto const& font : fonts) {
+        // NB: Font IDs are immutable. Preserve the backing storage used by cached text blobs.
+        if (!m_text_resources.has_font(font.id))
+            m_text_resources.set_font(font.id, font.font);
+        resources.fonts.set(font.id);
+    }
+    m_text_resources.retain_only(resources);
     for (auto const& segment : segments) {
         // The canvas may have been destroyed while this segment was pending in
         // WebContent, so a missing context is not a protocol violation.

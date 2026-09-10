@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const face = new FontFace("CanvasGlyphTest", 'url("../wpt-import/fonts/Ahem.ttf")');
+        document.fonts.add(face);
+        await face.load();
+
+        function makeContext() {
+            const canvas = document.createElement("canvas");
+            canvas.width = 140;
+            canvas.height = 100;
+            const context = canvas.getContext("2d");
+            context.fillStyle = "blue";
+            context.fillRect(0, 0, 140, 100);
+            context.fillStyle = "red";
+            context.font = "20px CanvasGlyphTest";
+            return context;
+        }
+        function check(name, configure) {
+            const actual = makeContext();
+            const reference = makeContext();
+            configure(actual);
+            configure(reference);
+            actual.fillText("XX", 20, 40);
+            // Ahem's X is a square extending 0.8em above the baseline and 0.2em below it.
+            reference.fillRect(20, 24, 40, 20);
+            const actualPixels = actual.getImageData(0, 0, 140, 100).data;
+            const expectedPixels = reference.getImageData(0, 0, 140, 100).data;
+            println(`${name}: ${actualPixels.every((value, index) => Math.abs(value - expectedPixels[index]) <= 1)}`);
+        }
+        check("solid", () => {});
+        const fractional = makeContext();
+        fractional.fillText("XX", 20, 40.5);
+        const topEdge = fractional.getImageData(25, 24, 1, 1).data;
+        const bottomEdge = fractional.getImageData(25, 44, 1, 1).data;
+        // Text and rectangle antialiasing use different coverage curves. Both edge
+        // rows must have partial coverage, rather than snapping to an integer row.
+        println(`fractional baseline: ${[topEdge, bottomEdge].every(pixel => pixel[0] > 0 && pixel[0] < 255 && pixel[2] > 0 && pixel[2] < 255)}`);
+        check("alpha", context => { context.globalAlpha = 0.5; });
+        check("gradient coordinates", context => {
+            const gradient = context.createLinearGradient(0, 0, 80, 0);
+            gradient.addColorStop(0, "red");
+            gradient.addColorStop(1, "green");
+            context.fillStyle = gradient;
+        });
+        check("copy", context => { context.globalCompositeOperation = "copy"; });
+        check("destination-in", context => { context.globalCompositeOperation = "destination-in"; });
+        check("filter", context => { context.filter = "opacity(50%)"; });
+        check("translation", context => { context.translate(7, 3); });
+        check("scale", context => { context.scale(2, 2); });
+        check("clip", context => {
+            context.beginPath();
+            context.rect(30, 20, 20, 30);
+            context.clip();
+        });
+    });
+</script>

@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function makeContext(font) {
+            const canvas = document.createElement("canvas");
+            canvas.width = 160;
+            canvas.height = 80;
+            const context = canvas.getContext("2d");
+            context.font = font;
+            return context;
+        }
+        const fonts = ["20px serif", "24px sans-serif", "18px monospace"];
+        const contexts = fonts.map(makeContext);
+        function pixels(context) {
+            return context.getImageData(0, 0, 160, 80).data;
+        }
+        function check(label) {
+            for (let i = 0; i < contexts.length; ++i) {
+                const reference = makeContext(fonts[i]);
+                reference.fillText("Shared glyphs", 5, 35);
+                const expected = pixels(reference);
+                const actual = pixels(contexts[i]);
+                println(`${label}, font ${i}: ${actual.every((value, index) => value === expected[index])}`);
+            }
+        }
+        // Interleave fonts and canvases across automatic command-stream flushes.
+        for (let iteration = 0; iteration < 100; ++iteration) {
+            for (const context of contexts) {
+                context.clearRect(0, 0, 160, 80);
+                context.fillText("Shared glyphs", 5, 35);
+            }
+        }
+        check("interleaved draws");
+        // Readback flushes the stream. A later batch must supply its fonts again.
+        for (const context of contexts) {
+            context.clearRect(0, 0, 160, 80);
+            context.fillText("Shared glyphs", 5, 35);
+        }
+        check("after readback");
+    });
+</script>

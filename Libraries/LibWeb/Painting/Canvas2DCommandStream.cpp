@@ -4,11 +4,28 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibGfx/Font/Font.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibWeb/Painting/Canvas2DCommandStream.h>
 
 namespace Web::Painting {
+
+FontResourceId Canvas2DCommandStream::add_font(Gfx::Font const& font)
+{
+    m_fonts.ensure(font.id(), [&]() -> NonnullRefPtr<Gfx::Font const> { return font; });
+    return { font.id() };
+}
+
+Vector<DisplayListFontResource> Canvas2DCommandStream::take_fonts()
+{
+    Vector<DisplayListFontResource> fonts;
+    fonts.ensure_capacity(m_fonts.size());
+    for (auto& entry : m_fonts)
+        fonts.unchecked_append({ .id = FontResourceId { entry.key }, .font = move(entry.value) });
+    m_fonts.clear();
+    return fonts;
+}
 
 void Canvas2DCommandStream::append_segment(CanvasId canvas_id, bool present)
 {

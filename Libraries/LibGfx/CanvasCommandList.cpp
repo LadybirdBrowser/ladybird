@@ -61,6 +61,50 @@ CanvasPaintStyle to_canvas_paint_style(PaintStyle const& paint_style)
 namespace IPC {
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, Gfx::CanvasGlyph const& glyph)
+{
+    TRY(encoder.encode(glyph.position));
+    TRY(encoder.encode(glyph.glyph_id));
+    return {};
+}
+
+template<>
+ErrorOr<Gfx::CanvasGlyph> decode(Decoder& decoder)
+{
+    return Gfx::CanvasGlyph {
+        .position = TRY(decoder.decode<Gfx::FloatPoint>()),
+        .glyph_id = TRY(decoder.decode<u32>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Gfx::CanvasCommands::DrawGlyphRun const& command)
+{
+    TRY(encoder.encode(command.font_id));
+    TRY(encoder.encode(command.glyphs));
+    TRY(encoder.encode(command.translation));
+    TRY(encoder.encode(command.style));
+    TRY(encoder.encode(command.filter));
+    TRY(encoder.encode(command.global_alpha));
+    TRY(encoder.encode(command.compositing_and_blending_operator));
+    return {};
+}
+
+template<>
+ErrorOr<Gfx::CanvasCommands::DrawGlyphRun> decode(Decoder& decoder)
+{
+    return Gfx::CanvasCommands::DrawGlyphRun {
+        .font_id = TRY(decoder.decode<u64>()),
+        .glyphs = TRY(decoder.decode<Vector<Gfx::CanvasGlyph>>()),
+        .translation = TRY(decoder.decode<Gfx::FloatPoint>()),
+        .style = TRY(decoder.decode<Gfx::CanvasPaintStyle>()),
+        .filter = TRY(decoder.decode<Optional<Gfx::Filter>>()),
+        .global_alpha = TRY(decoder.decode<float>()),
+        .compositing_and_blending_operator = TRY(decoder.decode<Gfx::CompositingAndBlendingOperator>()),
+    };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, Gfx::CanvasLinearGradient const& gradient)
 {
     TRY(encoder.encode(gradient.start_point));

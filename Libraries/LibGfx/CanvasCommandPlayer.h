@@ -14,6 +14,10 @@
 #include <LibGfx/CanvasCommandList.h>
 #include <LibGfx/Forward.h>
 
+class SkTextBlob;
+template<typename T>
+class sk_sp;
+
 namespace Gfx {
 
 class CanvasCommandPlayer {
@@ -21,9 +25,10 @@ class CanvasCommandPlayer {
     AK_MAKE_NONMOVABLE(CanvasCommandPlayer);
 
 public:
+    using TextBlobResolver = Function<sk_sp<SkTextBlob>(u64, ReadonlySpan<CanvasGlyph>)>;
     using CanvasSurfaceResolver = Function<PaintingSurface const*(u64)>;
 
-    CanvasCommandPlayer(RefPtr<SkiaBackendContext>, IntSize, BitmapFormat, AlphaType, CanvasSurfaceResolver = {});
+    CanvasCommandPlayer(RefPtr<SkiaBackendContext>, IntSize, BitmapFormat, AlphaType, CanvasSurfaceResolver = {}, TextBlobResolver = {});
     ~CanvasCommandPlayer();
 
     NonnullRefPtr<PaintingSurface> surface() const;
@@ -33,6 +38,7 @@ public:
     void play(CanvasCommandList const&);
 
 private:
+    void play_command(CanvasCommands::DrawGlyphRun const&);
     void play_command(CanvasCommands::ClearRect const&);
     void play_command(CanvasCommands::FillRect const&);
     void play_command(CanvasCommands::DrawBitmap const&);
@@ -50,6 +56,7 @@ private:
     NonnullRefPtr<PaintingSurface> m_surface;
     NonnullOwnPtr<PainterSkia> m_painter;
     CanvasSurfaceResolver m_canvas_surface_resolver;
+    TextBlobResolver m_text_blob_resolver;
 };
 
 }

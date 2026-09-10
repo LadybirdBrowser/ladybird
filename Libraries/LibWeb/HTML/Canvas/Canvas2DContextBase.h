@@ -159,6 +159,7 @@ protected:
     PreparedText prepare_text(Utf16View, float max_width = INFINITY);
 
     [[nodiscard]] Gfx::Path rect_path(float x, float y, float width, float height);
+    Gfx::AffineTransform text_transform(float text_width, Optional<double> max_width);
     [[nodiscard]] Gfx::Path text_path(Utf16View, float x, float y, Optional<double> max_width);
 
     Gfx::Color clear_color() const;

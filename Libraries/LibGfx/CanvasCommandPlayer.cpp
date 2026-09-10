@@ -13,13 +13,15 @@
 #include <LibGfx/SkiaUtils.h>
 #include <core/SkCanvas.h>
 #include <core/SkPaint.h>
+#include <core/SkTextBlob.h>
 
 namespace Gfx {
 
-CanvasCommandPlayer::CanvasCommandPlayer(RefPtr<SkiaBackendContext> skia_backend_context, IntSize size, BitmapFormat format, AlphaType alpha_type, CanvasSurfaceResolver canvas_surface_resolver)
+CanvasCommandPlayer::CanvasCommandPlayer(RefPtr<SkiaBackendContext> skia_backend_context, IntSize size, BitmapFormat format, AlphaType alpha_type, CanvasSurfaceResolver canvas_surface_resolver, TextBlobResolver text_blob_resolver)
     : m_surface(PaintingSurface::create_with_size(size, format, alpha_type, move(skia_backend_context)))
     , m_painter(make<PainterSkia>(*m_surface))
     , m_canvas_surface_resolver(move(canvas_surface_resolver))
+    , m_text_blob_resolver(move(text_blob_resolver))
 {
 }
 
@@ -39,6 +41,16 @@ void CanvasCommandPlayer::play(CanvasCommandList const& command_list)
 {
     for (auto const& command : command_list.commands())
         command.visit([&](auto const& command) { play_command(command); });
+}
+
+void CanvasCommandPlayer::play_command(CanvasCommands::DrawGlyphRun const& command)
+{
+    if (!m_text_blob_resolver)
+        return;
+    auto blob = m_text_blob_resolver(command.font_id, command.glyphs);
+    if (!blob)
+        return;
+    m_painter->draw_text_blob(*blob, command.translation, resolve_paint_style(command.style), command.filter, command.global_alpha, command.compositing_and_blending_operator);
 }
 
 void CanvasCommandPlayer::play_command(CanvasCommands::ClearRect const& command)

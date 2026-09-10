@@ -166,7 +166,7 @@ void CompositorConnection::update_canvas_2d_stream(Web::Painting::Canvas2DComman
     if (stream.is_empty() || !can_send_message_to_compositor())
         return;
 
-    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateCanvas2dStream::static_encode(stream.take_segments()));
+    auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateCanvas2dStream::static_encode(stream.take_segments(), stream.take_fonts()));
     if (post_message(encoded_message).is_error())
         did_lose_compositor();
 }
