@@ -27,7 +27,6 @@
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorInterpolationMethodStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ColorMixStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorSchemeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
@@ -42,15 +41,12 @@
 #include <LibWeb/CSS/StyleValues/DisplayStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EasingStyleValue.h>
 #include <LibWeb/CSS/StyleValues/EdgeStyleValue.h>
-#include <LibWeb/CSS/StyleValues/EmptyOptionalStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FlexStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontSourceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FontStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FrequencyStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FunctionStyleValue.h>
-#include <LibWeb/CSS/StyleValues/GridAutoFlowStyleValue.h>
-#include <LibWeb/CSS/StyleValues/GridTemplateAreaStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackPlacementStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GridTrackSizeListStyleValue.h>
 #include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
@@ -183,7 +179,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::ColorInterpolationMethod:
         return adopt_ref(*new (nothrow) ColorInterpolationMethodStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::ColorMix:
-        return adopt_ref(*new (nothrow) ColorMixStyleValue(data));
+        return adopt_ref(*new (nothrow) ColorStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::ColorScheme:
         return adopt_ref(*new (nothrow) ColorSchemeStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::ConicGradient:
@@ -209,7 +205,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::Edge:
         return adopt_ref(*new (nothrow) EdgeStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::EmptyOptional:
-        return adopt_ref(*new (nothrow) EmptyOptionalStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::EmptyOptional, data));
     case StyleValueFFI::StyleValueData::Tag::Easing:
         return adopt_ref(*new (nothrow) EasingStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Keyword: {
@@ -254,9 +250,9 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::Function:
         return adopt_ref(*new (nothrow) FunctionStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::GridAutoFlow:
-        return adopt_ref(*new (nothrow) GridAutoFlowStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::GridAutoFlow, data));
     case StyleValueFFI::StyleValueData::Tag::GridTemplateArea:
-        return adopt_ref(*new (nothrow) GridTemplateAreaStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::GridTemplateArea, data));
     case StyleValueFFI::StyleValueData::Tag::GridTrackPlacement:
         return adopt_ref(*new (nothrow) GridTrackPlacementStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::GridTrackSizeList:
@@ -326,6 +322,12 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     default:
         VERIFY_NOT_REACHED();
     }
+}
+
+ValueComparingNonnullRefPtr<StyleValue const> StyleValue::create_empty_optional()
+{
+    static auto& instance = adopt_ref(*new (nothrow) StyleValue(Type::EmptyOptional, StyleValueFFI::rust_style_value_create_empty_optional())).leak_ref();
+    return instance;
 }
 
 void StyleValue::set_style_sheet(StyleSheetState* style_sheet)

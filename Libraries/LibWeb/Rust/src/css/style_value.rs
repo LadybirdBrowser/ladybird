@@ -3685,34 +3685,6 @@ pub unsafe extern "C" fn rust_style_value_create_color_function(
     }))
 }
 
-/// Takes ownership of one strong reference to each non-null value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_create_color_mix(
-    has_color_type: bool,
-    color_type: u8,
-    color_syntax: u8,
-    color_interpolation_method: *const StyleValueData,
-    first_color: *const StyleValueData,
-    first_percentage: *const StyleValueData,
-    second_color: *const StyleValueData,
-    second_percentage: *const StyleValueData,
-) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::ColorMix {
-        color_base: ColorBase {
-            has_color_type,
-            color_type,
-            color_syntax,
-        },
-        color_interpolation_method: unsafe {
-            RetainedStyleValueData::from_retained_optional_pointer(color_interpolation_method)
-        },
-        first_color: unsafe { RetainedStyleValueData::from_retained_pointer(first_color) },
-        first_percentage: unsafe { RetainedStyleValueData::from_retained_optional_pointer(first_percentage) },
-        second_color: unsafe { RetainedStyleValueData::from_retained_pointer(second_color) },
-        second_percentage: unsafe { RetainedStyleValueData::from_retained_optional_pointer(second_percentage) },
-    }))
-}
-
 /// Takes ownership of the options' retained values and strings.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_value_create_image_set(

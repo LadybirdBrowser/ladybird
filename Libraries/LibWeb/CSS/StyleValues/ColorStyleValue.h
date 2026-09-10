@@ -70,6 +70,8 @@ public:
     static Optional<RelativeColorContext> extract_channels_in_color_space(StyleValue const& origin_color, ColorType target_color_type, ColorResolutionContext const&);
 
 protected:
+    friend class StyleValue;
+
     explicit ColorStyleValue(StyleValueFFI::StyleValueData const* value)
         : StyleValue(Type::Color, value)
     {

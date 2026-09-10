@@ -973,32 +973,6 @@ TEST_CASE(rust_color_function_handles_retain_channel_data)
     EXPECT_EQ(retained_channel->to_string(SerializationMode::Normal), "0.1"sv);
 }
 
-TEST_CASE(rust_color_mix_handles_retain_component_data)
-{
-    auto make_color = [](double red) {
-        return ColorFunctionStyleValue::create(
-            ColorStyleValue::ColorType::sRGB,
-            NumberStyleValue::create(red), NumberStyleValue::create(0), NumberStyleValue::create(0));
-    };
-    auto first = make_color(0.1);
-    auto second = make_color(0.2);
-    auto data = StyleValueFFI::rust_style_value_create_color_mix(
-        false, 0, to_underlying(ColorSyntax::Modern), nullptr,
-        StyleValueFFI::rust_style_value_retain(first->rust_style_value_data()), nullptr,
-        StyleValueFFI::rust_style_value_retain(second->rust_style_value_data()), nullptr);
-
-    first = make_color(0.3);
-    second = make_color(0.4);
-    auto color_mix = StyleValue::adopt_rust_style_value_data(data);
-    EXPECT(color_mix->is_color());
-    EXPECT_EQ(color_mix->rust_style_value_data()->tag, StyleValueFFI::StyleValueData::Tag::ColorMix);
-    auto const* retained_color_data = static_cast<StyleValueFFI::StyleValueData const*>(
-        color_mix->rust_style_value_data()->color_mix.first_color.pointer);
-    auto retained_color = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(retained_color_data));
-    color_mix = KeywordStyleValue::create(Keyword::None);
-    EXPECT_EQ(retained_color->to_string(SerializationMode::Normal), "color(srgb 0.1 0 0)"sv);
-}
-
 TEST_CASE(rust_gradient_color_stop_handles_retain_data)
 {
     auto color = ColorFunctionStyleValue::create(
