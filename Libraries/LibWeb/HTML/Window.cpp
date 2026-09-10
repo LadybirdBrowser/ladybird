@@ -183,7 +183,11 @@ JS::ThrowCompletionOr<void> post_message_with_options(JS::Realm& realm, HTML::Wi
 
 WebIDL::UnsignedLong request_animation_frame(HTML::Window& window, WebIDL::CallbackType& callback)
 {
-    auto handler = [callback = GC::make_root(callback)](double now) {
+    // NB: The handler captures the callback as a plain GC reference, not a GC::Root: the driver that stores the
+    //     handler belongs to the window, so the callback lives exactly as long as the window's document. A root here
+    //     would keep a callback that never runs (a hidden document gets no animation frames) alive for the life of
+    //     the process, and with it the window, its document, and everything the document holds.
+    auto handler = [callback = GC::Ref { callback }](double now) {
         auto& callback_realm = callback->callback->shape().realm();
         auto result = WebIDL::invoke_callback(*callback, {}, { { JS::Value(now) } });
         if (result.is_error())
