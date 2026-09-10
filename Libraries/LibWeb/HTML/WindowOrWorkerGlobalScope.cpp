@@ -1266,6 +1266,13 @@ void WindowOrWorkerGlobalScopeMixin::run_steps_after_a_timeout_impl(i32 timeout,
     // 1. Assert: if timerKey is given, then the caller of this algorithm is the timer initialization steps. (Other specifications must not pass timerKey.)
     // Note: This is enforced by the caller.
 
+    // NB: Step 5.1 has a Window's timer wait until its associated Document has been fully active for a further
+    //     milliseconds milliseconds. A destroyed document is never fully active again — so a timer set on its window
+    //     can never fire, and there's nothing to arm: an armed one would only wake the event loop every period to
+    //     queue a task that can't run. Blink refuses such a timer outright, and Gecko makes the call a no-op.
+    if (auto* window = as_if<Window>(this_impl()); window && window->associated_document().has_been_destroyed())
+        return;
+
     // NB: A hidden document holds a delayed timer back past its deadline to its next wake-up (see
     //     throttled_timer_delay()), so the delay the timer is armed with can differ from the one it was asked for.
     auto deadline = HighResolutionTime::unsafe_shared_current_time() + timeout;
