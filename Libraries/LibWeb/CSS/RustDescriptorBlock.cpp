@@ -87,8 +87,8 @@ Utf16String RustDescriptorBlock::property_value(DescriptorNameAndID const& name)
     if (!value)
         return {};
     auto text = StyleValueFFI::rust_style_value_serialize(value, to_underlying(SerializationMode::Normal));
-    VERIFY(text.has_value);
-    return Utf16String::adopt_raw(text.raw);
+    VERIFY(text);
+    return Utf16String::adopt_raw(text);
 }
 
 RefPtr<StyleValue const> RustDescriptorBlock::descriptor(DescriptorNameAndID const& name) const

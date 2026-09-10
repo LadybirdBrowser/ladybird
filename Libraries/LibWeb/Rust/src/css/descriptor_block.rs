@@ -8,7 +8,7 @@ use crate::css::css_string::CssString;
 use crate::css::descriptor_metadata::CUSTOM_DESCRIPTOR_ID;
 use crate::css::ffi_support::FfiUtf16View;
 use crate::css::serialize::{
-    SerializationMode, StringUnits, TextSink, serialize_an_identifier, serialize_style_value, sink_into_ffi,
+    SerializationMode, StringUnits, TextSink, serialize_an_identifier, serialize_style_value, sink_into_raw,
 };
 use crate::css::style_value::StyleValueData;
 use std::cell::RefCell;
@@ -209,7 +209,7 @@ pub extern "C" fn rust_descriptor_block_serialize(block: &FfiDescriptorBlock, re
     let Some(sink) = serialize_descriptors(&block.data()) else {
         return false;
     };
-    *result = sink_into_ffi(sink).raw;
+    *result = sink_into_raw(sink);
     true
 }
 

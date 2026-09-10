@@ -3720,23 +3720,8 @@ fn serialize_shorthand(
     default_serialize(sink)
 }
 
-/// A native `AK::Utf16String` ownership reference handed to C++ without copying.
-#[repr(C)]
-pub struct FfiSerializedText {
-    pub raw: usize,
-    pub has_value: bool,
-}
-
-impl FfiSerializedText {
-    fn invalid() -> Self {
-        Self {
-            raw: 0,
-            has_value: false,
-        }
-    }
-}
-
-pub(crate) fn sink_into_ffi(sink: TextSink) -> FfiSerializedText {
+/// Transfers a native `AK::Utf16String` ownership reference without copying.
+pub(crate) fn sink_into_raw(sink: TextSink) -> usize {
     let string = if sink.is_ascii {
         // SAFETY: The ASCII representation is valid UTF-8.
         let text = unsafe { str::from_utf8_unchecked(&sink.ascii) };
@@ -3744,25 +3729,22 @@ pub(crate) fn sink_into_ffi(sink: TextSink) -> FfiSerializedText {
     } else {
         ak::Utf16String::from_utf16(&sink.utf16)
     };
-    FfiSerializedText {
-        raw: string.into_raw(),
-        has_value: true,
-    }
+    string.into_raw()
 }
 
-/// Serializes a style value into native ASCII-or-UTF-16 storage.
+/// Serializes a style value into native ASCII-or-UTF-16 storage, returning zero on failure.
 ///
 /// # Safety
 /// `value` must point at live style value data.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_style_value_serialize(value: *const c_void, mode: u8) -> FfiSerializedText {
+pub unsafe extern "C" fn rust_style_value_serialize(value: *const c_void, mode: u8) -> usize {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleValueSerializeEntry);
     let value = unsafe { &*value.cast::<StyleValueData>() };
     let mut sink = TextSink::new();
     if !serialize_style_value(&mut sink, value, SerializationMode::from_ffi(mode)) {
-        return FfiSerializedText::invalid();
+        return 0;
     }
-    sink_into_ffi(sink)
+    sink_into_raw(sink)
 }
 
 /// Serializes the retained component values of an unresolved style value. Mode 0 is normalized
@@ -3772,10 +3754,7 @@ pub unsafe extern "C" fn rust_style_value_serialize(value: *const c_void, mode: 
 /// # Safety
 /// `value` must point at live unresolved style value data.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_unresolved_style_value_serialize_components(
-    value: *const c_void,
-    mode: u8,
-) -> FfiSerializedText {
+pub unsafe extern "C" fn rust_unresolved_style_value_serialize_components(value: *const c_void, mode: u8) -> usize {
     let StyleValueData::Unresolved { components, .. } = (unsafe { &*value.cast::<StyleValueData>() }) else {
         unreachable!("component serialization requires an unresolved style value");
     };
@@ -3788,7 +3767,7 @@ pub unsafe extern "C" fn rust_unresolved_style_value_serialize_components(
     let serialized = serialize_component_values_to_utf16(components.as_slice(), mode);
     let mut sink = TextSink::new();
     serialized.into_iter().for_each(|unit| sink.push_code_unit(unit));
-    sink_into_ffi(sink)
+    sink_into_raw(sink)
 }
 
 #[cfg(test)]

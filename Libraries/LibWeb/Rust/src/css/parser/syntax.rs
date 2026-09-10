@@ -499,7 +499,7 @@ pub unsafe extern "C" fn rust_syntax_equals(left: *const c_void, right: *const c
 pub unsafe extern "C" fn rust_syntax_serialize(syntax: *const c_void) -> usize {
     let mut sink = TextSink::new();
     serialize_syntax(unsafe { &*syntax.cast::<SyntaxNode>() }, &mut sink);
-    crate::css::serialize::sink_into_ffi(sink).raw
+    crate::css::serialize::sink_into_raw(sink)
 }
 
 /// Parses a CSS value against a registered syntax and returns one strong style-value handle.
