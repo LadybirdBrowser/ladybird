@@ -8,6 +8,7 @@
 
 #include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
+#include <LibWebView/Application.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/CanonicalBrowsingContextGroup.h>
 #include <LibWebView/CanonicalTraversable.h>
@@ -345,6 +346,7 @@ void CanonicalNavigable::set_viewport(Web::DevicePixelRect viewport_rect, double
 void CanonicalNavigable::set_replicated_state(Web::HTML::ReplicatedNavigableState state)
 {
     m_active_session_history_entry_identity = state.active_session_history_entry_identity;
+    m_document_blob_url = BlobURLHandle::for_url(blob_url_store(), state.active_document_url);
     m_replicated_state = move(state);
 }
 
@@ -426,7 +428,12 @@ CanonicalNavigable::OngoingNavigation& CanonicalNavigable::ensure_ongoing_naviga
 
 void CanonicalNavigable::set_ongoing_navigation(OngoingNavigation ongoing_navigation)
 {
+    // NB: Taken before the handle covering this navigation's start is dropped below, so that a revoked entry is not
+    //     let go of in between.
+    auto blob_url = BlobURLHandle::for_url(blob_url_store(), ongoing_navigation.url);
+
     clear_ongoing_navigation();
+    m_navigation_blob_url = move(blob_url);
     m_ongoing_navigation = move(ongoing_navigation);
 }
 
@@ -445,6 +452,21 @@ void CanonicalNavigable::clear_ongoing_navigation()
 {
     m_ongoing_navigation.clear();
     m_ongoing_navigation_traversal_operation_id.clear();
+
+    // NB: The navigation this covered has either been announced, and is held below, or is not coming.
+    m_pending_navigation_blob_url = {};
+    m_navigation_blob_url = {};
+}
+
+BlobURLStore* CanonicalNavigable::blob_url_store() const
+{
+    return m_reporting_client ? &Application::blob_url_store(m_reporting_client->is_private()) : nullptr;
+}
+
+void CanonicalNavigable::retain_blob_url_token(URL::BlobURLEntry::Token token)
+{
+    if (auto* store = blob_url_store())
+        m_pending_navigation_blob_url = BlobURLHandle { *store, token };
 }
 
 void CanonicalNavigable::set_navigation_population_worker(WebContentClient& client, u64 page_id)

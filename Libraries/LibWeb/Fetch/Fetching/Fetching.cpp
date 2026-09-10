@@ -1015,13 +1015,8 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
     }
     // -> "blob"
     else if (request->current_url().scheme() == "blob"sv) {
-        // NB: The parser sets the entry of a blob URL this process created. For one another process created, ask the
-        // browser process, which keeps every process's entries, so the steps below and the response's URL have it.
-        if (!request->current_url().blob_url_entry().has_value())
-            request->current_url().set_blob_url_entry(FileAPI::blob_url_entry_in_the_user_agent_store(Bindings::principal_host_defined_page(realm), request->current_url()));
-
         // 1. Let blobURLEntry be request’s current URL’s blob URL entry.
-        auto const& blob_url_entry = request->current_url().blob_url_entry();
+        auto blob_url_entry = FileAPI::blob_url_entry_in_the_user_agent_store(Bindings::principal_host_defined_page(realm), request->current_url());
 
         // 2. If request’s method is not `GET` or blobURLEntry is null, then return a network error. [FILEAPI]
         if (request->method() != "GET"sv || !blob_url_entry.has_value())
@@ -1073,10 +1068,10 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
         if (!maybe_blob_object.has_value())
             return PendingResponse::create(request, Infrastructure::Response::network_error("Failed to obtain a Blob object from 'blob:' URL"_string));
 
-        URL::BlobURLEntry::Blob* blob_object;
-        if (blob_object = maybe_blob_object.value().get_pointer<URL::BlobURLEntry::Blob>(); !blob_object)
+        auto const* blob_object = maybe_blob_object.value().get_pointer<FileAPI::SerializedBlobURLEntry::Blob>();
+        if (!blob_object)
             return PendingResponse::create(request, Infrastructure::Response::network_error("Failed to obtain a Blob object from 'blob:' URL"_string));
-        auto const blob = FileAPI::Blob::create(MUST(ByteBuffer::copy(blob_object->data)), blob_object->type);
+        auto const blob = FileAPI::Blob::create(blob_object->data, Utf16String::from_utf8(blob_object->type));
 
         // 9. Let response be a new response.
         auto response = Infrastructure::Response::create();

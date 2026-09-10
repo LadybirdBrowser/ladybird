@@ -1252,9 +1252,9 @@ void HTMLMediaElement::load_url_resource(URL::URL const& url_record, Function<vo
     // NB: We invoke load_local_resource() directly when a media provider object is being loaded.
 
     //    Otherwise:
-    // AD-HOC: Skip these steps if the URL is not a blob. Otherwise, we'll access a nonexistent
+    // AD-HOC: Skip these steps if the URL has no blob URL entry. Otherwise, we'll access a nonexistent
     //         blob URL entry below.
-    if (url_record.blob_url_entry().has_value()) {
+    if (auto blob_url_entry = FileAPI::blob_url_entry_in_the_user_agent_store(document().page(), url_record); blob_url_entry.has_value()) {
         // 1. Let isTopLevelSelfFetch be false.
         auto is_top_level_self_fetch = false;
         // 2. Let settingsObject be the media element's node document's relevant settings object.
@@ -1283,9 +1283,9 @@ void HTMLMediaElement::load_url_resource(URL::URL const& url_record, Function<vo
         }();
 
         // 6. Let object be the result of obtaining a blob object using the URL record's blob URL entry and stringOrEnvironment.
-        auto object = FileAPI::obtain_a_blob_object(*url_record.blob_url_entry(), string_or_environment);
+        auto object = FileAPI::obtain_a_blob_object(*blob_url_entry, string_or_environment);
         // 7. If object is a media provider object,
-        if (object.has_value() && object->has<URL::BlobURLEntry::MediaSource>()) {
+        if (object.has_value() && object->has<FileAPI::SerializedBlobURLEntry::MediaSource>()) {
             // then set mode to local.
 
             // NB: The subsequent steps for local resources are contained in load_local_resource().

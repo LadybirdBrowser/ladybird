@@ -142,12 +142,12 @@ ErrorOr<void> encode(Encoder& encoder, URL::URL const& value)
 template<>
 ErrorOr<void> encode(Encoder& encoder, URL::BlobURLEntry const& entry)
 {
+    // NB: The entry's object stays in this process. Only the origin and the token are sent, and the receiver asks the
+    //     user agent's blob URL store for the object by token.
     auto const* blob = entry.object.get_pointer<URL::BlobURLEntry::Blob>();
     TRY(encoder.encode(blob != nullptr));
-    if (blob) {
-        TRY(encoder.encode(blob->type));
-        TRY(encoder.encode(blob->data));
-    }
+    if (blob)
+        TRY(encoder.encode(blob->token));
     TRY(encoder.encode(entry.environment.origin));
     return {};
 }

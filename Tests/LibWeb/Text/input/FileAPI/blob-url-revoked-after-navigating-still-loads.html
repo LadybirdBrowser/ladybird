@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<body>
+<script>
+    // The user agent's blob URL store keeps a revoked entry for as long as a URL record still names it, so a
+    // navigation started before the revocation loads, and the session history entry it leaves behind reloads.
+    asyncTest(async done => {
+        const contents = '<!doctype html><script>parent.postMessage("loaded", "*");<\/script>';
+        const nextMessage = () => new Promise(resolve => window.addEventListener('message', event => resolve(event.data), { once: true }));
+
+        {
+            const url = URL.createObjectURL(new Blob([contents], { type: 'text/html' }));
+            const frame = document.createElement('iframe');
+            const message = nextMessage();
+            frame.src = url;
+            document.body.appendChild(frame);
+            URL.revokeObjectURL(url);
+            println('navigated then revoked: ' + await message);
+            frame.remove();
+        }
+
+        {
+            const url = URL.createObjectURL(new Blob([contents], { type: 'text/html' }));
+            const frame = document.createElement('iframe');
+            let message = nextMessage();
+            frame.src = url;
+            document.body.appendChild(frame);
+            await message;
+            URL.revokeObjectURL(url);
+            message = nextMessage();
+            frame.contentWindow.location.reload();
+            println('reloaded after revoke: ' + await message);
+            frame.remove();
+        }
+
+        done();
+    });
+</script>

@@ -67,9 +67,9 @@ Messages::WebContentClient::ResolveGenericFontResponse WebContentClient::resolve
     return Optional<String> { resolved->to_string() };
 }
 
-void WebContentClient::did_add_blob_url_entry(Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry)
+Messages::WebContentClient::DidAddBlobUrlEntryResponse WebContentClient::did_add_blob_url_entry(Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry)
 {
-    Application::blob_url_store(m_is_private).add_entry(move(url), move(entry), WeakPtr<WebContentClient> { *this });
+    return Application::blob_url_store(m_is_private).add_entry(move(url), move(entry), WeakPtr<WebContentClient> { *this });
 }
 
 void WebContentClient::did_remove_blob_url_entries(Vector<Utf16String> urls, URL::Origin origin)
@@ -77,9 +77,15 @@ void WebContentClient::did_remove_blob_url_entries(Vector<Utf16String> urls, URL
     Application::blob_url_store(m_is_private).remove_entries(urls, origin, WeakPtr<WebContentClient> { *this });
 }
 
-Messages::WebContentClient::DidRequestBlobUrlEntryResponse WebContentClient::did_request_blob_url_entry(Utf16String url)
+void WebContentClient::did_retain_blob_url_token(Web::HTML::CrossProcessId navigable_id, URL::BlobURLEntry::Token token)
 {
-    return Application::blob_url_store(m_is_private).resolve(url);
+    if (auto navigable = hosted_navigable(navigable_id); navigable.has_value())
+        navigable->retain_blob_url_token(token);
+}
+
+Messages::WebContentClient::DidRequestBlobUrlEntryResponse WebContentClient::did_request_blob_url_entry(Utf16String url, Optional<URL::BlobURLEntry::Token> token)
+{
+    return Application::blob_url_store(m_is_private).resolve(url, token);
 }
 
 HashTable<WebContentClient*>& WebContentClient::clients()

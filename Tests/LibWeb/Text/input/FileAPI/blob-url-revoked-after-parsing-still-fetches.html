@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A URL record holds the object of the entry it was parsed against, so revoking the entry afterwards does not
+    // stop a fetch of that URL record. Parsing the URL after the entry is revoked finds no entry, and fails.
+    asyncTest(async done => {
+        const contents = "test blob contents";
+
+        const parsedBeforeRevoke = new Request(URL.createObjectURL(new Blob([contents])));
+        URL.revokeObjectURL(parsedBeforeRevoke.url);
+        try {
+            println("parsed before revoke: " + await (await fetch(parsedBeforeRevoke)).text());
+        } catch (e) {
+            println("parsed before revoke: " + e.name);
+        }
+
+        const cloned = new Request(URL.createObjectURL(new Blob([contents])));
+        URL.revokeObjectURL(cloned.url);
+        try {
+            println("cloned before revoke: " + await (await fetch(cloned.clone())).text());
+        } catch (e) {
+            println("cloned before revoke: " + e.name);
+        }
+
+        const revoked = URL.createObjectURL(new Blob([contents]));
+        URL.revokeObjectURL(revoked);
+        try {
+            await fetch(revoked);
+            println("parsed after revoke: fetched");
+        } catch (e) {
+            println("parsed after revoke: " + e.name);
+        }
+
+        done();
+    });
+</script>

@@ -1,0 +1,2 @@
+navigated then revoked: loaded
+reloaded after revoke: loaded

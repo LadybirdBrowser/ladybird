@@ -11,6 +11,7 @@
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/WebIDL/DOMException.h>
 
 namespace Web::HTML {
@@ -113,6 +114,13 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
 
         // 4. Set initiatorBaseURLSnapshot to sourceDocument's document base URL.
         initiator_base_url_snapshot = source_document->base_url();
+    }
+
+    // AD-HOC: Nothing the browser process can see names this URL's blob URL entry until the navigation commits, so
+    //         ask it to keep the entry until then.
+    if (auto const& blob_url_entry = params.url.blob_url_entry(); blob_url_entry.has_value() && source_document) {
+        if (auto const* blob = blob_url_entry->object.get_pointer<URL::BlobURLEntry::Blob>())
+            source_document->page().client().page_did_retain_blob_url_token(id(), blob->token);
     }
 
     // 7. Let navigationId be the result of generating a random UUID.
