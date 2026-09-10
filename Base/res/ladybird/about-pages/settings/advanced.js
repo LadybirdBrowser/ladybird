@@ -69,7 +69,6 @@ function createRow(variable) {
     row.dataset.filterText = `${variable.name} ${variable.title} ${variable.description}`.toLowerCase();
 
     const title = document.createElement("p");
-    title.classList.add("config-title");
     title.textContent = variable.title;
 
     const name = document.createElement("p");

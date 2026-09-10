@@ -6,6 +6,11 @@
         <link rel="stylesheet" type="text/css" href="resource://ladybird/ladybird.css" />
         <link rel="stylesheet" type="text/css" href="resource://ladybird/about-pages/webui.css" />
         <style>
+            body {
+                font-size: 14px;
+                line-height: 1.5;
+            }
+
             @media (prefers-color-scheme: light) {
                 :root {
                     --input-background-color: white;
@@ -69,8 +74,23 @@
                 flex-shrink: 0;
             }
 
+            .inline-container > label,
+            .filter-list-row label {
+                margin-bottom: 0;
+            }
+
+            .inline-container:has(> input[type="checkbox"]:disabled) {
+                opacity: 0.5;
+                filter: grayscale(1);
+            }
+
+            input[type="checkbox"][switch]:disabled {
+                cursor: default;
+            }
+
             .button-container {
                 display: flex;
+                align-items: center;
                 justify-content: flex-end;
                 gap: 10px;
 
@@ -94,25 +114,58 @@
             }
 
             .forcibly-enabled {
-                font-size: 14px;
                 opacity: 0.6;
             }
 
             .description {
-                margin-top: 8px;
-                font-size: 14px;
+                margin-top: 4px;
                 opacity: 0.7;
+            }
+
+            .description:empty {
+                display: none;
+            }
+
+            .card-body > .description:first-child {
+                margin: 0 0 16px;
+            }
+
+            .filter-list-collection {
+                margin-top: 16px;
+            }
+
+            .filter-list-header {
+                margin-bottom: 16px;
+            }
+
+            .filter-list-header .card-title {
+                margin: 0;
+            }
+
+            .filter-list-metadata {
+                font-size: 12px;
             }
 
             .tab-panel > .description {
                 margin-bottom: 16px;
             }
 
+            .filter-list-row > div:first-child {
+                min-width: 0;
+                overflow-wrap: anywhere;
+            }
+
+            .filter-list-row .input-field-container {
+                flex-shrink: 0;
+            }
+
+            .form-row input {
+                flex: 1;
+            }
+
             label {
                 display: block;
                 margin-bottom: 8px;
-
-                font-size: 14px;
             }
 
             input[type="number"],
@@ -128,6 +181,9 @@
             }
 
             textarea {
+                font-size: inherit;
+                line-height: inherit;
+                padding: 10px 12px;
                 resize: vertical;
             }
 
@@ -181,10 +237,6 @@
                 flex-direction: column;
 
                 padding: 15px 20px;
-            }
-
-            dialog .dialog-body label {
-                font-size: 16px;
             }
 
             dialog .dialog-body hr {
@@ -301,10 +353,6 @@
                 overflow-wrap: anywhere;
             }
 
-            .config-title {
-                font-size: 14px;
-            }
-
             .tab-bar {
                 display: flex;
                 gap: 4px;
@@ -348,11 +396,37 @@
                 display: block;
             }
 
+            .expandable-list summary {
+                cursor: pointer;
+                margin-bottom: 20px;
+            }
+
             button:focus-visible,
             summary:focus-visible,
             input[type="checkbox"]:focus-visible {
                 outline: 2px solid var(--violet-100);
                 outline-offset: 2px;
+            }
+
+            textarea:focus {
+                border-color: var(--violet-100);
+                outline: 2px solid var(--violet-100);
+                outline-offset: 1px;
+            }
+
+            @media (max-width: 600px) {
+                .filter-list-row {
+                    align-items: flex-start;
+                }
+
+                .form-row {
+                    align-items: stretch;
+                    flex-direction: column;
+                }
+
+                .form-row button {
+                    align-self: flex-end;
+                }
             }
         </style>
     </head>
@@ -372,6 +446,7 @@
                 Permissions
             </button>
             <button id="tab-button-privacy" class="tab-button" data-tab="privacy" role="tab">Privacy</button>
+            <button id="tab-button-blocking" class="tab-button" data-tab="blocking" role="tab">Blocking</button>
             <button id="tab-button-services" class="tab-button" data-tab="services" role="tab">Services</button>
             <button id="tab-button-network" class="tab-button" data-tab="network" role="tab">Network</button>
             <button id="tab-button-advanced" class="tab-button" data-tab="advanced" role="tab">Advanced</button>
@@ -583,6 +658,64 @@
                             <input id="global-privacy-control-toggle" type="checkbox" switch />
                         </div>
                     </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="tab-panel" id="tab-blocking">
+            <template id="filter-list-row">
+                <div class="card-group card-separator inline-container filter-list-row">
+                    <div>
+                        <label></label>
+                        <p class="description"></p>
+                        <p class="description filter-list-metadata"></p>
+                    </div>
+                    <div class="input-field-container">
+                        <input type="checkbox" switch />
+                        <button class="secondary-button">Remove</button>
+                    </div>
+                </div>
+            </template>
+            <div class="inline-container filter-list-header">
+                <h3 class="card-title">Filter lists</h3>
+                <button id="update-content-blocker-lists" class="secondary-button">Update enabled lists</button>
+            </div>
+            <div id="built-in-content-blocker-lists" class="card card-body"></div>
+            <details class="expandable-list">
+                <summary>Show language-specific lists</summary>
+                <div id="language-content-blocker-lists" class="card card-body"></div>
+            </details>
+
+            <h3 class="card-title">Add a subscription</h3>
+            <div class="card card-body">
+                <p class="description">
+                    Add a filter list maintained by a source you trust. Automatic updates reveal your IP address to that
+                    source.
+                </p>
+                <div class="input-field-container form-row">
+                    <input id="custom-content-blocker-subscription-url" type="url" placeholder="Filter list URL" />
+                    <button id="add-content-blocker-subscription" class="secondary-button">Add</button>
+                </div>
+                <p id="custom-content-blocker-subscription-status" class="description" role="status"></p>
+                <div id="custom-content-blocker-subscriptions" class="filter-list-collection"></div>
+            </div>
+
+            <h3 class="card-title">Local filter lists</h3>
+            <div class="card card-body">
+                <p class="description">Import Adblock-compatible filter lists stored on this computer.</p>
+                <input id="local-content-blocker-list-picker" type="file" accept=".txt,text/plain" hidden />
+                <button id="import-local-content-blocker-list" class="secondary-button">Import list...</button>
+                <p id="local-content-blocker-list-status" class="description" role="status"></p>
+                <div id="local-content-blocker-lists" class="filter-list-collection"></div>
+            </div>
+
+            <h3 class="card-title">Custom filters</h3>
+            <div class="card card-body">
+                <label for="custom-content-blocker-filters"> Add Adblock-compatible rules, one per line. </label>
+                <textarea id="custom-content-blocker-filters" rows="12" spellcheck="false"></textarea>
+                <div class="button-container">
+                    <span id="custom-content-blocker-filters-status" class="description" role="status"></span>
+                    <button id="save-custom-content-blocker-filters" class="secondary-button">Save changes</button>
                 </div>
             </div>
         </div>
@@ -820,6 +953,7 @@
 
         <script src="resource://ladybird/about-pages/settings/advanced.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/browsing-behavior.js" type="module"></script>
+        <script src="resource://ladybird/about-pages/settings/blocking.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/default-zoom-level.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/force-dark.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/geolocation.js" type="module"></script>

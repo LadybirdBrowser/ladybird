@@ -19,6 +19,7 @@ namespace WebView {
 
 static constexpr auto s_pages = to_array<WebUI::Page>({
     { "about"sv, "About URLs"sv, WebUI::PageType::Static },
+    { "blocking"sv, "Blocking"sv, WebUI::PageType::Static },
     { "bookmarks"sv, "Bookmarks"sv, WebUI::PageType::Dynamic },
     { "downloads"sv, "Downloads"sv, WebUI::PageType::Dynamic },
     { "history"sv, "History"sv, WebUI::PageType::Dynamic },
