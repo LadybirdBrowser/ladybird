@@ -119,9 +119,7 @@ public:
     void apply_transaction(DisplayListResourceTransaction&&);
     DisplayListResourceTransaction create_transaction(DisplayListResourceSet const& previous, DisplayListResourceSet const& current) const;
     DisplayListResourceSet collect_referenced_resources(DisplayList const&) const;
-    DisplayListResourceSet collect_referenced_resources(DisplayList const&, AccumulatedVisualContextTree const&) const;
     DisplayListResourceSet collect_referenced_resources(AccumulatedVisualContextTree const&) const;
-    DisplayListResourceSet collect_referenced_resources(ReadonlyBytes command_bytes) const;
     void retain_only(DisplayListResourceSet const&);
     bool has_resources_added_since_last_retain() const { return m_has_resources_added_since_last_retain; }
     void set_video_sink(VideoSinkResourceId, RefPtr<Media::VideoSink>);
