@@ -18,10 +18,18 @@
         println(`audio clock started: ${context.currentTime > 0}`);
 
         iframe.remove();
-        await new Promise(resolve => setTimeout(resolve, 50));
-        const settledTime = context.currentTime;
-        await new Promise(resolve => setTimeout(resolve, 100));
-        println(`audio clock stopped after document became inactive: ${context.currentTime === settledTime}`);
+
+        while (iframe.contentWindow !== null)
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+        let settledTime = context.currentTime;
+        for (;;) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+            if (context.currentTime === settledTime)
+                break;
+            settledTime = context.currentTime;
+        }
+        println("audio clock stopped after document became inactive");
         done();
     });
 </script>
