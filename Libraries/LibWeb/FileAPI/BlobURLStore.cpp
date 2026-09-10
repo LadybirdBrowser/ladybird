@@ -27,7 +27,7 @@ BlobURLStore& blob_url_store()
 }
 
 // https://w3c.github.io/FileAPI/#unicodeBlobURL
-ErrorOr<Utf16String> generate_new_blob_url()
+Utf16String generate_new_blob_url()
 {
     // 1. Let result be the empty string.
     Utf16StringBuilder result;
@@ -69,13 +69,13 @@ ErrorOr<Utf16String> add_entry_to_blob_url_store(BlobURLEntry::Object object)
     auto& store = blob_url_store();
 
     // 2. Let url be the result of generating a new blob URL.
-    auto url = TRY(generate_new_blob_url());
+    auto url = generate_new_blob_url();
 
     // 3. Let entry be a new blob URL entry consisting of object and the current settings object.
     BlobURLEntry entry { object, HTML::current_settings_object() };
 
     // 4. Set store[url] to entry.
-    TRY(store.try_set(url, move(entry)));
+    store.set(url, move(entry));
 
     // 5. Return url.
     return url;

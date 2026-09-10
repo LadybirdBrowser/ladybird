@@ -27,7 +27,7 @@ struct BlobURLEntry {
 using BlobURLStore = GC::ConservativeHashMap<Utf16String, BlobURLEntry>;
 
 BlobURLStore& blob_url_store();
-ErrorOr<Utf16String> generate_new_blob_url();
+Utf16String generate_new_blob_url();
 ErrorOr<Utf16String> add_entry_to_blob_url_store(BlobURLEntry::Object);
 bool check_for_same_partition_blob_url_usage(URL::BlobURLEntry const&, GC::Ref<HTML::Environment>);
 struct TopLevelNavigation { };
