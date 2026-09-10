@@ -48,6 +48,41 @@ CTEST_OUTPUT_ON_FAILURE=1 ninja test
 ctest --output-on-failure
 ```
 
+### JavaScript tests
+
+Build `test-js` to build the runtime runner and `js`, and prepare the shared
+AST/bytecode snapshot runner. From the build directory, run:
+
+```sh
+ninja test-js
+./bin/test-js
+./bin/test-js --suite runtime -f array
+./bin/test-js --suite ast --suite bytecode -f class
+./bin/test-js --suite bytecode --rebaseline -f class
+```
+
+Set `LADYBIRD_SOURCE_DIR` to the repository root before running the command.
+Without `--suite`, the command runs runtime, AST, and bytecode tests, continuing
+through suite failures and returning a nonzero status if any suite fails.
+CTest registers this as a single `test-js` test.
+
+`-f` / `--filter` accepts repeatable, case-insensitive substring globs across
+all selected suites. `--jobs N` controls snapshot parallelism. `--rebaseline`
+updates only the selected snapshot expectations; without `--suite`, it updates
+both AST and bytecode expectations. It never updates expectations for a script
+that exits unsuccessfully.
+
+`-j` / `--json` produces one JSON document with `suites` and `failed_suites`.
+`--per-file` includes individual runtime results. When selecting only
+`--suite runtime`, both options retain the original runtime JSON format.
+`--test262-parser-tests` selects only the runtime suite and retains its JSON
+format for the test262 results collector.
+Additional runtime options and custom test roots are forwarded to the C++
+runner; use `--suite runtime --help-runtime` to list its options.
+
+For a native debugging session, run `test-js-runtime` directly with the
+original runtime options.
+
 ### Inspecting test-web results
 
 At the end of a run, `test-web` prints the location of its results directory.
