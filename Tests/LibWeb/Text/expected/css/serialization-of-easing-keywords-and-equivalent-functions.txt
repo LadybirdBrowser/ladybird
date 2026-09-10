@@ -1,6 +1,6 @@
 Specified: #linear { animation-timing-function: linear; transition-timing-function: linear(0, 1); }
 Keyword computed: linear
-Function computed: linear(0, 1)
+Function computed: linear(0 0%, 1 100%)
 
 Specified: #ease-in { animation-timing-function: ease-in; transition-timing-function: cubic-bezier(0.42, 0, 1, 1); }
 Keyword computed: ease-in

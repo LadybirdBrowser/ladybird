@@ -51,7 +51,7 @@ mod grid_tests {
             (property_id::CLIP_PATH, "ellipse(2px 3px)"),
             (property_id::CLIP_PATH, "polygon(1px 2px, 3px 4px, 5px 6px)"),
             (property_id::D, "path(\"M0 0 L30 40\")"),
-            (property_id::ANIMATION_TIMING_FUNCTION, "linear(0, 1 50%)"),
+            (property_id::ANIMATION_TIMING_FUNCTION, "linear(0 0%, 1 50%)"),
             (property_id::ANIMATION_TIMING_FUNCTION, "cubic-bezier(0, 0, 1, 1)"),
             (property_id::ANIMATION_TIMING_FUNCTION, "steps(4, jump-start)"),
         ] {
@@ -122,6 +122,39 @@ mod grid_tests {
         };
         assert_eq!(percentage_from_style_value(first_percentage.data()), Some(20.0));
         assert_eq!(percentage_from_style_value(second_percentage.data()), Some(20.0));
+    }
+
+    #[test]
+    fn composite_resolution_canonicalizes_linear_easing_control_points() {
+        unsafe extern "C" fn unchanged(_: *const core::ffi::c_void, value: &StyleValueData) -> *const StyleValueData {
+            unsafe { Arc::increment_strong_count(value) };
+            value
+        }
+        let parsed = parse(property_id::ANIMATION_TIMING_FUNCTION, "linear(0, 0.25, 0.5 60%, 1)");
+        let StyleValueData::ValueList { values, .. } = &*parsed else {
+            unreachable!();
+        };
+        let resolved = unsafe {
+            Arc::from_raw(rust_composite_style_value_absolutize(
+                values.as_slice()[0].data(),
+                std::ptr::null(),
+                unchanged,
+            ))
+        };
+        let StyleValueData::Easing { linear_stops, .. } = &*resolved else {
+            unreachable!();
+        };
+        let inputs = linear_stops
+            .as_slice()
+            .iter()
+            .map(|stop| {
+                let StyleValueData::Percentage { value } = stop.input().data() else {
+                    unreachable!();
+                };
+                *value
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(inputs, [0.0, 30.0, 60.0, 100.0]);
     }
 
     #[test]
@@ -1115,6 +1148,96 @@ fn absolutize_basic_shape(
     }
 }
 
+fn canonicalize_linear_easing_control_points(
+    stops: Vec<crate::css::style_value::RetainedLinearEasingStop>,
+) -> Option<(Vec<crate::css::style_value::RetainedLinearEasingStop>, bool)> {
+    struct ControlPoint {
+        output: RetainedStyleValueData,
+        original_input: RetainedStyleValueData,
+        input: Option<f64>,
+    }
+
+    let mut control_points = stops
+        .into_iter()
+        .map(|stop| {
+            let [output, input] = stop.values();
+            let resolved_input = match input.optional_data() {
+                Some(input) => Some(number_from_value(input, 1.0)?),
+                None => None,
+            };
+            Some(ControlPoint {
+                output: output.clone_retained(),
+                original_input: input.clone_retained(),
+                input: resolved_input,
+            })
+        })
+        .collect::<Option<Vec<_>>>()?;
+
+    // https://drafts.csswg.org/css-easing/#linear-canonicalization
+    // To canonicalize a linear() function’s control points, perform the following:
+
+    // 1. If the first control point lacks an input progress value, set its input progress value to 0.
+    if control_points.first()?.input.is_none() {
+        control_points.first_mut()?.input = Some(0.0);
+    }
+
+    // 2. If the last control point lacks an input progress value, set its input progress value to 1.
+    if control_points.last()?.input.is_none() {
+        control_points.last_mut()?.input = Some(1.0);
+    }
+
+    // 3. If any control point has an input progress value that is less than
+    // the input progress value of any preceding control point,
+    // set its input progress value to the largest input progress value of any preceding control point.
+    let mut largest_input = f64::NEG_INFINITY;
+    for control_point in &mut control_points {
+        if let Some(input) = control_point.input {
+            if input < largest_input {
+                control_point.input = Some(largest_input);
+            } else {
+                largest_input = input;
+            }
+        }
+    }
+
+    // 4. If any control point still lacks an input progress value,
+    // then for each contiguous run of such control points,
+    // set their input progress values so that they are evenly spaced
+    // between the preceding and following control points with input progress values.
+    let mut run_start_index: Option<usize> = None;
+    for index in 0..control_points.len() {
+        if control_points[index].input.is_some() && run_start_index.is_some() {
+            let run_start_index = run_start_index.take()?;
+            let start_input = control_points[run_start_index - 1].input?;
+            let end_input = control_points[index].input?;
+            let run_stop_count = index - run_start_index + 1;
+            let delta = (end_input - start_input) / run_stop_count as f64;
+            for run_index in 0..run_stop_count {
+                control_points[run_index + run_start_index - 1].input = Some(start_input + delta * run_index as f64);
+            }
+        } else if control_points[index].input.is_none() && run_start_index.is_none() {
+            run_start_index = Some(index);
+        }
+    }
+
+    let mut changed = false;
+    let stops = control_points
+        .into_iter()
+        .map(|control_point| {
+            let input = control_point.input?;
+            changed |= !matches!(
+                control_point.original_input.optional_data(),
+                Some(StyleValueData::Percentage { value }) if *value == input * 100.0
+            );
+            Some(crate::css::style_value::RetainedLinearEasingStop::from_retained_values(
+                control_point.output,
+                retain_new(StyleValueData::Percentage { value: input * 100.0 }),
+            ))
+        })
+        .collect::<Option<Vec<_>>>()?;
+    Some((stops, changed))
+}
+
 fn absolutize_easing(
     value: &StyleValueData,
     resolve: &mut impl FnMut(&RetainedStyleValueData, &mut bool) -> Option<RetainedStyleValueData>,
@@ -1141,6 +1264,11 @@ fn absolutize_easing(
         stops.push(crate::css::style_value::RetainedLinearEasingStop::from_retained_values(
             output, input,
         ));
+    }
+    if *kind == 0 {
+        let (canonicalized_stops, canonicalization_changed) = canonicalize_linear_easing_control_points(stops)?;
+        stops = canonicalized_stops;
+        changed |= canonicalization_changed;
     }
     let x1 = resolve(x1, &mut changed)?;
     let y1 = resolve(y1, &mut changed)?;
