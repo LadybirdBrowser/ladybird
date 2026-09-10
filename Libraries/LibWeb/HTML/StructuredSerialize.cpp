@@ -53,6 +53,7 @@
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/MessagePort.h>
 #include <LibWeb/Bindings/PredefinedColorSpace.h>
+#include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/QuotaExceededError.h>
 #include <LibWeb/Bindings/ReadableStream.h>
 #include <LibWeb/Bindings/Serializable.h>
@@ -1187,6 +1188,24 @@ static GC::Ref<WebIDL::DOMException> data_clone_error(Utf16String message)
     return WebIDL::DataCloneError::create(move(message));
 }
 
+// The [[AgentCluster]] of a shared buffer's record: the surrounding agent's agent cluster, which deserialization holds
+// the target realm's against — so the buffer never leaves the cluster it was created in. A SameAgentAlways clone never
+// leaves its agent, and names no cluster.
+static WebIDL::ExceptionOr<void> serialize_agent_cluster(StructuredSerializeWriter& data_holder, AllowSharedArrayBuffers allow_shared_array_buffers)
+{
+    if (allow_shared_array_buffers == AllowSharedArrayBuffers::SameAgentAlways) {
+        data_holder.encode(false);
+        return {};
+    }
+
+    auto agent_cluster = current_settings_object().agent_cluster_id();
+    if (!agent_cluster.has_value())
+        return data_clone_error("Cannot serialize SharedArrayBuffer outside an agent cluster"_utf16);
+    data_holder.encode(true);
+    data_holder.encode(*agent_cluster);
+    return {};
+}
+
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeinternal
 static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, StructuredSerializeWriter& data_holder, JS::ArrayBuffer& array_buffer, bool for_storage, AllowSharedArrayBuffers allow_shared_array_buffers)
 {
@@ -1217,6 +1236,7 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, StructuredSe
             //         process-local) — so only a same-process target can share it. A record that crosses a process
             //         boundary hands the peer a copy.
             data_holder.encode(ValueTag::GrowableSharedArrayBuffer);
+            TRY(serialize_agent_cluster(data_holder, allow_shared_array_buffers));
             data_holder.encode(data_holder.add_shared_array_buffer(array_buffer));
             data_holder.encode(MUST(array_buffer.copy_to_byte_buffer()));
             data_holder.encode(static_cast<u64>(array_buffer.max_byte_length()));
@@ -1228,6 +1248,7 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, StructuredSe
             // record's side table and encode its index. A record that crosses a process boundary arrives with an empty
             // side table — and shares through the file-descriptor side list below instead, or falls back to a byte copy.
             data_holder.encode(ValueTag::SharedArrayBuffer);
+            TRY(serialize_agent_cluster(data_holder, allow_shared_array_buffers));
             data_holder.encode(data_holder.add_shared_array_buffer(array_buffer));
             // AD-HOC: When backed by cross-process shared memory and a side list is available (the messaging path),
             //         transfer the buffer by appending it to shared_buffers, and encoding its index. That lets the file
@@ -1715,6 +1736,20 @@ public:
         return deserialize_value(TRY(decode<u8>()));
     }
 
+    // Step 1 of deserializing a "SharedArrayBuffer" or "GrowableSharedArrayBuffer" record: it names the agent cluster it
+    // was serialized in, and a target realm in any other cluster can't have the buffer. A record that names none (a
+    // SameAgentAlways clone's) is deserialized in the agent that serialized it.
+    WebIDL::ExceptionOr<void> deserialize_agent_cluster()
+    {
+        if (!TRY(decode<bool>()))
+            return {};
+        auto agent_cluster = TRY(decode<u64>());
+        auto target_agent_cluster = Bindings::principal_host_defined_environment_settings_object(*m_target_realm).agent_cluster_id();
+        if (!target_agent_cluster.has_value() || *target_agent_cluster != agent_cluster)
+            return data_clone_error("Cannot deserialize SharedArrayBuffer outside its agent cluster"_utf16);
+        return {};
+    }
+
     // The Object/Array property loop is the only caller allowed to pre-read EndObject.
     WebIDL::ExceptionOr<JS::Value> deserialize_value(u8 raw_tag)
     {
@@ -1825,7 +1860,8 @@ public:
 
         // 12. Otherwise, if serialized.[[Type]] is "SharedArrayBuffer", then:
         case ValueTag::SharedArrayBuffer: {
-            // FIXME: 1. If targetRealm's corresponding agent cluster is not serialized.[[AgentCluster]], then throw a "DataCloneError" DOMException.
+            // 1. If targetRealm's corresponding agent cluster is not serialized.[[AgentCluster]], then throw a "DataCloneError" DOMException.
+            TRY(deserialize_agent_cluster());
 
             // 2. Otherwise, set value to a new SharedArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]]
             //    and whose [[ArrayBufferByteLength]] internal slot value is serialized.[[ArrayBufferByteLength]].
@@ -1862,7 +1898,8 @@ public:
 
         // 13. Otherwise, if serialized.[[Type]] is "GrowableSharedArrayBuffer", then:
         case ValueTag::GrowableSharedArrayBuffer: {
-            // FIXME: 1. If targetRealm's corresponding agent cluster is not serialized.[[AgentCluster]], then throw a "DataCloneError" DOMException.
+            // 1. If targetRealm's corresponding agent cluster is not serialized.[[AgentCluster]], then throw a "DataCloneError" DOMException.
+            TRY(deserialize_agent_cluster());
 
             // 2. Otherwise, set value to a new SharedArrayBuffer object in targetRealm whose [[ArrayBufferData]] internal slot value is serialized.[[ArrayBufferData]],
             //    whose [[ArrayBufferByteLengthData]] internal slot value is serialized.[[ArrayBufferByteLengthData]],

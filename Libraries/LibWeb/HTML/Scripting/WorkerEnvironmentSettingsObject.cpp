@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Random.h>
 #include <LibGC/Heap.h>
 #include <LibWeb/Bindings/Intrinsics.h>
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
@@ -37,10 +38,15 @@ GC::Ref<WorkerEnvironmentSettingsObject> WorkerEnvironmentSettingsObject::setup(
     // 3. Let origin be a unique opaque origin if worker global scope's url's scheme is "data"; otherwise outside settings's origin.
     auto origin = worker->url().scheme() == "data" ? URL::Origin::create_opaque() : outside_settings.origin;
 
+    // AD-HOC: A dedicated worker agent belongs to its owner's agent cluster, and a shared or service worker agent to a
+    //         new one — which the spec settles while obtaining the agent, from outside settings' relevant agent. Here,
+    //         the owner's cluster arrives with the serialized outside settings.
+    auto agent_cluster_id = is<DedicatedWorkerGlobalScope>(*worker) ? outside_settings.agent_cluster_id : Optional<u64> { get_random<u64>() };
+
     // 4. Let settings object be a new environment settings object whose algorithms are defined as follows:
     // NOTE: See the functions defined for this class.
     // FIXME: Is it enough to cache the has_cross_site_ancestor of outside_settings, or do we need to check the live object somehow?
-    auto settings_object = realm->create<WorkerEnvironmentSettingsObject>(move(execution_context), *worker, move(origin), outside_settings.has_cross_site_ancestor, unsafe_worker_creation_time);
+    auto settings_object = realm->create<WorkerEnvironmentSettingsObject>(move(execution_context), *worker, move(origin), outside_settings.has_cross_site_ancestor, unsafe_worker_creation_time, agent_cluster_id);
     settings_object->target_browsing_context = nullptr;
 
     // FIXME: 5. Set settings object's id to a new unique opaque string, creation URL to worker global scope's url, top-level creation URL to null, target browsing context to null, and active service worker to null.

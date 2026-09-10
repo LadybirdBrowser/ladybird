@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    // A SharedArrayBuffer can't leave its agent cluster: a receiver in any other one gets a messageerror event rather
+    // than the buffer — a same-origin page in a browsing context group of its own (a popup opened with noopener,
+    // whether or not it's cross-origin isolated itself) and a cross-origin iframe in this page's group alike. A
+    // same-origin popup that keeps its opener is in this page's cluster, and shares the buffer's memory.
+    asyncTest((done) => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const dataChannelName = `data-${runId}`;
+        const reportChannelName = `report-${runId}`;
+        const isolatingHeaders = {
+            "Content-Type": "text/html",
+            "Cross-Origin-Opener-Policy": "same-origin",
+            "Cross-Origin-Embedder-Policy": "require-corp",
+        };
+
+        const kinds = [
+            "popup with opener",
+            "noopener popup, cross-origin isolated",
+            "noopener popup, not cross-origin isolated",
+            "cross-origin iframe",
+        ];
+
+        // A same-origin receiver listens on the data channel, and reports what it got on the report channel.
+        const popupSource = (kind, closeWhenDone) => `<!DOCTYPE html><script>
+            const report = new BroadcastChannel(${JSON.stringify(reportChannelName)});
+            const send = (outcome) => report.postMessage({ kind: ${JSON.stringify(kind)}, ...outcome });
+            const finish = (outcome) => {
+                send(outcome);
+                if (${closeWhenDone})
+                    setTimeout(() => window.close(), 0);
+            };
+            const data = new BroadcastChannel(${JSON.stringify(dataChannelName)});
+            data.onmessage = (e) => {
+                const shared = e.data instanceof SharedArrayBuffer;
+                if (shared)
+                    new Int32Array(e.data)[0] = 42;
+                finish({ event: "message", shared });
+            };
+            data.onmessageerror = () => finish({ event: "messageerror" });
+            send({ event: "ready", crossOriginIsolated: self.crossOriginIsolated });
+        <\/script>`;
+
+        const receivers = new Map();
+        let ready = 0;
+        const sab = new SharedArrayBuffer(4);
+        const view = new Int32Array(sab);
+        let popupWithOpener = null;
+        let iframe = null;
+
+        const sender = new BroadcastChannel(dataChannelName);
+        const report = new BroadcastChannel(reportChannelName);
+        const handle = (outcome) => {
+            if (outcome.event === "ready") {
+                if ("crossOriginIsolated" in outcome)
+                    receivers.set(outcome.kind, { crossOriginIsolated: outcome.crossOriginIsolated });
+                else
+                    receivers.set(outcome.kind, {});
+                if (++ready === kinds.length) {
+                    sender.postMessage(sab);
+                    iframe.contentWindow.postMessage(sab, "*");
+                }
+                return;
+            }
+            const receiver = receivers.get(outcome.kind);
+            receiver.outcome = outcome;
+            if (kinds.some((kind) => !receivers.get(kind)?.outcome))
+                return;
+            for (const kind of kinds) {
+                const { crossOriginIsolated, outcome } = receivers.get(kind);
+                let line = kind;
+                if (crossOriginIsolated !== undefined)
+                    line += ` (crossOriginIsolated: ${crossOriginIsolated})`;
+                line += `: ${outcome.event}`;
+                if (outcome.event === "message")
+                    line += `, shared: ${outcome.shared}, its store of 42 is visible here: ${view[0] === 42}`;
+                println(line);
+            }
+            popupWithOpener.close();
+            done();
+        };
+        report.onmessage = (e) => handle(e.data);
+        addEventListener("message", (e) => handle(e.data));
+
+        (async () => {
+            const sameOriginUrl = async (path, headers, body) => {
+                const echo = await httpServer.createEcho("GET", `/${path}-${runId}`, { status: 200, headers, body });
+                const url = new URL(echo);
+                url.hostname = location.hostname;
+                return url;
+            };
+            const plainHeaders = { "Content-Type": "text/html" };
+            const [popupWithOpenerUrl, noopenerIsolatedUrl, noopenerPlainUrl] = await Promise.all([
+                sameOriginUrl("popup-with-opener", isolatingHeaders, popupSource(kinds[0], false)),
+                sameOriginUrl("noopener-isolated", isolatingHeaders, popupSource(kinds[1], true)),
+                sameOriginUrl("noopener-plain", plainHeaders, popupSource(kinds[2], true)),
+            ]);
+
+            // The iframe is cross-origin, so it hears from this page by postMessage, and answers the same way.
+            const iframeUrl = new URL(
+                await httpServer.createEcho("GET", `/cross-origin-iframe-${runId}`, {
+                    status: 200,
+                    headers: {
+                        "Content-Type": "text/html",
+                        "Cross-Origin-Embedder-Policy": "require-corp",
+                        "Cross-Origin-Resource-Policy": "cross-origin",
+                    },
+                    body: `<!DOCTYPE html><script>
+                        const kind = ${JSON.stringify(kinds[3])};
+                        const send = (outcome) => parent.postMessage({ kind, ...outcome }, "*");
+                        addEventListener("message", (e) => {
+                            send({ event: "message", shared: e.data instanceof SharedArrayBuffer });
+                        });
+                        addEventListener("messageerror", () => send({ event: "messageerror" }));
+                        send({ event: "ready" });
+                    <\/script>`,
+                })
+            );
+            iframeUrl.hostname = uniqueLocalhostHostname("cross-origin-iframe");
+
+            popupWithOpener = window.open(popupWithOpenerUrl);
+            window.open(noopenerIsolatedUrl, "_blank", "noopener");
+            window.open(noopenerPlainUrl, "_blank", "noopener");
+            iframe = document.createElement("iframe");
+            iframe.src = iframeUrl;
+            document.body.appendChild(iframe);
+        })();
+    });
+</script>
