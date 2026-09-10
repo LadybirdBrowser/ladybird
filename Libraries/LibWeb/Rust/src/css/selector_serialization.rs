@@ -6,8 +6,6 @@
 
 //! CSS selector serialization.
 
-use std::ffi::c_void;
-
 use super::selector::{
     AnPlusBPattern, AttributeCaseType, AttributeMatchType, Combinator, CompiledSelector, FfiStringView, NamespaceType,
     PseudoClassParameterType, PseudoElementValue, QualifiedName, RustSelector, SimpleSelector,
@@ -293,13 +291,6 @@ fn serialize_selector<Identity>(
     }
 }
 
-#[repr(C)]
-pub struct FfiSelectorSerializedText {
-    pub data: *const u16,
-    pub length: usize,
-    pub storage: *mut c_void,
-}
-
 /// # Safety
 /// `selector` and all prefix views must remain valid for the duration of this call.
 #[unsafe(no_mangle)]
@@ -308,7 +299,7 @@ pub unsafe extern "C" fn rust_selector_serialize(
     has_default_namespace: bool,
     prefixes_mapping_to_default: *const FfiStringView,
     prefix_count: usize,
-) -> FfiSelectorSerializedText {
+) -> usize {
     unsafe {
         assert!(!selector.is_null());
         let prefix_views = if prefix_count == 0 {
@@ -334,26 +325,20 @@ pub unsafe extern "C" fn rust_selector_serialize(
         };
         let mut sink = TextSink::new();
         serialize_selector(&mut sink, (*selector).compiled(), &context);
-        let storage = Box::new(sink.into_utf16());
-        let result = FfiSelectorSerializedText {
-            data: storage.as_ptr(),
-            length: storage.len(),
-            storage: std::ptr::null_mut(),
-        };
-        FfiSelectorSerializedText {
-            storage: Box::into_raw(storage).cast(),
-            ..result
-        }
+        crate::css::serialize::sink_into_raw(sink)
     }
 }
 
-/// # Safety
-/// `storage` must be null or a pointer returned in `FfiSelectorSerializedText` that has not been released.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_selector_serialized_text_release(storage: *mut c_void) {
-    unsafe {
-        if !storage.is_null() {
-            drop(Box::from_raw(storage.cast::<Vec<u16>>()));
-        }
-    }
+#[cfg(test)]
+pub(super) fn serialize_selector_without_namespaces(selector: &RustSelector) -> Vec<u16> {
+    let mut sink = TextSink::new();
+    serialize_selector(
+        &mut sink,
+        selector.compiled(),
+        &NamespaceContext {
+            has_default_namespace: false,
+            prefixes_mapping_to_default: &[],
+        },
+    );
+    sink.into_utf16()
 }

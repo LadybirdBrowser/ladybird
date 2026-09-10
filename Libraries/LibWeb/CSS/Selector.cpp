@@ -169,10 +169,9 @@ void Selector::serialize_to(Utf16StringBuilder& builder, StyleSheetState const* 
     Vector<SelectorFFI::StringView> prefixes;
     if (style_sheet)
         prefixes = namespace_prefixes_mapping_to_default(*style_sheet, prefix_storage);
-    auto text = SelectorFFI::rust_selector_serialize(
-        m_rust_selector, style_sheet && style_sheet->default_namespace().has_value(), prefixes.data(), prefixes.size());
-    builder.append(Utf16View { reinterpret_cast<char16_t const*>(text.data), text.length });
-    SelectorFFI::rust_selector_serialized_text_release(text.storage);
+    auto text = Utf16String::adopt_raw(SelectorFFI::rust_selector_serialize(
+        m_rust_selector, style_sheet && style_sheet->default_namespace().has_value(), prefixes.data(), prefixes.size()));
+    builder.append(text);
 }
 
 Utf16String Selector::serialize() const

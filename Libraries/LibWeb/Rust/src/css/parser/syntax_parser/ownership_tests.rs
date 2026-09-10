@@ -477,17 +477,14 @@ fn url_text_clones_share_native_storage_and_outlive_their_input() {
 #[test]
 fn worker_selector_normalization_survives_binding() {
     use crate::css::selector_parser::*;
-    use crate::css::selector_serialization::{rust_selector_serialize, rust_selector_serialized_text_release};
+    use crate::css::selector_serialization::serialize_selector_without_namespaces;
     fn text(parsed: &RustParsedSelectorList) -> Vec<u16> {
         unsafe {
             assert_eq!(rust_parsed_selector_list_length(parsed), 1);
             let bound = parsed.bind();
             let selector = Box::from_raw(rust_bound_selector_list_selector(&bound, 0));
             drop(bound);
-            let serialized = rust_selector_serialize(&*selector, false, std::ptr::null(), 0);
-            let text = std::slice::from_raw_parts(serialized.data, serialized.length).to_vec();
-            rust_selector_serialized_text_release(serialized.storage);
-            text
+            serialize_selector_without_namespaces(&selector)
         }
     }
     fn visit(rule: &super::ParsedRule, selectors: &mut Vec<Vec<u16>>, scopes: &mut Vec<Vec<u16>>) {
