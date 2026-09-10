@@ -14,6 +14,7 @@
 #include <AK/HashMap.h>
 #include <AK/RefCounted.h>
 #include <AK/StackInfo.h>
+#include <AK/Utf16FlyString.h>
 #include <AK/Variant.h>
 #include <LibCrypto/Forward.h>
 #include <LibGC/Function.h>
@@ -180,6 +181,12 @@ public:
 
     Bytecode::KeyedPropertyLookupCache& keyed_property_lookup_cache() { return *m_keyed_property_lookup_cache; }
 
+    struct StringToAtomCacheEntry {
+        GC::Ptr<PrimitiveString const> string;
+        Optional<Utf16FlyString> atom;
+    };
+
+    auto& string_to_atom_cache() { return m_string_to_atom_cache; }
     auto& numeric_string_cache() { return m_numeric_string_cache; }
 
     PrimitiveString& empty_string() { return *m_empty_string; }
@@ -581,6 +588,9 @@ private:
 
     HashMap<Utf16String, GC::Ptr<PrimitiveString>> m_utf16_string_cache;
     OwnPtr<Bytecode::KeyedPropertyLookupCache> m_keyed_property_lookup_cache;
+
+    static constexpr size_t string_to_atom_cache_size = 2;
+    AK::Array<StringToAtomCacheEntry, string_to_atom_cache_size> m_string_to_atom_cache;
 
     static constexpr size_t numeric_string_cache_size = 1000;
     AK::Array<GC::Ptr<PrimitiveString>, numeric_string_cache_size> m_numeric_string_cache;

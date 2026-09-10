@@ -175,6 +175,12 @@ size_t PrimitiveString::external_memory_size() const
 void PrimitiveString::finalize()
 {
     Base::finalize();
+
+    for (auto& entry : vm().string_to_atom_cache()) {
+        if (entry.string.ptr() == this)
+            entry = {};
+    }
+
     if (m_utf16_string_is_in_cache) {
         auto const& string = *m_utf16_string;
         if (string.length_in_code_units() <= MAX_LENGTH_FOR_STRING_CACHE)
@@ -202,6 +208,32 @@ Utf16String PrimitiveString::utf16_string() const
 
     VERIFY(has_utf16_string());
     return *m_utf16_string;
+}
+
+PropertyKey PrimitiveString::property_key(VM& vm) const
+{
+    resolve_if_needed();
+
+    VERIFY(has_utf16_string());
+    auto& string = *m_utf16_string;
+    if (string.has_fly_string_storage())
+        return Utf16FlyString { string };
+
+    auto& string_to_atom_cache = vm.string_to_atom_cache();
+    for (size_t i = 0; i < string_to_atom_cache.size(); ++i) {
+        if (string_to_atom_cache[i].string.ptr() != this)
+            continue;
+        if (i != 0)
+            swap(string_to_atom_cache[0], string_to_atom_cache[i]);
+        return *string_to_atom_cache[0].atom;
+    }
+
+    Utf16FlyString fly_string { string };
+    if (!string.has_fly_string_storage()) {
+        string_to_atom_cache[1] = move(string_to_atom_cache[0]);
+        string_to_atom_cache[0] = { *this, fly_string };
+    }
+    return fly_string;
 }
 
 Utf16View PrimitiveString::utf16_string_view() const
