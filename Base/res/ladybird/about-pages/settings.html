@@ -307,6 +307,8 @@
 
                 margin-bottom: 20px;
                 border-bottom: 1px solid var(--border-color);
+
+                overflow-x: auto;
             }
 
             .tab-button {
@@ -322,6 +324,7 @@
                 opacity: 0.6;
 
                 cursor: pointer;
+                white-space: nowrap;
             }
 
             .tab-button:hover {
@@ -340,6 +343,13 @@
             .tab-panel.active {
                 display: block;
             }
+
+            button:focus-visible,
+            summary:focus-visible,
+            input[type="checkbox"]:focus-visible {
+                outline: 2px solid var(--violet-100);
+                outline-offset: 2px;
+            }
         </style>
     </head>
     <body>
@@ -351,13 +361,15 @@
             <h1>Ladybird Settings</h1>
         </header>
 
-        <div class="tab-bar">
-            <button class="tab-button active" data-tab="general">General</button>
-            <button class="tab-button" data-tab="search">Search</button>
-            <button class="tab-button" data-tab="permissions">Permissions</button>
-            <button class="tab-button" data-tab="privacy">Privacy</button>
-            <button class="tab-button" data-tab="network">Network</button>
-            <button class="tab-button" data-tab="advanced">Advanced</button>
+        <div class="tab-bar" role="tablist" aria-label="Settings categories">
+            <button id="tab-button-general" class="tab-button active" data-tab="general" role="tab">General</button>
+            <button id="tab-button-search" class="tab-button" data-tab="search" role="tab">Search</button>
+            <button id="tab-button-permissions" class="tab-button" data-tab="permissions" role="tab">
+                Permissions
+            </button>
+            <button id="tab-button-privacy" class="tab-button" data-tab="privacy" role="tab">Privacy</button>
+            <button id="tab-button-network" class="tab-button" data-tab="network" role="tab">Network</button>
+            <button id="tab-button-advanced" class="tab-button" data-tab="advanced" role="tab">Advanced</button>
         </div>
 
         <div class="tab-panel active" id="tab-general">
@@ -787,6 +799,8 @@
         <script type="module">
             import { tabForDeepLink } from "resource://ladybird/about-pages/settings/dialog-deep-link.js";
 
+            const tabButtons = [...document.querySelectorAll(".tab-button")];
+
             function switchTab(name) {
                 const button = document.querySelector(`.tab-button[data-tab="${name}"]`);
                 const panel = document.getElementById(`tab-${name}`);
@@ -794,24 +808,53 @@
                     return;
                 }
 
-                document.querySelectorAll(".tab-button").forEach(b => b.classList.remove("active"));
-                document.querySelectorAll(".tab-panel").forEach(p => p.classList.remove("active"));
+                tabButtons.forEach(tabButton => {
+                    const active = tabButton === button;
+                    tabButton.classList.toggle("active", active);
+                    tabButton.setAttribute("aria-selected", active ? "true" : "false");
+                    tabButton.tabIndex = active ? 0 : -1;
+                });
+                document.querySelectorAll(".tab-panel").forEach(tabPanel => {
+                    const active = tabPanel === panel;
+                    tabPanel.classList.toggle("active", active);
+                    tabPanel.hidden = !active;
+                });
 
-                button.classList.add("active");
-                panel.classList.add("active");
+                button.scrollIntoView({ block: "nearest", inline: "nearest" });
             }
 
-            document.querySelectorAll(".tab-button").forEach(button => {
+            tabButtons.forEach((button, index) => {
+                const panel = document.getElementById(`tab-${button.dataset.tab}`);
+                button.setAttribute("aria-controls", panel.id);
+                panel.setAttribute("role", "tabpanel");
+                panel.setAttribute("aria-labelledby", button.id);
+
                 button.addEventListener("click", () => {
                     switchTab(button.dataset.tab);
                     history.replaceState(null, "", `#${button.dataset.tab}`);
                 });
+                button.addEventListener("keydown", event => {
+                    let targetIndex;
+                    if (event.key === "ArrowLeft") {
+                        targetIndex = (index - 1 + tabButtons.length) % tabButtons.length;
+                    } else if (event.key === "ArrowRight") {
+                        targetIndex = (index + 1) % tabButtons.length;
+                    } else if (event.key === "Home") {
+                        targetIndex = 0;
+                    } else if (event.key === "End") {
+                        targetIndex = tabButtons.length - 1;
+                    } else {
+                        return;
+                    }
+
+                    event.preventDefault();
+                    tabButtons[targetIndex].click();
+                    tabButtons[targetIndex].focus();
+                });
             });
 
             const hash = location.hash.slice(1);
-            if (hash) {
-                switchTab(tabForDeepLink(hash));
-            }
+            switchTab(hash ? tabForDeepLink(hash) : "general");
 
             // FIXME: Remove this once closedby="any" triggers for Esc key.
             document.querySelectorAll("dialog").forEach(dialog => {
