@@ -223,6 +223,7 @@ void Animatable::associate_with_animation(GC::Ref<Animation> animation)
     CSS::record_element_adjustment_facts(as<DOM::Element>(*this));
 
     as<DOM::Element>(*this).document().associate_with_animation(animation);
+    animation->did_associate_with_target();
 }
 
 void Animatable::disassociate_with_animation(GC::Ref<Animation> animation)
@@ -270,10 +271,8 @@ void Animatable::cancel_css_animations_and_transitions()
     }
     m_impl->has_css_defined_animations = false;
 
-    for (auto& animation : animations_to_cancel) {
+    for (auto& animation : animations_to_cancel)
         animation->cancel(Animation::ShouldInvalidate::No);
-        animation->schedule_disassociation_from_target_after_css_cancellation();
-    }
 }
 
 void Animatable::add_transitioned_properties(Optional<CSS::PseudoElement> pseudo_element, Vector<CSS::TransitionProperties> const& transitions)
@@ -350,8 +349,10 @@ void Animatable::remove_transition(Optional<CSS::PseudoElement> pseudo_element, 
     if (!maybe_transition)
         return;
     auto& transition = *maybe_transition;
-    VERIFY(transition.associated_transitions.contains(property_id));
+    auto removed_transition = transition.associated_transitions.get(property_id);
+    VERIFY(removed_transition.has_value());
     transition.associated_transitions.remove(property_id);
+    removed_transition.value()->schedule_disassociation_from_target();
 }
 
 void Animatable::clear_registered_transitions(Optional<CSS::PseudoElement> pseudo_element)

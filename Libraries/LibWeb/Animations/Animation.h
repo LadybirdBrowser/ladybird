@@ -139,9 +139,10 @@ public:
 
     Optional<DOM::AbstractElement> owning_element() const { return m_owning_element; }
     void set_owning_element(Optional<DOM::AbstractElement>&& value) { m_owning_element = move(value); }
-    void schedule_disassociation_from_target_after_css_cancellation() { m_css_cancellation_disassociation_pending = true; }
-    bool css_cancellation_disassociation_pending() const { return m_css_cancellation_disassociation_pending; }
-    void disassociate_from_target_after_css_cancellation();
+    void schedule_disassociation_from_target() { m_disassociation_from_target_pending = true; }
+    bool disassociation_from_target_pending() const { return m_disassociation_from_target_pending; }
+    void disassociate_from_target_if_inert();
+    void did_associate_with_target();
     void update_style_if_needed() const;
 
     virtual AnimationClass animation_class() const { return AnimationClass::None; }
@@ -257,8 +258,9 @@ private:
 
     // https://www.w3.org/TR/css-animations-2/#owning-element-section
     Optional<DOM::AbstractElement> m_owning_element;
-    bool m_css_cancellation_disassociation_pending { false };
-    bool m_needs_target_reassociation { false };
+
+    bool m_disassociation_from_target_pending { false };
+    Optional<AnimationPlayState> m_play_state_when_disassociated_from_target;
 
     Optional<HTML::TaskID> m_pending_finish_microtask_id;
 
