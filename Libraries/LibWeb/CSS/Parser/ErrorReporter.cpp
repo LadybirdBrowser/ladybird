@@ -21,9 +21,6 @@ String serialize_parsing_error(ParsingError const& error)
         [](InvalidPropertyError const& error) {
             return MUST(String::formatted("Property '{}' in {} rule has invalid value `{}`.", error.property_name, error.rule_name, error.value_string));
         },
-        [](InvalidValueError const& error) {
-            return MUST(String::formatted("Unable to parse {} from `{}`: {}", error.value_type, error.value_string, error.description));
-        },
         [](InvalidRuleError const& error) {
             return MUST(String::formatted("'{}' rule with prelude `{}` is invalid: {}", error.rule_name, error.prelude, error.description));
         },
