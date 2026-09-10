@@ -758,25 +758,10 @@ void DisplayListResourceStorage::collect_referenced_resources(
     });
 }
 
-DisplayListResourceSet DisplayListResourceStorage::collect_referenced_resources(ReadonlyBytes command_bytes) const
-{
-    DisplayListResourceSet referenced_resources;
-    collect_referenced_resources(command_bytes, referenced_resources);
-    return referenced_resources;
-}
-
 DisplayListResourceSet DisplayListResourceStorage::collect_referenced_resources(DisplayList const& display_list) const
 {
     DisplayListResourceSet referenced_resources;
     collect_referenced_resources(display_list, referenced_resources);
-    return referenced_resources;
-}
-
-DisplayListResourceSet DisplayListResourceStorage::collect_referenced_resources(DisplayList const& display_list, AccumulatedVisualContextTree const& visual_context_tree) const
-{
-    DisplayListResourceSet referenced_resources;
-    collect_referenced_resources(display_list, referenced_resources);
-    collect_referenced_resources(visual_context_tree, referenced_resources);
     return referenced_resources;
 }
 
