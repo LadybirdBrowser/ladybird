@@ -114,6 +114,7 @@ public:
     void update_bookmark_action_for_current_web_view();
     void bookmarks_changed(Badge<ApplicationBookmarkStoreObserver>);
     void show_bookmarks_bar_changed(Badge<ApplicationSettingsObserver>);
+    void background_networking_settings_changed(Badge<ApplicationSettingsObserver>);
     void content_blocker_settings_changed(Badge<ApplicationSettingsObserver>);
     bool content_blocker_list_update_in_progress() const;
     void update_content_blocker_lists(Badge<SettingsUI>);
@@ -372,7 +373,11 @@ private:
     void rebuild_content_blocker_list_paths();
     ByteString content_blocker_list_path(StringView identifier) const;
     ErrorOr<void> save_content_blocker_list(ByteString const& path, ReadonlyBytes);
-    void start_content_blocker_list_update(Optional<StringView> requested_identifier = {});
+    enum class ContentBlockerListUpdateTrigger {
+        Automatic,
+        UserInitiated,
+    };
+    void start_content_blocker_list_update(ContentBlockerListUpdateTrigger, Optional<StringView> requested_identifier = {});
     void start_next_content_blocker_list_update();
     void did_receive_content_blocker_list_update_data(ReadonlyBytes);
     void stop_current_content_blocker_list_update_and_continue();
@@ -505,11 +510,13 @@ private:
     OwnPtr<FontService> m_font_service;
     JsonValue m_site_compatibility_data;
     Optional<Core::AnonymousBuffer> m_content_blocker_list_buffer;
+    RefPtr<Core::Timer> m_content_blocker_list_update_timer;
     struct PendingContentBlockerListUpdate {
         String identifier;
         String name;
         URL::URL url;
         ByteString path;
+        ContentBlockerListUpdateTrigger trigger;
         u8 redirect_count { 0 };
     };
     Vector<ByteString> m_explicit_content_blocker_list_paths;

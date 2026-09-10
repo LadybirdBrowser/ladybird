@@ -73,6 +73,10 @@ static constexpr auto GLOBAL_PRIVACY_CONTROL_KEY = "globalPrivacyControl"sv;
 static constexpr auto GEOLOCATION_ENABLED_KEY = "geolocationEnabled"sv;
 static constexpr auto FORCE_DARK_ENABLED_KEY = "forceDarkEnabled"sv;
 
+static constexpr auto BACKGROUND_NETWORKING_KEY = "backgroundNetworking"sv;
+static constexpr auto BACKGROUND_NETWORKING_ENABLED_KEY = "enabled"sv;
+static constexpr auto BACKGROUND_NETWORKING_FEATURES_KEY = "features"sv;
+
 static constexpr auto CONTENT_BLOCKERS_KEY = "contentBlockers"sv;
 static constexpr auto CONTENT_BLOCKER_BUILT_IN_LISTS_KEY = "builtInLists"sv;
 static constexpr auto CONTENT_BLOCKER_CUSTOM_SUBSCRIPTIONS_KEY = "customSubscriptions"sv;
@@ -332,6 +336,14 @@ Settings Settings::create(ByteString settings_path)
     if (auto force_dark_enabled = settings_json.value().get_bool(FORCE_DARK_ENABLED_KEY); force_dark_enabled.has_value())
         settings.m_force_dark_enabled = *force_dark_enabled;
 
+    if (auto background_networking = settings_json.value().get_object(BACKGROUND_NETWORKING_KEY); background_networking.has_value()) {
+        if (auto enabled = background_networking->get_bool(BACKGROUND_NETWORKING_ENABLED_KEY); enabled.has_value())
+            settings.m_background_networking_enabled = *enabled;
+
+        if (auto features = background_networking->get_object(BACKGROUND_NETWORKING_FEATURES_KEY); features.has_value())
+            settings.m_filter_list_updates_enabled = features->get_bool("contentBlockerSubscriptionUpdates"sv).value_or(false);
+    }
+
     if (auto content_blockers = settings_json.value().get_object(CONTENT_BLOCKERS_KEY); content_blockers.has_value()) {
         if (auto built_in_lists = content_blockers->get_object(CONTENT_BLOCKER_BUILT_IN_LISTS_KEY); built_in_lists.has_value()) {
             for (auto& list : settings.m_content_blocker_lists)
@@ -517,6 +529,14 @@ JsonValue Settings::serialize_json() const
 
     settings.set(GEOLOCATION_ENABLED_KEY, m_geolocation_enabled);
     settings.set(FORCE_DARK_ENABLED_KEY, m_force_dark_enabled);
+
+    JsonObject background_network_features;
+    background_network_features.set("contentBlockerSubscriptionUpdates"sv, m_filter_list_updates_enabled);
+
+    JsonObject background_networking;
+    background_networking.set(BACKGROUND_NETWORKING_ENABLED_KEY, m_background_networking_enabled);
+    background_networking.set(BACKGROUND_NETWORKING_FEATURES_KEY, move(background_network_features));
+    settings.set(BACKGROUND_NETWORKING_KEY, move(background_networking));
 
     JsonObject built_in_content_blocker_lists;
     JsonArray custom_content_blocker_subscriptions;
@@ -947,6 +967,30 @@ void Settings::set_geolocation_enabled(bool enabled)
 
     for (auto& observer : m_observers)
         observer.geolocation_settings_changed();
+}
+
+void Settings::set_background_networking_enabled(bool enabled)
+{
+    if (m_background_networking_enabled == enabled)
+        return;
+
+    m_background_networking_enabled = enabled;
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.background_networking_settings_changed();
+}
+
+void Settings::set_filter_list_updates_enabled(bool enabled)
+{
+    if (m_filter_list_updates_enabled == enabled)
+        return;
+
+    m_filter_list_updates_enabled = enabled;
+    persist_settings();
+
+    for (auto& observer : m_observers)
+        observer.background_networking_settings_changed();
 }
 
 Optional<ContentBlockerList const&> Settings::content_blocker_list(StringView identifier) const

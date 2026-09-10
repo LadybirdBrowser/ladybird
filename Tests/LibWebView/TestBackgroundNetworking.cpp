@@ -52,6 +52,44 @@ TEST_CASE(content_blocker_list_registry)
     }
 }
 
+TEST_CASE(feature_policy)
+{
+    remove_settings_file();
+    auto settings = WebView::Settings::create(settings_path());
+
+    EXPECT(!settings.automatic_filter_list_updates_allowed());
+
+    settings.set_filter_list_updates_enabled(true);
+    EXPECT(settings.automatic_filter_list_updates_allowed());
+
+    settings.set_background_networking_enabled(false);
+    EXPECT(!settings.automatic_filter_list_updates_allowed());
+    EXPECT(settings.filter_list_updates_enabled());
+
+    settings.set_background_networking_enabled(true);
+    EXPECT(settings.automatic_filter_list_updates_allowed());
+
+    settings.set_filter_list_updates_enabled(false);
+    EXPECT(!settings.automatic_filter_list_updates_allowed());
+    remove_settings_file();
+}
+
+TEST_CASE(settings_are_persistent)
+{
+    remove_settings_file();
+
+    {
+        auto settings = WebView::Settings::create(settings_path());
+        settings.set_filter_list_updates_enabled(false);
+        settings.set_background_networking_enabled(false);
+    }
+
+    auto settings = WebView::Settings::create(settings_path());
+    EXPECT(!settings.filter_list_updates_enabled());
+    EXPECT(!settings.background_networking_enabled());
+    remove_settings_file();
+}
+
 TEST_CASE(content_blocker_list_settings_are_persistent)
 {
     remove_settings_file();

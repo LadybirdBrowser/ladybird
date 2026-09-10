@@ -44,6 +44,7 @@ set(ABOUT_PAGES
     newtab.html
     processes.html
     settings.html
+    services.html
     version.html
     webui.css
 )
@@ -62,6 +63,7 @@ set(ABOUT_SETTINGS_RESOURCES
     permissions.js
     privacy.js
     search.js
+    services.js
     tabs.js
 )
 list(TRANSFORM ABOUT_SETTINGS_RESOURCES PREPEND "${LADYBIRD_SOURCE_DIR}/Base/res/ladybird/about-pages/settings/")

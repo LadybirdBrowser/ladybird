@@ -116,6 +116,7 @@ public:
     virtual void config_variable_changed(ConfigVariableID) { }
     virtual void geolocation_settings_changed() { }
     virtual void force_dark_settings_changed() { }
+    virtual void background_networking_settings_changed() { }
     virtual void content_blocker_settings_changed() { }
 };
 
@@ -182,6 +183,12 @@ public:
     bool force_dark_enabled() const { return m_force_dark_enabled; }
     void set_force_dark_enabled(bool);
 
+    bool background_networking_enabled() const { return m_background_networking_enabled; }
+    void set_background_networking_enabled(bool);
+    bool filter_list_updates_enabled() const { return m_filter_list_updates_enabled; }
+    bool automatic_filter_list_updates_allowed() const { return m_background_networking_enabled && m_filter_list_updates_enabled; }
+    void set_filter_list_updates_enabled(bool);
+
     Vector<ContentBlockerList> const& content_blocker_lists() const { return m_content_blocker_lists; }
     Optional<ContentBlockerList const&> content_blocker_list(StringView identifier) const;
     String add_content_blocker_list(String name, Optional<URL::URL> = {});
@@ -228,6 +235,8 @@ private:
     BrowsingDataSettings m_browsing_data_settings;
     bool m_geolocation_enabled { false };
     bool m_force_dark_enabled { false };
+    bool m_background_networking_enabled { true };
+    bool m_filter_list_updates_enabled { false };
     Vector<ContentBlockerList> m_content_blocker_lists;
     String m_custom_content_blocker_filters;
     GlobalPrivacyControl m_global_privacy_control { GlobalPrivacyControl::No };

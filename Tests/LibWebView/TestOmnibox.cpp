@@ -206,6 +206,7 @@ TEST_CASE(all_web_ui_pages_are_suggested)
         "about:newtab"sv,
         "about:processes"sv,
         "about:settings"sv,
+        "about:services"sv,
         "about:version"sv,
     };
 

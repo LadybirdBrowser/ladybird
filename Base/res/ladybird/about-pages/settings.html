@@ -104,6 +104,10 @@
                 opacity: 0.7;
             }
 
+            .tab-panel > .description {
+                margin-bottom: 16px;
+            }
+
             label {
                 display: block;
                 margin-bottom: 8px;
@@ -368,6 +372,7 @@
                 Permissions
             </button>
             <button id="tab-button-privacy" class="tab-button" data-tab="privacy" role="tab">Privacy</button>
+            <button id="tab-button-services" class="tab-button" data-tab="services" role="tab">Services</button>
             <button id="tab-button-network" class="tab-button" data-tab="network" role="tab">Network</button>
             <button id="tab-button-advanced" class="tab-button" data-tab="advanced" role="tab">Advanced</button>
         </div>
@@ -579,6 +584,36 @@
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+
+        <div class="tab-panel" id="tab-services">
+            <p class="description">
+                Services are automatic connections Ladybird makes for browser features in the background. These controls
+                do not affect normal browsing or actions you explicitly request, such as updating filter lists.
+            </p>
+
+            <div class="card card-body">
+                <div class="card-group inline-container">
+                    <label for="allow-services-network-access">
+                        Allow automatic service connections
+                        <p class="description">Let individually enabled services connect in the background.</p>
+                    </label>
+                    <input id="allow-services-network-access" type="checkbox" switch />
+                </div>
+            </div>
+
+            <p id="services-paused-note" class="description hidden" role="status">
+                Automatic service connections are paused. Individual service choices are preserved.
+            </p>
+
+            <h3 class="card-title">Services</h3>
+            <div class="card card-body inline-container">
+                <label for="filter-list-updates">
+                    Filter list updates
+                    <p class="description">Periodically download updates for enabled filter list subscriptions.</p>
+                </label>
+                <input id="filter-list-updates" type="checkbox" switch />
             </div>
         </div>
 
@@ -794,6 +829,7 @@
         <script src="resource://ladybird/about-pages/settings/permissions.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/privacy.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/search.js" type="module"></script>
+        <script src="resource://ladybird/about-pages/settings/services.js" type="module"></script>
         <script src="resource://ladybird/about-pages/settings/tabs.js" type="module"></script>
 
         <script type="module">
