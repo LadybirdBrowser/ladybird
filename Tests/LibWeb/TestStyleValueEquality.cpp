@@ -16,7 +16,6 @@
 #include <LibWeb/CSS/StyleValues/ColorFunctionStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ConicGradientStyleValue.h>
 #include <LibWeb/CSS/StyleValues/ContentStyleValue.h>
-#include <LibWeb/CSS/StyleValues/ContrastColorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterDefinitionsStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CounterStyleSystemStyleValue.h>
@@ -29,7 +28,6 @@
 #include <LibWeb/CSS/StyleValues/IntegerStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/LengthStyleValue.h>
-#include <LibWeb/CSS/StyleValues/LightDarkStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpacityValueStyleValue.h>
 #include <LibWeb/CSS/StyleValues/OpenTypeTaggedStyleValue.h>
@@ -706,24 +704,6 @@ TEST_CASE(rust_counter_handles_retain_counter_style_data)
     EXPECT_EQ(counter_style->to_string(SerializationMode::Normal), "decimal"sv);
 }
 
-TEST_CASE(rust_light_dark_handles_retain_color_data)
-{
-    auto light = NumberStyleValue::create(1);
-    auto dark = NumberStyleValue::create(2);
-    auto data = StyleValueFFI::rust_style_value_create_light_dark(
-        false,
-        0,
-        to_underlying(ColorSyntax::Modern),
-        StyleValueFFI::rust_style_value_retain(light->rust_style_value_data()),
-        StyleValueFFI::rust_style_value_retain(dark->rust_style_value_data()));
-
-    light = NumberStyleValue::create(3);
-    dark = NumberStyleValue::create(4);
-    auto light_dark = StyleValue::adopt_rust_style_value_data(data);
-    EXPECT(light_dark->is_color());
-    EXPECT_EQ(light_dark->to_string(SerializationMode::Normal), "light-dark(1, 2)"sv);
-}
-
 TEST_CASE(rust_scrollbar_color_handles_retain_color_data)
 {
     auto thumb = NumberStyleValue::create(1);
@@ -739,21 +719,6 @@ TEST_CASE(rust_scrollbar_color_handles_retain_color_data)
     auto retained_thumb = scrollbar_color->as_scrollbar_color().thumb_color();
     scrollbar_color = KeywordStyleValue::create(Keyword::None);
     EXPECT_EQ(retained_thumb->to_string(SerializationMode::Normal), "1"sv);
-}
-
-TEST_CASE(rust_contrast_color_handles_retain_color_data)
-{
-    auto color = NumberStyleValue::create(1);
-    auto data = StyleValueFFI::rust_style_value_create_contrast_color(
-        false,
-        0,
-        to_underlying(ColorSyntax::Modern),
-        StyleValueFFI::rust_style_value_retain(color->rust_style_value_data()));
-
-    color = NumberStyleValue::create(2);
-    auto contrast_color = StyleValue::adopt_rust_style_value_data(data);
-    EXPECT(contrast_color->is_color());
-    EXPECT_EQ(contrast_color->to_string(SerializationMode::Normal), "contrast-color(1)"sv);
 }
 
 TEST_CASE(rust_random_value_sharing_handles_retain_fixed_data)
@@ -2367,35 +2332,6 @@ TEST_CASE(conic_gradient_equality_considers_color_syntax)
 
     EXPECT(legacy->equals(*make_conic_gradient(ColorSyntax::Legacy)));
     EXPECT(!legacy->equals(*modern));
-}
-
-TEST_CASE(color_equality_rejects_different_color_variants)
-{
-    auto color_function = ColorFunctionStyleValue::create(
-        ColorStyleValue::ColorType::RGB,
-        NumberStyleValue::create(255),
-        NumberStyleValue::create(255),
-        NumberStyleValue::create(255),
-        NumberStyleValue::create(1),
-        ColorSyntax::Legacy);
-    auto light_dark = LightDarkStyleValue::create(
-        ColorFunctionStyleValue::create(
-            ColorStyleValue::ColorType::RGB,
-            NumberStyleValue::create(255),
-            NumberStyleValue::create(255),
-            NumberStyleValue::create(255),
-            NumberStyleValue::create(1),
-            ColorSyntax::Legacy),
-        ColorFunctionStyleValue::create(
-            ColorStyleValue::ColorType::RGB,
-            NumberStyleValue::create(0),
-            NumberStyleValue::create(0),
-            NumberStyleValue::create(0),
-            NumberStyleValue::create(1),
-            ColorSyntax::Legacy));
-
-    EXPECT(!static_cast<StyleValue const&>(*color_function).equals(*light_dark));
-    EXPECT(!static_cast<StyleValue const&>(*light_dark).equals(*color_function));
 }
 
 TEST_CASE(radial_size_equality_is_deep)

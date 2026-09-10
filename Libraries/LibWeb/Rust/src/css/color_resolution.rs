@@ -1660,11 +1660,12 @@ pub(crate) fn to_color(value: &StyleValueData, input: &ColorResolutionInput) -> 
         }
         StyleValueData::ColorFunction { .. } => color_function_to_color(value, input),
         StyleValueData::ColorMix { .. } => color_mix_to_color(value, input),
-        // Port of ContrastColorStyleValue::to_color().
+        // https://drafts.csswg.org/css-color-5/#contrast-color
         StyleValueData::ContrastColor { color, .. } => {
             Some(to_color(color.data(), input)?.suggested_foreground_color())
         }
-        // Port of LightDarkStyleValue::to_color(): a missing scheme takes the light branch.
+        // https://drafts.csswg.org/css-color-5/#funcdef-light-dark
+        // A missing scheme takes the light branch.
         StyleValueData::LightDark { light, dark, .. } => {
             if input.scheme == Some(PREFERRED_COLOR_SCHEME_DARK) {
                 to_color(dark.data(), input)
