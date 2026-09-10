@@ -254,7 +254,6 @@ class Angle;
 class AnglePercentage;
 class AngleStyleValue;
 class BackgroundSizeStyleValue;
-class BasicShapeStyleValue;
 class BlurFilterStyleValue;
 class BorderImageSliceStyleValue;
 class BorderRadiusRectStyleValue;

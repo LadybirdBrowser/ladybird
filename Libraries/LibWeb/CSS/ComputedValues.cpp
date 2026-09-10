@@ -1357,16 +1357,12 @@ RefPtr<AbstractImageStyleValue const> ComputedValues::MaskValues::mask_image_val
     return first_abstract_image_value(mask_image);
 }
 
-Optional<ClipPathReference> ComputedValues::MaskValues::clip_path_value() const
+Optional<URL> ComputedValues::MaskValues::clip_path_value() const
 {
     auto const* value_data = static_cast<StyleValueFFI::StyleValueData const*>(clip_path.pointer);
     VERIFY(value_data);
     if (value_data->tag == StyleValueFFI::StyleValueData::Tag::Url)
-        return ClipPathReference { url_from_rust_data(value_data->url.url, value_data->url.url_type, value_data->url.modifiers) };
-    if (value_data->tag == StyleValueFFI::StyleValueData::Tag::BasicShape) {
-        auto value = StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(value_data));
-        return ClipPathReference { value->as_basic_shape() };
-    }
+        return url_from_rust_data(value_data->url.url, value_data->url.url_type, value_data->url.modifiers);
     return {};
 }
 

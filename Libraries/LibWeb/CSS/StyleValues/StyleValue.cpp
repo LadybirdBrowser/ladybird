@@ -19,7 +19,6 @@
 #include <LibWeb/CSS/StyleValues/AnchorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/AngleStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BackgroundSizeStyleValue.h>
-#include <LibWeb/CSS/StyleValues/BasicShapeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderImageSliceStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusRectStyleValue.h>
 #include <LibWeb/CSS/StyleValues/BorderRadiusStyleValue.h>
@@ -155,7 +154,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::BackgroundSize:
         return adopt_ref(*new (nothrow) BackgroundSizeStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::BasicShape:
-        return adopt_ref(*new (nothrow) BasicShapeStyleValue(data));
+        return adopt_ref(*new (nothrow) StyleValue(Type::BasicShape, data));
     case StyleValueFFI::StyleValueData::Tag::BorderRadius:
         return adopt_ref(*new (nothrow) BorderRadiusStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::BorderRadiusRect:
