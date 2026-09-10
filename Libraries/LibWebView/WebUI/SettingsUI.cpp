@@ -138,6 +138,74 @@ void SettingsUI::register_interfaces()
         Application::settings().set_filter_list_updates_enabled(enabled.as_bool());
         load_current_settings();
     });
+    register_interface("updateContentBlockerLists"sv, [this](auto const&) {
+        Application::the().update_content_blocker_lists({});
+        load_current_settings();
+    });
+    register_interface("setContentBlockerListEnabled"sv, [this](auto const& value) {
+        if (!value.is_object())
+            return;
+        auto identifier = value.as_object().get_string("identifier"sv);
+        auto enabled = value.as_object().get_bool("enabled"sv);
+        if (!identifier.has_value() || !enabled.has_value())
+            return;
+        Application::settings().set_content_blocker_list_enabled(*identifier, *enabled);
+        if (*enabled)
+            Application::the().download_content_blocker_list_if_needed({}, *identifier);
+        load_current_settings();
+    });
+    auto report_content_blocker_result = [this](StringView operation, StringView message) {
+        JsonObject result;
+        result.set("operation"sv, operation);
+        result.set("message"sv, message);
+        async_send_message("contentBlockerResult"sv, result);
+    };
+    register_interface("addCustomContentBlockerSubscription"sv, [this, report_content_blocker_result](auto const& value) {
+        if (!value.is_string())
+            return;
+        auto url = URL::Parser::basic_parse(value.as_string());
+        if (!url.has_value() || !(url->scheme() == "http"sv || url->scheme() == "https"sv)) {
+            report_content_blocker_result("subscription"sv, "Enter an HTTP or HTTPS URL."sv);
+            return;
+        }
+        for (auto const& subscription : Application::settings().content_blocker_lists()) {
+            if (!subscription.built_in && subscription.url == url) {
+                report_content_blocker_result("subscription"sv, "Subscription already added."sv);
+                load_current_settings();
+                return;
+            }
+        }
+        auto identifier = Application::settings().add_content_blocker_list(url->serialize(), url);
+        Application::the().download_content_blocker_list_if_needed({}, identifier);
+        report_content_blocker_result("subscription"sv, "Subscription added."sv);
+        load_current_settings();
+    });
+    register_interface("removeContentBlockerList"sv, [this](auto const& value) {
+        if (!value.is_string())
+            return;
+        Application::the().remove_content_blocker_list({}, value.as_string());
+        load_current_settings();
+    });
+    register_interface("importLocalContentBlockerList"sv, [this, report_content_blocker_result](auto const& value) {
+        if (!value.is_object())
+            return;
+        auto name = value.as_object().get_string("name"sv);
+        auto contents = value.as_object().get_string("contents"sv);
+        if (!name.has_value() || name->is_empty() || !contents.has_value())
+            return;
+        if (auto result = Application::the().import_local_content_blocker_list(*name, *contents); result.is_error())
+            report_content_blocker_result("import"sv, MUST(String::formatted("Unable to import list: {}", result.error())));
+        else
+            report_content_blocker_result("import"sv, MUST(String::formatted("{} imported.", *name)));
+        load_current_settings();
+    });
+    register_interface("setCustomContentBlockerFilters"sv, [this](auto const& value) {
+        if (!value.is_string() || value.as_string().bytes().size() > 4 * MiB)
+            return;
+        Application::settings().set_custom_content_blocker_filters(value.as_string());
+        load_current_settings();
+    });
+
     register_interface("setDNSSettings"sv, [this](auto const& data) {
         set_dns_settings(data);
     });
@@ -186,6 +254,24 @@ void SettingsUI::load_current_settings()
     }
 
     settings.as_object().set("configVariableDefinitions"sv, move(config_variables));
+
+    JsonArray lists;
+    for (auto const& list : Application::settings().content_blocker_lists()) {
+        JsonObject object;
+        object.set("identifier"sv, list.identifier);
+        object.set("name"sv, list.name);
+        object.set("description"sv, list.description);
+        object.set("url"sv, list.url.has_value() ? JsonValue(list.url->serialize()) : JsonValue {});
+        object.set("builtIn"sv, list.built_in);
+        object.set("languageSpecific"sv, list.language_specific);
+        object.set("enabled"sv, list.enabled);
+        auto updated = Application::the().content_blocker_list_last_updated_at(list.identifier);
+        object.set("lastUpdatedAt"sv, updated.has_value() ? JsonValue(updated->milliseconds_since_epoch()) : JsonValue {});
+        lists.must_append(move(object));
+    }
+    settings.as_object().set("contentBlockerLists"sv, move(lists));
+    settings.as_object().set("contentBlockerListUpdateInProgress"sv, Application::the().content_blocker_list_update_in_progress());
+
     async_send_message("loadSettings"sv, settings);
 }
 

@@ -133,6 +133,12 @@ if (BUILD_TESTING AND NOT WIN32)
     set_tests_properties(TestWebDriverDeleteSession PROPERTIES TIMEOUT 120)
 
     add_test(
+        NAME TestWebDriverContentBlockers
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-content-blockers.py $<TARGET_FILE:WebDriver>
+    )
+    set_tests_properties(TestWebDriverContentBlockers PROPERTIES TIMEOUT 180)
+
+    add_test(
         NAME TestWebDriverSessionHistory
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-session-history.py $<TARGET_FILE:WebDriver>
     )

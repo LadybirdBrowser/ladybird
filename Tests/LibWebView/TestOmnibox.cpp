@@ -200,6 +200,7 @@ TEST_CASE(all_web_ui_pages_are_suggested)
 {
     static constexpr Array expected_urls {
         "about:about"sv,
+        "about:blocking"sv,
         "about:bookmarks"sv,
         "about:downloads"sv,
         "about:history"sv,
