@@ -493,7 +493,7 @@ mod tests {
         assert_eq!(&**new_chunks, std::slice::from_ref(&chunk));
         drop(replacement);
         assert!(replacement_weak.upgrade().is_none());
-        arena.free_subtree(node);
+        let _ = arena.free_subtree(node);
         assert_eq!(Rc::strong_count(&new_chunks), 1);
     }
 
@@ -727,7 +727,7 @@ mod tests {
             arena.text_source_range(remainder, 1),
             FfiTextSourceRange { start: 1, length: 0 }
         );
-        arena.free_subtree(first);
+        let _ = arena.free_subtree(first);
         let replacement = arena.allocate_for_test().slot;
         arena.data(replacement).kind.set(NodeKind::TextNode);
         assert_eq!(replacement.slot_index(), first.slot_index());
@@ -740,7 +740,7 @@ mod tests {
             FfiTextSourceRange { start: 0, length: 4 }
         );
 
-        arena.free_subtree(remainder);
+        let _ = arena.free_subtree(remainder);
         let replacement = arena.allocate_for_test().slot;
         arena.data(replacement).kind.set(NodeKind::TextNode);
         assert_eq!(replacement.slot_index(), remainder.slot_index());
