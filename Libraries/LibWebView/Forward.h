@@ -48,7 +48,7 @@ class WebWorkerClient;
 class WebUI;
 
 enum class PausedDebuggerOverlayAction : u8;
-
+struct AccessibilityNodeData;
 struct Attribute;
 struct DownloadRecord;
 struct AutocompleteEngine;

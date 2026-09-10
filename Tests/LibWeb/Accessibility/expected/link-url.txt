@@ -1,0 +1,28 @@
+document
+  generic focused
+    text leaf name="
+"
+    link name="External" url="https://example.org/"
+      text leaf name="External"
+    text leaf name="
+"
+    link name="Fragment" url="https://example.org/page#fragment"
+      text leaf name="Fragment"
+    text leaf name="
+"
+    link name="Email" url="mailto:test@example.org"
+      text leaf name="Email"
+    text leaf name="
+"
+    link name="Script" url="javascript:void(0)"
+      text leaf name="Script"
+    text leaf name="
+"
+    text leaf name="
+  "
+    text leaf name="
+"
+    text leaf name="
+
+
+"

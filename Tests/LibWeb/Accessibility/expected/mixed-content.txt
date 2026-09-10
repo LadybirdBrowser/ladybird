@@ -1,0 +1,53 @@
+document
+  generic focused
+    banner
+      heading name="My Website" level=1
+        text leaf name="My Website"
+      navigation name="Main"
+        text leaf name="
+            "
+        link name="Home" url="file:///"
+          text leaf name="Home"
+        text leaf name="
+            "
+        link name="Blog" url="file:///blog"
+          text leaf name="Blog"
+        text leaf name="
+            "
+        link name="Contact" url="file:///contact"
+          text leaf name="Contact"
+        text leaf name="
+        "
+    main
+      heading name="Welcome" level=2
+        text leaf name="Welcome"
+      paragraph
+        text leaf name="Welcome to my site."
+      region name="Featured"
+        heading name="Featured Article" level=3
+          text leaf name="Featured Article"
+        paragraph
+          text leaf name="Article preview text."
+        link name="Read more" url="file:///read-more"
+          text leaf name="Read more"
+      list name="Tags"
+        listitem
+          text leaf name="HTML"
+        listitem
+          text leaf name="CSS"
+        listitem
+          text leaf name="JavaScript"
+    contentinfo
+      paragraph
+        text leaf name="Copyright 2026"
+      navigation name="Footer"
+        text leaf name="
+            "
+        link name="Privacy" url="file:///privacy"
+          text leaf name="Privacy"
+        text leaf name="
+            "
+        link name="Terms" url="file:///terms"
+          text leaf name="Terms"
+        text leaf name="
+        "

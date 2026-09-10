@@ -17,6 +17,7 @@
 #include <LibWebView/PrivateBrowsing.h>
 
 #import <Cocoa/Cocoa.h>
+#import <Interface/LadybirdAccessibilityViewProtocol.h>
 
 @protocol LadybirdWebViewObserver <NSObject>
 
@@ -43,7 +44,7 @@
 
 @end
 
-@interface LadybirdWebView : NSView <NSTextInputClient>
+@interface LadybirdWebView : NSView <NSTextInputClient, LadybirdAccessibilityView>
 
 - (instancetype)init:(id<LadybirdWebViewObserver>)observer
            isPrivate:(WebView::IsPrivate)is_private;
@@ -75,5 +76,10 @@
 - (void)requestClose;
 - (Function<void()>)prepareForImmediateClose;
 - (BOOL)needsBeforeUnloadCheck;
+
+- (id)accessibilityElementForNodeID:(int64_t)nodeID;
+- (NSRect)accessibilityScreenRectForViewRect:(NSRect)viewRect;
+- (NSRect)accessibilityViewRectForScreenPoint:(NSPoint)screenPoint;
+- (void)performAccessibilityAction:(NSString*)action forNodeID:(int64_t)nodeID;
 
 @end

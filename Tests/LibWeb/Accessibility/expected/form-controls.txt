@@ -1,0 +1,51 @@
+document
+  generic focused
+    form name="Registration"
+      text leaf name="
+        "
+      text leaf name="Name"
+      text leaf name="
+        "
+      textbox name="Full name" editable
+      text leaf name="
+        "
+      text leaf name="Email"
+      text leaf name="
+        "
+      textbox name="Email address" editable
+      text leaf name="
+        "
+      checkbox name="Accept terms" unchecked
+      text leaf name="
+        "
+      text leaf name="I accept the terms"
+      text leaf name="
+        "
+      radio name="Free plan" unchecked
+      text leaf name="
+        "
+      text leaf name="Free"
+      text leaf name="
+        "
+      radio name="Pro plan" unchecked
+      text leaf name="
+        "
+      text leaf name="Pro"
+      text leaf name="
+        "
+      combobox name="Country"
+        option name="United States" selected
+        option name="Canada"
+      text leaf name="
+        "
+      textbox name="Comments" editable multiline
+      text leaf name="
+        "
+      button name="Register"
+        text leaf name="Register"
+      text leaf name="
+        "
+      button name="Reset" disabled
+        text leaf name="Reset"
+      text leaf name="
+    "

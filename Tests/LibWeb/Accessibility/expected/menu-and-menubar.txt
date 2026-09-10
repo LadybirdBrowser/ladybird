@@ -1,0 +1,16 @@
+document
+  generic focused
+    menubar name="Main menu"
+      menuitem name="File"
+        text leaf name="File"
+      menuitem name="Edit"
+        text leaf name="Edit"
+      menuitem name="View"
+        text leaf name="View"
+    menu name="File menu"
+      menuitem name="New"
+        text leaf name="New"
+      menuitem name="Open"
+        text leaf name="Open"
+      menuitem name="Save"
+        text leaf name="Save"

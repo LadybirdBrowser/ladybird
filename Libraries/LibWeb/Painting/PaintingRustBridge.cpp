@@ -1319,6 +1319,11 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
         auto navigable = document.navigable();
         inputs.window_is_focused = navigable && navigable->is_focused();
         inputs.outline_auto_color = CSS::SystemColor::accent_color(CSS::PreferredColorScheme::Auto);
+        // The AT focus ring paints as an outline on one paintable, whether or not that element has a CSS outline of
+        // its own. So the recorder learns which paintable that is here, up front — its paint-phase mask would
+        // otherwise skip that paintable's outline phase as empty.
+        auto const* accessibility_focus_target = document.accessibility_focus_target();
+        inputs.accessibility_focus_target = Layout::Node::slot_id(accessibility_focus_target ? accessibility_focus_target->layout_node() : nullptr);
     }
     inputs.caret = resolve_document_caret_paint(document);
     inputs.focused_text_control = resolve_focused_text_control_selection(document);

@@ -88,8 +88,11 @@ jobs:
               echo "host_cxx=g++" >> "$GITHUB_OUTPUT"
             fi
           elif ${{ inputs.os_name == 'macOS' }} ; then
-            echo "host_cc=$(xcrun --find clang)" >> "$GITHUB_OUTPUT"
-            echo "host_cxx=$(xcrun --find clang++)" >> "$GITHUB_OUTPUT"
+            # Build with the LLVM 21 that the setup action installs, not with whichever clang the selected
+            # Xcode happens to ship. LLVM 21 is the supported toolchain, and pinning it keeps every macOS
+            # runner on one compiler instead of letting the Xcode version pick one per runner.
+            echo "host_cc=$(brew --prefix llvm@21)/bin/clang" >> "$GITHUB_OUTPUT"
+            echo "host_cxx=$(brew --prefix llvm@21)/bin/clang++" >> "$GITHUB_OUTPUT"
           fi
 
           if ${{ inputs.clang_plugins }} ; then
@@ -171,8 +174,342 @@ jobs:
           cmake --build .
           cmake --install . --strip --prefix "${GITHUB_WORKSPACE}/Install"
 
+      # Report the GUI session state on every macOS runner, including ones where the accessibility tests do not run.
+      # Accessibility is mediated by WindowServer, so a runner without one denies every grant however the TCC
+      # database is written, and that is the difference between a runner that can host these tests and one that
+      # cannot. Logging it everywhere means the answer is in the log rather than in someone's memory. This reports,
+      # it does not gate: each probe tolerates a non-match, which matters under bash -e where a bare pgrep that
+      # finds nothing would abort the step.
+      # The Blacksmith runners boot with the session screen-locked and no active displays, which is what breaks
+      # the accessibility tests: macOS withholds a window's accessibility representation while the session is
+      # locked, so AXFocusedWindow answers with the application element itself and no AXWebArea is reachable under
+      # it. The window is real — the window server reports one on-screen — and the engine renders the page fine
+      # headlessly, so the lock is the only thing in the way. Try to wake a display and clear the lock UI, and
+      # print the session state before and after so a remedy that does not work is visible rather than inferred.
+      - name: Wake the macOS session for the accessibility tests
+        if: ${{ inputs.os_name == 'macOS' }}
+        continue-on-error: true
+        run: |
+          py=""
+          for candidate in python3 /usr/bin/python3 /Library/Developer/CommandLineTools/usr/bin/python3; do
+            if command -v "${candidate}" >/dev/null 2>&1 && "${candidate}" -c "import Quartz" >/dev/null 2>&1; then
+              py="${candidate}"
+              break
+            fi
+          done
+          session_state() {
+            if [ -z "${py}" ]; then
+              echo "  (no python3 with Quartz on this runner; cannot read session state)"
+              return 0
+            fi
+            "${py}" - <<'SESSEOF'
+          import re
+
+          from Quartz import CGGetActiveDisplayList
+          from Quartz import CGSessionCopyCurrentDictionary
+
+          err, _displays, count = CGGetActiveDisplayList(16, None, None)
+          print("  active displays : err=%s count=%s" % (err, count))
+          session = CGSessionCopyCurrentDictionary() or {}
+          print("  screen locked   : %s" % ("YES" if session.get("CGSSessionScreenIsLocked") else "no"))
+          print("  session dict    : %s" % re.sub(r"\s+", " ", repr(dict(session)))[:300])
+          SESSEOF
+          }
+
+          echo "=== session state BEFORE ==="
+          session_state
+
+          # Stop the screen saver arming again mid-job, and keep the display and machine awake for the run.
+          defaults -currentHost write com.apple.screensaver idleTime -int 0 || true
+          sudo pmset -a displaysleep 0 sleep 0 disksleep 0 || true
+
+          # Dismiss the lock UI if a screen saver is what put it up. A bare killall with no match exits non-zero,
+          # which would abort this step under bash -e, so tolerate that.
+          killall ScreenSaverEngine 2>/dev/null || true
+
+          # Assert user activity and keep a display awake for the rest of the job. This wakes a slept display; on
+          # its own it does not clear a session lock, which is why it runs alongside the steps above rather than
+          # instead of them.
+          nohup caffeinate -u -d -i -t 7200 >/dev/null 2>&1 &
+          caffeinate -u -t 1 || true
+
+          sleep 3
+          echo "=== session state AFTER ==="
+          session_state
+
+      - name: Report macOS GUI session state
+        if: ${{ inputs.os_name == 'macOS' }}
+        continue-on-error: true
+        run: |
+          echo "launchctl managername : $(launchctl managername 2>/dev/null || echo unknown)"
+          if pgrep -x WindowServer >/dev/null 2>&1; then
+            echo "WindowServer          : running"
+          else
+            echo "WindowServer          : absent"
+          fi
+          if pgrep -x loginwindow >/dev/null 2>&1; then
+            echo "loginwindow           : running"
+          else
+            echo "loginwindow           : absent"
+          fi
+          echo "console user          : $(stat -f%Su /dev/console 2>/dev/null || echo unknown)"
+          # TCC attributes an Accessibility request to the responsible process — the top-level launcher that
+          # owns the process tree, not the process calling the API — so this names the binary a grant must cover.
+          /usr/bin/python3 - << 'RESPEOF'
+          import ctypes, os, subprocess
+
+          libc = ctypes.CDLL("/usr/lib/libSystem.B.dylib")
+          try:
+              fn = libc.responsibility_get_pid_responsible_for_pid
+              fn.argtypes, fn.restype = [ctypes.c_int], ctypes.c_int
+              responsible = fn(os.getpid())
+          except AttributeError:
+              responsible = -1
+          if responsible <= 0:
+              print("responsible process   : unavailable")
+          else:
+              exe = subprocess.run(["ps", "-p", str(responsible), "-o", "comm="],
+                                   capture_output=True, text=True).stdout.strip()
+              print("responsible process   : {} (pid {})".format(exe or "unknown", responsible))
+          RESPEOF
+
+      - name: Check macOS SIP/TCC state
+        if: ${{ inputs.os_name == 'macOS' }}
+        run: |
+          csrutil status || true
+          SYSTEM_TCC=/Library/Application\ Support/com.apple.TCC/TCC.db
+          if [ -f "$SYSTEM_TCC" ]; then
+            sudo ls -l "$SYSTEM_TCC" || true
+            echo "--- existing kTCCServiceAccessibility entries ---"
+            sudo sqlite3 "$SYSTEM_TCC" \
+              "SELECT service, client, client_type, auth_value FROM access WHERE service = 'kTCCServiceAccessibility';" \
+              2>&1 || echo "(could not query)"
+          else
+            echo "(system TCC.db doesn't exist)"
+          fi
+
+      - name: Grant Accessibility to the responsible process
+        if: ${{ inputs.os_name == 'macOS' }}
+        run: |
+          if ! csrutil status | grep -qi "disabled"; then
+            echo "::warning::SIP is enabled on this runner. Can't write to TCC.db."
+            exit 0
+          fi
+          # Grant Accessibility by writing the system TCC database directly: tccutil is broken here and MDM/PPPC
+          # profiles are off-limits, so direct SQL is the only lever.
+          #
+          # The client that has to be granted is the RESPONSIBLE process, not the process that calls the API. TCC
+          # walks up from the requesting process to the top-level launcher that owns the tree and attributes the
+          # request to that binary. It is the same rule that makes a user grant Accessibility to their terminal
+          # app rather than to the shell script they want to run. For a workflow step the responsible process is
+          # whatever agent the runner provider used to start the runner, so it differs between providers even on
+          # a byte-identical image, and granting bash or python3 on its own accomplishes nothing.
+          #
+          # So resolve it at run time instead of hard-coding any provider's agent path, and grant the rest of the
+          # ancestry and the interpreters alongside it, so the grant holds however the tree gets attributed.
+          #
+          # tccd must be restarted afterwards. It caches the database and watches only MDMOverrides.plist, not
+          # TCC.db, so a direct write stays invisible until the daemons are bounced. 'launchctl kickstart -k'
+          # does that reliably; 'killall tccd' does not dependably relaunch the root-owned system instance.
+          #
+          # Columns: client_type=1 (path), auth_value=2 (allowed), auth_reason=4, auth_version=1, csreq=<blob>.
+          # The rest default (boot_uuid defaults to 'UNUSED'). INSERT OR REPLACE keeps it idempotent.
+          SYSTEM_TCC=/Library/Application\ Support/com.apple.TCC/TCC.db
+          CLIENTS=$(mktemp "${RUNNER_TEMP:-/tmp}/tcc-clients.XXXXXX")
+          REQ_BIN=$(mktemp "${RUNNER_TEMP:-/tmp}/tcc-csreq.XXXXXX")
+
+          # The responsible process, then every ancestor up to launchd, so the grant covers whichever of them the
+          # kernel attributes this tree to.
+          /usr/bin/python3 - >> "$CLIENTS" << 'ANCESTRYEOF'
+          import ctypes, os, subprocess
+
+
+          def executable(pid):
+              out = subprocess.run(["ps", "-p", str(pid), "-o", "comm="], capture_output=True, text=True)
+              return out.stdout.strip()
+
+
+          def parent(pid):
+              out = subprocess.run(["ps", "-p", str(pid), "-o", "ppid="], capture_output=True, text=True)
+              text = out.stdout.strip()
+              return int(text) if text.isdigit() else 0
+
+
+          libc = ctypes.CDLL("/usr/lib/libSystem.B.dylib")
+          try:
+              fn = libc.responsibility_get_pid_responsible_for_pid
+              fn.argtypes, fn.restype = [ctypes.c_int], ctypes.c_int
+              responsible = fn(os.getpid())
+          except AttributeError:
+              responsible = -1
+          if responsible > 0:
+              print(executable(responsible))
+
+          pid = os.getppid()
+          while pid > 1:
+              print(executable(pid))
+              pid = parent(pid)
+          ANCESTRYEOF
+
+          # The preflight and run_tests.sh both use the active python3, which is the actions/setup-python one and
+          # is where we install PyObjC, so it needs the grant as much as the system interpreters do. TCC records a
+          # client by the path it was launched from, which for a symlinked Homebrew bash or a PATH-resolved
+          # python3 is not the same as its realpath, so record both forms.
+          for client in "$(command -v python3 || true)" "${BASH:-$(command -v bash || true)}" \
+                        /bin/bash /usr/bin/python3 /Library/Developer/CommandLineTools/usr/bin/python3; do
+            [ -n "$client" ] || continue
+            echo "$client" >> "$CLIENTS"
+            /usr/bin/python3 -c 'import os,sys; print(os.path.realpath(sys.argv[1]))' "$client" >> "$CLIENTS" 2>/dev/null || true
+          done
+
+          sort -u "$CLIENTS" -o "$CLIENTS"
+          # Read the list on fd 3: sudo below would otherwise consume the loop's stdin and cut it short.
+          while IFS= read -r client <&3; do
+            [ -n "$client" ] || continue
+            [ -e "$client" ] || continue
+            # codesign prints the designated requirement as 'designated => ...', or as a commented
+            # '# designated => cdhash H"..."' for ad-hoc-signed binaries (Homebrew's bash, the downloaded Python).
+            # Accept both, then compile it to the binary csreq blob that tccd stores and matches against. A client
+            # with no derivable requirement still gets a row, with a NULL csreq, which is what the runner image's
+            # own pre-provisioned rows carry.
+            req=$(codesign -d -r- "$client" 2>/dev/null | sed -n 's/^#* *designated => //p')
+            csreq_sql=NULL
+            csreq_note="none"
+            if [ -n "$req" ] && printf '%s' "$req" | /usr/bin/csreq -r- -b "$REQ_BIN" 2>/dev/null; then
+              csreq_sql="readfile('$REQ_BIN')"
+              csreq_note="compiled"
+            fi
+            echo "=== Granting Accessibility to $client (csreq: $csreq_note) ==="
+            sudo sqlite3 "$SYSTEM_TCC" \
+              "INSERT OR REPLACE INTO access (service, client, client_type, auth_value, auth_reason, auth_version, csreq) VALUES ('kTCCServiceAccessibility', '$client', 1, 2, 4, 1, $csreq_sql);"
+          done 3< "$CLIENTS"
+          rm -f "$CLIENTS" "$REQ_BIN"
+
+          echo "=== Accessibility entries after grant ==="
+          sudo sqlite3 "$SYSTEM_TCC" \
+            "SELECT client, auth_value, CASE WHEN csreq IS NULL THEN 'NULL' ELSE 'len=' || length(csreq) END FROM access WHERE service = 'kTCCServiceAccessibility' ORDER BY client;"
+          # Bounce both the system and per-user tccd so the next AX request reads these rows fresh (see note above).
+          sudo launchctl kickstart -k system/com.apple.tccd.system || true
+          launchctl kickstart -k "gui/$(id -u)/com.apple.tccd" || true
+
+      - name: Verify macOS GUI session + Accessibility (AX preflight)
+        if: ${{ inputs.os_name == 'macOS' }}
+        continue-on-error: ${{ inputs.build_preset == 'Sanitizer' }}
+        run: |
+          fail=0
+          session=$(launchctl managername 2>/dev/null || echo "unknown")
+          echo "launchctl managername : ${session}"
+          if [ "${session}" != "Aqua" ]; then
+            echo "::error title=AX preflight: no GUI session::The accessibility tests need a GUI (Aqua) login session, but this runner is in the '${session}' session. Fix: Run as a LaunchAgent under an auto-logged-in user (not a root LaunchDaemon), with screen-lock and display-sleep disabled."
+            fail=1
+          fi
+          # An Aqua session type is not the same as a live GUI. Accessibility is mediated by WindowServer, so a
+          # runner without one denies every request no matter how the TCC database is written. Report that here so
+          # a failure below says which of the two is missing. Each probe tolerates a non-match: this runs under
+          # bash -e, where a bare pgrep that finds nothing would abort the step.
+          if pgrep -x WindowServer >/dev/null 2>&1; then window_server=running; else window_server=absent; fi
+          if pgrep -x loginwindow >/dev/null 2>&1; then login_window=running; else login_window=absent; fi
+          console_user=$(stat -f%Su /dev/console 2>/dev/null || echo "unknown")
+          echo "WindowServer          : ${window_server}"
+          echo "loginwindow           : ${login_window}"
+          echo "console user          : ${console_user}"
+          py=""
+          for candidate in python3 /usr/bin/python3 /Library/Developer/CommandLineTools/usr/bin/python3; do
+            if command -v "${candidate}" >/dev/null 2>&1 && "${candidate}" -c "import ApplicationServices" >/dev/null 2>&1; then
+              py="${candidate}"
+              break
+            fi
+          done
+          if [ -n "${py}" ]; then
+            echo "probed interpreter    : ${py}"
+            echo "responsible shell     : ${BASH:-unknown}"
+            trusted=$("${py}" -c "from ApplicationServices import AXIsProcessTrusted as t; print('yes' if t() else 'no')" 2>/dev/null || echo "error")
+            echo "AXIsProcessTrusted    : ${trusted}"
+            if [ "${trusted}" != "yes" ]; then
+              if [ "${window_server}" != "running" ]; then
+                echo "::error title=AX preflight: no WindowServer::AXIsProcessTrusted() returned '${trusted}' and WindowServer is not running, so this runner has no live GUI session. Accessibility grants are inert without one, whatever the TCC database holds, so this is a runner property and not something the workflow can grant its way out of."
+              else
+                echo "::error title=AX preflight: no Accessibility access::AXIsProcessTrusted() returned '${trusted}' while WindowServer is running, so the TCC grant itself did not take. Fix: Restore the Accessibility grant for Python on this runner."
+              fi
+              fail=1
+            fi
+          else
+            echo "::error title=AX preflight: no PyObjC::No python3 with PyObjC found, so the accessibility tests cannot run on this runner."
+            fail=1
+          fi
+          if [ "${fail}" -ne 0 ]; then
+            echo "AX preflight FAILED: this runner isn't set up to run the macOS accessibility tests (see the annotated errors above)."
+            exit 1
+          fi
+          echo "AX preflight OK: GUI (Aqua) session and Accessibility access are both present."
+
+      # This (accessibility tests) step can't be run after the "Build with Qt" step — because we need to run the
+      # accessibility tests against the AppKit build, which the "Build with Qt" step overwrites with a Qt build.
+      # When Ladybird never surfaces a populated AXWebArea, every test class burns its full startup timeout. At the
+      # 60s default that is 20 classes x 60s = 1200s against the suite's 600s ctest timeout, so ctest SIGTERMs the
+      # run about half way through — and unittest only prints tracebacks in its end-of-run summary, so the
+      # harness's diagnosis (the AX surface dump plus Ladybird's stderr) is generated and then thrown away. Cap the
+      # per-class wait so the whole suite stays inside the ctest budget and that summary always prints; a healthy
+      # runner populates the web area in about a second, so this costs nothing when the tests pass. The Sanitizer
+      # job is non-blocking because what it produces is a diagnosis rather than a verdict; Release is what gates.
+      - name: Test - macOS AppKit accessibility
+        if: ${{ inputs.os_name == 'macOS' }}
+        continue-on-error: ${{ inputs.build_preset == 'Sanitizer' }}
+        working-directory: ${{ github.workspace }}
+        run: ctest --output-on-failure --no-tests=error --test-dir Build -R AccessibilityBridgeMac --timeout 600
+        env:
+          LADYBIRD_AX_STARTUP_TIMEOUT: 20
+          ASAN_OPTIONS: 'log_path="${{ github.workspace }}/asan.log"'
+          UBSAN_OPTIONS: 'log_path="${{ github.workspace }}/ubsan.log"'
+
+      # Diagnostic probe for the runner-dependent failure mode of the step above: Ladybird stays alive but never
+      # surfaces a populated AXWebArea, and its stderr stays empty. A healthy Release Ladybird also writes nothing
+      # to stderr (NSLog and os_log only reach the unified log), so the probe collects the evidence that says what
+      # the app is actually doing. It launches Ladybird on the roles.html fixture the same way the harness does,
+      # then records, from outside the app: whether the helper processes spawn and when; whether the app registers
+      # with LaunchServices and finishes launching; the windows the window server itself reports (independent of
+      # the app's AX bridge); a cycle-safe dump of the whole AX surface with identity checks on AXFocusedWindow;
+      # native thread stacks of Ladybird and WebContent via /usr/bin/sample; a screenshot of the window; a
+      # windowless --headless=text engine run; the unified log for the whole Ladybird.app family; and any crash
+      # reports. It runs on every macOS runner, healthy or failing, so two runners' outputs diff line by line; the
+      # AXDIAG: lines are the quick diff surface. Diagnostic only: the probe always exits 0, and continue-on-error
+      # covers even an interpreter-level crash. Bulky outputs land in ax-diagnostics/, uploaded below.
+      - name: Diagnose - macOS AppKit accessibility environment
+        if: ${{ !cancelled() && inputs.os_name == 'macOS' }}
+        continue-on-error: true
+        working-directory: ${{ github.workspace }}
+        env:
+          LADYBIRD_BINARY: ${{ github.workspace }}/Build/bin/Ladybird.app/Contents/MacOS/Ladybird
+          LADYBIRD_AX_DIAG_DIR: ${{ github.workspace }}/ax-diagnostics
+          LADYBIRD_AX_DIAG_WAIT: ${{ inputs.build_preset == 'Sanitizer' && '45' || '25' }}
+        run: |
+          py=""
+          for candidate in python3 /usr/bin/python3 /Library/Developer/CommandLineTools/usr/bin/python3; do
+            if command -v "${candidate}" >/dev/null 2>&1 && "${candidate}" -c "import ApplicationServices" >/dev/null 2>&1; then
+              py="${candidate}"
+              break
+            fi
+          done
+          if [ -z "${py}" ]; then
+            echo "no python3 with PyObjC on this runner; skipping the probe"
+            exit 0
+          fi
+          "${py}" Tests/LibWeb/AccessibilityBridgeMac/diagnose.py
+          # The probe shuts its own Ladybird down; this catches anything the test step or the probe left behind.
+          pkill -9 -f "Ladybird.app/Contents/MacOS" 2>/dev/null || true
+
+      - name: Upload macOS AX diagnostics
+        if: ${{ !cancelled() && inputs.os_name == 'macOS' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@v7
+        with:
+          name: ax-diagnostics-${{ inputs.build_preset }}-${{ fromJSON(inputs.runner_labels)[0] }}
+          path: ax-diagnostics/
+          retention-days: 0
+          if-no-files-found: ignore
+
       - name: Build with Qt
-        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer' }}
+        if: ${{ inputs.os_name == 'macOS' && inputs.build_preset == 'Sanitizer' && contains(inputs.runner_labels, 'blacksmith') }}
         working-directory: ${{ github.workspace }}
         run: |
           cmake --preset ${{ inputs.build_preset }} -B Build -DLADYBIRD_GUI_FRAMEWORK=Qt
@@ -242,14 +579,28 @@ jobs:
         run: |
           export ASAN_OPTIONS="log_path=\"${GITHUB_WORKSPACE}/Build/asan.log\""
           export UBSAN_OPTIONS="log_path=\"${GITHUB_WORKSPACE}/Build/ubsan.log\""
-          ctest --preset ${{ inputs.build_preset }} --output-on-failure --test-dir Build --timeout 1800
+          ctest --preset ${{ inputs.build_preset }} --output-on-failure -E 'LibWebAccessibilityBridge|AccessibilityBridgeMac' --test-dir Build --timeout 1800
         env:
           TESTS_ONLY: 1
 
+      # Not on macOS: the macOS Release jobs exist only to host the AppKit accessibility tests below, and the macOS
+      # Sanitizer job runs the full suite in the step above.
       - name: Test
-        if: ${{ inputs.build_preset != 'Fuzzers' && inputs.build_preset != 'All_Debug' && inputs.build_preset != 'Sanitizer' }}
+        if: ${{ inputs.build_preset != 'Fuzzers' && inputs.build_preset != 'All_Debug' && inputs.build_preset != 'Sanitizer' && inputs.os_name != 'macOS' }}
         working-directory: ${{ github.workspace }}
-        run: ctest --output-on-failure --test-dir Build --timeout 1800
+        run: ctest --output-on-failure -E 'LibWebAccessibilityBridge|AccessibilityBridgeMac' --test-dir Build --timeout 1800
+        env:
+          TESTS_ONLY: 1
+
+      # The AT-SPI2 tests need a Linux build that is neither Sanitizer nor All_Debug:
+      # - Sanitizer's ASan-instrumented Qt-on-XCB hits a buffer overflow in libxkbcommon-x11.
+      # - All_Debug's ENABLE_ALL_THE_DEBUG_MACROS log volume starves the Qt event loop, so AT-SPI2 registration never
+      #   completes within any reasonable wait window.
+      # Release builds hit neither problem — so we run these tests on the Release runner.
+      - name: Test - LibWeb AT-SPI2 bridge (Release)
+        if: ${{ inputs.os_name == 'Linux' && inputs.build_preset == 'Release' }}
+        working-directory: ${{ github.workspace }}
+        run: ctest --output-on-failure --no-tests=error --test-dir Build -R LibWebAccessibilityBridge --timeout 1800
         env:
           TESTS_ONLY: 1
 
