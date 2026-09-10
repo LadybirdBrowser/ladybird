@@ -22,13 +22,20 @@
                 iframe.src = url;
             });
 
-        // Record each document, then navigate away from it. The recording runs in a nested function — so that no
-        // document lingers in a register of this function's frame while the documents are expected to be collected.
+        // Record each document, then navigate away from it. An expando preserves the document's wrapper for as long as
+        // the document itself lives, so the weak reference tracks the document rather than a wrapper that JS may drop
+        // early. The recording starts with the second document: the first one reuses the initial about:blank document's
+        // window, whose realm the navigable's WindowProxy keeps alive for as long as the iframe lives. And the recording
+        // runs in a nested function, so that no document lingers in a register of this function's frame while the
+        // documents are expected to be collected.
         const weakDocuments = await (async () => {
             const weakDocuments = [];
             await navigate(`${url}?0`);
-            for (let i = 1; i <= 5; i++) {
-                weakDocuments.push(new WeakRef(iframe.contentDocument));
+            await navigate(`${url}?1`);
+            for (let i = 2; i <= 6; i++) {
+                const replacedDocument = iframe.contentDocument;
+                replacedDocument.preserveWrapper = true;
+                weakDocuments.push(new WeakRef(replacedDocument));
                 await navigate(`${url}?${i}`);
             }
             return weakDocuments;

@@ -16,6 +16,11 @@
             body: "",
             wait_for_unblock: token,
         });
+        const zerothURL = await server.createEcho("GET", `/stalled-load-zeroth-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: "<!DOCTYPE html><p>zeroth</p>",
+        });
         const firstURL = await server.createEcho("GET", `/stalled-load-first-${runId}`, {
             status: 200,
             headers: { "Content-Type": "text/html" },
@@ -34,14 +39,24 @@
         const iframe = document.createElement("iframe");
         document.body.append(iframe);
 
-        // The first document is recorded in a nested function, so that it doesn't linger in a register of this
-        // function's frame while it's expected to be collected.
-        const weakFirstDocument = await (async () => {
-            await new Promise(resolve => {
+        const navigate = url =>
+            new Promise(resolve => {
                 iframe.addEventListener("load", resolve, { once: true });
-                iframe.src = firstURL;
+                iframe.src = url;
             });
-            return new WeakRef(iframe.contentDocument);
+
+        // The first document is recorded in a nested function, so that it doesn't linger in a register of this
+        // function's frame while it's expected to be collected. An expando preserves its wrapper for as long as the
+        // document itself lives, so the weak reference tracks the document rather than a wrapper that JS may drop
+        // early. And a zeroth document goes before it: the document that replaces the initial about:blank document
+        // reuses that document's window, whose realm the navigable's WindowProxy keeps alive for as long as the
+        // iframe lives.
+        const weakFirstDocument = await (async () => {
+            await navigate(zerothURL);
+            await navigate(firstURL);
+            const firstDocument = iframe.contentDocument;
+            firstDocument.preserveWrapper = true;
+            return new WeakRef(firstDocument);
         })();
 
         // The second document's body has been read to its end once DOMContentLoaded fires in it, while its load event
