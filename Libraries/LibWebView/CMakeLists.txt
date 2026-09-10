@@ -45,6 +45,8 @@ set(SOURCES
     Process.cpp
     ProcessHandle.cpp
     ProcessManager.cpp
+    TabPerformanceStats.cpp
+    TabPerformanceMonitor.cpp
     ProcessMonitor.cpp
     Profile.cpp
     SearchEngine.cpp

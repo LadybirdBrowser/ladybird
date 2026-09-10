@@ -5,6 +5,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
 #include <AK/GenericShorthands.h>
 #include <AK/HashMap.h>
 #include <LibCore/File.h>
@@ -1451,6 +1452,9 @@ ErrorOr<void> Request::free_curl_structs()
     TRY(detach_curl_handle_from_multi());
 
     if (m_curl_easy_handle) {
+        sample_network_usage();
+        m_sampled_download_bytes = 0;
+        m_sampled_upload_bytes = 0;
         curl_easy_cleanup(m_curl_easy_handle);
         m_curl_easy_handle = nullptr;
     }
@@ -1844,6 +1848,76 @@ Requests::RequestTimingInfo Request::acquire_timing_info() const
         .encoded_body_size = encoded_body_size,
         .http_version_alpn_identifier = http_version_alpn,
     };
+}
+
+static u64 saturating_add(u64 left, u64 right)
+{
+    Checked<u64> sum = left;
+    sum += right;
+    return sum.has_overflow() ? NumericLimits<u64>::max() : sum.value();
+}
+
+static bool s_performance_monitor_enabled;
+static u64 s_performance_generation;
+static HashMap<i32, HashMap<u64, Requests::NetworkUsage>> s_network_usage;
+
+void Request::set_performance_monitor_enabled(bool enabled)
+{
+    if (s_performance_monitor_enabled == enabled)
+        return;
+    s_performance_monitor_enabled = enabled;
+    ++s_performance_generation;
+    s_network_usage.clear();
+}
+
+Vector<Requests::NetworkUsage> Request::take_network_usage()
+{
+    Vector<Requests::NetworkUsage> result;
+    for (auto const& process : s_network_usage) {
+        for (auto const& page : process.value)
+            result.append(page.value);
+    }
+    s_network_usage.clear();
+    return result;
+}
+
+void Request::set_performance_origin(i32 process_id, u64 page_id)
+{
+    m_performance_origin = { process_id, page_id, 0, 0 };
+    m_performance_generation = s_performance_generation;
+}
+
+void Request::sample_network_usage()
+{
+    if (!s_performance_monitor_enabled || m_performance_origin.process_id == 0)
+        return;
+    if (!m_curl_easy_handle) {
+        m_sampled_download_bytes = 0;
+        m_sampled_upload_bytes = 0;
+        m_performance_generation = s_performance_generation;
+        return;
+    }
+    curl_off_t downloaded = 0;
+    curl_off_t uploaded = 0;
+    if (curl_easy_getinfo(m_curl_easy_handle, CURLINFO_SIZE_DOWNLOAD_T, &downloaded) != CURLE_OK
+        || curl_easy_getinfo(m_curl_easy_handle, CURLINFO_SIZE_UPLOAD_T, &uploaded) != CURLE_OK
+        || downloaded < 0 || uploaded < 0)
+        return;
+    auto download_bytes = static_cast<u64>(downloaded);
+    auto upload_bytes = static_cast<u64>(uploaded);
+    if (m_performance_generation == s_performance_generation) {
+        auto delta = m_performance_origin;
+        delta.download_bytes = download_bytes >= m_sampled_download_bytes ? download_bytes - m_sampled_download_bytes : download_bytes;
+        delta.upload_bytes = upload_bytes >= m_sampled_upload_bytes ? upload_bytes - m_sampled_upload_bytes : upload_bytes;
+        if (delta.download_bytes || delta.upload_bytes) {
+            auto& total = s_network_usage.ensure(delta.process_id).ensure(delta.page_id, [&] { return m_performance_origin; });
+            total.download_bytes = saturating_add(total.download_bytes, delta.download_bytes);
+            total.upload_bytes = saturating_add(total.upload_bytes, delta.upload_bytes);
+        }
+    }
+    m_sampled_download_bytes = download_bytes;
+    m_sampled_upload_bytes = upload_bytes;
+    m_performance_generation = s_performance_generation;
 }
 
 }

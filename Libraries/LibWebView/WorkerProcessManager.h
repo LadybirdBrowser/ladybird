@@ -49,6 +49,8 @@ public:
     ErrorOr<void> reconnect_to_request_server();
     ErrorOr<void> simulate_request_server_connection_loss_for_testing(WebContentClient&, u64 page_id);
 
+    Optional<u64> exclusive_performance_owner(pid_t) const;
+
     size_t client_count() const { return m_agents.size(); }
 
     template<CallableAs<IterationDecision, WebWorkerClient&> Callback>

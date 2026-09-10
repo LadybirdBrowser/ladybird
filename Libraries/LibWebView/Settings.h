@@ -73,6 +73,7 @@ enum class GlobalPrivacyControl {
 enum class ConfigVariableID : u8 {
     ShowWebContentProcessIDInTabTitle,
     ShowAdvancedDebugMenu,
+    ShowTabPerformanceMonitor,
     ContentBlockerListPaths,
     UseClientSideWindowDecorations,
     MaximumConnectionsPerDownload,

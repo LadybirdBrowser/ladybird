@@ -21,14 +21,19 @@
 #import <Interface/LocationSearchField.h>
 #import <Interface/Menu.h>
 #import <Interface/Palette.h>
+#import <Interface/PerformanceMonitorView.h>
 #import <Interface/Tab.h>
 #import <Interface/TabController.h>
+#include <LibWebView/TabPerformanceMonitor.h>
 #import <Utilities/Conversions.h>
 
 #if !__has_feature(objc_arc)
 #    error "This project requires ARC"
 #endif
 
+class PerformanceSettingsObserver;
+
+static NSString* const TOOLBAR_PERFORMANCE_IDENTIFIER = @"ToolbarPerformanceIdentifier";
 static NSString* const TOOLBAR_IDENTIFIER = @"Toolbar";
 static NSString* const TOOLBAR_NAVIGATE_BACK_IDENTIFIER = @"ToolbarNavigateBackIdentifier";
 static NSString* const TOOLBAR_NAVIGATE_FORWARD_IDENTIFIER = @"ToolbarNavigateForwardIdentifier";
@@ -675,6 +680,7 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
     u64 m_page_index;
 
     OwnPtr<WebView::Omnibox> m_omnibox;
+    OwnPtr<PerformanceSettingsObserver> m_performance_settings_observer;
     OwnPtr<DownloadsObserver> m_downloads_observer;
     bool m_show_downloads_popover_when_button_is_ready;
     bool m_is_applying_omnibox_display;
@@ -698,6 +704,7 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
 @property (nonatomic, strong) NSToolbarItem* location_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* private_browsing_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* downloads_toolbar_item;
+@property (nonatomic, strong) NSToolbarItem* performance_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* new_tab_toolbar_item;
 @property (nonatomic, strong) NSToolbarItem* tab_overview_toolbar_item;
 
@@ -722,6 +729,22 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
 - (void)downloadsButtonReadyToAnchorPopover;
 
 @end
+
+class PerformanceSettingsObserver final : public WebView::SettingsObserver {
+public:
+    explicit PerformanceSettingsObserver(TabController* controller)
+        : m_controller(controller)
+    {
+    }
+    virtual void config_variable_changed(WebView::ConfigVariableID id) override
+    {
+        if (id == WebView::ConfigVariableID::ShowTabPerformanceMonitor)
+            [m_controller updatePerformanceMonitor];
+    }
+
+private:
+    __weak TabController* m_controller;
+};
 
 class DownloadsObserver final : public WebView::FileDownloaderObserver {
 public:
@@ -1550,9 +1573,48 @@ private:
 
     [self focusLocationToolbarItem];
     [self updateDownloadsButton];
+    m_performance_settings_observer = make<PerformanceSettingsObserver>(self);
+    [self updatePerformanceMonitor];
 
     auto* delegate = (ApplicationDelegate*)[NSApp delegate];
     [delegate setActiveTab:[self tab]];
+}
+
+- (void)updatePerformanceMonitor
+{
+    auto& monitor = WebView::TabPerformanceMonitor::the();
+    (void)monitor;
+    bool enabled = WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::ShowTabPerformanceMonitor);
+    auto& view = [[[self tab] web_view] view];
+    if (!enabled) {
+        view.on_performance_stats = nullptr;
+        for (NSUInteger i = 0; i < self.toolbar.items.count; ++i) {
+            if ([self.toolbar.items[i].itemIdentifier isEqual:TOOLBAR_PERFORMANCE_IDENTIFIER]) {
+                [self.toolbar removeItemAtIndex:i];
+                break;
+            }
+        }
+        self.performance_toolbar_item = nil;
+        return;
+    }
+    if (!self.performance_toolbar_item) {
+        self.performance_toolbar_item = [[NSToolbarItem alloc] initWithItemIdentifier:TOOLBAR_PERFORMANCE_IDENTIFIER];
+        self.performance_toolbar_item.label = @"Tab performance";
+        self.performance_toolbar_item.view = [[PerformanceMonitorView alloc] initWithFrame:NSMakeRect(0, 0, 420, 24)];
+        for (NSUInteger i = 0; i < self.toolbar.items.count; ++i) {
+            if ([self.toolbar.items[i].itemIdentifier isEqual:TOOLBAR_LOCATION_IDENTIFIER]) {
+                [self.toolbar insertItemWithItemIdentifier:TOOLBAR_PERFORMANCE_IDENTIFIER atIndex:i + 1];
+                break;
+            }
+        }
+    }
+    __weak TabController* weak_self = self;
+    view.on_performance_stats = [weak_self](WebView::TabPerformanceStats const& stats) {
+        auto* controller = weak_self;
+        if (!controller)
+            return;
+        [(PerformanceMonitorView*)controller.performance_toolbar_item.view updateStats:stats];
+    };
 }
 
 #pragma mark - NSWindowDelegate
@@ -1722,6 +1784,8 @@ private:
         itemForItemIdentifier:(NSString*)identifier
     willBeInsertedIntoToolbar:(BOOL)flag
 {
+    if ([identifier isEqual:TOOLBAR_PERFORMANCE_IDENTIFIER])
+        return self.performance_toolbar_item;
     if ([identifier isEqual:TOOLBAR_NAVIGATE_BACK_IDENTIFIER]) {
         return self.navigate_back_toolbar_item;
     }
@@ -1752,7 +1816,7 @@ private:
 
 - (NSArray*)toolbarAllowedItemIdentifiers:(NSToolbar*)toolbar
 {
-    return self.toolbar_identifiers;
+    return [self.toolbar_identifiers arrayByAddingObject:TOOLBAR_PERFORMANCE_IDENTIFIER];
 }
 
 - (NSArray*)toolbarDefaultItemIdentifiers:(NSToolbar*)toolbar

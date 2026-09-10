@@ -115,6 +115,14 @@ static auto const& CONFIG_VARIABLE_DEFINITIONS = *new Array<ConfigVariableDefini
         .array_element_type = {},
     },
     {
+        .id = ConfigVariableID::ShowTabPerformanceMonitor,
+        .name = "debug.ui.show_tab_performance_monitor"sv,
+        .title = "Show tab performance monitor"sv,
+        .description = "Show per-tab CPU, estimated owned memory, network rates and compositor frame rate in the toolbar."sv,
+        .default_value = false,
+        .array_element_type = {},
+    },
+    {
         .id = ConfigVariableID::ContentBlockerListPaths,
         .name = "content_blocking.list_paths"sv,
         .title = "Content blocker list paths"sv,

@@ -174,4 +174,14 @@ void ProcessManager::verify_event_loop() const
         VERIFY(&Core::EventLoop::current() == m_creation_event_loop);
 }
 
+Optional<Core::Platform::ProcessResourceUsage> ProcessManager::resource_usage(pid_t pid) const
+{
+    verify_event_loop();
+    for (auto const& process : m_statistics.processes) {
+        if (process->pid == pid)
+            return Core::Platform::process_resource_usage(*process);
+    }
+    return {};
+}
+
 }

@@ -33,6 +33,13 @@ class RequestClient final
     C_OBJECT_ABSTRACT(RequestClient)
 
 public:
+    Function<void(Vector<NetworkUsage>, u64 interval_microseconds)> on_network_usage;
+    virtual void network_usage(Vector<NetworkUsage> usage, u64 interval_microseconds) override
+    {
+        if (on_network_usage)
+            on_network_usage(move(usage), interval_microseconds);
+    }
+
     using InitTransport = Messages::RequestServer::InitTransport;
 
     enum class TransferLease : u8 {
@@ -49,7 +56,7 @@ public:
     virtual ~RequestClient() override;
 
     // Best-effort index into the resolved address pool.
-    RefPtr<Request> start_request(ByteString const& method, URL::URL const&, Optional<HTTP::HeaderList const&> request_headers = {}, ReadonlyBytes request_body = {}, HTTP::CacheMode = HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials = HTTP::Cookie::IncludeCredentials::Yes, TransferLease = TransferLease::No, Optional<u32> address_selection_hint = {}, CacheMissNotification = CacheMissNotification::No);
+    RefPtr<Request> start_request(ByteString const& method, URL::URL const&, Optional<HTTP::HeaderList const&> request_headers = {}, ReadonlyBytes request_body = {}, HTTP::CacheMode = HTTP::CacheMode::Default, HTTP::Cookie::IncludeCredentials = HTTP::Cookie::IncludeCredentials::Yes, TransferLease = TransferLease::No, Optional<u32> address_selection_hint = {}, CacheMissNotification = CacheMissNotification::No, u64 originating_page_id = 0);
     RefPtr<Request> adopt_request(int source_client_id, u64 source_request_id, TransferLease = TransferLease::No);
     bool stop_request(Badge<Request>, Request&);
     void release_request_transfer_lease(Badge<Request>, Request&, RequestTransferLeaseKey);

@@ -4,11 +4,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
 #include <LibIPC/File.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/CanonicalNavigable.h>
 #include <LibWebView/HelperProcess.h>
+#include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebWorkerClient.h>
 #include <LibWebView/WorkerProcessManager.h>
@@ -482,6 +485,44 @@ void WorkerProcessManager::remove_owner(Web::HTML::WorkerAgentId agent_id, Owner
 
     if (agent.agent_type == Web::HTML::AgentType::DedicatedWorker || agent.owners.is_empty())
         remove_agent(agent_id);
+}
+
+Optional<u64> WorkerProcessManager::exclusive_performance_owner(pid_t pid) const
+{
+    HashTable<Web::HTML::WorkerAgentId> visiting;
+    Function<Optional<u64>(WorkerAgent const&)> resolve = [&](WorkerAgent const& agent) -> Optional<u64> {
+        if (agent.closing || visiting.contains(agent.id))
+            return {};
+        visiting.set(agent.id);
+        ScopeGuard remove_visit = [&] { visiting.remove(agent.id); };
+        Optional<u64> result;
+        for (auto const& owner : agent.owners) {
+            auto id = owner.client.visit(
+                [&](WebContentOwner const& content) -> Optional<u64> {
+                if (!content.client)
+                    return {};
+                auto* navigable = content.client->navigable_for_page(content.page_id);
+                if (!navigable)
+                    return {};
+                auto view = ViewImplementation::find_view_for_traversable(navigable->top_level_traversable());
+                return view.has_value() ? Optional<u64> { view->view_id() } : Optional<u64> {}; },
+                [&](WebWorkerOwner const& worker) -> Optional<u64> {
+                for (auto const& candidate : m_agents) {
+                    if (candidate.value.client.ptr() == worker.client.ptr())
+                        return resolve(candidate.value);
+                }
+                return {}; });
+            if (!id.has_value() || (result.has_value() && *result != *id))
+                return {};
+            result = id;
+        }
+        return result;
+    };
+    for (auto const& agent : m_agents) {
+        if (agent.value.client->pid() == pid)
+            return resolve(agent.value);
+    }
+    return {};
 }
 
 }

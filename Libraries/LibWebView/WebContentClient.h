@@ -111,6 +111,8 @@ public:
 
     Optional<CanonicalNavigable&> child_frame(u64 page_id, Web::HTML::CrossProcessId frame_id);
 
+    Optional<u64> exclusive_performance_owner() const;
+
     bool has_views() const { return !m_views.is_empty(); }
 
     void notify_all_views_of_crash();

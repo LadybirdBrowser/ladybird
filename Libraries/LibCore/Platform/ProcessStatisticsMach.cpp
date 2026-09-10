@@ -11,6 +11,7 @@
 #endif
 
 #include <AK/Time.h>
+#include <LibCore/Platform/ProcessResourceUsage.h>
 #include <LibCore/Platform/ProcessStatisticsMach.h>
 
 namespace Core::Platform {
@@ -96,6 +97,34 @@ ErrorOr<void> update_process_statistics(ProcessStatistics& statistics)
     }
 
     return {};
+}
+
+Optional<ProcessResourceUsage> process_resource_usage(ProcessInfo const& process)
+{
+    if (!MACH_PORT_VALID(process.child_task_port.port()))
+        return {};
+    mach_task_basic_info_data_t basic {};
+    mach_msg_type_number_t count = MACH_TASK_BASIC_INFO_COUNT;
+    if (task_info(process.child_task_port.port(), MACH_TASK_BASIC_INFO, reinterpret_cast<task_info_t>(&basic), &count) != KERN_SUCCESS)
+        return {};
+    task_thread_times_info_data_t threads {};
+    count = TASK_THREAD_TIMES_INFO_COUNT;
+    if (task_info(process.child_task_port.port(), TASK_THREAD_TIMES_INFO, reinterpret_cast<task_info_t>(&threads), &count) != KERN_SUCCESS)
+        return {};
+    task_vm_info_data_t memory {};
+    count = TASK_VM_INFO_COUNT;
+    if (task_info(process.child_task_port.port(), TASK_VM_INFO, reinterpret_cast<task_info_t>(&memory), &count) != KERN_SUCCESS)
+        return {};
+    auto microseconds = [](time_value_t time) -> u64 {
+        return static_cast<u64>(time.seconds) * 1'000'000 + time.microseconds;
+    };
+    // NB: Basic task times contain terminated threads; thread times contain live threads.
+    //     The footprint ledger charges owned memory rather than all resident mappings.
+    //     It includes compressed memory and excludes uncharged shared mappings.
+    return ProcessResourceUsage {
+        microseconds(basic.user_time) + microseconds(basic.system_time) + microseconds(threads.user_time) + microseconds(threads.system_time),
+        memory.phys_footprint,
+    };
 }
 
 }

@@ -11,6 +11,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Types.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/Platform/ProcessResourceUsage.h>
 #include <LibCore/Platform/ProcessStatistics.h>
 #include <LibCore/Timer.h>
 #include <LibWebView/Forward.h>
@@ -42,6 +43,7 @@ public:
 #endif
 
     void update_all_process_statistics();
+    Optional<Core::Platform::ProcessResourceUsage> resource_usage(pid_t) const;
 
     Function<void(Process&)> on_process_added; // test-web
     Function<void(Process&&, Optional<int> exit_status)> on_process_exited;

@@ -68,6 +68,7 @@
 #include <LibWebView/SessionStore.h>
 #include <LibWebView/Settings.h>
 #include <LibWebView/StorageSetResult.h>
+#include <LibWebView/TabPerformanceStats.h>
 #include <LibWebView/WebContentClient.h>
 #include <LibWebView/WebDriverSessionConfig.h>
 
@@ -388,6 +389,7 @@ public:
     void remove_navigation_listener(u64 listener_id);
 
     Function<void()> on_ready_to_paint;
+    Function<void(TabPerformanceStats const&)> on_performance_stats;
     Function<String(Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<u64>)> on_new_web_view;
     Function<void()> on_activate_tab;
     Function<void()> on_close;

@@ -1,5 +1,6 @@
 #include <LibHTTP/Header.h>
 #include <LibRequests/CacheSizes.h>
+#include <LibRequests/NetworkUsage.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/CameFromCache.h>
 #include <LibRequests/RequestTimingInfo.h>
@@ -9,6 +10,8 @@
 
 endpoint RequestClient
 {
+    network_usage(Vector<Requests::NetworkUsage> usage, u64 interval_microseconds) =|
+
     request_requires_network(u64 request_id) =|
     request_started(u64 request_id, IPC::File fd) =|
     request_body_file_available(u64 request_id, IPC::File fd, u64 offset, u64 size) =|

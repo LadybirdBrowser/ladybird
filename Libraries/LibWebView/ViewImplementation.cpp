@@ -33,6 +33,7 @@
 #include <LibWebView/PausedDebuggerOverlay.h>
 #include <LibWebView/SiteIsolation.h>
 #include <LibWebView/SiteIsolationManager.h>
+#include <LibWebView/TabPerformanceMonitor.h>
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/ViewImplementation.h>
@@ -123,6 +124,7 @@ ViewImplementation::ViewImplementation(IsPrivate is_private)
 
 ViewImplementation::~ViewImplementation()
 {
+    TabPerformanceMonitor::forget_view(view_id());
     m_top_level_traversable.clear_ongoing_navigation();
     cancel_all_native_geolocation_requests();
 
@@ -345,6 +347,9 @@ void ViewImplementation::server_did_paint(Badge<WebContentClient>, i32 bitmap_id
         did_accept_presented_backing_store(bitmap_id, damage_rect);
     if (did_swap_bitmap && m_crash_state.has_value() && m_crash_state->recovery_started && m_client_state.hosts_committed_entry)
         set_crash_state({});
+    if (did_swap_bitmap)
+        TabPerformanceMonitor::did_present(view_id());
+
     if (did_swap_bitmap && on_ready_to_paint)
         on_ready_to_paint();
 }
