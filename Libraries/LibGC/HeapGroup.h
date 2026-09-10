@@ -26,6 +26,8 @@ public:
     void collect_garbage(bool print_report = false);
 
 private:
+    NEVER_INLINE void collect_garbage_impl(bool print_report);
+
     Vector<Heap*> m_heaps;
 };
 

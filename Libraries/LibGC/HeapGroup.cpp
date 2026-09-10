@@ -33,6 +33,14 @@ void HeapGroup::remove(Heap& heap)
 
 void HeapGroup::collect_garbage(bool print_report)
 {
+    if (m_heaps.is_empty())
+        return;
+    Heap::scrub_stack_below_current_frame(m_heaps.first()->m_stack_info);
+    collect_garbage_impl(print_report);
+}
+
+void HeapGroup::collect_garbage_impl(bool print_report)
+{
     // Defer all member heaps' collections until the last one, so that cross-heap edges are visible to the mark phase.
     for (auto* heap : m_heaps) {
         VERIFY(!heap->m_collecting_garbage);

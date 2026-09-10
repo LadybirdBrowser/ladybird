@@ -169,6 +169,9 @@ private:
         Yes,
     };
     void gather_roots(HashMap<Cell*, HeapRoot>&, Vector<StackFrameInfo>* out_stack_frames = nullptr, IncludeIncomingCrossHeapMembers = IncludeIncomingCrossHeapMembers::Yes);
+    static void scrub_stack_below_current_frame(StackInfo const&);
+    NEVER_INLINE void collect_garbage_impl(CollectionType, bool print_report);
+    NEVER_INLINE AK::JsonObject dump_graph_impl();
     static void mark_live_cells_across(ReadonlySpan<Heap* const>, HashMap<Cell*, HeapRoot> const& roots);
     void run_post_mark_phases(bool report);
     void gather_conservative_roots(HashMap<Cell*, HeapRoot>&, Vector<StackFrameInfo>* out_stack_frames = nullptr);

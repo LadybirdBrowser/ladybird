@@ -14,6 +14,7 @@
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/LexicalPath.h>
+#include <AK/Memory.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/NumberFormat.h>
 #include <AK/Platform.h>
@@ -554,6 +555,14 @@ private:
 
 AK::JsonObject Heap::dump_graph()
 {
+    // A dump gathers roots exactly like a collection does — so it starts from a scrubbed stack too. Otherwise, it would
+    // report the stale pointers in its own frames as StackPointer roots.
+    scrub_stack_below_current_frame(m_stack_info);
+    return dump_graph_impl();
+}
+
+AK::JsonObject Heap::dump_graph_impl()
+{
     // An in-progress incremental sweep would leave parts of the heap as freelist
     // entries while the conservative scan in gather_roots() can still pick up
     // not-yet-swept (but unreachable) cells whose internal pointers lead to
@@ -615,7 +624,35 @@ void Heap::run_post_mark_phases(bool report)
     }
 }
 
+// The conservative scan treats every pointer-sized value in the live stack frames as a possible cell pointer, and the
+// collector's own frames are live frames too. Their slots that nothing has written yet — padding, register spills,
+// sanitizer redzones — hold whatever earlier code left at those addresses: the interpreter's locals, or the marking
+// state of the previous collection. A stale pointer to a dead cell there keeps the cell — and everything reachable from
+// it — alive for another cycle. And a collection that runs from the same stack depth as the last one (the idle timer,
+// a test's gcAsync() task) meets the same residue every time. So the same garbage can stay pinned for good.
+//
+// So a collection starts by zeroing the region its own frames are about to occupy. Only the frames that gather the
+// roots are ever scanned; marking and sweeping run after the scan — so 64 KiB covers them with room to spare, and
+// zeroing it costs a few microseconds against a collection's milliseconds. The caller's frames above can't be cleaned,
+// but they hold the caller's state, not the collector's.
+//
+// JSC does the same in sanitizeStackForVM() before a collection phase runs on the mutator thread.
+static constexpr size_t stack_scrub_size = 64 * KiB;
+
+NO_SANITIZE_ADDRESS NEVER_INLINE void Heap::scrub_stack_below_current_frame(StackInfo const& stack_info)
+{
+    auto bytes = min(stack_scrub_size, stack_info.size_free() / 4);
+    auto* region = static_cast<u8*>(__builtin_alloca(bytes));
+    secure_zero(region, bytes);
+}
+
 void Heap::collect_garbage(CollectionType collection_type, bool print_report)
+{
+    scrub_stack_below_current_frame(m_stack_info);
+    collect_garbage_impl(collection_type, print_report);
+}
+
+void Heap::collect_garbage_impl(CollectionType collection_type, bool print_report)
 {
     VERIFY(!m_collecting_garbage);
 
