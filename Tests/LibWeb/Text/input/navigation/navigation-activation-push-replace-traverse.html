@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe src="../../data/iframe-test-content-1.html"></iframe>
+<script>
+    promiseTest(async () => {
+        const iframe = document.querySelector("iframe");
+        const navigation = () => iframe.contentWindow.navigation;
+        const query = url => new URL(url).search || "(none)";
+
+        const describe = label => {
+            const activation = navigation().activation;
+            const from = activation.from ? `${query(activation.from.url)} index=${activation.from.index}` : "null";
+            println(`${label}: entries=${navigation().entries().length} entry=${query(activation.entry.url)} index=${activation.entry.index} from=${from} type=${activation.navigationType}`);
+        };
+
+        const waitForLoad = () => new Promise(resolve => iframe.addEventListener("load", () => setTimeout(resolve, 0), { once: true }));
+
+        await new Promise(resolve => window.addEventListener("load", () => setTimeout(resolve, 0)));
+
+        navigation().navigate("iframe-test-content-1.html?push");
+        await waitForLoad();
+        describe("cross-document push");
+
+        await navigation().navigate("#fragment").finished;
+        describe("same-document push");
+
+        navigation().navigate("iframe-test-content-1.html?next");
+        await waitForLoad();
+        describe("cross-document push after same-document push");
+
+        const replaced = { key: navigation().currentEntry.key, id: navigation().currentEntry.id, url: navigation().currentEntry.url };
+        navigation().navigate("iframe-test-content-1.html?replace", { history: "replace" });
+        await waitForLoad();
+        describe("cross-document replace");
+        const from = navigation().activation.from;
+        println(`  from matches the replaced entry: key=${from.key === replaced.key} id=${from.id === replaced.id} url=${from.url === replaced.url}`);
+
+        navigation().back();
+        await waitForLoad();
+        describe("cross-document traverse");
+
+        await navigation().navigate("#clobber").finished;
+        describe("same-document push after traverse");
+    });
+</script>

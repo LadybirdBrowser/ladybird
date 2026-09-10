@@ -1,0 +1,22 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<iframe id="i"></iframe>
+<script>
+promise_test(async t => {
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+
+  assert_equals(i.contentWindow.navigation.activation, null);
+
+  i.contentWindow.navigation.navigate("/common/blank.html?a");
+  await new Promise(resolve => i.onload = () => t.step_timeout(resolve, 0));
+
+  assert_equals(i.contentWindow.navigation.entries().length, 1);
+  assert_equals(i.contentWindow.navigation.activation.entry,
+                i.contentWindow.navigation.currentEntry);
+  assert_equals(i.contentWindow.navigation.activation.from, null);
+  assert_equals(i.contentWindow.navigation.activation.navigationType, "replace");
+}, "navigation.activation interaction with initial about:blank");
+</script>

@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe sandbox="allow-scripts" src="../../data/navigation-activation-in-sandboxed-frame.html?first"></iframe>
+<script>
+    // A sandboxed frame has an opaque origin, so its navigation API has entries and events disabled and no
+    // NavigationHistoryEntry that an activation could refer to.
+    asyncTest(done => {
+        const iframe = document.querySelector("iframe");
+        let reports = 0;
+
+        window.addEventListener("message", event => {
+            println(event.data);
+
+            if (++reports === 1) {
+                iframe.src = "../../data/navigation-activation-in-sandboxed-frame.html?second";
+                return;
+            }
+
+            done();
+        });
+    });
+</script>

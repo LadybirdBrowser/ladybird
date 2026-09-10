@@ -1,0 +1,7 @@
+cross-document push: entries=2 entry=?push index=1 from=(none) index=0 type=push
+same-document push: entries=3 entry=?push index=1 from=(none) index=0 type=push
+cross-document push after same-document push: entries=4 entry=?next index=3 from=?push index=2 type=push
+cross-document replace: entries=4 entry=?replace index=3 from=?next index=-1 type=replace
+  from matches the replaced entry: key=true id=true url=true
+cross-document traverse: entries=4 entry=?push index=2 from=?replace index=3 type=traverse
+same-document push after traverse: entries=4 entry=?push index=2 from=?replace index=-1 type=traverse

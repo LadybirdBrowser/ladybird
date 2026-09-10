@@ -182,6 +182,8 @@
 #include <LibWeb/HTML/MessagePort.h>
 #include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/Navigation.h>
+#include <LibWeb/HTML/NavigationActivation.h>
+#include <LibWeb/HTML/NavigationHistoryEntry.h>
 #include <LibWeb/HTML/NavigationParams.h>
 #include <LibWeb/HTML/Numbers.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
@@ -6839,10 +6841,8 @@ void Document::restore_the_history_object_state(NonnullRefPtr<HTML::SessionHisto
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#update-document-for-history-step-application
-void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry> entry, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<HTML::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation)
+void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHistoryEntry> entry, bool do_not_reactivate, size_t script_history_length, size_t script_history_index, Optional<HTML::NavigationType> navigation_type, Optional<Vector<NonnullRefPtr<HTML::SessionHistoryEntry>>> entries_for_navigation_api, RefPtr<HTML::SessionHistoryEntry> previous_entry_for_activation, bool previous_entry_for_activation_document_is_initial_about_blank)
 {
-    (void)previous_entry_for_activation;
-
     // 1. Let documentIsNew be true if document's latest entry is null; otherwise false.
     auto document_is_new = !m_latest_entry;
 
@@ -6931,23 +6931,48 @@ void Document::update_for_history_step_application(NonnullRefPtr<HTML::SessionHi
         }
     }
 
-    // FIXME: 7. If all the following are true:
+    // 7. If all the following are true:
     //    - previousEntryForActivation is given;
     //    - navigationType is non-null; and
-    //    - navigationType is "reload" or previousEntryForActivation's document is not document, then:
-    {
-        // FIXME: 1. If navigation's activation is null, then set navigation's activation to a new NavigationActivation object in navigation's relevant realm.
-        // FIXME: 2. Let previousEntryIndex be the result of getting the navigation API entry index of previousEntryForActivation within navigation.
-        // FIXME: 3. If previousEntryIndex is non-negative, then set activation's old entry to navigation's entry list[previousEntryIndex].
+    //    - navigationType is "reload" or previousEntryForActivation's document is not document,
+    //    then:
+    // AD-HOC: Skip this when navigation has entries and events disabled, since its current entry is then null and
+    //         NavigationActivation's entry attribute is not nullable. This matches Chrome and Safari.
+    if (previous_entry_for_activation && navigation_type.has_value() && !navigation->has_entries_and_events_disabled()
+        && (*navigation_type == HTML::NavigationType::Reload || previous_entry_for_activation->document_state()->document_id() != unique_id())) {
+        // 2. Let previousEntryIndex be the result of getting the navigation API entry index of previousEntryForActivation within navigation.
+        auto previous_entry_index = navigation->get_the_navigation_api_entry_index(*previous_entry_for_activation);
 
-        // FIXME: 4. Otherwise, if all the following are true:
+        // 3. If previousEntryIndex is non-negative, then set activation's old entry to navigation's entry list[previousEntryIndex].
+        GC::Ptr<HTML::NavigationHistoryEntry> old_entry;
+        if (previous_entry_index >= 0) {
+            old_entry = navigation->entry_list()[previous_entry_index];
+        }
+        // 4. Otherwise, if all the following are true:
         //    - navigationType is "replace";
         //    - previousEntryForActivation's document state's origin is same origin with document's origin; and
         //    - previousEntryForActivation's document's initial about:blank is false,
-        //    then set activation's old entry to a new NavigationHistoryEntry in navigation's relevant realm, whose session history entry is previousEntryForActivation.
+        //    then set activation's old entry to a new NavigationHistoryEntry in navigation's relevant realm, whose
+        //    session history entry is previousEntryForActivation.
+        else if (auto previous_origin = previous_entry_for_activation->document_state()->origin();
+            *navigation_type == HTML::NavigationType::Replace
+            && previous_origin.has_value() && previous_origin->is_same_origin(origin())
+            && !previous_entry_for_activation_document_is_initial_about_blank) {
+            old_entry = HTML::NavigationHistoryEntry::create(HTML::relevant_window(*this), *previous_entry_for_activation);
+        }
 
-        // FIXME: 5. Set activation's new entry to navigation's current entry.
-        // FIXME: 6. Set activation's navigation type to navigationType.
+        // 1. If navigation's activation is null, then set navigation's activation to a new NavigationActivation object in navigation's relevant realm.
+        // 5. Set activation's new entry to navigation's current entry.
+        // 6. Set activation's navigation type to navigationType.
+        // NB: A NavigationActivation is created with its entries and navigation type, so the old entry is computed first.
+        auto current_entry = navigation->current_entry();
+        if (auto activation = navigation->activation()) {
+            activation->set_from(old_entry);
+            activation->set_entry(*current_entry);
+            activation->set_navigation_type(*navigation_type);
+        } else {
+            navigation->set_activation(HTML::NavigationActivation::create(old_entry, *current_entry, *navigation_type));
+        }
     }
 
     // 8. If documentIsNew is true, then:
