@@ -6,8 +6,9 @@
 
 #pragma once
 
-#include <AK/ByteBuffer.h>
-#include <AK/String.h>
+#include <AK/RefCounted.h>
+#include <AK/RefPtr.h>
+#include <AK/Types.h>
 #include <AK/Variant.h>
 #include <LibURL/Origin.h>
 
@@ -15,10 +16,23 @@ namespace URL {
 
 // https://w3c.github.io/FileAPI/#blob-url-entry
 struct BlobURLEntry {
-    // This represents the raw bytes behind a 'Blob'
+    // An entry's object, which a URL record keeps alive without looking inside.
+    class OpaqueObject : public RefCounted<OpaqueObject> {
+    public:
+        virtual ~OpaqueObject() = default;
+    };
+
+    // Names an entry in the user agent's blob URL store. Only a URL record parsed while the entry existed has one, and
+    // the store keeps a revoked entry for as long as a token still names it. So a blob URL parsed before its entry was
+    // revoked still resolves, and one parsed afterwards does not.
+    using Token = u64;
+
     struct Blob {
-        String type;
-        ByteBuffer data;
+        Token token { 0 };
+
+        // NB: Null once the URL has crossed a process boundary, as an object is only usable in the process holding
+        //     it. The store is asked for the object by token then.
+        RefPtr<OpaqueObject> object;
     };
 
     struct MediaSource { };

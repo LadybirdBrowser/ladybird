@@ -133,11 +133,8 @@ template<>
 ErrorOr<URL::BlobURLEntry> decode(Decoder& decoder)
 {
     URL::BlobURLEntry::Object object = URL::BlobURLEntry::MediaSource {};
-    if (TRY(decoder.decode<bool>())) {
-        auto type = TRY(decoder.decode<String>());
-        auto data = TRY(decoder.decode<ByteBuffer>());
-        object = URL::BlobURLEntry::Blob { .type = move(type), .data = move(data) };
-    }
+    if (TRY(decoder.decode<bool>()))
+        object = URL::BlobURLEntry::Blob { .token = TRY(decoder.decode<URL::BlobURLEntry::Token>()), .object = nullptr };
     auto origin = TRY(decoder.decode<URL::Origin>());
     return URL::BlobURLEntry { .object = move(object), .environment { .origin = move(origin) } };
 }

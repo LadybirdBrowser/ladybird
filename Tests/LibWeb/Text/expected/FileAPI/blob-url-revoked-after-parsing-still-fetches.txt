@@ -1,0 +1,3 @@
+parsed before revoke: test blob contents
+cloned before revoke: test blob contents
+parsed after revoke: TypeError

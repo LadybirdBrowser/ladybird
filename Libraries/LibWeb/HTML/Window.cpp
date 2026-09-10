@@ -382,12 +382,12 @@ WebIDL::ExceptionOr<GC::Ptr<WindowProxy>> Window::window_open_steps(Utf16View ur
 static TokenizedFeature::NoOpener get_noopener_for_window_open(DOM::Document& source_document, TokenizedFeature::Map const& tokenized_features, Optional<URL::URL> const& url)
 {
     // 1. If url is not null and url's blob URL entry is not null:
-    Optional<URL::BlobURLEntry> blob_url_entry;
+    Optional<FileAPI::SerializedBlobURLEntry> blob_url_entry;
     if (url.has_value())
         blob_url_entry = FileAPI::blob_url_entry_in_the_user_agent_store(source_document.page(), *url);
     if (blob_url_entry.has_value()) {
         // 1. Let blobOrigin be url's blob URL entry's environment's origin.
-        auto blob_origin = blob_url_entry->environment.origin;
+        auto blob_origin = blob_url_entry->origin;
 
         // 2. Let topLevelOrigin be sourceDocument's relevant settings object's top-level origin.
         auto top_level_origin = source_document.relevant_settings_object().top_level_origin;

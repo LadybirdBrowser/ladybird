@@ -28,6 +28,7 @@
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/PixelUnits.h>
+#include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CanonicalBrowsingContext.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>
@@ -163,6 +164,11 @@ public:
     Optional<OngoingNavigation> const& ongoing_navigation() const { return m_ongoing_navigation; }
     bool ongoing_navigation_is_traversal() const { return m_ongoing_navigation_traversal_operation_id.has_value(); }
     OngoingNavigation& ensure_ongoing_navigation();
+
+    // Held so that revoking a blob URL cannot take the entry away from a navigation on its way to this navigable, or
+    // from the document it loaded. Session history holds none, so a revoked blob URL cannot be traversed back to.
+    void retain_blob_url_token(URL::BlobURLEntry::Token);
+
     void set_ongoing_navigation(OngoingNavigation);
     void set_ongoing_navigation_to_traversal(Web::HTML::CrossProcessId operation_id);
     void clear_ongoing_navigation_traversal(Web::HTML::CrossProcessId operation_id);
@@ -196,6 +202,11 @@ private:
     Optional<Web::HTML::SessionHistoryEntryIdentity> m_active_session_history_entry_identity;
     Vector<PendingSameDocumentSessionHistoryEntry> m_pending_same_document_session_history_entries;
     Optional<OngoingNavigation> m_ongoing_navigation;
+
+    BlobURLStore* blob_url_store() const;
+    BlobURLHandle m_pending_navigation_blob_url;
+    BlobURLHandle m_navigation_blob_url;
+    BlobURLHandle m_document_blob_url;
     Optional<Web::HTML::CrossProcessId> m_ongoing_navigation_traversal_operation_id;
     ActiveDocumentLoad m_active_document_load;
     Optional<Web::DevicePixelRect> m_viewport_rect;

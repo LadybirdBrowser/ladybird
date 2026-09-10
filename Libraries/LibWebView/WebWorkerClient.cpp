@@ -88,9 +88,9 @@ Messages::WebWorkerClient::DidRequestCookieResponse WebWorkerClient::did_request
     return cookie;
 }
 
-void WebWorkerClient::did_add_blob_url_entry(Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry)
+Messages::WebWorkerClient::DidAddBlobUrlEntryResponse WebWorkerClient::did_add_blob_url_entry(Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry)
 {
-    Application::blob_url_store(m_is_private).add_entry(move(url), move(entry), WeakPtr<WebWorkerClient> { *this });
+    return Application::blob_url_store(m_is_private).add_entry(move(url), move(entry), WeakPtr<WebWorkerClient> { *this });
 }
 
 void WebWorkerClient::did_remove_blob_url_entries(Vector<Utf16String> urls, URL::Origin origin)
@@ -98,9 +98,9 @@ void WebWorkerClient::did_remove_blob_url_entries(Vector<Utf16String> urls, URL:
     Application::blob_url_store(m_is_private).remove_entries(urls, origin, WeakPtr<WebWorkerClient> { *this });
 }
 
-Messages::WebWorkerClient::DidRequestBlobUrlEntryResponse WebWorkerClient::did_request_blob_url_entry(Utf16String url)
+Messages::WebWorkerClient::DidRequestBlobUrlEntryResponse WebWorkerClient::did_request_blob_url_entry(Utf16String url, Optional<URL::BlobURLEntry::Token> token)
 {
-    return Application::blob_url_store(m_is_private).resolve(url);
+    return Application::blob_url_store(m_is_private).resolve(url, token);
 }
 
 void WebWorkerClient::did_request_file(ByteString path, i32 request_id)
