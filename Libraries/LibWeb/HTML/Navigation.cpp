@@ -262,18 +262,22 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::navigate(Utf16String url, Bind
     if (!url_record.has_value())
         return early_error_result(WebIDL::SyntaxError::create("Cannot navigate to Invalid URL"_utf16));
 
-    // 3. Let document be this's relevant global object's associated Document.
+    // 3. If urlRecord's scheme is "javascript", then return an early error result for a "NotSupportedError" DOMException.
+    if (url_record->scheme() == "javascript"sv)
+        return early_error_result(WebIDL::NotSupportedError::create("Cannot navigate to a javascript: URL"_utf16));
+
+    // 4. Let document be this's relevant global object's associated Document.
     auto& document = window().associated_document();
 
-    // 4. If options["history"] is "push", and the navigation must be a replace given urlRecord and document,
+    // 5. If options["history"] is "push", and the navigation must be a replace given urlRecord and document,
     //    then return an early error result for a "NotSupportedError" DOMException.
     if (options.history == NavigationHistoryBehavior::Push && navigation_must_be_a_replace(url_record.value(), document))
         return early_error_result(WebIDL::NotSupportedError::create("Navigation must be a replace, but push was requested"_utf16));
 
-    // 5. Let state be options["state"], if it exists; otherwise, undefined.
+    // 6. Let state be options["state"], if it exists; otherwise, undefined.
     auto state = options.state.value_or(JS::js_undefined());
 
-    // 6. Let serializedState be StructuredSerializeForStorage(state). If this throws an exception, then return an early
+    // 7. Let serializedState be StructuredSerializeForStorage(state). If this throws an exception, then return an early
     //    error result for that exception.
     // NOTE: It is important to perform this step early, since serialization can invoke web developer code, which in
     //       turn might change various things we check in later steps.
@@ -284,22 +288,22 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::navigate(Utf16String url, Bind
 
     auto serialized_state = serialized_state_or_error.release_value();
 
-    // 7. If document is not fully active, then return an early error result for an "InvalidStateError" DOMException.
+    // 8. If document is not fully active, then return an early error result for an "InvalidStateError" DOMException.
     if (!document.is_fully_active())
         return early_error_result(WebIDL::InvalidStateError::create("Document is not fully active"_utf16));
 
-    // 8. If document's unload counter is greater than 0, then return an early error result for an "InvalidStateError" DOMException.
+    // 9. If document's unload counter is greater than 0, then return an early error result for an "InvalidStateError" DOMException.
     if (document.unload_counter() > 0)
         return early_error_result(WebIDL::InvalidStateError::create("Document already unloaded"_utf16));
 
-    // 9. Let info be options["info"], if it exists; otherwise, undefined.
+    // 10. Let info be options["info"], if it exists; otherwise, undefined.
     auto info = options.info.value_or(JS::js_undefined());
 
-    // 10. Let apiMethodTracker be the result of maybe setting the upcoming non-traverse API method tracker for this
+    // 11. Let apiMethodTracker be the result of maybe setting the upcoming non-traverse API method tracker for this
     //     given info and serializedState.
     auto api_method_tracker = maybe_set_the_upcoming_non_traverse_api_method_tracker(info, serialized_state);
 
-    // 11. Navigate document's node navigable to urlRecord using document,
+    // 12. Navigate document's node navigable to urlRecord using document,
     //     with historyHandling set to options["history"] and navigationAPIState set to serializedState.
     // FIXME: Fix spec typo here
     // NOTE: Unlike location.assign() and friends, which are exposed across origin-domain boundaries,
@@ -310,7 +314,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::navigate(Utf16String url, Bind
     //       corresponding to this Navigation object itself (i.e., document).
     TRY(document.navigable()->navigate({ .url = url_record.release_value(), .source_document = document, .history_handling = options.history, .navigation_api_state = move(serialized_state) }));
 
-    // 12. If this's upcoming non-traverse API method tracker is apiMethodTracker, then:
+    // 13. If this's upcoming non-traverse API method tracker is apiMethodTracker, then:
     // NOTE: If the upcoming non-traverse API method tracker is still apiMethodTracker, this means that the navigate
     //       algorithm bailed out before ever getting to the inner navigate event firing algorithm which would promote
     //       that upcoming API method tracker to ongoing.
@@ -319,7 +323,7 @@ WebIDL::ExceptionOr<NavigationResult> Navigation::navigate(Utf16String url, Bind
         return early_error_result(WebIDL::AbortError::create("Navigation aborted"_utf16));
     }
 
-    // 13. Return a navigation API method tracker-derived result for apiMethodTracker.
+    // 14. Return a navigation API method tracker-derived result for apiMethodTracker.
     return navigation_api_method_tracker_derived_result(api_method_tracker);
 }
 

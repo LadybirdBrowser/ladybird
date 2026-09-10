@@ -1,0 +1,30 @@
+<!doctype html>
+<script src="../../../resources/testharness.js"></script>
+<script src="../../../resources/testharnessreport.js"></script>
+<script src="resources/helpers.js"></script>
+
+<iframe data-url="javascript:void 0"></iframe>
+<iframe data-url="javascript:'foo'"></iframe>
+
+<script>
+const iframes = document.querySelectorAll("iframe");
+
+for (const iframe of iframes) {
+  const url = iframe.dataset.url;
+  promise_test(async t => {
+    // Wait for after the load event so that we are definitely testing the
+    // javascript: URL as the cause of the rejections.
+    if (document.readyState !== 'complete') {
+      await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+    }
+
+    const win = iframe.contentWindow;
+    win.navigation.onnavigate = t.unreached_func("onnavigate should not be called");
+    win.navigation.onnavigatesuccess = t.unreached_func("onnavigatesuccess should not be called");
+    win.navigation.onnavigateerror = t.unreached_func("onnavigateerror should not be called");
+
+    const result = win.navigation.navigate(url, { history: "push" });
+    await assertBothRejectDOM(t, result, "NotSupportedError", win);
+  }, `navigate() to ${format_value(url)} with { history: 'push' }`);
+}
+</script>
