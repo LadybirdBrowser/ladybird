@@ -190,7 +190,7 @@ endpoint WebContentServer
     find_in_page_next_match(u64 page_id) =|
     find_in_page_previous_match(u64 page_id) =|
 
-    set_content_blockers(u64 page_id, Core::AnonymousBuffer patterns) =|
+    set_content_blockers(Core::AnonymousBuffer patterns) =|
     set_autoplay_settings(u64 page_id, Web::HTML::AutoplayPolicy policy, Vector<Utf16String> allowlist) =|
     set_preferred_color_scheme(u64 page_id, Web::CSS::PreferredColorScheme color_scheme) =|
     set_preferred_contrast(u64 page_id, Web::CSS::PreferredContrast contrast) =|

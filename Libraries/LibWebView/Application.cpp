@@ -14,6 +14,7 @@
 #include <AK/Time.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibCore/ArgsParser.h>
+#include <LibCore/Directory.h>
 #include <LibCore/Environment.h>
 #include <LibCore/File.h>
 #include <LibCore/StandardPaths.h>
@@ -72,6 +73,9 @@
 
 namespace WebView {
 
+static constexpr size_t maximum_content_blocker_list_size = 64 * MiB;
+static constexpr size_t maximum_combined_content_blocker_list_size = 256 * MiB;
+
 Application* Application::s_the = nullptr;
 
 static constexpr double default_display_refresh_rate = 60.0;
@@ -117,6 +121,11 @@ struct ApplicationSettingsObserver final : public SettingsObserver {
             auto enabled = Application::settings().config_variable_as_bool(ConfigVariableID::ShowAdvancedDebugMenu);
             Application::the().debug_menu().set_visible(enabled);
         }
+    }
+
+    virtual void content_blocker_settings_changed() override
+    {
+        Application::the().content_blocker_settings_changed({});
     }
 };
 
@@ -616,6 +625,9 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     for (auto path : content_blocker_list_paths)
         content_blocker_list_paths_as_byte_strings.unchecked_append(path);
 
+    m_explicit_content_blocker_list_paths = content_blocker_list_paths_as_byte_strings;
+    m_content_blocker_lists_directory = LexicalPath::join(profile().paths().data, "ContentBlocking/Lists"sv).string();
+
     // Disable site isolation when debugging WebContent. Otherwise, the process swap may interfere with the gdb session.
     if (debug_process_types.contains_slow(ProcessType::WebContent))
         site_isolation_mode = SiteIsolationMode::Disabled;
@@ -642,6 +654,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         .disable_sandbox = disable_sandbox ? DisableSandbox::Yes : DisableSandbox::No,
         .content_blocker_list_paths = move(content_blocker_list_paths_as_byte_strings),
     };
+    rebuild_content_blocker_list_paths();
 
     if (screenshot_delay.has_value())
         m_browser_options.screenshot_delay = *screenshot_delay;
@@ -719,10 +732,31 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     return {};
 }
 
+ByteString Application::content_blocker_list_path(StringView identifier) const
+{
+    return LexicalPath::join(m_content_blocker_lists_directory, ByteString::formatted("{}.txt", identifier)).string();
+}
+
+void Application::rebuild_content_blocker_list_paths()
+{
+    m_browser_options.content_blocker_list_paths = m_explicit_content_blocker_list_paths;
+
+    for (auto const& list : m_settings->content_blocker_lists()) {
+        auto path = content_blocker_list_path(list.identifier);
+        if (list.enabled && FileSystem::is_regular_file(path))
+            m_browser_options.content_blocker_list_paths.append(move(path));
+    }
+}
+
 ErrorOr<void> Application::load_content_blocker_lists()
 {
-    if (m_browser_options.content_blocker_list_paths.is_empty())
+    StringView custom_filters;
+    if (m_web_content_options.is_test_mode == IsTestMode::No)
+        custom_filters = m_settings->custom_content_blocker_filters();
+    if (m_browser_options.content_blocker_list_paths.is_empty() && custom_filters.is_empty()) {
+        m_content_blocker_list_buffer = TRY(Core::AnonymousBuffer::create_with_size(0));
         return {};
+    }
 
     Checked<size_t> total_size = 0;
     for (auto const& path : m_browser_options.content_blocker_list_paths) {
@@ -730,8 +764,10 @@ ErrorOr<void> Application::load_content_blocker_lists()
         total_size += TRY(file->size());
         total_size += 1;
     }
+    total_size += custom_filters.bytes().size();
+    total_size += 1;
 
-    if (total_size.has_overflow())
+    if (total_size.has_overflow() || total_size.value() > maximum_combined_content_blocker_list_size)
         return Error::from_string_literal("Content blocker lists are too large");
 
     auto blocker_list_buffer = TRY(Core::AnonymousBuffer::create_with_size(total_size.value()));
@@ -745,11 +781,48 @@ ErrorOr<void> Application::load_content_blocker_lists()
         offset += file_size;
         bytes[offset++] = '\n';
     }
+    custom_filters.bytes().copy_to(bytes.slice(offset));
+    offset += custom_filters.bytes().size();
+    bytes[offset++] = '\n';
     VERIFY(offset == bytes.size());
 
     m_content_blocker_list_buffer = move(blocker_list_buffer);
 
     return {};
+}
+
+ErrorOr<void> Application::save_content_blocker_list(ByteString const& path, ReadonlyBytes contents)
+{
+    TRY(Core::Directory::create(m_content_blocker_lists_directory, Core::Directory::CreateDirectories::Yes));
+    auto temporary_path = ByteString::formatted("{}.tmp", path);
+    {
+        auto file = TRY(Core::File::open(temporary_path, Core::File::OpenMode::Write));
+        TRY(file->write_until_depleted(contents));
+    }
+    return FileSystem::move_file(path, temporary_path);
+}
+
+ErrorOr<void> Application::import_local_content_blocker_list(String name, String contents)
+{
+    if (contents.bytes().size() > maximum_content_blocker_list_size)
+        return Error::from_string_literal("Content blocker list exceeds 64 MiB");
+
+    auto identifier = m_settings->add_content_blocker_list(move(name));
+    auto result = save_content_blocker_list(content_blocker_list_path(identifier), contents.bytes());
+    if (result.is_error()) {
+        m_settings->remove_content_blocker_list(identifier);
+        return result.release_error();
+    }
+
+    apply_content_blocker_settings();
+    return {};
+}
+
+void Application::remove_content_blocker_list(Badge<SettingsUI>, StringView identifier)
+{
+    if (!m_settings->remove_content_blocker_list(identifier))
+        return;
+    (void)FileSystem::remove(content_blocker_list_path(identifier), FileSystem::RecursionMode::Disallowed);
 }
 
 void Application::open_url_in_new_tab(URL::URL const& url, Web::HTML::ActivateTab activate_tab) const
@@ -2406,7 +2479,7 @@ void Application::apply_view_options(Badge<ViewImplementation>, ViewImplementati
     view.debug_request("scripting"sv, m_enable_scripting_action->checked() ? "on"sv : "off"sv);
     view.debug_request("content-blocking"sv, m_enable_content_blocking_action->checked() ? "on"sv : "off"sv);
     if (m_content_blocker_list_buffer.has_value())
-        view.set_content_blockers(*m_content_blocker_list_buffer);
+        view.client().async_set_content_blockers(*m_content_blocker_list_buffer);
     view.debug_request("block-pop-ups"sv, m_block_pop_ups_action->checked() ? "on"sv : "off"sv);
     view.debug_request("spoof-user-agent"sv, m_user_agent_string);
     view.debug_request("navigator-compatibility-mode"sv, m_navigator_compatibility_mode);
@@ -2424,6 +2497,27 @@ void Application::tab_settings_changed(Badge<ApplicationSettingsObserver>)
 {
     update_vertical_tabs_action();
     update_tabs_display();
+}
+
+void Application::content_blocker_settings_changed(Badge<ApplicationSettingsObserver>)
+{
+    apply_content_blocker_settings();
+}
+
+void Application::apply_content_blocker_settings()
+{
+    if (m_web_content_options.is_test_mode == IsTestMode::Yes)
+        return;
+    rebuild_content_blocker_list_paths();
+    if (auto result = load_content_blocker_lists(); result.is_error()) {
+        warnln("Unable to apply content blocker settings: {}", result.error());
+        return;
+    }
+
+    WebContentClient::for_each_client([&](WebContentClient& client) {
+        client.async_set_content_blockers(*m_content_blocker_list_buffer);
+        return IterationDecision::Continue;
+    });
 }
 
 void Application::update_bookmark_action_for_current_web_view()

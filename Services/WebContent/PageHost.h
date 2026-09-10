@@ -48,6 +48,7 @@ public:
     void ensure_compositor_host();
     void compositor_process_reconnected();
     void compositor_process_lost();
+    void invalidate_user_style();
     Web::Compositor::CompositorHost* compositor_host() { return m_compositor_host.ptr(); }
     Web::Compositor::CompositorHost const* compositor_host() const { return m_compositor_host.ptr(); }
 

@@ -113,6 +113,9 @@ public:
     void update_bookmark_action_for_current_web_view();
     void bookmarks_changed(Badge<ApplicationBookmarkStoreObserver>);
     void show_bookmarks_bar_changed(Badge<ApplicationSettingsObserver>);
+    void content_blocker_settings_changed(Badge<ApplicationSettingsObserver>);
+    ErrorOr<void> import_local_content_blocker_list(String name, String contents);
+    void remove_content_blocker_list(Badge<SettingsUI>, StringView identifier);
 
     struct BookmarkID {
         String id;
@@ -360,6 +363,10 @@ private:
 #endif
     ErrorOr<void> launch_devtools_server();
     ErrorOr<void> load_content_blocker_lists();
+    void apply_content_blocker_settings();
+    void rebuild_content_blocker_list_paths();
+    ByteString content_blocker_list_path(StringView identifier) const;
+    ErrorOr<void> save_content_blocker_list(ByteString const& path, ReadonlyBytes);
     ErrorOr<NonnullRawPtr<Core::GeolocationProvider>> ensure_geolocation_provider();
 
     void initialize_actions();
@@ -488,6 +495,8 @@ private:
     OwnPtr<FontService> m_font_service;
     JsonValue m_site_compatibility_data;
     Optional<Core::AnonymousBuffer> m_content_blocker_list_buffer;
+    Vector<ByteString> m_explicit_content_blocker_list_paths;
+    ByteString m_content_blocker_lists_directory;
 
     RefPtr<WebDriverBrowserConnection> m_webdriver_browser_connection;
     bool m_webdriver_browser_connection_failed { false };

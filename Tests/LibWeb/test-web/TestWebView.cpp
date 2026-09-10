@@ -30,7 +30,7 @@ TestWebView::TestWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewp
 
 void TestWebView::clear_content_blockers()
 {
-    client().async_set_content_blockers(m_client_state.page_index, MUST(Core::AnonymousBuffer::create_with_size(0)));
+    client().async_set_content_blockers(MUST(Core::AnonymousBuffer::create_with_size(0)));
 }
 
 // Force-dark rides on the navigable, so a test that turns it on leaves it on for whatever runs next in this view.
