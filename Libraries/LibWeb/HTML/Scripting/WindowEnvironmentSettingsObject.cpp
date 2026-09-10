@@ -9,6 +9,8 @@
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -161,6 +163,16 @@ CanUseCrossOriginIsolatedAPIs WindowEnvironmentSettingsObject::cross_origin_isol
     if (document && document->opener_policy().value == OpenerPolicyValue::SameOriginPlusCOEP)
         return CanUseCrossOriginIsolatedAPIs::Yes;
     return CanUseCrossOriginIsolatedAPIs::No;
+}
+
+Optional<u64> WindowEnvironmentSettingsObject::agent_cluster_id() const
+{
+    // The document names its cluster through its browsing context's group. A window whose document has no browsing
+    // context anymore is in no cluster anything can reach.
+    auto document = m_window ? m_window->associated_document_if_any() : nullptr;
+    if (!document || !document->browsing_context() || !document->browsing_context()->group())
+        return {};
+    return document->browsing_context()->group()->agent_cluster_id(document->origin(), cross_origin_isolated_capability());
 }
 
 }
