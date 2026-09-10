@@ -131,6 +131,11 @@ struct ApplicationSettingsObserver final : public SettingsObserver {
         }
     }
 
+    virtual void background_networking_settings_changed() override
+    {
+        Application::the().background_networking_settings_changed({});
+    }
+
     virtual void content_blocker_settings_changed() override
     {
         Application::the().content_blocker_settings_changed({});
@@ -735,6 +740,14 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
         m_event_loop = &create_platform_event_loop();
     TRY(launch_services());
 
+    if (m_web_content_options.is_test_mode == IsTestMode::No && m_browser_options.enable_content_blocker == EnableContentBlocker::Yes) {
+        m_content_blocker_list_update_timer = Core::Timer::create_repeating(24 * 60 * 60 * 1000, [this] {
+            start_content_blocker_list_update(ContentBlockerListUpdateTrigger::Automatic);
+        });
+        m_content_blocker_list_update_timer->start();
+        start_content_blocker_list_update(ContentBlockerListUpdateTrigger::Automatic);
+    }
+
     initialize_actions();
 
     return {};
@@ -806,9 +819,11 @@ ErrorOr<void> Application::load_content_blocker_lists()
     return {};
 }
 
-void Application::start_content_blocker_list_update(Optional<StringView> requested_identifier)
+void Application::start_content_blocker_list_update(ContentBlockerListUpdateTrigger trigger, Optional<StringView> requested_identifier)
 {
     if (m_web_content_options.is_test_mode == IsTestMode::Yes)
+        return;
+    if (trigger == ContentBlockerListUpdateTrigger::Automatic && !m_settings->automatic_filter_list_updates_allowed())
         return;
     if (content_blocker_list_update_in_progress() && !requested_identifier.has_value())
         return;
@@ -820,7 +835,10 @@ void Application::start_content_blocker_list_update(Optional<StringView> request
             continue;
         if (any_of(m_pending_content_blocker_list_updates, [&](auto const& update) { return update.identifier == list.identifier; }))
             continue;
-        m_pending_content_blocker_list_updates.append({ list.identifier, list.name, *list.url, content_blocker_list_path(list.identifier) });
+        auto updated_at = content_blocker_list_last_updated_at(list.identifier);
+        if (trigger == ContentBlockerListUpdateTrigger::Automatic && updated_at.has_value() && UnixDateTime::now() - *updated_at < AK::Duration::from_seconds(24 * 60 * 60))
+            continue;
+        m_pending_content_blocker_list_updates.append({ list.identifier, list.name, *list.url, content_blocker_list_path(list.identifier), trigger });
     }
 
     if (!m_active_content_blocker_list_update.has_value())
@@ -2657,6 +2675,18 @@ void Application::tab_settings_changed(Badge<ApplicationSettingsObserver>)
     update_tabs_display();
 }
 
+void Application::background_networking_settings_changed(Badge<ApplicationSettingsObserver>)
+{
+    if (!m_settings->automatic_filter_list_updates_allowed()) {
+        m_pending_content_blocker_list_updates.remove_all_matching([](auto const& update) { return update.trigger == ContentBlockerListUpdateTrigger::Automatic; });
+        if (m_active_content_blocker_list_update.has_value() && m_active_content_blocker_list_update->trigger == ContentBlockerListUpdateTrigger::Automatic)
+            stop_current_content_blocker_list_update_and_continue();
+        return;
+    }
+
+    start_content_blocker_list_update(ContentBlockerListUpdateTrigger::Automatic);
+}
+
 void Application::content_blocker_settings_changed(Badge<ApplicationSettingsObserver>)
 {
     apply_content_blocker_settings();
@@ -2685,14 +2715,14 @@ bool Application::content_blocker_list_update_in_progress() const
 
 void Application::update_content_blocker_lists(Badge<SettingsUI>)
 {
-    start_content_blocker_list_update();
+    start_content_blocker_list_update(ContentBlockerListUpdateTrigger::UserInitiated);
 }
 
 void Application::download_content_blocker_list_if_needed(Badge<SettingsUI>, StringView identifier)
 {
     if (content_blocker_list_last_updated_at(identifier).has_value())
         return;
-    start_content_blocker_list_update(identifier);
+    start_content_blocker_list_update(ContentBlockerListUpdateTrigger::UserInitiated, identifier);
 }
 
 void Application::update_bookmark_action_for_current_web_view()

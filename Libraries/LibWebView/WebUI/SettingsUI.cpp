@@ -125,6 +125,19 @@ void SettingsUI::register_interfaces()
         set_global_privacy_control(data);
     });
 
+    register_interface("setServicesNetworkAccessEnabled"sv, [this](auto const& enabled) {
+        if (!enabled.is_bool())
+            return;
+
+        Application::settings().set_background_networking_enabled(enabled.as_bool());
+        load_current_settings();
+    });
+    register_interface("setFilterListUpdatesEnabled"sv, [this](auto const& enabled) {
+        if (!enabled.is_bool())
+            return;
+        Application::settings().set_filter_list_updates_enabled(enabled.as_bool());
+        load_current_settings();
+    });
     register_interface("setDNSSettings"sv, [this](auto const& data) {
         set_dns_settings(data);
     });
