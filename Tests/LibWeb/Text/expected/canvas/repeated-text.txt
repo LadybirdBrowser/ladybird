@@ -1,0 +1,14 @@
+position: true
+fill style: true
+alignment: true
+baseline: true
+direction: true
+maxWidth: true
+stroke: true
+letter spacing: true
+restored letter spacing: true
+font: true
+restored font: true
+transform: true
+after other strings: true
+canvas reset: true

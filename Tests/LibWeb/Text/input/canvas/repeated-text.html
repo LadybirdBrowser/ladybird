@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        function makeContext() {
+            const canvas = document.createElement("canvas");
+            canvas.width = 240;
+            canvas.height = 100;
+            const context = canvas.getContext("2d");
+            context.font = "20px sans-serif";
+            return context;
+        }
+
+        const text = "Label 123";
+        const context = makeContext();
+        function check(name, configure, method = "fillText", maxWidth) {
+            const reference = makeContext();
+            context.save();
+            configure(context);
+            configure(reference);
+            context.clearRect(0, 0, 240, 100);
+            context[method](text, 90, 50, maxWidth);
+            reference[method](text, 90, 50, maxWidth);
+            const actual = context.getImageData(0, 0, 240, 100).data;
+            const expected = reference.getImageData(0, 0, 240, 100).data;
+            println(`${name}: ${actual.every((value, index) => value === expected[index])}`);
+            context.restore();
+        }
+
+        // Warm with a different position, then compare with a fresh context as drawing state changes.
+        context.fillText(text, 3, 25);
+        check("position", () => {});
+        check("fill style", context => { context.fillStyle = "red"; });
+        check("alignment", context => { context.textAlign = "center"; });
+        check("baseline", context => { context.textBaseline = "top"; });
+        check("direction", context => { context.direction = "rtl"; });
+        check("maxWidth", () => {}, "fillText", 50);
+        check("stroke", context => { context.lineWidth = 2; }, "strokeText");
+        check("letter spacing", context => { context.letterSpacing = "3px"; });
+        check("restored letter spacing", () => {});
+        check("font", context => { context.font = "30px serif"; });
+        check("restored font", () => {});
+        check("transform", context => { context.scale(1.25, 1.25); });
+
+        // Exercise eviction and strings too long to retain.
+        for (let i = 0; i < 100; ++i)
+            context.fillText(`Other label ${i}`, 0, 20);
+        context.fillText("A".repeat(1000), 0, 20);
+        check("after other strings", () => {});
+        context.canvas.width = 240;
+        context.font = "20px sans-serif";
+        check("canvas reset", () => {});
+    });
+</script>
