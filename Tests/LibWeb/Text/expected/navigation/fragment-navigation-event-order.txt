@@ -1,0 +1,6 @@
+currententrychange push hash=#a
+popstate hash=#a
+hashchange hash=#a
+currententrychange push hash=#b
+popstate hash=#b
+hashchange hash=#b

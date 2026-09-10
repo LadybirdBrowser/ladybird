@@ -3580,19 +3580,17 @@ void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandling
         script_history_length = script_history_index + 1;
     }
 
-    // 12. Set navigable's active session history entry to historyEntry.
+    // 12. Set navigable's active document's URL to url.
+    active_document()->set_url(url);
+
+    // 13. Set navigable's active session history entry to historyEntry.
     m_active_session_history_entry = history_entry;
 
-    // 13. Update document for history step application given navigable's active document, historyEntry, true, scriptHistoryIndex, and scriptHistoryLength.
-    // AD HOC: Skip updating the navigation api entries twice here
-    active_document()->update_for_history_step_application(*history_entry, true, script_history_length, script_history_index, navigation_type, {}, {}, false);
-
-    // 14. Update the navigation API entries for a same-document navigation given navigation, historyEntry, and historyHandling.
-    navigation->update_the_navigation_api_entries_for_a_same_document_navigation(history_entry, navigation_type);
+    // 14. Update document for history step application given navigable's active document, historyEntry, true,
+    //     scriptHistoryIndex, scriptHistoryLength, and historyHandling.
+    active_document()->update_for_history_step_application(*history_entry, true, script_history_length, script_history_index, navigation_type);
 
     // 15. Scroll to the fragment given navigable's active document.
-    // FIXME: Specification doesn't say when document url needs to update during fragment navigation
-    active_document()->set_url(url);
     active_document()->scroll_to_the_fragment();
 
     // 16. Let traversable be navigable's traversable navigable.

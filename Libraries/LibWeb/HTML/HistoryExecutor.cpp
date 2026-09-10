@@ -784,7 +784,7 @@ void HistoryExecutor::apply_changing_navigable_history_step_continuation_impl(GC
             //     update without an initialized navigation API entry list, which crashes the first same-document
             //     update on them (for example a document.open() on a child that finished loading while the
             //     creation update was still queued).
-            resolved_document->update_for_history_step_application(*target_entry, update_only, script_history_length, script_history_index, navigation_type, entries_for_navigation_api, previous_entry, true);
+            resolved_document->update_for_history_step_application(*target_entry, update_only, script_history_length, script_history_index, navigation_type, entries_for_navigation_api, previous_entry);
 
             if (update_only)
                 navigable->notify_navigation_observers_navigation_complete();
