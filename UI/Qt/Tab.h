@@ -145,6 +145,7 @@ private:
 
     QWidget* m_toolbar_container { nullptr };
     QWidget* m_toolbar { nullptr };
+    QWidget* m_performance_monitor { nullptr };
     QWidget* m_toolbar_window_controls_separator { nullptr };
     QWidget* m_toolbar_window_controls { nullptr };
     QSpacerItem* m_sidebar_toggle_navigation_spacer { nullptr };

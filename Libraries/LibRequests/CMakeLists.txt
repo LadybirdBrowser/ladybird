@@ -1,6 +1,7 @@
 set(SOURCES
     CacheSizes.cpp
     NetworkError.h
+    NetworkUsage.cpp
     Request.cpp
     RequestClient.cpp
     RequestTimingInfo.cpp

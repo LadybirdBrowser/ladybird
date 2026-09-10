@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <LibRequests/NetworkUsage.h>
+
 #include <AK/ByteBuffer.h>
 #include <AK/ByteString.h>
 #include <AK/MemoryStream.h>
@@ -75,6 +77,11 @@ public:
         Optional<ByteString> alt_svc_cache_path);
 
     virtual ~Request() override;
+
+    static void set_performance_monitor_enabled(bool);
+    static Vector<Requests::NetworkUsage> take_network_usage();
+    void set_performance_origin(i32 process_id, u64 page_id);
+    void sample_network_usage();
 
     u64 request_id() const { return m_request_id; }
     RequestType type() const { return m_type; }
@@ -221,6 +228,11 @@ private:
 
     u32 acquire_status_code() const;
     Requests::RequestTimingInfo acquire_timing_info() const;
+
+    Requests::NetworkUsage m_performance_origin;
+    u64 m_performance_generation { 0 };
+    u64 m_sampled_download_bytes { 0 };
+    u64 m_sampled_upload_bytes { 0 };
 
     u64 m_request_id { 0 };
     Optional<u64> m_cookie_request_id;

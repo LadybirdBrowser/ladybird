@@ -28,6 +28,7 @@
 #include <UI/Qt/StringUtils.h>
 #include <UI/Qt/WindowControlButton.h>
 
+#include <LibWebView/TabPerformanceMonitor.h>
 #include <QColorDialog>
 #include <QFileDialog>
 #include <QFont>
@@ -50,6 +51,7 @@
 #include <QStylePainter>
 #include <QTimer>
 #include <QVBoxLayout>
+#include <UI/Qt/PerformanceMonitorWidget.h>
 
 namespace Ladybird {
 
@@ -756,6 +758,13 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
 
     toolbar_layout->addWidget(m_downloads_button, 0, Qt::AlignVCenter);
     toolbar_layout->addWidget(m_private_badge, 0, Qt::AlignVCenter);
+    m_performance_monitor = new PerformanceMonitorWidget(m_toolbar);
+    toolbar_layout->addWidget(m_performance_monitor, 0, Qt::AlignVCenter);
+    (void)WebView::TabPerformanceMonitor::the();
+    m_performance_monitor->setVisible(WebView::Application::settings().config_variable_as_bool(WebView::ConfigVariableID::ShowTabPerformanceMonitor));
+    view().on_performance_stats = [this](WebView::TabPerformanceStats const& stats) {
+        static_cast<PerformanceMonitorWidget*>(m_performance_monitor)->set_stats(stats);
+    };
     toolbar_layout->addWidget(m_hamburger_button, 0, Qt::AlignVCenter);
 
     if constexpr (!use_native_macos_window_controls()) {
@@ -1338,6 +1347,8 @@ void Tab::tab_settings_changed()
 
 void Tab::config_variable_changed(WebView::ConfigVariableID variable)
 {
+    if (variable == WebView::ConfigVariableID::ShowTabPerformanceMonitor)
+        m_performance_monitor->setVisible(WebView::Application::settings().config_variable_as_bool(variable));
     if (variable == WebView::ConfigVariableID::ShowWebContentProcessIDInTabTitle)
         update_tab_title();
 }

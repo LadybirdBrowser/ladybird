@@ -2497,4 +2497,27 @@ Optional<ViewImplementation&> WebContentClient::owning_view_for_page_id(u64 page
     return ViewImplementation::find_view_for_traversable(navigable->top_level_traversable());
 }
 
+Optional<u64> WebContentClient::exclusive_performance_owner() const
+{
+    Optional<u64> owner;
+    auto add_owner = [&](u64 id) {
+        if (owner.has_value() && *owner != id)
+            return false;
+        owner = id;
+        return true;
+    };
+    for (auto const& view : m_views) {
+        if (!add_owner(view.value->view_id()))
+            return {};
+    }
+    for (auto const& page : m_embedded_pages) {
+        if (!page.value)
+            return {};
+        auto view = ViewImplementation::find_view_for_traversable(page.value->top_level_traversable());
+        if (!view.has_value() || !add_owner(view->view_id()))
+            return {};
+    }
+    return owner;
+}
+
 }

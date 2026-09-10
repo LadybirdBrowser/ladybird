@@ -26,7 +26,9 @@ endpoint RequestServer
     is_supported_protocol(ByteString protocol) => (bool supported)
     get_client_id() => (int client_id)
 
-    start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss) =|
+    set_performance_monitor_enabled(bool enabled) =|
+
+    start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss, i32 originating_process_id, u64 originating_page_id) =|
     adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id, bool preserve_transfer_lease) =|
     release_request_transfer_lease(int source_client_id, u64 source_request_id) =|
     stop_request(u64 request_id) => (bool success)

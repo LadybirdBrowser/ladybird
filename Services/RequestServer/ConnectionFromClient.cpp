@@ -179,8 +179,11 @@ void ConnectionFromClient::request_complete(Badge<Request>, Request const& reque
 
 void ConnectionFromClient::die()
 {
-    if (g_primary_connection == this)
+    if (g_primary_connection == this) {
+        m_performance_timer = nullptr;
+        Request::set_performance_monitor_enabled(false);
         g_primary_connection = nullptr;
+    }
 
     Vector<Requests::RequestTransferLeaseKey> transfer_leases_to_cancel;
     for (auto const& entry : m_request_transfer_leases) {
@@ -304,7 +307,7 @@ void ConnectionFromClient::set_use_system_dns()
     m_resolver->dns.reset_connection();
 }
 
-void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss)
+void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss, i32 originating_process_id, u64 originating_page_id)
 {
     note_event_tick("ipc-start-request"sv);
     dbgln_if(REQUESTSERVER_DEBUG, "RequestServer: start_request({}, {})", request_id, url);
@@ -327,6 +330,7 @@ void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL:
         ? Optional<Requests::RequestTransferLeaseKey> { { client_id(), request_id } }
         : Optional<Requests::RequestTransferLeaseKey> {};
     auto request = Request::fetch(request_id, m_disk_cache, cache_mode, *this, m_curl_multi, m_resolver, move(url), move(method), HTTP::HeaderList::create(move(request_headers)), move(request_body), include_credentials, m_alt_svc_cache_path, transfer_lease, address_selection_hint, notify_on_cache_miss);
+    request->set_performance_origin(originating_process_id, originating_page_id);
     m_active_requests.set(request_id, move(request));
 
     if (transfer_lease.has_value())
@@ -927,6 +931,40 @@ Messages::RequestServer::WebsocketSetCertificateResponse ConnectionFromClient::w
         success = true;
     }
     return success;
+}
+
+void ConnectionFromClient::set_performance_monitor_enabled(bool enabled)
+{
+    if (g_primary_connection != this)
+        return;
+    Request::set_performance_monitor_enabled(enabled);
+    if (enabled) {
+        if (!m_performance_timer) {
+            // NB: Establish baselines for requests already in flight before enabling the monitor.
+            for (auto& connection : m_connections) {
+                for (auto& request : connection.value->m_active_requests)
+                    request.value->sample_network_usage();
+            }
+            m_last_performance_push = MonotonicTime::now();
+            m_performance_timer = Core::Timer::create_repeating(500, [this] { push_network_usage(); });
+            m_performance_timer->start();
+        }
+    } else {
+        m_performance_timer = nullptr;
+    }
+}
+
+void ConnectionFromClient::push_network_usage()
+{
+    if (g_primary_connection != this)
+        return;
+    for (auto& connection : m_connections) {
+        for (auto& request : connection.value->m_active_requests)
+            request.value->sample_network_usage();
+    }
+    auto now = MonotonicTime::now();
+    async_network_usage(Request::take_network_usage(), (now - *m_last_performance_push).to_microseconds());
+    m_last_performance_push = now;
 }
 
 }

@@ -24,6 +24,8 @@
 
 - (void)loadURL:(URL::URL const&)url;
 
+- (void)updatePerformanceMonitor;
+
 - (void)onLoadStart;
 - (void)onLoadFinish;
 - (void)onFaviconChange:(NSImage*)favicon;

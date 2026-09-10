@@ -500,7 +500,10 @@ RefPtr<Requests::Request> ResourceLoader::start_network_request(LoadRequest cons
     auto cache_miss_notification = request.destination() == Fetch::Infrastructure::Request::Destination::Font
         ? Requests::RequestClient::CacheMissNotification::Yes
         : Requests::RequestClient::CacheMissNotification::No;
-    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), request.headers(), request.body(), request.cache_mode(), request.include_credentials(), transfer_lease, {}, cache_miss_notification);
+    // NB: Workers have a Page shim without a navigable or a browser page ID. Their
+    //     requests are attributed through the worker process's browser-level owners.
+    auto originating_page_id = request.page() && request.page()->has_local_root_navigable() ? request.page()->client().id() : 0;
+    auto protocol_request = m_request_client->start_request(request.method(), request.url().value(), request.headers(), request.body(), request.cache_mode(), request.include_credentials(), transfer_lease, {}, cache_miss_notification, originating_page_id);
     if (!protocol_request) {
         log_failure(request, "Failed to initiate load"sv);
         return nullptr;

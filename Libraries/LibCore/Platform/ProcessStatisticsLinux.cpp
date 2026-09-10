@@ -4,9 +4,11 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Checked.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/String.h>
 #include <LibCore/File.h>
+#include <LibCore/Platform/ProcessResourceUsage.h>
 #include <LibCore/Platform/ProcessStatistics.h>
 #include <unistd.h>
 
@@ -74,6 +76,50 @@ ErrorOr<void> update_process_statistics(ProcessStatistics& statistics)
     }
 
     return {};
+}
+
+Optional<ProcessResourceUsage> process_resource_usage(ProcessInfo const& process)
+{
+    auto stat_file = Core::File::open(MUST(String::formatted("/proc/{}/stat", process.pid)), Core::File::OpenMode::Read);
+    if (stat_file.is_error())
+        return {};
+    auto contents = stat_file.value()->read_until_eof();
+    if (contents.is_error())
+        return {};
+    auto text = StringView(contents.value());
+    auto closing_parenthesis = text.find_last(')');
+    if (!closing_parenthesis.has_value())
+        return {};
+    auto fields = text.substring_view(*closing_parenthesis + 2).split_view(' ');
+    if (fields.size() < 13)
+        return {};
+    auto user = fields[11].to_number<u64>();
+    auto system = fields[12].to_number<u64>();
+    if (!user.has_value() || !system.has_value() || user_hz <= 0)
+        return {};
+    auto memory_file = Core::File::open(MUST(String::formatted("/proc/{}/statm", process.pid)), Core::File::OpenMode::Read);
+    if (memory_file.is_error())
+        return {};
+    auto memory_contents = memory_file.value()->read_until_eof();
+    if (memory_contents.is_error())
+        return {};
+    auto memory_fields = StringView(memory_contents.value()).split_view(' ');
+    if (memory_fields.size() < 3)
+        return {};
+    auto resident = memory_fields[1].to_number<u64>();
+    auto shared = memory_fields[2].to_number<u64>();
+    if (!resident.has_value() || !shared.has_value() || *resident < *shared || page_size <= 0)
+        return {};
+    // NB: statm's resident minus shared is a cheap private resident estimate. It omits
+    //     file-backed private pages and does not include swapped-out memory.
+    Checked<u64> cpu_time = *user;
+    cpu_time += *system;
+    cpu_time *= 1'000'000;
+    Checked<u64> memory = *resident - *shared;
+    memory *= page_size;
+    if (cpu_time.has_overflow() || memory.has_overflow())
+        return {};
+    return ProcessResourceUsage { cpu_time.value() / user_hz, memory.value() };
 }
 
 }

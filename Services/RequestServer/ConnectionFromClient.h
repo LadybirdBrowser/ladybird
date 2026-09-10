@@ -13,6 +13,7 @@
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibCore/AnonymousBuffer.h>
+#include <LibCore/Timer.h>
 #include <LibHTTP/Cache/CacheMode.h>
 #include <LibHTTP/Cache/DiskCacheSettings.h>
 #include <LibHTTP/Cache/Utilities.h>
@@ -82,7 +83,9 @@ private:
     virtual Messages::RequestServer::GetClientIdResponse get_client_id() override;
     virtual void set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally) override;
     virtual void set_use_system_dns() override;
-    virtual void start_request(u64 request_id, ByteString, URL::URL, Vector<HTTP::Header>, ByteBuffer, HTTP::CacheMode, HTTP::Cookie::IncludeCredentials, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss) override;
+    virtual void set_performance_monitor_enabled(bool) override;
+    void push_network_usage();
+    virtual void start_request(u64 request_id, ByteString, URL::URL, Vector<HTTP::Header>, ByteBuffer, HTTP::CacheMode, HTTP::Cookie::IncludeCredentials, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss, i32 originating_process_id, u64 originating_page_id) override;
     virtual void adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id, bool preserve_transfer_lease) override;
     virtual void release_request_transfer_lease(int source_client_id, u64 source_request_id) override;
     virtual Messages::RequestServer::StopRequestResponse stop_request(u64 request_id) override;
@@ -119,6 +122,8 @@ private:
     RequestTransferLeaseMap& m_request_transfer_leases;
     Optional<HTTP::DiskCache&> m_disk_cache;
 
+    RefPtr<Core::Timer> m_performance_timer;
+    Optional<MonotonicTime> m_last_performance_push;
     void* m_curl_multi { nullptr };
 
     HashMap<u64, NonnullOwnPtr<Request>> m_active_requests;
