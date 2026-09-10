@@ -1,0 +1,68 @@
+<!doctype html>
+<meta charset="UTF-8" />
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        internals.setTestTimeout(10000);
+
+        const httpServer = httpTestServer();
+        const token = crypto.randomUUID().replaceAll("-", "");
+
+        async function createBlockingScript(name) {
+            return httpServer.createEcho("GET", `/parser-streams-blocked-late-meta-script-${name}-${token}`, {
+                status: 200,
+                headers: {
+                    "Content-Type": "application/javascript",
+                },
+                body: `window.blockingScriptRan = true;`,
+            });
+        }
+
+        async function runCase(name, body, query) {
+            const url = await httpServer.createEcho("GET", `/parser-streams-blocked-late-meta-${name}-${token}`, {
+                status: 200,
+                headers: {
+                    "Content-Type": "text/html",
+                },
+                body,
+            });
+
+            const frame = document.createElement("iframe");
+            await new Promise(resolve => {
+                frame.onload = resolve;
+                frame.src = query ? `${url}?${query}` : url;
+                document.body.appendChild(frame);
+            });
+
+            println(`${name} charset: ${frame.contentDocument.characterSet}`);
+            println(`${name} script: ${frame.contentWindow.blockingScriptRan}`);
+            println(`${name} body: ${frame.contentDocument.getElementById("target").textContent}`);
+            frame.remove();
+        }
+
+        // The comment keeps the declaration past the 1024 bytes the encoding sniffing algorithm prescans, so only the
+        // parser can find it.
+        const padding = `<!--${"a".repeat(1200)}-->`;
+
+        // The declaration trails a parser-blocking script, so the parser is still paused at that script when the rest
+        // of the response arrives.
+        async function runPausedCase() {
+            const scriptURL = await createBlockingScript("paused");
+            const body = `<!DOCTYPE html><head><script src="${scriptURL}"><\/script>${padding}<meta charset="UTF-8"></head><body><span id="target">©</span>`;
+            await runCase("paused", body);
+        }
+
+        // The blocking script resolves during the gap between chunks, so the parser has drained the first chunk before
+        // the declaration arrives in the second.
+        async function runResumedCase() {
+            const scriptURL = await createBlockingScript("resumed");
+            const head = `<!DOCTYPE html><head><script src="${scriptURL}"><\/script>${padding}`;
+            const body = `${head}<meta charset="UTF-8"></head><body><span id="target">©</span>`;
+            await runCase("resumed", body, `chunks=${head.length}&chunk_delay_ms=500`);
+        }
+
+        await runPausedCase();
+        await runResumedCase();
+        done();
+    });
+</script>

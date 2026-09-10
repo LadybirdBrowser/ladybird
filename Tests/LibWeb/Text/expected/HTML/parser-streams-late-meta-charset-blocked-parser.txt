@@ -1,0 +1,6 @@
+paused charset: windows-1252
+paused script: true
+paused body: Â©
+resumed charset: windows-1252
+resumed script: true
+resumed body: Â©
