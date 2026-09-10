@@ -324,12 +324,12 @@ void ComputedStyleWorkingSet::set_property_inherited(PropertyID property_id, Inh
 
 void ComputedStyleWorkingSet::set_depends_on_viewport_metrics()
 {
-    metadata().dependency_flags |= 1;
+    metadata().dependency_flags |= to_underlying(StyleRecordDependencyFlag::DependsOnViewportMetrics);
 }
 
 void ComputedStyleWorkingSet::set_font_metrics_depend_on_viewport_metrics()
 {
-    metadata().dependency_flags |= 2;
+    metadata().dependency_flags |= to_underlying(StyleRecordDependencyFlag::FontMetricsDependOnViewportMetrics);
 }
 
 void ComputedStyleWorkingSet::set_in_display_none_subtree()
