@@ -45,7 +45,7 @@ MouseAction Scrollbar::handle_pointer_event(Utf16FlyString const& type, unsigned
     auto position = Painting::transform_to_local_coordinates(*node, visual_viewport_position);
     if (!scroll_to_mouse_position(position) && !m_thumb_grab_position.has_value())
         return MouseAction::None;
-    Painting::set_needs_repaint(*node);
+    Painting::set_needs_repaint(*node, InvalidateDisplayList::PaintCommands);
 
     if (type == UIEvents::EventNames::pointerup) {
         release_thumb_grab();
@@ -72,7 +72,7 @@ MouseAction Scrollbar::mouse_up(CSSPixelPoint, unsigned)
 {
     release_thumb_grab();
     if (auto* node = layout_node())
-        Painting::set_needs_repaint(*node);
+        Painting::set_needs_repaint(*node, InvalidateDisplayList::PaintCommands);
     return MouseAction::None;
 }
 
@@ -99,7 +99,7 @@ void Scrollbar::mouse_enter()
     m_hovered = true;
     push_enlarged_state();
     if (auto* node = layout_node())
-        Painting::set_needs_repaint(*node);
+        Painting::set_needs_repaint(*node, InvalidateDisplayList::PaintCommands);
 }
 
 void Scrollbar::mouse_leave()
@@ -109,7 +109,7 @@ void Scrollbar::mouse_leave()
     m_hovered = false;
     push_enlarged_state();
     if (auto* node = layout_node())
-        Painting::set_needs_repaint(*node);
+        Painting::set_needs_repaint(*node, InvalidateDisplayList::PaintCommands);
 }
 
 bool Scrollbar::scroll_to_mouse_position(CSSPixelPoint position)

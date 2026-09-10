@@ -6039,7 +6039,7 @@ void LocalNavigable::set_should_show_caret_hit_test_debug_overlay(bool value)
 
     if (auto document = active_document()) {
         if (value)
-            document->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::PaintCommandsAndHitTestList);
+            document->set_needs_repaint(Badge<HTML::LocalNavigable> {}, InvalidateDisplayList::PaintCommands);
         else
             document->set_caret_hit_test_debug_rect({});
     }

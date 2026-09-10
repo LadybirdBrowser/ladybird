@@ -2538,7 +2538,7 @@ void EventHandler::finish_selection_from_preserved_mousedown(DOM::Document& docu
         target->set_selection_anchor(*caret_position->boundary.node, caret_position->boundary.offset, caret_position->affinity);
     } else if (auto selection = document.get_selection()) {
         selection->remove_all_ranges();
-        document.set_needs_repaint(Badge<EventHandler> {});
+        document.set_needs_repaint(Badge<EventHandler> {}, InvalidateDisplayList::PaintCommands);
     }
 }
 #endif
@@ -3096,7 +3096,7 @@ bool EventHandler::select_context_menu_url_token(DOM::Document& document, Painti
         target->set_selection_focus(*hit_node, token_end);
     } else if (auto selection = document.get_selection()) {
         set_user_selection(hit_node, token_start, hit_node, token_end, selection, user_select);
-        document.set_needs_repaint(Badge<EventHandler> {});
+        document.set_needs_repaint(Badge<EventHandler> {}, InvalidateDisplayList::PaintCommands);
     }
 
     return true;
@@ -3228,7 +3228,7 @@ void EventHandler::apply_mouse_selection(CSSPixelPoint visual_viewport_position)
                 set_user_selection(*focus_node, focus_index, *focus_node, focus_index, selection, user_select_used_value_for_caret_position(*caret_position));
             }
 
-            document.set_needs_repaint(Badge<EventHandler> {});
+            document.set_needs_repaint(Badge<EventHandler> {}, InvalidateDisplayList::PaintCommands);
         }
     }
 }

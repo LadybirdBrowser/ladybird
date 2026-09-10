@@ -2888,13 +2888,13 @@ void Document::set_highlighted_node(GC::Ptr<Node> node, Optional<CSS::PseudoElem
         return;
 
     if (auto layout_node = highlighted_layout_node(); layout_node && Painting::has_committed_box(*layout_node))
-        Painting::set_needs_repaint(*layout_node);
+        Painting::set_needs_repaint(*layout_node, InvalidateDisplayList::PaintCommands);
 
     m_highlighted_node = node;
     m_highlighted_pseudo_element = pseudo_element;
 
     if (auto layout_node = highlighted_layout_node(); layout_node && Painting::has_committed_box(*layout_node))
-        Painting::set_needs_repaint(*layout_node);
+        Painting::set_needs_repaint(*layout_node, InvalidateDisplayList::PaintCommands);
 }
 
 void Document::set_grid_highlighted_node(GC::Ptr<Node> node, Painting::GridInspectorOverlayOptions options)
@@ -2907,12 +2907,12 @@ void Document::set_grid_highlighted_node(GC::Ptr<Node> node, Painting::GridInspe
             continue;
 
         grid_highlight.options = options;
-        node->set_needs_repaint();
+        node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
         return;
     }
 
     m_grid_highlights.append({ node, options });
-    node->set_needs_repaint();
+    node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
 }
 
 void Document::set_flexbox_highlighted_node(GC::Ptr<Node> node, Painting::FlexboxInspectorOverlayOptions options)
@@ -2925,12 +2925,12 @@ void Document::set_flexbox_highlighted_node(GC::Ptr<Node> node, Painting::Flexbo
             continue;
 
         flexbox_highlight.options = options;
-        node->set_needs_repaint();
+        node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
         return;
     }
 
     m_flexbox_highlights.append({ node, options });
-    node->set_needs_repaint();
+    node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
 }
 
 void Document::clear_flexbox_highlighted_node(GC::Ptr<Node> node)
@@ -2938,7 +2938,7 @@ void Document::clear_flexbox_highlighted_node(GC::Ptr<Node> node)
     if (!node) {
         for (auto const& flexbox_highlight : m_flexbox_highlights) {
             if (flexbox_highlight.node)
-                flexbox_highlight.node->set_needs_repaint();
+                flexbox_highlight.node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
         }
         m_flexbox_highlights.clear();
         return;
@@ -2950,7 +2950,7 @@ void Document::clear_flexbox_highlighted_node(GC::Ptr<Node> node)
     });
 
     if (m_flexbox_highlights.size() != old_size)
-        node->set_needs_repaint();
+        node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
 }
 
 void Document::clear_grid_highlighted_node(GC::Ptr<Node> node)
@@ -2958,7 +2958,7 @@ void Document::clear_grid_highlighted_node(GC::Ptr<Node> node)
     if (!node) {
         for (auto const& grid_highlight : m_grid_highlights) {
             if (grid_highlight.node)
-                grid_highlight.node->set_needs_repaint();
+                grid_highlight.node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
         }
         m_grid_highlights.clear();
         return;
@@ -2970,7 +2970,7 @@ void Document::clear_grid_highlighted_node(GC::Ptr<Node> node)
     });
 
     if (m_grid_highlights.size() != old_size)
-        node->set_needs_repaint();
+        node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
 }
 
 Layout::Node* Document::highlighted_layout_node()
@@ -3881,7 +3881,7 @@ void Document::set_focused_area(GC::Ptr<Node> node, InvalidateFocusPseudoClasses
 
     reset_cursor_blink_cycle();
 
-    set_needs_repaint();
+    set_needs_repaint(InvalidateDisplayList::PaintCommands);
 
     update_active_element();
 }
@@ -3898,7 +3898,7 @@ void Document::set_active_element(GC::Ptr<Element> element)
 
     m_active_element = element;
 
-    set_needs_repaint();
+    set_needs_repaint(InvalidateDisplayList::PaintCommands);
 }
 
 void Document::set_target_element(GC::Ptr<Element> element)
@@ -3912,7 +3912,7 @@ void Document::set_target_element(GC::Ptr<Element> element)
 
     m_target_element = element;
 
-    set_needs_repaint();
+    set_needs_repaint(InvalidateDisplayList::PaintCommands);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#flush-autofocus-candidates
@@ -10232,10 +10232,10 @@ void Document::set_cursor_position_needs_repaint()
         auto node = position.node();
         if (auto* text = as_if<DOM::Text>(*node)) {
             if (auto* layout_text_node = as_if<Layout::TextNode>(text->unsafe_layout_node()))
-                layout_text_node->set_needs_repaint();
+                layout_text_node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
             return;
         }
-        node->set_needs_repaint();
+        node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
     };
 
     auto position = cursor_position();
@@ -10524,7 +10524,7 @@ void Document::set_caret_hit_test_debug_rect(Optional<CSSPixelRect> rect)
         return;
 
     m_caret_hit_test_debug_rect = rect;
-    set_needs_repaint(InvalidateDisplayList::PaintCommandsAndHitTestList);
+    set_needs_repaint(InvalidateDisplayList::PaintCommands);
     page().client().request_frame();
 }
 

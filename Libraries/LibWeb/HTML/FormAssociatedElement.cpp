@@ -1402,7 +1402,7 @@ void FormAssociatedTextControlElement::selection_was_changed(SelectionSource sou
 
     if (m_selection_start == m_selection_end)
         text_node->document().reset_cursor_blink_cycle();
-    layout_text_node->set_needs_repaint();
+    layout_text_node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
 
     // AD-HOC: Only scroll the cursor into view for UI-driven selection changes (like keyboard input). Programmatic
     //         changes (input.value, setSelectionRange) do not cause the cursor to scroll into view. This matches the
