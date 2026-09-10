@@ -39,7 +39,7 @@ fn replaced_content_clip_geometry<O: Observer>(
     (content_rect, corner_radii)
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct Fraction {
     pub numerator: CssPixels,
     pub denominator: CssPixels,
@@ -87,10 +87,24 @@ impl Fraction {
     }
 }
 
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub(crate) struct SizeWithAspectRatio {
     pub width: Option<CssPixels>,
     pub height: Option<CssPixels>,
     pub aspect_ratio: Option<Fraction>,
+}
+
+impl SizeWithAspectRatio {
+    pub(crate) fn from_ffi(natural: &crate::painting::host::FfiNaturalSize) -> Self {
+        Self {
+            width: natural.width.has_value.then_some(natural.width.value),
+            height: natural.height.has_value.then_some(natural.height.value),
+            aspect_ratio: natural.has_aspect_ratio.then_some(Fraction::of(
+                natural.aspect_ratio_numerator,
+                natural.aspect_ratio_denominator,
+            )),
+        }
+    }
 }
 
 pub(crate) fn run_default_sizing_algorithm(
@@ -277,16 +291,9 @@ pub(crate) fn paint_image_foreground<O: Observer>(recorder: &mut PaintRecorder<'
     let (object_fit, image_rendering) = replaced_style(recorder, paintable);
     let image_rect = absolute_rect(recorder.layout_arena, paintable);
     let image_rect_device_pixels = recorder.converter.rounded_device_rect(image_rect);
-    if facts.has_decoded_image_data {
+    if facts.content != crate::painting::image_content::ImageContent::None {
         // https://drafts.csswg.org/css-images/#the-object-fit
-        let natural_size = SizeWithAspectRatio {
-            width: facts.natural_width.has_value.then_some(facts.natural_width.value),
-            height: facts.natural_height.has_value.then_some(facts.natural_height.value),
-            aspect_ratio: facts
-                .natural_aspect_ratio
-                .map(|(numerator, denominator)| Fraction::of(numerator, denominator)),
-        };
-        let concrete_object_size = run_default_sizing_algorithm(None, None, &natural_size, image_rect.size());
+        let concrete_object_size = run_default_sizing_algorithm(None, None, &facts.natural, image_rect.size());
 
         let draw_rect = get_replaced_box_painting_area(recorder, paintable, object_fit, concrete_object_size);
         if !draw_rect.is_empty() {

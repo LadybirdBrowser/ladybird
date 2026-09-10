@@ -564,7 +564,7 @@ pub(crate) fn paint_image_element<O: Observer>(
         .replaced_paint_facts(paintable)
         .and_then(|facts| facts.image())
         .unwrap_or_default();
-    if !image.has_decoded_image_data {
+    if image.content == crate::painting::image_content::ImageContent::None {
         return;
     }
 
@@ -573,13 +573,9 @@ pub(crate) fn paint_image_element<O: Observer>(
         paintable,
         recorder.inputs.device_pixels_per_css_pixel,
     );
-    let natural_size = if image.natural_width.has_value && image.natural_height.has_value {
-        (
-            image.natural_width.value.to_float(),
-            image.natural_height.value.to_float(),
-        )
-    } else {
-        (image_rect.width, image_rect.height)
+    let natural_size = match (image.natural.width, image.natural.height) {
+        (Some(width), Some(height)) => (width.to_float(), height.to_float()),
+        _ => (image_rect.width, image_rect.height),
     };
     // FIXME: Respect the preserveAspectRatio attribute instead of assuming its default value.
     let mut draw_rect = image_rect;
