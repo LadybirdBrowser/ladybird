@@ -1,0 +1,11 @@
+nonzero center: 255,0,0,255
+nonzero arm: 255,0,0,255
+nonzero outside: 0,0,0,0
+evenodd center: 0,0,0,0
+evenodd arm: 0,255,0,255
+copied arm: 0,255,0,255
+preserved center: 255,0,0,255
+rectangle: 255,255,0,255
+clipped center: 0,0,0,0
+clipped arm: 0,0,255,255
+clipped outside: 0,0,0,0

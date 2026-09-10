@@ -15,6 +15,7 @@
 #include <core/SkPaint.h>
 #include <core/SkRect.h>
 #include <core/SkSurface.h>
+#include <core/SkSurfaceProps.h>
 #include <gpu/ganesh/GrBackendSurface.h>
 #include <gpu/ganesh/GrDirectContext.h>
 #include <gpu/ganesh/SkSurfaceGanesh.h>
@@ -133,7 +134,10 @@ NonnullRefPtr<PaintingSurface> PaintingSurface::create_with_size(IntSize size, B
     auto image_info = SkImageInfo::Make(size.width(), size.height(), sk_color_type, sk_alpha_type, SkColorSpace::MakeSRGB());
 
     if (context) {
-        auto surface = SkSurfaces::RenderTarget(context->sk_context(), skgpu::Budgeted::kNo, image_info);
+        // NB: Dynamic MSAA lets Skia render complex antialiased paths on the GPU instead of
+        //     rasterizing coverage masks on the CPU and uploading them as textures.
+        SkSurfaceProps surface_properties { SkSurfaceProps::kDynamicMSAA_Flag, kUnknown_SkPixelGeometry };
+        auto surface = SkSurfaces::RenderTarget(context->sk_context(), skgpu::Budgeted::kNo, image_info, 0, &surface_properties);
         if (surface)
             return adopt_ref(*new PaintingSurface(make<Impl>(context, size, surface, nullptr)));
         dbgln("Unable to create GPU surface for size {}x{}, falling back to CPU", size.width(), size.height());
