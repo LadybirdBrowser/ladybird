@@ -5,14 +5,13 @@
  */
 
 #include <AK/StringBuilder.h>
-#include <AK/Utf8View.h>
 #include <LibWeb/CSS/Serialize.h>
 #include <LibWeb/Infra/Strings.h>
 
 namespace Web::CSS {
 
 // https://www.w3.org/TR/cssom-1/#escape-a-character
-void escape_a_character(StringBuilder& builder, u32 character)
+static void escape_a_character(StringBuilder& builder, u32 character)
 {
     builder.append('\\');
     builder.append_code_point(character);
@@ -25,7 +24,7 @@ static void escape_a_character(Utf16StringBuilder& builder, u32 character)
 }
 
 // https://www.w3.org/TR/cssom-1/#escape-a-character-as-code-point
-void escape_a_character_as_code_point(StringBuilder& builder, u32 character)
+static void escape_a_character_as_code_point(StringBuilder& builder, u32 character)
 {
     builder.appendff("\\{:x} ", character);
 }
@@ -106,37 +105,6 @@ void serialize_an_identifier(Utf16StringBuilder& builder, Utf16View ident)
 }
 
 // https://www.w3.org/TR/cssom-1/#serialize-a-string
-void serialize_a_string(StringBuilder& builder, StringView string)
-{
-    Utf8View characters { string };
-
-    // To serialize a string means to create a string represented by '"' (U+0022), followed by the result
-    // of applying the rules below to each character of the given string, followed by '"' (U+0022):
-    builder.append('"');
-
-    for (auto character : characters) {
-        // If the character is NULL (U+0000), then the REPLACEMENT CHARACTER (U+FFFD).
-        if (character == 0) {
-            builder.append_code_point(0xFFFD);
-            continue;
-        }
-        // If the character is in the range [\1-\1f] (U+0001 to U+001F) or is U+007F, the character escaped as code point.
-        if ((character >= 0x0001 && character <= 0x001F) || (character == 0x007F)) {
-            escape_a_character_as_code_point(builder, character);
-            continue;
-        }
-        // If the character is '"' (U+0022) or "\" (U+005C), the escaped character.
-        if (character == 0x0022 || character == 0x005C) {
-            escape_a_character(builder, character);
-            continue;
-        }
-        // Otherwise, the character itself.
-        builder.append_code_point(character);
-    }
-
-    builder.append('"');
-}
-
 void serialize_a_string(StringBuilder& builder, Utf16View string)
 {
     // To serialize a string means to create a string represented by '"' (U+0022), followed by the result
@@ -276,13 +244,6 @@ String serialize_a_url(Utf16View url)
 {
     StringBuilder builder;
     serialize_a_url(builder, url);
-    return builder.to_string_without_validation();
-}
-
-String serialize_a_number(double value)
-{
-    StringBuilder builder;
-    serialize_a_number(builder, value);
     return builder.to_string_without_validation();
 }
 

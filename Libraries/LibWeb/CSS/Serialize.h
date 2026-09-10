@@ -20,11 +20,8 @@
 
 namespace Web::CSS {
 
-void escape_a_character(StringBuilder&, u32 character);
-void escape_a_character_as_code_point(StringBuilder&, u32 character);
 WEB_API void serialize_an_identifier(StringBuilder&, Utf16View ident);
 WEB_API void serialize_an_identifier(Utf16StringBuilder&, Utf16View ident);
-void serialize_a_string(StringBuilder&, StringView string);
 void serialize_a_string(StringBuilder&, Utf16View string);
 void serialize_a_string(Utf16StringBuilder&, Utf16View string);
 WEB_API void serialize_a_url(StringBuilder&, Utf16View url);
@@ -36,7 +33,6 @@ String serialize_an_identifier(Utf16View ident);
 Utf16String serialize_an_identifier_to_utf16(Utf16View ident);
 String serialize_a_string(Utf16View string);
 String serialize_a_url(Utf16View url);
-String serialize_a_number(double value);
 
 Utf16String serialize_a_css_declaration_to_utf16(StringView property, Utf16View value, Important = Important::No);
 Utf16String serialize_a_css_declaration_to_utf16(Utf16View property, Utf16View value, Important = Important::No);
