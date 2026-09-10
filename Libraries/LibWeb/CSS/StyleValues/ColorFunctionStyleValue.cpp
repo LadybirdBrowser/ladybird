@@ -8,10 +8,7 @@
 
 #include "ColorFunctionStyleValue.h"
 #include <AK/Math.h>
-#include <AK/TypeCasts.h>
 #include <LibGfx/ColorConversion.h>
-#include <LibWeb/CSS/Serialize.h>
-#include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 #include <LibWeb/CSS/StyleValues/NumberStyleValue.h>
 #include <LibWeb/CSS/StyleValues/PercentageStyleValue.h>
@@ -240,25 +237,6 @@ ValueComparingNonnullRefPtr<StyleValue const> ColorFunctionStyleValue::absolutiz
     if (absolutized_c1 == channels()[0] && absolutized_c2 == channels()[1] && absolutized_c3 == channels()[2] && absolutized_alpha == alpha())
         return *this;
     return create(*color_type(), move(absolutized_c1), move(absolutized_c2), move(absolutized_c3), move(absolutized_alpha), color_syntax(), name());
-}
-
-bool ColorFunctionStyleValue::equals(StyleValue const& other) const
-{
-    if (type() != other.type())
-        return false;
-    auto const& other_color = other.as_color();
-    if (color_type() != other_color.color_type())
-        return false;
-    auto const& other_color_function = as<ColorFunctionStyleValue>(other_color);
-    if (channels()[0] != other_color_function.channels()[0]
-        || channels()[1] != other_color_function.channels()[1]
-        || channels()[2] != other_color_function.channels()[2])
-        return false;
-    if (alpha() != other_color_function.alpha())
-        return false;
-    if (origin_color() != other_color_function.origin_color())
-        return false;
-    return name() == other_color_function.name();
 }
 
 }

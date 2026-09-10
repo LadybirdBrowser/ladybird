@@ -380,9 +380,6 @@ bool StyleValue::equals(StyleValue const& other) const
         // Calculations compare by tree structure alone; the data also carries parse-context
         // fields (resolved type, accepted ranges) that must not affect equality.
         return as_calculated().equals(other);
-    case Type::Color:
-        // Color functions deliberately ignore the legacy/modern syntax flag the data carries.
-        return as_color().equals(other);
     default:
         return StyleValueFFI::rust_style_value_equals(m_value.data(), other.m_value.data());
     }
