@@ -1619,20 +1619,9 @@ mod tests {
     }
 
     fn serialize(selector: &Arc<bound::CompiledSelector>) -> Vec<u16> {
-        use crate::css::selector_serialization::{rust_selector_serialize, rust_selector_serialized_text_release};
-        unsafe {
-            let text = rust_selector_serialize(
-                &RustSelector {
-                    selector: selector.clone(),
-                },
-                false,
-                std::ptr::null(),
-                0,
-            );
-            let units = std::slice::from_raw_parts(text.data, text.length).to_vec();
-            rust_selector_serialized_text_release(text.storage);
-            units
-        }
+        crate::css::selector_serialization::serialize_selector_without_namespaces(&RustSelector {
+            selector: selector.clone(),
+        })
     }
 
     #[test]

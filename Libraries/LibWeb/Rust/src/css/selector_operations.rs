@@ -465,7 +465,7 @@ mod tests {
     fn transformed_lists_own_their_results_after_inputs_are_dropped() {
         use super::{absolutize_selector_list, adapt_scope_end_selector_list};
         use crate::css::selector_parser::StyleNestingParent;
-        use crate::css::selector_serialization::{rust_selector_serialize, rust_selector_serialized_text_release};
+        use crate::css::selector_serialization::serialize_selector_without_namespaces;
 
         fn parse(source: &str, kind: SelectorType) -> super::SelectorList {
             let units: Vec<_> = source.encode_utf16().collect();
@@ -479,12 +479,7 @@ mod tests {
                 .into_iter()
                 .map(|selector| {
                     let selector = super::RustSelector { selector };
-                    unsafe {
-                        let text = rust_selector_serialize(&selector, false, std::ptr::null(), 0);
-                        let units = std::slice::from_raw_parts(text.data, text.length).to_vec();
-                        rust_selector_serialized_text_release(text.storage);
-                        units
-                    }
+                    serialize_selector_without_namespaces(&selector)
                 })
                 .collect()
         }

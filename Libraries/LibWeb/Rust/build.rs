@@ -2871,7 +2871,6 @@ fn main() -> Result<(), Box<dyn Error>> {
     for (rust_name, cxx_name) in [
         ("FfiStringView", "StringView"),
         ("FfiParsedPseudoElement", "ParsedPseudoElement"),
-        ("FfiSelectorSerializedText", "SerializedText"),
         ("FfiElement", "Element"),
         ("FfiElementQualifiedName", "ElementQualifiedName"),
         ("FfiInternedStringList", "InternedStringList"),

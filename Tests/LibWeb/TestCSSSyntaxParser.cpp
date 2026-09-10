@@ -102,9 +102,7 @@ TEST_CASE(native_matching_selectors_follow_edits_and_reparenting)
         EXPECT_EQ(SelectorFFI::rust_bound_selector_list_length(bound), 1u);
         auto* selector = SelectorFFI::rust_bound_selector_list_selector(bound, 0);
         SelectorFFI::rust_bound_selector_list_destroy(bound);
-        auto serialized = SelectorFFI::rust_selector_serialize(selector, false, nullptr, 0);
-        auto text = Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(serialized.data), serialized.length });
-        SelectorFFI::rust_selector_serialized_text_release(serialized.storage);
+        auto text = Utf16String::adopt_raw(SelectorFFI::rust_selector_serialize(selector, false, nullptr, 0));
         SelectorFFI::rust_selector_destroy(selector);
         return text;
     };
@@ -150,9 +148,7 @@ TEST_CASE(native_scope_matching_preserves_presence_context_and_cache_lifetimes)
         EXPECT_EQ(SelectorFFI::rust_bound_selector_list_length(bound), 1u);
         auto* selector = SelectorFFI::rust_bound_selector_list_selector(bound, 0);
         SelectorFFI::rust_bound_selector_list_destroy(bound);
-        auto serialized = SelectorFFI::rust_selector_serialize(selector, false, nullptr, 0);
-        auto text = Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(serialized.data), serialized.length });
-        SelectorFFI::rust_selector_serialized_text_release(serialized.storage);
+        auto text = Utf16String::adopt_raw(SelectorFFI::rust_selector_serialize(selector, false, nullptr, 0));
         SelectorFFI::rust_selector_destroy(selector);
         return text;
     };
