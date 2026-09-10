@@ -16,8 +16,7 @@ use crate::css::style_value::{ColorBase, RetainedStyleValueData, StyleValueData}
 
 const COLOR_SYNTAX_MODERN: u8 = 1;
 
-#[repr(C)]
-pub struct FfiResolvedColor {
+pub(crate) struct ResolvedColor {
     pub color_type: u8,
     pub components: [f32; 4],
     pub missing: [bool; 4],
@@ -266,8 +265,8 @@ fn make_result(color_type: u8, components: [f32; 4], missing: [bool; 4]) -> Styl
 
 // https://drafts.csswg.org/css-color-4/#interpolation
 fn interpolate(
-    from: &FfiResolvedColor,
-    to: &FfiResolvedColor,
+    from: &ResolvedColor,
+    to: &ResolvedColor,
     is_polar: bool,
     color_space: u8,
     hue_interpolation_method: u8,
@@ -371,30 +370,20 @@ fn interpolate(
     Some(make_result(target_type, result, missing))
 }
 
-/// # Safety
-///
-/// All pointers must be non-null and point at live values for the duration of this call. The returned pointer owns
-/// one strong reference and must be adopted or released by the caller.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_interpolate_color(
-    from: *const FfiResolvedColor,
-    to: *const FfiResolvedColor,
-    color_interpolation_method: *const StyleValueData,
+pub(crate) fn interpolate_color(
+    from: &ResolvedColor,
+    to: &ResolvedColor,
+    color_interpolation_method: &StyleValueData,
     delta: f32,
     alpha_multiplier: f32,
-) -> *const StyleValueData {
-    let (Some(from), Some(to), Some(method)) = (unsafe { from.as_ref() }, unsafe { to.as_ref() }, unsafe {
-        color_interpolation_method.as_ref()
-    }) else {
-        return std::ptr::null();
-    };
+) -> Option<StyleValueData> {
     let StyleValueData::ColorInterpolationMethod {
         is_polar,
         color_space,
         hue_interpolation_method,
-    } = method
+    } = color_interpolation_method
     else {
-        return std::ptr::null();
+        return None;
     };
     interpolate(
         from,
@@ -405,6 +394,4 @@ pub unsafe extern "C" fn rust_interpolate_color(
         delta,
         alpha_multiplier,
     )
-    .map(|result| Arc::into_raw(Arc::new(result)))
-    .unwrap_or(std::ptr::null())
 }
