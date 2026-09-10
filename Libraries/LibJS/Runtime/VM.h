@@ -182,8 +182,15 @@ public:
     };
 
     auto& string_to_atom_cache() { return m_string_to_atom_cache; }
+
+    struct NumericStringCacheEntry {
+        u64 number { 0 };
+        GC::Ptr<PrimitiveString> string;
+    };
+
     auto& fly_string_cache() { return m_fly_string_cache; }
     auto& numeric_string_cache() { return m_numeric_string_cache; }
+    auto& large_numeric_string_cache() { return m_large_numeric_string_cache; }
 
     PrimitiveString& empty_string() { return *m_empty_string; }
 
@@ -592,6 +599,9 @@ private:
 
     static constexpr size_t numeric_string_cache_size = 1000;
     AK::Array<GC::Ptr<PrimitiveString>, numeric_string_cache_size> m_numeric_string_cache;
+
+    static constexpr size_t large_numeric_string_cache_size = 1024;
+    AK::Array<NumericStringCacheEntry, large_numeric_string_cache_size> m_large_numeric_string_cache;
 
     GC::Heap m_heap;
 
