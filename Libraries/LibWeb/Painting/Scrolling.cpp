@@ -181,8 +181,6 @@ ScrollHandled set_scroll_offset(Layout::Node& node, CSSPixelPoint offset)
         return ScrollHandled::Yes;
     }
 
-    node.document().invalidate_scroll_state();
-
     if (auto pseudo_element = node.generated_for_pseudo_element(); pseudo_element.has_value()) {
         node.pseudo_element_generator()->set_scroll_offset(*pseudo_element, offset);
     } else if (auto* element = as_if<DOM::Element>(node.dom_node())) {
