@@ -404,12 +404,7 @@ impl LayoutNodeArena {
             }
         }
 
-        if !node_was_already_dirty {
-            self.set_node_flag(node, NodeFlag::NeedsLayoutUpdate, true);
-            // Relayout may rebuild an identical fragment whose cached paint output the commit diff
-            // then keeps, even when what this node paints changed (its image data arrived).
-            self.invalidate_paint_cache(node);
-        }
+        self.set_node_flag(node, NodeFlag::NeedsLayoutUpdate, true);
 
         if node_is_box {
             self.reset_cached_intrinsic_sizes(node);

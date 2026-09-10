@@ -1,0 +1,2 @@
+PASS: unchanged canvas preserves cached paint after full relayout (work + checks)
+PASS: unchanged canvas preserves cached paint after partial relayout (work + checks)
