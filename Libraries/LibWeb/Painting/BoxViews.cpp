@@ -111,11 +111,6 @@ CSSPixelPoint absolute_position(Layout::Node const& node)
     return absolute_rect(node).location();
 }
 
-CSSPixelPoint offset(Layout::Node const& node)
-{
-    return Layout::RustFFI::layout_arena_paintable_offset(node.arena_handle(), committed_row_slot(node));
-}
-
 CSSPixelSize content_size(Layout::Node const& node)
 {
     return Layout::RustFFI::layout_arena_paintable_content_size(node.arena_handle(), committed_row_slot(node));
@@ -226,19 +221,6 @@ CSS::Display display(Layout::Node const& node)
 bool is_positioned(Layout::Node const& node)
 {
     return Layout::RustFFI::layout_arena_paintable_is_positioned(node.arena_handle(), committed_row_slot(node));
-}
-
-bool is_fixed_position(Layout::Node const& node)
-{
-    return has_committed_box(node) && as<Layout::NodeWithStyle>(node).is_fixed_position();
-}
-
-SelectionState selection_state(Layout::Node const& node)
-{
-    auto const* row = committed_row(node);
-    if (!row)
-        return {};
-    return static_cast<SelectionState>(row->selection_state);
 }
 
 CSS::StyleRecordID style_record_identity(Layout::Node const& node)
@@ -651,13 +633,6 @@ Optional<CSS::BorderData> outline_data(Layout::Node const& node, CSS::ComputedVa
         return {};
 
     return border_data_for_outline(node, computed_values.outline_color(), computed_values.outline_style(), computed_values.outline_width());
-}
-
-CSSPixels outline_offset(Layout::Node const& node)
-{
-    if (!has_committed_box(node))
-        return {};
-    return as<Layout::NodeWithStyle>(node).outline_offset();
 }
 
 CSSPixelRect transform_reference_box(Layout::Node const& node)
