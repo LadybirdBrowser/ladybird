@@ -1769,7 +1769,8 @@ pub unsafe extern "C" fn layout_arena_refresh_sticky_constraints(
 }
 
 /// Re-reads the scroll containers' offsets when something invalidated them since the last
-/// refresh. Returns whether that happened, so the caller re-pulls the snapshot only then.
+/// refresh and resolves the sticky nodes' offsets on top of them. Returns whether that
+/// happened, so the caller re-pulls the snapshot only then.
 ///
 /// # Safety
 ///
@@ -1795,6 +1796,10 @@ pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
     state.scroll_state_snapshot = state
         .scroll_state
         .snapshot(callbacks.tree_inputs().device_pixels_per_css_pixel);
+    // https://drafts.csswg.org/css-position/#sticky-pos
+    if let Some(tree) = state.tree.as_deref() {
+        tree.resolve_sticky_offsets_in_place(&mut state.scroll_state_snapshot);
+    }
     true
 }
 
