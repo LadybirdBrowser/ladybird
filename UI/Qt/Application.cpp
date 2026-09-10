@@ -371,7 +371,7 @@ Application::~Application() = default;
 void Application::show_process_manager()
 {
     if (!m_process_manager_window)
-        m_process_manager_window = make<ProcessManagerWindow>();
+        m_process_manager_window = make<ProcessManagerWindow>(process_manager());
     m_process_manager_window->show();
     m_process_manager_window->raise();
     m_process_manager_window->activateWindow();
