@@ -702,7 +702,7 @@ static Optional<Layout::NodeWithStyle*> prepare_computed_style_and_layout_for_pr
     auto style_record = abstract_element.style_record_identity();
     bool const style_is_in_display_none_subtree = !layout_node
         && !!style_record
-        && (abstract_element.document().style_computer().style_engine().style_record_dependency_flags(style_record) & to_underlying(StyleRecordDependencyFlag::InDisplayNoneSubtree));
+        && has_flag(abstract_element.document().style_computer().style_engine().style_record_dependency_flags(style_record), StyleRecordDependencyFlag::InDisplayNoneSubtree);
     if (!style_record || style_is_in_display_none_subtree)
         abstract_element.document().update_style_for_element(abstract_element);
     else

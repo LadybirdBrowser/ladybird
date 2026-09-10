@@ -33,6 +33,8 @@ struct FfiTransitionInput;
 
 namespace Web::CSS {
 
+enum class StyleRecordDependencyFlag : u8;
+
 class StyleComputer;
 class RustDeclarationBlock;
 struct StyleProperty;
@@ -102,7 +104,7 @@ public:
     // The borrowed payload array is stable while a base record exists or an animation-overlay
     // generation remains assigned or pinned.
     [[nodiscard]] void const* style_record_payloads(StyleRecordID style_record) const;
-    [[nodiscard]] u8 style_record_dependency_flags(StyleRecordID style_record) const;
+    [[nodiscard]] StyleRecordDependencyFlag style_record_dependency_flags(StyleRecordID style_record) const;
     [[nodiscard]] u64 style_record_custom_property_environment(StyleRecordID style_record) const;
     void begin_computed_record_verification();
     void end_computed_record_verification();

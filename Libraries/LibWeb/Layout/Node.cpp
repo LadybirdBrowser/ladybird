@@ -519,13 +519,17 @@ void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
         pin_style_record_for_cxx_consumers();
 }
 
+static bool style_record_holds_image_values(CSS::StyleEngine const& style_engine, CSS::StyleRecordID style_record)
+{
+    return has_flag(style_engine.style_record_dependency_flags(style_record), CSS::StyleRecordDependencyFlag::HoldsImageValues);
+}
+
 void NodeWithStyle::attach_style_resources()
 {
     // The style engine notes at publication whether a record holds an <image> anywhere this node would load and
     // observe one. Nearly every style holds none, and that answer is one flag read; the walk below stays for the
     // styles that do.
-    auto dependency_flags = document().style_computer().style_engine().style_record_dependency_flags(m_style_record_identity);
-    if (!(dependency_flags & to_underlying(CSS::StyleRecordDependencyFlag::HoldsImageValues))) {
+    if (!style_record_holds_image_values(document().style_computer().style_engine(), m_style_record_identity)) {
         m_cursor_style_values.clear();
         clear_image_observers();
         Painting::push_paint_facts_after_style_attach(*this, Painting::StyleHoldsImageValues::No);

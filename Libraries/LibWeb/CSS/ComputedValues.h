@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/EnumBits.h>
 #include <AK/FixedBitmap.h>
 #include <AK/FlyString.h>
 #include <AK/HashMap.h>
@@ -919,6 +920,7 @@ enum class StyleRecordDependencyFlag : u8 {
     // A highlight pseudo-element whose color is currentColor: the layer below shows through.
     HighlightColorIsCurrentColor = 1 << 6,
 };
+AK_ENUM_BITWISE_OPERATORS(StyleRecordDependencyFlag);
 
 // Whether a style record publishes display:none, read straight out of its box group payload. This
 // is the same value ComputedValues::display() exposes, without materializing a style record view.

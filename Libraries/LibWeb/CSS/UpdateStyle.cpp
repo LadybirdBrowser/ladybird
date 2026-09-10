@@ -512,7 +512,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 for (auto ancestor = DOM::AbstractElement { *element }.element_to_inherit_style_from(); ancestor.has_value(); ancestor = ancestor->element_to_inherit_style_from()) {
                     auto identity = ancestor->style_record_identity();
                     if (!!identity) {
-                        hidden = document.style_computer().style_engine().style_record_dependency_flags(identity) & to_underlying(StyleRecordDependencyFlag::InDisplayNoneSubtree);
+                        hidden = has_flag(document.style_computer().style_engine().style_record_dependency_flags(identity), StyleRecordDependencyFlag::InDisplayNoneSubtree);
                         break;
                     }
                 }
@@ -801,7 +801,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                     facts |= StyleEngine::IsDisplayNone;
                 if (previous_display.has_value() && *previous_display != display_from_ffi_display(current_box_values->display))
                     facts |= StyleEngine::DisplayChanged;
-                if (style_engine.style_record_dependency_flags(current_style_record) & to_underlying(StyleRecordDependencyFlag::InDisplayNoneSubtree))
+                if (has_flag(style_engine.style_record_dependency_flags(current_style_record), StyleRecordDependencyFlag::InDisplayNoneSubtree))
                     facts |= StyleEngine::InDisplayNoneSubtree;
             } else {
                 VERIFY(was_unstyled);
@@ -1092,7 +1092,7 @@ static void note_targeted_style_reaction_applied(DOM::Element& element, Required
         VERIFY(box_values);
         if (display_from_ffi_display(box_values->display).is_none())
             facts |= StyleEngine::IsDisplayNone;
-        if (style_engine.style_record_dependency_flags(style_record) & to_underlying(StyleRecordDependencyFlag::InDisplayNoneSubtree))
+        if (has_flag(style_engine.style_record_dependency_flags(style_record), StyleRecordDependencyFlag::InDisplayNoneSubtree))
             facts |= StyleEngine::InDisplayNoneSubtree;
     }
     style_engine.note_style_reaction_applied(element.style_node_id(), reaction, invalidation.inherited_style_groups_changed(), facts);
@@ -1250,7 +1250,7 @@ static bool update_style_for_element(DOM::Document& document, DOM::AbstractEleme
     if (ran_regular_style_update && mode != StyleUpdateMode::OnlyIfNeeded) {
         auto style_record = abstract_element.style_record_identity();
         if (!!style_record
-            && !(document.style_computer().style_engine().style_record_dependency_flags(style_record) & to_underlying(StyleRecordDependencyFlag::InDisplayNoneSubtree)))
+            && !has_flag(document.style_computer().style_engine().style_record_dependency_flags(style_record), StyleRecordDependencyFlag::InDisplayNoneSubtree))
             return true;
     }
 

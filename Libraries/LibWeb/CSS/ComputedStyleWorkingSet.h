@@ -103,8 +103,8 @@ public:
     bool has_animated_property(PropertyID property_id) const;
     bool is_property_important(PropertyID property_id) const;
     bool is_property_inherited(PropertyID property_id) const;
-    bool depends_on_viewport_metrics() const { return metadata().dependency_flags & 1; }
-    bool font_metrics_depend_on_viewport_metrics() const { return metadata().dependency_flags & 2; }
+    bool depends_on_viewport_metrics() const { return metadata().dependency_flags & to_underlying(StyleRecordDependencyFlag::DependsOnViewportMetrics); }
+    bool font_metrics_depend_on_viewport_metrics() const { return metadata().dependency_flags & to_underlying(StyleRecordDependencyFlag::FontMetricsDependOnViewportMetrics); }
     // Whether the element this style was computed for has computed display none, or is a descendant of one that does.
     bool in_display_none_subtree() const { return metadata().in_display_none_subtree; }
     bool highlight_colors_authored() const { return metadata().dependency_flags & to_underlying(StyleRecordDependencyFlag::HighlightColorsAuthored); }

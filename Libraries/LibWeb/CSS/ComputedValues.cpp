@@ -828,11 +828,12 @@ ComputedStyleRecordView::ComputedStyleRecordView(StyleEngineFFI::FfiStyleRecordV
     }
 
     m_values.m_pseudo_element_styles = view.pseudo_element_styles;
-    m_values.m_depends_on_viewport_metrics = view.dependency_flags & to_underlying(StyleRecordDependencyFlag::DependsOnViewportMetrics);
-    m_values.m_font_metrics_depend_on_viewport_metrics = view.dependency_flags & to_underlying(StyleRecordDependencyFlag::FontMetricsDependOnViewportMetrics);
-    m_values.m_in_display_none_subtree = view.dependency_flags & to_underlying(StyleRecordDependencyFlag::InDisplayNoneSubtree);
-    m_values.m_highlight_colors_authored = view.dependency_flags & to_underlying(StyleRecordDependencyFlag::HighlightColorsAuthored);
-    m_values.m_highlight_color_is_current_color = view.dependency_flags & to_underlying(StyleRecordDependencyFlag::HighlightColorIsCurrentColor);
+    auto dependency_flags = static_cast<StyleRecordDependencyFlag>(view.dependency_flags);
+    m_values.m_depends_on_viewport_metrics = has_flag(dependency_flags, StyleRecordDependencyFlag::DependsOnViewportMetrics);
+    m_values.m_font_metrics_depend_on_viewport_metrics = has_flag(dependency_flags, StyleRecordDependencyFlag::FontMetricsDependOnViewportMetrics);
+    m_values.m_in_display_none_subtree = has_flag(dependency_flags, StyleRecordDependencyFlag::InDisplayNoneSubtree);
+    m_values.m_highlight_colors_authored = has_flag(dependency_flags, StyleRecordDependencyFlag::HighlightColorsAuthored);
+    m_values.m_highlight_color_is_current_color = has_flag(dependency_flags, StyleRecordDependencyFlag::HighlightColorIsCurrentColor);
     m_values.m_computed_longhand_table = view.longhand_table;
     if (m_values.m_computed_longhand_table)
         m_values.refresh_computed_longhand_table_views();
