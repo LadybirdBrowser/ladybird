@@ -1913,7 +1913,6 @@ void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed, Layout
     m_layout_root->invalidate_text_blocks_cache();
 
     set_needs_to_record_display_list();
-    invalidate_scroll_state();
 
     // A commit that changed the tree can have replaced boxes referenced by the cached
     // contained-boxes index; refresh it before overflow measurement follows them. A pending full
