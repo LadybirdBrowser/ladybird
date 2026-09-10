@@ -20,7 +20,7 @@ endforeach()
 target_link_libraries(BenchmarkJPEGLoader PRIVATE LibImageDecoders)
 target_link_libraries(TestImageDecoder PRIVATE LibImageDecoders)
 target_link_libraries(TestImageWriter PRIVATE LibImageDecoders)
-target_link_libraries(TestFont PRIVATE harfbuzz)
+target_link_libraries(TestFont PRIVATE harfbuzz LibIPC)
 target_link_libraries(TestSharedFontProvider PRIVATE LibIPC)
 target_compile_definitions(TestSharedFontProvider PRIVATE LADYBIRD_SOURCE_DIR="${LADYBIRD_SOURCE_DIR}")
 

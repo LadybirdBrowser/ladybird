@@ -628,7 +628,7 @@ NonnullRefPtr<Gfx::FontCascadeList const> FontComputer::compute_font_for_style_v
     auto find_macos_system_ui_font = [&](Gfx::SystemUIFontKind kind, Utf16FlyString const& family) -> RefPtr<Gfx::FontCascadeList const> {
         auto const& font_feature_values = font_feature_values_for_family(family);
         auto shape_features = font_feature_data.to_shape_features(font_feature_values);
-        auto typeface = Gfx::TypefaceSkia::match_system_ui(kind, font_size_used_value, weight, font_width.value(), slope);
+        auto typeface = Gfx::TypefaceSkia::match_system_ui(kind, font_size_used_value, weight, font_width_bucket_from_percentage(font_width.value()), slope);
         if (typeface.is_error() || !typeface.value())
             return {};
 

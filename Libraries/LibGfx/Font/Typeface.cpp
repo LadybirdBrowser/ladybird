@@ -187,19 +187,6 @@ void Typeface::copy_font_data_from(Typeface const& other)
 
 namespace IPC {
 
-static NonnullRefPtr<Gfx::Typeface const> match_system_typeface(Optional<Gfx::SystemUIFontKind> system_ui_font_kind, String family_name, u16 weight, u16 width, u8 slope)
-{
-    if (system_ui_font_kind.has_value()) {
-        auto typeface = MUST(Gfx::TypefaceSkia::match_system_ui(system_ui_font_kind.value(), 0, weight, width, slope));
-        if (typeface)
-            return typeface.release_nonnull();
-    }
-
-    auto typeface = MUST(Gfx::TypefaceSkia::match_family_style(family_name.bytes_as_string_view(), weight, width, slope));
-    VERIFY(typeface);
-    return typeface.release_nonnull();
-}
-
 template<>
 ErrorOr<void> encode(Encoder& encoder, Gfx::Typeface const& typeface)
 {
@@ -227,12 +214,21 @@ ErrorOr<NonnullRefPtr<Gfx::Typeface const>> decode(Decoder& decoder)
         return TRY(Gfx::Typeface::try_load_from_resource(*resource, ttc_index));
     }
     case Gfx::Typeface::FontDataFormat::SystemFont: {
-        auto system_ui_font_kind = TRY(decoder.decode<Optional<Gfx::SystemUIFontKind>>());
         auto family_name = TRY(decoder.decode<String>());
         auto weight = TRY(decoder.decode<u16>());
         auto width = TRY(decoder.decode<u16>());
         auto slope = TRY(decoder.decode<u8>());
-        return match_system_typeface(system_ui_font_kind, move(family_name), weight, width, slope);
+        auto typeface = TRY(Gfx::TypefaceSkia::match_family_style(family_name.bytes_as_string_view(), weight, width, slope));
+        if (!typeface)
+            return Error::from_string_literal("Typeface IPC data referred to an unavailable system font");
+        return typeface.release_nonnull();
+    }
+    case Gfx::Typeface::FontDataFormat::SystemUIFont: {
+        auto style = TRY(decoder.decode<Gfx::SystemUIFontStyle>());
+        auto typeface = TRY(Gfx::TypefaceSkia::match_system_ui(style.kind, 0, style.weight, style.width, style.slope));
+        if (!typeface)
+            return Error::from_string_literal("Typeface IPC data referred to an unavailable system UI font");
+        return typeface.release_nonnull();
     }
     case Gfx::Typeface::FontDataFormat::SystemFontId: {
         auto generation = TRY(decoder.decode<u64>());

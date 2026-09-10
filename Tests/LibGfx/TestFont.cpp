@@ -4,13 +4,18 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/MemoryStream.h>
+#include <AK/Queue.h>
 #include <LibCore/MappedFile.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/FontDatabase.h>
 #include <LibGfx/Font/PathFontProvider.h>
 #include <LibGfx/Font/Typeface.h>
+#include <LibGfx/Font/TypefaceSkia.h>
 #include <LibGfx/FontCascadeList.h>
 #include <LibGfx/TextLayout.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 #include <LibTest/TestCase.h>
 #include <harfbuzz/hb.h>
 
@@ -219,3 +224,38 @@ TEST_CASE(failed_font_allows_loading_the_next_face)
     cascade->set_last_resort_font(font);
     EXPECT(cascade->font_for_code_point('a').is_invisible());
 }
+
+#ifdef AK_OS_MACOS
+static NonnullRefPtr<Gfx::Typeface const> round_trip_typeface_through_ipc(Gfx::Typeface const& typeface)
+{
+    IPC::MessageBuffer message_buffer;
+    IPC::Encoder encoder { message_buffer };
+    MUST(encoder.encode(typeface));
+
+    auto data = message_buffer.take_data();
+    FixedMemoryStream stream { data.span() };
+    Queue<IPC::Attachment> attachments;
+    IPC::Decoder decoder { stream, attachments };
+    return MUST(IPC::decode<NonnullRefPtr<Gfx::Typeface const>>(decoder));
+}
+
+TEST_CASE(system_ui_italic_keeps_its_slope_when_the_variation_clone_collapses)
+{
+    // At 28px the system font's opsz axis sits at its maximum, so applying the default variation hands back the base
+    // CoreText UI font, which Skia reads as upright.
+    float const font_size = 28;
+    auto typeface = MUST(Gfx::TypefaceSkia::match_system_ui(Gfx::SystemUIFontKind::System, font_size, 400, Gfx::FontWidth::Normal, 1));
+    EXPECT(typeface);
+
+    Gfx::FontVariationSettings variations;
+    variations.set_weight(400);
+    variations.set_width(100);
+    variations.set_optical_sizing(font_size);
+    auto font = typeface->font(font_size * 0.75f, variations);
+    EXPECT_EQ(font->typeface().slope(), 1u);
+
+    auto decoded = round_trip_typeface_through_ipc(font->typeface());
+    EXPECT_EQ(decoded->slope(), 1u);
+    EXPECT_EQ(decoded->glyph_id_for_code_point('m'), font->typeface().glyph_id_for_code_point('m'));
+}
+#endif

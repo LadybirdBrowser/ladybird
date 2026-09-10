@@ -108,6 +108,7 @@ protected:
         RawFontData,
         ResourceFontData,
         SystemFont,
+        SystemUIFont,
         SystemFontId,
     };
 
