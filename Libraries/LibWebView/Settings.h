@@ -55,6 +55,16 @@ struct BrowsingDataSettings {
     HTTP::DiskCacheSettings disk_cache_settings;
 };
 
+struct ContentBlockerList {
+    String identifier;
+    String name;
+    Optional<URL::URL> url;
+    bool enabled { true };
+    bool built_in { false };
+    bool language_specific { false };
+    String description {};
+};
+
 enum class GlobalPrivacyControl {
     No,
     Yes,
@@ -106,6 +116,7 @@ public:
     virtual void config_variable_changed(ConfigVariableID) { }
     virtual void geolocation_settings_changed() { }
     virtual void force_dark_settings_changed() { }
+    virtual void content_blocker_settings_changed() { }
 };
 
 class WEBVIEW_API Settings {
@@ -171,6 +182,14 @@ public:
     bool force_dark_enabled() const { return m_force_dark_enabled; }
     void set_force_dark_enabled(bool);
 
+    Vector<ContentBlockerList> const& content_blocker_lists() const { return m_content_blocker_lists; }
+    Optional<ContentBlockerList const&> content_blocker_list(StringView identifier) const;
+    String add_content_blocker_list(String name, Optional<URL::URL> = {});
+    void set_content_blocker_list_enabled(StringView identifier, bool);
+    bool remove_content_blocker_list(StringView identifier);
+    String const& custom_content_blocker_filters() const { return m_custom_content_blocker_filters; }
+    void set_custom_content_blocker_filters(String);
+
     static DNSSettings parse_dns_settings(JsonValue const&);
     DNSSettings const& dns_settings() const { return m_dns_settings; }
     void set_dns_settings(DNSSettings const&, bool override_by_command_line = false);
@@ -209,6 +228,8 @@ private:
     BrowsingDataSettings m_browsing_data_settings;
     bool m_geolocation_enabled { false };
     bool m_force_dark_enabled { false };
+    Vector<ContentBlockerList> m_content_blocker_lists;
+    String m_custom_content_blocker_filters;
     GlobalPrivacyControl m_global_privacy_control { GlobalPrivacyControl::No };
     DNSSettings m_dns_settings { SystemDNS() };
     bool m_dns_override_by_command_line { false };

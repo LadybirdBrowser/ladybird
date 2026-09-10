@@ -5,10 +5,11 @@
  */
 
 #include <AK/ByteString.h>
-#include <AK/Find.h>
+#include <AK/CharacterTypes.h>
 #include <AK/JsonArray.h>
 #include <AK/JsonObject.h>
 #include <AK/JsonValue.h>
+#include <AK/Random.h>
 #include <AK/Utf16String.h>
 #include <LibCore/GeolocationProvider.h>
 #include <LibCore/StandardPaths.h>
@@ -72,9 +73,25 @@ static constexpr auto GLOBAL_PRIVACY_CONTROL_KEY = "globalPrivacyControl"sv;
 static constexpr auto GEOLOCATION_ENABLED_KEY = "geolocationEnabled"sv;
 static constexpr auto FORCE_DARK_ENABLED_KEY = "forceDarkEnabled"sv;
 
+static constexpr auto CONTENT_BLOCKERS_KEY = "contentBlockers"sv;
+static constexpr auto CONTENT_BLOCKER_BUILT_IN_LISTS_KEY = "builtInLists"sv;
+static constexpr auto CONTENT_BLOCKER_CUSTOM_SUBSCRIPTIONS_KEY = "customSubscriptions"sv;
+static constexpr auto CONTENT_BLOCKER_LOCAL_LISTS_KEY = "localLists"sv;
+static constexpr auto CONTENT_BLOCKER_CUSTOM_FILTERS_KEY = "customFilters"sv;
+static constexpr auto CONTENT_BLOCKER_IDENTIFIER_KEY = "identifier"sv;
+static constexpr auto CONTENT_BLOCKER_URL_KEY = "url"sv;
+static constexpr auto CONTENT_BLOCKER_NAME_KEY = "name"sv;
+static constexpr auto CONTENT_BLOCKER_ENABLED_KEY = "enabled"sv;
+
 static constexpr auto DNS_SETTINGS_KEY = "dnsSettings"sv;
 
 static constexpr auto CONFIG_VARIABLES_KEY = "configVariables"sv;
+
+static bool is_valid_content_blocker_list_identifier(StringView identifier)
+{
+    return !identifier.is_empty() && identifier.length() <= 128
+        && all_of(identifier.bytes(), [](u8 byte) { return is_ascii_alphanumeric(byte) || byte == '-'; });
+}
 
 static auto const& CONFIG_VARIABLE_DEFINITIONS = *new Array<ConfigVariableDefinition, static_cast<size_t>(ConfigVariableID::Count)> { {
     {
@@ -315,6 +332,38 @@ Settings Settings::create(ByteString settings_path)
     if (auto force_dark_enabled = settings_json.value().get_bool(FORCE_DARK_ENABLED_KEY); force_dark_enabled.has_value())
         settings.m_force_dark_enabled = *force_dark_enabled;
 
+    if (auto content_blockers = settings_json.value().get_object(CONTENT_BLOCKERS_KEY); content_blockers.has_value()) {
+        if (auto built_in_lists = content_blockers->get_object(CONTENT_BLOCKER_BUILT_IN_LISTS_KEY); built_in_lists.has_value()) {
+            for (auto& list : settings.m_content_blocker_lists)
+                list.enabled = built_in_lists->get_bool(list.identifier).value_or(list.enabled);
+        }
+
+        for (auto key : { CONTENT_BLOCKER_CUSTOM_SUBSCRIPTIONS_KEY, CONTENT_BLOCKER_LOCAL_LISTS_KEY }) {
+            auto lists = content_blockers->get_array(key);
+            if (!lists.has_value())
+                continue;
+            for (auto const& value : lists->values()) {
+                if (!value.is_object())
+                    continue;
+                auto identifier = value.as_object().get_string(CONTENT_BLOCKER_IDENTIFIER_KEY);
+                auto enabled = value.as_object().get_bool(CONTENT_BLOCKER_ENABLED_KEY);
+                auto source = value.as_object().get_string(key == CONTENT_BLOCKER_CUSTOM_SUBSCRIPTIONS_KEY ? CONTENT_BLOCKER_URL_KEY : CONTENT_BLOCKER_NAME_KEY);
+                if (!identifier.has_value() || !is_valid_content_blocker_list_identifier(*identifier) || !enabled.has_value() || !source.has_value() || settings.content_blocker_list(*identifier).has_value())
+                    continue;
+                Optional<URL::URL> url;
+                if (key == CONTENT_BLOCKER_CUSTOM_SUBSCRIPTIONS_KEY) {
+                    url = URL::Parser::basic_parse(*source);
+                    if (!url.has_value() || !(url->scheme() == "http"sv || url->scheme() == "https"sv))
+                        continue;
+                }
+                settings.m_content_blocker_lists.append({ *identifier, *source, move(url), *enabled });
+            }
+        }
+
+        if (auto filters = content_blockers->get_string(CONTENT_BLOCKER_CUSTOM_FILTERS_KEY); filters.has_value())
+            settings.m_custom_content_blocker_filters = *filters;
+    }
+
     if (auto dns_settings = settings_json.value().get(DNS_SETTINGS_KEY); dns_settings.has_value())
         settings.m_dns_settings = parse_dns_settings(*dns_settings);
 
@@ -341,6 +390,39 @@ Settings::Settings(ByteString settings_path)
     for (auto const& variable : config_variable_definitions()) {
         m_config_variables[static_cast<size_t>(variable.id)] = variable.default_value;
     }
+    enum class ListCategory { General,
+        Language };
+    auto add_list = [&](StringView identifier, StringView name, StringView description, StringView url, ListCategory category = ListCategory::General) {
+        m_content_blocker_lists.append({ MUST(String::from_utf8(identifier)), MUST(String::from_utf8(name)),
+            URL::Parser::basic_parse(url), false, true, category == ListCategory::Language, MUST(String::from_utf8(description)) });
+    };
+    add_list("easyList"sv, "EasyList"sv, "Blocks advertising on English-language websites."sv, "https://easylist.to/easylist/easylist.txt"sv);
+    add_list("easyPrivacy"sv, "EasyPrivacy"sv, "Blocks tracking scripts, pixels, and other tracking requests."sv, "https://easylist.to/easylist/easyprivacy.txt"sv);
+    add_list("easyListCookie"sv, "EasyList Cookie List"sv, "Blocks cookie banners and other cookie notices."sv, "https://secure.fanboy.co.nz/fanboy-cookiemonster.txt"sv);
+    add_list("fanboyAnnoyances"sv, "Fanboy's Annoyance List"sv, "Blocks pop-ups, social widgets, newsletters, and other annoyances."sv, "https://secure.fanboy.co.nz/fanboy-annoyance.txt"sv);
+    add_list("fanboySocial"sv, "Fanboy's Social Blocking List"sv, "Blocks social media widgets and other social content."sv, "https://easylist.to/easylist/fanboy-social.txt"sv);
+    add_list("adblockWarningRemoval"sv, "Adblock Warning Removal List"sv, "Blocks warnings aimed at people who use a content blocker."sv, "https://easylist-downloads.adblockplus.org/antiadblockfilters.txt"sv);
+    add_list("abpindo"sv, "ABPindo"sv, "Blocks advertising on Indonesian and Malaysian websites."sv, "https://raw.githubusercontent.com/heradhis/indonesianadblockrules/master/subscriptions/abpindo.txt"sv, ListCategory::Language);
+    add_list("abpvn"sv, "ABPVN List"sv, "Blocks advertising on Vietnamese websites."sv, "https://abpvn.com/filter/abpvn-IPl6HE.txt"sv, ListCategory::Language);
+    add_list("bulgarianList"sv, "Bulgarian list"sv, "Blocks advertising on Bulgarian websites."sv, "https://stanev.org/abp/adblock_bg.txt"sv, ListCategory::Language);
+    add_list("nordicFilters"sv, "Dandelion Sprout's Nordic Filters"sv, "Blocks advertising on Nordic-language websites."sv, "https://raw.githubusercontent.com/DandelionSprout/adfilt/master/NorwegianExperimentalList%20alternate%20versions/NordicFiltersABP-Inclusion.txt"sv, ListCategory::Language);
+    add_list("easyListChina"sv, "EasyList China"sv, "Blocks advertising on Chinese websites."sv, "https://easylist-downloads.adblockplus.org/easylistchina.txt"sv, ListCategory::Language);
+    add_list("easyListCzechAndSlovak"sv, "EasyList Czech and Slovak"sv, "Blocks advertising on Czech and Slovak websites."sv, "https://raw.githubusercontent.com/tomasko126/easylistczechandslovak/master/filters.txt"sv, ListCategory::Language);
+    add_list("easyListDutch"sv, "EasyList Dutch"sv, "Blocks advertising on Dutch websites."sv, "https://easylist-downloads.adblockplus.org/easylistdutch.txt"sv, ListCategory::Language);
+    add_list("easyListGermany"sv, "EasyList Germany"sv, "Blocks advertising on German websites."sv, "https://easylist.to/easylistgermany/easylistgermany.txt"sv, ListCategory::Language);
+    add_list("easyListHebrew"sv, "EasyList Hebrew"sv, "Blocks advertising on Hebrew-language websites."sv, "https://raw.githubusercontent.com/easylist/EasyListHebrew/master/EasyListHebrew.txt"sv, ListCategory::Language);
+    add_list("easyListItaly"sv, "EasyList Italy"sv, "Blocks advertising on Italian websites."sv, "https://easylist-downloads.adblockplus.org/easylistitaly.txt"sv, ListCategory::Language);
+    add_list("easyListLithuania"sv, "EasyList Lithuania"sv, "Blocks advertising on Lithuanian websites."sv, "https://raw.githubusercontent.com/EasyList-Lithuania/easylist_lithuania/master/easylistlithuania.txt"sv, ListCategory::Language);
+    add_list("easyListPolish"sv, "EasyList Polish"sv, "Blocks advertising on Polish websites."sv, "https://easylist-downloads.adblockplus.org/easylistpolish.txt"sv, ListCategory::Language);
+    add_list("easyListPortuguese"sv, "EasyList Portuguese"sv, "Blocks advertising on Portuguese-language websites."sv, "https://easylist-downloads.adblockplus.org/easylistportuguese.txt"sv, ListCategory::Language);
+    add_list("easyListSpanish"sv, "EasyList Spanish"sv, "Blocks advertising on Spanish-language websites."sv, "https://easylist-downloads.adblockplus.org/easylistspanish.txt"sv, ListCategory::Language);
+    add_list("indianList"sv, "IndianList"sv, "Blocks advertising on websites in languages of India and Sri Lanka."sv, "https://easylist-downloads.adblockplus.org/indianlist.txt"sv, ListCategory::Language);
+    add_list("koreanList"sv, "KoreanList"sv, "Blocks advertising on Korean websites."sv, "https://easylist-downloads.adblockplus.org/koreanlist.txt"sv, ListCategory::Language);
+    add_list("latvianList"sv, "Latvian List"sv, "Blocks advertising on Latvian websites."sv, "https://raw.githubusercontent.com/Latvian-List/adblock-latvian/master/lists/latvian-list.txt"sv, ListCategory::Language);
+    add_list("listeAR"sv, "Liste AR"sv, "Blocks advertising on Arabic websites."sv, "https://easylist-downloads.adblockplus.org/liste_ar.txt"sv, ListCategory::Language);
+    add_list("listeFR"sv, "Liste FR"sv, "Blocks advertising on French websites."sv, "https://easylist-downloads.adblockplus.org/liste_fr.txt"sv, ListCategory::Language);
+    add_list("roList"sv, "ROList"sv, "Blocks advertising on Romanian websites."sv, "https://zoso.ro/pages/rolist.txt"sv, ListCategory::Language);
+    add_list("ruAdList"sv, "RU AdList"sv, "Blocks advertising on Russian and Ukrainian websites."sv, "https://easylist-downloads.adblockplus.org/ruadlist.txt"sv, ListCategory::Language);
 }
 
 JsonValue Settings::serialize_json() const
@@ -435,6 +517,33 @@ JsonValue Settings::serialize_json() const
 
     settings.set(GEOLOCATION_ENABLED_KEY, m_geolocation_enabled);
     settings.set(FORCE_DARK_ENABLED_KEY, m_force_dark_enabled);
+
+    JsonObject built_in_content_blocker_lists;
+    JsonArray custom_content_blocker_subscriptions;
+    JsonArray local_content_blocker_lists;
+    for (auto const& list : m_content_blocker_lists) {
+        if (list.built_in) {
+            built_in_content_blocker_lists.set(list.identifier, list.enabled);
+            continue;
+        }
+        JsonObject object;
+        object.set(CONTENT_BLOCKER_IDENTIFIER_KEY, list.identifier);
+        object.set(CONTENT_BLOCKER_ENABLED_KEY, list.enabled);
+        if (list.url.has_value()) {
+            object.set(CONTENT_BLOCKER_URL_KEY, list.url->serialize());
+            custom_content_blocker_subscriptions.must_append(move(object));
+        } else {
+            object.set(CONTENT_BLOCKER_NAME_KEY, list.name);
+            local_content_blocker_lists.must_append(move(object));
+        }
+    }
+
+    JsonObject content_blockers;
+    content_blockers.set(CONTENT_BLOCKER_BUILT_IN_LISTS_KEY, move(built_in_content_blocker_lists));
+    content_blockers.set(CONTENT_BLOCKER_CUSTOM_SUBSCRIPTIONS_KEY, move(custom_content_blocker_subscriptions));
+    content_blockers.set(CONTENT_BLOCKER_LOCAL_LISTS_KEY, move(local_content_blocker_lists));
+    content_blockers.set(CONTENT_BLOCKER_CUSTOM_FILTERS_KEY, m_custom_content_blocker_filters);
+    settings.set(CONTENT_BLOCKERS_KEY, move(content_blockers));
 
     // dnsSettings :: { mode: "system" } | { mode: "custom", server: string, port: u16, type: "udp" | "tls", forciblyEnabled: bool, dnssec: bool }
     JsonObject dns_settings;
@@ -838,6 +947,62 @@ void Settings::set_geolocation_enabled(bool enabled)
 
     for (auto& observer : m_observers)
         observer.geolocation_settings_changed();
+}
+
+Optional<ContentBlockerList const&> Settings::content_blocker_list(StringView identifier) const
+{
+    for (auto const& list : m_content_blocker_lists) {
+        if (list.identifier == identifier)
+            return list;
+    }
+    return {};
+}
+
+void Settings::set_content_blocker_list_enabled(StringView identifier, bool enabled)
+{
+    for (auto& list : m_content_blocker_lists) {
+        if (list.identifier != identifier || list.enabled == enabled)
+            continue;
+        list.enabled = enabled;
+        persist_settings();
+        for (auto& observer : m_observers)
+            observer.content_blocker_settings_changed();
+        return;
+    }
+}
+
+String Settings::add_content_blocker_list(String name, Optional<URL::URL> url)
+{
+    String identifier;
+    do {
+        identifier = MUST(String::formatted("list-{:016x}", get_random<u64>()));
+    } while (content_blocker_list(identifier).has_value());
+    m_content_blocker_lists.append({ identifier, move(name), move(url) });
+    persist_settings();
+    for (auto& observer : m_observers)
+        observer.content_blocker_settings_changed();
+    return identifier;
+}
+
+bool Settings::remove_content_blocker_list(StringView identifier)
+{
+    auto removed = m_content_blocker_lists.remove_all_matching([&](auto const& list) { return !list.built_in && list.identifier == identifier; });
+    if (!removed)
+        return false;
+    persist_settings();
+    for (auto& observer : m_observers)
+        observer.content_blocker_settings_changed();
+    return true;
+}
+
+void Settings::set_custom_content_blocker_filters(String filters)
+{
+    if (m_custom_content_blocker_filters == filters)
+        return;
+    m_custom_content_blocker_filters = move(filters);
+    persist_settings();
+    for (auto& observer : m_observers)
+        observer.content_blocker_settings_changed();
 }
 
 void Settings::set_dns_settings(DNSSettings const& dns_settings, bool override_by_command_line)
