@@ -1,0 +1,99 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script src="recording-test.js"></script>
+<style>
+    body { margin: 0; }
+    canvas { display: block; width: 100px; height: 100px; background: green; }
+    #boundary { position: absolute; left: 200px; top: 0; width: 100px; height: 100px; }
+</style>
+<canvas id="full" width="100" height="100"></canvas>
+<div id="boundary"><canvas id="partial" width="100" height="100"></canvas></div>
+<script>
+let previousLayoutCount;
+displayListTest({
+    setup: removeBodyWhitespace,
+    steps: [
+        {
+            name: "unchanged canvas preserves cached paint after full relayout",
+            mutate: () => {
+                previousLayoutCount = internals.fullLayoutCount();
+                // Reassigning the width requests layout even when the value is unchanged.
+                // Without a rendering context, there is no canvas content to reset.
+                full.width = full.width;
+            },
+            check: equal => {
+                equal(internals.fullLayoutCount(), previousLayoutCount + 1, "full layout count");
+                equal(full.getBoundingClientRect().width, 100, "canvas width");
+            },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport REUSE WHOLE CAPTURE
+            `,
+        },
+        {
+            name: "unchanged canvas preserves cached paint after partial relayout",
+            mutate: () => {
+                previousLayoutCount = internals.partialLayoutCount();
+                partial.width = partial.width;
+            },
+            check: equal => {
+                equal(internals.partialLayoutCount(), previousLayoutCount + 1, "partial layout count");
+                equal(partial.getBoundingClientRect().width, 100, "canvas width");
+            },
+            expect: `
+                @canvas RECORD (empty)
+                @viewport WALK
+                  @viewport/background/hit-test REUSE
+                  @viewport/scroll-metadata RECORD (empty)
+                  @viewport/background SKIP
+                  @viewport/border SKIP
+                  BlockContainer<HTML>/descendants(background-and-borders) WALK
+                  @viewport/foreground/hit-test REUSE
+                  @viewport/foreground REUSE
+                  BlockContainer<HTML>/descendants(foreground) WALK
+                  BlockContainer<HTML> WALK
+                    BlockContainer<HTML>/background/hit-test REUSE
+                    BlockContainer<HTML>/scroll-metadata RECORD (empty)
+                    BlockContainer<HTML>/background REUSE
+                    BlockContainer<HTML>/border SKIP
+                    BlockContainer<BODY>/descendants(background-and-borders) WALK
+                      BlockContainer<BODY>/background/hit-test REUSE
+                      BlockContainer<BODY>/scroll-metadata RECORD (empty)
+                      BlockContainer<BODY>/background SKIP
+                      BlockContainer<BODY>/border SKIP
+                      CanvasBox<CANVAS>#full/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#boundary/descendants(background-and-borders) WALK
+                    BlockContainer<BODY>/descendants(inline-background-and-borders) WALK
+                      CanvasBox<CANVAS>#full/descendants(inline-background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#boundary/descendants(inline-background-and-borders) WALK
+                    BlockContainer<HTML>/foreground/hit-test REUSE
+                    BlockContainer<HTML>/foreground REUSE
+                    BlockContainer<BODY>/descendants(foreground) WALK
+                      BlockContainer<BODY>/foreground/hit-test REUSE
+                      BlockContainer<BODY>/foreground REUSE
+                      CanvasBox<CANVAS>#full/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#boundary/descendants(foreground) WALK
+                      BlockContainer<BODY>/outline SKIP
+                      BlockContainer<BODY>/overlay/hit-test REUSE
+                      BlockContainer<BODY>/overlay SKIP
+                    BlockContainer<DIV>#boundary WALK
+                      BlockContainer<DIV>#boundary/background/hit-test RECORD
+                      BlockContainer<DIV>#boundary/scroll-metadata RECORD (empty)
+                      BlockContainer<DIV>#boundary/background SKIP
+                      BlockContainer<DIV>#boundary/border SKIP
+                      CanvasBox<CANVAS>#partial/descendants(background-and-borders) REUSE WHOLE CAPTURE
+                      CanvasBox<CANVAS>#partial/descendants(floats) REUSE WHOLE CAPTURE
+                      CanvasBox<CANVAS>#partial/descendants(inline-background-and-borders) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#boundary/foreground/hit-test RECORD (empty)
+                      BlockContainer<DIV>#boundary/foreground RECORD (empty)
+                      CanvasBox<CANVAS>#partial/descendants(foreground) REUSE WHOLE CAPTURE
+                      BlockContainer<DIV>#boundary/outline SKIP
+                      BlockContainer<DIV>#boundary/overlay/hit-test RECORD (empty)
+                      BlockContainer<DIV>#boundary/overlay SKIP
+                    BlockContainer<HTML>/outline SKIP
+                  @viewport/outline SKIP
+            `,
+        },
+    ],
+});
+</script>
