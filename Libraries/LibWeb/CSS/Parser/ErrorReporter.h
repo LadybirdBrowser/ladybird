@@ -42,17 +42,6 @@ struct InvalidPropertyError {
     }
 };
 
-struct InvalidValueError {
-    Utf16FlyString value_type;
-    String value_string;
-    String description;
-    bool operator==(InvalidValueError const&) const = default;
-    unsigned hash() const
-    {
-        return pair_int_hash(value_type.hash(), pair_int_hash(value_string.hash(), description.hash()));
-    }
-};
-
 struct InvalidRuleError {
     Utf16FlyString rule_name;
     Utf16String prelude;
@@ -92,7 +81,7 @@ struct SyntaxDiagnosticError {
     }
 };
 
-using ParsingError = Variant<UnknownPropertyError, UnknownRuleError, InvalidPropertyError, InvalidValueError, InvalidRuleError, InvalidRuleLocationError, SyntaxDiagnosticError>;
+using ParsingError = Variant<UnknownPropertyError, UnknownRuleError, InvalidPropertyError, InvalidRuleError, InvalidRuleLocationError, SyntaxDiagnosticError>;
 
 String serialize_parsing_error(ParsingError const&);
 
