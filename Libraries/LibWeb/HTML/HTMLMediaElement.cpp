@@ -2240,6 +2240,7 @@ void HTMLMediaElement::set_up_playback_manager_for_local()
 
     m_playback_manager->on_buffered_ranges_change = GC::weak_callback(*this, [](auto& self) {
         self.queue_a_media_element_task([](HTMLMediaElement& self) {
+            self.process_media_data(FetchingStatus::Ongoing);
             self.update_ready_state();
         });
     });
