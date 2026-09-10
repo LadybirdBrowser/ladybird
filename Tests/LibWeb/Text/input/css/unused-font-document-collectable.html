@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+promiseTest(async () => {
+    const fontBytes = await (await fetch("../../../Assets/HashSans.woff")).arrayBuffer();
+    async function makeRemovedDocument() {
+        const iframe = document.createElement("iframe");
+        const loaded = new Promise(resolve => iframe.onload = resolve);
+        iframe.srcdoc = `<!DOCTYPE html>
+            <style>
+                @font-face { font-family: Unused; src: url("data:font/woff;base64,AA=="); }
+                body { font: 20px monospace; }
+            </style>
+            <body>AAAA`;
+        document.body.append(iframe);
+        await loaded;
+        iframe.onload = null;
+        const preferred = new iframe.contentWindow.FontFace("Preferred", fontBytes);
+        await preferred.load();
+        iframe.contentDocument.fonts.add(preferred);
+        iframe.contentDocument.body.style.fontFamily = "Preferred, Unused, monospace";
+        // Populate the document-owned cascade while the first family covers every character.
+        iframe.contentDocument.body.getBoundingClientRect();
+        const face = [...iframe.contentDocument.fonts][0];
+        println(`unused face status: ${face.status}`);
+        // Preserve the wrappers so collection checks the native objects, not just disposable JS wrappers.
+        iframe.contentDocument.gcSentinel = true;
+        face.gcSentinel = true;
+        const weakDocument = new WeakRef(iframe.contentDocument);
+        const weakFace = new WeakRef(face);
+        iframe.remove();
+        // Release the parent's layout references to the removed iframe before collecting it.
+        document.body.getBoundingClientRect();
+        return { weakDocument, weakFace };
+    }
+    const { weakDocument, weakFace } = await makeRemovedDocument();
+    // Collect outside the creating JS job, after its locals and WeakRef kept-alive objects are released.
+    const maximumGcRoundsWhileIframeTeardownTasksDrain = 100;
+    for (let round = 0; round < maximumGcRoundsWhileIframeTeardownTasksDrain; ++round) {
+        await timeout(0);
+        await internals.gcAsync();
+        if (weakDocument.deref() === undefined && weakFace.deref() === undefined)
+            break;
+    }
+    println(`removed document collected: ${weakDocument.deref() === undefined}`);
+    println(`unused face collected: ${weakFace.deref() === undefined}`);
+});
+</script>
