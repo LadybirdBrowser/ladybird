@@ -213,7 +213,7 @@ pub(crate) fn glyph_run_emission(
     fragment_absolute_rect: CssPixelRect,
     scale: f64,
 ) -> GlyphRunEmission {
-    let blob_bounds = run.bounding_box(scale as f32);
+    let bounds = run.bounding_box;
     let baseline_start = FloatPoint {
         x: (fragment_absolute_rect.x.to_float() as f64 * scale) as f32,
         y: ((fragment_absolute_rect.y.to_float() + fragment.baseline.to_float()) as f64 * scale) as f32,
@@ -224,10 +224,10 @@ pub(crate) fn glyph_run_emission(
         Orientation::Vertical
     };
     let glyph_bounding_rect = IntRect::new(
-        (blob_bounds[0] + baseline_start.x).round_ties_even() as i32,
-        (blob_bounds[1] + baseline_start.y).round_ties_even() as i32,
-        blob_bounds[2].round_ties_even() as i32,
-        blob_bounds[3].round_ties_even() as i32,
+        (bounds.x * scale as f32 + baseline_start.x).round_ties_even() as i32,
+        (bounds.y * scale as f32 + baseline_start.y).round_ties_even() as i32,
+        (bounds.width * scale as f32).round_ties_even() as i32,
+        (bounds.height * scale as f32).round_ties_even() as i32,
     );
     GlyphRunEmission {
         glyphs: glyphs_of(run),

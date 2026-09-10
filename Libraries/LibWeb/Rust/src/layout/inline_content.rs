@@ -70,13 +70,11 @@ impl LineRecord {
 pub struct GlyphRunRecord {
     pub glyphs: Vec<libgfx_rust::text_layout::DrawGlyph>,
     pub font: libgfx_rust::font::FontHandle,
+    // Conservative painted bounds in CSS pixels, relative to the run's baseline origin.
+    pub bounding_box: libgfx_rust::FloatRect,
 }
 
 impl GlyphRunRecord {
-    pub fn bounding_box(&self, scale: f32) -> [f32; 4] {
-        libgfx_rust::text_layout::glyph_run_bounding_box(&self.font, &self.glyphs, scale)
-    }
-
     pub fn glyph_intercepts(&self, scale: f32, y_top: f32, y_bottom: f32) -> Vec<f32> {
         libgfx_rust::text_layout::glyph_run_glyph_intercepts(&self.font, &self.glyphs, scale, y_top, y_bottom)
     }
@@ -154,9 +152,13 @@ impl InlineContent {
                     continue;
                 }
                 fragment.record.glyph_run = fragment.glyphs.take().map(|glyph_data| {
+                    let bounding_box = libgfx_rust::FloatRect::from_array(
+                        libgfx_rust::text_layout::glyph_run_bounding_box(&glyph_data.font, &glyph_data.glyphs, 1.0),
+                    );
                     Rc::new(GlyphRunRecord {
                         glyphs: glyph_data.glyphs,
                         font: glyph_data.font,
+                        bounding_box,
                     })
                 });
                 fragment.record.line_index = line_index as u32;
