@@ -174,11 +174,6 @@ public:
     JS_ENUMERATE_WELL_KNOWN_SYMBOLS
 #undef __JS_ENUMERATE
 
-    HashMap<Utf16String, GC::Ptr<PrimitiveString>>& utf16_string_cache()
-    {
-        return m_utf16_string_cache;
-    }
-
     Bytecode::KeyedPropertyLookupCache& keyed_property_lookup_cache() { return *m_keyed_property_lookup_cache; }
 
     struct StringToAtomCacheEntry {
@@ -187,6 +182,7 @@ public:
     };
 
     auto& string_to_atom_cache() { return m_string_to_atom_cache; }
+    auto& fly_string_cache() { return m_fly_string_cache; }
     auto& numeric_string_cache() { return m_numeric_string_cache; }
 
     PrimitiveString& empty_string() { return *m_empty_string; }
@@ -586,11 +582,13 @@ private:
 
     static VM* s_the;
 
-    HashMap<Utf16String, GC::Ptr<PrimitiveString>> m_utf16_string_cache;
     OwnPtr<Bytecode::KeyedPropertyLookupCache> m_keyed_property_lookup_cache;
 
     static constexpr size_t string_to_atom_cache_size = 2;
     AK::Array<StringToAtomCacheEntry, string_to_atom_cache_size> m_string_to_atom_cache;
+
+    static constexpr size_t fly_string_cache_size = 1024;
+    AK::Array<GC::Ptr<PrimitiveString>, fly_string_cache_size> m_fly_string_cache;
 
     static constexpr size_t numeric_string_cache_size = 1000;
     AK::Array<GC::Ptr<PrimitiveString>, numeric_string_cache_size> m_numeric_string_cache;

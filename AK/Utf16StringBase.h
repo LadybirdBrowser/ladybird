@@ -294,6 +294,8 @@ public:
         return !data || data->is_fly_string();
     }
 
+    [[nodiscard]] constexpr FlatPtr raw_identity() const { return raw(); }
+
     // This is primarily interesting to unit tests.
     [[nodiscard]] ALWAYS_INLINE bool has_long_ascii_storage() const
     {
