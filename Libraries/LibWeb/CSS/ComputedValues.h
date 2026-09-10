@@ -38,7 +38,6 @@
 #include <LibWeb/CSS/StyleRecordID.h>
 #include <LibWeb/CSS/StyleStructRef.h>
 #include <LibWeb/CSS/StyleValues/AbstractImageStyleValue.h>
-#include <LibWeb/CSS/StyleValues/BasicShapeStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
 #include <LibWeb/CSS/StyleValues/CursorStyleValue.h>
 #include <LibWeb/CSS/StyleValues/FilterStyleValue.h>
@@ -235,14 +234,6 @@ struct AnimationTimelineData {
     ViewTimelineInsetData inset;
 
     bool operator==(AnimationTimelineData const&) const = default;
-};
-
-struct ShapeOutsideData {
-    Variant<Empty, URL, NonnullRefPtr<AbstractImageStyleValue const>> image;
-    RefPtr<BasicShapeStyleValue const> basic_shape;
-    Optional<ShapeBox> shape_box;
-
-    bool operator==(ShapeOutsideData const&) const = default;
 };
 
 struct GridAutoFlow {
@@ -592,7 +583,6 @@ public:
     static Resize resize() { return Resize::None; }
     static double shape_image_threshold() { return 0; }
     static LengthPercentage shape_margin() { return Length::make_px(0); }
-    static ShapeOutsideData shape_outside() { return {}; }
     static ShapeRendering shape_rendering() { return ShapeRendering::Auto; }
     static PaintOrderList paint_order() { return { PaintOrder::Fill, PaintOrder::Stroke, PaintOrder::Markers }; }
     static WillChange will_change() { return WillChange::make_auto(); }
@@ -669,36 +659,6 @@ public:
 
 private:
     URL m_url;
-};
-
-// https://drafts.fxtf.org/css-masking/#the-clip-path
-// TODO: Support clip sources.
-class ClipPathReference {
-public:
-    ClipPathReference(URL const& url)
-        : m_clip_source(url)
-    {
-    }
-
-    ClipPathReference(BasicShapeStyleValue const& basic_shape)
-        : m_clip_source(basic_shape)
-    {
-    }
-
-    bool is_basic_shape() const { return m_clip_source.has<BasicShape>(); }
-
-    bool is_url() const { return m_clip_source.has<URL>(); }
-
-    URL const& url() const { return m_clip_source.get<URL>(); }
-
-    BasicShapeStyleValue const& basic_shape() const { return *m_clip_source.get<BasicShape>(); }
-
-    bool operator==(ClipPathReference const&) const = default;
-
-private:
-    using BasicShape = NonnullRefPtr<BasicShapeStyleValue const>;
-
-    Variant<URL, BasicShape> m_clip_source;
 };
 
 struct BackgroundLayerData {
@@ -1354,7 +1314,7 @@ public:
 
     RefPtr<AbstractImageStyleValue const> mask_image() const { return m_noninherited.mask_data->mask_image_value(); }
     Optional<MaskReference> mask() const { return m_noninherited.mask_data->mask_value(); }
-    Optional<ClipPathReference> clip_path() const { return m_noninherited.mask_data->clip_path_value(); }
+    Optional<URL> clip_path() const { return m_noninherited.mask_data->clip_path_value(); }
     Optional<SVGPaint> stroke() const { return m_inherited.svg->stroke_value(); }
     Color flood_color() const { return Gfx::Color::from_bgra(m_noninherited.svg_reset->flood_color); }
     float flood_opacity() const { return m_noninherited.svg_reset->flood_opacity; }
@@ -1767,7 +1727,9 @@ public:
         MaskType mask_type_value() const;
         RefPtr<AbstractImageStyleValue const> mask_image_value() const;
         Vector<BackgroundLayerData> mask_layers_value() const;
-        Optional<ClipPathReference> clip_path_value() const;
+        // https://drafts.fxtf.org/css-masking/#the-clip-path
+        // TODO: Support basic shapes and geometry boxes.
+        Optional<URL> clip_path_value() const;
 
         bool operator==(MaskValues const& other) const
         {

@@ -91,10 +91,10 @@ GC::Ptr<SVG::SVGMaskElement const> SVGGraphicsElement::mask() const
 GC::Ptr<SVG::SVGClipPathElement const> SVGGraphicsElement::clip_path() const
 {
     // NB: unsafe_layout_node() because this is called during painting to resolve SVG references.
-    auto const& clip_path_reference = unsafe_layout_node()->clip_path();
-    if (!clip_path_reference.has_value() || !clip_path_reference->is_url())
+    auto const& clip_path = unsafe_layout_node()->clip_path();
+    if (!clip_path.has_value())
         return {};
-    return try_resolve_url_to<SVG::SVGClipPathElement const>(clip_path_reference->url());
+    return try_resolve_url_to<SVG::SVGClipPathElement const>(*clip_path);
 }
 
 GC::Ptr<SVG::SVGPatternElement const> SVGGraphicsElement::fill_pattern() const

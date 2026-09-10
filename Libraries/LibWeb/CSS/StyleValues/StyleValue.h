@@ -42,7 +42,7 @@ WEB_API Utf16FlyString css_string_from_rust(void const*);
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(AnchorSize, anchor_size, StyleValue)                                          \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Angle, angle, AngleStyleValue)                                                \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(BackgroundSize, background_size, BackgroundSizeStyleValue)                    \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(BasicShape, basic_shape, BasicShapeStyleValue)                                \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(BasicShape, basic_shape, StyleValue)                                          \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(BorderImageSlice, border_image_slice, BorderImageSliceStyleValue)             \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(BorderRadius, border_radius, BorderRadiusStyleValue)                          \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(BorderRadiusRect, border_radius_rect, BorderRadiusRectStyleValue)             \
