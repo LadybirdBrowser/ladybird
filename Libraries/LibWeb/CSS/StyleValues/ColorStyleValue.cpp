@@ -80,7 +80,6 @@ Optional<Color> ColorStyleValue::to_color(ColorResolutionContext color_resolutio
     }
     switch (m_value->tag) {
     case StyleValueFFI::StyleValueData::Tag::ColorFunction:
-        return static_cast<ColorFunctionStyleValue const&>(*this).to_color(color_resolution_context);
     case StyleValueFFI::StyleValueData::Tag::ColorMix:
         return {};
     case StyleValueFFI::StyleValueData::Tag::ContrastColor:
