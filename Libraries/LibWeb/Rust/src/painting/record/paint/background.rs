@@ -670,7 +670,7 @@ fn paint_image_layer<O: Observer>(
                 (dest_rect.width, dest_rect.height),
                 (dest_rect.width, dest_rect.height),
             );
-            let display_list_id = recorder.vector_image_placeholder(
+            let display_list_id = recorder.resources.vector_image_placeholder(
                 crate::painting::record::vector_images::VectorImageRenderRequest::new(
                     vector_image_source,
                     CssPixels::from_integer(i64::from(dest_rect.width)),

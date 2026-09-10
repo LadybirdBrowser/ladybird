@@ -11,6 +11,7 @@ pub mod cache;
 pub mod hit_test_items;
 pub mod paint;
 pub(crate) mod publish;
+pub(crate) mod resources;
 pub(crate) mod scratch;
 pub mod svg_resources;
 pub mod trace;
@@ -33,7 +34,7 @@ use crate::painting::paintable_rows::PaintableRowsRef;
 use crate::painting::record::cache::{OpenCapture, RecordGen};
 use crate::painting::record::svg_resources::SvgResourceWalk;
 use std::cell::RefCell;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::rc::Rc;
 
 #[derive(Clone, Copy)]
@@ -86,10 +87,6 @@ pub struct RecordingOutput {
     pub wheel_event_listener_state_generation: u64,
     pub is_identical_to_cache_source: bool,
     pub(crate) capture_log_for_verification: Option<verify::CaptureLog>,
-    pub(crate) newly_referenced_fonts: Vec<libgfx_rust::font::FontHandle>,
-    pub(crate) newly_referenced_image_frames: Vec<libgfx_rust::image_frame::ImageFrameHandle>,
-    pub(crate) vector_image_render_requests: Vec<vector_images::VectorImageRenderRequest>,
-    pub(crate) newly_referenced_video_sinks: Vec<(u64, u64)>,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -137,14 +134,7 @@ pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) completed_record_gen: RecordGen,
     pub(crate) all_paint_caches_dirty: bool,
     pub(crate) all_descendant_subtree_caches_dirty: bool,
-    registered_font_ids: HashSet<libgfx_rust::font::FontId>,
-    newly_referenced_fonts: Vec<libgfx_rust::font::FontHandle>,
-    registered_image_frame_ids: HashSet<u64>,
-    newly_referenced_image_frames: Vec<libgfx_rust::image_frame::ImageFrameHandle>,
-    vector_image_render_requests: Vec<vector_images::VectorImageRenderRequest>,
-    vector_image_request_indices: HashMap<vector_images::VectorImageRenderRequest, u32>,
-    registered_video_sink_ids: HashSet<u64>,
-    newly_referenced_video_sinks: Vec<(u64, u64)>,
+    pub(crate) resources: resources::RecordingResourceManifest,
     selection_style_cache: HashMap<u32, Rc<paint::text::SelectionStyleAnswer>>,
     pub(crate) wheel_hit_test_target_cache: HashMap<NodeSlotId, SpatialNodeIndex>,
 }
@@ -185,20 +175,14 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     pub(crate) fn register_font(&mut self, font: &libgfx_rust::font::FontHandle) -> u64 {
-        if self.registered_font_ids.insert(font.id()) {
-            self.newly_referenced_fonts.push(font.clone());
-        }
-        font.id().0
+        self.resources.note_font(font)
     }
 
     pub(crate) fn register_image_frame(
         &mut self,
         frame: &libgfx_rust::image_frame::ImageFrameHandle,
     ) -> crate::painting::display_list::commands::ImageFrameResourceId {
-        if self.registered_image_frame_ids.insert(frame.id()) {
-            self.newly_referenced_image_frames.push(frame.clone());
-        }
-        crate::painting::display_list::commands::ImageFrameResourceId(frame.id())
+        self.resources.note_image_frame(frame)
     }
 
     pub(crate) fn register_video_sink(
@@ -206,24 +190,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         resource_id: u64,
         sink_handle: u64,
     ) -> crate::painting::display_list::commands::VideoSinkResourceId {
-        if self.registered_video_sink_ids.insert(resource_id) {
-            self.newly_referenced_video_sinks.push((resource_id, sink_handle));
-        }
-        crate::painting::display_list::commands::VideoSinkResourceId(resource_id)
-    }
-
-    pub(crate) fn vector_image_placeholder(
-        &mut self,
-        request: vector_images::VectorImageRenderRequest,
-    ) -> crate::painting::display_list::commands::DisplayListResourceId {
-        let next_index = self.vector_image_render_requests.len() as u32;
-        let index = *self.vector_image_request_indices.entry(request).or_insert_with(|| {
-            self.vector_image_render_requests.push(request);
-            next_index
-        });
-        crate::painting::display_list::commands::DisplayListResourceId(
-            vector_images::VECTOR_IMAGE_PLACEHOLDER_TAG | u64::from(index),
-        )
+        self.resources.note_video_sink(resource_id, sink_handle)
     }
 
     pub(crate) fn paint_vector_image(
@@ -236,12 +203,14 @@ impl<O: Observer> PaintRecorder<'_, O> {
     ) {
         use libgfx_rust::CompositingAndBlendingOperator;
         let geometry = vector_images::vector_image_render_geometry(dest_rect, accumulated_scale, has_active_view_box);
-        let display_list_id = self.vector_image_placeholder(vector_images::VectorImageRenderRequest::new(
-            source,
-            geometry.css_width,
-            geometry.css_height,
-            geometry.raster_scale,
-        ));
+        let display_list_id = self
+            .resources
+            .vector_image_placeholder(vector_images::VectorImageRenderRequest::new(
+                source,
+                geometry.css_width,
+                geometry.css_height,
+                geometry.raster_scale,
+            ));
         if compositing_and_blending_operator != CompositingAndBlendingOperator::Normal {
             let dest_device_rect = libgfx_rust::enclosing_int_rect(dest_rect);
             if dest_device_rect.is_empty() {
