@@ -1052,19 +1052,6 @@ pub struct FfiBoxModelMetrics {
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_offset(arena: *mut c_void, slot: NodeSlotId) -> FfiCssPixelPoint {
-    let arena = unsafe { arena_from_handle(arena) };
-    let paintable_rows = arena.paintable_rows();
-    if !paintable_rows.paintable_row_is_populated(slot) {
-        return FfiCssPixelPoint::default();
-    }
-    crate::painting::paintable_geometry::committed_offset(&paintable_rows, slot)
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_paintable_content_size(arena: *mut c_void, slot: NodeSlotId) -> FfiCssPixelSize {
     let arena = unsafe { arena_from_handle(arena) };
     let paintable_rows = arena.paintable_rows();
