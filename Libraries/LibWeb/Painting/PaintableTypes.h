@@ -6,26 +6,13 @@
 
 #pragma once
 
-#include <AK/Optional.h>
-#include <AK/Vector.h>
-#include <LibGfx/Color.h>
-#include <LibWeb/Forward.h>
-#include <LibWeb/PixelUnits.h>
+#include <AK/Types.h>
 
 namespace Web::Painting {
 
 enum class PaintCommandCacheMode : u8 {
     ReadOnly,
     ReadWrite,
-};
-
-enum class PaintPhase {
-    Background,
-    Border,
-    TableCollapsedBorder,
-    Foreground,
-    Outline,
-    Overlay,
 };
 
 enum class SelectionState : u8 {
