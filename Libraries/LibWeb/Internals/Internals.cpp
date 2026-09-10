@@ -1826,6 +1826,11 @@ WebIDL::UnsignedLongLong Internals::active_timer_count(JS::Object& object)
     return 0;
 }
 
+WebIDL::UnsignedLongLong Internals::task_queue_length()
+{
+    return HTML::main_thread_event_loop().task_queue().size_slow();
+}
+
 Utf16String Internals::canvas_color_scheme()
 {
     auto& document = window().associated_document();

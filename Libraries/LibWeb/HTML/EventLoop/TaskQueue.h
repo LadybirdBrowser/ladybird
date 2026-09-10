@@ -20,6 +20,7 @@ public:
     virtual ~TaskQueue() override;
 
     bool is_empty() const { return m_tasks.is_empty() && m_idle_tasks.is_empty(); }
+    size_t size_slow() const { return m_tasks.size_slow() + m_idle_tasks.size_slow(); }
 
     bool has_runnable_tasks() const;
     bool has_rendering_tasks() const;

@@ -38,6 +38,13 @@ void TaskQueue::add(GC::Ref<Task> task)
     if (task->document() && task->document()->is_temporary_document_for_fragment_parsing())
         return;
 
+    // AD-HOC: Don't enqueue a task for a destroyed document either: "destroy a document" removes the document's
+    //         tasks from every task queue, and a destroyed document is never fully active again, so a task queued
+    //         for it afterwards could never run. It would only sit in the queue — and queuing it wakes the event
+    //         loop, which then scans the whole queue for a runnable task, but finds none.
+    if (task->document() && task->document()->has_been_destroyed())
+        return;
+
     m_last_added_task = task.ptr();
     if (task->priority() == Task::Priority::Idle)
         m_idle_tasks.append(*task);
