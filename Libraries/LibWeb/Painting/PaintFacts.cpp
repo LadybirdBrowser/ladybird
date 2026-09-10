@@ -110,26 +110,45 @@ void reconcile_navigable_container_paint_facts(DOM::Document const& document)
     }
 }
 
-static Layout::RustFFI::FfiLayerImagePaintFacts layer_image_paint_facts_for(CSS::AbstractImageStyleValue const& image, GC::Ptr<HTML::DecodedImageData> decoded_image_data)
+static Layout::RustFFI::FfiNaturalSize natural_size_facts(Optional<CSSPixels> width, Optional<CSSPixels> height, Optional<CSSPixelFraction> aspect_ratio)
+{
+    Layout::RustFFI::FfiNaturalSize natural {};
+    natural.width = width;
+    natural.height = height;
+    if (aspect_ratio.has_value()) {
+        natural.has_aspect_ratio = true;
+        natural.aspect_ratio_numerator = aspect_ratio->numerator();
+        natural.aspect_ratio_denominator = aspect_ratio->denominator();
+    }
+    return natural;
+}
+
+static Layout::RustFFI::FfiImageContent image_content_facts(GC::Ptr<HTML::DecodedImageData> decoded_image_data, Optional<Gfx::DecodedImageFrame>& current_frame_storage)
+{
+    Layout::RustFFI::FfiImageContent content {};
+    if (!decoded_image_data)
+        return content;
+    if (auto const* svg_image_data = as_if<SVG::SVGDecodedImageData>(*decoded_image_data)) {
+        content.kind = Layout::RustFFI::FfiImageContentKind::Vector;
+        content.vector_content_identity = svg_image_data->vector_content_identity();
+        content.vector_has_active_view_box = svg_image_data->has_active_view_box();
+        return content;
+    }
+    content.kind = Layout::RustFFI::FfiImageContentKind::Raster;
+    current_frame_storage = decoded_image_data->current_frame();
+    if (current_frame_storage.has_value())
+        content.frame = &current_frame_storage.value();
+    return content;
+}
+
+static Layout::RustFFI::FfiLayerImagePaintFacts layer_image_paint_facts_for(CSS::AbstractImageStyleValue const& image, GC::Ptr<HTML::DecodedImageData> decoded_image_data, Optional<Gfx::DecodedImageFrame>& current_frame_storage)
 {
     Layout::RustFFI::FfiLayerImagePaintFacts facts {};
     facts.is_paintable = image.is_paintable(decoded_image_data);
+    facts.content = image_content_facts(decoded_image_data, current_frame_storage);
     if (decoded_image_data) {
         auto natural_size = image.natural_size(*decoded_image_data);
-        facts.natural_width = natural_size.width;
-        facts.natural_height = natural_size.height;
-        if (natural_size.aspect_ratio.has_value()) {
-            facts.has_natural_aspect_ratio = true;
-            facts.natural_aspect_ratio_numerator = natural_size.aspect_ratio->numerator();
-            facts.natural_aspect_ratio_denominator = natural_size.aspect_ratio->denominator();
-        }
-        if (auto const* svg_image_data = as_if<SVG::SVGDecodedImageData>(*decoded_image_data)) {
-            facts.content_kind = Layout::RustFFI::FfiImageContentKind::Vector;
-            facts.vector_content_identity = svg_image_data->vector_content_identity();
-            facts.vector_has_active_view_box = svg_image_data->has_active_view_box();
-        } else {
-            facts.content_kind = Layout::RustFFI::FfiImageContentKind::Raster;
-        }
+        facts.natural = natural_size_facts(natural_size.width, natural_size.height, natural_size.aspect_ratio);
         facts.single_pixel_color = decoded_image_data->color_if_single_pixel_bitmap();
     }
     if (auto const* image_set = as_if<CSS::ImageSetStyleValue>(image)) {
@@ -150,33 +169,26 @@ static GC::Ptr<HTML::DecodedImageData> decoded_image_data_of(Layout::NodeWithSty
 
 void push_layer_image_paint_facts(Layout::NodeWithStyle const& layout_node)
 {
+    auto const& background_layers = layout_node.background_layers();
+    auto const& mask_layers = layout_node.mask_layers();
     Vector<Layout::RustFFI::FfiLayerImagePaintFactsEntry> entries;
     Vector<Optional<Gfx::DecodedImageFrame>> current_frames;
+    current_frames.ensure_capacity(background_layers.size() + mask_layers.size() + 1);
     auto append_entry = [&](Layout::RustFFI::FfiLayerImageList list, size_t computed_index, CSS::AbstractImageStyleValue const* image, Layout::NodeWithStyle::ImageObserver const* observer) {
         if (!image)
             return;
-        auto decoded_image_data = decoded_image_data_of(observer);
+        current_frames.append({});
         entries.append({
             .list = list,
             .computed_index = static_cast<u32>(computed_index),
-            .facts = layer_image_paint_facts_for(*image, decoded_image_data),
+            .facts = layer_image_paint_facts_for(*image, decoded_image_data_of(observer), current_frames.last()),
         });
-        Optional<Gfx::DecodedImageFrame> current_frame;
-        if (entries.last().facts.content_kind == Layout::RustFFI::FfiImageContentKind::Raster)
-            current_frame = decoded_image_data->current_frame();
-        current_frames.append(move(current_frame));
     };
-    auto const& background_layers = layout_node.background_layers();
     for (size_t layer_index = 0; layer_index < background_layers.size(); ++layer_index)
         append_entry(Layout::RustFFI::FfiLayerImageList::Background, layer_index, background_layers[layer_index].background_image.ptr(), layout_node.background_image_observer(layer_index));
-    auto const& mask_layers = layout_node.mask_layers();
     for (size_t layer_index = 0; layer_index < mask_layers.size(); ++layer_index)
         append_entry(Layout::RustFFI::FfiLayerImageList::Mask, layer_index, mask_layers[layer_index].background_image.ptr(), layout_node.mask_image_observer(layer_index));
     append_entry(Layout::RustFFI::FfiLayerImageList::BorderImageSource, 0, layout_node.border_image().source.ptr(), layout_node.border_image_source_observer());
-    for (size_t entry_index = 0; entry_index < entries.size(); ++entry_index) {
-        if (current_frames[entry_index].has_value())
-            entries[entry_index].facts.frame = &current_frames[entry_index].value();
-    }
     Layout::RustFFI::layout_arena_set_layer_image_paint_facts(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node), entries.data(), entries.size());
 }
 
@@ -184,29 +196,11 @@ bool push_replaced_image_paint_facts(Layout::ImageProvider const& image_provider
 {
     if (layout_node.kind() != Layout::RustFFI::NodeKind::ImageBox && layout_node.kind() != Layout::RustFFI::NodeKind::SVGImageBox)
         return false;
-    Layout::RustFFI::FfiReplacedImagePaintFacts facts {};
-    auto decoded_image_data = image_provider.decoded_image_data();
-    facts.has_decoded_image_data = decoded_image_data != nullptr;
-    facts.natural_width = image_provider.intrinsic_width();
-    facts.natural_height = image_provider.intrinsic_height();
-    if (auto aspect_ratio = image_provider.intrinsic_aspect_ratio(); aspect_ratio.has_value()) {
-        facts.has_natural_aspect_ratio = true;
-        facts.natural_aspect_ratio_numerator = aspect_ratio->numerator();
-        facts.natural_aspect_ratio_denominator = aspect_ratio->denominator();
-    }
     Optional<Gfx::DecodedImageFrame> current_frame;
-    if (decoded_image_data) {
-        if (auto const* svg_image_data = as_if<SVG::SVGDecodedImageData>(*decoded_image_data)) {
-            facts.content_kind = Layout::RustFFI::FfiImageContentKind::Vector;
-            facts.vector_content_identity = svg_image_data->vector_content_identity();
-            facts.vector_has_active_view_box = svg_image_data->has_active_view_box();
-        } else {
-            facts.content_kind = Layout::RustFFI::FfiImageContentKind::Raster;
-            current_frame = decoded_image_data->current_frame();
-            if (current_frame.has_value())
-                facts.frame = &current_frame.value();
-        }
-    }
+    Layout::RustFFI::FfiReplacedImagePaintFacts facts {
+        .natural = natural_size_facts(image_provider.intrinsic_width(), image_provider.intrinsic_height(), image_provider.intrinsic_aspect_ratio()),
+        .content = image_content_facts(image_provider.decoded_image_data(), current_frame),
+    };
     return Layout::RustFFI::layout_arena_set_replaced_image_paint_facts(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node), facts);
 }
 

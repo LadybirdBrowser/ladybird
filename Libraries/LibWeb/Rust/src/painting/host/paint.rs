@@ -159,19 +159,31 @@ pub enum FfiImageContentKind {
 
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
-pub struct FfiLayerImagePaintFacts {
-    pub is_paintable: bool,
-    pub natural_width: used_values::OptionalCssPixels,
-    pub natural_height: used_values::OptionalCssPixels,
-    pub has_natural_aspect_ratio: bool,
-    pub natural_aspect_ratio_numerator: crate::css::css_pixels::CssPixels,
-    pub natural_aspect_ratio_denominator: crate::css::css_pixels::CssPixels,
-    pub has_image_set_selected_option: bool,
-    pub image_set_selected_option_index: u32,
-    pub content_kind: FfiImageContentKind,
+pub struct FfiNaturalSize {
+    pub width: used_values::OptionalCssPixels,
+    pub height: used_values::OptionalCssPixels,
+    pub has_aspect_ratio: bool,
+    pub aspect_ratio_numerator: crate::css::css_pixels::CssPixels,
+    pub aspect_ratio_denominator: crate::css::css_pixels::CssPixels,
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiImageContent {
+    pub kind: FfiImageContentKind,
     pub vector_content_identity: u64,
     pub vector_has_active_view_box: bool,
     pub frame: *const c_void,
+}
+
+#[derive(Clone, Copy, Debug)]
+#[repr(C)]
+pub struct FfiLayerImagePaintFacts {
+    pub is_paintable: bool,
+    pub natural: FfiNaturalSize,
+    pub has_image_set_selected_option: bool,
+    pub image_set_selected_option_index: u32,
+    pub content: FfiImageContent,
     pub single_pixel_color: OptionalColor,
 }
 
@@ -195,16 +207,8 @@ pub enum FfiVideoRepresentation {
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiReplacedImagePaintFacts {
-    pub has_decoded_image_data: bool,
-    pub natural_width: used_values::OptionalCssPixels,
-    pub natural_height: used_values::OptionalCssPixels,
-    pub has_natural_aspect_ratio: bool,
-    pub natural_aspect_ratio_numerator: crate::css::css_pixels::CssPixels,
-    pub natural_aspect_ratio_denominator: crate::css::css_pixels::CssPixels,
-    pub content_kind: FfiImageContentKind,
-    pub vector_content_identity: u64,
-    pub vector_has_active_view_box: bool,
-    pub frame: *const c_void,
+    pub natural: FfiNaturalSize,
+    pub content: FfiImageContent,
 }
 
 #[derive(Clone, Copy, Debug)]

@@ -4,13 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
-use crate::css::css_pixels::CssPixels;
-use crate::layout::used_values::OptionalCssPixels;
 use crate::painting::host::{
     FfiCanvasPaintFacts, FfiFormControlPaintFacts, FfiNavigableContainerPaintFacts, FfiReplacedImagePaintFacts,
     FfiVideoPaintFacts, FfiVideoRepresentation,
 };
 use crate::painting::image_content::ImageContent;
+use crate::painting::record::paint::replaced::SizeWithAspectRatio;
 use libgfx_rust::image_frame::ImageFrameHandle;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -56,34 +55,18 @@ impl VideoPaintFacts {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub(crate) struct ImagePaintFacts {
-    pub has_decoded_image_data: bool,
-    pub natural_width: OptionalCssPixels,
-    pub natural_height: OptionalCssPixels,
-    pub natural_aspect_ratio: Option<(CssPixels, CssPixels)>,
+    pub natural: SizeWithAspectRatio,
     pub content: ImageContent,
 }
 
 impl ImagePaintFacts {
     /// # Safety
     ///
-    /// `facts.frame` must be null or point to a live `Gfx::DecodedImageFrame`.
+    /// `facts.content.frame` must be null or point to a live `Gfx::DecodedImageFrame`.
     pub(crate) unsafe fn from_ffi(facts: &FfiReplacedImagePaintFacts) -> Self {
         Self {
-            has_decoded_image_data: facts.has_decoded_image_data,
-            natural_width: facts.natural_width,
-            natural_height: facts.natural_height,
-            natural_aspect_ratio: facts.has_natural_aspect_ratio.then_some((
-                facts.natural_aspect_ratio_numerator,
-                facts.natural_aspect_ratio_denominator,
-            )),
-            content: unsafe {
-                ImageContent::from_ffi(
-                    facts.content_kind,
-                    facts.frame,
-                    facts.vector_content_identity,
-                    facts.vector_has_active_view_box,
-                )
-            },
+            natural: SizeWithAspectRatio::from_ffi(&facts.natural),
+            content: unsafe { ImageContent::from_ffi(&facts.content) },
         }
     }
 }

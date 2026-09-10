@@ -21,7 +21,7 @@ use crate::painting::paintable_geometry::{
 use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::record::PaintRecorder;
 use crate::painting::record::paint::background::{BackgroundBox, background_box_for};
-use crate::painting::record::paint::replaced::{Fraction, SizeWithAspectRatio, run_default_sizing_algorithm};
+use crate::painting::record::paint::replaced::{SizeWithAspectRatio, run_default_sizing_algorithm};
 use crate::painting::style_queries;
 use crate::painting::visual_context::node_values::{
     border_radii_data, mix_blend_mode_to_compositing_and_blending_operator,
@@ -656,13 +656,7 @@ fn layer_image_intrinsics<'a, O: Observer>(
             };
             LayerImageIntrinsics {
                 is_paintable: facts.is_paintable,
-                natural: SizeWithAspectRatio {
-                    width: facts.natural_width.has_value.then_some(facts.natural_width.value),
-                    height: facts.natural_height.has_value.then_some(facts.natural_height.value),
-                    aspect_ratio: facts
-                        .natural_aspect_ratio
-                        .map(|(numerator, denominator)| Fraction { numerator, denominator }),
-                },
+                natural: facts.natural,
                 selected_image_value,
             }
         }
