@@ -13,12 +13,18 @@ function(ladybird_generated_sources target_name)
 endfunction()
 
 function(ladybird_testjs_test test_src sub_dir)
-    cmake_parse_arguments(PARSE_ARGV 2 LADYBIRD_TEST "" "CUSTOM_MAIN" "LIBS")
+    cmake_parse_arguments(PARSE_ARGV 2 LADYBIRD_TEST "NO_TEST" "CUSTOM_MAIN;NAME" "LIBS")
     if ("${LADYBIRD_TEST_CUSTOM_MAIN}" STREQUAL "")
         set(LADYBIRD_TEST_CUSTOM_MAIN "$<TARGET_OBJECTS:JavaScriptTestRunnerMain>")
     endif()
     list(APPEND LADYBIRD_TEST_LIBS LibJS LibCore LibFileSystem)
+    set(test_options)
+    if (LADYBIRD_TEST_NO_TEST)
+        list(APPEND test_options NO_TEST)
+    endif()
     ladybird_test(${test_src} ${sub_dir}
+        ${test_options}
+        NAME "${LADYBIRD_TEST_NAME}"
         CUSTOM_MAIN "${LADYBIRD_TEST_CUSTOM_MAIN}"
         LIBS ${LADYBIRD_TEST_LIBS})
 endfunction()

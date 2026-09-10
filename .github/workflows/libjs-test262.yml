@@ -82,7 +82,7 @@ jobs:
       - name: Warm up the Rust toolchain
         run: rustup toolchain install
 
-      - name: Build test262-runner, test-js, test-wasm and test-js-bytecode
+      - name: Build test262-runner, test-js, and test-wasm
         run: |
           cmake --preset Release -B libjs-test262/Build \
             -DCMAKE_C_COMPILER=clang \
@@ -90,7 +90,7 @@ jobs:
             -DWASM_SPEC_TEST_SKIP_FORMATTING=ON \
             -DINCLUDE_WASM_SPEC_TESTS=ON \
             -DENABLE_GUI_TARGETS=OFF
-          ninja -C libjs-test262/Build test262-runner test-js test-wasm test-js-bytecode
+          ninja -C libjs-test262/Build test262-runner test-js test-wasm
 
       - name: Save Caches
         uses: ./.github/actions/cache-save

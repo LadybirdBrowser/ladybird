@@ -145,7 +145,7 @@ function(ladybird_lib name fs_name)
 endfunction()
 
 function(ladybird_test test_src sub_dir)
-    cmake_parse_arguments(PARSE_ARGV 2 LADYBIRD_TEST "" "CUSTOM_MAIN;NAME" "LIBS")
+    cmake_parse_arguments(PARSE_ARGV 2 LADYBIRD_TEST "NO_TEST" "CUSTOM_MAIN;NAME" "LIBS")
     if (NOT LADYBIRD_TEST_NAME)
         get_filename_component(LADYBIRD_TEST_NAME ${test_src} NAME_WE)
     endif()
@@ -165,11 +165,13 @@ function(ladybird_test test_src sub_dir)
         target_link_libraries(${LADYBIRD_TEST_NAME} PRIVATE ${MMAN_LIBRARY})
     endif()
 
-    add_test(
+    if (NOT LADYBIRD_TEST_NO_TEST)
+        add_test(
             NAME ${LADYBIRD_TEST_NAME}
             COMMAND ${LADYBIRD_TEST_NAME}
             WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
-    )
+        )
+    endif()
 endfunction()
 
 function(ladybird_utility name)

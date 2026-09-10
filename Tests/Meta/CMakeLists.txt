@@ -25,4 +25,13 @@ if (NOT WIN32)
     )
     add_test(NAME test-lint-environment COMMAND "${Python3_EXECUTABLE}" "${CMAKE_BINARY_DIR}/bin/test-lint-environment.py")
     set_tests_properties(test-lint-environment PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
+
+    add_custom_target(test-js-runner ALL DEPENDS "${CMAKE_BINARY_DIR}/bin/test-js-runner.py")
+    add_custom_command(
+        OUTPUT "${CMAKE_BINARY_DIR}/bin/test-js-runner.py"
+        COMMAND "${CMAKE_COMMAND}" -E copy "${ladybird_SOURCE_DIR}/Tests/Meta/test-js-runner.py" "${CMAKE_BINARY_DIR}/bin/test-js-runner.py"
+        DEPENDS "${ladybird_SOURCE_DIR}/Tests/Meta/test-js-runner.py"
+    )
+    add_test(NAME test-js-runner COMMAND "${Python3_EXECUTABLE}" "${CMAKE_BINARY_DIR}/bin/test-js-runner.py")
+    set_tests_properties(test-js-runner PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
 endif()

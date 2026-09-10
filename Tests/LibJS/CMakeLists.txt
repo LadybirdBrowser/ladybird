@@ -6,25 +6,17 @@ ladybird_test(test-debugger.cpp LibJS LIBS LibGC LibJS)
 ladybird_test(test-native-function-table.cpp LibJS LIBS LibGC LibJS)
 ladybird_test(test-type-error-realm.cpp LibJS LIBS LibGC LibJS)
 
-ladybird_testjs_test(test-js.cpp test-js LIBS LibGC)
+ladybird_testjs_test(test-js.cpp test-js NAME test-js-runtime NO_TEST LIBS LibGC)
+ladybird_utility(test-js SOURCES test-js-main.cpp LIBS LibMain)
+ladybird_windows_bin(test-js CONSOLE)
+target_compile_definitions(test-js PRIVATE TEST_JS_PYTHON="${Python3_EXECUTABLE}")
+
+add_custom_target(test-js-script DEPENDS "${CMAKE_BINARY_DIR}/bin/test-js.py")
+add_custom_command(
+    OUTPUT "${CMAKE_BINARY_DIR}/bin/test-js.py"
+    COMMAND "${CMAKE_COMMAND}" -E copy "${ladybird_SOURCE_DIR}/Tests/LibJS/test-js.py" "${CMAKE_BINARY_DIR}/bin/test-js.py"
+    DEPENDS "${ladybird_SOURCE_DIR}/Tests/LibJS/test-js.py"
+)
+add_dependencies(test-js test-js-runtime test-js-script js)
+add_test(NAME test-js COMMAND test-js)
 set_tests_properties(test-js PROPERTIES ENVIRONMENT "LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR}")
-
-if (NOT WIN32)
-    add_custom_target(test-js-bytecode ALL DEPENDS test-js "${CMAKE_BINARY_DIR}/bin/test-js-bytecode")
-    add_custom_command(
-        OUTPUT "${CMAKE_BINARY_DIR}/bin/test-js-bytecode"
-        COMMAND "${CMAKE_COMMAND}" -E copy "${ladybird_SOURCE_DIR}/Tests/LibJS/test-js-bytecode.py" "${CMAKE_BINARY_DIR}/bin/test-js-bytecode"
-        DEPENDS "${ladybird_SOURCE_DIR}/Tests/LibJS/test-js-bytecode.py"
-    )
-    add_test(NAME test-js-bytecode COMMAND "${CMAKE_BINARY_DIR}/bin/test-js-bytecode")
-    set_tests_properties(test-js-bytecode PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-
-    add_custom_target(test-js-ast ALL DEPENDS js "${CMAKE_BINARY_DIR}/bin/test-js-ast")
-    add_custom_command(
-        OUTPUT "${CMAKE_BINARY_DIR}/bin/test-js-ast"
-        COMMAND "${CMAKE_COMMAND}" -E copy "${ladybird_SOURCE_DIR}/Tests/LibJS/test-js-ast.py" "${CMAKE_BINARY_DIR}/bin/test-js-ast"
-        DEPENDS "${ladybird_SOURCE_DIR}/Tests/LibJS/test-js-ast.py"
-    )
-    add_test(NAME test-js-ast COMMAND "${CMAKE_BINARY_DIR}/bin/test-js-ast")
-    set_tests_properties(test-js-ast PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
-endif()
