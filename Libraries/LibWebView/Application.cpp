@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/Checked.h>
 #include <AK/Debug.h>
 #include <AK/JsonArray.h>
@@ -20,15 +21,22 @@
 #include <LibCore/StandardPaths.h>
 #include <LibCore/System.h>
 #include <LibCore/TimeZoneWatcher.h>
+#include <LibCore/Timer.h>
 #include <LibDatabase/Database.h>
 #include <LibDevTools/DevToolsServer.h>
 #include <LibDevTools/FirefoxClient.h>
 #include <LibFileSystem/FileSystem.h>
+#include <LibHTTP/Cache/CacheMode.h>
+#include <LibHTTP/Cookie/IncludeCredentials.h>
+#include <LibHTTP/HeaderList.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibImageDecoderClient/Client.h>
+#include <LibRequests/NetworkError.h>
+#include <LibRequests/Request.h>
 #include <LibURL/InternalURLs.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
+#include <LibWeb/Fetch/Infrastructure/HTTP/Statuses.h>
 #include <LibWeb/Loader/DownloadFilename.h>
 #include <LibWeb/Loader/UserAgent.h>
 #include <LibWeb/Page/InputEvent.h>
@@ -737,6 +745,13 @@ ByteString Application::content_blocker_list_path(StringView identifier) const
     return LexicalPath::join(m_content_blocker_lists_directory, ByteString::formatted("{}.txt", identifier)).string();
 }
 
+Optional<UnixDateTime> Application::content_blocker_list_last_updated_at(StringView identifier) const
+{
+    if (auto file_status = Core::File::stat(content_blocker_list_path(identifier)); !file_status.is_error())
+        return UnixDateTime::from_seconds_since_epoch(file_status.value().st_mtime);
+    return {};
+}
+
 void Application::rebuild_content_blocker_list_paths()
 {
     m_browser_options.content_blocker_list_paths = m_explicit_content_blocker_list_paths;
@@ -791,6 +806,146 @@ ErrorOr<void> Application::load_content_blocker_lists()
     return {};
 }
 
+void Application::start_content_blocker_list_update(Optional<StringView> requested_identifier)
+{
+    if (m_web_content_options.is_test_mode == IsTestMode::Yes)
+        return;
+    if (content_blocker_list_update_in_progress() && !requested_identifier.has_value())
+        return;
+
+    for (auto const& list : m_settings->content_blocker_lists()) {
+        if (!list.enabled || !list.url.has_value() || (requested_identifier.has_value() && list.identifier != *requested_identifier))
+            continue;
+        if (m_active_content_blocker_list_update.has_value() && m_active_content_blocker_list_update->identifier == list.identifier)
+            continue;
+        if (any_of(m_pending_content_blocker_list_updates, [&](auto const& update) { return update.identifier == list.identifier; }))
+            continue;
+        m_pending_content_blocker_list_updates.append({ list.identifier, list.name, *list.url, content_blocker_list_path(list.identifier) });
+    }
+
+    if (!m_active_content_blocker_list_update.has_value())
+        start_next_content_blocker_list_update();
+}
+
+void Application::start_next_content_blocker_list_update()
+{
+    m_pending_content_blocker_list_updates.remove_all_matching([&](auto const& update) {
+        auto list = m_settings->content_blocker_list(update.identifier);
+        return !list.has_value() || !list->enabled;
+    });
+    if (m_pending_content_blocker_list_updates.is_empty()) {
+        if (exchange(m_content_blocker_list_update_had_success, false))
+            apply_content_blocker_settings();
+        return;
+    }
+
+    m_active_content_blocker_list_update = m_pending_content_blocker_list_updates.take_first();
+    auto& update = *m_active_content_blocker_list_update;
+
+    auto request_headers = HTTP::HeaderList::create();
+    request_headers->set({ "User-Agent"sv, Web::default_user_agent });
+
+    m_content_blocker_list_update_request = request_server_client().start_request(
+        "GET"sv, update.url, *request_headers, {}, HTTP::CacheMode::NoStore,
+        HTTP::Cookie::IncludeCredentials::No);
+    if (!m_content_blocker_list_update_request) {
+        warnln("Unable to start update request for {}", update.name);
+        finish_current_content_blocker_list_update();
+        return;
+    }
+
+    auto timeout = Core::Timer::create_single_shot(30 * 1000, [this] {
+        warnln("Content blocker list download timed out");
+        stop_current_content_blocker_list_update_and_continue();
+    });
+    m_content_blocker_list_update_request->set_stop_callback([timeout] { timeout->stop(); });
+    timeout->start();
+
+    m_content_blocker_list_update_request->set_unbuffered_request_callbacks(
+        [this](NonnullRefPtr<HTTP::HeaderList> headers, Optional<u32> response_code, Optional<String> const& reason_phrase, Optional<Core::ImmutableBytes>, Optional<u64>, Requests::CameFromCache) {
+            if (m_content_blocker_list_update_cancelled)
+                return;
+            if (response_code.has_value() && Web::Fetch::Infrastructure::is_redirect_status(*response_code)) {
+                auto update = *m_active_content_blocker_list_update;
+                auto location = headers->get("Location"sv);
+                auto url = location.has_value() ? URL::Parser::basic_parse(*location, update.url) : Optional<URL::URL> {};
+                if (url.has_value() && (url->scheme() == "https"sv || (url->scheme() == "http"sv && update.url.scheme() == "http"sv)) && update.redirect_count < 20) {
+                    update.url = url.release_value();
+                    ++update.redirect_count;
+                    m_pending_content_blocker_list_updates.prepend(move(update));
+                    stop_current_content_blocker_list_update_and_continue();
+                    return;
+                }
+            }
+            m_content_blocker_list_update_response_ok = response_code.has_value() && *response_code >= 200 && *response_code < 300;
+            if (!m_content_blocker_list_update_response_ok) {
+                warnln("Unable to update content blocker list: received HTTP status {} {}", response_code.value_or(0), reason_phrase.value_or(String {}));
+                stop_current_content_blocker_list_update_and_continue();
+            }
+        },
+        [this](Requests::ResponseData data) {
+            did_receive_content_blocker_list_update_data(data.bytes());
+        },
+        [this](Core::ImmutableBytes data) {
+            did_receive_content_blocker_list_update_data(data.bytes());
+        },
+        [this, timeout](u64, Requests::RequestTimingInfo const&, Optional<Requests::NetworkError> network_error) {
+            timeout->stop();
+            VERIFY(m_active_content_blocker_list_update.has_value());
+            if (network_error.has_value()) {
+                warnln("Unable to update content blocker list: {}", Requests::network_error_to_string(*network_error));
+            } else if (!m_content_blocker_list_update_cancelled && m_content_blocker_list_update_response_ok) {
+                if (auto result = save_content_blocker_list(m_active_content_blocker_list_update->path, m_content_blocker_list_update_payload.bytes()); result.is_error())
+                    warnln("Unable to save content blocker list update: {}", result.error());
+                else
+                    m_content_blocker_list_update_had_success = true;
+            }
+            finish_current_content_blocker_list_update();
+        });
+}
+
+void Application::did_receive_content_blocker_list_update_data(ReadonlyBytes data)
+{
+    if (m_content_blocker_list_update_cancelled)
+        return;
+
+    VERIFY(m_content_blocker_list_update_payload.size() <= maximum_content_blocker_list_size);
+    if (data.size() > maximum_content_blocker_list_size - m_content_blocker_list_update_payload.size()) {
+        warnln("Unable to update content blocker list: response exceeds {} bytes", maximum_content_blocker_list_size);
+        stop_current_content_blocker_list_update_and_continue();
+        return;
+    }
+
+    if (auto result = m_content_blocker_list_update_payload.try_append(data); result.is_error()) {
+        warnln("Unable to update content blocker list: {}", result.error());
+        stop_current_content_blocker_list_update_and_continue();
+    }
+}
+
+void Application::stop_current_content_blocker_list_update_and_continue()
+{
+    if (!m_content_blocker_list_update_request || m_content_blocker_list_update_cancelled)
+        return;
+
+    m_content_blocker_list_update_cancelled = true;
+    m_content_blocker_list_update_request->stop();
+    finish_current_content_blocker_list_update();
+}
+
+void Application::finish_current_content_blocker_list_update()
+{
+    Core::deferred_invoke([this, request = m_content_blocker_list_update_request] {
+        if (m_content_blocker_list_update_request != request)
+            return;
+        m_content_blocker_list_update_request = nullptr;
+        m_active_content_blocker_list_update.clear();
+        m_content_blocker_list_update_payload.clear();
+        m_content_blocker_list_update_response_ok = false;
+        m_content_blocker_list_update_cancelled = false;
+        start_next_content_blocker_list_update();
+    });
+}
+
 ErrorOr<void> Application::save_content_blocker_list(ByteString const& path, ReadonlyBytes contents)
 {
     TRY(Core::Directory::create(m_content_blocker_lists_directory, Core::Directory::CreateDirectories::Yes));
@@ -822,6 +977,9 @@ void Application::remove_content_blocker_list(Badge<SettingsUI>, StringView iden
 {
     if (!m_settings->remove_content_blocker_list(identifier))
         return;
+    m_pending_content_blocker_list_updates.remove_all_matching([&](auto const& update) { return update.identifier == identifier; });
+    if (m_active_content_blocker_list_update.has_value() && m_active_content_blocker_list_update->identifier == identifier)
+        stop_current_content_blocker_list_update_and_continue();
     (void)FileSystem::remove(content_blocker_list_path(identifier), FileSystem::RecursionMode::Disallowed);
 }
 
@@ -2518,6 +2676,23 @@ void Application::apply_content_blocker_settings()
         client.async_set_content_blockers(*m_content_blocker_list_buffer);
         return IterationDecision::Continue;
     });
+}
+
+bool Application::content_blocker_list_update_in_progress() const
+{
+    return m_active_content_blocker_list_update.has_value() || !m_pending_content_blocker_list_updates.is_empty();
+}
+
+void Application::update_content_blocker_lists(Badge<SettingsUI>)
+{
+    start_content_blocker_list_update();
+}
+
+void Application::download_content_blocker_list_if_needed(Badge<SettingsUI>, StringView identifier)
+{
+    if (content_blocker_list_last_updated_at(identifier).has_value())
+        return;
+    start_content_blocker_list_update(identifier);
 }
 
 void Application::update_bookmark_action_for_current_web_view()
