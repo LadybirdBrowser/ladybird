@@ -1069,8 +1069,6 @@ class BoxViewRepaintAccess;
 class DocumentPaintState;
 class ScrollStateSnapshot;
 
-enum class PaintPhase;
-
 }
 
 namespace Web::PerformanceTimeline {
