@@ -219,8 +219,8 @@ fn parse_non_math_function(
             numeric_type: CalcNumericType::default(),
         }));
     }
-    // NB: ValueParsing.cpp only converts anchor() to a NonMathFunction calc leaf.
-    //     AnchorSizeStyleValue does not implement AbstractNonMathCalcFunctionStyleValue.
+    // NB: Only anchor() becomes a NonMathFunction calc leaf. anchor-size() remains a native
+    //     style value.
     let parsed = parse_anchor_function(parse_context, context.property, value);
     let Some(parsed) = parsed else {
         return Err(CalcParseError::NotHandled);
