@@ -69,7 +69,7 @@ Page* CanvasRenderingContext2D::page_for_compositor()
 
 void CanvasRenderingContext2D::backing_storage_created_hook()
 {
-    m_element->set_needs_repaint();
+    m_element->set_needs_repaint(InvalidateDisplayList::PaintCommands);
 }
 
 DOM::EventTarget& CanvasRenderingContext2D::context_event_target()

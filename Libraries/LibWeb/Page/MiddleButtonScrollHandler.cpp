@@ -28,7 +28,7 @@ MiddleButtonScrollHandler::MiddleButtonScrollHandler(DOM::Element& container, CS
 {
     auto const* layout_node = m_container_element->document().layout_node();
     if (layout_node && Painting::has_committed_box(*layout_node))
-        Painting::set_needs_repaint(*layout_node);
+        Painting::set_needs_repaint(*layout_node, InvalidateDisplayList::PaintCommands);
 }
 
 MiddleButtonScrollHandler::~MiddleButtonScrollHandler()
@@ -37,7 +37,7 @@ MiddleButtonScrollHandler::~MiddleButtonScrollHandler()
         return;
     auto const* layout_node = m_container_element->document().layout_node();
     if (layout_node && Painting::has_committed_box(*layout_node))
-        Painting::set_needs_repaint(*layout_node);
+        Painting::set_needs_repaint(*layout_node, InvalidateDisplayList::PaintCommands);
 }
 
 void MiddleButtonScrollHandler::visit_edges(JS::Cell::Visitor& visitor) const

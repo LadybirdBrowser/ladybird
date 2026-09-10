@@ -158,7 +158,7 @@ void HTMLInputElement::set_being_activated(bool activated)
     Base::set_being_activated(activated);
     if (first_is_one_of(type_state(), TypeAttributeState::Checkbox, TypeAttributeState::RadioButton)) {
         Painting::push_form_control_paint_facts(*this);
-        set_needs_repaint();
+        set_needs_repaint(InvalidateDisplayList::PaintCommands);
     }
 }
 
@@ -225,7 +225,7 @@ void HTMLInputElement::set_checked(bool checked)
     CSS::Invalidation::invalidate_style_after_validity_change(*this);
 
     Painting::push_form_control_paint_facts(*this);
-    set_needs_repaint();
+    set_needs_repaint(InvalidateDisplayList::PaintCommands);
 
     // NB: The registry unchecks the other members of the group and republishes their validity. The tree walks
     //     below are a fallback for radio buttons that have no registry.
@@ -263,7 +263,7 @@ void HTMLInputElement::set_indeterminate(bool value)
     m_indeterminateness = value;
     CSS::Invalidation::invalidate_style_after_indeterminate_state_change(*this, value);
     Painting::push_form_control_paint_facts(*this);
-    set_needs_repaint();
+    set_needs_repaint(InvalidateDisplayList::PaintCommands);
 }
 
 // https://html.spec.whatwg.org/multipage/input.html#dom-input-list
@@ -1606,10 +1606,10 @@ void HTMLInputElement::did_receive_focus()
 {
     if (!m_text_node)
         return;
-    m_text_node->set_needs_repaint();
+    m_text_node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
 
     if (m_placeholder_text_node)
-        m_placeholder_text_node->set_needs_repaint();
+        m_placeholder_text_node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
 
     if (has_selectable_text()) {
         if (document().last_focus_trigger() == FocusTrigger::Key)
@@ -1622,10 +1622,10 @@ void HTMLInputElement::did_receive_focus()
 void HTMLInputElement::did_lose_focus()
 {
     if (m_text_node)
-        m_text_node->set_needs_repaint();
+        m_text_node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
 
     if (m_placeholder_text_node)
-        m_placeholder_text_node->set_needs_repaint();
+        m_placeholder_text_node->set_needs_repaint(InvalidateDisplayList::PaintCommands);
 
     commit_pending_changes();
 }

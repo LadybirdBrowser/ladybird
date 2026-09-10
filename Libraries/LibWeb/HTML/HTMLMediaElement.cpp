@@ -607,7 +607,7 @@ void HTMLMediaElement::set_duration(double duration)
 
     upon_has_ended_playback_possibly_changed();
 
-    set_needs_repaint();
+    set_needs_repaint(InvalidateDisplayList::PaintCommands);
 }
 
 void HTMLMediaElement::play(GC::Ref<WebIDL::Promise> promise)
@@ -2018,7 +2018,7 @@ void HTMLMediaElement::on_video_track_added(Media::Track const& track)
     auto event = TrackEvent::create(HTML::EventNames::addtrack, move(event_init), event_time_stamp_for_element(*this));
     m_video_tracks->dispatch_event(event);
 
-    set_needs_repaint();
+    set_needs_repaint(InvalidateDisplayList::PaintCommands);
 }
 
 void HTMLMediaElement::on_metadata_parsed()
@@ -2942,7 +2942,7 @@ void HTMLMediaElement::set_show_poster(bool show_poster)
     m_show_poster = show_poster;
 
     update_natural_dimensions();
-    set_needs_repaint();
+    set_needs_repaint(InvalidateDisplayList::PaintCommands);
 }
 
 void HTMLMediaElement::set_paused(bool paused)
@@ -2964,7 +2964,7 @@ void HTMLMediaElement::set_paused(bool paused)
     update_screen_wake_lock();
 
     update_natural_dimensions();
-    set_needs_repaint();
+    set_needs_repaint(InvalidateDisplayList::PaintCommands);
     CSS::Invalidation::invalidate_style_after_media_paused_state_change(*this, paused);
 }
 

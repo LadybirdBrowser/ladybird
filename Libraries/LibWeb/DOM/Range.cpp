@@ -107,7 +107,7 @@ void Range::set_associated_selection(Badge<Selection::Selection>, GC::Ptr<Select
         auto& document = m_start_container->document();
         if (document.has_committed_viewport_box()) {
             document.paint_state().reset_selection_states(document);
-            Painting::set_needs_repaint(*document.unsafe_layout_node());
+            Painting::set_needs_repaint(*document.unsafe_layout_node(), InvalidateDisplayList::PaintCommands);
         }
 
         // https://w3c.github.io/selection-api/#selectionchange-event
@@ -129,7 +129,7 @@ void Range::update_associated_selection()
     // NB: Called during selection update after range change.
     if (document.has_committed_viewport_box()) {
         document.paint_state().recompute_selection_states(document, *this);
-        Painting::set_needs_repaint(*document.unsafe_layout_node());
+        Painting::set_needs_repaint(*document.unsafe_layout_node(), InvalidateDisplayList::PaintCommands);
     }
 
     document.reset_cursor_blink_cycle();

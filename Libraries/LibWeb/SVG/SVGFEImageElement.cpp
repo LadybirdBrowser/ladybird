@@ -67,7 +67,7 @@ void SVGFEImageElement::process_href(Optional<Utf16String> const& href)
             document().style_computer().style_engine().record_element_style_input_change(style_node_id());
             document().note_svg_paint_resources_changed();
             document().schedule_full_accumulated_visual_context_rebuild(Layout::RustFFI::FfiVisualContextGlobalRebuildReason::FilterResourcesChanged);
-            document().set_needs_repaint(Badge<SVGFEImageElement> {});
+            document().set_needs_repaint(Badge<SVGFEImageElement> {}, InvalidateDisplayList::PaintCommands);
         },
         nullptr);
 

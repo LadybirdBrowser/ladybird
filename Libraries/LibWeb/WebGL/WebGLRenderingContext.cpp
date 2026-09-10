@@ -90,7 +90,7 @@ Optional<RemoteWebGLContext> create_remote_webgl_context(HTML::HTMLCanvasElement
 
     // NB: The display list must be re-recorded so its DrawCanvas command refers to the new remote context's
     //     canvas id. Content updates alone don't invalidate the display list, so do it here.
-    canvas_element.set_needs_repaint();
+    canvas_element.set_needs_repaint(InvalidateDisplayList::PaintCommands);
 
     return RemoteWebGLContext { transport.release_nonnull(), move(result) };
 }

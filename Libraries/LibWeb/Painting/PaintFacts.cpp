@@ -240,7 +240,7 @@ void push_video_paint_facts(HTML::HTMLVideoElement const& video_element)
     if (!layout_node || layout_node->kind() != Layout::RustFFI::NodeKind::VideoBox)
         return;
     if (push_video_paint_facts_onto(video_element, *layout_node))
-        set_needs_repaint(*layout_node);
+        set_needs_repaint(*layout_node, InvalidateDisplayList::PaintCommands);
 }
 
 void push_paint_facts_after_style_attach(Layout::NodeWithStyle& layout_node, StyleHoldsImageValues style_holds_image_values)
