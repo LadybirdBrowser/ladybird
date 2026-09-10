@@ -403,7 +403,7 @@ static Layout::RustFFI::FfiRootBackgroundSource rust_root_background_source(DOM:
     Layout::RustFFI::FfiRootBackgroundSource source {};
     source.body_layout_node = Layout::RustFFI::NodeSlotId { Layout::RustFFI::INVALID_NODE_SLOT_INDEX };
     auto const* html_element = document.html_element();
-    source.use_body_background_properties = html_element && html_element->unsafe_layout_node() && html_element->should_use_body_background_properties();
+    source.use_body_background_properties = html_element && html_element->should_use_body_background_properties();
     if (auto const* body = document.body(); body && body->unsafe_layout_node())
         source.body_layout_node = Layout::Node::slot_id(body->unsafe_layout_node());
     return source;

@@ -48,9 +48,8 @@ static bool body_background_is_propagated_to_root(Layout::NodeWithStyle const& l
 {
     if (!layout_node.is_body())
         return false;
-    // Reachable at invalidation time, when the root element's layout node may already be detached.
     auto const* html_element = layout_node.document().html_element();
-    return html_element && html_element->unsafe_layout_node() && html_element->should_use_body_background_properties();
+    return html_element && html_element->should_use_body_background_properties();
 }
 
 ResolvedSvgFilter resolve_svg_filter_reference(CSS::ComputedValuesFFI::ComputedStyleValueHandle const& url_value, Layout::NodeWithStyle const& layout_node)
