@@ -27,7 +27,7 @@ class WEB_API DocumentPaintState {
 public:
     explicit DocumentPaintState(Layout::NodeArena&);
 
-    void viewport_row_was_reset(DOM::Document&);
+    void viewport_row_was_reset();
 
     BlockingWheelEventRegionState collect_root_blocking_wheel_event_regions(DOM::Document&);
 
@@ -78,7 +78,6 @@ public:
 private:
     Vector<String> m_recording_traces;
     void ensure_visual_context_tree(DOM::Document const&) const;
-    void clear_scroll_state(DOM::Document&);
 
     NonnullRefPtr<Layout::NodeArena> m_layout_node_arena;
 

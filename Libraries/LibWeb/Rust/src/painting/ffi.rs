@@ -1734,18 +1734,6 @@ pub unsafe extern "C" fn layout_arena_invalidate_scroll_state(arena: *mut c_void
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_clear_scroll_state(arena: *mut c_void) {
-    let arena = unsafe { arena_from_handle(arena) };
-    let mut paint_state = arena.paint_state().borrow_mut();
-    let state = &mut paint_state.visual_context;
-    state.scroll_state.clear();
-    state.needs_to_refresh_scroll_state = true;
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_refresh_sticky_constraints(
     arena: *mut c_void,
     callbacks: FfiVisualContextHostCallbacks,
