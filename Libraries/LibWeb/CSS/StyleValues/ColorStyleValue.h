@@ -60,7 +60,6 @@ public:
     }
     ColorSyntax color_syntax() const { return static_cast<ColorSyntax>(m_value->color_function.color_base.color_syntax); }
 
-    bool equals(StyleValue const& other) const;
     Optional<Color> to_color(ColorResolutionContext) const;
     ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 

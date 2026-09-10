@@ -107,22 +107,6 @@ ValueComparingNonnullRefPtr<StyleValue const> ColorStyleValue::absolutized(Compu
     }
 }
 
-bool ColorStyleValue::equals(StyleValue const& other) const
-{
-    if (type() != other.type())
-        return false;
-
-    auto const& other_color = static_cast<ColorStyleValue const&>(other);
-    if (m_value->tag != other_color.m_value->tag)
-        return false;
-
-    // Color functions deliberately ignore the legacy/modern syntax flag the data carries, so
-    // structural data equality would be too strict for them; everything else compares by data.
-    if (m_value->tag == StyleValueFFI::StyleValueData::Tag::ColorFunction)
-        return static_cast<ColorFunctionStyleValue const&>(*this).equals(other);
-    return StyleValueFFI::rust_style_value_equals(rust_style_value_data(), other.rust_style_value_data());
-}
-
 ValueComparingNonnullRefPtr<ColorStyleValue const> ColorStyleValue::create_from_color(Color color, ColorSyntax color_syntax, Optional<Utf16FlyString> name)
 {
     return ColorFunctionStyleValue::create(

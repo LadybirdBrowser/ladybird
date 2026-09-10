@@ -465,7 +465,7 @@ unsafe impl Sync for RetainedStyleValueData where StyleValueData: Send + Sync {}
 impl PartialEq for RetainedStyleValueData {
     fn eq(&self, other: &Self) -> bool {
         match (self.optional_data(), other.optional_data()) {
-            (Some(first), Some(second)) => std::ptr::eq(first, second) || first == second,
+            (Some(first), Some(second)) => style_values_equal(first, second),
             (None, None) => true,
             _ => false,
         }
@@ -3895,7 +3895,48 @@ pub unsafe extern "C" fn rust_style_value_equals(first: *const StyleValueData, s
     if replay_style_value_dependency_flags(first).is_some() || replay_style_value_dependency_flags(second).is_some() {
         return false;
     }
-    unsafe { *first == *second }
+    style_values_equal(unsafe { &*first }, unsafe { &*second })
+}
+
+fn style_values_equal(first: &StyleValueData, second: &StyleValueData) -> bool {
+    if std::ptr::eq(first, second) {
+        return true;
+    }
+    match (first, second) {
+        (
+            StyleValueData::ColorFunction {
+                color_base: first_base,
+                channel_0: first_channel_0,
+                channel_1: first_channel_1,
+                channel_2: first_channel_2,
+                alpha: first_alpha,
+                has_name: first_has_name,
+                name: first_name,
+                origin_color: first_origin_color,
+            },
+            StyleValueData::ColorFunction {
+                color_base: second_base,
+                channel_0: second_channel_0,
+                channel_1: second_channel_1,
+                channel_2: second_channel_2,
+                alpha: second_alpha,
+                has_name: second_has_name,
+                name: second_name,
+                origin_color: second_origin_color,
+            },
+        ) => {
+            first_base.has_color_type == second_base.has_color_type
+                && (!first_base.has_color_type || first_base.color_type == second_base.color_type)
+                && first_channel_0 == second_channel_0
+                && first_channel_1 == second_channel_1
+                && first_channel_2 == second_channel_2
+                && first_alpha == second_alpha
+                && first_has_name == second_has_name
+                && (!first_has_name || first_name == second_name)
+                && first_origin_color == second_origin_color
+        }
+        _ => first == second,
+    }
 }
 
 /// Retains one reference to a shared style value allocation.
@@ -3957,6 +3998,41 @@ mod substitution_clone_tests {
             rust_style_value_release(shorthand);
             rust_style_value_release(cloned_shorthand);
         }
+    }
+}
+
+#[cfg(test)]
+mod equality_tests {
+    use super::*;
+
+    fn retained_number(value: f64) -> RetainedStyleValueData {
+        let value = Arc::into_raw(Arc::new(StyleValueData::Number { value }));
+        unsafe { RetainedStyleValueData::from_retained_pointer(value) }
+    }
+
+    fn color_function(color_syntax: u8) -> StyleValueData {
+        StyleValueData::ColorFunction {
+            color_base: ColorBase {
+                has_color_type: true,
+                color_type: 0,
+                color_syntax,
+            },
+            channel_0: retained_number(1.0),
+            channel_1: retained_number(2.0),
+            channel_2: retained_number(3.0),
+            alpha: RetainedStyleValueData::none(),
+            has_name: false,
+            name: CssString::none(),
+            origin_color: RetainedStyleValueData::none(),
+        }
+    }
+
+    #[test]
+    fn color_function_equality_ignores_syntax() {
+        let legacy = color_function(0);
+        let modern = color_function(1);
+        assert!(legacy != modern);
+        assert!(style_values_equal(&legacy, &modern));
     }
 }
 
