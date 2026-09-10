@@ -1739,7 +1739,6 @@ pub unsafe extern "C" fn layout_arena_clear_scroll_state(arena: *mut c_void) {
     let mut paint_state = arena.paint_state().borrow_mut();
     let state = &mut paint_state.visual_context;
     state.scroll_state.clear();
-    state.scroll_state_snapshot.clear();
     state.needs_to_refresh_scroll_state = true;
 }
 
@@ -1769,37 +1768,46 @@ pub unsafe extern "C" fn layout_arena_refresh_sticky_constraints(
 }
 
 /// Re-reads the scroll containers' offsets when something invalidated them since the last
-/// refresh and resolves the sticky nodes' offsets on top of them. Returns whether that
-/// happened, so the caller re-pulls the snapshot only then.
+/// refresh, resolves the sticky nodes' offsets on top of them, and hands the dense device-pixel
+/// snapshot to `publish`. Returns whether that happened, so the caller keeps its copy otherwise.
 ///
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread;
+/// `publish` is called synchronously with `sink` and a view of the snapshot that is valid only
+/// for the duration of that call.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
     arena: *mut c_void,
     callbacks: FfiVisualContextHostCallbacks,
+    sink: *mut c_void,
+    publish: unsafe extern "C" fn(*mut c_void, *const libgfx_rust::FloatPoint, usize),
 ) -> bool {
     let arena = unsafe { arena_from_handle(arena) };
-    let paintable_rows = arena.paintable_rows();
-    let mut paint_state = arena.paint_state().borrow_mut();
-    let state = &mut paint_state.visual_context;
-    if !state.needs_to_refresh_scroll_state {
-        return false;
-    }
-    state.needs_to_refresh_scroll_state = false;
-    crate::painting::visual_context::refresh::refresh_scroll_state(
-        &paintable_rows,
-        &callbacks,
-        &mut state.scroll_state,
-    );
-    state.scroll_state_snapshot = state
-        .scroll_state
-        .snapshot(callbacks.tree_inputs().device_pixels_per_css_pixel);
-    // https://drafts.csswg.org/css-position/#sticky-pos
-    if let Some(tree) = state.tree.as_deref() {
-        tree.resolve_sticky_offsets_in_place(&mut state.scroll_state_snapshot);
-    }
+    let snapshot = {
+        let paintable_rows = arena.paintable_rows();
+        let mut paint_state = arena.paint_state().borrow_mut();
+        let state = &mut paint_state.visual_context;
+        if !state.needs_to_refresh_scroll_state {
+            return false;
+        }
+        state.needs_to_refresh_scroll_state = false;
+        crate::painting::visual_context::refresh::refresh_scroll_state(
+            &paintable_rows,
+            &callbacks,
+            &mut state.scroll_state,
+        );
+        let mut snapshot = state
+            .scroll_state
+            .snapshot(callbacks.tree_inputs().device_pixels_per_css_pixel);
+        // https://drafts.csswg.org/css-position/#sticky-pos
+        if let Some(tree) = state.tree.as_deref() {
+            tree.resolve_sticky_offsets_in_place(&mut snapshot);
+        }
+        snapshot
+    };
+    // SAFETY: The C++ sink copies the offsets synchronously.
+    unsafe { publish(sink, snapshot.as_ptr(), snapshot.len()) };
     true
 }
 
@@ -3834,32 +3842,6 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_destroy(builder: *mut 
     }
     // SAFETY: The caller hands over the boxed tree the create call returned.
     drop(unsafe { Box::from_raw(builder.cast::<crate::painting::visual_context::VisualContextTree>()) });
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread; `out`
-/// must have room for `capacity` points.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_scroll_state_snapshot(
-    arena: *mut c_void,
-    out: *mut libgfx_rust::FloatPoint,
-    capacity: usize,
-) -> usize {
-    let arena = unsafe { arena_from_handle(arena) };
-    let paint_state = arena.paint_state().borrow();
-    let snapshot = &paint_state.visual_context.scroll_state_snapshot;
-    let needed = snapshot.len();
-    if !out.is_null() {
-        for (index, offset) in snapshot.iter().enumerate() {
-            if index >= capacity {
-                break;
-            }
-            // SAFETY: within the caller's capacity.
-            unsafe { *out.add(index) = *offset };
-        }
-    }
-    needed
 }
 
 /// # Safety

@@ -100,12 +100,10 @@ void DocumentPaintState::update_accumulated_visual_contexts(DOM::Document& docum
 {
     bool svg_paint_resources_changed = sync_svg_paint_resources(document);
     auto result = rust_update_accumulated_visual_contexts(document);
-    if (result.performed_full_build) {
-        m_scroll_state_snapshot = {};
+    if (result.performed_full_build)
         ++m_accumulated_visual_context_tree_build_count;
-    } else {
+    else
         ++m_accumulated_visual_context_tree_incremental_update_count;
-    }
     if (result.requires_display_list_recording || svg_paint_resources_changed)
         document.set_needs_to_record_display_list();
     if (result.structural_epoch_changed)
@@ -176,9 +174,7 @@ void DocumentPaintState::invalidate_all_cached_paint(DOM::Document& document)
 
 void DocumentPaintState::refresh_scroll_state(DOM::Document& document)
 {
-    if (!rust_refresh_scroll_state(document))
-        return;
-    m_scroll_state_snapshot = rust_scroll_state_snapshot(document);
+    rust_refresh_scroll_state(document, m_scroll_state_snapshot);
 }
 
 void DocumentPaintState::reset_selection_states(DOM::Document& document)

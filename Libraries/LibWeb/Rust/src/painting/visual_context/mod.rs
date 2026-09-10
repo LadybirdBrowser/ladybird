@@ -662,7 +662,6 @@ pub struct VisualContextState {
     pub tree: Option<Rc<VisualContextTree>>,
     pub paintables_with_mask_nodes: Vec<crate::layout::node_data::NodeSlotId>,
     pub scroll_state: scroll_state::ScrollState,
-    pub scroll_state_snapshot: Vec<FloatPoint>,
     pub needs_to_refresh_scroll_state: bool,
     pub build_count: u64,
     pub dirty_boxes: dirty::VisualContextDirtySet,
