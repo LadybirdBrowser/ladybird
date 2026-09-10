@@ -259,3 +259,29 @@ TEST_CASE(system_ui_italic_keeps_its_slope_when_the_variation_clone_collapses)
     EXPECT_EQ(decoded->glyph_id_for_code_point('m'), font->typeface().glyph_id_for_code_point('m'));
 }
 #endif
+
+TEST_CASE(shaping_cache_preserves_positions_spacing_and_trailing_whitespace)
+{
+    auto font = load_text_font(16);
+    Gfx::TrailingWhitespace trailing_whitespace;
+    auto origin = Gfx::shape_text({}, 2, 3, u"abc "sv, font, Gfx::GlyphRun::TextType::Common, &trailing_whitespace);
+    auto translated = Gfx::shape_text({ 7, 11 }, 2, 3, u"abc "sv, font, Gfx::GlyphRun::TextType::Common);
+    Gfx::TrailingWhitespace cached_trailing_whitespace;
+    auto repeated = Gfx::shape_text({}, 2, 3, u"abc "sv, font, Gfx::GlyphRun::TextType::Common, &cached_trailing_whitespace);
+
+    EXPECT_EQ(origin->width(), translated->width());
+    EXPECT_EQ(origin->width(), repeated->width());
+    EXPECT_EQ(origin->glyphs().size(), translated->glyphs().size());
+    EXPECT_EQ(origin->glyphs().size(), repeated->glyphs().size());
+    for (size_t i = 0; i < origin->glyphs().size(); ++i) {
+        EXPECT_EQ(translated->glyphs()[i].position, origin->glyphs()[i].position.translated(7, 11));
+        EXPECT_EQ(repeated->glyphs()[i].position, origin->glyphs()[i].position);
+        EXPECT_EQ(repeated->glyphs()[i].glyph_id, origin->glyphs()[i].glyph_id);
+    }
+    EXPECT_EQ(trailing_whitespace.length_in_code_units, 1u);
+    EXPECT_EQ(cached_trailing_whitespace.length_in_code_units, trailing_whitespace.length_in_code_units);
+    EXPECT_EQ(cached_trailing_whitespace.advance, trailing_whitespace.advance);
+
+    auto without_spacing = Gfx::shape_text({}, 0, 0, u"abc "sv, font, Gfx::GlyphRun::TextType::Common);
+    EXPECT_APPROXIMATE(origin->width() - without_spacing->width(), 11.f);
+}
