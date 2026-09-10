@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes spin {
+        to { transform: rotate(1turn); }
+    }
+
+    .spinner {
+        animation: spin 10s linear infinite;
+    }
+
+    .transitioner {
+        opacity: 1;
+        transition: opacity 10s linear;
+    }
+</style>
+<script>
+    asyncTest(async done => {
+        const initialCount = internals.getStyleInvalidationCounters().associatedAnimations;
+
+        const interrupted = document.createElement("div");
+        interrupted.className = "transitioner";
+        document.body.append(interrupted);
+        await new Promise(requestAnimationFrame);
+
+        // Each of these replaces the running transition, cancelling the one it supersedes.
+        for (let i = 0; i < 20; ++i) {
+            interrupted.style.opacity = String(0.9 - 0.04 * i);
+            await new Promise(requestAnimationFrame);
+        }
+        await new Promise(requestAnimationFrame);
+
+        println(`interrupted transitions do not accumulate: ${internals.getStyleInvalidationCounters().associatedAnimations === initialCount + 1}`);
+        println(`the replacement transition is still running: ${interrupted.getAnimations().length === 1}`);
+
+        const removed = document.createElement("div");
+        removed.className = "transitioner";
+        document.body.append(removed);
+        await new Promise(requestAnimationFrame);
+        removed.style.opacity = "0";
+        await new Promise(requestAnimationFrame);
+        const removedTransition = removed.getAnimations()[0];
+        removed.style.transitionProperty = "none";
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+
+        println(`a transition dropped by transition-property is disassociated: ${internals.getStyleInvalidationCounters().associatedAnimations === initialCount + 1}`);
+        println(`the dropped transition is no longer relevant: ${removedTransition.playState === "idle" || removed.getAnimations().length === 0}`);
+
+        const spinner = document.createElement("div");
+        spinner.className = "spinner";
+        document.body.append(spinner);
+        await new Promise(requestAnimationFrame);
+        println(`a CSS animation is associated while its name applies: ${internals.getStyleInvalidationCounters().associatedAnimations === initialCount + 2}`);
+
+        spinner.style.animationName = "none";
+        await new Promise(requestAnimationFrame);
+        await new Promise(requestAnimationFrame);
+        println(`a CSS animation dropped by animation-name is disassociated: ${internals.getStyleInvalidationCounters().associatedAnimations === initialCount + 1}`);
+        done();
+    });
+</script>

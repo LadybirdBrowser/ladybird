@@ -1,0 +1,6 @@
+interrupted transitions do not accumulate: true
+the replacement transition is still running: true
+a transition dropped by transition-property is disassociated: true
+the dropped transition is no longer relevant: true
+a CSS animation is associated while its name applies: true
+a CSS animation dropped by animation-name is disassociated: true

@@ -748,6 +748,10 @@ void Animation::cancel(ShouldInvalidate should_invalidate)
     if (auto effect = m_effect)
         m_saved_cancel_time = effect->active_time_using_fill(FillMode::Both);
 
+    // AD-HOC: The target's animation list is our own cache of the animations whose effect targets it, and holding a
+    //         cancelled animation there keeps it alive and walked every frame. It is reassociated if revived.
+    schedule_disassociation_from_target();
+
     if (should_invalidate == ShouldInvalidate::Yes)
         invalidate_effect();
 }
@@ -829,13 +833,6 @@ WebIDL::ExceptionOr<void> Animation::play(ShouldInvalidate should_invalidate)
 // https://drafts.csswg.org/web-animations-2/#play-an-animation
 WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind, ShouldInvalidate should_invalidate)
 {
-    m_css_cancellation_disassociation_pending = false;
-    if (m_needs_target_reassociation && m_effect) {
-        if (auto target = m_effect->target())
-            target->associate_with_animation(*this);
-        m_needs_target_reassociation = false;
-    }
-
     // 1. Let aborted pause be a boolean flag that is true if animation has a pending pause task, and false otherwise.
     auto aborted_pause = m_pending_pause_task == TaskState::Scheduled;
 
@@ -942,13 +939,26 @@ WebIDL::ExceptionOr<void> Animation::play_an_animation(AutoRewind auto_rewind, S
     return {};
 }
 
-void Animation::disassociate_from_target_after_css_cancellation()
+void Animation::disassociate_from_target_if_inert()
 {
-    m_css_cancellation_disassociation_pending = false;
-    if (!m_effect || !m_effect->target())
+    m_disassociation_from_target_pending = false;
+    // Script may have revived the animation since the disassociation was scheduled.
+    if (!m_effect || !m_effect->target() || pending() || is_relevant())
         return;
     m_effect->target()->disassociate_with_animation(*this);
-    m_needs_target_reassociation = true;
+    m_play_state_when_disassociated_from_target = play_state();
+    // The target's animated style keeps this effect's values until they are recomputed without it.
+    AnimationUpdateContext context;
+    m_effect->update_computed_properties(context);
+}
+
+void Animation::did_associate_with_target()
+{
+    if (!m_play_state_when_disassociated_from_target.has_value())
+        return;
+    m_play_state_when_disassociated_from_target.clear();
+    // Joining a target does not make the animation relevant, so check again whether it is inert.
+    schedule_disassociation_from_target();
 }
 
 // https://www.w3.org/TR/web-animations-1/#dom-animation-pause
@@ -1499,6 +1509,17 @@ void Animation::update_finished_state(DidSeek did_seek, SynchronouslyNotify sync
         m_current_finished_promise = WebIDL::create_promise_for(relevant_global_object());
         m_is_finished = false;
     }
+
+    // AD-HOC: An animation disassociated from its target while inert can only be revived through here.
+    if (m_play_state_when_disassociated_from_target.has_value()
+        && (pending() || is_relevant() || play_state() != *m_play_state_when_disassociated_from_target)) {
+        if (auto target = m_effect ? m_effect->target() : nullptr)
+            target->associate_with_animation(*this);
+    }
+
+    // AD-HOC: An animation that has finished without filling produces nothing more, so it leaves its target's list.
+    if (current_finished_state && !pending() && !is_relevant())
+        schedule_disassociation_from_target();
 
     if (should_invalidate == ShouldInvalidate::Yes)
         invalidate_effect();

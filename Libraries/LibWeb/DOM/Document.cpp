@@ -8826,8 +8826,8 @@ void Document::update_animations_and_send_events(double timestamp)
 
         for (auto& animation : animations) {
             dispatch_events_for_animation_if_necessary(animation);
-            if (animation->css_cancellation_disassociation_pending())
-                animation->disassociate_from_target_after_css_cancellation();
+            if (animation->disassociation_from_target_pending())
+                animation->disassociate_from_target_if_inert();
         }
 
         // 2. Remove replaced animations for doc.
