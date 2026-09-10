@@ -110,11 +110,19 @@ GC::Ref<PrimitiveString> PrimitiveString::create_from_unsigned_integer(VM& vm, u
         auto& cache_slot = vm.numeric_string_cache()[number];
         if (!cache_slot) {
             auto string = Utf16String::number(number);
-            cache_slot = create(vm, string);
+            cache_slot = create(vm, Utf16FlyString { string });
         }
         return *cache_slot;
     }
-    return create(vm, Utf16String::number(number));
+
+    auto& large_cache = vm.large_numeric_string_cache();
+    auto& cache_entry = large_cache[number & (large_cache.size() - 1)];
+    if (!cache_entry.string || cache_entry.number != number) {
+        cache_entry.number = number;
+        auto string = Utf16String::number(number);
+        cache_entry.string = create(vm, Utf16FlyString { string });
+    }
+    return *cache_entry.string;
 }
 
 GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, PrimitiveString& lhs, PrimitiveString& rhs)

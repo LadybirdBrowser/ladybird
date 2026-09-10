@@ -349,6 +349,11 @@ void VM::gather_roots(HashMap<GC::Cell*, GC::HeapRoot>& roots)
         roots.set(string.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
     }
 
+    for (auto const& entry : m_large_numeric_string_cache) {
+        if (entry.string)
+            roots.set(entry.string.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
+    }
+
     roots.set(cached_strings.number.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
     roots.set(cached_strings.undefined.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
     roots.set(cached_strings.object.ptr(), GC::HeapRoot { .type = GC::HeapRoot::Type::VM });
