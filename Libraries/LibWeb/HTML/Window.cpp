@@ -203,7 +203,9 @@ WebIDL::ExceptionOr<WebIDL::UnsignedLong> request_animation_frame(HTML::Dedicate
 
 WebIDL::UnsignedLong request_idle_callback(HTML::Window& window, WebIDL::CallbackType& callback, IdleRequestOptions const& options)
 {
-    auto handler = [callback = GC::make_root(callback)](GC::Ref<RequestIdleCallback::IdleDeadline> deadline) -> JS::Completion {
+    // NB: A plain GC reference rather than a GC::Root, for the same reason as in request_animation_frame() above: the
+    //     window's idle callback lists trace the handler, so the callback lives exactly as long as the window's document.
+    auto handler = [callback = GC::Ref { callback }](GC::Ref<RequestIdleCallback::IdleDeadline> deadline) -> JS::Completion {
         auto& callback_realm = callback->callback->shape().realm();
         return WebIDL::invoke_callback(*callback, {}, { { wrap(host_defined_wrapper_world(callback_realm), callback_realm, deadline) } });
     };
@@ -258,26 +260,40 @@ void run_animation_frame_callbacks(DOM::Document& document, double now)
     document.window()->animation_frame_callback_driver().run(now);
 }
 
-class IdleCallback : public RefCounted<IdleCallback> {
+// NB: A GC cell, so that the window's two idle callback lists trace the handler, and with it the WebIDL callback the
+//     handler captures, for exactly as long as the window holds the callback.
+class IdleCallback final : public JS::Cell {
+    GC_CELL(IdleCallback, JS::Cell);
+    GC_DECLARE_ALLOCATOR(IdleCallback);
+
 public:
-    explicit IdleCallback(IdleCallbackHandler handler, u32 handle)
-        : m_handler(move(handler))
+    using Handler = GC::Ref<GC::Function<JS::Completion(GC::Ref<RequestIdleCallback::IdleDeadline>)>>;
+
+    IdleCallback(Handler handler, u32 handle)
+        : m_handler(handler)
         , m_handle(handle)
     {
     }
-    ~IdleCallback() = default;
 
-    JS::Completion invoke(GC::Ref<RequestIdleCallback::IdleDeadline> deadline) { return m_handler(deadline); }
+    JS::Completion invoke(GC::Ref<RequestIdleCallback::IdleDeadline> deadline) { return m_handler->function()(deadline); }
     u32 handle() const { return m_handle; }
     Optional<i32> timeout_timer_id() const { return m_timeout_timer_id; }
     void set_timeout_timer_id(i32 timeout_timer_id) { m_timeout_timer_id = timeout_timer_id; }
     void clear_timeout_timer_id() { m_timeout_timer_id.clear(); }
 
 private:
-    IdleCallbackHandler m_handler;
+    virtual void visit_edges(Cell::Visitor& visitor) override
+    {
+        Base::visit_edges(visitor);
+        visitor.visit(m_handler);
+    }
+
+    Handler m_handler;
     u32 m_handle { 0 };
     Optional<i32> m_timeout_timer_id;
 };
+
+GC_DEFINE_ALLOCATOR(IdleCallback);
 
 GC::Ref<Window> Window::create()
 {
@@ -321,6 +337,8 @@ void Window::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_navigator);
     visitor.visit(m_navigation);
     visitor.visit(m_animation_frame_callback_driver);
+    visitor.visit(m_idle_request_callbacks);
+    visitor.visit(m_runnable_idle_callbacks);
     visitor.visit(m_pdf_viewer_plugin_objects);
     visitor.visit(m_pdf_viewer_mime_type_objects);
     visitor.visit(m_close_watcher_manager);
@@ -2036,7 +2054,7 @@ u32 Window::request_idle_callback(IdleCallbackHandler callback, IdleRequestOptio
     auto handle = m_idle_callback_identifier;
 
     // 4. Push callback to the end of window's list of idle request callbacks, associated with handle.
-    auto idle_callback = adopt_ref(*new IdleCallback(move(callback), handle));
+    auto idle_callback = GC::Heap::the().allocate<IdleCallback>(GC::create_function(GC::Heap::the(), move(callback)), handle);
     m_idle_request_callbacks.set(handle, idle_callback);
 
     // 5. Return handle and then continue running this algorithm asynchronously.
