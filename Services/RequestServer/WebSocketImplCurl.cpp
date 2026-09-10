@@ -7,6 +7,7 @@
 #include <LibCore/Notifier.h>
 #include <RequestServer/CURL.h>
 #include <RequestServer/ConnectionFromClient.h>
+#include <RequestServer/Resolver.h>
 #include <RequestServer/WebSocketImplCurl.h>
 
 namespace RequestServer {
@@ -71,8 +72,14 @@ void WebSocketImplCurl::connect(WebSocket::ConnectionInfo const& info)
     set_option(CURLOPT_PORT, url.port_or_default());
     set_option(CURLOPT_CONNECTTIMEOUT, s_connect_timeout_seconds);
 
-    if (auto root_certs = info.root_certificates_path(); root_certs.has_value())
-        set_option(CURLOPT_CAINFO, root_certs->characters());
+    if (auto const& bundle = root_certificate_bundle(); !bundle.is_empty()) {
+        curl_blob ca_info_blob {
+            .data = const_cast<u8*>(bundle.data()),
+            .len = bundle.size(),
+            .flags = CURL_BLOB_NOCOPY,
+        };
+        set_option(CURLOPT_CAINFO_BLOB, &ca_info_blob);
+    }
 
     auto const origin_header = ByteString::formatted("Origin: {}", info.origin());
     curl_slist* curl_headers = curl_slist_append(nullptr, origin_header.characters());
