@@ -101,14 +101,6 @@ T read_display_list_object(ReadonlyBytes bytes)
     return object;
 }
 
-template<typename T>
-requires(IsTriviallyCopyable<T>)
-void write_display_list_object(Bytes bytes, T const& object)
-{
-    VERIFY(bytes.size() >= sizeof(T));
-    __builtin_memcpy(bytes.data(), &object, sizeof(T));
-}
-
 template<DisplayListCommand Command>
 Command read_display_list_command_payload(ReadonlyBytes payload)
 {
