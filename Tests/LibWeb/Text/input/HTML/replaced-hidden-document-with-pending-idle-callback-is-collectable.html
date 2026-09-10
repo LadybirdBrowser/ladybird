@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A hidden document gets no idle periods, so a requestIdleCallback() callback it registers never runs. If the
+    // document is then navigated away, that pending callback must not keep the document alive: the window's list of
+    // idle request callbacks goes away with the document. Reload a hidden document a few times and check that every
+    // replaced document gets collected.
+    promiseTest(async () => {
+        internals.setSystemVisibilityState("hidden");
+        internals.setHiddenDocumentTimerWakeUpInterval(1);
+
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+
+        const navigate = i =>
+            new Promise(resolve => {
+                iframe.addEventListener("load", resolve, { once: true });
+                iframe.srcdoc = `<!DOCTYPE html><script>requestIdleCallback(() => {});<\/script><p>${i}</p>`;
+            });
+
+        // Record each document, then navigate away from it. An expando preserves the document's wrapper for as long as
+        // the document itself lives, so the weak reference tracks the document rather than a wrapper that JS may drop
+        // early. The recording starts with the second document: the first one reuses the initial about:blank document's
+        // window, whose realm the navigable's WindowProxy keeps alive for as long as the iframe lives. And the recording
+        // runs in a nested function, so that no document lingers in a register of this function's frame while the
+        // documents are expected to be collected.
+        const weakDocuments = await (async () => {
+            const weakDocuments = [];
+            await navigate(0);
+            await navigate(1);
+            for (let i = 2; i <= 6; i++) {
+                const replacedDocument = iframe.contentDocument;
+                replacedDocument.preserveWrapper = true;
+                weakDocuments.push(new WeakRef(replacedDocument));
+                await navigate(i);
+            }
+            return weakDocuments;
+        })();
+
+        const maximumGcRoundsWhileTeardownTasksDrain = 100;
+        for (let round = 0; round < maximumGcRoundsWhileTeardownTasksDrain; ++round) {
+            await timeout(0);
+            await internals.gcAsync();
+            if (weakDocuments.every(weak => weak.deref() === undefined))
+                break;
+        }
+
+        const collected = weakDocuments.filter(weak => weak.deref() === undefined).length;
+        println(`collected ${collected} of ${weakDocuments.length} replaced documents`);
+        iframe.remove();
+    });
+</script>
