@@ -2406,6 +2406,21 @@ WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM& vm, JS:
     return serialized.take_ipc_record();
 }
 
+// https://html.spec.whatwg.org/multipage/structured-data.html#structuredserialize
+// AD-HOC: For a record that reaches agents in other processes. The record itself is bytes-only, so a shared-memory-
+//         backed SharedArrayBuffer is handed over beside it, in shared_buffers, by file descriptor — and every
+//         receiver references the same [[ArrayBufferData]], rather than rebuilding the buffer from a byte copy.
+WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM& vm, JS::Value value, Vector<Core::AnonymousBuffer>& shared_buffers)
+{
+    // 1. Return ? StructuredSerializeInternal(value, false).
+    SerializationMemory memory = {};
+    auto serialized = StructuredSerializeWriter::create_ipc();
+    serialized.enable_shared_buffers();
+    TRY(structured_serialize_internal(vm, serialized, value, false, memory));
+    shared_buffers = serialized.take_shared_buffers();
+    return serialized.take_ipc_record();
+}
+
 // https://html.spec.whatwg.org/multipage/structured-data.html#structuredserializeforstorage
 WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_for_storage(JS::VM& vm, JS::Value value)
 {
@@ -2424,7 +2439,7 @@ WebIDL::ExceptionOr<void> structured_serialize_internal(JS::VM& vm, StructuredSe
 }
 
 // https://html.spec.whatwg.org/multipage/structured-data.html#structureddeserialize
-WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM& vm, IPCSerializationRecord const& serialized, JS::Realm& target_realm, Optional<DeserializationMemory> memory, Vector<Core::AnonymousBuffer>* shared_buffers)
+WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM& vm, IPCSerializationRecord const& serialized, JS::Realm& target_realm, Optional<DeserializationMemory> memory, Vector<Core::AnonymousBuffer> const* shared_buffers)
 {
     TemporaryExecutionContext execution_context { target_realm };
 

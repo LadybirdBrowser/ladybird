@@ -141,13 +141,13 @@ public:
     ReadonlySpan<GC::Root<JS::ArrayBuffer>> shared_array_buffers() const { return m_shared_array_buffers; }
 
     // Set on the messaging path so the deserializer can map SharedArrayBuffers back to their cross-process shared memory.
-    void set_shared_buffers(Vector<Core::AnonymousBuffer>& shared_buffers) { m_shared_buffers = &shared_buffers; }
-    Vector<Core::AnonymousBuffer>* shared_buffers() { return m_shared_buffers; }
+    void set_shared_buffers(Vector<Core::AnonymousBuffer> const& shared_buffers) { m_shared_buffers = &shared_buffers; }
+    Vector<Core::AnonymousBuffer> const* shared_buffers() const { return m_shared_buffers; }
 
 private:
     NonnullOwnPtr<StructuredSerializeDataDecoder> m_decoder;
     Vector<GC::Root<JS::ArrayBuffer>> m_shared_array_buffers;
-    Vector<Core::AnonymousBuffer>* m_shared_buffers { nullptr };
+    Vector<Core::AnonymousBuffer> const* m_shared_buffers { nullptr };
 };
 
 struct SerializedTransferRecord {
@@ -180,10 +180,11 @@ enum class AllowSharedArrayBuffers : u8 {
 
 WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&, JS::Value);
 WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&, JS::Value, AllowSharedArrayBuffers);
+WEB_API WebIDL::ExceptionOr<IPCSerializationRecord> structured_serialize(JS::VM&, JS::Value, Vector<Core::AnonymousBuffer>& shared_buffers);
 WEB_API WebIDL::ExceptionOr<StorageSerializationRecord> structured_serialize_for_storage(JS::VM&, JS::Value);
 WEB_API WebIDL::ExceptionOr<void> structured_serialize_internal(JS::VM&, StructuredSerializeWriter&, JS::Value, bool for_storage, SerializationMemory&, AllowSharedArrayBuffers = AllowSharedArrayBuffers::CrossOriginIsolatedOnly);
 
-WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, IPCSerializationRecord const&, JS::Realm&, Optional<DeserializationMemory> = {}, Vector<Core::AnonymousBuffer>* shared_buffers = nullptr);
+WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, IPCSerializationRecord const&, JS::Realm&, Optional<DeserializationMemory> = {}, Vector<Core::AnonymousBuffer> const* shared_buffers = nullptr);
 WebIDL::ExceptionOr<JS::Value> structured_deserialize(JS::VM&, StorageSerializationRecord const&, JS::Realm&, Optional<DeserializationMemory> = {});
 WEB_API WebIDL::ExceptionOr<JS::Value> structured_deserialize_internal(JS::VM&, StructuredSerializeReader&, JS::Realm&, DeserializationMemory&, CheckFullyConsumed = CheckFullyConsumed::No);
 

@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<script type="worker">
+    const channel = new BroadcastChannel("shared-array-buffer");
+    channel.onmessage = (e) => {
+        const view = new Int32Array(e.data);
+        const seen = Atomics.load(view, 0);
+        Atomics.store(view, 1, 2);
+        postMessage({ isShared: e.data instanceof SharedArrayBuffer, seen });
+    };
+    postMessage("ready");
+</script>
+<script src="include.js"></script>
+<script>
+    // A SharedArrayBuffer posted over a BroadcastChannel has to reach every receiver as the same memory — a dedicated
+    // worker in another process, and a second channel in this window alike — so a store on either side is visible to
+    // the sender's own view.
+    asyncTest((done) => {
+        const sab = new SharedArrayBuffer(12);
+        const view = new Int32Array(sab);
+        Atomics.store(view, 0, 1);
+
+        let sameWindowChannelSaw = null;
+        const sameWindowChannel = new BroadcastChannel("shared-array-buffer");
+        sameWindowChannel.onmessage = (e) => {
+            const view2 = new Int32Array(e.data);
+            sameWindowChannelSaw = Atomics.load(view2, 0);
+            Atomics.store(view2, 2, 3);
+        };
+
+        const sender = new BroadcastChannel("shared-array-buffer");
+        const workerSource = document.querySelector('[type=worker]').innerText;
+        const worker = new Worker(URL.createObjectURL(new Blob([workerSource], { type: "text/javascript" })));
+        worker.onmessage = (e) => {
+            if (e.data === "ready") {
+                sender.postMessage(sab);
+                return;
+            }
+            println("worker got a SharedArrayBuffer: " + e.data.isShared);
+            println("worker saw initial: " + e.data.seen);
+            println("after worker writes 2, sender view sees: " + Atomics.load(view, 1));
+            println("same-window channel saw initial: " + sameWindowChannelSaw);
+            println("after same-window channel writes 3, sender view sees: " + Atomics.load(view, 2));
+            done();
+        };
+    });
+</script>
