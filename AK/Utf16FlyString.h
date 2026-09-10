@@ -50,6 +50,7 @@ public:
     }
 
     [[nodiscard]] FlatPtr raw_identity() const { return m_data.raw({}); }
+    [[nodiscard]] bool has_short_ascii_storage() const { return m_data.has_short_ascii_storage(); }
 
     [[nodiscard]] static Utf16FlyString from_raw(FlatPtr raw)
     {

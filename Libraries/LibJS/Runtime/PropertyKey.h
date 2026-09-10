@@ -214,8 +214,11 @@ template<>
 struct Traits<JS::PropertyKey> : public DefaultTraits<JS::PropertyKey> {
     static unsigned hash(JS::PropertyKey const& name)
     {
-        if (name.is_string())
+        if (name.is_string()) {
+            if (name.as_string().has_short_ascii_storage())
+                return u64_hash(name.as_string().raw_identity());
             return name.as_string().hash();
+        }
         if (name.is_symbol())
             return ptr_hash(name.as_symbol());
         if (name.is_number())
