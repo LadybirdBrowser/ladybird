@@ -2483,7 +2483,7 @@ void ConnectionFromClient::update_input_method_state(u64 page_id)
     async_did_update_input_method_state(page_id, caret_rect, is_enabled, cursor_position, anchor_position, move(text_before_cursor), move(text_after_cursor));
 }
 
-void ConnectionFromClient::set_content_blockers(u64 page_id, Core::AnonymousBuffer patterns_buffer)
+void ConnectionFromClient::set_content_blockers(Core::AnonymousBuffer patterns_buffer)
 {
     auto& blocker = Web::ContentBlocker::the();
     auto had_cosmetic_rules = blocker.has_cosmetic_rules();
@@ -2493,10 +2493,8 @@ void ConnectionFromClient::set_content_blockers(u64 page_id, Core::AnonymousBuff
         return;
     }
 
-    if (had_cosmetic_rules || blocker.has_cosmetic_rules()) {
-        if (auto page = this->page(page_id); page.has_value())
-            page->page().invalidate_user_style();
-    }
+    if (had_cosmetic_rules || blocker.has_cosmetic_rules())
+        m_page_host->invalidate_user_style();
 }
 
 void ConnectionFromClient::set_autoplay_settings(u64, Web::HTML::AutoplayPolicy policy, Vector<Utf16String> allowlist)

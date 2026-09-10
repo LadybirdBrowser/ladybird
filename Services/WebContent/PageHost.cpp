@@ -76,6 +76,12 @@ void PageHost::compositor_process_reconnected()
         page->compositor_process_reconnected();
 }
 
+void PageHost::invalidate_user_style()
+{
+    for (auto& [_, page] : m_pages)
+        page->page().invalidate_user_style();
+}
+
 void PageHost::compositor_process_lost()
 {
     for (auto& [_, page] : m_pages)

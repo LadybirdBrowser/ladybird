@@ -283,7 +283,6 @@ public:
     void request_style_sheet_source(Web::CSS::StyleSheetIdentifier const&);
 
     void debug_request(ByteString const& request, ByteString const& argument = {});
-    void set_content_blockers(Core::AnonymousBuffer const& patterns);
 
     void run_javascript(String const&);
     void js_console_input(String const&);
