@@ -1229,12 +1229,13 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, StructuredSe
             // 3. If value has an [[ArrayBufferMaxByteLength]] internal slot, then set serialized to { [[Type]]: "GrowableSharedArrayBuffer",
             //           [[ArrayBufferData]]: value.[[ArrayBufferData]], [[ArrayBufferByteLengthData]]: value.[[ArrayBufferByteLengthData]],
             //           [[ArrayBufferMaxByteLength]]: value.[[ArrayBufferMaxByteLength]],
-            //           FIXME: [[AgentCluster]]: the surrounding agent's agent cluster }.
+            //           [[AgentCluster]]: the surrounding agent's agent cluster }.
             // To share with a same-process target, stash the source buffer in the side table. The byte copy keeps the
             // wire format self-contained for records that cross a process boundary.
             // AD-HOC: A growable SharedArrayBuffer isn't backed by cross-process shared memory (its storage is
             //         process-local) — so only a same-process target can share it. A record that crosses a process
             //         boundary hands the peer a copy.
+            // FIXME: Share it across processes too: a max-sized shared mapping with a shared length word (#11682).
             data_holder.encode(ValueTag::GrowableSharedArrayBuffer);
             TRY(serialize_agent_cluster(data_holder, allow_shared_array_buffers));
             data_holder.encode(data_holder.add_shared_array_buffer(array_buffer));
@@ -1243,7 +1244,7 @@ static WebIDL::ExceptionOr<void> serialize_array_buffer(JS::VM& vm, StructuredSe
         } else {
             // 4. Otherwise, set serialized to { [[Type]]: "SharedArrayBuffer", [[ArrayBufferData]]: value.[[ArrayBufferData]],
             //           [[ArrayBufferByteLength]]: value.[[ArrayBufferByteLength]],
-            //           FIXME: [[AgentCluster]]: the surrounding agent's agent cluster }.
+            //           [[AgentCluster]]: the surrounding agent's agent cluster }.
             // To share (rather than copy) [[ArrayBufferData]] with a same-process target, stash the source buffer in the
             // record's side table and encode its index. A record that crosses a process boundary arrives with an empty
             // side table — and shares through the file-descriptor side list below instead, or falls back to a byte copy.

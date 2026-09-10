@@ -201,8 +201,9 @@ static ThrowCompletionOr<DataBlock> create_shared_byte_data_block(VM& vm, size_t
 
     // AD-HOC: A fixed-length shared Data Block is backed by cross-process shared memory (Core::AnonymousBuffer) — so
     //         that the SharedArrayBuffer is genuinely shared across agents in different processes, rather than copied.
-    //         Fresh anonymous shared memory is zero-filled by the OS. Growable shared Data Blocks (capacity > size)
-    //         still use process-local storage (for now).
+    //         Fresh anonymous shared memory is zero-filled by the OS. A growable shared Data Block (capacity > size)
+    //         uses process-local storage, so a growable SharedArrayBuffer crosses a process boundary as a copy.
+    // FIXME: Back a growable shared Data Block with a max-sized shared mapping and a shared length word too (#11682).
     if (*capacity == size && size > 0) {
         // AD-HOC: Cap the shared allocation — so one SharedArrayBuffer can't reserve an absurd amount of address space
         //         in every agent that maps it. Chromium caps its shared-memory regions at INT_MAX; match that (the fd
