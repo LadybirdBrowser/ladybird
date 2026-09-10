@@ -10,7 +10,6 @@
 
 class QLabel;
 class QLineEdit;
-class QTabBar;
 class QTimer;
 class QTreeWidget;
 
@@ -31,7 +30,6 @@ private:
     bool m_is_updating_style { false };
     QTreeWidget* m_processes { nullptr };
     QLineEdit* m_search { nullptr };
-    QTabBar* m_filters { nullptr };
     QLabel* m_process_count { nullptr };
     QLabel* m_summary { nullptr };
     QTimer* m_timer { nullptr };

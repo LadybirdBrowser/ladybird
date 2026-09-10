@@ -20,7 +20,6 @@
 #include <QScrollBar>
 #include <QShortcut>
 #include <QStyledItemDelegate>
-#include <QTabBar>
 #include <QTimer>
 #include <QTreeWidget>
 #include <QVBoxLayout>
@@ -46,7 +45,7 @@ public:
     virtual QSize sizeHint(QStyleOptionViewItem const& option, QModelIndex const& index) const override
     {
         auto size = QStyledItemDelegate::sizeHint(option, index);
-        size.setHeight(qMax(size.height(), 34));
+        size.setHeight(qMax(size.height(), 30));
         return size;
     }
 };
@@ -71,37 +70,31 @@ ProcessManagerWindow::ProcessManagerWindow()
     setWindowFlags(Qt::Window);
     setWindowTitle(tr("Task Manager"));
     setAttribute(Qt::WA_QuitOnClose, false);
-    resize(860, 500);
-    setMinimumSize(660, 320);
+    resize(760, 440);
+    setMinimumSize(560, 300);
 
     auto* layout = new QVBoxLayout(this);
-    layout->setContentsMargins(20, 16, 20, 4);
-    layout->setSpacing(16);
+    layout->setContentsMargins(16, 12, 16, 4);
+    layout->setSpacing(12);
 
     auto* toolbar = new QHBoxLayout;
     toolbar->setSpacing(24);
-    m_filters = new QTabBar(this);
-    m_filters->addTab(tr("All processes"));
-    m_filters->addTab(tr("Web content"));
-    m_filters->addTab(tr("Browser"));
-    m_filters->setAccessibleName(tr("Process type"));
-    m_filters->setDrawBase(false);
-    m_filters->setExpanding(false);
-    toolbar->addWidget(m_filters);
+    m_process_count = new QLabel(tr("Processes"), this);
+    toolbar->addWidget(m_process_count);
     toolbar->addStretch();
     m_search = new QLineEdit(this);
     m_search->setPlaceholderText(tr("Search processes"));
     m_search->setAccessibleName(tr("Search processes"));
     m_search->setClearButtonEnabled(true);
     m_search->setMinimumWidth(180);
-    m_search->setMaximumWidth(260);
+    m_search->setMaximumWidth(240);
     m_search->addAction(create_chrome_icon(ChromeIcon::Search, palette()), QLineEdit::LeadingPosition);
     toolbar->addWidget(m_search);
     layout->addLayout(toolbar);
 
     m_processes = new QTreeWidget(this);
     m_processes->setHeaderLabels({ tr("Process"), tr("PID"), tr("CPU"), tr("Memory") });
-    m_processes->setIconSize(QSize(20, 20));
+    m_processes->setIconSize(QSize(16, 16));
     m_processes->setAccessibleName(tr("Processes"));
     m_processes->setFrameShape(QFrame::NoFrame);
     m_processes->setUniformRowHeights(true);
@@ -119,13 +112,9 @@ ProcessManagerWindow::ProcessManagerWindow()
     }
     layout->addWidget(m_processes, 1);
     connect(m_search, &QLineEdit::textChanged, this, &ProcessManagerWindow::apply_filter);
-    connect(m_filters, &QTabBar::currentChanged, this, &ProcessManagerWindow::apply_filter);
 
     auto* summary_layout = new QHBoxLayout;
-    summary_layout->setContentsMargins(8, 12, 8, 12);
-    m_process_count = new QLabel(this);
-    m_process_count->setAttribute(Qt::WA_MacSmallSize);
-    summary_layout->addWidget(m_process_count);
+    summary_layout->setContentsMargins(0, 4, 0, 8);
     summary_layout->addStretch();
     m_summary = new QLabel(this);
     m_summary->setAttribute(Qt::WA_MacSmallSize);
@@ -158,24 +147,20 @@ void ProcessManagerWindow::update_style()
 
     auto text = ChromeStyle::chrome_text(palette());
     auto background = ChromeStyle::chrome_background(palette());
-    auto surface = ChromeStyle::style_sheet_color(ChromeStyle::mix(background, text, 0.08));
-    auto border = ChromeStyle::style_sheet_color(ChromeStyle::mix(background, text, 0.18));
+    auto surface = ChromeStyle::style_sheet_color(ChromeStyle::chrome_surface_recessed(palette()));
+    auto border = ChromeStyle::style_sheet_color(ChromeStyle::mix(background, text, 0.12));
     auto foreground = ChromeStyle::style_sheet_color(text);
-    auto accent = ChromeStyle::chrome_accent(palette());
-    if (ChromeStyle::is_dark(palette()))
-        accent = ChromeStyle::mix(accent, text, 0.45);
+    auto secondary_foreground = ChromeStyle::style_sheet_color(ChromeStyle::chrome_muted_text(palette()));
 
-    m_filters->setStyleSheet(QStringLiteral(
-        "QTabBar::tab { background: transparent; color: %1; padding: 10px 12px; border-bottom: 2px solid transparent; }"
-        "QTabBar::tab:selected { color: %2; border-bottom-color: %2; }")
-            .arg(foreground, ChromeStyle::style_sheet_color(accent)));
+    m_process_count->setStyleSheet(QStringLiteral("color: %1;").arg(secondary_foreground));
+    m_summary->setStyleSheet(QStringLiteral("color: %1;").arg(secondary_foreground));
     m_processes->setStyleSheet(QStringLiteral(
-        "QTreeWidget { background: %1; color: %2; border: 1px solid %3; border-radius: 8px; padding: 4px; }"
+        "QTreeWidget { background: %1; color: %2; border: none; }"
         "QTreeWidget::item { padding: 0px 8px; }")
-            .arg(surface, foreground, border));
+            .arg(surface, foreground));
     m_processes->header()->setStyleSheet(QStringLiteral(
         "QHeaderView::section { background: %1; color: %2; border: none; border-bottom: 1px solid %3;"
-        " padding: 10px 24px 10px 8px; font-weight: 600; }")
+        " padding: 8px 24px 8px 8px; }")
             .arg(surface, foreground, border));
     m_is_updating_style = false;
 }
@@ -230,7 +215,6 @@ void ProcessManagerWindow::refresh()
         if (process.title().has_value())
             name += QStringLiteral(" - ") + qstring_from_utf16_string(*process.title());
         item->setText(Name, name);
-        item->setData(Name, Qt::UserRole, static_cast<int>(process.type()));
         if (process.type() == WebView::ProcessType::Browser)
             item->setIcon(Name, browser_icon);
         else
@@ -275,15 +259,11 @@ void ProcessManagerWindow::refresh()
 void ProcessManagerWindow::apply_filter()
 {
     auto query = m_search->text().trimmed();
-    auto group = m_filters->currentIndex();
     size_t visible_count = 0;
     size_t total_count = 0;
     auto filter = [&](auto& self, QTreeWidgetItem* item) -> bool {
         ++total_count;
-        auto type = static_cast<WebView::ProcessType>(item->data(Name, Qt::UserRole).toInt());
-        bool is_web_content = type == WebView::ProcessType::WebContent || type == WebView::ProcessType::WebWorker;
-        bool matches_group = group == 0 || (group == 1 ? is_web_content : !is_web_content);
-        bool visible = matches_group && (item->text(Name).contains(query, Qt::CaseInsensitive) || item->text(PID).contains(query));
+        bool visible = item->text(Name).contains(query, Qt::CaseInsensitive) || item->text(PID).contains(query);
         bool has_visible_child = false;
         for (int i = 0; i < item->childCount(); ++i)
             has_visible_child |= self(self, item->child(i));
