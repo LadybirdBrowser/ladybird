@@ -4494,7 +4494,6 @@ static GC::Ptr<DOM::Element> adopt_async_element_scroll_delta(DOM::Document& doc
 
     element->set_scroll_offset(pseudo_element, scroll_offset);
 
-    document.invalidate_scroll_state();
     document.append_pending_scroll_event({ *element, EventNames::scroll });
     element->set_needs_repaint(InvalidateDisplayList::No);
     return element;

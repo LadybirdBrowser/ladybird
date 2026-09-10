@@ -5827,16 +5827,22 @@ CSSPixelPoint Element::scroll_offset(Optional<CSS::PseudoElement> pseudo_element
 // That is why the unchecked layout node accessor is the right one here.
 void Element::set_scroll_offset(Optional<CSS::PseudoElement> pseudo_element_type, CSSPixelPoint offset)
 {
+    // The document's scroll state mirrors these offsets, so it is invalidated here, next to the
+    // store, rather than by each caller.
     if (pseudo_element_type.has_value()) {
         auto pseudo_element = get_synthetic_pseudo_element(*pseudo_element_type);
         if (!pseudo_element.has_value())
             return;
+        if (pseudo_element->scroll_offset() != offset)
+            document().invalidate_scroll_state();
         pseudo_element->set_scroll_offset(offset);
         if (auto* layout_node = pseudo_element->unsafe_layout_node())
             layout_node->update_has_scroll_offset_flag();
         return;
     }
 
+    if (scroll_offset({}) != offset)
+        document().invalidate_scroll_state();
     if (!offset.is_zero())
         ensure_element_rare_data().scroll_offset = offset;
     else if (auto* rare_data = element_rare_data())
