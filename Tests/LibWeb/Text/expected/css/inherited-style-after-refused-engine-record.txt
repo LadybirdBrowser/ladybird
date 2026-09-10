@@ -1,0 +1,2 @@
+child color: rgb(255, 0, 0)
+grandchild color: rgb(255, 0, 0)

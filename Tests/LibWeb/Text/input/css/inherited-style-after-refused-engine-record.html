@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .declares-custom-property {
+        --x: 1px;
+        fill: currentcolor;
+        text-align: left;
+    }
+    .moved {
+        color: red;
+    }
+</style>
+<div id="outer"><div id="child" class="declares-custom-property" align="left"><span id="grandchild">text</span></div></div>
+<script>
+    test(() => {
+        const outer = document.getElementById("outer");
+        const child = document.getElementById("child");
+        const grandchild = document.getElementById("grandchild");
+        document.body.offsetHeight;
+        outer.classList.add("moved");
+        document.body.offsetHeight;
+        println(`child color: ${getComputedStyle(child).color}`);
+        println(`grandchild color: ${getComputedStyle(grandchild).color}`);
+    });
+</script>
