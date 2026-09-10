@@ -841,21 +841,19 @@ fn retained_null() -> RetainedStyleValueData {
     unsafe { RetainedStyleValueData::from_retained_optional_pointer(std::ptr::null()) }
 }
 
-/// Port of clamp_to_byte() in ColorFunctionStyleValue.cpp: NaN becomes 0, then llround
-/// (round half away from zero, which f64::round matches) after clamping.
+/// Clamp a legacy RGB channel to a byte. NaN becomes 0, then values round half away from zero.
 fn clamp_to_byte(value: f64) -> u8 {
     let value = if value.is_nan() { 0.0 } else { value };
     value.clamp(0.0, 255.0).round() as u8
 }
 
-/// Port of fraction_to_byte() in ColorFunctionStyleValue.cpp.
+/// Convert a normalized channel to a byte.
 fn fraction_to_byte(fraction_0_1: f64) -> u8 {
     // Match CSS Color 4 "resolve to sRGB" rounding: round half away from zero,
     // not the default round-half-to-even that cvtsd2si uses.
     (fraction_0_1 * 255.0).clamp(0.0, 255.0).round() as u8
 }
 
-/// Port of ResolvedChannels in ColorFunctionStyleValue.cpp.
 struct ResolvedChannels {
     c1: f64,
     c2: f64,
@@ -863,7 +861,6 @@ struct ResolvedChannels {
     alpha: f64,
 }
 
-/// Port of resolve_channels_for() in ColorFunctionStyleValue.cpp.
 fn resolve_channels_for(
     descriptor: &ColorFunctionDescriptor,
     channels: [&StyleValueData; 3],
@@ -894,7 +891,6 @@ fn resolve_channels_for(
     })
 }
 
-/// Port of the per-color-type construction switch in ColorFunctionStyleValue::to_color().
 fn construct_color(color_type: u8, c1: f64, c2: f64, c3: f64, alpha: f64) -> Option<Rgba> {
     use color_conversion as ct;
     Some(match color_type {
@@ -964,12 +960,10 @@ fn construct_color(color_type: u8, c1: f64, c2: f64, c3: f64, alpha: f64) -> Opt
         ct::REC2020 => Rgba::from_rec2020(c1 as f32, c2 as f32, c3 as f32, alpha as f32),
         ct::XYZ_D50 => Rgba::from_xyz50(c1 as f32, c2 as f32, c3 as f32, alpha as f32),
         ct::XYZ_D65 => Rgba::from_xyz65(c1 as f32, c2 as f32, c3 as f32, alpha as f32),
-        // The C++ switch is exhaustive over ColorType and VERIFYs past its end.
         _ => return None,
     })
 }
 
-/// Port of ColorFunctionStyleValue::to_color().
 fn color_function_to_color(value: &StyleValueData, input: &ColorResolutionInput) -> Option<Rgba> {
     let StyleValueData::ColorFunction {
         color_base,
@@ -983,7 +977,6 @@ fn color_function_to_color(value: &StyleValueData, input: &ColorResolutionInput)
     else {
         return None;
     };
-    // The C++ code dereferences color_type() unconditionally.
     if !color_base.has_color_type {
         return None;
     }
