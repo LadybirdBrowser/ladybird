@@ -20,7 +20,7 @@ use crate::css::calc::{
     resolve_calculated_number_with_channels, resolve_calculated_percentage_with_channels,
 };
 use crate::css::color_conversion::{self, Components};
-use crate::css::color_interpolation::{FfiResolvedColor, rust_interpolate_color};
+use crate::css::color_interpolation::{ResolvedColor, interpolate_color};
 use crate::css::css_enums::channel_keyword;
 use crate::css::css_enums::keyword;
 use crate::css::css_enums::keyword_to_channel_keyword;
@@ -1558,7 +1558,7 @@ fn resolve_native_color_components(
 pub(crate) fn resolve_color_for_interpolation(
     input_value: &StyleValueData,
     input: &ColorResolutionInput,
-) -> Option<FfiResolvedColor> {
+) -> Option<ResolvedColor> {
     let resolved_relative_storage;
     let mut style_value = input_value;
     if let StyleValueData::ColorFunction { origin_color, .. } = input_value
@@ -1580,7 +1580,7 @@ pub(crate) fn resolve_color_for_interpolation(
             // resolve_native_color_components() only accepts color functions.
             return None;
         };
-        return Some(FfiResolvedColor {
+        return Some(ResolvedColor {
             color_type,
             components,
             missing: [
@@ -1595,7 +1595,7 @@ pub(crate) fn resolve_color_for_interpolation(
 
     let color = to_color(style_value, input)?;
     // Gfx::color_to_srgb(): the u8 channels back to fractions.
-    Some(FfiResolvedColor {
+    Some(ResolvedColor {
         color_type: color_conversion::SRGB,
         components: [
             f32::from(color.r) / 255.0,
@@ -1611,7 +1611,7 @@ pub(crate) fn resolve_color_for_interpolation(
 /// Port of ColorMixStyleValue::to_color() and interpolate_color_in_rust(), reaching the
 /// interpolation entry point in-crate instead of through the C++ round trip.
 // https://drafts.csswg.org/css-color-5/#color-mix-result
-fn color_mix_to_color(value: &StyleValueData, input: &ColorResolutionInput) -> Option<Rgba> {
+pub(crate) fn resolve_color_mix(value: &StyleValueData, input: &ColorResolutionInput) -> Option<StyleValueData> {
     let StyleValueData::ColorMix {
         color_interpolation_method,
         first_color,
@@ -1645,22 +1645,17 @@ fn color_mix_to_color(value: &StyleValueData, input: &ColorResolutionInput) -> O
     let resolved_from = resolve_color_for_interpolation(first_color.data(), input)?;
     let resolved_to = resolve_color_for_interpolation(second_color.data(), input)?;
     let delta = (normalized.second_percentage / 100.0) as f32;
-    // SAFETY: All pointers stay live for the duration of the call.
-    let result = unsafe {
-        rust_interpolate_color(
-            &raw const resolved_from,
-            &raw const resolved_to,
-            std::ptr::from_ref(method),
-            delta,
-            normalized.alpha_multiplier as f32,
-        )
-    };
-    if result.is_null() {
-        return None;
-    }
-    // SAFETY: The returned pointer owns exactly one strong reference.
-    let result = unsafe { Arc::from_raw(result) };
-    to_color(&result, input)
+    interpolate_color(
+        &resolved_from,
+        &resolved_to,
+        method,
+        delta,
+        normalized.alpha_multiplier as f32,
+    )
+}
+
+fn color_mix_to_color(value: &StyleValueData, input: &ColorResolutionInput) -> Option<Rgba> {
+    to_color(&resolve_color_mix(value, input)?, input)
 }
 
 /// The color-resolution fan-out over the color-bearing style value variants: the union of

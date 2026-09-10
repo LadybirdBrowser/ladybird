@@ -485,6 +485,16 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::absolutized(Computatio
                 auto resolved = value->absolutized(*static_cast<ComputationContext const*>(opaque_context));
                 return StyleValueFFI::rust_style_value_retain(resolved->rust_style_value_data());
             }));
+    case Type::Color:
+        if (m_value->tag == StyleValueFFI::StyleValueData::Tag::ColorMix) {
+            return adopt_rust_style_value_data(StyleValueFFI::rust_composite_style_value_absolutize(
+                m_value.operator->(), &context, [](void const* opaque_context, StyleValueFFI::StyleValueData const* child) {
+                    auto value = adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(child));
+                    auto resolved = value->absolutized(*static_cast<ComputationContext const*>(opaque_context));
+                    return StyleValueFFI::rust_style_value_retain(resolved->rust_style_value_data());
+                }));
+        }
+        return static_cast<ColorStyleValue const&>(*this).absolutized(context);
 #define __ENUMERATE_CSS_STYLE_VALUE_TYPE(title_case, snake_case, style_value_class_name) \
     case Type::title_case:                                                               \
         return static_cast<style_value_class_name const&>(*this).absolutized(context);

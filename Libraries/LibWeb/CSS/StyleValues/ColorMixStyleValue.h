@@ -6,7 +6,6 @@
 
 #pragma once
 
-#include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleValues/ColorStyleValue.h>
 
 namespace Web::CSS {
@@ -22,9 +21,6 @@ public:
     };
 
     static ValueComparingNonnullRefPtr<ColorMixStyleValue const> create(RefPtr<StyleValue const> color_interpolation_method, ColorMixComponent first_component, ColorMixComponent second_component);
-
-    Optional<Color> to_color(ColorResolutionContext) const;
-    ValueComparingNonnullRefPtr<StyleValue const> absolutized(ComputationContext const&) const;
 
 private:
     friend class StyleValue;
@@ -43,30 +39,6 @@ private:
             retain(first_component.color.ptr()), retain(first_component.percentage.ptr()),
             retain(second_component.color.ptr()), retain(second_component.percentage.ptr()));
     }
-
-    ValueComparingRefPtr<StyleValue const> color_interpolation_method_value() const { return wrap_rust_child_or_null(m_value->color_mix.color_interpolation_method); }
-    ColorMixComponent first_component() const
-    {
-        return ColorMixComponent { wrap_rust_child(m_value->color_mix.first_color), wrap_rust_child_or_null(m_value->color_mix.first_percentage) };
-    }
-    ColorMixComponent second_component() const
-    {
-        return ColorMixComponent { wrap_rust_child(m_value->color_mix.second_color), wrap_rust_child_or_null(m_value->color_mix.second_percentage) };
-    }
-
-    struct NormalizedPercentages {
-        Percentage first_percentage;
-        Percentage second_percentage;
-        double alpha_multiplier;
-    };
-    static NormalizedPercentages normalize_percentage_pair(Optional<Percentage> p1, Optional<Percentage> p2);
-
-    struct PercentageNormalizationResult {
-        ValueComparingNonnullRefPtr<StyleValue const> p1;
-        ValueComparingNonnullRefPtr<StyleValue const> p2;
-        double alpha_multiplier;
-    };
-    PercentageNormalizationResult normalize_percentages(ComputationContext const&) const;
 };
 
 }

@@ -82,7 +82,7 @@ Optional<Color> ColorStyleValue::to_color(ColorResolutionContext color_resolutio
     case StyleValueFFI::StyleValueData::Tag::ColorFunction:
         return static_cast<ColorFunctionStyleValue const&>(*this).to_color(color_resolution_context);
     case StyleValueFFI::StyleValueData::Tag::ColorMix:
-        return static_cast<ColorMixStyleValue const&>(*this).to_color(color_resolution_context);
+        return {};
     case StyleValueFFI::StyleValueData::Tag::ContrastColor:
         return static_cast<ContrastColorStyleValue const&>(*this).to_color(color_resolution_context);
     case StyleValueFFI::StyleValueData::Tag::LightDark:
@@ -98,7 +98,7 @@ ValueComparingNonnullRefPtr<StyleValue const> ColorStyleValue::absolutized(Compu
     case StyleValueFFI::StyleValueData::Tag::ColorFunction:
         return static_cast<ColorFunctionStyleValue const&>(*this).absolutized(context);
     case StyleValueFFI::StyleValueData::Tag::ColorMix:
-        return static_cast<ColorMixStyleValue const&>(*this).absolutized(context);
+        VERIFY_NOT_REACHED();
     case StyleValueFFI::StyleValueData::Tag::ContrastColor:
         return static_cast<ContrastColorStyleValue const&>(*this).absolutized(context);
     case StyleValueFFI::StyleValueData::Tag::LightDark:

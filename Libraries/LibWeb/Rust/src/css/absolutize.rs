@@ -99,6 +99,32 @@ mod grid_tests {
     }
 
     #[test]
+    fn composite_resolution_preserves_color_mix_with_currentcolor() {
+        unsafe extern "C" fn unchanged(_: *const core::ffi::c_void, value: &StyleValueData) -> *const StyleValueData {
+            unsafe { Arc::increment_strong_count(value) };
+            value
+        }
+        let parsed = parse(property_id::COLOR, "color-mix(in srgb, currentcolor 20%, red 20%)");
+        let resolved = unsafe {
+            Arc::from_raw(rust_composite_style_value_absolutize(
+                &parsed,
+                std::ptr::null(),
+                unchanged,
+            ))
+        };
+        let StyleValueData::ColorMix {
+            first_percentage,
+            second_percentage,
+            ..
+        } = &*resolved
+        else {
+            unreachable!();
+        };
+        assert_eq!(percentage_from_style_value(first_percentage.data()), Some(20.0));
+        assert_eq!(percentage_from_style_value(second_percentage.data()), Some(20.0));
+    }
+
+    #[test]
     fn grid_leaf_resolution_preserves_identity_and_retained_children() {
         unsafe extern "C" fn unchanged(_: *const core::ffi::c_void, value: &StyleValueData) -> *const StyleValueData {
             unsafe { Arc::increment_strong_count(value) };
@@ -185,7 +211,7 @@ use crate::css::css_enums::keyword;
 use crate::css::style_compute::{FfiLengthResolutionContext, absolutize_length, keyword_is_color};
 use crate::css::style_value::{
     ColorBase, CssString, RetainedGridTrackEntryList, RetainedStyleValueData, RetainedStyleValueDataList,
-    StyleValueData,
+    StyleValueData, value_depends_on_current_color,
 };
 
 pub(crate) struct AbsolutizationContext<'a> {
@@ -594,6 +620,7 @@ fn absolutize_color_function(value: &StyleValueData, context: &AbsolutizationCon
 /// Port of ColorMixStyleValue::absolutized: normalizes the mix percentages, resolves relative
 /// color forms, and interpolates to a concrete color; when interpolation cannot complete the
 /// color-mix rebuilds around its absolutized parts instead.
+// FIXME: Follow the spec algorithm. https://drafts.csswg.org/css-color-5/#calculate-a-color-mix
 fn absolutize_color_mix(value: &StyleValueData, context: &AbsolutizationContext) -> Option<Absolutized> {
     let StyleValueData::ColorMix {
         color_interpolation_method,
@@ -654,22 +681,14 @@ fn absolutize_color_mix(value: &StyleValueData, context: &AbsolutizationContext)
     let interpolated = (|| -> Option<RetainedStyleValueData> {
         let resolved_from = resolve_color_for_interpolation(resolved_first, &input)?;
         let resolved_to = resolve_color_for_interpolation(resolved_second, &input)?;
-        // SAFETY: All pointers stay live for the duration of the call; the non-null result
-        // owns exactly one strong reference.
-        let result = unsafe {
-            crate::css::color_interpolation::rust_interpolate_color(
-                &raw const resolved_from,
-                &raw const resolved_to,
-                std::ptr::from_ref(method),
-                delta as f32,
-                normalized.alpha_multiplier as f32,
-            )
-        };
-        if result.is_null() {
-            return None;
-        }
-        // SAFETY: The returned pointer owns exactly one strong reference.
-        Some(unsafe { RetainedStyleValueData::from_retained_pointer(result) })
+        let result = crate::css::color_interpolation::interpolate_color(
+            &resolved_from,
+            &resolved_to,
+            method,
+            delta as f32,
+            normalized.alpha_multiplier as f32,
+        )?;
+        Some(retain_new(result))
     })();
     if let Some(result) = interpolated {
         return Some(Absolutized::Changed(result));
@@ -703,6 +722,56 @@ fn absolutize_color_mix(value: &StyleValueData, context: &AbsolutizationContext)
             value: normalized.second_percentage,
         }),
     })))
+}
+
+// FIXME: Follow the spec algorithm. https://drafts.csswg.org/css-color-5/#calculate-a-color-mix
+fn absolutize_color_mix_with_resolved_children(
+    value: &StyleValueData,
+    map: &mut impl FnMut(&RetainedStyleValueData) -> Option<RetainedStyleValueData>,
+) -> Option<Absolutized> {
+    let StyleValueData::ColorMix {
+        color_interpolation_method,
+        first_color,
+        first_percentage,
+        second_color,
+        second_percentage,
+        ..
+    } = value
+    else {
+        return None;
+    };
+
+    let color_interpolation_method = map(color_interpolation_method)?;
+    let first_color = map(first_color)?;
+    let first_percentage = map(first_percentage)?;
+    let second_color = map(second_color)?;
+    let second_percentage = map(second_percentage)?;
+
+    let rebuilt = StyleValueData::ColorMix {
+        color_base: ColorBase {
+            has_color_type: false,
+            color_type: 0,
+            color_syntax: COLOR_SYNTAX_MODERN,
+        },
+        color_interpolation_method,
+        first_color,
+        first_percentage,
+        second_color,
+        second_percentage,
+    };
+
+    if !value_depends_on_current_color(&rebuilt)
+        && let Some(color) =
+            crate::css::color_resolution::resolve_color_mix(&rebuilt, &crate::css::color_resolution::EMPTY_INPUT)
+    {
+        return Some(Absolutized::Changed(retain_new(color)));
+    }
+
+    if rebuilt == *value {
+        Some(Absolutized::Unchanged)
+    } else {
+        Some(Absolutized::Changed(retain_new(rebuilt)))
+    }
 }
 
 /// The gradient absolutizers recurse their Rust-owned children and rebuild the retained stop
@@ -1160,7 +1229,7 @@ fn map_grid_values(
 /// Resolve context-dependent leaves without materializing a C++ composite value graph.
 ///
 /// # Safety
-/// The value must be a live grid, easing, or basic-shape value. The callback must return one retained reference
+/// The value must be a live supported composite value. The callback must return one retained reference
 /// for each borrowed leaf and must not mutate the input graph.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_composite_style_value_absolutize(
@@ -1174,24 +1243,34 @@ pub unsafe extern "C" fn rust_composite_style_value_absolutize(
             Some(data) => unsafe { RetainedStyleValueData::from_retained_pointer(resolve(context, data)) },
         })
     };
+    let color_mix_result = if matches!(value, StyleValueData::ColorMix { .. }) {
+        absolutize_color_mix_with_resolved_children(value, &mut map)
+    } else {
+        None
+    };
     let mut resolve_child = |child: &RetainedStyleValueData, changed: &mut bool| {
         let mapped = map(child)?;
         *changed |= mapped != *child;
         Some(mapped)
     };
-    let result = match value {
-        StyleValueData::BasicShape { .. } => absolutize_basic_shape(value, &mut resolve_child),
-        StyleValueData::Easing { .. } => absolutize_easing(value, &mut resolve_child),
-        _ => {
-            let mapped = map_grid_values(value, &mut map).unwrap();
-            Some(if mapped == *value {
-                Absolutized::Unchanged
-            } else {
-                Absolutized::Changed(retain_new(mapped))
-            })
+    let result = if let Some(result) = color_mix_result {
+        result
+    } else {
+        match value {
+            StyleValueData::BasicShape { .. } => absolutize_basic_shape(value, &mut resolve_child),
+            StyleValueData::Easing { .. } => absolutize_easing(value, &mut resolve_child),
+            StyleValueData::ColorMix { .. } => unreachable!(),
+            _ => {
+                let mapped = map_grid_values(value, &mut map).unwrap();
+                Some(if mapped == *value {
+                    Absolutized::Unchanged
+                } else {
+                    Absolutized::Changed(retain_new(mapped))
+                })
+            }
         }
-    }
-    .unwrap();
+        .unwrap()
+    };
     if let Absolutized::Changed(mapped) = result {
         let pointer = mapped.pointer();
         core::mem::forget(mapped);
