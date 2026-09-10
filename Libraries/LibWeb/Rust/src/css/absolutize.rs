@@ -650,9 +650,8 @@ fn absolutize_color_function(value: &StyleValueData, context: &AbsolutizationCon
     Some(Absolutized::Changed(retain_new(rebuilt)))
 }
 
-/// Port of ColorMixStyleValue::absolutized: normalizes the mix percentages, resolves relative
-/// color forms, and interpolates to a concrete color; when interpolation cannot complete the
-/// color-mix rebuilds around its absolutized parts instead.
+/// Normalize the mix percentages, resolve relative color forms, and interpolate to a concrete
+/// color. When interpolation cannot complete, rebuild the color mix around its absolutized parts.
 // FIXME: Follow the spec algorithm. https://drafts.csswg.org/css-color-5/#calculate-a-color-mix
 fn absolutize_color_mix(value: &StyleValueData, context: &AbsolutizationContext) -> Option<Absolutized> {
     let StyleValueData::ColorMix {

@@ -148,7 +148,7 @@ def generate_css_parser_expression_for_group_grammar_node(
 def generate_css_parser_expression_for_optional_grammar_node(
     out: TextIO, cpp_name: str, grammar_node: OptionalGrammarNode
 ) -> None:
-    out.write(f"""RefPtr<StyleValue const> {cpp_name} = EmptyOptionalStyleValue::create();
+    out.write(f"""RefPtr<StyleValue const> {cpp_name} = StyleValue::create_empty_optional();
 """)
 
     generate_css_parser_expression_for_grammar_node(out, f"maybe_{cpp_name}", grammar_node.child)

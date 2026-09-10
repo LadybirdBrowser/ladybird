@@ -61,15 +61,15 @@ WEB_API Utf16FlyString css_string_from_rust(void const*);
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Display, display, DisplayStyleValue)                                                      \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Easing, easing, EasingStyleValue)                                                         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Edge, edge, EdgeStyleValue)                                                               \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(EmptyOptional, empty_optional, EmptyOptionalStyleValue)                                   \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(EmptyOptional, empty_optional, StyleValue)                                                \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Filter, filter, FilterStyleValue)                                                         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Function, function, FunctionStyleValue)                                                   \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Flex, flex, FlexStyleValue)                                                               \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(FontSource, font_source, FontSourceStyleValue)                                            \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(FontStyle, font_style, FontStyleStyleValue)                                               \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(Frequency, frequency, FrequencyStyleValue)                                                \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(GridAutoFlow, grid_auto_flow, GridAutoFlowStyleValue)                                     \
-    __ENUMERATE_CSS_STYLE_VALUE_TYPE(GridTemplateArea, grid_template_area, GridTemplateAreaStyleValue)                         \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(GridAutoFlow, grid_auto_flow, StyleValue)                                                 \
+    __ENUMERATE_CSS_STYLE_VALUE_TYPE(GridTemplateArea, grid_template_area, StyleValue)                                         \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(GridTrackPlacement, grid_track_placement, GridTrackPlacementStyleValue)                   \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(GridTrackSizeList, grid_track_size_list, GridTrackSizeListStyleValue)                     \
     __ENUMERATE_CSS_STYLE_VALUE_TYPE(GuaranteedInvalid, guaranteed_invalid, GuaranteedInvalidStyleValue)                       \
@@ -222,6 +222,7 @@ public:
 
     // Wrap a transferred strong Rust reference in its corresponding typed C++ facade.
     static ValueComparingNonnullRefPtr<StyleValue const> adopt_rust_style_value_data(StyleValueFFI::StyleValueData const*);
+    static ValueComparingNonnullRefPtr<StyleValue const> create_empty_optional();
 
     // Mint a fresh typed facade for a Rust payload child, taking a new strong reference.
     static ValueComparingNonnullRefPtr<StyleValue const> wrap_rust_child(StyleValueFFI::RetainedStyleValueData const& child)

@@ -391,8 +391,7 @@ const fn color_function(name: &'static str) -> ColorFunctionDescriptor {
     }
 }
 
-/// Transcribed from ColorFunctionDescriptor.cpp, indexed by the frozen color-type codes
-/// (the color_conversion constants, asserted against C++ in ColorMixStyleValue.cpp).
+/// Color function metadata indexed by the frozen color-type codes.
 static COLOR_FUNCTION_DESCRIPTORS: [ColorFunctionDescriptor; 16] = [
     // RGB
     ColorFunctionDescriptor {
@@ -646,7 +645,7 @@ pub(crate) fn system_color_for_keyword(keyword_code: u16, dark: bool) -> Option<
 pub(crate) const PREFERRED_COLOR_SCHEME_DARK: u8 = 1;
 pub(crate) const PREFERRED_COLOR_SCHEME_LIGHT: u8 = 2;
 
-// Gfx::RectangularColorSpace::Oklab, asserted against C++ in ColorMixStyleValue.cpp.
+// Gfx::RectangularColorSpace::Oklab.
 pub(crate) const RECTANGULAR_COLOR_SPACE_OKLAB: u8 = 8;
 
 /// Mirror of Web::CSS::ColorResolutionContext: the preferred color scheme, the used value of
@@ -1398,14 +1397,13 @@ pub(crate) fn percentage_from_style_value(value: &StyleValueData) -> Option<f64>
     }
 }
 
-/// Port of ColorMixStyleValue::NormalizedPercentages; percentages are 0-100 values.
+/// Percentages are represented as values from 0 to 100.
 pub(crate) struct NormalizedPercentages {
     pub(crate) first_percentage: f64,
     pub(crate) second_percentage: f64,
     pub(crate) alpha_multiplier: f64,
 }
 
-/// Port of ColorMixStyleValue::normalize_percentage_pair().
 // https://drafts.csswg.org/css-color-5/#color-mix-percent-norm
 pub(crate) fn normalize_percentage_pair(p1: Option<f64>, p2: Option<f64>) -> NormalizedPercentages {
     let mut alpha_multiplier = 1.0;
@@ -1450,7 +1448,6 @@ pub(crate) fn normalize_percentage_pair(p1: Option<f64>, p2: Option<f64>) -> Nor
     }
 }
 
-/// Port of resolve_native_color_components() in ColorMixStyleValue.cpp.
 fn resolve_native_color_components(
     style_value: &StyleValueData,
     input: &ColorResolutionInput,
@@ -1547,7 +1544,6 @@ fn resolve_native_color_components(
     Some((color_base.color_type, components))
 }
 
-/// Port of resolve_color_for_rust_interpolation() in ColorMixStyleValue.cpp.
 pub(crate) fn resolve_color_for_interpolation(
     input_value: &StyleValueData,
     input: &ColorResolutionInput,
@@ -1601,8 +1597,6 @@ pub(crate) fn resolve_color_for_interpolation(
     })
 }
 
-/// Port of ColorMixStyleValue::to_color() and interpolate_color_in_rust(), reaching the
-/// interpolation entry point in-crate instead of through the C++ round trip.
 // https://drafts.csswg.org/css-color-5/#color-mix-result
 pub(crate) fn resolve_color_mix(value: &StyleValueData, input: &ColorResolutionInput) -> Option<StyleValueData> {
     let StyleValueData::ColorMix {
