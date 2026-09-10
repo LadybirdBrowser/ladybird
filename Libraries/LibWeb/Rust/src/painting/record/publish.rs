@@ -9,14 +9,20 @@ use crate::painting::display_list::commands::{DisplayListCommandType, DisplayLis
 use crate::painting::host::FfiRecordingPublishCallbacks;
 use crate::painting::paint_state::PendingRecording;
 use crate::painting::record::RecordingOutput;
-use crate::painting::record::vector_images::{is_vector_image_placeholder, vector_image_placeholder_index};
+use crate::painting::record::resources::RecordingResourceManifest;
+use crate::painting::record::vector_images::{
+    VectorImageRenderRequest, is_vector_image_placeholder, vector_image_placeholder_index,
+};
 
-fn resolve_vector_image_placeholders(output: &mut RecordingOutput, publish: &FfiRecordingPublishCallbacks) {
-    if output.vector_image_render_requests.is_empty() {
+fn resolve_vector_image_placeholders(
+    output: &mut RecordingOutput,
+    requests: &[VectorImageRenderRequest],
+    publish: &FfiRecordingPublishCallbacks,
+) {
+    if requests.is_empty() {
         return;
     }
-    let resolved_ids: Vec<u64> = output
-        .vector_image_render_requests
+    let resolved_ids: Vec<u64> = requests
         .iter()
         .map(|request| publish.resolve_vector_image_display_list(&request.to_ffi()))
         .collect();
@@ -52,25 +58,37 @@ pub(crate) fn publish_recording(
 ) -> u64 {
     let PendingRecording {
         mut output,
-        mut recording_from_scratch,
+        resources,
+        recording_from_scratch,
         paint_command_cache_read_write,
     } = pending;
-    for font in &output.newly_referenced_fonts {
+    let RecordingResourceManifest {
+        fonts,
+        image_frames,
+        video_sinks,
+        vector_image_render_requests,
+        ..
+    } = resources;
+    for font in fonts.values() {
         publish.add_font(font);
     }
-    for frame in &output.newly_referenced_image_frames {
+    for frame in image_frames.values() {
         publish.add_image_frame(frame);
     }
     for frame in arena.svg_paint_resources().published_filter_image_frames() {
         publish.add_image_frame(&frame);
     }
-    for (resource_id, sink_handle) in &output.newly_referenced_video_sinks {
-        publish.add_video_sink(*resource_id, *sink_handle);
+    for (resource_id, sink_handle) in video_sinks {
+        publish.add_video_sink(resource_id, sink_handle);
     }
-    resolve_vector_image_placeholders(&mut output, publish);
-    if let Some(recording_from_scratch) = &mut recording_from_scratch {
-        resolve_vector_image_placeholders(recording_from_scratch, publish);
-        crate::painting::record::verify::verify_spliced_recording_matches_fresh(&output, recording_from_scratch);
+    resolve_vector_image_placeholders(&mut output, &vector_image_render_requests, publish);
+    if let Some((mut recording_from_scratch, resources_from_scratch)) = recording_from_scratch {
+        resolve_vector_image_placeholders(
+            &mut recording_from_scratch,
+            &resources_from_scratch.vector_image_render_requests,
+            publish,
+        );
+        crate::painting::record::verify::verify_spliced_recording_matches_fresh(&output, &recording_from_scratch);
     }
     let mut paint_state = arena.paint_state().borrow_mut();
     output.is_identical_to_cache_source = paint_state

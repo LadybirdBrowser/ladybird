@@ -1856,7 +1856,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             paint_state.recorded_canvas_color = Some(inputs.canvas_color);
         }
     }
-    let (output, recording_from_scratch) = {
+    let (output, resources, recording_from_scratch) = {
         let paint_state = arena.paint_state().borrow();
         if !arena.paintable_row_is_populated(viewport) || arena.stacking_context_entries(viewport).is_none() {
             return false;
@@ -1875,7 +1875,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             .then(|| paint_state.paint_command_cache_source.clone())
             .flatten();
         arena.set_paint_recording_in_progress(true);
-        let output = crate::painting::record::traversal::record_display_list(
+        let (output, resources) = crate::painting::record::traversal::record_display_list(
             arena,
             &paint_state,
             viewport,
@@ -1907,7 +1907,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
                 )
             });
         arena.set_paint_recording_in_progress(false);
-        (output, recording_from_scratch)
+        (output, resources, recording_from_scratch)
     };
     let mut paint_state = arena.paint_state().borrow_mut();
     if paint_state.trace_recordings && output.capture_log_for_verification.is_some() {
@@ -1918,6 +1918,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
     }
     paint_state.pending_recording = Some(crate::painting::paint_state::PendingRecording {
         output,
+        resources,
         recording_from_scratch,
         paint_command_cache_read_write: inputs.paint_command_cache_read_write,
     });
