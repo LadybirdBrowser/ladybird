@@ -102,7 +102,7 @@ jobs:
 
       - name: 'Build'
         working-directory: ${{ github.workspace }}/Build
-        run: cmake --build .
+        run: cmake --build . --target ladybird
 
       - name: 'Save Caches'
         uses: ./.github/actions/cache-save
