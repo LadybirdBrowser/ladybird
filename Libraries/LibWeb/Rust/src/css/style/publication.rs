@@ -64,6 +64,7 @@ impl StyleEngine {
             .inherited_group_count_for_shared_style(shared.record)?;
         self.published_match_answers.mark_observed(node);
         self.prepare_shared_exact_cascade_state(node);
+        self.forget_engine_computed_record(computed::ComputedStyleTarget::new(node, u8::MAX));
         let publication = self.assign_shared_style_record(
             computed::ComputedStyleTarget::new(node, u8::MAX),
             shared.record,
@@ -743,6 +744,16 @@ impl StyleEngine {
             }
         }
         self.published_match_answers.mark_observed(node);
+    }
+
+    pub(super) fn forget_engine_computed_record(&mut self, target: computed::ComputedStyleTarget) {
+        let Some(pending_records) = self.engine_computed_records_pending.get_mut(&target.node()) else {
+            return;
+        };
+        pending_records.retain(|pending| pending.pseudo_kind != target.pseudo_kind());
+        if pending_records.is_empty() {
+            self.engine_computed_records_pending.remove(&target.node());
+        }
     }
 
     /// The transaction's outputs are gone: every derived record C++ did not install goes back to
