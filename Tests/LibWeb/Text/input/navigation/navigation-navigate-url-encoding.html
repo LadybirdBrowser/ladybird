@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe src="../../data/iframe-windows-1252.html"></iframe>
+<script>
+    // navigation.navigate() parses its URL as UTF-8 regardless of the document's encoding, unlike location.assign().
+    asyncTest(done => {
+        const iframe = document.querySelector("iframe");
+        iframe.addEventListener("load", () => {
+            iframe.addEventListener("load", () => {
+                const url = new URL(iframe.contentWindow.navigation.currentEntry.url);
+                println(`search=${url.search}`);
+                done();
+            }, { once: true });
+
+            iframe.contentWindow.navigation.navigate("?\u00FF");
+        }, { once: true });
+    });
+</script>
