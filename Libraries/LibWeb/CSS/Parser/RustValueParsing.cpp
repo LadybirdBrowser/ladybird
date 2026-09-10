@@ -11,7 +11,6 @@
 #include <LibWeb/CSS/Parser/RustSyntaxHandle.h>
 #include <LibWeb/CSS/Parser/SyntaxParsing.h>
 #include <LibWeb/CSS/StyleComputeFFI.h>
-#include <LibWeb/CSS/StyleValues/GuaranteedInvalidStyleValue.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/StyleValueRustFFI.h>
 #include <LibWeb/ValueParserRustFFI.h>
@@ -115,7 +114,7 @@ NonnullRefPtr<StyleValue const> Parser::parse_with_a_syntax(Utf16View source, Ru
         &context.context,
         ffi_utf16_view(source), syntax.data(), &status);
     if (status != ValueParserFFI::FfiParseStatus::Parsed)
-        return GuaranteedInvalidStyleValue::create();
+        return StyleValue::create_guaranteed_invalid();
     VERIFY(parsed);
     return StyleValue::adopt_rust_style_value_data(static_cast<StyleValueFFI::StyleValueData const*>(parsed));
 }
