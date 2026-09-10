@@ -5418,12 +5418,14 @@ void LocalNavigable::inform_the_navigation_api_about_aborting_navigation()
     // 2. Let navigation be navigable's active window's navigation API.
     auto navigation = active_window()->navigation();
 
-    // 3. If navigation's ongoing navigate event is null, then return.
-    if (navigation->ongoing_navigate_event() == nullptr)
-        return;
-
-    // 4. Abort the ongoing navigation given navigation.
-    navigation->abort_the_ongoing_navigation();
+    // 3. While navigation's ongoing navigate event is not null:
+    // NOTE: This is a loop, since abort the ongoing navigation can run JavaScript (e.g., via the navigateerror event),
+    //       which might start a new navigation. Since such a newly-started navigation will be superseded by the
+    //       completion of this navigation, it gets signaled to the navigation API as aborted.
+    while (navigation->ongoing_navigate_event()) {
+        // 1. Abort the ongoing navigation given navigation.
+        navigation->abort_the_ongoing_navigation();
+    }
 }
 
 bool LocalNavigable::is_focused() const

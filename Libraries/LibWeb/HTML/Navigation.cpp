@@ -1461,36 +1461,41 @@ bool Navigation::fire_a_push_replace_reload_navigate_event(
     if (!navigation_api_state.has_value())
         navigation_api_state = MUST(structured_serialize_for_storage(window().principal_realm().vm(), JS::js_null()));
 
-    // 1. If isSameDocument is true:
-    if (is_same_document) {
-        // 1. While navigation's ongoing navigate event is not null:
-        while (m_ongoing_navigate_event) {
-            // 1. Abort the ongoing navigation given navigation.
-            abort_the_ongoing_navigation();
-        }
-    }
+    // 1. Let document be navigation's relevant global object's associated Document.
+    auto& document = window().associated_document();
 
-    // 2. Let event be the result of creating an event given NavigateEvent, in navigation's relevant realm.
-    // 3. Set event's classic history API state to classicHistoryAPIState.
+    // 2. Inform the navigation API about aborting navigation in document's node navigable.
+    document.navigable()->inform_the_navigation_api_about_aborting_navigation();
+
+    // FIXME: 3. If navigation has entries and events disabled, and apiMethodTracker is not null:
+    //           1. Set apiMethodTracker's pending to false.
+    //           2. Set apiMethodTracker to null.
+
+    // 4. If document is not fully active, then return false.
+    if (!document.is_fully_active())
+        return false;
+
+    // 5. Let event be the result of creating an event given NavigateEvent, in navigation's relevant realm.
+    // 6. Set event's classic history API state to classicHistoryAPIState.
     // AD-HOC: These are handled in the inner algorithm
 
-    // 4. Let destination be a new NavigationDestination created in navigation's relevant realm.
+    // 7. Let destination be a new NavigationDestination created in navigation's relevant realm.
     auto destination = NavigationDestination::create();
 
-    // 5. Set destination's URL to destinationURL.
+    // 8. Set destination's URL to destinationURL.
     destination->set_url(destination_url);
 
-    // 6. Set destination's entry to null.
+    // 9. Set destination's entry to null.
     destination->set_entry(nullptr);
 
-    // 7. Set destination's state to navigationAPIState.
+    // 10. Set destination's state to navigationAPIState.
     destination->set_state(*navigation_api_state);
 
-    // 8. Set destination's is same document to isSameDocument.
+    // 11. Set destination's is same document to isSameDocument.
     destination->set_is_same_document(is_same_document);
 
-    // 9. Return the result of performing the inner navigate event firing algorithm given navigation,
-    //    navigationType, event, destination, userInvolvement, sourceElement, formDataEntryList, and null.
+    // 12. Return the result of performing the inner navigate event firing algorithm given navigation,
+    //     navigationType, event, destination, userInvolvement, sourceElement, formDataEntryList, and null.
     // AD-HOC: We don't pass the event, but we do pass the classic_history_api state at the end to be set later
     return inner_navigate_event_firing_algorithm(navigation_type, destination, user_involvement, source_element, move(form_data_entry_list), {}, move(classic_history_api_state));
 }

@@ -1,0 +1,8 @@
+navigate push #1
+navigateerror #1
+navigate push #3
+navigateerror #3
+navigate push #4
+navigateerror #4
+navigate reload #1
+final hash=#4

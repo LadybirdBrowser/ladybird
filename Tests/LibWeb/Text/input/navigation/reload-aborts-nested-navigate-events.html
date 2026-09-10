@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<iframe src="../../data/iframe-test-content-1.html"></iframe>
+<script>
+    // A reload aborts the ongoing navigate event, and each navigateerror handler here starts another intercepted
+    // navigation, which must be aborted in turn before the reload's navigate event fires.
+    asyncTest(done => {
+        const iframe = document.querySelector("iframe");
+        const events = [];
+        const nextHash = { "#1": "#3", "#3": "#4" };
+        let pendingHash = null;
+
+        iframe.addEventListener("load", () => {
+            const navigation = iframe.contentWindow.navigation;
+
+            navigation.addEventListener("navigate", event => {
+                const hash = new URL(event.destination.url).hash;
+                events.push(`navigate ${event.navigationType} ${hash}`);
+
+                if (event.navigationType === "push") {
+                    pendingHash = hash;
+                    event.intercept({ handler: () => new Promise(() => {}) });
+                }
+            });
+
+            navigation.addEventListener("navigateerror", () => {
+                events.push(`navigateerror ${pendingHash}`);
+                if (nextHash[pendingHash])
+                    navigation.navigate(nextHash[pendingHash]);
+            });
+
+            iframe.addEventListener("load", () => {
+                for (const event of events)
+                    println(event);
+                println(`final hash=${new URL(iframe.contentWindow.location.href).hash}`);
+                done();
+            }, { once: true });
+
+            navigation.navigate("#1");
+            iframe.contentWindow.location.reload();
+        }, { once: true });
+    });
+</script>
