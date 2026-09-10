@@ -1769,7 +1769,8 @@ pub unsafe extern "C" fn layout_arena_refresh_sticky_constraints(
 
 /// Re-reads the scroll containers' offsets when something invalidated them since the last
 /// refresh, resolves the sticky nodes' offsets on top of them, and hands the dense device-pixel
-/// snapshot to `publish`. Returns whether that happened, so the caller keeps its copy otherwise.
+/// snapshot to `publish`. Returns whether that happened, so the caller keeps its copy otherwise;
+/// `force` re-derives the snapshot even when nothing invalidated it, for verification.
 ///
 /// # Safety
 ///
@@ -1780,6 +1781,7 @@ pub unsafe extern "C" fn layout_arena_refresh_sticky_constraints(
 pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
     arena: *mut c_void,
     callbacks: FfiVisualContextHostCallbacks,
+    force: bool,
     sink: *mut c_void,
     publish: unsafe extern "C" fn(*mut c_void, *const libgfx_rust::FloatPoint, usize),
 ) -> bool {
@@ -1788,7 +1790,7 @@ pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
         let paintable_rows = arena.paintable_rows();
         let mut paint_state = arena.paint_state().borrow_mut();
         let state = &mut paint_state.visual_context;
-        if !state.needs_to_refresh_scroll_state {
+        if !force && !state.needs_to_refresh_scroll_state {
             return false;
         }
         state.needs_to_refresh_scroll_state = false;

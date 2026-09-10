@@ -543,10 +543,10 @@ void rust_update_visual_viewport_transform(DOM::Document& document)
     Layout::RustFFI::layout_arena_update_visual_viewport_transform(layout_arena_handle(document), visual_context_host_callbacks(document));
 }
 
-bool rust_refresh_scroll_state(DOM::Document& document, ScrollStateSnapshot& snapshot)
+bool rust_refresh_scroll_state(DOM::Document& document, ScrollStateSnapshot& snapshot, ForceScrollStateRefresh force)
 {
     return Layout::RustFFI::layout_arena_refresh_scroll_state(
-        layout_arena_handle(document), visual_context_host_callbacks(document),
+        layout_arena_handle(document), visual_context_host_callbacks(document), force == ForceScrollStateRefresh::Yes,
         &snapshot, [](void* sink, Gfx::FloatPoint const* offsets, size_t count) {
             static_cast<ScrollStateSnapshot*>(sink)->assign_device_offsets({ offsets, count });
         });

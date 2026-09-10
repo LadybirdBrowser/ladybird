@@ -174,7 +174,18 @@ void DocumentPaintState::invalidate_all_cached_paint(DOM::Document& document)
 
 void DocumentPaintState::refresh_scroll_state(DOM::Document& document)
 {
-    rust_refresh_scroll_state(document, m_scroll_state_snapshot);
+    if (rust_refresh_scroll_state(document, m_scroll_state_snapshot))
+        return;
+
+    // LIBWEB_VERIFY_SCROLL_STATE: a skipped refresh must have been skippable. Every producer of a
+    // scroll offset invalidates the state, so re-deriving the snapshot from scratch has to
+    // reproduce the one kept.
+    static bool const verify_scroll_state = getenv("LIBWEB_VERIFY_SCROLL_STATE") != nullptr;
+    if (!verify_scroll_state)
+        return;
+    ScrollStateSnapshot rederived_snapshot;
+    rust_refresh_scroll_state(document, rederived_snapshot, ForceScrollStateRefresh::Yes);
+    VERIFY(rederived_snapshot.device_offsets() == m_scroll_state_snapshot.device_offsets());
 }
 
 void DocumentPaintState::reset_selection_states(DOM::Document& document)

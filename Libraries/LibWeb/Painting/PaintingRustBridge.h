@@ -37,8 +37,13 @@ WEB_API Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_di
 WEB_API void rust_measure_scrollable_overflow(Layout::Node const&);
 WEB_API Layout::RustFFI::FfiScrollableOverflowUpdateOutcome rust_update_scrollable_overflow(DOM::Document&, bool handled_by_full_layout_commit);
 WEB_API void rust_update_visual_viewport_transform(DOM::Document&);
-// Refreshes the snapshot from the Rust scroll state; false when nothing had invalidated it.
-WEB_API bool rust_refresh_scroll_state(DOM::Document&, ScrollStateSnapshot&);
+enum class ForceScrollStateRefresh {
+    No,
+    Yes,
+};
+// Refreshes the snapshot from the Rust scroll state; false when nothing had invalidated it and
+// the refresh was not forced.
+WEB_API bool rust_refresh_scroll_state(DOM::Document&, ScrollStateSnapshot&, ForceScrollStateRefresh = ForceScrollStateRefresh::No);
 WEB_API bool mirror_rust_refresh_sticky_constraints(DOM::Document&);
 WEB_API void mirror_rust_clear_scroll_state(DOM::Document&);
 WEB_API void rust_invalidate_scroll_state(DOM::Document&);
