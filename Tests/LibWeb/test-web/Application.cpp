@@ -52,6 +52,7 @@ void Application::create_platform_arguments(Core::ArgsParser& args_parser)
         "run-ui-process-session-history-tests");
     args_parser.add_option(verify_style, "Enable all style engine verification modes", "verify-style");
     args_parser.add_option(verify_paint_cache, "Re-record every display list that spliced cached paint commands and abort on divergence", "verify-paint-cache");
+    args_parser.add_option(verify_scroll_state, "Re-derive the scroll state snapshot at every refresh that found nothing to do and abort on divergence", "verify-scroll-state");
     args_parser.add_option(per_test_timeout_in_seconds, "Per-test timeout (default: 30)", "per-test-timeout", 't', "seconds");
 
     args_parser.add_option(Core::ArgsParser::Option {
@@ -90,6 +91,8 @@ void Application::create_platform_options(WebView::BrowserOptions& browser_optio
     }
     if (verify_paint_cache)
         MUST(Core::Environment::set("LADYBIRD_VERIFY_PAINT_CACHE"sv, "1"sv, Core::Environment::Overwrite::Yes));
+    if (verify_scroll_state)
+        MUST(Core::Environment::set("LIBWEB_VERIFY_SCROLL_STATE"sv, "1"sv, Core::Environment::Overwrite::Yes));
     browser_options.headless_mode = WebView::HeadlessMode::Test;
     browser_options.disable_sql_database = WebView::DisableSQLDatabase::Yes;
 
