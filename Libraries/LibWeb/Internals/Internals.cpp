@@ -79,6 +79,7 @@
 #include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
+#include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/Internals/InternalGamepad.h>
 #include <LibWeb/Internals/Internals.h>
 #include <LibWeb/Layout/NodeArena.h>
@@ -1811,6 +1812,18 @@ void Internals::set_hidden_document_timer_wake_up_interval(double milliseconds)
 void Internals::set_hidden_document_intensive_timer_throttling(double wake_up_interval, double grace_period_once_loaded, double grace_period_while_loading)
 {
     window().set_hidden_document_intensive_timer_throttling({}, wake_up_interval, grace_period_once_loaded, grace_period_while_loading);
+}
+
+WebIDL::UnsignedLongLong Internals::active_timer_count(JS::Object& object)
+{
+    if (auto* window_proxy = as_if<HTML::WindowProxy>(object)) {
+        if (auto window = window_proxy->window())
+            return window->active_timer_count({});
+        return 0;
+    }
+    if (auto* window = HTML::window_from_global_object(object))
+        return window->active_timer_count({});
+    return 0;
 }
 
 Utf16String Internals::canvas_color_scheme()

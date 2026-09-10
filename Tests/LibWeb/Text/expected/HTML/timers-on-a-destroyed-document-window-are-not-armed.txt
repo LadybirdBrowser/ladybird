@@ -1,0 +1,1 @@
+timers armed on the destroyed window: 0
