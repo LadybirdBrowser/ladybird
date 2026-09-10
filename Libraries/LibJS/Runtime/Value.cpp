@@ -960,7 +960,7 @@ ThrowCompletionOr<PropertyKey> Value::to_property_key(VM& vm) const
 
     // OPTIMIZATION: If this is already a string, we can skip all the ceremony.
     if (is_string())
-        return PropertyKey { as_string().utf16_string() };
+        return as_string().property_key(vm);
 
     // 1. Let key be ? ToPrimitive(argument, string).
     auto key = TRY(to_primitive(vm, PreferredType::String));
@@ -970,6 +970,10 @@ ThrowCompletionOr<PropertyKey> Value::to_property_key(VM& vm) const
         // a. Return key.
         return key.as_symbol();
     }
+
+    // OPTIMIZATION: Keep the atomized storage when ToPrimitive produced a string.
+    if (key.is_string())
+        return key.as_string().property_key(vm);
 
     // 3. Return ! ToString(key).
     return MUST(key.to_utf16_string(vm));

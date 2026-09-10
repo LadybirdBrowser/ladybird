@@ -45,6 +45,7 @@ public:
 
     [[nodiscard]] Utf16String utf16_string() const;
     [[nodiscard]] Utf16View utf16_string_view() const;
+    [[nodiscard]] PropertyKey property_key(VM&) const;
     bool has_utf16_string() const { return m_utf16_string.has_value(); }
 
     size_t length_in_utf16_code_units() const;

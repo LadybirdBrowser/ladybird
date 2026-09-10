@@ -45,6 +45,20 @@ test("functional string replacement", () => {
     ).toBe("axc");
 });
 
+test("functional replacement preserves the source string backing storage", () => {
+    const propertyHolder = { "prefix-match-suffix": true };
+    const source = ["prefix", "match", "suffix"].join("-");
+
+    expect(
+        source.replace("match", (search, position, original) => {
+            expect(search).toBe("match");
+            expect(position).toBe(7);
+            propertyHolder[original];
+            return "replacement";
+        })
+    ).toBe("prefix-replacement-suffix");
+});
+
 test("basic regex replacement", () => {
     expect("".replace(/a/, "")).toBe("");
     expect("a".replace(/a/, "")).toBe("");
