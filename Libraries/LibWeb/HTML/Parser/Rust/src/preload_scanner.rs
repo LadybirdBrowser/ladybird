@@ -7,11 +7,13 @@
 use crate::known_names::attribute_name;
 use crate::known_names::tag_name;
 use crate::token::Attribute;
+use crate::token::HtmlName;
 use crate::token::KnownName;
 use crate::token::Token;
 use crate::token::TokenPayload;
 use crate::token::TokenType;
 use crate::tokenizer::HtmlTokenizer;
+use crate::tokenizer::State;
 use std::ffi::c_void;
 
 #[repr(C)]
@@ -77,6 +79,7 @@ pub struct RustFfiPreloadScannerEntry {
 pub unsafe extern "C" fn rust_html_preload_scanner_scan(
     input: *const u8,
     input_len: usize,
+    scripting_enabled: bool,
     ctx: *mut c_void,
     callback: unsafe extern "C" fn(ctx: *mut c_void, entry: *const RustFfiPreloadScannerEntry) -> bool,
 ) {
@@ -86,7 +89,9 @@ pub unsafe extern "C" fn rust_html_preload_scanner_scan(
         unsafe { std::slice::from_raw_parts(input, input_len) }
     };
 
-    scan(input, |entry| unsafe { callback(ctx, &raw const *entry) });
+    scan(input, scripting_enabled, |entry| unsafe {
+        callback(ctx, &raw const *entry)
+    });
 }
 
 /// Scan pending UTF-16 parser input for resources the speculative HTML parser can fetch.
@@ -98,6 +103,7 @@ pub unsafe extern "C" fn rust_html_preload_scanner_scan(
 pub unsafe extern "C" fn rust_html_preload_scanner_scan_utf16(
     input: *const u16,
     input_len: usize,
+    scripting_enabled: bool,
     ctx: *mut c_void,
     callback: unsafe extern "C" fn(ctx: *mut c_void, entry: *const RustFfiPreloadScannerEntry) -> bool,
 ) {
@@ -107,27 +113,52 @@ pub unsafe extern "C" fn rust_html_preload_scanner_scan_utf16(
         unsafe { std::slice::from_raw_parts(input, input_len) }
     };
 
-    scan_utf16(input, |entry| unsafe { callback(ctx, &raw const *entry) });
+    scan_utf16(input, scripting_enabled, |entry| unsafe {
+        callback(ctx, &raw const *entry)
+    });
 }
 
-pub(crate) fn scan(input: &[u8], mut callback: impl FnMut(&RustFfiPreloadScannerEntry) -> bool) {
+pub(crate) fn scan(
+    input: &[u8],
+    scripting_enabled: bool,
+    mut callback: impl FnMut(&RustFfiPreloadScannerEntry) -> bool,
+) {
     // SAFETY: The FFI entry point guarantees valid UTF-8.
     let code_units = unsafe { std::str::from_utf8_unchecked(input) }.encode_utf16().collect();
-    scan_code_units(code_units, &mut callback);
+    scan_code_units(code_units, scripting_enabled, &mut callback);
 }
 
-pub(crate) fn scan_utf16(input: &[u16], mut callback: impl FnMut(&RustFfiPreloadScannerEntry) -> bool) {
-    scan_code_units(input.to_vec(), &mut callback);
+pub(crate) fn scan_utf16(
+    input: &[u16],
+    scripting_enabled: bool,
+    mut callback: impl FnMut(&RustFfiPreloadScannerEntry) -> bool,
+) {
+    scan_code_units(input.to_vec(), scripting_enabled, &mut callback);
 }
 
-fn scan_code_units(code_units: Vec<u16>, callback: &mut impl FnMut(&RustFfiPreloadScannerEntry) -> bool) {
+fn scan_code_units(
+    code_units: Vec<u16>,
+    scripting_enabled: bool,
+    callback: &mut impl FnMut(&RustFfiPreloadScannerEntry) -> bool,
+) {
     let mut tokenizer = HtmlTokenizer::new(code_units);
     let mut template_depth: u64 = 0;
     let mut foreign_depth: u64 = 0;
 
     while let Some(token) = tokenizer.next_token(false, false) {
         let should_continue = match token.token_type {
-            TokenType::StartTag => process_start_tag(&token, &mut template_depth, &mut foreign_depth, callback),
+            TokenType::StartTag => {
+                let should_continue = process_start_tag(&token, &mut template_depth, &mut foreign_depth, callback);
+
+                // The tree builder switches the tokenizer out of the data state for these elements, so their
+                // contents are text rather than markup. It never does so for foreign content.
+                if foreign_depth == 0
+                    && let Some(state) = tokenizer_state_after_start_tag(token.tag_name(), scripting_enabled)
+                {
+                    tokenizer.switch_to(state);
+                }
+                should_continue
+            }
             TokenType::EndTag => {
                 process_end_tag(&token, &mut template_depth, &mut foreign_depth);
                 true
@@ -186,6 +217,26 @@ fn process_end_tag(token: &Token, template_depth: &mut u64, foreign_depth: &mut 
         *template_depth -= 1;
     } else if (*tag_name == tag_name!("svg") || *tag_name == tag_name!("math")) && *foreign_depth > 0 {
         *foreign_depth -= 1;
+    }
+}
+
+fn tokenizer_state_after_start_tag(tag_name: &HtmlName, scripting_enabled: bool) -> Option<State> {
+    if *tag_name == tag_name!("script") {
+        Some(State::ScriptData)
+    } else if *tag_name == tag_name!("title") || *tag_name == tag_name!("textarea") {
+        Some(State::RCDATA)
+    } else if *tag_name == tag_name!("style")
+        || *tag_name == tag_name!("xmp")
+        || *tag_name == tag_name!("iframe")
+        || *tag_name == tag_name!("noembed")
+        || *tag_name == tag_name!("noframes")
+        || (*tag_name == tag_name!("noscript") && scripting_enabled)
+    {
+        Some(State::RAWTEXT)
+    } else if *tag_name == tag_name!("plaintext") {
+        Some(State::PLAINTEXT)
+    } else {
+        None
     }
 }
 
@@ -438,8 +489,12 @@ mod tests {
     }
 
     fn collect(input: &str) -> Vec<ScannedEntry> {
+        collect_with_scripting(input, true)
+    }
+
+    fn collect_with_scripting(input: &str, scripting_enabled: bool) -> Vec<ScannedEntry> {
         let mut entries = Vec::new();
-        scan(input.as_bytes(), |entry| {
+        scan(input.as_bytes(), scripting_enabled, |entry| {
             let url = unsafe { std::slice::from_raw_parts(entry.url_ptr, entry.url_len) };
             entries.push(ScannedEntry {
                 action: entry.action,
@@ -455,7 +510,7 @@ mod tests {
     fn collect_utf16(input: &str) -> Vec<ScannedEntry> {
         let input = input.encode_utf16().collect::<Vec<_>>();
         let mut entries = Vec::new();
-        scan_utf16(&input, |entry| {
+        scan_utf16(&input, true, |entry| {
             let url = unsafe { std::slice::from_raw_parts(entry.url_ptr, entry.url_len) };
             entries.push(ScannedEntry {
                 action: entry.action,
@@ -618,11 +673,88 @@ mod tests {
         );
     }
 
+    fn collect_urls(input: &str, scripting_enabled: bool) -> Vec<String> {
+        collect_with_scripting(input, scripting_enabled)
+            .into_iter()
+            .map(|entry| entry.url)
+            .collect()
+    }
+
+    #[test]
+    fn does_not_scan_markup_inside_script_text() {
+        let urls = collect_urls(
+            r#"
+                <script>
+                    var g = ["", "app.js"];
+                    document.write('<script src="https://example.com/' +
+                        g[1] +
+                        '"><\/script>');
+                </script>
+                <img src="./after.png">
+            "#,
+            true,
+        );
+
+        assert_eq!(urls, vec!["./after.png".to_string()]);
+    }
+
+    #[test]
+    fn does_not_scan_markup_inside_raw_text_and_rcdata_elements() {
+        let urls = collect_urls(
+            r#"
+                <style>/* <img src="./style.png"> */</style>
+                <title><img src="./title.png"></title>
+                <textarea><img src="./textarea.png"></textarea>
+                <xmp><script src="./xmp.js"></script></xmp>
+                <iframe><img src="./iframe.png"></iframe>
+                <noembed><img src="./noembed.png"></noembed>
+                <noframes><img src="./noframes.png"></noframes>
+                <img src="./after.png">
+            "#,
+            true,
+        );
+
+        assert_eq!(urls, vec!["./after.png".to_string()]);
+    }
+
+    #[test]
+    fn noscript_content_is_raw_text_only_when_scripting_is_enabled() {
+        let input = r#"<noscript><img src="./fallback.png"></noscript>"#;
+
+        assert_eq!(collect_urls(input, true), Vec::<String>::new());
+        assert_eq!(collect_urls(input, false), vec!["./fallback.png".to_string()]);
+    }
+
+    #[test]
+    fn script_text_cannot_close_a_template() {
+        let urls = collect_urls(
+            r#"<template><script>"</template><img src="./trap.png">"</script></template><img src="./after.png">"#,
+            true,
+        );
+
+        assert_eq!(urls, vec!["./after.png".to_string()]);
+    }
+
+    #[test]
+    fn foreign_content_elements_do_not_switch_tokenizer_state() {
+        let urls = collect_urls(r#"<svg><title>SVG</svg><img src="./after.png">"#, true);
+
+        assert_eq!(urls, vec!["./after.png".to_string()]);
+    }
+
+    #[test]
+    fn plaintext_ends_markup() {
+        let urls = collect_urls(r#"<plaintext><img src="./trap.png">"#, true);
+
+        assert_eq!(urls, Vec::<String>::new());
+    }
+
     #[test]
     fn preserves_modulepreload_fetch_options() {
         let mut options = None;
         scan(
             br#"<link rel="modulepreload" href="./module" nonce="abc" integrity="sha256-xyz" referrerpolicy="origin" fetchpriority="high" media="screen">"#,
+            true,
             |entry| {
                 let string = |pointer, length| {
                     let bytes = unsafe { std::slice::from_raw_parts(pointer, length) };
