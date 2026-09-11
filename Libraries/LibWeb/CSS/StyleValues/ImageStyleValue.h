@@ -100,6 +100,7 @@ private:
     GC::Ptr<HTML::SharedResourceRequest> fetch_image(DOM::Document&) const;
     Optional<::URL::URL> resolved_url(DOM::Document const&) const;
     ::URL::URL style_resource_base_url(DOM::Document const&) const;
+    ImageStyleValueResource* resource_registered_by_clients(DOM::Document const&) const;
 
     // NB: StyleValue dispatches operations by type tag, so it may call private impls.
     friend class StyleValue;
