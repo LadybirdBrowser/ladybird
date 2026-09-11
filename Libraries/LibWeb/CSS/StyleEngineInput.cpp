@@ -5,6 +5,7 @@
  */
 
 #include <AK/QuickSort.h>
+#include <AK/SetUnion.h>
 #include <LibWeb/CSS/CSSPropertyRule.h>
 #include <LibWeb/CSS/CSSStyleRule.h>
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
@@ -862,26 +863,44 @@ void record_element_custom_property_names(DOM::Element& element, CustomPropertyD
     if (!style_engine || element.style_node_id() == no_style_node)
         return;
 
+    // OPTIMIZATION: Each environment hands out its declared names sorted and deduplicated, so they are merged
+    //               rather than sorted once more for every element that holds that environment.
+    ReadonlySpan<StyleAtomID> published;
     Vector<StyleAtomID> atoms;
-    auto append_declared_names = [&](CustomPropertyData const* custom_property_data) {
-        if (!custom_property_data)
+    Vector<StyleAtomID> merged;
+    auto merge_names = [&](ReadonlySpan<StyleAtomID> names) {
+        if (names.is_empty())
             return;
-        auto names = custom_property_data->declared_name_atoms(bit_cast<FlatPtr>(&element.document()), style_engine->atom_generation(), [&](Utf16FlyString const& name) { return style_engine->intern_atom(name); });
-        atoms.append(names.data(), names.size());
+        if (published.is_empty()) {
+            published = names;
+            return;
+        }
+        merged.clear_with_capacity();
+        merged.ensure_capacity(published.size() + names.size());
+        set_union(published, names, merged);
+        swap(atoms, merged);
+        published = atoms;
     };
-    append_declared_names(data);
+    Vector<CustomPropertyData const*, 4> merged_environments;
+    auto merge_declared_names = [&](CustomPropertyData const* custom_property_data) {
+        if (!custom_property_data || merged_environments.contains_slow(custom_property_data))
+            return;
+        merged_environments.append(custom_property_data);
+        merge_names(custom_property_data->declared_name_atoms(bit_cast<FlatPtr>(&element.document()), style_engine->atom_generation(), [&](Utf16FlyString const& name) { return style_engine->intern_atom(name); }));
+    };
+    merge_declared_names(data);
     for (auto const& pseudo_data : pseudo_element_data)
-        append_declared_names(pseudo_data.ptr());
-    for (auto const& name : references)
-        atoms.append(style_engine->intern_atom(name));
-    quick_sort(atoms);
-    size_t unique_count = 0;
-    for (size_t index = 0; index < atoms.size(); ++index) {
-        if (index == 0 || atoms[index] != atoms[unique_count - 1])
-            atoms[unique_count++] = atoms[index];
+        merge_declared_names(pseudo_data.ptr());
+    // The references arrive deduplicated, and interning is injective, so their atoms only need sorting.
+    Vector<StyleAtomID> reference_atoms;
+    if (!references.is_empty()) {
+        reference_atoms.ensure_capacity(references.size());
+        for (auto const& name : references)
+            reference_atoms.unchecked_append(style_engine->intern_atom(name));
+        quick_sort(reference_atoms);
+        merge_names(reference_atoms);
     }
-    atoms.shrink(unique_count);
-    style_engine->set_element_custom_property_names(element.style_node_id(), atoms, uses_unnamed, uses_custom_functions);
+    style_engine->set_element_custom_property_names(element.style_node_id(), published, uses_unnamed, uses_custom_functions);
 }
 
 void record_element_custom_property_names(DOM::Element& element, ReadonlySpan<Utf16FlyString> names, bool uses_unnamed, bool uses_custom_functions)
