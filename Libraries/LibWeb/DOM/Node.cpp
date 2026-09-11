@@ -1160,10 +1160,15 @@ static bool can_detach_layout_subtree_for_removal(Node const& node, Node const& 
     if (CSS::subtree_affects_generated_content_state(node))
         return false;
 
-    // OPTIMIZATION: Absolutely positioned boxes do not participate in their parent's inline or block formatting
-    //               structure. When the DOM parent establishes their containing block, removing them cannot disturb
-    //               anonymous wrappers or sibling box levels.
-    if (layout_node->is_absolutely_positioned()) {
+    // OPTIMIZATION: Absolutely positioned boxes do not participate in their DOM parent's inline or block formatting
+    //               structure, even when they are attached to an ancestor containing block. Removing them cannot
+    //               disturb anonymous wrappers or sibling box levels.
+    auto const* element = as_if<Element>(node);
+    if (element && element->rendered_in_top_layer())
+        return false;
+    if (layout_node->position() == CSS::Positioning::Absolute) {
+        if (parent.is_html_body_element())
+            return true;
         auto const* containing_block = layout_node->containing_block();
         if (containing_block && containing_block->dom_node() == &parent)
             return true;
@@ -1373,9 +1378,11 @@ void Node::remove(bool suppress_observers)
         // all of its children's boxes from the parent's layout subtree.
         // NB: Called during DOM removal, layout is not up to date.
         if (node_contributes_to_layout_tree(*this)) {
+            // A suppressed-observer removal may be the first half of a compound mutation that immediately reinserts
+            // this node. Keep the old parent on the conservative rebuild path so the later insertion can relocate it.
             if (auto* first_letter_owner = first_letter_owner_for_layout_subtree_from(*parent)) {
                 first_letter_owner->set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::NodeRemove);
-            } else if (can_detach_layout_subtree_for_removal(*this, *parent)) {
+            } else if (!suppress_observers && can_detach_layout_subtree_for_removal(*this, *parent)) {
                 auto* layout_node = unsafe_layout_node();
                 layout_node->for_each_in_inclusive_subtree([](Layout::Node& node) {
                     node.clear_committed_box();
