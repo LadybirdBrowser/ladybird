@@ -580,7 +580,7 @@ void CompositorState::resume_presentation_after_becoming_visible(Web::Compositor
         auto& context = *context_entry.value;
         if (root_context_of(context) != &root_context)
             continue;
-        if (context.has_active_smooth_scroll_animations() || context.has_active_visual_animations())
+        if (context.has_active_smooth_scroll_animations() || context.visual_animations_need_frame())
             vsync_scheduler_for_display(display_id_for_context(context)).schedule(display_refresh_rate_for_context(context));
         if (context.rendering_opportunity_requested())
             vsync_scheduler_for_display(display_id_for_context(context)).schedule(display_refresh_rate_for_context(context));
@@ -689,7 +689,7 @@ void CompositorState::schedule_pending_present_frame(Web::Compositor::Compositor
         // may already be up to date (and therefore not schedule a new present),
         // so explicitly keep the effective display's scheduler ticking while
         // a nested animation is active.
-        if ((context.has_active_smooth_scroll_animations() || context.has_active_visual_animations()) && context_is_effectively_visible(context))
+        if ((context.has_active_smooth_scroll_animations() || context.visual_animations_need_frame()) && context_is_effectively_visible(context))
             vsync_scheduler_for_display(display_id_for_context(context)).schedule(display_refresh_rate_for_context(context));
         return;
     }
@@ -777,14 +777,14 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id, 
             }
         }
 
-        auto has_active_animation_on_display = (context.has_active_smooth_scroll_animations() || context.has_active_visual_animations()) && display_id_for_context(context) == display_id;
+        auto has_active_animation_on_display = (context.has_active_smooth_scroll_animations() || context.visual_animations_need_frame()) && display_id_for_context(context) == display_id;
         if (!context.has_pending_present_frame_scheduled_on(display_id) && !has_active_animation_on_display)
             continue;
 
         if (auto animation_frame = context.advance_smooth_scroll_animations(frame_time); animation_frame.has_value())
             context.queue_present_frame(ContextState::PendingFrame::repainting_changes(*animation_frame));
         publish_pending_async_scroll_updates(context_id, context);
-        if (context.has_active_visual_animations()) {
+        if (context.visual_animations_need_frame()) {
             context.advance_visual_animations(frame_time);
             if (auto viewport_rect = context.viewport_rect_for_ui_overlay(); viewport_rect.has_value())
                 context.queue_present_frame(ContextState::PendingFrame::repainting_changes(*viewport_rect));
@@ -792,12 +792,12 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id, 
 
         auto pending_present_frame = context.take_pending_present_frame_if_unblocked();
         if (!pending_present_frame.has_value()) {
-            has_active_animation_on_display = (context.has_active_smooth_scroll_animations() || context.has_active_visual_animations()) && display_id_for_context(context) == display_id;
+            has_active_animation_on_display = (context.has_active_smooth_scroll_animations() || context.visual_animations_need_frame()) && display_id_for_context(context) == display_id;
             if (context.has_pending_present_frame_scheduled_on(display_id) || has_active_animation_on_display)
                 vsync_scheduler_for_display(display_id).schedule(display_refresh_rate_for_context(context));
             continue;
         }
-        if (context.has_active_smooth_scroll_animations() || context.has_active_visual_animations())
+        if (context.has_active_smooth_scroll_animations() || context.visual_animations_need_frame())
             schedule_present_frame(context_id, context, ContextState::PendingFrame::repainting_changes(pending_present_frame->viewport_rect));
         present_frame(context_id, context, *pending_present_frame);
     }

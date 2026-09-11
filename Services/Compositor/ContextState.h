@@ -132,6 +132,7 @@ public:
     bool has_active_smooth_scroll_animations() const { return !m_smooth_scroll_animations.is_empty(); }
     bool advance_visual_animations(MonotonicTime now);
     bool has_active_visual_animations() const { return m_has_active_visual_animations; }
+    bool visual_animations_need_frame();
     Web::Painting::AccumulatedVisualContextTree const& visual_context_tree_for_testing() const { return current_visual_context_tree(); }
     Web::Painting::AccumulatedVisualContextTree const& sampled_visual_context_tree_for_testing() { return visual_context_tree_for_compositing(); }
     bool has_sampled_visual_animation_values_for_testing() const { return m_sampled_visual_context_tree.has_value(); }
@@ -256,6 +257,7 @@ private:
     Optional<Web::Painting::AccumulatedVisualContextTree> m_sampled_visual_context_tree;
     u64 m_visual_context_tree_copy_count { 0 };
     bool m_has_active_visual_animations { false };
+    Optional<bool> m_rotating_content_may_affect_viewport;
     Web::Painting::DisplayListResourceStorage m_display_list_resource_storage;
     Web::Painting::ScrollStateSnapshot m_scroll_state_snapshot;
     BackingStoreManager m_backing_store_manager;

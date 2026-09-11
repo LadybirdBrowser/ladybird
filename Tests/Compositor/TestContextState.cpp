@@ -5,6 +5,7 @@
  */
 
 #include <AK/ByteBuffer.h>
+#include <AK/Math.h>
 #include <AK/Queue.h>
 #include <AK/Stream.h>
 #include <Compositor/CompositorState.h>
@@ -15,6 +16,7 @@
 #include <LibIPC/Message.h>
 #include <LibTest/TestCase.h>
 #include <LibWeb/Page/InputEvent.h>
+#include <LibWeb/Painting/DisplayListDamage.h>
 #include <LibWeb/Painting/DisplayListPlayerSkia.h>
 #include <LibWeb/Painting/VisualContextTreeTestBuilder.h>
 #include <LibWebView/PausedDebuggerOverlay.h>
@@ -1142,6 +1144,87 @@ TEST_CASE(offscreen_changes_do_not_acquire_a_backing_store_or_block_later_frames
     EXPECT_EQ(fixture.pixel(3, 3), Gfx::Color::Red);
     EXPECT(!fixture.prepare().has_value());
     EXPECT_EQ(fixture.rasterize(fixture.viewport_rect), fixture.viewport_rect);
+}
+
+static Web::Compositor::VisualAnimation rotation_animation(Web::Painting::SpatialNodeIndex spatial, MonotonicTime anchor)
+{
+    return {
+        .target_kind = Web::Compositor::VisualAnimation::TargetKind::Transform,
+        .visual_context_node_indices = { spatial.value() },
+        .monotonic_time_at_anchor_ns = anchor.nanoseconds(),
+        .iteration_duration_ms = 1000,
+        .easing = {},
+        .keyframes = {
+            { 0, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::Rotate, { 0 } } } },
+            { 1, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::Rotate, { 2 * AK::Pi<float> } } } },
+        },
+    };
+}
+
+TEST_CASE(offscreen_rotations_sleep_until_scroll_or_viewport_changes)
+{
+    RasterizingContextFixture fixture;
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    auto scroll = builder.append_scroll(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    auto spatial = builder.append_transform(scroll, Gfx::FloatMatrix4x4::identity(), { 4, 104 });
+    auto tree = builder.finish();
+    auto anchor = MonotonicTime::now();
+    tree.set_visual_animations({ rotation_animation(spatial, anchor) });
+    fixture.context.install_display_list_update(
+        make_fills_display_list(tree, { { { 2, 102, 4, 4 }, Gfx::Color::Red, { spatial } } }), tree, {});
+    fixture.rasterize();
+    EXPECT(fixture.context.has_active_visual_animations());
+    EXPECT(!fixture.context.visual_animations_need_frame());
+    EXPECT(!fixture.context.visual_animations_need_frame());
+
+    fixture.context.update_scroll_state(scroll_state_snapshot_with_offset(scroll, { 0, -100 }));
+    EXPECT(fixture.context.visual_animations_need_frame());
+    EXPECT(fixture.context.advance_visual_animations(anchor + AK::Duration::from_milliseconds(2250)));
+    fixture.rasterize();
+    EXPECT_EQ(fixture.pixel(3, 3), Gfx::Color::Red);
+    auto matrix = fixture.context.sampled_visual_context_tree_for_testing().accumulated_matrix(
+        spatial, {}, Web::Painting::AccumulatedVisualContextTree::IncludeVisualViewportTransform::Yes);
+    EXPECT(fabsf(matrix[0, 0]) < 0.001f);
+    EXPECT(fabsf(matrix[1, 0] - 1) < 0.001f);
+
+    fixture.context.update_scroll_state({});
+    EXPECT(!fixture.context.visual_animations_need_frame());
+    fixture.context.viewport_size_updated({ 16, 120 }, Web::Compositor::WindowResizingInProgress::No);
+    EXPECT(fixture.context.visual_animations_need_frame());
+    fixture.context.viewport_size_updated({ 16, 16 }, Web::Compositor::WindowResizingInProgress::No);
+    EXPECT(!fixture.context.visual_animations_need_frame());
+
+    fixture.context.install_display_list_update(
+        make_fills_display_list(tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red, { spatial } } }), tree, {});
+    EXPECT(fixture.context.visual_animations_need_frame());
+}
+
+TEST_CASE(rotation_bounds_include_angles_that_can_reveal_offscreen_content)
+{
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    auto spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity());
+    auto tree = builder.finish();
+    auto display_list = make_fills_display_list(tree, { { { 50, 0, 4, 4 }, Gfx::Color::Red, { spatial } } });
+    Array rotation_nodes { spatial };
+    EXPECT(Web::Painting::rotating_content_may_affect_viewport(
+        display_list->command_bytes(), tree, {}, rotation_nodes, { 0, 50, 10, 10 }));
+    EXPECT(!Web::Painting::rotating_content_may_affect_viewport(
+        display_list->command_bytes(), tree, {}, rotation_nodes, { 0, 100, 10, 10 }));
+}
+
+TEST_CASE(rotation_bounds_preserve_work_for_unbounded_commands_and_animated_clips)
+{
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    auto spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity(), { 4, 104 });
+    auto clip = builder.append_clip(Web::Painting::NO_CLIP_NODE, spatial, { 0, 0, 8, 8 });
+    auto tree = builder.finish();
+    Array rotation_nodes { spatial };
+    auto unbounded = make_fills_display_list(tree, { { { 2, 102, 4, 4 }, Gfx::Color::Red, { spatial }, false } });
+    EXPECT(Web::Painting::rotating_content_may_affect_viewport(
+        unbounded->command_bytes(), tree, {}, rotation_nodes, test_viewport_rect));
+    auto clipped = make_fills_display_list(tree, { { { 0, 0, 8, 8 }, Gfx::Color::Red, { Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, clip } } });
+    EXPECT(Web::Painting::rotating_content_may_affect_viewport(
+        clipped->command_bytes(), tree, {}, rotation_nodes, test_viewport_rect));
 }
 
 TEST_CASE(changed_command_reports_its_inflated_rect)
