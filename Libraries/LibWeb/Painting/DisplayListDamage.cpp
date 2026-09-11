@@ -32,17 +32,18 @@ Optional<Gfx::IntRect> compute_display_list_damage(
     return damage_rect;
 }
 
-bool rotating_content_may_affect_viewport(
+bool animated_content_may_affect_viewport(
     ReadonlyBytes display_list_commands,
     AccumulatedVisualContextTree const& visual_context_tree,
     ScrollStateSnapshot const& scroll_state,
     ReadonlySpan<SpatialNodeIndex> rotation_nodes,
+    ReadonlySpan<EffectNodeIndex> opacity_nodes,
     Gfx::IntRect viewport_rect)
 {
     auto scroll_offsets = scroll_state.device_offsets();
-    return Layout::RustFFI::display_list_rotating_content_may_affect_viewport(
+    return Layout::RustFFI::display_list_animated_content_may_affect_viewport(
         display_list_commands.data(), display_list_commands.size(), visual_context_tree.rust_handle(),
-        scroll_offsets.data(), scroll_offsets.size(), rotation_nodes.data(), rotation_nodes.size(), viewport_rect);
+        scroll_offsets.data(), scroll_offsets.size(), rotation_nodes.data(), rotation_nodes.size(), opacity_nodes.data(), opacity_nodes.size(), viewport_rect);
 }
 
 }

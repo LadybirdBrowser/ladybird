@@ -1199,6 +1199,40 @@ TEST_CASE(offscreen_rotations_sleep_until_scroll_or_viewport_changes)
     EXPECT(fixture.context.visual_animations_need_frame());
 }
 
+TEST_CASE(offscreen_opacity_animations_sleep_and_resume_at_the_current_phase)
+{
+    RasterizingContextFixture fixture;
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    auto scroll = builder.append_scroll(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX);
+    auto effect = builder.append_effects(Web::Painting::NO_EFFECT_NODE, scroll);
+    auto child_effect = builder.append_effects(effect, scroll);
+    auto tree = builder.finish();
+    auto anchor = MonotonicTime::now();
+    tree.set_visual_animations({ {
+        .target_kind = Web::Compositor::VisualAnimation::TargetKind::Opacity,
+        .visual_context_node_indices = { effect.value() },
+        .monotonic_time_at_anchor_ns = anchor.nanoseconds(),
+        .iteration_duration_ms = 1000,
+        .easing = {},
+        .keyframes = { { 0, {}, 1.0f }, { 1, {}, 0.0f } },
+    } });
+    fixture.context.install_display_list_update(
+        make_fills_display_list(tree, { { { 2, 102, 4, 4 }, Gfx::Color::Red, { scroll, Web::Painting::NO_CLIP_NODE, child_effect } }, { { 0, 0, 1, 1 }, Gfx::Color::Green } }), tree, {});
+    fixture.rasterize();
+    EXPECT(fixture.context.has_active_visual_animations());
+    EXPECT(!fixture.context.visual_animations_need_frame());
+    EXPECT(!fixture.context.visual_animations_need_frame());
+    fixture.context.update_scroll_state(scroll_state_snapshot_with_offset(scroll, { 0, -100 }));
+    EXPECT(fixture.context.visual_animations_need_frame());
+    EXPECT(fixture.context.advance_visual_animations(anchor + AK::Duration::from_milliseconds(2500)));
+    fixture.rasterize();
+    EXPECT_EQ(fixture.pixel(3, 3).alpha(), 128);
+    fixture.context.update_scroll_state({});
+    EXPECT(!fixture.context.visual_animations_need_frame());
+    fixture.context.viewport_size_updated({ 16, 120 }, Web::Compositor::WindowResizingInProgress::No);
+    EXPECT(fixture.context.visual_animations_need_frame());
+}
+
 TEST_CASE(rotation_bounds_include_angles_that_can_reveal_offscreen_content)
 {
     Web::Painting::VisualContextTreeTestBuilder builder;
@@ -1206,10 +1240,10 @@ TEST_CASE(rotation_bounds_include_angles_that_can_reveal_offscreen_content)
     auto tree = builder.finish();
     auto display_list = make_fills_display_list(tree, { { { 50, 0, 4, 4 }, Gfx::Color::Red, { spatial } } });
     Array rotation_nodes { spatial };
-    EXPECT(Web::Painting::rotating_content_may_affect_viewport(
-        display_list->command_bytes(), tree, {}, rotation_nodes, { 0, 50, 10, 10 }));
-    EXPECT(!Web::Painting::rotating_content_may_affect_viewport(
-        display_list->command_bytes(), tree, {}, rotation_nodes, { 0, 100, 10, 10 }));
+    EXPECT(Web::Painting::animated_content_may_affect_viewport(
+        display_list->command_bytes(), tree, {}, rotation_nodes, {}, { 0, 50, 10, 10 }));
+    EXPECT(!Web::Painting::animated_content_may_affect_viewport(
+        display_list->command_bytes(), tree, {}, rotation_nodes, {}, { 0, 100, 10, 10 }));
 }
 
 TEST_CASE(rotation_bounds_preserve_work_for_unbounded_commands_and_animated_clips)
@@ -1220,11 +1254,11 @@ TEST_CASE(rotation_bounds_preserve_work_for_unbounded_commands_and_animated_clip
     auto tree = builder.finish();
     Array rotation_nodes { spatial };
     auto unbounded = make_fills_display_list(tree, { { { 2, 102, 4, 4 }, Gfx::Color::Red, { spatial }, false } });
-    EXPECT(Web::Painting::rotating_content_may_affect_viewport(
-        unbounded->command_bytes(), tree, {}, rotation_nodes, test_viewport_rect));
+    EXPECT(Web::Painting::animated_content_may_affect_viewport(
+        unbounded->command_bytes(), tree, {}, rotation_nodes, {}, test_viewport_rect));
     auto clipped = make_fills_display_list(tree, { { { 0, 0, 8, 8 }, Gfx::Color::Red, { Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, clip } } });
-    EXPECT(Web::Painting::rotating_content_may_affect_viewport(
-        clipped->command_bytes(), tree, {}, rotation_nodes, test_viewport_rect));
+    EXPECT(Web::Painting::animated_content_may_affect_viewport(
+        clipped->command_bytes(), tree, {}, rotation_nodes, {}, test_viewport_rect));
 }
 
 TEST_CASE(changed_command_reports_its_inflated_rect)

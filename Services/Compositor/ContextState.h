@@ -257,7 +257,7 @@ private:
     Optional<Web::Painting::AccumulatedVisualContextTree> m_sampled_visual_context_tree;
     u64 m_visual_context_tree_copy_count { 0 };
     bool m_has_active_visual_animations { false };
-    Optional<bool> m_rotating_content_may_affect_viewport;
+    Optional<bool> m_animated_content_may_affect_viewport;
     Web::Painting::DisplayListResourceStorage m_display_list_resource_storage;
     Web::Painting::ScrollStateSnapshot m_scroll_state_snapshot;
     BackingStoreManager m_backing_store_manager;

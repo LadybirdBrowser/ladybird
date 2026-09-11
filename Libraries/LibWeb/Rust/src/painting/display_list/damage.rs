@@ -7,8 +7,8 @@
 use crate::painting::display_list::builder::{for_each_command, inline_transform_entry_offset, read_command};
 use crate::painting::display_list::commands::{
     ContextRef, DisplayListCommandHeader, DisplayListCommandType, DisplayListDataSpan, DisplayListInlineClip,
-    DrawGlyphRun, DrawScaledDecodedImageFrame, INLINE_CLIP_ENTRY_SIZE, OptionalColor, OptionalFloatRect,
-    PaintScrollBar, PaintTextShadow, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
+    DrawGlyphRun, DrawScaledDecodedImageFrame, EffectNodeIndex, INLINE_CLIP_ENTRY_SIZE, OptionalColor,
+    OptionalFloatRect, PaintScrollBar, PaintTextShadow, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
 };
 use crate::painting::visual_context::queries::TreeCullingScratch;
 use crate::painting::visual_context::{
@@ -527,11 +527,12 @@ impl DamageAccumulator {
 
 // This query is cached until scene geometry or scrolling changes. It deliberately ignores clips when
 // bounding rotating content, so animation phases cannot reveal pixels outside the computed bounds.
-pub fn rotating_content_may_affect_viewport(
+pub fn animated_content_may_affect_viewport(
     command_bytes: &[u8],
     tree: &VisualContextTree,
     scroll_offsets: &[FloatPoint],
     rotation_nodes: &[SpatialNodeIndex],
+    opacity_nodes: &[EffectNodeIndex],
     viewport_rect: IntRect,
 ) -> bool {
     let in_rotating_subtree = tree.spatial_nodes_in_subtrees_of(rotation_nodes);
@@ -558,23 +559,28 @@ pub fn rotating_content_may_affect_viewport(
             clip = node.parent;
         }
         let mut effect = header.context.effect;
+        let mut opacity_is_animated = false;
+        let mut has_filter = false;
         while !effect.is_none() {
             let node = &tree.effect_nodes[effect.0 as usize];
+            opacity_is_animated |= opacity_nodes.contains(&effect);
             if !spatial_is_animated && in_rotating_subtree[node.spatial.0 as usize] {
                 may_affect_viewport = true;
                 return;
             }
-            if spatial_is_animated
-                && let EffectNodeData::Effects(effects) = &node.data
+            if let EffectNodeData::Effects(effects) = &node.data
                 && (effects.filter.is_some() || effects.backdrop_filter.is_some())
             {
-                // Filters can expand the output beyond the command bounds.
-                may_affect_viewport = true;
-                return;
+                has_filter = true;
             }
             effect = node.parent;
         }
-        if !spatial_is_animated {
+        if !spatial_is_animated && !opacity_is_animated {
+            return;
+        }
+        // Filters can expand the output beyond the command bounds.
+        if has_filter {
+            may_affect_viewport = true;
             return;
         }
         if !header.has_bounding_rect {

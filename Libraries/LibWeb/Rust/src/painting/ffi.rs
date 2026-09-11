@@ -625,7 +625,7 @@ pub unsafe extern "C" fn display_list_compute_damage(
 ///
 /// The tree must be a live retained handle and each pointer must address the stated number of values.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn display_list_rotating_content_may_affect_viewport(
+pub unsafe extern "C" fn display_list_animated_content_may_affect_viewport(
     command_bytes: *const u8,
     command_bytes_length: usize,
     tree: *const c_void,
@@ -633,15 +633,18 @@ pub unsafe extern "C" fn display_list_rotating_content_may_affect_viewport(
     scroll_offsets_len: usize,
     rotation_nodes: *const crate::painting::display_list::commands::SpatialNodeIndex,
     rotation_nodes_len: usize,
+    opacity_nodes: *const crate::painting::display_list::commands::EffectNodeIndex,
+    opacity_nodes_len: usize,
     viewport_rect: libgfx_rust::IntRect,
 ) -> bool {
     // SAFETY: The caller guarantees a live tree and valid slices for the duration of the call.
     unsafe {
-        crate::painting::display_list::damage::rotating_content_may_affect_viewport(
+        crate::painting::display_list::damage::animated_content_may_affect_viewport(
             ffi_slice(command_bytes, command_bytes_length),
             tree_from_handle(tree),
             ffi_slice(scroll_offsets, scroll_offsets_len),
             ffi_slice(rotation_nodes, rotation_nodes_len),
+            ffi_slice(opacity_nodes, opacity_nodes_len),
             viewport_rect,
         )
     }
