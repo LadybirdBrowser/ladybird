@@ -73,10 +73,10 @@ static bool visual_viewport_transforms_match(Web::Painting::TransformWithOrigin 
         && AK::fabs(a.origin.y() - b.origin.y()) <= translation_epsilon;
 }
 
-static double visual_animation_local_time_at(Web::Compositor::VisualAnimation const& animation, MonotonicTime now)
+static double visual_animation_local_time_at(Web::Compositor::VisualAnimation const& animation, i64 sample_time_ns)
 {
-    auto elapsed_nanoseconds = now.nanoseconds() > animation.monotonic_time_at_anchor_ns
-        ? now.nanoseconds() - animation.monotonic_time_at_anchor_ns
+    auto elapsed_nanoseconds = sample_time_ns > animation.monotonic_time_at_anchor_ns
+        ? sample_time_ns - animation.monotonic_time_at_anchor_ns
         : 0;
     return animation.local_time_at_anchor_ms
         + AK::Duration::from_nanoseconds(elapsed_nanoseconds).to_seconds_f64() * 1000.0 * animation.playback_rate;
@@ -84,7 +84,7 @@ static double visual_animation_local_time_at(Web::Compositor::VisualAnimation co
 
 static bool visual_animation_is_active_at(Web::Compositor::VisualAnimation const& animation, MonotonicTime now)
 {
-    auto local_time = visual_animation_local_time_at(animation, now);
+    auto local_time = visual_animation_local_time_at(animation, now.nanoseconds());
     if (!isfinite(local_time))
         return true;
     if (local_time < animation.start_delay_ms)
@@ -1497,7 +1497,18 @@ bool ContextState::visual_animations_need_frame()
 
     Vector<Web::Painting::SpatialNodeIndex> rotation_nodes;
     Vector<Web::Painting::EffectNodeIndex> opacity_nodes;
+    bool has_unfinished_finite_animation = false;
+    bool has_finished_animation = false;
+    auto sample_time_ns = m_visual_animation_sample_time_ns.value_or(MonotonicTime::now().nanoseconds());
     for (auto const& animation : m_visual_context_tree->visual_animations()) {
+        if (isfinite(animation.iteration_count)) {
+            auto active_end = animation.start_delay_ms + animation.iteration_duration_ms * animation.iteration_count;
+            if (visual_animation_local_time_at(animation, sample_time_ns) >= active_end) {
+                has_finished_animation = true;
+                continue;
+            }
+            has_unfinished_finite_animation = true;
+        }
         // OPTIMIZATION: Opacity preserves bounds; pure 2D rotations have bounded swept areas.
         if (animation.target_kind == Web::Compositor::VisualAnimation::TargetKind::Opacity) {
             for (auto node_index : animation.visual_context_node_indices)
@@ -1517,13 +1528,18 @@ bool ContextState::visual_animations_need_frame()
         for (auto node_index : animation.visual_context_node_indices)
             rotation_nodes.append(Web::Painting::SpatialNodeIndex { node_index });
     }
-    // Use the unsampled tree: the query replaces each rotating matrix with its full swept bounds.
+    // Preserve final transforms from finished animations. The query replaces active rotations with swept bounds.
     auto tree = m_async_visual_viewport_transform.has_value()
         ? current_visual_context_tree().with_visual_viewport_transform(*m_async_visual_viewport_transform)
         : current_visual_context_tree();
-    m_animated_content_may_affect_viewport = Web::Painting::animated_content_may_affect_viewport(
+    if (has_finished_animation)
+        tree = tree.with_visual_animation_samples(sample_time_ns);
+    auto may_affect_viewport = Web::Painting::animated_content_may_affect_viewport(
         m_display_list->command_bytes(), tree, m_scroll_state_snapshot, rotation_nodes, opacity_nodes, { {}, m_viewport_size });
-    return *m_animated_content_may_affect_viewport;
+    // A finite animation can stop affecting the viewport without a new scene.
+    if (!has_unfinished_finite_animation)
+        m_animated_content_may_affect_viewport = may_affect_viewport;
+    return may_affect_viewport;
 }
 
 bool ContextState::advance_visual_animations(MonotonicTime now)
@@ -1536,7 +1552,7 @@ bool ContextState::advance_visual_animations(MonotonicTime now)
 
     m_has_active_visual_animations = false;
     for (auto const& animation : m_visual_context_tree->visual_animations()) {
-        auto local_time = visual_animation_local_time_at(animation, now);
+        auto local_time = visual_animation_local_time_at(animation, now.nanoseconds());
         if (local_time < animation.start_delay_ms)
             continue;
         if (!isfinite(local_time) || !isfinite(animation.iteration_count)) {

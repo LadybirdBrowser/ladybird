@@ -1233,6 +1233,51 @@ TEST_CASE(offscreen_opacity_animations_sleep_and_resume_at_the_current_phase)
     EXPECT(fixture.context.visual_animations_need_frame());
 }
 
+TEST_CASE(finished_animations_do_not_keep_offscreen_animations_awake)
+{
+    RasterizingContextFixture fixture;
+    Web::Painting::VisualContextTreeTestBuilder builder;
+    auto spatial = builder.append_transform(Web::Painting::VISUAL_VIEWPORT_NODE_INDEX, Gfx::FloatMatrix4x4::identity());
+    auto effect = builder.append_effects(Web::Painting::NO_EFFECT_NODE, spatial);
+    auto tree = builder.finish();
+    auto finished = rotation_animation(spatial, MonotonicTime::now());
+    finished.iteration_count = 1;
+    finished.local_time_at_anchor_ms = 2000;
+    finished.keyframes = {
+        { 0, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::TranslateY, { 0 } } } },
+        { 1, {}, Web::Compositor::VisualAnimationTransformList { { Web::Compositor::VisualAnimationTransformOperationKind::TranslateY, { -100 } } } },
+    };
+    tree.set_visual_animations({ finished, {
+                                               .target_kind = Web::Compositor::VisualAnimation::TargetKind::Opacity,
+                                               .visual_context_node_indices = { effect.value() },
+                                               .monotonic_time_at_anchor_ns = MonotonicTime::now().nanoseconds(),
+                                               .iteration_duration_ms = 1000,
+                                               .easing = {},
+                                               .keyframes = { { 0, {}, 1.0f }, { 1, {}, 0.5f } },
+                                           } });
+    fixture.context.install_display_list_update(
+        make_fills_display_list(tree, { { { 2, 202, 4, 4 }, Gfx::Color::Red, { spatial, Web::Painting::NO_CLIP_NODE, effect } } }), tree, {});
+    fixture.rasterize();
+    EXPECT(fixture.context.has_active_visual_animations());
+    EXPECT(!fixture.context.visual_animations_need_frame());
+    fixture.context.install_display_list_update(
+        make_fills_display_list(tree, { { { 2, 102, 4, 4 }, Gfx::Color::Red, { spatial, Web::Painting::NO_CLIP_NODE, effect } } }), tree, {});
+    EXPECT(fixture.context.visual_animations_need_frame());
+    Vector<Web::Compositor::VisualAnimation> animations;
+    for (auto const& animation : tree.visual_animations())
+        animations.append(animation);
+    auto anchor = MonotonicTime::now();
+    animations[0].monotonic_time_at_anchor_ns = anchor.nanoseconds();
+    animations[0].local_time_at_anchor_ms = 500;
+    tree.set_visual_animations(move(animations));
+    fixture.context.install_display_list_update(
+        make_fills_display_list(tree, { { { 2, 202, 4, 4 }, Gfx::Color::Red, { spatial, Web::Painting::NO_CLIP_NODE, effect } } }), tree, {});
+    fixture.context.advance_visual_animations(anchor);
+    EXPECT(fixture.context.visual_animations_need_frame());
+    fixture.context.advance_visual_animations(anchor + AK::Duration::from_milliseconds(500));
+    EXPECT(!fixture.context.visual_animations_need_frame());
+}
+
 TEST_CASE(rotation_bounds_include_angles_that_can_reveal_offscreen_content)
 {
     Web::Painting::VisualContextTreeTestBuilder builder;
