@@ -1,0 +1,5 @@
+outer SVG uses compositor: true
+no animated style overlays: true
+no main-thread frame pump: true
+rotation uses CSS box center: true
+internal and nested SVG stay on main thread: true
