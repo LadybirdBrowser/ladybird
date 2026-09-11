@@ -291,8 +291,10 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
     bool will_insert_inline_child = false;
     bool will_insert_block_child = false;
     bool has_indirect_existing_child = false;
+    has_pending_collapsing_whitespace_since_layout_node = false;
     for (auto const* child = node.first_child(); child; child = child->next_sibling()) {
         if (auto const* child_layout_node = child->unsafe_layout_node()) {
+            has_pending_collapsing_whitespace_since_layout_node = false;
             if (child_layout_node->parent() != layout_node)
                 has_indirect_existing_child = true;
             continue;
@@ -300,8 +302,18 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
 
         auto const* child_element = as_if<DOM::Element>(*child);
         if (!child_element) {
-            if (child->needs_layout_tree_update() && is<DOM::Text>(*child))
+            if (!child->needs_layout_tree_update())
+                continue;
+            auto const* text = as_if<DOM::Text>(*child);
+            bool collapsed_whitespace_can_be_inserted = text && text->data().is_ascii_whitespace()
+                && layout_node->white_space_collapse() == CSS::WhiteSpaceCollapse::Collapse
+                && !first_letter_owner
+                && collapsing_whitespace_can_be_inserted(*text);
+            if (!collapsed_whitespace_can_be_inserted)
                 return false;
+            if (has_pending_collapsing_whitespace_since_layout_node)
+                return false;
+            has_pending_collapsing_whitespace_since_layout_node = true;
             continue;
         }
 
@@ -315,11 +327,20 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
         auto child_display = computed_style->display();
         if (child_element->rendered_in_top_layer() || is<SVG::SVGElement>(*child_element))
             return false;
-        if (parent_lays_out_flex_or_grid_children)
+        if (parent_lays_out_flex_or_grid_children) {
+            if (has_pending_collapsing_whitespace_since_layout_node
+                && (computed_style->position() != CSS::Positioning::Static || computed_style->float_() != CSS::Float::None))
+                return false;
+            has_pending_collapsing_whitespace_since_layout_node = false;
             continue;
+        }
         if (parent_lays_out_table_rows && child_display.is_table_row())
             continue;
         if (parent_lays_out_block_children && child_display.is_block_outside()) {
+            if (has_pending_collapsing_whitespace_since_layout_node
+                && (computed_style->position() != CSS::Positioning::Static || computed_style->float_() != CSS::Float::None))
+                return false;
+            has_pending_collapsing_whitespace_since_layout_node = false;
             will_insert_block_child = true;
             if (will_insert_inline_child)
                 return false;
@@ -334,7 +355,7 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
         }
         return false;
     }
-    return !has_indirect_existing_child;
+    return !has_indirect_existing_child && !has_pending_collapsing_whitespace_since_layout_node;
 }
 
 static size_t ffi_assigned_node_count(void* slot_element_pointer)
