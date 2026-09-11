@@ -4906,7 +4906,7 @@ void LocalNavigable::re_snap_scroll_containers_after_layout_change()
         // position as content is dynamically added earlier in the document in order to create the illusion of not
         // scrolling.
         // NB: Re-snapping to snap areas the container was already snapped to is therefore instant.
-        auto is_subset_of = [](Vector<Painting::SnapAreaReference> const& areas, Vector<Painting::SnapAreaReference> const& other_areas) {
+        auto is_subset_of = [](Vector<Painting::SnapAreaIdentity> const& areas, Vector<Painting::SnapAreaIdentity> const& other_areas) {
             return all_of(areas, [&](auto const& area) { return other_areas.contains_slow(area); });
         };
         bool re_snapped_to_same_areas = !snap_destination.snapped_areas.is_empty()
