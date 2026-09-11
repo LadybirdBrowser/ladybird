@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #scroller {
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+        scroll-snap-type: y mandatory;
+    }
+    .item {
+        width: 100%;
+        height: 200px;
+        scroll-snap-align: start;
+    }
+</style>
+<div id="scroller">
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+    <div class="item"></div>
+</div>
+<script>
+    promiseTest(async () => {
+        const scroller = document.getElementById("scroller");
+
+        await animationFrame();
+        await animationFrame();
+
+        await internals.wheel(50, 50, 0, 10);
+        await scrollOffsetStopsChanging(() => scroller.scrollTop);
+        println(`scroll offset after the first step: ${scroller.scrollLeft},${scroller.scrollTop}`);
+
+        // An instant programmatic scroll moves the scrolling box away from where the gesture's steps had asked for, so
+        // the next step travels from where the box now rests rather than from the gesture's accumulated offset.
+        scroller.scrollTo({ top: 600, behavior: "instant" });
+        await animationFrame();
+        await animationFrame();
+
+        await internals.wheel(50, 50, 0, 10);
+        await scrollOffsetStopsChanging(() => scroller.scrollTop);
+        println(`scroll offset after the step following the programmatic scroll: ${scroller.scrollLeft},${scroller.scrollTop}`);
+    });
+</script>

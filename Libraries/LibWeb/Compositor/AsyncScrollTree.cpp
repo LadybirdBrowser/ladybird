@@ -14,6 +14,8 @@ namespace Web::Compositor {
 void AsyncScrollTree::set_state(AsyncScrollingState&& state)
 {
     m_scroll_nodes = move(state.scroll_nodes);
+    m_snap_containers = move(state.snap_containers);
+    m_device_pixels_per_css_pixel = state.device_pixels_per_css_pixel;
     m_wheel_hit_test_regions = move(state.wheel_hit_test_targets);
     m_main_thread_wheel_event_regions = move(state.main_thread_wheel_event_regions);
     m_blocking_wheel_event_regions = move(state.blocking_wheel_event_regions);
@@ -43,6 +45,15 @@ WheelHitTestResult AsyncScrollTree::hit_test_result_for_scroll_node(AsyncScrollN
     if (auto ancestor = scrollable_ancestor_for_node(node_id, m_scroll_state_snapshot, delta); ancestor.has_value())
         return { ancestor, false };
     return {};
+}
+
+AsyncSnapContainer const* AsyncScrollTree::snap_container_for_node(AsyncScrollNodeID node_id) const
+{
+    for (auto const& snap_container : m_snap_containers) {
+        if (snap_container.node_id == node_id)
+            return &snap_container;
+    }
+    return nullptr;
 }
 
 AsyncScrollNode const* AsyncScrollTree::scroll_node_for_stable_id(AsyncScrollNodeStableID stable_node_id) const

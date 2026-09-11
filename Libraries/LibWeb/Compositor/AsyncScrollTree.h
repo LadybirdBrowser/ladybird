@@ -58,6 +58,9 @@ public:
     Optional<Gfx::FloatPoint> scroll_offset_for_node(AsyncScrollNodeID, Painting::ScrollStateSnapshot const&) const;
     Optional<AsyncScrollNodeID> viewport_scroll_node_id() const;
     Optional<AsyncScrollNodeID> scroll_node_id_for_stable_id(AsyncScrollNodeStableID) const;
+    AsyncScrollNode const* scroll_node(AsyncScrollNodeID node_id) const { return scroll_node_for_id(node_id); }
+    AsyncSnapContainer const* snap_container_for_node(AsyncScrollNodeID) const;
+    double device_pixels_per_css_pixel() const { return m_device_pixels_per_css_pixel; }
     WheelHitTestResult hit_test_scroll_node_for_wheel(Painting::AccumulatedVisualContextTree const&, Gfx::FloatPoint position, Gfx::FloatPoint delta, SnapContainerHandling) const;
     bool scroll_node_is_viewport(AsyncScrollNodeID) const;
     Vector<AsyncScrollOffset> apply_scroll_delta(AsyncScrollNodeID, Gfx::FloatPoint delta, Painting::AccumulatedVisualContextTree const&, Painting::ScrollStateSnapshot&);
@@ -76,6 +79,8 @@ private:
     Gfx::FloatPoint apply_scroll_delta_to_node(AsyncScrollNode const&, Gfx::FloatPoint delta, Painting::ScrollStateSnapshot&);
 
     Vector<AsyncScrollNode> m_scroll_nodes;
+    Vector<AsyncSnapContainer> m_snap_containers;
+    double m_device_pixels_per_css_pixel { 1.0 };
     Vector<WheelHitTestTarget> m_wheel_hit_test_regions;
     Vector<MainThreadWheelEventRegion> m_main_thread_wheel_event_regions;
     Vector<CachedWheelHitTestTarget> m_cached_wheel_hit_test_targets;

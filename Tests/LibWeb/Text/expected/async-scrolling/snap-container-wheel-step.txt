@@ -1,0 +1,5 @@
+wheel target of a discrete step: non-viewport
+scroll offset when the step's promise resolved: 0,200
+scrollend events before the gesture settled: 0
+scroll offset after the gesture settled: 0,200
+scrollend events after the gesture settled: 1

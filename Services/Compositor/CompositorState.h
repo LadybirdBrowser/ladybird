@@ -98,10 +98,10 @@ public:
     bool handle_mouse_event(Web::Compositor::CompositorContextId, Web::MouseEvent const&);
     bool dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId, Web::MouseEvent const&);
     bool handle_pinch_event(Web::Compositor::CompositorContextId, Web::PinchEvent const&);
-    Web::Compositor::AsyncScrollEnqueueResult async_scroll_by(Web::Compositor::CompositorContextId, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::Compositor::SnapContainerHandling, Web::Compositor::AsyncScrollOperationTracking);
-    Web::Compositor::AsyncScrollEnqueueResult smooth_scroll_to(Web::Compositor::CompositorContextId, Web::Compositor::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel, Web::Compositor::ScrollAnimationKind);
+    Web::Compositor::AsyncScrollEnqueueResult async_scroll_by(Web::Compositor::CompositorContextId, Web::UniqueNodeID document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta, Gfx::IntRect viewport_rect, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, Web::Compositor::AsyncScrollOperationTracking);
+    Web::Compositor::AsyncScrollEnqueueResult smooth_scroll_to(Web::Compositor::CompositorContextId, Web::Compositor::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Web::Compositor::ScrollAnimationKind);
     void cancel_smooth_scroll(Web::Compositor::CompositorContextId, Web::Compositor::AsyncScrollNodeStableID);
-    bool async_scroll_by(Web::Compositor::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::Compositor::SnapContainerHandling);
+    bool async_scroll_by(Web::Compositor::CompositorContextId, Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase);
     void viewport_size_updated(Web::Compositor::CompositorContextId, Gfx::IntSize, Web::Compositor::WindowResizingInProgress);
     void request_rendering_opportunity(Web::Compositor::CompositorContextId, double maximum_frames_per_second);
     void set_paused_debugger_overlay(Web::Compositor::CompositorContextId, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<WebView::PausedDebuggerOverlayAction> hovered_action);

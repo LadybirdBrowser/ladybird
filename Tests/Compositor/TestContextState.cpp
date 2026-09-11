@@ -406,7 +406,7 @@ TEST_CASE(wheel_hit_testing_uses_the_current_visual_animation_tree)
         { 20, 20 },
         { 0, 10 },
         { 0, 0, 100, 100 },
-        Web::Compositor::SnapContainerHandling::ScrollOnCompositor,
+        Web::WheelDeltaPrecision::Precise, Web::ScrollGesturePhase::None,
         Web::Compositor::AsyncScrollOperationTracking::No);
     EXPECT(result.enqueue_result.accepted);
 }
@@ -437,7 +437,7 @@ TEST_CASE(wheel_hit_testing_ignores_targets_from_a_larger_visual_context_tree)
         { 20, 20 },
         { 0, 10 },
         { 0, 0, 100, 100 },
-        Web::Compositor::SnapContainerHandling::ScrollOnCompositor,
+        Web::WheelDeltaPrecision::Precise, Web::ScrollGesturePhase::None,
         Web::Compositor::AsyncScrollOperationTracking::No);
     EXPECT(result.enqueue_result.accepted);
 }
@@ -1424,13 +1424,13 @@ TEST_CASE(async_scroll_presents_report_the_damage_of_the_scrolled_content)
     fixture.present();
 
     auto already_presented = fixture.compositor_client.presented_frames.size();
-    EXPECT(fixture.compositor_state->async_scroll_by(fixture.context_id, { 20, 20 }, { 0, 5 }, Web::Compositor::SnapContainerHandling::ScrollOnCompositor));
+    EXPECT(fixture.compositor_state->async_scroll_by(fixture.context_id, { 20, 20 }, { 0, 5 }, Web::WheelDeltaPrecision::Precise, Web::ScrollGesturePhase::None));
     auto nested_scroll_frame = fixture.wait_for_frame(already_presented);
     EXPECT_EQ(nested_scroll_frame.content_rect, fixture.viewport_rect);
     EXPECT_EQ(nested_scroll_frame.damage_rect, (Gfx::IntRect { 9, 4, 42, 17 }));
 
     already_presented = fixture.compositor_client.presented_frames.size();
-    EXPECT(fixture.compositor_state->async_scroll_by(fixture.context_id, { 80, 80 }, { 0, 10 }, Web::Compositor::SnapContainerHandling::ScrollOnCompositor));
+    EXPECT(fixture.compositor_state->async_scroll_by(fixture.context_id, { 80, 80 }, { 0, 10 }, Web::WheelDeltaPrecision::Precise, Web::ScrollGesturePhase::None));
     auto viewport_scroll_frame = fixture.wait_for_frame(already_presented);
     EXPECT_EQ(viewport_scroll_frame.content_rect, (Gfx::IntRect { 0, 10, 100, 100 }));
     EXPECT_EQ(viewport_scroll_frame.damage_rect, fixture.viewport_rect);
@@ -1505,4 +1505,282 @@ TEST_CASE(visual_animation_samples_derive_a_tree_and_leave_the_source_untouched)
     auto source_translation = tree.accumulated_matrix(spatial, {}, include_viewport)[0, 3];
     EXPECT_EQ(source_translation, 12.0f);
     EXPECT_EQ(tree.effects_opacity(effect), Optional<float> { 0.75f });
+}
+
+// A viewport that snaps along its y axis, with snap areas every 100 pixels.
+static NonnullRefPtr<Web::Painting::DisplayList> make_snap_container_display_list(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree)
+{
+    ByteBuffer command_bytes;
+    Web::UniqueNodeID document_id { 1 };
+    Web::Painting::SpatialNodeIndex scroll_node_index { 1 };
+    VERIFY(visual_context_tree.spatial_node_count() > scroll_node_index.value());
+
+    append_display_list_command(
+        command_bytes,
+        Web::Painting::CompositorScrollNode {
+            .document_id = document_id,
+            .scrollable_node_id = Web::UniqueNodeID { 2 },
+            .scroll_node_index = scroll_node_index,
+            .parent_scroll_node_index = Web::Painting::VISUAL_VIEWPORT_NODE_INDEX,
+            .scrollport_rect = { 0, 0, 100, 100 },
+            .min_scroll_offset = { 0, 0 },
+            .max_scroll_offset = { 400, 400 },
+            .scroll_node_kind = Web::Painting::CompositorScrollNodeKind::Viewport,
+            .pseudo_element_type = 0,
+            .is_viewport = true,
+            .can_be_wheel_scrolled_horizontally = true,
+            .can_be_wheel_scrolled_vertically = true,
+            .snaps_scroll_position_horizontally = false,
+            .snaps_scroll_position_vertically = true,
+        });
+    append_display_list_command(
+        command_bytes,
+        Web::Painting::CompositorSnapContainer {
+            .document_id = document_id,
+            .scroll_node_index = scroll_node_index,
+            .snapport = Web::CSSPixelRect { 0, 0, 100, 100 },
+            .min_scroll_offset = Web::CSSPixelPoint { 0, 0 },
+            .max_scroll_offset = Web::CSSPixelPoint { 400, 400 },
+            .strictness = to_underlying(Web::CSS::ScrollSnapStrictness::Mandatory),
+            .snaps_x = false,
+            .snaps_y = true,
+            .horizontal_writing_mode = true,
+        });
+    for (int i = 0; i < 5; ++i) {
+        append_display_list_command(
+            command_bytes,
+            Web::Painting::CompositorSnapArea {
+                .document_id = document_id,
+                .scroll_node_index = scroll_node_index,
+                .area_node_id = Web::UniqueNodeID { 10 + i },
+                .pseudo_element_type = 0,
+                .rect = Web::CSSPixelRect { 0, 100 * i, 100, 100 },
+                .align_x = to_underlying(Web::CSS::ScrollSnapAlign::None),
+                .align_y = to_underlying(Web::CSS::ScrollSnapAlign::Start),
+                .always_stop = false,
+            });
+    }
+
+    return decode_display_list(visual_context_tree, move(command_bytes), {},
+        Web::Painting::DisplayList::AsyncScrollingMetadata {
+            .viewport_rect = { 0, 0, 100, 100 },
+            .device_pixels_per_css_pixel = 1.0,
+        });
+}
+
+static constexpr Web::Compositor::AsyncScrollNodeStableID snap_container_stable_id { .node_id = Web::UniqueNodeID { 2 }, .kind = Web::Compositor::AsyncScrollNodeKind::Viewport, .pseudo_element_type = 0 };
+
+struct SnapContainerContextFixture {
+    RecordingWebContentClient client;
+    Web::Painting::CanvasSurfaceRegistry canvas_surface_registry;
+    Compositor::ContextState context { Web::Compositor::CompositorContextId { 0 }, 0, client, canvas_surface_registry, true };
+    Web::Painting::AccumulatedVisualContextTree visual_context_tree { make_scrollable_viewport_visual_context_tree() };
+    MonotonicTime now { MonotonicTime::now() };
+
+    SnapContainerContextFixture()
+    {
+        context.install_display_list_update(make_snap_container_display_list(visual_context_tree), visual_context_tree, {});
+    }
+
+    Compositor::ContextState::AsyncScrollResult discrete_step(Gfx::FloatPoint delta, AK::Duration after = {})
+    {
+        return context.async_scroll_by(Web::UniqueNodeID { 1 }, { 50, 50 }, delta, { 0, 0, 100, 100 }, Web::WheelDeltaPrecision::Discrete, Web::ScrollGesturePhase::None, Web::Compositor::AsyncScrollOperationTracking::Yes, now + after);
+    }
+
+    // Everything the context published since the last call, merged the way WebContent merges it. The context pushes
+    // its pending updates to WebContent whenever it asks for a rendering update, so what was pushed is read back
+    // together with what is still pending.
+    Web::Compositor::PendingAsyncScrollUpdates take_updates()
+    {
+        auto publications = move(client.pushed_updates);
+        client.pushed_updates.clear();
+        publications.append(context.take_pending_async_scroll_updates());
+
+        Web::Compositor::PendingAsyncScrollUpdates merged;
+        for (auto& publication : publications) {
+            merged.sequence = max(merged.sequence, publication.sequence);
+            for (auto const& scroll_offset : publication.scroll_offsets) {
+                merged.scroll_offsets.remove_all_matching([&](auto const& existing) { return existing.stable_node_id == scroll_offset.stable_node_id; });
+                merged.scroll_offsets.append(scroll_offset);
+            }
+            merged.completed_operation_ids.extend(move(publication.completed_operation_ids));
+            merged.operation_ids_taken_over_by_user_input.extend(move(publication.operation_ids_taken_over_by_user_input));
+            merged.started_snap_scrolls.extend(move(publication.started_snap_scrolls));
+        }
+        return merged;
+    }
+
+    Web::Compositor::PendingAsyncScrollUpdates finish_animations(AK::Duration after)
+    {
+        (void)context.advance_smooth_scroll_animations(now + after);
+        VERIFY(!context.has_active_smooth_scroll_animations());
+        return take_updates();
+    }
+};
+
+TEST_CASE(a_discrete_wheel_step_on_a_snap_container_starts_a_snap_scroll)
+{
+    SnapContainerContextFixture fixture;
+
+    auto result = fixture.discrete_step({ 0, 10 });
+    EXPECT(result.enqueue_result.accepted);
+    EXPECT(result.enqueue_result.operation_id.has_value());
+    EXPECT(result.frame_to_present.has_value());
+    EXPECT(fixture.context.has_active_smooth_scroll_animations());
+
+    auto updates = fixture.take_updates();
+    EXPECT(updates.completed_operation_ids.is_empty());
+    EXPECT_EQ(updates.started_snap_scrolls.size(), 1u);
+    auto const& started = updates.started_snap_scrolls.first();
+    EXPECT_EQ(started.stable_node_id, snap_container_stable_id);
+    EXPECT_EQ(started.operation_id, *result.enqueue_result.operation_id);
+    EXPECT_EQ(started.initial_scroll_offset, Web::CSSPixelPoint(0, 0));
+    EXPECT_EQ(started.destination_scroll_offset, Web::CSSPixelPoint(0, 100));
+    EXPECT_EQ(started.unsnapped_scroll_destination, Web::CSSPixelPoint(0, 10));
+    EXPECT(!started.evaluated_x);
+    EXPECT(started.evaluated_y);
+    EXPECT(started.snapped_areas_x.is_empty());
+    EXPECT_EQ(started.snapped_areas_y.size(), 1u);
+    EXPECT_EQ(started.snapped_areas_y.first().node_id, Web::UniqueNodeID(11));
+
+    updates = fixture.finish_animations(AK::Duration::from_seconds(1));
+    EXPECT(updates.completed_operation_ids.contains_slow(started.operation_id));
+    EXPECT(updates.started_snap_scrolls.is_empty());
+    EXPECT_EQ(updates.scroll_offsets.size(), 1u);
+    EXPECT_EQ(updates.scroll_offsets.first().compositor_scroll_offset, Gfx::FloatPoint(0, 100));
+}
+
+TEST_CASE(consecutive_discrete_wheel_steps_travel_from_the_offset_they_asked_for)
+{
+    SnapContainerContextFixture fixture;
+
+    auto first_step = fixture.discrete_step({ 0, 10 });
+    auto first_operation_id = *first_step.enqueue_result.operation_id;
+    EXPECT_EQ(fixture.take_updates().started_snap_scrolls.size(), 1u);
+
+    // The second step asks for an offset short of the snap position the first is scrolling to, so it is consumed.
+    auto second_step = fixture.discrete_step({ 0, 10 }, AK::Duration::from_milliseconds(10));
+    EXPECT(second_step.enqueue_result.accepted);
+    EXPECT(second_step.enqueue_result.operation_id.has_value());
+    auto updates = fixture.take_updates();
+    EXPECT(updates.started_snap_scrolls.is_empty());
+    EXPECT(updates.completed_operation_ids.contains_slow(*second_step.enqueue_result.operation_id));
+    EXPECT(!updates.completed_operation_ids.contains_slow(first_operation_id));
+
+    // The third step travels on from the 20 pixels the gesture has asked for, past the snap position in flight.
+    auto third_step = fixture.discrete_step({ 0, 100 }, AK::Duration::from_milliseconds(20));
+    updates = fixture.take_updates();
+    EXPECT(updates.completed_operation_ids.contains_slow(first_operation_id));
+    EXPECT_EQ(updates.started_snap_scrolls.size(), 1u);
+    EXPECT_EQ(updates.started_snap_scrolls.first().operation_id, *third_step.enqueue_result.operation_id);
+    EXPECT_EQ(updates.started_snap_scrolls.first().unsnapped_scroll_destination, Web::CSSPixelPoint(0, 120));
+    EXPECT_EQ(updates.started_snap_scrolls.first().destination_scroll_offset, Web::CSSPixelPoint(0, 200));
+
+    updates = fixture.finish_animations(AK::Duration::from_seconds(1));
+    EXPECT_EQ(updates.scroll_offsets.first().compositor_scroll_offset, Gfx::FloatPoint(0, 200));
+
+    // A step arriving once the gesture has run out of input travels from where the scrolling box rests.
+    fixture.discrete_step({ 0, 10 }, AK::Duration::from_seconds(2));
+    updates = fixture.take_updates();
+    EXPECT_EQ(updates.started_snap_scrolls.size(), 1u);
+    EXPECT_EQ(updates.started_snap_scrolls.first().initial_scroll_offset, Web::CSSPixelPoint(0, 200));
+    EXPECT_EQ(updates.started_snap_scrolls.first().destination_scroll_offset, Web::CSSPixelPoint(0, 300));
+}
+
+TEST_CASE(a_discrete_wheel_step_along_a_non_snapping_axis_scrolls_by_its_delta)
+{
+    SnapContainerContextFixture fixture;
+
+    auto result = fixture.discrete_step({ 10, 0 });
+    EXPECT(result.enqueue_result.accepted);
+    EXPECT(!fixture.context.has_active_smooth_scroll_animations());
+
+    auto updates = fixture.take_updates();
+    EXPECT(updates.started_snap_scrolls.is_empty());
+    EXPECT(updates.completed_operation_ids.contains_slow(*result.enqueue_result.operation_id));
+    EXPECT_EQ(updates.scroll_offsets.size(), 1u);
+    EXPECT_EQ(updates.scroll_offsets.first().compositor_scroll_offset, Gfx::FloatPoint(10, 0));
+}
+
+TEST_CASE(a_scroll_by_the_main_thread_ends_the_wheel_gesture_on_the_compositor)
+{
+    SnapContainerContextFixture fixture;
+
+    fixture.discrete_step({ 0, 10 });
+    auto updates = fixture.finish_animations(AK::Duration::from_seconds(1));
+    EXPECT_EQ(updates.scroll_offsets.first().compositor_scroll_offset, Gfx::FloatPoint(0, 100));
+
+    // The main thread adopted the snap scroll's offsets and then scrolled the box itself.
+    auto scroll_state_snapshot = scroll_state_snapshot_with_offset(Web::Painting::SpatialNodeIndex { 1 }, { 0, -300 });
+    scroll_state_snapshot.set_adopted_async_scroll_sequence(updates.sequence);
+    fixture.context.update_scroll_state(move(scroll_state_snapshot));
+
+    fixture.discrete_step({ 0, 10 }, AK::Duration::from_milliseconds(100));
+    updates = fixture.take_updates();
+    EXPECT_EQ(updates.started_snap_scrolls.size(), 1u);
+    EXPECT_EQ(updates.started_snap_scrolls.first().initial_scroll_offset, Web::CSSPixelPoint(0, 300));
+    EXPECT_EQ(updates.started_snap_scrolls.first().destination_scroll_offset, Web::CSSPixelPoint(0, 400));
+}
+
+TEST_CASE(a_discrete_wheel_step_takes_over_a_smooth_scroll_the_main_thread_started)
+{
+    SnapContainerContextFixture fixture;
+
+    auto first_step = fixture.discrete_step({ 0, 10 });
+    auto first_operation_id = *first_step.enqueue_result.operation_id;
+    fixture.take_updates();
+
+    auto programmatic_scroll = fixture.context.smooth_scroll_to(snap_container_stable_id, { 0, 350 }, { 0, 0 }, { 0, 0, 100, 100 }, Web::Compositor::ScrollAnimationKind::SmoothScroll);
+    EXPECT(programmatic_scroll.enqueue_result.accepted);
+    auto programmatic_operation_id = *programmatic_scroll.enqueue_result.operation_id;
+    auto updates = fixture.take_updates();
+    EXPECT(updates.completed_operation_ids.contains_slow(first_operation_id));
+
+    auto second_step = fixture.discrete_step({ 0, 10 }, AK::Duration::from_milliseconds(20));
+    updates = fixture.take_updates();
+    EXPECT(updates.operation_ids_taken_over_by_user_input.contains_slow(programmatic_operation_id));
+    EXPECT_EQ(updates.started_snap_scrolls.size(), 1u);
+    EXPECT_EQ(updates.started_snap_scrolls.first().operation_id, *second_step.enqueue_result.operation_id);
+    EXPECT_EQ(updates.started_snap_scrolls.first().initial_scroll_offset, Web::CSSPixelPoint(0, 0));
+    EXPECT_EQ(updates.started_snap_scrolls.first().destination_scroll_offset, Web::CSSPixelPoint(0, 100));
+}
+
+TEST_CASE(started_snap_scrolls_round_trip_through_ipc)
+{
+    Web::Compositor::PendingAsyncScrollUpdates updates;
+    updates.sequence = 7;
+    updates.started_snap_scrolls.append({
+        .stable_node_id = snap_container_stable_id,
+        .operation_id = 3,
+        .initial_scroll_offset = { Web::CSSPixels(0), Web::CSSPixels(12.5) },
+        .destination_scroll_offset = { 0, 100 },
+        .unsnapped_scroll_destination = { 0, 22 },
+        .evaluated_x = false,
+        .evaluated_y = true,
+        .snapped_areas_x = {},
+        .snapped_areas_y = { { .node_id = Web::UniqueNodeID { 11 }, .pseudo_element_type = 3 } },
+    });
+
+    IPC::MessageBuffer buffer;
+    IPC::Encoder encoder { buffer };
+    MUST(encoder.encode(updates));
+
+    FixedMemoryStream stream { buffer.data().span() };
+    Queue<IPC::Attachment> attachments;
+    IPC::Decoder decoder { stream, attachments };
+    auto decoded = MUST(decoder.decode<Web::Compositor::PendingAsyncScrollUpdates>());
+
+    EXPECT_EQ(decoded.sequence, 7u);
+    EXPECT_EQ(decoded.started_snap_scrolls.size(), 1u);
+    auto const& started = decoded.started_snap_scrolls.first();
+    EXPECT_EQ(started.stable_node_id, snap_container_stable_id);
+    EXPECT_EQ(started.operation_id, 3u);
+    EXPECT_EQ(started.initial_scroll_offset, Web::CSSPixelPoint(Web::CSSPixels(0), Web::CSSPixels(12.5)));
+    EXPECT_EQ(started.destination_scroll_offset, Web::CSSPixelPoint(0, 100));
+    EXPECT_EQ(started.unsnapped_scroll_destination, Web::CSSPixelPoint(0, 22));
+    EXPECT(!started.evaluated_x);
+    EXPECT(started.evaluated_y);
+    EXPECT_EQ(started.snapped_areas_y.size(), 1u);
+    EXPECT_EQ(started.snapped_areas_y.first().node_id, Web::UniqueNodeID(11));
+    EXPECT_EQ(started.snapped_areas_y.first().pseudo_element_type, 3u);
 }

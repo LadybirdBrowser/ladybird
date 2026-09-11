@@ -214,9 +214,9 @@ Messages::CompositorControlServer::HandlePinchEventResponse ConnectionFromClient
     return m_compositor_state->handle_pinch_event(context_id, event);
 }
 
-Messages::CompositorControlServer::AsyncScrollByResponse ConnectionFromClient::async_scroll_by(Web::Compositor::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::Compositor::SnapContainerHandling snap_container_handling)
+Messages::CompositorControlServer::AsyncScrollByResponse ConnectionFromClient::async_scroll_by(Web::Compositor::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase)
 {
-    return m_compositor_state->async_scroll_by(context_id, position, delta_in_device_pixels, snap_container_handling);
+    return m_compositor_state->async_scroll_by(context_id, position, delta_in_device_pixels, wheel_delta_precision, scroll_gesture_phase);
 }
 
 void ConnectionFromClient::presented_bitmap_ready_to_paint(Web::Compositor::CompositorContextId context_id, i32 bitmap_id)
