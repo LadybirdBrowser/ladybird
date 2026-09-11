@@ -471,13 +471,15 @@ bool HistoryExecutor::run_changing_navigable_history_step_job_impl(ChangingNavig
         auto old_origin = target_entry->document_state()->origin();
 
         // 7. If all of the following are true:
+        //   * navigationType is "traverse";
         //   * navigable is not traversable;
-        //   * targetEntry is not navigable's current session history entry; and
-        //   * oldOrigin is the same as navigable's current session history entry's document state's origin,
+        //   * targetEntry is not displayedEntry; and
+        //   * oldOrigin is the same as displayedEntry's document state's origin,
         // then:
-        if (!navigable->is_traversable()
-            && target_entry != navigable->current_session_history_entry()
-            && old_origin == navigable->current_session_history_entry()->document_state()->origin()) {
+        if (job.navigation_type == Bindings::NavigationType::Traverse
+            && !navigable->is_traversable()
+            && target_entry != displayed_entry
+            && old_origin == displayed_entry->document_state()->origin()) {
             // 1. Let navigation be navigable's active window's navigation API.
             auto navigation = navigable->active_window()->navigation();
 

@@ -1,0 +1,6 @@
+Harness status: OK
+
+Found 1 tests
+
+1 Pass
+Pass	navigation.traverseTo() can navigate 3 frames of different types with correct navigate event cancelable values
