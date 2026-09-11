@@ -19,11 +19,15 @@
 
 namespace Gfx {
 
-struct BrokeredFont {
-    u64 face_id { 0 };
+struct BrokeredFontFile {
     u32 ttc_index { 0 };
     FontFileFormat format { FontFileFormat::OpenType };
-    Optional<IPC::File> file;
+    IPC::File file;
+};
+
+struct BrokeredFont {
+    u64 face_id { 0 };
+    Variant<Empty, BrokeredFontFile> source;
 };
 
 struct SharedFontProviderCallbacks {
@@ -89,5 +93,21 @@ private:
     HashTable<u64> m_failed_face_ids;
     HashMap<CodePointCacheKey, RefPtr<Typeface>, CodePointCacheKeyTraits> m_code_point_cache;
 };
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder&, Gfx::BrokeredFontFile const&);
+
+template<>
+ErrorOr<Gfx::BrokeredFontFile> decode(Decoder&);
+
+template<>
+ErrorOr<void> encode(Encoder&, Gfx::BrokeredFont const&);
+
+template<>
+ErrorOr<Gfx::BrokeredFont> decode(Decoder&);
 
 }

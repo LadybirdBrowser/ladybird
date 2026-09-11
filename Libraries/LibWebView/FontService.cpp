@@ -167,9 +167,11 @@ Gfx::BrokeredFont FontService::open_font_without_lock(u64 generation, u64 face_i
             return {};
         return {
             .face_id = face_id,
-            .ttc_index = source->ttc_index,
-            .format = source->format,
-            .file = IPC::File::adopt_file(file.release_value()),
+            .source = Gfx::BrokeredFontFile {
+                .ttc_index = source->ttc_index,
+                .format = source->format,
+                .file = IPC::File::adopt_file(file.release_value()),
+            },
         };
     }
 
@@ -179,9 +181,11 @@ Gfx::BrokeredFont FontService::open_font_without_lock(u64 generation, u64 face_i
             return {};
         return {
             .face_id = face_id,
-            .ttc_index = source->ttc_index,
-            .format = source->format,
-            .file = file.release_value(),
+            .source = Gfx::BrokeredFontFile {
+                .ttc_index = source->ttc_index,
+                .format = source->format,
+                .file = file.release_value(),
+            },
         };
     }
     return {};
@@ -197,11 +201,10 @@ Gfx::BrokeredFont FontService::materialize_typeface(NonnullRefPtr<Gfx::TypefaceS
         return {};
 
     auto face_id = m_next_dynamic_face_id++;
-    auto ttc_index = typeface->collection_index();
     m_memory_font_sources.set(face_id, MemoryFontSource {
-                                           .file = file.release_value(),
-                                           .ttc_index = ttc_index,
+                                           .ttc_index = typeface->collection_index(),
                                            .format = Gfx::FontFileFormat::OpenType,
+                                           .file = file.release_value(),
                                        });
     m_dynamic_match_cache.set(move(cache_key), face_id);
     return open_font_without_lock(m_generation, face_id);

@@ -48,11 +48,7 @@ private:
         Gfx::FontFileFormat format { Gfx::FontFileFormat::OpenType };
     };
 
-    struct MemoryFontSource {
-        IPC::File file;
-        u32 ttc_index { 0 };
-        Gfx::FontFileFormat format { Gfx::FontFileFormat::OpenType };
-    };
+    using MemoryFontSource = Gfx::BrokeredFontFile;
 
     ErrorOr<void> build_catalog();
     ErrorOr<void> build_empty_catalog();
