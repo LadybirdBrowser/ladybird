@@ -1,0 +1,12 @@
+Move control with unused header anchor: true
+Control position: 30,80
+Insert anchor consumer: true
+Consumer position: 130,40
+Move control with active consumer: true
+Remove last consumer: true
+Hidden consumer: true
+Show consumer: true
+Static consumer: true
+Make consumer positioned again: true
+position-area consumer: true
+Remove position-area dependency: true

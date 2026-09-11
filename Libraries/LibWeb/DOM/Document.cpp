@@ -1807,20 +1807,6 @@ void Document::record_partial_relayout_escape(PartialRelayoutEscapeReason reason
         Layout::RustFFI::layout_arena_record_partial_relayout_escape(m_layout_node_arena->handle());
 }
 
-// Anchor names publish geometry that anchor() functions on positioned boxes anywhere in the
-// document consume, and only a full layout pass re-resolves all of them, so anchor positioning
-// in use takes updates off the partial relayout path entirely.
-bool Document::any_anchor_names_are_registered() const
-{
-    if (m_anchor_name_map.has_registered_names())
-        return true;
-    for (auto const& shadow_root : m_shadow_roots) {
-        if (shadow_root.anchor_name_map().has_registered_names())
-            return true;
-    }
-    return false;
-}
-
 void Document::set_needs_container_query_evaluation_after_layout(Element const& query_container)
 {
     m_query_containers_needing_container_query_evaluation_after_layout.set(const_cast<Element&>(query_container));
@@ -2114,7 +2100,6 @@ Document::PartialRelayoutResult Document::try_partial_relayout(Vector<Layout::Ru
         .document_needs_full_layout_tree_update = needs_full_layout_tree_update(),
         .container_query_evaluation_is_pending = !m_query_containers_needing_container_query_evaluation_after_layout.is_empty(),
         .should_collect_devtools_layout_data = should_collect_devtools_layout_data,
-        .any_anchor_names_are_registered = any_anchor_names_are_registered(),
     };
     if (!Layout::RustFFI::layout_arena_partial_relayout_may_be_attempted(
             layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root),

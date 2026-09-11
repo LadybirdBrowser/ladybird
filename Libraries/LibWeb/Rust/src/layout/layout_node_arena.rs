@@ -559,6 +559,7 @@ pub(crate) struct LayoutNodeArena {
     fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore,
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
+    pub(crate) anchor_positioning_nodes: RefCell<HashSet<NodeSlotId>>,
     pub(crate) partial_relayout_boundary_roots: RefCell<Vec<NodeSlotId>>,
     /// Attribution of pending updates for partial relayout. Invariant: every update recorded
     /// since the last layout pass is either attributed to a boundary in the root set above, or
@@ -609,6 +610,7 @@ impl LayoutNodeArena {
             fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore::default(),
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
+            anchor_positioning_nodes: RefCell::new(HashSet::default()),
             partial_relayout_boundary_roots: RefCell::new(Vec::new()),
             pending_updates_escape_partial_relayout: Cell::new(false),
             boxes_needing_scrollable_overflow_recalculation: RefCell::new(Vec::new()),
@@ -856,6 +858,7 @@ impl LayoutNodeArena {
         if let Some(reset) = paintable_row_reset {
             self.paintable_row_freed(reset);
         }
+        self.anchor_positioning_nodes.get_mut().remove(&id);
         self.pre_order_labels[index as usize].set(0);
         self.metadata_mut(index).occupied = false;
         self.forget_row_sharing_dom_node(id);
@@ -942,9 +945,27 @@ impl LayoutNodeArena {
         self.assert_owner_thread();
         let data = self.data(id);
         data.style.set(payloads);
+        self.update_anchor_positioning_dependency(id);
         self.style_records[id.slot_index() as usize].set(style_record);
         self.enroll_text_children_for_content_sync(id);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(id);
+    }
+
+    fn update_anchor_positioning_dependency(&self, node: NodeSlotId) {
+        // NB: Anchor names alone do not create a layout dependency. Track consumers, including
+        //     ones whose anchor is currently missing, so a later tree build cannot introduce
+        //     a cross-subtree dependency unnoticed by the partial relayout planner.
+        let depends_on_anchor_positioning = super::node_facts::kind_is_box(self.data(node).kind.get())
+            && self.node_style_if_live(node).is_some_and(|style| {
+                style.is_absolutely_positioned()
+                    && (style_insets_use_anchor_functions(style) || !style.anchor().position_area.as_slice().is_empty())
+            });
+        let mut nodes = self.anchor_positioning_nodes.borrow_mut();
+        if depends_on_anchor_positioning {
+            nodes.insert(node);
+        } else {
+            nodes.remove(&node);
+        }
     }
 
     pub(crate) fn enroll_node_for_svg_paint_resources_sync(&self, id: NodeSlotId) {
@@ -1140,6 +1161,7 @@ impl LayoutNodeArena {
         self.style_records[slot.slot_index() as usize].set(derived.record);
         self.style_records_pinned_by_arena[slot.slot_index() as usize].set(true);
         data.style.set(derived.payloads);
+        self.update_anchor_positioning_dependency(slot);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
     }
 
@@ -1193,6 +1215,7 @@ impl LayoutNodeArena {
         assert!(derived.record != 0 && !derived.payloads.is_null());
         let previous_style_record = self.style_records[slot.slot_index() as usize].replace(derived.record);
         self.data(slot).style.set(derived.payloads);
+        self.update_anchor_positioning_dependency(slot);
         self.enroll_text_children_for_content_sync(slot);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
         if previous_style_record != derived.record {

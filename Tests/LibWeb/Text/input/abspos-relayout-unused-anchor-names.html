@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    #header { anchor-name: --menu; width: 100px; height: 20px; }
+    #boundary { position: absolute; left: 30px; top: 40px; width: 300px; }
+    #local-anchor { anchor-name: --line; width: 100px; height: 20px; }
+    table { width: 300px; border-spacing: 0; }
+    td { position: relative; height: 20px; padding: 0; }
+    .control { position: absolute; left: 0; top: 0; width: 20px; height: 20px; }
+    .consumer { position: absolute; position-anchor: --line; left: anchor(right); top: anchor(top); width: 10px; height: 10px; }
+</style>
+<div id="header"></div>
+<div id="boundary"><div id="local-anchor"></div><table><tr><td id="first">First line</td></tr><tr><td id="second">Second line</td></tr></table></div>
+<script>
+    promiseTest(async () => {
+        const results = [];
+        const boundary = document.getElementById("boundary");
+        const first = document.getElementById("first");
+        const second = document.getElementById("second");
+        const control = document.createElement("div");
+        control.className = "control";
+        first.append(control);
+        document.body.offsetHeight;
+
+        function checkLayout(label, mutate, expectPartial) {
+            const partialBefore = internals.partialLayoutCount();
+            const fullBefore = internals.fullLayoutCount();
+            mutate();
+            document.body.offsetHeight;
+            const partial = internals.partialLayoutCount() - partialBefore;
+            const full = internals.fullLayoutCount() - fullBefore;
+            results.push(`${label}: ${expectPartial ? partial > 0 && full === 0 : partial === 0 && full > 0}`);
+        }
+
+        checkLayout("Move control with unused header anchor", () => second.append(control), true);
+        results.push(`Control position: ${control.getBoundingClientRect().x},${control.getBoundingClientRect().y}`);
+
+        // Creating a consumer during the incremental tree build must still force full layout.
+        const consumer = document.createElement("div");
+        consumer.className = "consumer";
+        checkLayout("Insert anchor consumer", () => boundary.append(consumer), false);
+        results.push(`Consumer position: ${consumer.getBoundingClientRect().x},${consumer.getBoundingClientRect().y}`);
+        checkLayout("Move control with active consumer", () => first.append(control), false);
+
+        consumer.remove();
+        document.body.offsetHeight;
+        checkLayout("Remove last consumer", () => second.append(control), true);
+
+        consumer.style.display = "none";
+        boundary.append(consumer);
+        document.body.offsetHeight;
+        checkLayout("Hidden consumer", () => first.append(control), true);
+        checkLayout("Show consumer", () => consumer.style.display = "block", false);
+        consumer.style.position = "static";
+        document.body.offsetHeight;
+        checkLayout("Static consumer", () => second.append(control), true);
+        checkLayout("Make consumer positioned again", () => consumer.style.position = "absolute", false);
+
+        // position-area consumes anchor geometry without an anchor() inset.
+        consumer.style.left = "auto";
+        consumer.style.top = "auto";
+        consumer.style.positionArea = "span-all";
+        document.body.offsetHeight;
+        checkLayout("position-area consumer", () => first.append(control), false);
+        consumer.style.positionArea = "none";
+        document.body.offsetHeight;
+        checkLayout("Remove position-area dependency", () => second.append(control), true);
+
+        results.forEach(println);
+    });
+</script>

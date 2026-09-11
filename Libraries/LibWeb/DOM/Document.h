@@ -1507,7 +1507,6 @@ private:
     void update_active_element();
     void collect_boxes_with_auto_content_visibility();
     bool needs_style_update_after_layout();
-    bool any_anchor_names_are_registered() const;
     PartialRelayoutResult try_partial_relayout(Vector<Layout::RustFFI::NodeSlotId> registered_partial_relayout_root_slots, bool& needs_layout_tree_rebuild, bool should_collect_devtools_layout_data);
 
     void process_pending_list_item_renumbers();

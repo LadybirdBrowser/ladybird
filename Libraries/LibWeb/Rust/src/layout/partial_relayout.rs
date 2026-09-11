@@ -200,7 +200,7 @@ impl LayoutNodeArena {
             || self.node_needs_layout_update(root)
             || facts.container_query_evaluation_is_pending
             || facts.should_collect_devtools_layout_data
-            || facts.any_anchor_names_are_registered)
+            || !self.anchor_positioning_nodes.borrow().is_empty())
     }
 
     /// Selects the boundary subtrees to relay out after the layout tree build. Consumes the
@@ -215,7 +215,10 @@ impl LayoutNodeArena {
     ) -> Option<Vec<NodeSlotId>> {
         let pending_updates_escaped =
             self.pending_updates_escape_partial_relayout.replace(false) || layout_tree_update_escaped_rebuild_roots;
-        if self.node_needs_layout_update(root) || pending_updates_escaped {
+        if self.node_needs_layout_update(root)
+            || pending_updates_escaped
+            || !self.anchor_positioning_nodes.borrow().is_empty()
+        {
             return None;
         }
         self.collect_partial_relayout_roots(registered_root_slots, rebuilt_subtree_root_slots)
@@ -510,7 +513,6 @@ pub struct FfiPartialRelayoutHostFacts {
     pub document_needs_full_layout_tree_update: bool,
     pub container_query_evaluation_is_pending: bool,
     pub should_collect_devtools_layout_data: bool,
-    pub any_anchor_names_are_registered: bool,
 }
 
 /// # Safety
@@ -839,7 +841,6 @@ mod tests {
             document_needs_full_layout_tree_update: false,
             container_query_evaluation_is_pending: false,
             should_collect_devtools_layout_data: false,
-            any_anchor_names_are_registered: false,
         }
     }
 
@@ -910,10 +911,6 @@ mod tests {
             },
             FfiPartialRelayoutHostFacts {
                 should_collect_devtools_layout_data: true,
-                ..permitted
-            },
-            FfiPartialRelayoutHostFacts {
-                any_anchor_names_are_registered: true,
                 ..permitted
             },
         ];
