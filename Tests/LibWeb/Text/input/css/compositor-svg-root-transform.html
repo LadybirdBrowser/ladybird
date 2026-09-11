@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #spinner { display: block; width: 40px; height: 20px; transform-origin: 50% 50%; }
+</style>
+<svg id="spinner" viewBox="0 0 80 40"><path d="M0 0H80V40H0Z" fill="green" /></svg>
+<svg width="40" height="40"><g id="internal"><rect width="10" height="10" /></g><svg id="nested" width="10" height="10"></svg></svg>
+<script>
+    asyncTest(async done => {
+        const timeline = internals.createInternalAnimationTimeline();
+        const makeAnimation = target => {
+            const animation = new Animation(new KeyframeEffect(target,
+                [{ transform: "rotate(0deg)" }, { transform: "rotate(360deg)" }],
+                { duration: 1000, iterations: Infinity }), timeline);
+            animation.play();
+            return animation;
+        };
+        const spinner = document.getElementById("spinner");
+        const animation = makeAnimation(spinner);
+        timeline.setTime(0);
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+        println(`outer SVG uses compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 1}`);
+
+        internals.resetStyleInvalidationCounters();
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+        const counters = internals.getStyleInvalidationCounters();
+        println(`no animated style overlays: ${counters.animatedStyleOverlayBuilds === 0}`);
+        println(`no main-thread frame pump: ${counters.animationFramePumpRequests === 0}`);
+
+        timeline.setTimeForObservation(250);
+        const rect = spinner.getBoundingClientRect();
+        println(`rotation uses CSS box center: ${Math.abs(rect.x - 10) < 0.1 && Math.abs(rect.y + 10) < 0.1 && Math.abs(rect.width - 20) < 0.1 && Math.abs(rect.height - 40) < 0.1}`);
+        animation.cancel();
+        makeAnimation(document.getElementById("internal"));
+        makeAnimation(document.getElementById("nested"));
+        timeline.setTime(500);
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+        println(`internal and nested SVG stay on main thread: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 0}`);
+        done();
+    });
+</script>

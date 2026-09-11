@@ -7614,8 +7614,17 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
     if (any_of(effect.target_properties(), [&](auto const& property) { return !first_is_one_of(property.id(), CSS::PropertyID::Opacity, CSS::PropertyID::BackgroundColor, CSS::PropertyID::Filter) && !is_transform_family_property(property.id()); }))
         return {};
     auto target = effect.target_abstract_element();
-    if (!target.has_value() || target->element().namespace_uri() == Namespace::SVG)
+    if (!target.has_value())
         return {};
+    if (target->element().namespace_uri() == Namespace::SVG) {
+        // NB: An outer SVG viewport embedded in HTML uses the CSS box transform independently of its SVG
+        //     contents. Internal SVG transforms also affect SVG geometry and must remain on the main thread.
+        auto const* layout_node = target->unsafe_layout_node();
+        auto parent = target->element().parent_element();
+        if (!targets_transform || !layout_node || layout_node->kind() != Layout::RustFFI::NodeKind::SVGSVGBox
+            || !parent || parent->namespace_uri() != Namespace::HTML)
+            return {};
+    }
     auto monotonic_time_at_anchor_ms = [&]() -> Optional<double> {
         if (!is_initial_pending_css_transition) {
             auto frame_timestamp = target->document().last_animation_frame_timestamp();
