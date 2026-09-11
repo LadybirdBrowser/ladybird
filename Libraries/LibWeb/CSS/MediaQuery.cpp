@@ -55,13 +55,6 @@ bool MediaQuery::evaluate(DOM::Document const& document)
     return evaluate(MediaEnvironmentSnapshot { document });
 }
 
-MatchResult evaluate_media_condition(RustQueryHandle const& handle, MediaEnvironmentSnapshot const& environment)
-{
-    auto result = Parser::ValueParserFFI::css_query_evaluate_media_condition(handle.data(), environment.ffi_environment());
-    VERIFY(result <= to_underlying(MatchResult::Unknown));
-    return static_cast<MatchResult>(result);
-}
-
 void MediaQuery::dump(StringBuilder& builder, int indent_levels) const
 {
     dump_indent(builder, indent_levels);
