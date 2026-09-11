@@ -29,6 +29,36 @@ describe("correct behavior", () => {
         expect((30.521).toFixed(1.9)).toBe("30.5");
         expect((30.521).toFixed(2.2)).toBe("30.52");
     });
+
+    test("rounding", () => {
+        [
+            // Exact ties round away from zero.
+            [0.125, 2, "0.13"],
+            [2.5, 0, "3"],
+            [-2.5, 0, "-3"],
+            // 1.005 is slightly less than its decimal spelling.
+            [1.005, 2, "1.00"],
+            [5e-26, 25, "0.0000000000000000000000001"],
+            [-1e-7, 3, "-0.000"],
+            [-0, 2, "0.00"],
+        ].forEach(testCase => {
+            expect(testCase[0].toFixed(testCase[1])).toBe(testCase[2]);
+        });
+    });
+
+    test("scaled integer size boundaries", () => {
+        [
+            [123.456, 27, "123.456000000000003069544618484"],
+            [123.456, 28, "123.4560000000000030695446184836"],
+            [1e-10, 27, "0.000000000100000000000000004"],
+            [1.8e17, 2, "180000000000000000.00"],
+            [1e20, 2, "100000000000000000000.00"],
+            [2 ** 52, 1, "4503599627370496.0"],
+            [2 ** 53, 0, "9007199254740992"],
+        ].forEach(testCase => {
+            expect(testCase[0].toFixed(testCase[1])).toBe(testCase[2]);
+        });
+    });
 });
 
 describe("large number of digits", () => {
