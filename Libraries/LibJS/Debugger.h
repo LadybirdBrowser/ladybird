@@ -64,6 +64,18 @@ public:
         bool is_mutable { true };
     };
 
+    struct FrameEnvironment {
+        enum class Type : u8 {
+            Block,
+            Function,
+            Object,
+        };
+        Type type { Type::Block };
+        Optional<Utf16String> function_name;
+        GC::Ptr<Object> object;
+        Vector<FrameBinding> bindings;
+    };
+
     Debugger();
     ~Debugger();
 
@@ -77,6 +89,7 @@ public:
     void continue_execution_preserving_step_state();
     bool is_paused() const { return m_is_paused; }
     Vector<FrameBinding> bindings_for_frame(ExecutionContext const&) const;
+    Vector<FrameEnvironment> environments_for_frame(ExecutionContext const&) const;
     ThrowCompletionOr<Value> evaluate_in_frame(ExecutionContext&, Utf16View source_text);
 
     // Set before each instruction is executed, so that a `debugger` statement doesn't pause a

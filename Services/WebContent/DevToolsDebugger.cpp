@@ -9,10 +9,6 @@
 #include <LibCore/EventLoop.h>
 #include <LibJS/Bytecode/Executable.h>
 #include <LibJS/Runtime/AbstractOperations.h>
-#include <LibJS/Runtime/DeclarativeEnvironment.h>
-#include <LibJS/Runtime/FunctionEnvironment.h>
-#include <LibJS/Runtime/GlobalEnvironment.h>
-#include <LibJS/Runtime/ObjectEnvironment.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
@@ -248,75 +244,31 @@ Vector<WebView::DebuggerEnvironment> DevToolsDebugger::environments_for_frame(Pa
         return {};
 
     Vector<WebView::DebuggerEnvironment> environments;
-    auto append_declarative_environment = [&](JS::DeclarativeEnvironment& environment, WebView::DebuggerEnvironmentType type, Optional<Utf16String> function_name = {}) {
-        Vector<WebView::DebuggerBinding> bindings;
-        for (auto const& name : environment.bindings()) {
-            auto value = environment.get_binding_value(Web::Bindings::main_thread_vm(), name, false);
-            auto writable = environment.binding_is_mutable_by_name(name);
-            WebView::DebuggerValue debugger_value;
-            if (!value.is_error())
-                debugger_value = serialize_value(value.release_value());
-            else
-                debugger_value.type = WebView::DebuggerValueType::Uninitialized;
-            bindings.append({
-                .name = name.to_utf16_string(),
-                .value = move(debugger_value),
-                .writable = writable,
-            });
-        }
+    for (auto& environment : Web::Bindings::main_thread_vm().debugger()->environments_for_frame(*context)) {
         WebView::DebuggerEnvironment debugger_environment;
         debugger_environment.id = m_next_environment_id++;
-        debugger_environment.type = type;
-        debugger_environment.function_name = move(function_name);
-        debugger_environment.bindings = move(bindings);
-        environments.append(move(debugger_environment));
-    };
-
-    if (context->executable) {
-        WebView::DebuggerEnvironment local_environment;
-        local_environment.id = m_next_environment_id++;
-        local_environment.type = WebView::DebuggerEnvironmentType::Function;
-        local_environment.function_name = context->executable->name.to_utf16_string();
-
-        for (auto const& binding : Web::Bindings::main_thread_vm().debugger()->bindings_for_frame(*context)) {
-            local_environment.bindings.append({
+        debugger_environment.type = [&] {
+            switch (environment.type) {
+            case JS::Debugger::FrameEnvironment::Type::Block:
+                return WebView::DebuggerEnvironmentType::Block;
+            case JS::Debugger::FrameEnvironment::Type::Function:
+                return WebView::DebuggerEnvironmentType::Function;
+            case JS::Debugger::FrameEnvironment::Type::Object:
+                return WebView::DebuggerEnvironmentType::Object;
+            }
+            VERIFY_NOT_REACHED();
+        }();
+        debugger_environment.function_name = move(environment.function_name);
+        if (environment.object)
+            debugger_environment.object = serialize_value(environment.object.ptr());
+        for (auto const& binding : environment.bindings) {
+            debugger_environment.bindings.append({
                 .name = binding.name.to_utf16_string(),
                 .value = serialize_value(binding.value),
                 .writable = binding.is_mutable,
             });
         }
-        if (!local_environment.bindings.is_empty())
-            environments.append(move(local_environment));
-    }
-
-    for (auto* environment = context->lexical_environment.ptr(); environment; environment = environment->outer_environment()) {
-        if (is<JS::GlobalEnvironment>(*environment)) {
-            auto& global_environment = static_cast<JS::GlobalEnvironment&>(*environment);
-            append_declarative_environment(global_environment.declarative_record(), WebView::DebuggerEnvironmentType::Block);
-            WebView::DebuggerEnvironment debugger_environment;
-            debugger_environment.id = m_next_environment_id++;
-            debugger_environment.type = WebView::DebuggerEnvironmentType::Object;
-            debugger_environment.object = serialize_value(&global_environment.global_this_value());
-            environments.append(move(debugger_environment));
-            continue;
-        }
-
-        if (is<JS::DeclarativeEnvironment>(*environment)) {
-            auto type = environment->is_function_environment() ? WebView::DebuggerEnvironmentType::Function : WebView::DebuggerEnvironmentType::Block;
-            Optional<Utf16String> function_name;
-            if (environment->is_function_environment())
-                function_name = static_cast<JS::FunctionEnvironment&>(*environment).function_object().name_for_call_stack();
-            append_declarative_environment(static_cast<JS::DeclarativeEnvironment&>(*environment), type, move(function_name));
-            continue;
-        }
-
-        if (is<JS::ObjectEnvironment>(*environment)) {
-            WebView::DebuggerEnvironment debugger_environment;
-            debugger_environment.id = m_next_environment_id++;
-            debugger_environment.type = WebView::DebuggerEnvironmentType::Object;
-            debugger_environment.object = serialize_value(&static_cast<JS::ObjectEnvironment&>(*environment).binding_object());
-            environments.append(move(debugger_environment));
-        }
+        environments.append(move(debugger_environment));
     }
 
     for (size_t index = 0; index + 1 < environments.size(); ++index)
