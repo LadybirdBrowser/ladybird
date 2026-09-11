@@ -1,6 +1,6 @@
 hidden animation overlay builds: 0
 hidden animation frame pump requests: 0
-animation event listener keeps frame pump active: true
+animation event listener uses iteration wake-ups: true
 animation event listener skips past events: 0
 removing animation event listener stops frame pump: 0
 computed style samples hidden animation: true

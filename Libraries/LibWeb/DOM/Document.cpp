@@ -7906,9 +7906,29 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
     return build_animation_for_target(target_kind);
 }
 
+static Optional<double> next_throttled_animation_iteration_event_time(Animations::Animation const& animation, Animations::KeyframeEffect const& effect)
+{
+    if (!animation.is_css_animation() || animation.pending()
+        || animation.play_state() != Bindings::AnimationPlayState::Running
+        || animation.playback_rate() <= 0 || !isfinite(animation.playback_rate())
+        || !animation.timeline() || !animation.timeline()->is_monotonically_increasing()
+        || effect.start_delay().type != Animations::TimeValue::Type::Milliseconds
+        || effect.iteration_duration().type != Animations::TimeValue::Type::Milliseconds
+        || effect.iteration_duration().value <= 0 || !isfinite(effect.iteration_duration().value)
+        || !effect.can_skip_per_frame_style_update()
+        || !isinf(effect.iteration_count()) || !effect.is_in_the_active_phase()
+        || effect.can_skip_per_frame_animation_tick())
+        return {};
+
+    // NB: Observable infinite throttled animations need a rendering update at the next iteration boundary,
+    //     not at every display refresh. Seeking and cancellation already request their own updates.
+    return effect.start_delay().value
+        + (effect.previous_current_iteration() + 1 - effect.iteration_start()) * effect.iteration_duration().value;
+}
+
 void Document::schedule_compositor_animation_wakeup(double delay_ms)
 {
-    auto timer_delay_ms = clamp(static_cast<i64>(ceil(delay_ms)), 1, static_cast<i64>(NumericLimits<int>::max()));
+    auto timer_delay_ms = static_cast<int>(ceil(clamp(delay_ms, 1.0, static_cast<double>(NumericLimits<int>::max()))));
     auto deadline = MonotonicTime::now() + AK::Duration::from_milliseconds(timer_delay_ms);
     if (m_compositor_animation_wakeup_timer && m_compositor_animation_wakeup_timer->is_active()
         && m_compositor_animation_wakeup_deadline.has_value() && *m_compositor_animation_wakeup_deadline <= deadline)
@@ -7957,6 +7977,15 @@ void Document::service_compositor_animation_wakeup(double timestamp)
                 reached_wakeup = true;
                 if (is_compositor_handled)
                     reached_compositor_active_start = true;
+            }
+        }
+        if (auto iteration_event_time = next_throttled_animation_iteration_event_time(animation, effect); iteration_event_time.has_value()) {
+            if (current_time->value < *iteration_event_time) {
+                auto delay = (*iteration_event_time - current_time->value) / animation.playback_rate();
+                if (!next_wakeup_delay_ms.has_value() || delay < *next_wakeup_delay_ms)
+                    next_wakeup_delay_ms = delay;
+            } else {
+                reached_wakeup = true;
             }
         }
         if (!is_compositor_handled || isinf(effect.iteration_count()))
@@ -8731,6 +8760,16 @@ void Document::update_animations_and_send_events(double timestamp)
                 continue;
             }
             effect.clear_per_frame_animation_tick_was_skipped();
+            if (auto iteration_event_time = next_throttled_animation_iteration_event_time(animation, effect); iteration_event_time.has_value()) {
+                auto current_time = animation.current_time();
+                if (current_time.has_value() && current_time->type == Animations::TimeValue::Type::Milliseconds) {
+                    auto delay = (*iteration_event_time - current_time->value) / animation.playback_rate();
+                    if (delay > 0) {
+                        schedule_compositor_animation_wakeup(delay);
+                        continue;
+                    }
+                }
+            }
         }
         ++m_style_invalidation_counters.animation_frame_pump_requests;
         page().client().request_frame();

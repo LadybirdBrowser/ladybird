@@ -1106,9 +1106,6 @@ bool KeyframeEffect::can_skip_per_frame_style_update() const
         return false;
     if (!target->is_connected())
         return cache_result(true);
-    if (target->namespace_uri() == Namespace::SVG)
-        return cache_result(false);
-
     bool has_animated_property = false;
     auto const* key_frame_set = m_key_frame_set.ptr();
     if (!key_frame_set)
@@ -1125,6 +1122,13 @@ bool KeyframeEffect::can_skip_per_frame_style_update() const
         }
     }
     if (!has_animated_property)
+        return cache_result(false);
+
+    // NB: Transforms cannot affect rendering without a layout box. This also covers SVG content inside
+    //     display-none subtrees and closed details elements.
+    if (target->document().layout_is_up_to_date() && !target->unsafe_layout_node())
+        return cache_result(true);
+    if (target->namespace_uri() == Namespace::SVG)
         return cache_result(false);
 
     if (m_is_offscreen_throttled)
@@ -1174,8 +1178,18 @@ bool KeyframeEffect::can_skip_per_frame_animation_tick() const
     if ((m_is_compositor_driven || m_is_compositor_replaced) && (!isinf(iteration_count()) || m_is_observation_relevant_compositor_animation))
         return true;
 
+    // Script animations do not dispatch CSS animation events, even when an ancestor listens for them.
+    if (auto animation = associated_animation(); animation && !animation->is_css_animation())
+        return true;
+
     // An infinite effect cannot reach its natural end, so animationend listeners do not require a continuous tick.
-    auto has_css_animation_event_listener_requiring_animation_tick = [](DOM::EventTarget const& event_target) {
+    auto has_css_animation_event_listener_requiring_animation_tick = [this](DOM::EventTarget const& event_target) {
+        // NB: Starting or cancelling an active animation requests an update independently of playback.
+        //     Only iteration events require future updates while a visually throttled infinite effect runs.
+        if (is_in_the_active_phase())
+            return event_target.has_event_listener(HTML::EventNames::animationiteration)
+                || event_target.has_event_listener(HTML::EventNames::webkitAnimationIteration);
+
         return event_target.has_event_listener(HTML::EventNames::animationcancel)
             || event_target.has_event_listener(HTML::EventNames::animationiteration)
             || event_target.has_event_listener(HTML::EventNames::animationstart)

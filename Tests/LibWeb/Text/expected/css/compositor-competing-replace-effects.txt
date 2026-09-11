@@ -17,4 +17,4 @@ losing finite effect finishes after deterministic advance: true
 both competing finite effects dispatch animationend: true
 losing finite effect restores base opacity: true
 losing infinite effect dispatches iteration events: true
-losing infinite listener keeps the frame pump active: true
+losing infinite listener uses iteration wake-ups: true

@@ -1,0 +1,8 @@
+visible, display-none, and closed-details rotations skip per-frame work: true
+unobserved rotations need no wake-up timer: true
+late listener receives no past events: true
+late ancestor listener arms wake-up: true
+next iteration reaches late listener: closed 3000, visible 3000
+one wake-up serves the CSS effects: true
+removing iteration listener leaves no periodic wake-up: true
+showing hidden SVG resumes compositor rendering: true
