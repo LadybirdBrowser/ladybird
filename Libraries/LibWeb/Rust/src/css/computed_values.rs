@@ -3279,42 +3279,6 @@ pub unsafe extern "C" fn rust_build_text_reset_group(
     payload.cast_const()
 }
 
-/// # Safety
-/// `target` must identify a uniquely owned text reset payload and `lines`
-/// must address `line_count` valid enum codes.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_text_reset_set_decoration_lines(
-    target: *mut TextResetValues,
-    lines: *const u8,
-    line_count: usize,
-) {
-    let lines = if line_count == 0 {
-        &[]
-    } else {
-        unsafe { std::slice::from_raw_parts(lines, line_count) }
-    };
-    unsafe { (*target).text_decoration_lines = RetainedTextDecorationLineList::from_vec(lines.to_vec()) };
-}
-
-/// # Safety
-/// `target` must identify a uniquely owned text reset payload. For kind 2,
-/// `value` must own one retained StyleValueData reference transferred here.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_text_reset_set_decoration_thickness(
-    target: *mut TextResetValues,
-    kind: u8,
-    value: *const c_void,
-) {
-    unsafe {
-        (*target).text_decoration_thickness_kind = kind;
-        (*target).text_decoration_thickness = if kind == 2 {
-            ComputedStyleValueHandle { pointer: value }
-        } else {
-            ComputedStyleValueHandle::empty()
-        };
-    };
-}
-
 /// Builds the complete surround group from the physical inset, margin, and
 /// padding properties. Anchor insets retain their original value separately
 /// while exposing auto through the length-box facade, matching layout's
