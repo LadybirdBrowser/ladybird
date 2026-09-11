@@ -24,23 +24,8 @@
 #include <LibWeb/HTML/HTMLOptionElement.h>
 #include <LibWeb/HTML/HTMLProgressElement.h>
 #include <LibWeb/HTML/HTMLTextAreaElement.h>
-#include <LibWeb/Infra/CharacterTypes.h>
 
 namespace Web::CSS::Invalidation {
-
-template<typename Callback>
-static void for_each_ascii_whitespace_separated_token(Utf16View input, Callback callback)
-{
-    size_t start = 0;
-    for (size_t i = 0; i <= input.length_in_code_units(); ++i) {
-        if (i != input.length_in_code_units() && !Infra::is_ascii_whitespace(input.code_unit_at(i)))
-            continue;
-
-        if (i > start)
-            callback(input.substring_view(start, i - start));
-        start = i + 1;
-    }
-}
 
 // An attribute is not only something selectors test by name: some of them decide a pseudo-class,
 // and the engine that owns state invalidation has to hear that as a state fact rather than infer it
