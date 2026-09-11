@@ -18,6 +18,7 @@
 #include <LibGfx/Font/FontCatalog.h>
 #include <LibGfx/Font/PathFontProvider.h>
 #include <LibGfx/Font/SharedFontProvider.h>
+#include <LibGfx/Font/TypefaceSkia.h>
 #include <LibTest/TestCase.h>
 
 namespace {
@@ -67,6 +68,19 @@ static Gfx::BrokeredFont open_test_font(u64 face_id)
             .ttc_index = 0,
             .format = Gfx::FontFileFormat::OpenType,
             .file = IPC::File::adopt_file(move(file)),
+        },
+    };
+}
+
+static Gfx::BrokeredFont reference_test_font(u64 face_id, String family)
+{
+    return {
+        .face_id = face_id,
+        .source = Gfx::SystemFontReference {
+            .family = move(family),
+            .weight = 400,
+            .width = Gfx::FontWidth::Normal,
+            .slope = 0,
         },
     };
 }
@@ -278,6 +292,50 @@ TEST_CASE(replacing_catalog_clears_code_point_fallback_cache)
     MUST(provider->replace_catalog(map_bytes(replacement), 9));
     EXPECT(provider->get_font_for_code_point('A', 12, 400, Gfx::FontWidth::Normal, 0, false));
     EXPECT_EQ(match_count, 2u);
+}
+
+TEST_CASE(matches_referenced_system_fonts_in_process)
+{
+    // Referenced fonts are re-matched locally, so this needs a family the platform can resolve: whichever one it
+    // would pick for a plain letter.
+    auto platform_typeface = Gfx::TypefaceSkia::find_typeface_for_code_point('A', 400, Gfx::FontWidth::Normal, 0, false);
+    if (platform_typeface.is_error() || !platform_typeface.value())
+        return;
+    auto family = platform_typeface.value()->family();
+
+    size_t match_count = 0;
+    Gfx::SharedFontProviderCallbacks callbacks;
+    callbacks.match_font_for_code_point = [&](u32, u16, u16, u8, bool) {
+        ++match_count;
+        return reference_test_font(96, family.to_string());
+    };
+
+    auto provider = MUST(Gfx::SharedFontProvider::create_empty(9, move(callbacks)));
+    auto font = provider->get_font_for_code_point('A', 12, 400, Gfx::FontWidth::Normal, 0, false);
+    EXPECT(font);
+    EXPECT_EQ(font->typeface().family(), family);
+    auto identifier = font->typeface().system_font_identifier();
+    EXPECT(identifier.has_value());
+    EXPECT_EQ(identifier->face_id, 96u);
+
+    // The by-id lookup that a compositor makes for this face must find the local match without another broker call.
+    EXPECT(provider->get_typeface_by_id(9, 96));
+    EXPECT_EQ(match_count, 1u);
+}
+
+TEST_CASE(negatively_caches_unresolvable_system_font_references)
+{
+    size_t match_count = 0;
+    Gfx::SharedFontProviderCallbacks callbacks;
+    callbacks.match_font_for_code_point = [&](u32, u16, u16, u8, bool) {
+        ++match_count;
+        return reference_test_font(97, "Ladybird No Such Family"_string);
+    };
+
+    auto provider = MUST(Gfx::SharedFontProvider::create_empty(9, move(callbacks)));
+    EXPECT(!provider->get_font_for_code_point('A', 12, 400, Gfx::FontWidth::Normal, 0, false));
+    EXPECT(!provider->get_font_for_code_point('A', 16, 400, Gfx::FontWidth::Normal, 0, false));
+    EXPECT_EQ(match_count, 1u);
 }
 
 #ifndef AK_OS_WINDOWS

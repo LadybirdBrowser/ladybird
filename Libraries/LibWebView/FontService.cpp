@@ -176,17 +176,23 @@ Gfx::BrokeredFont FontService::open_font_without_lock(u64 generation, u64 face_i
     }
 
     if (auto source = m_memory_font_sources.get(face_id); source.has_value()) {
-        auto file = IPC::File::clone_fd(source->file.fd());
-        if (file.is_error())
-            return {};
-        return {
-            .face_id = face_id,
-            .source = Gfx::BrokeredFontFile {
-                .ttc_index = source->ttc_index,
-                .format = source->format,
-                .file = file.release_value(),
+        return source->visit(
+            [&](Gfx::BrokeredFontFile const& font_file) -> Gfx::BrokeredFont {
+                auto file = IPC::File::clone_fd(font_file.file.fd());
+                if (file.is_error())
+                    return {};
+                return {
+                    .face_id = face_id,
+                    .source = Gfx::BrokeredFontFile {
+                        .ttc_index = font_file.ttc_index,
+                        .format = font_file.format,
+                        .file = file.release_value(),
+                    },
+                };
             },
-        };
+            [&](Gfx::SystemFontReference const& reference) -> Gfx::BrokeredFont {
+                return { .face_id = face_id, .source = reference };
+            });
     }
     return {};
 }
@@ -196,16 +202,29 @@ Gfx::BrokeredFont FontService::materialize_typeface(NonnullRefPtr<Gfx::TypefaceS
     if (auto face_id = m_dynamic_match_cache.get(cache_key); face_id.has_value())
         return open_font_without_lock(m_generation, *face_id);
 
-    auto file = create_immutable_font_data(typeface->font_data());
-    if (file.is_error())
-        return {};
-
     auto face_id = m_next_dynamic_face_id++;
-    m_memory_font_sources.set(face_id, MemoryFontSource {
-                                           .ttc_index = typeface->collection_index(),
-                                           .format = Gfx::FontFileFormat::OpenType,
-                                           .file = file.release_value(),
-                                       });
+    auto ttc_index = typeface->collection_index();
+
+    // The platform does not always load a matched typeface's data back (CoreText rejects the hvgl-only data it hands
+    // out for PingFang), so such fonts are referred to by family and style for the client to re-match itself.
+    if (Gfx::TypefaceSkia::load_from_buffer(typeface->font_data(), ttc_index).is_error()) {
+        m_memory_font_sources.set(face_id, Gfx::SystemFontReference {
+                                               .family = typeface->family().to_string(),
+                                               .weight = typeface->weight(),
+                                               .width = typeface->width(),
+                                               .slope = typeface->slope(),
+                                           });
+    } else {
+        auto file = create_immutable_font_data(typeface->font_data());
+        if (file.is_error())
+            return {};
+        m_memory_font_sources.set(face_id, Gfx::BrokeredFontFile {
+                                               .ttc_index = ttc_index,
+                                               .format = Gfx::FontFileFormat::OpenType,
+                                               .file = file.release_value(),
+                                           });
+    }
+
     m_dynamic_match_cache.set(move(cache_key), face_id);
     return open_font_without_lock(m_generation, face_id);
 }

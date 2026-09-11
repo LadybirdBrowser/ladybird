@@ -8,6 +8,7 @@
 #include <LibCore/AnonymousBuffer.h>
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/SharedFontProvider.h>
+#include <LibGfx/Font/TypefaceSkia.h>
 #include <LibGfx/Font/WOFF/Loader.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
@@ -249,7 +250,25 @@ RefPtr<Typeface> SharedFontProvider::load_brokered_font(BrokeredFont brokered_fo
         return *cached;
     return brokered_font.source.visit(
         [](Empty) -> RefPtr<Typeface> { return nullptr; },
-        [&](BrokeredFontFile& font_file) { return load_font_file(brokered_font.face_id, font_file.ttc_index, font_file.format, move(font_file.file)); });
+        [&](BrokeredFontFile& font_file) { return load_font_file(brokered_font.face_id, font_file.ttc_index, font_file.format, move(font_file.file)); },
+        [&](SystemFontReference const& reference) { return load_font_reference(brokered_font.face_id, reference); });
+}
+
+RefPtr<Typeface> SharedFontProvider::load_font_reference(u64 face_id, SystemFontReference const& reference)
+{
+    if (m_failed_face_ids.contains(face_id))
+        return nullptr;
+
+    auto typeface_or_error = TypefaceSkia::match_family_style(reference.family, reference.weight, reference.width, reference.slope);
+    if (typeface_or_error.is_error() || !typeface_or_error.value()) {
+        m_failed_face_ids.set(face_id);
+        return nullptr;
+    }
+
+    auto typeface = typeface_or_error.release_value().release_nonnull();
+    typeface->set_system_font_identifier({ m_catalog->generation(), face_id });
+    m_typeface_cache.set(face_id, typeface);
+    return typeface;
 }
 
 RefPtr<Typeface> SharedFontProvider::load_font_file(u64 face_id, u32 ttc_index, FontFileFormat format, IPC::File file)
@@ -305,6 +324,26 @@ ErrorOr<Gfx::BrokeredFontFile> decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, Gfx::SystemFontReference const& reference)
+{
+    TRY(encoder.encode(reference.family));
+    TRY(encoder.encode(reference.weight));
+    TRY(encoder.encode(reference.width));
+    TRY(encoder.encode(reference.slope));
+    return {};
+}
+
+template<>
+ErrorOr<Gfx::SystemFontReference> decode(Decoder& decoder)
+{
+    auto family = TRY(decoder.decode<String>());
+    auto weight = TRY(decoder.decode<u16>());
+    auto width = TRY(decoder.decode<u16>());
+    auto slope = TRY(decoder.decode<u8>());
+    return Gfx::SystemFontReference { move(family), weight, width, slope };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, Gfx::BrokeredFont const& font)
 {
     TRY(encoder.encode(font.face_id));
@@ -316,7 +355,7 @@ template<>
 ErrorOr<Gfx::BrokeredFont> decode(Decoder& decoder)
 {
     auto face_id = TRY(decoder.decode<u64>());
-    auto source = TRY((decoder.decode<Variant<Empty, Gfx::BrokeredFontFile>>()));
+    auto source = TRY((decoder.decode<Variant<Empty, Gfx::BrokeredFontFile, Gfx::SystemFontReference>>()));
     return Gfx::BrokeredFont { face_id, move(source) };
 }
 
