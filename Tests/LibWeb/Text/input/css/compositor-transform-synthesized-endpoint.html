@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes spin { to { transform: rotate(360deg); } }
+    svg { width: 16px; height: 16px; animation: spin 1000s linear infinite; }
+</style>
+<svg id="spinner" viewBox="0 0 16 16"><path d="M15 8A7 7 0 0 0 8 1" fill="none" stroke="black" /></svg>
+<script>
+    asyncTest(async done => {
+        const spinner = document.getElementById("spinner");
+        const animation = spinner.getAnimations()[0];
+        const timeline = internals.createInternalAnimationTimeline();
+        animation.timeline = timeline;
+        animation.startTime = 0;
+        timeline.setTime(0);
+        timeline.setTimeForObservation(0);
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+        println(`synthesized transform endpoint uses compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 1}`);
+        internals.resetStyleInvalidationCounters();
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+        println(`no main-thread animated style work: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds === 0}`);
+
+        spinner.style.transform = "rotate(90deg)";
+        for (let i = 0; i < 2; ++i)
+            await new Promise(requestAnimationFrame);
+        println(`underlying style change preserves handoff: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 1}`);
+        timeline.setTimeForObservation(500000);
+        const matrix = new DOMMatrix(getComputedStyle(spinner).transform);
+        println(`synthesized endpoint follows underlying style: ${Math.abs(matrix.a + Math.SQRT1_2) < 0.001 && Math.abs(matrix.b + Math.SQRT1_2) < 0.001}`);
+        animation.cancel();
+        done();
+    });
+</script>

@@ -7761,7 +7761,7 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
                     if (!effect.target_properties().contains(CSS::PropertyNameAndID::from_id(property_id)))
                         continue;
                     auto property = entry.properties.get(CSS::PropertyNameAndID::from_id(property_id));
-                    if (!property.has_value() || !property->has<CSS::RustStyleValueHandle>()) {
+                    if (!property.has_value()) {
                         if (transform_property_count == 1) {
                             skip_keyframe = true;
                             break;
@@ -7769,7 +7769,17 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
                         new_cache.is_valid = false;
                         break;
                     }
-                    auto style_value = resolved_compositor_animation_style_value(property_id, property->get<CSS::RustStyleValueHandle>(), *target);
+                    // NB: Synthesized endpoints use the underlying style, just as main-thread keyframe sampling does.
+                    auto style_value = property->visit(
+                        [&](Animations::KeyframeEffect::KeyFrameSet::UseInitial) -> RefPtr<CSS::StyleValue const> {
+                            auto computed_style = target->computed_style();
+                            if (!computed_style)
+                                return {};
+                            return computed_style->computed_style_value(property_id, CSS::ComputedValues::WithAnimationsApplied::No);
+                        },
+                        [&](CSS::RustStyleValueHandle const& value) {
+                            return resolved_compositor_animation_style_value(property_id, value, *target);
+                        });
                     if (!style_value) {
                         new_cache.is_valid = false;
                         break;
