@@ -15,7 +15,8 @@ namespace Web::Compositor {
 
 SnapContainerHandling snap_container_handling_for(WheelDeltaPrecision wheel_delta_precision, ScrollGesturePhase scroll_gesture_phase)
 {
-    if (wheel_delta_precision == WheelDeltaPrecision::Discrete || scroll_gesture_phase == ScrollGesturePhase::Momentum)
+    (void)wheel_delta_precision;
+    if (scroll_gesture_phase == ScrollGesturePhase::Momentum)
         return SnapContainerHandling::DeferToMainThread;
     return SnapContainerHandling::ScrollOnCompositor;
 }

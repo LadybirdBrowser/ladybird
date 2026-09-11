@@ -31,7 +31,7 @@
 </div>
 <script>
     test(() => {
-        // Only the main thread can select the snap position a step scrolls to, so the compositor leaves the step to it.
+        // The compositor selects the snap position a step scrolls to itself; only the momentum of a flick is left to the main thread.
         println(`discrete step along the snapping axis: ${internals.asyncScrollingStateWheelTargetAt(175, 150, 0, 50)}`);
         println(`precise delta along the snapping axis: ${internals.asyncScrollingStateWheelTargetAt(175, 150, 0, 50, true)}`);
 

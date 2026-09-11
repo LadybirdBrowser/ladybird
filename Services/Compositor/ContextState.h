@@ -14,6 +14,7 @@
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
 #include <Compositor/BackingStoreManager.h>
+#include <Compositor/ScrollSnapController.h>
 #include <Compositor/ViewportScrollbarController.h>
 #include <LibCore/Forward.h>
 #include <LibGfx/PaintingSurface.h>
@@ -121,9 +122,11 @@ public:
         Gfx::FloatPoint position,
         Gfx::FloatPoint delta,
         Gfx::IntRect viewport_rect,
-        Web::Compositor::SnapContainerHandling,
-        Web::Compositor::AsyncScrollOperationTracking);
-    AsyncScrollResult smooth_scroll_to(Web::Compositor::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, double device_pixels_per_css_pixel, Web::Compositor::ScrollAnimationKind);
+        Web::WheelDeltaPrecision,
+        Web::ScrollGesturePhase,
+        Web::Compositor::AsyncScrollOperationTracking,
+        Optional<MonotonicTime> now_for_testing = {});
+    AsyncScrollResult smooth_scroll_to(Web::Compositor::AsyncScrollNodeStableID, Gfx::FloatPoint offset, Gfx::FloatPoint main_thread_offset, Gfx::IntRect viewport_rect, Web::Compositor::ScrollAnimationKind);
     void cancel_smooth_scroll(Web::Compositor::AsyncScrollNodeStableID);
     Optional<Gfx::IntRect> advance_smooth_scroll_animations(MonotonicTime now);
     bool has_active_smooth_scroll_animations() const { return !m_smooth_scroll_animations.is_empty(); }
@@ -134,7 +137,7 @@ public:
     bool has_sampled_visual_animation_values_for_testing() const { return m_sampled_visual_context_tree.has_value(); }
     u64 visual_context_tree_copy_count_for_testing() const { return m_visual_context_tree_copy_count; }
     Gfx::IntRect caret_damage_rect_for_testing() { return caret_damage_rect(); }
-    ContextUpdateResult async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::Compositor::SnapContainerHandling);
+    ContextUpdateResult async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, Optional<MonotonicTime> now_for_testing = {});
     Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates();
     bool has_pending_async_scroll_updates() const;
 
@@ -208,6 +211,13 @@ private:
     Optional<VisualViewportScrollDelta> apply_visual_viewport_scroll_delta(Gfx::FloatPoint);
     Optional<Gfx::FloatPoint> reapply_pending_async_scroll_offsets(Vector<Web::Compositor::AsyncScrollOffset> const&);
     void store_pending_async_scroll_offsets(Vector<Web::Compositor::AsyncScrollOffset> const&, Optional<Web::Compositor::AsyncScrollOperationID> = {});
+    struct WheelScrollOutcome {
+        Optional<Web::Compositor::AsyncScrollOperationID> operation_id;
+        Vector<Web::Compositor::AsyncScrollOffset> scroll_offsets;
+        bool started_snap_scroll { false };
+    };
+    WheelScrollOutcome perform_wheel_scroll_of_node(Web::Compositor::AsyncScrollNodeID, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::Compositor::AsyncScrollOperationTracking, MonotonicTime now);
+    void retire_smooth_scroll_animation(Web::Compositor::AsyncScrollNodeStableID);
     void cancel_smooth_scroll_taken_over_by_user_input(Web::Compositor::AsyncScrollNodeID);
     void note_user_scroll_gesture_end_if_drag_ended(bool was_dragging_viewport_scrollbar);
     Optional<PendingFrame> apply_viewport_scrollbar_drag(ViewportScrollbarController::Drag const&);
@@ -252,6 +262,8 @@ private:
 
     Web::Compositor::AsyncScrollTree m_async_scroll_tree;
     ViewportScrollbarController m_viewport_scrollbar_controller;
+    ScrollSnapController m_scroll_snap_controller;
+    Vector<Web::Compositor::StartedSnapScroll> m_started_snap_scrolls;
 
     Vector<Web::Compositor::AsyncScrollOffset> m_pending_async_scroll_offsets;
     // Offsets handed to WebContent that no snapshot of its has incorporated yet; the compositor keeps

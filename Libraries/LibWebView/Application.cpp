@@ -1370,12 +1370,12 @@ void Application::update_compositor_context_visibility(Web::Compositor::Composit
     m_compositor_client->async_set_context_visibility(context_id, context_visibility);
 }
 
-bool Application::send_async_scroll_to_compositor(Web::Compositor::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::Compositor::SnapContainerHandling snap_container_handling)
+bool Application::send_async_scroll_to_compositor(Web::Compositor::CompositorContextId context_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::WheelDeltaPrecision wheel_delta_precision, Web::ScrollGesturePhase scroll_gesture_phase)
 {
     if (!can_send_compositor_process_ipc(m_compositor_client))
         return false;
 
-    auto result = m_compositor_client->try_async_scroll_by(context_id, position, delta_in_device_pixels, snap_container_handling);
+    auto result = m_compositor_client->try_async_scroll_by(context_id, position, delta_in_device_pixels, wheel_delta_precision, scroll_gesture_phase);
     if (result.is_error())
         return false;
     return result.release_value();

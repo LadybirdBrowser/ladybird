@@ -1,0 +1,2 @@
+scroll offset after the first step: 0,200
+scroll offset after the step following the programmatic scroll: 0,800
