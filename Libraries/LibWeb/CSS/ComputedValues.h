@@ -1174,8 +1174,6 @@ public:
     bool has_pseudo_element_style(PseudoElement pseudo_element) const { return m_pseudo_element_styles & (1ull << to_underlying(pseudo_element)); }
     u64 pseudo_element_style_mask() const { return m_pseudo_element_styles; }
     ReadonlySpan<ComputedValuesFFI::FfiTableInheritanceDependentValue const> inheritance_dependent_specified_values() const { return m_inheritance_dependent_specified_values; }
-    bool inheritance_dependent_specified_values_equal(ComputedValues const& other) const;
-    HashMap<PropertyID, NonnullRefPtr<StyleValue const>> inheritance_dependent_specified_values_snapshot() const;
     RefPtr<StyleValue const> raw_cascaded_font_size() const;
 
     // The drive's frozen computed longhand table (a Rust ComputedLonghandTable), or null when

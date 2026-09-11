@@ -692,36 +692,6 @@ bool ComputedValues::property_inheritance_is_standard() const
     return m_property_inherited == standard_inheritance_bitmap;
 }
 
-HashMap<PropertyID, NonnullRefPtr<StyleValue const>> ComputedValues::inheritance_dependent_specified_values_snapshot() const
-{
-    HashMap<PropertyID, NonnullRefPtr<StyleValue const>> values;
-    for (auto const& entry : m_inheritance_dependent_specified_values) {
-        auto const* data = static_cast<StyleValueFFI::StyleValueData const*>(entry.value);
-        values.set(
-            static_cast<PropertyID>(entry.property),
-            StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_retain(data)));
-    }
-    return values;
-}
-
-bool ComputedValues::inheritance_dependent_specified_values_equal(ComputedValues const& other) const
-{
-    if (m_inheritance_dependent_specified_values.size() != other.m_inheritance_dependent_specified_values.size())
-        return false;
-    for (auto const& entry : m_inheritance_dependent_specified_values) {
-        auto other_entry = find_if(other.m_inheritance_dependent_specified_values.begin(), other.m_inheritance_dependent_specified_values.end(), [&](auto const& candidate) {
-            return candidate.property == entry.property;
-        });
-        if (other_entry == other.m_inheritance_dependent_specified_values.end())
-            return false;
-        auto const* value = static_cast<StyleValueFFI::StyleValueData const*>(entry.value);
-        auto const* other_value = static_cast<StyleValueFFI::StyleValueData const*>(other_entry->value);
-        if (value != other_value && !StyleValueFFI::rust_style_value_equals(value, other_value))
-            return false;
-    }
-    return true;
-}
-
 bool ComputedValues::adopt_identical_group_payloads(ComputedValues const& previous) const
 {
     bool all_shared = true;
