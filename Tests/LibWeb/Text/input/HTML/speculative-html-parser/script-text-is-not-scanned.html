@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const run = crypto.randomUUID();
+        const parserGate = `${run}-parser`;
+        const path = name => `/speculative-html-parser-${run}-${name}`;
+        const javascriptHeaders = { "Content-Type": "text/javascript" };
+
+        const parserBlockerURL = await server.createEcho("GET", path("parser-blocker.js"), {
+            status: 200,
+            headers: javascriptHeaders,
+            body: "",
+            wait_for_unblock: parserGate,
+        });
+        const trapURL = await server.createEcho("GET", path("trap.js"), {
+            status: 200,
+            headers: javascriptHeaders,
+            body: "",
+        });
+        const writtenURL = await server.createEcho("GET", path("written.js"), {
+            status: 200,
+            headers: javascriptHeaders,
+            body: "",
+        });
+        const imageURL = await server.createEcho("GET", path("image.png"), {
+            status: 200,
+            headers: { "Content-Type": "image/png" },
+            body: "",
+        });
+
+        // While the parser is blocked on the first script, the speculative parser scans the rest of the page. The
+        // trap URL only ever appears inside script text, so nothing may fetch it.
+        const scriptStartTag = "<scr" + "ipt";
+        const scriptEndTag = "</scr" + "ipt>";
+        const pageBody = `<!DOCTYPE html>
+            ${scriptStartTag} src="${parserBlockerURL}">${scriptEndTag}
+            ${scriptStartTag}>
+                var trap = '${scriptStartTag} src="${trapURL}"><\\/script>';
+                document.write('${scriptStartTag} src="${writtenURL}"><\\/script>');
+            ${scriptEndTag}
+            <img src="${imageURL}">`;
+        const pageURL = await server.createEcho("GET", path("page.html"), {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: pageBody,
+        });
+
+        const hasRecordedRequest = async url => {
+            try {
+                const response = await fetch(`${server.baseURL}/recorded-request-headers${new URL(url).pathname}`);
+                return response.ok;
+            } catch {
+                return false;
+            }
+        };
+
+        const frame = document.createElement("iframe");
+        const frameLoaded = new Promise(resolve => (frame.onload = resolve));
+        frame.src = pageURL;
+        document.body.appendChild(frame);
+
+        // Only the speculative parser can request the image while the parser-blocking script is held.
+        while (!(await hasRecordedRequest(imageURL))) {}
+        println("PASS: speculative parser fetched the image while the parser was blocked");
+
+        await fetch(`${server.baseURL}/unblock/${parserGate}`);
+        await frameLoaded;
+
+        const trapFetched = await hasRecordedRequest(trapURL);
+        println(`${trapFetched ? "FAIL" : "PASS"}: speculative parser did not fetch the script URL inside script text`);
+        const writtenFetched = await hasRecordedRequest(writtenURL);
+        println(`${writtenFetched ? "PASS" : "FAIL"}: document.write() inserted script was fetched`);
+        done();
+    });
+</script>

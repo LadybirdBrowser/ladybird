@@ -1,0 +1,3 @@
+PASS: speculative parser fetched the image while the parser was blocked
+PASS: speculative parser did not fetch the script URL inside script text
+PASS: document.write() inserted script was fetched

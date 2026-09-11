@@ -2255,7 +2255,7 @@ void HTMLParser::start_the_speculative_html_parser()
     //    speculative mock elements. Let speculativeParser parse into speculativeDoc.
     // NOTE: The Rust preload scanner emits speculative fetch candidates directly, so we do not materialize a
     // speculativeDoc tree or speculative mock elements.
-    auto speculative_parser = SpeculativeHTMLParser::create(*m_document, m_tokenizer.unparsed_input(), m_document->base_url());
+    auto speculative_parser = SpeculativeHTMLParser::create(*m_document, m_tokenizer.unparsed_input(), m_document->base_url(), m_scripting_mode);
 
     // 5. Set parser's active speculative HTML parser to speculativeParser.
     m_active_speculative_html_parser = speculative_parser;

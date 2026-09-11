@@ -26,15 +26,16 @@ namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(SpeculativeHTMLParser);
 
-GC::Ref<SpeculativeHTMLParser> SpeculativeHTMLParser::create(GC::Ref<DOM::Document> document, Utf16String pending_input, URL::URL base_url)
+GC::Ref<SpeculativeHTMLParser> SpeculativeHTMLParser::create(GC::Ref<DOM::Document> document, Utf16String pending_input, URL::URL base_url, ParserScriptingMode scripting_mode)
 {
-    return document->relevant_settings_object().realm().create<SpeculativeHTMLParser>(document, move(pending_input), move(base_url));
+    return document->relevant_settings_object().realm().create<SpeculativeHTMLParser>(document, move(pending_input), move(base_url), scripting_mode);
 }
 
-SpeculativeHTMLParser::SpeculativeHTMLParser(GC::Ref<DOM::Document> document, Utf16String pending_input, URL::URL base_url)
+SpeculativeHTMLParser::SpeculativeHTMLParser(GC::Ref<DOM::Document> document, Utf16String pending_input, URL::URL base_url, ParserScriptingMode scripting_mode)
     : m_document(document)
     , m_input(move(pending_input))
     , m_base_url(move(base_url))
+    , m_scripting_mode(scripting_mode)
 {
 }
 
@@ -68,13 +69,14 @@ void SpeculativeHTMLParser::run()
         return !parser.m_stopped;
     };
 
+    auto scripting_enabled = m_scripting_mode != ParserScriptingMode::Disabled;
     auto input = m_input.utf16_view();
     if (input.has_ascii_storage()) {
         auto bytes = input.bytes();
-        rust_html_preload_scanner_scan(bytes.data(), bytes.size(), this, scanner_callback);
+        rust_html_preload_scanner_scan(bytes.data(), bytes.size(), scripting_enabled, this, scanner_callback);
     } else {
         auto code_units = input.utf16_span();
-        rust_html_preload_scanner_scan_utf16(reinterpret_cast<u16 const*>(code_units.data()), code_units.size(), this, scanner_callback);
+        rust_html_preload_scanner_scan_utf16(reinterpret_cast<u16 const*>(code_units.data()), code_units.size(), scripting_enabled, this, scanner_callback);
     }
 }
 

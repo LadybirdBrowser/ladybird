@@ -11,6 +11,7 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/Parser/ParserScriptingMode.h>
 
 struct RustFfiPreloadScannerEntry;
 
@@ -22,7 +23,7 @@ class SpeculativeHTMLParser final : public JS::Cell {
     GC_DECLARE_ALLOCATOR(SpeculativeHTMLParser);
 
 public:
-    static GC::Ref<SpeculativeHTMLParser> create(GC::Ref<DOM::Document>, Utf16String pending_input, URL::URL base_url);
+    static GC::Ref<SpeculativeHTMLParser> create(GC::Ref<DOM::Document>, Utf16String pending_input, URL::URL base_url, ParserScriptingMode);
 
     virtual ~SpeculativeHTMLParser() override;
 
@@ -30,7 +31,7 @@ public:
     void stop();
 
 private:
-    SpeculativeHTMLParser(GC::Ref<DOM::Document>, Utf16String pending_input, URL::URL base_url);
+    SpeculativeHTMLParser(GC::Ref<DOM::Document>, Utf16String pending_input, URL::URL base_url, ParserScriptingMode);
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
     void process_preload_scanner_entry(RustFfiPreloadScannerEntry const&);
@@ -38,6 +39,7 @@ private:
     GC::Ref<DOM::Document> m_document;
     Utf16String m_input;
     URL::URL m_base_url;
+    ParserScriptingMode m_scripting_mode {};
     bool m_stopped { false };
 };
 
