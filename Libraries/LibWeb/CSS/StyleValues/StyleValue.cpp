@@ -207,7 +207,7 @@ ValueComparingNonnullRefPtr<StyleValue const> StyleValue::adopt_rust_style_value
     case StyleValueFFI::StyleValueData::Tag::Integer:
         return adopt_ref(*new (nothrow) IntegerStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::Image:
-        return adopt_ref(*new (nothrow) ImageStyleValue(data));
+        return ImageStyleValue::adopt_rust_style_value_data(data);
     case StyleValueFFI::StyleValueData::Tag::ImageSet:
         return adopt_ref(*new (nothrow) ImageSetStyleValue(data));
     case StyleValueFFI::StyleValueData::Tag::LightDark:
