@@ -109,10 +109,7 @@ private:
             if (auto action = weak_action.strong_ref()) {
                 if (action->is_checkable())
                     action->set_checked(checked);
-                if (action->id() == WebView::ActionID::OpenProcessesPage)
-                    Application::the().show_process_manager();
-                else
-                    action->activate();
+                action->activate();
 
                 if (action->id() == WebView::ActionID::BookmarkItem) {
                     if (auto* active_tab = Application::the().active_tab())
@@ -240,7 +237,7 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
         qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Delete));
 #endif
         break;
-    case WebView::ActionID::OpenProcessesPage:
+    case WebView::ActionID::OpenTaskManager:
         qaction.setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_M));
         break;
     case WebView::ActionID::OpenSettingsPage:

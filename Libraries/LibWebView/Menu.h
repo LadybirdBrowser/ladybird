@@ -65,7 +65,7 @@ enum class ActionID {
     EditBookmarkFolder,
 
     OpenAboutPage,
-    OpenProcessesPage,
+    OpenTaskManager,
     OpenSettingsPage,
     ToggleDevTools,
     ViewSource,

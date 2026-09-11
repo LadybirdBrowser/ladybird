@@ -338,10 +338,6 @@ static void initialize_native_icon(WebView::Action& action, id control)
     case WebView::ActionID::OpenAboutPage:
         set_control_image(control, @"info.circle");
         break;
-    case WebView::ActionID::OpenProcessesPage:
-        set_control_image(control, @"gearshape.2");
-        [control setKeyEquivalent:@"M"];
-        break;
     case WebView::ActionID::OpenSettingsPage:
         set_control_image(control, @"gearshape");
         [control setKeyEquivalent:@","];

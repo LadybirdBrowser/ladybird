@@ -368,6 +368,13 @@ private:
 Application::Application() = default;
 Application::~Application() = default;
 
+void Application::add_platform_inspect_menu_items()
+{
+    inspect_menu().add_action(WebView::Action::create("Open Task Manager"sv, WebView::ActionID::OpenTaskManager, [this]() {
+        show_process_manager();
+    }));
+}
+
 void Application::show_process_manager()
 {
     if (!m_process_manager_window)
