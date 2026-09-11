@@ -320,25 +320,26 @@ void TransportMachPort::send_mach_message(PendingMessage& msg)
     header->msgh_id = send_payload_inline ? IPC_INLINE_DATA_MESSAGE_ID : IPC_DATA_MESSAGE_ID;
 
     u8* inline_payload = nullptr;
+    mach_msg_port_descriptor_t* port_descriptors = nullptr;
     if (port_count > 0 || !send_payload_inline) {
         header->msgh_bits |= MACH_MSGH_BITS_COMPLEX;
 
         auto* body = reinterpret_cast<mach_msg_body_t*>(header + 1);
         body->msgh_descriptor_count = port_count + (send_payload_inline ? 0 : 1);
 
-        auto* desc_ptr = reinterpret_cast<mach_msg_port_descriptor_t*>(body + 1);
+        port_descriptors = reinterpret_cast<mach_msg_port_descriptor_t*>(body + 1);
         for (size_t i = 0; i < port_count; ++i) {
             auto disposition = static_cast<mach_msg_type_name_t>(attachments[i].message_right());
             auto port = attachments[i].release_mach_port();
-            desc_ptr[i].name = port.release();
-            desc_ptr[i].disposition = disposition;
-            desc_ptr[i].type = MACH_MSG_PORT_DESCRIPTOR;
+            port_descriptors[i].name = port.release();
+            port_descriptors[i].disposition = disposition;
+            port_descriptors[i].type = MACH_MSG_PORT_DESCRIPTOR;
         }
 
         if (send_payload_inline) {
-            inline_payload = reinterpret_cast<u8*>(&desc_ptr[port_count]);
+            inline_payload = reinterpret_cast<u8*>(&port_descriptors[port_count]);
         } else {
-            auto* ool_desc = reinterpret_cast<mach_msg_ool_descriptor_t*>(&desc_ptr[port_count]);
+            auto* ool_desc = reinterpret_cast<mach_msg_ool_descriptor_t*>(&port_descriptors[port_count]);
             ool_desc->address = const_cast<void*>(static_cast<void const*>(bytes.data()));
             ool_desc->size = bytes.size();
             ool_desc->deallocate = false;
@@ -371,6 +372,12 @@ void TransportMachPort::send_mach_message(PendingMessage& msg)
     // Small payloads are copied inline to avoid allocating a VM region for the out-of-line descriptor path.
     auto const ret = mach_msg(header, MACH_SEND_MSG, msg_size, 0, MACH_PORT_NULL, MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
     if (ret != KERN_SUCCESS) {
+        if (ret == MACH_SEND_INVALID_DEST) {
+            for (size_t i = 0; i < port_count; ++i) {
+                auto dropped_attachment = attachment_from_descriptor(port_descriptors[i]);
+                (void)dropped_attachment;
+            }
+        }
         dbgln("TransportMachPort: send failed: {} (send_port={:x})", mach_error_string(ret), m_send_port.port());
         mark_peer_eof();
     }
