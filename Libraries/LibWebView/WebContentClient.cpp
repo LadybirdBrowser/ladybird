@@ -47,25 +47,25 @@ namespace WebView {
 Messages::WebContentClient::OpenSystemFontResponse WebContentClient::open_system_font(u64 generation, u64 face_id)
 {
     auto font = Application::font_service().open_font(generation, face_id);
-    return { font.face_id, font.ttc_index, to_underlying(font.format), move(font.file) };
+    return { move(font) };
 }
 
 Messages::WebContentClient::MatchLocalFontResponse WebContentClient::match_local_font(String name)
 {
     auto font = Application::font_service().match_local_font(name);
-    return { font.face_id, font.ttc_index, to_underlying(font.format), move(font.file) };
+    return { move(font) };
 }
 
 Messages::WebContentClient::MatchSystemFontResponse WebContentClient::match_system_font(String family, u16 weight, u16 width, u8 slope)
 {
     auto font = Application::font_service().match_font(family, weight, width, slope);
-    return { font.face_id, font.ttc_index, to_underlying(font.format), move(font.file) };
+    return { move(font) };
 }
 
 Messages::WebContentClient::MatchSystemFontForCodePointResponse WebContentClient::match_system_font_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji)
 {
     auto font = Application::font_service().match_font_for_code_point(code_point, weight, width, slope, prefer_color_emoji);
-    return { font.face_id, font.ttc_index, to_underlying(font.format), move(font.file) };
+    return { move(font) };
 }
 
 Messages::WebContentClient::ResolveGenericFontResponse WebContentClient::resolve_generic_font(String family, u16 weight, u8 slope)

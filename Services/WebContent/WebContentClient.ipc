@@ -3,6 +3,7 @@
 #include <LibIPC/TransportHandle.h>
 #include <LibIPC/File.h>
 #include <LibGfx/Cursor.h>
+#include <LibGfx/Font/SharedFontProvider.h>
 #include <LibGfx/ShareableBitmap.h>
 #include <LibHTTP/Cookie/Cookie.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
@@ -61,10 +62,10 @@
 
 endpoint WebContentClient
 {
-    open_system_font(u64 generation, u64 face_id) => (u64 matched_face_id, u32 ttc_index, u8 format, Optional<IPC::File> file)
-    match_system_font(String family, u16 weight, u16 width, u8 slope) => (u64 face_id, u32 ttc_index, u8 format, Optional<IPC::File> file)
-    match_local_font(String name) => (u64 face_id, u32 ttc_index, u8 format, Optional<IPC::File> file)
-    match_system_font_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) => (u64 face_id, u32 ttc_index, u8 format, Optional<IPC::File> file)
+    open_system_font(u64 generation, u64 face_id) => (Gfx::BrokeredFont font)
+    match_system_font(String family, u16 weight, u16 width, u8 slope) => (Gfx::BrokeredFont font)
+    match_local_font(String name) => (Gfx::BrokeredFont font)
+    match_system_font_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) => (Gfx::BrokeredFont font)
     resolve_generic_font(String family, u16 weight, u8 slope) => (Optional<String> resolved_family)
 
     did_add_blob_url_entry(Utf16String url, Web::FileAPI::SerializedBlobURLEntry entry) => (URL::BlobURLEntry::Token token)

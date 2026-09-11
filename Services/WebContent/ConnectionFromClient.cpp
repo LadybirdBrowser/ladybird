@@ -147,47 +147,27 @@ void ConnectionFromClient::set_font_catalog(IPC::File file, u64 size, u64 genera
     Gfx::SharedFontProviderCallbacks callbacks;
     callbacks.match_local_font = [this](String const& name) {
         auto response = send_sync_but_allow_failure<Messages::WebContentClient::MatchLocalFont>(name);
-        if (!response || response->format() > to_underlying(Gfx::FontFileFormat::WOFF))
+        if (!response)
             return Gfx::BrokeredFont {};
-        return Gfx::BrokeredFont {
-            .face_id = response->face_id(),
-            .ttc_index = response->ttc_index(),
-            .format = static_cast<Gfx::FontFileFormat>(response->format()),
-            .file = response->take_file(),
-        };
+        return response->take_font();
     };
     callbacks.open_font = [this](u64 requested_generation, u64 face_id) {
         auto response = send_sync_but_allow_failure<Messages::WebContentClient::OpenSystemFont>(requested_generation, face_id);
-        if (!response || response->format() > to_underlying(Gfx::FontFileFormat::WOFF))
+        if (!response)
             return Gfx::BrokeredFont {};
-        return Gfx::BrokeredFont {
-            .face_id = response->matched_face_id(),
-            .ttc_index = response->ttc_index(),
-            .format = static_cast<Gfx::FontFileFormat>(response->format()),
-            .file = response->take_file(),
-        };
+        return response->take_font();
     };
     callbacks.match_font = [this](String const& family, u16 weight, u16 width, u8 slope) {
         auto response = send_sync_but_allow_failure<Messages::WebContentClient::MatchSystemFont>(family, weight, width, slope);
-        if (!response || response->format() > to_underlying(Gfx::FontFileFormat::WOFF))
+        if (!response)
             return Gfx::BrokeredFont {};
-        return Gfx::BrokeredFont {
-            .face_id = response->face_id(),
-            .ttc_index = response->ttc_index(),
-            .format = static_cast<Gfx::FontFileFormat>(response->format()),
-            .file = response->take_file(),
-        };
+        return response->take_font();
     };
     callbacks.match_font_for_code_point = [this](u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) {
         auto response = send_sync_but_allow_failure<Messages::WebContentClient::MatchSystemFontForCodePoint>(code_point, weight, width, slope, prefer_color_emoji);
-        if (!response || response->format() > to_underlying(Gfx::FontFileFormat::WOFF))
+        if (!response)
             return Gfx::BrokeredFont {};
-        return Gfx::BrokeredFont {
-            .face_id = response->face_id(),
-            .ttc_index = response->ttc_index(),
-            .format = static_cast<Gfx::FontFileFormat>(response->format()),
-            .file = response->take_file(),
-        };
+        return response->take_font();
     };
     callbacks.resolve_generic_family = [this](String const& family, u16 weight, u8 slope) -> Optional<FlyString> {
         auto response = send_sync_but_allow_failure<Messages::WebContentClient::ResolveGenericFont>(family, weight, slope);

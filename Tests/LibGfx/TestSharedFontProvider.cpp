@@ -63,9 +63,11 @@ static Gfx::BrokeredFont open_test_font(u64 face_id)
     auto file = MUST(Core::File::open(path, Core::File::OpenMode::Read));
     return {
         .face_id = face_id,
-        .ttc_index = 0,
-        .format = Gfx::FontFileFormat::OpenType,
-        .file = IPC::File::adopt_file(move(file)),
+        .source = Gfx::BrokeredFontFile {
+            .ttc_index = 0,
+            .format = Gfx::FontFileFormat::OpenType,
+            .file = IPC::File::adopt_file(move(file)),
+        },
     };
 }
 
@@ -129,12 +131,7 @@ TEST_CASE(negatively_caches_failed_catalog_face_opens)
     Gfx::SharedFontProviderCallbacks callbacks;
     callbacks.open_font = [&](u64, u64 face_id) {
         ++open_count;
-        return Gfx::BrokeredFont {
-            .face_id = face_id,
-            .ttc_index = 0,
-            .format = Gfx::FontFileFormat::OpenType,
-            .file = {},
-        };
+        return Gfx::BrokeredFont { .face_id = face_id, .source = Empty {} };
     };
 
     auto provider = MUST(Gfx::SharedFontProvider::create(map_bytes(catalog), 9, move(callbacks)));

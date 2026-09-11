@@ -9,6 +9,8 @@
 #include <LibGfx/Font/Font.h>
 #include <LibGfx/Font/SharedFontProvider.h>
 #include <LibGfx/Font/WOFF/Loader.h>
+#include <LibIPC/Decoder.h>
+#include <LibIPC/Encoder.h>
 
 namespace Gfx {
 
@@ -231,20 +233,23 @@ RefPtr<Typeface> SharedFontProvider::load_catalog_face(FontCatalogFace const& fa
     if (m_failed_face_ids.contains(face.face_id) || !m_callbacks.open_font)
         return nullptr;
     auto brokered_font = m_callbacks.open_font(m_catalog->generation(), face.face_id);
-    if (!brokered_font.file.has_value()) {
+    auto* font_file = brokered_font.source.get_pointer<BrokeredFontFile>();
+    if (!font_file) {
         m_failed_face_ids.set(face.face_id);
         return nullptr;
     }
-    return load_font_file(face.face_id, face.ttc_index, face.format, brokered_font.file.release_value());
+    return load_font_file(face.face_id, face.ttc_index, face.format, move(font_file->file));
 }
 
 RefPtr<Typeface> SharedFontProvider::load_brokered_font(BrokeredFont brokered_font)
 {
-    if (brokered_font.face_id == 0 || !brokered_font.file.has_value())
+    if (brokered_font.face_id == 0)
         return nullptr;
     if (auto cached = m_typeface_cache.get(brokered_font.face_id); cached.has_value())
         return *cached;
-    return load_font_file(brokered_font.face_id, brokered_font.ttc_index, brokered_font.format, brokered_font.file.release_value());
+    return brokered_font.source.visit(
+        [](Empty) -> RefPtr<Typeface> { return nullptr; },
+        [&](BrokeredFontFile& font_file) { return load_font_file(brokered_font.face_id, font_file.ttc_index, font_file.format, move(font_file.file)); });
 }
 
 RefPtr<Typeface> SharedFontProvider::load_font_file(u64 face_id, u32 ttc_index, FontFileFormat format, IPC::File file)
@@ -273,6 +278,46 @@ RefPtr<Typeface> SharedFontProvider::load_font_file(u64 face_id, u32 ttc_index, 
     typeface->set_system_font_identifier({ m_catalog->generation(), face_id });
     m_typeface_cache.set(face_id, typeface);
     return typeface;
+}
+
+}
+
+namespace IPC {
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Gfx::BrokeredFontFile const& font_file)
+{
+    TRY(encoder.encode(font_file.ttc_index));
+    TRY(encoder.encode(font_file.format));
+    TRY(encoder.encode(font_file.file));
+    return {};
+}
+
+template<>
+ErrorOr<Gfx::BrokeredFontFile> decode(Decoder& decoder)
+{
+    auto ttc_index = TRY(decoder.decode<u32>());
+    auto format = TRY(decoder.decode<Gfx::FontFileFormat>());
+    if (format > Gfx::FontFileFormat::WOFF)
+        return Error::from_string_literal("Invalid brokered font file format");
+    auto file = TRY(decoder.decode<IPC::File>());
+    return Gfx::BrokeredFontFile { ttc_index, format, move(file) };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Gfx::BrokeredFont const& font)
+{
+    TRY(encoder.encode(font.face_id));
+    TRY(encoder.encode(font.source));
+    return {};
+}
+
+template<>
+ErrorOr<Gfx::BrokeredFont> decode(Decoder& decoder)
+{
+    auto face_id = TRY(decoder.decode<u64>());
+    auto source = TRY((decoder.decode<Variant<Empty, Gfx::BrokeredFontFile>>()));
+    return Gfx::BrokeredFont { face_id, move(source) };
 }
 
 }
