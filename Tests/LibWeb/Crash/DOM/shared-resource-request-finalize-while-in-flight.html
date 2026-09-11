@@ -1,0 +1,75 @@
+<!doctype html>
+<html class="test-wait">
+    <body>
+        <script>
+            function registerDelayedResponse(path, contentType) {
+                const request = new XMLHttpRequest();
+                request.open("POST", "/echo", false);
+                request.setRequestHeader("Content-Type", "application/json");
+                request.send(
+                    JSON.stringify({
+                        method: "GET",
+                        path: `/echo/${path}`,
+                        status: 200,
+                        headers: { "Content-Type": contentType },
+                        wait_for_unblock: path,
+                    })
+                );
+            }
+
+            async function waitForRequest(path) {
+                while (true) {
+                    const response = await fetch(`/recorded-request-headers${path}`, {
+                        cache: "no-store",
+                    });
+
+                    if (response.ok) return;
+
+                    await new Promise(resolve => setTimeout(resolve, 5));
+                }
+            }
+
+            // Unique paths are required so repeated runs do not interfere with each other
+            const runId = crypto.randomUUID();
+            const imagePath = `shared-resource-request-finalize-image-${runId}`;
+            const scriptPath = `shared-resource-request-finalize-script-${runId}`;
+
+            registerDelayedResponse(imagePath, "image/png");
+            registerDelayedResponse(scriptPath, "text/javascript");
+
+            window.addEventListener("message", event => {
+                if (event.data === "child-parser-about-to-block") {
+                    Promise.all([
+                        // Ensure the SharedResourceRequest is in flight
+                        waitForRequest(`/echo/${imagePath}`),
+
+                        // Ensure the HTMLParser is paused
+                        waitForRequest(`/echo/${scriptPath}`),
+                    ]).then(() => {
+                        document.querySelector("iframe").remove();
+                    });
+                }
+
+                if (event.data === "child-unloaded") {
+                    setTimeout(() => {
+                        internals.gc();
+                        document.documentElement.classList.remove("test-wait");
+                    }, 0);
+                }
+            });
+
+            const iframe = document.createElement("iframe");
+
+            iframe.srcdoc = `
+                <div style="background-image: url(/echo/${imagePath})"></div>
+                <script>
+                    addEventListener("unload", () => parent.postMessage("child-unloaded", "*"));
+                    parent.postMessage("child-parser-about-to-block", "*");
+                <\/script>
+                <script src="/echo/${scriptPath}"><\/script>
+            `;
+
+            document.body.append(iframe);
+        </script>
+    </body>
+</html>
