@@ -1,0 +1,46 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../navigation-methods/return-value/resources/helpers.js"></script>
+<iframe id="i" src="../../common/blank.html"></iframe>
+<script>
+promise_test(async t => {
+  let start_length = navigation.entries().length;
+  let start_index = navigation.currentEntry.index;
+
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+
+  // Navigate the iframe, then the top window, so that when the iframe goes back
+  // to its initial entry, the top window navigates as well.
+  await i.contentWindow.navigation.navigate("#").finished;
+  await navigation.navigate("#").finished;
+  assert_equals(navigation.entries().length, start_length + 1);
+  assert_equals(i.contentWindow.navigation.entries().length, 2);
+  assert_equals(navigation.currentEntry.index, start_index + 1);
+  assert_equals(i.contentWindow.navigation.currentEntry.index, 1);
+
+  // Ensure the top window, which is allowed to cancel the traversal, does so.
+  navigation.onnavigate = e => e.preventDefault();
+
+  let top_navigateerror_fired = false;
+  navigation.onnavigateerror = t.step_func(e => {
+    assert_equals(e.constructor, ErrorEvent);
+    assert_equals(e.filename, location.href);
+    top_navigateerror_fired = true;
+  });
+
+  i.contentWindow.navigation.onnavigate = t.unreached_func("navigate event should not fire in the iframe, because the traversal was cancelled in the top window");
+  i.contentWindow.navigation.onnavigateerror = t.unreached_func("navigateerror event should not fire in the iframe, because the navigate event was not fired");
+
+  // When the top window blocks the traversal, it should be blocked in the
+  // iframe as well, and the traversal promises in the iframe should be rejected.
+  const iWindow = i.contentWindow;
+  const iDOMException = iWindow.DOMException;
+  await assertBothRejectDOM(t, i.contentWindow.navigation.traverseTo(i.contentWindow.navigation.entries()[0].key), "AbortError", iWindow, iDOMException);
+  assert_true(top_navigateerror_fired);
+  assert_equals(navigation.currentEntry.index, start_index + 1);
+  assert_equals(i.contentWindow.navigation.currentEntry.index, 1);
+}, "navigation.traverseTo() in an iframe with same-document preventDefault in its parent");
+</script>

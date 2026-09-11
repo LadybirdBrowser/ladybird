@@ -1,0 +1,29 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="../navigation-methods/return-value/resources/helpers.js"></script>
+<iframe id="i" src="../../common/blank.html"></iframe>
+<script>
+promise_test(async t => {
+  let start_length = navigation.entries().length;
+  let start_index = navigation.currentEntry.index;
+
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+  await navigation.navigate("#").finished;
+  i.contentWindow.navigation.navigate("?");
+  await new Promise(resolve => i.onload = () => t.step_timeout(resolve, 0));
+
+  assert_equals(navigation.entries().length, start_length + 1);
+  assert_equals(i.contentWindow.navigation.entries().length, 2);
+  assert_equals(navigation.currentEntry.index, start_index + 1);
+  assert_equals(i.contentWindow.navigation.currentEntry.index, 1);
+
+  navigation.onnavigate = t.step_func(e => e.preventDefault());
+  i.contentWindow.navigation.onnavigate = t.unreached_func("navigation should be cancelled before iframe fires navigate event");
+  await assertBothRejectDOM(t, navigation.traverseTo(navigation.entries()[start_index].key), "AbortError");
+  // Give the iframe time to navigate in case it was incorrectly permitted.
+  await new Promise(resolve => t.step_timeout(resolve, 50));
+}, "navigate.traverseTo() cancelled by top frame cancels cross-document iframe");
+</script>

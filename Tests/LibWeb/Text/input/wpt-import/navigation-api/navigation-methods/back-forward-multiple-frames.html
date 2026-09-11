@@ -1,0 +1,76 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<iframe id="i" src="../../common/blank.html"></iframe>
+<script>
+promise_test(async t => {
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  let start_length = navigation.entries().length;
+  let start_index = navigation.currentEntry.index;
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+  // Step 1
+  assert_equals(navigation.entries().length, start_length, "step 1 outer entries() length");
+  assert_equals(i.contentWindow.navigation.entries().length, 1, "step 1 iframe entries() length");
+  await navigation.navigate("#top").committed;
+  // Step 2: iframe at initial entry, top on second entry
+  assert_equals(navigation.entries().length, start_length+1, "step 2 outer entries() length");
+  assert_equals(i.contentWindow.navigation.entries().length, 1, "step 2 iframe entries() length");
+  await i.contentWindow.navigation.navigate("#iframe").committed;
+
+  // Step 3: Both windows on second entry.
+  assert_equals(navigation.entries().length, start_length+1, "step 3 outer entries() length");
+  assert_equals(i.contentWindow.navigation.entries().length, 2, "step 3 iframe entries() length");
+  assert_equals(navigation.currentEntry.index, start_index+1, "step 3 outer index");
+  assert_equals(i.contentWindow.navigation.currentEntry.index, 1, "step 1 iframe index");
+
+  // NOTE: the order of navigation in the two windows is not guaranteed; we need to wait for both.
+
+  // Going back in the iframe should go 3->2 (navigating iframe only)
+  await Promise.all([
+    i.contentWindow.navigation.back().committed,
+    new Promise(resolve => i.contentWindow.onpopstate = resolve)
+  ]);
+  assert_equals(navigation.currentEntry.index, start_index+1, "after iframe back() outer index");
+  assert_equals(i.contentWindow.navigation.currentEntry.index, 0, "after iframe back() iframe index");
+
+  // Going forward in iframe should go 2->3
+  await Promise.all([
+    i.contentWindow.navigation.forward().commited,
+    new Promise(resolve => i.contentWindow.onpopstate = resolve)
+  ]);
+  assert_equals(navigation.currentEntry.index, start_index+1, "after iframe forward() outer index");
+  assert_equals(i.contentWindow.navigation.currentEntry.index, 1, "after iframe forward() iframe index");
+
+  // Going back in top should go 3->1 (navigating both windows).
+  await Promise.all([
+    navigation.back().commited,
+    new Promise(resolve => i.contentWindow.onpopstate = resolve)
+  ]);
+  assert_equals(navigation.currentEntry.index, start_index, "after outer back() outer index");
+  assert_equals(i.contentWindow.navigation.currentEntry.index, 0, "after outer back() iframe index");
+
+  // Next two should not navigate the iframe
+  i.contentWindow.onpopstate = t.unreached_func("popstate must not be called");
+
+  // Going forward in top should go 1->2 (navigating top only)
+  await navigation.forward().committed;
+  await new Promise(resolve => t.step_timeout(resolve, 0));
+  assert_equals(navigation.currentEntry.index, start_index+1, "after outer forward() outer index");
+  assert_equals(i.contentWindow.navigation.currentEntry.index, 0, "after outer forward() iframe index");
+
+  // Going back in top should go 2->1
+  await navigation.back().committed;
+  await new Promise(resolve => t.step_timeout(resolve, 0));
+  assert_equals(navigation.currentEntry.index, start_index, "after outer second back() outer index");
+  assert_equals(i.contentWindow.navigation.currentEntry.index, 0, "after outer second back() iframe index");
+
+  // Going forward in iframe should go 1->3 (navigating both windows)
+  await Promise.all([
+    i.contentWindow.navigation.forward().commited,
+    new Promise(resolve => i.contentWindow.onpopstate = resolve)
+  ]);
+  assert_equals(navigation.currentEntry.index, start_index+1, "after iframe second forward() outer index");
+  assert_equals(i.contentWindow.navigation.currentEntry.index, 1, "after iframe second forward() iframe index");
+}, "navigation.back() and navigation.forward() can navigate multiple frames");
+</script>
