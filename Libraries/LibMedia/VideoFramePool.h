@@ -16,12 +16,12 @@
 #include <LibGfx/YUVData.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/VideoFrameHandle.h>
+#include <LibMedia/VideoSurface.h>
 #include <LibSync/Mutex.h>
 
 namespace Media {
 
 class PooledVideoFrameSlot;
-class VideoSurface;
 
 // The identity and lifetime bookkeeping shared by every kind of frame pool. Each slot owns a shared-memory buffer
 // beginning with the acquisition ID that a remote consumer validates its handle against; what follows the ID is the
@@ -56,7 +56,10 @@ protected:
 
     struct Slot {
         Core::AnonymousBuffer buffer;
+        // A slot keeps its surface once it has one, so that the decoder handing the same one back is recognized.
+        // Only the use says the pixels are live, and only a held slot has one.
         RefPtr<VideoSurface> surface;
+        VideoSurfaceUse surface_use;
         u64 last_slot_acquisition_id { 0 };
         u64 allocated_buffer_id { 0 };
         u32 hold_count { 0 };
@@ -184,6 +187,7 @@ public:
 private:
     Core::AnonymousBuffer m_slot_buffer;
     RefPtr<VideoSurface> m_surface;
+    VideoSurfaceUse m_surface_use;
     VideoFramePoolID m_pool_id { 0 };
     u32 m_slot_index { 0 };
     u64 m_slot_acquisition_id { 0 };

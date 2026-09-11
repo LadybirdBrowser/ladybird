@@ -118,6 +118,9 @@ struct DisplayListCachedVideoSinkImageResource {
     // A surface-backed image samples the surface where it lies, so it stays valid for every frame decoded into
     // that surface rather than only for the one acquisition.
     u32 surface_id { 0 };
+    // Drawing is recorded here but read by the GPU afterwards, so the surface stays in use until a different one
+    // is drawn in its place.
+    Media::VideoSurfaceUse surface_use;
     RefPtr<Gfx::SkiaBackendContext> skia_backend_context;
     sk_sp<SkImage> image;
 };
@@ -393,6 +396,7 @@ sk_sp<SkImage> DisplayListResourceStorage::skia_image_for_video_sink(VideoSinkRe
     cached_image_storage.slot_index = handle.slot_index;
     cached_image_storage.slot_acquisition_id = handle.slot_acquisition_id;
     cached_image_storage.surface_id = surface_id;
+    cached_image_storage.surface_use = surface ? surface->begin_use() : Media::VideoSurfaceUse {};
     cached_image_storage.skia_backend_context = skia_backend_context;
     cached_image_storage.image = image;
     return image;

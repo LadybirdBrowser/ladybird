@@ -767,8 +767,12 @@ void VideoToolboxVideoDecoder::enqueue_decoded_output_while_locked(CodingIndepen
     if (m_decode_failure.has_value())
         return;
 
+    auto surface = surface_or_error.release_value();
+    auto surface_use = surface->begin_use();
+
     DecodedOutput output {
-        .surface = surface_or_error.release_value(),
+        .surface = move(surface),
+        .surface_use = move(surface_use),
         .timestamp = timestamp,
         .duration = duration,
         .size = { static_cast<int>(CVPixelBufferGetWidth(pixel_buffer)), static_cast<int>(CVPixelBufferGetHeight(pixel_buffer)) },

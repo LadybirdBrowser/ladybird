@@ -31,6 +31,7 @@ public:
     // make it used.
     void increment_use_count();
     void decrement_use_count();
+    bool is_in_use() const;
 
     MachPort create_mach_port() const;
 
