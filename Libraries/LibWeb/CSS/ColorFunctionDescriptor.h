@@ -48,6 +48,4 @@ struct ColorFunctionDescriptor {
 
 ColorFunctionDescriptor const& color_function_descriptor_for(ColorStyleValue::ColorType);
 
-Optional<ColorStyleValue::ColorType> color_type_from_color_function_name(Utf16View);
-
 }
