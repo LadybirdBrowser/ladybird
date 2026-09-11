@@ -1,0 +1,4 @@
+synthesized transform endpoint uses compositor: true
+no main-thread animated style work: true
+underlying style change preserves handoff: true
+synthesized endpoint follows underlying style: true
