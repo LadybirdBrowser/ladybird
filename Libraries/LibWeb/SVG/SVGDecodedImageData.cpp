@@ -291,6 +291,7 @@ Optional<Painting::DisplayListResource> SVGDecodedImageData::record_display_list
         m_color_scheme = color_scheme;
         m_cached_rendered_frames.clear();
         m_cached_rendered_surfaces.clear();
+        m_natural_size.clear();
         m_document->set_svg_image_color_scheme(color_scheme);
         m_document->style_scope().invalidate_style_cache();
         m_document->record_style_environment_change();
@@ -367,53 +368,55 @@ Optional<Gfx::DecodedImageFrame> SVGDecodedImageData::default_frame(Gfx::IntSize
     return current_frame(size);
 }
 
+// https://svgwg.org/svg2-draft/coords.html#SizingSVGInCSS
+CSS::SizeWithAspectRatio const& SVGDecodedImageData::natural_size() const
+{
+    if (m_natural_size.has_value())
+        return *m_natural_size;
+
+    CSS::SizeWithAspectRatio natural_size;
+    {
+        ScopedSVGImageDocument scoped_document { *m_page_client, *m_document, ScopedSVGImageDocument::FrameRequests::RouteToCurrentImage, const_cast<SVGDecodedImageData&>(*this) };
+        m_document->update_style();
+        auto const* sizing_values = m_root_element->style_group<CSS::ComputedValues::SizingValues>();
+        VERIFY(sizing_values);
+        auto absolute_length = [](auto const& size_handle) -> Optional<CSSPixels> {
+            auto const& size = CSS::Size::view(size_handle);
+            if (size.is_length() && size.length().is_absolute())
+                return size.length().absolute_length_to_px();
+            return {};
+        };
+        natural_size.width = absolute_length(sizing_values->width);
+        natural_size.height = absolute_length(sizing_values->height);
+    }
+
+    if (natural_size.width.has_value() && natural_size.height.has_value() && *natural_size.width > 0 && *natural_size.height > 0) {
+        natural_size.aspect_ratio = *natural_size.width / *natural_size.height;
+    } else if (auto const& viewbox = m_root_element->view_box(); viewbox.has_value()) {
+        auto viewbox_width = CSSPixels::nearest_value_for(viewbox->width);
+        auto viewbox_height = CSSPixels::nearest_value_for(viewbox->height);
+        if (viewbox_width != 0 && viewbox_height != 0)
+            natural_size.aspect_ratio = viewbox_width / viewbox_height;
+    }
+
+    // The style flush above may clear this cache through a frame request, so the result is stored only after it.
+    m_natural_size = natural_size;
+    return *m_natural_size;
+}
+
 Optional<CSSPixels> SVGDecodedImageData::intrinsic_width() const
 {
-    // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS
-    ScopedSVGImageDocument scoped_document { *m_page_client, *m_document, ScopedSVGImageDocument::FrameRequests::RouteToCurrentImage, const_cast<SVGDecodedImageData&>(*this) };
-    m_document->update_style();
-    auto const* sizing_values = m_root_element->style_group<CSS::ComputedValues::SizingValues>();
-    VERIFY(sizing_values);
-    auto const& width_value = CSS::Size::view(sizing_values->width);
-    if (width_value.is_length() && width_value.length().is_absolute())
-        return width_value.length().absolute_length_to_px();
-    return {};
+    return natural_size().width;
 }
 
 Optional<CSSPixels> SVGDecodedImageData::intrinsic_height() const
 {
-    // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS
-    ScopedSVGImageDocument scoped_document { *m_page_client, *m_document, ScopedSVGImageDocument::FrameRequests::RouteToCurrentImage, const_cast<SVGDecodedImageData&>(*this) };
-    m_document->update_style();
-    auto const* sizing_values = m_root_element->style_group<CSS::ComputedValues::SizingValues>();
-    VERIFY(sizing_values);
-    auto const& height_value = CSS::Size::view(sizing_values->height);
-    if (height_value.is_length() && height_value.length().is_absolute())
-        return height_value.length().absolute_length_to_px();
-    return {};
+    return natural_size().height;
 }
 
 Optional<CSSPixelFraction> SVGDecodedImageData::intrinsic_aspect_ratio() const
 {
-    // https://www.w3.org/TR/SVG2/coords.html#SizingSVGInCSS
-    auto width = intrinsic_width();
-    auto height = intrinsic_height();
-    if (width.has_value() && height.has_value() && *width > 0 && *height > 0)
-        return *width / *height;
-
-    if (auto const& viewbox = m_root_element->view_box(); viewbox.has_value()) {
-        auto viewbox_width = CSSPixels::nearest_value_for(viewbox->width);
-
-        if (viewbox_width == 0)
-            return {};
-
-        auto viewbox_height = CSSPixels::nearest_value_for(viewbox->height);
-        if (viewbox_height == 0)
-            return {};
-
-        return viewbox_width / viewbox_height;
-    }
-    return {};
+    return natural_size().aspect_ratio;
 }
 
 void SVGDecodedImageData::SVGPageClient::visit_edges(Visitor& visitor)
@@ -514,6 +517,7 @@ void SVGDecodedImageData::did_request_frame()
 void SVGDecodedImageData::invalidate_cached_rendering()
 {
     m_vector_content_identity = next_vector_content_identity();
+    m_natural_size.clear();
     m_cached_rendered_frames.clear();
     m_cached_rendered_surfaces.clear();
     m_cached_display_lists.clear();
