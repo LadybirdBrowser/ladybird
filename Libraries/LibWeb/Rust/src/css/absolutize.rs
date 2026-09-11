@@ -1622,6 +1622,12 @@ pub(crate) fn absolutize(value: &StyleValueData, context: &AbsolutizationContext
                 }
             )
         }
+        StyleValueData::Content { content, alt_text } => {
+            let mut changed = false;
+            let content = absolutize_child(content, context, &mut changed)?;
+            let alt_text = absolutize_child(alt_text, context, &mut changed)?;
+            rebuild!(changed, StyleValueData::Content { content, alt_text })
+        }
         StyleValueData::Rect {
             top,
             right,

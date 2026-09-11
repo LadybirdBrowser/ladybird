@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<link rel="stylesheet" href="resources/content-image-relative-url.css">
+<script src="../include.js"></script>
+<span class="replaced"></span>
+<span class="generated"></span>
+<script>
+    test(() => {
+        // The stylesheet lives in resources/, so its relative image URL must resolve from there rather than from
+        // this document, which sits one directory up.
+        const expected = `url("${new URL("../wpt-import/images/anim-gr.gif", document.baseURI).href}")`;
+
+        const replaced = getComputedStyle(document.querySelector(".replaced")).content;
+        println(`replaced element content resolves against the stylesheet: ${replaced === expected ? "PASS" : `FAIL (${replaced})`}`);
+
+        const generated = getComputedStyle(document.querySelector(".generated"), "::before").content;
+        println(`::before content resolves against the stylesheet: ${generated === expected ? "PASS" : `FAIL (${generated})`}`);
+    });
+</script>

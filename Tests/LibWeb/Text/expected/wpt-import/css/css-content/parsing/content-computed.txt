@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 41 tests
 
-38 Pass
-3 Fail
+40 Pass
+1 Fail
 Pass	Property content value 'open-quote'
 Pass	Property content value 'open-quote / "alt text"'
 Pass	Property content value 'close-quote'
@@ -42,6 +42,6 @@ Pass	Property content value 'open-quote "hello" "world" close-quote'
 Pass	Property content value 'open-quote "hello" "world" close-quote / "alt text"'
 Pass	Property content value 'url("https://www.example.com/picture.svg") "hello"'
 Pass	Property content value 'url("https://www.example.com/picture.svg") "hello" / "alt text"'
-Fail	Property content value 'linear-gradient(to top right, red calc(10% + 2em), blue'
-Fail	Property content value 'radial-gradient(ellipse 50% 40% at calc(2em + 10px) 30%, red, blue)'
+Pass	Property content value 'linear-gradient(to top right, red calc(10% + 2em), blue'
+Pass	Property content value 'radial-gradient(ellipse 50% 40% at calc(2em + 10px) 30%, red, blue)'
 Fail	Property content value 'conic-gradient(from 1.5708rad, red 0deg, blue calc(180deg - 10deg))'

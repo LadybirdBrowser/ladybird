@@ -1,0 +1,8 @@
+.replaced {
+    display: inline-block;
+    content: url("../../wpt-import/images/anim-gr.gif");
+}
+
+.generated::before {
+    content: url("../../wpt-import/images/anim-gr.gif");
+}

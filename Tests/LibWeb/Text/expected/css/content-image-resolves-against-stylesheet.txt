@@ -1,0 +1,2 @@
+replaced element content resolves against the stylesheet: PASS
+::before content resolves against the stylesheet: PASS
