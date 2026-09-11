@@ -358,9 +358,18 @@ static Bytecode::SourceMapEntry const* breakpoint_candidate_for_executable(Break
 
     Bytecode::SourceMapEntry const* matching_entry = nullptr;
     for (auto const& entry : executable.source_map) {
-        if (entry.line == 0 || entry.line < breakpoint.line)
+        if (entry.line == 0)
             continue;
-        if (entry.line == breakpoint.line && breakpoint.column.has_value() && entry.column < *breakpoint.column)
+
+        // Clients only pass a column for positions they have already snapped to, so match it exactly instead of
+        // sliding onto the enclosing executable's next position while the function owning it is still uncompiled.
+        if (breakpoint.column.has_value()) {
+            if (entry.line == breakpoint.line && entry.column == *breakpoint.column)
+                return &entry;
+            continue;
+        }
+
+        if (entry.line < breakpoint.line)
             continue;
         if (!matching_entry || entry.line < matching_entry->line || (entry.line == matching_entry->line && entry.column < matching_entry->column))
             matching_entry = &entry;
