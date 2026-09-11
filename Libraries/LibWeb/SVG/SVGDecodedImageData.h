@@ -9,6 +9,7 @@
 #include <AK/Optional.h>
 #include <LibGC/Heap.h>
 #include <LibGfx/DecodedImageFrame.h>
+#include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DisplayList.h>
@@ -56,6 +57,7 @@ public:
 private:
     SVGDecodedImageData(GC::Ref<Page>, GC::Ref<SVGPageClient>, GC::Ref<DOM::Document>, GC::Ref<SVG::SVGSVGElement>);
 
+    CSS::SizeWithAspectRatio const& natural_size() const;
     RefPtr<Gfx::PaintingSurface> render_to_surface(Gfx::IntSize) const;
     void prune_cached_display_list_resources() const;
     void append_cached_display_list_resources(Painting::DisplayListResourceSet&) const;
@@ -94,6 +96,7 @@ private:
         static bool equals(RenderKey const& a, RenderKey const& b) { return a == b; }
     };
     mutable HashMap<RenderKey, CachedDisplayList, RenderKeyTraits> m_cached_display_lists;
+    mutable Optional<CSS::SizeWithAspectRatio> m_natural_size;
 
     GC::Ref<Page> m_page;
     GC::Ref<SVGPageClient> m_page_client;
