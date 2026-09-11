@@ -747,7 +747,13 @@ fn row_containers_in_layout_order<T: TableTree>(tree: &T, table: Node) -> Vec<No
     ordered
 }
 
-pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node) -> TableGrid {
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(crate) enum MissingTableCells {
+    Include,
+    Exclude,
+}
+
+pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_cells: MissingTableCells) -> TableGrid {
     let mut cells = Vec::new();
     let mut rows = Vec::new();
     let mut occupancy = HashSet::default();
@@ -783,6 +789,11 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node) -> Table
         }
         let mut current_column = 0usize;
         for cell_box in matching_children(tree, row, |display| display.is_table_cell()) {
+            if missing_cells == MissingTableCells::Exclude
+                && node_facts::has_flag(tree.node_data(cell_box), NodeFlag::IsMissingTableCell)
+            {
+                continue;
+            }
             while current_column < *column_count && occupancy.contains(&(current_column, *current_row)) {
                 current_column += 1;
             }
@@ -2299,7 +2310,7 @@ impl<'pass> TableFormattingContext<'pass> {
     pub(super) fn run_until_inline_size_calculation(&mut self, input: LayoutInput, skip_row_measurement: bool) {
         self.available_space = input.available_space;
         // Determine the number of rows/columns the table requires.
-        let table_grid = calculate_table_grid(self, self.table_box);
+        let table_grid = calculate_table_grid(self, self.table_box, MissingTableCells::Include);
         self.cells = table_grid.cells;
         self.cell_inside_layout_inputs = vec![AvailableSpace::default(); self.cells.len()];
         self.cell_pre_layout_content_block_sizes = vec![CssPixels::default(); self.cells.len()];

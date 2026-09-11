@@ -1,0 +1,11 @@
+Only changed cells need measurement: true
+Control position: 0,40
+Unchanged grid: true
+Grow grid: true
+Shrink grid: true
+Append authored cell: true
+Remove authored cell: true
+Introduce row span: true
+Remove row span: true
+Restyle row: true
+Remove control: true

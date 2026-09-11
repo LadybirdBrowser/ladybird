@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    body { margin: 0; }
+    table { table-layout: fixed; width: 300px; border-spacing: 0; }
+    td { position: relative; padding: 0; height: 20px; vertical-align: top; }
+    .control { position: absolute; left: 0; top: 0; width: 10px; height: 10px; }
+</style>
+<table><tbody id="rows"><tr><td colspan="3">Header</td></tr></tbody></table>
+<script>
+    test(() => {
+        const results = [];
+        const rows = document.getElementById("rows");
+        for (let index = 0; index < 100; ++index) {
+            const row = rows.insertRow();
+            row.insertCell().textContent = `Line ${index}`;
+        }
+        document.body.offsetHeight;
+        const control = document.createElement("div");
+        control.className = "control";
+        rows.rows[1].cells[0].append(control);
+        document.body.offsetHeight;
+
+        const measurementsBefore = internals.tableCellMeasurementCacheMissCount();
+        rows.rows[2].cells[0].append(control);
+        document.body.offsetHeight;
+        const measurements = internals.tableCellMeasurementCacheMissCount() - measurementsBefore;
+        results.push(`Only changed cells need measurement: ${measurements < 10}`);
+        results.push(`Control position: ${control.getBoundingClientRect().x},${control.getBoundingClientRect().y}`);
+
+        function checkTree(label, mutate) {
+            mutate();
+            document.body.offsetHeight;
+            results.push(`${label}: ${internals.compareLayoutTreeWithFullRebuild().matches}`);
+        }
+        function replaceCellWithSpan(rowIndex, property, value) {
+            const cell = rows.rows[rowIndex].cells[0];
+            const replacement = cell.cloneNode(true);
+            replacement[property] = value;
+            cell.replaceWith(replacement);
+        }
+        checkTree("Unchanged grid", () => {});
+        checkTree("Grow grid", () => replaceCellWithSpan(0, "colSpan", 4));
+        checkTree("Shrink grid", () => replaceCellWithSpan(0, "colSpan", 2));
+        checkTree("Append authored cell", () => rows.rows[3].insertCell().textContent = "New cell");
+        checkTree("Remove authored cell", () => rows.rows[3].deleteCell(1));
+        checkTree("Introduce row span", () => replaceCellWithSpan(1, "rowSpan", 3));
+        checkTree("Remove row span", () => replaceCellWithSpan(1, "rowSpan", 1));
+        checkTree("Restyle row", () => rows.rows[4].style.color = "red");
+        checkTree("Remove control", () => control.remove());
+        results.forEach(println);
+    });
+</script>
