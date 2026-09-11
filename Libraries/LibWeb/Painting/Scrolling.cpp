@@ -75,26 +75,7 @@ CSSPixelRect scroll_snapport_rect(Layout::Node const& node, CSSPixelRect scrollp
 {
     if (!has_committed_box(node))
         return scrollport;
-
-    auto const& node_with_style = as<Layout::NodeWithStyle>(node);
-    Layout::NodeWithStyle const* scroll_padding_source = &node_with_style;
-
-    if (node.is_viewport()) {
-        auto const* document_element = node.document().document_element();
-        auto const* document_element_layout_node = document_element ? document_element->unsafe_layout_node() : nullptr;
-        if (!document_element_layout_node)
-            return scrollport;
-        scroll_padding_source = document_element_layout_node;
-    }
-
-    // Percentages refer to the corresponding dimension of the scroll container’s scrollport.
-    auto const& scroll_padding = scroll_padding_source->scroll_padding();
-    scrollport.shrink(
-        scroll_padding.top().to_px_or_zero(scrollport.height()),
-        scroll_padding.right().to_px_or_zero(scrollport.width()),
-        scroll_padding.bottom().to_px_or_zero(scrollport.height()),
-        scroll_padding.left().to_px_or_zero(scrollport.width()));
-    return scrollport;
+    return Layout::RustFFI::layout_arena_scroll_snapport_rect(node.arena_handle(), committed_row_slot(node), scrollport);
 }
 
 CSS::Overflow overflow_value_applied_to_viewport_for_wheel_scrolling(DOM::Document const& document, ScrollDirection direction)

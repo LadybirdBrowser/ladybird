@@ -382,6 +382,34 @@ pub struct FfiSnapAxes {
     pub y: bool,
 }
 
+/// The geometry snap position selection runs over for a snap container, in CSS pixels so that the
+/// selection is exact.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiSnapContainerGeometry {
+    pub snapport: crate::layout::used_values::FfiCssPixelRect,
+    pub min_scroll_offset: crate::layout::used_values::FfiCssPixelPoint,
+    pub max_scroll_offset: crate::layout::used_values::FfiCssPixelPoint,
+    pub strictness: u8,
+    pub axes: FfiSnapAxes,
+    pub horizontal_writing_mode: bool,
+}
+
+/// A snap area's geometry in its snap container's coordinate space: the transformed border box with
+/// the scroll margin added, and the alignment along each physical axis.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[repr(C)]
+pub struct FfiSnapAreaGeometry {
+    /// The unique ID of the element the area's box belongs to.
+    pub node_id: i64,
+    /// 0 for the element's own box; otherwise the pseudo-element the box is generated for, plus one.
+    pub pseudo_element_type: u8,
+    pub rect: crate::layout::used_values::FfiCssPixelRect,
+    pub align_x: u8,
+    pub align_y: u8,
+    pub always_stop: bool,
+}
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiRecordingPublishCallbacks {

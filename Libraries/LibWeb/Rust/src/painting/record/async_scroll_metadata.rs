@@ -210,12 +210,12 @@ impl<O: Observer> PaintRecorder<'_, O> {
         } else {
             return;
         };
-        let scrollable_node_identity = self.data(paintable).scrollable_node_identity;
+        let node_identity = self.data(paintable).node_identity;
         debug_assert!(
-            scrollable_node_identity != 0,
+            node_identity != 0,
             "a scroll node's identity is resolved by the visual context update"
         );
-        let snap_axes = crate::painting::scroll_snap_axes::snap_axes_of_scroll_container(self.layout_arena, paintable);
+        let snap_axes = crate::painting::scroll_snap::snap_axes_of_scroll_container(self.layout_arena, paintable);
         let parent_scroll_node_index = match self.nearest_scrollable_ancestor(paintable) {
             Some(ancestor) => self.data(ancestor).own_scroll_node_index,
             None => VISUAL_VIEWPORT_NODE_INDEX,
@@ -239,7 +239,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let hit_test_facts = self.hit_test_facts(paintable);
         self.recorder.compositor_scroll_node(CompositorScrollNode {
             document_id: UniqueNodeId(self.inputs.document_id),
-            scrollable_node_id: UniqueNodeId(scrollable_node_identity),
+            scrollable_node_id: UniqueNodeId(node_identity),
             scroll_node_index: self.data(paintable).own_scroll_node_index,
             parent_scroll_node_index,
             scrollport_rect,
