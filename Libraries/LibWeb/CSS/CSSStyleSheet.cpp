@@ -28,11 +28,6 @@ JS::Value css_style_sheet(JS::Realm& realm, StyleSheetState& style_sheet)
     return Bindings::wrap(Bindings::host_defined_wrapper_world(realm), realm, GC::Ref { style_sheet.cssom_sheet() });
 }
 
-void resolve_css_style_sheet_promise(JS::Realm& realm, WebIDL::Promise const& promise, StyleSheetState& style_sheet)
-{
-    WebIDL::resolve_promise(promise, css_style_sheet(realm, style_sheet));
-}
-
 GC::Ref<JS::SyntheticModule> create_css_style_sheet_default_export_module(JS::Realm& realm, StyleSheetState& style_sheet, StringView filename)
 {
     return JS::SyntheticModule::create_default_export_synthetic_module(realm, css_style_sheet(realm, style_sheet), filename);

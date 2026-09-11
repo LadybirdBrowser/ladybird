@@ -62,7 +62,6 @@ enum class ValueType : u8 {
 };
 
 StringView value_type_to_string(ValueType);
-Optional<ValueType> value_type_from_string(Utf16View);
 
 }
 

@@ -148,18 +148,4 @@ ColorFunctionDescriptor const& color_function_descriptor_for(ColorType color_typ
     return s_color_function_descriptors[to_underlying(color_type)];
 }
 
-Optional<ColorType> color_type_from_color_function_name(Utf16View name)
-{
-    // "xyz" is an alias for "xyz-d65".
-    if (name.equals_ignoring_ascii_case("xyz"sv))
-        return ColorType::XYZD65;
-
-    for (size_t i = 0; i < s_color_function_descriptors.size(); ++i) {
-        auto const& descriptor = s_color_function_descriptors[i];
-        if (descriptor.serialization_behavior == SerializationBehavior::ColorFunction && name.equals_ignoring_ascii_case(descriptor.function_name))
-            return static_cast<ColorType>(i);
-    }
-    return {};
-}
-
 }

@@ -46,7 +46,6 @@ using CSSStyleSheetOptions = Bindings::CSSStyleSheetInit;
 
 WEB_API StyleSheetState* css_style_sheet_from_value(JS::Value);
 WEB_API JS::Value css_style_sheet(JS::Realm&, StyleSheetState&);
-WEB_API void resolve_css_style_sheet_promise(JS::Realm&, WebIDL::Promise const&, StyleSheetState&);
 WEB_API GC::Ref<JS::SyntheticModule> create_css_style_sheet_default_export_module(JS::Realm&, StyleSheetState&, StringView filename);
 
 // Document attachment, resource loading, and style-engine integration for a Rust stylesheet.
