@@ -312,7 +312,7 @@ NOTE: "element-reference" is an implementation detail and is distinct from the s
 ## MediaFeatures.json
 
 This is a single JSON object, with media-feature names as keys and the values being objects with fields for the media-feature.
-This generates `MediaFeatureID.h` and `MediaFeatureID.cpp`.
+This generates `MediaFeatureID.h`.
 
 A `<media-feature>` is a value that a media query can inspect.
 They are listed in the [`@media` descriptor table](https://www.w3.org/TR/mediaqueries-5/#media-descriptor-table) in the latest Media Queries spec.
@@ -327,10 +327,6 @@ The definitions here are like a simplified version of the `Properties.json` defi
 
 The generated code provides:
 - A `MediaFeatureID` enum, listing each media-feature
-- `StringView string_from_media_feature_id(MediaFeatureID)` to convert a `MediaFeatureID` back to a string
-- `bool media_feature_accepts_type(MediaFeatureID, QueryValueType)` returns whether the media feature will accept values of this type
-- `bool media_feature_accepts_keyword(MediaFeatureID, Keyword)` returns whether the media feature accepts this keyword
-- `bool media_feature_keyword_is_falsey(MediaFeatureID, Keyword)` returns whether the given keyword is considered false when the media-feature is evaluated in a boolean context. (Like `@media (foo)`)
 
 ## MathFunctions.json
 
