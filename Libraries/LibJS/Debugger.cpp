@@ -173,7 +173,10 @@ GC::ConservativeVector<Debugger::FrameEnvironment> Debugger::environments_for_fr
     auto append_declarative_environment = [&](DeclarativeEnvironment& environment, FrameEnvironment::Type type, Optional<Utf16String> function_name = {}) {
         GC::ConservativeVector<FrameBinding> bindings;
         for (auto const& name : environment.bindings()) {
-            auto value = environment.get_binding_value(vm, name, false);
+            // https://tc39.es/ecma262/#sec-module-environment-records-getbindingvalue-n-s
+            // Module Environment Records require strict to be true; this does not change the result for other
+            // declarative records.
+            auto value = environment.get_binding_value(vm, name, true);
             bindings.append({
                 .name = name,
                 .value = value.is_error() ? js_special_empty_value() : value.release_value(),
