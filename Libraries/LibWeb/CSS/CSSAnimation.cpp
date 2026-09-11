@@ -177,13 +177,6 @@ void CSSAnimation::pause_from_css()
     m_applying_css_play_state = false;
 }
 
-void CSSAnimation::cancel_from_css()
-{
-    m_applying_css_play_state = true;
-    Animations::Animation::cancel();
-    m_applying_css_play_state = false;
-}
-
 WebIDL::ExceptionOr<void> CSSAnimation::set_start_time_for_bindings(Animations::NullableCSSNumberish const& value)
 {
     auto previous_play_state = play_state();
