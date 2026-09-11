@@ -5204,7 +5204,7 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositor::AsyncScrollU
             m_compositor_user_scroll_gesture_hold = nullptr;
     };
 
-    if (async_scroll_updates.scroll_offsets.is_empty() && async_scroll_updates.completed_operation_ids.is_empty() && async_scroll_updates.started_snap_scrolls.is_empty())
+    if (async_scroll_updates.scroll_offsets.is_empty() && async_scroll_updates.completed_operation_ids.is_empty() && async_scroll_updates.started_user_scrolls.is_empty())
         return;
 
     auto document = active_document();
@@ -5234,8 +5234,8 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositor::AsyncScrollU
 
     // A snap scroll the compositor started is registered before its offsets are adopted, so that they are adopted the
     // way a smooth scroll's are, and before it completes, so that its completion finds it.
-    for (auto const& started_snap_scroll : async_scroll_updates.started_snap_scrolls)
-        adopt_started_snap_scroll(*document, started_snap_scroll);
+    for (auto const& started_user_scroll : async_scroll_updates.started_user_scrolls)
+        adopt_started_user_scroll(*document, started_user_scroll);
 
     auto device_pixels_per_css_pixel = page().client().device_pixels_per_css_pixel();
     bool adopted_any_scroll_offset = false;
@@ -5301,19 +5301,19 @@ void LocalNavigable::adopt_pending_async_scroll_offsets(Compositor::AsyncScrollU
     }
 }
 
-void LocalNavigable::adopt_started_snap_scroll(DOM::Document& document, Compositor::StartedSnapScroll const& started_snap_scroll)
+void LocalNavigable::adopt_started_user_scroll(DOM::Document& document, Compositor::StartedUserScroll const& started_user_scroll)
 {
-    auto const& stable_node_id = started_snap_scroll.stable_node_id;
+    auto const& stable_node_id = started_user_scroll.stable_node_id;
 
     // A programmatic scroll started since replaced the snap scroll, and the gesture abandoned snapping along with it.
     auto in_flight_scroll = in_flight_scroll_for(stable_node_id);
     bool replaced_by_programmatic_scroll = in_flight_scroll.has_value() && in_flight_scroll->trigger == ScrollTrigger::Programmatic;
 
     // The scroll is in flight under the operation a caller may already be waiting for.
-    auto& pending_operation = ensure_pending_async_scroll_operation(started_snap_scroll.operation_id);
+    auto& pending_operation = ensure_pending_async_scroll_operation(started_user_scroll.operation_id);
     pending_operation.stable_node_id = stable_node_id;
-    pending_operation.initial_scroll_offset = started_snap_scroll.initial_scroll_offset;
-    pending_operation.destination_scroll_offset = started_snap_scroll.selection.position;
+    pending_operation.initial_scroll_offset = started_user_scroll.initial_scroll_offset;
+    pending_operation.destination_scroll_offset = started_user_scroll.selection.position;
     pending_operation.trigger = ScrollTrigger::UserInput;
 
     if (replaced_by_programmatic_scroll)
@@ -5323,20 +5323,20 @@ void LocalNavigable::adopt_started_snap_scroll(DOM::Document& document, Composit
     if (!target)
         return;
 
-    auto snap_destination = started_snap_scroll.selection;
+    auto snap_destination = started_user_scroll.selection;
     record_snapped_areas_of_scroll_container(document, stable_node_id, snap_destination);
 
     // A snap scroll that settles the gesture ends it: the scroll's completion delivers the scrollend event.
-    if (started_snap_scroll.settles_gesture) {
+    if (started_user_scroll.settles_gesture) {
         m_pending_user_scrollend_targets.remove_all_matching([&](auto const& entry) { return entry.target == target && entry.stable_node_id == stable_node_id; });
         return;
     }
 
     // The gesture the step belongs to owes the scrollend event, and its next step travels on from the offset its
     // steps have asked for.
-    queue_scrollend_event_after_user_scroll(*target, stable_node_id, started_snap_scroll.initial_scroll_offset, SnapPositionSelection::PerScroll);
+    queue_scrollend_event_after_user_scroll(*target, stable_node_id, started_user_scroll.initial_scroll_offset, SnapPositionSelection::PerScroll);
     if (auto* entry = latched_user_scroll_gesture_for(*target, stable_node_id))
-        entry->unsnapped_scroll_destination = started_snap_scroll.unsnapped_scroll_destination;
+        entry->unsnapped_scroll_destination = started_user_scroll.unsnapped_scroll_destination;
 }
 
 void LocalNavigable::schedule_hover_update_after_async_scroll()

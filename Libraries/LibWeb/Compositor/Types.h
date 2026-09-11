@@ -52,10 +52,11 @@ enum class AsyncScrollUpdateFreshness : u8 {
     FromCompositor,
 };
 
-// A snap scroll the compositor started for wheel input of its own: the main thread registers it as a user scroll
-// in flight. A scroll started for a step of a gesture is owed the scrollend event by that gesture, which continues
-// from the offset its steps have asked for; a scroll started for the end of a gesture settles the gesture.
-struct StartedSnapScroll {
+// A scroll the compositor started for user input of its own: the main thread registers it as a user scroll in
+// flight. A scroll started for a step of a gesture is owed the scrollend event by that gesture, which continues
+// from the offset its steps have asked for; a scroll started for the end of a gesture settles the gesture. The
+// selection of a scroll that snapped along no axis carries only the destination.
+struct StartedUserScroll {
     AsyncScrollNodeStableID stable_node_id;
     AsyncScrollOperationID operation_id { 0 };
     CSSPixelPoint initial_scroll_offset;
@@ -71,7 +72,7 @@ struct PendingAsyncScrollUpdates {
     Vector<AsyncScrollOffset> scroll_offsets;
     Vector<AsyncScrollOperationID> completed_operation_ids;
     Vector<AsyncScrollOperationID> operation_ids_taken_over_by_user_input;
-    Vector<StartedSnapScroll> started_snap_scrolls;
+    Vector<StartedUserScroll> started_user_scrolls;
     bool user_scroll_gesture_in_progress { false };
     bool user_scroll_gesture_ended { false };
 };
@@ -121,9 +122,9 @@ template<>
 WEB_API ErrorOr<Web::Compositor::SnapDestination> decode(Decoder&);
 
 template<>
-WEB_API ErrorOr<void> encode(Encoder&, Web::Compositor::StartedSnapScroll const&);
+WEB_API ErrorOr<void> encode(Encoder&, Web::Compositor::StartedUserScroll const&);
 template<>
-WEB_API ErrorOr<Web::Compositor::StartedSnapScroll> decode(Decoder&);
+WEB_API ErrorOr<Web::Compositor::StartedUserScroll> decode(Decoder&);
 
 template<>
 WEB_API ErrorOr<void> encode(Encoder&, Web::Compositor::PendingAsyncScrollUpdates const&);

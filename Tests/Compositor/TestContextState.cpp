@@ -1791,7 +1791,7 @@ struct SnapContainerContextFixture {
             }
             merged.completed_operation_ids.extend(move(publication.completed_operation_ids));
             merged.operation_ids_taken_over_by_user_input.extend(move(publication.operation_ids_taken_over_by_user_input));
-            merged.started_snap_scrolls.extend(move(publication.started_snap_scrolls));
+            merged.started_user_scrolls.extend(move(publication.started_user_scrolls));
         }
         return merged;
     }
@@ -1816,8 +1816,8 @@ TEST_CASE(a_discrete_wheel_step_on_a_snap_container_starts_a_snap_scroll)
 
     auto updates = fixture.take_updates();
     EXPECT(updates.completed_operation_ids.is_empty());
-    EXPECT_EQ(updates.started_snap_scrolls.size(), 1u);
-    auto started = updates.started_snap_scrolls.first();
+    EXPECT_EQ(updates.started_user_scrolls.size(), 1u);
+    auto started = updates.started_user_scrolls.first();
     EXPECT_EQ(started.stable_node_id, snap_container_stable_id);
     EXPECT_EQ(started.operation_id, *result.enqueue_result.operation_id);
     EXPECT_EQ(started.initial_scroll_offset, Web::CSSPixelPoint(0, 0));
@@ -1831,7 +1831,7 @@ TEST_CASE(a_discrete_wheel_step_on_a_snap_container_starts_a_snap_scroll)
 
     updates = fixture.finish_animations(AK::Duration::from_seconds(1));
     EXPECT(updates.completed_operation_ids.contains_slow(started.operation_id));
-    EXPECT(updates.started_snap_scrolls.is_empty());
+    EXPECT(updates.started_user_scrolls.is_empty());
     EXPECT_EQ(updates.scroll_offsets.size(), 1u);
     EXPECT_EQ(updates.scroll_offsets.first().compositor_scroll_offset, Gfx::FloatPoint(0, 100));
 }
@@ -1842,14 +1842,14 @@ TEST_CASE(consecutive_discrete_wheel_steps_travel_from_the_offset_they_asked_for
 
     auto first_step = fixture.discrete_step({ 0, 10 });
     auto first_operation_id = *first_step.enqueue_result.operation_id;
-    EXPECT_EQ(fixture.take_updates().started_snap_scrolls.size(), 1u);
+    EXPECT_EQ(fixture.take_updates().started_user_scrolls.size(), 1u);
 
     // The second step asks for an offset short of the snap position the first is scrolling to, so it is consumed.
     auto second_step = fixture.discrete_step({ 0, 10 }, AK::Duration::from_milliseconds(10));
     EXPECT(second_step.enqueue_result.accepted);
     EXPECT(second_step.enqueue_result.operation_id.has_value());
     auto updates = fixture.take_updates();
-    EXPECT(updates.started_snap_scrolls.is_empty());
+    EXPECT(updates.started_user_scrolls.is_empty());
     EXPECT(updates.completed_operation_ids.contains_slow(*second_step.enqueue_result.operation_id));
     EXPECT(!updates.completed_operation_ids.contains_slow(first_operation_id));
 
@@ -1857,10 +1857,10 @@ TEST_CASE(consecutive_discrete_wheel_steps_travel_from_the_offset_they_asked_for
     auto third_step = fixture.discrete_step({ 0, 100 }, AK::Duration::from_milliseconds(20));
     updates = fixture.take_updates();
     EXPECT(updates.completed_operation_ids.contains_slow(first_operation_id));
-    EXPECT_EQ(updates.started_snap_scrolls.size(), 1u);
-    EXPECT_EQ(updates.started_snap_scrolls.first().operation_id, *third_step.enqueue_result.operation_id);
-    EXPECT_EQ(updates.started_snap_scrolls.first().unsnapped_scroll_destination, Web::CSSPixelPoint(0, 120));
-    EXPECT_EQ(updates.started_snap_scrolls.first().selection.position, Web::CSSPixelPoint(0, 200));
+    EXPECT_EQ(updates.started_user_scrolls.size(), 1u);
+    EXPECT_EQ(updates.started_user_scrolls.first().operation_id, *third_step.enqueue_result.operation_id);
+    EXPECT_EQ(updates.started_user_scrolls.first().unsnapped_scroll_destination, Web::CSSPixelPoint(0, 120));
+    EXPECT_EQ(updates.started_user_scrolls.first().selection.position, Web::CSSPixelPoint(0, 200));
 
     updates = fixture.finish_animations(AK::Duration::from_seconds(1));
     EXPECT_EQ(updates.scroll_offsets.first().compositor_scroll_offset, Gfx::FloatPoint(0, 200));
@@ -1868,9 +1868,9 @@ TEST_CASE(consecutive_discrete_wheel_steps_travel_from_the_offset_they_asked_for
     // A step arriving once the gesture has run out of input travels from where the scrolling box rests.
     fixture.discrete_step({ 0, 10 }, AK::Duration::from_seconds(2));
     updates = fixture.take_updates();
-    EXPECT_EQ(updates.started_snap_scrolls.size(), 1u);
-    EXPECT_EQ(updates.started_snap_scrolls.first().initial_scroll_offset, Web::CSSPixelPoint(0, 200));
-    EXPECT_EQ(updates.started_snap_scrolls.first().selection.position, Web::CSSPixelPoint(0, 300));
+    EXPECT_EQ(updates.started_user_scrolls.size(), 1u);
+    EXPECT_EQ(updates.started_user_scrolls.first().initial_scroll_offset, Web::CSSPixelPoint(0, 200));
+    EXPECT_EQ(updates.started_user_scrolls.first().selection.position, Web::CSSPixelPoint(0, 300));
 }
 
 TEST_CASE(a_discrete_wheel_step_along_a_non_snapping_axis_scrolls_by_its_delta)
@@ -1882,7 +1882,7 @@ TEST_CASE(a_discrete_wheel_step_along_a_non_snapping_axis_scrolls_by_its_delta)
     EXPECT(!fixture.context.has_active_smooth_scroll_animations());
 
     auto updates = fixture.take_updates();
-    EXPECT(updates.started_snap_scrolls.is_empty());
+    EXPECT(updates.started_user_scrolls.is_empty());
     EXPECT(updates.completed_operation_ids.contains_slow(*result.enqueue_result.operation_id));
     EXPECT_EQ(updates.scroll_offsets.size(), 1u);
     EXPECT_EQ(updates.scroll_offsets.first().compositor_scroll_offset, Gfx::FloatPoint(10, 0));
@@ -1903,9 +1903,9 @@ TEST_CASE(a_scroll_by_the_main_thread_ends_the_wheel_gesture_on_the_compositor)
 
     fixture.discrete_step({ 0, 10 }, AK::Duration::from_milliseconds(100));
     updates = fixture.take_updates();
-    EXPECT_EQ(updates.started_snap_scrolls.size(), 1u);
-    EXPECT_EQ(updates.started_snap_scrolls.first().initial_scroll_offset, Web::CSSPixelPoint(0, 300));
-    EXPECT_EQ(updates.started_snap_scrolls.first().selection.position, Web::CSSPixelPoint(0, 400));
+    EXPECT_EQ(updates.started_user_scrolls.size(), 1u);
+    EXPECT_EQ(updates.started_user_scrolls.first().initial_scroll_offset, Web::CSSPixelPoint(0, 300));
+    EXPECT_EQ(updates.started_user_scrolls.first().selection.position, Web::CSSPixelPoint(0, 400));
 }
 
 TEST_CASE(a_discrete_wheel_step_takes_over_a_smooth_scroll_the_main_thread_started)
@@ -1925,17 +1925,17 @@ TEST_CASE(a_discrete_wheel_step_takes_over_a_smooth_scroll_the_main_thread_start
     auto second_step = fixture.discrete_step({ 0, 10 }, AK::Duration::from_milliseconds(20));
     updates = fixture.take_updates();
     EXPECT(updates.operation_ids_taken_over_by_user_input.contains_slow(programmatic_operation_id));
-    EXPECT_EQ(updates.started_snap_scrolls.size(), 1u);
-    EXPECT_EQ(updates.started_snap_scrolls.first().operation_id, *second_step.enqueue_result.operation_id);
-    EXPECT_EQ(updates.started_snap_scrolls.first().initial_scroll_offset, Web::CSSPixelPoint(0, 0));
-    EXPECT_EQ(updates.started_snap_scrolls.first().selection.position, Web::CSSPixelPoint(0, 100));
+    EXPECT_EQ(updates.started_user_scrolls.size(), 1u);
+    EXPECT_EQ(updates.started_user_scrolls.first().operation_id, *second_step.enqueue_result.operation_id);
+    EXPECT_EQ(updates.started_user_scrolls.first().initial_scroll_offset, Web::CSSPixelPoint(0, 0));
+    EXPECT_EQ(updates.started_user_scrolls.first().selection.position, Web::CSSPixelPoint(0, 100));
 }
 
-TEST_CASE(started_snap_scrolls_round_trip_through_ipc)
+TEST_CASE(started_user_scrolls_round_trip_through_ipc)
 {
     Web::Compositor::PendingAsyncScrollUpdates updates;
     updates.sequence = 7;
-    updates.started_snap_scrolls.append({
+    updates.started_user_scrolls.append({
         .stable_node_id = snap_container_stable_id,
         .operation_id = 3,
         .initial_scroll_offset = { Web::CSSPixels(0), Web::CSSPixels(12.5) },
@@ -1961,8 +1961,8 @@ TEST_CASE(started_snap_scrolls_round_trip_through_ipc)
     auto decoded = MUST(decoder.decode<Web::Compositor::PendingAsyncScrollUpdates>());
 
     EXPECT_EQ(decoded.sequence, 7u);
-    EXPECT_EQ(decoded.started_snap_scrolls.size(), 1u);
-    auto const& started = decoded.started_snap_scrolls.first();
+    EXPECT_EQ(decoded.started_user_scrolls.size(), 1u);
+    auto const& started = decoded.started_user_scrolls.first();
     EXPECT_EQ(started.stable_node_id, snap_container_stable_id);
     EXPECT_EQ(started.operation_id, 3u);
     EXPECT_EQ(started.initial_scroll_offset, Web::CSSPixelPoint(Web::CSSPixels(0), Web::CSSPixels(12.5)));
@@ -1988,7 +1988,7 @@ TEST_CASE(a_precise_pan_snaps_when_its_gesture_ends)
     // The finger pans the box to where it is released, past a snap position on the way.
     EXPECT(pan({ 0, 130 }, Web::ScrollGesturePhase::Ongoing, {}).enqueue_result.accepted);
     auto updates = fixture.take_updates();
-    EXPECT(updates.started_snap_scrolls.is_empty());
+    EXPECT(updates.started_user_scrolls.is_empty());
     EXPECT_EQ(updates.scroll_offsets.first().compositor_scroll_offset, Gfx::FloatPoint(0, 130));
 
     auto gesture_end = pan({ 0, 0 }, Web::ScrollGesturePhase::Ended, AK::Duration::from_milliseconds(10));
@@ -1996,8 +1996,8 @@ TEST_CASE(a_precise_pan_snaps_when_its_gesture_ends)
     EXPECT(gesture_end.enqueue_result.operation_id.has_value());
     EXPECT(fixture.context.has_active_smooth_scroll_animations());
     updates = fixture.take_updates();
-    EXPECT_EQ(updates.started_snap_scrolls.size(), 1u);
-    auto started = updates.started_snap_scrolls.first();
+    EXPECT_EQ(updates.started_user_scrolls.size(), 1u);
+    auto started = updates.started_user_scrolls.first();
     EXPECT_EQ(started.operation_id, *gesture_end.enqueue_result.operation_id);
     EXPECT(started.settles_gesture);
     EXPECT_EQ(started.initial_scroll_offset, Web::CSSPixelPoint(0, 130));
@@ -2018,15 +2018,15 @@ TEST_CASE(the_momentum_of_a_flick_selects_a_snap_position_once)
     // The first momentum delta says nothing about where the momentum is headed, so it scrolls by its delta.
     EXPECT(flick({ 0, 100 }, Web::ScrollGesturePhase::Momentum, AK::Duration::from_milliseconds(10)).enqueue_result.accepted);
     auto updates = fixture.take_updates();
-    EXPECT(updates.started_snap_scrolls.is_empty());
+    EXPECT(updates.started_user_scrolls.is_empty());
     EXPECT_EQ(updates.scroll_offsets.first().compositor_scroll_offset, Gfx::FloatPoint(0, 150));
 
     // The second decays by 0.6, so the momentum has 150 pixels left to travel, and snaps where that is headed.
     auto selecting_delta = flick({ 0, 60 }, Web::ScrollGesturePhase::Momentum, AK::Duration::from_milliseconds(20));
     EXPECT(selecting_delta.enqueue_result.accepted);
     updates = fixture.take_updates();
-    EXPECT_EQ(updates.started_snap_scrolls.size(), 1u);
-    auto started = updates.started_snap_scrolls.first();
+    EXPECT_EQ(updates.started_user_scrolls.size(), 1u);
+    auto started = updates.started_user_scrolls.first();
     EXPECT_EQ(started.operation_id, *selecting_delta.enqueue_result.operation_id);
     EXPECT(!started.settles_gesture);
     EXPECT_EQ(started.initial_scroll_offset, Web::CSSPixelPoint(0, 150));
@@ -2036,7 +2036,7 @@ TEST_CASE(the_momentum_of_a_flick_selects_a_snap_position_once)
     auto consumed_delta = flick({ 0, 30 }, Web::ScrollGesturePhase::Momentum, AK::Duration::from_milliseconds(30));
     EXPECT(consumed_delta.enqueue_result.accepted);
     updates = fixture.take_updates();
-    EXPECT(updates.started_snap_scrolls.is_empty());
+    EXPECT(updates.started_user_scrolls.is_empty());
     EXPECT(updates.scroll_offsets.is_empty());
     EXPECT(updates.completed_operation_ids.contains_slow(*consumed_delta.enqueue_result.operation_id));
 
@@ -2061,13 +2061,13 @@ TEST_CASE(momentum_that_never_decays_snaps_from_where_the_gesture_started_at_its
     EXPECT(flick({ 0, 50 }, Web::ScrollGesturePhase::Momentum, AK::Duration::from_milliseconds(20)).enqueue_result.accepted);
     EXPECT(flick({ 0, 60 }, Web::ScrollGesturePhase::Momentum, AK::Duration::from_milliseconds(30)).enqueue_result.accepted);
     auto updates = fixture.take_updates();
-    EXPECT(updates.started_snap_scrolls.is_empty());
+    EXPECT(updates.started_user_scrolls.is_empty());
     EXPECT_EQ(updates.scroll_offsets.first().compositor_scroll_offset, Gfx::FloatPoint(0, 210));
 
     EXPECT(flick({ 0, 0 }, Web::ScrollGesturePhase::Ended, AK::Duration::from_milliseconds(40)).enqueue_result.accepted);
     updates = fixture.take_updates();
-    EXPECT_EQ(updates.started_snap_scrolls.size(), 1u);
-    EXPECT(updates.started_snap_scrolls.first().settles_gesture);
-    EXPECT_EQ(updates.started_snap_scrolls.first().initial_scroll_offset, Web::CSSPixelPoint(0, 210));
-    EXPECT_EQ(updates.started_snap_scrolls.first().selection.position, Web::CSSPixelPoint(0, 200));
+    EXPECT_EQ(updates.started_user_scrolls.size(), 1u);
+    EXPECT(updates.started_user_scrolls.first().settles_gesture);
+    EXPECT_EQ(updates.started_user_scrolls.first().initial_scroll_offset, Web::CSSPixelPoint(0, 210));
+    EXPECT_EQ(updates.started_user_scrolls.first().selection.position, Web::CSSPixelPoint(0, 200));
 }
