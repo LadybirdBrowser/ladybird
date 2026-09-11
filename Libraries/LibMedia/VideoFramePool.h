@@ -39,6 +39,10 @@ public:
     void add_hold(u32 slot_index);
     void release_hold(u32 slot_index);
 
+    // Marks each slot's storage for freeing when its hold count drops to zero. This marker is cleared upon the
+    // next acquire.
+    void shed_storage();
+
     // The buffer backing a held slot, for lending to consumer processes.
     Core::AnonymousBuffer slot_buffer(u32 slot_index) const;
 
@@ -61,7 +65,7 @@ protected:
     // Appends a slot with no payload, for a pool that has no free slot to reuse.
     Optional<u32> try_grow_while_locked();
 
-    virtual void slot_freed_while_locked(Slot&) { }
+    virtual void drop_slot_storage_while_locked(Slot&) = 0;
 
     u32 held_slot_count_while_locked() const;
     void publish_acquisition_while_locked(Slot&);
@@ -72,6 +76,7 @@ protected:
 private:
     VideoFramePoolID const m_id;
     Function<void()> m_slot_freed_callback;
+    bool m_shed_storage_on_release { false };
 };
 
 // A pool of shared-memory framebuffers that are allocated on demand up to a limited budget. Each slot's buffer fd must
@@ -95,22 +100,17 @@ public:
     Optional<AcquiredSlot> try_acquire(size_t byte_count);
     ErrorOr<NonnullRefPtr<PooledVideoFrameSlot>> try_adopt_acquired_slot(AcquiredSlot const&);
 
-    // Marks the buffers for freeing when their hold count drops to zero. This marker is cleared upon the next acquire.
-    void shed_buffers();
-
     size_t allocated_byte_count() const;
 
 private:
     explicit VideoFramePool(size_t byte_budget);
 
-    void slot_freed_while_locked(Slot&) override;
+    void drop_slot_storage_while_locked(Slot&) override;
 
-    void drop_slot_buffer_while_locked(Slot&);
     void free_excess_buffers_while_locked();
 
     size_t const m_byte_budget { 0 };
     size_t m_allocated_bytes { 0 };
-    bool m_shed_buffers_on_release { false };
 };
 
 // A pool of surfaces produced by a hardware decoder. The decoder allocates and recycles them, so this pool tracks
@@ -133,6 +133,8 @@ public:
 
 private:
     VideoFrameSurfacePool() = default;
+
+    void drop_slot_storage_while_locked(Slot&) override;
 
     HashMap<u32, u32> m_slot_indices_by_surface_id;
 };
@@ -207,6 +209,7 @@ public:
 
     void notify_slot_announced(VideoFramePoolID, u32 slot_index, Core::AnonymousBuffer slot_buffer, RefPtr<VideoSurface> surface);
     void notify_pool_retired(VideoFramePoolID);
+    void notify_all_pools_retired();
 
     RefPtr<VideoFrame> resolve_frame(VideoFrameHandle const&, Function<void()> on_release) const;
 

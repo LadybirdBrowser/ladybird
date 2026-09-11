@@ -47,6 +47,7 @@ void RemoteVideoProducer::release_ring_contents_if_suspended()
         return;
 
     release_all_ring_frames();
+    m_slot_directory->notify_all_pools_retired();
 }
 
 void RemoteVideoProducer::discard_ring_head(VideoEdgeItem const& head)
