@@ -192,6 +192,8 @@ FLATTEN ThrowCompletionOr<Value> ECMAScriptFunctionObject::internal_call(Executi
     // 5. Perform OrdinaryCallBindThis(F, calleeContext, thisArgument).
     if (uses_this())
         ordinary_call_bind_this(vm, callee_context, this_argument);
+    else
+        callee_context.this_value = this_argument;
 
     // 6. Let result be Completion(OrdinaryCallEvaluateBody(F, argumentsList)).
     auto result = ordinary_call_evaluate_body(vm, callee_context);
@@ -237,6 +239,8 @@ FLATTEN ThrowCompletionOr<GC::Ref<Object>> ECMAScriptFunctionObject::internal_co
         // a. Perform OrdinaryCallBindThis(F, calleeContext, thisArgument).
         if (uses_this())
             ordinary_call_bind_this(vm, callee_context, this_argument);
+        else
+            callee_context.this_value = this_argument;
 
         // b. Let initializeResult be Completion(InitializeInstanceElements(thisArgument, F)).
         auto initialize_result = this_argument->initialize_instance_elements(*this);

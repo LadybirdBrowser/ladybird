@@ -90,6 +90,7 @@ public:
     bool is_paused() const { return m_is_paused; }
     Vector<FrameBinding> bindings_for_frame(ExecutionContext const&) const;
     Vector<FrameEnvironment> environments_for_frame(ExecutionContext const&) const;
+    Value this_value_for_frame(ExecutionContext const&) const;
     ThrowCompletionOr<Value> evaluate_in_frame(ExecutionContext&, Utf16View source_text);
 
     // Set before each instruction is executed, so that a `debugger` statement doesn't pause a

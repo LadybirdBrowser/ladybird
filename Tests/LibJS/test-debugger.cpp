@@ -340,6 +340,196 @@ inner();
     EXPECT_EQ(pause_count, 1u);
 }
 
+static void check_this_value_of_paused_frame(StringView source, size_t expected_pause_count, Function<void(JS::Value this_value, JS::Realm&)> check)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto script_or_error = JS::Script::parse(source, realm, "this.js"sv);
+    VERIFY(!script_or_error.is_error());
+
+    size_t pause_count = 0;
+    vm->enable_debugging();
+    vm->debugger()->set_pause_callback([&](JS::Debugger::PauseInfo const& pause_info) {
+        ++pause_count;
+        auto* frame = pause_info.stack_trace.first().execution_context;
+        VERIFY(frame);
+        check(vm->debugger()->this_value_for_frame(*frame), realm);
+        vm->debugger()->continue_execution();
+    });
+
+    auto result = vm->run(*script_or_error.value());
+    EXPECT(!result.is_error());
+    EXPECT_EQ(pause_count, expected_pause_count);
+}
+
+TEST_CASE(debugger_frame_this_value_is_recovered_for_functions_that_never_use_it)
+{
+    check_this_value_of_paused_frame(R"(
+function sloppy() {
+    debugger;
+}
+sloppy();
+)"sv,
+        1, [](JS::Value this_value, JS::Realm& realm) {
+            EXPECT(this_value.is_object() && &this_value.as_object() == &realm.global_environment().global_this_value());
+        });
+
+    check_this_value_of_paused_frame(R"(
+function strict() {
+    'use strict';
+    debugger;
+}
+strict();
+)"sv,
+        1, [](JS::Value this_value, JS::Realm&) {
+            EXPECT(this_value.is_undefined());
+        });
+
+    check_this_value_of_paused_frame(R"(
+function outer() {
+    const arrow = () => {
+        debugger;
+    };
+    arrow();
+}
+outer();
+)"sv,
+        1, [](JS::Value this_value, JS::Realm& realm) {
+            EXPECT(this_value.is_object() && &this_value.as_object() == &realm.global_environment().global_this_value());
+        });
+
+    check_this_value_of_paused_frame(R"(
+var receiver = {
+    method() {
+        debugger;
+        return this;
+    },
+};
+receiver.method();
+)"sv,
+        1, [](JS::Value this_value, JS::Realm& realm) {
+            auto receiver = MUST(realm.global_object().get("receiver"_utf16));
+            EXPECT(this_value.is_object() && &this_value.as_object() == &receiver.as_object());
+        });
+}
+
+static void expect_this_value_is_the_global_receiver(JS::Value this_value, JS::Realm& realm)
+{
+    auto receiver = MUST(realm.global_object().get("receiver"_utf16));
+    EXPECT(this_value.is_object() && &this_value.as_object() == &receiver.as_object());
+}
+
+TEST_CASE(debugger_frame_this_value_keeps_the_receiver_of_functions_that_never_use_it)
+{
+    // Every function is called twice: the first call compiles it on the slow path, the second one is inlined.
+    check_this_value_of_paused_frame(R"(
+var receiver = {
+    method() {
+        debugger;
+    },
+};
+receiver.method();
+receiver.method();
+)"sv,
+        2, expect_this_value_is_the_global_receiver);
+
+    check_this_value_of_paused_frame(R"(
+var receiver = {
+    method() {
+        let captured = 1;
+        const read = () => captured;
+        debugger;
+        read();
+    },
+};
+receiver.method();
+receiver.method();
+)"sv,
+        2, expect_this_value_is_the_global_receiver);
+
+    check_this_value_of_paused_frame(R"(
+var receiver = {
+    method() {
+        const arrow = () => {
+            debugger;
+        };
+        arrow();
+    },
+};
+receiver.method();
+receiver.method();
+)"sv,
+        2, expect_this_value_is_the_global_receiver);
+
+    check_this_value_of_paused_frame(R"(
+var receiver = {};
+[1, 2].forEach(function () {
+    debugger;
+}, receiver);
+)"sv,
+        2, expect_this_value_is_the_global_receiver);
+
+    // The arrow is created by the outer invocation but runs inside a recursive one with a different receiver.
+    check_this_value_of_paused_frame(R"(
+var receiver = {};
+var other = {};
+function method(arrow) {
+    let level = 0;
+    if (arrow) {
+        arrow();
+        return;
+    }
+    method.call(other, () => {
+        debugger;
+        level;
+    });
+}
+method.call(receiver);
+)"sv,
+        1, expect_this_value_is_the_global_receiver);
+
+    check_this_value_of_paused_frame(R"(
+function Constructor() {
+    debugger;
+}
+new Constructor();
+new Constructor();
+)"sv,
+        2, [](JS::Value this_value, JS::Realm& realm) {
+            auto constructor = MUST(realm.global_object().get("Constructor"_utf16));
+            EXPECT(this_value.is_object());
+            if (this_value.is_object())
+                EXPECT_EQ(MUST(this_value.as_object().get("constructor"_utf16)), constructor);
+        });
+
+    check_this_value_of_paused_frame(R"(
+String.prototype.describe = function () {
+    debugger;
+};
+'abc'.describe();
+'abc'.describe();
+)"sv,
+        2, [](JS::Value this_value, JS::Realm&) {
+            EXPECT(this_value.is_object());
+            if (this_value.is_object())
+                EXPECT_EQ(MUST(this_value.as_object().get("length"_utf16)).as_i32(), 3);
+        });
+
+    check_this_value_of_paused_frame(R"(
+String.prototype.describe = function () {
+    'use strict';
+    debugger;
+};
+'abc'.describe();
+'abc'.describe();
+)"sv,
+        2, [](JS::Value this_value, JS::Realm&) {
+            EXPECT(this_value.is_string());
+        });
+}
+
 TEST_CASE(debugger_frame_evaluation_preserves_const_bindings)
 {
     auto vm = JS::VM::create();

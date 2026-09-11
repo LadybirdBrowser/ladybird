@@ -665,7 +665,7 @@ void DevToolsDebugger::handle_pause(JS::Debugger::PauseInfo const& pause)
                 .line = line,
                 .column = column,
             },
-            .this_value = serialize_value(stack_frame.execution_context->this_value.value_or(JS::js_undefined())),
+            .this_value = serialize_value(Web::Bindings::main_thread_vm().debugger()->this_value_for_frame(*stack_frame.execution_context)),
             .arguments = move(arguments),
         });
     }

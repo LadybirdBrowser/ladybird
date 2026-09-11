@@ -2888,9 +2888,9 @@ handler Call(
     let metadata = shared_data.asm_call_metadata;
     guard metadata has SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_CAN_INLINE_CALL else slow;
     guard metadata lacks SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_NEEDS_ENVIRONMENT_OR_THIS_VALUE_RESOLUTION else invoke_interp_inline;
-    let mut receiver: Value = Value<Empty>;
+    # Frames keep the uncoerced receiver even when the callee never binds `this`.
+    let mut receiver: Value = load(this_value);
     if metadata has SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_USES_THIS {
-        receiver = load(this_value);
         if metadata lacks SHARED_FUNCTION_INSTANCE_DATA_ASM_CALL_METADATA_STRICT {
             if receiver is Value<Nullish> {
                 receiver = alias(box_object(function.shape.realm.global_environment.global_this_value));
