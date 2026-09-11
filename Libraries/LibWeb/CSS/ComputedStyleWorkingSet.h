@@ -92,23 +92,17 @@ public:
     // Invalidates C++ sidecars after the Rust driver stores a value directly in the table.
     void did_store_property_data_from_drive(PropertyID);
     void set_style_sheet_for_source_slot(u32, RefPtr<StyleSheetState>);
-    void cache_property_wrapper_from_drive(PropertyID, NonnullRefPtr<StyleValue const>);
     void set_display_before_box_type_transformation(Display);
 
     bool has_effective_color_scheme() const { return metadata().effective_color_scheme >= 0; }
     void set_effective_color_scheme(PreferredColorScheme color_scheme) { metadata().effective_color_scheme = to_underlying(color_scheme); }
     void clear_effective_color_scheme() { metadata().effective_color_scheme = -1; }
 
-    void add_inheritance_dependent_specified_value(PropertyID, NonnullRefPtr<StyleValue const> value);
-    void remove_inheritance_dependent_specified_value(PropertyID);
-
     RefPtr<AnimatedProperties const> animated_properties_snapshot() const;
     ComputedValuesFFI::AnimatedOverlay const* animated_overlay() const;
     bool has_animated_property(PropertyID property_id) const;
     bool is_property_important(PropertyID property_id) const;
     bool is_property_inherited(PropertyID property_id) const;
-    bool is_animated_property_inherited(PropertyID property_id) const;
-    bool is_animated_property_result_of_transition(PropertyID property_id) const;
     bool depends_on_viewport_metrics() const { return metadata().dependency_flags & 1; }
     bool font_metrics_depend_on_viewport_metrics() const { return metadata().dependency_flags & 2; }
     // Whether the element this style was computed for has computed display none, or is a descendant of one that does.
@@ -172,7 +166,6 @@ public:
 
     int math_depth() const;
     [[nodiscard]] CSSPixels line_height(FontComputer const&) const;
-    [[nodiscard]] LineHeightData line_height_data() const;
     [[nodiscard]] CSSPixels font_size() const;
     Vector<ComputedFontFamily> computed_font_families() const;
     double font_weight() const;
@@ -181,10 +174,6 @@ public:
     FontOpticalSizing font_optical_sizing() const;
 
     ScrollbarColorData scrollbar_color(ColorResolutionContext const&) const;
-
-    // The recorded inheritance-dependent specified values, borrowed from the drive's table;
-    // the span stays valid while the table does.
-    ReadonlySpan<ComputedValuesFFI::FfiTableInheritanceDependentValue const> inheritance_dependent_value_span() const;
 
     // Whole-bitmap views over the table's importance and inheritance flags, in FixedBitmap
     // byte layout; valid while the table is.
@@ -265,16 +254,6 @@ public:
     ComputedValuesFFI::AnimatedOverlay const* overlay() const { return m_overlay; }
 
     bool has_property(PropertyID property_id) const { return entry(property_id); }
-    bool is_property_inherited(PropertyID property_id) const
-    {
-        auto const* animated_entry = entry(property_id);
-        return animated_entry && animated_entry->inherited;
-    }
-    bool is_property_result_of_transition(PropertyID property_id) const
-    {
-        auto const* animated_entry = entry(property_id);
-        return animated_entry && animated_entry->result_of_transition;
-    }
     StyleValue const& property(PropertyID) const;
 
     void set_property(PropertyID, NonnullRefPtr<StyleValue const>, AnimatedPropertyResultOfTransition, ComputedStyleWorkingSet::Inherited);

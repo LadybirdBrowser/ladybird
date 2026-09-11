@@ -288,27 +288,6 @@ ReadonlyBytes ComputedStyleWorkingSet::property_inheritance_bitmap() const
     return { ComputedValuesFFI::rust_computed_longhand_table_inheritance_bits(m_computed_longhand_table), (number_of_longhand_properties + 7) / 8 };
 }
 
-ReadonlySpan<ComputedValuesFFI::FfiTableInheritanceDependentValue const> ComputedStyleWorkingSet::inheritance_dependent_value_span() const
-{
-    size_t count = 0;
-    auto const* entries = ComputedValuesFFI::rust_computed_longhand_table_inheritance_dependent_values(m_computed_longhand_table, &count);
-    return { entries, count };
-}
-
-void ComputedStyleWorkingSet::add_inheritance_dependent_specified_value(PropertyID property_id, NonnullRefPtr<StyleValue const> value)
-{
-    ComputedValuesFFI::rust_computed_longhand_table_add_inheritance_dependent_value(m_computed_longhand_table, to_underlying(property_id), value->rust_style_value_data());
-    // An unevaluated longhand's cached wrapper may predate the recorded specified value; the
-    // next property() re-derives the effective value.
-    m_mint_cache->wrappers.remove(property_id);
-}
-
-void ComputedStyleWorkingSet::remove_inheritance_dependent_specified_value(PropertyID property_id)
-{
-    ComputedValuesFFI::rust_computed_longhand_table_remove_inheritance_dependent_value(m_computed_longhand_table, to_underlying(property_id));
-    m_mint_cache->wrappers.remove(property_id);
-}
-
 RefPtr<AnimatedProperties const> ComputedStyleWorkingSet::animated_properties_snapshot() const
 {
     return m_animated_properties;
@@ -322,16 +301,6 @@ ComputedValuesFFI::AnimatedOverlay const* ComputedStyleWorkingSet::animated_over
 bool ComputedStyleWorkingSet::has_animated_property(PropertyID property_id) const
 {
     return animated_properties().has_property(property_id);
-}
-
-bool ComputedStyleWorkingSet::is_animated_property_inherited(PropertyID property_id) const
-{
-    return animated_properties().is_property_inherited(property_id);
-}
-
-bool ComputedStyleWorkingSet::is_animated_property_result_of_transition(PropertyID property_id) const
-{
-    return animated_properties().is_property_result_of_transition(property_id);
 }
 
 bool ComputedStyleWorkingSet::has_pseudo_element_style(PseudoElement pseudo_element) const
@@ -407,12 +376,6 @@ void ComputedStyleWorkingSet::set_style_sheet_for_source_slot(u32 slot, RefPtr<S
     if (slot >= m_mint_cache->style_sheet_source_slots.size())
         m_mint_cache->style_sheet_source_slots.resize(slot + 1);
     m_mint_cache->style_sheet_source_slots[slot] = style_sheet;
-}
-
-void ComputedStyleWorkingSet::cache_property_wrapper_from_drive(PropertyID id, NonnullRefPtr<StyleValue const> value)
-{
-    VERIFY(id >= first_longhand_property_id && id <= last_longhand_property_id);
-    m_mint_cache->wrappers.set(id, move(value));
 }
 
 Display ComputedStyleWorkingSet::display_before_box_type_transformation() const
@@ -634,22 +597,6 @@ CSSPixels ComputedStyleWorkingSet::line_height(FontComputer const& font_computer
         return CSSPixels { font_size() * line_height.as_number().number() };
 
     VERIFY_NOT_REACHED();
-}
-
-LineHeightData ComputedStyleWorkingSet::line_height_data() const
-{
-    auto const& value = property(PropertyID::LineHeight);
-    LineHeightData data;
-
-    if (value.is_keyword() && value.to_keyword() == Keyword::Normal) {
-        data.computed_value = LineHeightData::Normal {};
-    } else if (value.is_number()) {
-        data.computed_value = value.as_number().number();
-    } else {
-        data.computed_value = value.as_length().length();
-    }
-
-    return data;
 }
 
 float ComputedStyleWorkingSet::stop_opacity() const

@@ -685,27 +685,6 @@ impl ComputedLonghandTable {
         self.rebuild_inheritance_dependent_view();
     }
 
-    pub(crate) fn remove_inheritance_dependent_value(&mut self, property_id: u16) {
-        assert!(
-            !self.frozen,
-            "the computed longhand table is immutable once its style is created"
-        );
-        let Some(index) = self
-            .inheritance_dependent
-            .iter()
-            .position(|(property, _)| *property == property_id)
-        else {
-            return;
-        };
-        self.inheritance_dependent.swap_remove(index);
-        set_bitmap_bit(
-            &mut self.inheritance_dependent_bits,
-            Self::slot_index(property_id),
-            false,
-        );
-        self.rebuild_inheritance_dependent_view();
-    }
-
     fn inheritance_dependent_value(&self, property_id: u16) -> Option<&RetainedStyleValueData> {
         if !bitmap_bit(&self.inheritance_dependent_bits, Self::slot_index(property_id)) {
             return None;
@@ -1194,16 +1173,6 @@ pub unsafe extern "C" fn rust_computed_longhand_table_add_inheritance_dependent_
         RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(value.cast()))
     };
     unsafe { &mut *table }.add_inheritance_dependent_value(property_id, value);
-}
-
-/// # Safety
-/// `table` must be a valid, unfrozen, uniquely owned table.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_computed_longhand_table_remove_inheritance_dependent_value(
-    table: *mut ComputedLonghandTable,
-    property_id: u16,
-) {
-    unsafe { &mut *table }.remove_inheritance_dependent_value(property_id);
 }
 
 /// Returns the non-longhand computation state stored alongside the table.
