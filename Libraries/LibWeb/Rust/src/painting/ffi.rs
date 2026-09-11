@@ -8,10 +8,10 @@ use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixels};
 use crate::css::ffi_support::FfiUtf16View;
 use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
+use crate::layout::svg_formatting_context;
 use crate::layout::used_values::FfiCssPixelPoint;
 use crate::layout::used_values::FfiCssPixelRect;
 use crate::layout::used_values::FfiCssPixelSize;
-use crate::layout::{svg_formatting_context, used_values};
 use crate::painting::display_list::commands::SpatialNodeIndex;
 use crate::painting::display_list::commands::{ClipNodeIndex, ContextRef, EffectNodeIndex};
 use crate::painting::filter_bytes::filter_functions_graph;
@@ -429,26 +429,6 @@ pub unsafe extern "C" fn layout_arena_needs_full_scrollable_overflow_recalculati
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-/// The drained slot ids may name freed slots; the caller resolves liveness before
-/// dereferencing anything.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_take_scrollable_overflow_recalculation_state(
-    arena: *mut c_void,
-    context: *mut c_void,
-    push_box: unsafe extern "C" fn(*mut c_void, NodeSlotId),
-) -> bool {
-    let arena = unsafe { arena_from_handle(arena) };
-    let (boxes, needs_full_recalculation) = arena.take_scrollable_overflow_recalculation_state();
-    for slot in boxes {
-        // SAFETY: The C++ callback appends the slot id to a caller-owned collection.
-        unsafe { push_box(context, slot) };
-    }
-    needs_full_recalculation
-}
-
-/// # Safety
-///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
 /// `node` must name a live node in this arena.
 #[unsafe(no_mangle)]
@@ -462,20 +442,6 @@ pub unsafe extern "C" fn layout_arena_invalidate_nearest_self_painting_inline_pa
     {
         arena.invalidate_paint_cache(ancestor);
     }
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_supports_svg_masking(arena: *mut c_void, slot: NodeSlotId) -> bool {
-    let arena = unsafe { arena_from_handle(arena) };
-    if !arena.paintable_rows().paintable_row_is_populated(slot) {
-        return false;
-    }
-    arena
-        .node_kind_if_live(slot)
-        .is_some_and(crate::painting::node_painting::supports_svg_masking)
 }
 
 /// # Safety
@@ -1153,27 +1119,6 @@ pub unsafe extern "C" fn layout_arena_paintable_transform_reference_box(
 
 /// # Safety
 ///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_svg_viewport_user_rect(
-    arena: *mut c_void,
-    slot: NodeSlotId,
-) -> used_values::OptionalCssPixelRect {
-    let arena = unsafe { arena_from_handle(arena) };
-    if !arena.paintable_row_is_populated(slot) {
-        return None.into();
-    }
-    let paintable_rows = arena.paintable_rows();
-    crate::painting::svg_viewport::nearest_svg_viewport_user_rect(&paintable_rows, slot)
-        .map(|rect| used_values::FfiCssPixelRect {
-            x: crate::css::css_pixels::CssPixels::nearest_value_for(rect.x as f64),
-            y: crate::css::css_pixels::CssPixels::nearest_value_for(rect.y as f64),
-            width: crate::css::css_pixels::CssPixels::nearest_value_for(rect.width as f64),
-            height: crate::css::css_pixels::CssPixels::nearest_value_for(rect.height as f64),
-        })
-        .into()
-}
-
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.

@@ -3060,18 +3060,6 @@ pub unsafe extern "C" fn layout_arena_bump_fragment_cache_epoch_of_self_and_ance
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_set_replaced_content_facts(
-    arena: *mut c_void,
-    id: NodeSlotId,
-    facts: FfiReplacedContentFacts,
-) -> bool {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: The C++ wrapper keeps the arena alive for this call and
-    // serializes all access on the document thread.
-    unsafe { &mut *arena.cast::<LayoutNodeArena>() }.set_replaced_content_facts(id, facts)
-}
-
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_set_node_dom_paint_facts(arena: *mut c_void, id: NodeSlotId, facts: u8) -> bool {
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: The C++ wrapper keeps the arena alive for this call and
@@ -3145,31 +3133,6 @@ pub unsafe extern "C" fn layout_arena_node_style_record(arena: *mut c_void, id: 
 }
 
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_node_style_record_is_pinned_by_arena(arena: *mut c_void, id: NodeSlotId) -> bool {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.node_style_record_is_pinned_by_arena(id)
-}
-
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_replace_arena_pinned_style_record(
-    arena: *mut c_void,
-    id: NodeSlotId,
-    style_record: u64,
-    payloads: *const c_void,
-) {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.replace_arena_pinned_style_record(
-        id,
-        FfiDerivedStyleRecord {
-            record: style_record,
-            payloads,
-        },
-    );
-}
-
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_reinherit_anonymous_descendants(arena: *mut c_void, node: NodeSlotId) {
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: As above.
@@ -3232,24 +3195,6 @@ pub unsafe extern "C" fn layout_arena_clear_style_record_host_callbacks(arena: *
     unsafe { &*arena.cast::<LayoutNodeArena>() }.set_style_record_host(None);
 }
 
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call, and `node` must name a live node
-/// in this arena.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_enroll_node_for_replaced_content_facts_sync_if_eligible(
-    arena: *mut c_void,
-    node: NodeSlotId,
-) {
-    assert!(!arena.is_null(), "layout node arena handle is null");
-    // SAFETY: As above.
-    unsafe { &*arena.cast::<LayoutNodeArena>() }.enroll_node_for_replaced_content_facts_sync_if_eligible(node);
-}
-
-/// # Safety
-///
-/// The arena must remain valid for the duration of the call. The callbacks receive live layout
-/// node shells. Source callbacks lend views until the next host callback or DOM mutation.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_sync_enrolled_content_for_layout(
     arena: *mut c_void,
