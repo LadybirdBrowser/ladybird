@@ -7,6 +7,10 @@
 #include <LibGC/Function.h>
 #include <LibJS/Debugger.h>
 #include <LibJS/EmbeddingABIConversions.h>
+#include <LibJS/Runtime/DeclarativeEnvironment.h>
+#include <LibJS/Runtime/FunctionEnvironment.h>
+#include <LibJS/Runtime/GlobalEnvironment.h>
+#include <LibJS/Runtime/ObjectEnvironment.h>
 #include <LibJS/Runtime/VM.h>
 
 namespace JS {
@@ -148,6 +152,75 @@ GC::ConservativeVector<Debugger::FrameBinding> Debugger::bindings_for_frame(Exec
     JSDebuggerFrameBindingSink sink { .context = &bindings, .append = append_frame_binding };
     js_debugger_bindings_for_frame(vm_to_abi(vm()), execution_context_to_abi(execution_context), &sink);
     return bindings;
+}
+
+GC::ConservativeVector<Debugger::FrameEnvironment> Debugger::environments_for_frame(ExecutionContext const& context) const
+{
+    GC::ConservativeVector<FrameEnvironment> environments;
+
+    if (context.source_code()) {
+        FrameEnvironment local_environment {
+            .type = FrameEnvironment::Type::Function,
+            .function_name = context.function_name().to_utf16_string(),
+            .object = {},
+            .bindings = bindings_for_frame(context),
+        };
+        if (!local_environment.bindings.is_empty())
+            environments.append(move(local_environment));
+    }
+
+    auto& vm = context.realm->vm();
+    auto append_declarative_environment = [&](DeclarativeEnvironment& environment, FrameEnvironment::Type type, Optional<Utf16String> function_name = {}) {
+        GC::ConservativeVector<FrameBinding> bindings;
+        for (auto const& name : environment.bindings()) {
+            auto value = environment.get_binding_value(vm, name, false);
+            bindings.append({
+                .name = name,
+                .value = value.is_error() ? js_special_empty_value() : value.release_value(),
+                .is_mutable = environment.binding_is_mutable_by_name(name),
+            });
+        }
+        environments.append({
+            .type = type,
+            .function_name = move(function_name),
+            .object = {},
+            .bindings = move(bindings),
+        });
+    };
+
+    for (auto* environment = context.lexical_environment.ptr(); environment; environment = environment->outer_environment()) {
+        if (is<GlobalEnvironment>(*environment)) {
+            auto& global_environment = static_cast<GlobalEnvironment&>(*environment);
+            append_declarative_environment(global_environment.declarative_record(), FrameEnvironment::Type::Block);
+            environments.append({
+                .type = FrameEnvironment::Type::Object,
+                .function_name = {},
+                .object = &global_environment.global_this_value(),
+                .bindings = {},
+            });
+            continue;
+        }
+
+        if (is<DeclarativeEnvironment>(*environment)) {
+            auto type = environment->is_function_environment() ? FrameEnvironment::Type::Function : FrameEnvironment::Type::Block;
+            Optional<Utf16String> function_name;
+            if (environment->is_function_environment())
+                function_name = static_cast<FunctionEnvironment&>(*environment).function_object().name_for_call_stack();
+            append_declarative_environment(static_cast<DeclarativeEnvironment&>(*environment), type, move(function_name));
+            continue;
+        }
+
+        if (is<ObjectEnvironment>(*environment)) {
+            environments.append({
+                .type = FrameEnvironment::Type::Object,
+                .function_name = {},
+                .object = &static_cast<ObjectEnvironment&>(*environment).binding_object(),
+                .bindings = {},
+            });
+        }
+    }
+
+    return environments;
 }
 
 ThrowCompletionOr<Value> Debugger::evaluate_in_frame(ExecutionContext& execution_context, Utf16View source_text, UpdateOriginalBindings update_original_bindings)

@@ -72,6 +72,18 @@ public:
         bool is_mutable { true };
     };
 
+    struct FrameEnvironment {
+        enum class Type : u8 {
+            Block,
+            Function,
+            Object,
+        };
+        Type type { Type::Block };
+        Optional<Utf16String> function_name;
+        GC::Ptr<Object> object;
+        GC::ConservativeVector<FrameBinding> bindings;
+    };
+
     // The callback must call continue_execution() before it returns. It may evaluate JavaScript,
     // in which case any pause triggered by that evaluation is ignored.
     void set_pause_callback(Function<void(PauseInfo const&)> callback);
@@ -81,6 +93,7 @@ public:
     void continue_execution_preserving_step_state();
     bool is_paused() const;
     GC::ConservativeVector<FrameBinding> bindings_for_frame(ExecutionContext const&) const;
+    GC::ConservativeVector<FrameEnvironment> environments_for_frame(ExecutionContext const&) const;
     ThrowCompletionOr<Value> evaluate_in_frame(ExecutionContext&, Utf16View source_text, UpdateOriginalBindings = UpdateOriginalBindings::Yes);
 
     void request_pause_on_next_bytecode_execution();
