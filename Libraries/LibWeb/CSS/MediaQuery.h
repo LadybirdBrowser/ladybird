@@ -65,7 +65,6 @@ private:
     bool m_matches { false };
 };
 
-MatchResult evaluate_media_condition(RustQueryHandle const&, MediaEnvironmentSnapshot const&);
 Utf16String serialize_a_media_query_list(Vector<NonnullRefPtr<MediaQuery>> const&);
 
 }

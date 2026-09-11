@@ -2835,33 +2835,6 @@ pub unsafe extern "C" fn css_query_evaluate_media(
     unsafe { handle.as_ref() }.is_some_and(|handle| handle.matches_media(unsafe { environment.borrow() }))
 }
 
-/// Evaluates a retained standalone media condition against an immutable feature snapshot.
-///
-/// # Safety
-/// `handle` must point to a live expression handle. The environment slices and optional length
-/// resolution context must remain readable for the duration of this call. Returns 3 when the
-/// handle does not contain a media expression, allowing the caller to use another evaluator.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn css_query_evaluate_media_condition(
-    handle: *const FfiQueryHandle,
-    environment: FfiMediaEnvironment,
-) -> u8 {
-    let Some(handle) = (unsafe { handle.as_ref() }) else {
-        return 3;
-    };
-    let QueryTree::Expression {
-        expression,
-        kind: QueryKind::Media,
-    } = &handle.tree
-    else {
-        return 3;
-    };
-    let Some((values, length_context)) = (unsafe { ffi_media_environment(&environment) }) else {
-        return MatchResult::False as u8;
-    };
-    evaluate_media_expression(expression, values, length_context) as u8
-}
-
 /// Evaluates a retained supports condition whose feature results were captured while parsing.
 /// Returns 3 when the handle does not contain a supports expression.
 ///
