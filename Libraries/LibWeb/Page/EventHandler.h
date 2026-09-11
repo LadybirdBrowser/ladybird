@@ -17,6 +17,7 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
+#include <LibWeb/Compositor/Types.h>
 #include <LibWeb/DOM/HoverEventData.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -55,7 +56,13 @@ public:
     void update_hover_after_scroll();
     GC::Ptr<DOM::Node> target_node_for_mouse_position(CSSPixelPoint);
 
-    EventResult handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat, bool should_insert_text);
+    EventResult handle_keydown(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat, bool should_insert_text, bool async_scroll_performed_default_action = false);
+    struct KeyboardScrollSnapshot {
+        Compositor::KeyboardScrollState state;
+        Vector<GC::Weak<DOM::EventTarget>> event_path;
+        GC::Weak<DOM::Node> scroll_target;
+    };
+    KeyboardScrollSnapshot keyboard_scroll_snapshot() const;
     EventResult handle_keyup(UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
 
     EventResult handle_drag_and_drop_event(DragEvent::Type, CSSPixelPoint, CSSPixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files);
@@ -86,6 +93,8 @@ public:
 
 private:
     bool should_ignore_device_input_event() const;
+    GC::Ptr<DOM::Node> scroll_target_for_key_input() const;
+    int page_scroll_distance_for_key_input() const;
 
     EventResult fire_keyboard_event(Utf16FlyString const& event_name, HTML::LocalNavigable&, UIEvents::KeyCode, unsigned modifiers, u32 code_point, bool repeat);
     [[nodiscard]] EventResult fire_text_input_event(HTML::LocalNavigable&, Utf16String const& data);

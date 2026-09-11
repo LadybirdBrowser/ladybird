@@ -209,6 +209,16 @@ Messages::CompositorControlServer::DispatchMouseEventToWebContentResponse Connec
     return m_compositor_state->dispatch_mouse_event_to_web_content(context_id, event);
 }
 
+Messages::CompositorControlServer::HandleKeyEventResponse ConnectionFromClient::handle_key_event(Web::Compositor::CompositorContextId context_id, Web::KeyEvent event)
+{
+    return m_compositor_state->handle_key_event(context_id, event);
+}
+
+Messages::CompositorControlServer::DispatchKeyEventToWebContentResponse ConnectionFromClient::dispatch_key_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::KeyEvent event)
+{
+    return m_compositor_state->dispatch_key_event_to_web_content(context_id, event);
+}
+
 Messages::CompositorControlServer::HandlePinchEventResponse ConnectionFromClient::handle_pinch_event(Web::Compositor::CompositorContextId context_id, Web::PinchEvent event)
 {
     return m_compositor_state->handle_pinch_event(context_id, event);

@@ -41,8 +41,9 @@ public:
     void add_video_sink(Media::VideoSinkHandle);
     void remove_video_sink(Media::VideoSinkHandle);
     void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick);
-    void update_scroll_state(Painting::ScrollStateSnapshot&&);
+    void update_scroll_state(Painting::ScrollStateSnapshot&&, KeyboardScrollState);
     void invalidate_wheel_event_listener_state(u64 generation);
+    void invalidate_keyboard_scroll_state(u64 generation);
     AsyncScrollEnqueueResult async_scroll_by(UniqueNodeID expected_document_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels,
         Gfx::IntRect viewport_rect, WheelDeltaPrecision, ScrollGesturePhase, AsyncScrollOperationTracking = AsyncScrollOperationTracking::No);
     AsyncScrollEnqueueResult smooth_scroll_to(AsyncScrollNodeStableID, Gfx::FloatPoint offset_in_device_pixels, Gfx::FloatPoint main_thread_offset_in_device_pixels, Gfx::IntRect viewport_rect, ScrollAnimationKind);
@@ -88,8 +89,9 @@ public:
     virtual void add_video_sink(Media::VideoSinkHandle) = 0;
     virtual void remove_video_sink(Media::VideoSinkHandle) = 0;
     virtual void set_video_sink_ticking(Media::VideoSinkHandle, bool should_tick) = 0;
-    virtual void update_scroll_state(CompositorContextId, Painting::ScrollStateSnapshot&&) = 0;
+    virtual void update_scroll_state(CompositorContextId, Painting::ScrollStateSnapshot&&, KeyboardScrollState) = 0;
     virtual void invalidate_wheel_event_listener_state(CompositorContextId, u64 generation) = 0;
+    virtual void invalidate_keyboard_scroll_state(CompositorContextId, u64 generation) = 0;
     virtual AsyncScrollEnqueueResult async_scroll_by(CompositorContextId, UniqueNodeID expected_document_id, Gfx::FloatPoint position,
         Gfx::FloatPoint delta_in_device_pixels, Gfx::IntRect viewport_rect, WheelDeltaPrecision, ScrollGesturePhase, AsyncScrollOperationTracking)
         = 0;

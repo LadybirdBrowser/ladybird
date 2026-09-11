@@ -31,6 +31,7 @@
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 #include <LibWeb/Painting/ScrollState.h>
+#include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWebView/Forward.h>
 
 namespace Gfx {
@@ -41,6 +42,7 @@ class SkiaBackendContext;
 
 namespace Web {
 
+struct KeyEvent;
 struct MouseEvent;
 struct PinchEvent;
 
@@ -94,6 +96,7 @@ public:
     CompositorStateWebContentClient& web_content_client() const { return m_web_content_client; }
     void request_rendering_update();
     void dispatch_mouse_event_to_web_content(Web::MouseEvent const&);
+    void dispatch_key_event_to_web_content(Web::KeyEvent const&);
 
     bool presents_to_client() const { return m_presents_to_client; }
     void stop_presenting_to_client();
@@ -110,11 +113,13 @@ public:
         Web::Painting::AccumulatedVisualContextTree,
         Web::Painting::ScrollStateSnapshot&&);
     void update_visual_context_tree(Web::Painting::AccumulatedVisualContextTree, Web::Painting::DisplayListResourceTransaction&&);
-    void update_scroll_state(Web::Painting::ScrollStateSnapshot&&);
+    void update_scroll_state(Web::Painting::ScrollStateSnapshot&&, Web::Compositor::KeyboardScrollState);
     void set_video_sink(Web::Painting::VideoSinkResourceId, RefPtr<Media::VideoSink>);
     HashMap<u64, Media::VideoSinkHandle> const& video_sink_handles() const { return m_display_list_resource_storage.video_sink_handles(); }
 
     void invalidate_wheel_event_listener_state(u64 generation);
+    void invalidate_keyboard_scroll_state(u64 generation);
+    ContextUpdateResult handle_key_event(Web::KeyEvent const&);
     ContextUpdateResult handle_mouse_event(Web::MouseEvent const&);
     ContextUpdateResult handle_pinch_event(Web::PinchEvent const&);
     AsyncScrollResult async_scroll_by(
@@ -190,6 +195,7 @@ private:
         Web::Compositor::AsyncScrollOperationID operation_id;
         Web::Compositor::SmoothScrollAnimation animation;
         MonotonicTime started_at;
+        bool is_user_scroll { false };
     };
 
     struct VisualViewportScrollDelta {
@@ -206,6 +212,9 @@ private:
     };
 
     void stop_backing_store_shrink_timer();
+    void end_keyboard_scroll_gesture();
+    Web::Painting::ScrollStateSnapshot scroll_state_snapshot_at_keyboard_step_starts() const;
+    void apply_keyboard_scroll_state(Web::Compositor::KeyboardScrollState);
     Web::Painting::AccumulatedVisualContextTree const& current_visual_context_tree() const;
     Optional<Gfx::FloatPoint> viewport_scroll_offset_from(Vector<Web::Compositor::AsyncScrollOffset> const&) const;
     Optional<float> visual_viewport_scale_for_compositing() const;
@@ -283,6 +292,8 @@ private:
     Vector<Web::Compositor::AsyncScrollOffset> unreconciled_async_scroll_offsets() const;
     Vector<Web::Compositor::AsyncScrollOperationID> m_completed_async_scroll_operation_ids;
     Vector<Web::Compositor::AsyncScrollOperationID> m_async_scroll_operation_ids_taken_over_by_user_input;
+    Web::Compositor::KeyboardScrollState m_keyboard_scroll_state;
+    Vector<Web::UIEvents::KeyCode, 3> m_held_scroll_keys;
     bool m_user_scroll_gesture_ended { false };
     bool m_published_user_scroll_gesture_in_progress { false };
     Vector<ActiveSmoothScrollAnimation> m_smooth_scroll_animations;

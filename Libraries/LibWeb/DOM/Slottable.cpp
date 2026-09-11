@@ -8,6 +8,7 @@
 #include <LibWeb/CSS/Invalidation/LanguageInvalidator.h>
 #include <LibWeb/CSS/Invalidation/SlotInvalidator.h>
 #include <LibWeb/CSS/StyleEngineInput.h>
+#include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/MutationObserver.h>
 #include <LibWeb/DOM/Node.h>
@@ -16,6 +17,7 @@
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/Scripting/SimilarOriginWindowAgent.h>
+#include <LibWeb/Page/Page.h>
 
 namespace Web::DOM {
 
@@ -52,6 +54,10 @@ GC::Ptr<HTML::HTMLSlotElement> SlottableMixin::assigned_slot_internal() const
 
 void SlottableMixin::set_assigned_slot(GC::Ptr<HTML::HTMLSlotElement> assigned_slot)
 {
+    if (assigned_slot_internal() == assigned_slot)
+        return;
+    auto& node = slottable_as_node();
+    node.document().page().keyboard_scroll_dom_tree_changed(node);
     if (!assigned_slot) {
         if (auto* rare_data = slottable_rare_data())
             rare_data->assigned_slot = nullptr;

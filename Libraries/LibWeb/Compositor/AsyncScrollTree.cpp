@@ -393,6 +393,14 @@ Optional<AsyncScrollNodeID> AsyncScrollTree::scroll_node_for_keyboard_scroll(Asy
     return scrollable_ancestor_for_node(node->node_id, scroll_state_snapshot, delta);
 }
 
+Gfx::FloatPoint AsyncScrollTree::clamped_scroll_offset_for_node(AsyncScrollNodeID node_id, Gfx::FloatPoint scroll_offset) const
+{
+    auto const* node = scroll_node_for_id(node_id);
+    if (!node)
+        return scroll_offset;
+    return clamp_scroll_offset_to_node(*node, scroll_offset);
+}
+
 bool AsyncScrollTree::scroll_node_is_viewport(AsyncScrollNodeID node_id) const
 {
     auto const* node = scroll_node_for_id(node_id);

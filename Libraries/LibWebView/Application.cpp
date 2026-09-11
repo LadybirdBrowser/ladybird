@@ -1326,6 +1326,22 @@ bool Application::send_async_scroll_to_compositor(Web::Compositor::CompositorCon
     return result.release_value();
 }
 
+bool Application::handle_key_event_in_compositor(Web::Compositor::CompositorContextId context_id, Web::KeyEvent const& event)
+{
+    if (!can_send_compositor_process_ipc(m_compositor_client))
+        return false;
+    auto result = m_compositor_client->try_handle_key_event(context_id, event.clone_without_browser_data());
+    return !result.is_error() && result.release_value();
+}
+
+bool Application::dispatch_key_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::KeyEvent const& event)
+{
+    if (!can_send_compositor_process_ipc(m_compositor_client))
+        return false;
+    auto result = m_compositor_client->try_dispatch_key_event_to_web_content(context_id, event.clone_without_browser_data());
+    return !result.is_error() && result.release_value();
+}
+
 bool Application::handle_mouse_event_in_compositor(Web::Compositor::CompositorContextId context_id, Web::MouseEvent const& event)
 {
     if (!can_send_compositor_process_ipc(m_compositor_client))

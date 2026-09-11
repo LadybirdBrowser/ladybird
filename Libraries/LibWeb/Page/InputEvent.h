@@ -39,7 +39,25 @@ struct WEB_API KeyEvent {
     bool should_insert_text { false };
 
     OwnPtr<BrowserInputData> browser_data;
+    bool async_scroll_performed_default_action { false };
 };
+
+inline bool is_keyboard_scroll_key(UIEvents::KeyCode key, u32 modifiers)
+{
+    switch (key) {
+    case UIEvents::KeyCode::Key_Space:
+        return (modifiers & ~(UIEvents::Mod_Shift | UIEvents::Mod_Keypad)) == UIEvents::Mod_None;
+    case UIEvents::KeyCode::Key_PageUp:
+    case UIEvents::KeyCode::Key_PageDown:
+    case UIEvents::KeyCode::Key_Up:
+    case UIEvents::KeyCode::Key_Down:
+    case UIEvents::KeyCode::Key_Left:
+    case UIEvents::KeyCode::Key_Right:
+        return (modifiers & ~UIEvents::Mod_Keypad) == UIEvents::Mod_None;
+    default:
+        return false;
+    }
+}
 
 // Discrete wheel deltas come from stepwise input such as mouse wheel notches; precise wheel deltas come from input
 // that reports exact pixel distances, such as touchpad panning gestures.

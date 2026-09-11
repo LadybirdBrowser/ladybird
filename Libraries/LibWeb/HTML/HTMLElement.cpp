@@ -53,6 +53,7 @@
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/TextNode.h>
 #include <LibWeb/Namespace.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/PaintFacts.h>
 #include <LibWeb/Selection/Selection.h>
@@ -921,6 +922,7 @@ void HTMLElement::set_subtree_inertness(bool is_inert)
         update_inertness(*html_element);
         return TraversalDecision::Continue;
     });
+    document().page().keyboard_scroll_editability_changed(document());
 }
 
 WebIDL::ExceptionOr<void> HTMLElement::cloned(Web::DOM::Node& copy, bool clone_children) const

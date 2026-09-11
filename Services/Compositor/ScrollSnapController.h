@@ -44,9 +44,11 @@ public:
         Web::Compositor::ScrollAnimationKind animation_kind { Web::Compositor::ScrollAnimationKind::SmoothScroll };
     };
 
-    // A wheel delta that selected the snap position the scrolling box already rests at, or is already scrolling to,
-    // is consumed without disturbing where the box is going.
-    struct StepConsumed { };
+    // A step that selected the snap position the scrolling box already rests at, or is already scrolling to, is
+    // consumed without disturbing where the box is going. Keys can still advance the input for that scroll.
+    struct StepConsumed {
+        Optional<Web::Compositor::StartedUserScroll> updated_scroll;
+    };
 
     // What a scroll step over a snap container does with the snap position it selected; a step that selects none
     // scrolls the box by itself.
@@ -62,6 +64,7 @@ public:
     void did_start_snap_scroll(Web::Compositor::AsyncScrollNodeStableID, Web::Compositor::AsyncScrollOperationID, Web::CSSPixelPoint destination);
     void did_end_snap_scroll(Web::Compositor::AsyncScrollNodeStableID, Web::Compositor::AsyncScrollOperationID, Optional<Web::CSSPixelPoint> scroll_offset);
     bool is_snap_scroll(Web::Compositor::AsyncScrollNodeStableID, Web::Compositor::AsyncScrollOperationID) const;
+    Optional<Web::CSSPixelPoint> unsnapped_destination_for_snap_scroll(Web::Compositor::AsyncScrollNodeStableID, Web::Compositor::AsyncScrollOperationID) const;
 
     // Input that scrolls with a gesture reports its phases; the momentum of a flick and the end of a gesture snap
     // from what the gesture has done so far.

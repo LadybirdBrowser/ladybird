@@ -20,6 +20,7 @@
 #include <LibGfx/PaintStyle.h>
 #include <LibGfx/TextLayout.h>
 #include <LibIPC/Forward.h>
+#include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
@@ -103,6 +104,7 @@ public:
         bool has_blocking_wheel_event_region_covering_viewport { false };
         // Converts the compositor's device pixel offsets to the CSS pixels the snap geometry is in.
         double device_pixels_per_css_pixel { 1.0 };
+        Compositor::KeyboardScrollState keyboard_scroll_state {};
     };
 
     static NonnullRefPtr<DisplayList> create(AccumulatedVisualContextTree const& visual_context_tree)

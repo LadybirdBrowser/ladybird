@@ -141,6 +141,8 @@ public:
     Optional<u64> page_id_for_compositor_context_id(Web::Compositor::CompositorContextId) const;
     bool send_async_scroll_to_compositor(u64 page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::WheelDeltaPrecision, Web::ScrollGesturePhase);
     bool handle_mouse_event_in_compositor(u64 page_id, Web::MouseEvent const&);
+    bool handle_key_event_in_compositor(u64 page_id, Web::KeyEvent const&);
+    void dispatch_key_event_to_web_content(u64 page_id, Web::KeyEvent const&);
     bool handle_pinch_event_in_compositor(u64 page_id, Web::PinchEvent const&);
     void dispatch_mouse_event_to_web_content(u64 page_id, Web::MouseEvent const&);
     void notify_presented_bitmap_ready_to_paint(u64 page_id, i32 bitmap_id);

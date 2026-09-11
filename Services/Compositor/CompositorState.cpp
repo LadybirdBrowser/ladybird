@@ -174,12 +174,12 @@ void CompositorState::update_visual_context_tree(Web::Compositor::CompositorCont
     context->update_visual_context_tree(move(visual_context_tree), move(resource_transaction));
 }
 
-void CompositorState::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)
+void CompositorState::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot, Web::Compositor::KeyboardScrollState keyboard_scroll_state)
 {
     auto* context = context_if_present(context_id);
     VERIFY(context);
 
-    context->update_scroll_state(move(scroll_state_snapshot));
+    context->update_scroll_state(move(scroll_state_snapshot), move(keyboard_scroll_state));
 }
 
 CompositorState::VideoSinkState* CompositorState::video_sink_state(CompositorStateWebContentClient& client, Media::VideoSinkHandle handle)
@@ -416,6 +416,30 @@ void CompositorState::invalidate_wheel_event_listener_state(Web::Compositor::Com
     auto* context = context_if_present(context_id);
     VERIFY(context);
     context->invalidate_wheel_event_listener_state(generation);
+}
+
+void CompositorState::invalidate_keyboard_scroll_state(Web::Compositor::CompositorContextId context_id, u64 generation)
+{
+    if (auto* context = context_if_present(context_id))
+        context->invalidate_keyboard_scroll_state(generation);
+}
+
+bool CompositorState::handle_key_event(Web::Compositor::CompositorContextId context_id, Web::KeyEvent const& event)
+{
+    auto* context = context_if_present(context_id);
+    if (!context)
+        return false;
+    return apply_context_update_result(context_id, *context, context->handle_key_event(event));
+}
+
+bool CompositorState::dispatch_key_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::KeyEvent const& event)
+{
+    auto* context = context_if_present(context_id);
+    if (!context)
+        return false;
+    publish_pending_async_scroll_updates(context_id, *context);
+    context->dispatch_key_event_to_web_content(event);
+    return true;
 }
 
 bool CompositorState::handle_mouse_event(Web::Compositor::CompositorContextId context_id, Web::MouseEvent const& event)
