@@ -1378,7 +1378,7 @@ DEFINE_SLOW_PATH(asm_slow_path_set_global, SetGlobal)
 DEFINE_SLOW_PATH(asm_slow_path_concat_string, ConcatString)
 {
     auto string = ASM_TRY(*vm, pc, values.src.to_primitive_string(*vm));
-    values.dst = PrimitiveString::create(*vm, values.dst.as_string(), string);
+    values.dst = ASM_TRY(*vm, pc, PrimitiveString::create(*vm, values.dst.as_string(), string));
     return continue_after_slow_path(pc + sizeof(Op::ConcatString));
 }
 

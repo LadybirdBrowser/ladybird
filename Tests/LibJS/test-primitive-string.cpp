@@ -34,9 +34,9 @@ struct TestVM {
 
 NEVER_INLINE static void materialize_temporary_rope(VM& vm)
 {
-    auto rope = PrimitiveString::create(vm,
+    auto rope = MUST(PrimitiveString::create(vm,
         *PrimitiveString::create(vm, "hello"_utf16),
-        *PrimitiveString::create(vm, "world"_utf16));
+        *PrimitiveString::create(vm, "world"_utf16)));
     EXPECT(rope->utf16_string_view() == "helloworld"sv);
 }
 
@@ -74,9 +74,9 @@ TEST_CASE(primitive_string_substring_materializes_rope_ranges)
 {
     TestVM test_vm;
 
-    auto rope = PrimitiveString::create(*test_vm.vm,
+    auto rope = MUST(PrimitiveString::create(*test_vm.vm,
         *PrimitiveString::create(*test_vm.vm, "abcd"_utf16),
-        *PrimitiveString::create(*test_vm.vm, "efgh"_utf16));
+        *PrimitiveString::create(*test_vm.vm, "efgh"_utf16)));
     auto substring = PrimitiveString::create(*test_vm.vm, *rope, 3, 3);
 
     EXPECT_EQ(substring->length_in_utf16_code_units(), 3u);
@@ -87,9 +87,9 @@ TEST_CASE(primitive_string_concat_short_flat_strings_creates_flat_string)
 {
     TestVM test_vm;
 
-    auto concatenated = PrimitiveString::create(*test_vm.vm,
+    auto concatenated = MUST(PrimitiveString::create(*test_vm.vm,
         *PrimitiveString::create(*test_vm.vm, "foo"_utf16),
-        *PrimitiveString::create(*test_vm.vm, "bar"_utf16));
+        *PrimitiveString::create(*test_vm.vm, "bar"_utf16)));
 
     EXPECT(concatenated->has_utf16_string());
     EXPECT(concatenated->utf16_string_view() == "foobar"sv);
@@ -99,9 +99,9 @@ TEST_CASE(primitive_string_concat_longer_strings_stays_deferred)
 {
     TestVM test_vm;
 
-    auto concatenated = PrimitiveString::create(*test_vm.vm,
+    auto concatenated = MUST(PrimitiveString::create(*test_vm.vm,
         *PrimitiveString::create(*test_vm.vm, "abcd"_utf16),
-        *PrimitiveString::create(*test_vm.vm, "efgh"_utf16));
+        *PrimitiveString::create(*test_vm.vm, "efgh"_utf16)));
 
     EXPECT(!concatenated->has_utf16_string());
     EXPECT(concatenated->utf16_string_view() == "abcdefgh"sv);
@@ -145,7 +145,7 @@ TEST_CASE(primitive_string_concat_short_strings_handles_surrogate_boundaries)
     (void)leading_surrogate->utf16_string_view();
     (void)trailing_surrogate->utf16_string_view();
 
-    auto concatenated = PrimitiveString::create(*test_vm.vm, *leading_surrogate, *trailing_surrogate);
+    auto concatenated = MUST(PrimitiveString::create(*test_vm.vm, *leading_surrogate, *trailing_surrogate));
     EXPECT(concatenated->utf16_string_view() == "😀"sv);
 }
 
