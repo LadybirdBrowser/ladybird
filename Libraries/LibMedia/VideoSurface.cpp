@@ -12,9 +12,25 @@ namespace Media {
 
 #ifdef AK_OS_MACOS
 
-VideoSurface::~VideoSurface()
+VideoSurface::~VideoSurface() = default;
+
+bool VideoSurface::is_in_use() const
 {
-    m_io_surface.decrement_use_count();
+    return m_io_surface.is_in_use();
+}
+
+VideoSurfaceUse::VideoSurfaceUse(VideoSurface& surface)
+    : m_surface(surface)
+{
+    m_surface->m_io_surface.increment_use_count();
+}
+
+void VideoSurfaceUse::release()
+{
+    if (m_surface == nullptr)
+        return;
+    m_surface->m_io_surface.decrement_use_count();
+    m_surface = nullptr;
 }
 
 ErrorOr<NonnullRefPtr<VideoSurface>> VideoSurface::create(Core::IOSurfaceHandle io_surface)
@@ -32,7 +48,46 @@ ErrorOr<NonnullRefPtr<VideoSurface>> VideoSurface::create_from_mach_port(Core::M
 
 VideoSurface::~VideoSurface() = default;
 
+bool VideoSurface::is_in_use() const
+{
+    return false;
+}
+
+VideoSurfaceUse::VideoSurfaceUse(VideoSurface& surface)
+    : m_surface(surface)
+{
+}
+
+void VideoSurfaceUse::release()
+{
+    m_surface = nullptr;
+}
+
 #endif
+
+VideoSurfaceUse VideoSurface::begin_use()
+{
+    return VideoSurfaceUse { *this };
+}
+
+VideoSurfaceUse::VideoSurfaceUse(VideoSurfaceUse&& other)
+    : m_surface(move(other.m_surface))
+{
+}
+
+VideoSurfaceUse& VideoSurfaceUse::operator=(VideoSurfaceUse&& other)
+{
+    if (this != &other) {
+        release();
+        m_surface = move(other.m_surface);
+    }
+    return *this;
+}
+
+VideoSurfaceUse::~VideoSurfaceUse()
+{
+    release();
+}
 
 }
 

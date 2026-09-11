@@ -19,13 +19,20 @@
 
 namespace Media {
 
+class VideoSurfaceUse;
+
 // A frame's pixels in memory that a GPU can sample without a copy. Hardware decoders allocate these and recycle a
-// bounded set of them, so each carries the identity its recycling can be recognized by.
+// bounded set of them, so each carries the identity its recycling can be recognized by. Holding one keeps it alive
+// and keeps that identity unambiguous, which is what lets a recycled surface be recognized as the one it was;
+// begin_use() is what says its pixels are being read or written.
 class MEDIA_API VideoSurface : public AtomicRefCounted<VideoSurface> {
 public:
     ~VideoSurface();
 
     u32 id() const { return m_id; }
+
+    [[nodiscard]] VideoSurfaceUse begin_use();
+    bool is_in_use() const;
 
 #ifdef AK_OS_MACOS
     static ErrorOr<NonnullRefPtr<VideoSurface>> create(Core::IOSurfaceHandle);
@@ -35,18 +42,39 @@ public:
 #endif
 
 private:
+    friend class VideoSurfaceUse;
+
 #ifdef AK_OS_MACOS
     VideoSurface(Core::IOSurfaceHandle io_surface, u32 id)
         : m_io_surface(move(io_surface))
         , m_id(id)
     {
-        m_io_surface.increment_use_count();
     }
 
     Core::IOSurfaceHandle m_io_surface;
 #endif
 
     u32 m_id { 0 };
+};
+
+// Says that a surface's pixels are being read or written for as long as it exists. The decoder that allocated the
+// surface will not decode into it again while any of these are alive.
+class MEDIA_API VideoSurfaceUse {
+    AK_MAKE_NONCOPYABLE(VideoSurfaceUse);
+
+public:
+    VideoSurfaceUse() = default;
+    VideoSurfaceUse(VideoSurfaceUse&&);
+    VideoSurfaceUse& operator=(VideoSurfaceUse&&);
+    ~VideoSurfaceUse();
+
+private:
+    friend class VideoSurface;
+
+    explicit VideoSurfaceUse(VideoSurface&);
+    void release();
+
+    RefPtr<VideoSurface> m_surface;
 };
 
 }

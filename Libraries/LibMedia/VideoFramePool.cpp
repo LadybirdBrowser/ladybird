@@ -150,6 +150,8 @@ ErrorOr<NonnullRefPtr<PooledVideoFrameSlot>> VideoFramePool::try_adopt_acquired_
 void VideoFrameEntryLedger::publish_acquisition_while_locked(Slot& slot)
 {
     m_shed_storage_on_release = false;
+    if (slot.surface != nullptr)
+        slot.surface_use = slot.surface->begin_use();
     slot.hold_count = 1;
     slot.last_slot_acquisition_id++;
     slot_header(slot.buffer).slot_acquisition_id.store(slot.last_slot_acquisition_id);
@@ -235,6 +237,8 @@ void VideoFrameEntryLedger::release_hold(u32 slot_index)
         VERIFY(slot.hold_count > 0);
         if (--slot.hold_count > 0)
             return;
+        // The decoder is free to hand this surface back now, and the slot is still here to recognize it by.
+        slot.surface_use = {};
         if (m_shed_storage_on_release)
             drop_slot_storage_while_locked(slot);
     }
@@ -300,13 +304,13 @@ Optional<VideoFrameSurfacePool::AcquiredSlot> VideoFrameSurfacePool::try_acquire
         drop_slot_storage_while_locked(unused_slot);
         unused_slot.buffer = buffer_result.release_value();
         new (unused_slot.buffer.data<void>()) SlotHeader;
-        unused_slot.surface = surface;
         unused_slot.allocated_buffer_id++;
         slot_index = unused_slot_index;
     }
 
     auto& slot = m_slots[*slot_index];
     VERIFY(slot.hold_count == 0);
+    slot.surface = surface;
     publish_acquisition_while_locked(slot);
 
     return AcquiredSlot {
@@ -337,6 +341,10 @@ ResolvedVideoFrameSlot::ResolvedVideoFrameSlot(Core::AnonymousBuffer slot_buffer
     , m_slot_acquisition_id(slot_acquisition_id)
     , m_on_release(move(on_release))
 {
+    // The slot this was resolved from can be released from under it, so this is what keeps the pixels it reads from
+    // being decoded into again.
+    if (m_surface != nullptr)
+        m_surface_use = m_surface->begin_use();
 }
 
 ResolvedVideoFrameSlot::~ResolvedVideoFrameSlot()

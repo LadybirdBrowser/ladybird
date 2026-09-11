@@ -110,6 +110,11 @@ void IOSurfaceHandle::decrement_use_count()
     IOSurfaceDecrementUseCount(m_ref_wrapper->ref);
 }
 
+bool IOSurfaceHandle::is_in_use() const
+{
+    return IOSurfaceIsInUse(m_ref_wrapper->ref);
+}
+
 ErrorOr<IOSurfaceHandle> IOSurfaceHandle::from_mach_port(MachPort const& port)
 {
     // NOTE: This call does not destroy the port

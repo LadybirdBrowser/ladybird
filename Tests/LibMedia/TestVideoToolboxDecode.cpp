@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/HashMap.h>
 #include <AK/HashTable.h>
 #include <LibMedia/CodecParameters.h>
 #include <LibMedia/Codecs/AV1.h>
@@ -136,6 +137,39 @@ TEST_CASE(surfaces_are_not_reused_while_their_frames_are_held)
         held_surface_ids.set(surface->id());
         held_frames.append(move(frame));
     }
+}
+
+TEST_CASE(a_recycled_surface_does_not_cost_a_fresh_announcement)
+{
+    auto decoding = open_decoding("./vp9_in_webm.webm"sv, Media::CodecID::VP9);
+
+    // A consumer is told about a slot whenever its buffer generation moves, so this counts what it would hear.
+    HashTable<u32> distinct_surface_ids;
+    HashMap<u32, u64> announced_buffer_id_by_slot;
+    size_t announcements = 0;
+    size_t frame_count = 0;
+
+    while (frame_count < 24) {
+        auto frame_result = decoding.next_frame();
+        if (frame_result.is_error() && hardware_decoding_is_unavailable(frame_result.error()))
+            return;
+        auto frame = TRY_OR_FAIL(move(frame_result));
+        auto const* slot = frame->pool_slot();
+        EXPECT_NE(slot, nullptr);
+
+        auto announced = announced_buffer_id_by_slot.get(slot->slot_index());
+        if (!announced.has_value() || *announced != slot->allocated_buffer_id()) {
+            announcements++;
+            announced_buffer_id_by_slot.set(slot->slot_index(), slot->allocated_buffer_id());
+        }
+        distinct_surface_ids.set(frame->surface()->id());
+        frame_count++;
+    }
+
+    // Releasing a frame lets the media engine decode into its surface again, and the slot that kept hold of that
+    // surface recognizes it, so a surface costs one announcement however many frames it carries.
+    EXPECT(distinct_surface_ids.size() < frame_count);
+    EXPECT(announcements <= distinct_surface_ids.size());
 }
 
 TEST_CASE(storage_runs_out_while_every_frame_is_held)
