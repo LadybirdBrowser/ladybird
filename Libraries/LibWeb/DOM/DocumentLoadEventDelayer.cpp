@@ -45,7 +45,7 @@ DocumentLoadEventDelayer& DocumentLoadEventDelayer::operator=(DocumentLoadEventD
 
 DocumentLoadEventDelayer::~DocumentLoadEventDelayer()
 {
-    if (m_document) {
+    if (m_document && !m_document->has_been_destroyed()) {
         if (m_reason == DocumentLoadEventDelayerReason::StyleSheetRequest)
             m_document->decrement_number_of_pending_style_sheet_requests({});
         m_document->decrement_number_of_things_delaying_the_load_event({});
