@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .containing-block {
+        position: relative;
+        width: 100px;
+        height: 50px;
+        overflow: auto;
+    }
+    .absolute {
+        position: absolute;
+        left: 180px;
+        width: 20px;
+        height: 20px;
+    }
+    .sibling {
+        width: 40px;
+        height: 30px;
+    }
+</style>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        const fixture = document.getElementById("fixture");
+        const results = [];
+
+        function runRemovalCase(name, markup, selector, expectFastPath) {
+            fixture.innerHTML = markup;
+            document.body.offsetHeight;
+
+            const parent = fixture.querySelector(".parent");
+            const target = fixture.querySelector(selector);
+            const sibling = fixture.querySelector(".sibling");
+            const parentLayoutNode = internals.layoutNodeIdentity(parent);
+            const siblingLayoutNode = internals.layoutNodeIdentity(sibling);
+            const treeBuildsBefore = internals.layoutTreeBuildStats().builds;
+
+            target.remove();
+            document.body.offsetHeight;
+
+            const treeBuilds = internals.layoutTreeBuildStats().builds - treeBuildsBefore;
+            results.push(`${name}: ${expectFastPath ? "fast" : "fallback"}=${expectFastPath ? treeBuilds === 0 : treeBuilds > 0}`);
+            results.push(`${name}: parent-identity-as-expected=${(internals.layoutNodeIdentity(parent) === parentLayoutNode) === expectFastPath}`);
+            results.push(`${name}: sibling-identity-as-expected=${(internals.layoutNodeIdentity(sibling) === siblingLayoutNode) === expectFastPath}`);
+            results.push(`${name}: target-detached=${internals.layoutNodeIdentity(target) === 0}`);
+            results.push(`${name}: tree-matches=${internals.compareLayoutTreeWithFullRebuild().matches}`);
+        }
+
+        fixture.innerHTML = `
+            <div class="parent containing-block">
+                <div class="absolute"></div>
+                <div class="sibling"></div>
+            </div>`;
+        document.body.offsetHeight;
+
+        const container = fixture.querySelector(".parent");
+        const absolute = fixture.querySelector(".absolute");
+        const sibling = fixture.querySelector(".sibling");
+        const containerLayoutNode = internals.layoutNodeIdentity(container);
+        const siblingLayoutNode = internals.layoutNodeIdentity(sibling);
+        const treeBuildsBefore = internals.layoutTreeBuildStats().builds;
+        const scrollWidthBefore = container.scrollWidth;
+
+        absolute.remove();
+        document.body.offsetHeight;
+
+        const scrollWidthAfter = container.scrollWidth;
+        const treeBuilds = internals.layoutTreeBuildStats().builds - treeBuildsBefore;
+        results.push(`overflow: width-updated=${scrollWidthBefore === 200 && scrollWidthAfter === 100}`);
+        results.push(`overflow: fast=${treeBuilds === 0}`);
+        results.push(`overflow: container-preserved=${internals.layoutNodeIdentity(container) === containerLayoutNode}`);
+        results.push(`overflow: sibling-preserved=${internals.layoutNodeIdentity(sibling) === siblingLayoutNode}`);
+        results.push(`overflow: target-detached=${internals.layoutNodeIdentity(absolute) === 0}`);
+        results.push(`overflow: tree-matches=${internals.compareLayoutTreeWithFullRebuild().matches}`);
+
+        runRemovalCase("block", '<div class="parent containing-block"><span>inline</span><div class="absolute"></div><span class="sibling">inline</span></div>', ".absolute", true);
+        runRemovalCase("flex", '<div class="parent containing-block" style="display:flex"><div class="absolute"></div><div class="sibling"></div></div>', ".absolute", true);
+        runRemovalCase("grid", '<div class="parent containing-block" style="display:grid"><div class="absolute"></div><div class="sibling"></div></div>', ".absolute", true);
+        runRemovalCase("ancestor-containing-block", '<div class="containing-block"><div class="parent"><div class="absolute"></div><div class="sibling"></div></div></div>', ".absolute", false);
+        runRemovalCase("fixed", '<div class="parent containing-block"><div class="absolute" style="position:fixed"></div><div class="sibling"></div></div>', ".absolute", false);
+        runRemovalCase("float", '<div class="parent containing-block"><div class="absolute" style="position:static;float:left"></div><div class="sibling"></div></div>', ".absolute", false);
+        runRemovalCase("generated-content", '<div class="parent containing-block"><div class="absolute" style="counter-increment:test"></div><div class="sibling"></div></div>', ".absolute", false);
+
+        for (const result of results)
+            println(result);
+    });
+</script>
