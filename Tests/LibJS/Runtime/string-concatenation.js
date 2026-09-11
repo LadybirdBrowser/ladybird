@@ -5,6 +5,28 @@ test("adding strings", () => {
     expect("ab" + "cd").toBe("abcd");
 });
 
+test("oversized deferred concatenations throw", () => {
+    let string = "abcdefgh";
+    for (let i = 0; i < 28; ++i) string = string + string;
+    expect(string.length).toBe(2 ** 31);
+
+    expect(() => string + string).toThrowWithMessage(RangeError, "Invalid string length");
+    expect(() => string.concat(string)).toThrowWithMessage(RangeError, "Invalid string length");
+    expect(() => `${string}${string}`).toThrowWithMessage(RangeError, "Invalid string length");
+
+    let suffix = "ab";
+    for (let i = 0; i < 30; ++i) {
+        string += suffix;
+        suffix += suffix;
+    }
+    expect(string.length).toBe(2 ** 32 - 2);
+    expect((string + "").length).toBe(2 ** 32 - 2);
+    expect(("" + string).length).toBe(2 ** 32 - 2);
+    expect(() => string + "a").toThrowWithMessage(RangeError, "Invalid string length");
+    expect(() => "a" + string).toThrowWithMessage(RangeError, "Invalid string length");
+    expect(() => string.concat("a")).toThrowWithMessage(RangeError, "Invalid string length");
+});
+
 test("adding strings with non-strings", () => {
     expect("a" + 1).toBe("a1");
     expect(1 + "a").toBe("1a");

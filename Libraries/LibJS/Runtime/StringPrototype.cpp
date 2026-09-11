@@ -338,7 +338,7 @@ JS_DEFINE_NATIVE_FUNCTION(StringPrototype::concat)
         auto next_string = TRY(vm.argument(i).to_primitive_string(vm));
 
         // b. Set R to the string-concatenation of R and nextString.
-        result = PrimitiveString::create(vm, *result, *next_string);
+        result = TRY(PrimitiveString::create(vm, *result, *next_string));
     }
 
     // 5. Return R.

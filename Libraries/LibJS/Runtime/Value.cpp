@@ -1801,7 +1801,7 @@ ThrowCompletionOr<Value> add(VM& vm, Value lhs, Value rhs)
         auto rhs_string = TRY(rhs_primitive.to_primitive_string(vm));
 
         // iii. Return the string-concatenation of lstr and rstr.
-        return PrimitiveString::create(vm, lhs_string, rhs_string);
+        return TRY(PrimitiveString::create(vm, lhs_string, rhs_string));
     }
 
     // d. Set lval to lprim.

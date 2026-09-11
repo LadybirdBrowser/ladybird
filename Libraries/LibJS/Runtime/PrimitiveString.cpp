@@ -125,8 +125,11 @@ GC::Ref<PrimitiveString> PrimitiveString::create_from_unsigned_integer(VM& vm, u
     return *cache_entry.string;
 }
 
-GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, PrimitiveString& lhs, PrimitiveString& rhs)
+ThrowCompletionOr<GC::Ref<PrimitiveString>> PrimitiveString::create(VM& vm, PrimitiveString& lhs, PrimitiveString& rhs)
 {
+    if (rhs.length_in_utf16_code_units() >= NumericLimits<u32>::max() - lhs.length_in_utf16_code_units())
+        return vm.throw_completion<RangeError>(ErrorType::InvalidLength, "string");
+
     // We're here to concatenate two strings into a new rope string. However, if any of them are empty, no rope is required.
     bool lhs_empty = lhs.is_empty();
     bool rhs_empty = rhs.is_empty();
@@ -171,8 +174,16 @@ GC::Ref<PrimitiveString> PrimitiveString::create(VM& vm, PrimitiveString const& 
     return vm.heap().allocate<Substring>(const_cast<PrimitiveString&>(string), code_unit_offset, code_unit_length);
 }
 
+PrimitiveString::PrimitiveString(DeferredKind deferred_kind, size_t length_in_utf16_code_units)
+    : m_deferred_kind(deferred_kind)
+    , m_length_in_utf16_code_units(static_cast<u32>(length_in_utf16_code_units))
+{
+    VERIFY(length_in_utf16_code_units < NumericLimits<u32>::max());
+}
+
 PrimitiveString::PrimitiveString(Utf16String string)
-    : m_utf16_string(move(string))
+    : m_length_in_utf16_code_units(static_cast<u32>(string.length_in_code_units()))
+    , m_utf16_string(move(string))
 {
 }
 
@@ -202,20 +213,6 @@ void PrimitiveString::finalize()
     auto& cache_slot = string_cache[fly_string_cache_hash(fly_string) & (string_cache.size() - 1)];
     if (cache_slot.ptr() == this)
         cache_slot = nullptr;
-}
-
-bool PrimitiveString::is_empty() const
-{
-    if (m_deferred_kind == DeferredKind::Rope) {
-        // NOTE: We never make an empty rope string.
-        return false;
-    }
-    if (m_deferred_kind == DeferredKind::Substring)
-        return static_cast<Substring const&>(*this).m_code_unit_length == 0;
-
-    if (has_utf16_string())
-        return m_utf16_string->is_empty();
-    VERIFY_NOT_REACHED();
 }
 
 Utf16String PrimitiveString::utf16_string() const
@@ -257,20 +254,11 @@ Utf16View PrimitiveString::utf16_string_view() const
     if (!has_utf16_string()) {
         if (m_deferred_kind == DeferredKind::Substring) {
             auto const& substring = static_cast<Substring const&>(*this);
-            return substring.m_source_string->utf16_string_view().substring_view(substring.m_code_unit_offset, substring.m_code_unit_length);
+            return substring.m_source_string->utf16_string_view().substring_view(substring.m_code_unit_offset, m_length_in_utf16_code_units);
         }
         (void)utf16_string();
     }
     return *m_utf16_string;
-}
-
-size_t PrimitiveString::length_in_utf16_code_units() const
-{
-    if (m_deferred_kind == DeferredKind::Rope)
-        return static_cast<RopeString const&>(*this).m_length_in_utf16_code_units;
-    if (m_deferred_kind == DeferredKind::Substring)
-        return static_cast<Substring const&>(*this).m_code_unit_length;
-    return utf16_string_view().length_in_code_units();
 }
 
 bool PrimitiveString::operator==(PrimitiveString const& other) const
@@ -358,10 +346,9 @@ void RopeString::resolve() const
 }
 
 RopeString::RopeString(GC::Ref<PrimitiveString> lhs, GC::Ref<PrimitiveString> rhs)
-    : PrimitiveString(DeferredKind::Rope)
+    : PrimitiveString(DeferredKind::Rope, lhs->length_in_utf16_code_units() + rhs->length_in_utf16_code_units())
     , m_lhs(lhs)
     , m_rhs(rhs)
-    , m_length_in_utf16_code_units(lhs->length_in_utf16_code_units() + rhs->length_in_utf16_code_units())
 {
 }
 
@@ -376,7 +363,7 @@ void RopeString::visit_edges(Cell::Visitor& visitor)
 
 void Substring::resolve() const
 {
-    auto source_view = m_source_string->utf16_string_view().substring_view(m_code_unit_offset, m_code_unit_length);
+    auto source_view = m_source_string->utf16_string_view().substring_view(m_code_unit_offset, m_length_in_utf16_code_units);
 
     m_utf16_string = Utf16String::from_utf16(source_view);
     m_deferred_kind = DeferredKind::None;
@@ -384,10 +371,9 @@ void Substring::resolve() const
 }
 
 Substring::Substring(GC::Ref<PrimitiveString> source_string, size_t code_unit_offset, size_t code_unit_length)
-    : PrimitiveString(DeferredKind::Substring)
+    : PrimitiveString(DeferredKind::Substring, code_unit_length)
     , m_source_string(source_string)
     , m_code_unit_offset(code_unit_offset)
-    , m_code_unit_length(code_unit_length)
 {
 }
 
