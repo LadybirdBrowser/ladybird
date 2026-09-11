@@ -213,10 +213,13 @@ private:
     void store_pending_async_scroll_offsets(Vector<Web::Compositor::AsyncScrollOffset> const&, Optional<Web::Compositor::AsyncScrollOperationID> = {});
     struct WheelScrollOutcome {
         Optional<Web::Compositor::AsyncScrollOperationID> operation_id;
-        Vector<Web::Compositor::AsyncScrollOffset> scroll_offsets;
-        bool started_snap_scroll { false };
+        // The viewport to present, when the scroll moved a scrolling box or started a snap scroll of one.
+        Optional<Gfx::IntRect> viewport_rect_to_present;
     };
-    WheelScrollOutcome perform_wheel_scroll_of_node(Web::Compositor::AsyncScrollNodeID, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::Compositor::AsyncScrollOperationTracking, MonotonicTime now);
+    WheelScrollOutcome perform_wheel_scroll_of_node(Web::Compositor::AsyncScrollNodeID, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, Web::Compositor::AsyncScrollOperationTracking, Gfx::IntRect viewport_rect, MonotonicTime now);
+    Gfx::IntRect note_async_scrolling_viewport_rect(Gfx::IntRect viewport_rect, Vector<Web::Compositor::AsyncScrollOffset> const&);
+    Optional<Web::Compositor::AsyncScrollOperationID> snap_at_gesture_end(MonotonicTime now);
+    Web::Compositor::AsyncScrollOperationID start_snap_scroll(Web::Compositor::AsyncScrollNodeID, ScrollSnapController::SnapScrollStart&&, bool settles_gesture, MonotonicTime now);
     void retire_smooth_scroll_animation(Web::Compositor::AsyncScrollNodeStableID);
     void cancel_smooth_scroll_taken_over_by_user_input(Web::Compositor::AsyncScrollNodeID);
     void note_user_scroll_gesture_end_if_drag_ended(bool was_dragging_viewport_scrollbar);

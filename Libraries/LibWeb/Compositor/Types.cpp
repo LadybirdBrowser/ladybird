@@ -48,21 +48,6 @@ ErrorOr<Web::Compositor::AsyncScrollOffset> decode(Decoder& decoder)
     };
 }
 
-// CSS pixel offsets travel as their raw fixed-point values, so that a destination is exactly the one selected.
-static ErrorOr<void> encode_css_pixel_point(Encoder& encoder, Web::CSSPixelPoint point)
-{
-    TRY(encoder.encode(point.x().raw_value()));
-    TRY(encoder.encode(point.y().raw_value()));
-    return {};
-}
-
-static ErrorOr<Web::CSSPixelPoint> decode_css_pixel_point(Decoder& decoder)
-{
-    auto x = TRY(decoder.decode<i32>());
-    auto y = TRY(decoder.decode<i32>());
-    return Web::CSSPixelPoint { Web::CSSPixels::from_raw(x), Web::CSSPixels::from_raw(y) };
-}
-
 template<>
 ErrorOr<void> encode(Encoder& encoder, Web::Compositor::SnapAreaIdentity const& identity)
 {
@@ -80,18 +65,45 @@ ErrorOr<Web::Compositor::SnapAreaIdentity> decode(Decoder& decoder)
     };
 }
 
+// NB: CSS pixel points travel as their raw fixed-point values, so that a destination is exactly the one selected.
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Compositor::SnapDestination const& destination)
+{
+    TRY(encoder.encode(destination.position));
+    TRY(encoder.encode(destination.snapped_x));
+    TRY(encoder.encode(destination.snapped_y));
+    TRY(encoder.encode(destination.evaluated_x));
+    TRY(encoder.encode(destination.evaluated_y));
+    TRY(encoder.encode(destination.snapped_areas.x));
+    TRY(encoder.encode(destination.snapped_areas.y));
+    return {};
+}
+
+template<>
+ErrorOr<Web::Compositor::SnapDestination> decode(Decoder& decoder)
+{
+    return Web::Compositor::SnapDestination {
+        .position = TRY(decoder.decode<Web::CSSPixelPoint>()),
+        .snapped_x = TRY(decoder.decode<bool>()),
+        .snapped_y = TRY(decoder.decode<bool>()),
+        .evaluated_x = TRY(decoder.decode<bool>()),
+        .evaluated_y = TRY(decoder.decode<bool>()),
+        .snapped_areas = {
+            .x = TRY(decoder.decode<Vector<Web::Compositor::SnapAreaIdentity>>()),
+            .y = TRY(decoder.decode<Vector<Web::Compositor::SnapAreaIdentity>>()),
+        },
+    };
+}
+
 template<>
 ErrorOr<void> encode(Encoder& encoder, Web::Compositor::StartedSnapScroll const& started_snap_scroll)
 {
     TRY(encoder.encode(started_snap_scroll.stable_node_id));
     TRY(encoder.encode(started_snap_scroll.operation_id));
-    TRY(encode_css_pixel_point(encoder, started_snap_scroll.initial_scroll_offset));
-    TRY(encode_css_pixel_point(encoder, started_snap_scroll.destination_scroll_offset));
-    TRY(encode_css_pixel_point(encoder, started_snap_scroll.unsnapped_scroll_destination));
-    TRY(encoder.encode(started_snap_scroll.evaluated_x));
-    TRY(encoder.encode(started_snap_scroll.evaluated_y));
-    TRY(encoder.encode(started_snap_scroll.snapped_areas_x));
-    TRY(encoder.encode(started_snap_scroll.snapped_areas_y));
+    TRY(encoder.encode(started_snap_scroll.initial_scroll_offset));
+    TRY(encoder.encode(started_snap_scroll.unsnapped_scroll_destination));
+    TRY(encoder.encode(started_snap_scroll.selection));
+    TRY(encoder.encode(started_snap_scroll.settles_gesture));
     return {};
 }
 
@@ -101,13 +113,10 @@ ErrorOr<Web::Compositor::StartedSnapScroll> decode(Decoder& decoder)
     return Web::Compositor::StartedSnapScroll {
         .stable_node_id = TRY(decoder.decode<Web::Compositor::AsyncScrollNodeStableID>()),
         .operation_id = TRY(decoder.decode<Web::Compositor::AsyncScrollOperationID>()),
-        .initial_scroll_offset = TRY(decode_css_pixel_point(decoder)),
-        .destination_scroll_offset = TRY(decode_css_pixel_point(decoder)),
-        .unsnapped_scroll_destination = TRY(decode_css_pixel_point(decoder)),
-        .evaluated_x = TRY(decoder.decode<bool>()),
-        .evaluated_y = TRY(decoder.decode<bool>()),
-        .snapped_areas_x = TRY(decoder.decode<Vector<Web::Compositor::SnapAreaIdentity>>()),
-        .snapped_areas_y = TRY(decoder.decode<Vector<Web::Compositor::SnapAreaIdentity>>()),
+        .initial_scroll_offset = TRY(decoder.decode<Web::CSSPixelPoint>()),
+        .unsnapped_scroll_destination = TRY(decoder.decode<Web::CSSPixelPoint>()),
+        .selection = TRY(decoder.decode<Web::Compositor::SnapDestination>()),
+        .settles_gesture = TRY(decoder.decode<bool>()),
     };
 }
 

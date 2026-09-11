@@ -4559,13 +4559,8 @@ void LocalNavigable::wait_for_async_scroll_operation(Compositor::AsyncScrollOper
         return;
     }
 
-    m_pending_async_scroll_operations.append(PendingAsyncScrollOperation {
-        .operation_id = operation_id,
-        .promises = { promise },
-        .stable_node_id = {},
-        .initial_scroll_offset = {},
-        .destination_scroll_offset = {},
-    });
+    // The compositor may have reported the scroll it started for this operation already, which registered it here.
+    ensure_pending_async_scroll_operation(operation_id).promises.append(promise);
 }
 
 void LocalNavigable::resolve_async_scroll_operation(Compositor::AsyncScrollOperationID operation_id, AsyncScrollCompletion completion)
@@ -5343,7 +5338,7 @@ void LocalNavigable::adopt_started_snap_scroll(DOM::Document& document, Composit
     auto& pending_operation = ensure_pending_async_scroll_operation(started_snap_scroll.operation_id);
     pending_operation.stable_node_id = stable_node_id;
     pending_operation.initial_scroll_offset = started_snap_scroll.initial_scroll_offset;
-    pending_operation.destination_scroll_offset = started_snap_scroll.destination_scroll_offset;
+    pending_operation.destination_scroll_offset = started_snap_scroll.selection.position;
     pending_operation.trigger = ScrollTrigger::UserInput;
 
     if (replaced_by_programmatic_scroll)
@@ -5353,15 +5348,14 @@ void LocalNavigable::adopt_started_snap_scroll(DOM::Document& document, Composit
     if (!target)
         return;
 
-    Painting::SnapDestination snap_destination {
-        .position = started_snap_scroll.destination_scroll_offset,
-        .snapped_x = !started_snap_scroll.snapped_areas_x.is_empty(),
-        .snapped_y = !started_snap_scroll.snapped_areas_y.is_empty(),
-        .evaluated_x = started_snap_scroll.evaluated_x,
-        .evaluated_y = started_snap_scroll.evaluated_y,
-        .snapped_areas = { started_snap_scroll.snapped_areas_x, started_snap_scroll.snapped_areas_y },
-    };
+    auto snap_destination = started_snap_scroll.selection;
     record_snapped_areas_of_scroll_container(document, stable_node_id, snap_destination);
+
+    // A snap scroll that settles the gesture ends it: the scroll's completion delivers the scrollend event.
+    if (started_snap_scroll.settles_gesture) {
+        m_pending_user_scrollend_targets.remove_all_matching([&](auto const& entry) { return entry.target == target && entry.stable_node_id == stable_node_id; });
+        return;
+    }
 
     // The gesture the step belongs to owes the scrollend event, and its next step travels on from the offset its
     // steps have asked for.

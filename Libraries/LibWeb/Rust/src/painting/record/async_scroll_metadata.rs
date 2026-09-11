@@ -13,6 +13,7 @@ use crate::painting::chrome_geometry::{
 };
 use crate::painting::display_list::commands::*;
 use crate::painting::ffi::ScrollDirection;
+use crate::painting::host::FfiSnapContainerGeometry;
 use crate::painting::paintable_geometry;
 use crate::painting::record::PaintRecorder;
 use crate::painting::scroll_snap;
@@ -216,7 +217,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
             node_identity != 0,
             "a scroll node's identity is resolved by the visual context update"
         );
-        let snap_axes = scroll_snap::snap_axes_of_scroll_container(self.layout_arena, paintable);
         let parent_scroll_node_index = match self.nearest_scrollable_ancestor(paintable) {
             Some(ancestor) => self.data(ancestor).own_scroll_node_index,
             None => VISUAL_VIEWPORT_NODE_INDEX,
@@ -251,21 +251,16 @@ impl<O: Observer> PaintRecorder<'_, O> {
             is_viewport,
             can_be_wheel_scrolled_horizontally: hit_test_facts.could_be_scrolled_horizontally,
             can_be_wheel_scrolled_vertically: hit_test_facts.could_be_scrolled_vertically,
-            snaps_scroll_position_horizontally: snap_axes.x,
-            snaps_scroll_position_vertically: snap_axes.y,
         });
-        if snap_axes.x || snap_axes.y {
-            self.record_snap_geometry(paintable);
+        if let Some(geometry) = scroll_snap::snap_container_geometry(self.layout_arena, paintable) {
+            self.record_snap_geometry(paintable, geometry);
         }
     }
 
     // The compositor selects snap positions for the scrolls it performs from the same geometry the
     // main thread selects from, recorded with the scroll node so that it is as current as the rest
     // of the display list.
-    fn record_snap_geometry(&mut self, paintable: NodeSlotId) {
-        let Some(geometry) = scroll_snap::snap_container_geometry(self.layout_arena, paintable) else {
-            return;
-        };
+    fn record_snap_geometry(&mut self, paintable: NodeSlotId, geometry: FfiSnapContainerGeometry) {
         let document_id = UniqueNodeId(self.inputs.document_id);
         let scroll_node_index = self.data(paintable).own_scroll_node_index;
         self.recorder.compositor_snap_container(CompositorSnapContainer {
