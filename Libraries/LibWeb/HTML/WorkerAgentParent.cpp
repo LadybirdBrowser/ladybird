@@ -68,7 +68,7 @@ WorkerAgentParent::WorkerAgentParent(URL::URL url, WorkerOptions const& options,
 void WorkerAgentParent::start()
 {
     auto& realm = m_outside_settings->realm();
-    m_outside_settings->keep_worker_agent_alive_while_starting(*this);
+    m_outside_settings->add_owned_worker_agent(*this);
 
     auto* global_scope = window_or_worker_global_scope_from_global_object(realm.global_object());
     VERIFY(global_scope);
@@ -119,21 +119,13 @@ void WorkerAgentParent::start()
     m_agent_id = Bindings::principal_host_defined_page(realm).client().start_worker_agent(move(request));
 }
 
-void WorkerAgentParent::did_finish_loading_worker_script(WorkerAgentOwnerToken owner_token)
-{
-    auto parent = worker_agent_parents().find(owner_token);
-    if (parent == worker_agent_parents().end())
-        return;
-    parent->value->release_startup_keep_alive();
-}
-
 void WorkerAgentParent::did_fail_loading_worker_script(WorkerAgentOwnerToken owner_token)
 {
     auto parent = worker_agent_parents().find(owner_token);
     if (parent == worker_agent_parents().end())
         return;
     parent->value->dispatch_error_event();
-    parent->value->release_startup_keep_alive();
+    parent->value->forget_agent();
 }
 
 void WorkerAgentParent::did_report_worker_exception(WorkerAgentOwnerToken owner_token, Utf16String message, Utf16String filename, u32 lineno, u32 colno)
@@ -149,7 +141,7 @@ void WorkerAgentParent::did_close_worker(WorkerAgentOwnerToken owner_token)
     auto parent = worker_agent_parents().find(owner_token);
     if (parent == worker_agent_parents().end())
         return;
-    parent->value->release_startup_keep_alive();
+    parent->value->forget_agent();
 }
 
 void WorkerAgentParent::did_worker_agent_die(WorkerAgentOwnerToken owner_token)
@@ -158,7 +150,7 @@ void WorkerAgentParent::did_worker_agent_die(WorkerAgentOwnerToken owner_token)
     if (parent == worker_agent_parents().end())
         return;
     parent->value->dispatch_error_event();
-    parent->value->release_startup_keep_alive();
+    parent->value->forget_agent();
 }
 
 void WorkerAgentParent::terminate()
@@ -167,15 +159,16 @@ void WorkerAgentParent::terminate()
         return;
 
     worker_agent_parents().remove(m_owner_token);
-    release_startup_keep_alive();
 
-    auto agent_id = exchange(m_agent_id, 0);
+    auto agent_id = m_agent_id;
+    forget_agent();
     Bindings::principal_host_defined_page(m_outside_settings->realm()).client().close_worker_agent(agent_id, m_owner_token);
 }
 
-void WorkerAgentParent::release_startup_keep_alive()
+void WorkerAgentParent::forget_agent()
 {
-    m_outside_settings->release_worker_agent_from_startup_keep_alive(*this);
+    m_agent_id = 0;
+    m_outside_settings->remove_owned_worker_agent(*this);
 }
 
 void WorkerAgentParent::dispatch_error_event()
@@ -232,8 +225,8 @@ void WorkerAgentParent::finalize()
 
     worker_agent_parents().remove(m_owner_token);
 
-    if (m_agent_id != 0)
-        Bindings::principal_host_defined_page(m_outside_settings->realm()).client().close_worker_agent(m_agent_id, m_owner_token);
+    if (!heap().is_collecting_everything())
+        VERIFY(m_agent_id == 0);
 }
 
 void WorkerAgentParent::visit_edges(Cell::Visitor& visitor)

@@ -147,8 +147,9 @@ public:
 
     virtual void discard_environment() override;
 
-    void keep_worker_agent_alive_while_starting(WorkerAgentParent&);
-    void release_worker_agent_from_startup_keep_alive(WorkerAgentParent&);
+    void add_owned_worker_agent(WorkerAgentParent&);
+    void remove_owned_worker_agent(WorkerAgentParent&);
+    void release_owned_worker_agents();
 
     // FIXME: This method below is from HighResolutionTime spec in section 3. Section for Specification Authors.
     // The following other methods are currently not supported:
@@ -205,7 +206,7 @@ private:
     // A service worker client has an associated discarded flag. It is initially unset.
     bool m_discarded { false };
 
-    Vector<GC::Ref<WorkerAgentParent>> m_worker_agents_to_keep_alive_while_starting;
+    Vector<GC::Ref<WorkerAgentParent>> m_owned_worker_agents;
 };
 
 RunScriptDecision can_run_script(EnvironmentSettingsObject const&);

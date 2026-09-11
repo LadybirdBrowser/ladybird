@@ -2807,11 +2807,6 @@ void ConnectionFromClient::broadcast_channel_message(Web::HTML::BroadcastChannel
     Web::HTML::BroadcastChannel::deliver_message_locally(message);
 }
 
-void ConnectionFromClient::did_worker_agent_finish_loading_script(Web::HTML::WorkerAgentOwnerToken owner_token)
-{
-    Web::HTML::WorkerAgentParent::did_finish_loading_worker_script(owner_token);
-}
-
 void ConnectionFromClient::did_worker_agent_fail_loading_script(Web::HTML::WorkerAgentOwnerToken owner_token)
 {
     Web::HTML::WorkerAgentParent::did_fail_loading_worker_script(owner_token);

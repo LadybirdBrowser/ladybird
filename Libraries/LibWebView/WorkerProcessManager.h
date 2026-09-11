@@ -83,7 +83,6 @@ private:
 
     Web::HTML::WorkerAgentId start_worker_agent(Owner, Web::HTML::WorkerAgentStartRequest, IsPrivate);
 
-    void notify_worker_script_load_success(Owner const&);
     void notify_worker_script_load_failure(Owner const&);
     void notify_worker_exception(Owner const&, Utf16String const& message, Utf16String const& filename, u32 lineno, u32 colno);
     void notify_worker_close(Owner const&);
@@ -97,7 +96,11 @@ private:
     void worker_did_request_file(Web::HTML::WorkerAgentId, ByteString path, i32 request_id);
     void worker_did_post_broadcast_channel_message(Web::HTML::WorkerAgentId, Web::HTML::BroadcastChannelMessage);
 
-    void remove_agent(Web::HTML::WorkerAgentId);
+    enum class AgentRemovalCause {
+        OwnerSetEmptied,
+        AgentTerminated,
+    };
+    void remove_agent(Web::HTML::WorkerAgentId, AgentRemovalCause);
     void remove_owner(Web::HTML::WorkerAgentId, Owner const& identity);
 
     struct WorkerAgent {

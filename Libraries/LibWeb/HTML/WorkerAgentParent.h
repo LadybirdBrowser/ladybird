@@ -25,7 +25,6 @@ public:
         GC::Ptr<MessagePort> outside_port, GC::Ref<EnvironmentSettingsObject> outside_settings,
         GC::Ref<DOM::EventTarget> worker_event_target, AgentType);
 
-    static WEB_API void did_finish_loading_worker_script(WorkerAgentOwnerToken);
     static WEB_API void did_fail_loading_worker_script(WorkerAgentOwnerToken);
     static WEB_API void did_report_worker_exception(WorkerAgentOwnerToken, Utf16String message, Utf16String filename, u32 lineno, u32 colno);
     static WEB_API void did_close_worker(WorkerAgentOwnerToken);
@@ -43,7 +42,7 @@ private:
         AgentType);
 
     void start();
-    void release_startup_keep_alive();
+    void forget_agent();
     void dispatch_error_event();
     void dispatch_worker_exception(Utf16String message, Utf16String filename, u32 lineno, u32 colno);
 
