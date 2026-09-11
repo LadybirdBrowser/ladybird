@@ -203,7 +203,7 @@ void SVGUseElement::process_the_url(Optional<Utf16String> const& href)
 
 bool SVGUseElement::is_referenced_element_same_document() const
 {
-    return m_href->equals(document().url(), URL::ExcludeFragment::Yes);
+    return m_href->equals(document().base_url(), URL::ExcludeFragment::Yes);
 }
 
 Gfx::AffineTransform SVGUseElement::additional_element_transform() const
