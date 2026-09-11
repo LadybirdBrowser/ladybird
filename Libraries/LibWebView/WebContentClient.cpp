@@ -568,6 +568,17 @@ bool WebContentClient::send_async_scroll_to_compositor(u64 page_id, Gfx::FloatPo
     return handled;
 }
 
+bool WebContentClient::handle_key_event_in_compositor(u64 page_id, Web::KeyEvent const& event)
+{
+    return Application::the().handle_key_event_in_compositor(compositor_context_id_for_page(page_id), event);
+}
+
+void WebContentClient::dispatch_key_event_to_web_content(u64 page_id, Web::KeyEvent const& event)
+{
+    if (!Application::the().dispatch_key_event_to_web_content(compositor_context_id_for_page(page_id), event))
+        async_key_event(page_id, event.clone_without_browser_data());
+}
+
 bool WebContentClient::handle_mouse_event_in_compositor(u64 page_id, Web::MouseEvent const& event)
 {
     if (auto target = SiteIsolationManager::the().remote_child_frame_input_target_at(*this, page_id, event.position); target.has_value()) {

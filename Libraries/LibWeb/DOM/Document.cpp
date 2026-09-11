@@ -3794,6 +3794,7 @@ void Document::set_focused_area(GC::Ptr<Node> node, InvalidateFocusPseudoClasses
     if (m_focused_area == node)
         return;
 
+    page().invalidate_compositor_keyboard_scroll_state_for_document(*this);
     GC::Ptr old_focused_area = m_focused_area;
 
     if (auto* old_focused_element = as_if<Element>(old_focused_area.ptr()))

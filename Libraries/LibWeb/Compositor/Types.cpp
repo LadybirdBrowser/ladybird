@@ -30,6 +30,29 @@ ErrorOr<Web::Compositor::AsyncScrollNodeStableID> decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, Web::Compositor::KeyboardScrollState const& state)
+{
+    TRY(encoder.encode(state.generation));
+    TRY(encoder.encode(state.visual_context_tree_structural_epoch));
+    TRY(encoder.encode(state.target));
+    TRY(encoder.encode(state.page_scroll_distance));
+    TRY(encoder.encode(state.arrow_scroll_distance));
+    return {};
+}
+
+template<>
+ErrorOr<Web::Compositor::KeyboardScrollState> decode(Decoder& decoder)
+{
+    return Web::Compositor::KeyboardScrollState {
+        .generation = TRY(decoder.decode<u64>()),
+        .visual_context_tree_structural_epoch = TRY(decoder.decode<u64>()),
+        .target = TRY(decoder.decode<Optional<Web::Compositor::AsyncScrollNodeStableID>>()),
+        .page_scroll_distance = TRY(decoder.decode<float>()),
+        .arrow_scroll_distance = TRY(decoder.decode<float>()),
+    };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, Web::Compositor::AsyncScrollOffset const& offset)
 {
     TRY(encoder.encode(offset.stable_node_id));

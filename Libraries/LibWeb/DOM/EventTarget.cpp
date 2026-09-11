@@ -262,6 +262,16 @@ static bool default_passive_value(Utf16FlyString const& type, EventTarget* event
     return false;
 }
 
+static void invalidate_compositor_keyboard_scroll_state(EventTarget& target, DOMEventListener const& listener)
+{
+    if (!AK::first_is_one_of(listener.type, u"keydown"sv, u"keypress"sv))
+        return;
+    if (auto* window = as_if<HTML::Window>(target))
+        window->associated_document().page().keyboard_scroll_event_path_changed(target);
+    else if (auto* node = as_if<Node>(target))
+        node->document().page().keyboard_scroll_event_path_changed(target);
+}
+
 static bool is_blocking_wheel_event_listener(DOMEventListener const& listener)
 {
     return AK::first_is_one_of(listener.type, u"wheel"sv, u"mousewheel"sv) && listener.passive != true;
@@ -410,6 +420,7 @@ void EventTarget::add_an_event_listener(DOMEventListener& listener)
     if (it == event_listener_list.end()) {
         prepare_to_observe_css_animation_events(*this, listener);
         event_listener_list.append(listener);
+        invalidate_compositor_keyboard_scroll_state(*this, listener);
         invalidate_compositor_wheel_event_listener_state(*this, listener);
         wake_animation_frame_pump_for_animation_event_listener(*this, listener);
         update_needs_beforeunload_check(*this, listener);
@@ -475,6 +486,7 @@ void EventTarget::remove_an_event_listener(DOMEventListener& listener)
     VERIFY(m_data);
     auto did_remove = m_data->event_listener_list.remove_first_matching([&](auto& entry) { return entry.ptr() == &listener; });
     if (did_remove) {
+        invalidate_compositor_keyboard_scroll_state(*this, listener);
         invalidate_compositor_wheel_event_listener_state(*this, listener);
         update_needs_beforeunload_check(*this, listener);
         event_listener_list_changed();

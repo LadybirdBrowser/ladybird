@@ -35,6 +35,7 @@
 
 namespace Web {
 
+struct KeyEvent;
 struct MouseEvent;
 struct PinchEvent;
 
@@ -55,6 +56,7 @@ public:
     virtual ~CompositorStateWebContentClient() = default;
 
     virtual void dispatch_mouse_event_to_web_content(u64 page_id, Web::MouseEvent const&) = 0;
+    virtual void dispatch_key_event_to_web_content(u64 page_id, Web::KeyEvent const&) = 0;
     virtual void request_rendering_update() = 0;
     virtual void rendering_opportunity(Web::Compositor::CompositorContextId, i64 frame_time_nanoseconds, double frame_interval_milliseconds) = 0;
     virtual void async_scroll_updates(Web::Compositor::CompositorContextId, Web::Compositor::PendingAsyncScrollUpdates const&) = 0;
@@ -89,12 +91,15 @@ public:
     void update_display_list(Web::Compositor::CompositorContextId, NonnullRefPtr<Web::Painting::DisplayList>, Web::Painting::AccumulatedVisualContextTree, Web::Painting::DisplayListResourceTransaction&&, Web::Painting::ScrollStateSnapshot&&);
     void update_image_frame_resources(Web::Compositor::CompositorContextId, Vector<Web::Painting::DisplayListImageFrameResource>);
     void update_visual_context_tree(Web::Compositor::CompositorContextId, Web::Painting::AccumulatedVisualContextTree, Web::Painting::DisplayListResourceTransaction&&);
-    void update_scroll_state(Web::Compositor::CompositorContextId, Web::Painting::ScrollStateSnapshot&&);
+    void update_scroll_state(Web::Compositor::CompositorContextId, Web::Painting::ScrollStateSnapshot&&, Web::Compositor::KeyboardScrollState);
     void add_video_sink(CompositorStateWebContentClient&, Media::VideoSinkHandle);
     void remove_video_sink(CompositorStateWebContentClient&, Media::VideoSinkHandle);
     void set_video_sink_ticking(CompositorStateWebContentClient&, Media::VideoSinkHandle, bool should_tick);
     void on_video_sink_ready(CompositorStateWebContentClient&, Media::VideoSinkHandle, NonnullRefPtr<Media::DisplayingVideoSink> const&);
     void invalidate_wheel_event_listener_state(Web::Compositor::CompositorContextId, u64 generation);
+    void invalidate_keyboard_scroll_state(Web::Compositor::CompositorContextId, u64 generation);
+    bool handle_key_event(Web::Compositor::CompositorContextId, Web::KeyEvent const&);
+    bool dispatch_key_event_to_web_content(Web::Compositor::CompositorContextId, Web::KeyEvent const&);
     bool handle_mouse_event(Web::Compositor::CompositorContextId, Web::MouseEvent const&);
     bool dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId, Web::MouseEvent const&);
     bool handle_pinch_event(Web::Compositor::CompositorContextId, Web::PinchEvent const&);

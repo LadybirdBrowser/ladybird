@@ -119,11 +119,11 @@ void CompositorConnection::update_visual_context_tree(Web::Compositor::Composito
         did_lose_compositor();
 }
 
-void CompositorConnection::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot)
+void CompositorConnection::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Web::Compositor::KeyboardScrollState const& keyboard_scroll_state)
 {
     if (!can_send_message_to_compositor())
         return;
-    async_update_scroll_state(context_id, scroll_state_snapshot);
+    async_update_scroll_state(context_id, scroll_state_snapshot, keyboard_scroll_state);
 }
 
 void CompositorConnection::add_video_sink(Media::VideoSinkHandle video_sink_handle)
@@ -185,6 +185,16 @@ Gfx::ShareableBitmap CompositorConnection::get_canvas_pixels(Web::Painting::Canv
 
     auto response = send_sync<Messages::CompositorWebContentServer::GetCanvasPixels>(canvas_id, rect);
     return response->take_pixels();
+}
+
+void CompositorConnection::invalidate_keyboard_scroll_state(Web::Compositor::CompositorContextId context_id, u64 generation)
+{
+    if (!can_send_message_to_compositor())
+        return;
+    // Input acknowledgments travel over a different connection. Finish invalidating before acknowledging an input
+    // that changed focus, so the UI cannot admit the next key against the previous target.
+    if (!send_sync_but_allow_failure<Messages::CompositorWebContentServer::InvalidateKeyboardScrollState>(context_id, generation))
+        did_lose_compositor();
 }
 
 void CompositorConnection::invalidate_wheel_event_listener_state(Web::Compositor::CompositorContextId context_id, u64 generation)
@@ -444,6 +454,12 @@ void CompositorConnection::request_screenshot(Web::Compositor::CompositorContext
     auto request_id = Web::Compositor::ScreenshotRequestId { m_next_screenshot_request_id++ };
     m_screenshots.set(request_id, PendingScreenshot { move(target_surface), move(target_bitmap), move(callback) });
     async_request_screenshot(context_id, request_id, move(shareable_bitmap));
+}
+
+void CompositorConnection::key_event(u64 page_id, Web::KeyEvent event)
+{
+    if (on_key_event)
+        on_key_event(page_id, move(event));
 }
 
 void CompositorConnection::mouse_event(u64 page_id, Web::MouseEvent event)

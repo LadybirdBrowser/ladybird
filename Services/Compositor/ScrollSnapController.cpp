@@ -86,6 +86,13 @@ bool ScrollSnapController::is_snap_scroll(Web::Compositor::AsyncScrollNodeStable
     return state.has_value() && state->snap_scroll.has_value() && state->snap_scroll->operation_id == operation_id;
 }
 
+Optional<Web::CSSPixelPoint> ScrollSnapController::unsnapped_destination_for_snap_scroll(Web::Compositor::AsyncScrollNodeStableID stable_node_id, Web::Compositor::AsyncScrollOperationID operation_id) const
+{
+    if (!is_snap_scroll(stable_node_id, operation_id))
+        return {};
+    return m_nodes.get(stable_node_id)->unsnapped_scroll_destination;
+}
+
 ScrollSnapController::NodeState& ScrollSnapController::node_state(Web::Compositor::AsyncScrollNodeStableID stable_node_id)
 {
     return m_nodes.ensure(stable_node_id);
@@ -216,7 +223,18 @@ Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_key_st
     if (selection.position == in_flight_destination.value_or(current_scroll_offset)) {
         if (!state.snap_scroll.has_value())
             state.expected_scroll_offset = current_scroll_offset;
-        return StepDecision { StepConsumed {} };
+        Optional<Web::Compositor::StartedUserScroll> updated_scroll;
+        if (state.snap_scroll.has_value()) {
+            updated_scroll = Web::Compositor::StartedUserScroll {
+                .stable_node_id = target->stable_node_id,
+                .operation_id = state.snap_scroll->operation_id,
+                .initial_scroll_offset = current_scroll_offset,
+                .unsnapped_scroll_destination = unsnapped_destination,
+                .selection = move(selection),
+                .settles_gesture = false,
+            };
+        }
+        return StepDecision { StepConsumed { move(updated_scroll) } };
     }
 
     return StepDecision { SnapScrollStart {

@@ -243,10 +243,16 @@ void CompositorHostBase::set_video_sink_ticking(Media::VideoSinkHandle video_sin
         connection->set_video_sink_ticking(video_sink_handle, should_tick);
 }
 
-void CompositorHostBase::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)
+void CompositorHostBase::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot, Web::Compositor::KeyboardScrollState keyboard_scroll_state)
 {
     if (auto* connection = compositor_connection())
-        connection->update_scroll_state(context_id, scroll_state_snapshot);
+        connection->update_scroll_state(context_id, scroll_state_snapshot, keyboard_scroll_state);
+}
+
+void CompositorHostBase::invalidate_keyboard_scroll_state(Web::Compositor::CompositorContextId context_id, u64 generation)
+{
+    if (auto* connection = compositor_connection())
+        connection->invalidate_keyboard_scroll_state(context_id, generation);
 }
 
 void CompositorHostBase::invalidate_wheel_event_listener_state(Web::Compositor::CompositorContextId context_id, u64 generation)

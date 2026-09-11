@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/GenericShorthands.h>
 #include <AK/Math.h>
 #include <AK/StdLibExtras.h>
 #include <Compositor/CompositorState.h>
@@ -179,8 +180,15 @@ void ContextState::dispatch_mouse_event_to_web_content(Web::MouseEvent const& ev
     m_web_content_client.dispatch_mouse_event_to_web_content(*m_page_id, event);
 }
 
+void ContextState::dispatch_key_event_to_web_content(Web::KeyEvent const& event)
+{
+    VERIFY(m_page_id.has_value());
+    m_web_content_client.dispatch_key_event_to_web_content(*m_page_id, event);
+}
+
 void ContextState::stop_presenting_to_client()
 {
+    end_keyboard_scroll_gesture();
     auto was_presenting_to_client = m_presents_to_client;
     m_presents_to_client = false;
     did_stop_presenting_to_client_if_needed(was_presenting_to_client, m_presents_to_client);
@@ -215,6 +223,7 @@ void ContextState::install_display_list_update(
 {
     VERIFY(display_list->compatible_visual_context_tree_structural_epoch() == visual_context_tree.structural_epoch());
     invalidate_visual_context_tree_for_compositing();
+    m_keyboard_scroll_state.target.clear();
     m_display_list = move(display_list);
     m_visual_context_tree = move(visual_context_tree);
     update_visual_animation_sampling_state(*m_visual_context_tree, m_visual_animation_sample_time_ns, m_has_active_visual_animations);
@@ -257,6 +266,8 @@ void ContextState::install_display_list_update(
     rebuild_wheel_hit_test_targets();
     m_async_scrolling_viewport_rect = async_scrolling_viewport_rect;
     m_has_async_scrolling_state = true;
+    if (auto const& metadata = m_display_list->async_scrolling_metadata(); metadata.has_value())
+        apply_keyboard_scroll_state(metadata->keyboard_scroll_state);
 }
 
 void ContextState::update_caret_blink_timer()
@@ -346,7 +357,7 @@ void ContextState::update_visual_context_tree(Web::Painting::AccumulatedVisualCo
         rebuild_wheel_hit_test_targets();
 }
 
-void ContextState::update_scroll_state(Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)
+void ContextState::update_scroll_state(Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot, Web::Compositor::KeyboardScrollState keyboard_scroll_state)
 {
     m_animated_content_may_affect_viewport.clear();
     m_scroll_state_snapshot = move(scroll_state_snapshot);
@@ -362,6 +373,7 @@ void ContextState::update_scroll_state(Web::Painting::ScrollStateSnapshot&& scro
         reconciled_viewport_rect.set_location(reconciled_viewport_scroll_offset->to_type<int>());
         m_async_scrolling_viewport_rect = reconciled_viewport_rect;
     }
+    apply_keyboard_scroll_state(move(keyboard_scroll_state));
 }
 
 void ContextState::set_video_sink(Web::Painting::VideoSinkResourceId frame_id, RefPtr<Media::VideoSink> sink)
@@ -375,6 +387,154 @@ void ContextState::invalidate_wheel_event_listener_state(u64 generation)
     m_wheel_routing_admission = Web::Compositor::WheelRoutingAdmission::StaleWheelEventListeners;
     m_can_accept_async_wheel_events = false;
     m_has_blocking_wheel_event_listeners = true;
+}
+
+void ContextState::invalidate_keyboard_scroll_state(u64 generation)
+{
+    if (generation < m_keyboard_scroll_state.generation)
+        return;
+    m_keyboard_scroll_state.generation = generation;
+    m_keyboard_scroll_state.target.clear();
+}
+
+void ContextState::apply_keyboard_scroll_state(Web::Compositor::KeyboardScrollState state)
+{
+    if (state.generation < m_keyboard_scroll_state.generation)
+        return;
+    m_keyboard_scroll_state = move(state);
+    if (!m_keyboard_scroll_state.target.has_value())
+        end_keyboard_scroll_gesture();
+}
+
+void ContextState::end_keyboard_scroll_gesture()
+{
+    if (m_held_scroll_keys.is_empty())
+        return;
+    m_held_scroll_keys.clear();
+    m_user_scroll_gesture_ended = true;
+    request_rendering_update();
+}
+
+ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent const& event)
+{
+    if (!Web::is_keyboard_scroll_key(event.key, Web::UIEvents::Mod_None))
+        return {};
+
+    // Release the key even if focus, modifiers, or routing eligibility changed while it was held. Other scroll
+    // keys may still be held, so only end the gesture when the last one is released.
+    if (event.type == Web::KeyEvent::Type::KeyUp) {
+        if (event.repeat || !m_held_scroll_keys.remove_first_matching([&](auto key) { return key == event.key; }))
+            return {};
+        if (m_held_scroll_keys.is_empty())
+            m_user_scroll_gesture_ended = true;
+        return { .accepted = true, .frame_to_present = {}, .should_request_rendering_update = true };
+    }
+
+    if (!m_async_scrolling_enabled || !presents_to_client() || m_paused_debugger_overlay_visible
+        || m_visibility != Web::Compositor::ContextVisibility::Visible
+        || !Web::is_keyboard_scroll_key(event.key, event.modifiers)
+        || !m_keyboard_scroll_state.target.has_value()
+        || !m_visual_context_tree.has_value()
+        || m_keyboard_scroll_state.visual_context_tree_structural_epoch != current_visual_context_tree().structural_epoch())
+        return {};
+    // Keyboard scrolling has not yet been adapted to a separately panned visual viewport.
+    if (visual_viewport_scale_for_compositing().value_or(1.0f) != 1.0f)
+        return {};
+
+    bool is_arrow = first_is_one_of(event.key, Web::UIEvents::Key_Up, Web::UIEvents::Key_Down, Web::UIEvents::Key_Left, Web::UIEvents::Key_Right);
+    auto distance = is_arrow ? m_keyboard_scroll_state.arrow_scroll_distance : m_keyboard_scroll_state.page_scroll_distance;
+    if (!isfinite(distance) || distance <= 0)
+        return {};
+    if (event.key == Web::UIEvents::KeyCode::Key_PageUp
+        || event.key == Web::UIEvents::KeyCode::Key_Up || event.key == Web::UIEvents::KeyCode::Key_Left
+        || (event.key == Web::UIEvents::KeyCode::Key_Space && (event.modifiers & Web::UIEvents::Mod_Shift)))
+        distance = -distance;
+    bool is_horizontal = first_is_one_of(event.key, Web::UIEvents::Key_Left, Web::UIEvents::Key_Right);
+    auto delta = is_horizontal ? Gfx::FloatPoint { distance, 0 } : Gfx::FloatPoint { 0, distance };
+    auto now = MonotonicTime::now();
+    auto scroll_state_at_step_starts = scroll_state_snapshot_at_keyboard_step_starts();
+    auto target = m_async_scroll_tree.scroll_node_for_keyboard_scroll(*m_keyboard_scroll_state.target, delta, scroll_state_at_step_starts);
+    // If every destination is at its boundary, consume repeats while a scrolling box can still move toward it.
+    // Falling back would cancel the running animation and lose the steps already accumulated in its destination.
+    if (!target.has_value())
+        target = m_async_scroll_tree.scroll_node_for_keyboard_scroll(*m_keyboard_scroll_state.target, delta, m_scroll_state_snapshot);
+    if (!target.has_value())
+        return {};
+
+    if (!m_held_scroll_keys.contains_slow(event.key))
+        m_held_scroll_keys.append(event.key);
+
+    auto stable_node_id = m_async_scroll_tree.scroll_node_for_id(*target)->stable_node_id;
+    Optional<Gfx::FloatPoint> scroll_in_flight_destination;
+    for (auto const& running_animation : m_smooth_scroll_animations) {
+        if (running_animation.stable_node_id == stable_node_id && running_animation.is_user_scroll)
+            scroll_in_flight_destination = running_animation.animation.destination_offset();
+    }
+    auto css_scroll_in_flight_destination = scroll_in_flight_destination.map([&](auto offset) { return m_async_scroll_tree.css_pixels_from_device_offset(offset); });
+    auto snap_selection_intent = is_arrow ? Web::Compositor::SnapSelectionStrategy::Type::Direction : Web::Compositor::SnapSelectionStrategy::Type::EndPositionAndDirection;
+    if (auto decision = m_scroll_snap_controller.decide_key_step(m_async_scroll_tree, m_scroll_state_snapshot, *target, m_async_scroll_tree.css_pixels_from_device_offset(delta), snap_selection_intent, css_scroll_in_flight_destination, now); decision.has_value()) {
+        if (auto* snap_scroll = decision->get_pointer<ScrollSnapController::SnapScrollStart>()) {
+            start_snap_scroll(*target, move(*snap_scroll), false, now);
+            return {
+                .accepted = true,
+                .frame_to_present = PendingFrame::repainting_changes(m_async_scrolling_viewport_rect),
+                .should_request_rendering_update = true,
+            };
+        }
+        if (auto& updated_scroll = decision->get<ScrollSnapController::StepConsumed>().updated_scroll; updated_scroll.has_value())
+            m_started_user_scrolls.append(updated_scroll.release_value());
+        return { .accepted = true, .frame_to_present = {}, .should_request_rendering_update = true };
+    }
+
+    auto current_offset = m_async_scroll_tree.scroll_offset_for_node(*target, m_scroll_state_snapshot);
+    VERIFY(current_offset.has_value());
+    // A plain step continues toward the animation's destination, including any snap on the other axis.
+    auto step_start = scroll_in_flight_destination.value_or(*current_offset);
+    auto destination = m_async_scroll_tree.clamped_scroll_offset_for_node(*target, { step_start.x() + delta.x(), step_start.y() + delta.y() });
+    if (destination == step_start)
+        return { .accepted = true, .frame_to_present = {}, .should_request_rendering_update = true };
+
+    cancel_smooth_scroll_taken_over_by_user_input(*target);
+    auto operation_id = ++m_next_async_scroll_operation_id;
+    m_smooth_scroll_animations.append({
+        .stable_node_id = stable_node_id,
+        .operation_id = operation_id,
+        .animation = Web::Compositor::SmoothScrollAnimation { *current_offset, destination, m_async_scroll_tree.device_pixels_per_css_pixel() },
+        .started_at = now,
+        .is_user_scroll = true,
+    });
+    m_started_user_scrolls.append({
+        .stable_node_id = stable_node_id,
+        .operation_id = operation_id,
+        .initial_scroll_offset = m_async_scroll_tree.css_pixels_from_device_offset(*current_offset),
+        .unsnapped_scroll_destination = m_async_scroll_tree.css_pixels_from_device_offset(destination),
+        .selection = { .position = m_async_scroll_tree.css_pixels_from_device_offset(destination) },
+        .settles_gesture = false,
+    });
+    return {
+        .accepted = true,
+        .frame_to_present = PendingFrame::repainting_changes(m_async_scrolling_viewport_rect),
+        .should_request_rendering_update = true,
+    };
+}
+
+Web::Painting::ScrollStateSnapshot ContextState::scroll_state_snapshot_at_keyboard_step_starts() const
+{
+    Web::Painting::ScrollStateSnapshot snapshot { m_scroll_state_snapshot };
+    for (auto const& running_animation : m_smooth_scroll_animations) {
+        // A key takes over a programmatic animation from the presented offset, rather than its destination.
+        if (!running_animation.is_user_scroll)
+            continue;
+        auto node_id = m_async_scroll_tree.scroll_node_id_for_stable_id(running_animation.stable_node_id);
+        if (!node_id.has_value())
+            continue;
+        auto destination = running_animation.animation.destination_offset();
+        // A snap destination at the boundary can still consume steps until their accumulated input reaches it.
+        if (auto unsnapped_destination = m_scroll_snap_controller.unsnapped_destination_for_snap_scroll(running_animation.stable_node_id, running_animation.operation_id); unsnapped_destination.has_value())
+            destination = m_async_scroll_tree.device_offset_from_css_pixels(*unsnapped_destination);
+        snapshot.set_device_offset_for_index(node_id->scroll_node_index, { -destination.x(), -destination.y() });
+    }
+    return snapshot;
 }
 
 ContextState::ContextUpdateResult ContextState::handle_mouse_event(Web::MouseEvent const& event)
@@ -524,10 +684,10 @@ Web::Compositor::AsyncScrollOperationID ContextState::start_snap_scroll(Web::Com
     // box is taken over by the input.
     auto running_animation = m_smooth_scroll_animations.find_if([&](auto const& animation) { return animation.stable_node_id == stable_node_id; });
     if (running_animation != m_smooth_scroll_animations.end()) {
-        if (m_scroll_snap_controller.is_snap_scroll(stable_node_id, running_animation->operation_id))
-            retire_smooth_scroll_animation(stable_node_id);
-        else
-            cancel_smooth_scroll_taken_over_by_user_input(node_id);
+        if (!m_scroll_snap_controller.is_snap_scroll(stable_node_id, running_animation->operation_id))
+            m_async_scroll_operation_ids_taken_over_by_user_input.append(running_animation->operation_id);
+        // Keep the accumulation state the controller just recorded when selecting this snap destination.
+        retire_smooth_scroll_animation(stable_node_id);
     }
 
     auto current_offset = m_async_scroll_tree.scroll_offset_for_node(node_id, m_scroll_state_snapshot);
@@ -539,6 +699,7 @@ Web::Compositor::AsyncScrollOperationID ContextState::start_snap_scroll(Web::Com
         .operation_id = operation_id,
         .animation = Web::Compositor::SmoothScrollAnimation { *current_offset, m_async_scroll_tree.device_offset_from_css_pixels(destination), m_async_scroll_tree.device_pixels_per_css_pixel(), snap_scroll.animation_kind },
         .started_at = now,
+        .is_user_scroll = true,
     });
     m_scroll_snap_controller.did_start_snap_scroll(stable_node_id, operation_id, destination);
     m_started_user_scrolls.append({
@@ -876,7 +1037,7 @@ Web::Compositor::PendingAsyncScrollUpdates ContextState::take_pending_async_scro
     AK::swap(updates.completed_operation_ids, m_completed_async_scroll_operation_ids);
     AK::swap(updates.operation_ids_taken_over_by_user_input, m_async_scroll_operation_ids_taken_over_by_user_input);
     AK::swap(updates.started_user_scrolls, m_started_user_scrolls);
-    updates.user_scroll_gesture_in_progress = m_viewport_scrollbar_controller.has_captured_scrollbar();
+    updates.user_scroll_gesture_in_progress = m_viewport_scrollbar_controller.has_captured_scrollbar() || !m_held_scroll_keys.is_empty();
     updates.user_scroll_gesture_ended = m_user_scroll_gesture_ended;
     m_user_scroll_gesture_ended = false;
     m_published_user_scroll_gesture_in_progress = updates.user_scroll_gesture_in_progress;
@@ -904,12 +1065,14 @@ bool ContextState::has_pending_async_scroll_updates() const
         || !m_async_scroll_operation_ids_taken_over_by_user_input.is_empty()
         || !m_started_user_scrolls.is_empty()
         || m_user_scroll_gesture_ended
-        || m_viewport_scrollbar_controller.has_captured_scrollbar() != m_published_user_scroll_gesture_in_progress;
+        || (m_viewport_scrollbar_controller.has_captured_scrollbar() || !m_held_scroll_keys.is_empty()) != m_published_user_scroll_gesture_in_progress;
 }
 
 void ContextState::viewport_size_updated(Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
 {
     m_animated_content_may_affect_viewport.clear();
+    if (m_viewport_size != viewport_size)
+        m_keyboard_scroll_state.target.clear();
     m_viewport_size = viewport_size;
     auto is_page_presentation_context = m_page_id.has_value() && !m_parent_context_id.has_value();
     m_window_resize_in_progress = is_page_presentation_context
@@ -926,6 +1089,8 @@ bool ContextState::set_paused_debugger_overlay(bool visible, double device_pixel
         && m_paused_debugger_overlay_hovered_action == hovered_action)
         return false;
 
+    if (visible)
+        end_keyboard_scroll_gesture();
     m_paused_debugger_overlay_visible = visible;
     m_paused_debugger_overlay_device_pixel_ratio = device_pixel_ratio;
     m_paused_debugger_overlay_font_family = move(font_family);
@@ -989,6 +1154,8 @@ bool ContextState::set_visibility(Web::Compositor::ContextVisibility visibility)
     if (m_visibility == visibility)
         return false;
     m_visibility = visibility;
+    if (visibility == Web::Compositor::ContextVisibility::Hidden)
+        end_keyboard_scroll_gesture();
     return true;
 }
 

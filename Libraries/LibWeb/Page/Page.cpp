@@ -134,7 +134,11 @@ HTML::LocalNavigable& Page::focused_navigable()
 
 void Page::set_focused_navigable(HTML::LocalNavigable& navigable)
 {
+    if (m_focused_navigable == &navigable)
+        return;
+    invalidate_compositor_keyboard_scroll_state();
     m_focused_navigable = navigable;
+    local_root_navigable()->set_needs_repaint();
 }
 
 void Page::navigable_document_destroyed(Badge<DOM::Document>, HTML::LocalNavigable& navigable)
@@ -436,19 +440,95 @@ EventResult Page::handle_pinch_event(DevicePixelPoint position, unsigned modifie
     return local_root_navigable()->event_handler().handle_pinch_event(device_to_css_point(position), modifiers, scale);
 }
 
-EventResult Page::handle_keydown(UIEvents::KeyCode key, unsigned modifiers, u32 code_point, bool repeat, bool should_insert_text)
+EventResult Page::handle_keydown(UIEvents::KeyCode key, unsigned modifiers, u32 code_point, bool repeat, bool should_insert_text, bool async_scroll_performed_default_action)
 {
-    return focused_navigable().event_handler().handle_keydown(key, modifiers, code_point, repeat, should_insert_text);
+    // The compositor forwards these updates ahead of keyboard events. Both DOM listeners and a main-thread
+    // fallback default action must observe the offsets that have already been presented.
+    local_root_navigable()->adopt_pending_async_scroll_offsets(Compositor::AsyncScrollUpdateFreshness::Pushed);
+    return focused_navigable().event_handler().handle_keydown(key, modifiers, code_point, repeat, should_insert_text, async_scroll_performed_default_action);
 }
 
 EventResult Page::handle_keyup(UIEvents::KeyCode key, unsigned modifiers, u32 code_point, bool repeat)
 {
+    local_root_navigable()->adopt_pending_async_scroll_offsets(Compositor::AsyncScrollUpdateFreshness::Pushed);
     return focused_navigable().event_handler().handle_keyup(key, modifiers, code_point, repeat);
 }
 
 void Page::handle_sdl_input_events()
 {
     local_root_navigable()->event_handler().handle_sdl_input_events();
+}
+
+void Page::invalidate_compositor_keyboard_scroll_state()
+{
+    if (!m_keyboard_scroll_state_is_current)
+        return;
+    m_keyboard_scroll_state_is_current = false;
+    ++m_keyboard_scroll_state_generation;
+    if (m_async_scrolling_enabled && has_local_root_navigable() && local_root_navigable()->has_compositor_context()) {
+        // No synchronous barrier is needed if the last publication already disabled keyboard scrolling.
+        if (m_keyboard_scroll_state_is_scrollable)
+            local_root_navigable()->compositor_context().invalidate_keyboard_scroll_state(m_keyboard_scroll_state_generation);
+        local_root_navigable()->set_needs_repaint();
+    }
+}
+
+void Page::invalidate_compositor_keyboard_scroll_state_for_document(DOM::Document const& document)
+{
+    if (has_local_root_navigable() && local_root_navigable()->active_document().ptr() == &document)
+        invalidate_compositor_keyboard_scroll_state();
+}
+
+void Page::keyboard_scroll_event_path_changed(DOM::EventTarget const& target)
+{
+    if (m_keyboard_scroll_state_is_current && m_keyboard_scroll_event_path.contains([&](auto const& dependency) { return dependency.ptr().ptr() == &target; }))
+        invalidate_compositor_keyboard_scroll_state();
+}
+
+void Page::keyboard_scroll_dom_tree_changed(DOM::Node const& subtree)
+{
+    if (!m_keyboard_scroll_state_is_current || !has_local_root_navigable())
+        return;
+    auto document = local_root_navigable()->active_document();
+    if (!document || &subtree.document() != document.ptr())
+        return;
+
+    keyboard_scroll_event_path_changed(subtree);
+    if (auto target = m_keyboard_scroll_dom_target.ptr(); target && subtree.is_shadow_including_inclusive_ancestor_of(*target))
+        invalidate_compositor_keyboard_scroll_state();
+
+    // With no focused area, inserting/replacing the body can change the event target even though the new body
+    // was not in the previous snapshot's path.
+    if (!document->focused_area() && !m_keyboard_scroll_event_path.is_empty()) {
+        DOM::Node const* event_target = document->body() ?: &document->root();
+        if (m_keyboard_scroll_event_path.first().ptr().ptr() != event_target)
+            invalidate_compositor_keyboard_scroll_state();
+    }
+}
+
+void Page::keyboard_scroll_editability_changed(DOM::Document& document)
+{
+    if (m_keyboard_scroll_state_is_current && has_local_root_navigable()
+        && local_root_navigable()->active_document().ptr() == &document
+        && m_keyboard_scroll_focus_is_editable != (document.active_input_events_target() != nullptr))
+        invalidate_compositor_keyboard_scroll_state();
+}
+
+Compositor::KeyboardScrollState Page::take_keyboard_scroll_state_for_compositor(u64 visual_context_tree_structural_epoch)
+{
+    if (!m_async_scrolling_enabled || !has_local_root_navigable() || !local_root_navigable()->has_compositor_context())
+        return {};
+    auto snapshot = local_root_navigable()->event_handler().keyboard_scroll_snapshot();
+    m_keyboard_scroll_event_path = move(snapshot.event_path);
+    m_keyboard_scroll_dom_target = snapshot.scroll_target;
+    auto document = local_root_navigable()->active_document();
+    m_keyboard_scroll_focus_is_editable = document && document->active_input_events_target();
+    auto state = snapshot.state;
+    state.generation = m_keyboard_scroll_state_generation;
+    state.visual_context_tree_structural_epoch = visual_context_tree_structural_epoch;
+    m_keyboard_scroll_state_is_scrollable = state.target.has_value();
+    m_keyboard_scroll_state_is_current = true;
+    return state;
 }
 
 void Page::invalidate_compositor_wheel_event_listener_state()

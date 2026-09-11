@@ -60,9 +60,14 @@ void CompositorContextHandle::set_video_sink_ticking(Media::VideoSinkHandle vide
     m_host.set_video_sink_ticking(video_sink_handle, should_tick);
 }
 
-void CompositorContextHandle::update_scroll_state(Painting::ScrollStateSnapshot&& scroll_state_snapshot)
+void CompositorContextHandle::update_scroll_state(Painting::ScrollStateSnapshot&& scroll_state_snapshot, KeyboardScrollState keyboard_scroll_state)
 {
-    m_host.update_scroll_state(m_context_id, move(scroll_state_snapshot));
+    m_host.update_scroll_state(m_context_id, move(scroll_state_snapshot), move(keyboard_scroll_state));
+}
+
+void CompositorContextHandle::invalidate_keyboard_scroll_state(u64 generation)
+{
+    m_host.invalidate_keyboard_scroll_state(m_context_id, generation);
 }
 
 void CompositorContextHandle::invalidate_wheel_event_listener_state(u64 generation)

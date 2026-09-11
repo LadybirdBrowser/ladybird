@@ -24,6 +24,7 @@
 
 struct TestWebContentClient final : public Compositor::CompositorStateWebContentClient {
     virtual void dispatch_mouse_event_to_web_content(u64, Web::MouseEvent const&) override { }
+    virtual void dispatch_key_event_to_web_content(u64, Web::KeyEvent const&) override { }
     virtual void request_rendering_update() override { }
     virtual void rendering_opportunity(Web::Compositor::CompositorContextId, i64, double) override { }
     virtual void async_scroll_updates(Web::Compositor::CompositorContextId, Web::Compositor::PendingAsyncScrollUpdates const&) override { }
@@ -878,6 +879,7 @@ TEST_CASE(dragging_a_viewport_scrollbar_reports_a_user_scroll_gesture_until_it_i
 
 struct RecordingWebContentClient final : public Compositor::CompositorStateWebContentClient {
     virtual void dispatch_mouse_event_to_web_content(u64, Web::MouseEvent const&) override { }
+    virtual void dispatch_key_event_to_web_content(u64, Web::KeyEvent const&) override { }
     virtual void request_rendering_update() override { events.append("request_rendering_update"_string); }
     virtual void rendering_opportunity(Web::Compositor::CompositorContextId, i64, double) override { }
     virtual void async_scroll_updates(Web::Compositor::CompositorContextId, Web::Compositor::PendingAsyncScrollUpdates const& updates) override
@@ -1177,7 +1179,7 @@ TEST_CASE(offscreen_rotations_sleep_until_scroll_or_viewport_changes)
     EXPECT(!fixture.context.visual_animations_need_frame());
     EXPECT(!fixture.context.visual_animations_need_frame());
 
-    fixture.context.update_scroll_state(scroll_state_snapshot_with_offset(scroll, { 0, -100 }));
+    fixture.context.update_scroll_state(scroll_state_snapshot_with_offset(scroll, { 0, -100 }), {});
     EXPECT(fixture.context.visual_animations_need_frame());
     EXPECT(fixture.context.advance_visual_animations(anchor + AK::Duration::from_milliseconds(2250)));
     fixture.rasterize();
@@ -1187,7 +1189,7 @@ TEST_CASE(offscreen_rotations_sleep_until_scroll_or_viewport_changes)
     EXPECT(fabsf(matrix[0, 0]) < 0.001f);
     EXPECT(fabsf(matrix[1, 0] - 1) < 0.001f);
 
-    fixture.context.update_scroll_state({});
+    fixture.context.update_scroll_state({}, {});
     EXPECT(!fixture.context.visual_animations_need_frame());
     fixture.context.viewport_size_updated({ 16, 120 }, Web::Compositor::WindowResizingInProgress::No);
     EXPECT(fixture.context.visual_animations_need_frame());
@@ -1222,12 +1224,12 @@ TEST_CASE(offscreen_opacity_animations_sleep_and_resume_at_the_current_phase)
     EXPECT(fixture.context.has_active_visual_animations());
     EXPECT(!fixture.context.visual_animations_need_frame());
     EXPECT(!fixture.context.visual_animations_need_frame());
-    fixture.context.update_scroll_state(scroll_state_snapshot_with_offset(scroll, { 0, -100 }));
+    fixture.context.update_scroll_state(scroll_state_snapshot_with_offset(scroll, { 0, -100 }), {});
     EXPECT(fixture.context.visual_animations_need_frame());
     EXPECT(fixture.context.advance_visual_animations(anchor + AK::Duration::from_milliseconds(2500)));
     fixture.rasterize();
     EXPECT_EQ(fixture.pixel(3, 3).alpha(), 128);
-    fixture.context.update_scroll_state({});
+    fixture.context.update_scroll_state({}, {});
     EXPECT(!fixture.context.visual_animations_need_frame());
     fixture.context.viewport_size_updated({ 16, 120 }, Web::Compositor::WindowResizingInProgress::No);
     EXPECT(fixture.context.visual_animations_need_frame());
@@ -1347,7 +1349,7 @@ TEST_CASE(scroll_state_only_update_damages_only_moved_commands)
     fixture.install(display_list, visual_context_tree, scroll_state_snapshot_with_offset(scroll_node_index, { 0, 0 }));
     fixture.present();
 
-    fixture.compositor_state->update_scroll_state(fixture.context_id, scroll_state_snapshot_with_offset(scroll_node_index, { 0, -2 }));
+    fixture.compositor_state->update_scroll_state(fixture.context_id, scroll_state_snapshot_with_offset(scroll_node_index, { 0, -2 }), {});
     EXPECT_EQ(fixture.present().damage_rect, (Gfx::IntRect { 0, 5, 5, 6 }));
 }
 
@@ -1899,7 +1901,7 @@ TEST_CASE(a_scroll_by_the_main_thread_ends_the_wheel_gesture_on_the_compositor)
     // The main thread adopted the snap scroll's offsets and then scrolled the box itself.
     auto scroll_state_snapshot = scroll_state_snapshot_with_offset(Web::Painting::SpatialNodeIndex { 1 }, { 0, -300 });
     scroll_state_snapshot.set_adopted_async_scroll_sequence(updates.sequence);
-    fixture.context.update_scroll_state(move(scroll_state_snapshot));
+    fixture.context.update_scroll_state(move(scroll_state_snapshot), {});
 
     fixture.discrete_step({ 0, 10 }, AK::Duration::from_milliseconds(100));
     updates = fixture.take_updates();

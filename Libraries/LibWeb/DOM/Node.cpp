@@ -1603,6 +1603,8 @@ void Node::remove(bool suppress_observers)
 
     document().flush_deferred_style_change_event();
     bool const was_connected = is_connected();
+    if (was_connected)
+        document().page().keyboard_scroll_dom_tree_changed(*this);
 
     // 3. Run the live range pre-remove steps, given node.
     live_range_pre_remove();
@@ -1882,6 +1884,8 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     // 8. Assert: oldParent is non-null.
     VERIFY(old_parent);
 
+    if (is_connected() && old_parent != &new_parent)
+        document().page().keyboard_scroll_dom_tree_changed(*this);
     document().flush_deferred_style_change_event();
 
     auto affects_elements = ChildrenChangedMetadata::AffectsElements::No;
@@ -2311,6 +2315,7 @@ void Node::recompute_editable_subtree_flags_and_repaint()
         }
         return TraversalDecision::Continue;
     });
+    document().page().keyboard_scroll_editability_changed(document());
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#editable
@@ -2560,6 +2565,8 @@ void Node::inserted()
     else if (parent())
         m_is_connected = parent()->is_connected();
 
+    if (is_connected())
+        document().page().keyboard_scroll_dom_tree_changed(*this);
     recompute_editable_subtree_flag();
 
     if (auto* element = as_if<Element>(*this)) {
@@ -2632,6 +2639,9 @@ void Node::removed_from(IsSubtreeRoot, Node* old_parent, Node&)
 // https://dom.spec.whatwg.org/#concept-node-move-ext
 void Node::moved_from(IsSubtreeRoot, GC::Ptr<Node>)
 {
+    // Reordering body elements within the same parent can change the default keyboard event target.
+    if (is_html_body_element() || is_html_frameset_element())
+        document().page().keyboard_scroll_dom_tree_changed(*this);
     recompute_editable_subtree_flag();
 }
 
@@ -2827,6 +2837,9 @@ void Node::remove_all_children(bool suppress_observers)
     bool list_owner_renumber_scheduled = false;
 
     while (GC::Ptr<Node> child = first_child()) {
+        if (was_connected)
+            document().page().keyboard_scroll_dom_tree_changed(*child);
+
         // 4. For each NodeIterator object iterator whose root’s node document is node’s node document:
         //    run the NodeIterator pre-removing steps given node and iterator.
         child->run_node_iterator_pre_removing_steps();

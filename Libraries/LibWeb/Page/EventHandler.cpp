@@ -353,6 +353,8 @@ EventResult EventHandler::handle_mousedown(CSSPixelPoint visual_viewport_positio
         return EventResult::Dropped;
 
     m_mousedown_target = node;
+    if (m_last_mousedown_target.ptr().ptr() != node.ptr() && !document->focused_area())
+        document->page().invalidate_compositor_keyboard_scroll_state_for_document(*document);
     m_last_mousedown_target = node;
     m_mousedown_visual_viewport_position = visual_viewport_position;
 
@@ -1156,7 +1158,87 @@ static Optional<Utf16FlyString> input_type_for_delete_key(UIEvents::KeyCode key)
     return {};
 }
 
-EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat, bool should_insert_text)
+GC::Ptr<DOM::Node> EventHandler::scroll_target_for_key_input() const
+{
+    auto document = m_navigable->active_document();
+    if (!document)
+        return nullptr;
+    if (auto focused_area = document->focused_area())
+        return focused_area;
+    // Clicking a non-focusable scroll container still makes it the target of subsequent scroll keys.
+    auto last_mousedown_target = m_last_mousedown_target.ptr();
+    if (last_mousedown_target && last_mousedown_target->is_connected() && &last_mousedown_target->document() == document.ptr())
+        return last_mousedown_target;
+    return nullptr;
+}
+
+// FIXME: Implement scroll by line and by page instead of approximating the behavior of other browsers.
+static constexpr int arrow_key_scroll_distance = 100;
+
+int EventHandler::page_scroll_distance_for_key_input() const
+{
+    auto window = m_navigable->active_document()->window();
+    return window->inner_height() - (window->outer_height() - window->inner_height());
+}
+
+static bool focused_area_activates_on_space(DOM::Node const* focused_area)
+{
+    return is<HTML::HTMLButtonElement>(focused_area)
+        || is<HTML::HTMLInputElement>(focused_area)
+        || is<HTML::HTMLSelectElement>(focused_area)
+        || is<HTML::HTMLSummaryElement>(focused_area);
+}
+
+EventHandler::KeyboardScrollSnapshot EventHandler::keyboard_scroll_snapshot() const
+{
+    auto document = m_navigable->active_document();
+    if (!document || !document->is_fully_active() || !m_navigable->is_top_level_traversable())
+        return {};
+
+    KeyboardScrollSnapshot snapshot;
+    snapshot.scroll_target = scroll_target_for_key_input();
+    auto focused_area = document->focused_area();
+
+    // Remember the entire composed path even when scrolling is blocked: removing a listener on it can make the
+    // next snapshot eligible. These weak dependencies let mutations elsewhere avoid invalidating keyboard routing.
+    auto event = UIEvents::KeyboardEvent::create_from_platform_event(HTML::relevant_global_object(*document), UIEvents::EventNames::keydown, UIEvents::Key_Space, 0, ' ', false);
+    DOM::EventTarget* event_target = focused_area.ptr();
+    if (!event_target)
+        event_target = document->body() ?: &document->root();
+    bool has_keyboard_listeners = false;
+    for (; event_target; event_target = event_target->get_parent(*event)) {
+        snapshot.event_path.append(event_target);
+        // Even passive listeners can change focus or install a keypress listener during keydown.
+        has_keyboard_listeners |= event_target->has_event_listener(UIEvents::EventNames::keydown) || event_target->has_event_listener(UIEvents::EventNames::keypress);
+    }
+
+    if (&document->page().focused_navigable() != m_navigable.ptr()
+        || !document->page().client().has_focus()
+        || !document->has_committed_viewport_box() || document->active_input_events_target()
+        || should_ignore_device_input_event() || has_keyboard_listeners
+        || focused_area_activates_on_space(focused_area.ptr()) || is<HTML::NavigableContainer>(focused_area.ptr())
+        || is<HTML::HTMLMediaElement>(focused_area.ptr()))
+        return snapshot;
+
+    Layout::Node* target = document->layout_node();
+    if (auto scroll_target = snapshot.scroll_target.ptr(); scroll_target && scroll_target->layout_node())
+        target = scroll_target->layout_node();
+    if (!target)
+        return snapshot;
+    auto* scrolling_box = Painting::first_wheel_scrollable_box_in_containing_block_chain(*target);
+    if (!scrolling_box)
+        scrolling_box = document->layout_node();
+    if (!scrolling_box)
+        return snapshot;
+    snapshot.state = {
+        .target = Painting::async_scroll_node_stable_id(*scrolling_box),
+        .page_scroll_distance = static_cast<float>(page_scroll_distance_for_key_input() * document->page().client().device_pixels_per_css_pixel()),
+        .arrow_scroll_distance = static_cast<float>(arrow_key_scroll_distance * document->page().client().device_pixels_per_css_pixel()),
+    };
+    return snapshot;
+}
+
+EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u32 code_point, bool repeat, bool should_insert_text, bool async_scroll_performed_default_action)
 {
     if (!m_navigable->active_document())
         return EventResult::Dropped;
@@ -1195,6 +1277,11 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         if (dispatch_result != EventResult::Accepted)
             return dispatch_result;
     }
+
+    // The compositor already performed this key's default action. Do not scroll twice, or insert text if focus has
+    // since moved into an editor. DOM keydown/keypress dispatch above is still required.
+    if (async_scroll_performed_default_action)
+        return EventResult::Handled;
 
     GC::Ref<DOM::Document> document = *m_navigable->active_document();
 
@@ -1400,9 +1487,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         }
     }
 
-    // FIXME: Implement scroll by line and by page instead of approximating the behavior of other browsers.
-    auto arrow_key_scroll_distance = 100;
-    auto page_scroll_distance = document->window()->inner_height() - (document->window()->outer_height() - document->window()->inner_height());
+    auto page_scroll_distance = page_scroll_distance_for_key_input();
 
     // The held key keeps the scroll gesture in progress until it is released.
     auto hold_scroll_gesture_until_key_release = [&](Painting::SnapSelectionStrategy::Type intent) {
@@ -1410,17 +1495,6 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         if (!m_scroll_key_gesture_hold)
             m_scroll_key_gesture_hold = make<HTML::UserScrollGestureHold>(*m_navigable);
         m_navigable->note_user_scroll_input_intent(intent);
-    };
-    auto scroll_target_for_key_input = [&]() -> GC::Ptr<DOM::Node> {
-        if (auto focused_area = document->focused_area())
-            return focused_area;
-        // A scroll container is typically not a focusable area, so clicking one focuses nothing. Scroll keys are
-        // still expected to scroll it afterwards, so the last mousedown target substitutes for the missing focused
-        // area. This behavior matches other engines.
-        auto last_mousedown_target = m_last_mousedown_target.ptr();
-        if (last_mousedown_target && last_mousedown_target->is_connected() && &last_mousedown_target->document() == document.ptr())
-            return last_mousedown_target;
-        return nullptr;
     };
     auto scroll_container_of_scroll_target_by = [&](double delta_x, double delta_y) -> bool {
         auto scroll_target = scroll_target_for_key_input();
@@ -1431,7 +1505,7 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         return scroll_target_layout_node
             && Painting::wheel_scroll_along_containing_block_chain(*scroll_target_layout_node, delta_x, delta_y) == Painting::ScrollHandled::Yes;
     };
-    auto perform_snapped_scroll_step_for_key_input = [&](CSSPixelPoint delta, Painting::SnapSelectionStrategy::Type strategy_type) {
+    auto perform_scroll_step_for_key_input = [&](CSSPixelPoint delta, Painting::SnapSelectionStrategy::Type strategy_type) {
         document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleKeyDown);
         Layout::Node* target = nullptr;
         if (auto scroll_target = scroll_target_for_key_input())
@@ -1443,11 +1517,11 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
         auto* scrolling_box = scrolling_box_for_scroll_step(*target, delta);
         if (!scrolling_box)
             return false;
-        return m_navigable->perform_a_snapped_relative_user_scroll(*scrolling_box, delta, strategy_type, HTML::LocalNavigable::SnapStepAccumulation::UntilScrollFinishes);
+        return m_navigable->perform_a_scroll_step_for_key_input(*scrolling_box, delta, strategy_type);
     };
     auto scroll_by_for_key_input = [&](CSSPixels delta_x, CSSPixels delta_y, Painting::SnapSelectionStrategy::Type intent) {
         hold_scroll_gesture_until_key_release(intent);
-        if (perform_snapped_scroll_step_for_key_input({ delta_x, delta_y }, intent))
+        if (perform_scroll_step_for_key_input({ delta_x, delta_y }, intent))
             return;
         if (scroll_container_of_scroll_target_by(delta_x.to_double(), delta_y.to_double()))
             return;
@@ -1496,13 +1570,8 @@ EventResult EventHandler::handle_keydown(UIEvents::KeyCode key, u32 modifiers, u
     case UIEvents::KeyCode::Key_Space: {
         if ((modifiers_without_keypad & ~UIEvents::KeyModifier::Mod_Shift) != UIEvents::KeyModifier::Mod_None)
             break;
-        auto const* focused_area = document->focused_area().ptr();
         // FIXME: These elements must run their activation behavior instead of merely swallowing the key.
-        auto const focused_area_activates_on_space = is<HTML::HTMLButtonElement>(focused_area)
-            || is<HTML::HTMLInputElement>(focused_area)
-            || is<HTML::HTMLSelectElement>(focused_area)
-            || is<HTML::HTMLSummaryElement>(focused_area);
-        if (focused_area_activates_on_space)
+        if (focused_area_activates_on_space(document->focused_area().ptr()))
             break;
         bool scroll_backward = (modifiers_without_keypad & UIEvents::KeyModifier::Mod_Shift) != UIEvents::KeyModifier::Mod_None;
         scroll_by_for_key_input(0, scroll_backward ? -page_scroll_distance : page_scroll_distance, Painting::SnapSelectionStrategy::Type::EndPositionAndDirection);
@@ -1577,6 +1646,11 @@ EventResult EventHandler::handle_drag_and_drop_event(DragEvent::Type type, CSSPi
     auto scroll_offset = document.navigable()->viewport_scroll_offset();
     auto offset = compute_mouse_event_offset(visual_viewport_position.translated(scroll_offset), *target_layout_node);
 
+    auto was_dragging = should_ignore_device_input_event();
+    ScopeGuard update_keyboard_routing = [&] {
+        if (was_dragging != should_ignore_device_input_event())
+            document.page().invalidate_compositor_keyboard_scroll_state_for_document(document);
+    };
     switch (type) {
     case DragEvent::Type::DragStart:
         return m_drag_and_drop_event_handler->handle_drag_start(HTML::relevant_global_object(document), m_mousedown_target.ptr(), screen_position, page_offset, viewport_position, offset, button, buttons, modifiers, move(files));
@@ -1601,7 +1675,10 @@ EventResult EventHandler::cancel_drag_and_drop_event(CSSPixelPoint visual_viewpo
 
     auto viewport_position = document->visual_viewport()->map_to_layout_viewport(visual_viewport_position);
     auto page_offset = compute_mouse_event_page_offset(viewport_position);
+    auto was_dragging = should_ignore_device_input_event();
     auto result = m_drag_and_drop_event_handler->handle_drag_cancel(HTML::relevant_global_object(*document), screen_position, page_offset, viewport_position, {}, button, buttons, modifiers);
+    if (was_dragging != should_ignore_device_input_event())
+        document->page().invalidate_compositor_keyboard_scroll_state_for_document(*document);
     set_page_cursor(m_navigable->page(), Gfx::StandardCursor::Arrow);
     clear_mousedown_tracking();
     stop_updating_selection();

@@ -108,6 +108,11 @@ void ConnectionFromWebContent::dispatch_mouse_event_to_web_content(u64 page_id, 
     async_mouse_event(page_id, event);
 }
 
+void ConnectionFromWebContent::dispatch_key_event_to_web_content(u64 page_id, Web::KeyEvent const& event)
+{
+    async_key_event(page_id, event);
+}
+
 bool ConnectionFromWebContent::context_is_owned_by_this_connection(Web::Compositor::CompositorContextId context_id)
 {
     switch (m_compositor_state->check_context_owner(context_id, *this)) {
@@ -183,11 +188,11 @@ void ConnectionFromWebContent::update_visual_context_tree(Web::Compositor::Compo
     m_compositor_state->update_visual_context_tree(context_id, move(visual_context_tree), move(resource_transaction));
 }
 
-void ConnectionFromWebContent::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot scroll_state_snapshot)
+void ConnectionFromWebContent::update_scroll_state(Web::Compositor::CompositorContextId context_id, Web::Painting::ScrollStateSnapshot scroll_state_snapshot, Web::Compositor::KeyboardScrollState keyboard_scroll_state)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
-    m_compositor_state->update_scroll_state(context_id, move(scroll_state_snapshot));
+    m_compositor_state->update_scroll_state(context_id, move(scroll_state_snapshot), move(keyboard_scroll_state));
 }
 
 Messages::CompositorWebContentServer::CreateCanvas2dContextResponse ConnectionFromWebContent::create_canvas_2d_context(Gfx::IntSize size, bool alpha)
@@ -281,6 +286,12 @@ Messages::CompositorWebContentServer::WebglReadBufferSubDataResponse ConnectionF
     }
 
     return { m_canvas_host.webgl_read_buffer_sub_data(canvas_id, target, offset, size, move(data)) };
+}
+
+void ConnectionFromWebContent::invalidate_keyboard_scroll_state(Web::Compositor::CompositorContextId context_id, u64 generation)
+{
+    if (context_is_owned_by_this_connection(context_id))
+        m_compositor_state->invalidate_keyboard_scroll_state(context_id, generation);
 }
 
 void ConnectionFromWebContent::invalidate_wheel_event_listener_state(Web::Compositor::CompositorContextId context_id, u64 generation)

@@ -181,6 +181,7 @@ void PageClient::set_has_focus(bool has_focus)
     if (m_has_focus == has_focus)
         return;
 
+    page().invalidate_compositor_keyboard_scroll_state();
     m_has_focus = has_focus;
 
     if (auto document = page().local_root_navigable()->active_document(); document && has_focus)

@@ -20,6 +20,8 @@ endpoint CompositorControlServer
     set_paused_debugger_overlay(Web::Compositor::CompositorContextId context_id, bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<u8> hovered_action) =|
     set_display_metadata(Web::Compositor::CompositorContextId context_id, Optional<u64> display_id, double refresh_rate) =|
 
+    handle_key_event(Web::Compositor::CompositorContextId context_id, Web::KeyEvent event) => (bool handled)
+    dispatch_key_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::KeyEvent event) => (bool dispatched)
     handle_mouse_event(Web::Compositor::CompositorContextId context_id, Web::MouseEvent event) => (bool handled)
     dispatch_mouse_event_to_web_content(Web::Compositor::CompositorContextId context_id, Web::MouseEvent event) => (bool dispatched)
     handle_pinch_event(Web::Compositor::CompositorContextId context_id, Web::PinchEvent event) => (bool handled)

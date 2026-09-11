@@ -348,6 +348,7 @@ public:
     GC::Ref<WebIDL::Promise> perform_a_scroll_of_the_viewport(CSSPixelPoint position, Bindings::ScrollBehavior = Bindings::ScrollBehavior::Auto, ScrollTrigger = ScrollTrigger::Programmatic, Optional<CSSPixelPoint> relative_displacement = {});
     GC::Ref<WebIDL::Promise> perform_a_scroll_of_an_element(DOM::Element&, CSSPixelPoint position, Bindings::ScrollBehavior, Optional<CSSPixelPoint> relative_displacement = {});
     bool perform_a_snapped_relative_user_scroll(Layout::Node&, CSSPixelPoint delta, Painting::SnapSelectionStrategy::Type, SnapStepAccumulation, Compositor::ScrollAnimationKind = Compositor::ScrollAnimationKind::SmoothScroll);
+    bool perform_a_scroll_step_for_key_input(Layout::Node&, CSSPixelPoint delta, Painting::SnapSelectionStrategy::Type);
     bool perform_a_snapped_momentum_scroll(Layout::Node&, CSSPixelPoint momentum_delta);
     void re_snap_scroll_containers_after_layout_change();
     void abort_in_flight_smooth_scrolls(Compositor::AsyncScrollNodeStableID, SmoothScrollAbortCause);

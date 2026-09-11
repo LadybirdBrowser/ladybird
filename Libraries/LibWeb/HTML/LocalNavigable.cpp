@@ -1461,6 +1461,8 @@ Optional<UniqueNodeID> LocalNavigable::active_document_id() const
 
 void LocalNavigable::set_active_document(GC::Ptr<DOM::Document> document)
 {
+    if (page().has_local_root_navigable() && is_local_root() && m_active_document != document)
+        page().invalidate_compositor_keyboard_scroll_state();
     if (m_active_document && m_active_document != document) {
         // The pending post-scroll hover refresh and scrollend settlement belong to the outgoing document; drop them.
         cancel_hover_update_after_async_scroll();
@@ -5312,7 +5314,8 @@ void LocalNavigable::adopt_started_user_scroll(DOM::Document& document, Composit
     // The scroll is in flight under the operation a caller may already be waiting for.
     auto& pending_operation = ensure_pending_async_scroll_operation(started_user_scroll.operation_id);
     pending_operation.stable_node_id = stable_node_id;
-    pending_operation.initial_scroll_offset = started_user_scroll.initial_scroll_offset;
+    if (!pending_operation.initial_scroll_offset.has_value())
+        pending_operation.initial_scroll_offset = started_user_scroll.initial_scroll_offset;
     pending_operation.destination_scroll_offset = started_user_scroll.selection.position;
     pending_operation.trigger = ScrollTrigger::UserInput;
 
@@ -6193,6 +6196,17 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
 
     Painting::ScrollStateSnapshot scroll_state_snapshot { document_paint_state.scroll_state_snapshot() };
     scroll_state_snapshot.set_adopted_async_scroll_sequence(m_adopted_async_scroll_sequence);
+
+    // Keyboard eligibility belongs to this publication, not to the cached paint commands. Refresh it even if
+    // recording was skipped or returned the same display list, and send it with the corresponding scroll state.
+    auto& published_display_list = display_list ? *display_list : *m_compositor_display_list;
+    auto keyboard_scroll_state = is_local_root()
+        ? page().take_keyboard_scroll_state_for_compositor(published_display_list.compatible_visual_context_tree_structural_epoch())
+        : Compositor::KeyboardScrollState {};
+    auto async_scrolling_metadata = published_display_list.async_scrolling_metadata().value_or({});
+    async_scrolling_metadata.keyboard_scroll_state = keyboard_scroll_state;
+    published_display_list.set_async_scrolling_metadata(move(async_scrolling_metadata));
+
     if (should_record_display_list && !compositor_display_list_is_unchanged) {
         m_compositor_display_list_visual_context_tree_structural_epoch = display_list->compatible_visual_context_tree_structural_epoch();
         compositor_context().update_display_list(*display_list, visual_context_tree.release_value(), move(resource_transaction), move(scroll_state_snapshot));
@@ -6220,7 +6234,7 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
             m_display_list_resource_storage.retain_only(updated_display_list_resources);
             m_compositor_display_list_resources = move(updated_display_list_resources);
         }
-        compositor_context().update_scroll_state(move(scroll_state_snapshot));
+        compositor_context().update_scroll_state(move(scroll_state_snapshot), move(keyboard_scroll_state));
     }
     return true;
 }
@@ -6429,6 +6443,29 @@ GC::Ref<WebIDL::Promise> LocalNavigable::perform_a_scroll_of_an_element(DOM::Ele
                                                    .kind = Compositor::AsyncScrollNodeKind::Element,
                                                },
         position, behavior, element, ScrollTrigger::Programmatic, relative_displacement);
+}
+
+bool LocalNavigable::perform_a_scroll_step_for_key_input(Layout::Node& scroll_container, CSSPixelPoint delta, Painting::SnapSelectionStrategy::Type strategy_type)
+{
+    if (perform_a_snapped_relative_user_scroll(scroll_container, delta, strategy_type, SnapStepAccumulation::UntilScrollFinishes))
+        return true;
+
+    auto stable_node_id = Painting::async_scroll_node_stable_id(scroll_container);
+    auto in_flight_scroll = in_flight_scroll_for(stable_node_id);
+    if (!in_flight_scroll.has_value() || in_flight_scroll->trigger != ScrollTrigger::UserInput || !in_flight_scroll->destination_scroll_offset.has_value())
+        return false;
+
+    // A fallback key continues the pending user destination, including a snap on the other axis. The ordinary
+    // relative scroll would instead cancel that animation and add only this key's delta to its current offset.
+    auto step_start = *in_flight_scroll->destination_scroll_offset;
+    auto destination = Painting::clamp_scroll_offset(scroll_container, step_start + delta);
+    if (destination == step_start)
+        return true;
+    if (scroll_container.is_viewport())
+        perform_a_scroll_of_the_viewport(destination, Bindings::ScrollBehavior::Auto, ScrollTrigger::UserInput);
+    else
+        Painting::set_scroll_offset_from_user_input(scroll_container, destination);
+    return true;
 }
 
 bool LocalNavigable::perform_a_snapped_relative_user_scroll(Layout::Node& scroll_container, CSSPixelPoint delta, Painting::SnapSelectionStrategy::Type strategy_type, SnapStepAccumulation step_accumulation, Compositor::ScrollAnimationKind animation_kind)
