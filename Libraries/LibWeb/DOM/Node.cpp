@@ -1155,9 +1155,24 @@ static bool can_detach_layout_subtree_for_removal(Node const& node, Node const& 
 {
     auto const* layout_node = as_if<Layout::NodeWithStyle>(node.unsafe_layout_node());
     auto const* parent_layout_node = parent.unsafe_layout_node();
-    if (!layout_node || !parent_layout_node || layout_node->parent() != parent_layout_node || layout_node->is_out_of_flow())
+    if (!layout_node || !parent_layout_node)
         return false;
     if (CSS::subtree_affects_generated_content_state(node))
+        return false;
+
+    // OPTIMIZATION: Absolutely positioned boxes do not participate in their parent's inline or block formatting
+    //               structure. When the DOM parent establishes their containing block, removing them cannot disturb
+    //               anonymous wrappers or sibling box levels.
+    if (layout_node->is_absolutely_positioned()) {
+        auto const* containing_block = layout_node->containing_block();
+        if (containing_block && containing_block->dom_node() == &parent)
+            return true;
+    }
+
+    if (layout_node->parent() != parent_layout_node)
+        return false;
+
+    if (layout_node->is_out_of_flow())
         return false;
 
     auto const* parent_with_style = as_if<Layout::NodeWithStyle>(parent_layout_node);
