@@ -179,7 +179,20 @@ GC::Ptr<HTML::SharedResourceRequest> ImageStyleValue::fetch_image(DOM::Document&
 
 void ImageStyleValue::load_any_resources(DOM::Document& document)
 {
+    if (resource_registered_by_clients(document))
+        return;
+    if (auto resolved_url = this->resolved_url(document); resolved_url.has_value() && document.css_image_resource(*resolved_url))
+        return;
     fetch_image(document);
+}
+
+ImageStyleValueResource* ImageStyleValue::resource_registered_by_clients(DOM::Document const& document) const
+{
+    for (auto const* client : m_clients) {
+        if (client->m_resource && client->document().ptr() == &document)
+            return client->m_resource;
+    }
+    return nullptr;
 }
 
 void ImageStyleValue::set_style_sheet(StyleSheetState* style_sheet)
@@ -248,19 +261,22 @@ void ImageStyleValue::register_client(Client& client) const
     if (!document)
         return;
 
-    auto resolved_url = this->resolved_url(*document);
-    if (!resolved_url.has_value())
-        return;
-
-    ImageStyleValueResource* resource = document->css_image_resource(*resolved_url);
+    auto* resource = resource_registered_by_clients(*document);
     if (!resource) {
-        auto resource_request = fetch_image(*document);
+        auto resolved_url = this->resolved_url(*document);
+        if (!resolved_url.has_value())
+            return;
 
-        // NB: This can only fail if the URL is invalid or ResourceLoader is not initialized, neither of which should be
-        //     the case here.
-        VERIFY(resource_request);
+        resource = document->css_image_resource(*resolved_url);
+        if (!resource) {
+            auto resource_request = fetch_image(*document);
 
-        resource = &document->create_css_image_resource(*resource_request);
+            // NB: This can only fail if the URL is invalid or ResourceLoader is not initialized, neither of which should be
+            //     the case here.
+            VERIFY(resource_request);
+
+            resource = &document->create_css_image_resource(*resource_request);
+        }
     }
 
     resource->register_image_style_value(*this);
@@ -281,9 +297,9 @@ void ImageStyleValue::unregister_client(Client& client) const
     if (!document)
         return;
 
-    auto url = resource->url();
     resource->unregister_image_style_value(*this);
-    document->remove_css_image_resource_if_unused(url);
+    if (resource->can_be_removed())
+        document->remove_css_image_resource_if_unused(resource->url());
 }
 
 void ImageStyleValue::notify_clients_did_update() const
