@@ -525,6 +525,81 @@ impl DamageAccumulator {
     }
 }
 
+// This query is cached until scene geometry or scrolling changes. It deliberately ignores clips when
+// bounding rotating content, so animation phases cannot reveal pixels outside the computed bounds.
+pub fn rotating_content_may_affect_viewport(
+    command_bytes: &[u8],
+    tree: &VisualContextTree,
+    scroll_offsets: &[FloatPoint],
+    rotation_nodes: &[SpatialNodeIndex],
+    viewport_rect: IntRect,
+) -> bool {
+    let in_rotating_subtree = tree.spatial_nodes_in_subtrees_of(rotation_nodes);
+    let mut rotating_nodes = vec![false; tree.spatial_nodes.len()];
+    for node in rotation_nodes {
+        let Some(flag) = rotating_nodes.get_mut(node.0 as usize) else {
+            return true;
+        };
+        *flag = true;
+    }
+    let mut may_affect_viewport = false;
+    for_each_command(command_bytes, |header, _, _| {
+        if may_affect_viewport || header.command_type.is_compositor_metadata() {
+            return;
+        }
+        let spatial_is_animated = in_rotating_subtree[header.context.spatial.0 as usize];
+        let mut clip = header.context.clip;
+        while !clip.is_none() {
+            let node = &tree.clip_nodes[clip.0 as usize];
+            if !spatial_is_animated && in_rotating_subtree[node.spatial.0 as usize] {
+                may_affect_viewport = true;
+                return;
+            }
+            clip = node.parent;
+        }
+        let mut effect = header.context.effect;
+        while !effect.is_none() {
+            let node = &tree.effect_nodes[effect.0 as usize];
+            if !spatial_is_animated && in_rotating_subtree[node.spatial.0 as usize] {
+                may_affect_viewport = true;
+                return;
+            }
+            if spatial_is_animated
+                && let EffectNodeData::Effects(effects) = &node.data
+                && (effects.filter.is_some() || effects.backdrop_filter.is_some())
+            {
+                // Filters can expand the output beyond the command bounds.
+                may_affect_viewport = true;
+                return;
+            }
+            effect = node.parent;
+        }
+        if !spatial_is_animated {
+            return;
+        }
+        if !header.has_bounding_rect {
+            may_affect_viewport = true;
+            return;
+        }
+        let rect = header.bounding_rect;
+        let Some(bounds) = tree.rect_with_rotation_bounds_to_viewport(
+            header.context.spatial,
+            FloatRect::new(rect.x as f32, rect.y as f32, rect.width as f32, rect.height as f32),
+            &rotating_nodes,
+            scroll_offsets,
+        ) else {
+            may_affect_viewport = true;
+            return;
+        };
+        let bounds = bounds.inflated(2.0, 2.0);
+        may_affect_viewport = bounds.x <= viewport_rect.right() as f32
+            && bounds.right() >= viewport_rect.x as f32
+            && bounds.y <= viewport_rect.bottom() as f32
+            && bounds.bottom() >= viewport_rect.y as f32;
+    });
+    may_affect_viewport
+}
+
 pub fn compute_display_list_damage(
     old_display_list_commands: &[u8],
     old_visual_context_tree: &VisualContextTree,
