@@ -226,6 +226,11 @@ GC::ConservativeVector<Debugger::FrameEnvironment> Debugger::environments_for_fr
     return environments;
 }
 
+Value Debugger::this_value_for_frame(ExecutionContext const& execution_context) const
+{
+    return value_from_abi(js_debugger_this_value_for_frame(vm_to_abi(vm()), execution_context_to_abi(execution_context)));
+}
+
 ThrowCompletionOr<Value> Debugger::evaluate_in_frame(ExecutionContext& execution_context, Utf16View source_text, UpdateOriginalBindings update_original_bindings)
 {
     auto* context = const_cast<JSExecutionContext*>(execution_context_to_abi(execution_context));

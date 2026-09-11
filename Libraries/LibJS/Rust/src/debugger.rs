@@ -30,9 +30,12 @@ use crate::layout::cell::Gc;
 use crate::layout::execution_context::ExecutionContext;
 use crate::layout::value::Value;
 use crate::runtime::abstract_operations::{CallerMode, new_declarative_environment, perform_eval};
-use crate::runtime::completion::ThrowCompletionOr;
-use crate::runtime::environment::InitializeBindingHint;
+use crate::runtime::completion::{Must, ThrowCompletionOr};
+use crate::runtime::ecmascript_function_object::EcmascriptFunctionObject;
+use crate::runtime::environment::{InitializeBindingHint, ThisBindingStatus};
+use crate::runtime::function_environment::FunctionEnvironment;
 use crate::runtime::primitive_string::PrimitiveString;
+use crate::runtime::shared_function_instance_data::ThisMode;
 use crate::source_code::SourceCode;
 use crate::source_range::{Position, SourceRange};
 use crate::utf16::Utf16View;
@@ -436,6 +439,116 @@ impl Debugger {
             });
         }
         bindings
+    }
+
+    pub fn this_value_for_frame(&self, vm: &Vm, context: &ExecutionContext) -> Value {
+        let Some(function) = context
+            .function
+            .get()
+            .and_then(|function| function.downcast::<EcmascriptFunctionObject>())
+        else {
+            let value = context.this_value.get();
+            return if value.is_empty() { Value::UNDEFINED } else { value };
+        };
+
+        if function.this_mode() != ThisMode::Lexical {
+            // A derived constructor has no `this` until super() returns.
+            if function.uses_this() {
+                return context.this_value.get();
+            }
+
+            // OrdinaryCallBindThis only runs for functions whose body mentions `this`; the other frames keep the
+            // uncoerced thisArg, so apply the same thisMode cases to it here.
+            let this_argument = context.this_value.get();
+            let this_argument = if this_argument.is_empty() {
+                Value::UNDEFINED
+            } else {
+                this_argument
+            };
+
+            // https://tc39.es/ecma262/#sec-ordinarycallbindthis
+            // 5. If thisMode is strict, then
+            //    a. Let thisValue be thisArg.
+            if function.this_mode() == ThisMode::Strict {
+                return this_argument;
+            }
+
+            // 6. Else,
+            //    a. If thisArg is either undefined or null, then
+            if this_argument.is_nullish() {
+                // i. Let globalEnv be calleeRealm.[[GlobalEnv]].
+                let global_environment = function
+                    .realm()
+                    .expect("an ECMAScript function has a realm")
+                    .global_environment();
+                // ii. Assert: globalEnv is a Global Environment Record.
+                // iii. Let thisValue be globalEnv.[[GlobalThisValue]].
+                return Value::from_object(global_environment.global_this_value());
+            }
+
+            //    b. Else,
+            //       i. Let thisValue be ! ToObject(thisArg).
+            return Value::from_object(this_argument.to_object(vm).must());
+        }
+
+        // An arrow function shares the `this` of the invocation that created it. Its executable lists the arrow
+        // among the functions it instantiates, and its captured environment distinguishes recursive invocations.
+        let mut enclosing_context = None;
+        let mut passed_context = false;
+        vm.for_each_execution_context_top_to_bottom(|candidate| {
+            if core::ptr::eq(candidate, context) {
+                passed_context = true;
+                return ControlFlow::Continue(());
+            }
+            if !passed_context {
+                return ControlFlow::Continue(());
+            }
+            let Some(executable) = candidate.executable.get().map(Executable::from_head) else {
+                return ControlFlow::Continue(());
+            };
+            let creates_this_function = (0..executable.shared_function_data_count()).any(|index| {
+                executable.shared_function_data(index as u32).executable() == function.bytecode_executable()
+            });
+            if !creates_this_function {
+                return ControlFlow::Continue(());
+            }
+            let mut environment = function.environment();
+            while let Some(current) = environment {
+                if Some(current) == candidate.variable_environment.get() {
+                    enclosing_context = Some(core::ptr::NonNull::from(candidate));
+                    return ControlFlow::Break(());
+                }
+                environment = current.outer_environment();
+            }
+            ControlFlow::Continue(())
+        });
+        if let Some(enclosing_context) = enclosing_context {
+            // SAFETY: The enclosing frame is still on the stack while execution is paused.
+            return self.this_value_for_frame(vm, unsafe { enclosing_context.as_ref() });
+        }
+
+        // https://tc39.es/ecma262/#sec-getthisenvironment
+        // Otherwise resolve it through the captured environment chain. An optimized-away receiver is unavailable.
+        // 1. Let envRecord be the running execution context's LexicalEnvironment.
+        let mut environment = context.lexical_environment.get();
+        // 2. Repeat,
+        while let Some(current) = environment {
+            // a. Let exists be envRecord.HasThisBinding().
+            // b. If exists is true, return envRecord.
+            if current.has_this_binding() {
+                if let Some(function_environment) = current.downcast::<FunctionEnvironment>()
+                    && function_environment.this_binding_status() == ThisBindingStatus::Uninitialized
+                {
+                    return Value::EMPTY;
+                }
+                return current.get_this_binding(vm).unwrap_or(Value::EMPTY);
+            }
+            // c. Let outer be envRecord.[[OuterEnv]].
+            // d. Assert: outer is not null.
+            // e. Set envRecord to outer.
+            environment = current.outer_environment();
+        }
+        Value::UNDEFINED
     }
 
     /// Set before each instruction is executed, so that a `debugger` statement doesn't pause a second time when we've

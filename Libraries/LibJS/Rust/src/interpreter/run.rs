@@ -397,6 +397,8 @@ impl Vm {
         // Bind this if the function uses it.
         if callee_function.uses_this() {
             callee_function.ordinary_call_bind_this(self, callee_context, this_value);
+        } else {
+            callee_context.this_value.set(this_value);
         }
 
         // Set this value register.

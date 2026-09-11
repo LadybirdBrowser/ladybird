@@ -470,3 +470,19 @@ pub unsafe extern "C" fn js_debugger_bindings_for_frame(
         unsafe { append(sink.context, &raw const binding_for_c) };
     }
 }
+
+/// Debugger::this_value_for_frame(): the frame's receiver, including when its function never reads `this`.
+///
+/// # Safety
+///
+/// `vm` must be a live VM with debugging enabled, and `execution_context` a live context of it while paused.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn js_debugger_this_value_for_frame(
+    vm: *mut JSVM,
+    execution_context: *const JSExecutionContext,
+) -> JSValue {
+    // SAFETY: The caller passes a live VM and execution context.
+    let (vm, debugger) = unsafe { debugger_of(vm) };
+    let execution_context = unsafe { &*execution_context.cast::<ExecutionContext>() };
+    debugger.this_value_for_frame(vm, execution_context).0
+}

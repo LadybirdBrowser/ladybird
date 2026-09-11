@@ -49,6 +49,7 @@ pub struct ExecutionContext {
     pub yield_value_is_iterator_result: Cell<bool>,
     pub caller_is_construct: Cell<bool>,
     pub frame_initialized: Cell<bool>,
+    /// Bound by OrdinaryCallBindThis, or the uncoerced thisArg when the function never uses `this`.
     /// The empty value means the frame has no this value.
     pub this_value: Cell<Value>,
     pub executable: Cell<Option<Gc<ExecutableHead>>>,

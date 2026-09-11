@@ -94,6 +94,7 @@ public:
     bool is_paused() const;
     GC::ConservativeVector<FrameBinding> bindings_for_frame(ExecutionContext const&) const;
     GC::ConservativeVector<FrameEnvironment> environments_for_frame(ExecutionContext const&) const;
+    Value this_value_for_frame(ExecutionContext const&) const;
     ThrowCompletionOr<Value> evaluate_in_frame(ExecutionContext&, Utf16View source_text, UpdateOriginalBindings = UpdateOriginalBindings::Yes);
 
     void request_pause_on_next_bytecode_execution();

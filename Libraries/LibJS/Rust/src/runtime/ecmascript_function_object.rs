@@ -356,6 +356,8 @@ impl EcmascriptFunctionObject {
         // 5. Perform OrdinaryCallBindThis(F, calleeContext, thisArgument).
         if function.uses_this() {
             function.ordinary_call_bind_this(vm, callee_context, this_argument);
+        } else {
+            callee_context.this_value.set(this_argument);
         }
 
         // 6. Let result be Completion(OrdinaryCallEvaluateBody(F, argumentsList)).
@@ -410,6 +412,8 @@ impl EcmascriptFunctionObject {
             // a. Perform OrdinaryCallBindThis(F, calleeContext, thisArgument).
             if function.uses_this() {
                 function.ordinary_call_bind_this(vm, callee_context, Value::from_object(this_argument));
+            } else {
+                callee_context.this_value.set(Value::from_object(this_argument));
             }
 
             // b. Let initializeResult be Completion(InitializeInstanceElements(thisArgument, F)).
