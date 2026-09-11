@@ -342,6 +342,8 @@ Optional<Gfx::DecodedImageFrame> HTMLVideoElement::current_decoded_image_frame()
         dbgln("Could not convert video frame to bitmap: {}", bitmap_or_error.release_error());
         return {};
     }
+    if (!current_frame->revalidate_backing())
+        return {};
     auto bitmap = bitmap_or_error.release_value();
     auto color_space = Gfx::ColorSpace {};
     if (auto color_space_result = Gfx::ColorSpace::from_cicp(current_frame->cicp()); !color_space_result.is_error())
