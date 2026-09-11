@@ -178,13 +178,6 @@ struct AspectRatio {
     }
 };
 
-struct AnchorScopeData {
-    bool all { false };
-    Vector<Utf16FlyString> names;
-
-    bool operator==(AnchorScopeData const&) const = default;
-};
-
 struct PositionVisibilityData {
     bool always { false };
     bool anchors_valid { false };
@@ -750,14 +743,6 @@ struct TouchActionData {
     }
 };
 
-struct WhiteSpaceTrimData {
-    bool discard_before : 1 { false };
-    bool discard_after : 1 { false };
-    bool discard_inner : 1 { false };
-
-    bool operator==(WhiteSpaceTrimData const&) const = default;
-};
-
 struct TransformOrigin {
     LengthPercentage x { Percentage(50) };
     LengthPercentage y { Percentage(50) };
@@ -845,16 +830,6 @@ struct TextUnderlineOffset {
     CSSPixels used_value { 2 };
 
     bool operator==(TextUnderlineOffset const&) const = default;
-};
-
-struct LineHeightData {
-    struct Normal {
-        bool operator==(Normal const&) const = default;
-    };
-
-    Variant<Normal, double, Length> computed_value { Normal {} };
-
-    bool operator==(LineHeightData const&) const = default;
 };
 
 // FIXME: Find a better place for this helper.
