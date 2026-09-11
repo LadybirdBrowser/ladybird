@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<base href="not-the-document-url/">
+<svg style="display: none">
+    <symbol id="target"><rect width="10" height="10" /></symbol>
+    <use href="#target" />
+</svg>
+<script>
+    test(() => {
+        // The fragment-only href resolves against the base URL, which no longer matches the document URL. It must
+        // still be treated as a reference into this document rather than an external document to fetch.
+        const use = document.querySelector("use");
+        println(`Base URL differs from document URL: has instance root: ${!!internals.getShadowRoot(use).firstElementChild}`);
+    });
+</script>
