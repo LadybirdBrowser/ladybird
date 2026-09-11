@@ -348,7 +348,7 @@ void ContextState::update_visual_context_tree(Web::Painting::AccumulatedVisualCo
 
 void ContextState::update_scroll_state(Web::Painting::ScrollStateSnapshot&& scroll_state_snapshot)
 {
-    m_rotating_content_may_affect_viewport.clear();
+    m_animated_content_may_affect_viewport.clear();
     m_scroll_state_snapshot = move(scroll_state_snapshot);
     m_scroll_state_snapshot.set_node_count(m_visual_context_tree.has_value() ? m_visual_context_tree->spatial_node_count() : 0);
     retire_reconciled_async_scroll_offsets(m_scroll_state_snapshot.adopted_async_scroll_sequence());
@@ -909,7 +909,7 @@ bool ContextState::has_pending_async_scroll_updates() const
 
 void ContextState::viewport_size_updated(Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
 {
-    m_rotating_content_may_affect_viewport.clear();
+    m_animated_content_may_affect_viewport.clear();
     m_viewport_size = viewport_size;
     auto is_page_presentation_context = m_page_id.has_value() && !m_parent_context_id.has_value();
     m_window_resize_in_progress = is_page_presentation_context
@@ -1308,7 +1308,7 @@ void ContextState::store_pending_async_scroll_offsets(
     Vector<Web::Compositor::AsyncScrollOffset> const& scroll_offsets,
     Optional<Web::Compositor::AsyncScrollOperationID> operation_id)
 {
-    m_rotating_content_may_affect_viewport.clear();
+    m_animated_content_may_affect_viewport.clear();
     for (auto const& scroll_offset : scroll_offsets)
         set_or_append_pending_scroll_offset(m_pending_async_scroll_offsets, scroll_offset);
     if (operation_id.has_value())
@@ -1383,7 +1383,7 @@ void ContextState::discard_sampled_visual_context_tree()
 
 void ContextState::invalidate_visual_context_tree_for_compositing()
 {
-    m_rotating_content_may_affect_viewport.clear();
+    m_animated_content_may_affect_viewport.clear();
     discard_sampled_visual_context_tree();
     m_visual_context_tree_for_compositing.clear();
 }
@@ -1492,12 +1492,18 @@ bool ContextState::visual_animations_need_frame()
 {
     if (!m_has_active_visual_animations)
         return false;
-    if (m_rotating_content_may_affect_viewport.has_value())
-        return *m_rotating_content_may_affect_viewport;
+    if (m_animated_content_may_affect_viewport.has_value())
+        return *m_animated_content_may_affect_viewport;
 
     Vector<Web::Painting::SpatialNodeIndex> rotation_nodes;
+    Vector<Web::Painting::EffectNodeIndex> opacity_nodes;
     for (auto const& animation : m_visual_context_tree->visual_animations()) {
-        // OPTIMIZATION: Bound all angles of pure 2D rotations. Other animations retain continuous sampling.
+        // OPTIMIZATION: Opacity preserves bounds; pure 2D rotations have bounded swept areas.
+        if (animation.target_kind == Web::Compositor::VisualAnimation::TargetKind::Opacity) {
+            for (auto node_index : animation.visual_context_node_indices)
+                opacity_nodes.append(Web::Painting::EffectNodeIndex { node_index });
+            continue;
+        }
         if (animation.target_kind != Web::Compositor::VisualAnimation::TargetKind::Transform)
             return true;
         for (auto const& keyframe : animation.keyframes) {
@@ -1515,9 +1521,9 @@ bool ContextState::visual_animations_need_frame()
     auto tree = m_async_visual_viewport_transform.has_value()
         ? current_visual_context_tree().with_visual_viewport_transform(*m_async_visual_viewport_transform)
         : current_visual_context_tree();
-    m_rotating_content_may_affect_viewport = Web::Painting::rotating_content_may_affect_viewport(
-        m_display_list->command_bytes(), tree, m_scroll_state_snapshot, rotation_nodes, { {}, m_viewport_size });
-    return *m_rotating_content_may_affect_viewport;
+    m_animated_content_may_affect_viewport = Web::Painting::animated_content_may_affect_viewport(
+        m_display_list->command_bytes(), tree, m_scroll_state_snapshot, rotation_nodes, opacity_nodes, { {}, m_viewport_size });
+    return *m_animated_content_may_affect_viewport;
 }
 
 bool ContextState::advance_visual_animations(MonotonicTime now)

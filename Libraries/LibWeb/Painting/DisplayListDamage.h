@@ -26,11 +26,12 @@ WEB_API Optional<Gfx::IntRect> compute_display_list_damage(
     ScrollStateSnapshot const& new_scroll_state,
     Gfx::IntRect viewport_rect);
 
-WEB_API bool rotating_content_may_affect_viewport(
+WEB_API bool animated_content_may_affect_viewport(
     ReadonlyBytes display_list_commands,
     AccumulatedVisualContextTree const&,
     ScrollStateSnapshot const&,
     ReadonlySpan<SpatialNodeIndex> rotation_nodes,
+    ReadonlySpan<EffectNodeIndex> opacity_nodes,
     Gfx::IntRect viewport_rect);
 
 }
