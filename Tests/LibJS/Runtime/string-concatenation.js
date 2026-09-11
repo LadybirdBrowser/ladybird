@@ -28,3 +28,23 @@ test("adding strings with dangling surrogates", () => {
     expect("\ud834a" + "\udf06").toBe("\ud834a\udf06");
     expect("\ud834" + "a\udf06").toBe("\ud834a\udf06");
 });
+
+test("length of concatenated strings", () => {
+    expect(("item " + 1023).length).toBe(9);
+    expect(("\ud834" + "\udf06" + "abcdefgh").length).toBe(10);
+
+    const source = "abcdefghijklmnop";
+    expect((source.slice(3) + source.slice(0, 5) + "xyz").length).toBe(21);
+
+    const left = "abcdefgh" + "ijklmnop";
+    const right = "qrstuvwx" + "yz";
+    expect((left + right).length).toBe(26);
+    expect(left + right).toBe("abcdefghijklmnopqrstuvwxyz");
+
+    let string = "";
+    for (let i = 0; i < 1000; i++) {
+        string += "ab";
+        expect(string.length).toBe((i + 1) * 2);
+    }
+    expect(string).toBe("ab".repeat(1000));
+});

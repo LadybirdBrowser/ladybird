@@ -103,6 +103,7 @@ private:
 
     mutable GC::Ptr<PrimitiveString> m_lhs;
     mutable GC::Ptr<PrimitiveString> m_rhs;
+    size_t m_length_in_utf16_code_units { 0 };
 };
 
 class Substring final : public PrimitiveString {

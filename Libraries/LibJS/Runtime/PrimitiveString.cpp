@@ -266,6 +266,8 @@ Utf16View PrimitiveString::utf16_string_view() const
 
 size_t PrimitiveString::length_in_utf16_code_units() const
 {
+    if (m_deferred_kind == DeferredKind::Rope)
+        return static_cast<RopeString const&>(*this).m_length_in_utf16_code_units;
     if (m_deferred_kind == DeferredKind::Substring)
         return static_cast<Substring const&>(*this).m_code_unit_length;
     return utf16_string_view().length_in_code_units();
@@ -326,7 +328,6 @@ void RopeString::resolve() const
     // This vector will hold all the pieces of the rope that need to be assembled
     // into the resolved string.
     Vector<GC::Ptr<PrimitiveString const>, 2> pieces;
-    size_t length_in_utf16_code_units = 0;
 
     // NOTE: We traverse the rope tree without using recursion, since we'd run out of
     //       stack space quickly when handling a long sequence of unresolved concatenations.
@@ -342,11 +343,10 @@ void RopeString::resolve() const
             continue;
         }
 
-        length_in_utf16_code_units += current->length_in_utf16_code_units();
         pieces.append(current);
     }
 
-    Utf16StringBuilder builder(length_in_utf16_code_units);
+    Utf16StringBuilder builder(m_length_in_utf16_code_units);
     for (auto const& current : pieces) {
         builder.append(current->utf16_string_view());
     }
@@ -361,6 +361,7 @@ RopeString::RopeString(GC::Ref<PrimitiveString> lhs, GC::Ref<PrimitiveString> rh
     : PrimitiveString(DeferredKind::Rope)
     , m_lhs(lhs)
     , m_rhs(rhs)
+    , m_length_in_utf16_code_units(lhs->length_in_utf16_code_units() + rhs->length_in_utf16_code_units())
 {
 }
 
