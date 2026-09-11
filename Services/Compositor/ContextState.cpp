@@ -1116,6 +1116,11 @@ Optional<ContextState::PreparedFrame> ContextState::prepare_frame(Web::Painting:
     }
 
     auto damage_rect = frame_damage_for(pending_frame);
+    // NB: A changed content rect must still reach the client even if the pixels are identical.
+    if (damage_rect.is_empty() && m_presented_frame == pending_frame.viewport_rect) {
+        remember_rasterized_frame(pending_frame.viewport_rect.size());
+        return {};
+    }
     auto render_target = m_backing_store_manager.acquire_render_target(damage_rect);
     if (!render_target.has_value()) {
         queue_present_frame(pending_frame);
