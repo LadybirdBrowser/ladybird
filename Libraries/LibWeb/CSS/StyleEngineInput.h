@@ -116,7 +116,8 @@ WEB_API void record_element_custom_property_names(DOM::Element&, ReadonlySpan<Ut
 
 // The same index, from the environments the element and its pseudo-elements resolved to, plus
 // names read outside substitution (for example by style queries). The names each environment
-// declares are interned into engine identities once for that environment.
+// declares are interned into engine identities once for that environment. The references must hold
+// no duplicates.
 WEB_API void record_element_custom_property_names(DOM::Element&, CustomPropertyData const*, ReadonlySpan<RefPtr<CustomPropertyData const>> pseudo_element_data, ReadonlySpan<Utf16FlyString> references, bool uses_unnamed, bool uses_custom_functions);
 
 // Report that a child of an element arrived, left, or changed in a way that can move whether the
