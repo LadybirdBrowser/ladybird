@@ -41,7 +41,7 @@
         hidden.addEventListener("animationiteration", animationIterationListener);
         internals.resetStyleInvalidationCounters();
         await animationOverlayBuildsOverFrames(4);
-        println(`animation event listener keeps frame pump active: ${internals.getStyleInvalidationCounters().animationFramePumpRequests > 0}`);
+        println(`animation event listener uses iteration wake-ups: ${internals.getStyleInvalidationCounters().animationFramePumpRequests === 0 && internals.getStyleInvalidationCounters().compositorAnimationWakeupTimerActive}`);
         println(`animation event listener skips past events: ${animationIterationEvents}`);
         hidden.removeEventListener("animationiteration", animationIterationListener);
         internals.resetStyleInvalidationCounters();

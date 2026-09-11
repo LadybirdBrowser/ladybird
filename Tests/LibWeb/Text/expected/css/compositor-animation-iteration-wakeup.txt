@@ -1,0 +1,12 @@
+animation uses compositor: true
+ancestor listeners do not keep frame pump running: true
+iteration wake-up is armed: true
+early wake-up requests no frame: true
+iteration requests one frame: true
+iteration needs no animated style overlays: true
+events: start 0, iteration 1000
+next iteration re-arms the wake-up: true
+adjusted iteration does not wake early: true
+negative delay, iteration start, and playback rate are respected: true
+paused animation does not re-arm iteration wake-up: true
+cancellation still dispatches: true

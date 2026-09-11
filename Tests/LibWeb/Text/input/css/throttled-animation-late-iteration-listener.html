@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    svg { width: 16px; height: 16px; animation: spin 1000s linear infinite; }
+</style>
+<div id="root"><svg id="visible" viewBox="0 0 16 16"><path d="M15 8A7 7 0 0 0 8 1" /></svg><div style="display: none"><svg id="hidden" viewBox="0 0 16 16"><path d="M15 8A7 7 0 0 0 8 1" /></svg></div><details id="details"><summary>Details</summary><svg id="closed" viewBox="0 0 16 16"><path d="M15 8A7 7 0 0 0 8 1" /></svg></details></div>
+<script>
+    asyncTest(async done => {
+        const root = document.getElementById("root");
+        const timeline = internals.createInternalAnimationTimeline();
+        const hiddenAnimation = document.getElementById("hidden").animate(
+            [{ transform: "rotate(0deg)" }, { transform: "rotate(360deg)" }],
+            { duration: 1000000, iterations: Infinity });
+        const animations = [document.getElementById("visible").getAnimations()[0], hiddenAnimation,
+            document.getElementById("closed").getAnimations()[0]];
+        for (const animation of animations) {
+            animation.timeline = timeline;
+            animation.startTime = 0;
+        }
+        timeline.setTime(0);
+        timeline.setTimeForObservation(0);
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+        internals.resetStyleInvalidationCounters();
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+        const idle = internals.getStyleInvalidationCounters();
+        println(`visible, display-none, and closed-details rotations skip per-frame work: ${idle.animationFramePumpRequests === 0 && idle.animatedStyleOverlayBuilds === 0}`);
+        println(`unobserved rotations need no wake-up timer: ${!idle.compositorAnimationWakeupTimerActive}`);
+
+        const events = [];
+        const listener = event => events.push(`${event.target.id} ${event.elapsedTime}`);
+        timeline.setTime(2500000);
+        timeline.setTimeForObservation(2500000);
+        root.addEventListener("animationiteration", listener);
+        timeline.setTime(2500000);
+        await new Promise(requestAnimationFrame);
+        println(`late listener receives no past events: ${events.length === 0}`);
+        println(`late ancestor listener arms wake-up: ${internals.getStyleInvalidationCounters().compositorAnimationWakeupTimerActive}`);
+
+        internals.resetStyleInvalidationCounters();
+        timeline.setTimeForObservation(3000000);
+        internals.fireCompositorAnimationWakeupForTesting(3000000);
+        timeline.setTime(3000000);
+        await new Promise(requestAnimationFrame);
+        println(`next iteration reaches late listener: ${events.sort().join(", ")}`);
+        println(`one wake-up serves the CSS effects: ${internals.getStyleInvalidationCounters().animationFramePumpRequests === 1}`);
+
+        root.removeEventListener("animationiteration", listener);
+        root.addEventListener("animationstart", () => {});
+        root.addEventListener("animationcancel", () => {});
+        await new Promise(requestAnimationFrame);
+        internals.resetStyleInvalidationCounters();
+        timeline.setTimeForObservation(4000000);
+        internals.fireCompositorAnimationWakeupForTesting(4000000);
+        const removed = internals.getStyleInvalidationCounters();
+        println(`removing iteration listener leaves no periodic wake-up: ${removed.animationFramePumpRequests === 0 && !removed.compositorAnimationWakeupTimerActive}`);
+        document.getElementById("hidden").parentElement.style.display = "block";
+        document.getElementById("details").open = true;
+        timeline.setTime(4000000);
+        for (let i = 0; i < 4; ++i)
+            await new Promise(requestAnimationFrame);
+        println(`showing hidden SVG resumes compositor rendering: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 3}`);
+        for (const animation of animations)
+            animation.cancel();
+        done();
+    });
+</script>

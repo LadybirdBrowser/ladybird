@@ -170,7 +170,7 @@
         losingInfiniteAnimation.currentTime = 250000;
         await losingInfiniteIterationsObserved;
         println(`losing infinite effect dispatches iteration events: ${losingInfiniteIterations === 2}`);
-        println(`losing infinite listener keeps the frame pump active: ${internals.getStyleInvalidationCounters().animationFramePumpRequests > 0}`);
+        println(`losing infinite listener uses iteration wake-ups: ${internals.getStyleInvalidationCounters().animationFramePumpRequests === 0 && internals.getStyleInvalidationCounters().compositorAnimationWakeupTimerActive}`);
         for (const animation of target.getAnimations())
             animation.cancel();
         done();
