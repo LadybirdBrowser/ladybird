@@ -10,6 +10,7 @@ set(SOURCES
     HSTS/ParsedHSTSPolicy.cpp
     Header.cpp
     HeaderList.cpp
+    StructuredFieldValues.cpp
     HTTP.cpp
     HttpRequest.cpp
     Method.cpp

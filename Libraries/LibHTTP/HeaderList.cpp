@@ -73,6 +73,26 @@ Optional<Vector<String>> HeaderList::get_decode_and_split(StringView name) const
     return get_decode_and_split_header_value(*value);
 }
 
+// https://fetch.spec.whatwg.org/#concept-header-list-get-structured-header
+Optional<StructuredFieldValues::Item> HeaderList::get_structured_field_item(StringView name) const
+{
+    // 1. Assert: type is one of "dictionary", "list", or "item".
+    // NOTE: Only "item" is supported so far.
+
+    // 2. Let value be the result of getting name from list.
+    auto value = get(name);
+
+    // 3. If value is null, then return null.
+    if (!value.has_value())
+        return {};
+
+    // 4. Let result be the result of parsing structured fields with input_string set to value and header_type set
+    //    to type.
+    // 5. If parsing failed, then return null.
+    // 6. Return result.
+    return StructuredFieldValues::parse_item(*value);
+}
+
 // https://fetch.spec.whatwg.org/#concept-header-list-append
 void HeaderList::append(Header header)
 {
