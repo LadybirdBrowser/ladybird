@@ -2190,7 +2190,10 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
     if (!navigable || navigable->active_document().ptr() != this)
         return;
 
-    if (reason != UpdateLayoutReason::HTMLEventLoopRenderingUpdate && animation_sampling_scope == ThrottledAnimationSamplingScope::Document)
+    // Internal layout dependencies do not observe compositor animation values.
+    if (reason != UpdateLayoutReason::HTMLEventLoopRenderingUpdate
+        && reason != UpdateLayoutReason::ChildDocumentStyleUpdate
+        && animation_sampling_scope == ThrottledAnimationSamplingScope::Document)
         flush_throttled_animation_style_update();
 
     VERIFY(!m_is_running_update_layout);
