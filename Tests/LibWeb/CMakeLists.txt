@@ -25,6 +25,7 @@ set(TEST_SOURCES
     TestSecureContexts.cpp
     TestSessionHistoryEntry.cpp
     TestSimpleRealm.cpp
+    TestScrollSnapSelection.cpp
     TestSmoothScrollAnimation.cpp
     TestSourceHighlighter.cpp
     TestStrings.cpp

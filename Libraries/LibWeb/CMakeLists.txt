@@ -34,6 +34,7 @@ set(SOURCES
     Clipboard/SystemClipboard.cpp
     Compositor/AsyncScrollTree.cpp
     Compositor/AsyncScrollingState.cpp
+    Compositor/ScrollSnapSelection.cpp
     Compositor/CompositorHost.cpp
     Compositor/SmoothScrollAnimation.cpp
     Compositor/Types.cpp
