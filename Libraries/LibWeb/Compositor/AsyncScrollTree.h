@@ -58,10 +58,16 @@ public:
     Optional<Gfx::FloatPoint> scroll_offset_for_node(AsyncScrollNodeID, Painting::ScrollStateSnapshot const&) const;
     Optional<AsyncScrollNodeID> viewport_scroll_node_id() const;
     Optional<AsyncScrollNodeID> scroll_node_id_for_stable_id(AsyncScrollNodeStableID) const;
-    AsyncScrollNode const* scroll_node(AsyncScrollNodeID node_id) const { return scroll_node_for_id(node_id); }
+    AsyncScrollNode const* scroll_node_for_id(AsyncScrollNodeID) const;
     AsyncSnapContainer const* snap_container_for_node(AsyncScrollNodeID) const;
+
+    // Scroll offsets are held in the device pixels of the display list; snap geometry is in the CSS pixels it was
+    // recorded from, at the scale the display list carries.
     double device_pixels_per_css_pixel() const { return m_device_pixels_per_css_pixel; }
-    WheelHitTestResult hit_test_scroll_node_for_wheel(Painting::AccumulatedVisualContextTree const&, Gfx::FloatPoint position, Gfx::FloatPoint delta, SnapContainerHandling) const;
+    CSSPixelPoint css_pixels_from_device_offset(Gfx::FloatPoint) const;
+    Gfx::FloatPoint device_offset_from_css_pixels(CSSPixelPoint) const;
+    Optional<CSSPixelPoint> css_scroll_offset_for_node(AsyncScrollNodeID, Painting::ScrollStateSnapshot const&) const;
+    WheelHitTestResult hit_test_scroll_node_for_wheel(Painting::AccumulatedVisualContextTree const&, Gfx::FloatPoint position, Gfx::FloatPoint delta) const;
     bool scroll_node_is_viewport(AsyncScrollNodeID) const;
     Vector<AsyncScrollOffset> apply_scroll_delta(AsyncScrollNodeID, Gfx::FloatPoint delta, Painting::AccumulatedVisualContextTree const&, Painting::ScrollStateSnapshot&);
     Optional<Gfx::FloatPoint> set_scroll_offset(AsyncScrollNodeID, Gfx::FloatPoint, Painting::AccumulatedVisualContextTree const&, Painting::ScrollStateSnapshot&);
@@ -72,7 +78,6 @@ private:
     static bool can_scroll_node_by_delta(AsyncScrollNode const&, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint);
     static bool has_non_zero_scroll_delta(Gfx::FloatPoint);
 
-    AsyncScrollNode const* scroll_node_for_id(AsyncScrollNodeID) const;
     WheelHitTestResult hit_test_result_for_scroll_node(AsyncScrollNodeID, Gfx::FloatPoint delta) const;
     AsyncScrollNode const* scroll_node_for_stable_id(AsyncScrollNodeStableID) const;
     Optional<AsyncScrollNodeID> scrollable_ancestor_for_node(AsyncScrollNodeID, Painting::ScrollStateSnapshot const&, Gfx::FloatPoint delta) const;

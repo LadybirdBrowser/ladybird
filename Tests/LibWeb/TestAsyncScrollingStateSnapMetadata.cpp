@@ -47,8 +47,6 @@ static void append_scroll_node(ByteBuffer& command_bytes)
             .is_viewport = false,
             .can_be_wheel_scrolled_horizontally = false,
             .can_be_wheel_scrolled_vertically = true,
-            .snaps_scroll_position_horizontally = false,
-            .snaps_scroll_position_vertically = true,
         });
 }
 

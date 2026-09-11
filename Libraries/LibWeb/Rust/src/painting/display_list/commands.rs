@@ -1388,8 +1388,6 @@ pub struct CompositorScrollNode {
     pub is_viewport: bool,
     pub can_be_wheel_scrolled_horizontally: bool,
     pub can_be_wheel_scrolled_vertically: bool,
-    pub snaps_scroll_position_horizontally: bool,
-    pub snaps_scroll_position_vertically: bool,
 }
 ffi_bytes_fields!(CompositorScrollNode {
     document_id,
@@ -1403,9 +1401,7 @@ ffi_bytes_fields!(CompositorScrollNode {
     pseudo_element_type,
     is_viewport,
     can_be_wheel_scrolled_horizontally,
-    can_be_wheel_scrolled_vertically,
-    snaps_scroll_position_horizontally,
-    snaps_scroll_position_vertically
+    can_be_wheel_scrolled_vertically
 });
 
 impl DisplayListCommand for CompositorScrollNode {
