@@ -3810,10 +3810,30 @@ fn fixup_row(
     table_grid: &table_formatting_context::TableGrid,
     row_index: usize,
 ) {
-    for column_index in 0..table_grid.column_count {
-        if table_grid.occupancy.contains(&(column_index, row_index)) {
-            continue;
+    let required_cell_count = (0..table_grid.column_count)
+        .filter(|&column_index| !table_grid.occupancy.contains(&(column_index, row_index)))
+        .count();
+    let mut existing_cells = Vec::new();
+    let mut missing_cells_are_trailing = true;
+    let mut child = host.first_child(row);
+    while !child.is_invalid() {
+        if node_has_flag(host.data(child), NodeFlag::IsMissingTableCell) {
+            existing_cells.push(child);
+        } else if !existing_cells.is_empty() {
+            missing_cells_are_trailing = false;
         }
+        child = host.next_sibling(child);
+    }
+    // OPTIMIZATION: Preserve trailing anonymous cells that still fill the grid. Recreating
+    //               them on every cell-content change invalidates layout and paint caches
+    //               for otherwise untouched rows throughout the table.
+    let retained_cell_count = if missing_cells_are_trailing {
+        existing_cells.len().min(required_cell_count)
+    } else {
+        0
+    };
+    host.remove_nodes(&existing_cells[retained_cell_count..]);
+    for _ in retained_cell_count..required_cell_count {
         let cell = host.create_anonymous_box(
             row,
             FfiAnonymousStyleKind::MissingTableCell,
@@ -3826,33 +3846,17 @@ fn fixup_row(
     }
 }
 
-fn remove_missing_table_cells(host: &TreeBuilderHost<'_>, table_root: LayoutNode) {
-    let mut cells = Vec::new();
-    host.for_each_in_inclusive_subtree(table_root, |node| {
-        let data = host.data(node);
-        if node != table_root
-            && node_kind_is_box(data.kind.get())
-            && display_for_table_fixup(host, node).is_table_inside()
-        {
-            return TraversalDecision::SkipChildrenAndContinue;
-        }
-        if node_has_flag(data, NodeFlag::IsMissingTableCell) {
-            cells.push(node);
-            return TraversalDecision::SkipChildrenAndContinue;
-        }
-        TraversalDecision::Continue
-    });
-    host.remove_nodes(&cells);
-}
-
 fn missing_cells_fixup(host: &TreeBuilderHost<'_>, table_roots: &[LayoutNode]) {
     // https://drafts.csswg.org/css-tables-3/#missing-cells-fixup
     // Once the amount of columns in a table is known, any table-row box must be modified such that it owns enough
     // cells to fill all the columns of the table, when taking spans into account. New table-cell anonymous boxes must
     // be appended to its rows content until this condition is met.
     for &table_root in table_roots {
-        remove_missing_table_cells(host, table_root);
-        let grid = table_formatting_context::calculate_table_grid(host, table_root);
+        let grid = table_formatting_context::calculate_table_grid(
+            host,
+            table_root,
+            table_formatting_context::MissingTableCells::Exclude,
+        );
         for (row_index, row) in grid.rows.iter().enumerate() {
             fixup_row(host, row.box_, &grid, row_index);
         }
