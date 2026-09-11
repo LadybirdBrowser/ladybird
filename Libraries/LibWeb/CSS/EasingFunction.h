@@ -58,7 +58,6 @@ struct EasingFunction : public Variant<LinearEasingFunction, CubicBezierEasingFu
     static EasingFunction ease();
 
     static EasingFunction from_style_value(StyleValue const&);
-    NonnullRefPtr<StyleValue const> to_style_value() const;
 
     double evaluate_at(double input_progress, bool before_flag) const;
     String to_string() const;
