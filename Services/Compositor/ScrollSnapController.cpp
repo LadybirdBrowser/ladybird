@@ -122,7 +122,7 @@ static bool selected_snap_position_along_travel(Web::Compositor::SnapDestination
     return (selection.snapped_x && displacement.x() != 0) || (selection.snapped_y && displacement.y() != 0);
 }
 
-Optional<ScrollSnapController::WheelStepDecision> ScrollSnapController::decide_discrete_step(Web::Compositor::AsyncScrollTree const& scroll_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Web::Compositor::AsyncScrollNodeID node_id, Web::CSSPixelPoint delta, MonotonicTime now)
+Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_discrete_step(Web::Compositor::AsyncScrollTree const& scroll_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Web::Compositor::AsyncScrollNodeID node_id, Web::CSSPixelPoint delta, MonotonicTime now)
 {
     auto target = snap_target_for(scroll_tree, scroll_state_snapshot, node_id);
     if (!target.has_value())
@@ -166,10 +166,10 @@ Optional<ScrollSnapController::WheelStepDecision> ScrollSnapController::decide_d
     if (selection.position == in_flight_destination.value_or(current_scroll_offset)) {
         if (!state.snap_scroll.has_value())
             state.expected_scroll_offset = current_scroll_offset;
-        return WheelStepDecision { StepConsumed {} };
+        return StepDecision { StepConsumed {} };
     }
 
-    return WheelStepDecision { SnapScrollStart {
+    return StepDecision { SnapScrollStart {
         .stable_node_id = target->stable_node_id,
         .initial_scroll_offset = current_scroll_offset,
         .unsnapped_scroll_destination = unsnapped_destination,
@@ -178,10 +178,60 @@ Optional<ScrollSnapController::WheelStepDecision> ScrollSnapController::decide_d
     } };
 }
 
-Optional<ScrollSnapController::WheelStepDecision> ScrollSnapController::decide_momentum_delta(Web::Compositor::AsyncScrollTree const& scroll_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Web::Compositor::AsyncScrollNodeID node_id, Web::CSSPixelPoint momentum_delta)
+Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_key_step(Web::Compositor::AsyncScrollTree const& scroll_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Web::Compositor::AsyncScrollNodeID node_id, Web::CSSPixelPoint delta, Web::Compositor::SnapSelectionStrategy::Type strategy_type, Optional<Web::CSSPixelPoint> scroll_in_flight_destination, MonotonicTime now)
+{
+    auto target = snap_target_for(scroll_tree, scroll_state_snapshot, node_id);
+    if (!target.has_value())
+        return {};
+    auto const& geometry = target->snap_container->geometry;
+    if (!(geometry.axes.x && delta.x() != 0) && !(geometry.axes.y && delta.y() != 0))
+        return {};
+
+    auto current_scroll_offset = target->current_scroll_offset;
+    auto& state = node_state(target->stable_node_id);
+    auto in_flight_destination = state.snap_scroll.map([](auto const& snap_scroll) { return snap_scroll.destination; });
+    if (!in_flight_destination.has_value())
+        in_flight_destination = scroll_in_flight_destination;
+    auto step_start = state.snap_scroll.has_value()
+        ? state.unsnapped_scroll_destination.value_or(state.snap_scroll->destination)
+        : scroll_in_flight_destination.value_or(current_scroll_offset);
+    auto unsnapped_destination = clamp_scroll_offset(step_start + delta, geometry);
+
+    Web::Compositor::SnapSelectionStrategy strategy {
+        .type = strategy_type,
+        .start_offset = step_start,
+        .displacement = delta,
+        .starting_positions_boundary = {},
+    };
+    if (strategy_type == Web::Compositor::SnapSelectionStrategy::Type::Direction)
+        strategy.starting_positions_boundary = unsnapped_destination;
+    auto evaluated_axes = Web::Compositor::axes_to_evaluate(geometry.axes, strategy);
+    auto selection = Web::Compositor::select_snap_destination(geometry, candidates_for(target->stable_node_id, *target->snap_container), unsnapped_destination, strategy, evaluated_axes);
+    if (!selected_snap_position_along_travel(selection, delta))
+        return {};
+
+    state.unsnapped_scroll_destination = unsnapped_destination;
+    state.gesture_input_deadline = now + Web::Compositor::user_scroll_settle_delay;
+
+    if (selection.position == in_flight_destination.value_or(current_scroll_offset)) {
+        if (!state.snap_scroll.has_value())
+            state.expected_scroll_offset = current_scroll_offset;
+        return StepDecision { StepConsumed {} };
+    }
+
+    return StepDecision { SnapScrollStart {
+        .stable_node_id = target->stable_node_id,
+        .initial_scroll_offset = current_scroll_offset,
+        .unsnapped_scroll_destination = unsnapped_destination,
+        .selection = move(selection),
+        .animation_kind = Web::Compositor::ScrollAnimationKind::SmoothScroll,
+    } };
+}
+
+Optional<ScrollSnapController::StepDecision> ScrollSnapController::decide_momentum_delta(Web::Compositor::AsyncScrollTree const& scroll_tree, Web::Painting::ScrollStateSnapshot const& scroll_state_snapshot, Web::Compositor::AsyncScrollNodeID node_id, Web::CSSPixelPoint momentum_delta)
 {
     if (m_momentum_snap_position_selection == MomentumSnapPositionSelection::ScrollingToSelectedPosition)
-        return WheelStepDecision { StepConsumed {} };
+        return StepDecision { StepConsumed {} };
     if (m_momentum_snap_position_selection == MomentumSnapPositionSelection::NoPositionSelected)
         return {};
 
@@ -217,8 +267,8 @@ Optional<ScrollSnapController::WheelStepDecision> ScrollSnapController::decide_m
 
     m_momentum_snap_position_selection = MomentumSnapPositionSelection::ScrollingToSelectedPosition;
     if (selection.position == step_start)
-        return WheelStepDecision { StepConsumed {} };
-    return WheelStepDecision { SnapScrollStart {
+        return StepDecision { StepConsumed {} };
+    return StepDecision { SnapScrollStart {
         .stable_node_id = target->stable_node_id,
         .initial_scroll_offset = target->current_scroll_offset,
         .unsnapped_scroll_destination = unsnapped_destination,
