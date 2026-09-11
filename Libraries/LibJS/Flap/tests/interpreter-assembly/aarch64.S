@@ -4522,17 +4522,17 @@ asm_handler_GetByValue_hot_end:
 asm_handler_GetLength:
     ldr w0, [x21, #8]
     ldr x1, [x27, x0, lsl #3]
-    lsr x9, x1, #48
-    mov w10, #65529
-    cmp x9, x10
-    b.ne .Lasm_GetLength.ssa_block_1
+    lsr x0, x1, #48
+    mov w9, #65529
+    cmp w0, w9
+    b.ne .Lasm_GetLength.ssa_block_2
     and x1, x1, #0x3ffffffffff
     add x1, x1, x24
     ldrh w0, [x1, #10]
-    tbz x0, #2, .Lasm_GetLength.ssa_block_5
+    tbz x0, #2, .Lasm_GetLength.ssa_block_6
     ldr w0, [x1, #16]
     tbz x0, #31, 1f
-    b .Lasm_GetLength.ssa_block_2
+    b .Lasm_GetLength.ssa_block_3
 1:
     movk x0, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
@@ -4541,7 +4541,7 @@ asm_handler_GetLength:
     add x21, x21, #24
     ldr x10, [x19, x9, lsl #3]
     br x10
-.Lasm_GetLength.ssa_block_5:
+.Lasm_GetLength.ssa_block_6:
     ldr x2, [x1, #24]
     ldr x0, [x28, #88]
     ldr x0, [x0, #112]
@@ -4563,6 +4563,23 @@ asm_handler_GetLength:
     mov w10, #65532
     cmp x9, x10
     b.eq .Lasm_GetLength.ssa_block_1
+    ldr w9, [x21, #4]
+    str x0, [x27, x9, lsl #3]
+    ldrb w9, [x21, #24]
+    add x21, x21, #24
+    ldr x10, [x19, x9, lsl #3]
+    br x10
+.Lasm_GetLength.ssa_block_2:
+    mov w9, #65530
+    cmp w0, w9
+    b.ne .Lasm_GetLength.ssa_block_1
+    and x1, x1, #0x3ffffffffff
+    add x1, x1, x24
+    ldr w0, [x1, #12]
+    tbz x0, #31, 1f
+    b .Lasm_GetLength.ssa_block_1
+1:
+    movk x0, #0x7ffa, lsl #48
     ldr w9, [x21, #4]
     str x0, [x27, x9, lsl #3]
     ldrb w9, [x21, #24]
@@ -12270,7 +12287,7 @@ asm_handler_PutBySpread_cold_end:
 
 asm_handler_GetLength_cold:
 // Cold paths for GetLength
-.Lasm_GetLength.ssa_block_2:
+.Lasm_GetLength.ssa_block_3:
     scvtf d0, x0
     fmov x0, d0
     ldr w9, [x21, #4]

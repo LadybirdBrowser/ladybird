@@ -4531,19 +4531,19 @@ asm_handler_GetByValue_hot_end:
 asm_handler_GetLength:
     mov eax, DWORD PTR [r14 + r13 + 8]
     mov rdx, QWORD PTR [rbx + rax * 8]
-    mov r11, rdx
-    shr r11, 48
-    cmp r11w, 65529
-    jne .Lasm_GetLength.ssa_block_1
+    mov rax, rdx
+    shr rax, 48
+    cmp ax, 65529
+    jne .Lasm_GetLength.ssa_block_2
     movabs r11, 4398046511103
     and rdx, r11
     add rdx, r15
     movzx eax, WORD PTR [rdx + 10]
     test eax, 4
-    jz .Lasm_GetLength.ssa_block_5
+    jz .Lasm_GetLength.ssa_block_6
     mov eax, DWORD PTR [rdx + 16]
     test eax, eax
-    js .Lasm_GetLength.ssa_block_2
+    js .Lasm_GetLength.ssa_block_3
     movabs r11, 9221683186994511872
     or rax, r11
     mov r11d, DWORD PTR [r14 + r13 + 4]
@@ -4551,7 +4551,7 @@ asm_handler_GetLength:
     add r13d, 24
     movzx eax, BYTE PTR [r14 + r13]
     jmp [r12 + rax * 8]
-.Lasm_GetLength.ssa_block_5:
+.Lasm_GetLength.ssa_block_6:
     mov rsi, QWORD PTR [rdx + 24]
     mov rax, QWORD PTR [rbx - 40]
     mov rax, QWORD PTR [rax + 112]
@@ -4576,6 +4576,22 @@ asm_handler_GetLength:
     shr r11, 48
     cmp r11w, 65532
     je .Lasm_GetLength.ssa_block_1
+    mov r11d, DWORD PTR [r14 + r13 + 4]
+    mov QWORD PTR [rbx + r11 * 8], rax
+    add r13d, 24
+    movzx eax, BYTE PTR [r14 + r13]
+    jmp [r12 + rax * 8]
+.Lasm_GetLength.ssa_block_2:
+    cmp ax, 65530
+    jne .Lasm_GetLength.ssa_block_1
+    movabs r11, 4398046511103
+    and rdx, r11
+    add rdx, r15
+    mov eax, DWORD PTR [rdx + 12]
+    test eax, eax
+    js .Lasm_GetLength.ssa_block_1
+    movabs r11, 9221683186994511872
+    or rax, r11
     mov r11d, DWORD PTR [r14 + r13 + 4]
     mov QWORD PTR [rbx + r11 * 8], rax
     add r13d, 24
@@ -11940,7 +11956,7 @@ asm_handler_PutBySpread_cold_end:
 
 asm_handler_GetLength_cold:
 # Cold paths for GetLength
-.Lasm_GetLength.ssa_block_2:
+.Lasm_GetLength.ssa_block_3:
     cvtsi2sd xmm0, rax
     movq rax, xmm0
     mov r11d, DWORD PTR [r14 + r13 + 4]
