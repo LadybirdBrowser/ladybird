@@ -332,6 +332,18 @@ void WorkerProcessManager::notify_worker_close(Owner const& owner)
         });
 }
 
+void WorkerProcessManager::notify_worker_death(Owner const& owner)
+{
+    owner.client.visit(
+        [&](WebContentOwner const& web_content_owner) {
+            if (web_content_owner.client)
+                web_content_owner.client->async_did_worker_agent_die(owner.token);
+        },
+        [&](WebWorkerOwner const& web_worker_owner) {
+            web_worker_owner.client->async_did_worker_agent_die(owner.token);
+        });
+}
+
 void WorkerProcessManager::worker_did_finish_loading_script(Web::HTML::WorkerAgentId agent_id, bool worker_is_secure_context)
 {
     auto maybe_agent = m_agents.find(agent_id);
@@ -397,7 +409,25 @@ void WorkerProcessManager::worker_did_close(Web::HTML::WorkerAgentId agent_id)
 
 void WorkerProcessManager::worker_did_die(Web::HTML::WorkerAgentId agent_id)
 {
-    worker_did_close(agent_id);
+    auto maybe_agent = m_agents.find(agent_id);
+    if (maybe_agent == m_agents.end())
+        return;
+
+    // A close we initiated is expected to drop the connection; any other loss must not look like a clean close.
+    auto& agent = maybe_agent->value;
+    if (agent.closing) {
+        worker_did_close(agent_id);
+        return;
+    }
+
+    agent.closing = true;
+    auto owners = agent.owners;
+    for (auto const& owner : owners)
+        notify_worker_death(owner);
+
+    Core::deferred_invoke([this, agent_id] {
+        remove_agent(agent_id);
+    });
 }
 
 void WorkerProcessManager::worker_did_request_file(Web::HTML::WorkerAgentId agent_id, ByteString path, i32 request_id)

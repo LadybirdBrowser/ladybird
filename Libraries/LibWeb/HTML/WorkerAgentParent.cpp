@@ -152,6 +152,15 @@ void WorkerAgentParent::did_close_worker(WorkerAgentOwnerToken owner_token)
     parent->value->release_startup_keep_alive();
 }
 
+void WorkerAgentParent::did_worker_agent_die(WorkerAgentOwnerToken owner_token)
+{
+    auto parent = worker_agent_parents().find(owner_token);
+    if (parent == worker_agent_parents().end())
+        return;
+    parent->value->dispatch_error_event();
+    parent->value->release_startup_keep_alive();
+}
+
 void WorkerAgentParent::terminate()
 {
     if (m_agent_id == 0)

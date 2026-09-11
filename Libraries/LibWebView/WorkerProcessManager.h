@@ -87,6 +87,7 @@ private:
     void notify_worker_script_load_failure(Owner const&);
     void notify_worker_exception(Owner const&, Utf16String const& message, Utf16String const& filename, u32 lineno, u32 colno);
     void notify_worker_close(Owner const&);
+    void notify_worker_death(Owner const&);
 
     void worker_did_finish_loading_script(Web::HTML::WorkerAgentId, bool worker_is_secure_context);
     void worker_did_fail_loading_script(Web::HTML::WorkerAgentId);

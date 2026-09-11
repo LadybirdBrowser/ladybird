@@ -271,6 +271,7 @@ private:
     virtual void did_worker_agent_fail_loading_script(Web::HTML::WorkerAgentOwnerToken owner_token) override;
     virtual void did_worker_agent_report_exception(Web::HTML::WorkerAgentOwnerToken owner_token, Utf16String message, Utf16String filename, u32 lineno, u32 colno) override;
     virtual void did_worker_agent_close(Web::HTML::WorkerAgentOwnerToken owner_token) override;
+    virtual void did_worker_agent_die(Web::HTML::WorkerAgentOwnerToken owner_token) override;
 
     virtual void request_close(u64 page_id) override;
     virtual void force_close(u64 page_id) override;

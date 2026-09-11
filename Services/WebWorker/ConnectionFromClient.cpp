@@ -264,6 +264,11 @@ void ConnectionFromClient::did_worker_agent_close(Web::HTML::WorkerAgentOwnerTok
     Web::HTML::WorkerAgentParent::did_close_worker(owner_token);
 }
 
+void ConnectionFromClient::did_worker_agent_die(Web::HTML::WorkerAgentOwnerToken owner_token)
+{
+    Web::HTML::WorkerAgentParent::did_worker_agent_die(owner_token);
+}
+
 void ConnectionFromClient::broadcast_channel_message(Web::HTML::BroadcastChannelMessage message)
 {
     Web::HTML::BroadcastChannel::deliver_message_locally(message);

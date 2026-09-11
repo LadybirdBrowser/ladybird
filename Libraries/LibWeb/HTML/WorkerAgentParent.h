@@ -29,6 +29,7 @@ public:
     static WEB_API void did_fail_loading_worker_script(WorkerAgentOwnerToken);
     static WEB_API void did_report_worker_exception(WorkerAgentOwnerToken, Utf16String message, Utf16String filename, u32 lineno, u32 colno);
     static WEB_API void did_close_worker(WorkerAgentOwnerToken);
+    static WEB_API void did_worker_agent_die(WorkerAgentOwnerToken);
 
     void terminate();
 
