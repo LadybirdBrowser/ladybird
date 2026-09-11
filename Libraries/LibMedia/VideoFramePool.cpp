@@ -76,8 +76,6 @@ Optional<VideoFramePool::AcquiredSlot> VideoFramePool::try_acquire(size_t byte_c
 
     Sync::MutexLocker locker { m_mutex };
 
-    m_shed_buffers_on_release = false;
-
     Optional<u32> reusable_slot_index;
     Optional<u32> free_slot_index;
     for (u32 index = 0; index < m_slots.size(); index++) {
@@ -124,7 +122,7 @@ Optional<VideoFramePool::AcquiredSlot> VideoFramePool::try_acquire(size_t byte_c
         auto buffer_result = Core::AnonymousBuffer::create_with_size(buffer_size);
         if (buffer_result.is_error())
             return {};
-        drop_slot_buffer_while_locked(*chosen_slot);
+        drop_slot_storage_while_locked(*chosen_slot);
         chosen_slot->buffer = buffer_result.release_value();
         chosen_slot->allocated_buffer_id++;
         new (chosen_slot->buffer.data<void>()) SlotHeader;
@@ -151,6 +149,7 @@ ErrorOr<NonnullRefPtr<PooledVideoFrameSlot>> VideoFramePool::try_adopt_acquired_
 
 void VideoFrameEntryLedger::publish_acquisition_while_locked(Slot& slot)
 {
+    m_shed_storage_on_release = false;
     slot.hold_count = 1;
     slot.last_slot_acquisition_id++;
     slot_header(slot.buffer).slot_acquisition_id.store(slot.last_slot_acquisition_id);
@@ -187,7 +186,7 @@ u32 VideoFrameEntryLedger::held_slot_count_while_locked() const
     return held_count;
 }
 
-void VideoFramePool::drop_slot_buffer_while_locked(Slot& slot)
+void VideoFramePool::drop_slot_storage_while_locked(Slot& slot)
 {
     if (!slot.buffer.is_valid())
         return;
@@ -207,7 +206,17 @@ void VideoFramePool::free_excess_buffers_while_locked()
         }
         if (largest_free_slot == nullptr)
             return;
-        drop_slot_buffer_while_locked(*largest_free_slot);
+        drop_slot_storage_while_locked(*largest_free_slot);
+    }
+}
+
+void VideoFrameEntryLedger::shed_storage()
+{
+    Sync::MutexLocker locker { m_mutex };
+    m_shed_storage_on_release = true;
+    for (auto& slot : m_slots) {
+        if (slot.hold_count == 0)
+            drop_slot_storage_while_locked(slot);
     }
 }
 
@@ -226,27 +235,12 @@ void VideoFrameEntryLedger::release_hold(u32 slot_index)
         VERIFY(slot.hold_count > 0);
         if (--slot.hold_count > 0)
             return;
-        slot_freed_while_locked(slot);
+        if (m_shed_storage_on_release)
+            drop_slot_storage_while_locked(slot);
     }
 
     if (m_slot_freed_callback)
         m_slot_freed_callback();
-}
-
-void VideoFramePool::slot_freed_while_locked(Slot& slot)
-{
-    if (m_shed_buffers_on_release)
-        drop_slot_buffer_while_locked(slot);
-}
-
-void VideoFramePool::shed_buffers()
-{
-    Sync::MutexLocker locker { m_mutex };
-    m_shed_buffers_on_release = true;
-    for (auto& slot : m_slots) {
-        if (slot.hold_count == 0)
-            drop_slot_buffer_while_locked(slot);
-    }
 }
 
 Core::AnonymousBuffer VideoFrameEntryLedger::slot_buffer(u32 slot_index) const
@@ -303,8 +297,7 @@ Optional<VideoFrameSurfacePool::AcquiredSlot> VideoFrameSurfacePool::try_acquire
             return {};
 
         auto& unused_slot = m_slots[*unused_slot_index];
-        if (unused_slot.surface != nullptr)
-            m_slot_indices_by_surface_id.remove(unused_slot.surface->id());
+        drop_slot_storage_while_locked(unused_slot);
         unused_slot.buffer = buffer_result.release_value();
         new (unused_slot.buffer.data<void>()) SlotHeader;
         unused_slot.surface = surface;
@@ -321,6 +314,14 @@ Optional<VideoFrameSurfacePool::AcquiredSlot> VideoFrameSurfacePool::try_acquire
         .slot_acquisition_id = slot.last_slot_acquisition_id,
         .allocated_buffer_id = slot.allocated_buffer_id,
     };
+}
+
+void VideoFrameSurfacePool::drop_slot_storage_while_locked(Slot& slot)
+{
+    if (slot.surface == nullptr)
+        return;
+    m_slot_indices_by_surface_id.remove(slot.surface->id());
+    slot.surface = nullptr;
 }
 
 ErrorOr<NonnullRefPtr<PooledVideoFrameSlot>> VideoFrameSurfacePool::try_adopt_acquired_slot(AcquiredSlot const& acquired_slot)
@@ -404,6 +405,11 @@ void VideoFrameSlotDirectory::notify_slot_announced(VideoFramePoolID pool_id, u3
 void VideoFrameSlotDirectory::notify_pool_retired(VideoFramePoolID pool_id)
 {
     m_slots_by_pool_id.remove(pool_id);
+}
+
+void VideoFrameSlotDirectory::notify_all_pools_retired()
+{
+    m_slots_by_pool_id.clear();
 }
 
 RefPtr<VideoFrame> VideoFrameSlotDirectory::resolve_frame(VideoFrameHandle const& handle, Function<void()> on_release) const

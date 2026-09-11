@@ -648,6 +648,8 @@ VideoToolboxVideoDecoder::~VideoToolboxVideoDecoder()
     // Tearing down the session hands the media engine's remaining frames to the output callback, which touches
     // members that would otherwise already be gone by the time the session is destroyed.
     m_session.clear();
+
+    m_surface_pool->shed_storage();
 }
 
 DecoderErrorOr<void> VideoToolboxVideoDecoder::ensure_session_for_frame(CodedFrame const& coded_frame)

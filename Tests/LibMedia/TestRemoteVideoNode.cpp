@@ -594,3 +594,35 @@ TEST_CASE(current_frame_ignores_handles_whose_lend_was_released)
     sink->release_slot(handles[1].pool_id, handles[1].slot_index);
     EXPECT(sink->current_frame() == nullptr);
 }
+
+TEST_CASE(consumer_forgets_announced_slots_on_suspension)
+{
+    auto producer_edge = MUST(VideoEdgeQueue::create());
+    auto ring_fd = MUST(Core::System::dup(producer_edge.ring_fd()));
+    auto consumer_edge = MUST(VideoEdgeQueue::create(ring_fd, producer_edge.header_buffer()));
+
+    auto pool = MUST(VideoFramePool::create());
+    auto frame = create_pooled_frame(*pool, AK::Duration::from_milliseconds(1000));
+    auto handle = VideoFrameHandle::for_frame(*frame);
+
+    auto directory = VideoFrameSlotDirectory::create();
+    directory->notify_slot_announced(pool->id(), handle.slot_index, pool->slot_buffer(handle.slot_index), nullptr);
+
+    RemoteVideoProducer::Delegates delegates;
+    delegates.request_start = [] { };
+    delegates.request_seek = [](AK::Duration) { };
+    delegates.release_slot = [](VideoFramePoolID, u32) { };
+    delegates.notify_space_available = [] { };
+    auto consumer = RemoteVideoProducer::create(move(consumer_edge), directory, move(delegates));
+
+    auto resolved_before_suspension = directory->resolve_frame(handle, [] { });
+    EXPECT(resolved_before_suspension != nullptr);
+
+    producer_edge.set_status(PipelineStatus::Suspended, 0);
+    consumer->notify_data_available();
+
+    // The decoder that announced this slot is gone, so nothing more resolves against it, while the frame that
+    // already did keeps reading what it holds.
+    EXPECT(directory->resolve_frame(handle, [] { }) == nullptr);
+    EXPECT(resolved_before_suspension->revalidate_backing());
+}

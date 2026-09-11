@@ -117,7 +117,7 @@ FFmpegVideoDecoder::FFmpegVideoDecoder(AVCodecContext* codec_context, AVPacket* 
 
 FFmpegVideoDecoder::~FFmpegVideoDecoder()
 {
-    m_frame_pool->shed_buffers();
+    m_frame_pool->shed_storage();
     av_packet_free(&m_packet);
     av_frame_free(&m_frame);
     avcodec_free_context(&m_codec_context);
