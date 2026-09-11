@@ -9,7 +9,6 @@
 #include <LibWeb/CSS/Enums.h>
 #include <LibWeb/CSS/Number.h>
 #include <LibWeb/CSS/StyleValues/CalculatedStyleValue.h>
-#include <LibWeb/CSS/StyleValues/KeywordStyleValue.h>
 
 namespace Web::CSS {
 
@@ -172,46 +171,6 @@ EasingFunction EasingFunction::from_style_value(StyleValue const& style_value)
     }
 
     VERIFY_NOT_REACHED();
-}
-
-NonnullRefPtr<StyleValue const> EasingFunction::to_style_value() const
-{
-    auto const& serialized = to_utf16_string();
-    if (serialized == "linear"_utf16)
-        return KeywordStyleValue::create(Keyword::Linear);
-    if (serialized == "ease"_utf16)
-        return KeywordStyleValue::create(Keyword::Ease);
-    if (serialized == "ease-in"_utf16)
-        return KeywordStyleValue::create(Keyword::EaseIn);
-    if (serialized == "ease-out"_utf16)
-        return KeywordStyleValue::create(Keyword::EaseOut);
-    if (serialized == "ease-in-out"_utf16)
-        return KeywordStyleValue::create(Keyword::EaseInOut);
-
-    StyleValueFFI::FfiEasingDescriptor descriptor {};
-    Vector<StyleValueFFI::FfiLinearEasingPoint> points;
-    visit(
-        [&](LinearEasingFunction const& linear) {
-            descriptor.kind = StyleValueFFI::FfiEasingKind::Linear;
-            points.ensure_capacity(linear.control_points.size());
-            for (auto const& point : linear.control_points)
-                points.unchecked_append({ point.input, point.output });
-            descriptor.linear_points = points.data();
-            descriptor.linear_point_count = points.size();
-        },
-        [&](CubicBezierEasingFunction const& bezier) {
-            descriptor.kind = StyleValueFFI::FfiEasingKind::CubicBezier;
-            descriptor.x1 = bezier.x1;
-            descriptor.y1 = bezier.y1;
-            descriptor.x2 = bezier.x2;
-            descriptor.y2 = bezier.y2;
-        },
-        [&](StepsEasingFunction const& steps) {
-            descriptor.kind = StyleValueFFI::FfiEasingKind::Steps;
-            descriptor.interval_count = steps.interval_count;
-            descriptor.step_position = to_underlying(steps.position);
-        });
-    return StyleValue::adopt_rust_style_value_data(StyleValueFFI::rust_style_value_from_easing(&descriptor));
 }
 
 double EasingFunction::evaluate_at(double input_progress, bool before_flag) const
