@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    .containing-block { position: relative; }
+    .sibling { display: block; width: 40px; height: 30px; }
+</style>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        const fixture = document.getElementById("fixture");
+        const results = [];
+
+        function runInsertionCase(name, markup, targetStyle, expectConfined, targetContents = "") {
+            fixture.innerHTML = markup;
+            document.body.offsetHeight;
+
+            const parent = fixture.querySelector(".parent");
+            const sibling = fixture.querySelector(".sibling");
+            const parentLayoutNode = internals.layoutNodeIdentity(parent);
+            const siblingLayoutNode = internals.layoutNodeIdentity(sibling);
+            const target = document.createElement("div");
+            target.style.cssText = targetStyle;
+            target.innerHTML = targetContents;
+
+            parent.appendChild(target);
+            document.body.offsetHeight;
+
+            const parentWasPreserved = internals.layoutNodeIdentity(parent) === parentLayoutNode;
+            const siblingWasPreserved = internals.layoutNodeIdentity(sibling) === siblingLayoutNode;
+            results.push(`${name}: parent-preserved=${parentWasPreserved}`);
+            results.push(`${name}: sibling-preserved=${siblingWasPreserved}`);
+            results.push(`${name}: confined-as-expected=${!expectConfined || (parentWasPreserved && siblingWasPreserved)}`);
+            results.push(`${name}: target-attached=${internals.layoutNodeIdentity(target) !== 0}`);
+            results.push(`${name}: tree-matches=${internals.compareLayoutTreeWithFullRebuild().matches}`);
+        }
+
+        runInsertionCase("initial-containing-block", '<div class="parent"><div class="sibling"></div></div>', "position:absolute", true);
+        runInsertionCase("direct-containing-block", '<div class="parent containing-block"><div class="sibling"></div></div>', "position:absolute", true);
+        runInsertionCase("flex", '<div class="parent" style="display:flex"><div class="sibling"></div></div>', "position:absolute", true);
+        runInsertionCase("grid", '<div class="parent" style="display:grid"><div class="sibling"></div></div>', "position:absolute", true);
+        runInsertionCase("nested-subtree", '<div class="parent"><div class="sibling"></div></div>', "position:absolute", true, "<span><b>contents</b></span>");
+        runInsertionCase("inline-wrapper", '<div class="parent"><span class="sibling">inline</span></div>', "position:absolute", false);
+        runInsertionCase("table-fixup", '<table><tbody class="parent"><tr class="sibling"><td></td></tr></tbody></table>', "position:absolute", false);
+        runInsertionCase("fixed", '<div class="parent"><div class="sibling"></div></div>', "position:fixed", false);
+        runInsertionCase("float", '<div class="parent"><div class="sibling"></div></div>', "float:left", false);
+        runInsertionCase("generated-content", '<div class="parent"><div class="sibling"></div></div>', "position:absolute;counter-increment:test", false);
+
+        for (const result of results)
+            println(result);
+    });
+</script>

@@ -1947,13 +1947,18 @@ bool Element::apply_box_presence_change_in_place(SetNeedsLayoutTreeUpdateReason 
 
     if (unsafe_layout_node())
         return false;
-    if (style->position() == CSS::Positioning::Absolute || style->position() == CSS::Positioning::Fixed || style->float_() != CSS::Float::None)
+    if (style->position() == CSS::Positioning::Fixed || style->float_() != CSS::Float::None)
         return false;
 
     auto parent_display = parent_layout_node->display();
     bool parent_is_block_container = (parent_display.is_flow_inside() || parent_display.is_flow_root_inside()) && !parent_display.is_inline_outside();
     bool can_insert_in_place = false;
-    if (parent_display.is_flex_inside() || parent_display.is_grid_inside())
+    // OPTIMIZATION: An absolutely positioned box cannot disturb its parent's formatting structure. Build only the
+    //               inserted subtree when the retained parent does not need anonymous or table fixup.
+    if (style->position() == CSS::Positioning::Absolute)
+        can_insert_in_place = (parent_display.is_flex_inside() || parent_display.is_grid_inside())
+            || (parent_is_block_container && !parent_layout_node->children_are_inline());
+    else if (parent_display.is_flex_inside() || parent_display.is_grid_inside())
         can_insert_in_place = true;
     else if (parent_is_block_container && display.is_block_outside())
         can_insert_in_place = !parent_layout_node->children_are_inline() || !parent_layout_node->has_children();

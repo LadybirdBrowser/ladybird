@@ -73,6 +73,19 @@
         results.push(`overflow: target-detached=${internals.layoutNodeIdentity(absolute) === 0}`);
         results.push(`overflow: tree-matches=${internals.compareLayoutTreeWithFullRebuild().matches}`);
 
+        const bodyTarget = document.createElement("div");
+        bodyTarget.style.position = "absolute";
+        document.body.appendChild(bodyTarget);
+        document.body.offsetHeight;
+        const fixtureLayoutNode = internals.layoutNodeIdentity(fixture);
+        const bodyTreeBuildsBefore = internals.layoutTreeBuildStats().builds;
+        bodyTarget.remove();
+        document.body.offsetHeight;
+        results.push(`body: fast=${internals.layoutTreeBuildStats().builds === bodyTreeBuildsBefore}`);
+        results.push(`body: fixture-preserved=${internals.layoutNodeIdentity(fixture) === fixtureLayoutNode}`);
+        results.push(`body: target-detached=${internals.layoutNodeIdentity(bodyTarget) === 0}`);
+        results.push(`body: tree-matches=${internals.compareLayoutTreeWithFullRebuild().matches}`);
+
         runRemovalCase("block", '<div class="parent containing-block"><span>inline</span><div class="absolute"></div><span class="sibling">inline</span></div>', ".absolute", true);
         runRemovalCase("flex", '<div class="parent containing-block" style="display:flex"><div class="absolute"></div><div class="sibling"></div></div>', ".absolute", true);
         runRemovalCase("grid", '<div class="parent containing-block" style="display:grid"><div class="absolute"></div><div class="sibling"></div></div>', ".absolute", true);
