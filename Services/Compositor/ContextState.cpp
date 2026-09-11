@@ -578,7 +578,7 @@ ContextState::WheelScrollOutcome ContextState::perform_wheel_scroll_of_node(Web:
     WheelScrollOutcome outcome;
     auto css_delta = m_async_scroll_tree.css_pixels_from_device_offset(delta);
 
-    Optional<ScrollSnapController::WheelStepDecision> decision;
+    Optional<ScrollSnapController::StepDecision> decision;
     if (wheel_delta_precision == Web::WheelDeltaPrecision::Discrete)
         decision = m_scroll_snap_controller.decide_discrete_step(m_async_scroll_tree, m_scroll_state_snapshot, node_id, css_delta, now);
     else if (scroll_gesture_phase == Web::ScrollGesturePhase::Momentum)
