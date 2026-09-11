@@ -1044,6 +1044,15 @@ struct PresentingContextFixture {
         return spin_event_loop_until(event_loop, 100, [&] { return compositor_client.presented_frames.size() > already_presented; });
     }
 
+    void expect_no_frame()
+    {
+        auto already_presented = compositor_client.presented_frames.size();
+        compositor_state->present_frame(context_id, viewport_rect);
+        compositor_state->present_pending_frames_for_testing();
+        EXPECT_EQ(compositor_state->pending_async_present_count_for_testing(), 0u);
+        EXPECT_EQ(compositor_client.presented_frames.size(), already_presented);
+    }
+
     TestCompositorClient::PresentedFrame present(Optional<Gfx::IntRect> rect = {})
     {
         auto already_presented = compositor_client.presented_frames.size();
@@ -1096,7 +1105,7 @@ struct RasterizingContextFixture {
     }
 };
 
-TEST_CASE(re_presenting_identical_state_reports_empty_damage)
+TEST_CASE(re_presenting_identical_state_does_not_submit_a_frame)
 {
     PresentingContextFixture fixture;
     auto visual_context_tree = make_visual_context_tree();
@@ -1106,10 +1115,33 @@ TEST_CASE(re_presenting_identical_state_reports_empty_damage)
     EXPECT_EQ(first_frame.damage_rect, fixture.viewport_rect);
     EXPECT_EQ(first_frame.content_rect, fixture.viewport_rect);
 
-    EXPECT(fixture.present().damage_rect.is_empty());
+    fixture.expect_no_frame();
 
     fixture.install(make_fills_display_list(visual_context_tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red } }), visual_context_tree);
-    EXPECT(fixture.present().damage_rect.is_empty());
+    fixture.expect_no_frame();
+}
+
+TEST_CASE(offscreen_changes_do_not_acquire_a_backing_store_or_block_later_frames)
+{
+    RasterizingContextFixture fixture;
+    auto tree = make_translated_visual_context_tree({ 0, 100 });
+    auto display_list = make_fills_display_list(tree, { { { 2, 2, 4, 4 }, Gfx::Color::Red, in_spatial_node(1) } });
+    fixture.context.install_display_list_update(display_list, tree, {});
+    fixture.rasterize();
+    auto surface = fixture.context.latest_rendered_surface();
+
+    auto offscreen_tree = make_translated_visual_context_tree({ 0, 200 }, tree.structural_epoch());
+    fixture.context.update_visual_context_tree(offscreen_tree, {});
+    EXPECT(!fixture.prepare().has_value());
+    EXPECT(!fixture.context.is_present_blocked());
+    EXPECT_EQ(fixture.context.latest_rendered_surface(), surface);
+
+    auto visible_tree = make_translated_visual_context_tree({ 0, 0 }, tree.structural_epoch());
+    fixture.context.update_visual_context_tree(visible_tree, {});
+    EXPECT_EQ(fixture.rasterize(), (Gfx::IntRect { 1, 1, 6, 15 }));
+    EXPECT_EQ(fixture.pixel(3, 3), Gfx::Color::Red);
+    EXPECT(!fixture.prepare().has_value());
+    EXPECT_EQ(fixture.rasterize(fixture.viewport_rect), fixture.viewport_rect);
 }
 
 TEST_CASE(changed_command_reports_its_inflated_rect)
@@ -1169,7 +1201,7 @@ TEST_CASE(tree_only_update_damages_transformed_commands)
     EXPECT_EQ(fixture.present().damage_rect, (Gfx::IntRect { 1, 1, 10, 6 }));
 
     fixture.compositor_state->update_visual_context_tree(fixture.context_id, make_translated_visual_context_tree({ 8, 0 }), {});
-    EXPECT(fixture.present().damage_rect.is_empty());
+    fixture.expect_no_frame();
 }
 
 TEST_CASE(surface_clear_color_change_forces_full_damage)
@@ -1309,11 +1341,11 @@ TEST_CASE(canvas_content_changes_damage_the_canvas_rect)
     append_display_list_command(command_bytes, draw_canvas, draw_canvas.dst_rect);
     fixture.install(decode_display_list(visual_context_tree, move(command_bytes)), visual_context_tree);
     fixture.present();
-    EXPECT(fixture.present().damage_rect.is_empty());
+    fixture.expect_no_frame();
 
     canvas_surface_registry.set_canvas_surface(canvas_id, make_canvas_surface());
     EXPECT_EQ(fixture.present().damage_rect, (Gfx::IntRect { 3, 3, 6, 6 }));
-    EXPECT(fixture.present().damage_rect.is_empty());
+    fixture.expect_no_frame();
 }
 
 TEST_CASE(compositor_initiated_presents_request_full_damage)
@@ -1351,7 +1383,7 @@ TEST_CASE(child_context_presents_repaint_the_parent)
     fixture.compositor_state->update_display_list(child_context_id, make_fills_display_list(child_visual_context_tree, { { child_viewport_rect, Gfx::Color::Red } }), child_visual_context_tree, {}, {});
     fixture.compositor_state->present_frame(child_context_id, child_viewport_rect);
     fixture.present();
-    EXPECT(fixture.present().damage_rect.is_empty());
+    fixture.expect_no_frame();
 
     fixture.compositor_state->update_display_list(child_context_id, make_fills_display_list(child_visual_context_tree, { { child_viewport_rect, Gfx::Color::Blue } }), child_visual_context_tree, {}, {});
     auto already_presented = fixture.compositor_client.presented_frames.size();

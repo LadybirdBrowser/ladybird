@@ -652,7 +652,7 @@ bool CompositorState::present_frame(Web::Compositor::CompositorContextId context
     auto composited_context_resolver = resolver_for(context_id);
     auto prepared_frame = context.prepare_frame(*m_display_list_player, pending_frame, &composited_context_resolver);
     if (!prepared_frame.has_value())
-        return false;
+        return !context.pending_present_frame_viewport_rect().has_value();
 
     m_pending_async_presents.append(context_id, pending_frame.viewport_rect, prepared_frame->damage_rect, prepared_frame->bitmap_id);
     auto* pending_present = &m_pending_async_presents.last();
@@ -786,8 +786,6 @@ void CompositorState::present_pending_frames_on_vsync(Optional<u64> display_id, 
         publish_pending_async_scroll_updates(context_id, context);
         if (context.has_active_visual_animations()) {
             context.advance_visual_animations(frame_time);
-            // Visual animation damage deliberately covers the full viewport until we track the animated nodes' bounds
-            // before and after sampling.
             if (auto viewport_rect = context.viewport_rect_for_ui_overlay(); viewport_rect.has_value())
                 context.queue_present_frame(ContextState::PendingFrame::repainting_changes(*viewport_rect));
         }

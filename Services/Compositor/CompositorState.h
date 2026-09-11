@@ -140,6 +140,9 @@ private:
     void publish_pending_async_scroll_updates(Web::Compositor::CompositorContextId, ContextState&);
 
 public:
+    void present_pending_frames_for_testing() { present_pending_frames_on_vsync({}, MonotonicTime::now()); }
+    size_t pending_async_present_count_for_testing() const { return m_pending_async_presents.size(); }
+
     // What was not published yet, for a caller that needs the compositor's state as of now.
     Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates(Web::Compositor::CompositorContextId);
 
@@ -172,7 +175,7 @@ private:
         Web::Compositor::CompositorContextId,
         ContextState&,
         ContextState::ContextUpdateResult const&);
-    // Whether the frame was prepared and submitted; a blocked frame is the caller's to schedule.
+    // Whether the request was handled, including unchanged pixels; a blocked frame still needs scheduling.
     bool present_frame(Web::Compositor::CompositorContextId, ContextState&, ContextState::PendingFrame);
     void schedule_present_frame(Web::Compositor::CompositorContextId, ContextState&, ContextState::PendingFrame);
     void schedule_present_frame(Web::Compositor::CompositorContextId, ContextState&, Gfx::IntRect viewport_rect);
