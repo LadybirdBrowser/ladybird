@@ -12,6 +12,7 @@
 #include <LibJS/Runtime/VM.h>
 #include <LibJS/RustIntegration.h>
 #include <LibJS/Script.h>
+#include <LibJS/SourceTextModule.h>
 #include <LibTest/TestCase.h>
 
 TEST_CASE(debugger_statement_pauses_execution)
@@ -300,6 +301,43 @@ outer();
 
     auto result = vm->run(*script_or_error.value());
     EXPECT(!result.is_error());
+}
+
+TEST_CASE(debugger_frame_environments_include_module_bindings)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    auto module_or_error = JS::SourceTextModule::parse(R"(
+const value = 1;
+function inner() {
+    debugger;
+}
+inner();
+)"sv,
+        realm, "environments.mjs"sv);
+    VERIFY(!module_or_error.is_error());
+
+    size_t pause_count = 0;
+    vm->enable_debugging();
+    vm->debugger()->set_pause_callback([&](JS::Debugger::PauseInfo const& pause_info) {
+        ++pause_count;
+        auto* frame = pause_info.stack_trace.first().execution_context;
+        VERIFY(frame);
+
+        auto environments = vm->debugger()->environments_for_frame(*frame);
+        auto module_environment = environments.find_if([](auto const& environment) { return find_environment_binding(environment, "value"_utf16).has_value(); });
+        VERIFY(module_environment != environments.end());
+        EXPECT_EQ(find_environment_binding(*module_environment, "value"_utf16)->as_i32(), 1);
+        vm->debugger()->continue_execution();
+    });
+
+    auto& module = *module_or_error.value();
+    (void)module.load_requested_modules(nullptr);
+    EXPECT(!module.link(*vm).is_error());
+    EXPECT(!module.evaluate(*vm).is_error());
+    EXPECT_EQ(pause_count, 1u);
 }
 
 TEST_CASE(debugger_frame_evaluation_preserves_const_bindings)

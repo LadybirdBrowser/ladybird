@@ -214,7 +214,10 @@ Vector<Debugger::FrameEnvironment> Debugger::environments_for_frame(ExecutionCon
     auto append_declarative_environment = [&](DeclarativeEnvironment& environment, FrameEnvironment::Type type, Optional<Utf16String> function_name = {}) {
         Vector<FrameBinding> bindings;
         for (auto const& name : environment.bindings()) {
-            auto value = environment.get_binding_value(vm, name, false);
+            // Module Environment Records assert that GetBindingValue is strict, and strictness does not change the
+            // result for any other declarative record.
+            // https://tc39.es/ecma262/#sec-module-environment-records-getbindingvalue-n-s
+            auto value = environment.get_binding_value(vm, name, true);
             bindings.append({
                 .name = name,
                 .value = value.is_error() ? js_special_empty_value() : value.release_value(),
