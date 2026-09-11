@@ -253,6 +253,32 @@ macro_rules! dump_value_via {
     };
 }
 
+impl DumpValue for crate::layout::used_values::FfiCssPixelPoint {
+    fn push_dump(self, output: &mut String) {
+        push_float_point(
+            output,
+            FloatPoint {
+                x: self.x.to_float(),
+                y: self.y.to_float(),
+            },
+        );
+    }
+}
+
+impl DumpValue for crate::layout::used_values::FfiCssPixelRect {
+    fn push_dump(self, output: &mut String) {
+        push_float_rect(
+            output,
+            FloatRect::new(
+                self.x.to_float(),
+                self.y.to_float(),
+                self.width.to_float(),
+                self.height.to_float(),
+            ),
+        );
+    }
+}
+
 dump_value_via! {
     IntPoint => push_int_point,
     FloatPoint => push_float_point,
@@ -551,6 +577,31 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
             write!(output, " vertical={}", command.vertical).unwrap();
         }
         DisplayListCommandType::PaintScrollBar => {}
+        DisplayListCommandType::CompositorSnapContainer => {
+            let command = read_command::<CompositorSnapContainer>(payload);
+            write_field(output, "scroll_node_index", command.scroll_node_index);
+            write_field(output, "snapport", command.snapport);
+            write_field(output, "min_scroll_offset", command.min_scroll_offset);
+            write_field(output, "max_scroll_offset", command.max_scroll_offset);
+            write!(
+                output,
+                " strictness={} snaps_x={} snaps_y={} horizontal_writing_mode={}",
+                command.strictness, command.snaps_x, command.snaps_y, command.horizontal_writing_mode
+            )
+            .unwrap();
+        }
+        DisplayListCommandType::CompositorSnapArea => {
+            let command = read_command::<CompositorSnapArea>(payload);
+            write_field(output, "scroll_node_index", command.scroll_node_index);
+            write!(output, " pseudo_element_type={}", command.pseudo_element_type).unwrap();
+            write_field(output, "rect", command.rect);
+            write!(
+                output,
+                " align_x={} align_y={} always_stop={}",
+                command.align_x, command.align_y, command.always_stop
+            )
+            .unwrap();
+        }
     }
 }
 
