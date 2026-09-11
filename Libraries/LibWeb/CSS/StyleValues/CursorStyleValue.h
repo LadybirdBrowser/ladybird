@@ -45,8 +45,6 @@ private:
 
     static StyleValueFFI::StyleValueData const* make_cursor_data(NonnullRefPtr<AbstractImageStyleValue const> const&, RefPtr<StyleValue const> const&, RefPtr<StyleValue const> const&);
 
-    StyleValue const& image_as_style_value() const { return *m_image; }
-
     ValueComparingRefPtr<StyleValue const> x() const { return wrap_rust_child_or_null(m_value->cursor.x); }
     ValueComparingRefPtr<StyleValue const> y() const { return wrap_rust_child_or_null(m_value->cursor.y); }
 

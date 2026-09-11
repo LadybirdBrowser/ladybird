@@ -34,8 +34,6 @@ public:
 
     Optional<Painting::ImagePaint> image_paint(Painting::ImagePaintRequest const&) const override;
 
-    bool is_repeating() const { return m_value->radial_gradient.repeating; }
-
     virtual ~RadialGradientStyleValue() override = default;
 
 private:

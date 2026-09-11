@@ -90,7 +90,6 @@ struct RequiredInvalidationAfterStyleChange {
     [[nodiscard]] bool inherited_style_changed() const { return m_inherited_style_groups_changed != 0; }
     [[nodiscard]] u8 inherited_style_groups_changed() const { return m_inherited_style_groups_changed; }
     void mark_inherited_style_group_changed(size_t group) { m_inherited_style_groups_changed |= 1 << group; }
-    void mark_all_inherited_style_groups_changed() { m_inherited_style_groups_changed = all_inherited_style_groups; }
     // The element gained or lost a containing block for absolutely/fixed positioned
     // descendants. Containing block pointers are only recomputed by a full layout pass, so
     // partial relayout boundary qualification cannot be trusted until one runs.

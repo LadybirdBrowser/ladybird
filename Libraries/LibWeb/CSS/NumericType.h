@@ -34,29 +34,6 @@ public:
     };
 
     static Optional<BaseType> base_type_from_value_type(ValueType);
-    static constexpr StringView base_type_name(BaseType base_type)
-    {
-        switch (base_type) {
-        case BaseType::Length:
-            return "length"sv;
-        case BaseType::Angle:
-            return "angle"sv;
-        case BaseType::Time:
-            return "time"sv;
-        case BaseType::Frequency:
-            return "frequency"sv;
-        case BaseType::Resolution:
-            return "resolution"sv;
-        case BaseType::Flex:
-            return "flex"sv;
-        case BaseType::Percent:
-            return "percent"sv;
-        case BaseType::__Count:
-            break;
-        }
-        VERIFY_NOT_REACHED();
-    }
-
     static Optional<NumericType> create_from_unit(Utf16FlyString const& unit);
     static Optional<NumericType> create_from_unit_map(UnitMap const&);
     NumericType() = default;

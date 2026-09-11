@@ -20,11 +20,6 @@ public:
         return ColumnCount();
     }
 
-    static ColumnCount make_integer(int value)
-    {
-        return ColumnCount(value);
-    }
-
     bool is_auto() const { return m_type == Type::Auto; }
     int value() const { return *m_value; }
 
