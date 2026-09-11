@@ -78,7 +78,7 @@ void EnvironmentSettingsObject::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_lock_manager);
     visitor.visit(m_service_worker_registration_object_map);
     visitor.visit(m_service_worker_object_map);
-    visitor.visit(m_worker_agents_to_keep_alive_while_starting);
+    visitor.visit(m_owned_worker_agents);
 }
 
 void EnvironmentSettingsObject::discard_environment()
@@ -90,16 +90,23 @@ void EnvironmentSettingsObject::discard_environment()
     set_discarded(true);
 }
 
-void EnvironmentSettingsObject::keep_worker_agent_alive_while_starting(WorkerAgentParent& worker_agent)
+void EnvironmentSettingsObject::add_owned_worker_agent(WorkerAgentParent& worker_agent)
 {
-    m_worker_agents_to_keep_alive_while_starting.append(worker_agent);
+    m_owned_worker_agents.append(worker_agent);
 }
 
-void EnvironmentSettingsObject::release_worker_agent_from_startup_keep_alive(WorkerAgentParent& worker_agent)
+void EnvironmentSettingsObject::remove_owned_worker_agent(WorkerAgentParent& worker_agent)
 {
-    m_worker_agents_to_keep_alive_while_starting.remove_first_matching([&](auto& agent) {
+    m_owned_worker_agents.remove_first_matching([&](auto& agent) {
         return agent.ptr() == &worker_agent;
     });
+}
+
+void EnvironmentSettingsObject::release_owned_worker_agents()
+{
+    auto owned_worker_agents = move(m_owned_worker_agents);
+    for (auto& worker_agent : owned_worker_agents)
+        worker_agent->terminate();
 }
 
 JS::ExecutionContext& EnvironmentSettingsObject::realm_execution_context()

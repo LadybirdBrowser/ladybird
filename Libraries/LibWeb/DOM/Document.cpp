@@ -5715,7 +5715,9 @@ void Document::destroy()
         page().navigable_document_destroyed({}, *navigable);
     }
 
-    // FIXME: 10. Remove document from the owner set of each WorkerGlobalScope object whose set contains document.
+    // 10. Remove document from the owner set of each WorkerGlobalScope object whose set contains document.
+    HTML::relevant_settings_object(*this).release_owned_worker_agents();
+
     // FIXME: 11. For each workletGlobalScope in document's worklet global scopes, terminate workletGlobalScope.
 }
 

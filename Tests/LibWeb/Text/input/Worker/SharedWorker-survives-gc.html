@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // https://html.spec.whatwg.org/multipage/workers.html#active-needed-worker
+    // A SharedWorkerGlobalScope whose owner set contains a fully active Document is actively needed,
+    // so collecting the SharedWorker object must not tear the worker down while its port is in use.
+    asyncTest(async done => {
+        const source = new Blob(["onconnect = event => { const port = event.ports[0]; port.postMessage('ready'); port.onmessage = e => port.postMessage('echo: ' + e.data); };"], { type: "text/javascript" });
+        const port = (() => {
+            const worker = new SharedWorker(URL.createObjectURL(source), "shared-worker-survives-gc");
+            return worker.port;
+        })();
+
+        // Wait until the worker is running, so that it is held by nothing but its owner set.
+        await new Promise(resolve => {
+            port.onmessage = () => resolve();
+            port.start();
+        });
+        await internals.gcAsync();
+        await internals.gcAsync();
+
+        port.onmessage = event => {
+            println(event.data);
+            done();
+        };
+        port.postMessage("ping");
+    });
+</script>
