@@ -59,6 +59,7 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
         async_scrolling_state.wheel_event_listener_state_generation = metadata->wheel_event_listener_state_generation;
         async_scrolling_state.has_blocking_wheel_event_listeners = metadata->has_blocking_wheel_event_listeners;
         async_scrolling_state.has_blocking_wheel_event_region_covering_viewport = metadata->has_blocking_wheel_event_region_covering_viewport;
+        async_scrolling_state.device_pixels_per_css_pixel = metadata->device_pixels_per_css_pixel;
     }
 
     auto read_compositor_metadata = [&](Painting::DisplayListCommandHeader const& header, ReadonlyBytes payload) {
@@ -135,6 +136,39 @@ AsyncScrollingState async_scrolling_state_from_display_list(Painting::DisplayLis
                 .thumb_color = command.thumb_color,
                 .track_color = command.track_color,
                 .vertical = command.vertical,
+            });
+            break;
+        }
+        case Painting::DisplayListCommandType::CompositorSnapContainer: {
+            auto command = Painting::read_display_list_command_payload<Painting::CompositorSnapContainer>(payload);
+            async_scrolling_state.snap_containers.append({
+                .node_id = scroll_node_id_for(command.document_id, command.scroll_node_index),
+                .geometry = {
+                    .snapport = command.snapport,
+                    .min_scroll_offset = command.min_scroll_offset,
+                    .max_scroll_offset = command.max_scroll_offset,
+                    .strictness = static_cast<CSS::ScrollSnapStrictness>(command.strictness),
+                    .axes = { .x = command.snaps_x, .y = command.snaps_y },
+                    .horizontal_writing_mode = command.horizontal_writing_mode,
+                },
+                .areas = {},
+            });
+            break;
+        }
+        case Painting::DisplayListCommandType::CompositorSnapArea: {
+            auto command = Painting::read_display_list_command_payload<Painting::CompositorSnapArea>(payload);
+            auto& snap_containers = async_scrolling_state.snap_containers;
+            // A snap container's areas are recorded right after it.
+            if (snap_containers.is_empty() || snap_containers.last().node_id != scroll_node_id_for(command.document_id, command.scroll_node_index)) {
+                dbgln("Ignoring a snap area recorded without its snap container");
+                break;
+            }
+            snap_containers.last().areas.append({
+                .identity = { .node_id = command.area_node_id, .pseudo_element_type = command.pseudo_element_type },
+                .rect = command.rect,
+                .align_x = static_cast<CSS::ScrollSnapAlign>(command.align_x),
+                .align_y = static_cast<CSS::ScrollSnapAlign>(command.align_y),
+                .always_stop = command.always_stop,
             });
             break;
         }

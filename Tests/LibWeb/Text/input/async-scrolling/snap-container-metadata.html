@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    html {
+        scroll-snap-type: y proximity;
+    }
+    body {
+        margin: 0;
+    }
+    #scroller {
+        position: relative;
+        width: 200px;
+        height: 200px;
+        overflow: scroll;
+        scroll-snap-type: both mandatory;
+        scroll-padding: 10px 5%;
+    }
+    #scroller::before {
+        content: "";
+        display: block;
+        width: 50px;
+        height: 50px;
+        scroll-snap-align: start;
+    }
+    .item {
+        width: 100px;
+        height: 100px;
+    }
+    #a {
+        scroll-snap-align: start;
+        scroll-margin: 5px;
+    }
+    #b {
+        scroll-snap-align: center end;
+        transform: translateY(-60px);
+    }
+    #c {
+        scroll-snap-align: end;
+        scale: 0.5;
+        scroll-snap-stop: always;
+    }
+    #inner {
+        width: 100px;
+        height: 100px;
+        overflow: scroll;
+    }
+    #inner-item {
+        width: 100px;
+        height: 300px;
+        scroll-snap-align: start;
+    }
+    #escaped {
+        position: absolute;
+        top: 0;
+        left: 0;
+        width: 20px;
+        height: 20px;
+        scroll-snap-align: start;
+    }
+    .section {
+        height: 300px;
+        scroll-snap-align: start;
+    }
+</style>
+<div id="scroller">
+    <div id="a" class="item"></div>
+    <div id="b" class="item"></div>
+    <div id="c" class="item"></div>
+    <div id="inner">
+        <div id="inner-item"></div>
+        <div id="escaped"></div>
+    </div>
+</div>
+<div class="section"></div>
+<div class="section"></div>
+<script>
+    test(() => {
+        const state = internals.asyncScrollingState();
+        println(`device pixels per CSS pixel: ${state.devicePixelsPerCssPixel}`);
+
+        const rect = ({ x, y, width, height }) => `${x},${y} ${width}x${height}`;
+        const point = ({ x, y }) => `${x},${y}`;
+
+        // The node IDs depend on what ran before this test, so only their shape is reported.
+        for (const container of state.snapContainers) {
+            const scrollNode = state.scrollNodes.find(node => node.scrollNodeIndex === container.scrollNodeIndex);
+            println(`snap container (viewport: ${scrollNode.isViewport}) snapport=${rect(container.snapport)} min=${point(container.minScrollOffset)} max=${point(container.maxScrollOffset)} strictness=${container.strictness} snapsX=${container.snapsX} snapsY=${container.snapsY} horizontalWritingMode=${container.horizontalWritingMode}`);
+            const nodeIDs = new Set(container.areas.map(area => area.nodeID));
+            println(`  ${container.areas.length} areas with ${nodeIDs.size} distinct node IDs, all non-zero: ${container.areas.every(area => area.nodeID > 0)}`);
+            for (const area of container.areas)
+                println(`  area rect=${rect(area.rect)} alignX=${area.alignX} alignY=${area.alignY} alwaysStop=${area.alwaysStop} pseudoElementType=${area.pseudoElementType}`);
+        }
+    });
+</script>

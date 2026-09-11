@@ -17,6 +17,7 @@
 #include <LibGfx/CornerRadii.h>
 #include <LibGfx/Point.h>
 #include <LibGfx/Rect.h>
+#include <LibWeb/Compositor/ScrollSnapSelection.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
@@ -107,8 +108,16 @@ struct ViewportScrollbar {
     bool vertical { false };
 };
 
+// A scroll node that is a snap container, with the geometry snap positions are selected from.
+struct AsyncSnapContainer {
+    AsyncScrollNodeID node_id;
+    SnapContainerGeometry geometry;
+    Vector<SnapAreaGeometry> areas;
+};
+
 struct AsyncScrollingState {
     Vector<AsyncScrollNode> scroll_nodes;
+    Vector<AsyncSnapContainer> snap_containers;
     Vector<WheelHitTestTarget> wheel_hit_test_targets;
     Vector<MainThreadWheelEventRegion> main_thread_wheel_event_regions;
     Vector<ViewportScrollbar> viewport_scrollbars;
@@ -125,6 +134,7 @@ struct AsyncScrollingState {
     u64 wheel_event_listener_state_generation { 0 };
     bool has_blocking_wheel_event_listeners { false };
     bool has_blocking_wheel_event_region_covering_viewport { false };
+    double device_pixels_per_css_pixel { 1.0 };
 };
 
 enum class WheelRoutingAdmission {

@@ -269,6 +269,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::Painting::DisplayList::AsyncScrollin
     TRY(encoder.encode(metadata.wheel_event_listener_state_generation));
     TRY(encoder.encode(metadata.has_blocking_wheel_event_listeners));
     TRY(encoder.encode(metadata.has_blocking_wheel_event_region_covering_viewport));
+    TRY(encoder.encode(metadata.device_pixels_per_css_pixel));
     return {};
 }
 
@@ -280,6 +281,7 @@ ErrorOr<Web::Painting::DisplayList::AsyncScrollingMetadata> decode(Decoder& deco
         .wheel_event_listener_state_generation = TRY(decoder.decode<u64>()),
         .has_blocking_wheel_event_listeners = TRY(decoder.decode<bool>()),
         .has_blocking_wheel_event_region_covering_viewport = TRY(decoder.decode<bool>()),
+        .device_pixels_per_css_pixel = TRY(decoder.decode<double>()),
     };
 }
 

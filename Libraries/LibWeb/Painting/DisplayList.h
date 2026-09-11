@@ -99,6 +99,8 @@ public:
         u64 wheel_event_listener_state_generation { 0 };
         bool has_blocking_wheel_event_listeners { false };
         bool has_blocking_wheel_event_region_covering_viewport { false };
+        // Converts the compositor's device pixel offsets to the CSS pixels the snap geometry is in.
+        double device_pixels_per_css_pixel { 1.0 };
     };
 
     static NonnullRefPtr<DisplayList> create(AccumulatedVisualContextTree const& visual_context_tree)

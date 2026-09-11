@@ -3310,6 +3310,9 @@ fn main() -> Result<(), Box<dyn Error>> {
         ("OptionalAffineTransform", "Optional<Gfx::AffineTransform>"),
         ("CompositorContextId", "Web::Compositor::CompositorContextId"),
         ("UniqueNodeId", "UniqueNodeID"),
+        ("CssPixels", "Web::CSSPixels"),
+        ("FfiCssPixelPoint", "Web::CSSPixelPoint"),
+        ("FfiCssPixelRect", "Web::CSSPixelRect"),
     ];
     for (rust_name, cpp_name) in references_renamed_to_real_types {
         display_list_commands_config
@@ -3341,6 +3344,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         "LibWeb/Forward.h",
         "LibWeb/Painting/DisplayListResourceIds.h",
         "LibWeb/Painting/ContextRef.h",
+        "LibWeb/PixelUnits.h",
     ]
     .into_iter()
     .map(String::from)

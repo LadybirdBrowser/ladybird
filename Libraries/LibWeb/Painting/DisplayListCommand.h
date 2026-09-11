@@ -51,7 +51,9 @@ namespace Web::Painting {
     V(CompositorMainThreadWheelEventRegion, compositor_main_thread_wheel_event_region) \
     V(CompositorViewportScrollbar, compositor_viewport_scrollbar)                      \
     V(CompositorBlockingWheelEventRegion, compositor_blocking_wheel_event_region)      \
-    V(PaintScrollBar, paint_scrollbar)
+    V(PaintScrollBar, paint_scrollbar)                                                 \
+    V(CompositorSnapContainer, compositor_snap_container)                              \
+    V(CompositorSnapArea, compositor_snap_area)
 
 constexpr bool display_list_command_is_compositor_metadata(DisplayListCommandType type)
 {
@@ -62,6 +64,8 @@ constexpr bool display_list_command_is_compositor_metadata(DisplayListCommandTyp
     case DisplayListCommandType::CompositorMainThreadWheelEventRegion:
     case DisplayListCommandType::CompositorViewportScrollbar:
     case DisplayListCommandType::CompositorBlockingWheelEventRegion:
+    case DisplayListCommandType::CompositorSnapContainer:
+    case DisplayListCommandType::CompositorSnapArea:
         return true;
     default:
         return false;

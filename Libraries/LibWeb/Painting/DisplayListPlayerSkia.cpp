@@ -1271,6 +1271,14 @@ void DisplayListPlayerSkia::play_command(CompositorBlockingWheelEventRegion cons
 {
 }
 
+void DisplayListPlayerSkia::play_command(CompositorSnapContainer const&)
+{
+}
+
+void DisplayListPlayerSkia::play_command(CompositorSnapArea const&)
+{
+}
+
 void DisplayListPlayerSkia::play_command(PaintScrollBar const& command)
 {
     paint_scrollbar_into_surface(surface(), command);

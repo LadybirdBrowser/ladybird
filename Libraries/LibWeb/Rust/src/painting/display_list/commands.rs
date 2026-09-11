@@ -6,6 +6,7 @@
 
 use crate::ffi_bytes_fields;
 use crate::ffi_enum_bytes;
+use crate::layout::used_values::{FfiCssPixelPoint, FfiCssPixelRect};
 use crate::painting::display_list::ffi_bytes::FfiBytes;
 use libgfx_rust::*;
 
@@ -45,10 +46,12 @@ pub enum DisplayListCommandType {
     CompositorViewportScrollbar,
     CompositorBlockingWheelEventRegion,
     PaintScrollBar,
+    CompositorSnapContainer,
+    CompositorSnapArea,
 }
 ffi_enum_bytes!(DisplayListCommandType as u8);
 
-pub const DISPLAY_LIST_COMMAND_TYPE_COUNT: usize = DisplayListCommandType::PaintScrollBar as usize + 1;
+pub const DISPLAY_LIST_COMMAND_TYPE_COUNT: usize = DisplayListCommandType::CompositorSnapArea as usize + 1;
 
 impl DisplayListCommandType {
     pub fn from_u8(value: u8) -> Option<Self> {
@@ -69,6 +72,8 @@ impl DisplayListCommandType {
                 | Self::CompositorMainThreadWheelEventRegion
                 | Self::CompositorViewportScrollbar
                 | Self::CompositorBlockingWheelEventRegion
+                | Self::CompositorSnapContainer
+                | Self::CompositorSnapArea
         )
     }
 
@@ -107,6 +112,8 @@ impl DisplayListCommandType {
             Self::CompositorViewportScrollbar => "CompositorViewportScrollbar",
             Self::CompositorBlockingWheelEventRegion => "CompositorBlockingWheelEventRegion",
             Self::PaintScrollBar => "PaintScrollBar",
+            Self::CompositorSnapContainer => "CompositorSnapContainer",
+            Self::CompositorSnapArea => "CompositorSnapArea",
         }
     }
 }
@@ -1403,6 +1410,66 @@ ffi_bytes_fields!(CompositorScrollNode {
 
 impl DisplayListCommand for CompositorScrollNode {
     const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::CompositorScrollNode;
+}
+
+/// The geometry snap position selection runs over for a scroll node that is a snap container. In CSS
+/// pixels so that the compositor selects the same position the main thread would.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct CompositorSnapContainer {
+    pub document_id: UniqueNodeId,
+    pub scroll_node_index: SpatialNodeIndex,
+    pub snapport: FfiCssPixelRect,
+    pub min_scroll_offset: FfiCssPixelPoint,
+    pub max_scroll_offset: FfiCssPixelPoint,
+    pub strictness: u8,
+    pub snaps_x: bool,
+    pub snaps_y: bool,
+    pub horizontal_writing_mode: bool,
+}
+ffi_bytes_fields!(CompositorSnapContainer {
+    document_id,
+    scroll_node_index,
+    snapport,
+    min_scroll_offset,
+    max_scroll_offset,
+    strictness,
+    snaps_x,
+    snaps_y,
+    horizontal_writing_mode
+});
+
+impl DisplayListCommand for CompositorSnapContainer {
+    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::CompositorSnapContainer;
+}
+
+/// A snap area of the snap container recorded before it: the transformed border box with the scroll
+/// margin added, in the container's coordinate space, and the alignment along each physical axis.
+#[derive(Clone, Copy, Debug, PartialEq)]
+#[repr(C)]
+pub struct CompositorSnapArea {
+    pub document_id: UniqueNodeId,
+    pub scroll_node_index: SpatialNodeIndex,
+    pub area_node_id: UniqueNodeId,
+    pub pseudo_element_type: u8,
+    pub rect: FfiCssPixelRect,
+    pub align_x: u8,
+    pub align_y: u8,
+    pub always_stop: bool,
+}
+ffi_bytes_fields!(CompositorSnapArea {
+    document_id,
+    scroll_node_index,
+    area_node_id,
+    pseudo_element_type,
+    rect,
+    align_x,
+    align_y,
+    always_stop
+});
+
+impl DisplayListCommand for CompositorSnapArea {
+    const COMMAND_TYPE: DisplayListCommandType = DisplayListCommandType::CompositorSnapArea;
 }
 
 #[derive(Clone, Copy, Debug, PartialEq)]

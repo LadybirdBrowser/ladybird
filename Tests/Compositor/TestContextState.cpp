@@ -78,27 +78,6 @@ TEST_CASE(caret_blink_phase_is_sampled_from_its_web_content_reset_time)
     EXPECT(Web::Painting::caret_is_visible_at_time(caret, NumericLimits<i64>::max()));
 }
 
-// Round-trips a freshly built display list through the IPC encoder, so the context receives it
-// the way the compositor process would.
-static NonnullRefPtr<Web::Painting::DisplayList> decode_display_list(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, ByteBuffer command_bytes, Optional<Gfx::Color> surface_clear_color = {}, Optional<Web::Painting::DisplayList::AsyncScrollingMetadata> async_scrolling_metadata = {})
-{
-    auto command_runs = Web::Painting::compute_display_list_command_runs(command_bytes);
-    auto display_list = Web::Painting::DisplayList::create_from_command_bytes(visual_context_tree, move(command_bytes), move(command_runs));
-    if (surface_clear_color.has_value())
-        display_list->set_surface_clear_color(*surface_clear_color);
-    if (async_scrolling_metadata.has_value())
-        display_list->set_async_scrolling_metadata(*async_scrolling_metadata);
-
-    IPC::MessageBuffer buffer;
-    IPC::Encoder encoder { buffer };
-    MUST(encoder.encode(*display_list));
-
-    FixedMemoryStream stream { buffer.data().span() };
-    Queue<IPC::Attachment> attachments;
-    IPC::Decoder decoder { stream, attachments };
-    return MUST(decoder.decode<NonnullRefPtr<Web::Painting::DisplayList>>());
-}
-
 static NonnullRefPtr<Web::Painting::DisplayList> make_display_list(Web::Painting::AccumulatedVisualContextTree const& visual_context_tree, Optional<Gfx::Color> color, Optional<Gfx::Color> surface_clear_color = {}, Web::Painting::ContextRef context = {})
 {
     ByteBuffer command_bytes;

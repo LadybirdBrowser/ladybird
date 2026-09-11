@@ -889,6 +889,7 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
                 .wheel_event_listener_state_generation = navigable->page().wheel_event_listener_state_generation(),
                 .has_blocking_wheel_event_listeners = wheel_event_region_state.has_blocking_wheel_event_listeners,
                 .has_blocking_wheel_event_region_covering_viewport = wheel_event_region_state.has_blocking_wheel_event_region_covering_viewport,
+                .device_pixels_per_css_pixel = navigable->page().client().device_pixels_per_css_pixel(),
             });
         }
     };
