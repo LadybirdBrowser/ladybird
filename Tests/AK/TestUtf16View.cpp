@@ -420,6 +420,14 @@ TEST_CASE(to_ascii_lowercase)
     EXPECT_EQ(u"FooBar"sv.to_ascii_lowercase(), u"foobar"sv);
     EXPECT_EQ(u"FOOBAR"sv.to_ascii_lowercase(), u"foobar"sv);
     EXPECT_EQ(u"FOO 😀 BAR"sv.to_ascii_lowercase(), u"foo 😀 bar"sv);
+
+    EXPECT_EQ(Utf16View { ""sv }.to_ascii_lowercase(), u""sv);
+    EXPECT_EQ(Utf16View { "FooBar"sv }.to_ascii_lowercase(), u"foobar"sv);
+    EXPECT_EQ(Utf16View { "@[`{ AZ az 09"sv }.to_ascii_lowercase(), u"@[`{ az az 09"sv);
+
+    auto lowercase = Utf16View { "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz"sv }.to_ascii_lowercase();
+    EXPECT(lowercase.has_ascii_storage());
+    EXPECT_EQ(lowercase, u"abcdefghijklmnopqrstuvwxyz abcdefghijklmnopqrstuvwxyz"sv);
 }
 
 TEST_CASE(to_ascii_uppercase)
@@ -429,6 +437,14 @@ TEST_CASE(to_ascii_uppercase)
     EXPECT_EQ(u"FooBar"sv.to_ascii_uppercase(), u"FOOBAR"sv);
     EXPECT_EQ(u"FOOBAR"sv.to_ascii_uppercase(), u"FOOBAR"sv);
     EXPECT_EQ(u"foo 😀 bar"sv.to_ascii_uppercase(), u"FOO 😀 BAR"sv);
+
+    EXPECT_EQ(Utf16View { ""sv }.to_ascii_uppercase(), u""sv);
+    EXPECT_EQ(Utf16View { "FooBar"sv }.to_ascii_uppercase(), u"FOOBAR"sv);
+    EXPECT_EQ(Utf16View { "@[`{ AZ az 09"sv }.to_ascii_uppercase(), u"@[`{ AZ AZ 09"sv);
+
+    auto uppercase = Utf16View { "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz"sv }.to_ascii_uppercase();
+    EXPECT(uppercase.has_ascii_storage());
+    EXPECT_EQ(uppercase, u"ABCDEFGHIJKLMNOPQRSTUVWXYZ ABCDEFGHIJKLMNOPQRSTUVWXYZ"sv);
 }
 
 TEST_CASE(to_ascii_titlecase)

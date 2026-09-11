@@ -67,6 +67,17 @@ Optional<size_t> Utf16View::to_utf8_with_replacement_into(Bytes output) const
 
 Utf16String Utf16View::to_ascii_lowercase() const
 {
+    // OPTIMIZATION: Write ASCII results directly into the new string's storage instead of appending one code unit at a
+    //               time to a builder.
+    if (has_ascii_storage()) {
+        return Utf16String::create_uninitialized_ascii(length_in_code_units(), [&](Bytes buffer) {
+            auto const* input = bytes().data();
+            auto* output = buffer.data();
+            for (size_t i = 0; i < buffer.size(); ++i)
+                output[i] = static_cast<u8>(AK::to_ascii_lowercase(input[i]));
+        });
+    }
+
     Utf16StringBuilder builder(length_in_code_units());
 
     for (size_t i = 0; i < length_in_code_units(); ++i)
@@ -77,6 +88,16 @@ Utf16String Utf16View::to_ascii_lowercase() const
 
 Utf16String Utf16View::to_ascii_uppercase() const
 {
+    // OPTIMIZATION: See to_ascii_lowercase().
+    if (has_ascii_storage()) {
+        return Utf16String::create_uninitialized_ascii(length_in_code_units(), [&](Bytes buffer) {
+            auto const* input = bytes().data();
+            auto* output = buffer.data();
+            for (size_t i = 0; i < buffer.size(); ++i)
+                output[i] = static_cast<u8>(AK::to_ascii_uppercase(input[i]));
+        });
+    }
+
     Utf16StringBuilder builder(length_in_code_units());
 
     for (size_t i = 0; i < length_in_code_units(); ++i)
