@@ -26,9 +26,4 @@ struct WEB_API StyleProperty {
     bool operator==(StyleProperty const& other) const;
 };
 
-struct StylePropertyAndName {
-    StyleProperty property;
-    Utf16FlyString name {};
-};
-
 }
