@@ -70,6 +70,15 @@ PASS: insert whitespace with hidden siblings | insert whitespace and display-non
 PASS: insert multiple whitespace nodes | insert at supported positions | preserve
 PASS: insert multiple whitespace nodes | insert at supported positions | layout tree builds=1
 PASS: insert multiple whitespace nodes | insert at supported positions | incremental tree matches full rebuild
+PASS: insert block with surrounding whitespace | insert mixed fragment | preserve
+PASS: insert block with surrounding whitespace | insert mixed fragment | layout tree builds=1
+PASS: insert block with surrounding whitespace | insert mixed fragment | incremental tree matches full rebuild
+PASS: insert flex item with surrounding whitespace | append mixed fragment | preserve
+PASS: insert flex item with surrounding whitespace | append mixed fragment | layout tree builds=1
+PASS: insert flex item with surrounding whitespace | append mixed fragment | incremental tree matches full rebuild
+PASS: insert grid item with surrounding whitespace | prepend mixed fragment | preserve
+PASS: insert grid item with surrounding whitespace | prepend mixed fragment | layout tree builds=1
+PASS: insert grid item with surrounding whitespace | prepend mixed fragment | incremental tree matches full rebuild
 PASS: insert adjacent whitespace nodes between blocks | rebuild for adjacent spaces | rebuild
 PASS: insert adjacent whitespace nodes between blocks | rebuild for adjacent spaces | layout tree builds=1
 PASS: insert adjacent whitespace nodes between blocks | rebuild for adjacent spaces | incremental tree matches full rebuild

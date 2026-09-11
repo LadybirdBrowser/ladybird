@@ -121,6 +121,48 @@
             ],
         },
         {
+            name: "insert block with surrounding whitespace",
+            markup: '<div class="parent"><div class="tracked"></div><div class="after"></div></div>',
+            steps: [
+                {
+                    name: "insert mixed fragment",
+                    mutate: parent => {
+                        const fragment = document.createDocumentFragment();
+                        fragment.append("\n", document.createElement("div"));
+                        parent.insertBefore(fragment, parent.querySelector(".after"));
+                    },
+                },
+            ],
+        },
+        {
+            name: "insert flex item with surrounding whitespace",
+            markup: '<div class="parent flex"><div class="tracked"></div><div class="after"></div></div>',
+            steps: [
+                {
+                    name: "append mixed fragment",
+                    mutate: parent => {
+                        const fragment = document.createDocumentFragment();
+                        fragment.append("\n", document.createElement("div"));
+                        parent.append(fragment);
+                    },
+                },
+            ],
+        },
+        {
+            name: "insert grid item with surrounding whitespace",
+            markup: '<div class="parent grid"><div class="tracked"></div><div class="after"></div></div>',
+            steps: [
+                {
+                    name: "prepend mixed fragment",
+                    mutate: parent => {
+                        const fragment = document.createDocumentFragment();
+                        fragment.append("\n", document.createElement("div"));
+                        parent.prepend(fragment);
+                    },
+                },
+            ],
+        },
+        {
             name: "insert adjacent whitespace nodes between blocks",
             markup: '<div class="parent"><div class="tracked"></div><div class="after"></div></div>',
             steps: [
