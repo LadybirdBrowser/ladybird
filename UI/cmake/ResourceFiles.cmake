@@ -43,7 +43,6 @@ set(ABOUT_PAGES
     downloads.html
     history.html
     newtab.html
-    processes.html
     settings.html
     services.html
     version.html

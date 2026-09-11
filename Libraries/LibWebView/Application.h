@@ -331,6 +331,7 @@ protected:
 
     virtual void process_did_exit(Process&&, Optional<int> exit_status);
 
+    virtual void add_platform_inspect_menu_items() { }
     virtual void create_platform_arguments(Core::ArgsParser&) { }
     virtual void create_platform_options(BrowserOptions&, RequestServerOptions&, WebContentOptions&) { }
     virtual bool should_coordinate_browser_process() const { return true; }

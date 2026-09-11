@@ -2562,9 +2562,7 @@ void Application::initialize_actions()
     });
     m_inspect_menu->add_action(*m_view_source_action);
 
-    m_inspect_menu->add_action(Action::create("Open Task Manager"sv, ActionID::OpenProcessesPage, [this]() {
-        open_url_in_new_tab(URL::about_processes(), Web::HTML::ActivateTab::Yes);
-    }));
+    add_platform_inspect_menu_items();
 
     m_toggle_devtools_action = Action::create("Enable DevTools"sv, ActionID::ToggleDevTools, [this]() {
         if (auto result = toggle_devtools_enabled(); result.is_error())
