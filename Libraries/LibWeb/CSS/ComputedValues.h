@@ -448,7 +448,6 @@ public:
     static PositionAreaData position_area() { return {}; }
     static Vector<PositionTryFallbackData> position_try_fallbacks() { return {}; }
     static Optional<TryOrder> position_try_order() { return {}; }
-    static PositionVisibilityData position_visibility() { return {}; }
     static TimelineScopeData timeline_scope() { return {}; }
     static TextDecorationLine text_decoration_line() { return TextDecorationLine::None; }
     static TextDecorationSkipInk text_decoration_skip_ink() { return TextDecorationSkipInk::Auto; }
@@ -525,7 +524,6 @@ public:
     static BorderCollapse border_collapse() { return BorderCollapse::Separate; }
     static EmptyCells empty_cells() { return EmptyCells::Show; }
     static ObjectFit object_fit() { return ObjectFit::Fill; }
-    static Position object_position() { return {}; }
     static Color outline_color() { return Color::Black; }
     static CSSPixels outline_offset() { return 0; }
     static OutlineStyle outline_style() { return OutlineStyle::None; }
@@ -976,60 +974,12 @@ inline Display display_from_ffi_display(ComputedValuesFFI::FfiDisplay const& dis
     }
     VERIFY_NOT_REACHED();
 }
-inline ComputedValuesFFI::FfiDisplay decode_ffi_display(u32 encoded)
-{
-    ComputedValuesFFI::FfiDisplay display {};
-    display.tag = encoded & 0xff;
-    auto first = static_cast<u8>((encoded >> 8) & 0xff);
-    auto second = static_cast<u8>((encoded >> 16) & 0xff);
-    auto third = static_cast<u8>((encoded >> 24) & 0xff);
-    switch (static_cast<Display::Type>(display.tag)) {
-    case Display::Type::OutsideAndInside:
-        display.outside = first;
-        display.inside = second;
-        display.list_item = third != 0;
-        break;
-    case Display::Type::Internal:
-        display.internal = first;
-        break;
-    case Display::Type::Box:
-        display.box_value = first;
-        break;
-    }
-    return display;
-}
-
-inline ComputedValuesFFI::ComputedAspectRatio to_ffi_aspect_ratio(AspectRatio const& aspect_ratio)
-{
-    return {
-        .use_natural_aspect_ratio_if_available = aspect_ratio.use_natural_aspect_ratio_if_available,
-        .has_preferred_ratio = aspect_ratio.preferred_ratio.has_value(),
-        .preferred_ratio_numerator = aspect_ratio.preferred_ratio.has_value() ? aspect_ratio.preferred_ratio->numerator() : 0.0,
-        .preferred_ratio_denominator = aspect_ratio.preferred_ratio.has_value() ? aspect_ratio.preferred_ratio->denominator() : 0.0,
-        .computed_use_natural_aspect_ratio_if_available = aspect_ratio.computed_use_natural_aspect_ratio_if_available,
-        .has_computed_ratio = aspect_ratio.computed_ratio.has_value(),
-        .computed_ratio_numerator = aspect_ratio.computed_ratio.has_value() ? aspect_ratio.computed_ratio->numerator() : 0.0,
-        .computed_ratio_denominator = aspect_ratio.computed_ratio.has_value() ? aspect_ratio.computed_ratio->denominator() : 0.0,
-    };
-}
-
 inline ComputedValuesFFI::ComputedVerticalAlign to_ffi_vertical_align(Variant<VerticalAlign, LengthPercentage> const& value)
 {
     if (value.has<VerticalAlign>())
         return { .is_keyword = true, .keyword = to_underlying(value.get<VerticalAlign>()), .value = { nullptr } };
     auto retained = value.get<LengthPercentage>();
     return { .is_keyword = false, .keyword = 0, .value = { retained.leak_data() } };
-}
-
-// Each returned raw carries one leaked reference for a Rust-owned fly string
-// list to assume ownership of.
-inline Vector<size_t> to_leaked_fly_string_raws(Vector<Utf16FlyString> const& names)
-{
-    Vector<size_t> raws;
-    raws.ensure_capacity(names.size());
-    for (auto const& name : names)
-        raws.unchecked_append(name.to_raw_leaked());
-    return raws;
 }
 
 class WEB_API ComputedValues final : public RefCounted<ComputedValues> {
@@ -1983,10 +1933,6 @@ private:
     // Takes `other`'s table by reference count, or materializes an owned table from `other`'s
     // borrowed record span, so the copy never outlives its source's storage.
     void copy_computed_longhand_table_from(ComputedValues const& other);
-    // For the inherited-group swap: builds this style's table from `old_values`'s slots with
-    // every inherited-by-default longhand replaced by `inherited_source`'s value, mirroring
-    // the group replacement, so the swapped style stays a complete inheritance source.
-    void adopt_swapped_computed_longhand_table(ComputedValues const& old_values, ComputedValues const& inherited_source);
 
     NonInheritedValues m_noninherited;
     AK::FixedBitmap<number_of_longhand_properties> m_property_important { false };
@@ -2151,12 +2097,6 @@ public:
         set_edge(effects.clip_edges[2], rect.bottom_edge);
         set_edge(effects.clip_edges[3], rect.left_edge);
     }
-    void set_background_color(Color color)
-    {
-        if (m_values.m_noninherited.background->background_color_value() == color)
-            return;
-        m_values.m_noninherited.background.access().background_color = color.value();
-    }
     void set_float(Float value)
     {
         if (m_values.m_noninherited.box->float_ == to_underlying(value))
@@ -2182,45 +2122,6 @@ public:
         if (m_values.m_inherited.text->text_align_value() == text_align)
             return;
         m_values.m_inherited.text.access().text_align = to_underlying(text_align);
-    }
-    void set_text_decoration_line(Vector<TextDecorationLine> value)
-    {
-        if (m_values.text_decoration_line() == value.span())
-            return;
-        Vector<u8> lines;
-        lines.ensure_capacity(value.size());
-        for (auto line : value)
-            lines.unchecked_append(to_underlying(line));
-        auto& text_reset = m_values.m_noninherited.text_reset.access();
-        ComputedValuesFFI::rust_text_reset_set_decoration_lines(&text_reset, lines.data(), lines.size());
-    }
-    void set_text_decoration_thickness(TextDecorationThickness value)
-    {
-        if (m_values.text_decoration_thickness() == value)
-            return;
-        auto& text_reset = m_values.m_noninherited.text_reset.access();
-        value.value.visit(
-            [&](TextDecorationThickness::Auto const&) {
-                ComputedValuesFFI::rust_text_reset_set_decoration_thickness(&text_reset, 0, nullptr);
-            },
-            [&](TextDecorationThickness::FromFont const&) {
-                ComputedValuesFFI::rust_text_reset_set_decoration_thickness(&text_reset, 1, nullptr);
-            },
-            [&](LengthPercentage& length_percentage) {
-                ComputedValuesFFI::rust_text_reset_set_decoration_thickness(&text_reset, 2, length_percentage.leak_data());
-            });
-    }
-    void set_text_decoration_style(TextDecorationStyle value)
-    {
-        if (m_values.text_decoration_style() == value)
-            return;
-        m_values.m_noninherited.text_reset.access().text_decoration_style = to_underlying(value);
-    }
-    void set_text_decoration_color(Color value)
-    {
-        if (m_values.text_decoration_color() == value)
-            return;
-        m_values.m_noninherited.text_reset.access().text_decoration_color = value.value();
     }
     void set_position(Positioning position)
     {
@@ -2286,30 +2187,6 @@ public:
         if (m_values.display_before_box_type_transformation() == value)
             return;
         m_values.m_noninherited.box.access().display_before_box_type_transformation = to_ffi_display(value);
-    }
-    void set_border_top_color(Color value)
-    {
-        if (m_values.m_noninherited.border->border_top_value().color == value)
-            return;
-        m_values.m_noninherited.border.access().border_top.color = value.value();
-    }
-    void set_border_right_color(Color value)
-    {
-        if (m_values.m_noninherited.border->border_right_value().color == value)
-            return;
-        m_values.m_noninherited.border.access().border_right.color = value.value();
-    }
-    void set_border_bottom_color(Color value)
-    {
-        if (m_values.m_noninherited.border->border_bottom_value().color == value)
-            return;
-        m_values.m_noninherited.border.access().border_bottom.color = value.value();
-    }
-    void set_border_left_color(Color value)
-    {
-        if (m_values.m_noninherited.border->border_left_value().color == value)
-            return;
-        m_values.m_noninherited.border.access().border_left.color = value.value();
     }
     void copy_fieldset_content_alignment_from(ComputedValues const& source)
     {
@@ -2411,12 +2288,6 @@ public:
             return;
         m_values.m_inherited.box.access().writing_mode = to_underlying(value);
     }
-    void set_outline_color(Color value)
-    {
-        if (m_values.m_noninherited.misc->outline_color == value.value())
-            return;
-        m_values.m_noninherited.misc.access().outline_color = value.value();
-    }
     void set_scrollbar_width(ScrollbarWidth value)
     {
         if (m_values.m_noninherited.misc->scrollbar_width == to_underlying(value))
@@ -2488,19 +2359,6 @@ public:
     {
         Builder builder;
         builder.m_values->m_inherited = values.m_inherited;
-        return builder;
-    }
-
-    // A copy of `values` whose inherited half is `inherited_source`'s, group references swapped
-    // rather than payloads rebuilt. Only correct when `values` takes every inherited property by
-    // standard inheritance (see property_inheritance_is_standard()).
-    static Builder create_with_inherited_style_replaced(ComputedValues const& values, ComputedValues const& inherited_source)
-    {
-        Builder builder { values };
-        builder.m_values->m_inherited = inherited_source.m_inherited;
-        // The copied longhand table still names the old parent's inherited values;
-        // replace those slots with the new parent's, like the groups above.
-        builder.m_values->adopt_swapped_computed_longhand_table(values, inherited_source);
         return builder;
     }
 

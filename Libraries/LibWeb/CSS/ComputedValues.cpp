@@ -1664,21 +1664,6 @@ void ComputedValues::copy_computed_longhand_table_from(ComputedValues const& oth
     refresh_computed_longhand_table_views();
 }
 
-void ComputedValues::adopt_swapped_computed_longhand_table(ComputedValues const& old_values, ComputedValues const& inherited_source)
-{
-    auto const* old_table = static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(old_values.computed_longhand_table());
-    auto const* inherited_source_table = static_cast<ComputedValuesFFI::ComputedLonghandTable const*>(inherited_source.computed_longhand_table());
-    if (!old_table || !inherited_source_table) {
-        clear_computed_longhand_table();
-        return;
-    }
-    auto* table = ComputedValuesFFI::rust_computed_longhand_table_create_with_inherited_values(old_table, inherited_source_table);
-    clear_computed_longhand_table();
-    // The freshly created table already carries the one reference this style owns.
-    m_computed_longhand_table = table;
-    refresh_computed_longhand_table_views();
-}
-
 void ComputedValues::Mutator::set_animated_properties(AnimatedProperties const* value)
 {
     m_values.m_animated_properties = value;
