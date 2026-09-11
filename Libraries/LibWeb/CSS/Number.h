@@ -47,7 +47,6 @@ public:
         return round_to_nearest_integer(m_value);
     }
     bool is_integer() const { return m_type == Type::Integer || m_type == Type::IntegerWithExplicitSign; }
-    bool is_integer_with_explicit_sign() const { return m_type == Type::IntegerWithExplicitSign; }
 
     Number operator+(Number const& other) const
     {
