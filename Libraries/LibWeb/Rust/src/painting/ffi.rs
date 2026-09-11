@@ -1456,8 +1456,7 @@ fn fresh_visual_context_tree_build(
             viewport,
             &inputs,
         );
-        fresh_tree.viewport_assignment.scrollable_node_identity =
-            callbacks.scroll_node_identity(arena.shell_if_live(viewport));
+        fresh_tree.viewport_assignment.node_identity = callbacks.node_identity(arena.shell_if_live(viewport));
         fresh_tree
     };
     {
@@ -1663,38 +1662,53 @@ pub unsafe extern "C" fn layout_arena_update_accumulated_visual_contexts(
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+/// `out_geometry` must point to writable storage.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_apply_css_transform_to_rect(
+pub unsafe extern "C" fn layout_arena_snap_container_geometry(
     arena: *mut c_void,
-    node: NodeSlotId,
-    rect: FfiCssPixelRect,
+    snap_container: NodeSlotId,
+    out_geometry: *mut crate::painting::host::FfiSnapContainerGeometry,
+) -> bool {
+    let arena = unsafe { arena_from_handle(arena) };
+    let Some(geometry) = crate::painting::scroll_snap::snap_container_geometry(&arena.paintable_rows(), snap_container)
+    else {
+        return false;
+    };
+    // SAFETY: The caller provides writable storage for the geometry.
+    unsafe { *out_geometry = geometry };
+    true
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread. The
+/// host callback receives each snap area's geometry, valid for the duration of the call, and the
+/// area's live layout node shell.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_for_each_snap_area(
+    arena: *mut c_void,
+    snap_container: NodeSlotId,
+    context: *mut c_void,
+    push_snap_area: unsafe extern "C" fn(*mut c_void, *const crate::painting::host::FfiSnapAreaGeometry, *mut c_void),
+) {
+    let arena = unsafe { arena_from_handle(arena) };
+    crate::painting::scroll_snap::for_each_snap_area(&arena.paintable_rows(), snap_container, |slot, area| {
+        // SAFETY: The C++ callback copies the geometry into a caller-owned collection.
+        unsafe { push_snap_area(context, &raw const area, arena.node_shell(slot)) };
+    });
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_scroll_snapport_rect(
+    arena: *mut c_void,
+    snap_container: NodeSlotId,
+    scrollport: FfiCssPixelRect,
 ) -> FfiCssPixelRect {
     let arena = unsafe { arena_from_handle(arena) };
-    let Some((transform, _is_invertible)) =
-        crate::painting::visual_context::node_values::compute_transform(&arena.paintable_rows(), node, 1.0)
-    else {
-        return rect;
-    };
-    let origin = transform.origin;
-    let mapped = transform
-        .matrix
-        .extract_2d_affine()
-        .map_rect(
-            libgfx_rust::FloatRect::new(
-                rect.x.to_float(),
-                rect.y.to_float(),
-                rect.width.to_float(),
-                rect.height.to_float(),
-            )
-            .translated(-origin.x, -origin.y),
-        )
-        .translated(origin.x, origin.y);
-    FfiCssPixelRect {
-        x: CssPixels::nearest_value_for_f32(mapped.x),
-        y: CssPixels::nearest_value_for_f32(mapped.y),
-        width: CssPixels::nearest_value_for_f32(mapped.width),
-        height: CssPixels::nearest_value_for_f32(mapped.height),
-    }
+    crate::painting::scroll_snap::scroll_snapport_rect(arena, snap_container, scrollport.into()).into()
 }
 
 /// # Safety
@@ -2022,7 +2036,7 @@ pub unsafe extern "C" fn layout_arena_scroll_snap_axes(
     snap_container: NodeSlotId,
 ) -> crate::painting::host::FfiSnapAxes {
     let arena = unsafe { arena_from_handle(arena) };
-    crate::painting::scroll_snap_axes::snap_axes_of_scroll_container(arena, snap_container)
+    crate::painting::scroll_snap::snap_axes_of_scroll_container(arena, snap_container)
 }
 
 /// # Safety

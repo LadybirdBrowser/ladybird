@@ -663,6 +663,13 @@ impl<'a> ComputedValuesView<'a> {
         self.flex_direction()
     }
 
+    /// Whether the box is a scroll snap area.
+    pub(crate) fn has_scroll_snap_alignment(self) -> bool {
+        let misc = self.misc_reset();
+        misc.scroll_snap_align_block != crate::css::css_enums::scroll_snap_align::NONE
+            || misc.scroll_snap_align_inline != crate::css::css_enums::scroll_snap_align::NONE
+    }
+
     pub(crate) fn inline_axis_is_reverse(self) -> bool {
         match self.writing_mode() {
             writing_mode::HORIZONTAL_TB

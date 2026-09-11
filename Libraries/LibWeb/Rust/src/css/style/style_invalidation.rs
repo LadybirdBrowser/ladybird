@@ -474,6 +474,12 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
     {
         result.resnap_scroll_container = true;
     }
+    // A snap area is identified by its element when the visual context tree is built, so a box
+    // that becomes or stops being one has its identity resolved again.
+    if property == property_id::SCROLL_SNAP_ALIGN && old.has_scroll_snap_alignment() != new.has_scroll_snap_alignment()
+    {
+        result.ensure_visual_context(VISUAL_CONTEXT_UPDATE_VALUES);
+    }
     if property_metadata::property_affects_stacking_context(property)
         && (property == property_id::Z_INDEX
             || value_creates_stacking_context(property, old) != value_creates_stacking_context(property, new))

@@ -5,15 +5,12 @@
  */
 
 #include <AK/AnyOf.h>
-#include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
-#include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Painting/BoxViews.h>
 #include <LibWeb/Painting/PaintingRustBridge.h>
 #include <LibWeb/Painting/ScrollSnap.h>
-#include <LibWeb/Painting/Scrolling.h>
 
 namespace Web::Painting {
 
@@ -21,12 +18,14 @@ using Compositor::SnapAxisCandidates;
 using Compositor::SnapAxisSelection;
 using Compositor::SnapPositionCandidate;
 
-static SnapAreaIdentity snap_area_identity_for(Layout::Node const& snap_area)
+// NB: The element the recorder identifies a snap area by is resolved when the visual context tree is built, which a
+//     re-snap right after layout runs ahead of, so it is resolved from the area's layout node here.
+static UniqueNodeID element_id_of_snap_area(Layout::Node const& snap_area)
 {
-    if (auto pseudo_element = snap_area.generated_for_pseudo_element(); pseudo_element.has_value())
-        return { snap_area.pseudo_element_generator()->unique_id(), static_cast<u8>(to_underlying(*pseudo_element) + 1) };
+    if (snap_area.is_generated_for_pseudo_element())
+        return snap_area.pseudo_element_generator()->unique_id();
     if (auto const* element = as_if<DOM::Element>(snap_area.dom_node()))
-        return { element->unique_id(), 0 };
+        return element->unique_id();
     return {};
 }
 
@@ -38,110 +37,6 @@ static DOM::Element const* element_of_snap_area(SnapAreaIdentity const& area)
     return as_if<DOM::Element>(DOM::Node::from_unique_id(area.node_id));
 }
 
-static Layout::NodeWithStyle const* style_source_for_snap_container(Layout::Node const& snap_container)
-{
-    if (snap_container.is_viewport()) {
-        auto const* document_element = snap_container.document().document_element();
-        if (!document_element)
-            return nullptr;
-        return document_element->unsafe_layout_node();
-    }
-    return &as<Layout::NodeWithStyle>(snap_container);
-}
-
-static bool has_snap_alignment(CSS::ScrollSnapAlignData alignment)
-{
-    return alignment.block_alignment != CSS::ScrollSnapAlign::None || alignment.inline_alignment != CSS::ScrollSnapAlign::None;
-}
-
-static bool is_captured_by_snap_container(Layout::Node const& snap_area, Layout::Node const& snap_container)
-{
-    for (auto const* containing_block = snap_area.containing_block(); containing_block; containing_block = containing_block->containing_block()) {
-        if (containing_block == &snap_container)
-            return true;
-        // The box whose overflow was propagated to the viewport is left with a used overflow of visible, so it is not
-        // a scroll container and cannot capture snap areas of its own.
-        if (containing_block->is_scroll_container())
-            return false;
-    }
-    return false;
-}
-
-template<typename Callback>
-static void for_each_descendant_snap_area(Layout::Node const& parent, Layout::Node const& snap_container, Callback const& callback)
-{
-    parent.for_each_child([&](Layout::Node const& child) {
-        // Snap areas are captured by the nearest scroll container in their containing block chain, so areas inside a
-        // nested scroll container may still belong to an outer container when they are positioned.
-        auto const* child_with_style = as_if<Layout::NodeWithStyle>(child);
-        if (child_with_style && has_committed_box(child) && has_snap_alignment(child_with_style->scroll_snap_align()) && is_captured_by_snap_container(child, snap_container))
-            callback(*child_with_style);
-        for_each_descendant_snap_area(child, snap_container, callback);
-        return IterationDecision::Continue;
-    });
-}
-
-// https://drafts.csswg.org/css-scroll-snap-1/#scroll-margin
-static CSSPixelRect snap_area_rect(Layout::NodeWithStyle const& snap_area, Layout::Node const& snap_container)
-{
-    // The scroll snap area is determined by taking the transformed border box, finding its rectangular bounding box
-    // (axis-aligned in the scroll container's coordinate space), then adding the specified outsets.
-
-    // NB: A snap area is captured by the nearest scroll container in its containing block chain, so the boxes between
-    //     an area and its container contribute transforms only, and mapping the border box through each of them in
-    //     turn lands it in the container's coordinate space.
-    auto rect = rust_apply_css_transform_to_rect(snap_area, absolute_border_box_rect(snap_area));
-    for (auto const* containing_block = snap_area.containing_block(); containing_block && containing_block != &snap_container; containing_block = containing_block->containing_block())
-        rect = rust_apply_css_transform_to_rect(*containing_block, rect);
-
-    auto const& scroll_margin = snap_area.scroll_margin();
-    rect.inflate(
-        scroll_margin.top().to_px_or_zero(CSSPixels { 0 }),
-        scroll_margin.right().to_px_or_zero(CSSPixels { 0 }),
-        scroll_margin.bottom().to_px_or_zero(CSSPixels { 0 }),
-        scroll_margin.left().to_px_or_zero(CSSPixels { 0 }));
-    return rect;
-}
-
-struct PhysicalSnapAlignment {
-    CSS::ScrollSnapAlign x;
-    CSS::ScrollSnapAlign y;
-};
-
-// https://drafts.csswg.org/css-scroll-snap-1/#scroll-snap-align
-static PhysicalSnapAlignment physical_snap_alignment(CSS::ScrollSnapAlignData alignment, Layout::NodeWithStyle const& writing_mode_source)
-{
-    // The two values specify the snapping alignment in the block axis and inline axis, respectively, as determined by the
-    // snap container's writing mode.
-
-    // NB: start and end name the edges an axis begins and ends at, which are its lesser and greater physical edges
-    //     only while the axis runs in the same direction as the physical one.
-    auto alignment_along_axis = [](CSS::ScrollSnapAlign axis_alignment, bool axis_is_reverse) {
-        if (!axis_is_reverse)
-            return axis_alignment;
-        switch (axis_alignment) {
-        case CSS::ScrollSnapAlign::Start:
-            return CSS::ScrollSnapAlign::End;
-        case CSS::ScrollSnapAlign::End:
-            return CSS::ScrollSnapAlign::Start;
-        case CSS::ScrollSnapAlign::None:
-        case CSS::ScrollSnapAlign::Center:
-            return axis_alignment;
-        }
-        VERIFY_NOT_REACHED();
-    };
-
-    bool horizontal_writing_mode = writing_mode_source.writing_mode() == CSS::WritingMode::HorizontalTb;
-    auto x_alignment = horizontal_writing_mode ? alignment.inline_alignment : alignment.block_alignment;
-    auto y_alignment = horizontal_writing_mode ? alignment.block_alignment : alignment.inline_alignment;
-    bool x_axis_is_reverse = horizontal_writing_mode ? writing_mode_source.inline_axis_is_reverse() : writing_mode_source.block_axis_is_reverse();
-    bool y_axis_is_reverse = horizontal_writing_mode ? writing_mode_source.block_axis_is_reverse() : writing_mode_source.inline_axis_is_reverse();
-    return {
-        .x = alignment_along_axis(x_alignment, x_axis_is_reverse),
-        .y = alignment_along_axis(y_alignment, y_axis_is_reverse),
-    };
-}
-
 // https://drafts.csswg.org/css-scroll-snap-1/#snap-axis
 SnapAxes snap_axes_of_scroll_container(Layout::Node const& snap_container)
 {
@@ -151,57 +46,39 @@ SnapAxes snap_axes_of_scroll_container(Layout::Node const& snap_container)
 
 Optional<SnapContainerGeometry> snap_container_geometry(Layout::Node const& snap_container)
 {
-    auto const* style_source = style_source_for_snap_container(snap_container);
-    if (!style_source)
+    if (!has_committed_box(snap_container))
         return {};
 
-    if (!Painting::scrollable_overflow_rect(snap_container).has_value())
+    Layout::RustFFI::FfiSnapContainerGeometry geometry {};
+    if (!Layout::RustFFI::layout_arena_snap_container_geometry(snap_container.arena_handle(), committed_row_slot(snap_container), &geometry))
         return {};
 
-    // https://drafts.csswg.org/css-scroll-snap-1/#scroll-padding
-    // For a scroll snap container this region also defines the scroll snapport—the area of the scrollport that is
-    // used as the alignment container for the scroll snap areas when calculating snap positions.
     return SnapContainerGeometry {
-        .snapport = scroll_snapport_rect(snap_container),
-        .min_scroll_offset = minimum_scroll_offset(snap_container),
-        .max_scroll_offset = maximum_scroll_offset(snap_container),
-        .strictness = style_source->scroll_snap_type().strictness,
-        .axes = snap_axes_of_scroll_container(snap_container),
-        .horizontal_writing_mode = style_source->writing_mode() == CSS::WritingMode::HorizontalTb,
+        .snapport = geometry.snapport,
+        .min_scroll_offset = geometry.min_scroll_offset,
+        .max_scroll_offset = geometry.max_scroll_offset,
+        .strictness = static_cast<CSS::ScrollSnapStrictness>(geometry.strictness),
+        .axes = { .x = geometry.axes.x, .y = geometry.axes.y },
+        .horizontal_writing_mode = geometry.horizontal_writing_mode,
     };
 }
 
 Vector<SnapAreaGeometry> collect_snap_areas(Layout::Node const& snap_container)
 {
-    auto const* style_source = style_source_for_snap_container(snap_container);
-    if (!style_source)
-        return {};
-
-    auto snapport = scroll_snapport_rect(snap_container);
-
     Vector<SnapAreaGeometry> areas;
-    for_each_descendant_snap_area(snap_container, snap_container, [&](Layout::NodeWithStyle const& snap_area) {
-        auto area_rect = snap_area_rect(snap_area, snap_container);
+    if (!has_committed_box(snap_container))
+        return areas;
 
-        // https://drafts.csswg.org/css-scroll-snap-1/#scroll-snap-align
-        // Start and end alignments are resolved with respect to the writing mode of the snap container unless the
-        // scroll snap area is larger than the snapport, in which case they are resolved with respect to the writing
-        // mode of the box itself.
-        // NB: The size the area is compared in is the one it lays its content out along, so that an area whose
-        //     content no longer fits the snapport aligns the edge that content begins at. This matches other engines.
-        bool area_is_larger_than_snapport = snap_area.writing_mode() == CSS::WritingMode::HorizontalTb
-            ? area_rect.width() > snapport.width()
-            : area_rect.height() > snapport.height();
-        auto alignment = physical_snap_alignment(snap_area.scroll_snap_align(), area_is_larger_than_snapport ? snap_area : *style_source);
-
-        areas.append({
-            .identity = snap_area_identity_for(snap_area),
-            .rect = area_rect,
-            .align_x = alignment.x,
-            .align_y = alignment.y,
-            .always_stop = snap_area.scroll_snap_stop() == CSS::ScrollSnapStop::Always,
+    Layout::RustFFI::layout_arena_for_each_snap_area(
+        snap_container.arena_handle(), committed_row_slot(snap_container), &areas, [](void* context, Layout::RustFFI::FfiSnapAreaGeometry const* area, void* layout_node_shell) {
+            static_cast<Vector<SnapAreaGeometry>*>(context)->append({
+                .identity = { element_id_of_snap_area(*static_cast<Layout::Node const*>(layout_node_shell)), area->pseudo_element_type },
+                .rect = area->rect,
+                .align_x = static_cast<CSS::ScrollSnapAlign>(area->align_x),
+                .align_y = static_cast<CSS::ScrollSnapAlign>(area->align_y),
+                .always_stop = area->always_stop,
+            });
         });
-    });
     return areas;
 }
 

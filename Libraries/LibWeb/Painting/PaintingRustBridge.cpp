@@ -365,7 +365,7 @@ Layout::RustFFI::FfiVisualContextHostCallbacks visual_context_host_callbacks(DOM
         .scroll_offset = [](void*, void* layout_node_shell) -> CSSPixelPoint {
             return scroll_offset(*static_cast<Layout::Node const*>(layout_node_shell));
         },
-        .scroll_node_identity = [](void*, void* layout_node_shell) -> i64 {
+        .node_identity = [](void*, void* layout_node_shell) -> i64 {
             auto const& layout_node = *static_cast<Layout::NodeWithStyle const*>(layout_node_shell);
             if (is_viewport_paintable(layout_node))
                 return layout_node.document().unique_id().value();
@@ -450,11 +450,6 @@ void const* retain_rust_main_visual_context_tree(DOM::Document const& document)
     auto const* tree = Layout::RustFFI::layout_arena_main_visual_context_tree_retain(layout_arena_handle(document));
     VERIFY(tree);
     return tree;
-}
-
-CSSPixelRect rust_apply_css_transform_to_rect(Layout::Node const& box, CSSPixelRect const& rect)
-{
-    return Layout::RustFFI::layout_arena_apply_css_transform_to_rect(box.arena_handle(), committed_row_slot(box), rect);
 }
 
 Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Layout::Node const& box)
