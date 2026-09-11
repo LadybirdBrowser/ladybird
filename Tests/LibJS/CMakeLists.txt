@@ -1,5 +1,7 @@
 ladybird_utility(test-js-runtime SOURCES test-js-runtime.cpp LIBS LibJSStandalone LibMain)
 
+ladybird_test(test-debugger.cpp LibJS LIBS LibJSStandalone)
+
 ladybird_utility(test-js SOURCES test-js-main.cpp LIBS LibMain)
 ladybird_windows_bin(test-js CONSOLE)
 target_compile_definitions(test-js PRIVATE TEST_JS_PYTHON="${Python3_EXECUTABLE}")

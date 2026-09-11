@@ -353,8 +353,8 @@ pub unsafe extern "C" fn js_debugger_did_finish_exception_propagation(vm: *mut J
 }
 
 /// Debugger::add_breakpoint(filename, line, column): a breakpoint in every source code with that filename, at the
-/// first position at or after the line, and the column if there is one. Adding a breakpoint that exists returns its
-/// id. Only on the VM's thread.
+/// first position at or after the line, or at the exact line and column if a column is given. Adding a breakpoint
+/// that exists returns its id. Only on the VM's thread.
 ///
 /// # Safety
 ///

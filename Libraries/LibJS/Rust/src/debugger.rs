@@ -800,7 +800,12 @@ fn breakpoint_candidate_for_executable(breakpoint: &Breakpoint, executable: &Exe
         if entry.line == 0 || entry.line < breakpoint.line {
             continue;
         }
-        if entry.line == breakpoint.line && breakpoint.column.is_some_and(|column| entry.column < column) {
+        // Clients only pass a column for positions they have already snapped to, so match it exactly instead of
+        // sliding onto the enclosing executable's next position while the function owning it is still uncompiled.
+        if let Some(column) = breakpoint.column {
+            if entry.line == breakpoint.line && entry.column == column {
+                return Some(*entry);
+            }
             continue;
         }
         if matching_entry.is_none_or(|matching_entry| {
