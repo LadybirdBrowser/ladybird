@@ -13,6 +13,7 @@
 #include <AK/StringBuilder.h>
 #include <AK/StringConversions.h>
 #include <AK/TypeCasts.h>
+#include <AK/UFixedBigInt.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibCrypto/BigInt/UnsignedBigInteger.h>
 #include <LibJS/Runtime/AbstractOperations.h>
@@ -223,29 +224,42 @@ static SignificandAndExponent compute_significand_and_exponent_with_precision(do
     return { .significand = move(significand), .exponent = exponent };
 }
 
-static Crypto::UnsignedBigInteger compute_to_fixed_scaled_integer(double number, u32 fraction_digits)
+struct BinaryDecomposition {
+    u64 significand { 0 };
+    i32 exponent { 0 };
+};
+
+// Decompose the number into its exact binary representation. An IEEE-754 double is exactly equal to:
+//
+//     significand * 2 ^ exponent
+static BinaryDecomposition decompose_double(double number)
 {
     using Extractor = AK::FloatExtractor<double>;
 
-    static NeverDestroyed<Crypto::UnsignedBigInteger> ONE_BIGINT { 1_bigint };
-    static NeverDestroyed<Crypto::UnsignedBigInteger> FIVE_BIGINT { 5_bigint };
-
-    // Decompose the number into its exact binary representation. An IEEE-754 double is exactly equal to:
-    //
-    //     binary_significand * 2 ^ binary_exponent
     Extractor extractor;
     extractor.d = number;
 
-    Crypto::UnsignedBigInteger binary_significand;
-    i32 binary_exponent = 0;
+    BinaryDecomposition decomposition;
 
     if (extractor.exponent == 0) {
-        binary_significand = extractor.mantissa;
-        binary_exponent = 1 - Extractor::exponent_bias - Extractor::mantissa_bits;
+        decomposition.significand = extractor.mantissa;
+        decomposition.exponent = 1 - Extractor::exponent_bias - Extractor::mantissa_bits;
     } else {
-        binary_significand = extractor.mantissa | (1ull << Extractor::mantissa_bits);
-        binary_exponent = extractor.exponent - Extractor::exponent_bias - Extractor::mantissa_bits;
+        decomposition.significand = extractor.mantissa | (1ull << Extractor::mantissa_bits);
+        decomposition.exponent = extractor.exponent - Extractor::exponent_bias - Extractor::mantissa_bits;
     }
+
+    return decomposition;
+}
+
+static Crypto::UnsignedBigInteger compute_to_fixed_scaled_integer(double number, u32 fraction_digits)
+{
+    static NeverDestroyed<Crypto::UnsignedBigInteger> ONE_BIGINT { 1_bigint };
+    static NeverDestroyed<Crypto::UnsignedBigInteger> FIVE_BIGINT { 5_bigint };
+
+    auto decomposition = decompose_double(number);
+    Crypto::UnsignedBigInteger binary_significand { decomposition.significand };
+    auto binary_exponent = decomposition.exponent;
 
     auto numerator = binary_significand.multiplied_by(FIVE_BIGINT->pow(fraction_digits));
     auto binary_scale = binary_exponent + static_cast<i32>(fraction_digits);
@@ -260,6 +274,42 @@ static Crypto::UnsignedBigInteger compute_to_fixed_scaled_integer(double number,
         quotient = quotient.plus(1);
 
     return quotient;
+}
+
+// OPTIMIZATION: For f ≤ 27, 5^f fits in a u64, so binary_significand * 5^f fits in 116 bits, and n can be computed exactly
+//               with 128-bit arithmetic instead of arbitrary-precision integers. Returns an empty Optional when n doesn't
+//               fit in a u64, or when the double is large enough to need a left shift; the caller falls back to
+//               compute_to_fixed_scaled_integer() in those cases.
+static Optional<u64> try_compute_to_fixed_scaled_integer_in_u64(double number, u32 fraction_digits)
+{
+    static constexpr auto POWERS_OF_FIVE = [] {
+        AK::Array<u64, 28> powers {};
+        powers[0] = 1;
+        for (size_t i = 1; i < powers.size(); ++i)
+            powers[i] = powers[i - 1] * 5;
+        return powers;
+    }();
+
+    if (fraction_digits >= POWERS_OF_FIVE.size())
+        return {};
+
+    auto [binary_significand, binary_exponent] = decompose_double(number);
+
+    auto binary_scale = binary_exponent + static_cast<i32>(fraction_digits);
+    if (binary_scale >= 0)
+        return {};
+
+    // n = round(numerator / 2^shift), picking the larger integer on a tie. Since numerator < 2^116, n is 0 whenever
+    // shift ≥ 117. Otherwise, adding one at the bit below the cut and then dropping it rounds ties upward.
+    auto shift = static_cast<u32>(-binary_scale);
+    if (shift >= 117)
+        return 0;
+
+    auto numerator = u128 { binary_significand } * u128 { POWERS_OF_FIVE[fraction_digits] };
+    auto n = ((numerator >> (shift - 1)) + u128 { 1 }) >> 1;
+    if (n.high() != 0)
+        return {};
+    return n.low();
 }
 
 // 21.1.3.2 Number.prototype.toExponential ( fractionDigits ), https://tc39.es/ecma262/#sec-number.prototype.toexponential
@@ -418,7 +468,7 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_fixed)
     // 8. Let s be the empty String.
     // 9. If x < 0, then
     //    a. Set s to "-".
-    auto s = (number < 0 ? "-" : "");
+    auto s = (number < 0 ? "-"sv : ""sv);
     //    b. Set x to -x.
     if (number < 0)
         number = -number;
@@ -443,23 +493,44 @@ JS_DEFINE_NATIVE_FUNCTION(NumberPrototype::to_fixed)
     // 12. Return the string-concatenation of s and m.
 
     auto fraction_digit_count = static_cast<u32>(fraction_digits);
-    auto number_string = MUST(compute_to_fixed_scaled_integer(number, fraction_digit_count).to_base_utf16(10));
 
-    if (fraction_digit_count != 0) {
-        auto k = number_string.length_in_code_units();
-        if (k <= fraction_digit_count) {
-            auto zeroes = Utf16String::repeated('0', fraction_digit_count + 1 - k);
-            number_string = Utf16String::formatted("{}{}", zeroes, number_string);
-            k = fraction_digit_count + 1;
-        }
+    AK::Array<char, 20> small_digit_buffer;
+    String large_digits;
+    StringView digits;
 
-        auto number_string_view = number_string.utf16_view();
-        auto whole_part = number_string_view.substring_view(0, k - fraction_digit_count);
-        auto fractional_part = number_string_view.substring_view(k - fraction_digit_count);
-        number_string = Utf16String::formatted("{}.{}", whole_part, fractional_part);
+    if (auto small_n = try_compute_to_fixed_scaled_integer_in_u64(number, fraction_digit_count); small_n.has_value()) {
+        auto n = *small_n;
+        auto digit_start = small_digit_buffer.size();
+        do {
+            small_digit_buffer[--digit_start] = static_cast<char>('0' + (n % 10));
+            n /= 10;
+        } while (n != 0);
+        digits = StringView { small_digit_buffer.data() + digit_start, small_digit_buffer.size() - digit_start };
+    } else {
+        large_digits = MUST(compute_to_fixed_scaled_integer(number, fraction_digit_count).to_base(10));
+        digits = large_digits.bytes_as_string_view();
     }
 
-    return PrimitiveString::create(vm, Utf16String::formatted("{}{}", s, number_string));
+    // NB: Build the result in a single pass: the sign, then m zero-padded to at least f + 1 digits (if f ≠ 0), with "."
+    //     inserted before the last f digits.
+    auto k = digits.length();
+    auto padded_length = fraction_digit_count != 0 ? max(k, fraction_digit_count + 1) : k;
+    auto zero_count = padded_length - k;
+    auto whole_length = padded_length - fraction_digit_count;
+    auto result_length = s.length() + padded_length + (fraction_digit_count != 0 ? 1 : 0);
+
+    auto result = Utf16String::create_uninitialized_ascii(result_length, [&](Bytes buffer) {
+        size_t index = 0;
+        if (!s.is_empty())
+            buffer[index++] = '-';
+        for (size_t i = 0; i < padded_length; ++i) {
+            if (i == whole_length)
+                buffer[index++] = '.';
+            buffer[index++] = i < zero_count ? '0' : digits[i - zero_count];
+        }
+    });
+
+    return PrimitiveString::create(vm, move(result));
 }
 
 // 20.2.1 Number.prototype.toLocaleString ( [ locales [ , options ] ] ), https://tc39.es/ecma402/#sup-number.prototype.tolocalestring
