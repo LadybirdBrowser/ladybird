@@ -268,7 +268,7 @@ private:
     Web::Compositor::AsyncScrollTree m_async_scroll_tree;
     ViewportScrollbarController m_viewport_scrollbar_controller;
     ScrollSnapController m_scroll_snap_controller;
-    Vector<Web::Compositor::StartedSnapScroll> m_started_snap_scrolls;
+    Vector<Web::Compositor::StartedUserScroll> m_started_user_scrolls;
 
     Vector<Web::Compositor::AsyncScrollOffset> m_pending_async_scroll_offsets;
     // Offsets handed to WebContent that no snapshot of its has incorporated yet; the compositor keeps

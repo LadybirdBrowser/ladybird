@@ -541,7 +541,7 @@ Web::Compositor::AsyncScrollOperationID ContextState::start_snap_scroll(Web::Com
         .started_at = now,
     });
     m_scroll_snap_controller.did_start_snap_scroll(stable_node_id, operation_id, destination);
-    m_started_snap_scrolls.append({
+    m_started_user_scrolls.append({
         .stable_node_id = stable_node_id,
         .operation_id = operation_id,
         .initial_scroll_offset = snap_scroll.initial_scroll_offset,
@@ -875,7 +875,7 @@ Web::Compositor::PendingAsyncScrollUpdates ContextState::take_pending_async_scro
     }
     AK::swap(updates.completed_operation_ids, m_completed_async_scroll_operation_ids);
     AK::swap(updates.operation_ids_taken_over_by_user_input, m_async_scroll_operation_ids_taken_over_by_user_input);
-    AK::swap(updates.started_snap_scrolls, m_started_snap_scrolls);
+    AK::swap(updates.started_user_scrolls, m_started_user_scrolls);
     updates.user_scroll_gesture_in_progress = m_viewport_scrollbar_controller.has_captured_scrollbar();
     updates.user_scroll_gesture_ended = m_user_scroll_gesture_ended;
     m_user_scroll_gesture_ended = false;
@@ -902,7 +902,7 @@ bool ContextState::has_pending_async_scroll_updates() const
     return !m_pending_async_scroll_offsets.is_empty()
         || !m_completed_async_scroll_operation_ids.is_empty()
         || !m_async_scroll_operation_ids_taken_over_by_user_input.is_empty()
-        || !m_started_snap_scrolls.is_empty()
+        || !m_started_user_scrolls.is_empty()
         || m_user_scroll_gesture_ended
         || m_viewport_scrollbar_controller.has_captured_scrollbar() != m_published_user_scroll_gesture_in_progress;
 }

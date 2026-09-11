@@ -232,7 +232,7 @@ public:
     void set_viewport_size(CSSPixelSize, InvalidateDisplayList = InvalidateDisplayList::No);
     void perform_scroll_of_viewport_scrolling_box(CSSPixelPoint position);
     void adopt_pending_async_scroll_offsets(Compositor::AsyncScrollUpdateFreshness = Compositor::AsyncScrollUpdateFreshness::Pushed);
-    void adopt_started_snap_scroll(DOM::Document&, Compositor::StartedSnapScroll const&);
+    void adopt_started_user_scroll(DOM::Document&, Compositor::StartedUserScroll const&);
     void process_main_thread_smooth_scrolls();
     void wait_for_async_scroll_operation(Compositor::AsyncScrollOperationID, GC::Ref<WebIDL::Promise>);
     void clamp_viewport_scroll_offset();

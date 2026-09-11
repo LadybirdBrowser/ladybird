@@ -264,7 +264,7 @@ Web::Compositor::PendingAsyncScrollUpdates CompositorConnection::take_pending_as
     updates.scroll_offsets = move(pending->scroll_offsets);
     updates.completed_operation_ids = move(pending->completed_operation_ids);
     updates.operation_ids_taken_over_by_user_input = move(pending->operation_ids_taken_over_by_user_input);
-    updates.started_snap_scrolls = move(pending->started_snap_scrolls);
+    updates.started_user_scrolls = move(pending->started_user_scrolls);
     updates.user_scroll_gesture_in_progress = pending->user_scroll_gesture_in_progress;
     updates.user_scroll_gesture_ended = pending->user_scroll_gesture_ended;
     // Whether a gesture is in progress is a state the compositor process keeps current; the rest
@@ -272,7 +272,7 @@ Web::Compositor::PendingAsyncScrollUpdates CompositorConnection::take_pending_as
     pending->scroll_offsets.clear();
     pending->completed_operation_ids.clear();
     pending->operation_ids_taken_over_by_user_input.clear();
-    pending->started_snap_scrolls.clear();
+    pending->started_user_scrolls.clear();
     pending->user_scroll_gesture_ended = false;
     return updates;
 }
@@ -299,7 +299,7 @@ void CompositorConnection::merge_async_scroll_updates(Web::Compositor::Composito
     }
     pending.completed_operation_ids.extend(move(updates.completed_operation_ids));
     pending.operation_ids_taken_over_by_user_input.extend(move(updates.operation_ids_taken_over_by_user_input));
-    pending.started_snap_scrolls.extend(move(updates.started_snap_scrolls));
+    pending.started_user_scrolls.extend(move(updates.started_user_scrolls));
     if (is_newest)
         pending.user_scroll_gesture_in_progress = updates.user_scroll_gesture_in_progress;
     pending.user_scroll_gesture_ended |= updates.user_scroll_gesture_ended;

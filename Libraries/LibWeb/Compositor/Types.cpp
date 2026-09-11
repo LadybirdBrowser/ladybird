@@ -96,21 +96,21 @@ ErrorOr<Web::Compositor::SnapDestination> decode(Decoder& decoder)
 }
 
 template<>
-ErrorOr<void> encode(Encoder& encoder, Web::Compositor::StartedSnapScroll const& started_snap_scroll)
+ErrorOr<void> encode(Encoder& encoder, Web::Compositor::StartedUserScroll const& started_user_scroll)
 {
-    TRY(encoder.encode(started_snap_scroll.stable_node_id));
-    TRY(encoder.encode(started_snap_scroll.operation_id));
-    TRY(encoder.encode(started_snap_scroll.initial_scroll_offset));
-    TRY(encoder.encode(started_snap_scroll.unsnapped_scroll_destination));
-    TRY(encoder.encode(started_snap_scroll.selection));
-    TRY(encoder.encode(started_snap_scroll.settles_gesture));
+    TRY(encoder.encode(started_user_scroll.stable_node_id));
+    TRY(encoder.encode(started_user_scroll.operation_id));
+    TRY(encoder.encode(started_user_scroll.initial_scroll_offset));
+    TRY(encoder.encode(started_user_scroll.unsnapped_scroll_destination));
+    TRY(encoder.encode(started_user_scroll.selection));
+    TRY(encoder.encode(started_user_scroll.settles_gesture));
     return {};
 }
 
 template<>
-ErrorOr<Web::Compositor::StartedSnapScroll> decode(Decoder& decoder)
+ErrorOr<Web::Compositor::StartedUserScroll> decode(Decoder& decoder)
 {
-    return Web::Compositor::StartedSnapScroll {
+    return Web::Compositor::StartedUserScroll {
         .stable_node_id = TRY(decoder.decode<Web::Compositor::AsyncScrollNodeStableID>()),
         .operation_id = TRY(decoder.decode<Web::Compositor::AsyncScrollOperationID>()),
         .initial_scroll_offset = TRY(decoder.decode<Web::CSSPixelPoint>()),
@@ -127,7 +127,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::Compositor::PendingAsyncScrollUpdate
     TRY(encoder.encode(updates.scroll_offsets));
     TRY(encoder.encode(updates.completed_operation_ids));
     TRY(encoder.encode(updates.operation_ids_taken_over_by_user_input));
-    TRY(encoder.encode(updates.started_snap_scrolls));
+    TRY(encoder.encode(updates.started_user_scrolls));
     TRY(encoder.encode(updates.user_scroll_gesture_in_progress));
     TRY(encoder.encode(updates.user_scroll_gesture_ended));
     return {};
@@ -141,7 +141,7 @@ ErrorOr<Web::Compositor::PendingAsyncScrollUpdates> decode(Decoder& decoder)
         .scroll_offsets = TRY(decoder.decode<Vector<Web::Compositor::AsyncScrollOffset>>()),
         .completed_operation_ids = TRY(decoder.decode<Vector<Web::Compositor::AsyncScrollOperationID>>()),
         .operation_ids_taken_over_by_user_input = TRY(decoder.decode<Vector<Web::Compositor::AsyncScrollOperationID>>()),
-        .started_snap_scrolls = TRY(decoder.decode<Vector<Web::Compositor::StartedSnapScroll>>()),
+        .started_user_scrolls = TRY(decoder.decode<Vector<Web::Compositor::StartedUserScroll>>()),
         .user_scroll_gesture_in_progress = TRY(decoder.decode<bool>()),
         .user_scroll_gesture_ended = TRY(decoder.decode<bool>()),
     };
