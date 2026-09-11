@@ -1,0 +1,3 @@
+opacity uses compositor: true
+child rendering does not sample parent animations: true
+explicit style observation remains current: true
