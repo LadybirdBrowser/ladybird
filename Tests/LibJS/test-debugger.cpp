@@ -519,6 +519,43 @@ TEST_CASE(breakpoints_slide_to_the_closest_position_across_nested_executables)
     EXPECT(!top_level_executable->has_debugger_breakpoint(breakpoint_id));
 }
 
+TEST_CASE(column_breakpoints_do_not_slide_onto_the_enclosing_executable)
+{
+    auto vm = JS::VM::create();
+    auto root_execution_context = JS::create_simple_execution_context<JS::GlobalObject>(*vm);
+    auto& realm = *root_execution_context->realm;
+
+    vm->enable_debugging();
+    auto script_or_error = JS::Script::parse(
+        "function target() {\n"
+        "    let inside = 1;\n"
+        "    return inside;\n"
+        "}\n"
+        "target();\n"sv,
+        realm, "column.js"sv);
+    VERIFY(!script_or_error.is_error());
+    auto* top_level_executable = script_or_error.value()->cached_executable();
+    VERIFY(top_level_executable);
+
+    auto positions = JS::RustIntegration::breakpoint_positions_for_source(*top_level_executable->source_code, JS::RustIntegration::ProgramType::Script, 1);
+    auto position = positions.find_if([](auto const& position) { return position.line == 3; });
+    VERIFY(!position.is_end());
+
+    auto breakpoint_id = MUST(vm->debugger()->add_breakpoint("column.js"_utf16, 3, position->column));
+    EXPECT(!top_level_executable->has_debugger_breakpoint(breakpoint_id));
+
+    Vector<u32> paused_lines;
+    vm->debugger()->set_pause_callback([&](JS::Debugger::PauseInfo const& pause_info) {
+        VERIFY(pause_info.source_range.has_value());
+        paused_lines.append(pause_info.source_range->start.line);
+        vm->debugger()->continue_execution();
+    });
+
+    auto result = vm->run(*script_or_error.value());
+    EXPECT(!result.is_error());
+    EXPECT_EQ(paused_lines, (Vector<u32> { 3 }));
+}
+
 TEST_CASE(breakpoints_resolve_when_precompiled_functions_are_called_inline)
 {
     auto vm = JS::VM::create();
