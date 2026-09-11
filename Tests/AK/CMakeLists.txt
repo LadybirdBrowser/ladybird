@@ -58,6 +58,7 @@ set(AK_TEST_SOURCES
     TestRedBlackTree.cpp
     TestRefPtr.cpp
     TestSeqLock.cpp
+    TestSetUnion.cpp
     TestSingleProducerCircularQueue.cpp
     TestSinglyLinkedList.cpp
     TestSourceGenerator.cpp
