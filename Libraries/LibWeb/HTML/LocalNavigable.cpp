@@ -38,6 +38,7 @@
 #include <LibWeb/Editing/ClipboardSerializer.h>
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
+#include <LibWeb/Fetch/Fetching/Checks.h>
 #include <LibWeb/Fetch/Fetching/Fetching.h>
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/FetchController.h>
@@ -47,6 +48,7 @@
 #include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/DocumentState.h>
 #include <LibWeb/HTML/DragDataStore.h>
+#include <LibWeb/HTML/EmbedderPolicy.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLHtmlElement.h>
@@ -1924,7 +1926,7 @@ static GC::Ref<PolicyContainer> determine_navigation_params_policy_container(URL
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#obtain-coop
-static OpenerPolicy obtain_an_opener_policy(GC::Ref<Fetch::Infrastructure::Response>, Fetch::Infrastructure::Request::ReservedClientType const& reserved_client)
+static OpenerPolicy obtain_an_opener_policy(GC::Ref<Fetch::Infrastructure::Response> response, Fetch::Infrastructure::Request::ReservedClientType const& reserved_client)
 {
 
     // 1. Let policy be a new opener policy.
@@ -1940,13 +1942,79 @@ static OpenerPolicy obtain_an_opener_policy(GC::Ref<Fetch::Infrastructure::Respo
     if (is_non_secure_context(reserved_environment))
         return policy;
 
-    // FIXME: We don't yet have the technology to extract structured data from Fetch headers
-    // FIXME: 3. Let parsedItem be the result of getting a structured field value given `Cross-Origin-Opener-Policy` and "item" from response's header list.
-    // FIXME: 4. If parsedItem is not null, then:
-    //     FIXME: nested steps...
-    // FIXME: 5. Set parsedItem to the result of getting a structured field value given `Cross-Origin-Opener-Policy-Report-Only` and "item" from response's header list.
-    // FIXME: 6. If parsedItem is not null, then:
-    //     FIXME: nested steps...
+    auto reporting_endpoint_from_item = [](HTTP::StructuredFieldValues::Item const& item) -> Optional<Utf16String> {
+        auto report_to = item.parameters.get("report-to"sv);
+        if (!report_to.has_value())
+            return {};
+        if (auto const* endpoint = report_to->get_pointer<String>())
+            return Utf16String::from_utf8(*endpoint);
+        return {};
+    };
+
+    // 3. Let parsedItem be the result of getting a structured field value given `Cross-Origin-Opener-Policy` and "item" from response's header list.
+    auto parsed_item = response->header_list()->get_structured_field_item("Cross-Origin-Opener-Policy"sv);
+
+    // 4. If parsedItem is not null, then:
+    if (parsed_item.has_value()) {
+        auto token = parsed_item->token();
+
+        // 1. If parsedItem[0] is "same-origin", then:
+        if (token == "same-origin"sv) {
+            // 1. Let coep be the result of obtaining an embedder policy from response and reservedEnvironment.
+            auto coep = obtain_an_embedder_policy(response, reserved_environment);
+
+            // 2. If coep's value is compatible with cross-origin isolation, then set policy's value to "same-origin-plus-COEP".
+            if (is_compatible_with_cross_origin_isolation(coep.value))
+                policy.value = OpenerPolicyValue::SameOriginPlusCOEP;
+            // 3. Otherwise, set policy's value to "same-origin".
+            else
+                policy.value = OpenerPolicyValue::SameOrigin;
+        }
+
+        // 2. If parsedItem[0] is "same-origin-allow-popups", then set policy's value to "same-origin-allow-popups".
+        if (token == "same-origin-allow-popups"sv)
+            policy.value = OpenerPolicyValue::SameOriginAllowPopups;
+
+        // 3. If parsedItem[0] is "noopener-allow-popups", then set policy's value to "noopener-allow-popups".
+        if (token == "noopener-allow-popups"sv)
+            policy.value = OpenerPolicyValue::NoopenerAllowPopups;
+
+        // 4. If parsedItem[1]["report-to"] exists and it is a string, then set policy's reporting endpoint to parsedItem[1]["report-to"].
+        policy.reporting_endpoint = reporting_endpoint_from_item(*parsed_item);
+    }
+
+    // 5. Set parsedItem to the result of getting a structured field value given `Cross-Origin-Opener-Policy-Report-Only` and "item" from response's header list.
+    parsed_item = response->header_list()->get_structured_field_item("Cross-Origin-Opener-Policy-Report-Only"sv);
+
+    // 6. If parsedItem is not null, then:
+    if (parsed_item.has_value()) {
+        auto token = parsed_item->token();
+
+        // 1. If parsedItem[0] is "same-origin", then:
+        if (token == "same-origin"sv) {
+            // 1. Let coep be the result of obtaining an embedder policy from response and reservedEnvironment.
+            auto coep = obtain_an_embedder_policy(response, reserved_environment);
+
+            // 2. If coep's value is compatible with cross-origin isolation or coep's report-only value is compatible with
+            //    cross-origin isolation, then set policy's report-only value to "same-origin-plus-COEP".
+            if (is_compatible_with_cross_origin_isolation(coep.value) || is_compatible_with_cross_origin_isolation(coep.report_only_value))
+                policy.report_only_value = OpenerPolicyValue::SameOriginPlusCOEP;
+            // 3. Otherwise, set policy's report-only value to "same-origin".
+            else
+                policy.report_only_value = OpenerPolicyValue::SameOrigin;
+        }
+
+        // 2. If parsedItem[0] is "same-origin-allow-popups", then set policy's report-only value to "same-origin-allow-popups".
+        if (token == "same-origin-allow-popups"sv)
+            policy.report_only_value = OpenerPolicyValue::SameOriginAllowPopups;
+
+        // 3. If parsedItem[0] is "noopener-allow-popups", then set policy's report-only value to "noopener-allow-popups".
+        if (token == "noopener-allow-popups"sv)
+            policy.report_only_value = OpenerPolicyValue::NoopenerAllowPopups;
+
+        // 4. If parsedItem[1]["report-to"] exists and it is a string, then set policy's report-only reporting endpoint to parsedItem[1]["report-to"].
+        policy.report_only_reporting_endpoint = reporting_endpoint_from_item(*parsed_item);
+    }
 
     // 7. Return policy.
     return policy;
@@ -2239,7 +2307,7 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
         }
 
         // 9. Set responsePolicyContainer to the result of creating a policy container from a fetch response given response and request's reserved client.
-        state_holder->response_policy_container = create_a_policy_container_from_a_fetch_response(*state_holder->response, nullptr);
+        state_holder->response_policy_container = create_a_policy_container_from_a_fetch_response(*state_holder->response, state_holder->request->reserved_client());
 
         // 10. Set finalSandboxFlags to the union of targetSnapshotParams's sandboxing flags and responsePolicyContainer's CSP list's CSP-derived sandboxing flags.
         state_holder->final_sandbox_flags = state_holder->target_snapshot_params.sandboxing_flags | state_holder->response_policy_container->csp_list->csp_derived_sandboxing_flags();
@@ -2260,11 +2328,19 @@ static void perform_navigation_params_fetch(JS::Realm& realm, GC::Ref<Navigation
             //       using opener policy and sandbox the result of navigating to that response.
         }
 
-        // 13. FIXME: If response is not a network error, navigable is a child navigable, and the result of performing a cross-origin resource policy check
+        // 13. If response is not a network error, navigable is a child navigable, and the result of performing a cross-origin resource policy check
         //    with navigable's container document's origin, navigable's container document's relevant settings object, request's destination, response,
         //    and true is blocked, then set response to a network error and break.
         // NOTE: Here we're running the cross-origin resource policy check against the parent navigable rather than navigable itself
         //       This is because we care about the same-originness of the embedded content against the parent context, not the navigation source.
+        if (!state_holder->response->is_network_error() && state_holder->navigable->container()) {
+            auto container_document = state_holder->navigable->container_document();
+            if (container_document && !Fetch::Fetching::cross_origin_resource_policy_check(container_document->origin(), relevant_settings_object(*container_document), state_holder->request->destination(), *state_holder->response, Fetch::Fetching::ForNavigation::Yes)) {
+                state_holder->response = Fetch::Infrastructure::Response::network_error(realm.vm(), "Blocked by cross-origin resource policy"_string);
+                fetch_completion_steps->function()();
+                return;
+            }
+        }
 
         // 14. Set locationURL to response's location URL given currentURL's fragment.
         state_holder->location_url = state_holder->response->location_url(state_holder->current_url.fragment());

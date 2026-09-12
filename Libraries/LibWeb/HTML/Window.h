@@ -124,6 +124,7 @@ public:
     Page const& page() const;
 
     // https://html.spec.whatwg.org/multipage/window-object.html#concept-document-window
+    bool has_associated_document() const { return m_associated_document != nullptr; }
     DOM::Document const& associated_document() const { return *m_associated_document; }
     DOM::Document& associated_document() { return *m_associated_document; }
     void set_associated_document(DOM::Document&);

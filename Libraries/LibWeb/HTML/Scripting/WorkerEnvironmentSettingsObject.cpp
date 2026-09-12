@@ -109,8 +109,8 @@ GC::Ref<PolicyContainer> WorkerEnvironmentSettingsObject::policy_container() con
 // https://html.spec.whatwg.org/multipage/workers.html#script-settings-for-workers:concept-settings-object-cross-origin-isolated-capability
 CanUseCrossOriginIsolatedAPIs WorkerEnvironmentSettingsObject::cross_origin_isolated_capability() const
 {
-    // FIXME: Return worker global scope's cross-origin isolated capability.
-    return CanUseCrossOriginIsolatedAPIs::No;
+    // Return worker global scope's cross-origin isolated capability.
+    return m_global_scope->cross_origin_isolated_capability() ? CanUseCrossOriginIsolatedAPIs::Yes : CanUseCrossOriginIsolatedAPIs::No;
 }
 
 // https://html.spec.whatwg.org/multipage/workers.html#script-settings-for-workers:concept-settings-object-time-origin

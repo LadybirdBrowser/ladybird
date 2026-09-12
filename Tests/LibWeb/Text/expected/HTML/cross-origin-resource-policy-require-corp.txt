@@ -1,0 +1,8 @@
+same-origin no-policy.txt: basic
+cross-origin no-policy.txt: TypeError
+same-origin cross-origin.txt: basic
+cross-origin cross-origin.txt: opaque
+same-origin same-origin.txt: basic
+cross-origin same-origin.txt: TypeError
+same-origin same-site.txt: basic
+cross-origin same-site.txt: TypeError

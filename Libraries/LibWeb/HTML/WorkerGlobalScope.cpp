@@ -182,13 +182,17 @@ GC::Ref<PolicyContainer> WorkerGlobalScope::policy_container() const
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#initialize-worker-policy-container
-void WorkerGlobalScope::initialize_policy_container(GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ref<EnvironmentSettingsObject> environment)
+void WorkerGlobalScope::initialize_policy_container(GC::Ref<Fetch::Infrastructure::Response const> response, GC::Ref<EnvironmentSettingsObject> environment, SerializedPolicyContainer const& owner_policy_container)
 {
     // 1. If workerGlobalScope's url is local but its scheme is not "blob":
-    if (m_url.has_value() && Fetch::Infrastructure::is_local_url(m_url.value()) && m_url->scheme() != "blob"sv) {
-        // FIXME: 1. Assert: workerGlobalScope's owner set's size is 1.
-        // FIXME: 2. Set workerGlobalScope's policy container to a clone of workerGlobalScope's owner set[0]'s relevant settings object's policy container.
-        dbgln("FIXME: WorkerGlobalScope::initialize_policy_container: Clone owner's policy container for local, non-blob URL.");
+    // AD-HOC: Blob URL entries don't carry their environment's policy container across processes yet, so creating a policy container from a "blob:" response can't inherit it as the specification wants.
+    if (m_url.has_value() && Fetch::Infrastructure::is_local_url(m_url.value())) {
+        // 1. Assert: workerGlobalScope's owner set's size is 1.
+        VERIFY(m_owner_set.size() == 1);
+
+        // 2. Set workerGlobalScope's policy container to a clone of workerGlobalScope's owner set[0]'s relevant settings object's policy container.
+        // NOTE: The owner lives in another process, so we work from the serialized copy of its policy container.
+        m_policy_container = create_a_policy_container_from_serialized_policy_container(owner_policy_container);
         return;
     }
 
