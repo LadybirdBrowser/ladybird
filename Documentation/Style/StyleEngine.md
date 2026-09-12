@@ -775,6 +775,14 @@ Declaration identity and source position are excluded, which is what makes theme
 4. **Reuse gating.** The winner-key stop may reuse the previous computed result only when the previous computation's recorded inputs still hold: its input record pins the values and parent groups it read, records which inherited custom-property bindings the computation actually consulted, and carries a conservative `read_beyond_the_record` bit covering every dynamic dependency not individually tracked (container, attributes, sibling position). The bit defaults to "incomplete", so an untracked dependency forces resolution rather than a wrong reuse. Live transitions and changed custom-property environments likewise force resolution.
 5. **Dependency masks after resolution.** When winners did change, the semantic delta narrows downstream work to the affected computed groups and property words rather than rebuilding the whole style; final record-identity equality then lets unchanged payloads be shared.
 
+Static checks of a declaration's original spelling are prepared with rule and
+per-element declaration inputs. Computability after custom-property substitution
+is a dynamic evaluation result, memoized in caller-owned scratch by node identity,
+winner generation/state, current environment identity and registration generation.
+Rust record computation shares that scratch for the transaction; a host
+publication call owns a local context. Neither context retains answers into another update.
+Synthetic pseudo masks are stored when match answers are interned.
+
 ### 9.5 Cascade-wide keywords
 
 `inherit`, `initial`, `unset`, `revert`, and `revert-layer` are cascade **operators**, not eagerly flattened values, so their dependencies on parent style, origin, and layer topology stay explicit.

@@ -1082,11 +1082,24 @@ fn prefix_answer_payload_accounting_uses_the_retained_match_shape() {
     assert_eq!(catalog.prefix_payload_bytes, 0);
 }
 
+fn retained_answer_test_programs() -> SelectorPrograms {
+    let mut programs = SelectorPrograms::new();
+    for (selector, name, atom) in [
+        (".a", "a", StyleAtomID(1)),
+        (".b", "b", StyleAtomID(2)),
+        (".c", "c", StyleAtomID(3)),
+    ] {
+        programs.add(test_selector_program(selector, &[(name, atom)]));
+    }
+    programs
+}
+
 #[test]
 fn retained_answer_rule_queries_preserve_shared_nodes_and_query_boundaries() {
     let mut catalog = MatchAnswerCatalog::default();
     let mut answers = RetainedMatchAnswers::default();
     let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+    let programs = retained_answer_test_programs();
     let mut expected = Vec::new();
     for index in 1..=128 {
         let node = StyleNodeID::element(index);
@@ -1107,6 +1120,7 @@ fn retained_answer_rule_queries_preserve_shared_nodes_and_query_boundaries() {
                 &mut catalog,
                 node,
                 prepare_retained_match_answer([retained].into_iter()),
+                &programs,
                 &mut memory,
             )
             .unwrap();
@@ -1198,6 +1212,7 @@ fn retained_match_answer_payloads_are_evictable_without_losing_identity() {
                 &mut catalog,
                 node,
                 prepare_retained_match_answer([retained].into_iter()),
+                &programs,
                 &mut memory
             )
             .is_ok()
@@ -1343,6 +1358,7 @@ fn retained_answer_verifier_rejects_a_dropped_selector_truth_row() {
 
 #[test]
 fn retained_match_answer_pressure_preserves_existing_rows() {
+    let programs = retained_answer_test_programs();
     let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
     let mut answers = RetainedMatchAnswers::default();
     let mut catalog = MatchAnswerCatalog::default();
@@ -1366,6 +1382,7 @@ fn retained_match_answer_pressure_preserves_existing_rows() {
                 &mut catalog,
                 replaced_node,
                 prepare_retained_match_answer([retained].into_iter()),
+                &programs,
                 &mut memory
             )
             .is_ok()
@@ -1380,6 +1397,7 @@ fn retained_match_answer_pressure_preserves_existing_rows() {
                 &mut catalog,
                 preserved_node,
                 prepare_retained_match_answer([preserved].into_iter()),
+                &programs,
                 &mut memory
             )
             .is_ok()
@@ -1405,6 +1423,7 @@ fn retained_match_answer_pressure_preserves_existing_rows() {
                 &mut catalog,
                 replaced_node,
                 prepare_retained_match_answer([replacement].into_iter()),
+                &programs,
                 &mut memory
             )
             .is_ok()
@@ -1426,6 +1445,7 @@ fn retained_match_answer_pressure_preserves_existing_rows() {
                     }]
                     .into_iter(),
                 ),
+                &programs,
                 &mut memory,
             )
             .is_err()
@@ -1436,6 +1456,7 @@ fn retained_match_answer_pressure_preserves_existing_rows() {
 
 #[test]
 fn retained_match_answer_replacement_releases_the_displaced_identity() {
+    let programs = retained_answer_test_programs();
     let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
     let mut answers = RetainedMatchAnswers::default();
     let mut catalog = MatchAnswerCatalog::default();
@@ -1458,6 +1479,7 @@ fn retained_match_answer_replacement_releases_the_displaced_identity() {
                 &mut catalog,
                 node,
                 prepare_retained_match_answer([original].into_iter()),
+                &programs,
                 &mut memory,
             )
             .is_ok()
@@ -1478,6 +1500,7 @@ fn retained_match_answer_replacement_releases_the_displaced_identity() {
                 &mut catalog,
                 node,
                 prepare_retained_match_answer([replacement].into_iter()),
+                &programs,
                 &mut memory,
             )
             .is_ok()
@@ -1498,6 +1521,7 @@ fn retained_match_answer_replacement_releases_the_displaced_identity() {
 
 #[test]
 fn shared_retained_match_answer_lives_until_its_last_column_owner_forgets() {
+    let programs = retained_answer_test_programs();
     let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
     let mut answers = RetainedMatchAnswers::default();
     let mut catalog = MatchAnswerCatalog::default();
@@ -1522,6 +1546,7 @@ fn shared_retained_match_answer_lives_until_its_last_column_owner_forgets() {
                     &mut catalog,
                     node,
                     prepare_retained_match_answer([RuleMatch { node, ..retained }].into_iter()),
+                    &programs,
                     &mut memory,
                 )
                 .is_ok()
@@ -1552,6 +1577,7 @@ fn shared_retained_match_answer_lives_until_its_last_column_owner_forgets() {
 #[test]
 fn retained_match_answer_replacement_does_not_create_pressure() {
     let (mut engine, nodes) = nested_document();
+    engine.programs = retained_answer_test_programs();
     let retained = RuleMatch {
         node: nodes[1],
         pseudo_element: None,
@@ -3946,7 +3972,7 @@ fn recycled_selector_entries_keep_delta_answers_canonical() {
 
     let mut cold = patched;
     cold.sort_unstable();
-    let cold_identity = engine.match_answers.intern_prepared(cold);
+    let cold_identity = engine.state.match_answers.intern_prepared(cold, &engine.state.programs);
     assert_eq!(patched_identity, cold_identity);
 }
 

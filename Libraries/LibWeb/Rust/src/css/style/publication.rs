@@ -890,8 +890,9 @@ impl StyleEngineState {
             None => {
                 let mut substituted = false;
                 let store = self.cascaded_store_for_state(node, state, None, environment, &mut substituted, counters);
-                self.remember_state_admission(
+                scratch.computability.remember(
                     (
+                        node,
                         cascade_state.0,
                         state,
                         environment,
@@ -1020,6 +1021,7 @@ impl StyleEngineState {
             environment,
             pseudo_styles,
             Some(cascade_state),
+            &mut scratch.computability,
             counters,
         )?;
         let delta = (computed::FinalStyleRecordID::NONE, new_style_record);
@@ -1325,6 +1327,7 @@ impl StyleEngineState {
         environment: u64,
         pseudo_styles: u64,
         cascade_state: Option<(u64, CascadeStateID)>,
+        scratch: &mut EngineComputabilityScratch,
         counters: &mut Counters,
     ) -> Option<(computed::FinalStyleRecordID, bool)> {
         use crate::css::computed_value_types::STYLE_GROUP_INDEX_FONT;
@@ -1411,6 +1414,7 @@ impl StyleEngineState {
             computed::ENGINE_INHERITED_GROUP_COUNT,
             environment,
             metadata_input,
+            scratch,
             counters,
         );
         for (group, payload) in payloads.into_iter().enumerate() {
@@ -1582,6 +1586,7 @@ impl StyleEngineState {
         &mut self,
         node: StyleNodeID,
         cascade_state: (u64, CascadeStateID),
+        scratch: &mut EngineComputabilityScratch,
         counters: &mut Counters,
     ) -> bool {
         let environment = self
@@ -1591,15 +1596,21 @@ impl StyleEngineState {
         let registration_generation = self
             .document_style_computation_inputs
             .map_or(0, |inputs| inputs.custom_property_registration_generation);
-        let key = (cascade_state.0, cascade_state.1, environment, registration_generation);
-        if let Some(&admitted) = self.engine_computable_states.get(&key) {
+        let key = (
+            node,
+            cascade_state.0,
+            cascade_state.1,
+            environment,
+            registration_generation,
+        );
+        if let Some(&admitted) = scratch.states.get(&key) {
             return admitted;
         }
         let mut substituted = false;
         let admitted = self
             .cascaded_store_for_state(node, cascade_state.1, None, environment, &mut substituted, counters)
             .is_some();
-        self.remember_state_admission(key, admitted);
+        scratch.remember(key, admitted);
         admitted
     }
 
@@ -1617,7 +1628,7 @@ impl StyleEngineState {
             .filter_map(|winner| self.winner_groups.resolved_winner(winner))
         {
             match self.written_winner_value(node, &winner) {
-                Ok(Some((_, value))) if value_computes_without_document_context(value.data()) => {}
+                Ok(Some((_, _, checks))) if checks.whole_context_free => {}
                 Err(counter) => {
                     counters.bump(counter);
                     return false;
@@ -1626,13 +1637,6 @@ impl StyleEngineState {
             }
         }
         true
-    }
-
-    fn remember_state_admission(&mut self, key: (u64, CascadeStateID, u64, u64), admitted: bool) {
-        if self.engine_computable_states.len() >= COLD_RECORD_CACHE_LIMIT {
-            self.engine_computable_states.clear();
-        }
-        self.engine_computable_states.insert(key, admitted);
     }
 
     /// The parent-side half of a first record's sharing key, or nothing when the parent's style
@@ -1757,6 +1761,7 @@ impl StyleEngineState {
         previous_style_record: Option<computed::FinalStyleRecordID>,
         style_record: computed::FinalStyleRecordID,
         is_base_record: bool,
+        scratch: &mut EngineComputabilityScratch,
         counters: &mut Counters,
     ) {
         if target.is_pseudo() || !is_base_record {
@@ -1792,7 +1797,7 @@ impl StyleEngineState {
         if self.computed_group_sets.custom_property_environment_identity(parent) != Some(custom_property_environment) {
             return;
         }
-        if !self.state_is_engine_computable(node, cascade_state, counters)
+        if !self.state_is_engine_computable(node, cascade_state, scratch, counters)
             && !self.state_is_opaque_record_shareable(node, cascade_state.1, counters)
         {
             return;
@@ -1834,13 +1839,19 @@ impl StyleEngineState {
         &self,
         node: StyleNodeID,
         winner: &PropertyWinner,
-    ) -> Result<Option<(usize, &crate::css::style_value::RetainedStyleValueData)>, Counter> {
+    ) -> Result<
+        Option<(
+            usize,
+            &crate::css::style_value::RetainedStyleValueData,
+            WrittenValueChecks,
+        )>,
+        Counter,
+    > {
         match winner.source {
-            WinnerSource::Rule(rule) => {
-                Ok(self
-                    .program
-                    .written_winner_declaration(rule, winner.property, winner.important, winner.key.value))
-            }
+            WinnerSource::Rule(rule) => Ok(self
+                .program
+                .written_winner_declaration(rule, winner.property, winner.important, winner.key.value)
+                .map(|(index, value)| (index, value, self.program.written_value_checks(rule, index)))),
             WinnerSource::Element(kind) => {
                 let (declared, _) = self.facts.element_declared_properties(node, kind);
                 let complete = self
@@ -1857,7 +1868,13 @@ impl StyleEngineState {
                             && declared.important == winner.important
                             && declared.value == winner.key.value
                     })
-                    .map(|index| (index, &written[index])))
+                    .map(|index| {
+                        (
+                            index,
+                            &written[index],
+                            self.facts.element_written_value_checks(node, kind, index),
+                        )
+                    }))
             }
             WinnerSource::ExactCascade => Err(Counter::EngineComputedRecordBailWinnerOperator),
         }
@@ -2023,7 +2040,7 @@ impl StyleEngineState {
                     None
                 }
             };
-            let Some((index, value)) = written else {
+            let Some((index, value, checks)) = written else {
                 counters.bump(Counter::EngineComputedRecordBailWinnerSpelling);
                 return None;
             };
@@ -2065,7 +2082,9 @@ impl StyleEngineState {
                 }
                 _ => value.clone_retained(),
             };
-            if !value_computes_without_document_context(value.data())
+            if !checks
+                .longhand_context_free
+                .unwrap_or_else(|| value_computes_without_document_context(value.data()))
                 || (pseudo_kind.is_some()
                     && winner.property == prop::CONTENT
                     && !content_value_is_engine_computable(value.data()))
@@ -2125,14 +2144,21 @@ impl StyleEngineState {
         metadata_input: computed::ComputedMetadataInput<'_>,
         counters: &mut Counters,
     ) -> computed::ComputedGroupPublication {
-        self.publish_computed_groups_impl(
+        let mut scratch = EngineComputabilityScratch::default();
+        let publication = self.publish_computed_groups_impl(
             Some(target),
             payloads,
             inherited_group_count,
             custom_property_environment,
             metadata_input,
+            &mut scratch,
             counters,
-        )
+        );
+        let bytes = scratch.capacity_bytes();
+        self.memory.reserve_required(MemoryCategory::BatchScratch, bytes);
+        drop(scratch);
+        self.memory.release(MemoryCategory::BatchScratch, bytes);
+        publication
     }
 
     pub(crate) fn assign_shared_style_record(
@@ -2220,6 +2246,7 @@ impl StyleEngineState {
             inherited_group_count,
             custom_property_environment,
             metadata_input,
+            &mut EngineComputabilityScratch::default(),
             counters,
         )
     }
@@ -2376,6 +2403,7 @@ impl StyleEngineState {
                     Some(style_record),
                     style_record,
                     is_base_record,
+                    &mut EngineComputabilityScratch::default(),
                     counters,
                 );
             }
@@ -2414,6 +2442,7 @@ impl StyleEngineState {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn publish_computed_groups_impl(
         &mut self,
         target: Option<computed::ComputedStyleTarget>,
@@ -2421,6 +2450,7 @@ impl StyleEngineState {
         inherited_group_count: usize,
         custom_property_environment: u64,
         metadata_input: computed::ComputedMetadataInput<'_>,
+        scratch: &mut EngineComputabilityScratch,
         counters: &mut Counters,
     ) -> computed::ComputedGroupPublication {
         let current_cascade_state =
@@ -2453,6 +2483,7 @@ impl StyleEngineState {
                 publication.previous_style_record_identity,
                 publication.style_record_identity,
                 is_base_record,
+                scratch,
                 counters,
             );
         } else if let Some(target) = target {
@@ -3457,9 +3488,60 @@ impl ParentInputsMoved {
     }
 }
 
+/// Static checks attached to the original declaration spelling at input preparation.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) struct WrittenValueChecks {
+    whole_context_free: bool,
+    longhand_context_free: Option<bool>,
+}
+
+impl WrittenValueChecks {
+    pub(super) fn prepare(property: u16, value: &crate::css::style_value::RetainedStyleValueData) -> Self {
+        use crate::css::style_value::StyleValueData;
+        let whole_context_free = value_computes_without_document_context(value.data());
+        let longhand_context_free = match value.data() {
+            StyleValueData::Unresolved { .. } | StyleValueData::PendingSubstitution { .. } => None,
+            StyleValueData::Shorthand { .. } => Some(
+                shorthand_longhand_value(property, value.data())
+                    .is_some_and(|value| value_computes_without_document_context(value.data())),
+            ),
+            _ => Some(whole_context_free),
+        };
+        Self {
+            whole_context_free,
+            longhand_context_free,
+        }
+    }
+}
+
+#[derive(Default)]
+pub(super) struct EngineComputabilityScratch {
+    // NB: Equal winner states can have different per-node written declaration inputs.
+    states: HashMap<(StyleNodeID, u64, CascadeStateID, u64, u64), bool>,
+}
+
+impl EngineComputabilityScratch {
+    fn capacity_bytes(&self) -> u64 {
+        capacity::capacity_bytes! {
+            shallow [self.states];
+            cached [];
+            nested [];
+            skip [];
+        }
+    }
+
+    fn remember(&mut self, key: (StyleNodeID, u64, CascadeStateID, u64, u64), admitted: bool) {
+        if self.states.len() >= COLD_RECORD_CACHE_LIMIT {
+            self.states.clear();
+        }
+        self.states.insert(key, admitted);
+    }
+}
+
 #[derive(Default)]
 pub(super) struct EngineComputedRecordScratch {
     cohorts: HashMap<(u64, CascadeStateID, u32, RecordDeltaParent, u64), computed::FinalStyleRecordID>,
+    computability: EngineComputabilityScratch,
     /// The nodes whose record this flush settled: what their descendants inherit from is in
     /// place.
     pub(super) settled_nodes: HashSet<StyleNodeID>,
@@ -3493,7 +3575,7 @@ pub(super) struct FlippedRule {
 impl EngineComputedRecordScratch {
     pub(super) fn capacity_bytes(&self) -> u64 {
         capacity::capacity_bytes! {
-            shallow [self.cohorts, self.settled_nodes, self.cold_cohorts, self.stores,
+            shallow [self.computability.states, self.cohorts, self.settled_nodes, self.cold_cohorts, self.stores,
                 self.substituted_states, self.pseudo_cohorts, self.pseudo_stores,
                 self.pseudo_deltas, self.flipped_pseudo_rules];
             cached [];
@@ -3735,6 +3817,61 @@ fn value_computes_without_document_context(value: &StyleValueData) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn computability_scratch_keeps_element_declaration_inputs_separate() {
+        use crate::css::style_value::RetainedStyleValueData;
+
+        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        let mut raw_nodes = [0; 2];
+        engine.allocate_style_nodes(&mut raw_nodes);
+        let [first, second] = raw_nodes.map(|node| StyleNodeID::from_raw(node).unwrap());
+        let declaration = DeclaredProperty {
+            property: crate::css::property_metadata::property_id::OPACITY,
+            important: false,
+            operator: CascadeOperator::Declared,
+            value: SpecifiedValueID(1),
+        };
+        let kind = ElementDeclarationKind::InlineStyle;
+        engine.facts.set_element_declared_properties(
+            first,
+            kind,
+            vec![declaration],
+            vec![RetainedStyleValueData::from_owned(StyleValueData::Number {
+                value: 0.5,
+            })],
+            true,
+        );
+        engine
+            .facts
+            .set_element_declared_properties(second, kind, vec![declaration], Vec::new(), true);
+        let winner = PropertyWinner {
+            property: declaration.property,
+            important: false,
+            key: SpecifiedWinnerKey {
+                value: declaration.value,
+                operator: declaration.operator,
+                continuation: cascade::CascadeContinuationID::default(),
+                animation_relevance: 0,
+                important: false,
+            },
+            priority: CascadePriority::exact_output_placeholder(),
+            source: WinnerSource::Element(kind),
+        };
+        let state = engine.winner_groups.intern_sorted(&[winner], None);
+        let cascade_state = (0, state);
+        for order in [[first, second], [second, first]] {
+            let mut scratch = EngineComputabilityScratch::default();
+            for node in order {
+                assert_eq!(
+                    engine
+                        .state
+                        .state_is_engine_computable(node, cascade_state, &mut scratch, &mut engine.counters),
+                    node == first,
+                );
+            }
+        }
+    }
 
     #[test]
     fn acknowledgement_without_pending_records_observes_published_answer() {

@@ -96,7 +96,6 @@ impl StyleEngineState {
             engine_pseudo_record_cache: HashMap::default(),
             engine_cold_record_cache: HashMap::default(),
             engine_cold_record_donors: HashMap::default(),
-            engine_computable_states: HashMap::default(),
             computed_group_set_memory: MemoryLease::new(MemoryCategory::ComputedGroupSet),
             custom_property_environment_memory: MemoryLease::new(MemoryCategory::CustomPropertyEnvironment),
             computed_fixed_metadata_memory: MemoryLease::new(MemoryCategory::ComputedFixedMetadata),
@@ -921,7 +920,6 @@ impl StyleEngineState {
             return true;
         }
 
-        let route_liveness = self.routing.route_liveness(&self.program, &self.programs);
         let mut checked_keys = HashSet::default();
         self.journal.inputs().any(|input| {
             let keys = match input.key {
@@ -947,7 +945,7 @@ impl StyleEngineState {
                     return false;
                 }
                 self.routing.routes_for(key).iter().copied().any(|route| {
-                    if !route_liveness.contains(route.index()) {
+                    if !self.routing.route_is_live(route, &self.program, &self.programs) {
                         return false;
                     }
                     let rule = self.routing.rule_of(route);

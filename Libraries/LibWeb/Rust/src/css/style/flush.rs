@@ -535,8 +535,9 @@ impl StyleEngineState {
                 transaction_inputs: &transaction.inputs,
             };
             let routing_for_siblings = Rc::clone(&self.routing);
-            let sibling_entries = routing_for_siblings.live_sibling_entries(&self.program, &self.programs);
-            let mut sibling_candidates = routing_for_siblings.live_sibling_workspace(&self.program, &self.programs);
+            routing_for_siblings.prepare_route_liveness(&self.program, &self.programs);
+            let sibling_entries = routing_for_siblings.live_sibling_entries(&self.program);
+            let mut sibling_candidates = routing_for_siblings.live_sibling_workspace(&self.program);
             let mut pending_routes = PendingRoutes::new();
             let mut pending_sibling_routes = PendingSiblingRoutes::new();
             let mut pending_prefix_producers = Vec::new();

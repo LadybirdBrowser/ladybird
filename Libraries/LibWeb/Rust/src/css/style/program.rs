@@ -290,6 +290,7 @@ struct RuleDeclarationData {
     /// rule arrived with them. A consumer computing a value needs the written spelling, which the
     /// canonical identity may have rewritten. Empty when the rule arrived without them.
     written_values: Vec<RetainedStyleValueData>,
+    written_value_checks: Vec<super::publication::WrittenValueChecks>,
     /// The custom properties the rule declares, in declaration order, and the values they were
     /// written with, parallel to them: a custom property resolves from its written spelling.
     custom_declarations: Vec<CustomDeclaration>,
@@ -300,6 +301,7 @@ impl RuleDeclarationData {
     fn capacity_bytes(&self) -> u64 {
         (self.declared_properties.capacity() * size_of::<DeclaredProperty>()
             + self.written_values.capacity() * size_of::<RetainedStyleValueData>()
+            + self.written_value_checks.capacity() * size_of::<super::publication::WrittenValueChecks>()
             + self.custom_declarations.capacity() * size_of::<CustomDeclaration>()
             + self.custom_written_values.capacity() * size_of::<RetainedStyleValueData>()) as u64
     }
@@ -1305,9 +1307,15 @@ impl StyleSheetProgram {
         }
         let entry = &mut self.rules[rule.0 as usize];
         let declared_custom_properties_before = entry.live && !entry.custom_declarations.is_empty();
+        let written_value_checks = declared
+            .iter()
+            .zip(&written_values)
+            .map(|(declared, value)| super::publication::WrittenValueChecks::prepare(declared.property, value))
+            .collect();
         entry.declarations = share_rule_declarations(RuleDeclarationData {
             declared_properties: declared,
             written_values,
+            written_value_checks,
             custom_declarations,
             custom_written_values,
         });
@@ -1438,6 +1446,10 @@ impl StyleSheetProgram {
     ) -> Option<&RetainedStyleValueData> {
         self.written_winner_declaration(rule, property, important, value)
             .map(|(_, value)| value)
+    }
+
+    pub(super) fn written_value_checks(&self, rule: RuleID, index: usize) -> super::publication::WrittenValueChecks {
+        self.rules[rule.0 as usize].declarations.data.written_value_checks[index]
     }
 
     /// The winning declaration's position in its rule and the value it was written with. The

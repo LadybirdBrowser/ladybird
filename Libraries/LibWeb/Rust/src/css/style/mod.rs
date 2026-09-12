@@ -894,8 +894,6 @@ pub struct StyleEngineState {
     engine_pseudo_record_cache: HashMap<publication::PseudoCohortKey, computed::FinalStyleRecordID>,
     engine_cold_record_cache: HashMap<publication::ColdRecordKey, publication::ColdRecord>,
     engine_cold_record_donors: HashMap<publication::ColdRecordDonorKey, Vec<publication::ColdRecordDonor>>,
-    /// Which winner states the engine can compute records from, decided once per state.
-    engine_computable_states: HashMap<(u64, CascadeStateID, u64, u64), bool>,
     computed_group_set_memory: MemoryLease,
     custom_property_environment_memory: MemoryLease,
     computed_fixed_metadata_memory: MemoryLease,
