@@ -534,6 +534,7 @@ pub(crate) struct LayoutNodeArena {
     intrinsic_size_caches: RefCell<Vec<IntrinsicSizeCacheSlot>>,
     table_cell_measurement_cache_misses: Cell<u64>,
     intrinsic_measurements: Cell<u64>,
+    intrinsic_inline_measurements: Cell<u64>,
     default_scroll_shift_anchors: RefCell<Vec<DefaultScrollShiftAnchorSlot>>,
     any_default_scroll_shift_anchor_ever_stored: Cell<bool>,
     text_nodes: Vec<TextNodeSlot>,
@@ -550,6 +551,7 @@ pub(crate) struct LayoutNodeArena {
     rows_sharing_dom_node: RefCell<HashMap<*mut c_void, RowsSharingDomNode>>,
     dom_nodes_whose_bound_row_was_freed: Vec<*mut c_void>,
     fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore,
+    inline_item_stashes: RefCell<HashMap<NodeSlotId, super::inline_level_iterator::StashedInlineItems>>,
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
     pub(crate) scrollable_overflow: crate::painting::scrollable_overflow::ScrollableOverflowState,
@@ -586,6 +588,7 @@ impl LayoutNodeArena {
             intrinsic_size_caches: RefCell::new(Vec::new()),
             table_cell_measurement_cache_misses: Cell::new(0),
             intrinsic_measurements: Cell::new(0),
+            intrinsic_inline_measurements: Cell::new(0),
             default_scroll_shift_anchors: RefCell::new(Vec::new()),
             any_default_scroll_shift_anchor_ever_stored: Cell::new(false),
             text_nodes: Vec::new(),
@@ -601,6 +604,7 @@ impl LayoutNodeArena {
             rows_sharing_dom_node: RefCell::new(HashMap::default()),
             dom_nodes_whose_bound_row_was_freed: Vec::new(),
             fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore::default(),
+            inline_item_stashes: RefCell::new(HashMap::default()),
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
             scrollable_overflow: Default::default(),
@@ -638,10 +642,31 @@ impl LayoutNodeArena {
         &self.fc_run_cache_store
     }
 
+    /// The items borrow fonts for the current layout pass, so the stash is cleared when the pass ends.
+    pub(crate) fn store_inline_item_stash(
+        &self,
+        block_container: NodeSlotId,
+        stash: super::inline_level_iterator::StashedInlineItems,
+    ) {
+        self.inline_item_stashes.borrow_mut().insert(block_container, stash);
+    }
+
+    pub(crate) fn take_inline_item_stash(
+        &self,
+        block_container: NodeSlotId,
+    ) -> Option<super::inline_level_iterator::StashedInlineItems> {
+        self.inline_item_stashes.borrow_mut().remove(&block_container)
+    }
+
+    pub(crate) fn end_layout_pass(&self) {
+        self.inline_item_stashes.borrow_mut().clear();
+        self.sweep_stale_fc_run_cache_entries();
+    }
+
     /// Drops entries whose slot or epoch no longer matches.
     /// Runs at the end of every full pass so invalidated entries whose box
     /// never probes again do not accumulate for the document's lifetime.
-    pub(crate) fn sweep_stale_fc_run_cache_entries(&self) {
+    fn sweep_stale_fc_run_cache_entries(&self) {
         self.fc_run_cache_store.retain_entries(|slot, validity| {
             let Some(metadata) = self.slot_metadata.get(slot as usize) else {
                 return false;
@@ -1965,6 +1990,15 @@ impl LayoutNodeArena {
         self.table_cell_measurement_cache_misses.get()
     }
 
+    pub(crate) fn note_intrinsic_inline_measurement(&self) {
+        self.intrinsic_inline_measurements
+            .set(self.intrinsic_inline_measurements.get() + 1);
+    }
+
+    pub(crate) fn intrinsic_inline_measurement_count(&self) -> u64 {
+        self.intrinsic_inline_measurements.get()
+    }
+
     pub(crate) fn note_intrinsic_measurement(&self) {
         self.intrinsic_measurements.set(self.intrinsic_measurements.get() + 1);
     }
@@ -2897,6 +2931,16 @@ pub unsafe extern "C" fn layout_arena_intrinsic_measurement_count(arena: *mut c_
     // SAFETY: The C++ wrapper keeps the arena alive for this call and
     // serializes all access on the document thread.
     unsafe { &*arena.cast::<LayoutNodeArena>() }.intrinsic_measurement_count()
+}
+
+/// # Safety
+///
+/// The arena must remain valid for the duration of the call.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_intrinsic_inline_measurement_count(arena: *mut c_void) -> u64 {
+    assert!(!arena.is_null(), "layout node arena handle is null");
+    // SAFETY: The C++ wrapper keeps the arena alive and serializes access on the document thread.
+    unsafe { &*arena.cast::<LayoutNodeArena>() }.intrinsic_inline_measurement_count()
 }
 
 /// # Safety

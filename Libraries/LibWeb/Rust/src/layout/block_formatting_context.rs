@@ -1230,7 +1230,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     }
 
     fn translate_floats_in_subtree(&self, ancestor: Node, delta: FfiCssPixelPoint) {
-        if (delta.x == CssPixels::default() && delta.y == CssPixels::default()) || self.floats.borrow().is_empty() {
+        if (delta.x == CssPixels::default() && delta.y == CssPixels::default()) || !self.has_floating_boxes() {
             return;
         }
         let mut any_float_moved = false;
@@ -1440,6 +1440,10 @@ impl<'pass> BlockFormattingContext<'pass> {
 
     pub(crate) fn reset_margin_state(&self) {
         self.margin_state.borrow_mut().reset();
+    }
+
+    pub(crate) fn has_floating_boxes(&self) -> bool {
+        !self.floats.borrow().is_empty()
     }
 
     pub(crate) fn clear_floating_boxes(

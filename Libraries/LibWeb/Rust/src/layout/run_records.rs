@@ -18,6 +18,8 @@ pub(crate) struct RunRecords<'arena> {
     // Wrapper sizing hands this state to the wrapper's child run, which consumes it while laying
     // out the table box. Keeping it on the run prevents measurement state from escaping a pass.
     table_inline_layouts: RefCell<HashMap<Node, table_formatting_context::TableInlineLayout>>,
+    // A paragraph measured from its items leaves block sizes and baselines unresolved.
+    omitted_line_layout: Cell<bool>,
 }
 
 struct UndoEntry {
@@ -45,8 +47,17 @@ impl<'arena> RunRecords<'arena> {
             nonce: arena.allocate_run_nonce(),
             undo: RefCell::new(Vec::new()),
             table_inline_layouts: RefCell::new(HashMap::default()),
+            omitted_line_layout: Cell::new(false),
         };
         run(&records)
+    }
+
+    pub(crate) fn note_omitted_line_layout(&self) {
+        self.omitted_line_layout.set(true);
+    }
+
+    pub(crate) fn omitted_line_layout(&self) -> bool {
+        self.omitted_line_layout.get()
     }
 
     pub(crate) fn register(&self, node: Node, used: std::rc::Rc<UsedValues>) {

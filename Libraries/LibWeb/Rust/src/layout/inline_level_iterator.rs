@@ -97,15 +97,6 @@ impl Item {
         self.border_start + self.padding_start + self.inline_size + self.padding_end + self.border_end
     }
 
-    pub(crate) fn has_box_model_metrics(&self) -> bool {
-        self.margin_start != CssPixels::default()
-            || self.border_start != CssPixels::default()
-            || self.padding_start != CssPixels::default()
-            || self.padding_end != CssPixels::default()
-            || self.border_end != CssPixels::default()
-            || self.margin_end != CssPixels::default()
-    }
-
     pub(crate) fn is_ascii_whitespace(&self, context: &inline_formatting_context::InlineFormattingContext<'_>) -> bool {
         assert_eq!(self.type_, ItemType::Text);
         let text = &context.callbacks.text_content(self.node).text;
@@ -114,10 +105,12 @@ impl Item {
             .all(|unit| *unit <= 0x7f && (*unit as u8).is_ascii_whitespace())
     }
 
-    pub(crate) fn contains_tab(&self, context: &inline_formatting_context::InlineFormattingContext<'_>) -> bool {
+    pub(crate) fn ends_in_ascii_space(&self, context: &inline_formatting_context::InlineFormattingContext<'_>) -> bool {
         assert_eq!(self.type_, ItemType::Text);
         let text = &context.callbacks.text_content(self.node).text;
-        text[self.offset_in_node..self.offset_in_node + self.length_in_node].contains(&(b'\t' as u16))
+        text[self.offset_in_node..self.offset_in_node + self.length_in_node]
+            .last()
+            .is_some_and(|unit| line_box_fragment::is_ascii_space(*unit))
     }
 
     pub(crate) fn allows_overflow_break(
@@ -336,7 +329,7 @@ struct InlineLevelIteratorGenerator<'iterator, 'context> {
     extra_leading_metrics: Option<ExtraBoxMetrics>,
     extra_trailing_metrics: Option<ExtraBoxMetrics>,
     box_model_node_stack: Vec<Node>,
-    visited_fragmented_inlines: Vec<Node>,
+    entered_box_model_nodes: Vec<Node>,
     items: Vec<Item>,
     next_item_index: usize,
     accumulated_inline_size_for_tabs: CssPixels,
@@ -360,7 +353,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             extra_leading_metrics: None,
             extra_trailing_metrics: None,
             box_model_node_stack: Vec::new(),
-            visited_fragmented_inlines: Vec::new(),
+            entered_box_model_nodes: Vec::new(),
             items: Vec::new(),
             next_item_index: 0,
             accumulated_inline_size_for_tabs: CssPixels::default(),
@@ -370,7 +363,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         iterator.skip_to_next();
         iterator.generate_all_items();
         Some(InlineLevelIterator {
-            visited_fragmented_inlines: iterator.visited_fragmented_inlines,
+            entered_box_model_nodes: iterator.entered_box_model_nodes,
             items: iterator.items,
             next_item_index: iterator.next_item_index,
         })
@@ -445,34 +438,12 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
     }
 
     fn enter_node_with_box_model_metrics(&mut self, node: Node) {
-        if self.context().facts(node).is_fragmented_inline() {
-            self.visited_fragmented_inlines.push(node);
-        }
-        let constraints = self.context().input.containing_block_constraints;
-        let used = self.context().create_used_values(node, constraints);
-        let style = self.context().style(node);
-        let basis = constraints.inline_basis();
-        used.margin_top.set(style.margin_top().to_px(basis));
-        used.margin_bottom.set(style.margin_bottom().to_px(basis));
-        used.margin_left.set(style.margin_left().to_px(basis));
-        used.border_left.set(style.border_left_width());
-        used.padding_left.set(style.padding_left().to_px(basis));
-        used.margin_right.set(style.margin_right().to_px(basis));
-        used.border_right.set(style.border_right_width());
-        used.padding_right.set(style.padding_right().to_px(basis));
-        used.border_top.set(style.border_top_width());
-        used.border_bottom.set(style.border_bottom_width());
-        used.padding_bottom.set(style.padding_bottom().to_px(basis));
-        used.padding_top.set(style.padding_top().to_px(basis));
-
+        self.entered_box_model_nodes.push(node);
+        let used = record_entered_inline_box(self.context, node);
         let leading = self.extra_leading_metrics.get_or_insert_default();
         leading.margin += used.margin_left.get();
         leading.border += used.border_left.get();
         leading.padding += used.padding_left.get();
-        self.context().compute_inset(node);
-        if self.context().run.fragments.is_some() {
-            formatting_context::place_child(self.context().run, node, FfiCssPixelPoint::default(), None);
-        }
         self.box_model_node_stack.push(node);
     }
 
@@ -867,22 +838,108 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
     }
 }
 
+fn record_entered_inline_box(
+    context: &inline_formatting_context::InlineFormattingContext<'_>,
+    node: Node,
+) -> std::rc::Rc<UsedValues> {
+    let constraints = context.input.containing_block_constraints;
+    let used = context.create_used_values(node, constraints);
+    let style = context.style(node);
+    let basis = constraints.inline_basis();
+    used.margin_top.set(style.margin_top().to_px(basis));
+    used.margin_bottom.set(style.margin_bottom().to_px(basis));
+    used.margin_left.set(style.margin_left().to_px(basis));
+    used.border_left.set(style.border_left_width());
+    used.padding_left.set(style.padding_left().to_px(basis));
+    used.margin_right.set(style.margin_right().to_px(basis));
+    used.border_right.set(style.border_right_width());
+    used.padding_right.set(style.padding_right().to_px(basis));
+    used.border_top.set(style.border_top_width());
+    used.border_bottom.set(style.border_bottom_width());
+    used.padding_bottom.set(style.padding_bottom().to_px(basis));
+    used.padding_top.set(style.padding_top().to_px(basis));
+    context.compute_inset(node);
+    if context.run.fragments.is_some() {
+        formatting_context::place_child(context.run, node, FfiCssPixelPoint::default(), None);
+    }
+    used
+}
+
+pub(crate) struct StashedInlineItems {
+    items: Vec<Item>,
+    entered_box_model_nodes: Vec<Node>,
+}
+
 pub(crate) struct InlineLevelIterator {
-    visited_fragmented_inlines: Vec<Node>,
+    entered_box_model_nodes: Vec<Node>,
     items: Vec<Item>,
     next_item_index: usize,
 }
 
 impl InlineLevelIterator {
     pub(crate) fn new(context: &mut inline_formatting_context::InlineFormattingContext<'_>) -> Self {
-        InlineLevelIteratorGenerator::generate(context, AtomicInlineSizing::Layout)
+        Self::reuse_or_generate(context, AtomicInlineSizing::Layout)
             .expect("normal inline item generation always succeeds")
     }
 
     pub(crate) fn for_intrinsic_inline_size(
         context: &mut inline_formatting_context::InlineFormattingContext<'_>,
     ) -> Option<Self> {
-        InlineLevelIteratorGenerator::generate(context, AtomicInlineSizing::InlineSize)
+        Self::reuse_or_generate(context, AtomicInlineSizing::InlineSize)
+    }
+
+    fn reuse_or_generate(
+        context: &mut inline_formatting_context::InlineFormattingContext<'_>,
+        atomic_sizing: AtomicInlineSizing,
+    ) -> Option<Self> {
+        let callbacks = context.callbacks;
+        match callbacks.arena().take_inline_item_stash(context.containing_block) {
+            Some(stash) => Some(Self::from_stash(context, stash)),
+            None => InlineLevelIteratorGenerator::generate(context, atomic_sizing),
+        }
+    }
+
+    pub(crate) fn remaining_items(&self) -> &[Item] {
+        &self.items[self.next_item_index..]
+    }
+
+    fn from_stash(context: &inline_formatting_context::InlineFormattingContext<'_>, stash: StashedInlineItems) -> Self {
+        for node in &stash.entered_box_model_nodes {
+            record_entered_inline_box(context, *node);
+        }
+        Self {
+            entered_box_model_nodes: stash.entered_box_model_nodes,
+            items: stash.items,
+            next_item_index: 0,
+        }
+    }
+
+    /// Element items and percentage inline-box margins and paddings depend on the run's available space.
+    pub(crate) fn stash_for_reuse(self, context: &inline_formatting_context::InlineFormattingContext<'_>) {
+        if self
+            .items
+            .iter()
+            .any(|item| !matches!(item.type_, ItemType::Text | ItemType::ForcedBreak))
+        {
+            return;
+        }
+        for node in &self.entered_box_model_nodes {
+            let style = context.style(*node);
+            if style.margin_left().contains_percentage()
+                || style.margin_right().contains_percentage()
+                || style.padding_left().contains_percentage()
+                || style.padding_right().contains_percentage()
+            {
+                return;
+            }
+        }
+        context.callbacks.arena().store_inline_item_stash(
+            context.containing_block,
+            StashedInlineItems {
+                items: self.items,
+                entered_box_model_nodes: self.entered_box_model_nodes,
+            },
+        );
     }
 
     pub(crate) fn next(&mut self) -> Option<Item> {
@@ -910,43 +967,14 @@ impl InlineLevelIterator {
         &self,
         context: &inline_formatting_context::InlineFormattingContext<'_>,
     ) -> Option<CssPixels> {
-        self.next_sequence_inline_size(context, false)
+        sequence_inline_size(context, self.remaining_items(), false)
     }
 
     pub(crate) fn next_unbreakable_run_inline_size(
         &self,
         context: &inline_formatting_context::InlineFormattingContext<'_>,
     ) -> CssPixels {
-        self.next_sequence_inline_size(context, true).unwrap_or_default()
-    }
-
-    fn next_sequence_inline_size(
-        &self,
-        context: &inline_formatting_context::InlineFormattingContext<'_>,
-        stop_at_overflow_breakable_text: bool,
-    ) -> Option<CssPixels> {
-        let mut size = CssPixels::default();
-        for item in &self.items[self.next_item_index..] {
-            match item.type_ {
-                ItemType::ForcedBreak => return Some(CssPixels::default()),
-                ItemType::BlockLevelBox => break,
-                _ => {}
-            }
-            let style = context.style(context.style_source(item.node));
-            if style.text_wrap_mode() == text_wrap_mode::WRAP {
-                if item.type_ != ItemType::Text || item.is_collapsible_whitespace {
-                    break;
-                }
-                if item.is_ascii_whitespace(context) {
-                    break;
-                }
-                if stop_at_overflow_breakable_text && context.overflow_break_applies(item.node) {
-                    break;
-                }
-            }
-            size += item.border_box_inline_size();
-        }
-        (size > CssPixels::default()).then_some(size)
+        sequence_inline_size(context, self.remaining_items(), true).unwrap_or_default()
     }
 
     pub(crate) fn next_non_whitespace_text_allows_overflow_break(
@@ -958,7 +986,43 @@ impl InlineLevelIterator {
             .is_some_and(|item| item.allows_overflow_break(context))
     }
 
-    pub(crate) fn take_visited_fragmented_inlines(&mut self) -> Vec<Node> {
-        std::mem::take(&mut self.visited_fragmented_inlines)
+    pub(crate) fn fragmented_inlines_in_pre_order(
+        &self,
+        context: &inline_formatting_context::InlineFormattingContext<'_>,
+    ) -> Vec<Node> {
+        self.entered_box_model_nodes
+            .iter()
+            .copied()
+            .filter(|node| context.facts(*node).is_fragmented_inline())
+            .collect()
     }
+}
+
+pub(crate) fn sequence_inline_size(
+    context: &inline_formatting_context::InlineFormattingContext<'_>,
+    items: &[Item],
+    stop_at_overflow_breakable_text: bool,
+) -> Option<CssPixels> {
+    let mut size = CssPixels::default();
+    for item in items {
+        match item.type_ {
+            ItemType::ForcedBreak => return Some(CssPixels::default()),
+            ItemType::BlockLevelBox => break,
+            _ => {}
+        }
+        let style = context.style(context.style_source(item.node));
+        if style.text_wrap_mode() == text_wrap_mode::WRAP {
+            if item.type_ != ItemType::Text || item.is_collapsible_whitespace {
+                break;
+            }
+            if item.is_ascii_whitespace(context) {
+                break;
+            }
+            if stop_at_overflow_breakable_text && context.overflow_break_applies(item.node) {
+                break;
+            }
+        }
+        size += item.border_box_inline_size();
+    }
+    (size > CssPixels::default()).then_some(size)
 }

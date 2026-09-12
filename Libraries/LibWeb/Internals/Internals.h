@@ -139,6 +139,7 @@ public:
     WebIDL::UnsignedLongLong layout_run_cache_hit_count();
     WebIDL::UnsignedLongLong table_cell_measurement_cache_miss_count();
     WebIDL::UnsignedLongLong intrinsic_measurement_count();
+    WebIDL::UnsignedLongLong intrinsic_inline_measurement_count();
     WebIDL::UnsignedLongLong accumulated_visual_context_tree_build_count();
     void begin_display_list_trace();
     Utf16String take_display_list_trace();
