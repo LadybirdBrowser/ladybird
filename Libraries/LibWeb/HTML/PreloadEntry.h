@@ -14,6 +14,7 @@
 #include <LibJS/Heap/Cell.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Requests.h>
+#include <LibWeb/Fetch/Infrastructure/Task.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::HTML {
@@ -68,6 +69,11 @@ public:
     // The callback is always invoked with a non-null response — either entry's resolved response,
     // or the response delivered by the preload's fetch.
     GC::Ptr<GC::Function<void(GC::Ref<Fetch::Infrastructure::Response>)>> on_response_available;
+
+    // AD-HOC: The controller of the fetch that's loading this entry, while that fetch is in flight. A consumer whose
+    //         own fetch runs on a parallel queue (a sync XHR send(), whose event loop is paused while it's blocked)
+    //         uses this to make the preload's fetch deliver its response without the event loop as well.
+    GC::Ptr<Fetch::Infrastructure::FetchController> controller;
 };
 
 // https://html.spec.whatwg.org/multipage/links.html#consume-a-preloaded-resource
@@ -78,7 +84,8 @@ bool consume_a_preloaded_resource(
     Fetch::Infrastructure::Request::Mode mode,
     Fetch::Infrastructure::Request::CredentialsMode credentials_mode,
     Utf16View integrity_metadata,
-    GC::Ref<GC::Function<void(GC::Ref<Fetch::Infrastructure::Response>)>> on_response_available);
+    GC::Ref<GC::Function<void(GC::Ref<Fetch::Infrastructure::Response>)>> on_response_available,
+    Fetch::Infrastructure::TaskDestination const& consumer_task_destination);
 
 }
 
