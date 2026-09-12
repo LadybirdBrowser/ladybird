@@ -1834,10 +1834,21 @@ impl<'context> InlineFormattingContext<'context> {
                     continue;
                 }
                 let (x, y) = fragment.offset();
+                // Atomic boxes are painted independently of their line fragments. Apply the inline ancestors'
+                // relative insets to their placement as well as to the line data folded below.
+                let relative_insets = accumulated_relative_insets_from_inline_ancestor_chain(
+                    self.run.records,
+                    &self.callbacks,
+                    self.callbacks.parent(fragment.layout_node),
+                    self.containing_block,
+                );
                 formatting_context::place_child(
                     self.run,
                     fragment.layout_node,
-                    FfiCssPixelPoint { x, y },
+                    FfiCssPixelPoint {
+                        x: x + relative_insets.offset_x,
+                        y: y + relative_insets.offset_y,
+                    },
                     Some(used_values::LineBoxFragmentCoordinate {
                         line_box_index: line_index,
                         fragment_index,

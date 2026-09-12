@@ -83,3 +83,47 @@ pub(crate) fn caret_rect_in_dom_range(
     });
     rect
 }
+
+// INTEROP: A caret beside an atomic inline spans its line box, with the inline coordinate at the box's edge.
+pub(crate) fn caret_rect_for_atomic_inline(
+    layout_arena: &impl PaintableRowsRead,
+    node: NodeSlotId,
+    after: bool,
+) -> Option<CaretRectResult> {
+    let owner = text_fragment::containing_block_paintable_of_node(layout_arena, node)?;
+    let side = layout_arena.paintable_side_data(owner);
+    let fragment = side
+        .fragments()
+        .iter()
+        .find(|fragment| fragment.layout_node == node && fragment.is_atomic_inline)?;
+    let fragment_rect = text_fragment::absolute_rect(layout_arena, fragment);
+    let item_rect = crate::painting::paintable_geometry::absolute_border_box_rect(layout_arena, node);
+    let mut rect = text_fragment::absolute_line_box_rect(layout_arena, owner, fragment);
+    // The line box is unpositioned; move its block-axis extent with the atomic box and its inline ancestors.
+    rect.x += item_rect.x - fragment_rect.x + fragment.relpos_delta.x;
+    rect.y += item_rect.y - fragment_rect.y + fragment.relpos_delta.y;
+    let horizontal = text_fragment::fragment_is_horizontal(fragment);
+    let at_end = after != layout_arena.node_style_if_live(node)?.inline_axis_is_reverse();
+    let thickness = crate::css::css_pixels::CssPixels::from_integer(1);
+    if horizontal {
+        rect.x = if at_end {
+            item_rect.x + item_rect.width
+        } else {
+            item_rect.x
+        };
+        rect.width = thickness;
+    } else {
+        rect.y = if at_end {
+            item_rect.y + item_rect.height
+        } else {
+            item_rect.y
+        };
+        rect.height = thickness;
+    }
+    Some(CaretRectResult {
+        rect,
+        style_source: node,
+        owner,
+        node,
+    })
+}

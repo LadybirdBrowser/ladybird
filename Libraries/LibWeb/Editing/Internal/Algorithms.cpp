@@ -410,6 +410,16 @@ static void canonicalize_whitespace_impl(DOM::BoundaryPoint boundary, bool fix_c
     auto node = boundary.node;
     auto offset = boundary.offset;
 
+    // INTEROP: Removing whitespace must not leave an invisible text node that can trap subsequent caret navigation.
+    //          Defer removing exhausted nodes until the boundary walkers have finished using them.
+    GC::RootVector<GC::Ref<DOM::Text>> emptied_text_nodes;
+    ScopeGuard remove_emptied_text_nodes = [&] {
+        for (auto text : emptied_text_nodes) {
+            if (text->parent() && text->length() == 0)
+                remove_node(*text);
+        }
+    };
+
     // INTEROP: Images separate whitespace runs, and links keep their own boundary whitespace. Editing on one side
     //          must not strip a space on the other side, or rewrite an untouched separator outside a link.
 
@@ -518,6 +528,8 @@ static void canonicalize_whitespace_impl(DOM::BoundaryPoint boundary, bool fix_c
                 //    on end node, then continue this loop from the beginning.
                 if (fix_collapsed_space && collapse_spaces && offset_code_unit == 0x20) {
                     MUST(delete_data(static_cast<DOM::CharacterData&>(*end_node), end_offset, 1));
+                    if (end_node->length() == 0)
+                        emptied_text_nodes.append(as<DOM::Text>(*end_node));
                     continue;
                 }
 
@@ -581,6 +593,8 @@ static void canonicalize_whitespace_impl(DOM::BoundaryPoint boundary, bool fix_c
 
                     // 3. Call deleteData(end offset, 1) on end node.
                     MUST(delete_data(static_cast<DOM::CharacterData&>(*end_node), end_offset, 1));
+                    if (end_node->length() == 0)
+                        emptied_text_nodes.append(as<DOM::Text>(*end_node));
 
                     // NOTE: We continue the loop here since we matched every condition from step 8.3
                     continue;
