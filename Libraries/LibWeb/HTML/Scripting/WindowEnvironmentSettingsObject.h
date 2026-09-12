@@ -26,6 +26,7 @@ public:
     virtual bool has_cross_site_ancestor() const override;
     virtual GC::Ref<PolicyContainer> policy_container() const override;
     virtual CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const override;
+    virtual Optional<u64> agent_cluster_id() const override;
     virtual double time_origin() const override;
 
 private:

@@ -700,6 +700,7 @@ SerializedEnvironmentSettingsObject EnvironmentSettingsObject::serialize()
         .has_cross_site_ancestor = has_cross_site_ancestor(),
         .policy_container = policy_container()->serialize(),
         .cross_origin_isolated_capability = cross_origin_isolated_capability(),
+        .agent_cluster_id = agent_cluster_id(),
         .time_origin = this->time_origin(),
         .global = move(serialized_global),
     };

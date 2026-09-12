@@ -41,7 +41,8 @@ GC::Ref<WorkletEnvironmentSettingsObject> WorkletEnvironmentSettingsObject::setu
     //    - The time origin: outsideSettings's time origin.
     auto settings_object = realm->create<WorkletEnvironmentSettingsObject>(move(execution_context), global_scope,
         move(inherited_api_base_url), outside_settings.origin(), outside_settings.has_cross_site_ancestor(),
-        inherited_policy_container, outside_settings.cross_origin_isolated_capability(), outside_settings.time_origin());
+        inherited_policy_container, outside_settings.cross_origin_isolated_capability(), outside_settings.agent_cluster_id(),
+        outside_settings.time_origin());
     settings_object->target_browsing_context = nullptr;
 
     // 6. Set settings object's id to a new unique opaque string, creation URL to inheritedAPIBaseURL, top-level
@@ -67,7 +68,7 @@ GC::Ref<WorkletEnvironmentSettingsObject> WorkletEnvironmentSettingsObject::setu
     return settings_object;
 }
 
-WorkletEnvironmentSettingsObject::WorkletEnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext> execution_context, GC::Ref<WorkletGlobalScope> global_scope, URL::URL api_base_url, URL::Origin origin, bool has_cross_site_ancestor, GC::Ref<PolicyContainer> policy_container, CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability, double time_origin)
+WorkletEnvironmentSettingsObject::WorkletEnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext> execution_context, GC::Ref<WorkletGlobalScope> global_scope, URL::URL api_base_url, URL::Origin origin, bool has_cross_site_ancestor, GC::Ref<PolicyContainer> policy_container, CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability, Optional<u64> agent_cluster_id, double time_origin)
     : EnvironmentSettingsObject(move(execution_context))
     , m_global_scope(global_scope)
     , m_api_base_url(move(api_base_url))
@@ -75,6 +76,7 @@ WorkletEnvironmentSettingsObject::WorkletEnvironmentSettingsObject(NonnullOwnPtr
     , m_has_cross_site_ancestor(has_cross_site_ancestor)
     , m_policy_container(policy_container)
     , m_cross_origin_isolated_capability(cross_origin_isolated_capability)
+    , m_agent_cluster_id(agent_cluster_id)
     , m_time_origin(time_origin)
 {
 }

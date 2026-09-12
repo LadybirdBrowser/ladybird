@@ -135,6 +135,9 @@ CORE_API ErrorOr<void> protect_memory_readonly(void* address, size_t size);
 CORE_API ErrorOr<void> decommit_memory(void* address, size_t size);
 CORE_API ErrorOr<void> release_address_space(void* address, size_t size);
 
+// Used for placing a SharedArrayBuffer's cross-process shared memory inside the primitive storage cage.
+CORE_API ErrorOr<void> map_shared_memory_fixed(void* address, size_t size, int fd);
+
 CORE_API ErrorOr<void> close(int fd);
 CORE_API ErrorOr<int> dup(int source_fd);
 CORE_API ErrorOr<Array<int, 2>> pipe2(int flags);

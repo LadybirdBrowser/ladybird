@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest((done) => {
+        const sab = new SharedArrayBuffer(8);
+        const view = new Int32Array(sab);
+        Atomics.store(view, 0, 1);
+        const channel = new MessageChannel();
+        channel.port2.onmessage = (e) => {
+            const view2 = new Int32Array(e.data);
+            println("port2 saw initial: " + Atomics.load(view2, 0));
+            Atomics.store(view2, 0, 2);
+            println("after port2 writes 2, port1 view sees: " + Atomics.load(view, 0));
+            done();
+        };
+        channel.port2.start();
+        channel.port1.postMessage(sab);
+    });
+</script>

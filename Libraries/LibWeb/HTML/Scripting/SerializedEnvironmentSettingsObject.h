@@ -52,6 +52,7 @@ struct SerializedEnvironmentSettingsObject {
     bool has_cross_site_ancestor;
     SerializedPolicyContainer policy_container;
     CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability;
+    Optional<u64> agent_cluster_id;
     double time_origin;
     SerializedGlobal global;
 };

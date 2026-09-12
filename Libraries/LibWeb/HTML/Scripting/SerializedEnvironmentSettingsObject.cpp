@@ -60,6 +60,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::SerializedEnvironmentSettingsO
     TRY(encoder.encode(object.has_cross_site_ancestor));
     TRY(encoder.encode(object.policy_container));
     TRY(encoder.encode(object.cross_origin_isolated_capability));
+    TRY(encoder.encode(object.agent_cluster_id));
     TRY(encoder.encode(object.time_origin));
     TRY(encoder.encode(object.global));
 
@@ -79,6 +80,7 @@ ErrorOr<Web::HTML::SerializedEnvironmentSettingsObject> decode(Decoder& decoder)
         .has_cross_site_ancestor = TRY(decoder.decode<bool>()),
         .policy_container = TRY(decoder.decode<Web::HTML::SerializedPolicyContainer>()),
         .cross_origin_isolated_capability = TRY(decoder.decode<Web::HTML::CanUseCrossOriginIsolatedAPIs>()),
+        .agent_cluster_id = TRY(decoder.decode<Optional<u64>>()),
         .time_origin = TRY(decoder.decode<double>()),
         .global = TRY(decoder.decode<Web::HTML::SerializedGlobal>()),
     };

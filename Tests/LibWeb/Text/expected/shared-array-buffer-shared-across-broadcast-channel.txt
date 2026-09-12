@@ -1,0 +1,5 @@
+worker got a SharedArrayBuffer: true
+worker saw initial: 1
+after worker writes 2, sender view sees: 2
+same-window channel saw initial: 1
+after same-window channel writes 3, sender view sees: 3
