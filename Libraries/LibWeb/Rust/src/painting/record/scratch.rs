@@ -33,9 +33,6 @@ pub(crate) struct PerRecordingMemoTables {
     base_paint_facts: Vec<StampedEntry<BasePaintFacts>>,
     hit_test_facts: Vec<StampedEntry<HitTestFacts>>,
     absolute_positions: Vec<StampedEntry<FfiCssPixelPoint>>,
-    // The first phase that re-records a moved row updates the live per-row cell, so later
-    // phases must compare against this snapshot or they would accept their stale captures.
-    captured_positions_snapshotted_at_recording_start: Vec<StampedEntry<FfiCssPixelPoint>>,
     resolved_enclosing_capture_memo: ResolvedEnclosingCaptureMemo,
 }
 
@@ -83,7 +80,6 @@ impl PerRecordingMemoTables {
                 self.base_paint_facts.clear();
                 self.hit_test_facts.clear();
                 self.absolute_positions.clear();
-                self.captured_positions_snapshotted_at_recording_start.clear();
                 1
             }
         };
@@ -91,8 +87,6 @@ impl PerRecordingMemoTables {
             self.base_paint_facts.resize(row_count, StampedEntry::default());
             self.hit_test_facts.resize(row_count, StampedEntry::default());
             self.absolute_positions.resize(row_count, StampedEntry::default());
-            self.captured_positions_snapshotted_at_recording_start
-                .resize(row_count, StampedEntry::default());
         }
         self.resolved_enclosing_capture_memo.clear();
     }
@@ -107,12 +101,6 @@ impl PerRecordingMemoTables {
         absolute_position,
         set_absolute_position,
         absolute_positions,
-        FfiCssPixelPoint
-    );
-    memo_table!(
-        captured_position_at_recording_start,
-        set_captured_position_at_recording_start,
-        captured_positions_snapshotted_at_recording_start,
         FfiCssPixelPoint
     );
 }

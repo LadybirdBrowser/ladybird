@@ -8,11 +8,12 @@ use crate::layout::LayoutNodeArena;
 use crate::painting::display_list::commands::{DisplayListCommandType, DisplayListResourceId, PaintNestedDisplayList};
 use crate::painting::host::FfiRecordingPublishCallbacks;
 use crate::painting::paint_state::PendingRecording;
-use crate::painting::record::RecordingOutput;
+use crate::painting::record::cache::PendingPaintCacheUpdates;
 use crate::painting::record::resources::RecordingResourceManifest;
 use crate::painting::record::vector_images::{
     VectorImageRenderRequest, is_vector_image_placeholder, vector_image_placeholder_index,
 };
+use crate::painting::record::{RecordingOutput, RecordingResult};
 
 fn resolve_vector_image_placeholders(
     output: &mut RecordingOutput,
@@ -57,8 +58,11 @@ pub(crate) fn publish_recording(
     publish: &FfiRecordingPublishCallbacks,
 ) -> u64 {
     let PendingRecording {
-        mut output,
-        resources,
+        recording: RecordingResult {
+            mut output,
+            resources,
+            cache_updates,
+        },
         recording_from_scratch,
         paint_command_cache_read_write,
     } = pending;
@@ -82,14 +86,28 @@ pub(crate) fn publish_recording(
         publish.add_video_sink(resource_id, sink_handle);
     }
     resolve_vector_image_placeholders(&mut output, &vector_image_render_requests, publish);
-    if let Some((mut recording_from_scratch, resources_from_scratch)) = recording_from_scratch {
+    if let Some(mut recording_from_scratch) = recording_from_scratch {
+        debug_assert!(recording_from_scratch.cache_updates.is_empty());
         resolve_vector_image_placeholders(
-            &mut recording_from_scratch,
-            &resources_from_scratch.vector_image_render_requests,
+            &mut recording_from_scratch.output,
+            &recording_from_scratch.resources.vector_image_render_requests,
             publish,
         );
-        crate::painting::record::verify::verify_spliced_recording_matches_fresh(&output, &recording_from_scratch);
+        crate::painting::record::verify::verify_spliced_recording_matches_fresh(
+            &output,
+            &recording_from_scratch.output,
+        );
     }
+    publish_recording_output(arena, output, cache_updates, paint_command_cache_read_write)
+}
+
+// Resource callbacks and verification must finish before the new captures become the source.
+fn publish_recording_output(
+    arena: &LayoutNodeArena,
+    mut output: RecordingOutput,
+    cache_updates: PendingPaintCacheUpdates,
+    paint_command_cache_read_write: bool,
+) -> u64 {
     let mut paint_state = arena.paint_state().borrow_mut();
     output.is_identical_to_cache_source = paint_state
         .paint_command_cache_source
@@ -124,11 +142,90 @@ pub(crate) fn publish_recording(
     }
     let output = std::rc::Rc::new(output);
     if paint_command_cache_read_write {
+        cache_updates.commit(arena);
         paint_state.paint_command_cache_source = Some(output.clone());
         // Read-only recordings commit nothing and must not age dirty stamps out.
         arena.note_paint_record_completed_with_cache_writes();
         paint_state.visual_context.quarantined_slots_are_releasable = true;
+    } else {
+        debug_assert!(cache_updates.is_empty());
     }
     paint_state.last_recording = Some(output);
     paint_state.hit_test_list.as_ref().map_or(0, |list| list.generation)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::layout::used_values::FfiCssPixelPoint;
+    use crate::painting::hit_test::HitTestList;
+    use crate::painting::record::PaintPhase;
+    use crate::painting::record::cache::{CachedBoxPhaseCommands, CaptureAddress, PendingPaintCacheUpdates};
+    use std::rc::Rc;
+
+    #[test]
+    fn read_only_publication_preserves_capture_source_and_pending_dirtiness() {
+        let mut arena = LayoutNodeArena::new();
+        let row = arena.allocate_for_test().slot;
+        arena.populate_paintable_row(row);
+        let mut original_source = None;
+        // Publish a source, a read-only recording, and then the pending repaint.
+        for (hit_test_generation, read_write) in [(1, true), (2, false), (3, true)] {
+            let mut cache_updates = PendingPaintCacheUpdates::default();
+            let next_record_gen = arena.paint_cache_completed_record_gen() as u32 + 1;
+            if read_write {
+                cache_updates.set_commands(
+                    row,
+                    FfiCssPixelPoint::default(),
+                    PaintPhase::Foreground,
+                    CachedBoxPhaseCommands {
+                        address: CaptureAddress {
+                            written_in_record_gen: next_record_gen,
+                            ..Default::default()
+                        },
+                        ..Default::default()
+                    },
+                );
+            }
+            let output = RecordingOutput {
+                hit_test_list: HitTestList {
+                    generation: hit_test_generation,
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            assert_eq!(
+                publish_recording_output(&arena, output, cache_updates, read_write),
+                hit_test_generation
+            );
+            let source = arena.paint_state().borrow().paint_command_cache_source.clone().unwrap();
+            let cache = arena.paintable_paint_cache(row);
+            let capture_gen = cache
+                .commands(PaintPhase::Foreground)
+                .unwrap()
+                .address
+                .written_in_record_gen;
+            match hit_test_generation {
+                1 => {
+                    original_source = Some(source);
+                    arena.invalidate_paint_cache(row);
+                    assert_eq!(capture_gen, 1);
+                    assert!(cache.is_self_dirty_since(1));
+                }
+                2 => {
+                    assert!(Rc::ptr_eq(original_source.as_ref().unwrap(), &source));
+                    assert_eq!(capture_gen, 1);
+                    assert_eq!(arena.paint_cache_completed_record_gen(), 1);
+                    assert!(cache.is_self_dirty_since(1));
+                }
+                3 => {
+                    assert!(!Rc::ptr_eq(original_source.as_ref().unwrap(), &source));
+                    assert_eq!(capture_gen, 2);
+                    assert_eq!(arena.paint_cache_completed_record_gen(), 2);
+                    assert!(!cache.is_self_dirty_since(2));
+                }
+                _ => unreachable!(),
+            }
+        }
+    }
 }
