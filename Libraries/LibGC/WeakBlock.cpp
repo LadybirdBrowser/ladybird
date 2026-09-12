@@ -4,14 +4,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/System.h>
 #include <LibGC/Cell.h>
 #include <LibGC/WeakBlock.h>
-#include <sys/mman.h>
-
-#if defined(AK_OS_WINDOWS)
-#    include <AK/Windows.h>
-#    include <memoryapi.h>
-#endif
 
 namespace GC {
 
@@ -19,13 +14,7 @@ WeakImpl WeakImpl::the_null_weak_impl;
 
 WeakBlock* WeakBlock::create()
 {
-#if !defined(AK_OS_WINDOWS)
-    auto* block = (HeapBlock*)mmap(nullptr, WeakBlock::BLOCK_SIZE, PROT_READ | PROT_WRITE, MAP_ANONYMOUS | MAP_PRIVATE, -1, 0);
-    VERIFY(block != MAP_FAILED);
-#else
-    auto* block = (HeapBlock*)VirtualAlloc(NULL, WeakBlock::BLOCK_SIZE, MEM_COMMIT, PAGE_READWRITE);
-    VERIFY(block);
-#endif
+    auto* block = MUST(Core::System::allocate_anonymous_memory(WeakBlock::BLOCK_SIZE, Core::System::MemoryTag::GarbageCollector));
     return new (block) WeakBlock;
 }
 

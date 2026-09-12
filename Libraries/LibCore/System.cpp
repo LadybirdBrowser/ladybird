@@ -41,6 +41,7 @@ static int memfd_create(char const* name, unsigned int flags)
 
 #if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
 #    include <mach-o/dyld.h>
+#    include <mach/vm_statistics.h>
 #    include <sys/mman.h>
 #else
 extern char** environ;
@@ -144,29 +145,38 @@ ErrorOr<void> munmap(void* address, size_t size)
     return {};
 }
 
-ErrorOr<void*> reserve_address_space(size_t size)
+static int mmap_anonymous_fd([[maybe_unused]] MemoryTag tag)
+{
+#ifdef AK_OS_MACOS
+    if (tag == MemoryTag::GarbageCollector)
+        return VM_MAKE_TAG(VM_MEMORY_APPLICATION_SPECIFIC_2);
+#endif
+    return -1;
+}
+
+ErrorOr<void*> reserve_address_space(size_t size, MemoryTag tag)
 {
     int flags = MAP_PRIVATE | MAP_ANONYMOUS;
 #ifdef MAP_NORESERVE
     flags |= MAP_NORESERVE;
 #endif
-    auto* ptr = ::mmap(nullptr, size, PROT_NONE, flags, -1, 0);
+    auto* ptr = ::mmap(nullptr, size, PROT_NONE, flags, mmap_anonymous_fd(tag), 0);
     if (ptr == MAP_FAILED)
         return Error::from_syscall("mmap"sv, errno);
     return ptr;
 }
 
-ErrorOr<void*> allocate_anonymous_memory(size_t size)
+ErrorOr<void*> allocate_anonymous_memory(size_t size, MemoryTag tag)
 {
-    auto* ptr = ::mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, -1, 0);
+    auto* ptr = ::mmap(nullptr, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS, mmap_anonymous_fd(tag), 0);
     if (ptr == MAP_FAILED)
         return Error::from_syscall("mmap"sv, errno);
     return ptr;
 }
 
-ErrorOr<void> commit_memory(void* address, size_t size)
+ErrorOr<void> commit_memory(void* address, size_t size, MemoryTag tag)
 {
-    auto* ptr = ::mmap(address, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, -1, 0);
+    auto* ptr = ::mmap(address, size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANONYMOUS | MAP_FIXED, mmap_anonymous_fd(tag), 0);
     if (ptr == MAP_FAILED)
         return Error::from_syscall("mmap"sv, errno);
     return {};
@@ -181,7 +191,7 @@ ErrorOr<void> protect_memory_readonly(void* address, size_t size)
     return {};
 }
 
-ErrorOr<void> decommit_memory(void* address, size_t size)
+ErrorOr<void> decommit_memory(void* address, size_t size, MemoryTag tag)
 {
     if (size == 0)
         return {};
@@ -190,7 +200,7 @@ ErrorOr<void> decommit_memory(void* address, size_t size)
 #ifdef MAP_NORESERVE
     flags |= MAP_NORESERVE;
 #endif
-    auto* ptr = ::mmap(address, size, PROT_NONE, flags, -1, 0);
+    auto* ptr = ::mmap(address, size, PROT_NONE, flags, mmap_anonymous_fd(tag), 0);
     if (ptr == MAP_FAILED)
         return Error::from_syscall("mmap"sv, errno);
     VERIFY(ptr == address);

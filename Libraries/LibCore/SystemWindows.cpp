@@ -66,7 +66,7 @@ ErrorOr<void> chdir(StringView path)
     return {};
 }
 
-ErrorOr<void*> reserve_address_space(size_t size)
+ErrorOr<void*> reserve_address_space(size_t size, [[maybe_unused]] MemoryTag tag)
 {
     void* ptr = VirtualAlloc(nullptr, size, MEM_RESERVE, PAGE_NOACCESS);
     if (!ptr)
@@ -74,7 +74,7 @@ ErrorOr<void*> reserve_address_space(size_t size)
     return ptr;
 }
 
-ErrorOr<void*> allocate_anonymous_memory(size_t size)
+ErrorOr<void*> allocate_anonymous_memory(size_t size, [[maybe_unused]] MemoryTag tag)
 {
     void* ptr = VirtualAlloc(nullptr, size, MEM_RESERVE | MEM_COMMIT, PAGE_READWRITE);
     if (!ptr)
@@ -82,7 +82,7 @@ ErrorOr<void*> allocate_anonymous_memory(size_t size)
     return ptr;
 }
 
-ErrorOr<void> commit_memory(void* address, size_t size)
+ErrorOr<void> commit_memory(void* address, size_t size, [[maybe_unused]] MemoryTag tag)
 {
     if (!VirtualAlloc(address, size, MEM_COMMIT, PAGE_READWRITE))
         return Error::from_windows_error();
@@ -99,7 +99,7 @@ ErrorOr<void> protect_memory_readonly(void* address, size_t size)
     return {};
 }
 
-ErrorOr<void> decommit_memory(void* address, size_t size)
+ErrorOr<void> decommit_memory(void* address, size_t size, [[maybe_unused]] MemoryTag tag)
 {
     if (size == 0)
         return {};
