@@ -24,6 +24,7 @@ set(AK_TEST_SOURCES
     TestEndian.cpp
     TestEnumBits.cpp
     TestEnumerate.cpp
+    TestFFIHelpers.cpp
     TestFind.cpp
     TestFixedArray.cpp
     TestFunction.cpp
@@ -110,6 +111,7 @@ if (APPLE)
     target_compile_options(TestFunctionObjCArc PRIVATE -fobjc-arc)
 endif()
 
+target_link_libraries(TestFFIHelpers PRIVATE LibThreading)
 target_link_libraries(TestSeqLock PRIVATE LibThreading)
 target_link_libraries(TestString PRIVATE LibUnicode)
 target_link_libraries(TestTearableAtomic PRIVATE LibThreading)

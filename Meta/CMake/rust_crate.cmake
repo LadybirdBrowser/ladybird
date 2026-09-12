@@ -109,8 +109,8 @@ function(import_rust_crate)
     target_sources(${ARG_CRATE_NAME} INTERFACE
         "${CMAKE_CURRENT_BINARY_DIR}/${ARG_CRATE_NAME}_panic_init.cpp")
 
-    # Rust calls the same C allocator as AK directly, without C++ forwarding functions.
-    target_link_libraries(${ARG_CRATE_NAME} INTERFACE mimalloc)
+    # Rust allocations go through AK so allocator overrides also apply across the FFI boundary.
+    target_link_libraries(${ARG_CRATE_NAME} INTERFACE AK)
 
     # Rust staticlibs bundle the standard library, which on Windows depends on system libraries.
     if (WIN32)
@@ -260,15 +260,6 @@ function(_rust_crate_common_setup)
         "CXX_${target_underscore}=${CMAKE_CXX_COMPILER}"
         "CARGO_BUILD_RUSTC=${RUST_RUSTC}"
     )
-
-    # Match AK/kmalloc.cpp's instrumented allocator selection. Clear inherited overrides
-    # in ordinary builds so buffers transferred between Rust and C++ use the same pool.
-    # AK explicitly disables address instrumentation on Windows.
-    if (ENABLE_ADDRESS_SANITIZER AND NOT WIN32)
-        list(APPEND cargo_env "LADYBIRD_RUST_SYSTEM_ALLOCATOR=1")
-    else()
-        list(APPEND cargo_env "--unset=LADYBIRD_RUST_SYSTEM_ALLOCATOR")
-    endif()
 
     if (RUSTC_WRAPPER)
         list(APPEND cargo_env
