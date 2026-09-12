@@ -1444,18 +1444,20 @@ private:
     Vector<CSS::StyleRecordID> m_dom_style_record_pins;
 };
 
-void Node::schedule_list_item_renumber_for_removal()
+bool Node::schedule_list_item_renumber_for_removal()
 {
     auto* element = as_if<Element>(*this);
     if (!element)
-        return;
+        return false;
     auto style = element->computed_style();
     // A removed list item can renumber the list-item counter for its list owner's whole list. Removing the final item
     // from a forward counter does not change any surviving counter value.
     if ((is_html_li_element() || (style && style->display().is_list_item()))
         && !final_direct_list_item_does_not_renumber_existing_content(*element)) {
         element->schedule_list_item_renumber_for_list_owner();
+        return true;
     }
+    return false;
 }
 
 void Node::report_removal_to_style_engine(Node& parent)
@@ -2828,6 +2830,8 @@ void Node::remove_all_children(bool suppress_observers)
     bool const track_affected_elements = document().has_valid_html_collection_caches();
     auto affects_elements = ChildrenChangedMetadata::AffectsElements::No;
     bool const a_child_holds_a_propagating_state_source = CSS::Invalidation::descendants_hold_a_propagating_state_source(*this);
+    // Every child has the same list owner, so the first child that renumbers it answers for all of them.
+    bool list_owner_renumber_scheduled = false;
 
     while (GC::Ptr<Node> child = first_child()) {
         // 4. For each NodeIterator object iterator whose root’s node document is node’s node document:
@@ -2843,7 +2847,8 @@ void Node::remove_all_children(bool suppress_observers)
         if (track_affected_elements && mutation_affects_elements(*child) == ChildrenChangedMetadata::AffectsElements::Yes)
             affects_elements = ChildrenChangedMetadata::AffectsElements::Yes;
 
-        child->schedule_list_item_renumber_for_removal();
+        if (!list_owner_renumber_scheduled)
+            list_owner_renumber_scheduled = child->schedule_list_item_renumber_for_removal();
 
         RemovalStyleRecordPins removal_style_record_pins { document().style_computer() };
         removal_style_record_pins.pin_style_records_before_removal(*child, was_connected);
