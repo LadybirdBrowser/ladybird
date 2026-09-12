@@ -977,14 +977,6 @@ AnimationUpdateContext::~AnimationUpdateContext()
                 element.document().schedule_accumulated_visual_context_update(target, scope);
             }
         }
-        if (invalidation.needs_scrollable_overflow_recalculation()) {
-            if (element.pseudo_element().has_value()) {
-                if (auto pseudo_element_node = target->pseudo_element_unsafe_layout_node(element.pseudo_element().value()))
-                    element.document().schedule_scrollable_overflow_recalculation(*pseudo_element_node);
-            } else {
-                element.document().schedule_scrollable_overflow_recalculation(target);
-            }
-        }
 
         auto* repaint_layout_node = element.pseudo_element().has_value()
             ? target->pseudo_element_unsafe_layout_node(*element.pseudo_element())

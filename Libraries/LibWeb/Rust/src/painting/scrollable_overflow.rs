@@ -880,3 +880,73 @@ pub(crate) fn update_scrollable_overflow(arena: &LayoutNodeArena) {
         }
     }
 }
+
+/// Retain the last published transform group so a style change can invalidate overflow
+/// even after the DOM or an animation has released its previous style record.
+pub(crate) struct OverflowStyle(std::ptr::NonNull<crate::css::computed_value_types::TransformValues>);
+
+impl OverflowStyle {
+    pub(crate) fn new(style: crate::css::computed_value_views::ComputedValuesView<'_>) -> Self {
+        let values = std::ptr::from_ref(style.transform());
+        crate::css::computed_values::retain_group_payload(
+            crate::css::computed_value_types::STYLE_GROUP_INDEX_TRANSFORM,
+            values.cast(),
+        );
+        Self(std::ptr::NonNull::from(style.transform()))
+    }
+
+    fn matches(&self, style: crate::css::computed_value_views::ComputedValuesView<'_>) -> bool {
+        let new = style.transform();
+        if std::ptr::eq(self.0.as_ptr(), new) {
+            return true;
+        }
+        // SAFETY: This snapshot retains the immutable group until it is replaced or dropped.
+        let old = unsafe { self.0.as_ref() };
+        old.transformations == new.transformations
+            && old.translate == new.translate
+            && old.rotate == new.rotate
+            && old.scale == new.scale
+            && old.transform_box == new.transform_box
+            && old.transform_origin_x == new.transform_origin_x
+            && old.transform_origin_y == new.transform_origin_y
+            && old.transform_origin_z == new.transform_origin_z
+    }
+}
+
+impl Drop for OverflowStyle {
+    fn drop(&mut self) {
+        crate::css::computed_values::release_group_payload(
+            crate::css::computed_value_types::STYLE_GROUP_INDEX_TRANSFORM,
+            self.0.as_ptr().cast(),
+        );
+    }
+}
+
+impl LayoutNodeArena {
+    pub(crate) fn invalidate_overflow_after_style_change(&self, slot: NodeSlotId) {
+        if !self.paintable_row_is_populated(slot) {
+            return;
+        }
+        let Some(style) = self.node_style_if_live(slot) else {
+            return;
+        };
+        let changed = {
+            let mut cache = self.paintable_side_data_mut(slot);
+            let changed = cache
+                .overflow_style
+                .as_ref()
+                .is_some_and(|previous| !previous.matches(style));
+            cache.overflow_style = Some(OverflowStyle::new(style));
+            changed
+        };
+        if !changed {
+            return;
+        }
+        if self.node_kind_if_live(slot).is_some_and(node_facts::kind_is_svg_box) {
+            // SVG consumes transforms during layout, unlike CSS box overflow measurement.
+            self.set_needs_layout_update(slot, true);
+        } else {
+            self.schedule_scrollable_overflow_recalculation(slot);
+        }
+    }
+}

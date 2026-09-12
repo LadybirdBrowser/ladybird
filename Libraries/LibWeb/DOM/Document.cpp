@@ -10379,28 +10379,6 @@ void Document::schedule_accumulated_visual_context_update(Element& element, Accu
     }
 }
 
-void Document::schedule_scrollable_overflow_recalculation(Layout::Node const& layout_node)
-{
-    // SVG layout consumes transforms when computing geometry, so a transform change on SVG content
-    // has to perform layout, matching the behavior of the transform presentation attribute.
-    if (layout_node.is_svg_box()) {
-        const_cast<Layout::Node&>(layout_node).set_needs_layout_update(DOM::SetNeedsLayoutReason::StyleChange);
-        return;
-    }
-
-    Layout::RustFFI::layout_arena_schedule_scrollable_overflow_recalculation(layout_node.arena_handle(), Layout::Node::slot_id(&layout_node));
-}
-
-void Document::schedule_scrollable_overflow_recalculation(Element& element)
-{
-    if (auto* layout_node = element.unsafe_layout_node())
-        schedule_scrollable_overflow_recalculation(*layout_node);
-    element.for_each_synthetic_pseudo_element([&](CSS::PseudoElement, SyntheticPseudoElement const& pseudo_element) {
-        if (auto* pseudo_element_layout_node = pseudo_element.unsafe_layout_node())
-            schedule_scrollable_overflow_recalculation(*pseudo_element_layout_node);
-    });
-}
-
 Painting::SnappedAreas const& Document::snapped_areas_of_scroll_container(Compositor::AsyncScrollNodeStableID const& stable_node_id) const
 {
     static NeverDestroyed<Painting::SnappedAreas const> no_snapped_areas;

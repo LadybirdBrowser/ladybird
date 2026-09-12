@@ -948,6 +948,7 @@ impl LayoutNodeArena {
         self.assert_owner_thread();
         let data = self.data(id);
         data.style.set(payloads);
+        self.invalidate_overflow_after_style_change(id);
         self.update_anchor_positioning_dependency(id);
         self.style_records[id.slot_index() as usize].set(style_record);
         self.enroll_text_children_for_content_sync(id);
@@ -1218,6 +1219,7 @@ impl LayoutNodeArena {
         assert!(derived.record != 0 && !derived.payloads.is_null());
         let previous_style_record = self.style_records[slot.slot_index() as usize].replace(derived.record);
         self.data(slot).style.set(derived.payloads);
+        self.invalidate_overflow_after_style_change(slot);
         self.update_anchor_positioning_dependency(slot);
         self.enroll_text_children_for_content_sync(slot);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);

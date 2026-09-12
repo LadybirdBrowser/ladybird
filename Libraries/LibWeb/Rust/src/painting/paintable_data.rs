@@ -166,6 +166,7 @@ impl InlineBoxPieceRecord {
 pub struct PaintableSideData {
     // Invalidation also runs while paint geometry is borrowed. Keep this
     // mutable cache state out of the plain-data row shared with C++.
+    pub(crate) overflow_style: Option<crate::painting::scrollable_overflow::OverflowStyle>,
     pub(crate) overflow_valid_across_recommits: Cell<bool>,
     pub(crate) overflow_relative_to_padding_box: Cell<FfiOverflowData>,
     pub(crate) overflow_measured_this_commit: Cell<bool>,

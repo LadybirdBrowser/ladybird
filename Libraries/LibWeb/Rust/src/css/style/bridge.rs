@@ -84,7 +84,6 @@ pub enum FfiStyleInvalidationField {
     VisualContextShift = 2,
     RebuildRootShift = 4,
     RebuildStackingContext = 1 << 6,
-    RecalculateScrollableOverflow = 1 << 7,
     ResnapScrollContainer = 1 << 8,
     RecomputeDescendants = 1 << 9,
     InheritedGroupsShift = 10,
