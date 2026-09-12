@@ -2533,6 +2533,25 @@ struct SharedSelectorProgram {
     _memory: MemoryLease,
 }
 
+/// A strong identity for a process-interned selector. Keeping the payload alive prevents an
+/// address from being recycled while a dispatch sharing key still refers to it.
+#[derive(Clone)]
+pub(super) struct SharedSelectorIdentity(Rc<SharedSelectorProgram>);
+
+impl PartialEq for SharedSelectorIdentity {
+    fn eq(&self, other: &Self) -> bool {
+        Rc::ptr_eq(&self.0, &other.0)
+    }
+}
+
+impl Eq for SharedSelectorIdentity {}
+
+impl Hash for SharedSelectorIdentity {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        Rc::as_ptr(&self.0).hash(state);
+    }
+}
+
 impl Drop for SharedSelectorProgram {
     fn drop(&mut self) {
         let _ = SHARED_SELECTOR_PROGRAMS.try_with(|shared| {
@@ -2795,6 +2814,19 @@ impl SelectorPrograms {
         self.entry_ids_by_program[program.0 as usize]
             .as_ref()
             .expect("a live selector program must have entry identities")[entry as usize]
+    }
+
+    pub(super) fn shared_dispatch_identity(
+        &self,
+        program: SelectorProgramID,
+    ) -> Option<(SharedSelectorIdentity, Box<[EntryID]>)> {
+        let SelectorProgramStorage::Process(shared) = self.programs[program.0 as usize].as_ref()? else {
+            return None;
+        };
+        Some((
+            SharedSelectorIdentity(Rc::clone(shared)),
+            self.entry_ids_by_program[program.0 as usize].as_ref()?.clone(),
+        ))
     }
 
     #[must_use]
