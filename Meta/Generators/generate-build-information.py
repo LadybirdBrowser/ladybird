@@ -101,18 +101,46 @@ def generate(source, build, compiler):
     return result
 
 
+def escape_depfile_path(path):
+    return (
+        str(path).replace("$", "$$").replace("\\", "\\\\").replace(" ", "\\ ").replace("#", "\\#").replace(":", "\\:")
+    )
+
+
+def write_depfile(source, output, target):
+    tracked_files = subprocess.check_output(["git", "-C", str(source), "ls-files", "-z"]).split(b"\0")
+
+    dependencies = (
+        path
+        for tracked_file in tracked_files
+        if tracked_file
+        for path in [(source / Path(tracked_file.decode())).resolve()]
+    )
+
+    escaped_dependencies = " ".join(escape_depfile_path(path) for path in dependencies)
+    output.write_text(f"{escape_depfile_path(target)}: {escaped_dependencies}\n")
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("source", type=Path)
     parser.add_argument("build", type=Path)
     parser.add_argument("output", type=Path)
     parser.add_argument("compiler")
+    parser.add_argument("--depfile", type=Path, required=True)
+    parser.add_argument("--stamp", type=Path, required=True)
     args = parser.parse_args()
+
     if not re.fullmatch(r"[a-zA-Z0-9_. +()-]+", args.compiler):
         raise ValueError("Invalid compiler identity")
-    contents = generate(args.source.resolve(), args.build.resolve(), args.compiler)
+
+    source = args.source.resolve()
+    contents = generate(source, args.build.resolve(), args.compiler)
+
     if not args.output.exists() or args.output.read_text() != contents:
         args.output.write_text(contents)
+
+    write_depfile(source, args.depfile, args.stamp)
 
 
 if __name__ == "__main__":
