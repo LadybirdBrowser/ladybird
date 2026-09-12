@@ -67,7 +67,19 @@ with tempfile.TemporaryDirectory() as directory:
             deadline = time.monotonic() + 30
             state = None
             while time.monotonic() < deadline:
-                state = script("return [location.href, document.readyState, devicePixelRatio]")
+                status, payload, raw = helpers["request"](
+                    port,
+                    "POST",
+                    f"/session/{session}/execute/sync",
+                    {"script": "return [location.href, document.readyState, devicePixelRatio]", "args": []},
+                )
+                if (
+                    status == 500
+                    and payload["value"]["message"] == "WebContent was replaced while executing the command"
+                ):
+                    continue
+                assert status == 200, raw
+                state = payload["value"]
                 if state == [url, "complete", pixel_ratio]:
                     return
                 time.sleep(0.01)

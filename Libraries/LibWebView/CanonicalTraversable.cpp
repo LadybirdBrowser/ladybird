@@ -55,6 +55,13 @@ void CanonicalTraversable::set_system_visibility_state(Web::HTML::VisibilityStat
         if (!endpoint.client)
             return IterationDecision::Continue;
 
+        // NB: Tab visibility changes must not expose a replacement process's bootstrap document.
+        //     The destination receives the latest system visibility state when it is activated.
+        if (navigable.is_top_level_traversable()) {
+            if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value() && !view->m_client_state.hosts_committed_entry)
+                return IterationDecision::Continue;
+        }
+
         // 2. Queue a global task on the user interaction task source given document's relevant global object
         //    to update the visibility state of document with newState.
         endpoint.client->async_update_visibility_state(endpoint.page_id, navigable.id(), visibility_state);
