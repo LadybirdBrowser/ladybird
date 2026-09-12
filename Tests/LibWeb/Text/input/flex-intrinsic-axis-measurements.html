@@ -15,10 +15,15 @@
         overflow-wrap: break-word;
     }
 </style>
-<div id="outer"><div id="inner"><div id="item">AAAAAAAAAAAAAAAAAAAAAAAAAAAA</div></div></div>
+<template id="fixture">
+    <div id="outer"><div id="inner"><div id="item">AAAAAAAAAAAAAAAAAAAAAAAAAAAA</div></div></div>
+</template>
 <script>
     test(() => {
+        // Flush the initial layout before inserting the fixture so its measurements are always counted.
+        document.body.offsetWidth;
         const measurementsBefore = internals.intrinsicMeasurementCount();
+        document.body.appendChild(document.getElementById("fixture").content.cloneNode(true));
         document.getElementById("outer").offsetWidth;
         println(`intrinsic measurements: ${internals.intrinsicMeasurementCount() - measurementsBefore}`);
     });
