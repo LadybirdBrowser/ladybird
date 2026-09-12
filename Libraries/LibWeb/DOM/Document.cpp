@@ -1875,20 +1875,6 @@ void Document::end_style_stabilization_epoch()
     m_animations_created_in_stabilization_epoch.clear();
 }
 
-static void relayout_subtree(Layout::Box& subtree_root)
-{
-    Layout::LayoutRustBridge bridge;
-    // Absolutely positioned boundaries re-resolve their own size and position by replaying
-    // their layout from saved inputs; SVG root boundaries keep the frozen geometry saved at
-    // the previous commit. The commit sink resolves the committed row to splice out in either
-    // path.
-    if (subtree_root.is_absolutely_positioned()) {
-        bridge.replay_saved_abspos_layout(subtree_root);
-    } else {
-        bridge.compute_subtree_layout(subtree_root);
-    }
-}
-
 // Refreshes every structure derived from committed layout results, shared by the partial and
 // full layout paths so neither can forget one.
 void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed, LayoutCommitScope layout_commit_scope)
@@ -2152,8 +2138,9 @@ Document::PartialRelayoutResult Document::try_partial_relayout(Vector<Layout::Ru
     }
 
     layout_node_arena().sync_enrolled_content_for_layout();
+    Layout::LayoutRustBridge bridge;
     for (auto* root : partial_relayout_roots)
-        relayout_subtree(*root);
+        bridge.compute_subtree_layout(*root);
 
     ++m_partial_layout_count;
 

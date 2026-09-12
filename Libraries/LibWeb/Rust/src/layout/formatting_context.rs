@@ -2180,16 +2180,6 @@ unsafe fn commit_entry_pass<'a>(
     arena
 }
 
-/// The subtree commit reset the root's descendant rows, and the subtree's new size may change
-/// ancestor scrollable overflow; scheduling the root covers both.
-fn schedule_scrollable_overflow_recalculation_for_relaid_out_root(arena: &LayoutNodeArena, root: NodeSlotId) {
-    // A partial relayout root is an SVG viewport or an absolutely positioned box, never an SVG
-    // content box, so the host's rule of re-laying out SVG content instead of scheduling does not
-    // apply here.
-    debug_assert!(!node_facts::kind_is_svg_box(arena.data(root).kind.get()));
-    arena.schedule_scrollable_overflow_recalculation(root);
-}
-
 /// # Safety
 ///
 /// The callback table and commit sink must remain valid for the duration of the call.
@@ -2218,15 +2208,22 @@ pub unsafe extern "C" fn rust_layout_compute_subtree_layout(
     // the incremental tree build created; refresh the containing blocks of the whole subtree.
     arena.recompute_containing_blocks_in_subtree(root, host.inline_containing_block_lookup);
 
-    let pass_fragments = RunRecords::with_unrooted(arena, root, |entry_records| {
-        let root_used = used_values::used_values_from_committed_fragment_link(&callbacks, root)
-            .expect("partial relayout root must have committed geometry");
-        entry_records.register(root, root_used.clone());
-        let entry_fragments = std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(root));
+    // Abspos boundaries recompute their size and position in their containing block's space.
+    // In-flow SVG boundaries keep their committed geometry and lay out only their contents.
+    let root_is_absolutely_positioned = NodeFacts::new(&callbacks, root).is_absolutely_positioned();
+    let entry_root = if root_is_absolutely_positioned {
+        let containing_block = callbacks.containing_block(root);
+        assert!(!containing_block.is_invalid());
+        containing_block
+    } else {
+        root
+    };
+    let pass_fragments = RunRecords::with_unrooted(arena, entry_root, |entry_records| {
+        let entry_fragments = std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(entry_root));
         let entry_run = FormattingContextRun {
             purpose: LayoutPurpose::Commit,
             records: entry_records,
-            box_: root,
+            box_: entry_root,
             layout_mode: LayoutMode::Normal,
             callbacks,
             should_collect_devtools_layout_data: false,
@@ -2234,108 +2231,92 @@ pub unsafe extern "C" fn rust_layout_compute_subtree_layout(
             fragments: Some(entry_fragments.clone()),
             previous_line_data: None,
         };
-        if !viewport.is_invalid() && viewport != root {
-            let viewport_inline_size = CssPixels::from_raw(viewport_inline_size_raw);
-            let viewport_block_size = CssPixels::from_raw(viewport_block_size_raw);
-            let viewport_constraints = ContainingBlockConstraints {
-                percentage_basis_inline_size: Some(viewport_inline_size),
-                percentage_basis_block_size: Some(viewport_block_size),
-                ..ContainingBlockConstraints::default()
-            };
-            let viewport_used = entry_records.create_used_values(&callbacks, viewport, viewport_constraints);
-            viewport_used.set_content_inline_size(viewport_inline_size);
-            viewport_used.set_content_block_size(viewport_block_size);
-            place_child(&entry_run, viewport, FfiCssPixelPoint::default(), None);
+        if root_is_absolutely_positioned {
+            abspos_engine::AbsposEngine::for_run(&entry_run).replay(&entry_run, root);
+        } else {
+            layout_subtree_with_frozen_root_geometry(
+                &entry_run,
+                viewport,
+                CssPixels::from_raw(viewport_inline_size_raw),
+                CssPixels::from_raw(viewport_block_size_raw),
+            );
         }
-        let input = LayoutInput::new(
-            AvailableSpace {
-                inline_size: AvailableSize::definite(root_used.content_inline_size.get()),
-                block_size: AvailableSize::definite(root_used.content_block_size.get()),
-            },
-            // The subtree root has definite sizes in both axes, so boxes
-            // below it do not need inherited percentage constraints.
-            ContainingBlockConstraints::default(),
-            ParticipationInParentFormattingContext::Root,
-        );
-
-        let facts = NodeFacts::new(&callbacks, root);
-        let fc_type = formatting_context_type_created_by_box(facts)
-            .expect("partial relayout root must establish an independent formatting context");
-        run_formatting_context(
-            LayoutPurpose::Commit,
-            Some(&entry_fragments),
-            &root_used,
-            root,
-            None,
-            fc_type,
-            LayoutMode::Normal,
-            false,
-            callbacks,
-            input,
-            None,
-            None,
-        );
-        entry_fragments.normalize_arrivals_for_placement(root);
-        entry_fragments.build_fragment_for_placed_box(
-            &callbacks,
-            root,
-            None,
-            &root_used,
-            false,
-            None,
-            root_used.content_offset.get(),
-            None,
-        );
         finish_entry_pass(entry_records, &entry_fragments, &callbacks, false)
     });
     // SAFETY: Computation has finished and its input borrows are no longer used.
     let arena = unsafe { commit_entry_pass(host, root, &pass_fragments, sink) };
-    schedule_scrollable_overflow_recalculation_for_relaid_out_root(arena, root);
+    // Commit reset the subtree's rows, and its new size may affect ancestor scrollable overflow.
+    // Partial relayout roots are SVG viewports or abspos boxes, never SVG content boxes that
+    // would require a new layout instead of an overflow update.
+    debug_assert!(!node_facts::kind_is_svg_box(arena.data(root).kind.get()));
+    arena.schedule_scrollable_overflow_recalculation(root);
 }
 
-/// # Safety
-///
-/// The callback table and commit sink must remain valid for the duration of the call.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_layout_replay_saved_abspos_layout(
-    box_: NodeSlotId,
-    callbacks: *const FfiLayoutFcCallbacks,
-    sink: *const commit::FfiCommitSink,
+fn layout_subtree_with_frozen_root_geometry(
+    run: &FormattingContextRun<'_>,
+    viewport: Node,
+    viewport_inline_size: CssPixels,
+    viewport_block_size: CssPixels,
 ) {
-    assert!(!box_.is_invalid());
-    assert!(!callbacks.is_null());
-    assert!(!sink.is_null());
-    // SAFETY: The C++ pass host keeps both callback tables live for this
-    // synchronous entry.
-    let host = unsafe { &*callbacks };
-    // SAFETY: The host keeps the document's layout inputs alive and unchanged
-    // while computing fragments. Nested measurements only mutate side caches.
-    let arena = unsafe { LayoutNodeArena::from_handle(host.arena) };
-    let callbacks = LayoutPass::new(arena, host);
-    let sink = unsafe { &*sink };
-    // As for a subtree layout: the replayed box's own subtree is what is about to be laid out.
-    arena.recompute_containing_blocks_in_subtree(box_, host.inline_containing_block_lookup);
-    let containing_block = callbacks.containing_block(box_);
-    assert!(!containing_block.is_invalid());
-    let entry_fragments = std::rc::Rc::new(fragment_tree::RunFragmentBuilder::new_entry_accumulator(
-        containing_block,
-    ));
-    let pass_fragments = RunRecords::with_unrooted(arena, containing_block, |entry_records| {
-        let run = FormattingContextRun {
-            purpose: LayoutPurpose::Commit,
-            records: entry_records,
-            box_: containing_block,
-            layout_mode: LayoutMode::Normal,
-            callbacks,
-            should_collect_devtools_layout_data: false,
-            treat_block_axis_percentage_insets_as_auto_beyond_root: false,
-            fragments: Some(entry_fragments.clone()),
-            previous_line_data: None,
+    let root = run.box_;
+    let callbacks = &run.callbacks;
+    let root_used = used_values::used_values_from_committed_fragment_link(callbacks, root)
+        .expect("partial relayout root must have committed geometry");
+    run.records.register(root, root_used.clone());
+    let fragments = run.fragments.as_deref().expect("partial relayout must build fragments");
+    if !viewport.is_invalid() && viewport != root {
+        let viewport_constraints = ContainingBlockConstraints {
+            percentage_basis_inline_size: Some(viewport_inline_size),
+            percentage_basis_block_size: Some(viewport_block_size),
+            ..ContainingBlockConstraints::default()
         };
-        abspos_engine::AbsposEngine::for_run(&run).replay(&run, box_);
-        finish_entry_pass(entry_records, &entry_fragments, &callbacks, false)
-    });
-    // SAFETY: Computation has finished and its input borrows are no longer used.
-    let arena = unsafe { commit_entry_pass(host, box_, &pass_fragments, sink) };
-    schedule_scrollable_overflow_recalculation_for_relaid_out_root(arena, box_);
+        let viewport_used = run
+            .records
+            .create_used_values(callbacks, viewport, viewport_constraints);
+        viewport_used.set_content_inline_size(viewport_inline_size);
+        viewport_used.set_content_block_size(viewport_block_size);
+        place_child(run, viewport, FfiCssPixelPoint::default(), None);
+    }
+    let input = LayoutInput::new(
+        AvailableSpace {
+            inline_size: AvailableSize::definite(root_used.content_inline_size.get()),
+            block_size: AvailableSize::definite(root_used.content_block_size.get()),
+        },
+        // The subtree root has definite sizes in both axes, so boxes
+        // below it do not need inherited percentage constraints.
+        ContainingBlockConstraints::default(),
+        ParticipationInParentFormattingContext::Root,
+    );
+
+    let facts = NodeFacts::new(callbacks, root);
+    debug_assert!(facts.is_svg_svg_box());
+    let fc_type = formatting_context_type_created_by_box(facts)
+        .expect("partial relayout root must establish an independent formatting context");
+    run_formatting_context(
+        run.purpose,
+        Some(fragments),
+        &root_used,
+        root,
+        None,
+        fc_type,
+        run.layout_mode,
+        run.should_collect_devtools_layout_data,
+        *callbacks,
+        input,
+        None,
+        None,
+    );
+    // The retained offset already includes relative positioning. Publish it directly instead
+    // of applying placement adjustments a second time.
+    fragments.normalize_arrivals_for_placement(root);
+    fragments.build_fragment_for_placed_box(
+        callbacks,
+        root,
+        None,
+        &root_used,
+        false,
+        None,
+        root_used.content_offset.get(),
+        None,
+    );
 }
