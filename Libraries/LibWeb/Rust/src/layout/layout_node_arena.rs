@@ -308,12 +308,6 @@ struct IntrinsicSizeCacheSlot {
     sizes: Option<Box<IntrinsicSizeMaps>>,
 }
 
-#[derive(Default)]
-struct SavedAbsposLayoutInputsSlot {
-    generation: u8,
-    inputs: Option<Box<AbsposLayoutInputs>>,
-}
-
 #[derive(Clone, Copy, Default)]
 struct DefaultScrollShiftAnchorSlot {
     generation: u8,
@@ -540,7 +534,6 @@ pub(crate) struct LayoutNodeArena {
     intrinsic_size_caches: RefCell<Vec<IntrinsicSizeCacheSlot>>,
     table_cell_measurement_cache_misses: Cell<u64>,
     intrinsic_measurements: Cell<u64>,
-    saved_abspos_layout_inputs: RefCell<Vec<SavedAbsposLayoutInputsSlot>>,
     default_scroll_shift_anchors: RefCell<Vec<DefaultScrollShiftAnchorSlot>>,
     any_default_scroll_shift_anchor_ever_stored: Cell<bool>,
     text_nodes: Vec<TextNodeSlot>,
@@ -592,7 +585,6 @@ impl LayoutNodeArena {
             intrinsic_size_caches: RefCell::new(Vec::new()),
             table_cell_measurement_cache_misses: Cell::new(0),
             intrinsic_measurements: Cell::new(0),
-            saved_abspos_layout_inputs: RefCell::new(Vec::new()),
             default_scroll_shift_anchors: RefCell::new(Vec::new()),
             any_default_scroll_shift_anchor_ever_stored: Cell::new(false),
             text_nodes: Vec::new(),
@@ -868,9 +860,6 @@ impl LayoutNodeArena {
 
         if let Some(slot) = self.intrinsic_size_caches.get_mut().get_mut(index as usize) {
             *slot = IntrinsicSizeCacheSlot::default();
-        }
-        if let Some(slot) = self.saved_abspos_layout_inputs.get_mut().get_mut(index as usize) {
-            *slot = SavedAbsposLayoutInputsSlot::default();
         }
         if let Some(slot) = self.default_scroll_shift_anchors.get_mut().get_mut(index as usize) {
             *slot = DefaultScrollShiftAnchorSlot::default();
@@ -1969,68 +1958,10 @@ impl LayoutNodeArena {
 
     pub(crate) fn saved_abspos_layout_inputs(&self, data: &NodeData) -> Option<AbsposLayoutInputs> {
         let (index, metadata) = self.slot_for_data(data);
-        let slots = self.saved_abspos_layout_inputs.borrow();
-        let inputs = slots
-            .get(index as usize)
-            .filter(|slot| slot.generation == metadata.generation)
-            .and_then(|slot| slot.inputs.as_deref().copied());
-
-        let flags = data.flags.get();
-        assert_eq!(
-            flags & NodeFlag::HasSavedAbsposLayoutInputs as u32 != 0,
-            inputs.is_some(),
-            "saved abspos input presence flag disagrees with the arena side table"
-        );
-        assert_eq!(
-            flags & NodeFlag::SavedAbsposCbDerivesFromOwnComputedValues as u32 != 0,
-            inputs.is_some_and(|inputs| inputs.containing_block_info.derives_from_own_computed_values),
-            "saved abspos containing-block flag disagrees with the arena side table"
-        );
-        assert_eq!(
-            flags & NodeFlag::SavedAbsposAlignmentDerivesFromOwnComputedValues as u32 != 0,
-            inputs.is_some_and(|inputs| { inputs.static_position_rect.alignment_derives_from_own_computed_values }),
-            "saved abspos alignment flag disagrees with the arena side table"
-        );
-        inputs
-    }
-
-    pub(crate) fn set_saved_abspos_layout_inputs(&self, data: &NodeData, inputs: Option<AbsposLayoutInputs>) {
-        let (index, metadata) = self.slot_for_data(data);
-        let mut slots = self.saved_abspos_layout_inputs.borrow_mut();
-        if slots.len() <= index as usize {
-            slots.resize_with(index as usize + 1, SavedAbsposLayoutInputsSlot::default);
-        }
-        let slot = &mut slots[index as usize];
-        if slot.generation != metadata.generation {
-            *slot = SavedAbsposLayoutInputsSlot {
-                generation: metadata.generation,
-                inputs: inputs.map(Box::new),
-            };
-        } else if let Some(inputs) = inputs {
-            if let Some(saved_inputs) = &mut slot.inputs {
-                **saved_inputs = inputs;
-            } else {
-                slot.inputs = Some(Box::new(inputs));
-            }
-        } else {
-            slot.inputs = None;
-        }
-        drop(slots);
-
-        let saved_abspos_flags = NodeFlag::HasSavedAbsposLayoutInputs as u32
-            | NodeFlag::SavedAbsposCbDerivesFromOwnComputedValues as u32
-            | NodeFlag::SavedAbsposAlignmentDerivesFromOwnComputedValues as u32;
-        let mut value = data.flags.get() & !saved_abspos_flags;
-        if let Some(inputs) = inputs {
-            value |= NodeFlag::HasSavedAbsposLayoutInputs as u32;
-            if inputs.containing_block_info.derives_from_own_computed_values {
-                value |= NodeFlag::SavedAbsposCbDerivesFromOwnComputedValues as u32;
-            }
-            if inputs.static_position_rect.alignment_derives_from_own_computed_values {
-                value |= NodeFlag::SavedAbsposAlignmentDerivesFromOwnComputedValues as u32;
-            }
-        }
-        data.flags.set(value);
+        self.paintable_rows
+            .with_committed_fragment_link(index, metadata.generation, |link| {
+                link.and_then(|link| link.abspos_layout_inputs)
+            })
     }
 
     pub(crate) fn set_default_scroll_shift(
@@ -3273,6 +3204,9 @@ pub unsafe extern "C" fn layout_arena_set_table_spans(
 mod tests {
     use std::cell::Cell;
 
+    use crate::layout::abspos_inputs::{
+        AbsposAxisMode, AbsposContainingBlockInfo, AbsposLayoutInputs, StaticPositionAlignment, StaticPositionRect,
+    };
     use crate::layout::layout_node_arena::{
         Chunk, FfiDerivedStyleRecord, IntrinsicBlockSizeMeasurement, IntrinsicInlineSizeMeasurement,
         IntrinsicSizeCacheKey, IntrinsicSizeCacheKind, LayoutNodeArena, SLOTS_PER_CHUNK, TableCellMeasurement,
@@ -3609,12 +3543,39 @@ mod tests {
         arena.free_subtree(second.slot).destroy_shells_and_invoke_callbacks();
     }
 
+    fn test_abspos_layout_inputs() -> AbsposLayoutInputs {
+        AbsposLayoutInputs {
+            static_position_rect: StaticPositionRect {
+                rect: Default::default(),
+                inline_alignment: StaticPositionAlignment::Center,
+                block_alignment: StaticPositionAlignment::End,
+                alignment_derives_from_own_computed_values: true,
+            },
+            containing_block_info: AbsposContainingBlockInfo {
+                rect: Default::default(),
+                inline_axis_mode: AbsposAxisMode::StaticPosition,
+                block_axis_mode: AbsposAxisMode::InsetFromRect,
+                inline_alignment: None,
+                block_alignment: None,
+                derives_from_own_computed_values: true,
+            },
+            resolved_anchor_insets: None,
+        }
+    }
+
     #[test]
-    fn clearing_a_committed_box_evicts_its_fragment_link() {
+    fn clearing_a_committed_box_evicts_its_fragment_link_and_abspos_inputs() {
         let mut arena = LayoutNodeArena::new();
         let allocation = arena.allocate_for_test();
-        arena.set_committed_fragment_link(arena.data(allocation.slot), test_fragment_link(allocation.slot));
+        let inputs = test_abspos_layout_inputs();
+        let mut link = test_fragment_link(allocation.slot);
+        link.abspos_layout_inputs = Some(inputs);
+        arena.set_committed_fragment_link(arena.data(allocation.slot), link);
         assert!(arena.committed_fragment_link(arena.data(allocation.slot)).is_some());
+        assert_eq!(
+            arena.saved_abspos_layout_inputs(arena.data(allocation.slot)),
+            Some(inputs)
+        );
 
         // SAFETY: arena is a live handle on this thread, and allocation names
         // a live slot in it.
@@ -3626,17 +3587,20 @@ mod tests {
         }
 
         assert!(arena.committed_fragment_link(arena.data(allocation.slot)).is_none());
+        assert_eq!(arena.saved_abspos_layout_inputs(arena.data(allocation.slot)), None);
         arena
             .free_subtree(allocation.slot)
             .destroy_shells_and_invoke_callbacks();
     }
 
     #[test]
-    fn committed_fragment_links_move_between_slots() {
+    fn committed_fragment_links_move_abspos_inputs_between_slots() {
         let mut arena = LayoutNodeArena::new();
         let old = arena.allocate_for_test();
         let new = arena.allocate_for_test();
-        let link = test_fragment_link(old.slot);
+        let inputs = test_abspos_layout_inputs();
+        let mut link = test_fragment_link(old.slot);
+        link.abspos_layout_inputs = Some(inputs);
         let retained_fragment = link.fragment.clone();
         arena.set_committed_fragment_link(arena.data(old.slot), link);
 
@@ -3647,10 +3611,14 @@ mod tests {
         arena.set_committed_fragment_link(arena.data(new.slot), moved);
 
         assert!(arena.committed_fragment_link(arena.data(old.slot)).is_none());
+        assert_eq!(arena.saved_abspos_layout_inputs(arena.data(old.slot)), None);
+        assert_eq!(arena.saved_abspos_layout_inputs(arena.data(new.slot)), Some(inputs));
         let moved = arena
             .committed_fragment_link(arena.data(new.slot))
             .expect("new slot must receive the committed fragment");
         assert!(std::rc::Rc::ptr_eq(&moved.fragment, &retained_fragment));
+        arena.set_committed_fragment_link(arena.data(new.slot), test_fragment_link(new.slot));
+        assert_eq!(arena.saved_abspos_layout_inputs(arena.data(new.slot)), None);
         arena.free_subtree(old.slot).destroy_shells_and_invoke_callbacks();
         arena.free_subtree(new.slot).destroy_shells_and_invoke_callbacks();
     }

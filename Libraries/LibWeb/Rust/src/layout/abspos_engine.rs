@@ -2009,10 +2009,10 @@ impl<'pass> AbsposEngine<'pass> {
     }
 
     pub(super) fn replay(&self, run: &FormattingContextRun<'pass>, node: Node) {
-        let saved_inputs = self.callbacks.saved_abspos_layout_inputs(node);
-        let found = saved_inputs.is_some();
-        assert!(found);
-        let mut inputs = saved_inputs.unwrap();
+        let mut inputs = self
+            .callbacks
+            .saved_abspos_layout_inputs(node)
+            .expect("abspos relayout root must have committed layout inputs");
         if !inputs.containing_block_info.derives_from_own_computed_values {
             let (inline, block) = axis_modes(
                 self.style(node)

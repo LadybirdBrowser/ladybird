@@ -1883,7 +1883,6 @@ static void relayout_subtree(Layout::Box& subtree_root)
     // the previous commit. The commit sink resolves the committed row to splice out in either
     // path.
     if (subtree_root.is_absolutely_positioned()) {
-        VERIFY(subtree_root.has_saved_abspos_layout_inputs());
         bridge.replay_saved_abspos_layout(subtree_root);
     } else {
         bridge.compute_subtree_layout(subtree_root);

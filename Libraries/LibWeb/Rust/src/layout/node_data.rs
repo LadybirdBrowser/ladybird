@@ -158,9 +158,6 @@ pub enum NodeFlag {
     UsesButtonLayout = 1 << 16,
     IsEditingHost = 1 << 17,
     ReplacedBoxCanHaveChildren = 1 << 18,
-    HasSavedAbsposLayoutInputs = 1 << 19,
-    SavedAbsposCbDerivesFromOwnComputedValues = 1 << 20,
-    SavedAbsposAlignmentDerivesFromOwnComputedValues = 1 << 21,
     ProducesLineBoxFragmentWhenEmpty = 1 << 22,
     ListMarkerIsInside = 1 << 23,
     HasAnchorNames = 1 << 24,
@@ -301,17 +298,6 @@ mod tests {
         assert_eq!(id.slot_index(), MAX_NODE_SLOT_COUNT - 1);
         assert_eq!(id.generation(), u8::MAX);
         assert_ne!(id, NodeSlotId::INVALID);
-    }
-
-    #[test]
-    fn saved_abspos_flags_use_previously_unassigned_bits() {
-        assert_eq!(NodeFlag::IsReplacedElement as u32, 1 << 12);
-        assert_eq!(NodeFlag::HasSavedAbsposLayoutInputs as u32, 1 << 19);
-        assert_eq!(NodeFlag::SavedAbsposCbDerivesFromOwnComputedValues as u32, 1 << 20);
-        assert_eq!(
-            NodeFlag::SavedAbsposAlignmentDerivesFromOwnComputedValues as u32,
-            1 << 21
-        );
     }
 
     #[test]
