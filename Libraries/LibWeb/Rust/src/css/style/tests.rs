@@ -9352,6 +9352,48 @@ fn identical_sheet_sets_share_a_scope_program() {
 }
 
 #[test]
+fn equivalent_documents_share_only_semantically_identical_dispatch_topology() {
+    let make_engine = |atom| {
+        let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+        engine.programs = selector::SelectorPrograms::for_replay();
+        let program = engine
+            .programs
+            .add(test_selector_program(".target", &[("target", atom)]));
+        let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::User);
+        engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+        let rule = engine.append_rule(sheet, None, RuleKind::Style);
+        let mut version = engine.program.rule_version(rule);
+        version.selector_program = Some(program);
+        engine.replace_rule_version(rule, version);
+        discard_transaction(&mut engine);
+        engine
+    };
+    let mut first_engine = make_engine(StyleAtomID(200));
+    let mut second_engine = make_engine(StyleAtomID(200));
+    let mut different_engine = make_engine(StyleAtomID(201));
+    let (_, first) = first_engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    let (_, second) = second_engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    let (_, different) = different_engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    assert!(first.shares_topology_with(&second));
+    assert!(first.shares_entries_with(&second));
+    assert!(!first.shares_topology_with(&different));
+
+    // The last scope to publish a template can die while an earlier scope still owns its data.
+    drop(second);
+    drop(second_engine);
+    let mut second_engine = make_engine(StyleAtomID(200));
+    let (_, second) = second_engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    assert!(first.shares_topology_with(&second));
+
+    drop(first);
+    drop(first_engine);
+    second_engine.invalidate_scope_programs();
+    let (_, rebuilt) = second_engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    assert!(second.shares_topology_with(&rebuilt));
+    assert_eq!(rebuilt.entry_at(0).program, second.entry_at(0).program);
+}
+
+#[test]
 fn equivalent_sheet_programs_share_dispatch_topology() {
     let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
     let selector_program = engine

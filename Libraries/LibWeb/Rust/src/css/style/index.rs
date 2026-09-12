@@ -2050,6 +2050,7 @@ struct DispatchEntryBinding {
 
 struct RuleDispatchEntries {
     rows: Vec<DispatchEntryMetadata>,
+    entry_rows: Vec<Vec<DispatchRow>>,
     residency: MemoryLease,
 }
 
@@ -2057,6 +2058,7 @@ impl Clone for RuleDispatchEntries {
     fn clone(&self) -> Self {
         Self {
             rows: self.rows.clone(),
+            entry_rows: self.entry_rows.clone(),
             residency: MemoryLease::new(MemoryCategory::RuleProgram),
         }
     }
@@ -2066,6 +2068,7 @@ impl Default for RuleDispatchEntries {
     fn default() -> Self {
         Self {
             rows: Vec::new(),
+            entry_rows: Vec::new(),
             residency: MemoryLease::new(MemoryCategory::RuleProgram),
         }
     }
@@ -2074,9 +2077,9 @@ impl Default for RuleDispatchEntries {
 impl RuleDispatchEntries {
     fn capacity_bytes(&self) -> u64 {
         capacity_bytes! {
-            shallow [self.rows];
+            shallow [self.rows, self.entry_rows];
             cached [];
-            nested [];
+            nested [self.entry_rows.iter().map(|rows| rows.capacity() * size_of::<DispatchRow>()).sum::<usize>()];
             skip [self.residency];
         }
     }
@@ -2434,7 +2437,6 @@ pub(super) struct AncestorDispatchTopologyID(*const AncestorDispatchTopology);
 pub struct RuleDispatch {
     entries: Rc<RuleDispatchEntries>,
     entry_bindings: Vec<DispatchEntryBinding>,
-    entry_rows: Vec<Vec<DispatchRow>>,
     /// Direct cascade-order projection for every rule represented in this dispatch. Rule
     /// identities are program indices, so retained answers can restore an entry's order without
     /// searching the dispatch's much larger candidate table. Sparse pages keep a scope containing
@@ -2447,12 +2449,48 @@ pub struct RuleDispatch {
     residency: MemoryLease,
 }
 
+impl Drop for RuleDispatchEntries {
+    fn drop(&mut self) {
+        super::matching::forget_dead_shared_dispatches();
+    }
+}
+
+/// Weak references to the actual shared storage, independent of a particular scope wrapper.
+pub(super) struct WeakRuleDispatch {
+    entries: std::rc::Weak<RuleDispatchEntries>,
+    topology: std::rc::Weak<RuleDispatchTopology>,
+}
+
+impl WeakRuleDispatch {
+    pub(super) fn is_alive(&self) -> bool {
+        self.entries.strong_count() != 0 && self.topology.strong_count() != 0
+    }
+
+    pub(super) fn upgrade(&self) -> Option<RuleDispatch> {
+        Some(RuleDispatch {
+            entries: self.entries.upgrade()?,
+            topology: self.topology.upgrade()?,
+            entry_bindings: Vec::new(),
+            cascade_order_rule_pages: Vec::new(),
+            cascade_orders_by_rule_entry: Vec::new(),
+            cascade_properties: Vec::new(),
+            cascade_entries: Vec::new(),
+            residency: MemoryLease::new(MemoryCategory::RuleProgram),
+        })
+    }
+}
+
+impl Drop for RuleDispatchTopology {
+    fn drop(&mut self) {
+        super::matching::forget_dead_shared_dispatches();
+    }
+}
+
 impl Default for RuleDispatch {
     fn default() -> Self {
         Self {
             entries: Rc::new(RuleDispatchEntries::default()),
             entry_bindings: Vec::new(),
-            entry_rows: Vec::new(),
             cascade_order_rule_pages: Vec::new(),
             cascade_orders_by_rule_entry: Vec::new(),
             cascade_properties: Vec::new(),
@@ -2483,6 +2521,13 @@ impl Default for CascadeOrderRule {
 }
 
 impl RuleDispatch {
+    pub(super) fn downgrade(&self) -> WeakRuleDispatch {
+        WeakRuleDispatch {
+            entries: Rc::downgrade(&self.entries),
+            topology: Rc::downgrade(&self.topology),
+        }
+    }
+
     #[must_use]
     pub fn new() -> Self {
         Self::default()
@@ -2532,7 +2577,6 @@ impl RuleDispatch {
                     cascade_order_index: u32::MAX,
                 })
                 .collect(),
-            entry_rows: template.entry_rows.clone(),
             cascade_order_rule_pages: Vec::new(),
             cascade_orders_by_rule_entry: Vec::new(),
             cascade_properties: Vec::new(),
@@ -2637,10 +2681,11 @@ impl RuleDispatch {
             rule: entry.rule,
             cascade_order_index: u32::MAX,
         });
-        if self.entry_rows.len() <= entry.identity.0 as usize {
-            self.entry_rows.resize_with(entry.identity.0 as usize + 1, Vec::new);
+        let entries = Rc::make_mut(&mut self.entries);
+        if entries.entry_rows.len() <= entry.identity.0 as usize {
+            entries.entry_rows.resize_with(entry.identity.0 as usize + 1, Vec::new);
         }
-        self.entry_rows[entry.identity.0 as usize].push(id);
+        entries.entry_rows[entry.identity.0 as usize].push(id);
         self.topology_mut().buckets.entry(key).or_default().push(id);
         if key == DispatchKey::Universal {
             self.index_universal_entry(id);
@@ -2683,7 +2728,8 @@ impl RuleDispatch {
     }
 
     pub(super) fn entries_for_identity(&self, entry: EntryID) -> impl Iterator<Item = DispatchEntry> + '_ {
-        self.entry_rows
+        self.entries
+            .entry_rows
             .get(entry.0 as usize)
             .into_iter()
             .flatten()
@@ -3098,7 +3144,6 @@ impl RuleDispatch {
         capacity_bytes! {
             shallow [
                 self.entry_bindings,
-                self.entry_rows,
                 self.cascade_order_rule_pages,
                 self.cascade_orders_by_rule_entry,
                 self.cascade_properties,
@@ -3111,11 +3156,6 @@ impl RuleDispatch {
                     .iter()
                     .flatten()
                     .map(|page| size_of_val(page.as_ref()))
-                    .sum::<usize>(),
-                self
-                    .entry_rows
-                    .iter()
-                    .map(|rows| rows.capacity() * size_of::<DispatchRow>())
                     .sum::<usize>(),
             ];
             skip [self.entries, self.residency];
@@ -3165,6 +3205,10 @@ impl RuleDispatch {
 
     pub(super) fn settle_memory(&mut self, memory: &mut MemoryController) {
         self.residency.resize_required_to(memory, self.scope_capacity_bytes());
+        self.settle_topology_memory(memory);
+    }
+
+    pub(super) fn settle_topology_memory(&mut self, memory: &mut MemoryController) {
         if let Some(entries) = Rc::get_mut(&mut self.entries) {
             entries.residency.resize_required_to(memory, entries.capacity_bytes());
         }

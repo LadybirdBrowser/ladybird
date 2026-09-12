@@ -13,6 +13,59 @@ use super::*;
 
 const MIN_SHARED_CASCADE_COMPLETION_SAVINGS: usize = 8;
 
+#[derive(PartialEq, Eq, Hash)]
+struct SharedDispatchKey(Vec<SharedDispatchProgram>);
+
+#[derive(PartialEq, Eq, Hash)]
+struct SharedDispatchProgram {
+    program: SelectorProgramID,
+    identity: selector::SharedSelectorIdentity,
+    entries: Box<[program::EntryID]>,
+    author: bool,
+}
+
+impl SharedDispatchKey {
+    fn new(shape: &ScopeDispatchShape, programs: &selector::SelectorPrograms) -> Option<Self> {
+        if shape.0.is_empty() {
+            return None;
+        }
+        shape
+            .0
+            .iter()
+            .map(|&(program, author)| {
+                let (identity, entries) = programs.shared_dispatch_identity(program)?;
+                Some(SharedDispatchProgram {
+                    program,
+                    identity,
+                    entries,
+                    author,
+                })
+            })
+            .collect::<Option<Vec<_>>>()
+            .map(Self)
+    }
+}
+
+struct SharedDispatches {
+    templates: HashMap<SharedDispatchKey, index::WeakRuleDispatch>,
+    memory: memory::MemoryController,
+}
+
+thread_local! {
+    static SHARED_DISPATCHES: RefCell<SharedDispatches> = RefCell::new(SharedDispatches {
+        templates: HashMap::default(),
+        memory: memory::MemoryController::new(memory::DeviceClass::ForegroundDesktop),
+    });
+}
+
+pub(super) fn forget_dead_shared_dispatches() {
+    let _ = SHARED_DISPATCHES.try_with(|shared| {
+        if let Ok(mut shared) = shared.try_borrow_mut() {
+            shared.templates.retain(|_, template| template.is_alive());
+        }
+    });
+}
+
 #[derive(Default)]
 pub(crate) struct SelectorQueryCache {
     attribute_value_catalog_version: u64,
@@ -1061,7 +1114,21 @@ impl StyleEngine {
             layer_order: self.program.layer_order_key(scope),
         };
         let cascade_template = self.scope_cascade_templates.get(&cascade_shape).cloned();
-        let exact_template = self.scope_dispatch_templates.get(&shape).cloned();
+        // Document-local selector and entry numbers are embedded in the topology. Share only
+        // when those numbers AND their process-interned semantic payloads agree. Rule bindings,
+        // cascade ranks, and every element-dependent result are rebuilt for this document.
+        let shared_key = SharedDispatchKey::new(&shape, &self.programs);
+        let exact_template = self.scope_dispatch_templates.get(&shape).cloned().or_else(|| {
+            let key = shared_key.as_ref()?;
+            SHARED_DISPATCHES.with_borrow_mut(|shared| {
+                shared.templates.retain(|_, template| template.is_alive());
+                shared
+                    .templates
+                    .get(key)
+                    .and_then(index::WeakRuleDispatch::upgrade)
+                    .map(Rc::new)
+            })
+        });
         let extension_template = exact_template.is_none().then(|| {
             // Extending a template copies its topology first. Require the retained prefix to cover
             // at least half the resulting entries so copying cannot dominate a small cold build.
@@ -1137,8 +1204,16 @@ impl StyleEngine {
                 Some(declared.iter().map(|property| property.property))
             },
         );
+        if shared_key.is_some() {
+            SHARED_DISPATCHES.with_borrow_mut(|shared| dispatch.settle_topology_memory(&mut shared.memory));
+        }
         dispatch.settle_memory(&mut self.memory);
         let dispatch = Rc::new(dispatch);
+        if let Some(key) = shared_key {
+            SHARED_DISPATCHES.with_borrow_mut(|shared| {
+                shared.templates.insert(key, dispatch.downgrade());
+            });
+        }
         self.scope_cascade_templates
             .entry(cascade_shape)
             .or_insert_with(|| Rc::clone(&dispatch));
