@@ -237,6 +237,30 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Core::EventLoop::current().spin_until([&] { return restored_view_loads_finished >= 1 && restored_view->url() == closed_tab_url; });
     VERIFY(restored_view->traversable().session_history().current_entry()->url == closed_tab_url);
 
+    // A replacement process's bootstrap document must stay hidden until the destination is activated.
+    // Otherwise it can paint over the outgoing page while the destination is still being prepared.
+    restored_view->replace_web_content_process_for_history_traversal(restored_view->traversable().session_history().current_entry()->document_state.id);
+    auto document_is_hidden = [&] {
+        Optional<bool> hidden;
+        restored_view->on_request_alert = [&](Utf16String const& value) {
+            hidden = value == "hidden"_utf16;
+            restored_view->alert_closed();
+        };
+        restored_view->run_javascript("alert(document.visibilityState)"_string);
+        Core::EventLoop::current().spin_until([&] { return hidden.has_value(); });
+        restored_view->on_request_alert = nullptr;
+        return *hidden;
+    };
+    VERIFY(document_is_hidden());
+    restored_view->set_system_visibility_state(Web::HTML::VisibilityState::Hidden);
+    restored_view->set_system_visibility_state(Web::HTML::VisibilityState::Visible);
+    VERIFY(document_is_hidden());
+    auto loads_before_replacement_reload = restored_view_loads_finished;
+    restored_view->reload();
+    Core::EventLoop::current().spin_until([&] { return restored_view_loads_finished > loads_before_replacement_reload; });
+    VERIFY(!document_is_hidden());
+    VERIFY(restored_view->url() == closed_tab_url);
+
     outln("PASS: browser history traversal");
     return 0;
 }

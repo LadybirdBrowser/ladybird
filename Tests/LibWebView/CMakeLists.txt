@@ -158,6 +158,12 @@ if (BUILD_TESTING AND NOT WIN32)
     set_tests_properties(TestWebDriverSiteZoom PROPERTIES TIMEOUT 120)
 
     add_test(
+        NAME TestWebDriverSiteZoomWithSiteIsolation
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-site-zoom.py $<TARGET_FILE:WebDriver>
+    )
+    set_tests_properties(TestWebDriverSiteZoomWithSiteIsolation PROPERTIES TIMEOUT 120 ENVIRONMENT "LADYBIRD_WEBDRIVER_ENABLE_SITE_ISOLATION=1")
+
+    add_test(
         NAME TestWebDriverErrorKeepAlive
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-error-keep-alive.py $<TARGET_FILE:WebDriver>
     )
