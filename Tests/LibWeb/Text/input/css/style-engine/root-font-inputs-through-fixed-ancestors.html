@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const frame = document.createElement("iframe");
+        frame.style.cssText = "width: 200px; height: 100px; border: 0";
+        frame.srcdoc = `<!DOCTYPE html>
+            <style>
+                html { font-size: 20px; line-height: 30px }
+                html.changed { font-size: 40px; line-height: 50px }
+                .fixed { font-size: 10px; line-height: 10px }
+                .target { margin-left: 2rem; margin-right: 2rlh }
+                .target::before { content: ""; margin-left: 3rem; margin-right: 3rlh }
+                .target.extra { padding: 1px }
+            </style>
+            <div class="fixed"><div class="fixed" id="parent"><span class="target" id="target"></span></div></div>`;
+        const loaded = new Promise(resolve => frame.addEventListener("load", resolve, { once: true }));
+        document.body.appendChild(frame);
+        await loaded;
+        const child = frame.contentWindow;
+        const root = child.document.documentElement;
+        const parent = child.document.getElementById("parent");
+        const target = child.document.getElementById("target");
+        const values = element => {
+            const style = child.getComputedStyle(element);
+            const pseudo = child.getComputedStyle(element, "::before");
+            return `${style.marginLeft}/${style.marginRight}, pseudo ${pseudo.marginLeft}/${pseudo.marginRight}`;
+        };
+        println(`initial: ${values(target)}`);
+        const before = child.internals.styleEngineCounters();
+        root.classList.add("changed");
+        const added = child.document.createElement("span");
+        added.className = "target";
+        parent.appendChild(added);
+        println(`root change: ${values(target)}; new: ${values(added)}`);
+        println(`fixed parent: ${child.getComputedStyle(parent).fontSize}/${child.getComputedStyle(parent).lineHeight}`);
+        added.classList.add("extra");
+        println(`incremental child: ${values(added)}`);
+        root.classList.remove("changed");
+        println(`root restored: ${values(target)}; new: ${values(added)}`);
+
+        // Equal current values must still acquire the viewport dependency of the new expression.
+        root.style.fontSize = "10vw";
+        println(`equal viewport expression: ${values(target)}`);
+        frame.style.width = "400px";
+        document.body.offsetWidth;
+        println(`viewport change: ${values(target)}; new: ${values(added)}`);
+        root.style.fontSize = "40px";
+        println(`equal constant: ${values(target)}`);
+        frame.style.width = "200px";
+        document.body.offsetWidth;
+        println(`viewport after constant: ${values(target)}; new: ${values(added)}`);
+        const after = child.internals.styleEngineCounters();
+        println(`engine computation exercised: ${after.engineComputedRecordDeltas > before.engineComputedRecordDeltas}`);
+    });
+</script>
