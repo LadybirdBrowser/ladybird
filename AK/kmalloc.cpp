@@ -14,6 +14,9 @@
 #    define AK_USE_SYSTEM_ALLOCATOR_INSTRUMENTED 1
 #else
 #    include <mimalloc.h>
+#    ifdef AK_OS_MACOS
+#        include <mach/vm_statistics.h>
+#    endif
 #endif
 
 #ifdef AK_USE_SYSTEM_ALLOCATOR_INSTRUMENTED
@@ -59,12 +62,17 @@ void ak_kmalloc_collect()
 
 #else
 
-#    ifdef AK_OS_LINUX
+#    if defined(AK_OS_LINUX) || defined(AK_OS_MACOS)
 static struct MimallocConfiguration {
     MimallocConfiguration()
     {
+#        ifdef AK_OS_MACOS
+        // Keep mimalloc allocations separate from IOAccelerator, which uses mimalloc's default tag of 100.
+        mi_option_set_default(mi_option_os_tag, VM_MEMORY_APPLICATION_SPECIFIC_1);
+#        else
         // mimalloc otherwise purges with MADV_DONTNEED, and every later reuse of a purged page takes a page fault.
         mi_option_set_default(mi_option_purge_decommits, 0);
+#        endif
     }
 } s_mimalloc_configuration;
 #    endif
