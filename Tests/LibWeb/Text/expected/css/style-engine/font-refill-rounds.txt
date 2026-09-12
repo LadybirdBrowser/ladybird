@@ -1,0 +1,12 @@
+synchronous refill exercised: true
+each request resumes its drive: true
+element: 23px
+child: 46px, 92px
+grandchild: 92px, 184px
+before: 58px
+after: 62px
+warm table needs no refill: true
+metric observation finishes before load: unloaded
+explicit completion: loaded
+loaded metrics replace fallback: true
+removal restores fallback: true

@@ -206,28 +206,40 @@ impl StyleEngineState {
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
     ) -> Option<(computed::FinalStyleRecordID, computed::FinalStyleRecordID)> {
-        scratch.pseudo_deltas.clear();
-        scratch.flipped_pseudo_rules.clear();
-        scratch.flipped_pseudo_rules.extend(
-            exact_flipped_rules
-                .into_iter()
-                .flatten()
-                .filter(|flip| flip.pseudo_kind.is_some()),
-        );
-        if parent_inputs_moved.inherited_style && !self.engine_marker_font_supported(node, counters) {
-            return None;
+        let pending_element = scratch.pending_element.take();
+        if pending_element.is_none() {
+            scratch.pseudo_deltas.clear();
+            scratch.next_pseudo = 0;
+            scratch.pseudo_uses_substitution = false;
+            scratch.flipped_pseudo_rules.clear();
+            scratch.flipped_pseudo_rules.extend(
+                exact_flipped_rules
+                    .into_iter()
+                    .flatten()
+                    .filter(|flip| flip.pseudo_kind.is_some()),
+            );
+            if parent_inputs_moved.inherited_style && !self.engine_marker_font_supported(node, counters) {
+                return None;
+            }
+            if !self.engine_pseudo_inputs_available(
+                node,
+                self.computed_group_sets.assigned_style_record(node),
+                counters,
+            ) {
+                return None;
+            }
         }
-        if !self.engine_pseudo_inputs_available(node, self.computed_group_sets.assigned_style_record(node), counters) {
-            return None;
-        }
-        let delta = self.engine_computed_element_record_delta(
-            node,
-            cascade_winners_are_complete,
-            exact_flipped_rules,
-            parent_inputs_moved,
-            scratch,
-            counters,
-        )?;
+        let delta = match pending_element {
+            Some(delta) => delta,
+            None => self.engine_computed_element_record_delta(
+                node,
+                cascade_winners_are_complete,
+                exact_flipped_rules,
+                parent_inputs_moved,
+                scratch,
+                counters,
+            )?,
+        };
         // The element's pseudo-elements are settled beside its record, as the C++ computation
         // refreshes them after the element's own; a pseudo-element the engine cannot settle
         // sends the whole element to C++.
@@ -237,7 +249,11 @@ impl StyleEngineState {
             .engine_pseudo_records(node, old_style_record, delta.1, generation, scratch, counters)
             .is_none()
         {
-            self.abandon_engine_computed_record(node, scratch, counters);
+            if scratch.font_drive.request.is_some() {
+                scratch.pending_element = Some(delta);
+            } else {
+                self.abandon_engine_computed_record(node, scratch, counters);
+            }
             return None;
         }
         let uses_substitution = self.nodes_with_substituted_records.contains(&node)
@@ -626,7 +642,14 @@ impl StyleEngineState {
         self.note_node_substitution(node, scratch, state, current_environment);
         let (table, length, longhand_evaluations, font) = if full_drive {
             let subject = self.element_drive_subject(node, counters)?;
-            self.engine_full_drive(subject, Some(old_style_record), &store, &inputs, counters)?
+            self.engine_full_drive(
+                subject,
+                Some(old_style_record),
+                &store,
+                &inputs,
+                &mut scratch.font_drive,
+                counters,
+            )?
         } else {
             self.engine_driven_table(node, old_style_record, &store, &selected, &inputs, counters)?
         };
@@ -963,7 +986,9 @@ impl StyleEngineState {
                         .count()
                 })
         });
-        if let Some(donor) = donor {
+        if !scratch.font_drive.is_pending()
+            && let Some(donor) = donor
+        {
             let donor_delta = self.winner_groups.semantic_delta(Some(donor.state), state);
             if let Some((groups_to_rebuild, selected)) =
                 self.cold_record_donor_selection(donor, donor_delta.properties())
@@ -1010,7 +1035,7 @@ impl StyleEngineState {
         }
         let subject = DriveSubject { parent, facts };
         let (table, length, longhand_evaluations, font) =
-            self.engine_full_drive(subject, None, &store, &inputs, counters)?;
+            self.engine_full_drive(subject, None, &store, &inputs, &mut scratch.font_drive, counters)?;
         let font = font.expect("a full drive resolves the font");
         let (new_style_record, swap_eligible) = self.assemble_and_publish_engine_record(
             target,
@@ -1224,6 +1249,51 @@ impl StyleEngineState {
     /// rejected while the batch was planned may become computable once its inheritance parent is
     /// authoritative.
     pub(crate) fn retry_engine_record_after_ancestor(&mut self, node: StyleNodeID, counters: &mut Counters) -> u64 {
+        if let Some(resolver) = &mut self.font_resolver
+            && let Some(inputs) = self.document_style_computation_inputs
+        {
+            resolver.prepare(inputs.font_environment_generation);
+        }
+        let mut scratch = EngineComputedRecordScratch::default();
+        let mut suspended_memory = MemoryLease::new(MemoryCategory::BatchScratch);
+        loop {
+            let record = self.retry_engine_record_after_ancestor_step(node, &mut scratch, counters);
+            let Some(request) = scratch.font_drive.request.take() else {
+                return record;
+            };
+            suspended_memory.resize_required_to(&mut self.memory, scratch.font_drive.capacity_bytes());
+            self.refill_font_request(node, request, counters);
+        }
+    }
+
+    pub(super) fn refill_font_request(
+        &mut self,
+        node: StyleNodeID,
+        request: font_resolution::FontRequest,
+        counters: &mut Counters,
+    ) {
+        counters.bump(Counter::FontRefillRounds);
+        counters.bump(Counter::FontResolutionRequests);
+        // NB: Use resident selector-tree depth for this diagnostic. It is not a flat-tree
+        //     dependency-span proof and must not buy an ancestor traversal just for counting.
+        counters.set(
+            Counter::FontRefillBlockedDepth,
+            counters
+                .get(Counter::FontRefillBlockedDepth)
+                .max(u64::from(self.tree.depth(node)) + 1),
+        );
+        self.font_resolver
+            .as_mut()
+            .expect("a request has a font resolver")
+            .refill(request);
+    }
+
+    fn retry_engine_record_after_ancestor_step(
+        &mut self,
+        node: StyleNodeID,
+        scratch: &mut EngineComputedRecordScratch,
+        counters: &mut Counters,
+    ) -> u64 {
         let facts = self.computed_group_sets.adjustment_facts(node);
         if facts & bridge::element_adjustment_fact::DISALLOW_DISPLAY_CONTENTS != 0 {
             return 0;
@@ -1234,11 +1304,17 @@ impl StyleEngineState {
         else {
             return 0;
         };
-        let mut scratch = EngineComputedRecordScratch::default();
-        if !self.engine_pseudo_inputs_available(node, self.computed_group_sets.assigned_style_record(node), counters) {
+        if !scratch.font_drive.is_pending()
+            && !self.engine_pseudo_inputs_available(
+                node,
+                self.computed_group_sets.assigned_style_record(node),
+                counters,
+            )
+        {
             return 0;
         }
-        if !self.node_declares_custom_properties(node)
+        if !scratch.font_drive.is_pending()
+            && !self.node_declares_custom_properties(node)
             && let Some(old_style_record) = self.computed_group_sets.assigned_style_record(node)
             && let Some(inputs) = self.document_style_computation_inputs
             && let Some(parent) = self.tree.flat_tree_parent(node)
@@ -1267,23 +1343,27 @@ impl StyleEngineState {
                 cascade_state.1,
                 old_style_record,
                 0,
-                &mut scratch,
+                scratch,
                 counters,
             ) {
                 if self
-                    .engine_pseudo_records(node, Some(old_record), record, cascade_state.0, &mut scratch, counters)
+                    .engine_pseudo_records(node, Some(old_record), record, cascade_state.0, scratch, counters)
                     .is_none()
                     || !scratch.pseudo_deltas.is_empty()
                 {
                     // The retry result carries only the originating element's record. Let C++
                     // materialize when pseudo-element records must settle alongside it.
-                    self.abandon_engine_computed_record(node, &mut scratch, counters);
+                    if scratch.font_drive.request.is_some() {
+                        scratch.pending_element = Some((old_record, record));
+                    } else {
+                        self.abandon_engine_computed_record(node, scratch, counters);
+                    }
                     return 0;
                 }
                 return record.raw();
             }
         }
-        if self.computed_group_sets.node_answer_is_incomplete(node) {
+        if !scratch.font_drive.is_pending() && self.computed_group_sets.node_answer_is_incomplete(node) {
             return 0;
         }
         let cascade_winners_are_complete = self
@@ -1298,7 +1378,7 @@ impl StyleEngineState {
                 inherited_style: true,
                 display: true,
             },
-            &mut scratch,
+            scratch,
             counters,
         );
         let Some((_, record)) = record else {
@@ -1307,7 +1387,7 @@ impl StyleEngineState {
         if !scratch.pseudo_deltas.is_empty() {
             // The retry result carries only the originating element's record. Let C++ materialize
             // when pseudo-element records must settle alongside it.
-            self.abandon_engine_computed_record(node, &mut scratch, counters);
+            self.abandon_engine_computed_record(node, scratch, counters);
             return 0;
         }
         record.raw()
@@ -3540,6 +3620,10 @@ impl EngineComputabilityScratch {
 
 #[derive(Default)]
 pub(super) struct EngineComputedRecordScratch {
+    pub(super) font_drive: drive::FontDriveScratch,
+    pending_element: Option<(computed::FinalStyleRecordID, computed::FinalStyleRecordID)>,
+    next_pseudo: usize,
+    pseudo_uses_substitution: bool,
     cohorts: HashMap<(u64, CascadeStateID, u32, RecordDeltaParent, u64), computed::FinalStyleRecordID>,
     computability: EngineComputabilityScratch,
     /// The nodes whose record this flush settled: what their descendants inherit from is in
@@ -3578,7 +3662,7 @@ impl EngineComputedRecordScratch {
             shallow [self.computability.states, self.cohorts, self.settled_nodes, self.cold_cohorts, self.stores,
                 self.substituted_states, self.pseudo_cohorts, self.pseudo_stores,
                 self.pseudo_deltas, self.flipped_pseudo_rules];
-            cached [];
+            cached [self.font_drive.capacity_bytes()];
             nested [];
             skip [];
         }

@@ -22,10 +22,37 @@ struct FontResolutionKey {
     font_optical_sizing: u8,
 }
 
+impl FontResolutionKey {
+    fn new(request: FfiFontResolutionRequest) -> Self {
+        Self {
+            font_family: request.font_family as usize,
+            font_size_raw: request.font_size_raw,
+            font_slope: request.font_slope,
+            font_weight: request.font_weight.to_bits(),
+            font_width: request.font_width.to_bits(),
+            font_optical_sizing: request.font_optical_sizing,
+        }
+    }
+}
+
+/// Own the request's family until the boundary transfers it into the prepared table.
+pub(super) struct FontRequest {
+    ffi: FfiFontResolutionRequest,
+    family: RetainedStyleValueData,
+}
+
+impl FontRequest {
+    pub fn new(ffi: FfiFontResolutionRequest) -> Self {
+        let family =
+            unsafe { RetainedStyleValueData::from_retained_pointer(retain_style_value(ffi.font_family.cast())) };
+        Self { ffi, family }
+    }
+}
+
 struct ResolvedFont {
     // Keep the family alive for the pointer identity in the cache key.
     _font_family: RetainedStyleValueData,
-    _font_cascade_list: FontCascadeListHandle,
+    _font_cascade_list: Option<FontCascadeListHandle>,
     ffi: FfiResolvedFont,
 }
 
@@ -46,40 +73,40 @@ impl FontResolver {
         }
     }
 
-    #[allow(dead_code)]
-    pub fn resolve(&mut self, request: FfiFontResolutionRequest) -> Option<FfiResolvedFont> {
-        if self.generation != Some(request.font_environment_generation) {
+    pub fn prepare(&mut self, generation: u64) {
+        if self.generation != Some(generation) {
             self.cache.clear();
-            self.generation = Some(request.font_environment_generation);
+            self.generation = Some(generation);
         }
-        let key = FontResolutionKey {
-            font_family: request.font_family as usize,
-            font_size_raw: request.font_size_raw,
-            font_slope: request.font_slope,
-            font_weight: request.font_weight.to_bits(),
-            font_width: request.font_width.to_bits(),
-            font_optical_sizing: request.font_optical_sizing,
-        };
-        if let Some(resolved) = self.cache.get(&key) {
-            return Some(resolved.ffi);
-        }
-        let font_family =
-            unsafe { RetainedStyleValueData::from_retained_pointer(retain_style_value(request.font_family.cast())) };
-        let ffi = unsafe { (self.resolve)(self.context, request) };
-        if ffi.font_cascade_list.is_null() {
+    }
+
+    pub fn lookup(&self, request: FfiFontResolutionRequest) -> Option<FfiResolvedFont> {
+        if self.generation != Some(request.font_environment_generation) {
             return None;
         }
-        // SAFETY: The resolver callback hands over one reference to a live list.
-        let font_cascade_list = unsafe { FontCascadeListHandle::adopt(ffi.font_cascade_list) };
+        self.cache
+            .get(&FontResolutionKey::new(request))
+            .map(|resolved| resolved.ffi)
+    }
+
+    /// Service a synchronous request between evaluation passes. Pending web faces remain in
+    /// the returned cascade and retain the host's rendering-triggered loading behavior.
+    pub fn refill(&mut self, request: FontRequest) {
+        self.prepare(request.ffi.font_environment_generation);
+        let ffi = unsafe { (self.resolve)(self.context, request.ffi) };
+        // A null result is a completed, unsupported host resolution, not another cache miss.
+        let font_cascade_list = (!ffi.font_cascade_list.is_null()).then(|| {
+            // SAFETY: The callback transfers one reference to a live list.
+            unsafe { FontCascadeListHandle::adopt(ffi.font_cascade_list) }
+        });
         self.cache.insert(
-            key,
+            FontResolutionKey::new(request.ffi),
             ResolvedFont {
-                _font_family: font_family,
+                _font_family: request.family,
                 _font_cascade_list: font_cascade_list,
                 ffi,
             },
         );
-        Some(ffi)
     }
 }
 
@@ -117,20 +144,60 @@ mod tests {
             font_environment_generation: 1,
         };
 
-        let first = resolver.resolve(request).unwrap();
+        resolver.prepare(1);
+        assert!(resolver.lookup(request).is_none());
+        assert_eq!(RESOLVES.load(Ordering::Relaxed), 0);
+        resolver.refill(FontRequest::new(request));
+        let first = resolver.lookup(request).unwrap();
         assert_eq!(
-            resolver.resolve(request).unwrap().font_cascade_list,
+            resolver.lookup(request).unwrap().font_cascade_list,
             first.font_cascade_list
         );
         assert_eq!(RESOLVES.load(Ordering::Relaxed), 1);
         assert_eq!(font_cascade_list_unref_count(), unrefs_before);
 
         request.font_environment_generation = 2;
-        resolver.resolve(request).unwrap();
+        assert!(resolver.lookup(request).is_none());
+        resolver.prepare(2);
+        assert_eq!(font_cascade_list_unref_count(), unrefs_before + 1);
+        resolver.refill(FontRequest::new(request));
+        resolver.lookup(request).unwrap();
         assert_eq!(RESOLVES.load(Ordering::Relaxed), 2);
         assert_eq!(font_cascade_list_unref_count(), unrefs_before + 1);
 
         drop(resolver);
         assert_eq!(font_cascade_list_unref_count(), unrefs_before + 2);
+    }
+
+    #[test]
+    fn unavailable_resolution_is_a_completed_answer_until_the_environment_changes() {
+        unsafe extern "C" fn unavailable(_: *mut c_void, _: FfiFontResolutionRequest) -> FfiResolvedFont {
+            FfiResolvedFont::default()
+        }
+        let family = RetainedStyleValueData::from_owned(StyleValueData::Keyword { keyword: 1 });
+        let request = FfiFontResolutionRequest {
+            font_family: family.pointer().cast(),
+            font_size_raw: 1024,
+            font_slope: 0,
+            font_weight: 400.0,
+            font_width: 100.0,
+            font_optical_sizing: 0,
+            font_environment_generation: 1,
+        };
+        let mut resolver = FontResolver::new(std::ptr::null_mut(), unavailable);
+        resolver.prepare(1);
+        let owned = FontRequest::new(request);
+        drop(family);
+        assert!(resolver.lookup(request).is_none());
+        resolver.refill(owned);
+        assert!(resolver.lookup(request).unwrap().font_cascade_list.is_null());
+        assert!(resolver.lookup(request).unwrap().font_cascade_list.is_null());
+        // A failed synchronous result must not cause an endless refill loop.
+        let next = FfiFontResolutionRequest {
+            font_environment_generation: 2,
+            ..request
+        };
+        assert!(resolver.lookup(next).is_none());
+        resolver.prepare(2);
     }
 }

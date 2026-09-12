@@ -1,0 +1,19 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    div { color: white; }
+    #target::first-letter, #reference { color: blue; font-size: 3em; }
+</style>
+<div id="target"><div>A</div></div>
+<div><span id="reference">A</span></div>
+<script>
+    test(() => {
+        internals.updateStyle();
+        const output = [];
+        for (const element of [target, target.firstElementChild, reference.parentElement, reference]) {
+            output.push(getComputedStyle(element).fontSize);
+        }
+        output.push(getComputedStyle(target, "::first-letter").fontSize);
+        output.forEach(println);
+    });
+</script>

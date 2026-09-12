@@ -227,8 +227,13 @@ impl StyleEngineState {
             counters.bump(Counter::EngineComputedRecordBailPseudoMask);
             return None;
         };
-        let mut pseudo_uses_substitution = false;
-        for kind in [BEFORE, AFTER, FIRST_LETTER, SELECTION, MARKER] {
+        let mut pseudo_uses_substitution = scratch.pseudo_uses_substitution;
+        for (pseudo_index, kind) in [BEFORE, AFTER, FIRST_LETTER, SELECTION, MARKER]
+            .into_iter()
+            .enumerate()
+            .skip(scratch.next_pseudo)
+        {
+            scratch.next_pseudo = pseudo_index + 1;
             if self.deferred_pseudo_element == Some(tree::PseudoElementKind(u16::from(kind)))
                 || pseudo_kind::is_highlight(usize::from(kind))
             {
@@ -412,8 +417,13 @@ impl StyleEngineState {
                         parent: Some(node),
                         facts,
                     };
-                    let (table, length, longhand_evaluations, font) =
-                        self.engine_full_drive(subject, None, &store, &inputs, counters)?;
+                    let driven =
+                        self.engine_full_drive(subject, None, &store, &inputs, &mut scratch.font_drive, counters);
+                    if driven.is_none() && scratch.font_drive.request.is_some() {
+                        scratch.next_pseudo = pseudo_index;
+                        scratch.pseudo_uses_substitution = pseudo_uses_substitution;
+                    }
+                    let (table, length, longhand_evaluations, font) = driven?;
                     let font = font.expect("a full drive resolves the font");
                     let (record, _) = self.assemble_and_publish_engine_record(
                         target,

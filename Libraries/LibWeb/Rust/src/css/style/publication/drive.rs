@@ -6,6 +6,33 @@
 
 use super::*;
 
+#[derive(Default)]
+pub(in crate::css::style) struct FontDriveScratch {
+    pub(in crate::css::style) request: Option<font_resolution::FontRequest>,
+    pending: Option<PendingFontDrive>,
+}
+
+impl FontDriveScratch {
+    pub(in crate::css::style) fn is_pending(&self) -> bool {
+        self.pending.is_some()
+    }
+
+    pub(in crate::css::style) fn capacity_bytes(&self) -> u64 {
+        self.pending
+            .as_ref()
+            .map_or(0, |pending| pending.table.owned_capacity_bytes())
+    }
+}
+
+/// The completed font phase owns its table. No parent/context borrow survives refill;
+/// the caller resumes the same subject before evaluating any later canonical element.
+struct PendingFontDrive {
+    table: ComputedLonghandTable,
+    results: crate::css::style_compute::FfiLonghandDriverResults,
+    effective_color_scheme: i16,
+    resolved_viewport_relative_length: bool,
+}
+
 impl StyleEngineState {
     /// Run the drive's remaining phase for the selected longhands over a copy of the node's
     /// current table, against the record's own font metrics, the document's computation inputs
@@ -230,6 +257,7 @@ impl StyleEngineState {
         old_style_record: Option<computed::FinalStyleRecordID>,
         store: &CascadedPropertyStore,
         inputs: &bridge::FfiDocumentStyleComputationInputs,
+        font_scratch: &mut FontDriveScratch,
         counters: &mut Counters,
     ) -> Option<(
         ComputedLonghandTable,
@@ -464,16 +492,33 @@ impl StyleEngineState {
                 subject_inline_axis_is_horizontal,
                 resolved_viewport_relative_length: resolved_viewport_relative_length_pointer,
             };
-        counters.bump(Counter::EngineFullDrivesStarted);
-        if old_table.is_some() {
-            counters.add(
-                Counter::EngineDriveCopiedTableSlots,
-                crate::css::property_metadata::NUMBER_OF_LONGHAND_PROPERTIES as u64,
-            );
+        let resumed = font_scratch.pending.take();
+        let resuming = resumed.is_some();
+        if !resuming {
+            counters.bump(Counter::EngineFullDrivesStarted);
+            if old_table.is_some() {
+                counters.add(
+                    Counter::EngineDriveCopiedTableSlots,
+                    crate::css::property_metadata::NUMBER_OF_LONGHAND_PROPERTIES as u64,
+                );
+            }
         }
-        let mut table = old_table.map_or_else(ComputedLonghandTable::new, ComputedLonghandTable::copied_for_drive);
-        let mut results = empty_longhand_driver_results();
-        let mut effective_color_scheme: i16 = -1;
+        let (mut table, mut results, mut effective_color_scheme) = match resumed {
+            Some(pending) => {
+                resolved_viewport_relative_length = pending.resolved_viewport_relative_length;
+                counters.bump(Counter::FontRefillResumedDrives);
+                counters.add(
+                    Counter::FontRefillPreservedLonghands,
+                    u64::from(pending.results.longhand_evaluations),
+                );
+                (pending.table, pending.results, pending.effective_color_scheme)
+            }
+            None => (
+                old_table.map_or_else(ComputedLonghandTable::new, ComputedLonghandTable::copied_for_drive),
+                empty_longhand_driver_results(),
+                -1,
+            ),
+        };
         let drive = |counters: &mut Counters,
                      table: &mut ComputedLonghandTable,
                      results: &mut crate::css::style_compute::FfiLonghandDriverResults,
@@ -515,16 +560,18 @@ impl StyleEngineState {
                 inputs.root_font_metrics_depend_on_viewport_metrics,
             )
         };
-        drive(
-            counters,
-            &mut table,
-            &mut results,
-            &mut effective_color_scheme,
-            LONGHAND_DRIVE_PHASE_FONT,
-            &raw const font_length,
-            std::ptr::null(),
-            std::ptr::null(),
-        );
+        if !resuming {
+            drive(
+                counters,
+                &mut table,
+                &mut results,
+                &mut effective_color_scheme,
+                LONGHAND_DRIVE_PHASE_FONT,
+                &raw const font_length,
+                std::ptr::null(),
+                std::ptr::null(),
+            );
+        }
 
         // The element's own font, resolved as the C++ font computer would for these values.
         let value_of = |table: &ComputedLonghandTable, property: u16| -> Option<&StyleValueData> {
@@ -605,12 +652,22 @@ impl StyleEngineState {
         };
         let Some(resolved) = self
             .font_resolver
-            .as_mut()
-            .and_then(|resolver| resolver.resolve(request))
+            .as_ref()
+            .and_then(|resolver| resolver.lookup(request))
         else {
-            counters.bump(Counter::EngineComputedRecordBailFontPhase);
+            font_scratch.request = Some(font_resolution::FontRequest::new(request));
+            font_scratch.pending = Some(PendingFontDrive {
+                table,
+                results,
+                effective_color_scheme,
+                resolved_viewport_relative_length,
+            });
             return None;
         };
+        if resolved.font_cascade_list.is_null() {
+            counters.bump(Counter::EngineComputedRecordBailFontPhase);
+            return None;
+        }
         let own_metrics = |line_height: f64| FfiFontMetrics {
             font_size,
             x_height: drive_font_metric(resolved.x_height),
