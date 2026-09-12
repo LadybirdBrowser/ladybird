@@ -1,0 +1,12 @@
+Nested button: type=submit, shadow=false, activated=submit
+Nested button: type=submit, shadow=true, activated=submit
+Nested button: type=reset, shadow=false, activated=reset
+Nested button: type=reset, shadow=true, activated=reset
+Button changed to submit during click: true
+Button changed to reset during click: true
+Command target added during click: true
+Popover target added during click: true
+Link activated: in form=false, descendant=false
+Link activated: in form=false, descendant=true
+Link activated: in form=true, descendant=false
+Link activated: in form=true, descendant=true
