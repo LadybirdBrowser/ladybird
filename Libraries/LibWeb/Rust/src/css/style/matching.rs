@@ -1490,7 +1490,6 @@ impl StyleEngine {
                 interpreter = interpreter.for_the_host_of_this_tree();
             }
         }
-        let cascade_rejections_before = self.counters.get(Counter::CascadeCandidatesRejectedByWinner);
         let result = interpreter.match_node_collecting_requests(
             node,
             attempt.matches,
@@ -1503,13 +1502,11 @@ impl StyleEngine {
                 deferred_prefix_matches: attempt.deferred_prefix_matches,
             },
         );
-        if self.counters.get(Counter::CascadeCandidatesRejectedByWinner) != cascade_rejections_before
-            && let Some(answer_is_exact) = attempt.answer_is_exact
-        {
-            *answer_is_exact = false;
+        if let Some(answer_is_exact) = attempt.answer_is_exact {
+            *answer_is_exact &= result.answer_is_exact;
         }
         self.settle_relational_witness_memory();
-        result
+        result.result
     }
 
     /// Keep the retained-witness charge in step with the table. Capacity is already committed
@@ -3138,7 +3135,7 @@ impl StyleEngine {
         );
         let _ = states;
         caches.states.settle_memory(&mut self.memory);
-        if result.is_err() {
+        if result.result.is_err() {
             matches.settle_memory(&mut self.memory);
             matches.release(&mut self.memory);
             return None;
