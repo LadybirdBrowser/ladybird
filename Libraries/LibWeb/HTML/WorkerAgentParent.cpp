@@ -124,8 +124,9 @@ void WorkerAgentParent::did_fail_loading_worker_script(WorkerAgentOwnerToken own
     auto parent = worker_agent_parents().find(owner_token);
     if (parent == worker_agent_parents().end())
         return;
-    parent->value->dispatch_error_event();
-    parent->value->forget_agent();
+    auto agent_parent = parent->value;
+    agent_parent->dispatch_error_event();
+    agent_parent->forget_agent();
 }
 
 void WorkerAgentParent::did_report_worker_exception(WorkerAgentOwnerToken owner_token, Utf16String message, Utf16String filename, u32 lineno, u32 colno)
@@ -149,16 +150,15 @@ void WorkerAgentParent::did_worker_agent_die(WorkerAgentOwnerToken owner_token)
     auto parent = worker_agent_parents().find(owner_token);
     if (parent == worker_agent_parents().end())
         return;
-    parent->value->dispatch_error_event();
-    parent->value->forget_agent();
+    auto agent_parent = parent->value;
+    agent_parent->dispatch_error_event();
+    agent_parent->forget_agent();
 }
 
 void WorkerAgentParent::terminate()
 {
     if (m_agent_id == 0)
         return;
-
-    worker_agent_parents().remove(m_owner_token);
 
     auto agent_id = m_agent_id;
     forget_agent();
@@ -168,6 +168,7 @@ void WorkerAgentParent::terminate()
 void WorkerAgentParent::forget_agent()
 {
     m_agent_id = 0;
+    worker_agent_parents().remove(m_owner_token);
     m_outside_settings->remove_owned_worker_agent(*this);
 }
 
