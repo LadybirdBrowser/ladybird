@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    #target { font: 17px serif; }
+    #target.changed { font-size: 23px; }
+    #target::before { content: ""; font-size: 19px; margin-left: 2em; }
+    #target::after { content: ""; font-size: 21px; margin-left: 2em; }
+    #target.changed::before { font-size: 29px; }
+    #target.changed::after { font-size: 31px; }
+    #child { font-size: 2em; margin-left: 2em; }
+    #grandchild { font-size: 2em; margin-left: 2em; }
+    #target.warm { margin-left: 7px; }
+    #probe { font: 20px RefillFace, serif; width: 10ch; }
+</style>
+<div id="target"><div id="child"><div id="grandchild"></div></div></div>
+<div id="probe"></div>
+<script>
+    promiseTest(async () => {
+        internals.updateStyle();
+        const before = internals.styleEngineCounters();
+        target.classList.add("changed");
+        internals.updateStyle();
+        const after = internals.styleEngineCounters();
+        const requests = after.fontResolutionRequests - before.fontResolutionRequests;
+        const resumes = after.fontRefillResumedDrives - before.fontRefillResumedDrives;
+        const output = [];
+        output.push(`synchronous refill exercised: ${requests > 0}`);
+        output.push(`each request resumes its drive: ${requests === resumes}`);
+        output.push(`element: ${getComputedStyle(target).fontSize}`);
+        output.push(`child: ${getComputedStyle(child).fontSize}, ${getComputedStyle(child).marginLeft}`);
+        output.push(`grandchild: ${getComputedStyle(grandchild).fontSize}, ${getComputedStyle(grandchild).marginLeft}`);
+        output.push(`before: ${getComputedStyle(target, "::before").marginLeft}`);
+        output.push(`after: ${getComputedStyle(target, "::after").marginLeft}`);
+
+        const warmBefore = internals.styleEngineCounters();
+        target.classList.add("warm");
+        internals.updateStyle();
+        const warmAfter = internals.styleEngineCounters();
+        output.push(`warm table needs no refill: ${warmAfter.fontResolutionRequests === warmBefore.fontResolutionRequests}`);
+
+        // No text is shaped: a synchronous metric probe must keep this face unloaded.
+        // Complete loading explicitly, without relying on a network delay or a timer.
+        const face = new FontFace("RefillFace", 'url("../../../../Assets/HashSans.woff")', { display: "swap" });
+        document.fonts.add(face);
+        const fallbackWidth = getComputedStyle(probe).width;
+        output.push(`metric observation finishes before load: ${face.status}`);
+        await face.load();
+        internals.updateStyle();
+        output.push(`explicit completion: ${face.status}`);
+        output.push(`loaded metrics replace fallback: ${getComputedStyle(probe).width !== fallbackWidth}`);
+        document.fonts.delete(face);
+        output.push(`removal restores fallback: ${getComputedStyle(probe).width === fallbackWidth}`);
+        output.forEach(println);
+    });
+</script>

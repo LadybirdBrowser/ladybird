@@ -203,6 +203,22 @@ pub struct FfiComputedStyleMetadata {
 }
 
 impl ComputedLonghandTable {
+    /// Capacity owned by a suspended drive, excluding shared style-value allocations.
+    pub(crate) fn owned_capacity_bytes(&self) -> u64 {
+        (size_of::<Self>()
+            + size_of::<SlotStorage>()
+            + self.inheritance_dependent.capacity() * size_of::<(u16, RetainedStyleValueData)>()
+            + self.inheritance_dependent_view.capacity() * size_of::<FfiTableInheritanceDependentValue>()
+            + self
+                .post_compute_restore_values
+                .as_ref()
+                .map_or(0, |_| size_of::<PostComputeRestoreValues>())
+            + self
+                .frozen_transition_longhands
+                .get()
+                .map_or(0, |values| size_of_val(values.as_ref()))) as u64
+    }
+
     pub(crate) fn new() -> Self {
         Self {
             storage: SlotStorage::new_boxed(),

@@ -91,6 +91,11 @@ define_counters! {
     CompletionPassMicroseconds => "completionPassMicroseconds",
     ComputationLoopMicroseconds => "computationLoopMicroseconds",
     // Physical work, including drives whose output is later abandoned.
+    FontRefillRounds => "fontRefillRounds",
+    FontResolutionRequests => "fontResolutionRequests",
+    FontRefillResumedDrives => "fontRefillResumedDrives",
+    FontRefillPreservedLonghands => "fontRefillPreservedLonghands",
+    FontRefillBlockedDepth => "fontRefillBlockedDepth",
     EngineFullDrivesStarted => "engineFullDrivesStarted",
     EnginePartialDrivesStarted => "enginePartialDrivesStarted",
     EnginePhysicalLonghandEvaluations => "enginePhysicalLonghandEvaluations",

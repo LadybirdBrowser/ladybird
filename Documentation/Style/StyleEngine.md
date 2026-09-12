@@ -825,6 +825,28 @@ anchor geometry     -> anchor functions
 tree position       -> tree-counting functions
 ```
 
+Font resolution reads a generation-scoped prepared table. A missing synchronous
+result suspends the current canonical element and ends the serial computation
+pass. Its owned font-phase table, completed originating record and completed
+pseudo prefix survive boundary resolution; the same element resumes before the
+unvisited suffix, even with an empty journal. Parent and document contexts are
+rebuilt from the unchanged inputs, with no borrowed stack pointers retained.
+No full drive or font longhand is restarted. This boundary also applies to the
+host's retry after an ancestor has been installed.
+
+A null synchronous resolution is a completed unsupported result, eligible for
+existing host handling rather than endless refill. An unloaded web face is
+instead retained in the returned font cascade with current fallback metrics.
+Metric probes do not start its load; rendering still initiates loading and the
+font-display timeline. Load completion changes the font environment and prepares
+a new table. Font matching and platform ownership remain in the host.
+
+Diagnostic counters report refill passes, requests, resumed drives, preserved
+font longhands and the maximum resident selector-tree depth of a suspended element
+(including that element). This depth is a diagnostic location, not the flat-tree
+dependency span when the two axes differ. Repeated physical work remains visible in the ordinary drive and
+longhand counters; none of these observations controls readiness or completion.
+
 ### 9.7 Custom properties
 
 Custom-property environments live on the C++ side (`CustomPropertyData`); the engine interns only an opaque environment identity per record. Environments are immutable and structurally shared:
