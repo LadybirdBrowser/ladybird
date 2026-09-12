@@ -75,6 +75,7 @@ public:
 
     virtual Messages::WebContentClient::OpenSystemFontResponse open_system_font(u64 generation, u64 face_id) override;
     virtual Messages::WebContentClient::MatchSystemFontResponse match_system_font(String family, u16 weight, u16 width, u8 slope) override;
+    virtual Messages::WebContentClient::MatchLocalFontResponse match_local_font(String name) override;
     virtual Messages::WebContentClient::MatchSystemFontForCodePointResponse match_system_font_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) override;
     virtual Messages::WebContentClient::ResolveGenericFontResponse resolve_generic_font(String family, u16 weight, u8 slope) override;
 

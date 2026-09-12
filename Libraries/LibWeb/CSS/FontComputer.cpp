@@ -86,10 +86,10 @@ FontComputer::FontComputer(DOM::Document& document)
 
 FontComputer::~FontComputer() = default;
 
-FontLoader::FontLoader(FontComputer& font_computer, RuleOrDeclaration rule_or_declaration, Vector<URL> urls, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load)
+FontLoader::FontLoader(FontComputer& font_computer, RuleOrDeclaration rule_or_declaration, Vector<Source> sources, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load)
     : m_font_computer(font_computer)
     , m_rule_or_declaration(rule_or_declaration)
-    , m_urls(move(urls))
+    , m_sources(move(sources))
 {
     if (on_load)
         m_subscribers.append(*on_load);
@@ -142,70 +142,82 @@ void FontLoader::did_request_for_rendering()
         m_document_load_event_delayer.emplace(m_font_computer->document());
 }
 
-void FontLoader::start_loading_next_url()
+void FontLoader::start_loading_next_source()
 {
-    // A loader that has settled must not consume another URL: its typeface is final, and fetching a
+    // A loader that has settled must not consume another source: its typeface is final, and fetching a
     // further src would replace it after subscribers already saw the settled one. load_font_face()
-    // hands back an existing loader for a shared first URL, so a second FontFace can reach here after
+    // hands back an existing loader for a shared source list, so a second FontFace can reach here after
     // the first one finished.
     if (m_has_completed)
         return;
 
-    // FIXME: Load local() fonts somehow.
     if (m_fetch_controller && m_fetch_controller->state() == Fetch::Infrastructure::FetchController::State::Ongoing)
         return;
-    if (m_urls.is_empty())
-        return;
 
-    // https://drafts.csswg.org/css-fonts-4/#fetch-a-font
-    // To fetch a font given a selected <url> url for @font-face rule, fetch url, with ruleOrDeclaration being rule,
-    // destination "font", CORS mode "cors", and processResponse being the following steps given response res and null,
-    // failure or a byte stream stream:
-    m_has_received_font_data = false;
-    m_fetch_controller = fetch_a_style_resource(m_urls.take_first(), m_rule_or_declaration, Fetch::Infrastructure::Request::Destination::Font, CorsMode::Cors,
-        [loader = this](auto response, auto stream) {
-            // 1. If stream is null, return.
-            // 2. Load a font from stream according to its type.
-
-            auto* immutable_bytes = stream.template get_pointer<Core::ImmutableBytes>();
-            if (!immutable_bytes) {
-                if (loader->m_urls.is_empty()) {
-                    loader->font_did_load_or_fail(nullptr);
-                } else {
-                    loader->m_fetch_controller = nullptr;
-                    loader->start_loading_next_url();
-                }
+    while (true) {
+        // https://drafts.csswg.org/css-fonts-4/#src-desc
+        // NB: Try local names and URLs in source order, continuing after an unavailable face.
+        while (!m_sources.is_empty() && m_sources.first().has<Utf16FlyString>()) {
+            auto name = MUST(m_sources.take_first().get<Utf16FlyString>().view().to_utf8());
+            if (auto typeface = Gfx::FontDatabase::the().get_typeface_by_local_name(name)) {
+                font_did_load_or_fail(move(typeface));
                 return;
             }
-            loader->m_has_received_font_data = true;
-            auto bytes = immutable_bytes->copy_to_byte_buffer().release_value_but_fixme_should_propagate_errors();
+        }
+        if (m_sources.is_empty()) {
+            font_did_load_or_fail(nullptr);
+            return;
+        }
 
-            auto mime_type_essence = loader->try_load_font_mime_type_essence(response, bytes);
-            if (!requires_off_thread_vector_font_preparation(bytes, mime_type_essence)) {
-                auto maybe_typeface = try_load_vector_font(bytes, mime_type_essence);
-                if (maybe_typeface.is_error()) {
-                    if (loader->m_urls.is_empty()) {
+        // https://drafts.csswg.org/css-fonts-4/#fetch-a-font
+        // To fetch a font given a selected <url> url for @font-face rule, fetch url, with ruleOrDeclaration being rule,
+        // destination "font", CORS mode "cors", and processResponse being the following steps given response res and null,
+        // failure or a byte stream stream:
+        m_has_received_font_data = false;
+        m_fetch_controller = fetch_a_style_resource(m_sources.take_first().get<URL>(), m_rule_or_declaration, Fetch::Infrastructure::Request::Destination::Font, CorsMode::Cors,
+            [loader = this](auto response, auto stream) {
+                // 1. If stream is null, return.
+                // 2. Load a font from stream according to its type.
+
+                auto* immutable_bytes = stream.template get_pointer<Core::ImmutableBytes>();
+                if (!immutable_bytes) {
+                    if (loader->m_sources.is_empty()) {
                         loader->font_did_load_or_fail(nullptr);
                     } else {
                         loader->m_fetch_controller = nullptr;
-                        loader->start_loading_next_url();
+                        loader->start_loading_next_source();
                     }
                     return;
                 }
+                loader->m_has_received_font_data = true;
+                auto bytes = immutable_bytes->copy_to_byte_buffer().release_value_but_fixme_should_propagate_errors();
 
-                loader->font_did_load_or_fail(maybe_typeface.release_value());
-                return;
-            }
+                auto mime_type_essence = loader->try_load_font_mime_type_essence(response, bytes);
+                if (!requires_off_thread_vector_font_preparation(bytes, mime_type_essence)) {
+                    auto maybe_typeface = try_load_vector_font(bytes, mime_type_essence);
+                    if (maybe_typeface.is_error()) {
+                        if (loader->m_sources.is_empty()) {
+                            loader->font_did_load_or_fail(nullptr);
+                        } else {
+                            loader->m_fetch_controller = nullptr;
+                            loader->start_loading_next_source();
+                        }
+                        return;
+                    }
 
-            auto loader_handle = GC::make_root(GC::Ref(*loader));
-            prepare_vector_font_data_off_thread(move(bytes), [loader = move(loader_handle)](auto prepared_font_data) mutable {
+                    loader->font_did_load_or_fail(maybe_typeface.release_value());
+                    return;
+                }
+
+                auto loader_handle = GC::make_root(GC::Ref(*loader));
+                prepare_vector_font_data_off_thread(move(bytes), [loader = move(loader_handle)](auto prepared_font_data) mutable {
                 if (prepared_font_data.is_error()) {
                     // NB: If we have other sources available, try the next one.
-                    if (loader->m_urls.is_empty()) {
+                    if (loader->m_sources.is_empty()) {
                         loader->font_did_load_or_fail(nullptr);
                     } else {
                         loader->m_fetch_controller = nullptr;
-                        loader->start_loading_next_url();
+                        loader->start_loading_next_source();
                     }
                     return;
                 }
@@ -213,20 +225,21 @@ void FontLoader::start_loading_next_url()
                 auto prepared = prepared_font_data.release_value();
                 auto maybe_typeface = Gfx::Typeface::try_load_from_anonymous_buffer(move(prepared));
                 if (maybe_typeface.is_error()) {
-                    if (loader->m_urls.is_empty()) {
+                    if (loader->m_sources.is_empty()) {
                         loader->font_did_load_or_fail(nullptr);
                     } else {
                         loader->m_fetch_controller = nullptr;
-                        loader->start_loading_next_url();
+                        loader->start_loading_next_source();
                     }
                     return;
                 }
 
                 loader->font_did_load_or_fail(maybe_typeface.release_value()); });
-        });
+            });
 
-    if (!m_fetch_controller)
-        font_did_load_or_fail(nullptr);
+        if (m_fetch_controller || m_has_completed)
+            return;
+    }
 }
 
 void FontLoader::font_did_load_or_fail(RefPtr<Gfx::Typeface const> typeface)
@@ -362,7 +375,7 @@ void FontComputer::visit_edges(Visitor& visitor)
     visitor.visit(m_document);
     for (auto& [_, faces] : m_font_faces)
         visitor.visit(faces);
-    for (auto& [_, loader] : m_loaders_by_url)
+    for (auto& [_, loader] : m_loaders_by_source)
         visitor.visit(loader);
 }
 
@@ -1046,17 +1059,14 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face
         return {};
     }
 
-    // FIXME: Handle local() font sources.
-    Vector<URL> urls;
+    Vector<FontLoader::Source> sources;
+    StringBuilder key_builder;
     for (auto const& source : font_face.sources()) {
-        if (source.local_or_url.has<URL>())
-            urls.append(source.local_or_url.get<URL>());
-    }
-
-    if (urls.is_empty()) {
-        if (on_load)
-            on_load->function()({});
-        return {};
+        sources.append(source.local_or_url);
+        auto value = source.local_or_url.has<URL>()
+            ? source.local_or_url.get<URL>().to_string()
+            : MUST(source.local_or_url.get<Utf16FlyString>().view().to_utf8());
+        key_builder.appendff("{}{}:{}", source.local_or_url.has<URL>() ? 'u' : 'l', value.bytes_as_string_view().length(), value);
     }
 
     RuleOrDeclaration rule_or_declaration {
@@ -1068,15 +1078,15 @@ GC::Ptr<FontLoader> FontComputer::load_font_face(ParsedFontFace const& font_face
         .parent_style_sheet_origin_clean = {},
     };
 
-    auto key = urls.first().to_string();
-    if (auto it = m_loaders_by_url.find(key); it != m_loaders_by_url.end()) {
+    auto key = MUST(key_builder.to_string());
+    if (auto it = m_loaders_by_source.find(key); it != m_loaders_by_source.end()) {
         if (on_load)
             it->value->subscribe(*on_load);
         return it->value;
     }
 
-    auto loader = GC::Heap::the().allocate<FontLoader>(*this, rule_or_declaration, move(urls), move(on_load));
-    m_loaders_by_url.set(move(key), loader);
+    auto loader = GC::Heap::the().allocate<FontLoader>(*this, rule_or_declaration, move(sources), move(on_load));
+    m_loaders_by_source.set(move(key), loader);
     return loader;
 }
 

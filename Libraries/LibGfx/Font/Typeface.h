@@ -84,6 +84,7 @@ public:
     Optional<SystemFontIdentifier> system_font_identifier() const { return m_system_font_identifier; }
 
     hb_face_t* harfbuzz_typeface() const;
+    ErrorOr<Vector<String>> local_font_names() const;
 
     // Union of all glyph bounding boxes as recorded in the `head` table, in font units with y pointing up.
     // is_empty() when the face has no usable `head` table (e.g. bitmap-only fonts).

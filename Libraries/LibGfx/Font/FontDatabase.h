@@ -24,6 +24,7 @@ public:
     virtual RefPtr<Gfx::Font> get_font(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Optional<FontVariationSettings> const& font_variation_settings = {}, Optional<Gfx::ShapeFeatures> const& shape_features = {}) = 0;
     virtual void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)>) = 0;
     virtual RefPtr<Typeface> get_typeface_by_id(u64 generation, u64 face_id);
+    virtual RefPtr<Typeface> get_typeface_by_local_name(String const&);
     virtual RefPtr<Gfx::Font> get_font_for_code_point(u32 code_point, float point_size, u16 weight, u16 width, u8 slope, bool prefer_color_emoji);
     virtual Optional<FlyString> resolve_generic_family(StringView family_name, u16 weight, u8 slope);
 };
@@ -36,6 +37,7 @@ public:
     RefPtr<Gfx::Font> get(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Optional<FontVariationSettings> const& font_variation_settings = {}, Optional<Gfx::ShapeFeatures> const& shape_features = {});
     RefPtr<Gfx::Font> get_font_for_code_point(u32 code_point, float point_size, u16 weight, u16 width, u8 slope, bool prefer_color_emoji);
     RefPtr<Typeface> get_typeface_by_id(u64 generation, u64 face_id);
+    RefPtr<Typeface> get_typeface_by_local_name(String const&);
     Optional<FlyString> resolve_generic_family(StringView family_name, u16 weight, u8 slope);
     void for_each_typeface_with_family_name(FlyString const& family_name, Function<void(Typeface const&)>);
     [[nodiscard]] StringView system_font_provider_name() const;

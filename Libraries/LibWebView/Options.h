@@ -81,6 +81,7 @@ enum class ProfileTool {
 };
 
 struct BrowserOptions {
+    Vector<String> additional_font_directories {};
     Vector<URL::URL> urls;
     Vector<ByteString> raw_urls;
     Optional<HeadlessMode> headless_mode;

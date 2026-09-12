@@ -62,7 +62,7 @@ public:
     void add(NonnullRefPtr<Font const> font, Vector<UnicodeRange> unicode_ranges);
 
     // Resolve a pending face only when it is selected for a rendered code point.
-    void add_pending_face(Vector<UnicodeRange> unicode_ranges, Function<PendingFontState()> resolve);
+    void add_pending_face(Vector<UnicodeRange> unicode_ranges, Function<PendingFontState()> resolve, Function<RefPtr<Font const>()> resolved_font = {});
 
     void extend(FontCascadeList const& other);
 
@@ -86,10 +86,11 @@ public:
 
     class PendingFace : public RefCounted<PendingFace> {
     public:
-        PendingFace(UnicodeRange enclosing, Vector<UnicodeRange> ranges, Function<PendingFontState()> resolve)
+        PendingFace(UnicodeRange enclosing, Vector<UnicodeRange> ranges, Function<PendingFontState()> resolve, Function<RefPtr<Font const>()> resolved_font)
             : m_enclosing_range(enclosing)
             , m_unicode_ranges(move(ranges))
             , m_resolve(move(resolve))
+            , m_resolved_font(move(resolved_font))
         {
         }
 
@@ -105,11 +106,19 @@ public:
         }
 
         PendingFontState resolve() const { return m_resolve(); }
+        Font const* resolved_font() const
+        {
+            if (!m_font && m_resolved_font)
+                m_font = m_resolved_font();
+            return m_font.ptr();
+        }
 
     private:
         UnicodeRange m_enclosing_range;
         Vector<UnicodeRange> m_unicode_ranges;
         Function<PendingFontState()> m_resolve;
+        Function<RefPtr<Font const>()> m_resolved_font;
+        mutable RefPtr<Font const> m_font;
     };
 
     void set_last_resort_font(NonnullRefPtr<Font> font)

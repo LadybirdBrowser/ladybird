@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(async done => {
+        const context = document.createElement("canvas").getContext("2d");
+        const immediateFont = new FontFace("ImmediateLocalAhem", "local('Ahem')", { display: "optional" });
+        document.fonts.add(immediateFont);
+        context.font = "10px ImmediateLocalAhem";
+        println(`Local metrics are immediately available: ${context.measureText("abc").width === 30}`);
+        println(`Load notification remains asynchronous: ${immediateFont.status === "loading"}`);
+        internals.setFontDisplayTime(immediateFont, 10000);
+        await immediateFont.loaded;
+        println(`Resident local font remains usable after its deadline: ${context.measureText("abc").width === 30}`);
+        document.fonts.delete(immediateFont);
+
+        const metricFont = new FontFace("LocalMetrics", "local('Ahem')");
+        document.fonts.add(metricFont);
+        metricFont.load();
+        const element = document.createElement("div");
+        element.style.cssText = "font: 20px LocalMetrics; width: 1ch; height: 1ex";
+        document.body.append(element);
+        const before = element.getBoundingClientRect();
+        println(`Local ch metrics precede load notification: ${before.width === 20 && metricFont.status === "loading"}`);
+        await metricFont.loaded;
+        const after = element.getBoundingClientRect();
+        println(`Local font-relative metrics remain unchanged: ${before.width === after.width && before.height === after.height}`);
+        element.remove();
+        document.fonts.delete(metricFont);
+
+        const subsetFont = new FontFace("SubsetLocalAhem", "local('Ahem')", { unicodeRange: "U+61" });
+        document.fonts.add(subsetFont);
+        context.font = "10px SubsetLocalAhem";
+        context.measureText("b");
+        println(`Excluded character leaves local subset unloaded: ${subsetFont.status === "unloaded"}`);
+        println(`Local subset metrics are immediately available: ${context.measureText("a").width === 10}`);
+        await subsetFont.loaded;
+        document.fonts.delete(subsetFont);
+
+        async function check(label, source, shouldLoad) {
+            const font = new FontFace("LocalAhem", source);
+            try {
+                await font.load();
+                document.fonts.add(font);
+                context.font = "10px LocalAhem";
+                println(`${label}: ${shouldLoad && font.status === "loaded" && context.measureText("abc").width === 30}`);
+                document.fonts.delete(font);
+            } catch (error) {
+                println(`${label}: ${!shouldLoad && error.name === "NetworkError"}`);
+            }
+        }
+
+        await check("Local face", "local('Ahem')", true);
+        await check("Case-insensitive name", "local('aHeM')", true);
+        await check("Unknown face", "local('LadybirdMissingFont')", false);
+        await check("No family-style substitution", "local('Ahem Regular')", false);
+        await check("No generic substitution", "local('serif')", false);
+        await check("Second local source", "local('LadybirdMissingFont'), local('Ahem')", true);
+        await check("Local before URL", "local('Ahem'), url('unused-local-font-fallback.ttf')", true);
+        println(`Unused URL was not requested: ${!performance.getEntriesByType("resource").some(entry => entry.name.endsWith("unused-local-font-fallback.ttf"))}`);
+        await check("Invalid URL before local", "url('http://['), local('Ahem')", true);
+        await check("Invalid URL before URL", "url('http://['), url('../../../Ref/data/fonts/Ahem.ttf')", true);
+        await check("URL before local", "url('data:font/ttf,invalid'), local('Ahem')", true);
+        await check("Different fallback after shared URL", "url('data:font/ttf,invalid'), local('LadybirdMissingFont')", false);
+        await check("Missing local before URL", "local('LadybirdMissingFont'), url('../../../Ref/data/fonts/Ahem.ttf')", true);
+        done();
+    });
+</script>

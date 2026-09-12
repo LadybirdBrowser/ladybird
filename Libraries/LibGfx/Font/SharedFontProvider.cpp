@@ -12,6 +12,13 @@
 
 namespace Gfx {
 
+RefPtr<Typeface> SharedFontProvider::get_typeface_by_local_name(String const& name)
+{
+    if (!m_callbacks.match_local_font)
+        return {};
+    return load_brokered_font(m_callbacks.match_local_font(name));
+}
+
 ErrorOr<NonnullOwnPtr<SharedFontProvider>> SharedFontProvider::create(NonnullOwnPtr<Core::MappedFile> mapping, u64 generation, SharedFontProviderCallbacks&& callbacks)
 {
     auto catalog = TRY(FontCatalog::parse(mapping->bytes(), generation));

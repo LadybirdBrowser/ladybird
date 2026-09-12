@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <harfbuzz/hb-ot.h>
 #include <harfbuzz/hb.h>
 
 #include <LibGfx/Font/Font.h>
@@ -15,6 +16,41 @@
 #include <LibIPC/Encoder.h>
 
 namespace Gfx {
+
+ErrorOr<Vector<String>> Typeface::local_font_names() const
+{
+    // https://drafts.csswg.org/css-fonts-4/#local-font-fallback
+    // NB: local() identifies a face by its full name or PostScript name, never by its family.
+    //     Prefer US English names, or the first available localization if English is absent.
+    auto* face = harfbuzz_typeface();
+    unsigned entry_count = 0;
+    auto const* entries = hb_ot_name_list_names(face, &entry_count);
+    Vector<String> names;
+    for (auto name_id : { HB_OT_NAME_ID_FULL_NAME, HB_OT_NAME_ID_POSTSCRIPT_NAME }) {
+        hb_language_t language = HB_LANGUAGE_INVALID;
+        for (unsigned index = 0; index < entry_count; ++index) {
+            auto const& entry = entries[index];
+            if (entry.name_id != name_id)
+                continue;
+            if (language == HB_LANGUAGE_INVALID)
+                language = entry.language;
+            if (entry.language == hb_language_from_string("en", -1) || entry.language == hb_language_from_string("en-us", -1)) {
+                language = entry.language;
+                break;
+            }
+        }
+        if (language == HB_LANGUAGE_INVALID)
+            continue;
+        auto length = hb_ot_name_get_utf8(face, name_id, language, nullptr, nullptr);
+        if (length == 0 || length == NumericLimits<unsigned>::max())
+            continue;
+        auto bytes = TRY(ByteBuffer::create_uninitialized(static_cast<size_t>(length) + 1));
+        auto capacity = length + 1;
+        hb_ot_name_get_utf8(face, name_id, language, &capacity, reinterpret_cast<char*>(bytes.data()));
+        names.append(TRY(String::from_utf8({ reinterpret_cast<char const*>(bytes.data()), capacity })));
+    }
+    return names;
+}
 
 ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_resource(Core::Resource const& resource, u32 ttc_index)
 {

@@ -109,6 +109,10 @@ void Application::create_platform_options(WebView::BrowserOptions& browser_optio
 
     // Ensure consistent font rendering between operating systems.
     web_content_options.force_fontconfig = WebView::ForceFontconfig::Yes;
+    // NB: WPT's Ahem stylesheet prefers local('Ahem'). Make the test font available before
+    //     navigation so its metrics do not depend on an asynchronous font download.
+    auto font_directory = LexicalPath::join(test_root_path, "Ref/input/wpt-import/fonts"sv).string();
+    browser_options.additional_font_directories.append(MUST(String::from_byte_string(LexicalPath::absolute_path(MUST(Core::System::getcwd()), font_directory))));
 
     // Ensure tests are resilient to minor changes to the viewport scrollbar.
     web_content_options.paint_viewport_scrollbars = WebView::PaintViewportScrollbars::No;
