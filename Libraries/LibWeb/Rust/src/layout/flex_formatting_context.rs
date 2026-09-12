@@ -407,6 +407,16 @@ impl<'pass> FlexFormattingContext<'pass> {
         self.select_cross(used.has_definite_inline_size(), used.has_definite_block_size())
     }
 
+    fn container_cross_size_is_known_for_layout(&self) -> bool {
+        self.has_definite_cross_size_used(&self.container_used())
+            || (self.layout_input.unwrap().participation == ParticipationInParentFormattingContext::Item
+                && !self
+                    .available_space_for_items
+                    .unwrap()
+                    .cross
+                    .is_intrinsic_sizing_constraint())
+    }
+
     fn has_definite_main_size(&self, index: usize) -> bool {
         self.has_definite_main_size_used(&self.item_used(index))
     }
@@ -1740,7 +1750,11 @@ impl<'pass> FlexFormattingContext<'pass> {
     // https://www.w3.org/TR/css-flexbox-1/#algo-cross-line
     fn calculate_cross_size_of_each_flex_line(&mut self) {
         // If the flex container is single-line and has a definite cross size, the cross size of the flex line is the flex container’s inner cross size.
-        if self.is_single_line() && self.has_definite_cross_size_used(&self.container_used()) {
+        // https://drafts.csswg.org/css-flexbox-1/#flex-lines
+        // In a single-line flex container, the cross size of the line is the cross size of the flex container,
+        // and align-content has no effect.
+        // NB: A parent formatting context can assign a used size that is still indefinite for resolving percentages.
+        if self.is_single_line() && self.container_cross_size_is_known_for_layout() {
             self.flex_lines[0].cross_size = self.inner_cross_size_used(&self.container_used());
             return;
         }
@@ -1791,7 +1805,7 @@ impl<'pass> FlexFormattingContext<'pass> {
     fn handle_align_content_stretch(&mut self) {
         // If the flex container has a definite cross size, or its automatic
         // cross size is increased by a minimum cross size,
-        if (!self.has_definite_cross_size_used(&self.container_used())
+        if (!self.container_cross_size_is_known_for_layout()
             && self.computed_cross_min_size(self.flex_container).0.is_auto())
             // align-content is stretch,
             || !matches!(

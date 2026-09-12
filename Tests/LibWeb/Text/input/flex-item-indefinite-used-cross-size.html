@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    .outer {
+        display: flex;
+        flex-direction: column;
+        width: 100px;
+        min-height: 100px;
+        padding: 0;
+        border: 0;
+    }
+    .inner {
+        display: flex;
+        flex-grow: 1;
+        align-items: center;
+    }
+    .item {
+        flex: none;
+        width: 60px;
+    }
+    .content {
+        height: 20px;
+    }
+</style>
+<script>
+    test(() => {
+        function check(label, { button = false, wrap = false, alignContent = "normal", alignItems = "center", percentage = false, definite = false } = {}) {
+            const outer = document.createElement(button ? "button" : "div");
+            outer.className = "outer";
+            if (definite)
+                outer.style.height = "100px";
+            outer.innerHTML = '<div class="inner"><div class="item"><div class="content"></div></div></div>';
+            const inner = outer.firstElementChild;
+            inner.style.flexWrap = wrap ? "wrap" : "nowrap";
+            inner.style.alignContent = alignContent;
+            inner.style.alignItems = alignItems;
+            if (percentage)
+                inner.firstElementChild.style.height = "50%";
+            if (wrap)
+                inner.append(inner.firstElementChild.cloneNode(true));
+            document.body.append(outer);
+
+            const innerRect = inner.getBoundingClientRect();
+            const items = Array.from(inner.children, item => {
+                const rect = item.getBoundingClientRect();
+                return `top=${rect.top - innerRect.top}, height=${rect.height}`;
+            });
+            println(`${label}: container height=${innerRect.height}; ${items.join("; ")}`);
+            outer.remove();
+        }
+
+        check("center");
+        check("button", { button: true });
+        check("single line ignores align-content", { alignContent: "flex-start" });
+        check("stretch", { alignItems: "stretch" });
+        check("multiple stretched lines", { wrap: true });
+        check("multiple unstretched lines", { wrap: true, alignContent: "flex-start" });
+        check("indefinite percentage height", { percentage: true });
+        check("definite percentage height", { percentage: true, definite: true });
+    });
+</script>
