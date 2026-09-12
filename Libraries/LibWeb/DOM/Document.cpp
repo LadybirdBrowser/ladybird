@@ -401,10 +401,11 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
             top_level_origin);
     }
 
-    // AD-HOC: The fetch controller is only available in the process that ran the navigation fetch. Navigation params
-    //         rebuilt from a descriptor carry the fetch's timing info directly.
+    // AD-HOC: The fetch's timing info is only available in the process that ran the navigation fetch. Navigation
+    //         params rebuilt from a descriptor carry the fetch's timing info directly — the controller they carry
+    //         (when the transferred response still holds a live request) never ran a fetch, so it has none to give.
     GC::Ptr<Fetch::Infrastructure::FetchTimingInfo> navigation_fetch_timing_info = navigation_params.fetch_timing_info;
-    if (navigation_params.fetch_controller)
+    if (navigation_params.fetch_controller && navigation_params.fetch_controller->timing_info())
         navigation_fetch_timing_info = navigation_params.fetch_controller->timing_info();
 
     // 8. Let loadTimingInfo be a new document load timing info with its navigation start time set to navigationParams's response's timing info's start time.
@@ -531,7 +532,10 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     }
 
     // 15. If navigationParams's fetch controller is not null:
-    if (navigation_params.fetch_controller) {
+    // AD-HOC: ...and that controller ran a fetch in this process. Navigation params rebuilt from a descriptor after a
+    //         process swap carry a controller only so the bail paths can release the adopted request — no fetch
+    //         response handover ran here, so there's no full timing info to extract, and step 16 is their branch.
+    if (navigation_params.fetch_controller && navigation_params.fetch_controller->has_full_timing_info()) {
         // 1. Let fullTimingInfo be the result of extracting the full timing info from navigationParams's fetch controller.
         auto full_timing_info = navigation_params.fetch_controller->extract_full_timing_info();
 

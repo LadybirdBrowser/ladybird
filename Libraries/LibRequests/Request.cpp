@@ -35,6 +35,25 @@ static Optional<Core::ImmutableBytes> map_body_file(int fd, u64 offset, u64 size
     return payload.release_value();
 }
 
+static size_t s_live_read_stream_count = 0;
+
+size_t ReadStream::live_count()
+{
+    return s_live_read_stream_count;
+}
+
+ReadStream::ReadStream(NonnullOwnPtr<Stream> stream, NonnullRefPtr<Core::Notifier> notifier)
+    : m_stream(move(stream))
+    , m_notifier(move(notifier))
+{
+    ++s_live_read_stream_count;
+}
+
+ReadStream::~ReadStream()
+{
+    --s_live_read_stream_count;
+}
+
 ErrorOr<NonnullOwnPtr<ReadStream>> ReadStream::create(int reader_fd)
 {
 #if defined(AK_OS_WINDOWS)

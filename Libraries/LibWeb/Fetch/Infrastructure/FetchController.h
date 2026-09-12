@@ -53,6 +53,7 @@ public:
 
     void report_timing(JS::Object&) const;
     void process_next_manual_redirect() const;
+    [[nodiscard]] bool has_full_timing_info() const { return !!m_full_timing_info; }
     [[nodiscard]] GC::Ref<FetchTimingInfo> extract_full_timing_info() const;
     void abort(JS::Realm&, Optional<JS::Value>);
     Optional<HTML::IPCSerializationRecord> const& serialized_abort_reason() const { return m_serialized_abort_reason; }
@@ -88,6 +89,11 @@ private:
     // full timing info (default null)
     //    Null or a fetch timing info.
     GC::Ptr<FetchTimingInfo> m_full_timing_info;
+
+    // Releases the network request behind this controller. Every way a fetch stops early has to reach this: The
+    // response pipe is a socket pair, and RequestServer holds the request alive until it either finishes or is stopped.
+    // So, a request that's abandoned without being stopped would keep its descriptor for the lifetime of the process.
+    void stop_pending_request();
 
     // https://fetch.spec.whatwg.org/#fetch-controller-report-timing-steps
     // report timing steps (default null)
