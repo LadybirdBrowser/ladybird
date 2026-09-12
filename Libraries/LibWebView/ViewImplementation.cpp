@@ -168,12 +168,8 @@ void ViewImplementation::set_url(URL::URL url)
     if (m_url == url)
         return;
 
-    auto previous_host = current_host();
     m_url = move(url);
     update_bookmark_action();
-
-    if (current_host() != previous_host)
-        apply_zoom_for_current_host();
 
     if (on_url_change)
         on_url_change(m_url);
@@ -2080,9 +2076,10 @@ void ViewImplementation::update_zoom()
 
 String ViewImplementation::current_host() const
 {
-    if (!m_url.host().has_value())
+    auto const& state = m_top_level_traversable.replicated_state();
+    if (!state.has_value() || !state->active_document_url.host().has_value())
         return {};
-    return m_url.serialized_host();
+    return state->active_document_url.serialized_host();
 }
 
 void ViewImplementation::apply_zoom_for_current_host()

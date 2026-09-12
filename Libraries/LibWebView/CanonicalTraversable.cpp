@@ -2828,6 +2828,9 @@ void CanonicalTraversable::did_receive_changing_navigable_continuation_applied(W
                 if (navigable_id == id()) {
                     if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value()) {
                         view->m_client_state.hosts_committed_entry = true;
+                        // NB: The address bar can already show a pending navigation's URL while the old document
+                        //     is still visible. Only apply the destination's zoom after its document is activated.
+                        view->apply_zoom_for_current_host();
                         view->m_external_url_request_policy.clear_page_request_allowance();
                         if (view->on_top_level_navigation_commit)
                             view->on_top_level_navigation_commit();
