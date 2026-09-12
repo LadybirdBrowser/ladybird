@@ -73,9 +73,6 @@ public:
     [[nodiscard]] bool has_deferred_element_initial_features(StyleNodeID style_node) const { return m_nodes_with_pending_initial_features.contains(style_node); }
     HashTable<StyleNodeID> take_deferred_element_initial_features();
     HashTable<StyleNodeID> take_elements_awaiting_first_style_computation();
-    void mark_style_node_preallocated(StyleNodeID style_node, TreeScopeID tree_scope) { m_preallocated_style_nodes.set(style_node, tree_scope); }
-    Optional<TreeScopeID> consume_preallocated_style_node(StyleNodeID style_node) { return m_preallocated_style_nodes.take(style_node); }
-    void cancel_preallocated_style_node(StyleNodeID style_node) { m_preallocated_style_nodes.remove(style_node); }
 
     void set_element_parts(StyleNodeID node, ReadonlySpan<StyleAtomID> names, ReadonlySpan<StyleNodeID> hosts);
     void set_element_language(StyleNodeID node, StyleAtomID language, Utf16View tag);
@@ -300,7 +297,6 @@ private:
     u64 m_attribute_value_text_requirements_version { 0 };
     HashTable<StyleNodeID> m_nodes_with_pending_initial_features;
     HashTable<StyleNodeID> m_nodes_awaiting_first_style_computation;
-    HashMap<StyleNodeID, TreeScopeID> m_preallocated_style_nodes;
     size_t m_element_match_capacity { 64 };
 
     Vector<StyleEngineFFI::FfiTreeDelta> m_tree_deltas;

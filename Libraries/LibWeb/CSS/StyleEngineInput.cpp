@@ -181,39 +181,22 @@ static StyleEngineFFI::FfiTreeRelations detached_relations()
     };
 }
 
-void record_element_connected(DOM::Element& element)
+static void record_element_arrival_delta(DOM::Element& element, StyleEngine& style_engine, TreeScopeID tree_scope)
 {
-    auto* style_engine = style_engine_for(element);
-    if (!style_engine)
-        return;
-    Optional<TreeScopeID> preallocated_tree_scope;
-    if (element.style_node_id() == no_style_node) {
-        element.set_style_node_id(style_engine->allocate_style_node());
-        element.document().style_computer().register_style_node(element.style_node_id(), element);
-    } else {
-        preallocated_tree_scope = style_engine->consume_preallocated_style_node(element.style_node_id());
-        if (!preallocated_tree_scope.has_value()) {
-            // Already connected as far as the engine is concerned. Re-recording an insertion would
-            // double-link the element into its sibling sequence.
-            return;
-        }
-    }
     // A shadow root that took its identity before its host had one is still waiting to be linked to
     // it. A sheet adopted into a shadow tree names that root, so the root can be identified first,
     // and the link is what lets a `:host` or `::slotted()` rule in that tree reach the host instead
     // of the document.
     if (auto shadow_root = element.shadow_root(); shadow_root && shadow_root->style_node_id() != no_style_node)
-        style_engine->set_shadow_root(element.style_node_id(), shadow_root->style_node_id());
-    style_engine->record_tree_delta({
+        style_engine.set_shadow_root(element.style_node_id(), shadow_root->style_node_id());
+    style_engine.record_tree_delta({
         .node = element.style_node_id().value(),
         .old_connected = false,
         .new_connected = true,
         .old_relations = detached_relations(),
-        .new_relations = preallocated_tree_scope.has_value()
-            ? relations_of(element, *style_engine, *preallocated_tree_scope)
-            : relations_of(element, *style_engine),
+        .new_relations = relations_of(element, style_engine, tree_scope),
     });
-    style_engine->defer_element_initial_features(element.style_node_id());
+    style_engine.defer_element_initial_features(element.style_node_id());
 
     // A slot can take its identity after the nodes assigned to it took theirs - a shadow tree built
     // from markup assigns before the slot connects - and a slottable's assignment is published as
@@ -239,43 +222,63 @@ void publish_pending_element_features(StyleEngine& style_engine, StyleComputer& 
     }
 }
 
-void prepare_style_nodes_for_subtree(DOM::Node& root)
+void record_element_connected(DOM::Element& element)
+{
+    auto* style_engine = style_engine_for(element);
+    if (!style_engine || element.style_node_id() != no_style_node)
+        return;
+    element.set_style_node_id(style_engine->allocate_style_node());
+    element.document().style_computer().register_style_node(element.style_node_id(), element);
+    record_element_arrival_delta(element, *style_engine, tree_scope_of(element.root()));
+}
+
+void record_subtree_connecting(DOM::Node& root)
 {
     if (!root.parent() || !root.parent()->is_connected())
         return;
     auto& style_computer = root.document().style_computer();
     auto& style_engine = style_computer.style_engine();
-    Vector<GC::Ptr<DOM::Element>> elements;
-    Vector<TreeScopeID> element_tree_scopes;
-    Vector<GC::Ptr<DOM::ShadowRoot>> shadow_roots;
-    Vector<TreeScopeID> shadow_root_tree_scopes;
+    struct Arrival {
+        GC::Ref<DOM::Node> node;
+        TreeScopeID tree_scope;
+    };
+    Vector<Arrival, 64> arrivals;
+    size_t element_count = 0;
     auto collect = [&](DOM::Node& node, TreeScopeID tree_scope) {
         if (auto* element = as_if<DOM::Element>(node); element && element->style_node_id() == no_style_node) {
-            elements.append(element);
-            element_tree_scopes.append(tree_scope);
+            arrivals.append({ *element, tree_scope });
+            ++element_count;
         } else if (auto* shadow_root = as_if<DOM::ShadowRoot>(node); shadow_root && shadow_root->style_node_id() == no_style_node) {
-            shadow_roots.append(shadow_root);
-            shadow_root_tree_scopes.append(tree_scope);
+            arrivals.append({ *shadow_root, tree_scope });
         }
     };
-    auto root_tree_scope = tree_scope_of(root.root());
-    for_each_shadow_including_inclusive_descendant_with_scope(root, root_tree_scope, collect);
-    Vector<StyleNodeID> identities;
-    identities.resize(elements.size() + shadow_roots.size());
+    for_each_shadow_including_inclusive_descendant_with_scope(root, tree_scope_of(root.root()), collect);
+    if (arrivals.is_empty())
+        return;
+
+    Vector<StyleNodeID, 64> identities;
+    identities.resize(arrivals.size());
     style_engine.allocate_style_nodes(identities.span());
-    if (!identities.is_empty())
-        style_computer.ensure_style_node_slot(identities.last());
-    for (size_t index = 0; index < elements.size(); ++index) {
-        auto& element = *elements[index];
-        element.set_style_node_id(identities[index]);
-        style_computer.register_style_node(identities[index], element);
-        style_engine.mark_style_node_preallocated(element.style_node_id(), element_tree_scopes[index]);
+    style_computer.ensure_style_node_slot(identities.last());
+    size_t next_element_identity = 0;
+    size_t next_shadow_root_identity = element_count;
+    for (auto const& arrival : arrivals) {
+        if (auto* element = as_if<DOM::Element>(*arrival.node)) {
+            auto identity = identities[next_element_identity++];
+            element->set_style_node_id(identity);
+            style_computer.register_style_node(identity, *element);
+        } else {
+            auto identity = identities[next_shadow_root_identity++];
+            as<DOM::ShadowRoot>(*arrival.node).set_style_node_id(identity);
+            style_engine.set_tree_scope_root(arrival.tree_scope, identity);
+        }
     }
-    for (size_t index = 0; index < shadow_roots.size(); ++index) {
-        auto& shadow_root = *shadow_roots[index];
-        auto identity = identities[elements.size() + index];
-        shadow_root.set_style_node_id(identity);
-        style_engine.set_tree_scope_root(shadow_root_tree_scopes[index], identity);
+
+    // An arrival names the element's parent and siblings, so every identity in the subtree is
+    // assigned before the first arrival is recorded.
+    for (auto const& arrival : arrivals) {
+        if (auto* element = as_if<DOM::Element>(*arrival.node))
+            record_element_arrival_delta(*element, style_engine, arrival.tree_scope);
     }
 }
 
