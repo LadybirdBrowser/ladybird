@@ -910,14 +910,9 @@ pub struct StyleEngine {
     /// Read-through facts shared by one synchronous style traversal. This is Tier-4 scratch, not
     /// retained matching state. A broad traversal begins with a complete batch; a selective one
     /// promotes only after repeated local packing clears its rebuild-cost hysteresis.
-    /// Boxed because every per-element ask takes it out of this slot and puts it back, and moving
-    /// the struct moves the fact batch's two dozen vector headers with it.
+    /// The transaction or host-call adapter owns the box while matching borrows its scratch.
+    /// Moving the box at those boundaries leaves the fact batch's vector headers in place.
     batch_matching_traversal: Option<Box<BatchMatchingTraversal>>,
-    /// While a published-answer completion is running, cold matching skips cascade winner-pruning
-    /// so the produced answer is exact and can enter the retained match relation. A pruned answer
-    /// costs less once but cannot be retained, which forces the same region back to cold matching
-    /// on every subsequent flush.
-    complete_answers_exactly: bool,
     /// Distinct retained cascade states per dispatch-key posting, shared by every route-pruning
     /// proof in one routing pass. Keyed by the winner-group generation so any winner mutation
     /// invalidates naturally; cleared per transaction so the map cannot grow across flushes. A
