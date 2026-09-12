@@ -660,7 +660,11 @@ impl StyleEngineState {
         debug_assert!(self.batch_matching_traversal.is_none());
         // Each completion batch may ask for exact answers again after a quota boundary reopened
         // retained-answer admission.
-        self.completion_exactness_exhausted = false;
+        self.completion_exactness = if self.memory.is_tier3_admitting(MemoryCategory::RetainedMatchAnswer) {
+            CompletionExactness::Exact
+        } else {
+            CompletionExactness::AllowPruning
+        };
         let materialize_timer = flush::PassTimer::start();
         let batch = prefer_complete_batch
             .then(|| {
@@ -1016,6 +1020,7 @@ impl StyleEngineState {
                 traversal.cascade_compaction_workspace_bytes,
             );
             self.discard_published_match_answers(counters);
+            self.finish_memory_evaluation_loop();
         }
     }
 
@@ -1518,11 +1523,15 @@ impl StyleEngineState {
         let bytes = self.relational_witnesses.borrow().capacity_bytes();
         self.relational_witness_residency
             .reconcile_committed(&mut self.memory, bytes);
-        self.memory
-            .finish_committed_acceleration_growth(MemoryCategory::RetainedWitness);
-        if !self.memory.is_tier3_admitting(MemoryCategory::RetainedWitness) {
-            self.relational_witnesses.borrow_mut().set_admitting(false);
-        }
+    }
+
+    /// The next loop observes this admission decision for the rest of the quota period.
+    pub(super) fn finish_memory_evaluation_loop(&mut self) {
+        self.memory.finish_evaluation_loop();
+        self.winner_groups.update_admission(&self.memory);
+        self.relational_witnesses
+            .borrow_mut()
+            .set_admitting(self.memory.is_tier3_admitting(MemoryCategory::RetainedWitness));
     }
 
     /// Return the retained witness proving that this anchor's Boolean cannot have flipped.
@@ -1898,14 +1907,12 @@ impl StyleEngineState {
         }
         if matches!(self.retained_match_answers.lookup(node), Lookup::Missing(_)) {
             counters.bump(Counter::RetainedMatchAnswerRefusals);
-            if !self.completion_exactness_exhausted && counters.get(Counter::Tier3RefusalRetainedMatchAnswerBytes) == 0
-            {
+            if counters.get(Counter::Tier3RefusalRetainedMatchAnswerBytes) == 0 {
                 counters.set(
                     Counter::Tier3RefusalRetainedMatchAnswerBytes,
                     self.memory.bytes_in_category(MemoryCategory::RetainedMatchAnswer),
                 );
             }
-            self.completion_exactness_exhausted = true;
         }
     }
 
@@ -3528,16 +3535,9 @@ impl StyleEngineState {
                 counters.bump(Counter::RetainedMatchAnswerReuses);
                 (answer, cascade_winners_are_complete, None)
             } else {
-                // Ask for an exact, retainable answer rather than a winner-pruned one: pruning is
-                // cheaper once, but the pruned answer cannot enter the retained relation, and this
-                // node will then cold-match again on every flush that plans it. Once retained-answer
-                // admission closes, later new nodes go back to the cheap pruned form, so exactness
-                // is only paid while answers can still enter the retained relation.
-                let completion_exactness = if self.completion_exactness_exhausted {
-                    CompletionExactness::AllowPruning
-                } else {
-                    CompletionExactness::Exact
-                };
+                // Exactness is selected before the batch. Allocation by an earlier node
+                // cannot change the matching discipline of a later node in this loop.
+                let completion_exactness = self.completion_exactness;
                 let mut compact_answer = None;
                 let mut cascade_winners_are_complete = false;
                 let answer = self.match_element_in_traversal(

@@ -932,7 +932,7 @@ pub struct StyleEngineState {
     /// Once Tier-3 pressure closes retained-answer admission, the rest of the completion batch
     /// stops asking for exact answers: an exact answer costs more to evaluate, and paying that
     /// premium for an answer the controller cannot retain buys nothing on any later flush.
-    completion_exactness_exhausted: bool,
+    completion_exactness: CompletionExactness,
     /// Prefix transitions and their canonical answers have one document-lifetime owner. Matching
     /// traversals and answer patches borrow it synchronously and change its cache-owned lifecycle
     /// between scratch and retained residency without moving the payload.

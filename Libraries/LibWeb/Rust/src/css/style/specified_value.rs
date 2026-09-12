@@ -207,7 +207,6 @@ impl SpecifiedValues {
     fn settle_memory(&mut self, memory: &mut MemoryController) {
         let current = self.capacity_bytes();
         self.residency.reconcile_committed(memory, current);
-        memory.finish_committed_acceleration_growth(MemoryCategory::SpecifiedValueTable);
     }
 
     pub(super) fn evict(&mut self) {
@@ -324,6 +323,7 @@ mod tests {
 
         let (resident_id, _) = unsafe { values.intern(std::sync::Arc::as_ptr(&resident), &mut memory) };
         let bytes = memory.bytes_in_category(MemoryCategory::SpecifiedValueTable);
+        memory.finish_evaluation_loop();
         let (refused_id, refused_lookup) = unsafe { values.intern(std::sync::Arc::as_ptr(&refused), &mut memory) };
 
         assert!(matches!(values.value(resident_id), Lookup::Known(value) if value == resident.as_ref()));

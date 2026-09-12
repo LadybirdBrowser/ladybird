@@ -3492,17 +3492,14 @@ pub(super) struct FlippedRule {
 
 impl EngineComputedRecordScratch {
     pub(super) fn capacity_bytes(&self) -> u64 {
-        (self.cohorts.capacity()
-            * size_of::<(
-                (u64, CascadeStateID, u32, RecordDeltaParent, u64),
-                computed::FinalStyleRecordID,
-            )>()
-            + self.cold_cohorts.capacity() * size_of::<(ColdRecordKey, ColdRecord)>()
-            + self.pseudo_cohorts.capacity() * size_of::<(PseudoCohortKey, computed::FinalStyleRecordID)>()
-            + (self.stores.capacity() + self.pseudo_stores.capacity())
-                * size_of::<((u8, CascadeStateID), std::rc::Rc<CascadedPropertyStore>)>()
-            + self.pseudo_deltas.capacity() * size_of::<PseudoRecordDelta>()
-            + self.flipped_pseudo_rules.capacity() * size_of::<FlippedRule>()) as u64
+        capacity::capacity_bytes! {
+            shallow [self.cohorts, self.settled_nodes, self.cold_cohorts, self.stores,
+                self.substituted_states, self.pseudo_cohorts, self.pseudo_stores,
+                self.pseudo_deltas, self.flipped_pseudo_rules];
+            cached [];
+            nested [];
+            skip [];
+        }
     }
 }
 

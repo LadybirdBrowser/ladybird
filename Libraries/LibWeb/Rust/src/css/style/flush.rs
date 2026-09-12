@@ -77,6 +77,7 @@ impl StyleEngineState {
     ) -> bool {
         let mut clock = TransactionClock::new();
         let scoped = self.take_style_transaction_with_clock(root, emit, &mut clock, counters);
+        self.finish_memory_evaluation_loop();
         // Include transaction-local destruction on both ordinary and early-return paths.
         clock.finish(counters);
         scoped
@@ -1554,10 +1555,11 @@ impl StyleEngineState {
         // Record computation interns and installs immediately in the current evaluator.
         clock.enter(Counter::ComputationPublicationMicroseconds, counters);
         {
+            let mut style_delta_memory = MemoryLease::new(MemoryCategory::BridgeBuffer);
+            let mut computation_scratch_memory = MemoryLease::new(MemoryCategory::BatchScratch);
             let mut style_deltas = Vec::with_capacity(published_nodes.len());
             let style_delta_bytes = (style_deltas.capacity() * size_of::<PublishedStyleDeltaRecord>()) as u64;
-            self.memory
-                .reserve_required(MemoryCategory::BridgeBuffer, style_delta_bytes);
+            style_delta_memory.resize_required_to(&mut self.memory, style_delta_bytes);
             let mut unresolved_inheritance_sources = BitColumn::default();
             let mut unresolved_inheritance_source_bytes = 0;
             let mut engine_computed_record_scratch = publication::EngineComputedRecordScratch::default();
@@ -1567,6 +1569,15 @@ impl StyleEngineState {
             // anything the descendant inherits.
             let mut confined_ancestors: HashMap<StyleNodeID, bool> = HashMap::default();
             let computation_loop_timer = PassTimer::start();
+            engine_computed_record_scratch
+                .settled_nodes
+                .reserve(published_nodes.len());
+            confined_ancestors.reserve(published_nodes.len());
+            computation_scratch_memory.resize_required_to(
+                &mut self.memory,
+                engine_computed_record_scratch.capacity_bytes()
+                    + capacity::ShallowCapacityBytes::shallow_capacity_bytes(&confined_ancestors),
+            );
             for (published_index, node) in published_nodes.iter().copied().enumerate() {
                 let pseudo_inputs_may_have_changed = pseudo_inputs_may_have_changed
                     || !selector_truth_changes.refreshes_for(node).is_empty()
@@ -1855,22 +1866,20 @@ impl StyleEngineState {
                         });
                     }
                 }
+                style_delta_memory.resize_required_to(
+                    &mut self.memory,
+                    capacity::ShallowCapacityBytes::shallow_capacity_bytes(&style_deltas),
+                );
+                computation_scratch_memory.resize_required_to(
+                    &mut self.memory,
+                    engine_computed_record_scratch.capacity_bytes()
+                        + capacity::ShallowCapacityBytes::shallow_capacity_bytes(&confined_ancestors),
+                );
             }
             computation_loop_timer.stop(Counter::ComputationLoopMicroseconds, counters);
-            let style_delta_bytes = {
-                let grown = (style_deltas.capacity() * size_of::<PublishedStyleDeltaRecord>()) as u64;
-                if grown > style_delta_bytes {
-                    self.memory
-                        .reserve_required(MemoryCategory::BridgeBuffer, grown - style_delta_bytes);
-                }
-                grown.max(style_delta_bytes)
-            };
-            let cohort_bytes = engine_computed_record_scratch.capacity_bytes()
-                + (confined_ancestors.capacity() * size_of::<(StyleNodeID, bool)>()) as u64;
-            self.memory.reserve_required(MemoryCategory::BatchScratch, cohort_bytes);
             drop(engine_computed_record_scratch);
             drop(confined_ancestors);
-            self.memory.release(MemoryCategory::BatchScratch, cohort_bytes);
+            computation_scratch_memory.release();
             if !style_deltas.is_empty() {
                 self.settle_computed_memory();
                 counters.add(Counter::PublishedMatchAnswerRecords, style_deltas.len() as u64);
@@ -1878,7 +1887,6 @@ impl StyleEngineState {
                 emit(transaction_version, program_version, &style_deltas);
             }
             clock.enter(Counter::TransactionRemainderMicroseconds, counters);
-            self.memory.release(MemoryCategory::BridgeBuffer, style_delta_bytes);
             self.memory.release(
                 MemoryCategory::BatchScratch,
                 (published_nodes.capacity() * size_of::<StyleNodeID>()) as u64,

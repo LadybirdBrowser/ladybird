@@ -4503,7 +4503,6 @@ impl PrefixStateCache {
         }
         if self.lifecycle.is_retained() {
             self.residency.reconcile_committed(memory, bytes);
-            memory.finish_committed_acceleration_growth(MemoryCategory::PrefixTransitionCache);
         } else {
             self.scratch_memory.resize_required_to(memory, bytes);
         }
@@ -4561,7 +4560,6 @@ impl PrefixStateCache {
             return false;
         }
         self.residency.reconcile_committed(memory, working_bytes);
-        memory.finish_committed_acceleration_growth(MemoryCategory::PrefixTransitionCache);
         self.scratch_memory.release();
         self.lifecycle = match self.lifecycle {
             PrefixStateCacheLifecycle::Scratch(coverage) => PrefixStateCacheLifecycle::Retained(coverage),
