@@ -2561,8 +2561,6 @@ void Node::inserted()
         m_is_connected = parent()->is_connected();
 
     recompute_editable_subtree_flag();
-    if (update_inside_blocking_wheel_event_handler_state())
-        set_needs_repaint();
 
     if (auto* element = as_if<Element>(*this)) {
         // The content an element clones into its shadow tree from its own insertion steps lands under
@@ -2614,7 +2612,6 @@ void Node::removed_from(IsSubtreeRoot, Node* old_parent, Node&)
 
     m_is_connected = false;
     m_in_editable_subtree = false;
-    m_inside_blocking_wheel_event_handler = false;
     if (m_layout_node)
         m_layout_node->pin_style_record_for_detachment();
     clear_committed_layout_box();
@@ -2636,8 +2633,6 @@ void Node::removed_from(IsSubtreeRoot, Node* old_parent, Node&)
 void Node::moved_from(IsSubtreeRoot, GC::Ptr<Node>)
 {
     recompute_editable_subtree_flag();
-    if (update_inside_blocking_wheel_event_handler_state())
-        set_needs_repaint();
 }
 
 static bool is_root_wheel_event_target(Node const& node)
@@ -2658,8 +2653,12 @@ bool Node::update_inside_blocking_wheel_event_handler_state()
 {
     bool const was_inside_blocking_wheel_event_handler = m_inside_blocking_wheel_event_handler;
     m_inside_blocking_wheel_event_handler = false;
-    if (auto* parent = parent_or_shadow_host_node())
+    if (auto* parent = parent_or_shadow_host()) {
+        // A shadow root has no layout box, so the layout tree builder never derives its state.
+        if (is<ShadowRoot>(*parent))
+            parent->update_inside_blocking_wheel_event_handler_state();
         m_inside_blocking_wheel_event_handler = parent->inside_blocking_wheel_event_handler();
+    }
 
     if (!m_inside_blocking_wheel_event_handler && !is_root_wheel_event_target(*this) && has_blocking_wheel_event_listener())
         m_inside_blocking_wheel_event_handler = true;

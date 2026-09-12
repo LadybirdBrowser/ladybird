@@ -1215,6 +1215,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             VERIFY(element_pointer);
             auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
             auto& element = *static_cast<DOM::Element*>(element_pointer);
+            element.update_inside_blocking_wheel_event_handler_state();
             if (should_create_layout_node) {
                 LayoutTreeBuilderAccess::clear_synthetic_pseudo_element_layout_nodes(element);
                 update_style_if_needed_for_layout_tree_bypass_path(element);
@@ -1370,6 +1371,7 @@ static void update_style_if_needed_for_layout_tree_bypass_path(DOM::Element& ele
 
 static RustFFI::NodeSlotId create_layout_node_for_text(PrincipalNodeFrame& frame, DOM::Text& text_node)
 {
+    text_node.update_inside_blocking_wheel_event_handler_state();
     frame.layout_node = &allocate_layout_node<Layout::TextNode>(text_node.document(), text_node);
     return Node::slot_id(frame.layout_node);
 }

@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #blocking,
+    #plain {
+        position: absolute;
+        left: 0;
+        width: 100px;
+        height: 100px;
+    }
+
+    #blocking {
+        top: 0;
+    }
+
+    #plain {
+        top: 200px;
+    }
+
+    .probe {
+        margin-left: 200px;
+        width: 100px;
+        height: 100px;
+    }
+</style>
+<div id="blocking"></div>
+<div id="plain"><div id="moved"><div class="probe"></div></div></div>
+<script>
+    test(() => {
+        blocking.addEventListener("wheel", () => {}, { passive: false });
+        const blocks = (label, y) => println(`${label}: ${internals.asyncScrollingStateBlocksWheelEventAt(250, y)}`);
+
+        const host = document.createElement("div");
+        const probe = document.createElement("div");
+        probe.style.cssText = "margin-left: 200px; width: 100px; height: 100px";
+        host.attachShadow({ mode: "open" }).append(probe);
+        blocking.append(host);
+        blocks("shadow child of a host inserted under a blocking listener", 50);
+        host.remove();
+
+        blocks("descendant of a subtree before it moves", 250);
+        blocking.moveBefore(moved, null);
+        blocks("descendant of a subtree moved under a blocking listener", 50);
+        plain.moveBefore(moved, null);
+        blocks("descendant of a subtree moved out from under a blocking listener", 250);
+    });
+</script>
