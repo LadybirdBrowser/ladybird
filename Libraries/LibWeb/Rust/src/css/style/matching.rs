@@ -3934,9 +3934,14 @@ impl StyleEngine {
         matches: &mut Vec<exact_matcher::ExactRuleMatch>,
     ) -> Result<(), Incomplete> {
         let shadow_root = self.scope_root(scope);
-        let mut matcher = ExactMatcher::new(&self.tree, self.facts.primary(), &self.programs, &self.program)
-            .in_scope(scope)
-            .with_context(context);
+        let mut matcher = ExactMatcher::new(
+            &self.tree,
+            self.facts.committed_for_verification(),
+            &self.programs,
+            &self.program,
+        )
+        .in_scope(scope)
+        .with_context(context);
         if let Some(shadow_root) = shadow_root {
             matcher = matcher.in_shadow_tree(shadow_root);
         }
