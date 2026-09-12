@@ -1,0 +1,11 @@
+finite and infinite offscreen paint animations build no overlays: true
+animation listeners do not keep the frame pump running: true
+offscreen paint animations publish no compositor descriptors: true
+animation event wake-up is armed: true
+early wake-up requests no frame: true
+finite and infinite offscreen animations dispatch iteration: true
+iteration needs no animated style overlays: true
+finite offscreen animations dispatch their end events: true
+finite offscreen animation finishes: true
+finite offscreen animation applies its final color: true
+offscreen animation dispatches cancellation: true
