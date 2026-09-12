@@ -1,0 +1,15 @@
+offscreen background builds no overlays: true
+offscreen background stops the frame pump: true
+computed style samples the current color: true
+scrolling into view samples the current color: true
+visible background resumes the frame pump: true
+scrolling out of view stops the frame pump again: true
+paint outside a nested scrollport stops the frame pump: true
+scrolling a nested scrollport resumes visible paint: true
+visible fixed descendant keeps inherited paint updating: true
+ancestor filter animation keeps paint updating even before it expands: true
+mixed layout and paint animation keeps updating: true
+offscreen clipped shadow stops the frame pump: true
+expanded overflow clip keeps potentially visible shadow updating: true
+horizontal clip does not hide vertical shadow overflow: true
+unclipped shadow that can reach the viewport keeps updating: true

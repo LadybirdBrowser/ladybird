@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes loading {
+        0%, 40%, 90% { background-color: rgb(35, 35, 35); }
+        70% { background-color: rgb(65, 65, 65); }
+    }
+    @keyframes finite-color {
+        from { background-color: rgb(0, 0, 0); }
+        to { background-color: rgb(200, 0, 0); }
+    }
+    .target { position: absolute; top: 200vh; width: 20px; height: 20px; }
+    #infinite { animation: loading 1s linear infinite; }
+    #finite { animation: finite-color 3s linear forwards; }
+    #repeated { animation: finite-color 1s linear 3 forwards; }
+</style>
+<div id="infinite" class="target"></div>
+<div id="finite" class="target"></div>
+<div id="repeated" class="target"></div>
+<script>
+    asyncTest(async done => {
+        const events = [];
+        document.addEventListener("animationiteration", event => events.push(`iteration ${event.elapsedTime}`));
+        document.addEventListener("animationend", event => events.push(`end ${event.elapsedTime}`));
+        document.addEventListener("animationcancel", () => events.push("cancel"));
+        const timeline = internals.createInternalAnimationTimeline();
+        const animations = document.getAnimations();
+        for (const animation of animations) {
+            animation.timeline = timeline;
+            animation.startTime = 0;
+        }
+        timeline.setTime(0);
+        timeline.setTimeForObservation(0);
+        const nextFrame = () => new Promise(requestAnimationFrame);
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+        internals.resetStyleInvalidationCounters();
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+        let counters = internals.getStyleInvalidationCounters();
+        println(`finite and infinite offscreen paint animations build no overlays: ${counters.animatedStyleOverlayBuilds === 0}`);
+        println(`animation listeners do not keep the frame pump running: ${counters.animationFramePumpRequests === 0}`);
+        println(`offscreen paint animations publish no compositor descriptors: ${counters.compositorVisualAnimations === 0}`);
+        println(`animation event wake-up is armed: ${counters.compositorAnimationWakeupTimerActive}`);
+
+        timeline.setTimeForObservation(999);
+        internals.fireCompositorAnimationWakeupForTesting(999);
+        println(`early wake-up requests no frame: ${internals.getStyleInvalidationCounters().animationFramePumpRequests === 0}`);
+        timeline.setTimeForObservation(1000);
+        internals.fireCompositorAnimationWakeupForTesting(1000);
+        timeline.setTime(1000);
+        await nextFrame();
+        println(`finite and infinite offscreen animations dispatch iteration: ${events.filter(event => event === "iteration 1").length === 2}`);
+        println(`iteration needs no animated style overlays: ${internals.getStyleInvalidationCounters().animatedStyleOverlayBuilds === 0}`);
+
+        timeline.setTimeForObservation(3001);
+        internals.fireCompositorAnimationWakeupForTesting(3001);
+        timeline.setTime(3001);
+        await nextFrame();
+        println(`finite offscreen animations dispatch their end events: ${events.filter(event => event === "end 3").length === 2}`);
+        println(`finite offscreen animation finishes: ${finite.getAnimations()[0].playState === "finished"}`);
+        println(`finite offscreen animation applies its final color: ${getComputedStyle(finite).backgroundColor === "rgb(200, 0, 0)"}`);
+        for (const animation of animations)
+            animation.cancel();
+        await nextFrame();
+        println(`offscreen animation dispatches cancellation: ${events.includes("cancel")}`);
+        done();
+    });
+</script>

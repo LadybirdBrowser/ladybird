@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .target { position: absolute; top: 200vh; width: 100px; height: 100px; }
+</style>
+<script>
+    asyncTest(async done => {
+        const nextFrame = () => new Promise(requestAnimationFrame);
+        async function settle() {
+            for (let i = 0; i < 4; ++i)
+                await nextFrame();
+        }
+        async function countersOverFrames() {
+            internals.resetStyleInvalidationCounters();
+            await settle();
+            return internals.getStyleInvalidationCounters();
+        }
+        const timeline = internals.createInternalAnimationTimeline();
+        timeline.setTime(0);
+        timeline.setTimeForObservation(0);
+        const target = document.createElement("div");
+        target.className = "target";
+        document.body.append(target);
+        const animation = new Animation(new KeyframeEffect(target, [
+            { backgroundColor: "rgb(0, 0, 0)", offset: 0 },
+            { backgroundColor: "rgb(200, 0, 0)", offset: 0.8 },
+        ], { duration: 1000, iterations: Infinity }), timeline);
+        animation.play();
+        animation.startTime = 0;
+        await settle();
+        let counters = await countersOverFrames();
+        println(`offscreen background builds no overlays: ${counters.animatedStyleOverlayBuilds === 0}`);
+        println(`offscreen background stops the frame pump: ${counters.animationFramePumpRequests === 0}`);
+
+        timeline.setTimeForObservation(400);
+        println(`computed style samples the current color: ${getComputedStyle(target).backgroundColor === "rgb(100, 0, 0)"}`);
+        timeline.setTime(600);
+        timeline.setTimeForObservation(600);
+        target.scrollIntoView();
+        await settle();
+        println(`scrolling into view samples the current color: ${getComputedStyle(target).backgroundColor === "rgb(150, 0, 0)"}`);
+        counters = await countersOverFrames();
+        println(`visible background resumes the frame pump: ${counters.animationFramePumpRequests > 0}`);
+
+        scrollTo(0, 0);
+        await settle();
+        counters = await countersOverFrames();
+        println(`scrolling out of view stops the frame pump again: ${counters.animationFramePumpRequests === 0}`);
+
+        const scroller = document.createElement("div");
+        scroller.style.cssText = "width: 100px; height: 20px; overflow: auto";
+        target.replaceWith(scroller);
+        scroller.append(target);
+        target.style.cssText = "position: relative; top: 40px";
+        await settle();
+        counters = await countersOverFrames();
+        println(`paint outside a nested scrollport stops the frame pump: ${counters.animationFramePumpRequests === 0}`);
+        scroller.scrollTop = 40;
+        await settle();
+        counters = await countersOverFrames();
+        println(`scrolling a nested scrollport resumes visible paint: ${counters.animationFramePumpRequests > 0}`);
+        scroller.replaceWith(target);
+        target.style.cssText = "";
+
+        const child = document.createElement("div");
+        child.style.cssText = "position: fixed; top: 0; width: 20px; height: 20px; background-color: inherit";
+        target.append(child);
+        await settle();
+        counters = await countersOverFrames();
+        println(`visible fixed descendant keeps inherited paint updating: ${counters.animationFramePumpRequests > 0}`);
+        child.remove();
+
+        const wrapper = document.createElement("div");
+        target.replaceWith(wrapper);
+        wrapper.append(target);
+        const filterAnimation = new Animation(new KeyframeEffect(wrapper, [
+            { filter: "none" },
+            { filter: "blur(100px)" },
+        ], { duration: 1000, iterations: Infinity }), timeline);
+        filterAnimation.play();
+        filterAnimation.startTime = 600;
+        await settle();
+        counters = await countersOverFrames();
+        println(`ancestor filter animation keeps paint updating even before it expands: ${counters.animationFramePumpRequests > 0}`);
+        filterAnimation.cancel();
+        wrapper.replaceWith(target);
+
+        animation.effect.setKeyframes([
+            { backgroundColor: "rgb(0, 0, 0)", width: "100px" },
+            { backgroundColor: "rgb(200, 0, 0)", width: "200px" },
+        ]);
+        await settle();
+        counters = await countersOverFrames();
+        println(`mixed layout and paint animation keeps updating: ${counters.animationFramePumpRequests > 0}`);
+        animation.cancel();
+        target.remove();
+
+        const clip = document.createElement("div");
+        clip.className = "target";
+        clip.style.overflow = "hidden";
+        const shadow = document.createElement("div");
+        shadow.style.cssText = "width: 20px; height: 20px";
+        clip.append(shadow);
+        document.body.append(clip);
+        const shadowAnimation = new Animation(new KeyframeEffect(shadow, [
+            { boxShadow: "0 0 0 0 red" },
+            { boxShadow: "0 -200vh 0 0 blue" },
+        ], { duration: 1000, iterations: Infinity }), timeline);
+        shadowAnimation.play();
+        shadowAnimation.startTime = 0;
+        await settle();
+        counters = await countersOverFrames();
+        println(`offscreen clipped shadow stops the frame pump: ${counters.animationFramePumpRequests === 0}`);
+        clip.style.cssText += "; overflow: clip; overflow-clip-margin: 300vh";
+        await settle();
+        counters = await countersOverFrames();
+        println(`expanded overflow clip keeps potentially visible shadow updating: ${counters.animationFramePumpRequests > 0}`);
+        clip.style.cssText += "; overflow-clip-margin: 0px; overflow-x: clip; overflow-y: visible";
+        await settle();
+        counters = await countersOverFrames();
+        println(`horizontal clip does not hide vertical shadow overflow: ${counters.animationFramePumpRequests > 0}`);
+        clip.style.overflow = "visible";
+        await settle();
+        counters = await countersOverFrames();
+        println(`unclipped shadow that can reach the viewport keeps updating: ${counters.animationFramePumpRequests > 0}`);
+        shadowAnimation.cancel();
+        clip.remove();
+        done();
+    });
+</script>

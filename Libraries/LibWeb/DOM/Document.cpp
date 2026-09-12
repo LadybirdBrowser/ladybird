@@ -7906,11 +7906,11 @@ static Optional<double> next_throttled_animation_iteration_event_time(Animations
         || effect.iteration_duration().type != Animations::TimeValue::Type::Milliseconds
         || effect.iteration_duration().value <= 0 || !isfinite(effect.iteration_duration().value)
         || !effect.can_skip_per_frame_style_update()
-        || !isinf(effect.iteration_count()) || !effect.is_in_the_active_phase()
+        || !effect.is_in_the_active_phase()
         || effect.can_skip_per_frame_animation_tick())
         return {};
 
-    // NB: Observable infinite throttled animations need a rendering update at the next iteration boundary,
+    // NB: Observable throttled animations need a rendering update at the next iteration boundary,
     //     not at every display refresh. Seeking and cancellation already request their own updates.
     return effect.start_delay().value
         + (effect.previous_current_iteration() + 1 - effect.iteration_start()) * effect.iteration_duration().value;
@@ -7978,7 +7978,8 @@ void Document::service_compositor_animation_wakeup(double timestamp)
                 reached_wakeup = true;
             }
         }
-        if (!is_compositor_handled || isinf(effect.iteration_count()))
+        bool is_offscreen_handled = effect.is_offscreen_throttled() && effect.can_skip_per_frame_style_update();
+        if ((!is_compositor_handled && !is_offscreen_handled) || isinf(effect.iteration_count()))
             continue;
         auto active_end = effect.start_delay().value + effect.iteration_duration().value * effect.iteration_count();
         if (current_time->value < active_end) {
@@ -8152,6 +8153,100 @@ void Document::update_compositor_animations()
         return Layout::RustFFI::layout_arena_transform_subtree_is_clipped_outside(
             layout_node->arena_handle(), Layout::Node::slot_id(layout_node), root_bounds,
             Painting::rect_to_viewport_transform(*this, visual_context_tree));
+    };
+
+    auto paint_only_effect_is_offscreen = [&](Animations::KeyframeEffect const& effect, Element const& target) {
+        if (effect.pseudo_element_type().has_value() || target.namespace_uri() != Namespace::HTML
+            || target.is_document_element() || &target == body())
+            return false;
+
+        // NB: Only properties whose changes are confined to painting are eligible. In particular, color can
+        //     affect SVG stroke geometry, and filters and transforms can bring offscreen pixels into view.
+        bool paint_stays_within_border_box = true;
+        for (auto const& property : effect.target_properties()) {
+            switch (property.id()) {
+            case CSS::PropertyID::BackgroundColor:
+            case CSS::PropertyID::BackgroundPositionX:
+            case CSS::PropertyID::BackgroundPositionY:
+            case CSS::PropertyID::BackgroundSize:
+            case CSS::PropertyID::BackgroundRepeat:
+            case CSS::PropertyID::BackgroundOrigin:
+            case CSS::PropertyID::BackgroundClip:
+            case CSS::PropertyID::BackgroundBlendMode:
+            case CSS::PropertyID::BorderTopColor:
+            case CSS::PropertyID::BorderRightColor:
+            case CSS::PropertyID::BorderBottomColor:
+            case CSS::PropertyID::BorderLeftColor:
+                break;
+            case CSS::PropertyID::BoxShadow:
+            case CSS::PropertyID::OutlineColor:
+            case CSS::PropertyID::OutlineOffset:
+            case CSS::PropertyID::OutlineStyle:
+            case CSS::PropertyID::OutlineWidth:
+            case CSS::PropertyID::TextDecorationColor:
+            case CSS::PropertyID::TextDecorationStyle:
+            case CSS::PropertyID::TextDecorationThickness:
+                paint_stays_within_border_box = false;
+                break;
+            default:
+                return false;
+            }
+        }
+
+        auto const* layout_node = target.unsafe_layout_node();
+        if (!layout_node || !layout_node->is_box())
+            return false;
+
+        // NB: A descendant can explicitly inherit even a normally non-inherited paint property. Reject
+        //     content that can escape ancestor clips or be rendered elsewhere through SVG references.
+        bool subtree_can_escape = false;
+        layout_node->for_each_in_inclusive_subtree_of_type<Layout::NodeWithStyle>([&](auto const& descendant) {
+            if (descendant.is_svg_box() || descendant.is_fixed_position()
+                || (&descendant != layout_node && descendant.is_absolutely_positioned())) {
+                subtree_can_escape = true;
+                return TraversalDecision::Break;
+            }
+            return TraversalDecision::Continue;
+        });
+        if (subtree_can_escape)
+            return false;
+
+        auto viewport_bounds = CSSPixelRect { { 0, 0 }, viewport_rect().size() };
+        auto rect_to_viewport_transform = Painting::rect_to_viewport_transform(*this, visual_context_tree);
+        auto bounds_in_viewport = [&](Layout::Node const& node) -> CSSPixelRect {
+            return Layout::RustFFI::layout_arena_bounding_client_rect(
+                node.arena_handle(), Layout::Node::slot_id(&node), rect_to_viewport_transform);
+        };
+        for (auto const* ancestor = layout_node; ancestor; ancestor = ancestor->parent()) {
+            // NB: Compositor transforms and sticky positioning can move content without resampling its style.
+            //     Filters outside a clip can also expand otherwise clipped paint back into the viewport.
+            if (ancestor->has_css_transform() || ancestor->perspective().has_value() || ancestor->is_sticky_position()
+                || ancestor->filter().has_filters())
+                return false;
+            if (auto const* element = as_if<Element>(ancestor->dom_node())) {
+                if (in_effect_transform_effects_by_target.contains(element))
+                    return false;
+                if (auto effects = competing_effects.get(*element); effects.has_value() && effects->filter.winner)
+                    return false;
+            }
+        }
+        auto visible_bounds = viewport_bounds;
+        for (auto const* container = layout_node->containing_block(); container; container = container->containing_block()) {
+            if (container->overflow_x() == CSS::Overflow::Visible || container->overflow_y() == CSS::Overflow::Visible)
+                continue;
+            if (container->overflow_x() == CSS::Overflow::Clip || container->overflow_y() == CSS::Overflow::Clip) {
+                auto const& margin = container->style_group<CSS::ComputedValues::MiscResetValues>().overflow_clip_margin;
+                if (margin.top.offset != 0 || margin.right.offset != 0 || margin.bottom.offset != 0 || margin.left.offset != 0)
+                    continue;
+            }
+            visible_bounds = visible_bounds.intersected(bounds_in_viewport(*container));
+            if (visible_bounds.is_empty())
+                return true;
+        }
+
+        // NB: Otherwise, only a leaf box with bounded paint can be proven invisible from its own bounds.
+        return paint_stays_within_border_box && !layout_node->has_children()
+            && !bounds_in_viewport(*layout_node).intersects(visible_bounds);
     };
 
     auto observation_has_another_transform_animation = [&](Element const& animated_target, Element const& observation_target, Animations::KeyframeEffect const& current_effect) {
@@ -8370,6 +8465,20 @@ void Document::update_compositor_animations()
         if (animation.is_idle() || (!effect.is_in_effect() && !effect.is_in_the_before_phase()))
             continue;
         auto& target = abstract_target->element();
+
+        bool can_throttle_paint_only_effect = animation.play_state() == Bindings::AnimationPlayState::Running
+            && !animation.pending() && animation.playback_rate() > 0 && isfinite(animation.playback_rate())
+            && animation.timeline() && animation.timeline()->is_monotonically_increasing()
+            && effect.is_in_the_active_phase()
+            && effect.start_delay().type == Animations::TimeValue::Type::Milliseconds
+            && effect.iteration_duration().type == Animations::TimeValue::Type::Milliseconds
+            && effect.iteration_duration().value > 0 && isfinite(effect.iteration_duration().value)
+            && effect.end_delay().value == 0;
+        if (can_throttle_paint_only_effect && paint_only_effect_is_offscreen(effect, target)) {
+            effect.set_is_offscreen_throttled(true);
+            schedule_next_phase_wakeup(effect, animation);
+            continue;
+        }
 
         bool targets_opacity = effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::Opacity));
         bool targets_background_color = effect.target_properties().contains(CSS::PropertyNameAndID::from_id(CSS::PropertyID::BackgroundColor));

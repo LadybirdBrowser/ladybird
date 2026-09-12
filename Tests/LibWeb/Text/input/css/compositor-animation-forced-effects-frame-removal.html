@@ -23,6 +23,7 @@
         document.elementFromPoint(0, 0);
 
         const target = stale.children[stale.children.length - 2];
+        target.scrollIntoView();
         const staleChildren = [...stale.children].filter(child => child !== target && child !== dummy);
         const staleAnimations = staleChildren.map(child => child.animate([{ opacity: 1 }, { opacity: 0 }], { duration: 100000 }));
         target.animate([{ backgroundColor: "rgb(255, 0, 0)" }, { backgroundColor: "rgb(0, 0, 255)" }], { duration: 100000 });

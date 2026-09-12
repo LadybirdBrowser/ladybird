@@ -1069,6 +1069,10 @@ bool KeyframeEffect::can_skip_per_frame_style_update() const
 {
     if (m_is_compositor_driven || m_is_compositor_replaced)
         return true;
+    if (m_is_offscreen_throttled && all_of(target_properties(), [](auto const& property) {
+            return !first_is_one_of(property.id(), CSS::PropertyID::Transform, CSS::PropertyID::Translate, CSS::PropertyID::Rotate, CSS::PropertyID::Scale);
+        }))
+        return true;
 
     auto target = this->target();
     auto cache_result = [&](bool result) {
@@ -1182,10 +1186,11 @@ bool KeyframeEffect::can_skip_per_frame_animation_tick() const
     if (auto animation = associated_animation(); animation && !animation->is_css_animation())
         return true;
 
-    // An infinite effect cannot reach its natural end, so animationend listeners do not require a continuous tick.
+    // NB: Infinite effects cannot reach their natural end, and finite offscreen paint effects have an end timer.
+    //     Neither needs a continuous tick for animationend listeners.
     auto has_css_animation_event_listener_requiring_animation_tick = [this](DOM::EventTarget const& event_target) {
         // NB: Starting or cancelling an active animation requests an update independently of playback.
-        //     Only iteration events require future updates while a visually throttled infinite effect runs.
+        //     Only iteration events require future updates while a visually throttled effect runs.
         if (is_in_the_active_phase())
             return event_target.has_event_listener(HTML::EventNames::animationiteration)
                 || event_target.has_event_listener(HTML::EventNames::webkitAnimationIteration);
