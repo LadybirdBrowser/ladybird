@@ -422,15 +422,6 @@ public:
         return *static_cast<StyleGroup const*>(payload);
     }
 
-    template<typename Callback>
-    void modify_computed_values(Callback callback)
-    {
-        auto record_view = computed_style_record_view();
-        CSS::ComputedValues::Builder builder(m_owned_computed_values ? *m_owned_computed_values : *record_view);
-        callback(*builder.operator->());
-        set_computed_values(move(builder).build());
-    }
-
     static CSS::LengthPercentageOrAuto length_percentage_or_auto(CSS::ComputedValuesFFI::ComputedLengthPercentageOrAuto const& value)
     {
         if (value.is_auto)
@@ -683,24 +674,18 @@ public:
     Gfx::Font const& first_available_font() const;
     CSS::StyleScope const& style_scope() const;
 
-    void reset_table_box_computed_values_used_by_wrapper_to_init_values();
-
     bool is_body() const { return has_flag(RustFFI::NodeFlag::IsBody); }
     bool is_scroll_container() const;
 
     void set_computed_values(NonnullRefPtr<CSS::ComputedValues const>);
     void set_style_record_identity(CSS::StyleRecordID);
-    void refresh_style_from_arena();
-    bool reinherit_owned_computed_values_from(CSS::StyleRecordID parent_style_record_identity);
+    void refresh_style_from_arena(CSS::StyleRecordID, void const* payloads, bool should_attach_resources);
     void pin_style_record_for_cxx_consumers();
     void release_pinned_style_record();
     void bind_generated_style_record(CSS::StyleRecordID);
 
     void set_display(CSS::Display);
     void set_content(CSS::ContentData const&);
-    void set_overflow(CSS::Overflow overflow_x, CSS::Overflow overflow_y);
-    void set_writing_mode_and_direction(CSS::WritingMode, CSS::Direction);
-    void set_scrollbar_width(CSS::ScrollbarWidth);
 
 private:
     CSS::ComputedStyleRecordView computed_style_record_view() const;
@@ -709,11 +694,11 @@ private:
 
     void initialize_from_style_record();
     void publish_style_record_to_node_data();
+    void did_update_style_record();
 
     void rebuild_image_observers();
-    CSS::ComputedValues const& owned_computed_values() const;
     void const* m_style_payloads { nullptr };
-    RefPtr<CSS::ComputedValues const> m_owned_computed_values;
+    bool has_layout_derived_style() const;
     CSS::StyleRecordID m_style_record_identity;
     // The pin is released through the arena's document, so Document::tear_down_layout_tree()
     // must free the layout root before the document's style computer goes away. Every document

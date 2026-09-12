@@ -7,7 +7,8 @@
 use super::*;
 
 use crate::abort_on_panic;
-use crate::layout::layout_node_arena::{FfiAnonymousStyleKind, FfiAnonymousStyleOverrides, LayoutNodeArena};
+use crate::css::style::layout_style::{AnonymousStyleKind, AnonymousStyleOverrides};
+use crate::layout::layout_node_arena::LayoutNodeArena;
 use crate::layout::node_data::{GENERATED_FOR_AFTER, GENERATED_FOR_MARKER, NodeData, NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::text_chunker::{GraphemeSegmenter, code_point_at, code_unit_length_for_code_point};
 use crate::layout::tree_mutation::{UnplacedLayoutNode, free_subtree_and_destroy_shells};
@@ -122,12 +123,9 @@ pub struct FfiDomTreeBuilderCallbacks {
     pub reuse_principal_layout: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub principal_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
     pub attach_principal_style_resources: unsafe extern "C" fn(*mut c_void),
-    pub apply_replaced_display_adjustment: unsafe extern "C" fn(*mut c_void, FfiReplacedElementDisplayAdjustment),
     pub set_layout_root: unsafe extern "C" fn(*mut c_void, *mut c_void),
     pub document_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
     pub document_element_layout_node: unsafe extern "C" fn(*mut c_void) -> NodeSlotId,
-    /// Sets `scrollbar-width` on the viewport box's computed style.
-    pub apply_viewport_scrollbar_width: unsafe extern "C" fn(*mut c_void, u8),
     pub report_rebuild_outcome: unsafe extern "C" fn(*mut c_void, *const *mut c_void, usize, bool),
     pub layout: FfiTreeBuilderCallbacks,
     pub pseudo: FfiPseudoTreeBuilderCallbacks,
@@ -243,6 +241,22 @@ pub enum FfiElementLayoutKind {
     SvgClipPath,
     SvgPattern,
     Normal,
+}
+
+fn apply_replaced_display_adjustment(
+    arena: &LayoutNodeArena,
+    node: NodeSlotId,
+    adjustment: FfiReplacedElementDisplayAdjustment,
+) {
+    use crate::css::css_enums::{display_inside, display_outside};
+    let outside = match adjustment {
+        FfiReplacedElementDisplayAdjustment::Block => display_outside::BLOCK,
+        FfiReplacedElementDisplayAdjustment::Inline => display_outside::INLINE,
+        FfiReplacedElementDisplayAdjustment::None => return,
+    };
+    arena.update_layout_style(node, |style| {
+        style.set_display(FfiDisplay::outside_and_inside(outside, display_inside::FLOW, false));
+    });
 }
 
 pub(crate) fn element_layout_kind(
@@ -1435,8 +1449,8 @@ fn construct_principal_layout_node(
             if needs_style_wrapper {
                 let wrapper = layout_host.create_anonymous_box_from_style_record(
                     facts.style_parent_style_record,
-                    FfiAnonymousStyleKind::InlineStyleWrapper,
-                    FfiAnonymousStyleOverrides::default(),
+                    AnonymousStyleKind::InlineStyleWrapper,
+                    AnonymousStyleOverrides::default(),
                     NodeKind::InlineNode,
                 );
                 let wrapper_slot = wrapper.slot();
@@ -1531,7 +1545,7 @@ fn update_principal_node_after_entry(
         let adjustment = replaced_element_display_adjustment(&host.layout(), layout_node);
         if adjustment != FfiReplacedElementDisplayAdjustment::None {
             // SAFETY: The frame owns a live NodeWithStyle.
-            unsafe { (host.callbacks.apply_replaced_display_adjustment)(frame, adjustment) };
+            apply_replaced_display_adjustment(host.layout().arena(), layout_node, adjustment);
         }
 
         let old_layout_node = update.old_layout_node;
@@ -1828,13 +1842,9 @@ pub unsafe extern "C" fn rust_build_layout_tree(
                 .expect("the document element's box publishes its style during the build")
                 .misc_reset()
                 .scrollbar_width;
-            // SAFETY: The viewport shell is live, and the build runs outside any layout pass.
-            unsafe {
-                (host.callbacks.apply_viewport_scrollbar_width)(
-                    layout_host.shell(document_layout_node),
-                    scrollbar_width,
-                );
-            }
+            layout_host
+                .arena()
+                .update_layout_style(document_layout_node, |style| style.set_scrollbar_width(scrollbar_width));
         }
     }
 
@@ -1949,7 +1959,6 @@ pub struct FfiPseudoTreeBuilderCallbacks {
         FfiPseudoElementDecision,
     ) -> NodeSlotId,
     pub attach_style_resources: unsafe extern "C" fn(*mut c_void),
-    pub apply_replaced_display_adjustment: unsafe extern "C" fn(*mut c_void, FfiReplacedElementDisplayAdjustment),
     pub create_nested_list_marker: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
     pub create_nested_list_marker_content:
         unsafe extern "C" fn(*mut c_void, *mut c_void, FfiPseudoElement, *mut c_void) -> NodeSlotId,
@@ -2091,7 +2100,7 @@ fn create_pseudo_element_with_frame(
         let adjustment = replaced_element_display_adjustment(&host.layout(), layout_node);
         if adjustment != FfiReplacedElementDisplayAdjustment::None {
             // SAFETY: The frame owns a live NodeWithStyle.
-            unsafe { (callbacks.apply_replaced_display_adjustment)(frame, adjustment) };
+            apply_replaced_display_adjustment(layout_host.arena(), layout_node, adjustment);
         }
     }
 
@@ -2284,8 +2293,6 @@ pub(crate) enum FfiInsertionMode {
 #[repr(C)]
 pub struct FfiTreeBuilderCallbacks {
     pub context: *mut c_void,
-    pub take_fieldset_overflow_for_content_wrapper:
-        unsafe extern "C" fn(*mut c_void, *mut c_void) -> FfiAnonymousStyleOverrides,
     pub prepare_subtree_for_detach: unsafe extern "C" fn(*mut c_void, *mut c_void),
     /// The DOM-ancestry half of containing-block recomputation; see the layout callback table.
     pub inline_containing_block_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
@@ -2507,8 +2514,8 @@ impl TreeBuilderHost<'_> {
     fn create_anonymous_box(
         &self,
         parent: LayoutNode,
-        style_kind: FfiAnonymousStyleKind,
-        overrides: FfiAnonymousStyleOverrides,
+        style_kind: AnonymousStyleKind,
+        overrides: AnonymousStyleOverrides,
         node_kind: NodeKind,
     ) -> UnplacedLayoutNode {
         self.create_anonymous_box_from_style_record(
@@ -2522,8 +2529,8 @@ impl TreeBuilderHost<'_> {
     fn create_anonymous_box_from_style_record(
         &self,
         parent_style_record: u64,
-        style_kind: FfiAnonymousStyleKind,
-        overrides: FfiAnonymousStyleOverrides,
+        style_kind: AnonymousStyleKind,
+        overrides: AnonymousStyleOverrides,
         node_kind: NodeKind,
     ) -> UnplacedLayoutNode {
         let derived = self
@@ -2540,17 +2547,17 @@ impl TreeBuilderHost<'_> {
         UnplacedLayoutNode::new(slot)
     }
 
-    fn anonymous_wrapper_overrides(&self, parent: LayoutNode) -> FfiAnonymousStyleOverrides {
-        FfiAnonymousStyleOverrides {
+    fn anonymous_wrapper_overrides(&self, parent: LayoutNode) -> AnonymousStyleOverrides {
+        AnonymousStyleOverrides {
             inline_block_wrapper: self.display(parent).is_inline_block() && self.first_child(parent).is_invalid(),
-            ..FfiAnonymousStyleOverrides::default()
+            ..AnonymousStyleOverrides::default()
         }
     }
 
     fn create_anonymous_wrapper_box(&self, parent: LayoutNode) -> UnplacedLayoutNode {
         self.create_anonymous_box(
             parent,
-            FfiAnonymousStyleKind::Wrapper,
+            AnonymousStyleKind::Wrapper,
             self.anonymous_wrapper_overrides(parent),
             NodeKind::BlockContainer,
         )
@@ -2648,12 +2655,12 @@ impl TreeBuilderHost<'_> {
         let parent = self.parent(nodes[0]);
         assert!(!parent.is_invalid());
         let (style_kind, node_kind) = match kind {
-            FfiAnonymousTableBoxKind::TableRow => (FfiAnonymousStyleKind::TableRow, NodeKind::Box),
-            FfiAnonymousTableBoxKind::TableCell => (FfiAnonymousStyleKind::TableCell, NodeKind::BlockContainer),
-            FfiAnonymousTableBoxKind::Table => (FfiAnonymousStyleKind::Table, NodeKind::Box),
-            FfiAnonymousTableBoxKind::InlineTable => (FfiAnonymousStyleKind::InlineTable, NodeKind::Box),
+            FfiAnonymousTableBoxKind::TableRow => (AnonymousStyleKind::TableRow, NodeKind::Box),
+            FfiAnonymousTableBoxKind::TableCell => (AnonymousStyleKind::TableCell, NodeKind::BlockContainer),
+            FfiAnonymousTableBoxKind::Table => (AnonymousStyleKind::Table, NodeKind::Box),
+            FfiAnonymousTableBoxKind::InlineTable => (AnonymousStyleKind::InlineTable, NodeKind::Box),
         };
-        let wrapper = self.create_anonymous_box(parent, style_kind, FfiAnonymousStyleOverrides::default(), node_kind);
+        let wrapper = self.create_anonymous_box(parent, style_kind, AnonymousStyleOverrides::default(), node_kind);
         let wrapper_slot = wrapper.slot();
         for &node in nodes {
             self.move_child(node, wrapper_slot, NodeSlotId::INVALID);
@@ -3330,13 +3337,13 @@ fn wrap_button_contents_if_needed(host: &TreeBuilderHost<'_>, layout_node: Layou
 
         let flex_wrapper = host.create_anonymous_box(
             layout_node,
-            FfiAnonymousStyleKind::ButtonFlexWrapper,
-            FfiAnonymousStyleOverrides::default(),
+            AnonymousStyleKind::ButtonFlexWrapper,
+            AnonymousStyleOverrides::default(),
             NodeKind::BlockContainer,
         );
         let content_box = host.create_anonymous_box(
             layout_node,
-            FfiAnonymousStyleKind::ButtonContentBox,
+            AnonymousStyleKind::ButtonContentBox,
             host.anonymous_wrapper_overrides(layout_node),
             NodeKind::BlockContainer,
         );
@@ -3388,13 +3395,21 @@ fn wrap_fieldset_contents_if_needed(host: &TreeBuilderHost<'_>, layout_node: Lay
             child = host.next_sibling(child);
         }
 
-        // SAFETY: `layout_node` is a live fieldset box.
-        let overrides = unsafe {
-            (host.callbacks.take_fieldset_overflow_for_content_wrapper)(host.callbacks.context, host.shell(layout_node))
+        let style = node_facts::node_style_view(host.data(layout_node)).expect("fieldset style");
+        let overrides = AnonymousStyleOverrides {
+            inline_block_wrapper: false,
+            overflow_x: style.box_values().overflow_x,
+            overflow_y: style.box_values().overflow_y,
         };
+        host.arena().update_layout_style(layout_node, |style| {
+            style.set_overflow(
+                crate::css::css_enums::overflow::VISIBLE,
+                crate::css::css_enums::overflow::VISIBLE,
+            );
+        });
         let wrapper = host.create_anonymous_box(
             layout_node,
-            FfiAnonymousStyleKind::FieldsetContentWrapper,
+            AnonymousStyleKind::FieldsetContentWrapper,
             overrides,
             NodeKind::BlockContainer,
         );
@@ -3785,8 +3800,8 @@ fn generate_missing_parents(host: &TreeBuilderHost<'_>, root: LayoutNode) -> Vec
         if host.data(parent).kind.get() != NodeKind::TableWrapper {
             let wrapper = host.create_anonymous_box(
                 table_root,
-                FfiAnonymousStyleKind::TableWrapper,
-                FfiAnonymousStyleOverrides::default(),
+                AnonymousStyleKind::TableWrapper,
+                AnonymousStyleOverrides::default(),
                 NodeKind::TableWrapper,
             );
             host.arena().reset_table_box_style_used_by_wrapper(table_root);
@@ -3830,8 +3845,8 @@ fn fixup_row(
     for _ in retained_cell_count..required_cell_count {
         let cell = host.create_anonymous_box(
             row,
-            FfiAnonymousStyleKind::MissingTableCell,
-            FfiAnonymousStyleOverrides::default(),
+            AnonymousStyleKind::MissingTableCell,
+            AnonymousStyleOverrides::default(),
             NodeKind::BlockContainer,
         );
         host.arena()

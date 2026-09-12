@@ -1351,8 +1351,6 @@ private:
         return to_underlying(property_id) - to_underlying(first_longhand_property_id);
     }
 
-    void inherit_from(ComputedValues const& other) { m_inherited = other.m_inherited; }
-
 public:
     // The layout and lifecycle of this group are defined in Rust (computed_values.rs).
     struct InheritedTableValues : ComputedValuesFFI::InheritedTableValues {
@@ -2028,11 +2026,6 @@ private:
     }
 
 public:
-    void inherit_from(ComputedValues const& other)
-    {
-        m_values.inherit_from(other);
-    }
-
     void set_property_important(PropertyID property_id, bool value) { m_values.m_property_important.set(ComputedValues::property_bitmap_index(property_id), value); }
     void set_property_inherited(PropertyID property_id, bool value) { m_values.m_property_inherited.set(ComputedValues::property_bitmap_index(property_id), value); }
     void set_property_flag_bitmaps(ReadonlyBytes importance, ReadonlyBytes inheritance)
@@ -2078,70 +2071,11 @@ public:
             return;
         m_values.m_inherited.ui.access().color_scheme = to_underlying(color_scheme);
     }
-    void set_clip(Clip const& clip)
-    {
-        if (m_values.clip() == clip)
-            return;
-        auto& effects = m_values.m_noninherited.effects.access();
-        effects.clip_is_rect = clip.is_rect();
-        if (!clip.is_rect())
-            return;
-        auto rect = clip.to_rect();
-        auto set_edge = [](auto& output, LengthOrAuto const& input) {
-            output.is_auto = input.is_auto();
-            output.value = input.is_auto() ? 0 : input.length().raw_value();
-            output.unit = input.is_auto() ? to_underlying(LengthUnit::Px) : to_underlying(input.length().unit());
-        };
-        set_edge(effects.clip_edges[0], rect.top_edge);
-        set_edge(effects.clip_edges[1], rect.right_edge);
-        set_edge(effects.clip_edges[2], rect.bottom_edge);
-        set_edge(effects.clip_edges[3], rect.left_edge);
-    }
-    void set_float(Float value)
-    {
-        if (m_values.m_noninherited.box->float_ == to_underlying(value))
-            return;
-        m_values.m_noninherited.box.access().float_ = to_underlying(value);
-    }
-    void set_clear(Clear value)
-    {
-        if (m_values.m_noninherited.box->clear == to_underlying(value))
-            return;
-        m_values.m_noninherited.box.access().clear = to_underlying(value);
-    }
-    void set_z_index(Optional<int> value)
-    {
-        if (m_values.z_index() == value)
-            return;
-        auto& box = m_values.m_noninherited.box.access();
-        box.has_z_index = value.has_value();
-        box.z_index = value.value_or(0);
-    }
     void set_text_align(TextAlign text_align)
     {
         if (m_values.m_inherited.text->text_align_value() == text_align)
             return;
         m_values.m_inherited.text.access().text_align = to_underlying(text_align);
-    }
-    void set_position(Positioning position)
-    {
-        if (m_values.m_noninherited.box->position == to_underlying(position))
-            return;
-        m_values.m_noninherited.box.access().position = to_underlying(position);
-    }
-    // The surround payload retains the position-anchor style value for the
-    // layout engine's anchor lookup; an empty handle means no name.
-    void set_position_anchor(PositionAnchor value)
-    {
-        if (m_values.m_noninherited.anchor->position_anchor_value() == value)
-            return;
-        auto& surround = m_values.m_noninherited.surround.access();
-        ComputedValuesFFI::rust_surround_set_position_anchor(&surround, value.name.has_value() ? value.name->to_raw_leaked() : 0);
-        auto& anchor = m_values.m_noninherited.anchor.access();
-        ComputedValuesFFI::rust_anchor_set_position_anchor(
-            &anchor,
-            to_underlying(value.type),
-            value.name.has_value() ? value.name->to_raw_leaked() : 0);
     }
     void set_letter_spacing(CSSPixels value)
     {
@@ -2150,20 +2084,6 @@ public:
         m_values.m_inherited.text.access().letter_spacing = value;
     }
     void set_width(Size value) { set_size(&ComputedValuesFFI::SizingValues::width, move(value)); }
-    void set_height(Size value) { set_size(&ComputedValuesFFI::SizingValues::height, move(value)); }
-    void set_min_height(Size value) { set_size(&ComputedValuesFFI::SizingValues::min_height, move(value)); }
-    void set_inset(LengthBox const& inset)
-    {
-        if (m_values.inset() == inset)
-            return;
-        set_length_box(m_values.m_noninherited.surround.access().inset, inset);
-    }
-    void set_margin(LengthBox const& margin)
-    {
-        if (m_values.margin() == margin)
-            return;
-        set_length_box(m_values.m_noninherited.surround.access().margin, margin);
-    }
     void set_overflow_x(Overflow value)
     {
         if (m_values.m_noninherited.box->overflow_x == to_underlying(value))
@@ -2188,41 +2108,6 @@ public:
             return;
         m_values.m_noninherited.box.access().display_before_box_type_transformation = to_ffi_display(value);
     }
-    void copy_fieldset_content_alignment_from(ComputedValues const& source)
-    {
-        ComputedValuesFFI::rust_alignment_values_copy_fieldset_content_properties(
-            &*source.m_noninherited.alignment, &m_values.m_noninherited.alignment.access());
-    }
-    void set_flex_direction(FlexDirection value)
-    {
-        if (m_values.flex_direction() == value)
-            return;
-        m_values.m_noninherited.alignment.access().flex_direction = to_underlying(value);
-    }
-    void set_order(i32 value)
-    {
-        if (m_values.m_noninherited.alignment->order == value)
-            return;
-        m_values.m_noninherited.alignment.access().order = value;
-    }
-    void set_align_self(AlignSelf value)
-    {
-        if (m_values.align_self() == value)
-            return;
-        m_values.m_noninherited.alignment.access().align_self = to_underlying(value);
-    }
-    void set_justify_content(JustifyContent value)
-    {
-        if (m_values.justify_content() == value)
-            return;
-        m_values.m_noninherited.alignment.access().justify_content = to_underlying(value);
-    }
-    void set_justify_self(JustifySelf value)
-    {
-        if (m_values.justify_self() == value)
-            return;
-        m_values.m_noninherited.alignment.access().justify_self = to_underlying(value);
-    }
     void set_rotate(RefPtr<TransformationStyleValue const> value)
     {
         if (m_values.rotate() == value)
@@ -2241,81 +2126,8 @@ public:
             return;
         TransformValues::set_transformation(m_values.m_noninherited.transform.access().translate, value.ptr());
     }
-    void set_vertical_align(Variant<VerticalAlign, LengthPercentage> value)
-    {
-        if (m_values.vertical_align() == value)
-            return;
-        auto& slot = m_values.m_noninherited.box.access().vertical_align;
-        StyleValueFFI::rust_style_value_release(static_cast<StyleValueFFI::StyleValueData const*>(slot.value.pointer));
-        slot = to_ffi_vertical_align(value);
-    }
-    void copy_grid_placements_from(ComputedValues const& source)
-    {
-        copy_grid_placements_from(*source.m_noninherited.grid);
-    }
-    void copy_grid_placements_from(GridValues const& source)
-    {
-        auto const* source_grid = static_cast<ComputedValuesFFI::GridValues const*>(&source);
-        auto const* current_grid = static_cast<ComputedValuesFFI::GridValues const*>(m_values.m_noninherited.grid.operator->());
-        if (ComputedValuesFFI::rust_grid_values_placements_equal(source_grid, current_grid))
-            return;
-        ComputedValuesFFI::rust_grid_values_copy_placements(
-            source_grid,
-            &m_values.m_noninherited.grid.access());
-    }
-    void reset_grid_placements_to_auto()
-    {
-        // Every producer writes auto placements in canonical form, so a kind
-        // check alone detects the already-auto case without cloning.
-        auto placement_is_auto = [](ComputedValuesFFI::ComputedGridPlacement const& placement) {
-            return placement.kind == to_underlying(ComputedValuesFFI::ComputedGridPlacementKind::Auto);
-        };
-        auto const& grid = *m_values.m_noninherited.grid;
-        if (placement_is_auto(grid.column_start) && placement_is_auto(grid.column_end)
-            && placement_is_auto(grid.row_start) && placement_is_auto(grid.row_end))
-            return;
-        ComputedValuesFFI::rust_grid_values_reset_placements_to_auto(&m_values.m_noninherited.grid.access());
-    }
-    void set_direction(Direction value)
-    {
-        if (m_values.m_inherited.box->direction == to_underlying(value))
-            return;
-        m_values.m_inherited.box.access().direction = to_underlying(value);
-    }
-    void set_writing_mode(WritingMode value)
-    {
-        if (m_values.m_inherited.box->writing_mode == to_underlying(value))
-            return;
-        m_values.m_inherited.box.access().writing_mode = to_underlying(value);
-    }
-    void set_scrollbar_width(ScrollbarWidth value)
-    {
-        if (m_values.m_noninherited.misc->scrollbar_width == to_underlying(value))
-            return;
-        m_values.m_noninherited.misc.access().scrollbar_width = to_underlying(value);
-    }
 
 private:
-    static void replace_length_percentage_or_auto(ComputedValuesFFI::ComputedLengthPercentageOrAuto& target, LengthPercentageOrAuto const& replacement)
-    {
-        StyleValueFFI::rust_style_value_release(static_cast<StyleValueFFI::StyleValueData const*>(target.value.pointer));
-        target.is_auto = replacement.is_auto();
-        if (replacement.is_auto()) {
-            target.value.pointer = nullptr;
-            return;
-        }
-        auto retained = replacement.length_percentage();
-        target.value.pointer = retained.leak_data();
-    }
-
-    static void set_length_box(ComputedValuesFFI::ComputedLengthBox& target, LengthBox const& replacement)
-    {
-        replace_length_percentage_or_auto(target.top, replacement.top());
-        replace_length_percentage_or_auto(target.right, replacement.right());
-        replace_length_percentage_or_auto(target.bottom, replacement.bottom());
-        replace_length_percentage_or_auto(target.left, replacement.left());
-    }
-
     void set_size(ComputedValuesFFI::ComputedSize ComputedValuesFFI::SizingValues::* member, Size value)
     {
         if (Size::view(m_values.m_noninherited.sizing.operator->()->*member) == value)
@@ -2353,13 +2165,6 @@ public:
         m_values->m_in_display_none_subtree = values.m_in_display_none_subtree;
         m_values->m_highlight_colors_authored = values.m_highlight_colors_authored;
         m_values->m_highlight_color_is_current_color = values.m_highlight_color_is_current_color;
-    }
-
-    static Builder create_inheriting_from(ComputedValues const& values)
-    {
-        Builder builder;
-        builder.m_values->m_inherited = values.m_inherited;
-        return builder;
     }
 
     Mutator* operator->() { return &m_mutator; }

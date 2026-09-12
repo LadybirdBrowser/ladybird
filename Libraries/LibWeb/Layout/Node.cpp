@@ -371,15 +371,13 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, GC::Ptr<DOM::Node> node, C
     if (!!style.style_record_identity()) {
         m_style_record_identity = style.style_record_identity();
     } else if (auto* element = as_if<DOM::Element>(node.ptr())) {
-        m_owned_computed_values = style.values();
         m_style_record_identity = document.style_computer().intern_computed_style_inputs({ *element }, *style.values());
     } else {
-        m_owned_computed_values = style.values();
         m_style_record_identity = document.style_computer().intern_anonymous_layout_style(*style.values());
     }
     initialize_from_style_record();
-    if (m_owned_computed_values)
-        pin_style_record_for_cxx_consumers();
+    if (!style.style_record_identity())
+        RustFFI::layout_arena_adopt_derived_node_style(arena_handle(), slot_id(this), m_style_record_identity.value());
 }
 
 NodeWithStyle::NodeWithStyle(DOM::Document& document, BindToPreparedArenaSlot bind, RustFFI::NodeSlotId slot, RustFFI::NodeKind kind)
@@ -393,34 +391,17 @@ NodeWithStyle::NodeWithStyle(DOM::Document& document, BindToPreparedArenaSlot bi
 
 void NodeWithStyle::initialize_from_style_record()
 {
-    // NB: Nodes constructed from an interned style record own no ComputedValues; read anchor names through the record view there.
-    bool has_anchor_names = false;
-    bool insets_use_anchor_functions = false;
-    if (m_owned_computed_values) {
-        has_anchor_names = !m_owned_computed_values->anchor_names().is_empty();
-        insets_use_anchor_functions = m_owned_computed_values->inset_properties_contain_anchor_functions();
-    } else if (auto record_view = computed_style_record_view()) {
-        has_anchor_names = !record_view->anchor_names().is_empty();
-        insets_use_anchor_functions = record_view->inset_properties_contain_anchor_functions();
-    }
-    set_flag(RustFFI::NodeFlag::HasAnchorNames, has_anchor_names);
-    set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, insets_use_anchor_functions);
-    set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, false);
     publish_style_record_to_node_data();
-    set_flag(RustFFI::NodeFlag::HasPreserve3dTransformStyle, transform_style() == CSS::TransformStyle::Preserve3d);
     synchronize_table_span_data();
 }
 
-CSS::ComputedValues const& NodeWithStyle::owned_computed_values() const
+bool NodeWithStyle::has_layout_derived_style() const
 {
-    VERIFY(m_owned_computed_values);
-    return *m_owned_computed_values;
+    return RustFFI::layout_arena_node_has_derived_style(arena_handle(), slot_id(this));
 }
 
 NonnullRefPtr<CSS::ComputedValues const> NodeWithStyle::copy_computed_values() const
 {
-    if (m_owned_computed_values)
-        return *m_owned_computed_values;
     auto record_view = computed_style_record_view();
     VERIFY(record_view);
     return CSS::ComputedValues::Builder { *record_view }.build();
@@ -524,15 +505,9 @@ void NodeWithStyle::apply_style(CSS::StyleRecordID style_record_identity)
     m_border_image.clear();
     m_list_style_type.clear();
     m_list_style_image.clear();
-    m_owned_computed_values = nullptr;
     m_style_record_identity = style_record_identity;
     publish_style_record_to_node_data();
-    auto record_view = computed_style_record_view();
-    VERIFY(record_view);
-    set_flag(RustFFI::NodeFlag::HasAnchorNames, !record_view->anchor_names().is_empty());
-    set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, record_view->inset_properties_contain_anchor_functions());
     set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, false);
-    set_flag(RustFFI::NodeFlag::HasPreserve3dTransformStyle, transform_style() == CSS::TransformStyle::Preserve3d);
     // A style change can introduce the properties that make a node carry replaced-content facts,
     // such as size containment arriving on a kept layout node.
     RustFFI::layout_arena_reinherit_anonymous_descendants(arena_handle(), slot_id(this));
@@ -595,46 +570,19 @@ CSS::StyleScope const& NodeWithStyle::style_scope() const
     return document().style_scope();
 }
 
-void NodeWithStyle::refresh_style_from_arena()
+void NodeWithStyle::refresh_style_from_arena(CSS::StyleRecordID record, void const* payloads, bool should_attach_resources)
 {
-    m_style_record_identity = CSS::StyleRecordID { RustFFI::layout_arena_node_style_record(arena_handle(), slot_id(this)) };
-    VERIFY(m_style_record_identity);
+    release_pinned_style_record();
+    m_style_record_identity = record;
+    m_style_payloads = payloads;
     m_background_layers.clear();
     m_mask_layers.clear();
     m_border_image.clear();
     m_list_style_type.clear();
     m_list_style_image.clear();
-    auto record_view = computed_style_record_view();
-    VERIFY(record_view);
-    set_flag(RustFFI::NodeFlag::HasAnchorNames, !record_view->anchor_names().is_empty());
-    set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, record_view->inset_properties_contain_anchor_functions());
-    set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, false);
-    publish_style_record_to_node_data();
-    set_flag(RustFFI::NodeFlag::HasPreserve3dTransformStyle, transform_style() == CSS::TransformStyle::Preserve3d);
-}
-
-bool NodeWithStyle::reinherit_owned_computed_values_from(CSS::StyleRecordID parent_style_record_identity)
-{
-    // NB: The principal box of a pseudo-element (::before, ::after, ::marker, etc) has its own computed
-    //     style, which is applied to it separately. Don't clobber that style with inherited values from
-    //     the parent.
-    if (is_pseudo_element_principal_box())
-        return false;
-    // A box generated for a pseudo-element's content (a marker's image box) was created
-    // on the pseudo-element's own record rather than on inherited values: it follows
-    // its principal box's record.
-    if (is_generated_for_pseudo_element() && !m_owned_computed_values) {
-        auto* parent = this->parent();
-        if (parent && parent->is_pseudo_element_principal_box() && parent->generated_for_pseudo_element() == generated_for_pseudo_element())
-            apply_style(parent_style_record_identity);
-        return false;
-    }
-    auto parent_record_view = document().style_computer().computed_style_record_view(parent_style_record_identity);
-    VERIFY(parent_record_view);
-    CSS::ComputedValues::Builder builder(owned_computed_values());
-    builder->inherit_from(*parent_record_view);
-    set_computed_values(move(builder).build());
-    return true;
+    did_update_style_record();
+    if (should_attach_resources)
+        attach_style_resources();
 }
 
 bool Node::is_root_element() const
@@ -705,69 +653,21 @@ Gfx::AffineTransform NodeWithStyle::used_svg_element_transform() const
 void NodeWithStyle::set_computed_values(NonnullRefPtr<CSS::ComputedValues const> computed_values)
 {
     VERIFY(!layout_pass_currently_running());
-
-    // Every path that lands computed values on a layout node funnels through here — element
-    // restyles, inherited-style recomputation (including the animation fast path's descendant
-    // walk), pseudo-element application, and anonymous wrapper propagation at any depth — so
-    // this is the one place that can tell whether a style change can affect this box's layout.
-    // Style-side layout inputs are exactly the layout-affecting group payloads published to
-    // node data plus the animated-value overlay, which lives outside the groups and
-    // disqualifies pointer diffing the same way it disqualifies the style differ's group
-    // fast path.
-    auto differs_from = [&](CSS::ComputedValues const& previous_values) {
-        return CSS::ComputedValues::either_carries_animated_overlay(previous_values, *computed_values)
-            || computed_values->differs_in_any_layout_affecting_group_payload_from(previous_values);
-    };
-    bool changes_layout_affecting_style = false;
-    if (m_owned_computed_values)
-        changes_layout_affecting_style = differs_from(*m_owned_computed_values);
-    else if (auto record_view = computed_style_record_view())
-        changes_layout_affecting_style = differs_from(*record_view);
-
-    release_pinned_style_record();
-    m_background_layers.clear();
-    m_mask_layers.clear();
-    m_border_image.clear();
-    m_list_style_type.clear();
-    m_list_style_image.clear();
-    Optional<DOM::AbstractElement> abstract_element;
+    CSS::StyleRecordID record;
     if (is_generated_for_pseudo_element())
-        abstract_element = DOM::AbstractElement { *pseudo_element_generator(), generated_for_pseudo_element() };
+        record = document().style_computer().intern_computed_style_inputs({ *pseudo_element_generator(), generated_for_pseudo_element() }, *computed_values);
     else if (auto* element = as_if<DOM::Element>(dom_node()))
-        abstract_element = DOM::AbstractElement { *element };
-
-    if (abstract_element.has_value()) {
-        auto style_record_identity = document().style_computer().intern_computed_style_inputs(*abstract_element, *computed_values);
-        if (!m_owned_computed_values && style_record_identity == m_style_record_identity) {
-            m_owned_computed_values = nullptr;
-        } else {
-            m_style_record_identity = style_record_identity;
-            m_owned_computed_values = computed_values;
-        }
-    } else {
-        auto style_record_identity = document().style_computer().intern_anonymous_layout_style(*computed_values);
-        m_style_record_identity = style_record_identity;
-        m_owned_computed_values = computed_values;
-    }
-    set_flag(RustFFI::NodeFlag::HasAnchorNames, !computed_values->anchor_names().is_empty());
-    set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, computed_values->inset_properties_contain_anchor_functions());
-    set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, false);
-    publish_style_record_to_node_data();
-    set_flag(RustFFI::NodeFlag::HasPreserve3dTransformStyle, transform_style() == CSS::TransformStyle::Preserve3d);
-    if (m_owned_computed_values)
-        pin_style_record_for_cxx_consumers();
-
-    if (changes_layout_affecting_style) {
-        bump_fragment_cache_epoch_of_self_and_ancestors();
-        RustFFI::layout_arena_reset_cached_intrinsic_sizes_of_self_and_ancestors(arena_handle(), slot_id(this));
-    }
+        record = document().style_computer().intern_computed_style_inputs({ *element }, *computed_values);
+    else
+        record = document().style_computer().intern_anonymous_layout_style(*computed_values);
+    RustFFI::layout_arena_adopt_derived_node_style(arena_handle(), slot_id(this), record.value());
 }
 
 void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_identity)
 {
     // A detached or layout-derived record is independent of its DOM target's record. A
     // rendering consequence replaces and re-derives it explicitly through apply_style().
-    if (m_owned_computed_values)
+    if (has_layout_derived_style())
         return;
     if (m_style_record_identity == style_record_identity) {
         publish_style_record_to_node_data();
@@ -788,13 +688,8 @@ void NodeWithStyle::set_style_record_identity(CSS::StyleRecordID style_record_id
     m_border_image.clear();
     m_list_style_type.clear();
     m_list_style_image.clear();
-    m_owned_computed_values = nullptr;
     m_style_record_identity = style_record_identity;
-    set_flag(RustFFI::NodeFlag::HasAnchorNames, !new_record_view->anchor_names().is_empty());
-    set_flag(RustFFI::NodeFlag::InsetsUseAnchorFunctions, new_record_view->inset_properties_contain_anchor_functions());
-    set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, false);
     publish_style_record_to_node_data();
-    set_flag(RustFFI::NodeFlag::HasPreserve3dTransformStyle, transform_style() == CSS::TransformStyle::Preserve3d);
     if (should_repin_style_record)
         pin_style_record_for_cxx_consumers();
 
@@ -825,13 +720,12 @@ void NodeWithStyle::release_pinned_style_record()
 void NodeWithStyle::bind_generated_style_record(CSS::StyleRecordID target_style_record_identity)
 {
     VERIFY(is_generated_for_pseudo_element());
-    if (!m_owned_computed_values) {
+    if (!has_layout_derived_style()) {
         set_style_record_identity(target_style_record_identity);
         return;
     }
     if (m_style_record_identity != target_style_record_identity)
         return;
-    m_owned_computed_values = nullptr;
     publish_style_record_to_node_data();
 }
 
@@ -851,6 +745,11 @@ void NodeWithStyle::publish_style_record_to_node_data()
     VERIFY(payloads);
     m_style_payloads = payloads;
     RustFFI::layout_arena_set_node_style(arena_handle(), slot_id(this), m_style_record_identity.value(), payloads);
+    did_update_style_record();
+}
+
+void NodeWithStyle::did_update_style_record()
+{
     if (auto const* element = as_if<DOM::Element>(dom_node()); element && element->computed_style(CSS::PseudoElement::Selection))
         Painting::push_selection_pseudo_style(*element);
     if (content_visibility() == CSS::ContentVisibility::Auto)
@@ -899,62 +798,13 @@ bool NodeWithStyle::synchronize_table_span_data()
 
 void NodeWithStyle::set_display(CSS::Display display)
 {
-    modify_computed_values([&](auto& values) {
-        values.set_display(display);
-    });
+    VERIFY(!layout_pass_currently_running());
+    RustFFI::layout_arena_set_layout_display(arena_handle(), slot_id(this), bit_cast<u32>(display));
 }
 
 void NodeWithStyle::set_content(CSS::ContentData const& content)
 {
     m_content = content;
-}
-
-void NodeWithStyle::set_overflow(CSS::Overflow overflow_x, CSS::Overflow overflow_y)
-{
-    modify_computed_values([&](auto& values) {
-        values.set_overflow_x(overflow_x);
-        values.set_overflow_y(overflow_y);
-    });
-}
-
-void NodeWithStyle::set_writing_mode_and_direction(CSS::WritingMode writing_mode, CSS::Direction direction)
-{
-    modify_computed_values([&](auto& values) {
-        values.set_writing_mode(writing_mode);
-        values.set_direction(direction);
-    });
-}
-
-void NodeWithStyle::set_scrollbar_width(CSS::ScrollbarWidth scrollbar_width)
-{
-    modify_computed_values([&](auto& values) {
-        values.set_scrollbar_width(scrollbar_width);
-    });
-}
-
-void NodeWithStyle::reset_table_box_computed_values_used_by_wrapper_to_init_values()
-{
-    VERIFY(this->display().is_table_inside());
-
-    modify_computed_values([](auto& values) {
-        values.set_position(CSS::InitialValues::position());
-        values.set_position_anchor(CSS::InitialValues::position_anchor());
-        values.set_float(CSS::InitialValues::float_());
-        values.set_clear(CSS::InitialValues::clear());
-        values.set_inset(CSS::InitialValues::inset());
-        values.reset_grid_placements_to_auto();
-        values.set_align_self(CSS::InitialValues::align_self());
-        values.set_justify_self(CSS::InitialValues::justify_self());
-        values.set_order(CSS::InitialValues::order());
-        values.set_margin(CSS::InitialValues::margin());
-        // AD-HOC:
-        // To match other browsers, z-index needs to be moved to the wrapper box as well,
-        // even if the spec does not mention that: https://github.com/w3c/csswg-drafts/issues/11689
-        // Note that there may be more properties that need to be added to this list.
-        values.set_z_index(CSS::InitialValues::z_index());
-        values.set_clip(CSS::InitialValues::clip());
-        values.set_vertical_align(CSS::InitialValues::vertical_align());
-    });
 }
 
 bool overflow_value_makes_box_a_scroll_container(CSS::Overflow overflow)

@@ -452,18 +452,9 @@ void LayoutRustBridge::run_root_layout(Box& viewport, CSSPixels viewport_inline_
     static_assert(to_underlying(CSS::Overflow::Hidden) == 2);
     static_assert(to_underlying(CSS::Overflow::Visible) == 4);
     auto facts = viewport_propagation_facts(viewport.document());
-    RustFFI::FfiViewportPropagationApplyCallbacks apply_callbacks {
-        .context = nullptr,
-        .apply_overflow = [](void*, void* shell, u8 overflow_x, u8 overflow_y) {
-            auto& node = as<NodeWithStyle>(*static_cast<Node*>(shell));
-            node.set_overflow(static_cast<CSS::Overflow>(overflow_x), static_cast<CSS::Overflow>(overflow_y)); },
-        .apply_writing_mode_and_direction = [](void*, void* shell, u8 writing_mode, u8 direction) {
-            auto& node = as<NodeWithStyle>(*static_cast<Node*>(shell));
-            node.set_writing_mode_and_direction(static_cast<CSS::WritingMode>(writing_mode), static_cast<CSS::Direction>(direction)); },
-    };
     // The style rewrites enroll the affected boxes' text children for content sync, so the sync
     // follows them, and both precede the pass, which caches decoded style.
-    RustFFI::rust_layout_propagate_root_styles_to_viewport(viewport.arena_handle(), Node::slot_id(&viewport), &facts, &apply_callbacks);
+    RustFFI::rust_layout_propagate_root_styles_to_viewport(viewport.arena_handle(), Node::slot_id(&viewport), &facts);
     viewport.node_arena().sync_enrolled_content_for_layout();
 
     auto callbacks = formatting_context_callbacks();
