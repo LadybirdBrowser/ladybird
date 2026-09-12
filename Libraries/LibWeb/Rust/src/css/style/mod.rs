@@ -60,6 +60,7 @@ mod child_reactions;
 mod column;
 pub mod compiler;
 mod computed;
+mod counter_context;
 mod custom_property_cascade;
 mod custom_property_environments;
 #[cfg(test)]
@@ -180,6 +181,8 @@ use instrumentation::Counters;
 
 use exact_matcher::ExactMatchContext;
 use exact_matcher::ExactMatcher;
+
+pub use counter_context::StyleEngine;
 
 use batch_matcher::AncestorRequirements;
 use batch_matcher::AncestorRequirementsCache;
@@ -335,9 +338,10 @@ const RETAINED_WITNESS_SIBLING_STEPS: usize = 64;
 const INITIAL_SIBLING_FACT_WINDOW: usize = 8;
 
 mod verification {
+    use super::Counters;
     use super::MatchAnswerID;
     use super::RuleMatch;
-    use super::StyleEngine;
+    use super::StyleEngineState;
     use super::StyleNodeID;
     #[cfg(test)]
     use std::cell::Cell;
@@ -360,14 +364,15 @@ mod verification {
     }
 
     pub(super) struct StyleAnswerVerifier<'a> {
-        engine: &'a mut StyleEngine,
+        engine: &'a mut StyleEngineState,
+        counters: &'a mut Counters,
     }
 
     impl StyleAnswerVerifier<'_> {
         pub(super) fn verify_match_answer(&mut self, answer: &[RuleMatch], node: StyleNodeID, description: &str) {
             let cold = self
                 .engine
-                .exact_match_answer_for_verification(node)
+                .exact_match_answer_for_verification(node, self.counters)
                 .expect("cold matching must answer wherever a retained answer did");
             assert_eq!(answer, cold, "{description} differs from cold matching for {node:?}");
         }
@@ -375,21 +380,26 @@ mod verification {
         pub(super) fn verify_cascade_answer(&mut self, answer: &[RuleMatch], node: StyleNodeID, description: &str) {
             let (cold, _) = self
                 .engine
-                .exact_cascade_answer_for_verification(node)
+                .exact_cascade_answer_for_verification(node, self.counters)
                 .expect("cold matching must answer wherever a retained answer did");
             assert_eq!(answer, cold, "{description} differs from cold matching for {node:?}");
         }
 
         pub(super) fn verify_retained_cascade_input(&mut self, node: StyleNodeID, cascade_input: MatchAnswerID) {
-            self.engine.verify_retained_cascade_input(node, cascade_input);
+            self.engine
+                .verify_retained_cascade_input(node, cascade_input, self.counters);
         }
     }
 
     /// Re-derive every patched or reused retained answer cold and compare it. The callback receives
     /// only the verifier capability, so it cannot publish through or otherwise mutate the engine.
-    pub(super) fn style_answer_patch(engine: &mut StyleEngine, check: impl FnOnce(&mut StyleAnswerVerifier<'_>)) {
+    pub(super) fn style_answer_patch(
+        engine: &mut StyleEngineState,
+        counters: &mut Counters,
+        check: impl FnOnce(&mut StyleAnswerVerifier<'_>),
+    ) {
         if enabled(&STYLE_ANSWER_PATCH, "LIBWEB_VERIFY_STYLE_ANSWER_PATCH") {
-            check(&mut StyleAnswerVerifier { engine });
+            check(&mut StyleAnswerVerifier { engine, counters });
         }
     }
 
@@ -429,21 +439,21 @@ mod verification {
     }
 
     /// Compare complete retained cascade winners with the legacy cascade output.
-    pub(super) fn cascade_winners(engine: &StyleEngine, check: impl FnOnce(&StyleEngine)) {
+    pub(super) fn cascade_winners(engine: &StyleEngineState, check: impl FnOnce(&StyleEngineState)) {
         if enabled(&CASCADE_WINNERS, "LIBWEB_VERIFY_CASCADE_WINNERS") {
             check(engine);
         }
     }
 
     /// Require every scoped style transaction output to name semantic provenance.
-    pub(super) fn style_plan_provenance(engine: &StyleEngine, check: impl FnOnce(&StyleEngine)) {
+    pub(super) fn style_plan_provenance(engine: &StyleEngineState, check: impl FnOnce(&StyleEngineState)) {
         if enabled(&STYLE_PLAN_PROVENANCE, "LIBWEB_VERIFY_STYLE_PLAN_PROVENANCE") {
             check(engine);
         }
     }
 
     /// Require a published style transaction to complete without another selector query.
-    pub(super) fn published_style_transaction(engine: &StyleEngine, check: impl FnOnce(&StyleEngine)) {
+    pub(super) fn published_style_transaction(engine: &StyleEngineState, check: impl FnOnce(&StyleEngineState)) {
         if enabled(
             &PUBLISHED_STYLE_TRANSACTION,
             "LIBWEB_VERIFY_PUBLISHED_STYLE_TRANSACTION",
@@ -758,12 +768,12 @@ struct QuerySortedCandidatesStamp {
     keys: Vec<DispatchKey>,
 }
 
-pub struct StyleEngine {
+/// Mutable engine state; operations borrow their instrumentation from the boundary.
+pub struct StyleEngineState {
     /// The capture-local document identity, absent when record-replay is disabled.
     #[cfg(feature = "style-recording")]
     recording_id: Option<u64>,
     memory: MemoryController,
-    counters: Counters,
     /// The instrumentation state to restore after C++ materializes a record for verification.
     computed_record_verification_counters: Option<Box<Counters>>,
     computed_record_verification_pins: Vec<u64>,

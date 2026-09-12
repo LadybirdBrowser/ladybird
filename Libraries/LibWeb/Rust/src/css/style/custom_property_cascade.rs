@@ -133,7 +133,7 @@ fn custom_property_value_is_engine_resolvable(value: &StyleValueData) -> bool {
     )
 }
 
-impl StyleEngine {
+impl StyleEngineState {
     /// Hand each of a node's element-target matches, with the cascade inputs its priority is
     /// computed from, to `visit`, stopping when it breaks. `None` when the node has no answer to read.
     fn try_for_each_element_match(
@@ -446,6 +446,7 @@ impl StyleEngine {
         node: StyleNodeID,
         parent_environment: u64,
         inputs: &bridge::FfiDocumentStyleComputationInputs,
+        counters: &mut Counters,
     ) -> Option<u64> {
         if !self.any_custom_property_is_declared() {
             return Some(parent_environment);
@@ -456,12 +457,12 @@ impl StyleEngine {
         }
         let registry = inputs.custom_property_registry;
         if registry.is_null() {
-            self.counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
+            counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
             return None;
         }
         let registry_ref = unsafe { &*registry.cast::<CustomPropertyRegistry>() };
         if registry_ref.has_registrations() {
-            self.counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
+            counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
             return None;
         }
         let key = Self::environment_inputs(
@@ -470,14 +471,14 @@ impl StyleEngine {
             &cascaded,
         );
         if let Some(identity) = self.custom_property_environments.memoized(&key) {
-            self.counters.bump(Counter::EngineCustomPropertyEnvironmentMemoHits);
+            counters.bump(Counter::EngineCustomPropertyEnvironmentMemoHits);
             return Some(identity);
         }
         let parent_store = match parent_environment {
             0 => std::ptr::null(),
             identity => {
                 let Some(store) = self.custom_property_environments.store(identity) else {
-                    self.counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
+                    counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
                     return None;
                 };
                 store
@@ -487,11 +488,11 @@ impl StyleEngine {
         let mut values = Vec::with_capacity(cascaded.len());
         for (declared, value) in &cascaded {
             let Some(name) = self.custom_property_environments.name(declared.name) else {
-                self.counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
+                counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
                 return None;
             };
             if name.raw.raw() == 0 || !custom_property_value_is_engine_resolvable(value.data()) {
-                self.counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
+                counters.bump(Counter::EngineCustomPropertyEnvironmentBails);
                 return None;
             }
             // A value the parent already holds, by identity, declares nothing new.
@@ -539,7 +540,7 @@ impl StyleEngine {
         }
         unsafe { destroy_resolved_custom_properties(resolved.storage, resolved.count) };
         unsafe { Arc::decrement_strong_count(cascaded_store.cast::<CustomPropertyStore>()) };
-        self.counters.bump(Counter::EngineCustomPropertyEnvironmentsResolved);
+        counters.bump(Counter::EngineCustomPropertyEnvironmentsResolved);
         let identity = if resolved.rust_store.is_null() {
             parent_environment
         } else {
@@ -563,32 +564,33 @@ impl StyleEngine {
         environment: u64,
         property: u16,
         written: &RetainedStyleValueData,
+        counters: &mut Counters,
     ) -> Option<RetainedStyleValueData> {
         if !custom_property_value_is_engine_resolvable(written.data()) {
-            self.counters.bump(Counter::EngineComputedRecordBailSubstitution);
+            counters.bump(Counter::EngineComputedRecordBailSubstitution);
             return None;
         }
         let Some(inputs) = self.document_style_computation_inputs else {
-            self.counters.bump(Counter::EngineComputedRecordBailSubstitution);
+            counters.bump(Counter::EngineComputedRecordBailSubstitution);
             return None;
         };
         let registry = inputs.custom_property_registry;
         if registry.is_null() {
-            self.counters.bump(Counter::EngineComputedRecordBailSubstitution);
+            counters.bump(Counter::EngineComputedRecordBailSubstitution);
             return None;
         }
         if let Some(value) = self
             .custom_property_environments
             .substitution(written, property, environment)
         {
-            self.counters.bump(Counter::EngineComputedRecordSubstitutionMemoHits);
+            counters.bump(Counter::EngineComputedRecordSubstitutionMemoHits);
             return Some(value);
         }
         let store = match environment {
             0 => std::ptr::null(),
             identity => {
                 let Some(store) = self.custom_property_environments.store(identity) else {
-                    self.counters.bump(Counter::EngineComputedRecordBailSubstitution);
+                    counters.bump(Counter::EngineComputedRecordBailSubstitution);
                     return None;
                 };
                 store
@@ -601,7 +603,7 @@ impl StyleEngine {
         let Some(mut resolution_environment) =
             (unsafe { prepare_var_resolution_environment(std::ptr::null(), 0, std::ptr::null(), 0, 0) })
         else {
-            self.counters.bump(Counter::EngineComputedRecordBailSubstitution);
+            counters.bump(Counter::EngineComputedRecordBailSubstitution);
             return None;
         };
         // SAFETY: The store is live while a record names its environment, and the written value
@@ -651,18 +653,18 @@ impl StyleEngine {
                     },
                     ParseOutcome::Invalid => RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid),
                     ParseOutcome::NotHandled => {
-                        self.counters.bump(Counter::EngineComputedRecordBailSubstitution);
+                        counters.bump(Counter::EngineComputedRecordBailSubstitution);
                         return None;
                     }
                 }
             }
             NativeVarResolution::Invalid => RetainedStyleValueData::from_owned(StyleValueData::GuaranteedInvalid),
             NativeVarResolution::NotHandled => {
-                self.counters.bump(Counter::EngineComputedRecordBailSubstitution);
+                counters.bump(Counter::EngineComputedRecordBailSubstitution);
                 return None;
             }
         };
-        self.counters.bump(Counter::EngineComputedRecordSubstitutions);
+        counters.bump(Counter::EngineComputedRecordSubstitutions);
         self.custom_property_environments
             .remember_substitution(written, property, environment, value.clone_retained());
         Some(value)

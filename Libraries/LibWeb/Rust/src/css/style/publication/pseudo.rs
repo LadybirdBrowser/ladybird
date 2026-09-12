@@ -6,7 +6,7 @@
 
 use super::*;
 
-impl StyleEngine {
+impl StyleEngineState {
     /// Check pseudo winner availability before deriving an originating record that would have
     /// to be discarded. Marker generation additionally depends on the newly computed display
     /// and is checked when settling the pseudo records.
@@ -14,6 +14,7 @@ impl StyleEngine {
         &mut self,
         node: StyleNodeID,
         record: Option<computed::FinalStyleRecordID>,
+        counters: &mut Counters,
     ) -> bool {
         use pseudo_kind::{AFTER, BACKDROP, BEFORE, FIRST_LETTER, MARKER, SELECTION};
 
@@ -28,13 +29,13 @@ impl StyleEngine {
                 continue;
             }
             if version != self.program.version() || !priority_current {
-                self.counters.bump(Counter::EngineComputedRecordBailPseudoStale);
+                counters.bump(Counter::EngineComputedRecordBailPseudoStale);
                 return false;
             }
             available |= 1 << kind;
         }
         let Some(mut required) = self.pseudo_style_mask(node) else {
-            self.counters.bump(Counter::EngineComputedRecordBailPseudoMask);
+            counters.bump(Counter::EngineComputedRecordBailPseudoMask);
             return false;
         };
         if let Some(deferred) = self.deferred_pseudo_element {
@@ -65,13 +66,13 @@ impl StyleEngine {
             explicit_kinds |= 1 << MARKER;
         }
         if required & explicit_kinds & !available != 0 {
-            self.counters.bump(Counter::EngineComputedRecordBailPseudoRow);
+            counters.bump(Counter::EngineComputedRecordBailPseudoRow);
             return false;
         }
         true
     }
 
-    pub(super) fn engine_marker_font_supported(&mut self, node: StyleNodeID) -> bool {
+    pub(super) fn engine_marker_font_supported(&mut self, node: StyleNodeID, counters: &mut Counters) -> bool {
         // Reject unsupported existing marker fonts before computing the originating element.
         // A later change to supported settings still computes correctly through C++ and makes
         // the next attempt eligible. The default marker's tabular numerals are not supported by
@@ -90,7 +91,7 @@ impl StyleEngine {
             if !matches!(unsafe { value.cast::<StyleValueData>().as_ref() },
                 Some(StyleValueData::Keyword { keyword }) if *keyword == crate::css::style_compute::keyword::NORMAL)
             {
-                self.counters.bump(Counter::EngineComputedRecordBailFontPhase);
+                counters.bump(Counter::EngineComputedRecordBailFontPhase);
                 return false;
             }
         }
@@ -109,11 +110,12 @@ impl StyleEngine {
         new_element_record: computed::FinalStyleRecordID,
         generation: u64,
         scratch: &mut EngineComputedRecordScratch,
+        counters: &mut Counters,
     ) -> Option<()> {
         use pseudo_kind::{AFTER, BACKDROP, BEFORE, FIRST_LETTER, MARKER, SELECTION};
 
         let Some(inputs) = self.document_style_computation_inputs else {
-            self.counters.bump(Counter::EngineComputedRecordBailNoEnvironment);
+            counters.bump(Counter::EngineComputedRecordBailNoEnvironment);
             return None;
         };
         let program_version = self.program.version();
@@ -135,7 +137,7 @@ impl StyleEngine {
                 continue;
             }
             if version != program_version || !priority_current {
-                self.counters.bump(Counter::EngineComputedRecordBailPseudoStale);
+                counters.bump(Counter::EngineComputedRecordBailPseudoStale);
                 return None;
             }
             states[usize::from(kind)] = Some(state);
@@ -146,7 +148,7 @@ impl StyleEngine {
             .assigned_pseudo_kinds(node)
             .any(|kind| kind == BACKDROP)
         {
-            self.counters.bump(Counter::EngineComputedRecordBailPseudoBackdrop);
+            counters.bump(Counter::EngineComputedRecordBailPseudoBackdrop);
             return None;
         }
         let display_is_list_item = |engine: &Self, record: computed::FinalStyleRecordID| -> Option<bool> {
@@ -155,7 +157,7 @@ impl StyleEngine {
             Some(table.display_is_list_item())
         };
         let Some(new_is_list_item) = display_is_list_item(self, new_element_record) else {
-            self.counters.bump(Counter::EngineComputedRecordBailRecord);
+            counters.bump(Counter::EngineComputedRecordBailRecord);
             return None;
         };
         let Some(new_view_dependency_flags) = self
@@ -163,13 +165,13 @@ impl StyleEngine {
             .style_record_view(new_element_record.raw())
             .map(|view| view.dependency_flags)
         else {
-            self.counters.bump(Counter::EngineComputedRecordBailRecord);
+            counters.bump(Counter::EngineComputedRecordBailRecord);
             return None;
         };
         let old_is_list_item = match old_element_record {
             Some(record) => {
                 let Some(list_item) = display_is_list_item(self, record) else {
-                    self.counters.bump(Counter::EngineComputedRecordBailRecord);
+                    counters.bump(Counter::EngineComputedRecordBailRecord);
                     return None;
                 };
                 list_item
@@ -216,13 +218,13 @@ impl StyleEngine {
                             .style_record_custom_property_environment(new_element_record.raw())
             });
         let Some(environment) = self.computed_group_sets.custom_property_environment_identity(node) else {
-            self.counters.bump(Counter::EngineComputedRecordBailRecord);
+            counters.bump(Counter::EngineComputedRecordBailRecord);
             return None;
         };
         // The kinds the node's match answer has rules for: a winner row is published for each
         // the engine cascaded itself, and a kind with rules but no row is not decided.
         let Some(kinds_with_rules) = self.pseudo_style_mask(node) else {
-            self.counters.bump(Counter::EngineComputedRecordBailPseudoMask);
+            counters.bump(Counter::EngineComputedRecordBailPseudoMask);
             return None;
         };
         let mut pseudo_uses_substitution = false;
@@ -236,13 +238,13 @@ impl StyleEngine {
             let old = self.computed_group_sets.pseudo_style_record(node, kind);
             if let Some(old) = old {
                 let Some(view) = self.computed_group_sets.style_record_view(old.raw()) else {
-                    self.counters.bump(Counter::EngineComputedRecordBailRecord);
+                    counters.bump(Counter::EngineComputedRecordBailRecord);
                     return None;
                 };
                 let transitioning = (unsafe { view.longhand_table.as_ref() })
                     .is_some_and(crate::css::style_compute::has_active_transition_properties);
                 if !view.animated_overlay.is_null() || transitioning {
-                    self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
+                    counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
                     return None;
                 }
             }
@@ -257,7 +259,7 @@ impl StyleEngine {
             let has_rules = kinds_with_rules & (1 << kind) != 0;
             let state = states[usize::from(kind)].filter(|_| has_rules);
             if has_rules && state.is_none() {
-                self.counters.bump(Counter::EngineComputedRecordBailPseudoRow);
+                counters.bump(Counter::EngineComputedRecordBailPseudoRow);
                 return None;
             }
             // The row has to hold the rules that flipped for this kind: one this flush published
@@ -272,11 +274,11 @@ impl StyleEngine {
                     tree::PseudoElementTarget::new(tree::PseudoElementKind(u16::from(kind))),
                 ) != Some(self.flush_stamp)
             {
-                self.counters.bump(Counter::EngineComputedRecordBailPseudoFlip);
+                counters.bump(Counter::EngineComputedRecordBailPseudoFlip);
                 return None;
             }
             let old_record = old.unwrap_or(computed::FinalStyleRecordID::NONE);
-            let remove = |engine: &mut Self, scratch: &mut EngineComputedRecordScratch| {
+            let remove = |engine: &mut Self, scratch: &mut EngineComputedRecordScratch, counters: &mut Counters| {
                 if old.is_some() {
                     engine.note_engine_computed_pseudo_record(
                         node,
@@ -286,11 +288,12 @@ impl StyleEngine {
                         None,
                         0,
                         scratch,
+                        counters,
                     );
                 }
             };
             if !has_rules && !implicit {
-                remove(self, scratch);
+                remove(self, scratch, counters);
                 continue;
             }
             // Reuse only when the originating element preserves every input the pseudo reads,
@@ -327,6 +330,7 @@ impl StyleEngine {
                             Some(kind),
                             environment,
                             &mut substituted,
+                            counters,
                         )?);
                         if substituted {
                             scratch.substituted_states.insert((state, environment));
@@ -340,7 +344,7 @@ impl StyleEngine {
             pseudo_uses_substitution |=
                 state.is_some_and(|state| scratch.substituted_states.contains(&(state, environment)));
             if pseudo_content_generates_nothing(&store, kind) {
-                remove(self, scratch);
+                remove(self, scratch, counters);
                 continue;
             }
             // What the record is derived from: the element's inherited style, display and
@@ -398,8 +402,9 @@ impl StyleEngine {
                         record.raw(),
                         computed::ENGINE_INHERITED_GROUP_COUNT,
                         false,
+                        counters,
                     );
-                    self.counters.bump(Counter::EngineComputedRecordCohortHits);
+                    counters.bump(Counter::EngineComputedRecordCohortHits);
                     (publication.style_record_identity, 0)
                 }
                 None => {
@@ -408,7 +413,7 @@ impl StyleEngine {
                         facts,
                     };
                     let (table, length, longhand_evaluations, font) =
-                        self.engine_full_drive(subject, None, &store, &inputs)?;
+                        self.engine_full_drive(subject, None, &store, &inputs, counters)?;
                     let font = font.expect("a full drive resolves the font");
                     let (record, _) = self.assemble_and_publish_engine_record(
                         target,
@@ -419,6 +424,7 @@ impl StyleEngine {
                         environment,
                         0,
                         cascade_state,
+                        counters,
                     )?;
                     if let Some(key) = key {
                         scratch.pseudo_cohorts.insert(key, record);
@@ -438,6 +444,7 @@ impl StyleEngine {
                 cascade_state,
                 longhand_evaluations,
                 scratch,
+                counters,
             );
         }
         if pseudo_uses_substitution {
@@ -458,8 +465,9 @@ impl StyleEngine {
         cascade_state: Option<(u64, CascadeStateID)>,
         longhand_evaluations: u32,
         scratch: &mut EngineComputedRecordScratch,
+        counters: &mut Counters,
     ) {
-        self.counters.bump(Counter::EngineComputedPseudoRecords);
+        counters.bump(Counter::EngineComputedPseudoRecords);
         self.engine_computed_records_pending
             .entry(node)
             .or_default()
@@ -480,7 +488,11 @@ impl StyleEngine {
 
     /// Put a pseudo-element back the way it was before the engine settled it, unless a
     /// publication has moved it on since.
-    pub(super) fn revert_engine_computed_pseudo_record(&mut self, pending: &PendingEngineComputedRecord) {
+    pub(super) fn revert_engine_computed_pseudo_record(
+        &mut self,
+        pending: &PendingEngineComputedRecord,
+        counters: &mut Counters,
+    ) {
         // A removal is applied only on acknowledgement.
         if pending.new_style_record == computed::FinalStyleRecordID::NONE {
             return;
@@ -504,6 +516,7 @@ impl StyleEngine {
                 pending.old_style_record.raw(),
                 computed::ENGINE_INHERITED_GROUP_COUNT,
                 false,
+                counters,
             );
         } else {
             self.computed_group_sets

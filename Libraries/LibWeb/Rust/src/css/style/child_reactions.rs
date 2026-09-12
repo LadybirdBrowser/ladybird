@@ -16,12 +16,12 @@ use super::transaction::{
     STYLE_REACTION_ANCESTOR_BECAME_VISIBLE, STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES, STYLE_REACTION_INHERITED_STYLE,
     STYLE_REACTION_RECOMPUTE_DESCENDANT_STYLES, STYLE_REACTION_RECOMPUTE_STYLE,
 };
-use super::{StyleEngine, StyleNodeID};
+use super::{StyleEngineState, StyleNodeID};
 
 /// Every inherited style group, for a change that reaches all of them.
 const ALL_INHERITED_STYLE_GROUPS: u8 = (1 << 7) - 1;
 
-impl StyleEngine {
+impl StyleEngineState {
     /// Derive the children's reactions from a reaction C++ applied to `node`: `reaction` is what
     /// the element reacted to, `inherited_style_groups_changed` names the inherited groups its
     /// style moved, and `facts` says what else the application found.

@@ -206,7 +206,7 @@ pub(super) enum SelectorTruthPatch<'a> {
     },
 }
 
-impl StyleEngine {
+impl StyleEngineState {
     /// Streams the element descendants of `root` in flat-tree inheritance order without asking the
     /// DOM to rediscover slot and shadow relations already resident in the engine.
     pub(super) fn for_each_flat_tree_descendant(&mut self, root: StyleNodeID, mut visit: impl FnMut(StyleNodeID)) {
@@ -301,6 +301,7 @@ impl StyleEngine {
         &mut self,
         regions: &ImpactRegions,
         coarse_cover: Option<&ImpactRegionBatch>,
+        counters: &mut Counters,
     ) {
         let candidates = std::mem::take(&mut self.already_planned_selector_truth);
         let candidate_bytes = candidates.capacity_bytes();
@@ -322,7 +323,7 @@ impl StyleEngine {
                 exact_tree_evaluation: candidate.exact_tree_evaluation,
                 refresh_rule: None,
             };
-            let result = self.candidate_changes_exact_entry(candidate.node, &site);
+            let result = self.candidate_changes_exact_entry(candidate.node, &site, counters);
             self.record_exact_selector_truth_change(candidate.node, &site, result);
         }
         let workspace_after = self.match_workspace.capacity_bytes();

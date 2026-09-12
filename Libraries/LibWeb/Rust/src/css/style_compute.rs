@@ -3099,7 +3099,7 @@ impl<'a> ParentSnapshot<'a> {
 }
 
 pub(crate) fn parent_snapshot_for_style_record<'a>(
-    style_engine: &'a crate::css::style::StyleEngine,
+    style_engine: &'a crate::css::style::StyleEngineState,
     style_record: u64,
     animated_overlay: Option<&'a AnimatedOverlay>,
 ) -> ParentSnapshot<'a> {

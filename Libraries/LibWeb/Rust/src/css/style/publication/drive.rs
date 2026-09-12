@@ -6,7 +6,7 @@
 
 use super::*;
 
-impl StyleEngine {
+impl StyleEngineState {
     /// Run the drive's remaining phase for the selected longhands over a copy of the node's
     /// current table, against the record's own font metrics, the document's computation inputs
     /// and the parent's record. The required driver inputs recompute on every drive and their
@@ -19,6 +19,7 @@ impl StyleEngine {
         store: &CascadedPropertyStore,
         selected: &[u64],
         inputs: &bridge::FfiDocumentStyleComputationInputs,
+        counters: &mut Counters,
     ) -> Option<(
         ComputedLonghandTable,
         crate::css::style_compute::FfiLengthResolutionContext,
@@ -33,15 +34,15 @@ impl StyleEngine {
         };
 
         let Some(view) = self.computed_group_sets.style_record_view(old_style_record.raw()) else {
-            self.counters.bump(Counter::EngineComputedRecordBailRecord);
+            counters.bump(Counter::EngineComputedRecordBailRecord);
             return None;
         };
         if !view.animated_overlay.is_null() {
-            self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
+            counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return None;
         }
         let Some(old_table) = (unsafe { view.longhand_table.as_ref() }) else {
-            self.counters.bump(Counter::EngineComputedRecordBailRecordTable);
+            counters.bump(Counter::EngineComputedRecordBailRecordTable);
             return None;
         };
         // A record under display:none may no longer be the style C++ holds, and a property change
@@ -49,7 +50,7 @@ impl StyleEngine {
         if view.dependency_flags & (1 << 2) != 0
             || crate::css::style_compute::has_active_transition_properties(old_table)
         {
-            self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
+            counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return None;
         }
         let snapshot = match self.tree.flat_tree_parent(node) {
@@ -61,13 +62,13 @@ impl StyleEngine {
                         .style_record_view(record.raw())
                         .is_some_and(|view| !view.animated_overlay.is_null());
                     if parent_has_animation_overlay {
-                        self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
+                        counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
                         return None;
                     }
                     Some(parent_snapshot_for_style_record(self, record.raw(), None))
                 }
                 None => {
-                    self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
+                    counters.bump(Counter::EngineComputedRecordBailRecordParent);
                     return None;
                 }
             },
@@ -161,16 +162,16 @@ impl StyleEngine {
                 true,
             );
         }
-        self.counters.bump(Counter::EnginePartialDrivesStarted);
-        self.counters.add(
+        counters.bump(Counter::EnginePartialDrivesStarted);
+        counters.add(
             Counter::EngineDriveCopiedTableSlots,
             crate::css::property_metadata::NUMBER_OF_LONGHAND_PROPERTIES as u64,
         );
-        self.counters.add(
+        counters.add(
             Counter::EnginePhysicalLonghandEvaluations,
             u64::from(results.longhand_evaluations),
         );
-        self.counters.add(
+        counters.add(
             Counter::EnginePartialLonghandEvaluations,
             u64::from(results.longhand_evaluations),
         );
@@ -178,7 +179,7 @@ impl StyleEngine {
             || results.uses_tree_counting_function
             || table.display_before_box_type_transformation() != old_table.display_before_box_type_transformation()
         {
-            self.counters.bump(Counter::EngineComputedRecordBailDrive);
+            counters.bump(Counter::EngineComputedRecordBailDrive);
             return None;
         }
         let old_values = old_table.value_pointers();
@@ -202,11 +203,11 @@ impl StyleEngine {
                 }
             };
             if !equal {
-                self.counters.bump(Counter::EngineComputedRecordBailDrive);
+                counters.bump(Counter::EngineComputedRecordBailDrive);
                 return None;
             }
             table.copy_slot_from(old_table, property);
-            self.counters.bump(Counter::EngineDriveCopiedTableSlots);
+            counters.bump(Counter::EngineDriveCopiedTableSlots);
         }
         // The group builders resolve against the same context; they report no viewport dependence
         // of their own.
@@ -229,6 +230,7 @@ impl StyleEngine {
         old_style_record: Option<computed::FinalStyleRecordID>,
         store: &CascadedPropertyStore,
         inputs: &bridge::FfiDocumentStyleComputationInputs,
+        counters: &mut Counters,
     ) -> Option<(
         ComputedLonghandTable,
         crate::css::style_compute::FfiLengthResolutionContext,
@@ -252,38 +254,38 @@ impl StyleEngine {
         let is_document_element = has(fact::IS_DOCUMENT_ELEMENT);
         // An element with animations composes its style with their effects in C++.
         if facts & fact::HAS_ANIMATIONS != 0 {
-            self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
+            counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
             return None;
         }
         if self.font_resolver.is_none() {
-            self.counters.bump(Counter::EngineComputedRecordBailNoEnvironment);
+            counters.bump(Counter::EngineComputedRecordBailNoEnvironment);
             return None;
         }
         if store
             .winning_declaration(prop::FONT_FAMILY)
             .is_some_and(|(value, ..)| font_family_is_monospace(unsafe { &*value.cast::<StyleValueData>() }))
         {
-            self.counters.bump(Counter::EngineComputedRecordBailFontPhase);
+            counters.bump(Counter::EngineComputedRecordBailFontPhase);
             return None;
         }
         let old_table = match old_style_record {
             Some(old_style_record) => {
                 let Some(view) = self.computed_group_sets.style_record_view(old_style_record.raw()) else {
-                    self.counters.bump(Counter::EngineComputedRecordBailRecord);
+                    counters.bump(Counter::EngineComputedRecordBailRecord);
                     return None;
                 };
                 if !view.animated_overlay.is_null() {
-                    self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
+                    counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
                     return None;
                 }
                 let Some(old_table) = (unsafe { view.longhand_table.as_ref() }) else {
-                    self.counters.bump(Counter::EngineComputedRecordBailRecordTable);
+                    counters.bump(Counter::EngineComputedRecordBailRecordTable);
                     return None;
                 };
                 if view.dependency_flags & (1 << 2) != 0
                     || crate::css::style_compute::has_active_transition_properties(old_table)
                 {
-                    self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
+                    counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
                     return None;
                 }
                 Some(old_table)
@@ -293,15 +295,15 @@ impl StyleEngine {
         let parent_view = match parent {
             Some(parent) => {
                 let Some(parent_record) = self.computed_group_sets.assigned_style_record(parent) else {
-                    self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
+                    counters.bump(Counter::EngineComputedRecordBailRecordParent);
                     return None;
                 };
                 let Some(parent_view) = self.computed_group_sets.style_record_view(parent_record.raw()) else {
-                    self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
+                    counters.bump(Counter::EngineComputedRecordBailRecordParent);
                     return None;
                 };
                 if !parent_view.animated_overlay.is_null() {
-                    self.counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
+                    counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
                     return None;
                 }
                 Some(parent_view)
@@ -344,7 +346,7 @@ impl StyleEngine {
                 .as_ref()
                 .is_some_and(|parent_view| parent_view.dependency_flags & (1 << 2) != 0)
         {
-            self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
+            counters.bump(Counter::EngineComputedRecordBailRecordParent);
             return None;
         }
         // The parent's display, past any display:contents ancestor, is what the box-type
@@ -371,7 +373,7 @@ impl StyleEngine {
         let snapshot = match &parent_view {
             Some(parent_view) => {
                 let Some(parent_table) = (unsafe { parent_view.longhand_table.as_ref() }) else {
-                    self.counters.bump(Counter::EngineComputedRecordBailRecordParent);
+                    counters.bump(Counter::EngineComputedRecordBailRecordParent);
                     return None;
                 };
                 Some(crate::css::style_compute::ParentSnapshot::new(
@@ -388,7 +390,7 @@ impl StyleEngine {
         let inherited_box_payload = match old_style_record {
             Some(old_style_record) => {
                 let Some(view) = self.computed_group_sets.style_record_view(old_style_record.raw()) else {
-                    self.counters.bump(Counter::EngineComputedRecordBailRecord);
+                    counters.bump(Counter::EngineComputedRecordBailRecord);
                     return None;
                 };
                 Some(view.payloads[STYLE_GROUP_INDEX_INHERITED_BOX])
@@ -462,9 +464,9 @@ impl StyleEngine {
                 subject_inline_axis_is_horizontal,
                 resolved_viewport_relative_length: resolved_viewport_relative_length_pointer,
             };
-        self.counters.bump(Counter::EngineFullDrivesStarted);
+        counters.bump(Counter::EngineFullDrivesStarted);
         if old_table.is_some() {
-            self.counters.add(
+            counters.add(
                 Counter::EngineDriveCopiedTableSlots,
                 crate::css::property_metadata::NUMBER_OF_LONGHAND_PROPERTIES as u64,
             );
@@ -514,7 +516,7 @@ impl StyleEngine {
             )
         };
         drive(
-            &mut self.counters,
+            counters,
             &mut table,
             &mut results,
             &mut effective_color_scheme,
@@ -551,7 +553,7 @@ impl StyleEngine {
         ] {
             if !matches!(value_of(&table, property), Some(StyleValueData::Keyword { keyword }) if *keyword == default_keyword)
             {
-                self.counters.bump(Counter::EngineComputedRecordBailFontPhase);
+                counters.bump(Counter::EngineComputedRecordBailFontPhase);
                 return None;
             }
         }
@@ -562,7 +564,7 @@ impl StyleEngine {
                 CssPixels::nearest_value_for(*value).to_double()
             }
             _ => {
-                self.counters.bump(Counter::EngineComputedRecordBailFontPhase);
+                counters.bump(Counter::EngineComputedRecordBailFontPhase);
                 return None;
             }
         };
@@ -582,7 +584,7 @@ impl StyleEngine {
                 (*weight, *width)
             }
             _ => {
-                self.counters.bump(Counter::EngineComputedRecordBailFontPhase);
+                counters.bump(Counter::EngineComputedRecordBailFontPhase);
                 return None;
             }
         };
@@ -606,7 +608,7 @@ impl StyleEngine {
             .as_mut()
             .and_then(|resolver| resolver.resolve(request))
         else {
-            self.counters.bump(Counter::EngineComputedRecordBailFontPhase);
+            counters.bump(Counter::EngineComputedRecordBailFontPhase);
             return None;
         };
         let own_metrics = |line_height: f64| FfiFontMetrics {
@@ -633,7 +635,7 @@ impl StyleEngine {
             )
         };
         drive(
-            &mut self.counters,
+            counters,
             &mut table,
             &mut results,
             &mut effective_color_scheme,
@@ -643,7 +645,7 @@ impl StyleEngine {
             std::ptr::null(),
         );
         drive(
-            &mut self.counters,
+            counters,
             &mut table,
             &mut results,
             &mut effective_color_scheme,
@@ -667,7 +669,7 @@ impl StyleEngine {
             }
         };
         let Some(line_height_before_adjustments) = line_height_used(&table) else {
-            self.counters.bump(Counter::EngineComputedRecordBailFontPhase);
+            counters.bump(Counter::EngineComputedRecordBailFontPhase);
             return None;
         };
         let remaining_length = length_context(
@@ -689,7 +691,7 @@ impl StyleEngine {
         };
         let line_height_value = table.effective_value(None, prop::LINE_HEIGHT, true).value;
         drive(
-            &mut self.counters,
+            counters,
             &mut table,
             &mut results,
             &mut effective_color_scheme,
@@ -699,11 +701,11 @@ impl StyleEngine {
             line_height_value,
         );
         if results.explicitly_inherited_non_inherited_style_groups != 0 || results.uses_tree_counting_function {
-            self.counters.bump(Counter::EngineComputedRecordBailDrive);
+            counters.bump(Counter::EngineComputedRecordBailDrive);
             return None;
         }
         let Some(line_height_used_after) = line_height_used(&table) else {
-            self.counters.bump(Counter::EngineComputedRecordBailFontPhase);
+            counters.bump(Counter::EngineComputedRecordBailFontPhase);
             return None;
         };
         let keyword_code = |property: u16, map: fn(u16) -> Option<u8>| match value_of(&table, property) {
