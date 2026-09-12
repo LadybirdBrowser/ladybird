@@ -1300,6 +1300,11 @@ impl StyleEngineState {
                     let completion_begin_timer = PassTimer::start();
                     self.begin_published_match_answer_completion_batch(root, prefer_complete_batch, counters);
                     completion_begin_timer.stop(Counter::CompletionBatchBeginMicroseconds, counters);
+                } else if let Some(traversal) = self.batch_matching_traversal.take() {
+                    if let Some(batch) = traversal.batch.as_ref() {
+                        self.prepare_prefix_rows_for_batch(batch);
+                    }
+                    self.batch_matching_traversal = Some(traversal);
                 }
                 clock.enter(Counter::MatchingCascadeMicroseconds, counters);
                 let retained_answer_dispatch = retained_answer_patch

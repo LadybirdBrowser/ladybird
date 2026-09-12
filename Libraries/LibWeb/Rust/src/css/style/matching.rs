@@ -702,7 +702,7 @@ impl StyleEngineState {
             {
                 let states = caches
                     .states
-                    .get_or_insert(program, facts.generation(), facts.row_count());
+                    .prepare_program_rows(program, facts.generation(), facts.row_count());
                 let relation = states.relation.take().unwrap_or_else(|| {
                     let workspace = MatchEvaluationWorkspace::default();
                     let evaluator = MatchEvaluator::new(&self.tree, facts)
@@ -722,6 +722,9 @@ impl StyleEngineState {
                 states.relation = Some(relation);
                 caches.states.settle_memory(&mut self.memory);
             }
+        }
+        if let Some(facts) = batch.as_ref() {
+            self.prepare_prefix_rows_for_batch(facts);
         }
         relation_timer.stop(Counter::CompletionBatchRelationMicroseconds, counters);
         self.batch_matching_traversal = Some(Box::new(BatchMatchingTraversal {
@@ -806,6 +809,7 @@ impl StyleEngineState {
             caches.states.make_scratch(&mut self.memory);
             caches.answers.make_scratch(&mut self.memory);
         }
+        self.prepare_prefix_rows_for_batch(&batch);
         let retained_answer_dispatch = self.retained_answer_dispatch_for_traversal(reuse_retained_match_answers);
         Box::new(BatchMatchingTraversal {
             root,
@@ -942,9 +946,10 @@ impl StyleEngineState {
                     let prefix_caches = Rc::clone(&self.prefix_caches);
                     let mut caches = prefix_caches.borrow_mut();
                     caches.states.make_scratch(&mut self.memory);
-                    let states = caches
-                        .states
-                        .get_or_insert(scope_program, batch.generation(), batch.row_count());
+                    let states =
+                        caches
+                            .states
+                            .prepare_program_rows(scope_program, batch.generation(), batch.row_count());
                     // The batch just matched every node it iterates here, so completing the
                     // transitions matching did not touch is the cheap tail of work already paid
                     // for: each one is a chain walk over memoized dependencies. A complete cache
@@ -1413,6 +1418,47 @@ impl StyleEngineState {
         self.memory.release(MemoryCategory::BatchScratch, bytes);
     }
 
+    fn prepare_prefix_rows_for_scope(&mut self, scope: TreeScopeID, facts: &StyleNodeFacts) {
+        let (program, dispatch) = self.prepared_scope_program(scope);
+        if dispatch.prefixes().is_empty() {
+            return;
+        }
+        let mut caches = self.prefix_caches.borrow_mut();
+        caches
+            .states
+            .prepare_program_rows(program, facts.generation(), facts.row_count());
+        caches.states.settle_memory(&mut self.memory);
+    }
+
+    pub(super) fn prepare_prefix_rows_for_batch(&mut self, facts: &StyleNodeFacts) {
+        let mut caches = self.prefix_caches.borrow_mut();
+        if !self.tree.has_tree_scopes() && self.scope_roots.is_empty() {
+            let (program, dispatch) = self.prepared_scope_program(TreeScopeID::DOCUMENT);
+            if !dispatch.prefixes().is_empty() {
+                caches
+                    .states
+                    .prepare_program_rows(program, facts.generation(), facts.row_count());
+            }
+            caches.states.settle_memory(&mut self.memory);
+            return;
+        }
+        let mut programs = SmallVec::<[ScopeProgramID; 4]>::new();
+        for row in 0..facts.row_count() {
+            let row = u32::try_from(row).expect("fact row space exhausted");
+            if !facts.has_row(row) {
+                continue;
+            }
+            let (program, dispatch) = self.prepared_scope_program(self.tree.tree_scope(facts.node_at(row)));
+            if !dispatch.prefixes().is_empty() && !programs.contains(&program) {
+                caches
+                    .states
+                    .prepare_program_rows(program, facts.generation(), facts.row_count());
+                programs.push(program);
+            }
+        }
+        caches.states.settle_memory(&mut self.memory);
+    }
+
     fn prepare_matching_batch(&mut self, facts: &StyleNodeFacts) -> AncestorRequirementsCache {
         let mut requirements = AncestorRequirementsCache::default();
         if !self.tree.has_tree_scopes() && self.scope_roots.is_empty() {
@@ -1492,11 +1538,13 @@ impl StyleEngineState {
         let prefix_states = if self.tree.tree_scope(node) != scope || dispatch.prefixes().is_empty() {
             None
         } else if let Some(caches) = shared_prefix_caches.as_deref_mut() {
-            shared_prefix_states = Some(caches.states.get_or_insert(
-                scope_program,
-                facts.generation(),
-                facts.row_count(),
-            ));
+            shared_prefix_states = Some(
+                caches
+                    .states
+                    .lookup_mut(scope_program)
+                    .sparse()
+                    .expect("prefix rows are prepared before matching"),
+            );
             shared_prefix_states.as_deref_mut()
         } else {
             local_prefix_states = Some(PrefixStates::new(facts.row_count()));
@@ -2655,6 +2703,12 @@ impl StyleEngineState {
             let mut caches = self.prefix_caches.borrow_mut();
             caches.states.make_scratch(&mut self.memory);
             caches.states.prepare_to_mutate(&mut self.memory);
+            caches.states.prepare_program_rows(
+                scope_program,
+                self.facts.primary().generation(),
+                self.facts.primary().row_count(),
+            );
+            caches.states.settle_memory(&mut self.memory);
         }
         let mut cascade_update_properties = selection.cascade_update_properties;
         cascade_update_properties.sort_unstable();
@@ -3221,11 +3275,11 @@ impl StyleEngineState {
         let mut matches = RuleMatches::new();
         let prefix_caches = Rc::clone(&patch.prefix_caches);
         let mut caches = prefix_caches.borrow_mut();
-        let mut states = caches.states.get_or_insert(
-            patch.scope_program,
-            self.facts.primary().generation(),
-            self.facts.primary().row_count(),
-        );
+        let mut states = caches
+            .states
+            .lookup_mut(patch.scope_program)
+            .sparse()
+            .expect("prefix rows are prepared before answer patching");
         let interpreter = BatchMatcher::new(
             &self.tree,
             self.facts.primary(),
@@ -4393,6 +4447,9 @@ impl StyleEngineState {
     ) -> Result<Vec<RuleMatch>, Incomplete> {
         self.prepare_scope_programs_for_nodes([node]);
         let mut traversal = self.batch_matching_traversal.take();
+        if let Some(batch) = traversal.as_ref().and_then(|traversal| traversal.batch.as_ref()) {
+            self.prepare_prefix_rows_for_scope(self.tree.tree_scope(node), batch);
+        }
         let result = self.match_element_in_traversal(
             node,
             compact_for_cascade,
@@ -4987,6 +5044,14 @@ impl StyleEngineState {
         let mut requests = Vec::new();
         loop {
             self.facts.materialize(covered.iter().copied(), &mut facts);
+            if !self.prepared_scope_program(scope).1.prefixes().is_empty() {
+                prefix_caches.borrow_mut().states.prepare_program_rows(
+                    self.prepared_scope_program(scope).0,
+                    facts.generation(),
+                    facts.row_count(),
+                );
+                prefix_caches.borrow_mut().states.settle_memory(&mut self.memory);
+            }
             let requirements =
                 AncestorRequirements::build_for_node(&self.tree, &facts, self.prepared_scope_program(scope).1, node);
             let requirement_bytes = AncestorRequirements::required_bytes_for_one_row(
@@ -5085,6 +5150,9 @@ impl StyleEngineState {
                         .release(MemoryCategory::BatchScratch, completion_scratch_bytes);
                     if !prefix_caches_return_to_completion_batch {
                         prefix_caches.borrow_mut().states.release();
+                    } else if let Some(batch) = traversal.as_ref().and_then(|traversal| traversal.batch.as_ref()) {
+                        // Resume the suspended batch's row domain before its next consumer.
+                        self.prepare_prefix_rows_for_scope(scope, batch);
                     }
                     return Ok(all);
                 }
@@ -5101,6 +5169,8 @@ impl StyleEngineState {
                             .release(MemoryCategory::BatchScratch, completion_scratch_bytes);
                         if !prefix_caches_return_to_completion_batch {
                             prefix_caches.borrow_mut().states.release();
+                        } else if let Some(batch) = traversal.as_ref().and_then(|traversal| traversal.batch.as_ref()) {
+                            self.prepare_prefix_rows_for_scope(scope, batch);
                         }
                         return Err(Incomplete::MissingFacts(missing));
                     }

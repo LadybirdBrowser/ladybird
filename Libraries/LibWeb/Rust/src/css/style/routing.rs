@@ -2879,7 +2879,7 @@ impl StyleEngineState {
             let mut caches = self.prefix_caches.borrow_mut();
             let states = caches
                 .states
-                .get_or_insert(scope_program, facts.generation(), facts.row_count());
+                .prepare_program_rows(scope_program, facts.generation(), facts.row_count());
             relation.install_answers(states);
             for node in departures {
                 states.forget_transition(node);
@@ -3248,6 +3248,11 @@ impl StyleEngineState {
                     .as_ref()
                     .expect("prefix planning has a transaction fact view");
                 let resident_facts = self.facts.primary();
+                retained
+                    .lookup_mut(scope_program)
+                    .sparse()
+                    .unwrap()
+                    .prepare_rows(resident_facts.generation(), resident_facts.row_count());
                 counters.bump(Counter::PrefixTransitionCacheHits);
                 let nodes_in_preorder = regions.sort_nodes_for_top_down_walk(&mut pending_nodes, &self.tree);
                 if automaton_has_sibling_steps && !nodes_in_preorder {

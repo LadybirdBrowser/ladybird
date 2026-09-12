@@ -725,6 +725,13 @@ selected primary rows for other topologies. An adaptive retry prepares its
 extended facts and primary ancestor summary before matching. Unbounded ancestry
 rejects nothing, and secondary scope projections do not use primary ancestry.
 
+Prefix row storage is prepared against the fact batch's generation and row
+count before matching, answer patching or convergence. Adaptive retries
+prepare their rebuilt packed rows and restore a suspended batch's row domain
+before returning. Prepared allocation charges are settled even when no node
+uses the rows before retention. Transition evaluation and interning remain
+mutable; row preparation does not change their ownership.
+
 ### 9.2 Cascade priority
 
 A declaration's priority is a comparison program over stable identities:
