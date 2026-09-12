@@ -4224,6 +4224,12 @@ impl ElementFactStore {
         &self.rows
     }
 
+    /// Published answers belong to the committed transaction, even when applying its styles
+    /// has already staged inputs for the next one. Verify them against those committed facts.
+    pub(super) fn committed_for_verification(&self) -> &StyleNodeFacts {
+        &self.rows
+    }
+
     pub(super) fn primary_view(&mut self) -> MatchingFactBatch {
         assert!(
             !self.has_dirty_staging(),

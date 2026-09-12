@@ -7161,6 +7161,34 @@ fn unobserved_inputs_do_not_seed_prefix_convergence() {
 }
 
 #[test]
+fn cold_answer_verification_uses_committed_facts_with_pending_inputs() {
+    let (mut engine, nodes) = linear_document();
+    for &node in &nodes {
+        engine.facts.ensure_row(node);
+    }
+    let target = StyleAtomID(200);
+    add_target_rule(&mut engine, StyleSheetObjectID(1), target);
+    discard_transaction(&mut engine);
+
+    let before = engine.exact_match_answer_for_verification(nodes[1]).unwrap();
+    assert!(before.is_empty());
+    add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(target));
+    assert!(engine.facts.has_dirty_staging());
+    assert_eq!(engine.exact_match_answer_for_verification(nodes[1]).unwrap(), before);
+    assert!(
+        engine
+            .exact_cascade_answer_for_verification(nodes[1])
+            .unwrap()
+            .0
+            .is_empty()
+    );
+    assert!(engine.facts.has_dirty_staging());
+
+    discard_transaction(&mut engine);
+    assert_eq!(engine.exact_match_answer_for_verification(nodes[1]).unwrap().len(), 1);
+}
+
+#[test]
 fn state_input_commits_after_its_old_row_is_snapshotted() {
     let (mut engine, nodes) = linear_document();
     let class = StyleAtomID(200);
