@@ -17,6 +17,7 @@
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibTest/TestCase.h>
+#include <core/SkTypeface.h>
 #include <harfbuzz/hb.h>
 
 #define TEST_INPUT(x) ("test-inputs/" x)
@@ -58,6 +59,24 @@ TEST_CASE(monochrome_emoji_font_is_not_emoji_font)
 TEST_CASE(text_font_is_not_emoji_font)
 {
     EXPECT(!font_is_emoji(TEST_INPUT("fonts/text.ttf"sv)));
+}
+
+TEST_CASE(skia_typeface_retains_font_data_after_ladybird_typeface_is_destroyed)
+{
+    sk_sp<SkTypeface const> skia_typeface;
+    ByteBuffer expected_table;
+    constexpr auto cmap_tag = SkSetFourByteTag('c', 'm', 'a', 'p');
+    {
+        auto file = MUST(Core::MappedFile::map(TEST_INPUT("fonts/text.ttf"sv)));
+        auto typeface = MUST(Gfx::Typeface::try_load_from_temporary_memory(file->bytes()));
+        skia_typeface = sk_ref_sp(static_cast<Gfx::TypefaceSkia const&>(*typeface).sk_typeface());
+        expected_table = MUST(ByteBuffer::create_uninitialized(skia_typeface->getTableSize(cmap_tag)));
+        EXPECT(!expected_table.is_empty());
+        EXPECT_EQ(skia_typeface->getTableData(cmap_tag, 0, expected_table.size(), expected_table.data()), expected_table.size());
+    }
+    auto actual_table = MUST(ByteBuffer::create_uninitialized(expected_table.size()));
+    EXPECT_EQ(skia_typeface->getTableData(cmap_tag, 0, actual_table.size(), actual_table.data()), actual_table.size());
+    EXPECT_EQ(actual_table, expected_table);
 }
 
 static NonnullRefPtr<Gfx::Font> load_text_font(float point_size)
