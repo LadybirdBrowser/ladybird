@@ -628,7 +628,7 @@ private:
     };
 
     void run_node_iterator_pre_removing_steps();
-    void schedule_list_item_renumber_for_removal();
+    bool schedule_list_item_renumber_for_removal();
     void report_removal_to_style_engine(Node& parent);
     void update_layout_tree_for_removal(Node& parent, LayoutSubtreeRemoval, AncestorsMayHaveFirstLetter);
     void assign_slottables_after_removal(Node& parent, Node& parent_root);
