@@ -40,6 +40,7 @@
 #include <QCursor>
 #include <QGuiApplication>
 #include <QHBoxLayout>
+#include <QInputDevice>
 #include <QInputDialog>
 #include <QMenuBar>
 #include <QMessageBox>
@@ -1644,6 +1645,9 @@ void BrowserWindow::moveEvent(QMoveEvent* event)
 void BrowserWindow::wheelEvent(QWheelEvent* event)
 {
     if (!m_current_tab)
+        return;
+
+    if (event->phase() != Qt::NoScrollPhase || event->device()->type() == QInputDevice::DeviceType::TouchPad)
         return;
 
     if ((event->modifiers() & Qt::ControlModifier) != 0) {
