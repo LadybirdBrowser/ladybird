@@ -14,8 +14,13 @@
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/DeclarativeEnvironment.h>
 #include <LibJS/Runtime/ECMAScriptFunctionObject.h>
+#include <LibJS/Runtime/FunctionEnvironment.h>
+#include <LibJS/Runtime/GlobalEnvironment.h>
+#include <LibJS/Runtime/ObjectEnvironment.h>
 #include <LibJS/Runtime/PrimitiveString.h>
+#include <LibJS/Runtime/Realm.h>
 #include <LibJS/Runtime/VM.h>
+#include <LibJS/Runtime/ValueInlines.h>
 
 namespace JS {
 
@@ -191,6 +196,171 @@ Vector<Debugger::FrameBinding> Debugger::bindings_for_frame(ExecutionContext con
     return bindings;
 }
 
+Vector<Debugger::FrameEnvironment> Debugger::environments_for_frame(ExecutionContext const& context) const
+{
+    Vector<FrameEnvironment> environments;
+
+    if (context.executable) {
+        FrameEnvironment local_environment {
+            .type = FrameEnvironment::Type::Function,
+            .function_name = context.executable->name.to_utf16_string(),
+            .object = {},
+            .bindings = bindings_for_frame(context),
+        };
+        if (!local_environment.bindings.is_empty())
+            environments.append(move(local_environment));
+    }
+
+    auto& vm = context.realm->vm();
+    auto append_declarative_environment = [&](DeclarativeEnvironment& environment, FrameEnvironment::Type type, Optional<Utf16String> function_name = {}) {
+        Vector<FrameBinding> bindings;
+        for (auto const& name : environment.bindings()) {
+            // Module Environment Records assert that GetBindingValue is strict, and strictness does not change the
+            // result for any other declarative record.
+            // https://tc39.es/ecma262/#sec-module-environment-records-getbindingvalue-n-s
+            auto value = environment.get_binding_value(vm, name, true);
+            bindings.append({
+                .name = name,
+                .value = value.is_error() ? js_special_empty_value() : value.release_value(),
+                .is_mutable = environment.binding_is_mutable_by_name(name),
+            });
+        }
+        environments.append({
+            .type = type,
+            .function_name = move(function_name),
+            .object = {},
+            .bindings = move(bindings),
+        });
+    };
+
+    for (auto* environment = context.lexical_environment.ptr(); environment; environment = environment->outer_environment()) {
+        if (is<GlobalEnvironment>(*environment)) {
+            auto& global_environment = static_cast<GlobalEnvironment&>(*environment);
+            append_declarative_environment(global_environment.declarative_record(), FrameEnvironment::Type::Block);
+            environments.append({
+                .type = FrameEnvironment::Type::Object,
+                .function_name = {},
+                .object = &global_environment.global_this_value(),
+                .bindings = {},
+            });
+            continue;
+        }
+
+        if (is<DeclarativeEnvironment>(*environment)) {
+            auto type = environment->is_function_environment() ? FrameEnvironment::Type::Function : FrameEnvironment::Type::Block;
+            Optional<Utf16String> function_name;
+            if (environment->is_function_environment())
+                function_name = static_cast<FunctionEnvironment&>(*environment).function_object().name_for_call_stack();
+            append_declarative_environment(static_cast<DeclarativeEnvironment&>(*environment), type, move(function_name));
+            continue;
+        }
+
+        if (is<ObjectEnvironment>(*environment)) {
+            environments.append({
+                .type = FrameEnvironment::Type::Object,
+                .function_name = {},
+                .object = &static_cast<ObjectEnvironment&>(*environment).binding_object(),
+                .bindings = {},
+            });
+        }
+    }
+
+    return environments;
+}
+
+Value Debugger::this_value_for_frame(ExecutionContext const& context) const
+{
+    auto& vm = context.realm->vm();
+    auto* function = as_if<ECMAScriptFunctionObject>(context.function.ptr());
+    if (!function)
+        return context.this_value.value_or(js_undefined());
+
+    if (function->this_mode() != ThisMode::Lexical) {
+        // A derived constructor has no `this` until super() returns.
+        if (function->uses_this())
+            return context.this_value.value_or(js_special_empty_value());
+
+        // OrdinaryCallBindThis only runs for functions whose body mentions `this`; the other frames keep the uncoerced
+        // thisArg, so apply the same thisMode cases to it here.
+        // https://tc39.es/ecma262/#sec-ordinarycallbindthis
+        auto this_argument = context.this_value.value_or(js_undefined());
+
+        // 5. If thisMode is strict, then
+        //    a. Let thisValue be thisArg.
+        if (function->this_mode() == ThisMode::Strict)
+            return this_argument;
+
+        // 6. Else,
+        //    a. If thisArg is either undefined or null, then
+        //       iii. Let thisValue be globalEnv.[[GlobalThisValue]].
+        if (this_argument.is_nullish())
+            return &function->realm()->global_environment().global_this_value();
+
+        //    b. Else,
+        //       i. Let thisValue be ! ToObject(thisArg).
+        return MUST(this_argument.to_object(vm));
+    }
+
+    // An arrow function shares the `this` of the invocation that created it. That frame is normally still on the stack
+    // below the arrow's: its executable lists the arrow among the functions it instantiates, and the arrow captured
+    // its lexical environment, which distinguishes recursive invocations that allocate their own function environment.
+    ExecutionContext const* enclosing_context = nullptr;
+    bool passed_context = false;
+    vm.for_each_execution_context_top_to_bottom([&](ExecutionContext const& candidate) {
+        if (&candidate == &context) {
+            passed_context = true;
+            return true;
+        }
+        if (!passed_context || !candidate.executable)
+            return true;
+
+        auto creates_this_function = candidate.executable->shared_function_data.find_if([&](auto const& shared_data) {
+            return shared_data && shared_data->m_executable == context.executable;
+        });
+        if (creates_this_function.is_end())
+            return true;
+
+        bool captured_candidate_environment = false;
+        for (auto* environment = function->environment(); environment; environment = environment->outer_environment()) {
+            if (environment == candidate.variable_environment.ptr()) {
+                captured_candidate_environment = true;
+                break;
+            }
+        }
+        if (!captured_candidate_environment)
+            return true;
+
+        enclosing_context = &candidate;
+        return false;
+    });
+    if (enclosing_context)
+        return this_value_for_frame(*enclosing_context);
+
+    // Otherwise resolve it the way GetThisEnvironment would, assuming a plain call for any enclosing function that
+    // never bound `this`.
+    // https://tc39.es/ecma262/#sec-getthisenvironment
+    for (auto* environment = context.lexical_environment.ptr(); environment; environment = environment->outer_environment()) {
+        if (!environment->has_this_binding())
+            continue;
+
+        if (environment->is_function_environment()) {
+            auto& function_environment = static_cast<FunctionEnvironment&>(*environment);
+            if (function_environment.this_binding_status() == ThisBindingStatus::Uninitialized) {
+                auto& enclosing_function = as<ECMAScriptFunctionObject>(function_environment.function_object());
+                if (enclosing_function.uses_this())
+                    return js_special_empty_value();
+                if (enclosing_function.this_mode() == ThisMode::Strict)
+                    return js_undefined();
+                return &enclosing_function.realm()->global_environment().global_this_value();
+            }
+        }
+
+        auto this_value = environment->get_this_binding(vm);
+        return this_value.is_error() ? js_special_empty_value() : this_value.release_value();
+    }
+    return js_undefined();
+}
+
 bool Debugger::should_pause_on_next_bytecode_execution(Bytecode::Executable const& executable, u32 bytecode_offset)
 {
     if (!m_pause_on_next_bytecode_execution)
@@ -358,9 +528,18 @@ static Bytecode::SourceMapEntry const* breakpoint_candidate_for_executable(Break
 
     Bytecode::SourceMapEntry const* matching_entry = nullptr;
     for (auto const& entry : executable.source_map) {
-        if (entry.line == 0 || entry.line < breakpoint.line)
+        if (entry.line == 0)
             continue;
-        if (entry.line == breakpoint.line && breakpoint.column.has_value() && entry.column < *breakpoint.column)
+
+        // Clients only pass a column for positions they have already snapped to, so match it exactly instead of
+        // sliding onto the enclosing executable's next position while the function owning it is still uncompiled.
+        if (breakpoint.column.has_value()) {
+            if (entry.line == breakpoint.line && entry.column == *breakpoint.column)
+                return &entry;
+            continue;
+        }
+
+        if (entry.line < breakpoint.line)
             continue;
         if (!matching_entry || entry.line < matching_entry->line || (entry.line == matching_entry->line && entry.column < matching_entry->column))
             matching_entry = &entry;
