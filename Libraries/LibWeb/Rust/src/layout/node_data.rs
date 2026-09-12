@@ -158,6 +158,8 @@ pub enum NodeFlag {
     UsesButtonLayout = 1 << 16,
     IsEditingHost = 1 << 17,
     ReplacedBoxCanHaveChildren = 1 << 18,
+    IsPseudoElementPrincipalBox = 1 << 19,
+    FollowsPrincipalStyle = 1 << 20,
     ProducesLineBoxFragmentWhenEmpty = 1 << 22,
     ListMarkerIsInside = 1 << 23,
     HasAnchorNames = 1 << 24,

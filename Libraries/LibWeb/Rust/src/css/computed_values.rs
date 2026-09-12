@@ -1499,12 +1499,15 @@ pub unsafe extern "C" fn rust_style_group_registry_register(
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_style_group_clone(group_index: usize, source: *const c_void) -> *mut c_void {
     crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::StyleGroupCloneEntry);
-    unsafe {
-        let table = vtable(group_index);
-        let payload = allocate_payload(table, 1);
-        copy_construct(table, payload, source);
-        payload
-    }
+    unsafe { clone_group_payload(group_index, source) }
+}
+
+/// The source must be a live payload of the registered group type.
+pub(crate) unsafe fn clone_group_payload(group_index: usize, source: *const c_void) -> *mut c_void {
+    let table = vtable(group_index);
+    let payload = allocate_payload(table, 1);
+    unsafe { copy_construct(table, payload, source) };
+    payload
 }
 
 /// Retains one reference to each style-group payload in `payloads`.
@@ -3368,41 +3371,6 @@ pub unsafe extern "C" fn rust_build_surround_group(
     build_or_reuse_group_payload().unwrap_or(std::ptr::null())
 }
 
-/// Replaces the position-anchor style value retained for Rust layout.
-///
-/// # Safety
-/// `target` must identify a uniquely owned surround payload. `name_raw` must
-/// transfer one leaked fly-string reference when nonzero.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_surround_set_position_anchor(target: *mut SurroundValues, name_raw: usize) {
-    unsafe {
-        (*target).position_anchor = if name_raw == 0 {
-            ComputedStyleValueHandle::empty()
-        } else {
-            ComputedStyleValueHandle {
-                pointer: crate::css::style_value::rust_style_value_create_custom_ident(name_raw).cast(),
-            }
-        };
-    };
-}
-
-/// Replaces the position-anchor value in a uniquely owned anchor payload.
-///
-/// # Safety
-/// `target` must identify a uniquely owned anchor payload. `name_raw` must
-/// transfer one leaked fly-string reference when nonzero.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_anchor_set_position_anchor(
-    target: *mut AnchorValues,
-    position_anchor_type: u8,
-    name_raw: usize,
-) {
-    unsafe {
-        (*target).position_anchor_type = position_anchor_type;
-        (*target).position_anchor_name = RetainedUtf16FlyString::from_leaked_raw(name_raw);
-    };
-}
-
 /// Builds the box group from a fully materialized payload value. C++ resolves
 /// every field directly into the payload layout (box type transformation,
 /// ratio degeneracy handling and the vertical-align representation live
@@ -3465,14 +3433,7 @@ pub unsafe extern "C" fn rust_build_grid_group(
     payload.cast_const()
 }
 
-/// # Safety
-/// `source` must be a valid grid payload and `target` a uniquely owned grid
-/// group value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_grid_values_copy_placements(source: *const GridValues, target: *mut GridValues) {
-    // SAFETY: The caller passes a valid source payload and a uniquely
-    // owned target value.
-    let (source, target) = unsafe { (&*source, &mut *target) };
+pub(crate) fn copy_grid_placements(source: &GridValues, target: &mut GridValues) {
     let mut remapped = |placement: ComputedGridPlacement| {
         let mut remap_index = |index: u32| {
             if index == GRID_NO_INDEX {
@@ -3499,66 +3460,6 @@ pub unsafe extern "C" fn rust_grid_values_copy_placements(source: *const GridVal
     target.grid_column_end_style_value = source.grid_column_end_style_value.clone();
     target.grid_row_start_style_value = source.grid_row_start_style_value.clone();
     target.grid_row_end_style_value = source.grid_row_end_style_value.clone();
-}
-
-/// # Safety
-/// `source` and `target` must be valid grid group payloads.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_grid_values_placements_equal(
-    source: *const GridValues,
-    target: *const GridValues,
-) -> bool {
-    // SAFETY: The caller passes valid payloads and only reads them.
-    let (source, target) = unsafe { (&*source, &*target) };
-    let name_raw = |grid: &GridValues, index: u32| {
-        if index == GRID_NO_INDEX {
-            return 0;
-        }
-        grid.names.as_slice()[index as usize].raw()
-    };
-    // Name indices are payload-local, so a placement compares as its index-neutralized
-    // shape plus the raw names those indices resolve to; a field added to
-    // ComputedGridPlacement flows into the comparison through the struct update.
-    let comparable_placement = |grid: &GridValues, placement: &ComputedGridPlacement| {
-        (
-            ComputedGridPlacement {
-                name_index: GRID_NO_INDEX,
-                implicit_start_name_index: GRID_NO_INDEX,
-                implicit_end_name_index: GRID_NO_INDEX,
-                ..*placement
-            },
-            name_raw(grid, placement.name_index),
-            name_raw(grid, placement.implicit_start_name_index),
-            name_raw(grid, placement.implicit_end_name_index),
-        )
-    };
-    let placements_equal = |ours: &ComputedGridPlacement, theirs: &ComputedGridPlacement| {
-        comparable_placement(source, ours) == comparable_placement(target, theirs)
-    };
-    placements_equal(&source.column_start, &target.column_start)
-        && placements_equal(&source.column_end, &target.column_end)
-        && placements_equal(&source.row_start, &target.row_start)
-        && placements_equal(&source.row_end, &target.row_end)
-        && source.grid_column_start_style_value == target.grid_column_start_style_value
-        && source.grid_column_end_style_value == target.grid_column_end_style_value
-        && source.grid_row_start_style_value == target.grid_row_start_style_value
-        && source.grid_row_end_style_value == target.grid_row_end_style_value
-}
-
-/// # Safety
-/// `target` must be a uniquely owned grid group value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_grid_values_reset_placements_to_auto(target: *mut GridValues) {
-    // SAFETY: The caller passes a uniquely owned target value.
-    let target = unsafe { &mut *target };
-    target.column_start = AUTO_GRID_PLACEMENT;
-    target.column_end = AUTO_GRID_PLACEMENT;
-    target.row_start = AUTO_GRID_PLACEMENT;
-    target.row_end = AUTO_GRID_PLACEMENT;
-    target.grid_column_start_style_value = ComputedStyleValueHandle::empty();
-    target.grid_column_end_style_value = ComputedStyleValueHandle::empty();
-    target.grid_row_start_style_value = ComputedStyleValueHandle::empty();
-    target.grid_row_end_style_value = ComputedStyleValueHandle::empty();
 }
 
 /// Builds the complete sizing group from its six computed values. Accepted
@@ -3808,15 +3709,7 @@ mod tests {
     }
 }
 
-/// # Safety
-/// `source` must be a valid alignment payload and `target` a uniquely owned alignment value.
-#[unsafe(no_mangle)]
-pub unsafe extern "C" fn rust_alignment_values_copy_fieldset_content_properties(
-    source: *const AlignmentValues,
-    target: *mut AlignmentValues,
-) {
-    // SAFETY: The caller supplies a valid source and a uniquely owned target.
-    let (source, target) = unsafe { (&*source, &mut *target) };
+pub(crate) fn copy_fieldset_content_alignment(source: &AlignmentValues, target: &mut AlignmentValues) {
     target.flex_direction = source.flex_direction;
     target.flex_wrap = source.flex_wrap;
     target.align_content = source.align_content;

@@ -115,9 +115,7 @@ Layout::Node* HTMLFieldSetElement::create_layout_node(CSS::LayoutStyle style)
     // If the computed outer display type is inline, the fieldset is expected to behave as inline-block. Otherwise, it
     // is expected to behave as flow-root. This does not change the computed value.
     if (fieldset_box.display().is_flow_inside()) {
-        fieldset_box.modify_computed_values([&](auto& values) {
-            values.set_display(CSS::Display { fieldset_box.display().outside(), CSS::DisplayInside::FlowRoot });
-        });
+        fieldset_box.set_display(CSS::Display { fieldset_box.display().outside(), CSS::DisplayInside::FlowRoot });
     }
     return &fieldset_box;
 }

@@ -1,0 +1,6 @@
+PASS: anonymous table descendants inherit repeated font changes
+PASS: table wrapper keeps grid placement and positioning after restyle
+PASS: principal pseudo style survives anonymous descendant reinheritance
+PASS: fieldset content wrapper retains alignment and overflow
+PASS: animated inherited values reach anonymous table cells
+5 cases; 5 matched; 0 mismatched

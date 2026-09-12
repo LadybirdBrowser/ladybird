@@ -43,12 +43,16 @@ void SyntheticPseudoElement::visit_edges(JS::Cell::Visitor& visitor)
 
 void SyntheticPseudoElement::set_layout_node(Layout::NodeWithStyle* value)
 {
-    if (m_layout_node && m_layout_node.ptr() != value)
+    if (m_layout_node && m_layout_node.ptr() != value) {
         m_layout_node->pin_style_record_for_detachment();
+        Layout::RustFFI::layout_arena_set_node_flag(m_layout_node->arena_handle(), Layout::Node::slot_id(m_layout_node), Layout::RustFFI::NodeFlag::IsPseudoElementPrincipalBox, false);
+    }
     m_layout_node = value;
     // The box becomes the pseudo-element's box here, which is when it starts holding its scroll offset.
-    if (value)
+    if (value) {
+        Layout::RustFFI::layout_arena_set_node_flag(value->arena_handle(), Layout::Node::slot_id(value), Layout::RustFFI::NodeFlag::IsPseudoElementPrincipalBox, true);
         value->update_has_scroll_offset_flag();
+    }
 }
 
 void SyntheticPseudoElement::update_animated_properties(Badge<Web::Animations::KeyframeEffect> const&, DOM::AbstractElement abstract_element, Web::Animations::KeyframeEffect& effect, Web::Animations::AnimationUpdateContext& context)

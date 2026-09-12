@@ -1,0 +1,80 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script src="resources/full-rebuild-comparison.js"></script>
+<style>
+    #fixture { font: 12px/1 monospace; }
+    #pseudo::before { content: "generated text"; display: table; font-size: 13px; }
+    #pseudo.changed::before { font-size: 19px; }
+</style>
+<div id="fixture"></div>
+<script>
+    test(() => runLayoutTreeFullRebuildComparisonCases([
+        {
+            name: "anonymous table descendants inherit repeated font changes",
+            setup(fixture) {
+                fixture.innerHTML = '<div style="display: table">anonymous cell</div>';
+                return () => {
+                    for (const fontSize of [24, 18, 30]) {
+                        fixture.style.fontSize = `${fontSize}px`;
+                        fixture.offsetHeight;
+                    }
+                };
+            },
+        },
+        {
+            name: "table wrapper keeps grid placement and positioning after restyle",
+            setup(fixture) {
+                fixture.style.cssText = "display: grid; grid-template-columns: [first] 80px [second] 120px;";
+                fixture.innerHTML = '<div style="display: table; grid-column: second; position: relative; left: 7px; margin: 3px; justify-self: end">cell</div>';
+                return () => {
+                    const table = fixture.firstElementChild;
+                    table.style.gridColumn = "first";
+                    table.style.left = "11px";
+                    table.style.margin = "5px";
+                    table.style.fontSize = "18px";
+                };
+            },
+        },
+        {
+            name: "principal pseudo style survives anonymous descendant reinheritance",
+            setup(fixture) {
+                fixture.innerHTML = '<div id="pseudo" style="display: flex">ordinary text</div>';
+                return () => {
+                    const pseudo = fixture.firstElementChild;
+                    pseudo.style.fontSize = "24px";
+                    pseudo.offsetHeight;
+                    pseudo.className = "changed";
+                    pseudo.offsetHeight;
+                    pseudo.style.fontSize = "30px";
+                };
+            },
+        },
+        {
+            name: "fieldset content wrapper retains alignment and overflow",
+            setup(fixture) {
+                fixture.innerHTML = '<fieldset style="display: flex; flex-direction: column; justify-content: end; width: 180px; overflow: hidden; gap: 9px"><legend>legend</legend>text<div>child</div></fieldset>';
+                return () => {
+                    const fieldset = fixture.firstElementChild;
+                    fieldset.style.fontSize = "20px";
+                    fieldset.offsetHeight;
+                    fieldset.style.fontSize = "26px";
+                };
+            },
+        },
+        {
+            name: "animated inherited values reach anonymous table cells",
+            setup(fixture) {
+                fixture.innerHTML = '<div style="display: table">animated cell</div>';
+                const table = fixture.firstElementChild;
+                const animation = table.animate({ fontSize: ["12px", "36px"] }, { duration: 1000, fill: "both" });
+                animation.pause();
+                animation.currentTime = 250;
+                return () => {
+                    table.offsetHeight;
+                    animation.currentTime = 750;
+                    table.style.marginLeft = "10px";
+                };
+            },
+        },
+    ]));
+</script>

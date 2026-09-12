@@ -7,8 +7,8 @@
 //! Propagation of the root element's and its body's style to the viewport: the principal
 //! writing mode and the viewport's overflow. The host reads the inputs from the elements' own
 //! style records rather than from their boxes, since the previous pass rewrote the boxes'
-//! values and a `display: none` body has style but no box, and applies the results through
-//! the boxes' style setters outside any layout pass.
+//! values and a `display: none` body has style but no box. Rust derives the boxes' final
+//! styles before the layout pass borrows their payloads.
 
 use crate::css::css_enums::overflow;
 use crate::layout::LayoutNodeArena;
@@ -38,14 +38,6 @@ pub struct FfiViewportPropagationFacts {
     pub body_writing_mode: u8,
     pub body_direction: u8,
     pub body_has_containment: bool,
-}
-
-/// Each callback receives a layout node shell and the values to set on its computed style.
-#[repr(C)]
-pub struct FfiViewportPropagationApplyCallbacks {
-    pub context: *mut c_void,
-    pub apply_overflow: unsafe extern "C" fn(*mut c_void, *mut c_void, u8, u8),
-    pub apply_writing_mode_and_direction: unsafe extern "C" fn(*mut c_void, *mut c_void, u8, u8),
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -153,38 +145,26 @@ pub(crate) fn decide_viewport_propagation(facts: &FfiViewportPropagationFacts) -
 ///
 /// # Safety
 ///
-/// The arena, `facts` and `callbacks` must remain valid for the duration of the call, `viewport`
-/// and the boxes named by the facts must be live, and the call must be made outside any layout
-/// pass: the apply callbacks replace computed values.
+/// The arena and `facts` must remain valid for the call, `viewport` and the boxes named by
+/// the facts must be live, and the call must precede the layout pass's style borrows.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_layout_propagate_root_styles_to_viewport(
     arena: *mut c_void,
     viewport: NodeSlotId,
     facts: *const FfiViewportPropagationFacts,
-    callbacks: *const FfiViewportPropagationApplyCallbacks,
 ) {
     assert!(!viewport.is_invalid());
     assert!(!facts.is_null());
-    assert!(!callbacks.is_null());
-    // SAFETY: The C++ caller keeps the arena, the facts and the callback table alive for this
-    // synchronous call.
+    // SAFETY: The caller keeps the arena and facts alive for this synchronous call.
     let arena = unsafe { LayoutNodeArena::from_handle(arena) };
     let facts = unsafe { &*facts };
-    let callbacks = unsafe { &*callbacks };
-    let apply_overflow = |node: NodeSlotId, (overflow_x, overflow_y): (u8, u8)| {
-        // SAFETY: The node is live, and the host applies the values synchronously.
-        unsafe { (callbacks.apply_overflow)(callbacks.context, arena.node_shell(node), overflow_x, overflow_y) };
+    let apply_overflow = |node: NodeSlotId, (x, y): (u8, u8)| {
+        arena.update_layout_style(node, |style| style.set_overflow(x, y));
     };
     let apply_writing_mode_and_direction = |node: NodeSlotId, writing_mode: u8, direction: u8| {
-        // SAFETY: As above.
-        unsafe {
-            (callbacks.apply_writing_mode_and_direction)(
-                callbacks.context,
-                arena.node_shell(node),
-                writing_mode,
-                direction,
-            );
-        }
+        arena.update_layout_style(node, |style| {
+            style.set_writing_mode_and_direction(writing_mode, direction);
+        });
     };
 
     let Some(styles) = decide_viewport_propagation(facts) else {

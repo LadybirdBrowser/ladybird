@@ -761,16 +761,7 @@ RustFFI::FfiPseudoTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_pseudo_tr
             auto& frame = *static_cast<PseudoElementFrame*>(frame_pointer);
             VERIFY(frame.layout_node);
             frame.layout_node->attach_style_resources(); },
-        .apply_replaced_display_adjustment = [](void* frame_pointer, RustFFI::FfiReplacedElementDisplayAdjustment adjustment) {
-            VERIFY(frame_pointer);
-            auto& frame = *static_cast<PseudoElementFrame*>(frame_pointer);
-            VERIFY(frame.layout_node);
-            if (adjustment == RustFFI::FfiReplacedElementDisplayAdjustment::Block)
-                frame.layout_node->set_display(CSS::Display::from_short(CSS::Display::Short::Block));
-            else if (adjustment == RustFFI::FfiReplacedElementDisplayAdjustment::Inline)
-                frame.layout_node->set_display(CSS::Display::from_short(CSS::Display::Short::Inline));
-            else
-                VERIFY_NOT_REACHED(); },
+
         .create_nested_list_marker = [](void* frame_pointer, void* element_pointer) -> RustFFI::NodeSlotId {
             VERIFY(frame_pointer);
             VERIFY(element_pointer);
@@ -1316,16 +1307,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
             VERIFY(frame.layout_node);
             as<NodeWithStyle>(*frame.layout_node).attach_style_resources(); },
-        .apply_replaced_display_adjustment = [](void* frame_pointer, RustFFI::FfiReplacedElementDisplayAdjustment adjustment) {
-            VERIFY(frame_pointer);
-            auto& frame = *static_cast<PrincipalNodeFrame*>(frame_pointer);
-            VERIFY(frame.layout_node);
-            if (adjustment == RustFFI::FfiReplacedElementDisplayAdjustment::Block)
-                as<NodeWithStyle>(*frame.layout_node).set_display(CSS::Display::from_short(CSS::Display::Short::Block));
-            else if (adjustment == RustFFI::FfiReplacedElementDisplayAdjustment::Inline)
-                as<NodeWithStyle>(*frame.layout_node).set_display(CSS::Display::from_short(CSS::Display::Short::Inline));
-            else
-                VERIFY_NOT_REACHED(); },
+
         .set_layout_root = [](void* builder_pointer, void* frame_pointer) {
             VERIFY(builder_pointer);
             VERIFY(frame_pointer);
@@ -1342,9 +1324,7 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             // NB: Called during layout tree construction.
             auto* document_element = static_cast<DOM::Document*>(document_pointer)->document_element();
             return Node::slot_id(document_element ? document_element->unsafe_layout_node() : nullptr); },
-        .apply_viewport_scrollbar_width = [](void* viewport_shell, u8 scrollbar_width) {
-            VERIFY(viewport_shell);
-            as<Viewport>(*static_cast<Node*>(viewport_shell)).set_scrollbar_width(static_cast<CSS::ScrollbarWidth>(scrollbar_width)); },
+
         .report_rebuild_outcome = [](void* builder_pointer, void* const* rebuilt_root_pointers, size_t rebuilt_root_count, bool layout_tree_update_escaped_rebuild_roots) {
             VERIFY(builder_pointer);
             VERIFY(rebuilt_root_pointers || rebuilt_root_count == 0);
@@ -1402,23 +1382,7 @@ RustFFI::FfiTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_tree_builder_ca
 {
     return {
         .context = this,
-        .take_fieldset_overflow_for_content_wrapper = [](void*, void* fieldset_box_pointer) -> RustFFI::FfiAnonymousStyleOverrides {
-            VERIFY(fieldset_box_pointer);
-            auto& fieldset_box = as<BlockContainer>(*static_cast<Node*>(fieldset_box_pointer));
-            // https://html.spec.whatwg.org/multipage/rendering.html#the-fieldset-and-legend-elements
-            // The following properties are expected to inherit from the fieldset element:
-            //     align-content, align-items, border-radius, column-count, column-fill, column-gap, column-rule,
-            //     column-width, flex-direction, flex-wrap, grid (grid-auto-columns, grid-auto-flow, grid-auto-rows,
-            //     grid-column-gap, grid-row-gap, grid-template-areas, grid-template-columns, grid-template-rows),
-            //     justify-content, justify-items, overflow, padding, text-overflow, unicode-bidi
-            // FIXME: Transfer the remaining properties besides overflow and alignment.
-            RustFFI::FfiAnonymousStyleOverrides overrides {
-                .inline_block_wrapper = false,
-                .overflow_x = to_underlying(fieldset_box.overflow_x()),
-                .overflow_y = to_underlying(fieldset_box.overflow_y()),
-            };
-            fieldset_box.set_overflow(CSS::InitialValues::overflow(), CSS::InitialValues::overflow());
-            return overrides; },
+
         .prepare_subtree_for_detach = [](void*, void* layout_node_pointer) {
             VERIFY(layout_node_pointer);
             static_cast<Node*>(layout_node_pointer)->prepare_subtree_for_detach_from_layout_tree(); },

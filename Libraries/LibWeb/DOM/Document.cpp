@@ -208,7 +208,6 @@
 #include <LibWeb/Infra/SerializedURL.h>
 #include <LibWeb/Infra/Strings.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserver.h>
-#include <LibWeb/Layout/AnonymousBoxStyle.h>
 #include <LibWeb/Layout/BlockContainer.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/NodeArena.h>
@@ -656,23 +655,11 @@ Layout::NodeArena& Document::layout_node_arena()
         m_layout_node_arena = make_ref_counted<Layout::NodeArena>();
         m_layout_node_arena->set_document({}, this);
         Layout::RustFFI::FfiStyleRecordHostCallbacks style_record_host_callbacks {
+            .style_engine = style_computer().style_engine().rust_handle(),
             .context = this,
-            .derive_anonymous_style_record = [](void* context, u64 parent_style_record, Layout::RustFFI::FfiAnonymousStyleKind kind, Layout::RustFFI::FfiAnonymousStyleOverrides overrides) -> Layout::RustFFI::FfiDerivedStyleRecord {
-                auto& style_computer = static_cast<Document*>(context)->style_computer();
-                auto style_record = Layout::derive_pinned_anonymous_box_style_record(style_computer, CSS::StyleRecordID { parent_style_record }, kind, overrides);
-                return { .record = style_record.value(), .payloads = style_computer.style_record_payloads(style_record) };
+            .shell_style_changed = [](void*, void* shell, u64 record, void const* payloads, bool attach_resources) {
+                as<Layout::NodeWithStyle>(*static_cast<Layout::Node*>(shell)).refresh_style_from_arena(CSS::StyleRecordID { record }, payloads, attach_resources);
             },
-            .reinherit_anonymous_style_record = [](void* context, u64 style_record, u64 parent_style_record) -> Layout::RustFFI::FfiDerivedStyleRecord {
-                auto& style_computer = static_cast<Document*>(context)->style_computer();
-                auto reinherited_style_record = Layout::reinherit_pinned_anonymous_box_style_record(style_computer, CSS::StyleRecordID { style_record }, CSS::StyleRecordID { parent_style_record });
-                return { .record = reinherited_style_record.value(), .payloads = style_computer.style_record_payloads(reinherited_style_record) };
-            },
-            .unpin_style_record = [](void* context, u64 style_record) { static_cast<Document*>(context)->style_computer().unpin_style_record(CSS::StyleRecordID { style_record }); },
-            .reinherit_owned_anonymous_box_style = [](void*, void* shell, u64 parent_style_record) -> bool {
-                return as<Layout::NodeWithStyle>(*static_cast<Layout::Node*>(shell)).reinherit_owned_computed_values_from(CSS::StyleRecordID { parent_style_record });
-            },
-            .reset_table_box_style_used_by_wrapper = [](void*, void* table_box_shell) { as<Layout::Box>(*static_cast<Layout::Node*>(table_box_shell)).reset_table_box_computed_values_used_by_wrapper_to_init_values(); },
-            .shell_style_changed = [](void*, void* shell) { as<Layout::NodeWithStyle>(*static_cast<Layout::Node*>(shell)).refresh_style_from_arena(); },
         };
         Layout::RustFFI::layout_arena_set_style_record_host_callbacks(m_layout_node_arena->handle(), style_record_host_callbacks);
         Layout::RustFFI::layout_arena_set_shell_factory(m_layout_node_arena->handle(), this, [](void* context, Layout::RustFFI::NodeSlotId slot, Layout::RustFFI::NodeKind kind) {

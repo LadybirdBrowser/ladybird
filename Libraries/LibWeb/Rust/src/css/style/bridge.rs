@@ -2301,6 +2301,41 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
             .cast::<crate::css::computed_longhand_table::ComputedLonghandTable>()
             .as_ref()
     };
+    publish_computed_groups_from_inputs(
+        unsafe { &mut *engine.cast::<StyleEngine>() },
+        node,
+        pseudo_kind,
+        payloads,
+        inherited_group_count,
+        custom_property_environment,
+        inherited_group_swap_candidate,
+        counter_style_environment_identity,
+        animation_overlay_identity,
+        animated_overlay,
+        animation_overlay_payloads,
+        longhand_table,
+        custom_property_store,
+    )
+}
+
+// Shared by host publication and native layout-style derivation. Recording stays at the
+// engine input boundary even when the producer and the style store both live in Rust.
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn publish_computed_groups_from_inputs(
+    engine: &mut StyleEngine,
+    node: u32,
+    pseudo_kind: u8,
+    payloads: &[*const c_void],
+    inherited_group_count: usize,
+    custom_property_environment: u64,
+    inherited_group_swap_candidate: bool,
+    counter_style_environment_identity: u64,
+    animation_overlay_identity: u64,
+    animated_overlay: *const c_void,
+    animation_overlay_payloads: &[*const c_void],
+    longhand_table: Option<&crate::css::computed_longhand_table::ComputedLonghandTable>,
+    custom_property_store: *const c_void,
+) -> FfiStyleRecordDelta {
     let raw_cascaded_font_size = longhand_table.map_or(std::ptr::null(), |table| table.raw_cascaded_font_size());
     assert!(longhand_table.is_some() || (node == 0 && pseudo_kind == u8::MAX));
     let pseudo_element_styles = longhand_table.map_or(0, |table| table.pseudo_element_styles());
@@ -2312,7 +2347,6 @@ pub unsafe extern "C" fn style_engine_publish_computed_groups(
     let dependency_flags = longhand_table.map_or(0, |table| table.publication_dependency_flags())
         | (u8::from(inherited_group_swap_eligible) * super::computed::INHERITED_GROUP_SWAP_ELIGIBLE)
         | (u8::from(holds_image_values) * super::computed::HOLDS_IMAGE_VALUES);
-    let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
     if animation_overlay_identity != 0 && animated_overlay.is_null() {
         return FfiStyleRecordDelta::default();
     }

@@ -13,6 +13,10 @@ use super::rendered_text::{FfiTextSource, FfiTextSourceRange, RenderedTextBounda
 use super::used_values::SizeConstraint;
 use super::used_values::UsedValues;
 use crate::css::style::fast_hash::{FastMap as HashMap, FastSet as HashSet};
+use crate::css::style::{
+    StyleEngine,
+    layout_style::{AnonymousStyleKind, AnonymousStyleOverrides, DerivedStyleRecord, LayoutStyle},
+};
 use crate::layout::ComputedValuesView;
 use crate::layout::CssPixels;
 use crate::layout::FfiReplacedContentFacts;
@@ -377,37 +381,6 @@ enum AncestorInvalidation {
     ContentChange,
 }
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-#[repr(u8)]
-pub enum FfiAnonymousStyleKind {
-    Wrapper,
-    TableRow,
-    TableCell,
-    Table,
-    InlineTable,
-    MissingTableCell,
-    TableWrapper,
-    ButtonFlexWrapper,
-    ButtonContentBox,
-    FieldsetContentWrapper,
-    InlineStyleWrapper,
-}
-
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-#[repr(C)]
-pub struct FfiAnonymousStyleOverrides {
-    pub inline_block_wrapper: bool,
-    pub overflow_x: u8,
-    pub overflow_y: u8,
-}
-
-#[derive(Clone, Copy)]
-#[repr(C)]
-pub struct FfiDerivedStyleRecord {
-    pub record: u64,
-    pub payloads: *const c_void,
-}
-
 type ShellFactory = (*mut c_void, unsafe extern "C" fn(*mut c_void, NodeSlotId, NodeKind));
 
 fn style_insets_use_anchor_functions(style: ComputedValuesView<'_>) -> bool {
@@ -436,18 +409,9 @@ fn style_insets_use_anchor_functions(style: ComputedValuesView<'_>) -> bool {
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiStyleRecordHostCallbacks {
+    pub style_engine: *mut c_void,
     pub context: *mut c_void,
-    pub derive_anonymous_style_record: unsafe extern "C" fn(
-        *mut c_void,
-        u64,
-        FfiAnonymousStyleKind,
-        FfiAnonymousStyleOverrides,
-    ) -> FfiDerivedStyleRecord,
-    pub reinherit_anonymous_style_record: unsafe extern "C" fn(*mut c_void, u64, u64) -> FfiDerivedStyleRecord,
-    pub unpin_style_record: unsafe extern "C" fn(*mut c_void, u64),
-    pub reinherit_owned_anonymous_box_style: unsafe extern "C" fn(*mut c_void, *mut c_void, u64) -> bool,
-    pub reset_table_box_style_used_by_wrapper: unsafe extern "C" fn(*mut c_void, *mut c_void),
-    pub shell_style_changed: unsafe extern "C" fn(*mut c_void, *mut c_void),
+    pub shell_style_changed: unsafe extern "C" fn(*mut c_void, *mut c_void, u64, *const c_void, bool),
 }
 
 fn style_payloads_equal_in_layout_affecting_groups(a: *const c_void, b: *const c_void) -> bool {
@@ -509,7 +473,7 @@ impl FreedSubtree {
         if let Some(host) = self.style_record_host {
             for style_record in self.arena_pinned_style_records {
                 // SAFETY: Registration and unregistration keep the host context live.
-                unsafe { (host.unpin_style_record)(host.context, style_record) };
+                unsafe { &mut *host.style_engine.cast::<StyleEngine>() }.unpin_layout_style_record(style_record);
             }
         }
     }
@@ -944,15 +908,20 @@ impl LayoutNodeArena {
         data.generated_for.set(generated_for);
     }
 
-    pub(crate) fn set_node_style(&self, id: NodeSlotId, style_record: u64, payloads: *const c_void) {
+    pub(crate) fn set_node_style(&self, id: NodeSlotId, style_record: u64, payloads: *const c_void) -> bool {
         self.assert_owner_thread();
         let data = self.data(id);
         data.style.set(payloads);
+        self.set_node_flag(id, NodeFlag::FollowsPrincipalStyle, false);
         self.invalidate_overflow_after_style_change(id);
         self.update_anchor_positioning_dependency(id);
-        self.style_records[id.slot_index() as usize].set(style_record);
+        let previous = self.style_records[id.slot_index() as usize].replace(style_record);
+        if self.style_records_pinned_by_arena[id.slot_index() as usize].replace(false) {
+            self.with_style_engine(|engine| engine.unpin_layout_style_record(previous));
+        }
         self.enroll_text_children_for_content_sync(id);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(id);
+        previous != style_record
     }
 
     fn update_anchor_positioning_dependency(&self, node: NodeSlotId) {
@@ -1027,38 +996,48 @@ impl LayoutNodeArena {
             .expect("layout node arena has no style record host")
     }
 
+    // The engine outlives the arena's live nodes. No host callback runs while this
+    // native style-store borrow is active; shell notifications follow publication.
+    fn with_style_engine<T>(&self, callback: impl FnOnce(&mut StyleEngine) -> T) -> T {
+        let host = self.style_record_host();
+        assert!(!host.style_engine.is_null());
+        unsafe { callback(&mut *host.style_engine.cast::<StyleEngine>()) }
+    }
+
     pub(crate) fn derive_anonymous_style_record(
         &self,
-        parent_style_record: u64,
-        kind: FfiAnonymousStyleKind,
-        overrides: FfiAnonymousStyleOverrides,
-    ) -> FfiDerivedStyleRecord {
-        assert!(parent_style_record != 0, "anonymous box parent has no style record");
-        let host = self.style_record_host();
-        // SAFETY: Registration and unregistration keep the host context live.
-        unsafe { (host.derive_anonymous_style_record)(host.context, parent_style_record, kind, overrides) }
+        parent: u64,
+        kind: AnonymousStyleKind,
+        overrides: AnonymousStyleOverrides,
+    ) -> DerivedStyleRecord {
+        self.with_style_engine(|engine| LayoutStyle::anonymous(engine, parent, kind, overrides).intern(engine))
     }
 
-    pub(crate) fn reinherit_anonymous_style_record(
-        &self,
-        style_record: u64,
-        parent_style_record: u64,
-    ) -> FfiDerivedStyleRecord {
-        assert!(style_record != 0 && parent_style_record != 0);
-        let host = self.style_record_host();
-        // SAFETY: Registration and unregistration keep the host context live.
-        unsafe { (host.reinherit_anonymous_style_record)(host.context, style_record, parent_style_record) }
+    pub(crate) fn reinherit_anonymous_style_record(&self, record: u64, parent: u64) -> DerivedStyleRecord {
+        self.with_style_engine(|engine| {
+            let mut style = LayoutStyle::from_record(engine, record);
+            style.inherit_from(engine, parent);
+            style.intern(engine)
+        })
     }
 
-    pub(crate) fn reset_table_box_style_used_by_wrapper(&self, table_box: NodeSlotId) {
-        let shell = self.node_shell(table_box);
-        assert!(
-            !shell.is_null(),
-            "table box without a shell cannot reset the properties its wrapper took"
-        );
-        let host = self.style_record_host();
-        // SAFETY: Registration and unregistration keep the host context live, and the shell is live.
-        unsafe { (host.reset_table_box_style_used_by_wrapper)(host.context, shell) };
+    pub(crate) fn update_layout_style(&self, node: NodeSlotId, update: impl FnOnce(&mut LayoutStyle)) {
+        let derived = self.with_style_engine(|engine| {
+            let mut style = LayoutStyle::from_record(engine, self.node_style_record(node));
+            update(&mut style);
+            if style.is_unchanged() {
+                return None;
+            }
+            Some(style.intern(engine))
+        });
+        if let Some(derived) = derived {
+            self.set_node_flag(node, NodeFlag::FollowsPrincipalStyle, false);
+            self.apply_reinherited_style_record(node, derived);
+        }
+    }
+
+    pub(crate) fn reset_table_box_style_used_by_wrapper(&self, node: NodeSlotId) {
+        self.update_layout_style(node, LayoutStyle::reset_table_properties);
     }
 
     pub(crate) fn reinherit_anonymous_descendants(&self, node: NodeSlotId) {
@@ -1075,8 +1054,8 @@ impl LayoutNodeArena {
         if parent_is_table_wrapper_of_this_table_box {
             let derived = self.derive_anonymous_style_record(
                 self.node_style_record(node),
-                FfiAnonymousStyleKind::TableWrapper,
-                FfiAnonymousStyleOverrides::default(),
+                AnonymousStyleKind::TableWrapper,
+                AnonymousStyleOverrides::default(),
             );
             self.apply_reinherited_style_record(parent, derived);
             self.reset_table_box_style_used_by_wrapper(node);
@@ -1093,28 +1072,42 @@ impl LayoutNodeArena {
             let is_anonymous_styled_child = flags & NodeFlag::Anonymous as u32 != 0
                 && flags & NodeFlag::HasStyle as u32 != 0
                 && data.kind.get() != NodeKind::TableWrapper;
-            if is_anonymous_styled_child {
-                if self.style_records_pinned_by_arena[child.slot_index() as usize].get() {
+            if is_anonymous_styled_child && flags & NodeFlag::IsPseudoElementPrincipalBox as u32 == 0 {
+                // Generated content with no layout-derived overrides follows its principal
+                // pseudo's complete record. Anonymous wrappers inherit only inherited groups.
+                let follows_principal = data.generated_for.get() != 0
+                    && (!self.node_style_record_is_pinned_by_arena(child)
+                        || flags & NodeFlag::FollowsPrincipalStyle as u32 != 0)
+                    && self.data(parent).flags.get() & NodeFlag::IsPseudoElementPrincipalBox as u32 != 0
+                    && self.data(parent).generated_for.get() == data.generated_for.get();
+                if follows_principal {
+                    let derived = self.with_style_engine(|engine| {
+                        engine.pin_layout_style_record(parent_style_record);
+                        DerivedStyleRecord {
+                            record: parent_style_record,
+                            payloads: engine
+                                .style_record_payloads(parent_style_record)
+                                .unwrap()
+                                .as_ptr()
+                                .cast(),
+                        }
+                    });
+                    self.apply_reinherited_style_record(child, derived);
+                    self.set_node_flag(child, NodeFlag::FollowsPrincipalStyle, true);
+                    self.reinherit_anonymous_descendants(child);
+                    self.notify_shell_of_style_change(child, true);
+                } else {
                     let derived =
                         self.reinherit_anonymous_style_record(self.node_style_record(child), parent_style_record);
                     self.apply_reinherited_style_record(child, derived);
                     self.reinherit_anonymous_children(child, derived.record);
-                } else if !data.shell.get().is_null() {
-                    let host = self.style_record_host();
-                    // SAFETY: Registration and unregistration keep the host context live, and the shell is live.
-                    let descendants_follow = unsafe {
-                        (host.reinherit_owned_anonymous_box_style)(host.context, data.shell.get(), parent_style_record)
-                    };
-                    if descendants_follow {
-                        self.reinherit_anonymous_children(child, self.node_style_record(child));
-                    }
                 }
             }
             child = next_sibling;
         }
     }
 
-    fn apply_reinherited_style_record(&self, slot: NodeSlotId, derived: FfiDerivedStyleRecord) {
+    fn apply_reinherited_style_record(&self, slot: NodeSlotId, derived: DerivedStyleRecord) {
         let previous_payloads = self.data(slot).style.get();
         let changes_layout_affecting_style =
             !style_payloads_equal_in_layout_affecting_groups(previous_payloads, derived.payloads);
@@ -1123,21 +1116,48 @@ impl LayoutNodeArena {
             self.bump_fragment_cache_epoch_of_self_and_ancestors(slot);
             self.reset_cached_intrinsic_sizes_of_self_and_ancestors(slot);
         }
+        self.notify_shell_of_style_change(slot, false);
+    }
+
+    fn notify_shell_of_style_change(&self, slot: NodeSlotId, attach_resources: bool) {
         let shell = self.data(slot).shell.get();
         if !shell.is_null() {
             let host = self.style_record_host();
-            // SAFETY: Registration and unregistration keep the host context live, and the shell is live.
-            unsafe { (host.shell_style_changed)(host.context, shell) };
-        } else {
-            self.refresh_insets_use_anchor_functions_flag(slot);
+            // SAFETY: The engine and shell remain live. Native style-store mutation has
+            // finished before the host can reenter Rust through its resource consumers.
+            unsafe {
+                (host.shell_style_changed)(
+                    host.context,
+                    shell,
+                    self.node_style_record(slot),
+                    self.data(slot).style.get(),
+                    attach_resources,
+                );
+            };
         }
+    }
+
+    fn refresh_style_flags(&self, slot: NodeSlotId) {
+        let style = self.node_style_if_live(slot).expect("styled layout node");
+        self.set_node_flag(
+            slot,
+            NodeFlag::HasAnchorNames,
+            !style.anchor().anchor_names.as_slice().is_empty(),
+        );
+        self.refresh_insets_use_anchor_functions_flag(slot);
+        self.set_node_flag(slot, NodeFlag::HasAnimatedOpacityOrTransform, false);
+        self.set_node_flag(
+            slot,
+            NodeFlag::HasPreserve3dTransformStyle,
+            style.transform().transform_style == crate::css::css_enums::transform_style::PRESERVE_3D,
+        );
     }
 
     pub(crate) fn enroll_text_node_for_content_sync(&self, node: NodeSlotId) {
         self.text_nodes_enrolled_for_content_sync.borrow_mut().insert(node);
     }
 
-    pub(crate) fn stamp_anonymous_box(&self, slot: NodeSlotId, kind: NodeKind, derived: FfiDerivedStyleRecord) {
+    pub(crate) fn stamp_anonymous_box(&self, slot: NodeSlotId, kind: NodeKind, derived: DerivedStyleRecord) {
         self.assert_owner_thread();
         let data = self.data(slot);
         assert_eq!(
@@ -1210,27 +1230,20 @@ impl LayoutNodeArena {
         count
     }
 
-    pub(crate) fn replace_arena_pinned_style_record(&self, slot: NodeSlotId, derived: FfiDerivedStyleRecord) {
+    pub(crate) fn replace_arena_pinned_style_record(&self, slot: NodeSlotId, derived: DerivedStyleRecord) {
         self.assert_owner_thread();
-        assert!(
-            self.node_style_record_is_pinned_by_arena(slot),
-            "replaced a style record the arena does not pin"
-        );
+        let previously_pinned = self.style_records_pinned_by_arena[slot.slot_index() as usize].replace(true);
         assert!(derived.record != 0 && !derived.payloads.is_null());
         let previous_style_record = self.style_records[slot.slot_index() as usize].replace(derived.record);
         self.data(slot).style.set(derived.payloads);
+        self.refresh_style_flags(slot);
         self.invalidate_overflow_after_style_change(slot);
         self.update_anchor_positioning_dependency(slot);
         self.enroll_text_children_for_content_sync(slot);
         self.enroll_node_for_replaced_content_facts_sync_if_eligible(slot);
-        if previous_style_record != derived.record {
-            let host = self.style_record_host();
-            // SAFETY: Registration and unregistration keep the host context live.
-            unsafe { (host.unpin_style_record)(host.context, previous_style_record) };
-        } else {
-            let host = self.style_record_host();
-            // SAFETY: As above; the derivation pinned the record a second time.
-            unsafe { (host.unpin_style_record)(host.context, derived.record) };
+        self.enroll_node_for_svg_paint_resources_sync(slot);
+        if previously_pinned {
+            self.with_style_engine(|engine| engine.unpin_layout_style_record(previous_style_record));
         }
     }
 
@@ -3070,8 +3083,36 @@ pub unsafe extern "C" fn layout_arena_set_node_style(
     assert!(!arena.is_null(), "layout node arena handle is null");
     // SAFETY: As above.
     let arena = unsafe { &*arena.cast::<LayoutNodeArena>() };
-    arena.set_node_style(id, style_record, payloads);
+    if arena.set_node_style(id, style_record, payloads) {
+        arena.refresh_style_flags(id);
+    }
     arena.enroll_node_for_svg_paint_resources_sync(id);
+}
+
+/// The arena and record must be live on the document thread.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_adopt_derived_node_style(arena: *mut c_void, node: NodeSlotId, record: u64) {
+    let arena = unsafe { LayoutNodeArena::from_handle(arena) };
+    let derived = arena.with_style_engine(|engine| {
+        engine.pin_layout_style_record(record);
+        DerivedStyleRecord {
+            record,
+            payloads: engine.style_record_payloads(record).unwrap().as_ptr().cast(),
+        }
+    });
+    arena.apply_reinherited_style_record(node, derived);
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_node_has_derived_style(arena: *mut c_void, node: NodeSlotId) -> bool {
+    unsafe { LayoutNodeArena::from_handle(arena) }.node_style_record_is_pinned_by_arena(node)
+}
+
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_set_layout_display(arena: *mut c_void, node: NodeSlotId, display: u32) {
+    unsafe { LayoutNodeArena::from_handle(arena) }.update_layout_style(node, |style| {
+        style.set_display(crate::css::display::FfiDisplay::from_raw(display));
+    });
 }
 
 #[unsafe(no_mangle)]
@@ -3226,7 +3267,7 @@ mod tests {
         AbsposAxisMode, AbsposContainingBlockInfo, AbsposLayoutInputs, StaticPositionAlignment, StaticPositionRect,
     };
     use crate::layout::layout_node_arena::{
-        Chunk, FfiDerivedStyleRecord, IntrinsicBlockSizeMeasurement, IntrinsicInlineSizeMeasurement,
+        Chunk, DerivedStyleRecord, IntrinsicBlockSizeMeasurement, IntrinsicInlineSizeMeasurement,
         IntrinsicSizeCacheKey, IntrinsicSizeCacheKind, LayoutNodeArena, SLOTS_PER_CHUNK, TableCellMeasurement,
         TableCellMeasurementKey,
     };
@@ -3286,7 +3327,7 @@ mod tests {
         arena.stamp_anonymous_box(
             slot,
             NodeKind::InlineNode,
-            FfiDerivedStyleRecord {
+            DerivedStyleRecord {
                 record: 7,
                 payloads: payloads.as_ptr().cast(),
             },
