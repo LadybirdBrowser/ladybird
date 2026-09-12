@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<iframe id="frame"></iframe>
+<form id="form"><input id="input" form="form" required></form>
+<div id="anchor"></div>
+<script>
+    const anchorElement = document.getElementById("anchor");
+    const container = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    const script = document.createElementNS("http://www.w3.org/2000/svg", "script");
+    script.textContent = "frame.contentDocument.body.appendChild(document.getElementById('anchor'));";
+    container.appendChild(script);
+    anchorElement.appendChild(container);
+    input.removeAttribute("form");
+    input.required = false;
+</script>

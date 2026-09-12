@@ -10,6 +10,7 @@
 #include <LibWeb/CSS/StyleEngineInput.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
+#include <LibWeb/DOM/SubtreeInsertionScope.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/HTMLFieldSetElement.h>
 #include <LibWeb/HTML/HTMLFormElement.h>
@@ -70,7 +71,13 @@ void invalidate_style_after_validity_change(DOM::Element& element)
         if (auto form = html_element->form())
             visit(*form);
     }
+    auto* subtree_insertion_scope = element.document().subtree_insertion_scope();
     for (auto ancestor = element.parent_element(); ancestor; ancestor = ancestor->parent_element()) {
+        if (subtree_insertion_scope && ancestor.ptr() == &subtree_insertion_scope->parent()) {
+            for (auto const& fieldset : subtree_insertion_scope->inclusive_fieldset_ancestors_of_parent())
+                visit(fieldset);
+            return;
+        }
         if (is<HTML::HTMLFieldSetElement>(*ancestor))
             visit(*ancestor);
     }

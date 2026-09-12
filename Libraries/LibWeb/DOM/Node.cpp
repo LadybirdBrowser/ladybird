@@ -54,6 +54,7 @@
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/DOM/ShadowRoot.h>
 #include <LibWeb/DOM/StaticNodeList.h>
+#include <LibWeb/DOM/SubtreeInsertionScope.h>
 #include <LibWeb/DOM/XMLDocument.h>
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
@@ -944,6 +945,8 @@ void Node::insert_nodes_before(ReadonlySpan<GC::Root<Node>> nodes, GC::Ptr<Node>
         CSS::Invalidation::invalidate_style_after_subtree_place_changed(*node_to_insert, nullptr);
 
         CSS::prepare_style_nodes_for_subtree(*node_to_insert);
+
+        SubtreeInsertionScope subtree_insertion_scope { *this };
 
         // 7. For each shadow-including inclusive descendant inclusiveDescendant of node, in shadow-including tree order:
         node_to_insert->for_each_shadow_including_inclusive_descendant([&](Node& inclusive_descendant) {
