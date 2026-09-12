@@ -114,6 +114,10 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
     if (!element || !layout_node || element->shadow_root() || is<HTML::HTMLSlotElement>(*element))
         return false;
 
+    auto element_style = element->computed_style();
+    if (element_style && any_of(element_style->counter_reset(), [](auto const& counter) { return counter.is_reversed; }))
+        return false;
+
     auto collapsing_whitespace_can_be_inserted = [&](DOM::Text const& text) {
         enum class SiblingDirection {
             Previous,
@@ -290,13 +294,19 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
 
     bool will_insert_inline_child = false;
     bool will_insert_block_child = false;
+    bool all_inserted_block_children_are_in_flow = true;
     bool has_indirect_existing_child = false;
+    bool has_indirect_existing_child_after_insertion = false;
+    bool has_inserted_child = false;
     has_pending_collapsing_whitespace_since_layout_node = false;
     for (auto const* child = node.first_child(); child; child = child->next_sibling()) {
         if (auto const* child_layout_node = child->unsafe_layout_node()) {
             has_pending_collapsing_whitespace_since_layout_node = false;
-            if (child_layout_node->parent() != layout_node)
+            if (child_layout_node->parent() != layout_node) {
                 has_indirect_existing_child = true;
+                if (has_inserted_child)
+                    has_indirect_existing_child_after_insertion = true;
+            }
             continue;
         }
 
@@ -332,6 +342,7 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
                 && (computed_style->position() != CSS::Positioning::Static || computed_style->float_() != CSS::Float::None))
                 return false;
             has_pending_collapsing_whitespace_since_layout_node = false;
+            has_inserted_child = true;
             continue;
         }
         if (parent_lays_out_table_rows && child_display.is_table_row())
@@ -341,7 +352,13 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
                 && (computed_style->position() != CSS::Positioning::Static || computed_style->float_() != CSS::Float::None))
                 return false;
             has_pending_collapsing_whitespace_since_layout_node = false;
+            has_inserted_child = true;
             will_insert_block_child = true;
+            if (computed_style->position() == CSS::Positioning::Absolute
+                || computed_style->position() == CSS::Positioning::Fixed
+                || computed_style->float_() != CSS::Float::None) {
+                all_inserted_block_children_are_in_flow = false;
+            }
             if (will_insert_inline_child)
                 return false;
             continue;
@@ -349,13 +366,20 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
         if (parent_lays_out_inline_children && child_display.is_inline_outside()
             && (child_display.is_flow_root_inside() || child_display.is_flex_inside() || child_display.is_grid_inside())) {
             will_insert_inline_child = true;
+            has_inserted_child = true;
             if (will_insert_block_child)
                 return false;
             continue;
         }
         return false;
     }
-    return !has_indirect_existing_child && !has_pending_collapsing_whitespace_since_layout_node;
+    // OPTIMIZATION: Appending an in-flow block after every existing child cannot disturb an
+    //               earlier anonymous inline wrapper, and needs no indirect sibling anchor.
+    bool can_append_after_indirect_existing_children = parent_lays_out_block_children
+        && will_insert_block_child && all_inserted_block_children_are_in_flow
+        && !has_indirect_existing_child_after_insertion;
+    return (!has_indirect_existing_child || can_append_after_indirect_existing_children)
+        && !has_pending_collapsing_whitespace_since_layout_node;
 }
 
 static size_t ffi_assigned_node_count(void* slot_element_pointer)
