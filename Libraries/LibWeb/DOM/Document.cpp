@@ -7863,11 +7863,6 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
             VERIFY_NOT_REACHED();
         }();
         auto visual_context_node_indices = Painting::rust_visual_animation_target_node_indices(*layout_node, visual_context_tree, ffi_target_kind);
-        if (visual_context_node_indices.is_empty()) {
-            if (missing_visual_context_node)
-                *missing_visual_context_node = true;
-            return {};
-        }
 
         Compositor::VisualAnimation visual_animation {
             .target_kind = target_kind,
@@ -7886,8 +7881,15 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
             .easing = Compositor::VisualAnimationEasing::from_css(effect.timing_function()),
             .keyframes = move(keyframes),
         };
-        if (!visual_animation.is_valid())
+        // NB: Validate the animation before requesting a missing target node. Otherwise an unsupported
+        //     animation can repeatedly force and release that node while retrying compositor selection.
+        if (!visual_animation.has_valid_animation_parameters())
             return {};
+        if (visual_animation.visual_context_node_indices.is_empty()) {
+            if (missing_visual_context_node)
+                *missing_visual_context_node = true;
+            return {};
+        }
         return visual_animation;
     };
 

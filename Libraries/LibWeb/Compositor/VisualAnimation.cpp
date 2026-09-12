@@ -515,9 +515,12 @@ Optional<VisualAnimation::Sample> VisualAnimation::sample(AK::Duration elapsed_s
 
 bool VisualAnimation::is_valid() const
 {
+    return !visual_context_node_indices.is_empty() && has_valid_animation_parameters();
+}
+
+bool VisualAnimation::has_valid_animation_parameters() const
+{
     if (!first_is_one_of(target_kind, TargetKind::Opacity, TargetKind::BackgroundColor, TargetKind::Filter, TargetKind::Transform))
-        return false;
-    if (visual_context_node_indices.is_empty())
         return false;
     if (!first_is_one_of(playback_direction,
             VisualAnimationPlaybackDirection::Normal,

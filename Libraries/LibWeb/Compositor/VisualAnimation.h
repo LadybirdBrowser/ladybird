@@ -151,6 +151,7 @@ struct VisualAnimation {
 
     WEB_API Optional<Sample> sample(AK::Duration elapsed_since_anchor) const;
     WEB_API bool is_valid() const;
+    WEB_API bool has_valid_animation_parameters() const;
     WEB_API bool has_same_animation_parameters(VisualAnimation const&) const;
     WEB_API bool has_same_parameters_except_anchor(VisualAnimation const&) const;
 

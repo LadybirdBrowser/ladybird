@@ -1,0 +1,3 @@
+animations stay on the main thread: true
+complete keyframes use the compositor: true
+removing the endpoint returns to the main thread: true
