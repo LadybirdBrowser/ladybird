@@ -153,11 +153,12 @@ void HTMLOrSVGOrMathMLElement<ElementBase>::inserted()
     // "A node becomes browsing-context connected when the insertion steps are invoked with it as the argument
     // and it is now browsing-context connected."
     // https://html.spec.whatwg.org/multipage/infrastructure.html#becomes-browsing-context-connected
-    if (!element.shadow_including_root().is_browsing_context_connected())
+    if (!element.is_browsing_context_connected())
         return;
 
     // 1. Let CSP list be element's shadow-including root's policy container's CSP list.
-    auto csp_list = element.shadow_including_root().document().policy_container()->csp_list;
+    // NB: A browsing-context connected element's shadow-including root is its node document.
+    auto csp_list = element.document().policy_container()->csp_list;
 
     // 2. If CSP list contains a header-delivered Content Security Policy, and element has a
     //    nonce content attribute whose value is not the empty string, then:
