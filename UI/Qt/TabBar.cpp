@@ -636,10 +636,24 @@ void TabBar::resizeEvent(QResizeEvent* event)
 
 void TabBar::tabLayoutChange()
 {
-    hide_tab_preview();
     QTabBar::tabLayoutChange();
     set_vertical_scroll_offset(m_vertical_scroll_offset);
     update_tab_button_geometry();
+
+    if (m_tab_preview_index < 0)
+        return;
+
+    // NB: Title and favicon updates also change the tab layout. Keep the preview open if it still belongs
+    //     to the tab under the pointer, but dismiss it if tabs moved or were removed.
+    auto hovered_tab = tab_index_at(mapFromGlobal(QCursor::pos()));
+    if (hovered_tab != m_tab_preview_index || !m_tab_widget
+        || (m_previewed_tab && m_tab_widget->tab(hovered_tab) != m_previewed_tab)) {
+        hide_tab_preview();
+        return;
+    }
+
+    if (m_previewed_tab)
+        show_tab_preview();
 }
 
 bool TabBar::event(QEvent* event)
@@ -1149,8 +1163,8 @@ void TabBar::schedule_tab_preview(int index)
     if (m_tab_preview_index == index && m_tab_preview_popup->isVisible())
         return;
 
+    hide_tab_preview();
     m_tab_preview_index = index;
-    m_tab_preview_popup->hide();
     QToolTip::hideText();
     m_tab_preview_timer->start();
 }
@@ -1172,11 +1186,17 @@ void TabBar::show_tab_preview()
         return;
     }
 
-    auto thumbnail = tab->view().tab_preview_pixmap({ TAB_PREVIEW_THUMBNAIL_WIDTH, TAB_PREVIEW_THUMBNAIL_HEIGHT });
-    if (!thumbnail.has_value()) {
-        hide_tab_preview();
-        return;
+    if (m_previewed_tab != tab) {
+        m_previewed_tab = tab;
+        m_tab_preview_paint_connection = connect(&tab->view(), &WebContentView::ready_to_paint, this, &TabBar::show_tab_preview);
+        // NB: Background tabs may never have painted. Allow rendering while their preview is requested,
+        //     without selecting the tab or showing its widget.
+        tab->view().set_system_visibility_state(Web::HTML::VisibilityState::Visible);
     }
+
+    auto thumbnail = tab->view().tab_preview_pixmap({ TAB_PREVIEW_THUMBNAIL_WIDTH, TAB_PREVIEW_THUMBNAIL_HEIGHT });
+    if (!thumbnail.has_value())
+        return;
 
     m_tab_preview_popup->set_preview(palette(), tab->title(), qstring_from_ak_string(tab->view().url().serialize()), *thumbnail);
     m_tab_preview_popup->move(tab_preview_position_for(index, m_tab_preview_popup->sizeHint()));
@@ -1186,6 +1206,12 @@ void TabBar::show_tab_preview()
 
 void TabBar::hide_tab_preview()
 {
+    disconnect(m_tab_preview_paint_connection);
+    if (m_previewed_tab) {
+        m_previewed_tab->view().set_system_visibility_state(m_previewed_tab->view().isVisible() ? Web::HTML::VisibilityState::Visible : Web::HTML::VisibilityState::Hidden);
+        m_previewed_tab = nullptr;
+    }
+
     if (m_tab_preview_timer)
         m_tab_preview_timer->stop();
 

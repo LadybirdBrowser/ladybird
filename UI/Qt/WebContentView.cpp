@@ -156,6 +156,7 @@ WebContentView::WebContentView(QWidget* window, RefPtr<WebView::WebContentClient
 #else
         schedule_repaint();
 #endif
+        emit ready_to_paint();
     };
 
     on_cursor_change = [this](auto cursor) {

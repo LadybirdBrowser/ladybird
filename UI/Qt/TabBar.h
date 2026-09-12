@@ -126,6 +126,8 @@ private:
     QTimer* m_tab_preview_timer { nullptr };
     TabPreviewPopup* m_tab_preview_popup { nullptr };
     int m_tab_preview_index { -1 };
+    QPointer<Tab> m_previewed_tab;
+    QMetaObject::Connection m_tab_preview_paint_connection;
 };
 
 class TabWidget final : public QWidget {

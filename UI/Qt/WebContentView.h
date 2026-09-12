@@ -129,6 +129,7 @@ public:
     QPoint map_point_to_global_position(Gfx::IntPoint) const;
 
 signals:
+    void ready_to_paint();
     void urls_dropped(QList<QUrl> const&);
 
 private:
