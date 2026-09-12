@@ -11,12 +11,12 @@
 
         const originalHTML = '<div id="first">Give it a try! <img id="smile" alt=":)"><br></div><div id="empty"><br></div><div id="colors"><font id="red" color="#ff00">Red text and </font><font id="blue" color="#3399ff">blue text!</font><br></div><div id="last">Just type <strong>:</strong>) and it will be converted into <img id="lastimg" alt=":)"> as you type.</div>';
 
-        function newHost() {
+        function newHost(html = originalHTML) {
             if (host)
                 host.remove();
             host = document.createElement("div");
             host.contentEditable = "true";
-            host.innerHTML = originalHTML;
+            host.innerHTML = html;
             document.body.appendChild(host);
             host.focus();
         }
@@ -80,9 +80,538 @@
         expect(document.execCommand("redo"), true, "redo empty-block replacement");
         expectState("redo empty-block replacement", emptyBlockReplacement, "host/1/0/0@1->host/1/0/0@1");
 
+        // Replacing text inside a link retains that link for every code unit in a single insertText command.
+        // These DOM and selection results were checked in Chromium, including reverse selections and Unicode.
+        for (const [markup, textPath] of [
+            ["Cloud", "host/0/0/0"],
+            ["<b>Cloud</b>", "host/0/0/0/0"],
+            ['<img width="45" height="60">Cloud', "host/0/0/1"],
+        ]) {
+            for (const [start, end] of [[0, 2], [1, 4], [3, 5]]) {
+                for (const value of ["X", "XYZ", "😀", "e\u0301"]) {
+                    for (const backwards of [false, true]) {
+                        const html = `<p><a href="https://example.com">${markup}</a><br></p>`;
+                        newHost(html);
+                        const anchor = host.querySelector("a");
+                        const text = anchor.lastChild.nodeType === Node.TEXT_NODE ? anchor.lastChild : anchor.lastChild.firstChild;
+                        const from = backwards ? end : start;
+                        const to = backwards ? start : end;
+                        selection.setBaseAndExtent(text, from, text, to);
+                        const label = `replace ${markup}[${start},${end}] with ${JSON.stringify(value)} backwards=${backwards}`;
+                        document.execCommand("insertText", false, value);
+                        const replacement = "Cloud".slice(0, start) + value + "Cloud".slice(end);
+                        const result = html.replace("Cloud", replacement);
+                        const caret = start + value.length;
+                        expectState(label, result, `${textPath}@${caret}->${textPath}@${caret}`);
+                        expect(document.execCommand("undo"), true, `undo ${label}`);
+                        expectState(`undo ${label}`, html, `${textPath}@${from}->${textPath}@${to}`);
+                        expect(document.execCommand("redo"), true, `redo ${label}`);
+                        expectState(`redo ${label}`, result, `${textPath}@${caret}->${textPath}@${caret}`);
+                        if (end === 5) {
+                            // The replacement context belongs only to that command. Later typing at its end exits the link.
+                            document.execCommand("insertText", false, "Q");
+                            expect(host.querySelector("a").textContent, replacement, `typing after ${label} leaves link`);
+                            expect(host.textContent, replacement + "Q", `typing after ${label} inserts outside`);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Invisible siblings do not create another editable line beyond the first or last paragraph.
+        for (const invisible of ["  ", "<!--empty-->", '<span style="display:none">hidden</span>']) {
+            for (const forward of [false, true]) {
+                const html = `${invisible}<p>Cloud</p>${invisible}`;
+                newHost(html);
+                const text = host.querySelector("p").firstChild;
+                selection.collapse(text, forward ? text.length : 0);
+                const before = selectionString();
+                document.execCommand(forward ? "forwardDelete" : "delete");
+                expectState(`delete past invisible sibling ${invisible} forward=${forward}`, html, before);
+            }
+        }
+
+        // This fixture comes from Fragrantica's perfume insertion in SCEditor. Keep the editor's leading space,
+        // linked image/name, and trailing NBSP, space, and placeholder. The image has fixed local dimensions so the
+        // cases need no network resources. DOM and selection expectations come from headless Chrome keyboard input.
+        const perfumeExpectedStates = {
+            "before link insertText": [
+                '<p>X<a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"><img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0@1->host/0/0@1",
+            ],
+            "before link delete": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0@0->host/0@0",
+            ],
+            "before link forwardDelete": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html">&nbsp;Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0/0@0->host/0/0/0@0",
+            ],
+            "link start insertText": [
+                '<p>X<a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"><img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0@1->host/0/0@1",
+            ],
+            "link start delete": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0@0->host/0/0@0",
+            ],
+            "link start forwardDelete": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html">&nbsp;Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0/0@0->host/0/0/0@0",
+            ],
+            "before image insertText": [
+                '<p>X<a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"><img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0@1->host/0/0@1",
+            ],
+            "before image delete": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0@1->host/0/0@1",
+            ],
+            "before image forwardDelete": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html">&nbsp;Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0/0@0->host/0/0/0@0",
+            ],
+            "after image insertText": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60">X Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0/2@1->host/0/0/2@1",
+            ],
+            "after image delete": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html">&nbsp;Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0/0@0->host/0/0/0@0",
+            ],
+            "after image forwardDelete": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60">Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0@2->host/0/0@2",
+            ],
+            "name start insertText": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60">X Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0/2@1->host/0/0/2@1",
+            ],
+            "name start delete": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html">&nbsp;Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0/0@0->host/0/0/0@0",
+            ],
+            "name start forwardDelete": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60">Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0@2->host/0/0@2",
+            ],
+            "name middle insertText": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink XAriana Grande</a>&nbsp; <br></p>',
+                "host/0/0/2@13->host/0/0/2@13",
+            ],
+            "name middle delete": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud PinkAriana Grande</a>&nbsp; <br></p>',
+                "host/0/0/2@11->host/0/0/2@11",
+            ],
+            "name middle forwardDelete": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink riana Grande</a>&nbsp; <br></p>',
+                "host/0/0/2@12->host/0/0/2@12",
+            ],
+            "name end insertText": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>X&nbsp; <br></p>',
+                "host/0/1@1->host/0/1@1",
+            ],
+            "name end delete": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grand</a>&nbsp;&nbsp;<br></p>',
+                "host/0/0/2@24->host/0/0/2@24",
+            ],
+            "name end forwardDelete": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a><br></p>',
+                "host/0/0/2@25->host/0/0/2@25",
+            ],
+            "link end insertText": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>X&nbsp; <br></p>',
+                "host/0/1@1->host/0/1@1",
+            ],
+            "link end delete": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grand</a>&nbsp;&nbsp;<br></p>',
+                "host/0/0/2@24->host/0/0/2@24",
+            ],
+            "link end forwardDelete": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a><br></p>',
+                "host/0/0/2@25->host/0/0/2@25",
+            ],
+            "after link insertText": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>X&nbsp; <br></p>',
+                "host/0/1@1->host/0/1@1",
+            ],
+            "after link delete": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grand</a>&nbsp;&nbsp;<br></p>',
+                "host/0/0/2@24->host/0/0/2@24",
+            ],
+            "after link forwardDelete": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a><br></p>',
+                "host/0/0/2@25->host/0/0/2@25",
+            ],
+            "after space insertText": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp;X<br></p>',
+                "host/0/1@2->host/0/1@2",
+            ],
+            "after space delete": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a><br></p>',
+                "host/0/0/2@25->host/0/0/2@25",
+            ],
+            "after space forwardDelete": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0@2->host/0@2",
+            ],
+            "shorten perfume name": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Gr</a><br></p>',
+                "host/0/0/2@21->host/0/0/2@21",
+            ],
+            "type after shortening": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Gr</a>XYZ<br></p>',
+                "host/0/1@3->host/0/1@3",
+            ],
+            "undo typing": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0/2@25->host/0/0/2@21",
+            ],
+            "undo shortening": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0/2@25->host/0/0/2@21",
+            ],
+            "redo shortening": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Gr</a>XYZ<br></p>',
+                "host/0/1@3->host/0/1@3",
+            ],
+            "redo typing": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Gr</a>XYZ<br></p>',
+                "host/0/1@3->host/0/1@3",
+            ],
+            "backspace through perfume": ["<p><br></p>", "host/0@0->host/0@0"],
+            "type after deleting perfume": ["<p>X</p>", "host/0/0@1->host/0/0@1"],
+            "selected image delete backwards=false": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html">&nbsp;Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0/0@0->host/0/0/0@0",
+            ],
+            "undo selected image delete backwards=false": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0@1->host/0/0@2",
+            ],
+            "redo selected image delete backwards=false": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html">&nbsp;Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0/0@0->host/0/0/0@0",
+            ],
+            "selected image delete backwards=true": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html">&nbsp;Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0/0@0->host/0/0/0@0",
+            ],
+            "undo selected image delete backwards=true": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0@2->host/0/0@1",
+            ],
+            "redo selected image delete backwards=true": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html">&nbsp;Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0/0@0->host/0/0/0@0",
+            ],
+            "selected image forwardDelete backwards=false": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html">&nbsp;Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0/0@0->host/0/0/0@0",
+            ],
+            "undo selected image forwardDelete backwards=false": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0@1->host/0/0@2",
+            ],
+            "redo selected image forwardDelete backwards=false": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html">&nbsp;Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0/0@0->host/0/0/0@0",
+            ],
+            "selected image forwardDelete backwards=true": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html">&nbsp;Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0/0@0->host/0/0/0@0",
+            ],
+            "undo selected image forwardDelete backwards=true": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0@2->host/0/0@1",
+            ],
+            "redo selected image forwardDelete backwards=true": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html">&nbsp;Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0/0@0->host/0/0/0@0",
+            ],
+            "selected image insertText backwards=false": [
+                '<p>X<a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html">&nbsp;Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0@1->host/0/0@1",
+            ],
+            "undo selected image insertText backwards=false": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0@1->host/0/0@2",
+            ],
+            "redo selected image insertText backwards=false": [
+                '<p>X<a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html">&nbsp;Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0@1->host/0/0@1",
+            ],
+            "selected image insertText backwards=true": [
+                '<p>X<a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html">&nbsp;Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0@1->host/0/0@1",
+            ],
+            "undo selected image insertText backwards=true": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0@2->host/0/0@1",
+            ],
+            "redo selected image insertText backwards=true": [
+                '<p>X<a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html">&nbsp;Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0@1->host/0/0@1",
+            ],
+            "replace name suffix": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink X</a>&nbsp; <br></p>',
+                "host/0/0/2@13->host/0/0/2@13",
+            ],
+            "replace image and partial name": [
+                '<p>X<a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html">Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0@1->host/0/0@1",
+            ],
+            "bold link end": ['<p><a href="https://example.com"><b>Cloud</b></a>X<br></p>', "host/0/1@1->host/0/1@1"],
+            "bold link middle": [
+                '<p><a href="https://example.com"><b>CloXud</b></a><br></p>',
+                "host/0/0/0/0@4->host/0/0/0/0@4",
+            ],
+            "block link end": [
+                '<a style="display:block" href="https://example.com">CloudX</a>',
+                "host/0/0@6->host/0/0@6",
+            ],
+            "link before internal break": [
+                '<p><a href="https://example.com">CloudX<br>Pink</a></p>',
+                "host/0/0/0@6->host/0/0/0@6",
+            ],
+            "link before trailing break": [
+                '<p><a href="https://example.com">CloudX<br></a></p>',
+                "host/0/0/0@6->host/0/0/0@6",
+            ],
+            "adjacent links": [
+                '<p><a href="https://example.com/1">Cloud</a>X<a href="https://example.com/2">Pink</a></p>',
+                "host/0/1@1->host/0/1@1",
+            ],
+            "unlinked anchor": ['<p><a id="bookmark">CloudX</a><br></p>', "host/0/0/0@6->host/0/0/0@6"],
+            "nested image delete": ['<p><a href="https://example.com">Cloud</a><br></p>', "host/0/0/0@0->host/0/0/0@0"],
+            "undo nested image delete": [
+                '<p><a href="https://example.com"><b><img width="45" height="60"></b>Cloud</a><br></p>',
+                "host/0/0/0@1->host/0/0/0@0",
+            ],
+            "redo nested image delete": [
+                '<p><a href="https://example.com">Cloud</a><br></p>',
+                "host/0/0/0@0->host/0/0/0@0",
+            ],
+            "nested image forwardDelete": [
+                '<p><a href="https://example.com">Cloud</a><br></p>',
+                "host/0/0/0@0->host/0/0/0@0",
+            ],
+            "undo nested image forwardDelete": [
+                '<p><a href="https://example.com"><b><img width="45" height="60"></b>Cloud</a><br></p>',
+                "host/0/0/0@0->host/0/0/0@1",
+            ],
+            "redo nested image forwardDelete": [
+                '<p><a href="https://example.com">Cloud</a><br></p>',
+                "host/0/0/0@0->host/0/0/0@0",
+            ],
+            "delete supplementary perfume character": [
+                '<p><a href="https://example.com">Cloud</a><br></p>',
+                "host/0/0/0@5->host/0/0/0@5",
+            ],
+            "type after supplementary deletion": [
+                '<p><a href="https://example.com">Cloud</a>X<br></p>',
+                "host/0/1@1->host/0/1@1",
+            ],
+            "replace complete link contents": ["<p>X&nbsp;&nbsp;<br></p>", "host/0/0@1->host/0/0@1"],
+            "delete entire editor selection": ["<p><br></p>", "host/0@0->host/0@0"],
+            "type after clearing editor": ["<p>X</p>", "host/0/0@1->host/0/0@1"],
+            "move left across image": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0@1->host/0/0@1",
+            ],
+            "move right across image": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0@2->host/0/0@2",
+            ],
+            "move into name": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0/2@1->host/0/0/2@1",
+            ],
+            "type after moving into name": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60">&nbsp;XCloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0/2@2->host/0/0/2@2",
+            ],
+            "move left inside link end": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0/2@24->host/0/0/2@24",
+            ],
+            "type inside link after moving left": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana GrandXe</a>&nbsp; <br></p>',
+                "host/0/0/2@25->host/0/0/2@25",
+            ],
+            "move right out of link": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/1@1->host/0/1@1",
+            ],
+            "type after moving out of link": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp;X<br></p>',
+                "host/0/1@2->host/0/1@2",
+            ],
+            "cancel image backspace": [
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>',
+                "host/0/0@2->host/0/0@2",
+            ],
+        };
+
+        function perfumeScenarios() {
+            const originalHTML =
+                '<p><a href="https://www.fragrantica.com/perfume/Ariana-Grande/Cloud-Pink-83995.html"> <img width="45" height="60"> Cloud Pink Ariana Grande</a>&nbsp; <br></p>';
+            const reset = (html = originalHTML) => newHost(html);
+            function state(label) {
+                const expected = perfumeExpectedStates[label];
+                expectState(label, expected[0], expected[1]);
+            }
+            function command(name, value = "") {
+                if (name === "insertText") internals.sendText(host, value);
+                else if (name === "delete" || name === "forwardDelete")
+                    internals.sendKey(host, name === "delete" ? "Backspace" : "Delete");
+                else if (name === "ArrowLeft" || name === "ArrowRight")
+                    internals.sendKey(host, name === "ArrowLeft" ? "Left" : "Right");
+                else document.execCommand(name);
+            }
+            const link = () => host.querySelector("a");
+            const name = () => link().lastChild;
+            const points = {
+                "before link": () => [host.firstChild, 0],
+                "link start": () => [link(), 0],
+                "before image": () => [link(), 1],
+                "after image": () => [link(), 2],
+                "name start": () => [name(), 0],
+                "name middle": () => [name(), 12],
+                "name end": () => [name(), name().length],
+                "link end": () => [link(), link().childNodes.length],
+                "after link": () => [host.firstChild, 1],
+                "after space": () => [host.firstChild, 2],
+            };
+            for (const [label, point] of Object.entries(points)) {
+                for (const action of ["insertText", "delete", "forwardDelete"]) {
+                    reset();
+                    selection.collapse(...point());
+                    command(action, action === "insertText" ? "X" : "");
+                    state(label + " " + action);
+                }
+            }
+            reset();
+            selection.collapse(host.firstChild, 2);
+            for (let i = 0; i < 5; ++i) command("delete");
+            state("shorten perfume name");
+            command("insertText", "XYZ");
+            state("type after shortening");
+            command("undo");
+            state("undo typing");
+            command("undo");
+            state("undo shortening");
+            command("redo");
+            state("redo shortening");
+            command("redo");
+            state("redo typing");
+            reset();
+            selection.collapse(host.firstChild, 2);
+            for (let i = 0; i < 27; ++i) command("delete");
+            state("backspace through perfume");
+            command("insertText", "X");
+            state("type after deleting perfume");
+            for (const action of ["delete", "forwardDelete", "insertText"]) {
+                for (const backwards of [false, true]) {
+                    reset();
+                    selection.setBaseAndExtent(link(), backwards ? 2 : 1, link(), backwards ? 1 : 2);
+                    command(action, action === "insertText" ? "X" : "");
+                    state("selected image " + action + " backwards=" + backwards);
+                    command("undo");
+                    state("undo selected image " + action + " backwards=" + backwards);
+                    command("redo");
+                    state("redo selected image " + action + " backwards=" + backwards);
+                }
+            }
+            reset();
+            selection.setBaseAndExtent(name(), 12, name(), name().length);
+            command("insertText", "X");
+            state("replace name suffix");
+            reset();
+            selection.setBaseAndExtent(link(), 1, name(), 12);
+            command("insertText", "X");
+            state("replace image and partial name");
+            // Formatting, real line breaks, and editing boundaries must survive link-edge editing.
+            for (const [label, html, selector, offset] of [
+                ["bold link end", '<p><a href="https://example.com"><b>Cloud</b></a><br></p>', "b", 5],
+                ["bold link middle", '<p><a href="https://example.com"><b>Cloud</b></a><br></p>', "b", 3],
+                ["block link end", '<a style="display:block" href="https://example.com">Cloud</a>', "a", 5],
+                ["link before internal break", '<p><a href="https://example.com">Cloud<br>Pink</a></p>', "a", 5],
+                ["link before trailing break", '<p><a href="https://example.com">Cloud<br></a></p>', "a", 5],
+                [
+                    "adjacent links",
+                    '<p><a href="https://example.com/1">Cloud</a><a href="https://example.com/2">Pink</a></p>',
+                    "a",
+                    5,
+                ],
+                ["unlinked anchor", '<p><a id="bookmark">Cloud</a><br></p>', "a", 5],
+            ]) {
+                reset(html);
+                selection.collapse(host.querySelector(selector).firstChild, offset);
+                command("insertText", "X");
+                state(label);
+            }
+            for (const action of ["delete", "forwardDelete"]) {
+                reset('<p><a href="https://example.com"><b><img width="45" height="60"></b>Cloud</a><br></p>');
+                selection.collapse(host.querySelector("b"), action === "delete" ? 1 : 0);
+                command(action);
+                state("nested image " + action);
+                command("undo");
+                state("undo nested image " + action);
+                command("redo");
+                state("redo nested image " + action);
+            }
+            reset('<p><a href="https://example.com">Cloud🌸</a><br></p>');
+            selection.collapse(link().firstChild, 7);
+            command("delete");
+            state("delete supplementary perfume character");
+            command("insertText", "X");
+            state("type after supplementary deletion");
+            reset();
+            selection.selectAllChildren(link());
+            command("insertText", "X");
+            state("replace complete link contents");
+            reset();
+            selection.selectAllChildren(host);
+            command("delete");
+            state("delete entire editor selection");
+            command("insertText", "X");
+            state("type after clearing editor");
+            reset();
+            selection.collapse(name(), 0);
+            command("ArrowLeft");
+            state("move left across image");
+            command("ArrowRight");
+            state("move right across image");
+            command("ArrowRight");
+            state("move into name");
+            command("insertText", "X");
+            state("type after moving into name");
+            reset();
+            selection.collapse(name(), name().length);
+            command("ArrowLeft");
+            state("move left inside link end");
+            command("insertText", "X");
+            state("type inside link after moving left");
+            reset();
+            selection.collapse(name(), name().length);
+            command("ArrowRight");
+            state("move right out of link");
+            command("insertText", "X");
+            state("type after moving out of link");
+            reset();
+            selection.collapse(link(), 2);
+            host.addEventListener("beforeinput", event => event.preventDefault(), { once: true });
+            command("delete");
+            state("cancel image backspace");
+            host.remove();
+        }
+        perfumeScenarios();
+
         if (failures.length)
-            println(`FAIL: ${failures.length}/${assertionCount} SCEditor rich-editing assertions failed\n${failures.join("\n")}`);
-        else
-            println(`PASS: ${assertionCount} SCEditor rich-editing assertions match Chromium`);
+            println(
+                `FAIL: ${failures.length}/${assertionCount} SCEditor rich-editing assertions failed\n${failures.join("\n")}`
+            );
+        else println(`PASS: ${assertionCount} SCEditor rich-editing assertions match Chromium`);
     });
 </script>
