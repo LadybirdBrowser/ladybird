@@ -182,11 +182,17 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::typeface_from_skia_typeface(sk_sp<Sk
         ttc_index });
 }
 
-ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::ReadonlyBytes buffer, u32 ttc_index)
+ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::ReadonlyBytes buffer, u32 ttc_index, RefPtr<FontDataBacking> backing)
 {
     // NB: Skia can retain the typeface in text blobs and glyph caches after our Typeface is destroyed.
-    //     Its stream must own the font bytes independently of our font data backing.
-    auto data = SkData::MakeWithCopy(buffer.data(), buffer.size());
+    //     Keep the backing alive through SkData, or copy bytes whose ownership is external.
+    sk_sp<SkData> data;
+    if (backing) {
+        backing->ref();
+        data = SkData::MakeWithProc(buffer.data(), buffer.size(), [](void const*, void* context) { static_cast<FontDataBacking*>(context)->unref(); }, backing.ptr());
+    } else {
+        data = SkData::MakeWithCopy(buffer.data(), buffer.size());
+    }
 
     // https://learn.microsoft.com/en-us/typography/opentype/spec/otff#ttc-header
     // TrueType Collection files bundle multiple fonts (often different weights of the same
@@ -201,7 +207,10 @@ ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::Readonly
         return Error::from_string_literal("Failed to load typeface from buffer");
     }
 
-    return adopt_ref(*new TypefaceSkia { make<TypefaceSkia::Impl>(skia_typeface), buffer, ttc_index });
+    auto typeface = adopt_ref(*new TypefaceSkia { make<TypefaceSkia::Impl>(skia_typeface), buffer, ttc_index });
+    if (backing)
+        typeface->set_font_data(backing.release_nonnull());
+    return typeface;
 }
 
 void TypefaceSkia::encode_font_data_for_ipc(IPC::Encoder& encoder) const

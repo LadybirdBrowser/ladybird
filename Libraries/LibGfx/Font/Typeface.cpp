@@ -54,24 +54,23 @@ ErrorOr<Vector<String>> Typeface::local_font_names() const
 
 ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_resource(Core::Resource const& resource, u32 ttc_index)
 {
+    // NB: Resource references are not atomic, so Skia must not retain one for release on another thread.
     auto typeface = TRY(try_load_from_externally_owned_memory(resource.data(), ttc_index));
-    typeface->set_resource_font_data(resource);
+    typeface->set_font_data(make_ref_counted<FontDataBacking>(NonnullRefPtr<Core::Resource const> { resource }));
     return typeface;
 }
 
 ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_mapped_file(NonnullOwnPtr<Core::MappedFile> mapped_file, u32 ttc_index)
 {
     auto shared_mapped_file = make_ref_counted<Core::SharedMappedFile>(move(mapped_file));
-    auto typeface = TRY(try_load_from_externally_owned_memory(shared_mapped_file->operator->().bytes(), ttc_index));
-    typeface->set_mapped_font_data(move(shared_mapped_file));
-    return typeface;
+    auto bytes = shared_mapped_file->operator->().bytes();
+    return TypefaceSkia::load_from_buffer(bytes, ttc_index, make_ref_counted<FontDataBacking>(move(shared_mapped_file)));
 }
 
 ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_anonymous_buffer(Core::AnonymousBuffer anonymous_buffer, u32 ttc_index)
 {
-    auto typeface = TRY(try_load_from_externally_owned_memory(anonymous_buffer.bytes(), ttc_index));
-    typeface->set_anonymous_font_data(move(anonymous_buffer));
-    return typeface;
+    auto bytes = anonymous_buffer.bytes();
+    return TypefaceSkia::load_from_buffer(bytes, ttc_index, make_ref_counted<FontDataBacking>(move(anonymous_buffer)));
 }
 
 ErrorOr<NonnullRefPtr<Typeface>> Typeface::try_load_from_temporary_memory(ReadonlyBytes bytes, u32 ttc_index)
@@ -180,9 +179,9 @@ void Typeface::encode_font_data_for_ipc(IPC::Encoder& encoder) const
         return;
     }
 
-    VERIFY(m_font_data.has_value());
+    VERIFY(m_font_data);
 
-    m_font_data->visit(
+    m_font_data->storage.visit(
         [&](Core::AnonymousBuffer const& anonymous_buffer) {
             MUST(encoder.encode(FontDataFormat::RawFontData));
             MUST(encoder.encode(anonymous_buffer));
@@ -196,21 +195,6 @@ void Typeface::encode_font_data_for_ipc(IPC::Encoder& encoder) const
         [&](NonnullRefPtr<Core::SharedMappedFile> const&) {
             VERIFY_NOT_REACHED();
         });
-}
-
-void Typeface::set_mapped_font_data(NonnullRefPtr<Core::SharedMappedFile> mapped_file)
-{
-    m_font_data = FontDataBacking { move(mapped_file) };
-}
-
-void Typeface::set_anonymous_font_data(Core::AnonymousBuffer anonymous_buffer)
-{
-    m_font_data = FontDataBacking { move(anonymous_buffer) };
-}
-
-void Typeface::set_resource_font_data(Core::Resource const& resource)
-{
-    m_font_data = FontDataBacking { NonnullRefPtr<Core::Resource const> { resource } };
 }
 
 void Typeface::copy_font_data_from(Typeface const& other)
