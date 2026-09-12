@@ -15,16 +15,18 @@
 
 namespace WebView {
 
-NonnullOwnPtr<FontService> FontService::create()
+NonnullOwnPtr<FontService> FontService::create(Vector<String> additional_font_directories)
 {
-    return adopt_own(*new FontService);
+    return adopt_own(*new FontService(move(additional_font_directories)));
 }
 
-FontService::FontService()
-    : m_worker(Threading::Thread::construct("Font catalog"sv, [this] {
+FontService::FontService(Vector<String> additional_font_directories)
+    : m_additional_font_directories(move(additional_font_directories))
+    , m_worker(Threading::Thread::construct("Font catalog"sv, [this] {
         if (auto result = build_catalog(); result.is_error()) {
             dbgln("Unable to discover system fonts: {}. Using an empty catalog.", result.error());
             m_font_sources.clear();
+            m_local_font_names.clear();
             if (auto fallback_result = build_empty_catalog(); fallback_result.is_error())
                 m_build_error = MUST(String::formatted("{}", fallback_result.error()));
         }
@@ -71,12 +73,26 @@ ErrorOr<void> FontService::build_catalog()
     u64 next_face_id = 1;
 
     auto directories = TRY(Gfx::FontDatabase::font_directories());
+    directories.extend(m_additional_font_directories);
     for (auto const& directory : directories) {
         auto uri = TRY(String::formatted("file://{}", directory));
         Gfx::PathFontProvider::for_each_typeface_in_uri(uri, loaded_paths, [&](String const& path, u32 ttc_index, Gfx::FontFileFormat format, NonnullRefPtr<Gfx::Typeface> typeface) {
             if (callback_error.has_value())
                 return;
             auto face_id = next_face_id++;
+            auto names = typeface->local_font_names();
+            if (names.is_error()) {
+                callback_error = names.release_error();
+                return;
+            }
+            for (auto const& name : names.value()) {
+                auto folded_name = name.to_casefold();
+                if (folded_name.is_error()) {
+                    callback_error = folded_name.release_error();
+                    return;
+                }
+                m_local_font_names.set(folded_name.release_value(), face_id, AK::HashSetExistingEntryBehavior::Keep);
+            }
             auto result = builder->add_face({
                 .family = typeface->family().bytes_as_string_view(),
                 .face_id = face_id,
@@ -189,6 +205,22 @@ Gfx::BrokeredFont FontService::materialize_typeface(NonnullRefPtr<Gfx::TypefaceS
                                        });
     m_dynamic_match_cache.set(move(cache_key), face_id);
     return open_font_without_lock(m_generation, face_id);
+}
+
+Gfx::BrokeredFont FontService::match_local_font(String const& name)
+{
+    Sync::MutexLocker locker(m_mutex);
+    if (wait_until_ready().is_error())
+        return {};
+    auto folded_name = name.to_casefold();
+    if (folded_name.is_error())
+        return {};
+    auto face_id = m_local_font_names.get(folded_name.value());
+    if (!face_id.has_value())
+        return {};
+    // https://drafts.csswg.org/css-fonts-4/#local-font-fallback
+    // Platform substitutions for a given font name must not be used.
+    return open_font_without_lock(m_generation, *face_id);
 }
 
 Gfx::BrokeredFont FontService::match_font(String const& family, u16 weight, u16 width, u8 slope)

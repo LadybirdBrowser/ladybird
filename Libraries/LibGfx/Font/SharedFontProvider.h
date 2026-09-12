@@ -28,6 +28,7 @@ struct BrokeredFont {
 
 struct SharedFontProviderCallbacks {
     Function<BrokeredFont(u64 generation, u64 face_id)> open_font;
+    Function<BrokeredFont(String const& name)> match_local_font;
     Function<BrokeredFont(String const& family, u16 weight, u16 width, u8 slope)> match_font;
     Function<BrokeredFont(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji)> match_font_for_code_point;
     Function<Optional<FlyString>(String const& family, u16 weight, u8 slope)> resolve_generic_family;
@@ -49,6 +50,7 @@ public:
     virtual RefPtr<Gfx::Font> get_font(FlyString const& family, float point_size, unsigned weight, unsigned width, unsigned slope, Optional<FontVariationSettings> const& = {}, Optional<Gfx::ShapeFeatures> const& = {}) override;
     virtual void for_each_typeface_with_family_name(FlyString const&, Function<void(Typeface const&)>) override;
     virtual RefPtr<Typeface> get_typeface_by_id(u64 generation, u64 face_id) override;
+    virtual RefPtr<Typeface> get_typeface_by_local_name(String const&) override;
     virtual RefPtr<Gfx::Font> get_font_for_code_point(u32 code_point, float point_size, u16 weight, u16 width, u8 slope, bool prefer_color_emoji) override;
     virtual Optional<FlyString> resolve_generic_family(StringView family_name, u16 weight, u8 slope) override;
     virtual StringView name() const LIFETIME_BOUND override { return "Shared"sv; }

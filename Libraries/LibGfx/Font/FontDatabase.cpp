@@ -21,6 +21,16 @@
 
 namespace Gfx {
 
+RefPtr<Typeface> SystemFontProvider::get_typeface_by_local_name(String const&)
+{
+    return {};
+}
+
+RefPtr<Typeface> FontDatabase::get_typeface_by_local_name(String const& name)
+{
+    return m_system_font_provider->get_typeface_by_local_name(name);
+}
+
 // Key function for SystemFontProvider to emit the vtable here
 SystemFontProvider::~SystemFontProvider() = default;
 

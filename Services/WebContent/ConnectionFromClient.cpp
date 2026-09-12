@@ -142,6 +142,17 @@ void ConnectionFromClient::set_font_catalog(IPC::File file, u64 size, u64 genera
     }
 
     Gfx::SharedFontProviderCallbacks callbacks;
+    callbacks.match_local_font = [this](String const& name) {
+        auto response = send_sync_but_allow_failure<Messages::WebContentClient::MatchLocalFont>(name);
+        if (!response || response->format() > to_underlying(Gfx::FontFileFormat::WOFF))
+            return Gfx::BrokeredFont {};
+        return Gfx::BrokeredFont {
+            .face_id = response->face_id(),
+            .ttc_index = response->ttc_index(),
+            .format = static_cast<Gfx::FontFileFormat>(response->format()),
+            .file = response->take_file(),
+        };
+    };
     callbacks.open_font = [this](u64 requested_generation, u64 face_id) {
         auto response = send_sync_but_allow_failure<Messages::WebContentClient::OpenSystemFont>(requested_generation, face_id);
         if (!response || response->format() > to_underlying(Gfx::FontFileFormat::WOFF))

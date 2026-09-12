@@ -1,0 +1,20 @@
+Local metrics are immediately available: true
+Load notification remains asynchronous: true
+Resident local font remains usable after its deadline: true
+Local ch metrics precede load notification: true
+Local font-relative metrics remain unchanged: true
+Excluded character leaves local subset unloaded: true
+Local subset metrics are immediately available: true
+Local face: true
+Case-insensitive name: true
+Unknown face: true
+No family-style substitution: true
+No generic substitution: true
+Second local source: true
+Local before URL: true
+Unused URL was not requested: true
+Invalid URL before local: true
+Invalid URL before URL: true
+URL before local: true
+Different fallback after shared URL: true
+Missing local before URL: true

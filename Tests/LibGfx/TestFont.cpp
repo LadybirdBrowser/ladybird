@@ -217,6 +217,61 @@ TEST_CASE(pending_font_does_not_load_fallback_fonts)
     EXPECT_EQ(fallback_loads, 0u);
 }
 
+TEST_CASE(pending_font_can_resolve_synchronously_without_loading_fallbacks)
+{
+    auto local_font = load_text_font(24);
+    auto fallback_font = load_text_font(16);
+    auto cascade = Gfx::FontCascadeList::create();
+    u32 local_loads = 0;
+    u32 fallback_loads = 0;
+    cascade->add_pending_face({ { 'a', 'a' } }, [&] {
+        ++local_loads;
+        return Gfx::PendingFontState::Invisible; }, [local_font] { return local_font; });
+    cascade->add_pending_face({ { 'a', 'a' } }, [&] {
+        ++fallback_loads;
+        return Gfx::PendingFontState::Invisible;
+    });
+    cascade->add(fallback_font);
+    cascade->set_last_resort_font(fallback_font);
+    EXPECT_EQ(&cascade->font_for_code_point('b'), fallback_font.ptr());
+    EXPECT_EQ(local_loads, 0u);
+    EXPECT_EQ(&cascade->font_for_code_point('a'), local_font.ptr());
+    EXPECT_EQ(&cascade->font_for_code_point('a'), local_font.ptr());
+    EXPECT_EQ(local_loads, 1u);
+    EXPECT_EQ(fallback_loads, 0u);
+}
+
+TEST_CASE(first_available_font_resolves_resident_faces_in_cascade_order)
+{
+    auto local_font = load_text_font(24);
+    auto fallback_font = load_text_font(16);
+    auto cascade = Gfx::FontCascadeList::create();
+    bool resident = false;
+    u32 excluded_loads = 0;
+    u32 fallback_loads = 0;
+    cascade->add_pending_face({ { 'a', 'a' } }, [&] {
+        ++excluded_loads;
+        return Gfx::PendingFontState::Invisible;
+    });
+    cascade->add_pending_face({ { ' ', ' ' } }, [] { return Gfx::PendingFontState::Invisible; }, [&]() -> RefPtr<Gfx::Font const> { return resident ? local_font.ptr() : nullptr; });
+    cascade->add_pending_face({ { 0, 0x10FFFF } }, [&] {
+        ++fallback_loads;
+        return Gfx::PendingFontState::Visible;
+    });
+    cascade->add(fallback_font);
+    cascade->set_last_resort_font(fallback_font);
+    EXPECT_EQ(&cascade->first_available_font(), fallback_font.ptr());
+    resident = true;
+    EXPECT_EQ(&cascade->first_available_font(), local_font.ptr());
+    EXPECT_EQ(excluded_loads, 0u);
+    EXPECT_EQ(fallback_loads, 0u);
+
+    auto preferred = Gfx::FontCascadeList::create();
+    preferred->add(fallback_font);
+    preferred->extend(*cascade);
+    EXPECT_EQ(&preferred->first_available_font(), fallback_font.ptr());
+}
+
 TEST_CASE(loaded_font_precedes_pending_font_after_extending_cascade)
 {
     auto font = load_text_font(16);

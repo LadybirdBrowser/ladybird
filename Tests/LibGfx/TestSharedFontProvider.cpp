@@ -71,6 +71,28 @@ static Gfx::BrokeredFont open_test_font(u64 face_id)
 
 }
 
+TEST_CASE(local_font_lookup_preserves_face_names_and_missing_results)
+{
+    auto catalog = make_catalog();
+    Gfx::SharedFontProviderCallbacks callbacks;
+    callbacks.match_local_font = [](String const& name) {
+        if (name == "Lato Bold"sv || name == "Lato-Bold"sv)
+            return open_test_font(17);
+        return Gfx::BrokeredFont {};
+    };
+    auto provider = MUST(Gfx::SharedFontProvider::create(map_bytes(catalog.bytes()), 9, move(callbacks)));
+    auto full_name_face = provider->get_typeface_by_local_name("Lato Bold"_string);
+    auto postscript_name_face = provider->get_typeface_by_local_name("Lato-Bold"_string);
+    EXPECT(full_name_face);
+    EXPECT_EQ(full_name_face.ptr(), postscript_name_face.ptr());
+    EXPECT(!provider->get_typeface_by_local_name("Lato"_string));
+    EXPECT(!provider->get_typeface_by_local_name("Missing"_string));
+    auto names = MUST(full_name_face->local_font_names());
+    EXPECT_EQ(names.size(), 2u);
+    EXPECT_EQ(names[0], "Lato Bold"sv);
+    EXPECT_EQ(names[1], "Lato-Bold"sv);
+}
+
 TEST_CASE(opens_catalog_faces_lazily_and_caches_them)
 {
     auto catalog = make_catalog();

@@ -519,8 +519,10 @@ RefPtr<Gfx::FontCascadeList const> FontFaceState::font_with_point_size(float poi
         font_list->add_pending_face(m_unicode_ranges, [weak_face = make_weak_ptr()] {
             if (weak_face)
                 return weak_face->resolve_for_rendering();
-            return Gfx::PendingFontState::Failed;
-        });
+            return Gfx::PendingFontState::Failed; }, [weak_face = make_weak_ptr(), point_size, variations, shape_features]() -> RefPtr<Gfx::Font const> {
+            if (weak_face && weak_face->m_parsed_font && !weak_face->m_font_display_failed)
+                return weak_face->m_parsed_font->font(point_size, variations, shape_features);
+            return {}; });
     }
     if (font_list->is_empty())
         return {};
@@ -1027,6 +1029,14 @@ void FontFaceState::load_for_style()
     // 5. When the load operation completes, successfully or not, queue a task to run the following steps synchronously:
     auto on_load = GC::create_function(GC::Heap::the(), [font_root = keep_alive_during_load()](RefPtr<Gfx::Typeface const> maybe_typeface) {
         auto& font = *font_root->elements().first();
+        // NB: A resident typeface is available to synchronous layout immediately. Keep the
+        //     observable load status, promise settlement, and FontFaceSet notifications in
+        //     the queued font-loading task.
+        font.update_font_display_period();
+        font.m_font_download_completed = true;
+        if (font.m_font_download_timer)
+            font.m_font_download_timer->stop();
+        font.m_parsed_font = maybe_typeface;
         HTML::queue_global_task(HTML::Task::Source::FontLoading, font.task_global_object(), GC::create_function(GC::Heap::the(), [font_root, maybe_typeface] {
             font_root->elements().first()->did_load(maybe_typeface);
         }));
@@ -1038,7 +1048,7 @@ void FontFaceState::load_for_style()
 
         if (auto loader = font_computer.load_font_face(parsed_font_face(), m_source_style_sheet, move(on_load))) {
             m_font_loader = loader;
-            loader->start_loading_next_url();
+            loader->start_loading_next_source();
         }
     } else {
         // FIXME: Don't know how to load fonts in workers! They don't have a StyleComputer
@@ -1048,10 +1058,6 @@ void FontFaceState::load_for_style()
 
 void FontFaceState::did_load(RefPtr<Gfx::Typeface const> maybe_typeface)
 {
-    update_font_display_period();
-    m_font_download_completed = true;
-    if (m_font_download_timer)
-        m_font_download_timer->stop();
     HTML::TemporaryExecutionContext context(*m_environment, HTML::TemporaryExecutionContext::CallbacksEnabled::Yes);
     // 1. If the attempt to load fails, reject font face’s [[FontStatusPromise]] with a DOMException whose name
     //    is "NetworkError" and set font face’s status attribute to "error".

@@ -18,6 +18,7 @@
 #include <LibWeb/CSS/FontFeatureData.h>
 #include <LibWeb/CSS/Percentage.h>
 #include <LibWeb/CSS/StyleValues/StyleValue.h>
+#include <LibWeb/CSS/URL.h>
 #include <LibWeb/DOM/DocumentLoadEventDelayer.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
@@ -80,11 +81,12 @@ class FontLoader final : public GC::Cell {
     GC_DECLARE_ALLOCATOR(FontLoader);
 
 public:
-    FontLoader(FontComputer&, RuleOrDeclaration, Vector<URL> urls, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load = {});
+    using Source = Variant<Utf16FlyString, URL>;
+    FontLoader(FontComputer&, RuleOrDeclaration, Vector<Source> sources, GC::Ptr<GC::Function<void(RefPtr<Gfx::Typeface const>)>> on_load = {});
 
     virtual ~FontLoader();
 
-    void start_loading_next_url();
+    void start_loading_next_source();
 
     bool is_loading() const;
     void did_request_for_rendering();
@@ -104,7 +106,7 @@ private:
     GC::Ref<FontComputer> m_font_computer;
     RuleOrDeclaration m_rule_or_declaration;
     RefPtr<Gfx::Typeface const> m_typeface;
-    Vector<URL> m_urls;
+    Vector<Source> m_sources;
     GC::Ptr<Fetch::Infrastructure::FetchController> m_fetch_controller;
     Vector<GC::Ref<GC::Function<void(RefPtr<Gfx::Typeface const>)>>> m_subscribers;
     Optional<DOM::DocumentLoadEventDelayer> m_document_load_event_delayer;
@@ -164,7 +166,7 @@ private:
     GC::Ref<DOM::Document> m_document;
 
     HashMap<FontFaceKey, Vector<NonnullRefPtr<FontFaceState>>> m_font_faces;
-    HashMap<String, GC::Ref<FontLoader>> m_loaders_by_url;
+    HashMap<String, GC::Ref<FontLoader>> m_loaders_by_source;
 
     mutable HashMap<ComputedFontCacheKey, NonnullRefPtr<Gfx::FontCascadeList const>> m_computed_font_cache;
     mutable HashMap<Utf16FlyString, HashMap<FontFeatureValueKey, Vector<u32>>> m_font_feature_values_cache;

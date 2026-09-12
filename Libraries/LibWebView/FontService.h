@@ -29,17 +29,18 @@ class WEBVIEW_API FontService {
     AK_MAKE_NONMOVABLE(FontService);
 
 public:
-    static NonnullOwnPtr<FontService> create();
+    static NonnullOwnPtr<FontService> create(Vector<String> additional_font_directories = {});
     ~FontService();
 
     ErrorOr<FontCatalogDescriptor> clone_catalog();
     Gfx::BrokeredFont open_font(u64 generation, u64 face_id);
+    Gfx::BrokeredFont match_local_font(String const& name);
     Gfx::BrokeredFont match_font(String const& family, u16 weight, u16 width, u8 slope);
     Gfx::BrokeredFont match_font_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji);
     Optional<FlyString> resolve_generic_family(String const& family, u16 weight, u8 slope);
 
 private:
-    FontService();
+    explicit FontService(Vector<String> additional_font_directories);
 
     struct FontSource {
         String path;
@@ -60,6 +61,8 @@ private:
     Gfx::BrokeredFont materialize_typeface(NonnullRefPtr<Gfx::TypefaceSkia>, String cache_key);
     Gfx::BrokeredFont open_font_without_lock(u64 generation, u64 face_id);
 
+    Vector<String> m_additional_font_directories;
+    HashMap<String, u64> m_local_font_names;
     NonnullRefPtr<Threading::Thread> m_worker;
     Optional<String> m_build_error;
     IPC::File m_catalog_file;
