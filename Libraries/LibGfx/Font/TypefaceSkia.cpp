@@ -184,7 +184,9 @@ ErrorOr<RefPtr<TypefaceSkia>> TypefaceSkia::typeface_from_skia_typeface(sk_sp<Sk
 
 ErrorOr<NonnullRefPtr<TypefaceSkia>> TypefaceSkia::load_from_buffer(AK::ReadonlyBytes buffer, u32 ttc_index)
 {
-    auto data = SkData::MakeWithoutCopy(buffer.data(), buffer.size());
+    // NB: Skia can retain the typeface in text blobs and glyph caches after our Typeface is destroyed.
+    //     Its stream must own the font bytes independently of our font data backing.
+    auto data = SkData::MakeWithCopy(buffer.data(), buffer.size());
 
     // https://learn.microsoft.com/en-us/typography/opentype/spec/otff#ttc-header
     // TrueType Collection files bundle multiple fonts (often different weights of the same
