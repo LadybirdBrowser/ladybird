@@ -694,7 +694,8 @@ bool Node::is_closed_shadow_hidden_from(Node const& b) const
 bool Node::is_browsing_context_connected() const
 {
     // A node is browsing-context connected when it is connected and its shadow-including root's browsing context is non-null.
-    return is_connected() && shadow_including_root().document().browsing_context();
+    // NB: A connected node's shadow-including root is its node document.
+    return is_connected() && document().browsing_context();
 }
 
 // https://dom.spec.whatwg.org/#concept-node-ensure-pre-insertion-validity
