@@ -1,0 +1,10 @@
+initial: 40px/60px, pseudo 60px/90px
+root change: 80px/100px, pseudo 120px/150px; new: 80px/100px, pseudo 120px/150px
+fixed parent: 10px/10px
+incremental child: 80px/100px, pseudo 120px/150px
+root restored: 40px/60px, pseudo 60px/90px; new: 40px/60px, pseudo 60px/90px
+equal viewport expression: 40px/60px, pseudo 60px/90px
+viewport change: 80px/60px, pseudo 120px/90px; new: 80px/60px, pseudo 120px/90px
+equal constant: 80px/60px, pseudo 120px/90px
+viewport after constant: 80px/60px, pseudo 120px/90px; new: 80px/60px, pseudo 120px/90px
+engine computation exercised: true

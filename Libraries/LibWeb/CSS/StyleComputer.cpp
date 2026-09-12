@@ -3828,7 +3828,7 @@ NonnullRefPtr<ComputedValues const> StyleComputer::materialize_style_record(DOM:
 static constexpr size_t style_input_record_parent_custom_properties_index = ComputedValues::inherited_style_group_count;
 static constexpr size_t style_sharing_style_scope_index = ComputedValues::inherited_style_group_count + 2;
 static constexpr size_t style_input_record_element_index = style_input_record_parent_custom_properties_index + 1;
-static constexpr size_t style_input_record_block_index = style_input_record_element_index + 7;
+static constexpr size_t style_input_record_block_index = style_input_record_element_index + 13;
 
 NonnullRefPtr<ComputedValues const> StyleComputer::build_and_share_computed_values(NonnullRefPtr<ComputedStyleWorkingSet> computed_properties, DOM::AbstractElement abstract_element, StyleScope const& style_scope, StyleSharingCandidate& sharing) const
 {
@@ -4593,6 +4593,14 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         // declarations - a reuse admitted on the declarations alone must not be admitted by it.
         record->words.append(document().style_environment_version());
         record->words.append(document().custom_property_registration_generation());
+        // NB: Root metrics are independent of the immediate parent's inherited groups.
+        //     Record them even beneath a fixed-font parent, including future viewport dependence.
+        record->words.append(bit_cast<u64>(m_root_element_font_metrics.font_size.to_double()));
+        record->words.append(bit_cast<u64>(m_root_element_font_metrics.x_height.to_double()));
+        record->words.append(bit_cast<u64>(m_root_element_font_metrics.cap_height.to_double()));
+        record->words.append(bit_cast<u64>(m_root_element_font_metrics.zero_advance.to_double()));
+        record->words.append(bit_cast<u64>(m_root_element_font_metrics.line_height.to_double()));
+        record->words.append(m_root_element_font_metrics_depend_on_viewport_metrics);
         record->viewport_environment_version = m_viewport_environment_version;
         record->custom_property_reads.clear_with_capacity();
         record->custom_property_reads_are_complete = true;
