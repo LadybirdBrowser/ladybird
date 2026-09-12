@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes loading {
+        0%, 40%, 90% { background-color: rgb(35, 35, 35); }
+        70% { background-color: rgb(65, 65, 65); }
+    }
+    @keyframes filter-loading {
+        0%, 40%, 90% { filter: none; }
+        70% { filter: blur(1px); }
+    }
+    .target {
+        width: 20px;
+        height: 20px;
+    }
+    #target {
+        animation: loading 4s linear infinite;
+    }
+    #filter-target {
+        animation: filter-loading 4s linear infinite;
+    }
+</style>
+<div id="target" class="target"></div>
+<div id="filter-target" class="target"></div>
+<script>
+    asyncTest(async done => {
+        await Promise.all(document.getAnimations().map(animation => animation.ready));
+        internals.updateCompositorAnimations();
+        println(`animations stay on the main thread: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 0}`);
+        const backgroundAnimation = document.getElementById("target").getAnimations()[0];
+        backgroundAnimation.effect.setKeyframes([
+            { backgroundColor: "rgb(35, 35, 35)", offset: 0 },
+            { backgroundColor: "rgb(65, 65, 65)", offset: 1 },
+        ]);
+        internals.updateCompositorAnimations();
+        println(`complete keyframes use the compositor: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 1}`);
+
+        backgroundAnimation.effect.setKeyframes([
+            { backgroundColor: "rgb(35, 35, 35)", offset: 0 },
+            { backgroundColor: "rgb(65, 65, 65)", offset: 0.7 },
+        ]);
+        internals.updateCompositorAnimations();
+        println(`removing the endpoint returns to the main thread: ${internals.getStyleInvalidationCounters().compositorVisualAnimations === 0}`);
+        for (const animation of document.getAnimations())
+            animation.cancel();
+        done();
+    });
+</script>
