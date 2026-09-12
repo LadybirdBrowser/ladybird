@@ -128,11 +128,17 @@ CORE_API ErrorOr<void> set_resource_limits(int resource, rlim_t limit);
 
 #endif
 
-CORE_API ErrorOr<void*> reserve_address_space(size_t size);
-CORE_API ErrorOr<void*> allocate_anonymous_memory(size_t size);
-CORE_API ErrorOr<void> commit_memory(void* address, size_t size);
+// Memory tags identify allocations in macOS VM diagnostics and are ignored on other platforms.
+enum class MemoryTag {
+    None,
+    GarbageCollector,
+};
+
+CORE_API ErrorOr<void*> reserve_address_space(size_t size, MemoryTag = MemoryTag::None);
+CORE_API ErrorOr<void*> allocate_anonymous_memory(size_t size, MemoryTag = MemoryTag::None);
+CORE_API ErrorOr<void> commit_memory(void* address, size_t size, MemoryTag = MemoryTag::None);
 CORE_API ErrorOr<void> protect_memory_readonly(void* address, size_t size);
-CORE_API ErrorOr<void> decommit_memory(void* address, size_t size);
+CORE_API ErrorOr<void> decommit_memory(void* address, size_t size, MemoryTag = MemoryTag::None);
 CORE_API ErrorOr<void> release_address_space(void* address, size_t size);
 
 CORE_API ErrorOr<void> close(int fd);

@@ -79,7 +79,7 @@ ErrorOr<void> PrimitiveStorage::Allocator::ensure_cage()
 
     // Leave an inaccessible page after the logical cage so a masked fixed-width
     // access at the top edge cannot cross into an unrelated mapping.
-    auto mapping = TRY(Core::System::reserve_address_space(reservation_size.value()));
+    auto mapping = TRY(Core::System::reserve_address_space(reservation_size.value(), Core::System::MemoryTag::GarbageCollector));
     m_cage_base = static_cast<u8*>(mapping);
     js_primitive_storage_cage_base = bit_cast<FlatPtr>(m_cage_base);
     return {};
@@ -132,7 +132,7 @@ ErrorOr<PrimitiveStorage::Allocator::Allocation> PrimitiveStorage::Allocator::al
         return Error::from_errno(ENOMEM);
 
     auto slab_offset = TRY(allocate_cage_range(small_slab_size));
-    auto commit_result = Core::System::commit_memory(m_cage_base + slab_offset, small_slab_size);
+    auto commit_result = Core::System::commit_memory(m_cage_base + slab_offset, small_slab_size, Core::System::MemoryTag::GarbageCollector);
     if (commit_result.is_error()) {
         release_cage_range(slab_offset, small_slab_size);
         return commit_result.release_error();
@@ -180,7 +180,7 @@ ErrorOr<PrimitiveStorage::Allocator::Allocation> PrimitiveStorage::Allocator::al
     auto offset = TRY(allocate_cage_range(reservation_size.value()));
     auto committed_size = round_up_to_page(size);
     if (committed_size > 0) {
-        auto commit_result = Core::System::commit_memory(m_cage_base + offset, committed_size);
+        auto commit_result = Core::System::commit_memory(m_cage_base + offset, committed_size, Core::System::MemoryTag::GarbageCollector);
         if (commit_result.is_error()) {
             release_cage_range(offset, reservation_size.value());
             return commit_result.release_error();
@@ -248,7 +248,7 @@ ErrorOr<void> PrimitiveStorage::Allocator::commit_large_storage(Allocation& allo
 
     auto new_committed_size = round_up_to_page(new_size);
     if (new_committed_size > allocation.committed_size) {
-        TRY(Core::System::commit_memory(m_cage_base + allocation.offset + allocation.committed_size, new_committed_size - allocation.committed_size));
+        TRY(Core::System::commit_memory(m_cage_base + allocation.offset + allocation.committed_size, new_committed_size - allocation.committed_size, Core::System::MemoryTag::GarbageCollector));
         allocation.committed_size = new_committed_size;
     }
 
@@ -260,7 +260,7 @@ void PrimitiveStorage::Allocator::decommit_large_storage(Allocation const& alloc
     VERIFY(!allocation.small_allocation.has_value());
     if (allocation.committed_size == 0)
         return;
-    MUST(Core::System::decommit_memory(m_cage_base + allocation.offset, allocation.committed_size));
+    MUST(Core::System::decommit_memory(m_cage_base + allocation.offset, allocation.committed_size, Core::System::MemoryTag::GarbageCollector));
 }
 
 ErrorOr<PrimitiveStorage::Allocator::Allocation> PrimitiveStorage::Allocator::reallocate(Allocation const& old_allocation, size_t old_size, size_t new_size, size_t new_capacity, ZeroFillNewBytes zero_fill_new_bytes, bool force_large)

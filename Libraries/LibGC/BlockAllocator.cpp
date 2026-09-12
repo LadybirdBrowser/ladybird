@@ -60,7 +60,7 @@ public:
         reservation_size += size;
         VERIFY(!reservation_size.has_overflow());
 
-        auto* reservation = MUST(Core::System::reserve_address_space(reservation_size.value()));
+        auto* reservation = MUST(Core::System::reserve_address_space(reservation_size.value(), Core::System::MemoryTag::GarbageCollector));
         auto reservation_start = reinterpret_cast<FlatPtr>(reservation);
         auto aligned_start = align_up_to(reservation_start, size);
         auto reservation_end = reservation_start + reservation_size.value();
@@ -91,7 +91,7 @@ public:
         // thread would require synchronization here or per-thread regions.
         VERIFY(m_next_chunk_offset <= size - CHUNK_SIZE);
         auto* chunk = m_base + m_next_chunk_offset;
-        MUST(Core::System::commit_memory(chunk, CHUNK_SIZE));
+        MUST(Core::System::commit_memory(chunk, CHUNK_SIZE, Core::System::MemoryTag::GarbageCollector));
         m_next_chunk_offset += CHUNK_SIZE;
         return chunk;
     }
