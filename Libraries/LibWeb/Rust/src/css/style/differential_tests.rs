@@ -372,6 +372,7 @@ fn batch_matches(engine: &mut StyleEngine, node: StyleNodeID, ancestor_cache: bo
                 deferred_prefix_matches: None,
             },
         )
+        .result
         .unwrap();
     matches.as_slice().to_vec()
 }

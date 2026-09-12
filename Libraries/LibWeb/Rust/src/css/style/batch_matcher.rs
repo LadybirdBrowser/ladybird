@@ -770,6 +770,12 @@ pub struct BatchMatcher<'a> {
     witnesses: Option<&'a std::cell::RefCell<RelationalWitnesses>>,
 }
 
+/// Pruning remains relevant when an incomplete attempt retains completed candidates for a retry.
+pub(super) struct BatchMatchOutcome {
+    pub result: Result<(), Incomplete>,
+    pub answer_is_exact: bool,
+}
+
 /// Reusable output-side state for one exact matching attempt.
 pub(super) struct BatchMatchState<'a> {
     pub dispatch_workspace: &'a mut DispatchCandidateWorkspace,
@@ -1204,18 +1210,21 @@ impl<'a> BatchMatcher<'a> {
         let mut dispatch_workspace = DispatchCandidateWorkspace::default();
         let mut prefix_states = PrefixStates::new(self.facts.row_count());
         for node in self.tree.preorder(root) {
-            if let Err(incomplete) = self.match_node_collecting_requests(
-                node,
-                out,
-                counters,
-                BatchMatchState {
-                    dispatch_workspace: &mut dispatch_workspace,
-                    requests: None,
-                    completed: None,
-                    prefix_states: Some(&mut prefix_states),
-                    deferred_prefix_matches: None,
-                },
-            ) {
+            if let Err(incomplete) = self
+                .match_node_collecting_requests(
+                    node,
+                    out,
+                    counters,
+                    BatchMatchState {
+                        dispatch_workspace: &mut dispatch_workspace,
+                        requests: None,
+                        completed: None,
+                        prefix_states: Some(&mut prefix_states),
+                        deferred_prefix_matches: None,
+                    },
+                )
+                .result
+            {
                 out.truncate(start, selector_truth_start);
                 return Err(incomplete);
             }
@@ -1246,6 +1255,7 @@ impl<'a> BatchMatcher<'a> {
                 deferred_prefix_matches: None,
             },
         )
+        .result
     }
 
     /// Evaluate one style node while retaining every fact request the candidate set discovers.
@@ -1261,7 +1271,8 @@ impl<'a> BatchMatcher<'a> {
         out: &mut RuleMatches,
         counters: &mut Counters,
         state: BatchMatchState<'_>,
-    ) -> Result<(), Incomplete> {
+    ) -> BatchMatchOutcome {
+        let mut answer_is_exact = true;
         let BatchMatchState {
             dispatch_workspace,
             mut requests,
@@ -1270,7 +1281,10 @@ impl<'a> BatchMatcher<'a> {
             deferred_prefix_matches,
         } = state;
         let Some(row) = self.facts.row_of(node) else {
-            return Err(Incomplete::MissingFacts(node));
+            return BatchMatchOutcome {
+                result: Err(Incomplete::MissingFacts(node)),
+                answer_is_exact,
+            };
         };
         // A filtered ask is a patch re-deriving part of one answer, not a cold evaluation.
         if self.rule_filter.is_none() {
@@ -1291,7 +1305,10 @@ impl<'a> BatchMatcher<'a> {
             evaluator = evaluator.observing_witnesses(witnesses);
         }
         if let Some(rules) = self.rule_filter.filter(|rules| self.filtered_rules_are_narrow(rules)) {
-            return self.match_filtered_rules_directly(node, row, rules, &evaluator, out, counters);
+            return BatchMatchOutcome {
+                result: self.match_filtered_rules_directly(node, row, rules, &evaluator, out, counters),
+                answer_is_exact,
+            };
         }
         let start = out.matches.len();
         let selector_truth_start = out.selector_truth_len();
@@ -1323,7 +1340,10 @@ impl<'a> BatchMatcher<'a> {
                             missing,
                         ))) if self.dispatch.prefixes().has_sibling_steps() => {
                             let Some(requests) = requests.as_deref_mut() else {
-                                return Err(Incomplete::MissingFacts(missing));
+                                return BatchMatchOutcome {
+                                    result: Err(Incomplete::MissingFacts(missing)),
+                                    answer_is_exact,
+                                };
                             };
                             let mut level = Some(node);
                             while let Some(current) = level {
@@ -1497,6 +1517,7 @@ impl<'a> BatchMatcher<'a> {
                             .is_some_and(|winner| winner.priority >= candidate.cascade_order)
                     })
                 {
+                    answer_is_exact = false;
                     counters.bump(Counter::CascadeCandidatesRejectedByWinner);
                     if let Some(completed) = completed.as_deref_mut() {
                         completed[candidate_index] = true;
@@ -1585,7 +1606,10 @@ impl<'a> BatchMatcher<'a> {
                         continue;
                     }
                     out.truncate(start, selector_truth_start);
-                    return Err(incomplete);
+                    return BatchMatchOutcome {
+                        result: Err(incomplete),
+                        answer_is_exact,
+                    };
                 }
             }
 
@@ -1600,7 +1624,10 @@ impl<'a> BatchMatcher<'a> {
                         continue;
                     }
                     out.truncate(start, selector_truth_start);
-                    return Err(incomplete);
+                    return BatchMatchOutcome {
+                        result: Err(incomplete),
+                        answer_is_exact,
+                    };
                 }
             };
             if self.dispatch.cascade_pruning_blocker(candidate) {
@@ -1637,9 +1664,15 @@ impl<'a> BatchMatcher<'a> {
             if completed.is_none() {
                 out.truncate(start, selector_truth_start);
             }
-            return Err(incomplete);
+            return BatchMatchOutcome {
+                result: Err(incomplete),
+                answer_is_exact,
+            };
         }
-        Ok(())
+        BatchMatchOutcome {
+            result: Ok(()),
+            answer_is_exact,
+        }
     }
 }
 
@@ -2087,6 +2120,7 @@ mod tests {
                         deferred_prefix_matches: None,
                     },
                 )
+                .result
                 .expect("the node has complete facts");
         }
         assert_eq!(document.matched_nodes(&matches, item), vec![1, 1]);
