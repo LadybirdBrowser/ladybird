@@ -144,7 +144,6 @@ impl StyleEngineState {
             scope_cascade_templates: HashMap::default(),
             ancestor_dispatch_templates: HashMap::default(),
             scope_program_by_scope: Column::default(),
-            held_scope_program: None,
             atoms,
             reclaimed_style_atoms: Vec::new(),
             style_atoms_swept: false,

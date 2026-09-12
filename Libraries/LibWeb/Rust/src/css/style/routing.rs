@@ -1304,7 +1304,7 @@ impl StyleEngineState {
         let sequences_are_document_scoped = sequences
             .iter()
             .all(|(parent, _)| self.tree.tree_scope(parent) == TreeScopeID::DOCUMENT);
-        let (_, dispatch) = self.ranked_scope_program(TreeScopeID::DOCUMENT);
+        let (_, dispatch) = self.prepare_scope_program(TreeScopeID::DOCUMENT);
         let deferred_mask: Vec<bool> = entries
             .iter()
             .map(|entry| {
@@ -2722,7 +2722,7 @@ impl StyleEngineState {
             return PrefixConvergenceOutcome::default();
         };
         let routing = Rc::clone(&self.routing);
-        let (scope_program, dispatch) = self.ranked_scope_program(TreeScopeID::DOCUMENT);
+        let (scope_program, dispatch) = self.prepare_scope_program(TreeScopeID::DOCUMENT);
         if dispatch.prefixes().is_empty() {
             return PrefixConvergenceOutcome::default();
         }
@@ -3931,7 +3931,7 @@ impl StyleEngineState {
         counters: &mut Counters,
     ) {
         if prefix_convergence_covers_sibling_routes {
-            let (_, dispatch) = self.ranked_scope_program(TreeScopeID::DOCUMENT);
+            let (_, dispatch) = self.prepare_scope_program(TreeScopeID::DOCUMENT);
             let routing = Rc::clone(&self.routing);
             let mut released_route_bytes = 0;
             pending.retain(|key, routed_regions| {

@@ -1023,7 +1023,6 @@ impl StyleEngineState {
             program.scope_count = 0;
         }
         self.scope_program_by_scope.clear();
-        self.held_scope_program = None;
     }
 
     /// Drop the ranked program for one tree scope while leaving equivalent scopes' shared program
@@ -1038,9 +1037,6 @@ impl StyleEngineState {
     }
 
     fn invalidate_concrete_scope_program(&mut self, tree_scope: TreeScopeID) {
-        if self.held_scope_program.is_some_and(|(scope, _, _)| scope == tree_scope) {
-            self.held_scope_program = None;
-        }
         let Some((_, program)) = self
             .scope_program_by_scope
             .get_mut(tree_scope.0 as usize)

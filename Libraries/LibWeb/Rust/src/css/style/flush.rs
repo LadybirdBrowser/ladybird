@@ -635,7 +635,7 @@ impl StyleEngineState {
                 );
             }
             let prefix_producer_admission = if !regions.covers_document() && collect_pending_prefix_producers {
-                Some(self.ranked_scope_program(TreeScopeID::DOCUMENT))
+                Some(self.prepare_scope_program(TreeScopeID::DOCUMENT))
             } else {
                 None
             };
@@ -985,6 +985,17 @@ impl StyleEngineState {
         }
         winner_version_timer.stop(Counter::WinnerVersionAdvanceMicroseconds, counters);
 
+        clock.enter(Counter::PrepareMicroseconds, counters);
+        if self.tree.has_tree_scopes() || !self.scope_roots.is_empty() {
+            let mut nodes = Vec::new();
+            regions.for_each_batch(&compiled_regions, |node| nodes.push(node));
+            let bytes = (nodes.capacity() * size_of::<StyleNodeID>()) as u64;
+            self.memory.reserve_required(MemoryCategory::BatchScratch, bytes);
+            self.prepare_scope_programs_for_nodes(nodes);
+            self.memory.release(MemoryCategory::BatchScratch, bytes);
+        } else {
+            self.prepare_scope_program(TreeScopeID::DOCUMENT);
+        }
         clock.enter(Counter::MatchingCascadeMicroseconds, counters);
         let mut node_count = 0;
         let mut unattributed_node_count = 0;
@@ -1284,11 +1295,13 @@ impl StyleEngineState {
                     published_nodes.len().saturating_mul(16) > self.tree.connected_element_count() as usize;
                 let reuse_active_batch_matching_traversal =
                     transaction_reaches_no_selector && self.batch_matching_traversal.is_some();
+                clock.enter(Counter::PrepareMicroseconds, counters);
                 if !reuse_active_batch_matching_traversal {
                     let completion_begin_timer = PassTimer::start();
                     self.begin_published_match_answer_completion_batch(root, prefer_complete_batch, counters);
                     completion_begin_timer.stop(Counter::CompletionBatchBeginMicroseconds, counters);
                 }
+                clock.enter(Counter::MatchingCascadeMicroseconds, counters);
                 let retained_answer_dispatch = retained_answer_patch
                     .as_ref()
                     .map(|patch| patch.dispatch.as_ref())

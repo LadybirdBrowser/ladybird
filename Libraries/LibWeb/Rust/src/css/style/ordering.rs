@@ -1168,9 +1168,9 @@ impl StyleEngineState {
                 continue;
             }
             let scope = TreeScopeID(u32::try_from(index).expect("tree scope identity space exhausted"));
-            let (_, dispatch) = self.ranked_scope_program(scope);
+            let (_, dispatch) = self.prepare_scope_program(scope);
             let ancestor_requirements =
-                ancestor_requirements_cache.get_or_build(&self.tree, &batch, &dispatch, &mut self.memory);
+                ancestor_requirements_cache.prepare(&self.tree, &batch, &dispatch, None, &mut self.memory);
             // `:host` names the host of this tree, which stands outside it, so the tree's own rules
             // are asked of it as well.
             let host = self.scope_root(scope).and_then(|root| self.tree.host_of(root));
@@ -1202,6 +1202,7 @@ impl StyleEngineState {
                 break;
             }
         }
+        self.settle_relational_witness_memory();
         ancestor_requirements_cache.release(&mut self.memory);
         let dispatch_workspace_bytes = dispatch_workspace.capacity_bytes();
         self.memory

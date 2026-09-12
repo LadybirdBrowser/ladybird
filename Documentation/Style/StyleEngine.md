@@ -716,6 +716,15 @@ Comparable selector answers are immutable and interned under a compact integer i
 
 These identities are document-local acceleration, not a retained per-element match column. A style ask publishes only the identity of the answer it just produced, and answer caches may carry that identity to their consumers. Program changes reach their candidates through selector dispatch and exact evaluation of the old or new program as appropriate. Do not retain a complete `RuleID -> elements` relation; inverse match sets are optional query-level materializations only.
 
+Scope dispatch versions and encapsulation depths are resolved at matching-context
+preparation. Matching and answer materialization borrow the prepared dispatch;
+they do not rebuild a program or update a last-scope memo. The prepared scope set
+includes host, slotted and part projections. Ancestor requirements are prepared
+per topology before a batch, using dense rows for the document topology and
+selected primary rows for other topologies. An adaptive retry prepares its
+extended facts and primary ancestor summary before matching. Unbounded ancestry
+rejects nothing, and secondary scope projections do not use primary ancestry.
+
 ### 9.2 Cascade priority
 
 A declaration's priority is a comparison program over stable identities:
@@ -1245,7 +1254,8 @@ The doctrine over any future counter: ratios with a zero denominator report the 
 
 `internals.styleEngineCounters()` reports cumulative integer microseconds at the
 `take_style_transaction` boundary. `transactionMicroseconds` equals the sum of
-`commitMicroseconds`, `routingPlanningMicroseconds`, `matchingCascadeMicroseconds`,
+`commitMicroseconds`, `routingPlanningMicroseconds`, `prepareMicroseconds`,
+`matchingCascadeMicroseconds`,
 `computationPublicationMicroseconds`, `emitMicroseconds`, and
 `transactionRemainderMicroseconds`. Take two snapshots and subtract each field
 when measuring an update. Rounded cumulative endpoints preserve the identity even
@@ -1255,7 +1265,11 @@ The fused names describe the current execution: routing performs exact planning
 and prefix matching inline; answer patching and completion update winners;
 computation interns and installs records immediately. No per-element clocks try
 to subdivide that work. Commit includes reclamation and journal application.
-Remainder covers final bookkeeping, retained traversal preparation, and cleanup.
+Prepare covers reached-scope preparation and completion-batch construction before
+matching. Routing-specific dispatch preparation remains within routing/planning;
+program and declaration input preparation remains within commit. Standalone host
+matching prepares its context in the enclosing C++ caller interval. Remainder
+covers final bookkeeping, retained traversal handoff, and cleanup.
 
 The C++ ledger (`internals.getStyleInvalidationCounters()`) has its own identity:
 `styleUpdateMicroseconds` equals `styleUpdateSubmissionMicroseconds` plus
