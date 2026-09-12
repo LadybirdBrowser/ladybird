@@ -115,6 +115,28 @@ static ByteString const& codec_whitelist()
     return *whitelist;
 }
 
+static DecoderErrorOr<void> discard_attached_pictures(AVFormatContext& format_context)
+{
+    bool did_discard_attached_picture = false;
+    for (u32 i = 0; i < format_context.nb_streams; i++) {
+        auto& stream = *format_context.streams[i];
+        if (!(stream.disposition & AV_DISPOSITION_ATTACHED_PIC))
+            continue;
+
+        stream.codecpar->codec_type = AVMEDIA_TYPE_ATTACHMENT;
+        stream.discard = AVDISCARD_ALL;
+        did_discard_attached_picture = true;
+    }
+
+    if (did_discard_attached_picture) {
+        auto flush_result = avformat_flush(&format_context);
+        if (flush_result < 0)
+            return DecoderError::format(DecoderErrorCategory::Unknown, "Failed to flush FFmpeg format context: {}", av_error_code_to_string(flush_result));
+    }
+
+    return {};
+}
+
 FFmpegDemuxer::FFmpegDemuxer(NonnullRefPtr<MediaStream> const& stream)
     : m_stream(stream)
 {
@@ -161,6 +183,8 @@ static DecoderErrorOr<void> initialize_format_context(AVFormatContext*& format_c
     auto open_result = avformat_open_input(&format_context, nullptr, nullptr, &options);
     if (open_result < 0)
         return DecoderError::with_description(DecoderErrorCategory::Corrupted, "Failed to open input for format parsing"sv);
+
+    TRY(discard_attached_pictures(*format_context));
 
     // Read stream info; doing this is required for headerless formats like MPEG
     if (avformat_find_stream_info(format_context, nullptr) < 0)
@@ -327,12 +351,29 @@ static inline i64 duration_to_time_units(AK::Duration duration, AVRational const
     return duration.to_time_units(time_base.num, time_base.den);
 }
 
+// Discarded attached pictures remain in the stream list as attachments, so they do not count against a container
+// holding a single media track.
+static AVStream* find_single_media_stream(AVFormatContext const& context)
+{
+    AVStream* media_stream = nullptr;
+    for (u32 i = 0; i < context.nb_streams; i++) {
+        auto* stream = context.streams[i];
+        if (stream->codecpar->codec_type == AVMEDIA_TYPE_ATTACHMENT)
+            continue;
+        if (media_stream != nullptr)
+            return nullptr;
+        media_stream = stream;
+    }
+    return media_stream;
+}
+
 OwnPtr<ContainerNavigator> FFmpegDemuxer::create_single_track_container_navigator(AVFormatContext& context, AK::Duration total_duration, NonnullRefPtr<MediaStream> const& stream)
 {
     auto format_name = StringView(context.iformat->name, strlen(context.iformat->name));
+    auto* single_media_stream = find_single_media_stream(context);
 
-    if (format_name == "flac"sv && context.nb_streams == 1) {
-        auto& av_stream = *context.streams[0];
+    if (format_name == "flac"sv && single_media_stream != nullptr) {
+        auto& av_stream = *single_media_stream;
         if (av_stream.codecpar->sample_rate > 0) {
             auto sample_rate = static_cast<u32>(av_stream.codecpar->sample_rate);
             AVPacket* packet = av_packet_alloc();
@@ -364,7 +405,7 @@ OwnPtr<ContainerNavigator> FFmpegDemuxer::create_single_track_container_navigato
         return make<ConstantBitrateContainerNavigator>(data_offset, bytes_per_second, codec_par->block_align);
     }
 
-    if (format_name == "mp3"sv && context.nb_streams == 1) {
+    if (format_name == "mp3"sv && single_media_stream != nullptr) {
         AVPacket* packet = av_packet_alloc();
         ScopeGuard free_packet = [&] { av_packet_free(&packet); };
 
@@ -373,10 +414,10 @@ OwnPtr<ContainerNavigator> FFmpegDemuxer::create_single_track_container_navigato
     }
 
     if (format_name == "ogg"sv) {
-        if (context.nb_streams != 1)
+        if (single_media_stream == nullptr)
             return nullptr;
 
-        auto& av_stream = *context.streams[0];
+        auto& av_stream = *single_media_stream;
         if (av_stream.time_base.num <= 0 || av_stream.time_base.den <= 0)
             return nullptr;
 

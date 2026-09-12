@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2026, Jelle Raaijmakers <jelle@ladybird.org>
+ * Copyright (c) 2026-present, the Ladybird developers.
  *
  * SPDX-License-Identifier: BSD-2-Clause
  */
@@ -15,6 +16,7 @@
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
+#include <LibMedia/Audio/AudioOutputMonitor.h>
 #include <LibMedia/Audio/PlaybackStream.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/WebAudio/ControlMessageQueue.h>
@@ -39,6 +41,7 @@ public:
     // The callback below is set on the control thread before rendering starts and is always invoked on the control
     // thread. It is cleared when the context closes to break the reference cycle with the context.
     void set_on_sources_ended(Function<void(Vector<NodeID> const&)>);
+    void set_on_audio_output_state_changed(Function<void(bool)>);
     void clear_callbacks();
 
     void start_rendering();
@@ -46,6 +49,7 @@ public:
     void resume();
     void suspend();
     void stop();
+    void set_muted(bool);
 
     u64 frames_rendered() const { return m_frames_rendered.load(); }
 
@@ -53,12 +57,17 @@ public:
     double output_time_played() const;
 
 private:
+    enum class MonitorOutput {
+        No,
+        Yes,
+    };
+
     RealtimeAudioRenderer(NonnullRefPtr<ControlMessageQueue>, NodeID destination_node_id, float sample_rate, size_t quantum_size);
 
-    void prepare_to_start_rendering();
+    void prepare_to_start_rendering(MonitorOutput);
     void set_playback_stream(NonnullRefPtr<Audio::PlaybackStream>);
     ReadonlySpan<float> fill_output_buffer(Span<float>);
-    void render_quantum_into_pending_samples();
+    void render_quantum_into_pending_samples(u64 frames_played);
 
     NonnullRefPtr<ControlMessageQueue> m_control_message_queue;
     NodeID m_destination_node_id;
@@ -66,6 +75,7 @@ private:
     size_t m_quantum_size { 0 };
 
     Core::EventLoop& m_main_thread_event_loop;
+    NonnullRefPtr<Audio::AudioOutputMonitor> m_audio_output_monitor;
     RefPtr<Audio::PlaybackStream> m_playback_stream;
 
     Function<void(Vector<NodeID> const&)> m_on_sources_ended;
@@ -74,6 +84,10 @@ private:
     Atomic<bool> m_suspended { false };
     Atomic<bool> m_shutting_down { false };
 
+    // These are only accessed on the control thread.
+    MonitorOutput m_monitor_output { MonitorOutput::No };
+    bool m_muted { false };
+
     // State below is only used on the audio thread, except that the device configuration is recorded on the control
     // thread after stream creation, before the first data request callback can run.
     RenderGraph m_graph;
@@ -81,6 +95,7 @@ private:
     size_t m_device_channel_count { 0 };
     double m_playhead_step { 1 };
     double m_playhead { 0 };
+    u64 m_device_frames_delivered { 0 };
     Vector<float> m_pending_samples;
 };
 
