@@ -35,10 +35,7 @@ mod tests {
             .paintable_side_data(node)
             .overflow_valid_across_recommits
             .set(true);
-        arena
-            .paintable_rows_mut()
-            .paintable_data_mut(node)
-            .overflow_measured_this_commit = true;
+        arena.paintable_side_data(node).overflow_measured_this_commit.set(true);
         arena.paintable_rows_mut().begin_paintable_row_recommit(node);
         assert!(arena.paintable_side_data(node).overflow_valid_across_recommits.get());
 
@@ -48,7 +45,7 @@ mod tests {
         rows.clear_cached_overflow_data(node);
         assert_eq!(*geometry, previous_geometry);
         assert!(!arena.paintable_side_data(node).overflow_valid_across_recommits.get());
-        assert!(!geometry.overflow_measured_this_commit);
+        assert!(!arena.paintable_side_data(node).overflow_measured_this_commit.get());
     }
 }
 
@@ -384,10 +381,13 @@ where
             let data = self.paintable_data_mut(id);
             data.offset = used_values::FfiCssPixelPoint::default();
             data.content_size = used_values::FfiCssPixelSize::default();
-            data.overflow_measured_this_commit = false;
             data.local_padding_box_union = used_values::FfiCssPixelRect::default();
             data.local_border_box_union = used_values::FfiCssPixelRect::default();
         }
+        self.arena
+            .paintable_side_data(id)
+            .overflow_measured_this_commit
+            .set(false);
         // The paint cache is deliberately kept; the commit diff marks rows whose committed
         // fragment identity or offset actually changed.
         self.arena.paintable_side_data_mut(id).clear_committed_records();
