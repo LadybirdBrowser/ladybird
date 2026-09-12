@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/AtomicRefCounted.h>
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
 #include <AK/QuickSort.h>
@@ -59,6 +60,17 @@ struct FontCacheKey {
 
 class Typeface : public RefCounted<Typeface> {
 public:
+    struct FontDataBacking final : AtomicRefCounted<FontDataBacking> {
+        using Storage = Variant<Core::AnonymousBuffer, NonnullRefPtr<Core::Resource const>, NonnullRefPtr<Core::SharedMappedFile>>;
+
+        explicit FontDataBacking(Storage storage)
+            : storage(move(storage))
+        {
+        }
+
+        Storage storage;
+    };
+
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_resource(Core::Resource const&, u32 ttc_index = 0);
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_mapped_file(NonnullOwnPtr<Core::MappedFile>, u32 ttc_index = 0);
     static ErrorOr<NonnullRefPtr<Typeface>> try_load_from_anonymous_buffer(Core::AnonymousBuffer, u32 ttc_index = 0);
@@ -120,11 +132,9 @@ protected:
     virtual void encode_font_data_for_ipc(IPC::Encoder&) const;
     virtual hb_face_t* create_harfbuzz_face() const;
 
-    void set_anonymous_font_data(Core::AnonymousBuffer);
-    void set_resource_font_data(Core::Resource const&);
-    void set_mapped_font_data(NonnullRefPtr<Core::SharedMappedFile>);
+    void set_font_data(NonnullRefPtr<FontDataBacking> backing) { m_font_data = move(backing); }
     void copy_font_data_from(Typeface const&);
-    bool has_font_data_backing() const { return m_font_data.has_value(); }
+    bool has_font_data_backing() const { return !m_font_data.is_null(); }
 
 private:
     friend class SharedFontProvider;
@@ -135,8 +145,7 @@ private:
     template<typename T>
     friend ErrorOr<T> IPC::decode(IPC::Decoder&);
 
-    using FontDataBacking = Variant<Core::AnonymousBuffer, NonnullRefPtr<Core::Resource const>, NonnullRefPtr<Core::SharedMappedFile>>;
-    Optional<FontDataBacking> m_font_data;
+    RefPtr<FontDataBacking> m_font_data;
     Optional<SystemFontIdentifier> m_system_font_identifier;
 
     void clear_font_cache() const;

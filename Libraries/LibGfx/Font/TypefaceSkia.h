@@ -35,7 +35,7 @@ class TypefaceSkia : public Gfx::Typeface {
     AK_MAKE_NONCOPYABLE(TypefaceSkia);
 
 public:
-    static ErrorOr<NonnullRefPtr<TypefaceSkia>> load_from_buffer(ReadonlyBytes, u32 ttc_index = 0);
+    static ErrorOr<NonnullRefPtr<TypefaceSkia>> load_from_buffer(ReadonlyBytes, u32 ttc_index = 0, RefPtr<FontDataBacking> = {});
     static ErrorOr<RefPtr<TypefaceSkia>> match_system_ui(SystemUIFontKind, float point_size, u16 weight, u16 width, u8 slope);
     static ErrorOr<RefPtr<TypefaceSkia>> match_family_style(StringView family_name, u16 weight, u16 width, u8 slope);
     static ErrorOr<RefPtr<TypefaceSkia>> find_typeface_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji);

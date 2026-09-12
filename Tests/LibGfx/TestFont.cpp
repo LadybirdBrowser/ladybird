@@ -17,6 +17,7 @@
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
 #include <LibTest/TestCase.h>
+#include <core/SkStream.h>
 #include <core/SkTypeface.h>
 #include <harfbuzz/hb.h>
 
@@ -61,15 +62,23 @@ TEST_CASE(text_font_is_not_emoji_font)
     EXPECT(!font_is_emoji(TEST_INPUT("fonts/text.ttf"sv)));
 }
 
-TEST_CASE(skia_typeface_retains_font_data_after_ladybird_typeface_is_destroyed)
+static void check_skia_font_data_lifetime(Function<NonnullRefPtr<Gfx::Typeface>()> load_typeface)
 {
     sk_sp<SkTypeface const> skia_typeface;
     ByteBuffer expected_table;
+    ByteBuffer expected_font_data;
     constexpr auto cmap_tag = SkSetFourByteTag('c', 'm', 'a', 'p');
     {
-        auto file = MUST(Core::MappedFile::map(TEST_INPUT("fonts/text.ttf"sv)));
-        auto typeface = MUST(Gfx::Typeface::try_load_from_temporary_memory(file->bytes()));
+        auto typeface = load_typeface();
         skia_typeface = sk_ref_sp(static_cast<Gfx::TypefaceSkia const&>(*typeface).sk_typeface());
+        int collection_index = 0;
+        auto stream = skia_typeface->openStream(&collection_index);
+        EXPECT(stream);
+        if (stream) {
+            EXPECT_EQ(stream->getMemoryBase(), typeface->font_data().data());
+            EXPECT_EQ(stream->getLength(), typeface->font_data().size());
+        }
+        expected_font_data = MUST(ByteBuffer::copy(typeface->font_data()));
         expected_table = MUST(ByteBuffer::create_uninitialized(skia_typeface->getTableSize(cmap_tag)));
         EXPECT(!expected_table.is_empty());
         EXPECT_EQ(skia_typeface->getTableData(cmap_tag, 0, expected_table.size(), expected_table.data()), expected_table.size());
@@ -77,6 +86,30 @@ TEST_CASE(skia_typeface_retains_font_data_after_ladybird_typeface_is_destroyed)
     auto actual_table = MUST(ByteBuffer::create_uninitialized(expected_table.size()));
     EXPECT_EQ(skia_typeface->getTableData(cmap_tag, 0, actual_table.size(), actual_table.data()), actual_table.size());
     EXPECT_EQ(actual_table, expected_table);
+    int collection_index = 0;
+    auto stream = skia_typeface->openStream(&collection_index);
+    EXPECT(stream);
+    if (stream) {
+        auto actual_font_data = MUST(ByteBuffer::create_uninitialized(expected_font_data.size()));
+        EXPECT_EQ(stream->read(actual_font_data.data(), actual_font_data.size()), actual_font_data.size());
+        EXPECT_EQ(actual_font_data, expected_font_data);
+    }
+}
+
+TEST_CASE(skia_typeface_retains_font_data_after_ladybird_typeface_is_destroyed)
+{
+    check_skia_font_data_lifetime([] {
+        auto file = MUST(Core::MappedFile::map(TEST_INPUT("fonts/text.ttf"sv)));
+        return MUST(Gfx::Typeface::try_load_from_temporary_memory(file->bytes()));
+    });
+}
+
+TEST_CASE(skia_typeface_retains_mapped_font_data_after_ladybird_typeface_is_destroyed)
+{
+    check_skia_font_data_lifetime([] {
+        auto file = MUST(Core::MappedFile::map(TEST_INPUT("fonts/text.ttf"sv)));
+        return MUST(Gfx::Typeface::try_load_from_mapped_file(move(file)));
+    });
 }
 
 static NonnullRefPtr<Gfx::Font> load_text_font(float point_size)
