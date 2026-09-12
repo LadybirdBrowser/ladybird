@@ -93,7 +93,8 @@ bool RemoveNodeCommand::unapply()
 
 bool RemoveNodeCommand::is_lasting_node_removal() const
 {
-    return !m_node->parent();
+    // INTEROP: Removing an exhausted text run does not interrupt a sequence of typed backspaces in Chromium.
+    return !m_node->parent() && !is<DOM::Text>(*m_node);
 }
 
 bool RemoveNodeCommand::reapply()

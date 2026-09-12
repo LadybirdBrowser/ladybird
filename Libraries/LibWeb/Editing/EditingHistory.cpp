@@ -77,6 +77,12 @@ void UndoStep::merge(UndoStep& other)
         if (m_starting_selection.text_control) {
             m_starting_selection.text_control_start = m_ending_selection.text_control_start;
         } else {
+            // INTEROP: If backspacing exhausted the original text node, undo anchors the restored selection in the
+            //          following deletion's text run, rather than in the detached whitespace node.
+            if (m_starting_selection.anchor_node && !m_starting_selection.anchor_node->parent()) {
+                m_starting_selection.anchor_node = other.m_starting_selection.anchor_node;
+                m_starting_selection.anchor_offset = other.m_starting_selection.anchor_offset;
+            }
             m_starting_selection.focus_node = m_ending_selection.focus_node;
             m_starting_selection.focus_offset = m_ending_selection.focus_offset;
         }
@@ -315,6 +321,24 @@ void EditingHistory::selection_changed()
 {
     // Selection changes performed by the recorded command itself or by history application do
     // not end coalescence; everything else (caret movement, clicks, script) does.
+    if (auto step = m_undo_step_being_recorded; step && !m_proxy_mutation_depth
+        && (step->category() == UndoStep::Category::BackwardDeletion || step->category() == UndoStep::Category::ForwardDeletion)
+        && is_collapsed(step->starting_selection())) {
+        // INTEROP: Record the range selected by a delete command before it removes content. Reconstructing this
+        //          from the ending caret loses the image boundary when deletion also removes an inline wrapper.
+        auto selected_content = capture_selection(step->editing_host());
+        if (!is_collapsed(selected_content)) {
+            if (step->category() == UndoStep::Category::BackwardDeletion && selected_content.anchor_node && selected_content.focus_node
+                && DOM::position_of_boundary_point_relative_to_other_boundary_point(
+                       { *selected_content.anchor_node, static_cast<WebIDL::UnsignedLong>(selected_content.anchor_offset) },
+                       { *selected_content.focus_node, static_cast<WebIDL::UnsignedLong>(selected_content.focus_offset) })
+                    == DOM::RelativeBoundaryPointPosition::Before) {
+                swap(selected_content.anchor_node, selected_content.focus_node);
+                swap(selected_content.anchor_offset, selected_content.focus_offset);
+            }
+            step->set_starting_selection(selected_content);
+        }
+    }
     if (m_undo_step_being_recorded || m_applying_history_step)
         return;
     m_open_step = nullptr;

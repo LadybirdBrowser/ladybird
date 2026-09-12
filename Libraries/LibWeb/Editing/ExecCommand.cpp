@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/AnyOf.h>
 #include <AK/ScopeGuard.h>
 #include <AK/TemporaryChange.h>
 #include <LibWeb/DOM/Document.h>
@@ -14,6 +15,8 @@
 #include <LibWeb/Editing/Commands.h>
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
+#include <LibWeb/Editing/VisiblePosition.h>
+#include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLLIElement.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HighResolutionTime/TimeOrigin.h>
@@ -128,6 +131,29 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
     if (paste_started_in_text_node)
         paste_start_block = Editing::block_node_of_node(*range_before_command->start_container());
 
+    // INTEROP: Deleting out of the first or last ordinary paragraph is a no-op, including when the DOM caret
+    //          lies in collapsed whitespace. Do this before canonicalization so neither the DOM nor the selection
+    //          changes. List items and indentation containers still need their structural deletion behavior.
+    if (affected_editing_host && range_before_command && range_before_command->collapsed()
+        && command_definition.command.is_one_of(Editing::CommandNames::delete_, Editing::CommandNames::forwardDelete)) {
+        auto position = Editing::VisiblePosition::create(*this, range_before_command->start());
+        auto block = Editing::block_node_of_node(*range_before_command->start_container());
+        if (block && block->parent() == affected_editing_host.ptr() && Editing::is_non_list_single_line_container(*block)) {
+            auto* previous = block->previous_sibling();
+            while (previous && (Editing::is_invisible_node(*previous) || Editing::is_whitespace_node(*previous)))
+                previous = previous->previous_sibling();
+            auto* next = block->next_sibling();
+            while (next && (Editing::is_invisible_node(*next) || Editing::is_whitespace_node(*next)))
+                next = next->next_sibling();
+            if (command_definition.command == Editing::CommandNames::delete_ && !previous
+                && position.is_start_of_containing_block())
+                return true;
+            if (command_definition.command == Editing::CommandNames::forwardDelete && !next
+                && position.is_end_of_containing_block())
+                return true;
+        }
+    }
+
     // NOTE: Step 7 below asks us whether the DOM tree was modified, so keep track of the document versions.
     auto old_dom_tree_version = dom_tree_version();
     auto old_character_data_version = character_data_version();
@@ -190,8 +216,18 @@ WebIDL::ExceptionOr<bool> Document::exec_command_internal(Utf16FlyString const& 
     // https://w3c.github.io/editing/docs/execCommand/#preserves-overrides
     // After taking the action, if the active range is collapsed, it must restore states and values from the recorded
     // list.
-    if (!overrides.is_empty() && m_selection && m_selection->is_collapsed())
+    if (!overrides.is_empty() && m_selection && m_selection->is_collapsed()) {
+        auto* focus = m_selection->focus_node().ptr();
+        // INTEROP: A deleted link's inherited style must not recreate the link on the next keystroke.
+        if (any_of(overrides, [](auto const& override) { return override.command == Editing::CommandNames::createLink; })
+            && command_definition.command.is_one_of(Editing::CommandNames::delete_, Editing::CommandNames::forwardDelete)
+            && focus && !is<HTML::HTMLAnchorElement>(*focus) && !focus->first_ancestor_of_type<HTML::HTMLAnchorElement>()) {
+            overrides.remove_all_matching([](auto const& override) {
+                return override.command.is_one_of(Editing::CommandNames::createLink, Editing::CommandNames::underline, Editing::CommandNames::foreColor);
+            });
+        }
         Editing::restore_states_and_values(*this, overrides);
+    }
 
     // NB: Canonicalize the caret the command produced before the ending selection is recorded, but only if the
     //     command actually performed an edit; Chromium leaves the caret alone otherwise.

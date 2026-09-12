@@ -20,6 +20,7 @@
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/Editing/Internal/Algorithms.h>
 #include <LibWeb/Editing/ReplaceSelection.h>
+#include <LibWeb/Editing/VisiblePosition.h>
 #include <LibWeb/HTML/HTMLAnchorElement.h>
 #include <LibWeb/HTML/HTMLBRElement.h>
 #include <LibWeb/HTML/HTMLHRElement.h>
@@ -221,15 +222,14 @@ bool command_delete_action(DOM::Document& document, Utf16View)
 
     // 5. If node is a Text node and offset is not zero, or if node is a block node that has a child
     //    with index offset − 1 and that child is a br or hr or img:
-    bool block_node_child_is_relevant_type = false;
-    if (is_block_node(*node)) {
-        if (auto* child_node = node->child_at_index(offset - 1)) {
-            auto& child_element = static_cast<DOM::Element&>(*child_node);
-            block_node_child_is_relevant_type = child_element.local_name().is_one_of(HTML::TagNames::br, HTML::TagNames::hr, HTML::TagNames::img);
-        }
+    bool child_is_deletable = false;
+    // INTEROP: Images can be deleted inside inline wrappers as well as blocks.
+    if (auto* child_node = node->child_at_index(offset - 1)) {
+        child_is_deletable = is<HTML::HTMLImageElement>(*child_node)
+            || (is_block_node(*node) && (is<HTML::HTMLBRElement>(*child_node) || is<HTML::HTMLHRElement>(*child_node)));
     }
 
-    if (auto const* text_node = as_if<DOM::Text>(*node); (text_node && offset != 0) || block_node_child_is_relevant_type) {
+    if (auto const* text_node = as_if<DOM::Text>(*node); (text_node && offset != 0) || child_is_deletable) {
         auto start_offset = text_node
             ? text_node->grapheme_segmenter().previous_boundary(offset).value_or(offset - 1)
             : offset - 1;
@@ -242,6 +242,10 @@ bool command_delete_action(DOM::Document& document, Utf16View)
 
         // 3. Delete the selection.
         delete_the_selection(selection);
+
+        // INTEROP: Backspacing at an inline boundary preserves the following rendered whitespace, including a
+        //          trailing space which becomes non-breaking. Insertion keeps the untouched run as authored.
+        canonicalize_whitespace(last_equivalent_point(selection.range()->start()), false);
 
         // 4. Return true.
         return true;
@@ -1010,7 +1014,8 @@ bool command_forward_delete_action(DOM::Document& document, Utf16View)
     }
 
     // 6. If node is an inline node, return true.
-    if (is_inline_node(node))
+    // INTEROP: An image in an inline wrapper is still deletable from the adjacent caret.
+    if (is_inline_node(node) && !is<HTML::HTMLImageElement>(node->child_at_index(offset)))
         return true;
 
     // 7. If node has a child with index offset and that child is a br or hr or img, but is not a collapsed block prop:
@@ -1852,8 +1857,14 @@ bool command_insert_paragraph_action(DOM::Document& document, Utf16View)
     return true;
 }
 
+enum class InsertTextContext {
+    Typing,
+    TextReplacement,
+    OtherReplacement,
+};
+
 // https://w3c.github.io/editing/docs/execCommand/#the-inserttext-command
-bool command_insert_text_action(DOM::Document& document, Utf16View value)
+static bool insert_text(DOM::Document& document, Utf16View value, InsertTextContext context)
 {
     // 1. Delete the selection, with strip wrappers false.
     auto& selection = *document.get_selection();
@@ -1871,7 +1882,7 @@ bool command_insert_text_action(DOM::Document& document, Utf16View value)
         // 1. For each code unit el in value, take the action for the insertText command, with value equal to el.
         for (size_t i = 0; i < value.length_in_code_units(); ++i) {
             auto code_unit = value.code_unit_at(i);
-            take_the_action_for_command(document, CommandNames::insertText, Utf16View { &code_unit, 1 });
+            insert_text(document, Utf16View { &code_unit, 1 }, context);
         }
 
         if (replaces_selection) {
@@ -1932,12 +1943,63 @@ bool command_insert_text_action(DOM::Document& document, Utf16View value)
     MUST(selection.collapse(node, offset));
 
     // 11. Canonicalize whitespace at (node, offset).
-    canonicalize_whitespace({ node, offset });
+    // INTEROP: Inserting a non-space character does not normalize an untouched whitespace run after the caret.
+    if (!is<DOM::Text>(*node) || value == " "sv
+        || (offset == 0 ? as<DOM::Text>(*node).data().starts_with(' ')
+                        : as<DOM::Text>(*node).data().code_unit_at(offset - 1) == u' '
+                    || as<DOM::Text>(*node).data().code_unit_at(offset - 1) == u'\u00a0'))
+        canonicalize_whitespace({ node, offset });
 
     // 12. Let (node, offset) be the active range's start.
     range = *active_range(document);
     node = range->start_container();
     offset = range->start_offset();
+
+    // INTEROP: Blink and WebKit insert outside an inline link at its visible boundaries. Replacing a suffix
+    //          selected inside a link keeps that link, while typing after backspacing its suffix does not.
+    for (auto* ancestor = node.ptr(); ancestor && ancestor->is_editable(); ancestor = ancestor->parent()) {
+        auto* anchor = as_if<HTML::HTMLAnchorElement>(*ancestor);
+        if (!anchor || !anchor->has_attribute(HTML::AttributeNames::href) || is_block_node(*anchor))
+            continue;
+        auto position = VisiblePosition::create(document, { node, offset }).deep_equivalent();
+        auto first = VisiblePosition::create(document, { *anchor, 0 }).deep_equivalent();
+        auto last = VisiblePosition::create(document, { *anchor, static_cast<WebIDL::UnsignedLong>(anchor->length()) }).deep_equivalent();
+        auto at_start = position.node == first.node && position.offset == first.offset;
+        auto at_end = position.node == last.node && position.offset == last.offset;
+        // INTEROP: Stay inside a link when moving outside would cross its trailing line break or a block.
+        auto block = block_node_of_node(node);
+        if (block && anchor->is_ancestor_of(*block))
+            break;
+        auto end = last_equivalent_point({ node, offset });
+        if (auto* next = end.node->child_at_index(end.offset); at_end && is<HTML::HTMLBRElement>(next)
+            && anchor->is_ancestor_of(*next))
+            break;
+        if ((at_start && context != InsertTextContext::TextReplacement) || (at_end && context == InsertTextContext::Typing)) {
+            node = *anchor->parent();
+            offset = anchor->index() + (at_start ? 0 : 1);
+            auto inherits_link_style = document.command_value_override(CommandNames::createLink).has_value();
+            document.clear_command_value_override(CommandNames::createLink);
+            if (inherits_link_style) {
+                document.clear_command_state_override(CommandNames::underline);
+                document.clear_command_value_override(CommandNames::foreColor);
+            }
+            overrides.remove_all_matching([&](auto const& override) {
+                return override.command == CommandNames::createLink
+                    || (inherits_link_style && override.command.is_one_of(CommandNames::underline, CommandNames::foreColor));
+            });
+            if (auto* text = as_if<DOM::Text>(node->child_at_index(offset))) {
+                node = *text;
+                offset = 0;
+            } else if (offset > 0) {
+                if (auto* text = as_if<DOM::Text>(node->child_at_index(offset - 1))) {
+                    node = *text;
+                    offset = text->length();
+                }
+            }
+            MUST(selection.collapse(node, offset));
+        }
+        break;
+    }
 
     // 13. If node is a Text node:
     if (is<DOM::Text>(*node)) {
@@ -1982,7 +2044,7 @@ bool command_insert_text_action(DOM::Document& document, Utf16View value)
     // 17. Canonicalize whitespace at the active range's end, with fix collapsed space false.
     if (replaces_selection)
         canonicalize_whitespace_after_selection_replacement(active_range(document)->end());
-    else
+    else if (value == " "sv)
         canonicalize_whitespace(active_range(document)->end(), false);
 
     // 18. If value is a space character, autolink the active range's start.
@@ -1994,6 +2056,16 @@ bool command_insert_text_action(DOM::Document& document, Utf16View value)
 
     // 20. Return true.
     return true;
+}
+
+bool command_insert_text_action(DOM::Document& document, Utf16View value)
+{
+    // INTEROP: Deleting the selection collapses it before a multi-code-unit value is inserted. Every recursive
+    //          insertion must retain the original replacement context so the value stays inside the same link.
+    auto context = InsertTextContext::Typing;
+    if (!document.get_selection()->is_collapsed())
+        context = is<DOM::Text>(*active_range(document)->start_container()) ? InsertTextContext::TextReplacement : InsertTextContext::OtherReplacement;
+    return insert_text(document, value, context);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#the-insertunorderedlist-command

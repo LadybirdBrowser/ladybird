@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ScopeGuard.h>
 #include <AK/Utf16StringBuilder.h>
 #include <LibGC/RootVector.h>
 #include <LibGfx/Color.h>
@@ -402,17 +403,15 @@ enum class PreserveLeadingSpaceAcrossNodeBoundary {
     Yes,
 };
 
-enum class AtomicContentTraversal {
-    Cross,
-    Stop,
-};
-
 // https://w3c.github.io/editing/docs/execCommand/#canonicalize-whitespace
 static void canonicalize_whitespace_impl(DOM::BoundaryPoint boundary, bool fix_collapsed_space,
-    PreserveLeadingSpaceAcrossNodeBoundary preserve_leading_space, AtomicContentTraversal atomic_content_traversal)
+    PreserveLeadingSpaceAcrossNodeBoundary preserve_leading_space)
 {
     auto node = boundary.node;
     auto offset = boundary.offset;
+
+    // INTEROP: Images separate whitespace runs, and links keep their own boundary whitespace. Editing on one side
+    //          must not strip a space on the other side, or rewrite an untouched separator outside a link.
 
     // 1. If node is neither editable nor an editing host, abort these steps.
     if (!node->is_editable_or_editing_host())
@@ -428,7 +427,7 @@ static void canonicalize_whitespace_impl(DOM::BoundaryPoint boundary, bool fix_c
         //    set start node to that child, then set start offset to start node's length.
         auto* offset_minus_one_child = start_node->child_at_index(start_offset - 1);
         if (offset_minus_one_child && is_in_same_editing_host(*start_node, *offset_minus_one_child)) {
-            if (atomic_content_traversal == AtomicContentTraversal::Stop && editing_ignores_content(*offset_minus_one_child))
+            if (editing_ignores_content(*offset_minus_one_child) || is<HTML::HTMLAnchorElement>(*offset_minus_one_child))
                 break;
             start_node = *offset_minus_one_child;
             start_offset = start_node->length();
@@ -438,6 +437,8 @@ static void canonicalize_whitespace_impl(DOM::BoundaryPoint boundary, bool fix_c
         // 2. Otherwise, if start offset is zero and start node does not follow a line break and
         //    start node's parent is in the same editing host, set start offset to start node's
         //    index, then set start node to its parent.
+        if (is<HTML::HTMLAnchorElement>(*start_node) && start_offset == 0)
+            break;
         if (start_offset == 0 && !follows_a_line_break(start_node) && is_in_same_editing_host(*start_node, *start_node->parent())) {
             start_offset = start_node->index();
             start_node = *start_node->parent();
@@ -482,7 +483,7 @@ static void canonicalize_whitespace_impl(DOM::BoundaryPoint boundary, bool fix_c
         //    to that child, then set end offset to zero.
         auto* offset_child = end_node->child_at_index(end_offset);
         if (offset_child && is_in_same_editing_host(*end_node, *offset_child)) {
-            if (atomic_content_traversal == AtomicContentTraversal::Stop && editing_ignores_content(*offset_child))
+            if (editing_ignores_content(*offset_child) || is<HTML::HTMLAnchorElement>(*offset_child))
                 break;
             end_node = *offset_child;
             end_offset = 0;
@@ -492,6 +493,8 @@ static void canonicalize_whitespace_impl(DOM::BoundaryPoint boundary, bool fix_c
         // 2. Otherwise, if end offset is end node's length and end node does not precede a line
         //    break and end node's parent is in the same editing host, set end offset to one plus
         //    end node's index, then set end node to its parent.
+        if (is<HTML::HTMLAnchorElement>(*end_node) && end_offset == end_node->length())
+            break;
         if (end_offset == end_node->length() && !precedes_a_line_break(end_node) && is_in_same_editing_host(*end_node, *end_node->parent())) {
             end_offset = end_node->index() + 1;
             end_node = *end_node->parent();
@@ -598,7 +601,13 @@ static void canonicalize_whitespace_impl(DOM::BoundaryPoint boundary, bool fix_c
     // INTEROP: After deleting a selection, Chromium preserves a whitespace run that crosses an inline node boundary.
     // This matters when replacing content across wrappers or atomic inline content, where an ordinary leading space
     // would otherwise collapse against the preceding run. Ordinary insertion across the same boundary keeps the space.
-    auto non_breaking_start = (start_offset == 0 && follows_a_line_break(start_node))
+    // INTEROP: A non-breaking space already separating a link from following text remains non-breaking when typing.
+    auto* preceding_child = start_offset > 0 ? start_node->child_at_index(start_offset - 1) : nullptr;
+    auto* following_text = as_if<DOM::Text>(start_node->child_at_index(start_offset));
+    auto preserves_link_separator = is<HTML::HTMLAnchorElement>(preceding_child)
+        && following_text && following_text->data().starts_with(u'\u00a0');
+    auto follows_atomic_content = !fix_collapsed_space && preceding_child && editing_ignores_content(*preceding_child);
+    auto non_breaking_start = (start_offset == 0 && follows_a_line_break(start_node)) || preserves_link_separator || follows_atomic_content
         || (preserve_leading_space == PreserveLeadingSpaceAcrossNodeBoundary::Yes && start_node != end_node);
     auto replacement_whitespace = canonical_space_sequence(
         length,
@@ -654,14 +663,14 @@ static void canonicalize_whitespace_impl(DOM::BoundaryPoint boundary, bool fix_c
 
 void canonicalize_whitespace(DOM::BoundaryPoint boundary, bool fix_collapsed_space)
 {
-    canonicalize_whitespace_impl(boundary, fix_collapsed_space, PreserveLeadingSpaceAcrossNodeBoundary::No, AtomicContentTraversal::Cross);
+    canonicalize_whitespace_impl(boundary, fix_collapsed_space, PreserveLeadingSpaceAcrossNodeBoundary::No);
 }
 
 void canonicalize_whitespace_after_selection_replacement(DOM::BoundaryPoint boundary)
 {
     // INTEROP: Chromium preserves a leading collapsible space when replacing a selection exposes it across an
     //          inline node boundary. The execCommand draft does not distinguish this case from ordinary insertion.
-    canonicalize_whitespace_impl(boundary, false, PreserveLeadingSpaceAcrossNodeBoundary::Yes, AtomicContentTraversal::Cross);
+    canonicalize_whitespace_impl(boundary, false, PreserveLeadingSpaceAcrossNodeBoundary::Yes);
 }
 
 void canonicalize_whitespace_after_node_insertion(DOM::BoundaryPoint boundary)
@@ -670,7 +679,7 @@ void canonicalize_whitespace_after_node_insertion(DOM::BoundaryPoint boundary)
     //          that space with the same non-breaking-space canonicalization used after replacing a selection.
     // Clipboard serialization has already protected whitespace adjacent to atomic content. Normalize the insertion
     // seam up to that content, but do not rewrite a separate whitespace seam on its other side.
-    canonicalize_whitespace_impl(boundary, false, PreserveLeadingSpaceAcrossNodeBoundary::Yes, AtomicContentTraversal::Stop);
+    canonicalize_whitespace_impl(boundary, false, PreserveLeadingSpaceAcrossNodeBoundary::Yes);
 }
 
 // https://w3c.github.io/editing/docs/execCommand/#clear-the-value
@@ -796,6 +805,46 @@ void delete_the_selection(Selection& selection, bool block_merging, bool strip_w
     // NOTE: The selection is collapsed often in this algorithm, so we shouldn't store the active range in a variable.
     if (!active_range(document))
         return;
+
+    // INTEROP: A collapsed selection has no content to delete. In particular, insertion must not first strip
+    //          collapsed whitespace from adjacent content that is outside the insertion point.
+    if (selection.is_collapsed())
+        return;
+
+    // INTEROP: Selecting all of an editor's content retains its first paragraph as the insertion container.
+    auto initial_range = active_range(document);
+    if (initial_range->start_container()->is_editing_host() && initial_range->start_offset() == 0) {
+        auto* first = initial_range->start_container()->first_child();
+        if (first && is_non_list_single_line_container(*first))
+            MUST(initial_range->set_start(*first, 0));
+    }
+
+    GC::RootVector<GC::Ref<HTML::HTMLAnchorElement>> links;
+    for (auto endpoint : { initial_range->start_container(), initial_range->end_container() }) {
+        for (auto* ancestor = endpoint.ptr(); ancestor && ancestor->is_editable(); ancestor = ancestor->parent()) {
+            if (auto* anchor = as_if<HTML::HTMLAnchorElement>(*ancestor); anchor && !links.contains_slow(GC::Ref { *anchor }))
+                links.append(*anchor);
+        }
+    }
+    initial_range->for_each_contained([&](GC::Ref<DOM::Node> node) {
+        if (auto* anchor = as_if<HTML::HTMLAnchorElement>(*node); anchor && anchor->is_editable() && !links.contains_slow(GC::Ref { *anchor }))
+            links.append(*anchor);
+        return IterationDecision::Continue;
+    });
+    // INTEROP: Deleting the last linked content removes the empty anchor and its inherited link style. Keep
+    //          detached subtrees intact so undo can restore the original nodes.
+    ScopeGuard prune_empty_links = [&] {
+        for (auto link : links) {
+            if (link->is_connected()) {
+                if (has_visible_children(*link))
+                    continue;
+                remove_node(*link);
+            }
+            document.clear_command_value_override(CommandNames::createLink);
+            document.clear_command_state_override(CommandNames::underline);
+            document.clear_command_value_override(CommandNames::foreColor);
+        }
+    };
 
     // 2. Canonicalize whitespace at the active range's start.
     canonicalize_whitespace(active_range(document)->start());

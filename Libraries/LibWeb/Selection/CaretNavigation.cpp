@@ -641,6 +641,16 @@ Optional<CaretLocation> CaretNavigator::move(CaretLocation const& location, Sele
         if (!adjacent.has_value())
             return {};
         auto* adjacent_text = as_if<DOM::Text>(*adjacent->node);
+        // INTEROP: The parent boundary after an image is already the start of its following text. Advancing into
+        //          that text must cross a character instead of stopping again at the same rendered position.
+        if (!text && adjacent_text && direction == SelectionDirection::Forward && location.offset > 0
+            && location.node->child_at_index(location.offset) == adjacent_text) {
+            auto* previous = location.node->child_at_index(location.offset - 1);
+            if (previous && is_atomic_inline_caret_host(*previous)) {
+                if (auto position = compute_cursor_position_on_next_character(*adjacent_text, adjacent->offset, adjacent->affinity); position.has_value())
+                    return CaretLocation { *adjacent_text, position->offset, position->affinity };
+            }
+        }
         if (text && adjacent_text) {
             auto shares_line = direction == SelectionDirection::Forward
                 ? boundary_visual_lines_share_line(*text, *adjacent_text)

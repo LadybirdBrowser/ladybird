@@ -1,1 +1,1 @@
-PASS: 25 SCEditor rich-editing assertions match Chromium
+PASS: 831 SCEditor rich-editing assertions match Chromium
