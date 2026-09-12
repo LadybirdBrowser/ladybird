@@ -12,7 +12,7 @@ use crate::layout::node_data::{NodeFlag, NodeKind, NodeSlotId};
 use crate::layout::node_facts;
 use crate::painting::host::FfiScrollableOverflowHostCallbacks;
 use crate::painting::paintable_data::FfiOverflowData;
-use crate::painting::paintable_rows::{PaintableRowsMut, PaintableRowsRead};
+use crate::painting::paintable_rows::PaintableRowsRead;
 use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
 use crate::painting::visual_context::node_values;
 use crate::painting::{paintable_geometry, style_queries, text_fragment};
@@ -288,19 +288,19 @@ pub(crate) struct OverflowAssignment {
 }
 
 impl OverflowAssignment {
-    pub(crate) fn apply(self, layout_arena: &mut PaintableRowsMut<'_>) {
+    pub(crate) fn apply(self, layout_arena: &impl PaintableRowsRead) {
         let (scroll_metadata_changed, scrollability_flipped) = {
-            let data = layout_arena.paintable_data_mut(self.box_paintable);
+            let data = layout_arena.paintable_side_data(self.box_paintable);
             let scroll_metadata_changed = self
                 .overflow_relative_to_padding_box
-                .is_some_and(|overflow| overflow != data.overflow_relative_to_padding_box);
+                .is_some_and(|overflow| overflow != data.overflow_relative_to_padding_box.get());
             let scrollability_flipped = self.overflow_relative_to_padding_box.is_some_and(|overflow| {
-                overflow.has_scrollable_overflow != data.overflow_relative_to_padding_box.has_scrollable_overflow
+                overflow.has_scrollable_overflow != data.overflow_relative_to_padding_box.get().has_scrollable_overflow
             });
             if let Some(overflow) = self.overflow_relative_to_padding_box {
-                data.overflow_relative_to_padding_box = overflow;
+                data.overflow_relative_to_padding_box.set(overflow);
             }
-            data.overflow_measured_this_commit = true;
+            data.overflow_measured_this_commit.set(true);
             (scroll_metadata_changed, scrollability_flipped)
         };
         if self.overflow_relative_to_padding_box.is_some() {
@@ -310,10 +310,14 @@ impl OverflowAssignment {
                 .set(true);
         }
         if scroll_metadata_changed {
-            layout_arena.mark_paint_cache_self_dirty(self.box_paintable);
+            layout_arena
+                .paintable_rows()
+                .mark_paint_cache_self_dirty(self.box_paintable);
         }
         if scrollability_flipped {
-            layout_arena.mark_descendant_subtree_caches_dirty_in_paint_subtree(self.box_paintable);
+            layout_arena
+                .paintable_rows()
+                .mark_descendant_subtree_caches_dirty_in_paint_subtree(self.box_paintable);
             layout_arena.note_visual_context_box_dirty(
                 self.box_paintable,
                 VisualContextBoxDirtyKind::ScrollableOverflowFlipped,
@@ -368,16 +372,16 @@ fn measure_scrollable_overflow_impl(
     assignments: &mut Vec<OverflowAssignment>,
 ) -> CssPixelRect {
     let still_valid_overflow = {
-        let data = layout_arena.paintable_data(box_paintable);
-        if data.overflow_measured_this_commit {
-            return CssPixelRect::from(data.overflow_relative_to_padding_box.rect)
+        let data = layout_arena.paintable_side_data(box_paintable);
+        if data.overflow_measured_this_commit.get() {
+            return CssPixelRect::from(data.overflow_relative_to_padding_box.get().rect)
                 .translated_by(paintable_geometry::absolute_padding_box_rect(layout_arena, box_paintable).location());
         }
         layout_arena
             .paintable_side_data(box_paintable)
             .overflow_valid_across_recommits
             .get()
-            .then_some(data.overflow_relative_to_padding_box)
+            .then_some(data.overflow_relative_to_padding_box.get())
     };
 
     let box_node = box_paintable;
@@ -503,7 +507,7 @@ fn measure_scrollable_overflow_impl(
         let child_display = child_style.map_or_else(FfiDisplay::block, |style| style.display());
 
         {
-            let child_data = layout_arena.paintable_data(child_node);
+            let child_data = layout_arena.paintable_side_data(child_node);
             if child_position == positioning::STATIC
                 && child_display.is_inline_outside()
                 && !child_is_floating
@@ -526,7 +530,7 @@ fn measure_scrollable_overflow_impl(
                     // The committed line fragment already contributes this content box. A box with no border whose
                     // cached overflow fits inside the content box cannot expand its containing block's overflow.
                     if content_box_relative_to_padding_box
-                        .contains_rect(child_data.overflow_relative_to_padding_box.rect.into())
+                        .contains_rect(child_data.overflow_relative_to_padding_box.get().rect.into())
                     {
                         continue;
                     }

@@ -475,12 +475,12 @@ static Layout::RustFFI::FfiScrollableOverflowHostCallbacks scrollable_overflow_h
     };
 }
 
-void rust_measure_scrollable_overflow(Layout::Node const& box)
+Layout::RustFFI::FfiOptionalOverflowData rust_scrollable_overflow(Layout::Node const& box)
 {
     auto& document = const_cast<DOM::Document&>(box.document());
     if (!document.has_committed_viewport_box())
-        return;
-    Layout::RustFFI::layout_arena_measure_scrollable_overflow(box.arena_handle(), committed_row_slot(box), scrollable_overflow_host_callbacks());
+        return {};
+    return Layout::RustFFI::layout_arena_paintable_scrollable_overflow(box.arena_handle(), committed_row_slot(box), scrollable_overflow_host_callbacks());
 }
 
 Layout::RustFFI::FfiScrollableOverflowUpdateOutcome rust_update_scrollable_overflow(DOM::Document& document, bool handled_by_full_layout_commit)

@@ -322,7 +322,7 @@ pub(crate) fn absolute_border_box_rect(arena: &impl PaintableRowsRead, slot: Nod
 }
 
 pub(crate) fn overflow_is_valid(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> bool {
-    arena.paintable_data(slot).overflow_measured_this_commit
+    arena.paintable_side_data(slot).overflow_measured_this_commit.get()
         || arena.paintable_side_data(slot).overflow_valid_across_recommits.get()
 }
 
@@ -331,15 +331,22 @@ pub(crate) fn scrollable_overflow_rect(arena: &impl PaintableRowsRead, slot: Nod
         return None;
     }
     Some(
-        CssPixelRect::from(arena.paintable_data(slot).overflow_relative_to_padding_box.rect)
-            .translated_by(absolute_padding_box_rect(arena, slot).location()),
+        CssPixelRect::from(
+            arena
+                .paintable_side_data(slot)
+                .overflow_relative_to_padding_box
+                .get()
+                .rect,
+        )
+        .translated_by(absolute_padding_box_rect(arena, slot).location()),
     )
 }
 
 pub(crate) fn has_scrollable_overflow(arena: &impl PaintableRowsRead, slot: NodeSlotId) -> bool {
     overflow_is_valid(arena, slot)
         && arena
-            .paintable_data(slot)
+            .paintable_side_data(slot)
             .overflow_relative_to_padding_box
+            .get()
             .has_scrollable_overflow
 }
