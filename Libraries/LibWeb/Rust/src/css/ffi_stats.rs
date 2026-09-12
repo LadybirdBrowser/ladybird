@@ -13,11 +13,14 @@
 //! before/after counts on deterministic workloads. Reading and resetting is
 //! exposed to C++ for the `internals.styleFfiCounters()` test surface.
 //!
-//! The counters are always compiled in but disabled until first read. The
-//! disabled hot path is one relaxed atomic load per crossing.
+//! The counters are always compiled in but disabled until reset. Each thread owns
+//! a bridge counter context, including operations outside a document update.
+//! Observation folds those contexts into process-wide totals; the disabled hot
+//! path remains one relaxed atomic load per crossing.
 
-use std::cell::RefCell;
+use std::cell::{OnceCell, RefCell};
 use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
+use std::sync::{Arc, Mutex, OnceLock};
 
 macro_rules! define_ffi_ops {
     ($($variant:ident => $name:literal,)+) => {
@@ -74,7 +77,89 @@ define_ffi_ops! {
     MediaEnvironmentCallback => "mediaEnvironmentCallbacks",
 }
 
-static COUNTERS: [AtomicU64; FFI_OP_COUNT] = [const { AtomicU64::new(0) }; FFI_OP_COUNT];
+/// Counts owned by one bridge context. Atomics permit observation from another thread;
+/// updates never touch another context's counter cache lines.
+struct FfiCounters {
+    values: [AtomicU64; FFI_OP_COUNT],
+}
+
+impl FfiCounters {
+    fn new() -> Self {
+        Self {
+            values: [const { AtomicU64::new(0) }; FFI_OP_COUNT],
+        }
+    }
+
+    #[inline]
+    fn bump(&self, op: FfiOp) {
+        self.values[op as usize].fetch_add(1, Ordering::Relaxed);
+    }
+}
+
+/// Process-wide observation folds live contexts and the totals of contexts that have exited.
+/// The registry is locked only at observation, reset and context creation/destruction.
+struct CounterRegistry {
+    completed: [u64; FFI_OP_COUNT],
+    live: Vec<Arc<FfiCounters>>,
+}
+
+impl CounterRegistry {
+    const fn new() -> Self {
+        Self {
+            completed: [0; FFI_OP_COUNT],
+            live: Vec::new(),
+        }
+    }
+
+    fn value(&self, index: usize) -> u64 {
+        self.live.iter().fold(self.completed[index], |total, counters| {
+            total.wrapping_add(counters.values[index].load(Ordering::Relaxed))
+        })
+    }
+
+    fn reset(&mut self) {
+        self.completed.fill(0);
+        for counters in &self.live {
+            for value in &counters.values {
+                value.store(0, Ordering::Relaxed);
+            }
+        }
+    }
+}
+
+struct BridgeCounterContext {
+    counters: Arc<FfiCounters>,
+    registry: Arc<Mutex<CounterRegistry>>,
+}
+
+impl BridgeCounterContext {
+    fn new(registry: Arc<Mutex<CounterRegistry>>) -> Self {
+        let counters = Arc::new(FfiCounters::new());
+        registry.lock().unwrap().live.push(counters.clone());
+        Self { counters, registry }
+    }
+}
+
+impl Drop for BridgeCounterContext {
+    fn drop(&mut self) {
+        let mut registry = self.registry.lock().unwrap();
+        for (total, value) in registry.completed.iter_mut().zip(&self.counters.values) {
+            *total = total.wrapping_add(value.load(Ordering::Relaxed));
+        }
+        registry.live.retain(|counters| !Arc::ptr_eq(counters, &self.counters));
+    }
+}
+
+fn counter_registry() -> &'static Arc<Mutex<CounterRegistry>> {
+    static REGISTRY: OnceLock<Arc<Mutex<CounterRegistry>>> = OnceLock::new();
+    REGISTRY.get_or_init(|| Arc::new(Mutex::new(CounterRegistry::new())))
+}
+
+thread_local! {
+    // Includes parsing and value lifetime operations outside a document's style update.
+    static COUNTER_CONTEXT: OnceCell<BridgeCounterContext> = const { OnceCell::new() };
+}
+
 static COUNTERS_ENABLED: AtomicBool = AtomicBool::new(false);
 #[cfg(test)]
 thread_local! {
@@ -126,7 +211,16 @@ unsafe extern "C" {
 #[inline]
 pub(crate) fn bump(op: FfiOp) {
     if COUNTERS_ENABLED.load(Ordering::Relaxed) {
-        COUNTERS[op as usize].fetch_add(1, Ordering::Relaxed);
+        let counted = COUNTER_CONTEXT.try_with(|context| {
+            context
+                .get_or_init(|| BridgeCounterContext::new(counter_registry().clone()))
+                .counters
+                .bump(op);
+        });
+        // Another thread-local owner's destructor may count after this context exited.
+        if counted.is_err() {
+            BridgeCounterContext::new(counter_registry().clone()).counters.bump(op);
+        }
     }
 }
 
@@ -221,15 +315,13 @@ pub extern "C" fn rust_style_ffi_counter_name(index: usize) -> *const u8 {
 /// Returns the current value of the counter at `index`.
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_ffi_counter_value(index: usize) -> u64 {
-    COUNTERS[index].load(Ordering::Relaxed)
+    counter_registry().lock().unwrap().value(index)
 }
 
 /// Resets every counter to zero.
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_ffi_counters_reset() {
-    for counter in &COUNTERS {
-        counter.store(0, Ordering::Relaxed);
-    }
+    counter_registry().lock().unwrap().reset();
     COUNTERS_ENABLED.store(true, Ordering::Relaxed);
 }
 
@@ -248,4 +340,61 @@ pub extern "C" fn rust_style_ffi_note_animation_evaluation() {
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_ffi_note_transition_decision() {
     bump(FfiOp::TransitionDecisionEntry);
+}
+
+#[cfg(test)]
+mod counter_context_tests {
+    use super::*;
+
+    #[test]
+    fn observation_includes_live_and_completed_bridge_contexts() {
+        let registry = Arc::new(Mutex::new(CounterRegistry::new()));
+        let context = BridgeCounterContext::new(registry.clone());
+        context.counters.bump(FfiOp::LonghandTableSlotHash);
+        let (ready, ready_rx) = std::sync::mpsc::channel();
+        let (finish, finish_rx) = std::sync::mpsc::channel();
+        let other_registry = registry.clone();
+        let other = std::thread::spawn(move || {
+            let context = BridgeCounterContext::new(other_registry);
+            context.counters.bump(FfiOp::LonghandTableSlotHash);
+            context.counters.bump(FfiOp::StyleValueDestroyEntry);
+            ready.send(()).unwrap();
+            finish_rx.recv().unwrap();
+        });
+        ready_rx.recv().unwrap();
+        assert_eq!(registry.lock().unwrap().value(FfiOp::LonghandTableSlotHash as usize), 2);
+        assert_eq!(
+            registry.lock().unwrap().value(FfiOp::StyleValueDestroyEntry as usize),
+            1
+        );
+        finish.send(()).unwrap();
+        other.join().unwrap();
+        assert_eq!(registry.lock().unwrap().value(FfiOp::LonghandTableSlotHash as usize), 2);
+        assert_eq!(
+            registry.lock().unwrap().value(FfiOp::StyleValueDestroyEntry as usize),
+            1
+        );
+        drop(context);
+        assert_eq!(registry.lock().unwrap().value(FfiOp::LonghandTableSlotHash as usize), 2);
+    }
+
+    #[test]
+    fn reset_clears_completed_counts_and_contexts_continue_counting() {
+        let registry = Arc::new(Mutex::new(CounterRegistry::new()));
+        let context = BridgeCounterContext::new(registry.clone());
+        context.counters.bump(FfiOp::LonghandTableSlotHash);
+        let completed = BridgeCounterContext::new(registry.clone());
+        completed.counters.bump(FfiOp::LonghandTableSlotHash);
+        drop(completed);
+        assert_eq!(registry.lock().unwrap().value(FfiOp::LonghandTableSlotHash as usize), 2);
+        registry.lock().unwrap().reset();
+        assert_eq!(registry.lock().unwrap().value(FfiOp::LonghandTableSlotHash as usize), 0);
+        context.counters.bump(FfiOp::LonghandTableSlotHash);
+        let later = BridgeCounterContext::new(registry.clone());
+        later.counters.bump(FfiOp::LonghandTableSlotHash);
+        drop(later);
+        assert_eq!(registry.lock().unwrap().value(FfiOp::LonghandTableSlotHash as usize), 2);
+        drop(context);
+        assert_eq!(registry.lock().unwrap().value(FfiOp::LonghandTableSlotHash as usize), 2);
+    }
 }
