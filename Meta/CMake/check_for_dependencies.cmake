@@ -100,6 +100,7 @@ if (WIN32)
     find_package(mman REQUIRED)
 endif()
 
+find_package(Git REQUIRED)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
 find_package(unofficial-skia CONFIG)

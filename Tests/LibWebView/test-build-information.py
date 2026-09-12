@@ -13,7 +13,7 @@ import unittest
 
 from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "Meta"))
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "Meta" / "Generators"))
 build_information = importlib.import_module("generate-build-information")
 
 

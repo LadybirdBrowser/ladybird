@@ -51,6 +51,7 @@ include(cmake_options)
 include(compile_options)
 include(check_for_dependencies)
 include(ladybird_helper_processes)
+include(revision)
 
 if(ENABLE_ALL_THE_DEBUG_MACROS)
     include(all_the_debug_macros)
