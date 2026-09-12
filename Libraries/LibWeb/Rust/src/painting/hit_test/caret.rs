@@ -623,10 +623,9 @@ impl HitTestList {
         let mut closest_inline_distance = CssPixels::from_raw(i32::MAX);
         for line_index in 0..self.caret_lines.len() {
             let line = &self.caret_lines[line_index];
-            if line_index == current_line_index
-                || line.context != current_line.context
-                || !self.line_in_scope(arena, callbacks, line_index)
-            {
+            // INTEROP: Keyboard navigation follows layout geometry across clips, effects, and transforms.
+            //          Separate paint contexts inside one editing host must not isolate its editable lines.
+            if line_index == current_line_index || !self.line_in_scope(arena, callbacks, line_index) {
                 continue;
             }
             let candidate_block_coordinate = line_block_middle(line.rect, writing_mode);
