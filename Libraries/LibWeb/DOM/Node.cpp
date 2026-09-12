@@ -1380,8 +1380,21 @@ public:
     {
         if (!was_connected)
             return;
-        pin_layout_style_records(node);
-        pin_dom_style_records_for_removing_steps(node);
+        node.for_each_shadow_including_inclusive_descendant([&](Node& inclusive_descendant) {
+            if (auto* layout_node = inclusive_descendant.unsafe_layout_node())
+                layout_node->pin_style_record_for_detachment();
+
+            if (auto* element = as_if<Element>(inclusive_descendant)) {
+                pin_dom_style_record(element->style_record_identity());
+                element->for_each_synthetic_pseudo_element([&](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
+                    if (auto* layout_node = pseudo_element.unsafe_layout_node())
+                        layout_node->pin_style_record_for_detachment();
+                    pin_dom_style_record(pseudo_element.style_record_identity());
+                });
+            }
+
+            return TraversalDecision::Continue;
+        });
     }
 
     void pin_style_records_after_removal(Node& node, bool was_connected)
@@ -1390,11 +1403,6 @@ public:
             return;
         // Detached subtrees do not need DOM-held record pins, but layout nodes can still outlive removing steps and
         // keep their detachment pins.
-        pin_layout_style_records(node);
-    }
-
-    void pin_layout_style_records(Node& node)
-    {
         node.for_each_shadow_including_inclusive_descendant([](Node& inclusive_descendant) {
             if (auto* layout_node = inclusive_descendant.unsafe_layout_node())
                 layout_node->pin_style_record_for_detachment();
@@ -1403,20 +1411,6 @@ public:
                 element->for_each_synthetic_pseudo_element([](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
                     if (auto* layout_node = pseudo_element.unsafe_layout_node())
                         layout_node->pin_style_record_for_detachment();
-                });
-            }
-
-            return TraversalDecision::Continue;
-        });
-    }
-
-    void pin_dom_style_records_for_removing_steps(Node& node)
-    {
-        node.for_each_shadow_including_inclusive_descendant([&](Node& inclusive_descendant) {
-            if (auto* element = as_if<Element>(inclusive_descendant)) {
-                pin_dom_style_record(element->style_record_identity());
-                element->for_each_synthetic_pseudo_element([&](CSS::PseudoElement, SyntheticPseudoElement& pseudo_element) {
-                    pin_dom_style_record(pseudo_element.style_record_identity());
                 });
             }
 

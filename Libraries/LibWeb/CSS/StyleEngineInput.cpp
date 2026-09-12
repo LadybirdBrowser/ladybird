@@ -1165,19 +1165,20 @@ void record_shadow_root_disconnecting(DOM::ShadowRoot& shadow_root)
 void record_subtree_disconnecting(DOM::Node& root)
 {
     auto root_tree_scope = tree_scope_of(root.root());
-    auto disconnect_element = [](DOM::Node& node, TreeScopeID tree_scope) {
-        if (auto* element = as_if<DOM::Element>(node))
+    Vector<GC::Ref<DOM::ShadowRoot>> shadow_roots;
+    auto disconnect_element = [&](DOM::Node& node, TreeScopeID tree_scope) {
+        if (auto* element = as_if<DOM::Element>(node)) {
             record_element_disconnecting(*element, tree_scope);
+        } else if (auto* shadow_root = as_if<DOM::ShadowRoot>(node)) {
+            shadow_roots.append(*shadow_root);
+        }
     };
     for_each_shadow_including_inclusive_descendant_with_scope(root, root_tree_scope, disconnect_element);
 
     // Only once no element still names a shadow root as its parent can the root give up its own
     // identity.
-    auto disconnect_shadow_root = [](DOM::Node& node, TreeScopeID) {
-        if (auto* shadow_root = as_if<DOM::ShadowRoot>(node))
-            record_shadow_root_disconnecting(*shadow_root);
-    };
-    for_each_shadow_including_inclusive_descendant_with_scope(root, root_tree_scope, disconnect_shadow_root);
+    for (auto const& shadow_root : shadow_roots)
+        record_shadow_root_disconnecting(shadow_root);
 }
 
 void record_shadow_root_connected(DOM::ShadowRoot& shadow_root)
