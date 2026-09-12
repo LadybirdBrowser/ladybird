@@ -1,0 +1,4 @@
+shadow child of a host inserted under a blocking listener: true
+descendant of a subtree before it moves: false
+descendant of a subtree moved under a blocking listener: true
+descendant of a subtree moved out from under a blocking listener: false
