@@ -70,6 +70,7 @@ define_counters! {
     TransactionMicroseconds => "transactionMicroseconds",
     CommitMicroseconds => "commitMicroseconds",
     RoutingPlanningMicroseconds => "routingPlanningMicroseconds",
+    PrepareMicroseconds => "prepareMicroseconds",
     MatchingCascadeMicroseconds => "matchingCascadeMicroseconds",
     ComputationPublicationMicroseconds => "computationPublicationMicroseconds",
     EmitMicroseconds => "emitMicroseconds",

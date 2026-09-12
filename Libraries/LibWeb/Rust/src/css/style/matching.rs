@@ -643,7 +643,7 @@ impl StyleEngineState {
         &mut self,
         reuse_retained_match_answers: bool,
     ) -> Option<Rc<RuleDispatch>> {
-        reuse_retained_match_answers.then(|| self.ranked_scope_program(TreeScopeID::DOCUMENT).1)
+        reuse_retained_match_answers.then(|| self.prepare_scope_program(TreeScopeID::DOCUMENT).1)
     }
 
     /// Share current facts and selector work while a scoped plan completes typed answer misses.
@@ -674,7 +674,13 @@ impl StyleEngineState {
                     .or_else(|| self.materialize_cold_matching_batch(root, None, counters))
             })
             .flatten();
-        let relation_dispatch = batch.as_ref().map(|_| self.ranked_scope_program(TreeScopeID::DOCUMENT));
+        let ancestor_requirements = batch
+            .as_ref()
+            .map(|facts| self.prepare_matching_batch(facts))
+            .unwrap_or_default();
+        let relation_dispatch = batch
+            .as_ref()
+            .map(|_| self.prepare_scope_program(TreeScopeID::DOCUMENT));
         materialize_timer.stop(Counter::CompletionBatchMaterializeMicroseconds, counters);
         let relation_timer = flush::PassTimer::start();
         // The walk that just converged left the retained states describing THIS transaction,
@@ -724,7 +730,7 @@ impl StyleEngineState {
             topology: None,
             reuse_retained_match_answers: false,
             retained_answer_dispatch: None,
-            ancestor_requirements: AncestorRequirementsCache::default(),
+            ancestor_requirements,
             prefix_caches: Rc::clone(&self.prefix_caches),
             match_workspace: MatchEvaluationWorkspace::default(),
             match_workspace_bytes: 0,
@@ -793,6 +799,7 @@ impl StyleEngineState {
         reuse_retained_match_answers: bool,
         match_workspace: MatchEvaluationWorkspace,
     ) -> Box<BatchMatchingTraversal> {
+        let ancestor_requirements = self.prepare_matching_batch(&batch);
         let match_workspace_bytes = match_workspace.capacity_bytes();
         {
             let mut caches = self.prefix_caches.borrow_mut();
@@ -806,7 +813,7 @@ impl StyleEngineState {
             topology,
             reuse_retained_match_answers,
             retained_answer_dispatch,
-            ancestor_requirements: AncestorRequirementsCache::default(),
+            ancestor_requirements,
             prefix_caches: Rc::clone(&self.prefix_caches),
             match_workspace,
             match_workspace_bytes,
@@ -920,7 +927,7 @@ impl StyleEngineState {
                 && self.tree.tree_scope(traversal.root) == TreeScopeID::DOCUMENT
                 && self.tree.parent(traversal.root).is_none()
             {
-                let (scope_program, dispatch) = self.ranked_scope_program(TreeScopeID::DOCUMENT);
+                let (scope_program, dispatch) = self.prepare_scope_program(TreeScopeID::DOCUMENT);
                 if !dispatch.prefixes().is_empty() {
                     let evaluator = MatchEvaluator::new(&self.tree, batch);
                     let evaluation = PrefixEvaluation::new(
@@ -1336,20 +1343,12 @@ impl StyleEngineState {
     }
 
     /// Resolve the immutable selector program a concrete scope evaluates against.
-    pub(super) fn ranked_scope_program(&mut self, scope: TreeScopeID) -> (ScopeProgramID, Rc<RuleDispatch>) {
+    pub(super) fn prepare_scope_program(&mut self, scope: TreeScopeID) -> (ScopeProgramID, Rc<RuleDispatch>) {
         let depth = self.tree_scope_depth(scope);
-        if let Some((held_scope, held_depth, id)) = self.held_scope_program
-            && held_scope == scope
-            && held_depth == depth
-        {
-            return (id, Rc::clone(&self.scope_program(id).dispatch));
-        }
-
         let scope_index = scope.0 as usize;
         if let Some(Some((held_depth, id))) = self.scope_program_by_scope.get(scope_index)
             && *held_depth == depth
         {
-            self.held_scope_program = Some((scope, depth, *id));
             return (*id, Rc::clone(&self.scope_program(*id).dispatch));
         }
 
@@ -1359,8 +1358,112 @@ impl StyleEngineState {
         let key = self.scope_dispatch_key(scope);
         let id = self.intern_scope_program(scope, key);
         self.scope_program_by_scope.insert(scope_index, Some((depth, id)));
-        self.held_scope_program = Some((scope, depth, id));
         (id, Rc::clone(&self.scope_program(id).dispatch))
+    }
+
+    /// Borrow a scope whose version and encapsulation depth were resolved before matching.
+    pub(super) fn prepared_scope_program(&self, scope: TreeScopeID) -> (ScopeProgramID, &RuleDispatch) {
+        let (_, id) = self
+            .scope_program_by_scope
+            .get(scope.0 as usize)
+            .copied()
+            .flatten()
+            .expect("a matching scope must be prepared before evaluation");
+        (id, &self.scope_program(id).dispatch)
+    }
+
+    pub(super) fn prepare_scope_programs_for_nodes(&mut self, nodes: impl IntoIterator<Item = StyleNodeID>) {
+        if !self.tree.has_tree_scopes() && self.scope_roots.is_empty() {
+            self.prepare_scope_program(TreeScopeID::DOCUMENT);
+            return;
+        }
+        // Scopes are prepared in first-use order; a dense visited bitmap keyed by scope id keeps
+        // deduplication linear on pages whose every component contributes its own scope.
+        let mut scopes: SmallVec<[TreeScopeID; 4]> = SmallVec::new();
+        let mut seen: SmallVec<[bool; 64]> = SmallVec::new();
+        for node in nodes {
+            let inner = self
+                .tree
+                .shadow_root_of(node)
+                .and_then(|root| self.scope_by_root.get(root));
+            for scope in std::iter::once(self.tree.tree_scope(node))
+                .chain(inner)
+                .chain(self.scopes_slotted_into(node))
+                .chain(self.part_exposure_scopes(node))
+            {
+                let index = scope.0 as usize;
+                if index >= seen.len() {
+                    seen.resize(index + 1, false);
+                }
+                if !seen[index] {
+                    seen[index] = true;
+                    scopes.push(scope);
+                }
+            }
+        }
+        let bytes = (if scopes.spilled() {
+            (scopes.capacity() * size_of::<TreeScopeID>()) as u64
+        } else {
+            0
+        }) + if seen.spilled() { seen.capacity() as u64 } else { 0 };
+        self.memory.reserve_required(MemoryCategory::BatchScratch, bytes);
+        for scope in scopes {
+            self.prepare_scope_program(scope);
+        }
+        self.memory.release(MemoryCategory::BatchScratch, bytes);
+    }
+
+    fn prepare_matching_batch(&mut self, facts: &StyleNodeFacts) -> AncestorRequirementsCache {
+        let mut requirements = AncestorRequirementsCache::default();
+        if !self.tree.has_tree_scopes() && self.scope_roots.is_empty() {
+            let (_, dispatch) = self.prepare_scope_program(TreeScopeID::DOCUMENT);
+            requirements.prepare(&self.tree, facts, &dispatch, None, &mut self.memory);
+            return requirements;
+        }
+        self.prepare_scope_programs_for_nodes((0..facts.row_count()).filter_map(|row| {
+            let row = u32::try_from(row).expect("fact row space exhausted");
+            facts.has_row(row).then(|| facts.node_at(row))
+        }));
+        // Group primary nodes by ancestor topology. Shadow scopes keep only their own rows,
+        // rather than allocating a document-sized requirement matrix for each scope program.
+        let mut groups: Vec<(ScopeProgramID, Vec<StyleNodeID>, bool)> = Vec::new();
+        for row in 0..facts.row_count() {
+            let row = u32::try_from(row).expect("fact row space exhausted");
+            if !facts.has_row(row) {
+                continue;
+            }
+            let node = facts.node_at(row);
+            let scope = self.tree.tree_scope(node);
+            let (id, dispatch) = self.prepared_scope_program(scope);
+            let topology = dispatch.ancestor_topology_id();
+            let index = groups
+                .iter()
+                .position(|(id, _, _)| self.scope_program(*id).dispatch.ancestor_topology_id() == topology)
+                .unwrap_or_else(|| {
+                    groups.push((id, Vec::new(), false));
+                    groups.len() - 1
+                });
+            groups[index].1.push(node);
+            groups[index].2 |= scope == TreeScopeID::DOCUMENT;
+        }
+        let bytes = (groups.capacity() * size_of::<(ScopeProgramID, Vec<StyleNodeID>, bool)>()
+            + groups
+                .iter()
+                .map(|(_, nodes, _)| nodes.capacity() * size_of::<StyleNodeID>())
+                .sum::<usize>()) as u64;
+        self.memory.reserve_required(MemoryCategory::BatchScratch, bytes);
+        for (id, nodes, dense) in groups {
+            let dispatch = &self.scope_programs[id].as_ref().unwrap().dispatch;
+            requirements.prepare(
+                &self.tree,
+                facts,
+                dispatch,
+                (!dense).then_some(nodes.as_slice()),
+                &mut self.memory,
+            );
+        }
+        self.memory.release(MemoryCategory::BatchScratch, bytes);
+        requirements
     }
 
     /// Ask one scope's rules of one node against the dispatch the scope keeps.
@@ -1372,31 +1475,14 @@ impl StyleEngineState {
         facts: &StyleNodeFacts,
         dispatch_workspace: &mut DispatchCandidateWorkspace,
         matches: &mut RuleMatches,
-        shared_ancestor_requirements: Option<&mut AncestorRequirementsCache>,
+        requirements: Option<&AncestorRequirements>,
         shared_prefix_caches: Option<&Rc<RefCell<PrefixCaches>>>,
         match_workspace: Option<&MatchEvaluationWorkspace>,
         mut retry: BatchMatchRetry<'_>,
         counters: &mut Counters,
     ) -> Result<(), Incomplete> {
-        let (scope_program, dispatch) = self.ranked_scope_program(scope);
-        // The same summary the document pass builds, over the one element being asked. It answers
-        // only for a node in its own scope; a host, a slotted element and a part are each asked the
-        // rules of a scope that is not theirs, and their ancestry is not the one those rules mean.
-        let mut local_requirements = None;
-        let requirements = if self.tree.tree_scope(node) != scope {
-            None
-        } else if let Some(cache) = shared_ancestor_requirements {
-            Some(cache.get_or_build_for_node(&self.tree, facts, &dispatch, node, &mut self.memory))
-        } else {
-            local_requirements = AncestorRequirements::build_for_node(&self.tree, facts, &dispatch, node);
-            local_requirements.as_ref()
-        };
-        let scratch_bytes = match local_requirements.is_some() {
-            true => AncestorRequirements::required_bytes_for_one_row(dispatch.ancestor_key_count()),
-            false => 0,
-        };
-        self.memory
-            .reserve_required(MemoryCategory::BatchScratch, scratch_bytes);
+        let (scope_program, _) = self.prepared_scope_program(scope);
+        let dispatch = &self.scope_programs[scope_program].as_ref().unwrap().dispatch;
         if let Some(completed) = retry.completed.as_deref_mut() {
             completed.resize(dispatch.entry_count(), false);
         }
@@ -1419,7 +1505,7 @@ impl StyleEngineState {
         let result = self.match_node_in_scope(
             node,
             scope,
-            &dispatch,
+            dispatch,
             facts,
             dispatch_workspace,
             requirements,
@@ -1444,7 +1530,7 @@ impl StyleEngineState {
             self.memory.reserve_required(MemoryCategory::BatchScratch, bytes);
             self.memory.release(MemoryCategory::BatchScratch, bytes);
         }
-        self.memory.release(MemoryCategory::BatchScratch, scratch_bytes);
+        self.settle_relational_witness_memory();
         result
     }
 
@@ -1455,7 +1541,7 @@ impl StyleEngineState {
     /// while a per-element ask reads the dispatch the scope keeps and summarizes one element.
     #[allow(clippy::too_many_arguments)]
     pub(super) fn match_node_in_scope(
-        &mut self,
+        &self,
         node: StyleNodeID,
         scope: TreeScopeID,
         dispatch: &RuleDispatch,
@@ -1512,7 +1598,6 @@ impl StyleEngineState {
         if let Some(answer_is_exact) = attempt.answer_is_exact {
             *answer_is_exact &= result.answer_is_exact;
         }
-        self.settle_relational_witness_memory();
         result.result
     }
 
@@ -2016,7 +2101,7 @@ impl StyleEngineState {
         if self.programs.get(program).can_leave_its_scope() {
             return None;
         }
-        let (scope_program, dispatch) = self.ranked_scope_program(TreeScopeID::DOCUMENT);
+        let (scope_program, dispatch) = self.prepare_scope_program(TreeScopeID::DOCUMENT);
         let compiled = self.programs.get(program);
         let mut incidences = Vec::new();
         for (entry_index, entry) in compiled.entries().iter().enumerate() {
@@ -2148,7 +2233,7 @@ impl StyleEngineState {
     }
 
     pub(super) fn append_catalog_answer(
-        &mut self,
+        &self,
         identity: MatchAnswerID,
         node: StyleNodeID,
         tree_scope_override: Option<TreeScopeID>,
@@ -2161,7 +2246,7 @@ impl StyleEngineState {
             if let Some(tree_scope) = tree_scope_override {
                 entry.tree_scope = tree_scope;
             }
-            let (_, dispatch) = self.ranked_scope_program(entry.tree_scope);
+            let (_, dispatch) = self.prepared_scope_program(entry.tree_scope);
             let cascade_order = dispatch.cascade_order_for_entry(entry.rule, entry.program, entry.entry)?;
             out.push(entry.materialize(node, &self.programs, cascade_order)?);
         }
@@ -2559,7 +2644,7 @@ impl StyleEngineState {
         &mut self,
         selection: RetainedAnswerPatchSelection,
     ) -> RetainedAnswerPatch {
-        let (scope_program, dispatch) = self.ranked_scope_program(TreeScopeID::DOCUMENT);
+        let (scope_program, dispatch) = self.prepare_scope_program(TreeScopeID::DOCUMENT);
         let rule_keys = selection
             .affected
             .into_iter()
@@ -3491,6 +3576,7 @@ impl StyleEngineState {
         retained_answer_dispatch: Option<&RuleDispatch>,
         counters: &mut Counters,
     ) -> Result<PublishedMatchAnswer, Incomplete> {
+        self.prepare_scope_programs_for_nodes([node]);
         let mut traversal = self.batch_matching_traversal.take();
         let result = self.complete_published_match_answer_in_traversal(
             node,
@@ -3513,8 +3599,8 @@ impl StyleEngineState {
             self.retained_match_answers.forget_answer(&mut self.match_answers, node);
         }
         let tree_scope = self.tree.tree_scope(node);
-        let scoped_dispatch = (tree_scope != TreeScopeID::DOCUMENT).then(|| self.ranked_scope_program(tree_scope).1);
-        let retained_answer_dispatch = scoped_dispatch.as_deref().or(retained_answer_dispatch);
+        let scoped_dispatch = (tree_scope != TreeScopeID::DOCUMENT).then(|| self.prepared_scope_program(tree_scope).1);
+        let retained_answer_dispatch = scoped_dispatch.or(retained_answer_dispatch);
         let retained_answer = retained_answer_dispatch.and_then(|dispatch| {
             let retained = Rc::clone(self.retained_match_answer(node).sparse().ok()?);
             let exact_answer = retained
@@ -3526,11 +3612,11 @@ impl StyleEngineState {
                 })
                 .collect::<Option<Vec<_>>>()?;
             let cascade_winners_are_complete = self.cascade_winner_inventory_is_complete(&exact_answer, Some(node));
-            let answer = self.matches_for_cascade(exact_answer, false, Some(node), counters);
-            Some((answer, cascade_winners_are_complete))
+            Some((exact_answer, cascade_winners_are_complete))
         });
         let (matches, cascade_winners_are_complete, compact_answer) =
-            if let Some((answer, cascade_winners_are_complete)) = retained_answer {
+            if let Some((exact_answer, cascade_winners_are_complete)) = retained_answer {
+                let answer = self.matches_for_cascade(exact_answer, false, Some(node), counters);
                 self.remember_cascade_input(node, &answer, counters);
                 counters.bump(Counter::RetainedMatchAnswerReuses);
                 (answer, cascade_winners_are_complete, None)
@@ -3867,6 +3953,7 @@ impl StyleEngineState {
         nodes: &[StyleNodeID],
         counters: &mut Counters,
     ) -> Result<(), Incomplete> {
+        self.prepare_scope_programs_for_nodes(nodes.iter().copied());
         let retained_answer_dispatch = self
             .batch_matching_traversal
             .as_ref()
@@ -4197,6 +4284,7 @@ impl StyleEngineState {
         compact_for_cascade: bool,
         counters: &mut Counters,
     ) -> Result<Vec<RuleMatch>, Incomplete> {
+        self.prepare_scope_programs_for_nodes([node]);
         let exact_answer = self.exact_match_answer(node, counters)?;
         let answer = match compact_for_cascade {
             true => {
@@ -4231,7 +4319,7 @@ impl StyleEngineState {
 
         let mut matches = Vec::with_capacity(exact.len());
         for matched in exact {
-            let (_, dispatch) = self.ranked_scope_program(matched.tree_scope);
+            let (_, dispatch) = self.prepared_scope_program(matched.tree_scope);
             let cascade_order = dispatch
                 .cascade_order_for_entry(matched.rule, matched.program, matched.entry)
                 .expect("every exact rule entry has a cascade rank");
@@ -4257,6 +4345,7 @@ impl StyleEngineState {
         node: StyleNodeID,
         counters: &mut Counters,
     ) -> Result<Vec<RuleMatch>, Incomplete> {
+        self.prepare_scope_programs_for_nodes([node]);
         let counters_before_verification = counters.clone();
         let answer = self.exact_match_answer(node, counters);
         *counters = counters_before_verification;
@@ -4268,6 +4357,7 @@ impl StyleEngineState {
         node: StyleNodeID,
         counters: &mut Counters,
     ) -> Result<(Vec<RuleMatch>, WinnerGroups), Incomplete> {
+        self.prepare_scope_programs_for_nodes([node]);
         let counters_before_verification = counters.clone();
         let exact_answer = match self.exact_match_answer(node, counters) {
             Ok(answer) => answer,
@@ -4301,6 +4391,7 @@ impl StyleEngineState {
         cascade_winners_are_complete: Option<&mut bool>,
         counters: &mut Counters,
     ) -> Result<Vec<RuleMatch>, Incomplete> {
+        self.prepare_scope_programs_for_nodes([node]);
         let mut traversal = self.batch_matching_traversal.take();
         let result = self.match_element_in_traversal(
             node,
@@ -4404,7 +4495,11 @@ impl StyleEngineState {
                         facts,
                         &mut traversal.dispatch_workspace,
                         &mut matches,
-                        Some(&mut traversal.ancestor_requirements),
+                        is_primary.then(|| {
+                            traversal
+                                .ancestor_requirements
+                                .get(self.prepared_scope_program(asked_scope).1)
+                        }),
                         is_primary.then_some(&prefix_caches),
                         Some(&traversal.match_workspace),
                         BatchMatchRetry {
@@ -4434,7 +4529,7 @@ impl StyleEngineState {
                     if retained_match_answer_is_exact {
                         retained_selector_truth = matches.take_prepared_selector_truth(&mut self.memory);
                     }
-                    let (scope_program, dispatch) = self.ranked_scope_program(scope);
+                    let (scope_program, _) = self.prepared_scope_program(scope);
                     let non_prefix_matches = self.match_answers.intern(matches.as_slice());
                     let contribution_key = PrefixContributionKey {
                         program: scope_program,
@@ -4463,7 +4558,7 @@ impl StyleEngineState {
                                         &mut prefix_rules,
                                         node,
                                         scope,
-                                        &dispatch,
+                                        self.prepared_scope_program(scope).1,
                                         &self.program,
                                         &self.programs,
                                         states.matches_in(prefix_matches),
@@ -4527,7 +4622,7 @@ impl StyleEngineState {
                                 &mut prefix_rules,
                                 node,
                                 scope,
-                                &dispatch,
+                                self.prepared_scope_program(scope).1,
                                 &self.program,
                                 &self.programs,
                                 states.matches_in(prefix_matches),
@@ -4575,7 +4670,7 @@ impl StyleEngineState {
                                             &mut prefix_rules,
                                             node,
                                             scope,
-                                            &dispatch,
+                                            self.prepared_scope_program(scope).1,
                                             &self.program,
                                             &self.programs,
                                             states.matches_in(prefix_matches),
@@ -4620,7 +4715,7 @@ impl StyleEngineState {
                             node,
                             scope,
                             &self.programs,
-                            &dispatch,
+                            self.prepared_scope_program(scope).1,
                             self.match_answers
                                 .answer(prefix_contribution)
                                 .expect("a prefix contribution must remain live"),
@@ -4716,7 +4811,7 @@ impl StyleEngineState {
                                     node,
                                     scope,
                                     &self.programs,
-                                    &dispatch,
+                                    self.prepared_scope_program(scope).1,
                                     self.match_answers
                                         .answer(prefix_contribution)
                                         .expect("a prefix contribution must remain live"),
@@ -4864,7 +4959,7 @@ impl StyleEngineState {
         // down axes read the ancestry, so a sibling-bearing automaton seeds the preceding
         // siblings of the node and of each ancestor up front rather than discovering them one
         // restart at a time.
-        if self.ranked_scope_program(scope).1.prefixes().has_sibling_steps() {
+        if self.prepared_scope_program(scope).1.prefixes().has_sibling_steps() {
             let spine_len = covered.len();
             for level_index in 0..spine_len {
                 let mut previous = self.tree.previous_element_sibling(covered[level_index]);
@@ -4892,6 +4987,13 @@ impl StyleEngineState {
         let mut requests = Vec::new();
         loop {
             self.facts.materialize(covered.iter().copied(), &mut facts);
+            let requirements =
+                AncestorRequirements::build_for_node(&self.tree, &facts, self.prepared_scope_program(scope).1, node);
+            let requirement_bytes = AncestorRequirements::required_bytes_for_one_row(
+                self.prepared_scope_program(scope).1.ancestor_key_count(),
+            );
+            self.memory
+                .reserve_required(MemoryCategory::BatchScratch, requirement_bytes);
             requests.clear();
             let result = for_each_matching_scope(
                 scope,
@@ -4906,7 +5008,7 @@ impl StyleEngineState {
                         &facts,
                         &mut dispatch_workspace,
                         &mut matches,
-                        None,
+                        requirements.as_ref(),
                         is_primary.then_some(&prefix_caches),
                         None,
                         BatchMatchRetry {
@@ -4926,6 +5028,7 @@ impl StyleEngineState {
                     )
                 },
             );
+            self.memory.release(MemoryCategory::BatchScratch, requirement_bytes);
             let current_completion_scratch_bytes = (completed_by_scope.capacity() * size_of::<Vec<bool>>()
                 + completed_by_scope
                     .iter()

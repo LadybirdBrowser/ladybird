@@ -52,6 +52,7 @@ PHASES = {
         [
             "commitMicroseconds",
             "routingPlanningMicroseconds",
+            "prepareMicroseconds",
             "matchingCascadeMicroseconds",
             "computationPublicationMicroseconds",
             "emitMicroseconds",
@@ -270,12 +271,17 @@ def difference(before, after):
 def normalize(sample):
     delta = difference(sample["before"], sample["after"])
     for lane, (whole, phases) in PHASES.items():
+        # Older saved libraries include preparation in routing/matching instead of naming it.
+        phases = [key for key in phases if key != "prepareMicroseconds" or key in delta[lane]]
         values = [delta[lane][key] for key in [whole, *phases]]
         if any(value < 0 or int(value) != value for value in values) or sum(values[1:]) != values[0]:
             raise RuntimeError(f"Non-additive {lane} clocks in {sample['name']}: {values}")
     sample["counters"] = delta
     sample["metrics"] = {
-        f"{lane}.{key}": delta[lane][key] for lane, (whole, phases) in PHASES.items() for key in [whole, *phases]
+        f"{lane}.{key}": delta[lane][key]
+        for lane, (whole, phases) in PHASES.items()
+        for key in [whole, *phases]
+        if key != "prepareMicroseconds" or key in delta[lane]
     }
     # Optional pass clocks sit alongside the phases in the same lanes. compare() leaves every
     # microsecond counter out of its counter diff, so each clock has to reach the metrics to be read.

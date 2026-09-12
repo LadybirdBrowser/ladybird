@@ -11,7 +11,7 @@
     test(() => {
         const messages = [];
         const report = message => messages.push(message);
-        const rustPhases = ["commitMicroseconds", "routingPlanningMicroseconds", "matchingCascadeMicroseconds",
+        const rustPhases = ["commitMicroseconds", "routingPlanningMicroseconds", "prepareMicroseconds", "matchingCascadeMicroseconds",
             "computationPublicationMicroseconds", "emitMicroseconds", "transactionRemainderMicroseconds"];
         const cppPhases = ["styleUpdateSubmissionMicroseconds", "styleUpdateBridgeMicroseconds",
             "styleUpdateApplyMicroseconds", "styleUpdateRemainderMicroseconds"];

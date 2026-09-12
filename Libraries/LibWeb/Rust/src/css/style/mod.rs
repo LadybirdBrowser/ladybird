@@ -995,9 +995,6 @@ pub struct StyleEngineState {
     /// while a depth change replaces only this scope's identity. It uses the same direct tree-scope
     /// index as the root column.
     scope_program_by_scope: Column<Option<(u32, ScopeProgramID)>>,
-    /// The last scope lookup. A style traversal nearly always asks consecutive elements in one
-    /// scope, so the common path compares two integers and never hashes its ordered sheet set.
-    held_scope_program: Option<(TreeScopeID, u32, ScopeProgramID)>,
     /// Maps names and qualified names to process-global atoms. Selector names and DOM facts use
     /// the same owner, so a class in a stylesheet and a class on an element compare as one integer.
     ///

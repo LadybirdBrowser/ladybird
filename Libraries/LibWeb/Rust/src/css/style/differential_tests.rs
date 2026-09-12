@@ -320,7 +320,7 @@ fn retained_matches(engine: &mut StyleEngine, node: StyleNodeID) -> Option<Vec<R
         return None;
     }
 
-    let (_, dispatch) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    let (_, dispatch) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
     let mut orders: Vec<_> = (0..dispatch.entry_count())
         .map(|index| dispatch.entry_at(index))
         .map(|entry| (entry.rule, entry.program, entry.entry, entry.cascade_order))
@@ -345,7 +345,7 @@ fn retained_matches(engine: &mut StyleEngine, node: StyleNodeID) -> Option<Vec<R
 }
 
 fn batch_matches(engine: &mut StyleEngine, node: StyleNodeID, ancestor_cache: bool) -> Vec<RuleMatch> {
-    let (_, dispatch) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    let (_, dispatch) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
     let requirements =
         ancestor_cache.then(|| AncestorRequirements::build(&engine.tree, engine.facts.primary(), &dispatch));
     let mut matcher = BatchMatcher::new(

@@ -3863,7 +3863,7 @@ fn prefix_match_deltas_only_publish_deciding_rules() {
     let sheet = engine.program.rule_sheet(rule);
     let selector = engine.program.rule_version(rule).selector_program.unwrap();
     let entry = engine.programs.entry_id(selector, 0);
-    let (_, dispatch) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    let (_, dispatch) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
     assert!(dispatch.prefixes().contains_entry(entry));
 
     // Activation changes preserve selector topology. An exact prefix answer can still name
@@ -5468,7 +5468,7 @@ fn test_prefix_relation(engine: &mut StyleEngine, root: StyleNodeID) -> (Rc<Rule
         engine.state.facts.ensure_row(node);
     }
     engine.state.facts.apply_staged(&mut engine.state.memory);
-    let (_, dispatch) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    let (_, dispatch) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
     let workspace = MatchEvaluationWorkspace::default();
     let facts = engine.state.facts.primary();
     let evaluator =
@@ -6566,7 +6566,7 @@ fn covered_prefix_changes_forget_only_the_covered_subtree() {
     assert!(pending.is_empty());
     // The walk skips the covered subtree but keeps the cache warm: only the transitions
     // that depend on the skipped node are forgotten.
-    let (scope_program, _) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    let (scope_program, _) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
     let prefix_caches = Rc::clone(&engine.prefix_caches);
     let mut caches = prefix_caches.borrow_mut();
     let Lookup::Known(states) = caches.states.lookup_mut(scope_program) else {
@@ -6648,7 +6648,7 @@ fn a_prefix_upquery_retains_every_transition_on_its_ancestor_chain() {
 
     assert!(engine.begin_cold_matching_batch(nodes[0]));
     assert_eq!(engine.match_element(nodes[3]).unwrap().len(), 1);
-    let (scope_program, _) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    let (scope_program, _) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
     let prefix_caches = Rc::clone(&engine.batch_matching_traversal.as_ref().unwrap().prefix_caches);
     let mut caches = prefix_caches.borrow_mut();
     let states = match caches.states.lookup_mut(scope_program) {
@@ -6826,7 +6826,7 @@ fn shared_retained_answer_completion_reuses_compact_cascade_state() {
             Some(first_identity)
         );
 
-        let (_, dispatch) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+        let (_, dispatch) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
         let first = engine
             .complete_published_match_answer(nodes[2], Some(&dispatch))
             .unwrap();
@@ -7597,7 +7597,7 @@ fn positional_answers_stay_cold_equivalent_across_sequence_mutations() {
         for &node in targets {
             let _ = engine.match_element_for_purpose(node, true);
         }
-        let (_, dispatch) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+        let (_, dispatch) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
         let mut orders: Vec<(RuleID, SelectorProgramID, u32, u32)> = (0..dispatch.entry_count())
             .map(|index| dispatch.entry_at(index))
             .map(|entry| (entry.rule, entry.program, entry.entry, entry.cascade_order))
@@ -7642,7 +7642,7 @@ fn positional_answers_stay_cold_equivalent_across_sequence_mutations() {
         }
     };
     flush_and_check(&mut engine, &model, "the initial build");
-    let (_, dispatch) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    let (_, dispatch) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
     assert_eq!(
         dispatch.prefixes().positional_tests().len(),
         6,
@@ -7778,7 +7778,7 @@ fn positional_test_overflow_refuses_admission_without_erasing_answers() {
     }
     discard_transaction(&mut engine);
 
-    let (_, dispatch) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    let (_, dispatch) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
     assert_eq!(
         dispatch.prefixes().positional_tests().len(),
         32,
@@ -8264,6 +8264,45 @@ fn a_broad_matching_batch_shares_facts_between_element_asks() {
     );
     engine.end_cold_matching_batch();
     assert_eq!(engine.memory().bytes_in_category(MemoryCategory::BatchScratch), 0);
+}
+
+#[test]
+fn an_empty_shadow_tree_prepares_rules_for_its_host() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let mut raw = [0_u32; 3];
+    engine.allocate_style_nodes(&mut raw);
+    let [root, host, shadow_root] = raw.map(|raw| StyleNodeID::from_raw(raw).unwrap());
+    let scope = TreeScopeID(1);
+    engine.record_tree_delta(root, None, Some(relations(None, None, None)));
+    engine.record_tree_delta(host, None, Some(relations(Some(root.raw()), None, None)));
+    // Empty shadow trees can be registered before any element needs a non-document scope row.
+    engine.record_tree_delta(shadow_root, None, Some(relations(None, None, None)));
+    engine.set_shadow_root(host, shadow_root);
+    engine.set_tree_scope_root(scope, shadow_root);
+    for node in [root, host] {
+        set_atom_feature(&mut engine, node, LocalFeatureKey::TagName, StyleAtomID(100));
+    }
+    let mut builder = selector::SelectorProgramBuilder::new();
+    let any = builder.push_feature(selector::FeatureTest::AnyElement);
+    let selector = builder.push(selector::SelectorOp::Host(any));
+    builder.push_entry(selector);
+    let program = engine.programs.add(builder.finish());
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, scope);
+    let rule = engine.append_rule(sheet, None, RuleKind::Style);
+    engine.add_routing_rule(rule, program);
+    let mut version = engine.program.rule_version(rule);
+    version.selector_program = Some(program);
+    engine.replace_rule_version(rule, version);
+    discard_transaction(&mut engine);
+    assert!(!engine.tree.has_tree_scopes());
+
+    let local = engine.match_element(host).unwrap();
+    assert_eq!(local.len(), 1);
+    assert_eq!(local[0].rule, rule);
+    assert!(engine.begin_cold_matching_batch(root));
+    assert_eq!(engine.match_element(host).unwrap(), local);
+    engine.end_cold_matching_batch();
 }
 
 #[test]
@@ -9456,7 +9495,6 @@ fn identical_sheet_sets_share_a_scope_program() {
         2,
         "the concrete shadow scopes retain one shared immutable program beside the document's"
     );
-    assert_eq!(engine.held_scope_program.map(|(_, _, id)| id), Some(shared_program));
 
     let second_sheet = engine.add_sheet(StyleSheetObjectID(2), CascadeOrigin::Author);
     engine.attach_sheet(second_sheet, second_scope);
@@ -9477,10 +9515,6 @@ fn identical_sheet_sets_share_a_scope_program() {
         engine.scope_programs.iter().flatten().count(),
         3,
         "a scope that changes its effective sheet set gets a distinct program"
-    );
-    assert_eq!(
-        engine.held_scope_program.map(|(_, _, id)| id),
-        Some(engine.scope_program_by_scope[second_scope.0 as usize].unwrap().1)
     );
 }
 
@@ -9504,9 +9538,9 @@ fn equivalent_documents_share_only_semantically_identical_dispatch_topology() {
     let mut first_engine = make_engine(StyleAtomID(200));
     let mut second_engine = make_engine(StyleAtomID(200));
     let mut different_engine = make_engine(StyleAtomID(201));
-    let (_, first) = first_engine.ranked_scope_program(TreeScopeID::DOCUMENT);
-    let (_, second) = second_engine.ranked_scope_program(TreeScopeID::DOCUMENT);
-    let (_, different) = different_engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    let (_, first) = first_engine.prepare_scope_program(TreeScopeID::DOCUMENT);
+    let (_, second) = second_engine.prepare_scope_program(TreeScopeID::DOCUMENT);
+    let (_, different) = different_engine.prepare_scope_program(TreeScopeID::DOCUMENT);
     assert!(first.shares_topology_with(&second));
     assert!(first.shares_entries_with(&second));
     assert!(!first.shares_topology_with(&different));
@@ -9515,13 +9549,13 @@ fn equivalent_documents_share_only_semantically_identical_dispatch_topology() {
     drop(second);
     drop(second_engine);
     let mut second_engine = make_engine(StyleAtomID(200));
-    let (_, second) = second_engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    let (_, second) = second_engine.prepare_scope_program(TreeScopeID::DOCUMENT);
     assert!(first.shares_topology_with(&second));
 
     drop(first);
     drop(first_engine);
     second_engine.invalidate_scope_programs();
-    let (_, rebuilt) = second_engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    let (_, rebuilt) = second_engine.prepare_scope_program(TreeScopeID::DOCUMENT);
     assert!(second.shares_topology_with(&rebuilt));
     assert_eq!(rebuilt.entry_at(0).program, second.entry_at(0).program);
 }
@@ -9544,8 +9578,8 @@ fn equivalent_sheet_programs_share_dispatch_topology() {
     }
     discard_transaction(&mut engine);
 
-    let (_, first) = engine.ranked_scope_program(TreeScopeID(1));
-    let (_, second) = engine.ranked_scope_program(TreeScopeID(2));
+    let (_, first) = engine.prepare_scope_program(TreeScopeID(1));
+    let (_, second) = engine.prepare_scope_program(TreeScopeID(2));
     assert!(!Rc::ptr_eq(&first, &second));
     assert!(first.shares_topology_with(&second));
     assert!(first.shares_entries_with(&second));
@@ -9555,7 +9589,7 @@ fn equivalent_sheet_programs_share_dispatch_topology() {
     assert_eq!(second.entry_at(0).rule, rules[1]);
 
     engine.invalidate_scope_programs();
-    let (_, rebuilt) = engine.ranked_scope_program(TreeScopeID(1));
+    let (_, rebuilt) = engine.prepare_scope_program(TreeScopeID(1));
     assert!(first.shares_topology_with(&rebuilt));
     assert!(first.shares_entries_with(&rebuilt));
 
@@ -9594,7 +9628,7 @@ fn extending_a_scope_dispatch_skips_empty_selector_programs() {
     version.selector_program = Some(base);
     engine.replace_rule_version(base_rule, version);
     discard_transaction(&mut engine);
-    let (_, template) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    let (_, template) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
     assert_eq!(template.entry_count(), 1);
 
     let mut suffix_rules = Vec::new();
@@ -9606,7 +9640,7 @@ fn extending_a_scope_dispatch_skips_empty_selector_programs() {
         suffix_rules.push(rule);
     }
     discard_transaction(&mut engine);
-    let (_, extended) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    let (_, extended) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
     assert_eq!(extended.entry_count(), 2);
     assert_eq!(extended.entry_at(0).rule, base_rule);
     assert_eq!(extended.entry_at(1).rule, suffix_rules[0]);
@@ -9683,9 +9717,9 @@ fn document_author_sheets_keep_independent_shadow_scope_programs() {
     engine.attach_sheet(shadow_sheet, document_style_scope);
     discard_transaction(&mut engine);
 
-    let (independent_program, _) = engine.ranked_scope_program(independent_scope);
-    engine.ranked_scope_program(document_style_scope);
-    engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    let (independent_program, _) = engine.prepare_scope_program(independent_scope);
+    engine.prepare_scope_program(document_style_scope);
+    engine.prepare_scope_program(TreeScopeID::DOCUMENT);
     let document_sheet = engine.add_sheet(StyleSheetObjectID(2), CascadeOrigin::Author);
     engine.attach_sheet(document_sheet, TreeScopeID::DOCUMENT);
 
@@ -9718,8 +9752,8 @@ fn changing_one_scope_keeps_an_equivalent_scopes_ranked_program() {
     let additional_sheet = engine.add_sheet(StyleSheetObjectID(2), CascadeOrigin::Author);
     discard_transaction(&mut engine);
 
-    let (first_program, _) = engine.ranked_scope_program(TreeScopeID(1));
-    let (second_program, _) = engine.ranked_scope_program(TreeScopeID(2));
+    let (first_program, _) = engine.prepare_scope_program(TreeScopeID(1));
+    let (second_program, _) = engine.prepare_scope_program(TreeScopeID(2));
     assert_eq!(first_program, second_program);
 
     engine.attach_sheet(additional_sheet, TreeScopeID(2));
@@ -9992,7 +10026,7 @@ fn rule_activation_exactly_matches_a_refused_prefix_chain() {
     engine.set_rule_conditions_hold(refused_rule, false);
     discard_transaction(&mut engine);
 
-    let (_, dispatch) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    let (_, dispatch) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
     assert!(!dispatch.prefixes().is_empty());
     assert!(
         !dispatch
@@ -10003,7 +10037,7 @@ fn rule_activation_exactly_matches_a_refused_prefix_chain() {
     for &node in &nodes {
         engine.match_element(node).unwrap();
     }
-    let (scope_program, _) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    let (scope_program, _) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
     let caches = engine.prefix_caches.borrow();
     let states = match caches.states.lookup(scope_program) {
         Lookup::Known(states) => states,
@@ -10314,12 +10348,11 @@ fn container_query_gating_invalidates_committed_scope_dispatch() {
 
     // The held program is only ever set beside its scope's retained entry, and the sheet-scoped
     // sweep reaches it through that entry.
-    let (scope_program, _) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
-    assert_eq!(engine.held_scope_program.map(|(_, _, id)| id), Some(scope_program));
+    let (scope_program, _) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
+    assert_eq!(engine.prepared_scope_program(TreeScopeID::DOCUMENT).0, scope_program);
 
     engine.set_rule_gated_by_container_query(rule);
 
-    assert!(engine.held_scope_program.is_none());
     assert!(
         engine
             .scope_program_by_scope
