@@ -58,6 +58,7 @@ function raf() {
   return new Promise(resolve => requestAnimationFrame(resolve));
 }
 async function runTest() {
+  await document.fonts.ready;
   await raf();
   document.getElementById('test').focus();
   await raf();
