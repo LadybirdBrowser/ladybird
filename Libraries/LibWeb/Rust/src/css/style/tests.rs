@@ -6888,6 +6888,7 @@ fn a_cached_prefix_answer_preserves_incomplete_cascade_winners() {
         .match_element_for_purpose_with_compact_answer(
             nodes[2],
             true,
+            CompletionExactness::AllowPruning,
             Some(&mut first_compact),
             Some(&mut first_complete),
         )
@@ -6898,6 +6899,7 @@ fn a_cached_prefix_answer_preserves_incomplete_cascade_winners() {
         .match_element_for_purpose_with_compact_answer(
             nodes[3],
             true,
+            CompletionExactness::AllowPruning,
             Some(&mut second_compact),
             Some(&mut second_complete),
         )

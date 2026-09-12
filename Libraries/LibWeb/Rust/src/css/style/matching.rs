@@ -3425,12 +3425,32 @@ impl StyleEngine {
         node: StyleNodeID,
         compact_for_cascade: bool,
     ) -> Result<Vec<RuleMatch>, Incomplete> {
-        self.match_element_for_purpose_with_compact_answer(node, compact_for_cascade, None, None)
+        self.match_element_for_purpose_with_compact_answer(
+            node,
+            compact_for_cascade,
+            CompletionExactness::AllowPruning,
+            None,
+            None,
+        )
     }
 
+    #[cfg(test)]
     pub(super) fn complete_published_match_answer(
         &mut self,
         node: StyleNodeID,
+        retained_answer_dispatch: Option<&RuleDispatch>,
+    ) -> Result<PublishedMatchAnswer, Incomplete> {
+        let mut traversal = self.batch_matching_traversal.take();
+        let result =
+            self.complete_published_match_answer_in_traversal(node, traversal.as_deref_mut(), retained_answer_dispatch);
+        self.batch_matching_traversal = traversal;
+        result
+    }
+
+    pub(super) fn complete_published_match_answer_in_traversal(
+        &mut self,
+        node: StyleNodeID,
+        traversal: Option<&mut BatchMatchingTraversal>,
         retained_answer_dispatch: Option<&RuleDispatch>,
     ) -> Result<PublishedMatchAnswer, Incomplete> {
         if !self.match_answer_is_retainable(node) {
@@ -3464,16 +3484,21 @@ impl StyleEngine {
                 // node will then cold-match again on every flush that plans it. Once retained-answer
                 // admission closes, later new nodes go back to the cheap pruned form, so exactness
                 // is only paid while answers can still enter the retained relation.
-                self.complete_answers_exactly = !self.completion_exactness_exhausted;
+                let completion_exactness = if self.completion_exactness_exhausted {
+                    CompletionExactness::AllowPruning
+                } else {
+                    CompletionExactness::Exact
+                };
                 let mut compact_answer = None;
                 let mut cascade_winners_are_complete = false;
-                let answer = self.match_element_for_purpose_with_compact_answer(
+                let answer = self.match_element_in_traversal(
                     node,
                     true,
+                    completion_exactness,
+                    traversal,
                     Some(&mut compact_answer),
                     Some(&mut cascade_winners_are_complete),
                 );
-                self.complete_answers_exactly = false;
                 let answer = answer?;
                 (answer, cascade_winners_are_complete, compact_answer)
             };
@@ -3776,7 +3801,8 @@ impl StyleEngine {
             .batch_matching_traversal
             .as_ref()
             .and_then(|traversal| traversal.retained_answer_dispatch.clone());
-        (|| {
+        let mut traversal = self.batch_matching_traversal.take();
+        let result = (|| {
             let mut completed = 0;
             for &node in nodes {
                 if self.published_match_answers.lookup(node).is_some() {
@@ -3798,7 +3824,11 @@ impl StyleEngine {
                         observed: false,
                     }
                 } else {
-                    self.complete_published_match_answer(node, retained_answer_dispatch.as_deref())?
+                    self.complete_published_match_answer_in_traversal(
+                        node,
+                        traversal.as_deref_mut(),
+                        retained_answer_dispatch.as_deref(),
+                    )?
                 };
                 self.published_match_answers
                     .push(answer, &mut self.memory, &mut self.counters);
@@ -3808,7 +3838,9 @@ impl StyleEngine {
             self.counters
                 .add(Counter::PublishedMatchAnswerClosureCompletions, completed);
             Ok(())
-        })()
+        })();
+        self.batch_matching_traversal = traversal;
+        result
     }
 
     /// Compare the complete element cascade behind the published base style with the current exact
@@ -3834,6 +3866,17 @@ impl StyleEngine {
     /// A miss is not an incomplete selector answer. It means this transaction did not publish an
     /// answer for the node, so the caller may ask the ordinary exact matcher instead.
     pub fn consume_published_match_answer(&mut self, node: StyleNodeID) -> Option<Vec<RuleMatch>> {
+        let traversal = self.batch_matching_traversal.take();
+        let result = self.consume_published_match_answer_in_traversal(node, traversal.as_deref());
+        self.batch_matching_traversal = traversal;
+        result
+    }
+
+    fn consume_published_match_answer_in_traversal(
+        &mut self,
+        node: StyleNodeID,
+        traversal: Option<&BatchMatchingTraversal>,
+    ) -> Option<Vec<RuleMatch>> {
         let (mut matches, cascade_input) = self
             .published_match_answers
             .lookup(node)
@@ -3866,17 +3909,11 @@ impl StyleEngine {
             self.counters.bump(Counter::PublishedMatchAnswerConsumptions);
             return Some(matches);
         }
-        if !self
-            .batch_matching_traversal
-            .as_ref()
-            .is_some_and(|traversal| traversal.reuse_retained_match_answers)
-        {
+        if !traversal.is_some_and(|traversal| traversal.reuse_retained_match_answers) {
             return None;
         }
         let exact_answer = self.retained_match_answer(node).sparse().ok().and_then(|answer| {
-            let dispatch = self
-                .batch_matching_traversal
-                .as_ref()
+            let dispatch = traversal
                 .expect("a retained answer is consumed only inside a traversal")
                 .retained_answer_dispatch
                 .as_deref()?;
@@ -4180,6 +4217,29 @@ impl StyleEngine {
         &mut self,
         node: StyleNodeID,
         compact_for_cascade: bool,
+        completion_exactness: CompletionExactness,
+        compact_answer: Option<&mut Option<MatchAnswerID>>,
+        cascade_winners_are_complete: Option<&mut bool>,
+    ) -> Result<Vec<RuleMatch>, Incomplete> {
+        let mut traversal = self.batch_matching_traversal.take();
+        let result = self.match_element_in_traversal(
+            node,
+            compact_for_cascade,
+            completion_exactness,
+            traversal.as_deref_mut(),
+            compact_answer,
+            cascade_winners_are_complete,
+        );
+        self.batch_matching_traversal = traversal;
+        result
+    }
+
+    pub(super) fn match_element_in_traversal(
+        &mut self,
+        node: StyleNodeID,
+        compact_for_cascade: bool,
+        completion_exactness: CompletionExactness,
+        mut traversal: Option<&mut BatchMatchingTraversal>,
         mut compact_answer: Option<&mut Option<MatchAnswerID>>,
         mut cascade_winners_are_complete: Option<&mut bool>,
     ) -> Result<Vec<RuleMatch>, Incomplete> {
@@ -4192,7 +4252,9 @@ impl StyleEngine {
                 .lookup(node)
                 .is_some_and(|answer| answer.cascade_winners_are_complete);
         }
-        if compact_for_cascade && let Some(answer) = self.consume_published_match_answer(node) {
+        if compact_for_cascade
+            && let Some(answer) = self.consume_published_match_answer_in_traversal(node, traversal.as_deref())
+        {
             return Ok(answer);
         }
         if self.published_match_answers.lookup(node).is_some() {
@@ -4229,16 +4291,12 @@ impl StyleEngine {
         // A reaction derived while applying the published transaction can extend the C++ pass
         // beyond the region whose facts this transaction prepared. Keep using the shared batch
         // for covered nodes, but let an unprepared node take the exact adaptive path below.
-        let prepared_batch_contains_node = self
-            .batch_matching_traversal
-            .as_ref()
+        let prepared_batch_contains_node = traversal
+            .as_deref()
             .and_then(|traversal| traversal.batch.as_ref())
             .is_some_and(|batch| batch.row_of(node).is_some());
         if prepared_batch_contains_node {
-            // The box moves out of its slot so its fields can be borrowed while `self` stays
-            // mutably borrowable; what moves is one pointer, not the batch.
-            let mut held_traversal = self.batch_matching_traversal.take().unwrap();
-            let traversal = &mut *held_traversal;
+            let traversal = traversal.as_deref_mut().unwrap();
             let prefix_caches = Rc::clone(&traversal.prefix_caches);
             let facts = traversal.batch.as_ref().unwrap();
             let mut matches = RuleMatches::new();
@@ -4273,7 +4331,9 @@ impl StyleEngine {
                             deferred_prefix_matches: (is_primary && can_defer_prefix_matches)
                                 .then_some(&mut deferred_prefix_matches),
                             answer_is_exact: Some(&mut retained_match_answer_is_exact),
-                            cascade_only: is_primary && can_defer_prefix_matches && !self.complete_answers_exactly,
+                            cascade_only: is_primary
+                                && can_defer_prefix_matches
+                                && completion_exactness == CompletionExactness::AllowPruning,
                         },
                     )
                 },
@@ -4661,7 +4721,6 @@ impl StyleEngine {
                 cascade_compaction_workspace_bytes - traversal.cascade_compaction_workspace_bytes,
             );
             traversal.cascade_compaction_workspace_bytes = cascade_compaction_workspace_bytes;
-            self.batch_matching_traversal = Some(held_traversal);
             if let Ok(matches) = &all {
                 if let Some(retained_match_answer) = retained_match_answer {
                     self.remember_prepared_retained_match_answer_with_truth(
@@ -4734,10 +4793,9 @@ impl StyleEngine {
         }
         let mut completed_by_scope: Column<Vec<bool>> = Column::default();
         let mut dispatch_workspace = DispatchCandidateWorkspace::default();
-        let prefix_caches_return_to_completion_batch = self.batch_matching_traversal.is_some();
-        let prefix_caches = self
-            .batch_matching_traversal
-            .as_ref()
+        let prefix_caches_return_to_completion_batch = traversal.is_some();
+        let prefix_caches = traversal
+            .as_deref()
             .map(|traversal| Rc::clone(&traversal.prefix_caches))
             .unwrap_or_else(|| Rc::new(RefCell::new(PrefixCaches::default())));
         let mut completion_scratch_bytes = 0;
@@ -4770,7 +4828,7 @@ impl StyleEngine {
                             answer_is_exact: Some(&mut retained_match_answer_is_exact),
                             cascade_only: is_primary
                                 && compact_for_cascade
-                                && !self.complete_answers_exactly
+                                && completion_exactness == CompletionExactness::AllowPruning
                                 && scope == TreeScopeID::DOCUMENT
                                 && inner_scope.is_none()
                                 && slotted_scopes.is_empty()

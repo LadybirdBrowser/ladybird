@@ -1304,6 +1304,7 @@ impl StyleEngine {
                 let mut completed_retained_answer_bytes = 0_u64;
                 let share_cascade_completions = published_nodes.len() >= MIN_SHARED_CASCADE_COMPLETION_BATCH;
                 let completion_pass_timer = PassTimer::start();
+                let mut traversal = self.batch_matching_traversal.take();
                 for index in 0..published_nodes.len() {
                     let node = published_nodes[index];
                     let previous_exact_cascade_input = previous_cascade_inputs[index];
@@ -1359,8 +1360,12 @@ impl StyleEngine {
                             )
                         })
                         .unwrap_or_else(|| {
-                            self.complete_published_match_answer(node, retained_answer_dispatch)
-                                .expect("a connected style reaction must have complete selector facts")
+                            self.complete_published_match_answer_in_traversal(
+                                node,
+                                traversal.as_deref_mut(),
+                                retained_answer_dispatch,
+                            )
+                            .expect("a connected style reaction must have complete selector facts")
                         });
                     if let Some(identity) = retained_answer_identity
                         && let Some(cascade_input) = published_answer.cascade_input
@@ -1481,6 +1486,7 @@ impl StyleEngine {
                         }
                     }
                 }
+                self.batch_matching_traversal = traversal;
                 completion_pass_timer.stop(Counter::CompletionPassMicroseconds, &mut self.counters);
                 self.memory
                     .release(MemoryCategory::BatchScratch, completed_retained_answer_bytes);

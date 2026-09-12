@@ -1391,6 +1391,13 @@ impl RoutingSite<'_> {
     }
 }
 
+/// Whether completion must preserve the full selector answer for retention.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum CompletionExactness {
+    Exact,
+    AllowPruning,
+}
+
 /// The transaction-local output and retry state of one cold scope ask.
 pub(super) struct BatchMatchAttempt<'a> {
     pub(super) matches: &'a mut RuleMatches,

@@ -113,7 +113,6 @@ impl StyleEngine {
             retained_selector_incidences: RetainedSelectorIncidences::default(),
             selector_incidence_is_current: false,
             batch_matching_traversal: None,
-            complete_answers_exactly: false,
             completion_exactness_exhausted: false,
             route_pruning_states: RefCell::new(RoutePruningStateCache::default()),
             prefix_caches: Rc::new(RefCell::new(PrefixCaches::default())),
