@@ -2122,10 +2122,7 @@ pub unsafe extern "C" fn rust_layout_run_root_layout(
     });
     // SAFETY: Computation has finished and its input borrows are no longer used.
     let arena = unsafe { commit_entry_pass(host, root, &pass_fragments, sink) };
-    // The full scrollable overflow update measures eagerly and returns without refilling the
-    // contained-boxes index, so the index is rebuilt here from the freshly committed rows.
-    arena.rebuild_scrollable_overflow_contained_boxes(root);
-    arena.set_needs_full_scrollable_overflow_recalculation();
+    arena.did_commit_full_layout(root);
 }
 
 fn finish_entry_pass(

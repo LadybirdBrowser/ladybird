@@ -79,12 +79,6 @@ void DocumentPaintState::viewport_row_was_reset()
     m_visual_context_tree_needs_compositor_update = false;
 }
 
-void DocumentPaintState::refresh_sticky_constraints(DOM::Document& document)
-{
-    if (mirror_rust_refresh_sticky_constraints(document))
-        m_visual_context_tree_needs_compositor_update = true;
-}
-
 void DocumentPaintState::invalidate_scroll_state(DOM::Document& document)
 {
     rust_invalidate_scroll_state(document);

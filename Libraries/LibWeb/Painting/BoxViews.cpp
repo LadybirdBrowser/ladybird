@@ -150,13 +150,13 @@ CSSPixels border_box_height(Layout::Node const& node)
 
 bool has_scrollable_overflow(Layout::Node const& node)
 {
-    auto overflow = rust_scrollable_overflow(node);
+    auto overflow = Layout::RustFFI::layout_arena_paintable_scrollable_overflow(node.arena_handle(), committed_row_slot(node));
     return overflow.has_value && overflow.value.has_scrollable_overflow;
 }
 
 Optional<CSSPixelRect> scrollable_overflow_rect(Layout::Node const& node)
 {
-    auto overflow = rust_scrollable_overflow(node);
+    auto overflow = Layout::RustFFI::layout_arena_paintable_scrollable_overflow(node.arena_handle(), committed_row_slot(node));
     if (!overflow.has_value)
         return {};
     return overflow.value.rect;

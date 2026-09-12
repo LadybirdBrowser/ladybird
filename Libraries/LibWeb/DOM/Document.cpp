@@ -707,6 +707,8 @@ Layout::NodeArena& Document::layout_node_arena()
 void Document::reset_style_invalidation_counters() const
 {
     m_style_invalidation_counters = {};
+    if (m_layout_node_arena)
+        Layout::RustFFI::layout_arena_scrollable_overflow_recalculation_count(m_layout_node_arena->handle(), true);
     CSS::reset_longhand_wrappers_minted();
 }
 
@@ -1526,8 +1528,6 @@ void Document::tear_down_layout_tree()
     if (auto* layout_root = exchange(m_layout_root, nullptr))
         layout_node_arena().free_subtree(Layout::Node::slot_id(layout_root));
     m_paint_state = nullptr;
-    if (m_layout_node_arena)
-        Layout::RustFFI::layout_arena_clear_scrollable_overflow_contained_boxes(m_layout_node_arena->handle());
     m_needs_full_layout_tree_update = true;
 }
 
@@ -1877,24 +1877,15 @@ void Document::end_style_stabilization_epoch()
 
 // Refreshes every structure derived from committed layout results, shared by the partial and
 // full layout paths so neither can forget one.
-void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed, LayoutCommitScope layout_commit_scope)
+void Document::after_layout_commit(LayoutTreeChanged layout_tree_changed)
 {
     // NB: Called during layout update.
     m_layout_root->invalidate_text_blocks_cache();
 
     set_needs_to_record_display_list();
 
-    // A commit that changed the tree can have replaced boxes referenced by the cached
-    // contained-boxes index; refresh it before overflow measurement follows them. A pending full
-    // recalculation rebuilds the index inside its own measurement traversal instead.
-    if (layout_tree_changed == LayoutTreeChanged::Yes && !Layout::RustFFI::layout_arena_needs_full_scrollable_overflow_recalculation(layout_node_arena().handle()))
-        Layout::RustFFI::layout_arena_rebuild_scrollable_overflow_contained_boxes(layout_node_arena().handle(), Layout::Node::slot_id(m_layout_root));
-    if (layout_commit_scope == LayoutCommitScope::Full)
-        update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates::HandledByFullLayoutCommit);
-    else
-        update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates::HandledByAfterLayoutCommit);
-
     set_needs_accumulated_visual_contexts_update(true);
+    prepare_for_rendering();
 
     // A tree update can replace layout nodes referenced by selection state.
     if (auto range = get_selection()->range())
@@ -2144,7 +2135,7 @@ Document::PartialRelayoutResult Document::try_partial_relayout(Vector<Layout::Ru
 
     ++m_partial_layout_count;
 
-    after_layout_commit(layout_tree_was_built_in_partial_branch ? LayoutTreeChanged::Yes : LayoutTreeChanged::No, LayoutCommitScope::Subtree);
+    after_layout_commit(layout_tree_was_built_in_partial_branch ? LayoutTreeChanged::Yes : LayoutTreeChanged::No);
     if (needs_style_update_after_layout() || !layout_is_up_to_date())
         return PartialRelayoutResult::NeedsAnotherLayoutPass;
     return PartialRelayoutResult::Done;
@@ -2208,7 +2199,7 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
             && reason == UpdateLayoutReason::InspectDevToolsLayoutData;
 
         if (layout_is_up_to_date() && !force_devtools_layout_data_collection) {
-            update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates::UpdateAfterMeasure);
+            prepare_for_rendering();
             return;
         }
 
@@ -2266,7 +2257,7 @@ void Document::update_layout(UpdateLayoutReason reason, ThrottledAnimationSampli
         style_invalidation_counters().relayouts_performed++;
         ++m_full_layout_count;
 
-        after_layout_commit(LayoutTreeChanged::Yes, LayoutCommitScope::Full);
+        after_layout_commit(LayoutTreeChanged::Yes);
 
         if constexpr (UPDATE_LAYOUT_DEBUG) {
             dbgln("LAYOUT {} {} µs", to_string(reason), timer.elapsed_time().to_microseconds());
@@ -2619,7 +2610,7 @@ void Document::finish_animated_style_update()
         effect->request_observation_sample();
 }
 
-void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates derived_structure_updates)
+void Document::prepare_for_rendering()
 {
     if (!m_layout_node_arena)
         return;
@@ -2640,39 +2631,21 @@ void Document::update_scrollable_overflow(ScrollableOverflowDerivedStructureUpda
         });
     }
 
-    auto outcome = Painting::rust_update_scrollable_overflow(*this,
-        derived_structure_updates == ScrollableOverflowDerivedStructureUpdates::HandledByFullLayoutCommit);
-    if (!outcome.performed_recalculation)
-        return;
-
-    style_invalidation_counters().scrollable_overflow_recalculations++;
-
-    if (derived_structure_updates != ScrollableOverflowDerivedStructureUpdates::UpdateAfterMeasure)
-        return;
-
-    // Nothing derived from scrollable overflow needs updating. In particular, this keeps transform
-    // changes that ride the accumulated-visual-context value-update path free of display list
-    // re-recording when the overflow they produce is unchanged.
-    if (!outcome.any_overflow_changed)
-        return;
-
-    if (outcome.any_has_scrollable_overflow_flipped) {
+    auto outcome = Painting::rust_prepare_for_rendering(*this, m_needs_accumulated_visual_contexts_update);
+    if (outcome.requires_visual_context_update)
         set_needs_accumulated_visual_contexts_update(true);
-    } else if (!m_needs_accumulated_visual_contexts_update) {
-        // Sticky insets only depend on scrollport geometry and which ancestor is scrollable, neither of
-        // which changes without a flip; the constraints capture the scroll ancestor's scrollable
-        // overflow size though, so they have to be refreshed. When a full visual context rebuild is
-        // already pending it recaptures constraints anyway, and skipping the refresh then also avoids
-        // touching scroll nodes whose committed rows a subtree relayout may have replaced.
-        paint_state().refresh_sticky_constraints(*this);
+    if (outcome.visual_context_values_changed)
+        paint_state().did_update_visual_context_values();
+    if (outcome.requires_display_list_recording) {
+        set_needs_to_record_display_list();
+        m_document->set_needs_repaint();
     }
-    set_needs_to_record_display_list();
-    m_document->set_needs_repaint();
 }
 
 void Document::update_paint_and_hit_testing_properties_if_needed()
 {
     // NB: Called during paint property resolution.
+    prepare_for_rendering();
     if (m_needs_accumulated_visual_contexts_update) {
         m_needs_accumulated_visual_contexts_update = false;
         if (has_committed_viewport_box())

@@ -33,8 +33,8 @@ WEB_API Vector<u32> rust_visual_animation_target_node_indices(Layout::Node const
 WEB_API bool rust_background_color_can_be_compositor_animated(Layout::Node const&);
 WEB_API void const* retain_rust_main_visual_context_tree(DOM::Document const&);
 WEB_API Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions(Layout::Node const&);
-WEB_API Layout::RustFFI::FfiOptionalOverflowData rust_scrollable_overflow(Layout::Node const&);
-WEB_API Layout::RustFFI::FfiScrollableOverflowUpdateOutcome rust_update_scrollable_overflow(DOM::Document&, bool handled_by_full_layout_commit);
+WEB_API void register_geometry_host(Layout::NodeArena&);
+WEB_API Layout::RustFFI::FfiRenderingPreparationOutcome rust_prepare_for_rendering(DOM::Document&, bool visual_context_update_pending);
 WEB_API void rust_update_visual_viewport_transform(DOM::Document&);
 enum class ForceScrollStateRefresh {
     No,
@@ -43,7 +43,6 @@ enum class ForceScrollStateRefresh {
 // Refreshes the snapshot from the Rust scroll state; false when nothing had invalidated it and
 // the refresh was not forced.
 WEB_API bool rust_refresh_scroll_state(DOM::Document&, ScrollStateSnapshot&, ForceScrollStateRefresh = ForceScrollStateRefresh::No);
-WEB_API bool mirror_rust_refresh_sticky_constraints(DOM::Document&);
 WEB_API void rust_invalidate_scroll_state(DOM::Document&);
 WEB_API void mirror_rust_invalidate_paint_cache(Layout::Node const&);
 WEB_API void rust_invalidate_propagated_text_decoration_caches(Layout::Node const&);

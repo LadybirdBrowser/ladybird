@@ -2129,7 +2129,7 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
     object->define_direct_property("customPropertyCycleParticipants"_utf16_fly_string, JS::Value(counters.custom_property_cycle_participants), JS::default_attributes);
     object->define_direct_property("styleCascadeMicroseconds"_utf16_fly_string, JS::Value(counters.style_cascade_microseconds), JS::default_attributes);
     object->define_direct_property("styleValuesMicroseconds"_utf16_fly_string, JS::Value(counters.style_values_microseconds), JS::default_attributes);
-    object->define_direct_property("scrollableOverflowRecalculations"_utf16_fly_string, JS::Value(counters.scrollable_overflow_recalculations), JS::default_attributes);
+    object->define_direct_property("scrollableOverflowRecalculations"_utf16_fly_string, JS::Value(Layout::RustFFI::layout_arena_scrollable_overflow_recalculation_count(document.layout_node_arena().handle(), false)), JS::default_attributes);
     return object;
 }
 

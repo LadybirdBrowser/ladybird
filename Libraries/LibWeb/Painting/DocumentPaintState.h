@@ -34,7 +34,7 @@ public:
     // Called from Document::update_paint_and_hit_testing_properties_if_needed() once the visual
     // context tree is settled; every other consumer reaches the scroll state through that update.
     void refresh_scroll_state(DOM::Document&);
-    void refresh_sticky_constraints(DOM::Document&);
+    void did_update_visual_context_values() { m_visual_context_tree_needs_compositor_update = true; }
 
     void update_accumulated_visual_contexts(DOM::Document&);
     void update_visual_viewport_accumulated_visual_context(DOM::Document&);

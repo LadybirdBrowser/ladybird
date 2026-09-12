@@ -39,7 +39,6 @@ pub struct PaintState {
     pub(crate) selection: Option<crate::painting::selection::SelectionRange>,
     pub(crate) selection_pseudo_styles:
         std::collections::HashMap<NodeSlotId, Rc<crate::painting::record::paint::text::SelectionStyleAnswer>>,
-    pub(crate) scrollable_overflow_non_child_boxes: std::collections::HashMap<NodeSlotId, Vec<NodeSlotId>>,
     pub(crate) per_recording_memo_tables: RefCell<crate::painting::record::scratch::PerRecordingMemoTables>,
 }
 

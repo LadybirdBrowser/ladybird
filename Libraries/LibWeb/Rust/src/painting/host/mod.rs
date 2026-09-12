@@ -23,13 +23,14 @@ pub struct FfiRootBackgroundSource {
 
 #[derive(Clone, Copy)]
 #[repr(C)]
-pub struct FfiScrollableOverflowHostCallbacks {
+pub struct FfiGeometryHostCallbacks {
     pub context: *mut std::ffi::c_void,
+    pub clamp_scroll_offset_if_nonzero: unsafe extern "C" fn(*mut std::ffi::c_void, *mut std::ffi::c_void),
     pub layout_node_is_in_focused_text_control:
         unsafe extern "C" fn(*mut std::ffi::c_void, *mut std::ffi::c_void) -> bool,
 }
 
-impl FfiScrollableOverflowHostCallbacks {
+impl FfiGeometryHostCallbacks {
     pub(crate) fn layout_node_is_in_focused_text_control(&self, layout_node_shell: *mut std::ffi::c_void) -> bool {
         // SAFETY: The C++ host answers synchronously from a live layout node shell.
         unsafe { (self.layout_node_is_in_focused_text_control)(self.context, layout_node_shell) }
