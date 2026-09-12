@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+promiseTest(async () => {
+    for (const type of ["submit", "reset"]) {
+        for (const shadow of [false, true]) {
+            const form = document.createElement("form");
+            form.innerHTML = `<a href="javascript:window.nestedActivation('link')"><button type="${type}"></button></a>`;
+            document.body.append(form);
+            const outerButton = form.querySelector("button");
+            let parent = outerButton;
+            if (shadow) {
+                const host = document.createElement("div");
+                outerButton.append(host);
+                parent = host.attachShadow({ mode: "open" });
+            }
+            const innerButton = document.createElement("button");
+            innerButton.type = "button";
+            parent.append(innerButton);
+            const activated = new Promise(resolve => {
+                window.nestedActivation = resolve;
+                form.addEventListener(type, event => {
+                    event.preventDefault();
+                    resolve(type);
+                });
+            });
+            innerButton.click();
+            println(`Nested button: type=${type}, shadow=${shadow}, activated=${await activated}`);
+            form.remove();
+        }
+    }
+
+    for (const type of ["submit", "reset"]) {
+        const form = document.createElement("form");
+        form.innerHTML = '<a href="#unexpected"><button type="button">Commit</button></a>';
+        document.body.append(form);
+        const button = form.querySelector("button");
+        button.onclick = () => button.type = type;
+        let activated = false;
+        form.addEventListener(type, event => {
+            event.preventDefault();
+            activated = true;
+        });
+        button.click();
+        println(`Button changed to ${type} during click: ${activated}`);
+        form.remove();
+    }
+
+    const container = document.createElement("div");
+    container.innerHTML = '<a href="#unexpected"><button type="button">Commit</button></a><div id="command-target"></div><div id="popover-target" popover>Popover</div>';
+    document.body.append(container);
+    const button = container.querySelector("button");
+    let commandActivated = false;
+    container.querySelector("#command-target").addEventListener("command", () => commandActivated = true);
+    button.onclick = () => {
+        button.setAttribute("commandfor", "command-target");
+        button.setAttribute("command", "--test");
+    };
+    button.click();
+    println(`Command target added during click: ${commandActivated}`);
+    button.removeAttribute("commandfor");
+    button.removeAttribute("command");
+    button.onclick = () => button.setAttribute("popovertarget", "popover-target");
+    button.click();
+    println(`Popover target added during click: ${container.querySelector("#popover-target").matches(":popover-open")}`);
+    container.remove();
+
+    for (const inForm of [false, true]) {
+        for (const descendant of [false, true]) {
+            const container = document.createElement(inForm ? "form" : "div");
+            container.innerHTML = '<a href="javascript:window.linkActivated()"><button type="button"><span>Commit</span></button></a>';
+            document.body.append(container);
+            const activated = new Promise(resolve => window.linkActivated = resolve);
+            container.querySelector(descendant ? "span" : "button").click();
+            await activated;
+            println(`Link activated: in form=${inForm}, descendant=${descendant}`);
+            container.remove();
+        }
+    }
+});
+</script>

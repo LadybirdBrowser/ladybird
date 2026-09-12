@@ -21,7 +21,10 @@
 #include <LibWeb/DOM/Slottable.h>
 #include <LibWeb/DOM/Text.h>
 #include <LibWeb/DOM/Utils.h>
+#include <LibWeb/HTML/AttributeNames.h>
 #include <LibWeb/HTML/EventNames.h>
+#include <LibWeb/HTML/HTMLAnchorElement.h>
+#include <LibWeb/HTML/HTMLButtonElement.h>
 #include <LibWeb/HTML/HTMLSlotElement.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/UIEvents/MouseEvent.h>
@@ -394,6 +397,43 @@ bool EventDispatcher::dispatch(GC::Ref<EventTarget> target, Event& event, bool l
 
             // 3. Invoke with struct, event, "bubbling", and legacyOutputDidListenersThrowFlag if given.
             invoke(entry, event, Event::Phase::BubblingPhase, legacy_output_did_listeners_throw);
+        }
+    }
+
+    // INTEROP: Plain buttons inside links allow the link's default action. Check after event listeners
+    //          have run, since a click listener can give the button a submit, reset, command, or popover action.
+    if (auto* button = as_if<HTML::HTMLButtonElement>(activation_target.ptr()); button && event.bubbles() && button->enabled()
+        && button->type_state() == HTML::HTMLButtonElement::TypeAttributeState::Button
+        && !button->get_the_attribute_associated_element(HTML::AttributeNames::commandfor, button->command_for_element())
+        && !HTML::PopoverTargetAttributes::get_the_popover_target_element(*button)) {
+        bool passed_button = false;
+        GC::Ptr<EventTarget> intervening_activation_target;
+        for (auto const& entry : event.path()) {
+            if (entry.invocation_target.ptr() == button) {
+                passed_button = true;
+                continue;
+            }
+            if (!passed_button)
+                continue;
+
+            // INTEROP: An intervening form-associated submit or reset button consumes activation
+            //          before it can reach the link, even when its form action is canceled.
+            if (auto* ancestor_button = as_if<HTML::HTMLButtonElement>(entry.invocation_target.ptr()); ancestor_button
+                && ancestor_button->enabled() && ancestor_button->form()
+                && (ancestor_button->is_submit_button() || ancestor_button->type_state() == HTML::HTMLButtonElement::TypeAttributeState::Reset)) {
+                if (!intervening_activation_target)
+                    intervening_activation_target = ancestor_button;
+                continue;
+            }
+            if (is<HTML::HTMLAnchorElement>(*entry.invocation_target) && entry.invocation_target->has_activation_behavior()) {
+                activation_target = intervening_activation_target ? intervening_activation_target : entry.invocation_target;
+                break;
+            }
+
+            // NB: Keep other intervening activation behaviors, such as labels, as boundaries.
+            //     The link fallback must not bypass them just because the clicked button is plain.
+            if (entry.invocation_target->has_activation_behavior())
+                break;
         }
     }
 
