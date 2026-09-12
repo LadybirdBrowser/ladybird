@@ -28,10 +28,13 @@ WEB_API void flush_deferred_style_change_events_for_rule(CSSRule&);
 // node identity records nothing at all, which is what keeps disconnected and never-styled content
 // free.
 //
+// Called once a subtree has been linked into a connected tree. Allocates a style node identity for
+// every element and shadow root in it that has none yet, and records the arrival of each element.
+WEB_API void record_subtree_connecting(DOM::Node& root);
+
 // Called once a node has been linked into a connected tree. Allocates the element's style node
 // identity if it does not have one yet.
 WEB_API void record_element_connected(DOM::Element&);
-WEB_API void prepare_style_nodes_for_subtree(DOM::Node&);
 WEB_API void publish_pending_element_features(StyleEngine&, StyleComputer&);
 WEB_API void publish_required_attribute_value_texts(StyleEngine&, StyleComputer&);
 

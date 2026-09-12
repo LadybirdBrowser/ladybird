@@ -944,7 +944,7 @@ void Node::insert_nodes_before(ReadonlySpan<GC::Root<Node>> nodes, GC::Ptr<Node>
         // the chain it lands under.
         CSS::Invalidation::invalidate_style_after_subtree_place_changed(*node_to_insert, nullptr);
 
-        CSS::prepare_style_nodes_for_subtree(*node_to_insert);
+        CSS::record_subtree_connecting(*node_to_insert);
 
         SubtreeInsertionScope subtree_insertion_scope { *this };
 
@@ -2564,11 +2564,11 @@ void Node::inserted()
     if (update_inside_blocking_wheel_event_handler_state())
         set_needs_repaint();
 
-    // The DOM insertion steps visit shadow-including inclusive descendants in tree order, so an
-    // element's parent and preceding siblings already have their identities by the time it records
-    // its own relations.
     if (auto* element = as_if<Element>(*this)) {
-        CSS::record_element_connected(*element);
+        // The content an element clones into its shadow tree from its own insertion steps lands under
+        // a root that connects only when this walk reaches it, so no subtree arrival covered it.
+        if (element->style_node_id() == 0)
+            CSS::record_element_connected(*element);
         if (is<HTML::HTMLSlotElement>(*element)) {
             if (auto parent = element->parent_element())
                 CSS::Invalidation::invalidate_style_after_text_change_under(*parent);
