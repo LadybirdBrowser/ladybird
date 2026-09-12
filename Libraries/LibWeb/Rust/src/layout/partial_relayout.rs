@@ -121,7 +121,7 @@ impl LayoutNodeArena {
         if node_facts::has_flag(data, NodeFlag::IsDocumentElement) {
             return false;
         }
-        if !node_facts::has_flag(data, NodeFlag::HasSavedAbsposLayoutInputs) {
+        if self.saved_abspos_layout_inputs(data).is_none() {
             return false;
         }
 
@@ -333,7 +333,10 @@ impl LayoutNodeArena {
             return false;
         }
 
-        if node_facts::has_flag(data, NodeFlag::SavedAbsposCbDerivesFromOwnComputedValues) {
+        let Some(inputs) = self.saved_abspos_layout_inputs(data) else {
+            return false;
+        };
+        if inputs.containing_block_info.derives_from_own_computed_values {
             return false;
         }
 
@@ -343,9 +346,7 @@ impl LayoutNodeArena {
         let inset = &style.surround().inset;
         let uses_static_position =
             (inset.left.is_auto() && inset.right.is_auto()) || (inset.top.is_auto() && inset.bottom.is_auto());
-        if uses_static_position
-            && node_facts::has_flag(data, NodeFlag::SavedAbsposAlignmentDerivesFromOwnComputedValues)
-        {
+        if uses_static_position && inputs.static_position_rect.alignment_derives_from_own_computed_values {
             return false;
         }
 

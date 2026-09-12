@@ -50,13 +50,6 @@ fn commit_subtree(
     let entry = links_by_slot.get(&slot_index).copied();
     let reuses_committed_subtree = pass_fragments.subtree_was_reused(slot_index);
     debug_assert!(!reuses_committed_subtree || entry.is_some());
-    if let Some(link) = entry {
-        let arena = paintables.arena();
-        let data = arena.data(node);
-        if node_facts::kind_is_box(data.kind.get()) {
-            arena.set_saved_abspos_layout_inputs(data, link.abspos_layout_inputs);
-        }
-    }
     let prepared = paintables.prepare_node(
         node,
         entry.is_some(),

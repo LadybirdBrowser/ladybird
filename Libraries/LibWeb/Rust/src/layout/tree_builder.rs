@@ -1633,12 +1633,6 @@ fn update_principal_node_after_entry(
                 let new_data = arena.data(layout_node);
                 if node_kind_is_box(old_data.kind.get())
                     && node_kind_is_box(new_data.kind.get())
-                    && let Some(inputs) = arena.saved_abspos_layout_inputs(old_data)
-                {
-                    arena.set_saved_abspos_layout_inputs(new_data, Some(inputs));
-                }
-                if node_kind_is_box(old_data.kind.get())
-                    && node_kind_is_box(new_data.kind.get())
                     && let Some(link) = arena.take_committed_fragment_link(old_data)
                 {
                     arena.set_committed_fragment_link(new_data, link);
