@@ -623,6 +623,14 @@ impl<K: Copy + Eq + Hash + Ord, V: Clone> StagedField<K, V> {
     fn clear(&mut self) {
         self.rows.clear();
         self.touched.clear();
+        // Keep small edit buffers warm, but do not retain stylesheet-loading capacity for the
+        // lifetime of every document. These rows are only needed until transaction release.
+        if self.rows.capacity() * size_of::<(K, StagedFieldRow<V>)>() > 4096 {
+            self.rows = HashMap::default();
+        }
+        if self.touched.capacity() * size_of::<K>() > 4096 {
+            self.touched = Vec::new();
+        }
         self.dirty_count = 0;
     }
 
