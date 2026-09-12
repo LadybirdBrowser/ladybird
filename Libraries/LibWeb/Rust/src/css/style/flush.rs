@@ -1847,11 +1847,25 @@ impl StyleEngineState {
                     uses_substitution: gap == FfiStyleDeltaGap::Computed
                         && self.nodes_with_substituted_records.contains(&node),
                 };
+                if style_deltas.len() == style_deltas.capacity() {
+                    style_deltas.reserve(1);
+                    style_delta_memory.resize_required_to(
+                        &mut self.memory,
+                        capacity::ShallowCapacityBytes::shallow_capacity_bytes(&style_deltas),
+                    );
+                }
                 style_deltas.push(style_delta);
                 // The pseudo-element records the engine settled beside an engine-computed record
                 // follow it, for C++ to install with it.
                 if gap == FfiStyleDeltaGap::Computed {
                     for pseudo in engine_computed_record_scratch.pseudo_deltas.drain(..) {
+                        if style_deltas.len() == style_deltas.capacity() {
+                            style_deltas.reserve(1);
+                            style_delta_memory.resize_required_to(
+                                &mut self.memory,
+                                capacity::ShallowCapacityBytes::shallow_capacity_bytes(&style_deltas),
+                            );
+                        }
                         style_deltas.push(PublishedStyleDeltaRecord {
                             style_node: node.raw(),
                             match_answer: style_delta.match_answer,
@@ -1866,17 +1880,21 @@ impl StyleEngineState {
                         });
                     }
                 }
-                style_delta_memory.resize_required_to(
-                    &mut self.memory,
-                    capacity::ShallowCapacityBytes::shallow_capacity_bytes(&style_deltas),
-                );
-                computation_scratch_memory.resize_required_to(
-                    &mut self.memory,
-                    engine_computed_record_scratch.capacity_bytes()
-                        + capacity::ShallowCapacityBytes::shallow_capacity_bytes(&confined_ancestors),
-                );
+                // NB: Sample scratch coexistence without scanning its containers per element.
+                if (published_index + 1).is_multiple_of(256) {
+                    computation_scratch_memory.resize_required_to(
+                        &mut self.memory,
+                        engine_computed_record_scratch.capacity_bytes()
+                            + capacity::ShallowCapacityBytes::shallow_capacity_bytes(&confined_ancestors),
+                    );
+                }
             }
             computation_loop_timer.stop(Counter::ComputationLoopMicroseconds, counters);
+            computation_scratch_memory.resize_required_to(
+                &mut self.memory,
+                engine_computed_record_scratch.capacity_bytes()
+                    + capacity::ShallowCapacityBytes::shallow_capacity_bytes(&confined_ancestors),
+            );
             drop(engine_computed_record_scratch);
             drop(confined_ancestors);
             computation_scratch_memory.release();

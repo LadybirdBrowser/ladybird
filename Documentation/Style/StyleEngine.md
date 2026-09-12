@@ -931,7 +931,7 @@ The scratch cap is 32 MiB and the transaction node allowance is 768 bytes. The m
 
 During an active capture (and its replay), the memory policy pins the Tier-3 limit to the device cap so recorded eviction decisions are reproducible; ordinary builds never run that policy.
 
-Accounting uses one plain-integer ledger per document or shared-program context, mutated through exclusive borrows. Leases share only the accounting lifetime, so destroying an outliving query or shared program still releases its charge. Ledger operations never select admission or refuse required capacity. Peak charged live bytes and peak scratch bytes remain available after temporary charges are released. Required output and node workspace is reserved before computation; growing computation scratch and pseudo-output capacity is reconciled while the loop runs.
+Accounting uses one plain-integer ledger per document or shared-program context, mutated through exclusive borrows. Leases share only the accounting lifetime, so destroying an outliving query or shared program still releases its charge. Ledger operations never select admission or refuse required capacity. Peak charged live bytes and peak scratch bytes remain available after temporary charges are released. Required output and node workspace is reserved before computation. Output capacity is reconciled at vector growth; computation scratch capacity is sampled every 256 published elements and reconciled after the loop, before release. Its high-water observation reports accounted capacity at those points, not an allocator-level peak.
 
 Byte accounting happens at arena, slab, vector-capacity, bitmap, and hash-table allocation boundaries: operators update aggregate counters when capacity changes, not on every lookup.
 
