@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // Each process answers web storage from its own cache, and the owner tells every other process to drop a map it
+    // changed. So two same-origin documents in two processes have to see each other's writes, overwrites, removals, and
+    // clears on their next read — with the keys and length reloaded along with the values. And a write a process
+    // accepts from a stale cache, but the owner then refuses, has to vanish from that process on its next read. The
+    // actor popup reports each observation to this page, and drives the peer over a BroadcastChannel.
+    //
+    // The peer runs in a second process because it's opened with noopener on a cross-site trampoline host, and the
+    // trampoline's navigation to the same-origin peer page is a cross-site top-level navigation in a browsing context
+    // group of one — which site isolation hands to a new WebContent process. A popup's first navigation away from
+    // about:blank stays in its opener's process, so opening the peer page directly would leave both in one process.
+    asyncTest(async (done) => {
+        const httpServer = httpTestServer();
+        const host = uniqueLocalhostHostname("storage-cache");
+        const runId = crypto.randomUUID();
+        const channelName = `storage-cache-${runId}`;
+        const htmlHeaders = { "Content-Type": "text/html" };
+
+        const snapshotSource = `
+            const snapshot = () => {
+                const entries = [];
+                for (let i = 0; i < localStorage.length; ++i) {
+                    const key = localStorage.key(i);
+                    entries.push(key + "=" + localStorage.getItem(key));
+                }
+                return "length " + localStorage.length + (entries.length ? ": " + entries.sort().join(",") : "");
+            };
+            const keys = () => {
+                const names = [];
+                for (let i = 0; i < localStorage.length; ++i)
+                    names.push(localStorage.key(i));
+                return names.sort();
+            };
+            const trySet = (key, value) => {
+                try {
+                    localStorage.setItem(key, value);
+                    return false;
+                } catch {
+                    return true;
+                }
+            };`;
+
+        const peerUrl = new URL(
+            await httpServer.createEcho("GET", `/storage-cache-peer-${runId}`, {
+                status: 200,
+                headers: htmlHeaders,
+                body: `<!DOCTYPE html><script>
+                    ${snapshotSource}
+                    const channel = new BroadcastChannel(${JSON.stringify(channelName)});
+                    channel.onmessage = (e) => {
+                        const command = e.data;
+                        if (command.op === "set")
+                            localStorage.setItem(command.key, command.value);
+                        else if (command.op === "remove")
+                            localStorage.removeItem(command.key);
+                        else if (command.op === "clear")
+                            localStorage.clear();
+                        else if (command.op === "setBig") {
+                            const threw = trySet(command.key, "p".repeat(command.size));
+                            return channel.postMessage({ type: "written", threw });
+                        }
+                        else if (command.op === "keys")
+                            return channel.postMessage({ type: "keys", keys: keys() });
+                        else if (command.op === "close")
+                            return window.close();
+                        channel.postMessage({ type: "snapshot", snapshot: snapshot() });
+                    };
+                    // Prime this process's cache before the actor writes anything: that copy is what has to be dropped.
+                    snapshot();
+                    channel.postMessage({ type: "ready" });
+                <\/script>`,
+            })
+        );
+        peerUrl.hostname = host;
+
+        const trampolineUrl = new URL(
+            await httpServer.createEcho("GET", `/storage-cache-trampoline-${runId}`, {
+                status: 200,
+                headers: htmlHeaders,
+                body: `<!DOCTYPE html><script>location.replace(${JSON.stringify(peerUrl.href)});<\/script>`,
+            })
+        );
+        trampolineUrl.hostname = uniqueLocalhostHostname("storage-cache-trampoline");
+
+        const actorUrl = new URL(
+            await httpServer.createEcho("GET", `/storage-cache-actor-${runId}`, {
+                status: 200,
+                headers: htmlHeaders,
+                body: `<!DOCTYPE html><script>
+                    ${snapshotSource}
+                    const report = (line) => opener.postMessage(line, "*");
+                    const channel = new BroadcastChannel(${JSON.stringify(channelName)});
+                    const replies = [];
+                    let waiter = null;
+                    channel.onmessage = (e) => {
+                        if (waiter) {
+                            const resolve = waiter;
+                            waiter = null;
+                            resolve(e.data);
+                        } else {
+                            replies.push(e.data);
+                        }
+                    };
+                    const nextReply = () => new Promise((resolve) => {
+                        if (replies.length)
+                            resolve(replies.shift());
+                        else
+                            waiter = resolve;
+                    });
+                    const ask = async (command) => {
+                        channel.postMessage(command);
+                        return nextReply();
+                    };
+                    const peerSnapshot = async () => (await ask({ op: "snapshot" })).snapshot;
+                    (async () => {
+                        localStorage.clear();
+                        snapshot();
+                        window.open(${JSON.stringify(trampolineUrl.href)}, "_blank", "noopener");
+                        await nextReply();
+                        report("peer initial: " + await peerSnapshot());
+                        localStorage.setItem("a", "1");
+                        report("after actor sets a=1, peer sees " + await peerSnapshot());
+                        await ask({ op: "set", key: "b", value: "2" });
+                        report("after peer sets b=2, actor sees " + snapshot());
+                        localStorage.setItem("a", "3");
+                        report("after actor overwrites a=3, peer sees " + await peerSnapshot());
+                        await ask({ op: "set", key: "b", value: "4" });
+                        report("after peer overwrites b=4, actor sees " + snapshot());
+                        localStorage.removeItem("a");
+                        report("after actor removes a, peer sees " + await peerSnapshot());
+                        await ask({ op: "remove", key: "b" });
+                        report("after peer removes b, actor sees " + snapshot());
+                        localStorage.setItem("c", "5");
+                        await ask({ op: "set", key: "d", value: "6" });
+                        report("after actor sets c=5 and peer sets d=6, actor sees " + snapshot());
+                        report("after actor sets c=5 and peer sets d=6, peer sees " + await peerSnapshot());
+                        await ask({ op: "clear" });
+                        report("after peer clears, actor sees " + snapshot());
+                        localStorage.setItem("e", "7");
+                        localStorage.clear();
+                        report("after actor sets e=7 then clears, peer sees " + await peerSnapshot());
+                        // Two writes that fit alone but not together, each made from a cache that can't know about the
+                        // other: the actor writes in the task that posts the peer's command, and that command reaches
+                        // the peer ahead of the actor's invalidation. So both are accepted locally, and the owner
+                        // refuses whichever reaches it second — and neither process may keep the refused one.
+                        const size = 3 * 1024 * 1024;
+                        const peerWritten = ask({ op: "setBig", key: "peerBig", size });
+                        const actorThrew = trySet("actorBig", "a".repeat(size));
+                        const peerThrew = (await peerWritten).threw;
+                        const bothWrote = "after both write 3 MiB at once from stale caches, ";
+                        report(bothWrote + "neither write threw: " + !(actorThrew || peerThrew));
+                        // Which write survives depends on which reached the owner first, so name the survivor by kind.
+                        const actorKeys = keys();
+                        const bigKeys = ["actorBig", "peerBig"];
+                        const kept = actorKeys.map((key) => (bigKeys.includes(key) ? "a 3 MiB write" : key));
+                        report(bothWrote + "actor keeps " + kept.length + " key: " + kept.join(","));
+                        const peerKeys = (await ask({ op: "keys" })).keys;
+                        report(bothWrote + "peer agrees: " + (peerKeys.join(",") === actorKeys.join(",")));
+                        channel.postMessage({ op: "close" });
+                        report("done");
+                    })();
+                <\/script>`,
+            })
+        );
+        actorUrl.hostname = host;
+
+        let actor = null;
+        addEventListener("message", (event) => {
+            if (event.data === "done") {
+                actor.close();
+                done();
+                return;
+            }
+            println(event.data);
+        });
+        actor = window.open(actorUrl);
+    });
+</script>
