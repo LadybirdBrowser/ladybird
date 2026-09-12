@@ -152,6 +152,12 @@ if (BUILD_TESTING AND NOT WIN32)
     set_tests_properties(TestWebDriverSessionHistory PROPERTIES TIMEOUT 120 ENVIRONMENT "XDG_DATA_HOME=${CMAKE_CURRENT_BINARY_DIR}/session-history-data")
 
     add_test(
+        NAME TestWebDriverSiteZoom
+        COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-site-zoom.py $<TARGET_FILE:WebDriver>
+    )
+    set_tests_properties(TestWebDriverSiteZoom PROPERTIES TIMEOUT 120)
+
+    add_test(
         NAME TestWebDriverErrorKeepAlive
         COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_SOURCE_DIR}/test-webdriver-error-keep-alive.py $<TARGET_FILE:WebDriver>
     )
