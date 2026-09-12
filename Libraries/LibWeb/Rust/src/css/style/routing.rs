@@ -165,7 +165,7 @@ impl StyleEngineState {
             return;
         }
         let routing = Rc::clone(&self.routing);
-        let route_liveness = routing.route_liveness(&self.program, &self.programs);
+        let route_liveness = routing.route_liveness(&self.program);
         for key in keys {
             // A maintained relation already accounts for these selectors' complete changes.
             // Prove coverage once per input key before expanding its individual routes.
@@ -558,7 +558,7 @@ impl StyleEngineState {
         if sequences.iter().all(|(_, change)| change.relational_records.is_empty()) {
             return;
         }
-        let live = routing.live_relational_routes(&self.program, &self.programs);
+        let live = routing.live_relational_routes(&self.program);
 
         for &LiveRelationalRoute { route, program, anchor } in live.iter() {
             // An argument that reaches its witness across a sibling relation of its own holds
@@ -1251,9 +1251,9 @@ impl StyleEngineState {
         let exact_before_sibling_relations = tree_routing.use_exact && tree_routing.has_before_sibling_relations;
         let use_cached_index = changed_sheets.is_empty();
         let mut entries = if use_cached_index {
-            routing.live_sequence_entries(&self.program, &self.programs).to_vec()
+            routing.live_sequence_entries(&self.program).to_vec()
         } else {
-            let route_liveness = routing.route_liveness(&self.program, &self.programs);
+            let route_liveness = routing.route_liveness(&self.program);
             // A sheet changing attachment needs the routes from both sides of the transaction. The
             // current-program cache intentionally contains only the final side, so build this rare
             // union directly.
@@ -1316,8 +1316,7 @@ impl StyleEngineState {
         let any_deferred = deferred_mask.iter().any(|&deferred| deferred);
         let any_immediate = deferred_mask.iter().any(|&deferred| !deferred);
         if any_immediate {
-            let mut cached_entry_index =
-                use_cached_index.then(|| routing.live_sequence_index(&self.program, &self.programs));
+            let mut cached_entry_index = use_cached_index.then(|| routing.live_sequence_index(&self.program));
             let mut owned_entry_index = (!use_cached_index).then(|| SequenceEntryIndex::build(&entries, &routing));
             let entry_index_bytes = owned_entry_index.as_ref().map_or(0, SequenceEntryIndex::capacity_bytes);
             let entry_index = match (&mut cached_entry_index, &mut owned_entry_index) {

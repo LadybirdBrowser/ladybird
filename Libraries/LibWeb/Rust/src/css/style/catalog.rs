@@ -86,7 +86,7 @@ impl SelectorTruthSetCatalog {
 
 pub(super) struct MatchAnswerCatalogEntry {
     pub(super) answer: Rc<[RetainedRuleMatch]>,
-    synthetic_pseudo_mask: std::cell::OnceCell<u64>,
+    synthetic_pseudo_mask: u64,
     pub(super) prefix_references: u32,
     pub(super) cascade_references: u32,
     pub(super) cascade_payload_accounted: bool,
@@ -140,23 +140,32 @@ impl MatchAnswerCatalog {
             if let Some(identity) = self.identity(prepared, hash) {
                 return identity;
             }
-            return self.insert_new(Rc::from(&*prepared), hash);
+            return self.insert_new(Rc::from(&*prepared), hash, Self::mask_for_matches(answer));
         }
         let mut prepared: Vec<RetainedRuleMatch> =
             answer.iter().copied().map(RetainedRuleMatch::from_rule_match).collect();
         prepared.sort_unstable();
-        self.intern_prepared(prepared)
+        let hash = content_hash(&prepared);
+        if let Some(identity) = self.identity(&prepared, hash) {
+            return identity;
+        }
+        self.insert_new(prepared.into(), hash, Self::mask_for_matches(answer))
     }
 
-    pub(super) fn intern_prepared(&mut self, answer: Vec<RetainedRuleMatch>) -> MatchAnswerID {
+    pub(super) fn intern_prepared(
+        &mut self,
+        answer: Vec<RetainedRuleMatch>,
+        programs: &SelectorPrograms,
+    ) -> MatchAnswerID {
         let hash = content_hash(&answer);
         if let Some(identity) = self.identity(&answer, hash) {
             return identity;
         }
-        self.insert_new(answer.into(), hash)
+        let mask = Self::mask_for_retained_matches(&answer, programs);
+        self.insert_new(answer.into(), hash, mask)
     }
 
-    pub(super) fn insert_new(&mut self, answer: Rc<[RetainedRuleMatch]>, hash: u64) -> MatchAnswerID {
+    fn insert_new(&mut self, answer: Rc<[RetainedRuleMatch]>, hash: u64, synthetic_pseudo_mask: u64) -> MatchAnswerID {
         let identity = MatchAnswerID(
             u32::try_from(self.answers.len())
                 .ok()
@@ -168,7 +177,7 @@ impl MatchAnswerCatalog {
             identity,
             Some(MatchAnswerCatalogEntry {
                 answer,
-                synthetic_pseudo_mask: std::cell::OnceCell::new(),
+                synthetic_pseudo_mask,
                 prefix_references: 0,
                 cascade_references: 0,
                 cascade_payload_accounted: false,
@@ -182,22 +191,33 @@ impl MatchAnswerCatalog {
         self.answers[identity].as_ref().map(|entry| &entry.answer)
     }
 
-    pub(super) fn synthetic_pseudo_mask(&self, identity: MatchAnswerID, programs: &SelectorPrograms) -> Option<u64> {
-        let answer = self.answers[identity].as_ref()?;
-        // Selector programs are immutable and remain referenced by their catalog answers.
-        // Every element holding this answer therefore has the same set of pseudo kinds.
-        Some(*answer.synthetic_pseudo_mask.get_or_init(|| {
-            answer.answer.iter().fold(0, |mask, matched| {
-                let entry = &programs.get(matched.program).entries()[matched.entry as usize];
-                mask | entry.pseudo_element.map_or(0, |pseudo| {
-                    if pseudo.kind.0 <= bridge::LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND {
-                        1_u64 << pseudo.kind.0
-                    } else {
-                        0
-                    }
-                })
-            })
-        }))
+    fn pseudo_bit(pseudo: Option<tree::PseudoElementTarget>) -> u64 {
+        pseudo.map_or(0, |pseudo| {
+            if pseudo.kind.0 <= bridge::LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND {
+                1_u64 << pseudo.kind.0
+            } else {
+                0
+            }
+        })
+    }
+
+    fn mask_for_matches(answer: &[RuleMatch]) -> u64 {
+        answer
+            .iter()
+            .fold(0, |mask, matched| mask | Self::pseudo_bit(matched.pseudo_element))
+    }
+
+    fn mask_for_retained_matches(answer: &[RetainedRuleMatch], programs: &SelectorPrograms) -> u64 {
+        answer.iter().fold(0, |mask, matched| {
+            let entry = &programs.get(matched.program).entries()[matched.entry as usize];
+            mask | Self::pseudo_bit(entry.pseudo_element)
+        })
+    }
+
+    pub(super) fn synthetic_pseudo_mask(&self, identity: MatchAnswerID) -> Option<u64> {
+        self.answers[identity]
+            .as_ref()
+            .map(|answer| answer.synthetic_pseudo_mask)
     }
 
     pub(super) fn has_cascade_reference(&self, identity: MatchAnswerID) -> bool {
@@ -327,9 +347,15 @@ impl MatchAnswerCatalog {
             .is_some_and(|entry| entry.retained_references != 0)
     }
 
-    pub(super) fn insert_retained(&mut self, answer: Vec<RetainedRuleMatch>, hash: u64) -> MatchAnswerID {
+    pub(super) fn insert_retained(
+        &mut self,
+        answer: Vec<RetainedRuleMatch>,
+        hash: u64,
+        programs: &SelectorPrograms,
+    ) -> MatchAnswerID {
         debug_assert!(self.identity(&answer, hash).is_none());
-        let identity = self.insert_new(answer.into(), hash);
+        let mask = Self::mask_for_retained_matches(&answer, programs);
+        let identity = self.insert_new(answer.into(), hash, mask);
         self.retain_identity(identity);
         identity
     }
@@ -533,9 +559,10 @@ impl PrefixAnswerCache {
         program: ScopeProgramID,
         matches: PrefixMatchSetID,
         answer: Vec<RetainedRuleMatch>,
+        programs: &SelectorPrograms,
     ) -> MatchAnswerID {
         self.with_payload_accounting(catalog, |cache, catalog| {
-            let identity = catalog.intern_prepared(answer);
+            let identity = catalog.intern_prepared(answer, programs);
             Self::lane_remember(
                 &mut cache.exact_prefix_by_match_set,
                 &mut cache.nested_footprint,
@@ -1087,6 +1114,7 @@ impl RetainedMatchAnswers {
         catalog: &mut MatchAnswerCatalog,
         node: StyleNodeID,
         answer: Vec<RetainedRuleMatch>,
+        programs: &SelectorPrograms,
         memory: &mut MemoryController,
     ) -> Result<(), Vec<RetainedRuleMatch>> {
         let Some(index) = node.element_index().map(|index| index as usize) else {
@@ -1116,7 +1144,7 @@ impl RetainedMatchAnswers {
                 catalog.retain_identity(identity);
                 identity
             }
-            (None, _) => catalog.insert_retained(answer, answer_hash),
+            (None, _) => catalog.insert_retained(answer, answer_hash, programs),
         };
         if self.column.len() <= index {
             self.column.resize(index + 1, MatchAnswerID::default());

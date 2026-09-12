@@ -424,6 +424,7 @@ impl StyleEngineState {
                         environment,
                         0,
                         cascade_state,
+                        &mut scratch.computability,
                         counters,
                     )?;
                     if let Some(key) = key {
@@ -533,7 +534,7 @@ impl StyleEngineState {
         };
         if let Some(answer) = self.published_match_answers.lookup(node) {
             if let Some(identity) = answer.cascade_input {
-                return self.match_answers.synthetic_pseudo_mask(identity, &self.programs);
+                return self.match_answers.synthetic_pseudo_mask(identity);
             }
             if let Some(matches) = self.published_match_answers.matches_for(answer) {
                 return Some(
@@ -547,7 +548,7 @@ impl StyleEngineState {
             return None;
         };
         self.match_answers.retained_answer(identity)?;
-        self.match_answers.synthetic_pseudo_mask(identity, &self.programs)
+        self.match_answers.synthetic_pseudo_mask(identity)
     }
 }
 

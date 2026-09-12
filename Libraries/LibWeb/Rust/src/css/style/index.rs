@@ -3326,6 +3326,7 @@ struct ElementDeclarationRow {
     /// The value each declaration was written with, parallel to `by_kind`, when the block's
     /// publication carried them; a consumer computing from the declarations reads the spelling.
     written_by_kind: [Option<Box<[RetainedStyleValueData]>>; ElementDeclarationKind::COUNT],
+    written_checks_by_kind: [Box<[super::publication::WrittenValueChecks]>; ElementDeclarationKind::COUNT],
     complete: [bool; ElementDeclarationKind::COUNT],
     /// The custom properties the inline style declares, in declaration order. Only the `style`
     /// attribute declares custom properties.
@@ -3339,6 +3340,7 @@ impl Default for ElementDeclarationRow {
         Self {
             by_kind: Default::default(),
             written_by_kind: Default::default(),
+            written_checks_by_kind: Default::default(),
             complete: [true; ElementDeclarationKind::COUNT],
             custom_declarations: None,
             custom_written_values: None,
@@ -3349,6 +3351,11 @@ impl Default for ElementDeclarationRow {
 impl ElementDeclarationRow {
     fn storage_bytes(&self) -> u64 {
         (size_of::<Self>()
+            + self
+                .written_checks_by_kind
+                .iter()
+                .map(|checks| size_of_val(checks.as_ref()))
+                .sum::<usize>()
             + self
                 .by_kind
                 .iter()
@@ -3445,6 +3452,11 @@ impl ElementDeclarationRows {
         let row = self.rows.entry(index);
         let before = row.as_ref().map_or(0, |row| row.storage_bytes());
         let row = row.get_or_insert_with(Box::default);
+        row.written_checks_by_kind[kind.index()] = declared
+            .iter()
+            .zip(&written_values)
+            .map(|(declared, value)| super::publication::WrittenValueChecks::prepare(declared.property, value))
+            .collect();
         row.written_by_kind[kind.index()] =
             (!declared.is_empty() && written_values.len() == declared.len()).then(|| written_values.into_boxed_slice());
         row.by_kind[kind.index()] = (!declared.is_empty()).then(|| declared.into_boxed_slice());
@@ -3528,6 +3540,7 @@ impl ElementDeclarationRows {
         let before = row.storage_bytes();
         row.by_kind[kind.index()] = None;
         row.written_by_kind[kind.index()] = None;
+        row.written_checks_by_kind[kind.index()] = Box::default();
         row.complete[kind.index()] = true;
         if kind == ElementDeclarationKind::InlineStyle {
             if row.custom_declarations.take().is_some() {
@@ -5051,6 +5064,18 @@ impl ElementFactStore {
         kind: ElementDeclarationKind,
     ) -> bool {
         self.element_declared_properties.complete_but_for_custom(node, kind)
+    }
+
+    pub(super) fn element_written_value_checks(
+        &self,
+        node: StyleNodeID,
+        kind: ElementDeclarationKind,
+        index: usize,
+    ) -> super::publication::WrittenValueChecks {
+        let row = self.element_declared_properties.rows[node.element_index().unwrap() as usize]
+            .as_ref()
+            .unwrap();
+        row.written_checks_by_kind[kind.index()][index]
     }
 
     /// The values one kind of the node's element declarations were written with, parallel to

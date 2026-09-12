@@ -1636,6 +1636,7 @@ impl StyleEngineState {
                 }
             }
         }
+        rebuilt_routing.prepare_route_liveness(&self.program, &self.programs);
         let mut previous_routing = std::mem::replace(&mut self.routing, Rc::new(rebuilt_routing));
         Rc::get_mut(&mut previous_routing)
             .expect("routing program is shared outside a planning epoch")
@@ -1677,6 +1678,7 @@ impl StyleEngineState {
             rebuilt_routing.add_rule(rule, program, &self.programs);
         }
         self.sheets_excluded_from_routing = excluded_sheets;
+        rebuilt_routing.prepare_route_liveness(&self.program, &self.programs);
         let mut previous_routing = std::mem::replace(&mut self.routing, Rc::new(rebuilt_routing));
         Rc::get_mut(&mut previous_routing)
             .expect("routing program is shared outside a planning epoch")

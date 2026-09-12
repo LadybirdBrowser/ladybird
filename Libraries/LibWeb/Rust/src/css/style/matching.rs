@@ -1900,7 +1900,7 @@ impl StyleEngineState {
         }
         if self
             .retained_match_answers
-            .remember_prepared(&mut self.match_answers, node, answer, &mut self.memory)
+            .remember_prepared(&mut self.match_answers, node, answer, &self.programs, &mut self.memory)
             .is_ok()
         {
             return;
@@ -4481,6 +4481,7 @@ impl StyleEngineState {
                                     scope_program,
                                     prefix_matches,
                                     prepared,
+                                    &self.programs,
                                 );
                                 newly_materialized_exact_prefix = Some(prefix_rules);
                                 (

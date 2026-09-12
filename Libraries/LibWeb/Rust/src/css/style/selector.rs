@@ -4313,7 +4313,19 @@ impl RoutingRegistry {
         self.routes.headers[route.index()].rule
     }
 
-    fn refresh_route_liveness(&self, program: &StyleSheetProgram, programs: &SelectorPrograms) {
+    pub(super) fn route_is_live(
+        &self,
+        route: RouteID,
+        program: &StyleSheetProgram,
+        programs: &SelectorPrograms,
+    ) -> bool {
+        let header = self.routes.headers[route.index()];
+        let (selector_program, _) = programs.entry_location(header.entry);
+        program.rule_can_decide(header.rule)
+            && program.rule_version(header.rule).selector_program == Some(selector_program)
+    }
+
+    pub(super) fn prepare_route_liveness(&self, program: &StyleSheetProgram, programs: &SelectorPrograms) {
         let version = program.routing_liveness_version();
         if self.route_liveness_version.get() == Some(version) {
             return;
@@ -4379,32 +4391,29 @@ impl RoutingRegistry {
     }
 
     #[must_use]
-    pub(super) fn route_liveness(
-        &self,
-        program: &StyleSheetProgram,
-        programs: &SelectorPrograms,
-    ) -> Ref<'_, BitColumn> {
-        self.refresh_route_liveness(program, programs);
+    pub(super) fn route_liveness(&self, program: &StyleSheetProgram) -> Ref<'_, BitColumn> {
+        debug_assert_eq!(
+            self.route_liveness_version.get(),
+            Some(program.routing_liveness_version())
+        );
         self.route_liveness.borrow()
     }
 
     #[must_use]
-    pub(super) fn live_relational_routes(
-        &self,
-        program: &StyleSheetProgram,
-        programs: &SelectorPrograms,
-    ) -> Ref<'_, [LiveRelationalRoute]> {
-        self.refresh_route_liveness(program, programs);
+    pub(super) fn live_relational_routes(&self, program: &StyleSheetProgram) -> Ref<'_, [LiveRelationalRoute]> {
+        debug_assert_eq!(
+            self.route_liveness_version.get(),
+            Some(program.routing_liveness_version())
+        );
         Ref::map(self.live_relational_routes.borrow(), Vec::as_slice)
     }
 
     #[must_use]
-    pub(super) fn live_sibling_entries(
-        &self,
-        program: &StyleSheetProgram,
-        programs: &SelectorPrograms,
-    ) -> Ref<'_, [SiblingEntry]> {
-        self.refresh_route_liveness(program, programs);
+    pub(super) fn live_sibling_entries(&self, program: &StyleSheetProgram) -> Ref<'_, [SiblingEntry]> {
+        debug_assert_eq!(
+            self.route_liveness_version.get(),
+            Some(program.routing_liveness_version())
+        );
         Ref::map(self.live_sibling_entries.borrow(), Vec::as_slice)
     }
 
@@ -4412,29 +4421,29 @@ impl RoutingRegistry {
     pub(super) fn live_sibling_workspace(
         &self,
         program: &StyleSheetProgram,
-        programs: &SelectorPrograms,
     ) -> std::cell::RefMut<'_, SiblingCandidateWorkspace> {
-        self.refresh_route_liveness(program, programs);
+        debug_assert_eq!(
+            self.route_liveness_version.get(),
+            Some(program.routing_liveness_version())
+        );
         self.live_sibling_workspace.borrow_mut()
     }
 
     #[must_use]
-    pub(super) fn live_sequence_entries(
-        &self,
-        program: &StyleSheetProgram,
-        programs: &SelectorPrograms,
-    ) -> Ref<'_, [SequenceEntry]> {
-        self.refresh_route_liveness(program, programs);
+    pub(super) fn live_sequence_entries(&self, program: &StyleSheetProgram) -> Ref<'_, [SequenceEntry]> {
+        debug_assert_eq!(
+            self.route_liveness_version.get(),
+            Some(program.routing_liveness_version())
+        );
         Ref::map(self.live_sequence_entries.borrow(), Vec::as_slice)
     }
 
     #[must_use]
-    pub(super) fn live_sequence_index(
-        &self,
-        program: &StyleSheetProgram,
-        programs: &SelectorPrograms,
-    ) -> std::cell::RefMut<'_, SequenceEntryIndex> {
-        self.refresh_route_liveness(program, programs);
+    pub(super) fn live_sequence_index(&self, program: &StyleSheetProgram) -> std::cell::RefMut<'_, SequenceEntryIndex> {
+        debug_assert_eq!(
+            self.route_liveness_version.get(),
+            Some(program.routing_liveness_version())
+        );
         self.live_sequence_index.borrow_mut()
     }
 
