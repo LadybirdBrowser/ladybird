@@ -467,6 +467,8 @@
                     internals.sendKey(host, name === "delete" ? "Backspace" : "Delete");
                 else if (name === "ArrowLeft" || name === "ArrowRight")
                     internals.sendKey(host, name === "ArrowLeft" ? "Left" : "Right");
+                else if (name === "Home" || name === "End")
+                    internals.sendKey(host, name);
                 else document.execCommand(name);
             }
             const link = () => host.querySelector("a");
@@ -604,6 +606,80 @@
             host.addEventListener("beforeinput", event => event.preventDefault(), { once: true });
             command("delete");
             state("cancel image backspace");
+            // Home must leave a painted caret before the linked image, even though its parent is a nonempty inline.
+            // Deleting the character inserted there must not strand the caret in an exhausted whitespace text node.
+            // Check display-list commands instead of waiting for blink phases, so this is stable on slow machines.
+            function expectPaintedCaret(label) {
+                const commands = internals.dumpDisplayList().split("\n").filter(line => line.includes("PaintCaret"));
+                const rect = internals.currentCaretRect();
+                expect(commands.length, 1, `${label} paints one blinking caret`);
+                expect(rect !== null && rect.width > 0 && rect.height > 0, true, `${label} has caret geometry`);
+                return rect;
+            }
+            reset();
+            selection.collapse(host.firstChild, 2);
+            command("Home");
+            expectState("Home before inserted perfume", originalHTML, "host/0/0@1->host/0/0@1");
+            const homeCaret = expectPaintedCaret("Home before perfume");
+            const perfumeImageRect = host.querySelector("img").getBoundingClientRect();
+            expect(homeCaret !== null && homeCaret.x === perfumeImageRect.left, true, "Home caret is before image");
+            expect(homeCaret !== null && homeCaret.y <= perfumeImageRect.top && homeCaret.bottom >= perfumeImageRect.bottom,
+                true, "Home caret spans the image line");
+            command("insertText", "X");
+            expectState("type after Home", originalHTML.replace('<p><a', '<p>X<a').replace('> <img', '><img'), "host/0/0@1->host/0/0@1");
+            expectPaintedCaret("typing after Home");
+            command("delete");
+            expectState("backspace after Home typing", originalHTML.replace('> <img', '><img'), "host/0/0@0->host/0/0@0");
+            const deletedCaret = expectPaintedCaret("backspace after Home typing");
+            expect(deletedCaret !== null && deletedCaret.x === homeCaret?.x && deletedCaret.y === homeCaret?.y,
+                true, "backspace returns to the same caret position");
+            command("End");
+            expectState("End after Home typing and backspace", originalHTML.replace('> <img', '><img'), "host/0/1@1->host/0/1@1");
+            const endCaret = expectPaintedCaret("End after backspace");
+            expect(endCaret !== null && endCaret.x > deletedCaret?.x, true, "End moves the painted caret past the perfume");
+
+            for (const html of ["abc   <br>", "abc   ", "<span>abc </span><br>", "<span>abc </span><span> </span><br>"]) {
+                reset(html);
+                selection.collapse(host, 0);
+                command("End");
+                const text = host.firstChild.nodeType === Node.TEXT_NODE ? host.firstChild : host.firstChild.firstChild;
+                expect(selection.anchorNode === text && selection.anchorOffset === 3, true,
+                    `End stops before collapsed whitespace in ${html}`);
+                expectPaintedCaret(`End in ${html}`);
+            }
+
+            // Both sides of an image need caret geometry in inline wrappers, including self-painting wrappers and
+            // non-horizontal writing modes. Their caret must use the same display-list path as text carets.
+            for (const [label, style, beforeEdge, afterEdge, coordinate] of [
+                ["LTR", "", "left", "right", "x"],
+                ["RTL", "direction:rtl", "right", "left", "x"],
+                ["vertical", "writing-mode:vertical-rl", "top", "bottom", "y"],
+            ]) {
+                for (const positioned of [false, true]) {
+                    reset(`<p style="${style}"><span style="${positioned ? "position:relative" : ""}"><img width="45" height="60"></span></p>`);
+                    const wrapper = host.querySelector("span");
+                    const imageRect = host.querySelector("img").getBoundingClientRect();
+                    if (positioned) {
+                        // Derive the expected position before moving the wrapper, independently of descendant rect reporting.
+                        wrapper.style.left = "13px";
+                        wrapper.style.top = "7px";
+                        imageRect.x += 13;
+                        imageRect.y += 7;
+                        const movedImageRect = host.querySelector("img").getBoundingClientRect();
+                        expect(movedImageRect.x === imageRect.x && movedImageRect.y === imageRect.y, true,
+                            `${label} image follows positioned inline wrapper`);
+                    }
+                    for (const [offset, edge] of [[0, beforeEdge], [1, afterEdge]]) {
+                        selection.collapse(wrapper, offset);
+                        const labelWithSide = `${label} positioned=${positioned} image offset=${offset}`;
+                        const rect = expectPaintedCaret(labelWithSide);
+                        expect(rect !== null && rect[coordinate] === imageRect[edge], true, `${labelWithSide} is at image edge`);
+                        expect(rect !== null && (coordinate === "x"
+                            ? rect.y <= imageRect.top && rect.bottom >= imageRect.bottom
+                            : rect.x <= imageRect.left && rect.right >= imageRect.right), true, `${labelWithSide} spans the image line`);
+                    }
+                }
+            }
             host.remove();
         }
         perfumeScenarios();

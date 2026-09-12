@@ -80,7 +80,19 @@ impl HitTestList {
                 let offset = match position_type {
                     crate::painting::hit_test::caret::CaretPositionType::Before => fragment.dom_start_offset_in_node,
                     crate::painting::hit_test::caret::CaretPositionType::After => {
-                        fragment.dom_end_offset_with_trailing_whitespace
+                        // INTEROP: Fully collapsed whitespace at the end of a text run is not a caret stop.
+                        //          Keep the whitespace boundary at soft wraps for upstream affinity.
+                        let end = fragment.start
+                            + fragment.length_in_code_units
+                            + fragment.trailing_whitespace_length_in_code_units;
+                        if arena
+                            .text_content(fragment.layout_node)
+                            .is_some_and(|content| end < content.text.len())
+                        {
+                            fragment.dom_end_offset_with_trailing_whitespace
+                        } else {
+                            fragment.dom_end_offset_in_node
+                        }
                     }
                     crate::painting::hit_test::caret::CaretPositionType::Closest => {
                         let paintable_rows = arena.paintable_rows();

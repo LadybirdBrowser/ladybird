@@ -2428,6 +2428,38 @@ pub unsafe extern "C" fn layout_arena_text_caret_rect_for_position(
 /// `arena` must be a live handle from `layout_arena_create`, used on the document
 /// thread.
 #[unsafe(no_mangle)]
+pub unsafe extern "C" fn layout_arena_atomic_inline_caret_rect_for_position(
+    arena: *mut c_void,
+    primary: NodeSlotId,
+    after: bool,
+) -> FfiCaretRectResult {
+    let mut result = FfiCaretRectResult {
+        found: false,
+        rect: FfiCssPixelRect::default(),
+        style_source: std::ptr::null_mut(),
+        owner_paintable: NodeSlotId::INVALID,
+        nearest_self_painting_inline: NodeSlotId::INVALID,
+    };
+    let arena = unsafe { arena_from_handle(arena) };
+    let paintable_rows = arena.paintable_rows();
+    let Some(answer) = crate::painting::caret::caret_rect_for_atomic_inline(&paintable_rows, primary, after) else {
+        return result;
+    };
+    result.found = true;
+    result.rect = answer.rect.into();
+    result.style_source = arena.shell_if_live(answer.style_source);
+    result.owner_paintable = answer.owner;
+    result.nearest_self_painting_inline =
+        crate::painting::fragment_ownership::nearest_self_painting_inline_box(&paintable_rows, answer.node)
+            .unwrap_or(NodeSlotId::INVALID);
+    result
+}
+
+/// # Safety
+///
+/// `arena` must be a live handle from `layout_arena_create`, used on the document
+/// thread.
+#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_text_caret_rect_in_dom_range(
     arena: *mut c_void,
     primary: NodeSlotId,

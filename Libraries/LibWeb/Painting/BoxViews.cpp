@@ -359,6 +359,29 @@ static CSSPixelRect caret_rect_for_empty_line(Layout::NodeWithStyle const& node,
     return { position.x(), position.y() + (line_height - caret_height) / 2, 1, caret_height };
 }
 
+static Optional<Layout::RustFFI::FfiCaretRectResult> caret_at_atomic_child(Layout::Node const& layout_node, size_t offset)
+{
+    auto* node = layout_node.dom_node();
+    if (!node)
+        return {};
+    auto resolve = [&](size_t child_offset) -> Optional<Layout::RustFFI::FfiCaretRectResult> {
+        auto const* child = node->child_at_index(child_offset);
+        auto* child_layout_node = child ? child->unsafe_layout_node() : nullptr;
+        if (!child_layout_node || !child_layout_node->is_atomic_inline())
+            return {};
+        auto result = Layout::RustFFI::layout_arena_atomic_inline_caret_rect_for_position(
+            layout_node.arena_handle(), Layout::Node::slot_id(child_layout_node), child_offset < offset);
+        if (!result.found)
+            return {};
+        return result;
+    };
+    if (offset > 0) {
+        if (auto result = resolve(offset - 1); result.has_value())
+            return result;
+    }
+    return resolve(offset);
+}
+
 // Caret rect for a cursor parked on this paintable's DOM node at the given child offset, e.g. on an empty line
 // rendered by a <br> child or in an empty editable element.
 CSSPixelRect caret_rect_for_child_offset(Layout::Node const& block, size_t offset)
@@ -375,6 +398,9 @@ CSSPixelRect caret_rect_for_child_offset(Layout::Node const& block, size_t offse
     auto dom_node = block.dom_node();
     if (!dom_node)
         return rect;
+
+    if (auto atomic_caret = caret_at_atomic_child(block, offset); atomic_caret.has_value())
+        return atomic_caret->rect;
 
     // NB: A boundary beside a text child has the same geometry as the corresponding text offset.
     //     Editors can leave the selection on the parent after inserting their first character.
@@ -397,23 +423,6 @@ CSSPixelRect caret_rect_for_child_offset(Layout::Node const& block, size_t offse
     }
     if (auto text_rect = caret_rect_in_text(dom_node->child_at_index(offset), 0); text_rect.has_value())
         return *text_rect;
-
-    // A boundary immediately after an atomic inline element paints after that element. Atomic inline elements have
-    if (offset > 0) {
-        auto* previous_child = dom_node->child_at_index(offset - 1);
-        auto const* previous_layout_node = previous_child ? previous_child->unsafe_layout_node() : nullptr;
-        if (previous_layout_node && previous_layout_node->is_atomic_inline()) {
-            auto result = Layout::RustFFI::layout_arena_paintable_first_fragment_rect_for_node(block.arena_handle(), committed_row_slot(block), Layout::Node::slot_id(previous_layout_node));
-            if (result.has_value) {
-                auto fragment_rect = result.rect;
-                if (styled_block.writing_mode() == CSS::WritingMode::HorizontalTb)
-                    rect.set_x(styled_block.inline_axis_is_reverse() ? fragment_rect.left() : fragment_rect.right());
-                else
-                    rect.set_y(styled_block.inline_axis_is_reverse() ? fragment_rect.top() : fragment_rect.bottom());
-                return rect;
-            }
-        }
-    }
 
     auto* child = dom_node->child_at_index(offset);
     if (!child || !is<HTML::HTMLBRElement>(*child))
@@ -529,6 +538,11 @@ Layout::RustFFI::FfiCaretPaint resolve_document_caret_paint(DOM::Document& docum
         return caret;
     auto const& styled_node = as<Layout::NodeWithStyle>(*layout_node);
     if (is_inline_paintable(*layout_node)) {
+        if (auto atomic_caret = caret_at_atomic_child(*layout_node, cursor_position->offset()); atomic_caret.has_value()) {
+            if (layout_node_is_visible(styled_node))
+                fill(Layout::RustFFI::FfiCaretPaintKind::InBlock, atomic_caret->owner_paintable, atomic_caret->nearest_self_painting_inline, atomic_caret->rect, styled_node.caret_color());
+            return caret;
+        }
         if (has_content(*layout_node))
             return caret;
         auto position = box_type_agnostic_position(*layout_node);
