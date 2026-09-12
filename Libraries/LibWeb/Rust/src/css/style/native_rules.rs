@@ -6,7 +6,7 @@
 
 use super::capacity::ShallowCapacityBytes;
 use super::memory::{MemoryCategory, MemoryController, MemoryLease};
-use super::{RuleID, StyleEngine};
+use super::{RuleID, StyleEngineState};
 use crate::css::container_conditions::ContainerConditionsData;
 use crate::css::declaration_block::DeclarationBlockData;
 use std::hash::{Hash, Hasher};
@@ -131,7 +131,7 @@ impl NativeRuleRegistry {
     }
 }
 
-impl StyleEngine {
+impl StyleEngineState {
     pub(crate) fn native_rule_id(&self, identity: u64) -> Option<RuleID> {
         self.native_rules.identities.get(&identity)
     }
@@ -181,11 +181,11 @@ impl StyleEngine {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use crate::css::media_list::MediaList;
     use crate::css::parser::syntax_parser::parse_shared_stylesheet;
     use crate::css::parser::value_parser::ParseContext;
     use crate::css::rule::{rust_rule_identity, rust_rule_list_at, rust_rule_list_clear, rust_rule_retain};
+    use crate::css::style::StyleEngine;
     use crate::css::style::bridge::style_engine_native_rule_id;
     use crate::css::style::memory::DeviceClass;
     use crate::css::style::program::{CascadeOrigin, RuleKind, StyleSheetObjectID};

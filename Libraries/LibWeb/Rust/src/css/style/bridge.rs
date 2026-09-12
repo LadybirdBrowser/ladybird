@@ -35,7 +35,6 @@ use crate::css::style_value::StyleValueData;
 
 use super::HashSet;
 use super::PinnedAtoms;
-use super::StyleEngine;
 use super::batch_matcher::RuleMatch;
 use super::cascade::CascadeOperator;
 use super::compiler::ImplicitScopeRoot;
@@ -72,6 +71,7 @@ use super::transaction::StateFact;
 use super::transaction::TreeRelations;
 use super::tree::StyleNodeID;
 use super::tree::TreeScopeID;
+use super::{Counters, StyleEngine, StyleEngineState};
 
 fn abort_on_panic<F: FnOnce() -> R, R>(operation: F) -> R {
     abort_on_boundary_panic(operation)
@@ -830,7 +830,7 @@ fn write_exact_cascade_publication(
     payload.write_bool(publication.donor_used);
 }
 
-impl StyleEngine {
+impl StyleEngineState {
     fn install_ffi_retained_cascade_assignments(
         &mut self,
         assignments: Vec<crate::css::cascaded_properties::FfiSourceSlotAssignment>,
@@ -882,6 +882,7 @@ impl StyleEngine {
 
     /// Apply one flat transaction. Tree deltas are staged in arrival order so derived neighbour
     /// rows follow the live tree step by step, while the journal normalizes for discovery.
+    #[allow(clippy::too_many_arguments)]
     pub fn apply_transaction_batch(
         &mut self,
         tree_deltas: &[FfiTreeDelta],
@@ -890,6 +891,7 @@ impl StyleEngine {
         state_deltas: &[FfiStateDelta],
         element_declaration_deltas: &[FfiElementDeclarationDelta],
         element_style_inputs: &[FfiElementStyleInput],
+        counters: &mut Counters,
     ) {
         let (element_arrivals, arrival_custom_state_atoms) = arrival_columns;
         let largest_element_index = tree_deltas
@@ -924,7 +926,7 @@ impl StyleEngine {
                 }
             }
             if can_bulk_load_initial_tree && let Some(document_root) = initial_document_root {
-                self.bulk_load_initial_tree(document_root, &initial_arrivals);
+                self.bulk_load_initial_tree(document_root, &initial_arrivals, counters);
                 initial_tree_was_bulk_loaded = true;
             }
         }
@@ -936,7 +938,7 @@ impl StyleEngine {
                 };
                 let old = delta.old_connected.then(|| delta.old_relations.decode());
                 let new = delta.new_connected.then(|| delta.new_relations.decode());
-                self.record_tree_delta(node, old, new);
+                self.record_tree_delta(node, old, new, counters);
             }
             for delta in tree_deltas {
                 let Some(node) = StyleNodeID::from_raw(delta.node) else {
@@ -979,9 +981,9 @@ impl StyleEngine {
                     continue;
                 };
                 let custom_states = custom_states.iter().copied().map(StyleAtomID).collect::<Vec<_>>();
-                self.record_element_arrival(node, arrival, &custom_states, node_is_arriving(node));
+                self.record_element_arrival(node, arrival, &custom_states, node_is_arriving(node), counters);
             }
-            self.settle_batched_inputs();
+            self.settle_batched_inputs(counters);
         }
 
         for delta in local_feature_deltas {
@@ -993,9 +995,10 @@ impl StyleEngine {
                 InputValue::Feature(decode_feature_value(delta.old_kind, delta.old_atom)),
                 InputValue::Feature(decode_feature_value(delta.new_kind, delta.new_atom)),
                 node_is_arriving(node),
+                counters,
             );
         }
-        self.settle_batched_inputs();
+        self.settle_batched_inputs(counters);
 
         for delta in state_deltas {
             let Some(node) = StyleNodeID::from_raw(delta.node) else {
@@ -1006,9 +1009,10 @@ impl StyleEngine {
                 decode_state_fact(delta.fact),
                 delta.new_value,
                 node_is_arriving(node),
+                counters,
             );
         }
-        self.settle_batched_inputs();
+        self.settle_batched_inputs(counters);
 
         for delta in element_declaration_deltas {
             let Some(node) = StyleNodeID::from_raw(delta.node) else {
@@ -1020,6 +1024,7 @@ impl StyleEngine {
                 InputKey::ElementDeclaration(node, decode_element_declaration_kind(delta.kind)),
                 InputValue::ElementDeclaration(block(delta.old_block)),
                 InputValue::ElementDeclaration(block(delta.new_block)),
+                counters,
             );
         }
         for input in element_style_inputs {
@@ -1036,6 +1041,7 @@ impl StyleEngine {
                     reaction: input.reaction,
                     inherited_style_groups: input.inherited_style_groups,
                 },
+                counters,
             );
         }
     }
