@@ -7,6 +7,10 @@ edition = "2024"
 default = []
 allocator = []
 idna = []
+# Standalone Rust implementations of the `unicode_*` callbacks that this crate
+# normally resolves against LibUnicode's C++ implementation. Only for test
+# binaries that link no C++; see src/ffi_stubs.rs.
+ffi-stubs = []
 
 [lib]
 crate-type = ["staticlib", "rlib"]
