@@ -657,6 +657,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                         auto pseudo_element = static_cast<PseudoElement>(kind);
                         if (is_synthetic_pseudo_element(pseudo_element)
                             && pseudo_element != PseudoElement::Backdrop
+                            && !is_highlight_pseudo_element(pseudo_element)
                             && !pseudo_element_records[kind].has_value())
                             element->set_computed_style(pseudo_element, *previous_pseudo_element_records[kind]);
                     }
