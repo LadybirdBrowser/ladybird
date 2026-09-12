@@ -4019,7 +4019,7 @@ impl ElementFactStore {
         self.staging.is_empty()
     }
 
-    fn sync_attribute_catalogs(&mut self) {
+    fn prepare_attribute_catalogs(&mut self) {
         if Rc::ptr_eq(&self.rows.attribute_catalogs, &self.attribute_catalogs) {
             return;
         }
@@ -4357,7 +4357,7 @@ impl ElementFactStore {
             !self.has_dirty_staging(),
             "cannot evaluate facts while fact staging is unapplied"
         );
-        self.sync_attribute_catalogs();
+        self.prepare_attribute_catalogs();
         MatchingFactBatch::primary_view(Rc::clone(&self.rows))
     }
 
@@ -5333,7 +5333,7 @@ impl ElementFactStore {
 
     pub fn sweep_auxiliary_catalogs(&mut self) {
         self.sweep_auxiliary_catalogs_without_sync();
-        self.sync_attribute_catalogs();
+        self.prepare_attribute_catalogs();
     }
 
     /// Remove every derived row keyed by an identity before that identity can be reused.
@@ -5368,7 +5368,7 @@ impl ElementFactStore {
             );
         }
         self.postings.forget_atoms(&atoms);
-        self.sync_attribute_catalogs();
+        self.prepare_attribute_catalogs();
     }
 
     #[must_use]
@@ -5385,8 +5385,9 @@ impl ElementFactStore {
     /// Every column an operator can read is filled, not only the ones a compound tests: a row whose
     /// parameters were left at their defaults answers `:dir()` and `:state()` as though the element
     /// held neither, which is a wrong answer rather than a missing one.
-    pub fn materialize(&mut self, nodes: impl Iterator<Item = StyleNodeID>, batch: &mut StyleNodeFacts) {
-        self.sync_attribute_catalogs();
+    // NB: Commit prepares the resident catalogs. A packed batch takes the current catalog
+    //     owner directly and never needs to mutate the shared primary rows.
+    pub fn materialize(&self, nodes: impl Iterator<Item = StyleNodeID>, batch: &mut StyleNodeFacts) {
         batch.clear();
         batch.attribute_catalogs = Rc::clone(&self.attribute_catalogs);
         for node in nodes {
@@ -5399,8 +5400,7 @@ impl ElementFactStore {
     /// One shared batch can serve a whole pass this way: consecutive asks overwhelmingly share
     /// their ancestor chains, and each row is packed at most once per pass instead of once per
     /// ask.
-    pub fn materialize_missing(&mut self, nodes: impl Iterator<Item = StyleNodeID>, batch: &mut StyleNodeFacts) {
-        self.sync_attribute_catalogs();
+    pub fn materialize_missing(&self, nodes: impl Iterator<Item = StyleNodeID>, batch: &mut StyleNodeFacts) {
         batch.attribute_catalogs = Rc::clone(&self.attribute_catalogs);
         for node in nodes {
             if batch.row_of(node).is_some() {
@@ -5518,7 +5518,7 @@ impl ElementFactStore {
             self.rebuild_missing_postings(memory);
             return;
         }
-        self.sync_attribute_catalogs();
+        self.prepare_attribute_catalogs();
         let mut staging = std::mem::take(&mut self.staging);
         for (node, facts) in staging.dirty_rows() {
             let previous = self.rows.row_of(node);
@@ -5570,7 +5570,7 @@ impl ElementFactStore {
     /// Snapshot the committed rows which staged local facts will replace at the barrier.
     #[must_use]
     pub fn staged_before_facts(&mut self) -> StyleNodeFacts {
-        self.sync_attribute_catalogs();
+        self.prepare_attribute_catalogs();
         let mut nodes = Vec::with_capacity(self.staging.len());
         for node in self.staging.keys() {
             nodes.push(node);

@@ -541,7 +541,6 @@ impl StyleEngineState {
             let mut pending_sibling_routes = PendingSiblingRoutes::new();
             let mut pending_prefix_producers = Vec::new();
             let collect_pending_prefix_producers = self.prefix_caches.borrow().states.is_retained();
-            let mut prefix_producer_cache = PrefixProducerCache::default();
             let mut prefix_producer_seen = Vec::new();
 
             // Program and cascade-topology inputs can establish the transaction's outer envelope
@@ -676,7 +675,6 @@ impl StyleEngineState {
                         &mut pending_routes,
                         &mut pending_prefix_producers,
                         prefix_producer_admission.as_ref(),
-                        &mut prefix_producer_cache,
                         &mut prefix_producer_seen,
                         &mut sequences,
                         &mut regions,
@@ -693,7 +691,6 @@ impl StyleEngineState {
             let pending_table_scratch_bytes = (pending_routes.capacity_bytes()
                 + pending_sibling_routes.capacity_bytes()
                 + pending_prefix_producers.capacity() * size_of::<PendingPrefixProducer>()
-                + prefix_producer_cache.capacity_bytes()
                 + prefix_producer_seen.capacity() * size_of::<u32>())
                 as u64;
             self.memory

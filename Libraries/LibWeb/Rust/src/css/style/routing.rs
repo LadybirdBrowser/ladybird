@@ -97,7 +97,6 @@ impl StyleEngineState {
         pending_routes: &mut PendingRoutes,
         pending_prefix_producers: &mut Vec<PendingPrefixProducer>,
         prefix_producer_admission: Option<&(ScopeProgramID, Rc<RuleDispatch>)>,
-        prefix_producer_cache: &mut PrefixProducerCache,
         prefix_producer_seen: &mut Vec<u32>,
         sequences: &mut SequenceChanges,
         regions: &mut ImpactRegions,
@@ -316,30 +315,20 @@ impl StyleEngineState {
                             if let Some((scope_program, prefix_dispatch)) = prefix_producer_admission
                                 && matches!(input.key, InputKey::LocalFeature(..) | InputKey::State(..))
                                 && self.route_is_prefix_convergence_eligible(&routing, prefix_dispatch, route)
+                                && let Some(producer) = prefix_dispatch
+                                    .prefixes()
+                                    .route_producer(point.entry, routing.path_of(route).len())
+                                && let Lookup::Known(states) = self.prefix_caches.borrow().states.lookup(*scope_program)
                             {
-                                let producers = prefix_producer_cache.producers_for_route(
-                                    route,
-                                    prefix_dispatch.prefixes(),
-                                    point.entry,
-                                    routing.path_of(route).len(),
-                                );
-                                if !producers.is_empty()
-                                    && let Lookup::Known(states) =
-                                        self.prefix_caches.borrow().states.lookup(*scope_program)
-                                {
-                                    let node_stamp = node.raw();
-                                    assert_ne!(node_stamp, 0, "a node identity used as an epoch stamp must be nonzero");
-                                    for &producer in producers {
-                                        if prefix_producer_seen.len() <= producer.index() {
-                                            prefix_producer_seen.resize(producer.index() + 1, 0);
-                                        }
-                                        if prefix_producer_seen[producer.index()] == node_stamp {
-                                            continue;
-                                        }
-                                        prefix_producer_seen[producer.index()] = node_stamp;
-                                        if states.producer_is_active(prefix_dispatch.prefixes(), node, producer) {
-                                            pending_prefix_producers.push(PendingPrefixProducer { node, producer });
-                                        }
+                                let node_stamp = node.raw();
+                                assert_ne!(node_stamp, 0, "a node identity used as an epoch stamp must be nonzero");
+                                if prefix_producer_seen.len() <= producer.index() {
+                                    prefix_producer_seen.resize(producer.index() + 1, 0);
+                                }
+                                if prefix_producer_seen[producer.index()] != node_stamp {
+                                    prefix_producer_seen[producer.index()] = node_stamp;
+                                    if states.producer_is_active(prefix_dispatch.prefixes(), node, producer) {
+                                        pending_prefix_producers.push(PendingPrefixProducer { node, producer });
                                     }
                                 }
                             }
