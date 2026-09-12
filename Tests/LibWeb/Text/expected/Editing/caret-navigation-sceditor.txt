@@ -1,1 +1,1 @@
-PASS: 383 SCEditor caret interactions match Chromium
+PASS: 503 SCEditor caret interactions match Chromium

@@ -266,11 +266,15 @@ pub(crate) fn caret_inline_coordinate(
         clamped_offset,
         clamped_offset,
     );
-    Some(if text_fragment::fragment_is_horizontal(fragment) {
-        rect.x
+    let block_position = crate::painting::paintable_geometry::absolute_position(layout_arena, block);
+    let (coordinate, block_coordinate) = if text_fragment::fragment_is_horizontal(fragment) {
+        (rect.x, block_position.x)
     } else {
-        rect.y
-    })
+        (rect.y, block_position.y)
+    };
+    // INTEROP: Chromium uses the pixel-rounded leading edge of a one-pixel caret centered on the text boundary
+    //          for vertical navigation. Rounding after subtracting half a pixel floors the local text coordinate.
+    Some((coordinate - block_coordinate).floor() + block_coordinate)
 }
 
 pub(crate) fn offset_closest_to_inline_coordinate(

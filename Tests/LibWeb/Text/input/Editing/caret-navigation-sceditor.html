@@ -11,7 +11,7 @@
     // and key sequences were driven through Chromium with WebDriver; the asserted DOM boundary points below are the
     // positions Chromium produced. Keeping those results explicit makes otherwise unspecified editing behavior an
     // interoperability contract without making the test depend on SCEditor or network resources.
-    addEventListener("load", () => {
+    addEventListener("load", async () => {
         const editor = document.body;
         const selection = getSelection();
         const shift = internals.MOD_SHIFT;
@@ -278,6 +278,87 @@
             send("Left");
             assertPoint(point(), [breakBeforeImage, 1], "Left preserves the line-break boundary before an image");
             atomicFixture.remove();
+
+            // Vertical movement uses the rounded caret edge, not the fractional text advance. A bundled
+            // proportional font keeps these midpoint cases independent of installed platform fonts.
+            const navigationFont = new FontFace("NavigationFixture", 'url("../../../Assets/Lato-Bold.ttf")');
+            document.fonts.add(await navigationFont.load());
+            const proportionalFixture = document.createElement("section");
+            proportionalFixture.style.fontFamily = "NavigationFixture";
+            editor.append(proportionalFixture);
+            for (const [size, upper, lower, offset, expected] of [
+                [12, "foo", "bar", 1, 1],
+                [12, "foo", "bar", 2, 2],
+                [12, "iii", "bar", 1, 2],
+                [12, "iii", "bar", 2, 3],
+                [12, "ffi", "bar", 1, 1],
+                [12, "ffi", "bar", 2, 3],
+                [12, "www", "bar", 1, 1],
+                [12, "www", "bar", 2, 1],
+                [12, "abc", "iii", 1, 0],
+                [12, "abc", "iii", 2, 1],
+                [14, "foo", "bar", 1, 1],
+                [14, "foo", "bar", 2, 2],
+                [14, "iii", "bar", 1, 2],
+                [14, "iii", "bar", 2, 3],
+                [14, "ffi", "bar", 1, 1],
+                [14, "ffi", "bar", 2, 3],
+                [14, "www", "bar", 1, 1],
+                [14, "www", "bar", 2, 1],
+                [14, "abc", "iii", 1, 0],
+                [14, "abc", "iii", 2, 1],
+                [16, "foo", "bar", 1, 1],
+                [16, "foo", "bar", 2, 2],
+                [16, "iii", "bar", 1, 2],
+                [16, "iii", "bar", 2, 3],
+                [16, "ffi", "bar", 1, 2],
+                [16, "ffi", "bar", 2, 3],
+                [16, "www", "bar", 1, 1],
+                [16, "www", "bar", 2, 1],
+                [16, "abc", "iii", 1, 0],
+                [16, "abc", "iii", 2, 1],
+                [18, "foo", "bar", 1, 1],
+                [18, "foo", "bar", 2, 2],
+                [18, "iii", "bar", 1, 2],
+                [18, "iii", "bar", 2, 3],
+                [18, "ffi", "bar", 1, 2],
+                [18, "ffi", "bar", 2, 3],
+                [18, "www", "bar", 1, 1],
+                [18, "www", "bar", 2, 1],
+                [18, "abc", "iii", 1, 0],
+                [18, "abc", "iii", 2, 1],
+                [20, "foo", "bar", 1, 1],
+                [20, "foo", "bar", 2, 2],
+                [20, "iii", "bar", 1, 2],
+                [20, "iii", "bar", 2, 3],
+                [20, "ffi", "bar", 1, 2],
+                [20, "ffi", "bar", 2, 3],
+                [20, "www", "bar", 1, 1],
+                [20, "www", "bar", 2, 1],
+                [20, "abc", "iii", 1, 0],
+                [20, "abc", "iii", 2, 1],
+                [24, "foo", "bar", 1, 1],
+                [24, "foo", "bar", 2, 2],
+                [24, "iii", "bar", 1, 2],
+                [24, "iii", "bar", 2, 3],
+                [24, "ffi", "bar", 1, 2],
+                [24, "ffi", "bar", 2, 3],
+                [24, "www", "bar", 1, 1],
+                [24, "www", "bar", 2, 1],
+                [24, "abc", "iii", 1, 0],
+                [24, "abc", "iii", 2, 1],
+            ]) {
+                proportionalFixture.style.fontSize = `${size}px`;
+                proportionalFixture.innerHTML = `<div>${upper}</div><div>${lower}</div>`;
+                const upperText = proportionalFixture.firstChild.firstChild;
+                const lowerText = proportionalFixture.lastChild.firstChild;
+                collapse(lowerText, offset);
+                send("Up");
+                assertPoint(point(), [upperText, expected], `Up ${upper}/${lower}@${offset} at ${size}px`);
+                send("Down");
+                assertPoint(point(), [lowerText, offset], `Up+Down ${upper}/${lower}@${offset} at ${size}px`);
+            }
+            proportionalFixture.remove();
 
             if (failures.length > 0)
                 internals.signalTestIsDone(`FAIL: ${failures.length} SCEditor caret assertions failed\n${failures.join("\n")}\n`);
