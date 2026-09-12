@@ -18,6 +18,7 @@
 #include <LibWeb/DOM/Event.h>
 #include <LibWeb/DOM/Position.h>
 #include <LibWeb/DOM/SelectionchangeEventDispatching.h>
+#include <LibWeb/DOM/SubtreeInsertionScope.h>
 #include <LibWeb/Editing/EditCommand.h>
 #include <LibWeb/Editing/EditingHistory.h>
 #include <LibWeb/HTML/CustomElements/CustomElementReactionNames.h>
@@ -353,6 +354,18 @@ void FormAssociatedElement::element_with_id_was_added_or_removed(Badge<DOM::Docu
     reset_form_owner();
 }
 
+static HTMLFormElement* nearest_form_ancestor(HTMLElement& element)
+{
+    auto* subtree_insertion_scope = element.document().subtree_insertion_scope();
+    for (auto* ancestor = element.parent(); ancestor; ancestor = ancestor->parent()) {
+        if (subtree_insertion_scope && ancestor == &subtree_insertion_scope->parent())
+            return subtree_insertion_scope->nearest_inclusive_form_ancestor_of_parent().ptr();
+        if (auto* form = as_if<HTMLFormElement>(*ancestor))
+            return form;
+    }
+    return nullptr;
+}
+
 // https://html.spec.whatwg.org/multipage/form-control-infrastructure.html#reset-the-form-owner
 void FormAssociatedElement::reset_form_owner()
 {
@@ -370,7 +383,7 @@ void FormAssociatedElement::reset_form_owner()
     //    then do nothing, and return.
     if (auto* form = this->form(); form
         && (!is_listed() || !html_element.has_attribute(HTML::AttributeNames::form))
-        && html_element.first_ancestor_of_type<HTMLFormElement>() == form) {
+        && nearest_form_ancestor(html_element) == form) {
         if (is_submit_button())
             form->default_button_state_maybe_changed();
         return;
@@ -402,8 +415,7 @@ void FormAssociatedElement::reset_form_owner()
 
     // 5. Otherwise, if element has an ancestor form element, then associate element with the nearest such ancestor form element.
     else {
-        auto* form_ancestor = html_element.first_ancestor_of_type<HTMLFormElement>();
-        if (form_ancestor)
+        if (auto* form_ancestor = nearest_form_ancestor(html_element))
             set_form(form_ancestor);
     }
 

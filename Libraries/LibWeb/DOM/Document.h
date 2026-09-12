@@ -617,6 +617,9 @@ public:
     bool has_form_or_fieldset_element() const { return m_has_form_or_fieldset_element; }
     void set_has_form_or_fieldset_element() { m_has_form_or_fieldset_element = true; }
 
+    SubtreeInsertionScope* subtree_insertion_scope() const { return m_subtree_insertion_scope; }
+    void set_subtree_insertion_scope(Badge<SubtreeInsertionScope>, SubtreeInsertionScope* scope) { m_subtree_insertion_scope = scope; }
+
     bool parser_cannot_change_the_mode() const { return m_parser_cannot_change_the_mode; }
     void set_parser_cannot_change_the_mode(bool parser_cannot_change_the_mode) { m_parser_cannot_change_the_mode = parser_cannot_change_the_mode; }
 
@@ -1629,6 +1632,7 @@ private:
     bool m_needs_mathml_and_svg_user_agent_style_sheets { false };
     bool m_has_element_with_auto_directionality { false };
     bool m_has_form_or_fieldset_element { false };
+    SubtreeInsertionScope* m_subtree_insertion_scope { nullptr };
 
     bool m_parser_cannot_change_the_mode { false };
 

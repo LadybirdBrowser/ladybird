@@ -578,6 +578,7 @@ class ShadowRoot;
 class SlotRegistry;
 class StaticNodeList;
 class StaticRange;
+class SubtreeInsertionScope;
 class SyntheticPseudoElement;
 class Text;
 class TreeWalker;
