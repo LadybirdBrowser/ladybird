@@ -50,10 +50,6 @@ struct RequiredInvalidationAfterStyleChange {
         ensure_at_least(InvalidationLevel::Repaint);
     }
 
-    // NB: Deliberately does not imply repaint: whether anything needs repainting is only known
-    //     after the overflow has actually been re-measured and turned out to have changed.
-    void set_needs_scrollable_overflow_recalculation() { m_needs_scrollable_overflow_recalculation = true; }
-
     [[nodiscard]] bool needs_repaint() const { return m_level >= InvalidationLevel::Repaint; }
     [[nodiscard]] bool needs_relayout() const { return m_level >= InvalidationLevel::Relayout; }
     [[nodiscard]] bool needs_layout_tree_rebuild() const { return m_level >= InvalidationLevel::RebuildLayoutTree; }
@@ -68,9 +64,6 @@ struct RequiredInvalidationAfterStyleChange {
         m_layout_tree_rebuild_root = rebuild_root;
     }
     [[nodiscard]] bool needs_stacking_context_tree_rebuild() const { return m_rebuild_stacking_context_tree; }
-    // NB: A pending relayout re-measures all scrollable overflow anyway, so this reports true only
-    //     when the recalculation has to run as a separate step.
-    [[nodiscard]] bool needs_scrollable_overflow_recalculation() const { return m_needs_scrollable_overflow_recalculation && !needs_relayout(); }
     [[nodiscard]] AccumulatedVisualContextInvalidation accumulated_visual_contexts() const { return m_accumulated_visual_contexts; }
     [[nodiscard]] bool invalidates_hit_test_display_list() const
     {
@@ -116,7 +109,6 @@ struct RequiredInvalidationAfterStyleChange {
         m_level = max(m_level, other.m_level);
         m_accumulated_visual_contexts = max(m_accumulated_visual_contexts, other.m_accumulated_visual_contexts);
         m_rebuild_stacking_context_tree |= other.m_rebuild_stacking_context_tree;
-        m_needs_scrollable_overflow_recalculation |= other.m_needs_scrollable_overflow_recalculation;
         needs_scroll_container_resnap |= other.needs_scroll_container_resnap;
         recompute_descendant_styles |= other.recompute_descendant_styles;
         m_inherited_style_groups_changed |= other.m_inherited_style_groups_changed;
@@ -131,7 +123,6 @@ struct RequiredInvalidationAfterStyleChange {
     {
         return m_level == InvalidationLevel::None
             && m_accumulated_visual_contexts == AccumulatedVisualContextInvalidation::None
-            && !m_needs_scrollable_overflow_recalculation
             && !needs_scroll_container_resnap
             && !recompute_descendant_styles
             && !inherited_style_changed()
@@ -164,7 +155,6 @@ private:
     AccumulatedVisualContextInvalidation m_accumulated_visual_contexts { AccumulatedVisualContextInvalidation::None };
     LayoutTreeRebuildRoot m_layout_tree_rebuild_root { LayoutTreeRebuildRoot::Parent };
     bool m_rebuild_stacking_context_tree : 1 { false };
-    bool m_needs_scrollable_overflow_recalculation : 1 { false };
     u8 m_inherited_style_groups_changed { 0 };
 };
 

@@ -759,6 +759,9 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn populate_paintable_row(&mut self, layout_node: NodeSlotId) {
+        let overflow_style = self
+            .node_style_if_live(layout_node)
+            .map(crate::painting::scrollable_overflow::OverflowStyle::new);
         let store = &mut self.paintable_rows;
         let index = layout_node.slot_index() as usize;
         let chunks = &mut store.chunks;
@@ -782,7 +785,10 @@ impl LayoutNodeArena {
             slot_generation: layout_node.generation(),
             ..PaintableData::default()
         };
-        side_data[index] = PaintableSideData::default();
+        side_data[index] = PaintableSideData {
+            overflow_style,
+            ..Default::default()
+        };
         paint_caches[index].clear();
         absolute_rect_memo[index] = None;
         visual_context_records[index] = None;

@@ -413,16 +413,6 @@ pub unsafe extern "C" fn layout_arena_node_has_css_transform(arena: *mut c_void,
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
 /// `node` must name a live node in this arena.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_schedule_scrollable_overflow_recalculation(arena: *mut c_void, node: NodeSlotId) {
-    let arena = unsafe { arena_from_handle(arena) };
-    arena.schedule_scrollable_overflow_recalculation(node);
-}
-
-/// # Safety
-///
-/// `arena` must be a live handle from `layout_arena_create`, used on the document thread, and
-/// `node` must name a live node in this arena.
-#[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_invalidate_nearest_self_painting_inline_paint_cache(
     arena: *mut c_void,
     node: NodeSlotId,

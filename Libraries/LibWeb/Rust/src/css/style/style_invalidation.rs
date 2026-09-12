@@ -31,7 +31,6 @@ struct StyleInvalidation {
     visual_context: u8,
     rebuild_root: u8,
     rebuild_stacking_context: bool,
-    recalculate_scrollable_overflow: bool,
     resnap_scroll_container: bool,
     recompute_descendants: bool,
     inherited_groups: u8,
@@ -82,7 +81,6 @@ impl StyleInvalidation {
         self.level = self.level.max(other.level);
         self.visual_context = self.visual_context.max(other.visual_context);
         self.rebuild_stacking_context |= other.rebuild_stacking_context;
-        self.recalculate_scrollable_overflow |= other.recalculate_scrollable_overflow;
         self.resnap_scroll_container |= other.resnap_scroll_container;
         self.recompute_descendants |= other.recompute_descendants;
         self.inherited_groups |= other.inherited_groups;
@@ -98,8 +96,6 @@ impl StyleInvalidation {
         packed |= u32::from(self.visual_context) << FfiStyleInvalidationField::VisualContextShift as u32;
         packed |= u32::from(self.rebuild_root) << FfiStyleInvalidationField::RebuildRootShift as u32;
         packed |= u32::from(self.rebuild_stacking_context) * FfiStyleInvalidationField::RebuildStackingContext as u32;
-        packed |= u32::from(self.recalculate_scrollable_overflow)
-            * FfiStyleInvalidationField::RecalculateScrollableOverflow as u32;
         packed |= u32::from(self.resnap_scroll_container) * FfiStyleInvalidationField::ResnapScrollContainer as u32;
         packed |= u32::from(self.recompute_descendants) * FfiStyleInvalidationField::RecomputeDescendants as u32;
         packed |= (u32::from(self.inherited_groups) & FfiStyleInvalidationField::InheritedGroupsMask as u32)
@@ -452,9 +448,6 @@ fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: Comput
         result.ensure_level(INVALIDATION_REPAINT);
     } else if property_metadata::property_affects_layout(property) {
         result.ensure_level(INVALIDATION_RELAYOUT);
-    }
-    if property_metadata::property_affects_scrollable_overflow(property) {
-        result.recalculate_scrollable_overflow = true;
     }
     if property_metadata::property_affects_scrollable_overflow(property)
         || matches!(

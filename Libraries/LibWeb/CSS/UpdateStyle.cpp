@@ -53,9 +53,6 @@ static void apply_element_style_invalidation_after_style_change(DOM::Element& el
     else if (invalidation.accumulated_visual_contexts() == AccumulatedVisualContextInvalidation::Rebuild)
         element.document().schedule_accumulated_visual_context_update(element, DOM::Document::AccumulatedVisualContextUpdateScope::Structure);
 
-    if (invalidation.needs_scrollable_overflow_recalculation())
-        element.document().schedule_scrollable_overflow_recalculation(element);
-
     if (invalidation.needs_scroll_container_resnap)
         element.document().schedule_scroll_container_resnap();
 

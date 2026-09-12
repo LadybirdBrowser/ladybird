@@ -22,8 +22,6 @@ RequiredInvalidationAfterStyleChange decode_style_invalidation(u32 packed)
         result.set_layout_tree_rebuild_root(static_cast<LayoutTreeRebuildRoot>((packed >> to_underlying(RebuildRootShift)) & to_underlying(LevelMask)));
     if (packed & to_underlying(RebuildStackingContext))
         result.set_needs_stacking_context_tree_rebuild();
-    if (packed & to_underlying(RecalculateScrollableOverflow))
-        result.set_needs_scrollable_overflow_recalculation();
     result.needs_scroll_container_resnap = packed & to_underlying(ResnapScrollContainer);
     result.recompute_descendant_styles = packed & to_underlying(RecomputeDescendants);
     auto inherited_groups = static_cast<u8>((packed >> to_underlying(InheritedGroupsShift)) & to_underlying(InheritedGroupsMask));

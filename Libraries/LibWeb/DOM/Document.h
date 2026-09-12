@@ -1172,8 +1172,6 @@ public:
     bool can_compute_client_rects_without_accumulated_visual_contexts_update(Layout::Node const&) const;
     void schedule_accumulated_visual_context_update(Element&, AccumulatedVisualContextUpdateScope);
     void schedule_accumulated_visual_context_update(Layout::Node const&, AccumulatedVisualContextUpdateScope);
-    void schedule_scrollable_overflow_recalculation(Element&);
-    void schedule_scrollable_overflow_recalculation(Layout::Node const&);
 
     Painting::SnappedAreas const& snapped_areas_of_scroll_container(Compositor::AsyncScrollNodeStableID const&) const;
     void set_snapped_areas_of_scroll_container(Compositor::AsyncScrollNodeStableID const&, Painting::SnappedAreas);
