@@ -47,7 +47,7 @@ class BuildInformationTests(unittest.TestCase):
                     ]
                 )
             )
-            self.assertIn("Git commit: unknown", build_information.generate(source, build, "Clang 21.0"))
+            self.assertRegex(build_information.generate(source, build, "Clang 21.0"), r"LADYBIRD_COMMIT.+unknown")
 
             def git(*arguments):
                 return subprocess.check_output(
@@ -72,17 +72,17 @@ class BuildInformationTests(unittest.TestCase):
             git("commit", "-m", "First")
             first = git("rev-parse", "HEAD")
             info = build_information.generate(source, build, "Clang 21.0")
-            self.assertIn(f"Git commit: {first}", info)
-            self.assertIn("Tracked source state: clean", info)
+            self.assertRegex(info, rf"LADYBIRD_COMMIT.+{first}")
+            self.assertRegex(info, r"Tracked source state.+clean")
+            self.assertRegex(info, r"C\+\+ compiler.+Clang 21\.0")
             self.assertIn("ENABLE_ADDRESS_SANITIZER=ON", info)
-            self.assertIn("C++ compiler: Clang 21.0", info)
             self.assertNotIn("private", info)
             tracked.write_text("second\n")
-            self.assertIn("Tracked source state: modified", build_information.generate(source, build, "Clang 21.0"))
+            self.assertRegex(build_information.generate(source, build, "Clang 21.0"), r"Tracked source state.+modified")
             git("commit", "-am", "Second")
             second = git("rev-parse", "HEAD")
             self.assertNotEqual(first, second)
-            self.assertIn(f"Git commit: {second}", build_information.generate(source, build, "Clang 21.0"))
+            self.assertIn(f'LADYBIRD_COMMIT = "{second}"', build_information.generate(source, build, "Clang 21.0"))
 
 
 if __name__ == "__main__":

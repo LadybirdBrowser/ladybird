@@ -84,7 +84,7 @@ ErrorOr<void> CrashReport::save(int wait_status, ByteString const& path)
     StringBuilder builder;
     builder.appendff("Ladybird crash report, format 1\nProcess: {}\n", process_name_from_type(m_process_type));
     builder.appendff("Version: {}\nPlatform: {}\nArchitecture: {}\n", BROWSER_VERSION, OS_STRING, CPU_STRING);
-    builder.append(BuildInformation::for_process(m_process_type));
+    append_build_information_for_process(builder, m_process_type);
     builder.appendff("Process uptime (seconds): {}\n", (MonotonicTime::now() - m_started_at).to_seconds());
 #    ifdef NDEBUG
     builder.append("Build configuration: release\n"sv);
