@@ -2593,7 +2593,6 @@ impl PrefixStates {
         delta_arena: &mut PrefixDeltaArena,
         counters: &mut Counters,
     ) -> PrefixTransitionLookup<PrefixDifference> {
-        self.prepare_rows(evaluation.facts.generation(), evaluation.facts.row_count());
         let row = match evaluation.row_of(node) {
             Ok(row) => row,
             Err(incomplete) => {
@@ -3203,7 +3202,7 @@ impl PrefixStates {
     /// Per-row transitions and local-fact representatives hold raw row indices. A batch rebuild
     /// renumbers rows, so holding them across generations reads the wrong element's facts, or
     /// past the end of the batch. Appending keeps the generation and the held rows.
-    fn prepare_rows(&mut self, generation: u64, row_count: usize) {
+    pub(super) fn prepare_rows(&mut self, generation: u64, row_count: usize) {
         if self.facts_generation != generation || generation == 0 {
             self.facts_generation = generation;
             self.transition_by_row.clear();
@@ -4417,7 +4416,7 @@ impl PrefixStateCache {
         }
     }
 
-    pub(super) fn get_or_insert(
+    pub(super) fn prepare_program_rows(
         &mut self,
         program: ScopeProgramID,
         generation: u64,
@@ -5354,7 +5353,7 @@ mod tests {
             &[],
         );
         {
-            let states = cache.get_or_insert(ScopeProgramID(0), facts.generation(), 1);
+            let states = cache.prepare_program_rows(ScopeProgramID(0), facts.generation(), 1);
             states
                 .local_fact_interner
                 .intern(&facts, 0, &PrefixFactDependencies::default(), &mut counters);
@@ -5366,7 +5365,7 @@ mod tests {
         // A generation change clears the entry's local-fact interner, shrinking its capacity. On a
         // a retained cache that shrink must reconcile the residency lease at settlement; the
         // scratch lease holds zero bytes here and would underflow if it were adjusted instead.
-        let _ = cache.get_or_insert(ScopeProgramID(0), facts.generation() + 1, 1);
+        let _ = cache.prepare_program_rows(ScopeProgramID(0), facts.generation() + 1, 1);
         cache.settle_memory(&mut memory);
         assert_eq!(memory.bytes_in_category(MemoryCategory::BatchScratch), 0);
     }

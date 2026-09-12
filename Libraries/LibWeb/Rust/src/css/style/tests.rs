@@ -3764,6 +3764,8 @@ fn retained_answer_patching_applies_complete_signed_deltas_without_matching() {
     engine.remember_cascade_input(nodes[1], &compact_answer);
     remove_feature(&mut engine, nodes[1], LocalFeatureKey::Class(target));
     let program = engine.program.rule_version(rule).selector_program.unwrap();
+    // Match-input preparation follows fact commit, as it does in a style transaction.
+    engine.state.facts.apply_staged(&mut engine.state.memory);
     let mut patch = engine.prepare_retained_answer_patch(RetainedAnswerPatchSelection {
         affected: vec![RetainedAnswerPatchSelectionRule {
             rule,
@@ -6404,6 +6406,11 @@ fn a_maintained_relation_leaves_shadow_scope_routes_to_their_own_program() {
         add_feature(&mut engine, node, LocalFeatureKey::Class(class));
     }
     discard_transaction(&mut engine);
+
+    // NB: A prepared shadow program may reach retention without any matching ask.
+    //     Its row allocation must already be charged before retention trims it.
+    engine.begin_published_match_answer_completion_batch(nodes[0], true);
+    engine.end_published_match_answer_completion_batch();
 
     engine.begin_published_match_answer_completion_batch(nodes[0], true);
     assert_eq!(engine.match_element(nodes[3]).unwrap().len(), 1);
