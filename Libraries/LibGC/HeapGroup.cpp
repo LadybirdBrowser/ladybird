@@ -8,6 +8,7 @@
 #include <LibCore/ElapsedTimer.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapGroup.h>
+#include <setjmp.h>
 
 namespace GC {
 
@@ -31,8 +32,21 @@ void HeapGroup::remove(Heap& heap)
     m_heaps.remove_first_matching([&](auto* entry) { return entry == &heap; });
 }
 
-void HeapGroup::collect_garbage(bool print_report)
+NO_SANITIZE_ADDRESS void HeapGroup::collect_garbage(bool print_report)
 {
+    jmp_buf registers;
+    setjmp(registers);
+    ReadonlySpan<FlatPtr> captured_registers { reinterpret_cast<FlatPtr const*>(registers), sizeof(jmp_buf) / (sizeof(FlatPtr)) };
+    run_collection(captured_registers, print_report);
+}
+
+void HeapGroup::run_collection(ReadonlySpan<FlatPtr> callee_saved_registers, bool print_report)
+{
+    Heap::ConservativeScanOrigin origin {
+        .stack_floor = bit_cast<FlatPtr>(__builtin_frame_address(0)),
+        .callee_saved_registers = callee_saved_registers,
+    };
+
     // Defer all member heaps' collections until the last one, so that cross-heap edges are visible to the mark phase.
     for (auto* heap : m_heaps) {
         VERIFY(!heap->m_collecting_garbage);
@@ -53,7 +67,7 @@ void HeapGroup::collect_garbage(bool print_report)
 
     HashMap<Cell*, HeapRoot> roots;
     for (auto* heap : m_heaps)
-        heap->gather_roots(roots, nullptr, Heap::IncludeIncomingCrossHeapMembers::No);
+        heap->gather_roots(origin, roots, nullptr, Heap::IncludeIncomingCrossHeapMembers::No);
 
     Heap::mark_live_cells_across(m_heaps, roots);
 
