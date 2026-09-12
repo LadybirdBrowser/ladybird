@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #editor { font: 20px/30px NavigationFixture; white-space: pre-wrap; overflow-wrap: break-word; }
+    .draft-block { position: relative; }
+</style>
+<div contenteditable="true">outside before</div>
+<div id="editor" contenteditable="true"></div>
+<div contenteditable="true">outside after</div>
+<script>
+    asyncTest(async done => {
+        // Draft.js on X puts each paragraph in a positioned overflow:hidden wrapper, with two nested spans.
+        // Paint clips, effects, and transforms must not prevent keyboard navigation within the editing host.
+        const font = new FontFace("NavigationFixture", 'url("../../../Ref/data/fonts/Ahem.ttf")');
+        document.fonts.add(await font.load());
+        const editor = document.getElementById("editor");
+        const selection = getSelection();
+        const failures = [];
+        let checks = 0;
+        const assert = (condition, label) => {
+            ++checks;
+            if (!condition) failures.push(label);
+        };
+        const block = text => `<div data-block="true"><div class="draft-block"><span><span data-text="true">${text}</span></span></div></div>`;
+        const collapse = (node, offset) => {
+            editor.focus();
+            selection.collapse(node, offset);
+        };
+        // Selection extension can represent a run edge on its inline or block parent. Compare the same
+        // text boundary while allowing those equivalent DOM positions.
+        const atTextBoundary = (node, offset, text, expected) => {
+            if (node === text) return offset === expected;
+            if (expected !== 0 && expected !== text.length) return false;
+            const atStart = expected === 0;
+            let child = text;
+            while (child.parentNode && child.parentNode !== editor) {
+                const parent = child.parentNode;
+                const index = Array.prototype.indexOf.call(parent.childNodes, child);
+                const boundary = index + (atStart ? 0 : 1);
+                if (node === parent) return offset === boundary;
+                if (boundary !== (atStart ? 0 : parent.childNodes.length)) return false;
+                child = parent;
+            }
+            return false;
+        };
+        const send = (key, shift = false) => internals.sendKey(editor, key, shift ? internals.MOD_SHIFT : 0);
+        for (const style of [
+            "overflow:hidden",
+            "overflow:clip",
+            "overflow:auto",
+            "overflow:scroll",
+            "overflow:hidden;border-radius:5px",
+            "clip-path:inset(0)",
+            "opacity:0.5",
+            "filter:opacity(0.5)",
+            "transform:translateX(40px)",
+            "transform:scale(1.2)",
+        ]) {
+            editor.innerHTML = `<div data-contents="true">${block("foo")}${block("bar")}${block("baz")}</div>`;
+            editor.querySelectorAll(".draft-block").forEach(element => element.style.cssText = `position:relative;${style}`);
+            const [first, second, third] = [...editor.querySelectorAll("[data-text]")].map(element => element.firstChild);
+            for (let offset = 0; offset <= 3; ++offset) {
+                collapse(second, offset);
+                send("Up");
+                assert(selection.focusNode === first && selection.focusOffset === offset, `${style}: Up from bar@${offset}`);
+                send("Down");
+                assert(selection.focusNode === second && selection.focusOffset === offset, `${style}: Up+Down from bar@${offset}`);
+                send("Down");
+                assert(selection.focusNode === third && selection.focusOffset === offset, `${style}: Down to baz@${offset}`);
+                collapse(second, offset);
+                send("Up", true);
+                assert(atTextBoundary(selection.anchorNode, selection.anchorOffset, second, offset)
+                    && atTextBoundary(selection.focusNode, selection.focusOffset, first, offset), `${style}: Shift+Up from bar@${offset}`);
+                collapse(second, offset);
+                send("Down", true);
+                assert(atTextBoundary(selection.anchorNode, selection.anchorOffset, second, offset)
+                    && atTextBoundary(selection.focusNode, selection.focusOffset, third, offset), `${style}: Shift+Down from bar@${offset}`);
+            }
+            collapse(first, 1);
+            send("Up");
+            assert(selection.focusNode === first && selection.focusOffset === 0, `${style}: Up stays in editing host`);
+            collapse(third, 1);
+            send("Down");
+            assert(selection.focusNode === third && selection.focusOffset === 3, `${style}: Down stays in editing host`);
+        }
+        // Chromium navigates in layout order even when an individual line is moved or rotated visually.
+        for (const transform of ["translateY(100px)", "translateX(100px)", "scale(3)", "rotate(180deg)"]) {
+            editor.innerHTML = `<div data-contents="true">${block("foo")}${block("bar")}</div>`;
+            editor.querySelector(".draft-block").style.transform = transform;
+            const [first, second] = [...editor.querySelectorAll("[data-text]")].map(element => element.firstChild);
+            collapse(second, 1);
+            send("Up");
+            assert(selection.focusNode === first && selection.focusOffset === 1, `${transform}: Up ignores visual transform`);
+            send("Down");
+            assert(selection.focusNode === second && selection.focusOffset === 1, `${transform}: Down ignores visual transform`);
+        }
+        editor.remove();
+        println(failures.length ? `FAIL: ${failures.length}/${checks} Draft.js caret checks\n${failures.join("\n")}`
+            : `PASS: ${checks} Draft.js caret checks match Chromium`);
+        done();
+    });
+</script>
