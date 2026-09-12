@@ -123,9 +123,23 @@ PASS: fall back for inline child among block children | incremental tree matches
 PASS: fall back for block child among inline children | rebuild parent
 PASS: fall back for block child among inline children | layout tree builds=1
 PASS: fall back for block child among inline children | incremental tree matches full rebuild
-PASS: fall back for block child beside anonymous inline run | rebuild parent
-PASS: fall back for block child beside anonymous inline run | layout tree builds=1
-PASS: fall back for block child beside anonymous inline run | incremental tree matches full rebuild
+PASS: append block child after anonymous inline run | preserve parent
+PASS: append block child after anonymous inline run | preserve before
+PASS: append block child after anonymous inline run | layout tree builds=1
+PASS: append block child after anonymous inline run | incremental tree matches full rebuild
+PASS: append positioned in-flow block child after anonymous inline run | preserve parent
+PASS: append positioned in-flow block child after anonymous inline run | preserve before
+PASS: append positioned in-flow block child after anonymous inline run | layout tree builds=1
+PASS: append positioned in-flow block child after anonymous inline run | incremental tree matches full rebuild
+PASS: fall back for block child before anonymous inline run | rebuild parent
+PASS: fall back for block child before anonymous inline run | layout tree builds=1
+PASS: fall back for block child before anonymous inline run | incremental tree matches full rebuild
+PASS: fall back for floated block child after anonymous inline run | rebuild parent
+PASS: fall back for floated block child after anonymous inline run | layout tree builds=1
+PASS: fall back for floated block child after anonymous inline run | incremental tree matches full rebuild
+PASS: fall back for absolute block child after anonymous inline run | rebuild parent
+PASS: fall back for absolute block child after anonymous inline run | layout tree builds=1
+PASS: fall back for absolute block child after anonymous inline run | incremental tree matches full rebuild
 PASS: fall back for display contents child in flex | rebuild parent
 PASS: fall back for display contents child in flex | layout tree builds=1
 PASS: fall back for display contents child in flex | incremental tree matches full rebuild
