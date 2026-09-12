@@ -389,7 +389,7 @@ fn winners(engine: &mut StyleEngine, node: StyleNodeID, matches: &[RuleMatch]) -
     engine.resolved_cascade_winners_for_properties(node, matches, None, None)
 }
 
-fn style_record_for_winners(engine: &mut StyleEngine, winners: &[PropertyWinner]) -> u64 {
+fn style_record_for_winners(engine: &mut StyleEngine, winners: &[PropertyWinner], dependency_flags: u8) -> u64 {
     // The Rust harness has no C++ computed-group payloads. Project the winner inventory into the
     // opaque custom-property-environment input, then ask the real style-record interner for its
     // identity. Winner equality is checked directly; this also checks downstream canonicalization.
@@ -402,7 +402,7 @@ fn style_record_for_winners(engine: &mut StyleEngine, winners: &[PropertyWinner]
             hasher.finish(),
             ComputedMetadataInput {
                 pseudo_element_styles: 0,
-                dependency_flags: 0,
+                dependency_flags,
                 counter_style_environment_identity: 0,
                 animation_overlay_identity: 0,
                 animated_overlay: std::ptr::null(),
@@ -434,8 +434,8 @@ fn compare_mode(
         actual_winners, expected_winners,
         "property winners diverged in {mode}; seed={seed:#018x}, first step={step}, node={node:?}"
     );
-    let expected_style = style_record_for_winners(engine, &expected_winners);
-    let actual_style = style_record_for_winners(engine, &actual_winners);
+    let expected_style = style_record_for_winners(engine, &expected_winners, 0);
+    let actual_style = style_record_for_winners(engine, &actual_winners, 0);
     assert_eq!(
         actual_style, expected_style,
         "style-record IDs diverged in {mode}; seed={seed:#018x}, first step={step}, node={node:?}"
@@ -563,4 +563,65 @@ fn seeded_transactions_match_the_cache_free_floor_in_every_mode() {
             "seed {seed:#018x} never checked an unplanned retained answer"
         );
     }
+}
+
+#[test]
+fn budget_histories_preserve_answers_winners_and_records_across_mutations() {
+    use super::memory::{MemoryCategory, Tier};
+
+    let seed = 0x5EED_5400_0000_0003;
+    let mut warm = Workload::new(seed);
+    let mut pressured = Workload::new(seed);
+    let mut warm_rng = Lcg(seed);
+    let mut pressured_rng = Lcg(seed);
+    let mut saw_pressure = false;
+    let mut saw_retention_difference = false;
+    for step in 0..12 {
+        // The first loop starts admitting with both budgets. The low budget is crossed
+        // by ordinary matching allocations, and only the next loop observes closure.
+        warm.engine.memory.set_tier3_limit_for_test(u64::MAX);
+        pressured.engine.memory.set_tier3_limit_for_test(1024);
+        for workload in [&mut warm, &mut pressured] {
+            workload.engine.take_style_transaction(workload.root, |_, _, _| {});
+            workload.engine.begin_adaptive_cold_matching_batch(workload.root);
+        }
+        let mut warm_answers = Vec::new();
+        let mut pressured_answers = Vec::new();
+        for (workload, answers) in [(&mut warm, &mut warm_answers), (&mut pressured, &mut pressured_answers)] {
+            for node in workload.nodes.clone() {
+                let answer = workload.engine.match_element_for_purpose(node, false).unwrap();
+                let exact = exact_matches(&mut workload.engine, node);
+                assert_eq!(
+                    normalized_rows(answer.clone()),
+                    normalized_rows(exact),
+                    "step {step}, {node:?}"
+                );
+                let winners = winners(&mut workload.engine, node, &answer);
+                // Host-published dependency metadata changes independently of the budget.
+                let dependency_flags = 1 << (step % 2);
+                let record = style_record_for_winners(&mut workload.engine, &winners, dependency_flags);
+                let view = workload.engine.style_record_view(record).unwrap();
+                assert_eq!(view.dependency_flags, dependency_flags);
+                answers.push((
+                    normalized_rows(answer),
+                    winners,
+                    record,
+                    view.dependency_flags,
+                    view.pseudo_element_styles,
+                    view.counter_style_environment_identity,
+                ));
+            }
+            workload.engine.end_cold_matching_batch();
+        }
+        assert_eq!(warm_answers, pressured_answers, "step {step}");
+        saw_pressure |= pressured.engine.memory.refusals(MemoryCategory::RetainedMatchAnswer) > 0;
+        saw_retention_difference |= warm.engine.memory.bytes_in_tier(Tier::Acceleration)
+            != pressured.engine.memory.bytes_in_tier(Tier::Acceleration);
+        assert_eq!(warm.mutate(&mut warm_rng), pressured.mutate(&mut pressured_rng));
+    }
+    assert!(saw_pressure, "the low history never closed retained-answer admission");
+    assert!(
+        saw_retention_difference,
+        "both histories retained the same acceleration"
+    );
 }

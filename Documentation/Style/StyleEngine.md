@@ -901,7 +901,7 @@ Each document has a derived-style memory controller tracking exact bytes by logi
 
 At each flush boundary the controller opens a new admission period for every Tier-3 category and records its starting residency. Admission remains work-conserving while the complete Tier-3 pool has space; there are no per-category partitions.
 
-Owners account exact capacity at arena, slab, vector, bitmap, and table growth boundaries. The growth that crosses the global Tier-3 limit remains usable for the current quota period and closes that category to new retained entries for the rest of the period. Existing entries may continue changing so they never become stale or partial. At the following flush boundary, an over-limit category is dropped whole; there is no mid-traversal eviction, retry, or rebuild.
+Owners account exact capacity at arena, slab, vector, bitmap, and table growth boundaries. Growth crossing the global Tier-3 limit remains usable throughout the current evaluation loop. At the loop boundary, a pure decision over final category residency and the quota-period starting residency closes the categories that grew to new entries for later loops in that period. The Rust transaction and the host cold-matching batch each have an explicit end boundary. Exact-versus-pruned answer completion is selected before its batch and remains fixed throughout it. Existing entries may continue changing so they never become stale or partial. At the following flush boundary, an over-limit category is dropped whole; there is no mid-traversal eviction, retry, or rebuild.
 
 ```text
 Tier3Limit = min(
@@ -930,6 +930,8 @@ Tier4Limit = min(
 The scratch cap is 32 MiB and the transaction node allowance is 768 bytes. The multiplier on `Tier3Limit` is 1, not 2, so transaction scratch cannot dominate the document's total style footprint; the 4 MiB floor matters most on small documents. Tier 4 is a **reported ceiling**, not a refusable cap: scratch charges cannot be refused because the flush must complete. The limit makes an over-limit transaction visible in the pressure report but changes no allocation or planning decision.
 
 During an active capture (and its replay), the memory policy pins the Tier-3 limit to the device cap so recorded eviction decisions are reproducible; ordinary builds never run that policy.
+
+Accounting uses one plain-integer ledger per document or shared-program context, mutated through exclusive borrows. Leases share only the accounting lifetime, so destroying an outliving query or shared program still releases its charge. Ledger operations never select admission or refuse required capacity. Peak charged live bytes and peak scratch bytes remain available after temporary charges are released. Required output and node workspace is reserved before computation; growing computation scratch and pseudo-output capacity is reconciled while the loop runs.
 
 Byte accounting happens at arena, slab, vector-capacity, bitmap, and hash-table allocation boundaries: operators update aggregate counters when capacity changes, not on every lookup.
 
@@ -982,7 +984,7 @@ Memory pressure never degrades correctness; it degrades retention. The Tier-3 ch
 
 ```text
 account exact coarse growth and keep it usable for this quota period
-    -> close that category to new retained entries
+    -> at the loop boundary, close grown categories to new retained entries
     -> continue exact evaluation for entries that remain uncached
     -> drop the complete over-limit category at the next flush boundary
 ```

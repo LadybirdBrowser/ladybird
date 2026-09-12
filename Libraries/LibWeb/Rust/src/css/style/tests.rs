@@ -1257,6 +1257,8 @@ fn selector_incidence_crossing_pressure_stays_until_the_boundary() {
             .is_some()
     );
     assert!(incidences.lookup(program).is_some());
+    assert!(memory.is_tier3_admitting(MemoryCategory::RetainedSelectorIncidence));
+    memory.finish_evaluation_loop();
     assert!(
         incidences
             .remember(SelectorProgramID(2), Vec::new(), &mut memory)
@@ -1410,6 +1412,7 @@ fn retained_match_answer_pressure_preserves_existing_rows() {
     assert!(matches!(answers.lookup(replaced_node), Lookup::Known(_)));
     assert!(matches!(answers.lookup(preserved_node), Lookup::Known(identity) if *identity == shared_identity));
     assert!(catalog.retained_answer(shared_identity).is_some());
+    memory.finish_evaluation_loop();
     let new_node = StyleNodeID::element(3);
     assert!(
         answers
@@ -6444,7 +6447,7 @@ fn a_maintained_relation_leaves_shared_selector_shadow_routes_to_their_own_progr
 }
 
 #[test]
-fn a_refused_prefix_transition_cache_keeps_the_maintained_relation() {
+fn boundary_prefix_admission_keeps_the_maintained_relation() {
     let (mut engine, nodes) = nested_document();
     let guard = StyleAtomID(200);
     let target = StyleAtomID(201);
@@ -6476,10 +6479,7 @@ fn a_refused_prefix_transition_cache_keeps_the_maintained_relation() {
     }
     assert_eq!(engine.counters().get(Counter::PrefixRelationUpdates), 2);
     assert_eq!(engine.counters().get(Counter::PrefixRelationBuilds), 1);
-    assert_eq!(
-        engine.memory().bytes_in_category(MemoryCategory::PrefixTransitionCache),
-        0
-    );
+    // Limit-crossing retention remains usable until the next quota boundary.
     assert!(engine.memory().bytes_in_category(MemoryCategory::PrefixRelation) > 0);
 }
 

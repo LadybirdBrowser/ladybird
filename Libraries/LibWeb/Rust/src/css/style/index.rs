@@ -1722,7 +1722,6 @@ impl FeaturePostings {
         if growth != 0 {
             self.residency
                 .reconcile_committed(memory, self.residency.bytes() + growth);
-            memory.finish_committed_acceleration_growth(MemoryCategory::FeaturePosting);
         }
         if key.has_selector_posting() && posting_length > 4096 {
             self.remember_grown_selector_posting(key);
@@ -6124,6 +6123,8 @@ mod tests {
         }
 
         assert_eq!(known_posting(&postings, key).length, 511);
+        assert!(memory.is_tier3_admitting(MemoryCategory::FeaturePosting));
+        memory.finish_evaluation_loop();
         assert!(!postings.insert(missing_key, StyleNodeID::element(1), &mut memory));
         assert!(matches!(postings.lookup(missing_key), Lookup::Missing(gap) if gap == missing_key));
     }
@@ -6213,6 +6214,7 @@ mod tests {
         memory.set_tier3_limit_for_test(0);
         let mut other_postings = FeaturePostings::new();
         other_postings.insert(key, node, &mut memory);
+        memory.finish_evaluation_loop();
         assert!(!memory.is_tier3_admitting(MemoryCategory::FeaturePosting));
 
         for _ in 0..3 {
@@ -6251,6 +6253,9 @@ mod tests {
         let new_class_key = SelectorPostingKey::Class(new_class);
         let new_animation_key = DependencyPostingKey::AnimationName(new_animation);
         assert_eq!(known_posting(facts.postings(), new_class_key).length, 1);
+        assert_eq!(known_posting(facts.postings(), new_animation_key).length, 1);
+        memory.finish_evaluation_loop();
+        facts.postings_mut().evict(new_animation_key);
         assert!(matches!(facts.postings().lookup(new_animation_key), Lookup::Missing(gap) if gap == new_animation_key));
         assert_eq!(facts.posting_rebuild_closed_at_headroom, None);
 

@@ -1974,7 +1974,9 @@ impl WinnerGroups {
         self.nested_residency.reconcile_committed(memory, nested);
         let current = self.capacity_bytes() - self.nested_residency.bytes();
         self.residency.reconcile_committed(memory, current);
-        memory.finish_committed_acceleration_growth(MemoryCategory::CascadeWinnerGroup);
+    }
+
+    pub(super) fn update_admission(&mut self, memory: &MemoryController) {
         self.admitting = memory.is_tier3_admitting(MemoryCategory::CascadeWinnerGroup);
     }
 
@@ -2671,6 +2673,8 @@ mod tests {
         let resident = StyleNodeID::element(1);
         assert!(groups.set(resident, state, ProgramVersion(1)));
         groups.settle_memory(&mut memory);
+        memory.finish_evaluation_loop();
+        groups.update_admission(&memory);
         assert!(!memory.is_tier3_admitting(MemoryCategory::CascadeWinnerGroup));
 
         let refused = StyleNodeID::element(2);

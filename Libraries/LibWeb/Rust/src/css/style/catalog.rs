@@ -669,7 +669,6 @@ impl PrefixAnswerCache {
             return false;
         }
         self.residency.reconcile_committed(memory, self.scratch_memory.bytes());
-        memory.finish_committed_acceleration_growth(MemoryCategory::PrefixAnswerCache);
         self.scratch_memory.release();
         self.retained = true;
         true
@@ -895,7 +894,6 @@ impl RetainedSelectorIncidences {
         self.nested_capacity_bytes += size_of_val(incidences.as_ref()) as u64;
         let bytes = self.capacity_bytes();
         self.residency.reconcile_committed(memory, bytes);
-        memory.finish_committed_acceleration_growth(MemoryCategory::RetainedSelectorIncidence);
         Some(incidences)
     }
 
@@ -1129,7 +1127,6 @@ impl RetainedMatchAnswers {
         }
         let current = self.capacity_bytes(catalog);
         self.residency.reconcile_committed(memory, current);
-        memory.finish_committed_acceleration_growth(MemoryCategory::RetainedMatchAnswer);
         Ok(())
     }
 
