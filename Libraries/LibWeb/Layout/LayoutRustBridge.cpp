@@ -503,22 +503,6 @@ void LayoutRustBridge::compute_subtree_layout(Box& root)
     }
 }
 
-void LayoutRustBridge::replay_saved_abspos_layout(Box& box)
-{
-    VERIFY(!m_commit_root);
-    m_commit_root = &box;
-    ScopeGuard clear_commit_root = [&] {
-        m_commit_root = nullptr;
-    };
-
-    auto callbacks = formatting_context_callbacks();
-    auto sink = commit_sink();
-    {
-        ActiveLayoutPassScope active_pass;
-        RustFFI::rust_layout_replay_saved_abspos_layout(Node::slot_id(&box), &callbacks, &sink);
-    }
-}
-
 static void invalidate_descendant_styles_for_container_query_size_change(GC::Ptr<DOM::Node> node)
 {
     auto* element = as_if<DOM::Element>(node.ptr());
