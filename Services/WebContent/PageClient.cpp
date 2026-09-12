@@ -536,6 +536,13 @@ void PageClient::request_rendering_opportunity_if_needed()
     if (Web::HTML::main_thread_event_loop().rendering_task_queued_or_running())
         return;
 
+    // NB: Headless tests have no display clock to follow. Schedule their frames locally so
+    //     compositor IPC latency cannot let document timers overtake a requested frame.
+    if (is_headless() && Web::HTML::Window::in_test_mode()) {
+        schedule_local_rendering_opportunity();
+        return;
+    }
+
     if (page().has_local_root_navigable()) {
         auto& local_root_navigable = *page().local_root_navigable();
         if (local_root_navigable.has_compositor_context() && local_root_navigable.compositor_context().request_rendering_opportunity(m_maximum_frames_per_second)) {
