@@ -1490,7 +1490,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             paint_state.recorded_canvas_color = Some(inputs.canvas_color);
         }
     }
-    let (output, resources, recording_from_scratch) = {
+    let (recording, recording_from_scratch) = {
         let paint_state = arena.paint_state().borrow();
         if !arena.paintable_row_is_populated(viewport) || arena.stacking_context_entries(viewport).is_none() {
             return false;
@@ -1509,7 +1509,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             .then(|| paint_state.paint_command_cache_source.clone())
             .flatten();
         arena.set_paint_recording_in_progress(true);
-        let (output, resources) = crate::painting::record::traversal::record_display_list(
+        let recording = crate::painting::record::traversal::record_display_list(
             arena,
             &paint_state,
             viewport,
@@ -1520,11 +1520,15 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             paint_state.trace_recordings || crate::painting::record::verify::enabled_by_environment(),
         );
         let recording_from_scratch = (crate::painting::record::verify::enabled_by_environment()
-            && output.capture_log_for_verification.as_ref().is_some_and(|log| {
-                log.command_byte_captures
-                    .iter()
-                    .any(|capture| capture.spliced_from_cache)
-            })
+            && recording
+                .output
+                .capture_log_for_verification
+                .as_ref()
+                .is_some_and(|log| {
+                    log.command_byte_captures
+                        .iter()
+                        .any(|capture| capture.spliced_from_cache)
+                })
             && !inputs.should_show_line_box_borders)
             .then(|| {
                 let mut inputs_for_recording_from_scratch = inputs;
@@ -1541,18 +1545,17 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
                 )
             });
         arena.set_paint_recording_in_progress(false);
-        (output, resources, recording_from_scratch)
+        (recording, recording_from_scratch)
     };
     let mut paint_state = arena.paint_state().borrow_mut();
-    if paint_state.trace_recordings && output.capture_log_for_verification.is_some() {
+    if paint_state.trace_recordings && recording.output.capture_log_for_verification.is_some() {
         paint_state.pending_recording_trace = Some(crate::painting::paint_state::PendingRecordingTrace {
             viewport,
             should_paint_overlay: inputs.should_paint_overlay,
         });
     }
     paint_state.pending_recording = Some(crate::painting::paint_state::PendingRecording {
-        output,
-        resources,
+        recording,
         recording_from_scratch,
         paint_command_cache_read_write: inputs.paint_command_cache_read_write,
     });

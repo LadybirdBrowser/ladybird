@@ -8,6 +8,7 @@ use std::cell::Cell;
 use std::rc::Rc;
 
 use crate::css::style::fast_hash::FastMap;
+use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::used_values::FfiCssPixelPoint;
 use crate::painting::display_list::commands::ContextRef;
@@ -122,7 +123,7 @@ pub(crate) fn resolve_capture_address_in_source_tape(
 ) -> Option<SourceTapePosition> {
     debug_assert!(
         address.written_in_record_gen <= completed_record_gen,
-        "a capture site ran twice in one recording"
+        "source capture metadata must belong to a completed recording"
     );
     let Some(enclosing_capture) = address.enclosing_capture else {
         return (address.written_in_record_gen == completed_record_gen).then_some(SourceTapePosition {
@@ -160,16 +161,12 @@ fn resolve_enclosing_capture_start(
             },
             Some(anchor) => ResolvedEnclosingCapture {
                 gen_of_last_fresh_walk: anchor.gen_of_last_fresh_walk,
-                source_position: (anchor.address.written_in_record_gen <= completed_record_gen)
-                    .then(|| {
-                        resolve_capture_address_in_source_tape(
-                            completed_record_gen,
-                            anchor.address,
-                            lookup_enclosing_capture_anchor,
-                            memo,
-                        )
-                    })
-                    .flatten(),
+                source_position: resolve_capture_address_in_source_tape(
+                    completed_record_gen,
+                    anchor.address,
+                    lookup_enclosing_capture_anchor,
+                    memo,
+                ),
             },
         };
         memo.insert(site, resolved);
@@ -185,9 +182,8 @@ pub struct PaintCache {
     hit_test_items: [Cell<Option<CachedBoxPhaseHitTestItems>>; PaintPhase::COUNT],
     descendant_subtrees: [Cell<Option<CachedSubtreeCapture>>; StackingContextPaintPhase::COUNT],
     painted_as_stacking_context: Cell<Option<CachedSubtreeCapture>>,
-    // One captured position per row covers every entry: register_capture_position() drops the
-    // row's entries whenever a registration moves the stamp, so live entries are always captures
-    // taken at this position.
+    // Source entries and their position stay unchanged throughout recording. Publication drops
+    // the old entries if the staged captures were recorded at a different position.
     captured_absolute_position: Cell<FfiCssPixelPoint>,
     // Dirty while greater than the arena's completed-record generation; aged out by the bump
     // after a cache-writing recording, never cleared by walks.
@@ -218,27 +214,11 @@ impl PaintCache {
         self.hit_test_items[phase as usize].get()
     }
 
-    pub fn set_commands(&self, phase: PaintPhase, commands: CachedBoxPhaseCommands) {
-        self.commands[phase as usize].set(Some(commands));
-    }
-
-    pub fn set_hit_test_items(&self, phase: PaintPhase, hit_test_items: CachedBoxPhaseHitTestItems) {
-        self.hit_test_items[phase as usize].set(Some(hit_test_items));
-    }
-
     pub(crate) fn subtree_capture(&self, kind: CaptureKind) -> Option<CachedSubtreeCapture> {
         match kind {
             CaptureKind::BoxPhase(_) => None,
             CaptureKind::DescendantSubtreePhase(phase) => self.descendant_subtrees[phase as usize].get(),
             CaptureKind::PaintedAsStackingContext => self.painted_as_stacking_context.get(),
-        }
-    }
-
-    pub(crate) fn set_subtree_capture(&self, kind: CaptureKind, capture: CachedSubtreeCapture) {
-        match kind {
-            CaptureKind::BoxPhase(_) => unreachable!("a box phase capture is not a subtree capture"),
-            CaptureKind::DescendantSubtreePhase(phase) => self.descendant_subtrees[phase as usize].set(Some(capture)),
-            CaptureKind::PaintedAsStackingContext => self.painted_as_stacking_context.set(Some(capture)),
         }
     }
 
@@ -274,17 +254,30 @@ impl PaintCache {
         self.captured_absolute_position.get()
     }
 
-    /// The row keeps one captured position for all of its entries, which is only sound while
-    /// every live entry was captured at that position. A phase walk can re-register one entry
-    /// kind of a moved row (e.g. the always-empty descendant subtree of a positioned child)
-    /// while the row's other entries still hold output captured at the old position, so
-    /// registering at a new position must drop the remaining entries: a moved box can never
-    /// validly splice them again, and keeping them would let later position checks accept them
-    /// against the freshly moved stamp.
-    pub(crate) fn register_capture_position(&self, position: FfiCssPixelPoint) {
-        if self.captured_absolute_position.get() != position {
+    fn apply_update(&self, update: PaintCacheUpdate) {
+        if self.captured_absolute_position.get() != update.absolute_position {
             self.clear();
-            self.captured_absolute_position.set(position);
+            self.captured_absolute_position.set(update.absolute_position);
+        }
+        // Captures skipped by this recording remain available through their enclosing anchors.
+        // In particular, reusing an entire subtree only updates its root capture.
+        for (destination, source) in self.commands.iter().zip(update.commands) {
+            if let Some(entry) = source {
+                destination.set(Some(entry));
+            }
+        }
+        for (destination, source) in self.hit_test_items.iter().zip(update.hit_test_items) {
+            if let Some(entry) = source {
+                destination.set(Some(entry));
+            }
+        }
+        for (destination, source) in self.descendant_subtrees.iter().zip(update.descendant_subtrees) {
+            if let Some(entry) = source {
+                destination.set(Some(entry));
+            }
+        }
+        if let Some(entry) = update.painted_as_stacking_context {
+            self.painted_as_stacking_context.set(Some(entry));
         }
     }
 
@@ -305,6 +298,94 @@ impl PaintCache {
 
     pub(crate) fn has_dirty_descendants_since(&self, completed_record_gen: RecordGen) -> bool {
         self.descendant_dirty_gen.get() > u64::from(completed_record_gen)
+    }
+}
+
+#[derive(Default)]
+struct PaintCacheUpdate {
+    absolute_position: FfiCssPixelPoint,
+    commands: [Option<CachedBoxPhaseCommands>; PaintPhase::COUNT],
+    hit_test_items: [Option<CachedBoxPhaseHitTestItems>; PaintPhase::COUNT],
+    descendant_subtrees: [Option<CachedSubtreeCapture>; StackingContextPaintPhase::COUNT],
+    painted_as_stacking_context: Option<CachedSubtreeCapture>,
+}
+
+// Only rows that record or splice a capture get an update. The arena's caches remain the
+// immutable source until publication, including during the optional verification recording.
+#[derive(Default)]
+pub(crate) struct PendingPaintCacheUpdates {
+    rows: FastMap<NodeSlotId, PaintCacheUpdate>,
+}
+
+impl PendingPaintCacheUpdates {
+    fn for_paintable(&mut self, paintable: NodeSlotId, absolute_position: FfiCssPixelPoint) -> &mut PaintCacheUpdate {
+        let update = self.rows.entry(paintable).or_insert_with(|| PaintCacheUpdate {
+            absolute_position,
+            ..Default::default()
+        });
+        debug_assert_eq!(
+            update.absolute_position, absolute_position,
+            "a row moved during recording"
+        );
+        update
+    }
+
+    pub(crate) fn set_commands(
+        &mut self,
+        paintable: NodeSlotId,
+        position: FfiCssPixelPoint,
+        phase: PaintPhase,
+        commands: CachedBoxPhaseCommands,
+    ) {
+        let previous = self.for_paintable(paintable, position).commands[phase as usize].replace(commands);
+        debug_assert!(
+            previous.is_none(),
+            "a per-phase command capture site ran twice in one recording"
+        );
+    }
+
+    pub(crate) fn set_hit_test_items(
+        &mut self,
+        paintable: NodeSlotId,
+        position: FfiCssPixelPoint,
+        phase: PaintPhase,
+        items: CachedBoxPhaseHitTestItems,
+    ) {
+        let previous = self.for_paintable(paintable, position).hit_test_items[phase as usize].replace(items);
+        debug_assert!(
+            previous.is_none(),
+            "a per-phase hit-test capture site ran twice in one recording"
+        );
+    }
+
+    pub(crate) fn set_subtree_capture(
+        &mut self,
+        site: CaptureSite,
+        position: FfiCssPixelPoint,
+        capture: CachedSubtreeCapture,
+    ) {
+        let update = self.for_paintable(site.paintable, position);
+        let destination = match site.kind {
+            CaptureKind::BoxPhase(_) => unreachable!("a box phase capture is not a subtree capture"),
+            CaptureKind::DescendantSubtreePhase(phase) => &mut update.descendant_subtrees[phase as usize],
+            CaptureKind::PaintedAsStackingContext => &mut update.painted_as_stacking_context,
+        };
+        let previous = destination.replace(capture);
+        debug_assert!(previous.is_none(), "a capture site ran twice in one recording");
+    }
+
+    pub(crate) fn is_empty(&self) -> bool {
+        self.rows.is_empty()
+    }
+
+    pub(crate) fn commit(self, arena: &LayoutNodeArena) {
+        for (paintable, update) in self.rows {
+            assert!(
+                arena.paintable_row_is_populated(paintable),
+                "a captured row was removed before publication"
+            );
+            arena.paintable_paint_cache(paintable).apply_update(update);
+        }
     }
 }
 
@@ -349,11 +430,11 @@ mod tests {
         }
     }
 
-    fn position(command_byte_offset: u32, hit_test_item_index: u32) -> Option<SourceTapePosition> {
-        Some(SourceTapePosition {
+    fn position(command_byte_offset: u32, hit_test_item_index: u32) -> SourceTapePosition {
+        SourceTapePosition {
             command_byte_offset,
             hit_test_item_index,
-        })
+        }
     }
 
     struct Anchors(HashMap<CaptureSite, EnclosingCaptureAnchor>);
@@ -379,7 +460,7 @@ mod tests {
         let mut memo = ResolvedEnclosingCaptureMemo::default();
         assert_eq!(
             resolve(7, address(None, 100, 4, 7), &anchors, &mut memo),
-            position(100, 4)
+            Some(position(100, 4))
         );
         assert_eq!(resolve(7, address(None, 100, 4, 6), &anchors, &mut memo), None);
     }
@@ -393,12 +474,12 @@ mod tests {
         let mut memo = ResolvedEnclosingCaptureMemo::default();
         assert_eq!(
             resolve(5, address(Some(subtree(2)), 40, 2, 3), &anchors, &mut memo),
-            position(1540, 17)
+            Some(position(1540, 17))
         );
         assert!(memo.get(&subtree(2)).is_some_and(|memo| memo.source_position.is_some()));
         assert_eq!(
             resolve(5, address(Some(subtree(2)), 8, 1, 3), &anchors, &mut memo),
-            position(1508, 16)
+            Some(position(1508, 16))
         );
     }
 
@@ -415,7 +496,7 @@ mod tests {
         );
         assert_eq!(
             resolve(4, address(Some(subtree(2)), 40, 2, 4), &anchors, &mut memo),
-            position(1540, 17)
+            Some(position(1540, 17))
         );
     }
 
@@ -441,29 +522,174 @@ mod tests {
         );
     }
 
-    #[test]
-    fn enclosing_capture_re_placed_by_the_current_recording_is_rejected_unless_memoized_first() {
-        let mut anchors = HashMap::new();
-        anchors.insert(subtree(1), anchor(address(None, 1000, 10, 5), 5));
-        anchors.insert(subtree(2), anchor(address(Some(subtree(1)), 500, 5, 5), 4));
-        let mut memo = ResolvedEnclosingCaptureMemo::default();
-        {
-            let anchors = Anchors(anchors.clone());
-            assert_eq!(
-                resolve(5, address(Some(subtree(2)), 40, 2, 4), &anchors, &mut memo),
-                position(1540, 17)
-            );
+    fn allocate_paintable(arena: &mut LayoutNodeArena) -> NodeSlotId {
+        let slot = arena.allocate_for_test().slot;
+        arena.populate_paintable_row(slot);
+        slot
+    }
+
+    fn capture(address: CaptureAddress, gen_of_last_fresh_walk: RecordGen) -> CachedSubtreeCapture {
+        CachedSubtreeCapture {
+            address,
+            gen_of_last_fresh_walk,
+            may_be_spliced_verbatim: true,
+            ..Default::default()
         }
-        anchors.insert(subtree(2), anchor(address(Some(subtree(1)), 900, 9, 6), 4));
-        let anchors = Anchors(anchors.clone());
-        assert_eq!(
-            resolve(5, address(Some(subtree(2)), 8, 1, 4), &anchors, &mut memo),
-            position(1508, 16)
+    }
+
+    fn resolve_in_arena(arena: &LayoutNodeArena, address: CaptureAddress) -> Option<SourceTapePosition> {
+        resolve_capture_address_in_source_tape(
+            narrow_record_gen(arena.paint_cache_completed_record_gen()),
+            address,
+            &|site| {
+                arena
+                    .paintable_paint_cache(site.paintable)
+                    .enclosing_capture_anchor(site.kind)
+            },
+            &mut ResolvedEnclosingCaptureMemo::default(),
+        )
+    }
+
+    #[test]
+    fn staging_enclosing_captures_in_either_order_preserves_unmemoized_source_addresses() {
+        let mut arena = LayoutNodeArena::new();
+        let root = CaptureSite {
+            paintable: allocate_paintable(&mut arena),
+            kind: CaptureKind::PaintedAsStackingContext,
+        };
+        let child = CaptureSite {
+            paintable: allocate_paintable(&mut arena),
+            kind: CaptureKind::DescendantSubtreePhase(StackingContextPaintPhase::Foreground),
+        };
+        let point = FfiCssPixelPoint::default();
+        let leaf_address = address(Some(child), 40, 2, 1);
+        let mut source = PendingPaintCacheUpdates::default();
+        source.set_subtree_capture(root, point, capture(address(None, 1000, 10, 1), 1));
+        source.set_subtree_capture(child, point, capture(address(Some(root), 500, 5, 1), 1));
+        source.set_commands(
+            child.paintable,
+            point,
+            PaintPhase::Foreground,
+            CachedBoxPhaseCommands {
+                address: leaf_address,
+                command_byte_count: 32,
+                ..Default::default()
+            },
         );
-        let mut fresh_memo = ResolvedEnclosingCaptureMemo::default();
-        assert_eq!(
-            resolve(5, address(Some(subtree(2)), 8, 1, 4), &anchors, &mut fresh_memo),
-            None
+        source.set_hit_test_items(
+            child.paintable,
+            point,
+            PaintPhase::Foreground,
+            CachedBoxPhaseHitTestItems {
+                address: leaf_address,
+                count: 1,
+                ..Default::default()
+            },
         );
+        source.commit(&arena);
+        arena.note_paint_record_completed_with_cache_writes();
+
+        for order in [[root, child], [child, root]] {
+            let mut pending = PendingPaintCacheUpdates::default();
+            for site in order {
+                let updated = if site == root {
+                    capture(address(None, 1000, 10, 2), 2)
+                } else {
+                    // The child is spliced to a different offset; its interior captures are untouched.
+                    capture(address(Some(root), 900, 9, 2), 1)
+                };
+                pending.set_subtree_capture(site, point, updated);
+            }
+            let cache = arena.paintable_paint_cache(child.paintable);
+            // Each lookup starts with an empty memo, after both replacements have been staged.
+            assert_eq!(
+                resolve_in_arena(&arena, cache.commands(PaintPhase::Foreground).unwrap().address),
+                Some(position(1540, 17))
+            );
+            assert_eq!(
+                resolve_in_arena(&arena, cache.hit_test_items(PaintPhase::Foreground).unwrap().address),
+                Some(position(1540, 17))
+            );
+            drop(cache);
+            assert_eq!(arena.paint_cache_completed_record_gen(), 1);
+            if order[0] == child {
+                pending.commit(&arena);
+                arena.note_paint_record_completed_with_cache_writes();
+            }
+            // Dropping the first pending recording does not change the source.
+        }
+        assert_eq!(resolve_in_arena(&arena, leaf_address), Some(position(1940, 21)));
+
+        // A quiet recording only updates the root. Nested captures must still resolve through it.
+        let mut quiet = PendingPaintCacheUpdates::default();
+        quiet.set_subtree_capture(root, point, capture(address(None, 1000, 10, 3), 2));
+        assert_eq!(quiet.rows.len(), 1);
+        quiet.commit(&arena);
+        arena.note_paint_record_completed_with_cache_writes();
+        let cache = arena.paintable_paint_cache(child.paintable);
+        assert_eq!(cache.commands(PaintPhase::Foreground).unwrap().command_byte_count, 32);
+        assert_eq!(cache.hit_test_items(PaintPhase::Foreground).unwrap().count, 1);
+        assert_eq!(resolve_in_arena(&arena, leaf_address), Some(position(1940, 21)));
+    }
+
+    #[test]
+    fn moved_row_keeps_its_source_position_and_entries_until_commit() {
+        let mut arena = LayoutNodeArena::new();
+        let row = allocate_paintable(&mut arena);
+        let stacking = CaptureSite {
+            paintable: row,
+            kind: CaptureKind::PaintedAsStackingContext,
+        };
+        let descendants = CaptureSite {
+            paintable: row,
+            kind: CaptureKind::DescendantSubtreePhase(StackingContextPaintPhase::Foreground),
+        };
+        let old_position = FfiCssPixelPoint::default();
+        let new_position = FfiCssPixelPoint {
+            x: crate::layout::CssPixels::from_integer(10),
+            ..old_position
+        };
+        let mut source = PendingPaintCacheUpdates::default();
+        source.set_commands(
+            row,
+            old_position,
+            PaintPhase::Foreground,
+            CachedBoxPhaseCommands::default(),
+        );
+        source.set_hit_test_items(
+            row,
+            old_position,
+            PaintPhase::Foreground,
+            CachedBoxPhaseHitTestItems::default(),
+        );
+        source.set_subtree_capture(stacking, old_position, capture(address(None, 100, 2, 1), 1));
+        source.commit(&arena);
+        arena.note_paint_record_completed_with_cache_writes();
+        arena.invalidate_paint_cache(row);
+
+        let mut pending = PendingPaintCacheUpdates::default();
+        // Even an empty new capture must retire every old-position entry at publication.
+        pending.set_subtree_capture(descendants, new_position, capture(address(None, 200, 4, 2), 2));
+        let cache = arena.paintable_paint_cache(row);
+        assert_eq!(cache.captured_absolute_position(), old_position);
+        assert!(cache.commands(PaintPhase::Foreground).is_some());
+        assert!(cache.hit_test_items(PaintPhase::Foreground).is_some());
+        assert!(cache.subtree_capture(stacking.kind).is_some());
+        assert!(cache.subtree_capture(descendants.kind).is_none());
+        drop(cache);
+
+        pending.commit(&arena);
+        let cache = arena.paintable_paint_cache(row);
+        assert_eq!(cache.captured_absolute_position(), new_position);
+        assert!(cache.commands(PaintPhase::Foreground).is_none());
+        assert!(cache.hit_test_items(PaintPhase::Foreground).is_none());
+        assert!(cache.subtree_capture(stacking.kind).is_none());
+        assert_eq!(
+            cache.subtree_capture(descendants.kind).unwrap().address,
+            address(None, 200, 4, 2)
+        );
+        // Capture publication does not itself consume dirty state or advance the recording generation.
+        assert!(cache.is_self_dirty_since(1));
+        assert_eq!(arena.paint_cache_completed_record_gen(), 1);
     }
 }

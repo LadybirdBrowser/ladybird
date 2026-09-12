@@ -27,7 +27,7 @@ use crate::painting::record::resources::RecordingResourceManifest;
 use crate::painting::record::svg_resources::MaskLayerSet;
 use crate::painting::record::trace::{Action, Operation};
 use crate::painting::record::verify::LoggedCapture;
-use crate::painting::record::{DeferredWholeTapeSplice, RecordingOutput};
+use crate::painting::record::{DeferredWholeTapeSplice, RecordingOutput, RecordingResult};
 use crate::painting::style_queries;
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -73,7 +73,7 @@ pub(crate) fn record_display_list(
     command_cache_source: Option<Rc<RecordingOutput>>,
     item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
     trace: bool,
-) -> (RecordingOutput, RecordingResourceManifest) {
+) -> RecordingResult {
     macro_rules! record {
         ($observer:ty) => {
             record_display_list_impl::<$observer>(
@@ -103,7 +103,7 @@ fn record_display_list_impl<O: Observer>(
     hit_test_list_generation: u64,
     command_cache_source: Option<Rc<RecordingOutput>>,
     item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
-) -> (RecordingOutput, RecordingResourceManifest) {
+) -> RecordingResult {
     let structural_epoch = paint_state.visual_context.structural_epoch();
     let command_cache_source = command_cache_source
         .filter(|source| source.recorded_device_pixels_per_css_pixel == inputs.device_pixels_per_css_pixel);
@@ -127,6 +127,7 @@ fn record_display_list_impl<O: Observer>(
         command_cache_source,
         item_cache_source,
         open_capture_stack: Vec::new(),
+        cache_updates: Default::default(),
         deferred_whole_tape_splice: None,
         viewport,
         blocking_wheel_event_region_count: 0,
@@ -196,7 +197,11 @@ fn record_display_list_impl<O: Observer>(
         is_identical_to_cache_source: false,
         capture_log_for_verification: recorder.observer.finish(),
     };
-    (output, recorder.resources)
+    RecordingResult {
+        output,
+        resources: recorder.resources,
+        cache_updates: recorder.cache_updates,
+    }
 }
 
 fn materialize_deferred_whole_tape_splice(
@@ -691,6 +696,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let Some(cached) = cache.subtree_capture(site.kind) else {
             return false;
         };
+        let captured_position = cache.captured_absolute_position();
         drop(cache);
         if !cached.may_be_spliced_verbatim {
             return false;
@@ -700,7 +706,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         {
             return false;
         }
-        if self.captured_position_at_recording_start(site.paintable) != self.current_absolute_position(site.paintable) {
+        if captured_position != self.current_absolute_position(site.paintable) {
             return false;
         }
         let Some(source_position) = self.resolve_capture_address_in_source_tape(cached.address) else {
@@ -766,23 +772,16 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     fn store_subtree_capture(
-        &self,
+        &mut self,
         site: CaptureSite,
         command_range: CommandRange,
         hit_test_item_start: usize,
         hit_test_item_count: usize,
         walk_outcome: SubtreeCaptureWalkOutcome,
     ) {
-        let cache = self.layout_arena.paintable_paint_cache(site.paintable);
-        cache.register_capture_position(self.current_absolute_position(site.paintable));
-        debug_assert!(
-            cache
-                .subtree_capture(site.kind)
-                .is_none_or(|entry| entry.address.written_in_record_gen != self.current_record_gen()),
-            "a capture site ran twice in one recording"
-        );
-        cache.set_subtree_capture(
-            site.kind,
+        self.cache_updates.set_subtree_capture(
+            site,
+            self.current_absolute_position(site.paintable),
             CachedSubtreeCapture {
                 address: self
                     .address_relative_to_innermost_open_capture(command_range.offset, hit_test_item_start as u32),
@@ -849,24 +848,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 spliced_from_cache,
             });
         });
-    }
-
-    fn captured_position_at_recording_start(&self, paintable: NodeSlotId) -> used_values::FfiCssPixelPoint {
-        if let Some(position) = self
-            .memo_tables
-            .borrow()
-            .captured_position_at_recording_start(paintable)
-        {
-            return position;
-        }
-        let position = self
-            .layout_arena
-            .paintable_paint_cache(paintable)
-            .captured_absolute_position();
-        self.memo_tables
-            .borrow_mut()
-            .set_captured_position_at_recording_start(paintable, position);
-        position
     }
 
     fn current_absolute_position(&self, paintable: NodeSlotId) -> used_values::FfiCssPixelPoint {
@@ -1148,8 +1129,9 @@ impl<O: Observer> PaintRecorder<'_, O> {
             return None;
         }
         let entry = cache.commands(phase)?;
+        let captured_position = cache.captured_absolute_position();
         drop(cache);
-        if self.captured_position_at_recording_start(paintable) != self.current_absolute_position(paintable) {
+        if captured_position != self.current_absolute_position(paintable) {
             return None;
         }
         let offset = self
@@ -1232,8 +1214,9 @@ impl<O: Observer> PaintRecorder<'_, O> {
         if entry.recorded_context != own_context || entry.recorded_context_for_descendants != for_descendants_context {
             return None;
         }
+        let captured_position = cache.captured_absolute_position();
         drop(cache);
-        if self.captured_position_at_recording_start(paintable) != self.current_absolute_position(paintable) {
+        if captured_position != self.current_absolute_position(paintable) {
             return None;
         }
         let start = self
@@ -1243,7 +1226,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     fn set_cached_commands(
-        &self,
+        &mut self,
         paintable: NodeSlotId,
         phase: PaintPhase,
         range: CommandRange,
@@ -1257,15 +1240,9 @@ impl<O: Observer> PaintRecorder<'_, O> {
             self.captured_range_references_only_the_phase_context(paintable, range, recorded_context),
             "a per-phase paint capture records under its phase context or without clips and effects"
         );
-        let cache = self.layout_arena.paintable_paint_cache(paintable);
-        cache.register_capture_position(self.current_absolute_position(paintable));
-        debug_assert!(
-            cache
-                .commands(phase)
-                .is_none_or(|entry| entry.address.written_in_record_gen != self.current_record_gen()),
-            "a per-phase command capture site ran twice in one recording"
-        );
-        cache.set_commands(
+        self.cache_updates.set_commands(
+            paintable,
+            self.current_absolute_position(paintable),
             phase,
             crate::painting::record::cache::CachedBoxPhaseCommands {
                 address: self.address_relative_to_innermost_open_capture(range.offset, self.list.items.len() as u32),
@@ -1321,7 +1298,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     fn set_cached_hit_test_items(
-        &self,
+        &mut self,
         paintable: NodeSlotId,
         phase: PaintPhase,
         start: usize,
@@ -1329,15 +1306,9 @@ impl<O: Observer> PaintRecorder<'_, O> {
         recorded_context: ContextRef,
         recorded_context_for_descendants: ContextRef,
     ) {
-        let cache = self.layout_arena.paintable_paint_cache(paintable);
-        cache.register_capture_position(self.current_absolute_position(paintable));
-        debug_assert!(
-            cache
-                .hit_test_items(phase)
-                .is_none_or(|entry| entry.address.written_in_record_gen != self.current_record_gen()),
-            "a per-phase hit-test capture site ran twice in one recording"
-        );
-        cache.set_hit_test_items(
+        self.cache_updates.set_hit_test_items(
+            paintable,
+            self.current_absolute_position(paintable),
             phase,
             crate::painting::record::cache::CachedBoxPhaseHitTestItems {
                 address: self

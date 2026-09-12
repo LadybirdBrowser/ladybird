@@ -31,7 +31,7 @@ use crate::painting::hit_test::HitTestList;
 use crate::painting::host::{FfiRecordingInputs, FfiRootBackgroundSource, FfiVisualContextTreeInputs};
 use crate::painting::paintable_data::{InlineBoxPieceRecord, PaintableData};
 use crate::painting::paintable_rows::PaintableRowsRef;
-use crate::painting::record::cache::{OpenCapture, RecordGen};
+use crate::painting::record::cache::{OpenCapture, PendingPaintCacheUpdates, RecordGen};
 use crate::painting::record::svg_resources::SvgResourceWalk;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -89,6 +89,12 @@ pub struct RecordingOutput {
     pub(crate) capture_log_for_verification: Option<verify::CaptureLog>,
 }
 
+pub(crate) struct RecordingResult {
+    pub(crate) output: RecordingOutput,
+    pub(crate) resources: resources::RecordingResourceManifest,
+    pub(crate) cache_updates: PendingPaintCacheUpdates,
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
 pub enum PaintPhase {
@@ -125,6 +131,7 @@ pub struct PaintRecorder<'a, O: Observer> {
     command_cache_source: Option<Rc<RecordingOutput>>,
     item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
     open_capture_stack: Vec<OpenCapture>,
+    cache_updates: PendingPaintCacheUpdates,
     deferred_whole_tape_splice: Option<DeferredWholeTapeSplice>,
     pub(crate) blocking_wheel_event_region_count: u32,
     uncacheable_paint_generation: u64,

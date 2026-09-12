@@ -9,12 +9,8 @@ use std::cell::RefCell;
 use std::rc::Rc;
 
 pub(crate) struct PendingRecording {
-    pub(crate) output: crate::painting::record::RecordingOutput,
-    pub(crate) resources: crate::painting::record::resources::RecordingResourceManifest,
-    pub(crate) recording_from_scratch: Option<(
-        crate::painting::record::RecordingOutput,
-        crate::painting::record::resources::RecordingResourceManifest,
-    )>,
+    pub(crate) recording: crate::painting::record::RecordingResult,
+    pub(crate) recording_from_scratch: Option<crate::painting::record::RecordingResult>,
     pub(crate) paint_command_cache_read_write: bool,
 }
 
