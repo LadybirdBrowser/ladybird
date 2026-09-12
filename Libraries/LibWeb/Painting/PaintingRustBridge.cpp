@@ -457,10 +457,15 @@ Layout::RustFFI::FfiPhysicalOverflowDirections rust_physical_overflow_directions
     return Layout::RustFFI::layout_arena_physical_overflow_directions(box.arena_handle(), committed_row_slot(box));
 }
 
-static Layout::RustFFI::FfiScrollableOverflowHostCallbacks scrollable_overflow_host_callbacks()
+void register_geometry_host(Layout::NodeArena& arena)
 {
-    return {
+    Layout::RustFFI::FfiGeometryHostCallbacks callbacks {
         .context = nullptr,
+        .clamp_scroll_offset_if_nonzero = [](void*, void* layout_node_shell) {
+            auto& box = *static_cast<Layout::Node*>(layout_node_shell);
+            auto offset = scroll_offset(box);
+            if (!offset.is_zero())
+                set_scroll_offset(box, offset); },
         .layout_node_is_in_focused_text_control = [](void*, void* layout_node_shell) -> bool {
             auto const& layout_node = *static_cast<Layout::Node const*>(layout_node_shell);
             auto const* dom_node = layout_node.dom_node();
@@ -473,32 +478,13 @@ static Layout::RustFFI::FfiScrollableOverflowHostCallbacks scrollable_overflow_h
                 && shadow_root->host()->is_focused();
         },
     };
+    Layout::RustFFI::layout_arena_set_geometry_host(arena.handle(), callbacks);
 }
 
-Layout::RustFFI::FfiOptionalOverflowData rust_scrollable_overflow(Layout::Node const& box)
+Layout::RustFFI::FfiRenderingPreparationOutcome rust_prepare_for_rendering(DOM::Document& document, bool visual_context_update_pending)
 {
-    auto& document = const_cast<DOM::Document&>(box.document());
-    if (!document.has_committed_viewport_box())
-        return {};
-    return Layout::RustFFI::layout_arena_paintable_scrollable_overflow(box.arena_handle(), committed_row_slot(box), scrollable_overflow_host_callbacks());
-}
-
-Layout::RustFFI::FfiScrollableOverflowUpdateOutcome rust_update_scrollable_overflow(DOM::Document& document, bool handled_by_full_layout_commit)
-{
-    // The scroll offset can become invalid if the scrollable overflow rectangle has changed. For
-    // example, if the scroll container has been scrolled to the very end and then its scrollable
-    // overflow rect becomes smaller, the scroll offset would be out of bounds. Re-applying the
-    // current offset clamps it against the new rect.
-    auto clamp_scroll_offset_if_nonzero = [](void*, void* layout_node_shell) {
-        auto& box = *static_cast<Layout::Node*>(layout_node_shell);
-        if (!scroll_offset(box).is_zero())
-            set_scroll_offset(box, scroll_offset(box));
-    };
-
-    return Layout::RustFFI::layout_arena_update_scrollable_overflow(
-        layout_arena_handle(document), viewport_row_slot(document), handled_by_full_layout_commit,
-        scrollable_overflow_host_callbacks(),
-        nullptr, clamp_scroll_offset_if_nonzero);
+    return Layout::RustFFI::layout_arena_prepare_for_rendering(
+        layout_arena_handle(document), visual_context_host_callbacks(document), visual_context_update_pending);
 }
 
 static CSS::PreferredColorScheme image_color_scheme(Layout::NodeWithStyle const& layout_node)
@@ -545,11 +531,6 @@ bool rust_refresh_scroll_state(DOM::Document& document, ScrollStateSnapshot& sna
         &snapshot, [](void* sink, Gfx::FloatPoint const* offsets, size_t count) {
             static_cast<ScrollStateSnapshot*>(sink)->assign_device_offsets({ offsets, count });
         });
-}
-
-bool mirror_rust_refresh_sticky_constraints(DOM::Document& document)
-{
-    return Layout::RustFFI::layout_arena_refresh_sticky_constraints(layout_arena_handle(document), visual_context_host_callbacks(document));
 }
 
 void rust_invalidate_scroll_state(DOM::Document& document)
@@ -661,9 +642,8 @@ static void dump_layout_tree(Layout::Node const& root, size_t initial_indent, bo
         .dump_nested_layout_tree = [](void*, void* layout_root_shell, size_t indent, bool interactive, void* output_sink) { dump_layout_tree(*static_cast<Layout::Node const*>(layout_root_shell), indent, interactive, output_sink, Layout::RustFFI::layout_arena_paint_push_bytes); },
         .append_text = append_text,
         .visual_context = visual_context_host_callbacks(document),
-        .scrollable_overflow = scrollable_overflow_host_callbacks(),
     };
-    Layout::RustFFI::layout_arena_dump_layout_tree(root.arena_handle(), Layout::Node::slot_id(&root), viewport_row_slot(document), initial_indent, interactive, callbacks);
+    Layout::RustFFI::layout_arena_dump_layout_tree(root.arena_handle(), Layout::Node::slot_id(&root), initial_indent, interactive, callbacks);
 }
 
 void dump_layout_tree(StringBuilder& builder, Layout::Node const& root, bool interactive)

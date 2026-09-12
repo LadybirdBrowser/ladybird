@@ -499,12 +499,7 @@ public:
     [[nodiscard]] u64 full_layout_count() const { return m_full_layout_count; }
     [[nodiscard]] bool layout_is_up_to_date() const;
     void clear_devtools_layout_inspection_data();
-    enum class ScrollableOverflowDerivedStructureUpdates : u8 {
-        UpdateAfterMeasure,
-        HandledByAfterLayoutCommit,
-        HandledByFullLayoutCommit,
-    };
-    void update_scrollable_overflow(ScrollableOverflowDerivedStructureUpdates);
+    void prepare_for_rendering();
     void update_paint_and_hit_testing_properties_if_needed();
     void sample_animation_effects_needing_style_update();
     void update_style_computer_viewport_rect();
@@ -1152,7 +1147,6 @@ public:
         u64 custom_property_cycle_participants { 0 };
         u64 style_cascade_microseconds { 0 };
         u64 style_values_microseconds { 0 };
-        u64 scrollable_overflow_recalculations { 0 };
     };
     StyleInvalidationCounters& style_invalidation_counters() const { return m_style_invalidation_counters; }
     void reset_style_invalidation_counters() const;
@@ -1515,11 +1509,7 @@ private:
         No,
         Yes,
     };
-    enum class LayoutCommitScope : u8 {
-        Subtree,
-        Full,
-    };
-    void after_layout_commit(LayoutTreeChanged, LayoutCommitScope);
+    void after_layout_commit(LayoutTreeChanged);
 
     void run_unloading_cleanup_steps();
 

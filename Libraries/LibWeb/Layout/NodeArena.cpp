@@ -10,6 +10,7 @@
 #include <LibWeb/Layout/LayoutRustBridge.h>
 #include <LibWeb/Layout/NodeArena.h>
 #include <LibWeb/Layout/TextNode.h>
+#include <LibWeb/Painting/PaintingRustBridge.h>
 
 namespace Web::Layout {
 
@@ -19,6 +20,7 @@ NodeArena::NodeArena()
     }))
 {
     VERIFY(m_handle);
+    Painting::register_geometry_host(*this);
 }
 
 NodeArena::~NodeArena()

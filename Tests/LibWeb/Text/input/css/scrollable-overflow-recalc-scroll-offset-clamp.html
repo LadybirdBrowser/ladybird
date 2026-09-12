@@ -14,8 +14,9 @@
         const scrollTopAtMax = scroller.scrollTop;
         const countersBefore = internals.getStyleInvalidationCounters();
         child.style.transform = "translateY(150px)";
-        const heightAfterShrink = scroller.scrollHeight;
+        // Reading only the stored offset must settle the new scroll bounds too.
         const scrollTopAfterShrink = scroller.scrollTop;
+        const heightAfterShrink = scroller.scrollHeight;
         const countersAfter = internals.getStyleInvalidationCounters();
         println(`initial scrollHeight: ${initialHeight}`);
         println(`scrollTop clamped to: ${scrollTopAtMax}`);

@@ -552,6 +552,7 @@ pub(crate) struct LayoutNodeArena {
     fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore,
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
+    pub(crate) scrollable_overflow: crate::painting::scrollable_overflow::ScrollableOverflowState,
     pub(crate) anchor_positioning_nodes: RefCell<HashSet<NodeSlotId>>,
     pub(crate) partial_relayout_boundary_roots: RefCell<Vec<NodeSlotId>>,
     /// Attribution of pending updates for partial relayout. Invariant: every update recorded
@@ -602,6 +603,7 @@ impl LayoutNodeArena {
             fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore::default(),
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
+            scrollable_overflow: Default::default(),
             anchor_positioning_nodes: RefCell::new(HashSet::default()),
             partial_relayout_boundary_roots: RefCell::new(Vec::new()),
             pending_updates_escape_partial_relayout: Cell::new(false),
@@ -765,6 +767,18 @@ impl LayoutNodeArena {
 
         assert!(!root.is_invalid(), "invalid layout node arena slot ID");
         self.assert_node_is_unlinked_from_parent(root);
+        self.scrollable_overflow.contained_boxes_dirty.set(true);
+        if self.scrollable_overflow.viewport.get() == Some(root) {
+            self.scrollable_overflow.viewport.set(None);
+            self.scrollable_overflow.non_child_boxes.borrow_mut().clear();
+            self.scrollable_overflow.full_layout_commit.set(false);
+            self.scrollable_overflow.geometry_changed.set(false);
+            self.scrollable_overflow.scrollability_changed.set(false);
+            self.boxes_needing_scrollable_overflow_recalculation
+                .borrow_mut()
+                .clear();
+            self.needs_full_scrollable_overflow_recalculation.set(false);
+        }
         let mut slots_in_pre_order = Vec::new();
         self.for_each_node_in_layout_subtree_in_pre_order(root, |slot| slots_in_pre_order.push(slot));
 
@@ -1495,6 +1509,7 @@ impl LayoutNodeArena {
         use crate::css::css_enums::positioning;
         use crate::painting::style_queries::establishes_positioning_containing_blocks;
 
+        self.scrollable_overflow.contained_boxes_dirty.set(true);
         let data = self.data(node);
         // Reset the inline containing block - we'll set it below if applicable.
         data.inline_containing_block.set(NodeSlotId::INVALID);
@@ -2341,6 +2356,7 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn note_structural_change_at_and_above(&self, node: NodeSlotId) {
+        self.scrollable_overflow.contained_boxes_dirty.set(true);
         self.invalidate_at_and_above(node, AncestorInvalidation::StructuralChange);
     }
 

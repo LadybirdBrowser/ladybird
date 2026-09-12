@@ -1,11 +1,20 @@
 <!DOCTYPE html>
 <span id="empty-span"></span>
+<span id="populated-span" style="padding: 10px">Text inside an inline</span>
+<span id="inline-block" style="display: inline-block; width: 60px; height: 40px"></span>
 <script src="include.js"></script>
 <script>
 test(() => {
-    const hiddenDiv = document.getElementById('empty-span');
-    const scrollHeight = hiddenDiv.scrollHeight;
-    const scrollWidth = hiddenDiv.scrollWidth;
-    println(`Scroll Height: ${scrollHeight}px, Scroll Width: ${scrollWidth}px`);
+    function report(label, element) {
+        println(`${label}: scrollHeight=${element.scrollHeight}, scrollWidth=${element.scrollWidth}`);
+    }
+
+    report("Empty inline", document.getElementById("empty-span"));
+    report("Inline with text and padding", document.getElementById("populated-span"));
+
+    const inlineBlock = document.getElementById("inline-block");
+    report("Inline-block", inlineBlock);
+    inlineBlock.style.display = "inline";
+    report("Changed to inline", inlineBlock);
 });
 </script>

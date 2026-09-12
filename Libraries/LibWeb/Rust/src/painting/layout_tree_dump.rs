@@ -14,8 +14,7 @@ use crate::painting::dump::{
     Utf8Sink, dump_block_fragments, dump_inline_piece_fragments, format_float_like_ak, push_class_name,
     push_css_pixel_point, push_css_pixel_rect, push_css_pixels, push_indent,
 };
-use crate::painting::ffi::{arena_from_handle, scrollable_overflow_rect_measuring_if_missing};
-use crate::painting::host::FfiScrollableOverflowHostCallbacks;
+use crate::painting::ffi::arena_from_handle;
 use crate::painting::host::visual_context::FfiVisualContextHostCallbacks;
 use crate::painting::node_painting;
 use crate::painting::paintable_data::FfiPixelBox;
@@ -51,7 +50,6 @@ pub struct FfiLayoutTreeDumpCallbacks {
     ),
     pub append_text: unsafe extern "C" fn(context: *mut c_void, bytes: *const u8, byte_count: usize),
     pub visual_context: FfiVisualContextHostCallbacks,
-    pub scrollable_overflow: FfiScrollableOverflowHostCallbacks,
 }
 
 impl FfiLayoutTreeDumpCallbacks {
@@ -117,14 +115,12 @@ impl FfiLayoutTreeDumpCallbacks {
 pub unsafe extern "C" fn layout_arena_dump_layout_tree(
     arena: *mut c_void,
     root: NodeSlotId,
-    viewport: NodeSlotId,
     initial_indent: usize,
     interactive: bool,
     callbacks: FfiLayoutTreeDumpCallbacks,
 ) {
     let context = LayoutTreeDumpContext {
         arena_handle: arena,
-        viewport,
         interactive,
         palette: DumpPalette::new(interactive),
         callbacks: &callbacks,
@@ -139,7 +135,6 @@ pub unsafe extern "C" fn layout_arena_dump_layout_tree(
 
 struct LayoutTreeDumpContext<'a> {
     arena_handle: *mut c_void,
-    viewport: NodeSlotId,
     interactive: bool,
     palette: DumpPalette,
     callbacks: &'a FfiLayoutTreeDumpCallbacks,
@@ -458,18 +453,16 @@ unsafe fn dump_layout_node(output: &mut Vec<u8>, context: &LayoutTreeDumpContext
         }
     }
 
-    // SAFETY: No arena borrow is alive here.
-    let scrollable_overflow_rect = unsafe {
-        scrollable_overflow_rect_measuring_if_missing(
-            context.arena_handle,
-            slot,
-            context.viewport,
-            &context.callbacks.scrollable_overflow,
-        )
-    };
-    if let Some(rect) = scrollable_overflow_rect {
-        output.extend_from_slice(b" overflow: ");
-        push_css_pixel_rect(&mut Utf8Sink(output), rect);
+    {
+        // SAFETY: The dump's caller keeps the arena alive.
+        let arena = unsafe { arena_from_handle(context.arena_handle) };
+        let rows = arena.paintable_rows();
+        if paintable_geometry::has_scrollable_overflow(&rows, slot)
+            && let Some(rect) = paintable_geometry::scrollable_overflow_rect(&rows, slot)
+        {
+            output.extend_from_slice(b" overflow: ");
+            push_css_pixel_rect(&mut Utf8Sink(output), rect);
+        }
     }
     output.push(b'\n');
 
