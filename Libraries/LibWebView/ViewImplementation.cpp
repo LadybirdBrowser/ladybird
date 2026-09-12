@@ -2110,8 +2110,12 @@ void ViewImplementation::handle_resize()
 
 void ViewImplementation::initialize_client(CreateNewClient create_new_client, Optional<Web::HTML::CrossProcessId> initial_document_state_id)
 {
-    if (create_new_client == CreateNewClient::Yes)
+    if (create_new_client == CreateNewClient::Yes) {
         fail_pending_debugger_requests();
+        // NB: The replacement process has no hovered link and cannot clear the outgoing page's status label.
+        if (on_link_unhover)
+            on_link_unhover();
+    }
     if (m_debugger_paused) {
         set_debugger_paused(false);
         if (on_debugger_resumed)
