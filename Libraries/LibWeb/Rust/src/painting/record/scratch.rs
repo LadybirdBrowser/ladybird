@@ -7,7 +7,7 @@
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::used_values::FfiCssPixelPoint;
 use crate::painting::display_list::commands::SpatialNodeIndex;
-use crate::painting::record::cache::ResolvedEnclosingCaptureMemo;
+use crate::painting::record::cache::{PendingPaintCacheUpdates, ResolvedEnclosingCaptureMemo};
 use crate::painting::record::hit_test_items::HitTestFacts;
 use crate::painting::record::paint::text::SelectionStyleAnswer;
 use crate::painting::record::{BasePaintFacts, PatternTileKey};
@@ -40,6 +40,8 @@ pub(crate) struct RecordingScratch {
     hit_test_facts: Vec<StampedEntry<HitTestFacts>>,
     absolute_positions: Vec<StampedEntry<FfiCssPixelPoint>>,
     resolved_enclosing_capture_memo: ResolvedEnclosingCaptureMemo,
+    // Publication returns an empty batch so the next recording can reuse its allocations.
+    pub(super) recycled_cache_updates: PendingPaintCacheUpdates,
     pub(super) pattern_tile_records: HashMap<PatternTileKey, Rc<Vec<u8>>>,
     pub(super) selection_style_cache: HashMap<u32, Rc<SelectionStyleAnswer>>,
     pub(super) wheel_hit_test_target_cache: HashMap<NodeSlotId, SpatialNodeIndex>,

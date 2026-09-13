@@ -129,7 +129,11 @@ fn record_display_list_impl<O: Observer>(
         item_cache_source,
         cache_compatibility,
         open_capture_stack: Vec::new(),
-        cache_updates: Default::default(),
+        cache_updates: if inputs.paint_command_cache_read_write {
+            std::mem::take(&mut scratch.recycled_cache_updates)
+        } else {
+            Default::default()
+        },
         deferred_whole_tape_splice: None,
         viewport,
         blocking_wheel_event_region_count: 0,

@@ -313,15 +313,34 @@ struct PaintCacheUpdate {
 // immutable source until publication, including during the optional verification recording.
 #[derive(Default)]
 pub(crate) struct PendingPaintCacheUpdates {
-    rows: FastMap<NodeSlotId, PaintCacheUpdate>,
+    // Slot indices point into the dense list, with zero denoting an untouched row.
+    // Keep the large updates out of a hash table that has to move them on growth.
+    row_indices: Vec<u32>,
+    rows: Vec<(NodeSlotId, PaintCacheUpdate)>,
 }
 
 impl PendingPaintCacheUpdates {
     fn for_paintable(&mut self, paintable: NodeSlotId, absolute_position: FfiCssPixelPoint) -> &mut PaintCacheUpdate {
-        let update = self.rows.entry(paintable).or_insert_with(|| PaintCacheUpdate {
-            absolute_position,
-            ..Default::default()
-        });
+        let slot_index = paintable.slot_index() as usize;
+        if self.row_indices.len() <= slot_index {
+            self.row_indices.resize(slot_index + 1, 0);
+        }
+        let row_index = &mut self.row_indices[slot_index];
+        if *row_index == 0 {
+            self.rows.push((
+                paintable,
+                PaintCacheUpdate {
+                    absolute_position,
+                    ..Default::default()
+                },
+            ));
+            *row_index = self.rows.len() as u32;
+        }
+        let (recorded_paintable, update) = &mut self.rows[*row_index as usize - 1];
+        assert_eq!(
+            *recorded_paintable, paintable,
+            "a captured row was replaced during recording"
+        );
         debug_assert_eq!(
             update.absolute_position, absolute_position,
             "a row moved during recording"
@@ -377,14 +396,17 @@ impl PendingPaintCacheUpdates {
         self.rows.is_empty()
     }
 
-    pub(crate) fn commit(self, arena: &LayoutNodeArena) {
-        for (paintable, update) in self.rows {
+    // Return the emptied batch for reuse, clearing only the slots touched by this recording.
+    pub(crate) fn commit(mut self, arena: &LayoutNodeArena) -> Self {
+        for (paintable, update) in self.rows.drain(..) {
             assert!(
                 arena.paintable_row_is_populated(paintable),
                 "a captured row was removed before publication"
             );
             arena.paintable_paint_cache(paintable).apply_update(update);
+            self.row_indices[paintable.slot_index() as usize] = 0;
         }
+        self
     }
 }
 
@@ -690,5 +712,78 @@ mod tests {
         // Capture publication does not itself consume dirty state or advance the recording generation.
         assert!(cache.is_self_dirty_since(1));
         assert_eq!(arena.paint_cache_completed_record_gen(), 1);
+    }
+
+    #[test]
+    fn recycled_updates_only_publish_captures_from_the_new_recording() {
+        let mut arena = LayoutNodeArena::new();
+        let first = allocate_paintable(&mut arena);
+        let second = allocate_paintable(&mut arena);
+        let old_position = FfiCssPixelPoint::default();
+        let new_position = FfiCssPixelPoint {
+            x: crate::layout::CssPixels::from_integer(10),
+            ..old_position
+        };
+        let mut pending = PendingPaintCacheUpdates::default();
+        for row in [first, second] {
+            pending.set_commands(
+                row,
+                old_position,
+                PaintPhase::Background,
+                CachedBoxPhaseCommands {
+                    command_byte_count: 80,
+                    ..Default::default()
+                },
+            );
+        }
+        let mut pending = pending.commit(&arena);
+        assert!(pending.is_empty());
+
+        // Revisit the second row first, with a different position and phase. Neither
+        // the dense-list index nor the previous batch's capture fields may survive.
+        pending.set_commands(
+            second,
+            new_position,
+            PaintPhase::Foreground,
+            CachedBoxPhaseCommands {
+                command_byte_count: 160,
+                ..Default::default()
+            },
+        );
+        assert_eq!(pending.rows.len(), 1);
+        assert!(
+            arena
+                .paintable_paint_cache(second)
+                .commands(PaintPhase::Foreground)
+                .is_none()
+        );
+        let mut pending = pending.commit(&arena);
+        assert_eq!(
+            arena
+                .paintable_paint_cache(first)
+                .commands(PaintPhase::Background)
+                .unwrap()
+                .command_byte_count,
+            80
+        );
+        let cache = arena.paintable_paint_cache(second);
+        assert!(cache.commands(PaintPhase::Background).is_none());
+        assert_eq!(cache.commands(PaintPhase::Foreground).unwrap().command_byte_count, 160);
+        drop(cache);
+
+        arena.free_subtree(first).destroy_shells_and_invoke_callbacks();
+        let replacement = allocate_paintable(&mut arena);
+        assert_eq!(replacement.slot_index(), first.slot_index());
+        assert_ne!(replacement, first);
+        pending.set_commands(
+            replacement,
+            old_position,
+            PaintPhase::Foreground,
+            CachedBoxPhaseCommands::default(),
+        );
+        pending.commit(&arena);
+        let cache = arena.paintable_paint_cache(replacement);
+        assert!(cache.commands(PaintPhase::Background).is_none());
+        assert!(cache.commands(PaintPhase::Foreground).is_some());
     }
 }
