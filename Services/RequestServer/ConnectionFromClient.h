@@ -39,16 +39,16 @@ struct AIAFetch {
     curl_slist* resolve_list { nullptr };
 };
 
+// Diagnostics hook shared with the control connection; only does anything under REQUESTSERVER_WIRE_DEBUG.
+void note_event_tick(StringView label);
+
 class ConnectionFromClient final
     : public IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint> {
     C_OBJECT(ConnectionFromClient);
 
-public:
-    enum class IsPrimaryConnection {
-        No,
-        Yes,
-    };
+    friend class ControlConnectionFromClient;
 
+public:
     using ConnectionMap = HashMap<int, NonnullRefPtr<ConnectionFromClient>>;
 
     struct RequestTransferLease {
@@ -62,8 +62,6 @@ public:
 
     virtual void die() override;
 
-    static Optional<ConnectionFromClient&> primary_connection();
-
     IsPrivate is_private() const { return m_is_private; }
 
     void start_revalidation_request(Badge<Request>, ByteString method, URL::URL, NonnullRefPtr<HTTP::HeaderList> request_headers, ByteBuffer request_body, HTTP::Cookie::IncludeCredentials);
@@ -71,31 +69,18 @@ public:
     void fetch_aia_intermediate(Badge<Request>, ByteString const& url, u64 for_request_id);
 
 private:
-    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, IsPrimaryConnection, IsPrivate, ConnectionMap&, RequestTransferLeaseMap&, Optional<HTTP::DiskCache&>, ByteString alt_svc_cache_path);
+    ConnectionFromClient(NonnullOwnPtr<IPC::Transport>, IsPrivate, ConnectionMap&, RequestTransferLeaseMap&, Optional<HTTP::DiskCache&>, ByteString alt_svc_cache_path);
 
     virtual Messages::RequestServer::InitTransportResponse init_transport(int peer_pid) override;
-    virtual Messages::RequestServer::ConnectNewClientResponse connect_new_client(IsPrivate) override;
-    virtual Messages::RequestServer::ConnectNewClientsResponse connect_new_clients(size_t count, IsPrivate) override;
-
-    virtual void set_disk_cache_settings(HTTP::DiskCacheSettings) override;
 
     virtual Messages::RequestServer::IsSupportedProtocolResponse is_supported_protocol(ByteString) override;
     virtual Messages::RequestServer::GetClientIdResponse get_client_id() override;
-    virtual void set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally) override;
-    virtual void set_use_system_dns() override;
-    virtual void set_performance_monitor_enabled(bool) override;
-    void push_network_usage();
     virtual void start_request(u64 request_id, ByteString, URL::URL, Vector<HTTP::Header>, ByteBuffer, HTTP::CacheMode, HTTP::Cookie::IncludeCredentials, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss, i32 originating_process_id, u64 originating_page_id) override;
     virtual void adopt_request(int source_client_id, u64 source_request_id, u64 target_request_id, bool preserve_transfer_lease) override;
     virtual void release_request_transfer_lease(int source_client_id, u64 source_request_id) override;
     virtual Messages::RequestServer::StopRequestResponse stop_request(u64 request_id) override;
     virtual Messages::RequestServer::SetCertificateResponse set_certificate(u64 request_id, ByteString, ByteString) override;
     virtual void ensure_connection(u64 request_id, URL::URL url, ::RequestServer::CacheLevel cache_level) override;
-
-    virtual void retrieved_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, u64 cookie_request_id, String cookie) override;
-
-    virtual void estimate_cache_size_accessed_since(u64 cache_size_estimation_id, UnixDateTime since) override;
-    virtual void remove_cache_entries_accessed_since(u64 clear_cache_request_id, UnixDateTime since) override;
 
     virtual Messages::RequestServer::StoreCacheAssociatedDataResponse store_cache_associated_data(URL::URL, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData, Core::AnonymousBuffer) override;
     virtual Messages::RequestServer::RetrieveCacheAssociatedDataResponse retrieve_cache_associated_data(URL::URL, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData) override;
@@ -114,16 +99,12 @@ private:
     void complete_aia_fetch(void* easy_handle, int result_code);
     void fail_websocket(u64 websocket_id, Requests::WebSocket::Error);
 
-    ErrorOr<IPC::TransportHandle> create_client_socket(IsPrivate);
-
     IsPrivate m_is_private { IsPrivate::No };
 
     ConnectionMap& m_connections;
     RequestTransferLeaseMap& m_request_transfer_leases;
     Optional<HTTP::DiskCache&> m_disk_cache;
 
-    RefPtr<Core::Timer> m_performance_timer;
-    Optional<MonotonicTime> m_last_performance_push;
     void* m_curl_multi { nullptr };
 
     HashMap<u64, NonnullOwnPtr<Request>> m_active_requests;

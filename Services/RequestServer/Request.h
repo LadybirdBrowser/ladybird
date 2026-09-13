@@ -101,7 +101,7 @@ public:
 
     virtual void notify_request_unblocked(Badge<HTTP::DiskCache>) override;
     virtual Optional<MonotonicTime> last_activity_time() const override { return m_last_activity_time; }
-    bool notify_retrieved_http_cookie(Badge<ConnectionFromClient>, u64 cookie_request_id, StringView cookie);
+    bool notify_retrieved_http_cookie(Badge<ControlConnectionFromClient>, u64 cookie_request_id, StringView cookie);
     void notify_fetch_complete(Badge<ConnectionFromClient>, int result_code);
     void retry_after_aia(Badge<ConnectionFromClient>);
 

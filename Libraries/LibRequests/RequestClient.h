@@ -13,7 +13,6 @@
 #include <LibHTTP/Cookie/IncludeCredentials.h>
 #include <LibHTTP/HeaderList.h>
 #include <LibIPC/ConnectionToServer.h>
-#include <LibRequests/CacheSizes.h>
 #include <LibRequests/CameFromCache.h>
 #include <LibRequests/RequestTimingInfo.h>
 #include <LibRequests/RequestTransferLease.h>
@@ -33,13 +32,6 @@ class RequestClient final
     C_OBJECT_ABSTRACT(RequestClient)
 
 public:
-    Function<void(Vector<NetworkUsage>, u64 interval_microseconds)> on_network_usage;
-    virtual void network_usage(Vector<NetworkUsage> usage, u64 interval_microseconds) override
-    {
-        if (on_network_usage)
-            on_network_usage(move(usage), interval_microseconds);
-    }
-
     using InitTransport = Messages::RequestServer::InitTransport;
 
     enum class TransferLease : u8 {
@@ -68,15 +60,11 @@ public:
 
     RefPtr<WebSocket> websocket_connect(URL::URL const&, ByteString const& origin, Vector<ByteString> const& protocols, Vector<ByteString> const& extensions, HTTP::HeaderList const& request_headers);
 
-    NonnullRefPtr<Core::Promise<CacheSizes>> estimate_cache_size_accessed_since(UnixDateTime since);
-    NonnullRefPtr<Core::Promise<Empty>> clear_cache(UnixDateTime since);
-
     ErrorOr<bool> store_cache_associated_data(URL::URL const&, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData, ReadonlyBytes);
     ErrorOr<Optional<Core::AnonymousBuffer>> retrieve_cache_associated_data(URL::URL const&, ByteString const& method, Optional<HTTP::HeaderList const&> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData);
 
     ErrorOr<bool> create_synthetic_cache_entry(URL::URL const&, ByteString const& method);
 
-    Function<String(URL::URL const&, RequestServer::IsPrivate)> on_retrieve_http_cookie;
     Function<void()> on_request_server_died;
 
 private:
@@ -90,8 +78,6 @@ private:
     virtual void headers_became_available(u64 request_id, Vector<HTTP::Header>, Optional<u32>, Optional<String>, Optional<IPC::File>, u64 javascript_bytecode_size, Optional<u64>, CameFromCache) override;
     virtual void request_transferred(u64 request_id) override;
 
-    virtual void retrieve_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, u64 cookie_request_id, URL::URL url, RequestServer::IsPrivate) override;
-
     virtual void certificate_requested(u64 request_id) override;
 
     virtual void websocket_connected(u64 websocket_id) override;
@@ -102,21 +88,12 @@ private:
     virtual void websocket_subprotocol(u64 websocket_id, ByteString subprotocol) override;
     virtual void websocket_certificate_requested(u64 websocket_id) override;
 
-    virtual void estimated_cache_size(u64 cache_size_estimation_id, CacheSizes sizes) override;
-    virtual void removed_cache_entries(u64 clear_cache_request_id) override;
-
     HashMap<u64, RefPtr<Request>> m_requests;
     u64 m_next_request_id { 0 };
     int m_request_server_client_id { -1 };
 
     HashMap<u64, NonnullRefPtr<WebSocket>> m_websockets;
     u64 m_next_websocket_id { 0 };
-
-    HashMap<u64, NonnullRefPtr<Core::Promise<CacheSizes>>> m_pending_cache_size_estimations;
-    u64 m_next_cache_size_estimation_id { 0 };
-
-    HashMap<u64, NonnullRefPtr<Core::Promise<Empty>>> m_pending_clear_cache_requests;
-    u64 m_next_clear_cache_request_id { 0 };
 };
 
 }

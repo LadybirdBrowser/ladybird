@@ -33,6 +33,8 @@
 #include <LibImageDecoderClient/Client.h>
 #include <LibRequests/NetworkError.h>
 #include <LibRequests/Request.h>
+#include <LibRequests/RequestClient.h>
+#include <LibRequests/RequestControlClient.h>
 #include <LibURL/InternalURLs.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -106,22 +108,22 @@ struct ApplicationSettingsObserver final : public SettingsObserver {
     virtual void browsing_data_settings_changed() override
     {
         auto const& browsing_data_settings = Application::settings().browsing_data_settings();
-        Application::request_server_client().async_set_disk_cache_settings(browsing_data_settings.disk_cache_settings);
+        Application::request_server_control_client().async_set_disk_cache_settings(browsing_data_settings.disk_cache_settings);
     }
 
     virtual void dns_settings_changed() override
     {
         Application::settings().dns_settings().visit(
             [](SystemDNS) {
-                Application::request_server_client().async_set_use_system_dns();
+                Application::request_server_control_client().async_set_use_system_dns();
             },
             [](DNSOverTLS const& dns_over_tls) {
                 dbgln("Setting DNS server to {}:{} with TLS ({} local dnssec)", dns_over_tls.server_address, dns_over_tls.port, dns_over_tls.validate_dnssec_locally ? "with" : "without");
-                Application::request_server_client().async_set_dns_server(dns_over_tls.server_address, dns_over_tls.port, true, dns_over_tls.validate_dnssec_locally);
+                Application::request_server_control_client().async_set_dns_server(dns_over_tls.server_address, dns_over_tls.port, true, dns_over_tls.validate_dnssec_locally);
             },
             [](DNSOverUDP const& dns_over_udp) {
                 dbgln("Setting DNS server to {}:{} ({} local dnssec)", dns_over_udp.server_address, dns_over_udp.port, dns_over_udp.validate_dnssec_locally ? "with" : "without");
-                Application::request_server_client().async_set_dns_server(dns_over_udp.server_address, dns_over_udp.port, false, dns_over_udp.validate_dnssec_locally);
+                Application::request_server_control_client().async_set_dns_server(dns_over_udp.server_address, dns_over_udp.port, false, dns_over_udp.validate_dnssec_locally);
             });
     }
 
@@ -1731,10 +1733,22 @@ void Application::recover_compositor_process()
 
 ErrorOr<void> Application::launch_request_server()
 {
-    m_request_server_client = TRY(launch_request_server_process());
+    m_request_server_control_client = TRY(launch_request_server_process());
+
+    // The UI process speaks the control endpoint over the initial socket, and gets its own data connection from it,
+    // exactly like every other client of RequestServer.
+    auto request_server_handle = TRY(connect_new_request_server_client(IsPrivate::No));
+    auto request_server_transport = TRY(request_server_handle.create_transport());
+    m_request_server_client = make_ref_counted<Requests::RequestClient>(move(request_server_transport));
+
+#ifdef AK_OS_WINDOWS
+    auto init_transport_response = m_request_server_client->send_sync<Messages::RequestServer::InitTransport>(Core::System::getpid());
+    m_request_server_client->transport().set_peer_pid(init_transport_response->peer_pid());
+#endif
+
     TabPerformanceMonitor::request_server_did_restart();
 
-    m_request_server_client->on_retrieve_http_cookie = [](URL::URL const& url, RequestServer::IsPrivate is_private) -> String {
+    m_request_server_control_client->on_retrieve_http_cookie = [](URL::URL const& url, RequestServer::IsPrivate is_private) -> String {
         auto session = existing_session(is_private == RequestServer::IsPrivate::Yes ? IsPrivate::Yes : IsPrivate::No);
         if (!session)
             return {};
@@ -1751,7 +1765,8 @@ ErrorOr<void> Application::launch_request_server()
         return cookie;
     };
 
-    m_request_server_client->on_request_server_died = [this]() {
+    m_request_server_control_client->on_request_server_died = [this]() {
+        m_request_server_control_client = nullptr;
         m_request_server_client = nullptr;
         m_private_request_server_client = nullptr;
 
@@ -1774,7 +1789,7 @@ ErrorOr<void> Application::launch_request_server()
             if (client_count == 0)
                 return {};
 
-            auto response = m_request_server_client->send_sync_but_allow_failure<Messages::RequestServer::ConnectNewClients>(client_count, is_private);
+            auto response = m_request_server_control_client->send_sync_but_allow_failure<Messages::RequestServerControl::ConnectNewClients>(client_count, is_private);
             if (!response || response->handles().size() != client_count) {
                 warnln("Failed to connect {} new clients to RequestServer", client_count);
                 VERIFY_NOT_REACHED();
@@ -2047,7 +2062,7 @@ void Application::process_did_exit(Process&& process, Optional<int> exit_status)
         }
         break;
     case ProcessType::RequestServer:
-        if (auto client = process.client<Requests::RequestClient>()) {
+        if (auto client = process.client<Requests::RequestControlClient>()) {
             dbgln_if(WEBVIEW_PROCESS_DEBUG, "Restart request server");
             if (auto on_request_server_died = move(client->on_request_server_died))
                 on_request_server_died();
@@ -2210,7 +2225,7 @@ NonnullRefPtr<Core::Promise<Application::BrowsingDataSizes>> Application::estima
 {
     auto promise = Core::Promise<BrowsingDataSizes>::construct();
 
-    m_request_server_client->estimate_cache_size_accessed_since(since)
+    m_request_server_control_client->estimate_cache_size_accessed_since(since)
         ->when_resolved([this, promise, since](Requests::CacheSizes cache_sizes) {
             auto cookie_sizes = m_default_session->cookie_jar->estimate_storage_size_accessed_since(since);
             auto storage_sizes = m_default_session->storage_jar->estimate_storage_size_accessed_since(since);
@@ -2238,7 +2253,7 @@ NonnullRefPtr<Core::Promise<Empty>> Application::clear_browsing_data(ClearBrowsi
     bool did_change_history = false;
 
     if (options.delete_cached_files == ClearBrowsingDataOptions::Delete::Yes) {
-        promise = m_request_server_client->clear_cache(options.since);
+        promise = m_request_server_control_client->clear_cache(options.since);
 
         // FIXME: Maybe we should forward the "since" parameter to the WebContent process, but the in-memory cache is
         //        transient anyways, so just assuming they were all accessed in the last hour is fine for now.

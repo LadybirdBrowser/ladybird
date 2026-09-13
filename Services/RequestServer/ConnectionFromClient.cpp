@@ -21,13 +21,13 @@
 #include <RequestServer/AIA.h>
 #include <RequestServer/CURL.h>
 #include <RequestServer/ConnectionFromClient.h>
+#include <RequestServer/ControlConnectionFromClient.h>
 #include <RequestServer/Request.h>
 #include <RequestServer/Resolver.h>
 #include <RequestServer/WebSocketImplCurl.h>
 
 namespace RequestServer {
 
-static ConnectionFromClient* g_primary_connection = nullptr;
 static IDAllocator s_client_ids;
 
 static constexpr i64 TICK_GAP_THRESHOLD_MS = 100;
@@ -39,7 +39,7 @@ static StringView s_last_tick_label;
 static Optional<MonotonicTime> s_curl_timer_due_at;
 static constexpr i64 CURL_TIMER_ON_TIME_TOLERANCE_MS = 50;
 
-static void note_event_tick(StringView label)
+void note_event_tick(StringView label)
 {
     if constexpr (!REQUESTSERVER_WIRE_DEBUG)
         return;
@@ -83,7 +83,7 @@ static auto time_curl_call(StringView label, F&& f)
 static constexpr i64 BURST_WINDOW_MS = 100;
 static constexpr u64 BURST_REPORT_THRESHOLD = 5;
 
-ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, IsPrimaryConnection is_primary_connection, IsPrivate is_private, ConnectionMap& connections, RequestTransferLeaseMap& request_transfer_leases, Optional<HTTP::DiskCache&> disk_cache, ByteString alt_svc_cache_path)
+ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transport, IsPrivate is_private, ConnectionMap& connections, RequestTransferLeaseMap& request_transfer_leases, Optional<HTTP::DiskCache&> disk_cache, ByteString alt_svc_cache_path)
     : IPC::ConnectionFromClient<RequestClientEndpoint, RequestServerEndpoint>(*this, move(transport), s_client_ids.allocate())
     , m_is_private(is_private)
     , m_connections(connections)
@@ -94,11 +94,6 @@ ConnectionFromClient::ConnectionFromClient(NonnullOwnPtr<IPC::Transport> transpo
 {
     if (m_is_private == IsPrivate::No)
         m_alt_svc_cache_path = move(alt_svc_cache_path);
-
-    if (is_primary_connection == IsPrimaryConnection::Yes) {
-        VERIFY(g_primary_connection == nullptr);
-        g_primary_connection = this;
-    }
 
     m_connections.set(client_id(), *this);
 
@@ -155,13 +150,6 @@ ConnectionFromClient::~ConnectionFromClient()
     s_client_ids.deallocate(client_id());
 }
 
-Optional<ConnectionFromClient&> ConnectionFromClient::primary_connection()
-{
-    if (g_primary_connection)
-        return *g_primary_connection;
-    return {};
-}
-
 void ConnectionFromClient::request_complete(Badge<Request>, Request const& request)
 {
     if (request.has_transfer_lease())
@@ -179,12 +167,6 @@ void ConnectionFromClient::request_complete(Badge<Request>, Request const& reque
 
 void ConnectionFromClient::die()
 {
-    if (g_primary_connection == this) {
-        m_performance_timer = nullptr;
-        Request::set_performance_monitor_enabled(false);
-        g_primary_connection = nullptr;
-    }
-
     Vector<Requests::RequestTransferLeaseKey> transfer_leases_to_cancel;
     for (auto const& entry : m_request_transfer_leases) {
         if (entry.value.owner.ptr() == this)
@@ -198,7 +180,7 @@ void ConnectionFromClient::die()
 
     m_connections.remove(client_id());
 
-    if (m_connections.is_empty())
+    if (m_connections.is_empty() && !ControlConnectionFromClient::the().has_value())
         Core::EventLoop::current().quit(0);
 }
 
@@ -211,53 +193,6 @@ Messages::RequestServer::InitTransportResponse ConnectionFromClient::init_transp
     VERIFY_NOT_REACHED();
 }
 
-Messages::RequestServer::ConnectNewClientResponse ConnectionFromClient::connect_new_client(IsPrivate is_private)
-{
-    auto client_socket = create_client_socket(is_private);
-    if (client_socket.is_error()) {
-        dbgln("Failed to create client socket: {}", client_socket.error());
-        return IPC::TransportHandle {};
-    }
-
-    return client_socket.release_value();
-}
-
-Messages::RequestServer::ConnectNewClientsResponse ConnectionFromClient::connect_new_clients(size_t count, IsPrivate is_private)
-{
-    Vector<IPC::TransportHandle> handles;
-    handles.ensure_capacity(count);
-
-    for (size_t i = 0; i < count; ++i) {
-        auto client_socket = create_client_socket(is_private);
-        if (client_socket.is_error()) {
-            dbgln("Failed to create client socket: {}", client_socket.error());
-            return Vector<IPC::TransportHandle> {};
-        }
-
-        handles.unchecked_append(client_socket.release_value());
-    }
-
-    return handles;
-}
-
-ErrorOr<IPC::TransportHandle> ConnectionFromClient::create_client_socket(IsPrivate is_private)
-{
-    auto paired = TRY(IPC::Transport::create_paired());
-    auto handle = move(paired.remote_handle);
-    auto disk_cache = is_private == IsPrivate::Yes ? Optional<HTTP::DiskCache&> {} : m_disk_cache;
-
-    // Note: A ref is stored in the m_connections map
-    auto client = adopt_ref(*new ConnectionFromClient(move(paired.local), IsPrimaryConnection::No, is_private, m_connections, m_request_transfer_leases, disk_cache, m_alt_svc_cache_path.value_or({})));
-
-    return handle;
-}
-
-void ConnectionFromClient::set_disk_cache_settings(HTTP::DiskCacheSettings disk_cache_settings)
-{
-    if (m_disk_cache.has_value())
-        m_disk_cache->set_maximum_disk_cache_size(disk_cache_settings.maximum_size);
-}
-
 Messages::RequestServer::IsSupportedProtocolResponse ConnectionFromClient::is_supported_protocol(ByteString protocol)
 {
     return protocol == "http"sv || protocol == "https"sv;
@@ -266,45 +201,6 @@ Messages::RequestServer::IsSupportedProtocolResponse ConnectionFromClient::is_su
 Messages::RequestServer::GetClientIdResponse ConnectionFromClient::get_client_id()
 {
     return client_id();
-}
-
-void ConnectionFromClient::set_dns_server(ByteString host_or_address, u16 port, bool use_tls, bool validate_dnssec_locally)
-{
-    auto& dns_info = DNSInfo::the();
-
-    if (host_or_address == dns_info.server_hostname && port == dns_info.port && use_tls == dns_info.use_dns_over_tls && validate_dnssec_locally == dns_info.validate_dnssec_locally)
-        return;
-
-    auto result = [&] -> ErrorOr<void> {
-        Core::SocketAddress addr;
-        if (auto v4 = IPv4Address::from_string(host_or_address); v4.has_value())
-            addr = { v4.value(), port };
-        else if (auto v6 = IPv6Address::from_string(host_or_address); v6.has_value())
-            addr = { v6.value(), port };
-        else
-            TRY(m_resolver->dns.lookup(host_or_address)->await())->cached_addresses().first().visit([&](auto& address) { addr = { address, port }; });
-
-        dns_info.server_address = addr;
-        dns_info.server_hostname = host_or_address;
-        dns_info.port = port;
-        dns_info.use_dns_over_tls = use_tls;
-        dns_info.validate_dnssec_locally = validate_dnssec_locally;
-        return {};
-    }();
-
-    if (result.is_error())
-        dbgln("Failed to set DNS server: {}", result.error());
-    else
-        m_resolver->dns.reset_connection();
-}
-
-void ConnectionFromClient::set_use_system_dns()
-{
-    auto& dns_info = DNSInfo::the();
-    dns_info.server_hostname = {};
-    dns_info.server_address = {};
-
-    m_resolver->dns.reset_connection();
 }
 
 void ConnectionFromClient::start_request(u64 request_id, ByteString method, URL::URL url, Vector<HTTP::Header> request_headers, ByteBuffer request_body, HTTP::CacheMode cache_mode, HTTP::Cookie::IncludeCredentials include_credentials, bool create_transfer_lease, Optional<u32> address_selection_hint, bool notify_on_cache_miss, i32 originating_process_id, u64 originating_page_id)
@@ -720,52 +616,6 @@ void ConnectionFromClient::ensure_connection(u64 request_id, URL::URL url, ::Req
     m_active_requests.set(request_id, move(request));
 }
 
-void ConnectionFromClient::retrieved_http_cookie(int client_id, u64 request_id, RequestServer::RequestType request_type, u64 cookie_request_id, String cookie)
-{
-    note_event_tick("ipc-retrieved-cookie"sv);
-
-    if (g_primary_connection != this) {
-        did_misbehave("Non-primary connection sent an HTTP cookie response");
-        return;
-    }
-
-    if (auto connection = m_connections.get(client_id); connection.has_value()) {
-        auto request = [&]() {
-            switch (request_type) {
-            case RequestType::Fetch:
-                return (*connection)->m_active_requests.get(request_id);
-            case RequestType::BackgroundRevalidation:
-                return (*connection)->m_active_revalidation_requests.get(request_id);
-            case RequestType::Connect:
-                did_misbehave("HTTP cookie response has an invalid request type");
-                return decltype((*connection)->m_active_requests.get(request_id)) {};
-            }
-            VERIFY_NOT_REACHED();
-        }();
-
-        if (request.has_value() && !(*request)->notify_retrieved_http_cookie({}, cookie_request_id, cookie))
-            did_misbehave("Duplicate or unexpected HTTP cookie response");
-    }
-}
-
-void ConnectionFromClient::estimate_cache_size_accessed_since(u64 cache_size_estimation_id, UnixDateTime since)
-{
-    Requests::CacheSizes sizes;
-
-    if (m_disk_cache.has_value())
-        sizes = m_disk_cache->estimate_cache_size_accessed_since(since);
-
-    async_estimated_cache_size(cache_size_estimation_id, sizes);
-}
-
-void ConnectionFromClient::remove_cache_entries_accessed_since(u64 clear_cache_request_id, UnixDateTime since)
-{
-    if (m_disk_cache.has_value())
-        m_disk_cache->remove_entries_accessed_since(since);
-
-    async_removed_cache_entries(clear_cache_request_id);
-}
-
 Messages::RequestServer::StoreCacheAssociatedDataResponse ConnectionFromClient::store_cache_associated_data(URL::URL url, ByteString method, Vector<HTTP::Header> request_headers, Optional<u64> vary_key, HTTP::CacheEntryAssociatedData associated_data, Core::AnonymousBuffer data)
 {
     if (!m_disk_cache.has_value() || !data.is_valid())
@@ -931,40 +781,6 @@ Messages::RequestServer::WebsocketSetCertificateResponse ConnectionFromClient::w
         success = true;
     }
     return success;
-}
-
-void ConnectionFromClient::set_performance_monitor_enabled(bool enabled)
-{
-    if (g_primary_connection != this)
-        return;
-    Request::set_performance_monitor_enabled(enabled);
-    if (enabled) {
-        if (!m_performance_timer) {
-            // NB: Establish baselines for requests already in flight before enabling the monitor.
-            for (auto& connection : m_connections) {
-                for (auto& request : connection.value->m_active_requests)
-                    request.value->sample_network_usage();
-            }
-            m_last_performance_push = MonotonicTime::now();
-            m_performance_timer = Core::Timer::create_repeating(500, [this] { push_network_usage(); });
-            m_performance_timer->start();
-        }
-    } else {
-        m_performance_timer = nullptr;
-    }
-}
-
-void ConnectionFromClient::push_network_usage()
-{
-    if (g_primary_connection != this)
-        return;
-    for (auto& connection : m_connections) {
-        for (auto& request : connection.value->m_active_requests)
-            request.value->sample_network_usage();
-    }
-    auto now = MonotonicTime::now();
-    async_network_usage(Request::take_network_usage(), (now - *m_last_performance_push).to_microseconds());
-    m_last_performance_push = now;
 }
 
 }

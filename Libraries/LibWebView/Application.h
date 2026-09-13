@@ -101,6 +101,7 @@ public:
     virtual Optional<String> ui_font_family() const { return {}; }
 
     static Requests::RequestClient& request_server_client(IsPrivate = IsPrivate::No);
+    static Requests::RequestControlClient& request_server_control_client() { return *the().m_request_server_control_client; }
     static ImageDecoderClient::Client& image_decoder_client() { return *the().m_image_decoder_client; }
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     static WasmCompilerClient::Client& wasm_compiler_client() { return *the().m_wasm_compiler_client; }
@@ -533,6 +534,7 @@ private:
     bool m_webdriver_browser_connection_failed { false };
     WebDriverSessionConfig m_webdriver_session_config;
 
+    RefPtr<Requests::RequestControlClient> m_request_server_control_client;
     RefPtr<Requests::RequestClient> m_request_server_client;
     RefPtr<Requests::RequestClient> m_private_request_server_client;
     RefPtr<ImageDecoderClient::Client> m_image_decoder_client;
