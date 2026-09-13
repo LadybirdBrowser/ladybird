@@ -6571,6 +6571,22 @@ void Document::unregister_resize_observer(Badge<ResizeObserver::ResizeObserver>,
     m_resize_observers.remove_all_matching([&](auto const& entry) { return !entry || entry.ptr().ptr() == &observer; });
 }
 
+void Document::add_shadow_root_needing_slot_assignment(Badge<ShadowRoot>, ShadowRoot& shadow_root)
+{
+    m_shadow_roots_needing_slot_assignment.append(shadow_root);
+}
+
+void Document::remove_shadow_root_needing_slot_assignment(Badge<ShadowRoot>, ShadowRoot& shadow_root)
+{
+    m_shadow_roots_needing_slot_assignment.remove(shadow_root);
+}
+
+void Document::assign_slottables_if_needed()
+{
+    while (auto* shadow_root = m_shadow_roots_needing_slot_assignment.first())
+        shadow_root->assign_slottables_if_needed();
+}
+
 // https://www.w3.org/TR/intersection-observer/#queue-an-intersection-observer-task
 void Document::queue_intersection_observer_task()
 {

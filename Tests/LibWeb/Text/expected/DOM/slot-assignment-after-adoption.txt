@@ -1,0 +1,4 @@
+one adoption: 123 x 17
+assigned: true
+two adoptions: 123 x 17
+assigned: true

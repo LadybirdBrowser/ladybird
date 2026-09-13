@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const adoptTwice of [false, true]) {
+            const source = document.implementation.createHTMLDocument();
+            const intermediate = document.implementation.createHTMLDocument();
+            const host = source.createElement("div");
+            const shadow = host.attachShadow({ mode: "open" });
+            shadow.innerHTML = "<slot></slot>";
+            const slot = shadow.firstChild;
+            const child = source.createElement("div");
+            child.style.cssText = "width: 123px; height: 17px";
+            host.append(child);
+
+            if (adoptTwice)
+                intermediate.adoptNode(host);
+            document.body.append(host);
+            println(`${adoptTwice ? "two adoptions" : "one adoption"}: ${child.offsetWidth} x ${child.offsetHeight}`);
+            println(`assigned: ${slot.assignedNodes()[0] === child}`);
+            host.remove();
+        }
+    });
+</script>

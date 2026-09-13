@@ -40,6 +40,7 @@ Vector<GC::Root<DOM::Node>> HTMLSlotElement::assigned_nodes(AssignedNodesFlatten
 {
     // 1. If options["flatten"] is false, then return this's assigned nodes.
     if (flatten == AssignedNodesFlatten::No) {
+        assign_slottables_if_needed();
         Vector<GC::Root<DOM::Node>> assigned_nodes;
         assigned_nodes.ensure_capacity(assigned_nodes_internal().size());
 
@@ -75,6 +76,7 @@ Vector<GC::Root<DOM::Element>> HTMLSlotElement::assigned_elements(AssignedNodesF
 {
     // 1. If options["flatten"] is false, then return this's assigned nodes, filtered to contain only Element nodes.
     if (flatten == AssignedNodesFlatten::No) {
+        assign_slottables_if_needed();
         Vector<GC::Root<DOM::Element>> assigned_nodes;
 
         for (auto const& node : assigned_nodes_internal()) {
@@ -100,9 +102,18 @@ Vector<GC::Root<DOM::Element>> HTMLSlotElement::assigned_elements(Bindings::Assi
     return assigned_elements(assigned_nodes_flatten(options));
 }
 
+void HTMLSlotElement::assign_slottables_if_needed() const
+{
+    if (auto* shadow_root = as_if<DOM::ShadowRoot>(const_cast<HTMLSlotElement&>(*this).root()))
+        shadow_root->assign_slottables_if_needed();
+}
+
 // https://html.spec.whatwg.org/multipage/scripting.html#dom-slot-assign
 void HTMLSlotElement::assign(GC::ConservativeVector<SlottableHandle> nodes)
 {
+    // AD-HOC: Assigned nodes are recomputed lazily.
+    assign_slottables_if_needed();
+
     // 1. For each node of this's manually assigned nodes, set node's manual slot assignment to null.
     for (auto& node : m_manually_assigned_nodes) {
         node.visit([&](auto& node) {
@@ -157,6 +168,9 @@ void HTMLSlotElement::attribute_changed(Utf16FlyString const& local_name, Option
         // 3. If value is the empty string and oldValue is null, then return.
         if (value == Utf16String {} && !old_value.has_value())
             return;
+
+        // AD-HOC: Assigned nodes are recomputed lazily.
+        assign_slottables_if_needed();
 
         // OPTIMIZATION: Update the slot registry before changing the name.
         auto* shadow_root = as_if<DOM::ShadowRoot>(root());

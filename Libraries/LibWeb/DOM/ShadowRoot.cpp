@@ -51,6 +51,7 @@ void ShadowRoot::finalize()
 {
     Base::finalize();
     document().unregister_shadow_root({}, *this);
+    document().remove_shadow_root_needing_slot_assignment({}, *this);
 }
 
 void ShadowRoot::adopted_from(Document& old_document)
@@ -61,6 +62,10 @@ void ShadowRoot::adopted_from(Document& old_document)
     // tree-scoped name lookups), so adoption has to move this shadow root to the new document's list.
     old_document.unregister_shadow_root({}, *this);
     document().register_shadow_root({}, *this);
+    if (!m_slots_needing_assignment.is_empty()) {
+        old_document.remove_shadow_root_needing_slot_assignment({}, *this);
+        document().add_shadow_root_needing_slot_assignment({}, *this);
+    }
 
     // Identities belong to one document's engine, so the root and its scope have to be minted
     // again in the new one. Its sheets are re-adopted through the CSSOM, which is what attaches
@@ -214,6 +219,7 @@ void ShadowRoot::visit_edges(Visitor& visitor)
     }
     visitor.visit(m_custom_element_registry);
     visitor.visit(m_radio_button_group_registry);
+    visitor.visit(m_slots_needing_assignment);
 }
 
 HTML::RadioButtonGroupRegistry& ShadowRoot::ensure_radio_button_group_registry()
@@ -288,6 +294,23 @@ GC::Ptr<HTML::HTMLSlotElement> ShadowRoot::first_slot_with_name(Utf16View name) 
     if (!m_slot_registry)
         return nullptr;
     return m_slot_registry->first_slot_with_name(name);
+}
+
+void ShadowRoot::set_needs_slot_assignment(HTML::HTMLSlotElement& slot)
+{
+    if (m_slots_needing_assignment.contains_slow(GC::Ref { slot }))
+        return;
+    if (m_slots_needing_assignment.is_empty())
+        document().add_shadow_root_needing_slot_assignment({}, *this);
+    m_slots_needing_assignment.append(slot);
+}
+
+void ShadowRoot::assign_slottables_if_needed()
+{
+    document().remove_shadow_root_needing_slot_assignment({}, *this);
+    auto slots = move(m_slots_needing_assignment);
+    for (auto slot : slots)
+        assign_slottables(slot, SignalSlotChange::No);
 }
 
 // https://drafts.csswg.org/css-shadow-1/#shadow-root-part-element-map

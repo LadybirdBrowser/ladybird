@@ -476,6 +476,7 @@ static void record_subtree_arrivals(DOM::Document& document, ReadonlySpan<GC::Re
             dom_order_arrivals.append(*element);
             ++element_count;
             if (auto* slot = as_if<HTML::HTMLSlotElement>(*element)) {
+                slot->assign_slottables_if_needed();
                 for (auto const& slottable : slot->assigned_nodes_internal()) {
                     if (auto const* assigned = slottable.get_pointer<GC::Ref<DOM::Element>>(); assigned && (*assigned)->style_node_id() != no_style_node)
                         slottables_identified_earlier.append(*assigned);
@@ -1312,8 +1313,10 @@ void record_top_layer_changed(DOM::Document& document)
 // republish on arrival: a slottable the list it has just become a member of, and a slot the list it arrived owning.
 static void republish_assigned_slot_of(DOM::Node& node)
 {
-    if (auto slot = DOM::assigned_slot_for_node(node))
+    if (auto slot = DOM::assigned_slot_for_node(node)) {
+        slot->assign_slottables_if_needed();
         record_slot_assignment_changed(*slot);
+    }
     if (auto* slot = as_if<HTML::HTMLSlotElement>(node))
         record_slot_assignment_changed(*slot);
 }
@@ -1330,6 +1333,7 @@ static void record_element_disconnecting(DOM::Element& element, TreeScopeID tree
     // old slot by then. If another slot takes over, the ordinary assignment path publishes the
     // subsequent arrival.
     if (auto* slot = as_if<HTML::HTMLSlotElement>(element)) {
+        slot->assign_slottables_if_needed();
         for (auto const& slottable : slot->assigned_nodes_internal()) {
             auto const* assigned_element = slottable.get_pointer<GC::Ref<DOM::Element>>();
             if (!assigned_element || (*assigned_element)->style_node_id() == no_style_node)

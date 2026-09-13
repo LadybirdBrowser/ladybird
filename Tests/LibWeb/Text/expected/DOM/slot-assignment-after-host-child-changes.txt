@@ -1,0 +1,29 @@
+assignedNodes after appending three children: 3
+assignedSlot of the last appended child is the slot: true
+slotchange events after appending three children: 1
+slotchange events after appending one more child: 2
+assignedNodes after removing a child: 3
+assignedSlot of the removed child: null
+slotchange events after removing a child: 3
+assignedNodes after renaming the slot: 0
+slotchange events after renaming the slot: 2
+slotchange events after renaming the slot back: 3
+assignedNodes of the removed slot: 0
+slotchange events after removing the slot: 2
+assignedSlot after changing the slot attribute is slot b: true
+assignedNodes of slot a and slot b: 0, 1
+slotchange events for slot a and slot b: 2, 1
+slotchange events after setting the same slot name: 2, 1
+slotchange events after adding fallback content to an empty slot: 1
+slotchange events after adding fallback content to a filled slot: 2
+offsetWidth of a slotted child: 50
+event path passes through the slot: true
+assignedSlot after changing the slot attribute of a manually assigned child: true
+slotchange events after changing the slot attribute of a manually assigned child: 1
+offsetWidth of a child assigned to a newly inserted slot: 50
+offsetWidth of a moved child after its previous host was removed: 50
+assignedNodes after inserting into a manual shadow tree: 1
+assignedNodes after moving within a manual shadow tree: 1
+event path of a manually assigned sibling passes through the slot: true
+event path of a manually assigned sibling after a removal passes through the slot: true
+assignedNodes after moving a text node into a host: 1
