@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Aborting a navigate event runs its signal's abort handlers, and a pushState() from one of them must not be
+    // attributed to the event being aborted.
+    promiseTest(async () => {
+        const describe = promise => promise.then(() => "fulfilled", error => `rejected with ${error.name}`);
+
+        navigation.addEventListener("navigate", event => {
+            event.signal.addEventListener("abort", () => {
+                history.pushState(null, "", "#from-abort-pushstate");
+            }, { once: true });
+            location.hash = "#second";
+        }, { once: true });
+
+        const result = navigation.navigate("#first");
+        println(`committed: ${await describe(result.committed)}`);
+        println(`finished: ${await describe(result.finished)}`);
+        println(`location.hash: ${location.hash}`);
+    });
+</script>
