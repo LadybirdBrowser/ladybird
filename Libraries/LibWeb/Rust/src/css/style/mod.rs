@@ -190,7 +190,6 @@ use batch_matcher::RuleMatch;
 use batch_matcher::RuleMatches;
 use batch_matcher::append_prefix_matches;
 use batch_matcher::append_retained_matches;
-use batch_matcher::build_scope_dispatch;
 use batch_matcher::scope_dispatch_shape_and_rules;
 use cascade::CascadeCandidate as OrderedCascadeCandidate;
 use cascade::CascadeOperator;

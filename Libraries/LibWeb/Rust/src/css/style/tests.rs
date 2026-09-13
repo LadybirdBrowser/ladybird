@@ -9445,6 +9445,41 @@ fn equivalent_sheet_programs_share_dispatch_topology() {
 }
 
 #[test]
+fn extending_a_scope_dispatch_skips_empty_selector_programs() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let base = engine
+        .programs
+        .add(test_selector_program(".base", &[("base", StyleAtomID(200))]));
+    let suffix = engine
+        .programs
+        .add(test_selector_program(".suffix", &[("suffix", StyleAtomID(201))]));
+    let empty = engine.programs.add(selector::SelectorProgramBuilder::new().finish());
+    let sheet = engine.add_sheet(StyleSheetObjectID(1), CascadeOrigin::Author);
+    engine.attach_sheet(sheet, TreeScopeID::DOCUMENT);
+    let base_rule = engine.append_rule(sheet, None, RuleKind::Style);
+    let mut version = engine.program.rule_version(base_rule);
+    version.selector_program = Some(base);
+    engine.replace_rule_version(base_rule, version);
+    discard_transaction(&mut engine);
+    let (_, template) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    assert_eq!(template.entry_count(), 1);
+
+    let mut suffix_rules = Vec::new();
+    for program in [suffix, empty] {
+        let rule = engine.append_rule(sheet, None, RuleKind::Style);
+        let mut version = engine.program.rule_version(rule);
+        version.selector_program = Some(program);
+        engine.replace_rule_version(rule, version);
+        suffix_rules.push(rule);
+    }
+    discard_transaction(&mut engine);
+    let (_, extended) = engine.ranked_scope_program(TreeScopeID::DOCUMENT);
+    assert_eq!(extended.entry_count(), 2);
+    assert_eq!(extended.entry_at(0).rule, base_rule);
+    assert_eq!(extended.entry_at(1).rule, suffix_rules[0]);
+}
+
+#[test]
 fn a_scope_dispatch_can_extend_a_finished_prefix_template() {
     let mut programs = SelectorPrograms::new();
     let base = programs.add(test_selector_program(

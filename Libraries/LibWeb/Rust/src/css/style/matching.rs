@@ -1089,7 +1089,7 @@ impl StyleEngine {
 
     /// Build one scope's selector dispatch and rank its static cascade priorities once.
     pub(super) fn build_ranked_scope_dispatch(&mut self, scope: TreeScopeID) -> Rc<RuleDispatch> {
-        let (shape, rules) = scope_dispatch_shape_and_rules(&self.program, &self.programs, scope);
+        let (mut shape, mut rules) = scope_dispatch_shape_and_rules(&self.program, &self.programs, scope);
         let document_sheet_mode = if scope == TreeScopeID::DOCUMENT {
             DocumentSheetMode::None
         } else if self.program.scope_uses_document_sheets(scope) {
@@ -1113,6 +1113,9 @@ impl StyleEngine {
                 .collect(),
             layer_order: self.program.layer_order_key(scope),
         };
+        // Preserve source ordering in the cascade key, while equivalent selector multisets
+        // share matching topology regardless of stylesheet order.
+        super::batch_matcher::canonicalize_scope_dispatch(&mut shape, &mut rules, &self.programs);
         let cascade_template = self.scope_cascade_templates.get(&cascade_shape).cloned();
         // Document-local selector and entry numbers are embedded in the topology. Share only
         // when those numbers AND their process-interned semantic payloads agree. Rule bindings,
@@ -1148,6 +1151,9 @@ impl StyleEngine {
                     RuleDispatch::rebind_rules_for_extension(&template, &rules[..template.entry_count()]);
                 let mut rule_index = template.entry_count();
                 for &(selector_program, author) in &shape.0[prefix_len..] {
+                    if self.programs.get(selector_program).entries().is_empty() {
+                        continue;
+                    }
                     insert_scope_rule(
                         &mut dispatch,
                         &self.programs,
@@ -1162,7 +1168,23 @@ impl StyleEngine {
                 dispatch
             }
             (None, None) => {
-                let mut dispatch = build_scope_dispatch(&self.program, &self.programs, scope);
+                let mut dispatch = RuleDispatch::new();
+                let mut rule_index = 0;
+                for &(selector_program, author) in &shape.0 {
+                    if self.programs.get(selector_program).entries().is_empty() {
+                        continue;
+                    }
+                    insert_scope_rule(
+                        &mut dispatch,
+                        &self.programs,
+                        rules[rule_index],
+                        selector_program,
+                        author,
+                    );
+                    rule_index = dispatch.entry_count();
+                }
+                assert_eq!(rule_index, rules.len());
+                dispatch.finish_prefixes();
                 let ancestor_shape = dispatch.ancestor_dispatch_shape();
                 if let Some(template) = self.ancestor_dispatch_templates.get(&ancestor_shape) {
                     dispatch.share_ancestor_topology_with(template);
