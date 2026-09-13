@@ -1,0 +1,18 @@
+<!doctype html>
+<style>
+    body { margin: 0; }
+    .box {
+        display: inline-block;
+        vertical-align: top;
+        width: 100px;
+        height: 60px;
+        margin: 10px;
+        padding: 15px;
+        border: 5px solid navy;
+        background-color: lime;
+    }
+    .padding { background-clip: padding-box; }
+    .content { background-clip: content-box; }
+    .text { background-clip: text; color: transparent; font: 24px monospace; }
+</style>
+<div class="box padding"></div><div class="box content"></div><div class="box text">TEXT</div>

@@ -495,7 +495,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let mut next_child = crate::painting::paint_order::first_paint_child(self.layout_arena, paintable);
         while let Some(child) = next_child {
             next_child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, child);
-            if !matches(self, child) {
+            if !matches(self, child) || self.descendant_phase_is_empty(child, phase) {
                 continue;
             }
             let site = CaptureSite {
@@ -504,6 +504,19 @@ impl<O: Observer> PaintRecorder<'_, O> {
             };
             self.splice_or_record_capture(site, |this| this.paint_descendant(child, phase));
         }
+    }
+
+    fn descendant_phase_is_empty(&self, child: NodeSlotId, phase: StackingContextPaintPhase) -> bool {
+        // Inline-blocks and inline-tables paint their backgrounds and internal floats
+        // in the inline-level phase. Earlier passes through their parent do no work,
+        // so there is no need to resolve, copy, or update an empty subtree capture.
+        matches!(
+            phase,
+            StackingContextPaintPhase::BackgroundAndBorders | StackingContextPaintPhase::Floats
+        ) && self.layout_kind(child) != Some(NodeKind::SVGSVGBox)
+            && self.establishes_inline_level_painting_context(child)
+            && !style_queries::is_floating(self.layout_arena, child)
+            && (phase == StackingContextPaintPhase::Floats || !self.is_pure_inline_box(child))
     }
 
     fn splice_or_record_capture(&mut self, site: CaptureSite, body: impl FnOnce(&mut Self)) {
