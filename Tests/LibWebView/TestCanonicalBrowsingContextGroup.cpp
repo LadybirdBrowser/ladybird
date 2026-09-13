@@ -114,10 +114,38 @@ TEST_CASE(response_browsing_context_is_activated_only_at_commit)
                                           .top_level_origin = destination_url.origin(),
                                           .has_cross_site_ancestor = false,
                                       },
-        navigation_id);
+        navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes);
     EXPECT_EQ(&traversable.active_browsing_context(), destination_context.ptr());
     EXPECT(initial_group->browsing_context_set().is_empty());
     EXPECT(!traversable.ongoing_navigation().has_value());
+}
+
+TEST_CASE(populated_document_replaces_tracked_load_when_document_state_is_reused)
+{
+    WebView::CanonicalTraversable traversable;
+    traversable.set_active_browsing_context(WebView::CanonicalBrowsingContext::create_a_new_top_level_browsing_context_and_document(URL::Origin::create_opaque(), {}));
+    auto entry_identity = Web::HTML::SessionHistoryEntryIdentity {
+        .document_state_id = Web::HTML::CrossProcessId { 1, 1 },
+        .navigation_api_id = Utf16String::from_utf8("entry"sv),
+    };
+    traversable.set_active_session_history_entry_identity(entry_identity);
+    auto navigation_id = Utf16String::from_utf8("reload"sv);
+    traversable.ensure_ongoing_navigation().navigation_id = navigation_id;
+    auto destination_url = URL::Parser::basic_parse("https://ladybird.org/redirected"sv).release_value();
+
+    traversable.did_commit_navigation({
+                                          .target_name = {},
+                                          .active_document_url = destination_url,
+                                          .active_document_origin = destination_url.origin(),
+                                          .active_document_is_fully_active = true,
+                                          .active_session_history_entry_identity = entry_identity,
+                                          .top_level_creation_url = destination_url,
+                                          .top_level_origin = destination_url.origin(),
+                                          .has_cross_site_ancestor = false,
+                                      },
+        navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes);
+
+    EXPECT_EQ(traversable.active_document_load().navigation_id, navigation_id);
 }
 
 TEST_CASE(site_keyed_agent_clusters)

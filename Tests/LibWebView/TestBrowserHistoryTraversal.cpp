@@ -239,9 +239,15 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     // The restored URL is shown before the traversal runs, so wait for the document behind it to load.
     size_t restored_view_loads_finished = 0;
+    bool restored_view_traversal_completed = false;
     restored_view->on_load_finish = [&](auto const&) { ++restored_view_loads_finished; };
+    restored_view->on_browser_history_traversal_complete = [&] { restored_view_traversal_completed = true; };
     MUST(restored_view->restore_session_history_from_snapshot(closed_tab_history.release_value()));
-    Core::EventLoop::current().spin_until([&] { return restored_view_loads_finished >= 1 && restored_view->url() == closed_tab_url; });
+    Core::EventLoop::current().spin_until([&] {
+        return restored_view_loads_finished >= 1
+            && restored_view->url() == closed_tab_url
+            && restored_view_traversal_completed;
+    });
     VERIFY(restored_view->traversable().session_history().current_entry()->url == closed_tab_url);
 
     // The new process has no hovered link, so it cannot send an unhover notification for the outgoing page.

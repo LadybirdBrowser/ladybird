@@ -158,7 +158,11 @@ public:
     void append_pending_same_document_session_history_entries(Vector<PendingSameDocumentSessionHistoryEntry>);
     Vector<PendingSameDocumentSessionHistoryEntry> const& pending_same_document_session_history_entries() const { return m_pending_same_document_session_history_entries; }
 
-    void did_commit_navigation(Web::HTML::ReplicatedNavigableState, Optional<Utf16String> const& navigation_id, RefPtr<CanonicalBrowsingContext> destination_browsing_context = {});
+    enum class DidPopulateDocument {
+        No,
+        Yes,
+    };
+    void did_commit_navigation(Web::HTML::ReplicatedNavigableState, Optional<Utf16String> const& navigation_id, DidPopulateDocument, RefPtr<CanonicalBrowsingContext> destination_browsing_context = {});
 
     Optional<OngoingNavigation>& ongoing_navigation() { return m_ongoing_navigation; }
     Optional<OngoingNavigation> const& ongoing_navigation() const { return m_ongoing_navigation; }
