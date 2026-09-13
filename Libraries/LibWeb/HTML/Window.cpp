@@ -2154,7 +2154,7 @@ GC::Ref<CustomElementRegistry> Window::custom_elements()
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#document-tree-child-navigable-target-name-property-set
-OrderedHashMap<Utf16FlyString, GC::Ref<LocalNavigable>> Window::document_tree_child_navigable_target_name_property_set()
+OrderedHashMap<Utf16FlyString, GC::Ref<Navigable>> Window::document_tree_child_navigable_target_name_property_set()
 {
     // The document-tree child navigable target name property set of a Window object window is the return value of running these steps:
 
@@ -2162,7 +2162,7 @@ OrderedHashMap<Utf16FlyString, GC::Ref<LocalNavigable>> Window::document_tree_ch
     auto children = associated_document().document_tree_child_navigables();
 
     // 2. Let firstNamedChildren be an empty ordered set.
-    OrderedHashMap<Utf16FlyString, GC::Ref<LocalNavigable>> first_named_children;
+    OrderedHashMap<Utf16FlyString, GC::Ref<Navigable>> first_named_children;
 
     // 3. For each navigable of children:
     for (auto const& navigable : children) {
@@ -2183,14 +2183,14 @@ OrderedHashMap<Utf16FlyString, GC::Ref<LocalNavigable>> Window::document_tree_ch
     }
 
     // 4. Let names be an empty ordered set.
-    OrderedHashMap<Utf16FlyString, GC::Ref<LocalNavigable>> names;
+    OrderedHashMap<Utf16FlyString, GC::Ref<Navigable>> names;
 
     // 5. For each navigable of firstNamedChildren:
     for (auto const& [name, navigable] : first_named_children) {
         // 1. Let name be navigable's target name.
         // 2. If navigable's active document's origin is same origin with window's relevant settings object's origin, then append name to names.
-        auto document = navigable->active_document();
-        if (document && document->origin().is_same_origin(this->relevant_settings_object().origin())) {
+        auto origin = navigable->active_document_origin();
+        if (origin.has_value() && origin->is_same_origin(this->relevant_settings_object().origin())) {
             names.set(name, *navigable);
             continue;
         }
@@ -2279,7 +2279,7 @@ Variant<Empty, GC::Ref<WindowProxy>, GC::Ref<DOM::Element>, GC::Ref<DOM::HTMLCol
             auto content_navigable = navigable_container.content_navigable();
             if (!content_navigable)
                 return TraversalDecision::Continue;
-            if (objects.navigables.contains_slow(GC::Ref { as<LocalNavigable>(*content_navigable) })) {
+            if (objects.navigables.contains_slow(GC::Ref { *content_navigable })) {
                 container = navigable_container;
                 return TraversalDecision::Break;
             }

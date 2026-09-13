@@ -295,7 +295,7 @@ public:
     static void set_internals_object_exposed(bool);
     static bool is_internals_object_exposed();
 
-    [[nodiscard]] OrderedHashMap<Utf16FlyString, GC::Ref<LocalNavigable>> document_tree_child_navigable_target_name_property_set();
+    [[nodiscard]] OrderedHashMap<Utf16FlyString, GC::Ref<Navigable>> document_tree_child_navigable_target_name_property_set();
 
     [[nodiscard]] Variant<Empty, GC::Ref<WindowProxy>, GC::Ref<DOM::Element>, GC::Ref<DOM::HTMLCollection>> named_item(Utf16FlyString const&) const;
     [[nodiscard]] Vector<Utf16FlyString> supported_property_names() const override;
@@ -321,7 +321,7 @@ private:
     void invoke_idle_callback_timeout(u32 handle);
 
     struct [[nodiscard]] NamedObjects {
-        Vector<GC::Ref<LocalNavigable>> navigables;
+        Vector<GC::Ref<Navigable>> navigables;
         Vector<GC::Ref<DOM::Element>> elements;
     };
     NamedObjects named_objects(Utf16View name);

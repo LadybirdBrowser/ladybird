@@ -5559,25 +5559,25 @@ GC::RootVector<GC::Ref<HTML::Navigable>> Document::inclusive_ancestor_navigables
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#document-tree-child-navigables
-Vector<GC::Root<HTML::LocalNavigable>> Document::document_tree_child_navigables()
+Vector<GC::Root<HTML::Navigable>> Document::document_tree_child_navigables()
 {
     // 1. If document's node navigable is null, then return the empty list.
     if (!navigable())
         return {};
 
     // 2. Let navigables be new list.
-    Vector<GC::Root<HTML::LocalNavigable>> navigables;
+    Vector<GC::Root<HTML::Navigable>> navigables;
 
     // 3. Let navigableContainers be a list of all descendants of document that are navigable containers, in tree order.
     // 4. For each navigableContainer of navigableContainers:
     //     1. If navigableContainer's content navigable is null, then continue.
     //     2. Append navigableContainer's content navigable to navigables.
-    // OPTIMIZATION: Iterate all registered navigables to avoid a full tree traversal.
-    for (auto const& navigable : HTML::all_local_navigables()) {
-        auto container = navigable->container();
-        if (!container || !is_ancestor_of(*container))
+    // OPTIMIZATION: Iterate all navigable containers to avoid a full tree traversal.
+    for (auto* container : HTML::NavigableContainer::all_instances()) {
+        auto content_navigable = container->content_navigable();
+        if (!content_navigable || !is_ancestor_of(*container))
             continue;
-        navigables.insert_before_matching(*navigable, [&](auto const& existing_navigable) {
+        navigables.insert_before_matching(*content_navigable, [&](auto const& existing_navigable) {
             return container->is_before(*existing_navigable->container());
         });
     }
