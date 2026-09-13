@@ -115,6 +115,7 @@ if (LADYBIRD_AUDIO_BACKEND STREQUAL "PULSE")
 elseif (LADYBIRD_AUDIO_BACKEND STREQUAL "AUDIO_UNIT")
     target_sources(LibMedia PRIVATE
         Audio/AudioDevicesCoreAudio.cpp
+        Audio/CoreAudioChannelLayout.cpp
         Audio/PlaybackStreamAudioUnit.cpp
         Audio/RecordStreamAudioUnit.cpp
     )
