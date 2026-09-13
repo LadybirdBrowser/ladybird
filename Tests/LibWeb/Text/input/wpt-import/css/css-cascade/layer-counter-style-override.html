@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<title>Resolving @counter-style name conflicts with cascade layers</title>
+<link rel="help" href="https://drafts.csswg.org/css-cascade-5/#layering">
+<link rel="author" href="mailto:xiaochengh@chromium.org">
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<style>
+#target, #reference {
+  font-family: monospace;
+  width: min-content;
+}
+
+#reference::before {
+  content: '0000';
+}
+
+@counter-style three {
+  system: cyclic;
+  symbols: '000';
+}
+
+@counter-style four {
+  system: cyclic;
+  symbols: '0000';
+}
+</style>
+
+<ul>
+  <li id="target"></li>
+  <li id="reference"></li>
+</ul>
+
+<script>
+// In all tests, #target::before should have 4 characters, same as #reference.
+
+const testCases = [
+  {
+    title: '@counter-style unlayered overrides layered',
+    style: `
+      #target::before {
+        content: counter(dont-care, custom-counter-style);
+      }
+
+      @counter-style custom-counter-style {
+        system: extends four;
+      }
+
+      @layer {
+        @counter-style custom-counter-style {
+          system: extends three;
+        }
+      }
+    `
+  },
+
+  {
+    title: '@counter-style override between layers',
+    style: `
+      @layer base, override;
+
+      #target::before {
+        content: counter(dont-care, custom-counter-style);
+      }
+
+      @layer override {
+        @counter-style custom-counter-style {
+          system: extends four;
+        }
+      }
+
+      @layer base {
+        @counter-style custom-counter-style {
+          system: extends three;
+        }
+      }
+    `
+  },
+
+  {
+    title: '@counter-style override update with appended sheet 1',
+    style: `
+      @layer base, override;
+
+      #target::before {
+        content: counter(dont-care, custom-counter-style);
+      }
+
+      @layer override {
+        @counter-style custom-counter-style {
+          system: extends four;
+        }
+      }
+    `,
+    append: `
+      @layer base {
+        @counter-style custom-counter-style {
+          system: extends three;
+        }
+      }
+    `
+  },
+
+  {
+    title: '@counter-style override update with appended sheet 2',
+    style: `
+      @layer base, override;
+
+      #target::before {
+        content: counter(dont-care, custom-counter-style);
+      }
+
+      @layer base {
+        @counter-style custom-counter-style {
+          system: extends three;
+        }
+      }
+    `,
+    append: `
+      @layer override {
+        @counter-style custom-counter-style {
+          system: extends four;
+        }
+      }
+    `
+  },
+];
+
+for (let testCase of testCases) {
+  var documentStyle = document.createElement('style');
+  documentStyle.appendChild(document.createTextNode(testCase['style']));
+  document.head.appendChild(documentStyle);
+
+  var appendedStyle;
+  if (testCase['append']) {
+    document.body.offsetLeft;  // Force style update
+    appendedStyle = document.createElement('style');
+    appendedStyle.appendChild(document.createTextNode(testCase['append']));
+    document.head.appendChild(appendedStyle);
+  }
+
+  test(function () {
+    assert_equals(getComputedStyle(target).width,
+                  getComputedStyle(reference).width);
+  }, testCase['title']);
+
+  if (appendedStyle)
+    appendedStyle.remove();
+  documentStyle.remove();
+}
+</script>

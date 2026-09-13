@@ -66,6 +66,8 @@ void MediaList::invalidate_owners_for_media_change()
     auto sheet = owning_style_sheet();
     if (!sheet)
         return;
+    if (m_associated_rule)
+        stop_sharing_compiled_style_sheet(*sheet);
     invalidate_style_sheet_for_media_change(*sheet);
 }
 

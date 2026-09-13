@@ -66,6 +66,11 @@ void evaluate_media_rules_and_publish_conditions(DOM::Document& document)
         shadow_root.style_scope().for_each_active_css_style_sheet(evaluate_author_sheet);
     });
 
+    for (auto const& entry : document.style_computer().shared_compiled_style_sheets()) {
+        if (entry.value)
+            entry.value->contents().evaluate_media_queries(document);
+    }
+
     for (auto* style_scope : scopes_with_changed_layer_order)
         style_scope->publish_cascade_layer_order();
 }

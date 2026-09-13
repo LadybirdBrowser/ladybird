@@ -21,6 +21,10 @@
 <script>
     test(() => {
         const sheet = document.getElementById("sheet").sheet;
+        // The first CSSOM edit recompiles shared contents into a private stylesheet. Insert and remove
+        // a dummy rule before measuring, so the counters cover only subsequent incremental edits.
+        sheet.insertRule(":not(*) {}", 0);
+        sheet.deleteRule(0);
 
         // A rule arriving reaches the elements it could match, and no others. Nothing about the
         // rules around it moves, so nothing about the elements they match moves either.

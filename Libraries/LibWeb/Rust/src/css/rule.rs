@@ -407,6 +407,13 @@ impl NativeRule {
 }
 
 impl NativeRuleList {
+    fn shared_contents(&self) -> Option<Arc<ParsedStyleSheet>> {
+        if self.rules.borrow().is_some() || !self.exposed_rules.borrow().is_empty() {
+            return None;
+        }
+        self.parsed_source.borrow().as_ref()?.root_sheet().cloned()
+    }
+
     pub(crate) fn replace(&self, source: &Self) {
         if std::ptr::eq(self, source) {
             return;

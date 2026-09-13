@@ -20,6 +20,12 @@
     }
 
     test(() => {
+        const sheet = document.getElementById("registrations").sheet;
+        // The first CSSOM edit recompiles shared contents into a private stylesheet. Insert and remove
+        // a dummy rule before measuring, so the counters cover only subsequent incremental edits.
+        sheet.insertRule(":not(*) {}", 0);
+        sheet.deleteRule(0);
+
         internals.updateStyle();
         let environmentVersion = internals.getStyleInvalidationCounters().styleEnvironmentVersion;
         let graphCounters = internals.styleEngineCounters();

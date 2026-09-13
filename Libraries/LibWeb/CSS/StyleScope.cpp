@@ -200,6 +200,12 @@ void StyleScope::move_sheet(StyleSheetState& sheet, StyleScope& destination)
     invalidate_rule_cache_after_style_sheet_change(node(), sheet);
 }
 
+void StyleScope::attach_sheet_to_style_engine(StyleSheetState& sheet)
+{
+    record_stylesheet_attached(sheet, node(), following_sheet(sheet));
+    record_stylesheet_conditions(sheet, node(), !sheet.disabled() && sheet.native_media_list().matches());
+}
+
 NonnullRefPtr<StyleCache> StyleCache::create()
 {
     return adopt_ref(*new StyleCache);
@@ -509,7 +515,10 @@ void StyleScope::for_each_stylesheet(CascadeOrigin cascade_origin, Function<void
 void StyleScope::make_rule_cache_for_cascade_origin(CascadeOrigin cascade_origin, StyleRuleCache& rule_cache)
 {
     for_each_stylesheet(cascade_origin, [&](auto& sheet) {
-        sheet.for_each_effective_rule_data(TraversalOrder::Preorder, [&](RustRuleView const& rule, Utf16View layer_prefix) {
+        if (!sheet.native_media_list().matches())
+            return;
+        auto& rule_sheet = sheet.shared_compiled_style_sheet() ? sheet.shared_compiled_style_sheet()->contents() : sheet;
+        rule_sheet.for_each_effective_rule_data(TraversalOrder::Preorder, [&](RustRuleView const& rule, Utf16View layer_prefix) {
             if (rule.type() == RustRule::Type::Container && Parser::ValueParserFFI::rust_container_conditions_contains_size_feature(rule.container()))
                 rule_cache.has_size_container_queries = true;
             if (rule.type() == RustRule::Type::Function) {
@@ -633,7 +642,12 @@ void StyleScope::publish_cascade_layer_order(StyleSheetState* pending_attachment
     for_each_stylesheet(CascadeOrigin::Author, [&](auto& sheet) {
         if (&sheet == pending_attachment)
             pending_attachment = nullptr;
-        sheets.append(sheet.native_sheet().handle());
+        if (!sheet.native_media_list().matches())
+            return;
+        if (auto* shared_compiled_style_sheet = sheet.shared_compiled_style_sheet())
+            sheets.append(shared_compiled_style_sheet->contents().native_sheet().handle());
+        else
+            sheets.append(sheet.native_sheet().handle());
     });
     if (pending_attachment && !pending_attachment->disabled() && pending_attachment->native_media_list().matches())
         sheets.append(pending_attachment->native_sheet().handle());
@@ -874,6 +888,8 @@ void StyleScope::build_counter_style_cache()
     };
 
     auto collect_counter_style_definitions = [&](CSS::CascadeOrigin cascade_origin, CSS::StyleSheetState const& style_sheet) {
+        if (!style_sheet.native_media_list().matches())
+            return;
         auto& style_engine = document().style_computer().style_engine();
         auto const tree_scope = style_engine_tree_scope();
         auto const origin_priority = [&]() -> u8 {
@@ -888,7 +904,8 @@ void StyleScope::build_counter_style_cache()
                 VERIFY_NOT_REACHED();
             }
         }();
-        style_sheet.for_each_effective_rule_data(TraversalOrder::Preorder, [&](RustRuleView const& rule, Utf16View layer_prefix) {
+        auto const& rule_sheet = style_sheet.shared_compiled_style_sheet() ? style_sheet.shared_compiled_style_sheet()->contents() : style_sheet;
+        rule_sheet.for_each_effective_rule_data(TraversalOrder::Preorder, [&](RustRuleView const& rule, Utf16View layer_prefix) {
             if (rule.type() != RustRule::Type::CounterStyle)
                 return;
             auto name = Utf16FlyString { rule.name() };

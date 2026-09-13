@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const frame = document.createElement("iframe");
+        frame.style.width = "200px";
+        frame.srcdoc = "<!DOCTYPE html><body>";
+        const loaded = new Promise(resolve => frame.onload = resolve);
+        document.body.append(frame);
+        await loaded;
+
+        const frameDocument = frame.contentDocument;
+        const frameWindow = frame.contentWindow;
+        const query = "(min-width: 300px)";
+        const hosts = [];
+        for (const sheetMedia of [false, true]) {
+            for (let i = 0; i < 3; ++i) {
+                const host = frameDocument.createElement("div");
+                frameDocument.body.append(host);
+                const css = "@scope { .target { color: rgb(1, 2, 3); } }";
+                host.attachShadow({ mode: "open" }).innerHTML = `
+                    <section>
+                        <style${sheetMedia ? ` media="${query}"` : ""}>${sheetMedia ? css : `@media ${query} { ${css} }`}</style>
+                        <span class="target inside">inside</span>
+                    </section>
+                    <span class="target outside">outside</span>`;
+                hosts.push(host);
+            }
+        }
+        const report = label => {
+            println(label);
+            for (const host of hosts) {
+                const color = className => frameWindow.getComputedStyle(host.shadowRoot.querySelector(`.${className}`)).color;
+                println(`${color("inside")} / ${color("outside")}`);
+            }
+        };
+        const media = frameWindow.matchMedia(query);
+        const resize = async width => {
+            const changed = new Promise(resolve => media.addEventListener("change", resolve, { once: true }));
+            frame.style.width = `${width}px`;
+            await changed;
+        };
+
+        report("narrow");
+        await resize(400);
+        report("wide");
+        await resize(200);
+        report("narrow again");
+    });
+</script>

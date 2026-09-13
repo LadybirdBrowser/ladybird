@@ -53,6 +53,53 @@ pub extern "C" fn rust_rule_view_type(view: &NativeRuleView<'_>) -> NativeRuleTy
 }
 
 #[unsafe(no_mangle)]
+pub extern "C" fn rust_rule_list_has_implicit_scope(list: &NativeRuleList) -> bool {
+    list.visit_descendant_rules(&mut |rule| {
+        if rule.scope().is_some_and(|scope| scope.start.is_none()) {
+            ControlFlow::Break(())
+        } else {
+            ControlFlow::Continue(())
+        }
+    })
+    .is_break()
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_rule_list_has_anonymous_layer(list: &NativeRuleList) -> bool {
+    list.visit_descendant_rules(&mut |rule| {
+        let anonymous = match rule {
+            RuleRef::Materialized(rule) => match &rule.payload {
+                RulePayload::LayerNames(names) if rule.rule_type == NativeRuleType::LayerBlock => {
+                    names.names[0].units().is_empty()
+                }
+                _ => false,
+            },
+            RuleRef::Shared(rule, _) => rule.layer_name().is_some_and(<[u16]>::is_empty),
+        };
+        if anonymous {
+            ControlFlow::Break(())
+        } else {
+            ControlFlow::Continue(())
+        }
+    })
+    .is_break()
+}
+
+// The caller must retain the source list or a snapshot for as long as it uses this identity.
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_rule_list_shared_contents_identity(list: &NativeRuleList) -> usize {
+    list.shared_contents()
+        .map_or(0, |contents| std::sync::Arc::as_ptr(&contents) as usize)
+}
+
+#[unsafe(no_mangle)]
+pub extern "C" fn rust_rule_list_clone_shared_contents(list: &NativeRuleList) -> *const NativeRuleList {
+    list.shared_contents().map_or(std::ptr::null(), |contents| {
+        std::rc::Rc::into_raw(NativeRuleList::from_parsed(contents))
+    })
+}
+
+#[unsafe(no_mangle)]
 pub extern "C" fn rust_rule_view_property(view: &NativeRuleView<'_>) -> *const PropertyRuleData {
     match view.rule {
         RuleRef::Materialized(rule) => match &rule.payload {

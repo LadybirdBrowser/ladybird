@@ -1,0 +1,9 @@
+Harness status: OK
+
+Found 4 tests
+
+4 Pass
+Pass	@counter-style unlayered overrides layered
+Pass	@counter-style override between layers
+Pass	@counter-style override update with appended sheet 1
+Pass	@counter-style override update with appended sheet 2

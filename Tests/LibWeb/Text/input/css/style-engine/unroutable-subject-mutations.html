@@ -17,6 +17,10 @@
         // dispatch buckets. That does not make it unbounded: the subject's own shape often says
         // where it can be, and only when it says nothing at all is the document the answer.
         const sheet = document.getElementById("sheet").sheet;
+        // The first CSSOM edit recompiles shared contents into a private stylesheet. Insert and remove
+        // a dummy rule before measuring, so the counters cover only subsequent incremental edits.
+        sheet.insertRule(":not(*) {}", 0);
+        sheet.deleteRule(0);
         const insert = cssText => sheet.insertRule(cssText, sheet.cssRules.length);
         const drop = () => sheet.deleteRule(sheet.cssRules.length - 1);
 

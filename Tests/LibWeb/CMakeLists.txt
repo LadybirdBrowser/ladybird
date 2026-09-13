@@ -20,6 +20,7 @@ set(TEST_SOURCES
     TestNumbers.cpp
     TestSecureContexts.cpp
     TestSessionHistoryEntry.cpp
+    TestSharedCompiledStyleSheet.cpp
     TestSimpleRealm.cpp
     TestSourceHighlighter.cpp
     TestStrings.cpp
@@ -79,6 +80,7 @@ target_link_libraries(TestSecureContexts PRIVATE LibURL)
 target_link_libraries(TestSessionHistoryEntry PRIVATE LibJS LibURL)
 target_link_libraries(TestSourceHighlighter PRIVATE LibURL LibWebView)
 target_link_libraries(TestWrapperWorld PRIVATE LibGC LibJS LibURL)
+target_link_libraries(TestSharedCompiledStyleSheet PRIVATE LibGC LibJS LibURL)
 target_sources(TestWorldCallback PRIVATE
     ${ladybird_SOURCE_DIR}/Libraries/LibWeb/DOM/IDLEventListener.cpp
     ${ladybird_SOURCE_DIR}/Libraries/LibWeb/WebIDL/CallbackType.cpp

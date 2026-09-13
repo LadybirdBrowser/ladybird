@@ -145,5 +145,41 @@
             println(`named layer uses first declaration order: ${color(root)}`);
             root.host.remove();
         }
+
+        {
+            const firstRoot = makeRoot();
+            const secondRoot = makeRoot();
+            const definitions = '@counter-style marker { system: cyclic; symbols: "BBBBBBBB"; }';
+            const base = `
+                @counter-style marker { system: cyclic; symbols: "A"; }
+                .target { display: inline-block; font: 16px monospace; }
+                .target::before { content: counter(item, marker); }
+            `;
+            addSheet(firstRoot, base);
+            addSheet(secondRoot, base);
+            const first = addSheet(firstRoot, definitions);
+            const second = addSheet(secondRoot, definitions, "not all");
+            const width = root => root.querySelector(".target").getBoundingClientRect().width;
+            println(`counter definitions respect media: ${width(firstRoot) > width(secondRoot)}`);
+            second.media = "all";
+            println(`enable counter definitions: ${width(firstRoot) === width(secondRoot)}`);
+            first.media = "not all";
+            println(`disable counter definitions independently: ${width(firstRoot) < width(secondRoot)}`);
+            firstRoot.host.remove();
+            secondRoot.host.remove();
+        }
+
+        {
+            const firstRoot = makeRoot();
+            const secondRoot = makeRoot();
+            addSheet(firstRoot, "@layer second, first;", "not all");
+            addSheet(secondRoot, "@layer second, first;");
+            const rules = `@layer first { ${green} } @layer second { ${red} }`;
+            addSheet(firstRoot, rules);
+            addSheet(secondRoot, rules);
+            println(`layer order respects media: ${color(firstRoot)}, ${color(secondRoot)}`);
+            firstRoot.host.remove();
+            secondRoot.host.remove();
+        }
     });
 </script>

@@ -1790,7 +1790,8 @@ Utf16String Internals::style_engine_matched_rules()
     HashMap<CSS::StyleEngineRuleID, Utf16String> rule_names;
     HashMap<CSS::StyleEngineRuleID, Utf16String> rule_places;
     HashTable<CSS::StyleEngineRuleID> user_agent_rules;
-    auto name_sheet = [&](CSS::StyleSheetState& sheet, StringView place) {
+    auto name_sheet = [&](CSS::StyleSheetState& source_sheet, StringView place) {
+        auto& sheet = source_sheet.shared_compiled_style_sheet() ? source_sheet.shared_compiled_style_sheet()->contents() : source_sheet;
         HashMap<CSS::StyleEngineRuleID, Utf16String> names;
         for (size_t index = 0; index < sheet.css_rules()->length(); ++index)
             collect_style_engine_rule_names(style_computer, *sheet.css_rules()->item(index), names, rule_places, Utf16String::from_utf8(place));
