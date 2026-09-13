@@ -11353,6 +11353,7 @@ fn shared_computation_context_checks_fixed_inputs_and_record_liveness() {
                 .unwrap(),
             environment: 3,
             font_environment_generation: 0,
+            root_font_inputs: publication::RootFontInputs::from_document(&Default::default()),
             shape: [4, 5, 6, 7],
         },
     };
@@ -11372,6 +11373,30 @@ fn shared_computation_context_checks_fixed_inputs_and_record_liveness() {
             None
         );
     }
+    // Every root metric, including future viewport dependence at equal values, is an
+    // independent input even when the parent's inherited groups still agree.
+    for change in [
+        |inputs: &mut bridge::FfiDocumentStyleComputationInputs| inputs.root_font_size = 20.0,
+        |inputs: &mut bridge::FfiDocumentStyleComputationInputs| inputs.root_font_x_height = 10.0,
+        |inputs: &mut bridge::FfiDocumentStyleComputationInputs| inputs.root_font_cap_height = 12.0,
+        |inputs: &mut bridge::FfiDocumentStyleComputationInputs| inputs.root_font_zero_advance = 8.0,
+        |inputs: &mut bridge::FfiDocumentStyleComputationInputs| inputs.root_line_height = 24.0,
+        |inputs: &mut bridge::FfiDocumentStyleComputationInputs| {
+            inputs.root_font_metrics_depend_on_viewport_metrics = true;
+        },
+    ] {
+        let mut inputs = bridge::FfiDocumentStyleComputationInputs::default();
+        change(&mut inputs);
+        engine.document_style_computation_inputs = Some(inputs);
+        engine
+            .computed_group_sets
+            .remember_shared_computation_context(nodes[1], context);
+        assert_eq!(
+            engine.take_shared_computation_context(nodes[1], parent_record, 3, [4, 5, 6, 7], 1),
+            None
+        );
+    }
+    engine.document_style_computation_inputs = Some(bridge::FfiDocumentStyleComputationInputs::default());
     for (environment, shape, pseudos) in [(4, [4, 5, 6, 7], 1), (3, [4, 9, 6, 7], 1), (3, [4, 5, 6, 7], 2)] {
         engine
             .computed_group_sets

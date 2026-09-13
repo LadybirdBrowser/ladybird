@@ -1599,6 +1599,79 @@ impl StyleEngineState {
             {
                 resolver.prepare(inputs.font_environment_generation);
             }
+            // NB: This input crosses fixed-font intermediaries independently of inheritance.
+            //     Incremental roots use the current retained document inputs already submitted.
+            if let Some((root_index, root)) = published_nodes.iter().copied().enumerate().find(|(_, node)| {
+                self.computed_group_sets.adjustment_facts(*node) & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT
+                    != 0
+            }) {
+                let answer = published_match_answers.lookup(root).unwrap();
+                let old_record = self.computed_group_sets.assigned_style_record(root);
+                let reaction = style_input_reactions
+                    .binary_search_by_key(&root, |&(node, _, _)| node)
+                    .map_or(transaction::STYLE_REACTION_PUBLISHED_STYLE, |index| {
+                        style_input_reactions[index].1
+                    });
+                let parent_inputs = publication::ParentInputsMoved {
+                    inherited_style: reaction & transaction::STYLE_REACTION_INHERITED_STYLE != 0,
+                    display: parent_inputs_moved_nodes.contains(&root),
+                };
+                const DERIVABLE: u8 = transaction::STYLE_REACTION_RECOMPUTE_STYLE
+                    | transaction::STYLE_REACTION_INHERITED_STYLE
+                    | transaction::STYLE_REACTION_INHERITED_CUSTOM_PROPERTIES;
+                let reaction_is_settleable = reaction & !(transaction::STYLE_REACTION_PUBLISHED_STYLE | DERIVABLE) == 0
+                    && !(reaction & DERIVABLE != 0 && style_input_nodes_for_cpp.contains(&root));
+                let can_prepare = !(named_rule_context_changed && old_record.is_some())
+                    && (reaction_is_settleable
+                        || (old_record.is_none() && reaction & transaction::STYLE_REACTION_PUBLISHED_STYLE != 0))
+                    && nodes_with_declaration_changes.binary_search(&root).is_err()
+                    && !(self.custom_property_registrations_changed && self.node_style_reads_custom_properties(root))
+                    && !self.computed_group_sets.node_answer_is_incomplete(root)
+                    && !selector_truth_changes.deltas_for(root).iter().any(|delta| {
+                        !self
+                            .program
+                            .declarations_are_complete_but_for_custom_properties(delta.rule)
+                    });
+                if can_prepare {
+                    let flipped_rules = selector_truth_changes.deltas_for(root);
+                    let answer_is_unchanged =
+                        answer.cascade_input.is_some() && answer.cascade_input == previous_cascade_inputs[root_index];
+                    let flipped: Vec<publication::FlippedRule> = flipped_rules
+                        .iter()
+                        .map(|delta| publication::FlippedRule {
+                            pseudo_kind: self
+                                .programs
+                                .entry(delta.entry)
+                                .1
+                                .pseudo_element
+                                .map(|pseudo| pseudo.kind.0),
+                        })
+                        .collect();
+                    let winners_are_exact = !environment_changed
+                        && !rule_declarations_edited
+                        && selector_truth_changes.refreshes_for(root).is_empty()
+                        && (answer_is_unchanged
+                            || (!flipped_rules.is_empty()
+                                && flipped_rules
+                                    .iter()
+                                    .all(|delta| self.program.declarations_are_complete_for(delta.rule))));
+                    self.prepare_root_font_inputs(
+                        root,
+                        answer.cascade_winners_are_complete,
+                        winners_are_exact.then_some(flipped.as_slice()),
+                        parent_inputs,
+                        &mut engine_computed_record_scratch,
+                        counters,
+                    );
+                } else {
+                    counters.bump(Counter::RootFontInputsUnprovenFallbacks);
+                }
+                computation_scratch_memory.resize_required_to(
+                    &mut self.memory,
+                    engine_computed_record_scratch.capacity_bytes()
+                        + capacity::ShallowCapacityBytes::shallow_capacity_bytes(&confined_ancestors),
+                );
+            }
             let mut next_published_index = 0;
             let mut pending_parent_inputs = None;
             while next_published_index < published_nodes.len() {
@@ -1634,6 +1707,18 @@ impl StyleEngineState {
                         && !self.cascade_winners_are_complete_but_for_custom_properties(node);
                     self.computed_group_sets
                         .set_node_answer_incomplete(node, answer_is_incomplete);
+                    let prepared_parent_inputs = if engine_computed_record_scratch
+                        .prepared_root_font
+                        .as_ref()
+                        .is_some_and(|(root, _, _)| *root == node)
+                    {
+                        let (_, parent_inputs, font_drive) =
+                            engine_computed_record_scratch.prepared_root_font.take().unwrap();
+                        engine_computed_record_scratch.font_drive = font_drive;
+                        Some(parent_inputs)
+                    } else {
+                        None
+                    };
                     let resuming_font = engine_computed_record_scratch.font_drive.is_pending();
                     let direct_inherited_delta = (reaction == transaction::STYLE_REACTION_INHERITED_STYLE
                         && !resuming_font)
@@ -1703,11 +1788,12 @@ impl StyleEngineState {
                     let reaction_is_settleable =
                         reaction & !(transaction::STYLE_REACTION_PUBLISHED_STYLE | DERIVABLE_REACTIONS) == 0
                             && !(reaction & DERIVABLE_REACTIONS != 0 && style_input_nodes_for_cpp.contains(&node));
-                    let mut parent_inputs_moved =
-                        pending_parent_inputs.take().unwrap_or(publication::ParentInputsMoved {
+                    let mut parent_inputs_moved = pending_parent_inputs.take().or(prepared_parent_inputs).unwrap_or(
+                        publication::ParentInputsMoved {
                             inherited_style: reaction & transaction::STYLE_REACTION_INHERITED_STYLE != 0,
                             display: parent_inputs_moved_nodes.contains(&node),
-                        });
+                        },
+                    );
                     let mut retry_after_ancestor = false;
                     // NB: Entry gates were already established for a suspended computation.
                     //     Its completed originating record must not change that decision.
@@ -1816,15 +1902,6 @@ impl StyleEngineState {
                     // the parent's own, which fails the same check whenever the parent's did.
                     if direct_inherited_delta.is_some() || engine_computed_delta.is_some() {
                         engine_computed_record_scratch.settled_nodes.insert(node);
-                        if let Some((_, new_style_record)) = engine_computed_delta
-                            && self.computed_group_sets.adjustment_facts(node)
-                                & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT
-                                != 0
-                            && self.refresh_root_font_metrics_from_record(new_style_record)
-                        {
-                            engine_computed_record_scratch.cold_cohorts.clear();
-                            engine_computed_record_scratch.pseudo_cohorts.clear();
-                        }
                     } else if reaction == transaction::STYLE_REACTION_INHERITED_STYLE {
                         let index = node
                             .element_index()
