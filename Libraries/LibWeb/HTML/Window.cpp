@@ -850,6 +850,33 @@ bool Window::has_history_action_activation() const
     return m_last_history_action_activation_timestamp != m_last_activation_timestamp;
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#consume-user-activation
+// https://html.spec.whatwg.org/multipage/interaction.html#consume-history-action-user-activation
+void Window::consume_user_activation_of_windows_hosted_by(Page& page, UserActivationConsumption consumption)
+{
+    // 4. Let windows be the list of Window objects constructed by taking the active window of each item in navigables.
+    // NB: Those of the navigables whose documents this page hosts.
+    GC::RootVector<GC::Ptr<Window>> windows;
+    for (auto const& navigable : page.hosted_navigables()) {
+        if (auto window = navigable->active_window())
+            windows.append(window);
+    }
+
+    for (auto& window : windows) {
+        switch (consumption) {
+        case UserActivationConsumption::Transient:
+            // 5. For each window in windows, if window's last activation timestamp is not positive infinity, then set window's last activation timestamp to negative infinity.
+            if (window->last_activation_timestamp() != AK::Infinity<HighResolutionTime::DOMHighResTimeStamp>)
+                window->set_last_activation_timestamp(-AK::Infinity<HighResolutionTime::DOMHighResTimeStamp>);
+            break;
+        case UserActivationConsumption::HistoryAction:
+            // 5. For each window in windows, set window's last history-action activation timestamp to window's last activation timestamp.
+            window->set_last_history_action_activation_timestamp(window->last_activation_timestamp());
+            break;
+        }
+    }
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#consume-history-action-user-activation
 void Window::consume_history_action_user_activation()
 {
@@ -860,19 +887,11 @@ void Window::consume_history_action_user_activation()
         return;
 
     // 2. Let top be W's navigable's top-level traversable.
-    auto top = navigable->top_level_traversable();
-
     // 3. Let navigables be the inclusive descendant navigables of top's active document.
-    auto navigables = as<LocalTraversableNavigable>(*top).active_document()->inclusive_descendant_navigables();
-
-    // 4. Let windows be the list of Window objects constructed by taking the active window of each item in navigables.
-    GC::RootVector<GC::Ptr<Window>> windows;
-    for (auto& n : navigables)
-        windows.append(as<LocalNavigable>(*n).active_window());
-
-    // 5. For each window in windows, set window's last history-action activation timestamp to window's last activation timestamp.
-    for (auto& window : windows)
-        window->set_last_history_action_activation_timestamp(window->last_activation_timestamp());
+    // NB: The windows this page hosts are consumed here, and the UI process has every other page of the tab consume
+    //     those it hosts.
+    consume_user_activation_of_windows_hosted_by(page(), UserActivationConsumption::HistoryAction);
+    page().client().page_did_consume_user_activation(UserActivationConsumption::HistoryAction);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#consume-user-activation
@@ -885,21 +904,11 @@ void Window::consume_user_activation()
         return;
 
     // 2. Let top be W's navigable's top-level traversable.
-    auto top = navigable->top_level_traversable();
-
     // 3. Let navigables be the inclusive descendant navigables of top's active document.
-    auto navigables = as<LocalTraversableNavigable>(*top).active_document()->inclusive_descendant_navigables();
-
-    // 4. Let windows be the list of Window objects constructed by taking the active window of each item in navigables.
-    GC::RootVector<GC::Ptr<Window>> windows;
-    for (auto& n : navigables)
-        windows.append(as<LocalNavigable>(*n).active_window());
-
-    // 5. For each window in windows, if window's last activation timestamp is not positive infinity, then set window's last activation timestamp to negative infinity.
-    for (auto& window : windows) {
-        if (window->last_activation_timestamp() != AK::Infinity<HighResolutionTime::DOMHighResTimeStamp>)
-            window->set_last_activation_timestamp(-AK::Infinity<HighResolutionTime::DOMHighResTimeStamp>);
-    }
+    // NB: The windows this page hosts are consumed here, and the UI process has every other page of the tab consume
+    //     those it hosts.
+    consume_user_activation_of_windows_hosted_by(page(), UserActivationConsumption::Transient);
+    page().client().page_did_consume_user_activation(UserActivationConsumption::Transient);
 }
 
 // https://w3c.github.io/requestidlecallback/#start-an-idle-period-algorithm

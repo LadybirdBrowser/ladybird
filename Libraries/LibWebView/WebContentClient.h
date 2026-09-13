@@ -296,6 +296,7 @@ private:
     virtual void did_request_activate_tab(Web::PageId page_id) override;
     virtual void did_close_browsing_context(Web::PageId page_id) override;
     virtual void did_change_needs_beforeunload_check(Web::PageId page_id, bool needs_beforeunload_check) override;
+    virtual void did_consume_user_activation(Web::PageId page_id, Web::HTML::UserActivationConsumption) override;
     virtual void webdriver_user_prompt_handling_complete(Web::PageId page_id, u64 request_id, Web::WebDriver::Response response) override;
     virtual void webdriver_command_complete(Web::PageId page_id, u64 command_id, Web::WebDriver::Response response) override;
     virtual void did_update_resource_count(Web::PageId page_id, i32 count_waiting) override;

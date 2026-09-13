@@ -31,6 +31,7 @@
 #include <LibWeb/ReferrerPolicy/ReferrerPolicy.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
+#include <LibWeb/HTML/UserActivationConsumption.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/HTML/WorkerAgentTypes.h>
 #include <LibWeb/Page/InputEvent.h>
@@ -215,6 +216,7 @@ endpoint WebContentServer
     set_geolocation_emulated_position(Web::PageId page_id, WebView::GeolocationPositionData position, Optional<u16> error_code) =|
     geolocation_position_response(Web::PageId page_id, u64 request_id, WebView::GeolocationPositionData position, Optional<u16> error_code) =|
     set_has_focus(Web::PageId page_id, bool has_focus) =|
+    consume_user_activation(Web::PageId page_id, Web::HTML::UserActivationConsumption consumption) =|
     set_is_scripting_enabled(Web::PageId page_id, bool is_scripting_enabled) =|
     set_zoom_level(Web::PageId page_id, double zoom_level) =|
     set_maximum_frames_per_second(Web::PageId page_id, double maximum_frames_per_second) =|
