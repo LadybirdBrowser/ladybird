@@ -188,7 +188,7 @@ impl RetainedState {
         self.facts.materialize(nodes.iter().copied(), &mut batch);
         let mut expected_row_count = nodes.len();
         for scope_root in self.scope_roots.iter().flatten().copied() {
-            if self.tree.is_live(scope_root) && !nodes.contains(&scope_root) {
+            if self.tree.is_live(scope_root) && batch.row_of(scope_root).is_none() {
                 self.facts.materialize_missing(std::iter::once(scope_root), &mut batch);
                 expected_row_count += 1;
             }
