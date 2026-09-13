@@ -10,29 +10,50 @@ use crate::css::css_tokenizer::TokenizerInput;
 use crate::css::retained_fly_string::RetainedUtf16FlyString;
 use std::sync::Arc;
 
-struct StringData {
-    units: Box<[u16]>,
+// Prefix the Arc slice with its length so each string owns one allocation while
+// retaining the one-word handle used throughout parsed and bound selector trees.
+const LENGTH_PREFIX_UNITS: usize = size_of::<usize>() / size_of::<u16>();
+
+fn allocate_string(units: &[u16]) -> Arc<[u16]> {
+    let length = units
+        .len()
+        .checked_add(LENGTH_PREFIX_UNITS)
+        .expect("CSS string size overflow");
+    let mut data = Arc::<[u16]>::new_uninit_slice(length);
+    let pointer = Arc::get_mut(&mut data).unwrap().as_mut_ptr().cast::<u16>();
+    // SAFETY: The prefix occupies exactly one usize, and the remaining slice has
+    // room for every source unit. Both writes initialize valid u16 bit patterns.
+    // The Arc's data is only guaranteed to have u16 alignment.
+    unsafe {
+        pointer.cast::<usize>().write_unaligned(units.len());
+        std::ptr::copy_nonoverlapping(units.as_ptr(), pointer.add(LENGTH_PREFIX_UNITS), units.len());
+        data.assume_init()
+    }
 }
 
 #[repr(C)]
 pub struct CssString {
-    // An owned Arc<StringData>, or zero for an absent optional string.
+    // An owned length-prefixed Arc<[u16]>, or zero for an absent optional string.
     raw: usize,
 }
 
 impl CssString {
     pub(crate) fn from_utf16(units: &[u16]) -> Self {
-        Self::from_units(units.into())
-    }
-
-    fn from_units(units: Box<[u16]>) -> Self {
         if units.is_empty() {
             return Self::default();
         }
-        let data = Arc::new(StringData { units });
         Self {
-            raw: Arc::into_raw(data) as usize,
+            raw: Arc::into_raw(allocate_string(units)).cast::<u16>() as usize,
         }
+    }
+
+    fn data_pointer(&self) -> *const [u16] {
+        debug_assert_ne!(self.raw, 0);
+        let pointer = self.raw as *const u16;
+        // SAFETY: Every nonzero handle owns an Arc created by allocate_string.
+        // Its initialized prefix records the slice metadata discarded by the handle.
+        let length = unsafe { pointer.cast::<usize>().read_unaligned() };
+        std::ptr::slice_from_raw_parts(pointer, LENGTH_PREFIX_UNITS + length)
     }
 
     pub(crate) fn none() -> Self {
@@ -51,8 +72,9 @@ impl CssString {
         if self.raw == 0 {
             return &[];
         }
-        // SAFETY: Every nonzero raw value owns a reference to StringData.
-        &unsafe { &*(self.raw as *const StringData) }.units
+        // SAFETY: The handle owns the reconstructed Arc slice for this borrow.
+        let data = unsafe { &*self.data_pointer() };
+        &data[LENGTH_PREFIX_UNITS..]
     }
 
     /// Copy a borrowed AK string into Rust-owned storage at the host boundary.
@@ -98,10 +120,10 @@ impl CssString {
 // An empty string is present, unlike the null handle used for an absent optional string.
 impl Default for CssString {
     fn default() -> Self {
-        static EMPTY: std::sync::OnceLock<Arc<StringData>> = std::sync::OnceLock::new();
-        let data = EMPTY.get_or_init(|| Arc::new(StringData { units: Box::default() }));
+        static EMPTY: std::sync::OnceLock<Arc<[u16]>> = std::sync::OnceLock::new();
+        let data = EMPTY.get_or_init(|| allocate_string(&[]));
         Self {
-            raw: Arc::into_raw(Arc::clone(data)) as usize,
+            raw: Arc::into_raw(Arc::clone(data)).cast::<u16>() as usize,
         }
     }
 }
@@ -114,7 +136,7 @@ impl From<&[u16]> for CssString {
 
 impl From<Vec<u16>> for CssString {
     fn from(units: Vec<u16>) -> Self {
-        Self::from_units(units.into_boxed_slice())
+        Self::from_utf16(&units)
     }
 }
 
@@ -135,7 +157,7 @@ impl AsRef<[u16]> for CssString {
 impl Clone for CssString {
     fn clone(&self) -> Self {
         if self.raw != 0 {
-            unsafe { Arc::increment_strong_count(self.raw as *const StringData) };
+            unsafe { Arc::increment_strong_count(self.data_pointer()) };
         }
         Self { raw: self.raw }
     }
@@ -144,7 +166,7 @@ impl Clone for CssString {
 impl Drop for CssString {
     fn drop(&mut self) {
         if self.raw != 0 {
-            unsafe { Arc::decrement_strong_count(self.raw as *const StringData) };
+            unsafe { Arc::decrement_strong_count(self.data_pointer()) };
         }
     }
 }
