@@ -10,6 +10,7 @@ use super::column::PagedColumn;
 use super::column::PagedColumnPage;
 use super::column::advance_epoch;
 use super::program::EntryID;
+use super::shared_vector::{SharedVector, SharedVectorPool};
 use super::sorted_merge::SortedMergeEntry;
 use super::sorted_merge::merge_sorted_by;
 use super::*;
@@ -1107,8 +1108,13 @@ impl SequenceChanges {
     }
 }
 
+thread_local! {
+    static SHARED_SIBLING_ENTRY_MAPS: RefCell<SharedVectorPool<u32>> =
+        RefCell::new(SharedVectorPool::new(MemoryCategory::RoutingRegistry));
+}
+
 pub(super) struct SiblingCandidateWorkspace {
-    pub(super) entry_by_route: Vec<usize>,
+    entry_by_route: SharedVector<u32>,
     pub(super) candidate_epochs: EpochColumn,
     pub(super) candidates: Vec<usize>,
     pub(super) epoch: u32,
@@ -1117,10 +1123,13 @@ pub(super) struct SiblingCandidateWorkspace {
 impl SiblingCandidateWorkspace {
     pub(super) fn new(entries: &[SiblingEntry]) -> Self {
         let route_count = entries.iter().map(|entry| entry.route.index() + 1).max().unwrap_or(0);
-        let mut entry_by_route = vec![usize::MAX; route_count];
+        let mut entry_by_route: SharedVector<u32> = (0..route_count).map(|_| u32::MAX).collect();
         for (index, entry) in entries.iter().enumerate() {
-            entry_by_route[entry.route.index()] = index;
+            let index = u32::try_from(index).expect("sibling entry space exhausted");
+            assert_ne!(index, u32::MAX, "sibling entry space exhausted");
+            entry_by_route.make_mut()[entry.route.index()] = index;
         }
+        entry_by_route.share(&SHARED_SIBLING_ENTRY_MAPS);
         Self {
             entry_by_route,
             candidate_epochs: {
@@ -1151,10 +1160,10 @@ impl SiblingCandidateWorkspace {
         let Some(&candidate) = self.entry_by_route.get(route.index()) else {
             return;
         };
-        if candidate == usize::MAX || !self.candidate_epochs.mark(candidate, self.epoch) {
+        if candidate == u32::MAX || !self.candidate_epochs.mark(candidate as usize, self.epoch) {
             return;
         }
-        self.candidates.push(candidate);
+        self.candidates.push(candidate as usize);
     }
 }
 
