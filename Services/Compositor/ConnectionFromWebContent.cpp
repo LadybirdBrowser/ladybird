@@ -174,11 +174,11 @@ void ConnectionFromWebContent::update_display_list(Web::Compositor::CompositorCo
     m_compositor_state->update_display_list(context_id, move(display_list), move(visual_context_tree), move(resource_transaction), move(scroll_state_snapshot));
 }
 
-void ConnectionFromWebContent::update_image_frame_resources(Web::Compositor::CompositorContextId context_id, Vector<Web::Painting::DisplayListImageFrameResource> image_frames)
+void ConnectionFromWebContent::update_display_list_resources(Web::Compositor::CompositorContextId context_id, Web::Painting::DisplayListResourceTransaction resource_transaction)
 {
     if (!context_is_owned_by_this_connection(context_id))
         return;
-    m_compositor_state->update_image_frame_resources(context_id, move(image_frames));
+    m_compositor_state->update_display_list_resources(context_id, move(resource_transaction));
 }
 
 void ConnectionFromWebContent::update_visual_context_tree(Web::Compositor::CompositorContextId context_id, Web::Painting::AccumulatedVisualContextTree visual_context_tree, Web::Painting::DisplayListResourceTransaction resource_transaction)

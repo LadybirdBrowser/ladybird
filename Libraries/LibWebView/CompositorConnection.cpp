@@ -12,6 +12,7 @@
 #include <LibCore/EventLoop.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/PaintingSurface.h>
+#include <LibIPC/Limits.h>
 #include <LibIPC/Transport.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Page/Page.h>
@@ -74,17 +75,35 @@ void CompositorConnection::destroy_context(Web::Compositor::CompositorContextId 
     async_destroy_context(context_id);
 }
 
-static constexpr size_t max_image_frames_per_message = 100;
+// A font backed by raw font data carries the descriptor of its typeface's buffer, and an image frame the descriptor
+// of its shared bitmap. One IPC message holds at most IPC::MAX_MESSAGE_FD_COUNT of them, so a transaction's fonts and
+// image frames travel ahead of the display list, in messages of at most this many resources each.
+static constexpr size_t max_resources_per_message = 100;
+static_assert(max_resources_per_message <= IPC::MAX_MESSAGE_FD_COUNT);
 
-bool CompositorConnection::post_image_frame_resources_in_batches(Web::Compositor::CompositorContextId context_id, Vector<Web::Painting::DisplayListImageFrameResource> image_frames)
+bool CompositorConnection::post_resource_additions_in_batches(Web::Compositor::CompositorContextId context_id, Web::Painting::DisplayListResourceTransaction& resource_transaction)
 {
-    for (size_t start = 0; start < image_frames.size(); start += max_image_frames_per_message) {
-        auto count = min(max_image_frames_per_message, image_frames.size() - start);
-        Vector<Web::Painting::DisplayListImageFrameResource> batch;
+    auto fonts = move(resource_transaction.fonts);
+    auto image_frames = move(resource_transaction.image_frames);
+
+    // Moves up to `room` resources of one kind into `batch`, starting at `taken`, and returns how many it moved.
+    auto take = [](auto& resources, size_t& taken, size_t room, auto& batch) {
+        auto count = min(room, resources.size() - taken);
         batch.ensure_capacity(count);
         for (size_t i = 0; i < count; ++i)
-            batch.unchecked_append(move(image_frames[start + i]));
-        auto encoded_batch = MUST(Messages::CompositorWebContentServer::UpdateImageFrameResources::static_encode(context_id, batch));
+            batch.unchecked_append(move(resources[taken + i]));
+        taken += count;
+        return count;
+    };
+
+    size_t fonts_taken = 0;
+    size_t image_frames_taken = 0;
+    while (fonts_taken < fonts.size() || image_frames_taken < image_frames.size()) {
+        Web::Painting::DisplayListResourceTransaction batch;
+        auto room = max_resources_per_message;
+        room -= take(fonts, fonts_taken, room, batch.fonts);
+        room -= take(image_frames, image_frames_taken, room, batch.image_frames);
+        auto encoded_batch = MUST(Messages::CompositorWebContentServer::UpdateDisplayListResources::static_encode(context_id, batch));
         if (post_message(encoded_batch).is_error()) {
             did_lose_compositor();
             return false;
@@ -98,7 +117,7 @@ void CompositorConnection::update_display_list(Web::Compositor::CompositorContex
     if (!can_send_message_to_compositor())
         return;
 
-    if (!post_image_frame_resources_in_batches(context_id, move(resource_transaction.image_frames)))
+    if (!post_resource_additions_in_batches(context_id, resource_transaction))
         return;
 
     auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateDisplayList::static_encode(context_id, display_list, visual_context_tree, resource_transaction, scroll_state_snapshot));
@@ -111,7 +130,7 @@ void CompositorConnection::update_visual_context_tree(Web::Compositor::Composito
     if (!can_send_message_to_compositor())
         return;
 
-    if (!post_image_frame_resources_in_batches(context_id, move(resource_transaction.image_frames)))
+    if (!post_resource_additions_in_batches(context_id, resource_transaction))
         return;
 
     auto encoded_message = MUST(Messages::CompositorWebContentServer::UpdateVisualContextTree::static_encode(context_id, visual_context_tree, resource_transaction));
