@@ -16,7 +16,7 @@ use super::selector::{
 use super::selector_parser::StyleNestingParent;
 
 fn pseudo_class(pseudo_class: PseudoClassType, arguments: SelectorList) -> SimpleSelector {
-    SimpleSelector::PseudoClass(PseudoClassSelector {
+    SimpleSelector::PseudoClass(Box::new(PseudoClassSelector {
         pseudo_class,
         an_plus_b_pattern: Default::default(),
         argument_selector_list: arguments,
@@ -27,7 +27,7 @@ fn pseudo_class(pseudo_class: PseudoClassType, arguments: SelectorList) -> Simpl
         identifier_lowercase_identity: None,
         levels: Box::new([]),
         is_forgiving: false,
-    })
+    }))
 }
 
 fn scope_selector() -> Arc<CompiledSelector> {
