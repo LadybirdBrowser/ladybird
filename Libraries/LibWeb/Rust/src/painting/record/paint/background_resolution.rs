@@ -141,6 +141,9 @@ fn background_layers_style(
 }
 
 fn any_background_layer_has_an_image_with_attachment(style: ComputedValuesView<'_>, wanted_attachment: u16) -> bool {
+    if !style_queries::background_layers_have_image(style) {
+        return false;
+    }
     let background = style.background();
     let Some(image_value) = style_queries::handle_value(&background.background_image) else {
         return false;
@@ -345,6 +348,11 @@ fn layer_image_source(
 }
 
 fn computed_background_layers(style: ComputedValuesView<'_>, facts_owner: NodeSlotId) -> Vec<ComputedLayer<'_>> {
+    // Without images only the background color is painted. Its clip is resolved
+    // separately, so none of the image-layer properties need to be expanded.
+    if !style_queries::background_layers_have_image(style) {
+        return Vec::new();
+    }
     let background = style.background();
     let items = |handle| {
         style_queries::handle_value(handle)

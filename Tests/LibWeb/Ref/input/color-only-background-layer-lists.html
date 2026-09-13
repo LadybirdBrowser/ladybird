@@ -1,0 +1,34 @@
+<!doctype html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/color-only-background-layer-lists-ref.html">
+<style>
+    body { margin: 0; }
+    .box {
+        display: inline-block;
+        vertical-align: top;
+        width: 100px;
+        height: 60px;
+        margin: 10px;
+        padding: 15px;
+        border: 5px solid navy;
+        background-color: lime;
+        background-image: linear-gradient(red, red), none;
+        background-attachment: fixed, local;
+        background-origin: content-box, padding-box;
+        background-position: right bottom, left top;
+        background-size: 10px 20px, 30px 40px;
+        background-repeat: no-repeat, repeat;
+        background-blend-mode: multiply, screen;
+    }
+    .padding { background-clip: border-box, padding-box; }
+    .content { background-clip: border-box, content-box; }
+    .text { background-clip: border-box, text; color: transparent; font: 24px monospace; }
+</style>
+<div class="box padding"></div><div class="box content"></div><div class="box text">TEXT</div>
+<script>
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+        for (const box of document.querySelectorAll(".box"))
+            box.style.backgroundImage = "none, none";
+        document.documentElement.classList.remove("reftest-wait");
+    }));
+</script>
