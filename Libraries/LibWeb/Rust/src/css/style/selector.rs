@@ -2646,6 +2646,59 @@ enum SelectorProgramScope {
     Process,
 }
 
+/// Entry IDs normally form a consecutive run. Keep that run inline, and share an explicit
+/// list only when recycling vacant entries gives a program nonconsecutive identities.
+#[derive(Clone, PartialEq, Eq, Hash)]
+pub(super) enum SelectorEntryIDs {
+    Consecutive { first: EntryID, count: u32 },
+    // Keep a thin pointer here: an Rc slice would enlarge every inline consecutive range.
+    Explicit(Rc<Box<[EntryID]>>),
+}
+
+impl SelectorEntryIDs {
+    fn from_entries(entries: Vec<EntryID>) -> Self {
+        if entries
+            .windows(2)
+            .all(|pair| pair[0].0.checked_add(1) == Some(pair[1].0))
+        {
+            Self::Consecutive {
+                first: entries.first().copied().unwrap_or(EntryID(0)),
+                count: u32::try_from(entries.len()).expect("selector program entry space exhausted"),
+            }
+        } else {
+            Self::Explicit(Rc::new(entries.into_boxed_slice()))
+        }
+    }
+
+    fn len(&self) -> usize {
+        match self {
+            Self::Consecutive { count, .. } => *count as usize,
+            Self::Explicit(entries) => entries.len(),
+        }
+    }
+
+    fn get(&self, index: usize) -> EntryID {
+        assert!(index < self.len());
+        match self {
+            Self::Consecutive { first, .. } => EntryID(first.0 + index as u32),
+            Self::Explicit(entries) => entries[index],
+        }
+    }
+
+    fn iter(&self) -> impl ExactSizeIterator<Item = EntryID> + '_ {
+        (0..self.len()).map(|index| self.get(index))
+    }
+
+    fn capacity_bytes(&self) -> usize {
+        match self {
+            Self::Consecutive { .. } => 0,
+            Self::Explicit(entries) => {
+                size_of_val(entries.as_ref().as_ref()) + size_of_val(entries.as_ref()) + 2 * size_of::<usize>()
+            }
+        }
+    }
+}
+
 /// One document's attachments to compiled selector programs.
 ///
 /// The immutable program payloads are process-shared on the StyleEngine thread. Entry identities,
@@ -2653,7 +2706,8 @@ enum SelectorProgramScope {
 pub struct SelectorPrograms {
     programs: Vec<Option<SelectorProgramStorage>>,
     vacant_programs: Vec<SelectorProgramID>,
-    entry_ids_by_program: Vec<Option<Box<[EntryID]>>>,
+    entry_ids_by_program: Vec<Option<SelectorEntryIDs>>,
+    entry_ids_bytes: usize,
     entry_locations: Vec<Option<(SelectorProgramID, u32)>>,
     vacant_entries: Vec<EntryID>,
     /// Open-addressed structural interning table. Reclamation rebuilds it, so lookup never has to
@@ -2674,6 +2728,7 @@ impl Default for SelectorPrograms {
             programs: Vec::new(),
             vacant_programs: Vec::new(),
             entry_ids_by_program: Vec::new(),
+            entry_ids_bytes: 0,
             entry_locations: Vec::new(),
             vacant_entries: Vec::new(),
             program_index: Vec::new(),
@@ -2746,28 +2801,41 @@ impl SelectorPrograms {
             self.programs[id.0 as usize] = Some(program);
         }
         let recycled_count = entry_count.min(self.vacant_entries.len());
-        let mut recycled_entries = self
-            .vacant_entries
-            .split_off(self.vacant_entries.len() - recycled_count);
-        recycled_entries.sort_unstable();
-        let mut recycled_entries = recycled_entries.into_iter();
-        let entries: Box<[EntryID]> = (0..entry_count)
-            .map(|index| {
-                let entry = recycled_entries.next().unwrap_or_else(|| {
-                    EntryID(u32::try_from(self.entry_locations.len()).expect("selector entry space exhausted"))
-                });
-                let location = Some((
-                    id,
-                    u32::try_from(index).expect("selector program entry space exhausted"),
-                ));
-                if entry.0 as usize == self.entry_locations.len() {
-                    self.entry_locations.push(location);
-                } else {
-                    self.entry_locations[entry.0 as usize] = location;
-                }
-                entry
-            })
-            .collect();
+        let entries = if recycled_count == 0 {
+            let first = EntryID(u32::try_from(self.entry_locations.len()).expect("selector entry space exhausted"));
+            let count = u32::try_from(entry_count).expect("selector program entry space exhausted");
+            first.0.checked_add(count).expect("selector entry space exhausted");
+            self.entry_locations.extend((0..count).map(|index| Some((id, index))));
+            SelectorEntryIDs::Consecutive {
+                first: if count == 0 { EntryID(0) } else { first },
+                count,
+            }
+        } else {
+            let mut recycled_entries = self
+                .vacant_entries
+                .split_off(self.vacant_entries.len() - recycled_count);
+            recycled_entries.sort_unstable();
+            let mut recycled_entries = recycled_entries.into_iter();
+            let entries = (0..entry_count)
+                .map(|index| {
+                    let entry = recycled_entries.next().unwrap_or_else(|| {
+                        EntryID(u32::try_from(self.entry_locations.len()).expect("selector entry space exhausted"))
+                    });
+                    let location = Some((
+                        id,
+                        u32::try_from(index).expect("selector program entry space exhausted"),
+                    ));
+                    if entry.0 as usize == self.entry_locations.len() {
+                        self.entry_locations.push(location);
+                    } else {
+                        self.entry_locations[entry.0 as usize] = location;
+                    }
+                    entry
+                })
+                .collect();
+            SelectorEntryIDs::from_entries(entries)
+        };
+        self.entry_ids_bytes += entries.capacity_bytes();
         if self.entry_ids_by_program.len() <= id.0 as usize {
             self.entry_ids_by_program.resize_with(id.0 as usize + 1, || None);
         }
@@ -2813,13 +2881,14 @@ impl SelectorPrograms {
     pub fn entry_id(&self, program: SelectorProgramID, entry: u32) -> EntryID {
         self.entry_ids_by_program[program.0 as usize]
             .as_ref()
-            .expect("a live selector program must have entry identities")[entry as usize]
+            .expect("a live selector program must have entry identities")
+            .get(entry as usize)
     }
 
     pub(super) fn shared_dispatch_identity(
         &self,
         program: SelectorProgramID,
-    ) -> Option<(SharedSelectorIdentity, Box<[EntryID]>)> {
+    ) -> Option<(SharedSelectorIdentity, SelectorEntryIDs)> {
         let SelectorProgramStorage::Process(shared) = self.programs[program.0 as usize].as_ref()? else {
             return None;
         };
@@ -2857,7 +2926,8 @@ impl SelectorPrograms {
                 self.program_memory.shrink_committed(program.document_capacity_bytes());
             }
             if let Some(entries) = self.entry_ids_by_program[index].take() {
-                for entry in entries {
+                self.entry_ids_bytes -= entries.capacity_bytes();
+                for entry in entries.iter() {
                     self.entry_locations[entry.0 as usize] = None;
                     self.vacant_entries.push(entry);
                 }
@@ -2911,9 +2981,9 @@ impl SelectorPrograms {
                 self.program_index,
             ];
             cached [self.program_memory.bytes()];
-            // Each live entry identity occupies exactly one slot in a boxed program entry list.
-            // Settling after each rule must not walk every program already compiled.
-            nested [(self.entry_locations.len() - self.vacant_entries.len()) * size_of::<EntryID>()];
+            // Consecutive identities live inline; charge only fragmented lists without
+            // walking every program when settling after each rule.
+            nested [self.entry_ids_bytes];
             skip [self.memory];
         }
     }
@@ -8241,6 +8311,26 @@ mod tests {
     }
 
     #[test]
+    fn selector_entry_runs_keep_fragmented_recycled_identities() {
+        let consecutive = SelectorEntryIDs::from_entries(vec![EntryID(7), EntryID(8), EntryID(9)]);
+        assert!(matches!(consecutive, SelectorEntryIDs::Consecutive { .. }));
+        assert_eq!(consecutive.capacity_bytes(), 0);
+        assert_eq!(
+            consecutive.iter().collect::<Vec<_>>(),
+            [EntryID(7), EntryID(8), EntryID(9)]
+        );
+
+        let fragmented = SelectorEntryIDs::from_entries(vec![EntryID(1), EntryID(4), EntryID(5)]);
+        let cloned = fragmented.clone();
+        let (SelectorEntryIDs::Explicit(first), SelectorEntryIDs::Explicit(second)) = (&fragmented, &cloned) else {
+            panic!("fragmented entry identities need an explicit list");
+        };
+        assert!(Rc::ptr_eq(first, second));
+        assert_eq!(cloned.iter().collect::<Vec<_>>(), [EntryID(1), EntryID(4), EntryID(5)]);
+        assert_eq!(SelectorEntryIDs::from_entries(Vec::new()).len(), 0);
+    }
+
+    #[test]
     fn live_entry_identities_account_for_program_entry_storage() {
         let make_program = |first: u32, count: u32| {
             let mut builder = SelectorProgramBuilder::new();
@@ -8262,6 +8352,15 @@ mod tests {
                 allocated_entries
             );
             assert_eq!(programs.entry_locations.iter().flatten().count(), allocated_entries);
+            assert_eq!(
+                programs.entry_ids_bytes,
+                programs
+                    .entry_ids_by_program
+                    .iter()
+                    .flatten()
+                    .map(SelectorEntryIDs::capacity_bytes)
+                    .sum::<usize>()
+            );
         };
         for mut programs in [SelectorPrograms::new(), SelectorPrograms::for_replay()] {
             check(&programs);

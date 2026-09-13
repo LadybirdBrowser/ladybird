@@ -20,7 +20,7 @@ struct SharedDispatchKey(Vec<SharedDispatchProgram>);
 struct SharedDispatchProgram {
     program: SelectorProgramID,
     identity: selector::SharedSelectorIdentity,
-    entries: Box<[program::EntryID]>,
+    entries: selector::SelectorEntryIDs,
     author: bool,
 }
 
