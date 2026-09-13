@@ -661,3 +661,95 @@ fn budget_histories_preserve_answers_winners_and_records_across_mutations() {
         "both histories retained the same acceleration"
     );
 }
+
+#[test]
+fn incomplete_answer_batches_preserve_pending_lookups_and_release_ownership() {
+    for discard in [false, true] {
+        let mut workload = Workload::new(19);
+        let transaction = workload.engine.take_transaction();
+        workload.engine.release_transaction(transaction);
+        let len = workload.nodes.len();
+        let nodes = [
+            workload.nodes[len - 2],
+            workload.nodes[len - 3],
+            workload.nodes[len - 1],
+        ];
+        let expected: Vec<_> = nodes
+            .iter()
+            .map(|&node| {
+                let exact = exact_matches(&mut workload.engine, node);
+                normalized_rows(workload.engine.matches_for_cascade(exact, false, Some(node)))
+            })
+            .collect();
+        for &node in &nodes {
+            let state = &mut workload.engine.state;
+            state.retained_match_answers.forget(&mut state.match_answers, node);
+        }
+        // NB: Deliberately leave the final subject's fact row unavailable. Earlier
+        //     subjects can complete without it, in descending identity order.
+        workload.engine.facts.forget(nodes[2]);
+        workload.engine.begin_adaptive_cold_matching_batch(workload.root);
+        assert!(
+            workload
+                .engine
+                .complete_published_match_answers_for_closure(&nodes)
+                .is_err()
+        );
+        assert!(workload.engine.match_answers.pending_reference_count() > 0);
+        for index in 0..2 {
+            assert!(
+                workload
+                    .engine
+                    .retained_match_answers
+                    .answer_identity(nodes[index])
+                    .is_none()
+            );
+            assert_eq!(
+                normalized_rows(workload.engine.consume_published_match_answer(nodes[index]).unwrap()),
+                expected[index]
+            );
+            assert!(workload.engine.published_match_answer_signature(nodes[index]).is_some());
+        }
+        if discard {
+            workload
+                .engine
+                .state
+                .discard_published_match_answers(&mut workload.engine.counters);
+            assert_eq!(workload.engine.match_answers.pending_reference_count(), 0);
+            for &node in &nodes[..2] {
+                assert!(workload.engine.state.current_published_answer(node).is_none());
+                assert!(workload.engine.retained_match_answers.answer_identity(node).is_none());
+            }
+        } else {
+            // NB: Refill the same facts without starting another transaction or
+            //     installing the pending prefix before this completion call resumes it.
+            let node = nodes[2];
+            let node_index = workload.nodes.iter().position(|&candidate| candidate == node).unwrap();
+            let state = &mut workload.engine.state;
+            state.facts.set_tag(node, tag_atom(node), &mut state.memory);
+            for &class in &workload.classes[node_index] {
+                state.facts.set_class(node, class_atom(class), true, &mut state.memory);
+            }
+            state.facts.apply_staged(&mut state.memory);
+            workload
+                .engine
+                .complete_published_match_answers_for_closure(&nodes)
+                .unwrap();
+            assert!(workload.engine.match_answers.pending_reference_count() > 0);
+            for &node in &nodes {
+                assert!(workload.engine.retained_match_answers.answer_identity(node).is_none());
+            }
+        }
+        workload.engine.end_cold_matching_batch();
+        assert_eq!(workload.engine.match_answers.pending_reference_count(), 0);
+        if !discard {
+            for &node in &nodes {
+                assert!(workload.engine.retained_match_answers.answer_identity(node).is_some());
+                assert_eq!(
+                    normalized_rows(retained_matches(&mut workload.engine, node).unwrap()),
+                    normalized_rows(exact_matches(&mut workload.engine, node))
+                );
+            }
+        }
+    }
+}
