@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const stylesheetURL = await server.createEcho("GET", "/svg-image-network-request.css", {
+            status: 200,
+            headers: { "Content-Type": "text/css" },
+            body: "rect { fill: green; }",
+        });
+        const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100">
+            <style>@import url("${stylesheetURL}");</style>
+            <rect width="100" height="100" />
+        </svg>`;
+        const image = new Image();
+        image.src = URL.createObjectURL(new Blob([svg], { type: "image/svg+xml" }));
+        document.body.append(image);
+        await image.decode();
+        println(`Decoded SVG: ${image.naturalWidth}x${image.naturalHeight}`);
+        URL.revokeObjectURL(image.src);
+    });
+</script>
