@@ -372,7 +372,12 @@ CanonicalNavigable* WebContentClient::embedded_page_host(Web::PageId page_id)
         return nullptr;
 
     auto* child_frame = host->value.ptr();
-    if (!child_frame || !child_frame->has_remote_host() || &child_frame->remote_host_client() != this)
+    if (!child_frame)
+        return nullptr;
+
+    // The page hosts the navigable's document, or the document it is navigating to.
+    auto hosts_displayed_document = child_frame->has_remote_host() && &child_frame->remote_host_client() == this;
+    if (!hosts_displayed_document && !child_frame->pending_host_matches(*this, page_id))
         return nullptr;
 
     return child_frame;
@@ -1011,9 +1016,9 @@ bool WebContentClient::continue_navigation_population_in_selected_process(Web::P
         navigable->clear_ongoing_navigation();
         return false;
     }
+    // The host takes the container over when the document is activated, after the displayed document is unloaded.
     auto host = host_or_error.release_value();
     navigable->set_navigation_host(*host.client, host.page_id);
-    SiteIsolationManager::the().set_child_document_host(*navigable, host);
     return populate_in(*host.client, host.page_id);
 }
 
