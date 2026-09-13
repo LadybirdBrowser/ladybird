@@ -3256,8 +3256,15 @@ impl StyleEngineState {
                     .as_ref()
                     .expect("prefix planning has a transaction fact view");
                 let resident_facts = self.facts.primary();
-                let mut prefix_context =
-                    PrefixTransitionContext::new(resident_facts.generation(), resident_facts.row_count());
+                let mut prefix_context = PrefixTransitionContext::new_composite(
+                    retained
+                        .lookup_mut(scope_program)
+                        .sparse()
+                        .expect("prepared prefix program"),
+                    resident_facts,
+                    &local_fact_changes,
+                    counters,
+                );
                 counters.bump(Counter::PrefixTransitionCacheHits);
                 let nodes_in_preorder = regions.sort_nodes_for_top_down_walk(&mut pending_nodes, &self.tree);
                 if automaton_has_sibling_steps && !nodes_in_preorder {

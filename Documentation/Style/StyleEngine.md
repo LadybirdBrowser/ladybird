@@ -732,8 +732,13 @@ its effects. The ordinary child ask reads private rows and completed node
 transitions before retained columns, computing missing selector ancestors
 and preceding siblings into its own scratch. Completed ordinary transitions
 return ordered effects installed at context completion, before retention
-compacts IDs. Persistent state/result interning and local-fact identity
-publication remain mutable. Sparse convergence uses the same private scratch
+compacts IDs. Local-fact cohort IDs are prepared per fact batch before matching;
+only preparation mutates their interner. Representative rows belong to the
+preparation's fact domain, while contexts keep independent ID columns across
+nested adaptive attempts. Appending rows preserves the existing cohorts.
+Composite convergence preserves conservative unique cohorts for changed facts.
+Local-fact column publication joins the transition effects. Persistent
+state/result interning remains mutable. Sparse convergence uses the same private scratch
 and ordered effects, keeping retained old-comparison inputs distinct from
 new parent and preceding-sibling outputs until convergence completes.
 

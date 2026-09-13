@@ -724,7 +724,7 @@ impl StyleEngineState {
         }
         let mut prefix_contexts = PrefixTransitionContexts::default();
         if let Some(facts) = batch.as_ref() {
-            self.prepare_prefix_rows_for_batch(facts, &mut prefix_contexts);
+            self.prepare_prefix_rows_for_batch(facts, &mut prefix_contexts, counters);
         }
         relation_timer.stop(Counter::CompletionBatchRelationMicroseconds, counters);
         self.batch_matching_traversal = Some(Box::new(BatchMatchingTraversal {
@@ -805,6 +805,7 @@ impl StyleEngineState {
         topology: Option<TransactionTopology>,
         reuse_retained_match_answers: bool,
         match_workspace: MatchScratch,
+        counters: &mut Counters,
     ) -> Box<BatchMatchingTraversal> {
         let ancestor_requirements = self.prepare_matching_batch(&batch);
         let match_workspace_bytes = match_workspace.capacity_bytes();
@@ -814,7 +815,7 @@ impl StyleEngineState {
             caches.answers.make_scratch(&mut self.memory);
         }
         let mut prefix_contexts = PrefixTransitionContexts::default();
-        self.prepare_prefix_rows_for_batch(&batch, &mut prefix_contexts);
+        self.prepare_prefix_rows_for_batch(&batch, &mut prefix_contexts, counters);
         let retained_answer_dispatch = self.retained_answer_dispatch_for_traversal(reuse_retained_match_answers);
         Box::new(BatchMatchingTraversal {
             prefix_contexts,
@@ -876,6 +877,7 @@ impl StyleEngineState {
             topology,
             reuse_retained_match_answers,
             match_workspace,
+            counters,
         ));
         true
     }
@@ -894,6 +896,7 @@ impl StyleEngineState {
                 prepared.topology,
                 prepared.reuse_retained_match_answers,
                 prepared.match_workspace,
+                counters,
             ));
             return;
         }
@@ -981,7 +984,7 @@ impl StyleEngineState {
                     };
                     traversal
                         .prefix_contexts
-                        .prepare(scope_program, batch.generation(), batch.row_count());
+                        .prepare(scope_program, states, dispatch.prefixes(), batch, counters);
                     let prefix_context = traversal.prefix_contexts.get_mut(scope_program);
                     if let Some(topology) = &traversal.topology {
                         states.complete_nodes_with_budget(
@@ -1439,14 +1442,20 @@ impl StyleEngineState {
         scope: TreeScopeID,
         facts: &StyleNodeFacts,
         contexts: &mut PrefixTransitionContexts,
+        counters: &mut Counters,
     ) {
         let (program, dispatch) = self.prepared_scope_program(scope);
         if dispatch.prefixes().is_empty() {
             return;
         }
-        contexts.prepare(program, facts.generation(), facts.row_count());
         let mut caches = self.prefix_caches.borrow_mut();
-        caches.states.prepare_program(program);
+        contexts.prepare(
+            program,
+            caches.states.prepare_program(program),
+            dispatch.prefixes(),
+            facts,
+            counters,
+        );
         caches.states.settle_memory(&mut self.memory);
         contexts.settle_memory(&mut self.memory);
     }
@@ -1455,13 +1464,19 @@ impl StyleEngineState {
         &mut self,
         facts: &StyleNodeFacts,
         contexts: &mut PrefixTransitionContexts,
+        counters: &mut Counters,
     ) {
         let mut caches = self.prefix_caches.borrow_mut();
         if !self.tree.has_tree_scopes() && self.scope_roots.is_empty() {
             let (program, dispatch) = self.prepared_scope_program(TreeScopeID::DOCUMENT);
             if !dispatch.prefixes().is_empty() {
-                contexts.prepare(program, facts.generation(), facts.row_count());
-                caches.states.prepare_program(program);
+                contexts.prepare(
+                    program,
+                    caches.states.prepare_program(program),
+                    dispatch.prefixes(),
+                    facts,
+                    counters,
+                );
             }
             caches.states.settle_memory(&mut self.memory);
             contexts.settle_memory(&mut self.memory);
@@ -1475,8 +1490,13 @@ impl StyleEngineState {
             }
             let (program, dispatch) = self.prepared_scope_program(self.tree.tree_scope(facts.node_at(row)));
             if !dispatch.prefixes().is_empty() && !programs.contains(&program) {
-                caches.states.prepare_program(program);
-                contexts.prepare(program, facts.generation(), facts.row_count());
+                contexts.prepare(
+                    program,
+                    caches.states.prepare_program(program),
+                    dispatch.prefixes(),
+                    facts,
+                    counters,
+                );
                 programs.push(program);
             }
         }
@@ -1572,12 +1592,18 @@ impl StyleEngineState {
                     .sparse()
                     .expect("prefix rows are prepared before matching"),
             );
-            shared_prefix_states
-                .as_deref_mut()
-                .map(|states| (states, prefix_contexts.get_mut(scope_program)))
+            shared_prefix_states.as_deref_mut().map(|states| {
+                prefix_contexts.rebind(scope_program, &mut *states, dispatch.prefixes(), facts, counters);
+                (states, prefix_contexts.get_mut(scope_program))
+            })
         } else {
-            local_prefix_context = Some(PrefixTransitionContext::new(facts.generation(), facts.row_count()));
             local_prefix_states = Some(PrefixStates::new());
+            local_prefix_context = Some(PrefixTransitionContext::new(
+                local_prefix_states.as_mut().unwrap(),
+                dispatch.prefixes(),
+                facts,
+                counters,
+            ));
             local_prefix_states
                 .as_mut()
                 .map(|states| (states, local_prefix_context.as_mut().unwrap()))
@@ -2753,21 +2779,38 @@ impl StyleEngineState {
     pub(super) fn prepare_retained_answer_patch(
         &mut self,
         selection: RetainedAnswerPatchSelection,
+        counters: &mut Counters,
     ) -> RetainedAnswerPatch {
         let (scope_program, dispatch) = self.prepare_scope_program(TreeScopeID::DOCUMENT);
-        let rule_keys = selection
+        let rule_keys: Vec<_> = selection
             .affected
             .into_iter()
             .map(|affected| (affected.rule, affected.program))
             .collect();
         let dispatch_workspace = DispatchCandidateWorkspace::with_entry_capacity(dispatch.entry_count());
-        {
+        let prefix_context = {
             let mut caches = self.prefix_caches.borrow_mut();
             caches.states.make_scratch(&mut self.memory);
             caches.states.prepare_to_mutate(&mut self.memory);
-            caches.states.prepare_program(scope_program);
+            let states = caches.states.prepare_program(scope_program);
+            // NB: A narrow filtered patch bypasses prefixes in the matcher. Every per-node
+            //     narrowed key set is a subset of rule_keys, so it takes that same path.
+            let context = if BatchMatcher::new(
+                &self.tree,
+                self.facts.primary(),
+                &dispatch,
+                &self.programs,
+                &self.program,
+            )
+            .filtered_rules_are_narrow(&rule_keys)
+            {
+                PrefixTransitionContext::default()
+            } else {
+                PrefixTransitionContext::new(states, dispatch.prefixes(), self.facts.primary(), counters)
+            };
             caches.states.settle_memory(&mut self.memory);
-        }
+            context
+        };
         let mut cascade_update_properties = selection.cascade_update_properties;
         cascade_update_properties.sort_unstable();
         cascade_update_properties.dedup();
@@ -2781,10 +2824,7 @@ impl StyleEngineState {
         always_emit_nodes.sort_unstable();
         always_emit_nodes.dedup();
         RetainedAnswerPatch {
-            prefix_context: PrefixTransitionContext::new(
-                self.facts.primary().generation(),
-                self.facts.primary().row_count(),
-            ),
+            prefix_context,
             rule_keys,
             scope_program,
             dispatch,
@@ -4519,7 +4559,12 @@ impl StyleEngineState {
         if let Some(traversal) = traversal.as_mut()
             && let Some(batch) = traversal.batch.as_ref()
         {
-            self.prepare_prefix_rows_for_scope(self.tree.tree_scope(node), batch, &mut traversal.prefix_contexts);
+            self.prepare_prefix_rows_for_scope(
+                self.tree.tree_scope(node),
+                batch,
+                &mut traversal.prefix_contexts,
+                counters,
+            );
         }
         let result = self.match_element_in_traversal(
             node,
@@ -5121,15 +5166,14 @@ impl StyleEngineState {
             self.facts.materialize(covered.iter().copied(), &mut facts);
             let mut prefix_contexts = PrefixTransitionContexts::default();
             if !self.prepared_scope_program(scope).1.prefixes().is_empty() {
+                let (program, dispatch) = self.prepared_scope_program(scope);
                 prefix_contexts.prepare(
-                    self.prepared_scope_program(scope).0,
-                    facts.generation(),
-                    facts.row_count(),
+                    program,
+                    prefix_caches.borrow_mut().states.prepare_program(program),
+                    dispatch.prefixes(),
+                    &facts,
+                    counters,
                 );
-                prefix_caches
-                    .borrow_mut()
-                    .states
-                    .prepare_program(self.prepared_scope_program(scope).0);
                 prefix_caches.borrow_mut().states.settle_memory(&mut self.memory);
             }
             prefix_contexts.settle_memory(&mut self.memory);

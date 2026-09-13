@@ -166,9 +166,12 @@ impl PrefixRelation {
         }
         assert_eq!(self.nested_capacity_bytes, self.measure_nested_capacity_bytes());
         let mut scalar = PrefixStates::new();
-        let mut context =
-            super::PrefixTransitionContext::new(evaluation.facts.generation(), evaluation.facts.row_count());
         let mut counters = Counters::default();
+        let mut context = if evaluation.facts_are_composite() {
+            super::PrefixTransitionContext::new_composite(&mut scalar, evaluation.facts, &[], &mut counters)
+        } else {
+            super::PrefixTransitionContext::new(&mut scalar, evaluation.automaton, evaluation.facts, &mut counters)
+        };
         for (position, &node) in self.nodes.iter().enumerate() {
             if !self.live[position] {
                 continue;
@@ -531,7 +534,6 @@ impl PrefixRelation {
         // Transaction rows can come from several fact stores. Intern within each store so
         // representative row indices are never interpreted in another store's columns.
         let mut local_facts = HashMap::default();
-        let mut local_fact_rows = HashMap::default();
         let mut local_matches = HashMap::default();
         self.geometry_targets[0].sort_unstable();
         self.geometry_targets[0].dedup();
@@ -578,13 +580,7 @@ impl PrefixRelation {
             let identity = local_facts
                 .entry(store)
                 .or_insert_with(super::LocalFactInterner::new)
-                .intern(
-                    local_fact_rows.entry(store).or_default(),
-                    row.facts,
-                    row.row,
-                    &automaton.local_fact_dependencies,
-                    counters,
-                );
+                .intern(row.facts, row.row, &automaton.local_fact_dependencies, counters);
             let is_root = evaluation.tree.parent(node).is_none();
             for key in &keys {
                 let Some(compounds) = self.program.compounds_for_key(key) else {
@@ -1042,7 +1038,6 @@ impl PrefixAutomaton {
         // answers while building memberships, as scalar prefix transitions already do. Keep
         // document-root identity in the key and check positional truth separately per node.
         let mut local_facts = HashMap::default();
-        let mut local_fact_rows = HashMap::default();
         let mut identities = HashMap::default();
         let local_fact_keys: Vec<_> = rows
             .iter()
@@ -1052,13 +1047,7 @@ impl PrefixAutomaton {
                 let identity = local_facts
                     .entry(store)
                     .or_insert_with(super::LocalFactInterner::new)
-                    .intern(
-                        local_fact_rows.entry(store).or_default(),
-                        row.facts,
-                        row.row,
-                        &self.local_fact_dependencies,
-                        counters,
-                    );
+                    .intern(row.facts, row.row, &self.local_fact_dependencies, counters);
                 let next = identities.len();
                 *identities
                     .entry((store, identity, parents[position] == usize::MAX))

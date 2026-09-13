@@ -1042,7 +1042,7 @@ impl<'a> BatchMatcher<'a> {
             .is_none_or(|rules| rules.binary_search(&(rule, program)).is_ok())
     }
 
-    fn filtered_rules_are_narrow(&self, rules: &[(RuleID, SelectorProgramID)]) -> bool {
+    pub(super) fn filtered_rules_are_narrow(&self, rules: &[(RuleID, SelectorProgramID)]) -> bool {
         let mut entry_count = 0;
         for &(rule, program) in rules {
             if !self.program.rule_can_decide(rule) || self.program.rule_version(rule).selector_program != Some(program)
@@ -1169,7 +1169,8 @@ impl<'a> BatchMatcher<'a> {
         let selector_truth_start = out.selector_truth_len();
         let mut dispatch_workspace = DispatchCandidateWorkspace::default();
         let mut prefix_states = PrefixStates::new();
-        let mut prefix_context = PrefixTransitionContext::new(self.facts.generation(), self.facts.row_count());
+        let mut prefix_context =
+            PrefixTransitionContext::new(&mut prefix_states, self.dispatch.prefixes(), self.facts, counters);
         for node in self.tree.preorder(root) {
             if let Err(incomplete) = self
                 .match_node_collecting_requests(
@@ -1206,7 +1207,8 @@ impl<'a> BatchMatcher<'a> {
     ) -> Result<(), Incomplete> {
         let mut dispatch_workspace = DispatchCandidateWorkspace::default();
         let mut prefix_states = PrefixStates::new();
-        let mut prefix_context = PrefixTransitionContext::new(self.facts.generation(), self.facts.row_count());
+        let mut prefix_context =
+            PrefixTransitionContext::new(&mut prefix_states, self.dispatch.prefixes(), self.facts, counters);
         self.match_node_collecting_requests(
             node,
             out,
@@ -2079,7 +2081,12 @@ mod tests {
         );
         let mut dispatch_workspace = DispatchCandidateWorkspace::default();
         let mut prefix_states = PrefixStates::new();
-        let mut prefix_context = PrefixTransitionContext::new(document.facts.generation(), document.facts.row_count());
+        let mut prefix_context = PrefixTransitionContext::new(
+            &mut prefix_states,
+            dispatch.prefixes(),
+            &document.facts,
+            &mut document.counters,
+        );
         let mut matches = RuleMatches::new();
         for _ in 0..2 {
             interpreter
