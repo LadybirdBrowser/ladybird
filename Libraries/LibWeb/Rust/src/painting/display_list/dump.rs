@@ -346,6 +346,8 @@ fn dump_command(output: &mut String, command_type: DisplayListCommandType, paylo
             let command = read_command::<DrawRepeatedTile>(payload);
             write_field(output, "dst_rect", command.dst_rect);
             write_field(output, "clip_rect", command.clip_rect);
+            write_field(output, "tile_size", command.tile_size);
+            write_field(output, "tile_step", command.tile_step);
             write!(output, " scaling_mode={}", scaling_mode_name(command.scaling_mode)).unwrap();
             write_blend_mode(output, command.compositing_and_blending_operator);
         }

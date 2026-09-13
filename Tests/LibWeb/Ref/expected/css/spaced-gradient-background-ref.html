@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<style>
+    body { margin: 0; }
+    main { display: grid; grid-template-columns: repeat(4, 120px); gap: 10px; }
+    section { width: 120px; height: 100px; }
+    .target { position: relative; width: 79px; height: 58px; overflow: hidden; }
+    .dot {
+        position: absolute;
+        width: 16px;
+        height: 16px;
+        background: radial-gradient(circle at 8px 8px, green 4px, transparent 0) no-repeat;
+    }
+    .rounded { border-radius: 20px; background-color: lightblue; }
+    .single { width: 24px; }
+    .masked { mask-image: linear-gradient(black, transparent); opacity: .6; }
+    .fractional-gap { width: 98px; height: 68px; }
+    .fractional-size { width: 55px; height: 37px; }
+    .fractional-gap .dot { width: 32px; height: 32px; background: green; }
+    .fractional-size .dot { width: 17px; height: 17px; background: green; }
+</style>
+<main>
+    <section><div class="target"></div></section>
+    <section><div class="target rounded"></div></section>
+    <section><div class="target vertical"></div></section>
+    <section><div class="target mixed"></div></section>
+    <section><div class="target single"></div></section>
+    <section><div class="target masked"></div></section>
+    <section><div class="target fractional-gap"></div></section>
+    <section><div class="target fractional-size"></div></section>
+</main>
+<script>
+    const positions = [
+        [[0, 21, 42, 63], [0, 21, 42]],
+        [[0, 21, 42, 63], [0, 21, 42]],
+        [[6], [-13, 3, 19, 35, 51]],
+        [[0, 16, 32, 48, 64], [0, 21, 42]],
+        [[4], [0, 21, 42]],
+        [[0, 21, 42, 63], [0, 21, 42]],
+        [[0, 33, 66], [0, 36]],
+        [[0, 19, 38], [0, 20]],
+    ];
+    for (const [index, target] of [...document.querySelectorAll(".target")].entries()) {
+        for (const x of positions[index][0]) {
+            for (const y of positions[index][1]) {
+                const dot = document.createElement("div");
+                dot.className = "dot";
+                dot.style.left = `${x}px`;
+                dot.style.top = `${y}px`;
+                target.appendChild(dot);
+            }
+        }
+    }
+</script>

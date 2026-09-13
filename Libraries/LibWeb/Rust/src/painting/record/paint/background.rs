@@ -13,9 +13,8 @@ use crate::layout::node_data::{NodeKind, NodeSlotId};
 use crate::layout::node_facts;
 use crate::painting::border_radii::BorderRadii;
 use crate::painting::display_list::builder::PendingInlineClip;
+use crate::painting::display_list::commands::Repeat;
 use crate::painting::display_list::commands::{ContextRef, VISUAL_VIEWPORT_NODE_INDEX};
-use crate::painting::display_list::commands::{OptionalAffineTransform, Repeat};
-use crate::painting::display_list::recorder::{FillPathParams, PaintStyle, PaintStyleOrColor};
 use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::node_painting;
 use crate::painting::paintable_data::FfiPixelBox;
@@ -26,10 +25,9 @@ use crate::painting::record::paint::background_resolution::{
 };
 use crate::painting::record::paint::gradient_resolution::{gradient_paint_value, record_gradient_fill};
 use crate::painting::record::paint::table_backgrounds;
-use libgfx_rust::{
-    AffineTransform, CompositingAndBlendingOperator, FloatRect, IntRect, IntSize, MaskKind, ScalingMode,
-    ShouldAntiAlias, WindingRule,
-};
+use libgfx_rust::{CompositingAndBlendingOperator, FloatRect, FloatSize, IntRect, IntSize, MaskKind, ScalingMode};
+
+const MAX_DIRECT_GRADIENT_TILES: f64 = 1000.0;
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct BackgroundBox {
@@ -616,11 +614,6 @@ fn paint_image_layer<O: Observer>(
         rects
     };
 
-    // Past this (super-large) tile count, the non-image branch below covers the area with a single
-    // repeating pattern whose command count is independent of the tile count. Otherwise, recording
-    // one painting command per tile for a super-large tile count can produce enough commands that we
-    // overflow the display list and crash.
-    const MAX_TILES_BEFORE_PATTERN_FALLBACK: f64 = 1000.0;
     let tile_columns = if repeat_x && x_step > zero {
         ((css_clip_rect.right() - initial_image_x).to_double() / x_step.to_double()).ceil()
     } else {
@@ -697,7 +690,7 @@ fn paint_image_layer<O: Observer>(
             let group = recorder.recorder.begin_repeated_tile();
             recorder.recorder.paint_nested_display_list(
                 display_list_id,
-                dest_rect.to_float(),
+                FloatRect::new(0.0, 0.0, dest_rect.width as f32, dest_rect.height as f32),
                 IntSize {
                     width: dest_rect.width,
                     height: dest_rect.height,
@@ -705,8 +698,16 @@ fn paint_image_layer<O: Observer>(
             );
             recorder.recorder.finish_repeated_tile(
                 group,
-                dest_rect,
+                dest_rect.to_float(),
                 clip_rect,
+                IntSize {
+                    width: dest_rect.width,
+                    height: dest_rect.height,
+                },
+                FloatSize {
+                    width: dest_rect.width as f32,
+                    height: dest_rect.height as f32,
+                },
                 scaling_mode,
                 inline_operator,
                 Repeat {
@@ -777,88 +778,70 @@ fn paint_image_layer<O: Observer>(
                 );
             }
         }
-    } else if (repeat_x || repeat_y)
-        && !repeat_x_has_gap
-        && !repeat_y_has_gap
-        && tile_count > MAX_TILES_BEFORE_PATTERN_FALLBACK
+    } else if let Some(gradient) = &resolved_gradient
+        && (tile_count > MAX_DIRECT_GRADIENT_TILES
+            || (repeat_x && css_clip_rect.width.to_double() >= 2.0 * image_rect.width.to_double())
+            || (repeat_y && css_clip_rect.height.to_double() >= 2.0 * image_rect.height.to_double()))
+        && let Some(tile_size) = cached_gradient_tile_size(
+            converter.rounded_device_size(crate::css::css_pixels::CssPixelSize::new(
+                image_rect.width,
+                image_rect.height,
+            )),
+            tile_count,
+        )
     {
-        // A not-decoded-image repeating background otherwise records a separate painting command
-        // for every tile — which for very-large tile counts can lead to enough commands that we
-        // crash. So, instead record a single tile's records into the fill command, and fill the
-        // area with a repeating pattern. The painter does the tiling.
-        let mut tile_device_rect = converter.rounded_device_rect(image_rect);
-        // If the tile's dimensions were rounded to zero then they need to be restored to avoid a crash.
-        if tile_device_rect.width == 0 {
-            tile_device_rect.width = 1;
-        }
-        if tile_device_rect.height == 0 {
-            tile_device_rect.height = 1;
+        if clip_rect.is_empty() {
+            return;
         }
 
-        let tile_dest_rect = tile_device_rect.to_float();
-        let detached = recorder.recorder.begin_detached_records();
-        recorder
-            .recorder
-            .set_ambient_inline_transform(Some(AffineTransform::new(
-                1.0,
-                0.0,
-                0.0,
-                1.0,
-                -tile_dest_rect.x,
-                -tile_dest_rect.y,
-            )));
-        recorder.trace_paint(Operation::Producer(Some(paintable), "background-tile"), |recorder| {
-            if let Some(gradient) = &resolved_gradient {
-                record_gradient_fill(
-                    recorder,
-                    gradient,
-                    tile_dest_rect,
-                    CompositingAndBlendingOperator::Normal,
-                );
-            }
-        });
-        let tile_records = std::rc::Rc::new(recorder.recorder.finish_detached_records(detached));
-
-        // A pattern repeats along both axes. On any non-repeating axis, constrain the coverage to a single tile.
-        let mut coverage = clip_rect;
-        if !repeat_x {
-            coverage.x = tile_device_rect.x;
-            coverage.width = tile_device_rect.width;
-        }
-        if !repeat_y {
-            coverage.y = tile_device_rect.y;
-            coverage.height = tile_device_rect.height;
-        }
-
-        let coverage_float = coverage.to_float();
-        let mut path = libgfx_rust::path::PathBuilder::new();
-        path.move_to(coverage_float.x, coverage_float.y);
-        path.line_to(coverage_float.x + coverage_float.width, coverage_float.y);
-        path.line_to(
-            coverage_float.x + coverage_float.width,
-            coverage_float.y + coverage_float.height,
+        // Rasterize when at least two full tiles fit on a repeating axis. A background-sized gradient may
+        // also touch adjacent tiles at the borders, but gains nothing from an intermediate raster.
+        // Record a gradient once and let the player repeat its raster, including any space between tiles.
+        // Keep the content local to the tile so moving the background can reuse the same cached raster.
+        let scale = converter.device_pixels_per_css_pixel() as f32;
+        let dest_rect = FloatRect::new(
+            image_rect.x.to_float() * scale,
+            image_rect.y.to_float() * scale,
+            image_rect.width.to_float() * scale,
+            image_rect.height.to_float() * scale,
         );
-        path.line_to(coverage_float.x, coverage_float.y + coverage_float.height);
-        path.close();
-        let path = path.build();
-        recorder.recorder.fill_path_with_compositing_and_blending_operator(
-            FillPathParams {
-                force_dark_role: ForceDarkRole::Background,
-                path: &path,
-                opacity: 1.0,
-                paint_style_or_color: PaintStyleOrColor::PaintStyle(PaintStyle::Pattern {
-                    tile_records,
-                    tile_rect: tile_dest_rect,
-                    content_scale: libgfx_rust::FloatSize {
-                        width: 1.0,
-                        height: 1.0,
-                    },
-                    pattern_transform: OptionalAffineTransform::default(),
-                }),
-                winding_rule: WindingRule::Nonzero,
-                should_anti_alias: ShouldAntiAlias::Yes,
+        let tile_step = FloatSize {
+            width: if repeat_x {
+                x_step.to_float() * scale
+            } else {
+                dest_rect.width
             },
+            height: if repeat_y {
+                y_step.to_float() * scale
+            } else {
+                dest_rect.height
+            },
+        };
+        let group = recorder.recorder.begin_repeated_tile();
+        recorder.trace_paint(Operation::Producer(Some(paintable), "background-tile"), |recorder| {
+            record_gradient_fill(
+                recorder,
+                gradient,
+                FloatRect::new(0.0, 0.0, tile_size.width as f32, tile_size.height as f32),
+                CompositingAndBlendingOperator::Normal,
+            );
+        });
+        recorder.recorder.finish_repeated_tile(
+            group,
+            dest_rect,
+            clip_rect,
+            tile_size,
+            tile_step,
+            to_gfx_scaling_mode(
+                image_rendering,
+                (tile_size.width, tile_size.height),
+                (tile_size.width, tile_size.height),
+            ),
             inline_operator,
+            Repeat {
+                x: repeat_x,
+                y: repeat_y,
+            },
         );
     } else {
         for image_device_rect in device_rects(image_rect) {
@@ -880,6 +863,24 @@ fn paint_image_layer<O: Observer>(
             );
         }
     }
+}
+
+fn cached_gradient_tile_size(size: IntSize, tile_count: f64) -> Option<IntSize> {
+    let size = IntSize {
+        width: size.width.max(1),
+        height: size.height.max(1),
+    };
+    // Preserve the fallback for enormous tile counts: recording every tile can overflow the display list.
+    if tile_count > MAX_DIRECT_GRADIENT_TILES {
+        return Some(size);
+    }
+    // Keep large gradients analytic instead of allocating a large bitmap just to repeat them a few times.
+    const MAX_TILE_DIMENSION: i32 = 16384;
+    const MAX_TILE_PIXELS: i64 = 1024 * 1024;
+    (size.width <= MAX_TILE_DIMENSION
+        && size.height <= MAX_TILE_DIMENSION
+        && i64::from(size.width) * i64::from(size.height) <= MAX_TILE_PIXELS)
+        .then_some(size)
 }
 
 fn fraction_to_int(numerator: CssPixels, denominator: CssPixels) -> i32 {

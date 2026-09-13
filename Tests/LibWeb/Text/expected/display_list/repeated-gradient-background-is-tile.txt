@@ -1,0 +1,28 @@
+FUTO dots: 1 tiles, 1 gradients
+ dst_rect=[0,0 4x4] clip_rect=[0,0 258x64] tile_size=[4x4] tile_step=[4.03125x4.265625] scaling_mode=Bilinear
+gradient content has no outer clips: true
+moved dots: 1 tiles, 1 gradients
+ dst_rect=[17,0 4x4] clip_rect=[17,0 258x64] tile_size=[4x4] tile_step=[4.03125x4.265625] scaling_mode=Bilinear
+gradient content has no outer clips: true
+space without gaps: 1 tiles, 1 gradients
+ dst_rect=[17,0 4x4] clip_rect=[17,0 256x64] tile_size=[4x4] tile_step=[4x4] scaling_mode=Bilinear
+gradient content has no outer clips: true
+ordinary repeat: 1 tiles, 1 gradients
+ dst_rect=[17,0 4x4] clip_rect=[17,0 256x64] tile_size=[4x4] tile_step=[4x4] scaling_mode=Bilinear
+gradient content has no outer clips: true
+linear repeat: 1 tiles, 1 gradients
+ dst_rect=[17,0 4x4] clip_rect=[17,0 256x64] tile_size=[4x4] tile_step=[4x4] scaling_mode=Bilinear
+gradient content has no outer clips: true
+conic repeat: 1 tiles, 1 gradients
+ dst_rect=[17,0 4x4] clip_rect=[17,0 256x64] tile_size=[4x4] tile_step=[4x4] scaling_mode=Bilinear
+gradient content has no outer clips: true
+one tile on the space axis: 1 tiles, 1 gradients
+ dst_rect=[17,0 4x4] clip_rect=[17,0 6x64] tile_size=[4x4] tile_step=[4x4] scaling_mode=Bilinear
+gradient content has no outer clips: true
+one tile on both axes: 0 tiles, 1 gradients
+gradient content has no outer clips: false
+large tiles stay analytic: 0 tiles, 2 gradients
+gradient content has no outer clips: false
+many large tiles remain bounded: 1 tiles, 1 gradients
+ dst_rect=[17,0 4096x512] clip_rect=[17,0 4100096x512] tile_size=[4096x512] tile_step=[4096x512] scaling_mode=Bilinear
+gradient content has no outer clips: true

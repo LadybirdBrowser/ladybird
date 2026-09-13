@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<link rel="match" href="../../expected/css/spaced-gradient-background-ref.html">
+<!-- Rounded edges can differ by one channel level when compositing a cached raster. -->
+<meta name="fuzzy" content="maxDifference=0-1;totalPixels=0-6">
+<style>
+    body { margin: 0; }
+    main { display: grid; grid-template-columns: repeat(4, 120px); gap: 10px; }
+    section { width: 120px; height: 100px; }
+    .target {
+        width: 79px;
+        height: 58px;
+        background: radial-gradient(circle at 8px 8px, green 4px, transparent 0);
+        background-size: 16px 16px;
+        background-repeat: space;
+    }
+    .rounded { border-radius: 20px; background-color: lightblue; }
+    .vertical { background-repeat: no-repeat repeat; background-position: 6px 3px; }
+    .mixed { background-repeat: repeat space; }
+    .single { width: 24px; background-position: 4px 0; }
+    .masked { mask-image: linear-gradient(black, transparent); opacity: .6; }
+    .fractional-gap {
+        width: 49px;
+        height: 34px;
+        background-image: linear-gradient(green, green);
+        transform: scale(2);
+        transform-origin: top left;
+    }
+    .fractional-size {
+        width: 27.5px;
+        height: 18.5px;
+        background-image: linear-gradient(green, green);
+        background-size: 8.5px 8.5px;
+        transform: scale(2);
+        transform-origin: top left;
+    }
+</style>
+<main>
+    <section><div class="target"></div></section>
+    <section><div class="target rounded"></div></section>
+    <section><div class="target vertical"></div></section>
+    <section><div class="target mixed"></div></section>
+    <section><div class="target single"></div></section>
+    <section><div class="target masked"></div></section>
+    <section><div class="target fractional-gap"></div></section>
+    <section><div class="target fractional-size"></div></section>
+</main>

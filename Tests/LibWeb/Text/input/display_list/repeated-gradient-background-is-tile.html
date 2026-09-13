@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #target {
+        width: 257.71875px;
+        height: 63.796875px;
+        background-image: radial-gradient(circle at 2px 2px, white .5px, transparent 0);
+        background-size: 4px 4px;
+        background-repeat: space;
+        border-radius: 8px;
+    }
+</style>
+<div id="target"></div>
+<script>
+    test(() => {
+        const target = document.getElementById("target");
+        function check(label) {
+            const lines = internals.dumpDisplayList().split("\n");
+            const tiles = lines.filter(line => line.trimStart().startsWith("DrawRepeatedTile@"));
+            const gradients = lines.filter(line => /Paint(Linear|Radial|Conic)Gradient@/.test(line));
+            println(`${label}: ${tiles.length} tiles, ${gradients.length} gradients`);
+            for (const tile of tiles)
+                println(tile.slice(tile.indexOf(" dst_rect="), tile.indexOf(" inline_clips=")));
+            println(`gradient content has no outer clips: ${gradients.every(line => !line.includes("inline_clips="))}`);
+        }
+
+        check("FUTO dots");
+        target.style.marginLeft = "17px";
+        check("moved dots");
+        target.style.width = "256px";
+        target.style.height = "64px";
+        check("space without gaps");
+        target.style.backgroundRepeat = "repeat";
+        check("ordinary repeat");
+        target.style.backgroundImage = "linear-gradient(red, blue)";
+        check("linear repeat");
+        target.style.backgroundImage = "conic-gradient(red, blue)";
+        check("conic repeat");
+        target.style.width = "6px";
+        target.style.backgroundRepeat = "space repeat";
+        check("one tile on the space axis");
+        target.style.height = "6px";
+        target.style.backgroundRepeat = "space";
+        check("one tile on both axes");
+        target.style.width = "40000px";
+        target.style.height = "4px";
+        target.style.backgroundSize = "20000px 4px";
+        target.style.backgroundRepeat = "repeat";
+        check("large tiles stay analytic");
+        target.style.width = "4100096px";
+        target.style.height = "512px";
+        target.style.backgroundSize = "4096px 512px";
+        check("many large tiles remain bounded");
+    });
+</script>
