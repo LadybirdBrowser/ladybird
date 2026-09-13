@@ -229,12 +229,6 @@ struct PrefixEntryPath {
     steps: Box<[PrefixStepID]>,
 }
 
-#[derive(Clone)]
-struct PrefixEntryPaths {
-    key: EntryID,
-    paths: Vec<PrefixEntryPath>,
-}
-
 #[derive(Clone, Default)]
 struct PrefixDispatchBucket {
     root_steps: Vec<PrefixStepID>,
@@ -255,9 +249,9 @@ pub(super) struct PrefixAutomaton {
     step_ids: HashMap<PrefixStepKey, PrefixStepID>,
     buckets: HashMap<DispatchKey, PrefixDispatchBucket>,
     /// Runtime lookup is a packed immutable table sorted by selector entry.
-    entry_paths: Vec<PrefixEntryPaths>,
-    /// Builder-only index discarded when the immutable table is finished.
-    entry_path_indices: HashMap<EntryID, usize>,
+    entry_paths: Vec<PrefixEntryPath>,
+    /// Builder-only duplicate detection, discarded when the table is finished.
+    entry_path_keys: HashSet<EntryID>,
     entry_paths_finished: bool,
     /// The producer of each non-root step, retained in the storage formerly used by the finished
     /// dispatch-order builder so warm removal edits can find shadowing local output in O(1).
@@ -360,12 +354,7 @@ impl PrefixAutomaton {
                 id,
             );
         }
-        self.entry_path_indices = self
-            .entry_paths
-            .iter()
-            .enumerate()
-            .map(|(index, paths)| (paths.key, index))
-            .collect();
+        self.entry_path_keys = self.entry_paths.iter().map(|path| path.terminal).collect();
         for bucket in self.buckets.values_mut() {
             bucket.first_step = 0;
             bucket.end_step = 0;
@@ -412,7 +401,7 @@ impl PrefixAutomaton {
         if self.positional_tests.len() + new_positional_tests.len() > 32 {
             return false;
         }
-        if self.entry_path_indices.contains_key(&entry) {
+        if !self.entry_path_keys.insert(entry) {
             return true;
         }
         if chain.iter().any(|step| {
@@ -537,17 +526,7 @@ impl PrefixAutomaton {
         self.step_output_builders[terminal_step.0 as usize]
             .terminals
             .push(entry);
-        let key = entry;
-        let index = match self.entry_path_indices.get(&key).copied() {
-            Some(index) => index,
-            None => {
-                let index = self.entry_paths.len();
-                self.entry_paths.push(PrefixEntryPaths { key, paths: Vec::new() });
-                self.entry_path_indices.insert(key, index);
-                index
-            }
-        };
-        self.entry_paths[index].paths.push(PrefixEntryPath {
+        self.entry_paths.push(PrefixEntryPath {
             terminal: entry,
             steps: path.into_boxed_slice(),
         });
@@ -556,10 +535,10 @@ impl PrefixAutomaton {
 
     pub(super) fn finish(&mut self) {
         assert!(!self.entry_paths_finished, "cannot finish a prefix automaton twice");
-        if !self.entry_paths.is_sorted_by_key(|entry| entry.key) {
-            self.entry_paths.sort_unstable_by_key(|entry| entry.key);
+        if !self.entry_paths.is_sorted_by_key(|path| path.terminal) {
+            self.entry_paths.sort_unstable_by_key(|path| path.terminal);
         }
-        self.entry_path_indices = HashMap::default();
+        self.entry_path_keys = HashSet::default();
         self.compound_ids = HashMap::default();
         self.step_ids = HashMap::default();
         let mut step_by_dispatch_order: Vec<_> = (0..self.steps.len())
@@ -614,11 +593,9 @@ impl PrefixAutomaton {
         for bucket in self.buckets.values_mut() {
             remap_steps(&mut bucket.root_steps);
         }
-        for entry in &mut self.entry_paths {
-            for path in &mut entry.paths {
-                for step in &mut path.steps {
-                    step.0 = remap[step.0 as usize];
-                }
+        for path in &mut self.entry_paths {
+            for step in &mut path.steps {
+                step.0 = remap[step.0 as usize];
             }
         }
         for (order, step) in self.steps.iter_mut().enumerate() {
@@ -729,14 +706,14 @@ impl PrefixAutomaton {
         &self.features[start..start + len as usize]
     }
 
-    fn paths_for(&self, key: EntryID) -> Option<&[PrefixEntryPath]> {
+    fn path_for(&self, key: EntryID) -> Option<&PrefixEntryPath> {
         assert!(self.entry_paths_finished, "cannot query an unfinished prefix automaton");
-        let index = self.entry_paths.binary_search_by_key(&key, |entry| entry.key).ok()?;
-        Some(&self.entry_paths[index].paths)
+        let index = self.entry_paths.binary_search_by_key(&key, |path| path.terminal).ok()?;
+        Some(&self.entry_paths[index])
     }
 
     pub(super) fn contains_entry(&self, entry: EntryID) -> bool {
-        self.paths_for(entry).is_some()
+        self.path_for(entry).is_some()
     }
 
     pub(super) fn select_entries(
@@ -749,15 +726,13 @@ impl PrefixAutomaton {
             terminals: vec![false; terminal_count].into_boxed_slice(),
         };
         for entry in entries {
-            let Some(paths) = self.paths_for(entry) else {
+            let Some(path) = self.path_for(entry) else {
                 continue;
             };
-            for path in paths {
-                selection.terminals[path.terminal.0 as usize] = true;
-                for step in &path.steps {
-                    if !selection.steps[step.0 as usize] {
-                        selection.steps[step.0 as usize] = true;
-                    }
+            selection.terminals[path.terminal.0 as usize] = true;
+            for step in &path.steps {
+                if !selection.steps[step.0 as usize] {
+                    selection.steps[step.0 as usize] = true;
                 }
             }
         }
@@ -770,20 +745,17 @@ impl PrefixAutomaton {
         inverse_path_length: usize,
         into: &mut Vec<PrefixProducer>,
     ) -> bool {
-        let Some(paths) = self.paths_for(entry) else {
+        let Some(path) = self.path_for(entry) else {
             return false;
         };
-        let mut found = false;
-        for path in paths {
-            let Some(index) = path.steps.len().checked_sub(inverse_path_length.saturating_add(1)) else {
-                continue;
-            };
-            if let Some(&step) = path.steps.get(index) {
-                into.push(PrefixProducer { step });
-                found = true;
-            }
-        }
-        found
+        let Some(index) = path.steps.len().checked_sub(inverse_path_length.saturating_add(1)) else {
+            return false;
+        };
+        let Some(&step) = path.steps.get(index) else {
+            return false;
+        };
+        into.push(PrefixProducer { step });
+        true
     }
 
     #[must_use]
@@ -804,8 +776,8 @@ impl PrefixAutomaton {
                 self.step_ids,
                 self.buckets,
                 self.entry_paths,
+                self.entry_path_keys,
                 self.step_predecessors,
-                self.entry_path_indices,
             ];
             cached [];
             nested [
@@ -841,14 +813,7 @@ impl PrefixAutomaton {
                 self
                 .entry_paths
                 .iter()
-                .map(|entry| {
-                    entry.paths.capacity() * size_of::<PrefixEntryPath>()
-                        + entry
-                            .paths
-                            .iter()
-                            .map(|path| path.steps.len() * size_of::<PrefixStepID>())
-                            .sum::<usize>()
-                })
+                .map(|path| path.steps.len() * size_of::<PrefixStepID>())
                 .sum::<usize>(),
             ];
             skip [self.entry_paths_finished, self.relation_program];
@@ -5138,12 +5103,9 @@ mod tests {
             .step_output_builders
             .resize(2, PrefixStepOutputBuilder::default());
         automaton.step_output_builders[0].child_successors.push(PrefixStepID(1));
-        automaton.entry_paths.push(PrefixEntryPaths {
-            key: EntryID(0),
-            paths: vec![PrefixEntryPath {
-                terminal: EntryID(0),
-                steps: vec![PrefixStepID(0), PrefixStepID(1)].into_boxed_slice(),
-            }],
+        automaton.entry_paths.push(PrefixEntryPath {
+            terminal: EntryID(0),
+            steps: vec![PrefixStepID(0), PrefixStepID(1)].into_boxed_slice(),
         });
 
         automaton.finish();
@@ -5161,7 +5123,7 @@ mod tests {
             [PrefixStepID(1)]
         );
         assert_eq!(
-            automaton.entry_paths[0].paths[0].steps.as_ref(),
+            automaton.entry_paths[0].steps.as_ref(),
             [PrefixStepID(1), PrefixStepID(0)]
         );
     }
