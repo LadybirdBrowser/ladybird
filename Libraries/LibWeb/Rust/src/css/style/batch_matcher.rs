@@ -11,6 +11,7 @@
 //! output is exact, but its accelerators make it unsuitable as the correctness reference. That role
 //! belongs to [`super::exact_matcher::ExactMatcher`].
 
+use super::prefix::PrefixTransitionContext;
 use smallvec::SmallVec;
 use std::mem::size_of;
 
@@ -756,7 +757,7 @@ pub(super) struct BatchMatchState<'a> {
     pub dispatch_workspace: &'a mut DispatchCandidateWorkspace,
     pub requests: Option<&'a mut Vec<Incomplete>>,
     pub completed: Option<&'a mut [bool]>,
-    pub prefix_states: Option<&'a mut PrefixStates>,
+    pub prefix_states: Option<(&'a mut PrefixStates, &'a mut PrefixTransitionContext)>,
     pub deferred_prefix_matches: Option<&'a mut Option<PrefixMatchSetID>>,
 }
 
@@ -1167,7 +1168,8 @@ impl<'a> BatchMatcher<'a> {
         let start = out.matches.len();
         let selector_truth_start = out.selector_truth_len();
         let mut dispatch_workspace = DispatchCandidateWorkspace::default();
-        let mut prefix_states = PrefixStates::new(self.facts.row_count());
+        let mut prefix_states = PrefixStates::new();
+        let mut prefix_context = PrefixTransitionContext::new(self.facts.generation(), self.facts.row_count());
         for node in self.tree.preorder(root) {
             if let Err(incomplete) = self
                 .match_node_collecting_requests(
@@ -1180,7 +1182,7 @@ impl<'a> BatchMatcher<'a> {
                         dispatch_workspace: &mut dispatch_workspace,
                         requests: None,
                         completed: None,
-                        prefix_states: Some(&mut prefix_states),
+                        prefix_states: Some((&mut prefix_states, &mut prefix_context)),
                         deferred_prefix_matches: None,
                     },
                 )
@@ -1203,7 +1205,8 @@ impl<'a> BatchMatcher<'a> {
         counters: &mut Counters,
     ) -> Result<(), Incomplete> {
         let mut dispatch_workspace = DispatchCandidateWorkspace::default();
-        let mut prefix_states = PrefixStates::new(self.facts.row_count());
+        let mut prefix_states = PrefixStates::new();
+        let mut prefix_context = PrefixTransitionContext::new(self.facts.generation(), self.facts.row_count());
         self.match_node_collecting_requests(
             node,
             out,
@@ -1214,7 +1217,7 @@ impl<'a> BatchMatcher<'a> {
                 dispatch_workspace: &mut dispatch_workspace,
                 requests: None,
                 completed: None,
-                prefix_states: Some(&mut prefix_states),
+                prefix_states: Some((&mut prefix_states, &mut prefix_context)),
                 deferred_prefix_matches: None,
             },
         )
@@ -1282,7 +1285,7 @@ impl<'a> BatchMatcher<'a> {
         if !self.node_is_slotted_in && !self.node_is_a_part_exposed_here && !self.node_is_the_host_of_this_tree {
             let prefix_matches = match prefix_states {
                 None => None,
-                Some(states) => {
+                Some((states, context)) => {
                     let mut evaluation = PrefixEvaluation::new(
                         self.dispatch.prefixes(),
                         self.tree,
@@ -1292,7 +1295,13 @@ impl<'a> BatchMatcher<'a> {
                         self.shadow_root,
                         None,
                     );
-                    match states.match_set_for(&mut evaluation, node, counters) {
+                    match states.match_set_for(
+                        &mut context.scratch,
+                        &mut context.effects,
+                        &mut evaluation,
+                        node,
+                        counters,
+                    ) {
                         PrefixTransitionLookup::Known(matches) => Some((states, matches)),
                         // The sibling-aware walk reads the node's left context, which a selective
                         // batch may not have materialized yet. A missing row is answered the way
@@ -2069,7 +2078,8 @@ mod tests {
             &document.program,
         );
         let mut dispatch_workspace = DispatchCandidateWorkspace::default();
-        let mut prefix_states = PrefixStates::new(document.facts.row_count());
+        let mut prefix_states = PrefixStates::new();
+        let mut prefix_context = PrefixTransitionContext::new(document.facts.generation(), document.facts.row_count());
         let mut matches = RuleMatches::new();
         for _ in 0..2 {
             interpreter
@@ -2083,7 +2093,7 @@ mod tests {
                         dispatch_workspace: &mut dispatch_workspace,
                         requests: None,
                         completed: None,
-                        prefix_states: Some(&mut prefix_states),
+                        prefix_states: Some((&mut prefix_states, &mut prefix_context)),
                         deferred_prefix_matches: None,
                     },
                 )

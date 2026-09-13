@@ -1256,6 +1256,13 @@ impl StyleEngineState {
                 exact_cascade_confirmation_nodes.push(node);
             }
         });
+        if let Some(patch) = retained_answer_patch.as_mut() {
+            let mut caches = patch.prefix_caches.borrow_mut();
+            if let Lookup::Known(states) = caches.states.lookup_mut(patch.scope_program) {
+                states.install_prefix_effects(&mut patch.prefix_context.effects);
+            }
+            caches.states.settle_memory(&mut self.memory);
+        }
         patch_loop_timer.stop(Counter::RetainedAnswerPatchLoopMicroseconds, counters);
         exact_cascade_stop_nodes.consolidate();
         exact_cascade_confirmation_nodes.consolidate();
@@ -1301,9 +1308,9 @@ impl StyleEngineState {
                     let completion_begin_timer = PassTimer::start();
                     self.begin_published_match_answer_completion_batch(root, prefer_complete_batch, counters);
                     completion_begin_timer.stop(Counter::CompletionBatchBeginMicroseconds, counters);
-                } else if let Some(traversal) = self.batch_matching_traversal.take() {
+                } else if let Some(mut traversal) = self.batch_matching_traversal.take() {
                     if let Some(batch) = traversal.batch.as_ref() {
-                        self.prepare_prefix_rows_for_batch(batch);
+                        self.prepare_prefix_rows_for_batch(batch, &mut traversal.prefix_contexts);
                     }
                     self.batch_matching_traversal = Some(traversal);
                 }
