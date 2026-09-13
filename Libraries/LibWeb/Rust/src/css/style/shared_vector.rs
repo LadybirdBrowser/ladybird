@@ -69,6 +69,31 @@ impl<T> Default for SharedVector<T> {
     }
 }
 
+impl<T: Clone> Clone for SharedVector<T> {
+    fn clone(&self) -> Self {
+        Self {
+            storage: match &self.storage {
+                Storage::Owned(values) => Storage::Owned(values.clone()),
+                Storage::Shared(data) => Storage::Shared(Rc::clone(data)),
+            },
+        }
+    }
+}
+
+impl<T: PartialEq> PartialEq for SharedVector<T> {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_slice() == other.as_slice()
+    }
+}
+
+impl<T: Eq> Eq for SharedVector<T> {}
+
+impl<T: Hash> Hash for SharedVector<T> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.as_slice().hash(state);
+    }
+}
+
 impl<T> Deref for SharedVector<T> {
     type Target = Vec<T>;
 

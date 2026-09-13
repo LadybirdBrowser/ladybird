@@ -3400,11 +3400,11 @@ impl RouteDirectory {
 #[derive(Clone, Default, PartialEq, Eq)]
 struct RouteColumnData {
     headers: Vec<RouteHeader>,
-    paths: Vec<RouteRange>,
-    origins: Vec<RouteRange>,
-    origin_requirements: Vec<RouteRange>,
-    parents: Vec<RouteRange>,
-    waypoints: Vec<RouteRange>,
+    paths: SharedVector<RouteRange>,
+    origins: SharedVector<RouteRange>,
+    origin_requirements: SharedVector<RouteRange>,
+    parents: SharedVector<RouteRange>,
+    waypoints: SharedVector<RouteRange>,
     anchors: Vec<RelativeAnchor>,
     entry_facts: Vec<Option<EntryRouteFacts>>,
     inverse_steps: Vec<InverseStep>,
@@ -3474,6 +3474,8 @@ struct SharedRouteColumnTable {
 }
 
 thread_local! {
+    static SHARED_ROUTE_RANGES: RefCell<SharedVectorPool<RouteRange>> =
+        RefCell::new(SharedVectorPool::new(MemoryCategory::RoutingRegistry));
     static SHARED_ROUTE_COLUMNS: RefCell<SharedRouteColumnTable> = RefCell::new(SharedRouteColumnTable {
         by_hash: HashMap::default(),
         memory: MemoryController::new(DeviceClass::ForegroundDesktop),
@@ -3527,7 +3529,7 @@ impl RouteColumns {
         if matches!(self, Self::Shared(_)) || self.is_empty() {
             return;
         }
-        let Self::Owned(data) = std::mem::take(self) else {
+        let Self::Owned(mut data) = std::mem::take(self) else {
             unreachable!()
         };
         let mut hasher = fast_hasher();
@@ -3543,6 +3545,13 @@ impl RouteColumns {
             {
                 return found;
             }
+            // Offsets and lengths can agree even when route keys or rule bindings differ.
+            // Share each immutable range column independently of the complete registry.
+            data.paths.share(&SHARED_ROUTE_RANGES);
+            data.origins.share(&SHARED_ROUTE_RANGES);
+            data.origin_requirements.share(&SHARED_ROUTE_RANGES);
+            data.parents.share(&SHARED_ROUTE_RANGES);
+            data.waypoints.share(&SHARED_ROUTE_RANGES);
             let mut memory = MemoryLease::new(MemoryCategory::RoutingRegistry);
             memory.resize_required_to(&mut table.memory, data.capacity_bytes());
             let shared = Rc::new(SharedRouteColumns {
@@ -3578,11 +3587,11 @@ struct RouteRanges {
 impl RouteColumnData {
     fn push(&mut self, header: RouteHeader, ranges: RouteRanges) {
         self.headers.push(header);
-        self.paths.push(ranges.path);
-        self.origins.push(ranges.origin);
-        self.origin_requirements.push(ranges.origin_requirements);
-        self.parents.push(ranges.parent);
-        self.waypoints.push(ranges.waypoints);
+        self.paths.make_mut().push(ranges.path);
+        self.origins.make_mut().push(ranges.origin);
+        self.origin_requirements.make_mut().push(ranges.origin_requirements);
+        self.parents.make_mut().push(ranges.parent);
+        self.waypoints.make_mut().push(ranges.waypoints);
     }
 
     fn len(&self) -> usize {
