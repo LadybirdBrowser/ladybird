@@ -35,6 +35,7 @@ use super::fast_hash::FastSet as HashSet;
 use crate::css::style_value::RetainedStyleValueData;
 use std::cell::Cell;
 use std::cmp::Reverse;
+use std::num::NonZeroU32;
 use std::rc::Rc;
 
 use super::memory::MemoryCategory;
@@ -2040,6 +2041,7 @@ struct DispatchEntryMetadata {
     required_subject_bloom: u64,
     prefix_matched: bool,
     multi_key: bool,
+    next_for_identity: Option<NonZeroU32>,
 }
 
 #[derive(Clone, Copy)]
@@ -2048,9 +2050,15 @@ struct DispatchEntryBinding {
     cascade_order_index: u32,
 }
 
+#[derive(Clone, Copy, Default)]
+struct DispatchEntryRows {
+    first: Option<NonZeroU32>,
+    last: Option<NonZeroU32>,
+}
+
 struct RuleDispatchEntries {
     rows: Vec<DispatchEntryMetadata>,
-    entry_rows: Vec<Vec<DispatchRow>>,
+    entry_rows: Vec<DispatchEntryRows>,
     residency: MemoryLease,
 }
 
@@ -2079,7 +2087,7 @@ impl RuleDispatchEntries {
         capacity_bytes! {
             shallow [self.rows, self.entry_rows];
             cached [];
-            nested [self.entry_rows.iter().map(|rows| rows.capacity() * size_of::<DispatchRow>()).sum::<usize>()];
+            nested [];
             skip [self.residency];
         }
     }
@@ -2673,6 +2681,7 @@ impl RuleDispatch {
             required_subject_bloom: entry.required_subject_bloom,
             prefix_matched: entry.prefix_matched,
             multi_key: entry.multi_key,
+            next_for_identity: None,
         });
         self.entry_bindings.push(DispatchEntryBinding {
             rule: entry.rule,
@@ -2680,9 +2689,17 @@ impl RuleDispatch {
         });
         let entries = Rc::make_mut(&mut self.entries);
         if entries.entry_rows.len() <= entry.identity.0 as usize {
-            entries.entry_rows.resize_with(entry.identity.0 as usize + 1, Vec::new);
+            entries
+                .entry_rows
+                .resize(entry.identity.0 as usize + 1, DispatchEntryRows::default());
         }
-        entries.entry_rows[entry.identity.0 as usize].push(id);
+        let row = NonZeroU32::new(id.0.checked_add(1).expect("dispatch row space exhausted")).unwrap();
+        let rows = &mut entries.entry_rows[entry.identity.0 as usize];
+        if let Some(previous) = rows.last.replace(row) {
+            entries.rows[(previous.get() - 1) as usize].next_for_identity = Some(row);
+        } else {
+            rows.first = Some(row);
+        }
         self.topology_mut().buckets.entry(key).or_default().push(id);
         if key == DispatchKey::Universal {
             self.index_universal_entry(id);
@@ -2725,12 +2742,15 @@ impl RuleDispatch {
     }
 
     pub(super) fn entries_for_identity(&self, entry: EntryID) -> impl Iterator<Item = DispatchEntry> + '_ {
-        self.entries
+        let first = self
+            .entries
             .entry_rows
             .get(entry.0 as usize)
-            .into_iter()
-            .flatten()
-            .map(|&row| self.entry(row))
+            .and_then(|rows| rows.first);
+        std::iter::successors(first, |row| {
+            self.entries.rows[(row.get() - 1) as usize].next_for_identity
+        })
+        .map(|row| self.entry(DispatchRow(row.get() - 1)))
     }
 
     #[must_use]

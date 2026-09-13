@@ -226,7 +226,7 @@ struct PrefixOutput {
 #[derive(Clone)]
 struct PrefixEntryPath {
     terminal: EntryID,
-    steps: Box<[PrefixStepID]>,
+    steps: std::ops::Range<u32>,
 }
 
 #[derive(Clone, Default)]
@@ -250,6 +250,7 @@ pub(super) struct PrefixAutomaton {
     buckets: HashMap<DispatchKey, PrefixDispatchBucket>,
     /// Runtime lookup is a packed immutable table sorted by selector entry.
     entry_paths: Vec<PrefixEntryPath>,
+    entry_path_steps: Vec<PrefixStepID>,
     /// Builder-only duplicate detection, discarded when the table is finished.
     entry_path_keys: HashSet<EntryID>,
     entry_paths_finished: bool,
@@ -413,7 +414,11 @@ impl PrefixAutomaton {
             self.has_sibling_steps = true;
         }
         let mut predecessor = None;
-        let mut path = Vec::with_capacity(chain.len());
+        let path_start = u32::try_from(self.entry_path_steps.len()).expect("selector prefix path space exhausted");
+        let path_end = path_start
+            .checked_add(u32::try_from(chain.len()).expect("selector prefix path space exhausted"))
+            .expect("selector prefix path space exhausted");
+        self.entry_path_steps.reserve(chain.len());
         for (&chain_step, canonical) in chain.iter().zip(canonical_steps) {
             program.visit_prefix_local_features(chain_step.local, &mut |feature| {
                 self.local_fact_dependencies.add(feature);
@@ -520,7 +525,7 @@ impl PrefixAutomaton {
                 }
             };
             predecessor = Some(step);
-            path.push(step);
+            self.entry_path_steps.push(step);
         }
         let terminal_step = predecessor.expect("a selector chain is not empty");
         self.step_output_builders[terminal_step.0 as usize]
@@ -528,7 +533,7 @@ impl PrefixAutomaton {
             .push(entry);
         self.entry_paths.push(PrefixEntryPath {
             terminal: entry,
-            steps: path.into_boxed_slice(),
+            steps: path_start..path_end,
         });
         true
     }
@@ -593,10 +598,8 @@ impl PrefixAutomaton {
         for bucket in self.buckets.values_mut() {
             remap_steps(&mut bucket.root_steps);
         }
-        for path in &mut self.entry_paths {
-            for step in &mut path.steps {
-                step.0 = remap[step.0 as usize];
-            }
+        for step in &mut self.entry_path_steps {
+            step.0 = remap[step.0 as usize];
         }
         for (order, step) in self.steps.iter_mut().enumerate() {
             let order = u32::try_from(order).expect("selector prefix step space exhausted");
@@ -706,10 +709,11 @@ impl PrefixAutomaton {
         &self.features[start..start + len as usize]
     }
 
-    fn path_for(&self, key: EntryID) -> Option<&PrefixEntryPath> {
+    fn path_for(&self, key: EntryID) -> Option<&[PrefixStepID]> {
         assert!(self.entry_paths_finished, "cannot query an unfinished prefix automaton");
         let index = self.entry_paths.binary_search_by_key(&key, |path| path.terminal).ok()?;
-        Some(&self.entry_paths[index])
+        let path = &self.entry_paths[index];
+        Some(&self.entry_path_steps[path.steps.start as usize..path.steps.end as usize])
     }
 
     pub(super) fn contains_entry(&self, entry: EntryID) -> bool {
@@ -729,8 +733,8 @@ impl PrefixAutomaton {
             let Some(path) = self.path_for(entry) else {
                 continue;
             };
-            selection.terminals[path.terminal.0 as usize] = true;
-            for step in &path.steps {
+            selection.terminals[entry.0 as usize] = true;
+            for step in path {
                 if !selection.steps[step.0 as usize] {
                     selection.steps[step.0 as usize] = true;
                 }
@@ -748,10 +752,10 @@ impl PrefixAutomaton {
         let Some(path) = self.path_for(entry) else {
             return false;
         };
-        let Some(index) = path.steps.len().checked_sub(inverse_path_length.saturating_add(1)) else {
+        let Some(index) = path.len().checked_sub(inverse_path_length.saturating_add(1)) else {
             return false;
         };
-        let Some(&step) = path.steps.get(index) else {
+        let Some(&step) = path.get(index) else {
             return false;
         };
         into.push(PrefixProducer { step });
@@ -776,6 +780,7 @@ impl PrefixAutomaton {
                 self.step_ids,
                 self.buckets,
                 self.entry_paths,
+                self.entry_path_steps,
                 self.entry_path_keys,
                 self.step_predecessors,
             ];
@@ -809,11 +814,6 @@ impl PrefixAutomaton {
                 .buckets
                 .values()
                 .map(|bucket| bucket.root_steps.capacity() * size_of::<PrefixStepID>())
-                .sum::<usize>(),
-                self
-                .entry_paths
-                .iter()
-                .map(|path| path.steps.len() * size_of::<PrefixStepID>())
                 .sum::<usize>(),
             ];
             skip [self.entry_paths_finished, self.relation_program];
@@ -5103,9 +5103,10 @@ mod tests {
             .step_output_builders
             .resize(2, PrefixStepOutputBuilder::default());
         automaton.step_output_builders[0].child_successors.push(PrefixStepID(1));
+        automaton.entry_path_steps.extend([PrefixStepID(0), PrefixStepID(1)]);
         automaton.entry_paths.push(PrefixEntryPath {
             terminal: EntryID(0),
-            steps: vec![PrefixStepID(0), PrefixStepID(1)].into_boxed_slice(),
+            steps: 0..2,
         });
 
         automaton.finish();
@@ -5123,7 +5124,7 @@ mod tests {
             [PrefixStepID(1)]
         );
         assert_eq!(
-            automaton.entry_paths[0].steps.as_ref(),
+            automaton.path_for(EntryID(0)).unwrap(),
             [PrefixStepID(1), PrefixStepID(0)]
         );
     }
