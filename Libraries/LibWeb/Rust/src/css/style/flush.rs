@@ -1057,13 +1057,6 @@ impl StyleEngineState {
                 .sparse()
                 .ok()
                 .copied();
-            let previous_observable_answer = self.deferred_pseudo_element.and_then(|_| {
-                self.retained_match_answers
-                    .lookup(node)
-                    .sparse()
-                    .ok()
-                    .and_then(|identity| self.match_answers.answer(*identity).cloned())
-            });
             let has_signed_delta = !selector_truth_changes.deltas_for(node).is_empty();
             let mut has_output_change = false;
             let mut has_upquery = false;
@@ -1174,7 +1167,8 @@ impl StyleEngineState {
                                 && !patch.has_non_selector_inputs
                                 && patch.always_emit_nodes.binary_search(&node).is_err()
                                 && let Some(deferred) = self.deferred_pseudo_element
-                                && let Some(previous) = previous_observable_answer.as_deref()
+                                && let Lookup::Known(previous) = self.retained_match_answers.lookup(node)
+                                && let Some(previous) = self.match_answers.answer(*previous)
                                 && let Some(current) = published_match_answers
                                     .answer_effects
                                     .answer_identity(&self.retained_match_answers, node)
