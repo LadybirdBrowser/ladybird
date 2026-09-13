@@ -5,7 +5,7 @@
  */
 
 #include <AK/HashTable.h>
-#include <LibRequests/RequestClient.h>
+#include <LibRequests/RequestControlClient.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/CanonicalNavigable.h>
 #include <LibWebView/ProcessManager.h>
@@ -47,7 +47,7 @@ void TabPerformanceMonitor::config_variable_changed(ConfigVariableID id)
     if (id != ConfigVariableID::ShowTabPerformanceMonitor)
         return;
     m_enabled = Application::settings().config_variable_as_bool(id);
-    auto& requests = Application::request_server_client();
+    auto& requests = Application::request_server_control_client();
     requests.async_set_performance_monitor_enabled(m_enabled);
     if (!m_enabled) {
         m_timer = nullptr;

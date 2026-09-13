@@ -16,7 +16,7 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibGfx/SystemTheme.h>
 #include <LibMain/Main.h>
-#include <LibRequests/RequestClient.h>
+#include <LibRequests/RequestControlClient.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/TabPerformanceMonitor.h>
@@ -72,7 +72,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     };
     auto enable = [&] {
         WebView::Application::settings().set_config_variable(WebView::ConfigVariableID::ShowTabPerformanceMonitor, true);
-        auto& requests = WebView::Application::request_server_client();
+        auto& requests = WebView::Application::request_server_control_client();
         auto callback = move(requests.on_network_usage);
         requests.on_network_usage = [&, callback = move(callback)](Vector<Requests::NetworkUsage> usage, u64 interval) {
             VERIFY(interval > 0);
@@ -95,7 +95,7 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     TRY(wait_for_samples(3));
     WebView::Application::settings().set_config_variable(WebView::ConfigVariableID::ShowTabPerformanceMonitor, false);
     VERIFY(!monitor.enabled());
-    VERIFY(!WebView::Application::request_server_client().on_network_usage);
+    VERIFY(!WebView::Application::request_server_control_client().on_network_usage);
     auto previous_samples = samples;
     pushes = 0;
     enable();

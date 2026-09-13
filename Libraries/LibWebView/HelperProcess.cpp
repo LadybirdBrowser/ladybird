@@ -428,7 +428,7 @@ ErrorOr<NonnullRefPtr<WebWorkerClient>> launch_web_worker_process(Web::HTML::Age
     return client;
 }
 
-ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
+ErrorOr<NonnullRefPtr<Requests::RequestControlClient>> launch_request_server_process()
 {
     auto const& browser_options = Application::browser_options();
     auto const& request_server_options = Application::request_server_options();
@@ -465,7 +465,7 @@ ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
     if (request_server_options.resource_substitution_map_path.has_value())
         arguments.append(ByteString::formatted("--resource-map={}", *request_server_options.resource_substitution_map_path));
 
-    auto client = TRY(launch_server_process<Requests::RequestClient>("RequestServer"sv, move(arguments)));
+    auto client = TRY(launch_server_process<Requests::RequestControlClient>("RequestServer"sv, move(arguments)));
 
     auto const& browsing_data_settings = Application::settings().browsing_data_settings();
     client->async_set_disk_cache_settings(browsing_data_settings.disk_cache_settings);
@@ -486,7 +486,7 @@ ErrorOr<NonnullRefPtr<Requests::RequestClient>> launch_request_server_process()
 
 ErrorOr<IPC::TransportHandle> connect_new_request_server_client(IsPrivate is_private)
 {
-    auto response = Application::request_server_client().send_sync_but_allow_failure<Messages::RequestServer::ConnectNewClient>(is_private == IsPrivate::Yes ? RequestServer::IsPrivate::Yes : RequestServer::IsPrivate::No);
+    auto response = Application::request_server_control_client().send_sync_but_allow_failure<Messages::RequestServerControl::ConnectNewClient>(is_private == IsPrivate::Yes ? RequestServer::IsPrivate::Yes : RequestServer::IsPrivate::No);
     if (!response)
         return Error::from_string_literal("Failed to connect to RequestServer");
     return response->take_handle();

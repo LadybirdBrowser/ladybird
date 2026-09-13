@@ -1,6 +1,7 @@
 set(SOURCES
     AIA.cpp
     ConnectionFromClient.cpp
+    ControlConnectionFromClient.cpp
     CURL.cpp
     Request.cpp
     RequestPipe.cpp
@@ -19,6 +20,8 @@ endif()
 
 set(GENERATED_SOURCES
     RequestClientEndpoint.h
+    RequestServerControlClientEndpoint.h
+    RequestServerControlEndpoint.h
     RequestServerEndpoint.h
 )
 

@@ -19,6 +19,7 @@
 #include <RequestServer/AIA.h>
 #include <RequestServer/CURL.h>
 #include <RequestServer/ConnectionFromClient.h>
+#include <RequestServer/ControlConnectionFromClient.h>
 #include <RequestServer/Request.h>
 #include <RequestServer/Resolver.h>
 #include <RequestServer/ResourceSubstitutionMap.h>
@@ -589,7 +590,7 @@ void Request::notify_request_unblocked(Badge<HTTP::DiskCache>)
     transition_to_state(State::Init);
 }
 
-bool Request::notify_retrieved_http_cookie(Badge<ConnectionFromClient>, u64 cookie_request_id, StringView cookie)
+bool Request::notify_retrieved_http_cookie(Badge<ControlConnectionFromClient>, u64 cookie_request_id, StringView cookie)
 {
     if (m_cookie_request_id != cookie_request_id)
         return true;
@@ -1078,7 +1079,7 @@ void Request::handle_retrieve_cookie_state()
         return;
     }
 
-    if (auto connection = ConnectionFromClient::primary_connection(); connection.has_value()) {
+    if (auto connection = ControlConnectionFromClient::the(); connection.has_value()) {
         static u64 s_next_cookie_request_id = 0;
         m_cookie_request_id = s_next_cookie_request_id++;
         mark_lifecycle_event(this, &WireStats::cookie_started_at);

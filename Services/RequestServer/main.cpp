@@ -19,6 +19,7 @@
 #include <LibMain/Main.h>
 #include <RequestServer/CURL.h>
 #include <RequestServer/ConnectionFromClient.h>
+#include <RequestServer/ControlConnectionFromClient.h>
 #include <RequestServer/Resolver.h>
 #include <RequestServer/ResourceSubstitutionMap.h>
 #include <RequestServer/Sandbox.h>
@@ -119,10 +120,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     RequestServer::ConnectionFromClient::ConnectionMap connections;
     RequestServer::ConnectionFromClient::RequestTransferLeaseMap request_transfer_leases;
 
-    auto client = TRY(IPC::take_over_accepted_client_from_system_server<RequestServer::ConnectionFromClient>(
+    auto client = TRY(IPC::take_over_accepted_client_from_system_server<RequestServer::ControlConnectionFromClient>(
         mach_server_name,
-        RequestServer::ConnectionFromClient::IsPrimaryConnection::Yes,
-        RequestServer::IsPrivate::No,
         connections,
         request_transfer_leases,
         disk_cache,

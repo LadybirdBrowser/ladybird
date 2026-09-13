@@ -9,6 +9,7 @@
 namespace RequestServer {
 
 class ConnectionFromClient;
+class ControlConnectionFromClient;
 class Request;
 class RequestPipe;
 

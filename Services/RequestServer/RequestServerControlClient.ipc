@@ -1,0 +1,15 @@
+#include <LibRequests/CacheSizes.h>
+#include <LibRequests/NetworkUsage.h>
+#include <LibURL/URL.h>
+#include <RequestServer/IsPrivate.h>
+#include <RequestServer/RequestType.h>
+
+endpoint RequestServerControlClient
+{
+    retrieve_http_cookie(int client_id, u64 request_id, ::RequestServer::RequestType request_type, u64 cookie_request_id, URL::URL url, ::RequestServer::IsPrivate is_private) =|
+
+    network_usage(Vector<Requests::NetworkUsage> usage, u64 interval_microseconds) =|
+
+    estimated_cache_size(u64 cache_size_estimation_id, Requests::CacheSizes sizes) =|
+    removed_cache_entries(u64 clear_cache_request_id) =|
+}
