@@ -71,7 +71,7 @@ struct AudioTask {
     Optional<double> data {};
 };
 
-static ErrorOr<ChannelMap> audio_channel_layout_to_channel_map(AudioChannelLayout const& channel_layout);
+static ErrorOr<ChannelMap> core_audio_channel_layout_to_channel_map(AudioChannelLayout const& channel_layout, u32 channel_layout_size);
 
 template<typename T>
 class CoreAudioPropertyValue {
@@ -149,7 +149,7 @@ static ErrorOr<void> set_audio_unit_property(AudioComponentInstance& instance, u
     return {};
 }
 
-static void check_audio_channel_layout_size(AudioChannelLayout& layout, u32 size)
+static void check_core_audio_channel_layout_size(AudioChannelLayout const& layout, u32 size)
 {
     auto minimum_layout_size = Checked(layout.mNumberChannelDescriptions);
     minimum_layout_size--;
@@ -182,8 +182,7 @@ public:
         TRY(set_audio_unit_property(state->m_audio_unit, kAudioUnitProperty_StreamFormat, description));
 
         auto layout = TRY(get_audio_unit_property<AudioChannelLayout>(state->m_audio_unit, kAudioUnitProperty_AudioChannelLayout));
-        check_audio_channel_layout_size(*layout, layout.size());
-        auto channel_map = TRY(audio_channel_layout_to_channel_map(*layout));
+        auto channel_map = TRY(core_audio_channel_layout_to_channel_map(*layout, layout.size()));
         state->m_sample_specification = SampleSpecification(static_cast<u32>(description->mSampleRate), channel_map);
 
         AURenderCallbackStruct callbackStruct;
@@ -439,8 +438,10 @@ NonnullRefPtr<Core::ThreadedPromise<void>> PlaybackStreamAudioUnit::set_volume(d
     C(CenterTopFront, Channel::TopFrontCenter)  \
     C(RightTopFront, Channel::TopFrontRight)
 
-ErrorOr<ChannelMap> audio_channel_layout_to_channel_map(AudioChannelLayout const& channel_layout)
+ErrorOr<ChannelMap> core_audio_channel_layout_to_channel_map(AudioChannelLayout const& channel_layout, u32 channel_layout_size)
 {
+    check_core_audio_channel_layout_size(channel_layout, channel_layout_size);
+
     if (channel_layout.mChannelLayoutTag == kAudioChannelLayoutTag_Mono)
         return ChannelMap::mono();
     if (channel_layout.mChannelLayoutTag == kAudioChannelLayoutTag_Stereo
@@ -504,7 +505,7 @@ ErrorOr<ChannelMap> audio_channel_layout_to_channel_map(AudioChannelLayout const
                 &channel_layout.mChannelLayoutTag,
                 &explicit_layout_size,
                 explicit_layout));
-            check_audio_channel_layout_size(*explicit_layout, explicit_layout_size);
+            check_core_audio_channel_layout_size(*explicit_layout, explicit_layout_size);
             fill_channels_from_channel_descriptions(*explicit_layout);
         }
     }
