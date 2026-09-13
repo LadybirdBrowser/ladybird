@@ -1537,9 +1537,10 @@ pub(super) fn mark_element_visited(visited: &mut Vec<bool>, node: StyleNodeID) -
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
-pub(super) struct PrefixAnswerKey {
+pub(super) struct PrefixAnswerKey<'a> {
     pub(super) prefix_contribution: MatchAnswerID,
-    pub(super) non_prefix_matches: MatchAnswerID,
+    pub(super) non_prefix_matches: &'a [RetainedRuleMatch],
+    pub(super) non_prefix_hash: u64,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

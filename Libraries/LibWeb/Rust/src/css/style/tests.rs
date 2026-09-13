@@ -1021,7 +1021,8 @@ fn an_evicted_prefix_answer_is_a_typed_missing_key() {
     ));
     let key = PrefixAnswerKey {
         prefix_contribution: contribution,
-        non_prefix_matches: non_prefix,
+        non_prefix_matches: &[],
+        non_prefix_hash: super::intern_table::content_hash(&[] as &[RetainedRuleMatch]),
     };
     answers.remember(&mut catalog, key, &[], None, None, MatchAnswerID(1), true);
     answers.settle_memory(&mut memory);
@@ -1055,6 +1056,66 @@ fn an_evicted_prefix_answer_is_a_typed_missing_key() {
     ));
     assert!(matches!(answers.lookup(key), Lookup::Missing(gap) if gap == key));
     assert_eq!(memory.bytes_in_category(MemoryCategory::PrefixAnswerCache), 0);
+}
+
+#[test]
+fn prefix_answer_keys_compare_content_after_hash_collisions() {
+    let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
+    let mut answers = PrefixAnswerCache::default();
+    let mut catalog = MatchAnswerCatalog::default();
+    let contribution =
+        answers.remember_prefix_contribution(&mut catalog, ScopeProgramID(1), PrefixMatchSetID::default(), &[]);
+    let matched = RetainedRuleMatch {
+        rule: RuleID(1),
+        program: SelectorProgramID(1),
+        entry: 0,
+        tree_scope: TreeScopeID::DOCUMENT,
+        scope_proximity: u32::MAX,
+    };
+    // Force every key into the same hash bucket, including across table growth.
+    for entry in 0..64 {
+        let content = [RetainedRuleMatch { entry, ..matched }];
+        let key = PrefixAnswerKey {
+            prefix_contribution: contribution,
+            non_prefix_matches: &content,
+            non_prefix_hash: 0,
+        };
+        assert!(matches!(answers.lookup(key), Lookup::Missing(_)));
+        assert!(matches!(answers.exact_answer(key), Lookup::Missing(_)));
+        answers.remember(
+            &mut catalog,
+            key,
+            &[],
+            None,
+            None,
+            MatchAnswerID(entry + 1),
+            entry % 2 == 0,
+        );
+        answers.remember_exact_answer(&mut catalog, key, contribution);
+    }
+    // Each probe has a different allocation from the insertion's expired local slice.
+    for entry in 0..64 {
+        let content = vec![RetainedRuleMatch { entry, ..matched }];
+        let key = PrefixAnswerKey {
+            prefix_contribution: contribution,
+            non_prefix_matches: &content,
+            non_prefix_hash: 0,
+        };
+        let answer = answers.lookup(key).sparse().unwrap();
+        assert_eq!(answer.cascade_input, MatchAnswerID(entry + 1));
+        assert_eq!(answer.cascade_winner_inventory_is_complete, entry % 2 == 0);
+        assert_eq!(answers.exact_answer(key).sparse().unwrap(), contribution);
+        let bytes = answers.capacity_bytes();
+        answers.remember(&mut catalog, key, &[], None, None, MatchAnswerID(100), true);
+        answers.remember_exact_answer(&mut catalog, key, contribution);
+        assert_eq!(answers.capacity_bytes(), bytes);
+        assert_eq!(answers.lookup(key).sparse().unwrap().cascade_input, MatchAnswerID(100));
+    }
+    answers.settle_memory(&mut memory);
+    assert!(answers.retain(&mut memory));
+    answers.release(&mut catalog);
+    assert_eq!(memory.bytes_in_category(MemoryCategory::PrefixAnswerCache), 0);
+    assert!(catalog.answer(contribution).is_none());
 }
 
 #[test]
@@ -3960,7 +4021,6 @@ fn recycled_selector_entries_keep_delta_answers_canonical() {
     add_feature(&mut engine, nodes[1], LocalFeatureKey::Class(second));
     engine.state.facts.apply_staged(&mut engine.state.memory);
 
-    let retained = prepare_retained_match_answer(retained.into_iter());
     let mut patch = engine.prepare_retained_answer_patch(
         RetainedAnswerPatchSelection {
             affected: vec![RetainedAnswerPatchSelectionRule {
@@ -3978,7 +4038,6 @@ fn recycled_selector_entries_keep_delta_answers_canonical() {
             nodes[1],
             &mut patch,
             old_identity,
-            &retained,
             old_cascade_input,
             &[SelectorTruthDelta {
                 node: nodes[1],
@@ -4190,6 +4249,8 @@ fn selector_list_entry_deltas_fall_back_when_the_compact_winner_is_insufficient(
         tree_scope: TreeScopeID::DOCUMENT,
         scope_proximity: u32::MAX,
     }];
+    engine.remember_prepared_retained_match_answer_with_truth(nodes[1], retained.to_vec(), None);
+    let old_identity = *engine.retained_match_answers.lookup(nodes[1]).sparse().unwrap();
     let entries = [
         engine.programs.entry_id(program, 0),
         engine.programs.entry_id(program, 1),
@@ -4207,8 +4268,7 @@ fn selector_list_entry_deltas_fall_back_when_the_compact_winner_is_insufficient(
             .apply_retained_match_answer_deltas(
                 nodes[1],
                 &mut patch,
-                MatchAnswerID::default(),
-                &retained,
+                old_identity,
                 MatchAnswerID::default(),
                 &[delta(0, SetChange::Added)],
             )
@@ -4220,8 +4280,7 @@ fn selector_list_entry_deltas_fall_back_when_the_compact_winner_is_insufficient(
             .apply_retained_match_answer_deltas(
                 nodes[1],
                 &mut patch,
-                MatchAnswerID::default(),
-                &retained,
+                old_identity,
                 MatchAnswerID::default(),
                 &[delta(1, SetChange::Removed)],
             )

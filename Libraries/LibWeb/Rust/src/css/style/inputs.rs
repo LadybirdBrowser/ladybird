@@ -2155,7 +2155,8 @@ impl StyleEngineState {
                     .sparse()
                     .ok()
                     .map(|(_, state)| state)?;
-                let retained = Rc::clone(self.retained_match_answer(node).sparse().ok()?);
+                let retained = *self.retained_match_answers.lookup(node).sparse().ok()?;
+                self.match_answers.retained_answer(retained)?;
                 Some((previous, retained, current_declared.to_vec()))
             })
             .flatten();
@@ -2198,10 +2199,13 @@ impl StyleEngineState {
         &mut self,
         node: StyleNodeID,
         previous: CascadeStateID,
-        retained: Rc<[RetainedRuleMatch]>,
+        retained: MatchAnswerID,
         properties: &[u16],
         counters: &mut Counters,
     ) {
+        let Some(retained) = self.match_answers.retained_answer(retained) else {
+            return;
+        };
         let matches = retained
             .iter()
             .copied()

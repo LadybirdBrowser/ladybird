@@ -757,7 +757,6 @@ impl StyleEngine {
         node: StyleNodeID,
         patch: &mut RetainedAnswerPatch,
         old_identity: MatchAnswerID,
-        retained: &[RetainedRuleMatch],
         old_cascade_input: MatchAnswerID,
         deltas: &[SelectorTruthDelta],
     ) -> Option<RetainedAnswerPatchOutcome> {
@@ -765,7 +764,6 @@ impl StyleEngine {
             node,
             patch,
             old_identity,
-            retained,
             old_cascade_input,
             deltas,
             &mut self.counters,
