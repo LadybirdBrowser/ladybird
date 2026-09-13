@@ -269,6 +269,52 @@ pub(super) fn scope_dispatch_shape_and_rules(
     (ScopeDispatchShape(shape), rules)
 }
 
+/// Put selector batches in a stable topology order, keeping equal batches in their source order.
+/// Cascade cache keys must be captured before this changes the rule binding order.
+pub(super) fn canonicalize_scope_dispatch(
+    shape: &mut ScopeDispatchShape,
+    rules: &mut Vec<RuleID>,
+    programs: &SelectorPrograms,
+) {
+    let key = |&(program, author): &(SelectorProgramID, bool)| (author, program.0);
+    if shape.0.is_sorted_by_key(key) {
+        return;
+    }
+    let mut offset = 0_usize;
+    let mut batches: Vec<_> = shape
+        .0
+        .iter()
+        .copied()
+        .map(|item| {
+            let compiled = programs.get(item.0);
+            let count: usize = (0..compiled.entries().len())
+                .map(|index| {
+                    let metadata = compiled.dispatch_metadata(index);
+                    if metadata.key == DispatchKey::Universal {
+                        metadata.subject_dispatch_keys().len().max(1)
+                    } else {
+                        1
+                    }
+                })
+                .sum();
+            let end = offset
+                .checked_add(count)
+                .expect("dispatch rule binding space exhausted");
+            let range = offset..end;
+            offset = end;
+            (item, range)
+        })
+        .collect();
+    assert_eq!(offset, rules.len());
+    batches.sort_by_key(|(item, _)| key(item));
+    let mut ordered_rules = Vec::with_capacity(rules.len());
+    for (index, (item, range)) in batches.into_iter().enumerate() {
+        shape.0[index] = item;
+        ordered_rules.extend_from_slice(&rules[range]);
+    }
+    *rules = ordered_rules;
+}
+
 /// Which of a scope's sheets a dispatch build takes.
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum SheetsToTake {
