@@ -286,7 +286,7 @@ void PageClient::create_navigation_params(Web::HTML::NavigationPopulationRequest
     for (auto const& navigable : active_document->inclusive_descendant_navigables()) {
         if (navigable->id() != navigable_id)
             continue;
-        if (!navigable->resume_navigation_params_creation(navigation_id, move(request)))
+        if (!as<Web::HTML::LocalNavigable>(*navigable).resume_navigation_params_creation(navigation_id, move(request)))
             client().async_did_finish_navigation_params_creation(m_id, navigable_id, navigation_id, {});
         return;
     }
@@ -303,7 +303,7 @@ void PageClient::cancel_navigation_params_creation(Web::HTML::CrossProcessId nav
     for (auto const& navigable : active_document->inclusive_descendant_navigables()) {
         if (navigable->id() != navigable_id)
             continue;
-        navigable->resume_navigation_params_creation(navigation_id, {});
+        as<Web::HTML::LocalNavigable>(*navigable).resume_navigation_params_creation(navigation_id, {});
         return;
     }
 }
@@ -319,7 +319,8 @@ void PageClient::run_navigation_unload_check(Web::HTML::CrossProcessId navigable
     for (auto const& navigable : active_document->inclusive_descendant_navigables()) {
         if (navigable->id() != navigable_id)
             continue;
-        navigable->run_navigation_unload_check(navigation_id, GC::create_function(navigable->heap(), [this, navigable = GC::Ref { *navigable }, navigable_id, navigation_id](bool should_continue) {
+        auto& local_navigable = as<Web::HTML::LocalNavigable>(*navigable);
+        local_navigable.run_navigation_unload_check(navigation_id, GC::create_function(local_navigable.heap(), [this, navigable = GC::Ref { local_navigable }, navigable_id, navigation_id](bool should_continue) {
             // The UI process retained the pending entry at admission; a passed check only needs the signal.
             if (!should_continue) {
                 navigable->resume_navigation_params_creation(navigation_id, {});
@@ -1890,7 +1891,7 @@ static void append_devtools_sources_for_document(Vector<Web::HTML::ScriptRegistr
     }
 
     for (auto const& navigable : document.descendant_navigables()) {
-        auto content_document = navigable->active_document();
+        auto content_document = as<Web::HTML::LocalNavigable>(*navigable).active_document();
         if (!content_document)
             continue;
         append_devtools_sources_for_document(results, *content_document);
@@ -1914,7 +1915,7 @@ static Optional<Web::HTML::ScriptRegistry::Description> find_devtools_source_des
         return exported_devtools_source_description(document, script->description);
 
     for (auto const& navigable : document.descendant_navigables()) {
-        auto content_document = navigable->active_document();
+        auto content_document = as<Web::HTML::LocalNavigable>(*navigable).active_document();
         if (!content_document)
             continue;
         if (auto description = find_devtools_source_description(*content_document, source_code); description.has_value())
