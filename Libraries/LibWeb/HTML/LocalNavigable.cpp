@@ -6175,19 +6175,6 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
     if (!document)
         return false;
 
-    // Cached captures splice in below the recorder's color resolution, so any effective-state change must drop them.
-    // Caught here, not at the producers: the page can flip the state itself via a color-scheme meta or root restyle.
-    ForceDarkPaintInputs force_dark_paint_inputs {
-        paint_config.force_dark_enabled,
-        paint_config.force_dark_foreground_threshold,
-        paint_config.force_dark_background_threshold,
-    };
-    if (m_force_dark_inputs_of_cached_paint != force_dark_paint_inputs) {
-        if (document->has_committed_viewport_box())
-            document->paint_state().invalidate_all_cached_paint(*document);
-        m_force_dark_inputs_of_cached_paint = force_dark_paint_inputs;
-    }
-
     adopt_pending_async_scroll_offsets();
     document->update_paint_and_hit_testing_properties_if_needed();
     document->update_compositor_animations();

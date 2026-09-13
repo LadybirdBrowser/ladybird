@@ -1476,19 +1476,6 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
         let mut paint_state = arena.paint_state().borrow_mut();
         paint_state.pending_recording_trace = None;
         paint_state.pending_recording = None;
-        let has_blocking_wheel_event_region_covering_viewport =
-            inputs.has_blocking_wheel_event_region_covering_viewport;
-        if paint_state.recorded_has_blocking_wheel_event_region_covering_viewport
-            != Some(has_blocking_wheel_event_region_covering_viewport)
-        {
-            arena.mark_all_descendant_subtree_caches_dirty();
-            paint_state.recorded_has_blocking_wheel_event_region_covering_viewport =
-                Some(has_blocking_wheel_event_region_covering_viewport);
-        }
-        if paint_state.recorded_canvas_color != Some(inputs.canvas_color) {
-            arena.mark_all_paint_caches_dirty();
-            paint_state.recorded_canvas_color = Some(inputs.canvas_color);
-        }
     }
     let (recording, recording_from_scratch) = {
         let paint_state = arena.paint_state().borrow();
@@ -1505,9 +1492,6 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
                 .last_root_background_source
                 .expect("a recording follows a visual context update"),
         );
-        let command_cache_source = (!inputs.should_show_line_box_borders)
-            .then(|| paint_state.paint_command_cache_source.clone())
-            .flatten();
         arena.set_paint_recording_in_progress(true);
         let recording = crate::painting::record::traversal::record_display_list(
             arena,
@@ -1515,7 +1499,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             viewport,
             inputs,
             paint_state.hit_test_list_generation + 1,
-            command_cache_source,
+            paint_state.paint_command_cache_source.clone(),
             paint_state.hit_test_item_cache_source.clone(),
             paint_state.trace_recordings || crate::painting::record::verify::enabled_by_environment(),
         );

@@ -180,7 +180,6 @@ pub(crate) struct PaintableRowStore {
     chrome_state_callback: Cell<Option<ChromeStateCallback>>,
     completed_record_gen: Cell<u64>,
     all_paint_caches_dirty_gen: Cell<u64>,
-    all_descendant_subtree_caches_dirty_gen: Cell<u64>,
     paint_recording_in_progress: Cell<bool>,
 }
 
@@ -716,7 +715,6 @@ impl LayoutNodeArena {
             cache.reset_entries_position_and_dirty_gens();
         }
         self.paintable_rows.all_paint_caches_dirty_gen.set(0);
-        self.paintable_rows.all_descendant_subtree_caches_dirty_gen.set(0);
         self.paintable_rows.completed_record_gen.set(0);
     }
 
@@ -738,20 +736,8 @@ impl LayoutNodeArena {
             .set(self.paint_cache_next_dirty_gen());
     }
 
-    pub(crate) fn mark_all_descendant_subtree_caches_dirty(&self) {
-        self.debug_assert_not_recording();
-        self.paintable_rows
-            .all_descendant_subtree_caches_dirty_gen
-            .set(self.paint_cache_next_dirty_gen());
-    }
-
     pub(crate) fn all_paint_caches_dirty(&self) -> bool {
         self.paintable_rows.all_paint_caches_dirty_gen.get() > self.paintable_rows.completed_record_gen.get()
-    }
-
-    pub(crate) fn all_descendant_subtree_caches_dirty(&self) -> bool {
-        self.paintable_rows.all_descendant_subtree_caches_dirty_gen.get()
-            > self.paintable_rows.completed_record_gen.get()
     }
 
     pub(crate) fn inline_pieces_root(&self, inline_paintable: NodeSlotId) -> Option<NodeSlotId> {

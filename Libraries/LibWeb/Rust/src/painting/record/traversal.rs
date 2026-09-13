@@ -23,6 +23,7 @@ use crate::painting::record::cache::{
     CachedSubtreeCapture, CaptureAddress, CaptureKind, CaptureSite, EnclosingCaptureAnchor, OpenCapture, RecordGen,
     SourceTapePosition, SubtreeCaptureWalkOutcome, narrow_record_gen, resolve_capture_address_in_source_tape,
 };
+use crate::painting::record::cache_compatibility::PaintCacheInputs;
 use crate::painting::record::resources::RecordingResourceManifest;
 use crate::painting::record::svg_resources::MaskLayerSet;
 use crate::painting::record::trace::{Action, Operation};
@@ -105,8 +106,10 @@ fn record_display_list_impl<O: Observer>(
     item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
 ) -> RecordingResult {
     let structural_epoch = paint_state.visual_context.structural_epoch();
-    let command_cache_source = command_cache_source
-        .filter(|source| source.recorded_device_pixels_per_css_pixel == inputs.device_pixels_per_css_pixel);
+    let cache_inputs = PaintCacheInputs::from_recording_inputs(&inputs);
+    let cache_compatibility = command_cache_source.as_ref().map_or_else(Default::default, |source| {
+        cache_inputs.compatibility_with(&source.cache_inputs)
+    });
     let paintable_rows = layout_arena.paintable_rows();
     paint_state
         .per_recording_memo_tables
@@ -126,6 +129,7 @@ fn record_display_list_impl<O: Observer>(
         pattern_tile_records: HashMap::new(),
         command_cache_source,
         item_cache_source,
+        cache_compatibility,
         open_capture_stack: Vec::new(),
         cache_updates: Default::default(),
         deferred_whole_tape_splice: None,
@@ -143,7 +147,6 @@ fn record_display_list_impl<O: Observer>(
         memo_tables: &paint_state.per_recording_memo_tables,
         completed_record_gen: narrow_record_gen(layout_arena.paint_cache_completed_record_gen()),
         all_paint_caches_dirty: layout_arena.all_paint_caches_dirty(),
-        all_descendant_subtree_caches_dirty: layout_arena.all_descendant_subtree_caches_dirty(),
         resources: RecordingResourceManifest::default(),
         selection_style_cache: HashMap::new(),
         wheel_hit_test_target_cache: HashMap::new(),
@@ -189,7 +192,7 @@ fn record_display_list_impl<O: Observer>(
     };
     let output = RecordingOutput {
         recorded_structural_epoch: structural_epoch,
-        recorded_device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
+        cache_inputs,
         hit_test_list,
         display_list,
         has_blocking_wheel_event_listeners: recorder.blocking_wheel_event_region_count > 0,
@@ -676,7 +679,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     fn try_splice_cached_subtree_capture(&mut self, site: CaptureSite) -> bool {
-        if self.is_recording_svg_resource_content() {
+        if self.is_recording_svg_resource_content() || !self.cache_compatibility.allows_subtree(site.kind) {
             return false;
         }
         let Some(command_source) = self.command_cache_source.as_ref() else {
@@ -687,7 +690,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
         };
         let cache = self.layout_arena.paintable_paint_cache(site.paintable);
         if self.all_paint_caches_dirty
-            || self.all_descendant_subtree_caches_dirty
             || cache.is_self_dirty_since(self.completed_record_gen)
             || cache.has_dirty_descendants_since(self.completed_record_gen)
         {
@@ -699,11 +701,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let captured_position = cache.captured_absolute_position();
         drop(cache);
         if !cached.may_be_spliced_verbatim {
-            return false;
-        }
-        if site.kind == CaptureKind::PaintedAsStackingContext
-            && cached.recorded_with_should_paint_overlay != self.inputs.should_paint_overlay
-        {
             return false;
         }
         if captured_position != self.current_absolute_position(site.paintable) {
@@ -789,7 +786,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 hit_test_item_count: hit_test_item_count as u32,
                 gen_of_last_fresh_walk: walk_outcome.gen_of_last_fresh_walk,
                 may_be_spliced_verbatim: walk_outcome.may_be_spliced_verbatim,
-                recorded_with_should_paint_overlay: self.inputs.should_paint_overlay,
                 contains_blocking_wheel_event_region: walk_outcome.contains_blocking_wheel_event_region,
             },
         );
@@ -1121,6 +1117,9 @@ impl<O: Observer> PaintRecorder<'_, O> {
         paintable: NodeSlotId,
         phase: PaintPhase,
     ) -> Option<(Rc<RecordingOutput>, CommandRange, ContextRef)> {
+        if !self.cache_compatibility.commands {
+            return None;
+        }
         let source = self.command_cache_source.as_ref()?;
         let cache = self.layout_arena.paintable_paint_cache_if_allocated(paintable)?;
         // Checked before loading the entry so a dirty row's miss stays as cheap as the
@@ -1205,6 +1204,9 @@ impl<O: Observer> PaintRecorder<'_, O> {
         own_context: ContextRef,
         for_descendants_context: ContextRef,
     ) -> Option<(Rc<Vec<HitTestItem>>, usize, usize)> {
+        if !self.cache_compatibility.hit_test_items {
+            return None;
+        }
         let source = self.item_cache_source.as_ref()?;
         let cache = self.layout_arena.paintable_paint_cache_if_allocated(paintable)?;
         if self.all_paint_caches_dirty || cache.is_self_dirty_since(self.completed_record_gen) {
