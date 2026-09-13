@@ -7,7 +7,7 @@
 use crate::css::computed_value_views::LengthPercentageRef;
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect, CssPixelSize};
-use crate::css::style_value::{RetainedStyleValueData, StyleValueData};
+use crate::css::style_value::{BasicShapeData, RetainedStyleValueData, StyleValueData};
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::border_radii::normalize_border_radii_data;
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
@@ -420,7 +420,7 @@ pub(crate) fn compute_basic_shape_clip_path_data(
     let node = slot;
     let style = layout_arena.node_style_if_live(node)?;
     let clip_path = style_queries::handle_value(&style.mask().clip_path)?;
-    let StyleValueData::BasicShape {
+    let BasicShapeData {
         kind,
         v0,
         v1,
@@ -430,10 +430,7 @@ pub(crate) fn compute_basic_shape_clip_path_data(
         fill_rule,
         points,
         path,
-    } = clip_path
-    else {
-        return None;
-    };
+    } = clip_path.basic_shape()?;
 
     // FIXME: Support other geometry boxes. See: https://drafts.fxtf.org/css-masking/#typedef-geometry-box
     let masking_area = paintable_geometry::absolute_border_box_rect(layout_arena, slot);

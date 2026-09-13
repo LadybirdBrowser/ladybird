@@ -166,7 +166,7 @@ static StyleValueFFI::FfiNumericType to_ffi_numeric_type(NumericType const& type
     StyleValueFFI::FfiNumericType result {};
     result.valid = true;
     type.for_each_type_and_exponent([&](auto base_type, i32 exponent) {
-        result.has_exponent[to_underlying(base_type)] = true;
+        result.has_exponent_bits |= 1u << to_underlying(base_type);
         result.exponents[to_underlying(base_type)] = exponent;
     });
     if (auto hint = type.percent_hint(); hint.has_value()) {
@@ -182,7 +182,7 @@ static Optional<NumericType> from_ffi_numeric_type(StyleValueFFI::FfiNumericType
         return {};
     NumericType result;
     for (auto i = 0; i < to_underlying(NumericType::BaseType::__Count); ++i) {
-        if (type.has_exponent[i])
+        if (type.has_exponent_bits & (1u << i))
             result.set_exponent(static_cast<NumericType::BaseType>(i), type.exponents[i]);
     }
     if (type.has_percent_hint)

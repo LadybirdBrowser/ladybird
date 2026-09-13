@@ -59,11 +59,11 @@ StyleValueFFI::FfiColorResolutionInput make_rust_color_resolution_input(ColorRes
 
 // The base class color_type()/color_syntax() accessors read the ColorBase prefix through the
 // color_function arm without knowing which color variant they have; every color variant payload
-// must keep the prefix as its first field.
-static_assert(offsetof(StyleValueFFI::StyleValueData::ColorFunction_Body, color_base) == 0);
-static_assert(offsetof(StyleValueFFI::StyleValueData::ColorMix_Body, color_base) == 0);
-static_assert(offsetof(StyleValueFFI::StyleValueData::LightDark_Body, color_base) == 0);
-static_assert(offsetof(StyleValueFFI::StyleValueData::ContrastColor_Body, color_base) == 0);
+// must keep the prefix immediately after the Rust discriminant.
+static_assert(offsetof(StyleValueFFI::StyleValueData::ColorFunction_Body, color_base) == sizeof(StyleValueFFI::StyleValueData::Tag));
+static_assert(offsetof(StyleValueFFI::StyleValueData::ColorMix_Body, color_base) == sizeof(StyleValueFFI::StyleValueData::Tag));
+static_assert(offsetof(StyleValueFFI::StyleValueData::LightDark_Body, color_base) == sizeof(StyleValueFFI::StyleValueData::Tag));
+static_assert(offsetof(StyleValueFFI::StyleValueData::ContrastColor_Body, color_base) == sizeof(StyleValueFFI::StyleValueData::Tag));
 
 // The C++ Type is Color for every color variant, so color operations dispatch on the Rust tag.
 Optional<Color> ColorStyleValue::to_color(ColorResolutionContext color_resolution_context) const

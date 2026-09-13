@@ -322,7 +322,7 @@ fn open_type_tagged(mode: u8, tag: [u16; 4], value: StyleValueData) -> StyleValu
     let packed_tag = u32::from(tag[0]) << 24 | u32::from(tag[1]) << 16 | u32::from(tag[2]) << 8 | u32::from(tag[3]);
     StyleValueData::OpenTypeTagged {
         mode,
-        tag: CssString::from_utf16(&tag),
+        tag_name: CssString::from_utf16(&tag),
         packed_tag,
         value: retained(value),
     }

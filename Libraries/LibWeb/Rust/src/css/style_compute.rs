@@ -34,7 +34,9 @@ use crate::css::property_metadata::longhands_for_shorthand;
 use crate::css::property_metadata::property_id;
 use crate::css::property_metadata::property_is_inherited;
 use crate::css::property_metadata::property_is_shorthand;
-use crate::css::style_value::{GridTrackEntryKind, RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData};
+use crate::css::style_value::{
+    BasicShapeData, GridTrackEntryKind, RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData,
+};
 
 pub use crate::css::css_enums::*;
 
@@ -1130,15 +1132,16 @@ pub(crate) fn value_is_computationally_independent(value: &StyleValueData) -> Op
         // unused generic fields and point list of the other kinds are absent, so
         // one null-tolerant conjunction covers inset, xywh, rect, circle,
         // ellipse, polygon and path exactly.
-        StyleValueData::BasicShape {
-            v0,
-            v1,
-            v2,
-            v3,
-            v4,
-            points,
-            ..
-        } => {
+        StyleValueData::BasicShape { shape } => {
+            let BasicShapeData {
+                v0,
+                v1,
+                v2,
+                v3,
+                v4,
+                points,
+                ..
+            } = shape.as_ref();
             let mut independent = true;
             for value in [v0, v1, v2, v3, v4] {
                 if let Some(value) = value.optional_data() {
@@ -1490,15 +1493,16 @@ fn collect_external_value_dependencies(value: &StyleValueData) -> ExternalValueD
             StyleValueData::RadialSize { value_0, value_1, .. } => {
                 collect_values(&[value_0, value_1], dependencies);
             }
-            StyleValueData::BasicShape {
-                v0,
-                v1,
-                v2,
-                v3,
-                v4,
-                points,
-                ..
-            } => {
+            StyleValueData::BasicShape { shape } => {
+                let BasicShapeData {
+                    v0,
+                    v1,
+                    v2,
+                    v3,
+                    v4,
+                    points,
+                    ..
+                } = shape.as_ref();
                 collect_values(&[v0, v1, v2, v3, v4], dependencies);
                 for point in points.as_slice() {
                     for value in point.values() {
@@ -1733,15 +1737,16 @@ pub(crate) fn collect_unfixed_random_sharings_in_value(
         } => collect_values(&[top, right, bottom, left], sharings),
         StyleValueData::Content { content, alt_text } => collect_values(&[content, alt_text], sharings),
         StyleValueData::RadialSize { value_0, value_1, .. } => collect_values(&[value_0, value_1], sharings),
-        StyleValueData::BasicShape {
-            v0,
-            v1,
-            v2,
-            v3,
-            v4,
-            points,
-            ..
-        } => {
+        StyleValueData::BasicShape { shape } => {
+            let BasicShapeData {
+                v0,
+                v1,
+                v2,
+                v3,
+                v4,
+                points,
+                ..
+            } = shape.as_ref();
             collect_values(&[v0, v1, v2, v3, v4], sharings);
             for point in points.as_slice() {
                 collect_values(&point.values(), sharings);

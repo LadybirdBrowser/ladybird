@@ -13,9 +13,9 @@ use std::sync::Arc;
 
 use crate::css::property_metadata::{property_animation_type, property_numeric_ranges};
 use crate::css::style_value::{
-    ColorBase, CssString, CssStringList, GridTrackEntryKind, RetainedGridTrackEntry, RetainedGridTrackEntryList,
-    RetainedNumericRangeList, RetainedShapePoint, RetainedShapePointList, RetainedStyleValueData,
-    RetainedStyleValueDataList, StyleValueData,
+    BasicShapeData, ColorBase, CssString, CssStringList, GridTrackEntryKind, OwnedBasicShapeData,
+    RetainedGridTrackEntry, RetainedGridTrackEntryList, RetainedNumericRangeList, RetainedShapePoint,
+    RetainedShapePointList, RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData,
 };
 
 pub(crate) const ANIMATION_TYPE_DISCRETE: u8 = 0;
@@ -2649,7 +2649,7 @@ fn interpolate_basic_shape(
     delta: f32,
 ) -> Option<StyleValueData> {
     let (
-        StyleValueData::BasicShape {
+        Some(BasicShapeData {
             kind: from_kind,
             v0: from_v0,
             v1: from_v1,
@@ -2659,8 +2659,8 @@ fn interpolate_basic_shape(
             fill_rule: from_fill_rule,
             points: from_points,
             ..
-        },
-        StyleValueData::BasicShape {
+        }),
+        Some(BasicShapeData {
             kind: to_kind,
             v0: to_v0,
             v1: to_v1,
@@ -2670,8 +2670,8 @@ fn interpolate_basic_shape(
             fill_rule: to_fill_rule,
             points: to_points,
             ..
-        },
-    ) = (from, to)
+        }),
+    ) = (from.basic_shape(), to.basic_shape())
     else {
         return None;
     };
@@ -2686,15 +2686,17 @@ fn interpolate_basic_shape(
         BASIC_SHAPE_INSET => {
             // If both shapes are of type inset(), interpolate between each value in the shape functions.
             Some(StyleValueData::BasicShape {
-                kind: *from_kind,
-                v0: interpolate_basic_shape_component(property_id, from_v0, to_v0, delta),
-                v1: interpolate_basic_shape_component(property_id, from_v1, to_v1, delta),
-                v2: interpolate_basic_shape_component(property_id, from_v2, to_v2, delta),
-                v3: interpolate_basic_shape_component(property_id, from_v3, to_v3, delta),
-                v4: interpolate_basic_shape_component(property_id, from_v4, to_v4, delta),
-                fill_rule: 0,
-                points: empty_shape_points(),
-                path: crate::css::css_path::CssPath::none(),
+                shape: OwnedBasicShapeData::new(BasicShapeData {
+                    kind: *from_kind,
+                    v0: interpolate_basic_shape_component(property_id, from_v0, to_v0, delta),
+                    v1: interpolate_basic_shape_component(property_id, from_v1, to_v1, delta),
+                    v2: interpolate_basic_shape_component(property_id, from_v2, to_v2, delta),
+                    v3: interpolate_basic_shape_component(property_id, from_v3, to_v3, delta),
+                    v4: interpolate_basic_shape_component(property_id, from_v4, to_v4, delta),
+                    fill_rule: 0,
+                    points: empty_shape_points(),
+                    path: crate::css::css_path::CssPath::none(),
+                }),
             })
         }
         BASIC_SHAPE_CIRCLE | BASIC_SHAPE_ELLIPSE => {
@@ -2734,15 +2736,17 @@ fn interpolate_basic_shape(
                 }
             };
             Some(StyleValueData::BasicShape {
-                kind: *from_kind,
-                v0: radius,
-                v1: position,
-                v2: empty(),
-                v3: empty(),
-                v4: empty(),
-                fill_rule: 0,
-                points: empty_shape_points(),
-                path: crate::css::css_path::CssPath::none(),
+                shape: OwnedBasicShapeData::new(BasicShapeData {
+                    kind: *from_kind,
+                    v0: radius,
+                    v1: position,
+                    v2: empty(),
+                    v3: empty(),
+                    v4: empty(),
+                    fill_rule: 0,
+                    points: empty_shape_points(),
+                    path: crate::css::css_path::CssPath::none(),
+                }),
             })
         }
         BASIC_SHAPE_POLYGON => {
@@ -2765,15 +2769,17 @@ fn interpolate_basic_shape(
                 })
                 .collect();
             Some(StyleValueData::BasicShape {
-                kind: *from_kind,
-                v0: empty(),
-                v1: empty(),
-                v2: empty(),
-                v3: empty(),
-                v4: empty(),
-                fill_rule: *from_fill_rule,
-                points: RetainedShapePointList::from_retained_points(points),
-                path: crate::css::css_path::CssPath::none(),
+                shape: OwnedBasicShapeData::new(BasicShapeData {
+                    kind: *from_kind,
+                    v0: empty(),
+                    v1: empty(),
+                    v2: empty(),
+                    v3: empty(),
+                    v4: empty(),
+                    fill_rule: *from_fill_rule,
+                    points: RetainedShapePointList::from_retained_points(points),
+                    path: crate::css::css_path::CssPath::none(),
+                }),
             })
         }
         _ => None,
@@ -2847,7 +2853,7 @@ fn composite_basic_shape(
     operation: FfiCompositeOperation,
 ) -> Option<StyleValueData> {
     let (
-        StyleValueData::BasicShape {
+        Some(BasicShapeData {
             kind: underlying_kind,
             v0: underlying_v0,
             v1: underlying_v1,
@@ -2857,8 +2863,8 @@ fn composite_basic_shape(
             fill_rule: underlying_fill_rule,
             points: underlying_points,
             ..
-        },
-        StyleValueData::BasicShape {
+        }),
+        Some(BasicShapeData {
             kind: animated_kind,
             v0: animated_v0,
             v1: animated_v1,
@@ -2868,8 +2874,8 @@ fn composite_basic_shape(
             fill_rule: animated_fill_rule,
             points: animated_points,
             ..
-        },
-    ) = (underlying, animated)
+        }),
+    ) = (underlying.basic_shape(), animated.basic_shape())
     else {
         return None;
     };
@@ -2880,15 +2886,17 @@ fn composite_basic_shape(
     let empty = empty_retained_style_value;
     match *underlying_kind {
         BASIC_SHAPE_INSET => Some(StyleValueData::BasicShape {
-            kind: *underlying_kind,
-            v0: composite_retained_value(underlying_v0, animated_v0, operation)?,
-            v1: composite_retained_value(underlying_v1, animated_v1, operation)?,
-            v2: composite_retained_value(underlying_v2, animated_v2, operation)?,
-            v3: composite_retained_value(underlying_v3, animated_v3, operation)?,
-            v4: composite_retained_value(underlying_v4, animated_v4, operation)?,
-            fill_rule: 0,
-            points: empty_shape_points(),
-            path: crate::css::css_path::CssPath::none(),
+            shape: OwnedBasicShapeData::new(BasicShapeData {
+                kind: *underlying_kind,
+                v0: composite_retained_value(underlying_v0, animated_v0, operation)?,
+                v1: composite_retained_value(underlying_v1, animated_v1, operation)?,
+                v2: composite_retained_value(underlying_v2, animated_v2, operation)?,
+                v3: composite_retained_value(underlying_v3, animated_v3, operation)?,
+                v4: composite_retained_value(underlying_v4, animated_v4, operation)?,
+                fill_rule: 0,
+                points: empty_shape_points(),
+                path: crate::css::css_path::CssPath::none(),
+            }),
         }),
         BASIC_SHAPE_CIRCLE | BASIC_SHAPE_ELLIPSE => {
             let position = match (underlying_v1.optional_data(), animated_v1.optional_data()) {
@@ -2912,15 +2920,17 @@ fn composite_basic_shape(
                 }
             };
             Some(StyleValueData::BasicShape {
-                kind: *underlying_kind,
-                v0: composite_retained_value(underlying_v0, animated_v0, operation)?,
-                v1: position,
-                v2: empty(),
-                v3: empty(),
-                v4: empty(),
-                fill_rule: 0,
-                points: empty_shape_points(),
-                path: crate::css::css_path::CssPath::none(),
+                shape: OwnedBasicShapeData::new(BasicShapeData {
+                    kind: *underlying_kind,
+                    v0: composite_retained_value(underlying_v0, animated_v0, operation)?,
+                    v1: position,
+                    v2: empty(),
+                    v3: empty(),
+                    v4: empty(),
+                    fill_rule: 0,
+                    points: empty_shape_points(),
+                    path: crate::css::css_path::CssPath::none(),
+                }),
             })
         }
         BASIC_SHAPE_POLYGON => {
@@ -2943,15 +2953,17 @@ fn composite_basic_shape(
                 })
                 .collect::<Option<Vec<_>>>()?;
             Some(StyleValueData::BasicShape {
-                kind: *underlying_kind,
-                v0: empty(),
-                v1: empty(),
-                v2: empty(),
-                v3: empty(),
-                v4: empty(),
-                fill_rule: *underlying_fill_rule,
-                points: RetainedShapePointList::from_retained_points(points),
-                path: crate::css::css_path::CssPath::none(),
+                shape: OwnedBasicShapeData::new(BasicShapeData {
+                    kind: *underlying_kind,
+                    v0: empty(),
+                    v1: empty(),
+                    v2: empty(),
+                    v3: empty(),
+                    v4: empty(),
+                    fill_rule: *underlying_fill_rule,
+                    points: RetainedShapePointList::from_retained_points(points),
+                    path: crate::css::css_path::CssPath::none(),
+                }),
             })
         }
         _ => None,
@@ -3681,13 +3693,13 @@ fn composite_scalar_value(
         }
         (
             StyleValueData::OpenTypeTagged {
-                tag: underlying_tag,
+                tag_name: underlying_tag,
                 packed_tag: underlying_packed_tag,
                 value: underlying_value,
                 ..
             },
             StyleValueData::OpenTypeTagged {
-                tag: animated_tag,
+                tag_name: animated_tag,
                 value: animated_value,
                 ..
             },
@@ -3707,7 +3719,7 @@ fn composite_scalar_value(
             }
             owned(StyleValueData::OpenTypeTagged {
                 mode: OPEN_TYPE_MODE_FONT_VARIATION_SETTINGS,
-                tag: underlying_tag.clone(),
+                tag_name: underlying_tag.clone(),
                 packed_tag: *underlying_packed_tag,
                 value: unsafe { RetainedStyleValueData::from_retained_pointer(value.value) },
             })
@@ -4431,13 +4443,13 @@ fn interpolate_scalar_value(
         }
         (
             StyleValueData::OpenTypeTagged {
-                tag: from_tag,
+                tag_name: from_tag,
                 packed_tag: from_packed_tag,
                 value: from_value,
                 ..
             },
             StyleValueData::OpenTypeTagged {
-                tag: to_tag,
+                tag_name: to_tag,
                 value: to_value,
                 ..
             },
@@ -4458,7 +4470,7 @@ fn interpolate_scalar_value(
             }
             owned(StyleValueData::OpenTypeTagged {
                 mode: OPEN_TYPE_MODE_FONT_VARIATION_SETTINGS,
-                tag: from_tag.clone(),
+                tag_name: from_tag.clone(),
                 packed_tag: *from_packed_tag,
                 value: unsafe { RetainedStyleValueData::from_retained_pointer(value.value) },
             })

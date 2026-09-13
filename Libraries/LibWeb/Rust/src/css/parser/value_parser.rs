@@ -50,8 +50,8 @@ use crate::css::property_metadata::{
 use crate::css::style_compute::{LENGTH_UNIT_NAMES, px_length_unit};
 use crate::css::style_value::{
     RetainedByteList, RetainedCounterDefinition, RetainedCounterDefinitionList, RetainedNumericRangeList,
-    RetainedPropertyIdList, RetainedReadableString, RetainedRequestUrlModifier, RetainedRequestUrlModifierList,
-    RetainedString, RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData, shared_style_value,
+    RetainedPropertyIdList, RetainedRequestUrlModifier, RetainedRequestUrlModifierList, RetainedString,
+    RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData, shared_style_value,
 };
 use std::ffi::c_void;
 use std::sync::Arc;
@@ -5332,8 +5332,8 @@ pub(crate) fn unresolved_value(
     };
     StyleValueData::Unresolved {
         components: crate::css::style_value::RetainedComponentValueList::from_source(component_source),
-        source_text: RetainedReadableString::from_utf16(source_text),
-        value_comparison_text: RetainedReadableString::from_utf16(comparison_source),
+        source_text: CssString::from_utf16(source_text),
+        value_comparison_text: CssString::from_utf16(comparison_source),
         presence_attr: presence.attr,
         presence_dashed_function: presence.dashed_function,
         presence_env: presence.env,
@@ -5405,7 +5405,7 @@ fn parse_css_value_after_substitution_scan(
                     .iter()
                     .position(|unit| !matches!(*unit, 0x09 | 0x0a | 0x0c | 0x0d | 0x20))
                     .unwrap_or(unresolved_source.len());
-                *source_text = RetainedReadableString::from_utf16(&unresolved_source[first_non_whitespace..]);
+                *source_text = CssString::from_utf16(&unresolved_source[first_non_whitespace..]);
             }
         }
         return ParseOutcome::Parsed(shared_style_value(unresolved));
@@ -6122,10 +6122,8 @@ mod tests {
         source.encode_utf16().collect()
     }
 
-    fn retained_utf16(source: &RetainedReadableString) -> Vec<u16> {
-        let mut result = Vec::new();
-        source.as_units().append_to(&mut result);
-        result
+    fn retained_utf16(source: &CssString) -> Vec<u16> {
+        source.units().to_vec()
     }
 
     fn context() -> ParseContext {
@@ -7287,7 +7285,7 @@ mod tests {
                 panic!("substitution function should produce an unresolved value: {source}");
             };
             assert_eq!(retained_utf16(source_text), utf16(source));
-            assert!(value_comparison_text.as_units().is_empty());
+            assert!(value_comparison_text.units().is_empty());
             assert_eq!(*presence_attr, expected_attr);
             assert_eq!(*presence_var, expected_var);
         }
@@ -7319,7 +7317,7 @@ mod tests {
             panic!("attr() should remain unresolved");
         };
         assert_eq!(retained_utf16(source_text), utf16("attr( foo )"));
-        assert!(value_comparison_text.as_units().is_empty());
+        assert!(value_comparison_text.units().is_empty());
     }
 
     #[test]

@@ -871,7 +871,7 @@ TEST_CASE(rust_calculated_handles_create_typed_wrappers)
 {
     StyleValueFFI::FfiNumericType resolved_type {};
     resolved_type.valid = true;
-    resolved_type.has_exponent[to_underlying(NumericType::BaseType::Length)] = true;
+    resolved_type.has_exponent_bits |= 1u << to_underlying(NumericType::BaseType::Length);
     resolved_type.exponents[to_underlying(NumericType::BaseType::Length)] = 1;
     auto data = StyleValueFFI::rust_style_value_create_calculated(
         StyleValueFFI::rust_calc_node_create_numeric_dimension(4, 10, to_underlying(LengthUnit::Px)),
