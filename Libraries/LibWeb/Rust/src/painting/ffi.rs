@@ -588,14 +588,47 @@ pub unsafe extern "C" fn display_list_animated_content_may_affect_viewport(
 }
 
 /// # Safety
+/// `tree` must be a live, structurally valid tree; `command_runs` must be valid for
+/// `command_run_count` entries. The returned immutable plan is safe to share across
+/// replay threads while its owner keeps it alive.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn display_list_create_effect_clip_plan(
+    tree: *const c_void,
+    command_runs: *const crate::painting::display_list::commands::DisplayListCommandRun,
+    command_run_count: usize,
+) -> *const c_void {
+    let tree = unsafe { tree_from_handle(tree) };
+    let runs = unsafe { ffi_slice(command_runs, command_run_count) };
+    crate::painting::display_list::effect_clip_plan::EffectClipPlan::new(tree, runs)
+        .map_or(std::ptr::null(), |plan| Box::into_raw(Box::new(plan)).cast())
+}
+
+/// # Safety
+/// `plan` must be a plan returned by `display_list_create_effect_clip_plan`, and
+/// no thread may still be using it. This consumes ownership of the plan.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn display_list_destroy_effect_clip_plan(plan: *const c_void) {
+    if !plan.is_null() {
+        unsafe {
+            drop(Box::from_raw(
+                plan.cast_mut()
+                    .cast::<crate::painting::display_list::effect_clip_plan::EffectClipPlan>(),
+            ));
+        }
+    }
+}
+
+/// # Safety
 ///
 /// `tree` must be a live retained tree handle, `command_runs` must address `command_run_count`
 /// runs and `scroll_offsets` `scroll_offsets_len` points for the call, and `callbacks` must be
 /// live. The painter callbacks run synchronously and may re-enter this function for a nested
-/// display list.
+/// display list. `effect_clip_plan` must remain live and must have been prepared
+/// for these runs and the tree's current structural epoch.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn display_list_replay(
     tree: *const c_void,
+    effect_clip_plan: *const c_void,
     command_runs: *const crate::painting::display_list::commands::DisplayListCommandRun,
     command_run_count: usize,
     scroll_offsets: *const libgfx_rust::FloatPoint,
@@ -612,7 +645,15 @@ pub unsafe extern "C" fn display_list_replay(
     };
     // SAFETY: The caller guarantees `callbacks` is live for the call.
     let mut painter = unsafe { *callbacks };
-    crate::painting::display_list::replay::replay_display_list(tree, command_runs, scroll_offsets, &mut painter);
+    let effect_clip_plan =
+        unsafe { &*effect_clip_plan.cast::<crate::painting::display_list::effect_clip_plan::EffectClipPlan>() };
+    crate::painting::display_list::replay::replay_display_list(
+        tree,
+        command_runs,
+        effect_clip_plan,
+        scroll_offsets,
+        &mut painter,
+    );
 }
 
 /// # Safety
@@ -3381,14 +3422,14 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_background_colo
     builder: *mut c_void,
     parent_effect: u32,
     spatial: u32,
-    output_clip: u32,
+    local_clip: u32,
 ) -> u32 {
     let tree = unsafe { test_builder_tree(builder) };
     tree.append_effect(
         crate::painting::visual_context::EffectNodeData::BackgroundColorAnimation,
         EffectNodeIndex(parent_effect),
         SpatialNodeIndex(spatial),
-        ClipNodeIndex(output_clip),
+        ClipNodeIndex(local_clip),
     )
     .0
 }
@@ -3431,7 +3472,7 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_effects(
     builder: *mut c_void,
     parent_effect: u32,
     spatial: u32,
-    output_clip: u32,
+    local_clip: u32,
     opacity: f32,
     blend_mode: libgfx_rust::CompositingAndBlendingOperator,
 ) -> u32 {
@@ -3445,7 +3486,7 @@ pub unsafe extern "C" fn visual_context_tree_test_builder_append_effects(
         }),
         EffectNodeIndex(parent_effect),
         SpatialNodeIndex(spatial),
-        ClipNodeIndex(output_clip),
+        ClipNodeIndex(local_clip),
     )
     .0
 }

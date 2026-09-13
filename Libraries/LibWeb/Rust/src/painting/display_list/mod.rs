@@ -10,6 +10,7 @@ pub mod damage;
 pub mod depth_sorted_plan;
 pub mod device_pixels;
 pub mod dump;
+pub mod effect_clip_plan;
 pub mod ffi_bytes;
 pub(crate) mod nested_records;
 pub mod recorder;

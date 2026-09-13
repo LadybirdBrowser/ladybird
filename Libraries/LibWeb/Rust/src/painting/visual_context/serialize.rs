@@ -19,7 +19,7 @@ use libgfx_rust::{
 use std::rc::Rc;
 
 const SERIALIZED_TREE_MAGIC: u32 = 0x5443_5641;
-const SERIALIZED_TREE_FORMAT: u32 = 4;
+const SERIALIZED_TREE_FORMAT: u32 = 5;
 
 const SPATIAL_KIND_SCROLL: u8 = 0;
 const SPATIAL_KIND_STICKY: u8 = 1;
@@ -539,15 +539,13 @@ impl VisualContextTree {
         if !clip_order.back_edges.is_empty() || !clip_order.dangling_references.is_empty() {
             return false;
         }
+        // Starting clips are local facts and may cross along the effect chain. The
+        // display list's replay plan derives nested output clips from its actual runs.
         for node in &self.effect_nodes {
             if !spatial_reference_is_consistent(node.spatial, node.data.is_live()) {
                 return false;
             }
-            if node.data.is_live()
-                && node
-                    .resolved_output_clip
-                    .is_none_or(|clip| !self.clip_is_none_or_live(clip))
-            {
+            if node.data.is_live() && !self.clip_is_none_or_live(node.local_clip) {
                 return false;
             }
         }
@@ -555,27 +553,12 @@ impl VisualContextTree {
         if !effect_order.back_edges.is_empty() || !effect_order.dangling_references.is_empty() {
             return false;
         }
-        // Replay pushes each effect's layer inside its output clip and the remaining clips inside
-        // the layer, which needs the output clips nested along the effect chain. Display-list
-        // contexts are validated against these clips separately. The clip tree has
-        // just been checked for cycles.
-        for node in &self.effect_nodes {
-            if !node.data.is_live() || node.parent.is_none() {
-                continue;
-            }
-            let parent_output_clip = self.effect_nodes[node.parent.0 as usize].output_clip();
-            if !self.clip_is_ancestor_or_self(parent_output_clip, node.output_clip()) {
-                return false;
-            }
-        }
         // Plane clips are pushed immediately above this root isolation layer.
         if let Some(effect) = self.root_isolation_effect {
             let Some(node) = self.effect_nodes.get(effect.0 as usize) else {
                 return false;
             };
-            if !matches!(node.data, EffectNodeData::Effects(_))
-                || !node.parent.is_none()
-                || !node.output_clip().is_none()
+            if !matches!(node.data, EffectNodeData::Effects(_)) || !node.parent.is_none() || !node.local_clip.is_none()
             {
                 return false;
             }
@@ -606,7 +589,7 @@ impl VisualContextTree {
         for node in &self.effect_nodes {
             writer.effect_index(node.parent);
             writer.spatial_index(node.spatial);
-            writer.clip_index(node.output_clip());
+            writer.clip_index(node.local_clip);
             write_effect_data(&mut writer, &node.data);
         }
         writer.bytes
@@ -649,13 +632,13 @@ impl VisualContextTree {
         for _ in 0..effect_count {
             let parent = reader.effect_index()?;
             let spatial = reader.spatial_index()?;
-            let output_clip = reader.clip_index()?;
+            let local_clip = reader.clip_index()?;
             let data = read_effect_data(&mut reader)?;
             effect_nodes.push(EffectNode {
                 data,
                 parent,
                 spatial,
-                resolved_output_clip: Some(output_clip),
+                local_clip,
             });
         }
 
@@ -937,7 +920,7 @@ mod tests {
         for (node, other) in a.effect_nodes.iter().zip(&b.effect_nodes) {
             assert_eq!(node.parent, other.parent);
             assert_eq!(node.spatial, other.spatial);
-            assert_eq!(node.output_clip(), other.output_clip());
+            assert_eq!(node.local_clip, other.local_clip);
             assert!(effect_data_matches(&node.data, &other.data));
         }
     }
@@ -1100,17 +1083,17 @@ mod tests {
         assert!(nodes_in_tombstone.tombstone_spatial_slot(spatial));
         rejected(&nodes_in_tombstone);
 
-        let mut effect_under_tombstoned_output_clip = fresh();
+        let mut effect_under_tombstoned_local_clip = fresh();
         let output_clip =
-            effect_under_tombstoned_output_clip.append_clip(rect(), ClipNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
-        effect_under_tombstoned_output_clip.append_effect(
+            effect_under_tombstoned_local_clip.append_clip(rect(), ClipNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
+        effect_under_tombstoned_local_clip.append_effect(
             effects(),
             EffectNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
             output_clip,
         );
-        assert!(effect_under_tombstoned_output_clip.tombstone_clip_slot(output_clip));
-        rejected(&effect_under_tombstoned_output_clip);
+        assert!(effect_under_tombstoned_local_clip.tombstone_clip_slot(output_clip));
+        rejected(&effect_under_tombstoned_local_clip);
 
         let mut tombstoned_isolation_effect = fresh();
         let isolation_effect = tombstoned_isolation_effect.append_effect(
@@ -1178,7 +1161,7 @@ mod tests {
             SpatialNodeIndex(1),
         );
         // Clips: c0 at the root, c1 under it in s2. Effects: e0 at the root under no clip, e1 under
-        // e0 with output clip c0.
+        // e0 begins under local clip c0.
         tree.append_clip(
             ClipNodeData::rect_clip(FloatRect::new(0.0, 0.0, 10.0, 10.0)),
             ClipNodeIndex::NONE,
@@ -1230,8 +1213,8 @@ mod tests {
         child_stored_below_its_parent.clip_nodes[1].parent = ClipNodeIndex::NONE;
         child_stored_below_its_parent.effect_nodes[0].parent = EffectNodeIndex(1);
         child_stored_below_its_parent.effect_nodes[1].parent = EffectNodeIndex::NONE;
-        child_stored_below_its_parent.effect_nodes[1].resolved_output_clip = Some(ClipNodeIndex::NONE);
-        child_stored_below_its_parent.effect_nodes[0].resolved_output_clip = Some(ClipNodeIndex(1));
+        child_stored_below_its_parent.effect_nodes[1].local_clip = ClipNodeIndex::NONE;
+        child_stored_below_its_parent.effect_nodes[0].local_clip = ClipNodeIndex(1);
         let decoded = VisualContextTree::from_bytes(&encode_tree(&child_stored_below_its_parent))
             .expect("acyclic forward references decode");
         assert_eq!(decoded.spatial_dependency_order(), vec![0, 2, 1]);
@@ -1388,14 +1371,9 @@ mod tests {
         effect_spatial_out_of_range.effect_nodes[1].spatial = SpatialNodeIndex(3);
         rejected(&effect_spatial_out_of_range);
 
-        let mut output_clip_out_of_range = hostile_tree();
-        output_clip_out_of_range.effect_nodes[1].resolved_output_clip = Some(ClipNodeIndex(9));
-        rejected(&output_clip_out_of_range);
-
-        // e0's output clip moves below e1's.
-        let mut output_clip_outside_the_parents = hostile_tree();
-        output_clip_outside_the_parents.effect_nodes[0].resolved_output_clip = Some(ClipNodeIndex(1));
-        rejected(&output_clip_outside_the_parents);
+        let mut local_clip_out_of_range = hostile_tree();
+        local_clip_out_of_range.effect_nodes[1].local_clip = ClipNodeIndex(9);
+        rejected(&local_clip_out_of_range);
 
         let mut isolation_effect_out_of_range = hostile_tree();
         isolation_effect_out_of_range.root_isolation_effect = Some(EffectNodeIndex(2));

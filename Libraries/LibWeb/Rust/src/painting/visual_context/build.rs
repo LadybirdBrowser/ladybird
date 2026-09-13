@@ -246,7 +246,6 @@ pub(crate) fn create_fresh_tree_with_viewport_nodes(
             inherited_input: viewport_contexts,
             output_for_descendants: viewport_contexts,
             node_handles: BoxVisualContextNodeHandles::default(),
-            effect_clip_constraints: Vec::new(),
             has_mask_nodes: false,
             may_be_root_element: false,
             owns_geometry_dependent_nodes: false,

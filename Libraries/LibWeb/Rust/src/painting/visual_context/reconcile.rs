@@ -48,6 +48,7 @@ impl<'a> BoxNodeWriter<'a> {
         data: EffectNodeData,
         parent: EffectNodeIndex,
         spatial: SpatialNodeIndex,
+        local_clip: ClipNodeIndex,
     ) -> EffectNodeIndex {
         debug_assert!(!self.building_descendants, "descendant contexts add no effects");
         debug_assert!(self.tree.spatial_is_live(spatial));
@@ -56,7 +57,7 @@ impl<'a> BoxNodeWriter<'a> {
             self.tree,
             &self.existing.effects,
             &mut self.handles.effects,
-            EffectNode::new(data, parent, spatial, None),
+            EffectNode::new(data, parent, spatial, local_clip),
             self.delta,
             &mut self.outcome,
         )
@@ -214,11 +215,7 @@ impl ReconciledNode for EffectNode {
     fn same_payload(&self, other: &Self) -> bool {
         effect_payloads_are_equal(&self.data, &other.data)
     }
-    fn replace(tree: &mut VisualContextTree, index: EffectNodeIndex, mut node: Self) -> bool {
-        let previous = &tree.effect_nodes[index.0 as usize];
-        if previous.data.is_live() {
-            node.resolved_output_clip = previous.resolved_output_clip;
-        }
+    fn replace(tree: &mut VisualContextTree, index: EffectNodeIndex, node: Self) -> bool {
         tree.replace_effect_node(index, node)
     }
     fn tombstone_slot(tree: &mut VisualContextTree, index: EffectNodeIndex) -> bool {
@@ -433,7 +430,7 @@ mod tests {
             context = writer.append_clip_node_under(context, clip(description.patched_chain_clip_size));
         }
         for _ in 0..description.effect_count {
-            context.effect = writer.append_effect_node(effects(), context.effect, context.spatial);
+            context.effect = writer.append_effect_node(effects(), context.effect, context.spatial, context.clip);
         }
         writer.begin_descendants();
         for _ in 0..description.descendant_count {
@@ -526,10 +523,7 @@ mod tests {
         );
         assert_eq!(tree.clip_nodes[4].parent, BOX_A_PATCHED_CHAIN_CLIP);
         assert_eq!(tree.clip_nodes[4].spatial, SpatialNodeIndex(4));
-        assert_eq!(
-            tree.effect_nodes[BOX_A_EFFECT.0 as usize].output_clip(),
-            BOX_A_PATCHED_CHAIN_CLIP
-        );
+        assert_eq!(tree.effect_nodes[BOX_A_EFFECT.0 as usize].local_clip, ClipNodeIndex(4));
         assert_eq!(tree.effect_nodes[BOX_A_EFFECT.0 as usize].spatial, SpatialNodeIndex(4));
         assert!(!tree.clip_is_live(BOX_A_DESCENDANT_CLIP));
         assert_eq!(tree.quarantined_slot_count(), 1);
@@ -584,70 +578,36 @@ mod tests {
     }
 
     #[test]
-    fn rebuilding_an_effect_preserves_its_resolved_clip_until_finalization() {
+    fn changing_an_effects_local_clip_invalidates_its_shape() {
         let mut tree = tree_with_box_a_followed_by_box_b();
-        let constraints = [
-            EffectClipConstraint {
-                effect: BOX_A_EFFECT,
-                clip: BOX_A_PATCHED_CHAIN_CLIP,
-            },
-            EffectClipConstraint {
-                effect: BOX_A_EFFECT,
-                clip: ClipNodeIndex::NONE,
-            },
-        ];
-        assert!(tree.resolve_effect_output_clips(&constraints));
         let existing = BoxVisualContextNodeHandles {
             effects: vec![BOX_A_EFFECT],
             ..BoxVisualContextNodeHandles::default()
         };
         let mut delta = VisualContextTreeDelta::default();
         let mut writer = BoxNodeWriter::new(&mut tree, Some(&existing), &mut delta);
-        let effect = writer.append_effect_node(
-            EffectNodeData::Effects(EffectsData {
-                opacity: 0.7,
-                blend_mode: CompositingAndBlendingOperator::Normal,
-                filter: None,
-                backdrop_filter: None,
-            }),
-            ROOT_ISOLATION_EFFECT,
-            BOX_A_SPATIAL,
-        );
+        let effect = writer.append_effect_node(effects(), ROOT_ISOLATION_EFFECT, BOX_A_SPATIAL, BOX_A_CHAIN_CLIP);
         let (_, outcome) = writer.finish();
-
         assert_eq!(effect, BOX_A_EFFECT);
-        assert_eq!(tree.effects_opacity(effect), Some(0.7));
-        assert_eq!(tree.effect_nodes[effect.0 as usize].output_clip(), ClipNodeIndex::NONE);
-        assert!(!outcome.shape_changed);
-        assert_eq!(delta, VisualContextTreeDelta::default());
-        assert!(!tree.resolve_effect_output_clips(&constraints));
-        // Removing the escape changes only the derived result, without rebuilding the effect.
-        assert!(tree.resolve_effect_output_clips(&constraints[..1]));
-        assert_eq!(
-            tree.effect_nodes[effect.0 as usize].output_clip(),
-            BOX_A_PATCHED_CHAIN_CLIP
-        );
+        assert_eq!(tree.effect_nodes[effect.0 as usize].local_clip, BOX_A_CHAIN_CLIP);
+        assert!(outcome.shape_changed);
+        assert!(delta.structural_epoch_changed);
+        assert!(delta.requires_display_list_recording);
     }
 
     #[test]
-    fn new_and_recycled_effects_have_no_previous_output_clip() {
+    fn new_and_recycled_effects_have_valid_local_clips() {
         let mut tree = tree_with_box_a_followed_by_box_b();
         for recycled in [false, true] {
             let mut delta = VisualContextTreeDelta::default();
             let mut writer = BoxNodeWriter::new(&mut tree, None, &mut delta);
-            let effect = writer.append_effect_node(effects(), ROOT_ISOLATION_EFFECT, BOX_A_SPATIAL);
+            let effect = writer.append_effect_node(effects(), ROOT_ISOLATION_EFFECT, BOX_A_SPATIAL, BOX_A_CHAIN_CLIP);
             writer.finish();
             let context = ContextRef {
                 spatial: BOX_A_SPATIAL,
                 clip: BOX_A_CHAIN_CLIP,
                 effect,
             };
-            assert!(!tree.context_is_valid(context));
-            assert!(!tree.node_references_are_consistent());
-            assert!(!tree.resolve_effect_output_clips(&[EffectClipConstraint {
-                effect,
-                clip: context.clip,
-            }]));
             assert!(tree.context_is_valid(context));
             assert!(tree.node_references_are_consistent());
             assert_eq!(delta.structural_epoch_changed, recycled);
@@ -746,7 +706,7 @@ mod tests {
         assert_eq!(third_clip.clip, ClipNodeIndex(4));
         assert_eq!(writer.clip_node_at(third_clip.clip).parent, second_clip.clip);
         let own_context = ContextRef {
-            effect: writer.append_effect_node(effects(), third_clip.effect, third_clip.spatial),
+            effect: writer.append_effect_node(effects(), third_clip.effect, third_clip.spatial, third_clip.clip),
             ..third_clip
         };
         assert_eq!(own_context.effect, BOX_A_EFFECT);
@@ -758,10 +718,6 @@ mod tests {
         assert!(writer.tree.context_is_valid(descendant_context));
 
         let (handles, _) = writer.finish();
-        assert!(tree.resolve_effect_output_clips(&[EffectClipConstraint {
-            effect: own_context.effect,
-            clip: own_context.clip,
-        }]));
         assert_eq!(handles.spatial, vec![BOX_A_SPATIAL, transformed.spatial]);
         assert_eq!(
             handles.chain_clips,
@@ -770,10 +726,7 @@ mod tests {
         assert_eq!(handles.descendant_clips, existing.descendant_clips);
         assert_eq!(handles.effects, existing.effects);
         assert_eq!(tree.effect_nodes[BOX_A_EFFECT.0 as usize].parent, ROOT_ISOLATION_EFFECT);
-        assert_eq!(
-            tree.effect_nodes[BOX_A_EFFECT.0 as usize].output_clip(),
-            own_context.clip
-        );
+        assert_eq!(tree.effect_nodes[BOX_A_EFFECT.0 as usize].local_clip, own_context.clip);
         assert_eq!(tree.effect_nodes[BOX_A_EFFECT.0 as usize].spatial, transformed.spatial);
         tree.debug_assert_slot_accounting();
     }

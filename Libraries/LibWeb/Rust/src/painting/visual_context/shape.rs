@@ -69,6 +69,7 @@ pub(crate) struct EffectNodeShape {
     pub kind: EffectShapeKind,
     pub parent: EffectNodeIndex,
     pub spatial: SpatialNodeIndex,
+    pub local_clip: ClipNodeIndex,
 }
 
 pub(crate) fn spatial_node_shape(node: &SpatialNode) -> SpatialNodeShape {
@@ -133,6 +134,7 @@ pub(crate) fn effect_node_shape(node: &EffectNode) -> EffectNodeShape {
         kind,
         parent: node.parent,
         spatial: node.spatial,
+        local_clip: node.local_clip,
     }
 }
 

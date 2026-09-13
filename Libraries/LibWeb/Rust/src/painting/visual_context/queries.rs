@@ -788,13 +788,13 @@ impl VisualContextTree {
     }
 
     pub fn context_is_valid(&self, context: ContextRef) -> bool {
+        // A recorded context may escape its effect's starting clip. Replay resolves
+        // the shared output boundary once all of the list's contexts are available.
         self.spatial_is_live(context.spatial)
             && self.clip_is_none_or_live(context.clip)
             && self.effect_is_none_or_live(context.effect)
             && (context.effect.is_none()
-                || self.effect_nodes[context.effect.0 as usize]
-                    .resolved_output_clip
-                    .is_some_and(|clip| self.clip_is_ancestor_or_self(clip, context.clip)))
+                || self.clip_is_none_or_live(self.effect_nodes[context.effect.0 as usize].local_clip))
     }
 
     pub fn display_list_references_only_live_nodes(
@@ -940,7 +940,7 @@ mod tests {
     }
 
     #[test]
-    fn direct_contexts_validate_each_index_and_the_effect_output_clip() {
+    fn direct_contexts_validate_indices_and_allow_clip_escapes() {
         let mut tree = identity_tree();
         let outer = tree.append_clip(
             clip(FloatRect::new(0.0, 0.0, 20.0, 20.0), ClipMode::Intersect),
@@ -977,8 +977,8 @@ mod tests {
             effect: EffectNodeIndex(50),
             ..context
         }));
-        assert!(!tree.context_is_valid(ContextRef { clip: outer, ..context }));
-        assert!(!tree.context_is_valid(ContextRef {
+        assert!(tree.context_is_valid(ContextRef { clip: outer, ..context }));
+        assert!(tree.context_is_valid(ContextRef {
             clip: ClipNodeIndex::NONE,
             ..context
         }));

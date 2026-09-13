@@ -60,14 +60,14 @@ ClipNodeIndex VisualContextTreeTestBuilder::append_clip_path(ClipNodeIndex paren
     return ClipNodeIndex { Layout::RustFFI::visual_context_tree_test_builder_append_clip_path(m_builder, parent.value(), spatial.value(), path_bytes.data(), path_bytes.size(), bounding_rect, fill_rule) };
 }
 
-EffectNodeIndex VisualContextTreeTestBuilder::append_effects(EffectNodeIndex parent, SpatialNodeIndex spatial, ClipNodeIndex output_clip, float opacity, Gfx::CompositingAndBlendingOperator blend_mode)
+EffectNodeIndex VisualContextTreeTestBuilder::append_effects(EffectNodeIndex parent, SpatialNodeIndex spatial, ClipNodeIndex local_clip, float opacity, Gfx::CompositingAndBlendingOperator blend_mode)
 {
-    return EffectNodeIndex { Layout::RustFFI::visual_context_tree_test_builder_append_effects(m_builder, parent.value(), spatial.value(), output_clip.value(), opacity, blend_mode) };
+    return EffectNodeIndex { Layout::RustFFI::visual_context_tree_test_builder_append_effects(m_builder, parent.value(), spatial.value(), local_clip.value(), opacity, blend_mode) };
 }
 
-EffectNodeIndex VisualContextTreeTestBuilder::append_background_color_animation(EffectNodeIndex parent, SpatialNodeIndex spatial, ClipNodeIndex output_clip)
+EffectNodeIndex VisualContextTreeTestBuilder::append_background_color_animation(EffectNodeIndex parent, SpatialNodeIndex spatial, ClipNodeIndex local_clip)
 {
-    return EffectNodeIndex { Layout::RustFFI::visual_context_tree_test_builder_append_background_color_animation(m_builder, parent.value(), spatial.value(), output_clip.value()) };
+    return EffectNodeIndex { Layout::RustFFI::visual_context_tree_test_builder_append_background_color_animation(m_builder, parent.value(), spatial.value(), local_clip.value()) };
 }
 
 AccumulatedVisualContextTree VisualContextTreeTestBuilder::finish_with_structural_epoch(u64 structural_epoch)

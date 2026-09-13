@@ -7,6 +7,7 @@
 
 #pragma once
 
+#include <AK/Atomic.h>
 #include <AK/ByteBuffer.h>
 #include <AK/Error.h>
 #include <AK/Forward.h>
@@ -94,6 +95,7 @@ private:
 
 class DisplayList : public AtomicRefCounted<DisplayList> {
 public:
+    WEB_API ~DisplayList();
     struct AsyncScrollingMetadata {
         Gfx::IntRect viewport_rect;
         u64 wheel_event_listener_state_generation { 0 };
@@ -145,9 +147,15 @@ public:
     }
 
 private:
+    friend class DisplayListPlayer;
+    void const* replay_effect_clip_plan(AccumulatedVisualContextTree const&) const;
+
     explicit DisplayList(u64 compatible_visual_context_tree_structural_epoch);
     DisplayList(u64 compatible_visual_context_tree_structural_epoch, u64 id, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs, Optional<Gfx::Color> surface_clear_color, Optional<AsyncScrollingMetadata>);
 
+    // Immutable placement for this list and its compatible clip/effect topology.
+    // Atomic publication allows compositor workers to replay the list concurrently.
+    mutable Atomic<void const*> m_replay_effect_clip_plan { nullptr };
     u64 m_compatible_visual_context_tree_structural_epoch { 0 };
     u64 m_id { 0 };
     ByteBuffer m_command_bytes;

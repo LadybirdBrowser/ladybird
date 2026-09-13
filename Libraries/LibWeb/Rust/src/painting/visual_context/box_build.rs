@@ -236,7 +236,6 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
             inherited_input: inherited,
             output_for_descendants: inherited,
             node_handles: BoxVisualContextNodeHandles::default(),
-            effect_clip_constraints: Vec::new(),
             has_mask_nodes: false,
             may_be_root_element,
             owns_geometry_dependent_nodes: false,
@@ -283,15 +282,6 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
     };
     // Build this element's own state from inherited state.
     let mut own_state = inherited_chain.with_effect(inherited.effect);
-    // Ordinary clip additions only narrow a chain already observed where its effect began.
-    // A positioned box can instead select an ancestor or sibling clip chain; that escape
-    // constrains every enclosing layer even if this box introduces no effect of its own.
-    if inherited_chain.clip != inherited.normal.clip && !inherited.effect.is_none() {
-        assignment.record.effect_clip_constraints.push(EffectClipConstraint {
-            effect: inherited.effect,
-            clip: inherited_chain.clip,
-        });
-    }
 
     match anchor_scroll_shift_resolver {
         Some(resolver) => {
@@ -345,11 +335,7 @@ pub(crate) fn build_box_visual_context_nodes<Arena: PaintableRowsRead>(
 
     macro_rules! append_shared_effect {
         ($make:expr) => {{
-            let effect = sink.append_effect_node($make, own_state.effect, own_state.spatial);
-            assignment.record.effect_clip_constraints.push(EffectClipConstraint {
-                effect,
-                clip: own_state.clip,
-            });
+            let effect = sink.append_effect_node($make, own_state.effect, own_state.spatial, own_state.clip);
             own_state.effect = effect;
         }};
     }

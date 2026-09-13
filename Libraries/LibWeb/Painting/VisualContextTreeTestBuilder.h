@@ -51,8 +51,8 @@ public:
     SpatialNodeIndex append_sticky(SpatialNodeIndex parent, StickyConstraints const&);
     ClipNodeIndex append_clip(ClipNodeIndex parent, SpatialNodeIndex spatial, Gfx::FloatRect, Gfx::CornerRadii = {}, ClipMode = ClipMode::Intersect);
     ClipNodeIndex append_clip_path(ClipNodeIndex parent, SpatialNodeIndex spatial, Gfx::Path const&, Gfx::IntRect bounding_rect, Gfx::WindingRule);
-    EffectNodeIndex append_effects(EffectNodeIndex parent, SpatialNodeIndex spatial, ClipNodeIndex output_clip = NO_CLIP_NODE, float opacity = 1.0f, Gfx::CompositingAndBlendingOperator = Gfx::CompositingAndBlendingOperator::Normal);
-    EffectNodeIndex append_background_color_animation(EffectNodeIndex parent, SpatialNodeIndex spatial, ClipNodeIndex output_clip = NO_CLIP_NODE);
+    EffectNodeIndex append_effects(EffectNodeIndex parent, SpatialNodeIndex spatial, ClipNodeIndex local_clip = NO_CLIP_NODE, float opacity = 1.0f, Gfx::CompositingAndBlendingOperator = Gfx::CompositingAndBlendingOperator::Normal);
+    EffectNodeIndex append_background_color_animation(EffectNodeIndex parent, SpatialNodeIndex spatial, ClipNodeIndex local_clip = NO_CLIP_NODE);
     // The frame a context names for recording under the given clip and effect.
 
     AccumulatedVisualContextTree finish();

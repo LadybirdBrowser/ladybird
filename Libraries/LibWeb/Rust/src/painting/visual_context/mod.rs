@@ -345,16 +345,14 @@ impl ClipNode {
     }
 }
 
-// An effect's layer is pushed inside `output_clip`, the deepest clip shared by every context that
-// records under the effect; the clips below it are pushed inside the layer.
+// The clip in force where an effect begins is a local visual-context fact. Replay
+// widens this boundary to accommodate the recorded descendants' clip chains.
 #[derive(Clone)]
 pub struct EffectNode {
     pub data: EffectNodeData,
     pub parent: EffectNodeIndex,
     pub spatial: SpatialNodeIndex,
-    // New effects have no resolved clip until finalization. Rebuilt effects retain their
-    // previous result so finalization can compare the old and new layer placement.
-    resolved_output_clip: Option<ClipNodeIndex>,
+    pub local_clip: ClipNodeIndex,
 }
 
 impl EffectNode {
@@ -362,19 +360,14 @@ impl EffectNode {
         data: EffectNodeData,
         parent: EffectNodeIndex,
         spatial: SpatialNodeIndex,
-        resolved_output_clip: Option<ClipNodeIndex>,
+        local_clip: ClipNodeIndex,
     ) -> Self {
         Self {
             data,
             parent,
             spatial,
-            resolved_output_clip,
+            local_clip,
         }
-    }
-
-    pub fn output_clip(&self) -> ClipNodeIndex {
-        self.resolved_output_clip
-            .expect("an effect's output clip is resolved before use")
     }
 }
 
@@ -507,7 +500,7 @@ impl SlotNode for EffectNode {
             EffectNodeData::Dead,
             EffectNodeIndex::NONE,
             VISUAL_VIEWPORT_NODE_INDEX,
-            Some(ClipNodeIndex::NONE),
+            ClipNodeIndex::NONE,
         )
     }
     fn tombstone(&mut self) {
@@ -1022,7 +1015,7 @@ impl VisualContextTree {
         data: EffectNodeData,
         parent: EffectNodeIndex,
         spatial: SpatialNodeIndex,
-        output_clip: ClipNodeIndex,
+        local_clip: ClipNodeIndex,
     ) -> EffectNodeIndex {
         assert!(
             self.spatial_is_live(spatial),
@@ -1030,8 +1023,8 @@ impl VisualContextTree {
         );
         assert!(data.is_live(), "appended effect nodes are live");
         assert!(
-            self.clip_is_none_or_live(output_clip),
-            "an effect node's output clip must be a live node"
+            self.clip_is_none_or_live(local_clip),
+            "an effect node's local clip must be a live node"
         );
         if !parent.is_none() {
             assert!(
@@ -1040,7 +1033,7 @@ impl VisualContextTree {
             );
         }
         self.effect_nodes
-            .push(EffectNode::new(data, parent, spatial, Some(output_clip)));
+            .push(EffectNode::new(data, parent, spatial, local_clip));
         self.effect_slots.live_count += 1;
         EffectNodeIndex((self.effect_nodes.len() - 1) as u32)
     }
@@ -1049,60 +1042,10 @@ impl VisualContextTree {
         VisualContextNodeSink::clip_is_ancestor_or_self(self, ancestor, node)
     }
 
-    // An effect only this chain records under already has its final output clip.
+    // Record the clip in force where this effect begins.
     pub fn append_effect_node_under(&mut self, context: ContextRef, data: EffectNodeData) -> ContextRef {
         let effect = self.append_effect(data, context.effect, context.spatial, context.clip);
         ContextRef { effect, ..context }
-    }
-
-    // Resolve layer placement from the clips where effects begin and from positioned
-    // descendants that escape clips. These constraints belong to the boxes that build them;
-    // they have no identity or lifetime in the published tree. Report changes to previously
-    // resolved clips; resolving a newly allocated effect does not invalidate existing handles.
-    pub fn resolve_effect_output_clips(&mut self, constraints: &[EffectClipConstraint]) -> bool {
-        let clip_depths = self.clip_depths();
-        let depth_of = |index: ClipNodeIndex| {
-            if index.is_none() {
-                0
-            } else {
-                clip_depths[index.0 as usize]
-            }
-        };
-        let parent_of = |index: ClipNodeIndex| self.clip_nodes[index.0 as usize].parent;
-        let mut shared: Vec<Option<ClipNodeIndex>> = vec![None; self.effect_nodes.len()];
-        let narrow = |shared: &mut Option<ClipNodeIndex>, clip: ClipNodeIndex| {
-            *shared = Some(match *shared {
-                Some(current) => clip_lowest_common_ancestor_with_depths(parent_of, depth_of, current, clip),
-                None => clip,
-            });
-        };
-        if let Some(effect) = self.root_isolation_effect {
-            narrow(&mut shared[effect.0 as usize], ClipNodeIndex::NONE);
-        }
-        for constraint in constraints {
-            if !constraint.effect.is_none() {
-                narrow(&mut shared[constraint.effect.0 as usize], constraint.clip);
-            }
-        }
-        // Parents come first in the dependency order, so walking it backwards folds every
-        // effect's clip into its parent's before the parent is read.
-        for &index in self.effect_dependency_order().iter().rev() {
-            let parent = self.effect_nodes[index as usize].parent;
-            if parent.is_none() {
-                continue;
-            }
-            if let Some(clip) = shared[index as usize] {
-                narrow(&mut shared[parent.0 as usize], clip);
-            }
-        }
-        let mut changed = false;
-        for (node, shared) in self.effect_nodes.iter_mut().zip(&shared) {
-            if let Some(clip) = *shared {
-                changed |= node.resolved_output_clip.is_some_and(|previous| previous != clip);
-                node.resolved_output_clip = Some(clip);
-            }
-        }
-        changed
     }
 
     // Root path lengths of the clip nodes; the absent clip has depth 0.
@@ -1497,12 +1440,6 @@ impl PositioningContext {
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub struct EffectClipConstraint {
-    pub effect: EffectNodeIndex,
-    pub clip: ClipNodeIndex,
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct DescendantVisualContexts {
     pub effect: EffectNodeIndex,
     pub normal: PositioningContext,
@@ -1518,7 +1455,6 @@ pub(crate) struct PaintableVisualContextRecord {
     pub inherited_input: DescendantVisualContexts,
     pub output_for_descendants: DescendantVisualContexts,
     pub node_handles: BoxVisualContextNodeHandles,
-    pub effect_clip_constraints: Vec<EffectClipConstraint>,
     pub has_mask_nodes: bool,
     pub may_be_root_element: bool,
     pub owns_geometry_dependent_nodes: bool,
@@ -1750,7 +1686,7 @@ mod tests {
         assert_eq!(layered.spatial, root.spatial);
         assert_eq!(layered.clip, clipped.clip);
         assert_eq!(clipped.effect, EffectNodeIndex::NONE);
-        assert_eq!(tree.effect_nodes[layered.effect.0 as usize].output_clip(), clipped.clip);
+        assert_eq!(tree.effect_nodes[layered.effect.0 as usize].local_clip, clipped.clip);
         assert_eq!(tree.live_node_count(), 3);
     }
 
@@ -1845,47 +1781,6 @@ mod tests {
     }
 
     #[test]
-    fn effect_clip_constraints_include_positioned_escapes_and_descendant_effects() {
-        let mut tree = tree();
-        let rect = || clip(FloatRect::new(0.0, 0.0, 1.0, 1.0), ClipMode::Intersect);
-        let outer = tree.append_clip(rect(), ClipNodeIndex::NONE, VISUAL_VIEWPORT_NODE_INDEX);
-        let inner = tree.append_clip(rect(), outer, VISUAL_VIEWPORT_NODE_INDEX);
-        let sibling = tree.append_clip(rect(), outer, VISUAL_VIEWPORT_NODE_INDEX);
-        let layer = tree.append_effect(
-            effects(),
-            EffectNodeIndex::NONE,
-            VISUAL_VIEWPORT_NODE_INDEX,
-            ClipNodeIndex::NONE,
-        );
-        let nested = tree.append_effect(effects(), layer, VISUAL_VIEWPORT_NODE_INDEX, ClipNodeIndex::NONE);
-        let mut constraints = vec![
-            EffectClipConstraint {
-                effect: layer,
-                clip: inner,
-            },
-            EffectClipConstraint {
-                effect: nested,
-                clip: inner,
-            },
-        ];
-        assert!(tree.resolve_effect_output_clips(&constraints));
-        assert_eq!(tree.effect_nodes[layer.0 as usize].output_clip(), inner);
-        assert_eq!(tree.effect_nodes[nested.0 as usize].output_clip(), inner);
-        assert!(!tree.resolve_effect_output_clips(&constraints));
-        constraints.push(EffectClipConstraint {
-            effect: nested,
-            clip: sibling,
-        });
-        assert!(tree.resolve_effect_output_clips(&constraints));
-        assert_eq!(tree.effect_nodes[nested.0 as usize].output_clip(), outer);
-        assert_eq!(tree.effect_nodes[layer.0 as usize].output_clip(), outer);
-        constraints.pop();
-        assert!(tree.resolve_effect_output_clips(&constraints));
-        assert_eq!(tree.effect_nodes[layer.0 as usize].output_clip(), inner);
-        assert!(!tree.resolve_effect_output_clips(&constraints));
-    }
-
-    #[test]
     fn tombstones_keep_their_links_and_leave_the_live_counts() {
         let mut tree = tree();
         let transform = tree.append_spatial(SpatialData::Transform(transform(0.0)), VISUAL_VIEWPORT_NODE_INDEX);
@@ -1913,7 +1808,7 @@ mod tests {
         );
         assert_eq!(tree.clip_nodes[empty_clip.0 as usize].parent, ClipNodeIndex::NONE);
         assert!(!tree.clip_nodes[empty_clip.0 as usize].clips_everything);
-        assert_eq!(tree.effect_nodes[effect.0 as usize].output_clip(), empty_clip);
+        assert_eq!(tree.effect_nodes[effect.0 as usize].local_clip, empty_clip);
         assert_eq!(tree.live_spatial_node_count(), 1);
         assert_eq!(tree.live_clip_node_count(), 0);
         assert_eq!(tree.live_effect_node_count(), 0);

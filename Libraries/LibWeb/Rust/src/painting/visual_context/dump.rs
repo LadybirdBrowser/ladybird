@@ -253,6 +253,8 @@ impl VisualContextTree {
         command_runs: &[DisplayListCommandRun],
         mut owner_label: impl FnMut(SlotKind, u32) -> Option<String>,
     ) -> String {
+        let effect_clips = crate::painting::display_list::effect_clip_plan::EffectClipPlan::new(self, command_runs)
+            .expect("dumped command runs reference live visual context nodes");
         let mut visited_spatial_nodes: HashSet<u32> = HashSet::new();
         let mut visited_clip_nodes: HashSet<u32> = HashSet::new();
         let mut visited_effect_nodes: HashSet<u32> = HashSet::new();
@@ -287,7 +289,7 @@ impl VisualContextTree {
             let mut effect = run.context.effect;
             while !effect.is_none() && visited_effect_nodes.insert(effect.0) {
                 let node = &self.effect_nodes[effect.0 as usize];
-                visit_clip_chain(node.output_clip());
+                visit_clip_chain(effect_clips.output_clip(effect));
                 if node.parent.is_none() {
                     effect_roots.push(effect.0);
                 } else {
@@ -359,10 +361,11 @@ impl VisualContextTree {
                     &effect_children,
                     &|index: u32| {
                         let node = &self.effect_nodes[index as usize];
-                        let output_clip = if node.output_clip().is_none() {
+                        let resolved_clip = effect_clips.output_clip(EffectNodeIndex(index));
+                        let output_clip = if resolved_clip.is_none() {
                             String::new()
                         } else {
-                            format!(" out=c{}", node.output_clip().0)
+                            format!(" out=c{}", resolved_clip.0)
                         };
                         format!(
                             "[e{index} in s{}{output_clip}] {}",

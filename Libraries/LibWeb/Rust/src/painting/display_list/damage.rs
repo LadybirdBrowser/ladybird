@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+use super::effect_clip_plan::EffectClipPlan;
 use crate::painting::display_list::builder::{for_each_command, inline_transform_entry_offset, read_command};
 use crate::painting::display_list::commands::{
     ContextRef, DisplayListCommandHeader, DisplayListCommandType, DisplayListDataSpan, DisplayListInlineClip,
@@ -295,6 +296,8 @@ fn chains_pair_up(
 }
 
 struct TreeChainComparison<'a> {
+    old_effect_clips: EffectClipPlan,
+    new_effect_clips: EffectClipPlan,
     old_tree: &'a VisualContextTree,
     old_scroll_offsets: &'a [FloatPoint],
     old_spatial_depths: Vec<u32>,
@@ -400,12 +403,14 @@ impl TreeChainComparison<'_> {
             |index| old_tree.effect_nodes[index as usize].parent.0,
             |index| new_tree.effect_nodes[index as usize].parent.0,
             |old, new| {
+                let old_output_clip = self.old_effect_clips.output_clip(EffectNodeIndex(old));
+                let new_output_clip = self.new_effect_clips.output_clip(EffectNodeIndex(new));
                 let (old, new) = (
                     &old_tree.effect_nodes[old as usize],
                     &new_tree.effect_nodes[new as usize],
                 );
                 effect_data_is_equal(&old.data, &new.data)
-                    && self.old_culling.clip_depth(old.output_clip()) == self.new_culling.clip_depth(new.output_clip())
+                    && self.old_culling.clip_depth(old_output_clip) == self.new_culling.clip_depth(new_output_clip)
             },
         )
     }
@@ -623,6 +628,14 @@ pub fn compute_display_list_damage(
     let mut new_culling = TreeCullingScratch::default();
     new_visual_context_tree.fill_culling_scratch(&mut new_culling);
     let chains = TreeChainComparison {
+        old_effect_clips: EffectClipPlan::from_contexts(
+            old_visual_context_tree,
+            old_commands.iter().map(|command| command.header.context),
+        )?,
+        new_effect_clips: EffectClipPlan::from_contexts(
+            new_visual_context_tree,
+            new_commands.iter().map(|command| command.header.context),
+        )?,
         old_tree: old_visual_context_tree,
         old_scroll_offsets,
         old_spatial_depths: spatial_depths(old_visual_context_tree),
@@ -1146,6 +1159,63 @@ mod tests {
             damage(&display_list, &tree, &display_list, &tree),
             Some(IntRect::default())
         );
+    }
+
+    #[test]
+    fn removing_a_clip_escape_damages_unchanged_runs_whose_layer_placement_changes() {
+        let mut tree = identity_tree();
+        let local_clip = tree.append_clip(
+            clip(FloatRect::new(0.0, 0.0, 30.0, 30.0)),
+            ClipNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+        );
+        let effect = tree.append_effect(
+            EffectNodeData::Effects(EffectsData {
+                opacity: 0.5,
+                blend_mode: CompositingAndBlendingOperator::Normal,
+                filter: None,
+                backdrop_filter: None,
+            }),
+            EffectNodeIndex::NONE,
+            VISUAL_VIEWPORT_NODE_INDEX,
+            local_clip,
+        );
+        let rect = IntRect::new(10, 10, 10, 10);
+        let fill = FillRect {
+            rect,
+            color: RED,
+            compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+            background_color_animation_effect: EffectNodeIndex::NONE,
+        };
+        let remaining = command_bytes(
+            &fill,
+            Some(rect),
+            ContextRef {
+                clip: local_clip,
+                effect,
+                ..ContextRef::default()
+            },
+        );
+        let escaped_rect = IntRect::new(70, 70, 10, 10);
+        let escaped = command_bytes(
+            &FillRect {
+                rect: escaped_rect,
+                ..fill
+            },
+            Some(escaped_rect),
+            ContextRef {
+                clip: ClipNodeIndex::NONE,
+                effect,
+                ..ContextRef::default()
+            },
+        );
+        let before = [remaining.as_slice(), escaped.as_slice()].concat();
+        let changed = damage(&before, &tree, &remaining, &tree).unwrap();
+        // Repaint both the removed drawing and the retained drawing whose layer moved
+        // inside the clip. Comparing only the unchanged AVC tree would miss the latter.
+        assert!(changed.x <= rect.x && changed.y <= rect.y);
+        assert!(changed.x + changed.width >= escaped_rect.x + escaped_rect.width);
+        assert!(changed.y + changed.height >= escaped_rect.y + escaped_rect.height);
     }
 
     #[test]

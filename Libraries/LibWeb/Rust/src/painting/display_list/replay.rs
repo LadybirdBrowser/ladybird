@@ -8,6 +8,7 @@ use crate::painting::display_list::commands::{
     ClipNodeIndex, DisplayListCommandRun, EffectNodeIndex, ReplayClip, ReplayLayer, ReplayMask, SpatialNodeIndex,
 };
 use crate::painting::display_list::depth_sorted_plan::{DepthSortedReplayStepKind, build_depth_sorted_replay_plan};
+use crate::painting::display_list::effect_clip_plan::EffectClipPlan;
 use crate::painting::visual_context::queries::TreeCullingScratch;
 use crate::painting::visual_context::{
     ClipNodeData, ContextRef, EffectNodeData, SpatialData, VisualContextTree, device_offset_for_index,
@@ -101,6 +102,7 @@ enum SwitchResult {
 struct ReplayDriver<'a, Painter: ReplayPainter> {
     tree: &'a VisualContextTree,
     command_runs: &'a [DisplayListCommandRun],
+    effect_clips: &'a EffectClipPlan,
     painter: &'a mut Painter,
     palette: ReplayPaletteStorage,
     culling: TreeCullingScratch,
@@ -288,7 +290,7 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
         let mut effect = context.effect;
         while !effect.is_none() {
             let node = &tree.effect_nodes[effect.0 as usize];
-            while clip != node.output_clip() {
+            while clip != self.effect_clips.output_clip(effect) {
                 debug_assert!(
                     !clip.is_none(),
                     "an effect's output clip lies on the context's clip chain"
@@ -548,6 +550,7 @@ impl<Painter: ReplayPainter> ReplayDriver<'_, Painter> {
 pub fn replay_display_list(
     tree: &VisualContextTree,
     command_runs: &[DisplayListCommandRun],
+    effect_clips: &EffectClipPlan,
     scroll_offsets: &[FloatPoint],
     painter: &mut impl ReplayPainter,
 ) {
@@ -557,6 +560,7 @@ pub fn replay_display_list(
     let mut driver = ReplayDriver {
         tree,
         command_runs,
+        effect_clips,
         painter,
         palette: scratch.palette,
         culling: scratch.culling,
@@ -843,7 +847,7 @@ mod tests {
     }
 
     fn replay(tree: &VisualContextTree, runs: &[DisplayListCommandRun], painter: &mut RecordingPainter) {
-        replay_display_list(tree, runs, &[], painter);
+        replay_display_list(tree, runs, &EffectClipPlan::new(tree, runs).unwrap(), &[], painter);
     }
 
     #[test]
@@ -1050,16 +1054,8 @@ mod tests {
             effect: nested,
             ..ContextRef::default()
         };
-        tree.resolve_effect_output_clips(&[
-            crate::painting::visual_context::EffectClipConstraint {
-                effect: layer,
-                clip: outer_clip,
-            },
-            crate::painting::visual_context::EffectClipConstraint {
-                effect: nested,
-                clip: inner_clip,
-            },
-        ]);
+        tree.effect_nodes[layer.0 as usize].local_clip = outer_clip;
+        tree.effect_nodes[nested.0 as usize].local_clip = inner_clip;
         let runs = [
             run(VISUAL_VIEWPORT_NODE_INDEX, outer_context, visible_bounds()),
             run(VISUAL_VIEWPORT_NODE_INDEX, nested_context, visible_bounds()),
@@ -1181,6 +1177,43 @@ mod tests {
                 PainterEvent::Run(3),
                 PainterEvent::Pop,
                 PainterEvent::Pop,
+                PainterEvent::Pop,
+            ]
+        );
+    }
+
+    #[test]
+    fn a_later_clip_escape_keeps_the_opacity_group_open() {
+        let mut tree = identity_tree();
+        let rect = FloatRect::new(0.0, 0.0, 100.0, 100.0);
+        let local_clip = root_clip(&mut tree, rect);
+        let effect = effect_under(&mut tree, effects(0.5), EffectNodeIndex::NONE, local_clip);
+        let runs = [local_clip, ClipNodeIndex::NONE].map(|clip| {
+            run(
+                VISUAL_VIEWPORT_NODE_INDEX,
+                ContextRef {
+                    clip,
+                    effect,
+                    ..ContextRef::default()
+                },
+                visible_bounds(),
+            )
+        });
+        let mut painter = RecordingPainter::new();
+        replay(&tree, &runs, &mut painter);
+        let events: Vec<_> = painter
+            .events
+            .into_iter()
+            .filter(|event| !matches!(event, PainterEvent::SetMatrix(_)))
+            .collect();
+        assert_eq!(
+            events,
+            vec![
+                PainterEvent::PushLayer(0.5),
+                PainterEvent::PushClip(rect),
+                PainterEvent::Run(0),
+                PainterEvent::Pop,
+                PainterEvent::Run(1),
                 PainterEvent::Pop,
             ]
         );
@@ -1392,7 +1425,13 @@ mod tests {
         scroll_offsets[scroll_node.0 as usize] = FloatPoint { x: 0.0, y: -30.7 };
         let mut painter = RecordingPainter::new();
         let base = painter.base_matrix;
-        replay_display_list(&tree, &runs, &scroll_offsets, &mut painter);
+        replay_display_list(
+            &tree,
+            &runs,
+            &EffectClipPlan::new(&tree, &runs).unwrap(),
+            &scroll_offsets,
+            &mut painter,
+        );
         assert_eq!(
             painter.events,
             vec![

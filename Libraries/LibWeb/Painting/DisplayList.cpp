@@ -35,6 +35,26 @@ DisplayList::DisplayList(u64 compatible_visual_context_tree_structural_epoch, u6
 {
 }
 
+DisplayList::~DisplayList()
+{
+    Layout::RustFFI::display_list_destroy_effect_clip_plan(m_replay_effect_clip_plan.load());
+}
+
+void const* DisplayList::replay_effect_clip_plan(AccumulatedVisualContextTree const& tree) const
+{
+    VERIFY(m_compatible_visual_context_tree_structural_epoch == tree.structural_epoch());
+    if (auto const* plan = m_replay_effect_clip_plan.load())
+        return plan;
+    auto const* plan = Layout::RustFFI::display_list_create_effect_clip_plan(tree.rust_handle(), m_command_runs.data(), m_command_runs.size());
+    VERIFY(plan);
+    void const* existing = nullptr;
+    if (!m_replay_effect_clip_plan.compare_exchange_strong(existing, plan)) {
+        Layout::RustFFI::display_list_destroy_effect_clip_plan(plan);
+        return existing;
+    }
+    return plan;
+}
+
 NonnullRefPtr<DisplayList> DisplayList::create_from_command_bytes(AccumulatedVisualContextTree const& visual_context_tree, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs)
 {
     MUST(validate_display_list_command_runs(command_bytes, command_runs));
@@ -255,7 +275,7 @@ void DisplayListPlayer::execute_impl(DisplayList const& display_list, ScrollStat
 
     auto command_runs = display_list.command_runs();
     auto scroll_offsets = scroll_state.device_offsets();
-    Layout::RustFFI::display_list_replay(visual_context_tree.rust_handle(), command_runs.data(), command_runs.size(), scroll_offsets.data(), scroll_offsets.size(), &callbacks);
+    Layout::RustFFI::display_list_replay(visual_context_tree.rust_handle(), display_list.replay_effect_clip_plan(visual_context_tree), command_runs.data(), command_runs.size(), scroll_offsets.data(), scroll_offsets.size(), &callbacks);
 }
 
 }

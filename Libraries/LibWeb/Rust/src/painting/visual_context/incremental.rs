@@ -374,7 +374,6 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
         .removed
         .iter()
         .any(|removed| state.paintables_with_mask_nodes.contains(&removed.slot));
-    let mut effect_clip_constraints_changed = false;
     let mut stack: Vec<PendingBox> = Vec::new();
     let push_children = |stack: &mut Vec<PendingBox>,
                          parent: NodeSlotId,
@@ -475,11 +474,6 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
                         .map(|resolver| resolver as &dyn AnchorScrollShiftResolver),
                 )
             };
-            effect_clip_constraints_changed |= existing_record
-                .as_ref()
-                .map_or(!assignment.record.effect_clip_constraints.is_empty(), |record| {
-                    record.effect_clip_constraints != assignment.record.effect_clip_constraints
-                });
             let (handles, reconcile) = writer.finish();
             if let Some(scroll_state) = scaffold_scroll_state.as_mut() {
                 for handle in &handles.spatial {
@@ -575,34 +569,6 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
     }
 
     let tree = Rc::make_mut(state.tree.as_mut().expect("the tree exists throughout the pass"));
-    // Payload-only updates keep layer placement unless a box selected a different clip
-    // chain. Structural changes can reparent clips without changing constraint handles;
-    // removed boxes can drop escape constraints even when they owned no tree nodes.
-    if scope.rebuilds_every_box()
-        || effect_clip_constraints_changed
-        || delta.structural_epoch_changed
-        || !state.dirty_boxes.removed.is_empty()
-    {
-        let mut constraints = Vec::new();
-        if scope.rebuilds_every_box() {
-            // Every box's new record is already in the assignments, and the resolver
-            // supplies the viewport's root isolation constraint itself.
-            for assignment in &assignments {
-                constraints.extend_from_slice(&assignment.record.effect_clip_constraints);
-            }
-        } else {
-            paint_order::for_each_in_paint_subtree(layout_arena, viewport, |slot| {
-                if let Some(&index) = assignment_index_by_slot.get(&slot) {
-                    constraints.extend_from_slice(&assignments[index].record.effect_clip_constraints);
-                } else if let Some(record) = layout_arena.paintable_visual_context_record(slot) {
-                    constraints.extend_from_slice(&record.effect_clip_constraints);
-                }
-            });
-        }
-        if tree.resolve_effect_output_clips(&constraints) {
-            delta.note_repurposed_in_place();
-        }
-    }
     if incremental_tree_requires_fresh_build(tree, &delta) {
         return IncrementalUpdateResult::NeedsFullBuild(VisualContextGlobalRebuildReason::InvalidIncrementalReferences);
     }

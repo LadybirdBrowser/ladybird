@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html class="reftest-wait">
+<link rel="match" href="../expected/replay-effect-clip-positioned-escape-ref.html">
+<style>
+    html { background: white; }
+    body { margin: 0; }
+    #clip { overflow: hidden; width: 60px; height: 60px; }
+    #group { opacity: 0.5; }
+    #normal { background: red; width: 100px; height: 40px; }
+    #escape { position: fixed; left: 40px; top: 20px; width: 60px; height: 40px; background: blue; }
+</style>
+<div id="clip"><div id="group"><div id="normal"></div></div></div>
+<script>
+    const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+    (async () => {
+        await nextFrame();
+        await nextFrame();
+        const escape = document.createElement("div");
+        escape.id = "escape";
+        // A later drawing escapes the clip where the existing opacity effect began.
+        // It must share that effect's layer with the earlier red drawing.
+        group.append(escape);
+        await nextFrame();
+        await nextFrame();
+        escape.remove();
+        await nextFrame();
+        await nextFrame();
+        group.append(escape);
+        await nextFrame();
+        await nextFrame();
+        document.documentElement.classList.remove("reftest-wait");
+    })();
+</script>
