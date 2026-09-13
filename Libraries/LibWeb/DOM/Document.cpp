@@ -4520,10 +4520,7 @@ void Document::completely_finish_loading()
         m_active_refresh_timer->start();
 
     // 3. Let container be document's browsing context's container.
-    if (!navigable->container())
-        return;
-
-    auto container = GC::make_root(navigable->container());
+    auto container = navigable->container();
 
     // 4. If container is an iframe element, then queue an element task on the DOM manipulation task source given container to run the iframe load event steps given container.
     if (container && is<HTML::HTMLIFrameElement>(*container)) {
@@ -4540,7 +4537,8 @@ void Document::completely_finish_loading()
 
     // AD-HOC: Finishing a child document can unblock its parent's load-event-delay phase, so wake the parent parser end
     //         state after queueing the container's load event.
-    container->document().schedule_html_parser_end_check();
+    if (container)
+        container->document().schedule_html_parser_end_check();
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-cookie
