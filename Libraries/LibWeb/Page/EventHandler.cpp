@@ -11,6 +11,7 @@
 #include <AK/Debug.h>
 #include <AK/Math.h>
 #include <LibGC/Heap.h>
+#include <LibGC/RootHashTable.h>
 #include <LibGfx/Bitmap.h>
 #include <LibUnicode/CharacterTypes.h>
 #include <LibUnicode/Segmenter.h>
@@ -563,6 +564,28 @@ EventResult EventHandler::handle_mousemove(CSSPixelPoint visual_viewport_positio
     return EventResult::Handled;
 }
 
+static GC::Ptr<DOM::Node> target_for_click_event(DOM::Node* mouse_down_target, DOM::Node& mouse_up_target)
+{
+    if (!mouse_down_target || !mouse_down_target->is_connected() || &mouse_down_target->document() != &mouse_up_target.document())
+        return nullptr;
+
+    if (mouse_down_target == &mouse_up_target)
+        return mouse_down_target;
+
+    // https://www.w3.org/TR/pointerevents3/#event-dispatch
+    // INTEROP: Blink, WebKit, and Gecko find the nearest common inclusive ancestor in the flat tree.
+    GC::RootHashTable<DOM::Node*> ancestors;
+    for (auto* ancestor = mouse_down_target; ancestor; ancestor = ancestor->flat_tree_parent())
+        ancestors.set(ancestor);
+
+    for (auto* ancestor = &mouse_up_target; ancestor; ancestor = ancestor->flat_tree_parent()) {
+        if (ancestors.contains(ancestor))
+            return ancestor;
+    }
+
+    return nullptr;
+}
+
 EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, u32 button, u32 buttons, u32 modifiers)
 {
     auto middle_button_autoscrolled = m_middle_button_scroll_handler && m_middle_button_scroll_handler->mouse_has_moved_beyond_dead_zone();
@@ -661,11 +684,18 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
         finish_selection_from_preserved_mousedown(*document, visual_viewport_position);
 #endif
 
-    // FIXME: Per spec, the click target should be the nearest common inclusive ancestor of the pointerdown
-    //        and pointerup targets. Currently we require an exact match.
     // NB: If the middle button was used to scroll, suppress click and activation behavior.
-    if (node.ptr() == m_mousedown_target && !middle_button_autoscrolled) {
-        if (fire_click_events(*node, coordinates, screen_position, button, buttons, modifiers, click_count)
+    auto click_target = target_for_click_event(m_mousedown_target, *node);
+    if (click_target && !middle_button_autoscrolled) {
+        // NB: Mouseup listeners may have invalidated layout. Click offsets are relative to the click target,
+        //     which may differ from the mouseup target.
+        document->update_layout(DOM::UpdateLayoutReason::EventHandlerHandleMouseUp);
+        if (auto* click_layout_node = click_target->layout_node())
+            coordinates = compute_mouse_event_coordinates(visual_viewport_position, viewport_position, *click_layout_node);
+
+        // https://www.w3.org/TR/pointerevents3/#event-dispatch
+        // Dispatch event to target following the [UIEVENTS] spec.
+        if (fire_click_events(*click_target, coordinates, screen_position, button, buttons, modifiers, click_count)
             && !chrome_widget) {
             // NB: Event dispatches above may have run JS that invalidated layout.
             document->update_layout(DOM::UpdateLayoutReason::EventHandlerRunActivationBehavior);
@@ -678,7 +708,7 @@ EventResult EventHandler::handle_mouseup(CSSPixelPoint visual_viewport_position,
             //        some way to be able to communicate with browsing contexts in remote WebContent processes, and
             //        then step 8 of this algorithm needs to be implemented in LocalNavigable::choose_a_navigable:
             //        https://html.spec.whatwg.org/multipage/document-sequences.html#the-rules-for-choosing-a-navigable
-            run_activation_behavior(*node, button, modifiers);
+            run_activation_behavior(*click_target, button, modifiers);
         }
     }
 

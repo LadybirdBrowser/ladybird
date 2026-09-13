@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    #fixture { position: absolute; left: 40px; top: 40px; width: 200px; height: 100px; }
+    #fixture, #fixture * { user-select: none; }
+</style>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        const fixture = document.getElementById("fixture");
+        const events = [];
+        for (const type of ["click", "auxclick", "dblclick"]) {
+            document.addEventListener(type, event => {
+                events.push(`${type} on ${event.composedPath()[0].id}`);
+                event.preventDefault();
+            });
+        }
+        function pressAndRelease(name, down, up, between = () => {}, button = 0, clickCount = 1) {
+            events.length = 0;
+            internals.clickAndHold(...down, clickCount, button);
+            between();
+            internals.mouseUp(...up, button);
+            println(`${name}: ${events.join(", ") || "no click"}`);
+        }
+        fixture.innerHTML = `<div id="parent" style="width:200px;height:100px">
+            <div id="first" style="position:absolute;left:10px;top:10px;width:40px;height:40px"></div>
+            <div id="second" style="position:absolute;left:70px;top:10px;width:40px;height:40px"></div>
+        </div>`;
+        pressAndRelease("same target", [60, 60], [60, 60]);
+        pressAndRelease("child to parent", [60, 60], [180, 60]);
+        pressAndRelease("parent to child", [180, 60], [60, 60]);
+        pressAndRelease("siblings", [60, 60], [120, 60]);
+        pressAndRelease("auxclick siblings", [60, 60], [120, 60], () => {}, 1);
+        pressAndRelease("double click siblings", [60, 60], [120, 60], () => {}, 0, 2);
+        let offset;
+        fixture.addEventListener("click", event => offset = `${event.offsetX},${event.offsetY}`, { once: true });
+        pressAndRelease("ancestor coordinates", [60, 60], [120, 60]);
+        println(`offset: ${offset}`);
+        const first = document.getElementById("first");
+        const second = document.getElementById("second");
+        second.addEventListener("mouseup", () => second.appendChild(first), { once: true });
+        pressAndRelease("reparented during mouseup", [60, 60], [120, 60]);
+        document.getElementById("parent").appendChild(first);
+        pressAndRelease("removed press target", [60, 60], [120, 60], () => document.getElementById("first").remove());
+        second.addEventListener("mouseup", () => second.remove(), { once: true });
+        pressAndRelease("removed during mouseup", [120, 60], [120, 60]);
+
+        fixture.innerHTML = `<button id="button" style="position:absolute;left:0;top:0;width:100px;height:100px;border:0;padding:0">
+            <svg id="icon" style="position:absolute;left:20px;top:20px;width:60px;height:60px"></svg>
+        </button>`;
+        pressAndRelease("shrinking icon", [65, 65], [65, 65], () => document.getElementById("button").style.scale = "0.8");
+
+        fixture.innerHTML = `<div id="host" style="width:200px;height:100px"><div id="slotted" style="width:40px;height:40px"></div></div>`;
+        const shadow = document.getElementById("host").attachShadow({ mode: "open" });
+        shadow.innerHTML = `<div id="shadow-parent" style="width:200px;height:100px"><slot></slot>
+            <div id="shadow-child" style="position:absolute;left:70px;top:0;width:40px;height:40px"></div></div>`;
+        pressAndRelease("slotted to shadow sibling", [60, 60], [120, 60]);
+
+        fixture.innerHTML = `<label id="label" for="checkbox" style="display:block;width:200px;height:100px">
+            <span id="label-first" style="position:absolute;left:0;top:0;width:40px;height:40px"></span>
+            <span id="label-second" style="position:absolute;left:70px;top:0;width:40px;height:40px"></span>
+        </label><input id="checkbox" type="checkbox">`;
+        // Stop the document listener from cancelling label activation.
+        fixture.addEventListener("click", event => event.stopPropagation());
+        internals.clickAndHold(60, 60);
+        internals.mouseUp(120, 60);
+        println(`ancestor activation: ${document.getElementById("checkbox").checked}`);
+    });
+</script>

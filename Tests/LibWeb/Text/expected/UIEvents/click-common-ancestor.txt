@@ -1,0 +1,14 @@
+same target: click on first
+child to parent: click on parent
+parent to child: click on parent
+siblings: click on parent
+auxclick siblings: auxclick on parent
+double click siblings: click on parent, dblclick on parent
+ancestor coordinates: click on parent
+offset: 80,20
+reparented during mouseup: click on second
+removed press target: no click
+removed during mouseup: no click
+shrinking icon: click on button
+slotted to shadow sibling: click on shadow-parent
+ancestor activation: true
