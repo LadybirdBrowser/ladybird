@@ -28,8 +28,8 @@ public:
 
     virtual void attribute_changed(Utf16FlyString const& name, Optional<Utf16String> const& old_value, Optional<Utf16String> const& value, Optional<Utf16FlyString> const& namespace_) override;
 
-    void svg_element_changed(SVGElement&);
-    void svg_element_changed_before_document_complete(SVGElement&);
+    void svg_element_changed(SVGElement&, Optional<u64> insertion_generation);
+    void svg_element_changed_before_document_complete(SVGElement&, Optional<u64> insertion_generation);
     void svg_element_removed(SVGElement&);
 
     // AD-HOC: The spec states that the x, y, width and height IDL attributes reflect the respective computed values and their
@@ -60,6 +60,7 @@ private:
     virtual void finalize() override;
     virtual void adopted_from(DOM::Document&) override;
     virtual void inserted() override;
+    virtual void post_connection() override;
     virtual void removed_from(IsSubtreeRoot, Node* old_ancestor, Node& old_root) override;
     virtual void moved_from(IsSubtreeRoot, GC::Ptr<Node> old_ancestor) override;
 
@@ -71,6 +72,7 @@ private:
     Optional<Utf16String> href_value() const;
 
     GC::Ptr<DOM::Element> referenced_element() const;
+    bool has_already_applied_insertion_clone(GC::Ptr<DOM::Element>, Optional<u64> insertion_generation) const;
 
     void fetch_the_document(URL::URL const& url);
     bool is_referenced_element_same_document() const;
@@ -85,6 +87,12 @@ private:
     bool m_needs_document_complete_reclone { false };
 
     Optional<URL::URL> m_href;
+
+    struct InsertionClone {
+        u64 generation { 0 };
+        GC::Weak<DOM::Element> target;
+    };
+    InsertionClone m_last_insertion_clone;
 
     GC::Ptr<DOM::DocumentObserver> m_document_observer;
     GC::Ptr<HTML::SharedResourceRequest> m_resource_request;

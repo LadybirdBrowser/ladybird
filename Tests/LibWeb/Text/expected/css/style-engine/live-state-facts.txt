@@ -1,6 +1,6 @@
 make checkbox indeterminate: [indeterminate-subject]
 make checkbox determinate: []
-make progress determinate: [div, progress-subject]
+make progress determinate: [progress-subject, div]
 make progress indeterminate: []
 make text input read-only: [read-only-subject, read-write-subject]
 make text input read-write: []

@@ -3,6 +3,14 @@
 <script src="include.js"></script>
 <script type="text/javascript">
     test(() => {
+        const unrenderedTextarea = document.createElement("textarea");
+        document.body.appendChild(unrenderedTextarea);
+
+        unrenderedTextarea.value = "value";
+        println(`unrendered selectionStart: ${unrenderedTextarea.selectionStart}`);
+        println(`unrendered selectionEnd: ${unrenderedTextarea.selectionEnd}`);
+        println(`unrendered shadow root: ${internals.hasShadowRoot(unrenderedTextarea)}`);
+
         let textarea = document.getElementById("textarea");
         textarea.focus();
 

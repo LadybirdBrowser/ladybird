@@ -1,0 +1,69 @@
+<!doctype html>
+<script src="../include.js"></script>
+<body>
+    <script>
+        const SVG_NS = "http://www.w3.org/2000/svg";
+        const createSVGElement = name => document.createElementNS(SVG_NS, name);
+        const cloneCounts = { fallback: 0, "target-first": 0 };
+
+        for (const testCase of Object.keys(cloneCounts)) {
+            customElements.define(
+                `${testCase}-use-clone-counter`,
+                class extends HTMLElement {
+                    constructor() {
+                        super();
+                        ++cloneCounts[testCase];
+                    }
+                }
+            );
+        }
+
+        function createTarget(id, testCase) {
+            const target = createSVGElement("g");
+            target.id = id;
+            const rect = createSVGElement("rect");
+            rect.setAttribute("width", "10");
+            rect.setAttribute("height", "10");
+            const foreignObject = createSVGElement("foreignObject");
+            foreignObject.append(document.createElement(`${testCase}-use-clone-counter`));
+            target.append(rect, foreignObject);
+            return target;
+        }
+
+        function createUse(id) {
+            const use = createSVGElement("use");
+            use.setAttribute("href", `#${id}`);
+            return use;
+        }
+
+        const fallbackSVG = createSVGElement("svg");
+        fallbackSVG.style.visibility = "hidden";
+        const fallbackUse = createUse("fallbackTarget");
+        fallbackSVG.append(fallbackUse, createTarget("fallbackTarget", "fallback"));
+        document.body.append(fallbackSVG);
+        const fallbackResolvedBeforeLoad = fallbackUse.getBBox().width === 10;
+
+        const targetFirstSVG = createSVGElement("svg");
+        targetFirstSVG.style.visibility = "hidden";
+        const targetFirstUse = createUse("targetFirstTarget");
+        targetFirstSVG.append(createTarget("targetFirstTarget", "target-first"), targetFirstUse);
+        document.body.append(targetFirstSVG);
+        const targetFirstResolvedBeforeLoad = targetFirstUse.getBBox().width === 10;
+
+        asyncTest(done => {
+            window.addEventListener(
+                "load",
+                () => {
+                    setTimeout(() => {
+                        println(`Use-before-target resolved before load: ${fallbackResolvedBeforeLoad}`);
+                        println(`Use-before-target was not recloned on load: ${cloneCounts.fallback === 2}`);
+                        println(`Target-before-use resolved before load: ${targetFirstResolvedBeforeLoad}`);
+                        println(`Target-before-use was not recloned on load: ${cloneCounts["target-first"] === 2}`);
+                        done();
+                    }, 0);
+                },
+                { once: true }
+            );
+        });
+    </script>
+</body>

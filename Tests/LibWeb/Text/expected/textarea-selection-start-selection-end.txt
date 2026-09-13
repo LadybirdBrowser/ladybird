@@ -1,3 +1,6 @@
+unrendered selectionStart: 5
+unrendered selectionEnd: 5
+unrendered shadow root: false
 selectionStart: 0
 selectionEnd: 0
 selectionStart: 18

@@ -27,9 +27,6 @@ public:
 
     double position() const;
 
-    // ^HTMLElement
-    virtual void inserted() override;
-
     // https://html.spec.whatwg.org/multipage/forms.html#category-label
     virtual bool is_labelable() const override { return true; }
 
@@ -42,6 +39,8 @@ private:
     // ^DOM::Node
     virtual bool is_html_progress_element() const final { return true; }
     virtual void visit_edges(Cell::Visitor&) override;
+
+    virtual void prepare_for_style_computation() override { create_shadow_tree_if_needed(); }
 
     void create_shadow_tree_if_needed();
 
