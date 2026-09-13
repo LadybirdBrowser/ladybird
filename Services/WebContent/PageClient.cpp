@@ -1463,6 +1463,11 @@ void PageClient::page_did_change_needs_beforeunload_check(bool needs_beforeunloa
     client().async_did_change_needs_beforeunload_check(m_id, needs_beforeunload_check);
 }
 
+void PageClient::page_did_consume_user_activation(Web::HTML::UserActivationConsumption consumption)
+{
+    client().async_did_consume_user_activation(m_id, consumption);
+}
+
 void PageClient::send_current_needs_beforeunload_check()
 {
     client().async_did_change_needs_beforeunload_check(m_id, page().needs_beforeunload_check());
