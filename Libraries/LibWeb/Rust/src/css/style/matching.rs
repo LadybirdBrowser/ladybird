@@ -2375,7 +2375,7 @@ impl StyleEngineState {
         tree_scope_override: Option<TreeScopeID>,
         out: &mut Vec<RuleMatch>,
     ) -> Option<()> {
-        let answer = Rc::clone(self.match_answers.answer(identity)?);
+        let answer = self.match_answers.answer(identity)?;
         out.reserve_exact(answer.len());
         for &stored_entry in answer.iter() {
             let mut entry = stored_entry;
@@ -2857,10 +2857,11 @@ impl StyleEngineState {
         &mut self,
         node: StyleNodeID,
         patch: &mut RetainedAnswerPatch,
-        retained: &[RetainedRuleMatch],
+        old_identity: MatchAnswerID,
         old_cascade_input: MatchAnswerID,
         counters: &mut Counters,
     ) -> Option<RetainedAnswerPatchOutcome> {
+        let retained = self.match_answers.retained_answer(old_identity)?;
         if patch.cascade_update_properties.is_empty() || patch.requires_full_match {
             return None;
         }
@@ -2887,7 +2888,7 @@ impl StyleEngineState {
         }) {
             return None;
         }
-        let old_compact = Rc::clone(self.match_answers.answer(old_cascade_input)?);
+
         let updates = self.exact_cascade_winner_updates_for_properties_with_scratch(
             node,
             &exact_answer,
@@ -2914,6 +2915,7 @@ impl StyleEngineState {
         winning_rules.sort_unstable();
         winning_rules.dedup();
         counters.add(Counter::CascadeMatchesBeforeCompaction, exact_answer.len() as u64);
+        let old_compact = self.match_answers.answer(old_cascade_input)?;
         exact_answer.retain(|entry| {
             if entry.pseudo_element.is_some() {
                 return old_compact
@@ -3144,11 +3146,11 @@ impl StyleEngineState {
         node: StyleNodeID,
         patch: &mut RetainedAnswerPatch,
         old_identity: MatchAnswerID,
-        retained: &[RetainedRuleMatch],
         old_cascade_input: MatchAnswerID,
         deltas: &[SelectorTruthDelta],
         counters: &mut Counters,
     ) -> Option<RetainedAnswerPatchOutcome> {
+        let retained = self.match_answers.retained_answer(old_identity)?;
         let orders_shifted = patch.orders_shifted_for(retained)
             || (patch.orders_shifted
                 && deltas
@@ -3158,7 +3160,8 @@ impl StyleEngineState {
             if !deltas.is_empty() {
                 return None;
             }
-            let outcome = self.apply_retained_cascade_updates(node, patch, retained, old_cascade_input, counters)?;
+            let outcome =
+                self.apply_retained_cascade_updates(node, patch, old_identity, old_cascade_input, counters)?;
             counters.bump(Counter::RetainedMatchAnswerDeltaPatches);
             return Some(outcome);
         }
@@ -3229,6 +3232,7 @@ impl StyleEngineState {
             });
         }
 
+        let retained = self.match_answers.retained_answer(old_identity)?;
         let (answer, applied) = self.retained_answer_after_deltas(node, patch, retained, deltas)?;
 
         if !orders_shifted && self.retained_match_deltas_cannot_change_cascade(node, retained, deltas) {
@@ -3427,24 +3431,18 @@ impl StyleEngineState {
         counters: &mut Counters,
     ) -> Option<RetainedAnswerPatchOutcome> {
         let old_identity = *self.retained_match_answers.lookup(node).sparse().ok()?;
-        let retained = Rc::clone(self.match_answers.retained_answer(old_identity)?);
+        self.match_answers.retained_answer(old_identity)?;
         let old_cascade_input = *self.retained_match_answers.cascade_input_lookup(node).sparse().ok()?;
         if !self.match_answer_is_comparable_across_elements(node) {
             return None;
         }
         if let SelectorTruthPatch::Direct(deltas) = truth_patch
-            && let Some(changed) = self.apply_retained_match_answer_deltas(
-                node,
-                patch,
-                old_identity,
-                &retained,
-                old_cascade_input,
-                deltas,
-                counters,
-            )
+            && let Some(changed) =
+                self.apply_retained_match_answer_deltas(node, patch, old_identity, old_cascade_input, deltas, counters)
         {
             return Some(changed);
         }
+        let retained = self.match_answers.retained_answer(old_identity)?;
         let mixed_deltas = match truth_patch {
             SelectorTruthPatch::Refresh { deltas, .. } | SelectorTruthPatch::Attributed { deltas, .. } => Some(deltas),
             SelectorTruthPatch::Full | SelectorTruthPatch::Direct(_) => None,
@@ -3453,7 +3451,7 @@ impl StyleEngineState {
         // two avoided matcher queries so small mixed patches keep their cheaper existing path.
         let delta_base = if patch.cascade_update_properties.is_empty() {
             mixed_deltas.filter(|deltas| deltas.len() >= 2).and_then(|deltas| {
-                self.retained_answer_after_deltas(node, patch, &retained, deltas)
+                self.retained_answer_after_deltas(node, patch, retained, deltas)
                     .map(|(answer, _)| answer)
             })
         } else {
@@ -3531,7 +3529,7 @@ impl StyleEngineState {
         });
         if let Some(keys) = narrowed_keys.as_deref() {
             counters.bump(Counter::RetainedMatchAnswerFilteredPatches);
-            if keys.is_empty() && patch.cascade_update_properties.is_empty() && !patch.orders_shifted_for(&retained) {
+            if keys.is_empty() && patch.cascade_update_properties.is_empty() && !patch.orders_shifted_for(retained) {
                 if let Some(deltas) = mixed_deltas
                     && delta_base.is_some()
                 {
@@ -3539,7 +3537,6 @@ impl StyleEngineState {
                         node,
                         patch,
                         old_identity,
-                        &retained,
                         old_cascade_input,
                         deltas,
                         counters,
@@ -3563,6 +3560,7 @@ impl StyleEngineState {
         // One filtered cold match answers the affected rules through the same machinery a full
         // match uses; both the unchanged-set stop and the full patch below consume its result.
         let replacement = self.filtered_patch_replacement(node, patch, narrowed_keys.as_deref(), counters)?;
+        let retained = self.match_answers.retained_answer(old_identity)?;
         let affected_keys: &[(RuleID, SelectorProgramID)] = narrowed_keys.as_deref().unwrap_or(&patch.rule_keys);
         let retained_base: &[RetainedRuleMatch] = delta_base.as_deref().unwrap_or(retained.as_ref());
 
@@ -3592,13 +3590,12 @@ impl StyleEngineState {
         // A refresh is a typed request for exact old/new truth, not an alternate match-answer
         // update path. Turn the repaired relation into signed entry deltas and apply those through
         // the same authoritative operator as routes which had complete facts during planning.
-        let repair_deltas = repaired_selector_truth_deltas(node, &retained, &mut patched_answer, &self.programs);
+        let repair_deltas = repaired_selector_truth_deltas(node, retained, &mut patched_answer, &self.programs);
         if let Some((repair_deltas, changed)) = repair_deltas.as_deref().and_then(|repair_deltas| {
             self.apply_retained_match_answer_deltas(
                 node,
                 patch,
                 old_identity,
-                &retained,
                 old_cascade_input,
                 repair_deltas,
                 counters,
@@ -3621,13 +3618,14 @@ impl StyleEngineState {
         // Most patches end where they began: the filtered match returns exactly the entries it
         // displaced. An identical answer keeps its stored cascade input, so skip re-deriving and
         // re-interning its cascade expansion.
+        let retained = self.match_answers.retained_answer(old_identity)?;
         let matches_retained_answer = patched_answer.len() == retained.len()
             && patched_answer.iter().all(|entry| {
                 retained
                     .binary_search(&RetainedRuleMatch::from_rule_match(*entry))
                     .is_ok()
             });
-        let orders_shifted = patch.orders_shifted_for(&retained)
+        let orders_shifted = patch.orders_shifted_for(retained)
             || (patch.orders_shifted
                 && patched_answer
                     .iter()
@@ -3762,7 +3760,7 @@ impl StyleEngineState {
         let scoped_dispatch = (tree_scope != TreeScopeID::DOCUMENT).then(|| self.prepared_scope_program(tree_scope).1);
         let retained_answer_dispatch = scoped_dispatch.or(retained_answer_dispatch);
         let retained_answer = retained_answer_dispatch.and_then(|dispatch| {
-            let retained = Rc::clone(self.retained_match_answer(node).sparse().ok()?);
+            let retained = self.retained_match_answer(node).sparse().ok()?;
             let exact_answer = retained
                 .iter()
                 .copied()
@@ -4701,13 +4699,29 @@ impl StyleEngineState {
             let mut retained_match_answer_reused = false;
             let mut retained_match_answer_key_to_remember = None;
             let mut cached_cascade_winner_inventory_is_complete = None;
+            let mut non_prefix_matches = SmallVec::<[RetainedRuleMatch; 16]>::new();
+            let mut non_prefix_matches_charge = None;
             let all = match (result, deferred_prefix_matches) {
                 (Ok(()), Some(prefix_matches)) => {
                     if retained_match_answer_is_exact {
                         retained_selector_truth = matches.take_prepared_selector_truth(&mut self.memory);
                     }
                     let (scope_program, _) = self.prepared_scope_program(scope);
-                    let non_prefix_matches = self.match_answers.intern(matches.as_slice());
+                    non_prefix_matches.extend(
+                        matches
+                            .as_slice()
+                            .iter()
+                            .copied()
+                            .map(RetainedRuleMatch::from_rule_match),
+                    );
+                    if non_prefix_matches.spilled() {
+                        non_prefix_matches_charge = Some(self.memory.charge_scratch(
+                            MemoryCategory::BatchScratch,
+                            (non_prefix_matches.capacity() * size_of::<RetainedRuleMatch>()) as u64,
+                        ));
+                    }
+                    non_prefix_matches.sort_unstable();
+                    let non_prefix_hash = super::intern_table::content_hash(non_prefix_matches.as_slice());
                     let contribution_key = PrefixContributionKey {
                         program: scope_program,
                         matches: prefix_matches,
@@ -4719,13 +4733,13 @@ impl StyleEngineState {
                             .answers
                             .exact_prefix(&self.match_answers, contribution_key)
                         {
-                            Lookup::Known((identity, answer)) => Some((identity, Rc::clone(answer))),
+                            Lookup::Known((identity, _)) => Some(identity),
                             Lookup::KnownAbsent => {
                                 unreachable!("exact prefix answers are sparse, never known absent")
                             }
                             Lookup::Missing(_) => None,
                         };
-                        let (exact_prefix_identity, exact_prefix) = match known_exact_prefix {
+                        let exact_prefix_identity = match known_exact_prefix {
                             Some(answer) => answer,
                             None => {
                                 let mut prefix_rules = RuleMatches::new();
@@ -4756,19 +4770,13 @@ impl StyleEngineState {
                                     &self.programs,
                                 );
                                 newly_materialized_exact_prefix = Some(prefix_rules);
-                                (
-                                    identity,
-                                    Rc::clone(
-                                        self.match_answers
-                                            .answer(identity)
-                                            .expect("a remembered exact prefix answer must remain live"),
-                                    ),
-                                )
+                                identity
                             }
                         };
                         let exact_answer_key = PrefixAnswerKey {
                             prefix_contribution: exact_prefix_identity,
-                            non_prefix_matches,
+                            non_prefix_matches: &non_prefix_matches,
+                            non_prefix_hash,
                         };
                         let known_exact_answer = match prefix_caches.borrow().answers.exact_answer(exact_answer_key) {
                             Lookup::Known(answer) => Some(answer),
@@ -4783,7 +4791,12 @@ impl StyleEngineState {
                         });
                         if !retained_match_answer_reused {
                             let mut retained = prepare_retained_match_answer(matches.as_slice().iter().copied());
-                            merge_retained_match_answers(&mut retained, &exact_prefix);
+                            merge_retained_match_answers(
+                                &mut retained,
+                                self.match_answers
+                                    .answer(exact_prefix_identity)
+                                    .expect("a remembered exact prefix answer must remain live"),
+                            );
                             retained_match_answer = Some(retained);
                             if known_exact_answer.is_none() {
                                 retained_match_answer_key_to_remember = Some(exact_answer_key);
@@ -4884,7 +4897,8 @@ impl StyleEngineState {
                     }
                     let key = PrefixAnswerKey {
                         prefix_contribution,
-                        non_prefix_matches,
+                        non_prefix_matches: &non_prefix_matches,
+                        non_prefix_hash,
                     };
                     let answer = if self.node_has_element_declaration_input(node) {
                         append_retained_matches(
@@ -5114,6 +5128,7 @@ impl StyleEngineState {
                     None => self.remember_cascade_input(node, matches, counters),
                 }
             }
+            drop(non_prefix_matches_charge);
             return all;
         }
 

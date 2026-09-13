@@ -738,9 +738,22 @@ preparation's fact domain, while contexts keep independent ID columns across
 nested adaptive attempts. Appending rows preserves the existing cohorts.
 Composite convergence preserves conservative unique cohorts for changed facts.
 Local-fact column publication joins the transition effects. Persistent
-state/result interning remains mutable. Sparse convergence uses the same private scratch
+state, match-set, truth and result interning remains eager during matching;
+its overlay and remapping wait until prefix discovery moves into the
+evaluation walk. Sparse convergence uses the same private scratch
 and ordered effects, keeping retained old-comparison inputs distinct from
 new parent and preceding-sibling outputs until convergence completes.
+
+Same-flush prefix answer probes normalize non-prefix matches into a borrowed
+slice and hash. Cache entries own that key content and confirm exact equality
+on lookup, including hash collisions; keys no longer allocate or retain a
+match-answer identity. Ordinary retained-answer reads borrow catalog slices,
+reacquiring them after mutable operations rather than cloning their Rc owners.
+Prefix contributions, answer-result interning and retained-answer column writes
+remain eager for the subsequent answer-effects and completed-payload steps.
+The deferred-pseudo comparison still pins its before-change answer across a
+patch that can release the catalog's last reference; that ownership boundary
+moves with deferred answer installation, not with ordinary read borrowing.
 
 Match-program relation answers, sibling cursors, sibling sequences, type ranks
 and positional answers live in caller-owned `MatchScratch`. An evaluator borrows

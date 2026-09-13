@@ -445,11 +445,41 @@ pub(super) struct PrefixAnswer {
     pub(super) cascade_winner_inventory_is_complete: bool,
 }
 
+struct OwnedPrefixAnswerKey {
+    prefix_contribution: MatchAnswerID,
+    non_prefix_matches: Box<[RetainedRuleMatch]>,
+    non_prefix_hash: u64,
+}
+
+impl OwnedPrefixAnswerKey {
+    fn as_key(&self) -> PrefixAnswerKey<'_> {
+        PrefixAnswerKey {
+            prefix_contribution: self.prefix_contribution,
+            non_prefix_matches: &self.non_prefix_matches,
+            non_prefix_hash: self.non_prefix_hash,
+        }
+    }
+}
+
+impl PrefixAnswerKey<'_> {
+    fn hash(self) -> u64 {
+        content_hash((self.prefix_contribution, self.non_prefix_hash))
+    }
+
+    fn into_owned(self) -> OwnedPrefixAnswerKey {
+        OwnedPrefixAnswerKey {
+            prefix_contribution: self.prefix_contribution,
+            non_prefix_matches: self.non_prefix_matches.into(),
+            non_prefix_hash: self.non_prefix_hash,
+        }
+    }
+}
+
 pub(super) struct PrefixAnswerCache {
     pub(super) prefix_contribution_by_match_set: Column<Column<MatchAnswerID>>,
     pub(super) exact_prefix_by_match_set: Column<Column<MatchAnswerID>>,
-    pub(super) exact_answers: HashMap<PrefixAnswerKey, MatchAnswerID>,
-    pub(super) answers: HashMap<PrefixAnswerKey, PrefixAnswer>,
+    exact_answers: hashbrown::HashTable<(OwnedPrefixAnswerKey, MatchAnswerID)>,
+    answers: hashbrown::HashTable<(OwnedPrefixAnswerKey, PrefixAnswer)>,
     pub(super) scratch_memory: MemoryLease,
     pub(super) residency: MemoryLease,
     pub(super) retained: bool,
@@ -467,8 +497,8 @@ impl Default for PrefixAnswerCache {
         Self {
             prefix_contribution_by_match_set: Column::default(),
             exact_prefix_by_match_set: Column::default(),
-            exact_answers: HashMap::default(),
-            answers: HashMap::default(),
+            exact_answers: hashbrown::HashTable::new(),
+            answers: hashbrown::HashTable::new(),
             scratch_memory: MemoryLease::new(MemoryCategory::BatchScratch),
             residency: MemoryLease::new(MemoryCategory::PrefixAnswerCache),
             retained: false,
@@ -597,9 +627,12 @@ impl PrefixAnswerCache {
         })
     }
 
-    pub(super) fn exact_answer(&self, key: PrefixAnswerKey) -> Lookup<MatchAnswerID, PrefixAnswerKey> {
-        match self.exact_answers.get(&key) {
-            Some(&answer) => Lookup::Known(answer),
+    pub(super) fn exact_answer<'a>(&self, key: PrefixAnswerKey<'a>) -> Lookup<MatchAnswerID, PrefixAnswerKey<'a>> {
+        match self
+            .exact_answers
+            .find(key.hash(), |(candidate, _)| candidate.as_key() == key)
+        {
+            Some((_, answer)) => Lookup::Known(*answer),
             None => Lookup::Missing(key),
         }
     }
@@ -607,15 +640,25 @@ impl PrefixAnswerCache {
     pub(super) fn remember_exact_answer(
         &mut self,
         catalog: &mut MatchAnswerCatalog,
-        key: PrefixAnswerKey,
+        key: PrefixAnswerKey<'_>,
         answer: MatchAnswerID,
     ) {
         self.with_payload_accounting(catalog, |cache, catalog| {
             catalog.retain_prefix(answer);
-            if let Some(previous) = cache.exact_answers.insert(key, answer) {
-                catalog.release_prefix(previous);
+            if let Some((_, previous)) = cache
+                .exact_answers
+                .find_mut(key.hash(), |(candidate, _)| candidate.as_key() == key)
+            {
+                catalog.release_prefix(std::mem::replace(previous, answer));
             } else {
-                catalog.retain_prefix(key.non_prefix_matches);
+                cache
+                    .nested_footprint
+                    .grow_committed(size_of_val(key.non_prefix_matches) as u64);
+                cache
+                    .exact_answers
+                    .insert_unique(key.hash(), (key.into_owned(), answer), |(candidate, _)| {
+                        candidate.as_key().hash()
+                    });
             }
         });
     }
@@ -624,7 +667,7 @@ impl PrefixAnswerCache {
     pub(super) fn remember(
         &mut self,
         catalog: &mut MatchAnswerCatalog,
-        key: PrefixAnswerKey,
+        key: PrefixAnswerKey<'_>,
         answer: &[RuleMatch],
         winner_group: Option<(u64, CascadeStateID)>,
         pseudo_winner_groups: Option<(u64, PseudoWinnerGroups)>,
@@ -634,19 +677,27 @@ impl PrefixAnswerCache {
         self.with_payload_accounting(catalog, |cache, catalog| {
             let matches = catalog.intern(answer);
             catalog.retain_prefix(matches);
-            if let Some(previous) = cache.answers.insert(
-                key,
-                PrefixAnswer {
-                    matches,
-                    winner_group,
-                    pseudo_winner_groups,
-                    cascade_input,
-                    cascade_winner_inventory_is_complete,
-                },
-            ) {
-                catalog.release_prefix(previous.matches);
+            let answer = PrefixAnswer {
+                matches,
+                winner_group,
+                pseudo_winner_groups,
+                cascade_input,
+                cascade_winner_inventory_is_complete,
+            };
+            if let Some((_, previous)) = cache
+                .answers
+                .find_mut(key.hash(), |(candidate, _)| candidate.as_key() == key)
+            {
+                catalog.release_prefix(std::mem::replace(previous, answer).matches);
             } else {
-                catalog.retain_prefix(key.non_prefix_matches);
+                cache
+                    .nested_footprint
+                    .grow_committed(size_of_val(key.non_prefix_matches) as u64);
+                cache
+                    .answers
+                    .insert_unique(key.hash(), (key.into_owned(), answer), |(candidate, _)| {
+                        candidate.as_key().hash()
+                    });
             }
         });
     }
@@ -672,19 +723,17 @@ impl PrefixAnswerCache {
                 }
             }
         }
-        for (&key, answer) in &self.answers {
-            catalog.release_prefix(key.non_prefix_matches);
+        for (_, answer) in &self.answers {
             catalog.release_prefix(answer.matches);
         }
-        for (&key, &answer) in &self.exact_answers {
-            catalog.release_prefix(key.non_prefix_matches);
-            catalog.release_prefix(answer);
+        for (_, answer) in &self.exact_answers {
+            catalog.release_prefix(*answer);
         }
         catalog.compact_if_needed();
         self.prefix_contribution_by_match_set = Column::default();
         self.exact_prefix_by_match_set = Column::default();
-        self.exact_answers = HashMap::default();
-        self.answers = HashMap::default();
+        self.exact_answers = hashbrown::HashTable::new();
+        self.answers = hashbrown::HashTable::new();
         self.nested_footprint.release();
         self.retained = false;
     }
@@ -734,10 +783,12 @@ impl PrefixAnswerCache {
             shallow [
                 self.prefix_contribution_by_match_set,
                 self.exact_prefix_by_match_set,
-                self.exact_answers,
-                self.answers,
             ];
-            cached [self.nested_footprint.bytes()];
+            cached [
+                self.nested_footprint.bytes(),
+                self.exact_answers.capacity() * (size_of::<(OwnedPrefixAnswerKey, MatchAnswerID)>() + 1),
+                self.answers.capacity() * (size_of::<(OwnedPrefixAnswerKey, PrefixAnswer)>() + 1),
+            ];
             nested [];
             skip [self.scratch_memory, self.residency, self.retained];
         }
@@ -745,9 +796,12 @@ impl PrefixAnswerCache {
 }
 
 impl PrefixAnswerCache {
-    pub(super) fn lookup(&self, key: PrefixAnswerKey) -> Lookup<&PrefixAnswer, PrefixAnswerKey> {
-        match self.answers.get(&key) {
-            Some(answer) => Lookup::Known(answer),
+    pub(super) fn lookup<'a>(&self, key: PrefixAnswerKey<'a>) -> Lookup<&PrefixAnswer, PrefixAnswerKey<'a>> {
+        match self
+            .answers
+            .find(key.hash(), |(candidate, _)| candidate.as_key() == key)
+        {
+            Some((_, answer)) => Lookup::Known(answer),
             None => Lookup::Missing(key),
         }
     }
