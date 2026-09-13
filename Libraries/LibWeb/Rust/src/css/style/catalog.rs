@@ -7,6 +7,7 @@
 use super::capacity::capacity_bytes;
 use super::column::Column;
 use super::intern_table::content_hash;
+use super::shared_vector::{SharedVector, SharedVectorPool};
 use super::*;
 
 define_id! { default pub(super) struct MatchAnswerID(pub(super)); }
@@ -1524,7 +1525,20 @@ pub(super) struct ScopeDispatchKey {
 /// The selector-derived topology shared by scopes whose concrete sheets contain the same compiled
 /// selector programs in the same order. Rule identities and cascade ranks remain scope-local.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub(super) struct ScopeDispatchShape(pub(super) Vec<(SelectorProgramID, bool)>);
+pub(super) struct ScopeDispatchShape(pub(super) SharedVector<(SelectorProgramID, bool)>);
+
+thread_local! {
+    static SHARED_SCOPE_DISPATCH_SHAPES: RefCell<SharedVectorPool<(SelectorProgramID, bool)>> =
+        RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
+    static SHARED_SCOPE_CASCADE_ORIGINS: RefCell<SharedVectorPool<(u8, CascadeLayerID)>> =
+        RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
+}
+
+impl ScopeDispatchShape {
+    pub(super) fn share(&mut self) {
+        self.0.share(&SHARED_SCOPE_DISPATCH_SHAPES);
+    }
+}
 
 /// Every part of static cascade ordering that is not a concrete rule or sheet identity.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -1532,8 +1546,17 @@ pub(super) struct ScopeCascadeShape {
     pub(super) dispatch: ScopeDispatchShape,
     pub(super) depth: u32,
     pub(super) document_sheet_mode: DocumentSheetMode,
-    pub(super) rule_origins_and_layers: Vec<(u8, CascadeLayerID)>,
+    pub(super) rule_origins_and_layers: SharedVector<(u8, CascadeLayerID)>,
     pub(super) layer_order: Vec<(CascadeLayerID, u32)>,
+}
+
+impl ScopeCascadeShape {
+    pub(super) fn share(&mut self) {
+        // Cache keys contain immutable numeric identities. Equal scopes and documents can
+        // share these arrays without retaining a document or any mutable cascade result.
+        self.dispatch.share();
+        self.rule_origins_and_layers.share(&SHARED_SCOPE_CASCADE_ORIGINS);
+    }
 }
 
 /// The ordered ancestor keys whose dense indices define an ancestor-requirement table.

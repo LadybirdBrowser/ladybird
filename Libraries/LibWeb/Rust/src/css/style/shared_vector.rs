@@ -69,6 +69,12 @@ impl<T> Default for SharedVector<T> {
     }
 }
 
+impl<T: std::fmt::Debug> std::fmt::Debug for SharedVector<T> {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        std::fmt::Debug::fmt(self.as_slice(), formatter)
+    }
+}
+
 impl<T: Clone> Clone for SharedVector<T> {
     fn clone(&self) -> Self {
         Self {
@@ -82,6 +88,11 @@ impl<T: Clone> Clone for SharedVector<T> {
 
 impl<T: PartialEq> PartialEq for SharedVector<T> {
     fn eq(&self, other: &Self) -> bool {
+        if let (Storage::Shared(first), Storage::Shared(second)) = (&self.storage, &other.storage)
+            && Rc::ptr_eq(first, second)
+        {
+            return true;
+        }
         self.as_slice() == other.as_slice()
     }
 }
@@ -90,7 +101,17 @@ impl<T: Eq> Eq for SharedVector<T> {}
 
 impl<T: Hash> Hash for SharedVector<T> {
     fn hash<H: Hasher>(&self, state: &mut H) {
-        self.as_slice().hash(state);
+        // Frozen vectors already computed this content hash when entering their pool.
+        // Hash owned vectors the same way so equal storage forms always hash alike.
+        let hash = match &self.storage {
+            Storage::Shared(data) => data.hash,
+            Storage::Owned(values) => {
+                let mut hasher = fast_hasher();
+                values.hash(&mut hasher);
+                hasher.finish()
+            }
+        };
+        hash.hash(state);
     }
 }
 
