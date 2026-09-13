@@ -1007,7 +1007,7 @@ impl PrefixAutomaton {
             }
         }
         let mut candidates: HashMap<DispatchKey, Vec<usize>> = HashMap::default();
-        for compound in &self.compounds {
+        for compound in self.compounds.iter() {
             candidates.entry(compound.dispatch_key).or_default();
         }
         for (position, row) in rows.iter().enumerate() {
@@ -1046,7 +1046,7 @@ impl PrefixAutomaton {
             .collect();
         let mut local_matches = vec![None; identities.len()];
         let mut compound_matches = Vec::with_capacity(self.compounds.len());
-        for compound in &self.compounds {
+        for compound in self.compounds.iter() {
             // Dispatch postings already prove universal, ID, and class predicates. With
             // no additional local or positional test, the posting is the membership set.
             if let PrefixPredicate::Features {

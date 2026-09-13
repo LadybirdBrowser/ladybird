@@ -188,6 +188,98 @@ impl<T> ShallowCapacityBytes for SharedVector<T> {
     }
 }
 
+const SHARED_VECTOR_PAGE_SIZE: usize = 128;
+
+/// An append-only column whose equal immutable pages can be shared between snapshots.
+#[derive(Clone)]
+pub(super) struct PagedSharedVector<T: 'static> {
+    pages: Vec<SharedVector<T>>,
+    len: usize,
+}
+
+impl<T> Default for PagedSharedVector<T> {
+    fn default() -> Self {
+        Self {
+            pages: Vec::new(),
+            len: 0,
+        }
+    }
+}
+
+impl<T> PagedSharedVector<T> {
+    pub(super) fn len(&self) -> usize {
+        self.len
+    }
+
+    pub(super) fn iter(&self) -> impl Iterator<Item = &T> {
+        self.pages.iter().flat_map(|page| page.iter())
+    }
+
+    pub(super) fn range(&self, range: std::ops::Range<usize>) -> impl Iterator<Item = &T> {
+        assert!(range.start <= range.end && range.end <= self.len);
+        range.map(|index| &self[index])
+    }
+
+    pub(super) fn shrink_to_fit(&mut self) {
+        self.pages.shrink_to_fit();
+        for page in &mut self.pages {
+            if let Storage::Owned(values) = &mut page.storage {
+                values.shrink_to_fit();
+            }
+        }
+    }
+}
+
+impl<T: Clone> PagedSharedVector<T> {
+    pub(super) fn push(&mut self, value: T) {
+        let next_len = self.len.checked_add(1).expect("shared column identity space exhausted");
+        if self.len.is_multiple_of(SHARED_VECTOR_PAGE_SIZE) {
+            self.pages.push(SharedVector {
+                storage: Storage::Owned(Vec::with_capacity(SHARED_VECTOR_PAGE_SIZE)),
+            });
+        }
+        let values = self.pages.last_mut().unwrap().make_mut();
+        values.reserve_exact(SHARED_VECTOR_PAGE_SIZE - values.len());
+        values.push(value);
+        self.len = next_len;
+    }
+}
+
+impl<T: Clone> Extend<T> for PagedSharedVector<T> {
+    fn extend<I: IntoIterator<Item = T>>(&mut self, iter: I) {
+        for value in iter {
+            self.push(value);
+        }
+    }
+}
+
+impl<T> std::ops::Index<usize> for PagedSharedVector<T> {
+    type Output = T;
+
+    fn index(&self, index: usize) -> &T {
+        &self.pages[index / SHARED_VECTOR_PAGE_SIZE][index % SHARED_VECTOR_PAGE_SIZE]
+    }
+}
+
+impl<T: Clone + Eq + Hash> PagedSharedVector<T> {
+    pub(super) fn share(&mut self, pool: &'static LocalKey<RefCell<SharedVectorPool<T>>>) {
+        for page in &mut self.pages {
+            page.share(pool);
+        }
+    }
+}
+
+impl<T> ShallowCapacityBytes for PagedSharedVector<T> {
+    fn shallow_capacity_bytes(&self) -> u64 {
+        self.pages.shallow_capacity_bytes()
+            + self
+                .pages
+                .iter()
+                .map(ShallowCapacityBytes::shallow_capacity_bytes)
+                .sum::<u64>()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
