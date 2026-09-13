@@ -844,6 +844,7 @@ class Navigable;
 class NavigableContainer;
 class NavigateEvent;
 class Navigation;
+struct NavigationAPIMethodTracker;
 class NavigationActivation;
 class NavigationCurrentEntryChangeEvent;
 class NavigationDestination;

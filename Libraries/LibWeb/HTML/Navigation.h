@@ -52,13 +52,19 @@ struct NavigationAPIMethodTracker final : public JS::Cell {
     GC_CELL(NavigationAPIMethodTracker, JS::Cell);
     GC_DECLARE_ALLOCATOR(NavigationAPIMethodTracker);
 
+    enum class Pending : bool {
+        No,
+        Yes,
+    };
+
     NavigationAPIMethodTracker(GC::Ref<Navigation> navigation,
         Optional<Utf16String> key,
         JS::Value info,
         Optional<StorageSerializationRecord> serialized_state,
         GC::Ptr<NavigationHistoryEntry> committed_to_entry,
         GC::Ref<WebIDL::Promise> committed_promise,
-        GC::Ref<WebIDL::Promise> finished_promise);
+        GC::Ref<WebIDL::Promise> finished_promise,
+        Pending pending);
 
     virtual void visit_edges(Cell::Visitor&) override;
 
@@ -69,6 +75,7 @@ struct NavigationAPIMethodTracker final : public JS::Cell {
     GC::Ptr<NavigationHistoryEntry> committed_to_entry;
     GC::Ref<WebIDL::Promise> committed_promise;
     GC::Ref<WebIDL::Promise> finished_promise;
+    Pending pending { Pending::No };
 };
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigation-interface
@@ -132,7 +139,8 @@ public:
         GC::Ptr<DOM::Element> source_element = {},
         Optional<GC::ConservativeVector<XHR::FormDataEntry>&> form_data_entry_list = {},
         Optional<StorageSerializationRecord> navigation_api_state = {},
-        Optional<StorageSerializationRecord> classic_history_api_state = {});
+        Optional<StorageSerializationRecord> classic_history_api_state = {},
+        GC::Ptr<NavigationAPIMethodTracker> api_method_tracker = {});
     bool fire_a_download_request_navigate_event(URL::URL destination_url, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, Utf16String filename);
 
     void initialize_the_navigation_api_entries_for_a_new_document(Vector<NonnullRefPtr<SessionHistoryEntry>> const& new_shes, NonnullRefPtr<SessionHistoryEntry> initial_she);
@@ -164,13 +172,13 @@ private:
     NavigationResult early_error_result(AnyException);
     NavigationResult early_error_result(GC::Ref<WebIDL::DOMException>);
 
-    GC::Ref<NavigationAPIMethodTracker> maybe_set_the_upcoming_non_traverse_api_method_tracker(JS::Value info, Optional<StorageSerializationRecord>);
+    NavigationResult navigation_api_method_tracker_derived_result(GC::Ref<NavigationAPIMethodTracker>);
+    GC::Ref<NavigationAPIMethodTracker> set_up_a_navigate_reload_api_method_tracker(JS::Value info, Optional<StorageSerializationRecord>);
     GC::Ref<NavigationAPIMethodTracker> add_an_upcoming_traverse_api_method_tracker(Utf16String destination_key, JS::Value info);
     WebIDL::ExceptionOr<NavigationResult> perform_a_navigation_api_traversal(Utf16String key, Bindings::NavigationOptions const&);
     WebIDL::ExceptionOr<NavigationResult> reload_internal(Bindings::NavigationReloadOptions const&);
     WebIDL::ExceptionOr<NavigationResult> back_internal(Bindings::NavigationOptions const&);
     WebIDL::ExceptionOr<NavigationResult> forward_internal(Bindings::NavigationOptions const&);
-    void promote_an_upcoming_api_method_tracker_to_ongoing(Optional<Utf16String> destination_key);
     void resolve_the_finished_promise(GC::Ref<NavigationAPIMethodTracker>);
     void reject_the_finished_promise(GC::Ref<NavigationAPIMethodTracker>, JS::Value exception);
     void reject_the_finished_promise(GC::Ref<NavigationAPIMethodTracker>, GC::Ref<WebIDL::DOMException> exception);
@@ -185,7 +193,8 @@ private:
         GC::Ptr<DOM::Element> source_element,
         Optional<GC::ConservativeVector<XHR::FormDataEntry>&> form_data_entry_list,
         Optional<Utf16String> download_request_filename,
-        Optional<StorageSerializationRecord> classic_history_api_state);
+        Optional<StorageSerializationRecord> classic_history_api_state,
+        GC::Ptr<NavigationAPIMethodTracker> api_method_tracker = {});
 
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#navigation-entry-list
     // Each Navigation has an associated entry list, a list of NavigationHistoryEntry objects, initially empty.
@@ -217,10 +226,7 @@ private:
     // https://html.spec.whatwg.org/multipage/nav-history-apis.html#ongoing-api-method-tracker
     GC::Ptr<NavigationAPIMethodTracker> m_ongoing_api_method_tracker = nullptr;
 
-    // https://html.spec.whatwg.org/multipage/nav-history-apis.html#upcoming-non-traverse-api-method-tracker
-    GC::Ptr<NavigationAPIMethodTracker> m_upcoming_non_traverse_api_method_tracker = nullptr;
-
-    // https://html.spec.whatwg.org/multipage/nav-history-apis.html#upcoming-non-traverse-api-method-tracker
+    // https://html.spec.whatwg.org/multipage/nav-history-apis.html#upcoming-traverse-api-method-trackers
     HashMap<Utf16String, GC::Ref<NavigationAPIMethodTracker>> m_upcoming_traverse_api_method_trackers;
 
     // AD-HOC: Set when document.open() is called on an initial about:blank document.

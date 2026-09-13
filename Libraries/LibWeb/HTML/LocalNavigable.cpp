@@ -3487,6 +3487,7 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
     auto user_involvement = navigation.user_involvement;
     auto source_element = navigation.source_element;
     auto initial_insertion = navigation.initial_insertion;
+    auto api_method_tracker = navigation.api_method_tracker;
     auto& active_document = *this->active_document();
     auto& vm = this->vm();
     auto csp_navigation_type = navigation.csp_navigation_type;
@@ -3551,7 +3552,9 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
         && url.equals(active_session_history_entry()->url(), URL::ExcludeFragment::Yes)
         && url.fragment().has_value()) {
         // 1. Navigate to a fragment given navigable, url, historyHandling, userInvolvement, sourceElement, navigationAPIState, and navigationId.
-        navigate_to_a_fragment(url, to_history_handling_behavior(history_handling), user_involvement, source_element, navigation_api_state, navigation_id);
+        // AD-HOC: The spec does not pass apiMethodTracker along here, which would leave a navigation.navigate() to a
+        //         fragment without an ongoing API method tracker, so its promises would never settle.
+        navigate_to_a_fragment(url, to_history_handling_behavior(history_handling), user_involvement, source_element, navigation_api_state, navigation_id, api_method_tracker);
 
         // 2. Return.
         return;
@@ -3626,7 +3629,7 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
         // 4. Let continue be the result of firing a push/replace/reload navigate event at navigation
         //    with navigationType set to historyHandling, isSameDocument set to false, userInvolvement set to userInvolvement,
         //    sourceElement set to sourceElement, formDataEntryList set to entryListForFiring, destinationURL set to url,
-        //    and navigationAPIState set to navigationAPIStateForFiring.
+        //    navigationAPIState set to navigationAPIStateForFiring, and apiMethodTracker set to apiMethodTracker.
         auto navigation_type = [](Bindings::NavigationHistoryBehavior history_handling) {
             switch (history_handling) {
             case Bindings::NavigationHistoryBehavior::Push:
@@ -3638,7 +3641,7 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
                 VERIFY_NOT_REACHED();
             }
         }(history_handling);
-        auto continue_ = navigation->fire_a_push_replace_reload_navigate_event(navigation_type, url, false, user_involvement, source_element, entry_list_for_firing, navigation_api_state_for_firing);
+        auto continue_ = navigation->fire_a_push_replace_reload_navigate_event(navigation_type, url, false, user_involvement, source_element, entry_list_for_firing, navigation_api_state_for_firing, {}, api_method_tracker);
 
         // 5. If continue is false, then return.
         if (!continue_) {
@@ -3774,7 +3777,7 @@ void LocalNavigable::request_population_for_reconstructed_history_entry(Navigati
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate-fragid
-void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, Optional<StorageSerializationRecord> navigation_api_state, Utf16String navigation_id)
+void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandlingBehavior history_handling, UserNavigationInvolvement user_involvement, GC::Ptr<DOM::Element> source_element, Optional<StorageSerializationRecord> navigation_api_state, Utf16String navigation_id, GC::Ptr<NavigationAPIMethodTracker> api_method_tracker)
 {
     // 1. Let navigation be navigable's active window's navigation API.
     VERIFY(active_window());
@@ -3787,8 +3790,9 @@ void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandling
     // 4. Let continue be the result of firing a push/replace/reload navigate event at navigation with navigationType
     //    set to historyHandling, isSameDocument set to true, userInvolvement set to userInvolvement, sourceElement set
     //    to sourceElement, destinationURL set to url, and navigationAPIState set to destinationNavigationAPIState.
+    // AD-HOC: Also pass apiMethodTracker, see the caller.
     auto navigation_type = history_handling == HistoryHandlingBehavior::Push ? Bindings::NavigationType::Push : Bindings::NavigationType::Replace;
-    bool const continue_ = navigation->fire_a_push_replace_reload_navigate_event(navigation_type, url, true, user_involvement, source_element, {}, destination_navigation_api_state);
+    bool const continue_ = navigation->fire_a_push_replace_reload_navigate_event(navigation_type, url, true, user_involvement, source_element, {}, destination_navigation_api_state, {}, api_method_tracker);
 
     // 5. If continue is false, then return.
     if (!continue_)
@@ -4079,7 +4083,7 @@ void LocalNavigable::navigate_to_a_javascript_url(URL::URL const& url, HistoryHa
 }
 
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#reload
-void LocalNavigable::reload(Optional<StorageSerializationRecord> navigation_api_state, UserNavigationInvolvement user_involvement)
+void LocalNavigable::reload(Optional<StorageSerializationRecord> navigation_api_state, UserNavigationInvolvement user_involvement, GC::Ptr<NavigationAPIMethodTracker> api_method_tracker)
 {
     // 1. If userInvolvement is not "browser UI", then:
     if (user_involvement != UserNavigationInvolvement::BrowserUI) {
@@ -4099,7 +4103,7 @@ void LocalNavigable::reload(Optional<StorageSerializationRecord> navigation_api_
         //    navigationType set to "reload", isSameDocument set to false, userInvolvement set to userInvolvement,
         //    destinationURL set to navigable's active session history entry's URL, navigationAPIState set to
         //    destinationNavigationAPIState, and apiMethodTracker set to apiMethodTracker.
-        auto continue_ = navigation->fire_a_push_replace_reload_navigate_event(Bindings::NavigationType::Reload, active_session_history_entry()->url(), false, user_involvement, nullptr, {}, destination_navigation_api_state);
+        auto continue_ = navigation->fire_a_push_replace_reload_navigate_event(Bindings::NavigationType::Reload, active_session_history_entry()->url(), false, user_involvement, nullptr, {}, destination_navigation_api_state, {}, api_method_tracker);
 
         // 5. If continue is false, then return.
         if (!continue_)

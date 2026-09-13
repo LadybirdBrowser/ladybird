@@ -43,6 +43,7 @@ struct NavigateParams {
     Optional<Utf16String> navigation_id = {};
     GC::Ptr<DOM::Element> source_element = nullptr;
     InitialInsertion initial_insertion = InitialInsertion::No;
+    GC::Ptr<NavigationAPIMethodTracker> api_method_tracker = nullptr;
 
     void visit_edges(GC::Cell::Visitor&);
 };
@@ -59,6 +60,7 @@ struct PreparedNavigation {
     Utf16String navigation_id;
     GC::Ptr<DOM::Element> source_element;
     InitialInsertion initial_insertion;
+    GC::Ptr<NavigationAPIMethodTracker> api_method_tracker;
     ContentSecurityPolicy::Directives::Directive::NavigationType csp_navigation_type;
     GC::Ref<SourceSnapshotParams> source_snapshot_params;
     URL::Origin initiator_origin_snapshot;

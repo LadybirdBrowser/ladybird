@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Re-entry during abort signal with ongoing API method tracker</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script>
+promise_test(async t => {
+  let secondResult;
+  navigation.addEventListener("navigate", e => {
+    e.signal.addEventListener("abort", () => {
+      history.pushState(null, "", "#from-abort-pushstate");
+    }, { once: true });
+    secondResult = navigation.navigate("#second");
+  }, { once: true });
+
+  const firstResult = navigation.navigate("#first");
+  await promise_rejects_dom(t, "AbortError", firstResult.committed);
+  await promise_rejects_dom(t, "AbortError", firstResult.finished);
+  await secondResult.committed;
+  await secondResult.finished;
+  assert_equals(location.hash, "#second");
+}, "Re-entry via abort signal using pushState");
+
+promise_test(async t => {
+  let secondResult, thirdResult;
+  navigation.addEventListener("navigate", e => {
+    e.signal.addEventListener("abort", () => {
+      thirdResult = navigation.navigate("#from-abort-navigate");
+    }, { once: true });
+    secondResult = navigation.navigate("#second");
+  }, { once: true });
+
+  const firstResult = navigation.navigate("#first");
+  await promise_rejects_dom(t, "AbortError", firstResult.committed);
+  await promise_rejects_dom(t, "AbortError", firstResult.finished);
+  await thirdResult.committed;
+  await promise_rejects_dom(t, "AbortError", thirdResult.finished);
+  await secondResult.committed;
+  await secondResult.finished;
+  assert_equals(location.hash, "#second");
+}, "Re-entry via abort signal using navigate()");
+</script>

@@ -218,6 +218,7 @@ WebIDL::ExceptionOr<void> Navigable::navigate(NavigateParams params)
         .navigation_id = params.navigation_id.release_value(),
         .source_element = params.source_element,
         .initial_insertion = params.initial_insertion,
+        .api_method_tracker = params.api_method_tracker,
         .csp_navigation_type = csp_navigation_type,
         .source_snapshot_params = source_snapshot_params,
         .initiator_origin_snapshot = move(initiator_origin_snapshot),
