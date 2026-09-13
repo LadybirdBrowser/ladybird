@@ -10,6 +10,8 @@
 //! predecessor membership propagates only to candidates reachable through the next combinator.
 //! Terminal changes supply both the planner's signed selector truth and matching completion.
 
+use smallvec::SmallVec;
+
 use super::super::capacity::ShallowCapacityBytes;
 use super::super::fast_hash::FastSet as HashSet;
 use super::super::selector::RoutingKey;
@@ -19,7 +21,62 @@ use super::{
     PrefixPredicate, PrefixStates, PrefixStepID, PrefixTransitionLookup, StyleNodeID, StyleNodeTree, matches_feature,
 };
 
+// This is derived only from the immutable automaton. Memberships and pending edits stay in
+// PrefixRelation, while every scope using that automaton shares its traversal and lookup tables.
+pub(super) struct PrefixRelationProgram {
+    // Step identities are in dispatch order, so retain their dependency order separately.
+    queue: Vec<(u32, PrefixOutputKind)>,
+    step_ranks: Vec<u32>,
+    compound_step_offsets: Vec<u32>,
+    compound_steps: Vec<u32>,
+    has_following_steps: bool,
+    compounds_by_key: HashMap<DispatchKey, std::ops::Range<u32>>,
+    keyed_compounds: Vec<u32>,
+    terminal_steps: HashMap<EntryID, SmallVec<[usize; 1]>>,
+    memory: super::super::memory::MemoryLease,
+}
+
+thread_local! {
+    static RELATION_PROGRAM_MEMORY: std::cell::RefCell<super::super::memory::MemoryController> =
+        std::cell::RefCell::new(super::super::memory::MemoryController::new(super::super::memory::DeviceClass::ForegroundDesktop));
+}
+
+impl PrefixRelationProgram {
+    fn capacity_bytes(&self) -> u64 {
+        self.queue.shallow_capacity_bytes()
+            + self.step_ranks.shallow_capacity_bytes()
+            + self.compound_step_offsets.shallow_capacity_bytes()
+            + self.compound_steps.shallow_capacity_bytes()
+            + self.compounds_by_key.shallow_capacity_bytes()
+            + self.terminal_steps.shallow_capacity_bytes()
+            + self.keyed_compounds.shallow_capacity_bytes()
+            + self
+                .terminal_steps
+                .values()
+                .filter(|steps| steps.spilled())
+                .map(|steps| (steps.capacity() * size_of::<usize>()) as u64)
+                .sum::<u64>()
+    }
+
+    fn compounds_for_key(&self, key: &DispatchKey) -> Option<impl Iterator<Item = usize> + '_> {
+        let range = self.compounds_by_key.get(key)?;
+        Some(
+            self.keyed_compounds[range.start as usize..range.end as usize]
+                .iter()
+                .map(|&index| index as usize),
+        )
+    }
+
+    fn steps_for_compound(&self, compound: usize) -> impl Iterator<Item = usize> + '_ {
+        self.compound_steps
+            [self.compound_step_offsets[compound] as usize..self.compound_step_offsets[compound + 1] as usize]
+            .iter()
+            .map(|&step| step as usize)
+    }
+}
+
 pub(in crate::css::style) struct PrefixRelation {
+    program: std::rc::Rc<PrefixRelationProgram>,
     // Membership positions are stable slots. Inserting or removing a node does not renumber
     // unrelated matches; retired slots are reused only after their memberships are removed.
     nodes: Vec<StyleNodeID>,
@@ -32,19 +89,12 @@ pub(in crate::css::style) struct PrefixRelation {
     compound_matches: Vec<Vec<usize>>,
     matches: Vec<Vec<u32>>,
     walk_truth: PrefixWalkMemo,
-    // Step identities are in dispatch order, so dependency order must be retained separately.
-    queue: Vec<(usize, PrefixOutputKind)>,
-    step_ranks: Vec<usize>,
-    compound_steps: Vec<Vec<usize>>,
     pending_steps: PendingPrefixSteps,
-    has_following_steps: bool,
-    compounds_by_key: HashMap<DispatchKey, Vec<usize>>,
     positional: Vec<u32>,
     geometry_targets: [Vec<usize>; 4],
     old_previous: Vec<(usize, usize)>,
     sibling_order_is_preserved: bool,
     answers: Vec<Vec<EntryID>>,
-    terminal_steps: HashMap<EntryID, Vec<usize>>,
     pub(in crate::css::style) changed_answers: Vec<(StyleNodeID, Vec<EntryID>, Vec<EntryID>)>,
     arrivals: Vec<usize>,
     pub(in crate::css::style) handled_routing_keys: HashMap<RoutingKey, bool>,
@@ -92,23 +142,8 @@ impl PrefixRelation {
                 .map(ShallowCapacityBytes::shallow_capacity_bytes)
                 .sum::<u64>()
             + self
-                .compound_steps
-                .iter()
-                .map(ShallowCapacityBytes::shallow_capacity_bytes)
-                .sum::<u64>()
-            + self
-                .compounds_by_key
-                .values()
-                .map(ShallowCapacityBytes::shallow_capacity_bytes)
-                .sum::<u64>()
-            + self
                 .answers
                 .iter()
-                .map(ShallowCapacityBytes::shallow_capacity_bytes)
-                .sum::<u64>()
-            + self
-                .terminal_steps
-                .values()
                 .map(ShallowCapacityBytes::shallow_capacity_bytes)
                 .sum::<u64>()
     }
@@ -126,10 +161,6 @@ impl PrefixRelation {
             + self.compound_matches.shallow_capacity_bytes()
             + self.matches.shallow_capacity_bytes()
             + self.walk_truth.shallow_capacity_bytes()
-            + self.queue.shallow_capacity_bytes()
-            + self.step_ranks.shallow_capacity_bytes()
-            + self.compound_steps.shallow_capacity_bytes()
-            + self.compounds_by_key.shallow_capacity_bytes()
             + self.positional.shallow_capacity_bytes()
             + self.old_previous.shallow_capacity_bytes()
             + self
@@ -138,7 +169,6 @@ impl PrefixRelation {
                 .map(ShallowCapacityBytes::shallow_capacity_bytes)
                 .sum::<u64>()
             + self.answers.shallow_capacity_bytes()
-            + self.terminal_steps.shallow_capacity_bytes()
             + self.changed_answers.shallow_capacity_bytes()
             + self
                 .changed_answers
@@ -184,7 +214,7 @@ impl PrefixRelation {
         self.arrivals.clear();
         self.departures.clear();
         self.old_previous.clear();
-        self.sibling_order_is_preserved = self.has_following_steps;
+        self.sibling_order_is_preserved = self.program.has_following_steps;
         for &node in changed {
             if !tree.is_live(node)
                 || self.position_of(Some(node)) != usize::MAX
@@ -257,7 +287,7 @@ impl PrefixRelation {
                 }
             }
             if parent != old_parent || previous != self.previous[position] {
-                if self.has_following_steps {
+                if self.program.has_following_steps {
                     self.old_previous.push((position, self.previous[position]));
                 }
                 self.geometry_targets[2].push(position);
@@ -301,7 +331,7 @@ impl PrefixRelation {
                 }
             }
         }
-        if self.has_following_steps && !self.sibling_order_is_preserved {
+        if self.program.has_following_steps && !self.sibling_order_is_preserved {
             for parent in touched_parents {
                 if !self.live[parent] {
                     continue;
@@ -342,9 +372,9 @@ impl PrefixRelation {
             while removed != usize::MAX && !self.live[removed] {
                 let row = old_evaluation.row_of(self.nodes[removed]).unwrap();
                 row.facts.for_each_dispatch_key(row.row, false, |key| {
-                    if let Some(compounds) = self.compounds_by_key.get(&key) {
-                        for &compound in compounds {
-                            for &step in &self.compound_steps[compound] {
+                    if let Some(compounds) = self.program.compounds_for_key(&key) {
+                        for compound in compounds {
+                            for step in self.program.steps_for_compound(compound) {
                                 if self.matches[step].binary_search(&(removed as u32)).is_ok()
                                     && automaton
                                         .outputs_for(&automaton.steps[step])
@@ -420,17 +450,17 @@ impl PrefixRelation {
         keys.sort_unstable();
         keys.dedup();
         for key in &keys {
-            let Some(compounds) = self.compounds_by_key.get(key) else {
+            let Some(compounds) = self.program.compounds_for_key(key) else {
                 continue;
             };
-            for &compound in compounds {
+            for compound in compounds {
                 let members = &mut self.compound_matches[compound];
                 let before = members.len();
                 members.retain(|&position| self.live[position]);
                 if members.len() == before {
                     continue;
                 }
-                for &step in &self.compound_steps[compound] {
+                for step in self.program.steps_for_compound(compound) {
                     self.matches[step].retain(|&position| self.live[position as usize]);
                 }
             }
@@ -487,10 +517,10 @@ impl PrefixRelation {
                 .intern(row.facts, row.row, &automaton.local_fact_dependencies, counters);
             let is_root = evaluation.tree.parent(node).is_none();
             for key in &keys {
-                let Some(compounds) = self.compounds_by_key.get(key) else {
+                let Some(compounds) = self.program.compounds_for_key(key) else {
                     continue;
                 };
-                for &index in compounds {
+                for index in compounds {
                     let compound = &automaton.compounds[index];
                     if !local_changed {
                         match &compound.predicate {
@@ -561,8 +591,8 @@ impl PrefixRelation {
                 let row = evaluation.row_of(node).unwrap();
                 row.facts
                     .for_each_dispatch_key(row.row, evaluation.tree.parent(node).is_none(), |key| {
-                        if let Some(compounds) = self.compounds_by_key.get(&key) {
-                            for &compound in compounds {
+                        if let Some(compounds) = self.program.compounds_for_key(&key) {
+                            for compound in compounds {
                                 if self.compound_matches[compound].binary_search(&position).is_ok() {
                                     geometry_memberships[axis].entry(compound).or_default().push(position);
                                 }
@@ -576,12 +606,12 @@ impl PrefixRelation {
                 .iter()
                 .flat_map(|compounds| compounds.keys().copied()),
         ) {
-            for &step in &self.compound_steps[compound] {
-                self.pending_steps.insert(self.step_ranks[step]);
+            for step in self.program.steps_for_compound(compound) {
+                self.pending_steps.insert(self.program.step_ranks[step] as usize);
             }
         }
         for &step in following_geometry.keys() {
-            self.pending_steps.insert(self.step_ranks[step]);
+            self.pending_steps.insert(self.program.step_ranks[step] as usize);
         }
         let mut step_changes: HashMap<usize, Vec<usize>> = HashMap::default();
         let mut terminal_changes = Vec::new();
@@ -592,7 +622,8 @@ impl PrefixRelation {
         // Every local change is seeded before evaluation. Dependency order ensures that a step
         // runs once, after all changes to its predecessor, and only propagates a changed result.
         while let Some(rank) = self.pending_steps.pop_first() {
-            let (step_index, axis) = self.queue[rank];
+            let (step_index, axis) = self.program.queue[rank];
+            let step_index = step_index as usize;
             let step = &automaton.steps[step_index];
             let compound_index = step.compound.0 as usize;
             let predecessor = automaton.predecessor_of(PrefixStepID(step_index as u32));
@@ -818,7 +849,7 @@ impl PrefixRelation {
                     }
                     _ => {
                         let successor = successor.target as usize;
-                        self.pending_steps.insert(self.step_ranks[successor]);
+                        self.pending_steps.insert(self.program.step_ranks[successor] as usize);
                     }
                 }
             }
@@ -835,7 +866,7 @@ impl PrefixRelation {
                 let entry = terminal_changes[cursor].1;
                 // Multiple paths can produce the same terminal. Losing one path changes the
                 // selector answer only when no other path still matches this element.
-                let matched = self.terminal_steps[&entry]
+                let matched = self.program.terminal_steps[&entry]
                     .iter()
                     .any(|&step| self.matches[step].binary_search(&(position as u32)).is_ok());
                 let entries = &mut self.answers[position];
@@ -1104,31 +1135,77 @@ impl PrefixAutomaton {
             entries.sort_unstable();
             entries.dedup();
         }
-        let mut compounds_by_key: HashMap<DispatchKey, Vec<usize>> = HashMap::default();
-        for (index, compound) in self.compounds.iter().enumerate() {
-            compounds_by_key.entry(compound.dispatch_key).or_default().push(index);
-        }
-        let mut terminal_steps: HashMap<EntryID, Vec<usize>> = HashMap::default();
-        for (index, step) in self.steps.iter().enumerate() {
-            for output in self.outputs_for(step) {
-                if matches!(
-                    output.kind,
-                    PrefixOutputKind::UniqueTerminal | PrefixOutputKind::SharedTerminal
-                ) {
-                    terminal_steps.entry(EntryID(output.target)).or_default().push(index);
+        let program = std::rc::Rc::clone(self.relation_program.get_or_init(|| {
+            // Pack compounds with the same dispatch key into one immutable array. Preserve their
+            // original order within each key without retaining a separate allocation for each list.
+            let mut keyed_compounds: Vec<u32> = (0..self.compounds.len())
+                .map(|index| u32::try_from(index).expect("prefix compound space exhausted"))
+                .collect();
+            keyed_compounds.sort_unstable_by_key(|&index| (self.compounds[index as usize].dispatch_key, index));
+            let mut compounds_by_key: HashMap<DispatchKey, std::ops::Range<u32>> = HashMap::default();
+            for (position, &index) in keyed_compounds.iter().enumerate() {
+                let position = u32::try_from(position).expect("prefix compound space exhausted");
+                compounds_by_key
+                    .entry(self.compounds[index as usize].dispatch_key)
+                    .or_insert(position..position)
+                    .end = position.checked_add(1).expect("prefix compound space exhausted");
+            }
+            compounds_by_key.shrink_to_fit();
+            let mut terminal_steps: HashMap<EntryID, SmallVec<[usize; 1]>> = HashMap::default();
+            for (index, step) in self.steps.iter().enumerate() {
+                for output in self.outputs_for(step) {
+                    if matches!(
+                        output.kind,
+                        PrefixOutputKind::UniqueTerminal | PrefixOutputKind::SharedTerminal
+                    ) {
+                        terminal_steps.entry(EntryID(output.target)).or_default().push(index);
+                    }
                 }
             }
-        }
-        let mut step_ranks = vec![0; self.steps.len()];
-        let mut compound_steps = vec![Vec::new(); self.compounds.len()];
-        for (rank, &(step, _)) in queue.iter().enumerate() {
-            step_ranks[step] = rank;
-            compound_steps[self.steps[step].compound.0 as usize].push(step);
-        }
-        let has_following_steps = queue
-            .iter()
-            .any(|(_, axis)| matches!(axis, PrefixOutputKind::FollowingSibling));
+            let mut step_ranks = vec![0; self.steps.len()];
+            let mut compound_step_offsets = vec![0_u32; self.compounds.len() + 1];
+            for step in &self.steps {
+                let count = &mut compound_step_offsets[step.compound.0 as usize + 1];
+                *count = count.checked_add(1).expect("prefix step space exhausted");
+            }
+            for index in 1..compound_step_offsets.len() {
+                compound_step_offsets[index] = compound_step_offsets[index]
+                    .checked_add(compound_step_offsets[index - 1])
+                    .expect("prefix step space exhausted");
+            }
+            let mut positions = compound_step_offsets[..self.compounds.len()].to_vec();
+            let mut compound_steps = vec![0; self.steps.len()];
+            for (rank, &(step, _)) in queue.iter().enumerate() {
+                step_ranks[step] = u32::try_from(rank).expect("prefix step space exhausted");
+                let position = &mut positions[self.steps[step].compound.0 as usize];
+                compound_steps[*position as usize] = u32::try_from(step).expect("prefix step space exhausted");
+                *position += 1;
+            }
+            let has_following_steps = queue
+                .iter()
+                .any(|(_, axis)| matches!(axis, PrefixOutputKind::FollowingSibling));
+            let mut program = PrefixRelationProgram {
+                queue: queue
+                    .into_iter()
+                    .map(|(step, axis)| (u32::try_from(step).expect("prefix step space exhausted"), axis))
+                    .collect::<Box<[_]>>()
+                    .into_vec(),
+                step_ranks,
+                compound_step_offsets,
+                compound_steps,
+                has_following_steps,
+                compounds_by_key,
+                keyed_compounds,
+                terminal_steps,
+                memory: super::super::memory::MemoryLease::new(super::super::memory::MemoryCategory::RuleProgram),
+            };
+            RELATION_PROGRAM_MEMORY.with_borrow_mut(|memory| {
+                program.memory.resize_required_to(memory, program.capacity_bytes());
+            });
+            std::rc::Rc::new(program)
+        }));
         let mut relation = PrefixRelation {
+            program,
             nodes,
             positions,
             parents,
@@ -1139,18 +1216,12 @@ impl PrefixAutomaton {
             compound_matches,
             matches,
             walk_truth: PrefixWalkMemo::default(),
-            queue,
-            step_ranks,
-            compound_steps,
             pending_steps: PendingPrefixSteps::new(self.steps.len()),
-            has_following_steps,
-            compounds_by_key,
             positional,
             geometry_targets: std::array::from_fn(|_| Vec::new()),
             old_previous: Vec::new(),
             sibling_order_is_preserved: false,
             answers: output,
-            terminal_steps,
             changed_answers: Vec::new(),
             arrivals: Vec::new(),
             handled_routing_keys: HashMap::default(),

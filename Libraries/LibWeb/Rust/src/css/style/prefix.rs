@@ -245,6 +245,7 @@ struct PrefixDispatchBucket {
 /// Immutable prefix program attached to one selector dispatch.
 #[derive(Clone, Default)]
 pub(super) struct PrefixAutomaton {
+    relation_program: std::cell::OnceCell<std::rc::Rc<relation::PrefixRelationProgram>>,
     compounds: Vec<PrefixCompound>,
     compound_ids: HashMap<PrefixPredicateKey, PrefixCompoundID>,
     features: Vec<FeatureTest>,
@@ -280,6 +281,7 @@ impl PrefixAutomaton {
     /// Restore the builder indices and output lists discarded when this automaton was frozen.
     /// The caller owns a deep clone, so extending it cannot mutate the retained template.
     pub(super) fn prepare_to_extend(&mut self) {
+        self.relation_program.take();
         assert!(
             self.entry_paths_finished,
             "only a finished prefix automaton can be extended"
@@ -849,7 +851,7 @@ impl PrefixAutomaton {
                 })
                 .sum::<usize>(),
             ];
-            skip [self.entry_paths_finished];
+            skip [self.entry_paths_finished, self.relation_program];
         }
     }
 }
