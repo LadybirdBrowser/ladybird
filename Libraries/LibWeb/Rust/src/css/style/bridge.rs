@@ -3241,21 +3241,21 @@ pub unsafe extern "C" fn style_engine_native_rule_target(
     else {
         return false;
     };
-    let Some(declarations) = &target.declarations else {
+    let Some(declarations) = target.declarations() else {
         return false;
     };
     let origin = engine.program.sheet_origin(engine.program.rule_sheet(RuleID(rule - 1)));
     *result = FfiNativeRuleTarget {
-        identity: target.identity,
+        identity: target.identity.get(),
         declaration_version: engine
             .current_rule_version(RuleID(rule - 1))
             .declaration_block
             .map_or(0, |version| version.0),
         source_identity: target.source_identity,
         declarations: std::sync::Arc::into_raw(declarations.clone()).cast(),
-        layer_name: target.layer_name.as_ptr(),
-        layer_name_length: target.layer_name.len(),
-        has_container_conditions: !target.containers.is_empty(),
+        layer_name: target.layer_name().as_ptr(),
+        layer_name_length: target.layer_name().len(),
+        has_container_conditions: !target.containers().is_empty(),
         origin: match origin {
             CascadeOrigin::Author => FfiCascadeOrigin::Author,
             CascadeOrigin::AuthorPresentationalHint => FfiCascadeOrigin::AuthorPresentationalHint,
@@ -3291,7 +3291,7 @@ pub unsafe extern "C" fn style_engine_native_rule_matches_containers(
         else {
             return false;
         };
-        target.containers.clone()
+        target.containers().to_vec()
     };
     // Mark all ancestor dependencies, even if an inner condition subsequently fails to match.
     let size = containers.iter().any(|conditions| conditions.contains_size_feature());
