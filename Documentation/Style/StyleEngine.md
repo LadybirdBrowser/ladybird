@@ -733,8 +733,9 @@ transitions before retained columns, computing missing selector ancestors
 and preceding siblings into its own scratch. Completed ordinary transitions
 return ordered effects installed at context completion, before retention
 compacts IDs. Persistent state/result interning and local-fact identity
-publication remain mutable. Sparse convergence still writes its columns
-directly while sharing the convergence context's private memo.
+publication remain mutable. Sparse convergence uses the same private scratch
+and ordered effects, keeping retained old-comparison inputs distinct from
+new parent and preceding-sibling outputs until convergence completes.
 
 Match-program relation answers, sibling cursors, sibling sequences, type ranks
 and positional answers live in caller-owned `MatchScratch`. An evaluator borrows

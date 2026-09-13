@@ -2592,6 +2592,7 @@ impl PrefixStates {
     fn try_sparse_retained_local_transition(
         &mut self,
         scratch: &mut PrefixTransitionScratch,
+        effects: &mut PrefixEffects,
         evaluation: &mut PrefixEvaluation<'_, '_>,
         node: StyleNodeID,
         row: MatchFactRow<'_>,
@@ -2656,14 +2657,22 @@ impl PrefixStates {
             },
             transition,
         );
-        if !evaluation.automaton.positional_tests().is_empty() {
-            self.set_positional_bits(node, positional_bits);
-        }
-        self.set_entering(node, entering);
-        if !evaluation.facts_are_composite() {
-            scratch.transition_by_row[row.row as usize] = transition;
-        }
-        self.set_transition(node, transition);
+        let mut surface = PrefixTransitionSurface {
+            states: self,
+            scratch,
+            effects,
+        };
+        surface.remember_inputs(
+            evaluation,
+            node,
+            transition,
+            TransitionInputs {
+                entering,
+                local_facts,
+                positional_bits,
+            },
+        );
+        surface.remember_transition(evaluation, node, row, transition);
         Some(transition)
     }
 
@@ -2693,6 +2702,8 @@ impl PrefixStates {
                 return PrefixTransitionLookup::Missing(PrefixTransitionGap::Incomplete(incomplete));
             }
         };
+        // NB: Compare against retained inputs throughout convergence. Current parent and
+        //     preceding-sibling outputs are read through the context scratch below.
         let old = match self.transition_of(node) {
             PrefixTransitionLookup::Known(transition) => Some(transition),
             PrefixTransitionLookup::Missing(_) => None,
@@ -2737,6 +2748,7 @@ impl PrefixStates {
             }
             && let Some(difference) = self.derive_dead_delta_transition(
                 scratch,
+                effects,
                 evaluation,
                 node,
                 row,
@@ -2890,6 +2902,7 @@ impl PrefixStates {
             match (old, local_output_deltas) {
                 (Some(old), Some(local_output_deltas)) => self.try_sparse_retained_local_transition(
                     scratch,
+                    effects,
                     evaluation,
                     node,
                     row,
@@ -3104,6 +3117,7 @@ impl PrefixStates {
     fn derive_dead_delta_transition(
         &mut self,
         scratch: &mut PrefixTransitionScratch,
+        effects: &mut PrefixEffects,
         evaluation: &mut PrefixEvaluation<'_, '_>,
         node: StyleNodeID,
         row: MatchFactRow<'_>,
@@ -3216,15 +3230,22 @@ impl PrefixStates {
             right: old.right,
             result: old.result,
         };
-        if !evaluation.facts_are_composite() {
-            scratch.transition_by_row[row.row as usize] = new;
-        }
-        self.set_transition(node, new);
         let entering = EnteringStates {
             parent: new_parent,
             previous: old_entering.previous,
         };
-        self.set_entering(node, entering);
+        effects.writes.push(PrefixNodeWrite {
+            node,
+            transition: new,
+            entering,
+            positional_bits: None,
+        });
+        PrefixTransitionSurface {
+            states: self,
+            scratch,
+            effects,
+        }
+        .remember_transition(evaluation, node, row, new);
         if let Some(local_facts) = self.local_facts_of(node) {
             scratch.memo.insert(
                 PrefixTransitionKey {
@@ -4932,16 +4953,18 @@ mod tests {
             PrefixTransitionLookup::Missing(PrefixTransitionGap::MissingTransition(gap)) if gap == node
         ));
 
-        states.set_transition(
-            node,
-            PrefixTransition {
-                state: 0,
-                right: 0,
-                result: PrefixResultID::default(),
-            },
-        );
-        states.set_entering(node, EnteringStates { parent: 0, previous: 0 });
-        states.set_positional_bits(node, 0b11);
+        states.install_prefix_effects(&mut PrefixEffects {
+            writes: vec![PrefixNodeWrite {
+                node,
+                transition: PrefixTransition {
+                    state: 0,
+                    right: 0,
+                    result: PrefixResultID::default(),
+                },
+                entering: EnteringStates { parent: 0, previous: 0 },
+                positional_bits: Some(0b11),
+            }],
+        });
         assert!(matches!(states.transition_of(node), PrefixTransitionLookup::Known(_)));
         states.forget_transition(node);
         assert_eq!(
@@ -5333,15 +5356,18 @@ mod tests {
         ]);
         states.descendant_only = vec![0, 1, 2, 3];
         let node = StyleNodeID::element(1);
-        states.set_transition(
-            node,
-            PrefixTransition {
-                state: 3,
-                right: 0,
-                result: PrefixResultID::default(),
-            },
-        );
-        states.set_entering(node, EnteringStates { parent: 3, previous: 0 });
+        states.install_prefix_effects(&mut PrefixEffects {
+            writes: vec![PrefixNodeWrite {
+                node,
+                transition: PrefixTransition {
+                    state: 3,
+                    right: 0,
+                    result: PrefixResultID::default(),
+                },
+                entering: EnteringStates { parent: 3, previous: 0 },
+                positional_bits: None,
+            }],
+        });
         states.compact_interned_states();
 
         assert_eq!(states.states.len(), 3);
