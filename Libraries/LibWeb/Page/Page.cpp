@@ -1723,10 +1723,12 @@ void Page::process_pending_fullscreen_operations()
                 // 13. Let descendantDocs be an ordered set consisting of doc's descendant navigables' active documents
                 //     whose fullscreen element is non-null, if any, in tree order.
                 auto descendant_docs = GC::Heap::the().allocate<GC::HeapVector<GC::Ref<DOM::Document>>>();
-                for (auto& navigable : exit.doc->descendant_navigables()) {
-                    auto& descendant = as<HTML::LocalNavigable>(*navigable);
-                    if (descendant.active_document()->fullscreen_element())
-                        descendant_docs->elements().append(*descendant.active_document());
+                // FIXME: Unfullscreen a descendant hosted by another process there, through the UI process. The cast
+                //        asks for its document here.
+                for (auto& descendant : exit.doc->descendant_navigables()) {
+                    auto& local_descendant = as<HTML::LocalNavigable>(*descendant);
+                    if (local_descendant.active_document()->fullscreen_element())
+                        descendant_docs->elements().append(*local_descendant.active_document());
                 }
 
                 // 14. For each exitDoc in exitDocs:

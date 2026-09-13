@@ -306,6 +306,8 @@ void LocalTraversableNavigable::definitely_close_top_level_traversable(PromptToU
     }
 
     // 1. Let toUnload be traversable's active document's inclusive descendant navigables.
+    // FIXME: Check the navigables hosted by other processes there, through the UI process, which dispatches the
+    //        beforeunload groups of a history step per process. The cast asks for their documents here.
     Vector<GC::Root<LocalNavigable>> to_unload;
     for (auto const& navigable : active_document()->inclusive_descendant_navigables())
         to_unload.append(as<LocalNavigable>(*navigable));

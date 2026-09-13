@@ -114,6 +114,7 @@ public:
     void unregister_embedded_page(Web::PageId page_id);
     Optional<Web::PageId> page_id_for_traversable(CanonicalTraversable const&) const;
     bool is_view_page(Web::PageId page_id) const { return m_views.contains(page_id); }
+    bool page_needs_beforeunload_check(Web::PageId page_id) const { return m_needs_beforeunload_check_by_page.get(page_id).value_or(true); }
 
     CanonicalTraversable* traversable_for_page(Web::PageId page_id);
     // False once the page can no longer host work: the page is unregistered or the process is gone. A page
@@ -360,6 +361,7 @@ private:
 
     HashMap<Web::PageId, NonnullRawPtr<ViewImplementation>> m_views;
     HashMap<Web::PageId, WeakPtr<CanonicalNavigable>> m_embedded_pages;
+    HashMap<Web::PageId, bool> m_needs_beforeunload_check_by_page;
     HashTable<Web::PageId> m_detached_pages_pending_close;
     // Every page ID the UI process has handed to this connection. A page stays in the set once it closes,
     // because messages the connection sent while it had the page can arrive after the page is gone.
