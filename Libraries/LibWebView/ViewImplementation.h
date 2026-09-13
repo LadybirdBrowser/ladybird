@@ -470,7 +470,11 @@ public:
     Function<void(Gfx::Color)> on_page_background_color_change;
     Function<void(Web::HTML::AudioPlayState)> on_audio_play_state_changed;
     Function<void(Web::ScreenWakeLockState)> on_screen_wake_lock_state_changed;
-    Function<void()> on_web_content_crashed;
+    enum class WebContentCrashReason {
+        ProcessCrash,
+        RejectedIPC,
+    };
+    Function<void(WebContentCrashReason)> on_web_content_crashed;
     Function<void(bool)> on_crash_overlay_state_change;
     Function<void()> on_web_content_process_change_for_cross_site_navigation;
 

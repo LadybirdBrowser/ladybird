@@ -1448,6 +1448,12 @@ void PageClient::crash_remote_frame_processes_for_testing()
         test_connection->async_did_request_crash_of_remote_frame_processes_for_testing(m_id);
 }
 
+void PageClient::send_bad_ipc_message_for_testing(StringView kind, URL::URL const& active_document_url)
+{
+    if (kind == "cookie-request-unknown-page-id"sv)
+        (void)client().send_sync_but_allow_failure<Messages::WebContentClient::DidRequestCookie>(0, active_document_url, HTTP::Cookie::Source::NonHttp);
+}
+
 bool PageClient::page_did_request_capture_session_history_snapshot_for_testing()
 {
     if (auto* test_connection = client().test_connection())

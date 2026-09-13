@@ -1,0 +1,1 @@
+WebContent helper process terminated after rejected IPC.

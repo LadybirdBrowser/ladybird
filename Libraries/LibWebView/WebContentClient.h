@@ -346,6 +346,7 @@ private:
     IsPrivate m_is_private { IsPrivate::No };
     RefPtr<BrowsingSession> m_session;
     bool m_process_lost { false };
+    bool m_rejected_ipc { false };
 
     HashMap<u64, NonnullRawPtr<ViewImplementation>> m_views;
     HashMap<u64, WeakPtr<CanonicalNavigable>> m_embedded_pages;

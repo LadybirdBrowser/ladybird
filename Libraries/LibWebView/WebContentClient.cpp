@@ -204,6 +204,7 @@ bool WebContentClient::owns_page(u64 page_id) const
 
 void WebContentClient::did_misbehave(StringView message_name, StringView reason)
 {
+    m_rejected_ipc = true;
     dbgln("WebContentClient: terminating helper process {}: {} rejected: {}", pid(), message_name, reason);
     if (should_terminate_pid(pid()))
         (void)Core::Process::terminate_process(pid(), Core::Process::TerminationMode::Forceful);
@@ -562,14 +563,15 @@ void WebContentClient::notify_all_views_of_crash()
     for (auto& [page_id, view] : m_views)
         view_ids.unchecked_append(view->view_id());
 
+    auto crash_reason = m_rejected_ipc ? ViewImplementation::WebContentCrashReason::RejectedIPC : ViewImplementation::WebContentCrashReason::ProcessCrash;
     for (auto view_id : view_ids) {
-        Core::deferred_invoke([view_id] {
+        Core::deferred_invoke([view_id, crash_reason] {
             auto view = ViewImplementation::find_view_by_id(view_id);
             if (!view.has_value())
                 return;
             view->handle_web_content_process_crash();
             if (view->on_web_content_crashed)
-                view->on_web_content_crashed();
+                view->on_web_content_crashed(crash_reason);
         });
     }
 }

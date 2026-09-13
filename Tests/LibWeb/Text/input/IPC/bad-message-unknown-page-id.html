@@ -1,0 +1,16 @@
+<!doctype html>
+<script>
+    let unknownKindThrewTypeError = false;
+    try {
+        internals.sendBadIpcMessageForTesting("unknown");
+    } catch (error) {
+        unknownKindThrewTypeError = error instanceof TypeError;
+    }
+
+    if (!unknownKindThrewTypeError) {
+        internals.signalTestIsDone("FAIL: Unknown message kind did not throw TypeError.\n");
+    } else {
+        internals.sendBadIpcMessageForTesting("cookie-request-unknown-page-id");
+        internals.signalTestIsDone("FAIL: Rejected IPC did not terminate WebContent.\n");
+    }
+</script>

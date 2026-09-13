@@ -54,6 +54,13 @@ enum class TestResult {
     Crashed,
 };
 
+enum class ExpectedOutcome {
+    Normal,
+    WebContentTermination,
+};
+
+constexpr StringView web_content_termination_marker = "WebContent helper process terminated after rejected IPC."sv;
+
 constexpr StringView test_result_to_string(TestResult result)
 {
     switch (result) {
@@ -113,6 +120,7 @@ struct Test {
     u8 diff_maximum_error { 0 };
 
     RefPtr<Core::Timer> timeout_timer {};
+    ExpectedOutcome expected_outcome { ExpectedOutcome::Normal };
 };
 
 struct TestCompletion {

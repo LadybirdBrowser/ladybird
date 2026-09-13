@@ -822,6 +822,16 @@ void Internals::simulate_worker_request_server_connection_loss()
     page().client().page_did_simulate_worker_request_server_connection_loss();
 }
 
+WebIDL::ExceptionOr<void> Internals::send_bad_ipc_message_for_testing(Utf16String const& kind)
+{
+    auto kind_utf8 = TRY_OR_THROW_OOM(window().principal_realm().vm(), kind.utf16_view().to_utf8());
+    if (kind_utf8 != "cookie-request-unknown-page-id"sv)
+        return WebIDL::SimpleException { .type = WebIDL::SimpleExceptionType::TypeError, .message = Utf16String::formatted("Unknown bad IPC message kind: '{}'", kind) };
+
+    page().client().send_bad_ipc_message_for_testing(kind_utf8, window().associated_document().url());
+    return {};
+}
+
 WebIDL::ExceptionOr<void> Internals::set_content_blockers(Utf16String const& patterns_source)
 {
     Utf16StringBuilder patterns_builder;

@@ -486,6 +486,18 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
 {
     auto test_index = test.index;
 
+    if (test.mode == TestMode::Text && !test.expectation_path.is_empty()) {
+        auto expectation_file = Core::File::open(test.expectation_path, Core::File::OpenMode::Read);
+        if (!expectation_file.is_error()) {
+            auto expectation = expectation_file.value()->read_until_eof();
+            if (!expectation.is_error()) {
+                auto expectation_view = StringView { expectation.value() };
+                if (expectation_view == web_content_termination_marker || expectation_view == "WebContent helper process terminated after rejected IPC.\n"sv)
+                    test.expected_outcome = ExpectedOutcome::WebContentTermination;
+            }
+        }
+    }
+
     auto handle_completed_test = [&context, test_index, url]() -> ErrorOr<TestResult> {
         auto& test = context.tests[test_index];
         if (test.expectation_path.is_empty()) {
@@ -571,6 +583,9 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
             auto& test = context.tests[test_index];
             test.did_finish_loading = true;
 
+            if (test.expected_outcome == ExpectedOutcome::WebContentTermination)
+                return;
+
             if (test.expectation_path.is_empty()) {
                 auto promise = view.request_internal_page_info(WebView::PageInfoType::Text);
 
@@ -586,6 +601,9 @@ static void run_dump_test(TestWebView& view, TestRunContext& context, Test& test
 
         view.on_test_finish = [&context, test_index, on_test_complete](auto const& text) {
             auto& test = context.tests[test_index];
+            if (test.expected_outcome == ExpectedOutcome::WebContentTermination)
+                return;
+
             test.text = text;
             test.did_finish_test = true;
 
@@ -983,7 +1001,7 @@ static void run_test(TestWebView& view, TestRunContext& context, size_t test_ind
     view.load(URL::about_blank());
 }
 
-static void set_ui_callbacks_for_tests(TestWebView& view, TestRunCapture& test_run_capture)
+static void set_ui_callbacks_for_tests(TestWebView& view, TestRunContext& context, TestRunCapture& test_run_capture)
 {
     view.on_request_file_picker = [&](auto const& accepted_file_types, auto allow_multiple_files) {
         // Create some dummy files for tests.
@@ -1031,11 +1049,14 @@ static void set_ui_callbacks_for_tests(TestWebView& view, TestRunCapture& test_r
         view.alert_closed();
     };
 
-    view.on_web_content_crashed = [&view, &test_run_capture]() {
+    view.on_web_content_crashed = [&view, &context, &test_run_capture](auto crash_reason) {
         test_run_capture.write_test_output(view);
 
         if (auto index = s_current_test_index_by_view.get(&view); index.has_value()) {
-            view.on_test_complete({ *index, TestResult::Crashed });
+            auto result = context.tests[*index].expected_outcome == ExpectedOutcome::WebContentTermination && crash_reason == WebView::ViewImplementation::WebContentCrashReason::RejectedIPC
+                ? TestResult::Pass
+                : TestResult::Crashed;
+            view.on_test_complete({ *index, result });
         }
     };
 
@@ -1199,7 +1220,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
     ScopeGuard clear_compositor_death_hook = [&] { app.on_compositor_process_death = {}; };
 
     for (auto [view_id, view] : enumerate(views)) {
-        set_ui_callbacks_for_tests(*view, test_run_capture);
+        set_ui_callbacks_for_tests(*view, context, test_run_capture);
         view->clear_content_blockers();
 
         auto cleanup_test = [&, view = view.ptr()](size_t test_index, TestResult test_result) {
@@ -1275,7 +1296,7 @@ static ErrorOr<int> run_tests(Core::AnonymousBuffer const& theme, Web::DevicePix
 
                 // Write captured std logs to results directory.
                 // NOTE: On crashes, we already flushed it in on_web_content_crashed.
-                if (result.result != TestResult::Crashed)
+                if (result.result != TestResult::Crashed && test.expected_outcome != ExpectedOutcome::WebContentTermination)
                     test_run_capture.write_test_output(*view);
 
                 bool const is_non_passing_result = result.result != TestResult::Pass;

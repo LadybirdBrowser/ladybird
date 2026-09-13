@@ -511,6 +511,7 @@ public:
     virtual Optional<Compositor::CompositorContextId> compositor_context_id_for_remote_child_frame(HTML::CrossProcessId) const { return {}; }
     virtual String dump_site_isolation_process_tree_for_testing() { return {}; }
     virtual void crash_remote_frame_processes_for_testing() { }
+    virtual void send_bad_ipc_message_for_testing([[maybe_unused]] StringView kind, [[maybe_unused]] URL::URL const& active_document_url) { }
     virtual Gfx::Palette palette() const = 0;
     virtual DevicePixelRect screen_rect() const = 0;
     virtual double zoom_level() const = 0;
