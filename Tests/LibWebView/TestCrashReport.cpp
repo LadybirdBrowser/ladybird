@@ -121,6 +121,20 @@ TEST_CASE(normal_exit_does_not_create_a_report)
     EXPECT(!FileSystem::exists(test_directory()));
 }
 
+TEST_CASE(intentional_termination_does_not_create_a_report)
+{
+    cleanup();
+    ScopeGuard guard = cleanup;
+    for (int signal : { SIGTERM, SIGKILL }) {
+        auto report = MUST(WebView::CrashReport::create(WebView::ProcessType::WebContent));
+        auto status = crash_child(*report, signal);
+        EXPECT(WIFSIGNALED(status));
+        EXPECT_EQ(WTERMSIG(status), signal);
+        MUST(report->save(status, test_directory()));
+        EXPECT(!FileSystem::exists(test_directory()));
+    }
+}
+
 TEST_CASE(missing_or_malformed_capture_produces_a_minimal_report)
 {
     cleanup();
@@ -128,13 +142,13 @@ TEST_CASE(missing_or_malformed_capture_produces_a_minimal_report)
     auto report = MUST(WebView::CrashReport::create(WebView::ProcessType::WebContent));
     constexpr auto private_text = "https://private.example/secret user@example.com /Users/private"sv;
     VERIFY(pwrite(report->fd(), private_text.characters_without_null_termination(), private_text.length(), 0) == static_cast<ssize_t>(private_text.length()));
-    MUST(report->save(SIGKILL, test_directory()));
+    MUST(report->save(SIGSEGV, test_directory()));
     auto paths = report_paths();
     EXPECT_EQ(paths.size(), 1u);
     auto file = MUST(Core::File::open(paths[0], Core::File::OpenMode::Read));
     auto contents = MUST(file->read_until_eof());
     StringView text { contents };
-    EXPECT(text.contains("Termination signal: SIGKILL"sv));
+    EXPECT(text.contains("Termination signal: SIGSEGV"sv));
     EXPECT(text.contains("Unavailable:"sv));
     EXPECT(!text.contains(private_text));
 }
@@ -153,7 +167,7 @@ TEST_CASE(retention_is_bounded)
     for (u32 i = 0; i < 25; ++i) {
         auto type = i % 2 ? WebView::ProcessType::RequestServer : WebView::ProcessType::WebContent;
         auto report = MUST(WebView::CrashReport::create(type));
-        MUST(report->save(SIGKILL, test_directory()));
+        MUST(report->save(SIGSEGV, test_directory()));
         auto previous_count = created_paths.size();
         for (auto const& path : report_paths()) {
             if (created_paths.contains_slow(path))
@@ -254,7 +268,7 @@ TEST_CASE(helper_process_names)
     ScopeGuard guard = cleanup;
     for (auto type : { WebView::ProcessType::WebContent, WebView::ProcessType::WebWorker, WebView::ProcessType::RequestServer, WebView::ProcessType::ImageDecoder, WebView::ProcessType::Compositor, WebView::ProcessType::WasmCompiler }) {
         auto report = MUST(WebView::CrashReport::create(type));
-        MUST(report->save(SIGKILL, test_directory()));
+        MUST(report->save(SIGSEGV, test_directory()));
     }
     auto paths = report_paths();
     EXPECT_EQ(paths.size(), 6u);

@@ -72,8 +72,8 @@ the operating system can still handle the crash normally.
 
 After process exit, the browser reads a bounded number of records and formats
 the report. It never copies arbitrary child-process text into the report. Clean
-exits and SIGTERM do not produce reports. Other abnormal exits still produce a
-minimal report when capture was unavailable. Helpers launched by a test-mode
+exits, SIGTERM and SIGKILL do not produce reports. Other abnormal exits still
+produce a minimal report when capture was unavailable. Helpers launched by a test-mode
 browser do not produce automatic reports.
 
 The capture implementation and bounded record format live in LibCore, so all
@@ -88,7 +88,7 @@ Only the crashing thread is captured. Stacks can be partial due to corruption,
 missing frame pointers, JIT code, or modules loaded after handler
 initialization. An alternate signal stack protects main-thread stack overflow;
 stack overflow on other threads may only produce a minimal report. Early startup
-crashes, SIGKILL, and other exits that bypass the handler also produce minimal
+crashes and other exits that bypass the handler also produce minimal
 reports. A crash of the browser itself is not covered, and the browser must
 survive to save the report. Disk errors can prevent saving; they are reported to
 stderr.
