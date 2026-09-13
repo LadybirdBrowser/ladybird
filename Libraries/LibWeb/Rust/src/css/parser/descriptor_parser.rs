@@ -120,14 +120,19 @@ fn parse_integer_component(
         // NB: This matches CalculatedStyleValue::resolve_integer() at
         //     Libraries/LibWeb/CSS/StyleValues/CalculatedStyleValue.cpp, before descriptor
         //     integer resolution moved to Rust.
-        StyleValueData::Calculated { .. } => unsafe {
-            context
-                .length_resolution_context
-                .cast::<FfiLengthResolutionContext>()
-                .as_ref()
+        StyleValueData::Calculated { .. } => {
+            super::stylesheet_cache::record_length_resolution_dependency();
+            unsafe {
+                context
+                    .length_resolution_context
+                    .cast::<FfiLengthResolutionContext>()
+                    .as_ref()
+            }
+            .and_then(|length_context| {
+                crate::css::calc::resolve_calculated_integer_with_context(&parsed, length_context)
+            })
+            .or_else(|| crate::css::calc::resolve_calculated_integer_without_context(&parsed))?
         }
-        .and_then(|length_context| crate::css::calc::resolve_calculated_integer_with_context(&parsed, length_context))
-        .or_else(|| crate::css::calc::resolve_calculated_integer_without_context(&parsed))?,
         _ => return None,
     };
     Some((resolved, parsed))
