@@ -72,7 +72,7 @@ impl StyleEngine {
             .release(MemoryCategory::BatchScratch, stale_match_workspace_bytes);
         let mut transaction = self.drain_transaction();
         self.apply_staged_transaction(&mut transaction);
-        self.program.share_rule_versions();
+        self.program.share_rule_storage();
         if transaction.is_empty() {
             self.release_transaction_and_sweep_atoms(transaction);
             return true;
