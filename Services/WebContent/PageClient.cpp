@@ -1958,53 +1958,30 @@ static Web::HTML::ScriptRegistry::Description exported_devtools_source_descripti
     return description;
 }
 
-static void append_devtools_sources_for_document(Vector<Web::HTML::ScriptRegistry::Description>& results, Web::DOM::Document const& document)
-{
-    for (auto const& source : document.script_registry().scripts()) {
-        auto description = exported_devtools_source_description(document, source.value.description);
-        results.append(move(description));
-    }
-
-    for (auto const& navigable : document.descendant_navigables()) {
-        auto content_document = as<Web::HTML::LocalNavigable>(*navigable).active_document();
-        if (!content_document)
-            continue;
-        append_devtools_sources_for_document(results, *content_document);
-    }
-}
-
+// The sources of the documents this page hosts. The tab's other pages list their own.
 Vector<Web::HTML::ScriptRegistry::Description> PageClient::list_devtools_sources() const
 {
     Vector<Web::HTML::ScriptRegistry::Description> results;
-
-    auto document = page().local_traversable()->active_document();
-    if (document)
-        append_devtools_sources_for_document(results, *document);
-
-    return results;
-}
-
-static Optional<Web::HTML::ScriptRegistry::Description> find_devtools_source_description(Web::DOM::Document const& document, JS::SourceCode const& source_code)
-{
-    if (auto script = document.script_registry().script_for_source_code(source_code); script.has_value())
-        return exported_devtools_source_description(document, script->description);
-
-    for (auto const& navigable : document.descendant_navigables()) {
-        auto content_document = as<Web::HTML::LocalNavigable>(*navigable).active_document();
-        if (!content_document)
+    for (auto const& navigable : page().hosted_navigables()) {
+        auto document = navigable->active_document();
+        if (!document)
             continue;
-        if (auto description = find_devtools_source_description(*content_document, source_code); description.has_value())
-            return description;
+        for (auto const& source : document->script_registry().scripts())
+            results.append(exported_devtools_source_description(*document, source.value.description));
     }
-    return {};
+    return results;
 }
 
 Optional<Web::HTML::ScriptRegistry::Description> PageClient::devtools_source_description(JS::SourceCode const& source_code) const
 {
-    auto document = page().local_traversable()->active_document();
-    if (!document)
-        return {};
-    return find_devtools_source_description(*document, source_code);
+    for (auto const& navigable : page().hosted_navigables()) {
+        auto document = navigable->active_document();
+        if (!document)
+            continue;
+        if (auto script = document->script_registry().script_for_source_code(source_code); script.has_value())
+            return exported_devtools_source_description(*document, script->description);
+    }
+    return {};
 }
 
 static Web::DOM::Document const* document_for_devtools_source(PageClient const& page_client, Web::HTML::ScriptRegistry::Identifier const& source_id)

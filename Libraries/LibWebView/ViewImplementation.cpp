@@ -1054,17 +1054,35 @@ void ViewImplementation::set_preferred_color_scheme(Web::CSS::PreferredColorSche
     m_preferred_color_scheme = color_scheme;
     set_page_background_color(preferred_canvas_background_color());
 
-    client().async_set_preferred_color_scheme(page_id(), color_scheme);
+    m_top_level_traversable.for_each_hosting_page([&](WebContentClient& client, Web::PageId page_id) {
+        client.async_set_preferred_color_scheme(page_id, color_scheme);
+    });
 }
 
 void ViewImplementation::set_preferred_contrast(Web::CSS::PreferredContrast contrast)
 {
-    client().async_set_preferred_contrast(page_id(), contrast);
+    m_preferred_contrast = contrast;
+    m_top_level_traversable.for_each_hosting_page([&](WebContentClient& client, Web::PageId page_id) {
+        client.async_set_preferred_contrast(page_id, contrast);
+    });
 }
 
 void ViewImplementation::set_preferred_motion(Web::CSS::PreferredMotion motion)
 {
-    client().async_set_preferred_motion(page_id(), motion);
+    m_preferred_motion = motion;
+    m_top_level_traversable.for_each_hosting_page([&](WebContentClient& client, Web::PageId page_id) {
+        client.async_set_preferred_motion(page_id, motion);
+    });
+}
+
+void ViewImplementation::send_preferences_to_page(Badge<WebContentClient>, WebContentClient& client, Web::PageId page_id)
+{
+    client.async_set_preferred_color_scheme(page_id, m_preferred_color_scheme);
+    client.async_set_preferred_contrast(page_id, m_preferred_contrast);
+    client.async_set_preferred_motion(page_id, m_preferred_motion);
+    client.async_set_preferred_languages(page_id, Application::settings().languages());
+    if (m_user_style_sheet.has_value())
+        client.async_set_user_style(page_id, *m_user_style_sheet);
 }
 
 void ViewImplementation::notify_cookies_changed(HashTable<String> const& changed_domains, ReadonlySpan<HTTP::Cookie::Cookie> page_cookies, ReadonlySpan<HTTP::Cookie::Cookie> host_cookies)
@@ -2019,9 +2037,15 @@ void ViewImplementation::did_change_screen_wake_lock_state(Badge<WebContentClien
         on_screen_wake_lock_state_changed(m_screen_wake_lock_state);
 }
 
-void ViewImplementation::did_change_needs_beforeunload_check(Badge<WebContentClient>, bool needs_beforeunload_check)
+bool ViewImplementation::needs_beforeunload_check() const
 {
-    m_needs_beforeunload_check = needs_beforeunload_check;
+    // Each page of the tab reports for the documents it hosts.
+    bool needs_beforeunload_check = false;
+    m_top_level_traversable.for_each_hosting_page([&](WebContentClient& client, Web::PageId page_id) {
+        if (client.page_needs_beforeunload_check(page_id))
+            needs_beforeunload_check = true;
+    });
+    return needs_beforeunload_check;
 }
 
 void ViewImplementation::did_change_background_color(Badge<WebContentClient>, Gfx::Color color)
@@ -2129,8 +2153,6 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
             on_debugger_resumed();
     }
     m_debugger_overlay_pointer_state.cancel();
-
-    m_needs_beforeunload_check = true;
 
     if (create_new_client == CreateNewClient::Yes) {
         reject_pending_selection_requests();
@@ -3118,7 +3140,9 @@ String ViewImplementation::current_host_for_settings() const
 void ViewImplementation::languages_changed()
 {
     auto const& languages = Application::settings().languages();
-    client().async_set_preferred_languages(page_id(), languages);
+    m_top_level_traversable.for_each_hosting_page([&](WebContentClient& client, Web::PageId page_id) {
+        client.async_set_preferred_languages(page_id, languages);
+    });
 }
 
 void ViewImplementation::content_settings_changed()
@@ -3345,7 +3369,10 @@ ErrorOr<LexicalPath> ViewImplementation::dump_gc_graph()
 
 void ViewImplementation::set_user_style_sheet(String const& source)
 {
-    client().async_set_user_style(page_id(), source);
+    m_user_style_sheet = source;
+    m_top_level_traversable.for_each_hosting_page([&](WebContentClient& client, Web::PageId page_id) {
+        client.async_set_user_style(page_id, source);
+    });
 }
 
 void ViewImplementation::initialize_context_menus()

@@ -3594,10 +3594,9 @@ void LocalNavigable::run_navigation_unload_check(Utf16String const& navigation_i
     }
 
     // 1. Let unloadPromptCanceled be the result of checking if unloading is user-canceled for navigable's active document's inclusive descendant navigables.
-    Vector<GC::Root<LocalNavigable>> navigables;
-    for (auto const& navigable : active_document()->inclusive_descendant_navigables())
-        navigables.append(as<LocalNavigable>(*navigable));
-    check_if_unloading_is_canceled(move(navigables),
+    // NB: This page checks the documents it hosts. The UI process, which requested the check, is where the parts
+    //     hosted by other pages are dispatched.
+    check_if_unloading_is_canceled(hosted_inclusive_descendant_navigables(),
         GC::create_function(heap(), [this, navigation_id, completion_steps](CheckIfUnloadingIsCanceledResult unload_prompt_canceled) {
             if (has_been_destroyed() || !active_window()) {
                 completion_steps->function()(false);
