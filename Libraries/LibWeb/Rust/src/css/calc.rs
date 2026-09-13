@@ -456,8 +456,9 @@ impl CalcNumericValue {
 #[derive(Clone, Copy, PartialEq)]
 #[repr(C)]
 pub struct FfiNumericType {
-    pub has_exponent: [bool; 7],
     pub exponents: [i32; 7],
+    /// Bit i records whether base type i has an exponent, including an explicit zero.
+    pub has_exponent_bits: u8,
     pub has_percent_hint: bool,
     pub percent_hint: u8,
     pub valid: bool,
@@ -466,7 +467,7 @@ pub struct FfiNumericType {
 impl FfiNumericType {
     pub(crate) fn from_calc(value: Option<CalcNumericType>) -> Self {
         let mut result = FfiNumericType {
-            has_exponent: [false; BASE_TYPE_COUNT],
+            has_exponent_bits: 0,
             exponents: [0; BASE_TYPE_COUNT],
             has_percent_hint: false,
             percent_hint: 0,
@@ -475,7 +476,7 @@ impl FfiNumericType {
         if let Some(value) = value {
             for i in 0..BASE_TYPE_COUNT {
                 if let Some(exponent) = value.exponents[i] {
-                    result.has_exponent[i] = true;
+                    result.has_exponent_bits |= 1 << i;
                     result.exponents[i] = exponent;
                 }
             }
@@ -490,7 +491,7 @@ impl FfiNumericType {
     pub(crate) fn to_calc(self) -> CalcNumericType {
         let mut result = CalcNumericType::default();
         for i in 0..BASE_TYPE_COUNT {
-            if self.has_exponent[i] {
+            if self.has_exponent_bits & (1 << i) != 0 {
                 result.exponents[i] = Some(self.exponents[i]);
             }
         }

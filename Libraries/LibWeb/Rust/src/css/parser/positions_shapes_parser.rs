@@ -20,8 +20,8 @@ use crate::css::property_metadata::{
 };
 use crate::css::style_compute::px_length_unit;
 use crate::css::style_value::{
-    CssString, RetainedPropertyIdList, RetainedShapePoint, RetainedShapePointList, RetainedStyleValueData,
-    RetainedStyleValueDataList, StyleValueData,
+    BasicShapeData, CssString, OwnedBasicShapeData, RetainedPropertyIdList, RetainedShapePoint, RetainedShapePointList,
+    RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData,
 };
 use std::sync::Arc;
 
@@ -741,15 +741,17 @@ fn basic_shape(
     let mut values = values.into_iter().map(retained).collect::<Vec<_>>();
     values.resize_with(5, RetainedStyleValueData::none);
     StyleValueData::BasicShape {
-        kind,
-        v0: values.remove(0),
-        v1: values.remove(0),
-        v2: values.remove(0),
-        v3: values.remove(0),
-        v4: values.remove(0),
-        fill_rule,
-        points: RetainedShapePointList::from_retained_points(points),
-        path,
+        shape: OwnedBasicShapeData::new(BasicShapeData {
+            kind,
+            v0: values.remove(0),
+            v1: values.remove(0),
+            v2: values.remove(0),
+            v3: values.remove(0),
+            v4: values.remove(0),
+            fill_rule,
+            points: RetainedShapePointList::from_retained_points(points),
+            path,
+        }),
     }
 }
 
@@ -929,15 +931,17 @@ fn parse_circle_or_ellipse(
         return None;
     }
     Some(StyleValueData::BasicShape {
-        kind: if ellipse { 4 } else { 3 },
-        v0: retained(radius?),
-        v1: parsed_position.map_or_else(RetainedStyleValueData::none, retained),
-        v2: RetainedStyleValueData::none(),
-        v3: RetainedStyleValueData::none(),
-        v4: RetainedStyleValueData::none(),
-        fill_rule: 0,
-        points: RetainedShapePointList::from_retained_points(vec![]),
-        path: CssPath::none(),
+        shape: OwnedBasicShapeData::new(BasicShapeData {
+            kind: if ellipse { 4 } else { 3 },
+            v0: retained(radius?),
+            v1: parsed_position.map_or_else(RetainedStyleValueData::none, retained),
+            v2: RetainedStyleValueData::none(),
+            v3: RetainedStyleValueData::none(),
+            v4: RetainedStyleValueData::none(),
+            fill_rule: 0,
+            points: RetainedShapePointList::from_retained_points(vec![]),
+            path: CssPath::none(),
+        }),
     })
 }
 
@@ -1775,7 +1779,7 @@ mod tests {
             let ParseOutcome::Parsed(value) = parse_geometry(property_id::CLIP_PATH, source) else {
                 panic!("basic shape should parse: {source}");
             };
-            assert!(matches!(&*value, StyleValueData::BasicShape { kind, .. } if *kind == expected_kind));
+            assert!(matches!(&*value, StyleValueData::BasicShape { shape } if shape.as_ref().kind == expected_kind));
         }
         assert!(matches!(
             parse_geometry(property_id::CLIP_PATH, "shape(from 0 0, close)"),

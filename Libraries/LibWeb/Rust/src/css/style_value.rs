@@ -876,74 +876,6 @@ pub extern "C" fn rust_css_url_text_view(text: &RetainedString) -> crate::css::f
     }
 }
 
-/// Rust-owned text preserving its ASCII or UTF-16 representation.
-#[repr(C)]
-pub struct RetainedReadableString {
-    ascii_units: *mut u8,
-    code_units: *mut u16,
-    length: usize,
-}
-
-// SAFETY: Both pointers refer exclusively to owned code-unit buffers, with no host references.
-unsafe impl Send for RetainedReadableString {}
-unsafe impl Sync for RetainedReadableString {}
-
-impl RetainedReadableString {
-    fn from_units(source: TokenizerInput<'_>) -> Self {
-        let (ascii_units, code_units, length) = match source {
-            TokenizerInput::Ascii(units) => {
-                let units = units.to_vec().into_boxed_slice();
-                let length = units.len();
-                (Box::into_raw(units).cast::<u8>(), std::ptr::null_mut(), length)
-            }
-            TokenizerInput::Utf16(units) => {
-                let units = units.to_vec().into_boxed_slice();
-                let length = units.len();
-                (std::ptr::null_mut(), Box::into_raw(units).cast::<u16>(), length)
-            }
-        };
-        Self {
-            ascii_units,
-            code_units,
-            length,
-        }
-    }
-
-    pub(crate) fn from_utf16(code_units: &[u16]) -> Self {
-        Self::from_units(TokenizerInput::Utf16(code_units))
-    }
-
-    pub(crate) fn as_units(&self) -> TokenizerInput<'_> {
-        unsafe { TokenizerInput::from_raw_parts(self.ascii_units, self.code_units, self.length) }.unwrap()
-    }
-}
-
-impl PartialEq for RetainedReadableString {
-    fn eq(&self, other: &Self) -> bool {
-        let mut left = Vec::with_capacity(self.length);
-        let mut right = Vec::with_capacity(other.length);
-        self.as_units().append_to(&mut left);
-        other.as_units().append_to(&mut right);
-        left == right
-    }
-}
-
-impl Clone for RetainedReadableString {
-    fn clone(&self) -> Self {
-        Self::from_units(self.as_units())
-    }
-}
-
-impl Drop for RetainedReadableString {
-    fn drop(&mut self) {
-        if !self.ascii_units.is_null() {
-            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.ascii_units, self.length)) });
-        } else if !self.code_units.is_null() {
-            drop(unsafe { Box::from_raw(std::ptr::slice_from_raw_parts_mut(self.code_units, self.length)) });
-        }
-    }
-}
-
 /// A retained CSS request URL modifier: the modifier type and either an enum value or a retained
 /// string value (raw 0 when the value is an enum). All enums are C++ `enum class ... : u8`
 /// values, opaque to Rust.
@@ -1782,11 +1714,69 @@ impl PartialEq for ImageResourceContext {
     }
 }
 
+// Basic shapes are uncommon and have enough fields to enlarge every scalar value.
+#[repr(C)]
+#[derive(Clone, PartialEq)]
+pub struct BasicShapeData {
+    pub(crate) kind: u8,
+    pub(crate) fill_rule: u8,
+    pub(crate) v0: RetainedStyleValueData,
+    pub(crate) v1: RetainedStyleValueData,
+    pub(crate) v2: RetainedStyleValueData,
+    pub(crate) v3: RetainedStyleValueData,
+    pub(crate) v4: RetainedStyleValueData,
+    pub(crate) points: RetainedShapePointList,
+    pub(crate) path: crate::css::css_path::CssPath,
+}
+
+/// A Rust-owned shape allocation with an explicit pointer layout for C++ bindings.
+#[repr(C)]
+pub struct OwnedBasicShapeData {
+    pointer: *mut BasicShapeData,
+}
+
+// SAFETY: This handle owns its box and exposes only immutable access to its fields.
+unsafe impl Send for OwnedBasicShapeData where BasicShapeData: Send {}
+unsafe impl Sync for OwnedBasicShapeData where BasicShapeData: Sync {}
+
+impl OwnedBasicShapeData {
+    pub(crate) fn new(shape: BasicShapeData) -> Self {
+        Self {
+            pointer: Box::into_raw(Box::new(shape)),
+        }
+    }
+
+    pub(crate) fn as_ref(&self) -> &BasicShapeData {
+        // SAFETY: Every handle owns a live box for the duration of this borrow.
+        unsafe { &*self.pointer }
+    }
+}
+
+impl Clone for OwnedBasicShapeData {
+    fn clone(&self) -> Self {
+        Self::new(self.as_ref().clone())
+    }
+}
+
+impl PartialEq for OwnedBasicShapeData {
+    fn eq(&self, other: &Self) -> bool {
+        self.as_ref() == other.as_ref()
+    }
+}
+
+impl Drop for OwnedBasicShapeData {
+    fn drop(&mut self) {
+        // SAFETY: The handle owns exactly one box and transfers it back on drop.
+        drop(unsafe { Box::from_raw(self.pointer) });
+    }
+}
+
 /// The data of a single immutable CSS style value.
 ///
 /// Variant payload fields are read directly by the corresponding C++ StyleValue subclass, so
 /// changing a payload changes the C++ accessors reading it.
-#[repr(C, u8)]
+/// The byte discriminant shares each variant's padding instead of preceding a separate union.
+#[repr(u8)]
 // NB: Variant payload fields are only read by C++ through the exposed layout.
 #[allow(dead_code)]
 #[derive(Clone, PartialEq)]
@@ -1814,30 +1804,20 @@ pub enum StyleValueData {
     /// A basic shape. Kinds: inset (0), xywh (1) and rect (2) use five retained value slots;
     /// circle (3) and ellipse (4) use two; polygon (5) uses the fill rule and points; path (6)
     /// uses the fill rule and the retained serialized path data string.
-    BasicShape {
-        kind: u8,
-        v0: RetainedStyleValueData,
-        v1: RetainedStyleValueData,
-        v2: RetainedStyleValueData,
-        v3: RetainedStyleValueData,
-        v4: RetainedStyleValueData,
-        fill_rule: u8,
-        points: RetainedShapePointList,
-        path: crate::css::css_path::CssPath,
-    },
+    BasicShape { shape: OwnedBasicShapeData },
     /// A calc() or other math function: the retained calculation node tree root, its resolved
     /// numeric type, and the parse-time calculation context.
     Calculated {
-        rust_calculation: crate::css::calc::CalcNodeHandle,
         /// The resolve-against target, base-mapped at creation: whether one
         /// exists, whether it is the number type, and otherwise its base type
         /// index in the numeric type order.
         resolve_as_is_number: bool,
         resolve_as_base: u8,
-        resolved_type: crate::css::calc::FfiNumericType,
         has_percentages_resolve_as: bool,
         percentages_resolve_as: u8,
         resolve_numbers_as_integers: bool,
+        rust_calculation: crate::css::calc::CalcNodeHandle,
+        resolved_type: crate::css::calc::FfiNumericType,
         accepted_ranges: RetainedNumericRangeList,
     },
     /// A CSS `<ratio>`, e.g. `16 / 9`. The numerator and denominator are style values.
@@ -1902,7 +1882,7 @@ pub enum StyleValueData {
     /// The mode is the C++ OpenTypeTaggedStyleValue::Mode, opaque to Rust.
     OpenTypeTagged {
         mode: u8,
-        tag: CssString,
+        tag_name: CssString,
         packed_tag: u32,
         value: RetainedStyleValueData,
     },
@@ -2076,13 +2056,13 @@ pub enum StyleValueData {
     /// position (kind 2, the C++ `enum class StepPosition : u8`, opaque to Rust).
     Easing {
         kind: u8,
+        step_position: u8,
         linear_stops: RetainedLinearEasingStopList,
         x1: RetainedStyleValueData,
         y1: RetainedStyleValueData,
         x2: RetainedStyleValueData,
         y2: RetainedStyleValueData,
         number_of_intervals: RetainedStyleValueData,
-        step_position: u8,
     },
     /// A cursor with its retained image value and optional retained hotspot coordinates (both
     /// null or both non-null).
@@ -2175,8 +2155,8 @@ pub enum StyleValueData {
     /// cached for an attr()-tainted registered custom property.
     Unresolved {
         components: RetainedComponentValueList,
-        source_text: RetainedReadableString,
-        value_comparison_text: RetainedReadableString,
+        source_text: CssString,
+        value_comparison_text: CssString,
         presence_attr: bool,
         presence_dashed_function: bool,
         presence_env: bool,
@@ -2198,11 +2178,11 @@ pub enum StyleValueData {
     /// technologies (C++ `enum class FontTech : u8`, opaque to Rust).
     FontSource {
         is_local: bool,
+        url_type: u8,
+        has_format: bool,
         local_name: RetainedStyleValueData,
         url: RetainedString,
-        url_type: u8,
         url_modifiers: RetainedRequestUrlModifierList,
-        has_format: bool,
         format: CssString,
         tech: RetainedByteList,
     },
@@ -2255,6 +2235,9 @@ pub enum StyleValueData {
         value: RetainedStyleValueData,
     },
 }
+
+// A larger variant would increase every scalar value's allocation as well.
+const _: () = assert!(size_of::<StyleValueData>() <= 64);
 
 /// One entry in a computed font-family list. A generic family carries its Keyword code;
 /// a named family borrows the Rust string retained by the style value.
@@ -2348,11 +2331,18 @@ pub unsafe extern "C" fn rust_style_value_computed_percentage(value: *const c_vo
 }
 
 impl StyleValueData {
+    pub(crate) fn basic_shape(&self) -> Option<&BasicShapeData> {
+        match self {
+            Self::BasicShape { shape } => Some(shape.as_ref()),
+            _ => None,
+        }
+    }
+
     pub(crate) fn unresolved_authored_source(&self) -> Option<TokenizerInput<'_>> {
         let Self::Unresolved { source_text, .. } = self else {
             return None;
         };
-        Some(source_text.as_units())
+        Some(TokenizerInput::from(source_text))
     }
 
     pub(crate) fn unresolved_token_source(&self) -> Option<TokenizerInput<'_>> {
@@ -2364,10 +2354,10 @@ impl StyleValueData {
         else {
             return None;
         };
-        if value_comparison_text.as_units().is_empty() {
-            Some(source_text.as_units())
+        if value_comparison_text.units().is_empty() {
+            Some(TokenizerInput::from(source_text))
         } else {
-            Some(value_comparison_text.as_units())
+            Some(TokenizerInput::from(value_comparison_text))
         }
     }
 }
@@ -2462,17 +2452,18 @@ impl StyleValueData {
                 hasher.write_u8(*unit);
             }
             Self::Percentage { value } => write_f64(hasher, *value),
-            Self::BasicShape {
-                kind,
-                v0,
-                v1,
-                v2,
-                v3,
-                v4,
-                fill_rule,
-                points: _,
-                path,
-            } => {
+            Self::BasicShape { shape } => {
+                let BasicShapeData {
+                    kind,
+                    v0,
+                    v1,
+                    v2,
+                    v3,
+                    v4,
+                    fill_rule,
+                    points: _,
+                    path,
+                } = shape.as_ref();
                 hasher.write_u8(*kind);
                 write_value(hasher, v0);
                 write_value(hasher, v1);
@@ -2557,7 +2548,7 @@ impl StyleValueData {
             }
             Self::OpenTypeTagged {
                 mode,
-                tag,
+                tag_name: tag,
                 packed_tag,
                 value,
             } => {
@@ -2910,8 +2901,8 @@ impl StyleValueData {
                 contains_attr_tainted_values,
                 parsed_value: _,
             } => {
-                hash_string_units(hasher, source_text.as_units());
-                hash_string_units(hasher, value_comparison_text.as_units());
+                hash_string_units(hasher, TokenizerInput::from(source_text));
+                hash_string_units(hasher, TokenizerInput::from(value_comparison_text));
                 write_bool(hasher, *presence_attr);
                 write_bool(hasher, *presence_dashed_function);
                 write_bool(hasher, *presence_env);
@@ -3245,7 +3236,7 @@ pub unsafe extern "C" fn rust_style_value_create_open_type_tagged(
 ) -> *const StyleValueData {
     Arc::into_raw(Arc::new(StyleValueData::OpenTypeTagged {
         mode,
-        tag: unsafe { CssString::from_leaked_raw(tag) },
+        tag_name: unsafe { CssString::from_leaked_raw(tag) },
         packed_tag,
         value: unsafe { RetainedStyleValueData::from_retained_pointer(value) },
     }))
@@ -3564,8 +3555,8 @@ pub unsafe extern "C" fn rust_style_value_create_unresolved_from_source(
     };
     Arc::into_raw(Arc::new(StyleValueData::Unresolved {
         components: RetainedComponentValueList::from_source(component_source),
-        source_text: RetainedReadableString::from_utf16(&source_text),
-        value_comparison_text: RetainedReadableString::from_utf16(&value_comparison_text),
+        source_text: CssString::from_utf16(&source_text),
+        value_comparison_text: CssString::from_utf16(&value_comparison_text),
         presence_attr,
         presence_dashed_function,
         presence_env,

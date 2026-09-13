@@ -31,7 +31,7 @@ Gfx::Path SVGPathElement::get_path(CSSPixelSize, CSS::ComputedValues const& comp
     }
 
     VERIFY(computed_d->is_basic_shape());
-    auto const& shape = computed_d->rust_style_value_data()->basic_shape;
+    auto const& shape = *computed_d->rust_style_value_data()->basic_shape.shape.pointer;
     VERIFY(shape.kind == 6);
     auto* native_path = static_cast<Gfx::Path*>(CSS::StyleValueFFI::rust_css_path_to_gfx_path(&shape.path));
     auto path = move(*native_path);

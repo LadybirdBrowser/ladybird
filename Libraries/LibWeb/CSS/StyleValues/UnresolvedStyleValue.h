@@ -61,11 +61,10 @@ private:
     Utf16String comparison_text() const;
     Utf16String serialize_components(u8 mode) const;
 
-    static Utf16String string_from_rust_data(StyleValueFFI::RetainedReadableString const& string)
+    static Utf16String string_from_rust_data(StyleValueFFI::CssString const& string)
     {
-        if (string.ascii_units)
-            return Utf16String::from_utf8_without_validation({ string.ascii_units, string.length });
-        return Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(string.code_units), string.length });
+        auto view = StyleValueFFI::rust_css_string_view(&string);
+        return Utf16String::from_utf16({ reinterpret_cast<char16_t const*>(view.data), view.length });
     }
 
     Utf16String source_text() const { return string_from_rust_data(m_value->unresolved.source_text); }

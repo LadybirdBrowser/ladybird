@@ -17,7 +17,7 @@ mod shorthand;
 use crate::css::css_enums::keyword;
 use crate::css::css_tokenizer::TokenizerInput;
 use crate::css::parser::component_value::{ComponentSerializationMode, serialize_component_values_into};
-use crate::css::style_value::{RetainedColorStopList, RetainedString, StyleValueData};
+use crate::css::style_value::{BasicShapeData, RetainedColorStopList, RetainedString, StyleValueData};
 
 include!(concat!(env!("OUT_DIR"), "/transform_functions_generated.rs"));
 
@@ -983,7 +983,7 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
         }
         StyleValueData::OpenTypeTagged {
             mode: tagged_mode,
-            tag,
+            tag_name: tag,
             packed_tag: _,
             value,
         } => {
@@ -1213,13 +1213,8 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             true
         }
         StyleValueData::Unresolved { source_text, .. } => {
-            match source_text.as_units() {
-                TokenizerInput::Ascii(units) => sink.push_ascii(unsafe { std::str::from_utf8_unchecked(units) }),
-                TokenizerInput::Utf16(units) => {
-                    for &code_unit in units {
-                        sink.push_code_unit(code_unit);
-                    }
-                }
+            for &code_unit in source_text.units() {
+                sink.push_code_unit(code_unit);
             }
             true
         }
@@ -1940,17 +1935,18 @@ pub(crate) fn serialize_style_value(sink: &mut TextSink, value: &StyleValueData,
             }
             serialize_grid_track_size_list(sink, *is_subgrid, entries.as_slice(), mode)
         }
-        StyleValueData::BasicShape {
-            kind,
-            v0,
-            v1,
-            v2,
-            v3,
-            v4,
-            fill_rule,
-            points,
-            path,
-        } => {
+        StyleValueData::BasicShape { shape } => {
+            let BasicShapeData {
+                kind,
+                v0,
+                v1,
+                v2,
+                v3,
+                v4,
+                fill_rule,
+                points,
+                path,
+            } = shape.as_ref();
             // BasicShape kinds: inset 0, xywh 1, rect 2, circle 3, ellipse 4, polygon 5, path 6;
             // fill rules follow Gfx::WindingRule (Nonzero 0, EvenOdd 1).
             let round_clause =
