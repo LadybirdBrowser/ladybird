@@ -820,19 +820,22 @@ void Navigation::abort_a_navigate_event(GC::Ref<NavigateEvent> event, GC::Ref<We
     //         both the abort signal and the promise rejections below run script.
     TemporaryExecutionContext execution_context { window().principal_realm(), TemporaryExecutionContext::CallbacksEnabled::Yes };
 
-    // 2. Signal abort on event's abort controller given reason.
-    event->abort_controller()->abort(realm, reason_value);
-
-    // 3. Let errorInfo be the result of extracting error information from reason.
-    auto error_info = extract_error_information(vm(), reason_value);
-
-    // 4. Set navigation's ongoing navigate event to null.
+    // 2. Set navigation's ongoing navigate event to null.
     m_ongoing_navigate_event = nullptr;
 
     // 5. If navigation's ongoing API method tracker is non-null, then reject the finished promise for apiMethodTracker
     //    with reason.
+    // AD-HOC: This runs before signaling abort, since an abort handler can start a new navigation. Its inner navigate
+    //         event firing algorithm asserts that no API method tracker is ongoing, and leaving this one in place would
+    //         reject the new navigation's tracker instead.
     if (m_ongoing_api_method_tracker)
         reject_the_finished_promise(*m_ongoing_api_method_tracker, reason);
+
+    // 3. Signal abort on event's abort controller given reason.
+    event->abort_controller()->abort(realm, reason_value);
+
+    // 4. Let errorInfo be the result of extracting error information from reason.
+    auto error_info = extract_error_information(vm(), reason_value);
 
     // 6. Fire an event named navigateerror at navigation using ErrorEvent, with additional attributes initialized
     //    according to errorInfo.
@@ -849,7 +852,7 @@ void Navigation::abort_a_navigate_event(GC::Ref<NavigateEvent> event, GC::Ref<We
     if (!m_transition)
         return;
 
-    // 8. Reject navigation's transition's committed promise with error.
+    // 8. Reject navigation's transition's committed promise with reason.
     WebIDL::reject_promise(m_transition->committed(), reason_value);
 
     // 9. Reject navigation's transition's finished promise with reason.

@@ -1,0 +1,3 @@
+committed: rejected with AbortError
+finished: rejected with AbortError
+location.hash: #second
