@@ -1007,6 +1007,7 @@ pub(super) struct PendingAnswer {
 /// NB: The caller must install these effects or release_pending_all before
 ///     discarding the context. An incomplete batch retains the entire owner.
 pub(super) struct AnswerEffects {
+    pub(super) winners: super::cascade::WinnerEffects,
     entries: Vec<(StyleNodeID, PendingAnswer)>,
     by_node: HashMap<StyleNodeID, usize>,
     exact_answers: Vec<(OwnedPrefixAnswerKey, MatchAnswerID)>,
@@ -1018,6 +1019,7 @@ pub(super) struct AnswerEffects {
 impl Default for AnswerEffects {
     fn default() -> Self {
         Self {
+            winners: super::cascade::WinnerEffects::default(),
             entries: Vec::new(),
             by_node: HashMap::default(),
             exact_answers: Vec::new(),
@@ -1184,7 +1186,12 @@ impl AnswerEffects {
         self.memory.resize_required_to(memory, bytes);
     }
 
-    pub(super) fn release_pending_all(self, catalog: &mut MatchAnswerCatalog) {
+    pub(super) fn release_pending_all(
+        self,
+        catalog: &mut MatchAnswerCatalog,
+        winners: &mut super::cascade::WinnerGroups,
+    ) {
+        self.winners.release_pending_all(winners);
         for (_, entry) in self.entries {
             if let Some(Some(identity)) = entry.identity {
                 catalog.release_pending(identity);

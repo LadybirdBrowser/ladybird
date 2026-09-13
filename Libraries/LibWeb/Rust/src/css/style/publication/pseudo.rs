@@ -19,7 +19,7 @@ impl StyleEngineState {
         use pseudo_kind::{AFTER, BACKDROP, BEFORE, FIRST_LETTER, MARKER, SELECTION};
 
         let mut available = 0_u64;
-        for (pseudo, version, _, priority_current) in self.winner_groups.pseudo_states(node) {
+        for (pseudo, version, _, priority_current) in self.current_winner_groups().pseudo_states(node) {
             if self.deferred_pseudo_element == Some(pseudo.kind) {
                 continue;
             }
@@ -54,7 +54,7 @@ impl StyleEngineState {
             explicit_kinds |= 1 << MARKER;
         }
         if let Lookup::Known((_, state)) = self
-            .winner_groups
+            .current_winner_groups()
             .token_for(WinnerGroupKey::current(node, self.program.version()))
             && let Some(winner) = self
                 .winner_groups
@@ -126,7 +126,7 @@ impl StyleEngineState {
         }
         let program_version = self.program.version();
         let mut states: [Option<CascadeStateID>; pseudo_kind::SYNTHETIC_COUNT] = [None; pseudo_kind::SYNTHETIC_COUNT];
-        for (pseudo, version, state, priority_current) in self.winner_groups.pseudo_states(node) {
+        for (pseudo, version, state, priority_current) in self.current_winner_groups().pseudo_states(node) {
             if self.deferred_pseudo_element == Some(pseudo.kind) {
                 continue;
             }
@@ -281,7 +281,7 @@ impl StyleEngineState {
                     .flipped_pseudo_rules
                     .iter()
                     .any(|flip| flip.pseudo_kind == Some(u16::from(kind)))
-                && self.winner_groups.pseudo_row_stamp(
+                && self.current_winner_groups().pseudo_row_stamp(
                     node,
                     tree::PseudoElementTarget::new(tree::PseudoElementKind(u16::from(kind))),
                 ) != Some(self.flush_stamp)

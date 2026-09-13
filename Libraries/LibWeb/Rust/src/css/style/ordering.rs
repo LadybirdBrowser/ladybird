@@ -367,6 +367,7 @@ impl StyleEngineState {
     /// synthetic pseudo-elements to materialize.
     pub(super) fn compact_matches_for_cascade(
         &mut self,
+        effects: &mut AnswerEffects,
         all: &mut Vec<RuleMatch>,
         can_have_scope_duplicates: bool,
         publish_winners_for: Option<StyleNodeID>,
@@ -374,6 +375,7 @@ impl StyleEngineState {
     ) {
         let mut workspace = CascadeCompactionWorkspace::default();
         self.compact_matches_for_cascade_with_scratch(
+            effects,
             all,
             can_have_scope_duplicates,
             publish_winners_for,
@@ -388,6 +390,7 @@ impl StyleEngineState {
 
     pub(super) fn compact_matches_for_cascade_with_scratch(
         &mut self,
+        effects: &mut AnswerEffects,
         all: &mut Vec<RuleMatch>,
         can_have_scope_duplicates: bool,
         mut publish_winners_for: Option<StyleNodeID>,
@@ -397,7 +400,9 @@ impl StyleEngineState {
         if publish_winners_for.is_some_and(|node| {
             !self.winner_groups.admits_new_rows()
                 && matches!(
-                    self.winner_groups
+                    effects
+                        .winners
+                        .view(&self.winner_groups)
                         .lookup(WinnerGroupKey::current(node, self.program.version())),
                     Lookup::Missing(_)
                 )
@@ -519,7 +524,7 @@ impl StyleEngineState {
             // A target which lost its final matching rule still needs an empty winner state.
             // Otherwise its previous sparse row would remain current and could incorrectly prove
             // that the now-absent pseudo does not need recomputation.
-            for (target, _, _, _) in self.winner_groups.pseudo_states(node) {
+            for (target, _, _, _) in effects.winners.view(&self.winner_groups).pseudo_states(node) {
                 if !targets.contains(&Some(target)) {
                     targets.push(Some(target));
                 }
@@ -605,20 +610,37 @@ impl StyleEngineState {
                     || WinnerGroupKey::current(node, self.program.version()),
                     |target| WinnerGroupKey::current_pseudo(node, target, self.program.version()),
                 );
-                let previous = self.winner_groups.token_for(key).sparse().ok().map(|(_, state)| state);
+                let previous = effects
+                    .winners
+                    .view(&self.winner_groups)
+                    .token_for(key)
+                    .sparse()
+                    .ok()
+                    .map(|(_, state)| state);
                 let state = self.intern_cascade_state(winners, previous, counters);
                 if let Some(target) = target {
                     let inventory_is_complete =
                         self.cascade_winner_inventory_is_complete_for_target(all, Some(node), Some(*target));
-                    let published = self
-                        .winner_groups
-                        .set_pseudo(node, *target, state, self.program.version());
+                    let published = effects.winners.set_pseudo(
+                        &mut self.winner_groups,
+                        node,
+                        *target,
+                        state,
+                        self.program.version(),
+                        &mut self.memory,
+                    );
                     if published && !inventory_is_complete {
-                        self.winner_groups.mark_pseudo_inventory_incomplete(node, *target);
+                        effects.winners.mark_pseudo_inventory_incomplete(node, *target);
                     }
                     published_row_count += usize::from(published);
                 } else {
-                    published_row_count += usize::from(self.winner_groups.set(node, state, self.program.version()));
+                    published_row_count += usize::from(effects.winners.set(
+                        &mut self.winner_groups,
+                        node,
+                        state,
+                        self.program.version(),
+                        &mut self.memory,
+                    ));
                 }
             }
             self.winner_groups.settle_memory(&mut self.memory);
@@ -714,6 +736,7 @@ impl StyleEngineState {
     /// again. Cascade continuations retain the general compaction path.
     pub(super) fn compact_matches_from_updated_winners(
         &mut self,
+        effects: &mut AnswerEffects,
         node: StyleNodeID,
         all: &mut Vec<RuleMatch>,
         counters: &mut Counters,
@@ -734,10 +757,11 @@ impl StyleEngineState {
             return false;
         }
         if has_author_pseudo_rules {
-            return self.compact_pseudo_matches_from_updated_winners(node, all, counters);
+            return self.compact_pseudo_matches_from_updated_winners(effects, node, all, counters);
         }
-        let Some((_, state)) = self
-            .winner_groups
+        let Some((_, state)) = effects
+            .winners
+            .view(&self.winner_groups)
             .token_for(WinnerGroupKey::current(node, self.program.version()))
             .sparse()
             .ok()
@@ -760,12 +784,14 @@ impl StyleEngineState {
 
     fn compact_pseudo_matches_from_updated_winners(
         &mut self,
+        effects: &mut AnswerEffects,
         node: StyleNodeID,
         all: &mut Vec<RuleMatch>,
         counters: &mut Counters,
     ) -> bool {
-        let Some((_, state)) = self
-            .winner_groups
+        let Some((_, state)) = effects
+            .winners
+            .view(&self.winner_groups)
             .token_for(WinnerGroupKey::current(node, self.program.version()))
             .sparse()
             .ok()
@@ -786,8 +812,9 @@ impl StyleEngineState {
             {
                 continue;
             }
-            let Some((_, state)) = self
-                .winner_groups
+            let Some((_, state)) = effects
+                .winners
+                .view(&self.winner_groups)
                 .token_for(WinnerGroupKey::current_pseudo(node, pseudo, self.program.version()))
                 .sparse()
                 .ok()
@@ -842,19 +869,46 @@ impl StyleEngineState {
         true
     }
 
+    pub(super) fn matches_for_cascade_immediately(
+        &mut self,
+        all: Vec<RuleMatch>,
+        can_have_scope_duplicates: bool,
+        publish_winners_for: Option<StyleNodeID>,
+        counters: &mut Counters,
+    ) -> Vec<RuleMatch> {
+        let mut effects = AnswerEffects::default();
+        let result = self.matches_for_cascade(
+            &mut effects,
+            all,
+            can_have_scope_duplicates,
+            publish_winners_for,
+            counters,
+        );
+        self.install_answer_effects(effects);
+        result
+    }
+
     pub(super) fn matches_for_cascade(
         &mut self,
+        effects: &mut AnswerEffects,
         mut all: Vec<RuleMatch>,
         can_have_scope_duplicates: bool,
         publish_winners_for: Option<StyleNodeID>,
         counters: &mut Counters,
     ) -> Vec<RuleMatch> {
-        self.compact_matches_for_cascade(&mut all, can_have_scope_duplicates, publish_winners_for, counters);
+        self.compact_matches_for_cascade(
+            effects,
+            &mut all,
+            can_have_scope_duplicates,
+            publish_winners_for,
+            counters,
+        );
         all
     }
 
     pub(super) fn matches_for_cascade_with_scratch(
         &mut self,
+        effects: &mut AnswerEffects,
         mut all: Vec<RuleMatch>,
         can_have_scope_duplicates: bool,
         publish_winners_for: Option<StyleNodeID>,
@@ -862,6 +916,7 @@ impl StyleEngineState {
         counters: &mut Counters,
     ) -> Vec<RuleMatch> {
         self.compact_matches_for_cascade_with_scratch(
+            effects,
             &mut all,
             can_have_scope_duplicates,
             publish_winners_for,
@@ -935,6 +990,7 @@ impl StyleEngineState {
     /// upquery over rule identities rather than another selector match or whole-cascade reduction.
     pub(super) fn apply_cascade_winner_match_deltas(
         &mut self,
+        effects: &mut AnswerEffects,
         node: StyleNodeID,
         matches: &[RuleMatch],
         deltas: &[SelectorTruthDelta],
@@ -949,12 +1005,16 @@ impl StyleEngineState {
             }
         }
         targets.into_iter().all(|target| {
-            self.apply_cascade_winner_match_deltas_for_target(node, matches, deltas, target, candidates, counters)
+            self.apply_cascade_winner_match_deltas_for_target(
+                effects, node, matches, deltas, target, candidates, counters,
+            )
         })
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn apply_cascade_winner_match_deltas_for_target(
         &mut self,
+        effects: &mut AnswerEffects,
         node: StyleNodeID,
         matches: &[RuleMatch],
         deltas: &[SelectorTruthDelta],
@@ -969,7 +1029,7 @@ impl StyleEngineState {
             || WinnerGroupKey::current(node, self.program.version()),
             |pseudo| WinnerGroupKey::current_pseudo(node, pseudo, self.program.version()),
         );
-        let Some((_, previous)) = self.winner_groups.token_for(key).sparse().ok() else {
+        let Some((_, previous)) = effects.winners.view(&self.winner_groups).token_for(key).sparse().ok() else {
             return false;
         };
 
@@ -1073,10 +1133,22 @@ impl StyleEngineState {
         let (state, _) =
             self.with_cascade_interning_counters(|groups| groups.apply_property_updates(previous, &updates), counters);
         let published = if let Some(pseudo) = pseudo {
-            self.winner_groups
-                .set_pseudo(node, pseudo, state, self.program.version())
+            effects.winners.set_pseudo(
+                &mut self.winner_groups,
+                node,
+                pseudo,
+                state,
+                self.program.version(),
+                &mut self.memory,
+            )
         } else {
-            self.winner_groups.set(node, state, self.program.version())
+            effects.winners.set(
+                &mut self.winner_groups,
+                node,
+                state,
+                self.program.version(),
+                &mut self.memory,
+            )
         };
         self.winner_groups.settle_memory(&mut self.memory);
         if published {

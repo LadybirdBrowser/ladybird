@@ -376,8 +376,12 @@ impl StyleEngine {
         can_have_scope_duplicates: bool,
         publish_winners_for: Option<StyleNodeID>,
     ) -> Vec<RuleMatch> {
-        self.state
-            .matches_for_cascade(all, can_have_scope_duplicates, publish_winners_for, &mut self.counters)
+        self.state.matches_for_cascade_immediately(
+            all,
+            can_have_scope_duplicates,
+            publish_winners_for,
+            &mut self.counters,
+        )
     }
 
     /// Repair only the winner properties named by signed match changes.
@@ -393,8 +397,17 @@ impl StyleEngine {
         deltas: &[SelectorTruthDelta],
         candidates: &mut Vec<OrderedCascadeCandidate>,
     ) -> bool {
-        self.state
-            .apply_cascade_winner_match_deltas(node, matches, deltas, candidates, &mut self.counters)
+        let mut effects = AnswerEffects::default();
+        let result = self.state.apply_cascade_winner_match_deltas(
+            &mut effects,
+            node,
+            matches,
+            deltas,
+            candidates,
+            &mut self.counters,
+        );
+        self.state.install_answer_effects(effects);
+        result
     }
 
     /// Exactly match every style node in the document scope against the attached program.
@@ -878,8 +891,12 @@ impl StyleEngine {
     #[inline]
     #[cfg(test)]
     pub(super) fn verify_retained_cascade_input(&mut self, node: StyleNodeID, cascade_input: MatchAnswerID) {
+        let traversal = self.state.batch_matching_traversal.take();
+        let empty = AnswerEffects::default();
+        let effects = traversal.as_ref().map_or(&empty, |traversal| &traversal.answer_effects);
         self.state
-            .verify_retained_cascade_input(node, cascade_input, &mut self.counters);
+            .verify_retained_cascade_input(effects, node, cascade_input, &mut self.counters);
+        self.state.batch_matching_traversal = traversal;
     }
 
     #[inline]

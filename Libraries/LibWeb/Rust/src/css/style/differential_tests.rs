@@ -15,6 +15,7 @@ use super::batch_matcher::BatchMatcher;
 use super::batch_matcher::RuleMatch;
 use super::batch_matcher::RuleMatches;
 use super::cascade::PropertyWinner;
+use super::cascade::WinnerGroupKey;
 use super::computed::ComputedMetadataInput;
 use super::fast_hash::fast_hasher;
 use super::index::DispatchCandidateWorkspace;
@@ -684,6 +685,7 @@ fn incomplete_answer_batches_preserve_pending_lookups_and_release_ownership() {
         for &node in &nodes {
             let state = &mut workload.engine.state;
             state.retained_match_answers.forget(&mut state.match_answers, node);
+            state.winner_groups.remove(node);
         }
         // NB: Deliberately leave the final subject's fact row unavailable. Earlier
         //     subjects can complete without it, in descending identity order.
@@ -696,6 +698,7 @@ fn incomplete_answer_batches_preserve_pending_lookups_and_release_ownership() {
                 .is_err()
         );
         assert!(workload.engine.match_answers.pending_reference_count() > 0);
+        assert!(workload.engine.winner_groups.pending_reference_count() > 0);
         for index in 0..2 {
             assert!(
                 workload
@@ -709,6 +712,12 @@ fn incomplete_answer_batches_preserve_pending_lookups_and_release_ownership() {
                 expected[index]
             );
             assert!(workload.engine.published_match_answer_signature(nodes[index]).is_some());
+            let key = WinnerGroupKey::current(nodes[index], workload.engine.program.version());
+            assert!(matches!(workload.engine.winner_groups.lookup(key), Lookup::Missing(_)));
+            assert!(matches!(
+                workload.engine.current_winner_groups().lookup(key),
+                Lookup::Known(_)
+            ));
         }
         if discard {
             workload
@@ -716,6 +725,7 @@ fn incomplete_answer_batches_preserve_pending_lookups_and_release_ownership() {
                 .state
                 .discard_published_match_answers(&mut workload.engine.counters);
             assert_eq!(workload.engine.match_answers.pending_reference_count(), 0);
+            assert_eq!(workload.engine.winner_groups.pending_reference_count(), 0);
             for &node in &nodes[..2] {
                 assert!(workload.engine.state.current_published_answer(node).is_none());
                 assert!(workload.engine.retained_match_answers.answer_identity(node).is_none());
@@ -742,6 +752,7 @@ fn incomplete_answer_batches_preserve_pending_lookups_and_release_ownership() {
         }
         workload.engine.end_cold_matching_batch();
         assert_eq!(workload.engine.match_answers.pending_reference_count(), 0);
+        assert_eq!(workload.engine.winner_groups.pending_reference_count(), 0);
         if !discard {
             for &node in &nodes {
                 assert!(workload.engine.retained_match_answers.answer_identity(node).is_some());

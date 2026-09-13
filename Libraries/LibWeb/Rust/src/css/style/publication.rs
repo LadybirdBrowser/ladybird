@@ -203,7 +203,7 @@ impl StyleEngineState {
             || WinnerGroupKey::current(target.node(), self.program.version()),
             |pseudo| WinnerGroupKey::current_pseudo(target.node(), pseudo, self.program.version()),
         );
-        let Lookup::Known((_, state)) = self.winner_groups.token_for(key) else {
+        let Lookup::Known((_, state)) = self.current_winner_groups().token_for(key) else {
             return None;
         };
 
@@ -364,7 +364,7 @@ impl StyleEngineState {
         }
         let uses_substitution = self.nodes_with_substituted_records.contains(&node)
             || self
-                .winner_groups
+                .current_winner_groups()
                 .pseudo_states(node)
                 .any(|(_, version, state, priority_current)| {
                     version == self.program.version() && priority_current && self.state_has_substitutions(node, state)
@@ -407,7 +407,7 @@ impl StyleEngineState {
         // The winners the record was computed from, against the winners the node holds now: the
         // same comparison a C++ publication makes to select what it recomputes.
         let (generation, state) = match self
-            .winner_groups
+            .current_winner_groups()
             .token_for(WinnerGroupKey::current(node, self.program.version()))
         {
             Lookup::Known(token) => token,
@@ -535,7 +535,7 @@ impl StyleEngineState {
             // the cascade of the node's current answer. Anything else recomputes in C++.
             let flips_are_reflected = exact_flipped_rules.is_some_and(|flipped| {
                 !flipped.iter().any(|flip| flip.pseudo_kind.is_none())
-                    || self.winner_groups.row_stamp(node) == Some(self.flush_stamp)
+                    || self.current_winner_groups().row_stamp(node) == Some(self.flush_stamp)
             });
             if !flips_are_reflected {
                 counters.bump(Counter::EngineComputedRecordBailUnchangedWinners);
@@ -1443,7 +1443,7 @@ impl StyleEngineState {
             return 0;
         }
         let Lookup::Known(cascade_state) = self
-            .winner_groups
+            .current_winner_groups()
             .token_for(WinnerGroupKey::current(node, self.program.version()))
         else {
             return 0;
@@ -1930,7 +1930,7 @@ impl StyleEngineState {
     /// the engine cannot see the spelling of.
     pub(super) fn node_explicitly_inherits_non_inherited_property(&self, node: StyleNodeID) -> bool {
         let Lookup::Known((_, state)) = self
-            .winner_groups
+            .current_winner_groups()
             .token_for(WinnerGroupKey::current(node, self.program.version()))
         else {
             return false;
@@ -2337,7 +2337,7 @@ impl StyleEngineState {
     pub(super) fn winner_delta_is_engine_confined(&self, node: StyleNodeID) -> bool {
         let target = computed::ComputedStyleTarget::new(node, u8::MAX);
         let Lookup::Known((generation, state)) = self
-            .winner_groups
+            .current_winner_groups()
             .token_for(WinnerGroupKey::current(node, self.program.version()))
         else {
             return false;
@@ -2862,7 +2862,7 @@ impl StyleEngineState {
             || WinnerGroupKey::current(target.node(), self.program.version()),
             |pseudo| WinnerGroupKey::current_pseudo(target.node(), pseudo, self.program.version()),
         );
-        let Lookup::Known((_, state)) = self.winner_groups.token_for(key) else {
+        let Lookup::Known((_, state)) = self.current_winner_groups().token_for(key) else {
             return Vec::new();
         };
 
@@ -3014,7 +3014,7 @@ impl StyleEngineState {
             |pseudo| WinnerGroupKey::current_pseudo(target.node(), pseudo, self.program.version()),
         );
         let lower_bound_state = self
-            .winner_groups
+            .current_winner_groups()
             .token_for(winner_key)
             .sparse()
             .ok()
@@ -3482,7 +3482,7 @@ impl StyleEngineState {
         }
         verify_cascade_winners(self, |engine| {
             if let Lookup::Known(current) = engine
-                .winner_groups
+                .current_winner_groups()
                 .token_for(WinnerGroupKey::current(node, engine.program.version()))
             {
                 assert_eq!(
@@ -3503,7 +3503,7 @@ impl StyleEngineState {
         bound: (u64, CascadeStateID),
     ) -> Option<(u64, CascadeStateID)> {
         match self
-            .winner_groups
+            .current_winner_groups()
             .token_for(WinnerGroupKey::current(node, self.program.version()))
         {
             Lookup::Known(current) if current == bound => Some(current),
@@ -3562,7 +3562,7 @@ impl StyleEngineState {
             return;
         }
         let (generation, state) = match self
-            .winner_groups
+            .current_winner_groups()
             .token_for(WinnerGroupKey::current(node, self.program.version()))
         {
             Lookup::Known(state) => state,
