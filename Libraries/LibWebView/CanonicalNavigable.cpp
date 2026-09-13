@@ -314,19 +314,63 @@ void CanonicalNavigable::set_remote_host(NonnullRefPtr<WebContentClient> remote_
 
 void CanonicalNavigable::detach_remote_host()
 {
-    if (has_remote_host()) {
-        m_remote_client->async_set_page_parent_context(m_remote_page_id, {});
-        m_remote_client->async_discard_embedded_page(m_remote_page_id);
-        // The page stops being a history job endpoint now; queued history work must not start against it. Its
-        // client outlives the discard acknowledgement, so a shared process is not closed under the page.
-        m_remote_client->prepare_for_detached_close(m_remote_page_id);
-        m_remote_client->unregister_embedded_page(m_remote_page_id);
-        top_level_traversable().did_lose_history_job_endpoint(*m_remote_client, m_remote_page_id);
-    }
+    if (has_remote_host())
+        discard_embedded_page(*m_remote_client, m_remote_page_id);
 
     m_host_locality = HostLocality::Local;
     m_remote_client = nullptr;
     m_remote_page_id = 0;
+}
+
+void CanonicalNavigable::discard_embedded_page(NonnullRefPtr<WebContentClient> client, Web::PageId page_id)
+{
+    client->async_set_page_parent_context(page_id, {});
+    client->async_discard_embedded_page(page_id);
+    // The page stops being a history job endpoint now; queued history work must not start against it. Its
+    // client outlives the discard acknowledgement, so a shared process is not closed under the page.
+    client->prepare_for_detached_close(page_id);
+    client->unregister_embedded_page(page_id);
+    top_level_traversable().did_lose_history_job_endpoint(*client, page_id);
+}
+
+bool CanonicalNavigable::pending_host_matches(WebContentClient const& client, Web::PageId page_id) const
+{
+    return m_pending_host_client.ptr() == &client && m_pending_host_page_id == page_id;
+}
+
+WebContentClient& CanonicalNavigable::pending_host_client() const
+{
+    VERIFY(m_pending_host_client);
+    return *m_pending_host_client;
+}
+
+void CanonicalNavigable::set_pending_host(NonnullRefPtr<WebContentClient> client, Web::PageId page_id)
+{
+    discard_pending_host();
+    m_pending_host_client = move(client);
+    m_pending_host_page_id = page_id;
+}
+
+void CanonicalNavigable::clear_pending_host()
+{
+    m_pending_host_client = nullptr;
+    m_pending_host_page_id = 0;
+}
+
+void CanonicalNavigable::discard_pending_host()
+{
+    auto client = move(m_pending_host_client);
+    auto page_id = exchange(m_pending_host_page_id, 0);
+    if (!client)
+        return;
+
+    // Only a page created for the next document is discarded. The page holding the container and the page
+    // hosting the displayed document stay, whichever document they were to display next.
+    if (client.ptr() == m_reporting_client.ptr() && page_id == m_reporting_page_id)
+        return;
+    if (has_remote_host() && client.ptr() == m_remote_client.ptr() && page_id == m_remote_page_id)
+        return;
+    discard_embedded_page(client.release_nonnull(), page_id);
 }
 
 void CanonicalNavigable::set_viewport(Web::DevicePixelRect viewport_rect, double device_pixel_ratio)
@@ -454,6 +498,8 @@ void CanonicalNavigable::clear_ongoing_navigation()
     // NB: The navigation this covered has either been announced, and is held below, or is not coming.
     m_pending_navigation_blob_url = {};
     m_navigation_blob_url = {};
+
+    discard_pending_host();
 }
 
 BlobURLStore* CanonicalNavigable::blob_url_store() const
