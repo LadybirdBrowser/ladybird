@@ -22,6 +22,7 @@ use super::capacity::capacity_bytes;
 use super::fast_hash::FastMap as HashMap;
 use super::fast_hash::fast_hasher;
 use super::selector::SelectorPrefixPredicate;
+use super::shared_vector::{PagedSharedVector, SharedVectorPool};
 use std::collections::hash_map::Entry;
 use std::hash::Hash;
 use std::hash::Hasher;
@@ -169,7 +170,7 @@ enum PrefixPredicateKey {
 
 // Keep common class and ID tests in compact rows. Larger tag and attribute payloads
 // live in separate flat arrays, with no per-test allocation.
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 enum PrefixFeature {
     AnyElement,
     TagName(u32),
@@ -214,7 +215,7 @@ impl PrefixFeature {
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 enum PrefixPredicate {
     Features {
         feature_start: u32,
@@ -228,7 +229,7 @@ enum PrefixPredicate {
     },
 }
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, Eq, Hash)]
 struct PrefixCompound {
     predicate: PrefixPredicate,
     dispatch_key: DispatchKey,
@@ -326,13 +327,20 @@ struct PrefixDispatchBucket {
     end_step: u32,
 }
 
+thread_local! {
+    static SHARED_PREFIX_COMPOUNDS: std::cell::RefCell<SharedVectorPool<PrefixCompound>> =
+        std::cell::RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
+    static SHARED_PREFIX_FEATURES: std::cell::RefCell<SharedVectorPool<PrefixFeature>> =
+        std::cell::RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
+}
+
 /// Immutable prefix program attached to one selector dispatch.
 #[derive(Clone, Default)]
 pub(super) struct PrefixAutomaton {
     relation_program: std::cell::OnceCell<std::rc::Rc<relation::PrefixRelationProgram>>,
-    compounds: Vec<PrefixCompound>,
+    compounds: PagedSharedVector<PrefixCompound>,
     compound_ids: HashMap<PrefixPredicateKey, PrefixCompoundID>,
-    features: Vec<PrefixFeature>,
+    features: PagedSharedVector<PrefixFeature>,
     tag_tests: Vec<TagTest>,
     attribute_tests: Vec<AttributeTest>,
     steps: Vec<PrefixStep>,
@@ -761,6 +769,8 @@ impl PrefixAutomaton {
         // have exact capacity. Spare builder capacity in the retained template is unused.
         self.compounds.shrink_to_fit();
         self.features.shrink_to_fit();
+        self.compounds.share(&SHARED_PREFIX_COMPOUNDS);
+        self.features.share(&SHARED_PREFIX_FEATURES);
         self.tag_tests.shrink_to_fit();
         self.attribute_tests.shrink_to_fit();
         self.outputs.shrink_to_fit();
@@ -806,8 +816,8 @@ impl PrefixAutomaton {
 
     fn features_for(&self, start: u32, len: u32) -> impl Iterator<Item = FeatureTest> + '_ {
         let start = start as usize;
-        self.features[start..start + len as usize]
-            .iter()
+        self.features
+            .range(start..start + len as usize)
             .map(|feature| feature.feature(&self.tag_tests, &self.attribute_tests))
     }
 
