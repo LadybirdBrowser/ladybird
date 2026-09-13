@@ -55,6 +55,8 @@ class ConnectionFromClient final
     : public IPC::ConnectionFromClient<WebContentClientEndpoint, WebContentServerEndpoint> {
     C_OBJECT(ConnectionFromClient);
 
+    friend class TestConnection;
+
 public:
     ~ConnectionFromClient() override;
 
@@ -72,6 +74,9 @@ public:
 #if defined(HAVE_WASM_COMPILER_SERVICE)
     Function<void(IPC::TransportHandle)> on_wasm_compiler_connection;
 #endif
+
+    // Null outside test mode: the UI process connects the test endpoint only when it runs tests.
+    TestConnection* test_connection();
 
     Queue<Web::QueuedInputEvent>& input_event_queue() { return m_input_event_queue; }
     void update_input_method_state(u64 page_id);
@@ -95,6 +100,7 @@ private:
     virtual void run_webdriver_user_prompt_handling(u64 page_id, u64 request_id) override;
     virtual void connect_to_web_ui(u64 page_id, IPC::TransportHandle handle) override;
     virtual void connect_to_request_server(IPC::TransportHandle handle) override;
+    virtual void connect_to_test_endpoint(IPC::TransportHandle handle) override;
     virtual void connect_to_image_decoder(IPC::TransportHandle handle) override;
     virtual void connect_to_wasm_compiler(IPC::TransportHandle handle) override;
     virtual void connect_to_compositor_process(IPC::TransportHandle handle) override;
@@ -126,7 +132,6 @@ private:
     virtual void run_traversable_close_unload_task(u64 page_id, Web::HTML::CrossProcessId operation_id) override;
     virtual void update_nonchanging_navigable_history_state(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index) override;
     virtual void complete_history_operation(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Optional<i32> committed_step, u64 session_history_entry_count) override;
-    virtual void reset_session_history_for_testing(u64 page_id) override;
     virtual void set_viewport(u64 page_id, Web::DevicePixelSize, double device_pixel_ratio, Web::ViewportIsFullscreen is_fullscreen) override;
     virtual void key_event(u64 page_id, Web::KeyEvent) override;
     virtual void mouse_event(u64 page_id, Web::MouseEvent) override;
@@ -277,6 +282,7 @@ private:
 
     virtual void exit_fullscreen(u64 page_id) override;
 
+    RefPtr<TestConnection> m_test_connection;
     RefPtr<WebView::CompositorConnection> m_compositor_connection;
     NonnullOwnPtr<PageHost> m_page_host;
     OwnPtr<DevToolsDebugger> m_devtools_debugger;

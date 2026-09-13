@@ -93,6 +93,7 @@
 #include <WebContent/DevToolsDebugger.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/PageHost.h>
+#include <WebContent/TestConnection.h>
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebContentCompositorHost.h>
 
@@ -374,6 +375,19 @@ void ConnectionFromClient::connect_to_request_server(IPC::TransportHandle handle
         on_request_server_connection(handle);
 }
 
+TestConnection* ConnectionFromClient::test_connection()
+{
+    if (m_test_connection)
+        m_test_connection->prepare_to_send();
+    return m_test_connection;
+}
+
+void ConnectionFromClient::connect_to_test_endpoint(IPC::TransportHandle handle)
+{
+    auto transport = MUST(handle.create_transport());
+    m_test_connection = TestConnection::construct(move(transport), *this);
+}
+
 void ConnectionFromClient::update_system_theme(u64 page_id, Core::AnonymousBuffer theme_buffer)
 {
     auto page = this->page(page_id);
@@ -618,16 +632,6 @@ void ConnectionFromClient::complete_history_operation(u64 page_id, Web::HTML::Cr
     if (auto* traversable = as_if<Web::HTML::LocalTraversableNavigable>(*page->page().local_root_navigable()))
         traversable->set_session_history_entry_count(session_history_entry_count);
     page->page().history_executor().complete_ui_history_operation(operation_id, result, committed_step);
-}
-
-void ConnectionFromClient::reset_session_history_for_testing(u64 page_id)
-{
-    if (auto page = this->page(page_id); page.has_value()) {
-        as<Web::HTML::LocalTraversableNavigable>(*page->page().local_root_navigable()).reset_session_history_for_testing();
-        auto active_entry = page->page().local_root_navigable()->active_session_history_entry();
-        VERIFY(active_entry);
-        async_did_reset_session_history_for_testing(page_id, Web::HTML::create_session_history_entry_descriptor(*active_entry));
-    }
 }
 
 void ConnectionFromClient::set_viewport(u64 page_id, Web::DevicePixelSize size, double device_pixel_ratio, Web::ViewportIsFullscreen is_fullscreen)

@@ -1,0 +1,4 @@
+endpoint WebContentTestServer
+{
+    reset_session_history_for_testing(u64 page_id) =|
+}

@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/Atomic.h>
 #include <AK/Function.h>
 #include <AK/ScopeGuard.h>
@@ -29,6 +30,37 @@ static void spin_until(Core::EventLoop& loop, Function<bool()> condition, AK::Du
     }
 
     FAIL("Timed out waiting for condition");
+}
+
+TEST_CASE(receive_barrier_does_not_wait_for_an_incomplete_frame)
+{
+    int fds[2] {};
+    TRY_OR_FAIL(Core::System::socketpair(AF_LOCAL, SOCK_STREAM, 0, fds));
+    ScopeGuard close_sender = [&] { MUST(Core::System::close(fds[1])); };
+    auto socket = TRY_OR_FAIL(Core::LocalSocket::adopt_fd(fds[0]));
+    MUST(socket->set_blocking(false));
+    IPC::TransportSocket transport(move(socket));
+
+    IPC::SocketMessageHeader header {
+        .type = IPC::SocketMessageHeader::Type::Payload,
+        .payload_size = 1,
+        .fd_count = 0,
+    };
+    auto header_bytes = ReadonlyBytes { reinterpret_cast<u8 const*>(&header), sizeof(header) };
+    EXPECT_EQ(TRY_OR_FAIL(Core::System::write(fds[1], header_bytes.slice(0, 1))), 1uz);
+    transport.wait_until_incoming_is_current();
+    transport.wait_until_incoming_is_current();
+
+    EXPECT_EQ(TRY_OR_FAIL(Core::System::write(fds[1], header_bytes.slice(1))), sizeof(header) - 1);
+    Array<u8, 1> payload { 'A' };
+    EXPECT_EQ(TRY_OR_FAIL(Core::System::write(fds[1], payload)), 1uz);
+    transport.wait_until_incoming_is_current();
+    size_t received = 0;
+    (void)transport.read_as_many_messages_as_possible_without_blocking([&](auto&& message) {
+        EXPECT_EQ(message.bytes.bytes()[0], static_cast<u8>('A'));
+        ++received;
+    });
+    EXPECT_EQ(received, 1uz);
 }
 
 TEST_CASE(send_queue_does_not_send_message_bytes_without_fds)
@@ -223,6 +255,9 @@ TEST_CASE(buffered_message_is_drained_when_io_thread_stops_without_reading_it)
     auto reader_socket = TRY_OR_FAIL(Core::LocalSocket::adopt_fd(fds[0]));
     MUST(reader_socket->set_blocking(false));
     IPC::TransportSocket transport(move(reader_socket));
+
+    // The receive barrier must include the loop-exit drain, even after the IO thread stops.
+    transport.wait_until_incoming_is_current();
 
     IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<u32> delivered = 0;
     IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> observed_shutdown = false;

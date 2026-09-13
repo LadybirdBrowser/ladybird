@@ -42,6 +42,11 @@ public:
 
     void wait_until_readable();
 
+    // Both are no-ops here: post_message() writes to the socket before it returns, and the read path below reads the
+    // socket itself, so neither direction has a queue that can lag behind another transport.
+    void flush() { }
+    void wait_until_incoming_is_current() { }
+
     ErrorOr<void> post_message(MessageDataType, Vector<Attachment>& attachments);
 
     enum class ShouldShutdown {

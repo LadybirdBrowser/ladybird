@@ -53,6 +53,12 @@ public:
 
     void wait_until_readable();
 
+    // Wait until everything posted so far has been handed to the kernel.
+    void flush();
+
+    // Wait until everything the peer has already sent has been parsed into the incoming queue.
+    void wait_until_incoming_is_current();
+
     ErrorOr<void> post_message(MessageDataType, Vector<Attachment>& attachments);
 
     enum class ShouldShutdown {
@@ -71,6 +77,7 @@ private:
     static constexpr unsigned int IPC_DATA_MESSAGE_ID = 0x4950C001;
     static constexpr unsigned int IPC_INLINE_DATA_MESSAGE_ID = 0x4950C002;
     static constexpr unsigned int IPC_WAKEUP_MESSAGE_ID = 0x4950C003;
+    static constexpr unsigned int IPC_RECEIVE_BARRIER_MESSAGE_ID = 0x4950C004;
 
     struct PendingMessage {
         MessageDataType bytes;
@@ -89,6 +96,7 @@ private:
     bool schedule_read_notification_if_needed_locked();
     void write_read_notification_byte();
     void mark_peer_eof();
+    void release_send_waiters();
     void send_mach_message(PendingMessage&);
     void process_received_message(u8* buffer);
 
@@ -109,11 +117,17 @@ private:
 
     Vector<PendingMessage> m_pending_send_messages;
     Sync::Mutex m_send_mutex;
+    Sync::ConditionVariable m_sent_cv { m_send_mutex };
+    // True while the IO thread is sending a batch it has already taken off m_pending_send_messages.
+    bool m_send_in_progress { false };
+    bool m_send_waiters_released { false };
     Vector<u8> m_send_buffer;
 
     Sync::Mutex m_incoming_mutex;
     Sync::ConditionVariable m_incoming_cv { m_incoming_mutex };
     Vector<NonnullOwnPtr<Message>> m_incoming_messages;
+    u64 m_receive_barriers_sent { 0 };
+    u64 m_receive_barriers_received { 0 };
     bool m_read_notification_pending { false };
 
     RefPtr<AutoCloseFileDescriptor> m_notify_hook_read_fd;

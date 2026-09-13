@@ -1,0 +1,21 @@
+#include <LibWeb/HTML/SessionHistoryEntry.h>
+
+endpoint WebContentTestClient
+{
+    did_finish_test(u64 page_id, String text) =|
+    did_set_test_timeout(u64 page_id, double milliseconds) =|
+    did_receive_reference_test_metadata(u64 page_id, JsonValue result) =|
+
+    did_expire_cookies_with_time_offset(AK::Duration offset) => ()
+    did_simulate_worker_request_server_connection_loss(u64 page_id) => ()
+
+    did_request_ui_process_session_history_for_testing(u64 page_id) => (String session_history)
+    did_request_site_isolation_process_tree_for_testing(u64 page_id) => (String process_tree)
+    did_request_crash_of_remote_frame_processes_for_testing(u64 page_id) =|
+
+    did_reset_session_history_for_testing(u64 page_id, Web::HTML::SessionHistoryEntryDescriptor active_entry) =|
+    did_request_capture_session_history_snapshot_for_testing(u64 page_id) => (bool captured)
+    did_request_restore_session_history_snapshot_for_testing(u64 page_id) => (bool restored)
+    did_request_register_session_store_tab_for_testing(u64 page_id) => (bool registered)
+    did_request_session_store_tab_state_for_testing(u64 page_id) => (String state)
+}

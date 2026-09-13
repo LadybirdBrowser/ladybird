@@ -160,14 +160,12 @@ endpoint WebContentClient
     did_request_cookie(u64 page_id, URL::URL url, HTTP::Cookie::Source source) => (HTTP::Cookie::VersionedCookie cookie)
     did_set_cookie(URL::URL url, HTTP::Cookie::ParsedCookie cookie, HTTP::Cookie::Source source) => ()
     did_update_cookie(HTTP::Cookie::Cookie cookie) =|
-    did_expire_cookies_with_time_offset(AK::Duration offset) =|
     did_request_delete_all_cookies(u64 page_id, u64 request_id, URL::URL url) =|
 
     did_store_hsts_policy(String domain, HTTP::HSTS::ParsedHSTSPolicy policy) =|
     did_is_known_hsts_host(String domain) => (bool result)
 
     did_lose_request_server_connection() => (Optional<IPC::TransportHandle> handle)
-    did_simulate_worker_request_server_connection_loss(u64 page_id) => ()
 
     did_request_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key) => (Optional<Utf16String> value)
     did_set_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key, Utf16String value) => (WebView::StorageSetResult result)
@@ -216,9 +214,6 @@ endpoint WebContentClient
     did_update_session_history_entry_document_state_navigable_target_name(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Utf16String navigable_target_name) =|
     did_set_session_history_entry_document_state_reload_pending(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, bool reload_pending) =|
     did_request_set_system_visibility_state(u64 page_id, Web::HTML::VisibilityState visibility_state) =|
-    did_request_ui_process_session_history_for_testing(u64 page_id) => (String session_history)
-    did_request_site_isolation_process_tree_for_testing(u64 page_id) => (String process_tree)
-    did_request_crash_of_remote_frame_processes_for_testing(u64 page_id) =|
     request_history_operation(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters parameters) =|
     history_operation_ready(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationReadyResult result) =|
     history_step_unload_cancelation_result(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) =|
@@ -229,11 +224,6 @@ endpoint WebContentClient
     request_child_navigable_unload(u64 page_id, Web::HTML::CrossProcessId navigable_id) =|
     changing_navigable_continuation_applied(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) =|
     nonchanging_navigable_history_state_updated(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) =|
-    did_reset_session_history_for_testing(u64 page_id, Web::HTML::SessionHistoryEntryDescriptor active_entry) =|
-    did_request_capture_session_history_snapshot_for_testing(u64 page_id) => (bool captured)
-    did_request_restore_session_history_snapshot_for_testing(u64 page_id) => (bool restored)
-    did_request_register_session_store_tab_for_testing(u64 page_id) => (bool registered)
-    did_request_session_store_tab_state_for_testing(u64 page_id) => (String state)
 
     did_change_audio_play_state(u64 page_id, Web::HTML::AudioPlayState play_state) =|
     did_change_screen_wake_lock_state(u64 page_id, Web::ScreenWakeLockState wake_lock_state) =|
@@ -245,10 +235,6 @@ endpoint WebContentClient
     did_receive_network_response_headers(u64 page_id, u64 request_id, u32 status_code, Optional<String> reason_phrase, Vector<HTTP::Header> response_headers, Requests::CameFromCache came_from_cache) =|
     did_receive_network_response_body(u64 page_id, u64 request_id, ByteBuffer data) =|
     did_finish_network_request(u64 page_id, u64 request_id, u64 body_size, Requests::RequestTimingInfo timing_info, Optional<Requests::NetworkError> network_error) =|
-
-    did_finish_test(u64 page_id, String text) =|
-    did_set_test_timeout(u64 page_id, double milliseconds) =|
-    did_receive_reference_test_metadata(u64 page_id, JsonValue result) =|
 
     did_set_browser_zoom(u64 page_id, double factor) =|
 

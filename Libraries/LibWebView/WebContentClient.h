@@ -65,6 +65,8 @@ class WEBVIEW_API WebContentClient final
     , public WebContentClientEndpoint {
     C_OBJECT_ABSTRACT(WebContentClient);
 
+    friend class WebContentTestClient;
+
 public:
     using InitTransport = Messages::WebContentServer::InitTransport;
 
@@ -90,6 +92,10 @@ public:
     IsPrivate is_private() const { return m_is_private; }
     BrowsingSession& session() const { return *m_session; }
     void remove_blob_url_entries();
+
+    void connect_test_endpoint(NonnullOwnPtr<IPC::Transport>);
+    // Null outside test mode: the test endpoint is only connected when the UI process runs tests.
+    WebContentTestClient* test_connection() { return m_test_connection; }
 
     void assign_view(Badge<Application>, ViewImplementation&);
     void set_initial_top_level_history_entry(Badge<Application>, Web::HTML::SessionHistoryEntryDescriptor entry) { m_initial_top_level_history_entry = move(entry); }
@@ -155,6 +161,21 @@ private:
     void report_unexpected_debugger_response();
 
     virtual void die() override;
+
+    // Test-only handlers, reached over the separate test transport (see WebContentTestClient).
+    void did_finish_test(u64 page_id, String text);
+    void did_set_test_timeout(u64 page_id, double milliseconds);
+    void did_receive_reference_test_metadata(u64 page_id, JsonValue);
+    void did_expire_cookies_with_time_offset(AK::Duration);
+    void did_simulate_worker_request_server_connection_loss(u64 page_id);
+    String did_request_ui_process_session_history_for_testing(u64 page_id);
+    String did_request_site_isolation_process_tree_for_testing(u64 page_id);
+    void did_request_crash_of_remote_frame_processes_for_testing(u64 page_id);
+    void did_reset_session_history_for_testing(u64 page_id, Web::HTML::SessionHistoryEntryDescriptor);
+    bool did_request_capture_session_history_snapshot_for_testing(u64 page_id);
+    bool did_request_restore_session_history_snapshot_for_testing(u64 page_id);
+    bool did_request_register_session_store_tab_for_testing(u64 page_id);
+    String did_request_session_store_tab_state_for_testing(u64 page_id);
 
     virtual Messages::WebContentClient::AllocateCompositorContextIdResponse allocate_compositor_context_id(u64 page_id, Web::Compositor::PagePresentationRegistration) override;
     virtual void did_destroy_compositor_context(Web::Compositor::CompositorContextId) override;
@@ -243,12 +264,10 @@ private:
     virtual Messages::WebContentClient::DidRequestCookieResponse did_request_cookie(u64 page_id, URL::URL, HTTP::Cookie::Source) override;
     virtual void did_set_cookie(URL::URL, HTTP::Cookie::ParsedCookie, HTTP::Cookie::Source) override;
     virtual void did_update_cookie(HTTP::Cookie::Cookie) override;
-    virtual void did_expire_cookies_with_time_offset(AK::Duration) override;
     virtual void did_request_delete_all_cookies(u64 page_id, u64 request_id, URL::URL) override;
     virtual void did_store_hsts_policy(String, HTTP::HSTS::ParsedHSTSPolicy) override;
     virtual Messages::WebContentClient::DidIsKnownHstsHostResponse did_is_known_hsts_host(String) override;
     virtual Messages::WebContentClient::DidLoseRequestServerConnectionResponse did_lose_request_server_connection() override;
-    virtual void did_simulate_worker_request_server_connection_loss(u64 page_id) override;
     virtual Messages::WebContentClient::DidRequestStorageItemResponse did_request_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key) override;
     virtual Messages::WebContentClient::DidSetStorageItemResponse did_set_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key, Utf16String value) override;
     virtual void did_remove_storage_item(u64 page_id, Web::StorageAPI::StorageEndpointType storage_endpoint, String storage_key, Utf16String bottle_key) override;
@@ -282,9 +301,6 @@ private:
     virtual void did_request_select_dropdown(u64 page_id, Gfx::IntPoint content_position, i32 minimum_width, Vector<Web::HTML::SelectItem> items) override;
     virtual void did_finish_handling_input_event(u64 page_id, Web::EventResult event_result) override;
     virtual void did_update_input_method_state(u64 page_id, Optional<Web::DevicePixelRect> caret_rect, bool is_enabled, i32 cursor_position, i32 anchor_position, Utf16String text_before_cursor, Utf16String text_after_cursor) override;
-    virtual void did_finish_test(u64 page_id, String text) override;
-    virtual void did_set_test_timeout(u64 page_id, double milliseconds) override;
-    virtual void did_receive_reference_test_metadata(u64 page_id, JsonValue) override;
     virtual void did_set_browser_zoom(u64 page_id, double factor) override;
     virtual void did_find_in_page(u64 page_id, size_t current_match_index, Optional<size_t> total_match_count) override;
     virtual void did_change_theme_color(u64 page_id, Gfx::Color color) override;
@@ -300,9 +316,6 @@ private:
     virtual void did_update_session_history_entry_document_state_navigable_target_name(u64 page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity entry_identity, Utf16String navigable_target_name) override;
     virtual void did_set_session_history_entry_document_state_reload_pending(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_api_key, bool reload_pending) override;
     virtual void did_request_set_system_visibility_state(u64 page_id, Web::HTML::VisibilityState) override;
-    virtual Messages::WebContentClient::DidRequestUiProcessSessionHistoryForTestingResponse did_request_ui_process_session_history_for_testing(u64 page_id) override;
-    virtual Messages::WebContentClient::DidRequestSiteIsolationProcessTreeForTestingResponse did_request_site_isolation_process_tree_for_testing(u64 page_id) override;
-    virtual void did_request_crash_of_remote_frame_processes_for_testing(u64 page_id) override;
     virtual void request_history_operation(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters) override;
     virtual void history_operation_ready(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationReadyResult) override;
     virtual void history_step_unload_cancelation_result(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) override;
@@ -313,11 +326,6 @@ private:
     virtual void request_child_navigable_unload(u64 page_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void changing_navigable_continuation_applied(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) override;
     virtual void nonchanging_navigable_history_state_updated(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) override;
-    virtual void did_reset_session_history_for_testing(u64 page_id, Web::HTML::SessionHistoryEntryDescriptor) override;
-    virtual Messages::WebContentClient::DidRequestCaptureSessionHistorySnapshotForTestingResponse did_request_capture_session_history_snapshot_for_testing(u64 page_id) override;
-    virtual Messages::WebContentClient::DidRequestRestoreSessionHistorySnapshotForTestingResponse did_request_restore_session_history_snapshot_for_testing(u64 page_id) override;
-    virtual Messages::WebContentClient::DidRequestRegisterSessionStoreTabForTestingResponse did_request_register_session_store_tab_for_testing(u64 page_id) override;
-    virtual Messages::WebContentClient::DidRequestSessionStoreTabStateForTestingResponse did_request_session_store_tab_state_for_testing(u64 page_id) override;
     virtual Messages::WebContentClient::StartWorkerAgentResponse start_worker_agent(u64 page_id, Web::HTML::WorkerAgentStartRequest request) override;
     virtual void close_worker_agent(u64 page_id, Web::HTML::WorkerAgentId agent_id, Web::HTML::WorkerAgentOwnerToken owner_token) override;
 
@@ -328,6 +336,8 @@ private:
     bool is_renderer_owned_download(u64 page_id, u64 download_id) const;
     void forget_renderer_owned_download(u64 download_id);
     void fail_renderer_owned_downloads();
+
+    RefPtr<WebContentTestClient> m_test_connection;
 
     IsPrivate m_is_private { IsPrivate::No };
     RefPtr<BrowsingSession> m_session;

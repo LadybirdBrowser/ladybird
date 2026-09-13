@@ -5,6 +5,7 @@ set(SOURCES
     DevToolsDebugger.cpp
     PageClient.cpp
     PageHost.cpp
+    TestConnection.cpp
     WebContentCompositorHost.cpp
     WebContentConsoleClient.cpp
     WebDriverConnection.cpp

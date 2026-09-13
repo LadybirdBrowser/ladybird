@@ -10,6 +10,36 @@
 #include <LibIPC/TransportMachPort.h>
 #include <LibTest/TestCase.h>
 
+TEST_CASE(receive_barrier_publishes_preceding_messages)
+{
+    auto paired = TRY_OR_FAIL(IPC::TransportMachPort::create_paired());
+    auto peer = TRY_OR_FAIL(paired.remote_handle.create_transport());
+
+    for (size_t i = 0; i < 32; ++i) {
+        IPC::MessageDataType payload;
+        payload.append(static_cast<u8>(i));
+        Vector<IPC::Attachment> attachments;
+        TRY_OR_FAIL(paired.local->post_message(move(payload), attachments));
+        paired.local->flush();
+        peer->wait_until_incoming_is_current();
+
+        size_t received = 0;
+        (void)peer->read_as_many_messages_as_possible_without_blocking([&](IPC::TransportMachPort::Message&& message) {
+            EXPECT_EQ(message.bytes.bytes()[0], static_cast<u8>(i));
+            ++received;
+        });
+        EXPECT_EQ(received, 1uz);
+    }
+
+    // A barrier with no preceding messages must also complete.
+    peer->wait_until_incoming_is_current();
+    OwnPtr<IPC::TransportMachPort> sender = move(paired.local);
+    sender.clear();
+    peer->wait_until_readable();
+    EXPECT_EQ(peer->read_as_many_messages_as_possible_without_blocking([](auto&&) { }),
+        IPC::TransportMachPort::ShouldShutdown::Yes);
+}
+
 TEST_CASE(burst_to_not_yet_started_peer_is_delivered)
 {
     constexpr size_t message_count = 32;

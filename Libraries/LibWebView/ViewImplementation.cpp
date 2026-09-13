@@ -37,6 +37,7 @@
 #include <LibWebView/URL.h>
 #include <LibWebView/UserAgent.h>
 #include <LibWebView/ViewImplementation.h>
+#include <LibWebView/WebContentTestClient.h>
 
 namespace WebView {
 
@@ -2844,7 +2845,10 @@ NonnullRefPtr<Core::Promise<Empty>> ViewImplementation::reset_session_history_fo
     // entry so canonical history is reset before anything queued behind the reset runs.
     m_top_level_traversable.append_history_queue_steps([this](NonnullRefPtr<Core::Promise<Empty>> promise) {
         m_pending_session_history_reset_queue_promise = move(promise);
-        client().async_reset_session_history_for_testing(page_id());
+        if (auto* test_connection = client().test_connection()) {
+            client().transport().flush();
+            test_connection->async_reset_session_history_for_testing(page_id());
+        }
     });
     return *m_pending_session_history_reset_for_testing;
 }

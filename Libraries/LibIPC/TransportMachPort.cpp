@@ -5,6 +5,8 @@
  */
 
 #include <AK/NonnullOwnPtr.h>
+#include <AK/NumericLimits.h>
+#include <AK/Time.h>
 #include <LibCore/MachPort.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/System.h>
@@ -205,6 +207,61 @@ void TransportMachPort::write_read_notification_byte()
     (void)Core::System::write(m_notify_hook_write_fd->value(), bytes);
 }
 
+void TransportMachPort::release_send_waiters()
+{
+    Sync::MutexLocker locker(m_send_mutex);
+    m_send_waiters_released = true;
+    m_sent_cv.broadcast();
+}
+
+void TransportMachPort::flush()
+{
+    if (!m_is_open.load(AK::MemoryOrder::memory_order_relaxed))
+        return;
+
+    wake_io_thread();
+
+    Sync::MutexLocker locker(m_send_mutex);
+    while (!m_send_waiters_released && (!m_pending_send_messages.is_empty() || m_send_in_progress)) {
+        // The wakeup is best-effort, so re-arm it rather than wait forever if one is ever dropped.
+        if (!m_sent_cv.wait_for(AK::Duration::from_milliseconds(50)))
+            wake_io_thread();
+    }
+}
+
+void TransportMachPort::wait_until_incoming_is_current()
+{
+    Sync::MutexLocker locker(m_incoming_mutex);
+    if (m_peer_eof.load() || m_io_thread_state.load() != IOThreadState::Running)
+        return;
+
+    // NB: A marker on the same receive port follows all previously sent messages, including one the IO
+    //     thread has removed from the port but has not published yet. A send-once right preserves EOF detection
+    //     and bypasses the queue limit, so sending while holding m_incoming_mutex cannot block on a full port.
+    mach_port_t send_once_port = MACH_PORT_NULL;
+    mach_msg_type_name_t right_type = 0;
+    auto const extract_ret = mach_port_extract_right(mach_task_self(), m_receive_port.port(),
+        MACH_MSG_TYPE_MAKE_SEND_ONCE, &send_once_port, &right_type);
+    VERIFY(extract_ret == KERN_SUCCESS);
+    auto send_right = Core::MachPort::adopt_right(send_once_port, Core::MachPort::PortRight::SendOnce);
+    mach_msg_header_t header {};
+    header.msgh_bits = MACH_MSGH_BITS(MACH_MSG_TYPE_MOVE_SEND_ONCE, 0);
+    header.msgh_size = sizeof(header);
+    header.msgh_remote_port = send_right.port();
+    header.msgh_id = IPC_RECEIVE_BARRIER_MESSAGE_ID;
+    auto const ret = mach_msg(&header, MACH_SEND_MSG, sizeof(header), 0, MACH_PORT_NULL,
+        MACH_MSG_TIMEOUT_NONE, MACH_PORT_NULL);
+    VERIFY(ret == KERN_SUCCESS);
+    (void)send_right.release();
+    VERIFY(m_receive_barriers_sent < NumericLimits<u64>::max());
+    auto const barrier = ++m_receive_barriers_sent;
+    while (!m_peer_eof.load(AK::MemoryOrder::memory_order_relaxed)
+        && m_io_thread_state.load() == IOThreadState::Running
+        && m_receive_barriers_received < barrier) {
+        m_incoming_cv.wait();
+    }
+}
+
 void TransportMachPort::mark_peer_eof()
 {
     bool should_write_notification = false;
@@ -232,9 +289,16 @@ intptr_t TransportMachPort::io_thread_loop()
         {
             Sync::MutexLocker locker(m_send_mutex);
             messages_to_send = move(m_pending_send_messages);
+            if (!messages_to_send.is_empty())
+                m_send_in_progress = true;
         }
         for (auto& message : messages_to_send)
             send_mach_message(message);
+        if (!messages_to_send.is_empty()) {
+            Sync::MutexLocker locker(m_send_mutex);
+            m_send_in_progress = false;
+            m_sent_cv.broadcast();
+        }
 
         if (m_io_thread_state.load() == IOThreadState::SendPendingMessagesAndStop) {
             Sync::MutexLocker locker(m_send_mutex);
@@ -277,6 +341,12 @@ intptr_t TransportMachPort::io_thread_loop()
         VERIFY(header->msgh_local_port == m_receive_port.port());
 
         switch (header->msgh_id) {
+        case IPC_RECEIVE_BARRIER_MESSAGE_ID: {
+            Sync::MutexLocker locker(m_incoming_mutex);
+            ++m_receive_barriers_received;
+            m_incoming_cv.broadcast();
+            continue;
+        }
         case MACH_NOTIFY_NO_SENDERS:
             mark_peer_eof();
             continue;
@@ -292,6 +362,11 @@ intptr_t TransportMachPort::io_thread_loop()
     }
 
     VERIFY(m_io_thread_state == IOThreadState::Stopped);
+    release_send_waiters();
+    {
+        Sync::MutexLocker locker(m_incoming_mutex);
+        m_incoming_cv.broadcast();
+    }
     // Stopping for transfer tears down the old endpoint on purpose. Do not surface that as peer EOF;
     // the receive and send rights are about to be adopted by the new transport owner.
     if (!m_is_being_transferred.load(AK::MemoryOrder::memory_order_acquire))

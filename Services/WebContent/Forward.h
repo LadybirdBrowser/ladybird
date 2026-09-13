@@ -14,6 +14,7 @@ class DevToolsConsoleClient;
 class DevToolsDebugger;
 class PageHost;
 class PageClient;
+class TestConnection;
 class WebContentConsoleClient;
 class WebDriverConnection;
 class WebUIConnection;
