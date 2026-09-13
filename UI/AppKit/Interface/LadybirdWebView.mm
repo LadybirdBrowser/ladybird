@@ -454,7 +454,7 @@ static __weak LadybirdWebView* s_color_panel_owner;
         }
     };
 
-    m_web_view_bridge->on_web_content_crashed = [weak_self]() {
+    m_web_view_bridge->on_web_content_crashed = [weak_self](auto) {
         LadybirdWebView* self = weak_self;
         if (self == nil)
             return;

@@ -50,7 +50,7 @@ public:
 protected:
     HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSize viewport_size);
 
-    void propagate_web_content_crash();
+    void propagate_web_content_crash(WebContentCrashReason);
     void discard_child_web_view(HeadlessWebView&);
     void schedule_forced_close();
     void initialize_client(CreateNewClient, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {}) override;

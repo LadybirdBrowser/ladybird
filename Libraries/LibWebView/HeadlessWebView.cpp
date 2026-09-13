@@ -50,8 +50,8 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
 
         // Propagate crashes from child views to parent, so parent tests don't hang
         // waiting for a child that crashed.
-        web_view->on_web_content_crashed = [child_web_view, discard_child_web_view]() {
-            child_web_view->propagate_web_content_crash();
+        web_view->on_web_content_crashed = [child_web_view, discard_child_web_view](auto crash_reason) {
+            child_web_view->propagate_web_content_crash(crash_reason);
             discard_child_web_view();
         };
         web_view->on_close = move(discard_child_web_view);
@@ -167,18 +167,18 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
     m_top_level_traversable.set_system_visibility_state(Web::HTML::VisibilityState::Visible);
 }
 
-void HeadlessWebView::propagate_web_content_crash()
+void HeadlessWebView::propagate_web_content_crash(WebContentCrashReason crash_reason)
 {
     if (!m_propagate_crashes_to_parent)
         return;
 
     if (m_parent_web_view) {
-        m_parent_web_view->propagate_web_content_crash();
+        m_parent_web_view->propagate_web_content_crash(crash_reason);
         return;
     }
 
     if (on_web_content_crashed)
-        on_web_content_crashed();
+        on_web_content_crashed(crash_reason);
 }
 
 void HeadlessWebView::discard_child_web_view(HeadlessWebView& child_web_view)

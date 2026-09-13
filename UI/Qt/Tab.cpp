@@ -903,7 +903,7 @@ Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client,
         m_javascript_dialog->dismiss();
     };
 
-    view().on_web_content_crashed = [this] {
+    view().on_web_content_crashed = [this](auto) {
         m_suppress_javascript_dialogs_until_navigation = false;
         m_javascript_dialog->reset();
 
