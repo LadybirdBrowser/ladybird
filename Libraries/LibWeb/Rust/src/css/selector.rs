@@ -270,15 +270,16 @@ pub struct PseudoElementSelector<Identity = RetainedUtf16FlyString> {
     pub identifier_identities: Box<[Identity]>,
 }
 
+// Keep the common ID and class selectors inline without reserving space for the larger payloads.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum SimpleSelector<Identity = RetainedUtf16FlyString> {
-    Universal(QualifiedName<Identity>),
-    TagName(QualifiedName<Identity>),
+    Universal(Box<QualifiedName<Identity>>),
+    TagName(Box<QualifiedName<Identity>>),
     Id(NameSelector<Identity>),
     Class(NameSelector<Identity>),
-    Attribute(AttributeSelector<Identity>),
-    PseudoClass(PseudoClassSelector<Identity>),
-    PseudoElement(PseudoElementSelector<Identity>),
+    Attribute(Box<AttributeSelector<Identity>>),
+    PseudoClass(Box<PseudoClassSelector<Identity>>),
+    PseudoElement(Box<PseudoElementSelector<Identity>>),
     Nesting,
     Invalid(SelectorString),
 }
