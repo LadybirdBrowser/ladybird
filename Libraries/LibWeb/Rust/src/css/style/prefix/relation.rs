@@ -75,6 +75,62 @@ impl PrefixRelationProgram {
     }
 }
 
+/// Most selector memberships in a small document are empty. Keep their vector headers out of
+/// the dense table, while retaining an allocated buffer when a previously populated list empties.
+#[allow(clippy::box_collection)]
+struct PrefixMembership<T>(Option<Box<Vec<T>>>);
+
+impl<T> Default for PrefixMembership<T> {
+    fn default() -> Self {
+        Self(None)
+    }
+}
+
+impl<T> From<Vec<T>> for PrefixMembership<T> {
+    fn from(values: Vec<T>) -> Self {
+        Self((!values.is_empty()).then(|| Box::new(values)))
+    }
+}
+
+impl<T> std::ops::Deref for PrefixMembership<T> {
+    type Target = [T];
+    fn deref(&self) -> &[T] {
+        self.0.as_deref().map_or(&[], Vec::as_slice)
+    }
+}
+
+impl<'a, T> IntoIterator for &'a PrefixMembership<T> {
+    type Item = &'a T;
+    type IntoIter = std::slice::Iter<'a, T>;
+    fn into_iter(self) -> Self::IntoIter {
+        self.iter()
+    }
+}
+
+impl<T> PrefixMembership<T> {
+    fn make_mut(&mut self) -> &mut Vec<T> {
+        self.0.get_or_insert_with(Box::default)
+    }
+
+    fn retain(&mut self, predicate: impl FnMut(&T) -> bool) {
+        if let Some(values) = &mut self.0 {
+            values.retain(predicate);
+        }
+    }
+
+    fn drain(&mut self, _: std::ops::RangeFull) -> impl Iterator<Item = T> + '_ {
+        self.0.iter_mut().flat_map(|values| values.drain(..))
+    }
+}
+
+impl<T> ShallowCapacityBytes for PrefixMembership<T> {
+    fn shallow_capacity_bytes(&self) -> u64 {
+        self.0
+            .as_ref()
+            .map_or(0, |values| size_of::<Vec<T>>() as u64 + values.shallow_capacity_bytes())
+    }
+}
+
 pub(in crate::css::style) struct PrefixRelation {
     program: std::rc::Rc<PrefixRelationProgram>,
     // Membership positions are stable slots. Inserting or removing a node does not renumber
@@ -86,8 +142,8 @@ pub(in crate::css::style) struct PrefixRelation {
     live: Vec<bool>,
     free_slots: Vec<usize>,
     departures: Vec<usize>,
-    compound_matches: Vec<Vec<usize>>,
-    matches: Vec<Vec<u32>>,
+    compound_matches: Vec<PrefixMembership<usize>>,
+    matches: Vec<PrefixMembership<u32>>,
     walk_truth: PrefixWalkMemo,
     pending_steps: PendingPrefixSteps,
     positional: Vec<u32>,
@@ -578,7 +634,9 @@ impl PrefixRelation {
             changes.dedup();
             let members = &mut self.compound_matches[index];
             let before = members.shallow_capacity_bytes();
-            toggle_members(members, changes);
+            if !changes.is_empty() {
+                toggle_members(members.make_mut(), changes);
+            }
             self.nested_capacity_bytes += members.shallow_capacity_bytes() - before;
         }
         let mut geometry_memberships: [HashMap<usize, Vec<usize>>; 4] = std::array::from_fn(|_| HashMap::default());
@@ -832,7 +890,9 @@ impl PrefixRelation {
                 }
                 let members = &mut self.matches[step_index];
                 let before = members.shallow_capacity_bytes();
-                toggle_members(members, &changes);
+                if !changes.is_empty() {
+                    toggle_members(members.make_mut(), &changes);
+                }
                 self.nested_capacity_bytes += members.shallow_capacity_bytes() - before;
                 affected = changes;
             }
@@ -1213,8 +1273,16 @@ impl PrefixAutomaton {
             live: vec![true; count],
             free_slots: Vec::new(),
             departures: Vec::new(),
-            compound_matches,
-            matches,
+            compound_matches: compound_matches
+                .into_iter()
+                .map(PrefixMembership::from)
+                .collect::<Box<[_]>>()
+                .into_vec(),
+            matches: matches
+                .into_iter()
+                .map(PrefixMembership::from)
+                .collect::<Box<[_]>>()
+                .into_vec(),
             walk_truth: PrefixWalkMemo::default(),
             pending_steps: PendingPrefixSteps::new(self.steps.len()),
             positional,
@@ -1481,5 +1549,28 @@ mod tests {
             }
             assert_eq!(pending.pop_first(), None);
         }
+    }
+}
+
+#[cfg(test)]
+mod membership_storage_tests {
+    use super::*;
+
+    #[test]
+    fn empty_memberships_allocate_on_first_use_and_retain_warm_buffers() {
+        let mut members = PrefixMembership::<u32>::default();
+        assert_eq!(members.shallow_capacity_bytes(), 0);
+        assert_eq!(members.drain(..).count(), 0);
+        members.retain(|_| false);
+        assert_eq!(members.shallow_capacity_bytes(), 0);
+        toggle_members(members.make_mut(), &[1, 3]);
+        assert_eq!(&*members, &[1, 3]);
+        let buffer = members.as_ptr();
+        let capacity = members.shallow_capacity_bytes();
+        assert_eq!(members.drain(..).collect::<Vec<_>>(), [1, 3]);
+        toggle_members(members.make_mut(), &[2, 4]);
+        assert_eq!(members.as_ptr(), buffer);
+        assert_eq!(members.shallow_capacity_bytes(), capacity);
+        assert_eq!(&*members, &[2, 4]);
     }
 }
