@@ -143,6 +143,7 @@ pub mod record_replay {
 }
 pub mod relative_selector;
 pub mod selector;
+mod shared_vector;
 mod specified_value;
 pub mod transaction;
 mod transaction_view;
