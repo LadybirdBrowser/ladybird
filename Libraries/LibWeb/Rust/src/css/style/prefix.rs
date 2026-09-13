@@ -276,9 +276,52 @@ struct PrefixEntryPath {
     steps: std::ops::Range<u32>,
 }
 
+// Keep the common empty and single-root buckets inline; the large variant stays thin.
+#[allow(clippy::box_collection)]
+#[derive(Clone, Default)]
+enum PrefixRootSteps {
+    #[default]
+    Empty,
+    One(PrefixStepID),
+    Many(Box<Vec<PrefixStepID>>),
+}
+
+impl PrefixRootSteps {
+    fn push(&mut self, step: PrefixStepID) {
+        match self {
+            Self::Empty => *self = Self::One(step),
+            Self::One(first) => *self = Self::Many(Box::new(vec![*first, step])),
+            Self::Many(steps) => steps.push(step),
+        }
+    }
+
+    fn as_slice(&self) -> &[PrefixStepID] {
+        match self {
+            Self::Empty => &[],
+            Self::One(step) => std::slice::from_ref(step),
+            Self::Many(steps) => steps.as_slice(),
+        }
+    }
+
+    fn as_mut_slice(&mut self) -> &mut [PrefixStepID] {
+        match self {
+            Self::Empty => &mut [],
+            Self::One(step) => std::slice::from_mut(step),
+            Self::Many(steps) => steps.as_mut_slice(),
+        }
+    }
+
+    fn capacity_bytes(&self) -> usize {
+        match self {
+            Self::Empty | Self::One(_) => 0,
+            Self::Many(steps) => size_of::<Vec<PrefixStepID>>() + steps.capacity() * size_of::<PrefixStepID>(),
+        }
+    }
+}
+
 #[derive(Clone, Default)]
 struct PrefixDispatchBucket {
-    root_steps: Vec<PrefixStepID>,
+    root_steps: PrefixRootSteps,
     first_step: u32,
     end_step: u32,
 }
@@ -632,7 +675,7 @@ impl PrefixAutomaton {
         }
         self.steps.shrink_to_fit();
         self.step_predecessors.shrink_to_fit();
-        let remap_steps = |steps: &mut Vec<PrefixStepID>| {
+        let remap_steps = |steps: &mut [PrefixStepID]| {
             for step in steps {
                 step.0 = remap[step.0 as usize];
             }
@@ -644,7 +687,7 @@ impl PrefixAutomaton {
             remap_steps(&mut builder.following_successors);
         }
         for bucket in self.buckets.values_mut() {
-            remap_steps(&mut bucket.root_steps);
+            remap_steps(bucket.root_steps.as_mut_slice());
         }
         for step in &mut self.entry_path_steps {
             step.0 = remap[step.0 as usize];
@@ -874,7 +917,7 @@ impl PrefixAutomaton {
                 self
                 .buckets
                 .values()
-                .map(|bucket| bucket.root_steps.capacity() * size_of::<PrefixStepID>())
+                .map(|bucket| bucket.root_steps.capacity_bytes())
                 .sum::<usize>(),
             ];
             skip [self.entry_paths_finished, self.relation_program];
@@ -2724,7 +2767,7 @@ impl PrefixStates {
                 row.facts
                     .for_each_dispatch_probe(row.row, evaluation.tree.parent(node).is_none(), |key, _| {
                         if let Some(bucket) = evaluation.automaton.bucket(key) {
-                            active_candidates.extend_from_slice(&bucket.root_steps);
+                            active_candidates.extend_from_slice(bucket.root_steps.as_slice());
                         }
                     });
             };
@@ -3431,7 +3474,7 @@ impl PrefixStates {
         let Some(bucket) = automaton.bucket(key) else {
             return;
         };
-        for &step in &bucket.root_steps {
+        for &step in bucket.root_steps.as_slice() {
             let index = step.0 as usize;
             if selection.is_some_and(|selection| !selection.contains_step(step)) {
                 continue;
@@ -5137,7 +5180,7 @@ mod tests {
         automaton.buckets.insert(
             DispatchKey::Universal,
             PrefixDispatchBucket {
-                root_steps: vec![PrefixStepID(0)],
+                root_steps: PrefixRootSteps::One(PrefixStepID(0)),
                 ..PrefixDispatchBucket::default()
             },
         );
@@ -5178,7 +5221,7 @@ mod tests {
         assert!(matches!(outputs[0].kind, PrefixOutputKind::Child));
         assert_eq!(outputs[0].target, 0);
         assert_eq!(
-            automaton.bucket(DispatchKey::Universal).unwrap().root_steps,
+            automaton.bucket(DispatchKey::Universal).unwrap().root_steps.as_slice(),
             [PrefixStepID(1)]
         );
         assert_eq!(
