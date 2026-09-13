@@ -78,7 +78,7 @@ static StringView signal_name(int signal)
 
 ErrorOr<void> CrashReport::save(int wait_status, ByteString const& path)
 {
-    if ((WIFEXITED(wait_status) && WEXITSTATUS(wait_status) == 0) || (WIFSIGNALED(wait_status) && WTERMSIG(wait_status) == SIGTERM))
+    if ((WIFEXITED(wait_status) && WEXITSTATUS(wait_status) == 0) || (WIFSIGNALED(wait_status) && (WTERMSIG(wait_status) == SIGTERM || WTERMSIG(wait_status) == SIGKILL)))
         return {};
 
     StringBuilder builder;
