@@ -185,12 +185,23 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 return;
             }
             let group = self.recorder.begin_repeated_tile();
-            self.recorder
-                .paint_nested_display_list(display_list_id, dest_device_rect.to_float(), geometry.list_size);
+            self.recorder.paint_nested_display_list(
+                display_list_id,
+                libgfx_rust::FloatRect::new(0.0, 0.0, dest_device_rect.width as f32, dest_device_rect.height as f32),
+                geometry.list_size,
+            );
             self.recorder.finish_repeated_tile(
                 group,
+                dest_device_rect.to_float(),
                 dest_device_rect,
-                dest_device_rect,
+                libgfx_rust::IntSize {
+                    width: dest_device_rect.width,
+                    height: dest_device_rect.height,
+                },
+                libgfx_rust::FloatSize {
+                    width: dest_device_rect.width as f32,
+                    height: dest_device_rect.height as f32,
+                },
                 libgfx_rust::ScalingMode::Bilinear,
                 compositing_and_blending_operator,
                 crate::painting::display_list::commands::Repeat { x: false, y: false },

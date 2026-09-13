@@ -840,8 +840,11 @@ impl DisplayListCommand for DrawRepeatedDecodedImageFrame {
 #[derive(Clone, Copy, Debug, PartialEq)]
 #[repr(C)]
 pub struct DrawRepeatedTile {
-    pub dst_rect: IntRect,
+    pub dst_rect: FloatRect,
     pub clip_rect: IntRect,
+    pub tile_size: IntSize,
+    pub tile_step: FloatSize,
+    // Tile records paint into a raster of tile_size, with its origin at (0, 0).
     pub tile: DisplayListDataSpan,
     pub scaling_mode: ScalingMode,
     pub compositing_and_blending_operator: CompositingAndBlendingOperator,
@@ -850,6 +853,8 @@ pub struct DrawRepeatedTile {
 ffi_bytes_fields!(DrawRepeatedTile {
     dst_rect,
     clip_rect,
+    tile_size,
+    tile_step,
     tile,
     scaling_mode,
     compositing_and_blending_operator,

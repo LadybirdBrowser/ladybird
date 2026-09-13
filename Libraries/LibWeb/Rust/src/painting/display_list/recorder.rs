@@ -958,20 +958,27 @@ impl DisplayListRecorder {
         self.ambient_inline_clips = group.suspended_ambient_inline_clips;
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn finish_repeated_tile(
         &mut self,
         group: OpenRecorderGroup,
-        dst_rect: IntRect,
+        dst_rect: FloatRect,
         clip_rect: IntRect,
+        tile_size: IntSize,
+        tile_step: FloatSize,
         scaling_mode: ScalingMode,
         compositing_and_blending_operator: CompositingAndBlendingOperator,
         repeat: Repeat,
     ) {
         debug_assert_eq!(self.context, group.context);
         debug_assert!(!dst_rect.is_empty() && !clip_rect.is_empty());
+        debug_assert!(tile_size.width > 0 && tile_size.height > 0);
+        debug_assert!(tile_step.width > 0.0 && tile_step.height > 0.0);
         let command = DrawRepeatedTile {
             dst_rect,
             clip_rect,
+            tile_size,
+            tile_step,
             tile: self.builder.group_content_span(&group.group),
             scaling_mode,
             compositing_and_blending_operator,

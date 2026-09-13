@@ -6,7 +6,7 @@ AccumulatedVisualContext Tree:
     [e0 in s0] effects=[]
 
 DisplayList:
-DrawRepeatedTile@s1/e0 dst_rect=[8,8 20x20] clip_rect=[8,8 120x80] scaling_mode=NearestNeighbor inline_clips=[clip=[8,8 120x80], clip=[8,8 120x80]]
-  PaintNestedDisplayList@s1/e0 rect=[8,8 20x20]
+DrawRepeatedTile@s1/e0 dst_rect=[8,8 20x20] clip_rect=[8,8 120x80] tile_size=[20x20] tile_step=[20x20] scaling_mode=NearestNeighbor inline_clips=[clip=[8,8 120x80], clip=[8,8 120x80]]
+  PaintNestedDisplayList@s1/e0 rect=[0,0 20x20]
     FillPath@s2/e0 path_bounding_rect=[0,0 20x20]
     FillPath@s2/e0 path_bounding_rect=[5,5 10x10]

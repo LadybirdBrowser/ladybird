@@ -483,15 +483,30 @@ void DisplayListPlayerSkia::play_command(DrawRepeatedDecodedImageFrame const& co
     canvas.drawPaint(paint);
 }
 
-static void paint_repeated_image(SkCanvas& canvas, SkImage& image, Gfx::IntRect const& dst_rect, Gfx::ScalingMode scaling_mode, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, bool repeat_x, bool repeat_y)
+static void paint_repeated_image(SkCanvas& canvas, SkImage& image, Gfx::FloatRect const& dst_rect, Gfx::FloatSize const& tile_step, Gfx::ScalingMode scaling_mode, Gfx::CompositingAndBlendingOperator compositing_and_blending_operator, bool repeat_x, bool repeat_y)
 {
+    auto scale_x = dst_rect.width() / image.width();
+    auto scale_y = dst_rect.height() / image.height();
     SkMatrix matrix;
     matrix.setTranslate(dst_rect.x(), dst_rect.y());
+    matrix.preScale(scale_x, scale_y);
 
     auto tile_mode_x = repeat_x ? SkTileMode::kRepeat : SkTileMode::kDecal;
     auto tile_mode_y = repeat_y ? SkTileMode::kRepeat : SkTileMode::kDecal;
     auto sampling_options = to_skia_sampling_options(scaling_mode);
-    auto shader = image.makeShader(tile_mode_x, tile_mode_y, sampling_options, &matrix);
+    sk_sp<SkShader> shader;
+    if (tile_step == dst_rect.size()) {
+        shader = image.makeShader(tile_mode_x, tile_mode_y, sampling_options, &matrix);
+    } else {
+        // The transparent part of the picture is the gap between tiles. Keep its bounds fractional:
+        // rounding the period to the raster size would accumulate an error across the background.
+        SkPictureRecorder tile_recorder;
+        auto tile_bounds = SkRect::MakeWH(tile_step.width() / scale_x, tile_step.height() / scale_y);
+        auto* tile_canvas = tile_recorder.beginRecording(tile_bounds);
+        tile_canvas->drawImage(&image, 0, 0, sampling_options);
+        auto tile_picture = tile_recorder.finishRecordingAsPicture();
+        shader = tile_picture->makeShader(tile_mode_x, tile_mode_y, sampling_options.filter, &matrix, &tile_bounds);
+    }
     SkPaint paint;
     paint.setAntiAlias(true);
     paint.setShader(shader);
@@ -582,20 +597,20 @@ static u64 repeated_tile_raster_key(ReadonlyBytes tile_records, Gfx::IntSize til
 
 void DisplayListPlayerSkia::play_command(DrawRepeatedTile const& command)
 {
-    auto tile_size = command.dst_rect.size();
-    if (tile_size.is_empty())
+    auto tile_size = command.tile_size;
+    if (tile_size.is_empty() || command.dst_rect.is_empty() || command.tile_step.is_empty())
         return;
 
     auto tile_records = inline_data(command.tile);
     auto raster_key = repeated_tile_raster_key(tile_records, tile_size);
     auto image = resource_storage().cached_repeated_tile_raster(raster_key, tile_size, m_skia_backend_context);
     if (!image) {
-        image = rasterize_records_into_tile(tile_records, command.dst_rect);
+        image = rasterize_records_into_tile(tile_records, Gfx::IntRect { {}, tile_size });
         if (!image)
             return;
         resource_storage().add_cached_repeated_tile_raster(raster_key, tile_size, m_skia_backend_context, image);
     }
-    paint_repeated_image(surface().canvas(), *image, command.dst_rect, command.scaling_mode, command.compositing_and_blending_operator, command.repeat.x, command.repeat.y);
+    paint_repeated_image(surface().canvas(), *image, command.dst_rect, command.tile_step, command.scaling_mode, command.compositing_and_blending_operator, command.repeat.x, command.repeat.y);
 }
 
 sk_sp<SkImage> DisplayListPlayerSkia::rasterize_records_into_tile(ReadonlyBytes tile_records, Gfx::IntRect tile_rect)
