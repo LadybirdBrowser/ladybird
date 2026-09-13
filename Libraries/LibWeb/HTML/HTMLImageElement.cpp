@@ -1114,9 +1114,12 @@ after_step_7:
         request->set_priority(Fetch::Infrastructure::request_priority_from_string(attribute(HTML::AttributeNames::fetchpriority).value_or({})).value_or(Fetch::Infrastructure::Request::Priority::Auto));
 
         // 25. If the will lazy load element steps given the img return true, then:
-        if (will_lazy_load_element()) {
+        // INTEROP: Like Blink and WebKit, only defer until the image first resumes lazy loading.
+        //          Subsequent source changes must not wait for another intersection observation.
+        if (!m_has_resumed_lazy_loading && will_lazy_load_element()) {
             // 1. Set the img's lazy load resumption steps to the rest of this algorithm starting with the step labeled fetch the image.
-            set_lazy_load_resumption_steps([request, image_request]() {
+            set_lazy_load_resumption_steps([this, request, image_request]() {
+                m_has_resumed_lazy_loading = true;
                 image_request->fetch_image(request);
             });
 

@@ -1,0 +1,40 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        for (const usePicture of [false, true]) {
+            const image = document.createElement("img");
+            image.loading = "lazy";
+            image.width = 20;
+            image.height = 20;
+            image.style.position = "fixed";
+            image.style.top = "0";
+            const picture = document.createElement("picture");
+            const source = document.createElement("source");
+            if (usePicture) {
+                picture.append(source, image);
+                document.body.append(picture);
+            } else {
+                document.body.append(image);
+            }
+
+            const load = url => new Promise((resolve, reject) => {
+                image.onload = resolve;
+                image.onerror = reject;
+                if (usePicture)
+                    source.srcset = url;
+                image.src = url;
+            });
+            const url = size => `data:image/svg+xml,${encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}"></svg>`)}`;
+            await load(url(usePicture ? 21 : 20));
+            println(`${usePicture ? "picture" : "img"}: initial lazy image loaded`);
+
+            // Keep the image outside the lazy loading margin so another deferral
+            // cannot finish. Once resumed, source changes must load regardless of visibility.
+            image.style.top = "-100000px";
+            await load(url(usePicture ? 31 : 30));
+            println(`Replacement loaded outside the viewport: ${image.naturalWidth}`);
+            (usePicture ? picture : image).remove();
+        }
+    });
+</script>
