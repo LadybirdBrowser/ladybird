@@ -398,6 +398,18 @@ bool NavigableContainer::currently_delays_the_load_event() const
     return m_content_navigable->delays_the_load_event_of_its_container();
 }
 
+ReplicatedContainerState NavigableContainer::replicated_container_state()
+{
+    ReplicatedContainerState state;
+    state.is_in_document_tree = document().is_ancestor_of(*this);
+    if (auto const* iframe = as_if<HTMLIFrameElement>(*this))
+        state.iframe_sandboxing_flag_set = iframe->iframe_sandboxing_flag_set();
+    state.document_active_sandboxing_flag_set = document().active_sandboxing_flag_set();
+    state.local_name = local_name();
+    state.iframe_referrer_policy = determine_iframe_element_referrer_policy(*this);
+    return state;
+}
+
 bool NavigableContainer::content_navigable_has_session_history_entry_and_ready_for_navigation() const
 {
     if (!content_navigable())

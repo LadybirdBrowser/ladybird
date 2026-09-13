@@ -12,6 +12,29 @@
 namespace IPC {
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, Web::HTML::ReplicatedContainerState const& state)
+{
+    TRY(encoder.encode(state.is_in_document_tree));
+    TRY(encoder.encode(state.iframe_sandboxing_flag_set));
+    TRY(encoder.encode(state.document_active_sandboxing_flag_set));
+    TRY(encoder.encode(state.local_name));
+    TRY(encoder.encode(state.iframe_referrer_policy));
+    return {};
+}
+
+template<>
+ErrorOr<Web::HTML::ReplicatedContainerState> decode(Decoder& decoder)
+{
+    return Web::HTML::ReplicatedContainerState {
+        .is_in_document_tree = TRY(decoder.decode<bool>()),
+        .iframe_sandboxing_flag_set = TRY(decoder.decode<Web::HTML::SandboxingFlagSet>()),
+        .document_active_sandboxing_flag_set = TRY(decoder.decode<Web::HTML::SandboxingFlagSet>()),
+        .local_name = TRY(decoder.decode<Optional<Utf16FlyString>>()),
+        .iframe_referrer_policy = TRY(decoder.decode<Web::ReferrerPolicy::ReferrerPolicy>()),
+    };
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, Web::HTML::ReplicatedNavigableState const& state)
 {
     TRY(encoder.encode(state.target_name));
@@ -25,7 +48,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::ReplicatedNavigableState const
     TRY(encoder.encode(state.opener_policy));
     TRY(encoder.encode(state.active_document_is_completely_loaded));
     TRY(encoder.encode(state.is_closing));
-    TRY(encoder.encode(state.container_is_in_document_tree));
+    TRY(encoder.encode(state.container));
     TRY(encoder.encode(state.compositor_context_id));
     return {};
 }
@@ -45,7 +68,7 @@ ErrorOr<Web::HTML::ReplicatedNavigableState> decode(Decoder& decoder)
         .opener_policy = TRY(decoder.decode<Web::HTML::OpenerPolicy>()),
         .active_document_is_completely_loaded = TRY(decoder.decode<bool>()),
         .is_closing = TRY(decoder.decode<bool>()),
-        .container_is_in_document_tree = TRY(decoder.decode<bool>()),
+        .container = TRY(decoder.decode<Web::HTML::ReplicatedContainerState>()),
         .compositor_context_id = TRY(decoder.decode<Optional<Web::Compositor::CompositorContextId>>()),
     };
 }

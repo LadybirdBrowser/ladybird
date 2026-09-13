@@ -67,7 +67,7 @@ public:
     virtual Optional<URL::Origin> active_document_top_level_origin() const override { return m_replicated_state.top_level_origin; }
     virtual bool active_document_has_cross_site_ancestor() const override { return m_replicated_state.has_cross_site_ancestor; }
     virtual OpenerPolicy const& active_document_opener_policy() const override { return m_replicated_state.opener_policy; }
-    virtual bool container_is_in_document_tree() const override { return m_replicated_state.container_is_in_document_tree; }
+    virtual ReplicatedContainerState container_state() const override { return m_replicated_state.container; }
 
     virtual bool has_session_history_entry_and_ready_for_navigation() const override;
     virtual bool delays_the_load_event_of_its_container() const override;

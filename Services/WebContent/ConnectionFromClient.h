@@ -122,6 +122,7 @@ private:
     virtual void insert_remote_navigable(Web::PageId page_id, Web::HTML::RemoteNavigableDescriptor) override;
     virtual void remove_remote_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void update_remote_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState) override;
+    virtual void update_local_root_container_state(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState) override;
     virtual void begin_hosting_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor, Web::HTML::VisibilityState) override;
     virtual void discard_provisional_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void stop_hosting_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState) override;

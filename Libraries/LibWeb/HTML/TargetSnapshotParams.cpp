@@ -19,11 +19,11 @@ TargetSnapshotParams snapshot_target_snapshot_params(LocalNavigable& target_navi
         // sandboxing flags
         //     the result of determining the creation sandboxing flags given targetNavigable's active browsing
         //     context and targetNavigable's container
-        .sandboxing_flags = determine_the_creation_sandboxing_flags(*target_navigable.active_browsing_context(), target_navigable.container()),
+        .sandboxing_flags = determine_the_creation_sandboxing_flags(*target_navigable.active_browsing_context(), target_navigable),
 
         // iframe element referrer policy
         //     the result of determining the iframe element referrer policy given targetNavigable's container
-        .iframe_element_referrer_policy = determine_iframe_element_referrer_policy(target_navigable.container()),
+        .iframe_element_referrer_policy = target_navigable.container_iframe_referrer_policy(),
     };
 }
 
