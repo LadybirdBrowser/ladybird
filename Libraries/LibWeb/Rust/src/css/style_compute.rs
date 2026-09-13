@@ -3262,12 +3262,39 @@ fn retained_new(value: StyleValueData) -> RetainedStyleValueData {
     unsafe { RetainedStyleValueData::from_retained_pointer(Arc::into_raw(Arc::new(value))) }
 }
 
+fn needs_computed_style_sheet_context(value: *const StyleValueData) -> bool {
+    if value.is_null() {
+        return false;
+    }
+    #[cfg(any(test, feature = "style-replay"))]
+    if crate::css::style_value::replay_style_value_token(value).is_some() {
+        return true;
+    }
+    // NB: Keep this traversal aligned with StyleValue::set_style_sheet(). Only image
+    //     wrappers consume the context; container wrappers forward it to their children.
+    match unsafe { &*value } {
+        StyleValueData::Image { .. } | StyleValueData::ImageSet { .. } => true,
+        StyleValueData::Content { content, alt_text } => {
+            needs_computed_style_sheet_context(content.pointer())
+                || needs_computed_style_sheet_context(alt_text.pointer())
+        }
+        StyleValueData::Shorthand { values, .. } | StyleValueData::ValueList { values, .. } => values
+            .as_slice()
+            .iter()
+            .any(|value| needs_computed_style_sheet_context(value.pointer())),
+        _ => false,
+    }
+}
+
 fn store_computed_value(longhand_table: &mut ComputedLonghandTable, entry: &ComputedStoreEntry) {
     let specified_value = entry.inheritance_dependent.then(|| unsafe {
         RetainedStyleValueData::from_retained_pointer(crate::css::style_value::retain_style_value(entry.data.cast()))
     });
     longhand_table.set_drive_inheritance_dependent_value(entry.property_id, specified_value);
-    let source_slot = if entry.has_style_sheet_context && entry.computed_kind == COMPUTED_KIND_UNCHANGED {
+    let source_slot = if entry.has_style_sheet_context
+        && entry.computed_kind == COMPUTED_KIND_UNCHANGED
+        && needs_computed_style_sheet_context(entry.data.cast())
+    {
         entry.source_slot
     } else {
         -1
