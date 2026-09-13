@@ -8,6 +8,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Navigable.h>
+#include <LibWeb/HTML/NavigableContainer.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/SourceSnapshotParams.h>
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
@@ -16,12 +17,39 @@
 
 namespace Web::HTML {
 
+Navigable::Navigable(GC::Ref<Page> page)
+    : m_page(page)
+{
+}
+
 Navigable::~Navigable() = default;
 
 void Navigable::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_parent);
+    visitor.visit(m_container);
+    visitor.visit(m_page);
+}
+
+// https://html.spec.whatwg.org/multipage/document-sequences.html#nav-container
+GC::Ptr<NavigableContainer> Navigable::container() const
+{
+    // The container of a navigable navigable is the navigable container whose nested navigable is navigable, or null if there is no such element.
+    return m_container;
+}
+
+// https://html.spec.whatwg.org/multipage/document-sequences.html#nav-container-document
+GC::Ptr<DOM::Document> Navigable::container_document() const
+{
+    auto container = this->container();
+
+    // 1. If navigable's container is null, then return null.
+    if (!container)
+        return nullptr;
+
+    // 2. Return navigable's container's node document.
+    return container->document();
 }
 
 bool Navigable::is_ancestor_of(Navigable const& other) const
