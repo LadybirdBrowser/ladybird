@@ -11,9 +11,9 @@ use crate::layout::node_data::{NodeFlag, NodeSlotId};
 use crate::painting::display_list::commands::{DisplayListGlyph, FontResourceId};
 use crate::painting::display_list::recorder::GlyphRunForRecording;
 use crate::painting::force_dark::ForceDarkRole;
-use crate::painting::host::FfiCaretPaintKind;
 use crate::painting::paintable_data::{FragmentRecord, SELECTION_STATE_START_AND_END};
 use crate::painting::record::PaintRecorder;
+use crate::painting::record::inputs::CaretTarget;
 use crate::painting::text_fragment::{self, SelectionOffsets};
 use libgfx_rust::{Color, FloatPoint, IntRect, Orientation};
 
@@ -561,11 +561,10 @@ pub(crate) fn paint_cursor<O: Observer>(
     block: NodeSlotId,
     owner: Option<NodeSlotId>,
 ) {
-    let caret = recorder.inputs.caret;
-    if caret.kind != FfiCaretPaintKind::InBlock
-        || caret.block != block
-        || caret.owner != owner.unwrap_or(NodeSlotId::INVALID)
-    {
+    let Some(caret) = recorder.inputs.caret else {
+        return;
+    };
+    if caret.target != (CaretTarget::InBlock { block, owner }) {
         return;
     }
     let color = caret.color;
@@ -574,7 +573,7 @@ pub(crate) fn paint_cursor<O: Observer>(
     }
     let converter = recorder.converter;
     recorder.recorder.paint_caret(
-        converter.rounded_device_rect(CssPixelRect::from(caret.rect)),
+        converter.rounded_device_rect(caret.rect),
         color,
         caret.blink_cycle_start_time_ns,
         caret.should_blink,

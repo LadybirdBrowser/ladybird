@@ -133,16 +133,14 @@ pub(crate) fn paint<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable:
             text::paint_fragments_foreground(recorder, root, Some(paintable));
             text::paint_cursor(recorder, root, Some(paintable));
         }
-        if facts.is_visible {
-            let caret = recorder.inputs.caret;
-            if caret.kind == crate::painting::host::FfiCaretPaintKind::EmptyInline && caret.block == paintable {
-                let color = caret.color;
-                if color.alpha() != 0 {
-                    let rect = recorder
-                        .converter
-                        .rounded_device_rect(crate::css::css_pixels::CssPixelRect::from(caret.rect));
-                    recorder.recorder.fill_rect(rect, color, ForceDarkRole::Foreground);
-                }
+        if facts.is_visible
+            && let Some(caret) = recorder.inputs.caret
+            && caret.target == crate::painting::record::inputs::CaretTarget::EmptyInline(paintable)
+        {
+            let color = caret.color;
+            if color.alpha() != 0 {
+                let rect = recorder.converter.rounded_device_rect(caret.rect);
+                recorder.recorder.fill_rect(rect, color, ForceDarkRole::Foreground);
             }
         }
     }

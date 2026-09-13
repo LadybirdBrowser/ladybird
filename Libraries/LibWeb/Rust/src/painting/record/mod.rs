@@ -10,6 +10,7 @@ pub mod async_scroll_metadata;
 pub mod cache;
 pub(crate) mod cache_compatibility;
 pub mod hit_test_items;
+pub(crate) mod inputs;
 pub mod paint;
 pub(crate) mod publish;
 pub(crate) mod resources;
@@ -29,7 +30,6 @@ use crate::painting::display_list::commands::{ContextRef, SpatialNodeIndex};
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
 use crate::painting::hit_test::HitTestList;
-use crate::painting::host::{FfiRecordingInputs, FfiRootBackgroundSource, FfiVisualContextTreeInputs};
 use crate::painting::paintable_data::{InlineBoxPieceRecord, PaintableData};
 use crate::painting::paintable_rows::PaintableRowsRef;
 use crate::painting::record::cache::{OpenCapture, PendingPaintCacheUpdates, RecordGen};
@@ -37,44 +37,7 @@ use crate::painting::record::cache_compatibility::{PaintCacheCompatibility, Pain
 use crate::painting::record::svg_resources::SvgResourceWalk;
 use std::rc::Rc;
 
-#[derive(Clone, Copy)]
-pub(crate) struct RecordingInputs {
-    pub(crate) host: FfiRecordingInputs,
-    pub(crate) device_pixels_per_css_pixel: f64,
-    pub(crate) viewport_wheel_overflow_x: u8,
-    pub(crate) viewport_wheel_overflow_y: u8,
-    pub(crate) root_background_source: FfiRootBackgroundSource,
-}
-
-impl RecordingInputs {
-    pub(crate) fn from_host_and_last_visual_context_update(
-        host: FfiRecordingInputs,
-        tree_inputs: FfiVisualContextTreeInputs,
-        root_background_source: FfiRootBackgroundSource,
-    ) -> Self {
-        Self {
-            host,
-            device_pixels_per_css_pixel: tree_inputs.device_pixels_per_css_pixel,
-            viewport_wheel_overflow_x: tree_inputs.viewport_wheel_overflow_x,
-            viewport_wheel_overflow_y: tree_inputs.viewport_wheel_overflow_y,
-            root_background_source,
-        }
-    }
-}
-
-impl std::ops::Deref for RecordingInputs {
-    type Target = FfiRecordingInputs;
-
-    fn deref(&self) -> &FfiRecordingInputs {
-        &self.host
-    }
-}
-
-impl std::ops::DerefMut for RecordingInputs {
-    fn deref_mut(&mut self) -> &mut FfiRecordingInputs {
-        &mut self.host
-    }
-}
+pub(crate) use inputs::RecordingInputs;
 
 #[derive(Default)]
 pub struct RecordingOutput {
@@ -121,7 +84,7 @@ pub(crate) struct DeferredWholeTapeSplice {
 pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) layout_arena: &'a PaintableRowsRef<'a>,
     pub(crate) paint_state: &'a crate::painting::paint_state::PaintState,
-    pub(crate) inputs: RecordingInputs,
+    pub(crate) inputs: &'a RecordingInputs<'a>,
     pub(crate) recorder: DisplayListRecorder,
     pub(crate) converter: DevicePixelConverter,
     pub(crate) svg_resource_walk: Option<SvgResourceWalk>,
@@ -172,7 +135,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         if let Some(facts) = self.scratch.hit_test_facts(paintable) {
             return facts;
         }
-        let facts = hit_test_items::hit_test_facts(self.layout_arena, paintable, &self.inputs);
+        let facts = hit_test_items::hit_test_facts(self.layout_arena, paintable, self.inputs);
         self.scratch.set_hit_test_facts(paintable, facts);
         facts
     }
@@ -254,10 +217,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
     /// The focused text control's selection as `(start, end)` when `node` is one of its text
     /// node's committed rows.
     pub(crate) fn text_control_selection(&self, node: NodeSlotId) -> Option<(usize, usize)> {
-        let control = &self.inputs.focused_text_control;
-        if control.start == control.end {
-            return None;
-        }
+        let control = self.inputs.focused_text_control?;
         self.layout_arena
             .text_fragments(control.text_node)
             .as_slice()
@@ -367,7 +327,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         style_source: crate::layout::node_data::NodeSlotId,
     ) -> paint::text::SelectionStyleAnswer {
         use crate::css::color_resolution::{PREFERRED_COLOR_SCHEME_DARK, PREFERRED_COLOR_SCHEME_LIGHT};
-        let inputs = &self.inputs;
+        let inputs = self.inputs;
         let (color_scheme, color_scheme_is_normal) =
             self.layout_arena
                 .node_style_if_live(style_source)

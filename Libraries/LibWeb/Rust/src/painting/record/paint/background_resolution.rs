@@ -455,7 +455,7 @@ fn resolve_layers<'a, O: Observer>(
         {
             background_positioning_area = CssPixelRect::from_location_and_size(
                 crate::css::css_pixels::CssPixelPoint::default(),
-                CssPixelRect::from(recorder.inputs.css_viewport_rect).size(),
+                recorder.inputs.css_viewport_rect.size(),
             );
         }
 
@@ -763,7 +763,7 @@ pub(crate) fn resolve_background_for_paint<'a, O: Observer>(
         },
     };
     if source.is_root_element {
-        let mut canvas_rect = CssPixelRect::from(recorder.inputs.css_viewport_rect);
+        let mut canvas_rect = recorder.inputs.css_viewport_rect;
         if let Some(overflow_rect) =
             crate::painting::paintable_geometry::scrollable_overflow_rect(recorder.layout_arena, paintable)
         {

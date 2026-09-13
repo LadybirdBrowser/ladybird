@@ -126,13 +126,13 @@ fn paint_focused_area_outline<O: Observer>(recorder: &mut PaintRecorder<'_, O>, 
     // inert.
     // NB: Focused area elements have no paintable of their own, so the image whose rendering makes the area's shape a
     // focusable area paints the focus outline along that shape.
-    let outline = recorder.inputs.focused_area_outline;
-    // SAFETY: The host keeps the serialised path bytes live for the recording call.
-    let path_bytes = unsafe { crate::painting::ffi::ffi_slice(outline.path_bytes, outline.path_byte_count) };
-    if path_bytes.is_empty() || outline.image != paintable {
+    let Some(outline) = recorder.inputs.focused_area_outline else {
+        return;
+    };
+    if outline.image != paintable {
         return;
     }
-    let path = libgfx_rust::path::OwnedPath::from_serialized_bytes(path_bytes);
+    let path = libgfx_rust::path::OwnedPath::from_serialized_bytes(outline.path_bytes);
     let converter = recorder.converter;
     let image_rect = paintable_geometry::absolute_rect(recorder.layout_arena, paintable);
     let scale = recorder.inputs.device_pixels_per_css_pixel as f32;

@@ -63,6 +63,134 @@ pub struct FfiRecordingInputs {
     pub grid_label_fonts: FfiOverlayLabelFonts,
 }
 
+impl FfiRecordingInputs {
+    /// # Safety
+    ///
+    /// Nonempty arrays and byte buffers must be aligned, valid and immutable for the
+    /// returned inputs' lifetime. Fonts for enabled overlays must point to live `Gfx::Font`s.
+    pub(crate) unsafe fn borrow_recording_inputs(
+        &self,
+        tree_inputs: super::FfiVisualContextTreeInputs,
+        root_background_source: super::FfiRootBackgroundSource,
+    ) -> crate::painting::record::inputs::RecordingInputs<'_> {
+        use crate::painting::display_list::commands::UniqueNodeId;
+        use crate::painting::ffi::ffi_slice;
+        use crate::painting::force_dark::ForceDarkSettings;
+        use crate::painting::record::inputs::{
+            CaretPaint, CaretTarget, FocusedAreaOutline, FocusedTextControlSelection, GridOverlays, InspectorHighlight,
+            RecordingInputs,
+        };
+
+        // SAFETY: The caller lends these arrays and buffers for the returned inputs' lifetime.
+        let (grid_overlays, flex_overlays, outline_path) = unsafe {
+            (
+                ffi_slice(self.grid_overlays, self.grid_overlay_count),
+                ffi_slice(self.flex_overlays, self.flex_overlay_count),
+                ffi_slice(
+                    self.focused_area_outline.path_bytes,
+                    self.focused_area_outline.path_byte_count,
+                ),
+            )
+        };
+        let caret = self.caret;
+        let caret_target = match caret.kind {
+            FfiCaretPaintKind::None => None,
+            FfiCaretPaintKind::InBlock => Some(CaretTarget::InBlock {
+                block: caret.block,
+                owner: (!caret.owner.is_invalid()).then_some(caret.owner),
+            }),
+            FfiCaretPaintKind::EmptyInline => Some(CaretTarget::EmptyInline(caret.block)),
+        };
+        let control = self.focused_text_control;
+        RecordingInputs {
+            device_pixels_per_css_pixel: tree_inputs.device_pixels_per_css_pixel,
+            viewport_wheel_overflow_x: tree_inputs.viewport_wheel_overflow_x,
+            viewport_wheel_overflow_y: tree_inputs.viewport_wheel_overflow_y,
+            root_background_source,
+            device_viewport_rect: self.device_viewport_rect,
+            css_viewport_rect: self.css_viewport_rect.into(),
+            should_show_line_box_borders: self.should_show_line_box_borders,
+            force_dark_enabled: self.force_dark_enabled,
+            force_dark_settings: ForceDarkSettings {
+                foreground_brightness_threshold: self.force_dark_foreground_threshold,
+                background_brightness_threshold: self.force_dark_background_threshold,
+            },
+            should_paint_overlay: self.should_paint_overlay,
+            is_recording_async_scrolling_metadata: self.is_recording_async_scrolling_metadata,
+            document_id: UniqueNodeId(self.document_id),
+            has_blocking_wheel_event_region_covering_viewport: self.has_blocking_wheel_event_region_covering_viewport,
+            wheel_event_listener_state_generation: self.wheel_event_listener_state_generation,
+            chrome_metrics: self.chrome_metrics,
+            paint_viewport_scrollbars: self.paint_viewport_scrollbars,
+            async_scrolling_enabled: self.async_scrolling_enabled,
+            middle_button_scroll_origin: self
+                .middle_button_scroll_active
+                .then(|| self.middle_button_scroll_origin.into()),
+            canvas_fill_rect: self.canvas_fill_rect.has_value.then_some(self.canvas_fill_rect.value),
+            canvas_color: self.canvas_color,
+            opaque_canvas: self.opaque_canvas,
+            bitmap_rect: self.bitmap_rect,
+            background_color: self.background_color,
+            paint_command_cache_read_write: self.paint_command_cache_read_write,
+            window_is_focused: self.window_is_focused,
+            outline_auto_color: self.outline_auto_color,
+            selection_background_from_palette: self.selection_background_from_palette,
+            selection_background_light: self.selection_background_light,
+            selection_background_dark: self.selection_background_dark,
+            palette_is_dark: self.palette_is_dark,
+            document_has_supported_color_schemes: self.document_has_supported_color_schemes,
+            inspector_highlight: self.has_inspector_highlight.then(|| {
+                // SAFETY: The caller lends the label bytes and supplies live fonts for this overlay.
+                let (text, fonts) = unsafe {
+                    (
+                        ffi_slice(
+                            self.inspector_highlight_label.text,
+                            self.inspector_highlight_label.text_byte_count,
+                        ),
+                        self.inspector_highlight_label.fonts.retain(),
+                    )
+                };
+                InspectorHighlight {
+                    paintable: self.inspector_highlight_paintable,
+                    label: String::from_utf8_lossy(text),
+                    fonts,
+                }
+            }),
+            tooltip_color: self.tooltip_color,
+            tooltip_text_color: self.tooltip_text_color,
+            tooltip_border_color: self.tooltip_border_color,
+            grid_overlays: (!grid_overlays.is_empty()).then(|| GridOverlays {
+                inputs: grid_overlays,
+                // SAFETY: The caller supplies live label fonts when grid overlays are enabled.
+                fonts: unsafe { self.grid_label_fonts.retain() },
+            }),
+            flex_overlays,
+            caret_debug_rect: self
+                .caret_debug_rect
+                .has_value
+                .then(|| self.caret_debug_rect.value.into()),
+            caret: caret_target.map(|target| CaretPaint {
+                target,
+                rect: caret.rect.into(),
+                color: caret.color,
+                blink_cycle_start_time_ns: caret.blink_cycle_start_time_ns,
+                should_blink: caret.should_blink,
+            }),
+            focused_text_control: (control.start != control.end).then_some(FocusedTextControlSelection {
+                text_node: control.text_node,
+                start: control.start,
+                end: control.end,
+            }),
+            focused_area_outline: (!outline_path.is_empty()).then_some(FocusedAreaOutline {
+                image: self.focused_area_outline.image,
+                path_bytes: outline_path,
+                color: self.focused_area_outline.color,
+                width: self.focused_area_outline.width,
+            }),
+        }
+    }
+}
+
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 #[repr(u8)]
 pub enum FfiCaretPaintKind {
@@ -117,6 +245,21 @@ pub struct FfiFocusedAreaOutline {
 pub struct FfiOverlayLabelFonts {
     pub css_font: *const c_void,
     pub device_font: *const c_void,
+}
+
+impl FfiOverlayLabelFonts {
+    /// # Safety
+    ///
+    /// Both pointers must refer to live `Gfx::Font`s.
+    unsafe fn retain(self) -> crate::painting::record::inputs::OverlayLabelFonts {
+        // SAFETY: The caller supplies live fonts; the handles retain them for recording.
+        unsafe {
+            crate::painting::record::inputs::OverlayLabelFonts {
+                css_font: libgfx_rust::font::FontHandle::intern(self.css_font),
+                device_font: libgfx_rust::font::FontHandle::intern(self.device_font),
+            }
+        }
+    }
 }
 
 /// The inspector's box-model label for the highlighted node: UTF-8 text live for the recording call.

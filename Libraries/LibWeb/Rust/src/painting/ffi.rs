@@ -1465,6 +1465,8 @@ pub unsafe extern "C" fn layout_arena_refresh_scroll_state(
 /// # Safety
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
+/// Input arrays and byte buffers must remain valid and immutable throughout this call;
+/// fonts for enabled overlays must be live `Gfx::Font`s.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn layout_arena_record_display_list(
     arena: *mut c_void,
@@ -1483,15 +1485,18 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             return false;
         }
         let visual_context = &paint_state.visual_context;
-        let inputs = crate::painting::record::RecordingInputs::from_host_and_last_visual_context_update(
-            inputs,
-            visual_context
-                .last_tree_inputs
-                .expect("a recording follows a visual context update"),
-            visual_context
-                .last_root_background_source
-                .expect("a recording follows a visual context update"),
-        );
+        // SAFETY: The host lends the input arrays and buffers for this call. Only owned
+        // output and retained resources escape into the pending recording below.
+        let inputs = unsafe {
+            inputs.borrow_recording_inputs(
+                visual_context
+                    .last_tree_inputs
+                    .expect("a recording follows a visual context update"),
+                visual_context
+                    .last_root_background_source
+                    .expect("a recording follows a visual context update"),
+            )
+        };
         let mut scratch = arena.recording_scratch().borrow_mut();
         arena.set_paint_recording_in_progress(true);
         let recording = crate::painting::record::traversal::record_display_list(
@@ -1499,7 +1504,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             &paint_state,
             &mut scratch,
             viewport,
-            inputs,
+            &inputs,
             paint_state.hit_test_list_generation + 1,
             paint_state.paint_command_cache_source.clone(),
             paint_state.hit_test_item_cache_source.clone(),
@@ -1517,14 +1522,14 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
                 })
             && !inputs.should_show_line_box_borders)
             .then(|| {
-                let mut inputs_for_recording_from_scratch = inputs;
+                let mut inputs_for_recording_from_scratch = inputs.clone();
                 inputs_for_recording_from_scratch.paint_command_cache_read_write = false;
                 crate::painting::record::traversal::record_display_list(
                     arena,
                     &paint_state,
                     &mut scratch,
                     viewport,
-                    inputs_for_recording_from_scratch,
+                    &inputs_for_recording_from_scratch,
                     paint_state.hit_test_list_generation + 1,
                     None,
                     None,

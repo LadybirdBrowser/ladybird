@@ -14,43 +14,34 @@ use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::{ContextRef, DisplayListGlyph, FontResourceId};
 use crate::painting::display_list::recorder::GlyphRunForRecording;
 use crate::painting::force_dark::ForceDarkRole;
-use crate::painting::host::{FfiFlexOverlayInput, FfiGridOverlayInput, FfiOverlayLabelFonts};
+use crate::painting::host::{FfiFlexOverlayInput, FfiGridOverlayInput};
 use crate::painting::paintable_geometry;
 use crate::painting::record::PaintRecorder;
+use crate::painting::record::inputs::{InspectorHighlight, OverlayLabelFonts};
 use libgfx_rust::{Color, FloatPoint, IntPoint, IntRect, LineStyle, Orientation};
 
 pub(crate) fn record_inspector_overlays<O: Observer>(recorder: &mut PaintRecorder<'_, O>) {
     let inputs = recorder.inputs;
     recorder.recorder.set_accumulated_visual_context(ContextRef::default());
-    if inputs.has_inspector_highlight {
-        with_highlight_context(recorder, inputs.inspector_highlight_paintable, |recorder, paintable| {
-            paint_box_model_highlight(recorder, paintable);
+    if let Some(highlight) = &inputs.inspector_highlight {
+        with_highlight_context(recorder, highlight.paintable, |recorder, paintable| {
+            paint_box_model_highlight(recorder, paintable, highlight);
         });
     }
-    // SAFETY: The host borrows the overlay input arrays to the recording, which is synchronous.
-    let flex_overlays: &[FfiFlexOverlayInput] = if inputs.flex_overlay_count == 0 {
-        &[]
-    } else {
-        unsafe { std::slice::from_raw_parts(inputs.flex_overlays, inputs.flex_overlay_count) }
-    };
-    for input in flex_overlays {
+    for input in inputs.flex_overlays {
         with_highlight_context(recorder, input.paintable, |recorder, paintable| {
             paint_flex_overlay(recorder, paintable, input);
         });
     }
-    // SAFETY: See above.
-    let grid_overlays: &[FfiGridOverlayInput] = if inputs.grid_overlay_count == 0 {
-        &[]
-    } else {
-        unsafe { std::slice::from_raw_parts(inputs.grid_overlays, inputs.grid_overlay_count) }
-    };
-    for input in grid_overlays {
-        with_highlight_context(recorder, input.paintable, |recorder, paintable| {
-            paint_grid_overlay(recorder, paintable, input);
-        });
+    if let Some(grid) = &inputs.grid_overlays {
+        for input in grid.inputs {
+            with_highlight_context(recorder, input.paintable, |recorder, paintable| {
+                paint_grid_overlay(recorder, paintable, input, &grid.fonts);
+            });
+        }
     }
-    if inputs.caret_debug_rect.has_value {
-        paint_caret_debug_marker(recorder, CssPixelRect::from(inputs.caret_debug_rect.value));
+    if let Some(rect) = inputs.caret_debug_rect {
+        paint_caret_debug_marker(recorder, rect);
     }
 }
 
@@ -68,7 +59,11 @@ fn with_highlight_context<O: Observer>(
     recorder.with_context(context, |recorder| callback(recorder, paintable));
 }
 
-fn paint_box_model_highlight<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable: NodeSlotId) {
+fn paint_box_model_highlight<O: Observer>(
+    recorder: &mut PaintRecorder<'_, O>,
+    paintable: NodeSlotId,
+    highlight: &InspectorHighlight<'_>,
+) {
     let content_rect = paintable_geometry::absolute_rect(recorder.layout_arena, paintable);
     let margin = paintable_geometry::committed_margin(recorder.layout_arena, paintable);
     let border = paintable_geometry::committed_border(recorder.layout_arena, paintable);
@@ -97,11 +92,8 @@ fn paint_box_model_highlight<O: Observer>(recorder: &mut PaintRecorder<'_, O>, p
     paint_inspector_rect(recorder, border_rect, Color::from_rgb(0, 255, 0));
     paint_inspector_rect(recorder, content_rect, Color::from_rgb(255, 0, 255));
 
-    let label_input = recorder.inputs.inspector_highlight_label;
-    // SAFETY: The host keeps the label bytes live for the recording call.
-    let label_bytes = unsafe { crate::painting::ffi::ffi_slice(label_input.text, label_input.text_byte_count) };
-    let text: Vec<u16> = String::from_utf8_lossy(label_bytes).encode_utf16().collect();
-    let label = shape_overlay_label(recorder, &text, label_input.fonts);
+    let text: Vec<u16> = highlight.label.encode_utf16().collect();
+    let label = shape_overlay_label(recorder, &text, &highlight.fonts);
     let mut size_text_rect = border_rect;
     size_text_rect.y = border_rect.y + border_rect.height;
     size_text_rect.width = CssPixels::nearest_value_for_f32(label.css_width) + CssPixels::from_integer(4);
@@ -132,7 +124,7 @@ fn paint_flex_overlay<O: Observer>(
         x: content_rect.x,
         y: content_rect.y,
     };
-    let viewport_rect = CssPixelRect::from(recorder.inputs.css_viewport_rect);
+    let viewport_rect = recorder.inputs.css_viewport_rect;
     let color = input.color;
     let line_color = color.with_alpha(220);
     let container_fill_color = color.with_alpha(28);
@@ -262,6 +254,7 @@ fn paint_grid_overlay<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
     paintable: NodeSlotId,
     input: &FfiGridOverlayInput,
+    fonts: &OverlayLabelFonts,
 ) {
     let Some(grid_layout_data) =
         crate::painting::paintable_geometry::committed_grid_layout_data(recorder.layout_arena, paintable)
@@ -273,7 +266,7 @@ fn paint_grid_overlay<O: Observer>(
         x: content_rect.x,
         y: content_rect.y,
     };
-    let viewport_rect = CssPixelRect::from(recorder.inputs.css_viewport_rect);
+    let viewport_rect = recorder.inputs.css_viewport_rect;
     let color = input.color;
     let label_height = CssPixels::nearest_value_for_f32(input.label_css_pixel_size) + CssPixels::from_integer(4);
     let two = CssPixels::from_integer(2);
@@ -285,7 +278,7 @@ fn paint_grid_overlay<O: Observer>(
             .fill_rect(converter.enclosing_device_rect(rect), rect_color, ForceDarkRole::None);
     };
     let paint_label = |recorder: &mut PaintRecorder<'_, O>, top_left: CssPixelPoint, text: &[u16]| {
-        let label = shape_overlay_label(recorder, text, recorder.inputs.grid_label_fonts);
+        let label = shape_overlay_label(recorder, text, fonts);
         let label_width = label_width_for(&label);
         let label_rect = CssPixelRect {
             x: top_left.x,
@@ -304,7 +297,7 @@ fn paint_grid_overlay<O: Observer>(
         draw_label(recorder, &label, label_device_rect, input.label_foreground_color);
     };
     let paint_centered_label = |recorder: &mut PaintRecorder<'_, O>, rect: CssPixelRect, text: &[u16]| {
-        let label = shape_overlay_label(recorder, text, recorder.inputs.grid_label_fonts);
+        let label = shape_overlay_label(recorder, text, fonts);
         let label_width = label_width_for(&label);
         let top_left = CssPixelPoint {
             x: rect.center().x - label_width.div_as_fraction(two),
@@ -482,25 +475,22 @@ struct OverlayLabel {
 fn shape_overlay_label<O: Observer>(
     recorder: &mut PaintRecorder<'_, O>,
     text: &[u16],
-    fonts: FfiOverlayLabelFonts,
+    fonts: &OverlayLabelFonts,
 ) -> OverlayLabel {
-    // SAFETY: The host resolves both fonts from the platform font caches, which keep them live
-    // through the recording call; the handles keep them alive for the rest of it.
-    let css_font = unsafe { libgfx_rust::font::FontHandle::intern(fonts.css_font) };
-    // SAFETY: See above.
-    let device_font = unsafe { libgfx_rust::font::FontHandle::intern(fonts.device_font) };
+    let css_font = &fonts.css_font;
+    let device_font = &fonts.device_font;
     let shaped = libgfx_rust::text_layout::shape_text(
-        &device_font,
+        device_font,
         text,
         libgfx_rust::text_layout::TextType::Ltr,
         0.0,
         0.0,
         0.0,
     );
-    let blob_bounds = libgfx_rust::text_layout::glyph_run_bounding_box(&device_font, shaped.glyphs(), 1.0);
+    let blob_bounds = libgfx_rust::text_layout::glyph_run_bounding_box(device_font, shaped.glyphs(), 1.0);
     let device_ascent = device_font.facts().ascent;
     let device_descent = device_font.facts().descent;
-    let font_id = recorder.register_font(&device_font);
+    let font_id = recorder.register_font(device_font);
     let glyphs = shaped
         .glyphs()
         .iter()

@@ -144,7 +144,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         }
         let target_scroll_node_index = self.wheel_hit_test_target_scroll_node_index_for(paintable);
         let corner_radii = self.border_radii(paintable).as_corners(&self.converter);
-        let document_id = UniqueNodeId(self.inputs.document_id);
+        let document_id = self.inputs.document_id;
         if corner_radii.has_any_radius() {
             self.recorder.compositor_wheel_hit_test_target_with_corner_radii(
                 CompositorWheelHitTestTargetWithCornerRadii {
@@ -239,7 +239,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let scale = self.inputs.device_pixels_per_css_pixel;
         let hit_test_facts = self.hit_test_facts(paintable);
         self.recorder.compositor_scroll_node(CompositorScrollNode {
-            document_id: UniqueNodeId(self.inputs.document_id),
+            document_id: self.inputs.document_id,
             scrollable_node_id: UniqueNodeId(node_identity),
             scroll_node_index: self.data(paintable).own_scroll_node_index,
             parent_scroll_node_index,
@@ -261,7 +261,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
     // main thread selects from, recorded with the scroll node so that it is as current as the rest
     // of the display list.
     fn record_snap_geometry(&mut self, paintable: NodeSlotId, geometry: FfiSnapContainerGeometry) {
-        let document_id = UniqueNodeId(self.inputs.document_id);
+        let document_id = self.inputs.document_id;
         let scroll_node_index = self.data(paintable).own_scroll_node_index;
         self.recorder.compositor_snap_container(CompositorSnapContainer {
             document_id,
@@ -309,7 +309,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             self.inputs.root_background_source,
             self.inputs.canvas_color.blend(self.inputs.background_color),
         );
-        let chrome_geometry = ChromeGeometry::for_recording(self.layout_arena, &self.inputs);
+        let chrome_geometry = ChromeGeometry::for_recording(self.layout_arena, self.inputs);
         for direction in [ScrollDirection::Vertical, ScrollDirection::Horizontal] {
             let Some(scrollbar) = chrome_geometry.compute_scrollbar_data(paintable, direction, false, None) else {
                 continue;
@@ -320,7 +320,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             let vertical = direction == ScrollDirection::Vertical;
             self.recorder
                 .compositor_viewport_scrollbar(CompositorViewportScrollbar {
-                    document_id: UniqueNodeId(self.inputs.document_id),
+                    document_id: self.inputs.document_id,
                     scroll_node_index,
                     gutter_rect: self.converter.rounded_device_rect(scrollbar.gutter_rect),
                     thumb_rect: self.converter.rounded_device_rect(scrollbar.thumb_rect),

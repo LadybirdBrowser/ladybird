@@ -15,7 +15,7 @@ use crate::painting::display_list::builder::{CommandRange, DisplayListBuilder, R
 use crate::painting::display_list::commands::{ContextRef, VISUAL_VIEWPORT_NODE_INDEX};
 use crate::painting::display_list::device_pixels::DevicePixelConverter;
 use crate::painting::display_list::recorder::DisplayListRecorder;
-use crate::painting::force_dark::{ForceDarkRole, ForceDarkSettings};
+use crate::painting::force_dark::ForceDarkRole;
 use crate::painting::hit_test::*;
 use crate::painting::node_painting;
 use crate::painting::record::RecordingInputs;
@@ -70,7 +70,7 @@ pub(crate) fn record_display_list(
     paint_state: &crate::painting::paint_state::PaintState,
     scratch: &mut RecordingScratch,
     viewport: NodeSlotId,
-    inputs: RecordingInputs,
+    inputs: &RecordingInputs<'_>,
     hit_test_list_generation: u64,
     command_cache_source: Option<Rc<RecordingOutput>>,
     item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
@@ -106,21 +106,18 @@ fn record_display_list_impl<O: Observer>(
     paint_state: &crate::painting::paint_state::PaintState,
     scratch: &mut RecordingScratch,
     viewport: NodeSlotId,
-    inputs: RecordingInputs,
+    inputs: &RecordingInputs<'_>,
     hit_test_list_generation: u64,
     command_cache_source: Option<Rc<RecordingOutput>>,
     item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
 ) -> RecordingResult {
     let structural_epoch = paint_state.visual_context.structural_epoch();
-    let cache_inputs = PaintCacheInputs::from_recording_inputs(&inputs);
+    let cache_inputs = PaintCacheInputs::from_recording_inputs(inputs);
     let cache_compatibility = command_cache_source.as_ref().map_or_else(Default::default, |source| {
         cache_inputs.compatibility_with(&source.cache_inputs)
     });
     let paintable_rows = layout_arena.paintable_rows();
-    let force_dark_settings = inputs.force_dark_enabled.then_some(ForceDarkSettings {
-        foreground_brightness_threshold: inputs.force_dark_foreground_threshold,
-        background_brightness_threshold: inputs.force_dark_background_threshold,
-    });
+    let force_dark_settings = inputs.force_dark_enabled.then_some(inputs.force_dark_settings);
     let mut recorder = PaintRecorder {
         layout_arena: &paintable_rows,
         paint_state,
@@ -151,12 +148,9 @@ fn record_display_list_impl<O: Observer>(
         resources: RecordingResourceManifest::default(),
     };
     recorder.trace_paint(Operation::Producer(None, "canvas"), |this| {
-        if inputs.canvas_fill_rect.has_value {
-            this.recorder.fill_rect(
-                inputs.canvas_fill_rect.value,
-                inputs.canvas_color,
-                ForceDarkRole::Background,
-            );
+        if let Some(rect) = inputs.canvas_fill_rect {
+            this.recorder
+                .fill_rect(rect, inputs.canvas_color, ForceDarkRole::Background);
         }
         // .. in the case of embedded documents typically rendered over a transparent canvas
         // (such as provided via an HTML iframe element), if the used color scheme of the element
@@ -171,10 +165,10 @@ fn record_display_list_impl<O: Observer>(
             .fill_rect(inputs.bitmap_rect, inputs.background_color, ForceDarkRole::Background);
     });
     recorder.paint_and_capture_as_stacking_context(viewport);
-    if inputs.has_inspector_highlight
-        || inputs.grid_overlay_count > 0
-        || inputs.flex_overlay_count > 0
-        || inputs.caret_debug_rect.has_value
+    if inputs.inspector_highlight.is_some()
+        || inputs.grid_overlays.is_some()
+        || !inputs.flex_overlays.is_empty()
+        || inputs.caret_debug_rect.is_some()
     {
         recorder.trace_paint(
             Operation::Producer(None, "inspector-overlays"),

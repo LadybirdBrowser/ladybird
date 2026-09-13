@@ -24,15 +24,12 @@ pub(crate) struct PaintCacheInputs {
 }
 
 impl PaintCacheInputs {
-    pub(crate) fn from_recording_inputs(inputs: &RecordingInputs) -> Self {
+    pub(crate) fn from_recording_inputs(inputs: &RecordingInputs<'_>) -> Self {
         Self {
             device_pixels_per_css_pixel: inputs.device_pixels_per_css_pixel,
             canvas_color: inputs.canvas_color,
             force_dark_enabled: inputs.force_dark_enabled,
-            force_dark_settings: ForceDarkSettings {
-                foreground_brightness_threshold: inputs.force_dark_foreground_threshold,
-                background_brightness_threshold: inputs.force_dark_background_threshold,
-            },
+            force_dark_settings: inputs.force_dark_settings,
             should_show_line_box_borders: inputs.should_show_line_box_borders,
             should_paint_overlay: inputs.should_paint_overlay,
             has_blocking_wheel_event_region_covering_viewport: inputs.has_blocking_wheel_event_region_covering_viewport,
