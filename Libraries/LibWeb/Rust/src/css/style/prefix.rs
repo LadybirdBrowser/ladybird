@@ -47,7 +47,6 @@ use super::partial_view::Lookup;
 use super::program::EntryID;
 use super::program::SelectorProgramID;
 use super::selector::AttributeOperator;
-use super::selector::FeatureTest;
 use super::selector::Incomplete;
 use super::selector::MatchEvaluator;
 use super::selector::MatchFactRow;
@@ -58,6 +57,7 @@ use super::selector::SelectorPrefixAxis;
 use super::selector::SelectorPrefixLocal;
 use super::selector::SelectorPrefixStep;
 use super::selector::SelectorPrograms;
+use super::selector::{AttributeTest, FeatureTest, TagTest};
 use super::tree::StyleNodeID;
 use super::tree::StyleNodeTree;
 
@@ -167,6 +167,53 @@ enum PrefixPredicateKey {
     Program(Rc<SelectorPrefixPredicate>),
 }
 
+// Keep common class and ID tests in compact rows. Larger tag and attribute payloads
+// live in separate flat arrays, with no per-test allocation.
+#[derive(Clone, Copy)]
+enum PrefixFeature {
+    AnyElement,
+    TagName(u32),
+    Id(StyleAtomID),
+    Class(StyleAtomID),
+    Attribute(u32),
+    NoNamespace,
+    Namespace(StyleAtomID),
+}
+
+impl PrefixFeature {
+    fn new(feature: FeatureTest, tags: &mut Vec<TagTest>, attributes: &mut Vec<AttributeTest>) -> Self {
+        match feature {
+            FeatureTest::AnyElement => Self::AnyElement,
+            FeatureTest::Id(id) => Self::Id(id),
+            FeatureTest::Class(class) => Self::Class(class),
+            FeatureTest::Namespace(NamespaceTest::None) => Self::NoNamespace,
+            FeatureTest::Namespace(NamespaceTest::Named(namespace)) => Self::Namespace(namespace),
+            FeatureTest::TagName(tag) => {
+                let index = u32::try_from(tags.len()).expect("prefix tag test space exhausted");
+                tags.push(tag);
+                Self::TagName(index)
+            }
+            FeatureTest::Attribute(attribute) => {
+                let index = u32::try_from(attributes.len()).expect("prefix attribute test space exhausted");
+                attributes.push(attribute);
+                Self::Attribute(index)
+            }
+        }
+    }
+
+    fn feature(self, tags: &[TagTest], attributes: &[AttributeTest]) -> FeatureTest {
+        match self {
+            Self::AnyElement => FeatureTest::AnyElement,
+            Self::Id(id) => FeatureTest::Id(id),
+            Self::Class(class) => FeatureTest::Class(class),
+            Self::NoNamespace => FeatureTest::Namespace(NamespaceTest::None),
+            Self::Namespace(namespace) => FeatureTest::Namespace(NamespaceTest::Named(namespace)),
+            Self::TagName(index) => FeatureTest::TagName(tags[index as usize]),
+            Self::Attribute(index) => FeatureTest::Attribute(attributes[index as usize]),
+        }
+    }
+}
+
 #[derive(Clone)]
 enum PrefixPredicate {
     Features {
@@ -242,7 +289,9 @@ pub(super) struct PrefixAutomaton {
     relation_program: std::cell::OnceCell<std::rc::Rc<relation::PrefixRelationProgram>>,
     compounds: Vec<PrefixCompound>,
     compound_ids: HashMap<PrefixPredicateKey, PrefixCompoundID>,
-    features: Vec<FeatureTest>,
+    features: Vec<PrefixFeature>,
+    tag_tests: Vec<TagTest>,
+    attribute_tests: Vec<AttributeTest>,
     steps: Vec<PrefixStep>,
     step_output_builders: Vec<PrefixStepOutputBuilder>,
     outputs: Vec<PrefixOutput>,
@@ -291,13 +340,10 @@ impl PrefixAutomaton {
                         feature_start,
                         feature_len,
                         required_positional_bits,
-                    } => {
-                        let start = *feature_start as usize;
-                        PrefixPredicateKey::Features {
-                            features: self.features[start..start + *feature_len as usize].into(),
-                            required_positional_bits: *required_positional_bits,
-                        }
-                    }
+                    } => PrefixPredicateKey::Features {
+                        features: self.features_for(*feature_start, *feature_len).collect(),
+                        required_positional_bits: *required_positional_bits,
+                    },
                     PrefixPredicate::Program { identity, .. } => PrefixPredicateKey::Program(Rc::clone(identity)),
                 };
                 (
@@ -457,7 +503,9 @@ impl PrefixAutomaton {
                         } => {
                             let feature_start =
                                 u32::try_from(self.features.len()).expect("selector prefix feature space exhausted");
-                            self.features.extend_from_slice(features);
+                            self.features.extend(features.iter().map(|&feature| {
+                                PrefixFeature::new(feature, &mut self.tag_tests, &mut self.attribute_tests)
+                            }));
                             PrefixPredicate::Features {
                                 feature_start,
                                 feature_len: u32::try_from(features.len())
@@ -670,6 +718,8 @@ impl PrefixAutomaton {
         // have exact capacity. Spare builder capacity in the retained template is unused.
         self.compounds.shrink_to_fit();
         self.features.shrink_to_fit();
+        self.tag_tests.shrink_to_fit();
+        self.attribute_tests.shrink_to_fit();
         self.outputs.shrink_to_fit();
         self.entry_paths.shrink_to_fit();
         self.entry_path_steps.shrink_to_fit();
@@ -711,9 +761,11 @@ impl PrefixAutomaton {
         (predecessor != u32::MAX).then_some(PrefixStepID(predecessor))
     }
 
-    fn features_for(&self, start: u32, len: u32) -> &[FeatureTest] {
+    fn features_for(&self, start: u32, len: u32) -> impl Iterator<Item = FeatureTest> + '_ {
         let start = start as usize;
-        &self.features[start..start + len as usize]
+        self.features[start..start + len as usize]
+            .iter()
+            .map(|feature| feature.feature(&self.tag_tests, &self.attribute_tests))
     }
 
     fn path_for(&self, key: EntryID) -> Option<&[PrefixStepID]> {
@@ -781,6 +833,8 @@ impl PrefixAutomaton {
                 self.compounds,
                 self.compound_ids,
                 self.features,
+                self.tag_tests,
+                self.attribute_tests,
                 self.steps,
                 self.step_output_builders,
                 self.outputs,
@@ -1563,8 +1617,7 @@ impl<'a, 'b> PrefixEvaluation<'a, 'b> {
                 Ok(self
                     .automaton
                     .features_for(*feature_start, *feature_len)
-                    .iter()
-                    .all(|&feature| matches_feature(row.facts, row.row, feature)))
+                    .all(|feature| matches_feature(row.facts, row.row, feature)))
             }
             PrefixPredicate::Program { program, local, .. } => {
                 self.evaluator
@@ -1592,8 +1645,7 @@ impl<'a, 'b> PrefixEvaluation<'a, 'b> {
                     && self
                         .automaton
                         .features_for(*feature_start, *feature_len)
-                        .iter()
-                        .all(|&feature| matches_feature(row.facts, row.row, feature)),
+                        .all(|feature| matches_feature(row.facts, row.row, feature)),
             ),
             PrefixPredicate::Program { program, local, .. } => {
                 self.evaluator
@@ -3230,8 +3282,7 @@ impl PrefixStates {
                             (positional_bits & required_positional_bits) == *required_positional_bits
                                 && automaton
                                     .features_for(*feature_start, *feature_len)
-                                    .iter()
-                                    .all(|&feature| matches_feature(row.facts, row.row, feature))
+                                    .all(|feature| matches_feature(row.facts, row.row, feature))
                         }
                         PrefixPredicate::Program { program, local, .. } => match evaluation
                             .evaluator
