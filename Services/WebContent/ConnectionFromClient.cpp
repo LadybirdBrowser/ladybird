@@ -2599,6 +2599,12 @@ void ConnectionFromClient::set_browsing_behavior(Web::PageId page_id, WebView::B
     }
 }
 
+void ConnectionFromClient::consume_user_activation(Web::PageId page_id, Web::HTML::UserActivationConsumption consumption)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        Web::HTML::Window::consume_user_activation_of_windows_hosted_by(page->page(), consumption);
+}
+
 void ConnectionFromClient::set_enable_global_privacy_control(Web::PageId, bool enable)
 {
     Web::ResourceLoader::the().set_enable_global_privacy_control(enable);

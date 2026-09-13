@@ -28,6 +28,7 @@
 #include <LibWeb/HTML/MimeType.h>
 #include <LibWeb/HTML/Plugin.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/HTML/UserActivationConsumption.h>
 #include <LibWeb/HTML/WindowEventHandlers.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WindowType.h>
@@ -288,6 +289,10 @@ public:
     void set_last_history_action_activation_timestamp(HighResolutionTime::DOMHighResTimeStamp timestamp) { m_last_history_action_activation_timestamp = timestamp; }
 
     void consume_history_action_user_activation();
+
+    // Steps 4 and 5 of both consumptions for the windows a page hosts. The UI process runs this in every page of the
+    // tab, since the navigables of top's active document span its pages.
+    static void consume_user_activation_of_windows_hosted_by(Page&, UserActivationConsumption);
 
     static bool in_test_mode();
     static void set_enable_test_mode(bool);

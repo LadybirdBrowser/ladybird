@@ -2247,6 +2247,19 @@ void WebContentClient::did_change_needs_beforeunload_check(Web::PageId page_id, 
     m_needs_beforeunload_check_by_page.set(page_id, needs_beforeunload_check);
 }
 
+// A page consumed the user activation of the windows it hosts; every other page of its tab consumes those it hosts.
+void WebContentClient::did_consume_user_activation(Web::PageId page_id, Web::HTML::UserActivationConsumption consumption)
+{
+    auto* page_host = traversable_for_page(page_id);
+    if (!page_host)
+        return;
+    page_host->top_level_traversable().for_each_hosting_page([&](WebContentClient& client, Web::PageId hosting_page_id) {
+        if (&client == this && hosting_page_id == page_id)
+            return;
+        client.async_consume_user_activation(hosting_page_id, consumption);
+    });
+}
+
 void WebContentClient::webdriver_user_prompt_handling_complete(Web::PageId page_id, u64 request_id, Web::WebDriver::Response response)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())

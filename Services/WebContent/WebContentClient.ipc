@@ -40,6 +40,7 @@
 #include <LibWeb/HTML/SelectItem.h>
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
+#include <LibWeb/HTML/UserActivationConsumption.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/HTML/VisibilityState.h>
 #include <LibWeb/Page/PageId.h>
@@ -190,6 +191,7 @@ endpoint WebContentClient
     did_request_activate_tab(Web::PageId page_id) =|
     did_close_browsing_context(Web::PageId page_id) =|
     did_change_needs_beforeunload_check(Web::PageId page_id, bool needs_beforeunload_check) =|
+    did_consume_user_activation(Web::PageId page_id, Web::HTML::UserActivationConsumption consumption) =|
     webdriver_user_prompt_handling_complete(Web::PageId page_id, u64 request_id, Web::WebDriver::Response response) =|
     webdriver_command_complete(Web::PageId page_id, u64 command_id, Web::WebDriver::Response response) =|
     did_request_restore_window(Web::PageId page_id) =|
