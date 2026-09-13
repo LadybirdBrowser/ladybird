@@ -20,6 +20,7 @@
 #include <LibWebView/Application.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/Utilities.h>
+#include <LibWebView/WebContentClient.h>
 #include <stdlib.h>
 
 namespace {
@@ -41,6 +42,7 @@ public:
     virtual void create_platform_options(WebView::BrowserOptions& browser_options, WebView::RequestServerOptions&, WebView::WebContentOptions& web_content_options) override
     {
         browser_options.headless_mode = WebView::HeadlessMode::Test;
+        browser_options.allow_popups = WebView::AllowPopups::Yes;
         browser_options.disable_sql_database = WebView::DisableSQLDatabase::Yes;
         web_content_options.is_test_mode = WebView::IsTestMode::Yes;
     }
@@ -102,6 +104,11 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     // A spare can create its initial traversable before a view adopts it. Preserve that entry across assignment.
     Core::EventLoop::current().spin_until([&]() { return app->has_spare_web_content_process(); });
+    // Unassigned spare clients must reject page IDs they were never given.
+    WebView::WebContentClient::for_each_client([](auto& client) {
+        VERIFY(!client.owns_page(0));
+        return IterationDecision::Continue;
+    });
     auto spare_view = WebView::HeadlessWebView::create(move(theme), { 800, 600 });
     VERIFY(spare_view->traversable().session_history().current_step() == 0);
     VERIFY(spare_view->traversable().session_history().current_entry());
@@ -274,6 +281,32 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Core::EventLoop::current().spin_until([&] { return restored_view_loads_finished > loads_before_replacement_reload; });
     VERIFY(!document_is_hidden());
     VERIFY(restored_view->url() == closed_tab_url);
+
+    // Exercise browser-side ownership across popup detachment and close acknowledgement without
+    // pumping the event loop between those transitions.
+    OwnPtr<WebView::HeadlessWebView> popup;
+    bool popup_loaded = false;
+    u64 popup_page_id = 0;
+    restored_view->on_new_web_view = [&](auto, auto, Optional<u64> page_id) {
+        VERIFY(page_id.has_value());
+        popup_page_id = *page_id;
+        popup = WebView::HeadlessWebView::create_child(*restored_view, *page_id);
+        popup->on_load_finish = [&](auto const&) { popup_loaded = true; };
+        return popup->handle();
+    };
+    restored_view->run_javascript("window.open('about:blank')"_string);
+    Core::EventLoop::current().spin_until([&] { return popup_loaded; });
+    auto& client = restored_view->client();
+    VERIFY(&popup->client() == &client);
+    VERIFY(client.owns_page(popup_page_id));
+    client.prepare_for_detached_close(popup_page_id);
+    popup.clear();
+    VERIFY(!client.is_page_open(popup_page_id));
+    VERIFY(client.owns_page(popup_page_id));
+    VERIFY(!client.owns_page(0));
+    static_cast<WebContentClientStub&>(client).did_close_browsing_context(popup_page_id);
+    VERIFY(!client.owns_page(popup_page_id));
+    restored_view->on_new_web_view = nullptr;
 
     outln("PASS: browser history traversal");
     return 0;

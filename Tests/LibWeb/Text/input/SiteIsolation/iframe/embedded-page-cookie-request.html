@@ -1,0 +1,27 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const server = httpTestServer();
+        const runId = crypto.randomUUID();
+        const childUrl = new URL(await server.createEcho("GET", `/embedded-page-cookie-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!doctype html><script>
+                document.cookie = "embedded-page-cookie=allowed";
+                const result = document.cookie.includes("embedded-page-cookie=allowed") ? "allowed" : "unavailable";
+                document.cookie = "embedded-page-cookie-result=" + result;
+            <\/script>`,
+        }));
+        childUrl.hostname = uniqueLocalhostHostname("embedded-page-cookie");
+
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+
+        const becameRemote = await waitForCondition(() => internals.dumpSiteIsolationProcessTree().includes("remote"));
+        const cookieWasRead = await waitForCondition(() => internals.hasCookieForURL(childUrl.href, "embedded-page-cookie-result", "allowed"));
+        println(`remote: ${becameRemote}`);
+        println(`cookie: ${cookieWasRead ? "allowed" : "unavailable"}`);
+    });
+</script>

@@ -151,10 +151,10 @@ WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport, IsPr
     : IPC::ConnectionToServer<WebContentClientEndpoint, WebContentServerEndpoint>(*this, move(transport))
     , m_is_private(is_private)
     , m_session(Application::existing_session(is_private))
-    , m_initial_page_id(initial_page_id)
+    , m_unassigned_initial_page_id(initial_page_id)
     , m_root_navigable_id(root_navigable_id)
 {
-    VERIFY(m_initial_page_id > 0);
+    VERIFY(initial_page_id > 0);
     VERIFY(m_session);
     clients().set(this);
 }
@@ -191,6 +191,15 @@ void WebContentClient::die()
     cancel_navigation_transactions();
     fail_renderer_owned_downloads();
     remove_blob_url_entries();
+}
+
+bool WebContentClient::owns_page(u64 page_id) const
+{
+    // A spare process can send requests for its initial page before a view adopts it.
+    if (m_unassigned_initial_page_id.has_value() && page_id == *m_unassigned_initial_page_id)
+        return true;
+    // Detached pages can still send requests until WebContent acknowledges their close.
+    return is_page_open(page_id) || m_detached_pages_pending_close.contains(page_id);
 }
 
 void WebContentClient::did_misbehave(StringView message_name, StringView reason)
@@ -257,9 +266,10 @@ void WebContentClient::assign_view(Badge<Application>, ViewImplementation& view)
 {
     VERIFY(m_views.is_empty());
     VERIFY(view.is_private() == m_is_private);
-    view.m_client_state.page_index = m_initial_page_id;
+    auto initial_page_id = m_unassigned_initial_page_id.release_value();
+    view.m_client_state.page_index = initial_page_id;
     view.traversable().set_id(m_root_navigable_id);
-    m_views.set(m_initial_page_id, view);
+    m_views.set(initial_page_id, view);
 
     if (m_initial_top_level_history_entry.has_value()) {
         view.traversable().create_a_new_top_level_traversable({}, m_initial_top_level_history_entry.release_value(), *this);
@@ -342,6 +352,8 @@ void WebContentClient::request_close(u64 page_id)
 void WebContentClient::register_embedded_page(u64 page_id, CanonicalNavigable& child_frame)
 {
     m_embedded_pages.set(page_id, child_frame.make_weak_ptr());
+    if (m_unassigned_initial_page_id.has_value() && page_id == *m_unassigned_initial_page_id)
+        m_unassigned_initial_page_id.clear();
     Application::process_manager().cancel_forced_exit(pid());
 }
 
@@ -1887,11 +1899,16 @@ Messages::WebContentClient::DidRequestNamedCookieResponse WebContentClient::did_
 
 Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_request_cookie(u64 page_id, URL::URL url, HTTP::Cookie::Source source)
 {
+    if (!owns_page(page_id)) {
+        did_misbehave("did_request_cookie"sv, "page is not owned by this connection"sv);
+        return HTTP::Cookie::VersionedCookie {};
+    }
+
     HTTP::Cookie::VersionedCookie cookie;
     cookie.cookie = m_session->cookie_jar->get_cookie(url, source);
 
     if (source == HTTP::Cookie::Source::NonHttp) {
-        if (auto view = view_for_page_id(page_id); view.has_value())
+        if (auto view = owning_view_for_page_id(page_id); view.has_value())
             cookie.cookie_version = view->document_cookie_version(url);
     }
 
