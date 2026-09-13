@@ -563,14 +563,6 @@ private:
     bool m_force_dark_enabled { false };
     i32 m_force_dark_foreground_threshold { default_force_dark_foreground_threshold };
     i32 m_force_dark_background_threshold { default_force_dark_background_threshold };
-    // What the live paint-command cache was recorded under; the recording funnel drops the cache when these move.
-    struct ForceDarkPaintInputs {
-        bool enabled { false };
-        i32 foreground_threshold { 0 };
-        i32 background_threshold { 0 };
-        bool operator==(ForceDarkPaintInputs const&) const = default;
-    };
-    Optional<ForceDarkPaintInputs> m_force_dark_inputs_of_cached_paint;
     bool m_should_show_caret_hit_test_debug_overlay { false };
     Optional<PaintConfig> m_compositor_display_list_paint_config;
     RefPtr<Painting::DisplayList> m_compositor_display_list;

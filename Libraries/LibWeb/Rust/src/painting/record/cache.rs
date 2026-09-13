@@ -74,7 +74,6 @@ pub struct CachedSubtreeCapture {
     pub hit_test_item_count: u32,
     pub(crate) gen_of_last_fresh_walk: RecordGen,
     pub may_be_spliced_verbatim: bool,
-    pub recorded_with_should_paint_overlay: bool,
     pub contains_blocking_wheel_event_region: bool,
 }
 

@@ -8,6 +8,7 @@ use crate::painting::record::trace::{Observer, Operation};
 
 pub mod async_scroll_metadata;
 pub mod cache;
+pub(crate) mod cache_compatibility;
 pub mod hit_test_items;
 pub mod paint;
 pub(crate) mod publish;
@@ -32,6 +33,7 @@ use crate::painting::host::{FfiRecordingInputs, FfiRootBackgroundSource, FfiVisu
 use crate::painting::paintable_data::{InlineBoxPieceRecord, PaintableData};
 use crate::painting::paintable_rows::PaintableRowsRef;
 use crate::painting::record::cache::{OpenCapture, PendingPaintCacheUpdates, RecordGen};
+use crate::painting::record::cache_compatibility::{PaintCacheCompatibility, PaintCacheInputs};
 use crate::painting::record::svg_resources::SvgResourceWalk;
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -79,8 +81,7 @@ impl std::ops::DerefMut for RecordingInputs {
 #[derive(Default)]
 pub struct RecordingOutput {
     pub recorded_structural_epoch: u64,
-    // A default-constructed output's 0.0 never matches a real recording scale.
-    pub recorded_device_pixels_per_css_pixel: f64,
+    pub(crate) cache_inputs: PaintCacheInputs,
     pub hit_test_list: HitTestList,
     pub display_list: Rc<RecordedDisplayList>,
     pub has_blocking_wheel_event_listeners: bool,
@@ -130,6 +131,7 @@ pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) viewport: NodeSlotId,
     command_cache_source: Option<Rc<RecordingOutput>>,
     item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
+    cache_compatibility: PaintCacheCompatibility,
     open_capture_stack: Vec<OpenCapture>,
     cache_updates: PendingPaintCacheUpdates,
     deferred_whole_tape_splice: Option<DeferredWholeTapeSplice>,
@@ -140,7 +142,6 @@ pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) memo_tables: &'a RefCell<scratch::PerRecordingMemoTables>,
     pub(crate) completed_record_gen: RecordGen,
     pub(crate) all_paint_caches_dirty: bool,
-    pub(crate) all_descendant_subtree_caches_dirty: bool,
     pub(crate) resources: resources::RecordingResourceManifest,
     selection_style_cache: HashMap<u32, Rc<paint::text::SelectionStyleAnswer>>,
     pub(crate) wheel_hit_test_target_cache: HashMap<NodeSlotId, SpatialNodeIndex>,
