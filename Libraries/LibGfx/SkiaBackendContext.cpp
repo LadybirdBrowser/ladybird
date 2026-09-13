@@ -15,6 +15,7 @@
 #include <LibGfx/SkiaBackendContext.h>
 
 #include <core/SkSurface.h>
+#include <gpu/ganesh/GrContextOptions.h>
 #include <gpu/ganesh/GrDirectContext.h>
 
 #ifdef USE_DIRECTX
@@ -298,7 +299,10 @@ RefPtr<SkiaBackendContext> SkiaBackendContext::create_vulkan_context(VulkanConte
     backend_context.fMemoryAllocator = create_skia_vulkan_memory_allocator(vulkan_context);
     VERIFY(backend_context.fMemoryAllocator);
 
-    sk_sp<GrDirectContext> ctx = GrDirectContexts::MakeVulkan(backend_context);
+    GrContextOptions options;
+    options.fReduceOpsTaskSplitting = GrContextOptions::Enable::kNo;
+
+    sk_sp<GrDirectContext> ctx = GrDirectContexts::MakeVulkan(backend_context, options);
     VERIFY(ctx);
     ctx->setResourceCacheLimit(skia_resource_cache_limit);
     return adopt_ref(*new SkiaVulkanBackendContext(ctx, vulkan_context, move(extensions)));
