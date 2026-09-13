@@ -7,9 +7,10 @@
 use super::effect_clip_plan::EffectClipPlan;
 use crate::painting::display_list::builder::{for_each_command, inline_transform_entry_offset, read_command};
 use crate::painting::display_list::commands::{
-    ContextRef, DisplayListCommandHeader, DisplayListCommandType, DisplayListDataSpan, DisplayListInlineClip,
-    DrawGlyphRun, DrawScaledDecodedImageFrame, EffectNodeIndex, INLINE_CLIP_ENTRY_SIZE, OptionalColor,
-    OptionalFloatRect, PaintScrollBar, PaintTextShadow, SpatialNodeIndex, VISUAL_VIEWPORT_NODE_INDEX,
+    ClipMode, ContextRef, DeclareMaskContent, DisplayListCommandHeader, DisplayListCommandType, DisplayListDataSpan,
+    DisplayListInlineClip, DisplayListPaintStyleType, DrawGlyphRun, DrawScaledDecodedImageFrame, EffectNodeIndex,
+    FillPath, FillRect, INLINE_CLIP_ENTRY_SIZE, OptionalColor, OptionalFloatRect, PaintScrollBar, PaintTextShadow,
+    PathPaintKind, SpatialNodeIndex, StrokePath, VISUAL_VIEWPORT_NODE_INDEX,
 };
 use crate::painting::visual_context::queries::TreeCullingScratch;
 use crate::painting::visual_context::{
@@ -17,6 +18,7 @@ use crate::painting::visual_context::{
     device_offset_for_index,
 };
 use libgfx_rust::{AffineTransform, FloatPoint, FloatRect, IntRect, enclosing_int_rect};
+use std::collections::HashMap;
 use std::mem::offset_of;
 use std::rc::Rc;
 
@@ -34,6 +36,80 @@ fn collect_command_references(command_bytes: &[u8]) -> Vec<CommandReference<'_>>
         });
     });
     commands
+}
+
+struct StaticMaskContent<'a> {
+    rect: IntRect,
+    commands: Vec<CommandReference<'a>>,
+}
+
+fn static_mask_contents<'a>(
+    commands: &[CommandReference<'a>],
+    effect_count: usize,
+) -> Vec<Option<StaticMaskContent<'a>>> {
+    let mut masks: Vec<_> = (0..effect_count).map(|_| None).collect();
+    let mut seen = vec![false; effect_count];
+    for command in commands {
+        if command.header.command_type != DisplayListCommandType::DeclareMaskContent {
+            continue;
+        }
+        let declaration = read_command::<DeclareMaskContent>(command.payload);
+        let index = declaration.effect.0 as usize;
+        let Some(slot) = masks.get_mut(index) else { continue };
+        if seen[index] {
+            *slot = None;
+            continue;
+        }
+        seen[index] = true;
+        let content = super::nested_records::span_bytes(command.payload, declaration.content);
+        let nested = collect_command_references(content);
+        // Mask groups use their declaration's visual context. Only compare drawing commands whose
+        // complete appearance is encoded in the payload, without canvas, video, or nested scenes.
+        if nested.iter().all(|nested| {
+            nested.header.context == command.header.context
+                && match nested.header.command_type {
+                    DisplayListCommandType::FillRect => read_command::<FillRect>(nested.payload)
+                        .background_color_animation_effect
+                        .is_none(),
+                    DisplayListCommandType::FillPath => {
+                        let path = read_command::<FillPath>(nested.payload);
+                        path.paint_kind != PathPaintKind::PaintStyle
+                            || path.paint_style.paint_style_type != DisplayListPaintStyleType::Pattern
+                    }
+                    DisplayListCommandType::StrokePath => {
+                        let path = read_command::<StrokePath>(nested.payload);
+                        path.paint_kind != PathPaintKind::PaintStyle
+                            || path.paint_style.paint_style_type != DisplayListPaintStyleType::Pattern
+                    }
+                    DisplayListCommandType::PaintLinearGradient
+                    | DisplayListCommandType::PaintRadialGradient
+                    | DisplayListCommandType::PaintConicGradient
+                    | DisplayListCommandType::DrawEllipse
+                    | DisplayListCommandType::DrawLine
+                    | DisplayListCommandType::DrawRect => true,
+                    _ => false,
+                }
+        }) {
+            *slot = Some(StaticMaskContent {
+                rect: declaration.rect,
+                commands: nested,
+            });
+        }
+    }
+    masks
+}
+
+fn static_mask_contents_are_equal(old: Option<&StaticMaskContent<'_>>, new: Option<&StaticMaskContent<'_>>) -> bool {
+    let (Some(old), Some(new)) = (old, new) else {
+        return false;
+    };
+    old.rect == new.rect
+        && old.commands.len() == new.commands.len()
+        && old
+            .commands
+            .iter()
+            .zip(&new.commands)
+            .all(|(old, new)| display_list_commands_are_equal(old, new))
 }
 
 struct PayloadReader<'a> {
@@ -258,7 +334,7 @@ fn effect_data_is_equal(a: &EffectNodeData, b: &EffectNodeData) -> bool {
                 && data.filter == other.filter
                 && data.backdrop_filter == other.backdrop_filter
         }
-        // Mask content is per-recording and invisible here, so mask chains always damage.
+        // Mask content equality is checked separately when declarations contain only static drawing commands.
         (EffectNodeData::Mask(_), EffectNodeData::Mask(_)) => false,
         _ => false,
     }
@@ -281,7 +357,7 @@ fn chains_pair_up(
     mut new: u32,
     old_parent: impl Fn(u32) -> u32,
     new_parent: impl Fn(u32) -> u32,
-    nodes_match: impl Fn(u32, u32) -> bool,
+    mut nodes_match: impl FnMut(u32, u32) -> bool,
 ) -> bool {
     loop {
         if old == u32::MAX || new == u32::MAX {
@@ -298,6 +374,8 @@ fn chains_pair_up(
 struct TreeChainComparison<'a> {
     old_effect_clips: EffectClipPlan,
     new_effect_clips: EffectClipPlan,
+    old_mask_contents: Vec<Option<StaticMaskContent<'a>>>,
+    new_mask_contents: Vec<Option<StaticMaskContent<'a>>>,
     old_tree: &'a VisualContextTree,
     old_scroll_offsets: &'a [FloatPoint],
     old_spatial_depths: Vec<u32>,
@@ -363,7 +441,12 @@ impl TreeChainComparison<'_> {
 
     // Value equality of compatible chains. An effect's output clip is compared by clip depth: a
     // layer that moved relative to the clips around it is treated as a change.
-    fn chains_are_equal(&self, old_context: ContextRef, new_context: ContextRef) -> bool {
+    fn chains_are_equal(
+        &self,
+        old_context: ContextRef,
+        new_context: ContextRef,
+        mask_comparisons: &mut HashMap<(u32, u32), bool>,
+    ) -> bool {
         let mut old_index = old_context.spatial;
         let mut new_index = new_context.spatial;
         loop {
@@ -405,11 +488,24 @@ impl TreeChainComparison<'_> {
             |old, new| {
                 let old_output_clip = self.old_effect_clips.output_clip(EffectNodeIndex(old));
                 let new_output_clip = self.new_effect_clips.output_clip(EffectNodeIndex(new));
+                let effect_pair = (old, new);
                 let (old, new) = (
                     &old_tree.effect_nodes[old as usize],
                     &new_tree.effect_nodes[new as usize],
                 );
-                effect_data_is_equal(&old.data, &new.data)
+                let same_data = match (&old.data, &new.data) {
+                    (EffectNodeData::Mask(old), EffectNodeData::Mask(new)) => {
+                        old == new
+                            && *mask_comparisons.entry(effect_pair).or_insert_with(|| {
+                                static_mask_contents_are_equal(
+                                    self.old_mask_contents[effect_pair.0 as usize].as_ref(),
+                                    self.new_mask_contents[effect_pair.1 as usize].as_ref(),
+                                )
+                            })
+                    }
+                    _ => effect_data_is_equal(&old.data, &new.data),
+                };
+                same_data
                     && self.old_culling.clip_depth(old_output_clip) == self.new_culling.clip_depth(new_output_clip)
             },
         )
@@ -437,6 +533,56 @@ impl TreeChainComparison<'_> {
         }
         false
     }
+}
+
+fn filter_output_is_clipped_outside_viewport(
+    context: ContextRef,
+    tree: &VisualContextTree,
+    effect_clips: &EffectClipPlan,
+    scroll_offsets: &[FloatPoint],
+    viewport: IntRect,
+) -> bool {
+    // Only clips outside every filter bound the final output. Replay can widen an effect's
+    // output clip for escaping descendants, so use the complete display list's layer plan.
+    let mut clip = context.clip;
+    let mut effect = context.effect;
+    while !effect.is_none() {
+        let node = &tree.effect_nodes[effect.0 as usize];
+        if let EffectNodeData::Effects(effects) = &node.data
+            && (effects.filter.is_some() || effects.backdrop_filter.is_some())
+        {
+            clip = effect_clips.output_clip(effect);
+        }
+        effect = node.parent;
+    }
+    while !clip.is_none() {
+        let node = &tree.clip_nodes[clip.0 as usize];
+        if let ClipNodeData::Rect(data) = &node.data
+            && data.mode == ClipMode::Intersect
+        {
+            let bounds = tree
+                .transform_rect_to_viewport(
+                    node.spatial,
+                    data.rect,
+                    scroll_offsets,
+                    IncludeVisualViewportTransform::Yes,
+                )
+                .inflated(1.0, 1.0);
+            if bounds.x.is_finite()
+                && bounds.y.is_finite()
+                && bounds.width.is_finite()
+                && bounds.height.is_finite()
+                && (bounds.right() < viewport.x as f32
+                    || bounds.x > viewport.right() as f32
+                    || bounds.bottom() < viewport.y as f32
+                    || bounds.y > viewport.bottom() as f32)
+            {
+                return true;
+            }
+        }
+        clip = node.parent;
+    }
+    false
 }
 
 fn intersect_like_gfx_rect(rect: FloatRect, other: FloatRect) -> FloatRect {
@@ -628,6 +774,8 @@ pub fn compute_display_list_damage(
     let mut new_culling = TreeCullingScratch::default();
     new_visual_context_tree.fill_culling_scratch(&mut new_culling);
     let chains = TreeChainComparison {
+        old_mask_contents: static_mask_contents(&old_commands, old_visual_context_tree.effect_nodes.len()),
+        new_mask_contents: static_mask_contents(&new_commands, new_visual_context_tree.effect_nodes.len()),
         old_effect_clips: EffectClipPlan::from_contexts(
             old_visual_context_tree,
             old_commands.iter().map(|command| command.header.context),
@@ -648,7 +796,30 @@ pub fn compute_display_list_damage(
     let old_frames_with_empty_effective_clip = &chains.old_culling;
     let new_frames_with_empty_effective_clip = &chains.new_culling;
     let commands_are_equal = |old_command: &CommandReference<'_>, new_command: &CommandReference<'_>| {
-        display_list_commands_are_equal(old_command, new_command)
+        let same_mask_declaration = if old_command.header.command_type == DisplayListCommandType::DeclareMaskContent
+            && new_command.header.command_type == DisplayListCommandType::DeclareMaskContent
+            && old_command.header.bounding_rect == new_command.header.bounding_rect
+            && old_command.header.has_bounding_rect == new_command.header.has_bounding_rect
+            && old_command.header.inline_clip_count == new_command.header.inline_clip_count
+            && old_command.header.has_inline_transform == new_command.header.has_inline_transform
+            && inline_clip_lists_are_equal(old_command, new_command)
+            && inline_transforms_are_equal(old_command, new_command)
+        {
+            let old = read_command::<DeclareMaskContent>(old_command.payload);
+            let new = read_command::<DeclareMaskContent>(new_command.payload);
+            // The corresponding mask must occupy the same place in the declaration's context chain.
+            !old.effect.is_none()
+                && !new.effect.is_none()
+                && old.effect == old_command.header.context.effect
+                && new.effect == new_command.header.context.effect
+                && static_mask_contents_are_equal(
+                    chains.old_mask_contents[old.effect.0 as usize].as_ref(),
+                    chains.new_mask_contents[new.effect.0 as usize].as_ref(),
+                )
+        } else {
+            false
+        };
+        (same_mask_declaration || display_list_commands_are_equal(old_command, new_command))
             && chains.chains_are_compatible(old_command.header.context, new_command.header.context)
     };
     let common_length = old_commands.len().min(new_commands.len());
@@ -689,12 +860,32 @@ pub fn compute_display_list_damage(
             new_frames_with_empty_effective_clip,
         );
     };
-    let add_visual_context_damage =
+    let mut mask_comparisons = HashMap::new();
+    let mut add_visual_context_damage =
         |damage: &mut DamageAccumulator, old_command: &CommandReference<'_>, new_command: &CommandReference<'_>| {
-            if chains.chains_are_equal(old_command.header.context, new_command.header.context) {
+            if chains.chains_are_equal(
+                old_command.header.context,
+                new_command.header.context,
+                &mut mask_comparisons,
+            ) {
                 return;
             }
             if chains.changing_filter_may_affect_output_bounds(old_command.header.context, new_command.header.context) {
+                if filter_output_is_clipped_outside_viewport(
+                    old_command.header.context,
+                    old_visual_context_tree,
+                    &chains.old_effect_clips,
+                    old_scroll_offsets,
+                    viewport_rect,
+                ) && filter_output_is_clipped_outside_viewport(
+                    new_command.header.context,
+                    new_visual_context_tree,
+                    &chains.new_effect_clips,
+                    new_scroll_offsets,
+                    viewport_rect,
+                ) {
+                    return;
+                }
                 damage.changed_unbounded_command = true;
                 return;
             }
@@ -1461,6 +1652,98 @@ mod tests {
     }
 
     #[test]
+    fn changed_filter_clipped_outside_viewport_has_no_damage() {
+        let make_scene = |radius, clip_y, clip_mode, clip_outside_filter| {
+            let mut tree = identity_tree();
+            let clip = tree.append_clip(
+                ClipNodeData::Rect(ClipData {
+                    rect: FloatRect::new(0.0, clip_y, 100.0, 100.0),
+                    corner_radii: CornerRadii::default(),
+                    mode: clip_mode,
+                }),
+                ClipNodeIndex::NONE,
+                VISUAL_VIEWPORT_NODE_INDEX,
+            );
+            let effect = tree.append_effect(
+                effects(blur_filter(radius)),
+                EffectNodeIndex::NONE,
+                VISUAL_VIEWPORT_NODE_INDEX,
+                if clip_outside_filter { clip } else { ClipNodeIndex::NONE },
+            );
+            let context = ContextRef {
+                clip,
+                effect,
+                ..ContextRef::default()
+            };
+            let rect = IntRect::new(0, 200, 20, 20);
+            let fill = FillRect {
+                rect,
+                color: RED,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                background_color_animation_effect: EffectNodeIndex::NONE,
+            };
+            (command_bytes(&fill, Some(rect), context), tree)
+        };
+        let (old_bytes, old_tree) = make_scene(1.0, 200.0, ClipMode::Intersect, true);
+        let (new_bytes, new_tree) = make_scene(200.0, 200.0, ClipMode::Intersect, true);
+        assert_eq!(
+            damage(&old_bytes, &old_tree, &new_bytes, &new_tree),
+            Some(IntRect::default())
+        );
+
+        // The filter can expand an inner clip's output back into view.
+        let (old_bytes, old_tree) = make_scene(1.0, 200.0, ClipMode::Intersect, false);
+        let (new_bytes, new_tree) = make_scene(200.0, 200.0, ClipMode::Intersect, false);
+        assert_eq!(damage(&old_bytes, &old_tree, &new_bytes, &new_tree), None);
+
+        // Difference clips exclude their rect rather than bounding the effect's output.
+        let (old_bytes, old_tree) = make_scene(1.0, 200.0, ClipMode::Difference, true);
+        let (new_bytes, new_tree) = make_scene(200.0, 200.0, ClipMode::Difference, true);
+        assert_eq!(damage(&old_bytes, &old_tree, &new_bytes, &new_tree), None);
+
+        // Both the old and new output must be outside the viewport.
+        let (old_bytes, old_tree) = make_scene(1.0, 0.0, ClipMode::Intersect, true);
+        let (new_bytes, new_tree) = make_scene(200.0, 200.0, ClipMode::Intersect, true);
+        assert_eq!(damage(&old_bytes, &old_tree, &new_bytes, &new_tree), None);
+        assert_eq!(damage(&new_bytes, &new_tree, &old_bytes, &old_tree), None);
+
+        // An outer filter can expand the clipped inner filter back into the viewport.
+        let (old_bytes, mut old_tree) = make_scene(1.0, 200.0, ClipMode::Intersect, true);
+        let (new_bytes, mut new_tree) = make_scene(200.0, 200.0, ClipMode::Intersect, true);
+        for tree in [&mut old_tree, &mut new_tree] {
+            let parent = tree.append_effect(
+                effects(blur_filter(300.0)),
+                EffectNodeIndex::NONE,
+                VISUAL_VIEWPORT_NODE_INDEX,
+                ClipNodeIndex::NONE,
+            );
+            tree.effect_nodes[0].parent = parent;
+        }
+        assert_eq!(damage(&old_bytes, &old_tree, &new_bytes, &new_tree), None);
+
+        // A descendant escaping the clip widens the effect's output clip in the replay plan.
+        let (mut old_bytes, old_tree) = make_scene(1.0, 200.0, ClipMode::Intersect, true);
+        let (mut new_bytes, new_tree) = make_scene(200.0, 200.0, ClipMode::Intersect, true);
+        let rect = IntRect::new(0, 0, 20, 20);
+        let escaped = command_bytes(
+            &FillRect {
+                rect,
+                color: RED,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                background_color_animation_effect: EffectNodeIndex::NONE,
+            },
+            Some(rect),
+            ContextRef {
+                effect: EffectNodeIndex(0),
+                ..ContextRef::default()
+            },
+        );
+        old_bytes.extend_from_slice(&escaped);
+        new_bytes.extend_from_slice(&escaped);
+        assert_eq!(damage(&old_bytes, &old_tree, &new_bytes, &new_tree), None);
+    }
+
+    #[test]
     fn changed_color_filter_has_bounded_damage() {
         assert_eq!(
             damage_for_filter_change(color_filter(0.5), color_filter(1.0)),
@@ -1538,6 +1821,85 @@ mod tests {
             damage(&display_list, &old_tree, &display_list, &new_tree),
             Some(IntRect::new(9, 9, 22, 22))
         );
+    }
+
+    #[test]
+    fn unchanged_static_mask_content_does_not_damage() {
+        let rect = IntRect::new(10, 10, 20, 20);
+        let make_scene = |color, insert_effect, dynamic, different_context| {
+            let mut tree = identity_tree();
+            if insert_effect {
+                effect_context(&mut tree, mask(rect));
+            }
+            let context = effect_context(&mut tree, mask(rect));
+            let fill = FillRect {
+                rect,
+                color,
+                compositing_and_blending_operator: CompositingAndBlendingOperator::Normal,
+                background_color_animation_effect: EffectNodeIndex::NONE,
+            };
+            let nested_context = if different_context {
+                ContextRef::default()
+            } else {
+                context
+            };
+            let content = if dynamic {
+                command_bytes(
+                    &DrawCanvas {
+                        dst_rect: rect,
+                        canvas_id: CanvasId(1),
+                        content_generation: 1,
+                        scaling_mode: ScalingMode::NearestNeighbor,
+                    },
+                    Some(rect),
+                    nested_context,
+                )
+            } else {
+                command_bytes(&fill, Some(rect), nested_context)
+            };
+            let mut bytes = Vec::new();
+            append_record(
+                &mut bytes,
+                &DeclareMaskContent {
+                    rect,
+                    effect: context.effect,
+                    content: DisplayListDataSpan {
+                        offset: std::mem::size_of::<DeclareMaskContent>() as u32,
+                        size: content.len() as u32,
+                    },
+                },
+                &content,
+                Some(rect),
+                context,
+                &[],
+            );
+            bytes.extend_from_slice(&command_bytes(&FillRect { color: BLUE, ..fill }, Some(rect), context));
+            (bytes, tree)
+        };
+        let (old_bytes, old_tree) = make_scene(RED, false, false, false);
+        let (new_bytes, new_tree) = make_scene(RED, true, false, false);
+        assert_eq!(
+            damage(&old_bytes, &old_tree, &old_bytes, &old_tree),
+            Some(IntRect::default())
+        );
+        // Unrelated effects can renumber the mask and its nested commands between recordings.
+        assert_eq!(
+            damage(&old_bytes, &old_tree, &new_bytes, &new_tree),
+            Some(IntRect::default())
+        );
+        let (new_bytes, new_tree) = make_scene(GREEN, true, false, false);
+        assert_eq!(
+            damage(&old_bytes, &old_tree, &new_bytes, &new_tree),
+            Some(rect.inflated_edges(1, 1, 1, 1))
+        );
+        // External content and nested visual contexts retain conservative damage.
+        for (dynamic, different_context) in [(true, false), (false, true)] {
+            let (bytes, tree) = make_scene(RED, false, dynamic, different_context);
+            assert_eq!(
+                damage(&bytes, &tree, &bytes, &tree),
+                Some(rect.inflated_edges(1, 1, 1, 1))
+            );
+        }
     }
 
     #[test]

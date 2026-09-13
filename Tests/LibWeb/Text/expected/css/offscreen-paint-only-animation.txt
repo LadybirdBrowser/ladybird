@@ -13,3 +13,10 @@ offscreen clipped shadow stops the frame pump: true
 expanded overflow clip keeps potentially visible shadow updating: true
 horizontal clip does not hide vertical shadow overflow: true
 unclipped shadow that can reach the viewport keeps updating: true
+offscreen shorthand with variable substitution stops the frame pump: true
+offscreen shorthand with variable substitution builds no overlays: true
+visible shorthand with variable substitution resumes the frame pump: true
+offscreen clipped fade and blur stops the frame pump: true
+offscreen clipped fade and blur builds no overlays: true
+offscreen clipped fade and blur finishes: true
+offscreen clipped blur applies its final value: true

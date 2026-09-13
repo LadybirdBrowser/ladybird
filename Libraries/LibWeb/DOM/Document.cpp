@@ -238,6 +238,7 @@
 #include <LibWeb/SVG/SVGStyleElement.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
 #include <LibWeb/SVG/SVGUseElement.h>
+#include <LibWeb/SVG/TagNames.h>
 #include <LibWeb/Selection/Selection.h>
 #include <LibWeb/TrustedTypes/RequireTrustedTypesForDirective.h>
 #include <LibWeb/TrustedTypes/TrustedTypePolicy.h>
@@ -8103,17 +8104,26 @@ void Document::update_compositor_animations()
             Painting::rect_to_viewport_transform(*this, visual_context_tree));
     };
 
-    auto paint_only_effect_is_offscreen = [&](Animations::KeyframeEffect const& effect, Element const& target) {
-        if (effect.pseudo_element_type().has_value() || target.namespace_uri() != Namespace::HTML
+    auto paint_only_effect_is_offscreen = [&](Animations::KeyframeEffect const& effect, AbstractElement abstract_target) {
+        auto& target = abstract_target.element();
+        bool is_svg_target = target.namespace_uri() == Namespace::SVG;
+        if (abstract_target.pseudo_element().has_value()
+            && !first_is_one_of(*abstract_target.pseudo_element(), CSS::PseudoElement::Before, CSS::PseudoElement::After))
+            return false;
+        if ((!is_svg_target && target.namespace_uri() != Namespace::HTML)
             || target.is_document_element() || &target == body())
             return false;
 
         // NB: Only properties whose changes are confined to painting are eligible. In particular, color can
-        //     affect SVG stroke geometry, and filters and transforms can bring offscreen pixels into view.
+        //     affect SVG stroke geometry, and transforms can affect layout. Filters require an ancestor clip.
         bool paint_stays_within_border_box = true;
         for (auto const& property : effect.target_properties()) {
+            if (is_svg_target && property.id() != CSS::PropertyID::Opacity)
+                return false;
             switch (property.id()) {
             case CSS::PropertyID::BackgroundColor:
+            // NB: Keyframes containing var() retain the shorthand until substitution.
+            case CSS::PropertyID::BackgroundPosition:
             case CSS::PropertyID::BackgroundPositionX:
             case CSS::PropertyID::BackgroundPositionY:
             case CSS::PropertyID::BackgroundSize:
@@ -8126,6 +8136,12 @@ void Document::update_compositor_animations()
             case CSS::PropertyID::BorderBottomColor:
             case CSS::PropertyID::BorderLeftColor:
                 break;
+            case CSS::PropertyID::Opacity:
+                if (elements_with_visibility_observation_descendants.contains(target))
+                    return false;
+                paint_stays_within_border_box = false;
+                break;
+            case CSS::PropertyID::Filter:
             case CSS::PropertyID::BoxShadow:
             case CSS::PropertyID::OutlineColor:
             case CSS::PropertyID::OutlineOffset:
@@ -8141,15 +8157,41 @@ void Document::update_compositor_animations()
             }
         }
 
-        auto const* layout_node = target.unsafe_layout_node();
+        auto const* layout_node = abstract_target.unsafe_layout_node();
         if (!layout_node || !layout_node->is_box())
+            return false;
+
+        // NB: SVG resources and referenced subtrees can be painted outside their own ancestor clips.
+        //     Restrict this proof to unreferenced graphics in an ordinary SVG tree.
+        auto svg_element_can_be_painted_elsewhere = [](SVG::SVGElement const& element) {
+            return element.id().has_value()
+                || !element.local_name().is_one_of(SVG::TagNames::svg, SVG::TagNames::g,
+                    SVG::TagNames::circle, SVG::TagNames::ellipse, SVG::TagNames::rect,
+                    SVG::TagNames::path, SVG::TagNames::line, SVG::TagNames::polygon, SVG::TagNames::polyline);
+        };
+        for (auto const* ancestor = static_cast<Node const*>(&target); ancestor; ancestor = ancestor->parent_or_shadow_host()) {
+            auto const* element = as_if<SVG::SVGElement>(ancestor);
+            if (element && svg_element_can_be_painted_elsewhere(*element))
+                return false;
+        }
+        if (is_svg_target && layout_node->has_children())
             return false;
 
         // NB: A descendant can explicitly inherit even a normally non-inherited paint property. Reject
         //     content that can escape ancestor clips or be rendered elsewhere through SVG references.
+        bool can_include_svg_descendants = all_of(effect.target_properties(), [](auto const& property) {
+            return first_is_one_of(property.id(), CSS::PropertyID::Opacity, CSS::PropertyID::Filter);
+        });
         bool subtree_can_escape = false;
         layout_node->for_each_in_inclusive_subtree_of_type<Layout::NodeWithStyle>([&](auto const& descendant) {
-            if (descendant.is_svg_box() || descendant.is_fixed_position()
+            if (descendant.is_svg_box()) {
+                auto const* element = as_if<SVG::SVGElement>(descendant.dom_node());
+                if (!can_include_svg_descendants || !element || svg_element_can_be_painted_elsewhere(*element)) {
+                    subtree_can_escape = true;
+                    return TraversalDecision::Break;
+                }
+            }
+            if (descendant.is_fixed_position()
                 || (&descendant != layout_node && descendant.is_absolutely_positioned())) {
                 subtree_can_escape = true;
                 return TraversalDecision::Break;
@@ -8165,32 +8207,39 @@ void Document::update_compositor_animations()
             return Layout::RustFFI::layout_arena_bounding_client_rect(
                 node.arena_handle(), Layout::Node::slot_id(&node), rect_to_viewport_transform);
         };
-        for (auto const* ancestor = layout_node; ancestor; ancestor = ancestor->parent()) {
-            // NB: Compositor transforms and sticky positioning can move content without resampling its style.
-            //     Filters outside a clip can also expand otherwise clipped paint back into the viewport.
-            if (ancestor->has_css_transform() || ancestor->perspective().has_value() || ancestor->is_sticky_position()
-                || ancestor->filter().has_filters())
-                return false;
-            if (auto const* element = as_if<Element>(ancestor->dom_node())) {
-                if (in_effect_transform_effects_by_target.contains(element))
-                    return false;
-                if (auto effects = competing_effects.get(*element); effects.has_value() && effects->filter.winner)
-                    return false;
-            }
-        }
+        HashTable<Layout::Node const*> containing_blocks;
+        for (auto const* container = layout_node->containing_block(); container; container = container->containing_block())
+            containing_blocks.set(container);
+
         auto visible_bounds = viewport_bounds;
-        for (auto const* container = layout_node->containing_block(); container; container = container->containing_block()) {
-            if (container->overflow_x() == CSS::Overflow::Visible || container->overflow_y() == CSS::Overflow::Visible)
+        for (auto const* ancestor = layout_node; ancestor; ancestor = ancestor->parent()) {
+            bool can_move_or_expand_paint = ancestor->has_css_transform() || ancestor->perspective().has_value()
+                || ancestor->is_sticky_position() || ancestor->filter().has_filters();
+            if (auto const* element = as_if<Element>(ancestor->dom_node())) {
+                can_move_or_expand_paint |= in_effect_transform_effects_by_target.contains(element);
+                if (auto effects = competing_effects.get(*element); effects.has_value() && effects->filter.winner)
+                    can_move_or_expand_paint = true;
+            }
+            if (can_move_or_expand_paint) {
+                // NB: A transform or filter outside a clip can bring its paint into view. A later, outer clip
+                //     can still prove that the entire transformed or filtered subtree remains offscreen.
+                visible_bounds = viewport_bounds;
+                paint_stays_within_border_box = false;
                 continue;
-            if (container->overflow_x() == CSS::Overflow::Clip || container->overflow_y() == CSS::Overflow::Clip) {
-                auto const& margin = container->style_group<CSS::ComputedValues::MiscResetValues>().overflow_clip_margin;
+            }
+            if (!containing_blocks.contains(ancestor) || ancestor->is_svg_box())
+                continue;
+            if (ancestor->overflow_x() == CSS::Overflow::Visible || ancestor->overflow_y() == CSS::Overflow::Visible)
+                continue;
+            if (ancestor->overflow_x() == CSS::Overflow::Clip || ancestor->overflow_y() == CSS::Overflow::Clip) {
+                auto const& margin = ancestor->style_group<CSS::ComputedValues::MiscResetValues>().overflow_clip_margin;
                 if (margin.top.offset != 0 || margin.right.offset != 0 || margin.bottom.offset != 0 || margin.left.offset != 0)
                     continue;
             }
-            visible_bounds = visible_bounds.intersected(bounds_in_viewport(*container));
-            if (visible_bounds.is_empty())
-                return true;
+            visible_bounds = visible_bounds.intersected(bounds_in_viewport(*ancestor));
         }
+        if (visible_bounds.is_empty())
+            return true;
 
         // NB: Otherwise, only a leaf box with bounded paint can be proven invisible from its own bounds.
         return paint_stays_within_border_box && !layout_node->has_children()
@@ -8422,7 +8471,7 @@ void Document::update_compositor_animations()
             && effect.iteration_duration().type == Animations::TimeValue::Type::Milliseconds
             && effect.iteration_duration().value > 0 && isfinite(effect.iteration_duration().value)
             && effect.end_delay().value == 0;
-        if (can_throttle_paint_only_effect && paint_only_effect_is_offscreen(effect, target)) {
+        if (can_throttle_paint_only_effect && paint_only_effect_is_offscreen(effect, *abstract_target)) {
             effect.set_is_offscreen_throttled(true);
             schedule_next_phase_wakeup(effect, animation);
             continue;

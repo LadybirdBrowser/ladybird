@@ -1,6 +1,10 @@
 <!DOCTYPE html>
 <script src="../include.js"></script>
 <style>
+    @keyframes label-sweep {
+        from { background-position: calc(-1 * var(--offset)) 50%, 0 50%; }
+        to { background-position: calc(100px - var(--offset)) 50%, 0 50%; }
+    }
     body { margin: 0; }
     .target { position: absolute; top: 200vh; width: 100px; height: 100px; }
 </style>
@@ -125,6 +129,43 @@
         counters = await countersOverFrames();
         println(`unclipped shadow that can reach the viewport keeps updating: ${counters.animationFramePumpRequests > 0}`);
         shadowAnimation.cancel();
+        clip.style.overflow = "hidden";
+        const label = document.createElement("div");
+        label.textContent = "Animated label";
+        shadow.replaceWith(label);
+        label.style.cssText = "--offset: 10px; animation: label-sweep 1s linear infinite";
+        const labelAnimation = label.getAnimations()[0];
+        labelAnimation.timeline = timeline;
+        labelAnimation.startTime = 0;
+        await settle();
+        counters = await countersOverFrames();
+        println(`offscreen shorthand with variable substitution stops the frame pump: ${counters.animationFramePumpRequests === 0}`);
+        println(`offscreen shorthand with variable substitution builds no overlays: ${counters.animatedStyleOverlayBuilds === 0}`);
+        clip.scrollIntoView();
+        await settle();
+        counters = await countersOverFrames();
+        println(`visible shorthand with variable substitution resumes the frame pump: ${counters.animationFramePumpRequests > 0}`);
+        labelAnimation.cancel();
+        scrollTo(0, 0);
+        label.style.cssText = "transform: translateY(10px)";
+        label.innerHTML = '<svg width="20" height="20"><path d="M0 0L20 20" stroke="black" /></svg> Animated label';
+        const fadeAnimation = new Animation(new KeyframeEffect(label, [
+            { opacity: 0, filter: "blur(2px)" },
+            { opacity: 1, filter: "blur(0px)" },
+        ], { duration: 1000, fill: "both" }), timeline);
+        fadeAnimation.play();
+        fadeAnimation.startTime = 0;
+        await settle();
+        counters = await countersOverFrames();
+        println(`offscreen clipped fade and blur stops the frame pump: ${counters.animationFramePumpRequests === 0}`);
+        println(`offscreen clipped fade and blur builds no overlays: ${counters.animatedStyleOverlayBuilds === 0}`);
+        timeline.setTimeForObservation(1001);
+        internals.fireCompositorAnimationWakeupForTesting(1001);
+        timeline.setTime(1001);
+        await fadeAnimation.finished;
+        println(`offscreen clipped fade and blur finishes: ${fadeAnimation.playState === "finished"}`);
+        println(`offscreen clipped blur applies its final value: ${getComputedStyle(label).filter === "blur(0px)"}`);
+        fadeAnimation.cancel();
         clip.remove();
         done();
     });
