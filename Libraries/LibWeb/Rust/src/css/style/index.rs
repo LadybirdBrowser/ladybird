@@ -32,8 +32,10 @@ use super::column::RemovablePagedColumnPage;
 use super::column::advance_epoch;
 use super::fast_hash::FastMap as HashMap;
 use super::fast_hash::FastSet as HashSet;
+use super::shared_vector::{SharedVector, SharedVectorPool};
 use crate::css::style_value::RetainedStyleValueData;
 use std::cell::Cell;
+use std::cell::RefCell;
 use std::cmp::Reverse;
 use std::num::NonZeroU32;
 use std::rc::Rc;
@@ -2044,7 +2046,7 @@ struct DispatchEntryMetadata {
     next_for_identity: Option<NonZeroU32>,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 struct DispatchEntryBinding {
     rule: RuleID,
     cascade_order_index: u32,
@@ -2121,7 +2123,7 @@ impl DispatchRow {
 }
 
 /// Direct cascade projection metadata indexed by an entry's dense cascade order.
-#[derive(Clone, Copy, Default)]
+#[derive(Clone, Copy, Default, PartialEq, Eq, Hash)]
 struct CascadeEntryData {
     property_start: u32,
     property_count: u16,
@@ -2454,17 +2456,30 @@ impl Default for RuleDispatchTopology {
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub(super) struct AncestorDispatchTopologyID(*const AncestorDispatchTopology);
 
+thread_local! {
+    static SHARED_CASCADE_RULE_PAGES: RefCell<SharedVectorPool<CascadeOrderRule>> =
+        RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
+    static SHARED_DISPATCH_BINDINGS: RefCell<SharedVectorPool<DispatchEntryBinding>> =
+        RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
+    static SHARED_CASCADE_ORDERS: RefCell<SharedVectorPool<u32>> =
+        RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
+    static SHARED_CASCADE_PROPERTIES: RefCell<SharedVectorPool<u16>> =
+        RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
+    static SHARED_CASCADE_ENTRIES: RefCell<SharedVectorPool<CascadeEntryData>> =
+        RefCell::new(SharedVectorPool::new(MemoryCategory::RuleProgram));
+}
+
 pub struct RuleDispatch {
     entries: Rc<RuleDispatchEntries>,
-    entry_bindings: Vec<DispatchEntryBinding>,
+    entry_bindings: SharedVector<DispatchEntryBinding>,
     /// Direct cascade-order projection for every rule represented in this dispatch. Rule
     /// identities are program indices, so retained answers can restore an entry's order without
     /// searching the dispatch's much larger candidate table. Sparse pages keep a scope containing
     /// one late-created rule from allocating rows for every preceding rule in the document.
-    cascade_order_rule_pages: Vec<Option<Box<[CascadeOrderRule; CASCADE_ORDER_RULE_PAGE_SIZE]>>>,
-    cascade_orders_by_rule_entry: Vec<u32>,
-    cascade_properties: Vec<u16>,
-    cascade_entries: Vec<CascadeEntryData>,
+    cascade_order_rule_pages: Vec<Option<SharedVector<CascadeOrderRule>>>,
+    cascade_orders_by_rule_entry: SharedVector<u32>,
+    cascade_properties: SharedVector<u16>,
+    cascade_entries: SharedVector<CascadeEntryData>,
     topology: Rc<RuleDispatchTopology>,
     residency: MemoryLease,
 }
@@ -2490,11 +2505,11 @@ impl WeakRuleDispatch {
         Some(RuleDispatch {
             entries: self.entries.upgrade()?,
             topology: self.topology.upgrade()?,
-            entry_bindings: Vec::new(),
+            entry_bindings: SharedVector::default(),
             cascade_order_rule_pages: Vec::new(),
-            cascade_orders_by_rule_entry: Vec::new(),
-            cascade_properties: Vec::new(),
-            cascade_entries: Vec::new(),
+            cascade_orders_by_rule_entry: SharedVector::default(),
+            cascade_properties: SharedVector::default(),
+            cascade_entries: SharedVector::default(),
             residency: MemoryLease::new(MemoryCategory::RuleProgram),
         })
     }
@@ -2510,11 +2525,11 @@ impl Default for RuleDispatch {
     fn default() -> Self {
         Self {
             entries: Rc::new(RuleDispatchEntries::default()),
-            entry_bindings: Vec::new(),
+            entry_bindings: SharedVector::default(),
             cascade_order_rule_pages: Vec::new(),
-            cascade_orders_by_rule_entry: Vec::new(),
-            cascade_properties: Vec::new(),
-            cascade_entries: Vec::new(),
+            cascade_orders_by_rule_entry: SharedVector::default(),
+            cascade_properties: SharedVector::default(),
+            cascade_entries: SharedVector::default(),
             topology: Rc::new(RuleDispatchTopology::default()),
             residency: MemoryLease::new(MemoryCategory::RuleProgram),
         }
@@ -2523,7 +2538,7 @@ impl Default for RuleDispatch {
 
 const CASCADE_ORDER_RULE_PAGE_SIZE: usize = 256;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
 struct CascadeOrderRule {
     program: SelectorProgramID,
     entry_start: u32,
@@ -2598,9 +2613,9 @@ impl RuleDispatch {
                 })
                 .collect(),
             cascade_order_rule_pages: Vec::new(),
-            cascade_orders_by_rule_entry: Vec::new(),
-            cascade_properties: Vec::new(),
-            cascade_entries: Vec::new(),
+            cascade_orders_by_rule_entry: SharedVector::default(),
+            cascade_properties: SharedVector::default(),
+            cascade_entries: SharedVector::default(),
             topology: Rc::clone(&template.topology),
             residency: MemoryLease::new(MemoryCategory::RuleProgram),
         }
@@ -2696,7 +2711,7 @@ impl RuleDispatch {
             multi_key: entry.multi_key,
             next_for_identity: None,
         });
-        self.entry_bindings.push(DispatchEntryBinding {
+        self.entry_bindings.make_mut().push(DispatchEntryBinding {
             rule: entry.rule,
             cascade_order_index: u32::MAX,
         });
@@ -2752,7 +2767,7 @@ impl RuleDispatch {
             entries.entry_heads.shrink_to_fit();
             entries.entry_tails = Vec::new();
         }
-        self.entry_bindings.shrink_to_fit();
+        self.entry_bindings.make_mut().shrink_to_fit();
         self.topology_mut().prefixes.finish();
         self.finalize_bucket_directories();
         self.rebuild_universal_with_parent_filter();
@@ -2871,14 +2886,25 @@ impl RuleDispatch {
 
     pub(super) fn reuse_cascade_order(&mut self, template: &Self) {
         assert_eq!(self.entry_count(), template.entry_count());
-        let mut cascade_orders_by_row = Vec::with_capacity(self.entry_count());
+        let mut same_bindings = true;
         for index in 0..self.entry_count() {
-            let entry = self.entry(DispatchRow::from_index(index));
-            let template_entry = template.entry(DispatchRow::from_index(index));
+            let entry = self.entries.rows[index];
+            let template_entry = template.entries.rows[index];
             assert_eq!(entry.program, template_entry.program);
             assert_eq!(entry.entry, template_entry.entry);
-            cascade_orders_by_row.push(template_entry.cascade_order);
+            same_bindings &= self.entry_bindings[index].rule == template.entry_bindings[index].rule;
         }
+        if same_bindings {
+            // The cache already proves the cascade priorities agree. With the same rule
+            // bindings, its direct lookup tables need no document-local reconstruction.
+            self.entry_bindings = template.entry_bindings.clone();
+            self.cascade_order_rule_pages = template.cascade_order_rule_pages.clone();
+            self.cascade_orders_by_rule_entry = template.cascade_orders_by_rule_entry.clone();
+            return;
+        }
+        let cascade_orders_by_row: Vec<_> = (0..self.entry_count())
+            .map(|index| template.entry(DispatchRow::from_index(index)).cascade_order)
+            .collect();
         self.rebuild_cascade_order_projection(&cascade_orders_by_row);
     }
 
@@ -2895,7 +2921,9 @@ impl RuleDispatch {
         });
         self.cascade_order_rule_pages.clear();
         self.cascade_orders_by_rule_entry.clear();
-        self.cascade_orders_by_rule_entry.reserve(entries_by_identity.len());
+        self.cascade_orders_by_rule_entry
+            .make_mut()
+            .reserve(entries_by_identity.len());
         for id in entries_by_identity {
             let metadata = self.entries.rows[id.index()];
             let binding = self.entry_bindings[id.index()];
@@ -2904,9 +2932,12 @@ impl RuleDispatch {
             if self.cascade_order_rule_pages.len() <= page_index {
                 self.cascade_order_rule_pages.resize_with(page_index + 1, || None);
             }
-            let page = self.cascade_order_rule_pages[page_index]
-                .get_or_insert_with(|| Box::new([CascadeOrderRule::default(); CASCADE_ORDER_RULE_PAGE_SIZE]));
-            let rule = &mut page[rule_index % CASCADE_ORDER_RULE_PAGE_SIZE];
+            let page = self.cascade_order_rule_pages[page_index].get_or_insert_with(|| {
+                (0..CASCADE_ORDER_RULE_PAGE_SIZE)
+                    .map(|_| CascadeOrderRule::default())
+                    .collect()
+            });
+            let rule = &mut page.make_mut()[rule_index % CASCADE_ORDER_RULE_PAGE_SIZE];
             if rule.entry_count == 0 {
                 rule.program = metadata.program;
                 rule.entry_start =
@@ -2922,9 +2953,10 @@ impl RuleDispatch {
             );
             rule.entry_count = rule.entry_count.checked_add(1).expect("selector entry space exhausted");
             self.cascade_orders_by_rule_entry
+                .make_mut()
                 .push(cascade_orders_by_row[id.index()]);
         }
-        for (row, binding) in self.entry_bindings.iter_mut().enumerate() {
+        for (row, binding) in self.entry_bindings.make_mut().iter_mut().enumerate() {
             let metadata = self.entries.rows[row];
             let rule_index = binding.rule.0 as usize;
             let page = self.cascade_order_rule_pages[rule_index / CASCADE_ORDER_RULE_PAGE_SIZE]
@@ -2967,8 +2999,10 @@ impl RuleDispatch {
     ) {
         self.cascade_properties.clear();
         self.cascade_entries.clear();
+        let entry_count = self.entry_count();
         self.cascade_entries
-            .resize(self.entry_count(), CascadeEntryData::default());
+            .make_mut()
+            .resize(entry_count, CascadeEntryData::default());
         let mut configured = vec![false; self.entry_count()];
         for index in 0..self.entry_count() {
             let entry = self.entry(DispatchRow::from_index(index));
@@ -2977,7 +3011,7 @@ impl RuleDispatch {
                 continue;
             }
             configured[order] = true;
-            let data = &mut self.cascade_entries[order];
+            let data = &mut self.cascade_entries.make_mut()[order];
             data.pruning_blocker = blocks_pruning(entry);
             data.property_start =
                 u32::try_from(self.cascade_properties.len()).expect("cascade property space exhausted");
@@ -2986,9 +3020,18 @@ impl RuleDispatch {
             };
             data.property_count =
                 u16::try_from(properties.len()).expect("a rule cannot declare more than u16::MAX longhands");
-            self.cascade_properties.extend(properties);
+            self.cascade_properties.make_mut().extend(properties);
             data.prunable = true;
         }
+        // These complete projections retain only numeric identities and declaration inventories.
+        // Equal bindings can share across scopes while their mutable match results stay separate.
+        for page in self.cascade_order_rule_pages.iter_mut().flatten() {
+            page.share(&SHARED_CASCADE_RULE_PAGES);
+        }
+        self.entry_bindings.share(&SHARED_DISPATCH_BINDINGS);
+        self.cascade_orders_by_rule_entry.share(&SHARED_CASCADE_ORDERS);
+        self.cascade_properties.share(&SHARED_CASCADE_PROPERTIES);
+        self.cascade_entries.share(&SHARED_CASCADE_ENTRIES);
     }
 
     #[must_use]
@@ -3191,8 +3234,8 @@ impl RuleDispatch {
                     .cascade_order_rule_pages
                     .iter()
                     .flatten()
-                    .map(|page| size_of_val(page.as_ref()))
-                    .sum::<usize>(),
+                    .map(ShallowCapacityBytes::shallow_capacity_bytes)
+                    .sum::<u64>(),
             ];
             skip [self.entries, self.residency];
         }

@@ -94,6 +94,14 @@ impl<T: Hash> Hash for SharedVector<T> {
     }
 }
 
+impl<T> FromIterator<T> for SharedVector<T> {
+    fn from_iter<I: IntoIterator<Item = T>>(iter: I) -> Self {
+        Self {
+            storage: Storage::Owned(iter.into_iter().collect()),
+        }
+    }
+}
+
 impl<T> Deref for SharedVector<T> {
     type Target = Vec<T>;
 
