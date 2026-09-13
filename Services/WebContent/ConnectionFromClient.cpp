@@ -498,10 +498,9 @@ void ConnectionFromClient::discard_embedded_page(u64 page_id)
 void ConnectionFromClient::queue_navigation_api_state_clear_task(u64 page_id, Web::HTML::CrossProcessId, Web::HTML::CrossProcessId navigable_id)
 {
     auto page = this->page(page_id);
-    auto navigable = Web::HTML::local_navigable_with_id(navigable_id);
-    if (!page.has_value() || !navigable)
+    auto navigable = page.has_value() ? as<Web::HTML::LocalNavigable>(page->page().local_root_navigable()->find(navigable_id).ptr()) : nullptr;
+    if (!navigable)
         return;
-    VERIFY(&navigable->page() == &page->page());
 
     navigable->queue_navigation_api_state_clear_task();
 }
@@ -599,12 +598,11 @@ void ConnectionFromClient::run_traversable_close_unload_task(u64 page_id, Web::H
 void ConnectionFromClient::update_nonchanging_navigable_history_state(u64 page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index)
 {
     auto page = this->page(page_id);
-    auto navigable = Web::HTML::local_navigable_with_id(navigable_id);
-    if (!page.has_value() || !navigable) {
+    auto navigable = page.has_value() ? as<Web::HTML::LocalNavigable>(page->page().local_root_navigable()->find(navigable_id).ptr()) : nullptr;
+    if (!navigable) {
         async_nonchanging_navigable_history_state_updated(page_id, operation_id, navigable_id);
         return;
     }
-    VERIFY(&navigable->page() == &page->page());
 
     navigable->update_nonchanging_navigable_history_step_state({ script_history_length, script_history_index }, GC::create_function(navigable->heap(), [this, page_id, operation_id, navigable_id] {
         async_nonchanging_navigable_history_state_updated(page_id, operation_id, navigable_id);
@@ -2641,8 +2639,8 @@ void ConnectionFromClient::update_visibility_state(u64 page_id, Web::HTML::Cross
     if (!page.has_value())
         return;
 
-    auto navigable = Web::HTML::local_navigable_with_id(navigable_id);
-    if (!navigable || &navigable->page() != &page->page())
+    auto navigable = as<Web::HTML::LocalNavigable>(page->page().local_root_navigable()->find(navigable_id).ptr());
+    if (!navigable)
         return;
 
     // 1. Let document be navigable's active document.
