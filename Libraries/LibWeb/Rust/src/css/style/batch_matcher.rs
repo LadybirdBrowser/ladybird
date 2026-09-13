@@ -266,7 +266,7 @@ pub(super) fn scope_dispatch_shape_and_rules(
         collect(TreeScopeID::DOCUMENT, take);
     }
     collect(tree_scope, SheetsToTake::All);
-    (ScopeDispatchShape(shape), rules)
+    (ScopeDispatchShape(shape.into_iter().collect()), rules)
 }
 
 /// Put selector batches in a stable topology order, keeping equal batches in their source order.
@@ -308,8 +308,9 @@ pub(super) fn canonicalize_scope_dispatch(
     assert_eq!(offset, rules.len());
     batches.sort_by_key(|(item, _)| key(item));
     let mut ordered_rules = Vec::with_capacity(rules.len());
+    let ordered_shape = shape.0.make_mut();
     for (index, (item, range)) in batches.into_iter().enumerate() {
-        shape.0[index] = item;
+        ordered_shape[index] = item;
         ordered_rules.extend_from_slice(&rules[range]);
     }
     *rules = ordered_rules;

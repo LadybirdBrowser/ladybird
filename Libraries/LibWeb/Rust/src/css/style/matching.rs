@@ -1097,7 +1097,7 @@ impl StyleEngine {
         } else {
             DocumentSheetMode::NonAuthor
         };
-        let cascade_shape = ScopeCascadeShape {
+        let mut cascade_shape = ScopeCascadeShape {
             dispatch: shape.clone(),
             depth: self.tree_scope_depth(scope),
             document_sheet_mode,
@@ -1113,9 +1113,11 @@ impl StyleEngine {
                 .collect(),
             layer_order: self.program.layer_order_key(scope),
         };
+        cascade_shape.share();
         // Preserve source ordering in the cascade key, while equivalent selector multisets
         // share matching topology regardless of stylesheet order.
         super::batch_matcher::canonicalize_scope_dispatch(&mut shape, &mut rules, &self.programs);
+        shape.share();
         let cascade_template = self.scope_cascade_templates.get(&cascade_shape).cloned();
         // Document-local selector and entry numbers are embedded in the topology. Share only
         // when those numbers AND their process-interned semantic payloads agree. Rule bindings,
@@ -1170,7 +1172,7 @@ impl StyleEngine {
             (None, None) => {
                 let mut dispatch = RuleDispatch::new();
                 let mut rule_index = 0;
-                for &(selector_program, author) in &shape.0 {
+                for &(selector_program, author) in shape.0.iter() {
                     if self.programs.get(selector_program).entries().is_empty() {
                         continue;
                     }
