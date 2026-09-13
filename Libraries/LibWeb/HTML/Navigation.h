@@ -185,6 +185,7 @@ private:
     void clean_up(GC::Ref<NavigationAPIMethodTracker>);
     void notify_about_the_committed_to_entry(GC::Ref<NavigationAPIMethodTracker>, GC::Ref<NavigationHistoryEntry>);
     void run_the_navigate_event_intercept_commit_handler_steps(GC::Ref<NavigateEvent>, GC::Ptr<NavigationAPIMethodTracker>);
+    void commit_a_navigate_event(GC::Ref<NavigateEvent>, GC::Ptr<NavigationAPIMethodTracker>);
 
     bool inner_navigate_event_firing_algorithm(
         NavigationType,

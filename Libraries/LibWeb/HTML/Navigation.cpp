@@ -1249,26 +1249,19 @@ bool Navigation::inner_navigate_event_firing_algorithm(
         return false;
     }
 
-    // 29. Let endResultIsSameDocument be true if event's interception state
-    //     is not "none" or event's destination's is same document is true.
-    bool const end_result_is_same_document = (event->interception_state() != NavigateEvent::InterceptionState::None) || event->destination()->same_document();
-
-    // 30. Prepare to run script given navigation's relevant settings object.
-    // NOTE: There's a massive spec note here
-    TemporaryExecutionContext execution_context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
-
-    // 31. If event's interception state is not "none":
+    // 29. If event's interception state is not "none":
     if (event->interception_state() != NavigateEvent::InterceptionState::None) {
-        // 1. Set event's interception state to "committed".
-        event->set_interception_state(NavigateEvent::InterceptionState::Committed);
+        // AD-HOC: A traverse navigate event fires from a session history traversal task with no JavaScript on the
+        //         stack, and creating the transition's promises needs a running execution context.
+        TemporaryExecutionContext execution_context { realm };
 
-        // 2. Let fromNHE be the current entry of navigation.
+        // 1. Let fromNHE be the current entry of navigation.
         auto from_nhe = current_entry();
 
-        // 3. Assert: fromNHE is not null.
+        // 2. Assert: fromNHE is not null.
         VERIFY(from_nhe != nullptr);
 
-        // 4. Set navigation's transition to a new NavigationTransition created in navigation's relevant realm, with
+        // 3. Set navigation's transition to a new NavigationTransition created in navigation's relevant realm, with
         //    navigation type: navigationType
         //    from entry: fromNHE
         //    destination: event's destination
@@ -1276,14 +1269,58 @@ bool Navigation::inner_navigate_event_firing_algorithm(
         //    finished promise: a new promise created in navigation's relevant realm
         m_transition = NavigationTransition::create(navigation_type, *from_nhe, event->destination(), WebIDL::create_promise_for(window), WebIDL::create_promise_for(window));
 
-        // 5. Mark as handled navigation's transition's finished promise.
+        // 4. Mark as handled navigation's transition's finished promise.
+        // NOTE: See the discussion about other finished promises to understand why this is done.
         WebIDL::mark_promise_as_handled(*m_transition->finished());
 
-        // AD-HOC: The current spec has changed significantly from what we implement here, but marks the committed
-        //         promise as handled at the equivalent place.
+        // 5. Mark as handled navigation's transition's committed promise.
         WebIDL::mark_promise_as_handled(*m_transition->committed());
+    }
 
-        // Switch on event's navigationType:
+    // 30. If event's navigation precommit handler list is empty then commit event given apiMethodTracker.
+    // FIXME: 31. Otherwise, invoke the precommit handlers and commit event once they have all fulfilled.
+    commit_a_navigate_event(event, api_method_tracker);
+
+    // 32. If event's interception state is "none", then return true.
+    // 33. Return false.
+    return event->interception_state() == NavigateEvent::InterceptionState::None;
+}
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#commit-a-navigate-event
+void Navigation::commit_a_navigate_event(GC::Ref<NavigateEvent> event, GC::Ptr<NavigationAPIMethodTracker> api_method_tracker)
+{
+    // 1. Let navigation be event's target.
+    // NB: Navigation is `this`.
+
+    // 2. Let navigable be event's relevant global object's navigable.
+    auto& window = event->relevant_window();
+    auto navigable = window.navigable();
+
+    // 3. If event's relevant global object's associated Document is not fully active, then return.
+    auto& document = window.associated_document();
+    if (!document.is_fully_active())
+        return;
+
+    // 4. If event's abort controller's signal is aborted, then return.
+    if (event->abort_controller()->signal()->aborted())
+        return;
+
+    // 5. Let endResultIsSameDocument be true if event's interception state is not "none" or event's destination's
+    //    is same document is true.
+    bool const end_result_is_same_document = (event->interception_state() != NavigateEvent::InterceptionState::None) || event->destination()->same_document();
+
+    // 6. Prepare to run script given navigation's relevant settings object.
+    // NOTE: There's a massive spec note here
+    TemporaryExecutionContext execution_context { window.principal_realm(), TemporaryExecutionContext::CallbacksEnabled::Yes };
+
+    auto const navigation_type = event->navigation_type();
+
+    // 7. If event's interception state is not "none":
+    if (event->interception_state() != NavigateEvent::InterceptionState::None) {
+        // 1. Set event's interception state to "committed".
+        event->set_interception_state(NavigateEvent::InterceptionState::Committed);
+
+        // 2. Switch on event's navigationType:
         // - "traverse":
         if (navigation_type == Bindings::NavigationType::Traverse) {
             // 1. Set navigation's suppress normal scroll restoration during ongoing navigation to true.
@@ -1323,6 +1360,7 @@ bool Navigation::inner_navigate_event_firing_algorithm(
                     .pre_steps = GC::create_function(heap(), [this, event](Optional<Web::ReconstructedChildNavigation>, GC::Ref<HistoryExecutor::OnHistoryOperationReady> ready) {
                         // NB: This operation can start after a later navigation has aborted the intercepted
                         //     traverse. In that case, the aborted traverse must not be resumed.
+                        //     See https://github.com/whatwg/html/issues/12362.
                         if (event->abort_controller()->signal()->aborted() || event != m_ongoing_navigate_event) {
                             ready->function()(HistoryStepResult::Applied);
                             return;
@@ -1332,18 +1370,19 @@ bool Navigation::inner_navigate_event_firing_algorithm(
                 });
         }
 
-        // 7. If navigationType is "push" or "replace", then run the URL and history update steps given document and
-        //    event's destination's URL, with serializedData set to event's classic history API state and historyHandling
-        //    set to navigationType.
+        // - "push"
+        // - "replace":
+        //   Run the URL and history update steps given event's relevant global object's associated Document and event's
+        //   destination's URL, with serializedData set to event's classic history API state and historyHandling set to
+        //   event's navigationType.
         if (navigation_type == NavigationType::Push || navigation_type == NavigationType::Replace) {
             auto history_handling = navigation_type == NavigationType::Push ? HistoryHandlingBehavior::Push : HistoryHandlingBehavior::Replace;
             perform_url_and_history_update_steps(document, event->destination()->raw_url(), event->classic_history_api_state(), history_handling);
         }
 
-        // 8. Otherwise, if navigationType is "reload", then update the navigation API entries for a same-document navigation
-        //    given navigation, navigable's active session history entry, and "reload".
-        // NOTE: If navigationType is "traverse", then this event firing is happening as part of the traversal process, and
-        //       that process will take care of performing the appropriate session history entry updates.
+        // - "reload":
+        //   Update the navigation API entries for a same-document navigation given navigation, navigable's active session
+        //   history entry, and "reload".
         if (navigation_type == NavigationType::Reload) {
             update_the_navigation_api_entries_for_a_same_document_navigation(*navigable->active_session_history_entry(), NavigationType::Reload);
         }
@@ -1367,17 +1406,15 @@ bool Navigation::inner_navigate_event_firing_algorithm(
             run_the_navigate_event_intercept_commit_handler_steps(event, api_method_tracker);
     }
 
-    // If endResultIsSameDocument is false and apiMethodTracker is non-null, then clean up apiMethodTracker.
-    else if (api_method_tracker != nullptr) {
+    // FIXME: 8. If navigation's transition is not null, then resolve navigation's transition's committed promise with
+    //           undefined.
+
+    // 9. If endResultIsSameDocument is false and apiMethodTracker is non-null, then clean up apiMethodTracker.
+    if (!end_result_is_same_document && api_method_tracker != nullptr)
         clean_up(*api_method_tracker);
-    }
 
-    // Clean up after running script given navigation's relevant settings object.
+    // 10. Clean up after running script given navigation's relevant settings object.
     // NB: Handled by TemporaryExecutionContext destructor.
-
-    // 35. If event's interception state is "none", then return true.
-    // 36. Return false.
-    return event->interception_state() == NavigateEvent::InterceptionState::None;
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#fire-a-traverse-navigate-event
