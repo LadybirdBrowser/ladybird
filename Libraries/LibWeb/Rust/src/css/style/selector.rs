@@ -1119,13 +1119,26 @@ impl SelectorProgramBuilder {
             .entries
             .iter()
             .any(|entry| self.program.subject_leaves_its_scope(entry.root));
+        // Finished programs never append nodes or entries. Release their construction headroom.
+        self.program.nodes.shrink_to_fit();
+        self.program.operands.shrink_to_fit();
+        self.program.text.shrink_to_fit();
+        self.program.entries.shrink_to_fit();
+        self.program.relative_queries.shrink_to_fit();
+        self.program.language_ranges.shrink_to_fit();
         self.program
     }
 }
 
 impl SelectorProgram {
     fn cache_dispatch_metadata(&mut self) {
-        let mut relation_target_blooms = vec![0_u64; self.nodes.len()];
+        // Only ancestor walks consult these blooms; other programs need no per-node array.
+        let target_count = if self.nodes.iter().any(|node| matches!(node, SelectorOp::Ancestor(_))) {
+            self.nodes.len()
+        } else {
+            0
+        };
+        let mut relation_target_blooms = vec![0_u64; target_count];
         for (id, target_bloom) in relation_target_blooms.iter_mut().enumerate() {
             let node = SelectorNodeID(u32::try_from(id).unwrap_or(u32::MAX));
             // Only a feature op standing directly in the compound is a test of the node itself.
