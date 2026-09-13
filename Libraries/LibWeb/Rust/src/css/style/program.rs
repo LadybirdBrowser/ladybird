@@ -23,7 +23,9 @@
 //! and a group rule detached from a sheet takes its subtree with it while shared descendants stay
 //! alive if something else still references them.
 
+mod rule_records;
 mod rule_versions;
+use rule_records::RuleRecordTable;
 use rule_versions::RuleVersionTable;
 
 pub use crate::css::cascaded_properties::CascadeOrigin;
@@ -48,6 +50,7 @@ use super::tree::TreeScopeID;
 use crate::css::style_value::RetainedStyleValueData;
 use std::cell::RefCell;
 use std::hash::{Hash, Hasher};
+use std::num::NonZeroU32;
 use std::rc::{Rc, Weak};
 
 define_id! {
@@ -212,6 +215,7 @@ struct Sheet {
     live: bool,
 }
 
+#[derive(Clone)]
 struct Rule {
     sheet: SheetID,
     /// Whether the conditions of the groups this rule sits inside currently hold. A rule behind an
@@ -222,7 +226,7 @@ struct Rule {
     /// in layers, so a rule outside every layer cannot change hands when that order moves.
     in_a_layer: bool,
     parent: Option<RuleID>,
-    children: Vec<RuleID>,
+    children_slot: Option<NonZeroU32>,
     version_slot: u32,
     nested_order: OrderToken,
     live: bool,
@@ -230,6 +234,53 @@ struct Rule {
     declarations: Rc<SharedRuleDeclarations>,
     declarations_are_complete: bool,
     semantic_declaration: SemanticDeclarationID,
+}
+
+impl Rule {
+    fn sharing_key(&self) -> impl Eq + Hash + '_ {
+        let Self {
+            sheet,
+            conditions_hold,
+            in_a_layer,
+            parent,
+            children_slot,
+            version_slot,
+            nested_order,
+            live,
+            gated_by_container_query,
+            declarations,
+            declarations_are_complete,
+            semantic_declaration,
+        } = self;
+        (
+            sheet,
+            conditions_hold,
+            in_a_layer,
+            parent,
+            children_slot,
+            version_slot,
+            nested_order,
+            live,
+            gated_by_container_query,
+            Rc::as_ptr(declarations),
+            declarations_are_complete,
+            semantic_declaration,
+        )
+    }
+}
+
+impl PartialEq for Rule {
+    fn eq(&self, other: &Self) -> bool {
+        self.sharing_key() == other.sharing_key()
+    }
+}
+
+impl Eq for Rule {}
+
+impl Hash for Rule {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        self.sharing_key().hash(state);
+    }
 }
 
 #[derive(Clone, Default, PartialEq)]
@@ -343,7 +394,8 @@ struct SemanticDeclarationEntry {
 pub struct StyleSheetProgram {
     empty_declarations: Rc<SharedRuleDeclarations>,
     sheets: Vec<Sheet>,
-    rules: Vec<Rule>,
+    rules: RuleRecordTable,
+    rule_children: Vec<Vec<RuleID>>,
     /// How many rules declare a custom property. A document without any resolves no environment
     /// of its own, and a cascade need not look.
     rules_declaring_custom_properties: usize,
@@ -373,7 +425,7 @@ pub struct StyleSheetProgram {
 impl StyleSheetProgram {
     pub(super) fn collect_atoms(&self, atoms: &mut HashSet<StyleAtomID>) -> u64 {
         let mut visited = 0_u64;
-        for rule in &self.rules {
+        for rule in self.rules.iter() {
             if !rule.live {
                 continue;
             }
@@ -407,7 +459,8 @@ impl StyleSheetProgram {
         Self {
             empty_declarations: share_rule_declarations(RuleDeclarationData::default()),
             sheets: Vec::new(),
-            rules: Vec::new(),
+            rules: RuleRecordTable::default(),
+            rule_children: Vec::new(),
             rules_declaring_custom_properties: 0,
             rule_versions: RuleVersionTable::default(),
             semantic_declarations: HashMap::default(),
@@ -823,13 +876,13 @@ impl StyleSheetProgram {
     ) -> RuleID {
         let id = RuleID(u32::try_from(self.rules.len()).expect("rule identity space exhausted"));
         let version_slot = self.allocate_rule_version(RuleVersion::new(id, kind));
-        let previous_rule_capacity = (self.rules.capacity() * size_of::<Rule>()) as u64;
+        let previous_rule_capacity = self.rules.shallow_capacity_bytes();
         self.rules.push(Rule {
             sheet,
             conditions_hold: true,
             in_a_layer: false,
             parent,
-            children: Vec::new(),
+            children_slot: None,
             version_slot,
             nested_order: order,
             live,
@@ -838,13 +891,13 @@ impl StyleSheetProgram {
             declarations_are_complete: false,
             semantic_declaration: SemanticDeclarationID::default(),
         });
-        self.record_capacity_change(
-            previous_rule_capacity,
-            (self.rules.capacity() * size_of::<Rule>()) as u64,
-        );
+        self.record_capacity_change(previous_rule_capacity, self.rules.shallow_capacity_bytes());
 
         let siblings = match parent {
-            Some(parent) => &mut self.rules[parent.0 as usize].children,
+            Some(parent) => {
+                let slot = self.ensure_rule_children_slot(parent);
+                &mut self.rule_children[slot]
+            }
             None => &mut self.sheets[sheet.0 as usize].rules,
         };
         let previous_sibling_capacity = (siblings.capacity() * size_of::<RuleID>()) as u64;
@@ -869,9 +922,29 @@ impl StyleSheetProgram {
     }
 
     #[must_use]
-    #[cfg(test)]
-    pub fn rule_children(&self, rule: RuleID) -> &[RuleID] {
-        &self.rules[rule.0 as usize].children
+    pub(super) fn rule_children(&self, rule: RuleID) -> &[RuleID] {
+        self.rules[rule.0 as usize]
+            .children_slot
+            .map_or(&[], |slot| self.rule_children[(slot.get() - 1) as usize].as_slice())
+    }
+
+    fn ensure_rule_children_slot(&mut self, rule: RuleID) -> usize {
+        if let Some(slot) = self.rules[rule.0 as usize].children_slot {
+            return (slot.get() - 1) as usize;
+        }
+        let index = self.rule_children.len();
+        let slot = NonZeroU32::new(
+            u32::try_from(index)
+                .expect("rule children space exhausted")
+                .checked_add(1)
+                .expect("rule children space exhausted"),
+        )
+        .unwrap();
+        let previous_capacity = self.rule_children.shallow_capacity_bytes();
+        self.rule_children.push(Vec::new());
+        self.record_capacity_change(previous_capacity, self.rule_children.shallow_capacity_bytes());
+        self.rules[rule.0 as usize].children_slot = Some(slot);
+        index
     }
 
     #[must_use]
@@ -965,10 +1038,10 @@ impl StyleSheetProgram {
     }
 
     fn set_rule_live(&mut self, rule: RuleID, live: bool) -> bool {
-        let entry = &mut self.rules[rule.0 as usize];
-        if entry.live == live {
+        if self.rules[rule.0 as usize].live == live {
             return false;
         }
+        let entry = &mut self.rules[rule.0 as usize];
         if !entry.custom_declarations.is_empty() {
             if live {
                 self.rules_declaring_custom_properties += 1;
@@ -996,7 +1069,12 @@ impl StyleSheetProgram {
         let sheet = self.rules[rule.0 as usize].sheet;
         let parent = self.rules[rule.0 as usize].parent;
         let siblings = match parent {
-            Some(parent) => &mut self.rules[parent.0 as usize].children,
+            Some(parent) => {
+                let slot = self.rules[parent.0 as usize]
+                    .children_slot
+                    .expect("a parent has a child list");
+                &mut self.rule_children[(slot.get() - 1) as usize]
+            }
             None => &mut self.sheets[sheet.0 as usize].rules,
         };
         if let Some(position) = siblings.iter().position(|sibling| *sibling == rule) {
@@ -1019,7 +1097,7 @@ impl StyleSheetProgram {
 
     fn collect_subtree(&self, rule: RuleID, out: &mut Vec<RuleID>) {
         out.push(rule);
-        for &child in &self.rules[rule.0 as usize].children {
+        for &child in self.rule_children(rule) {
             self.collect_subtree(child, out);
         }
     }
@@ -1054,10 +1132,7 @@ impl StyleSheetProgram {
     #[must_use]
     pub fn rules_in_sheet(&self, sheet: SheetID) -> Vec<RuleID> {
         let top_level_rules = &self.sheets[sheet.0 as usize].rules;
-        if top_level_rules
-            .iter()
-            .all(|rule| self.rules[rule.0 as usize].children.is_empty())
-        {
+        if top_level_rules.iter().all(|rule| self.rule_children(*rule).is_empty()) {
             return top_level_rules
                 .iter()
                 .copied()
@@ -1082,7 +1157,7 @@ impl StyleSheetProgram {
             return;
         }
         out.push(rule);
-        for &child in &self.rules[rule.0 as usize].children {
+        for &child in self.rule_children(rule) {
             self.collect_live_subtree(child, out);
         }
     }
@@ -1259,8 +1334,10 @@ impl StyleSheetProgram {
             .sum::<u64>();
         self.semantic_declarations.clear();
         self.record_capacity_change(previous_payload_capacity, 0);
-        for rule in &mut self.rules {
-            rule.semantic_declaration = SemanticDeclarationID::default();
+        for index in 0..self.rules.len() {
+            if self.rules[index].semantic_declaration != SemanticDeclarationID::default() {
+                self.rules[index].semantic_declaration = SemanticDeclarationID::default();
+            }
         }
     }
 
@@ -1440,8 +1517,9 @@ impl StyleSheetProgram {
 
     // -- Accounting --------------------------------------------------------------------------
 
-    pub(super) fn share_rule_versions(&mut self) {
+    pub(super) fn share_rule_storage(&mut self) {
         self.rule_versions.share();
+        self.rules.share();
     }
 
     fn allocate_rule_version(&mut self, contents: RuleVersion) -> u32 {
@@ -1461,6 +1539,7 @@ impl StyleSheetProgram {
             skip [
                 self.sheets,
                 self.rules,
+                self.rule_children,
                 self.empty_declarations,
                 self.rule_versions,
                 self.semantic_declarations,
@@ -1485,9 +1564,9 @@ impl StyleSheetProgram {
             })
             .sum();
         let rule_payload: usize = self
-            .rules
+            .rule_children
             .iter()
-            .map(|rule| rule.children.capacity() * size_of::<RuleID>())
+            .map(|children| children.capacity() * size_of::<RuleID>())
             .sum();
         let orders: u64 = self
             .sheet_order
@@ -1517,7 +1596,7 @@ impl StyleSheetProgram {
             .map(semantic_declaration_bucket_capacity_bytes)
             .sum::<u64>();
         capacity_bytes! {
-            shallow [self.sheets, self.rules, self.rule_versions, self.semantic_declarations, self.sheet_order, self.sheets_by_scope, self.layer_ranks];
+            shallow [self.sheets, self.rules, self.rule_children, self.rule_versions, self.semantic_declarations, self.sheet_order, self.sheets_by_scope, self.layer_ranks];
             cached [];
             nested [
                 self.scopes_using_document_sheets.capacity_bytes(),
