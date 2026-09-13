@@ -472,6 +472,40 @@ impl PartialEq for RetainedStyleValueData {
     }
 }
 
+pub(crate) fn shared_style_value(value: StyleValueData) -> Arc<StyleValueData> {
+    // Common scalars recur in parsed values, computed styles, and values created through FFI.
+    // Direct indexing shares them without hashing every property or retaining arbitrary input.
+    const KEYWORDS: usize = 1024;
+    const INTEGERS: usize = 384;
+    const NUMBERS: usize = 256;
+    const LENGTHS: usize = 1024;
+    const PERCENTAGES: usize = 101;
+    const COUNT: usize = KEYWORDS + INTEGERS + NUMBERS + LENGTHS + PERCENTAGES;
+    static VALUES: [std::sync::OnceLock<Arc<StyleValueData>>; COUNT] = [const { std::sync::OnceLock::new() }; COUNT];
+
+    let integer_index = |value: f64, count: usize| {
+        (value >= 0.0 && value < count as f64 && value.to_bits() == (value as u16 as f64).to_bits())
+            .then_some(value as usize)
+    };
+    let index = match &value {
+        StyleValueData::Keyword { keyword } if usize::from(*keyword) < KEYWORDS => Some(usize::from(*keyword)),
+        StyleValueData::Integer { value } if (-128..256).contains(value) => Some(KEYWORDS + (*value + 128) as usize),
+        StyleValueData::Number { value } => integer_index(*value, NUMBERS).map(|index| KEYWORDS + INTEGERS + index),
+        StyleValueData::Length { value, unit } if *unit == crate::css::style_compute::px_length_unit() => {
+            integer_index(*value, LENGTHS).map(|index| KEYWORDS + INTEGERS + NUMBERS + index)
+        }
+        StyleValueData::Percentage { value } => {
+            integer_index(*value, PERCENTAGES).map(|index| KEYWORDS + INTEGERS + NUMBERS + LENGTHS + index)
+        }
+        _ => None,
+    };
+    if let Some(index) = index {
+        Arc::clone(VALUES[index].get_or_init(|| Arc::new(value)))
+    } else {
+        Arc::new(value)
+    }
+}
+
 impl RetainedStyleValueData {
     pub(crate) fn none() -> Self {
         Self {
@@ -480,7 +514,7 @@ impl RetainedStyleValueData {
     }
 
     pub(crate) fn from_owned(data: StyleValueData) -> Self {
-        let pointer = Arc::into_raw(Arc::new(data));
+        let pointer = Arc::into_raw(shared_style_value(data));
         // SAFETY: Arc::into_raw transfers one strong reference to this handle.
         unsafe { Self::from_retained_pointer(pointer) }
     }
@@ -2985,17 +3019,17 @@ impl StyleValueData {
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_value_create_keyword(keyword: u16) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::Keyword { keyword }))
+    Arc::into_raw(shared_style_value(StyleValueData::Keyword { keyword }))
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_value_create_number(value: f64) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::Number { value }))
+    Arc::into_raw(shared_style_value(StyleValueData::Number { value }))
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_value_create_integer(value: i32) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::Integer { value }))
+    Arc::into_raw(shared_style_value(StyleValueData::Integer { value }))
 }
 
 #[unsafe(no_mangle)]
@@ -3015,12 +3049,12 @@ pub extern "C" fn rust_style_value_create_frequency(value: f64, unit: u8) -> *co
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_value_create_length(value: f64, unit: u8) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::Length { value, unit }))
+    Arc::into_raw(shared_style_value(StyleValueData::Length { value, unit }))
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn rust_style_value_create_percentage(value: f64) -> *const StyleValueData {
-    Arc::into_raw(Arc::new(StyleValueData::Percentage { value }))
+    Arc::into_raw(shared_style_value(StyleValueData::Percentage { value }))
 }
 
 #[unsafe(no_mangle)]

@@ -188,7 +188,7 @@ fn native_declaration_publication_reuses_values_and_observes_live_mutation() {
 #[test]
 fn environment_memo_retains_its_written_value_keys() {
     let mut environments = custom_property_environments::CustomPropertyEnvironments::default();
-    let written = RetainedStyleValueData::from_owned(StyleValueData::Keyword { keyword: 1 });
+    let written = RetainedStyleValueData::from_owned(StyleValueData::Number { value: 1.25 });
     let written_pointer = written.pointer();
     let inputs = custom_property_environments::EnvironmentInputs {
         parent: 0,
@@ -211,7 +211,7 @@ fn environment_memo_retains_its_written_value_keys() {
 #[test]
 fn substitution_memo_retains_its_written_value_key() {
     let mut environments = custom_property_environments::CustomPropertyEnvironments::default();
-    let written = RetainedStyleValueData::from_owned(StyleValueData::Keyword { keyword: 1 });
+    let written = RetainedStyleValueData::from_owned(StyleValueData::Number { value: 1.25 });
     let written_pointer = written.pointer();
     let value = RetainedStyleValueData::from_owned(StyleValueData::Keyword { keyword: 2 });
     environments.remember_substitution(&written, 1, 0, value);

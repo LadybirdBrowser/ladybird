@@ -51,10 +51,10 @@ use crate::css::style_compute::{LENGTH_UNIT_NAMES, px_length_unit};
 use crate::css::style_value::{
     RetainedByteList, RetainedCounterDefinition, RetainedCounterDefinitionList, RetainedNumericRangeList,
     RetainedPropertyIdList, RetainedReadableString, RetainedRequestUrlModifier, RetainedRequestUrlModifierList,
-    RetainedString, RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData,
+    RetainedString, RetainedStyleValueData, RetainedStyleValueDataList, StyleValueData, shared_style_value,
 };
 use std::ffi::c_void;
-use std::sync::{Arc, OnceLock};
+use std::sync::Arc;
 
 include!(concat!(env!("OUT_DIR"), "/dimension_units_generated.rs"));
 
@@ -158,24 +158,6 @@ pub(crate) enum ParseOutcome {
     Parsed(Arc<StyleValueData>),
     Invalid,
     NotHandled,
-}
-
-fn shared_style_value(value: StyleValueData) -> Arc<StyleValueData> {
-    let StyleValueData::Keyword { keyword } = value else {
-        return Arc::new(value);
-    };
-
-    static KEYWORD_VALUES: OnceLock<Box<[Arc<StyleValueData>]>> = OnceLock::new();
-    let values = KEYWORD_VALUES.get_or_init(|| {
-        (0..keyword::NAMES.len())
-            .map(|keyword| {
-                Arc::new(StyleValueData::Keyword {
-                    keyword: keyword as u16,
-                })
-            })
-            .collect()
-    });
-    values[usize::from(keyword)].clone()
 }
 
 fn single_non_whitespace_value(values: &[ComponentValue]) -> Option<&ComponentValue> {
