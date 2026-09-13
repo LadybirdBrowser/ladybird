@@ -953,7 +953,7 @@ pub(super) struct RetainedAnswerPatch {
     pub(super) dispatch: Rc<RuleDispatch>,
     /// One shared match workspace for every node this patch visits, carrying the relation and
     /// sibling-prefix caches across them exactly as a matching traversal does.
-    pub(super) match_workspace: MatchEvaluationWorkspace,
+    pub(super) match_workspace: MatchScratch,
     pub(super) prefix_caches: Rc<RefCell<PrefixCaches>>,
     pub(super) dispatch_workspace: DispatchCandidateWorkspace,
     pub(super) always_emit: bool,
@@ -1338,7 +1338,7 @@ pub(super) struct BatchMatchingTraversal {
     pub(super) retained_answer_dispatch: Option<Rc<RuleDispatch>>,
     pub(super) ancestor_requirements: AncestorRequirementsCache,
     pub(super) prefix_caches: Rc<RefCell<PrefixCaches>>,
-    pub(super) match_workspace: MatchEvaluationWorkspace,
+    pub(super) match_workspace: MatchScratch,
     pub(super) match_workspace_bytes: u64,
     pub(super) dispatch_workspace: DispatchCandidateWorkspace,
     pub(super) dispatch_workspace_bytes: u64,
@@ -1353,7 +1353,7 @@ pub(super) struct PreparedBatchMatchingTraversal {
     pub(super) batch: Option<MatchingFactBatch>,
     pub(super) topology: Option<TransactionTopology>,
     pub(super) reuse_retained_match_answers: bool,
-    pub(super) match_workspace: MatchEvaluationWorkspace,
+    pub(super) match_workspace: MatchScratch,
 }
 
 impl PreparedBatchMatchingTraversal {
@@ -1363,7 +1363,7 @@ impl PreparedBatchMatchingTraversal {
             batch: None,
             topology: None,
             reuse_retained_match_answers: false,
-            match_workspace: MatchEvaluationWorkspace::default(),
+            match_workspace: MatchScratch::default(),
         }
     }
 

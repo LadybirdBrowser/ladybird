@@ -732,6 +732,22 @@ before returning. Prepared allocation charges are settled even when no node
 uses the rows before retention. Transition evaluation and interning remain
 mutable; row preparation does not change their ownership.
 
+Match-program relation answers, sibling cursors, sibling sequences, type ranks
+and positional answers live in caller-owned `MatchScratch`. An evaluator borrows
+it exclusively; recursive matching cannot mutate another evaluator's scratch.
+Sibling geometry is computed only on demand, and readers borrow sequence slices.
+Current and old-fact evaluations share current geometry but keep distinct type
+ranks and answers. Old-tree evaluation uses separate geometry. Prefix convergence
+holds separate old/current scratch while both evaluators are live.
+
+Completed current-fact relational queries return owned witness retain/clear
+effects. Matching never reads the retained witness table. Transaction, document
+matching and host-batch boundaries install those effects in evaluation order;
+a following transaction installs pending host observations before routing reads
+the table. Routing still revalidates retained witnesses against current facts;
+stale-witness clears join the same ordered effects.
+Ephemeral queries and before-side evaluators produce no witness effects.
+
 ### 9.2 Cascade priority
 
 A declaration's priority is a comparison program over stable identities:

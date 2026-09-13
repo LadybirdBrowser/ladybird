@@ -1,0 +1,5 @@
+PASS: initial
+PASS: filter enters without tree edits
+PASS: filter leaves without tree edits
+PASS: last filter enters without tree edits
+PASS: filter restored without tree edits

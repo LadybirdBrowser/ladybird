@@ -264,6 +264,13 @@ pub enum RelationalWitnessGap {
 /// the cap costs recomputation and nothing else.
 const MAX_RETAINED_WITNESSES: usize = 16384;
 
+/// A completed query observation or stale-proof removal to install after evaluation.
+#[derive(Clone, Copy, Debug)]
+pub(super) enum WitnessEffect {
+    Retain(RelationalWitnessKey, StyleNodeID),
+    Clear(RelationalWitnessKey),
+}
+
 /// The retained witnesses of simple relational queries: at most one per observed anchor.
 ///
 /// An entry says that `witness` was seen to satisfy the query's compound on the query's axis from

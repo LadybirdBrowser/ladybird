@@ -215,12 +215,12 @@ impl StyleEngineState {
     ) -> Result<bool, Incomplete> {
         let share_sibling_geometry = program.has_positional_test();
         if share_sibling_geometry && self.query_workspace_generation != self.selector_query_generation {
-            self.query_match_workspace = MatchEvaluationWorkspace::for_selector_query();
+            self.query_match_workspace = MatchScratch::for_selector_query();
             self.query_workspace_generation = self.selector_query_generation;
         }
         let mut evaluator = MatchEvaluator::new(&self.tree, self.facts.primary());
         if share_sibling_geometry {
-            evaluator = evaluator.with_match_workspace(&self.query_match_workspace, MatchEvaluationSide::Current);
+            evaluator = evaluator.with_match_workspace(&mut self.query_match_workspace, MatchEvaluationSide::Current);
         }
         if !has_document_root {
             evaluator = evaluator.without_document_root();
@@ -280,14 +280,14 @@ impl StyleEngineState {
     ) -> Result<Option<StyleNodeID>, Incomplete> {
         let share_sibling_geometry = program.has_positional_test();
         if share_sibling_geometry && self.query_workspace_generation != self.selector_query_generation {
-            self.query_match_workspace = MatchEvaluationWorkspace::for_selector_query();
+            self.query_match_workspace = MatchScratch::for_selector_query();
             self.query_workspace_generation = self.selector_query_generation;
         }
         let candidates_are_known = self.ensure_sorted_query_candidates(program, context.root);
 
         let mut evaluator = MatchEvaluator::new(&self.tree, self.facts.primary());
         if share_sibling_geometry {
-            evaluator = evaluator.with_match_workspace(&self.query_match_workspace, MatchEvaluationSide::Current);
+            evaluator = evaluator.with_match_workspace(&mut self.query_match_workspace, MatchEvaluationSide::Current);
         }
         if !context.has_document_root {
             evaluator = evaluator.without_document_root();
@@ -467,13 +467,13 @@ impl StyleEngineState {
         // point shares them across the calls of one query.
         let share_sibling_geometry = program.has_positional_test();
         if share_sibling_geometry && self.query_workspace_generation != self.selector_query_generation {
-            self.query_match_workspace = MatchEvaluationWorkspace::for_selector_query();
+            self.query_match_workspace = MatchScratch::for_selector_query();
             self.query_workspace_generation = self.selector_query_generation;
         }
         let mut matches = HashSet::default();
         let mut evaluator = MatchEvaluator::new(&self.tree, self.facts.primary());
         if share_sibling_geometry {
-            evaluator = evaluator.with_match_workspace(&self.query_match_workspace, MatchEvaluationSide::Current);
+            evaluator = evaluator.with_match_workspace(&mut self.query_match_workspace, MatchEvaluationSide::Current);
         }
         if !context.has_document_root {
             evaluator = evaluator.without_document_root();
@@ -704,19 +704,19 @@ impl StyleEngineState {
                     .states
                     .prepare_program_rows(program, facts.generation(), facts.row_count());
                 let relation = states.relation.take().unwrap_or_else(|| {
-                    let workspace = MatchEvaluationWorkspace::default();
-                    let evaluator = MatchEvaluator::new(&self.tree, facts)
-                        .with_match_workspace(&workspace, selector::MatchEvaluationSide::Current);
-                    let evaluation = PrefixEvaluation::new(
+                    let mut workspace = MatchScratch::default();
+                    let mut evaluator = MatchEvaluator::new(&self.tree, facts)
+                        .with_match_workspace(&mut workspace, selector::MatchEvaluationSide::Current);
+                    let mut evaluation = PrefixEvaluation::new(
                         dispatch.prefixes(),
                         &self.tree,
                         facts,
                         &self.programs,
-                        &evaluator,
+                        &mut evaluator,
                         None,
                         None,
                     );
-                    Box::new(dispatch.prefixes().build_relation(&evaluation, root, counters))
+                    Box::new(dispatch.prefixes().build_relation(&mut evaluation, root, counters))
                 });
                 relation.install_answers(states);
                 states.relation = Some(relation);
@@ -735,7 +735,7 @@ impl StyleEngineState {
             retained_answer_dispatch: None,
             ancestor_requirements,
             prefix_caches: Rc::clone(&self.prefix_caches),
-            match_workspace: MatchEvaluationWorkspace::default(),
+            match_workspace: MatchScratch::default(),
             match_workspace_bytes: 0,
             dispatch_workspace: DispatchCandidateWorkspace::default(),
             dispatch_workspace_bytes: 0,
@@ -800,7 +800,7 @@ impl StyleEngineState {
         batch: MatchingFactBatch,
         topology: Option<TransactionTopology>,
         reuse_retained_match_answers: bool,
-        match_workspace: MatchEvaluationWorkspace,
+        match_workspace: MatchScratch,
     ) -> Box<BatchMatchingTraversal> {
         let ancestor_requirements = self.prepare_matching_batch(&batch);
         let match_workspace_bytes = match_workspace.capacity_bytes();
@@ -855,7 +855,7 @@ impl StyleEngineState {
             return false;
         };
         let (topology, reuse_retained_match_answers, match_workspace) = prepared.map_or_else(
-            || (None, false, MatchEvaluationWorkspace::default()),
+            || (None, false, MatchScratch::default()),
             |prepared| {
                 (
                     prepared.topology,
@@ -892,7 +892,7 @@ impl StyleEngineState {
             return;
         }
         let (topology, reuse_retained_match_answers, match_workspace) = prepared.map_or_else(
-            || (None, false, MatchEvaluationWorkspace::default()),
+            || (None, false, MatchScratch::default()),
             |prepared| {
                 (
                     prepared.topology,
@@ -933,13 +933,13 @@ impl StyleEngineState {
             {
                 let (scope_program, dispatch) = self.prepare_scope_program(TreeScopeID::DOCUMENT);
                 if !dispatch.prefixes().is_empty() {
-                    let evaluator = MatchEvaluator::new(&self.tree, batch);
-                    let evaluation = PrefixEvaluation::new(
+                    let mut evaluator = MatchEvaluator::new(&self.tree, batch);
+                    let mut evaluation = PrefixEvaluation::new(
                         dispatch.prefixes(),
                         &self.tree,
                         batch,
                         &self.programs,
-                        &evaluator,
+                        &mut evaluator,
                         None,
                         None,
                     );
@@ -977,7 +977,7 @@ impl StyleEngineState {
                     };
                     if let Some(topology) = &traversal.topology {
                         states.complete_nodes_with_budget(
-                            &evaluation,
+                            &mut evaluation,
                             topology
                                 .nodes()
                                 .iter()
@@ -988,7 +988,7 @@ impl StyleEngineState {
                         );
                     } else {
                         states.complete_nodes_with_budget(
-                            &evaluation,
+                            &mut evaluation,
                             self.tree
                                 .preorder(traversal.root)
                                 .filter(|&node| self.tree.tree_scope(node) == TreeScopeID::DOCUMENT),
@@ -1523,7 +1523,7 @@ impl StyleEngineState {
         matches: &mut RuleMatches,
         requirements: Option<&AncestorRequirements>,
         shared_prefix_caches: Option<&Rc<RefCell<PrefixCaches>>>,
-        match_workspace: Option<&MatchEvaluationWorkspace>,
+        match_workspace: Option<&mut MatchScratch>,
         mut retry: BatchMatchRetry<'_>,
         counters: &mut Counters,
     ) -> Result<(), Incomplete> {
@@ -1550,7 +1550,7 @@ impl StyleEngineState {
             local_prefix_states = Some(PrefixStates::new(facts.row_count()));
             local_prefix_states.as_mut()
         };
-        let result = self.match_node_in_scope(
+        let (result, effects) = self.match_node_in_scope(
             node,
             scope,
             dispatch,
@@ -1578,7 +1578,7 @@ impl StyleEngineState {
             self.memory.reserve_required(MemoryCategory::BatchScratch, bytes);
             self.memory.release(MemoryCategory::BatchScratch, bytes);
         }
-        self.settle_relational_witness_memory();
+        self.append_witness_effects(effects);
         result
     }
 
@@ -1597,13 +1597,13 @@ impl StyleEngineState {
         dispatch_workspace: &mut DispatchCandidateWorkspace,
         ancestor_requirements: Option<&AncestorRequirements>,
         prefix_states: Option<&mut PrefixStates>,
-        match_workspace: Option<&MatchEvaluationWorkspace>,
+        match_workspace: Option<&mut MatchScratch>,
         attempt: BatchMatchAttempt<'_>,
         counters: &mut Counters,
-    ) -> Result<(), Incomplete> {
-        let mut interpreter = BatchMatcher::new(&self.tree, facts, dispatch, &self.programs, &self.program)
-            .in_scope(scope)
-            .observing_witnesses(&self.relational_witnesses);
+    ) -> (Result<(), Incomplete>, Vec<WitnessEffect>) {
+        let mut effects = Vec::new();
+        let mut interpreter =
+            BatchMatcher::new(&self.tree, facts, dispatch, &self.programs, &self.program).in_scope(scope);
         if attempt.cascade_only {
             interpreter = interpreter.for_cascade();
         }
@@ -1614,9 +1614,6 @@ impl StyleEngineState {
         }
         if let Some(shadow_root) = self.scope_root(scope) {
             interpreter = interpreter.in_shadow_tree(shadow_root);
-        }
-        if let Some(match_workspace) = match_workspace {
-            interpreter = interpreter.with_match_workspace(match_workspace);
         }
         if self.tree.tree_scope(node) != scope {
             if self.scopes_slotted_into(node).any(|slotted| slotted == scope) {
@@ -1636,6 +1633,8 @@ impl StyleEngineState {
             attempt.matches,
             counters,
             BatchMatchState {
+                match_workspace,
+                witness_effects: Some(&mut effects),
                 dispatch_workspace,
                 requests: attempt.requests,
                 completed: attempt.completed,
@@ -1646,24 +1645,55 @@ impl StyleEngineState {
         if let Some(answer_is_exact) = attempt.answer_is_exact {
             *answer_is_exact &= result.answer_is_exact;
         }
-        result.result
+        (result.result, effects)
+    }
+
+    pub(super) fn append_witness_effects(&mut self, effects: Vec<WitnessEffect>) {
+        if effects.is_empty() {
+            return;
+        }
+        let output_bytes = (effects.capacity() * size_of::<WitnessEffect>()) as u64;
+        self.memory.reserve_required(MemoryCategory::BatchScratch, output_bytes);
+        self.pending_witness_effects.extend(effects);
+        self.witness_effect_scratch.reconcile_committed(
+            &mut self.memory,
+            (self.pending_witness_effects.capacity() * size_of::<WitnessEffect>()) as u64,
+        );
+        self.memory.release(MemoryCategory::BatchScratch, output_bytes);
+    }
+
+    /// Install completed observations only after matching has released its reads.
+    pub(super) fn install_witness_effects(&mut self) {
+        if self.pending_witness_effects.is_empty() {
+            return;
+        }
+        for effect in std::mem::take(&mut self.pending_witness_effects) {
+            match effect {
+                WitnessEffect::Retain(key, witness) => {
+                    self.relational_witnesses.retain(key, witness, &self.tree);
+                }
+                WitnessEffect::Clear(key) => self.relational_witnesses.clear(key),
+            }
+        }
+        self.witness_effect_scratch.release();
+        self.settle_relational_witness_memory();
     }
 
     /// Keep the retained-witness charge in step with the table. Capacity is already committed
     /// at this boundary, so pressure keeps the table usable for this period and schedules the whole
     /// category for eviction at the next boundary.
     pub(super) fn settle_relational_witness_memory(&mut self) {
-        let bytes = self.relational_witnesses.borrow().capacity_bytes();
+        let bytes = self.relational_witnesses.capacity_bytes();
         self.relational_witness_residency
             .reconcile_committed(&mut self.memory, bytes);
     }
 
     /// The next loop observes this admission decision for the rest of the quota period.
     pub(super) fn finish_memory_evaluation_loop(&mut self) {
+        self.install_witness_effects();
         self.memory.finish_evaluation_loop();
         self.winner_groups.update_admission(&self.memory);
         self.relational_witnesses
-            .borrow_mut()
             .set_admitting(self.memory.is_tier3_admitting(MemoryCategory::RetainedWitness));
     }
 
@@ -1673,8 +1703,7 @@ impl StyleEngineState {
     /// true; that the witness still witnesses is re-established here against the live tree and
     /// the current facts. Anything unprovable - no entry, a retired or moved witness, a fact row
     /// the check cannot see, a query the program no longer answers for - routes conservatively,
-    /// and a witness caught no longer witnessing is dropped so the next ask fails one lookup
-    /// earlier.
+    /// and a witness caught no longer witnessing is cleared at the end of the walk.
     pub(super) fn retained_witness_for_anchor(
         &mut self,
         program_id: SelectorProgramID,
@@ -1687,7 +1716,7 @@ impl StyleEngineState {
             query: query_id,
             anchor,
         };
-        let witness = match self.relational_witnesses.borrow().lookup(key).sparse() {
+        let witness = match self.relational_witnesses.lookup(key).sparse() {
             Ok(&witness) => witness,
             Err(gap) => return Lookup::Missing(gap),
         };
@@ -1695,11 +1724,11 @@ impl StyleEngineState {
             return Lookup::Missing(RelationalWitnessGap::MissingQuery(key));
         };
         if !self.tree.is_live(witness) {
-            self.relational_witnesses.borrow_mut().clear(key);
+            self.append_witness_effects(vec![WitnessEffect::Clear(key)]);
             return Lookup::Missing(RelationalWitnessGap::RetiredWitness { key, witness });
         }
         let Some(walk_anchor) = traversal_anchor(anchor, query.match_in_shadow_tree, &self.tree) else {
-            self.relational_witnesses.borrow_mut().clear(key);
+            self.append_witness_effects(vec![WitnessEffect::Clear(key)]);
             return Lookup::Missing(RelationalWitnessGap::UnreachableAnchor(key));
         };
         let still_on_the_axis = match query.axis {
@@ -1726,7 +1755,7 @@ impl StyleEngineState {
             RelativeAxis::NextSiblingSubtree | RelativeAxis::FollowingSiblingSubtree => false,
         };
         if !still_on_the_axis {
-            self.relational_witnesses.borrow_mut().clear(key);
+            self.append_witness_effects(vec![WitnessEffect::Clear(key)]);
             return Lookup::Missing(RelationalWitnessGap::StaleAxis { key, witness });
         }
         // The compound of a retainable query reads only facts the witness itself publishes, so one
@@ -1752,7 +1781,7 @@ impl StyleEngineState {
         match evaluator.matches_selector_node(program, query.compound, witness, counters) {
             Ok(true) => Lookup::Known(witness),
             Ok(false) => {
-                self.relational_witnesses.borrow_mut().clear(key);
+                self.append_witness_effects(vec![WitnessEffect::Clear(key)]);
                 Lookup::Missing(RelationalWitnessGap::SelectorMismatch { key, witness })
             }
             Err(incomplete) => Lookup::Missing(RelationalWitnessGap::IncompleteFacts {
@@ -2308,7 +2337,7 @@ impl StyleEngineState {
         let before = self.memory.bytes_in_category(category);
         match category {
             MemoryCategory::RetainedWitness => {
-                self.relational_witnesses.borrow_mut().clear_all();
+                self.relational_witnesses.clear_all();
                 self.relational_witness_residency.release();
             }
             MemoryCategory::FeaturePosting => self.facts.postings_mut().evict_all(),
@@ -2726,7 +2755,7 @@ impl StyleEngineState {
             rule_keys,
             scope_program,
             dispatch,
-            match_workspace: MatchEvaluationWorkspace::default(),
+            match_workspace: MatchScratch::default(),
             prefix_caches: Rc::clone(&self.prefix_caches),
             dispatch_workspace,
             always_emit: selection.always_emit,
@@ -3287,13 +3316,14 @@ impl StyleEngineState {
             &self.programs,
             &self.program,
         )
-        .with_rule_filter(affected_keys)
-        .with_match_workspace(&patch.match_workspace);
+        .with_rule_filter(affected_keys);
         let result = interpreter.match_node_collecting_requests(
             node,
             &mut matches,
             counters,
             BatchMatchState {
+                match_workspace: Some(&mut patch.match_workspace),
+                witness_effects: None,
                 dispatch_workspace: &mut patch.dispatch_workspace,
                 requests: None,
                 completed: None,
@@ -3638,6 +3668,9 @@ impl StyleEngineState {
             retained_answer_dispatch,
             counters,
         );
+        if traversal.is_none() {
+            self.install_witness_effects();
+        }
         self.batch_matching_traversal = traversal;
         result
     }
@@ -4049,6 +4082,9 @@ impl StyleEngineState {
             counters.add(Counter::PublishedMatchAnswerClosureCompletions, completed);
             Ok(())
         })();
+        if traversal.is_none() {
+            self.install_witness_effects();
+        }
         self.batch_matching_traversal = traversal;
         result
     }
@@ -4459,6 +4495,9 @@ impl StyleEngineState {
             cascade_winners_are_complete,
             counters,
         );
+        if traversal.is_none() {
+            self.install_witness_effects();
+        }
         self.batch_matching_traversal = traversal;
         result
     }
@@ -4558,7 +4597,7 @@ impl StyleEngineState {
                                 .get(self.prepared_scope_program(asked_scope).1)
                         }),
                         is_primary.then_some(&prefix_caches),
-                        Some(&traversal.match_workspace),
+                        Some(&mut traversal.match_workspace),
                         BatchMatchRetry {
                             requests: None,
                             completed: None,

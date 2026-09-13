@@ -76,6 +76,7 @@ impl StyleEngineState {
         counters: &mut Counters,
     ) -> bool {
         let mut clock = TransactionClock::new();
+        self.install_witness_effects();
         let scoped = self.take_style_transaction_with_clock(root, emit, &mut clock, counters);
         self.finish_memory_evaluation_loop();
         // Include transaction-local destruction on both ordinary and early-return paths.
@@ -106,7 +107,7 @@ impl StyleEngineState {
         self.winner_groups.begin_quota_period();
         self.flush_stamp += 1;
         self.winner_groups.begin_flush(self.flush_stamp);
-        self.relational_witnesses.borrow_mut().set_admitting(true);
+        self.relational_witnesses.set_admitting(true);
         self.route_pruning_states.borrow_mut().clear();
         #[cfg(test)]
         if let Some(capture) = &mut self.diagnostic_plan_capture {
@@ -143,7 +144,7 @@ impl StyleEngineState {
         // in the previous topology. Every exact evaluation below reads current-side sibling
         // geometry from it, so it starts empty here, before this transaction's tree is applied.
         let stale_match_workspace_bytes = self.match_workspace.capacity_bytes();
-        self.match_workspace = MatchEvaluationWorkspace::default();
+        self.match_workspace = MatchScratch::default();
         self.memory
             .release(MemoryCategory::BatchScratch, stale_match_workspace_bytes);
         let mut transaction = self.drain_transaction(counters);

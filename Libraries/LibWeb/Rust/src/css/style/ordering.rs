@@ -1175,7 +1175,7 @@ impl StyleEngineState {
             // are asked of it as well.
             let host = self.scope_root(scope).and_then(|root| self.tree.host_of(root));
             for node in scope_nodes.into_iter().chain(host) {
-                if let Err(incomplete) = self.match_node_in_scope(
+                let (matched, effects) = self.match_node_in_scope(
                     node,
                     scope,
                     &dispatch,
@@ -1193,7 +1193,9 @@ impl StyleEngineState {
                         cascade_only: false,
                     },
                     counters,
-                ) {
+                );
+                self.append_witness_effects(effects);
+                if let Err(incomplete) = matched {
                     result = Err(incomplete);
                     break;
                 }
@@ -1202,7 +1204,7 @@ impl StyleEngineState {
                 break;
             }
         }
-        self.settle_relational_witness_memory();
+        self.install_witness_effects();
         ancestor_requirements_cache.release(&mut self.memory);
         let dispatch_workspace_bytes = dispatch_workspace.capacity_bytes();
         self.memory
@@ -1688,7 +1690,7 @@ impl StyleEngineState {
             .expect("new routing program cannot be shared")
             .settle_memory(&mut self.memory);
 
-        self.relational_witnesses.borrow_mut().clear_all();
+        self.relational_witnesses.clear_all();
         self.relational_witness_residency.release();
         self.scope_dispatch_templates.retain(|shape, _| {
             shape
