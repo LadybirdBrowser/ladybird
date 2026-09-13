@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A rejected intercept handler aborts the navigate event, so its signal fires before navigateerror.
+    promiseTest(async () => {
+        await new Promise(resolve => window.addEventListener("load", () => setTimeout(resolve, 0)));
+
+        const events = [];
+        navigation.addEventListener("navigate", event => {
+            event.signal.addEventListener("abort", () => events.push(`abort reason=${event.signal.reason.message}`));
+            event.intercept({ handler: () => Promise.reject(new Error("boo")) });
+        }, { once: true });
+        navigation.addEventListener("navigateerror", event => events.push(`navigateerror message=${event.error.message}`), { once: true });
+
+        const result = navigation.navigate("#1");
+        await result.committed;
+        const finished = await result.finished.then(() => "fulfilled", error => `rejected with ${error.message}`);
+
+        for (const event of events)
+            println(event);
+        println(`finished: ${finished}`);
+        println(`location.hash: ${location.hash}`);
+    });
+</script>
