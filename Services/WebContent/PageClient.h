@@ -24,6 +24,7 @@
 #include <LibWeb/HTML/Scripting/ScriptRegistry.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/PageId.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/StorageAPI/StorageEndpoint.h>
 #include <LibWeb/WebDriver/Capabilities.h>
@@ -42,11 +43,11 @@ class PageClient final : public Web::PageClient {
     GC_DECLARE_ALLOCATOR(PageClient);
 
 public:
-    static GC::Ref<PageClient> create(PageHost& page_host, u64 id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id = {});
+    static GC::Ref<PageClient> create(PageHost& page_host, Web::PageId id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id = {});
 
     virtual ~PageClient() override;
 
-    virtual u64 id() const override { return m_id; }
+    virtual Web::PageId id() const override { return m_id; }
 
     virtual bool is_headless() const override;
     static void set_is_headless(bool);
@@ -64,8 +65,8 @@ public:
     ErrorOr<void> connect_to_web_ui(IPC::TransportHandle);
 
     virtual Queue<Web::QueuedInputEvent>& input_event_queue() override;
-    virtual void did_handle_input_event(u64 page_id, Web::InputEvent const&) override;
-    virtual void report_finished_handling_input_event(u64 page_id, Web::EventResult event_was_handled) override;
+    virtual void did_handle_input_event(Web::PageId page_id, Web::InputEvent const&) override;
+    virtual void report_finished_handling_input_event(Web::PageId page_id, Web::EventResult event_was_handled) override;
     virtual Web::Compositor::CompositorContextId allocate_compositor_context_id(Web::Compositor::PagePresentationRegistration) override;
     virtual Web::HTML::CrossProcessId allocate_cross_process_id() override;
     virtual Web::HTML::CrossProcessId allocate_navigable_id() override;
@@ -153,7 +154,7 @@ private:
         WebView::Mutation mutation;
     };
 
-    PageClient(PageHost&, u64 id, Optional<Web::HTML::CrossProcessId>);
+    PageClient(PageHost&, Web::PageId id, Optional<Web::HTML::CrossProcessId>);
 
     virtual void visit_edges(JS::Cell::Visitor&) override;
 
@@ -333,7 +334,7 @@ private:
     double m_device_pixel_ratio { 1.0 };
     double m_zoom_level { 1.0 };
     double m_maximum_frames_per_second { 60.0 };
-    u64 m_id { 0 };
+    Web::PageId m_id { 0 };
     u64 m_next_delete_all_cookies_request_id { 1 };
     HashMap<u64, GC::Ref<Web::WebIDL::Promise>> m_pending_delete_all_cookies_promises;
     HashMap<u64, GC::Ref<Web::Fetch::Infrastructure::FetchController>> m_download_controllers;

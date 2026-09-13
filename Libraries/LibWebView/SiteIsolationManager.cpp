@@ -55,7 +55,7 @@ bool SiteIsolationManager::top_level_navigation_requires_process_swap(CanonicalB
     return !current_url.origin().is_same_site(target_url.origin());
 }
 
-Optional<SiteIsolationManager::RemoteChildFrameInputTarget> SiteIsolationManager::remote_child_frame_input_target_at(WebContentClient& client, u64 page_id, Web::DevicePixelPoint position) const
+Optional<SiteIsolationManager::RemoteChildFrameInputTarget> SiteIsolationManager::remote_child_frame_input_target_at(WebContentClient& client, Web::PageId page_id, Web::DevicePixelPoint position) const
 {
     auto* host = client.navigable_for_page(page_id);
     if (!host)
@@ -83,7 +83,7 @@ Optional<SiteIsolationManager::RemoteChildFrameInputTarget> SiteIsolationManager
     return target;
 }
 
-void SiteIsolationManager::remove_page(WebContentClient& client, u64 page_id)
+void SiteIsolationManager::remove_page(WebContentClient& client, Web::PageId page_id)
 {
     auto* host = client.navigable_for_page(page_id);
     if (!host)
@@ -102,7 +102,7 @@ void SiteIsolationManager::remove_page(WebContentClient& client, u64 page_id)
 
 void SiteIsolationManager::remove_all_pages_for_client(WebContentClient& client)
 {
-    Vector<u64> page_ids;
+    Vector<Web::PageId> page_ids;
     page_ids.ensure_capacity(client.m_views.size() + client.m_embedded_pages.size());
     for (auto const& view_entry : client.m_views)
         page_ids.append(view_entry.key);
@@ -113,7 +113,7 @@ void SiteIsolationManager::remove_all_pages_for_client(WebContentClient& client)
         remove_page(client, page_id);
 }
 
-String SiteIsolationManager::dump_process_tree(WebContentClient& client, u64 page_id) const
+String SiteIsolationManager::dump_process_tree(WebContentClient& client, Web::PageId page_id) const
 {
     StringBuilder builder;
     Vector<WebContentClient const*> processes;
@@ -181,7 +181,7 @@ ErrorOr<SiteIsolationManager::DocumentHost> SiteIsolationManager::obtain_child_d
     auto const* current_entry = traversable.session_history().get_the_target_history_entry(navigable, *current_step);
     VERIFY(current_entry);
 
-    u64 page_id;
+    Web::PageId page_id;
     if (host) {
         page_id = Application::the().allocate_page_id();
         host->async_create_embedded_page(page_id, navigable.id(),
@@ -212,7 +212,7 @@ void SiteIsolationManager::set_child_document_host(CanonicalNavigable& navigable
     }
 }
 
-void SiteIsolationManager::transition_child_frame_to_remote(WebContentClient& parent_client, u64 page_id, Web::HTML::CrossProcessId frame_id, NonnullRefPtr<WebContentClient> remote_client, u64 remote_page_id)
+void SiteIsolationManager::transition_child_frame_to_remote(WebContentClient& parent_client, Web::PageId page_id, Web::HTML::CrossProcessId frame_id, NonnullRefPtr<WebContentClient> remote_client, Web::PageId remote_page_id)
 {
     auto child_frame = parent_client.child_frame(page_id, frame_id);
     if (!child_frame.has_value())

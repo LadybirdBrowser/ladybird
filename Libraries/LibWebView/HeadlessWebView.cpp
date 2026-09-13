@@ -20,7 +20,7 @@ NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create(Core::AnonymousBuffer the
     return view;
 }
 
-NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create_child(HeadlessWebView& parent, u64 page_index)
+NonnullOwnPtr<HeadlessWebView> HeadlessWebView::create_child(HeadlessWebView& parent, Web::PageId page_index)
 {
     auto view = adopt_own(*new HeadlessWebView(parent.m_theme, parent.m_viewport_size));
 
@@ -35,7 +35,7 @@ HeadlessWebView::HeadlessWebView(Core::AnonymousBuffer theme, Web::DevicePixelSi
     : m_theme(move(theme))
     , m_viewport_size(viewport_size)
 {
-    on_new_web_view = [this](auto, auto, Optional<u64> page_index) {
+    on_new_web_view = [this](auto, auto, Optional<Web::PageId> page_index) {
         auto web_view = page_index.has_value()
             ? HeadlessWebView::create_child(*this, *page_index)
             : HeadlessWebView::create(m_theme, m_viewport_size);

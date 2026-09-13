@@ -189,7 +189,7 @@ static __weak LadybirdWebView* s_color_panel_owner;
 
 - (instancetype)initAsChild:(id<LadybirdWebViewObserver>)observer
                      parent:(LadybirdWebView*)parent
-                  pageIndex:(u64)page_index
+                  pageIndex:(Web::PageId)page_index
 {
     if (self = [self initWebView:observer isPrivate:[parent view].is_private()]) {
         m_web_view_bridge->initialize_client_as_child(*parent->m_web_view_bridge, page_index);

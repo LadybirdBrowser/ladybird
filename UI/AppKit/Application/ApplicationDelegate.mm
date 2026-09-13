@@ -136,7 +136,7 @@ static char s_tab_group_observation_context;
 - (nonnull TabController*)createChildTab:(Optional<URL::URL> const&)url
                                  fromTab:(nonnull Tab*)tab
                              activateTab:(Web::HTML::ActivateTab)activate_tab
-                               pageIndex:(u64)page_index
+                               pageIndex:(Web::PageId)page_index
 {
     auto* controller = [self createChildTab:activate_tab fromTab:tab pageIndex:page_index];
 
@@ -494,7 +494,7 @@ static char s_tab_group_observation_context;
 
 - (nonnull TabController*)createChildTab:(Web::HTML::ActivateTab)activate_tab
                                  fromTab:(nonnull Tab*)tab
-                               pageIndex:(u64)page_index
+                               pageIndex:(Web::PageId)page_index
 {
     auto* controller = [[TabController alloc] initAsChild:tab pageIndex:page_index];
     [self initializeTabController:controller

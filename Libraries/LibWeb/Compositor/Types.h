@@ -16,6 +16,7 @@
 #include <LibIPC/Forward.h>
 #include <LibWeb/Compositor/AsyncScrollingState.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/Page/PageId.h>
 #include <LibWeb/PixelUnits.h>
 
 namespace Web::Compositor {
@@ -23,10 +24,10 @@ namespace Web::Compositor {
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, CompositorContextId);
 AK_TYPEDEF_DISTINCT_ORDERED_ID(u64, ScreenshotRequestId);
 
-inline CompositorContextId compositor_context_id_for_page(u64 page_id)
+inline CompositorContextId compositor_context_id_for_page(Web::PageId page_id)
 {
-    VERIFY(page_id > 0);
-    return CompositorContextId { page_id };
+    VERIFY(page_id.value() > 0);
+    return CompositorContextId { page_id.value() };
 }
 
 enum class WindowResizingInProgress : u8 {

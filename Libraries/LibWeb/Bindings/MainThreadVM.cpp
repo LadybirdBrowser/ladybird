@@ -802,7 +802,7 @@ public:
         return GC::Heap::the().allocate<HeadlessPageClient>();
     }
 
-    virtual u64 id() const override { return 0; }
+    virtual Web::PageId id() const override { return Web::PageId { 0 }; }
     // This page never talks to a UI process, so its ids only need to be unique within it.
     virtual HTML::CrossProcessId allocate_cross_process_id() override { return m_cross_process_id_allocator.allocate(); }
     virtual Page& page() override { return *m_page; }
@@ -818,7 +818,7 @@ public:
     virtual CSS::PreferredMotion preferred_motion() const override { return CSS::PreferredMotion::NoPreference; }
     virtual size_t screen_count() const override { return 1; }
     virtual Queue<QueuedInputEvent>& input_event_queue() override { return m_input_event_queue; }
-    virtual void report_finished_handling_input_event(u64, EventResult) override { }
+    virtual void report_finished_handling_input_event(Web::PageId, EventResult) override { }
     virtual void request_frame() override { }
     virtual void request_file(FileRequest) override { }
     virtual bool is_headless() const override { return true; }

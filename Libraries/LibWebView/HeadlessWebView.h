@@ -11,6 +11,7 @@
 #include <LibCore/Timer.h>
 #include <LibGfx/Forward.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/PageId.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/ViewImplementation.h>
@@ -20,7 +21,7 @@ namespace WebView {
 class WEBVIEW_API HeadlessWebView : public WebView::ViewImplementation {
 public:
     static NonnullOwnPtr<HeadlessWebView> create(Core::AnonymousBuffer theme, Web::DevicePixelSize window_size);
-    static NonnullOwnPtr<HeadlessWebView> create_child(HeadlessWebView&, u64 page_index);
+    static NonnullOwnPtr<HeadlessWebView> create_child(HeadlessWebView&, Web::PageId page_index);
 
     void reset_viewport_size(Web::DevicePixelSize);
 

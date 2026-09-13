@@ -18,6 +18,7 @@
 #include <AK/WeakPtr.h>
 #include <LibWeb/HTML/BroadcastChannelMessage.h>
 #include <LibWeb/HTML/WorkerAgentTypes.h>
+#include <LibWeb/Page/PageId.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
 
@@ -36,7 +37,7 @@ public:
         bool operator==(SharedWorkerKey const&) const = default;
     };
 
-    Web::HTML::WorkerAgentId start_worker_agent(WebContentClient&, u64 page_id, Web::HTML::WorkerAgentStartRequest);
+    Web::HTML::WorkerAgentId start_worker_agent(WebContentClient&, Web::PageId page_id, Web::HTML::WorkerAgentStartRequest);
     Web::HTML::WorkerAgentId start_worker_agent(WebWorkerClient&, Web::HTML::WorkerAgentStartRequest);
     void update_site_compatibility_data(JsonValue const&);
 
@@ -47,7 +48,7 @@ public:
 
     void broadcast_channel_message_from_web_content(Web::HTML::BroadcastChannelMessage const&, IsPrivate);
     ErrorOr<void> reconnect_to_request_server();
-    ErrorOr<void> simulate_request_server_connection_loss_for_testing(WebContentClient&, u64 page_id);
+    ErrorOr<void> simulate_request_server_connection_loss_for_testing(WebContentClient&, Web::PageId page_id);
 
     Optional<u64> exclusive_performance_owner(pid_t) const;
 
@@ -69,7 +70,7 @@ private:
 
     struct WebContentOwner {
         WeakPtr<WebContentClient> client;
-        u64 page_id { 0 };
+        Web::PageId page_id { 0 };
     };
 
     struct WebWorkerOwner {

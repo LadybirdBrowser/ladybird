@@ -584,7 +584,7 @@ public:
     Function<void()> on_confirm;
 };
 
-Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client, size_t page_index)
+Tab::Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client, Web::PageId page_index)
     : QWidget(window)
     , m_window(window)
 {

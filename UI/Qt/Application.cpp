@@ -428,7 +428,7 @@ Core::EventLoop& Application::create_platform_event_loop()
     return event_loop;
 }
 
-BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& configuration, BrowserWindow::IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<u64> page_index, ShowWindow show_window)
+BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& configuration, BrowserWindow::IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<Web::PageId> page_index, ShowWindow show_window)
 {
     auto* window = new BrowserWindow(initial_urls, is_popup_window, is_private, parent_tab, move(page_index));
     set_active_window(*window);

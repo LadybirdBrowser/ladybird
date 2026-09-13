@@ -24,7 +24,7 @@ WorkerProcessManager& WorkerProcessManager::the()
     return manager;
 }
 
-Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(WebContentClient& owner, u64 page_id, Web::HTML::WorkerAgentStartRequest request)
+Web::HTML::WorkerAgentId WorkerProcessManager::start_worker_agent(WebContentClient& owner, Web::PageId page_id, Web::HTML::WorkerAgentStartRequest request)
 {
     auto abstract_owner = Owner {
         .client = WebContentOwner {
@@ -257,7 +257,7 @@ ErrorOr<void> WorkerProcessManager::reconnect_to_request_server(Function<bool(Wo
     return {};
 }
 
-ErrorOr<void> WorkerProcessManager::simulate_request_server_connection_loss_for_testing(WebContentClient& owner, u64 page_id)
+ErrorOr<void> WorkerProcessManager::simulate_request_server_connection_loss_for_testing(WebContentClient& owner, Web::PageId page_id)
 {
     auto is_owned_by_page = [&](WorkerAgent const& agent) {
         return any_of(agent.owners, [&](Owner const& candidate) {

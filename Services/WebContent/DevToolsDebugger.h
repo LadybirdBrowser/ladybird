@@ -11,6 +11,7 @@
 #include <AK/Weakable.h>
 #include <LibGC/Root.h>
 #include <LibJS/Debugger.h>
+#include <LibWeb/Page/PageId.h>
 #include <LibWebView/Debugger.h>
 #include <WebContent/Forward.h>
 
@@ -44,7 +45,7 @@ private:
     PageClient* paused_page_client() const;
     void disable_if_unused();
     void schedule_disable_if_unused();
-    void remove_breakpoints_for_page(u64 page_id);
+    void remove_breakpoints_for_page(Web::PageId page_id);
     WebView::DebuggerValue serialize_value(JS::Value);
 
     struct BreakpointRegistration {
@@ -59,17 +60,17 @@ private:
     };
 
     ConnectionFromClient& m_client;
-    HashTable<u64> m_attached_page_ids;
-    HashMap<u64, WebView::DebuggerConfiguration> m_configurations;
-    HashMap<u64, Vector<BreakpointRegistration>> m_breakpoints;
-    HashMap<u64, Vector<BlackboxedSource>> m_blackboxed_sources;
+    HashTable<Web::PageId> m_attached_page_ids;
+    HashMap<Web::PageId, WebView::DebuggerConfiguration> m_configurations;
+    HashMap<Web::PageId, Vector<BreakpointRegistration>> m_breakpoints;
+    HashMap<Web::PageId, Vector<BlackboxedSource>> m_blackboxed_sources;
     HashMap<u64, JS::ExecutionContext*> m_paused_frames;
     HashMap<u64, GC::Root<JS::Object>> m_paused_objects;
     HashMap<GC::Ptr<JS::Object>, u64> m_paused_object_ids;
     u64 m_next_environment_id { 1 };
     u64 m_next_frame_id { 1 };
     u64 m_next_object_id { 1 };
-    Optional<u64> m_paused_page_id;
+    Optional<Web::PageId> m_paused_page_id;
     WebView::DebuggerResumeMode m_resume_mode { WebView::DebuggerResumeMode::Continue };
     bool m_resume_requested { false };
     bool m_is_handling_pause { false };

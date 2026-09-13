@@ -34,7 +34,7 @@ class TestPageClient final : public Web::PageClient {
     GC_DECLARE_ALLOCATOR(TestPageClient);
 
 public:
-    virtual u64 id() const override { return 1; }
+    virtual Web::PageId id() const override { return Web::PageId { 1 }; }
     virtual Web::Page& page() override { return *m_page; }
     virtual Web::Page const& page() const override { return *m_page; }
     virtual bool is_connection_open() const override { return true; }
@@ -48,7 +48,7 @@ public:
     virtual Web::CSS::PreferredMotion preferred_motion() const override { return Web::CSS::PreferredMotion::NoPreference; }
     virtual size_t screen_count() const override { return 1; }
     virtual Queue<Web::QueuedInputEvent>& input_event_queue() override { VERIFY_NOT_REACHED(); }
-    virtual void report_finished_handling_input_event(u64, Web::EventResult) override { }
+    virtual void report_finished_handling_input_event(Web::PageId, Web::EventResult) override { }
     virtual Web::HTML::CrossProcessId allocate_cross_process_id() override { return { 1, m_next_cross_process_id++ }; }
     virtual void request_frame() override { }
     virtual void request_file(Web::FileRequest) override { }
