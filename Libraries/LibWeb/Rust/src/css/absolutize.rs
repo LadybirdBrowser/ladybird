@@ -450,10 +450,10 @@ fn rgb_color_function(r: f64, g: f64, b: f64, alpha: f64, color_syntax: u8) -> S
             color_type: crate::css::color_conversion::RGB,
             color_syntax,
         },
-        channel_0: retain_new(StyleValueData::Number { value: r }),
-        channel_1: retain_new(StyleValueData::Number { value: g }),
-        channel_2: retain_new(StyleValueData::Number { value: b }),
-        alpha: retain_new(StyleValueData::Number { value: alpha }),
+        channel_0: RetainedStyleValueData::from_owned(StyleValueData::Number { value: r }),
+        channel_1: RetainedStyleValueData::from_owned(StyleValueData::Number { value: g }),
+        channel_2: RetainedStyleValueData::from_owned(StyleValueData::Number { value: b }),
+        alpha: RetainedStyleValueData::from_owned(StyleValueData::Number { value: alpha }),
         has_name: false,
         name: CssString::none(),
         origin_color: retained_null(),
@@ -2152,5 +2152,30 @@ pub unsafe extern "C" fn rust_style_value_absolutize(
             kind: ABSOLUTIZED_DECLINED,
             data: core::ptr::null(),
         },
+    }
+}
+
+#[cfg(test)]
+mod color_channel_tests {
+    use super::*;
+
+    #[test]
+    fn integral_color_channels_share_without_rounding_other_numbers() {
+        for channel in 0..=255_u16 {
+            let first = RetainedStyleValueData::from_owned(StyleValueData::Number {
+                value: f64::from(channel),
+            });
+            let second = RetainedStyleValueData::from_owned(StyleValueData::Number {
+                value: f64::from(channel),
+            });
+            assert_eq!(first.pointer(), second.pointer());
+        }
+        for value in [-0.0, -1.0, 0.5, 255.5, 256.0, f64::INFINITY, f64::NAN] {
+            let channel = RetainedStyleValueData::from_owned(StyleValueData::Number { value });
+            let StyleValueData::Number { value: actual } = channel.data() else {
+                panic!("a channel must remain a number");
+            };
+            assert_eq!(actual.to_bits(), value.to_bits());
+        }
     }
 }

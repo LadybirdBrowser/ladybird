@@ -3873,7 +3873,7 @@ mod tests {
     #[test]
     fn parse_result_owns_values_and_syntaxes_until_released() {
         let parse = parse_test_stylesheet(
-            b"a { width: 13px } @property --size { syntax: '<length>'; inherits: false; initial-value: 7px }",
+            b"a { width: 13.25px } @property --size { syntax: '<length>'; inherits: false; initial-value: 7.25px }",
         );
         let values = parse
             .declarations
@@ -3903,7 +3903,7 @@ mod tests {
 
     #[test]
     fn consumers_can_retain_the_same_parsed_value_independently() {
-        let parse = parse_test_stylesheet(b"a { width: 13px }");
+        let parse = parse_test_stylesheet(b"a { width: 13.25px }");
         let pointer = std::sync::Arc::as_ptr(parse.declarations[0].parsed_value.as_ref().unwrap());
         let retain = || unsafe {
             std::sync::Arc::increment_strong_count(pointer);
@@ -3916,7 +3916,7 @@ mod tests {
         drop(first);
         assert!(matches!(
             *second,
-            crate::css::style_value::StyleValueData::Length { value: 13.0, .. }
+            crate::css::style_value::StyleValueData::Length { value: 13.25, .. }
         ));
     }
 

@@ -764,7 +764,7 @@ fn cache_shares_ascii_and_utf16_sources() {
 
 #[test]
 fn retained_values_do_not_keep_the_sheet_in_the_cache() {
-    let source = utf16(".weak-cache-owner { width: 13px }");
+    let source = utf16(".weak-cache-owner { width: 13.25px }");
     let context = super::tests::parse_context();
     let first = parse(&source, &context);
     assert_eq!(first.declarations.len(), 1);
@@ -779,11 +779,11 @@ fn retained_values_do_not_keep_the_sheet_in_the_cache() {
         &retained,
         second.declarations[0].parsed_value.as_ref().unwrap()
     ));
-    assert_eq!(serialize_style_value_to_utf16(&retained).unwrap(), utf16("13px"));
+    assert_eq!(serialize_style_value_to_utf16(&retained).unwrap(), utf16("13.25px"));
     drop(retained);
     assert_eq!(
         serialize_style_value_to_utf16(&second_reference).unwrap(),
-        utf16("13px")
+        utf16("13.25px")
     );
 }
 
