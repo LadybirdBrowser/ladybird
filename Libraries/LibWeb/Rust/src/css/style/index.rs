@@ -2366,7 +2366,7 @@ fn dispatch_atom_bucket_key(kind: usize, atom: usize) -> DispatchKey {
 /// full of `.item` elements never considers a rule whose subject compound requires `#header`. This
 /// is program-derived dispatch rather than acceleration over elements: it is Tier 2, it is rebuilt
 /// with the program, and it is never evicted independently of it.
-struct AncestorDispatchTopology {
+pub(super) struct AncestorDispatchTopology {
     key_indices: HashMap<DispatchKey, u32>,
     residency: MemoryLease,
 }
@@ -2625,10 +2625,6 @@ impl RuleDispatch {
         Rc::ptr_eq(&self.entries, &other.entries)
     }
 
-    pub(super) fn shares_ancestor_topology_with(&self, other: &Self) -> bool {
-        Rc::ptr_eq(&self.topology.ancestors, &other.topology.ancestors)
-    }
-
     pub(super) fn ancestor_topology_id(&self) -> AncestorDispatchTopologyID {
         AncestorDispatchTopologyID(Rc::as_ptr(&self.topology.ancestors))
     }
@@ -2642,15 +2638,16 @@ impl RuleDispatch {
         AncestorDispatchShape(keys)
     }
 
-    pub(super) fn share_ancestor_topology_with(&mut self, template: &Self) {
-        if self.shares_ancestor_topology_with(template) {
+    pub(super) fn ancestor_topology(&self) -> Rc<AncestorDispatchTopology> {
+        Rc::clone(&self.topology.ancestors)
+    }
+
+    pub(super) fn share_ancestor_topology_with(&mut self, template: &Rc<AncestorDispatchTopology>) {
+        if Rc::ptr_eq(&self.topology.ancestors, template) {
             return;
         }
-        debug_assert_eq!(
-            self.topology.ancestors.key_indices,
-            template.topology.ancestors.key_indices
-        );
-        self.topology_mut().ancestors = Rc::clone(&template.topology.ancestors);
+        debug_assert_eq!(self.topology.ancestors.key_indices, template.key_indices);
+        self.topology_mut().ancestors = Rc::clone(template);
     }
 
     pub(super) fn insert(&mut self, key: DispatchKey, mut entry: DispatchEntry) -> DispatchRow {

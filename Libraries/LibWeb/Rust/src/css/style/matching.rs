@@ -1222,7 +1222,7 @@ impl StyleEngine {
             .or_insert_with(|| Rc::clone(&dispatch));
         self.ancestor_dispatch_templates
             .entry(ancestor_shape)
-            .or_insert_with(|| Rc::clone(&dispatch));
+            .or_insert_with(|| dispatch.ancestor_topology());
         dispatch
     }
 

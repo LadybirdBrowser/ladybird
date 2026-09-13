@@ -986,10 +986,9 @@ pub struct StyleEngine {
     /// One ranked dispatch for each selector topology and semantic cascade arrangement. Concrete
     /// rule identities differ between equivalent sheets, but their dense static ranks do not.
     scope_cascade_templates: HashMap<ScopeCascadeShape, Rc<RuleDispatch>>,
-    /// One representative dispatch for each ancestor-key layout. Selector program growth often
-    /// leaves this much smaller topology unchanged, so its document-wide summaries remain shared
-    /// until selector-program sweeping bounds the set.
-    ancestor_dispatch_templates: HashMap<AncestorDispatchShape, Rc<RuleDispatch>>,
+    /// One ancestor table for each key layout. Selector program growth often leaves this layout
+    /// unchanged. Keep only the table so sharing it cannot retain an obsolete selector dispatch.
+    ancestor_dispatch_templates: HashMap<AncestorDispatchShape, Rc<index::AncestorDispatchTopology>>,
     /// The shared program each concrete tree scope resolved to. Program changes clear the table,
     /// while a depth change replaces only this scope's identity. It uses the same direct tree-scope
     /// index as the root column.
