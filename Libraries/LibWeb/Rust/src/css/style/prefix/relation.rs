@@ -609,8 +609,7 @@ impl PrefixRelation {
                                         ..
                                     } => automaton
                                         .features_for(*feature_start, *feature_len)
-                                        .iter()
-                                        .all(|&feature| matches_feature(row.facts, row.row, feature)),
+                                        .all(|feature| matches_feature(row.facts, row.row, feature)),
                                     PrefixPredicate::Program { program, local, .. } => evaluation
                                         .evaluator
                                         .matches_prefix_local(
@@ -1057,11 +1056,10 @@ impl PrefixAutomaton {
             } = &compound.predicate
                 && self
                     .features_for(*feature_start, *feature_len)
-                    .iter()
                     .all(|feature| match feature {
                         super::FeatureTest::AnyElement => true,
-                        super::FeatureTest::Id(id) => compound.dispatch_key == DispatchKey::Id(*id),
-                        super::FeatureTest::Class(class) => compound.dispatch_key == DispatchKey::Class(*class),
+                        super::FeatureTest::Id(id) => compound.dispatch_key == DispatchKey::Id(id),
+                        super::FeatureTest::Class(class) => compound.dispatch_key == DispatchKey::Class(class),
                         _ => false,
                     })
             {
@@ -1091,8 +1089,7 @@ impl PrefixAutomaton {
                                 ..
                             } => self
                                 .features_for(*feature_start, *feature_len)
-                                .iter()
-                                .all(|&feature| matches_feature(row.facts, row.row, feature)),
+                                .all(|feature| matches_feature(row.facts, row.row, feature)),
                             PrefixPredicate::Program { program, local, .. } => evaluation
                                 .evaluator
                                 .matches_prefix_local(
