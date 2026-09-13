@@ -41,10 +41,9 @@ namespace Web::HTML {
 GC_DEFINE_ALLOCATOR(Navigation);
 GC_DEFINE_ALLOCATOR(NavigationAPIMethodTracker);
 
-static GC::Ref<WebIDL::Promise> invoke_navigation_intercept_handler(JS::Realm& realm, WebIDL::CallbackType& handler)
+static GC::Ref<WebIDL::Promise> invoke_navigation_intercept_handler(WebIDL::CallbackType& handler)
 {
-    auto result = WebIDL::invoke_callback(handler, {}, {});
-    return WebIDL::create_resolved_promise(realm, result.value());
+    return WebIDL::invoke_promise_callback(handler, {}, {});
 }
 
 static void resolve_navigation_history_entry_promise(JS::Realm& realm, WebIDL::Promise& promise, GC::Ref<NavigationHistoryEntry> entry)
@@ -795,11 +794,15 @@ void Navigation::abort_the_ongoing_navigation(GC::Ptr<WebIDL::DOMException> erro
     abort_a_navigate_event(*event, *error);
 }
 
-// https://html.spec.whatwg.org/multipage/nav-history-apis.html#abort-a-navigateevent
 void Navigation::abort_a_navigate_event(GC::Ref<NavigateEvent> event, GC::Ref<WebIDL::DOMException> reason)
 {
+    abort_a_navigate_event(event, throw_completion(window().principal_realm(), reason).value());
+}
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#abort-a-navigateevent
+void Navigation::abort_a_navigate_event(GC::Ref<NavigateEvent> event, JS::Value reason_value)
+{
     auto& realm = window().principal_realm();
-    auto reason_value = throw_completion(realm, reason).value();
 
     // 1. Let navigation be event's relevant global object's navigation API.
     // NB: Navigation is `this`.
@@ -817,7 +820,7 @@ void Navigation::abort_a_navigate_event(GC::Ref<NavigateEvent> event, GC::Ref<We
     //         event firing algorithm asserts that no API method tracker is ongoing, and leaving this one in place would
     //         reject the new navigation's tracker instead.
     if (m_ongoing_api_method_tracker)
-        reject_the_finished_promise(*m_ongoing_api_method_tracker, reason);
+        reject_the_finished_promise(*m_ongoing_api_method_tracker, reason_value);
 
     // 3. Signal abort on event's abort controller given reason.
     event->abort_controller()->abort(realm, reason_value);
@@ -947,7 +950,7 @@ void Navigation::run_the_navigate_event_intercept_commit_handler_steps(GC::Ref<N
     // 2. For each handler of event's navigation handler list:
     for (auto const& handler : event->navigation_handler_list()) {
         // 1. Append the result of invoking handler with an empty arguments list to promisesList.
-        promises_list.append(invoke_navigation_intercept_handler(realm, handler));
+        promises_list.append(invoke_navigation_intercept_handler(handler));
     }
 
     // 3. If promisesList's size is 0, then set promisesList to « a promise resolved with undefined ».
@@ -1001,43 +1004,37 @@ void Navigation::run_the_navigate_event_intercept_commit_handler_steps(GC::Ref<N
 
             // 9. Set navigation's transition to null.
             m_transition = nullptr; },
-        // and the following failure step given reason:
-        [event, this, api_method_tracker](JS::Value rejection_reason) -> void {
-            // NB: This inlines "process navigate event handler failure" using the rejected JavaScript value directly.
-            auto& window = event->relevant_window();
-            auto& realm = window.principal_realm();
-            if (!window.associated_document().is_fully_active())
-                return;
-
-            if (event->abort_controller()->signal()->aborted())
-                return;
-
-            VERIFY(event == m_ongoing_navigate_event);
-
-            m_ongoing_navigate_event = nullptr;
-
-            // AD-HOC: Settle the tracker before finishing the event, see the success steps.
-            if (api_method_tracker != nullptr)
-                reject_the_finished_promise(*api_method_tracker, rejection_reason);
-
-            event->finish(false);
-
-            auto error_info = extract_error_information(vm(), rejection_reason);
-
-            ErrorEventInit event_init = {};
-            event_init.message = error_info.message;
-            event_init.filename = error_info.filename;
-            event_init.lineno = error_info.lineno;
-            event_init.colno = error_info.colno;
-            event_init.error = error_info.error;
-
-            dispatch_event(ErrorEvent::create(EventNames::navigateerror, event_init, HighResolutionTime::current_high_resolution_time(realm.global_object())));
-
-            if (m_transition)
-                WebIDL::reject_promise(m_transition->finished(), rejection_reason);
-
-            m_transition = nullptr;
+        // and the following failure step given reason: process navigate event handler failure given event and reason.
+        [event, this](JS::Value reason) -> void {
+            process_navigate_event_handler_failure(event, reason);
         });
+}
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#process-navigate-event-handler-failure
+void Navigation::process_navigate_event_handler_failure(GC::Ref<NavigateEvent> event, JS::Value reason)
+{
+    // 1. If event's relevant global object's associated Document is not fully active, then return.
+    if (!event->relevant_window().associated_document().is_fully_active())
+        return;
+
+    // 2. If event's abort controller's signal is aborted, then return.
+    if (event->abort_controller()->signal()->aborted())
+        return;
+
+    // 3. Assert: event is event's relevant global object's navigation API's ongoing navigate event.
+    VERIFY(event == m_ongoing_navigate_event);
+
+    // AD-HOC: Settle the ongoing API method tracker before finishing the event, see the navigate event intercept
+    //         commit handler steps.
+    if (m_ongoing_api_method_tracker)
+        reject_the_finished_promise(*m_ongoing_api_method_tracker, reason);
+
+    // 4. If event's interception state is not "intercepted", then finish event given false.
+    if (event->interception_state() != NavigateEvent::InterceptionState::Intercepted)
+        event->finish(false);
+
+    // 5. Abort event given reason.
+    abort_a_navigate_event(event, reason);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#inner-navigate-event-firing-algorithm

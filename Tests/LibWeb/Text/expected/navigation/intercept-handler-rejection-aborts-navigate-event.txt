@@ -1,0 +1,4 @@
+abort reason=boo
+navigateerror message=boo
+finished: rejected with boo
+location.hash: #1

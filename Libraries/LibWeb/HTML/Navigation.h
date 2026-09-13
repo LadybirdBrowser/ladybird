@@ -130,6 +130,7 @@ public:
     i64 get_the_navigation_api_entry_index(SessionHistoryEntry const&) const;
     void abort_the_ongoing_navigation(GC::Ptr<WebIDL::DOMException> error = {});
     void abort_a_navigate_event(GC::Ref<NavigateEvent>, GC::Ref<WebIDL::DOMException> reason);
+    void abort_a_navigate_event(GC::Ref<NavigateEvent>, JS::Value reason);
     bool fire_a_traverse_navigate_event(NonnullRefPtr<SessionHistoryEntry> destination_she, UserNavigationInvolvement = UserNavigationInvolvement::None);
     bool fire_a_push_replace_reload_navigate_event(
         NavigationType,
@@ -186,6 +187,7 @@ private:
     void notify_about_the_committed_to_entry(GC::Ref<NavigationAPIMethodTracker>, GC::Ref<NavigationHistoryEntry>);
     void run_the_navigate_event_intercept_commit_handler_steps(GC::Ref<NavigateEvent>, GC::Ptr<NavigationAPIMethodTracker>);
     void commit_a_navigate_event(GC::Ref<NavigateEvent>, GC::Ptr<NavigationAPIMethodTracker>);
+    void process_navigate_event_handler_failure(GC::Ref<NavigateEvent>, JS::Value reason);
 
     bool inner_navigate_event_firing_algorithm(
         NavigationType,
