@@ -158,7 +158,8 @@ private:
     StorageJar* storage_jar_for_page(u64 page_id, Web::StorageAPI::StorageEndpointType);
     void cancel_navigation_transactions();
     bool continue_navigation_population_in_selected_process(u64 page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id);
-    void report_unexpected_debugger_response();
+
+    void did_misbehave(StringView message_name, StringView reason);
 
     virtual void die() override;
 

@@ -15,6 +15,7 @@
 #include <LibFileSystem/FileSystem.h>
 #include <LibTest/TestCase.h>
 #include <LibWebView/CrashReport.h>
+#include <LibWebView/ProcessHandle.h>
 #include <LibWebView/ProcessManager.h>
 #include <pthread.h>
 #include <signal.h>
@@ -40,6 +41,13 @@ static void cleanup()
 {
     if (FileSystem::exists(test_directory()))
         MUST(FileSystem::remove(test_directory(), FileSystem::RecursionMode::Allowed));
+}
+
+TEST_CASE(helper_termination_requires_a_specific_process_id)
+{
+    EXPECT(!WebView::should_terminate_pid(-1));
+    EXPECT(!WebView::should_terminate_pid(0));
+    EXPECT(WebView::should_terminate_pid(1));
 }
 
 enum class CrashThread {
