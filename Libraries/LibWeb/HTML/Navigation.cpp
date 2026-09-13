@@ -1406,8 +1406,9 @@ void Navigation::commit_a_navigate_event(GC::Ref<NavigateEvent> event, GC::Ptr<N
             run_the_navigate_event_intercept_commit_handler_steps(event, api_method_tracker);
     }
 
-    // FIXME: 8. If navigation's transition is not null, then resolve navigation's transition's committed promise with
-    //           undefined.
+    // 8. If navigation's transition is not null, then resolve navigation's transition's committed promise with undefined.
+    if (m_transition)
+        WebIDL::resolve_promise(m_transition->committed());
 
     // 9. If endResultIsSameDocument is false and apiMethodTracker is non-null, then clean up apiMethodTracker.
     if (!end_result_is_same_document && api_method_tracker != nullptr)

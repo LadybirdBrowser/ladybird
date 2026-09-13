@@ -1,0 +1,56 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<meta name="variant" content="?no-currententrychange">
+<meta name="variant" content="?currententrychange">
+
+<script type="module">
+import { Recorder, hasVariant } from "./resources/helpers.mjs";
+
+promise_test(async t => {
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+
+  const from = navigation.currentEntry;
+
+  const recorder = new Recorder({
+    skipCurrentChange: !hasVariant("currententrychange"),
+    finalExpectedEvent: "transition.finished fulfilled"
+  });
+
+  recorder.setUpNavigationAPIListeners();
+
+  navigation.addEventListener("navigate", e => {
+    e.intercept({ async handler() {
+      recorder.record("handler sync");
+      await Promise.resolve();
+      recorder.record("handler after microtask");
+      await new Promise(r => t.step_timeout(r, 0));
+      recorder.record("handler after setTimeout");
+    } });
+  });
+
+  const result = navigation.navigate("#1");
+  recorder.setUpResultListeners(result);
+
+  Promise.resolve().then(() => recorder.record("promise microtask"));
+
+  await recorder.readyToAssert;
+
+  recorder.assert([
+    /* event name, location.hash value, navigation.transition properties */
+    ["navigate", "", null],
+    ["currententrychange", "#1", { from, navigationType: "push" }],
+    ["handler sync", "#1", { from, navigationType: "push" }],
+    ["handler after microtask", "#1", { from, navigationType: "push" }],
+    ["committed fulfilled", "#1", { from, navigationType: "push" }],
+    ["transition.committed fulfilled", "#1", { from, navigationType: "push" }],
+    ["promise microtask", "#1", { from, navigationType: "push" }],
+    ["handler after setTimeout", "#1", { from, navigationType: "push" }],
+    ["navigatesuccess", "#1", { from, navigationType: "push" }],
+    ["finished fulfilled", "#1", null],
+    ["transition.finished fulfilled", "#1", null],
+  ]);
+}, "ordering when intercept() handler has sync and async blocks");
+</script>

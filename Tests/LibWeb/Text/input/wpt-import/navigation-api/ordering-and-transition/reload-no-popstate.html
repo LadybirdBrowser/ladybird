@@ -1,0 +1,47 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+
+<script type="module">
+import { Recorder, hasVariant } from "./resources/helpers.mjs";
+
+promise_test(async t => {
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+
+  const from = navigation.currentEntry;
+
+  const recorder = new Recorder({
+    finalExpectedEvent: "transition.finished fulfilled"
+  });
+
+  recorder.setUpNavigationAPIListeners();
+  addEventListener("popstate", e => {
+    recorder.record("popstate");
+  });
+  navigation.addEventListener("navigate", e => {
+    e.intercept({ handler() { recorder.record("handler run"); } });
+  });
+
+  const result = navigation.reload();
+  recorder.setUpResultListeners(result);
+
+  Promise.resolve().then(() => recorder.record("promise microtask"));
+
+  await recorder.readyToAssert;
+
+  recorder.assert([
+    /* event name, location.hash value, navigation.transition properties */
+    ["navigate", "", null],
+    ["currententrychange", "", { from, navigationType: "reload" }],
+    ["handler run", "", { from, navigationType: "reload" }],
+    ["navigatesuccess", "", { from, navigationType: "reload" }],
+    ["committed fulfilled", "", null],
+    ["transition.committed fulfilled", "", null],
+    ["promise microtask", "", null],
+    ["finished fulfilled", "", null],
+    ["transition.finished fulfilled", "", null],
+  ]);
+}, "event and promise ordering for navigation.reload() intercepted by intercept()");
+</script>
