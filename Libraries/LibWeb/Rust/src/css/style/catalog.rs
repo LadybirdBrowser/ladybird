@@ -7,6 +7,7 @@
 use super::capacity::capacity_bytes;
 use super::column::Column;
 use super::intern_table::content_hash;
+use super::prefix::{PrefixTransitionContext, PrefixTransitionContexts};
 use super::shared_vector::{SharedVector, SharedVectorPool};
 use super::*;
 
@@ -943,6 +944,7 @@ impl Default for RetainedMatchAnswers {
 }
 
 pub(super) struct RetainedAnswerPatch {
+    pub(super) prefix_context: PrefixTransitionContext,
     /// Whether this transaction can reorder rules relative to each other (layer or sheet order).
     /// An unchanged match set can then still compact to a different winner, so the unchanged
     /// fast path must not conclude anything from set equality.
@@ -1055,6 +1057,7 @@ impl RetainedAnswerPatch {
             ];
             cached [];
             nested [
+                self.prefix_context.capacity_bytes(),
                 self.dispatch_workspace.capacity_bytes(),
                 self.cascade_compaction_workspace.capacity_bytes(),
                 self.delta_memo
@@ -1331,6 +1334,7 @@ impl RetainedMatchAnswers {
 
 /// Matching scratch owned by one synchronous style traversal.
 pub(super) struct BatchMatchingTraversal {
+    pub(super) prefix_contexts: PrefixTransitionContexts,
     pub(super) root: StyleNodeID,
     pub(super) batch: Option<MatchingFactBatch>,
     pub(super) topology: Option<TransactionTopology>,

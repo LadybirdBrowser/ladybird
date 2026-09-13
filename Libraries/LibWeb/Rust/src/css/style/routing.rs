@@ -6,6 +6,7 @@
 
 use super::capacity::ShallowCapacityBytes;
 use super::column::advance_epoch;
+use super::prefix::PrefixTransitionContext;
 use super::sorted_merge::{SortedMergeEntry, merge_sorted_by};
 use super::*;
 
@@ -2886,9 +2887,7 @@ impl StyleEngineState {
             counters.add(Counter::PrefixRelationCascadeStops, cascade_stops);
             self.memory.release(MemoryCategory::BatchScratch, scratch_bytes);
             let mut caches = self.prefix_caches.borrow_mut();
-            let states = caches
-                .states
-                .prepare_program_rows(scope_program, facts.generation(), facts.row_count());
+            let states = caches.states.prepare_program(scope_program);
             relation.install_answers(states);
             for node in departures {
                 states.forget_transition(node);
@@ -3257,11 +3256,8 @@ impl StyleEngineState {
                     .as_ref()
                     .expect("prefix planning has a transaction fact view");
                 let resident_facts = self.facts.primary();
-                retained
-                    .lookup_mut(scope_program)
-                    .sparse()
-                    .unwrap()
-                    .prepare_rows(resident_facts.generation(), resident_facts.row_count());
+                let mut prefix_context =
+                    PrefixTransitionContext::new(resident_facts.generation(), resident_facts.row_count());
                 counters.bump(Counter::PrefixTransitionCacheHits);
                 let nodes_in_preorder = regions.sort_nodes_for_top_down_walk(&mut pending_nodes, &self.tree);
                 if automaton_has_sibling_steps && !nodes_in_preorder {
@@ -3316,7 +3312,9 @@ impl StyleEngineState {
                     visited.capacity(),
                     changed_nodes.capacity(),
                     prefix_delta_arena.capacity_bytes(),
-                    new_evaluation.match_scratch_capacity_bytes() + old_evaluation.match_scratch_capacity_bytes(),
+                    new_evaluation.match_scratch_capacity_bytes()
+                        + old_evaluation.match_scratch_capacity_bytes()
+                        + prefix_context.capacity_bytes(),
                 );
                 self.memory
                     .reserve_required(MemoryCategory::BatchScratch, charged_bytes);
@@ -3397,6 +3395,8 @@ impl StyleEngineState {
                                     .parent(node)
                                     .is_none_or(|parent| positional_touched_parents.binary_search(&parent).is_err()));
                         let difference = match states.compare_and_update(
+                            &mut prefix_context.scratch,
+                            &mut prefix_context.effects,
                             &mut new_evaluation,
                             &mut old_evaluation,
                             difference_selection,
@@ -3503,7 +3503,8 @@ impl StyleEngineState {
                             changed_nodes.capacity(),
                             prefix_delta_arena.capacity_bytes(),
                             new_evaluation.match_scratch_capacity_bytes()
-                                + old_evaluation.match_scratch_capacity_bytes(),
+                                + old_evaluation.match_scratch_capacity_bytes()
+                                + prefix_context.capacity_bytes(),
                         );
                         if current_bytes > charged_bytes {
                             self.memory
@@ -3511,6 +3512,9 @@ impl StyleEngineState {
                             charged_bytes = current_bytes;
                         }
                     }
+                }
+                if complete && let Lookup::Known(states) = retained.lookup_mut(scope_program) {
+                    states.install_prefix_effects(&mut prefix_context.effects);
                 }
                 retained.settle_memory(&mut self.memory);
                 if complete {

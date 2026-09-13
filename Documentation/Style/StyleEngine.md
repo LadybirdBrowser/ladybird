@@ -725,12 +725,16 @@ selected primary rows for other topologies. An adaptive retry prepares its
 extended facts and primary ancestor summary before matching. Unbounded ancestry
 rejects nothing, and secondary scope projections do not use primary ancestry.
 
-Prefix row storage is prepared against the fact batch's generation and row
-count before matching, answer patching or convergence. Adaptive retries
-prepare their rebuilt packed rows and restore a suspended batch's row domain
-before returning. Prepared allocation charges are settled even when no node
-uses the rows before retention. Transition evaluation and interning remain
-mutable; row preparation does not change their ownership.
+Prefix transition rows and memoization belong to each caller's evaluation
+context. Rows are prepared against the fact generation and count before
+matching. Adaptive retries own separate row domains; a failed attempt drops
+its effects. The ordinary child ask reads private rows and completed node
+transitions before retained columns, computing missing selector ancestors
+and preceding siblings into its own scratch. Completed ordinary transitions
+return ordered effects installed at context completion, before retention
+compacts IDs. Persistent state/result interning and local-fact identity
+publication remain mutable. Sparse convergence still writes its columns
+directly while sharing the convergence context's private memo.
 
 Match-program relation answers, sibling cursors, sibling sequences, type ranks
 and positional answers live in caller-owned `MatchScratch`. An evaluator borrows

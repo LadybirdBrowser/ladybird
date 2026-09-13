@@ -202,6 +202,8 @@ define_counters! {
     PrefixTransitionCacheHits => "prefixTransitionCacheHits",
     PrefixTransitionCacheMatchHits => "prefixTransitionCacheMatchHits",
     PrefixTransitionCacheMatchMisses => "prefixTransitionCacheMatchMisses",
+    PrefixTransitionInputAsks => "prefixTransitionInputAsks",
+    PrefixTransitionInputsReady => "prefixTransitionInputsReady",
     PrefixTransitionMemoHits => "prefixTransitionMemoHits",
     PrefixTransitionMemoMisses => "prefixTransitionMemoMisses",
     PrefixLocalFactIdentityHits => "prefixLocalFactIdentityHits",

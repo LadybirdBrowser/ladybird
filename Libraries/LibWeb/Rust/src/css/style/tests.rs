@@ -5611,7 +5611,7 @@ fn prefix_relation_copies_only_dispatch_complete_predicates() {
         } else {
             assert_eq!(evaluated, 0);
         }
-        let mut states = PrefixStates::new(0);
+        let mut states = PrefixStates::new();
         relation.install_answers(&mut states);
         let expected = if additional_tests { [2, 2, 4, 3] } else { [2, 2, 2, 3] };
         for (&node, count) in nodes.iter().zip(expected) {
@@ -5646,14 +5646,29 @@ fn prefix_completion_reuses_positive_and_negative_relation_answers() {
         None,
     );
     let mut counters = Counters::default();
-    let mut states = PrefixStates::new(facts.row_count());
-    assert!(!states.complete_nodes_with_budget(&mut evaluation, nodes.iter().copied(), 0, &mut counters));
+    let mut states = PrefixStates::new();
+    let mut context = super::prefix::PrefixTransitionContext::new(facts.generation(), facts.row_count());
+    assert!(!states.complete_nodes_with_budget(
+        &mut context.scratch,
+        &mut context.effects,
+        &mut evaluation,
+        nodes.iter().copied(),
+        0,
+        &mut counters
+    ));
     relation.install_answers(&mut states);
     states.relation = Some(Box::new(relation));
     assert!(states.retained_matches_for(nodes[0]).unwrap().is_empty());
     assert_eq!(states.retained_matches_for(nodes[3]).unwrap().len(), 1);
     for budget in [0, usize::MAX] {
-        assert!(states.complete_nodes_with_budget(&mut evaluation, nodes.iter().copied(), budget, &mut counters));
+        assert!(states.complete_nodes_with_budget(
+            &mut context.scratch,
+            &mut context.effects,
+            &mut evaluation,
+            nodes.iter().copied(),
+            budget,
+            &mut counters
+        ));
         assert_eq!(counters.get(Counter::PrefixCompoundsEvaluated), 0);
         assert_eq!(counters.get(Counter::PrefixTransitionMemoMisses), 0);
     }
@@ -5717,7 +5732,7 @@ fn prefix_relations_share_program_predicates_without_merging_their_paths() {
     let before = engine.counters.get(Counter::PrefixCompoundsEvaluated);
     let (dispatch, mut relation) = test_prefix_relation(&mut engine, nodes[0]);
     assert_eq!(engine.counters.get(Counter::PrefixCompoundsEvaluated) - before, 2);
-    let mut states = PrefixStates::new(0);
+    let mut states = PrefixStates::new();
     relation.install_answers(&mut states);
     let original = states.retained_matches_for(nodes[3]).unwrap().to_vec();
     assert_eq!(original.len(), 1);
@@ -5822,7 +5837,7 @@ fn prefix_relation_reuses_local_facts_without_sharing_position() {
         evaluations, 0,
         "unchanged local facts must retain their predicate answers"
     );
-    let mut states = PrefixStates::new(0);
+    let mut states = PrefixStates::new();
     relation.install_answers(&mut states);
     assert!(states.retained_matches_for(nodes[0]).unwrap().is_empty());
     for (index, &node) in nodes.iter().enumerate().skip(1) {
@@ -5915,7 +5930,7 @@ fn prefix_relation_local_fact_cache_separates_predicates_and_tracks_changes() {
             evaluations < 16,
             "repeated local facts required {evaluations} evaluations"
         );
-        let mut states = PrefixStates::new(0);
+        let mut states = PrefixStates::new();
         relation.install_answers(&mut states);
         for (index, &node) in nodes.iter().enumerate() {
             assert_eq!(
@@ -5944,7 +5959,7 @@ fn prefix_relation_local_fact_cache_separates_predicates_and_tracks_changes() {
         assert_eq!(relation.changed_answers.len(), nodes.len());
         relation.install_answers(&mut states);
         let (_, rebuilt) = test_prefix_relation(&mut engine, nodes[0]);
-        let mut rebuilt_states = PrefixStates::new(0);
+        let mut rebuilt_states = PrefixStates::new();
         rebuilt.install_answers(&mut rebuilt_states);
         for (index, &node) in nodes.iter().enumerate() {
             let selected = index % 2 != 0;
@@ -5981,7 +5996,7 @@ fn prefix_relations_propagate_local_changes_over_every_axis() {
         add_feature(&mut engine, nodes[target_index], LocalFeatureKey::Class(target));
         discard_transaction(&mut engine);
         let (dispatch, mut relation) = test_prefix_relation(&mut engine, nodes[0]);
-        let mut states = PrefixStates::new(0);
+        let mut states = PrefixStates::new();
         relation.install_answers(&mut states);
         assert_eq!(
             states.retained_matches_for(nodes[target_index]).unwrap().len(),
@@ -6233,7 +6248,7 @@ fn prefix_relations_update_adjacency_and_positions_after_sibling_removal() {
     add_feature(&mut engine, nodes[3], LocalFeatureKey::Class(target));
     discard_transaction(&mut engine);
     let (dispatch, mut relation) = test_prefix_relation(&mut engine, nodes[0]);
-    let mut states = PrefixStates::new(0);
+    let mut states = PrefixStates::new();
     relation.install_answers(&mut states);
     assert!(states.retained_matches_for(nodes[3]).unwrap().is_empty());
 
@@ -6684,10 +6699,16 @@ fn a_prefix_upquery_retains_every_transition_on_its_ancestor_chain() {
         Lookup::Known(states) => states,
         Lookup::KnownAbsent | Lookup::Missing(_) => panic!("expected a retained prefix program"),
     };
-    assert!(nodes.iter().all(|&node| states.has_transition(node)));
+    assert!(nodes.iter().all(|&node| !states.has_transition(node)));
     let _ = states;
     drop(caches);
+    assert_eq!(engine.match_element(nodes[3]).unwrap().len(), 1);
     engine.end_cold_matching_batch();
+    {
+        let caches = prefix_caches.borrow();
+        let states = caches.states.lookup(scope_program).sparse().unwrap();
+        assert!(nodes.iter().all(|&node| states.has_transition(node)));
+    }
 
     let mut caches = engine.state.prefix_caches.borrow_mut();
     caches.states.make_scratch(&mut engine.state.memory);
@@ -10066,6 +10087,7 @@ fn rule_activation_exactly_matches_a_refused_prefix_chain() {
     for &node in &nodes {
         engine.match_element(node).unwrap();
     }
+    engine.end_cold_matching_batch();
     let (scope_program, _) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
     let caches = engine.prefix_caches.borrow();
     let states = match caches.states.lookup(scope_program) {
@@ -10076,7 +10098,6 @@ fn rule_activation_exactly_matches_a_refused_prefix_chain() {
     drop(caches);
     let incidences = engine.materialize_current_selector_incidence(refused_program).unwrap();
     assert!(incidences.iter().any(|incidence| incidence.node == nodes[35]));
-    engine.end_cold_matching_batch();
 
     engine.set_rule_conditions_hold(refused_rule, true);
     let mut planned = Vec::new();
