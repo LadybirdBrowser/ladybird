@@ -214,7 +214,7 @@ pub(crate) struct ChromeGeometry<'a, Arena: PaintableRowsRead> {
 }
 
 impl<'a, Arena: PaintableRowsRead> ChromeGeometry<'a, Arena> {
-    pub(crate) fn for_recording(arena: &'a Arena, inputs: &RecordingInputs) -> Self {
+    pub(crate) fn for_recording(arena: &'a Arena, inputs: &RecordingInputs<'_>) -> Self {
         Self {
             arena,
             metrics: inputs.chrome_metrics,

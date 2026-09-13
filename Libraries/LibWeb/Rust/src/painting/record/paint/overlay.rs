@@ -28,7 +28,7 @@ pub(crate) fn paint_overlay<O: Observer>(recorder: &mut PaintRecorder<'_, O>, pa
         return;
     }
     let converter = recorder.converter;
-    let chrome_geometry = ChromeGeometry::for_recording(recorder.layout_arena, &recorder.inputs);
+    let chrome_geometry = ChromeGeometry::for_recording(recorder.layout_arena, recorder.inputs);
     let style = recorder.layout_arena.node_style_if_live(paintable);
     let paints_scrollbars = style.is_some_and(|style| {
         ((recorder.inputs.paint_viewport_scrollbars && !recorder.inputs.async_scrolling_enabled) || !is_viewport)
@@ -121,14 +121,13 @@ fn paint_middle_button_scroll_indicator<O: Observer>(recorder: &mut PaintRecorde
     const ARROW_SIZE: f32 = 6.0;
     const ARROW_OFFSET: f32 = 8.0;
 
-    if recorder.layout_arena.node_kind_if_live(paintable) != Some(NodeKind::Viewport)
-        || !recorder.inputs.middle_button_scroll_active
-    {
+    if recorder.layout_arena.node_kind_if_live(paintable) != Some(NodeKind::Viewport) {
         return;
     }
-    let device_origin = recorder
-        .converter
-        .rounded_device_point(recorder.inputs.middle_button_scroll_origin.into());
+    let Some(origin) = recorder.inputs.middle_button_scroll_origin else {
+        return;
+    };
+    let device_origin = recorder.converter.rounded_device_point(origin);
     let circle = IntRect::new(
         device_origin.x - RADIUS,
         device_origin.y - RADIUS,
