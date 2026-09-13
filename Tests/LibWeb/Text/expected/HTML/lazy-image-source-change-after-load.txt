@@ -1,0 +1,4 @@
+img: initial lazy image loaded
+Replacement loaded outside the viewport: 30
+picture: initial lazy image loaded
+Replacement loaded outside the viewport: 31

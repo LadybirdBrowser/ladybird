@@ -180,6 +180,8 @@ private:
 
     u64 m_update_the_image_data_count { 0 };
 
+    bool m_has_resumed_lazy_loading { false };
+
     GC::Ptr<HTMLMapElement> m_cached_associated_map_element;
     Optional<u64> m_cached_associated_map_element_dom_tree_version;
 };
