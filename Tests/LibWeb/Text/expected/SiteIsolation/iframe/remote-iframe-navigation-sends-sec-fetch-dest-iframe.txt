@@ -1,0 +1,3 @@
+Sec-Fetch-Dest of the iframe's own navigation: iframe
+WebContent#0
+  iframe#0: remote WebContent#1

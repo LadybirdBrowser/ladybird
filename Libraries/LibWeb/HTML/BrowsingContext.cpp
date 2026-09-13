@@ -581,6 +581,28 @@ SandboxingFlagSet determine_the_creation_sandboxing_flags(BrowsingContext const&
     return sandboxing_flags;
 }
 
+// https://html.spec.whatwg.org/multipage/browsers.html#determining-the-creation-sandboxing-flags
+// Given the navigable whose container is embedder, which reads the container's facts wherever the element is.
+SandboxingFlagSet determine_the_creation_sandboxing_flags(BrowsingContext const& browsing_context, Navigable const& navigable)
+{
+    // To determine the creation sandboxing flags for a browsing context browsing context, given null or an element
+    // embedder, return the union of the flags that are present in the following sandboxing flag sets:
+    SandboxingFlagSet sandboxing_flags {};
+
+    // - If embedder is null, then: the flags set on browsing context's popup sandboxing flag set.
+    if (!navigable.container_local_name().has_value()) {
+        sandboxing_flags |= browsing_context.popup_sandboxing_flag_set();
+    } else {
+        // - If embedder is an element, then: the flags set on embedder's iframe sandboxing flag set.
+        sandboxing_flags |= navigable.container_iframe_sandboxing_flag_set();
+
+        // - If embedder is an element, then: the flags set on embedder's node document's active sandboxing flag set.
+        sandboxing_flags |= navigable.container_document_active_sandboxing_flag_set();
+    }
+
+    return sandboxing_flags;
+}
+
 bool BrowsingContext::has_navigable_been_destroyed() const
 {
     auto const* document = active_document();

@@ -383,6 +383,15 @@ void CanonicalNavigable::set_replicated_state(Web::HTML::ReplicatedNavigableStat
     m_replicated_state = move(state);
 }
 
+void CanonicalNavigable::update_container_state(Web::HTML::ReplicatedContainerState state)
+{
+    if (!m_replicated_state.has_value())
+        return;
+    m_replicated_state->container = state;
+    if (has_remote_host())
+        m_remote_client->async_update_local_root_container_state(m_remote_page_id, id(), move(state));
+}
+
 void CanonicalNavigable::update_replicated_state(Web::HTML::ReplicatedNavigableState state)
 {
     set_replicated_state(move(state));

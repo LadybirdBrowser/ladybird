@@ -132,6 +132,7 @@ private:
 URL::Origin determine_the_origin(Optional<URL::URL const&>, SandboxingFlagSet, Optional<URL::Origin> source_origin);
 
 SandboxingFlagSet determine_the_creation_sandboxing_flags(BrowsingContext const&, GC::Ptr<DOM::Element> embedder);
+SandboxingFlagSet determine_the_creation_sandboxing_flags(BrowsingContext const&, Navigable const&);
 
 // FIXME: Find a better home for these
 WEB_API bool url_matches_about_blank(URL::URL const& url);

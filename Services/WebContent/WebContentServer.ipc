@@ -59,6 +59,7 @@ endpoint WebContentServer
     insert_remote_navigable(Web::PageId page_id, Web::HTML::RemoteNavigableDescriptor navigable) =|
     remove_remote_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) =|
     update_remote_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState state) =|
+    update_local_root_container_state(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState state) =|
     close_server() =|
 
     get_window_handle(Web::PageId page_id) => (String handle)
