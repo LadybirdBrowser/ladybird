@@ -178,6 +178,8 @@ public:
     void set_preferred_color_scheme(Web::CSS::PreferredColorScheme);
     void set_preferred_contrast(Web::CSS::PreferredContrast);
     void set_preferred_motion(Web::CSS::PreferredMotion);
+    // A page created to host documents of the tab in another process takes the preferences the view's page has.
+    void send_preferences_to_page(Badge<WebContentClient>, WebContentClient&, Web::PageId);
 
     void notify_cookies_changed(HashTable<String> const& changed_domains, ReadonlySpan<HTTP::Cookie::Cookie> page_cookies, ReadonlySpan<HTTP::Cookie::Cookie> host_cookies);
     void listen_for_host_cookie_changes(DevTools::DevToolsDelegate::OnHostCookieChange);
@@ -357,7 +359,6 @@ public:
     void run_webdriver_user_prompt_handling(Function<void(Web::WebDriver::Response)> on_complete);
     void did_complete_webdriver_user_prompt_handling(Badge<WebContentClient>, u64 request_id, Web::WebDriver::Response);
     static Optional<ViewImplementation&> find_view_by_handle(StringView);
-    void did_change_needs_beforeunload_check(Badge<WebContentClient>, bool needs_beforeunload_check);
     void did_change_background_color(Badge<WebContentClient>, Gfx::Color);
     Gfx::Color page_background_color() const { return m_page_background_color; }
 
@@ -381,7 +382,7 @@ public:
     void request_close();
     void force_close();
     Function<void()> prepare_for_immediate_close();
-    bool needs_beforeunload_check() const { return m_needs_beforeunload_check; }
+    bool needs_beforeunload_check() const;
 
     struct NavigationListener {
         Function<void(URL::URL const&)> on_load_start;
@@ -732,6 +733,9 @@ protected:
     Gfx::Color m_page_background_color { 255, 255, 255 };
     Gfx::Color m_system_canvas_background_color { 255, 255, 255 };
     Web::CSS::PreferredColorScheme m_preferred_color_scheme { Web::CSS::PreferredColorScheme::Auto };
+    Web::CSS::PreferredContrast m_preferred_contrast { Web::CSS::PreferredContrast::Auto };
+    Web::CSS::PreferredMotion m_preferred_motion { Web::CSS::PreferredMotion::Auto };
+    Optional<String> m_user_style_sheet;
 
     HistoryVisitTransition m_history_visit_transition_for_current_load { HistoryVisitTransition::Link };
     HistoryVisitTransition m_history_visit_transition_for_next_load { HistoryVisitTransition::Link };
@@ -842,7 +846,6 @@ protected:
     DevTools::DevToolsDelegate::OnNodePickerEvent m_on_node_picker_event;
 
     bool m_devtools_connected { false };
-    bool m_needs_beforeunload_check { true };
 };
 
 }

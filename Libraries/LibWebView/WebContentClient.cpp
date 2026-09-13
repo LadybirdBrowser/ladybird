@@ -303,10 +303,11 @@ void WebContentClient::unregister_view(Web::PageId page_id)
     // A page that still needs a beforeunload check is not a detached
     // background close. It is being closed without waiting for WebContent,
     // e.g. because the user requested a forced close.
-    if (auto view = m_views.get(page_id); view.has_value() && (*view)->needs_beforeunload_check())
+    if (m_views.contains(page_id) && page_needs_beforeunload_check(page_id))
         m_detached_pages_pending_close.remove(page_id);
 
     m_views.remove(page_id);
+    m_needs_beforeunload_check_by_page.remove(page_id);
     m_history_recorded_urls_for_current_load.remove(page_id);
     close_server_if_unused();
 }
@@ -357,11 +358,15 @@ void WebContentClient::register_embedded_page(Web::PageId page_id, CanonicalTrav
         m_unassigned_initial_page_id.clear();
     m_assigned_pages.set(page_id);
     Application::process_manager().cancel_forced_exit(pid());
+
+    if (auto view = ViewImplementation::find_view_for_traversable(traversable); view.has_value())
+        view->send_preferences_to_page({}, *this, page_id);
 }
 
 void WebContentClient::unregister_embedded_page(Web::PageId page_id)
 {
     m_embedded_pages.remove(page_id);
+    m_needs_beforeunload_check_by_page.remove(page_id);
     close_server_if_unused();
 }
 
@@ -752,6 +757,9 @@ void WebContentClient::did_request_navigation_start(Web::PageId page_id, Web::HT
         .phase = CanonicalNavigable::OngoingNavigation::Phase::AwaitingUnloadCheck,
     });
     target_navigable->set_navigation_population_worker(*this, page_id);
+    // FIXME: Dispatch the check to the pages hosting the navigable's other descendants, sequentially and with the
+    //        prompt state threaded through, as a history step's beforeunload groups are. Only the documents of the
+    //        requesting page are checked.
     async_run_navigation_unload_check(page_id, navigable_id, move(navigation_id));
 }
 
@@ -2236,8 +2244,7 @@ void WebContentClient::did_close_browsing_context(Web::PageId page_id)
 
 void WebContentClient::did_change_needs_beforeunload_check(Web::PageId page_id, bool needs_beforeunload_check)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        view->did_change_needs_beforeunload_check({}, needs_beforeunload_check);
+    m_needs_beforeunload_check_by_page.set(page_id, needs_beforeunload_check);
 }
 
 void WebContentClient::webdriver_user_prompt_handling_complete(Web::PageId page_id, u64 request_id, Web::WebDriver::Response response)
