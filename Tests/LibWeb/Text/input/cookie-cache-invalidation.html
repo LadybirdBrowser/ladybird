@@ -14,5 +14,12 @@
         println(document.cookie);
 
         await internals.deleteAllCookies();
+
+        document.cookie = "expiring=value; max-age=86400";
+        internals.expireCookiesWithTimeOffset(172800);
+        println(`After expiration: "${document.cookie}"`);
+        println(`Cached after expiration: "${document.cookie}"`);
+
+        await internals.deleteAllCookies();
     });
 </script>

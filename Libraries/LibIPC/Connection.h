@@ -39,6 +39,9 @@ public:
     // its answer this way, without dispatching anything else out of turn.
     Vector<NonnullOwnPtr<Message>> take_unprocessed_messages(u32 endpoint_magic, i32 message_id);
 
+    // Dispatch every message the peer has already sent on this connection, without waiting for new ones.
+    void dispatch_pending_messages();
+
 protected:
     explicit ConnectionBase(IPC::Stub&, NonnullOwnPtr<Transport>, u32 local_endpoint_magic);
 

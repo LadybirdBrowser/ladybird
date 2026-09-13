@@ -61,6 +61,7 @@
 #include <WebContent/DevToolsConsoleClient.h>
 #include <WebContent/PageClient.h>
 #include <WebContent/PageHost.h>
+#include <WebContent/TestConnection.h>
 #include <WebContent/WebContentClientEndpoint.h>
 #include <WebContent/WebDriverConnection.h>
 #include <WebContent/WebUIConnection.h>
@@ -914,17 +915,20 @@ void PageClient::cancel_download(u64 download_id)
 
 void PageClient::page_did_finish_test(Utf16String const& text)
 {
-    client().async_did_finish_test(m_id, text.to_utf8());
+    if (auto* test_connection = client().test_connection())
+        test_connection->async_did_finish_test(m_id, text.to_utf8());
 }
 
 void PageClient::page_did_set_test_timeout(double milliseconds)
 {
-    client().async_did_set_test_timeout(m_id, milliseconds);
+    if (auto* test_connection = client().test_connection())
+        test_connection->async_did_set_test_timeout(m_id, milliseconds);
 }
 
 void PageClient::page_did_receive_reference_test_metadata(JsonValue metadata)
 {
-    client().async_did_receive_reference_test_metadata(m_id, metadata);
+    if (auto* test_connection = client().test_connection())
+        test_connection->async_did_receive_reference_test_metadata(m_id, metadata);
 }
 
 void PageClient::page_did_set_browser_zoom(double factor)
@@ -1184,9 +1188,10 @@ void PageClient::page_did_update_cookie(HTTP::Cookie::Cookie const& cookie)
 
 void PageClient::page_did_expire_cookies_with_time_offset(AK::Duration offset)
 {
-    client().async_did_expire_cookies_with_time_offset(offset);
+    if (auto* test_connection = client().test_connection())
+        test_connection->did_expire_cookies_with_time_offset(offset);
 
-    // Since the above (test-only) IPC is async, we reset the document cookie version now to avoid a stale cache.
+    // The acknowledged expiration precedes subsequent cookie reads on the main connection.
     if (auto document = page().local_root_navigable()->active_document())
         document->reset_cookie_version();
 }
@@ -1229,7 +1234,11 @@ void PageClient::page_did_lose_request_server_connection()
 
 void PageClient::page_did_simulate_worker_request_server_connection_loss()
 {
-    auto response = client().send_sync_but_allow_failure<Messages::WebContentClient::DidSimulateWorkerRequestServerConnectionLoss>(m_id);
+    auto* test_connection = client().test_connection();
+    if (!test_connection)
+        return;
+
+    auto response = test_connection->send_sync_but_allow_failure<Messages::WebContentTestClient::DidSimulateWorkerRequestServerConnectionLoss>(m_id);
     if (!response) {
         dbgln("WebContent client disconnected during DidSimulateWorkerRequestServerConnectionLoss. Exiting peacefully.");
         Core::Process::terminate_immediately(0);
@@ -1421,37 +1430,50 @@ void PageClient::page_did_request_child_navigable_unload(Web::HTML::CrossProcess
 
 String PageClient::page_did_request_ui_process_session_history_for_testing()
 {
-    return client().did_request_ui_process_session_history_for_testing(m_id);
+    if (auto* test_connection = client().test_connection())
+        return test_connection->did_request_ui_process_session_history_for_testing(m_id);
+    return "{}"_string;
 }
 
 String PageClient::dump_site_isolation_process_tree_for_testing()
 {
-    return client().did_request_site_isolation_process_tree_for_testing(m_id);
+    if (auto* test_connection = client().test_connection())
+        return test_connection->did_request_site_isolation_process_tree_for_testing(m_id);
+    return "{}"_string;
 }
 
 void PageClient::crash_remote_frame_processes_for_testing()
 {
-    client().async_did_request_crash_of_remote_frame_processes_for_testing(m_id);
+    if (auto* test_connection = client().test_connection())
+        test_connection->async_did_request_crash_of_remote_frame_processes_for_testing(m_id);
 }
 
 bool PageClient::page_did_request_capture_session_history_snapshot_for_testing()
 {
-    return client().did_request_capture_session_history_snapshot_for_testing(m_id);
+    if (auto* test_connection = client().test_connection())
+        return test_connection->did_request_capture_session_history_snapshot_for_testing(m_id);
+    return false;
 }
 
 bool PageClient::page_did_request_restore_session_history_snapshot_for_testing()
 {
-    return client().did_request_restore_session_history_snapshot_for_testing(m_id);
+    if (auto* test_connection = client().test_connection())
+        return test_connection->did_request_restore_session_history_snapshot_for_testing(m_id);
+    return false;
 }
 
 bool PageClient::page_did_request_register_session_store_tab_for_testing()
 {
-    return client().did_request_register_session_store_tab_for_testing(m_id);
+    if (auto* test_connection = client().test_connection())
+        return test_connection->did_request_register_session_store_tab_for_testing(m_id);
+    return false;
 }
 
 String PageClient::page_did_request_session_store_tab_state_for_testing()
 {
-    return client().did_request_session_store_tab_state_for_testing(m_id);
+    if (auto* test_connection = client().test_connection())
+        return test_connection->did_request_session_store_tab_state_for_testing(m_id);
+    return "{}"_string;
 }
 
 void PageClient::run_webdriver_user_prompt_handling(u64 request_id)

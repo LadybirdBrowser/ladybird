@@ -84,6 +84,14 @@ Vector<NonnullOwnPtr<Message>> ConnectionBase::take_unprocessed_messages(u32 end
     return taken;
 }
 
+void ConnectionBase::dispatch_pending_messages()
+{
+    VERIFY(m_owner_thread_id.is_current_thread());
+    m_transport->wait_until_incoming_is_current();
+    drain_messages_from_peer();
+    handle_messages();
+}
+
 void ConnectionBase::handle_messages()
 {
     VERIFY(m_owner_thread_id.is_current_thread());

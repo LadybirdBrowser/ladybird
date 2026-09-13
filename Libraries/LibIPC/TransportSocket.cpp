@@ -18,6 +18,7 @@
 #include <LibIPC/TransportSocket.h>
 #include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
+#include <sys/ioctl.h>
 
 namespace IPC {
 
@@ -146,6 +147,23 @@ void SendQueue::discard(size_t bytes_count, size_t fds_count)
             (void)m_queued_messages.remove(m_queued_messages.begin());
         }
     }
+
+    if (m_queued_messages.is_empty() && m_fds.is_empty())
+        m_drained_cv.broadcast();
+}
+
+void SendQueue::wait_until_drained()
+{
+    Sync::MutexLocker locker(m_mutex);
+    while (!m_drain_waiters_released && (!m_queued_messages.is_empty() || !m_fds.is_empty()))
+        m_drained_cv.wait();
+}
+
+void SendQueue::release_drain_waiters()
+{
+    Sync::MutexLocker locker(m_mutex);
+    m_drain_waiters_released = true;
+    m_drained_cv.broadcast();
 }
 
 TransportSocket::TransportSocket(NonnullOwnPtr<Core::LocalSocket> socket)
@@ -241,6 +259,7 @@ intptr_t TransportSocket::io_thread_loop()
     }
 
     VERIFY(m_io_thread_state == IOThreadState::Stopped);
+    m_send_queue->release_drain_waiters();
     if (!m_is_being_transferred.load(AK::MemoryOrder::memory_order_acquire)) {
         // The loop may have stopped on a send-side failure (the peer closed its end while we still had data queued to
         // send — so transfer_data() returned SocketClosed) without reading a final inbound message left buffered on the
@@ -253,6 +272,11 @@ intptr_t TransportSocket::io_thread_loop()
         m_incoming_eof = true;
         m_incoming_cv.broadcast();
         notify_read_available();
+    }
+    {
+        Sync::MutexLocker locker(m_incoming_mutex);
+        m_receive_loop_finished = true;
+        m_incoming_cv.broadcast();
     }
     return 0;
 }
@@ -324,6 +348,34 @@ void TransportSocket::close_after_sending_all_pending_messages()
     m_socket_is_open.store(false, AK::MemoryOrder::memory_order_relaxed);
     stop_io_thread(IOThreadState::SendPendingMessagesAndStop);
     m_socket->close();
+}
+
+void TransportSocket::flush()
+{
+    if (!m_socket_is_open.load(AK::MemoryOrder::memory_order_relaxed))
+        return;
+    wake_io_thread();
+    m_send_queue->wait_until_drained();
+}
+
+bool TransportSocket::incoming_is_behind_socket() const
+{
+    // A partial frame left after draining the socket needs new bytes, so it must not hold up the barrier.
+    if (m_read_in_progress)
+        return true;
+
+    int readable_bytes = 0;
+    if (ioctl(m_socket->fd().value(), FIONREAD, &readable_bytes) < 0)
+        return false;
+    return readable_bytes > 0;
+}
+
+void TransportSocket::wait_until_incoming_is_current()
+{
+    Sync::MutexLocker locker(m_incoming_mutex);
+    while (!m_incoming_eof && !m_receive_loop_finished
+        && (m_io_thread_state.load() != IOThreadState::Running || incoming_is_behind_socket()))
+        m_incoming_cv.wait();
 }
 
 void TransportSocket::wait_until_readable()
@@ -418,6 +470,16 @@ TransportSocket::TransferState TransportSocket::transfer_data(ReadonlyBytes& byt
 
 void TransportSocket::read_incoming_messages()
 {
+    {
+        Sync::MutexLocker locker(m_incoming_mutex);
+        m_read_in_progress = true;
+    }
+    ScopeGuard publish_read_finished = [this] {
+        Sync::MutexLocker locker(m_incoming_mutex);
+        m_read_in_progress = false;
+        m_incoming_cv.broadcast();
+    };
+
     Vector<NonnullOwnPtr<Message>> batch;
     while (m_socket->is_open()) {
         u8 buffer[4096];

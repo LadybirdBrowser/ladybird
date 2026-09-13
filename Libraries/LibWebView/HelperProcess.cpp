@@ -308,6 +308,14 @@ ErrorOr<NonnullRefPtr<WebView::WebContentClient>> launch_web_content_process(IsP
     }
 
     auto client = TRY(launch_server_process<WebView::WebContentClient>("WebContent"sv, move(arguments), is_private, initial_page_id, root_navigable_id));
+
+    // The test-only messages live on their own endpoint pair, over a transport that only exists in test mode.
+    if (web_content_options.is_test_mode == WebView::IsTestMode::Yes) {
+        auto test_transport = TRY(IPC::Transport::create_paired());
+        client->async_connect_to_test_endpoint(move(test_transport.remote_handle));
+        client->connect_test_endpoint(move(test_transport.local));
+    }
+
     auto font_catalog = TRY(WebView::Application::font_service().clone_catalog());
     client->async_set_font_catalog(move(font_catalog.file), font_catalog.size, font_catalog.generation);
     if (auto system_font_family = WebView::Application::the().system_font_family(); system_font_family.has_value())

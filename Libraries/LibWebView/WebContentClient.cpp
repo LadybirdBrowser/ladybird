@@ -36,6 +36,7 @@
 #include <LibWebView/SourceHighlighter.h>
 #include <LibWebView/ViewImplementation.h>
 #include <LibWebView/WebContentClient.h>
+#include <LibWebView/WebContentTestClient.h>
 #include <LibWebView/WebUI.h>
 #include <LibWebView/WorkerProcessManager.h>
 
@@ -92,6 +93,11 @@ void WebContentClient::did_retain_blob_url_token(Web::HTML::CrossProcessId navig
 Messages::WebContentClient::DidRequestBlobUrlEntryResponse WebContentClient::did_request_blob_url_entry(Utf16String url, Optional<URL::BlobURLEntry::Token> token)
 {
     return m_session->blob_url_store->resolve(url, token);
+}
+
+void WebContentClient::connect_test_endpoint(NonnullOwnPtr<IPC::Transport> transport)
+{
+    m_test_connection = make_ref_counted<WebContentTestClient>(move(transport), *this);
 }
 
 void WebContentClient::remove_blob_url_entries()
@@ -2360,7 +2366,7 @@ void WebContentClient::did_request_set_system_visibility_state(u64 page_id, Web:
         view->set_system_visibility_state(visibility_state);
 }
 
-Messages::WebContentClient::DidRequestUiProcessSessionHistoryForTestingResponse WebContentClient::did_request_ui_process_session_history_for_testing(u64 page_id)
+String WebContentClient::did_request_ui_process_session_history_for_testing(u64 page_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
         return { view->ui_process_session_history_for_testing({}) };
@@ -2368,7 +2374,7 @@ Messages::WebContentClient::DidRequestUiProcessSessionHistoryForTestingResponse 
     return { "{}"_string };
 }
 
-Messages::WebContentClient::DidRequestSiteIsolationProcessTreeForTestingResponse WebContentClient::did_request_site_isolation_process_tree_for_testing(u64 page_id)
+String WebContentClient::did_request_site_isolation_process_tree_for_testing(u64 page_id)
 {
     return { SiteIsolationManager::the().dump_process_tree(*this, page_id) };
 }
@@ -2452,31 +2458,31 @@ void WebContentClient::nonchanging_navigable_history_state_updated(u64 page_id, 
         view->did_receive_nonchanging_navigable_history_state_updated({}, *this, page_id, operation_id, navigable_id);
 }
 
-Messages::WebContentClient::DidRequestCaptureSessionHistorySnapshotForTestingResponse WebContentClient::did_request_capture_session_history_snapshot_for_testing(u64 page_id)
+bool WebContentClient::did_request_capture_session_history_snapshot_for_testing(u64 page_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        return { view->capture_session_history_snapshot_for_testing({}) };
+        return view->capture_session_history_snapshot_for_testing({});
 
-    return { false };
+    return false;
 }
 
-Messages::WebContentClient::DidRequestRestoreSessionHistorySnapshotForTestingResponse WebContentClient::did_request_restore_session_history_snapshot_for_testing(u64 page_id)
+bool WebContentClient::did_request_restore_session_history_snapshot_for_testing(u64 page_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        return { view->restore_captured_session_history_snapshot_for_testing({}) };
+        return view->restore_captured_session_history_snapshot_for_testing({});
 
-    return { false };
+    return false;
 }
 
-Messages::WebContentClient::DidRequestRegisterSessionStoreTabForTestingResponse WebContentClient::did_request_register_session_store_tab_for_testing(u64 page_id)
+bool WebContentClient::did_request_register_session_store_tab_for_testing(u64 page_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
-        return { view->register_session_store_tab_for_testing({}) };
+        return view->register_session_store_tab_for_testing({});
 
-    return { false };
+    return false;
 }
 
-Messages::WebContentClient::DidRequestSessionStoreTabStateForTestingResponse WebContentClient::did_request_session_store_tab_state_for_testing(u64 page_id)
+String WebContentClient::did_request_session_store_tab_state_for_testing(u64 page_id)
 {
     if (auto view = view_for_page_id(page_id); view.has_value())
         return { view->session_store_tab_state_for_testing({}) };
