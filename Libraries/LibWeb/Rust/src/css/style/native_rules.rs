@@ -6,14 +6,16 @@
 
 use super::capacity::ShallowCapacityBytes;
 use super::memory::{MemoryCategory, MemoryController, MemoryLease};
-use super::{HashMap, RuleID, StyleEngine};
+use super::{RuleID, StyleEngine};
 use crate::css::container_conditions::ContainerConditionsData;
 use crate::css::declaration_block::DeclarationBlockData;
 use std::hash::{Hash, Hasher};
 use std::num::NonZeroU64;
 use std::sync::Arc;
 
+mod identities;
 mod targets;
+use identities::NativeRuleIdentities;
 use targets::NativeRuleTargets;
 
 #[derive(Clone)]
@@ -32,7 +34,7 @@ struct NativeRuleConditions {
 
 pub(super) struct NativeRuleRegistry {
     pub targets: NativeRuleTargets,
-    pub identities: HashMap<u64, RuleID>,
+    pub identities: NativeRuleIdentities,
     memory: MemoryLease,
 }
 
@@ -40,7 +42,7 @@ impl Default for NativeRuleRegistry {
     fn default() -> Self {
         Self {
             targets: NativeRuleTargets::default(),
-            identities: HashMap::default(),
+            identities: NativeRuleIdentities::default(),
             memory: MemoryLease::new(MemoryCategory::RuleProgram),
         }
     }
@@ -114,7 +116,7 @@ impl NativeRuleRegistry {
     pub fn remove(&mut self, id: RuleID, memory: &mut MemoryController) {
         if let Some(target) = self.targets.remove(&id) {
             let identity = target.identity.get();
-            if self.identities.get(&identity) == Some(&id) {
+            if self.identities.get(&identity) == Some(id) {
                 self.identities.remove(&identity);
             }
         }
@@ -131,7 +133,7 @@ impl NativeRuleRegistry {
 
 impl StyleEngine {
     pub(crate) fn native_rule_id(&self, identity: u64) -> Option<RuleID> {
-        self.native_rules.identities.get(&identity).copied()
+        self.native_rules.identities.get(&identity)
     }
 
     /// Register immutable cascade inputs independently of document-local rule owners.
@@ -248,7 +250,7 @@ mod tests {
         assert!(engines[0].native_rules.identities.is_empty());
         assert!(rule_weak.upgrade().is_none());
         assert!(source_weak.upgrade().is_none());
-        assert_eq!(engines[1].native_rules.identities.get(&identity), Some(&ids[1]));
+        assert_eq!(engines[1].native_rules.identities.get(&identity), Some(ids[1]));
         engines[1].remove_style_rule(ids[1]);
         assert!(engines[1].native_rules.identities.is_empty());
         assert!(rule_weak.upgrade().is_none());
@@ -352,7 +354,7 @@ mod tests {
         );
         assert_eq!(
             engine.native_rules.identities.get(&rust_rule_identity(new_rule)),
-            Some(&id)
+            Some(id)
         );
         assert_eq!(engine.native_rules.targets.len(), 1);
     }

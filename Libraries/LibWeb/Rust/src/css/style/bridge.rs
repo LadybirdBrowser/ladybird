@@ -3151,7 +3151,7 @@ pub unsafe extern "C" fn style_engine_native_rule_declarations_changed(
             return false;
         };
         let engine = unsafe { &*engine.cast::<StyleEngine>() };
-        let Some(&id) = engine.native_rules.identities.get(&identity) else {
+        let Some(id) = engine.native_rules.identities.get(&identity) else {
             return false;
         };
         (id, rule.cascade_declarations())
