@@ -475,7 +475,7 @@ void Page::update_needs_beforeunload_check()
             return true;
 
         for (auto const& navigable : active_document->inclusive_descendant_navigables()) {
-            auto window = navigable->active_window();
+            auto window = as<HTML::LocalNavigable>(*navigable).active_window();
             if (window && window->has_event_listener(HTML::EventNames::beforeunload))
                 return true;
         }
@@ -1069,7 +1069,7 @@ void Page::invalidate_user_style()
     invalidate_document(active_document);
 
     for (auto& navigable : active_document.descendant_navigables()) {
-        if (auto document = navigable->active_document())
+        if (auto document = as<HTML::LocalNavigable>(*navigable).active_document())
             invalidate_document(*document);
     }
 }
@@ -1088,7 +1088,7 @@ void Page::invalidate_style_for_preference_change()
     invalidate_document(active_document);
 
     for (auto& navigable : active_document.descendant_navigables()) {
-        if (auto document = navigable->active_document())
+        if (auto document = as<HTML::LocalNavigable>(*navigable).active_document())
             invalidate_document(*document);
     }
 }
@@ -1419,9 +1419,10 @@ void Page::process_pending_fullscreen_operations()
                 // 13. Let descendantDocs be an ordered set consisting of doc's descendant navigables' active documents
                 //     whose fullscreen element is non-null, if any, in tree order.
                 auto descendant_docs = GC::Heap::the().allocate<GC::HeapVector<GC::Ref<DOM::Document>>>();
-                for (auto& descendant : exit.doc->descendant_navigables()) {
-                    if (descendant->active_document()->fullscreen_element())
-                        descendant_docs->elements().append(*descendant->active_document());
+                for (auto& navigable : exit.doc->descendant_navigables()) {
+                    auto& descendant = as<HTML::LocalNavigable>(*navigable);
+                    if (descendant.active_document()->fullscreen_element())
+                        descendant_docs->elements().append(*descendant.active_document());
                 }
 
                 // 14. For each exitDoc in exitDocs:

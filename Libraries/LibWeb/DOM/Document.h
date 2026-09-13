@@ -893,9 +893,9 @@ public:
     GC::Ref<HTML::PolicyContainer> policy_container() const;
     void set_policy_container(GC::Ref<HTML::PolicyContainer>);
 
-    Vector<GC::Root<HTML::LocalNavigable>> descendant_navigables();
-    Vector<GC::Root<HTML::LocalNavigable>> const descendant_navigables() const;
-    Vector<GC::Root<HTML::LocalNavigable>> inclusive_descendant_navigables();
+    Vector<GC::Root<HTML::Navigable>> descendant_navigables();
+    Vector<GC::Root<HTML::Navigable>> const descendant_navigables() const;
+    Vector<GC::Root<HTML::Navigable>> inclusive_descendant_navigables();
     GC::RootVector<GC::Ref<HTML::Navigable>> ancestor_navigables();
     GC::RootVector<GC::Ref<HTML::Navigable>> const ancestor_navigables() const;
     GC::RootVector<GC::Ref<HTML::Navigable>> inclusive_ancestor_navigables();

@@ -1397,6 +1397,14 @@ Optional<URL::Origin> LocalNavigable::active_document_origin() const
     return m_active_document->origin();
 }
 
+Vector<GC::Root<Navigable>> LocalNavigable::active_document_inclusive_descendant_navigables()
+{
+    // AD-HOC: Skip a navigable that doesn't have an active document.
+    if (!m_active_document)
+        return {};
+    return m_active_document->inclusive_descendant_navigables();
+}
+
 bool LocalNavigable::active_document_is_fully_active() const
 {
     return m_active_document && m_active_document->is_fully_active();
@@ -1846,7 +1854,7 @@ GC::Ptr<Navigable> LocalNavigable::find_a_navigable_by_target_name(Utf16View nam
         // 3. For each navigable of the inclusive descendant navigables of documentToSearch:
         for (auto const& navigable : document_to_search->inclusive_descendant_navigables()) {
             // 1. If currentNavigable's active browsing context is not familiar with navigable's active browsing context, then continue.
-            if (!active_browsing_context()->is_familiar_with(*navigable->active_browsing_context()))
+            if (!active_browsing_context()->is_familiar_with(*as<LocalNavigable>(*navigable).active_browsing_context()))
                 continue;
 
             // 2. If currentNavigable is not allowed by sandboxing to navigate navigable given sourceSnapshotParams, then optionally continue.
@@ -3447,7 +3455,10 @@ void LocalNavigable::run_navigation_unload_check(Utf16String const& navigation_i
     }
 
     // 1. Let unloadPromptCanceled be the result of checking if unloading is user-canceled for navigable's active document's inclusive descendant navigables.
-    check_if_unloading_is_canceled(active_document()->inclusive_descendant_navigables(),
+    Vector<GC::Root<LocalNavigable>> navigables;
+    for (auto const& navigable : active_document()->inclusive_descendant_navigables())
+        navigables.append(as<LocalNavigable>(*navigable));
+    check_if_unloading_is_canceled(move(navigables),
         GC::create_function(heap(), [this, navigation_id, completion_steps](CheckIfUnloadingIsCanceledResult unload_prompt_canceled) {
             if (has_been_destroyed() || !active_window()) {
                 completion_steps->function()(false);

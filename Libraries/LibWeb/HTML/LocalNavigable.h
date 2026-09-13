@@ -131,6 +131,7 @@ public:
     virtual Optional<URL::Origin> active_document_origin() const override;
     virtual bool active_document_is_fully_active() const override;
     virtual bool active_document_is(DOM::Document const&) const override;
+    virtual Vector<GC::Root<Navigable>> active_document_inclusive_descendant_navigables() override;
     virtual Optional<URL::URL> active_document_top_level_creation_url() const override;
     virtual Optional<URL::Origin> active_document_top_level_origin() const override;
     virtual bool active_document_has_cross_site_ancestor() const override;
