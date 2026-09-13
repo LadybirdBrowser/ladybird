@@ -117,6 +117,9 @@ public:
     // False once the page can no longer host work: the page is unregistered or the process is gone. A page
     // awaiting a detached close remains open; it still coordinates its own close.
     bool is_page_open(u64 page_id) const;
+    // True while the connection may still act for the page: a spare process's unassigned initial page, an
+    // open page, or a detached page awaiting its close acknowledgement.
+    bool owns_page(u64 page_id) const;
     Optional<CanonicalNavigable&> hosted_navigable(Web::HTML::CrossProcessId navigable_id);
     Optional<CanonicalNavigable&> hosted_navigable_for_page(u64 page_id, Web::HTML::CrossProcessId navigable_id);
     Optional<CanonicalNavigable&> population_worker_navigable_for_page(u64 page_id, Web::HTML::CrossProcessId navigable_id);
@@ -351,7 +354,7 @@ private:
     HashMap<u64, u64> m_renderer_owned_downloads;
     HashMap<u64, String> m_history_recorded_urls_for_current_load;
     Optional<i32> m_compositor_connection_id;
-    u64 m_initial_page_id { 0 };
+    Optional<u64> m_unassigned_initial_page_id;
     Web::HTML::CrossProcessId m_root_navigable_id;
     Optional<Web::HTML::SessionHistoryEntryDescriptor> m_initial_top_level_history_entry;
 
