@@ -142,7 +142,7 @@ fn publish_recording_output(
     }
     let output = std::rc::Rc::new(output);
     if paint_command_cache_read_write {
-        cache_updates.commit(arena);
+        arena.recording_scratch().borrow_mut().recycled_cache_updates = cache_updates.commit(arena);
         paint_state.paint_command_cache_source = Some(output.clone());
         // Read-only recordings commit nothing and must not age dirty stamps out.
         arena.note_paint_record_completed_with_cache_writes();
