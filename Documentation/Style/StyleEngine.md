@@ -764,9 +764,9 @@ its publication; transaction entry does the same before committing new inputs.
 Those boundaries also finish prefix effects and drop private transition IDs
 before their arenas can be reset. Explicit abandonment releases pending
 references; incomplete batches keep them until resumption or teardown.
-Host consumers read pending publications
-without requiring their vector to have been sorted. The existing deferred-pseudo
-Rc pin remains temporarily and is removed in the following ownership cleanup.
+Host consumers read pending publications without requiring their vector to have
+been sorted. Deferred-pseudo comparisons borrow the before-change answer from
+the old column, which owns it until installation, and the new answer from effects.
 
 Match-program relation answers, sibling cursors, sibling sequences, type ranks
 and positional answers live in caller-owned `MatchScratch`. An evaluator borrows
