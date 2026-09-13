@@ -116,7 +116,7 @@ TEST_CASE(response_browsing_context_is_activated_only_at_commit)
                                           .opener_policy = {},
                                           .active_document_is_completely_loaded = false,
                                           .is_closing = false,
-                                          .container_is_in_document_tree = false,
+                                          .container = {},
                                           .compositor_context_id = {},
                                       },
         navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes);
@@ -150,7 +150,7 @@ TEST_CASE(populated_document_replaces_tracked_load_when_document_state_is_reused
                                           .opener_policy = {},
                                           .active_document_is_completely_loaded = false,
                                           .is_closing = false,
-                                          .container_is_in_document_tree = false,
+                                          .container = {},
                                           .compositor_context_id = {},
                                       },
         navigation_id, WebView::CanonicalNavigable::DidPopulateDocument::Yes);

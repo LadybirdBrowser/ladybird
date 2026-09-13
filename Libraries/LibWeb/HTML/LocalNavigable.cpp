@@ -1517,17 +1517,24 @@ ReplicatedNavigableState LocalNavigable::replicated_state() const
         .opener_policy = m_active_document->opener_policy(),
         .active_document_is_completely_loaded = m_active_document->is_completely_loaded(),
         .is_closing = m_closing,
-        .container_is_in_document_tree = container_is_in_document_tree(),
+        .container = container_state(),
         .compositor_context_id = has_compositor_context() ? Optional<Compositor::CompositorContextId> { compositor_context().id() } : Optional<Compositor::CompositorContextId> {},
     };
 }
 
-bool LocalNavigable::container_is_in_document_tree() const
+ReplicatedContainerState LocalNavigable::container_state() const
 {
-    // A local root's container lives with its parent's document in another process, which reported this at creation.
-    if (!container())
-        return m_root_container_is_in_document_tree;
-    return container()->document().is_ancestor_of(*container());
+    // A local root's container lives with its parent's document in another process, which reports it.
+    auto container = this->container();
+    if (!container)
+        return m_root_container_state;
+    return container->replicated_container_state();
+}
+
+void LocalNavigable::set_root_container_state(ReplicatedContainerState state)
+{
+    VERIFY(is_local_root() && parent());
+    m_root_container_state = move(state);
 }
 
 void LocalNavigable::set_closing(bool value)
@@ -2533,25 +2540,28 @@ static void create_navigation_params_by_fetching(
         request->set_user_activation(true);
 
     // 10. If navigable's container is non-null:
-    if (navigable->container() != nullptr) {
+    // NB: The container's local name is read through the navigable, which replicates it for a container in another
+    //     process.
+    if (auto container_local_name = navigable->container_local_name(); container_local_name.has_value()) {
         // 1. If the navigable's container has a browsing context scope origin, then set request's origin to that browsing context scope origin.
         // FIXME: From "browsing context scope origin": This definition is broken and needs investigation to see what it was intended to express: see issue #4703.
         //        The referenced issue suggests that it is a no-op to retrieve the browsing context scope origin.
 
         // 2. Set request's destination to navigable's container's local name.
         // FIXME: Are there other container types? If so, we need a helper here
-        Web::Fetch::Infrastructure::Request::Destination destination = is<HTMLIFrameElement>(*navigable->container()) ? Web::Fetch::Infrastructure::Request::Destination::IFrame
-                                                                                                                      : Web::Fetch::Infrastructure::Request::Destination::Object;
-        request->set_destination(destination);
+        auto container_is_iframe = *container_local_name == HTML::TagNames::iframe;
+        request->set_destination(container_is_iframe ? Web::Fetch::Infrastructure::Request::Destination::IFrame
+                                                     : Web::Fetch::Infrastructure::Request::Destination::Object);
 
         // 3. If sourceSnapshotParams's fetch client is navigable's container document's relevant settings object,
         //    then set request's initiator type to navigable's container's local name.
         // NOTE: This ensure that only container-initiated navigations are reported to resource timing.
-        if (source_snapshot_params->fetch_client.ptr() == &navigable->container_document()->relevant_settings_object()) {
+        // FIXME: A container document in another process is not here, and the fetch client of a navigation it started
+        //        is a snapshot, so its resource timing is not told of the navigation.
+        if (auto container_document = navigable->container_document(); container_document && source_snapshot_params->fetch_client.ptr() == &container_document->relevant_settings_object()) {
             // FIXME: Are there other container types? If so, we need a helper here
-            Web::Fetch::Infrastructure::Request::InitiatorType initiator_type = is<HTMLIFrameElement>(*navigable->container()) ? Web::Fetch::Infrastructure::Request::InitiatorType::IFrame
-                                                                                                                               : Web::Fetch::Infrastructure::Request::InitiatorType::Object;
-            request->set_initiator_type(initiator_type);
+            request->set_initiator_type(container_is_iframe ? Web::Fetch::Infrastructure::Request::InitiatorType::IFrame
+                                                            : Web::Fetch::Infrastructure::Request::InitiatorType::Object);
         }
     }
 
@@ -4490,7 +4500,7 @@ GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page>, RemoteNavig
     // The entry stands in for the canonical current entry, whose identity this page reports as its own.
     navigable->active_session_history_entry()->set_navigation_api_key(initial_history_entry.navigation_api_key);
     navigable->active_session_history_entry()->set_navigation_api_id(initial_history_entry.navigation_api_id);
-    navigable->m_root_container_is_in_document_tree = remote_navigable.replicated_state().container_is_in_document_tree;
+    navigable->m_root_container_state = remote_navigable.replicated_state().container;
     navigable->set_parent_compositor_context(as<RemoteNavigable>(*parent_navigable).compositor_context_id());
 
     // The navigable stands beside the navigable's node until the document it populates activates and it takes the

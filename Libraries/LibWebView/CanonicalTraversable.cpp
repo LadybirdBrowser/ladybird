@@ -319,7 +319,7 @@ void CanonicalTraversable::create_a_new_top_level_traversable(Optional<Canonical
         .opener_policy = {},
         .active_document_is_completely_loaded = false,
         .is_closing = false,
-        .container_is_in_document_tree = false,
+        .container = {},
         // The process hosting the traversable reports the compositor context it paints through.
         .compositor_context_id = {},
     });

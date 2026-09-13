@@ -78,6 +78,11 @@ void HTMLIFrameElement::attribute_changed(Utf16FlyString const& name, Optional<U
                 m_iframe_sandboxing_flag_set = {};
             }
         }
+
+        // A content navigable whose document another process hosts reads the sandbox and referrerpolicy attributes
+        // through its replicated state, which the UI process keeps current from these reports.
+        if (name == AttributeNames::sandbox || name == AttributeNames::referrerpolicy)
+            document().page().client().page_did_change_navigable_container_state(m_content_navigable->id(), replicated_container_state());
     }
 
     if (name == HTML::AttributeNames::width || name == HTML::AttributeNames::height)

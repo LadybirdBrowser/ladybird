@@ -335,6 +335,11 @@ void PageClient::page_did_change_replicated_navigable_state(Web::HTML::CrossProc
     client().async_did_change_replicated_navigable_state(m_id, navigable_id, state);
 }
 
+void PageClient::page_did_change_navigable_container_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState const& state)
+{
+    client().async_did_change_navigable_container_state(m_id, navigable_id, state);
+}
+
 void PageClient::page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState const& replicated_state)
 {
     client().async_did_create_child_frame(m_id, parent_frame_id, frame_id, replicated_state);

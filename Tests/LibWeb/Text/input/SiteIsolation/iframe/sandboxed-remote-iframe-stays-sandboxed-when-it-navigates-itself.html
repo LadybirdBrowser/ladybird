@@ -1,0 +1,77 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<script>
+    // An isolated iframe's sandbox attribute lives with its container in another process. Its flags are replicated,
+    // so a navigation the iframe starts itself keeps them: the document that navigation creates is still sandboxed,
+    // which no allow-* token lifts for document.domain.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const childHostname = uniqueLocalhostHostname("oop-sandboxed-self-navigation");
+
+        const markerUrl = async outcome => {
+            const url = new URL(
+                await httpServer.createEcho("GET", `/oop-sandboxed-self-navigation-${outcome}-${runId}`, {
+                    status: 200,
+                    headers: { "Content-Type": "text/plain" },
+                    body: outcome,
+                })
+            );
+            url.hostname = childHostname;
+            return url;
+        };
+        const blockedUrl = await markerUrl("blocked");
+        const allowedUrl = await markerUrl("allowed");
+
+        const secondUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-sandboxed-self-navigation-second-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html>second<script>
+                    let outcome = "allowed";
+                    try {
+                        document.domain = document.domain;
+                    } catch (e) {
+                        outcome = e.name === "SecurityError" ? "blocked" : "allowed";
+                    }
+                    fetch(outcome === "blocked" ? ${JSON.stringify(blockedUrl.href)} : ${JSON.stringify(allowedUrl.href)});
+                <\/script>`,
+            })
+        );
+        secondUrl.hostname = childHostname;
+
+        const firstUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-sandboxed-self-navigation-first-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html>first<script>location.href = ${JSON.stringify(secondUrl.href)};<\/script>`,
+            })
+        );
+        firstUrl.hostname = childHostname;
+
+        const iframe = document.createElement("iframe");
+        iframe.sandbox = "allow-scripts allow-same-origin";
+        iframe.src = firstUrl;
+        document.body.appendChild(iframe);
+
+        const recorded = async outcome => {
+            try {
+                return (
+                    await fetch(
+                        `${httpServer.baseURL}/recorded-request-headers/echo/oop-sandboxed-self-navigation-${outcome}-${runId}`
+                    )
+                ).ok;
+            } catch {
+                return false;
+            }
+        };
+        let outcome = null;
+        for (let attempt = 0; attempt < 600 && outcome === null; ++attempt) {
+            if (await recorded("blocked")) outcome = "blocked";
+            else if (await recorded("allowed")) outcome = "allowed";
+            else await timeout(25);
+        }
+        println(`setting document.domain in the sandboxed iframe after it navigated itself: ${outcome}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

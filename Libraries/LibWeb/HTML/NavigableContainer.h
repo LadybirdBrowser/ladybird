@@ -10,6 +10,7 @@
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/HTMLElement.h>
 #include <LibWeb/HTML/InitialInsertion.h>
+#include <LibWeb/HTML/ReplicatedNavigableState.h>
 
 namespace Web::HTML {
 
@@ -41,6 +42,8 @@ public:
     bool currently_delays_the_load_event() const;
 
     bool content_navigable_has_session_history_entry_and_ready_for_navigation() const;
+
+    ReplicatedContainerState replicated_container_state();
 
 protected:
     NavigableContainer(DOM::Document&, DOM::QualifiedName);

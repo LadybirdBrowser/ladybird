@@ -219,6 +219,17 @@ void ConnectionFromClient::update_remote_navigable(Web::PageId page_id, Web::HTM
         page->page().update_remote_navigable(navigable_id, move(state));
 }
 
+void ConnectionFromClient::update_local_root_container_state(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState state)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+    auto* navigable = as_if<Web::HTML::LocalNavigable>(page->page().navigable_with_id(navigable_id).ptr());
+    if (!navigable || !navigable->is_local_root())
+        return;
+    navigable->set_root_container_state(move(state));
+}
+
 void ConnectionFromClient::begin_hosting_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryDescriptor current_history_entry, Web::HTML::VisibilityState system_visibility_state)
 {
     if (auto page = this->page(page_id); page.has_value())

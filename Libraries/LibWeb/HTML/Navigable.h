@@ -19,6 +19,7 @@
 #include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/NavigateParams.h>
+#include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
@@ -71,7 +72,12 @@ public:
     virtual bool active_document_has_cross_site_ancestor() const = 0;
     virtual OpenerPolicy const& active_document_opener_policy() const = 0;
 
-    virtual bool container_is_in_document_tree() const = 0;
+    virtual ReplicatedContainerState container_state() const = 0;
+    bool container_is_in_document_tree() const { return container_state().is_in_document_tree; }
+    SandboxingFlagSet container_iframe_sandboxing_flag_set() const { return container_state().iframe_sandboxing_flag_set; }
+    SandboxingFlagSet container_document_active_sandboxing_flag_set() const { return container_state().document_active_sandboxing_flag_set; }
+    Optional<Utf16FlyString> container_local_name() const { return container_state().local_name; }
+    ReferrerPolicy::ReferrerPolicy container_iframe_referrer_policy() const { return container_state().iframe_referrer_policy; }
 
     virtual bool has_session_history_entry_and_ready_for_navigation() const = 0;
     virtual bool delays_the_load_event_of_its_container() const = 0;

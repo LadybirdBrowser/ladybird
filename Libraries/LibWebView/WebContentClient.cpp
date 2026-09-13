@@ -1093,6 +1093,15 @@ void WebContentClient::did_change_replicated_navigable_state(Web::PageId page_id
     navigable->update_replicated_state(move(state));
 }
 
+void WebContentClient::did_change_navigable_container_state(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState state)
+{
+    // Only the page holding a navigable's container speaks for it.
+    auto navigable = child_frame(page_id, navigable_id);
+    if (!navigable.has_value() || navigable->reporting_client_if_any() != this || navigable->reporting_page_id() != page_id)
+        return;
+    navigable->update_container_state(move(state));
+}
+
 void WebContentClient::did_create_child_frame(Web::PageId page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state)
 {
     auto* host = traversable_for_page(page_id);
