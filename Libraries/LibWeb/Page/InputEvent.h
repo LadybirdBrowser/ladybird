@@ -13,6 +13,7 @@
 #include <LibIPC/Forward.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/HTML/SelectedFile.h>
+#include <LibWeb/Page/PageId.h>
 #include <LibWeb/PixelUnits.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWeb/UIEvents/MouseButton.h>
@@ -132,7 +133,7 @@ struct WEB_API PinchEvent {
 using InputEvent = Variant<KeyEvent, MouseEvent, DragEvent, PinchEvent>;
 
 struct QueuedInputEvent {
-    u64 page_id { 0 };
+    Web::PageId page_id { 0 };
     InputEvent event;
     size_t coalesced_event_count { 0 };
 };

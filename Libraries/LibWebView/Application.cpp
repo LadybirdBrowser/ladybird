@@ -1033,7 +1033,7 @@ void Application::open_bookmark_in_new_window(String const& bookmark_id, IsPriva
         open_url_in_new_window(bookmark->bookmark().url, is_private);
 }
 
-ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(Optional<ViewImplementation&> view, IsPrivate is_private, u64 initial_page_id, Optional<Web::HTML::CrossProcessId> navigable_to_adopt, Optional<Web::HTML::CrossProcessId> initial_document_state_id)
+ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(Optional<ViewImplementation&> view, IsPrivate is_private, Web::PageId initial_page_id, Optional<Web::HTML::CrossProcessId> navigable_to_adopt, Optional<Web::HTML::CrossProcessId> initial_document_state_id)
 {
     auto request_server_handle = TRY(connect_new_request_server_client(is_private));
     auto image_decoder_handle = TRY(connect_new_image_decoder_client());
@@ -1087,10 +1087,10 @@ ErrorOr<void> Application::reload_site_compatibility_data()
     return {};
 }
 
-u64 Application::allocate_page_id()
+Web::PageId Application::allocate_page_id()
 {
     VERIFY(m_next_page_or_compositor_context_id > 0);
-    return m_next_page_or_compositor_context_id++;
+    return Web::PageId { m_next_page_or_compositor_context_id++ };
 }
 
 Web::HTML::CrossProcessIdAllocator Application::allocate_cross_process_id_allocator()
@@ -1246,7 +1246,7 @@ ErrorOr<IPC::TransportHandle> Application::connect_new_compositor_canvas_client(
     return response_or_error.release_value().take_handle();
 }
 
-void Application::register_compositor_context(WebContentClient& web_content_client, Web::Compositor::CompositorContextId context_id, Optional<u64> page_id)
+void Application::register_compositor_context(WebContentClient& web_content_client, Web::Compositor::CompositorContextId context_id, Optional<Web::PageId> page_id)
 {
     if (!can_send_compositor_process_ipc(m_compositor_client))
         return;
@@ -1255,7 +1255,7 @@ void Application::register_compositor_context(WebContentClient& web_content_clie
         dbgln("Unable to register Compositor context: {}", result.error());
 }
 
-ErrorOr<void> Application::try_register_compositor_context(WebContentClient& web_content_client, Web::Compositor::CompositorContextId context_id, Optional<u64> page_id)
+ErrorOr<void> Application::try_register_compositor_context(WebContentClient& web_content_client, Web::Compositor::CompositorContextId context_id, Optional<Web::PageId> page_id)
 {
     if (!m_compositor_client)
         return Error::from_string_literal("Compositor process is not available");
@@ -1269,7 +1269,8 @@ ErrorOr<void> Application::try_register_compositor_context(WebContentClient& web
     }
     VERIFY(web_content_connection_id.has_value());
 
-    auto result = m_compositor_client->try_create_context(context_id, page_id, *web_content_connection_id);
+    auto compositor_page_id = page_id.map([](Web::PageId id) { return id.value(); });
+    auto result = m_compositor_client->try_create_context(context_id, compositor_page_id, *web_content_connection_id);
     if (result.is_error())
         return Error::from_string_literal("Compositor process disconnected while creating context");
 

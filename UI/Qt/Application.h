@@ -9,6 +9,7 @@
 #include <AK/Function.h>
 #include <AK/Platform.h>
 #include <LibURL/URL.h>
+#include <LibWeb/Page/PageId.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BrowsingSession.h>
 #include <UI/Qt/BrowserWindow.h>
@@ -43,7 +44,7 @@ public:
 
     Function<void(URL::URL)> on_open_file;
 
-    BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& = {}, BrowserWindow::IsPopupWindow is_popup_window = BrowserWindow::IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {}, ShowWindow = ShowWindow::Yes);
+    BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& = {}, BrowserWindow::IsPopupWindow is_popup_window = BrowserWindow::IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Tab* parent_tab = nullptr, Optional<Web::PageId> page_index = {}, ShowWindow = ShowWindow::Yes);
     WindowConfiguration configuration_for_new_window() const;
     void open_new_tab();
     void open_new_window(WebView::IsPrivate);

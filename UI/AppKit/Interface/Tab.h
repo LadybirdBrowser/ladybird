@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/Types.h>
+#include <LibWeb/Page/PageId.h>
 #include <LibWebView/BrowsingSession.h>
 
 #import <Cocoa/Cocoa.h>
@@ -19,7 +20,7 @@
 
 - (instancetype)init:(WebView::IsPrivate)is_private;
 - (instancetype)initAsChild:(Tab*)parent
-                  pageIndex:(u64)page_index;
+                  pageIndex:(Web::PageId)page_index;
 
 - (WebView::IsPrivate)isPrivate;
 

@@ -133,7 +133,7 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
 }
 
 - (instancetype)initAsChild:(Tab*)parent
-                  pageIndex:(u64)page_index
+                  pageIndex:(Web::PageId)page_index
 {
     auto* web_view = [[LadybirdWebView alloc] initAsChild:self parent:[parent web_view] pageIndex:page_index];
     return [self initWithWebView:web_view];
@@ -406,7 +406,7 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
 
 - (String const&)onCreateChildTab:(Optional<URL::URL> const&)url
                       activateTab:(Web::HTML::ActivateTab)activate_tab
-                        pageIndex:(u64)page_index
+                        pageIndex:(Web::PageId)page_index
 {
     auto* delegate = (ApplicationDelegate*)[NSApp delegate];
 

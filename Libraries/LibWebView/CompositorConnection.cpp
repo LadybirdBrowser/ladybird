@@ -478,13 +478,13 @@ void CompositorConnection::request_screenshot(Web::Compositor::CompositorContext
 void CompositorConnection::key_event(u64 page_id, Web::KeyEvent event)
 {
     if (on_key_event)
-        on_key_event(page_id, move(event));
+        on_key_event(Web::PageId { page_id }, move(event));
 }
 
 void CompositorConnection::mouse_event(u64 page_id, Web::MouseEvent event)
 {
     if (on_mouse_event)
-        on_mouse_event(page_id, move(event));
+        on_mouse_event(Web::PageId { page_id }, move(event));
 }
 
 void CompositorConnection::request_rendering_update()

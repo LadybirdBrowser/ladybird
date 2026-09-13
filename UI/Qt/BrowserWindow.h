@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
+#include <LibWeb/Page/PageId.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
 #include <LibWebView/SessionStore.h>
@@ -128,7 +129,7 @@ public:
         int m_index { 0 };
     };
 
-    BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window = IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Tab* parent_tab = nullptr, Optional<u64> page_index = {});
+    BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow is_popup_window = IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Tab* parent_tab = nullptr, Optional<Web::PageId> page_index = {});
     virtual ~BrowserWindow() override;
 
     WebContentView& view() const { return m_current_tab->view(); }
@@ -181,7 +182,7 @@ public slots:
     void tab_favicon_changed(int index, QIcon const& icon);
     void tab_audio_play_state_changed(int index, Web::HTML::AudioPlayState);
     Tab& new_tab_from_url(URL::URL const&, Web::HTML::ActivateTab, TabLocation);
-    Tab& new_child_tab(Web::HTML::ActivateTab, Tab& parent, Optional<u64> page_index);
+    Tab& new_child_tab(Web::HTML::ActivateTab, Tab& parent, Optional<Web::PageId> page_index);
     void activate_tab(int index);
     bool definitely_close_tab(int index);
     void move_tab(int old_index, int new_index);
@@ -208,7 +209,7 @@ private:
     virtual void show_bookmarks_bar_changed() override;
     virtual void config_variable_changed(WebView::ConfigVariableID) override;
 
-    Tab& create_new_tab(Web::HTML::ActivateTab, Tab& parent, Optional<u64> page_index);
+    Tab& create_new_tab(Web::HTML::ActivateTab, Tab& parent, Optional<Web::PageId> page_index);
     void initialize_tab(Tab*);
     void uninitialize_tab(Tab*);
     void update_window_title(QString const&);

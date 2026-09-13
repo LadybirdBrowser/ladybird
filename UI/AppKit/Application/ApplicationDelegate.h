@@ -10,6 +10,7 @@
 #include <AK/StringView.h>
 #include <LibURL/URL.h>
 #include <LibWeb/HTML/ActivateTab.h>
+#include <LibWeb/Page/PageId.h>
 #include <LibWebView/BrowsingSession.h>
 
 #import <Cocoa/Cocoa.h>
@@ -64,7 +65,7 @@ private:
 - (nonnull TabController*)createChildTab:(Optional<URL::URL> const&)url
                                  fromTab:(nonnull Tab*)tab
                              activateTab:(Web::HTML::ActivateTab)activate_tab
-                               pageIndex:(u64)page_index;
+                               pageIndex:(Web::PageId)page_index;
 
 - (void)setActiveTab:(nonnull Tab*)tab;
 - (nullable Tab*)activeTab;

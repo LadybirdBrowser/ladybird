@@ -12,6 +12,7 @@
 #include <LibWeb/CSS/Sizing.h>
 #include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/Page/Page.h>
+#include <LibWeb/Page/PageId.h>
 #include <LibWeb/Painting/DisplayList.h>
 #include <LibWeb/Painting/DisplayListResourceStorage.h>
 
@@ -124,7 +125,7 @@ public:
     GC::Ref<Page> m_host_page;
     GC::Ptr<Page> m_svg_page;
 
-    virtual u64 id() const override { return m_host_page->client().id(); }
+    virtual Web::PageId id() const override { return m_host_page->client().id(); }
     virtual HTML::CrossProcessId allocate_cross_process_id() override { return m_host_page->client().allocate_cross_process_id(); }
     virtual HTML::CrossProcessId allocate_navigable_id() override { return m_host_page->client().allocate_navigable_id(); }
     virtual Page& page() override { return *m_svg_page; }
@@ -142,7 +143,7 @@ public:
     virtual size_t screen_count() const override { return 1; }
     virtual void request_file(FileRequest) override { }
     virtual Queue<QueuedInputEvent>& input_event_queue() override { VERIFY_NOT_REACHED(); }
-    virtual void report_finished_handling_input_event([[maybe_unused]] u64 page_id, [[maybe_unused]] EventResult event_was_handled) override { }
+    virtual void report_finished_handling_input_event([[maybe_unused]] Web::PageId page_id, [[maybe_unused]] EventResult event_was_handled) override { }
     virtual void request_frame() override;
 
     virtual bool is_headless() const override { return m_host_page->client().is_headless(); }

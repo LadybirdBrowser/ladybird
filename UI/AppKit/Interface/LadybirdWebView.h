@@ -13,6 +13,7 @@
 #include <LibURL/Forward.h>
 #include <LibWeb/HTML/ActivateTab.h>
 #include <LibWeb/HTML/AudioPlayState.h>
+#include <LibWeb/Page/PageId.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/Forward.h>
 
@@ -25,7 +26,7 @@
 
 - (String const&)onCreateChildTab:(Optional<URL::URL> const&)url
                       activateTab:(Web::HTML::ActivateTab)activate_tab
-                        pageIndex:(u64)page_index;
+                        pageIndex:(Web::PageId)page_index;
 
 - (void)onLoadStart;
 - (void)onLoadFinish;
@@ -49,7 +50,7 @@
            isPrivate:(WebView::IsPrivate)is_private;
 - (instancetype)initAsChild:(id<LadybirdWebViewObserver>)observer
                      parent:(LadybirdWebView*)parent
-                  pageIndex:(u64)page_index;
+                  pageIndex:(Web::PageId)page_index;
 
 - (void)loadURL:(URL::URL const&)url;
 

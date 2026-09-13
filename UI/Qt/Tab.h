@@ -10,6 +10,7 @@
 #include <AK/Optional.h>
 #include <LibWakeLock/DisplaySleepInhibitor.h>
 #include <LibWeb/HTML/AudioPlayState.h>
+#include <LibWeb/Page/PageId.h>
 #include <LibWeb/Page/ScreenWakeLockHandle.h>
 #include <LibWebView/FileDownloader.h>
 #include <LibWebView/Settings.h>
@@ -66,7 +67,7 @@ class Tab final
     Q_OBJECT
 
 public:
-    Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client = nullptr, size_t page_index = 0);
+    Tab(BrowserWindow* window, RefPtr<WebView::WebContentClient> parent_client = nullptr, Web::PageId page_index = 0);
     virtual ~Tab() override;
 
     WebContentView& view() { return *m_view; }

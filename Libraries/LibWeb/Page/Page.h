@@ -71,6 +71,7 @@
 #include <LibWeb/Loader/FileRequest.h>
 #include <LibWeb/Page/EventResult.h>
 #include <LibWeb/Page/InputEvent.h>
+#include <LibWeb/Page/PageId.h>
 #include <LibWeb/Page/ScreenWakeLockHandle.h>
 #include <LibWeb/Page/ViewportIsFullscreen.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
@@ -505,7 +506,7 @@ class WEB_API PageClient : public JS::Cell {
     GC_CELL(PageClient, JS::Cell);
 
 public:
-    virtual u64 id() const = 0;
+    virtual PageId id() const = 0;
     virtual Page& page() = 0;
     virtual Page const& page() const = 0;
     virtual bool is_connection_open() const = 0;
@@ -535,8 +536,8 @@ public:
     virtual CSS::PreferredMotion preferred_motion() const = 0;
     virtual size_t screen_count() const = 0;
     virtual Queue<QueuedInputEvent>& input_event_queue() = 0;
-    virtual void did_handle_input_event([[maybe_unused]] u64 page_id, [[maybe_unused]] InputEvent const&) { }
-    virtual void report_finished_handling_input_event(u64 page_id, EventResult event_was_handled) = 0;
+    virtual void did_handle_input_event([[maybe_unused]] Web::PageId page_id, [[maybe_unused]] InputEvent const&) { }
+    virtual void report_finished_handling_input_event(Web::PageId page_id, EventResult event_was_handled) = 0;
     virtual Compositor::CompositorContextId allocate_compositor_context_id(Compositor::PagePresentationRegistration page_presentation_registration)
     {
         if (page_presentation_registration == Compositor::PagePresentationRegistration::Yes)

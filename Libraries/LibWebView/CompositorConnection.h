@@ -22,6 +22,7 @@
 #include <LibMedia/VideoPresentation/VideoPresentationServerConnection.h>
 #include <LibWeb/Compositor/Types.h>
 #include <LibWeb/Page/InputEvent.h>
+#include <LibWeb/Page/PageId.h>
 #include <LibWeb/Painting/AccumulatedVisualContext.h>
 #include <LibWeb/Painting/Canvas2DCommandStream.h>
 #include <LibWeb/Painting/DisplayList.h>
@@ -76,8 +77,8 @@ public:
     bool read_webgl_buffer_sub_data(Web::Painting::CanvasId, Web::WebGL::GLenum target, Web::WebGL::GLintptr offset, Web::WebGL::GLintptr size, Core::AnonymousBuffer const& data);
 
     void ensure_video_presentation_channel();
-    Function<void(u64 page_id, Web::MouseEvent)> on_mouse_event;
-    Function<void(u64 page_id, Web::KeyEvent)> on_key_event;
+    Function<void(Web::PageId page_id, Web::MouseEvent)> on_mouse_event;
+    Function<void(Web::PageId page_id, Web::KeyEvent)> on_key_event;
     Function<void()> on_compositor_lost;
 
 private:

@@ -16,7 +16,7 @@
 
 namespace WebView {
 
-CanonicalNavigable::CanonicalNavigable(Web::HTML::CrossProcessId id, Optional<Web::HTML::CrossProcessId> parent_id, RefPtr<WebContentClient> reporting_client, u64 reporting_page_id)
+CanonicalNavigable::CanonicalNavigable(Web::HTML::CrossProcessId id, Optional<Web::HTML::CrossProcessId> parent_id, RefPtr<WebContentClient> reporting_client, Web::PageId reporting_page_id)
     : m_id(id)
     , m_parent_id(parent_id)
     , m_reporting_client(move(reporting_client))
@@ -92,7 +92,7 @@ WebContentClient& CanonicalNavigable::reporting_client() const
     return *m_reporting_client;
 }
 
-bool CanonicalNavigable::is_hosted_by(WebContentClient const& client, u64 page_id) const
+bool CanonicalNavigable::is_hosted_by(WebContentClient const& client, Web::PageId page_id) const
 {
     if (m_host_locality == HostLocality::Remote)
         return m_remote_client.ptr() == &client && m_remote_page_id == page_id;
@@ -303,7 +303,7 @@ WebContentClient& CanonicalNavigable::remote_host_client() const
     return *m_remote_client;
 }
 
-void CanonicalNavigable::set_remote_host(NonnullRefPtr<WebContentClient> remote_client, u64 remote_page_id)
+void CanonicalNavigable::set_remote_host(NonnullRefPtr<WebContentClient> remote_client, Web::PageId remote_page_id)
 {
     detach_remote_host();
 
@@ -467,7 +467,7 @@ void CanonicalNavigable::retain_blob_url_token(URL::BlobURLEntry::Token token)
         m_pending_navigation_blob_url = BlobURLHandle { *store, token };
 }
 
-void CanonicalNavigable::set_navigation_population_worker(WebContentClient& client, u64 page_id)
+void CanonicalNavigable::set_navigation_population_worker(WebContentClient& client, Web::PageId page_id)
 {
     auto& ongoing_navigation = ensure_ongoing_navigation();
     VERIFY(!ongoing_navigation.population_worker_client);
@@ -475,7 +475,7 @@ void CanonicalNavigable::set_navigation_population_worker(WebContentClient& clie
     ongoing_navigation.population_worker_page_id = page_id;
 }
 
-bool CanonicalNavigable::navigation_population_matches(WebContentClient const& client, u64 page_id, Utf16String const& navigation_id) const
+bool CanonicalNavigable::navigation_population_matches(WebContentClient const& client, Web::PageId page_id, Utf16String const& navigation_id) const
 {
     return m_ongoing_navigation.has_value()
         && m_ongoing_navigation->navigation_id == navigation_id
@@ -483,14 +483,14 @@ bool CanonicalNavigable::navigation_population_matches(WebContentClient const& c
         && navigation_population_worker_matches(client, page_id);
 }
 
-bool CanonicalNavigable::navigation_population_worker_matches(WebContentClient const& client, u64 page_id) const
+bool CanonicalNavigable::navigation_population_worker_matches(WebContentClient const& client, Web::PageId page_id) const
 {
     return m_ongoing_navigation.has_value()
         && m_ongoing_navigation->population_worker_client.ptr() == &client
         && m_ongoing_navigation->population_worker_page_id == page_id;
 }
 
-void CanonicalNavigable::set_navigation_host(WebContentClient& client, u64 page_id)
+void CanonicalNavigable::set_navigation_host(WebContentClient& client, Web::PageId page_id)
 {
     auto& ongoing_navigation = ensure_ongoing_navigation();
     ongoing_navigation.host_client = client;
@@ -501,19 +501,19 @@ void CanonicalNavigable::set_navigation_host(WebContentClient& client, u64 page_
     ongoing_navigation.population_worker_page_id = 0;
 }
 
-bool CanonicalNavigable::navigation_host_matches(WebContentClient const& client, u64 page_id) const
+bool CanonicalNavigable::navigation_host_matches(WebContentClient const& client, Web::PageId page_id) const
 {
     return m_ongoing_navigation.has_value()
         && m_ongoing_navigation->host_client.ptr() == &client
         && m_ongoing_navigation->host_page_id == page_id;
 }
 
-bool CanonicalNavigable::navigation_owner_matches(WebContentClient const& client, u64 page_id) const
+bool CanonicalNavigable::navigation_owner_matches(WebContentClient const& client, Web::PageId page_id) const
 {
     return navigation_population_worker_matches(client, page_id) || navigation_host_matches(client, page_id);
 }
 
-bool CanonicalNavigable::navigation_transaction_matches(Utf16String const& navigation_id, WebContentClient const& client, u64 page_id) const
+bool CanonicalNavigable::navigation_transaction_matches(Utf16String const& navigation_id, WebContentClient const& client, Web::PageId page_id) const
 {
     return m_ongoing_navigation.has_value()
         && m_ongoing_navigation->navigation_id == navigation_id

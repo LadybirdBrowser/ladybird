@@ -677,7 +677,7 @@ static NSInteger ns_index_for_selected_suggestion(Optional<size_t> selected_sugg
 @interface TabController () <NSToolbarDelegate, NSSearchFieldDelegate, AutocompleteObserver>
 {
     WebView::IsPrivate m_is_private;
-    u64 m_page_index;
+    Web::PageId m_page_index;
 
     OwnPtr<WebView::Omnibox> m_omnibox;
     OwnPtr<PerformanceSettingsObserver> m_performance_settings_observer;
@@ -855,7 +855,7 @@ private:
 }
 
 - (instancetype)initAsChild:(Tab*)parent
-                  pageIndex:(u64)page_index
+                  pageIndex:(Web::PageId)page_index
 {
     if (self = [self init:[parent isPrivate]]) {
         self.parent = parent;

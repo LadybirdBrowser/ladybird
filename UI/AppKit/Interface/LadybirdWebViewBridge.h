@@ -12,6 +12,7 @@
 #include <LibGfx/Rect.h>
 #include <LibGfx/Size.h>
 #include <LibWeb/Page/InputEvent.h>
+#include <LibWeb/Page/PageId.h>
 #include <LibWebView/BrowsingSession.h>
 #include <LibWebView/ViewImplementation.h>
 
@@ -23,7 +24,7 @@ public:
     virtual ~WebViewBridge() override;
 
     virtual void initialize_client(CreateNewClient = CreateNewClient::Yes, Optional<Web::HTML::CrossProcessId> initial_document_state_id = {}) override;
-    void initialize_client_as_child(WebViewBridge& parent, u64 page_index);
+    void initialize_client_as_child(WebViewBridge& parent, Web::PageId page_index);
 
     void set_device_pixel_ratio(double device_pixel_ratio);
     void set_zoom_level(double zoom_level);

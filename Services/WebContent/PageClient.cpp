@@ -131,12 +131,12 @@ void PageClient::set_async_scrolling_enabled(bool enabled)
     s_async_scrolling_enabled = enabled;
 }
 
-GC::Ref<PageClient> PageClient::create(PageHost& page_host, u64 id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id)
+GC::Ref<PageClient> PageClient::create(PageHost& page_host, Web::PageId id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id)
 {
     return GC::Heap::the().allocate<PageClient>(page_host, id, pending_root_navigable_id);
 }
 
-PageClient::PageClient(PageHost& owner, u64 id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id)
+PageClient::PageClient(PageHost& owner, Web::PageId id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id)
     : m_owner(owner)
     , m_page(Web::Page::create(*this))
     , m_id(id)
@@ -420,7 +420,7 @@ Queue<Web::QueuedInputEvent>& PageClient::input_event_queue()
     return client().input_event_queue();
 }
 
-void PageClient::did_handle_input_event(u64 page_id, Web::InputEvent const& event)
+void PageClient::did_handle_input_event(Web::PageId page_id, Web::InputEvent const& event)
 {
     auto should_update_input_method_state = event.visit(
         [](Web::KeyEvent const&) {
@@ -447,7 +447,7 @@ void PageClient::did_handle_input_event(u64 page_id, Web::InputEvent const& even
         client().update_input_method_state(page_id);
 }
 
-void PageClient::report_finished_handling_input_event(u64 page_id, Web::EventResult event_was_handled)
+void PageClient::report_finished_handling_input_event(Web::PageId page_id, Web::EventResult event_was_handled)
 {
     client().async_did_finish_handling_input_event(page_id, event_was_handled);
 }
