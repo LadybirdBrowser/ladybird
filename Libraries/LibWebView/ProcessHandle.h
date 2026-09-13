@@ -11,6 +11,11 @@
 
 namespace WebView {
 
+constexpr bool should_terminate_pid(pid_t pid)
+{
+    return pid > 0;
+}
+
 struct ProcessHandle {
     // FIXME: Use mach_port_t on macOS/Hurd and HANDLE on Windows.
     pid_t pid { -1 };

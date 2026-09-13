@@ -11,6 +11,7 @@
 #include <AK/WeakPtr.h>
 #include <LibCore/ElapsedTimer.h>
 #include <LibCore/EventLoop.h>
+#include <LibCore/Process.h>
 #include <LibCore/Timer.h>
 #include <LibDevTools/StorageHelpers.h>
 #include <LibHTTP/Cookie/ParsedCookie.h>
@@ -31,6 +32,7 @@
 #include <LibWebView/HelperProcess.h>
 #include <LibWebView/HistoryStore.h>
 #include <LibWebView/NavigationLoader.h>
+#include <LibWebView/ProcessHandle.h>
 #include <LibWebView/SiteIsolation.h>
 #include <LibWebView/SiteIsolationManager.h>
 #include <LibWebView/SourceHighlighter.h>
@@ -191,19 +193,22 @@ void WebContentClient::die()
     remove_blob_url_entries();
 }
 
-void WebContentClient::report_unexpected_debugger_response()
+void WebContentClient::did_misbehave(StringView message_name, StringView reason)
 {
-    // FIXME: Use IPC::ConnectionToServer::did_misbehave() once it provides the
-    // same peer-reporting API as IPC::ConnectionFromClient.
-    shutdown_with_error(Error::from_string_literal("WebContent sent an unexpected debugger response"));
+    dbgln("WebContentClient: terminating helper process {}: {} rejected: {}", pid(), message_name, reason);
+    if (should_terminate_pid(pid()))
+        (void)Core::Process::terminate_process(pid(), Core::Process::TerminationMode::Forceful);
+    shutdown();
 }
 
 Web::Compositor::CompositorContextId WebContentClient::compositor_context_id_for_page(u64 page_id)
 {
     auto context_id = Web::Compositor::compositor_context_id_for_page(page_id);
     if (auto registered_page_id = m_compositor_contexts.get(context_id); registered_page_id.has_value()) {
-        VERIFY(registered_page_id->has_value());
-        VERIFY(**registered_page_id == page_id);
+        if (!registered_page_id->has_value() || **registered_page_id != page_id) {
+            did_misbehave("allocate_compositor_context_id"sv, "page ID collides with an existing compositor context"sv);
+            return context_id;
+        }
         return context_id;
     }
 
@@ -1645,7 +1650,7 @@ void WebContentClient::did_get_debugger_environments(u64 page_id, u64 request_id
         if (!callback.has_value()) {
             if (view->m_cancelled_debugger_environments_requests.remove(request_id))
                 return;
-            report_unexpected_debugger_response();
+            did_misbehave("did_get_debugger_environments"sv, "unexpected request ID"sv);
             return;
         }
         if (error.has_value())
@@ -1662,7 +1667,7 @@ void WebContentClient::did_evaluate_javascript_in_debugger_frame(u64 page_id, u6
         if (!callback.has_value()) {
             if (view->m_cancelled_debugger_evaluation_requests.remove(request_id))
                 return;
-            report_unexpected_debugger_response();
+            did_misbehave("did_evaluate_javascript_in_debugger_frame"sv, "unexpected request ID"sv);
             return;
         }
         if (error.has_value())
@@ -1679,7 +1684,7 @@ void WebContentClient::did_get_debugger_object_properties(u64 page_id, u64 reque
         if (!callback.has_value()) {
             if (view->m_cancelled_debugger_object_properties_requests.remove(request_id))
                 return;
-            report_unexpected_debugger_response();
+            did_misbehave("did_get_debugger_object_properties"sv, "unexpected request ID"sv);
             return;
         }
         if (error.has_value())
@@ -1696,7 +1701,7 @@ void WebContentClient::did_get_debugger_source_positions(u64 page_id, u64 reques
         if (!callback.has_value()) {
             if (view->m_cancelled_debugger_source_positions_requests.remove(request_id))
                 return;
-            report_unexpected_debugger_response();
+            did_misbehave("did_get_debugger_source_positions"sv, "unexpected request ID"sv);
             return;
         }
         (*callback)(move(positions));

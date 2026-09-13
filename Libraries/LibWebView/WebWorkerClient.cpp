@@ -4,11 +4,13 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibCore/Process.h>
 #include <LibWebView/Application.h>
 #include <LibWebView/BlobURLStore.h>
 #include <LibWebView/CookieJar.h>
 #include <LibWebView/FontService.h>
 #include <LibWebView/HSTSStore.h>
+#include <LibWebView/ProcessHandle.h>
 #include <LibWebView/WebWorkerClient.h>
 #include <LibWebView/WorkerProcessManager.h>
 
@@ -52,6 +54,14 @@ WebWorkerClient::WebWorkerClient(NonnullOwnPtr<IPC::Transport> transport, IsPriv
 WebWorkerClient::~WebWorkerClient()
 {
     remove_blob_url_entries();
+}
+
+void WebWorkerClient::did_misbehave(StringView message_name, StringView reason)
+{
+    dbgln("WebWorkerClient: terminating helper process {}: {} rejected: {}", pid(), message_name, reason);
+    if (should_terminate_pid(pid()))
+        (void)Core::Process::terminate_process(pid(), Core::Process::TerminationMode::Forceful);
+    shutdown();
 }
 
 void WebWorkerClient::die()

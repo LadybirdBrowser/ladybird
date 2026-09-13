@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/ByteString.h>
+#include <AK/StringView.h>
 #include <AK/Types.h>
 #include <AK/Utf16String.h>
 #include <LibHTTP/Cookie/Cookie.h>
@@ -60,6 +61,8 @@ public:
     virtual Messages::WebWorkerClient::ResolveGenericFontResponse resolve_generic_font(String family, u16 weight, u8 slope) override;
 
 private:
+    void did_misbehave(StringView message_name, StringView reason);
+
     virtual void die() override;
 
     IsPrivate m_is_private { IsPrivate::No };
