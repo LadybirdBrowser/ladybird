@@ -1,0 +1,4 @@
+left=10: hit target=box, hit-test recordings=1
+left=10: subsequent frame recordings=0
+left=20: hit target=box, hit-test recordings=1
+left=20: subsequent frame recordings=0

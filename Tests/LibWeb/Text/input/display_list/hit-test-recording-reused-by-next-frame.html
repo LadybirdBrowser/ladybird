@@ -1,0 +1,31 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #box { position: absolute; width: 100px; height: 100px; background: green; }
+</style>
+<div id="box"></div>
+<script>
+    promiseTest(async () => {
+        const nextFrame = () => new Promise(resolve => requestAnimationFrame(resolve));
+        const settle = async () => {
+            await nextFrame();
+            await nextFrame();
+        };
+        const recordingCount = () => (internals.takeDisplayListTrace().match(/^recording /gm) ?? []).length;
+        // Printing changes the document and would invalidate the recording under test.
+        const results = [];
+        await settle();
+        for (const left of [10, 20]) {
+            box.style.left = `${left}px`;
+            internals.beginDisplayListTrace();
+            const target = document.elementFromPoint(50, 50);
+            results.push(`left=${left}: hit target=${target.id}, hit-test recordings=${recordingCount()}`);
+
+            internals.beginDisplayListTrace();
+            await settle();
+            results.push(`left=${left}: subsequent frame recordings=${recordingCount()}`);
+        }
+        for (const result of results) println(result);
+    });
+</script>

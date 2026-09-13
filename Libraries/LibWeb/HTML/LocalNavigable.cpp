@@ -6165,6 +6165,13 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
     document->update_paint_and_hit_testing_properties_if_needed();
     document->update_compositor_animations();
 
+    // Hit testing can publish a display list before the next frame. Give both paths the same canvas fill so that
+    // switching between them does not force another recording. Screenshots can supply their own fill rectangle.
+    if (is_local_root() && !paint_config.canvas_fill_rect.has_value()) {
+        auto viewport_size = page().css_to_device_rect(viewport_rect()).size().to_type<int>();
+        paint_config.canvas_fill_rect = Gfx::IntRect { {}, viewport_size };
+    }
+
     auto should_record_display_list = m_needs_to_record_display_list
         || !m_compositor_display_list_paint_config.has_value()
         || !(m_compositor_display_list_paint_config.value() == paint_config);
@@ -6238,11 +6245,8 @@ void LocalNavigable::paint_next_frame()
         return;
     }
 
-    auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
     PaintConfig paint_config { .paint_overlay = true, .should_show_caret_hit_test_debug_overlay = m_should_show_caret_hit_test_debug_overlay };
-    if (is_local_root()) {
-        paint_config.canvas_fill_rect = Gfx::IntRect { {}, viewport_rect.size() };
-    } else {
+    if (!is_local_root()) {
         // Nested navigables paint transparent bitmaps for their parent compositor context.
         auto parent = this->parent();
         if (!parent || !as<LocalNavigable>(*parent).has_compositor_context())
@@ -6253,7 +6257,7 @@ void LocalNavigable::paint_next_frame()
 
     if (!record_display_list_and_scroll_state(paint_config))
         return;
-    viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
+    auto viewport_rect = page().css_to_device_rect(this->viewport_rect()).to_type<int>();
     compositor_context().present_frame(viewport_rect);
 }
 
