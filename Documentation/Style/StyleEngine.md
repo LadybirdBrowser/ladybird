@@ -824,6 +824,23 @@ Candidate access is exact in each mutation direction:
 
 The exact cold cascade gathers all active declarations for one node and property and runs the same priority comparison program as the incremental path, depending on no winner caches, tournament nodes, or retained state. It is both the eviction path and the reference implementation.
 
+Winner state, group, provenance and continuation identities remain eagerly
+interned during resolution. Canonical identity installation is deferred to a
+later step. Per-node winner rows, program versions, flush
+stamps, inventory-current flags and rule-to-node postings are owned effects.
+The transaction, matching traversal or host batch owns these alongside its
+answer effects. A pending-first view supplies same-loop stopping checks,
+cohort donors and host computation reads without installing a donor's rows.
+Before-change comparisons continue reading unchanged retained state.
+
+Each queued write owns a pending state reference. Installation consumes writes
+in production order and transfers accepted references into retained rows;
+refused or abandoned writes release their references explicitly. Donor reuse
+captures completed state handles and pseudo inventory facts, so later changes
+to the producer cannot alter its consumer's output. Input handoff installs the
+old context before a new transaction can invalidate its identities. Winner
+installation precedes the same boundary admission decision as answer effects.
+
 ### 9.4 Winner stopping keys
 
 Propagation stops at the earliest layer that can prove the output unchanged. The stack, from cheapest to most expensive:

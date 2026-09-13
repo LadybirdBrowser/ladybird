@@ -2151,7 +2151,7 @@ impl StyleEngineState {
         let repair_inputs = (declarations_are_complete && current_declarations_are_complete)
             .then(|| {
                 let previous = self
-                    .winner_groups
+                    .current_winner_groups()
                     .token_for(WinnerGroupKey::current(node, self.program.version()))
                     .sparse()
                     .ok()
@@ -2229,7 +2229,26 @@ impl StyleEngineState {
         };
         let (state, _) =
             self.with_cascade_interning_counters(|groups| groups.apply_property_updates(previous, &updates), counters);
-        let published = self.winner_groups.set(node, state, self.program.version());
+        let published = if let Some(traversal) = self.batch_matching_traversal.as_mut() {
+            traversal.answer_effects.winners.set(
+                &mut self.winner_groups,
+                node,
+                state,
+                self.program.version(),
+                &mut self.memory,
+            )
+        } else {
+            let mut effects = super::cascade::WinnerEffects::default();
+            let published = effects.set(
+                &mut self.winner_groups,
+                node,
+                state,
+                self.program.version(),
+                &mut self.memory,
+            );
+            self.install_winner_effects(effects);
+            published
+        };
         self.winner_groups.settle_memory(&mut self.memory);
         if published {
             counters.bump(Counter::CascadeNodeHandlesPublished);

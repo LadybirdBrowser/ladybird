@@ -834,6 +834,483 @@ impl ShallowCapacityBytes for WinnerRuleReferences {
     }
 }
 
+/// One context's winner-row replacements. The catalog identities remain eager,
+/// but columns and rule postings stay unchanged until installation.
+/// NB: The owner explicitly installs or releases every pending reference.
+pub(super) struct WinnerEffects {
+    entries: Vec<PendingWinnerNode>,
+    writes: Vec<WinnerNodeWrite>,
+    by_node: Column<u32>,
+    nested_bytes: usize,
+    memory: MemoryLease,
+}
+
+#[derive(Clone, Copy)]
+enum WinnerReference {
+    #[cfg(test)]
+    Retained,
+    Pending,
+}
+
+enum WinnerNodeWrite {
+    Set {
+        node: StyleNodeID,
+        target: Option<PseudoElementTarget>,
+        state: CascadeStateID,
+        version: ProgramVersion,
+        priority_current: bool,
+    },
+    Remove(StyleNodeID),
+}
+
+struct PendingWinnerNode {
+    element: Option<(CascadeStateID, ProgramVersion)>,
+    pseudos: Vec<PseudoWinnerRow>,
+    replace_rows: bool,
+}
+
+impl Default for WinnerEffects {
+    fn default() -> Self {
+        Self {
+            entries: Vec::new(),
+            writes: Vec::new(),
+            by_node: Column::default(),
+            nested_bytes: 0,
+            memory: MemoryLease::new(MemoryCategory::BatchScratch),
+        }
+    }
+}
+
+impl WinnerEffects {
+    fn entry_index(&mut self, node: StyleNodeID, memory: &mut MemoryController) -> Option<usize> {
+        let node_index = node.element_index()? as usize;
+        if let Some(&index) = self.by_node.get(node_index).filter(|&&index| index != 0) {
+            return Some(index as usize - 1);
+        }
+        let index = self.entries.len();
+        self.by_node.insert(
+            node_index,
+            u32::try_from(index + 1).expect("winner effect identity space exhausted"),
+        );
+        self.entries.push(PendingWinnerNode {
+            element: None,
+            pseudos: Vec::new(),
+            replace_rows: false,
+        });
+        self.settle_memory(memory);
+        Some(index)
+    }
+
+    fn entry(&self, node: StyleNodeID) -> Option<&PendingWinnerNode> {
+        let index = *self.by_node.get(node.element_index()? as usize)?;
+        (index != 0).then(|| &self.entries[index as usize - 1])
+    }
+
+    fn settle_memory(&mut self, memory: &mut MemoryController) {
+        self.memory.resize_required_to(
+            memory,
+            self.by_node.shallow_capacity_bytes()
+                + (self.entries.capacity() * size_of::<PendingWinnerNode>()
+                    + self.writes.capacity() * size_of::<WinnerNodeWrite>()
+                    + self.nested_bytes) as u64,
+        );
+    }
+
+    fn push_write(&mut self, write: WinnerNodeWrite, memory: &mut MemoryController) {
+        let capacity = self.writes.capacity();
+        self.writes.push(write);
+        if capacity != self.writes.capacity() {
+            self.settle_memory(memory);
+        }
+    }
+
+    pub(super) fn view<'a>(&'a self, groups: &'a WinnerGroups) -> WinnerView<'a> {
+        WinnerView {
+            groups,
+            effects: Some(self),
+        }
+    }
+
+    /// Whether installation will accept a row for this node, so a pending effect is only
+    /// recorded for a row the groups can still hold. Closed admission keeps the rows it already
+    /// has and refuses new ones, and a refusal here is the caller's answer as well: a token whose
+    /// winner cannot be published must not be counted as published.
+    fn admits_row(groups: &WinnerGroups, node: StyleNodeID, pseudo: Option<PseudoElementTarget>) -> bool {
+        let Some(index) = node.element_index().map(|index| index as usize) else {
+            return false;
+        };
+        if groups.admits_new_rows() {
+            return true;
+        }
+        match pseudo {
+            Some(pseudo) => groups
+                .pseudo_rows_by_node
+                .get(index)
+                .is_some_and(|rows| rows.iter().any(|row| row.pseudo == pseudo)),
+            None => groups.column.get(index).is_some_and(Option::is_some),
+        }
+    }
+
+    pub(super) fn set(
+        &mut self,
+        groups: &mut WinnerGroups,
+        node: StyleNodeID,
+        state: CascadeStateID,
+        version: ProgramVersion,
+        memory: &mut MemoryController,
+    ) -> bool {
+        if !Self::admits_row(groups, node, None) {
+            return false;
+        }
+        let Some(index) = self.entry_index(node, memory) else {
+            return false;
+        };
+        groups.retain_pending(state);
+        self.entries[index].element = Some((state, version));
+        self.push_write(
+            WinnerNodeWrite::Set {
+                node,
+                target: None,
+                state,
+                version,
+                priority_current: true,
+            },
+            memory,
+        );
+        true
+    }
+
+    pub(super) fn set_pseudo(
+        &mut self,
+        groups: &mut WinnerGroups,
+        node: StyleNodeID,
+        pseudo: PseudoElementTarget,
+        state: CascadeStateID,
+        version: ProgramVersion,
+        memory: &mut MemoryController,
+    ) -> bool {
+        if !Self::admits_row(groups, node, Some(pseudo)) {
+            return false;
+        }
+        let Some(index) = self.entry_index(node, memory) else {
+            return false;
+        };
+        groups.retain_pending(state);
+        let rows = &mut self.entries[index].pseudos;
+        let new = PseudoWinnerRow {
+            pseudo,
+            state: (state, version),
+            priority_current: true,
+            stamp: groups.stamp,
+        };
+        if let Some(row) = rows.iter_mut().find(|row| row.pseudo == pseudo) {
+            *row = new;
+        } else {
+            let before = rows.capacity();
+            rows.push(new);
+            self.nested_bytes += (rows.capacity() - before) * size_of::<PseudoWinnerRow>();
+            self.settle_memory(memory);
+        }
+        self.push_write(
+            WinnerNodeWrite::Set {
+                node,
+                target: Some(pseudo),
+                state,
+                version,
+                priority_current: true,
+            },
+            memory,
+        );
+        true
+    }
+
+    pub(super) fn mark_pseudo_inventory_incomplete(&mut self, node: StyleNodeID, pseudo: PseudoElementTarget) {
+        let index = self.by_node[node.element_index().expect("element winner") as usize] as usize - 1;
+        if let Some(row) = self.entries[index].pseudos.iter_mut().find(|row| row.pseudo == pseudo) {
+            row.priority_current = false;
+        }
+        // NB: Inventory coverage is finalized immediately after producing this row.
+        if let Some(WinnerNodeWrite::Set { priority_current, .. }) = self.writes.last_mut() {
+            *priority_current = false;
+        }
+    }
+
+    pub(super) fn set_from_token(
+        &mut self,
+        groups: &mut WinnerGroups,
+        node: StyleNodeID,
+        generation: u64,
+        state: CascadeStateID,
+        version: ProgramVersion,
+        memory: &mut MemoryController,
+    ) -> Result<(), WinnerGroupTokenGap> {
+        if generation != groups.generation {
+            return Err(WinnerGroupTokenGap::StaleGeneration {
+                retained: generation,
+                current: groups.generation,
+            });
+        }
+        self.set(groups, node, state, version, memory)
+            .then_some(())
+            .ok_or(WinnerGroupTokenGap::AdmissionClosed)
+    }
+
+    pub(super) fn copy_node_rows(
+        &mut self,
+        groups: &mut WinnerGroups,
+        source: StyleNodeID,
+        target: StyleNodeID,
+        version: ProgramVersion,
+        memory: &mut MemoryController,
+    ) -> Option<usize> {
+        if !groups.admitting {
+            return None;
+        }
+        let (_, state) = self
+            .view(groups)
+            .token_for(WinnerGroupKey::current(source, version))
+            .sparse()
+            .ok()?;
+        let pseudos: SmallVec<[_; 2]> = self.view(groups).pseudo_states(source).collect();
+        let scratch_bytes = if pseudos.spilled() {
+            (pseudos.capacity() * size_of::<(PseudoElementTarget, ProgramVersion, CascadeStateID, bool)>()) as u64
+        } else {
+            0
+        };
+        let index = self.entry_index(target, memory)?;
+        memory.reserve_required(MemoryCategory::BatchScratch, scratch_bytes);
+        let entry = &mut self.entries[index];
+        entry.element = None;
+        entry.pseudos.clear();
+        entry.replace_rows = true;
+        self.push_write(WinnerNodeWrite::Remove(target), memory);
+        let _ = self.set(groups, target, state, version, memory);
+        for &(pseudo, version, state, current) in &pseudos {
+            let _ = self.set_pseudo(groups, target, pseudo, state, version, memory);
+            if !current {
+                self.mark_pseudo_inventory_incomplete(target, pseudo);
+            }
+        }
+        memory.release(MemoryCategory::BatchScratch, scratch_bytes);
+        Some(1 + pseudos.len())
+    }
+
+    pub(super) fn release_pending_all(self, groups: &mut WinnerGroups) {
+        for write in self.writes {
+            if let WinnerNodeWrite::Set { state, .. } = write {
+                groups.release_pending(state);
+            }
+        }
+    }
+
+    pub(super) fn install(self, groups: &mut WinnerGroups, memory: &mut MemoryController) {
+        if self.writes.is_empty() {
+            return;
+        }
+        for write in self.writes {
+            match write {
+                WinnerNodeWrite::Remove(node) => groups.remove(node),
+                WinnerNodeWrite::Set {
+                    node,
+                    target,
+                    state,
+                    version,
+                    priority_current,
+                } => {
+                    let installed = match target {
+                        Some(pseudo) => {
+                            groups.set_pseudo_with_reference(node, pseudo, state, version, WinnerReference::Pending)
+                        }
+                        None => groups.set_with_reference(node, state, version, WinnerReference::Pending),
+                    };
+                    if installed
+                        && !priority_current
+                        && let Some(pseudo) = target
+                    {
+                        groups.mark_pseudo_inventory_incomplete(node, pseudo);
+                    }
+                }
+            }
+        }
+        groups.settle_memory(memory);
+    }
+}
+
+#[derive(Clone, Copy)]
+pub(super) struct WinnerView<'a> {
+    groups: &'a WinnerGroups,
+    effects: Option<&'a WinnerEffects>,
+}
+
+impl<'a> WinnerView<'a> {
+    pub(super) fn node_rows_are_semantically_equal(
+        &self,
+        other: &WinnerGroups,
+        node: StyleNodeID,
+        program_version: ProgramVersion,
+    ) -> bool {
+        let key = WinnerGroupKey::current(node, program_version);
+        let current_rows_are_equal = match (self.token_for(key), other.token_for(key)) {
+            (Lookup::Known((_, left)), Lookup::Known((_, right))) => other.states_are_semantically_equal(left, right),
+            (Lookup::Missing(_), Lookup::Missing(_)) => true,
+            (Lookup::Known(_), Lookup::Missing(_)) | (Lookup::Missing(_), Lookup::Known(_)) => false,
+            (Lookup::KnownAbsent, _) | (_, Lookup::KnownAbsent) => unreachable!("winner groups are sparse"),
+        };
+        if !current_rows_are_equal {
+            return false;
+        }
+
+        let mut left: Vec<_> = self.pseudo_states(node).collect();
+        let mut right: Vec<_> = other.pseudo_states(node).collect();
+        // NB: Exact verification can materialize pseudo rows missing from the sparse retained
+        //     cache. Compare the retained rows; additional recomputed rows do not imply a change.
+        left.sort_unstable_by_key(|row| row.0);
+        right.sort_unstable_by_key(|row| row.0);
+        left.iter().all(|&(left_pseudo, _, left_state, left_current)| {
+            right
+                .binary_search_by_key(&left_pseudo, |row| row.0)
+                .ok()
+                .is_some_and(|index| {
+                    let (_, _, right_state, right_current) = right[index];
+                    left_current == right_current && other.states_are_semantically_equal(left_state, right_state)
+                })
+        })
+    }
+
+    pub(super) fn retained(groups: &'a WinnerGroups) -> Self {
+        Self { groups, effects: None }
+    }
+
+    pub(super) fn lookup(&self, key: WinnerGroupKey) -> Lookup<&'a (CascadeStateID, ProgramVersion), WinnerGroupGap> {
+        let entry = self.effects.and_then(|effects| effects.entry(key.node));
+        let pending = entry.and_then(|entry| match key.pseudo {
+            Some(pseudo) => entry
+                .pseudos
+                .iter()
+                .find(|row| row.pseudo == pseudo)
+                .map(|row| (&row.state, row.priority_current)),
+            None => entry.element.as_ref().map(|row| (row, true)),
+        });
+        let Some((row, current)) = pending else {
+            if entry.is_some_and(|entry| entry.replace_rows) {
+                return Lookup::Missing(WinnerGroupGap::MissingNode(key.node));
+            }
+            return self.groups.lookup(key);
+        };
+        if row.1 != key.program_version {
+            return Lookup::Missing(WinnerGroupGap::StaleProgram {
+                node: key.node,
+                retained: row.1,
+                required: key.program_version,
+            });
+        }
+        if key.priority == WinnerPriorityCoverage::Current && !current {
+            return Lookup::Missing(WinnerGroupGap::StalePriority(key.node));
+        }
+        Lookup::Known(row)
+    }
+
+    pub(super) fn token_for(&self, key: WinnerGroupKey) -> Lookup<(u64, CascadeStateID), WinnerGroupGap> {
+        match self.lookup(key).sparse() {
+            Ok(&(state, _)) => Lookup::Known((self.groups.generation, state)),
+            Err(gap) => Lookup::Missing(gap),
+        }
+    }
+
+    pub(super) fn pseudo_states(
+        &self,
+        node: StyleNodeID,
+    ) -> impl Iterator<Item = (PseudoElementTarget, ProgramVersion, CascadeStateID, bool)> + 'a {
+        let entry = self.effects.and_then(|effects| effects.entry(node));
+        let groups = self.groups;
+        groups
+            .pseudo_states(node)
+            .filter_map(move |old| {
+                if entry.is_some_and(|entry| entry.replace_rows) {
+                    return None;
+                }
+                Some(
+                    entry
+                        .and_then(|entry| entry.pseudos.iter().find(|row| row.pseudo == old.0))
+                        .map_or(old, |row| (row.pseudo, row.state.1, row.state.0, row.priority_current)),
+                )
+            })
+            .chain(
+                entry
+                    .into_iter()
+                    .flat_map(|entry| &entry.pseudos)
+                    .filter(move |row| {
+                        entry.is_some_and(|entry| entry.replace_rows)
+                            || !groups.pseudo_states(node).any(|old| old.0 == row.pseudo)
+                    })
+                    .map(|row| (row.pseudo, row.state.1, row.state.0, row.priority_current)),
+            )
+    }
+
+    pub(super) fn row_stamp(&self, node: StyleNodeID) -> Option<u64> {
+        if let Some(entry) = self.effects.and_then(|effects| effects.entry(node)) {
+            if entry.element.is_some() {
+                return Some(self.groups.stamp);
+            }
+            if entry.replace_rows {
+                return None;
+            }
+        }
+        self.groups.row_stamp(node)
+    }
+
+    pub(super) fn pseudo_row_stamp(&self, node: StyleNodeID, pseudo: PseudoElementTarget) -> Option<u64> {
+        if let Some(entry) = self.effects.and_then(|effects| effects.entry(node)) {
+            if let Some(row) = entry.pseudos.iter().find(|row| row.pseudo == pseudo) {
+                return Some(row.stamp);
+            }
+            if entry.replace_rows {
+                return None;
+            }
+        }
+        self.groups.pseudo_row_stamp(node, pseudo)
+    }
+
+    #[cfg(test)]
+    pub(super) fn winner(&self, key: WinnerGroupKey, property: PropertyID) -> Lookup<PropertyWinner, WinnerGroupGap> {
+        let state = match self.lookup(key).sparse() {
+            Ok(&(state, _)) => state,
+            Err(gap) => return Lookup::Missing(gap),
+        };
+        match self.groups.winner_in_state(state, property) {
+            Some(winner) => Lookup::Known(winner),
+            None => Lookup::KnownAbsent,
+        }
+    }
+
+    pub(super) fn pseudo_state(
+        &self,
+        node: StyleNodeID,
+        pseudo: PseudoElementTarget,
+    ) -> Option<(ProgramVersion, CascadeStateID, bool)> {
+        if let Some(entry) = self.effects.and_then(|effects| effects.entry(node)) {
+            if let Some(row) = entry.pseudos.iter().find(|row| row.pseudo == pseudo) {
+                return Some((row.state.1, row.state.0, row.priority_current));
+            }
+            if entry.replace_rows {
+                return None;
+            }
+        }
+        self.groups
+            .pseudo_rows_by_node
+            .get(node.element_index()? as usize)
+            .and_then(|rows| rows.iter().find(|row| row.pseudo == pseudo))
+            .map(|row| (row.state.1, row.state.0, row.priority_current))
+    }
+}
+
+impl std::ops::Deref for WinnerView<'_> {
+    type Target = WinnerGroups;
+    fn deref(&self) -> &WinnerGroups {
+        self.groups
+    }
+}
+
 /// Interned per-node winning declarations.
 ///
 /// Sparse and shared: never one heap object per property per element. A node retains one state
@@ -843,6 +1320,7 @@ impl ShallowCapacityBytes for WinnerRuleReferences {
 pub struct WinnerGroups {
     states: InternTable<CascadeStateID, Box<[WinnerGroupRef]>>,
     state_reference_counts: Vec<u32>,
+    state_pending_reference_counts: Vec<u32>,
     state_winning_rules: Vec<Box<[RuleID]>>,
     groups: InternTable<WinnerGroupID, Box<[SemanticPropertyWinner]>>,
     provenance_groups: InternTable<WinnerProvenanceGroupID, Box<[WinnerProvenance]>>,
@@ -903,6 +1381,7 @@ impl Default for WinnerGroups {
         Self {
             states: InternTable::default(),
             state_reference_counts: Vec::new(),
+            state_pending_reference_counts: Vec::new(),
             state_winning_rules: Vec::new(),
             groups: InternTable::default(),
             provenance_groups: InternTable::default(),
@@ -945,6 +1424,7 @@ impl WinnerGroups {
         Self {
             states: self.states.clone(),
             state_reference_counts: self.state_reference_counts.clone(),
+            state_pending_reference_counts: self.state_pending_reference_counts.clone(),
             state_winning_rules: self.state_winning_rules.clone(),
             groups: self.groups.clone(),
             provenance_groups: self.provenance_groups.clone(),
@@ -969,40 +1449,6 @@ impl WinnerGroups {
             #[cfg(test)]
             group_hash_computations: self.group_hash_computations,
         }
-    }
-
-    pub(super) fn node_rows_are_semantically_equal(
-        &self,
-        other: &Self,
-        node: StyleNodeID,
-        program_version: ProgramVersion,
-    ) -> bool {
-        let key = WinnerGroupKey::current(node, program_version);
-        let current_rows_are_equal = match (self.token_for(key), other.token_for(key)) {
-            (Lookup::Known((_, left)), Lookup::Known((_, right))) => other.states_are_semantically_equal(left, right),
-            (Lookup::Missing(_), Lookup::Missing(_)) => true,
-            (Lookup::Known(_), Lookup::Missing(_)) | (Lookup::Missing(_), Lookup::Known(_)) => false,
-            (Lookup::KnownAbsent, _) | (_, Lookup::KnownAbsent) => unreachable!("winner groups are sparse"),
-        };
-        if !current_rows_are_equal {
-            return false;
-        }
-
-        let mut left: Vec<_> = self.pseudo_states(node).collect();
-        let mut right: Vec<_> = other.pseudo_states(node).collect();
-        // NB: Exact verification can materialize pseudo rows missing from the sparse retained
-        //     cache. Compare the retained rows; additional recomputed rows do not imply a change.
-        left.sort_unstable_by_key(|row| row.0);
-        right.sort_unstable_by_key(|row| row.0);
-        left.iter().all(|&(left_pseudo, _, left_state, left_current)| {
-            right
-                .binary_search_by_key(&left_pseudo, |row| row.0)
-                .ok()
-                .is_some_and(|index| {
-                    let (_, _, right_state, right_current) = right[index];
-                    left_current == right_current && other.states_are_semantically_equal(left_state, right_state)
-                })
-        })
     }
 
     /// Resolve one property's ordered contenders and intern only the continuation payloads needed
@@ -1147,6 +1593,7 @@ impl WinnerGroups {
             .grow_committed((size_of_val(groups.as_ref()) + size_of_val(winning_rules.as_ref())) as u64);
         self.states.insert(hash, id, groups);
         self.state_reference_counts.push(0);
+        self.state_pending_reference_counts.push(0);
         self.state_winning_rules.push(winning_rules);
         id
     }
@@ -1539,17 +1986,26 @@ impl WinnerGroups {
     }
 
     #[must_use]
-    pub fn set(&mut self, node: StyleNodeID, state: CascadeStateID, program_version: ProgramVersion) -> bool {
+    fn set_with_reference(
+        &mut self,
+        node: StyleNodeID,
+        state: CascadeStateID,
+        program_version: ProgramVersion,
+        reference: WinnerReference,
+    ) -> bool {
         let Some(index) = node.element_index().map(|index| index as usize) else {
+            self.release_unused_reference(state, reference);
             return false;
         };
         if !self.admitting && self.column.get(index).is_none_or(Option::is_none) {
+            self.release_unused_reference(state, reference);
             return false;
         }
         self.column.ensure(index);
         self.stamps.insert(index, self.stamp);
         if self.column[index] == Some((state, program_version)) {
             self.set_priority_current(index, true);
+            self.release_unused_reference(state, reference);
             return true;
         }
         if let Some((previous, previous_version)) = self.column[index] {
@@ -1566,7 +2022,11 @@ impl WinnerGroups {
             self.newest_version_row_count = 0;
         }
         self.column[index] = Some((state, program_version));
-        self.retain_state(state);
+        match reference {
+            #[cfg(test)]
+            WinnerReference::Retained => self.retain_state(state),
+            WinnerReference::Pending => self.transfer_pending(state),
+        }
         self.update_winner_rule_node_references(state, node, true);
         if program_version == self.newest_program_version {
             self.newest_version_row_count += 1;
@@ -1576,14 +2036,16 @@ impl WinnerGroups {
     }
 
     #[must_use]
-    pub fn set_pseudo(
+    fn set_pseudo_with_reference(
         &mut self,
         node: StyleNodeID,
         pseudo: PseudoElementTarget,
         state: CascadeStateID,
         program_version: ProgramVersion,
+        reference: WinnerReference,
     ) -> bool {
         let Some(index) = node.element_index().map(|index| index as usize) else {
+            self.release_unused_reference(state, reference);
             return false;
         };
         let existing = self
@@ -1591,6 +2053,7 @@ impl WinnerGroups {
             .get(index)
             .and_then(|rows| rows.iter().position(|row| row.pseudo == pseudo));
         if !self.admitting && existing.is_none() {
+            self.release_unused_reference(state, reference);
             return false;
         }
         self.pseudo_rows_by_node.ensure(index);
@@ -1599,6 +2062,7 @@ impl WinnerGroups {
             row.stamp = self.stamp;
             if row.state == (state, program_version) {
                 row.priority_current = true;
+                self.release_unused_reference(state, reference);
                 return true;
             }
             let previous = row.state.0;
@@ -1621,7 +2085,11 @@ impl WinnerGroups {
             self.pseudo_row_capacity_bytes +=
                 ((self.pseudo_rows_by_node[index].capacity() - capacity_before) * size_of::<PseudoWinnerRow>()) as u64;
         }
-        self.retain_state(state);
+        match reference {
+            #[cfg(test)]
+            WinnerReference::Retained => self.retain_state(state),
+            WinnerReference::Pending => self.transfer_pending(state),
+        }
         self.update_winner_rule_node_references(state, node, true);
         true
     }
@@ -1649,39 +2117,50 @@ impl WinnerGroups {
         }
     }
 
-    /// Publish one node's interned cascade winner rows for another node with the same exact
-    /// selector answer and no element declarations.
-    pub(super) fn copy_node_rows(
+    fn transfer_pending(&mut self, state: CascadeStateID) {
+        self.retain_state(state);
+        self.release_pending(state);
+    }
+
+    fn release_unused_reference(&mut self, state: CascadeStateID, reference: WinnerReference) {
+        match reference {
+            #[cfg(test)]
+            WinnerReference::Retained => {}
+            WinnerReference::Pending => self.release_pending(state),
+        }
+    }
+
+    #[cfg(test)]
+    pub fn set(&mut self, node: StyleNodeID, state: CascadeStateID, version: ProgramVersion) -> bool {
+        self.set_with_reference(node, state, version, WinnerReference::Retained)
+    }
+
+    #[cfg(test)]
+    pub fn set_pseudo(
         &mut self,
-        source: StyleNodeID,
-        target: StyleNodeID,
-        program_version: ProgramVersion,
-        memory: &mut MemoryController,
-    ) -> Option<usize> {
-        if !self.admitting {
-            return None;
-        }
-        let (_, state) = self
-            .token_for(WinnerGroupKey::current(source, program_version))
-            .sparse()
-            .ok()?;
-        let pseudo_states: SmallVec<[_; 2]> = self.pseudo_states(source).collect();
-        let scratch_bytes = if pseudo_states.spilled() {
-            (pseudo_states.capacity() * size_of::<(PseudoElementTarget, ProgramVersion, CascadeStateID, bool)>()) as u64
-        } else {
-            0
-        };
-        memory.reserve_required(MemoryCategory::BatchScratch, scratch_bytes);
-        self.remove(target);
-        assert!(self.set(target, state, program_version));
-        for (pseudo, version, state, priority_current) in &pseudo_states {
-            assert!(self.set_pseudo(target, *pseudo, *state, *version));
-            if !priority_current {
-                self.mark_pseudo_inventory_incomplete(target, *pseudo);
-            }
-        }
-        memory.release(MemoryCategory::BatchScratch, scratch_bytes);
-        Some(1 + pseudo_states.len())
+        node: StyleNodeID,
+        pseudo: PseudoElementTarget,
+        state: CascadeStateID,
+        version: ProgramVersion,
+    ) -> bool {
+        self.set_pseudo_with_reference(node, pseudo, state, version, WinnerReference::Retained)
+    }
+
+    #[cfg(test)]
+    pub(super) fn pending_reference_count(&self) -> u64 {
+        self.state_pending_reference_counts
+            .iter()
+            .map(|&count| u64::from(count))
+            .sum()
+    }
+
+    fn retain_pending(&mut self, state: CascadeStateID) {
+        let count = &mut self.state_pending_reference_counts[state.0 as usize];
+        *count = count.checked_add(1).expect("winner pending reference count exhausted");
+    }
+
+    fn release_pending(&mut self, state: CascadeStateID) {
+        self.state_pending_reference_counts[state.0 as usize] -= 1;
     }
 
     fn retain_state(&mut self, state: CascadeStateID) {
@@ -1758,24 +2237,6 @@ impl WinnerGroups {
             Ok(&(state, _)) => Lookup::Known((self.generation, state)),
             Err(gap) => Lookup::Missing(gap),
         }
-    }
-
-    pub(super) fn set_from_token(
-        &mut self,
-        node: StyleNodeID,
-        generation: u64,
-        state: CascadeStateID,
-        program_version: ProgramVersion,
-    ) -> Result<(), WinnerGroupTokenGap> {
-        if generation != self.generation {
-            return Err(WinnerGroupTokenGap::StaleGeneration {
-                retained: generation,
-                current: self.generation,
-            });
-        }
-        self.set(node, state, program_version)
-            .then_some(())
-            .ok_or(WinnerGroupTokenGap::AdmissionClosed)
     }
 
     #[must_use]
@@ -1878,18 +2339,6 @@ impl WinnerGroups {
         rows.map(|row| (row.pseudo, row.state.1, row.state.0, row.priority_current))
     }
 
-    #[must_use]
-    pub(super) fn pseudo_state(
-        &self,
-        node: StyleNodeID,
-        pseudo: PseudoElementTarget,
-    ) -> Option<(ProgramVersion, CascadeStateID, bool)> {
-        node.element_index()
-            .and_then(|index| self.pseudo_rows_by_node.get(index as usize))
-            .and_then(|rows| rows.iter().find(|row| row.pseudo == pseudo))
-            .map(|row| (row.state.1, row.state.0, row.priority_current))
-    }
-
     pub(super) fn mark_pseudo_inventory_incomplete(&mut self, node: StyleNodeID, pseudo: PseudoElementTarget) {
         if let Some(row) = node
             .element_index()
@@ -1919,6 +2368,7 @@ impl WinnerGroups {
         self.generation = self.generation.wrapping_add(1);
         self.states = InternTable::default();
         self.state_reference_counts = Vec::new();
+        self.state_pending_reference_counts = Vec::new();
         self.state_winning_rules = Vec::new();
         self.groups = InternTable::default();
         self.provenance_groups = InternTable::default();
@@ -1950,6 +2400,7 @@ impl WinnerGroups {
                 self.pseudo_rows_by_node,
                 self.priority_current,
                 self.state_reference_counts,
+                self.state_pending_reference_counts,
                 self.state_winning_rules,
                 self.winner_rule_references,
                 self.stamps,
@@ -2054,6 +2505,87 @@ mod tests {
             sheet_rank: 10,
             rule_rank: 10,
         }
+    }
+
+    #[test]
+    fn pending_winners_share_completed_states_without_installing_donors() {
+        let mut groups = WinnerGroups::new();
+        let mut memory = memory();
+        let earlier = StyleNodeID::element(1);
+        let later = StyleNodeID::element(2);
+        let before = PseudoElementTarget::new(super::super::tree::PseudoElementKind(0));
+        let after = PseudoElementTarget::new(super::super::tree::PseudoElementKind(2));
+        let old = groups.intern_sorted(&[winner(1, 10, 1)], None);
+        let new = groups.intern_sorted(&[winner(1, 20, 2)], None);
+        assert!(groups.set(earlier, old, ProgramVersion(1)));
+        assert!(groups.set_pseudo(earlier, after, old, ProgramVersion(1)));
+        groups.begin_flush(2);
+        let mut effects = WinnerEffects::default();
+        assert!(effects.set(&mut groups, later, new, ProgramVersion(2), &mut memory));
+        assert!(effects.set_pseudo(&mut groups, later, before, new, ProgramVersion(2), &mut memory));
+        effects.mark_pseudo_inventory_incomplete(later, before);
+        assert_eq!(
+            effects.copy_node_rows(&mut groups, later, earlier, ProgramVersion(2), &mut memory),
+            Some(2)
+        );
+        // Replacing the producer afterwards must not change its consumer's completed payload.
+        assert!(effects.set(&mut groups, later, old, ProgramVersion(2), &mut memory));
+        let key = WinnerGroupKey::current(earlier, ProgramVersion(2));
+        assert!(matches!(groups.lookup(key), Lookup::Missing(_)));
+        assert!(!groups.rule_is_a_winner(RuleID(2)));
+        assert_eq!(
+            effects.view(&groups).token_for(key),
+            Lookup::Known((groups.generation(), new))
+        );
+        assert_eq!(
+            effects.view(&groups).pseudo_state(earlier, before),
+            Some((ProgramVersion(2), new, false))
+        );
+        assert_eq!(effects.view(&groups).pseudo_state(earlier, after), None);
+        assert_eq!(effects.view(&groups).row_stamp(earlier), Some(2));
+        effects.install(&mut groups, &mut memory);
+        assert_eq!(groups.token_for(key), Lookup::Known((groups.generation(), new)));
+        assert_eq!(
+            groups.pseudo_states(earlier).collect::<Vec<_>>(),
+            vec![(before, ProgramVersion(2), new, false)]
+        );
+        assert_eq!(
+            groups.winning_nodes(RuleID(2)).unwrap().collect::<Vec<_>>(),
+            vec![earlier, later]
+        );
+        assert!(groups.state_pending_reference_counts.iter().all(|&count| count == 0));
+        assert_eq!(memory.bytes_in_category(MemoryCategory::BatchScratch), 0);
+    }
+
+    #[test]
+    fn abandoned_and_refused_winner_effects_release_every_pending_reference() {
+        let mut groups = WinnerGroups::new();
+        let mut memory = memory();
+        let node = StyleNodeID::element(1);
+        let old = groups.intern_sorted(&[winner(1, 10, 1)], None);
+        let new = groups.intern_sorted(&[winner(1, 20, 2)], None);
+        assert!(groups.set(node, old, ProgramVersion(1)));
+        let mut effects = WinnerEffects::default();
+        assert!(effects.set(&mut groups, node, new, ProgramVersion(2), &mut memory));
+        assert!(effects.set(&mut groups, node, old, ProgramVersion(2), &mut memory));
+        effects.release_pending_all(&mut groups);
+        assert_eq!(
+            groups.token_for(WinnerGroupKey::current(node, ProgramVersion(1))),
+            Lookup::Known((groups.generation(), old))
+        );
+        assert!(!groups.rule_is_a_winner(RuleID(2)));
+        assert!(groups.state_pending_reference_counts.iter().all(|&count| count == 0));
+        let mut effects = WinnerEffects::default();
+        let missing = StyleNodeID::element(2);
+        assert!(effects.set(&mut groups, missing, new, ProgramVersion(2), &mut memory));
+        groups.admitting = false;
+        effects.install(&mut groups, &mut memory);
+        assert!(matches!(
+            groups.lookup(WinnerGroupKey::current(missing, ProgramVersion(2))),
+            Lookup::Missing(_)
+        ));
+        assert!(groups.state_pending_reference_counts.iter().all(|&count| count == 0));
+        assert_eq!(memory.bytes_in_category(MemoryCategory::BatchScratch), 0);
     }
 
     #[test]
@@ -2690,6 +3222,46 @@ mod tests {
     }
 
     #[test]
+    fn closed_winner_admission_refuses_a_token_winner_for_an_absent_row() {
+        let mut memory = memory();
+        memory.set_tier3_limit_for_test(0);
+        memory.begin_tier3_quota_period();
+        let mut groups = WinnerGroups::new();
+        let state = groups.intern_sorted(&[winner(1, 1, 3)], None);
+        let resident = StyleNodeID::element(1);
+        assert!(groups.set(resident, state, ProgramVersion(1)));
+        groups.settle_memory(&mut memory);
+        memory.finish_evaluation_loop();
+        groups.update_admission(&memory);
+        assert!(!groups.admits_new_rows());
+
+        let generation = groups.generation();
+        let refused = StyleNodeID::element(2);
+        let mut effects = WinnerEffects::default();
+        assert_eq!(
+            effects.set_from_token(&mut groups, refused, generation, state, ProgramVersion(1), &mut memory),
+            Err(WinnerGroupTokenGap::AdmissionClosed)
+        );
+        assert!(matches!(
+            effects
+                .view(&groups)
+                .lookup(WinnerGroupKey::current(refused, ProgramVersion(1))),
+            Lookup::Missing(_)
+        ));
+        // The rows the groups already hold still take their token's winner.
+        assert_eq!(
+            effects.set_from_token(&mut groups, resident, generation, state, ProgramVersion(1), &mut memory),
+            Ok(())
+        );
+        effects.install(&mut groups, &mut memory);
+        assert!(matches!(
+            groups.lookup(WinnerGroupKey::current(refused, ProgramVersion(1))),
+            Lookup::Missing(_)
+        ));
+        assert!(groups.state_pending_reference_counts.iter().all(|&count| count == 0));
+    }
+
+    #[test]
     fn broad_winner_rule_node_postings_fall_back_to_the_rule_count() {
         let mut groups = WinnerGroups::new();
         let state = groups.intern_sorted(&[winner(1, 1, 3)], None);
@@ -2834,7 +3406,7 @@ mod tests {
             Lookup::Missing(WinnerGroupGap::MissingNode(missing)) if missing == node
         ));
         assert!(matches!(
-            groups.set_from_token(node, generation, token_group, ProgramVersion(1)),
+            WinnerEffects::default().set_from_token(&mut groups, node, generation, token_group, ProgramVersion(1), &mut memory),
             Err(WinnerGroupTokenGap::StaleGeneration {
                 retained,
                 current,

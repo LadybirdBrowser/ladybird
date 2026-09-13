@@ -7058,11 +7058,13 @@ fn closure_identity_stop_verification_is_observer_only() {
             .collect::<Vec<_>>(),
         memory_before
     );
-    assert!(engine.winner_groups.node_rows_are_semantically_equal(
-        &winner_groups_before,
-        nodes[2],
-        engine.program.version()
-    ));
+    assert!(
+        super::cascade::WinnerView::retained(&engine.winner_groups).node_rows_are_semantically_equal(
+            &winner_groups_before,
+            nodes[2],
+            engine.program.version()
+        )
+    );
     assert_eq!(engine.match_answers.answers.live_len(), catalog_entry_count_before);
     assert_eq!(engine.retained_match_answers.column, retained_answer_column_before);
     assert_eq!(
@@ -7232,7 +7234,7 @@ fn element_declarations_refuse_selector_only_prefix_answer_reuse() {
     for (node, value) in [(nodes[2], SpecifiedValueID(102)), (nodes[3], SpecifiedValueID(103))] {
         let key = WinnerGroupKey::current(node, engine.program.version());
         assert!(
-            matches!(engine.winner_groups.winner(key, 2), Lookup::Known(winner) if winner.source == WinnerSource::Element(ElementDeclarationKind::InlineStyle) && winner.key.value == value)
+            matches!(engine.current_winner_groups().winner(key, 2), Lookup::Known(winner) if winner.source == WinnerSource::Element(ElementDeclarationKind::InlineStyle) && winner.key.value == value)
         );
     }
     assert_eq!(engine.counters().get(Counter::PrefixAnswerCacheMisses), 0);

@@ -222,7 +222,7 @@ impl StyleEngineState {
             return true;
         }
         let Lookup::Known((_, state)) = self
-            .winner_groups
+            .current_winner_groups()
             .token_for(WinnerGroupKey::current(node, self.program.version()))
         else {
             return true;

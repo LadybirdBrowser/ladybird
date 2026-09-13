@@ -385,9 +385,14 @@ mod verification {
             assert_eq!(answer, cold, "{description} differs from cold matching for {node:?}");
         }
 
-        pub(super) fn verify_retained_cascade_input(&mut self, node: StyleNodeID, cascade_input: MatchAnswerID) {
+        pub(super) fn verify_retained_cascade_input(
+            &mut self,
+            effects: &super::AnswerEffects,
+            node: StyleNodeID,
+            cascade_input: MatchAnswerID,
+        ) {
             self.engine
-                .verify_retained_cascade_input(node, cascade_input, self.counters);
+                .verify_retained_cascade_input(effects, node, cascade_input, self.counters);
         }
     }
 

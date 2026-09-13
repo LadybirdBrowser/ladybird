@@ -152,8 +152,14 @@ impl StyleEngineState {
     /// settles pseudo-elements from, to travel with the node's winner state: ::before, ::after,
     /// ::first-letter and ::selection. The rules for the other kinds match every element, and a
     /// row for each of them on every element would cost the memory the winner groups have.
-    fn settled_pseudo_winner_states(&self, node: StyleNodeID) -> Rc<[(tree::PseudoElementTarget, CascadeStateID)]> {
-        self.winner_groups
+    fn settled_pseudo_winner_states(
+        &self,
+        effects: &AnswerEffects,
+        node: StyleNodeID,
+    ) -> Rc<[(tree::PseudoElementTarget, CascadeStateID)]> {
+        effects
+            .winners
+            .view(&self.winner_groups)
             .pseudo_states(node)
             .filter(|&(pseudo, version, _, priority_current)| {
                 matches!(pseudo.kind.0, 0 | 2 | 3 | 6) && version == self.program.version() && priority_current
@@ -616,13 +622,13 @@ impl StyleEngineState {
         if let Some(traversal) = self.batch_matching_traversal.as_mut() {
             let effects = std::mem::take(&mut traversal.answer_effects);
             effects.install_observations(&mut self.published_match_answers);
-            effects.release_pending_all(&mut self.match_answers);
+            effects.release_pending_all(&mut self.match_answers, &mut self.winner_groups);
             traversal.pending_published.clear();
         }
         let mut published = std::mem::take(&mut self.published_match_answers);
         let effects = std::mem::take(&mut published.answer_effects);
         effects.install_observations(&mut published);
-        effects.release_pending_all(&mut self.match_answers);
+        effects.release_pending_all(&mut self.match_answers, &mut self.winner_groups);
         verify_published_style_transaction(self, |_| {
             assert!(
                 published.entries.is_empty()
@@ -2092,7 +2098,12 @@ impl StyleEngineState {
         true
     }
 
-    pub(super) fn install_answer_effects(&mut self, effects: AnswerEffects) {
+    pub(super) fn install_winner_effects(&mut self, effects: super::cascade::WinnerEffects) {
+        effects.install(&mut self.winner_groups, &mut self.memory);
+    }
+
+    pub(super) fn install_answer_effects(&mut self, mut effects: AnswerEffects) {
+        self.install_winner_effects(std::mem::take(&mut effects.winners));
         effects.install_observations(&mut self.published_match_answers);
         effects.install(
             &mut self.retained_match_answers,
@@ -2991,8 +3002,9 @@ impl StyleEngineState {
             return None;
         }
         let base_version = patch.program_base_version?;
-        let (_, previous) = self
-            .winner_groups
+        let (_, previous) = effects
+            .winners
+            .view(&self.winner_groups)
             .token_for(WinnerGroupKey::retained(node, base_version))
             .sparse()
             .ok()?;
@@ -3023,7 +3035,13 @@ impl StyleEngineState {
         )?;
         let (state, delta) =
             self.with_cascade_interning_counters(|groups| groups.apply_property_updates(previous, &updates), counters);
-        let published = self.winner_groups.set(node, state, self.program.version());
+        let published = effects.winners.set(
+            &mut self.winner_groups,
+            node,
+            state,
+            self.program.version(),
+            &mut self.memory,
+        );
         self.winner_groups.settle_memory(&mut self.memory);
         if published {
             counters.bump(Counter::CascadeNodeHandlesPublished);
@@ -3084,12 +3102,14 @@ impl StyleEngineState {
     /// unaffected retained winner, but avoid materializing and reducing that whole answer again.
     pub(super) fn retained_match_deltas_cannot_change_cascade(
         &self,
+        effects: &AnswerEffects,
         node: StyleNodeID,
         retained: &[RetainedRuleMatch],
         deltas: &[SelectorTruthDelta],
     ) -> bool {
-        let Some((_, previous)) = self
-            .winner_groups
+        let Some((_, previous)) = effects
+            .winners
+            .view(&self.winner_groups)
             .token_for(WinnerGroupKey::current(node, self.program.version()))
             .sparse()
             .ok()
@@ -3324,13 +3344,20 @@ impl StyleEngineState {
             counters.bump(Counter::RetainedMatchAnswerDeltaMemoHits);
             let stopped = transition.new_cascade_input == old_cascade_input;
             if let Some((state, version)) = transition.winner_state {
-                let _ = self.winner_groups.set(node, state, version);
+                let _ = effects
+                    .winners
+                    .set(&mut self.winner_groups, node, state, version, &mut self.memory);
             }
             // Pseudo-element rows are independent of the element's sparse winner row.
             for &(pseudo, state) in transition.pseudo_winner_states.iter() {
-                let _ = self
-                    .winner_groups
-                    .set_pseudo(node, pseudo, state, self.program.version());
+                let _ = effects.winners.set_pseudo(
+                    &mut self.winner_groups,
+                    node,
+                    pseudo,
+                    state,
+                    self.program.version(),
+                    &mut self.memory,
+                );
             }
             self.publish_cascade_input_with_effects(effects, node, transition.new_cascade_input);
             counters.bump(Counter::RetainedMatchAnswerDeltaPatches);
@@ -3359,7 +3386,7 @@ impl StyleEngineState {
         let retained = self.match_answers.retained_answer(old_identity)?;
         let (answer, applied) = self.retained_answer_after_deltas(node, patch, retained, deltas)?;
 
-        if !orders_shifted && self.retained_match_deltas_cannot_change_cascade(node, retained, deltas) {
+        if !orders_shifted && self.retained_match_deltas_cannot_change_cascade(effects, node, retained, deltas) {
             self.remember_prepared_retained_match_answer_with_effects(effects, node, answer, counters);
             self.publish_cascade_input_with_effects(effects, node, old_cascade_input);
             counters.bump(Counter::RetainedMatchAnswerDeltaPatches);
@@ -3370,14 +3397,15 @@ impl StyleEngineState {
             if let Some(key) = memo_key
                 && let Some(new_identity) = effects.answer_identity(&self.retained_match_answers, node)
             {
-                let winner_state = match self
-                    .winner_groups
+                let winner_state = match effects
+                    .winners
+                    .view(&self.winner_groups)
                     .lookup(WinnerGroupKey::current(node, self.program.version()))
                 {
                     Lookup::Known(&(state, version)) => Some((state, version)),
                     Lookup::KnownAbsent | Lookup::Missing(_) => None,
                 };
-                let pseudo_winner_states = self.settled_pseudo_winner_states(node);
+                let pseudo_winner_states = self.settled_pseudo_winner_states(effects, node);
                 Self::remember_retained_answer_delta_transition(
                     patch,
                     key,
@@ -3416,6 +3444,7 @@ impl StyleEngineState {
 
         self.remember_prepared_retained_match_answer_with_effects(effects, node, answer, counters);
         let cascade_winners_updated = self.apply_cascade_winner_match_deltas(
+            effects,
             node,
             &materialized,
             deltas,
@@ -3425,9 +3454,10 @@ impl StyleEngineState {
         let mut new_input = materialized;
         if !(cascade_winners_updated
             && cascade_winners_are_complete
-            && self.compact_matches_from_updated_winners(node, &mut new_input, counters))
+            && self.compact_matches_from_updated_winners(effects, node, &mut new_input, counters))
         {
             self.compact_matches_for_cascade_with_scratch(
+                effects,
                 &mut new_input,
                 false,
                 None,
@@ -3453,14 +3483,15 @@ impl StyleEngineState {
         if let Some(key) = memo_key
             && let Some(new_identity) = effects.answer_identity(&self.retained_match_answers, node)
         {
-            let winner_state = match self
-                .winner_groups
+            let winner_state = match effects
+                .winners
+                .view(&self.winner_groups)
                 .lookup(WinnerGroupKey::current(node, self.program.version()))
             {
                 Lookup::Known(&(state, version)) => Some((state, version)),
                 Lookup::KnownAbsent | Lookup::Missing(_) => None,
             };
-            let pseudo_winner_states = self.settled_pseudo_winner_states(node);
+            let pseudo_winner_states = self.settled_pseudo_winner_states(effects, node);
             Self::remember_retained_answer_delta_transition(
                 patch,
                 key,
@@ -3779,6 +3810,7 @@ impl StyleEngineState {
 
         self.remember_retained_match_answer_with_effects(effects, node, &patched_answer, counters);
         let new_input = self.matches_for_cascade_with_scratch(
+            effects,
             patched_answer,
             false,
             None,
@@ -3897,7 +3929,7 @@ impl StyleEngineState {
         } else if result.is_ok() {
             self.install_answer_effects(effects);
         } else {
-            effects.release_pending_all(&mut self.match_answers);
+            effects.release_pending_all(&mut self.match_answers, &mut self.winner_groups);
         }
         self.batch_matching_traversal = traversal;
         result
@@ -3932,7 +3964,7 @@ impl StyleEngineState {
         });
         let (matches, cascade_winners_are_complete, compact_answer) =
             if let Some((exact_answer, cascade_winners_are_complete)) = retained_answer {
-                let answer = self.matches_for_cascade(exact_answer, false, Some(node), counters);
+                let answer = self.matches_for_cascade(effects, exact_answer, false, Some(node), counters);
                 self.remember_cascade_input_with_effects(effects, node, &answer, counters);
                 counters.bump(Counter::RetainedMatchAnswerReuses);
                 (answer, cascade_winners_are_complete, None)
@@ -3973,12 +4005,15 @@ impl StyleEngineState {
         node: StyleNodeID,
         counters: &mut Counters,
     ) -> Option<PublishedMatchAnswer> {
-        self.winner_groups
+        effects
+            .winners
+            .view(&self.winner_groups)
             .token_for(WinnerGroupKey::current(node, self.program.version()))
             .sparse()
             .ok()?;
-        if self
-            .winner_groups
+        if effects
+            .winners
+            .view(&self.winner_groups)
             .pseudo_states(node)
             .any(|(_, version, _, current)| version != self.program.version() || !current)
         {
@@ -4020,9 +4055,13 @@ impl StyleEngineState {
         // this answer, and the catalog can materialize it if a consumer needs individual matches.
         // Most consumers use the cascade identity directly, so keep it shared until then.
         self.match_answers.answer(cascade_input)?;
-        let published_rows =
-            self.winner_groups
-                .copy_node_rows(source, node, self.program.version(), &mut self.memory)?;
+        let published_rows = effects.winners.copy_node_rows(
+            &mut self.winner_groups,
+            source,
+            node,
+            self.program.version(),
+            &mut self.memory,
+        )?;
         self.winner_groups.settle_memory(&mut self.memory);
         counters.add(Counter::CascadeNodeHandlesPublished, published_rows as u64);
         self.publish_cascade_input_with_effects(effects, node, cascade_input);
@@ -4067,7 +4106,9 @@ impl StyleEngineState {
         let cascade_input = effects.cascade_input(&self.retained_match_answers, node)?;
         let retained = self.match_answers.answer(cascade_input)?;
         if !matches!(
-            self.winner_groups
+            effects
+                .winners
+                .view(&self.winner_groups)
                 .token_for(WinnerGroupKey::current(node, self.program.version())),
             Lookup::Known(_)
         ) {
@@ -4094,6 +4135,7 @@ impl StyleEngineState {
 
     pub(super) fn retained_cascade_input_is_exact(
         &mut self,
+        effects: &AnswerEffects,
         node: StyleNodeID,
         cascade_input: MatchAnswerID,
         counters: &mut Counters,
@@ -4107,11 +4149,10 @@ impl StyleEngineState {
             .match_answers
             .answer(cascade_input)
             .is_some_and(|retained_answer| retained_answer.as_ref() == prepared_answer);
-        let winner_rows_are_equal = self.winner_groups.node_rows_are_semantically_equal(
-            &verification_winner_groups,
-            node,
-            self.program.version(),
-        );
+        let winner_rows_are_equal = effects
+            .winners
+            .view(&self.winner_groups)
+            .node_rows_are_semantically_equal(&verification_winner_groups, node, self.program.version());
         answer_is_equal && winner_rows_are_equal
     }
 
@@ -4256,12 +4297,13 @@ impl StyleEngineState {
 
     pub(super) fn verify_retained_cascade_input(
         &mut self,
+        effects: &AnswerEffects,
         node: StyleNodeID,
         cascade_input: MatchAnswerID,
         counters: &mut Counters,
     ) {
         assert!(
-            self.retained_cascade_input_is_exact(node, cascade_input, counters),
+            self.retained_cascade_input_is_exact(effects, node, cascade_input, counters),
             "retained cascade identity stop diverged from exact matching"
         );
     }
@@ -4299,7 +4341,7 @@ impl StyleEngineState {
                     // side instead of disabling it; the check's own work must not disturb engine
                     // counters, so they are restored around it.
                     verify_style_answer_patch(self, counters, |verifier| {
-                        verifier.verify_retained_cascade_input(node, cascade_input);
+                        verifier.verify_retained_cascade_input(&effects, node, cascade_input);
                     });
                     PublishedMatchAnswer {
                         node,
@@ -4342,13 +4384,14 @@ impl StyleEngineState {
     /// Compare the complete element cascade behind the published base style with the current exact
     /// selector transaction. Pseudo-element rows are compared independently before the caller
     /// stops the reaction.
-    pub(super) fn exact_cascade_output_is_unchanged(&self, node: StyleNodeID) -> bool {
+    pub(super) fn exact_cascade_output_is_unchanged(&self, effects: &AnswerEffects, node: StyleNodeID) -> bool {
         let target = computed::ComputedStyleTarget::new(node, u8::MAX);
         let Some((previous_generation, previous)) = self.computed_group_sets.cascade_state(target) else {
             return false;
         };
-        let current = match self
-            .winner_groups
+        let current = match effects
+            .winners
+            .view(&self.winner_groups)
             .token_for(WinnerGroupKey::current(node, self.program.version()))
         {
             Lookup::Known((current_generation, current)) if current_generation == previous_generation => current,
@@ -4508,7 +4551,7 @@ impl StyleEngineState {
             effects.forget_answer(node, &mut self.match_answers, &mut self.memory);
             return None;
         };
-        let answer = self.matches_for_cascade(exact_answer, false, Some(node), counters);
+        let answer = self.matches_for_cascade(effects, exact_answer, false, Some(node), counters);
         verify_cascade_answer_against_cold(self, &answer, node, "a retained match answer", counters);
         self.remember_cascade_input_with_effects(effects, node, &answer, counters);
         counters.bump(Counter::RetainedMatchAnswerReuses);
@@ -4616,11 +4659,30 @@ impl StyleEngineState {
         Some(cascade_input.0)
     }
 
-    pub fn pseudo_cascade_states_are_unchanged(&self, node: StyleNodeID) -> bool {
-        self.pseudo_cascade_states_are_unchanged_in(node, &self.winner_groups)
+    pub(super) fn current_winner_groups(&self) -> super::cascade::WinnerView<'_> {
+        self.batch_matching_traversal.as_ref().map_or_else(
+            || super::cascade::WinnerView::retained(&self.winner_groups),
+            |traversal| traversal.answer_effects.winners.view(&self.winner_groups),
+        )
     }
 
-    fn pseudo_cascade_states_are_unchanged_in(&self, node: StyleNodeID, winner_groups: &WinnerGroups) -> bool {
+    pub(super) fn pseudo_cascade_states_are_unchanged_with_effects(
+        &self,
+        effects: &AnswerEffects,
+        node: StyleNodeID,
+    ) -> bool {
+        self.pseudo_cascade_states_are_unchanged_in(node, effects.winners.view(&self.winner_groups))
+    }
+
+    pub fn pseudo_cascade_states_are_unchanged(&self, node: StyleNodeID) -> bool {
+        self.pseudo_cascade_states_are_unchanged_in(node, self.current_winner_groups())
+    }
+
+    fn pseudo_cascade_states_are_unchanged_in(
+        &self,
+        node: StyleNodeID,
+        winner_groups: super::cascade::WinnerView<'_>,
+    ) -> bool {
         let generation = winner_groups.generation();
         // A held pseudo style the engine has no record of cannot be vouched for: winner rows and
         // computed cascade records are the only witnesses the two arms below can judge, and a
@@ -4714,7 +4776,7 @@ impl StyleEngineState {
         let answer = match compact_for_cascade {
             true => {
                 self.remember_retained_match_answer(node, &exact_answer, counters);
-                self.matches_for_cascade(exact_answer, false, Some(node), counters)
+                self.matches_for_cascade_immediately(exact_answer, false, Some(node), counters)
             }
             false => exact_answer,
         };
@@ -4796,7 +4858,7 @@ impl StyleEngineState {
         std::mem::swap(&mut self.winner_groups, &mut verification_winner_groups);
         std::mem::swap(&mut self.memory, &mut verification_memory);
         let answer = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
-            self.matches_for_cascade(exact_answer, false, Some(node), counters)
+            self.matches_for_cascade_immediately(exact_answer, false, Some(node), counters)
         }));
         std::mem::swap(&mut self.memory, &mut verification_memory);
         std::mem::swap(&mut self.winner_groups, &mut verification_winner_groups);
@@ -4850,7 +4912,7 @@ impl StyleEngineState {
         } else if result.is_ok() {
             self.install_answer_effects(effects);
         } else {
-            effects.release_pending_all(&mut self.match_answers);
+            effects.release_pending_all(&mut self.match_answers, &mut self.winner_groups);
         }
         self.batch_matching_traversal = traversal;
         result
@@ -5166,6 +5228,7 @@ impl StyleEngineState {
                                 }
                             };
                             self.compact_matches_for_cascade_with_scratch(
+                                effects,
                                 prefix_rules.as_mut_vec(),
                                 false,
                                 None,
@@ -5203,6 +5266,7 @@ impl StyleEngineState {
                         )
                         .expect("a prefix contribution must reference live selector entries");
                         self.compact_matches_for_cascade_with_scratch(
+                            effects,
                             matches.as_mut_vec(),
                             false,
                             Some(node),
@@ -5252,7 +5316,13 @@ impl StyleEngineState {
                                 if scope != TreeScopeID::DOCUMENT {
                                     // The shared answer stores the scope which first populated it.
                                     // Rebind and compact against this node's contextual declarations.
-                                    self.compact_matches_for_cascade(&mut matches, false, Some(node), counters);
+                                    self.compact_matches_for_cascade(
+                                        effects,
+                                        &mut matches,
+                                        false,
+                                        Some(node),
+                                        counters,
+                                    );
                                     cascade_input = Some(self.intern_cascade_input(&matches, counters));
                                     cached_cascade_winner_inventory_is_complete = None;
                                 } else {
@@ -5261,9 +5331,16 @@ impl StyleEngineState {
                                 let mut published_winner_rows = false;
                                 if scope == TreeScopeID::DOCUMENT
                                     && let Some((generation, group)) = winner_group
-                                    && self
-                                        .winner_groups
-                                        .set_from_token(node, generation, group, self.program.version())
+                                    && effects
+                                        .winners
+                                        .set_from_token(
+                                            &mut self.winner_groups,
+                                            node,
+                                            generation,
+                                            group,
+                                            self.program.version(),
+                                            &mut self.memory,
+                                        )
                                         .is_ok()
                                 {
                                     published_winner_rows = true;
@@ -5273,9 +5350,14 @@ impl StyleEngineState {
                                     && generation == self.winner_groups.generation()
                                 {
                                     for &(pseudo, state) in pseudo_winner_groups.iter() {
-                                        let _ =
-                                            self.winner_groups
-                                                .set_pseudo(node, pseudo, state, self.program.version());
+                                        let _ = effects.winners.set_pseudo(
+                                            &mut self.winner_groups,
+                                            node,
+                                            pseudo,
+                                            state,
+                                            self.program.version(),
+                                            &mut self.memory,
+                                        );
                                     }
                                     published_winner_rows = true;
                                 }
@@ -5299,6 +5381,7 @@ impl StyleEngineState {
                                 )
                                 .expect("a prefix contribution must reference live selector entries");
                                 self.compact_matches_for_cascade_with_scratch(
+                                    effects,
                                     matches.as_mut_vec(),
                                     false,
                                     Some(node),
@@ -5306,8 +5389,9 @@ impl StyleEngineState {
                                     counters,
                                 );
                                 let answer = matches.take(&mut self.memory);
-                                let winner_group = match self
-                                    .winner_groups
+                                let winner_group = match effects
+                                    .winners
+                                    .view(&self.winner_groups)
                                     .token_for(WinnerGroupKey::current(node, self.program.version()))
                                 {
                                     Lookup::Known(token) => Some(token),
@@ -5321,7 +5405,7 @@ impl StyleEngineState {
                                 // The rules for ::marker, ::backdrop and the element-backed
                                 // pseudo-elements match every element, and a row for every
                                 // element would only cost the memory the winner groups have.
-                                let pseudo_winner_groups = self.settled_pseudo_winner_states(node);
+                                let pseudo_winner_groups = self.settled_pseudo_winner_states(effects, node);
                                 let pseudo_winner_groups = (!pseudo_winner_groups.is_empty())
                                     .then(|| (self.winner_groups.generation(), pseudo_winner_groups));
                                 let answer_cascade_input = self.intern_cascade_input(&answer, counters);
@@ -5351,6 +5435,7 @@ impl StyleEngineState {
                     }
                     if compact_for_cascade {
                         self.compact_matches_for_cascade_with_scratch(
+                            effects,
                             matches.as_mut_vec(),
                             can_have_scope_duplicates,
                             Some(node),
@@ -5562,6 +5647,7 @@ impl StyleEngineState {
                     }
                     if compact_for_cascade {
                         self.compact_matches_for_cascade(
+                            effects,
                             matches.as_mut_vec(),
                             can_have_scope_duplicates,
                             Some(node),

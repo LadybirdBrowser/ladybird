@@ -1454,57 +1454,67 @@ impl StyleEngineState {
                     // plus the same live output-identity predicates the exact-cascade stop trusts
                     // therefore prove the stop without re-matching or cloning anything; verify
                     // mode still cold-matches every stopped node.
-                    let confirmed_exact_cascade =
-                        exact_cascade_confirmation_nodes.as_slice().binary_search(&node).is_ok()
-                            && published_answer.cascade_input.is_some_and(|current_cascade_input| {
-                                // A patch consumed this node's routed deltas and refreshes under
-                                // the confirmation set's rule-safety gating, so its answer is
-                                // authoritative. Only a patch MISS leaves completion standing on
-                                // maintained state, where the two guards below must decline.
-                                let node_was_patched = patch_processed_nodes.binary_search(&node).is_ok();
-                                if node_was_patched
-                                    && previous_exact_cascade_input == Some(current_cascade_input)
-                                    && patch_preserved_nodes.binary_search(&node).is_ok()
-                                {
-                                    return true;
-                                }
-                                // Routing flagged this node's truth as unprovable this flush. A
-                                // patch consumed the routed refreshes, so only a patch MISS stands
-                                // on maintained state here.
-                                if !node_was_patched && stale_refresh_nodes.binary_search(&node).is_ok() {
-                                    return false;
-                                }
-                                // Sibling and positional truth is maintained state that no patch
-                                // observes; it answers only while the node's own child sequence
-                                // went untouched.
-                                if (sequence_truth_is_coarse
-                                    || self
-                                        .tree
-                                        .parent(node)
-                                        .is_some_and(|parent| sequence_touched_parents.binary_search(&parent).is_ok()))
-                                    && self.answer_observes_sibling_relations(current_cascade_input)
-                                {
-                                    return false;
-                                }
-                                let whole_inventory_proof = published_answer.cascade_winners_are_complete
-                                    && self.exact_cascade_output_is_unchanged(node)
-                                    && self.pseudo_cascade_states_are_unchanged(node);
-                                whole_inventory_proof
-                                    || previous_exact_cascade_input.is_some_and(|previous_cascade_input| {
-                                        // Equality proves nothing by itself: a stale answer equals
-                                        // itself, and the patch-preserved case confirmed above.
-                                        previous_cascade_input != current_cascade_input
-                                            && self.answer_transition_cannot_change_cascade(
-                                                node,
-                                                previous_cascade_input,
-                                                current_cascade_input,
-                                                counters,
-                                            )
-                                    })
-                            });
+                    let confirmed_exact_cascade = exact_cascade_confirmation_nodes
+                        .as_slice()
+                        .binary_search(&node)
+                        .is_ok()
+                        && published_answer.cascade_input.is_some_and(|current_cascade_input| {
+                            // A patch consumed this node's routed deltas and refreshes under
+                            // the confirmation set's rule-safety gating, so its answer is
+                            // authoritative. Only a patch MISS leaves completion standing on
+                            // maintained state, where the two guards below must decline.
+                            let node_was_patched = patch_processed_nodes.binary_search(&node).is_ok();
+                            if node_was_patched
+                                && previous_exact_cascade_input == Some(current_cascade_input)
+                                && patch_preserved_nodes.binary_search(&node).is_ok()
+                            {
+                                return true;
+                            }
+                            // Routing flagged this node's truth as unprovable this flush. A
+                            // patch consumed the routed refreshes, so only a patch MISS stands
+                            // on maintained state here.
+                            if !node_was_patched && stale_refresh_nodes.binary_search(&node).is_ok() {
+                                return false;
+                            }
+                            // Sibling and positional truth is maintained state that no patch
+                            // observes; it answers only while the node's own child sequence
+                            // went untouched.
+                            if (sequence_truth_is_coarse
+                                || self
+                                    .tree
+                                    .parent(node)
+                                    .is_some_and(|parent| sequence_touched_parents.binary_search(&parent).is_ok()))
+                                && self.answer_observes_sibling_relations(current_cascade_input)
+                            {
+                                return false;
+                            }
+                            let whole_inventory_proof = published_answer.cascade_winners_are_complete
+                                && self
+                                    .exact_cascade_output_is_unchanged(&published_match_answers.answer_effects, node)
+                                && self.pseudo_cascade_states_are_unchanged_with_effects(
+                                    &published_match_answers.answer_effects,
+                                    node,
+                                );
+                            whole_inventory_proof
+                                || previous_exact_cascade_input.is_some_and(|previous_cascade_input| {
+                                    // Equality proves nothing by itself: a stale answer equals
+                                    // itself, and the patch-preserved case confirmed above.
+                                    previous_cascade_input != current_cascade_input
+                                        && self.answer_transition_cannot_change_cascade(
+                                            node,
+                                            previous_cascade_input,
+                                            current_cascade_input,
+                                            counters,
+                                        )
+                                })
+                        });
                     if confirmed_exact_cascade && let Some(current_cascade_input) = published_answer.cascade_input {
                         verify_style_answer_patch(self, counters, |verifier| {
-                            verifier.verify_retained_cascade_input(node, current_cascade_input);
+                            verifier.verify_retained_cascade_input(
+                                &published_match_answers.answer_effects,
+                                node,
+                                current_cascade_input,
+                            );
                         });
                     }
                     match published_answer {
@@ -1522,8 +1532,12 @@ impl StyleEngineState {
                         }
                         _ if exact_cascade_stop_nodes.as_slice().binary_search(&node).is_ok()
                             && published_answer.cascade_winners_are_complete
-                            && self.exact_cascade_output_is_unchanged(node)
-                            && self.pseudo_cascade_states_are_unchanged(node) =>
+                            && self
+                                .exact_cascade_output_is_unchanged(&published_match_answers.answer_effects, node)
+                            && self.pseudo_cascade_states_are_unchanged_with_effects(
+                                &published_match_answers.answer_effects,
+                                node,
+                            ) =>
                         {
                             counters.bump(Counter::PublishedExactCascadeStops);
                             node_count -= 1;
