@@ -1181,53 +1181,58 @@ void WebContentClient::did_fail_download(u64 page_id, u64 download_id, String er
     Application::the().file_downloader().fail_download(download_id, move(error));
 }
 
-void WebContentClient::did_finish_loading(u64 page_id, Optional<Utf16String> navigation_id, URL::URL url)
+void WebContentClient::did_finish_loading(u64 page_id, Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> navigation_id)
 {
-    if (url.scheme() == "about"sv && url.paths().size() == 1) {
-        if (auto web_ui = WebUI::create(*this, page_id, url.paths().first()); web_ui.is_error())
-            warnln("Could not create WebUI for {}: {}", url, web_ui.error());
-        else
-            m_web_ui = web_ui.release_value();
+    auto navigable = hosted_navigable_for_page(page_id, navigable_id);
+    if (!navigable.has_value())
+        return;
+
+    if (!navigable->matches_ongoing_navigation(navigation_id))
+        return;
+
+    // A replacement process's bootstrap about:blank finishes before the process hosts the committed
+    // entry; it must not surface in the view.
+    if (navigable->is_top_level_traversable()) {
+        if (auto view = view_for_page_id(page_id); view.has_value() && !view->m_client_state.hosts_committed_entry)
+            return;
+    }
+
+    if (!navigable->is_top_level_traversable()) {
+        navigable->clear_active_document_load();
+        return;
     }
 
     if (auto view = view_for_page_id(page_id); view.has_value()) {
-        if (!view->matches_ongoing_navigation(navigation_id))
-            return;
+        auto const& committed_url = view->url();
 
-        // A replacement process's bootstrap about:blank finishes before the process hosts the committed
-        // entry; it must not surface in the view or overwrite the crashed page's URL.
-        if (!view->m_client_state.hosts_committed_entry)
-            return;
+        if (committed_url.scheme() == "about"sv && committed_url.paths().size() == 1) {
+            if (auto web_ui = WebUI::create(*this, page_id, committed_url.paths().first()); web_ui.is_error())
+                warnln("Could not create WebUI for {}: {}", committed_url, web_ui.error());
+            else
+                m_web_ui = web_ui.release_value();
+        }
 
-        auto client_url = url;
-        // Documents created for inline error content finish with the internal about:error URL; keep the URL the view
-        // already shows, which for a failed navigation is the URL that failed to load, including any redirects the
-        // navigation was taken through. Firefox/Chromium likewise never surface their internal error-document URLs.
-        if (url == URL::about_error())
-            client_url = view->url();
-        else
-            view->set_url({}, url);
-        auto title = history_title(view->title(), url);
+        auto title = history_title(view->title(), committed_url);
 
         dbgln_if(WEBVIEW_HISTORY_DEBUG, "[History] Load finished for page {} at '{}' with title '{}'",
             page_id,
-            url,
+            committed_url,
             title.has_value() ? title->bytes_as_string_view() : "<none>"sv);
 
-        maybe_record_history_visit_for_current_load(page_id, url, title, "load finish"sv);
+        maybe_record_history_visit_for_current_load(page_id, committed_url, title, "load finish"sv);
         if (title.has_value())
-            m_session->history_store->update_title(url, *title);
+            m_session->history_store->update_title(committed_url, *title);
         if (view->favicon_hash().has_value())
-            m_session->history_store->update_favicon(url, *view->favicon_hash());
+            m_session->history_store->update_favicon(committed_url, *view->favicon_hash());
 
         view->did_finish_navigation();
 
         if (view->on_load_finish)
-            view->on_load_finish(client_url);
+            view->on_load_finish(committed_url);
 
         for (auto const& [id, listener] : view->m_navigation_listeners) {
             if (listener.on_load_finish)
-                listener.on_load_finish(client_url);
+                listener.on_load_finish(committed_url);
         }
     }
 }

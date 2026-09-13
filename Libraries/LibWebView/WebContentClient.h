@@ -192,7 +192,7 @@ private:
     virtual void did_create_child_frame(u64 page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state) override;
     virtual void did_update_child_frame_viewport(u64 page_id, Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio) override;
     virtual void did_destroy_child_frame(u64 page_id, Web::HTML::CrossProcessId frame_id) override;
-    virtual void did_finish_loading(u64 page_id, Optional<Utf16String>, URL::URL) override;
+    virtual void did_finish_loading(u64 page_id, Web::HTML::CrossProcessId navigable_id, Optional<Utf16String>) override;
     virtual void did_request_refresh(u64 page_id) override;
     virtual void did_request_cursor_change(u64 page_id, Gfx::Cursor) override;
     virtual void did_change_title(u64 page_id, Utf16String) override;

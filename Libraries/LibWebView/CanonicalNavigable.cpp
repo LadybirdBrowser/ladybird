@@ -372,7 +372,7 @@ bool CanonicalNavigable::active_document_is(Web::HTML::SessionHistoryEntryDescri
         && m_active_session_history_entry_identity->document_state_id == entry.document_state.id;
 }
 
-void CanonicalNavigable::did_commit_navigation(Web::HTML::ReplicatedNavigableState replicated_state, Optional<Utf16String> const& navigation_id, RefPtr<CanonicalBrowsingContext> destination_browsing_context)
+void CanonicalNavigable::did_commit_navigation(Web::HTML::ReplicatedNavigableState replicated_state, Optional<Utf16String> const& navigation_id, DidPopulateDocument did_populate_document, RefPtr<CanonicalBrowsingContext> destination_browsing_context)
 {
     auto commits_ongoing_navigation = !m_ongoing_navigation.has_value()
         || !navigation_id.has_value()
@@ -403,17 +403,15 @@ void CanonicalNavigable::did_commit_navigation(Web::HTML::ReplicatedNavigableSta
     if (!commits_ongoing_navigation)
         return;
 
-    // The activated document's load becomes the view's tracked load. A same-document activation leaves the
-    // active document's load running, so its tracked load stays in place.
-    if (is_top_level_traversable()) {
-        auto active_document_changed = !previous_active_document_state_id.has_value()
-            || !m_active_session_history_entry_identity.has_value()
-            || m_active_session_history_entry_identity->document_state_id != *previous_active_document_state_id;
-        if (active_document_changed) {
-            m_active_document_load = ActiveDocumentLoad {
-                .navigation_id = m_ongoing_navigation.has_value() ? m_ongoing_navigation->navigation_id : Optional<Utf16String> {},
-            };
-        }
+    // The activated document's load becomes the navigable's tracked load. Reloads can reuse the document state,
+    // while a same-document activation leaves the active document's load in place.
+    auto active_document_changed = !previous_active_document_state_id.has_value()
+        || !m_active_session_history_entry_identity.has_value()
+        || m_active_session_history_entry_identity->document_state_id != *previous_active_document_state_id;
+    if (active_document_changed || did_populate_document == DidPopulateDocument::Yes) {
+        m_active_document_load = ActiveDocumentLoad {
+            .navigation_id = m_ongoing_navigation.has_value() ? m_ongoing_navigation->navigation_id : Optional<Utf16String> {},
+        };
     }
 
     clear_ongoing_navigation();

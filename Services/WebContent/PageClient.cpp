@@ -834,9 +834,9 @@ void PageClient::page_did_change_active_document_in_top_level_browsing_context(W
     }
 }
 
-void PageClient::page_did_finish_loading(Optional<Utf16String> const& navigation_id, URL::URL const& url)
+void PageClient::page_did_finish_loading(Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> const& navigation_id)
 {
-    client().async_did_finish_loading(m_id, navigation_id, url);
+    client().async_did_finish_loading(m_id, navigable_id, navigation_id);
 }
 
 Optional<u64> PageClient::page_did_start_download(Web::HTML::CrossProcessId navigable_id, Optional<Utf16String> const& navigation_id, URL::URL const& url, ByteString const& suggested_filename, Optional<u64> total_size, int request_server_client_id, u64 request_server_request_id, ByteBuffer initial_data)

@@ -529,6 +529,7 @@ struct CanonicalTraversable::HistoryOperation {
 
         bool unload_preparation_pending { false };
         OwnPtr<NavigationLoader> population_loader;
+        CanonicalNavigable::DidPopulateDocument did_populate_document { CanonicalNavigable::DidPopulateDocument::No };
         RefPtr<CanonicalBrowsingContext> browsing_context;
     };
     HashMap<Web::HTML::CrossProcessId, NonnullOwnPtr<PendingChangingJob>> pending_changing_jobs;
@@ -1253,6 +1254,7 @@ void CanonicalTraversable::continue_history_navigation_population(Web::HTML::Cro
     auto loader = move(pending_job.value()->population_loader);
     auto document = loader->response_document();
     if (document.has_value()) {
+        pending_job.value()->did_populate_document = CanonicalNavigable::DidPopulateDocument::Yes;
         auto context = navigable->obtain_a_browsing_context_to_use_for_a_navigation_response(document->coop_enforcement_result);
         auto group_switch = context.ptr() != &navigable->active_browsing_context();
         pending_job.value()->browsing_context = context;
@@ -2830,7 +2832,7 @@ void CanonicalTraversable::did_receive_changing_navigable_continuation_applied(W
                 if (!destination_context && operation->parameters.has<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>()
                     && operation->parameters.get<Web::FinalizeCrossDocumentNavigationHistoryOperationParameters>().navigable_id == navigable_id)
                     destination_context = operation->destination_browsing_context;
-                navigable->did_commit_navigation(activated_navigable_state.release_value(), navigation_id, move(destination_context));
+                navigable->did_commit_navigation(activated_navigable_state.release_value(), navigation_id, pending_job.value()->did_populate_document, move(destination_context));
 
                 if (navigable_id == id()) {
                     if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value()) {
