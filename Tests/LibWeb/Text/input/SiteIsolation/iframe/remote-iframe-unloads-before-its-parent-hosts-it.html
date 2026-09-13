@@ -1,0 +1,52 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<script>
+    // Navigating an out-of-process iframe back to its parent's site unloads its document where it is displayed
+    // before the new document is activated in the parent's process, and only then makes the frame local.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const remoteUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-return-first-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("unload", () => { document.cookie = "unloadPing=1; path=/"; });
+                    document.cookie = "loaded=1; path=/";
+                <\/script>`,
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("oop-return-first");
+
+        const iframe = document.createElement("iframe");
+        iframe.src = remoteUrl;
+        document.body.appendChild(iframe);
+        if (
+            !(await waitForCondition(
+                () => remoteFrameCount() === 1 && internals.hasCookieForURL(remoteUrl.href, "loaded", "1")
+            ))
+        ) {
+            println("remote document did not load out of process");
+            return;
+        }
+
+        const order = new Promise(resolve => addEventListener("message", event => resolve(event.data), { once: true }));
+        iframe.srcdoc = `<script>
+            const remoteUnloaded = internals.hasCookieForURL(${JSON.stringify(remoteUrl.href)}, "unloadPing", "1");
+            parent.postMessage(remoteUnloaded ? "unload-first" : "activate-first", "*");
+        <\/script>`;
+
+        const result = await Promise.race([order, timeout(15000).then(() => "no message")]);
+        if (result === "no message") {
+            println("srcdoc document did not run");
+            return;
+        }
+        println(
+            result === "unload-first"
+                ? "remote document unloaded before the srcdoc document was activated"
+                : "srcdoc document activated before the remote document was unloaded"
+        );
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

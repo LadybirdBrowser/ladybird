@@ -126,6 +126,19 @@ public:
     void set_remote_host(NonnullRefPtr<WebContentClient>, Web::PageId remote_page_id);
     void detach_remote_host();
 
+    // The process and page chosen to host the navigable's next document, from the response that names the document
+    // until the document is activated. The displayed document stays with its host until then, so that it is
+    // unloaded there before the container is handed over.
+    bool has_pending_host() const { return m_pending_host_client; }
+    bool pending_host_matches(WebContentClient const&, Web::PageId page_id) const;
+    WebContentClient& pending_host_client() const;
+    Web::PageId pending_host_page_id() const { return m_pending_host_page_id; }
+    void set_pending_host(NonnullRefPtr<WebContentClient>, Web::PageId page_id);
+    // The pending host took the container over, so its page is no longer pending.
+    void clear_pending_host();
+    // The document the pending host was to display never activated: a page created for it is discarded.
+    void discard_pending_host();
+
     Optional<Web::DevicePixelRect> const& viewport_rect() const { return m_viewport_rect; }
     double device_pixel_ratio() const { return m_device_pixel_ratio; }
     void set_viewport(Web::DevicePixelRect, double device_pixel_ratio);
@@ -220,6 +233,11 @@ private:
     HostLocality m_host_locality { HostLocality::Local };
     RefPtr<WebContentClient> m_remote_client;
     Web::PageId m_remote_page_id { 0 };
+
+    void discard_embedded_page(NonnullRefPtr<WebContentClient>, Web::PageId page_id);
+
+    RefPtr<WebContentClient> m_pending_host_client;
+    Web::PageId m_pending_host_page_id { 0 };
 };
 
 }

@@ -89,6 +89,13 @@ void SiteIsolationManager::remove_page(WebContentClient& client, Web::PageId pag
     if (!host)
         return;
 
+    // A page chosen to host the navigable's next document, gone before that document activated, leaves the
+    // displayed document and the frames under it where they are.
+    if (host->pending_host_matches(client, page_id)) {
+        host->discard_pending_host();
+        return;
+    }
+
     // All children of the hosting navigable are the frames the page reported; any deeper
     // frames belong to their subtrees and follow them out.
     while (!host->children().is_empty())
@@ -169,11 +176,17 @@ HashMap<pid_t, pid_t> SiteIsolationManager::remote_frame_process_embedders() con
 
 ErrorOr<SiteIsolationManager::DocumentHost> SiteIsolationManager::obtain_child_document_host(CanonicalNavigable& navigable, CanonicalSimilarOriginWindowAgent& agent)
 {
+    // The host takes the container over once the document it is to display is activated; until then, the page
+    // hosting the displayed document keeps it.
     auto host = agent.hosting_process();
-    if (host && host.ptr() == navigable.reporting_client_if_any())
+    if (host && host.ptr() == navigable.reporting_client_if_any()) {
+        navigable.set_pending_host(*host, navigable.reporting_page_id());
         return DocumentHost { *host, navigable.reporting_page_id() };
-    if (host && navigable.has_remote_host() && host.ptr() == &navigable.remote_host_client())
+    }
+    if (host && navigable.has_remote_host() && host.ptr() == &navigable.remote_host_client()) {
+        navigable.set_pending_host(*host, navigable.remote_host_page_id());
         return DocumentHost { *host, navigable.remote_host_page_id() };
+    }
 
     auto& traversable = navigable.top_level_traversable();
     auto current_step = traversable.session_history().current_step();
@@ -199,11 +212,15 @@ ErrorOr<SiteIsolationManager::DocumentHost> SiteIsolationManager::obtain_child_d
     if (navigable.viewport_rect().has_value())
         host->async_set_viewport(page_id, navigable.viewport_rect()->size(), navigable.device_pixel_ratio(), Web::ViewportIsFullscreen::No);
     host->async_update_visibility_state(page_id, navigable.id(), traversable.system_visibility_state());
+    navigable.set_pending_host(*host, page_id);
     return DocumentHost { host.release_nonnull(), page_id };
 }
 
 void SiteIsolationManager::set_child_document_host(CanonicalNavigable& navigable, DocumentHost const& host)
 {
+    if (navigable.pending_host_matches(*host.client, host.page_id))
+        navigable.clear_pending_host();
+
     if (host.client.ptr() == navigable.reporting_client_if_any() && host.page_id == navigable.reporting_page_id()) {
         if (navigable.has_remote_host())
             transition_child_frame_to_local(navigable);

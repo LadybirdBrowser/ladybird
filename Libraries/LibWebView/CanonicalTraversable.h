@@ -144,7 +144,15 @@ private:
     void dispatch_changing_navigable_history_step_continuation(HistoryOperation&, Web::HTML::CrossProcessId navigable_id);
     void send_changing_navigable_continuation_task(HistoryOperation&, Web::HTML::CrossProcessId navigable_id, Web::HTML::UnloadDisplayedDocument);
     void deactivate_a_document_for_cross_document_navigation(HistoryOperation&, Web::HTML::CrossProcessId navigable_id);
-    void unload_a_document_and_its_descendants(Optional<Web::HTML::CrossProcessId> operation_id, Web::HTML::CrossProcessId root_navigable_id, Function<void()> queue_document_unload_task);
+    void unload_displayed_document_for_cross_document_navigation(HistoryOperation&, Web::HTML::CrossProcessId navigable_id);
+    void did_activate_history_entry(HistoryOperation&, Web::HTML::CrossProcessId navigable_id, WebContentClient& source_client, Web::PageId source_page_id, Web::HTML::SessionHistoryEntryDescriptor const& target_entry, CanonicalNavigable::DidPopulateDocument, RefPtr<CanonicalBrowsingContext> destination_browsing_context, Web::HTML::ReplicatedNavigableState activated_navigable_state);
+    enum class UnloadedInItsHost : bool {
+        No,
+        Yes,
+    };
+    void unload_a_document_and_its_descendants(Optional<Web::HTML::CrossProcessId> operation_id, Web::HTML::CrossProcessId navigable_id, HistoryJobEndpoint continuing_endpoint, Function<void(UnloadedInItsHost)> queue_document_unload_task);
+    void unload_document_in_its_host(Optional<Web::HTML::CrossProcessId> operation_id, HistoryJobEndpoint, Web::HTML::CrossProcessId navigable_id, Function<void()> after_unload);
+    void discard_pending_host_at(Web::HTML::CrossProcessId navigable_id, HistoryJobEndpoint const&);
     void dispatch_next_beforeunload_group(HistoryOperation&);
     void complete_unload_cancelation(HistoryOperation&, Web::HTML::HistoryStepResult);
     void dispatch_descendant_unload_task(Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id);
