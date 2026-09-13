@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #clip { position: absolute; top: 200vh; width: 100px; height: 100px; overflow: hidden; }
+    #transformed { transform: rotateX(30deg); filter: blur(0px); }
+    svg { width: 100px; height: 100px; }
+</style>
+<div id="clip"><div id="transformed"><svg><circle cx="50" cy="50" r="20" /></svg></div></div>
+<script>
+    asyncTest(async done => {
+        const target = document.querySelector("circle");
+        const nextFrame = () => new Promise(requestAnimationFrame);
+        async function settle() {
+            for (let i = 0; i < 4; ++i)
+                await nextFrame();
+        }
+        async function countersOverFrames() {
+            internals.resetStyleInvalidationCounters();
+            await settle();
+            return internals.getStyleInvalidationCounters();
+        }
+        const timeline = internals.createInternalAnimationTimeline();
+        timeline.setTime(0);
+        timeline.setTimeForObservation(0);
+        const animation = new Animation(new KeyframeEffect(target, [
+            { opacity: 0 },
+            { opacity: 1 },
+        ], { duration: 1000, iterations: Infinity }), timeline);
+        animation.play();
+        animation.startTime = 0;
+        await settle();
+        let counters = await countersOverFrames();
+        println(`offscreen SVG opacity builds no overlays: ${counters.animatedStyleOverlayBuilds === 0}`);
+        println(`an outer clip stops the frame pump around transformed and filtered SVG: ${counters.animationFramePumpRequests === 0}`);
+
+        timeline.setTimeForObservation(400);
+        println(`SVG style observes the current opacity: ${getComputedStyle(target).opacity === "0.4"}`);
+        timeline.setTime(600);
+        timeline.setTimeForObservation(600);
+        clip.scrollIntoView();
+        await settle();
+        println(`scrolling into view samples SVG opacity: ${getComputedStyle(target).opacity === "0.6"}`);
+        counters = await countersOverFrames();
+        println(`visible SVG opacity resumes the frame pump: ${counters.animationFramePumpRequests > 0}`);
+        scrollTo(0, 0);
+        await settle();
+        counters = await countersOverFrames();
+        println(`scrolling out of view stops the frame pump again: ${counters.animationFramePumpRequests === 0}`);
+
+        clip.style.transform = "translateX(0px)";
+        await settle();
+        counters = await countersOverFrames();
+        println(`a transform outside the clip keeps SVG opacity updating: ${counters.animationFramePumpRequests > 0}`);
+        clip.style.transform = "";
+        clip.style.filter = "blur(100px)";
+        await settle();
+        counters = await countersOverFrames();
+        println(`a filter outside the clip keeps SVG opacity updating: ${counters.animationFramePumpRequests > 0}`);
+        clip.style.filter = "";
+
+        target.id = "referenced";
+        const use = document.createElementNS("http://www.w3.org/2000/svg", "use");
+        use.setAttribute("href", "#referenced");
+        const visibleSVG = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+        visibleSVG.append(use);
+        document.body.append(visibleSVG);
+        await settle();
+        counters = await countersOverFrames();
+        println(`potentially referenced SVG keeps updating: ${counters.animationFramePumpRequests > 0}`);
+        visibleSVG.remove();
+        target.removeAttribute("id");
+
+        const pattern = document.createElementNS("http://www.w3.org/2000/svg", "pattern");
+        target.replaceWith(pattern);
+        pattern.append(target);
+        await settle();
+        counters = await countersOverFrames();
+        println(`SVG paint resources are not throttled by their DOM position: ${counters.animationFramePumpRequests > 0}`);
+        pattern.replaceWith(target);
+
+        animation.effect.setKeyframes([{ opacity: 0, r: "20px" }, { opacity: 1, r: "40px" }]);
+        await settle();
+        counters = await countersOverFrames();
+        println(`mixed SVG geometry and opacity animation keeps updating: ${counters.animationFramePumpRequests > 0}`);
+        animation.cancel();
+        done();
+    });
+</script>

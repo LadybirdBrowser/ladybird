@@ -1,0 +1,10 @@
+offscreen SVG and pseudo-element event listeners do not keep the frame pump running: true
+offscreen SVG and pseudo-element animations build no overlays: true
+animation event wake-up is armed: true
+SVG dispatches its iteration event: true
+pseudo-element dispatches its iteration event: true
+SVG dispatches its end event: true
+pseudo-element dispatches its end event: true
+both animations finish: true
+SVG applies its final opacity: true
+pseudo-element applies its final background position: true

@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #clip { position: absolute; top: 200vh; width: 100px; height: 100px; overflow: hidden; }
+    #target { position: relative; width: 20px; height: 20px; }
+    #target::after { content: ""; position: absolute; inset: 0; background: linear-gradient(red, blue); }
+    #target.fixed::after { position: fixed; inset: 0 auto auto 0; width: 20px; height: 20px; }
+</style>
+<div id="clip"><div id="target"></div></div>
+<script>
+    asyncTest(async done => {
+        const nextFrame = () => new Promise(requestAnimationFrame);
+        async function settle() {
+            for (let i = 0; i < 4; ++i)
+                await nextFrame();
+        }
+        async function countersOverFrames() {
+            internals.resetStyleInvalidationCounters();
+            await settle();
+            return internals.getStyleInvalidationCounters();
+        }
+        const timeline = internals.createInternalAnimationTimeline();
+        timeline.setTime(0);
+        timeline.setTimeForObservation(0);
+        const animation = new Animation(new KeyframeEffect(target, [
+            { backgroundPositionX: "0px" },
+            { backgroundPositionX: "100px" },
+        ], { duration: 1000, iterations: Infinity, pseudoElement: "::after" }), timeline);
+        animation.play();
+        animation.startTime = 0;
+        await settle();
+        let counters = await countersOverFrames();
+        println(`offscreen pseudo-element builds no overlays: ${counters.animatedStyleOverlayBuilds === 0}`);
+        println(`offscreen pseudo-element stops the frame pump: ${counters.animationFramePumpRequests === 0}`);
+
+        timeline.setTimeForObservation(400);
+        println(`pseudo-element style observes the current time: ${Math.abs(parseFloat(getComputedStyle(target, "::after").backgroundPositionX) - 40) < 0.0001}`);
+        timeline.setTime(600);
+        timeline.setTimeForObservation(600);
+        clip.scrollIntoView();
+        await settle();
+        println(`scrolling into view samples the pseudo-element: ${Math.abs(parseFloat(getComputedStyle(target, "::after").backgroundPositionX) - 60) < 0.0001}`);
+        counters = await countersOverFrames();
+        println(`visible pseudo-element resumes the frame pump: ${counters.animationFramePumpRequests > 0}`);
+        scrollTo(0, 0);
+        await settle();
+        counters = await countersOverFrames();
+        println(`scrolling out of view stops the frame pump again: ${counters.animationFramePumpRequests === 0}`);
+
+        target.className = "fixed";
+        await settle();
+        counters = await countersOverFrames();
+        println(`fixed pseudo-element escaping its host's clip keeps updating: ${counters.animationFramePumpRequests > 0}`);
+        animation.cancel();
+        done();
+    });
+</script>

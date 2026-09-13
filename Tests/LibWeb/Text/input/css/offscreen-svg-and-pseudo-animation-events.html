@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes fade { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes sweep { from { background-position-x: 0px; } to { background-position-x: 100px; } }
+    #clip { position: absolute; top: 200vh; width: 100px; height: 100px; overflow: hidden; }
+    circle { animation: fade 1s linear 3 forwards; }
+    #target::after { content: ""; display: block; width: 20px; height: 20px; animation: sweep 1s linear 3 forwards; }
+</style>
+<div id="clip"><svg><circle cx="10" cy="10" r="5" /></svg><div id="target"></div></div>
+<script>
+    asyncTest(async done => {
+        const events = [];
+        document.addEventListener("animationiteration", event => events.push(`${event.animationName} iteration ${event.elapsedTime}`));
+        document.addEventListener("animationend", event => events.push(`${event.animationName} end ${event.elapsedTime}`));
+        const timeline = internals.createInternalAnimationTimeline();
+        timeline.setTime(0);
+        timeline.setTimeForObservation(0);
+        const animations = document.getAnimations();
+        for (const animation of animations) {
+            animation.timeline = timeline;
+            animation.startTime = 0;
+        }
+        const nextFrame = () => new Promise(requestAnimationFrame);
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+        internals.resetStyleInvalidationCounters();
+        for (let i = 0; i < 4; ++i)
+            await nextFrame();
+        let counters = internals.getStyleInvalidationCounters();
+        println(`offscreen SVG and pseudo-element event listeners do not keep the frame pump running: ${counters.animationFramePumpRequests === 0}`);
+        println(`offscreen SVG and pseudo-element animations build no overlays: ${counters.animatedStyleOverlayBuilds === 0}`);
+        println(`animation event wake-up is armed: ${counters.compositorAnimationWakeupTimerActive}`);
+
+        timeline.setTimeForObservation(1000);
+        internals.fireCompositorAnimationWakeupForTesting(1000);
+        timeline.setTime(1000);
+        await nextFrame();
+        println(`SVG dispatches its iteration event: ${events.includes("fade iteration 1")}`);
+        println(`pseudo-element dispatches its iteration event: ${events.includes("sweep iteration 1")}`);
+
+        timeline.setTimeForObservation(3001);
+        internals.fireCompositorAnimationWakeupForTesting(3001);
+        timeline.setTime(3001);
+        await nextFrame();
+        println(`SVG dispatches its end event: ${events.includes("fade end 3")}`);
+        println(`pseudo-element dispatches its end event: ${events.includes("sweep end 3")}`);
+        println(`both animations finish: ${animations.every(animation => animation.playState === "finished")}`);
+        println(`SVG applies its final opacity: ${getComputedStyle(document.querySelector("circle")).opacity === "1"}`);
+        println(`pseudo-element applies its final background position: ${getComputedStyle(target, "::after").backgroundPositionX === "100px"}`);
+        for (const animation of animations)
+            animation.cancel();
+        done();
+    });
+</script>

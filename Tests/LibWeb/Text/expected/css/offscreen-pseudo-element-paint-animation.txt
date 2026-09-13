@@ -1,0 +1,7 @@
+offscreen pseudo-element builds no overlays: true
+offscreen pseudo-element stops the frame pump: true
+pseudo-element style observes the current time: true
+scrolling into view samples the pseudo-element: true
+visible pseudo-element resumes the frame pump: true
+scrolling out of view stops the frame pump again: true
+fixed pseudo-element escaping its host's clip keeps updating: true
