@@ -160,7 +160,7 @@ pub(in crate::css::style) struct PrefixRelation {
 }
 
 impl PrefixRelation {
-    fn verify_answers(&self, evaluation: &PrefixEvaluation<'_, '_>) {
+    fn verify_answers(&self, evaluation: &mut PrefixEvaluation<'_, '_>) {
         if !cfg!(test) && !super::super::verification::prefix_relation_is_enabled() {
             return;
         }
@@ -261,7 +261,7 @@ impl PrefixRelation {
     pub(in crate::css::style) fn update_geometry(
         &mut self,
         automaton: &PrefixAutomaton,
-        evaluation: &PrefixEvaluation<'_, '_>,
+        evaluation: &mut PrefixEvaluation<'_, '_>,
         changed: &[StyleNodeID],
         counters: &mut Counters,
     ) -> Vec<StyleNodeID> {
@@ -412,7 +412,7 @@ impl PrefixRelation {
     fn following_geometry_changes(
         &self,
         automaton: &PrefixAutomaton,
-        old_evaluation: &PrefixEvaluation<'_, '_>,
+        old_evaluation: &mut PrefixEvaluation<'_, '_>,
     ) -> HashMap<usize, Vec<usize>> {
         let mut result: HashMap<usize, Vec<usize>> = HashMap::default();
         if !self.sibling_order_is_preserved {
@@ -484,8 +484,8 @@ impl PrefixRelation {
     pub(in crate::css::style) fn update(
         &mut self,
         automaton: &PrefixAutomaton,
-        evaluation: &PrefixEvaluation<'_, '_>,
-        old_evaluation: &PrefixEvaluation<'_, '_>,
+        evaluation: &mut PrefixEvaluation<'_, '_>,
+        old_evaluation: &mut PrefixEvaluation<'_, '_>,
         changed_nodes: &[StyleNodeID],
         counters: &mut Counters,
     ) {
@@ -977,7 +977,7 @@ impl PrefixAutomaton {
 
     pub(in crate::css::style) fn build_relation(
         &self,
-        evaluation: &PrefixEvaluation<'_, '_>,
+        evaluation: &mut PrefixEvaluation<'_, '_>,
         root: StyleNodeID,
         counters: &mut Counters,
     ) -> PrefixRelation {

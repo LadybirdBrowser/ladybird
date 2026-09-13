@@ -67,10 +67,10 @@ use super::program::RuleID;
 use super::program::SelectorProgramID;
 use super::program::StyleSheetProgram;
 use super::relative_selector::RelationalWitnessKey;
-use super::relative_selector::RelationalWitnesses;
 use super::relative_selector::RelativeAxis;
 use super::relative_selector::RelativeQuery;
 use super::relative_selector::RelativeQueryID;
+use super::relative_selector::WitnessEffect;
 use super::relative_selector::candidate_witnesses;
 use super::relative_selector::traversal_anchor;
 use super::transaction::StateFact;
@@ -4855,7 +4855,7 @@ impl TransactionFactView {
         }
     }
 
-    fn sibling_sequence(&self, side: TransactionFactSide, node: StyleNodeID) -> Option<Rc<[StyleNodeID]>> {
+    fn sibling_sequence(&self, side: TransactionFactSide, node: StyleNodeID) -> Option<&[StyleNodeID]> {
         match side {
             TransactionFactSide::Before => self.before_sibling_geometry.sibling_sequence(node),
             TransactionFactSide::After => None,
@@ -4920,12 +4920,12 @@ pub struct MatchEvaluator<'a> {
     /// The anchor of the relational query currently being evaluated. Bound only while the witness
     /// walk runs, and restored after, so that a nested `:has()` names its own anchor.
     relative_anchor: Cell<Option<StyleNodeID>>,
-    match_workspace: Option<(&'a MatchEvaluationWorkspace, MatchEvaluationSide)>,
+    match_workspace: Option<(&'a mut MatchScratch, MatchEvaluationSide)>,
     positional_index_policy: PositionalIndexPolicy,
     transitive_relation_program: Cell<Option<SelectorProgramID>>,
     /// Where a completed simple relational evaluation records its outcome, when the caller is
     /// evaluating the live tree and current facts. See `MatchEvaluator::observing_witnesses`.
-    witnesses: Option<&'a RefCell<RelationalWitnesses>>,
+    witnesses: Option<&'a mut Vec<WitnessEffect>>,
 }
 
 /// Transaction-local answers for repeated match-program relations.
@@ -4935,9 +4935,9 @@ pub struct MatchEvaluator<'a> {
 /// that answer turns repeated prefix walks into a dynamic program.
 #[derive(Default)]
 struct MatchRelationCache {
-    answers: RefCell<MatchRelationAnswers>,
-    preceding_sibling_parent_ids: RefCell<HashMap<StyleNodeID, PrecedingSiblingParentID>>,
-    preceding_sibling_prefixes: RefCell<PrecedingSiblingPrefixes>,
+    answers: MatchRelationAnswers,
+    preceding_sibling_parent_ids: HashMap<StyleNodeID, PrecedingSiblingParentID>,
+    preceding_sibling_prefixes: PrecedingSiblingPrefixes,
 }
 
 #[derive(Default)]
@@ -5224,6 +5224,7 @@ pub(super) struct SiblingSequenceGeometry {
 
 impl SiblingSequenceGeometry {
     fn insert_sequence(&mut self, children: Vec<StyleNodeID>) -> (u32, Rc<[StyleNodeID]>, usize) {
+        u32::try_from(children.len()).expect("sibling sequence space exhausted");
         let children: Rc<[StyleNodeID]> = children.into();
         let sequence = u32::try_from(self.sequences.len()).expect("sibling sequence index space exhausted");
         self.sequence_bytes += children.len() * size_of::<StyleNodeID>() + 2 * size_of::<usize>();
@@ -5252,8 +5253,8 @@ impl SiblingSequenceGeometry {
         Some((&self.sequences[membership.sequence as usize], membership.ordinal))
     }
 
-    fn sibling_sequence(&self, node: StyleNodeID) -> Option<Rc<[StyleNodeID]>> {
-        self.sequence_and_ordinal(node).map(|(sequence, _)| sequence.clone())
+    fn sibling_sequence(&self, node: StyleNodeID) -> Option<&[StyleNodeID]> {
+        self.sequence_and_ordinal(node).map(|(sequence, _)| sequence.as_ref())
     }
 
     pub(super) fn sibling_positions(&self, node: StyleNodeID) -> Option<SiblingPositions> {
@@ -5290,24 +5291,24 @@ impl MatchEvaluationSide {
     }
 }
 
-/// Transaction-local workspace shared by match-program evaluations.
+/// Caller-owned scratch lent exclusively to one match-program evaluator at a time.
 ///
 /// Exact comparison has three semantic sides, but only two tree geometries. Current matching and
 /// old-fact matching share the current sequence positions; the old-tree side has its own. Type
 /// positions and selector answers additionally depend on the fact side and therefore remain
 /// distinct.
 #[derive(Default)]
-pub struct MatchEvaluationWorkspace {
+pub struct MatchScratch {
     relations_by_evaluation_side: [MatchRelationCache; 3],
-    sibling_geometry_by_tree_side: [RefCell<SiblingSequenceGeometry>; 2],
-    type_positions_by_evaluation_side: [RefCell<SiblingPositionColumn>; 3],
+    sibling_geometry_by_tree_side: [SiblingSequenceGeometry; 2],
+    type_positions_by_evaluation_side: [SiblingPositionColumn; 3],
     /// Whether final an+b answers are memoized at all. Style recalc runs many programs over one
     /// node — so the same test repeats, and the memo hits. A selector query is one program asking
     /// each node once: no ask ever repeats, so the memo would only ever be written — and a map
     /// insert per positional test is the single-most-expensive part of answering one.
     positional_answer_memo_suppressed: bool,
     /// Canonical plain an+b answers shared across independently compiled selector programs.
-    positional_answers_by_evaluation_side: [RefCell<PositionalAnswers>; 3],
+    positional_answers_by_evaluation_side: [PositionalAnswers; 3],
 }
 
 #[derive(Default)]
@@ -5358,17 +5359,17 @@ impl MatchRelationCache {
             shallow [];
             cached [];
             nested [
-                self.answers.borrow().capacity_bytes(),
+                self.answers.capacity_bytes(),
                 {
-                    let parent_ids = self.preceding_sibling_parent_ids.borrow();
+                    let parent_ids = &self.preceding_sibling_parent_ids;
                     capacity_bytes! {
-                        shallow [*parent_ids];
+                        shallow [parent_ids];
                         cached [];
                         nested [];
                         skip [];
                     }
                 },
-                self.preceding_sibling_prefixes.borrow().capacity_bytes(),
+                self.preceding_sibling_prefixes.capacity_bytes(),
             ];
             skip [];
         }
@@ -5381,8 +5382,8 @@ impl MatchRelationCache {
     /// that much wider probe set makes almost every lookup a miss and displaces useful matching
     /// state.
     fn clear_selector_answers(&mut self) {
-        *self.answers.get_mut() = MatchRelationAnswers::default();
-        *self.preceding_sibling_prefixes.get_mut() = PrecedingSiblingPrefixes::default();
+        self.answers = MatchRelationAnswers::default();
+        self.preceding_sibling_prefixes = PrecedingSiblingPrefixes::default();
     }
 
     fn lookup(
@@ -5391,46 +5392,42 @@ impl MatchRelationCache {
         relation: SelectorNodeID,
         node: StyleNodeID,
     ) -> Lookup<(), MatchRelationAnswerGap> {
-        self.answers.borrow().lookup(program, relation, node)
+        self.answers.lookup(program, relation, node)
     }
 
-    fn insert(&self, program: SelectorProgramID, relation: SelectorNodeID, node: StyleNodeID, answer: bool) {
-        self.answers.borrow_mut().insert(program, relation, node, answer);
+    fn insert(&mut self, program: SelectorProgramID, relation: SelectorNodeID, node: StyleNodeID, answer: bool) {
+        self.answers.insert(program, relation, node, answer);
     }
 
     fn preceding_sibling_prefix(
-        &self,
+        &mut self,
         program: SelectorProgramID,
         relation: SelectorNodeID,
         parent: StyleNodeID,
     ) -> (PrecedingSiblingParentID, Option<PrecedingSiblingPrefix>) {
         let parent = {
-            let mut parent_ids = self.preceding_sibling_parent_ids.borrow_mut();
+            let parent_ids = &mut self.preceding_sibling_parent_ids;
             let next_id = parent_ids.len();
             *parent_ids.entry(parent).or_insert_with(|| {
                 PrecedingSiblingParentID(u32::try_from(next_id).expect("preceding sibling parent space exhausted"))
             })
         };
-        (
-            parent,
-            self.preceding_sibling_prefixes.borrow().get(program, relation, parent),
-        )
+        (parent, self.preceding_sibling_prefixes.get(program, relation, parent))
     }
 
     fn insert_preceding_sibling_prefix(
-        &self,
+        &mut self,
         program: SelectorProgramID,
         relation: SelectorNodeID,
         parent: PrecedingSiblingParentID,
         prefix: PrecedingSiblingPrefix,
     ) {
         self.preceding_sibling_prefixes
-            .borrow_mut()
             .insert(program, relation, parent, prefix);
     }
 }
 
-impl MatchEvaluationWorkspace {
+impl MatchScratch {
     #[must_use]
     pub fn capacity_bytes(&self) -> u64 {
         capacity_bytes! {
@@ -5444,16 +5441,16 @@ impl MatchEvaluationWorkspace {
                 self
                 .sibling_geometry_by_tree_side
                 .iter()
-                .map(|geometry| geometry.borrow().capacity_bytes())
+                .map(|geometry| geometry.capacity_bytes())
                 .sum::<usize>(),
                 self
                 .type_positions_by_evaluation_side
                 .iter()
-                .map(|positions| positions.borrow().capacity_bytes())
+                .map(|positions| positions.capacity_bytes())
                 .sum::<u64>(),
                 self.positional_answers_by_evaluation_side
                 .iter()
-                .map(|answers| answers.borrow().capacity_bytes())
+                .map(|answers| answers.capacity_bytes())
                 .sum::<usize>(),
             ];
             skip [];
@@ -5471,15 +5468,15 @@ impl MatchEvaluationWorkspace {
     pub(super) fn clear_old_evaluation_sides(&mut self) {
         self.relations_by_evaluation_side[MatchEvaluationSide::OldTree as usize] = MatchRelationCache::default();
         self.relations_by_evaluation_side[MatchEvaluationSide::OldFacts as usize] = MatchRelationCache::default();
-        *self.sibling_geometry_by_tree_side[MatchEvaluationSide::OldTree.tree_side()].get_mut() =
+        self.sibling_geometry_by_tree_side[MatchEvaluationSide::OldTree.tree_side()] =
             SiblingSequenceGeometry::default();
-        *self.type_positions_by_evaluation_side[MatchEvaluationSide::OldTree as usize].get_mut() =
+        self.type_positions_by_evaluation_side[MatchEvaluationSide::OldTree as usize] =
             SiblingPositionColumn::default();
-        *self.type_positions_by_evaluation_side[MatchEvaluationSide::OldFacts as usize].get_mut() =
+        self.type_positions_by_evaluation_side[MatchEvaluationSide::OldFacts as usize] =
             SiblingPositionColumn::default();
-        *self.positional_answers_by_evaluation_side[MatchEvaluationSide::OldTree as usize].get_mut() =
+        self.positional_answers_by_evaluation_side[MatchEvaluationSide::OldTree as usize] =
             PositionalAnswers::default();
-        *self.positional_answers_by_evaluation_side[MatchEvaluationSide::OldFacts as usize].get_mut() =
+        self.positional_answers_by_evaluation_side[MatchEvaluationSide::OldFacts as usize] =
             PositionalAnswers::default();
     }
 
@@ -5494,12 +5491,8 @@ impl MatchEvaluationWorkspace {
         of_type: bool,
     ) -> Option<SiblingPositions> {
         match of_type {
-            true => self.type_positions_by_evaluation_side[side as usize]
-                .borrow()
-                .get(node.element_index()? as usize),
-            false => self.sibling_geometry_by_tree_side[side.tree_side()]
-                .borrow()
-                .sibling_positions(node),
+            true => self.type_positions_by_evaluation_side[side as usize].get(node.element_index()? as usize),
+            false => self.sibling_geometry_by_tree_side[side.tree_side()].sibling_positions(node),
         }
     }
 
@@ -5516,13 +5509,11 @@ impl MatchEvaluationWorkspace {
         if self.positional_answer_memo_suppressed {
             return None;
         }
-        self.positional_answers_by_evaluation_side[side as usize]
-            .borrow()
-            .get(position, node)
+        self.positional_answers_by_evaluation_side[side as usize].get(position, node)
     }
 
     fn insert_positional_answer(
-        &self,
+        &mut self,
         position: NthPosition,
         node: StyleNodeID,
         side: MatchEvaluationSide,
@@ -5531,33 +5522,28 @@ impl MatchEvaluationWorkspace {
         if self.positional_answer_memo_suppressed {
             return;
         }
-        self.positional_answers_by_evaluation_side[side as usize]
-            .borrow_mut()
-            .insert(position, node, answer);
+        self.positional_answers_by_evaluation_side[side as usize].insert(position, node, answer);
     }
 
-    fn sibling_sequence(&self, node: StyleNodeID, side: MatchEvaluationSide) -> Option<Rc<[StyleNodeID]>> {
-        self.sibling_geometry_by_tree_side[side.tree_side()]
-            .borrow()
-            .sibling_sequence(node)
+    fn sibling_sequence(&self, node: StyleNodeID, side: MatchEvaluationSide) -> Option<&[StyleNodeID]> {
+        self.sibling_geometry_by_tree_side[side.tree_side()].sibling_sequence(node)
     }
 
     /// Publish one tree-side sibling sequence and return its shared child range, allocated pages,
     /// and whether the sequence was new.
     pub(super) fn publish_sibling_sequence(
-        &self,
+        &mut self,
         children: Vec<StyleNodeID>,
         side: MatchEvaluationSide,
     ) -> (Rc<[StyleNodeID]>, usize, bool) {
         if let Some(&first) = children.first()
-            && let Some(sequence) = self.sibling_sequence(first, side)
+            && let Some((sequence, _)) =
+                self.sibling_geometry_by_tree_side[side.tree_side()].sequence_and_ordinal(first)
         {
-            return (sequence, 0, false);
+            return (sequence.clone(), 0, false);
         }
 
-        let (_, children, pages) = self.sibling_geometry_by_tree_side[side.tree_side()]
-            .borrow_mut()
-            .insert_sequence(children);
+        let (_, children, pages) = self.sibling_geometry_by_tree_side[side.tree_side()].insert_sequence(children);
         (children, pages, true)
     }
 }
@@ -5619,11 +5605,7 @@ impl<'a> MatchEvaluator<'a> {
     }
 
     #[must_use]
-    pub(super) fn with_match_workspace(
-        mut self,
-        workspace: &'a MatchEvaluationWorkspace,
-        side: MatchEvaluationSide,
-    ) -> Self {
+    pub(super) fn with_match_workspace(mut self, workspace: &'a mut MatchScratch, side: MatchEvaluationSide) -> Self {
         self.match_workspace = Some((workspace, side));
         self
     }
@@ -5636,21 +5618,28 @@ impl<'a> MatchEvaluator<'a> {
         self
     }
 
-    /// Record completed simple relational evaluations in `witnesses`.
+    /// Return completed simple relational evaluations through an owned effect buffer.
     ///
     /// Only an evaluator reading the live tree and the current facts may observe: retention's
     /// soundness rests on every entry having been written by an evaluation whose answer is the
     /// current truth, so an evaluator with a before-side transaction view or workspace must never
     /// call this.
     #[must_use]
-    pub(super) fn observing_witnesses(mut self, witnesses: &'a RefCell<RelationalWitnesses>) -> Self {
+    pub(super) fn observing_witnesses(mut self, witnesses: &'a mut Vec<WitnessEffect>) -> Self {
         debug_assert!(self.transaction_fact_view.is_none());
         debug_assert!(
             self.match_workspace
+                .as_ref()
                 .is_none_or(|(_, side)| matches!(side, MatchEvaluationSide::Current))
         );
         self.witnesses = Some(witnesses);
         self
+    }
+
+    pub(super) fn match_scratch_capacity_bytes(&self) -> u64 {
+        self.match_workspace
+            .as_ref()
+            .map_or(0, |(scratch, _)| scratch.capacity_bytes())
     }
 
     fn parent_of(&self, node: StyleNodeID) -> Option<StyleNodeID> {
@@ -5674,7 +5663,7 @@ impl<'a> MatchEvaluator<'a> {
         )
     }
 
-    fn children_of(&self, parent: StyleNodeID) -> SiblingChildren<'_> {
+    fn children_of(&self, parent: StyleNodeID) -> SiblingChildren<'a> {
         match self.transaction_fact_view {
             Some((view, side)) => view.children_of(self.tree, side, parent),
             None => SiblingChildren::Live(self.tree.children(parent)),
@@ -5692,7 +5681,7 @@ impl<'a> MatchEvaluator<'a> {
     }
 
     fn matches_host_argument(
-        &self,
+        &mut self,
         program: &SelectorProgram,
         inner: SelectorNodeID,
         host: StyleNodeID,
@@ -5711,7 +5700,7 @@ impl<'a> MatchEvaluator<'a> {
     /// root selector names. A rule with no `@scope` is infinitely far, which is what makes an
     /// unscoped declaration lose the proximity comparison to every scoped one.
     pub fn scope_proximity_of(
-        &self,
+        &mut self,
         program: &SelectorProgram,
         entry: &SelectorEntry,
         node: StyleNodeID,
@@ -5738,7 +5727,7 @@ impl<'a> MatchEvaluator<'a> {
     /// Short-circuiting is only allowed where it cannot hide a later entry with a greater cascade
     /// contribution, so every entry is evaluated rather than stopping at the first match.
     pub fn match_entries(
-        &self,
+        &mut self,
         program: &SelectorProgram,
         node: StyleNodeID,
         counters: &mut Counters,
@@ -5762,7 +5751,7 @@ impl<'a> MatchEvaluator<'a> {
     /// "descendant of the scoping root and not of any scoping limit". The binding is already in
     /// place, so `:scope` in either the limit or the selector names this root.
     fn subject_is_in_scope(
-        &self,
+        &mut self,
         program: &SelectorProgram,
         limit: Option<SelectorNodeID>,
         inner: SelectorNodeID,
@@ -5787,7 +5776,7 @@ impl<'a> MatchEvaluator<'a> {
 
     /// Whether `node` matches one entry.
     pub fn matches_entry(
-        &self,
+        &mut self,
         program: &SelectorProgram,
         entry: &SelectorEntry,
         node: StyleNodeID,
@@ -5801,7 +5790,7 @@ impl<'a> MatchEvaluator<'a> {
     /// Dispatch selects a subject-local feature from the entry root. Do not ask the fact store for
     /// that same feature again while materializing the posting's exact selector incidence.
     pub(super) fn matches_entry_after_dispatch(
-        &self,
+        &mut self,
         program: &SelectorProgram,
         entry: &SelectorEntry,
         known: DispatchKey,
@@ -5834,7 +5823,7 @@ impl<'a> MatchEvaluator<'a> {
     /// Whether `node` matches one entry, reusing transitive relation answers from other nodes
     /// evaluated against the same selector program.
     pub fn matches_entry_for_program(
-        &self,
+        &mut self,
         program_id: SelectorProgramID,
         program: &SelectorProgram,
         entry: &SelectorEntry,
@@ -5851,7 +5840,7 @@ impl<'a> MatchEvaluator<'a> {
     /// shared program caches. Narrow exact comparisons consume the answer once, so they keep the
     /// workspace's positional geometry but avoid canonicalization and sparse-column traffic.
     pub(super) fn matches_entry_without_program_caches(
-        &self,
+        &mut self,
         program: &SelectorProgram,
         entry: &SelectorEntry,
         node: StyleNodeID,
@@ -5863,7 +5852,7 @@ impl<'a> MatchEvaluator<'a> {
     /// Whether `node` matches one selector IR node. Routing's retained-witness check uses this to
     /// re-evaluate a simple query's compound on the one retained witness.
     pub(super) fn matches_selector_node(
-        &self,
+        &mut self,
         program: &SelectorProgram,
         id: SelectorNodeID,
         node: StyleNodeID,
@@ -5874,7 +5863,7 @@ impl<'a> MatchEvaluator<'a> {
 
     /// Match the local half of one top-down selector-prefix step.
     pub(super) fn matches_prefix_local(
-        &self,
+        &mut self,
         program_id: SelectorProgramID,
         program: &SelectorProgram,
         local: SelectorPrefixLocal,
@@ -5921,7 +5910,7 @@ impl<'a> MatchEvaluator<'a> {
 
     #[inline]
     fn matches_compound(
-        &self,
+        &mut self,
         program: &SelectorProgram,
         first: u32,
         count: u32,
@@ -5945,7 +5934,7 @@ impl<'a> MatchEvaluator<'a> {
     // :host, :host(), and :host-context() pseudo-classes are allowed to match it. Selector-list
     // pseudos preserve that restriction: only an alternative that reaches :host can match.
     fn matches_featureless_host(
-        &self,
+        &mut self,
         program: &SelectorProgram,
         id: SelectorNodeID,
         host: StyleNodeID,
@@ -6005,7 +5994,7 @@ impl<'a> MatchEvaluator<'a> {
 
     #[inline]
     fn matches_relation_target(
-        &self,
+        &mut self,
         program: &SelectorProgram,
         id: SelectorNodeID,
         node: StyleNodeID,
@@ -6020,17 +6009,23 @@ impl<'a> MatchEvaluator<'a> {
     }
 
     fn matches_descendant_relation(
-        &self,
+        &mut self,
         program: &SelectorProgram,
         relation: SelectorNodeID,
         inner: SelectorNodeID,
         node: StyleNodeID,
         counters: &mut Counters,
     ) -> Result<bool, Incomplete> {
-        let (workspace, side) = self.match_workspace.unwrap();
-        let cache = workspace.relations(side);
+        let side = self.match_workspace.as_ref().unwrap().1;
         let program_id = self.transitive_relation_program.get().unwrap();
-        match cache.lookup(program_id, relation, node) {
+        match self
+            .match_workspace
+            .as_ref()
+            .unwrap()
+            .0
+            .relations(side)
+            .lookup(program_id, relation, node)
+        {
             Lookup::Known(()) => return Ok(true),
             Lookup::KnownAbsent => return Ok(false),
             Lookup::Missing(_) => {}
@@ -6052,7 +6047,14 @@ impl<'a> MatchEvaluator<'a> {
                     incomplete.get_or_insert(error);
                 }
             }
-            match cache.lookup(program_id, relation, adjacent) {
+            match self
+                .match_workspace
+                .as_ref()
+                .unwrap()
+                .0
+                .relations(side)
+                .lookup(program_id, relation, adjacent)
+            {
                 Lookup::Known(()) => break true,
                 Lookup::KnownAbsent => break false,
                 Lookup::Missing(_) => {}
@@ -6067,26 +6069,32 @@ impl<'a> MatchEvaluator<'a> {
         // turns a later sparse candidate into one lookup even when the immediately adjacent node
         // was not itself a selector candidate.
         for traversed_node in traversed {
-            cache.insert(program_id, relation, traversed_node, answer);
+            self.match_workspace.as_mut().unwrap().0.relations_by_evaluation_side[side as usize].insert(
+                program_id,
+                relation,
+                traversed_node,
+                answer,
+            );
         }
         Ok(answer)
     }
 
     fn matches_preceding_sibling_prefix(
-        &self,
+        &mut self,
         program: &SelectorProgram,
         relation: SelectorNodeID,
         inner: SelectorNodeID,
         node: StyleNodeID,
         counters: &mut Counters,
     ) -> Result<bool, Incomplete> {
-        let (workspace, side) = self.match_workspace.unwrap();
-        let cache = workspace.relations(side);
+        let side = self.match_workspace.as_ref().unwrap().1;
         let program_id = self.transitive_relation_program.get().unwrap();
         let Some(parent) = self.parent_of(node) else {
             return Ok(false);
         };
-        let (parent_id, cached_prefix) = cache.preceding_sibling_prefix(program_id, relation, parent);
+        let (parent_id, cached_prefix) = self.match_workspace.as_mut().unwrap().0.relations_by_evaluation_side
+            [side as usize]
+            .preceding_sibling_prefix(program_id, relation, parent);
         if let Some(prefix) = cached_prefix
             && prefix.next == Some(node)
         {
@@ -6105,7 +6113,8 @@ impl<'a> MatchEvaluator<'a> {
                 {
                     return Err(incomplete);
                 }
-                cache.insert_preceding_sibling_prefix(program_id, relation, parent_id, prefix);
+                self.match_workspace.as_mut().unwrap().0.relations_by_evaluation_side[side as usize]
+                    .insert_preceding_sibling_prefix(program_id, relation, parent_id, prefix);
                 return Ok(prefix.answer);
             }
             let Some(current) = prefix.next else {
@@ -6192,7 +6201,7 @@ impl<'a> MatchEvaluator<'a> {
     }
 
     fn matches_node(
-        &self,
+        &mut self,
         program: &SelectorProgram,
         id: SelectorNodeID,
         node: StyleNodeID,
@@ -6346,8 +6355,8 @@ impl<'a> MatchEvaluator<'a> {
                 let memoizes_answers = self.positional_index_policy == PositionalIndexPolicy::All;
                 if memoizes_answers
                     && position.of_selector.is_none()
-                    && let Some((workspace, side)) = self.match_workspace
-                    && let Some(answer) = workspace.positional_answer(position, node, side)
+                    && let Some((workspace, side)) = self.match_workspace.as_mut()
+                    && let Some(answer) = workspace.positional_answer(position, node, *side)
                 {
                     return Ok(answer);
                 }
@@ -6355,10 +6364,10 @@ impl<'a> MatchEvaluator<'a> {
                 let result = self.matches_nth(program, position, node, counters);
                 if memoizes_answers
                     && position.of_selector.is_none()
-                    && let Some((workspace, side)) = self.match_workspace
+                    && let Some((workspace, side)) = self.match_workspace.as_mut()
                     && let Ok(answer) = result
                 {
-                    workspace.insert_positional_answer(position, node, side, answer);
+                    workspace.insert_positional_answer(position, node, *side, answer);
                 }
                 result
             }
@@ -6613,7 +6622,7 @@ impl<'a> MatchEvaluator<'a> {
                 // the entry doubles as "the last completed evaluation answered true", which is the
                 // half a routing-time re-verification cannot re-establish on its own. A walk that
                 // ended incomplete proved neither and leaves the entry alone.
-                if let Some(witnesses) = self.witnesses
+                if let Some(witnesses) = self.witnesses.as_deref_mut()
                     && let Some(program_id) = self.transitive_relation_program.get()
                     && program.retainable_relative_query(query_id).is_some()
                 {
@@ -6624,9 +6633,9 @@ impl<'a> MatchEvaluator<'a> {
                     };
                     match (&matched, found) {
                         (Ok(true), Some(witness)) => {
-                            witnesses.borrow_mut().retain(key, witness, self.tree);
+                            witnesses.push(WitnessEffect::Retain(key, witness));
                         }
-                        (Ok(false), _) => witnesses.borrow_mut().clear(key),
+                        (Ok(false), _) => witnesses.push(WitnessEffect::Clear(key)),
                         _ => {}
                     }
                 }
@@ -6740,7 +6749,7 @@ impl<'a> MatchEvaluator<'a> {
     }
 
     pub(super) fn matches_nth(
-        &self,
+        &mut self,
         program: &SelectorProgram,
         position: NthPosition,
         node: StyleNodeID,
@@ -6819,7 +6828,7 @@ impl<'a> MatchEvaluator<'a> {
         Ok(matches_an_plus_b(position.step, position.offset, index))
     }
 
-    /// Return a sibling position from the shared index, building that sequence on its first ask.
+    /// Return a sibling position from private scratch, building that sequence on its first ask.
     ///
     /// A broad matching or exact-planning batch asks many positional selectors about the same
     /// children. Counting from an end for every `(selector, child)` pair is quadratic in the
@@ -6827,13 +6836,14 @@ impl<'a> MatchEvaluator<'a> {
     /// of-type positions additionally depend on the fact side, so old and new evaluations use
     /// separate caches.
     pub(super) fn indexed_sibling_position(
-        &self,
+        &mut self,
         position: NthPosition,
         node: StyleNodeID,
     ) -> Result<Option<i64>, Incomplete> {
-        let Some((workspace, side)) = self.match_workspace else {
+        let Some((_, side)) = self.match_workspace.as_ref() else {
             return Ok(None);
         };
+        let side = *side;
         if !position.of_type
             && let Some(cached) = self
                 .transaction_fact_view
@@ -6844,7 +6854,13 @@ impl<'a> MatchEvaluator<'a> {
                 false => cached.from_start,
             })));
         }
-        if let Some(cached) = workspace.sibling_position(node, side, position.of_type) {
+        if let Some(cached) = self
+            .match_workspace
+            .as_ref()
+            .unwrap()
+            .0
+            .sibling_position(node, side, position.of_type)
+        {
             return Ok(Some(i64::from(match position.from_end {
                 true => cached.from_end,
                 false => cached.from_start,
@@ -6857,20 +6873,30 @@ impl<'a> MatchEvaluator<'a> {
             }
             return Ok(Some(1));
         };
-        let siblings = match self
+        let view_sequence = self
             .transaction_fact_view
-            .and_then(|(view, side)| view.sibling_sequence(side, node))
+            .and_then(|(view, side)| view.sibling_sequence(side, node));
+        if view_sequence.is_none()
+            && self
+                .match_workspace
+                .as_ref()
+                .unwrap()
+                .0
+                .sibling_sequence(node, side)
+                .is_none()
         {
-            Some(siblings) => siblings,
-            None => match workspace.sibling_sequence(node, side) {
-                Some(siblings) => siblings,
-                None => {
-                    let siblings: Vec<StyleNodeID> = self.children_of(parent).collect();
-                    let (siblings, _, _) = workspace.publish_sibling_sequence(siblings, side);
-                    siblings
-                }
-            },
-        };
+            let children = self.children_of(parent).collect();
+            self.match_workspace.as_mut().unwrap().0.sibling_geometry_by_tree_side[side.tree_side()]
+                .insert_sequence(children);
+        }
+        let siblings = view_sequence.unwrap_or_else(|| {
+            self.match_workspace
+                .as_ref()
+                .unwrap()
+                .0
+                .sibling_sequence(node, side)
+                .unwrap()
+        });
         if siblings.is_empty() {
             return Ok(None);
         }
@@ -6879,7 +6905,7 @@ impl<'a> MatchEvaluator<'a> {
             let mut type_ids = HashMap::default();
             let mut sibling_types = Vec::with_capacity(siblings.len());
             let mut type_positions: SmallVec<[SiblingPositions; 1]> = SmallVec::new();
-            for &sibling in siblings.iter() {
+            for &sibling in siblings {
                 let row = match self.row_of(sibling) {
                     Ok(row) => row,
                     Err(Incomplete::MissingFacts(missing)) => {
@@ -6902,7 +6928,13 @@ impl<'a> MatchEvaluator<'a> {
                 sibling_types.push(type_id);
                 type_positions[type_id as usize].from_end += 1;
             }
-            let mut positions = workspace.type_positions_by_evaluation_side[side as usize].borrow_mut();
+            let scratch = &mut self.match_workspace.as_mut().unwrap().0;
+            let siblings = view_sequence.unwrap_or_else(|| {
+                scratch.sibling_geometry_by_tree_side[side.tree_side()]
+                    .sibling_sequence(node)
+                    .unwrap()
+            });
+            let positions = &mut scratch.type_positions_by_evaluation_side[side as usize];
             for (&sibling, type_id) in siblings.iter().zip(sibling_types) {
                 let position = &mut type_positions[type_id as usize];
                 position.from_start += 1;
@@ -6914,7 +6946,13 @@ impl<'a> MatchEvaluator<'a> {
             }
         }
 
-        let Some(cached) = workspace.sibling_position(node, side, position.of_type) else {
+        let Some(cached) = self
+            .match_workspace
+            .as_ref()
+            .unwrap()
+            .0
+            .sibling_position(node, side, position.of_type)
+        else {
             return Ok(None);
         };
         Ok(Some(i64::from(match position.from_end {
@@ -6925,7 +6963,7 @@ impl<'a> MatchEvaluator<'a> {
 
     /// Whether one sibling is counted by this positional test's sequence.
     fn counts_in_sequence(
-        &self,
+        &mut self,
         program: &SelectorProgram,
         position: NthPosition,
         subject_type: Option<(StyleAtomID, StyleAtomID)>,
@@ -7109,7 +7147,7 @@ mod tests {
 
     #[test]
     fn relation_answers_share_packed_pages_per_compiled_relation() {
-        let cache = MatchRelationCache::default();
+        let mut cache = MatchRelationCache::default();
         let program = SelectorProgramID(7);
         let relation = SelectorNodeID(11);
         let first = StyleNodeID::element(1);
@@ -7139,7 +7177,7 @@ mod tests {
                 node: first,
             })
         );
-        assert!(cache.answers.borrow().capacity_bytes() > 0);
+        assert!(cache.answers.capacity_bytes() > 0);
     }
 
     #[test]
@@ -7173,7 +7211,7 @@ mod tests {
 
     #[test]
     fn sibling_positions_share_tree_geometry_but_not_fact_sensitive_ranks() {
-        let mut cache = MatchEvaluationWorkspace::default();
+        let mut cache = MatchScratch::default();
         let node = StyleNodeID::element(3);
         let next_page = StyleNodeID::element(64);
         let position = SiblingPositions {
@@ -7197,18 +7235,15 @@ mod tests {
         assert_eq!(cache.sibling_position(node, MatchEvaluationSide::OldTree, false), None);
         assert_eq!(
             cache.sibling_geometry_by_tree_side[MatchEvaluationSide::Current.tree_side()]
-                .borrow()
                 .memberships
                 .page_count(),
             2
         );
 
         cache.type_positions_by_evaluation_side[MatchEvaluationSide::Current as usize]
-            .borrow_mut()
             .insert(node.element_index().unwrap() as usize, position);
         assert_eq!(cache.sibling_position(node, MatchEvaluationSide::OldFacts, true), None);
         cache.type_positions_by_evaluation_side[MatchEvaluationSide::OldFacts as usize]
-            .borrow_mut()
             .insert(node.element_index().unwrap() as usize, position);
         cache.retain_current_for_matching();
         assert_eq!(
@@ -7239,9 +7274,9 @@ mod tests {
                 of_type: false,
             }))
         });
-        let workspace = MatchEvaluationWorkspace::default();
-        let evaluator = MatchEvaluator::new(&fixture.tree, &fixture.facts)
-            .with_match_workspace(&workspace, MatchEvaluationSide::Current);
+        let mut workspace = MatchScratch::default();
+        let mut evaluator = MatchEvaluator::new(&fixture.tree, &fixture.facts)
+            .with_match_workspace(&mut workspace, MatchEvaluationSide::Current);
 
         assert!(
             !evaluator
@@ -7261,9 +7296,9 @@ mod tests {
         let mut fixture = Fixture::new();
         let first = single_entry(|builder| builder.push_feature(FeatureTest::Class(CLASS_ITEM)));
         let second = single_entry(|builder| builder.push_feature(FeatureTest::Class(CLASS_ITEM)));
-        let workspace = MatchEvaluationWorkspace::default();
-        let evaluator = MatchEvaluator::new(&fixture.tree, &fixture.facts)
-            .with_match_workspace(&workspace, MatchEvaluationSide::Current);
+        let mut workspace = MatchScratch::default();
+        let mut evaluator = MatchEvaluator::new(&fixture.tree, &fixture.facts)
+            .with_match_workspace(&mut workspace, MatchEvaluationSide::Current);
 
         assert!(
             evaluator
@@ -7409,7 +7444,7 @@ mod tests {
         }
 
         fn matches(&mut self, program: &SelectorProgram, node: usize) -> bool {
-            let evaluator = MatchEvaluator::new(&self.tree, &self.facts);
+            let mut evaluator = MatchEvaluator::new(&self.tree, &self.facts);
             evaluator
                 .matches_entry(program, &program.entries()[0], self.nodes[node], &mut self.counters)
                 .unwrap()
@@ -7418,7 +7453,7 @@ mod tests {
         /// The same, for rules attached to a shadow tree rather than to the document.
         fn matches_in_shadow_tree(&mut self, program: &SelectorProgram, node: usize, shadow_root: usize) -> bool {
             let shadow_root = self.nodes[shadow_root];
-            let evaluator = MatchEvaluator::new(&self.tree, &self.facts).in_shadow_tree(shadow_root);
+            let mut evaluator = MatchEvaluator::new(&self.tree, &self.facts).in_shadow_tree(shadow_root);
             evaluator
                 .matches_entry(program, &program.entries()[0], self.nodes[node], &mut self.counters)
                 .unwrap()
@@ -7646,7 +7681,7 @@ mod tests {
             &[],
             &[],
         );
-        let evaluator = MatchEvaluator::new(&fixture.tree, &sparse);
+        let mut evaluator = MatchEvaluator::new(&fixture.tree, &sparse);
 
         assert_eq!(
             evaluator.matches_entry(&program, &program.entries()[0], fixture.nodes[3], &mut fixture.counters),
@@ -7675,7 +7710,7 @@ mod tests {
             &[],
             &[],
         );
-        let evaluator = MatchEvaluator::new(&fixture.tree, &sparse);
+        let mut evaluator = MatchEvaluator::new(&fixture.tree, &sparse);
 
         assert_eq!(
             evaluator.matches_entry(&program, &program.entries()[0], fixture.nodes[3], &mut fixture.counters),
@@ -7704,7 +7739,7 @@ mod tests {
             let div = builder.push_feature(FeatureTest::TagName(TagTest::exact(TAG_DIV)));
             builder.push_compound(&[div, preceding])
         });
-        let evaluator = MatchEvaluator::new(&fixture.tree, &fixture.facts);
+        let mut evaluator = MatchEvaluator::new(&fixture.tree, &fixture.facts);
 
         assert_eq!(
             evaluator.matches_entry(&program, &program.entries()[0], fixture.nodes[3], &mut fixture.counters),
@@ -7738,7 +7773,7 @@ mod tests {
             &[CLASS_ITEM],
             &[],
         );
-        let evaluator = MatchEvaluator::new(&fixture.tree, &sparse);
+        let mut evaluator = MatchEvaluator::new(&fixture.tree, &sparse);
 
         assert_eq!(
             evaluator.matches_entry(&program, &program.entries()[0], fixture.nodes[1], &mut fixture.counters),
@@ -7840,14 +7875,14 @@ mod tests {
         });
 
         let mut fixture = Fixture::new();
-        let evaluator = MatchEvaluator::new(&fixture.tree, &fixture.facts).with_scope_root(fixture.nodes[0]);
+        let mut evaluator = MatchEvaluator::new(&fixture.tree, &fixture.facts).with_scope_root(fixture.nodes[0]);
         assert!(
             evaluator
                 .matches_entry(&program, &program.entries()[0], fixture.nodes[1], &mut fixture.counters)
                 .unwrap()
         );
 
-        let evaluator = MatchEvaluator::new(&fixture.tree, &fixture.facts).with_scope_root(fixture.nodes[1]);
+        let mut evaluator = MatchEvaluator::new(&fixture.tree, &fixture.facts).with_scope_root(fixture.nodes[1]);
         assert!(
             !evaluator
                 .matches_entry(&program, &program.entries()[0], fixture.nodes[1], &mut fixture.counters)
@@ -7944,7 +7979,7 @@ mod tests {
             &[],
             &[],
         );
-        let evaluator = MatchEvaluator::new(&fixture.tree, &first_only);
+        let mut evaluator = MatchEvaluator::new(&fixture.tree, &first_only);
         assert_eq!(
             evaluator.matches_entry(
                 &from_end,
@@ -7967,7 +8002,7 @@ mod tests {
             &[],
             &[],
         );
-        let evaluator = MatchEvaluator::new(&fixture.tree, &last_only);
+        let mut evaluator = MatchEvaluator::new(&fixture.tree, &last_only);
         assert_eq!(
             evaluator.matches_entry(
                 &from_start,
@@ -8006,7 +8041,7 @@ mod tests {
         let program = builder.finish();
 
         let mut fixture = Fixture::new();
-        let evaluator = MatchEvaluator::new(&fixture.tree, &fixture.facts);
+        let mut evaluator = MatchEvaluator::new(&fixture.tree, &fixture.facts);
         let matched = evaluator
             .match_entries(&program, fixture.nodes[2], &mut fixture.counters)
             .unwrap()
@@ -8026,7 +8061,7 @@ mod tests {
         let program = single_entry(|builder| builder.push_feature(FeatureTest::Class(CLASS_ITEM)));
         let mut fixture = Fixture::new();
         let missing = StyleNodeID::element(99);
-        let evaluator = MatchEvaluator::new(&fixture.tree, &fixture.facts);
+        let mut evaluator = MatchEvaluator::new(&fixture.tree, &fixture.facts);
         assert_eq!(
             evaluator.matches_entry(&program, &program.entries()[0], missing, &mut fixture.counters),
             Err(Incomplete::MissingFacts(missing))

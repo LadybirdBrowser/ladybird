@@ -267,6 +267,7 @@ use relative_selector::RelationalWitnessKey;
 use relative_selector::RelationalWitnesses;
 use relative_selector::RelativeAxis;
 use relative_selector::RelativeQueryID;
+use relative_selector::WitnessEffect;
 use relative_selector::possible_anchors;
 use relative_selector::possible_hosting_anchors;
 use relative_selector::traversal_anchor;
@@ -274,8 +275,8 @@ use selector::Incomplete;
 use selector::InverseStep;
 use selector::LiveRelationalRoute;
 use selector::MatchEvaluationSide;
-use selector::MatchEvaluationWorkspace;
 use selector::MatchEvaluator;
+use selector::MatchScratch;
 use selector::NthPosition;
 use selector::RelativeAnchor;
 use selector::RouteID;
@@ -819,10 +820,10 @@ pub struct StyleEngineState {
     routing_needs_detachment_sweep: bool,
     /// The old dense rule sequence while one sheet is synchronously reparsed.
     sheet_rule_replacement: Option<SheetRuleReplacement>,
-    match_workspace: MatchEvaluationWorkspace,
+    match_workspace: MatchScratch,
     /// Sibling positions and relation answers shared by the candidates of one DOM selector query.
     /// A query can't mutate the tree it walks — so this is reset per-query, rather than per-candidate.
-    query_match_workspace: MatchEvaluationWorkspace,
+    query_match_workspace: MatchScratch,
     /// Advanced when a selector query settles over a changed document — so a run of queries over
     /// an unchanged one shares a single workspace. A query that never asks a positional question
     /// pays a comparison, rather than a workspace rebuild.
@@ -965,9 +966,10 @@ pub struct StyleEngineState {
     /// Whether the current plan records attribution at all: without a patch selection nothing
     /// consumes it, so the narrowing paths skip the bookkeeping entirely.
     selector_truth_changes_active: bool,
-    /// The retained witnesses of simple relational queries. Behind a `RefCell` because the cold
-    /// evaluator writes them mid-evaluation while it holds shared borrows of the stores it reads.
-    relational_witnesses: RefCell<RelationalWitnesses>,
+    /// Previous completed matching outcomes, read by routing and installed at matching boundaries.
+    relational_witnesses: RelationalWitnesses,
+    pending_witness_effects: Vec<WitnessEffect>,
+    witness_effect_scratch: MemoryLease,
     relational_witness_residency: MemoryLease,
     /// The node that owns each style scope, for the scopes that have one. The document's scope has
     /// no node, and a scope with no entry here is treated as the document's - which is the widest

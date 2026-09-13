@@ -2669,9 +2669,30 @@ fn a_retained_witness_carries_an_anchor_through_its_lifecycle() {
     for (node, class) in [(nodes[1], anchor), (nodes[2], witness)] {
         add_feature(&mut engine, node, LocalFeatureKey::Class(class));
     }
+    for &node in &nodes {
+        set_atom_feature(&mut engine, node, LocalFeatureKey::TagName, StyleAtomID(100));
+    }
     discard_transaction(&mut engine);
 
+    assert!(engine.begin_cold_matching_batch(nodes[0]));
     assert!(!engine.match_element(nodes[1]).unwrap().is_empty());
+    let (key, retained) = engine
+        .state
+        .pending_witness_effects
+        .iter()
+        .find_map(|effect| match effect {
+            WitnessEffect::Retain(key, witness) if key.anchor == nodes[1] => Some((*key, *witness)),
+            _ => None,
+        })
+        .expect("matching must produce a positive witness effect");
+    assert!(matches!(
+        engine.state.relational_witnesses.lookup(key),
+        Lookup::Missing(_)
+    ));
+    engine.match_element(nodes[2]).unwrap();
+    engine.end_cold_matching_batch();
+    assert!(engine.state.pending_witness_effects.is_empty());
+    assert!(matches!(engine.state.relational_witnesses.lookup(key), Lookup::Known(&node) if node == retained));
 
     // A second witness appearing cannot flip an anchor that is already true, so the retained
     // witness answers for it and nothing is routed.
@@ -5471,22 +5492,22 @@ fn test_prefix_relation(engine: &mut StyleEngine, root: StyleNodeID) -> (Rc<Rule
     }
     engine.state.facts.apply_staged(&mut engine.state.memory);
     let (_, dispatch) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
-    let workspace = MatchEvaluationWorkspace::default();
+    let mut workspace = MatchScratch::default();
     let facts = engine.state.facts.primary();
-    let evaluator =
-        MatchEvaluator::new(&engine.state.tree, facts).with_match_workspace(&workspace, MatchEvaluationSide::Current);
-    let evaluation = PrefixEvaluation::new(
+    let mut evaluator = MatchEvaluator::new(&engine.state.tree, facts)
+        .with_match_workspace(&mut workspace, MatchEvaluationSide::Current);
+    let mut evaluation = PrefixEvaluation::new(
         dispatch.prefixes(),
         &engine.state.tree,
         facts,
         &engine.state.programs,
-        &evaluator,
+        &mut evaluator,
         None,
         None,
     );
     let relation = dispatch
         .prefixes()
-        .build_relation(&evaluation, root, &mut engine.counters);
+        .build_relation(&mut evaluation, root, &mut engine.counters);
     (dispatch, relation)
 }
 
@@ -5498,27 +5519,28 @@ fn update_test_prefix_relation(
     changed: &[StyleNodeID],
     geometry_root: Option<StyleNodeID>,
 ) -> Counters {
-    let workspace = MatchEvaluationWorkspace::default();
+    let mut workspace = MatchScratch::default();
     let facts = engine.facts.primary();
-    let evaluator =
-        MatchEvaluator::new(&engine.tree, facts).with_match_workspace(&workspace, MatchEvaluationSide::Current);
-    let old_evaluator =
-        MatchEvaluator::new(&engine.tree, old_facts).with_match_workspace(&workspace, MatchEvaluationSide::OldTree);
-    let evaluation = PrefixEvaluation::new(
+    let mut evaluator =
+        MatchEvaluator::new(&engine.tree, facts).with_match_workspace(&mut workspace, MatchEvaluationSide::Current);
+    let mut old_workspace = MatchScratch::default();
+    let mut old_evaluator = MatchEvaluator::new(&engine.tree, old_facts)
+        .with_match_workspace(&mut old_workspace, MatchEvaluationSide::OldTree);
+    let mut evaluation = PrefixEvaluation::new(
         dispatch.prefixes(),
         &engine.tree,
         facts,
         &engine.programs,
-        &evaluator,
+        &mut evaluator,
         None,
         None,
     );
-    let old_evaluation = PrefixEvaluation::new(
+    let mut old_evaluation = PrefixEvaluation::new(
         dispatch.prefixes(),
         &engine.tree,
         old_facts,
         &engine.programs,
-        &old_evaluator,
+        &mut old_evaluator,
         None,
         None,
     );
@@ -5534,14 +5556,14 @@ fn update_test_prefix_relation(
         geometry_nodes.extend(engine.tree.preorder(root));
         geometry_nodes.sort_unstable();
         geometry_nodes.dedup();
-        changed.extend(relation.update_geometry(dispatch.prefixes(), &evaluation, &geometry_nodes, &mut counters));
+        changed.extend(relation.update_geometry(dispatch.prefixes(), &mut evaluation, &geometry_nodes, &mut counters));
         changed.sort_unstable();
         changed.dedup();
     }
     relation.update(
         dispatch.prefixes(),
-        &evaluation,
-        &old_evaluation,
+        &mut evaluation,
+        &mut old_evaluation,
         &changed,
         &mut counters,
     );
@@ -5613,25 +5635,25 @@ fn prefix_completion_reuses_positive_and_negative_relation_answers() {
     discard_transaction(&mut engine);
     let (dispatch, relation) = test_prefix_relation(&mut engine, nodes[0]);
     let facts = engine.facts.primary();
-    let evaluator = MatchEvaluator::new(&engine.tree, facts);
-    let evaluation = PrefixEvaluation::new(
+    let mut evaluator = MatchEvaluator::new(&engine.tree, facts);
+    let mut evaluation = PrefixEvaluation::new(
         dispatch.prefixes(),
         &engine.tree,
         facts,
         &engine.programs,
-        &evaluator,
+        &mut evaluator,
         None,
         None,
     );
     let mut counters = Counters::default();
     let mut states = PrefixStates::new(facts.row_count());
-    assert!(!states.complete_nodes_with_budget(&evaluation, nodes.iter().copied(), 0, &mut counters));
+    assert!(!states.complete_nodes_with_budget(&mut evaluation, nodes.iter().copied(), 0, &mut counters));
     relation.install_answers(&mut states);
     states.relation = Some(Box::new(relation));
     assert!(states.retained_matches_for(nodes[0]).unwrap().is_empty());
     assert_eq!(states.retained_matches_for(nodes[3]).unwrap().len(), 1);
     for budget in [0, usize::MAX] {
-        assert!(states.complete_nodes_with_budget(&evaluation, nodes.iter().copied(), budget, &mut counters));
+        assert!(states.complete_nodes_with_budget(&mut evaluation, nodes.iter().copied(), budget, &mut counters));
         assert_eq!(counters.get(Counter::PrefixCompoundsEvaluated), 0);
         assert_eq!(counters.get(Counter::PrefixTransitionMemoMisses), 0);
     }

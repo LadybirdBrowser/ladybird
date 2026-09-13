@@ -1462,7 +1462,7 @@ impl StyleEngineState {
         &mut self,
         nth: NthPosition,
         node: StyleNodeID,
-        workspace: &MatchEvaluationWorkspace,
+        workspace: &mut MatchScratch,
     ) -> bool {
         let Some(view) = self
             .transaction_fact_view
@@ -1514,7 +1514,7 @@ impl StyleEngineState {
         if children.is_empty() {
             return;
         }
-        let sequence_match_workspace = MatchEvaluationWorkspace::default();
+        let mut sequence_match_workspace = MatchScratch::default();
         // What an entry's selector says about the parent of its positional test holds for the
         // whole sequence, so it is decided once per entry here rather than once per moved child.
         const PARENT_UNDECIDED: u8 = 0;
@@ -1630,7 +1630,7 @@ impl StyleEngineState {
                                     })
                         }),
                         false if nth.of_type => {
-                            engine.nth_of_type_truth_unchanged(nth, child, &sequence_match_workspace)
+                            engine.nth_of_type_truth_unchanged(nth, child, &mut sequence_match_workspace)
                         }
                         false => false,
                     };
@@ -2137,7 +2137,7 @@ impl StyleEngineState {
                     node,
                     old_matches,
                     self.transaction_fact_view.as_ref(),
-                    &self.match_workspace,
+                    &mut self.match_workspace,
                     counters,
                 )
             };
@@ -2733,28 +2733,29 @@ impl StyleEngineState {
         if let Some(mut relation) = retained_relation {
             let facts = self.facts.primary();
             let view = self.transaction_fact_view.as_ref().unwrap();
-            let workspace = MatchEvaluationWorkspace::default();
-            let evaluator = MatchEvaluator::new(&self.tree, facts)
+            let mut workspace = MatchScratch::default();
+            let mut old_workspace = MatchScratch::default();
+            let mut evaluator = MatchEvaluator::new(&self.tree, facts)
                 .with_transaction_fact_view(view, TransactionFactSide::After)
-                .with_match_workspace(&workspace, MatchEvaluationSide::Current);
-            let old_evaluator = MatchEvaluator::new(&self.tree, facts)
+                .with_match_workspace(&mut workspace, MatchEvaluationSide::Current);
+            let mut old_evaluator = MatchEvaluator::new(&self.tree, facts)
                 .with_transaction_fact_view(view, TransactionFactSide::Before)
-                .with_match_workspace(&workspace, MatchEvaluationSide::OldTree);
-            let evaluation = PrefixEvaluation::new(
+                .with_match_workspace(&mut old_workspace, MatchEvaluationSide::OldTree);
+            let mut evaluation = PrefixEvaluation::new(
                 dispatch.prefixes(),
                 &self.tree,
                 facts,
                 &self.programs,
-                &evaluator,
+                &mut evaluator,
                 None,
                 None,
             );
-            let old_evaluation = PrefixEvaluation::new(
+            let mut old_evaluation = PrefixEvaluation::new(
                 dispatch.prefixes(),
                 &self.tree,
                 facts,
                 &self.programs,
-                &old_evaluator,
+                &mut old_evaluator,
                 None,
                 None,
             );
@@ -2777,14 +2778,20 @@ impl StyleEngineState {
                     geometry_nodes.dedup();
                     changed.extend(relation.update_geometry(
                         dispatch.prefixes(),
-                        &evaluation,
+                        &mut evaluation,
                         &geometry_nodes,
                         counters,
                     ));
                 }
                 changed.sort_unstable();
                 changed.dedup();
-                relation.update(dispatch.prefixes(), &evaluation, &old_evaluation, &changed, counters);
+                relation.update(
+                    dispatch.prefixes(),
+                    &mut evaluation,
+                    &mut old_evaluation,
+                    &changed,
+                    counters,
+                );
             }
             let mut eligible: Vec<_> = pending
                 .keys()
@@ -2804,7 +2811,9 @@ impl StyleEngineState {
                 changed_routing_keys.dedup();
             }
             let mut cascade_relevance: HashMap<EntryID, Option<bool>> = HashMap::default();
-            let mut scratch_bytes = changed_routing_keys.shallow_capacity_bytes();
+            let mut scratch_bytes = changed_routing_keys.shallow_capacity_bytes()
+                + workspace.capacity_bytes()
+                + old_workspace.capacity_bytes();
             self.memory
                 .reserve_required(MemoryCategory::BatchScratch, scratch_bytes);
             let mut cascade_stops = 0;
@@ -3263,48 +3272,51 @@ impl StyleEngineState {
                 let mut visited = Vec::new();
                 let mut changed_nodes = Vec::new();
                 let mut prefix_delta_arena = PrefixDeltaArena::default();
-                let positional_workspace = MatchEvaluationWorkspace::default();
-                let old_evaluator = MatchEvaluator::new(&self.tree, resident_facts)
+                let mut positional_workspace = MatchScratch::default();
+                let mut old_positional_workspace = MatchScratch::default();
+                let mut old_evaluator = MatchEvaluator::new(&self.tree, resident_facts)
                     .with_transaction_fact_view(view, TransactionFactSide::Before)
-                    .with_match_workspace(&positional_workspace, MatchEvaluationSide::OldTree);
-                let old_evaluation = PrefixEvaluation::new(
+                    .with_match_workspace(&mut old_positional_workspace, MatchEvaluationSide::OldTree);
+                let mut old_evaluation = PrefixEvaluation::new(
                     dispatch.prefixes(),
                     &self.tree,
                     resident_facts,
                     &self.programs,
-                    &old_evaluator,
+                    &mut old_evaluator,
                     None,
                     None,
                 );
-                let new_evaluator = MatchEvaluator::new(&self.tree, resident_facts)
+                let mut new_evaluator = MatchEvaluator::new(&self.tree, resident_facts)
                     .with_transaction_fact_view(view, TransactionFactSide::After)
-                    .with_match_workspace(&positional_workspace, MatchEvaluationSide::Current);
-                let new_evaluation = PrefixEvaluation::new(
+                    .with_match_workspace(&mut positional_workspace, MatchEvaluationSide::Current);
+                let mut new_evaluation = PrefixEvaluation::new(
                     dispatch.prefixes(),
                     &self.tree,
                     resident_facts,
                     &self.programs,
-                    &new_evaluator,
+                    &mut new_evaluator,
                     None,
                     None,
                 );
                 let workspace_bytes = |pending_node_capacity: usize,
                                        visited_capacity: usize,
                                        changed_node_capacity: usize,
-                                       delta_capacity_bytes: u64| {
+                                       delta_capacity_bytes: u64,
+                                       match_capacity_bytes: u64| {
                     (pending_node_capacity * size_of::<PendingPrefixNode>()) as u64
                         + (local_fact_changes.capacity() * size_of::<StyleNodeID>()) as u64
                         + visited_capacity.div_ceil(8) as u64
                         + (changed_node_capacity * size_of::<StyleNodeID>()) as u64
                         + selection_bytes
                         + delta_capacity_bytes
-                        + positional_workspace.capacity_bytes()
+                        + match_capacity_bytes
                 };
                 let mut charged_bytes = workspace_bytes(
                     pending_nodes.capacity(),
                     visited.capacity(),
                     changed_nodes.capacity(),
                     prefix_delta_arena.capacity_bytes(),
+                    new_evaluation.match_scratch_capacity_bytes() + old_evaluation.match_scratch_capacity_bytes(),
                 );
                 self.memory
                     .reserve_required(MemoryCategory::BatchScratch, charged_bytes);
@@ -3385,8 +3397,8 @@ impl StyleEngineState {
                                     .parent(node)
                                     .is_none_or(|parent| positional_touched_parents.binary_search(&parent).is_err()));
                         let difference = match states.compare_and_update(
-                            &new_evaluation,
-                            &old_evaluation,
+                            &mut new_evaluation,
+                            &mut old_evaluation,
                             difference_selection,
                             node,
                             local_facts_changed,
@@ -3490,6 +3502,8 @@ impl StyleEngineState {
                             visited.capacity(),
                             changed_nodes.capacity(),
                             prefix_delta_arena.capacity_bytes(),
+                            new_evaluation.match_scratch_capacity_bytes()
+                                + old_evaluation.match_scratch_capacity_bytes(),
                         );
                         if current_bytes > charged_bytes {
                             self.memory

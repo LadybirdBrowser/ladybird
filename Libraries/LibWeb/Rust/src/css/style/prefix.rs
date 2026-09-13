@@ -1280,7 +1280,7 @@ pub(super) struct PrefixEvaluation<'a, 'b> {
     tree: &'a StyleNodeTree,
     facts: &'a StyleNodeFacts,
     programs: &'a SelectorPrograms,
-    evaluator: &'a MatchEvaluator<'b>,
+    evaluator: &'a mut MatchEvaluator<'b>,
     shadow_root: Option<StyleNodeID>,
     selection: Option<&'a PrefixSelection>,
 }
@@ -1585,8 +1585,12 @@ impl PrefixDeltaArena {
 }
 
 impl<'a, 'b> PrefixEvaluation<'a, 'b> {
+    pub(super) fn match_scratch_capacity_bytes(&self) -> u64 {
+        self.evaluator.match_scratch_capacity_bytes()
+    }
+
     fn positional_test_matches(
-        &self,
+        &mut self,
         node: StyleNodeID,
         index: usize,
         counters: &mut Counters,
@@ -1605,7 +1609,7 @@ impl<'a, 'b> PrefixEvaluation<'a, 'b> {
     }
 
     pub(super) fn step_matches_direct(
-        &self,
+        &mut self,
         node: StyleNodeID,
         step: PrefixStepID,
         counters: &mut Counters,
@@ -1639,7 +1643,7 @@ impl<'a, 'b> PrefixEvaluation<'a, 'b> {
     }
 
     pub(super) fn step_matches(
-        &self,
+        &mut self,
         node: StyleNodeID,
         positional_bits: u32,
         step: PrefixStepID,
@@ -1668,7 +1672,7 @@ impl<'a, 'b> PrefixEvaluation<'a, 'b> {
 
     /// The per-node answers of the automaton's positional tests, one bit per test. Zero for
     /// automata without positional steps, so fact-cohort sharing is unchanged there.
-    pub(super) fn positional_bits(&self, node: StyleNodeID, counters: &mut Counters) -> Result<u32, Incomplete> {
+    pub(super) fn positional_bits(&mut self, node: StyleNodeID, counters: &mut Counters) -> Result<u32, Incomplete> {
         let tests = self.automaton.positional_tests();
         let mut bits = 0_u32;
         for index in 0..tests.len() {
@@ -1684,7 +1688,7 @@ impl<'a, 'b> PrefixEvaluation<'a, 'b> {
         tree: &'a StyleNodeTree,
         facts: &'a StyleNodeFacts,
         programs: &'a SelectorPrograms,
-        evaluator: &'a MatchEvaluator<'b>,
+        evaluator: &'a mut MatchEvaluator<'b>,
         shadow_root: Option<StyleNodeID>,
         selection: Option<&'a PrefixSelection>,
     ) -> Self {
@@ -1771,7 +1775,7 @@ impl PrefixStates {
 
     pub(super) fn match_set_for(
         &mut self,
-        evaluation: &PrefixEvaluation<'_, '_>,
+        evaluation: &mut PrefixEvaluation<'_, '_>,
         node: StyleNodeID,
         counters: &mut Counters,
     ) -> PrefixTransitionLookup<PrefixMatchSetID> {
@@ -2206,8 +2210,8 @@ impl PrefixStates {
     #[allow(clippy::too_many_arguments)]
     fn emit_local_output_deltas(
         &self,
-        evaluation: &PrefixEvaluation<'_, '_>,
-        old_evaluation: &PrefixEvaluation<'_, '_>,
+        evaluation: &mut PrefixEvaluation<'_, '_>,
+        old_evaluation: &mut PrefixEvaluation<'_, '_>,
         node: StyleNodeID,
         old: PrefixTransition,
         old_entering: EnteringStates,
@@ -2500,7 +2504,7 @@ impl PrefixStates {
     #[allow(clippy::too_many_arguments)]
     fn try_sparse_retained_local_transition(
         &mut self,
-        evaluation: &PrefixEvaluation<'_, '_>,
+        evaluation: &mut PrefixEvaluation<'_, '_>,
         node: StyleNodeID,
         row: MatchFactRow<'_>,
         old: PrefixTransition,
@@ -2582,8 +2586,8 @@ impl PrefixStates {
     #[allow(clippy::too_many_arguments)]
     pub(super) fn compare_and_update(
         &mut self,
-        evaluation: &PrefixEvaluation<'_, '_>,
-        old_evaluation: &PrefixEvaluation<'_, '_>,
+        evaluation: &mut PrefixEvaluation<'_, '_>,
+        old_evaluation: &mut PrefixEvaluation<'_, '_>,
         selection: Option<&PrefixSelection>,
         node: StyleNodeID,
         local_facts_changed: bool,
@@ -2728,7 +2732,7 @@ impl PrefixStates {
             {
                 self.collect_active(active, &mut active_candidates);
             }
-            let mut append_roots = |evaluation: &PrefixEvaluation<'_, '_>| {
+            let mut append_roots = |evaluation: &mut PrefixEvaluation<'_, '_>| {
                 let Ok(row) = evaluation.row_of(node) else {
                     return;
                 };
@@ -3002,7 +3006,7 @@ impl PrefixStates {
     #[allow(clippy::too_many_arguments)]
     fn derive_dead_delta_transition(
         &mut self,
-        evaluation: &PrefixEvaluation<'_, '_>,
+        evaluation: &mut PrefixEvaluation<'_, '_>,
         node: StyleNodeID,
         row: MatchFactRow<'_>,
         old: PrefixTransition,
@@ -3168,7 +3172,7 @@ impl PrefixStates {
 
     pub(super) fn complete_nodes_with_budget(
         &mut self,
-        evaluation: &PrefixEvaluation<'_, '_>,
+        evaluation: &mut PrefixEvaluation<'_, '_>,
         nodes: impl Iterator<Item = StyleNodeID>,
         completion_budget: usize,
         counters: &mut Counters,
@@ -3245,7 +3249,7 @@ impl PrefixStates {
 
     fn transition_for(
         &mut self,
-        evaluation: &PrefixEvaluation<'_, '_>,
+        evaluation: &mut PrefixEvaluation<'_, '_>,
         node: StyleNodeID,
         counters: &mut Counters,
     ) -> PrefixTransitionLookup<PrefixTransition> {
@@ -3255,7 +3259,7 @@ impl PrefixStates {
     #[allow(clippy::too_many_arguments)]
     fn transition(
         &mut self,
-        evaluation: &PrefixEvaluation<'_, '_>,
+        evaluation: &mut PrefixEvaluation<'_, '_>,
         entering: EnteringStates,
         row: MatchFactRow<'_>,
         node: StyleNodeID,
@@ -4099,7 +4103,11 @@ impl PrefixTransitionSurface<'_> {
         }
     }
 
-    fn known_transition(&self, evaluation: &PrefixEvaluation<'_, '_>, node: StyleNodeID) -> Option<PrefixTransition> {
+    fn known_transition(
+        &self,
+        evaluation: &mut PrefixEvaluation<'_, '_>,
+        node: StyleNodeID,
+    ) -> Option<PrefixTransition> {
         if !evaluation.facts_are_composite() {
             let row = evaluation.facts.row_of(node)? as usize;
             let known = match self {
@@ -4119,7 +4127,7 @@ impl PrefixTransitionSurface<'_> {
 
     fn local_fact_identity(
         &mut self,
-        evaluation: &PrefixEvaluation<'_, '_>,
+        evaluation: &mut PrefixEvaluation<'_, '_>,
         node: StyleNodeID,
         row: MatchFactRow<'_>,
         counters: &mut Counters,
@@ -4163,7 +4171,7 @@ impl PrefixTransitionSurface<'_> {
 
     fn remember_transition(
         &mut self,
-        evaluation: &PrefixEvaluation<'_, '_>,
+        evaluation: &mut PrefixEvaluation<'_, '_>,
         node: StyleNodeID,
         row: MatchFactRow<'_>,
         transition: PrefixTransition,
@@ -4194,7 +4202,7 @@ impl PrefixTransitionSurface<'_> {
 
     fn transition_from_inputs(
         &mut self,
-        evaluation: &PrefixEvaluation<'_, '_>,
+        evaluation: &mut PrefixEvaluation<'_, '_>,
         node: StyleNodeID,
         row: MatchFactRow<'_>,
         inputs: TransitionInputs,
@@ -4244,7 +4252,7 @@ impl PrefixTransitionSurface<'_> {
 /// same walk with the previous-sibling state pinned to zero.
 fn transition_for(
     surface: &mut PrefixTransitionSurface<'_>,
-    evaluation: &PrefixEvaluation<'_, '_>,
+    evaluation: &mut PrefixEvaluation<'_, '_>,
     node: StyleNodeID,
     counters: &mut Counters,
 ) -> PrefixTransitionLookup<PrefixTransition> {

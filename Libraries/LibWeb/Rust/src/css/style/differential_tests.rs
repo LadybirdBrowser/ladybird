@@ -30,6 +30,7 @@ use super::program::RuleID;
 use super::program::RuleKind;
 use super::program::StyleSheetObjectID;
 use super::selector::FeatureTest;
+use super::selector::MatchScratch;
 use super::selector::SelectorOp;
 use super::selector::SelectorProgramBuilder;
 use super::transaction::InputKey;
@@ -344,7 +345,12 @@ fn retained_matches(engine: &mut StyleEngine, node: StyleNodeID) -> Option<Vec<R
     Some(engine.in_cascade_order(materialized, false))
 }
 
-fn batch_matches(engine: &mut StyleEngine, node: StyleNodeID, ancestor_cache: bool) -> Vec<RuleMatch> {
+fn batch_matches(
+    engine: &mut StyleEngine,
+    node: StyleNodeID,
+    ancestor_cache: bool,
+    scratch: Option<&mut MatchScratch>,
+) -> Vec<RuleMatch> {
     let (_, dispatch) = engine.prepare_scope_program(TreeScopeID::DOCUMENT);
     let requirements =
         ancestor_cache.then(|| AncestorRequirements::build(&engine.tree, engine.facts.primary(), &dispatch));
@@ -365,6 +371,8 @@ fn batch_matches(engine: &mut StyleEngine, node: StyleNodeID, ancestor_cache: bo
             &mut matches,
             &mut Counters::new(),
             BatchMatchState {
+                match_workspace: scratch,
+                witness_effects: None,
                 dispatch_workspace: &mut DispatchCandidateWorkspace::default(),
                 requests: None,
                 completed: None,
@@ -481,6 +489,34 @@ fn verify_step(
     }
     workload.engine.end_cold_matching_batch();
 
+    // Reuse private scratch in both orders. In reverse order the sibling cursor
+    // must restart exactly; cache presence and the asking order cannot change truth.
+    for reverse in [false, true] {
+        let mut scratch = MatchScratch::default();
+        for index in 0..workload.nodes.len() {
+            let index = if reverse {
+                workload.nodes.len() - 1 - index
+            } else {
+                index
+            };
+            let node = workload.nodes[index];
+            let actual = batch_matches(&mut workload.engine, node, true, Some(&mut scratch));
+            compare_mode(
+                &mut workload.engine,
+                node,
+                &incremental[index],
+                actual,
+                "private scratch with reordered asks",
+                seed,
+                step,
+            );
+        }
+        assert!(
+            scratch.capacity_bytes() > 0,
+            "generated selectors must exercise scratch"
+        );
+    }
+
     for (&node, incremental) in workload.nodes.iter().zip(incremental) {
         let exact = exact_matches(&mut workload.engine, node);
         compare_mode(
@@ -492,9 +528,9 @@ fn verify_step(
             seed,
             step,
         );
-        let prefix_off = batch_matches(&mut workload.engine, node, true);
+        let prefix_off = batch_matches(&mut workload.engine, node, true, None);
         compare_mode(&mut workload.engine, node, &exact, prefix_off, "prefix-off", seed, step);
-        let caches_off = batch_matches(&mut workload.engine, node, false);
+        let caches_off = batch_matches(&mut workload.engine, node, false, None);
         compare_mode(
             &mut workload.engine,
             node,
