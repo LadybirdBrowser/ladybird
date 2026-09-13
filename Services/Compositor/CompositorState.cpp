@@ -159,11 +159,11 @@ void CompositorState::update_display_list(Web::Compositor::CompositorContextId c
     update_unpainted_video_update_scheduling();
 }
 
-void CompositorState::update_image_frame_resources(Web::Compositor::CompositorContextId context_id, Vector<Web::Painting::DisplayListImageFrameResource> image_frames)
+void CompositorState::update_display_list_resources(Web::Compositor::CompositorContextId context_id, Web::Painting::DisplayListResourceTransaction&& resource_transaction)
 {
     auto* context = context_if_present(context_id);
     VERIFY(context);
-    context->update_image_frame_resources(move(image_frames));
+    context->apply_display_list_resource_transaction(move(resource_transaction));
 }
 
 void CompositorState::update_visual_context_tree(Web::Compositor::CompositorContextId context_id, Web::Painting::AccumulatedVisualContextTree visual_context_tree, Web::Painting::DisplayListResourceTransaction&& resource_transaction)

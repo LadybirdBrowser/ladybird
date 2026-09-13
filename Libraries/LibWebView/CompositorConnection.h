@@ -101,7 +101,7 @@ private:
 
     bool can_send_message_to_compositor() const;
     void merge_async_scroll_updates(Web::Compositor::CompositorContextId, Web::Compositor::PendingAsyncScrollUpdates);
-    bool post_image_frame_resources_in_batches(Web::Compositor::CompositorContextId, Vector<Web::Painting::DisplayListImageFrameResource>);
+    bool post_resource_additions_in_batches(Web::Compositor::CompositorContextId, Web::Painting::DisplayListResourceTransaction&);
     Optional<PendingScreenshot> take_screenshot(Web::Compositor::ScreenshotRequestId);
 
     HashMap<Web::Compositor::ScreenshotRequestId, PendingScreenshot> m_screenshots;
