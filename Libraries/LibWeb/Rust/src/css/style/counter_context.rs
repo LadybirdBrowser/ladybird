@@ -760,14 +760,18 @@ impl StyleEngine {
         old_cascade_input: MatchAnswerID,
         deltas: &[SelectorTruthDelta],
     ) -> Option<RetainedAnswerPatchOutcome> {
-        self.state.apply_retained_match_answer_deltas(
+        let mut effects = AnswerEffects::default();
+        let result = self.state.apply_retained_match_answer_deltas(
+            &mut effects,
             node,
             patch,
             old_identity,
             old_cascade_input,
             deltas,
             &mut self.counters,
-        )
+        );
+        self.state.install_answer_effects(effects);
+        result
     }
 
     /// Patch one retained exact answer by re-evaluating only the rules reached by this transaction.
@@ -782,8 +786,12 @@ impl StyleEngine {
         patch: &mut RetainedAnswerPatch,
         truth_patch: SelectorTruthPatch<'_>,
     ) -> Option<RetainedAnswerPatchOutcome> {
-        self.state
-            .patch_retained_match_answer(node, patch, truth_patch, &mut self.counters)
+        let mut effects = AnswerEffects::default();
+        let result = self
+            .state
+            .patch_retained_match_answer(&mut effects, node, patch, truth_patch, &mut self.counters);
+        self.state.install_answer_effects(effects);
+        result
     }
 
     /// Name one ask's answer so the cascade can share its expansion within this transaction.
@@ -836,13 +844,17 @@ impl StyleEngine {
         cascade_input: MatchAnswerID,
         cascade_winners_are_complete: bool,
     ) -> Option<PublishedMatchAnswer> {
-        self.state.complete_published_match_answer_from_cascade_input(
+        let mut effects = AnswerEffects::default();
+        let result = self.state.complete_published_match_answer_from_cascade_input(
+            &mut effects,
             node,
             source,
             cascade_input,
             cascade_winners_are_complete,
             &mut self.counters,
-        )
+        );
+        self.state.install_answer_effects(effects);
+        result
     }
 
     /// Prove that an added-only transition between two compact answers cannot change any cascade

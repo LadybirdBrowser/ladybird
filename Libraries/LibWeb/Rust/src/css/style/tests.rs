@@ -1063,6 +1063,7 @@ fn prefix_answer_keys_compare_content_after_hash_collisions() {
     let mut memory = MemoryController::new(DeviceClass::ForegroundDesktop);
     let mut answers = PrefixAnswerCache::default();
     let mut catalog = MatchAnswerCatalog::default();
+    let mut effects = AnswerEffects::default();
     let contribution =
         answers.remember_prefix_contribution(&mut catalog, ScopeProgramID(1), PrefixMatchSetID::default(), &[]);
     let matched = RetainedRuleMatch {
@@ -1091,8 +1092,27 @@ fn prefix_answer_keys_compare_content_after_hash_collisions() {
             MatchAnswerID(entry + 1),
             entry % 2 == 0,
         );
-        answers.remember_exact_answer(&mut catalog, key, contribution);
+        effects.remember_exact_answer(key, contribution, &mut catalog, &mut memory);
     }
+    for entry in 0..64 {
+        let content = vec![RetainedRuleMatch { entry, ..matched }];
+        let key = PrefixAnswerKey {
+            prefix_contribution: contribution,
+            non_prefix_matches: &content,
+            non_prefix_hash: 0,
+        };
+        assert_eq!(effects.exact_answer(key), Some(contribution));
+        assert!(matches!(answers.exact_answer(key), Lookup::Missing(_)));
+    }
+    assert_eq!(catalog.pending_reference_count(), 64);
+    catalog.sweep_unreferenced();
+    effects.install(
+        &mut RetainedMatchAnswers::default(),
+        &mut catalog,
+        &mut answers,
+        &mut memory,
+    );
+    assert_eq!(catalog.pending_reference_count(), 0);
     // Each probe has a different allocation from the insertion's expired local slice.
     for entry in 0..64 {
         let content = vec![RetainedRuleMatch { entry, ..matched }];

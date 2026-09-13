@@ -77,6 +77,7 @@ impl StyleEngineState {
     ) -> bool {
         let mut clock = TransactionClock::new();
         self.install_witness_effects();
+        self.install_pending_matching_context();
         let scoped = self.take_style_transaction_with_clock(root, emit, &mut clock, counters);
         self.finish_memory_evaluation_loop();
         // Include transaction-local destruction on both ordinary and early-return paths.
@@ -1015,8 +1016,11 @@ impl StyleEngineState {
         let mut patch_processed_nodes: Vec<StyleNodeID> = Vec::new();
         for refresh in selector_truth_changes.refreshes.as_slice() {
             if !regions.batch_contains_node(&compiled_regions, refresh.node) {
-                self.retained_match_answers
-                    .forget_answer(&mut self.match_answers, refresh.node);
+                published_match_answers.answer_effects.forget_answer(
+                    refresh.node,
+                    &mut self.match_answers,
+                    &mut self.memory,
+                );
             } else {
                 stale_refresh_nodes.push(refresh.node);
             }
@@ -1157,7 +1161,13 @@ impl StyleEngineState {
                         && node_has_safe_exact_cascade_provenance
                         && self.match_answer_is_comparable_across_elements(node);
                     can_stop_at_exact_cascade = transaction_supports_global_exact_cascade_stops;
-                    match self.patch_retained_match_answer(node, patch, truth_patch, counters) {
+                    match self.patch_retained_match_answer(
+                        &mut published_match_answers.answer_effects,
+                        node,
+                        patch,
+                        truth_patch,
+                        counters,
+                    ) {
                         Some(outcome) => {
                             if outcome.emit
                                 && !has_direct_action
@@ -1165,8 +1175,10 @@ impl StyleEngineState {
                                 && patch.always_emit_nodes.binary_search(&node).is_err()
                                 && let Some(deferred) = self.deferred_pseudo_element
                                 && let Some(previous) = previous_observable_answer.as_deref()
-                                && let Lookup::Known(current) = self.retained_match_answers.lookup(node)
-                                && let Some(current) = self.match_answers.answer(*current)
+                                && let Some(current) = published_match_answers
+                                    .answer_effects
+                                    .answer_identity(&self.retained_match_answers, node)
+                                && let Some(current) = self.match_answers.answer(current)
                             {
                                 let is_observable = |entry: &&RetainedRuleMatch| {
                                     self.programs.get(entry.program).entries()[entry.entry as usize]
@@ -1202,7 +1214,11 @@ impl StyleEngineState {
                                 && !patch.always_emit_for(node)
                                 && !patch.orders_shifted
                                 && matches!(self.retained_match_answers.cascade_input_lookup(node), Lookup::Known(_));
-                            self.retained_match_answers.forget_answer(&mut self.match_answers, node);
+                            published_match_answers.answer_effects.forget_answer(
+                                node,
+                                &mut self.match_answers,
+                                &mut self.memory,
+                            );
                             has_upquery = true;
                             true
                         }
@@ -1210,7 +1226,11 @@ impl StyleEngineState {
                 }
                 None => {
                     if !transaction_reaches_no_selector {
-                        self.retained_match_answers.forget_answer(&mut self.match_answers, node);
+                        published_match_answers.answer_effects.forget_answer(
+                            node,
+                            &mut self.match_answers,
+                            &mut self.memory,
+                        );
                         has_upquery = true;
                     }
                     true
@@ -1340,12 +1360,9 @@ impl StyleEngineState {
                 for index in 0..published_nodes.len() {
                     let node = published_nodes[index];
                     let previous_exact_cascade_input = previous_cascade_inputs[index];
-                    let retained_cascade_input = self
-                        .retained_match_answers
-                        .cascade_input_lookup(node)
-                        .sparse()
-                        .ok()
-                        .copied();
+                    let retained_cascade_input = published_match_answers
+                        .answer_effects
+                        .cascade_input(&self.retained_match_answers, node);
                     let previous_cascade_input = identity_repair_nodes
                         .binary_search(&node)
                         .ok()
@@ -1354,7 +1371,11 @@ impl StyleEngineState {
                         && retained_answer_dispatch.is_some()
                         && self.match_answer_is_comparable_across_elements(node)
                         && self.has_no_element_declarations(node))
-                    .then(|| self.retained_match_answers.answer_identity(node))
+                    .then(|| {
+                        published_match_answers
+                            .answer_effects
+                            .answer_identity(&self.retained_match_answers, node)
+                    })
                     .flatten();
                     let published_answer = incremental_cascade_answers
                         .binary_search_by_key(&node, |answer| answer.node)
@@ -1372,7 +1393,11 @@ impl StyleEngineState {
                         })
                         .or_else(|| {
                             if self.last_transaction_only_derived_child_reactions {
-                                self.reuse_published_match_answer(node, counters)
+                                self.reuse_published_match_answer(
+                                    &mut published_match_answers.answer_effects,
+                                    node,
+                                    counters,
+                                )
                             } else {
                                 None
                             }
@@ -1385,6 +1410,7 @@ impl StyleEngineState {
                             let (source, cascade_input, cascade_winners_are_complete) =
                                 completed_retained_answers.get(&identity).copied()?;
                             self.complete_published_match_answer_from_cascade_input(
+                                &mut published_match_answers.answer_effects,
                                 node,
                                 source,
                                 cascade_input,
@@ -1394,6 +1420,7 @@ impl StyleEngineState {
                         })
                         .unwrap_or_else(|| {
                             self.complete_published_match_answer_in_traversal(
+                                &mut published_match_answers.answer_effects,
                                 node,
                                 traversal.as_deref_mut(),
                                 retained_answer_dispatch,
@@ -1520,6 +1547,7 @@ impl StyleEngineState {
                         }
                     }
                 }
+                self.install_answer_effects(std::mem::take(&mut published_match_answers.answer_effects));
                 self.batch_matching_traversal = traversal;
                 completion_pass_timer.stop(Counter::CompletionPassMicroseconds, counters);
                 self.memory

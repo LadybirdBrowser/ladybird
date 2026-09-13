@@ -70,7 +70,7 @@ impl StyleEngineState {
         if !self.has_no_element_declarations(node) || self.node_declares_custom_properties(node) {
             return None;
         }
-        let cascade_input = self.published_match_answers.lookup(node)?.cascade_input?;
+        let cascade_input = self.current_published_answer(node)?.cascade_input?;
         Some(computed::SharedStyleRecordKey {
             cascade_input: cascade_input.0,
             tree_scope: self.tree.tree_scope(node).0,
@@ -97,7 +97,7 @@ impl StyleEngineState {
         let inherited_group_count = self
             .computed_group_sets
             .inherited_group_count_for_shared_style(shared.record)?;
-        self.published_match_answers.mark_observed(node);
+        self.mark_published_answer_observed(node);
         self.prepare_shared_exact_cascade_state(node);
         self.forget_engine_computed_record(computed::ComputedStyleTarget::new(node, u8::MAX));
         let publication = self.assign_shared_style_record(
@@ -195,7 +195,7 @@ impl StyleEngineState {
         &self,
         target: computed::ComputedStyleTarget,
     ) -> Option<CascadedPropertyStore> {
-        let answer = self.published_match_answers.lookup(target.node())?;
+        let answer = self.current_published_answer(target.node())?;
         if !answer.cascade_winners_are_complete {
             return None;
         }
@@ -910,7 +910,7 @@ impl StyleEngineState {
                 );
             }
         }
-        self.published_match_answers.mark_observed(node);
+        self.mark_published_answer_observed(node);
     }
 
     pub(super) fn forget_engine_computed_record(&mut self, target: computed::ComputedStyleTarget) {
@@ -1512,8 +1512,7 @@ impl StyleEngineState {
             return 0;
         }
         let cascade_winners_are_complete = self
-            .published_match_answers
-            .lookup(node)
+            .current_published_answer(node)
             .is_some_and(|answer| answer.cascade_winners_are_complete);
         let record = self.engine_computed_record_delta(
             node,
@@ -2853,7 +2852,7 @@ impl StyleEngineState {
         store: &mut CascadedPropertyStore,
         blocks: &[FfiCascadeBlock],
     ) -> Vec<FfiSourceSlotAssignment> {
-        let Some(answer) = self.published_match_answers.lookup(target.node()) else {
+        let Some(answer) = self.current_published_answer(target.node()) else {
             return Vec::new();
         };
         if !answer.cascade_winners_are_complete {
@@ -3073,8 +3072,7 @@ impl StyleEngineState {
                 return;
             };
             if !verifier
-                .published_match_answers
-                .lookup(target.node())
+                .current_published_answer(target.node())
                 .is_some_and(|answer| answer.cascade_winners_are_complete)
             {
                 return;
@@ -3533,8 +3531,7 @@ impl StyleEngineState {
     /// cascade input without running the C++ cascade.
     pub(crate) fn prepare_shared_exact_cascade_state(&mut self, node: StyleNodeID) {
         let published_answer_is_complete = self
-            .published_match_answers
-            .lookup(node)
+            .current_published_answer(node)
             .is_some_and(|answer| answer.cascade_winners_are_complete);
         let retained_answer_is_complete = || {
             self.batch_matching_traversal.as_ref()?;
@@ -4139,9 +4136,13 @@ mod tests {
         assert!(engine.engine_computed_records_pending.is_empty());
 
         engine.acknowledge_engine_computed_record(second);
+        let effects = std::mem::take(&mut engine.published_match_answers.answer_effects);
+        engine.state.install_answer_effects(effects);
         assert!(engine.published_match_answers.lookup(second).unwrap().observed);
         assert!(!engine.published_match_answers.lookup(first).unwrap().observed);
         engine.acknowledge_engine_computed_record(second);
+        let effects = std::mem::take(&mut engine.published_match_answers.answer_effects);
+        engine.state.install_answer_effects(effects);
         assert!(engine.published_match_answers.lookup(second).unwrap().observed);
         assert_eq!(engine.counters.get(Counter::EngineComputedLonghandEvaluations), 0);
     }

@@ -557,11 +557,15 @@ impl StyleEngineState {
                 .filter(|&kind| kind <= bridge::LAST_SYNTHETIC_PSEUDO_ELEMENT_KIND)
                 .map_or(0, |kind| 1u64 << kind)
         };
-        if let Some(answer) = self.published_match_answers.lookup(node) {
+        if let Some((owner, answer)) = Self::published_answer_lookup(
+            &self.published_match_answers,
+            self.batch_matching_traversal.as_deref(),
+            node,
+        ) {
             if let Some(identity) = answer.cascade_input {
                 return self.match_answers.synthetic_pseudo_mask(identity);
             }
-            if let Some(matches) = self.published_match_answers.matches_for(answer) {
+            if let Some(matches) = owner.matches_for(answer) {
                 return Some(
                     matches
                         .iter()
@@ -569,10 +573,8 @@ impl StyleEngineState {
                 );
             }
         }
-        let Lookup::Known(&identity) = self.retained_match_answers.lookup(node) else {
-            return None;
-        };
-        self.match_answers.retained_answer(identity)?;
+        let identity = self.current_answer_identity(node)?;
+        self.match_answers.answer(identity)?;
         self.match_answers.synthetic_pseudo_mask(identity)
     }
 }

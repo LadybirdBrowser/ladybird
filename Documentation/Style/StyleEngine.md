@@ -749,11 +749,24 @@ slice and hash. Cache entries own that key content and confirm exact equality
 on lookup, including hash collisions; keys no longer allocate or retain a
 match-answer identity. Ordinary retained-answer reads borrow catalog slices,
 reacquiring them after mutable operations rather than cloning their Rc owners.
-Prefix contributions, answer-result interning and retained-answer column writes
-remain eager for the subsequent answer-effects and completed-payload steps.
-The deferred-pseudo comparison still pins its before-change answer across a
-patch that can release the catalog's last reference; that ownership boundary
-moves with deferred answer installation, not with ordinary read borrowing.
+Prefix contributions and answer-result identities remain eagerly interned for
+a later completed-payload and canonical installation step.
+Retained answer and cascade-input replacements, exact-cache discoveries,
+publication and observation are owned effects. Node and content lookups consult
+pending outputs before retained columns, including across an incomplete host
+batch. Before-change comparisons continue reading the unchanged old columns.
+
+The catalog's pending reference category pins numeric identities and charges
+payloads to BatchScratch. Completed transaction and host-batch boundaries transfer
+those references and install columns before retention, prefix release or catalog
+sweeping. Input handoff finishes the previous host context before discarding
+its publication; transaction entry does the same before committing new inputs.
+Those boundaries also finish prefix effects and drop private transition IDs
+before their arenas can be reset. Explicit abandonment releases pending
+references; incomplete batches keep them until resumption or teardown.
+Host consumers read pending publications
+without requiring their vector to have been sorted. The existing deferred-pseudo
+Rc pin remains temporarily and is removed in the following ownership cleanup.
 
 Match-program relation answers, sibling cursors, sibling sequences, type ranks
 and positional answers live in caller-owned `MatchScratch`. An evaluator borrows

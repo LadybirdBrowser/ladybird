@@ -1151,6 +1151,7 @@ impl StyleEngineState {
     }
 
     pub(crate) fn settle_batched_inputs(&mut self, counters: &mut Counters) {
+        self.install_pending_matching_context();
         if !self.journal.contains_only_element_style_inputs() {
             self.discard_prepared_batch_matching_traversal();
         }
@@ -2155,8 +2156,8 @@ impl StyleEngineState {
                     .sparse()
                     .ok()
                     .map(|(_, state)| state)?;
-                let retained = *self.retained_match_answers.lookup(node).sparse().ok()?;
-                self.match_answers.retained_answer(retained)?;
+                let retained = self.current_answer_identity(node)?;
+                self.match_answers.answer(retained)?;
                 Some((previous, retained, current_declared.to_vec()))
             })
             .flatten();
@@ -2203,7 +2204,7 @@ impl StyleEngineState {
         properties: &[u16],
         counters: &mut Counters,
     ) {
-        let Some(retained) = self.match_answers.retained_answer(retained) else {
+        let Some(retained) = self.match_answers.answer(retained) else {
             return;
         };
         let matches = retained

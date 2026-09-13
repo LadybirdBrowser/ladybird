@@ -141,8 +141,11 @@ impl StyleEngineState {
         node: StyleNodeID,
         mut visit: impl FnMut(RuleID, TreeScopeID, Specificity, u32) -> ControlFlow<()>,
     ) -> Option<ControlFlow<()>> {
-        if let Some(answer) = self.published_match_answers.lookup(node)
-            && let Some(matches) = self.published_match_answers.matches_for(answer)
+        if let Some((published, answer)) = Self::published_answer_lookup(
+            &self.published_match_answers,
+            self.batch_matching_traversal.as_deref(),
+            node,
+        ) && let Some(matches) = published.matches_for(answer)
         {
             for entry in matches.iter().filter(|entry| entry.pseudo_element.is_none()) {
                 if visit(entry.rule, entry.tree_scope, entry.specificity, entry.scope_proximity).is_break() {
@@ -248,8 +251,11 @@ impl StyleEngineState {
                     self.program.declarations_are_complete_but_for_custom_properties(rule)
                 }
         };
-        if let Some(answer) = self.published_match_answers.lookup(node)
-            && let Some(matches) = self.published_match_answers.matches_for(answer)
+        if let Some((published, answer)) = Self::published_answer_lookup(
+            &self.published_match_answers,
+            self.batch_matching_traversal.as_deref(),
+            node,
+        ) && let Some(matches) = published.matches_for(answer)
         {
             return matches
                 .iter()
