@@ -14,6 +14,7 @@
 #include <AK/String.h>
 #include <AK/Vector.h>
 #include <LibHTTP/Header.h>
+#include <LibHTTP/StructuredFieldValues.h>
 
 namespace HTTP {
 
@@ -37,6 +38,7 @@ public:
     [[nodiscard]] bool contains(StringView) const;
     Optional<ByteString> get(StringView) const;
     Optional<Vector<String>> get_decode_and_split(StringView) const;
+    Optional<StructuredFieldValues::Item> get_structured_field_item(StringView) const;
     void append(Header);
     void delete_(StringView name);
     void set(Header);

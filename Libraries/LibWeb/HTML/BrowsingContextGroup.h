@@ -10,6 +10,7 @@
 #include <AK/WeakPtr.h>
 #include <LibJS/Heap/Cell.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/CrossOrigin/CrossOriginIsolationMode.h>
 
 namespace Web::HTML {
 
@@ -34,6 +35,10 @@ public:
 
     void append(BrowsingContext&);
 
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#bcg-cross-origin-isolation
+    CrossOriginIsolationMode cross_origin_isolation_mode() const { return m_cross_origin_isolation_mode; }
+    void set_cross_origin_isolation_mode(CrossOriginIsolationMode mode) { m_cross_origin_isolation_mode = mode; }
+
 private:
     explicit BrowsingContextGroup(GC::Ref<Web::Page>);
 
@@ -44,6 +49,11 @@ private:
     OrderedHashTable<GC::Ref<BrowsingContext>> m_browsing_context_set;
 
     GC::Ref<Page> m_page;
+
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#bcg-cross-origin-isolation
+    // A browsing context group has an associated cross-origin isolation mode, which is a cross-origin isolation mode.
+    // It is initially "none".
+    CrossOriginIsolationMode m_cross_origin_isolation_mode { CrossOriginIsolationMode::None };
 };
 
 }

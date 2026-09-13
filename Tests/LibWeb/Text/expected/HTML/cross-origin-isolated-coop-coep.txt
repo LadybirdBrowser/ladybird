@@ -1,0 +1,5 @@
+crossOriginIsolated: true
+SharedArrayBuffer clone: true
+blob worker crossOriginIsolated: true
+data: worker crossOriginIsolated: false
+same-origin iframe crossOriginIsolated: true

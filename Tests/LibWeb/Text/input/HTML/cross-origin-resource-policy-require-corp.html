@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // Served with `Cross-Origin-Embedder-Policy: require-corp`, so cross-origin no-cors responses need to opt in with
+    // a Cross-Origin-Resource-Policy header.
+    asyncTest(async done => {
+        const sameOrigin = new URL("cross-origin-resource-policy/", location.href);
+        const crossOrigin = new URL(sameOrigin);
+        crossOrigin.hostname = "corp-other.localhost";
+
+        const probe = async (base, name) => {
+            try {
+                const response = await fetch(new URL(name, base), { mode: "no-cors" });
+                return response.type;
+            } catch (error) {
+                return error.name;
+            }
+        };
+
+        for (const name of ["no-policy.txt", "cross-origin.txt", "same-origin.txt", "same-site.txt"]) {
+            println(`same-origin ${name}: ${await probe(sameOrigin, name)}`);
+            println(`cross-origin ${name}: ${await probe(crossOrigin, name)}`);
+        }
+        done();
+    });
+</script>

@@ -9,6 +9,8 @@
 #include <LibWeb/Bindings/PrincipalHostDefined.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Scripting/WindowEnvironmentSettingsObject.h>
@@ -147,10 +149,25 @@ double WindowEnvironmentSettingsObject::time_origin() const
 // https://html.spec.whatwg.org/multipage/window-object.html#script-settings-for-window-objects:concept-settings-object-cross-origin-isolated-capability
 CanUseCrossOriginIsolatedAPIs WindowEnvironmentSettingsObject::cross_origin_isolated_capability() const
 {
-    // FIXME: Return true if both of the following hold, and false otherwise:
-    //          1. realm's agent cluster's cross-origin-isolation mode is "concrete", and
-    //          2. window's associated Document is allowed to use the "cross-origin-isolated" feature.
-    return CanUseCrossOriginIsolatedAPIs::No;
+    // Return true if both of the following hold, and false otherwise:
+    // 1. realm's agent cluster's cross-origin-isolation mode is "concrete", and
+    // AD-HOC: We don't model agent clusters; the mode is tracked on the browsing context group instead.
+    if (!m_window->has_associated_document())
+        return CanUseCrossOriginIsolatedAPIs::No;
+    auto& document = m_window->associated_document();
+    // NOTE: Only top-level browsing contexts are members of a group.
+    auto top_level_browsing_context = document.browsing_context() ? document.browsing_context()->top_level_browsing_context() : nullptr;
+    if (!top_level_browsing_context)
+        return CanUseCrossOriginIsolatedAPIs::No;
+    auto const* group = top_level_browsing_context->group();
+    if (!group || group->cross_origin_isolation_mode() != CrossOriginIsolationMode::Concrete)
+        return CanUseCrossOriginIsolatedAPIs::No;
+
+    // 2. window's associated Document is allowed to use the "cross-origin-isolated" feature.
+    if (!document.is_allowed_to_use_feature(DOM::PolicyControlledFeature::CrossOriginIsolated))
+        return CanUseCrossOriginIsolatedAPIs::No;
+
+    return CanUseCrossOriginIsolatedAPIs::Yes;
 }
 
 }

@@ -1404,8 +1404,7 @@ GC::Ref<PendingResponse> http_fetch(JS::Realm& realm, Infrastructure::FetchParam
         //       from the service worker. This is different from the CORS check, as request’s client and the service
         //       worker can have different embedder policies.
         if ((request->response_tainting() == Infrastructure::Request::ResponseTainting::Opaque || response->type() == Infrastructure::Response::Type::Opaque)
-            && false // FIXME: "and the cross-origin resource policy check with request’s origin, request’s client, request’s destination, and actualResponse returns blocked"
-        ) {
+            && !cross_origin_resource_policy_check(request->origin().get<URL::Origin>(), request->client(), request->destination(), *internal_response)) {
             returned_pending_response->resolve(Infrastructure::Response::network_error("Response was blocked by cross-origin resource policy check"_string));
             return;
         }

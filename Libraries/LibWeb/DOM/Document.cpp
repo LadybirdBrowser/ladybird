@@ -431,7 +431,7 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     //    policy container: navigationParams's policy container
     //    FIXME: permissions policy: permissionsPolicy
     //    active sandboxing flag set: navigationParams's final sandboxing flag set
-    //    FIXME: opener policy: navigationParams's opener policy
+    //    opener policy: navigationParams's opener policy
     //    load timing info: loadTimingInfo
     //    was created via cross-origin redirects: true if navigationParams's response's redirect taint is not
     //    "same-origin"; otherwise false
@@ -449,6 +449,18 @@ WebIDL::ExceptionOr<GC::Ref<Document>> Document::create_and_initialize(Type type
     document->set_browsing_context(browsing_context);
     document->m_policy_container = navigation_params.policy_container;
     document->m_active_sandboxing_flag_set = navigation_params.final_sandboxing_flag_set;
+    document->m_opener_policy = navigation_params.opener_policy;
+
+    // AD-HOC: We don't perform browsing context group switches yet.
+    //         That is where the specification would create a new group whose cross-origin isolation mode is decided by the response's opener policy,
+    //         so instead we update the mode of the existing group whenever a top-level document is created in it.
+    if (browsing_context->is_top_level()) {
+        if (auto* group = browsing_context->group()) {
+            group->set_cross_origin_isolation_mode(navigation_params.opener_policy.value == HTML::OpenerPolicyValue::SameOriginPlusCOEP
+                    ? HTML::CrossOriginIsolationMode::Concrete
+                    : HTML::CrossOriginIsolationMode::None);
+        }
+    }
     document->m_navigation_id = navigation_params.id;
     document->set_load_timing_info(load_timing_info);
     document->m_was_created_via_cross_origin_redirects = navigation_params.response->redirect_taint() != Fetch::Infrastructure::RedirectTaint::SameOrigin;
@@ -6060,6 +6072,18 @@ bool Document::is_allowed_to_use_feature(PolicyControlledFeature feature) const
     case PolicyControlledFeature::Camera:
         // FIXME: Implement allowlist for this.
         return true;
+    case PolicyControlledFeature::CrossOriginIsolated: {
+        // The default allowlist for "cross-origin-isolated" is 'self', so the feature is enabled for the top-level
+        // document and for descendants that are same origin with every document above them.
+        // FIXME: Honor the allow attribute of the container.
+        auto navigable = this->navigable();
+        for (auto parent = navigable ? navigable->parent() : nullptr; parent; parent = parent->parent()) {
+            auto parent_origin = parent->active_document_origin();
+            if (!parent_origin.has_value() || !parent_origin->is_same_origin(origin()))
+                return false;
+        }
+        return true;
+    }
     case PolicyControlledFeature::FocusWithoutUserActivation:
     case PolicyControlledFeature::EncryptedMedia:
         // FIXME: Implement allowlist for this.
