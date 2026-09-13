@@ -666,6 +666,13 @@ impl PrefixAutomaton {
             step.output_len =
                 u32::try_from(self.outputs.len()).expect("selector prefix output space exhausted") - step.output_start;
         }
+        // Extending a finished automaton starts from a deep clone, whose vectors already
+        // have exact capacity. Spare builder capacity in the retained template is unused.
+        self.compounds.shrink_to_fit();
+        self.features.shrink_to_fit();
+        self.outputs.shrink_to_fit();
+        self.entry_paths.shrink_to_fit();
+        self.entry_path_steps.shrink_to_fit();
         self.entry_paths_finished = true;
     }
 
