@@ -104,13 +104,26 @@ struct SlotStorage {
     // Empty slots use the handle's null pointer; the same storage supplies the borrowed FFI view.
     slots: [RetainedStyleValueData; LONGHAND_COUNT],
     /// Cascade source slot for each longhand, or `-1` when its value carries
-    /// no style sheet context. This is dense because every property drive
-    /// overwrites the sidecar, so sparse lookup would make a full drive
-    /// quadratic in the number of context-bearing declarations.
-    source_slots: [i32; LONGHAND_COUNT],
+    /// no style sheet context. Allocate the dense sidecar only when a declaration needs it;
+    /// both reads and writes remain direct slot lookups.
+    source_slots: Option<Box<[i32; LONGHAND_COUNT]>>,
 }
 
 impl SlotStorage {
+    fn source_slot(&self, index: usize) -> i32 {
+        self.source_slots.as_ref().map_or(-1, |slots| slots[index])
+    }
+
+    fn set_source_slot(&mut self, index: usize, source_slot: i32) {
+        if let Some(slots) = &mut self.source_slots {
+            slots[index] = source_slot;
+        } else if source_slot != -1 {
+            let mut slots = Box::new([-1; LONGHAND_COUNT]);
+            slots[index] = source_slot;
+            self.source_slots = Some(slots);
+        }
+    }
+
     fn new_boxed() -> Box<Self> {
         let mut storage = Box::<Self>::new_uninit();
         let pointer = storage.as_mut_ptr();
@@ -121,9 +134,7 @@ impl SlotStorage {
             for index in 0..LONGHAND_COUNT {
                 slots.add(index).write(RetainedStyleValueData::none());
             }
-            std::ptr::addr_of_mut!((*pointer).source_slots)
-                .cast::<i32>()
-                .write_bytes(u8::MAX, LONGHAND_COUNT);
+            std::ptr::addr_of_mut!((*pointer).source_slots).write(None);
             storage.assume_init()
         }
     }
@@ -278,7 +289,8 @@ impl ComputedLonghandTable {
 
     fn mark_evaluated(&mut self, index: usize, source_slot: i64) {
         set_bitmap_bit(&mut self.evaluated_bits, index, true);
-        self.storage.source_slots[index] = i32::try_from(source_slot).unwrap_or(-1);
+        self.storage
+            .set_source_slot(index, i32::try_from(source_slot).unwrap_or(-1));
     }
 
     fn adjust_slot_hash_sum(&mut self, index: usize, previous: *const c_void, replacement: *const c_void) {
@@ -470,7 +482,7 @@ impl ComputedLonghandTable {
             self.adjust_slot_hash_sum(slot, self.value_pointers()[slot], source.value_pointers()[slot]);
         }
         self.storage.slots[slot].clone_from(&source.storage.slots[slot]);
-        self.storage.source_slots[slot] = source.storage.source_slots[slot];
+        self.storage.set_source_slot(slot, source.storage.source_slot(slot));
         set_bitmap_bit(&mut self.important_bits, slot, bitmap_bit(&source.important_bits, slot));
         set_bitmap_bit(&mut self.inherited_bits, slot, bitmap_bit(&source.inherited_bits, slot));
         set_bitmap_bit(&mut self.evaluated_bits, slot, bitmap_bit(&source.evaluated_bits, slot));
@@ -563,7 +575,7 @@ impl ComputedLonghandTable {
             };
         }
         self.slot_hash_sum.set(None);
-        self.storage.source_slots.fill(-1);
+        self.storage.source_slots = None;
         self.important_bits = [0; LONGHAND_BITMAP_BYTES];
         self.inherited_bits = [0; LONGHAND_BITMAP_BYTES];
         self.evaluated_bits = [0; LONGHAND_BITMAP_BYTES];
@@ -852,6 +864,15 @@ impl ComputedLonghandTable {
 
     pub(crate) fn freeze(&mut self) {
         self.post_compute_restore_values = None;
+        if !self.frozen
+            && self
+                .storage
+                .source_slots
+                .as_ref()
+                .is_some_and(|slots| slots.iter().all(|&slot| slot == -1))
+        {
+            self.storage.source_slots = None;
+        }
         self.frozen = true;
     }
 
@@ -864,7 +885,7 @@ impl ComputedLonghandTable {
     /// The cascade source slot of the declaration a longhand's value came
     /// from, recorded only when that declaration carries style sheet context.
     pub(crate) fn source_slot(&self, property_id: u16) -> Option<u32> {
-        u32::try_from(self.storage.source_slots[Self::slot_index(property_id)]).ok()
+        u32::try_from(self.storage.source_slot(Self::slot_index(property_id))).ok()
     }
 
     /// One raw data pointer per longhand slot, null where the drive stored no
@@ -1271,6 +1292,22 @@ mod tests {
         assert!(copy.get(FIRST_LONGHAND_PROPERTY_ID).is_none());
         assert_eq!(copy.value_pointers(), empty_values);
         assert!(weak_value.upgrade().is_none());
+    }
+
+    #[test]
+    fn source_slot_storage_is_absent_when_no_value_needs_sheet_context() {
+        let mut table = ComputedLonghandTable::new();
+        table.set(FIRST_LONGHAND_PROPERTY_ID, retained_number(42.0), -1);
+        assert!(table.storage.source_slots.is_none());
+        table.set(FIRST_LONGHAND_PROPERTY_ID, retained_number(42.0), 7);
+        assert!(table.storage.source_slots.is_some());
+        assert_eq!(table.source_slot(FIRST_LONGHAND_PROPERTY_ID), Some(7));
+        table.set(FIRST_LONGHAND_PROPERTY_ID, retained_number(42.0), -1);
+        let pointers = table.value_pointers().as_ptr();
+        table.freeze();
+        assert!(table.storage.source_slots.is_none());
+        assert_eq!(table.value_pointers().as_ptr(), pointers);
+        assert_eq!(table.source_slot(FIRST_LONGHAND_PROPERTY_ID), None);
     }
 
     #[test]
