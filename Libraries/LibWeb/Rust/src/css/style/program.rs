@@ -23,6 +23,9 @@
 //! and a group rule detached from a sheet takes its subtree with it while shared descendants stay
 //! alive if something else still references them.
 
+mod rule_versions;
+use rule_versions::RuleVersionTable;
+
 pub use crate::css::cascaded_properties::CascadeOrigin;
 
 use super::capacity::ShallowCapacityBytes;
@@ -152,7 +155,7 @@ impl RuleKind {
 ///
 /// The sheet order token is deliberately absent: rules reference their sheet, and the sheet holds
 /// the token. Moving a sheet therefore updates one token instead of rewriting every rule in it.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub struct RuleVersion {
     pub rule: RuleID,
     pub kind: RuleKind,
@@ -344,7 +347,7 @@ pub struct StyleSheetProgram {
     /// How many rules declare a custom property. A document without any resolves no environment
     /// of its own, and a cascade need not look.
     rules_declaring_custom_properties: usize,
-    rule_versions: Vec<RuleVersion>,
+    rule_versions: RuleVersionTable,
     semantic_declarations: HashMap<u64, Vec<SemanticDeclarationEntry>>,
     next_semantic_declaration_id: u32,
 
@@ -406,7 +409,7 @@ impl StyleSheetProgram {
             sheets: Vec::new(),
             rules: Vec::new(),
             rules_declaring_custom_properties: 0,
-            rule_versions: Vec::new(),
+            rule_versions: RuleVersionTable::default(),
             semantic_declarations: HashMap::default(),
             next_semantic_declaration_id: 1,
             sheet_order: Column::default(),
@@ -913,7 +916,7 @@ impl StyleSheetProgram {
         assert_eq!(contents.rule, rule, "a rule version must name its own rule");
         let slot = self.rules[rule.0 as usize].version_slot;
         let selector_changed = self.rule_versions[slot as usize].selector_program != contents.selector_program;
-        self.rule_versions[slot as usize] = contents;
+        self.rule_versions.set(slot as usize, contents);
         self.bump_rule_sheet_dispatch_version(rule);
         if selector_changed {
             self.bump_routing_liveness_version();
@@ -924,7 +927,7 @@ impl StyleSheetProgram {
     pub(crate) fn replace_reserved_rule_version(&mut self, rule: RuleID, contents: RuleVersion) {
         assert_eq!(contents.rule, rule, "a rule version must name its own rule");
         let slot = self.rules[rule.0 as usize].version_slot;
-        self.rule_versions[slot as usize] = contents;
+        self.rule_versions.set(slot as usize, contents);
         self.bump_rule_sheet_dispatch_version(rule);
     }
 
@@ -1437,14 +1440,15 @@ impl StyleSheetProgram {
 
     // -- Accounting --------------------------------------------------------------------------
 
+    pub(super) fn share_rule_versions(&mut self) {
+        self.rule_versions.share();
+    }
+
     fn allocate_rule_version(&mut self, contents: RuleVersion) -> u32 {
         let slot = u32::try_from(self.rule_versions.len()).expect("rule version space exhausted");
-        let previous_capacity = (self.rule_versions.capacity() * size_of::<RuleVersion>()) as u64;
+        let previous_capacity = self.rule_versions.shallow_capacity_bytes();
         self.rule_versions.push(contents);
-        self.record_capacity_change(
-            previous_capacity,
-            (self.rule_versions.capacity() * size_of::<RuleVersion>()) as u64,
-        );
+        self.record_capacity_change(previous_capacity, self.rule_versions.shallow_capacity_bytes());
         slot
     }
 
