@@ -28,6 +28,11 @@ impl RetainedUtf16FlyString {
         self.raw
     }
 
+    /// Return the retained identity, excluding the no-string sentinel.
+    pub(crate) fn optional_raw(&self) -> Option<usize> {
+        (self.raw != 0).then_some(self.raw)
+    }
+
     pub(crate) fn raw_word(&self) -> &usize {
         &self.raw
     }

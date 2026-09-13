@@ -932,8 +932,8 @@ impl<'a> SelectorCompiler<'a> {
         // evaluating anything. Other value tests read the literal for their exact comparison.
         let value_atom = match (operator, case) {
             (AttributeOperator::Presence, _) => StyleAtomID::NONE,
-            (AttributeOperator::Exact, AttributeCase::Sensitive) => match &attribute.value_identity {
-                Some(identity) => (self.intern)(identity.raw(), None),
+            (AttributeOperator::Exact, AttributeCase::Sensitive) => match attribute.value_identity.optional_raw() {
+                Some(identity) => (self.intern)(identity, None),
                 None => self.intern_text(&attribute.value),
             },
             _ => StyleAtomID::NONE,
@@ -1084,8 +1084,8 @@ impl<'a> SelectorCompiler<'a> {
                     Direction::RightToLeft => &[b'r' as u16, b't' as u16, b'l' as u16],
                     Direction::Other => &[b'a' as u16, b'u' as u16, b't' as u16, b'o' as u16],
                 };
-                let value = match &pseudo_class.identifier_lowercase_identity {
-                    Some(identity) => (self.intern)(identity.raw(), None),
+                let value = match pseudo_class.identifier_lowercase_identity.optional_raw() {
+                    Some(identity) => (self.intern)(identity, None),
                     None => self.intern_ascii_lowercase_text(keyword),
                 };
                 Some(self.builder.push(SelectorOp::ValueState {
@@ -1111,8 +1111,8 @@ impl<'a> SelectorCompiler<'a> {
                 }
             }
             Pc::State => {
-                let value = match &pseudo_class.identifier_identity {
-                    Some(identity) => (self.intern)(identity.raw(), None),
+                let value = match pseudo_class.identifier_identity.optional_raw() {
+                    Some(identity) => (self.intern)(identity, None),
                     None => match pseudo_class.identifier.as_ref() {
                         Some(identifier) => self.intern_text(identifier),
                         None => StyleAtomID::NONE,
