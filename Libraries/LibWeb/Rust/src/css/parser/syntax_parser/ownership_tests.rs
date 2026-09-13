@@ -660,6 +660,55 @@ fn namespace_rules_own_native_names_after_the_sheet_is_dropped() {
 }
 
 #[test]
+fn cached_sheets_share_across_urls_only_when_parsing_does_not_read_the_base() {
+    let mut first_context = super::tests::parse_context();
+    let first_url = b"https://first.example/path/";
+    first_context.document_url = first_url.as_ptr();
+    first_context.document_url_length = first_url.len();
+    first_context.document_base_url = first_url.as_ptr();
+    first_context.document_base_url_length = first_url.len();
+    let mut second_context = first_context;
+    let second_url = b"https://second.example/other/";
+    second_context.document_url = second_url.as_ptr();
+    second_context.document_url_length = second_url.len();
+    second_context.document_base_url = second_url.as_ptr();
+    second_context.document_base_url_length = second_url.len();
+
+    let source = utf16(".shared-without-images { display: none !important; --image: url(later.png) }");
+    let first = parse(&source, &first_context);
+    let second = parse(&source, &second_context);
+    assert!(Arc::ptr_eq(&first, &second));
+
+    for declaration in [
+        "background-image: url(image.png)",
+        "background-image: image-set(\"image.png\" 1x)",
+    ] {
+        let source = utf16(&format!(".base-dependent {{ {declaration} }}"));
+        let first = parse(&source, &first_context);
+        let second = parse(&source, &second_context);
+        assert!(!Arc::ptr_eq(&first, &second));
+        let repeated = parse(&source, &first_context);
+        assert!(Arc::ptr_eq(&first, &repeated));
+    }
+}
+
+#[test]
+fn cached_calculated_descriptors_keep_their_length_resolution_context() {
+    let source =
+        utf16("@counter-style contextual { system: numeric; symbols: 'a' 'b'; pad: calc(sign(1em - 1px) + 1) '0'; }");
+    let mut context = super::tests::parse_context();
+    let mut lengths: crate::css::style_compute::FfiLengthResolutionContext = unsafe { std::mem::zeroed() };
+    context.length_resolution_context = (&raw const lengths).cast();
+    let first = parse(&source, &context);
+    lengths.font_metrics.font_size = 16.0;
+    context.length_resolution_context = (&raw const lengths).cast();
+    let second = parse(&source, &context);
+    assert!(!Arc::ptr_eq(&first, &second));
+    let repeated = parse(&source, &context);
+    assert!(Arc::ptr_eq(&second, &repeated));
+}
+
+#[test]
 fn cache_keys_include_parsing_context_and_replay_side_effects() {
     let source = utf16(".é😀 { width: 13px; background-image: url(image.png) }");
     let mut context = super::tests::parse_context();
@@ -684,7 +733,8 @@ fn cache_keys_include_parsing_context_and_replay_side_effects() {
     lengths.viewport_width = 800.0;
     context.length_resolution_context = (&raw const lengths).cast();
     let resized = parse(&source, &context);
-    assert!(!Arc::ptr_eq(&with_lengths, &resized));
+    assert!(Arc::ptr_eq(&first, &with_lengths));
+    assert!(Arc::ptr_eq(&with_lengths, &resized));
     let mut resolved_viewport_length = false;
     lengths.resolved_viewport_relative_length = &raw mut resolved_viewport_length;
     context.length_resolution_context = (&raw const lengths).cast();

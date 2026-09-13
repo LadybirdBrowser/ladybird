@@ -48,6 +48,7 @@ fn context_bytes(pointer: *const u8, length: usize) -> Option<&'static [u8]> {
 }
 
 fn image_resource_context(context: &ParseContext) -> Option<ImageResourceContext> {
+    super::stylesheet_cache::record_base_url_dependency();
     let base_url = context_bytes(context.document_base_url, context.document_base_url_length)?;
     Some(ImageResourceContext {
         base_url: RetainedString::from_ascii(std::str::from_utf8(base_url).ok()?.to_owned()),
