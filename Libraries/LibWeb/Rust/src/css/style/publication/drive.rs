@@ -6,8 +6,16 @@
 
 use super::*;
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum FontDriveGoal {
+    Complete,
+    RootInputs,
+}
+
 #[derive(Default)]
 pub(in crate::css::style) struct FontDriveScratch {
+    pub(super) root_inputs: Option<RootFontInputs>,
+    pub(super) root_inputs_unproven: bool,
     pub(in crate::css::style) request: Option<font_resolution::FontRequest>,
     pending: Option<PendingFontDrive>,
 }
@@ -27,6 +35,7 @@ impl FontDriveScratch {
 /// The completed font phase owns its table. No parent/context borrow survives refill;
 /// the caller resumes the same subject before evaluating any later canonical element.
 struct PendingFontDrive {
+    root_font_complete: bool,
     table: ComputedLonghandTable,
     results: crate::css::style_compute::FfiLonghandDriverResults,
     effective_color_scheme: i16,
@@ -248,9 +257,9 @@ impl StyleEngineState {
     /// Drive a record through every phase: the font phase against the parent's metrics, the
     /// element's font resolved through the document's resolver, line-height and color-scheme
     /// against that font, and the remaining phase with the element facts the box-type
-    /// transformation reads. Elements whose font family selects the monospace default size, and
-    /// the document element, still compute in C++.
-    #[allow(clippy::too_many_lines)]
+    /// transformation reads. Root-input preparation finishes only the font and line-height
+    /// phases and preserves them for completion. Monospace default-size recascade stays in C++.
+    #[allow(clippy::too_many_arguments, clippy::too_many_lines)]
     pub(super) fn engine_full_drive(
         &mut self,
         subject: DriveSubject,
@@ -258,6 +267,7 @@ impl StyleEngineState {
         store: &CascadedPropertyStore,
         inputs: &bridge::FfiDocumentStyleComputationInputs,
         font_scratch: &mut FontDriveScratch,
+        goal: FontDriveGoal,
         counters: &mut Counters,
     ) -> Option<(
         ComputedLonghandTable,
@@ -494,6 +504,7 @@ impl StyleEngineState {
             };
         let resumed = font_scratch.pending.take();
         let resuming = resumed.is_some();
+        let root_font_complete = resumed.as_ref().is_some_and(|pending| pending.root_font_complete);
         if !resuming {
             counters.bump(Counter::EngineFullDrivesStarted);
             if old_table.is_some() {
@@ -506,11 +517,13 @@ impl StyleEngineState {
         let (mut table, mut results, mut effective_color_scheme) = match resumed {
             Some(pending) => {
                 resolved_viewport_relative_length = pending.resolved_viewport_relative_length;
-                counters.bump(Counter::FontRefillResumedDrives);
-                counters.add(
-                    Counter::FontRefillPreservedLonghands,
-                    u64::from(pending.results.longhand_evaluations),
-                );
+                if !pending.root_font_complete {
+                    counters.bump(Counter::FontRefillResumedDrives);
+                    counters.add(
+                        Counter::FontRefillPreservedLonghands,
+                        u64::from(pending.results.longhand_evaluations),
+                    );
+                }
                 (pending.table, pending.results, pending.effective_color_scheme)
             }
             None => (
@@ -657,6 +670,7 @@ impl StyleEngineState {
         else {
             font_scratch.request = Some(font_resolution::FontRequest::new(request));
             font_scratch.pending = Some(PendingFontDrive {
+                root_font_complete: false,
                 table,
                 results,
                 effective_color_scheme,
@@ -691,27 +705,18 @@ impl StyleEngineState {
                 inputs.root_font_metrics_depend_on_viewport_metrics,
             )
         };
-        drive(
-            counters,
-            &mut table,
-            &mut results,
-            &mut effective_color_scheme,
-            LONGHAND_DRIVE_PHASE_LINE_HEIGHT,
-            &raw const line_height_length,
-            std::ptr::null(),
-            std::ptr::null(),
-        );
-        drive(
-            counters,
-            &mut table,
-            &mut results,
-            &mut effective_color_scheme,
-            LONGHAND_DRIVE_PHASE_COLOR_SCHEME,
-            std::ptr::null(),
-            std::ptr::null(),
-            std::ptr::null(),
-        );
-        effective_color_scheme = table.effective_color_scheme();
+        if !root_font_complete {
+            drive(
+                counters,
+                &mut table,
+                &mut results,
+                &mut effective_color_scheme,
+                LONGHAND_DRIVE_PHASE_LINE_HEIGHT,
+                &raw const line_height_length,
+                std::ptr::null(),
+                std::ptr::null(),
+            );
+        }
 
         // The used line height, as the C++ working set reads it from the computed value.
         let normal_line_height = f64::from(resolved.ascent.round() as i32 + resolved.descent.round() as i32);
@@ -729,6 +734,38 @@ impl StyleEngineState {
             counters.bump(Counter::EngineComputedRecordBailFontPhase);
             return None;
         };
+        if goal == FontDriveGoal::RootInputs {
+            font_scratch.root_inputs = Some(RootFontInputs {
+                metrics: [
+                    font_size.to_bits(),
+                    drive_font_metric(resolved.x_height).to_bits(),
+                    drive_font_metric(resolved.ascent).to_bits(),
+                    drive_font_metric(resolved.zero_advance).to_bits(),
+                    line_height_before_adjustments.to_bits(),
+                ],
+                depends_on_viewport: results.font_metrics_depend_on_viewport_metrics,
+            });
+            font_scratch.pending = Some(PendingFontDrive {
+                root_font_complete: true,
+                table,
+                results,
+                effective_color_scheme,
+                resolved_viewport_relative_length,
+            });
+            return None;
+        }
+        drive(
+            counters,
+            &mut table,
+            &mut results,
+            &mut effective_color_scheme,
+            LONGHAND_DRIVE_PHASE_COLOR_SCHEME,
+            std::ptr::null(),
+            std::ptr::null(),
+            std::ptr::null(),
+        );
+        effective_color_scheme = table.effective_color_scheme();
+
         let remaining_length = length_context(
             own_metrics(line_height_before_adjustments),
             results.font_metrics_depend_on_viewport_metrics,

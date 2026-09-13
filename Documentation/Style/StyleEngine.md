@@ -825,6 +825,28 @@ anchor geometry     -> anchor functions
 tree position       -> tree-counting functions
 ```
 
+Root font inputs are a separate dependency from immediate-parent inheritance.
+Before the consumer pass, a reached document element prepares its font and used
+line height when the engine can compute them. A missing font is synchronously
+refilled at this boundary before publishing the proven inputs. The completed
+phases stay in owned scratch and resume at the root's normal record
+position; neither remaining properties nor pseudos are required for font readiness.
+The root's own remaining phase retains its existing pre-computation document
+context. Root pseudos resolve against their originating record's current metrics.
+An incremental root otherwise reads current retained document inputs.
+
+A host-materialized root keeps its existing host route without adding descendant
+deferral. C++'s root-metric comparison still routes recomputation across fixed-font
+intermediaries. Font work already performed is preserved across preparation and
+refill; consumers never use an engine-computed root's unproven font inputs.
+`rootFontInputsUnprovenFallbacks` counts these unproven reached roots and
+`rootFontInputsPrepared` counts successful preparations; neither selects behavior.
+Prepared root changes independently invalidate winner/partial-table and pseudo
+reuse. Cold, donor, cohort and shared-context keys carry all five actual root
+metrics and their viewport-dependence bit. C++ input records carry the same inputs
+in their element portion, so a root change cannot be mistaken for only a change
+of declarations. Root publication does not clear cohort caches.
+
 Font resolution reads a generation-scoped prepared table. A missing synchronous
 result suspends the current canonical element and ends the serial computation
 pass. Its owned font-phase table, completed originating record and completed

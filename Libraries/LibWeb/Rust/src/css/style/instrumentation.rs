@@ -91,6 +91,8 @@ define_counters! {
     CompletionPassMicroseconds => "completionPassMicroseconds",
     ComputationLoopMicroseconds => "computationLoopMicroseconds",
     // Physical work, including drives whose output is later abandoned.
+    RootFontInputsPrepared => "rootFontInputsPrepared",
+    RootFontInputsUnprovenFallbacks => "rootFontInputsUnprovenFallbacks",
     FontRefillRounds => "fontRefillRounds",
     FontResolutionRequests => "fontResolutionRequests",
     FontRefillResumedDrives => "fontRefillResumedDrives",

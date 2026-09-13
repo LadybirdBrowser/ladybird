@@ -9,7 +9,7 @@ mod pseudo;
 
 use super::*;
 use crate::css::computed_longhand_table::ComputedLonghandTable;
-use drive::drive_font_metric;
+use drive::{FontDriveGoal, drive_font_metric};
 
 /// Another element's published style that a first-time computation may build over: the element
 /// whose cascade state stands in for the previous one, and the record it must still hold.
@@ -24,6 +24,39 @@ pub(super) struct ExactCascadeContext {
     lower_bound_state: Option<CascadeStateID>,
     dependency_target: computed::ComputedStyleTarget,
     donor_used: bool,
+}
+
+/// Root-relative computation reads these inputs independently of its inheritance parent.
+/// Bitwise keys keep equality exact without using an invalidation generation as a substitute
+/// for the values. The viewport-dependence bit matters even when today's metrics agree.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(super) struct RootFontInputs {
+    metrics: [u64; 5],
+    depends_on_viewport: bool,
+}
+
+impl RootFontInputs {
+    fn apply_to(self, inputs: &mut bridge::FfiDocumentStyleComputationInputs) {
+        inputs.root_font_size = f64::from_bits(self.metrics[0]);
+        inputs.root_font_x_height = f64::from_bits(self.metrics[1]);
+        inputs.root_font_cap_height = f64::from_bits(self.metrics[2]);
+        inputs.root_font_zero_advance = f64::from_bits(self.metrics[3]);
+        inputs.root_line_height = f64::from_bits(self.metrics[4]);
+        inputs.root_font_metrics_depend_on_viewport_metrics = self.depends_on_viewport;
+    }
+
+    pub(super) fn from_document(inputs: &bridge::FfiDocumentStyleComputationInputs) -> Self {
+        Self {
+            metrics: [
+                inputs.root_font_size.to_bits(),
+                inputs.root_font_x_height.to_bits(),
+                inputs.root_font_cap_height.to_bits(),
+                inputs.root_font_zero_advance.to_bits(),
+                inputs.root_line_height.to_bits(),
+            ],
+            depends_on_viewport: inputs.root_font_metrics_depend_on_viewport_metrics,
+        }
+    }
 }
 
 impl StyleEngineState {
@@ -46,6 +79,7 @@ impl StyleEngineState {
                 .inherited_groups_for_shared_style(parent_record)?,
             environment,
             font_environment_generation: self.document_style_computation_inputs?.font_environment_generation,
+            root_font_inputs: RootFontInputs::from_document(&self.document_style_computation_inputs?),
             shape,
         })
     }
@@ -99,6 +133,7 @@ impl StyleEngineState {
         if context.key.environment != environment
             || context.key.font_environment_generation
                 != self.document_style_computation_inputs?.font_environment_generation
+            || context.key.root_font_inputs != RootFontInputs::from_document(&self.document_style_computation_inputs?)
             || context.key.tree_scope != self.tree.tree_scope(node).0
             || context.key.shape[..3] != shape[..3]
             || self.computed_group_sets.assigned_style_record(node)?.raw() != context.record
@@ -191,6 +226,73 @@ impl StyleEngineState {
         Some(store)
     }
 
+    /// Establish the document element's font input before the consumer pass. The root's
+    /// remaining properties and pseudos complete in their normal canonical position.
+    pub(super) fn prepare_root_font_inputs(
+        &mut self,
+        node: StyleNodeID,
+        cascade_winners_are_complete: bool,
+        exact_flipped_rules: Option<&[FlippedRule]>,
+        parent_inputs_moved: ParentInputsMoved,
+        scratch: &mut EngineComputedRecordScratch,
+        counters: &mut Counters,
+    ) {
+        let Some(inputs) = self.document_style_computation_inputs else {
+            counters.bump(Counter::RootFontInputsUnprovenFallbacks);
+            return;
+        };
+        if (parent_inputs_moved.inherited_style && !self.engine_marker_font_supported(node, counters))
+            || !self.engine_pseudo_inputs_available(
+                node,
+                self.computed_group_sets.assigned_style_record(node),
+                counters,
+            )
+        {
+            counters.bump(Counter::RootFontInputsUnprovenFallbacks);
+            return;
+        }
+        scratch.root_element_inputs = Some((node, RootFontInputs::from_document(&inputs)));
+        self.engine_computed_element_record_delta(
+            node,
+            cascade_winners_are_complete,
+            exact_flipped_rules,
+            parent_inputs_moved,
+            scratch,
+            FontDriveGoal::RootInputs,
+            counters,
+        );
+        if let Some(request) = scratch.font_drive.request.take() {
+            // NB: A root font miss completes at this preparation boundary. Consumers need
+            //     current metrics even when their first records install in this same pass.
+            self.refill_font_request(node, request, counters);
+            self.engine_computed_element_record_delta(
+                node,
+                cascade_winners_are_complete,
+                exact_flipped_rules,
+                parent_inputs_moved,
+                scratch,
+                FontDriveGoal::RootInputs,
+                counters,
+            );
+        }
+        let prepared = scratch.font_drive.root_inputs.take();
+        if let Some(root_inputs) = prepared {
+            scratch.root_font_inputs_changed = RootFontInputs::from_document(&inputs) != root_inputs;
+            root_inputs.apply_to(self.document_style_computation_inputs.as_mut().unwrap());
+            counters.bump(Counter::RootFontInputsPrepared);
+        } else {
+            // NB: Preserve the current host root-metric route. Unproven font inputs do not
+            //     turn every descendant into a host-boundary retry.
+            counters.bump(Counter::RootFontInputsUnprovenFallbacks);
+        }
+        if prepared.is_none() && !scratch.font_drive.is_pending() && !scratch.font_drive.root_inputs_unproven {
+            scratch.root_computation_unsupported = Some(node);
+        }
+        if scratch.font_drive.is_pending() {
+            scratch.prepared_root_font = Some((node, parent_inputs_moved, std::mem::take(&mut scratch.font_drive)));
+        }
+    }
+
     /// Derive the record a published-style reaction moves `node` to, when the engine can compute
     /// it exactly: the winners that moved compute in the drive's remaining phase from the values
     /// their declarations were written with, against the record's own font, the document's
@@ -206,6 +308,9 @@ impl StyleEngineState {
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
     ) -> Option<(computed::FinalStyleRecordID, computed::FinalStyleRecordID)> {
+        if scratch.root_computation_unsupported == Some(node) {
+            return None;
+        }
         let pending_element = scratch.pending_element.take();
         if pending_element.is_none() {
             scratch.pseudo_deltas.clear();
@@ -237,6 +342,7 @@ impl StyleEngineState {
                 exact_flipped_rules,
                 parent_inputs_moved,
                 scratch,
+                FontDriveGoal::Complete,
                 counters,
             )?,
         };
@@ -274,6 +380,7 @@ impl StyleEngineState {
     /// `exact_flipped_rules` are the rules that flipped for the node when the reaction is exactly
     /// those flips and nothing else the record depends on moved. `parent_inputs_moved` says which
     /// of the parent's inputs may have moved under the record.
+    #[allow(clippy::too_many_arguments)]
     fn engine_computed_element_record_delta(
         &mut self,
         node: StyleNodeID,
@@ -281,6 +388,7 @@ impl StyleEngineState {
         exact_flipped_rules: Option<&[FlippedRule]>,
         mut parent_inputs_moved: ParentInputsMoved,
         scratch: &mut EngineComputedRecordScratch,
+        goal: FontDriveGoal,
         counters: &mut Counters,
     ) -> Option<(computed::FinalStyleRecordID, computed::FinalStyleRecordID)> {
         use crate::css::computed_value_types::{
@@ -321,6 +429,8 @@ impl StyleEngineState {
         // pseudo-element, and a hint mapped from another element's attributes moves without
         // anything recorded on the element.
         let facts = self.computed_group_sets.adjustment_facts(node);
+        let root_inputs_moved =
+            scratch.root_font_inputs_changed && facts & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT == 0;
         if facts
             & (bridge::element_adjustment_fact::HAS_ANIMATIONS
                 | bridge::element_adjustment_fact::IS_SHADOW_HOST_PSEUDO_ELEMENT
@@ -339,7 +449,7 @@ impl StyleEngineState {
                 counters.bump(Counter::EngineComputedRecordBailWinnerElement);
                 return None;
             }
-            return self.engine_cold_record(node, (generation, state), scratch, counters);
+            return self.engine_cold_record(node, (generation, state), scratch, goal, counters);
         };
         if self.record_requires_cpp_animation(old_style_record) {
             counters.bump(Counter::EngineComputedRecordBailRecordOverlay);
@@ -358,7 +468,7 @@ impl StyleEngineState {
                 }
                 self.winner_groups.semantic_delta(Some(previous_state), state)
             }
-            None if winners_unchanged && parent_inputs_moved.any() => {
+            None if winners_unchanged && (parent_inputs_moved.any() || root_inputs_moved) => {
                 self.winner_groups.semantic_delta(Some(state), state)
             }
             None => {
@@ -366,10 +476,15 @@ impl StyleEngineState {
                 return None;
             }
         };
-        let Some(inputs) = self.document_style_computation_inputs else {
+        let Some(mut inputs) = self.document_style_computation_inputs else {
             counters.bump(Counter::EngineComputedRecordBailNoEnvironment);
             return None;
         };
+        if let Some((root, root_inputs)) = scratch.root_element_inputs
+            && root == node
+        {
+            root_inputs.apply_to(&mut inputs);
+        }
         // The environment the node's own custom declarations resolve to over the parent's. A node
         // declaring none keeps its record's, which is the parent's; a moved environment
         // republishes the record under the new one.
@@ -430,11 +545,17 @@ impl StyleEngineState {
             // record: it is driven again in full against the parent as it is now. The record
             // does not say which parent display it was transformed under, and a winner's own
             // value may read the parent (a relative length, an inherit keyword).
-            if !parent_inputs_moved.any() && !environment_moved_under_substitutions {
+            if !parent_inputs_moved.any() && !root_inputs_moved && !environment_moved_under_substitutions {
                 // A declaration in an inherited payload group does not prove that the other
                 // properties in that group still inherit from the current parent. Re-drive the
                 // record in full when its payloads cannot prove the relationship.
                 if self.record_inherits_from_current_parent(node, state, 0) {
+                    if goal == FontDriveGoal::RootInputs {
+                        // NB: This proof covers the retained font, without publishing the root's
+                        //     remaining properties or custom-property environment during preparation.
+                        scratch.font_drive.root_inputs = self.root_font_inputs_from_record(old_style_record);
+                        return None;
+                    }
                     // Only the environment moved: the record keeps its groups and takes the new one.
                     if let Some(environment) = environment {
                         let Some(delta) = self
@@ -477,6 +598,7 @@ impl StyleEngineState {
         // takes the same route, as does a record whose parent inputs moved: the transformation
         // and the inheritance are part of the full drive.
         let full_drive = parent_inputs_moved.any()
+            || root_inputs_moved
             || environment_moved_under_substitutions
             || delta.properties().iter().any(|&property| {
                 use crate::css::property_metadata::property_id as prop;
@@ -503,6 +625,7 @@ impl StyleEngineState {
             facts,
             cohort_parent,
             environment.unwrap_or(0),
+            RootFontInputs::from_document(&inputs),
         );
         if let Some(&new_style_record) = scratch.cohorts.get(&cohort) {
             self.note_node_substitution(node, scratch, state, current_environment);
@@ -620,6 +743,17 @@ impl StyleEngineState {
             return None;
         }
 
+        if goal == FontDriveGoal::RootInputs && !full_drive {
+            // NB: No font property moved, but borrowing the retained font still needs the
+            //     proof that only the named rule flips changed the computation's inputs.
+            if exact_flipped_rules.is_some() {
+                scratch.font_drive.root_inputs = self.root_font_inputs_from_record(old_style_record);
+            } else {
+                scratch.font_drive.root_inputs_unproven = true;
+            }
+            return None;
+        }
+
         let store = match scratch.stores.get(&(state, current_environment)) {
             Some(store) => store.clone(),
             None => {
@@ -648,6 +782,7 @@ impl StyleEngineState {
                 &store,
                 &inputs,
                 &mut scratch.font_drive,
+                goal,
                 counters,
             )?
         } else {
@@ -817,16 +952,22 @@ impl StyleEngineState {
         node: StyleNodeID,
         cascade_state: (u64, CascadeStateID),
         scratch: &mut EngineComputedRecordScratch,
+        goal: FontDriveGoal,
         counters: &mut Counters,
     ) -> Option<(computed::FinalStyleRecordID, computed::FinalStyleRecordID)> {
         use crate::css::computed_values::computed_group_dependency_mask;
 
         let target = computed::ComputedStyleTarget::new(node, u8::MAX);
         let (_, state) = cascade_state;
-        let Some(inputs) = self.document_style_computation_inputs else {
+        let Some(mut inputs) = self.document_style_computation_inputs else {
             counters.bump(Counter::EngineComputedRecordBailNoEnvironment);
             return None;
         };
+        if let Some((root, root_inputs)) = scratch.root_element_inputs
+            && root == node
+        {
+            root_inputs.apply_to(&mut inputs);
+        }
         let facts = self.computed_group_sets.adjustment_facts(node);
         let parent = self.tree.flat_tree_parent(node);
         // Only the document element is styled without a flat-tree parent: it inherits from the
@@ -869,6 +1010,7 @@ impl StyleEngineState {
                 pseudo_styles,
                 environment: parent_environment,
                 font_environment_generation: inputs.font_environment_generation,
+                root_font_inputs: RootFontInputs::from_document(&inputs),
             });
         let delta_property_count = self.winner_groups.winner_count_in_state(state) as u64;
         if !self.node_declares_custom_properties(node)
@@ -944,6 +1086,7 @@ impl StyleEngineState {
                 pseudo_styles,
                 environment,
                 font_environment_generation: inputs.font_environment_generation,
+                root_font_inputs: RootFontInputs::from_document(&inputs),
             });
         if let Some(delta) = self.assign_cached_cold_record(
             node,
@@ -968,6 +1111,7 @@ impl StyleEngineState {
                 pseudo_styles: key.pseudo_styles,
                 environment: key.environment,
                 font_environment_generation: key.font_environment_generation,
+                root_font_inputs: key.root_font_inputs,
             };
             self.engine_cold_record_donors
                 .get(&donor_key)?
@@ -1035,7 +1179,7 @@ impl StyleEngineState {
         }
         let subject = DriveSubject { parent, facts };
         let (table, length, longhand_evaluations, font) =
-            self.engine_full_drive(subject, None, &store, &inputs, &mut scratch.font_drive, counters)?;
+            self.engine_full_drive(subject, None, &store, &inputs, &mut scratch.font_drive, goal, counters)?;
         let font = font.expect("a full drive resolves the font");
         let (new_style_record, swap_eligible) = self.assemble_and_publish_engine_record(
             target,
@@ -1333,6 +1477,7 @@ impl StyleEngineState {
                     pseudo_styles,
                     environment,
                     font_environment_generation: inputs.font_environment_generation,
+                    root_font_inputs: RootFontInputs::from_document(&inputs),
                 });
             if let Some((old_record, record)) = self.assign_cached_cold_record(
                 node,
@@ -1581,31 +1726,33 @@ impl StyleEngineState {
             })
     }
 
-    /// The document element's record settled: the root font metrics the drives after it resolve
-    /// `rem` against are its font's, the way C++ refreshes them after computing it.
-    pub(super) fn refresh_root_font_metrics_from_record(&mut self, record: computed::FinalStyleRecordID) -> bool {
+    fn root_font_inputs_from_record(&self, record: computed::FinalStyleRecordID) -> Option<RootFontInputs> {
         use crate::css::computed_value_types::STYLE_GROUP_INDEX_FONT;
-        let Some(view) = self.computed_group_sets.style_record_view(record.raw()) else {
-            return false;
-        };
+        let view = self.computed_group_sets.style_record_view(record.raw())?;
         let font =
             unsafe { &*view.payloads[STYLE_GROUP_INDEX_FONT].cast::<crate::css::computed_value_types::FontValues>() };
-        let Some(inputs) = self.document_style_computation_inputs.as_mut() else {
-            return false;
+        Some(RootFontInputs {
+            metrics: [
+                font.font_size.to_double().to_bits(),
+                drive_font_metric(font.font_x_height).to_bits(),
+                drive_font_metric(font.font_ascent).to_bits(),
+                drive_font_metric(font.font_zero_advance).to_bits(),
+                font.line_height_used.to_double().to_bits(),
+            ],
+            depends_on_viewport: view.dependency_flags & (1 << 1) != 0,
+        })
+    }
+
+    /// The host boundary publishes root inputs after materializing a document element.
+    /// Cache entries name these inputs; publication does not clear them as a side effect.
+    fn prepare_root_font_metrics_from_record(&mut self, record: computed::FinalStyleRecordID) {
+        let Some(root_inputs) = self.root_font_inputs_from_record(record) else {
+            return;
         };
-        let previous_inputs = *inputs;
-        inputs.root_font_size = font.font_size.to_double();
-        inputs.root_font_x_height = drive_font_metric(font.font_x_height);
-        inputs.root_font_cap_height = drive_font_metric(font.font_ascent);
-        inputs.root_font_zero_advance = drive_font_metric(font.font_zero_advance);
-        inputs.root_line_height = font.line_height_used.to_double();
-        inputs.root_font_metrics_depend_on_viewport_metrics = view.dependency_flags & (1 << 1) != 0;
-        let changed = *inputs != previous_inputs;
-        if changed {
-            self.engine_cold_record_cache.clear();
-            self.engine_cold_record_donors.clear();
-        }
-        changed
+        let Some(inputs) = self.document_style_computation_inputs.as_mut() else {
+            return;
+        };
+        root_inputs.apply_to(inputs);
     }
 
     fn element_drive_subject(&mut self, node: StyleNodeID, counters: &mut Counters) -> Option<DriveSubject> {
@@ -1643,6 +1790,7 @@ impl StyleEngineState {
                 pseudo_styles: key.pseudo_styles,
                 environment: key.environment,
                 font_environment_generation: key.font_environment_generation,
+                root_font_inputs: key.root_font_inputs,
             };
             let donors = self.engine_cold_record_donors.entry(donor_key).or_default();
             if let Some(existing) = donors.iter_mut().find(|donor| donor.state == key.state) {
@@ -1895,6 +2043,7 @@ impl StyleEngineState {
             pseudo_styles,
             environment: custom_property_environment,
             font_environment_generation: inputs.font_environment_generation,
+            root_font_inputs: RootFontInputs::from_document(&inputs),
         };
         self.remember_cold_record(
             key,
@@ -2550,7 +2699,7 @@ impl StyleEngineState {
                 & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT
                 != 0
         {
-            self.refresh_root_font_metrics_from_record(publication.style_record_identity);
+            self.prepare_root_font_metrics_from_record(publication.style_record_identity);
         }
         if let Some(current_cascade_state) = current_cascade_state {
             let target = target.expect("only a target has pending cascade state");
@@ -3492,6 +3641,7 @@ pub(super) struct ColdRecordKey {
     /// The custom-property environment the record is published with.
     environment: u64,
     font_environment_generation: u64,
+    root_font_inputs: RootFontInputs,
 }
 
 /// What a first record reads of the parent's style: its inherited groups, its custom-property
@@ -3525,6 +3675,7 @@ pub(super) struct ColdRecordDonorKey {
     pseudo_styles: u64,
     environment: u64,
     font_environment_generation: u64,
+    root_font_inputs: RootFontInputs,
 }
 
 #[derive(Clone, Copy)]
@@ -3621,10 +3772,16 @@ impl EngineComputabilityScratch {
 #[derive(Default)]
 pub(super) struct EngineComputedRecordScratch {
     pub(super) font_drive: drive::FontDriveScratch,
+    pub(super) prepared_root_font: Option<(StyleNodeID, ParentInputsMoved, drive::FontDriveScratch)>,
+    // NB: Preserve the root's existing remaining-phase context after preparing consumer inputs.
+    root_element_inputs: Option<(StyleNodeID, RootFontInputs)>,
+    // NB: A failed preparation already performed the root's unsupported computation.
+    root_computation_unsupported: Option<StyleNodeID>,
+    root_font_inputs_changed: bool,
     pending_element: Option<(computed::FinalStyleRecordID, computed::FinalStyleRecordID)>,
     next_pseudo: usize,
     pseudo_uses_substitution: bool,
-    cohorts: HashMap<(u64, CascadeStateID, u32, RecordDeltaParent, u64), computed::FinalStyleRecordID>,
+    cohorts: HashMap<(u64, CascadeStateID, u32, RecordDeltaParent, u64, RootFontInputs), computed::FinalStyleRecordID>,
     computability: EngineComputabilityScratch,
     /// The nodes whose record this flush settled: what their descendants inherit from is in
     /// place.
@@ -3662,7 +3819,8 @@ impl EngineComputedRecordScratch {
             shallow [self.computability.states, self.cohorts, self.settled_nodes, self.cold_cohorts, self.stores,
                 self.substituted_states, self.pseudo_cohorts, self.pseudo_stores,
                 self.pseudo_deltas, self.flipped_pseudo_rules];
-            cached [self.font_drive.capacity_bytes()];
+            cached [self.font_drive.capacity_bytes(),
+                self.prepared_root_font.as_ref().map_or(0, |(_, _, drive)| drive.capacity_bytes())];
             nested [];
             skip [];
         }
@@ -3705,6 +3863,7 @@ pub(super) struct PseudoCohortKey {
     state: Option<CascadeStateID>,
     facts: u32,
     font_environment_generation: u64,
+    root_font_inputs: RootFontInputs,
 }
 
 /// The synthetic pseudo-element kinds, as the C++ `PseudoElement` enumeration numbers them.

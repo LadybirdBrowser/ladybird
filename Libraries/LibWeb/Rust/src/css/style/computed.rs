@@ -716,6 +716,7 @@ pub(super) struct SharedStyleRecordKey {
     pub inherited_groups: InheritedGroupSetID,
     pub environment: u64,
     pub font_environment_generation: u64,
+    pub(super) root_font_inputs: super::publication::RootFontInputs,
     pub shape: [u64; 4],
 }
 
@@ -3916,6 +3917,7 @@ mod tests {
             inherited_groups: sets.inherited_groups_for_shared_style(record).unwrap(),
             environment: 1,
             font_environment_generation: 1,
+            root_font_inputs: super::super::publication::RootFontInputs::from_document(&Default::default()),
             shape: [0; 4],
         };
         sets.remember_shared_style_record(node, key, record);

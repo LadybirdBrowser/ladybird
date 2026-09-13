@@ -8,6 +8,8 @@
             <style>
                 html { font-size: 20px; line-height: 30px }
                 html.changed { font-size: 40px; line-height: 50px }
+                html::before { content: ""; margin-left: 2rem; margin-right: 2rlh }
+                html.changed .target { color: blue }
                 .fixed { font-size: 10px; line-height: 10px }
                 .target { margin-left: 2rem; margin-right: 2rlh }
                 .target::before { content: ""; margin-left: 3rem; margin-right: 3rlh }
@@ -33,6 +35,7 @@
         added.className = "target";
         parent.appendChild(added);
         println(`root change: ${values(target)}; new: ${values(added)}`);
+        println(`root pseudo: ${child.getComputedStyle(root, "::before").marginLeft}/${child.getComputedStyle(root, "::before").marginRight}`);
         println(`fixed parent: ${child.getComputedStyle(parent).fontSize}/${child.getComputedStyle(parent).lineHeight}`);
         added.classList.add("extra");
         println(`incremental child: ${values(added)}`);
@@ -45,12 +48,15 @@
         frame.style.width = "400px";
         document.body.offsetWidth;
         println(`viewport change: ${values(target)}; new: ${values(added)}`);
+        println(`viewport root pseudo: ${child.getComputedStyle(root, "::before").marginLeft}/${child.getComputedStyle(root, "::before").marginRight}`);
         root.style.fontSize = "40px";
         println(`equal constant: ${values(target)}`);
         frame.style.width = "200px";
         document.body.offsetWidth;
         println(`viewport after constant: ${values(target)}; new: ${values(added)}`);
         const after = child.internals.styleEngineCounters();
+        println(`root font preparation exercised: ${after.rootFontInputsPrepared > before.rootFontInputsPrepared}`);
+        println(`root font fallback exercised: ${after.rootFontInputsUnprovenFallbacks > before.rootFontInputsUnprovenFallbacks}`);
         println(`engine computation exercised: ${after.engineComputedRecordDeltas > before.engineComputedRecordDeltas}`);
     });
 </script>

@@ -114,10 +114,16 @@ impl StyleEngineState {
     ) -> Option<()> {
         use pseudo_kind::{AFTER, BACKDROP, BEFORE, FIRST_LETTER, MARKER, SELECTION};
 
-        let Some(inputs) = self.document_style_computation_inputs else {
+        let Some(mut inputs) = self.document_style_computation_inputs else {
             counters.bump(Counter::EngineComputedRecordBailNoEnvironment);
             return None;
         };
+        // NB: Root pseudos use the originating record's current font, independently of
+        //     the document context used for the root's own remaining properties.
+        if self.computed_group_sets.adjustment_facts(node) & bridge::element_adjustment_fact::IS_DOCUMENT_ELEMENT != 0 {
+            self.root_font_inputs_from_record(new_element_record)?
+                .apply_to(&mut inputs);
+        }
         let program_version = self.program.version();
         let mut states: [Option<CascadeStateID>; pseudo_kind::SYNTHETIC_COUNT] = [None; pseudo_kind::SYNTHETIC_COUNT];
         for (pseudo, version, state, priority_current) in self.winner_groups.pseudo_states(node) {
@@ -193,6 +199,7 @@ impl StyleEngineState {
         };
         let facts = self.computed_group_sets.adjustment_facts(node) & PSEUDO_ELEMENT_ADJUSTMENT_FACTS;
         let originating_inputs_unchanged = inherited_inputs_unchanged
+            && !scratch.root_font_inputs_changed
             && old_element_record.is_some_and(|old| {
                 let Some(old_view) = self.computed_group_sets.style_record_view(old.raw()) else {
                     return false;
@@ -376,6 +383,7 @@ impl StyleEngineState {
                     state,
                     facts,
                     font_environment_generation: inputs.font_environment_generation,
+                    root_font_inputs: RootFontInputs::from_document(&inputs),
                 });
             let cascade_state = state.map(|state| (generation, state));
             let own_groups = state.map_or(0, |state| self.state_owned_inherited_groups(state));
@@ -417,8 +425,15 @@ impl StyleEngineState {
                         parent: Some(node),
                         facts,
                     };
-                    let driven =
-                        self.engine_full_drive(subject, None, &store, &inputs, &mut scratch.font_drive, counters);
+                    let driven = self.engine_full_drive(
+                        subject,
+                        None,
+                        &store,
+                        &inputs,
+                        &mut scratch.font_drive,
+                        FontDriveGoal::Complete,
+                        counters,
+                    );
                     if driven.is_none() && scratch.font_drive.request.is_some() {
                         scratch.next_pseudo = pseudo_index;
                         scratch.pseudo_uses_substitution = pseudo_uses_substitution;
