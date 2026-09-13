@@ -14,6 +14,7 @@ namespace Web::HTML {
 PreparedNavigationDescriptor create_prepared_navigation_descriptor(PreparedNavigation const& navigation)
 {
     VERIFY(!navigation.response);
+    VERIFY(!navigation.api_method_tracker);
 
     return {
         .url = navigation.url,
@@ -45,6 +46,7 @@ PreparedNavigation create_prepared_navigation_from_descriptor(JS::Realm& realm, 
         .navigation_id = move(descriptor.navigation_id),
         .source_element = nullptr,
         .initial_insertion = descriptor.initial_insertion,
+        .api_method_tracker = nullptr,
         .csp_navigation_type = descriptor.csp_navigation_type,
         .source_snapshot_params = create_source_snapshot_params_from_navigation_source_snapshot(realm, descriptor.source_snapshot_params),
         .initiator_origin_snapshot = move(descriptor.initiator_origin_snapshot),

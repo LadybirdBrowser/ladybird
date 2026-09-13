@@ -1,0 +1,7 @@
+Harness status: OK
+
+Found 2 tests
+
+2 Pass
+Pass	Re-entry via focus reset using pushState
+Pass	Re-entry via focus reset using navigate()

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Re-entry during focus reset with ongoing API method tracker</title>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<body>
+<input id="target">
+<script>
+promise_test(async t => {
+  const input = document.getElementById("target");
+  input.focus();
+  assert_true(document.hasFocus(), "Document must have focus for blur to fire");
+
+  input.addEventListener("blur", () => {
+    history.pushState(null, "", "#from-blur-pushstate");
+  }, { once: true });
+
+  navigation.addEventListener("navigate", e => {
+    e.intercept();
+  }, { once: true });
+
+  const result = navigation.navigate("#first");
+  await result.committed;
+  await result.finished;
+  assert_equals(location.hash, "#from-blur-pushstate");
+}, "Re-entry via focus reset using pushState");
+
+promise_test(async t => {
+  const input = document.getElementById("target");
+  input.focus();
+  assert_true(document.hasFocus(), "Document must have focus for blur to fire");
+
+  let innerResult;
+  input.addEventListener("blur", () => {
+    innerResult = navigation.navigate("#from-blur-navigate");
+  }, { once: true });
+
+  navigation.addEventListener("navigate", e => {
+    e.intercept();
+  }, { once: true });
+
+  const result = navigation.navigate("#second");
+  await result.committed;
+  await result.finished;
+  await innerResult.committed;
+  await innerResult.finished;
+  assert_equals(location.hash, "#from-blur-navigate");
+}, "Re-entry via focus reset using navigate()");
+</script>
+</body>
