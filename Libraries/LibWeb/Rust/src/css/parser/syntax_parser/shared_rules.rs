@@ -69,6 +69,10 @@ pub(crate) struct ParsedRuleList {
 }
 
 impl ParsedRuleList {
+    pub(crate) fn root_sheet(&self) -> Option<&Arc<ParsedStyleSheet>> {
+        self.parent.is_none().then_some(&self.sheet)
+    }
+
     pub(crate) fn root(sheet: Arc<ParsedStyleSheet>) -> Self {
         Self { sheet, parent: None }
     }

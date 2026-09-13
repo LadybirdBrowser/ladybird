@@ -479,6 +479,10 @@ void StyleComputer::visit_edges(Visitor& visitor)
         visitor.visit(entry.sheet);
     for (auto const& entry : m_constructed_sheet_ids)
         visitor.visit(entry.key);
+    for (auto const& entry : m_shared_compiled_style_sheets) {
+        if (entry.value)
+            entry.value->contents().visit_edges(visitor);
+    }
 
     if (m_cached_font_computation_context.has_value())
         m_cached_font_computation_context->visit_edges(visitor);

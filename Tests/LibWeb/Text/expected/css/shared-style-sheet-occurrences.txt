@@ -30,3 +30,7 @@ disable last anonymous: rgb(255, 0, 0)
 anonymous layers !important: rgb(0, 128, 0)
 disable last anonymous !important: rgb(0, 128, 0)
 named layer uses first declaration order: rgb(255, 0, 0)
+counter definitions respect media: true
+enable counter definitions: true
+disable counter definitions independently: true
+layer order respects media: rgb(255, 0, 0), rgb(0, 128, 0)

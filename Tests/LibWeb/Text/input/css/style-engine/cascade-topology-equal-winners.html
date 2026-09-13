@@ -18,6 +18,10 @@
 <script>
     test(() => {
         const sheet = document.getElementById("layers").sheet;
+        // The first CSSOM edit recompiles shared contents into a private stylesheet. Insert and remove
+        // a dummy rule before measuring, so the counters cover only subsequent incremental edits.
+        sheet.insertRule(":not(*) {}", 0);
+        sheet.deleteRule(0);
 
         plan("reverse layers with equal ordinary winners", () => {
             sheet.insertRule("@layer b, a;", 0);

@@ -26,6 +26,7 @@
 #include <LibWeb/CSS/RustDeclarationBlock.h>
 #include <LibWeb/CSS/Selector.h>
 #include <LibWeb/CSS/SelectorMatching.h>
+#include <LibWeb/CSS/SharedCompiledStyleSheet.h>
 #include <LibWeb/CSS/StyleGroupPayloadPins.h>
 #include <LibWeb/CSS/StyleInvalidation.h>
 #include <LibWeb/CSS/StyleScope.h>
@@ -364,6 +365,8 @@ public:
     [[nodiscard]] SheetID style_engine_sheet_id_for(StyleSheetState const&) const;
     void set_style_engine_sheet_id_for(StyleSheetState&, SheetID);
 
+    [[nodiscard]] HashMap<SharedCompiledStyleSheetKey, RefPtr<SharedCompiledStyleSheet>>& shared_compiled_style_sheets() { return m_shared_compiled_style_sheets; }
+
     // The reverse of an element's style node identity. StyleEngine plans in identities; turning a
     // plan back into elements needs this, and it is maintained at exactly the two points the
     // identity itself is.
@@ -519,6 +522,7 @@ private:
     TreeScopeID m_next_tree_scope;
     Vector<NonAuthorStyleSheet> m_non_author_style_sheets;
     HashMap<RefPtr<StyleSheetState const>, SheetID> m_constructed_sheet_ids;
+    HashMap<SharedCompiledStyleSheetKey, RefPtr<SharedCompiledStyleSheet>> m_shared_compiled_style_sheets;
     HashMap<u64, WeakPtr<StyleSheetState const>> m_style_engine_sheet_sources;
 };
 

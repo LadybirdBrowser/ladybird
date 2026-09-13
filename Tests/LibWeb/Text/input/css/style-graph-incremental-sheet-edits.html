@@ -24,6 +24,11 @@
     }
 
     test(() => {
+        // The first CSSOM edit recompiles shared contents into a private stylesheet. Insert and remove
+        // a dummy rule before measuring, so the counters cover only subsequent incremental edits.
+        sheet.insertRule(":not(*) {}", 0);
+        sheet.deleteRule(0);
+
         document.body.offsetWidth;
 
         // One rule arriving is one rule compiled, wherever it lands. The rules around it keep their

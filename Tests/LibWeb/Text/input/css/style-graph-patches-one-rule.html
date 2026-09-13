@@ -9,6 +9,10 @@
 <script>
     test(() => {
         const sheet = document.getElementById("sheet").sheet;
+        // The first CSSOM edit recompiles shared contents into a private stylesheet. Insert and remove
+        // a dummy rule before measuring, so the counters cover only subsequent incremental edits.
+        sheet.insertRule(":not(*) {}", 0);
+        sheet.deleteRule(0);
         const target = document.getElementById("target");
         document.body.offsetWidth;
 

@@ -7,6 +7,12 @@
 <div id="root"></div>
 <script>
     test(() => {
+        const sheet = document.getElementById("rules").sheet;
+        // The first CSSOM edit recompiles shared contents into a private stylesheet. Insert and remove
+        // a dummy rule before measuring, so the counters cover only subsequent incremental edits.
+        sheet.insertRule(":not(*) {}", 0);
+        sheet.deleteRule(0);
+
         const root = document.getElementById("root");
         for (let index = 0; index < 100; ++index) {
             const item = document.createElement("div");

@@ -1380,6 +1380,90 @@ static bool rule_change_needs_style_environment_bump(RustRule const& rule)
 {
     return Parser::ValueParserFFI::rust_rule_change_needs_style_environment_bump(rule.handle());
 }
+
+static bool sheet_can_share_compiled_style_sheet(StyleSheetState const& sheet)
+{
+    if (sheet.constructed() || sheet.compiled_style_sheet_is_unshareable())
+        return false;
+    if (sheet.owner_import() || sheet.parent_style_sheet() || !sheet.import_rules().is_empty())
+        return false;
+    if (!sheet.title().is_empty() || !sheet.native_rules().shared_contents_identity())
+        return false;
+    auto const* owner_node = sheet.owner_node();
+    if (!owner_node || !(owner_node->is_html_style_element() || owner_node->is_svg_style_element()))
+        return false;
+    return !sheet.native_rules().has_implicit_scope();
+}
+
+static RefPtr<SharedCompiledStyleSheet> shared_compiled_style_sheet_for(StyleSheetState& sheet, TreeScopeID tree_scope, DOM::Document& document)
+{
+    if (!sheet_can_share_compiled_style_sheet(sheet))
+        return nullptr;
+    auto& style_computer = document.style_computer();
+    auto& style_engine = style_computer.style_engine();
+    SharedCompiledStyleSheetKey key { sheet.native_rules().shared_contents_identity(), sheet.style_resource_base_url().value_or(document.base_url()).serialize() };
+    auto& shared_compiled_style_sheets = style_computer.shared_compiled_style_sheets();
+    if (auto existing = shared_compiled_style_sheets.get(key); existing.has_value()) {
+        // Each anonymous layer occurrence creates a distinct layer, even for identical contents.
+        // Keep a separate program when another occurrence already occupies this scope.
+        if ((*existing)->is_attached_to(tree_scope) && sheet.native_rules().has_anonymous_layer())
+            return nullptr;
+        return *existing;
+    }
+    auto contents = StyleSheetState::create(sheet.native_rules().clone_shared_contents(), &document, RustMediaList {}, {});
+    contents->set_base_url(sheet.style_resource_base_url().value_or(document.base_url()));
+    auto sheet_id = style_engine.add_sheet(
+        static_cast<u32>(reinterpret_cast<FlatPtr>(contents.ptr()) >> 3),
+        StyleEngineFFI::FfiCascadeOrigin::Author);
+    contents->set_style_engine_sheet_id(sheet_id);
+    RuleCompilationContext context { style_engine, sheet_id, 0, document, style_computer };
+    compile_rules_into(context, *contents);
+    contents->evaluate_media_queries(document);
+    contents->load_pending_image_resources(document);
+    auto shared_compiled_style_sheet = make_ref_counted<SharedCompiledStyleSheet>(move(key), move(contents), sheet_id);
+    shared_compiled_style_sheets.set(shared_compiled_style_sheet->key(), shared_compiled_style_sheet);
+    return shared_compiled_style_sheet;
+}
+
+static void detach_shared_compiled_style_sheet(SharedCompiledStyleSheet& sheet, u64 occurrence, TreeScopeID tree_scope, StyleComputer& style_computer)
+{
+    auto& style_engine = style_computer.style_engine();
+    style_engine.detach_sheet_occurrence(tree_scope, occurrence);
+    sheet.remove_attachment(tree_scope);
+    if (sheet.has_attachments())
+        return;
+
+    style_engine.begin_sheet_rules_replacement(sheet.sheet_id());
+    style_engine.finish_sheet_rules_replacement(sheet.sheet_id());
+    auto& shared_compiled_style_sheets = style_computer.shared_compiled_style_sheets();
+    shared_compiled_style_sheets.remove(sheet.key());
+    if (shared_compiled_style_sheets.is_empty())
+        shared_compiled_style_sheets.clear();
+}
+
+bool stop_sharing_compiled_style_sheet(StyleSheetState& sheet)
+{
+    auto* shared_compiled_style_sheet = sheet.shared_compiled_style_sheet();
+    if (!shared_compiled_style_sheet)
+        return false;
+    flush_deferred_style_change_events_for_sheet(sheet);
+    sheet.mark_compiled_style_sheet_unshareable();
+    Vector<GC::Ref<DOM::Node>> owners;
+    for (auto const& owner : sheet.owning_documents_or_shadow_roots())
+        owners.append(*owner);
+    for (auto const& owner : owners) {
+        auto tree_scope = tree_scope_of(owner);
+        detach_shared_compiled_style_sheet(*shared_compiled_style_sheet, sheet.style_engine_occurrence_id(), tree_scope, owner->document().style_computer());
+    }
+    sheet.set_shared_compiled_style_sheet(nullptr);
+    sheet.set_style_engine_sheet_id(0);
+    for (auto const& owner : owners) {
+        auto& style_scope = owner->is_shadow_root() ? as<DOM::ShadowRoot>(*owner).style_scope() : owner->document().style_scope();
+        style_scope.attach_sheet_to_style_engine(sheet);
+    }
+    return true;
+}
+
 // A rule arrived in one document's engine. Compile it, and everything it brings with it, into the
 // position it holds there.
 static void record_style_rule_inserted_in(u64 identity, bool changes_environment, StyleSheetState& sheet, DOM::Document& document)
@@ -1413,7 +1497,7 @@ void record_style_rule_inserted(CSSRule& rule)
 static void record_style_rule_inserted(u64 identity, bool changes_environment, StyleSheetState& source_sheet)
 {
     auto* sheet = owning_compiled_sheet(&source_sheet);
-    if (!sheet)
+    if (!sheet || stop_sharing_compiled_style_sheet(*sheet))
         return;
     for_each_document_with_engine_copy(*sheet, [&](DOM::Document& document) {
         record_style_rule_inserted_in(identity, changes_environment, *sheet, document);
@@ -1444,6 +1528,8 @@ void record_style_rule_removed(CSSRule& rule)
 
 void record_style_rule_removed(StyleSheetState& sheet_it_left, RustRule const& rule, StyleSheetState const* detached_import)
 {
+    if (stop_sharing_compiled_style_sheet(sheet_it_left))
+        return;
     for_each_document_with_engine_copy(sheet_it_left, [&](DOM::Document& document) {
         document.flush_deferred_style_change_event();
         auto& style_computer = document.style_computer();
@@ -1482,7 +1568,7 @@ void record_style_rule_removed(StyleSheetState& sheet_it_left, RustRule const& r
 void record_style_rule_selector_changed(CSSStyleRule& rule)
 {
     auto* sheet = owning_compiled_sheet(rule);
-    if (!sheet)
+    if (!sheet || stop_sharing_compiled_style_sheet(*sheet))
         return;
 
     for_each_document_with_engine_copy(*sheet, [&](DOM::Document& document) {
@@ -1506,7 +1592,7 @@ void record_style_rule_declarations_changed(CSSRule& rule)
 void record_style_rule_declarations_changed(RustRule const& rule, StyleSheetState& source_sheet)
 {
     auto* sheet = owning_compiled_sheet(&source_sheet);
-    if (!sheet)
+    if (!sheet || stop_sharing_compiled_style_sheet(*sheet))
         return;
 
     for_each_document_with_engine_copy(*sheet, [&](DOM::Document& document) {
@@ -1530,6 +1616,8 @@ void record_style_rule_declarations_changed(RustRule const& rule, StyleSheetStat
 // `replace()` swaps a sheet's whole rule list, so there is nothing of the old one to keep.
 void record_stylesheet_rules_replaced(StyleSheetState& sheet)
 {
+    if (stop_sharing_compiled_style_sheet(sheet))
+        return;
     for_each_document_with_engine_copy(sheet, [&](DOM::Document& document) {
         document.flush_deferred_style_change_event();
         auto& style_computer = document.style_computer();
@@ -1554,11 +1642,16 @@ void record_stylesheet_attached(StyleSheetState& sheet, DOM::Node& document_or_s
     auto first_attachment = sheet_id == 0;
     auto tree_scope = tree_scope_of(document_or_shadow_root);
     if (first_attachment) {
-        // The CSSOM object's identity is what the program keys its wrapper by; the semantic sheet
-        // is a separate identity that survives edits to its contents.
-        sheet_id = style_engine.add_sheet(
-            static_cast<u32>(reinterpret_cast<FlatPtr>(&sheet) >> 3),
-            StyleEngineFFI::FfiCascadeOrigin::Author);
+        if (auto shared_compiled_style_sheet = shared_compiled_style_sheet_for(sheet, tree_scope, document_or_shadow_root.document())) {
+            sheet_id = shared_compiled_style_sheet->sheet_id();
+            sheet.set_shared_compiled_style_sheet(move(shared_compiled_style_sheet));
+        } else {
+            // The CSSOM object's identity is what the program keys its wrapper by; the semantic sheet
+            // is a separate identity that survives edits to its contents.
+            sheet_id = style_engine.add_sheet(
+                static_cast<u32>(reinterpret_cast<FlatPtr>(&sheet) >> 3),
+                StyleEngineFFI::FfiCascadeOrigin::Author);
+        }
         style_computer.set_style_engine_sheet_id_for(sheet, sheet_id);
     }
     // A sheet attached to a shadow root is bounded by the tree it decides in, and what bounds it is
@@ -1573,6 +1666,10 @@ void record_stylesheet_attached(StyleSheetState& sheet, DOM::Node& document_or_s
     style_engine.attach_sheet_occurrence(
         sheet_id, tree_scope, sheet.style_engine_occurrence_id(), before ? before->style_engine_occurrence_id() : 0,
         !sheet.disabled() && sheet.native_media_list().matches());
+    if (first_attachment) {
+        if (auto* shared_compiled_style_sheet = sheet.shared_compiled_style_sheet())
+            shared_compiled_style_sheet->add_attachment(tree_scope);
+    }
 
     // A constructed sheet can be configured before anything adopts it, so attachment is its first
     // opportunity to publish the condition state.
@@ -1597,7 +1694,7 @@ void record_stylesheet_attached(StyleSheetState& sheet, DOM::Node& document_or_s
     // A sheet's rules belong to the sheet, not to an attachment. Compiling them again when the same
     // sheet is adopted into a second scope, or moved from one to another, would give it two copies
     // of every rule.
-    if (!first_attachment)
+    if (!first_attachment || sheet.shared_compiled_style_sheet())
         return;
     RuleCompilationContext context { style_engine, sheet_id, 0, document_or_shadow_root.document(), style_computer };
     compile_rules_into(context, sheet);
@@ -1741,7 +1838,16 @@ void record_stylesheet_detached(StyleSheetState& sheet, DOM::Node& document_or_s
     if (sheet_id == 0)
         return;
     auto tree_scope = tree_scope_of(document_or_shadow_root);
-    style_computer.style_engine().detach_sheet_occurrence(tree_scope, sheet.style_engine_occurrence_id());
+    auto* shared_compiled_style_sheet = sheet.shared_compiled_style_sheet();
+    if (!shared_compiled_style_sheet) {
+        style_computer.style_engine().detach_sheet_occurrence(tree_scope, sheet.style_engine_occurrence_id());
+        return;
+    }
+    detach_shared_compiled_style_sheet(*shared_compiled_style_sheet, sheet.style_engine_occurrence_id(), tree_scope, style_computer);
+    if (sheet.owning_documents_or_shadow_roots().is_empty()) {
+        sheet.set_shared_compiled_style_sheet(nullptr);
+        sheet.set_style_engine_sheet_id(0);
+    }
 }
 
 // Every boolean pseudo-class the parser can produce has a fact, so the switch is exhaustive over

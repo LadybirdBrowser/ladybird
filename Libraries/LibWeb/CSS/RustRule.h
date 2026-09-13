@@ -182,6 +182,15 @@ public:
             Parser::ValueParserFFI::rust_rule_list_release(m_list);
     }
     size_t size() const { return Parser::ValueParserFFI::rust_rule_list_count(m_list); }
+    bool has_implicit_scope() const { return Parser::ValueParserFFI::rust_rule_list_has_implicit_scope(m_list); }
+    bool has_anonymous_layer() const { return Parser::ValueParserFFI::rust_rule_list_has_anonymous_layer(m_list); }
+    FlatPtr shared_contents_identity() const { return Parser::ValueParserFFI::rust_rule_list_shared_contents_identity(m_list); }
+    RustRuleList clone_shared_contents() const
+    {
+        auto* list = Parser::ValueParserFFI::rust_rule_list_clone_shared_contents(m_list);
+        VERIFY(list);
+        return RustRuleList { list };
+    }
     void for_each_rule(Function<bool(RustRuleView const&)> const& callback) const
     {
         Parser::ValueParserFFI::rust_rule_list_visit_rule_data(m_list, &callback, [](void const* context, Parser::ValueParserFFI::NativeRuleView const* rule) {

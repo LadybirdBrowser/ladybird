@@ -13,6 +13,12 @@
 <span id="bystander" class="hit"></span>
 <script>
     test(() => {
+        const sheet = document.styleSheets[0];
+        // The first CSSOM edit recompiles shared contents into a private stylesheet. Insert and remove
+        // a dummy rule before measuring, so the counters cover only subsequent incremental edits.
+        sheet.insertRule(":not(*) {}", 0);
+        sheet.deleteRule(0);
+
         // A `::part()` selector describes two elements at once: the host it is written against, and
         // an element inside the tree that host holds. What the engine has to reach is the part
         // element, so anything that can change what a part rule decides has to arrive there.

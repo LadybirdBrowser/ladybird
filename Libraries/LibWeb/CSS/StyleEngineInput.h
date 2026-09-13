@@ -162,6 +162,7 @@ WEB_API void record_style_rule_declarations_changed(RustRule const&, StyleSheetS
 // `replace()` is the exception: it swaps the whole rule list, so there is nothing to keep.
 WEB_API void record_stylesheet_rules_replaced(StyleSheetState&);
 WEB_API void record_stylesheet_detached(StyleSheetState&, DOM::Node& document_or_shadow_root);
+WEB_API bool stop_sharing_compiled_style_sheet(StyleSheetState&);
 
 // Called once a sheet's media queries have been evaluated.
 WEB_API void record_stylesheet_conditions(StyleSheetState&, DOM::Node& document_or_shadow_root, bool conditions_hold);

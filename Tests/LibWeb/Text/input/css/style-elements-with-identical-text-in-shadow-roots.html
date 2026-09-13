@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<div id="hosts"></div>
+<script>
+    test(() => {
+        const css = ".a { color: rgb(1, 2, 3); } .b { color: rgb(4, 5, 6); } @media (min-width: 1px) { .c { color: rgb(7, 8, 9); } }";
+        const hosts = [];
+        const makeHost = (media) => {
+            const host = document.createElement("div");
+            document.getElementById("hosts").append(host);
+            const shadowRoot = host.attachShadow({ mode: "open" });
+            shadowRoot.innerHTML = `<style${media ? ` media="${media}"` : ""}>${css}</style><span class="a">a</span><span class="b">b</span><span class="c">c</span>`;
+            hosts.push(host);
+            return host;
+        };
+        const colors = (host) => ["a", "b", "c"].map((className) => getComputedStyle(host.shadowRoot.querySelector(`.${className}`)).color).join(" ");
+        const sheet = (host) => host.shadowRoot.querySelector("style").sheet;
+        const report = (label) => println(`${label}: ${hosts.map(colors).join(" | ")}`);
+
+        makeHost();
+        makeHost();
+        makeHost();
+        makeHost("print");
+        report("initial");
+
+        sheet(hosts[0]).insertRule(".a { color: rgb(10, 20, 30); }", 3);
+        report("insertRule on host 0");
+
+        sheet(hosts[1]).cssRules[1].style.color = "rgb(40, 50, 60)";
+        report("declaration change on host 1");
+
+        sheet(hosts[2]).cssRules[0].selectorText = ".b";
+        report("selector change on host 2");
+
+        sheet(hosts[0]).deleteRule(3);
+        report("deleteRule on host 0");
+
+        sheet(hosts[2]).disabled = true;
+        report("disable host 2");
+
+        sheet(hosts[2]).disabled = false;
+        report("enable host 2");
+
+        hosts[3].shadowRoot.querySelector("style").media = "screen";
+        report("media change on host 3");
+
+        hosts[1].shadowRoot.querySelector("style").textContent = ".unused { color: red; }";
+        hosts[1].shadowRoot.querySelector("style").textContent = css;
+        report("text reset on host 1");
+
+        hosts[0].remove();
+        document.getElementById("hosts").append(hosts[0]);
+        report("host 0 moved");
+
+        const host = makeHost();
+        host.shadowRoot.querySelector("style").textContent = ".a { color: rgb(100, 100, 100); }";
+        report("text change on host 4");
+    });
+</script>

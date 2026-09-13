@@ -108,6 +108,7 @@ public:
     void add_a_css_style_sheet(StyleSheetState&, StyleEngineUpdate = StyleEngineUpdate::Record);
     void remove_a_css_style_sheet(StyleSheetState&, StyleEngineUpdate = StyleEngineUpdate::Record);
     void move_sheet(StyleSheetState&, StyleScope& destination);
+    void attach_sheet_to_style_engine(StyleSheetState&);
     enum class Alternate : u8 {
         No,
         Yes,

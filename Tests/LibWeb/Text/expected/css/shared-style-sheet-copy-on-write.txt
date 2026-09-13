@@ -1,0 +1,7 @@
+first edit compiles private contents: 3
+first edit: rgb(255, 0, 0), rgb(0, 128, 0)
+later insertion compiles one rule: 1
+later insertion: rgb(0, 128, 0), rgb(0, 128, 0)
+later declaration edit compiles no rules: 0
+later declaration edit: rgb(0, 0, 255), rgb(0, 128, 0)
+second sheet outlives first: rgb(0, 128, 0)

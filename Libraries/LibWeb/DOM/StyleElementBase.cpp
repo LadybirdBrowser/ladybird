@@ -92,7 +92,7 @@ void StyleElementBase::update_a_style_block(UpdateSource update_source)
     Optional<GC::Root<Node>> replaced_sheet_root;
     bool defer_style_engine_update = false;
     if (m_associated_css_style_sheet) {
-        defer_style_engine_update = m_associated_css_style_sheet->style_engine_sheet_id() != 0;
+        defer_style_engine_update = m_associated_css_style_sheet->style_engine_sheet_id() != 0 && !m_associated_css_style_sheet->shared_compiled_style_sheet();
         replaced_sheet = m_associated_css_style_sheet;
         replaced_sheet_root = GC::Root { m_style_sheet_scope->node() };
         m_style_sheet_scope->remove_a_css_style_sheet(
