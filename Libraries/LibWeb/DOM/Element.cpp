@@ -6187,6 +6187,10 @@ void Element::attribute_changed(Utf16FlyString const& local_name, Optional<Utf16
         if (value == Utf16String {} && !old_value.has_value())
             return;
 
+        // AD-HOC: Assigned nodes are recomputed lazily.
+        if (auto assigned_slot = assigned_slot_internal())
+            assigned_slot->assign_slottables_if_needed();
+
         // 4. If value is null or the empty string, then set element’s name to the empty string.
         if (!value.has_value() || value->is_empty())
             set_slottable_name({});

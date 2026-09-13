@@ -1088,6 +1088,10 @@ public:
     bool has_resize_observers() const { return !m_resize_observers.is_empty(); }
     void unregister_resize_observer(Badge<ResizeObserver::ResizeObserver>, ResizeObserver::ResizeObserver&);
 
+    void add_shadow_root_needing_slot_assignment(Badge<ShadowRoot>, ShadowRoot&);
+    void remove_shadow_root_needing_slot_assignment(Badge<ShadowRoot>, ShadowRoot&);
+    void assign_slottables_if_needed();
+
     void run_the_update_intersection_observations_steps(HighResolutionTime::DOMHighResTimeStamp time);
 
     void start_intersection_observing_a_lazy_loading_element(Element&);
@@ -2026,6 +2030,8 @@ private:
     GC::Ptr<IntersectionObserver::IntersectionObserver> m_lazy_load_intersection_observer;
 
     Vector<GC::Weak<ResizeObserver::ResizeObserver>> m_resize_observers;
+
+    ShadowRoot::DocumentSlotAssignmentList m_shadow_roots_needing_slot_assignment;
 
     // https://html.spec.whatwg.org/multipage/semantics.html#will-declaratively-refresh
     // A Document object has an associated will declaratively refresh (a boolean). It is initially false.

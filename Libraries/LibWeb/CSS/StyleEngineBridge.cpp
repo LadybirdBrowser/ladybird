@@ -389,6 +389,8 @@ bool StyleEngine::has_recorded_input() const
 
 void StyleEngine::submit_recorded_input()
 {
+    if (m_style_computer)
+        m_style_computer->document().assign_slottables_if_needed();
     Layout::ForcedReadScope read { render_document() };
     if (m_style_computer) {
         take_in_pending_style_arrivals(m_style_computer->document());

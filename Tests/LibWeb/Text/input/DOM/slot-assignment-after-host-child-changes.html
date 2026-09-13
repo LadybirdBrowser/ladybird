@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const slotchangeCounts = new Map();
+        const observe = slot => {
+            slotchangeCounts.set(slot, 0);
+            slot.addEventListener("slotchange", () => slotchangeCounts.set(slot, slotchangeCounts.get(slot) + 1));
+        };
+        const microtask = () => Promise.resolve();
+        const createHost = shadowHTML => {
+            const host = document.createElement("div");
+            host.attachShadow({ mode: "open" }).innerHTML = shadowHTML;
+            document.body.appendChild(host);
+            return host;
+        };
+        const createChild = slotName => {
+            const child = document.createElement("div");
+            if (slotName)
+                child.slot = slotName;
+            return child;
+        };
+
+        const host1 = createHost("<slot></slot>");
+        const slot1 = host1.shadowRoot.firstChild;
+        observe(slot1);
+        const children = [createChild(), createChild(), createChild()];
+        for (const child of children)
+            host1.appendChild(child);
+        println(`assignedNodes after appending three children: ${slot1.assignedNodes().length}`);
+        println(`assignedSlot of the last appended child is the slot: ${children[2].assignedSlot === slot1}`);
+        await microtask();
+        println(`slotchange events after appending three children: ${slotchangeCounts.get(slot1)}`);
+        host1.appendChild(createChild());
+        await microtask();
+        println(`slotchange events after appending one more child: ${slotchangeCounts.get(slot1)}`);
+        children[0].remove();
+        println(`assignedNodes after removing a child: ${slot1.assignedNodes().length}`);
+        println(`assignedSlot of the removed child: ${children[0].assignedSlot}`);
+        await microtask();
+        println(`slotchange events after removing a child: ${slotchangeCounts.get(slot1)}`);
+
+        const host2 = createHost('<slot name="a"></slot>');
+        const slot2 = host2.shadowRoot.firstChild;
+        observe(slot2);
+        host2.appendChild(createChild("a"));
+        await microtask();
+        slot2.name = "b";
+        println(`assignedNodes after renaming the slot: ${slot2.assignedNodes().length}`);
+        await microtask();
+        println(`slotchange events after renaming the slot: ${slotchangeCounts.get(slot2)}`);
+        slot2.name = "a";
+        await microtask();
+        println(`slotchange events after renaming the slot back: ${slotchangeCounts.get(slot2)}`);
+
+        const host3 = createHost("<slot></slot>");
+        const slot3 = host3.shadowRoot.firstChild;
+        observe(slot3);
+        host3.appendChild(createChild());
+        await microtask();
+        slot3.remove();
+        println(`assignedNodes of the removed slot: ${slot3.assignedNodes().length}`);
+        await microtask();
+        println(`slotchange events after removing the slot: ${slotchangeCounts.get(slot3)}`);
+
+        const host4 = createHost('<slot name="a"></slot><slot name="b"></slot>');
+        const [slot4a, slot4b] = host4.shadowRoot.children;
+        observe(slot4a);
+        observe(slot4b);
+        const child4 = createChild("a");
+        host4.appendChild(child4);
+        await microtask();
+        child4.slot = "b";
+        println(`assignedSlot after changing the slot attribute is slot b: ${child4.assignedSlot === slot4b}`);
+        println(`assignedNodes of slot a and slot b: ${slot4a.assignedNodes().length}, ${slot4b.assignedNodes().length}`);
+        await microtask();
+        println(`slotchange events for slot a and slot b: ${slotchangeCounts.get(slot4a)}, ${slotchangeCounts.get(slot4b)}`);
+        child4.setAttribute("slot", "b");
+        await microtask();
+        println(`slotchange events after setting the same slot name: ${slotchangeCounts.get(slot4a)}, ${slotchangeCounts.get(slot4b)}`);
+
+        const host5 = createHost("<slot></slot>");
+        const slot5 = host5.shadowRoot.firstChild;
+        observe(slot5);
+        slot5.appendChild(createChild());
+        await microtask();
+        println(`slotchange events after adding fallback content to an empty slot: ${slotchangeCounts.get(slot5)}`);
+        host5.appendChild(createChild());
+        await microtask();
+        slot5.appendChild(createChild());
+        await microtask();
+        println(`slotchange events after adding fallback content to a filled slot: ${slotchangeCounts.get(slot5)}`);
+
+        const host6 = createHost("<style>::slotted(div) { width: 50px; height: 10px; }</style><slot></slot>");
+        const slot6 = host6.shadowRoot.lastChild;
+        const child6 = createChild();
+        host6.appendChild(child6);
+        println(`offsetWidth of a slotted child: ${child6.offsetWidth}`);
+        let composedPath = [];
+        child6.addEventListener("test", event => composedPath = event.composedPath());
+        child6.dispatchEvent(new Event("test", { composed: true, bubbles: true }));
+        println(`event path passes through the slot: ${composedPath.includes(slot6)}`);
+
+        const host7 = document.createElement("div");
+        host7.attachShadow({ mode: "open", slotAssignment: "manual" }).innerHTML = "<slot></slot>";
+        document.body.appendChild(host7);
+        const slot7 = host7.shadowRoot.firstChild;
+        observe(slot7);
+        const child7 = createChild();
+        host7.appendChild(child7);
+        slot7.assign(child7);
+        await microtask();
+        child7.slot = "a";
+        println(`assignedSlot after changing the slot attribute of a manually assigned child: ${child7.assignedSlot === slot7}`);
+        await microtask();
+        println(`slotchange events after changing the slot attribute of a manually assigned child: ${slotchangeCounts.get(slot7)}`);
+
+        const host8 = createHost('<slot name="b"></slot>');
+        const child8 = createChild("b");
+        host8.appendChild(child8);
+        child8.offsetWidth;
+        host8.shadowRoot.innerHTML = '<style>::slotted(div) { width: 50px; }</style><slot name="a"></slot>';
+        child8.slot = "a";
+        println(`offsetWidth of a child assigned to a newly inserted slot: ${child8.offsetWidth}`);
+
+        const host9 = createHost("<slot></slot>");
+        const host10 = createHost('<style>::slotted(div) { width: 50px; }</style><slot></slot>');
+        const child9 = createChild();
+        host9.appendChild(child9);
+        child9.offsetWidth;
+        host10.moveBefore(child9, null);
+        host9.remove();
+        println(`offsetWidth of a moved child after its previous host was removed: ${child9.offsetWidth}`);
+
+        const createManualHost = () => {
+            const host = document.createElement("div");
+            host.attachShadow({ mode: "open", slotAssignment: "manual" }).innerHTML = "<slot></slot><div></div><div></div>";
+            document.body.appendChild(host);
+            const slot = host.shadowRoot.firstChild;
+            const child = createChild();
+            slot.assign(child);
+            host.appendChild(child);
+            return host;
+        };
+        const host11 = createManualHost();
+        host11.shadowRoot.appendChild(document.createElement("div"));
+        println(`assignedNodes after inserting into a manual shadow tree: ${host11.shadowRoot.firstChild.assignedNodes().length}`);
+        const host12 = createManualHost();
+        host12.shadowRoot.moveBefore(host12.shadowRoot.lastChild, host12.shadowRoot.children[1]);
+        println(`assignedNodes after moving within a manual shadow tree: ${host12.shadowRoot.firstChild.assignedNodes().length}`);
+
+        const host13 = document.createElement("div");
+        host13.attachShadow({ mode: "open", slotAssignment: "manual" }).innerHTML = "<slot></slot>";
+        document.body.appendChild(host13);
+        const slot13 = host13.shadowRoot.firstChild;
+        const child13 = createChild();
+        const sibling13 = createChild();
+        slot13.assign(child13, sibling13);
+        host13.append(child13, sibling13);
+        child13.slot = "a";
+        sibling13.addEventListener("test", event => composedPath = event.composedPath());
+        sibling13.dispatchEvent(new Event("test", { composed: true, bubbles: true }));
+        println(`event path of a manually assigned sibling passes through the slot: ${composedPath.includes(slot13)}`);
+
+        const host14 = document.createElement("div");
+        host14.attachShadow({ mode: "open", slotAssignment: "manual" }).innerHTML = "<slot></slot>";
+        document.body.appendChild(host14);
+        const slot14 = host14.shadowRoot.firstChild;
+        const child14 = createChild();
+        const sibling14 = createChild();
+        host14.appendChild(child14);
+        slot14.assign(child14, sibling14);
+        host14.appendChild(sibling14);
+        child14.remove();
+        sibling14.addEventListener("test", event => composedPath = event.composedPath());
+        sibling14.dispatchEvent(new Event("test", { composed: true, bubbles: true }));
+        println(`event path of a manually assigned sibling after a removal passes through the slot: ${composedPath.includes(slot14)}`);
+
+        const host15 = createHost("<slot></slot>");
+        const text15 = document.createTextNode("text");
+        document.body.appendChild(text15);
+        host15.moveBefore(text15, null);
+        println(`assignedNodes after moving a text node into a host: ${host15.shadowRoot.firstChild.assignedNodes().length}`);
+    });
+</script>

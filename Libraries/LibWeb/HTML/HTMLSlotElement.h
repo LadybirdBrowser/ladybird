@@ -47,6 +47,8 @@ public:
 
     ReadonlySpan<DOM::Slottable> manually_assigned_nodes() const { return m_manually_assigned_nodes; }
 
+    void assign_slottables_if_needed() const;
+
 private:
     HTMLSlotElement(DOM::Document&, DOM::QualifiedName);
 

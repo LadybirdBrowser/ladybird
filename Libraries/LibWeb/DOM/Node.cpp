@@ -989,21 +989,29 @@ void Node::insert_node_into_children(GC::Ref<Node> node, GC::Ptr<Node> child)
     // 5. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then run
     //    signal a slot change for parent.
     if (auto* this_slot_element = as_if<HTML::HTMLSlotElement>(*this); this_slot_element && root().is_shadow_root()) {
+        this_slot_element->assign_slottables_if_needed();
         if (this_slot_element->assigned_nodes_internal().is_empty())
             signal_a_slot_change(*this_slot_element);
     }
 
     // AD-HOC: Register any slot elements in the inserted subtree with the shadow root’s slot registry
     //         before running assign_slottables_for_a_tree, so the registry is up-to-date.
-    if (auto* shadow_root = as_if<ShadowRoot>(node->root())) {
+    auto& inserted_root = node->root();
+    auto* inserted_shadow_root = as_if<ShadowRoot>(inserted_root);
+    bool inserted_subtree_has_slot = false;
+    if (inserted_shadow_root) {
         node->for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
-            shadow_root->register_slot(slot);
+            inserted_shadow_root->assign_slottables_if_needed();
+            inserted_shadow_root->register_slot(slot);
+            inserted_subtree_has_slot = true;
             return TraversalDecision::Continue;
         });
     }
 
     // 6. Run assign slottables for a tree with node’s root.
-    assign_slottables_for_a_tree(node->root());
+    // OPTIMIZATION: Inserting into a named shadow tree only changes slot assignments when the subtree holds a slot.
+    if (!inserted_shadow_root || inserted_subtree_has_slot || inserted_shadow_root->slot_assignment() == SlotAssignmentMode::Manual)
+        assign_slottables_for_a_tree(inserted_root);
 }
 
 // https://dom.spec.whatwg.org/#concept-node-insert
@@ -1518,33 +1526,43 @@ void Node::detach_remaining_layout_nodes_for_removal()
     Layout::RustFFI::render_state_detach_remaining_rows_for_removal(arena->host(), style_nodes.data(), style_nodes.size());
 }
 
-void Node::assign_slottables_after_removal(Node& parent, Node& parent_root)
+Vector<GC::Ref<HTML::HTMLSlotElement>> Node::descendant_slots_before_removal(Node& parent_root)
 {
-    if (auto assigned_slot = assigned_slot_for_node(*this))
-        assign_slottables(*assigned_slot);
+    // AD-HOC: Assigned nodes are recomputed lazily.
+    Vector<GC::Ref<HTML::HTMLSlotElement>> descendant_slots;
+    if (auto* shadow_root = as_if<ShadowRoot>(parent_root)) {
+        for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
+            descendant_slots.append(slot);
+            return TraversalDecision::Continue;
+        });
+        if (!descendant_slots.is_empty())
+            shadow_root->assign_slottables_if_needed();
+    }
+    return descendant_slots;
+}
+
+void Node::assign_slottables_after_removal(Node& parent, Node& parent_root, ReadonlySpan<GC::Ref<HTML::HTMLSlotElement>> descendant_slots)
+{
+    // AD-HOC: Assigned nodes are recomputed lazily.
+    unassign_a_slot(*this);
 
     if (auto* parent_slot_element = as_if<HTML::HTMLSlotElement>(parent); parent_slot_element && parent_root.is_shadow_root()) {
+        parent_slot_element->assign_slottables_if_needed();
         if (parent_slot_element->assigned_nodes_internal().is_empty())
             signal_a_slot_change(*parent_slot_element);
     }
 
-    if (auto* shadow_root = as_if<ShadowRoot>(parent_root)) {
-        Vector<GC::Ref<HTML::HTMLSlotElement>> descendant_slots;
-        for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
-            // AD-HOC: Unregister slot from the shadow root's registry before assign_slottables_for_a_tree.
+    if (auto* shadow_root = as_if<ShadowRoot>(parent_root); shadow_root && !descendant_slots.is_empty()) {
+        // AD-HOC: Unregister slot from the shadow root's registry before assign_slottables_for_a_tree.
+        for (auto const& slot : descendant_slots)
             shadow_root->unregister_slot(slot);
-            descendant_slots.append(slot);
-            return TraversalDecision::Continue;
-        });
 
-        if (!descendant_slots.is_empty()) {
-            // 1. Run assign slottables for a tree with parent’s root.
-            assign_slottables_for_a_tree(parent_root);
+        // 1. Run assign slottables for a tree with parent’s root.
+        assign_slottables_for_a_tree(parent_root);
 
-            // 2. Run assign slottables for a tree with node.
-            for (auto const& slot : descendant_slots)
-                assign_slottables(slot);
-        }
+        // 2. Run assign slottables for a tree with node.
+        for (auto const& slot : descendant_slots)
+            assign_slottables(slot);
     }
 }
 
@@ -1639,6 +1657,9 @@ void Node::remove(bool suppress_observers)
 
     schedule_list_item_renumber_for_removal();
 
+    auto& parent_root = parent->root();
+    auto descendant_slots = descendant_slots_before_removal(parent_root);
+
     RemovalStyleRecordPins removal_style_record_pins { document().style_computer() };
     removal_style_record_pins.pin_style_records_before_removal(*this, was_tracked_by_style_engine);
     if (was_tracked_by_style_engine) {
@@ -1659,8 +1680,7 @@ void Node::remove(bool suppress_observers)
     // 9. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then run
     //    signal a slot change for parent.
     // 10. If node has an inclusive descendant that is a slot, then:
-    auto& parent_root = parent->root();
-    assign_slottables_after_removal(*parent, parent_root);
+    assign_slottables_after_removal(*parent, parent_root, descendant_slots);
 
     removal_style_record_pins.pin_style_records_after_removal(*this, was_connected);
 
@@ -1969,38 +1989,35 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
         }
     }
 
+    auto& old_parent_root = old_parent->root();
+    auto descendant_slots = descendant_slots_before_removal(old_parent_root);
+
     // 13. Remove node from oldParent’s children.
     old_parent->remove_child_impl(*this);
 
     // 14. If node is assigned, then run assign slottables for node’s assigned slot.
-    if (auto assigned_slot = assigned_slot_for_node(*this))
-        assign_slottables(*assigned_slot);
+    // AD-HOC: Assigned nodes are recomputed lazily.
+    unassign_a_slot(*this);
 
     // 15. If oldParent’s root is a shadow root, and oldParent is a slot whose assigned nodes is empty, then run signal a slot change for oldParent.
-    auto& old_parent_root = old_parent->root();
     if (auto* old_parent_slot_element = as_if<HTML::HTMLSlotElement>(*old_parent); old_parent_slot_element && old_parent_root.is_shadow_root()) {
+        old_parent_slot_element->assign_slottables_if_needed();
         if (old_parent_slot_element->assigned_nodes_internal().is_empty())
             signal_a_slot_change(*old_parent_slot_element);
     }
 
     // 16. If node has an inclusive descendant that is a slot:
-    if (auto* shadow_root = as_if<ShadowRoot>(old_parent_root)) {
-        Vector<GC::Ref<HTML::HTMLSlotElement>> descendant_slots;
-        for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
-            // AD-HOC: Unregister slot from the shadow root's registry before assign_slottables_for_a_tree.
+    if (auto* shadow_root = as_if<ShadowRoot>(old_parent_root); shadow_root && !descendant_slots.is_empty()) {
+        // AD-HOC: Unregister slot from the shadow root's registry before assign_slottables_for_a_tree.
+        for (auto const& slot : descendant_slots)
             shadow_root->unregister_slot(slot);
-            descendant_slots.append(slot);
-            return TraversalDecision::Continue;
-        });
 
-        if (!descendant_slots.is_empty()) {
-            // 1. Run assign slottables for a tree with oldParent’s root.
-            assign_slottables_for_a_tree(old_parent_root);
+        // 1. Run assign slottables for a tree with oldParent’s root.
+        assign_slottables_for_a_tree(old_parent_root);
 
-            // 2. Run assign slottables for a tree with node.
-            for (auto const& slot : descendant_slots)
-                assign_slottables(slot);
-        }
+        // 2. Run assign slottables for a tree with node.
+        for (auto const& slot : descendant_slots)
+            assign_slottables(slot);
     }
 
     // 17. If child is non-null:
@@ -2057,34 +2074,39 @@ WebIDL::ExceptionOr<void> Node::move_node(Node& new_parent, Node* child)
     }
 
     // 21. If newParent is a shadow host whose shadow root’s slot assignment is "named" and node is a slottable, then assign a slot for node.
-    if (is<Element>(new_parent) && is<Element>(*this)) {
-        auto& this_element = static_cast<Element&>(*this);
-        auto& new_parent_element = static_cast<Element&>(new_parent);
+    if (auto* new_parent_element = as_if<Element>(new_parent)) {
+        auto is_named_shadow_host = new_parent_element->is_shadow_host()
+            && new_parent_element->shadow_root()->slot_assignment() == SlotAssignmentMode::Named;
 
-        auto is_named_shadow_host = new_parent_element.is_shadow_host()
-            && new_parent_element.shadow_root()->slot_assignment() == SlotAssignmentMode::Named;
-
-        if (is_named_shadow_host && this_element.is_slottable())
-            assign_a_slot(this_element.as_slottable());
+        if (is_named_shadow_host && is_slottable())
+            assign_a_slot(as_slottable());
     }
 
     // AD-HOC: Register any slot elements in the moved subtree with the shadow root's slot registry so the registry is
     //         up-to-date.
-    if (auto* new_shadow_root = as_if<ShadowRoot>(root())) {
+    auto& new_root = root();
+    auto* new_shadow_root = as_if<ShadowRoot>(new_root);
+    bool moved_subtree_has_slot = false;
+    if (new_shadow_root) {
         for_each_in_inclusive_subtree_of_type<HTML::HTMLSlotElement>([&](auto& slot) {
+            new_shadow_root->assign_slottables_if_needed();
             new_shadow_root->register_slot(slot);
+            moved_subtree_has_slot = true;
             return TraversalDecision::Continue;
         });
     }
 
     // 22. If newParent’s root is a shadow root, and newParent is a slot whose assigned nodes is empty, then run signal a slot change for newParent.
-    if (auto* new_parent_slot_element = as_if<HTML::HTMLSlotElement>(new_parent); new_parent_slot_element && new_parent.root().is_shadow_root()) {
+    if (auto* new_parent_slot_element = as_if<HTML::HTMLSlotElement>(new_parent); new_parent_slot_element && new_root.is_shadow_root()) {
+        new_parent_slot_element->assign_slottables_if_needed();
         if (new_parent_slot_element->assigned_nodes_internal().is_empty())
             signal_a_slot_change(*new_parent_slot_element);
     }
 
     // 23. Run assign slottables for a tree with node’s root.
-    assign_slottables_for_a_tree(root());
+    // OPTIMIZATION: Moving into a named shadow tree only changes slot assignments when the moved subtree holds a slot.
+    if (!new_shadow_root || moved_subtree_has_slot || new_shadow_root->slot_assignment() == SlotAssignmentMode::Manual)
+        assign_slottables_for_a_tree(new_root);
 
     CSS::Invalidation::invalidate_style_after_subtree_place_changed(*this, moved_from_parent);
 
@@ -2954,6 +2976,8 @@ void Node::remove_all_children(bool suppress_observers)
         if (!list_owner_renumber_scheduled)
             list_owner_renumber_scheduled = child->schedule_list_item_renumber_for_removal();
 
+        auto descendant_slots = child->descendant_slots_before_removal(parent_root);
+
         RemovalStyleRecordPins removal_style_record_pins { document().style_computer() };
         removal_style_record_pins.pin_style_records_before_removal(*child, was_tracked_by_style_engine);
         if (was_tracked_by_style_engine) {
@@ -2970,7 +2994,7 @@ void Node::remove_all_children(bool suppress_observers)
         // 9. If parent’s root is a shadow root, and parent is a slot whose assigned nodes is the empty list, then run
         //    signal a slot change for parent.
         // 10. If node has an inclusive descendant that is a slot, then:
-        child->assign_slottables_after_removal(*this, parent_root);
+        child->assign_slottables_after_removal(*this, parent_root, descendant_slots);
 
         removal_style_record_pins.pin_style_records_after_removal(*child, was_connected);
 

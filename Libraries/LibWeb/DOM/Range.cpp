@@ -264,6 +264,7 @@ static Optional<FlatTreePosition> flat_tree_position(BoundaryPoint point)
 
 Optional<RelativeBoundaryPointPosition> position_of_boundary_point_relative_to_other_boundary_point_in_flat_tree(BoundaryPoint a, BoundaryPoint b)
 {
+    a.node->document().assign_slottables_if_needed();
     auto a_position = flat_tree_position(a);
     auto b_position = flat_tree_position(b);
     if (!a_position.has_value() || !b_position.has_value() || a_position->root != b_position->root)

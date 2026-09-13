@@ -963,6 +963,7 @@ void AnimationUpdateContext::publish()
                         || invalidation.recompute_descendant_styles
                         || invalidation.needs_layout_tree_rebuild();
                     if (auto* slot = as_if<HTML::HTMLSlotElement>(*target); slot && !descendants_may_observe_non_inherited_properties) {
+                        slot->assign_slottables_if_needed();
                         // NB: Assigned elements leave explicit inheritance marks on their DOM parent,
                         //     including values that substitute to inherit, rather than on the slot. Every
                         //     assigned element is a child of the shadow host, so the first one's parent

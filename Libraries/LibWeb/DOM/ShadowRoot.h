@@ -96,6 +96,9 @@ public:
 
     GC::Ptr<HTML::HTMLSlotElement> first_slot_with_name(Utf16View name) const;
 
+    void set_needs_slot_assignment(HTML::HTMLSlotElement&);
+    void assign_slottables_if_needed();
+
     CSS::StyleScope const& style_scope() const { return m_style_scope; }
     CSS::StyleScope& style_scope() { return m_style_scope; }
 
@@ -171,11 +174,13 @@ private:
     AnchorNameMap m_anchor_name_map;
 
     OwnPtr<SlotRegistry> m_slot_registry;
+    Vector<GC::Ref<HTML::HTMLSlotElement>> m_slots_needing_assignment;
 
     GC::Ptr<CSS::StyleSheetList> m_style_sheets;
     mutable GC::Ptr<WebIDL::ObservableArray> m_adopted_style_sheets;
 
     IntrusiveListNode<ShadowRoot> m_list_node;
+    IntrusiveListNode<ShadowRoot> m_slot_assignment_list_node;
 
     CSS::StyleScope m_style_scope;
 
@@ -192,6 +197,7 @@ private:
 
 public:
     using DocumentShadowRootList = IntrusiveList<&ShadowRoot::m_list_node>;
+    using DocumentSlotAssignmentList = IntrusiveList<&ShadowRoot::m_slot_assignment_list_node>;
 };
 
 template<>
