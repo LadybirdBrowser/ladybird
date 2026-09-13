@@ -13,9 +13,10 @@ use crate::css::retained_fly_string::RetainedUtf16FlyString;
 
 static NEXT_SELECTOR_ID: AtomicU64 = AtomicU64::new(1);
 
-pub type SelectorString = Box<[u16]>;
+pub type SelectorString = crate::css::css_string::CssString;
 /// Parsed selectors use `()` identities and can be shared across threads. Bound selectors retain
 /// document-thread atoms for matching, without changing the immutable parsed tree.
+/// The retained handle already has an absent sentinel, so identities need no extra option tag.
 pub type SelectorList<Identity = RetainedUtf16FlyString> = Box<[Arc<CompiledSelector<Identity>>]>;
 
 pub(crate) mod parsed {
@@ -62,15 +63,15 @@ pub struct QualifiedName<Identity = RetainedUtf16FlyString> {
     pub namespace: SelectorString,
     pub name: SelectorString,
     pub lowercase_name: SelectorString,
-    pub(crate) interned_name: Option<Identity>,
-    pub(crate) interned_lowercase_name: Option<Identity>,
-    pub(crate) interned_namespace: Option<Identity>,
+    pub(crate) interned_name: Identity,
+    pub(crate) interned_lowercase_name: Identity,
+    pub(crate) interned_namespace: Identity,
 }
 
 impl QualifiedName {
     #[must_use]
     pub fn interned_name_identity(&self) -> Option<usize> {
-        self.interned_name.as_ref().map(RetainedUtf16FlyString::raw)
+        self.interned_name.optional_raw()
     }
 
     /// HTML elements in HTML documents match tag names case-insensitively, so the lowercase form is
@@ -78,14 +79,13 @@ impl QualifiedName {
     #[must_use]
     pub fn interned_lowercase_name_identity(&self) -> Option<usize> {
         self.interned_lowercase_name
-            .as_ref()
-            .or(self.interned_name.as_ref())
-            .map(RetainedUtf16FlyString::raw)
+            .optional_raw()
+            .or_else(|| self.interned_name.optional_raw())
     }
 
     #[must_use]
     pub fn interned_namespace_identity(&self) -> Option<usize> {
-        self.interned_namespace.as_ref().map(RetainedUtf16FlyString::raw)
+        self.interned_namespace.optional_raw()
     }
 }
 
@@ -95,10 +95,10 @@ pub struct NameSelector<Identity = RetainedUtf16FlyString> {
     /// The one-word identity of the C++ `Utf16FlyString` backing `name`. This is present for
     /// bound selectors and allows the live DOM wrapper to compare interned names
     /// without crossing the FFI.
-    pub(crate) interned_name: Option<Identity>,
+    pub(crate) interned_name: Identity,
     /// The identity of that name's ASCII-lowercase folding. A quirks-mode document matches id and
     /// class selectors case-insensitively, so it is the identity such a document keys them by.
-    pub(crate) interned_lowercase_name: Option<Identity>,
+    pub(crate) interned_lowercase_name: Identity,
 }
 
 impl NameSelector {
@@ -106,16 +106,15 @@ impl NameSelector {
     /// compares against.
     #[must_use]
     pub fn interned_name_identity(&self) -> Option<usize> {
-        self.interned_name.as_ref().map(RetainedUtf16FlyString::raw)
+        self.interned_name.optional_raw()
     }
 
     /// The interned identity of this name's ASCII-lowercase folding.
     #[must_use]
     pub fn interned_lowercase_name_identity(&self) -> Option<usize> {
         self.interned_lowercase_name
-            .as_ref()
-            .or(self.interned_name.as_ref())
-            .map(RetainedUtf16FlyString::raw)
+            .optional_raw()
+            .or_else(|| self.interned_name.optional_raw())
     }
 }
 
@@ -146,7 +145,7 @@ pub struct AttributeSelector<Identity = RetainedUtf16FlyString> {
     pub match_type: AttributeMatchType,
     pub qualified_name: QualifiedName<Identity>,
     pub value: SelectorString,
-    pub value_identity: Option<Identity>,
+    pub value_identity: Identity,
     pub case_type: AttributeCaseType,
 }
 
@@ -246,8 +245,8 @@ pub struct PseudoClassSelector<Identity = RetainedUtf16FlyString> {
     pub languages: Box<[LanguageRange]>,
     pub direction: Option<Direction>,
     pub identifier: Option<SelectorString>,
-    pub identifier_identity: Option<Identity>,
-    pub identifier_lowercase_identity: Option<Identity>,
+    pub identifier_identity: Identity,
+    pub identifier_lowercase_identity: Identity,
     pub levels: Box<[i64]>,
     pub is_forgiving: bool,
 }
@@ -283,6 +282,10 @@ pub enum SimpleSelector<Identity = RetainedUtf16FlyString> {
     Nesting,
     Invalid(SelectorString),
 }
+
+// Keep unbound names to one word and bound names to three words, plus the selector tag.
+const _: () = assert!(size_of::<SimpleSelector<()>>() <= 2 * size_of::<usize>());
+const _: () = assert!(size_of::<SimpleSelector>() <= 4 * size_of::<usize>());
 
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct CompoundSelector<Identity = RetainedUtf16FlyString> {

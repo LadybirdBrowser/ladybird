@@ -22,7 +22,14 @@ pub struct CssString {
 
 impl CssString {
     pub(crate) fn from_utf16(units: &[u16]) -> Self {
-        let data = Arc::new(StringData { units: units.into() });
+        Self::from_units(units.into())
+    }
+
+    fn from_units(units: Box<[u16]>) -> Self {
+        if units.is_empty() {
+            return Self::default();
+        }
+        let data = Arc::new(StringData { units });
         Self {
             raw: Arc::into_raw(data) as usize,
         }
@@ -85,6 +92,43 @@ impl CssString {
         crate::css::ffi_stats::bump_cpp_callback(crate::css::ffi_stats::FfiOp::InternUtf16FlyStringCallback);
         let string = ak::Utf16FlyString::from_utf16(self.units());
         unsafe { RetainedUtf16FlyString::from_leaked_raw(string.into_raw()) }
+    }
+}
+
+// An empty string is present, unlike the null handle used for an absent optional string.
+impl Default for CssString {
+    fn default() -> Self {
+        static EMPTY: std::sync::OnceLock<Arc<StringData>> = std::sync::OnceLock::new();
+        let data = EMPTY.get_or_init(|| Arc::new(StringData { units: Box::default() }));
+        Self {
+            raw: Arc::into_raw(Arc::clone(data)) as usize,
+        }
+    }
+}
+
+impl From<&[u16]> for CssString {
+    fn from(units: &[u16]) -> Self {
+        Self::from_utf16(units)
+    }
+}
+
+impl From<Vec<u16>> for CssString {
+    fn from(units: Vec<u16>) -> Self {
+        Self::from_units(units.into_boxed_slice())
+    }
+}
+
+impl std::ops::Deref for CssString {
+    type Target = [u16];
+
+    fn deref(&self) -> &Self::Target {
+        self.units()
+    }
+}
+
+impl AsRef<[u16]> for CssString {
+    fn as_ref(&self) -> &[u16] {
+        self.units()
     }
 }
 
