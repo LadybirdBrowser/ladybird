@@ -5,7 +5,6 @@
  */
 
 use crate::layout::node_data::NodeSlotId;
-use std::cell::RefCell;
 use std::rc::Rc;
 
 pub(crate) struct PendingRecording {
@@ -33,7 +32,6 @@ pub struct PaintState {
     pub(crate) selection: Option<crate::painting::selection::SelectionRange>,
     pub(crate) selection_pseudo_styles:
         std::collections::HashMap<NodeSlotId, Rc<crate::painting::record::paint::text::SelectionStyleAnswer>>,
-    pub(crate) per_recording_memo_tables: RefCell<crate::painting::record::scratch::PerRecordingMemoTables>,
 }
 
 impl PaintState {

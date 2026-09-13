@@ -35,8 +35,6 @@ use crate::painting::paintable_rows::PaintableRowsRef;
 use crate::painting::record::cache::{OpenCapture, PendingPaintCacheUpdates, RecordGen};
 use crate::painting::record::cache_compatibility::{PaintCacheCompatibility, PaintCacheInputs};
 use crate::painting::record::svg_resources::SvgResourceWalk;
-use std::cell::RefCell;
-use std::collections::HashMap;
 use std::rc::Rc;
 
 #[derive(Clone, Copy)]
@@ -127,7 +125,6 @@ pub struct PaintRecorder<'a, O: Observer> {
     pub(crate) recorder: DisplayListRecorder,
     pub(crate) converter: DevicePixelConverter,
     pub(crate) svg_resource_walk: Option<SvgResourceWalk>,
-    pattern_tile_records: HashMap<PatternTileKey, Rc<Vec<u8>>>,
     pub(crate) viewport: NodeSlotId,
     command_cache_source: Option<Rc<RecordingOutput>>,
     item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
@@ -139,12 +136,10 @@ pub struct PaintRecorder<'a, O: Observer> {
     uncacheable_paint_generation: u64,
     pub(crate) observer: O,
     list: HitTestList,
-    pub(crate) memo_tables: &'a RefCell<scratch::PerRecordingMemoTables>,
+    pub(crate) scratch: &'a mut scratch::RecordingScratch,
     pub(crate) completed_record_gen: RecordGen,
     pub(crate) all_paint_caches_dirty: bool,
     pub(crate) resources: resources::RecordingResourceManifest,
-    selection_style_cache: HashMap<u32, Rc<paint::text::SelectionStyleAnswer>>,
-    pub(crate) wheel_hit_test_target_cache: HashMap<NodeSlotId, SpatialNodeIndex>,
 }
 
 #[derive(Clone, Copy, Default)]
@@ -174,11 +169,11 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     fn paintable_facts(&mut self, paintable: NodeSlotId) -> hit_test_items::HitTestFacts {
-        if let Some(facts) = self.memo_tables.borrow().hit_test_facts(paintable) {
+        if let Some(facts) = self.scratch.hit_test_facts(paintable) {
             return facts;
         }
         let facts = hit_test_items::hit_test_facts(self.layout_arena, paintable, &self.inputs);
-        self.memo_tables.borrow_mut().set_hit_test_facts(paintable, facts);
+        self.scratch.set_hit_test_facts(paintable, facts);
         facts
     }
 
@@ -275,7 +270,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         node: crate::layout::node_data::NodeSlotId,
     ) -> Rc<paint::text::SelectionStyleAnswer> {
         let key = node.index;
-        if let Some(answer) = self.selection_style_cache.get(&key) {
+        if let Some(answer) = self.scratch.selection_style_cache.get(&key) {
             return answer.clone();
         }
         let style_source = self.layout_arena.data(node).parent.get();
@@ -283,7 +278,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             .first_non_anonymous_ancestor_row(node)
             .and_then(|element_row| self.committed_selection_pseudo_style(node, element_row));
         let answer = self.selection_style_answer(committed, node, style_source);
-        self.selection_style_cache.insert(key, answer.clone());
+        self.scratch.selection_style_cache.insert(key, answer.clone());
         answer
     }
 
@@ -292,12 +287,12 @@ impl<O: Observer> PaintRecorder<'_, O> {
         element_row: crate::layout::node_data::NodeSlotId,
     ) -> Rc<paint::text::SelectionStyleAnswer> {
         let key = element_row.index;
-        if let Some(answer) = self.selection_style_cache.get(&key) {
+        if let Some(answer) = self.scratch.selection_style_cache.get(&key) {
             return answer.clone();
         }
         let committed = self.committed_selection_pseudo_style(element_row, element_row);
         let answer = self.selection_style_answer(committed, element_row, element_row);
-        self.selection_style_cache.insert(key, answer.clone());
+        self.scratch.selection_style_cache.insert(key, answer.clone());
         answer
     }
 
@@ -424,12 +419,12 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     pub(crate) fn base_paint_facts(&mut self, paintable: NodeSlotId) -> BasePaintFacts {
-        if let Some(facts) = self.memo_tables.borrow().base_paint_facts(paintable) {
+        if let Some(facts) = self.scratch.base_paint_facts(paintable) {
             return facts;
         }
         let Some(style) = self.layout_arena.node_style_if_live(paintable) else {
             let facts = BasePaintFacts::default();
-            self.memo_tables.borrow_mut().set_base_paint_facts(paintable, facts);
+            self.scratch.set_base_paint_facts(paintable, facts);
             return facts;
         };
         let effects = style.effects();
@@ -452,7 +447,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             paint_phase_mask: 0,
         };
         facts.paint_phase_mask = paint::paint_phase_mask(self, paintable, style, &facts);
-        self.memo_tables.borrow_mut().set_base_paint_facts(paintable, facts);
+        self.scratch.set_base_paint_facts(paintable, facts);
         facts
     }
 
@@ -559,7 +554,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             pattern: pattern.index,
             root_transform_bits: root_transform.values.map(f32::to_bits),
         };
-        if let Some(records) = self.pattern_tile_records.get(&key) {
+        if let Some(records) = self.scratch.pattern_tile_records.get(&key) {
             return records.clone();
         }
         let detached = self.recorder.begin_detached_records();
@@ -570,7 +565,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             this.walk_svg_resource(pattern, root_transform, false, false);
         });
         let records = Rc::new(self.recorder.finish_detached_records(detached));
-        self.pattern_tile_records.insert(key, records.clone());
+        self.scratch.pattern_tile_records.insert(key, records.clone());
         records
     }
 }

@@ -516,6 +516,8 @@ pub(crate) struct LayoutNodeArena {
     fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore,
     pub(crate) paintable_rows: crate::painting::paintable_rows::PaintableRowStore,
     paint_state: RefCell<crate::painting::paint_state::PaintState>,
+    // Reuse workspace allocations without making recording scratch part of the committed paint state.
+    recording_scratch: RefCell<crate::painting::record::scratch::RecordingScratch>,
     pub(crate) scrollable_overflow: crate::painting::scrollable_overflow::ScrollableOverflowState,
     pub(crate) anchor_positioning_nodes: RefCell<HashSet<NodeSlotId>>,
     pub(crate) partial_relayout_boundary_roots: RefCell<Vec<NodeSlotId>>,
@@ -567,6 +569,7 @@ impl LayoutNodeArena {
             fc_run_cache_store: super::fc_run_cache::FcRunCacheArenaStore::default(),
             paintable_rows: crate::painting::paintable_rows::PaintableRowStore::default(),
             paint_state: RefCell::new(crate::painting::paint_state::PaintState::default()),
+            recording_scratch: RefCell::new(crate::painting::record::scratch::RecordingScratch::default()),
             scrollable_overflow: Default::default(),
             anchor_positioning_nodes: RefCell::new(HashSet::default()),
             partial_relayout_boundary_roots: RefCell::new(Vec::new()),
@@ -2497,6 +2500,10 @@ impl LayoutNodeArena {
 
     pub(crate) fn paint_state(&self) -> &RefCell<crate::painting::paint_state::PaintState> {
         &self.paint_state
+    }
+
+    pub(crate) fn recording_scratch(&self) -> &RefCell<crate::painting::record::scratch::RecordingScratch> {
+        &self.recording_scratch
     }
 
     pub(crate) fn node_flags_if_live(&self, id: NodeSlotId) -> u32 {

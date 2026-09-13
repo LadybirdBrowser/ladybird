@@ -72,7 +72,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let mut target = VISUAL_VIEWPORT_NODE_INDEX;
         let mut current = paintable;
         loop {
-            if let Some(cached) = self.wheel_hit_test_target_cache.get(&current) {
+            if let Some(cached) = self.scratch.wheel_hit_test_target_cache.get(&current) {
                 target = *cached;
                 break;
             }
@@ -114,7 +114,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         }
 
         for slot in paintables_to_cache {
-            self.wheel_hit_test_target_cache.insert(slot, target);
+            self.scratch.wheel_hit_test_target_cache.insert(slot, target);
         }
         target
     }

@@ -1492,10 +1492,12 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
                 .last_root_background_source
                 .expect("a recording follows a visual context update"),
         );
+        let mut scratch = arena.recording_scratch().borrow_mut();
         arena.set_paint_recording_in_progress(true);
         let recording = crate::painting::record::traversal::record_display_list(
             arena,
             &paint_state,
+            &mut scratch,
             viewport,
             inputs,
             paint_state.hit_test_list_generation + 1,
@@ -1520,6 +1522,7 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
                 crate::painting::record::traversal::record_display_list(
                     arena,
                     &paint_state,
+                    &mut scratch,
                     viewport,
                     inputs_for_recording_from_scratch,
                     paint_state.hit_test_list_generation + 1,
