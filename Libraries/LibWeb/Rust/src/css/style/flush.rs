@@ -73,6 +73,7 @@ impl StyleEngine {
         let mut transaction = self.drain_transaction();
         self.apply_staged_transaction(&mut transaction);
         self.program.share_rule_storage();
+        self.native_rules.targets.share();
         self.programs.share_indices(&mut self.memory);
         if transaction.is_empty() {
             self.release_transaction_and_sweep_atoms(transaction);
