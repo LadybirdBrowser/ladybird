@@ -265,8 +265,8 @@ void PageClient::navigation_population_failed(Web::HTML::CrossProcessId navigabl
 
 void PageClient::populate_navigation(Web::HTML::NavigationPopulationRequest request, Web::HTML::NavigationPopulationResult result)
 {
-    auto navigable = Web::HTML::local_navigable_with_id(request.navigable_id);
-    if (!navigable || &navigable->page() != &page()) {
+    auto navigable = as<Web::HTML::LocalNavigable>(page().local_root_navigable()->find(request.navigable_id).ptr());
+    if (!navigable) {
         navigation_population_failed(request.navigable_id, request.navigation_id);
         return;
     }
@@ -277,62 +277,34 @@ void PageClient::create_navigation_params(Web::HTML::NavigationPopulationRequest
 {
     auto navigable_id = request.navigable_id;
     auto navigation_id = request.navigation_id;
-    auto active_document = page().local_root_navigable()->active_document();
-    if (!active_document) {
+    auto navigable = as<Web::HTML::LocalNavigable>(page().local_root_navigable()->find(navigable_id).ptr());
+    if (!navigable || !navigable->resume_navigation_params_creation(navigation_id, move(request)))
         client().async_did_finish_navigation_params_creation(m_id, navigable_id, navigation_id, {});
-        return;
-    }
-
-    for (auto const& navigable : active_document->inclusive_descendant_navigables()) {
-        if (navigable->id() != navigable_id)
-            continue;
-        if (!as<Web::HTML::LocalNavigable>(*navigable).resume_navigation_params_creation(navigation_id, move(request)))
-            client().async_did_finish_navigation_params_creation(m_id, navigable_id, navigation_id, {});
-        return;
-    }
-
-    client().async_did_finish_navigation_params_creation(m_id, navigable_id, navigation_id, {});
 }
 
 void PageClient::cancel_navigation_params_creation(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id)
 {
-    auto active_document = page().local_root_navigable()->active_document();
-    if (!active_document)
-        return;
-
-    for (auto const& navigable : active_document->inclusive_descendant_navigables()) {
-        if (navigable->id() != navigable_id)
-            continue;
-        as<Web::HTML::LocalNavigable>(*navigable).resume_navigation_params_creation(navigation_id, {});
-        return;
-    }
+    if (auto navigable = as<Web::HTML::LocalNavigable>(page().local_root_navigable()->find(navigable_id).ptr()))
+        navigable->resume_navigation_params_creation(navigation_id, {});
 }
 
 void PageClient::run_navigation_unload_check(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id)
 {
-    auto active_document = page().local_root_navigable()->active_document();
-    if (!active_document) {
+    auto navigable = as<Web::HTML::LocalNavigable>(page().local_root_navigable()->find(navigable_id).ptr());
+    if (!navigable) {
         client().async_did_fail_navigation_population(m_id, navigable_id, navigation_id);
         return;
     }
 
-    for (auto const& navigable : active_document->inclusive_descendant_navigables()) {
-        if (navigable->id() != navigable_id)
-            continue;
-        auto& local_navigable = as<Web::HTML::LocalNavigable>(*navigable);
-        local_navigable.run_navigation_unload_check(navigation_id, GC::create_function(local_navigable.heap(), [this, navigable = GC::Ref { local_navigable }, navigable_id, navigation_id](bool should_continue) {
-            // The UI process retained the pending entry at admission; a passed check only needs the signal.
-            if (!should_continue) {
-                navigable->resume_navigation_params_creation(navigation_id, {});
-                client().async_did_fail_navigation_population(m_id, navigable_id, navigation_id);
-                return;
-            }
-            client().async_did_complete_navigation_unload_check(m_id, navigable_id, navigation_id);
-        }));
-        return;
-    }
-
-    client().async_did_fail_navigation_population(m_id, navigable_id, navigation_id);
+    navigable->run_navigation_unload_check(navigation_id, GC::create_function(navigable->heap(), [this, navigable = GC::Ref { *navigable }, navigable_id, navigation_id](bool should_continue) {
+        // The UI process retained the pending entry at admission; a passed check only needs the signal.
+        if (!should_continue) {
+            navigable->resume_navigation_params_creation(navigation_id, {});
+            client().async_did_fail_navigation_population(m_id, navigable_id, navigation_id);
+            return;
+        }
+        client().async_did_complete_navigation_unload_check(m_id, navigable_id, navigation_id);
+    }));
 }
 
 void PageClient::page_did_create_child_frame(Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState const& replicated_state)

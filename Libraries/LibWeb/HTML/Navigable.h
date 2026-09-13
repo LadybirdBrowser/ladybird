@@ -46,6 +46,8 @@ public:
 
     bool is_ancestor_of(Navigable const&) const;
 
+    GC::Ptr<Navigable> find(CrossProcessId);
+
     virtual bool has_been_destroyed() const = 0;
 
     virtual GC::Ptr<WindowProxy> active_window_proxy() = 0;

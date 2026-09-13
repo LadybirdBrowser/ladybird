@@ -61,6 +61,26 @@ bool Navigable::is_ancestor_of(Navigable const& other) const
     return false;
 }
 
+GC::Ptr<Navigable> Navigable::find(CrossProcessId id)
+{
+    // AD-HOC: Step 3 of destroy a child navigable, after which the navigable is no longer a child, is deferred until
+    //         its document has unloaded. A destroyed navigable is not found, although
+    //         Document::document_tree_child_navigables() still includes it until then.
+    if (has_been_destroyed())
+        return nullptr;
+    if (this->id() == id)
+        return this;
+
+    for (auto* container : NavigableContainer::all_instances()) {
+        auto child = container->content_navigable();
+        if (!child || !active_document_is(container->document()))
+            continue;
+        if (auto navigable = child->find(id))
+            return navigable;
+    }
+    return nullptr;
+}
+
 // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-traversable
 GC::Ref<Navigable> Navigable::traversable_navigable()
 {
