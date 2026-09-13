@@ -2050,15 +2050,11 @@ struct DispatchEntryBinding {
     cascade_order_index: u32,
 }
 
-#[derive(Clone, Copy, Default)]
-struct DispatchEntryRows {
-    first: Option<NonZeroU32>,
-    last: Option<NonZeroU32>,
-}
-
 struct RuleDispatchEntries {
     rows: Vec<DispatchEntryMetadata>,
-    entry_rows: Vec<DispatchEntryRows>,
+    entry_heads: Vec<Option<NonZeroU32>>,
+    // Only construction appends to these chains. Rebuild their tails when extending a template.
+    entry_tails: Vec<Option<NonZeroU32>>,
     residency: MemoryLease,
 }
 
@@ -2066,7 +2062,8 @@ impl Clone for RuleDispatchEntries {
     fn clone(&self) -> Self {
         Self {
             rows: self.rows.clone(),
-            entry_rows: self.entry_rows.clone(),
+            entry_heads: self.entry_heads.clone(),
+            entry_tails: self.entry_tails.clone(),
             residency: MemoryLease::new(MemoryCategory::RuleProgram),
         }
     }
@@ -2076,16 +2073,31 @@ impl Default for RuleDispatchEntries {
     fn default() -> Self {
         Self {
             rows: Vec::new(),
-            entry_rows: Vec::new(),
+            entry_heads: Vec::new(),
+            entry_tails: Vec::new(),
             residency: MemoryLease::new(MemoryCategory::RuleProgram),
         }
     }
 }
 
 impl RuleDispatchEntries {
+    fn prepare_entry_tails(&mut self) {
+        if !self.entry_tails.is_empty() || self.rows.is_empty() {
+            return;
+        }
+        self.entry_tails.resize(self.entry_heads.len(), None);
+        for (index, row) in self.rows.iter().enumerate() {
+            if row.next_for_identity.is_none() {
+                let index = u32::try_from(index).expect("dispatch row space exhausted");
+                self.entry_tails[row.identity.0 as usize] =
+                    NonZeroU32::new(index.checked_add(1).expect("dispatch row space exhausted"));
+            }
+        }
+    }
+
     fn capacity_bytes(&self) -> u64 {
         capacity_bytes! {
-            shallow [self.rows, self.entry_rows];
+            shallow [self.rows, self.entry_heads, self.entry_tails];
             cached [];
             nested [];
             skip [self.residency];
@@ -2670,6 +2682,7 @@ impl RuleDispatch {
             *ancestors.key_indices.entry(required).or_insert(next)
         });
         let id = DispatchRow::from_index(self.entries.rows.len());
+        Rc::make_mut(&mut self.entries).prepare_entry_tails();
         self.entries_mut().push(DispatchEntryMetadata {
             identity: entry.identity,
             program: entry.program,
@@ -2688,17 +2701,15 @@ impl RuleDispatch {
             cascade_order_index: u32::MAX,
         });
         let entries = Rc::make_mut(&mut self.entries);
-        if entries.entry_rows.len() <= entry.identity.0 as usize {
-            entries
-                .entry_rows
-                .resize(entry.identity.0 as usize + 1, DispatchEntryRows::default());
+        if entries.entry_heads.len() <= entry.identity.0 as usize {
+            entries.entry_heads.resize(entry.identity.0 as usize + 1, None);
+            entries.entry_tails.resize(entry.identity.0 as usize + 1, None);
         }
         let row = NonZeroU32::new(id.0.checked_add(1).expect("dispatch row space exhausted")).unwrap();
-        let rows = &mut entries.entry_rows[entry.identity.0 as usize];
-        if let Some(previous) = rows.last.replace(row) {
+        if let Some(previous) = entries.entry_tails[entry.identity.0 as usize].replace(row) {
             entries.rows[(previous.get() - 1) as usize].next_for_identity = Some(row);
         } else {
-            rows.first = Some(row);
+            entries.entry_heads[entry.identity.0 as usize] = Some(row);
         }
         self.topology_mut().buckets.entry(key).or_default().push(id);
         if key == DispatchKey::Universal {
@@ -2730,6 +2741,18 @@ impl RuleDispatch {
 
     pub(super) fn finish_prefixes(&mut self) {
         debug_assert!(!self.topology.finalized, "a dispatch can only be finalized once");
+        // Finished templates are cloned before extension, so their spare builder capacity
+        // does not contribute to subsequent edits.
+        if self.entries.rows.capacity() != self.entries.rows.len()
+            || self.entries.entry_heads.capacity() != self.entries.entry_heads.len()
+            || self.entries.entry_tails.capacity() != 0
+        {
+            let entries = Rc::make_mut(&mut self.entries);
+            entries.rows.shrink_to_fit();
+            entries.entry_heads.shrink_to_fit();
+            entries.entry_tails = Vec::new();
+        }
+        self.entry_bindings.shrink_to_fit();
         self.topology_mut().prefixes.finish();
         self.finalize_bucket_directories();
         self.rebuild_universal_with_parent_filter();
@@ -2742,11 +2765,7 @@ impl RuleDispatch {
     }
 
     pub(super) fn entries_for_identity(&self, entry: EntryID) -> impl Iterator<Item = DispatchEntry> + '_ {
-        let first = self
-            .entries
-            .entry_rows
-            .get(entry.0 as usize)
-            .and_then(|rows| rows.first);
+        let first = self.entries.entry_heads.get(entry.0 as usize).copied().flatten();
         std::iter::successors(first, |row| {
             self.entries.rows[(row.get() - 1) as usize].next_for_identity
         })
