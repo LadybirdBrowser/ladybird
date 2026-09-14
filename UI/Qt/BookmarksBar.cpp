@@ -176,7 +176,7 @@ BookmarksBar::BookmarksBar(Tab* parent)
 {
     setObjectName("LadybirdBookmarksBar");
     setIconSize({ BOOKMARK_BUTTON_ICON_SIZE, BOOKMARK_BUTTON_ICON_SIZE });
-    setVisible(WebView::Application::settings().show_bookmarks_bar());
+    setVisible(WebView::Application::settings().appearance().show_bookmarks_bar);
     setMovable(false);
     setFloatable(false);
     update_chrome_style();

@@ -21,8 +21,8 @@ private:
     void load_current_settings();
 
     void set_new_tab_page_url(JsonValue const&);
-    void set_default_zoom_level_factor(JsonValue const&);
     void set_languages(JsonValue const&);
+    void set_content_settings(JsonValue const&);
     void set_tab_settings(JsonValue const&);
     void set_browsing_behavior(JsonValue const&);
     void set_config_variable(JsonValue const&);
@@ -56,8 +56,6 @@ private:
     void report_content_blocker_result(String operation, String message);
 
     void set_dns_settings(JsonValue const&);
-
-    void set_force_dark_enabled(JsonValue const&);
 };
 
 }

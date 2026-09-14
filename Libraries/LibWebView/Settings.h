@@ -22,6 +22,18 @@
 
 namespace WebView {
 
+struct Appearance {
+    bool show_menu_bar { false };
+    bool show_bookmarks_bar { true };
+};
+
+struct ContentSettings {
+    double default_zoom_level_factor { 1.0 };
+    HashMap<String, double> zoom_per_host;
+
+    bool enable_force_dark { false };
+};
+
 enum class VerticalTabsPosition : u8 {
     Left,
     Right,
@@ -55,6 +67,11 @@ struct BrowsingDataSettings {
     HTTP::DiskCacheSettings disk_cache_settings;
 };
 
+enum class GlobalPrivacyControl {
+    No,
+    Yes,
+};
+
 struct ContentBlockerList {
     String identifier;
     String name;
@@ -63,11 +80,6 @@ struct ContentBlockerList {
     bool built_in { false };
     bool language_specific { false };
     String description {};
-};
-
-enum class GlobalPrivacyControl {
-    No,
-    Yes,
 };
 
 enum class ConfigVariableID : u8 {
@@ -101,12 +113,10 @@ public:
     virtual ~SettingsObserver();
 
     virtual void new_tab_page_url_changed() { }
-    virtual void tab_settings_changed() { }
-    virtual void show_menu_bar_changed() { }
-    virtual void show_bookmarks_bar_changed() { }
-    virtual void default_zoom_level_factor_changed() { }
-    virtual void zoom_per_host_changed(StringView host) { (void)host; }
     virtual void languages_changed() { }
+    virtual void appearance_changed() { }
+    virtual void content_settings_changed() { }
+    virtual void tab_settings_changed() { }
     virtual void browsing_behavior_changed() { }
     virtual void search_engine_changed() { }
     virtual void autocomplete_engine_changed() { }
@@ -116,7 +126,6 @@ public:
     virtual void dns_settings_changed() { }
     virtual void config_variable_changed(ConfigVariableID) { }
     virtual void geolocation_settings_changed() { }
-    virtual void force_dark_settings_changed() { }
     virtual void background_networking_settings_changed() { }
     virtual void content_blocker_settings_changed() { }
 };
@@ -130,25 +139,24 @@ public:
     URL::URL const& new_tab_page_url() const { return m_new_tab_page_url; }
     void set_new_tab_page_url(URL::URL);
 
-    static TabSettings parse_tab_settings(JsonValue const&);
-    TabSettings const& tab_settings() const { return m_tab_settings; }
-    void set_tab_settings(TabSettings);
-
-    bool show_menu_bar() const { return m_show_menu_bar; }
-    void set_show_menu_bar(bool);
-
-    bool show_bookmarks_bar() const { return m_show_bookmarks_bar; }
-    void set_show_bookmarks_bar(bool);
-
-    double default_zoom_level_factor() const { return m_default_zoom_level_factor; }
-    void set_default_zoom_level_factor(double);
-
-    Optional<double> zoom_for_host(StringView host) const;
-    void set_zoom_for_host(StringView host, double zoom_level);
-
     static Vector<String> parse_json_languages(JsonValue const&);
     Vector<String> const& languages() const { return m_languages; }
     void set_languages(Vector<String>);
+
+    static Appearance parse_appearance(JsonValue const&);
+    Appearance const& appearance() const { return m_appearance; }
+    void set_appearance(Appearance);
+
+    static ContentSettings parse_content_settings(JsonValue const&);
+    ContentSettings const& content_settings() const { return m_content_settings; }
+    void set_content_settings(ContentSettings);
+
+    double zoom_for_host(StringView host) const;
+    void set_zoom_for_host(String const& host, double zoom_level);
+
+    static TabSettings parse_tab_settings(JsonValue const&);
+    TabSettings const& tab_settings() const { return m_tab_settings; }
+    void set_tab_settings(TabSettings);
 
     static BrowsingBehavior parse_browsing_behavior(JsonValue const&);
     BrowsingBehavior browsing_behavior() const;
@@ -171,18 +179,15 @@ public:
     void remove_autoplay_site_filter(String const&);
     void remove_all_autoplay_site_filters();
 
+    bool geolocation_enabled() const { return m_geolocation_enabled; }
+    void set_geolocation_enabled(bool);
+
     static BrowsingDataSettings parse_browsing_data_settings(JsonValue const&);
     BrowsingDataSettings const& browsing_data_settings() const { return m_browsing_data_settings; }
     void set_browsing_data_settings(BrowsingDataSettings);
 
     GlobalPrivacyControl global_privacy_control() const { return m_global_privacy_control; }
     void set_global_privacy_control(GlobalPrivacyControl);
-
-    bool geolocation_enabled() const { return m_geolocation_enabled; }
-    void set_geolocation_enabled(bool);
-
-    bool force_dark_enabled() const { return m_force_dark_enabled; }
-    void set_force_dark_enabled(bool);
 
     bool background_networking_enabled() const { return m_background_networking_enabled; }
     void set_background_networking_enabled(bool);
@@ -222,27 +227,31 @@ private:
     ByteString m_settings_path;
 
     URL::URL m_new_tab_page_url;
-    TabSettings m_tab_settings;
-    bool m_show_menu_bar { false };
-    bool m_show_bookmarks_bar { true };
-    double m_default_zoom_level_factor { 0 };
-    HashMap<String, double> m_zoom_per_host;
     Vector<String> m_languages;
+
+    Appearance m_appearance;
+    ContentSettings m_content_settings;
+    TabSettings m_tab_settings;
     BrowsingBehavior m_browsing_behavior;
+
     Optional<SearchEngine> m_search_engine;
     Vector<SearchEngine> m_custom_search_engines;
     Optional<AutocompleteEngine> m_autocomplete_engine;
+
     AutoplaySiteSetting m_autoplay;
-    BrowsingDataSettings m_browsing_data_settings;
     bool m_geolocation_enabled { false };
-    bool m_force_dark_enabled { false };
+
+    BrowsingDataSettings m_browsing_data_settings;
+    GlobalPrivacyControl m_global_privacy_control { GlobalPrivacyControl::No };
+
     bool m_background_networking_enabled { true };
     bool m_filter_list_updates_enabled { false };
     Vector<ContentBlockerList> m_content_blocker_lists;
     String m_custom_content_blocker_filters;
-    GlobalPrivacyControl m_global_privacy_control { GlobalPrivacyControl::No };
+
     DNSSettings m_dns_settings { SystemDNS() };
     bool m_dns_override_by_command_line { false };
+
     Array<JsonValue, static_cast<size_t>(ConfigVariableID::Count)> m_config_variables {};
 
     Vector<SettingsObserver&> m_observers;

@@ -2478,9 +2478,11 @@ void Application::initialize_actions()
     update_vertical_tabs_action();
 
     m_toggle_menu_bar_action = Action::create_checkable("Show Menubar"sv, ActionID::ToggleMenuBar, [this]() {
-        m_settings->set_show_menu_bar(!m_settings->show_menu_bar());
+        auto appearance = m_settings->appearance();
+        appearance.show_menu_bar = !appearance.show_menu_bar;
+        m_settings->set_appearance(appearance);
     });
-    m_toggle_menu_bar_action->set_checked(m_settings->show_menu_bar());
+    m_toggle_menu_bar_action->set_checked(m_settings->appearance().show_menu_bar);
 
     m_bookmarks_menu = Menu::create("Bookmarks"sv);
     m_bookmarks_menu->add_action(Action::create("Manage Bookmarks"sv, ActionID::ManageBookmarks, [this]() {
@@ -2513,9 +2515,11 @@ void Application::initialize_actions()
     }));
 
     m_toggle_bookmark_bar_action = Action::create_checkable("Show Bookmarks Bar"sv, ActionID::ToggleBookmarksBar, [this]() {
-        m_settings->set_show_bookmarks_bar(!m_settings->show_bookmarks_bar());
+        auto appearance = m_settings->appearance();
+        appearance.show_bookmarks_bar = !appearance.show_bookmarks_bar;
+        m_settings->set_appearance(appearance);
     });
-    m_toggle_bookmark_bar_action->set_checked(m_settings->show_bookmarks_bar());
+    m_toggle_bookmark_bar_action->set_checked(m_settings->appearance().show_bookmarks_bar);
     m_bookmarks_menu->add_action(*m_toggle_bookmark_bar_action);
 
     m_bookmarks_menu->add_separator();

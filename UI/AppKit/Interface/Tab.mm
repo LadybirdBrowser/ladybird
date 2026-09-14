@@ -51,7 +51,7 @@ public:
 
 private:
     // These are forward-declared so that they may access non-public Tab methods.
-    virtual void show_bookmarks_bar_changed() override;
+    virtual void appearance_changed() override;
     virtual void config_variable_changed(WebView::ConfigVariableID variable) override;
 
     __weak Tab* m_tab { nil };
@@ -176,7 +176,7 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
         self.bookmarks_bar_controller = [[NSTitlebarAccessoryViewController alloc] init];
         [self.bookmarks_bar_controller setView:bookmarks_bar];
         [self.bookmarks_bar_controller setLayoutAttribute:NSLayoutAttributeBottom];
-        [self updateBookmarksBarDisplay:WebView::Application::settings().show_bookmarks_bar()];
+        [self updateBookmarksBarDisplay:WebView::Application::settings().appearance().show_bookmarks_bar];
         [self addTitlebarAccessoryViewController:self.bookmarks_bar_controller];
 
         self.search_panel = [[SearchPanel alloc] init];
@@ -514,9 +514,9 @@ static NSImage* tab_loading_spinner_icon(NSUInteger frame)
 
 @end
 
-void TabSettingsObserver::show_bookmarks_bar_changed()
+void TabSettingsObserver::appearance_changed()
 {
-    [m_tab updateBookmarksBarDisplay:WebView::Application::settings().show_bookmarks_bar()];
+    [m_tab updateBookmarksBarDisplay:WebView::Application::settings().appearance().show_bookmarks_bar];
 }
 
 void TabSettingsObserver::config_variable_changed(WebView::ConfigVariableID variable)
