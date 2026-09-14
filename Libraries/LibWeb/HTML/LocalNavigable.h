@@ -130,7 +130,7 @@ public:
     void activate_history_entry(RefPtr<SessionHistoryEntry>, GC::Ref<DOM::Document>, VisibilityState system_visibility_state);
     void update_nonchanging_navigable_history_step_state(HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);
     void queue_navigation_api_state_clear_task();
-    void run_ui_descendant_unload_task(StopHostingAfterUnload, GC::Ref<GC::Function<void()>> on_complete);
+    void run_ui_descendant_unload_task(ChildNavigableDestruction, StopHostingAfterUnload, GC::Ref<GC::Function<void()>> on_complete);
     void notify_navigation_observers_navigation_complete();
 
     GC::Ptr<DOM::Document> active_document() const;

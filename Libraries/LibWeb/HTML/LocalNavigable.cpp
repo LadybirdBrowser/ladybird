@@ -1265,13 +1265,19 @@ void LocalNavigable::queue_navigation_api_state_clear_task()
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document-and-its-descendants
-void LocalNavigable::run_ui_descendant_unload_task(StopHostingAfterUnload stop_hosting_after_unload, GC::Ref<GC::Function<void()>> on_complete)
+void LocalNavigable::run_ui_descendant_unload_task(ChildNavigableDestruction child_navigable_destruction, StopHostingAfterUnload stop_hosting_after_unload, GC::Ref<GC::Function<void()>> on_complete)
 {
     // 2. Unload a document and its descendants given childNavigable's active document, null, and incrementUnloaded.
     if (has_been_destroyed()) {
         on_complete->function()();
         return;
     }
+
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#destroy-a-child-navigable
+    // 4. Inform the navigation API about child navigable destruction given navigable.
+    // NB: navigable's active window is here, while container is in the process destroying navigable.
+    if (child_navigable_destruction == ChildNavigableDestruction::Yes)
+        inform_the_navigation_api_about_child_navigable_destruction();
 
     // The UI process has already unloaded this document's descendants.
     queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr,

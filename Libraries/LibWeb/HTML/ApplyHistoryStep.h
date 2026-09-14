@@ -50,6 +50,11 @@ enum class UnloadDisplayedDocument : bool {
     Yes,
 };
 
+enum class ChildNavigableDestruction : bool {
+    No,
+    Yes,
+};
+
 enum class StopHostingAfterUnload : bool {
     No,
     Yes,

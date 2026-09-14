@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // Removing an isolated iframe destroys its navigable. Step 4 of destroying a child navigable informs the
+    // navigation API of the destruction: a navigation the document intercepted and never finished is aborted, in the
+    // process hosting the document, before the document is unloaded there.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-navigation-api-abort-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    navigation.addEventListener("navigate", event => {
+                        event.intercept({ handler: () => new Promise(() => {}) });
+                    });
+                    const { finished } = navigation.navigate("#intercepted");
+                    finished
+                        .catch(error => { document.cookie = "aborted=" + error.name + "; path=/"; })
+                        .finally(() => { document.cookie = "settled=1; path=/"; });
+                    document.cookie = "loaded=1; path=/";
+                <\/script>`,
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("oop-navigation-api-abort");
+
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+
+        const cookie = (name, value) => internals.hasCookieForURL(childUrl.href, name, value);
+        if (!(await waitForCondition(() => cookie("loaded", "1") && remoteFrameCount() === 1))) {
+            println("iframe did not load out of process");
+            return;
+        }
+        println(`navigation settled before removal: ${cookie("settled", "1")}`);
+
+        iframe.remove();
+        await waitForCondition(() => cookie("settled", "1"));
+        println(`navigation aborted on removal: ${cookie("aborted", "AbortError")}`);
+    });
+</script>
