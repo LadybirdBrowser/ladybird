@@ -54,6 +54,7 @@
 #include <LibWeb/HTML/UserNavigationInvolvement.h>
 #include <LibWeb/HTML/WebViewHints.h>
 #include <LibWeb/Loader/FileRequest.h>
+#include <LibWeb/Page/ResourceCache.h>
 #include <LibWeb/Page/ScreenWakeLockHandle.h>
 #include <LibWeb/Painting/ChromeMetrics.h>
 #include <LibWebCommon/CSS/PreferredColorScheme.h>
@@ -367,6 +368,8 @@ public:
 
     bool pdf_viewer_supported() const { return m_pdf_viewer_supported; }
 
+    ResourceCache<GC::Ref<HTML::DecodedImageData>>& data_url_image_cache() { return m_data_url_image_cache; }
+
     void clear_selection();
 
     enum class WrapAround {
@@ -448,6 +451,8 @@ private:
     HTML::VisibilityState m_system_visibility_state { HTML::VisibilityState::Hidden };
 
     GC::Ref<HTML::HistoryExecutor> m_history_executor;
+
+    ResourceCache<GC::Ref<HTML::DecodedImageData>> m_data_url_image_cache;
 
     struct ScreenshotTask {
         Optional<UniqueNodeID> node_id;
@@ -594,6 +599,7 @@ public:
     virtual void page_did_change_hosted_navigable_state([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::HostedNavigableState const& state) { }
     virtual void page_did_set_opener_browsing_context([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] Optional<HTML::CrossProcessId> opener_navigable_id) { }
     virtual void page_did_completely_finish_loading([[maybe_unused]] HTML::CrossProcessId navigable_id) { }
+    virtual void page_did_finish_loading_image_resource() { }
     virtual void page_did_change_navigable_container_state([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::ReplicatedContainerState const& state) { }
     virtual void page_did_update_child_frame_viewport(HTML::CrossProcessId, [[maybe_unused]] DevicePixelRect viewport_rect, [[maybe_unused]] DevicePixelRect viewport_intersection) { }
     virtual void page_did_destroy_child_frame(HTML::CrossProcessId) { }

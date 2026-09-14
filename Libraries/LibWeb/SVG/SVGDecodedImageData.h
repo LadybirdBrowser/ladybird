@@ -46,6 +46,7 @@ public:
     virtual void visit_edges(Cell::Visitor& visitor) override;
     virtual void finalize() override;
     virtual size_t external_memory_size() const override;
+    virtual size_t retained_memory_size() const override;
 
     virtual Optional<Painting::ImagePaint> image_paint(Painting::ImagePaintRequest const&) const override;
     bool has_active_view_box() const;
@@ -56,6 +57,8 @@ public:
 
 private:
     SVGDecodedImageData(GC::Ref<Page>, GC::Ref<SVGPageClient>, GC::Ref<DOM::Document>, GC::Ref<SVG::SVGSVGElement>);
+
+    virtual void on_last_client_unregistered() override;
 
     CSS::SizeWithAspectRatio const& natural_size() const;
     RefPtr<Gfx::PaintingSurface> render_to_surface(Gfx::IntSize) const;
@@ -97,6 +100,8 @@ private:
     };
     mutable HashMap<RenderKey, CachedDisplayList, RenderKeyTraits> m_cached_display_lists;
     mutable Optional<CSS::SizeWithAspectRatio> m_natural_size;
+    mutable Optional<u64> m_document_memory_size_dom_tree_version;
+    mutable size_t m_document_memory_size { 0 };
 
     GC::Ref<Page> m_page;
     GC::Ref<SVGPageClient> m_page_client;
@@ -107,6 +112,7 @@ private:
 
     mutable bool m_is_recording_display_list { false };
     bool m_has_pending_client_notification { false };
+    bool m_has_pending_rasterization_release { false };
 };
 
 class SVGDecodedImageData::SVGPageClient final : public PageClient {
@@ -144,6 +150,7 @@ public:
     virtual Queue<QueuedInputEvent>& input_event_queue() override { VERIFY_NOT_REACHED(); }
     virtual void report_finished_handling_input_event([[maybe_unused]] Web::PageId page_id, [[maybe_unused]] u64 event_id, [[maybe_unused]] EventResult event_was_handled) override { }
     virtual void request_frame() override;
+    virtual void page_did_finish_loading_image_resource() override;
 
     virtual bool is_headless() const override { return m_host_page->client().is_headless(); }
 

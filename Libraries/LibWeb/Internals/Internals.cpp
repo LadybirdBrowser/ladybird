@@ -1020,6 +1020,32 @@ WebIDL::UnsignedLongLong Internals::intrinsic_inline_measurement_count()
     return window().associated_document().layout_node_arena().intrinsic_inline_measurement_count();
 }
 
+WebIDL::UnsignedLongLong Internals::data_url_image_cache_hit_count()
+{
+    return page().data_url_image_cache().hit_count();
+}
+
+WebIDL::ExceptionOr<WebIDL::UnsignedLongLong> Internals::data_url_image_cache_entry_memory_size(Utf16String const& url)
+{
+    auto parsed_url = URL::Parser::basic_parse(url.utf16_view());
+    if (!parsed_url.has_value())
+        return WebIDL::SimpleException { .type = WebIDL::SimpleExceptionType::TypeError, .message = Utf16String::formatted("Invalid URL: '{}'", url) };
+
+    return page().data_url_image_cache().entry_memory_size(*parsed_url).value_or(0);
+}
+
+WebIDL::ExceptionOr<WebIDL::UnsignedLongLong> Internals::data_url_image_cache_entry_external_memory_size(Utf16String const& url)
+{
+    auto parsed_url = URL::Parser::basic_parse(url.utf16_view());
+    if (!parsed_url.has_value())
+        return WebIDL::SimpleException { .type = WebIDL::SimpleExceptionType::TypeError, .message = Utf16String::formatted("Invalid URL: '{}'", url) };
+
+    auto image_data = page().data_url_image_cache().peek(*parsed_url);
+    if (!image_data.has_value())
+        return 0;
+    return (*image_data)->external_memory_size();
+}
+
 WebIDL::UnsignedLongLong Internals::intrinsic_measurement_count()
 {
     return window().associated_document().layout_node_arena().intrinsic_measurement_count();
