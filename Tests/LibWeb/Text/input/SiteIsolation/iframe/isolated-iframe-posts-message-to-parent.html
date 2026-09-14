@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // parent.postMessage in an isolated iframe reaches the parent's window in the other process, with the origin and
+    // source the parent expects.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-post-message-child-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>parent.postMessage({ greeting: "hello from the child" }, "*");<\/script>`,
+            })
+        );
+        childUrl.hostname = uniqueLocalhostHostname("oop-post-message-child");
+
+        const received = new Promise(resolve => window.addEventListener("message", resolve, { once: true }));
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+
+        const event = await received;
+        println(`data: ${JSON.stringify(event.data)}`);
+        println(`origin is the child's: ${event.origin === childUrl.origin}`);
+        println(`source is the iframe's contentWindow: ${event.source === iframe.contentWindow}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

@@ -57,6 +57,7 @@
 #include <LibWeb/HTML/HistoryOperation.h>
 #include <LibWeb/HTML/NavigationSourceSnapshot.h>
 #include <LibWeb/HTML/POSTResource.h>
+#include <LibWeb/HTML/PostedMessageDescriptor.h>
 #include <LibWeb/HTML/PreparedNavigationDescriptor.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/HTML/SameDocumentNavigationEntry.h>
@@ -543,9 +544,8 @@ public:
     virtual bool has_active_devtools_client() const { return false; }
     virtual void request_navigation_start(HTML::LocalNavigable&, NavigationTarget, URL::URL const& url, Utf16String navigation_id, Optional<HTML::NavigationStartRequest>);
     virtual void request_navigation_population(HTML::LocalNavigable&, NavigationTarget, HTML::NavigationPopulationRequest);
-    // A navigable hosted by another process continues a navigation there. A page whose client does not talk to the
-    // UI process never holds one.
     virtual void request_navigation_of_remote_navigable(HTML::RemoteNavigable&, HTML::PreparedNavigationDescriptor) { VERIFY_NOT_REACHED(); }
+    virtual void request_post_message_to_remote_navigable(HTML::RemoteNavigable&, HTML::PostedMessageDescriptor) { VERIFY_NOT_REACHED(); }
     virtual void navigation_params_creation_finished(HTML::LocalNavigable&, HTML::NavigationPopulationRequest, HTML::NavigationPopulationResult);
     virtual void history_navigation_params_creation_finished(HTML::CrossProcessId operation_id, HTML::HistoryNavigationPopulation);
     virtual void navigation_population_failed(HTML::CrossProcessId, Utf16String const&) { }

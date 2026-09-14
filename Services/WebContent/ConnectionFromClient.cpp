@@ -281,6 +281,12 @@ void ConnectionFromClient::navigate_navigable(Web::PageId page_id, Web::HTML::Cr
         page->navigate_navigable(navigable_id, move(navigation));
 }
 
+void ConnectionFromClient::deliver_posted_message(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::PostedMessageDescriptor message)
+{
+    if (auto page = this->page(page_id); page.has_value())
+        page->deliver_posted_message(navigable_id, move(message));
+}
+
 Optional<PageClient&> ConnectionFromClient::page(Web::PageId index, SourceLocation location)
 {
     if (auto page = m_page_host->page(index); page.has_value())

@@ -35,6 +35,7 @@
 #include <LibWeb/HTML/NavigationSourceSnapshot.h>
 #include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/PaintConfig.h>
+#include <LibWeb/HTML/PostedMessageDescriptor.h>
 #include <LibWeb/HTML/PreparedNavigationDescriptor.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
@@ -182,6 +183,7 @@ public:
 
     bool resume_navigation_params_creation(Utf16String const& navigation_id, Optional<NavigationPopulationRequest>);
     void continue_navigation_from_another_process(PreparedNavigationDescriptor);
+    void deliver_posted_message_from_another_process(PostedMessageDescriptor);
     void run_navigation_unload_check(Utf16String const& navigation_id, GC::Ref<GC::Function<void(bool)>> completion_steps);
     void request_population_for_reconstructed_history_entry(NavigationPopulationRequest);
     void route_child_created_during_history_reconstruction(Web::ReconstructedChildNavigation);
