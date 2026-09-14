@@ -3201,13 +3201,23 @@ impl<'pass> FlexFormattingContext<'pass> {
         // 16. Align all flex lines (per align-content)
         self.align_all_flex_lines();
 
-        if is_intrinsic_sizing {
-            // We're computing intrinsic size for the flex container. This happens at the end of run().
-            if self.facts(self.flex_container).display().is_inline_outside() {
-                // The parent inline formatting context needs the container's content-derived baseline.
-                self.layout_items_and_derive_baselines(run);
+        // https://drafts.csswg.org/css-align-3/#baseline-rules
+        // "... or the first/last in-flow block-level child in the block container that contributes a set of first/last
+        // baselines, whichever comes first/last."
+        // https://drafts.csswg.org/css-flexbox-1/#flex-baselines
+        // NB: Block-level flex containers can therefore contribute baselines through an inline-block ancestor,
+        //     including during intrinsic sizing.
+        // OPTIMIZATION: Avoid laying out items solely for baselines when no inline ancestor needs them.
+        let mut has_inline_ancestor = false;
+        let mut ancestor = self.flex_container;
+        while !ancestor.is_invalid() {
+            if self.facts(ancestor).display().is_inline_outside() {
+                has_inline_ancestor = true;
+                break;
             }
-        } else {
+            ancestor = self.callbacks.parent(ancestor);
+        }
+        if !is_intrinsic_sizing || has_inline_ancestor {
             self.layout_items_and_derive_baselines(run);
         }
 

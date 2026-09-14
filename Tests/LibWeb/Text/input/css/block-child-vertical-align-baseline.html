@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+body {
+    margin: 0;
+    font: 12px/1.4 sans-serif;
+}
+.wrapper {
+    display: inline-block;
+}
+.child {
+    padding: 8px 0;
+}
+.flex {
+    display: flex;
+    align-items: center;
+}
+.grid {
+    display: grid;
+}
+</style>
+<script>
+test(() => {
+    for (const display of ["block", "flex", "grid"]) {
+        function create_container(alignment) {
+            const container = document.createElement("div");
+            container.innerHTML = `<span>Text</span> <div class="wrapper"><div class="wrapper"><div class="child ${display}" style="vertical-align: ${alignment}">Text</div></div></div>`;
+            document.body.append(container);
+            return container;
+        }
+        const reference = create_container("baseline").getBoundingClientRect().height;
+        for (const alignment of ["middle", "top", "bottom", "text-top", "text-bottom", "sub", "super", "10px"]) {
+            const container = create_container(alignment);
+            println(`${display} child with vertical-align: ${alignment}: ${container.getBoundingClientRect().height === reference ? "PASS" : "FAIL"}`);
+        }
+    }
+});
+</script>

@@ -580,9 +580,14 @@ impl<'pass> NodeFacts<'pass> {
         has_flag(self.data(), NodeFlag::UsesButtonLayout)
     }
 
+    // https://drafts.csswg.org/css2/#propdef-vertical-align
+    // Applies to: inline-level and table-cell elements
     pub(crate) fn vertical_align_applies(&self) -> bool {
         let data = self.data();
-        kind_is_box(data.kind.get()) && !has_flag(data, NodeFlag::IsFlexItem) && !has_flag(data, NodeFlag::IsGridItem)
+        kind_is_box(data.kind.get())
+            && (self.display().is_inline_outside() || self.display().is_table_cell())
+            && !has_flag(data, NodeFlag::IsFlexItem)
+            && !has_flag(data, NodeFlag::IsGridItem)
     }
 
     pub(crate) fn is_html_input_element(&self) -> bool {
