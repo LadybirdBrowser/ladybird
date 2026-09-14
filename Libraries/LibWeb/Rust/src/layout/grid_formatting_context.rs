@@ -1447,7 +1447,7 @@ impl<'pass> GridFormattingContext<'pass> {
     fn initialize_lines(
         &mut self,
         grid_style: &'pass GridValues,
-    ) -> (ExpandedTrackList<'pass>, ExpandedTrackList<'pass>) {
+    ) -> (Vec<TrackDefinition<'pass>>, Vec<TrackDefinition<'pass>>) {
         let mut columns = self.expand_axis(Axis::Column, grid_style);
         let mut rows = self.expand_axis(Axis::Row, grid_style);
         self.project_parent_grid_areas(
@@ -1464,9 +1464,9 @@ impl<'pass> GridFormattingContext<'pass> {
         );
         self.explicit_column_line_count = columns.lines.len();
         self.explicit_row_line_count = rows.lines.len();
-        self.column_lines.clone_from(&columns.lines);
-        self.row_lines.clone_from(&rows.lines);
-        (columns, rows)
+        self.column_lines = columns.lines;
+        self.row_lines = rows.lines;
+        (columns.tracks, rows.tracks)
     }
 
     fn axis_placements(
@@ -1648,7 +1648,7 @@ impl<'pass> GridFormattingContext<'pass> {
         &self,
         axis: Axis,
         grid_style: &'pass GridValues,
-        explicit: &ExpandedTrackList<'pass>,
+        explicit: &[TrackDefinition<'pass>],
         total_count: usize,
         explicit_start: usize,
     ) -> Vec<Track<'pass>> {
@@ -1705,7 +1705,7 @@ impl<'pass> GridFormattingContext<'pass> {
                 Track::from_definition(definition)
             });
         }
-        tracks.extend(explicit.tracks.iter().copied().map(Track::from_definition));
+        tracks.extend(explicit.iter().copied().map(Track::from_definition));
         // NOTE: If there are implicit tracks created by items with negative indexes they should prepend explicitly defined tracks
         while tracks.len() < total_count {
             tracks.push(if automatic.is_empty() {
@@ -1772,8 +1772,8 @@ impl<'pass> GridFormattingContext<'pass> {
     fn initialize_tracks(
         &mut self,
         grid_style: &'pass GridValues,
-        columns: &ExpandedTrackList<'pass>,
-        rows: &ExpandedTrackList<'pass>,
+        columns: &[TrackDefinition<'pass>],
+        rows: &[TrackDefinition<'pass>],
     ) {
         self.columns = self.initialize_tracks_for_axis(
             Axis::Column,
