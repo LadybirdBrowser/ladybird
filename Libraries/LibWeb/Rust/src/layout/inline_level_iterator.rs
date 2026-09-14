@@ -338,7 +338,6 @@ struct InlineLevelIteratorGenerator<'iterator, 'context> {
     box_model_node_stack: Vec<Node>,
     visited_fragmented_inlines: Vec<Node>,
     items: Vec<Item>,
-    next_item_index: usize,
     accumulated_inline_size_for_tabs: CssPixels,
     previous_chunk_can_break_after: bool,
 }
@@ -362,7 +361,6 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
             box_model_node_stack: Vec::new(),
             visited_fragmented_inlines: Vec::new(),
             items: Vec::new(),
-            next_item_index: 0,
             accumulated_inline_size_for_tabs: CssPixels::default(),
             previous_chunk_can_break_after: false,
         };
@@ -371,8 +369,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
         iterator.generate_all_items();
         Some(InlineLevelIterator {
             visited_fragmented_inlines: iterator.visited_fragmented_inlines,
-            items: iterator.items,
-            next_item_index: iterator.next_item_index,
+            items: iterator.items.into_iter(),
         })
     }
 
@@ -869,8 +866,7 @@ impl<'iterator, 'context> InlineLevelIteratorGenerator<'iterator, 'context> {
 
 pub(crate) struct InlineLevelIterator {
     visited_fragmented_inlines: Vec<Node>,
-    items: Vec<Item>,
-    next_item_index: usize,
+    items: std::vec::IntoIter<Item>,
 }
 
 impl InlineLevelIterator {
@@ -886,24 +882,16 @@ impl InlineLevelIterator {
     }
 
     pub(crate) fn next(&mut self) -> Option<Item> {
-        let index = self.next_item_index;
-        if index >= self.items.len() {
-            return None;
-        }
-        self.next_item_index += 1;
-        Some(std::mem::replace(
-            &mut self.items[index],
-            Item::new(ItemType::ForcedBreak, NodeSlotId::INVALID),
-        ))
+        self.items.next()
     }
 
     pub(crate) fn items(&self) -> &[Item] {
-        &self.items
+        self.items.as_slice()
     }
 
     pub(crate) fn skip_items(&mut self, count: usize) {
-        assert!(self.next_item_index + count <= self.items.len());
-        self.next_item_index += count;
+        assert!(count <= self.items.len());
+        self.items.by_ref().take(count).for_each(drop);
     }
 
     pub(crate) fn next_inline_run_size(
@@ -926,7 +914,7 @@ impl InlineLevelIterator {
         stop_at_overflow_breakable_text: bool,
     ) -> Option<CssPixels> {
         let mut size = CssPixels::default();
-        for item in &self.items[self.next_item_index..] {
+        for item in self.items.as_slice() {
             match item.type_ {
                 ItemType::ForcedBreak => return Some(CssPixels::default()),
                 ItemType::BlockLevelBox => break,
@@ -954,7 +942,8 @@ impl InlineLevelIterator {
         context: &inline_formatting_context::InlineFormattingContext<'_>,
     ) -> bool {
         self.items
-            .get(self.next_item_index)
+            .as_slice()
+            .first()
             .is_some_and(|item| item.allows_overflow_break(context))
     }
 
