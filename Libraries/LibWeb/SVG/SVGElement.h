@@ -50,6 +50,8 @@ public:
     virtual void apply_presentational_hints(Vector<CSS::StyleProperty>&) const final override;
     virtual bool publishes_presentational_hints_on_arrival() const final override { return true; }
 
+    virtual SVGFitToViewBox const* fit_to_view_box() const { return nullptr; }
+
     void register_resource_box_referencing_element(Badge<Layout::LayoutTreeBuilderAccess>, DOM::Element&);
     void note_svg_paint_resource_description_may_have_changed();
 

@@ -16,6 +16,9 @@ class SVGViewElement final : public SVGGraphicsElement
     WEB_WRAPPABLE(SVGViewElement, SVGGraphicsElement);
     GC_DECLARE_ALLOCATOR(SVGViewElement);
 
+public:
+    virtual SVGFitToViewBox const* fit_to_view_box() const override { return this; }
+
 private:
     SVGViewElement(DOM::Document&, DOM::QualifiedName);
 

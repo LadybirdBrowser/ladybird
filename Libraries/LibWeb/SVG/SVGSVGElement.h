@@ -31,6 +31,7 @@ public:
     virtual bool is_svg_container() const override { return true; }
 
     virtual Optional<ViewBox> active_view_box() const override;
+    virtual SVGFitToViewBox const* fit_to_view_box() const override { return this; }
 
     void set_active_view_element(GC::Ptr<SVGViewElement> view_element) { m_active_view_element = view_element; }
 

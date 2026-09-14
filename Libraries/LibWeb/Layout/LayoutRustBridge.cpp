@@ -93,14 +93,17 @@ static RustFFI::FfiSvgElementFacts build_svg_element_facts(NodeWithStyle const& 
     if (!dom_node)
         return {};
 
+    auto const* svg_element = as_if<SVG::SVGElement>(*dom_node);
+    auto const* fit_to_view_box = svg_element ? svg_element->fit_to_view_box() : nullptr;
+
     Optional<SVG::ViewBox> active_view_box;
     if (auto const* svg_graphics_element = as_if<SVG::SVGGraphicsElement>(*dom_node))
         active_view_box = svg_graphics_element->active_view_box();
-    else if (auto const* svg_fit_to_view_box = as_if<SVG::SVGFitToViewBox>(*dom_node))
-        active_view_box = svg_fit_to_view_box->view_box();
+    else if (fit_to_view_box)
+        active_view_box = fit_to_view_box->view_box();
 
     SVG::PreserveAspectRatio preserve_aspect_ratio {};
-    if (auto const* fit_to_view_box = as_if<SVG::SVGFitToViewBox>(*dom_node))
+    if (fit_to_view_box)
         preserve_aspect_ratio = fit_to_view_box->preserve_aspect_ratio().value_or(SVG::PreserveAspectRatio {});
     else if (is<SVG::SVGMaskElement>(*dom_node) || is<SVG::SVGClipPathElement>(*dom_node))
         preserve_aspect_ratio = { SVG::PreserveAspectRatio::Align::None, {} };
@@ -146,7 +149,7 @@ static RustFFI::FfiSvgElementFacts build_svg_element_facts(NodeWithStyle const& 
     return {
         .is_document_element = node.document().document_element() == dom_node,
         .document_is_decoded_svg = node.document().is_decoded_svg(),
-        .is_fit_to_view_box = is<SVG::SVGFitToViewBox>(*dom_node),
+        .is_fit_to_view_box = fit_to_view_box != nullptr,
         .has_active_view_box = active_view_box.has_value(),
         .active_view_box = active_view_box.has_value() ? to_ffi_svg_view_box(*active_view_box) : RustFFI::FfiSvgViewBox {},
         .preserve_aspect_ratio_align = static_cast<u8>(to_underlying(preserve_aspect_ratio.align)),
