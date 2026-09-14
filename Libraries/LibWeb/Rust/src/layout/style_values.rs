@@ -93,7 +93,7 @@ impl InsetValue<'_> {
 pub(crate) struct StyleValues<'a> {
     style: ComputedValuesView<'a>,
     resolved_anchor_insets: Option<&'a formatting_context::ResolvedAnchorInsets>,
-    vertical_align_override: u16,
+    vertical_align_override: Option<u8>,
 }
 
 impl<'a> std::ops::Deref for StyleValues<'a> {
@@ -110,7 +110,7 @@ impl<'a> StyleValues<'a> {
         Self {
             style: ComputedValuesView::new(&payloads.groups),
             resolved_anchor_insets: None,
-            vertical_align_override: u16::MAX,
+            vertical_align_override: None,
         }
     }
 
@@ -181,20 +181,17 @@ impl<'a> StyleValues<'a> {
     }
 
     pub(crate) fn with_vertical_align_keyword(mut self, keyword: u8) -> Self {
-        self.vertical_align_override = keyword as u16;
+        self.vertical_align_override = Some(keyword);
         self
     }
 
     pub(crate) fn vertical_align_is_keyword(self) -> bool {
-        self.vertical_align_override != u16::MAX || self.style.box_values().vertical_align.is_keyword
+        self.vertical_align_override.is_some() || self.style.box_values().vertical_align.is_keyword
     }
 
     pub(crate) fn vertical_align_keyword(self) -> u8 {
-        if self.vertical_align_override != u16::MAX {
-            self.vertical_align_override as u8
-        } else {
-            self.style.box_values().vertical_align.keyword
-        }
+        self.vertical_align_override
+            .unwrap_or_else(|| self.style.box_values().vertical_align.keyword)
     }
 }
 
