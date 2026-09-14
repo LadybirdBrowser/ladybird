@@ -2639,6 +2639,15 @@ impl<'pass> FlexFormattingContext<'pass> {
         if !self.cross_axis_is_horizontal() || !self.has_definite_main_size(index) {
             return None;
         }
+        // https://www.w3.org/TR/CSS2/visudet.html#inline-replaced-width
+        // If 'height' and 'width' both have computed values of 'auto' [...] then that intrinsic width
+        // is the used value of 'width'.
+        // NB: A replaced element with a natural inline size contributes that size. Its post-flexing
+        //     block size must not replace the natural inline size through the aspect ratio. Explicit
+        //     computed heights are handled by the intrinsic inline size calculation instead.
+        if self.facts(node).is_replaced_box() && self.facts(node).has_auto_content_width() {
+            return None;
+        }
         let ratio = self.facts(node).preferred_aspect_ratio()?;
         let main_size = if self.has_definite_main_size_used(&self.container_used()) {
             self.flex_items[index]

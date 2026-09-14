@@ -1,0 +1,15 @@
+natural size
+column thumbnails: 8, 100 x 500
+column scroller: 8, 100 x 100
+thumbnail: 8, 100 x 100
+main: 120, 488 x 500
+clamped width
+column thumbnails: 8, 60 x 500
+column scroller: 8, 60 x 60
+thumbnail: 8, 60 x 60
+main: 80, 528 x 500
+specified height
+column thumbnails: 8, 50 x 500
+column scroller: 8, 50 x 50
+thumbnail: 8, 50 x 50
+main: 70, 538 x 500

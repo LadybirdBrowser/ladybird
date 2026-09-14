@@ -1,0 +1,54 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .grid {
+        display: grid;
+        grid-template-columns: max-content 1fr;
+        width: 600px;
+    }
+    .column {
+        display: flex;
+        flex-direction: column;
+    }
+    .thumbnails {
+        height: 500px;
+        margin-right: 12px;
+    }
+    .scroller {
+        overflow: scroll;
+        scrollbar-width: none;
+        max-width: 100px;
+    }
+    .main {
+        height: 500px;
+        background: silver;
+    }
+</style>
+<div class="grid">
+    <div class="column thumbnails">
+        <div class="column scroller">
+            <div class="column">
+                <img id="thumbnail" src="data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAIAAAD/gAIDAAABFUlEQVR4nO3OUQkAIABEsetfWiv4Nx4IC7Cd7XvkByF+EOIHIX4Q4gchfhDiByF+EOIHIX4Q4gchfhDiByF+EOIHIX4Q4gchfhDiByF+EOIHIX4Q4gchfhDiByF+EOIHIX4Q4gchfhDiByF+EOIHIX4Q4gchfhDiByF+EOIHIX4Q4gchfhDiByF+EOIHIX4Q4gchfhDiByF+EOIHIX4Q4gchfhDiByF+EOIHIX4Q4gchfhDiByF+EOIHIX4Q4gchfhDiByF+EOIHIX4Q4gchfhDiByF+EOIHIX4Q4gchfhDiByF+EOIHIX4Q4gchfhDiByF+EOIHIX4Q4gchfhDiByF+EOIHIX4Q4gchfhDiByF+EOIHIReeLesrH9s1agAAAABJRU5ErkJggg==">
+            </div>
+        </div>
+    </div>
+    <div class="main"></div>
+</div>
+<script>
+promiseTest(async () => {
+    await thumbnail.decode();
+    for (const [label, scrollerWidth, imageHeight] of [
+        ["natural size", "100px", "auto"],
+        ["clamped width", "60px", "auto"],
+        ["specified height", "100px", "50px"],
+    ]) {
+        document.querySelector(".scroller").style.maxWidth = scrollerWidth;
+        thumbnail.style.height = imageHeight;
+        println(label);
+        for (const element of document.querySelectorAll(".thumbnails, .scroller, #thumbnail, .main")) {
+            const rect = element.getBoundingClientRect();
+            println(`${element.className || element.id}: ${rect.x}, ${rect.width} x ${rect.height}`);
+        }
+    }
+});
+</script>
