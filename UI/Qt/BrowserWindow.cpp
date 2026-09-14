@@ -380,7 +380,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
     view_menu->addMenu(create_application_menu(*view_menu, application.motion_menu()));
     view_menu->addSeparator();
 
-    if (show_menubar_option_available())
+    if (show_menu_bar_option_available())
         view_menu->addAction(create_application_action(*view_menu, application.toggle_menu_bar_action(), IncludeActionIcon::No));
 
     m_bookmarks_menu = Application::the().qt_bookmarks_menu();
@@ -1096,7 +1096,7 @@ void BrowserWindow::update_menu_bar_style()
 
 void BrowserWindow::update_menu_bar_visibility()
 {
-    auto show_menu_bar = show_menubar_option_available() && Application::settings().appearance().show_menu_bar;
+    auto show_menu_bar = show_menu_bar_option_available() && Application::settings().appearance().show_menu_bar;
     menuBar()->setVisible(show_menu_bar);
 
     if (m_menu_bar_window_controls)

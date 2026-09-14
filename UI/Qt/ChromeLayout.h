@@ -37,7 +37,7 @@ static constexpr BrowserChromeLayoutPolicy browser_chrome_layout_policy()
     };
 }
 
-static constexpr bool show_menubar_option_available()
+static constexpr bool show_menu_bar_option_available()
 {
     return !use_native_macos_window_controls();
 }

@@ -2477,7 +2477,7 @@ void Application::initialize_actions()
     });
     update_vertical_tabs_action();
 
-    m_toggle_menu_bar_action = Action::create_checkable("Show Menubar"sv, ActionID::ToggleMenuBar, [this]() {
+    m_toggle_menu_bar_action = Action::create_checkable("Show Menu Bar"sv, ActionID::ToggleMenuBar, [this]() {
         auto appearance = m_settings->appearance();
         appearance.show_menu_bar = !appearance.show_menu_bar;
         m_settings->set_appearance(appearance);
