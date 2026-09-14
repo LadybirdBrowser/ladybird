@@ -11,7 +11,7 @@ use super::cascade::CascadeContinuationID;
 use super::selector::{AttributeCase, AttributeOperator};
 use super::*;
 
-const MIN_SHARED_CASCADE_COMPLETION_SAVINGS: usize = 8;
+const MIN_SHARED_CASCADE_COMPLETION_DECLARATIONS: usize = 8;
 
 #[derive(PartialEq, Eq, Hash)]
 struct SharedDispatchKey(Vec<SharedDispatchProgram>);
@@ -3562,26 +3562,17 @@ impl StyleEngine {
         })
     }
 
-    /// Whether sharing this compaction avoids enough declaration candidates to cover its fixed
-    /// identity lookup and winner-row copy costs.
-    pub(super) fn shared_cascade_completion_is_profitable(
-        &self,
-        answer: MatchAnswerID,
-        cascade_input: MatchAnswerID,
-    ) -> bool {
+    /// Sharing avoids collecting and ordering the full declaration candidates. The
+    /// copied winner rows refer to interned states, so retained declarations do not
+    /// need to be discounted from the work saved by sharing.
+    pub(super) fn shared_cascade_completion_is_profitable(&self, answer: MatchAnswerID) -> bool {
         let Some(full) = self.match_answers.answer(answer) else {
             return false;
         };
-        let Some(compact) = self.match_answers.answer(cascade_input) else {
-            return false;
-        };
-        let declaration_count = |answer: &[RetainedRuleMatch]| {
-            answer
-                .iter()
-                .map(|matched| self.program.declared_properties_of(matched.rule).len())
-                .sum::<usize>()
-        };
-        declaration_count(full) >= declaration_count(compact).saturating_add(MIN_SHARED_CASCADE_COMPLETION_SAVINGS)
+        full.iter()
+            .map(|matched| self.program.declared_properties_of(matched.rule).len())
+            .sum::<usize>()
+            >= MIN_SHARED_CASCADE_COMPLETION_DECLARATIONS
     }
 
     /// Complete the transaction output over nodes added by the style consumer's inheritance
