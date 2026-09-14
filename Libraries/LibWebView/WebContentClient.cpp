@@ -2757,7 +2757,8 @@ void WebContentClient::did_present_backing_stores(Web::PageId page_id, Vector<i3
 
 Messages::WebContentClient::StartWorkerAgentResponse WebContentClient::start_worker_agent(Web::PageId page_id, Web::HTML::WorkerAgentStartRequest request)
 {
-    if (auto view = view_for_page_id(page_id); view.has_value()) {
+    // A page hosting an isolated iframe's document belongs to its tab's view as much as the view's own page does.
+    if (auto view = owning_view_for_page_id(page_id); view.has_value()) {
         auto agent_id = WorkerProcessManager::the().start_worker_agent(*this, page_id, move(request));
         return { agent_id };
     }
