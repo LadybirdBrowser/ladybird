@@ -28,6 +28,7 @@ public:
 
     // Tests must not read, or write, the browser settings of whoever is running them.
     virtual bool should_use_temporary_profile_by_default() const override { return true; }
+    virtual WebView::SiteIsolationMode default_site_isolation_mode() const override { return WebView::SiteIsolationMode::IFrame; }
     virtual bool should_coordinate_browser_process() const override { return false; }
     virtual bool should_capture_web_content_output() const override { return true; }
 

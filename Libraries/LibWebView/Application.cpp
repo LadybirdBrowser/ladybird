@@ -322,7 +322,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool enable_test_mode = false;
     bool validate_dnssec_locally = false;
     bool log_all_js_exceptions = false;
-    auto site_isolation_mode = SiteIsolationMode::TopLevel;
+    auto site_isolation_mode = default_site_isolation_mode();
     bool disable_http_memory_cache = false;
     bool disable_http_disk_cache = false;
     bool disable_content_blocker = false;
@@ -405,7 +405,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
-        .help_string = "Set site isolation mode. Mode may be 'disable', 'top-level' (default), or 'iframe'.",
+        .help_string = "Set site isolation mode. Mode may be 'disable', 'top-level', or 'iframe'.",
         .long_name = "site-isolation",
         .value_name = "mode",
         .accept_value = [&](StringView value) {
