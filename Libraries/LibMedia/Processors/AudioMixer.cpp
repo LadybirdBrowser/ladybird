@@ -128,6 +128,7 @@ AK::Duration AudioMixer::mix_head_timestamp() const
 
 void AudioMixer::seek(AK::Duration timestamp)
 {
+    Vector<NonnullRefPtr<AudioProducer>> inputs;
     {
         Sync::MutexLocker locker { m_mutex };
         if (!m_sample_specification.is_valid())
@@ -140,19 +141,20 @@ void AudioMixer::seek(AK::Duration timestamp)
             input_data.current_block.clear();
             input_data.next_frame = m_next_frame_to_write;
             input_data.last_status = PipelineStatus::Pending;
+            inputs.append(input);
         }
 
         m_downstream_needs_wake = true;
     }
 
-    if (m_inputs.is_empty()) {
+    if (inputs.is_empty()) {
         Core::deferred_invoke([self = NonnullRefPtr(*this)] {
             self->dispatch_wake();
         });
         return;
     }
 
-    for (auto& [input, input_data] : m_inputs)
+    for (auto const& input : inputs)
         input->seek(timestamp);
 }
 

@@ -55,7 +55,7 @@ void PlayingStateHandler::update_unticked_end_of_stream_timer()
             continue;
         latest_verified_end_time = *verified_end_time;
     }
-    if (manager().m_audio_sink == nullptr) {
+    if (!manager().has_ticking_audio_sink()) {
         for (auto const& track_data : manager().m_audio_track_datas) {
             if (!track_data.enabled)
                 continue;

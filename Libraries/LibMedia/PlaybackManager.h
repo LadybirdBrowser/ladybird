@@ -13,6 +13,7 @@
 #include <AK/OwnPtr.h>
 #include <AK/ThreadID.h>
 #include <AK/Time.h>
+#include <AK/Variant.h>
 #include <AK/Vector.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/DecoderError.h>
@@ -56,6 +57,8 @@ public:
     ~PlaybackManager();
 
     void set_audio_output_disabled(bool disabled) { m_audio_output_disabled = disabled; }
+    void set_audio_pull_sink(NonnullRefPtr<AudioPullSink>, bool ticking);
+    void set_audio_pull_sink_ticking(bool);
 
     AK::Duration duration() const { return m_duration; }
     void set_duration(AK::Duration);
@@ -90,6 +93,7 @@ public:
     TimeRanges buffered_time_ranges() const;
 
     void set_volume(double);
+    void set_audio_output_muted(bool);
     void set_playback_rate(float);
 
     Function<void()> on_metadata_parsed;
@@ -98,6 +102,7 @@ public:
     Function<void()> on_playback_state_change;
     Function<void(AK::Duration)> on_duration_change;
     Function<void()> on_buffered_ranges_change;
+    Function<void(bool)> on_audio_output_state_change;
     Function<void(DecoderError&&)> on_error;
 
     void add_media_source(NonnullRefPtr<MediaStream> const&);
@@ -137,16 +142,31 @@ private:
     };
     using AudioTrackDatas = Vector<AudioTrackData, EXPECTED_AUDIO_TRACK_COUNT>;
 
+    struct PullAudioOutput {
+        NonnullRefPtr<AudioPullSink> sink;
+        bool is_connected { false };
+        // As for VideoTrackData::ticking: the sink is only pulled, and so only reports a live status, while its
+        // renderer is running.
+        bool ticking { true };
+    };
+    using AudioOutput = Variant<Empty, NonnullRefPtr<AudioPlaybackSink>, PullAudioOutput>;
+
     PlaybackManager();
 
     WeakPlaybackManager weak();
 
     void set_clock(NonnullRefPtr<MediaClock> const&);
+    bool has_ticking_audio_sink() const;
     void disable_audio();
+    void disable_audio_after_error(Error const&);
+    void ensure_audio_output_pipeline();
+    ErrorOr<void> update_audio_pull_sink_channel_map();
+    Optional<Audio::ChannelMap> audio_output_channel_map() const;
 
     void set_up_producers();
     void attach_video_sink(VideoTrackData&, NonnullRefPtr<VideoSink>);
     void on_audio_sink_state_changed(PipelineStatus);
+    void set_audio_output_is_non_silent(bool);
     void on_video_sink_state_changed(Track const&, PipelineStatus);
     void update_duration_from_scan_states();
     bool is_enabled_supported_track(Track const&) const;
@@ -219,7 +239,9 @@ private:
 
     RefPtr<AudioMixer> m_audio_mixer;
     RefPtr<AudioTimeStretchProcessor> m_audio_time_stretch_processor;
-    RefPtr<AudioPlaybackSink> m_audio_sink;
+    AudioOutput m_audio_output;
+    double m_volume { 1.0 };
+    bool m_audio_output_muted { false };
     AudioTracks m_audio_tracks;
     AudioTrackDatas m_audio_track_datas;
 
@@ -230,6 +252,7 @@ private:
     Optional<AK::UnixDateTime> m_start_time_realtime;
 
     PipelineStatus m_audio_sink_status { PipelineStatus::HaveData };
+    bool m_audio_output_is_non_silent { false };
 
     bool m_is_in_error_state { false };
 };
