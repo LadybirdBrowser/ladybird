@@ -22,6 +22,7 @@ private:
 
     void set_new_tab_page_url(JsonValue const&);
     void set_languages(JsonValue const&);
+    void set_appearance(JsonValue const&);
     void set_content_settings(JsonValue const&);
     void set_tab_settings(JsonValue const&);
     void set_browsing_behavior(JsonValue const&);

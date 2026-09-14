@@ -10,6 +10,7 @@
 #include <LibWebView/URL.h>
 #include <LibWebView/Utilities.h>
 #include <UI/Qt/Application.h>
+#include <UI/Qt/ChromeLayout.h>
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/EventLoopImplementationQt.h>
 #include <UI/Qt/Menu.h>
@@ -964,6 +965,11 @@ void Application::insert_clipboard_item(Web::Clipboard::SystemClipboardItem item
 
     auto* clipboard = QGuiApplication::clipboard();
     clipboard->setMimeData(mime_data);
+}
+
+bool Application::supports_system_menu_bar() const
+{
+    return show_menu_bar_option_available();
 }
 
 void Application::update_tabs_display() const

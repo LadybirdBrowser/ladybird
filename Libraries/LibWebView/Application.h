@@ -109,9 +109,12 @@ public:
     static WasmCompilerClient::Client& wasm_compiler_client() { return *the().m_wasm_compiler_client; }
 #endif
 
+    virtual bool supports_system_menu_bar() const { return false; }
     virtual bool supports_vertical_tabs() const { return false; }
     virtual bool supports_private_browsing_windows() const { return false; }
     virtual bool supports_client_side_window_decorations() const { return false; }
+
+    void appearance_changed(Badge<ApplicationSettingsObserver>);
     void tab_settings_changed(Badge<ApplicationSettingsObserver>);
 
     static BookmarkStore& bookmark_store() { return *the().m_bookmark_store; }

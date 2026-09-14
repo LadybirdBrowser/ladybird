@@ -100,6 +100,11 @@ static double sanitized_display_refresh_rate(double refresh_rate)
 }
 
 struct ApplicationSettingsObserver final : public SettingsObserver {
+    virtual void appearance_changed() override
+    {
+        Application::the().appearance_changed({});
+    }
+
     virtual void tab_settings_changed() override
     {
         Application::the().tab_settings_changed({});
@@ -2653,6 +2658,12 @@ void Application::update_vertical_tabs_action()
     m_toggle_vertical_tabs_expanded_action->set_visible(settings.vertical_tabs_enabled);
     m_toggle_vertical_tabs_expanded_action->set_engaged(settings.vertical_tabs_expanded);
     m_toggle_vertical_tabs_expanded_action->set_tooltip(settings.vertical_tabs_expanded ? "Minimize Tabs"sv : "Expand Tabs"sv);
+}
+
+void Application::appearance_changed(Badge<ApplicationSettingsObserver>)
+{
+    m_toggle_menu_bar_action->set_checked(m_settings->appearance().show_menu_bar);
+    m_toggle_bookmark_bar_action->set_checked(m_settings->appearance().show_bookmarks_bar);
 }
 
 void Application::tab_settings_changed(Badge<ApplicationSettingsObserver>)
