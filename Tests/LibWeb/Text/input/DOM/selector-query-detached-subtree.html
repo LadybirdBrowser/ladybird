@@ -1,0 +1,63 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        const check = (root, selector, expected) => {
+            const first = root.querySelector(selector);
+            const results = root.querySelectorAll(selector);
+            println(`${selector}: ${Array.from(results, node => node.id).join(",") === expected.join(",")}`);
+            println(`first: ${first === (results[0] ?? null)}`);
+        };
+        const fragment = document.createDocumentFragment();
+        const outside = document.createElement("section");
+        outside.id = "outside";
+        outside.dataset.controller = "other";
+        const root = document.createElement("section");
+        root.id = "root";
+        root.dataset.controller = "needle";
+        fragment.append(outside, root);
+        const ids = [];
+        for (let i = 0; i < 40; ++i) {
+            const child = document.createElement("span");
+            child.id = `item-${i}`;
+            child.dataset.controller = "other needle";
+            root.prepend(child);
+            ids.unshift(child.id);
+        }
+        check(fragment, '[data-controller~="needle"]', ["root", ...ids]);
+        check(root, '[data-controller~="needle"]', ids);
+        check(fragment, ':root, :scope', []);
+        check(root, ':scope > [data-controller]', ids);
+        check(fragment, 'section + section > [data-controller]', ids);
+        check(root, '[data-controller~="needle"], span:first-child', ids);
+        const original = root.querySelectorAll('[data-controller~="needle"]');
+        root.firstChild.remove();
+        ids.shift();
+        check(root, '[data-controller~="needle"]', ids);
+        println(`old list stays unchanged: ${original.length === 40 && original[0].id === "item-39"}`);
+        root.firstChild.dataset.controller = "other";
+        check(root, '[data-controller~="needle"]', ids.slice(1));
+        root.remove();
+        check(root, ':root', []);
+        check(root, 'section + section > span', []);
+        check(fragment, '[data-controller]', ["outside"]);
+        check(document.createDocumentFragment(), '[data-controller]', []);
+
+        const stateRoot = document.createElement("div");
+        stateRoot.innerHTML = '<input id="checkbox" type="checkbox">';
+        check(stateRoot, ':checked', []);
+        stateRoot.firstChild.checked = true;
+        check(stateRoot, ':checked', ["checkbox"]);
+        stateRoot.firstChild.checked = false;
+        check(stateRoot, ':checked', []);
+
+        const otherDocument = document.implementation.createHTMLDocument("");
+        otherDocument.documentElement.id = "html";
+        check(otherDocument, ':root', ["html"]);
+        const host = document.createElement("div");
+        const shadow = host.attachShadow({mode: "open"});
+        shadow.innerHTML = '<span id="shadow" data-controller="needle"></span>';
+        check(shadow, '[data-controller~="needle"]', ["shadow"]);
+        check(shadow, ':root, :scope, :host', []);
+    });
+</script>

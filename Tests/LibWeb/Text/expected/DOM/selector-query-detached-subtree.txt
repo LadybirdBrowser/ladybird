@@ -1,0 +1,37 @@
+[data-controller~="needle"]: true
+first: true
+[data-controller~="needle"]: true
+first: true
+:root, :scope: true
+first: true
+:scope > [data-controller]: true
+first: true
+section + section > [data-controller]: true
+first: true
+[data-controller~="needle"], span:first-child: true
+first: true
+[data-controller~="needle"]: true
+first: true
+old list stays unchanged: true
+[data-controller~="needle"]: true
+first: true
+:root: true
+first: true
+section + section > span: true
+first: true
+[data-controller]: true
+first: true
+[data-controller]: true
+first: true
+:checked: true
+first: true
+:checked: true
+first: true
+:checked: true
+first: true
+:root: true
+first: true
+[data-controller~="needle"]: true
+first: true
+:root, :scope, :host: true
+first: true

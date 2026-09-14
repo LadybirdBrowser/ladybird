@@ -536,7 +536,7 @@ void configure_isolated_selector_query_engine(StyleEngine& style_engine, DOM::Do
             : 0);
 }
 
-void populate_isolated_selector_query_engine(StyleEngine& style_engine, DOM::ParentNode& root, Function<void(GC::Ref<DOM::Element>, StyleNodeID)> const& publish_identity)
+StyleNodeID populate_isolated_selector_query_engine(StyleEngine& style_engine, DOM::ParentNode& root, Function<void(GC::Ref<DOM::Element>, StyleNodeID)> const& publish_identity)
 {
     Optional<StyleNodeID> non_element_root_identity;
     if (!is<DOM::Element>(root) && !is<DOM::Document>(root)) {
@@ -635,6 +635,11 @@ void populate_isolated_selector_query_engine(StyleEngine& style_engine, DOM::Par
     });
 
     style_engine.flush();
+    if (non_element_root_identity.has_value())
+        return *non_element_root_identity;
+    if (auto* element = as_if<DOM::Element>(root))
+        return identities.get(element).value();
+    return identity_of_element(as<DOM::Document>(root).document_element());
 }
 
 // The atom an id or class name is published under. A quirks-mode document matches those selectors
