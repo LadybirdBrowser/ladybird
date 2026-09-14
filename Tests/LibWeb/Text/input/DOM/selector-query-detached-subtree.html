@@ -26,6 +26,7 @@
         }
         check(fragment, '[data-controller~="needle"]', ["root", ...ids]);
         check(root, '[data-controller~="needle"]', ids);
+        check(root, 'span[data-controller~="needle"]', ids);
         check(fragment, ':root, :scope', []);
         check(root, ':scope > [data-controller]', ids);
         check(fragment, 'section + section > [data-controller]', ids);

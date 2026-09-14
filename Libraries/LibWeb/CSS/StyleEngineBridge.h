@@ -161,10 +161,10 @@ public:
 
     // Interns an attribute value and records what it spells when a selector for this name needs
     // text. Values repeat heavily, so demanded text crosses once per distinct value.
-    StyleAtomID intern_attribute_value(StyleAtomID name, Utf16View value);
+    StyleAtomID intern_attribute_value(StyleAtomID name, Utf16String const& value);
     // Demand expansion already has every value identity. Check the name before interning the text
     // so attributes no selector reads do not pay another string hash.
-    void backfill_attribute_value_text_if_required(StyleAtomID name, Utf16View value);
+    void backfill_attribute_value_text_if_required(StyleAtomID name, Utf16String const& value);
 
     // Deltas accumulate here and cross in one flat batch per style flush, never one call per
     // element.

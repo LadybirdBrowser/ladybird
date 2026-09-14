@@ -223,7 +223,13 @@ fn supports_dom_matching(selector: &CompiledSelector, attributes: bool) -> bool 
 pub unsafe extern "C" fn rust_selector_supports_simple_dom_matching(selector: *const RustSelector) -> bool {
     unsafe {
         assert!(!selector.is_null());
-        supports_dom_matching((*selector).compiled(), false)
+        let selector = (*selector).compiled();
+        supports_dom_matching(selector, false)
+            || (supports_dom_matching(selector, true)
+                && selector.compound_selectors[0]
+                    .simple_selectors
+                    .iter()
+                    .any(|simple| matches!(simple, SimpleSelector::TagName(_))))
     }
 }
 

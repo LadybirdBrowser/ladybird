@@ -2,6 +2,8 @@
 first: true
 [data-controller~="needle"]: true
 first: true
+span[data-controller~="needle"]: true
+first: true
 :root, :scope: true
 first: true
 :scope > [data-controller]: true
