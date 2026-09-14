@@ -107,6 +107,7 @@ ErrorOr<ChannelMap> core_audio_channel_layout_to_channel_map(AudioChannelLayout 
             VERIFY(explicit_layout_size >= sizeof(AudioChannelLayout));
 
             auto* explicit_layout = reinterpret_cast<AudioChannelLayout*>(kmalloc(explicit_layout_size));
+            VERIFY(explicit_layout);
             ScopeGuard free_explicit_layout { [&] { kfree(explicit_layout); } };
 
             if (auto status = AudioFormatGetProperty(
