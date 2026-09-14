@@ -83,9 +83,9 @@ input[type=range] {
     &::slider-track {
         display: block;
         position: relative;
-        height: 4px;
+        height: 6px;
         width: 100%;
-        margin-top: 6px;
+        box-sizing: border-box;
         background-color: AccentColorText;
         border: 1px solid rgba(0, 0, 0, 0.5);
     }
@@ -94,7 +94,6 @@ input[type=range] {
         display: block;
         position: absolute;
         height: 100%;
-        background-color: AccentColor;
     }
 
     &::slider-thumb {

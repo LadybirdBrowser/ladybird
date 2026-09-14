@@ -1,0 +1,22 @@
+<!doctype html>
+<link rel="match" href="../expected/custom-range-track-ref.html">
+<style>
+    .row { position: relative; width: 200px; margin-bottom: 20px; }
+    input { position: absolute; top: 0; left: 0; appearance: none; width: 200px; height: 100%; margin: 0; padding: 0; border: 0; }
+    input::-webkit-slider-runnable-track { height: 4px; background: #444; border: 0; }
+    input::-webkit-slider-thumb { display: none; }
+    .progress { position: absolute; top: calc(50% - 2px); width: 100px; height: 4px; background: white; pointer-events: none; }
+    .row { background: black; }
+    .thumb input::-webkit-slider-thumb { display: block; width: 12px; height: 12px; margin-top: -4px; outline: 0; background: white; }
+</style>
+<div class="row" style="height: 4px"><input type="range" value="50"><div class="progress"></div></div>
+<div class="row" style="height: 16px"><input type="range" value="50"><div class="progress"></div></div>
+<div class="row" style="height: 40px"><input type="range" value="50"><div class="progress"></div></div>
+<div class="row" style="height: 4px"><input type="range" value="50" style="display: block"><div class="progress"></div></div>
+<div class="row" style="height: 16px"><input type="range" value="50" style="display: block"><div class="progress"></div></div>
+<div class="row" style="height: 40px"><input type="range" value="50" style="display: block"><div class="progress"></div></div>
+<div class="row thumb" style="height: 16px"><input type="range" value="50" style="display: block"></div>
+<div class="row" style="height: 4px"><input type="range" value="50" style="display: inline-block"><div class="progress"></div></div>
+<div class="row" style="height: 16px"><input type="range" value="50" style="display: inline-block"><div class="progress"></div></div>
+<div class="row" style="height: 40px"><input type="range" value="50" style="display: inline-block"><div class="progress"></div></div>
+<div class="row thumb" style="height: 16px"><input type="range" value="50" style="display: inline-block"></div>

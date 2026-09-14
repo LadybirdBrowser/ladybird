@@ -1443,8 +1443,17 @@ void HTMLInputElement::create_range_input_shadow_tree()
     shadow_root->set_user_agent_internal(true);
     set_shadow_root(shadow_root);
 
+    // NB: Center the track inside an internal flex container so author styles on
+    //     the input's display property do not affect its alignment.
+    auto slider_container = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
+    MUST(slider_container->style()->set_property(CSS::PropertyID::Display, "flex"_utf16));
+    MUST(slider_container->style()->set_property(CSS::PropertyID::AlignItems, "center"_utf16));
+    MUST(slider_container->style()->set_property(CSS::PropertyID::Width, "100%"_utf16));
+    MUST(slider_container->style()->set_property(CSS::PropertyID::Height, "100%"_utf16));
+    MUST(shadow_root->append_child(*slider_container));
+
     m_slider_runnable_track = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));
-    MUST(shadow_root->append_child(*m_slider_runnable_track));
+    MUST(slider_container->append_child(*m_slider_runnable_track));
     m_slider_runnable_track->set_associated_shadow_host_pseudo_element(CSS::PseudoElement::SliderTrack);
 
     m_slider_progress_element = MUST(DOM::create_element(document(), HTML::TagNames::div, Namespace::HTML));

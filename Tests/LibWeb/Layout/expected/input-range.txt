@@ -4,16 +4,18 @@ Viewport <#document> at [0,0] [0+0+0 800 0+0+0] [0+0+0 600 0+0+0] [BFC] children
       frag 0 from RangeInputBox start: 0, length: 0, rect: [8,8 200x16] baseline: 16
       frag 1 from RangeInputBox start: 0, length: 0, rect: [208,8 200x16] baseline: 16
       RangeInputBox <input> at [8,8] inline-block [0+0+0 200 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
-        BlockContainer <div> at [9,15] positioned [0+1+0 200 0+1+-2] [6+1+0 4 0+1+0] children: not-inline
-          BlockContainer <div> at [9,15] positioned [0+0+0 100 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
-          BlockContainer <div> at [109,9] [100+0+0 16 0+0+84] [-6+0+0 16 0+0+0] children: not-inline
+        Box <div> at [8,8] flex-container(row) [0+0+0 200 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [9,14] positioned flex-item [0+1+0 198 0+1+0] [0+1+0 4 0+1+0] [BFC] children: not-inline
+            BlockContainer <div> at [9,14] positioned [0+0+0 99 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
+            BlockContainer <div> at [108,8] [99+0+0 16 0+0+83] [-6+0+0 16 0+0+0] children: not-inline
       RangeInputBox <input> at [208,8] inline-block [0+0+0 200 0+0+0] [0+0+0 16 0+0+0] [BFC] children: not-inline
-        BlockContainer <div> at [209,15] positioned [0+1+0 200 0+1+-2] [6+1+0 4 0+1+0] children: not-inline
-          BlockContainer <div> at [209,15] positioned [0+0+0 20 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
-          BlockContainer <div> at [229,9] [20+0+0 16 0+0+164] [-6+0+0 16 0+0+0] children: not-inline
+        Box <div> at [208,8] flex-container(row) [0+0+0 200 0+0+0] [0+0+0 16 0+0+0] [FFC] children: not-inline
+          BlockContainer <div> at [209,14] positioned flex-item [0+1+0 198 0+1+0] [0+1+0 4 0+1+0] [BFC] children: not-inline
+            BlockContainer <div> at [209,14] positioned [0+0+0 19.796875 0+0+0] [0+0+0 4 0+0+0] [BFC] children: not-inline
+            BlockContainer <div> at [228.796875,8] [19.796875+0+0 16 0+0+162.203125] [-6+0+0 16 0+0+0] children: not-inline
       TextNode <#text> (not painted)
 
 SC for Viewport<#document> [0,0 800x600] (z-index: auto)
  SC for BlockContainer<HTML> [0,0 800x36] (z-index: auto)
-  SC for BlockContainer<DIV> [109,9 16x16] (z-index: auto), has_transform
-  SC for BlockContainer<DIV> [229,9 16x16] (z-index: auto), has_transform
+  SC for BlockContainer<DIV> [108,8 16x16] (z-index: auto), has_transform
+  SC for BlockContainer<DIV> [228.796875,8 16x16] (z-index: auto), has_transform
