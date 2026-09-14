@@ -5915,10 +5915,15 @@ void Document::abort_a_document_and_its_descendants()
 
     // 3. For each descendantNavigable of descendantNavigables, queue a global task on the navigation and traversal task source given descendantNavigable's active window to perform the following steps:
     for (auto& navigable : descendant_navigables) {
-        // FIXME: Abort the active document of a descendant hosted by another process in that process.
+        // NB: The active window of a descendant hosted by another process is there. The UI process queues the task in
+        //     that process, on the descendant's document, whose descendants that process aborts in turn; the
+        //     salvageable state it finds does not come back here, and Ladybird keeps no document alive on it.
         auto* descendant_navigable = as_if<HTML::LocalNavigable>(*navigable);
-        if (!descendant_navigable)
+        if (!descendant_navigable) {
+            if (auto* remote_navigable = as_if<HTML::RemoteNavigable>(*navigable); remote_navigable->parent() && is<HTML::LocalNavigable>(*remote_navigable->parent()))
+                page().client().page_did_request_remote_document_abort(remote_navigable->id());
             continue;
+        }
         HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*descendant_navigable->active_window()), GC::create_function(GC::Heap::the(), [this, descendant_navigable] {
             // NOTE: This is not in the spec but we need to abort ongoing navigations in all descendant navigables.
             //       See https://github.com/whatwg/html/issues/9711

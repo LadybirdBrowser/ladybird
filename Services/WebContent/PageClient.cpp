@@ -1505,6 +1505,11 @@ void PageClient::page_did_request_child_navigable_unload(Web::HTML::CrossProcess
     client().async_request_child_navigable_unload(m_id, navigable_id);
 }
 
+void PageClient::page_did_request_remote_document_abort(Web::HTML::CrossProcessId navigable_id)
+{
+    client().async_request_navigable_document_abort(m_id, navigable_id);
+}
+
 String PageClient::page_did_request_ui_process_session_history_for_testing()
 {
     if (auto* test_connection = client().test_connection())
