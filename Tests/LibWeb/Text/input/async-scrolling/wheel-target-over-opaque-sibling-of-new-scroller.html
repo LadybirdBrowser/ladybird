@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body {
+        margin: 0;
+    }
+
+    #spacer {
+        height: 2000px;
+    }
+
+    #behind {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 400px;
+        height: 200px;
+        z-index: 1;
+    }
+
+    #behind-content {
+        height: 1000px;
+    }
+
+    #cover {
+        position: absolute;
+        left: 0;
+        top: 0;
+        width: 200px;
+        height: 200px;
+        z-index: 2;
+        background: white;
+    }
+</style>
+<div id="spacer"></div>
+<div id="host"></div>
+<div id="cover"></div>
+<script>
+    // While no box but the viewport can take a wheel event, recordings leave out the per-box wheel hit-test
+    // targets. Making #behind scrollable requires them, including in the capture of the untouched opaque #cover:
+    // a recording that reused that capture would route a wheel over #cover to the scroller underneath.
+    test(() => {
+        host.innerHTML = '<div id="behind"><div id="behind-content"></div></div>';
+        internals.recordDisplayListForTesting(false, true);
+        internals.recordDisplayListForTesting(false, false);
+        host.firstChild.style.overflow = "auto";
+        println(`wheel over the opaque sibling targets ${internals.asyncScrollingStateWheelTargetAt(100, 100, 0, 50)}`);
+        println(`wheel over the new scroller targets ${internals.asyncScrollingStateWheelTargetAt(300, 100, 0, 50)}`);
+    });
+</script>

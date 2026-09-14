@@ -31,7 +31,8 @@ pub(crate) fn paint_overlay<O: Observer>(recorder: &mut PaintRecorder<'_, O>, pa
     let chrome_geometry = ChromeGeometry::for_recording(recorder.layout_arena, recorder.inputs);
     let style = recorder.layout_arena.node_style_if_live(paintable);
     let paints_scrollbars = style.is_some_and(|style| {
-        ((recorder.inputs.paint_viewport_scrollbars && !recorder.inputs.async_scrolling_enabled) || !is_viewport)
+        ((recorder.inputs.uncaptured.paint_viewport_scrollbars && !recorder.inputs.uncaptured.async_scrolling_enabled)
+            || !is_viewport)
             && style.misc_reset().scrollbar_width != crate::css::css_enums::scrollbar_width::NONE
     });
 
@@ -39,8 +40,12 @@ pub(crate) fn paint_overlay<O: Observer>(recorder: &mut PaintRecorder<'_, O>, pa
         let (thumb_color, track_color) = scrollbar_colors_for_paint(
             recorder.layout_arena,
             paintable,
-            recorder.inputs.root_background_source,
-            recorder.inputs.canvas_color.blend(recorder.inputs.background_color),
+            recorder.inputs.uncaptured.root_background_source,
+            recorder
+                .inputs
+                .uncaptured
+                .canvas_color
+                .blend(recorder.inputs.uncaptured.background_color),
         );
         let scroll_node_index = own_scroll_node_index;
         for direction in [ScrollDirection::Vertical, ScrollDirection::Horizontal] {
@@ -64,7 +69,7 @@ pub(crate) fn paint_overlay<O: Observer>(recorder: &mut PaintRecorder<'_, O>, pa
 
     if let Some(mut css_rect) = chrome_geometry.absolute_resizer_rect(paintable) {
         let bottom_left_resizer = is_chrome_mirrored(recorder.layout_arena, paintable);
-        let padding = recorder.inputs.chrome_metrics.resize_gripper_padding;
+        let padding = recorder.inputs.uncaptured.chrome_metrics.resize_gripper_padding;
         let two = CssPixels::from_integer(2);
         let half = padding.div_as_fraction(two);
         let negative_half = (-padding).div_as_fraction(two);
@@ -124,7 +129,7 @@ fn paint_middle_button_scroll_indicator<O: Observer>(recorder: &mut PaintRecorde
     if recorder.layout_arena.node_kind_if_live(paintable) != Some(NodeKind::Viewport) {
         return;
     }
-    let Some(origin) = recorder.inputs.middle_button_scroll_origin else {
+    let Some(origin) = recorder.inputs.uncaptured.middle_button_scroll_origin else {
         return;
     };
     let device_origin = recorder.converter.rounded_device_point(origin);

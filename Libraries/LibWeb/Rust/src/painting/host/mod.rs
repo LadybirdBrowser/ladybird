@@ -22,6 +22,16 @@ pub struct FfiRootBackgroundSource {
     pub body_layout_node: crate::layout::node_data::NodeSlotId,
 }
 
+impl Default for FfiRootBackgroundSource {
+    fn default() -> Self {
+        Self {
+            use_body_background_properties: false,
+            root_layout_node: crate::layout::node_data::NodeSlotId::INVALID,
+            body_layout_node: crate::layout::node_data::NodeSlotId::INVALID,
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 #[repr(C)]
 pub struct FfiGeometryHostCallbacks {

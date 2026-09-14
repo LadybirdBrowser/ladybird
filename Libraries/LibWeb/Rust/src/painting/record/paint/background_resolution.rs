@@ -543,7 +543,11 @@ fn resolve_layers<'a, O: Observer>(
         // If the background-attachment value for this layer is fixed, then this property has no effect: in this case
         // the background positioning area is the initial containing block.
         if layer.attachment == background_attachment::FIXED
-            && background_has_fixed_attachment(recorder.layout_arena, recorder.inputs.root_background_source, paintable)
+            && background_has_fixed_attachment(
+                recorder.layout_arena,
+                recorder.inputs.uncaptured.root_background_source,
+                paintable,
+            )
         {
             background_positioning_area = CssPixelRect::from_location_and_size(
                 crate::css::css_pixels::CssPixelPoint::default(),
@@ -823,13 +827,17 @@ pub(crate) fn resolve_background_for_paint<'a, O: Observer>(
     recorder: &PaintRecorder<'a, O>,
     paintable: NodeSlotId,
 ) -> Option<BackgroundPaintInputs<'a>> {
-    if !has_background_to_paint(recorder.layout_arena, paintable, recorder.inputs.root_background_source) {
+    if !has_background_to_paint(
+        recorder.layout_arena,
+        paintable,
+        recorder.inputs.uncaptured.root_background_source,
+    ) {
         return None;
     }
     let source = background_paint_source_from_style_and_geometry(
         recorder.layout_arena,
         paintable,
-        recorder.inputs.root_background_source,
+        recorder.inputs.uncaptured.root_background_source,
     )?;
     let mut resolved = match source.layers_style_if_live {
         Some(layers_style) => resolve_background_layers(

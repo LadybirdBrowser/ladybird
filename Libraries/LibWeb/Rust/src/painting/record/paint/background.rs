@@ -467,7 +467,7 @@ fn paint_image_layer<O: Observer>(
             if !recorder.recorder.is_recording_inside_group()
                 && background_has_fixed_attachment(
                     recorder.layout_arena,
-                    recorder.inputs.root_background_source,
+                    recorder.inputs.uncaptured.root_background_source,
                     paintable,
                 )
             {

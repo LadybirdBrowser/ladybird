@@ -42,8 +42,8 @@ pub(crate) fn hit_test_facts(
     let wheel_axes = crate::painting::chrome_geometry::wheel_scrollable_axes(
         arena,
         paintable,
-        inputs.viewport_wheel_overflow_x,
-        inputs.viewport_wheel_overflow_y,
+        inputs.uncaptured.viewport_wheel_overflow_x,
+        inputs.uncaptured.viewport_wheel_overflow_y,
     );
     let svg_path = arena
         .node_kind_if_live(paintable)

@@ -104,10 +104,25 @@ impl FfiRecordingInputs {
         let control = self.focused_text_control;
         RecordingInputs {
             device_pixels_per_css_pixel: tree_inputs.device_pixels_per_css_pixel,
-            viewport_wheel_overflow_x: tree_inputs.viewport_wheel_overflow_x,
-            viewport_wheel_overflow_y: tree_inputs.viewport_wheel_overflow_y,
-            root_background_source,
-            device_viewport_rect: self.device_viewport_rect,
+            uncaptured: crate::painting::record::inputs::UncapturedContentInputs {
+                viewport_wheel_overflow_x: tree_inputs.viewport_wheel_overflow_x,
+                viewport_wheel_overflow_y: tree_inputs.viewport_wheel_overflow_y,
+                root_background_source,
+                device_viewport_rect: self.device_viewport_rect,
+                is_recording_async_scrolling_metadata: self.is_recording_async_scrolling_metadata,
+                document_id: UniqueNodeId(self.document_id),
+                has_blocking_wheel_event_region_covering_viewport: self
+                    .has_blocking_wheel_event_region_covering_viewport,
+                chrome_metrics: self.chrome_metrics,
+                paint_viewport_scrollbars: self.paint_viewport_scrollbars,
+                async_scrolling_enabled: self.async_scrolling_enabled,
+                middle_button_scroll_origin: self
+                    .middle_button_scroll_active
+                    .then(|| self.middle_button_scroll_origin.into()),
+                canvas_color: self.canvas_color,
+                background_color: self.background_color,
+            },
+            wheel_event_listener_state_generation: self.wheel_event_listener_state_generation,
             css_viewport_rect: self.css_viewport_rect.into(),
             should_show_line_box_borders: self.should_show_line_box_borders,
             force_dark_enabled: self.force_dark_enabled,
@@ -116,21 +131,9 @@ impl FfiRecordingInputs {
                 background_brightness_threshold: self.force_dark_background_threshold,
             },
             should_paint_overlay: self.should_paint_overlay,
-            is_recording_async_scrolling_metadata: self.is_recording_async_scrolling_metadata,
-            document_id: UniqueNodeId(self.document_id),
-            has_blocking_wheel_event_region_covering_viewport: self.has_blocking_wheel_event_region_covering_viewport,
-            wheel_event_listener_state_generation: self.wheel_event_listener_state_generation,
-            chrome_metrics: self.chrome_metrics,
-            paint_viewport_scrollbars: self.paint_viewport_scrollbars,
-            async_scrolling_enabled: self.async_scrolling_enabled,
-            middle_button_scroll_origin: self
-                .middle_button_scroll_active
-                .then(|| self.middle_button_scroll_origin.into()),
             canvas_fill_rect: self.canvas_fill_rect.has_value.then_some(self.canvas_fill_rect.value),
-            canvas_color: self.canvas_color,
             opaque_canvas: self.opaque_canvas,
             bitmap_rect: self.bitmap_rect,
-            background_color: self.background_color,
             paint_command_cache_read_write: self.paint_command_cache_read_write,
             window_is_focused: self.window_is_focused,
             outline_auto_color: self.outline_auto_color,
