@@ -74,6 +74,8 @@ public:
     [[nodiscard]] SignedBigInteger shift_right(size_t num_bits) const;
     [[nodiscard]] SignedBigInteger multiplied_by(SignedBigInteger const& other) const;
     [[nodiscard]] SignedDivisionResult divided_by(SignedBigInteger const& divisor) const;
+    [[nodiscard]] SignedBigInteger quotient(SignedBigInteger const& divisor) const;
+    [[nodiscard]] SignedBigInteger remainder(SignedBigInteger const& divisor) const;
     [[nodiscard]] SignedBigInteger pow(u32 exponent) const;
     [[nodiscard]] ErrorOr<SignedBigInteger> mod_power_of_two(size_t power_of_two) const;
 
@@ -81,6 +83,8 @@ public:
     [[nodiscard]] SignedBigInteger minus(UnsignedBigInteger const& other) const;
     [[nodiscard]] SignedBigInteger multiplied_by(UnsignedBigInteger const& other) const;
     [[nodiscard]] SignedDivisionResult divided_by(UnsignedBigInteger const& divisor) const;
+    [[nodiscard]] SignedBigInteger quotient(UnsignedBigInteger const& divisor) const;
+    [[nodiscard]] SignedBigInteger remainder(UnsignedBigInteger const& divisor) const;
 
     [[nodiscard]] SignedBigInteger negated_value() const;
 

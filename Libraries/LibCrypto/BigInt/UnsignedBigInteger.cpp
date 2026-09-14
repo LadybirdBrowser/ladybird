@@ -404,6 +404,20 @@ FLATTEN UnsignedDivisionResult UnsignedBigInteger::divided_by(UnsignedBigInteger
     return UnsignedDivisionResult { move(quotient), move(remainder) };
 }
 
+FLATTEN UnsignedBigInteger UnsignedBigInteger::quotient(UnsignedBigInteger const& divisor) const
+{
+    UnsignedBigInteger result;
+    MP_MUST(mp_div(&m_mp, &divisor.m_mp, &result.m_mp, nullptr));
+    return result;
+}
+
+FLATTEN UnsignedBigInteger UnsignedBigInteger::remainder(UnsignedBigInteger const& divisor) const
+{
+    UnsignedBigInteger result;
+    MP_MUST(mp_div(&m_mp, &divisor.m_mp, nullptr, &result.m_mp));
+    return result;
+}
+
 FLATTEN UnsignedBigInteger UnsignedBigInteger::pow(u32 exponent) const
 {
     UnsignedBigInteger result;

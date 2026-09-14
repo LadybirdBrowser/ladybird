@@ -311,6 +311,20 @@ FLATTEN SignedDivisionResult SignedBigInteger::divided_by(UnsignedBigInteger con
     return SignedDivisionResult { move(quotient), move(remainder) };
 }
 
+FLATTEN SignedBigInteger SignedBigInteger::quotient(UnsignedBigInteger const& divisor) const
+{
+    SignedBigInteger result;
+    MP_MUST(mp_div(&m_mp, &divisor.m_mp, &result.m_mp, nullptr));
+    return result;
+}
+
+FLATTEN SignedBigInteger SignedBigInteger::remainder(UnsignedBigInteger const& divisor) const
+{
+    SignedBigInteger result;
+    MP_MUST(mp_div(&m_mp, &divisor.m_mp, nullptr, &result.m_mp));
+    return result;
+}
+
 FLATTEN SignedBigInteger SignedBigInteger::bitwise_or(SignedBigInteger const& other) const
 {
     SignedBigInteger result;
@@ -402,6 +416,20 @@ FLATTEN SignedDivisionResult SignedBigInteger::divided_by(SignedBigInteger const
     SignedBigInteger remainder;
     MP_MUST(mp_div(&m_mp, &divisor.m_mp, &quotient.m_mp, &remainder.m_mp));
     return SignedDivisionResult { move(quotient), move(remainder) };
+}
+
+FLATTEN SignedBigInteger SignedBigInteger::quotient(SignedBigInteger const& divisor) const
+{
+    SignedBigInteger result;
+    MP_MUST(mp_div(&m_mp, &divisor.m_mp, &result.m_mp, nullptr));
+    return result;
+}
+
+FLATTEN SignedBigInteger SignedBigInteger::remainder(SignedBigInteger const& divisor) const
+{
+    SignedBigInteger result;
+    MP_MUST(mp_div(&m_mp, &divisor.m_mp, nullptr, &result.m_mp));
+    return result;
 }
 
 FLATTEN SignedBigInteger SignedBigInteger::pow(u32 exponent) const
