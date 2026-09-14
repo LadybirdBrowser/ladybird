@@ -17,6 +17,7 @@ static Web::HTML::CrossProcessId root_id() { return { 1, 1 }; }
 static Web::HTML::CrossProcessId child_id() { return { 1, 2 }; }
 static Web::HTML::CrossProcessId first_operation_id() { return { 2, 1 }; }
 static Web::HTML::CrossProcessId second_operation_id() { return { 2, 2 }; }
+static Web::HTML::CrossProcessId third_operation_id() { return { 2, 3 }; }
 
 static URL::URL parse_url(StringView url)
 {
@@ -599,5 +600,53 @@ TEST_CASE(an_older_run_does_not_commit_over_a_newer_runs_step)
     test.runner.continuations[1].on_complete();
 
     EXPECT(older_result == Web::HTML::HistoryStepResult::Applied);
+    EXPECT_EQ(test.current_step(), 2);
+}
+
+TEST_CASE(a_paused_run_commits_after_a_newer_run_recommits_the_current_step)
+{
+    Core::EventLoop event_loop;
+    TestTraversable test;
+    test.with_two_top_level_entries();
+
+    // A push whose finalization appended its entry at step 2.
+    VERIFY(test.history.append_or_replace_session_history_entry(test.traversable, entry(2, "https://c.example/"sv), {}));
+
+    // A synchronous replace from the page the push is unloading is queued behind the push and jumps the queue while the
+    // push waits on its changing job. It re-commits the current step, moving nothing.
+    OwnPtr<WebView::ApplyHistoryStep> nested_operation;
+    Optional<Web::HTML::HistoryStepResult> nested_result;
+    test.queue.append_session_history_synchronous_navigation_steps(child_id(), [&](NonnullRefPtr<Core::Promise<Empty>> signal) {
+        nested_operation = make<WebView::ApplyHistoryStep>(test.history, test.traversable, test.queue, test.state, test.runner.jobs(), third_operation_id(), 3, 1,
+            false, Optional<Web::HTML::CrossProcessId> {}, Optional<Web::InitiatorSourceSnapshot> {}, Web::HTML::UserNavigationInvolvement::None, Web::Bindings::NavigationType::Replace,
+            [&, signal](Web::HTML::HistoryStepResult result) {
+                nested_result = result;
+                signal->resolve({});
+            });
+        nested_operation->apply_the_history_step();
+    });
+
+    test.apply_step(2, Web::Bindings::NavigationType::Push);
+    EXPECT(!test.runner.changing_jobs.is_empty());
+    EXPECT(nested_operation);
+
+    // Complete whatever the nested run dispatched; the push's own job (the first) stays pending.
+    for (size_t i = 1; i < test.runner.changing_jobs.size(); ++i)
+        test.runner.changing_jobs[i].on_complete(Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready);
+    for (size_t i = 0; i < test.runner.continuations.size(); ++i)
+        test.runner.continuations[i].on_complete();
+    EXPECT(nested_result == Web::HTML::HistoryStepResult::Applied);
+    EXPECT_EQ(nested_operation->committed_step(), 1);
+    EXPECT_EQ(test.current_step(), 1);
+    EXPECT(!test.state.running_nested_apply_history_step);
+
+    // The push resumes, and commits its own step.
+    auto continuation_count = test.runner.continuations.size();
+    test.runner.changing_jobs[0].on_complete(Web::HTML::ChangingNavigableHistoryStepJobDisposition::Ready);
+    EXPECT_EQ(test.runner.continuations.size(), continuation_count + 1);
+    test.runner.continuations[continuation_count].on_complete();
+
+    EXPECT(test.result == Web::HTML::HistoryStepResult::Applied);
+    EXPECT_EQ(test.operation->committed_step(), 2);
     EXPECT_EQ(test.current_step(), 2);
 }

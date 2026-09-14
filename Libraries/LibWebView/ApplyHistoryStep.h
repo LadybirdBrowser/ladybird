@@ -76,8 +76,9 @@ struct TraversableApplyHistoryStepState {
     bool running_nested_apply_history_step { false };
 
     // AD-HOC: Concurrent runs share the current-step commit: a run commits its target step only if no newer run (a
-    //         synchronous navigation that jumped the queue while it was paused) has committed one first, so the
-    //         current step cannot move backwards past a newer run's commit.
+    //         synchronous navigation that jumped the queue while it was paused) has moved the current step first, so
+    //         the current step cannot move backwards past a newer run's commit. A newer run whose commit moves nothing
+    //         (a synchronous replace re-commits the step it started from) leaves the paused run's own commit intact.
     //         See https://github.com/whatwg/html/issues/12576.
     u64 generation_counter { 0 };
     u64 committed_generation { 0 };
