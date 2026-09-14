@@ -966,7 +966,7 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         if (!base_custom_property_data)
             return false;
         auto inherit_from = abstract_element.element_to_inherit_style_from();
-        return !(inherit_from.has_value() && inherit_from->custom_property_data().ptr() == base_custom_property_data.ptr());
+        return !(inherit_from.has_value() && inheritable_custom_property_data(*inherit_from).ptr() == base_custom_property_data.ptr());
     }();
     auto custom_name_id_for = [&](PropertyNameAndID const& property) -> u32 {
         return custom_property_name_ids.ensure(property.name(), [&] {
@@ -2449,6 +2449,7 @@ static Parser::ValueParserFFI::FfiDeclarationBlockDependencies presentational_hi
     for (auto const& property : properties) {
         auto unresolved = property.value->is_unresolved();
         dependencies.has_unresolved_values |= unresolved;
+        dependencies.inherits_custom_properties_explicitly |= unresolved && property.value->as_unresolved().includes_inherit_function();
         dependencies.reads_style_scope |= unresolved
             || property.property_id == PropertyID::Content
             || property.property_id == PropertyID::ListStyleType;
@@ -2486,6 +2487,7 @@ struct CascadeBlockKey {
 // again is allowed to produce a fresh object.
 struct CascadeBlockKeyDependencies {
     bool reads_custom_properties { false };
+    bool inherits_custom_properties_explicitly { false };
     bool reads_style_scope { false };
 };
 
@@ -2518,6 +2520,7 @@ static CascadeBlockKeyDependencies append_cascade_blocks_to_key(Vector<u64>& key
         }
         return CascadeBlockKeyDependencies {
             .reads_custom_properties = reads_custom_properties,
+            .inherits_custom_properties_explicitly = block.dependencies.inherits_custom_properties_explicitly,
             .reads_style_scope = block.dependencies.reads_style_scope,
         };
     };
@@ -2543,6 +2546,7 @@ static CascadeBlockKeyDependencies append_cascade_blocks_to_key(Vector<u64>& key
             .semantic_declaration_id = contribution.semantic_declaration_id,
         });
         dependencies.reads_custom_properties |= block_dependencies.reads_custom_properties;
+        dependencies.inherits_custom_properties_explicitly |= block_dependencies.inherits_custom_properties_explicitly;
         dependencies.reads_style_scope |= block_dependencies.reads_style_scope;
     }
 
@@ -2553,6 +2557,7 @@ static CascadeBlockKeyDependencies append_cascade_blocks_to_key(Vector<u64>& key
             .origin = CascadeOrigin::AuthorPresentationalHint,
         });
         dependencies.reads_custom_properties |= block_dependencies.reads_custom_properties;
+        dependencies.inherits_custom_properties_explicitly |= block_dependencies.inherits_custom_properties_explicitly;
         dependencies.reads_style_scope |= block_dependencies.reads_style_scope;
     }
 
@@ -2568,6 +2573,7 @@ static CascadeBlockKeyDependencies append_cascade_blocks_to_key(Vector<u64>& key
             .source_revision = inline_style->declaration_block().revision(),
         });
         dependencies.reads_custom_properties |= block_dependencies.reads_custom_properties;
+        dependencies.inherits_custom_properties_explicitly |= block_dependencies.inherits_custom_properties_explicitly;
         dependencies.reads_style_scope |= block_dependencies.reads_style_scope;
     }
 
@@ -3005,6 +3011,7 @@ NonnullRefPtr<CascadedProperties> StyleComputer::compute_cascaded_values(DOM::Ab
     if (sharing) {
         auto dependencies = append_cascade_blocks_to_key(sharing->key.computation_inputs, sharing->key.pinned_values, cascade_input, presentational_hint_properties, inline_style, CascadeBlockKeyValueComparison::ByIdentity);
         sharing->cascade_reads_custom_properties = dependencies.reads_custom_properties;
+        sharing->cascade_inherits_custom_properties_explicitly = dependencies.inherits_custom_properties_explicitly;
     }
 
     if (!presentational_hint_properties.is_empty())
@@ -4424,10 +4431,9 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
     // An element is offered the style another element already computed only when its whole input is
     // the same. What "whole input" means is the cascade's blocks - collected below - the inherited
     // context, the element's own shape, and what it reads of the style it is replacing. Ordinary
-    // property computation reads that style's writing mode. Custom property computation can use
-    // the whole style as its fallback context, so an input that needs it is bound to that identity
-    // below. Transitions read the before-change style too, and are decided once the values are
-    // known.
+    // property computation reads that style's writing mode. Explicit custom-property inheritance
+    // retains the full fallback context below. Transitions read the before-change style too,
+    // and are decided once the values are known.
     auto const inheritance_parent = abstract_element.element_to_inherit_style_from();
     auto const inheritance_parent_style_record_identity = inheritance_parent.has_value() ? inheritance_parent->style_record_identity() : StyleRecordID {};
     auto const inheritance_parent_style_record = m_style_engine.style_record_view(inheritance_parent_style_record_identity);
@@ -5058,6 +5064,23 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         return {};
     }
 
+    auto append_custom_property_inputs_to_sharing_key = [&] {
+        // Ordinary substitution reads the filtered inherited environment and resolves registered
+        // values against the current computation. Explicit inheritance can also read properties
+        // excluded by that filter, so keep its full parent and fallback computation context.
+        if (sharing->cascade_reads_custom_properties && inheritance_parent.has_value()) {
+            sharing->pinned_parent_custom_property_data = sharing->cascade_inherits_custom_properties_explicitly
+                ? inheritance_parent->custom_property_data()
+                : inheritable_custom_property_data(*inheritance_parent);
+            sharing->key.computation_inputs.append(bit_cast<FlatPtr>(sharing->pinned_parent_custom_property_data.ptr()));
+        }
+        sharing->key.computation_inputs.append(sharing->cascade_inherits_custom_properties_explicitly ? static_cast<FlatPtr>(previous_style_record_identity.value()) : 0);
+        auto generation = sharing->cascade_inherits_custom_properties_explicitly
+            ? m_style_sharing_transaction_generation
+            : document().custom_property_registration_generation();
+        sharing->key.computation_inputs.append(sharing->cascade_reads_custom_properties ? generation : 0);
+    };
+
     if (sharing && sharing->is_candidate && cascade_input.match_signature.has_value()) {
         // StyleEngine has reduced the matched rules to the blocks that can supply a winning
         // declaration. Name those blocks directly rather than the complete match signature: two
@@ -5073,17 +5096,12 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
         }
         auto const dependencies = append_cascade_blocks_to_key(sharing->key.computation_inputs, sharing->key.pinned_values, cascade_input, presentational_hint_properties, inline_style, CascadeBlockKeyValueComparison::ByIdentity);
         sharing->cascade_reads_custom_properties = dependencies.reads_custom_properties;
+        sharing->cascade_inherits_custom_properties_explicitly = dependencies.inherits_custom_properties_explicitly;
         if (dependencies.reads_style_scope)
             sharing->key.computation_inputs[style_sharing_style_scope_index] = style_scope.style_engine_tree_scope().value();
 
-        // The key names every block the cascade will apply, so what those blocks read of the
-        // inherited custom property environment is settled here rather than after the cascade.
-        if (sharing->cascade_reads_custom_properties && inheritance_parent.has_value()) {
-            sharing->pinned_parent_custom_property_data = inheritance_parent->custom_property_data();
-            sharing->key.computation_inputs.append(bit_cast<FlatPtr>(sharing->pinned_parent_custom_property_data.ptr()));
-        }
-        sharing->key.computation_inputs.append(sharing->cascade_reads_custom_properties ? static_cast<FlatPtr>(previous_style_record_identity.value()) : 0);
-        sharing->key.computation_inputs.append(sharing->cascade_reads_custom_properties ? m_style_sharing_transaction_generation : 0);
+        // The blocks now determine every custom-property input to the computation.
+        append_custom_property_inputs_to_sharing_key();
 
         has_complete_sharing_key = true;
         if (find_shared_style()) {
@@ -5109,14 +5127,8 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
     // The inherited custom property environment is named only now, because only the collection above
     // can say whether anything in the cascade reads it. A key already complete before the cascade
     // has named it there.
-    if (sharing && sharing->is_candidate && !has_complete_sharing_key && sharing->cascade_reads_custom_properties && inheritance_parent.has_value()) {
-        sharing->pinned_parent_custom_property_data = inheritance_parent->custom_property_data();
-        sharing->key.computation_inputs.append(bit_cast<FlatPtr>(sharing->pinned_parent_custom_property_data.ptr()));
-    }
     if (sharing && sharing->is_candidate && !has_complete_sharing_key)
-        sharing->key.computation_inputs.append(sharing->cascade_reads_custom_properties ? static_cast<FlatPtr>(previous_style_record_identity.value()) : 0);
-    if (sharing && sharing->is_candidate && !has_complete_sharing_key)
-        sharing->key.computation_inputs.append(sharing->cascade_reads_custom_properties ? m_style_sharing_transaction_generation : 0);
+        append_custom_property_inputs_to_sharing_key();
 
     auto find_style_sharing_donor = [&]() -> StyleSharingEntry const* {
         if (previous_style_record.present || !sharing || !sharing->may_reuse_or_publish_shared_style || !sharing->is_candidate || abstract_element.pseudo_element().has_value())
@@ -5726,7 +5738,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
             if (data && data->is_animation_overlay())
                 data = data->parent();
             if (data && data->declared_count() > 0) {
-                bool shares_parent_data = inheritance_parent.has_value() && inheritance_parent->custom_property_data().ptr() == data.ptr();
+                bool shares_parent_data = inheritance_parent.has_value() && inheritable_custom_property_data(*inheritance_parent).ptr() == data.ptr();
                 if (!shares_parent_data) {
                     auto parent_data = inheritance_parent.has_value() ? inheritable_custom_property_data(*inheritance_parent) : nullptr;
                     state.custom_property_resolution = make<CustomPropertyResolutionState>(data.release_nonnull(), move(parent_data), abstract_element, bit_cast<FlatPtr>(&style_computer.document()), style_computer.document().custom_property_registration_generation());
