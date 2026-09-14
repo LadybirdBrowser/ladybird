@@ -6,6 +6,8 @@
 
 #pragma once
 
+#include <AK/Array.h>
+#include <AK/FixedArray.h>
 #include <AK/Math.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
@@ -13,6 +15,8 @@
 #include <AK/Vector.h>
 #include <LibWeb/WebAudio/Rendering/AudioData.h>
 #include <LibWeb/WebAudio/Rendering/BiquadCoefficients.h>
+#include <LibWeb/WebAudio/Rendering/ConvolverKernel.h>
+#include <LibWeb/WebAudio/Rendering/FFT.h>
 #include <LibWeb/WebAudio/Rendering/RenderNode.h>
 
 namespace Web::WebAudio::Rendering {
@@ -229,6 +233,50 @@ private:
     Vector<float> m_gain_values;
     Bindings::BiquadFilterType m_type { Bindings::BiquadFilterType::Lowpass };
     Vector<FilterState> m_filter_states;
+};
+
+// Convolves the input with an impulse response. The head of the impulse response is convolved directly, and the rest
+// through uniformly partitioned overlap-save convolution: every quantum, the window spanning the previous and the
+// current quantum is transformed and pushed into a frequency delay line, whose spectra are then multiplied with the
+// impulse response partitions and summed. That keeps the cost per quantum constant and adds no latency, at the price of
+// transforming a window that is only half new each time.
+// https://webaudio.github.io/web-audio-api/#ConvolverNode
+class ConvolverRenderNode final : public RenderNode {
+public:
+    ConvolverRenderNode(NodeID, size_t quantum_size);
+
+    virtual void process(RenderGraph&, RenderContext const&) override;
+    virtual void handle_message(NodeMessage const&) override;
+
+private:
+    // Which impulse response channel is convolved with which input channel, and where the result is summed into.
+    // https://webaudio.github.io/web-audio-api/#Convolution-channel-configurations
+    struct Route {
+        size_t input_channel { 0 };
+        size_t kernel_channel { 0 };
+        size_t output_channel { 0 };
+    };
+
+    FFT m_fft;
+
+    RefPtr<ConvolverKernel> m_kernel;
+    RefPtr<ConvolverDelayLine> m_delay_line;
+
+    // The slot of the delay line that holds the spectrum of the current quantum's window.
+    size_t m_delay_line_index { 0 };
+
+    // The previous and the current quantum's samples for each input channel, which the direct convolution reaches back
+    // into and which the transform consumes as a whole.
+    Array<FixedArray<float>, ConvolverDelayLine::MAX_CHANNEL_COUNT> m_window;
+    size_t m_input_channel_count { 0 };
+
+    FixedArray<float> m_transform_real;
+    FixedArray<float> m_transform_imag;
+
+    // The partition sums are accumulated in double precision: a long impulse response adds up hundreds of partitions
+    // per bin, and single precision loses too much of the quiet parts of the result.
+    FixedArray<double> m_accumulator_real;
+    FixedArray<double> m_accumulator_imag;
 };
 
 // https://webaudio.github.io/web-audio-api/#PannerNode

@@ -1320,6 +1320,7 @@ class AudioScheduledSourceNode;
 class BaseAudioContext;
 class BiquadFilterNode;
 class ControlMessageQueue;
+class ConvolverNode;
 class DynamicsCompressorNode;
 class GainNode;
 class MediaStreamAudioDestinationNode;

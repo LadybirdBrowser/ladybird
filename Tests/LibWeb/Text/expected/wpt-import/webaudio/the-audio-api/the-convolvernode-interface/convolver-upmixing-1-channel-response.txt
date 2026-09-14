@@ -2,7 +2,7 @@ Harness status: OK
 
 Found 3 tests
 
-3 Fail
-Fail	speakers, initially mono
-Fail	discrete
-Fail	speakers, initially stereo
+3 Pass
+Pass	speakers, initially mono
+Pass	discrete
+Pass	speakers, initially stereo

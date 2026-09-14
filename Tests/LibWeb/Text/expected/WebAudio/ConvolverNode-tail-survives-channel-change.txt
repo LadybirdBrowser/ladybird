@@ -1,0 +1,3 @@
+Mono throughout: peak 1.000 at frame 300
+Stereo from frame 128, left: peak 1.000 at frame 300
+Stereo from frame 128, right: peak 1.000 at frame 300

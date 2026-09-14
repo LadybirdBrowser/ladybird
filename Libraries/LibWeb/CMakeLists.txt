@@ -1071,6 +1071,7 @@ set(SOURCES
     WebAudio/ChannelSplitterNode.cpp
     WebAudio/ConstantSourceNode.cpp
     WebAudio/ControlMessageQueue.cpp
+    WebAudio/ConvolverNode.cpp
     WebAudio/DelayNode.cpp
     WebAudio/DynamicsCompressorNode.cpp
     WebAudio/GainNode.cpp
@@ -1087,6 +1088,7 @@ set(SOURCES
     WebAudio/Rendering/AudioWorkletPipe.cpp
     WebAudio/Rendering/AudioWorkletRenderNode.cpp
     WebAudio/Rendering/BiquadCoefficients.cpp
+    WebAudio/Rendering/ConvolverKernel.cpp
     WebAudio/Rendering/FFT.cpp
     WebAudio/Rendering/MediaStreamDestinationRenderNode.cpp
     WebAudio/Rendering/MediaStreamSourceRenderNode.cpp
