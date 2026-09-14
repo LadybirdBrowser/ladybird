@@ -22,6 +22,7 @@ from Generators.libweb_bindings.realms import member_passes_realm_to_implementat
 from Generators.libweb_bindings.realms import member_realm_expr
 from Generators.libweb_bindings.security_checks import interface_needs_security_check
 from Generators.libweb_bindings.security_checks import perform_a_security_check
+from Generators.libweb_bindings.security_checks import perform_the_steps_on_a_remote_window
 from Generators.libweb_bindings.to_js_value import to_javascript_value
 from Utils.webidl_parser import Attribute
 from Utils.webidl_parser import IDLParameterizedType
@@ -479,6 +480,14 @@ def write_operation(
 
 """
             )
+            if remote_window_steps := perform_the_steps_on_a_remote_window(
+                includes, interface, "this_value", operation.name, "method"
+            ):
+                out.write(
+                    f"""    {remote_window_steps}
+
+"""
+                )
         out.write(
             f"""    [[maybe_unused]] {fully_qualified_name_for_interface(interface)}* idl_object = TRY(impl_from(vm, this_value));
     [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, this_value);

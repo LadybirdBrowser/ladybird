@@ -23,6 +23,7 @@
 #include <LibWeb/HTML/BindingsGlue.h>
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/HTML/Location.h>
+#include <LibWeb/HTML/RemoteWindow.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/HTML/WindowProxy.h>
@@ -61,178 +62,178 @@ static JS::ThrowCompletionOr<GC::RootVector<GC::Ref<JS::Object>>> convert_transf
     return transfer;
 }
 
-static GC::Ref<JS::NativeFunction> create_cross_origin_window_method(JS::Realm& realm, GC::Ref<Window> window, Utf16FlyString const& property)
+template<typename WindowType>
+static JS::ThrowCompletionOr<JS::Value> cross_origin_window_method_steps(JS::VM& vm, GC::Ref<WindowType> window, Utf16View const& property)
 {
+    auto& realm = *vm.current_realm();
+
     if (property == u"close"sv) {
-        return JS::NativeFunction::create(
-            realm, [window](JS::VM&) {
-                window->close();
-                return JS::js_undefined();
-            },
-            0, property);
+        window->close();
+        return JS::js_undefined();
     }
 
     if (property == u"focus"sv) {
-        return JS::NativeFunction::create(
-            realm, [window](JS::VM&) {
-                window->focus();
-                return JS::js_undefined();
-            },
-            0, property);
+        window->focus();
+        return JS::js_undefined();
     }
 
     if (property == u"blur"sv) {
-        return JS::NativeFunction::create(
-            realm, [window](JS::VM&) {
-                window->blur();
-                return JS::js_undefined();
-            },
-            0, property);
+        window->blur();
+        return JS::js_undefined();
     }
 
     if (property == u"postMessage"sv) {
-        return JS::NativeFunction::create(
-            realm, [&realm, window](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
-                auto message = vm.argument(0);
+        auto message = vm.argument(0);
 
-                if (vm.argument_count() >= 3) {
-                    auto target_origin = TRY(WebIDL::to_utf16_usv_string(vm, vm.argument(1)));
-                    auto transfer = TRY(convert_transfer_argument(vm, vm.argument(2)));
-                    TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] { return window->post_message(realm, message, target_origin, transfer); }));
-                    return JS::js_undefined();
-                }
+        if (vm.argument_count() >= 3) {
+            auto target_origin = TRY(WebIDL::to_utf16_usv_string(vm, vm.argument(1)));
+            auto transfer = TRY(convert_transfer_argument(vm, vm.argument(2)));
+            TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] { return window->post_message(realm, message, target_origin, transfer); }));
+            return JS::js_undefined();
+        }
 
-                auto second_argument = vm.argument(1);
-                if (vm.argument_count() == 2 && !second_argument.is_undefined() && !second_argument.is_object()) {
-                    auto target_origin = TRY(WebIDL::to_utf16_usv_string(vm, second_argument));
-                    GC::RootVector<GC::Ref<JS::Object>> transfer;
-                    TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] { return window->post_message(realm, message, target_origin, transfer); }));
-                    return JS::js_undefined();
-                }
+        auto second_argument = vm.argument(1);
+        if (vm.argument_count() == 2 && !second_argument.is_undefined() && !second_argument.is_object()) {
+            auto target_origin = TRY(WebIDL::to_utf16_usv_string(vm, second_argument));
+            GC::RootVector<GC::Ref<JS::Object>> transfer;
+            TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] { return window->post_message(realm, message, target_origin, transfer); }));
+            return JS::js_undefined();
+        }
 
-                auto options = TRY(Bindings::window_post_message_options(vm, second_argument));
-                TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] { return window->post_message(realm, message, options); }));
-                return JS::js_undefined();
-            },
-            1, property);
+        auto options = TRY(Bindings::window_post_message_options(vm, second_argument));
+        TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] { return window->post_message(realm, message, options); }));
+        return JS::js_undefined();
     }
 
     VERIFY_NOT_REACHED();
 }
 
-static GC::Ref<JS::NativeFunction> create_cross_origin_window_getter(JS::Realm& realm, GC::Ref<Window> window, Utf16FlyString const& property)
+template<typename WindowType>
+static JS::ThrowCompletionOr<JS::Value> cross_origin_window_getter_steps(JS::VM& vm, GC::Ref<WindowType> window, Utf16View const& property)
 {
-    if (property == u"window"sv) {
-        return JS::NativeFunction::create(
-            realm, [window](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
-                return window->window().ptr();
-            },
-            0, property, &realm, "get"sv);
-    }
+    if (property == u"window"sv)
+        return window->window().ptr();
 
-    if (property == u"self"sv) {
-        return JS::NativeFunction::create(
-            realm, [window](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
-                return window->self().ptr();
-            },
-            0, property, &realm, "get"sv);
-    }
+    if (property == u"self"sv)
+        return window->self().ptr();
 
-    if (property == u"location"sv) {
-        return JS::NativeFunction::create(
-            realm, [window, &realm](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
-                return Bindings::location_wrapper(realm, window->location());
-            },
-            0, property, &realm, "get"sv);
-    }
+    if (property == u"location"sv)
+        return Bindings::location_wrapper(*vm.current_realm(), window->location());
 
-    if (property == u"closed"sv) {
-        return JS::NativeFunction::create(
-            realm, [window](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
-                return JS::Value(window->closed());
-            },
-            0, property, &realm, "get"sv);
-    }
+    if (property == u"closed"sv)
+        return JS::Value(window->closed());
 
-    if (property == u"frames"sv) {
-        return JS::NativeFunction::create(
-            realm, [window](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
-                return window->frames().ptr();
-            },
-            0, property, &realm, "get"sv);
-    }
+    if (property == u"frames"sv)
+        return window->frames().ptr();
 
-    if (property == u"length"sv) {
-        return JS::NativeFunction::create(
-            realm, [window](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
-                return JS::Value(window->length());
-            },
-            0, property, &realm, "get"sv);
-    }
+    if (property == u"length"sv)
+        return JS::Value(window->length());
 
     if (property == u"top"sv) {
-        return JS::NativeFunction::create(
-            realm, [window](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
-                auto value = window->top();
-                if (!value)
-                    return JS::js_null();
-                return value;
-            },
-            0, property, &realm, "get"sv);
+        auto value = window->top();
+        if (!value)
+            return JS::js_null();
+        return value;
     }
 
     if (property == u"opener"sv) {
-        return JS::NativeFunction::create(
-            realm, [window](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
-                auto value = window->opener();
-                if (!value)
-                    return JS::js_null();
-                return value;
-            },
-            0, property, &realm, "get"sv);
+        auto value = window->opener();
+        if (!value)
+            return JS::js_null();
+        return value;
     }
 
     if (property == u"parent"sv) {
-        return JS::NativeFunction::create(
-            realm, [window](JS::VM&) -> JS::ThrowCompletionOr<JS::Value> {
-                auto value = window->parent();
-                if (!value)
-                    return JS::js_null();
-                return value;
-            },
-            0, property, &realm, "get"sv);
+        auto value = window->parent();
+        if (!value)
+            return JS::js_null();
+        return value;
     }
 
     VERIFY_NOT_REACHED();
 }
 
-static GC::Ref<JS::NativeFunction> create_cross_origin_window_setter(JS::Realm& realm, Window& window, Utf16FlyString const& property)
+template<typename WindowType>
+static JS::ThrowCompletionOr<JS::Value> cross_origin_window_setter_steps(JS::VM& vm, GC::Ref<WindowType> window, Utf16View const& property)
 {
     if (property == u"location"sv) {
-        return JS::NativeFunction::create(
-            realm, [&realm, window = GC::Ref { window }](JS::VM& vm) -> JS::ThrowCompletionOr<JS::Value> {
-                auto value = vm.argument(0);
-                auto href = TRY(WebIDL::to_utf16_usv_string(vm, value));
-                auto location = window->location();
-                TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] { return location->set_href(href); }));
-                return JS::js_undefined();
-            },
-            1, property, &realm, "set"sv);
+        auto& realm = *vm.current_realm();
+        auto value = vm.argument(0);
+        auto href = TRY(WebIDL::to_utf16_usv_string(vm, value));
+        auto location = window->location();
+        TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] { return location->set_href(href); }));
+        return JS::js_undefined();
     }
 
     VERIFY_NOT_REACHED();
+}
+
+template<typename WindowType>
+static GC::Ref<JS::NativeFunction> create_cross_origin_window_method(JS::Realm& realm, GC::Ref<WindowType> window, Utf16FlyString const& property)
+{
+    auto length = property == u"postMessage"sv ? 1 : 0;
+    return JS::NativeFunction::create(
+        realm, [window, property](JS::VM& vm) {
+            return cross_origin_window_method_steps(vm, window, property);
+        },
+        length, property);
+}
+
+template<typename WindowType>
+static GC::Ref<JS::NativeFunction> create_cross_origin_window_getter(JS::Realm& realm, GC::Ref<WindowType> window, Utf16FlyString const& property)
+{
+    return JS::NativeFunction::create(
+        realm, [window, property](JS::VM& vm) {
+            return cross_origin_window_getter_steps(vm, window, property);
+        },
+        0, property, &realm, "get"sv);
+}
+
+template<typename WindowType>
+static GC::Ref<JS::NativeFunction> create_cross_origin_window_setter(JS::Realm& realm, GC::Ref<WindowType> window, Utf16FlyString const& property)
+{
+    return JS::NativeFunction::create(
+        realm, [window, property](JS::VM& vm) {
+            return cross_origin_window_setter_steps(vm, window, property);
+        },
+        1, property, &realm, "set"sv);
+}
+
+GC::Ptr<RemoteWindow> remote_window_from(JS::Value value)
+{
+    if (auto window_proxy = value.as_if<WindowProxy>())
+        return window_proxy->remote_window();
+    return {};
+}
+
+JS::ThrowCompletionOr<JS::Value> remote_window_method_steps(JS::VM& vm, RemoteWindow& window, Utf16View const& identifier)
+{
+    return cross_origin_window_method_steps(vm, GC::Ref { window }, identifier);
+}
+
+JS::ThrowCompletionOr<JS::Value> remote_window_getter_steps(JS::VM& vm, RemoteWindow& window, Utf16View const& identifier)
+{
+    return cross_origin_window_getter_steps(vm, GC::Ref { window }, identifier);
+}
+
+JS::ThrowCompletionOr<JS::Value> remote_window_setter_steps(JS::VM& vm, RemoteWindow& window, Utf16View const& identifier)
+{
+    return cross_origin_window_setter_steps(vm, GC::Ref { window }, identifier);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#integration-with-idl
 JS::ThrowCompletionOr<void> perform_a_security_check(JS::VM& vm, JS::Value js_value, Utf16View const& identifier, SecurityCheckType type)
 {
     // 1. If platformObject is not a Window or Location object, then return.
-    // NOTE: A WindowProxy is checked against its [[Window]], which is the Window object the bindings operate on.
-    Optional<Variant<Location const*, Window const*>> platform_object;
+    // NOTE: A WindowProxy is checked against its [[Window]], which is the Window object the bindings operate on, or the
+    //       RemoteWindow standing for one hosted by another process.
+    Optional<Variant<Location const*, Window const*, RemoteWindow const*>> platform_object;
     if (js_value.is_object()) {
         auto& object = js_value.as_object();
         if (auto const* window_proxy = as_if<WindowProxy>(object)) {
-            if (auto window = window_proxy->window())
+            if (auto remote_window = window_proxy->remote_window())
+                platform_object = remote_window.ptr();
+            else if (auto window = window_proxy->window())
                 platform_object = window.ptr();
         } else if (auto const* wrappable = Bindings::wrappable_impl_from(&object)) {
             if (auto const* window = as_if<Window>(*wrappable))
@@ -274,7 +275,7 @@ JS::ThrowCompletionOr<void> perform_a_security_check(JS::VM& vm, JS::Value js_va
 }
 
 // 7.2.3.1 CrossOriginProperties ( O ), https://html.spec.whatwg.org/multipage/browsers.html#crossoriginproperties-(-o-)
-Vector<CrossOriginProperty> cross_origin_properties(Variant<HTML::Location const*, HTML::Window const*> const& object)
+Vector<CrossOriginProperty> cross_origin_properties(Variant<HTML::Location const*, HTML::Window const*, HTML::RemoteWindow const*> const& object)
 {
     // 1. Assert: O is a Location or Window object.
 
@@ -287,26 +288,23 @@ Vector<CrossOriginProperty> cross_origin_properties(Variant<HTML::Location const
             };
         },
         // 3. Return « { [[Property]]: "window", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "self", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "location", [[NeedsGet]]: true, [[NeedsSet]]: true }, { [[Property]]: "close" }, { [[Property]]: "closed", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "focus" }, { [[Property]]: "blur" }, { [[Property]]: "frames", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "length", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "top", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "opener", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "parent", [[NeedsGet]]: true, [[NeedsSet]]: false }, { [[Property]]: "postMessage" } ».
-        [](HTML::Window const*) { return cross_origin_window_properties(); });
-}
-
-Vector<CrossOriginProperty> cross_origin_window_properties()
-{
-    return {
-        { .property = "window"_utf16_fly_string, .needs_get = true, .needs_set = false },
-        { .property = "self"_utf16_fly_string, .needs_get = true, .needs_set = false },
-        { .property = "location"_utf16_fly_string, .needs_get = true, .needs_set = true },
-        { .property = "close"_utf16_fly_string },
-        { .property = "closed"_utf16_fly_string, .needs_get = true, .needs_set = false },
-        { .property = "focus"_utf16_fly_string },
-        { .property = "blur"_utf16_fly_string },
-        { .property = "frames"_utf16_fly_string, .needs_get = true, .needs_set = false },
-        { .property = "length"_utf16_fly_string, .needs_get = true, .needs_set = false },
-        { .property = "top"_utf16_fly_string, .needs_get = true, .needs_set = false },
-        { .property = "opener"_utf16_fly_string, .needs_get = true, .needs_set = false },
-        { .property = "parent"_utf16_fly_string, .needs_get = true, .needs_set = false },
-        { .property = "postMessage"_utf16_fly_string },
-    };
+        [](auto const*) -> Vector<CrossOriginProperty> {
+            return {
+                { .property = "window"_utf16_fly_string, .needs_get = true, .needs_set = false },
+                { .property = "self"_utf16_fly_string, .needs_get = true, .needs_set = false },
+                { .property = "location"_utf16_fly_string, .needs_get = true, .needs_set = true },
+                { .property = "close"_utf16_fly_string },
+                { .property = "closed"_utf16_fly_string, .needs_get = true, .needs_set = false },
+                { .property = "focus"_utf16_fly_string },
+                { .property = "blur"_utf16_fly_string },
+                { .property = "frames"_utf16_fly_string, .needs_get = true, .needs_set = false },
+                { .property = "length"_utf16_fly_string, .needs_get = true, .needs_set = false },
+                { .property = "top"_utf16_fly_string, .needs_get = true, .needs_set = false },
+                { .property = "opener"_utf16_fly_string, .needs_get = true, .needs_set = false },
+                { .property = "parent"_utf16_fly_string, .needs_get = true, .needs_set = false },
+                { .property = "postMessage"_utf16_fly_string },
+            };
+        });
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#cross-origin-accessible-window-property-name
@@ -353,9 +351,17 @@ bool is_platform_object_same_origin(Window const& window)
     return HTML::current_settings_object().origin().is_same_origin_domain(HTML::relevant_settings_object(window).origin());
 }
 
+bool is_platform_object_same_origin(RemoteWindow const&)
+{
+    // 1. Return true if the current settings object's origin is same origin-domain with O's relevant settings object's origin, and false otherwise.
+    // NB: O's relevant settings object lives in the process hosting the Window. A document same origin-domain with
+    //     it is hosted there too, so no document of this process is.
+    return false;
+}
+
 // 7.2.3.4 CrossOriginGetOwnPropertyHelper ( O, P ), https://html.spec.whatwg.org/multipage/nav-history-apis.html#crossorigingetownpropertyhelper-(-o,-p-)
 static Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper_impl(JS::Object& object,
-    Variant<HTML::Location const*, HTML::Window*> const& platform_object,
+    Variant<HTML::Location const*, HTML::Window*, HTML::RemoteWindow*> const& platform_object,
     CrossOriginPropertyDescriptorMap& cross_origin_property_descriptor_map, JS::PropertyKey const& property_key)
 {
     auto& vm = Bindings::main_thread_vm();
@@ -376,7 +382,7 @@ static Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper_imp
     auto const& property_key_string = property_key.as_string();
 
     auto const platform_object_const_variant = platform_object.visit([](auto* object) {
-        return Variant<HTML::Location const*, HTML::Window const*> { object };
+        return Variant<HTML::Location const*, HTML::Window const*, HTML::RemoteWindow const*> { object };
     });
 
     // 2. For each e of CrossOriginProperties(O):
@@ -395,7 +401,7 @@ static Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper_imp
             [&](HTML::Location const*) {
                 original_descriptor = MUST((object_ptr->JS::Object::internal_get_own_property)(property_key));
             },
-            [](HTML::Window*) {});
+            [](auto*) {});
 
         // NOTE: The current same-origin property descriptor might have been replaced by page script, for example via
         // [Replaceable]. Cross-origin access still needs to expose wrappers for the original IDL member on O.
@@ -424,8 +430,8 @@ static Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper_imp
                     }
                     return *value;
                 },
-                [&](HTML::Window* window) -> JS::Value {
-                    return create_cross_origin_window_method(realm, *window, entry.property).ptr();
+                [&](auto* window) -> JS::Value {
+                    return create_cross_origin_window_method(realm, GC::Ref { *window }, entry.property).ptr();
                 });
 
             // 3. Set crossOriginDesc to PropertyDescriptor { [[Value]]: value, [[Enumerable]]: false, [[Writable]]: false, [[Configurable]]: true }.
@@ -450,8 +456,8 @@ static Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper_imp
                             },
                             0, name);
                     },
-                    [&](HTML::Window* window) -> GC::Ptr<JS::FunctionObject> {
-                        return create_cross_origin_window_getter(realm, *window, entry.property).ptr();
+                    [&](auto* window) -> GC::Ptr<JS::FunctionObject> {
+                        return create_cross_origin_window_getter(realm, GC::Ref { *window }, entry.property).ptr();
                     });
             }
 
@@ -472,8 +478,8 @@ static Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper_imp
                             },
                             1, name);
                     },
-                    [&](HTML::Window* window) -> GC::Ptr<JS::FunctionObject> {
-                        return create_cross_origin_window_setter(realm, *window, entry.property).ptr();
+                    [&](auto* window) -> GC::Ptr<JS::FunctionObject> {
+                        return create_cross_origin_window_setter(realm, GC::Ref { *window }, entry.property).ptr();
                     });
             }
 
@@ -495,13 +501,19 @@ static Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper_imp
 Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(JS::Object& object, HTML::Location const& location,
     CrossOriginPropertyDescriptorMap& cross_origin_property_descriptor_map, JS::PropertyKey const& property_key)
 {
-    return cross_origin_get_own_property_helper_impl(object, Variant<HTML::Location const*, HTML::Window*> { &location }, cross_origin_property_descriptor_map, property_key);
+    return cross_origin_get_own_property_helper_impl(object, Variant<HTML::Location const*, HTML::Window*, HTML::RemoteWindow*> { &location }, cross_origin_property_descriptor_map, property_key);
 }
 
 Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(JS::Object& object, HTML::Window& window,
     CrossOriginPropertyDescriptorMap& cross_origin_property_descriptor_map, JS::PropertyKey const& property_key)
 {
-    return cross_origin_get_own_property_helper_impl(object, Variant<HTML::Location const*, HTML::Window*> { &window }, cross_origin_property_descriptor_map, property_key);
+    return cross_origin_get_own_property_helper_impl(object, Variant<HTML::Location const*, HTML::Window*, HTML::RemoteWindow*> { &window }, cross_origin_property_descriptor_map, property_key);
+}
+
+Optional<JS::PropertyDescriptor> cross_origin_get_own_property_helper(JS::Object& object, HTML::RemoteWindow& window,
+    CrossOriginPropertyDescriptorMap& cross_origin_property_descriptor_map, JS::PropertyKey const& property_key)
+{
+    return cross_origin_get_own_property_helper_impl(object, Variant<HTML::Location const*, HTML::Window*, HTML::RemoteWindow*> { &window }, cross_origin_property_descriptor_map, property_key);
 }
 
 // 7.2.3.5 CrossOriginGet ( O, P, Receiver ), https://html.spec.whatwg.org/multipage/browsers.html#crossoriginget-(-o,-p,-receiver-)
@@ -576,17 +588,17 @@ static GC::RootVector<JS::Value> cross_origin_own_property_keys_impl(Vector<Cros
 
 GC::RootVector<JS::Value> cross_origin_own_property_keys(HTML::Location const& location)
 {
-    return cross_origin_own_property_keys_impl(cross_origin_properties(Variant<HTML::Location const*, HTML::Window const*> { &location }));
+    return cross_origin_own_property_keys_impl(cross_origin_properties(Variant<HTML::Location const*, HTML::Window const*, HTML::RemoteWindow const*> { &location }));
 }
 
-GC::RootVector<JS::Value> cross_origin_own_property_keys(HTML::Window const&)
+GC::RootVector<JS::Value> cross_origin_own_property_keys(HTML::Window const& window)
 {
-    return cross_origin_window_own_property_keys();
+    return cross_origin_own_property_keys_impl(cross_origin_properties(Variant<HTML::Location const*, HTML::Window const*, HTML::RemoteWindow const*> { &window }));
 }
 
-GC::RootVector<JS::Value> cross_origin_window_own_property_keys()
+GC::RootVector<JS::Value> cross_origin_own_property_keys(HTML::RemoteWindow const& window)
 {
-    return cross_origin_own_property_keys_impl(cross_origin_window_properties());
+    return cross_origin_own_property_keys_impl(cross_origin_properties(Variant<HTML::Location const*, HTML::Window const*, HTML::RemoteWindow const*> { &window }));
 }
 
 }

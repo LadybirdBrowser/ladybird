@@ -144,6 +144,7 @@ public:
     virtual Optional<URL::Origin> active_document_top_level_origin() const override;
     virtual bool active_document_has_cross_site_ancestor() const override;
     virtual OpenerPolicy const& active_document_opener_policy() const override;
+    virtual bool container_is_in_document_tree() const override;
     ReplicatedNavigableState replicated_state() const;
 
     void save_persisted_state_to_active_session_history_entry();
@@ -514,6 +515,9 @@ private:
     NavigationObserver::NavigationObserversList m_navigation_observers;
 
     bool m_has_been_destroyed { false };
+
+    // Where a local root's container is, as the process holding its parent's document reported at creation.
+    bool m_root_container_is_in_document_tree { false };
     bool m_child_frame_destruction_reported { false };
 
     // The destroy-a-child-navigable continuation parked while the UI process unloads this navigable's document tree.
