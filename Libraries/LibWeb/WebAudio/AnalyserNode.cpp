@@ -129,7 +129,7 @@ Vector<f32> AnalyserNode::apply_a_blackman_window(Vector<f32> const& x) const
 //
 // Returns `bin_count` (= fftSize / 2) magnitude values normalized by fftSize, per the spec's
 // `(1/N) * |X[k]|` convention. The caller is expected to have applied a window already.
-static Vector<f32> apply_a_fourier_transform(Vector<f32> const& input, size_t bin_count)
+static Vector<f32> apply_a_fourier_transform(Rendering::FFT const& fft, Vector<f32> const& input, size_t bin_count)
 {
     Vector<f32> magnitudes;
     magnitudes.resize(bin_count);
@@ -144,7 +144,7 @@ static Vector<f32> apply_a_fourier_transform(Vector<f32> const& input, size_t bi
     for (size_t i = 0; i < n; ++i)
         re[i] = input[i];
 
-    Rendering::radix2_fft(re, im);
+    fft.transform(re, im);
 
     auto inv_n = 1.0f / static_cast<float>(n);
     for (size_t k = 0; k < bin_count && k < n; ++k)
@@ -219,7 +219,7 @@ Vector<f32> AnalyserNode::current_frequency_data()
     auto windowed_input = apply_a_blackman_window(time_domain_data);
 
     // 3. Apply a Fourier transform to the windowed time domain input data to get real and imaginary frequency data.
-    auto frequency_domain_data = apply_a_fourier_transform(windowed_input, frequency_bin_count());
+    auto frequency_domain_data = apply_a_fourier_transform(*m_fft, windowed_input, frequency_bin_count());
 
     // 4. Smooth over time the frequency domain data.
     auto smoothed_data = smoothing_over_time(frequency_domain_data);
@@ -336,6 +336,7 @@ void AnalyserNode::set_fft_size_without_validation(unsigned long fft_size)
     m_frequency_data_cache_time = {};
 
     m_fft_size = fft_size;
+    m_fft = make<Rendering::FFT>(fft_size);
 
     // Note that increasing fftSize does mean that the current time-domain data must be expanded
     // to include past frames that it previously did not. This means that the AnalyserNode
