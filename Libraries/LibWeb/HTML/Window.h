@@ -230,7 +230,7 @@ public:
         GC::Ref<WindowProxy> source;
     };
     static WebIDL::ExceptionOr<PreparedPostMessage> prepare_post_message(JS::Realm&, JS::Value message, PostMessageOptions const&);
-    void deliver_posted_message(SerializedTransferRecord, Variant<Utf16String, URL::Origin> const& target_origin, URL::Origin const& source_origin, GC::Ref<WindowProxy> source);
+    void deliver_posted_message(SerializedTransferRecord, Variant<Utf16String, URL::Origin> const& target_origin, URL::Origin const& source_origin, GC::Ptr<WindowProxy> source);
 
     Variant<GC::Ref<DOM::Event>, Empty> event() const;
 

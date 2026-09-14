@@ -1,0 +1,2 @@
+data: from a removed iframe
+source is null: true

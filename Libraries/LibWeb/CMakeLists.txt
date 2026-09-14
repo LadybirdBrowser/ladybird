@@ -665,6 +665,7 @@ set(SOURCES
     HTML/Plugin.cpp
     HTML/PluginArray.cpp
     HTML/PolicyContainers.cpp
+    HTML/PostedMessageDescriptor.cpp
     HTML/PreparedNavigationDescriptor.cpp
     HTML/POSTResource.cpp
     HTML/PopoverTargetAttributes.cpp

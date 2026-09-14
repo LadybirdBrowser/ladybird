@@ -5,10 +5,13 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Location.h>
+#include <LibWeb/HTML/PostedMessageDescriptor.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/RemoteWindow.h>
 #include <LibWeb/HTML/WindowProxy.h>
+#include <LibWeb/Page/Page.h>
 
 namespace Web::HTML {
 
@@ -189,12 +192,37 @@ WebIDL::ExceptionOr<void> RemoteWindow::post_message(JS::Realm& realm, JS::Value
 }
 
 // https://html.spec.whatwg.org/multipage/web-messaging.html#dom-window-postmessage-options
-WebIDL::ExceptionOr<void> RemoteWindow::post_message(JS::Realm&, JS::Value, Window::PostMessageOptions const&)
+WebIDL::ExceptionOr<void> RemoteWindow::post_message(JS::Realm& realm, JS::Value message, Window::PostMessageOptions const& options)
 {
     // The Window interface's postMessage(message, options) method steps are to run the window post message steps given
     // this, message, and options.
-    // FIXME: A message posted to a Window hosted by another process is a request to the UI process.
-    VERIFY_NOT_REACHED();
+
+    // https://html.spec.whatwg.org/multipage/web-messaging.html#window-post-message-steps
+    // 1. Let targetRealm be targetWindow's realm.
+    // NB: Taken from targetWindow when the task delivers the message in its process.
+
+    // 2-7.
+    auto prepared = TRY(Window::prepare_post_message(realm, message, options));
+
+    // 8. Queue a global task on the posted message task source given targetWindow to run the following steps:
+    // NB: targetWindow lives in the process hosting this navigable's document, so the task is a request to the UI
+    //     process, which forwards it there. That process represents the source's navigable, which names the source.
+    //     A source whose [[Window]] has no navigable is null there.
+    Optional<CrossProcessId> source_navigable_id;
+    if (auto remote_window = prepared.source->remote_window()) {
+        if (auto source_navigable = remote_window->navigable())
+            source_navigable_id = source_navigable->id();
+    } else if (auto source_navigable = prepared.source->window()->navigable()) {
+        source_navigable_id = source_navigable->id();
+    }
+    PostedMessageDescriptor posted_message {
+        .serialize_with_transfer_result = move(prepared.serialize_with_transfer_result),
+        .target_origin = move(prepared.target_origin),
+        .source_origin = move(prepared.source_origin),
+        .source_navigable_id = source_navigable_id,
+    };
+    m_navigable->page().client().request_post_message_to_remote_navigable(*m_navigable, move(posted_message));
+    return {};
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#document-tree-child-navigables

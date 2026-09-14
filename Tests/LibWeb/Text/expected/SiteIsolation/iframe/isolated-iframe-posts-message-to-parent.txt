@@ -1,0 +1,5 @@
+data: {"greeting":"hello from the child"}
+origin is the child's: true
+source is the iframe's contentWindow: true
+WebContent#0
+  iframe#0: remote WebContent#1
