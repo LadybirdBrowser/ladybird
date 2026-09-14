@@ -307,6 +307,18 @@ void ConnectionFromClient::deliver_posted_message(Web::PageId page_id, Web::HTML
         page->deliver_posted_message(navigable_id, move(message));
 }
 
+void ConnectionFromClient::close_traversable_from_script(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId source_navigable_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+    auto source = page->page().navigable_with_id(source_navigable_id);
+    if (!source)
+        return;
+    if (auto* traversable = as_if<Web::HTML::LocalTraversableNavigable>(page->page().navigable_with_id(navigable_id).ptr()))
+        traversable->close_top_level_traversable_from_script(*source);
+}
+
 Optional<PageClient&> ConnectionFromClient::page(Web::PageId index, SourceLocation location)
 {
     if (auto page = m_page_host->page(index); page.has_value())

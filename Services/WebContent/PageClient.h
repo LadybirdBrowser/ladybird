@@ -182,6 +182,7 @@ private:
     virtual void request_navigation_population(Web::HTML::LocalNavigable&, Web::NavigationTarget, Web::HTML::NavigationPopulationRequest) override;
     virtual void request_navigation_of_remote_navigable(Web::HTML::RemoteNavigable&, Web::HTML::PreparedNavigationDescriptor) override;
     virtual void request_post_message_to_remote_navigable(Web::HTML::RemoteNavigable&, Web::HTML::PostedMessageDescriptor) override;
+    virtual void request_close_of_remote_traversable(Web::HTML::RemoteNavigable&, Web::HTML::LocalNavigable const& source) override;
     virtual void navigation_params_creation_finished(Web::HTML::LocalNavigable&, Web::HTML::NavigationPopulationRequest, Web::HTML::NavigationPopulationResult) override;
     virtual void history_navigation_params_creation_finished(Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryNavigationPopulation) override;
     virtual void navigation_population_failed(Web::HTML::CrossProcessId, Utf16String const&) override;

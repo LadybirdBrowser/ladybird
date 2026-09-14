@@ -10,6 +10,7 @@
 #include <LibWeb/HTML/PostedMessageDescriptor.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/RemoteWindow.h>
+#include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/WindowProxy.h>
 #include <LibWeb/Page/Page.h>
 
@@ -158,9 +159,23 @@ void RemoteWindow::close()
     if (traversable->is_closing())
         return;
 
-    // FIXME: Closing a traversable hosted by another process is a request to the UI process, which knows whether it
-    //        is script-closable.
-    VERIFY_NOT_REACHED();
+    // 4. Let browsingContext be thisTraversable's active browsing context.
+    // NB: Familiarity is checked on the navigables whose active browsing contexts these are.
+
+    // 5. Let sourceSnapshotParams be the result of snapshotting source snapshot params given thisTraversable's active document.
+    // NB: That document is in the process hosting the traversable, which runs the steps needing it.
+
+    auto incumbent_navigable = incumbent_window().navigable();
+
+    // 6. If all the following are true:
+    //    - thisTraversable is script-closable;
+    //    - the incumbent global object's browsing context is familiar with browsingContext; and
+    //    - the incumbent global object's navigable is allowed by sandboxing to navigate thisTraversable, given sourceSnapshotParams,
+    //    then set thisTraversable's is closing to true, and queue a task on the DOM manipulation task source to definitely close thisTraversable.
+    // NB: Familiarity is checked here; the process hosting the traversable's document checks the rest and closes it.
+    if (!incumbent_navigable || !incumbent_navigable->is_familiar_with(*traversable))
+        return;
+    m_navigable->page().client().request_close_of_remote_traversable(*traversable, *incumbent_navigable);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#dom-window-focus

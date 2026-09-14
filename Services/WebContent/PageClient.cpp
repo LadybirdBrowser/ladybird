@@ -260,6 +260,11 @@ void PageClient::request_post_message_to_remote_navigable(Web::HTML::RemoteNavig
     client().async_did_post_message_to_navigable(m_id, navigable.id(), move(message));
 }
 
+void PageClient::request_close_of_remote_traversable(Web::HTML::RemoteNavigable& navigable, Web::HTML::LocalNavigable const& source)
+{
+    client().async_did_request_close_of_traversable(m_id, navigable.id(), source.id());
+}
+
 void PageClient::navigate_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::PreparedNavigationDescriptor navigation)
 {
     // A navigable the page represents without hosting its document is addressed by the page hosting it.
