@@ -67,6 +67,9 @@ void SettingsUI::register_interfaces()
     register_interface("setLanguages"sv, [this](auto const& data) {
         set_languages(data);
     });
+    register_interface("setAppearance"sv, [this](auto const& data) {
+        set_appearance(data);
+    });
     register_interface("setContentSettings"sv, [this](auto const& data) {
         set_content_settings(data);
     });
@@ -163,6 +166,7 @@ void SettingsUI::load_features()
     auto& application = Application::the();
 
     JsonObject features;
+    features.set("menuBar"_string, application.supports_system_menu_bar());
     features.set("primaryPaste"_string, application.supports_clipboard_type(Application::ClipboardType::Selection));
     features.set("verticalTabs"_string, application.supports_vertical_tabs());
     features.set("geolocation"_string, Core::GeolocationProvider::is_available());
@@ -230,6 +234,14 @@ void SettingsUI::set_languages(JsonValue const& languages)
 {
     auto parsed_languages = Settings::parse_json_languages(languages);
     Application::settings().set_languages(move(parsed_languages));
+
+    load_current_settings();
+}
+
+void SettingsUI::set_appearance(JsonValue const& appearance)
+{
+    auto parsed_appearance = Settings::parse_appearance(appearance);
+    Application::settings().set_appearance(parsed_appearance);
 
     load_current_settings();
 }
