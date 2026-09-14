@@ -65,6 +65,7 @@ ImageStyleValueResource::~ImageStyleValueResource()
 void ImageStyleValueResource::visit_edges(JS::Cell::Visitor& visitor)
 {
     visitor.visit(m_resource_request);
+    visit_registered_decoded_image_data(visitor);
 }
 
 void ImageStyleValueResource::register_image_style_value(ImageStyleValue const& image_style_value)
