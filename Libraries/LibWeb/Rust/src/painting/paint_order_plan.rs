@@ -1,0 +1,452 @@
+/*
+ * Copyright (c) 2026-present, the Ladybird developers.
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+//! The ordered scopes and producer sites selected by CSS painting rules.
+//!
+//! Building a scope reads committed layout and stacking-context facts. It does not record
+//! commands, inspect paint caches, or decide whether a producer's output is empty. Child scopes
+//! are explicit references, so a consumer can record them, reuse them, or collect their order.
+
+use crate::layout::node_data::{NodeKind, NodeSlotId};
+use crate::painting::paintable_rows::PaintableRowsRef;
+use crate::painting::record::PaintPhase;
+use crate::painting::{node_painting, style_queries};
+use smallvec::SmallVec;
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+#[repr(u8)]
+pub(crate) enum StackingContextPaintPhase {
+    BackgroundAndBorders = 0,
+    Floats = 1,
+    BackgroundAndBordersForInlineLevelAndReplaced = 2,
+    Foreground = 3,
+}
+
+impl StackingContextPaintPhase {
+    pub(crate) const COUNT: usize = Self::Foreground as usize + 1;
+}
+
+const _: () = assert!(
+    StackingContextPaintPhase::Floats as usize == StackingContextPaintPhase::BackgroundAndBorders as usize + 1
+        && StackingContextPaintPhase::BackgroundAndBordersForInlineLevelAndReplaced as usize
+            == StackingContextPaintPhase::Floats as usize + 1
+        && StackingContextPaintPhase::Foreground as usize
+            == StackingContextPaintPhase::BackgroundAndBordersForInlineLevelAndReplaced as usize + 1
+);
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) enum PaintScopeKind {
+    PaintedAsStackingContext,
+    Descendants(StackingContextPaintPhase),
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct PaintScope {
+    pub owner: NodeSlotId,
+    pub kind: PaintScopeKind,
+}
+
+impl PaintScope {
+    pub(crate) fn stacking_context(owner: NodeSlotId) -> Self {
+        Self {
+            owner,
+            kind: PaintScopeKind::PaintedAsStackingContext,
+        }
+    }
+}
+
+/// A producer of the scope's owner in paint order. A box phase is up to three producers of the
+/// recorder; an SVG root paints its background, border and content in the foreground pass.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) enum PaintProducer {
+    BoxPhase(PaintPhase),
+    SvgRoot,
+    SvgBoxForeground,
+}
+
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum PaintOrderItem {
+    Producer(PaintProducer),
+    Scope(PaintScope),
+}
+
+pub(crate) struct PaintScopePlan {
+    pub establishes_stacking_context: bool,
+    pub items: SmallVec<[PaintOrderItem; 16]>,
+}
+
+impl PaintScopePlan {
+    pub(crate) fn build(arena: &PaintableRowsRef<'_>, scope: PaintScope, paint_overlay: bool) -> Self {
+        let mut builder = PaintOrderBuilder {
+            layout_arena: arena,
+            paint_overlay,
+            items: SmallVec::new(),
+        };
+        let establishes_stacking_context =
+            scope.kind == PaintScopeKind::PaintedAsStackingContext && builder.has_stacking_context(scope.owner);
+        match scope.kind {
+            PaintScopeKind::PaintedAsStackingContext if establishes_stacking_context => {
+                builder.append_context_contents(scope.owner);
+            }
+            PaintScopeKind::PaintedAsStackingContext => builder.append_as_stacking_context(scope.owner),
+            PaintScopeKind::Descendants(phase) => builder.append_descendant(scope.owner, phase),
+        }
+        Self {
+            establishes_stacking_context,
+            items: builder.items,
+        }
+    }
+}
+
+struct PaintOrderBuilder<'a, 'arena> {
+    layout_arena: &'a PaintableRowsRef<'arena>,
+    paint_overlay: bool,
+    items: SmallVec<[PaintOrderItem; 16]>,
+}
+
+impl PaintOrderBuilder<'_, '_> {
+    fn display(&self, owner: NodeSlotId) -> crate::css::display::FfiDisplay {
+        style_queries::display(self.layout_arena, owner)
+    }
+
+    fn layout_kind(&self, owner: NodeSlotId) -> Option<NodeKind> {
+        self.layout_arena.node_kind_if_live(owner)
+    }
+
+    fn has_stacking_context(&self, owner: NodeSlotId) -> bool {
+        self.layout_arena.paintable_data(owner).establishes_stacking_context
+    }
+
+    fn is_replaced_box(&self, owner: NodeSlotId) -> bool {
+        style_queries::is_replaced_box(self.layout_arena, owner)
+    }
+
+    fn append_box_phase(&mut self, phase: PaintPhase) {
+        self.items
+            .push(PaintOrderItem::Producer(PaintProducer::BoxPhase(phase)));
+    }
+
+    fn append_stacking_context(&mut self, owner: NodeSlotId) {
+        self.items
+            .push(PaintOrderItem::Scope(PaintScope::stacking_context(owner)));
+    }
+
+    fn append_svg_root(&mut self) {
+        self.items.push(PaintOrderItem::Producer(PaintProducer::SvgRoot));
+    }
+
+    fn append_svg_box_foreground(&mut self) {
+        self.items
+            .push(PaintOrderItem::Producer(PaintProducer::SvgBoxForeground));
+    }
+
+    fn z_index(&self, paintable: NodeSlotId) -> Option<i32> {
+        crate::painting::style_queries::z_index(self.layout_arena, paintable)
+    }
+
+    fn is_fragmented_inline(&self, paintable: NodeSlotId) -> bool {
+        node_painting::is_fragmented_inline(self.layout_arena, paintable)
+    }
+
+    fn establishes_inline_level_painting_context(&self, paintable: NodeSlotId) -> bool {
+        // CSS 2.2 painting order puts inline-block and inline-table boxes in the inline-level painting step and
+        // says to paint each "as if it created a new stacking context", while keeping positioned descendants and
+        // actual child stacking contexts in the parent stacking context:
+        // https://drafts.csswg.org/css2/#painting-order
+        // https://drafts.csswg.org/css2/#elaborate-stacking-contexts
+        let display = self.display(paintable);
+        display.is_inline_outside() && (display.is_flow_root_inside() || display.is_table_inside())
+    }
+
+    fn is_pure_inline_box(&self, paintable: NodeSlotId) -> bool {
+        self.is_fragmented_inline(paintable)
+            && !style_queries::is_floating(self.layout_arena, paintable)
+            && !style_queries::is_positioned(self.layout_arena, paintable)
+    }
+
+    fn append_context_contents(&mut self, paintable: NodeSlotId) {
+        let entries = self.layout_arena.stacking_context_entries(paintable);
+        if self.layout_kind(paintable) == Some(NodeKind::SVGSVGBox) {
+            self.append_box_phase(PaintPhase::Background);
+            self.append_box_phase(PaintPhase::Border);
+            self.append_svg_box_foreground();
+            // An `<svg>` that establishes a stacking context still has descendants that establish
+            // one of their own - a `<foreignObject>` always does - and those are painted by their
+            // own context rather than by the SVG walk.
+            if let Some(entries) = &entries {
+                for entry in entries.negative_z_index_child_contexts() {
+                    self.append_stacking_context(entry.slot);
+                }
+                for &descendant in &entries.stack_level_zero_boxes {
+                    if self.layout_arena.paintable_row_is_populated(descendant)
+                        && self
+                            .layout_arena
+                            .paintable_data(descendant)
+                            .establishes_stacking_context
+                    {
+                        self.append_stacking_context(descendant);
+                    }
+                }
+                for entry in entries.positive_z_index_child_contexts() {
+                    self.append_stacking_context(entry.slot);
+                }
+            }
+            self.append_box_phase(PaintPhase::Outline);
+            if self.paint_overlay {
+                self.append_box_phase(PaintPhase::Overlay);
+            }
+            return;
+        }
+
+        // For a more elaborate description of the algorithm, see CSS 2.1 Appendix E
+        // Draw the background and borders for the context root (steps 1, 2)
+        self.append_box_phase(PaintPhase::Background);
+        self.append_box_phase(PaintPhase::Border);
+
+        // Stacking contexts formed by positioned descendants with negative z-indices (excluding 0) in z-index order
+        // (most negative first) then tree order. (step 3)
+        // Here, we treat non-positioned stacking contexts as if they were positioned, because CSS 2.0 spec does not
+        // account for new properties like `transform` and `opacity` that can create stacking contexts.
+        // https://github.com/w3c/csswg-drafts/issues/2717
+        if let Some(entries) = &entries {
+            for entry in entries.negative_z_index_child_contexts() {
+                self.append_stacking_context(entry.slot);
+            }
+        }
+
+        // Draw the background and borders for block-level children (step 4)
+        self.append_descendants(paintable, StackingContextPaintPhase::BackgroundAndBorders);
+        if crate::painting::paintable_geometry::committed_collapsed_table_borders(self.layout_arena, paintable)
+            .is_some()
+        {
+            self.append_box_phase(PaintPhase::TableCollapsedBorder);
+        }
+        // Draw the non-positioned floats (step 5)
+        if entries
+            .as_ref()
+            .is_some_and(|entries| entries.non_positioned_float_count > 0)
+        {
+            self.append_descendants(paintable, StackingContextPaintPhase::Floats);
+        }
+        // Draw inline content, replaced content, etc. (steps 6, 7)
+        if entries
+            .as_ref()
+            .is_some_and(|entries| entries.inline_or_replaced_count > 0)
+        {
+            self.append_descendants(
+                paintable,
+                StackingContextPaintPhase::BackgroundAndBordersForInlineLevelAndReplaced,
+            );
+        }
+        self.append_box_phase(PaintPhase::Foreground);
+        self.append_descendants(paintable, StackingContextPaintPhase::Foreground);
+
+        // Draw positioned descendants with z-index `0` or `auto` in tree order. (step 8)
+        // Here, we treat non-positioned stacking contexts as if they were positioned, because CSS 2.0 spec does not
+        // account for new properties like `transform` and `opacity` that can create stacking contexts.
+        // https://github.com/w3c/csswg-drafts/issues/2717
+        if let Some(entries) = &entries {
+            for &descendant in &entries.stack_level_zero_boxes {
+                debug_assert!(self.layout_arena.paintable_row_is_populated(descendant));
+                if !self.layout_arena.paintable_row_is_populated(descendant) {
+                    continue;
+                }
+                self.append_stacking_context(descendant);
+            }
+        }
+
+        // Stacking contexts formed by positioned descendants with z-indices greater than or equal
+        // to 1 in z-index order (smallest first) then tree order. (Step 9)
+        // Here, we treat non-positioned stacking contexts as if they were positioned, because CSS 2.0 spec does not
+        // account for new properties like `transform` and `opacity` that can create stacking contexts.
+        // https://github.com/w3c/csswg-drafts/issues/2717
+        if let Some(entries) = &entries {
+            for entry in entries.positive_z_index_child_contexts() {
+                self.append_stacking_context(entry.slot);
+            }
+        }
+
+        self.append_box_phase(PaintPhase::Outline);
+        if self.paint_overlay {
+            self.append_box_phase(PaintPhase::Overlay);
+        }
+    }
+
+    fn append_subtree_backgrounds_and_borders(&mut self, paintable: NodeSlotId) {
+        self.append_box_phase(PaintPhase::Background);
+        self.append_box_phase(PaintPhase::Border);
+        // A pure inline paintable paints its own background/border in the inline-level phase. Its block descendants, if
+        // any, are painted by the earlier BackgroundAndBorders descent through pure inline boxes. In today's layout
+        // trees, this subtree sweep is a no-op for InlineNodes: it can only find inline children, floats, or positioned
+        // boxes, all of which are skipped by the BackgroundAndBorders phase.
+        if !self.is_pure_inline_box(paintable) {
+            self.append_descendants(paintable, StackingContextPaintPhase::BackgroundAndBorders);
+        }
+        if crate::painting::paintable_geometry::committed_collapsed_table_borders(self.layout_arena, paintable)
+            .is_some()
+        {
+            self.append_box_phase(PaintPhase::TableCollapsedBorder);
+        }
+    }
+
+    fn append_inline_level_non_positioned_descendant(&mut self, paintable: NodeSlotId) {
+        self.append_subtree_backgrounds_and_borders(paintable);
+        // https://drafts.csswg.org/css2/#elaborate-stacking-contexts
+        // "For inline-block and inline-table elements: [...] treat the element as if it created a new stacking context,
+        // but any positioned descendants and descendants which actually create a new stacking context should be
+        // considered part of the parent stacking context, not this new one."
+        if self.establishes_inline_level_painting_context(paintable) {
+            self.append_descendants(paintable, StackingContextPaintPhase::Floats);
+        }
+    }
+
+    fn append_as_stacking_context(&mut self, paintable: NodeSlotId) {
+        if self.layout_kind(paintable) == Some(NodeKind::SVGSVGBox) {
+            self.append_svg_root();
+            return;
+        }
+        self.append_subtree_backgrounds_and_borders(paintable);
+        self.append_descendants(paintable, StackingContextPaintPhase::Floats);
+        self.append_descendants(
+            paintable,
+            StackingContextPaintPhase::BackgroundAndBordersForInlineLevelAndReplaced,
+        );
+        self.append_box_phase(PaintPhase::Foreground);
+        self.append_descendants(paintable, StackingContextPaintPhase::Foreground);
+        self.append_box_phase(PaintPhase::Outline);
+        self.append_box_phase(PaintPhase::Overlay);
+    }
+
+    fn append_descendants(&mut self, paintable: NodeSlotId, phase: StackingContextPaintPhase) {
+        // CSS 2.2 §17.5.1 stacks the backgrounds of a table's parts in layers: the table, then the column groups,
+        // the columns, the row groups, the rows and the cells. Column boxes may come after the row groups in the
+        // tree (the HTML parser puts a <colgroup> that follows a row after it), so a table box paints its column
+        // groups and columns before its other children. https://www.w3.org/TR/CSS22/tables.html#table-layers
+        let is_column_box = |this: &Self, child: NodeSlotId| {
+            let display = this.display(child);
+            display.is_table_column_group() || display.is_table_column()
+        };
+        let paints_columns_first = phase == StackingContextPaintPhase::BackgroundAndBorders
+            && self.layout_kind(paintable) == Some(NodeKind::Box)
+            && self.display(paintable).is_table_inside();
+        if paints_columns_first {
+            self.append_descendants_matching(paintable, phase, |this, child| is_column_box(this, child));
+            self.append_descendants_matching(paintable, phase, |this, child| !is_column_box(this, child));
+        } else {
+            self.append_descendants_matching(paintable, phase, |_, _| true);
+        }
+    }
+
+    fn append_descendants_matching(
+        &mut self,
+        paintable: NodeSlotId,
+        phase: StackingContextPaintPhase,
+        matches: impl Fn(&Self, NodeSlotId) -> bool,
+    ) {
+        let mut next_child = crate::painting::paint_order::first_paint_child(self.layout_arena, paintable);
+        while let Some(child) = next_child {
+            next_child = crate::painting::paint_order::next_paint_sibling(self.layout_arena, child);
+            if !matches(self, child) || self.descendant_phase_is_empty(child, phase) {
+                continue;
+            }
+            self.items.push(PaintOrderItem::Scope(PaintScope {
+                owner: child,
+                kind: PaintScopeKind::Descendants(phase),
+            }));
+        }
+    }
+
+    fn descendant_phase_is_empty(&self, child: NodeSlotId, phase: StackingContextPaintPhase) -> bool {
+        // Inline-blocks and inline-tables paint their backgrounds and internal floats
+        // in the inline-level phase. Earlier passes through their parent do no work,
+        // so there is no need to resolve, copy, or update an empty subtree capture.
+        matches!(
+            phase,
+            StackingContextPaintPhase::BackgroundAndBorders | StackingContextPaintPhase::Floats
+        ) && self.layout_kind(child) != Some(NodeKind::SVGSVGBox)
+            && self.establishes_inline_level_painting_context(child)
+            && !style_queries::is_floating(self.layout_arena, child)
+            && (phase == StackingContextPaintPhase::Floats || !self.is_pure_inline_box(child))
+    }
+
+    fn append_descendant(&mut self, child: NodeSlotId, phase: StackingContextPaintPhase) {
+        if self.has_stacking_context(child) {
+            return;
+        }
+        let positioned = style_queries::is_positioned(self.layout_arena, child);
+        let floating = style_queries::is_floating(self.layout_arena, child);
+        let inline = style_queries::is_inline(self.layout_arena, child);
+        let is_item = style_queries::is_flex_or_grid_item(self.layout_arena, child);
+
+        // Positioned descendants at stack level 0 are painted in a separate pass.
+        if positioned && self.z_index(child).unwrap_or(0) == 0 {
+            return;
+        }
+
+        if self.layout_kind(child) == Some(NodeKind::SVGSVGBox) {
+            if phase == StackingContextPaintPhase::Foreground {
+                self.append_svg_root();
+            }
+            return;
+        }
+
+        // NOTE: Flex and grid items should be treated the same way as CSS2 defines for inline-blocks:
+        //       - https://drafts.csswg.org/css-flexbox-1/#painting
+        //       - https://www.w3.org/TR/css-grid-2/#z-order
+        //       "For each one of these, treat the element as if it created a new stacking context, but any positioned
+        //       descendants and descendants which actually create a new stacking context should be considered part of
+        //       the parent stacking context, not this new one."
+        if is_item && self.z_index(child).is_none() {
+            // FIXME: This may not be fully correct with respect to the paint phases.
+            if phase == StackingContextPaintPhase::Foreground {
+                self.append_as_stacking_context(child);
+            }
+            return;
+        }
+
+        // All non-positioned floating descendants, in tree order.
+        if floating && !positioned && self.z_index(child).is_none() {
+            if phase == StackingContextPaintPhase::Floats {
+                self.append_as_stacking_context(child);
+            }
+            return;
+        }
+
+        let child_is_inline_or_replaced = inline || self.is_replaced_box(child);
+        let child_has_inline_level_painting_context = self.establishes_inline_level_painting_context(child);
+        match phase {
+            StackingContextPaintPhase::BackgroundAndBorders => {
+                if !child_is_inline_or_replaced && !floating {
+                    self.append_subtree_backgrounds_and_borders(child);
+                } else if self.is_pure_inline_box(child) {
+                    self.append_descendants(child, phase);
+                }
+            }
+            StackingContextPaintPhase::Floats => {
+                if floating {
+                    self.append_subtree_backgrounds_and_borders(child);
+                }
+                // Atomic inline-level descendants participate in the parent's inline-level
+                // painting step, so their internal floats are not painted early.
+                if !child_has_inline_level_painting_context {
+                    self.append_descendants(child, phase);
+                }
+            }
+            StackingContextPaintPhase::BackgroundAndBordersForInlineLevelAndReplaced => {
+                if child_is_inline_or_replaced {
+                    self.append_inline_level_non_positioned_descendant(child);
+                }
+                self.append_descendants(child, phase);
+            }
+            StackingContextPaintPhase::Foreground => {
+                self.append_box_phase(PaintPhase::Foreground);
+                self.append_descendants(child, phase);
+                self.append_box_phase(PaintPhase::Outline);
+                self.append_box_phase(PaintPhase::Overlay);
+            }
+        }
+    }
+}

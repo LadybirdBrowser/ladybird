@@ -24,6 +24,7 @@ pub(crate) mod layer_image_paint_facts;
 pub mod layout_tree_dump;
 pub(crate) mod node_painting;
 pub(crate) mod paint_order;
+pub(crate) mod paint_order_plan;
 pub mod paint_state;
 pub mod paintable_build;
 pub mod paintable_data;
