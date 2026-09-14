@@ -612,8 +612,20 @@ public:
 
 
 def write_stub_class(out: TextIO, endpoint: Endpoint) -> None:
+    # The receiver answers for every argument type its endpoint carries. Which of those types ask
+    # anything of it is decided by the types themselves.
+    argument_types: List[str] = []
+    for message in endpoint.messages:
+        for parameter in message.inputs:
+            if parameter.type not in argument_types:
+                argument_types.append(parameter.type)
+
+    bases = "public IPC::Stub"
+    if argument_types:
+        bases += f"\n    , public IPC::SenderClaimReceivers<{', '.join(argument_types)}>"
+
     out.write(f"""
-class {endpoint.name}Stub : public IPC::Stub {{
+class {endpoint.name}Stub : {bases} {{
 public:
     {endpoint.name}Stub() {{ }}
     virtual ~{endpoint.name}Stub() override {{ }}
@@ -657,6 +669,22 @@ public:
             out.write(f"        auto& request = static_cast<Messages::{endpoint.name}::{pascal_name}&>(message);\n")
         else:
             out.write(")\n    {\n")
+
+        # An argument whose type is a claim by the sender about itself is verified before the handler
+        # runs. Which types make a claim is decided by the types, not here.
+        for parameter in message.inputs:
+            reason = f"argument '{parameter.name}' is not a valid claim for this sender"
+            out.write(f"        if (!IPC::verify_message_argument(*this, request.{parameter.name}())) {{\n")
+            out.write(f'            did_misbehave("{message.name}"sv, "{reason}"sv);\n')
+
+            if not message.is_synchronous:
+                out.write("            return nullptr;\n")
+            else:
+                refused_types = [message_name_qualified(endpoint.name, message.name, True)]
+                refused_types += [output.type for output in message.outputs]
+                out.write(f"            return IPC::refused_reply<{', '.join(refused_types)}>();\n")
+
+            out.write("        }\n")
 
         if not message.is_synchronous:
             out.write(f"        {message.name}({arguments});\n")
@@ -732,6 +760,7 @@ def build(out: TextIO, endpoints: List[Endpoint]) -> None:
 #include <LibIPC/Encoder.h>
 #include <LibIPC/File.h>
 #include <LibIPC/Message.h>
+#include <LibIPC/SenderClaim.h>
 #include <LibIPC/Stub.h>
 
 #if defined(AK_COMPILER_CLANG)

@@ -13,11 +13,15 @@
 #include <LibCore/StandardPaths.h>
 #include <LibFileSystem/FileSystem.h>
 #include <LibGfx/SystemTheme.h>
+#include <LibHTTP/Cookie/ParsedCookie.h>
+#include <LibIPC/Transport.h>
 #include <LibMain/Main.h>
 #include <LibURL/Parser.h>
 #include <LibWeb/Page/InputEvent.h>
 #include <LibWeb/UIEvents/KeyCode.h>
 #include <LibWebView/Application.h>
+#include <LibWebView/BrowsingSession.h>
+#include <LibWebView/CookieJar.h>
 #include <LibWebView/HeadlessWebView.h>
 #include <LibWebView/Utilities.h>
 #include <LibWebView/WebContentClient.h>
@@ -48,6 +52,17 @@ public:
     }
 
     virtual bool should_coordinate_browser_process() const override { return false; }
+
+    virtual Optional<WebView::ViewImplementation&> open_blank_new_tab(Web::HTML::ActivateTab) const override
+    {
+        ++m_new_tab_requests;
+        return {};
+    }
+
+    u64 new_tab_requests() const { return m_new_tab_requests; }
+
+private:
+    mutable u64 m_new_tab_requests { 0 };
 };
 
 void press_history_traversal_key(WebView::ViewImplementation& view, Web::UIEvents::KeyCode key)
@@ -104,9 +119,9 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
 
     // A spare can create its initial traversable before a view adopts it. Preserve that entry across assignment.
     Core::EventLoop::current().spin_until([&]() { return app->has_spare_web_content_process(); });
-    // Unassigned spare clients must reject page IDs they were never given.
+    // A page ID that was never handed out is refused by every client, spare ones included.
     WebView::WebContentClient::for_each_client([](auto& client) {
-        VERIFY(!client.owns_page(0));
+        VERIFY(!client.may_act_for_page(0));
         return IterationDecision::Continue;
     });
     auto spare_view = WebView::HeadlessWebView::create(move(theme), { 800, 600 });
@@ -120,6 +135,10 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     spare_view->load(spare_view_url);
     Core::EventLoop::current().spin_until([&]() { return spare_view_loads_finished == 1; });
     VERIFY(spare_view->url() == spare_view_url);
+    // The page a spare process was started with is one its client may act for, and a page ID the client
+    // was never given stays refused.
+    VERIFY(spare_view->client().may_act_for_page(spare_view->page_id()));
+    VERIFY(!spare_view->client().may_act_for_page(0));
 
     auto url_a = URL::Parser::basic_parse("data:text/html,<title>A</title>first"sv).release_value();
     auto url_b = URL::Parser::basic_parse("data:text/html,<title>B</title>second"sv).release_value();
@@ -288,8 +307,8 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     VERIFY(!document_is_hidden());
     VERIFY(restored_view->url() == closed_tab_url);
 
-    // Exercise browser-side ownership across popup detachment and close acknowledgement without
-    // pumping the event loop between those transitions.
+    // Exercise the record of pages the client was given across popup detachment and close
+    // acknowledgement, without pumping the event loop between those transitions.
     OwnPtr<WebView::HeadlessWebView> popup;
     bool popup_loaded = false;
     Web::PageId popup_page_id = 0;
@@ -304,15 +323,64 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     Core::EventLoop::current().spin_until([&] { return popup_loaded; });
     auto& client = restored_view->client();
     VERIFY(&popup->client() == &client);
-    VERIFY(client.owns_page(popup_page_id));
+    VERIFY(client.may_act_for_page(popup_page_id));
+    VERIFY(!client.may_act_for_page(0));
+    auto cookie_url = URL::Parser::basic_parse("https://example.com/"sv).release_value();
+    HTTP::Cookie::ParsedCookie cookie { .name = "page-lifecycle"_string, .value = "preserved"_string };
+    auto& cookie_jar = *client.session().cookie_jar;
+    cookie_jar.set_cookie(cookie_url, cookie, HTTP::Cookie::Source::Http);
+    VERIFY(cookie_jar.get_named_cookie(cookie_url, cookie.name).has_value());
+    auto& stub = static_cast<WebContentClientStub&>(client);
+    auto new_tab_requests = app->new_tab_requests();
+    stub.did_get_source(popup_page_id, URL::about_blank(), URL::about_blank(), {});
+    VERIFY(app->new_tab_requests() == ++new_tab_requests);
+    VERIFY(stub.did_request_cookie(popup_page_id, cookie_url, HTTP::Cookie::Source::Http).cookie().cookie == "page-lifecycle=preserved"sv);
+    stub.did_request_delete_all_cookies(popup_page_id, 0, cookie_url);
+    VERIFY(!cookie_jar.get_named_cookie(cookie_url, cookie.name).has_value());
+    cookie_jar.set_cookie(cookie_url, cookie, HTTP::Cookie::Source::Http);
     client.prepare_for_detached_close(popup_page_id);
     popup.clear();
     VERIFY(!client.is_page_open(popup_page_id));
-    VERIFY(client.owns_page(popup_page_id));
-    VERIFY(!client.owns_page(0));
+    // The page is gone, but messages sent while the client had it can still arrive, so the client may
+    // still name it.
+    VERIFY(client.may_act_for_page(popup_page_id));
+    VERIFY(!client.may_act_for_page(0));
+    stub.did_request_delete_all_cookies(popup_page_id, 0, cookie_url);
+    VERIFY(cookie_jar.get_named_cookie(cookie_url, cookie.name).has_value());
+    VERIFY(stub.did_request_cookie(popup_page_id, cookie_url, HTTP::Cookie::Source::Http).cookie().cookie.is_empty());
+    stub.did_get_source(popup_page_id, URL::about_blank(), URL::about_blank(), {});
+    VERIFY(app->new_tab_requests() == new_tab_requests);
     static_cast<WebContentClientStub&>(client).did_close_browsing_context(popup_page_id);
-    VERIFY(!client.owns_page(popup_page_id));
+    VERIFY(client.may_act_for_page(popup_page_id));
+    VERIFY(!client.may_act_for_page(0));
+    stub.did_request_delete_all_cookies(popup_page_id, 0, cookie_url);
+    VERIFY(cookie_jar.get_named_cookie(cookie_url, cookie.name).has_value());
+    VERIFY(stub.did_request_cookie(popup_page_id, cookie_url, HTTP::Cookie::Source::Http).cookie().cookie.is_empty());
+    stub.did_get_source(popup_page_id, URL::about_blank(), URL::about_blank(), {});
+    VERIFY(app->new_tab_requests() == new_tab_requests);
+
+    // Rejecting a popup must not authorize an ID that was never assigned to a page.
+    Web::PageId rejected_page_id = 0;
+    restored_view->on_new_web_view = [&](auto, auto, Optional<Web::PageId> page_id) {
+        VERIFY(page_id.has_value());
+        rejected_page_id = *page_id;
+        return String {};
+    };
+    auto rejected_popup = stub.did_request_new_web_view(restored_view->page_id(), Web::HTML::ActivateTab::No, {}, {}, {}, {});
+    VERIFY(!rejected_popup.new_page_id().has_value());
+    VERIFY(rejected_page_id != 0);
+    VERIFY(!client.may_act_for_page(rejected_page_id));
     restored_view->on_new_web_view = nullptr;
+
+    // An initial page can read cookies before the UI adopts it into a view.
+    {
+        auto transport = TRY(IPC::Transport::create_paired());
+        auto initial_page_id = app->allocate_page_id();
+        auto initial_client = adopt_ref(*new WebView::WebContentClient(move(transport.local), client.is_private(), initial_page_id, app->allocate_ui_process_cross_process_id()));
+        VERIFY(!initial_client->is_page_open(initial_page_id));
+        auto& initial_stub = static_cast<WebContentClientStub&>(*initial_client);
+        VERIFY(initial_stub.did_request_cookie(initial_page_id, cookie_url, HTTP::Cookie::Source::Http).cookie().cookie == "page-lifecycle=preserved"sv);
+    }
 
     outln("PASS: browser history traversal");
     return 0;

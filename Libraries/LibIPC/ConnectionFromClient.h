@@ -35,6 +35,8 @@ public:
 
     virtual ~ConnectionFromClient() override = default;
 
+    using ServerStub::did_misbehave;
+
     void did_misbehave()
     {
         dbgln("{} (id={}) misbehaved, disconnecting.", *this, m_client_id);
