@@ -635,7 +635,7 @@ void ConnectionFromClient::apply_changing_navigable_continuation(Web::PageId pag
     }));
 }
 
-void ConnectionFromClient::run_descendant_unload_task(Web::PageId page_id, Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::StopHostingAfterUnload stop_hosting_after_unload)
+void ConnectionFromClient::run_descendant_unload_task(Web::PageId page_id, Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChildNavigableDestruction child_navigable_destruction, Web::HTML::StopHostingAfterUnload stop_hosting_after_unload)
 {
     auto page = this->page(page_id);
     auto navigable = Web::HTML::local_navigable_with_id(navigable_id);
@@ -645,7 +645,7 @@ void ConnectionFromClient::run_descendant_unload_task(Web::PageId page_id, Web::
     }
     VERIFY(&navigable->page() == &page->page());
 
-    navigable->run_ui_descendant_unload_task(stop_hosting_after_unload, GC::create_function(navigable->heap(), [this, page_id, unload_id, navigable_id] {
+    navigable->run_ui_descendant_unload_task(child_navigable_destruction, stop_hosting_after_unload, GC::create_function(navigable->heap(), [this, page_id, unload_id, navigable_id] {
         async_descendant_unload_task_complete(page_id, unload_id, navigable_id);
     }));
 }

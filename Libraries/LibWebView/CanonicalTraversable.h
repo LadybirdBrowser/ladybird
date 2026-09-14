@@ -168,8 +168,8 @@ private:
         No,
         Yes,
     };
-    void unload_a_document_and_its_descendants(Optional<Web::HTML::CrossProcessId> operation_id, Web::HTML::CrossProcessId navigable_id, HistoryJobEndpoint continuing_endpoint, Function<void(UnloadedInItsHost)> queue_document_unload_task);
-    void unload_document_in_its_host(Optional<Web::HTML::CrossProcessId> operation_id, HistoryJobEndpoint, Web::HTML::CrossProcessId navigable_id, Function<void()> after_unload);
+    void unload_a_document_and_its_descendants(Optional<Web::HTML::CrossProcessId> operation_id, Web::HTML::CrossProcessId navigable_id, HistoryJobEndpoint continuing_endpoint, Web::HTML::ChildNavigableDestruction, Function<void(UnloadedInItsHost)> queue_document_unload_task);
+    void unload_document_in_its_host(Optional<Web::HTML::CrossProcessId> operation_id, HistoryJobEndpoint, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChildNavigableDestruction, Function<void()> after_unload);
     void discard_pending_host_at(Web::HTML::CrossProcessId navigable_id, HistoryJobEndpoint const&);
     void dispatch_next_beforeunload_group(HistoryOperation&);
     void complete_unload_cancelation(HistoryOperation&, Web::HTML::HistoryStepResult);
@@ -250,6 +250,7 @@ private:
             Optional<Web::HTML::CrossProcessId> parent_id;
             size_t remaining_children { 0 };
             HistoryJobEndpoint endpoint;
+            Web::HTML::ChildNavigableDestruction child_navigable_destruction { Web::HTML::ChildNavigableDestruction::No };
             Web::HTML::StopHostingAfterUnload stop_hosting_after_unload { Web::HTML::StopHostingAfterUnload::No };
         };
         HashMap<Web::HTML::CrossProcessId, Node> nodes;
