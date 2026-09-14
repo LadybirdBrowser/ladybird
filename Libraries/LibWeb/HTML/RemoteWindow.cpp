@@ -5,6 +5,7 @@
  */
 
 #include <LibGC/Heap.h>
+#include <LibWeb/HTML/Location.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/RemoteWindow.h>
 #include <LibWeb/HTML/WindowProxy.h>
@@ -29,6 +30,7 @@ void RemoteWindow::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_navigable);
+    visitor.visit(m_location);
     visitor.visit(m_cross_origin_property_descriptor_map);
 }
 
@@ -70,8 +72,9 @@ GC::Ref<WindowProxy> RemoteWindow::frames() const
 GC::Ref<Location> RemoteWindow::location()
 {
     // The Window object's location getter steps are to return this's Location object.
-    // FIXME: The Location of a Window hosted by another process navigates it through the UI process.
-    VERIFY_NOT_REACHED();
+    if (!m_location)
+        m_location = GC::Heap::the().allocate<Location>(*this);
+    return *m_location;
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-closed

@@ -59,6 +59,9 @@ private:
 
     GC::Ref<RemoteNavigable> m_navigable;
 
+    // https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-location
+    GC::Ptr<Location> m_location;
+
     CrossOriginPropertyDescriptorMap m_cross_origin_property_descriptor_map;
 };
 

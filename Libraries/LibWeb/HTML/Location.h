@@ -8,6 +8,7 @@
 #pragma once
 
 #include <AK/Utf16String.h>
+#include <AK/Variant.h>
 #include <LibJS/Forward.h>
 #include <LibURL/URL.h>
 #include <LibWeb/Bindings/Wrappable.h>
@@ -23,8 +24,8 @@ class Location final : public Bindings::GCAllocatedWrappable {
 public:
     virtual ~Location() override;
 
-    [[nodiscard]] Window& window() { return m_window; }
-    [[nodiscard]] Window const& window() const { return m_window; }
+    [[nodiscard]] GC::Ptr<Window> window() const;
+    [[nodiscard]] GC::Ptr<RemoteWindow> remote_window() const;
 
     WebIDL::ExceptionOr<Utf16String> href() const;
     WebIDL::ExceptionOr<void> set_href(Utf16String const&);
@@ -58,15 +59,17 @@ public:
 
 private:
     explicit Location(Window&);
+    explicit Location(RemoteWindow&);
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
 
     GC::Ptr<DOM::Document> relevant_document() const;
+    bool has_relevant_document() const;
     URL::URL url() const;
     WebIDL::ExceptionOr<void> navigate(URL::URL, NavigationHistoryBehavior = NavigationHistoryBehavior::Auto);
 
-    GC::Ref<Window> m_window;
+    Variant<GC::Ref<Window>, GC::Ref<RemoteWindow>> m_window;
 };
 
 }

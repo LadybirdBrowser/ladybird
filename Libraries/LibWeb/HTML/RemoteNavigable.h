@@ -60,6 +60,7 @@ public:
     virtual Optional<URL::URL> active_document_url() const override { return m_replicated_state.active_document_url; }
     virtual Optional<URL::Origin> active_document_origin() const override { return m_replicated_state.active_document_origin; }
     virtual bool active_document_is_fully_active() const override { return m_replicated_state.active_document_is_fully_active; }
+    virtual bool active_document_is_completely_loaded() const override { return m_replicated_state.active_document_is_completely_loaded; }
     virtual bool active_document_is(DOM::Document const&) const override { return false; }
     virtual Vector<GC::Root<Navigable>> active_document_inclusive_descendant_navigables() override;
     virtual Optional<URL::URL> active_document_top_level_creation_url() const override { return m_replicated_state.top_level_creation_url; }

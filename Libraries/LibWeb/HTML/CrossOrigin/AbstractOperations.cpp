@@ -161,7 +161,9 @@ bool is_platform_object_same_origin(JS::Object const& object)
 bool is_platform_object_same_origin(Location const& location)
 {
     // 1. Return true if the current settings object's origin is same origin-domain with O's relevant settings object's origin, and false otherwise.
-    return HTML::current_settings_object().origin().is_same_origin_domain(HTML::relevant_settings_object(location.window()).origin());
+    if (auto remote_window = location.remote_window())
+        return is_platform_object_same_origin(*remote_window);
+    return HTML::current_settings_object().origin().is_same_origin_domain(HTML::relevant_settings_object(*location.window()).origin());
 }
 
 bool is_platform_object_same_origin(Window const& window)
