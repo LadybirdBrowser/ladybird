@@ -113,7 +113,7 @@ fn record_display_list_impl<O: Observer>(
     item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
 ) -> RecordingResult {
     let structural_epoch = paint_state.visual_context.structural_epoch();
-    let cache_inputs = PaintCacheInputs::from_recording_inputs(inputs);
+    let cache_inputs = PaintCacheInputs::from_recording_inputs(inputs, paint_state);
     let cache_compatibility = command_cache_source.as_ref().map_or_else(Default::default, |source| {
         cache_inputs.compatibility_with(&source.cache_inputs)
     });
@@ -155,7 +155,7 @@ fn record_display_list_impl<O: Observer>(
     recorder.trace_paint(Operation::Producer(None, "canvas"), |this| {
         if let Some(rect) = inputs.canvas_fill_rect {
             this.recorder
-                .fill_rect(rect, inputs.canvas_color, ForceDarkRole::Background);
+                .fill_rect(rect, inputs.uncaptured.canvas_color, ForceDarkRole::Background);
         }
         // .. in the case of embedded documents typically rendered over a transparent canvas
         // (such as provided via an HTML iframe element), if the used color scheme of the element
@@ -163,11 +163,17 @@ fn record_display_list_impl<O: Observer>(
         // then the UA must use an opaque canvas of the Canvas color appropriate to the
         // embedded document’s used color scheme instead of a transparent canvas.
         if inputs.opaque_canvas {
-            this.recorder
-                .fill_rect(inputs.bitmap_rect, inputs.canvas_color, ForceDarkRole::Background);
+            this.recorder.fill_rect(
+                inputs.bitmap_rect,
+                inputs.uncaptured.canvas_color,
+                ForceDarkRole::Background,
+            );
         }
-        this.recorder
-            .fill_rect(inputs.bitmap_rect, inputs.background_color, ForceDarkRole::Background);
+        this.recorder.fill_rect(
+            inputs.bitmap_rect,
+            inputs.uncaptured.background_color,
+            ForceDarkRole::Background,
+        );
     });
     recorder.paint_and_capture_as_stacking_context(viewport);
     if inputs.inspector_highlight.is_some()

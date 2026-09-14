@@ -46,7 +46,7 @@ pub enum ScrollDirection {
     Vertical,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[repr(C)]
 pub struct FfiChromeMetrics {
     pub scroll_thumb_min_length: CssPixels,

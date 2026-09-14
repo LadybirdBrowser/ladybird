@@ -420,13 +420,13 @@ impl<O: Observer> PaintRecorder<'_, O> {
             paints_border_image,
             has_fixed_background: paint::background_resolution::background_has_fixed_attachment(
                 self.layout_arena,
-                self.inputs.root_background_source,
+                self.inputs.uncaptured.root_background_source,
                 paintable,
             ),
             has_scroll_offset_dependent_background:
                 paint::background_resolution::background_depends_on_live_scroll_offset(
                     self.layout_arena,
-                    self.inputs.root_background_source,
+                    self.inputs.uncaptured.root_background_source,
                     paintable,
                 ),
             paint_phase_mask: 0,

@@ -14,33 +14,44 @@ use libgfx_rust::font::FontHandle;
 use libgfx_rust::{Color, IntRect};
 use std::borrow::Cow;
 
+/// The inputs read by content that is recorded outside per-box captures: scroll metadata,
+/// viewport scrollbars, the wheel-target facts of hit-test items. Reusing a subtree capture from
+/// the previous tape requires this whole bundle to be unchanged, so every reader takes these
+/// values from here and a new one is part of that check automatically.
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
+pub(crate) struct UncapturedContentInputs {
+    pub viewport_wheel_overflow_x: u8,
+    pub viewport_wheel_overflow_y: u8,
+    pub root_background_source: FfiRootBackgroundSource,
+    pub device_viewport_rect: IntRect,
+    pub is_recording_async_scrolling_metadata: bool,
+    pub document_id: UniqueNodeId,
+    pub has_blocking_wheel_event_region_covering_viewport: bool,
+    pub chrome_metrics: FfiChromeMetrics,
+    pub paint_viewport_scrollbars: bool,
+    pub async_scrolling_enabled: bool,
+    pub middle_button_scroll_origin: Option<CssPixelPoint>,
+    pub canvas_color: Color,
+    pub background_color: Color,
+}
+
 /// Inputs borrowed for one synchronous recording call. Recording results retain their own
 /// resources and never borrow these inputs or the host's arrays and byte buffers.
 #[derive(Clone)]
 pub(crate) struct RecordingInputs<'a> {
     pub device_pixels_per_css_pixel: f64,
-    pub viewport_wheel_overflow_x: u8,
-    pub viewport_wheel_overflow_y: u8,
-    pub root_background_source: FfiRootBackgroundSource,
-    pub device_viewport_rect: IntRect,
+    pub uncaptured: UncapturedContentInputs,
+    // Carried on the recording so the compositor can tell which listener state it saw; no
+    // recorded content reads it.
+    pub wheel_event_listener_state_generation: u64,
     pub css_viewport_rect: CssPixelRect,
     pub should_show_line_box_borders: bool,
     pub force_dark_enabled: bool,
     pub force_dark_settings: ForceDarkSettings,
     pub should_paint_overlay: bool,
-    pub is_recording_async_scrolling_metadata: bool,
-    pub document_id: UniqueNodeId,
-    pub has_blocking_wheel_event_region_covering_viewport: bool,
-    pub wheel_event_listener_state_generation: u64,
-    pub chrome_metrics: FfiChromeMetrics,
-    pub paint_viewport_scrollbars: bool,
-    pub async_scrolling_enabled: bool,
-    pub middle_button_scroll_origin: Option<CssPixelPoint>,
     pub canvas_fill_rect: Option<IntRect>,
-    pub canvas_color: Color,
     pub opaque_canvas: bool,
     pub bitmap_rect: IntRect,
-    pub background_color: Color,
     pub paint_command_cache_read_write: bool,
     pub window_is_focused: bool,
     pub outline_auto_color: Color,

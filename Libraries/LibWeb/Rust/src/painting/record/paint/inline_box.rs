@@ -40,7 +40,7 @@ pub(crate) fn paint<O: Observer>(recorder: &mut PaintRecorder<'_, O>, paintable:
         let background_is_propagated_to_root = body_background_is_propagated_to_root(
             recorder.layout_arena,
             paintable,
-            recorder.inputs.root_background_source,
+            recorder.inputs.uncaptured.root_background_source,
         );
         let has_borders = recorder
             .layout_arena

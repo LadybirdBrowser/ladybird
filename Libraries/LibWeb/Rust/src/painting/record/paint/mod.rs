@@ -55,7 +55,7 @@ pub(crate) fn paint_phase_mask<O: Observer>(
             || background_resolution::has_background_to_paint(
                 recorder.layout_arena,
                 paintable,
-                recorder.inputs.root_background_source,
+                recorder.inputs.uncaptured.root_background_source,
             )
         {
             phases |= PaintPhase::Background.bit();

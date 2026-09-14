@@ -217,9 +217,9 @@ impl<'a, Arena: PaintableRowsRead> ChromeGeometry<'a, Arena> {
     pub(crate) fn for_recording(arena: &'a Arena, inputs: &RecordingInputs<'_>) -> Self {
         Self {
             arena,
-            metrics: inputs.chrome_metrics,
-            viewport_wheel_overflow_x: inputs.viewport_wheel_overflow_x,
-            viewport_wheel_overflow_y: inputs.viewport_wheel_overflow_y,
+            metrics: inputs.uncaptured.chrome_metrics,
+            viewport_wheel_overflow_x: inputs.uncaptured.viewport_wheel_overflow_x,
+            viewport_wheel_overflow_y: inputs.uncaptured.viewport_wheel_overflow_y,
         }
     }
 

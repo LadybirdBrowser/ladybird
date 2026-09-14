@@ -144,7 +144,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         }
         let target_scroll_node_index = self.wheel_hit_test_target_scroll_node_index_for(paintable);
         let corner_radii = self.border_radii(paintable).as_corners(&self.converter);
-        let document_id = self.inputs.document_id;
+        let document_id = self.inputs.uncaptured.document_id;
         if corner_radii.has_any_radius() {
             self.recorder.compositor_wheel_hit_test_target_with_corner_radii(
                 CompositorWheelHitTestTargetWithCornerRadii {
@@ -165,7 +165,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     fn record_blocking_wheel_event_region(&mut self, paintable: NodeSlotId) {
-        if self.inputs.has_blocking_wheel_event_region_covering_viewport {
+        if self.inputs.uncaptured.has_blocking_wheel_event_region_covering_viewport {
             return;
         }
         if !self.is_visible(paintable) || !self.visible_for_hit_testing(paintable) {
@@ -226,8 +226,8 @@ impl<O: Observer> PaintRecorder<'_, O> {
             IntRect::new(
                 0,
                 0,
-                self.inputs.device_viewport_rect.width,
-                self.inputs.device_viewport_rect.height,
+                self.inputs.uncaptured.device_viewport_rect.width,
+                self.inputs.uncaptured.device_viewport_rect.height,
             )
         } else {
             self.converter
@@ -239,7 +239,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let scale = self.inputs.device_pixels_per_css_pixel;
         let hit_test_facts = self.hit_test_facts(paintable);
         self.recorder.compositor_scroll_node(CompositorScrollNode {
-            document_id: self.inputs.document_id,
+            document_id: self.inputs.uncaptured.document_id,
             scrollable_node_id: UniqueNodeId(node_identity),
             scroll_node_index: self.data(paintable).own_scroll_node_index,
             parent_scroll_node_index,
@@ -261,7 +261,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
     // main thread selects from, recorded with the scroll node so that it is as current as the rest
     // of the display list.
     fn record_snap_geometry(&mut self, paintable: NodeSlotId, geometry: FfiSnapContainerGeometry) {
-        let document_id = self.inputs.document_id;
+        let document_id = self.inputs.uncaptured.document_id;
         let scroll_node_index = self.data(paintable).own_scroll_node_index;
         self.recorder.compositor_snap_container(CompositorSnapContainer {
             document_id,
@@ -291,8 +291,8 @@ impl<O: Observer> PaintRecorder<'_, O> {
 
     fn record_viewport_scrollbar_state(&mut self, paintable: NodeSlotId) {
         let records_viewport_scrollbars = self.layout_arena.node_kind_if_live(paintable) == Some(NodeKind::Viewport)
-            && self.inputs.async_scrolling_enabled
-            && self.inputs.paint_viewport_scrollbars
+            && self.inputs.uncaptured.async_scrolling_enabled
+            && self.inputs.uncaptured.paint_viewport_scrollbars
             && self.layout_arena.node_style_if_live(paintable).is_some_and(|style| {
                 style.misc_reset().scrollbar_width != crate::css::css_enums::scrollbar_width::NONE
             });
@@ -306,8 +306,11 @@ impl<O: Observer> PaintRecorder<'_, O> {
         let (thumb_color, track_color) = scrollbar_colors_for_paint(
             self.layout_arena,
             paintable,
-            self.inputs.root_background_source,
-            self.inputs.canvas_color.blend(self.inputs.background_color),
+            self.inputs.uncaptured.root_background_source,
+            self.inputs
+                .uncaptured
+                .canvas_color
+                .blend(self.inputs.uncaptured.background_color),
         );
         let chrome_geometry = ChromeGeometry::for_recording(self.layout_arena, self.inputs);
         for direction in [ScrollDirection::Vertical, ScrollDirection::Horizontal] {
@@ -320,7 +323,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             let vertical = direction == ScrollDirection::Vertical;
             self.recorder
                 .compositor_viewport_scrollbar(CompositorViewportScrollbar {
-                    document_id: self.inputs.document_id,
+                    document_id: self.inputs.uncaptured.document_id,
                     scroll_node_index,
                     gutter_rect: self.converter.rounded_device_rect(scrollbar.gutter_rect),
                     thumb_rect: self.converter.rounded_device_rect(scrollbar.thumb_rect),
@@ -346,7 +349,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
     }
 
     pub(crate) fn record_async_scrolling_metadata(&mut self, paintable: NodeSlotId) {
-        if !self.inputs.is_recording_async_scrolling_metadata {
+        if !self.inputs.uncaptured.is_recording_async_scrolling_metadata {
             return;
         }
         self.record_wheel_hit_test_target(paintable);
