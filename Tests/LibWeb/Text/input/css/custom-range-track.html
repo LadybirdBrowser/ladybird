@@ -1,0 +1,19 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    input { appearance: none; height: 4px; width: 200px; margin: 0; padding: 0; border: 0; }
+    input::-webkit-slider-runnable-track { height: 4px; border: 0; background: #444; }
+    input::-webkit-slider-thumb { display: none; }
+    #styled::-moz-range-progress { background: rgb(255, 0, 0); }
+</style>
+<input id="plain" type="range" value="50">
+<input id="styled" type="range" value="50">
+<script>
+    test(() => {
+        for (const input of document.querySelectorAll("input")) {
+            const track = getComputedStyle(input, "::-webkit-slider-runnable-track");
+            const fill = getComputedStyle(input, "::-moz-range-progress");
+            println(`${input.id}: track margin-top=${track.marginTop}, height=${track.height}, fill=${fill.backgroundColor}`);
+        }
+    });
+</script>

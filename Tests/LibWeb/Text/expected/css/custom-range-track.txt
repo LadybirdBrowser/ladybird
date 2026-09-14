@@ -1,0 +1,2 @@
+plain: track margin-top=0px, height=4px, fill=rgba(0, 0, 0, 0)
+styled: track margin-top=0px, height=4px, fill=rgb(255, 0, 0)
