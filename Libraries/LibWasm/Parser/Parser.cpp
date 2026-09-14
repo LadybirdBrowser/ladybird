@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Array.h>
 #include <AK/ConstrainedStream.h>
 #include <AK/Debug.h>
 #include <AK/Endian.h>
@@ -737,6 +738,81 @@ ParseResult<Instruction> Instruction::parse(ConstrainedStream& stream)
     case Instructions::i64_extend16_s.value():
     case Instructions::i64_extend32_s.value():
         return Instruction { opcode };
+    case 0xfe: {
+        // Proposal "threads": atomic memory instructions.
+        auto selector = TRY_READ(stream, LEB128<u32>, ParseError::InvalidInput);
+
+        auto parse_memory_argument = [&]() -> ParseResult<MemoryArgument> {
+            // (align [multi-memory: memindex] offset)
+            u32 align = TRY_READ(stream, LEB128<u32>, ParseError::InvalidInput);
+
+            // Proposal "multi-memory", if bit 6 of alignment is set, then a memory index follows the alignment.
+            auto memory_index = 0;
+            if ((align & 0x40) != 0) {
+                align &= ~0x40;
+                memory_index = TRY_READ(stream, LEB128<u32>, ParseError::InvalidInput);
+            }
+
+            // Proposal 'memory64': memarg offsets are u64 instead of u32.
+            auto offset = TRY_READ(stream, LEB128<u64>, ParseError::InvalidInput);
+
+            return MemoryArgument { align, offset, MemoryIndex(memory_index) };
+        };
+
+        switch (selector) {
+        case 0x00:
+            return Instruction { Instructions::memory_atomic_notify, TRY(parse_memory_argument()) };
+        case 0x01:
+            return Instruction { Instructions::memory_atomic_wait32, TRY(parse_memory_argument()) };
+        case 0x02:
+            return Instruction { Instructions::memory_atomic_wait64, TRY(parse_memory_argument()) };
+        case 0x03: {
+            // atomic.fence is followed by a reserved zero byte.
+            auto reserved = TRY_READ(stream, u8, ParseError::InvalidInput);
+            if (reserved != 0)
+                return ParseError::InvalidInput;
+            return Instruction { Instructions::atomic_fence };
+        }
+        default:
+            break;
+        }
+
+        // The remaining instructions come in groups of seven, one per access width.
+        // in the order i32, i64, i32 8u, i32 16u, i64 8u, i64 16u, i64 32u.
+        // The groups are loads, stores and then read-modify-write x { add, sub, and, or, xor, xchg, cmpxchg }.
+        using Width = Instruction::AtomicMemoryArgument::Width;
+        using Op = Instruction::AtomicMemoryArgument::Op;
+        static constexpr Array widths { Width::I32, Width::I64, Width::I8As32, Width::I16As32, Width::I8As64, Width::I16As64, Width::I32As64 };
+        static constexpr u32 first_selector = 0x10;
+        static constexpr u32 last_selector = 0x4e;
+        if (selector < first_selector || selector > last_selector)
+            return ParseError::UnknownInstruction;
+
+        auto group = (selector - first_selector) / widths.size();
+        auto width = widths[(selector - first_selector) % widths.size()];
+        auto memory = TRY(parse_memory_argument());
+        switch (group) {
+        case 0:
+            return Instruction { Instructions::atomic_load, Instruction::AtomicMemoryArgument { memory, width } };
+        case 1:
+            return Instruction { Instructions::atomic_store, Instruction::AtomicMemoryArgument { memory, width } };
+        case 2:
+            return Instruction { Instructions::atomic_rmw, Instruction::AtomicMemoryArgument { memory, width, Op::Add } };
+        case 3:
+            return Instruction { Instructions::atomic_rmw, Instruction::AtomicMemoryArgument { memory, width, Op::Sub } };
+        case 4:
+            return Instruction { Instructions::atomic_rmw, Instruction::AtomicMemoryArgument { memory, width, Op::And } };
+        case 5:
+            return Instruction { Instructions::atomic_rmw, Instruction::AtomicMemoryArgument { memory, width, Op::Or } };
+        case 6:
+            return Instruction { Instructions::atomic_rmw, Instruction::AtomicMemoryArgument { memory, width, Op::Xor } };
+        case 7:
+            return Instruction { Instructions::atomic_rmw, Instruction::AtomicMemoryArgument { memory, width, Op::Xchg } };
+        case 8:
+            return Instruction { Instructions::atomic_rmw_cmpxchg, Instruction::AtomicMemoryArgument { memory, width } };
+        }
+        VERIFY_NOT_REACHED();
+    }
     case 0xfb:
     case 0xfc:
     case 0xfd: {

@@ -2899,6 +2899,219 @@ HANDLE_INSTRUCTION(memory_grow)
     TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
 }
 
+// Proposal "threads"
+struct AtomicAccess {
+    MemoryInstance* memory;
+    u64 address;
+};
+
+static ALWAYS_INLINE Optional<AtomicAccess> resolve_atomic_access(BytecodeInterpreter& interpreter, Configuration& configuration, Instruction::MemoryArgument const& arg, Value const& base_value, size_t access_size)
+{
+    auto const& memory_address = configuration.frame().module().memories().data()[arg.memory_index.value()];
+    auto* memory = configuration.store().unsafe_get(memory_address);
+    Checked<u64> address { memory_base_address(*memory, base_value) };
+    address += arg.offset;
+    Checked<u64> end_address { address };
+    end_address += access_size;
+    if (end_address.has_overflow() || end_address.value() > memory->size()) [[unlikely]] {
+        interpreter.set_trap("Memory access out of bounds"sv);
+        return {};
+    }
+    if (address.value() % access_size != 0) [[unlikely]] {
+        interpreter.set_trap("Unaligned atomic memory access"sv);
+        return {};
+    }
+    return AtomicAccess { memory, address.value() };
+}
+
+template<typename Callback>
+static ALWAYS_INLINE bool dispatch_atomic_width(Instruction::AtomicMemoryArgument::Width width, Callback&& callback)
+{
+    using Width = Instruction::AtomicMemoryArgument::Width;
+    switch (width) {
+    case Width::I32:
+        return callback.template operator()<u32, u32>();
+    case Width::I64:
+        return callback.template operator()<u64, u64>();
+    case Width::I8As32:
+        return callback.template operator()<u8, u32>();
+    case Width::I16As32:
+        return callback.template operator()<u16, u32>();
+    case Width::I8As64:
+        return callback.template operator()<u8, u64>();
+    case Width::I16As64:
+        return callback.template operator()<u16, u64>();
+    case Width::I32As64:
+        return callback.template operator()<u32, u64>();
+    }
+    VERIFY_NOT_REACHED();
+}
+
+HANDLE_INSTRUCTION(atomic_load)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    auto const& arg = instruction->arguments().unsafe_get<Instruction::AtomicMemoryArgument>();
+    auto& entry = configuration.source_value<SourceAddressMix::Any>(0, addresses.sources); // bounds checked by verifier.
+    auto trapped = dispatch_atomic_width(arg.width, [&]<typename MemoryType, typename StackType>() {
+        auto access = resolve_atomic_access(interpreter, configuration, arg.memory, entry, sizeof(MemoryType));
+        if (!access.has_value())
+            return true;
+        auto value = interpreter.read_value<MemoryType>({ access->memory->data().offset_pointer(access->address), sizeof(MemoryType) });
+        entry = Value(static_cast<StackType>(value));
+        return false;
+    });
+    if (trapped)
+        return Outcome::Return;
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(atomic_store)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    auto const& arg = instruction->arguments().unsafe_get<Instruction::AtomicMemoryArgument>();
+    auto value = configuration.take_source<SourceAddressMix::Any>(0, addresses.sources); // bounds checked by verifier.
+    auto base = configuration.take_source<SourceAddressMix::Any>(1, addresses.sources);  // bounds checked by verifier.
+    auto trapped = dispatch_atomic_width(arg.width, [&]<typename MemoryType, typename StackType>() {
+        auto access = resolve_atomic_access(interpreter, configuration, arg.memory, base, sizeof(MemoryType));
+        if (!access.has_value())
+            return true;
+        auto stored_value = static_cast<MemoryType>(value.to<StackType>());
+        access->memory->data().overwrite(access->address, &stored_value, sizeof(MemoryType));
+        return false;
+    });
+    if (trapped)
+        return Outcome::Return;
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(atomic_rmw)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    using Op = Instruction::AtomicMemoryArgument::Op;
+    auto const& arg = instruction->arguments().unsafe_get<Instruction::AtomicMemoryArgument>();
+    auto operand = configuration.take_source<SourceAddressMix::Any>(0, addresses.sources); // bounds checked by verifier.
+    auto& entry = configuration.source_value<SourceAddressMix::Any>(1, addresses.sources); // bounds checked by verifier.
+    auto trapped = dispatch_atomic_width(arg.width, [&]<typename MemoryType, typename StackType>() {
+        auto access = resolve_atomic_access(interpreter, configuration, arg.memory, entry, sizeof(MemoryType));
+        if (!access.has_value())
+            return true;
+        auto old_value = interpreter.read_value<MemoryType>({ access->memory->data().offset_pointer(access->address), sizeof(MemoryType) });
+        auto rhs = static_cast<MemoryType>(operand.to<StackType>());
+        MemoryType new_value;
+        switch (arg.op) {
+        case Op::Add:
+            new_value = old_value + rhs;
+            break;
+        case Op::Sub:
+            new_value = old_value - rhs;
+            break;
+        case Op::And:
+            new_value = old_value & rhs;
+            break;
+        case Op::Or:
+            new_value = old_value | rhs;
+            break;
+        case Op::Xor:
+            new_value = old_value ^ rhs;
+            break;
+        case Op::Xchg:
+            new_value = rhs;
+            break;
+        case Op::None:
+            VERIFY_NOT_REACHED();
+        }
+        access->memory->data().overwrite(access->address, &new_value, sizeof(MemoryType));
+        entry = Value(static_cast<StackType>(old_value));
+        return false;
+    });
+    if (trapped)
+        return Outcome::Return;
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(atomic_rmw_cmpxchg)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    auto const& arg = instruction->arguments().unsafe_get<Instruction::AtomicMemoryArgument>();
+    auto replacement = configuration.take_source<SourceAddressMix::Any>(0, addresses.sources); // bounds checked by verifier.
+    auto expected = configuration.take_source<SourceAddressMix::Any>(1, addresses.sources);    // bounds checked by verifier.
+    auto& entry = configuration.source_value<SourceAddressMix::Any>(2, addresses.sources);     // bounds checked by verifier.
+    auto trapped = dispatch_atomic_width(arg.width, [&]<typename MemoryType, typename StackType>() {
+        auto access = resolve_atomic_access(interpreter, configuration, arg.memory, entry, sizeof(MemoryType));
+        if (!access.has_value())
+            return true;
+        auto old_value = interpreter.read_value<MemoryType>({ access->memory->data().offset_pointer(access->address), sizeof(MemoryType) });
+        // The comparison is done at the width of the memory access, so the expected value is wrapped.
+        if (old_value == static_cast<MemoryType>(expected.to<StackType>())) {
+            auto new_value = static_cast<MemoryType>(replacement.to<StackType>());
+            access->memory->data().overwrite(access->address, &new_value, sizeof(MemoryType));
+        }
+        entry = Value(static_cast<StackType>(old_value));
+        return false;
+    });
+    if (trapped)
+        return Outcome::Return;
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(memory_atomic_notify)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    auto const& arg = instruction->arguments().unsafe_get<Instruction::MemoryArgument>();
+    (void)configuration.take_source<SourceAddressMix::Any>(0, addresses.sources);          // count, bounds checked by verifier.
+    auto& entry = configuration.source_value<SourceAddressMix::Any>(1, addresses.sources); // bounds checked by verifier.
+    auto access = resolve_atomic_access(interpreter, configuration, arg, entry, sizeof(i32));
+    if (!access.has_value())
+        return Outcome::Return;
+    // Nothing can be waiting on a non-shared memory, so there is never anything to wake up.
+    entry = Value(static_cast<i32>(0));
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
+HANDLE_INSTRUCTION(memory_atomic_wait32)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    auto const& arg = instruction->arguments().unsafe_get<Instruction::MemoryArgument>();
+    (void)configuration.take_source<SourceAddressMix::Any>(0, addresses.sources);          // timeout, bounds checked by verifier.
+    (void)configuration.take_source<SourceAddressMix::Any>(1, addresses.sources);          // expected, bounds checked by verifier.
+    auto& entry = configuration.source_value<SourceAddressMix::Any>(2, addresses.sources); // bounds checked by verifier.
+    auto access = resolve_atomic_access(interpreter, configuration, arg, entry, sizeof(i32));
+    if (!access.has_value())
+        return Outcome::Return;
+    // Waiting on a non-shared memory always traps.
+    interpreter.set_trap("Expected shared memory"sv);
+    return Outcome::Return;
+}
+
+HANDLE_INSTRUCTION(memory_atomic_wait64)
+{
+    LOG_INSN;
+    LOAD_ADDRESSES();
+    auto const& arg = instruction->arguments().unsafe_get<Instruction::MemoryArgument>();
+    (void)configuration.take_source<SourceAddressMix::Any>(0, addresses.sources);          // timeout, bounds checked by verifier.
+    (void)configuration.take_source<SourceAddressMix::Any>(1, addresses.sources);          // expected, bounds checked by verifier.
+    auto& entry = configuration.source_value<SourceAddressMix::Any>(2, addresses.sources); // bounds checked by verifier.
+    auto access = resolve_atomic_access(interpreter, configuration, arg, entry, sizeof(i64));
+    if (!access.has_value())
+        return Outcome::Return;
+    // Waiting on a non-shared memory always traps.
+    interpreter.set_trap("Expected shared memory"sv);
+    return Outcome::Return;
+}
+
+HANDLE_INSTRUCTION(atomic_fence)
+{
+    LOG_INSN;
+    // There is nothing to synchronize with in a single-threaded store.
+    TAILCALL return continue_(HANDLER_PARAMS(DECOMPOSE_PARAMS_NAME_ONLY));
+}
+
 HANDLE_INSTRUCTION(memory_fill)
 {
     LOG_INSN;

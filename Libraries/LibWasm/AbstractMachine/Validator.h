@@ -360,6 +360,7 @@ private:
     {
     }
 
+    ErrorOr<void, ValidationError> validate_atomic_memory_argument(Instruction::MemoryArgument const&, size_t access_size);
     ErrorOr<void, ValidationError> validate_struct_get(Stack&, Instruction const&, bool requires_packed);
     ErrorOr<FieldType, ValidationError> array_field_type(TypeIndex, StringView instruction_name, bool requires_mutable);
     ErrorOr<void, ValidationError> validate_array_get(Stack&, Instruction const&, bool requires_packed);

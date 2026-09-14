@@ -584,7 +584,18 @@ namespace Instructions {
     /* Continuation data for br_table with >8 labels.  \
      * Only consumed by the Cranelift compiler; */     \
     M(synthetic_br_table_cont, 0xfe00003cu, 0, 0)      \
-    M(synthetic_tier_up, 0xfe00003du, 0, 0)
+    M(synthetic_tier_up, 0xfe00003du, 0, 0)            \
+    /* threads; we steal 0xfe for our own opcodes,     \
+     * so the atomic ops are rewritten as parameteric  \
+     * synthetic instructions to avoid collisions. */  \
+    M(atomic_load, 0xfe00003eu, 1, 1)                  \
+    M(atomic_store, 0xfe00003fu, 2, 0)                 \
+    M(atomic_rmw, 0xfe000040u, 2, 1)                   \
+    M(atomic_rmw_cmpxchg, 0xfe000041u, 3, 1)           \
+    M(memory_atomic_notify, 0xfe000042u, 2, 1)         \
+    M(memory_atomic_wait32, 0xfe000043u, 3, 1)         \
+    M(memory_atomic_wait64, 0xfe000044u, 3, 1)         \
+    M(atomic_fence, 0xfe000045u, 0, 0)
 
 #define ENUMERATE_WASM_OPCODES(M)         \
     ENUMERATE_SINGLE_BYTE_WASM_OPCODES(M) \
@@ -595,7 +606,7 @@ ENUMERATE_WASM_OPCODES(M)
 #undef M
 
 static constexpr inline OpCode SyntheticInstructionBase = 0xfe000000u;
-static constexpr inline size_t SyntheticInstructionCount = 61;
+static constexpr inline size_t SyntheticInstructionCount = 70;
 
 }
 

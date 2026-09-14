@@ -5072,6 +5072,116 @@ VALIDATE_INSTRUCTION(synthetic_end_expression)
     return {}; // Always valid.
 }
 
+// https://webassembly.github.io/threads/core/valid/instructions.html#atomic-memory-instructions
+ErrorOr<void, ValidationError> Validator::validate_atomic_memory_argument(Instruction::MemoryArgument const& arg, size_t access_size)
+{
+    if (arg.align > 64)
+        return Errors::out_of_bounds("memory op alignment value"sv, arg.align, 0, 64);
+
+    // Unlike plain memory accesses, atomic accesses must be exactly naturally aligned.
+    if ((1ull << arg.align) != access_size)
+        return Errors::invalid("atomic memory op alignment"sv, access_size, 1ull << arg.align);
+
+    return {};
+}
+
+VALIDATE_INSTRUCTION(atomic_load)
+{
+    auto const& arg = instruction.arguments().get<Instruction::AtomicMemoryArgument>();
+    auto memory = TRY(validate(arg.memory.memory_index));
+    TRY(validate_atomic_memory_argument(arg.memory, arg.access_size()));
+
+    TRY((take_memory_address(stack, memory, arg.memory)));
+    stack.append(arg.value_type());
+
+    return {};
+}
+
+VALIDATE_INSTRUCTION(atomic_store)
+{
+    auto const& arg = instruction.arguments().get<Instruction::AtomicMemoryArgument>();
+    auto memory = TRY(validate(arg.memory.memory_index));
+    TRY(validate_atomic_memory_argument(arg.memory, arg.access_size()));
+
+    TRY(stack.take(arg.value_type()));
+    TRY((take_memory_address(stack, memory, arg.memory)));
+
+    return {};
+}
+
+VALIDATE_INSTRUCTION(atomic_rmw)
+{
+    auto const& arg = instruction.arguments().get<Instruction::AtomicMemoryArgument>();
+    auto memory = TRY(validate(arg.memory.memory_index));
+    TRY(validate_atomic_memory_argument(arg.memory, arg.access_size()));
+
+    TRY(stack.take(arg.value_type()));
+    TRY((take_memory_address(stack, memory, arg.memory)));
+    stack.append(arg.value_type());
+
+    return {};
+}
+
+VALIDATE_INSTRUCTION(atomic_rmw_cmpxchg)
+{
+    auto const& arg = instruction.arguments().get<Instruction::AtomicMemoryArgument>();
+    auto memory = TRY(validate(arg.memory.memory_index));
+    TRY(validate_atomic_memory_argument(arg.memory, arg.access_size()));
+
+    TRY(stack.take(arg.value_type())); // replacement
+    TRY(stack.take(arg.value_type())); // expected
+    TRY((take_memory_address(stack, memory, arg.memory)));
+    stack.append(arg.value_type());
+
+    return {};
+}
+
+VALIDATE_INSTRUCTION(memory_atomic_notify)
+{
+    auto const& arg = instruction.arguments().get<Instruction::MemoryArgument>();
+    auto memory = TRY(validate(arg.memory_index));
+    TRY(validate_atomic_memory_argument(arg, sizeof(i32)));
+
+    TRY((stack.take<ValueType::I32>())); // count
+    TRY((take_memory_address(stack, memory, arg)));
+    stack.append(ValueType(ValueType::I32));
+
+    return {};
+}
+
+VALIDATE_INSTRUCTION(memory_atomic_wait32)
+{
+    auto const& arg = instruction.arguments().get<Instruction::MemoryArgument>();
+    auto memory = TRY(validate(arg.memory_index));
+    TRY(validate_atomic_memory_argument(arg, sizeof(i32)));
+
+    TRY((stack.take<ValueType::I64>())); // timeout
+    TRY((stack.take<ValueType::I32>())); // expected
+    TRY((take_memory_address(stack, memory, arg)));
+    stack.append(ValueType(ValueType::I32));
+
+    return {};
+}
+
+VALIDATE_INSTRUCTION(memory_atomic_wait64)
+{
+    auto const& arg = instruction.arguments().get<Instruction::MemoryArgument>();
+    auto memory = TRY(validate(arg.memory_index));
+    TRY(validate_atomic_memory_argument(arg, sizeof(i64)));
+
+    TRY((stack.take<ValueType::I64>())); // timeout
+    TRY((stack.take<ValueType::I64>())); // expected
+    TRY((take_memory_address(stack, memory, arg)));
+    stack.append(ValueType(ValueType::I32));
+
+    return {};
+}
+
+VALIDATE_INSTRUCTION(atomic_fence)
+{
+    return {};
+}
+
 ErrorOr<void, ValidationError> Validator::validate(Instruction const& instruction, Stack& stack, bool& is_constant)
 {
     switch (instruction.opcode().value()) {
