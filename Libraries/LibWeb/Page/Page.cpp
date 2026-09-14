@@ -399,6 +399,11 @@ void Page::set_mouse_event_tracking_navigable(Badge<EventHandler>, HTML::LocalNa
     m_mouse_event_tracking_navigable = navigable;
 }
 
+void Page::set_hover_reporting_navigable(Badge<EventHandler>, GC::Ptr<HTML::LocalNavigable> navigable)
+{
+    m_hover_reporting_navigable = navigable;
+}
+
 EventResult Page::handle_mousemove(DevicePixelPoint position, DevicePixelPoint screen_position, unsigned buttons, unsigned modifiers)
 {
     return local_root_navigable()->event_handler().handle_mousemove(device_to_css_point(position), device_to_css_point(screen_position), buttons, modifiers);
