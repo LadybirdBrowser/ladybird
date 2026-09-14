@@ -4198,8 +4198,9 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
     auto& css_animation = as<CSS::CSSAnimation>(*animation);
 
     auto previous_phase = effect->previous_phase();
-    auto current_phase = effect->phase();
-    auto current_iteration = effect->current_iteration().value_or(0.0);
+    auto resolved_timing = effect->resolve_timing();
+    auto current_phase = resolved_timing.phase;
+    auto current_iteration = effect->current_iteration(resolved_timing).value_or(0.0);
 
     auto owning_element = css_animation.owning_element();
 
@@ -8774,8 +8775,9 @@ void Document::prepare_to_observe_css_animation_events()
     // OPTIMIZATION: Events which occurred while there were no listeners were intentionally not sampled. Establish
     //               the current phase as the baseline so a newly added listener only observes future events.
     for (auto& effect : effects_to_synchronize) {
-        effect->set_previous_phase(effect->phase());
-        effect->set_previous_current_iteration(effect->current_iteration().value_or(0.0));
+        auto resolved_timing = effect->resolve_timing();
+        effect->set_previous_phase(resolved_timing.phase);
+        effect->set_previous_current_iteration(effect->current_iteration(resolved_timing).value_or(0.0));
         effect->clear_per_frame_animation_tick_was_skipped();
     }
 }
