@@ -51,32 +51,6 @@ impl ResolvedAnchorInsets {
     }
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct PhysicalRect {
-    pub(crate) x: CssPixels,
-    pub(crate) y: CssPixels,
-    pub(crate) width: CssPixels,
-    pub(crate) height: CssPixels,
-}
-
-impl PhysicalRect {
-    pub(super) fn left(self) -> CssPixels {
-        self.x
-    }
-
-    pub(super) fn top(self) -> CssPixels {
-        self.y
-    }
-
-    pub(super) fn right(self) -> CssPixels {
-        self.x + self.width
-    }
-
-    pub(super) fn bottom(self) -> CssPixels {
-        self.y + self.height
-    }
-}
-
 pub(super) fn point_add(left: FfiCssPixelPoint, right: FfiCssPixelPoint) -> FfiCssPixelPoint {
     FfiCssPixelPoint {
         x: left.x + right.x,
@@ -384,7 +358,7 @@ pub(crate) fn place_child(
         let node_facts = NodeFacts::new(callbacks, node);
         let own_anchor_candidate_border_box_rect = (node_facts.is_box() && node_facts.has_anchor_names()).then(|| {
             let collapsed = used.uses_collapsing_borders_model.get();
-            PhysicalRect {
+            CssPixelRect {
                 x: used.content_offset.get().x - used.border_box_left(collapsed),
                 y: used.content_offset.get().y - used.border_box_top(collapsed),
                 width: used.border_box_inline_size(collapsed),
@@ -821,14 +795,6 @@ pub(crate) enum SizingProperty {
     FlexBasis,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-pub(crate) struct FlexLayoutItemRect {
-    pub(crate) x: CssPixels,
-    pub(crate) y: CssPixels,
-    pub(crate) width: CssPixels,
-    pub(crate) height: CssPixels,
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum FlexLayoutClampState {
     Unclamped,
@@ -845,7 +811,7 @@ pub(crate) enum FlexLayoutGrowthState {
 #[derive(Debug, PartialEq)]
 pub(crate) struct FlexLayoutItem {
     pub(crate) node_id: Option<i64>,
-    pub(crate) rect: FlexLayoutItemRect,
+    pub(crate) rect: CssPixelRect,
     pub(crate) main_base_size: CssPixels,
     pub(crate) main_delta_size: CssPixels,
     pub(crate) main_min_size: CssPixels,

@@ -12,54 +12,6 @@ struct FloatAvoidanceProbe {
     content_inline_size: Option<CssPixels>,
 }
 
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
-struct BlockCssPixelRect {
-    x: CssPixels,
-    y: CssPixels,
-    width: CssPixels,
-    height: CssPixels,
-}
-
-impl BlockCssPixelRect {
-    fn right(self) -> CssPixels {
-        self.x + self.width
-    }
-
-    fn bottom(self) -> CssPixels {
-        self.y + self.height
-    }
-
-    fn translated(self, x: CssPixels, y: CssPixels) -> Self {
-        Self {
-            x: self.x + x,
-            y: self.y + y,
-            ..self
-        }
-    }
-
-    fn intersects(self, other: Self) -> bool {
-        self.width > CssPixels::default()
-            && self.height > CssPixels::default()
-            && other.width > CssPixels::default()
-            && other.height > CssPixels::default()
-            && self.x < other.right()
-            && self.right() > other.x
-            && self.y < other.bottom()
-            && self.bottom() > other.y
-    }
-}
-
-impl From<BlockCssPixelRect> for FfiCssPixelRect {
-    fn from(rect: BlockCssPixelRect) -> Self {
-        Self {
-            x: rect.x,
-            y: rect.y,
-            width: rect.width,
-            height: rect.height,
-        }
-    }
-}
-
 fn round_css_pixels(value: CssPixels) -> CssPixels {
     let half = CssPixels::from_raw(crate::layout::FIXED_POINT_DENOMINATOR >> 1);
     if value > CssPixels::default() {
@@ -170,8 +122,8 @@ struct FloatingBox {
     // Bottom margin edge of `box`.
     bottom_margin_edge: CssPixels,
 
-    margin_box_rect_in_root_coordinate_space: BlockCssPixelRect,
-    containing_block_rect_in_root_coordinate_space: BlockCssPixelRect,
+    margin_box_rect_in_root_coordinate_space: CssPixelRect,
+    containing_block_rect_in_root_coordinate_space: CssPixelRect,
     percentage_basis_inline_size: Option<CssPixels>,
 }
 
@@ -478,9 +430,9 @@ impl<'pass> BlockFormattingContext<'pass> {
         );
     }
 
-    fn containing_block_rect(&self, node: Node, position: FfiCssPixelPoint) -> BlockCssPixelRect {
+    fn containing_block_rect(&self, node: Node, position: FfiCssPixelPoint) -> CssPixelRect {
         let used = self.used(node);
-        BlockCssPixelRect {
+        CssPixelRect {
             x: position.x,
             y: position.y,
             width: used.content_inline_size.get(),
@@ -488,12 +440,12 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
     }
 
-    fn margin_box_rect(used: &UsedValues) -> BlockCssPixelRect {
+    fn margin_box_rect(used: &UsedValues) -> CssPixelRect {
         let left = (used.margin_left.get() + used.border_box_left(false)).max(CssPixels::default());
         let right = (used.margin_right.get() + used.border_box_right(false)).max(CssPixels::default());
         let top = used.margin_box_top(false).max(CssPixels::default());
         let bottom = used.margin_box_bottom(false).max(CssPixels::default());
-        BlockCssPixelRect {
+        CssPixelRect {
             x: -left,
             y: -top,
             width: left + used.content_inline_size.get() + right,
@@ -565,7 +517,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         }
         let style = self.style(node);
         let available_inline_size = available_space.inline_size.to_px_or_zero();
-        let box_in_root_rect = BlockCssPixelRect {
+        let box_in_root_rect = CssPixelRect {
             x: content_position_in_root.x,
             y: content_position_in_root.y,
             width: available_inline_size,
@@ -1044,7 +996,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     fn intrusions_for_band_into_rect(
         &self,
         band: FloatBand,
-        rect_in_root: BlockCssPixelRect,
+        rect_in_root: CssPixelRect,
     ) -> inline_formatting_context::SpaceUsedByFloats {
         // Deliberately read the root inline size at query time. It can be stale while
         // intrinsic sizing of this context's own root is in progress.
@@ -1069,7 +1021,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         block_start_in_box: CssPixels,
         block_end_in_box: CssPixels,
     ) -> inline_formatting_context::SpaceUsedByFloats {
-        let rect = BlockCssPixelRect {
+        let rect = CssPixelRect {
             x: box_in_root_rect.x,
             y: box_in_root_rect.y,
             width: box_in_root_rect.width,
@@ -1097,7 +1049,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         side: FloatSide,
         used: &UsedValues,
         available_space: AvailableSpace,
-        containing_block_rect_in_root: BlockCssPixelRect,
+        containing_block_rect_in_root: CssPixelRect,
         ceiling_in_root: CssPixels,
     ) -> FloatPlacement {
         let margin_box_inline_size = used.margin_box_inline_size(false);
@@ -1156,7 +1108,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         bands.push(band);
     }
 
-    fn add_float_to_bands(&self, floating_box: FloatingBox, mut containing_block_rect_in_root: BlockCssPixelRect) {
+    fn add_float_to_bands(&self, floating_box: FloatingBox, mut containing_block_rect_in_root: CssPixelRect) {
         let pending_adjustment =
             self.block_offset_adjustment_from_pending_ancestor_block_start_margins(floating_box.box_);
         containing_block_rect_in_root.y += pending_adjustment;
@@ -1256,7 +1208,7 @@ impl<'pass> BlockFormattingContext<'pass> {
     fn margin_box_left_of_float_in_root(
         &self,
         floating_box: FloatingBox,
-        containing_block_rect_in_root: BlockCssPixelRect,
+        containing_block_rect_in_root: CssPixelRect,
     ) -> CssPixels {
         let used = self.used(floating_box.box_);
         if floating_box.side == FloatSide::Left {
@@ -1295,7 +1247,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         available_space: AvailableSpace,
         constraints: ContainingBlockConstraints,
         mut content_block_offset: CssPixels,
-        containing_block_rect_in_root: BlockCssPixelRect,
+        containing_block_rect_in_root: CssPixelRect,
         probe: &mut FloatAvoidanceProbe,
     ) -> CssPixels {
         if !matches!(available_space.inline_size, AvailableSize::Definite(_))
@@ -1315,7 +1267,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 + used.border_box_right(false);
             let border_box_block_offset_in_root =
                 containing_block_rect_in_root.y + content_block_offset - used.border_box_top(false);
-            let band_rect = BlockCssPixelRect {
+            let band_rect = CssPixelRect {
                 y: border_box_block_offset_in_root,
                 height: used.border_box_block_size(false),
                 ..containing_block_rect_in_root
@@ -1327,7 +1279,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 && border_box_left + candidate_border_box_inline_size
                     > available_space.inline_size.to_px_or_zero() - space.right;
             if !must_clear {
-                let border_rect = BlockCssPixelRect {
+                let border_rect = CssPixelRect {
                     x: band_rect.x + border_box_left,
                     y: border_box_block_offset_in_root,
                     width: candidate_border_box_inline_size,
@@ -1500,7 +1452,7 @@ impl<'pass> BlockFormattingContext<'pass> {
         let mut available_inline_size_within_containing_block = available_space.inline_size.to_px_or_zero();
         if self.box_should_avoid_floats_because_it_establishes_fc(node) {
             let space = self.intrusion_by_floats_into_rect(
-                BlockCssPixelRect {
+                CssPixelRect {
                     x: content_position_in_root.x,
                     y: content_position_in_root.y,
                     width: content_inline_size,
@@ -1936,7 +1888,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                     Self::marker_centered_block_offset(marker_style.line_height(), estimated_block_size);
                 let list_item_used = self.used(node);
                 inline_space_used_before_children_formatted = self.intrusion_by_floats_into_rect(
-                    BlockCssPixelRect {
+                    CssPixelRect {
                         x: content_position_in_root_now(content_block_offset).x + content_inline_offset,
                         y: content_position_in_root_now(content_block_offset).y,
                         width: content_inline_size_now,
