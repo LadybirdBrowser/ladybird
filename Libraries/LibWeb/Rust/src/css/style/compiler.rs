@@ -23,7 +23,6 @@
 
 use super::tree::StyleNodeID;
 use crate::css::selector::AttributeCaseType;
-use crate::css::selector::AttributeMatchType;
 use crate::css::selector::AttributeSelector;
 use crate::css::selector::Combinator;
 use crate::css::selector::CompiledSelector;
@@ -900,15 +899,7 @@ impl<'a> SelectorCompiler<'a> {
         };
         let name = (self.intern)(raw, namespace);
 
-        let operator = match attribute.match_type {
-            AttributeMatchType::HasAttribute => AttributeOperator::Presence,
-            AttributeMatchType::ExactValue => AttributeOperator::Exact,
-            AttributeMatchType::ContainsWord => AttributeOperator::Includes,
-            AttributeMatchType::ContainsString => AttributeOperator::Substring,
-            AttributeMatchType::StartsWithSegment => AttributeOperator::DashMatch,
-            AttributeMatchType::StartsWithString => AttributeOperator::Prefix,
-            AttributeMatchType::EndsWithString => AttributeOperator::Suffix,
-        };
+        let operator = AttributeOperator::from(attribute.match_type);
         let case = match attribute.case_type {
             AttributeCaseType::Insensitive => AttributeCase::Insensitive,
             AttributeCaseType::Sensitive => AttributeCase::Sensitive,
@@ -916,8 +907,11 @@ impl<'a> SelectorCompiler<'a> {
             // Some attribute names compare their values ASCII case-insensitively, but only for an
             // HTML element in an HTML document, so the subject decides which rule applies.
             AttributeCaseType::Default => {
-                let names_a_legacy_attribute = attribute.qualified_name.namespace_type == NamespaceType::Default
-                    && crate::css::selector::is_ascii_case_insensitive_html_attribute(&attribute.qualified_name.name);
+                let names_a_legacy_attribute =
+                    matches!(
+                        attribute.qualified_name.namespace_type,
+                        NamespaceType::Default | NamespaceType::None
+                    ) && crate::css::selector::is_ascii_case_insensitive_html_attribute(&attribute.qualified_name.name);
                 match names_a_legacy_attribute && !self.html_element_namespace.is_none() {
                     true => AttributeCase::InsensitiveForNamespace(self.html_element_namespace),
                     false => AttributeCase::Sensitive,

@@ -1,0 +1,69 @@
+explicit no-namespace HTML folding (false): true
+explicit no-namespace sensitive flag (false): true
+detached [data-value]: true
+detached [missing]: true
+detached [data-value="alpha\9 BETA\a γamma"]: true
+detached [data-value~=BETA]: true
+detached [data-value~=beta]: true
+detached [data-value~=beta i]: true
+detached [data-value^=alpha]: true
+detached [data-value$=γamma]: true
+detached [data-value*=ETA]: true
+detached [data-value*=""]: true
+detached [data-value^=""]: true
+detached [data-value$=""]: true
+detached [data-ascii~=beta i]: true
+detached [data-ascii^=alpha]: true
+detached [data-ascii$=gamma]: true
+detached [data-ascii*=ETA]: true
+detached [lang|=en]: true
+detached [lang|=EN s]: true
+detached [data-empty=""]: true
+detached [data-empty~=""]: true
+detached [type=text]: true
+detached [type=text s]: true
+detached [|type=text]: true
+detached [TYPE=text]: true
+detached input#subject.subject[data-value][type=text]: true
+detached .missing, #subject: true
+detached [missing], [data-empty]: true
+detached .missing, [missing]: true
+explicit no-namespace HTML folding (true): true
+explicit no-namespace sensitive flag (true): true
+connected [data-value]: true
+connected [missing]: true
+connected [data-value="alpha\9 BETA\a γamma"]: true
+connected [data-value~=BETA]: true
+connected [data-value~=beta]: true
+connected [data-value~=beta i]: true
+connected [data-value^=alpha]: true
+connected [data-value$=γamma]: true
+connected [data-value*=ETA]: true
+connected [data-value*=""]: true
+connected [data-value^=""]: true
+connected [data-value$=""]: true
+connected [data-ascii~=beta i]: true
+connected [data-ascii^=alpha]: true
+connected [data-ascii$=gamma]: true
+connected [data-ascii*=ETA]: true
+connected [lang|=en]: true
+connected [lang|=EN s]: true
+connected [data-empty=""]: true
+connected [data-empty~=""]: true
+connected [type=text]: true
+connected [type=text s]: true
+connected [|type=text]: true
+connected [TYPE=text]: true
+connected input#subject.subject[data-value][type=text]: true
+connected .missing, #subject: true
+connected [missing], [data-empty]: true
+connected .missing, [missing]: true
+attribute name folding: true
+namespace excluded: true
+style synchronized: true
+mutation: true
+SVG case: true
+XML case: true
+leaf excludes shadow tree: true
+syntax error: true
+leaf mutation: true
