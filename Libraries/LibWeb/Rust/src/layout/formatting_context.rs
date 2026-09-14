@@ -655,16 +655,16 @@ pub(crate) fn derive_baselines(
     let container_skips_anonymous_whitespace_runs =
         container_display.is_flex_inside() || container_display.is_grid_inside();
     let baseline_from_children = |baseline_set: BaselineSet| -> Option<CssPixels> {
-        let mut children = Vec::new();
-        let mut child = callbacks.first_child(box_);
-        while !child.is_invalid() {
-            children.push(child);
-            child = callbacks.next_sibling(child);
-        }
-        if baseline_set == BaselineSet::Last {
-            children.reverse();
-        }
-        for child in children {
+        let mut next_child = match baseline_set {
+            BaselineSet::First => callbacks.first_child(box_),
+            BaselineSet::Last => callbacks.last_child(box_),
+        };
+        while !next_child.is_invalid() {
+            let child = next_child;
+            next_child = match baseline_set {
+                BaselineSet::First => callbacks.next_sibling(child),
+                BaselineSet::Last => callbacks.previous_sibling(child),
+            };
             let child_facts = NodeFacts::new(callbacks, child);
             if !child_facts.is_flow_layout_participant() || (!inhibits_floating && child_facts.is_floating()) {
                 continue;
