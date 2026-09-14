@@ -4,12 +4,30 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/NeverDestroyed.h>
 #include <LibGC/Heap.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/RemoteNavigable.h>
+#include <LibWeb/Page/Page.h>
 
 namespace Web::HTML {
 
 GC_DEFINE_ALLOCATOR(RemoteNavigable);
+
+HashTable<GC::RawRef<RemoteNavigable>>& all_remote_navigables()
+{
+    static NeverDestroyed<HashTable<GC::RawRef<RemoteNavigable>>> set;
+    return *set;
+}
+
+GC::Ptr<RemoteNavigable> remote_navigable_with_id(Page const& page, CrossProcessId id)
+{
+    for (auto& navigable : all_remote_navigables()) {
+        if (navigable->id() == id && &navigable->page() == &page)
+            return navigable;
+    }
+    return nullptr;
+}
 
 GC::Ref<RemoteNavigable> RemoteNavigable::create(GC::Ref<Page> page, CrossProcessId id, GC::Ptr<Navigable> parent, ReplicatedNavigableState replicated_state)
 {
@@ -22,9 +40,49 @@ RemoteNavigable::RemoteNavigable(GC::Ref<Page> page, CrossProcessId id, GC::Ptr<
 {
     set_id(id);
     set_parent(parent);
+    all_remote_navigables().set(*this);
 }
 
 RemoteNavigable::~RemoteNavigable() = default;
+
+void RemoteNavigable::finalize()
+{
+    all_remote_navigables().remove(*this);
+    Base::finalize();
+}
+
+void RemoteNavigable::remove_from_all_remote_navigables()
+{
+    all_remote_navigables().remove(*this);
+}
+
+void RemoteNavigable::visit_edges(Cell::Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_children);
+    visitor.visit(m_provisional_navigable);
+}
+
+void RemoteNavigable::append_child(GC::Ref<Navigable> child)
+{
+    VERIFY(child->parent().ptr() == this);
+    m_children.append(child);
+}
+
+void RemoteNavigable::remove_child(Navigable& child)
+{
+    auto removed = m_children.remove_first_matching([&](auto const& existing_child) { return existing_child.ptr() == &child; });
+    VERIFY(removed);
+}
+
+void RemoteNavigable::replace_child(Navigable& child, GC::Ref<Navigable> replacement)
+{
+    VERIFY(replacement->id() == child.id());
+    VERIFY(replacement->parent().ptr() == this);
+    auto index = m_children.find_first_index_if([&](auto const& existing_child) { return existing_child.ptr() == &child; });
+    VERIFY(index.has_value());
+    m_children[*index] = replacement;
+}
 
 GC::Ptr<WindowProxy> RemoteNavigable::active_window_proxy()
 {
@@ -35,11 +93,27 @@ GC::Ptr<WindowProxy> RemoteNavigable::active_window_proxy()
 
 Vector<GC::Root<Navigable>> RemoteNavigable::active_document_inclusive_descendant_navigables()
 {
-    // The UI process replicated this navigable and its ancestors, not the rest of its subtree, so it contributes only
-    // itself until the graph is kept current.
+    // The navigable's subtree as the UI process replicates it: itself, then each child's inclusive descendants.
     Vector<GC::Root<Navigable>> navigables;
     navigables.append(*this);
+    for (auto& child : m_children)
+        navigables.extend(child->active_document_inclusive_descendant_navigables());
     return navigables;
+}
+
+void RemoteNavigable::set_replicated_state(ReplicatedNavigableState state)
+{
+    auto previous_compositor_context_id = m_replicated_state.compositor_context_id;
+    m_replicated_state = move(state);
+
+    // The documents of the navigable's children hosted here composite into the context its document is painted
+    // through, wherever that document is hosted.
+    if (previous_compositor_context_id != m_replicated_state.compositor_context_id) {
+        for (auto& child : m_children) {
+            if (auto* local_child = as_if<LocalNavigable>(*child))
+                local_child->set_parent_compositor_context(m_replicated_state.compositor_context_id);
+        }
+    }
 }
 
 bool RemoteNavigable::has_session_history_entry_and_ready_for_navigation() const

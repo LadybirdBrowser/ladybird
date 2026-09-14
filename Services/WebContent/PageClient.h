@@ -73,6 +73,7 @@ public:
 
     void set_palette_impl(Gfx::PaletteImpl&);
     void set_viewport(Web::DevicePixelSize const&, double device_pixel_ratio);
+    void set_hosted_root_viewport(Web::HTML::CrossProcessId, Web::DevicePixelSize const&, double device_pixel_ratio);
     void set_screen_rects(Vector<Web::DevicePixelRect> const& rects, size_t main_screen_index)
     {
         m_all_screen_rects = rects;
@@ -167,6 +168,9 @@ private:
     void request_rendering_opportunity_if_needed();
     void schedule_local_rendering_opportunity();
     void schedule_compositor_watchdog();
+    void hurry_outstanding_rendering_opportunity();
+    Optional<Web::Compositor::CompositorContextHandle&> rendering_opportunity_context();
+    bool hosted_documents_are_hidden() const;
     void frame_timer_fired();
     void grant_rendering_opportunity(double frame_time, Web::HTML::EventLoop::RenderingOpportunitySource);
     void deliver_granted_rendering_opportunity();
@@ -268,7 +272,7 @@ private:
     virtual void page_did_update_resource_count(i32) override;
     virtual NewWebViewResult page_did_request_new_web_view(Web::HTML::ActivateTab, Web::HTML::WebViewHints, Optional<Web::HTML::CrossProcessId> opener_navigable_id, Optional<URL::URL> opener_base_url, Utf16String const& target_name) override;
     virtual void page_did_request_activate_tab() override;
-    virtual void page_did_close_top_level_traversable() override;
+    virtual void page_did_close() override;
     virtual void page_did_change_needs_beforeunload_check(bool needs_beforeunload_check) override;
     virtual void page_did_update_session_history_entry_navigation_api_state(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity const& entry_identity, Web::HTML::StorageSerializationRecord const& navigation_api_state) override;
     virtual void page_did_update_session_history_entry_scroll_restoration_mode(Web::HTML::CrossProcessId navigable_id, Web::HTML::SessionHistoryEntryIdentity const& entry_identity, Web::HTML::ScrollRestorationMode scroll_restoration_mode) override;

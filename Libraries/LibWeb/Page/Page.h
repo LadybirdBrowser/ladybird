@@ -108,16 +108,31 @@ public:
     Compositor::CompositorHost& compositor_host();
     Compositor::CompositorHost const& compositor_host() const;
 
-    // The root navigable hosted by this Page. Its logical ancestors may belong to other pages or processes.
-    void set_local_root_navigable(GC::Ref<HTML::LocalNavigable>);
-    GC::Ref<HTML::LocalNavigable> local_root_navigable() const;
+    void set_top_level_traversable(GC::Ref<HTML::Navigable>);
+    GC::Ref<HTML::Navigable> top_level_traversable() const;
+    bool has_top_level_traversable() const { return m_top_level_traversable != nullptr; }
 
-    bool has_local_root_navigable() const;
+    GC::Ref<HTML::LocalNavigable> local_traversable() const;
+    bool has_local_traversable() const;
+    Vector<GC::Ref<HTML::LocalNavigable>> local_roots() const;
+    Vector<GC::Root<HTML::LocalNavigable>> hosted_navigables() const;
+    GC::Ptr<HTML::Navigable> navigable_with_id(HTML::CrossProcessId) const;
+
+    void create_remote_navigable_graph(Vector<HTML::RemoteNavigableDescriptor>);
+    void insert_remote_navigable(HTML::RemoteNavigableDescriptor);
+    void remove_remote_navigable(HTML::CrossProcessId);
+    void update_remote_navigable(HTML::CrossProcessId, HTML::ReplicatedNavigableState);
+
+    GC::Ref<HTML::LocalNavigable> begin_hosting(HTML::CrossProcessId, HTML::SessionHistoryEntryDescriptor const& current_history_entry, HTML::VisibilityState system_visibility_state);
+    void adopt_hosted(HTML::LocalNavigable&);
+    void discard_provisional_navigable(HTML::CrossProcessId);
+    void stop_hosting(HTML::CrossProcessId, HTML::ReplicatedNavigableState);
+    void stop_hosting(HTML::LocalNavigable&, HTML::ReplicatedNavigableState);
+
+    void discard();
 
     HTML::BrowsingContext& top_level_browsing_context();
     HTML::BrowsingContext const& top_level_browsing_context() const;
-
-    GC::Ref<HTML::Navigable> top_level_traversable() const;
 
     HTML::HistoryExecutor& history_executor();
 
@@ -143,6 +158,14 @@ public:
     DevicePixelRect enclosing_device_rect(CSSPixelRect) const;
     DevicePixelRect rounded_device_rect(CSSPixelRect) const;
     ChromeMetrics chrome_metrics() const;
+
+    EventResult handle_mouseup(HTML::LocalNavigable& root, DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers);
+    EventResult handle_mousedown(HTML::LocalNavigable& root, DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count);
+    EventResult handle_mousemove(HTML::LocalNavigable& root, DevicePixelPoint, DevicePixelPoint screen_position, unsigned buttons, unsigned modifiers);
+    EventResult handle_mouseleave(HTML::LocalNavigable& root);
+    EventResult handle_mousewheel(HTML::LocalNavigable& root, DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, double wheel_delta_x, double wheel_delta_y, WheelDeltaPrecision, ScrollGesturePhase, bool async_scroll_performed_default_action, Optional<AsyncScrollOperation>* async_scroll_operation);
+    EventResult handle_drag_and_drop_event(HTML::LocalNavigable& root, DragEvent::Type, DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, Vector<HTML::SelectedFile> files);
+    EventResult handle_pinch_event(HTML::LocalNavigable& root, DevicePixelPoint point, unsigned modifiers, double scale);
 
     EventResult handle_mouseup(DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers);
     EventResult handle_mousedown(DevicePixelPoint, DevicePixelPoint screen_position, unsigned button, unsigned buttons, unsigned modifiers, int click_count);
@@ -396,7 +419,7 @@ private:
     // once passed through, e.g.) leaves the report standing.
     GC::Weak<HTML::LocalNavigable> m_hover_reporting_navigable;
 
-    GC::Ptr<HTML::LocalNavigable> m_local_root_navigable;
+    GC::Ptr<HTML::Navigable> m_top_level_traversable;
 
     GC::Ref<HTML::HistoryExecutor> m_history_executor;
 
@@ -659,7 +682,7 @@ public:
     };
     virtual NewWebViewResult page_did_request_new_web_view(HTML::ActivateTab, HTML::WebViewHints, [[maybe_unused]] Optional<HTML::CrossProcessId> opener_navigable_id, [[maybe_unused]] Optional<URL::URL> opener_base_url, [[maybe_unused]] Utf16String const& target_name) { return {}; }
     virtual void page_did_request_activate_tab() { }
-    virtual void page_did_close_top_level_traversable() { }
+    virtual void page_did_close() { }
     virtual void page_did_update_session_history_entry_navigation_api_state([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::SessionHistoryEntryIdentity const& entry_identity, [[maybe_unused]] HTML::StorageSerializationRecord const& navigation_api_state) { }
     virtual void page_did_update_session_history_entry_scroll_restoration_mode([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::SessionHistoryEntryIdentity const& entry_identity, [[maybe_unused]] HTML::ScrollRestorationMode scroll_restoration_mode) { }
     virtual void page_did_update_session_history_entry_document_state_navigable_target_name([[maybe_unused]] HTML::CrossProcessId navigable_id, [[maybe_unused]] HTML::SessionHistoryEntryIdentity const& entry_identity, [[maybe_unused]] Utf16String const& navigable_target_name) { }

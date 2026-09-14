@@ -1381,9 +1381,8 @@ Optional<i32> WindowOrWorkerGlobalScopeMixin::throttled_timer_delay(TimerThrottl
 
     auto& document = as<Window>(this_impl()).associated_document();
     auto grid_origin = [&] {
-        auto& page = document.page();
-        if (page.has_local_root_navigable()) {
-            if (auto root_document = page.local_root_navigable()->active_document())
+        if (auto navigable = document.navigable()) {
+            if (auto root_document = navigable->local_root()->active_document())
                 return relevant_settings_object(*root_document).time_origin();
         }
         return relevant_settings_object(document).time_origin();

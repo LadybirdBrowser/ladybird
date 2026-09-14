@@ -23,6 +23,7 @@ ErrorOr<void> encode(Encoder& encoder, Web::HTML::ReplicatedNavigableState const
     TRY(encoder.encode(state.top_level_origin));
     TRY(encoder.encode(state.has_cross_site_ancestor));
     TRY(encoder.encode(state.opener_policy));
+    TRY(encoder.encode(state.compositor_context_id));
     return {};
 }
 
@@ -39,6 +40,26 @@ ErrorOr<Web::HTML::ReplicatedNavigableState> decode(Decoder& decoder)
         .top_level_origin = TRY(decoder.decode<URL::Origin>()),
         .has_cross_site_ancestor = TRY(decoder.decode<bool>()),
         .opener_policy = TRY(decoder.decode<Web::HTML::OpenerPolicy>()),
+        .compositor_context_id = TRY(decoder.decode<Optional<Web::Compositor::CompositorContextId>>()),
+    };
+}
+
+template<>
+ErrorOr<void> encode(Encoder& encoder, Web::HTML::RemoteNavigableDescriptor const& descriptor)
+{
+    TRY(encoder.encode(descriptor.id));
+    TRY(encoder.encode(descriptor.parent_id));
+    TRY(encoder.encode(descriptor.replicated_state));
+    return {};
+}
+
+template<>
+ErrorOr<Web::HTML::RemoteNavigableDescriptor> decode(Decoder& decoder)
+{
+    return Web::HTML::RemoteNavigableDescriptor {
+        .id = TRY(decoder.decode<Web::HTML::CrossProcessId>()),
+        .parent_id = TRY(decoder.decode<Optional<Web::HTML::CrossProcessId>>()),
+        .replicated_state = TRY(decoder.decode<Web::HTML::ReplicatedNavigableState>()),
     };
 }
 

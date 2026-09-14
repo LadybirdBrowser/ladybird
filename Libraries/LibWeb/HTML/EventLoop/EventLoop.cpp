@@ -344,6 +344,20 @@ void EventLoop::process_input_events() const
                 continue;
             }
 
+            // The local root given by the event's navigable ID, or the page's traversable if it has none.
+            GC::Ptr<LocalNavigable> root;
+            if (event.navigable_id.has_value())
+                root = as_if<LocalNavigable>(page.navigable_with_id(*event.navigable_id).ptr());
+            else if (page.has_local_traversable())
+                root = page.local_traversable();
+
+            if (!root) {
+                for (size_t i = 0; i < event.coalesced_event_count; ++i)
+                    page_client.report_finished_handling_input_event(event.page_id, EventResult::Dropped);
+                page_client.report_finished_handling_input_event(event.page_id, EventResult::Dropped);
+                continue;
+            }
+
             auto result = event.event.visit(
                 [&](KeyEvent const& key_event) {
                     switch (key_event.type) {
@@ -357,27 +371,27 @@ void EventLoop::process_input_events() const
                 [&](MouseEvent const& mouse_event) {
                     switch (mouse_event.type) {
                     case MouseEvent::Type::MouseDown:
-                        return page.handle_mousedown(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.click_count);
+                        return page.handle_mousedown(*root, mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.click_count);
                     case MouseEvent::Type::MouseUp:
-                        return page.handle_mouseup(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers);
+                        return page.handle_mouseup(*root, mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers);
                     case MouseEvent::Type::MouseMove:
-                        return page.handle_mousemove(mouse_event.position, mouse_event.screen_position, mouse_event.buttons, mouse_event.modifiers);
+                        return page.handle_mousemove(*root, mouse_event.position, mouse_event.screen_position, mouse_event.buttons, mouse_event.modifiers);
                     case MouseEvent::Type::MouseLeave:
-                        return page.handle_mouseleave();
+                        return page.handle_mouseleave(*root);
                     case MouseEvent::Type::MouseWheel:
                         if (mouse_event.async_scroll_performed_default_action) {
                             dbgln_if(COMPOSITOR_DEBUG, "[Compositor] Main thread handling DOM wheel after async default action");
-                            return page.handle_mousewheel(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.wheel_delta_x, mouse_event.wheel_delta_y, mouse_event.wheel_delta_precision, mouse_event.scroll_gesture_phase, true);
+                            return page.handle_mousewheel(*root, mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.wheel_delta_x, mouse_event.wheel_delta_y, mouse_event.wheel_delta_precision, mouse_event.scroll_gesture_phase, true, nullptr);
                         }
-                        return page.handle_mousewheel(mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.wheel_delta_x, mouse_event.wheel_delta_y, mouse_event.wheel_delta_precision, mouse_event.scroll_gesture_phase);
+                        return page.handle_mousewheel(*root, mouse_event.position, mouse_event.screen_position, mouse_event.button, mouse_event.buttons, mouse_event.modifiers, mouse_event.wheel_delta_x, mouse_event.wheel_delta_y, mouse_event.wheel_delta_precision, mouse_event.scroll_gesture_phase, false, nullptr);
                     }
                     VERIFY_NOT_REACHED();
                 },
                 [&](Web::DragEvent& drag_event) {
-                    return page.handle_drag_and_drop_event(drag_event.type, drag_event.position, drag_event.screen_position, drag_event.button, drag_event.buttons, drag_event.modifiers, move(drag_event.files));
+                    return page.handle_drag_and_drop_event(*root, drag_event.type, drag_event.position, drag_event.screen_position, drag_event.button, drag_event.buttons, drag_event.modifiers, move(drag_event.files));
                 },
                 [&](Web::PinchEvent& pinch_event) {
-                    return page.handle_pinch_event(pinch_event.position, pinch_event.modifiers, pinch_event.scale_delta);
+                    return page.handle_pinch_event(*root, pinch_event.position, pinch_event.modifiers, pinch_event.scale_delta);
                 });
 
             for (size_t i = 0; i < event.coalesced_event_count; ++i)
@@ -394,19 +408,20 @@ void EventLoop::process_input_events() const
         page.handle_sdl_input_events();
     };
 
-    auto documents_of_traversable_navigables = documents_in_this_event_loop_matching([&](auto const& document) {
-        if (document.is_decoded_svg())
-            return false;
-        if (!document.navigable())
-            return false;
-        if (!document.navigable()->is_traversable())
-            return false;
-        return true;
-    });
-
-    for (auto const& document : documents_of_traversable_navigables) {
-        process_input_events_queue(document->page());
+    // Every page hosting a document takes the input events queued for it, once.
+    Vector<GC::Ref<Page>> pages;
+    for (auto& navigable : all_local_navigables()) {
+        if (!navigable->is_local_root() || navigable->has_been_destroyed())
+            continue;
+        auto document = navigable->active_document();
+        if (!document || document->is_decoded_svg())
+            continue;
+        if (!pages.contains_slow(GC::Ref { navigable->page() }))
+            pages.append(navigable->page());
     }
+
+    for (auto const& page : pages)
+        process_input_events_queue(*page);
 }
 
 // https://html.spec.whatwg.org/multipage/webappapis.html#update-the-rendering

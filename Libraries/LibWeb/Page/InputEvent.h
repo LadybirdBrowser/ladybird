@@ -12,6 +12,7 @@
 #include <LibGfx/Point.h>
 #include <LibIPC/Forward.h>
 #include <LibWeb/Export.h>
+#include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/SelectedFile.h>
 #include <LibWeb/Page/PageId.h>
 #include <LibWeb/PixelUnits.h>
@@ -136,6 +137,9 @@ struct QueuedInputEvent {
     Web::PageId page_id { 0 };
     InputEvent event;
     size_t coalesced_event_count { 0 };
+    // The local root the event targets when it is not the page's traversable: a navigable whose parent's document
+    // another process hosts, which the UI process addresses by id.
+    Optional<HTML::CrossProcessId> navigable_id;
 };
 
 }
