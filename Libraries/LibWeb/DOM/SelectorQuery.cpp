@@ -31,8 +31,9 @@ public:
         // Attribute-name and default value case behavior are compiled into a query, so publish the document kind
         // before any query is compiled rather than while facts are populated afterward.
         CSS::configure_isolated_selector_query_engine(m_engine, root.document());
-        CSS::populate_isolated_selector_query_engine(m_engine, root, [&](GC::Ref<Element> element, CSS::StyleNodeID identity) {
+        m_root_identity = CSS::populate_isolated_selector_query_engine(m_engine, root, [&](GC::Ref<Element> element, CSS::StyleNodeID identity) {
             m_identities.set(element, identity);
+            m_elements.set(identity, element);
         });
     }
 
@@ -56,8 +57,46 @@ public:
         return *result;
     }
 
+    GC::Ptr<Element> query_first(SelectorQuery const& query, ParentNode const& root)
+    {
+        auto context = subtree_query(root);
+        if (!context.root)
+            return nullptr;
+        CSS::StyleNodeID matched;
+        VERIFY(m_engine.selector_query_first(compiled_query_for(query), context.root, context.include_root, context.scope, 0, m_has_document_root, matched));
+        return matched.value() ? m_elements.get(matched).value() : nullptr;
+    }
+
+    void query_all(SelectorQuery const& query, ParentNode const& root, Vector<GC::RawPtr<Element>>& elements)
+    {
+        auto context = subtree_query(root);
+        if (!context.root)
+            return;
+        Vector<CSS::StyleNodeID> matches;
+        VERIFY(m_engine.selector_query_all(compiled_query_for(query), context.root, context.include_root, context.scope, 0, m_has_document_root, matches));
+        elements.ensure_capacity(matches.size());
+        for (auto identity : matches)
+            elements.unchecked_append(m_elements.get(identity).value());
+    }
+
 private:
-    void const* compiled_query_for(SelectorQuery const& query)
+    struct SubtreeQuery {
+        CSS::StyleNodeID root;
+        CSS::StyleNodeID scope;
+        bool include_root;
+    };
+
+    SubtreeQuery subtree_query(ParentNode const& root) const
+    {
+        if (auto* element = as_if<Element>(root)) {
+            auto identity = m_identities.get(element).value();
+            return { identity, identity, false };
+        }
+        // A document's element participates in its query; a fragment's synthetic root does not.
+        return { m_root_identity, {}, m_has_document_root };
+    }
+
+    void* compiled_query_for(SelectorQuery const& query)
     {
         if (auto it = m_compiled_queries.find(&query); it != m_compiled_queries.end())
             return it->value.handle;
@@ -102,6 +141,8 @@ private:
 
     CSS::StyleEngine m_engine;
     HashMap<GC::Ptr<Element const>, CSS::StyleNodeID> m_identities;
+    HashMap<CSS::StyleNodeID, GC::RawPtr<Element>> m_elements;
+    CSS::StyleNodeID m_root_identity;
     HashMap<SelectorQuery const*, CompiledQuery> m_compiled_queries;
     bool m_has_document_root { false };
 };
@@ -435,10 +476,10 @@ GC::Ptr<Element> SelectorQuery::query_first(ParentNode& root) const
         auto& tree_root = as<ParentNode>(root.root());
         if (m_is_result_cacheable) {
             auto& engine = root.document().isolated_selector_query_engine_cache().engine_for(tree_root);
-            return cache_result(first_match(root, [&](auto& element) { return engine.matches(*this, element, root); }));
+            return cache_result(engine.query_first(*this, root));
         }
         IsolatedSelectorQueryEngine engine(tree_root);
-        return first_match(root, [&](auto& element) { return engine.matches(*this, element, root); });
+        return engine.query_first(*this, root);
     }
 
     auto& document = root.document();
@@ -488,10 +529,10 @@ GC::Ref<NodeList> SelectorQuery::query_all(ParentNode& root) const
         auto& tree_root = as<ParentNode>(root.root());
         if (m_is_result_cacheable) {
             auto& engine = document.isolated_selector_query_engine_cache().engine_for(tree_root);
-            collect_matches(root, [&](auto& element) { return engine.matches(*this, element, root); }, elements);
+            engine.query_all(*this, root, elements);
         } else {
             IsolatedSelectorQueryEngine engine(tree_root);
-            collect_matches(root, [&](auto& element) { return engine.matches(*this, element, root); }, elements);
+            engine.query_all(*this, root, elements);
         }
     } else {
         settle_connected_selector_query(document);
