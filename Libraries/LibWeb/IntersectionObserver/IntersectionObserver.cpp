@@ -15,6 +15,7 @@
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/IntersectionObserver/IntersectionObserver.h>
@@ -135,7 +136,12 @@ WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::create_
 WebIDL::ExceptionOr<GC::Ref<IntersectionObserver>> IntersectionObserver::create_for_constructor(JS::Object& relevant_global_object, GC::Ptr<WebIDL::CallbackType> callback, IntersectionObserverOptions options)
 {
     auto& window = HTML::relevant_window(relevant_global_object);
-    auto implicit_root_document = window.page().top_level_browsing_context().active_document();
+    // The implicit root is the top-level browsing context's document.
+    // FIXME: Where another process hosts that document, the document rooting this process's part of the tree stands
+    //        in, so intersections are not clipped by the viewports of the ancestors hosted there.
+    auto navigable = window.navigable();
+    VERIFY(navigable);
+    auto implicit_root_document = navigable->local_root()->active_document();
     VERIFY(implicit_root_document);
     return create_with_implicit_root_document(callback, options, *implicit_root_document);
 }
@@ -327,8 +333,11 @@ GC::Ref<DOM::Node> IntersectionObserver::intersection_root_node() const
         return *m_root;
 
     // The implicit root is the top-level browsing context’s document node.
+    // FIXME: See create_for_constructor(): the document rooting this process's part of the tree stands in.
     VERIFY(m_document);
-    return *m_document->page().top_level_browsing_context().active_document();
+    auto navigable = m_document->navigable();
+    VERIFY(navigable);
+    return *navigable->local_root()->active_document();
 }
 
 // https://www.w3.org/TR/intersection-observer/#intersectionobserver-root-intersection-rectangle
