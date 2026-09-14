@@ -13,6 +13,7 @@
 #include <LibGfx/PaintingSurface.h>
 #include <LibIPC/Decoder.h>
 #include <LibIPC/Encoder.h>
+#include <LibJS/Runtime/ExternalMemory.h>
 #include <LibWeb/Bindings/CSS.h>
 #include <LibWeb/CSS/StyleComputer.h>
 #include <LibWeb/Clipboard/SystemClipboard.h>
@@ -21,6 +22,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/DecodedImageData.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
@@ -107,6 +109,8 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
         visitor.visit(m_context_menu_request->target);
     visitor.visit(m_local_root_navigable);
     visitor.visit(m_history_executor);
+    for (auto const& it : m_data_url_image_cache)
+        visitor.visit(it.value.image_data);
     visitor.visit(m_client);
     visitor.visit(m_window_rect_observer);
     visitor.visit(m_on_pending_dialog_closed);
@@ -123,6 +127,48 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
                 visitor.visit(exit_operation.promise);
             });
     });
+}
+
+GC::Ptr<HTML::DecodedImageData> Page::cached_data_url_image(URL::URL const& url)
+{
+    auto it = m_data_url_image_cache.find(url);
+    if (it == m_data_url_image_cache.end())
+        return nullptr;
+    it->value.last_use_serial = ++m_data_url_image_cache_use_serial;
+    return it->value.image_data;
+}
+
+void Page::cache_data_url_image(URL::URL const& url, GC::Ref<HTML::DecodedImageData> image_data)
+{
+    static constexpr size_t DATA_URL_IMAGE_CACHE_COUNT_LIMIT = 32;
+    static constexpr size_t DATA_URL_IMAGE_CACHE_MEMORY_LIMIT = 8 * MiB;
+
+    auto memory_size = JS::saturating_add_external_memory_size(url.serialize().byte_count(), image_data->external_memory_size());
+    if (memory_size > DATA_URL_IMAGE_CACHE_MEMORY_LIMIT)
+        return;
+
+    auto use_serial = ++m_data_url_image_cache_use_serial;
+    m_data_url_image_cache.set(url, { image_data, memory_size, use_serial });
+
+    auto cached_memory_size = [&] {
+        size_t size = 0;
+        for (auto const& it : m_data_url_image_cache)
+            size = JS::saturating_add_external_memory_size(size, it.value.memory_size);
+        return size;
+    };
+    while (m_data_url_image_cache.size() > DATA_URL_IMAGE_CACHE_COUNT_LIMIT || cached_memory_size() > DATA_URL_IMAGE_CACHE_MEMORY_LIMIT) {
+        Optional<URL::URL> least_recently_used_url;
+        u64 least_recently_used_serial = use_serial;
+        for (auto const& it : m_data_url_image_cache) {
+            if (it.value.last_use_serial >= least_recently_used_serial)
+                continue;
+            least_recently_used_url = it.key;
+            least_recently_used_serial = it.value.last_use_serial;
+        }
+        if (!least_recently_used_url.has_value())
+            break;
+        m_data_url_image_cache.remove(*least_recently_used_url);
+    }
 }
 
 HTML::LocalNavigable& Page::focused_navigable()

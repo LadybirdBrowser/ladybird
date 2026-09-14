@@ -11,24 +11,32 @@ namespace Web::HTML {
 
 void DecodedImageData::Client::register_with_decoded_image_data_if_needed()
 {
-    auto const& image_data = decoded_image_data();
+    auto image_data = decoded_image_data();
 
     if (!image_data)
         return;
 
-    image_data->m_clients.set(this);
+    if (m_registered_image_data != image_data) {
+        unregister_with_decoded_image_data_if_needed();
+        m_registered_image_data = image_data;
+        image_data->m_clients.set(this);
+    }
 
     image_data->on_client_registered();
 }
 
 void DecodedImageData::Client::unregister_with_decoded_image_data_if_needed()
 {
-    auto const& image_data = decoded_image_data();
-
-    if (!image_data)
+    if (!m_registered_image_data)
         return;
 
-    image_data->m_clients.remove(this);
+    m_registered_image_data->m_clients.remove(this);
+    m_registered_image_data = nullptr;
+}
+
+void DecodedImageData::Client::visit_registered_decoded_image_data(JS::Cell::Visitor& visitor)
+{
+    visitor.visit(m_registered_image_data);
 }
 
 DecodedImageData::DecodedImageData() = default;
