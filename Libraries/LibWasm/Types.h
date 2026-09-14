@@ -694,6 +694,66 @@ public:
         MemoryIndex memory_index { 0 };
     };
 
+    // Proposal "threads"
+    struct AtomicMemoryArgument {
+        enum class Width : u8 {
+            I32,
+            I64,
+            I8As32, // i8 stack, memory accessed zero-extended to i32.
+            I16As32,
+            I8As64,
+            I16As64,
+            I32As64,
+        };
+        enum class Op : u8 {
+            None,
+            Add,
+            Sub,
+            And,
+            Or,
+            Xor,
+            Xchg,
+        };
+
+        MemoryArgument memory;
+        Width width;
+        Op op { Op::None };
+
+        size_t access_size() const
+        {
+            switch (width) {
+            case Width::I8As32:
+            case Width::I8As64:
+                return 1;
+            case Width::I16As32:
+            case Width::I16As64:
+                return 2;
+            case Width::I32:
+            case Width::I32As64:
+                return 4;
+            case Width::I64:
+                return 8;
+            }
+            VERIFY_NOT_REACHED();
+        }
+
+        ValueType value_type() const
+        {
+            switch (width) {
+            case Width::I32:
+            case Width::I8As32:
+            case Width::I16As32:
+                return ValueType { ValueType::I32 };
+            case Width::I64:
+            case Width::I8As64:
+            case Width::I16As64:
+            case Width::I32As64:
+                return ValueType { ValueType::I64 };
+            }
+            VERIFY_NOT_REACHED();
+        }
+    };
+
     struct MemoryAndLaneArgument {
         MemoryArgument memory;
         u8 lane;
@@ -855,6 +915,7 @@ private:
         ArrayDataArgs,
         ArrayElemArgs,
         ArrayNewFixedArgs,
+        AtomicMemoryArgument,
         BlockType,
         BranchArgs,
         BranchOnCastArgs,

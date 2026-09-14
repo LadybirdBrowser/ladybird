@@ -493,6 +493,51 @@ void Printer::print(Wasm::Instruction const& instruction)
             [&](TypeIndex const& index) { print("(type index {})", index.value()); },
             [&](Instruction::IndirectCallArgs const& args) { print("(indirect (type index {}) (table index {}))", args.type.value(), args.table.value()); },
             [&](Instruction::MemoryArgument const& args) { print("(memory index {} (align {}) (offset {}))", args.memory_index.value(), args.align, args.offset); },
+            [&](Instruction::AtomicMemoryArgument const& args) {
+                using Width = Instruction::AtomicMemoryArgument::Width;
+                using Op = Instruction::AtomicMemoryArgument::Op;
+                auto width_name = [&] {
+                    switch (args.width) {
+                    case Width::I32:
+                        return "i32"sv;
+                    case Width::I64:
+                        return "i64"sv;
+                    case Width::I8As32:
+                        return "i32 8u"sv;
+                    case Width::I16As32:
+                        return "i32 16u"sv;
+                    case Width::I8As64:
+                        return "i64 8u"sv;
+                    case Width::I16As64:
+                        return "i64 16u"sv;
+                    case Width::I32As64:
+                        return "i64 32u"sv;
+                    }
+                    VERIFY_NOT_REACHED();
+                }();
+                auto op_name = [&] {
+                    switch (args.op) {
+                    case Op::None:
+                        return ""sv;
+                    case Op::Add:
+                        return "add"sv;
+                    case Op::Sub:
+                        return "sub"sv;
+                    case Op::And:
+                        return "and"sv;
+                    case Op::Or:
+                        return "or"sv;
+                    case Op::Xor:
+                        return "xor"sv;
+                    case Op::Xchg:
+                        return "xchg"sv;
+                    }
+                    VERIFY_NOT_REACHED();
+                }();
+                print("(memory index {} (align {}) (offset {})) (width {})", args.memory.memory_index.value(), args.memory.align, args.memory.offset, width_name);
+                if (!op_name.is_empty())
+                    print(" (op {})", op_name);
+            },
             [&](Instruction::MemoryAndLaneArgument const& args) { print("(memory index {} (align {}) (offset {})) (lane {})", args.memory.memory_index.value(), args.memory.align, args.memory.offset, args.lane); },
             [&](Instruction::MemoryInitArgs const& args) { print("(memory index {}) (data index {})", args.memory_index.value(), args.data_index.value()); },
             [&](Instruction::MemoryCopyArgs const& args) { print("(from (memory index {}) to (memory index {}))", args.src_index.value(), args.dst_index.value()); },
@@ -1429,5 +1474,13 @@ HashMap<Wasm::OpCode, ByteString>& Wasm::Names::instruction_names = *new HashMap
     { Instructions::synthetic_i64_shru2local, "synthetic:i64.shru2local" },
     { Instructions::synthetic_i64_shrs2local, "synthetic:i64.shrs2local" },
     { Instructions::synthetic_local_seti64_const, "synthetic:local.seti64_const" },
+    { Instructions::atomic_load, "atomic.load" },
+    { Instructions::atomic_store, "atomic.store" },
+    { Instructions::atomic_rmw, "atomic.rmw" },
+    { Instructions::atomic_rmw_cmpxchg, "atomic.rmw.cmpxchg" },
+    { Instructions::memory_atomic_notify, "memory.atomic.notify" },
+    { Instructions::memory_atomic_wait32, "memory.atomic.wait32" },
+    { Instructions::memory_atomic_wait64, "memory.atomic.wait64" },
+    { Instructions::atomic_fence, "atomic.fence" },
 };
 HashMap<ByteString, Wasm::OpCode>& Wasm::Names::instructions_by_name = *new HashMap<ByteString, Wasm::OpCode>;
