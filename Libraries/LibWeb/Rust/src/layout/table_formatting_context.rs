@@ -1994,7 +1994,7 @@ impl<'pass> TableFormattingContext<'pass> {
             // Implement the following parts of the specification, accounting for fixed layout mode:
             // https://www.w3.org/TR/css-tables-3/#min-content-width-of-a-column-based-on-cells-of-span-up-to-1
             // https://www.w3.org/TR/css-tables-3/#max-content-width-of-a-column-based-on-cells-of-span-up-to-1
-            for cell in self.cells.clone() {
+            for &cell in &self.cells {
                 if cell.column_span == 1 && self.cell_is_measured(cell, axis) {
                     let column = &mut self.columns[cell.column_index];
                     column.min_size = column.min_size.max(cell.outer_min_inline_size);
@@ -2020,14 +2020,18 @@ impl<'pass> TableFormattingContext<'pass> {
         let track_count = self.track_count(axis);
         for current_span in 2..=max_span {
             // https://www.w3.org/TR/css-tables-3/#min-content-width-of-a-column-based-on-cells-of-span-up-to-n-n--1
-            let mut min_contributions = vec![Vec::new(); track_count];
+            let mut min_contributions = (0..track_count)
+                .map(|index| self.track_min(axis, index))
+                .collect::<Vec<_>>();
             // https://www.w3.org/TR/css-tables-3/#max-content-width-of-a-column-based-on-cells-of-span-up-to-n-n--1
-            let mut max_contributions = vec![Vec::new(); track_count];
+            let mut max_contributions = (0..track_count)
+                .map(|index| self.track_max(axis, index))
+                .collect::<Vec<_>>();
             let track_spacing = match axis {
                 TrackAxis::Row => self.border_spacing_block(),
                 TrackAxis::Column => self.border_spacing_inline(),
             };
-            for cell in self.cells.clone() {
+            for &cell in &self.cells {
                 if Self::cell_span(cell, axis) != current_span || !self.cell_is_measured(cell, axis) {
                     continue;
                 }
@@ -2096,27 +2100,19 @@ impl<'pass> TableFormattingContext<'pass> {
                         max_contribution +=
                             (Self::cell_max(cell, axis) - spacing).max(CssPixels::default()) / current_span;
                     }
-                    min_contributions[index].push(min_contribution);
-                    max_contributions[index].push(max_contribution);
+                    min_contributions[index] = min_contributions[index].max(min_contribution);
+                    max_contributions[index] = max_contributions[index].max(max_contribution);
                 }
             }
             for index in 0..track_count {
                 // min-content size of a row / column based on cells of span up to N (N > 1) is
                 // the largest of the min-content size of the row / column based on cells of span up to N-1 and
                 // the contributions of the cells in the row / column whose rowSpan / colSpan is N
-                let mut min_size = self.track_min(axis, index);
-                for contribution in &min_contributions[index] {
-                    min_size = min_size.max(*contribution);
-                }
-                self.set_track_min(axis, index, min_size);
+                self.set_track_min(axis, index, min_contributions[index]);
                 // max-content size of a row / column based on cells of span up to N (N > 1) is
                 // the largest of the max-content size based on cells of span up to N-1 and the contributions of
                 // the cells in the row / column whose rowSpan / colSpan is N
-                let mut max_size = self.track_max(axis, index);
-                for contribution in &max_contributions[index] {
-                    max_size = max_size.max(*contribution);
-                }
-                self.set_track_max(axis, index, max_size);
+                self.set_track_max(axis, index, max_contributions[index]);
             }
         }
     }
