@@ -4998,16 +4998,17 @@ bool Document::has_focus_for_bindings() const
 bool Document::has_focus() const
 {
     // 1. If target's node navigable's top-level traversable does not have system focus, then return false.
+    // NB: If another process hosts the top-level traversable, this process's local root is used instead.
     auto navigable = this->navigable();
     if (!navigable)
         return false;
 
-    auto& traversable = as<HTML::LocalTraversableNavigable>(*navigable->traversable_navigable());
-    if (!traversable.is_focused())
+    auto focus_root = navigable->local_root();
+    if (!focus_root->is_focused())
         return false;
 
     // 2. Let candidate be target's node navigable's top-level traversable's active document.
-    auto candidate = traversable.active_document();
+    auto candidate = focus_root->active_document();
 
     // 3. While true:
     while (candidate) {
