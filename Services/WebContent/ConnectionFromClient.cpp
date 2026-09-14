@@ -675,6 +675,31 @@ void ConnectionFromClient::continue_child_navigable_destruction(Web::PageId page
     Web::HTML::NavigableContainer::continue_destroying_the_child_navigable(*navigable);
 }
 
+// https://html.spec.whatwg.org/multipage/document-lifecycle.html#abort-a-document-and-its-descendants
+void ConnectionFromClient::abort_navigable_document(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+    auto* navigable = as_if<Web::HTML::LocalNavigable>(page->page().navigable_with_id(navigable_id).ptr());
+    if (!navigable || !navigable->active_window())
+        return;
+
+    // 3. For each descendantNavigable of descendantNavigables, queue a global task on the navigation and traversal task source given descendantNavigable's active window to perform the following steps:
+    Web::HTML::queue_global_task(Web::HTML::Task::Source::NavigationAndTraversal, Web::HTML::relevant_global_object(*navigable->active_window()), GC::create_function(GC::Heap::the(), [navigable = GC::Ref { *navigable }] {
+        auto document = navigable->active_document();
+        if (!document)
+            return;
+        // NOTE: This is not in the spec but we need to abort ongoing navigations in all descendant navigables.
+        //       See https://github.com/whatwg/html/issues/9711
+        navigable->set_ongoing_navigation({});
+
+        // 1. Abort descendantNavigable's active document.
+        // NB: With its own descendants, hosted here or elsewhere, which the requesting process could not reach.
+        document->abort_a_document_and_its_descendants();
+    }));
+}
+
 void ConnectionFromClient::run_traversable_close_unload_task(Web::PageId page_id, Web::HTML::CrossProcessId)
 {
     if (auto page = this->page(page_id); page.has_value())
