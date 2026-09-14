@@ -4251,25 +4251,29 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
     // For calculating the elapsedTime of each event, the following definitions are used:
 
     // - interval start = max(min(-start delay, active duration), 0)
-    auto interval_start = max(min(-effect->start_delay(), effect->active_duration()), Animations::TimeValue::create_zero(animation->timeline()));
+    auto interval_start = [&]() {
+        return max(min(-effect->start_delay(), effect->active_duration()), Animations::TimeValue::create_zero(animation->timeline()));
+    };
 
     // - interval end = max(min(associated effect end - start delay, active duration), 0)
-    auto interval_end = max(min(effect->end_time() - effect->start_delay(), effect->active_duration()), Animations::TimeValue::create_zero(animation->timeline()));
+    auto interval_end = [&]() {
+        return max(min(effect->end_time() - effect->start_delay(), effect->active_duration()), Animations::TimeValue::create_zero(animation->timeline()));
+    };
 
     switch (previous_phase) {
     case Animations::AnimationEffect::Phase::Before:
         [[fallthrough]];
     case Animations::AnimationEffect::Phase::Idle:
         if (current_phase == Animations::AnimationEffect::Phase::Active) {
-            dispatch_event(HTML::EventNames::animationstart, interval_start);
+            dispatch_event(HTML::EventNames::animationstart, interval_start());
         } else if (current_phase == Animations::AnimationEffect::Phase::After) {
-            dispatch_event(HTML::EventNames::animationstart, interval_start);
-            dispatch_event(HTML::EventNames::animationend, interval_end);
+            dispatch_event(HTML::EventNames::animationstart, interval_start());
+            dispatch_event(HTML::EventNames::animationend, interval_end());
         }
         break;
     case Animations::AnimationEffect::Phase::Active:
         if (current_phase == Animations::AnimationEffect::Phase::Before) {
-            dispatch_event(HTML::EventNames::animationend, interval_start);
+            dispatch_event(HTML::EventNames::animationend, interval_start());
         } else if (current_phase == Animations::AnimationEffect::Phase::Active) {
             auto previous_current_iteration = effect->previous_current_iteration();
             if (previous_current_iteration != current_iteration) {
@@ -4287,15 +4291,15 @@ void Document::dispatch_events_for_animation_if_necessary(GC::Ref<Animations::An
                 dispatch_event(HTML::EventNames::animationiteration, elapsed_time);
             }
         } else if (current_phase == Animations::AnimationEffect::Phase::After) {
-            dispatch_event(HTML::EventNames::animationend, interval_end);
+            dispatch_event(HTML::EventNames::animationend, interval_end());
         }
         break;
     case Animations::AnimationEffect::Phase::After:
         if (current_phase == Animations::AnimationEffect::Phase::Active) {
-            dispatch_event(HTML::EventNames::animationstart, interval_end);
+            dispatch_event(HTML::EventNames::animationstart, interval_end());
         } else if (current_phase == Animations::AnimationEffect::Phase::Before) {
-            dispatch_event(HTML::EventNames::animationstart, interval_end);
-            dispatch_event(HTML::EventNames::animationend, interval_start);
+            dispatch_event(HTML::EventNames::animationstart, interval_end());
+            dispatch_event(HTML::EventNames::animationend, interval_start());
         }
         break;
     }
