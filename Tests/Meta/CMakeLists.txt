@@ -26,6 +26,15 @@ if (NOT WIN32)
     add_test(NAME test-lint-environment COMMAND "${Python3_EXECUTABLE}" "${CMAKE_BINARY_DIR}/bin/test-lint-environment.py")
     set_tests_properties(test-lint-environment PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
 
+    add_custom_target(test-ipc-generator ALL DEPENDS "${CMAKE_BINARY_DIR}/bin/test-ipc-generator.py")
+    add_custom_command(
+        OUTPUT "${CMAKE_BINARY_DIR}/bin/test-ipc-generator.py"
+        COMMAND "${CMAKE_COMMAND}" -E copy "${ladybird_SOURCE_DIR}/Tests/Meta/test-ipc-generator.py" "${CMAKE_BINARY_DIR}/bin/test-ipc-generator.py"
+        DEPENDS "${ladybird_SOURCE_DIR}/Tests/Meta/test-ipc-generator.py"
+    )
+    add_test(NAME test-ipc-generator COMMAND "${Python3_EXECUTABLE}" "${CMAKE_BINARY_DIR}/bin/test-ipc-generator.py")
+    set_tests_properties(test-ipc-generator PROPERTIES ENVIRONMENT LADYBIRD_SOURCE_DIR=${LADYBIRD_SOURCE_DIR})
+
     add_custom_target(test-js-runner ALL DEPENDS "${CMAKE_BINARY_DIR}/bin/test-js-runner.py")
     add_custom_command(
         OUTPUT "${CMAKE_BINARY_DIR}/bin/test-js-runner.py"

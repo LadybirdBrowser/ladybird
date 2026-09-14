@@ -155,6 +155,7 @@ WebContentClient::WebContentClient(NonnullOwnPtr<IPC::Transport> transport, IsPr
     , m_root_navigable_id(root_navigable_id)
 {
     VERIFY(initial_page_id > 0);
+    m_assigned_pages.set(initial_page_id);
     VERIFY(m_session);
     clients().set(this);
 }
@@ -193,13 +194,11 @@ void WebContentClient::die()
     remove_blob_url_entries();
 }
 
-bool WebContentClient::owns_page(Web::PageId page_id) const
+bool WebContentClient::may_act_for_page(Web::PageId page_id) const
 {
-    // A spare process can send requests for its initial page before a view adopts it.
-    if (m_unassigned_initial_page_id.has_value() && page_id == *m_unassigned_initial_page_id)
-        return true;
-    // Detached pages can still send requests until WebContent acknowledges their close.
-    return is_page_open(page_id) || m_detached_pages_pending_close.contains(page_id);
+    // A page ID the connection was given is not a false claim once the page is gone: the connection can
+    // have sent the message while it still had the page, and the handler drops it.
+    return m_assigned_pages.contains(page_id);
 }
 
 void WebContentClient::did_misbehave(StringView message_name, StringView reason)
@@ -292,6 +291,7 @@ void WebContentClient::register_view(Web::PageId page_id, ViewImplementation& vi
     Application::process_manager().cancel_forced_exit(pid());
     view.m_client_state.page_index = page_id;
     m_views.set(page_id, view);
+    m_assigned_pages.set(page_id);
     m_history_recorded_urls_for_current_load.remove(page_id);
 }
 
@@ -353,8 +353,9 @@ void WebContentClient::request_close(Web::PageId page_id)
 void WebContentClient::register_embedded_page(Web::PageId page_id, CanonicalNavigable& child_frame)
 {
     m_embedded_pages.set(page_id, child_frame.make_weak_ptr());
-    if (m_unassigned_initial_page_id.has_value() && page_id == *m_unassigned_initial_page_id)
+    if (m_unassigned_initial_page_id == page_id)
         m_unassigned_initial_page_id.clear();
+    m_assigned_pages.set(page_id);
     Application::process_manager().cancel_forced_exit(pid());
 }
 
@@ -1425,8 +1426,11 @@ void WebContentClient::did_request_media_context_menu(Web::PageId page_id, Gfx::
         view->did_request_media_context_menu({}, content_position, move(menu));
 }
 
-void WebContentClient::did_get_source(Web::PageId, URL::URL url, URL::URL base_url, Utf16String source)
+void WebContentClient::did_get_source(Web::PageId page_id, URL::URL url, URL::URL base_url, Utf16String source)
 {
+    if (!is_page_open(page_id))
+        return;
+
     if (auto view = Application::the().open_blank_new_tab(Web::HTML::ActivateTab::Yes); view.has_value()) {
         auto html = highlight_source(url, base_url, source.to_utf8(), Syntax::Language::HTML);
         view->load_html(html);
@@ -1917,10 +1921,9 @@ Messages::WebContentClient::DidRequestNamedCookieResponse WebContentClient::did_
 
 Messages::WebContentClient::DidRequestCookieResponse WebContentClient::did_request_cookie(Web::PageId page_id, URL::URL url, HTTP::Cookie::Source source)
 {
-    if (!owns_page(page_id)) {
-        did_misbehave("did_request_cookie"sv, "page is not owned by this connection"sv);
+    // A spare process can request cookies for its initial page before a view adopts it.
+    if (!is_page_open(page_id) && m_unassigned_initial_page_id != page_id)
         return HTTP::Cookie::VersionedCookie {};
-    }
 
     HTTP::Cookie::VersionedCookie cookie;
     cookie.cookie = m_session->cookie_jar->get_cookie(url, source);
@@ -1950,7 +1953,8 @@ void WebContentClient::did_expire_cookies_with_time_offset(AK::Duration offset)
 
 void WebContentClient::did_request_delete_all_cookies(Web::PageId page_id, u64 request_id, URL::URL url)
 {
-    m_session->cookie_jar->delete_all_cookies(url);
+    if (is_page_open(page_id))
+        m_session->cookie_jar->delete_all_cookies(url);
     async_did_delete_all_cookies(page_id, request_id);
 }
 

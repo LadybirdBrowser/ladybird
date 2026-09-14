@@ -61,7 +61,7 @@ public:
     virtual Messages::WebWorkerClient::ResolveGenericFontResponse resolve_generic_font(String family, u16 weight, u8 slope) override;
 
 private:
-    void did_misbehave(StringView message_name, StringView reason);
+    virtual void did_misbehave(StringView message_name, StringView reason) override;
 
     virtual void die() override;
 

@@ -118,9 +118,9 @@ public:
     // False once the page can no longer host work: the page is unregistered or the process is gone. A page
     // awaiting a detached close remains open; it still coordinates its own close.
     bool is_page_open(Web::PageId page_id) const;
-    // True while the connection may still act for the page: a spare process's unassigned initial page, an
-    // open page, or a detached page awaiting its close acknowledgement.
-    bool owns_page(Web::PageId page_id) const;
+    // True for every page ID the UI process has handed to this connection, closed pages included, since a
+    // message the connection sent while it had the page can arrive after the page is gone.
+    virtual bool may_act_for_page(Web::PageId page_id) const override;
     Optional<CanonicalNavigable&> hosted_navigable(Web::HTML::CrossProcessId navigable_id);
     Optional<CanonicalNavigable&> hosted_navigable_for_page(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id);
     Optional<CanonicalNavigable&> population_worker_navigable_for_page(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id);
@@ -165,7 +165,7 @@ private:
     void cancel_navigation_transactions();
     bool continue_navigation_population_in_selected_process(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id);
 
-    void did_misbehave(StringView message_name, StringView reason);
+    virtual void did_misbehave(StringView message_name, StringView reason) override;
 
     virtual void die() override;
 
@@ -354,6 +354,9 @@ private:
     HashMap<Web::PageId, NonnullRawPtr<ViewImplementation>> m_views;
     HashMap<Web::PageId, WeakPtr<CanonicalNavigable>> m_embedded_pages;
     HashTable<Web::PageId> m_detached_pages_pending_close;
+    // Every page ID the UI process has handed to this connection. A page stays in the set once it closes,
+    // because messages the connection sent while it had the page can arrive after the page is gone.
+    HashTable<Web::PageId> m_assigned_pages;
     HashMap<Web::Compositor::CompositorContextId, Optional<Web::PageId>> m_compositor_contexts;
     HashMap<u64, Web::PageId> m_renderer_owned_downloads;
     HashMap<Web::PageId, String> m_history_recorded_urls_for_current_load;

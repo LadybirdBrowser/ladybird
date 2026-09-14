@@ -501,6 +501,7 @@ public:
 
     WebContentClient& client();
     WebContentClient const& client() const;
+    Web::PageId page_id() const;
 
     virtual Web::DevicePixelSize viewport_size() const = 0;
     virtual Gfx::IntPoint to_content_position(Gfx::IntPoint widget_position) const = 0;
@@ -524,8 +525,6 @@ protected:
     static constexpr auto ZOOM_STEP = 0.1;
 
     explicit ViewImplementation(IsPrivate = IsPrivate::No);
-
-    Web::PageId page_id() const;
 
     void set_url(URL::URL);
     void did_start_navigation(Optional<Utf16String> navigation_id, URL::URL const&);
