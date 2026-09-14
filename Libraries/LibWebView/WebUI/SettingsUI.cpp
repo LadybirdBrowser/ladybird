@@ -64,14 +64,14 @@ void SettingsUI::register_interfaces()
     register_interface("setNewTabPageURL"sv, [this](auto const& data) {
         set_new_tab_page_url(data);
     });
-    register_interface("setTabSettings"sv, [this](auto const& data) {
-        set_tab_settings(data);
-    });
     register_interface("setDefaultZoomLevelFactor"sv, [this](auto const& data) {
         set_default_zoom_level_factor(data);
     });
     register_interface("setLanguages"sv, [this](auto const& data) {
         set_languages(data);
+    });
+    register_interface("setTabSettings"sv, [this](auto const& data) {
+        set_tab_settings(data);
     });
     register_interface("setBrowsingBehavior"sv, [this](auto const& data) {
         set_browsing_behavior(data);
@@ -111,6 +111,9 @@ void SettingsUI::register_interfaces()
     register_interface("removeAllSiteSettingFilters"sv, [this](auto const& data) {
         remove_all_site_setting_filters(data);
     });
+    register_interface("setGeolocationEnabled"sv, [this](auto const& data) {
+        set_geolocation_enabled(data);
+    });
 
     register_interface("estimateBrowsingDataSizes"sv, [this](auto const& data) {
         estimate_browsing_data_sizes(data);
@@ -125,93 +128,33 @@ void SettingsUI::register_interfaces()
         set_global_privacy_control(data);
     });
 
-    register_interface("setServicesNetworkAccessEnabled"sv, [this](auto const& enabled) {
-        if (!enabled.is_bool())
-            return;
-
-        Application::settings().set_background_networking_enabled(enabled.as_bool());
-        load_current_settings();
+    register_interface("setServicesNetworkAccessEnabled"sv, [this](auto const& data) {
+        set_services_network_access_enabled(data);
     });
-    register_interface("setFilterListUpdatesEnabled"sv, [this](auto const& enabled) {
-        if (!enabled.is_bool())
-            return;
-        Application::settings().set_filter_list_updates_enabled(enabled.as_bool());
-        load_current_settings();
+    register_interface("setFilterListUpdatesEnabled"sv, [this](auto const& data) {
+        set_filter_list_updates_enabled(data);
     });
-    register_interface("updateContentBlockerLists"sv, [this](auto const&) {
-        Application::the().update_content_blocker_lists({});
-        load_current_settings();
+    register_interface("updateContentBlockerLists"sv, [this](auto const& data) {
+        update_content_blocker_lists(data);
     });
-    register_interface("setContentBlockerListEnabled"sv, [this](auto const& value) {
-        if (!value.is_object())
-            return;
-        auto identifier = value.as_object().get_string("identifier"sv);
-        auto enabled = value.as_object().get_bool("enabled"sv);
-        if (!identifier.has_value() || !enabled.has_value())
-            return;
-        Application::settings().set_content_blocker_list_enabled(*identifier, *enabled);
-        if (*enabled)
-            Application::the().download_content_blocker_list_if_needed({}, *identifier);
-        load_current_settings();
+    register_interface("setContentBlockerListEnabled"sv, [this](auto const& data) {
+        set_content_blocker_list_enabled(data);
     });
-    auto report_content_blocker_result = [this](StringView operation, StringView message) {
-        JsonObject result;
-        result.set("operation"sv, operation);
-        result.set("message"sv, message);
-        async_send_message("contentBlockerResult"sv, result);
-    };
-    register_interface("addCustomContentBlockerSubscription"sv, [this, report_content_blocker_result](auto const& value) {
-        if (!value.is_string())
-            return;
-        auto url = URL::Parser::basic_parse(value.as_string());
-        if (!url.has_value() || !(url->scheme() == "http"sv || url->scheme() == "https"sv)) {
-            report_content_blocker_result("subscription"sv, "Enter an HTTP or HTTPS URL."sv);
-            return;
-        }
-        for (auto const& subscription : Application::settings().content_blocker_lists()) {
-            if (!subscription.built_in && subscription.url == url) {
-                report_content_blocker_result("subscription"sv, "Subscription already added."sv);
-                load_current_settings();
-                return;
-            }
-        }
-        auto identifier = Application::settings().add_content_blocker_list(url->serialize(), url);
-        Application::the().download_content_blocker_list_if_needed({}, identifier);
-        report_content_blocker_result("subscription"sv, "Subscription added."sv);
-        load_current_settings();
+    register_interface("addCustomContentBlockerSubscription"sv, [this](auto const& data) {
+        add_custom_content_blocker_subscription(data);
     });
-    register_interface("removeContentBlockerList"sv, [this](auto const& value) {
-        if (!value.is_string())
-            return;
-        Application::the().remove_content_blocker_list({}, value.as_string());
-        load_current_settings();
+    register_interface("removeContentBlockerList"sv, [this](auto const& data) {
+        remove_content_blocker_list(data);
     });
-    register_interface("importLocalContentBlockerList"sv, [this, report_content_blocker_result](auto const& value) {
-        if (!value.is_object())
-            return;
-        auto name = value.as_object().get_string("name"sv);
-        auto contents = value.as_object().get_string("contents"sv);
-        if (!name.has_value() || name->is_empty() || !contents.has_value())
-            return;
-        if (auto result = Application::the().import_local_content_blocker_list(*name, *contents); result.is_error())
-            report_content_blocker_result("import"sv, MUST(String::formatted("Unable to import list: {}", result.error())));
-        else
-            report_content_blocker_result("import"sv, MUST(String::formatted("{} imported.", *name)));
-        load_current_settings();
+    register_interface("importLocalContentBlockerList"sv, [this](auto const& data) {
+        import_local_content_blocker_list(data);
     });
-    register_interface("setCustomContentBlockerFilters"sv, [this](auto const& value) {
-        if (!value.is_string() || value.as_string().bytes().size() > 4 * MiB)
-            return;
-        Application::settings().set_custom_content_blocker_filters(value.as_string());
-        load_current_settings();
+    register_interface("setCustomContentBlockerFilters"sv, [this](auto const& data) {
+        set_custom_content_blocker_filters(data);
     });
 
     register_interface("setDNSSettings"sv, [this](auto const& data) {
         set_dns_settings(data);
-    });
-
-    register_interface("setGeolocationEnabled"sv, [this](auto const& data) {
-        set_geolocation_enabled(data);
     });
 
     register_interface("setForceDarkEnabled"sv, [this](auto const& data) {
@@ -233,7 +176,7 @@ void SettingsUI::load_features()
 
 void SettingsUI::load_current_settings()
 {
-    auto settings = WebView::Application::settings().serialize_json();
+    auto settings = Application::settings().serialize_json();
 
     JsonArray config_variables;
     for (auto const& variable : config_variable_definitions()) {
@@ -248,7 +191,7 @@ void SettingsUI::load_current_settings()
         if (variable.array_element_type.has_value())
             variable_object.set("elementType"sv, config_variable_type_to_string(*variable.array_element_type));
         variable_object.set("defaultValue"sv, variable.default_value);
-        variable_object.set("value"sv, WebView::Application::settings().config_variable(variable.id));
+        variable_object.set("value"sv, Application::settings().config_variable(variable.id));
 
         config_variables.must_append(move(variable_object));
     }
@@ -284,12 +227,29 @@ void SettingsUI::set_new_tab_page_url(JsonValue const& new_tab_page_url)
     if (!parsed_new_tab_page_url.has_value())
         return;
 
-    WebView::Application::settings().set_new_tab_page_url(parsed_new_tab_page_url.release_value());
+    Application::settings().set_new_tab_page_url(parsed_new_tab_page_url.release_value());
+}
+
+void SettingsUI::set_default_zoom_level_factor(JsonValue const& default_zoom_level_factor)
+{
+    auto const maybe_factor = default_zoom_level_factor.get_double_with_precision_loss();
+    if (!maybe_factor.has_value())
+        return;
+
+    Application::settings().set_default_zoom_level_factor(maybe_factor.value());
+}
+
+void SettingsUI::set_languages(JsonValue const& languages)
+{
+    auto parsed_languages = Settings::parse_json_languages(languages);
+    Application::settings().set_languages(move(parsed_languages));
+
+    load_current_settings();
 }
 
 void SettingsUI::set_tab_settings(JsonValue const& tab_settings)
 {
-    auto& settings = WebView::Application::settings();
+    auto& settings = Application::settings();
     auto parsed_tab_settings = Settings::parse_tab_settings(tab_settings);
     auto const& current_tab_settings = settings.tab_settings();
 
@@ -301,27 +261,10 @@ void SettingsUI::set_tab_settings(JsonValue const& tab_settings)
     load_current_settings();
 }
 
-void SettingsUI::set_default_zoom_level_factor(JsonValue const& default_zoom_level_factor)
-{
-    auto const maybe_factor = default_zoom_level_factor.get_double_with_precision_loss();
-    if (!maybe_factor.has_value())
-        return;
-
-    WebView::Application::settings().set_default_zoom_level_factor(maybe_factor.value());
-}
-
-void SettingsUI::set_languages(JsonValue const& languages)
-{
-    auto parsed_languages = Settings::parse_json_languages(languages);
-    WebView::Application::settings().set_languages(move(parsed_languages));
-
-    load_current_settings();
-}
-
 void SettingsUI::set_browsing_behavior(JsonValue const& browsing_behavior)
 {
     auto parsed_browsing_behavior = Settings::parse_browsing_behavior(browsing_behavior);
-    WebView::Application::settings().set_browsing_behavior(parsed_browsing_behavior);
+    Application::settings().set_browsing_behavior(parsed_browsing_behavior);
 
     load_current_settings();
 }
@@ -336,7 +279,7 @@ void SettingsUI::set_config_variable(JsonValue const& variable)
     if (!name.has_value() || !value.has_value())
         return;
 
-    WebView::Application::settings().set_config_variable(*name, *value);
+    Application::settings().set_config_variable(*name, *value);
 
     load_current_settings();
 }
@@ -361,10 +304,10 @@ void SettingsUI::load_available_engines()
 void SettingsUI::set_search_engine(JsonValue const& search_engine)
 {
     if (search_engine.is_null()) {
-        WebView::Application::settings().set_search_engine({});
-        WebView::Application::settings().set_autocomplete_engine(OptionalNone {});
+        Application::settings().set_search_engine({});
+        Application::settings().set_autocomplete_engine(OptionalNone {});
     } else if (search_engine.is_string()) {
-        WebView::Application::settings().set_search_engine(search_engine.as_string());
+        Application::settings().set_search_engine(search_engine.as_string());
     }
 
     load_current_settings();
@@ -373,7 +316,7 @@ void SettingsUI::set_search_engine(JsonValue const& search_engine)
 void SettingsUI::add_custom_search_engine(JsonValue const& search_engine)
 {
     if (auto custom_engine = Settings::parse_custom_search_engine(search_engine); custom_engine.has_value())
-        WebView::Application::settings().add_custom_search_engine(custom_engine.release_value());
+        Application::settings().add_custom_search_engine(custom_engine.release_value());
 
     load_current_settings();
 }
@@ -381,7 +324,7 @@ void SettingsUI::add_custom_search_engine(JsonValue const& search_engine)
 void SettingsUI::remove_custom_search_engine(JsonValue const& search_engine)
 {
     if (auto custom_engine = Settings::parse_custom_search_engine(search_engine); custom_engine.has_value())
-        WebView::Application::settings().remove_custom_search_engine(*custom_engine);
+        Application::settings().remove_custom_search_engine(*custom_engine);
 
     load_current_settings();
 }
@@ -389,9 +332,9 @@ void SettingsUI::remove_custom_search_engine(JsonValue const& search_engine)
 void SettingsUI::set_autocomplete_engine(JsonValue const& autocomplete_engine)
 {
     if (autocomplete_engine.is_null())
-        WebView::Application::settings().set_autocomplete_engine(OptionalNone {});
+        Application::settings().set_autocomplete_engine(OptionalNone {});
     else if (autocomplete_engine.is_string())
-        WebView::Application::settings().set_autocomplete_engine(autocomplete_engine.as_string());
+        Application::settings().set_autocomplete_engine(autocomplete_engine.as_string());
 }
 
 enum class SiteSettingType {
@@ -445,7 +388,7 @@ void SettingsUI::set_site_setting_policy(JsonValue const& site_setting)
     case SiteSettingType::Autoplay:
         auto policy_utf16 = Utf16String::from_utf8_without_validation(*policy);
         if (auto parsed = Web::HTML::autoplay_policy_from_string(policy_utf16.utf16_view()); parsed.has_value())
-            WebView::Application::settings().set_autoplay_policy(*parsed);
+            Application::settings().set_autoplay_policy(*parsed);
         break;
     }
 
@@ -464,7 +407,7 @@ void SettingsUI::add_site_setting_filter(JsonValue const& site_setting)
 
     switch (*setting) {
     case SiteSettingType::Autoplay:
-        WebView::Application::settings().add_autoplay_site_filter(*filter);
+        Application::settings().add_autoplay_site_filter(*filter);
         break;
     }
 
@@ -483,7 +426,7 @@ void SettingsUI::remove_site_setting_filter(JsonValue const& site_setting)
 
     switch (*setting) {
     case SiteSettingType::Autoplay:
-        WebView::Application::settings().remove_autoplay_site_filter(*filter);
+        Application::settings().remove_autoplay_site_filter(*filter);
         break;
     }
 
@@ -498,10 +441,19 @@ void SettingsUI::remove_all_site_setting_filters(JsonValue const& site_setting)
 
     switch (*setting) {
     case SiteSettingType::Autoplay:
-        WebView::Application::settings().remove_all_autoplay_site_filters();
+        Application::settings().remove_all_autoplay_site_filters();
         break;
     }
 
+    load_current_settings();
+}
+
+void SettingsUI::set_geolocation_enabled(JsonValue const& enabled)
+{
+    if (!enabled.is_bool())
+        return;
+
+    Application::settings().set_geolocation_enabled(enabled.as_bool());
     load_current_settings();
 }
 
@@ -585,7 +537,116 @@ void SettingsUI::set_global_privacy_control(JsonValue const& global_privacy_cont
     if (!global_privacy_control.is_bool())
         return;
 
-    WebView::Application::settings().set_global_privacy_control(global_privacy_control.as_bool() ? GlobalPrivacyControl::Yes : GlobalPrivacyControl::No);
+    Application::settings().set_global_privacy_control(global_privacy_control.as_bool() ? GlobalPrivacyControl::Yes : GlobalPrivacyControl::No);
+}
+
+void SettingsUI::set_services_network_access_enabled(JsonValue const& enabled)
+{
+    if (!enabled.is_bool())
+        return;
+
+    Application::settings().set_background_networking_enabled(enabled.as_bool());
+    load_current_settings();
+}
+
+void SettingsUI::set_filter_list_updates_enabled(JsonValue const& enabled)
+{
+    if (!enabled.is_bool())
+        return;
+
+    Application::settings().set_filter_list_updates_enabled(enabled.as_bool());
+    load_current_settings();
+}
+
+void SettingsUI::update_content_blocker_lists(JsonValue const&)
+{
+    Application::the().update_content_blocker_lists({});
+    load_current_settings();
+}
+
+void SettingsUI::set_content_blocker_list_enabled(JsonValue const& value)
+{
+    if (!value.is_object())
+        return;
+
+    auto identifier = value.as_object().get_string("identifier"sv);
+    auto enabled = value.as_object().get_bool("enabled"sv);
+    if (!identifier.has_value() || !enabled.has_value())
+        return;
+
+    Application::settings().set_content_blocker_list_enabled(*identifier, *enabled);
+    if (*enabled)
+        Application::the().download_content_blocker_list_if_needed({}, *identifier);
+    load_current_settings();
+}
+
+void SettingsUI::add_custom_content_blocker_subscription(JsonValue const& value)
+{
+    if (!value.is_string())
+        return;
+
+    auto url = URL::Parser::basic_parse(value.as_string());
+    if (!url.has_value() || !url->scheme().is_one_of("http"sv, "https"sv)) {
+        report_content_blocker_result("subscription"_string, "Enter an HTTP or HTTPS URL."_string);
+        return;
+    }
+
+    for (auto const& subscription : Application::settings().content_blocker_lists()) {
+        if (!subscription.built_in && subscription.url == url) {
+            report_content_blocker_result("subscription"_string, "Subscription already added."_string);
+            load_current_settings();
+            return;
+        }
+    }
+
+    auto identifier = Application::settings().add_content_blocker_list(url->serialize(), url);
+    Application::the().download_content_blocker_list_if_needed({}, identifier);
+    report_content_blocker_result("subscription"_string, "Subscription added."_string);
+    load_current_settings();
+}
+
+void SettingsUI::remove_content_blocker_list(JsonValue const& value)
+{
+    if (!value.is_string())
+        return;
+
+    Application::the().remove_content_blocker_list({}, value.as_string());
+    load_current_settings();
+}
+
+void SettingsUI::import_local_content_blocker_list(JsonValue const& value)
+{
+    if (!value.is_object())
+        return;
+
+    auto name = value.as_object().get_string("name"sv);
+    auto contents = value.as_object().get_string("contents"sv);
+    if (!name.has_value() || name->is_empty() || !contents.has_value())
+        return;
+
+    if (auto result = Application::the().import_local_content_blocker_list(*name, *contents); result.is_error())
+        report_content_blocker_result("import"_string, MUST(String::formatted("Unable to import list: {}", result.error())));
+    else
+        report_content_blocker_result("import"_string, MUST(String::formatted("{} imported.", *name)));
+
+    load_current_settings();
+}
+
+void SettingsUI::set_custom_content_blocker_filters(JsonValue const& value)
+{
+    if (!value.is_string() || value.as_string().bytes().size() > 4 * MiB)
+        return;
+
+    Application::settings().set_custom_content_blocker_filters(value.as_string());
+    load_current_settings();
+}
+
+void SettingsUI::report_content_blocker_result(String operation, String message)
+{
+    JsonObject result;
+    result.set("operation"sv, move(operation));
+    result.set("message"sv, move(message));
+    async_send_message("contentBlockerResult"sv, result);
 }
 
 void SettingsUI::set_dns_settings(JsonValue const& dns_settings)
@@ -600,14 +661,6 @@ void SettingsUI::set_force_dark_enabled(JsonValue const& enabled)
         return;
 
     Application::settings().set_force_dark_enabled(enabled.as_bool());
-}
-
-void SettingsUI::set_geolocation_enabled(JsonValue const& enabled)
-{
-    if (!enabled.is_bool())
-        return;
-
-    Application::settings().set_geolocation_enabled(enabled.as_bool());
 }
 
 }
