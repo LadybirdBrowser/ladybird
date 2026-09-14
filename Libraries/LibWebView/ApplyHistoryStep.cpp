@@ -383,16 +383,20 @@ void ApplyHistoryStep::update_nonchanging_navigables()
 
 void ApplyHistoryStep::set_current_session_history_step()
 {
-    // AD-HOC: Commit the target step only if no newer apply history step has committed one. A synchronous navigation
-    //         jumping the queue while this step was paused has a newer target step; moving the current step back past
-    //         it would let the next push assign a step number that an existing entry already holds.
+    // AD-HOC: Commit the target step only if no newer apply history step has moved the current step. A synchronous
+    //         push jumping the queue while this step was paused has a newer target step; moving the current step back
+    //         past it would let the next push assign a step number that an existing entry already holds. A synchronous
+    //         replace that jumped the queue re-commits the step it started from and moves nothing, so it doesn't stand
+    //         in the way: A cross-document navigation that was paused while the page it's unloading replaced an entry
+    //         (a document.open() in one of its iframes, or a replaceState() call) still commits its own step.
     //         See https://github.com/whatwg/html/issues/12576.
     if (m_generation > m_traversable_state.committed_generation) {
-        m_traversable_state.committed_generation = m_generation;
-
         // 20. Set traversable's current session history step to targetStep.
         auto used_target_step = m_session_history.get_the_used_step(m_target_step);
         if (used_target_step.has_value()) {
+            auto current_step = m_session_history.current_step();
+            if (!current_step.has_value() || *current_step != *used_target_step)
+                m_traversable_state.committed_generation = m_generation;
             m_session_history.set_current_session_history_step(*used_target_step);
             m_committed_step = *used_target_step;
         }
