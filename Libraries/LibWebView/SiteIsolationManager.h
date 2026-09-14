@@ -38,6 +38,7 @@ public:
         Web::PageId page_id;
     };
     ErrorOr<DocumentHost> obtain_child_document_host(CanonicalNavigable&, CanonicalSimilarOriginWindowAgent&);
+    void host_opaque_origin_agent_with_initiator(CanonicalBrowsingContextGroup&, CanonicalSimilarOriginWindowAgent&, URL::Origin const& origin, Optional<URL::Origin> const& initiator_origin);
     void set_child_document_host(CanonicalNavigable&, DocumentHost const&);
 
     void transition_child_frame_to_remote(WebContentClient& parent_client, Web::PageId page_id, Web::HTML::CrossProcessId frame_id, NonnullRefPtr<WebContentClient>, Web::PageId remote_page_id);
