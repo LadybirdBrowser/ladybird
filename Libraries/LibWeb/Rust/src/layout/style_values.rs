@@ -18,10 +18,10 @@ pub(crate) enum InsetField {
 /// A resolved px-or-auto inset produced by anchor resolution. It takes
 /// precedence over every style read and reports
 /// contains_anchor_function() == false.
-#[derive(Clone, Copy)]
-pub(crate) struct ResolvedInsetOverride {
-    pub(crate) is_auto: bool,
-    pub(crate) px: CssPixels,
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum ResolvedInsetOverride {
+    Auto,
+    Pixels(CssPixels),
 }
 
 #[derive(Clone, Copy)]
@@ -33,17 +33,14 @@ pub(crate) enum InsetValue<'a> {
 
 impl InsetValue<'_> {
     pub(crate) fn auto_value() -> Self {
-        Self::Resolved(ResolvedInsetOverride {
-            is_auto: true,
-            px: CssPixels::default(),
-        })
+        Self::Resolved(ResolvedInsetOverride::Auto)
     }
 
     pub(crate) fn is_auto(self) -> bool {
         match self {
             Self::FromStyle(value) => value.is_auto(),
             Self::BareAnchor(_) => false,
-            Self::Resolved(resolved) => resolved.is_auto,
+            Self::Resolved(resolved) => matches!(resolved, ResolvedInsetOverride::Auto),
         }
     }
 
@@ -51,8 +48,8 @@ impl InsetValue<'_> {
         match self {
             Self::FromStyle(value) => value.to_px(reference),
             Self::BareAnchor(wrapper) => resolve_calc_to_px(std::ptr::from_ref(wrapper).cast(), reference),
-            Self::Resolved(resolved) if resolved.is_auto => CssPixels::default(),
-            Self::Resolved(resolved) => resolved.px,
+            Self::Resolved(ResolvedInsetOverride::Auto) => CssPixels::default(),
+            Self::Resolved(ResolvedInsetOverride::Pixels(px)) => px,
         }
     }
 
