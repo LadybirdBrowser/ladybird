@@ -1209,7 +1209,7 @@ void Animation::update()
         if (play_state() == AnimationPlayState::Running && m_effect && is<KeyframeEffect>(*m_effect)) {
             auto& effect = static_cast<KeyframeEffect&>(*m_effect);
             bool output_is_constant_before_active_start = !pending()
-                && effect.is_in_the_before_phase()
+                && effect.phase() == AnimationEffect::Phase::Before
                 && m_timeline
                 && m_timeline->is_monotonically_increasing()
                 && playback_rate() > 0;
@@ -1237,7 +1237,7 @@ void Animation::update()
 
     if (play_state() == AnimationPlayState::Running && !pending() && m_effect && is<KeyframeEffect>(*m_effect)) {
         auto& effect = static_cast<KeyframeEffect&>(*m_effect);
-        if (effect.is_in_the_before_phase()
+        if (effect.phase() == AnimationEffect::Phase::Before
             && m_timeline && m_timeline->is_monotonically_increasing()
             && playback_rate() > 0
             && effect.start_delay().type == TimeValue::Type::Milliseconds) {

@@ -467,63 +467,68 @@ Optional<TimeValue> AnimationEffect::active_time_using_fill(Bindings::FillMode f
     // The active time is based on the local time and start delay. However, it is only defined when the animation effect
     // should produce an output and hence depends on its fill mode and phase as follows,
 
+    auto local_time = this->local_time();
+    switch (phase(local_time)) {
     // -> If the animation effect is in the before phase,
-    if (is_in_the_before_phase()) {
+    case Phase::Before:
         // The result depends on the first matching condition from the following,
 
         // -> If the fill mode is backwards or both,
         if (fill_mode == Bindings::FillMode::Backwards || fill_mode == Bindings::FillMode::Both) {
             // Return the result of evaluating max(local time - start delay, 0).
-            return max(local_time().value() - m_start_delay, TimeValue::create_zero(associated_timeline()));
+            return max(local_time.value() - m_start_delay, TimeValue::create_zero(associated_timeline()));
         }
 
         // -> Otherwise,
         //    Return an unresolved time value.
         return {};
-    }
 
     // -> If the animation effect is in the active phase,
-    if (is_in_the_active_phase()) {
+    case Phase::Active:
         // Return the result of evaluating local time - start delay.
-        return local_time().value() - m_start_delay;
-    }
+        return local_time.value() - m_start_delay;
 
     // -> If the animation effect is in the after phase,
-    if (is_in_the_after_phase()) {
+    case Phase::After:
         // The result depends on the first matching condition from the following,
 
         // -> If the fill mode is forwards or both,
         if (fill_mode == Bindings::FillMode::Forwards || fill_mode == Bindings::FillMode::Both) {
             // Return the result of evaluating max(min(local time - start delay, active duration), 0).
-            return max(min(local_time().value() - m_start_delay, active_duration()), TimeValue::create_zero(associated_timeline()));
+            return max(min(local_time.value() - m_start_delay, active_duration()), TimeValue::create_zero(associated_timeline()));
         }
 
         // -> Otherwise,
         //    Return an unresolved time value.
         return {};
-    }
 
     // -> Otherwise (the local time is unresolved),
     //    Return an unresolved time value.
-    return {};
+    case Phase::Idle:
+        return {};
+    }
+
+    VERIFY_NOT_REACHED();
 }
 
 // https://www.w3.org/TR/web-animations-1/#in-play
-bool AnimationEffect::is_in_play() const
+bool AnimationEffect::is_in_play(Phase phase) const
 {
     // An animation effect is in play if all of the following conditions are met:
     // - the animation effect is in the active phase, and
     // - the animation effect is associated with an animation that is not finished.
-    return is_in_the_active_phase() && m_associated_animation && !m_associated_animation->is_finished();
+    return phase == Phase::Active && m_associated_animation && !m_associated_animation->is_finished();
 }
 
 // https://www.w3.org/TR/web-animations-1/#current
 bool AnimationEffect::is_current() const
 {
+    auto phase = this->phase();
+
     // An animation effect is current if any of the following conditions are true:
 
     // - the animation effect is in play, or
-    if (is_in_play())
+    if (is_in_play(phase))
         return true;
 
     if (auto animation = m_associated_animation) {
@@ -531,12 +536,12 @@ bool AnimationEffect::is_current() const
 
         // - the animation effect is associated with an animation with a playback rate > 0 and the animation effect is
         //   in the before phase, or
-        if (playback_rate > 0.0 && is_in_the_before_phase())
+        if (playback_rate > 0.0 && phase == Phase::Before)
             return true;
 
         // - the animation effect is associated with an animation with a playback rate < 0 and the animation effect is
         //   in the after phase, or
-        if (playback_rate < 0.0 && is_in_the_after_phase())
+        if (playback_rate < 0.0 && phase == Phase::After)
             return true;
 
         // - the animation effect is associated with an animation not in the idle play state with a non-null associated
@@ -570,80 +575,39 @@ TimeValue AnimationEffect::after_active_boundary_time() const
     return max(min(m_start_delay + active_duration(), end_time()), TimeValue::create_zero(associated_timeline()));
 }
 
-// https://www.w3.org/TR/web-animations-1/#animation-effect-before-phase
-bool AnimationEffect::is_in_the_before_phase() const
-{
-    // An animation effect is in the before phase if the animation effect’s local time is not unresolved and either of
-    // the following conditions are met:
-    auto local_time = this->local_time();
-    if (!local_time.has_value())
-        return false;
-
-    // - the local time is less than the before-active boundary time, or
-    auto before_active_boundary_time = this->before_active_boundary_time();
-    if (local_time.value() < before_active_boundary_time)
-        return true;
-
-    // - the animation direction is "backwards" and the local time is equal to the before-active boundary time.
-    return animation_direction() == AnimationDirection::Backwards && local_time.value() == before_active_boundary_time;
-}
-
-// https://www.w3.org/TR/web-animations-1/#animation-effect-after-phase
-bool AnimationEffect::is_in_the_after_phase() const
-{
-    // An animation effect is in the after phase if the animation effect’s local time is not unresolved and either of
-    // the following conditions are met:
-    auto local_time = this->local_time();
-    if (!local_time.has_value())
-        return false;
-
-    // - the local time is greater than the active-after boundary time, or
-    auto after_active_boundary_time = this->after_active_boundary_time();
-    if (local_time.value() > after_active_boundary_time)
-        return true;
-
-    // - the animation direction is "forwards" and the local time is equal to the active-after boundary time.
-    return animation_direction() == AnimationDirection::Forwards && local_time.value() == after_active_boundary_time;
-}
-
-// https://www.w3.org/TR/web-animations-1/#animation-effect-active-phase
-bool AnimationEffect::is_in_the_active_phase() const
-{
-    // An animation effect is in the active phase if the animation effect’s local time is not unresolved and it is not
-    // in either the before phase nor the after phase.
-    return local_time().has_value() && !is_in_the_before_phase() && !is_in_the_after_phase();
-}
-
-// https://www.w3.org/TR/web-animations-1/#animation-effect-idle-phase
-bool AnimationEffect::is_in_the_idle_phase() const
-{
-    // It is often convenient to refer to the case when an animation effect is in none of the above phases as being in
-    // the idle phase
-    return !is_in_the_before_phase() && !is_in_the_active_phase() && !is_in_the_after_phase();
-}
-
 AnimationEffect::Phase AnimationEffect::phase() const
+{
+    return phase(local_time());
+}
+
+AnimationEffect::Phase AnimationEffect::phase(Optional<TimeValue> const& local_time) const
 {
     // This is a convenience method that returns the phase of the animation effect, to avoid having to call all of the
     // phase functions separately.
-    auto local_time = this->local_time();
     if (!local_time.has_value())
         return Phase::Idle;
 
     auto before_active_boundary_time = this->before_active_boundary_time();
+    // https://www.w3.org/TR/web-animations-1/#animation-effect-before-phase
+    // An animation effect is in the before phase if the animation effect’s local time is not unresolved and either of
+    // the following conditions are met:
     // - the local time is less than the before-active boundary time, or
     // - the animation direction is "backwards" and the local time is equal to the before-active boundary time.
     if (local_time.value() < before_active_boundary_time || (animation_direction() == AnimationDirection::Backwards && local_time.value() == before_active_boundary_time))
         return Phase::Before;
 
     auto after_active_boundary_time = this->after_active_boundary_time();
+    // https://www.w3.org/TR/web-animations-1/#animation-effect-after-phase
+    // An animation effect is in the after phase if the animation effect’s local time is not unresolved and either of
+    // the following conditions are met:
     // - the local time is greater than the active-after boundary time, or
     // - the animation direction is "forwards" and the local time is equal to the active-after boundary time.
     if (local_time.value() > after_active_boundary_time || (animation_direction() == AnimationDirection::Forwards && local_time.value() == after_active_boundary_time))
         return Phase::After;
 
-    // - An animation effect is in the active phase if the animation effect’s local time is not unresolved and it is not
-    // - in either the before phase nor the after phase.
+    // https://www.w3.org/TR/web-animations-1/#animation-effect-active-phase
+    // An animation effect is in the active phase if the animation effect’s local time is not unresolved and it is not
+    // in either the before phase nor the after phase.
     return Phase::Active;
 }
 
@@ -662,7 +626,7 @@ Optional<double> AnimationEffect::overall_progress() const
     if (m_iteration_duration.value == 0) {
         // If the animation effect is in the before phase, let overall progress be zero, otherwise, let it be equal to
         // the iteration count.
-        if (is_in_the_before_phase())
+        if (phase() == Phase::Before)
             overall_progress = 0.0;
         else
             overall_progress = m_iteration_count;
@@ -746,7 +710,8 @@ Optional<double> AnimationEffect::simple_iteration_progress() const
     //    - the active time is equal to the active duration, and
     //    - the iteration count is not equal to zero.
     auto active_time = this->active_time();
-    if (simple_iteration_progress == 0.0 && (is_in_the_active_phase() || is_in_the_after_phase()) && active_time.has_value() && active_time.value() == active_duration() && m_iteration_count != 0.0) {
+    auto phase = this->phase();
+    if (simple_iteration_progress == 0.0 && (phase == Phase::Active || phase == Phase::After) && active_time.has_value() && active_time.value() == active_duration() && m_iteration_count != 0.0) {
         // let the simple iteration progress be 1.0.
         simple_iteration_progress = 1.0;
     }
@@ -764,7 +729,7 @@ Optional<double> AnimationEffect::current_iteration() const
         return {};
 
     // 2. If the animation effect is in the after phase and the iteration count is infinity, return infinity.
-    if (is_in_the_after_phase() && isinf(m_iteration_count))
+    if (phase() == Phase::After && isinf(m_iteration_count))
         return m_iteration_count;
 
     // 3. If the simple iteration progress is 1.0, return floor(overall progress) - 1.
@@ -788,13 +753,14 @@ Optional<double> AnimationEffect::transformed_progress() const
 
     //    1. Determine the current direction using the procedure defined in §4.9.1 Calculating the directed progress.
     auto current_direction = this->current_direction();
+    auto phase = this->phase();
 
     //    2. If the current direction is forwards, let going forwards be true, otherwise it is false.
     auto going_forwards = current_direction == AnimationDirection::Forwards;
 
     //    3. The before flag is set if the animation effect is in the before phase and going forwards is true; or if the animation effect
     //       is in the after phase and going forwards is false.
-    auto before_flag = (is_in_the_before_phase() && going_forwards) || (is_in_the_after_phase() && !going_forwards);
+    auto before_flag = (phase == Phase::Before && going_forwards) || (phase == Phase::After && !going_forwards);
 
     // 3. Return the result of evaluating the animation effect’s timing function passing directed progress as the input progress value and
     //    before flag as the before flag.
