@@ -205,6 +205,9 @@ public:
     bool is_in_tooltip_area() const { return m_is_in_tooltip_area; }
     void set_is_in_tooltip_area(bool b) { m_is_in_tooltip_area = b; }
 
+    GC::Ptr<HTML::LocalNavigable> hover_reporting_navigable() const { return m_hover_reporting_navigable.ptr(); }
+    void set_hover_reporting_navigable(Badge<EventHandler>, GC::Ptr<HTML::LocalNavigable>);
+
     Gfx::Cursor current_cursor() const { return m_current_cursor; }
     void set_current_cursor(Gfx::Cursor cursor) { m_current_cursor = move(cursor); }
 
@@ -388,6 +391,10 @@ private:
     // Mouse events are hit-tested independently, so a release can target an ancestor document after a press began in
     // a child navigable. Retain the interaction owner separately from focus to clear its non-DOM input state.
     GC::Weak<HTML::LocalNavigable> m_mouse_event_tracking_navigable;
+    // The navigable whose event handler reported the hovered link or tooltip the client shows, while it shows one. Only
+    // that handler ends the hover when its document is replaced; another navigable's replacement (an iframe the pointer
+    // once passed through, e.g.) leaves the report standing.
+    GC::Weak<HTML::LocalNavigable> m_hover_reporting_navigable;
 
     GC::Ptr<HTML::LocalNavigable> m_local_root_navigable;
 

@@ -8,6 +8,7 @@
 #include <AK/Random.h>
 #include <AK/ScopeGuard.h>
 #include <AK/String.h>
+#include <AK/Utf16String.h>
 #include <LibCore/Directory.h>
 #include <LibCore/Environment.h>
 #include <LibCore/EventLoop.h>
@@ -68,6 +69,9 @@ void leave_view(WebView::ViewImplementation& view)
 // hidden underneath the pointer (keyboard tab switch, minimized window) gets no Leave from its toolkit, so the UI sends
 // WebContent the MouseLeave a real Leave would. And WebContent must end the hover on it, and report the link fresh once
 // the pointer moves over it again, rather than treating it as a no-op because the link under the pointer never changed.
+// And replacing the document ends the hover too, with the pointer resting: The link the page reported belongs to the
+// outgoing document, and a keyboard navigation moves no pointer. But only the handler that reported the hover ends it
+// that way: an iframe navigating underneath a hover in its parent document leaves the parent's link reported.
 
 ErrorOr<int> ladybird_main(Main::Arguments arguments)
 {
@@ -148,6 +152,79 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
     VERIFY(!hovered_url.has_value());
     VERIFY(hovers_reported == 3);
 
-    outln("PASS: a MouseLeave ends the link hover, and the next move over the link reports it again");
+    move_mouse_to(*view, { 20, 20 });
+    Core::EventLoop::current().spin_until([&]() { return hovers_reported >= 4; });
+    VERIFY(hovered_url.has_value());
+
+    // Replacing the document reports the unhover before the load finishes, with the pointer resting. WebContent sends
+    // both reports over the one connection, in order, so the unhover is in by the time the load is.
+    view->load_html("<!DOCTYPE html><a href=\"https://example.org/\" style=\"position:fixed;left:0;top:0;width:400px;height:300px\">Link</a>"sv);
+    Core::EventLoop::current().spin_until([&]() { return loads_finished >= 3; });
+    VERIFY(unhovers_reported == 4);
+    VERIFY(!hovered_url.has_value());
+    VERIFY(hovers_reported == 4);
+
+    // The new document's link at the same spot is a fresh target at the pointer's next move.
+    move_mouse_to(*view, { 20, 20 });
+    Core::EventLoop::current().spin_until([&]() { return hovers_reported >= 5; });
+    VERIFY(hovered_url.has_value());
+    VERIFY(hovered_url->serialize() == "https://example.org/"sv);
+
+    // A page with an iframe over the top-left quarter, holding a link that fills it, and a link of the page's own over
+    // the top-right quarter. The page retitles itself on each load of the iframe, so the test can wait one out.
+    Utf16String last_title;
+    view->on_title_change = [&](auto const& title) { last_title = title; };
+    view->load_html(R"~~~(<!DOCTYPE html>
+<iframe id="frame" style="position:fixed;left:0;top:0;width:400px;height:300px;border:0" srcdoc="<a href='https://example.com/in-iframe' style='position:fixed;left:0;top:0;width:400px;height:300px'>Link</a>"></iframe>
+<a href="https://example.com/parent" style="position:fixed;left:400px;top:0;width:400px;height:300px">Link</a>
+<script>
+let frame_loads = 0;
+frame.addEventListener("load", () => { document.title = "frame load " + (++frame_loads); });
+function navigate_frame() { frame.srcdoc = frame.getAttribute("srcdoc") + "<!-- " + frame_loads + " -->"; }
+</script>)~~~"sv);
+    Core::EventLoop::current().spin_until([&]() { return loads_finished >= 4; });
+    // The pointer rested on the previous page's link, so that page's replacement reported the unhover.
+    VERIFY(unhovers_reported == 5);
+    VERIFY(!hovered_url.has_value());
+
+    // The iframe's own handler reports its link. And the iframe navigating underneath the pointer replaces the document
+    // that link is in, so it reports the unhover, with the pointer resting.
+    move_mouse_to(*view, { 20, 20 });
+    Core::EventLoop::current().spin_until([&]() { return hovers_reported >= 6; });
+    VERIFY(hovered_url->serialize() == "https://example.com/in-iframe"sv);
+    view->run_javascript("navigate_frame()"_string);
+    Core::EventLoop::current().spin_until([&]() { return unhovers_reported >= 6; });
+    VERIFY(!hovered_url.has_value());
+    Core::EventLoop::current().spin_until([&]() { return last_title == "frame load 2"sv; });
+
+    // The new iframe document's link is a fresh target. Then over to the page's own link: The page's handler reports
+    // it, while the iframe's handler still holds the iframe's link as the pointer's position, never having heard that
+    // the pointer left the iframe.
+    move_mouse_to(*view, { 20, 20 });
+    Core::EventLoop::current().spin_until([&]() { return hovers_reported >= 7; });
+    VERIFY(hovered_url->serialize() == "https://example.com/in-iframe"sv);
+    move_mouse_to(*view, { 600, 20 });
+    Core::EventLoop::current().spin_until([&]() { return hovers_reported >= 8; });
+    VERIFY(hovered_url->serialize() == "https://example.com/parent"sv);
+    VERIFY(unhovers_reported == 6);
+
+    // So, the iframe navigating now must leave the page's link reported: The hover the client shows is the page's
+    // handler's to end, not the iframe's. The iframe's load comes after any unhover its replacement would have sent.
+    view->run_javascript("navigate_frame()"_string);
+    Core::EventLoop::current().spin_until([&]() { return last_title == "frame load 3"sv; });
+    VERIFY(unhovers_reported == 6);
+    VERIFY(hovered_url->serialize() == "https://example.com/parent"sv);
+
+    // Back over the iframe's link, then a new top-level document: The iframe dies along with the old one, and its
+    // handler reports the link gone as the iframe's document is destroyed.
+    move_mouse_to(*view, { 20, 20 });
+    Core::EventLoop::current().spin_until([&]() { return hovers_reported >= 9; });
+    VERIFY(hovered_url->serialize() == "https://example.com/in-iframe"sv);
+    view->load_html("<!DOCTYPE html><p>Plain</p>"sv);
+    Core::EventLoop::current().spin_until([&]() { return unhovers_reported >= 7; });
+    VERIFY(!hovered_url.has_value());
+    VERIFY(hovers_reported == 9);
+
+    outln("PASS: a MouseLeave or a document replacement ends the link hover, and the next move over the link reports it again");
     return 0;
 }
