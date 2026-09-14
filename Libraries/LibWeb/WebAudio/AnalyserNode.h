@@ -7,11 +7,13 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/OwnPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/AnalyserNode.h>
 #include <LibWeb/WebAudio/AudioNode.h>
+#include <LibWeb/WebAudio/Rendering/FFT.h>
 #include <LibWeb/WebIDL/Buffers.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
@@ -66,6 +68,7 @@ private:
     static constexpr unsigned long MAX_FFT_SIZE = 32768;
 
     unsigned long m_fft_size;
+    OwnPtr<Rendering::FFT> m_fft;
     double m_max_decibels;
     double m_min_decibels;
     double m_smoothing_time_constant;
