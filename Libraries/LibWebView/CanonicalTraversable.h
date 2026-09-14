@@ -81,7 +81,10 @@ public:
 
     void did_receive_history_operation_ready(WebContentClient&, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationReadyResult);
     void did_receive_history_step_unload_cancelation_result(WebContentClient&, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult, Web::HTML::UnloadPromptShown);
-    void did_receive_history_step_beforeunload_check_result(WebContentClient&, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult, Web::HTML::UnloadPromptShown);
+    void did_receive_beforeunload_check_result(WebContentClient&, Web::PageId source_page_id, Web::HTML::CrossProcessId check_id, Web::HTML::HistoryStepResult, Web::HTML::UnloadPromptShown);
+
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#checking-if-unloading-is-canceled
+    void check_if_unloading_is_canceled(Vector<Web::HTML::CrossProcessId> navigable_ids, Optional<HistoryJobEndpoint> skipped_endpoint, Web::HTML::UnloadPromptShown, Function<void(Web::HTML::HistoryStepResult, Web::HTML::UnloadPromptShown)> on_complete);
     void did_receive_changing_navigable_history_job_ready(WebContentClient&, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition, Web::HTML::UnloadDisplayedDocument);
     void did_finish_history_navigation_params_creation(WebContentClient&, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryNavigationPopulation);
     void did_receive_changing_navigable_unload_preparation_complete(WebContentClient&, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id);
@@ -262,6 +265,19 @@ private:
     HashMap<Web::HTML::CrossProcessId, PendingUnload> m_pending_unloads;
 
     Optional<HistoryJobEndpoint> m_displaced_document_host;
+
+    struct BeforeunloadGroup {
+        HistoryJobEndpoint endpoint;
+        Vector<Web::HTML::CrossProcessId> navigable_ids;
+    };
+    struct PendingBeforeunloadCheck {
+        Vector<BeforeunloadGroup> groups;
+        Optional<HistoryJobEndpoint> dispatched_endpoint;
+        Web::HTML::UnloadPromptShown unload_prompt_shown { Web::HTML::UnloadPromptShown::No };
+        Function<void(Web::HTML::HistoryStepResult, Web::HTML::UnloadPromptShown)> on_complete;
+    };
+    HashMap<Web::HTML::CrossProcessId, PendingBeforeunloadCheck> m_pending_beforeunload_checks;
+    void dispatch_next_beforeunload_group(Web::HTML::CrossProcessId check_id);
     bool m_displaced_document_unloaded { false };
     bool m_displaced_document_unload_pending { false };
 
