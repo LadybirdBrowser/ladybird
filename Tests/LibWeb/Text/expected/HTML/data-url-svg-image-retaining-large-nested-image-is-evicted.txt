@@ -1,0 +1,1 @@
+image evicted once its nested image exceeds the budget: true

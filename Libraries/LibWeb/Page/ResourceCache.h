@@ -1,0 +1,123 @@
+/*
+ * Copyright (c) 2026, Tim Ledbetter <tim.ledbetter@ladybird.org>
+ *
+ * SPDX-License-Identifier: BSD-2-Clause
+ */
+
+#pragma once
+
+#include <AK/Function.h>
+#include <AK/HashMap.h>
+#include <AK/Optional.h>
+#include <LibGC/Cell.h>
+#include <LibJS/Runtime/ExternalMemory.h>
+#include <LibURL/URL.h>
+
+namespace Web {
+
+template<typename Value>
+class ResourceCache {
+public:
+    ResourceCache(size_t count_limit, size_t memory_limit, Function<size_t(Value const&)> memory_size_of_value)
+        : m_count_limit(count_limit)
+        , m_memory_limit(memory_limit)
+        , m_memory_size_of_value(move(memory_size_of_value))
+    {
+    }
+
+    Optional<Value> peek(URL::URL const& url) const
+    {
+        auto it = m_entries.find(url);
+        if (it == m_entries.end())
+            return {};
+        return it->value.value;
+    }
+
+    Optional<Value> get(URL::URL const& url)
+    {
+        auto it = m_entries.find(url);
+        if (it == m_entries.end())
+            return {};
+        it->value.last_use_serial = ++m_use_serial;
+        ++m_hit_count;
+        auto value = it->value.value;
+        evict_entries_to_fit_limits();
+        return value;
+    }
+
+    void set(URL::URL const& url, Value value)
+    {
+        auto url_memory_size = url.serialize().byte_count();
+        if (JS::saturating_add_external_memory_size(url_memory_size, m_memory_size_of_value(value)) <= m_memory_limit)
+            insert(url, value, url_memory_size);
+    }
+
+    void visit_edges(GC::Cell::Visitor& visitor)
+    {
+        if constexpr (requires(Value const& value) { visitor.visit(value); }) {
+            for (auto const& it : m_entries)
+                visitor.visit(it.value.value);
+        }
+    }
+
+    Optional<size_t> entry_memory_size(URL::URL const& url) const
+    {
+        auto it = m_entries.find(url);
+        if (it == m_entries.end())
+            return {};
+        return memory_size_of(it->value);
+    }
+
+    u64 hit_count() const { return m_hit_count; }
+
+    void evict_entries_to_fit_limits()
+    {
+        size_t memory_size = 0;
+        m_entries.remove_all_matching([&](URL::URL const&, Entry& entry) {
+            entry.memory_size = memory_size_of(entry);
+            if (entry.memory_size > m_memory_limit)
+                return true;
+            memory_size += entry.memory_size;
+            return false;
+        });
+
+        while (m_entries.size() > m_count_limit || memory_size > m_memory_limit) {
+            auto least_recently_used = m_entries.begin();
+            for (auto it = m_entries.begin(); it != m_entries.end(); ++it) {
+                if (it->value.last_use_serial < least_recently_used->value.last_use_serial)
+                    least_recently_used = it;
+            }
+            memory_size -= least_recently_used->value.memory_size;
+            m_entries.remove(least_recently_used);
+        }
+    }
+
+private:
+    struct Entry {
+        Value value;
+        size_t url_memory_size { 0 };
+        size_t memory_size { 0 };
+        u64 last_use_serial { 0 };
+    };
+
+    size_t memory_size_of(Entry const& entry) const
+    {
+        return JS::saturating_add_external_memory_size(entry.url_memory_size, m_memory_size_of_value(entry.value));
+    }
+
+    void insert(URL::URL const& url, Value value, size_t url_memory_size)
+    {
+        m_entries.set(url, { .value = move(value), .url_memory_size = url_memory_size, .last_use_serial = ++m_use_serial });
+        evict_entries_to_fit_limits();
+    }
+
+    size_t m_count_limit { 0 };
+    size_t m_memory_limit { 0 };
+    Function<size_t(Value const&)> m_memory_size_of_value;
+
+    HashMap<URL::URL, Entry> m_entries;
+    u64 m_use_serial { 0 };
+    u64 m_hit_count { 0 };
+};
+
+}

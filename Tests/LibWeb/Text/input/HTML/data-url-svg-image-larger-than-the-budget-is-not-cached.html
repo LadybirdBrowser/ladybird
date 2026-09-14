@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        // 30,000 elements retain more than the cache allows.
+        const rectangles = '<rect width="10" height="10" fill="green"/>'.repeat(30000);
+        // A fragment keeps the image out of the cache when the test is repeated in the same process.
+        const url = "data:image/svg+xml," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="10" height="10">${rectangles}</svg>`) + `#nocache=${Math.random()}`;
+
+        const image = new Image();
+        image.src = url;
+        await new Promise(resolve => { image.onload = resolve; });
+        println(`image whose document exceeds the budget cached: ${internals.dataURLImageCacheEntryMemorySize(url) > 0}`);
+    });
+</script>

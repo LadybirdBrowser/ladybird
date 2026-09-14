@@ -220,11 +220,24 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
     // AD-HOC: At this point, things gets very ad-hoc.
     // FIXME: Bring this closer to spec.
 
+    // NB: The page cache is consulted only after the fetch so that this document's content security policy
+    //     still applies.
+    auto is_shareable_data_url_image = url_string.scheme() == "data"sv && !image_data_is_cors_cross_origin;
+    if (is_shareable_data_url_image) {
+        if (auto cached_image_data = m_page->data_url_image_cache().get(url_string); cached_image_data.has_value()) {
+            m_image_data = *cached_image_data;
+            handle_successful_resource_load();
+            return;
+        }
+    }
+
     if (is_svg_image == IsSVGImage::Yes) {
         SVG::SVGDecodedImageData::decode(m_page, url_string, data)
-            ->when_resolved([self = GC::Root { *this }, image_data_is_cors_cross_origin](auto& image_data) {
+            ->when_resolved([self = GC::Root { *this }, url = url_string, image_data_is_cors_cross_origin, is_shareable_data_url_image](auto& image_data) {
                 self->m_image_data = image_data.ptr();
                 self->m_image_data->set_is_cors_cross_origin(image_data_is_cors_cross_origin);
+                if (is_shareable_data_url_image)
+                    self->m_page->data_url_image_cache().set(url, *self->m_image_data);
                 self->handle_successful_resource_load();
             })
             .when_rejected([self = GC::Root { *this }](Error&) {
@@ -233,7 +246,7 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
         return;
     }
 
-    auto handle_successful_bitmap_decode = [strong_this = GC::Root(*this), image_data_is_cors_cross_origin](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
+    auto handle_successful_bitmap_decode = [strong_this = GC::Root(*this), url = url_string, image_data_is_cors_cross_origin, is_shareable_data_url_image](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
         if (result.session_id != 0) {
             // Streaming animated decode: create AnimatedBitmapDecodedImageData.
             Vector<NonnullRefPtr<Gfx::Bitmap>> initial_bitmaps;
@@ -263,6 +276,8 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
                 });
             }
             strong_this->m_image_data = BitmapDecodedImageData::create(move(frames), result.loop_count, result.is_animated).release_value_but_fixme_should_propagate_errors();
+            if (is_shareable_data_url_image)
+                strong_this->m_page->data_url_image_cache().set(url, *strong_this->m_image_data);
         }
         strong_this->m_image_data->set_is_cors_cross_origin(image_data_is_cors_cross_origin);
         strong_this->handle_successful_resource_load();
@@ -317,6 +332,7 @@ void SharedResourceRequest::handle_successful_resource_load()
     }
     m_callbacks.clear();
     m_document->prune_image_resource_caches();
+    m_page->client().page_did_finish_loading_image_resource();
 }
 
 bool SharedResourceRequest::needs_fetching() const

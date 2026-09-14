@@ -8,6 +8,7 @@
 #include <AK/ScopeGuard.h>
 #include <LibCompositing/DisplayList/DisplayListResourceStorage.h>
 #include <LibGC/Heap.h>
+#include <LibGC/HeapBlock.h>
 #include <LibGC/WeakHashMap.h>
 #include <LibGfx/Bitmap.h>
 #include <LibGfx/DecodedImageFrame.h>
@@ -18,6 +19,7 @@
 #include <LibWeb/DOM/DocumentObserver.h>
 #include <LibWeb/DOM/XMLDocument.h>
 #include <LibWeb/HTML/LocalTraversableNavigable.h>
+#include <LibWeb/HTML/SharedResourceRequest.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/Painting/DocumentPaintState.h>
@@ -201,6 +203,24 @@ void SVGDecodedImageData::visit_edges(Cell::Visitor& visitor)
     visitor.visit(m_root_element);
 }
 
+void SVGDecodedImageData::on_last_client_unregistered()
+{
+    if (m_has_pending_rasterization_release)
+        return;
+    m_has_pending_rasterization_release = true;
+    heap().enqueue_post_gc_task([weak_this = GC::Weak { *this }] {
+        auto self = weak_this.ptr();
+        if (!self)
+            return;
+        self->m_has_pending_rasterization_release = false;
+        if (self->has_clients())
+            return;
+        self->m_cached_rendered_frames.clear();
+        self->m_cached_display_lists.clear();
+        self->prune_cached_display_list_resources();
+    });
+}
+
 size_t SVGDecodedImageData::external_memory_size() const
 {
     size_t size = Base::external_memory_size();
@@ -208,6 +228,36 @@ size_t SVGDecodedImageData::external_memory_size() const
     for (auto const& cached_frame : m_cached_rendered_frames)
         size = JS::saturating_add_external_memory_size(size, cached_frame.value.bitmap().data_size());
 
+    return size;
+}
+
+static size_t node_tree_memory_size(DOM::Node& root)
+{
+    size_t size = 0;
+    root.for_each_in_inclusive_subtree([&](DOM::Node& node) {
+        size = JS::saturating_add_external_memory_size(size, GC::HeapBlock::from_cell(&node)->cell_size());
+        size = JS::saturating_add_external_memory_size(size, static_cast<GC::Cell const&>(node).external_memory_size());
+        if (auto* element = as_if<DOM::Element>(node)) {
+            if (auto shadow_root = element->shadow_root())
+                size = JS::saturating_add_external_memory_size(size, node_tree_memory_size(*shadow_root));
+        }
+        return TraversalDecision::Continue;
+    });
+    return size;
+}
+
+size_t SVGDecodedImageData::retained_memory_size() const
+{
+    if (m_document_memory_size_dom_tree_version != m_document->dom_tree_version()) {
+        m_document_memory_size_dom_tree_version = m_document->dom_tree_version();
+        m_document_memory_size = node_tree_memory_size(*m_document);
+    }
+
+    size_t size = m_document_memory_size;
+    for (auto const& it : m_document->shared_resource_requests()) {
+        if (auto image_data = it.value->image_data())
+            size = JS::saturating_add_external_memory_size(size, image_data->retained_memory_size());
+    }
     return size;
 }
 
@@ -477,6 +527,12 @@ HTML::Window& SVGDecodedImageData::SVGPageClient::window() const
 void SVGDecodedImageData::SVGPageClient::set_current_svg_image_data(GC::Ptr<SVGDecodedImageData> svg_image_data)
 {
     m_current_svg_image_data = svg_image_data;
+}
+
+void SVGDecodedImageData::SVGPageClient::page_did_finish_loading_image_resource()
+{
+    m_host_page->data_url_image_cache().evict_entries_to_fit_limits();
+    m_host_page->client().page_did_finish_loading_image_resource();
 }
 
 void SVGDecodedImageData::SVGPageClient::request_frame()
