@@ -836,6 +836,24 @@ void WebContentClient::did_post_message_to_navigable(Web::PageId page_id, Web::H
     endpoint->client->async_deliver_posted_message(endpoint->page_id, navigable_id, move(message));
 }
 
+void WebContentClient::did_request_close_of_traversable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId source_navigable_id)
+{
+    // window.close() from a document another process hosts: the process hosting the traversable's document runs the
+    // rest of its steps.
+    auto* traversable = traversable_for_page(page_id);
+    if (!traversable || traversable->id() != navigable_id)
+        return;
+
+    // The page closing it must host the navigable it closes from.
+    if (!hosted_navigable_for_page(page_id, source_navigable_id).has_value())
+        return;
+
+    auto endpoint = endpoint_hosting_navigable_represented_by(*this, page_id, *traversable, navigable_id);
+    if (!endpoint.has_value())
+        return;
+    endpoint->client->async_close_traversable_from_script(endpoint->page_id, navigable_id, source_navigable_id);
+}
+
 void WebContentClient::did_request_navigation_population(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::NavigationTarget target, Web::HTML::NavigationPopulationRequest request)
 {
     auto const& target_url = request.history_entry.url;
