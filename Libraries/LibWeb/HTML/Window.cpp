@@ -547,6 +547,9 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Utf
             TRY(target_navigable->navigate({ .url = url_record.release_value(), .source_document = source_document, .exceptions_enabled = true, .referrer_policy = referrer_policy }));
 
         // 2. If noopener is false, then set targetNavigable's active browsing context's opener browsing context to sourceDocument's browsing context.
+        // FIXME: The browsing context of a navigable another process hosts is there. Its opener would be a fact the
+        //        UI process carries to that process, where sourceDocument's browsing context is its navigable's
+        //        WindowProxy.
         if (no_opener == TokenizedFeature::NoOpener::No)
             as<LocalNavigable>(*target_navigable).active_browsing_context()->set_opener_browsing_context(source_document.browsing_context());
     }
@@ -1189,12 +1192,15 @@ void Window::close()
         return;
 
     // 4. Let browsingContext be thisTraversable's active browsing context.
-    auto browsing_context = traversable->active_browsing_context();
+    // NB: Familiarity is checked on the navigables whose active browsing contexts these are.
 
     // 5. Let sourceSnapshotParams be the result of snapshotting source snapshot params given thisTraversable's active document.
     auto source_snapshot_params = snapshot_source_snapshot_params(traversable->active_document());
 
     auto& incumbent_global_object = HTML::incumbent_window();
+    auto incumbent_navigable = incumbent_global_object.navigable();
+    if (!incumbent_navigable)
+        return;
 
     // 6. If all the following are true:
     if (
@@ -1202,10 +1208,10 @@ void Window::close()
         traversable->is_script_closable()
 
         // the incumbent global object's browsing context is familiar with browsingContext; and
-        && incumbent_global_object.browsing_context()->is_familiar_with(*browsing_context)
+        && incumbent_navigable->is_familiar_with(*traversable)
 
         // the incumbent global object's navigable is allowed by sandboxing to navigate thisTraversable, given sourceSnapshotParams,
-        && incumbent_global_object.navigable()->allowed_by_sandboxing_to_navigate(*traversable, source_snapshot_params))
+        && incumbent_navigable->allowed_by_sandboxing_to_navigate(*traversable, source_snapshot_params))
     // then:
     {
         // 1. Set thisTraversable's is closing to true.

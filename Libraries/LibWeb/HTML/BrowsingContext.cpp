@@ -524,41 +524,6 @@ bool BrowsingContext::is_ancestor_of(BrowsingContext const& potential_descendant
     return false;
 }
 
-// https://html.spec.whatwg.org/multipage/document-sequences.html#familiar-with
-bool BrowsingContext::is_familiar_with(BrowsingContext const& other) const
-{
-    // A browsing context A is familiar with a second browsing context B if the following algorithm returns true:
-    auto const& A = *this;
-    auto const& B = other;
-
-    // 1. If A's active document's origin is same origin with B's active document's origin, then return true.
-    if (A.active_document()->origin().is_same_origin(B.active_document()->origin()))
-        return true;
-
-    // 2. If A's top-level browsing context is B, then return true.
-    if (A.top_level_browsing_context().ptr() == &B)
-        return true;
-
-    // 3. If B is an auxiliary browsing context and A is familiar with B's opener browsing context, then return true.
-    if (B.opener_browsing_context() != nullptr && A.is_familiar_with(*B.opener_browsing_context()))
-        return true;
-
-    // 4. If there exists an ancestor browsing context of B whose active document has the same origin as the active document of A, then return true.
-    // NOTE: This includes the case where A is an ancestor browsing context of B.
-
-    // If B's active document is not fully active then it cannot have ancestor browsing context
-    if (!B.active_document()->is_fully_active())
-        return false;
-
-    for (auto const& ancestor : B.active_document()->ancestor_navigables()) {
-        if (ancestor->active_document_origin()->is_same_origin(A.active_document()->origin()))
-            return true;
-    }
-
-    // 5. Return false.
-    return false;
-}
-
 // https://html.spec.whatwg.org/multipage/browsers.html#determining-the-creation-sandboxing-flags
 SandboxingFlagSet determine_the_creation_sandboxing_flags(BrowsingContext const& browsing_context, GC::Ptr<DOM::Element> embedder)
 {

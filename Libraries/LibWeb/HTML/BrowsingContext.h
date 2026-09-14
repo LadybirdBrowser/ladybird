@@ -36,7 +36,6 @@ public:
     GC::Ref<LocalTraversableNavigable> top_level_traversable() const;
 
     bool is_ancestor_of(BrowsingContext const&) const;
-    bool is_familiar_with(BrowsingContext const&) const;
 
     bool is_top_level() const;
     bool is_auxiliary() const { return m_is_auxiliary; }
