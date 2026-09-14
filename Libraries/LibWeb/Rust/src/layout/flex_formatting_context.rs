@@ -1273,10 +1273,11 @@ impl<'pass> FlexFormattingContext<'pass> {
 
     // https://www.w3.org/TR/css-flexbox-1/#algo-line-break
     fn collect_flex_items_into_flex_lines(&mut self) {
+        let reverse = self.is_direction_reverse();
         // If the flex container is single-line, collect all the flex items into a single flex line.
         if self.is_single_line() {
             let mut items: Vec<_> = (0..self.flex_items.len()).collect();
-            if self.is_direction_reverse() {
+            if reverse {
                 items.reverse();
             }
             self.flex_lines.push(FlexLine {
@@ -1306,18 +1307,20 @@ impl<'pass> FlexFormattingContext<'pass> {
                     .main
                     .pixels_greater_than(line_main_size + outer)
             {
+                if reverse {
+                    line.items.reverse();
+                }
                 self.flex_lines.push(line);
                 line = FlexLine::default();
                 line_main_size = CssPixels::default();
             }
-            if self.is_direction_reverse() {
-                line.items.insert(0, index);
-            } else {
-                line.items.push(index);
-            }
+            line.items.push(index);
             line_main_size += outer;
             // CSS-FLEXBOX-2: Account for gap between flex items.
             line_main_size += self.main_gap();
+        }
+        if reverse {
+            line.items.reverse();
         }
         self.flex_lines.push(line);
     }
