@@ -26,6 +26,8 @@ public:
     struct RemoteChildFrameInputTarget {
         RefPtr<WebContentClient> remote_client;
         Web::PageId remote_page_id { 0 };
+        CanonicalNavigable const* navigable { nullptr };
+        Optional<Web::Compositor::CompositorContextId> compositor_context_id;
         Web::DevicePixelRect viewport_rect;
     };
 
@@ -46,7 +48,8 @@ public:
     void remove_page(WebContentClient&, Web::PageId page_id);
     void remove_all_pages_for_client(WebContentClient&);
 
-    Optional<RemoteChildFrameInputTarget> remote_child_frame_input_target_at(WebContentClient&, Web::PageId page_id, Web::DevicePixelPoint) const;
+    // The remote child under a local root of a page at a position in that root's coordinates, if any.
+    Optional<RemoteChildFrameInputTarget> remote_child_frame_input_target_at(WebContentClient&, Web::PageId page_id, CanonicalNavigable const& root, Web::DevicePixelPoint) const;
     String dump_process_tree(WebContentClient&, Web::PageId page_id) const;
     HashMap<pid_t, pid_t> remote_frame_process_embedders() const;
 

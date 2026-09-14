@@ -93,6 +93,15 @@ public:
     Optional<CanonicalNavigable&> find(Web::HTML::CrossProcessId navigable_id);
     Optional<CanonicalNavigable const&> find(Web::HTML::CrossProcessId navigable_id) const;
     void remove(CanonicalNavigable&);
+
+    Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigable_graph() const;
+
+    void for_each_hosting_page(Function<void(WebContentClient&, Web::PageId page_id)> const&) const;
+    void for_each_page_representing(CanonicalNavigable const&, Function<void(WebContentClient&, Web::PageId page_id)> const&) const;
+    bool hosts(CanonicalNavigable const&, WebContentClient const&, Web::PageId page_id) const;
+    bool page_hosts_any(WebContentClient const&, Web::PageId page_id) const;
+    void stop_hosting_in_page(CanonicalNavigable&, WebContentClient&, Web::PageId page_id);
+    void release_page_if_unused(WebContentClient&, Web::PageId page_id);
     void did_lose_history_job_endpoint(WebContentClient&, Web::PageId page_id);
 
     TraversableSessionHistory const& session_history() const { return m_session_history; }
@@ -232,6 +241,7 @@ private:
             Optional<Web::HTML::CrossProcessId> parent_id;
             size_t remaining_children { 0 };
             HistoryJobEndpoint endpoint;
+            Web::HTML::StopHostingAfterUnload stop_hosting_after_unload { Web::HTML::StopHostingAfterUnload::No };
         };
         HashMap<Web::HTML::CrossProcessId, Node> nodes;
         size_t remaining_root_children { 0 };

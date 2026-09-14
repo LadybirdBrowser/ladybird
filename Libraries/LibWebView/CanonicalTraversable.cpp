@@ -97,7 +97,108 @@ CanonicalNavigable& CanonicalTraversable::insert(WebContentClient& reporting_cli
 
     auto& navigable_ref = parent->append_child(move(navigable));
     m_navigable_index.set(navigable_ref.id(), navigable_ref.make_weak_ptr());
+
+    for_each_page_representing(navigable_ref, [&](WebContentClient& client, Web::PageId page_id) {
+        client.async_insert_remote_navigable(page_id, { .id = navigable_ref.id(), .parent_id = parent->id(), .replicated_state = *navigable_ref.replicated_state() });
+    });
     return navigable_ref;
+}
+
+Vector<Web::HTML::RemoteNavigableDescriptor> CanonicalTraversable::remote_navigable_graph() const
+{
+    Vector<Web::HTML::RemoteNavigableDescriptor> graph;
+    for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
+        VERIFY(navigable.replicated_state().has_value());
+        graph.append({
+            .id = navigable.id(),
+            .parent_id = navigable.parent() ? Optional<Web::HTML::CrossProcessId> { navigable.parent()->id() } : Optional<Web::HTML::CrossProcessId> {},
+            .replicated_state = *navigable.replicated_state(),
+        });
+        return IterationDecision::Continue;
+    });
+    return graph;
+}
+
+void CanonicalTraversable::for_each_hosting_page(Function<void(WebContentClient&, Web::PageId page_id)> const& callback) const
+{
+    Vector<HistoryJobEndpoint> pages;
+    auto visit = [&](WebContentClient& client, Web::PageId page_id) {
+        if (!client.is_page_open(page_id))
+            return;
+        for (auto const& page : pages) {
+            if (page.client.ptr() == &client && page.page_id == page_id)
+                return;
+        }
+        pages.append({ &client, page_id });
+        callback(client, page_id);
+    };
+    if (auto view = ViewImplementation::find_view_for_traversable(*this); view.has_value() && view->m_client_state.client)
+        visit(*view->m_client_state.client, view->m_client_state.page_index);
+    for_each_in_subtree([&](CanonicalNavigable const& navigable) {
+        if (navigable.has_remote_host())
+            visit(navigable.remote_host_client(), navigable.remote_host_page_id());
+        // A page chosen to host a navigable's next document holds the tab's graph from the moment it is chosen.
+        if (navigable.has_pending_host())
+            visit(navigable.pending_host_client(), navigable.pending_host_page_id());
+        return IterationDecision::Continue;
+    });
+}
+
+void CanonicalTraversable::for_each_page_representing(CanonicalNavigable const& navigable, Function<void(WebContentClient&, Web::PageId page_id)> const& callback) const
+{
+    // NB: The view's page hosts the traversable, whose subtree is the whole tab, so it represents no navigable until
+    //     a container can hold a navigable hosted elsewhere.
+    for_each_hosting_page([&](WebContentClient& client, Web::PageId page_id) {
+        if (client.is_view_page(page_id))
+            return;
+        if (!hosts(navigable, client, page_id))
+            callback(client, page_id);
+    });
+}
+
+bool CanonicalTraversable::hosts(CanonicalNavigable const& navigable, WebContentClient const& client, Web::PageId page_id) const
+{
+    if (&navigable == this) {
+        auto view = ViewImplementation::find_view_for_traversable(*this);
+        return view.has_value() && view->m_client_state.client.ptr() == &client && view->m_client_state.page_index == page_id;
+    }
+    return navigable.is_hosted_by(client, page_id);
+}
+
+bool CanonicalTraversable::page_hosts_any(WebContentClient const& client, Web::PageId page_id) const
+{
+    bool hosts_any = false;
+    for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
+        if (hosts(navigable, client, page_id) || navigable.pending_host_matches(client, page_id)) {
+            hosts_any = true;
+            return IterationDecision::Break;
+        }
+        return IterationDecision::Continue;
+    });
+    return hosts_any;
+}
+
+void CanonicalTraversable::stop_hosting_in_page(CanonicalNavigable& navigable, WebContentClient& client, Web::PageId page_id)
+{
+    if (page_hosts_any(client, page_id)) {
+        VERIFY(navigable.replicated_state().has_value());
+        client.async_stop_hosting_navigable(page_id, navigable.id(), *navigable.replicated_state());
+        return;
+    }
+    release_page_if_unused(client, page_id);
+}
+
+void CanonicalTraversable::release_page_if_unused(WebContentClient& client, Web::PageId page_id)
+{
+    // The view's page displays the tab whatever it hosts of it.
+    if (client.is_view_page(page_id) || page_hosts_any(client, page_id))
+        return;
+    client.async_discard_embedded_page(page_id);
+    // The page stops being a history job endpoint now; queued history work must not start against it. Its
+    // client outlives the discard acknowledgement, so a shared process is not closed under the page.
+    client.prepare_for_detached_close(page_id);
+    client.unregister_embedded_page(page_id);
+    did_lose_history_job_endpoint(client, page_id);
 }
 
 Optional<CanonicalNavigable&> CanonicalTraversable::find(Web::HTML::CrossProcessId navigable_id)
@@ -128,6 +229,13 @@ void CanonicalTraversable::remove(CanonicalNavigable& navigable)
 {
     VERIFY(&navigable != this);
     navigable.clear_ongoing_navigation();
+    // The page holding the navigable's container drops it on its own: it reported the destruction, or the navigable is
+    // a child of a host on its way out.
+    for_each_page_representing(navigable, [&](WebContentClient& client, Web::PageId page_id) {
+        if (&client == navigable.reporting_client_if_any() && page_id == navigable.reporting_page_id())
+            return;
+        client.async_remove_remote_navigable(page_id, navigable.id());
+    });
     remove_from_index(navigable);
 
     auto* parent = navigable.parent();
@@ -209,6 +317,8 @@ void CanonicalTraversable::create_a_new_top_level_traversable(Optional<Canonical
         .top_level_origin = document_origin,
         .has_cross_site_ancestor = false,
         .opener_policy = {},
+        // The process hosting the traversable reports the compositor context it paints through.
+        .compositor_context_id = {},
     });
 
     // 7. Let initialHistoryEntry be traversable's active session history entry.
@@ -1581,7 +1691,7 @@ void CanonicalTraversable::dispatch_descendant_unload_task(Web::HTML::CrossProce
         return;
     }
 
-    endpoint.client->async_run_descendant_unload_task(endpoint.page_id, unload_id, navigable_id);
+    endpoint.client->async_run_descendant_unload_task(endpoint.page_id, unload_id, navigable_id, node->value.stop_hosting_after_unload);
 }
 
 void CanonicalTraversable::complete_descendant_unload_task(Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id)
@@ -1641,6 +1751,9 @@ void CanonicalTraversable::unload_document_in_its_host(Optional<Web::HTML::Cross
                                                .parent_id = {},
                                                .remaining_children = 0,
                                                .endpoint = move(endpoint),
+                                               // Another page replaces or destroys the document. This one represents the
+                                               // navigable remotely from the moment the document is unloaded.
+                                               .stop_hosting_after_unload = Web::HTML::StopHostingAfterUnload::Yes,
                                            });
     pending_unload.remaining_root_children = 1;
     auto unload_id = Application::the().allocate_ui_process_cross_process_id();

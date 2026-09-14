@@ -146,7 +146,7 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top
 {
     // 1. Let traversable be the result of creating a new top-level traversable given null and the empty string.
     auto traversable = create_a_new_top_level_traversable(page, nullptr, move(initial_history_entry), system_visibility_state);
-    page->set_local_root_navigable(traversable);
+    page->set_top_level_traversable(traversable);
 
     // AD-HOC: Deny geolocation until the UI process sends the browser-wide setting via IPC. This prevents a request
     //         from observing the test position during the short window before the initial settings IPC arrives.
@@ -345,14 +345,6 @@ void LocalTraversableNavigable::destroy_top_level_traversable()
 {
     VERIFY(is_top_level_traversable());
 
-    destroy_local_traversable();
-}
-
-// Perform the local teardown shared by top-level traversables and remote iframe page roots.
-// A remote iframe page root is not a top-level traversable in the specification, so its discard path calls this
-// helper directly instead of the spec-linked wrapper above.
-void LocalTraversableNavigable::destroy_local_traversable()
-{
     // 1. Let browsingContext be traversable's active browsing context.
     auto browsing_context = active_browsing_context();
 
@@ -363,13 +355,13 @@ void LocalTraversableNavigable::destroy_local_traversable()
 
     // 3. Remove browsingContext.
     if (!browsing_context) {
-        dbgln("TraversableNavigable::destroy_top_level_traversable: No browsing context?");
+        dbgln("LocalTraversableNavigable::destroy_top_level_traversable: No browsing context?");
     } else {
         browsing_context->remove();
     }
 
     // 4. Remove traversable from the user interface (e.g., close or hide its tab in a tabbed browser).
-    page().client().page_did_close_top_level_traversable();
+    page().client().page_did_close();
 
     // 5. Remove traversable from the user agent's top-level traversable set.
     user_agent_top_level_traversable_set().remove(this);
@@ -377,7 +369,7 @@ void LocalTraversableNavigable::destroy_local_traversable()
     // FIXME: 6. Invoke WebDriver BiDi navigable destroyed with traversable.
 
     // FIXME: Figure out why we need to do this... we shouldn't be leaking Navigables for all time.
-    //        However, without this, we can keep stale destroyed traversables around.
+    //        However, without this, we can keep stale destroyed navigables around.
     set_has_been_destroyed();
     remove_from_all_local_navigables();
 }

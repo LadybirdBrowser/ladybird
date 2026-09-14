@@ -64,7 +64,7 @@ void TabPerformanceMonitor::config_variable_changed(ConfigVariableID id)
             WebContentClient::for_each_client([&](WebContentClient& client) {
                 if (client.pid() != entry.process_id)
                     return IterationDecision::Continue;
-                if (auto* navigable = client.navigable_for_page(entry.page_id)) {
+                if (auto* navigable = client.traversable_for_page(entry.page_id)) {
                     if (auto view = ViewImplementation::find_view_for_traversable(navigable->top_level_traversable()); view.has_value())
                         owner = view->view_id();
                 }

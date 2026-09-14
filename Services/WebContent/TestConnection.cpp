@@ -34,8 +34,8 @@ void TestConnection::reset_session_history_for_testing(Web::PageId page_id)
     m_client.dispatch_pending_messages();
 
     if (auto page = m_client.page(page_id); page.has_value()) {
-        as<Web::HTML::LocalTraversableNavigable>(*page->page().local_root_navigable()).reset_session_history_for_testing();
-        auto active_entry = page->page().local_root_navigable()->active_session_history_entry();
+        as<Web::HTML::LocalTraversableNavigable>(*page->page().local_traversable()).reset_session_history_for_testing();
+        auto active_entry = page->page().local_traversable()->active_session_history_entry();
         VERIFY(active_entry);
         async_did_reset_session_history_for_testing(page_id, Web::HTML::create_session_history_entry_descriptor(*active_entry));
     }

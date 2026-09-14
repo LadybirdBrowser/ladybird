@@ -145,6 +145,7 @@ public:
 
     Optional<Web::HTML::ReplicatedNavigableState> const& replicated_state() const { return m_replicated_state; }
     void set_replicated_state(Web::HTML::ReplicatedNavigableState);
+    void update_replicated_state(Web::HTML::ReplicatedNavigableState);
 
     Optional<Web::HTML::SessionHistoryEntryIdentity> const& current_session_history_entry_identity() const { return m_current_session_history_entry_identity; }
     Optional<Web::HTML::SessionHistoryEntryIdentity> const& active_session_history_entry_identity() const { return m_active_session_history_entry_identity; }
@@ -233,8 +234,6 @@ private:
     HostLocality m_host_locality { HostLocality::Local };
     RefPtr<WebContentClient> m_remote_client;
     Web::PageId m_remote_page_id { 0 };
-
-    void discard_embedded_page(NonnullRefPtr<WebContentClient>, Web::PageId page_id);
 
     RefPtr<WebContentClient> m_pending_host_client;
     Web::PageId m_pending_host_page_id { 0 };

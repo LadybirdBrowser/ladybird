@@ -314,23 +314,15 @@ void CanonicalNavigable::set_remote_host(NonnullRefPtr<WebContentClient> remote_
 
 void CanonicalNavigable::detach_remote_host()
 {
-    if (has_remote_host())
-        discard_embedded_page(*m_remote_client, m_remote_page_id);
-
+    auto had_remote_host = has_remote_host();
+    auto client = move(m_remote_client);
+    auto page_id = exchange(m_remote_page_id, 0);
     m_host_locality = HostLocality::Local;
-    m_remote_client = nullptr;
-    m_remote_page_id = 0;
-}
 
-void CanonicalNavigable::discard_embedded_page(NonnullRefPtr<WebContentClient> client, Web::PageId page_id)
-{
-    client->async_set_page_parent_context(page_id, {});
-    client->async_discard_embedded_page(page_id);
-    // The page stops being a history job endpoint now; queued history work must not start against it. Its
-    // client outlives the discard acknowledgement, so a shared process is not closed under the page.
-    client->prepare_for_detached_close(page_id);
-    client->unregister_embedded_page(page_id);
-    top_level_traversable().did_lose_history_job_endpoint(*client, page_id);
+    // The page that hosted the document represents the navigable remotely from now on, unless it hosts nothing of the
+    // tab any more, in which case it is discarded.
+    if (had_remote_host)
+        top_level_traversable().stop_hosting_in_page(*this, *client, page_id);
 }
 
 bool CanonicalNavigable::pending_host_matches(WebContentClient const& client, Web::PageId page_id) const
@@ -364,13 +356,15 @@ void CanonicalNavigable::discard_pending_host()
     if (!client)
         return;
 
-    // Only a page created for the next document is discarded. The page holding the container and the page
-    // hosting the displayed document stay, whichever document they were to display next.
-    if (client.ptr() == m_reporting_client.ptr() && page_id == m_reporting_page_id)
-        return;
+    // The page hosting the displayed document was to host the next one too, and keeps hosting the displayed one.
     if (has_remote_host() && client.ptr() == m_remote_client.ptr() && page_id == m_remote_page_id)
         return;
-    discard_embedded_page(client.release_nonnull(), page_id);
+
+    // The page holding the container hosts the displayed document itself, and created no provisional navigable.
+    if (client.ptr() == m_reporting_client.ptr() && page_id == m_reporting_page_id)
+        return;
+    client->async_discard_provisional_navigable(page_id, id());
+    top_level_traversable().release_page_if_unused(*client, page_id);
 }
 
 void CanonicalNavigable::set_viewport(Web::DevicePixelRect viewport_rect, double device_pixel_ratio)
@@ -378,13 +372,8 @@ void CanonicalNavigable::set_viewport(Web::DevicePixelRect viewport_rect, double
     m_viewport_rect = viewport_rect;
     m_device_pixel_ratio = device_pixel_ratio;
 
-    if (has_remote_host()) {
-        m_remote_client->async_set_viewport(
-            m_remote_page_id,
-            viewport_rect.size(),
-            device_pixel_ratio,
-            Web::ViewportIsFullscreen::No);
-    }
+    if (has_remote_host())
+        m_remote_client->async_set_hosted_root_viewport(m_remote_page_id, id(), viewport_rect.size(), device_pixel_ratio);
 }
 
 void CanonicalNavigable::set_replicated_state(Web::HTML::ReplicatedNavigableState state)
@@ -392,6 +381,18 @@ void CanonicalNavigable::set_replicated_state(Web::HTML::ReplicatedNavigableStat
     m_active_session_history_entry_identity = state.active_session_history_entry_identity;
     m_document_blob_url = BlobURLHandle::for_url(blob_url_store(), state.active_document_url);
     m_replicated_state = move(state);
+}
+
+void CanonicalNavigable::update_replicated_state(Web::HTML::ReplicatedNavigableState state)
+{
+    set_replicated_state(move(state));
+    top_level_traversable().for_each_page_representing(*this, [&](WebContentClient& client, Web::PageId page_id) {
+        client.async_update_remote_navigable(page_id, id(), *m_replicated_state);
+    });
+
+    // The page holding the container paints the document through the compositor context its host reports.
+    if (has_remote_host())
+        reporting_client().async_set_remote_child_frame_compositor_context(reporting_page_id(), id(), m_replicated_state->compositor_context_id);
 }
 
 void CanonicalNavigable::set_current_session_history_entry(Web::HTML::SessionHistoryEntryDescriptor const& entry)
@@ -430,7 +431,7 @@ void CanonicalNavigable::did_commit_navigation(Web::HTML::ReplicatedNavigableSta
         destination_browsing_context = m_ongoing_navigation->destination_browsing_context;
     if (destination_browsing_context)
         set_active_browsing_context(destination_browsing_context.release_nonnull());
-    set_replicated_state(move(replicated_state));
+    update_replicated_state(move(replicated_state));
 
     auto& traversable = top_level_traversable();
     auto endpoint = traversable.history_job_endpoint_for(*this);

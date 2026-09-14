@@ -147,7 +147,7 @@ struct LoadedPage {
 
     Web::DOM::Document& document()
     {
-        auto document = page->local_root_navigable()->active_document();
+        auto document = page->local_traversable()->active_document();
         VERIFY(document);
         return *document;
     }
@@ -239,7 +239,7 @@ OwnPtr<LoadedPage> load_page(DocumentShape shape)
     page->set_is_scripting_enabled(false);
     page->set_window_size(viewport_size);
     auto traversable = Web::HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {});
-    page->set_local_root_navigable(traversable);
+    page->set_top_level_traversable(traversable);
     traversable->set_viewport_size(css_viewport_size, Web::InvalidateDisplayList::PaintCommandsAndHitTestList);
 
     auto document = traversable->active_document();
@@ -499,7 +499,7 @@ BENCHMARK_CASE(document_record_after_viewport_scroll_and_one_card_change)
     Samples recording_samples;
     for (size_t iteration = 0; iteration < timed_iterations; ++iteration) {
         auto timer = Core::ElapsedTimer::start_new(Core::TimerType::Precise);
-        loaded_page->page->local_root_navigable()->perform_scroll_of_viewport_scrolling_box({ 0, iteration % 2 ? 200 : 300 });
+        loaded_page->page->local_traversable()->perform_scroll_of_viewport_scrolling_box({ 0, iteration % 2 ? 200 : 300 });
         apply_mutation(*loaded_page, Mutation::OneCardBackground);
         document.update_layout(Web::DOM::UpdateLayoutReason::Debugging);
         layout_samples.microseconds.append(timer.elapsed_time().to_microseconds());
