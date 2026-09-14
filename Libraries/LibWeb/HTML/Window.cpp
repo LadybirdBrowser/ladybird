@@ -1577,7 +1577,7 @@ WebIDL::ExceptionOr<void> Window::window_post_message_steps(JS::Realm& realm, JS
     return {};
 }
 
-void Window::deliver_posted_message(SerializedTransferRecord serialize_with_transfer_result, Variant<Utf16String, URL::Origin> const& target_origin, URL::Origin const& origin, GC::Ref<WindowProxy> source)
+void Window::deliver_posted_message(SerializedTransferRecord serialize_with_transfer_result, Variant<Utf16String, URL::Origin> const& target_origin, URL::Origin const& origin, GC::Ptr<WindowProxy> source)
 {
     // 1. Let targetRealm be targetWindow's realm.
     auto& target_realm = principal_realm();
@@ -1594,7 +1594,9 @@ void Window::deliver_posted_message(SerializedTransferRecord serialize_with_tran
     // 2. Let origin be the incumbentSettings's origin.
     // 3. Let source be the WindowProxy object corresponding to incumbentSettings's global object (a Window object).
     // NB: Both were snapshotted by prepare_post_message().
-    NullableMessageEventSource source_for_event { source };
+    NullableMessageEventSource source_for_event = Empty {};
+    if (source)
+        source_for_event = GC::Ref { *source };
 
     TemporaryExecutionContext temporary_execution_context { target_realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
 

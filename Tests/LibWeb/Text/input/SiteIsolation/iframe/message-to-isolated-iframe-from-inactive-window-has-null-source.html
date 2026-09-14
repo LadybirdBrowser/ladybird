@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A window whose document is no longer active has no navigable to name it by in the isolated iframe's process, so
+    // a message it posts there arrives with a null source. The removed iframe's listener posts with its window as the
+    // incumbent.
+    promiseTest(async () => {
+        const runId = crypto.randomUUID();
+        const remoteUrl = new URL(
+            await httpTestServer().createEcho("GET", `/oop-message-from-inactive-window-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("message", event => parent.postMessage({ data: event.data, sourceIsNull: event.source === null }, "*"));
+                    parent.postMessage("ready", "*");
+                <\/script>`,
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("oop-message-from-inactive-window");
+
+        const nextMessage = () => new Promise(resolve => window.addEventListener("message", event => resolve(event.data), { once: true }));
+
+        const ready = nextMessage();
+        const remoteIframe = document.createElement("iframe");
+        remoteIframe.src = remoteUrl;
+        document.body.appendChild(remoteIframe);
+        await ready;
+
+        const localIframe = document.createElement("iframe");
+        localIframe.srcdoc = `<script>
+            parent.document.addEventListener("post", event => event.detail.postMessage("from a removed iframe", "*"));
+        <\/script>`;
+        await new Promise(resolve => {
+            localIframe.onload = resolve;
+            document.body.appendChild(localIframe);
+        });
+        const localWindow = localIframe.contentWindow;
+        localIframe.remove();
+        while (localWindow.parent !== null)
+            await new Promise(resolve => setTimeout(resolve, 10));
+
+        const reply = nextMessage();
+        document.dispatchEvent(new CustomEvent("post", { detail: remoteIframe.contentWindow }));
+        const { data, sourceIsNull } = await reply;
+        println(`data: ${data}`);
+        println(`source is null: ${sourceIsNull}`);
+    });
+</script>

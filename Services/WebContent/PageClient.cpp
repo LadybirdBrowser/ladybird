@@ -253,11 +253,22 @@ void PageClient::request_navigation_of_remote_navigable(Web::HTML::RemoteNavigab
     client().async_did_request_navigation_of_navigable(m_id, navigable.id(), move(navigation));
 }
 
+void PageClient::request_post_message_to_remote_navigable(Web::HTML::RemoteNavigable& navigable, Web::HTML::PostedMessageDescriptor message)
+{
+    client().async_did_post_message_to_navigable(m_id, navigable.id(), move(message));
+}
+
 void PageClient::navigate_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::PreparedNavigationDescriptor navigation)
 {
     // A navigable the page represents without hosting its document is addressed by the page hosting it.
     if (auto* navigable = as_if<Web::HTML::LocalNavigable>(page().navigable_with_id(navigable_id).ptr()))
         navigable->continue_navigation_from_another_process(move(navigation));
+}
+
+void PageClient::deliver_posted_message(Web::HTML::CrossProcessId navigable_id, Web::HTML::PostedMessageDescriptor message)
+{
+    if (auto* navigable = as_if<Web::HTML::LocalNavigable>(page().navigable_with_id(navigable_id).ptr()))
+        navigable->deliver_posted_message_from_another_process(move(message));
 }
 
 void PageClient::navigation_params_creation_finished(Web::HTML::LocalNavigable& navigable, Web::HTML::NavigationPopulationRequest request, Web::HTML::NavigationPopulationResult result)
