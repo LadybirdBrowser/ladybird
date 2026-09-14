@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Supported Number of Channels for ConvolverNode
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      let audit = Audit.createTaskRunner();
+
+      audit.define('channel-count-test', (task, should) => {
+        // Just need a context to create nodes on, so any allowed length and
+        // rate is ok.
+        let context = new OfflineAudioContext(1, 1, 48000);
+
+        let success = true;
+
+        for (let count = 1; count <= 32; ++count) {
+          let convolver = context.createConvolver();
+          let buffer = context.createBuffer(count, 1, context.sampleRate);
+          let message = 'ConvolverNode with buffer of ' + count + ' channels';
+
+          if (count == 1 || count == 2 || count == 4) {
+            // These are the only valid channel counts for the buffer.
+            should(() => convolver.buffer = buffer, message).notThrow();
+          } else {
+            should(() => convolver.buffer = buffer, message)
+                .throw(DOMException, 'NotSupportedError');
+          }
+        }
+
+        task.done();
+      });
+
+      audit.run();
+    </script>
+  </body>
+</html>
