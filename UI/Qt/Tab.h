@@ -116,6 +116,7 @@ signals:
 private:
     void location_edit_return_pressed(String, Optional<URL::URL>, WebView::OmniboxDestinationKind);
     virtual void resizeEvent(QResizeEvent*) override;
+    virtual void hideEvent(QHideEvent*) override;
     virtual bool event(QEvent*) override;
 
     virtual void tab_settings_changed() override;

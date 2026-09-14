@@ -601,16 +601,19 @@ QVariant WebContentView::inputMethodQuery(Qt::InputMethodQuery query) const
 
 void WebContentView::leaveEvent(QEvent* event)
 {
+    handle_pointer_leave();
+    WebContentViewBase::leaveEvent(event);
+}
+
+void WebContentView::handle_pointer_leave()
+{
     if (is_node_picker_active()) {
         clear_node_picker();
-        WebContentViewBase::leaveEvent(event);
         return;
     }
 
     static QMouseEvent mouse_event { QEvent::Type::Leave, {}, {}, Qt::MouseButton::NoButton, Qt::MouseButton::NoButton, Qt::KeyboardModifier::NoModifier };
     enqueue_native_event(Web::MouseEvent::Type::MouseLeave, mouse_event);
-
-    WebContentViewBase::leaveEvent(event);
 }
 
 void WebContentView::mouseMoveEvent(QMouseEvent* event)
@@ -1208,6 +1211,12 @@ void WebContentView::hideEvent(QHideEvent* event)
 {
     WebContentViewBase::hideEvent(event);
     set_system_visibility_state(Web::HTML::VisibilityState::Hidden);
+
+    // Qt sends no Leave to a view hidden under the pointer (a tab switched away from with the keyboard, e.g.). So, tell
+    // WebContent the pointer left. Otherwise, it keeps hovering the link under the pointer — and won't report the hover
+    // again when the view comes back under it. WebContent handles the leave at its next rendering opportunity (when the
+    // page is visible again). So, the tab hides the link-preview label for a hidden view itself (Tab::hideEvent).
+    handle_pointer_leave();
 }
 
 static Core::AnonymousBuffer make_system_theme_from_qt_palette(QWidget& widget, WebContentView::PaletteMode mode)
