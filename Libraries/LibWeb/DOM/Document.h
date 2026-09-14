@@ -335,8 +335,11 @@ public:
     URL::URL url() const { return m_url; }
     URL::URL fallback_base_url() const;
     URL::URL base_url() const;
+    String const& serialized_url() const;
+    String const& serialized_base_url() const;
 
     void update_base_element(Badge<HTML::HTMLBaseElement>);
+    void did_set_frozen_base_url(Badge<HTML::HTMLBaseElement>);
     GC::Ptr<HTML::HTMLBaseElement> first_base_element_with_href_in_tree_order() const;
     GC::Ptr<HTML::HTMLBaseElement> first_base_element_with_target_in_tree_order() const;
     void respond_to_base_url_changes(URL::URL const& old_document_url, URL::URL const& old_base_url);
@@ -869,7 +872,11 @@ public:
 
     // https://html.spec.whatwg.org/multipage/dom.html#concept-document-about-base-url
     Optional<URL::URL> about_base_url() const { return m_about_base_url; }
-    void set_about_base_url(Optional<URL::URL> url) { m_about_base_url = url; }
+    void set_about_base_url(Optional<URL::URL> url)
+    {
+        m_about_base_url = move(url);
+        m_serialized_base_url.clear();
+    }
 
     Utf16String domain() const;
     WebIDL::ExceptionOr<void> set_domain(Utf16View);
@@ -1565,6 +1572,8 @@ private:
     GC::Ptr<Node> m_active_favicon;
     GC::Ptr<HTML::BrowsingContext> m_browsing_context;
     URL::URL m_url;
+    mutable Optional<String> m_serialized_url;
+    mutable Optional<String> m_serialized_base_url;
     mutable OwnPtr<ElementByIdMap> m_element_by_id;
 
     GC::Ptr<HTML::Window> m_window;

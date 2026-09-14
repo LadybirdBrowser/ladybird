@@ -1627,6 +1627,12 @@ void Document::update_base_element(Badge<HTML::HTMLBaseElement>)
 
     m_first_base_element_with_href_in_tree_order = base_element_with_href;
     m_first_base_element_with_target_in_tree_order = base_element_with_target;
+    m_serialized_base_url.clear();
+}
+
+void Document::did_set_frozen_base_url(Badge<HTML::HTMLBaseElement>)
+{
+    m_serialized_base_url.clear();
 }
 
 GC::Ptr<HTML::HTMLBaseElement> Document::first_base_element_with_href_in_tree_order() const
@@ -1707,6 +1713,8 @@ void Document::set_url(URL::URL const& url)
 
     // 1. Set document's URL to url.
     m_url = url;
+    m_serialized_url.clear();
+    m_serialized_base_url.clear();
 
     // 2. Respond to base URL changes given document.
     respond_to_base_url_changes(old_document_url, old_base_url);
@@ -1746,6 +1754,20 @@ URL::URL Document::base_url() const
 
     // 2. Otherwise, return the frozen base URL of the first base element in document that has an href attribute, in tree order.
     return base_element->frozen_base_url();
+}
+
+String const& Document::serialized_url() const
+{
+    if (!m_serialized_url.has_value())
+        m_serialized_url = m_url.serialize();
+    return *m_serialized_url;
+}
+
+String const& Document::serialized_base_url() const
+{
+    if (!m_serialized_base_url.has_value())
+        m_serialized_base_url = base_url().serialize();
+    return *m_serialized_base_url;
 }
 
 // https://html.spec.whatwg.org/multipage/urls-and-fetching.html#encoding-parsing-a-url
@@ -11215,8 +11237,8 @@ void Document::sync_custom_property_registrations_to_rust()
             .initial_value = initial_value.has_value() ? ffi_utf16_view(*initial_value) : CSS::ComputedValuesFFI::FfiUtf16View {},
         });
     }
-    auto document_url = url().serialize();
-    auto document_base_url = base_url().serialize();
+    auto const& document_url = serialized_url();
+    auto const& document_base_url = serialized_base_url();
     CSS::ComputedValuesFFI::FfiCustomPropertyRegistryContext context {
         .document_url = document_url.bytes().data(),
         .document_url_length = document_url.bytes().size(),

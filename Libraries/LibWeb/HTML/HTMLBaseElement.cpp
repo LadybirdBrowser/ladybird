@@ -89,11 +89,13 @@ void HTMLBaseElement::set_the_frozen_base_url(URL::URL const& old_base_url)
         || ContentSecurityPolicy::is_base_allowed_for_document(url_record.value(), document) == ContentSecurityPolicy::Directives::Directive::Result::Blocked) {
         // then set element's frozen base URL to document's fallback base URL and return.
         m_frozen_base_url = document.fallback_base_url();
+        document.did_set_frozen_base_url({});
         return;
     }
 
     // 4. Set element's frozen base URL to urlRecord.
     m_frozen_base_url = url_record.release_value();
+    document.did_set_frozen_base_url({});
 
     // 5. Respond to base URL changes given document.
     document.respond_to_base_url_changes(document.url(), old_base_url);

@@ -142,6 +142,8 @@ private:
 
         Vector<ValueParserFFI::FfiValueParsingContext, 2> value_contexts;
         Optional<ComputedValuesFFI::FfiLengthResolutionContext> length_resolution_context;
+        String document_url;
+        String document_base_url;
         ValueParserFFI::ParseContext context {};
     };
 
@@ -152,8 +154,6 @@ private:
     bool is_parsing_svg_presentation_attribute() const;
 
     GC::Ptr<DOM::Document const> m_document;
-    Optional<String> m_serialized_document_url;
-    Optional<String> m_serialized_document_base_url;
     ParsingMode m_parsing_mode { ParsingMode::Normal };
     IsUAStyleSheet m_is_ua_style_sheet { IsUAStyleSheet::No };
 
