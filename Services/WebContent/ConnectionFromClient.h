@@ -142,6 +142,7 @@ private:
     virtual void run_descendant_unload_task(Web::PageId page_id, Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChildNavigableDestruction, Web::HTML::StopHostingAfterUnload) override;
     virtual void continue_child_navigable_destruction(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void abort_navigable_document(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) override;
+    virtual void unfullscreen_navigable_document(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void run_traversable_close_unload_task(Web::PageId page_id, Web::HTML::CrossProcessId operation_id) override;
     virtual void update_nonchanging_navigable_history_state(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, u64 script_history_length, u64 script_history_index) override;
     virtual void complete_history_operation(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Optional<i32> committed_step, u64 session_history_entry_count) override;
