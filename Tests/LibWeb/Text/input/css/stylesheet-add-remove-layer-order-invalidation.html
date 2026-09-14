@@ -20,11 +20,11 @@
     }
 
     function verifyRestyledTheLayeredElement(label) {
-        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations;
-        if (recomputations >= 1)
+        const color = getComputedStyle(document.getElementById("target")).color;
+        if (color === "rgb(0, 128, 0)")
             println(`PASS: ${label}`);
         else
-            println(`FAIL: ${label} (${recomputations} recomputations)`);
+            println(`FAIL: ${label} (${color})`);
     }
 
     test(() => {

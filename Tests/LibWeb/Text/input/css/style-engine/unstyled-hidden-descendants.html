@@ -1,0 +1,30 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<style>
+.hidden { display: none; color: rgb(10, 20, 30); }
+.child { width: 37px; height: 13px; }
+</style>
+<script>
+test(() => {
+    internals.updateStyle();
+    const host = document.createElement('div');
+    host.className = 'hidden';
+    for (let i = 0; i < 100; ++i) {
+        const child = document.createElement('div');
+        child.className = 'child';
+        host.append(child);
+    }
+    const before = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+    document.body.append(host);
+    internals.updateStyle();
+    const after = internals.getStyleInvalidationCounters().elementStyleRecomputations;
+    println(`hidden children deferred: ${after - before < 100}`);
+    const child = host.lastElementChild;
+    println(`targeted hidden read: ${getComputedStyle(child).width}, ${getComputedStyle(child).color}`);
+    child.style.width = '59px';
+    host.style.color = 'rgb(40, 50, 60)';
+    println(`hidden mutation: ${getComputedStyle(child).width}, ${getComputedStyle(child).color}`);
+    host.classList.remove('hidden');
+    println(`revealed children: ${host.firstElementChild.offsetWidth}, ${child.offsetWidth}, ${host.offsetHeight}`);
+});
+</script>

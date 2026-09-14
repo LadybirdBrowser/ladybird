@@ -11,6 +11,7 @@
         `);
 
         const box = makeElement("section");
+        box.style.color = "rgb(1, 2, 3)";
         for (const parentClass of ["red-theme", "blue-theme"]) {
             const parent = makeElement("div", { className: parentClass });
             parent.appendChild(makeElement("div", { className: "plain-kid" }));
@@ -20,12 +21,14 @@
 
         resetStyleCounters();
         internals.updateStyle();
-        const shared = styleCounters().elementStyleSharedComputations;
 
         // Neither child reads a custom property, so what their parents declare cannot decide
         // anything about them and they compute one style between them.
         const [redKid, blueKid] = box.querySelectorAll(".plain-kid");
-        println(`PASS: children that read no custom property share a style: ${shared >= 1}`);
+        const redGroups = internals.styleGroupSharingInfo(redKid);
+        const blueGroups = internals.styleGroupSharingInfo(blueKid);
+        const shared = Object.keys(redGroups).every(name => redGroups[name].payloadIdentity === blueGroups[name].payloadIdentity);
+        println(`PASS: children that read no custom property share a style: ${shared}`);
 
         // Taking the other child's style must not take the other parent's environment with it.
         assertEqual("the red parent's child", getComputedStyle(redKid).getPropertyValue("--theme"), "red");

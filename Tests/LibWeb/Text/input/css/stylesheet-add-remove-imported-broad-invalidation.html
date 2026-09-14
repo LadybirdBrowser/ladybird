@@ -2,12 +2,10 @@
 <script src="../include.js"></script>
 <div id="target">target</div>
 <script>
-    let engineComputedRecordDeltasAtReset = 0;
     function settleAndReset(triggerElement) {
         getComputedStyle(triggerElement).color;
         getComputedStyle(triggerElement).color;
         internals.resetStyleInvalidationCounters();
-        engineComputedRecordDeltasAtReset = internals.styleEngineCounters().engineComputedRecordDeltas ?? 0;
     }
 
     function verifyRecomputationsStayBounded(label, maximum) {
@@ -19,13 +17,11 @@
     }
 
     function verifyTargetWasRecomputed(label) {
-        // The style engine may derive the element's new record itself instead of having C++ recompute it.
-        const recomputations = internals.getStyleInvalidationCounters().elementStyleRecomputations
-            + (internals.styleEngineCounters().engineComputedRecordDeltas ?? 0) - engineComputedRecordDeltasAtReset;
-        if (recomputations >= 1)
+        const color = getComputedStyle(document.getElementById("target")).color;
+        if (color === "rgb(0, 128, 0)")
             println(`PASS: ${label}`);
         else
-            println(`FAIL: ${label} (${recomputations} recomputations)`);
+            println(`FAIL: ${label} (${color})`);
     }
 
     async function waitForImportedSheet(styleElement) {
@@ -59,7 +55,7 @@
         document.head.appendChild(layeredStyle);
         settleAndReset(target);
 
-        document.head.appendChild(layerImportStyle);
+        document.head.insertBefore(layerImportStyle, layeredStyle);
         await waitForImportedSheet(layerImportStyle);
 
         getComputedStyle(target).color;

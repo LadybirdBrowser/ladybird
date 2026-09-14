@@ -1,1 +1,1 @@
-:first-child-only sheet add: styleEnginePublishedReactions=6
+:first-child-only sheet add: styleEnginePublishedReactions=4

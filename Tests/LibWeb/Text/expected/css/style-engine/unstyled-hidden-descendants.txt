@@ -1,0 +1,4 @@
+hidden children deferred: true
+targeted hidden read: 37px, rgb(10, 20, 30)
+hidden mutation: 59px, rgb(40, 50, 60)
+revealed children: 37, 59, 1300

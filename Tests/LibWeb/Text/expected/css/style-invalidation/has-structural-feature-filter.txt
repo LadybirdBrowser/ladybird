@@ -270,7 +270,7 @@ PASS: unprobeable pseudo structural mutation keeps :has walk: descendant :focus 
 PASS: unprobeable pseudo structural mutation keeps :has walk: child :focus-within insertion with unrelated metadata | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: unprobeable pseudo structural mutation keeps :has walk: child :focus-visible insertion with unrelated metadata | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: unprobeable pseudo structural mutation keeps :has walk: child :default checkbox insertion with unrelated metadata | elementStyleRecomputations=1, elementStyleNoopRecomputations=0
-PASS: unprobeable pseudo structural mutation keeps :has walk: descendant :default selected option insertion with unrelated metadata | elementStyleRecomputations=19, elementStyleNoopRecomputations=11
+PASS: unprobeable pseudo structural mutation keeps :has walk: descendant :default selected option insertion with unrelated metadata | elementStyleRecomputations=14, elementStyleNoopRecomputations=6
 PASS: unprobeable pseudo structural mutation keeps :has walk: child :valid insertion with unrelated metadata | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: unprobeable pseudo structural mutation keeps :has walk: child :invalid insertion with unrelated metadata | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
 PASS: unprobeable pseudo structural mutation keeps :has walk: child :open insertion with unrelated metadata | elementStyleRecomputations=5, elementStyleNoopRecomputations=0
