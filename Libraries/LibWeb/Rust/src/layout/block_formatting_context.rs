@@ -2340,40 +2340,6 @@ impl<'pass> BlockFormattingContext<'pass> {
         self.compute_and_store_baselines(fieldset);
     }
 
-    fn determine_used_value_for_column_count(&self, used_inline_size: CssPixels) -> Option<i32> {
-        let style = self.style(self.root);
-        // (01) if ((column-width = auto) and (column-count = auto)) then
-        if !style.establishes_multi_column_container() {
-            // (02) exit; /* not a multicol container */
-            return None;
-        }
-        // (03) if column-width = auto then
-        if style.column_width().is_auto() {
-            // (04) N := column-count
-            return Some(style.column_count());
-        }
-        let column_gap = if style.column_gap().is_normal() {
-            style.font_size()
-        } else {
-            style.column_gap().to_px(used_inline_size)
-        };
-        let column_width = style
-            .column_width()
-            .to_px(used_inline_size)
-            .max(CssPixels::from_integer(1));
-        let denominator = column_width + column_gap;
-        let available_count = if denominator > CssPixels::default() {
-            ((used_inline_size + column_gap).raw_value() / denominator.raw_value()).max(1)
-        } else {
-            1
-        };
-        if style.has_column_count() {
-            Some(style.column_count().min(available_count))
-        } else {
-            Some(available_count)
-        }
-    }
-
     pub(crate) fn run(&self, run: &FormattingContextRun<'pass>, input: LayoutInput) {
         let available_space = input.available_space;
         if self.is_line_clamp_container && self.style(self.root).max_lines() == 0 {
@@ -2399,19 +2365,7 @@ impl<'pass> BlockFormattingContext<'pass> {
                 }
             }
         }
-        // https://drafts.csswg.org/css-multicol-2/#the-multi-column-model
-        let root_inline_size = self.used(self.root).content_inline_size.get();
-        if let Some(column_count) = self.determine_used_value_for_column_count(root_inline_size) {
-            let style = self.style(self.root);
-            let column_gap = if style.column_gap().is_normal() {
-                style.font_size()
-            } else {
-                style.column_gap().to_px(root_inline_size)
-            };
-            // FIXME: Do multi-column layout.
-            let _column_width =
-                ((root_inline_size + column_gap) / column_count.max(1) as usize - column_gap).max(CssPixels::default());
-        }
+        // FIXME: Do multi-column layout.
 
         let root_input = LayoutInput {
             content_box_position_in_bfc_root: Some(FfiCssPixelPoint::default()),

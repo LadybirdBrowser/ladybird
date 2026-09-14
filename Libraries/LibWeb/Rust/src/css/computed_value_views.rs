@@ -369,8 +369,6 @@ scalar_accessors! {
         unicode_bidi: u8 => unicode_bidi,
         grid_auto_flow_row: bool => grid_auto_flow_row,
         grid_auto_flow_dense: bool => grid_auto_flow_dense,
-        has_column_count: bool => column_count_has_value,
-        column_count: i32 => column_count,
         continue_: u8 => continue_,
         max_lines: i32 => max_lines,
         has_size_containment: bool => size_containment,
@@ -464,9 +462,6 @@ reference_accessors! {
         min_height: ComputedSize => min_height,
         max_width: ComputedSize => max_width,
         max_height: ComputedSize => max_height,
-    }
-    box_values: {
-        column_width: ComputedSize => column_width,
     }
     surround: {
         margin_top: ComputedLengthPercentageOrAuto => margin.top,
