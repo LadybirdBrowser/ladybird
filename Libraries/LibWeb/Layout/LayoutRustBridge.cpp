@@ -246,7 +246,12 @@ static SvgTextChunkMeasurement measure_svg_text_chunk(Box const& chunk_start_box
     return measurement;
 }
 
-static Gfx::Path compute_path_for_svg_text(Box const& text_box, Gfx::FloatPoint current_text_position)
+struct SvgTextRun {
+    Gfx::Path path;
+    float advance { 0 };
+};
+
+static SvgTextRun compute_svg_text_run(Box const& text_box, Gfx::FloatPoint current_text_position)
 {
     auto const& text_element = static_cast<SVG::SVGTextContentElement const&>(*text_box.dom_node());
     auto text_contents = text_element.text_contents();
@@ -257,10 +262,12 @@ static Gfx::Path compute_path_for_svg_text(Box const& text_box, Gfx::FloatPoint 
     //     is rendered with the first font in the cascade that contains its code point.
     text_offset.translate_by(0, dominant_baseline_offset(baseline_metric, text_box.first_available_font().pixel_metrics()));
 
-    Gfx::Path path;
-    for (auto const& glyph_run : Gfx::shape_text(text_offset, text_contents, text_box.font_list()))
-        path.glyph_run(glyph_run);
-    return path;
+    SvgTextRun run;
+    for (auto const& glyph_run : Gfx::shape_text(text_offset, text_contents, text_box.font_list())) {
+        run.path.glyph_run(glyph_run);
+        run.advance += glyph_run->width();
+    }
+    return run;
 }
 
 static Gfx::Path compute_path_for_svg_text_path(Box const& text_path_box, CSSPixelSize viewport_size)
@@ -351,12 +358,13 @@ static RustFFI::FfiSvgPathResult compute_svg_path(NodeWithStyle const& node, Rus
                 VERIFY_NOT_REACHED();
             }
         }
-        path = compute_path_for_svg_text(*text_box, text_position);
+        auto text_run = compute_svg_text_run(*text_box, text_position);
+        path = move(text_run.path);
         // https://svgwg.org/svg2-draft/text.html#TextLayoutIntroduction
         // After each glyph is placed, the current text position is advanced by the glyph's advance value (typically the
         // width for horizontal text or height for vertical text).
         // FIXME: Take writing mode and text direction into account.
-        text_position.translate_by(svg_text_run_advance(*text_box), 0);
+        text_position.translate_by(text_run.advance, 0);
     } else if (graphics_box.kind() == RustFFI::NodeKind::SVGTextPathBox) {
         path = compute_path_for_svg_text_path(graphics_box, viewport_size);
     }
