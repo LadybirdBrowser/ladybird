@@ -557,6 +557,7 @@ public:
     virtual void request_navigation_population(HTML::LocalNavigable&, NavigationTarget, HTML::NavigationPopulationRequest);
     virtual void request_navigation_of_remote_navigable(HTML::RemoteNavigable&, HTML::PreparedNavigationDescriptor) { VERIFY_NOT_REACHED(); }
     virtual void request_post_message_to_remote_navigable(HTML::RemoteNavigable&, HTML::PostedMessageDescriptor) { VERIFY_NOT_REACHED(); }
+    virtual void request_close_of_remote_traversable(HTML::RemoteNavigable&, HTML::LocalNavigable const&) { VERIFY_NOT_REACHED(); }
     virtual void navigation_params_creation_finished(HTML::LocalNavigable&, HTML::NavigationPopulationRequest, HTML::NavigationPopulationResult);
     virtual void history_navigation_params_creation_finished(HTML::CrossProcessId operation_id, HTML::HistoryNavigationPopulation);
     virtual void navigation_population_failed(HTML::CrossProcessId, Utf16String const&) { }

@@ -257,6 +257,42 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(Cross
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#close-a-top-level-traversable
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-close
+// AD-HOC: Step 6 of window.close(), requested through the UI process by a document another process hosts, whose
+//         navigable found itself familiar with this traversable there. source is the incumbent global object's navigable.
+void LocalTraversableNavigable::close_top_level_traversable_from_script(Navigable const& source)
+{
+    // 1. Let thisTraversable be this's navigable.
+    auto& this_traversable = *this;
+
+    // 2. If thisTraversable is not a top-level traversable, then return.
+    if (!this_traversable.is_top_level_traversable())
+        return;
+
+    // 3. If thisTraversable's is closing is true, then return.
+    if (this_traversable.is_closing())
+        return;
+
+    // 5. Let sourceSnapshotParams be the result of snapshotting source snapshot params given thisTraversable's active document.
+    auto source_snapshot_params = snapshot_source_snapshot_params(this_traversable.active_document());
+
+    // 6. If all the following are true:
+    //    - thisTraversable is script-closable;
+    //    - the incumbent global object's browsing context is familiar with browsingContext; and
+    //    - the incumbent global object's navigable is allowed by sandboxing to navigate thisTraversable, given sourceSnapshotParams,
+    if (!this_traversable.is_script_closable() || !source.allowed_by_sandboxing_to_navigate(this_traversable, source_snapshot_params))
+        return;
+
+    // then:
+    // 1. Set thisTraversable's is closing to true.
+    this_traversable.set_closing(true);
+
+    // 2. Queue a task on the DOM manipulation task source to definitely close thisTraversable.
+    queue_a_task(Task::Source::DOMManipulation, nullptr, nullptr, GC::create_function(heap(), [this] {
+        definitely_close_top_level_traversable();
+    }));
+}
+
 void LocalTraversableNavigable::close_top_level_traversable(PromptToUnload prompt_to_unload)
 {
     // 1. If traversable's is closing is true, then return.
