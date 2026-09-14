@@ -76,8 +76,10 @@ ErrorOr<ChannelMap> core_audio_channel_layout_to_channel_map(AudioChannelLayout 
     if (channel_layout.mChannelLayoutTag == kAudioChannelLayoutTag_UseChannelBitmap) {
         ENUMERATE_CHANNEL_POSITIONS(MAYBE_ADD_CHANNEL_FROM_BITMAP_FLAG);
     } else {
-        auto fill_channels_from_channel_descriptions = [&](AudioChannelLayout const& channel_layout) {
+        auto fill_channels_from_channel_descriptions = [&](AudioChannelLayout const& channel_layout) -> ErrorOr<void> {
             VERIFY(channel_layout.mNumberChannelDescriptions > 0);
+            if (channel_layout.mNumberChannelDescriptions > ChannelMap::capacity())
+                return Error::from_string_literal("Channel layout had too many channels");
             auto const* channel_descriptions = &channel_layout.mChannelDescriptions[0];
             for (u32 i = 0; i < channel_layout.mNumberChannelDescriptions; i++) {
                 switch (channel_descriptions[i].mChannelLabel) {
@@ -88,10 +90,11 @@ ErrorOr<ChannelMap> core_audio_channel_layout_to_channel_map(AudioChannelLayout 
                     break;
                 }
             }
+            return {};
         };
 
         if (channel_layout.mChannelLayoutTag == kAudioChannelLayoutTag_UseChannelDescriptions) {
-            fill_channels_from_channel_descriptions(channel_layout);
+            TRY(fill_channels_from_channel_descriptions(channel_layout));
         } else {
             u32 explicit_layout_size = 0;
             if (auto status = AudioFormatGetPropertyInfo(
@@ -115,7 +118,7 @@ ErrorOr<ChannelMap> core_audio_channel_layout_to_channel_map(AudioChannelLayout 
                 status != noErr)
                 return Error::from_errno(status);
             check_core_audio_channel_layout_size(*explicit_layout, explicit_layout_size);
-            fill_channels_from_channel_descriptions(*explicit_layout);
+            TRY(fill_channels_from_channel_descriptions(*explicit_layout));
         }
     }
 
