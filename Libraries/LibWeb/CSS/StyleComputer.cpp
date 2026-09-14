@@ -151,26 +151,8 @@ struct SubstitutionData {
     {
         auto& document = element.document();
         if (collect_attributes) {
-            // The document's URLs serialize the same way for every element computed under them;
-            // they are serialized again only when one of them is another URL.
-            struct SerializedDocumentURLs {
-                FlatPtr document { 0 };
-                ::URL::URL url;
-                ::URL::URL base_url;
-                String serialized_url;
-                String serialized_base_url;
-            };
-            static NeverDestroyed<SerializedDocumentURLs> serialized_document_urls;
-            auto& cache = *serialized_document_urls;
-            if (cache.document != bit_cast<FlatPtr>(&document) || cache.url != document.url() || cache.base_url != document.base_url()) {
-                cache.document = bit_cast<FlatPtr>(&document);
-                cache.url = document.url();
-                cache.base_url = document.base_url();
-                cache.serialized_url = cache.url.serialize();
-                cache.serialized_base_url = cache.base_url.serialize();
-            }
-            document_url = cache.serialized_url;
-            document_base_url = cache.serialized_base_url;
+            document_url = document.serialized_url();
+            document_base_url = document.serialized_base_url();
         }
         parse_context = {
             .in_quirks_mode = document.in_quirks_mode(),
@@ -1095,7 +1077,7 @@ void StyleComputer::collect_animation_effects_into(DOM::AbstractElement abstract
         }
         String document_base_url;
         if (resolved_batch.needs_document_base_url)
-            document_base_url = abstract_element.document().base_url().to_string();
+            document_base_url = abstract_element.document().serialized_base_url();
         auto document_base_url_bytes = document_base_url.bytes();
         Vector<u8> document_supported_color_scheme_codes;
         auto document_supported_color_schemes = document().supported_color_schemes();
@@ -5719,7 +5701,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
                 }
             }
             if (computation_requirements->environment_requirements & ComputedValuesFFI::CASCADED_ENVIRONMENT_NEEDS_DOCUMENT_BASE_URL)
-                state.document_base_url = abstract_element.document().base_url().to_string();
+                state.document_base_url = abstract_element.document().serialized_base_url();
             auto document_base_url_bytes = state.document_base_url.bytes();
             state.computation_environment = {
                 .box_type_input = state.box_type_input,

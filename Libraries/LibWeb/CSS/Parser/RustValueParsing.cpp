@@ -39,15 +39,9 @@ Parser::ParseContextStorage::ParseContextStorage(Parser& parser, ParseContextMod
         context.value_context_count = value_contexts.size();
     }
 
-    ReadonlyBytes document_url;
-    ReadonlyBytes document_base_url;
     if (parser.m_document) {
-        if (!parser.m_serialized_document_url.has_value())
-            parser.m_serialized_document_url = parser.m_document->url().serialize();
-        if (!parser.m_serialized_document_base_url.has_value())
-            parser.m_serialized_document_base_url = parser.m_document->base_url().serialize();
-        document_url = parser.m_serialized_document_url->bytes();
-        document_base_url = parser.m_serialized_document_base_url->bytes();
+        document_url = parser.m_document->serialized_url();
+        document_base_url = parser.m_document->serialized_base_url();
         if (mode == ParseContextMode::Syntax) {
             length_resolution_context = to_ffi_length_resolution_context_with_container_bases(
                 Length::ResolutionContext::for_document(*parser.m_document), all_container_relative_length_units_mask);
@@ -64,10 +58,10 @@ Parser::ParseContextStorage::ParseContextStorage(Parser& parser, ParseContextMod
         .value_contexts = context.value_contexts,
         .value_context_count = context.value_context_count,
         .declared_namespaces = mode == ParseContextMode::Syntax ? parser.m_declared_namespaces.handle() : nullptr,
-        .document_url = document_url.data(),
-        .document_url_length = document_url.size(),
-        .document_base_url = document_base_url.data(),
-        .document_base_url_length = document_base_url.size(),
+        .document_url = document_url.bytes().data(),
+        .document_url_length = document_url.bytes().size(),
+        .document_base_url = document_base_url.bytes().data(),
+        .document_base_url_length = document_base_url.bytes().size(),
         .length_resolution_context = length_resolution_context.has_value() ? &*length_resolution_context : nullptr,
         .random_function_index = &parser.m_random_function_index,
     };
