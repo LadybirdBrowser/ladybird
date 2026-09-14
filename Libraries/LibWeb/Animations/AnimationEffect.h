@@ -104,17 +104,11 @@ public:
     Optional<TimeValue> active_time() const;
     Optional<TimeValue> active_time_using_fill(Bindings::FillMode) const;
 
-    bool is_in_play() const;
     bool is_current() const;
     bool is_in_effect() const;
 
     TimeValue before_active_boundary_time() const;
     TimeValue after_active_boundary_time() const;
-
-    bool is_in_the_before_phase() const;
-    bool is_in_the_after_phase() const;
-    bool is_in_the_active_phase() const;
-    bool is_in_the_idle_phase() const;
 
     // Keep this enum up to date with CSSTransition::Phase.
     enum class Phase {
@@ -124,6 +118,7 @@ public:
         Idle,
     };
     Phase phase() const;
+    Phase phase(Optional<TimeValue> const& local_time) const;
 
     Phase previous_phase() const { return m_previous_phase; }
     void set_previous_phase(Phase value) { m_previous_phase = value; }
@@ -155,6 +150,8 @@ protected:
 
     virtual void visit_edges(GC::Cell::Visitor&) override;
     virtual GC::Ptr<Bindings::Wrappable> relevant_global_impl() const override;
+
+    bool is_in_play(Phase) const;
 
     TimeValue intrinsic_iteration_duration() const;
     void convert_a_time_based_animation_to_a_proportional_animation();

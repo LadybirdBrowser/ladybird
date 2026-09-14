@@ -7541,8 +7541,10 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
     if (animation->pending() && !is_initial_pending_css_transition)
         return {};
     auto timeline = animation->timeline();
-    if (!timeline || !timeline->is_monotonically_increasing()
-        || (!effect.is_in_the_before_phase() && !effect.is_in_the_active_phase()))
+    if (!timeline || !timeline->is_monotonically_increasing())
+        return {};
+    auto phase = effect.phase();
+    if (phase != Animations::AnimationEffect::Phase::Before && phase != Animations::AnimationEffect::Phase::Active)
         return {};
     if ((!isinf(effect.iteration_count()) && effect.iteration_count() != 1) || effect.composite() != Bindings::CompositeOperation::Replace)
         return {};
@@ -7552,7 +7554,7 @@ static Optional<Compositor::VisualAnimation> build_compositor_animation(Animatio
         || effect.iteration_duration().type != Animations::TimeValue::Type::Milliseconds
         || effect.iteration_duration().value <= 0)
         return {};
-    if (effect.is_in_the_before_phase() && effect.before_active_boundary_time() != effect.start_delay())
+    if (phase == Animations::AnimationEffect::Phase::Before && effect.before_active_boundary_time() != effect.start_delay())
         return {};
     auto current_time = animation->current_time();
     if (!current_time.has_value() || current_time->type != Animations::TimeValue::Type::Milliseconds)
@@ -7873,7 +7875,7 @@ static Optional<double> next_throttled_animation_iteration_event_time(Animations
         || effect.iteration_duration().type != Animations::TimeValue::Type::Milliseconds
         || effect.iteration_duration().value <= 0 || !isfinite(effect.iteration_duration().value)
         || !effect.can_skip_per_frame_style_update()
-        || !effect.is_in_the_active_phase())
+        || effect.phase() != Animations::AnimationEffect::Phase::Active)
         return {};
 
     // NB: Observable throttled animations need a rendering update at the next iteration boundary,
@@ -7923,7 +7925,7 @@ void Document::service_compositor_animation_wakeup(double timestamp)
         if (!animation.pending()
             && animation.playback_rate() > 0
             && effect.start_delay().type == Animations::TimeValue::Type::Milliseconds
-            && effect.is_in_the_before_phase()) {
+            && effect.phase() == Animations::AnimationEffect::Phase::Before) {
             if (current_time->value < effect.start_delay().value) {
                 auto delay = (effect.start_delay().value - current_time->value) / animation.playback_rate();
                 if (!next_wakeup_delay_ms.has_value() || delay < *next_wakeup_delay_ms)
@@ -8338,7 +8340,7 @@ void Document::update_compositor_animations()
         effect.set_is_offscreen_throttled(false);
         effect.set_is_observation_relevant_compositor_animation(false);
 
-        if (animation.is_idle() || (!effect.is_in_effect() && !effect.is_in_the_before_phase()))
+        if (animation.is_idle() || (!effect.is_in_effect() && effect.phase() != Animations::AnimationEffect::Phase::Before))
             continue;
         auto target = effect.target_abstract_element();
         if (!target.has_value())
@@ -8477,14 +8479,14 @@ void Document::update_compositor_animations()
         auto abstract_target = effect.target_abstract_element();
         if (!abstract_target.has_value() || effect.target_properties().is_empty())
             continue;
-        if (animation.is_idle() || (!effect.is_in_effect() && !effect.is_in_the_before_phase()))
+        if (animation.is_idle() || (!effect.is_in_effect() && effect.phase() != Animations::AnimationEffect::Phase::Before))
             continue;
         auto& target = abstract_target->element();
 
         bool can_throttle_paint_only_effect = animation.play_state() == Bindings::AnimationPlayState::Running
             && !animation.pending() && animation.playback_rate() > 0 && isfinite(animation.playback_rate())
             && animation.timeline() && animation.timeline()->is_monotonically_increasing()
-            && effect.is_in_the_active_phase()
+            && effect.phase() == Animations::AnimationEffect::Phase::Active
             && effect.start_delay().type == Animations::TimeValue::Type::Milliseconds
             && effect.iteration_duration().type == Animations::TimeValue::Type::Milliseconds
             && effect.iteration_duration().value > 0 && isfinite(effect.iteration_duration().value)
@@ -8570,7 +8572,7 @@ void Document::update_compositor_animations()
                 && !animation.pending()
                 && animation.playback_rate() > 0
                 && animation.timeline() && animation.timeline()->is_monotonically_increasing()
-                && effect.is_in_the_active_phase()
+                && effect.phase() == Animations::AnimationEffect::Phase::Active
                 && (isinf(effect.iteration_count()) || effect.iteration_count() == 1)
                 && effect.start_delay().type == Animations::TimeValue::Type::Milliseconds
                 && effect.iteration_duration().type == Animations::TimeValue::Type::Milliseconds;
