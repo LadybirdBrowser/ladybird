@@ -225,6 +225,10 @@ private:
     bool should_draw_window_border() const;
     void update_window_border();
 
+    void initialize_application_actions();
+    void initialize_application_menu();
+    void initialize_hamburger_menu();
+
     void initialize_tab_buttons(Tab*);
     void create_menu_bar_window_controls();
     void update_tab_button_icons();
@@ -258,19 +262,31 @@ private:
     Tab* m_current_tab { nullptr };
     DevToolsBanner* m_devtools_banner { nullptr };
 
-    QMenu* m_hamburger_menu { nullptr };
-    QMenu* m_bookmarks_menu { nullptr };
-    QMenu* m_history_menu { nullptr };
     QWidget* m_menu_bar_window_controls { nullptr };
     QToolButton* m_menu_bar_minimize_window_button { nullptr };
     QToolButton* m_menu_bar_maximize_window_button { nullptr };
     QToolButton* m_menu_bar_close_window_button { nullptr };
 
+    QMenu* m_hamburger_menu { nullptr };
+    QMenu* m_bookmarks_menu { nullptr };
+    QMenu* m_history_menu { nullptr };
+    QMenu* m_inspect_menu { nullptr };
+    QMenu* m_debug_menu { nullptr };
+    QMenu* m_zoom_menu { nullptr };
+    QMenu* m_help_menu { nullptr };
+
     QAction* m_new_tab_action { nullptr };
     QAction* m_new_window_action { nullptr };
     QAction* m_new_private_window_action { nullptr };
     QAction* m_reopen_recently_closed_tab_action { nullptr };
+    QAction* m_close_current_tab_action { nullptr };
+    QAction* m_open_next_tab_action { nullptr };
+    QAction* m_open_previous_tab_action { nullptr };
+    QAction* m_open_file_action { nullptr };
+    QAction* m_open_settings_action { nullptr };
+    QAction* m_open_downloads_action { nullptr };
     QAction* m_find_in_page_action { nullptr };
+    QAction* m_quit_action { nullptr };
 
     IsPopupWindow m_is_popup_window { IsPopupWindow::No };
 
