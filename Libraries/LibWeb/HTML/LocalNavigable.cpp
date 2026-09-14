@@ -1907,10 +1907,10 @@ GC::Ptr<Navigable> LocalNavigable::find_a_navigable_by_target_name(Utf16View nam
     // 4. For each subtreeToSearch of subtreesToSearch, in reverse order:
     for (auto const& subtree_to_search : subtrees_to_search.in_reverse()) {
         // 1. Let documentToSearch be subtreeToSearch's active document.
-        auto& document_to_search = *as<LocalNavigable>(*subtree_to_search).active_document();
-
         // 2. For each navigable of the inclusive descendant navigables of documentToSearch:
-        for (auto const& navigable : document_to_search.inclusive_descendant_navigables()) {
+        // NB: An ancestor's document is in the process hosting it. Its inclusive descendant navigables are the
+        //     subtree the UI process replicates here, with this page's own navigables among them.
+        for (auto const& navigable : subtree_to_search->active_document_inclusive_descendant_navigables()) {
             // 1. If currentNavigable is not allowed by sandboxing to navigate navigable given sourceSnapshotParams, then optionally continue.
             if (!allowed_by_sandboxing_to_navigate(*navigable, source_snapshot_params))
                 continue;
@@ -1943,9 +1943,7 @@ GC::Ptr<Navigable> LocalNavigable::find_a_navigable_by_target_name(Utf16View nam
         // 3. For each navigable of the inclusive descendant navigables of documentToSearch:
         for (auto const& navigable : document_to_search->inclusive_descendant_navigables()) {
             // 1. If currentNavigable's active browsing context is not familiar with navigable's active browsing context, then continue.
-            // FIXME: A navigable hosted by another process has no browsing context here to check familiarity with.
-            auto* local_navigable = as_if<LocalNavigable>(*navigable);
-            if (!local_navigable || !active_browsing_context()->is_familiar_with(*local_navigable->active_browsing_context()))
+            if (!is_familiar_with(*navigable))
                 continue;
 
             // 2. If currentNavigable is not allowed by sandboxing to navigate navigable given sourceSnapshotParams, then optionally continue.
@@ -1961,6 +1959,48 @@ GC::Ptr<Navigable> LocalNavigable::find_a_navigable_by_target_name(Utf16View nam
 
     // 8. Return null.
     return nullptr;
+}
+
+// https://html.spec.whatwg.org/multipage/document-sequences.html#familiar-with
+// AD-HOC: Stated on the navigables whose active browsing contexts are compared, since the browsing context of a
+//         navigable another process hosts is there, while what the algorithm needs is replicated here.
+bool LocalNavigable::is_familiar_with(Navigable& other)
+{
+    // A browsing context A is familiar with a second browsing context B if the following algorithm returns true:
+    auto& A = *this;
+    auto& B = other;
+
+    // 1. If A's active document's origin is same origin with B's active document's origin, then return true.
+    if (B.active_document_origin().has_value() && A.active_document()->origin().is_same_origin(*B.active_document_origin()))
+        return true;
+
+    // 2. If A's top-level browsing context is B, then return true.
+    if (A.traversable_navigable().ptr() == &B)
+        return true;
+
+    // 3. If B is an auxiliary browsing context and A is familiar with B's opener browsing context, then return true.
+    // NB: Only a top-level browsing context is auxiliary, and the ones another process holds are nested.
+    if (auto* local_B = as_if<LocalNavigable>(B); local_B && local_B->active_browsing_context()) {
+        if (auto opener = local_B->active_browsing_context()->opener_browsing_context()) {
+            if (auto opener_navigable = opener->active_document() ? opener->active_document()->navigable() : nullptr; opener_navigable && A.is_familiar_with(*opener_navigable))
+                return true;
+        }
+    }
+
+    // 4. If there exists an ancestor browsing context of B whose active document has the same origin as the active document of A, then return true.
+    // NOTE: This includes the case where A is an ancestor browsing context of B.
+
+    // If B's active document is not fully active then it cannot have ancestor browsing context
+    if (!B.active_document_is_fully_active())
+        return false;
+
+    for (auto ancestor = B.parent(); ancestor; ancestor = ancestor->parent()) {
+        if (ancestor->active_document_origin()->is_same_origin(A.active_document()->origin()))
+            return true;
+    }
+
+    // 5. Return false.
+    return false;
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#determining-navigation-params-policy-container
