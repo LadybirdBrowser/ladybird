@@ -1028,7 +1028,9 @@ impl<'pass> GridFormattingContext<'pass> {
             records: run.records,
             grid_container,
             derived_baselines_of_root_box: DerivedBaselines::default(),
-            parent_grid: parent_grid.map(|parent| ParentGridData::for_child_container(parent, grid_container)),
+            parent_grid: parent_grid
+                .filter(|_| grid_template_declares_a_subgrid_axis(&run.callbacks, grid_container))
+                .map(|parent| ParentGridData::for_child_container(parent, grid_container)),
             layout_mode: run.layout_mode,
             callbacks: run.callbacks,
             should_collect_devtools_layout_data: run.should_collect_devtools_layout_data,
