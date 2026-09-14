@@ -1168,11 +1168,13 @@ void KeyframeEffect::request_observation_sample()
 
 bool KeyframeEffect::can_skip_per_frame_animation_tick() const
 {
+    auto phase = this->phase();
+
     if (auto animation = associated_animation(); animation && !animation->pending()
         && animation->play_state() == Bindings::AnimationPlayState::Running
         && animation->playback_rate() > 0
         && animation->timeline() && animation->timeline()->is_monotonically_increasing()
-        && is_in_the_before_phase())
+        && phase == Phase::Before)
         return true;
 
     if (!m_is_compositor_driven && !m_is_compositor_replaced && !can_skip_per_frame_style_update())
@@ -1188,10 +1190,11 @@ bool KeyframeEffect::can_skip_per_frame_animation_tick() const
 
     // NB: Infinite effects cannot reach their natural end, and finite offscreen paint effects have an end timer.
     //     Neither needs a continuous tick for animationend listeners.
-    auto has_css_animation_event_listener_requiring_animation_tick = [this](DOM::EventTarget const& event_target) {
-        // NB: Starting or cancelling an active animation requests an update independently of playback.
-        //     Only iteration events require future updates while a visually throttled effect runs.
-        if (is_in_the_active_phase())
+    // NB: Starting or cancelling an active animation requests an update independently of playback.
+    //     Only iteration events require future updates while a visually throttled effect runs.
+    auto only_iteration_events_require_a_tick = phase == Phase::Active;
+    auto has_css_animation_event_listener_requiring_animation_tick = [only_iteration_events_require_a_tick](DOM::EventTarget const& event_target) {
+        if (only_iteration_events_require_a_tick)
             return event_target.has_event_listener(HTML::EventNames::animationiteration)
                 || event_target.has_event_listener(HTML::EventNames::webkitAnimationIteration);
 

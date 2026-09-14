@@ -7894,8 +7894,7 @@ static Optional<double> next_throttled_animation_iteration_event_time(Animations
         || effect.iteration_duration().type != Animations::TimeValue::Type::Milliseconds
         || effect.iteration_duration().value <= 0 || !isfinite(effect.iteration_duration().value)
         || !effect.can_skip_per_frame_style_update()
-        || !effect.is_in_the_active_phase()
-        || effect.can_skip_per_frame_animation_tick())
+        || !effect.is_in_the_active_phase())
         return {};
 
     // NB: Observable throttled animations need a rendering update at the next iteration boundary,
@@ -7957,7 +7956,8 @@ void Document::service_compositor_animation_wakeup(double timestamp)
                     reached_compositor_active_start = true;
             }
         }
-        if (auto iteration_event_time = next_throttled_animation_iteration_event_time(animation, effect); iteration_event_time.has_value()) {
+        if (auto iteration_event_time = next_throttled_animation_iteration_event_time(animation, effect);
+            iteration_event_time.has_value() && !effect.can_skip_per_frame_animation_tick()) {
             if (current_time->value < *iteration_event_time) {
                 auto delay = (*iteration_event_time - current_time->value) / animation.playback_rate();
                 if (!next_wakeup_delay_ms.has_value() || delay < *next_wakeup_delay_ms)
