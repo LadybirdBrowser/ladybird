@@ -295,6 +295,14 @@ void WebContentClient::register_view(Web::PageId page_id, ViewImplementation& vi
     m_history_recorded_urls_for_current_load.remove(page_id);
 }
 
+void WebContentClient::keep_view_page_for_displaced_document(Web::PageId page_id, CanonicalTraversable& traversable)
+{
+    VERIFY(m_views.contains(page_id));
+    m_views.remove(page_id);
+    m_history_recorded_urls_for_current_load.remove(page_id);
+    m_embedded_pages.set(page_id, traversable.make_weak_ptr());
+}
+
 void WebContentClient::unregister_view(Web::PageId page_id)
 {
     forget_compositor_context(Web::Compositor::compositor_context_id_for_page(page_id));
@@ -391,8 +399,8 @@ CanonicalTraversable* WebContentClient::traversable_for_page(Web::PageId page_id
         return nullptr;
     }
 
-    if (auto view = view_for_page_id(page_id); view.has_value())
-        return &view->traversable();
+    if (auto view = m_views.get(page_id); view.has_value())
+        return &(*view)->traversable();
 
     return nullptr;
 }

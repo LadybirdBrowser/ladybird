@@ -45,6 +45,7 @@ public:
     virtual ~CanonicalTraversable() override;
 
     virtual bool is_top_level_traversable() const override { return true; }
+    virtual void clear_ongoing_navigation() override;
     CanonicalBrowsingContext& browsing_context_for_document_creation(WebContentClient const&, Web::PageId page_id) const;
 
     // Apply-the-history-step coordination. Operations serialize on the traversable's session history traversal
@@ -97,12 +98,19 @@ public:
     Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigable_graph() const;
 
     void for_each_hosting_page(Function<void(WebContentClient&, Web::PageId page_id)> const&) const;
-    // The open pages of this tab that represent a navigable: every page not hosting its document.
     void for_each_page_representing(CanonicalNavigable const&, Function<void(WebContentClient&, Web::PageId page_id)> const&) const;
     bool hosts(CanonicalNavigable const&, WebContentClient const&, Web::PageId page_id) const;
+    bool represents(CanonicalNavigable const&, WebContentClient const&, Web::PageId page_id) const;
     bool page_hosts_any(WebContentClient const&, Web::PageId page_id) const;
     void stop_hosting_in_page(CanonicalNavigable&, WebContentClient&, Web::PageId page_id);
     void release_page_if_unused(WebContentClient&, Web::PageId page_id);
+
+    void set_displaced_document_host(WebContentClient&, Web::PageId page_id);
+    Optional<HistoryJobEndpoint> const& displaced_document_host() const { return m_displaced_document_host; }
+    bool is_displaced_document_host(WebContentClient const&, Web::PageId page_id) const;
+    void release_displaced_document_host();
+    void discard_displaced_document_host();
+    void forget_displaced_document_host(Badge<SiteIsolationManager>);
     void did_lose_history_job_endpoint(WebContentClient&, Web::PageId page_id);
 
     TraversableSessionHistory const& session_history() const { return m_session_history; }
@@ -251,6 +259,10 @@ private:
         Function<void()> queue_document_unload_task;
     };
     HashMap<Web::HTML::CrossProcessId, PendingUnload> m_pending_unloads;
+
+    Optional<HistoryJobEndpoint> m_displaced_document_host;
+    bool m_displaced_document_unloaded { false };
+    bool m_displaced_document_unload_pending { false };
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#system-visibility-state
     Web::HTML::VisibilityState m_system_visibility_state { Web::HTML::VisibilityState::Hidden };

@@ -193,7 +193,7 @@ public:
     void set_ongoing_navigation(OngoingNavigation);
     void set_ongoing_navigation_to_traversal(Web::HTML::CrossProcessId operation_id);
     void clear_ongoing_navigation_traversal(Web::HTML::CrossProcessId operation_id);
-    void clear_ongoing_navigation();
+    virtual void clear_ongoing_navigation();
     void set_navigation_population_worker(WebContentClient&, Web::PageId page_id);
     bool navigation_population_matches(WebContentClient const&, Web::PageId page_id, Utf16String const& navigation_id) const;
     bool navigation_population_worker_matches(WebContentClient const&, Web::PageId page_id) const;

@@ -102,6 +102,9 @@ void SiteIsolationManager::remove_page(WebContentClient& client, Web::PageId pag
     if (!traversable)
         return;
 
+    if (traversable->is_displaced_document_host(client, page_id))
+        traversable->forget_displaced_document_host({});
+
     Vector<Web::HTML::CrossProcessId> reported_by_page;
     Vector<Web::HTML::CrossProcessId> hosted_by_page;
     Vector<Web::HTML::CrossProcessId> pending_in_page;
@@ -307,11 +310,20 @@ void SiteIsolationManager::transition_child_frame_to_local(CanonicalNavigable& c
 
 void SiteIsolationManager::detach_child_frame_host(CanonicalNavigable& child_frame)
 {
-    // The frames of the closed remote page (this frame's children) die with it; that
-    // page's process is going away and will not report their destruction.
+    // The frames of the displaced document, which its host reported, die with it and are not reported destroyed
+    // again. The frames of the next document, reported by its host, stay.
     if (child_frame.has_remote_host()) {
-        while (!child_frame.children().is_empty())
-            remove_child_frame_subtree(*child_frame.children().last());
+        auto& host_client = child_frame.remote_host_client();
+        auto host_page_id = child_frame.remote_host_page_id();
+        Vector<Web::HTML::CrossProcessId> displaced_frames;
+        for (auto const& child : child_frame.children()) {
+            if (child->reporting_client_if_any() == &host_client && child->reporting_page_id() == host_page_id)
+                displaced_frames.append(child->id());
+        }
+        for (auto frame_id : displaced_frames) {
+            if (auto frame = child_frame.top_level_traversable().find(frame_id); frame.has_value())
+                remove_child_frame_subtree(*frame);
+        }
     }
 
     child_frame.detach_remote_host();
