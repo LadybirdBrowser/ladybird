@@ -9,12 +9,13 @@
     test(() => {
         internals.updateStyle();
 
+        const shared = internals.styleRecordIdentity(first) === internals.styleRecordIdentity(second);
         const before = internals.getStyleInvalidationCounters();
         second.className = "changed";
         internals.updateStyle();
         const after = internals.getStyleInvalidationCounters();
 
-        println(`shared initial style: ${before.elementStyleSharedComputations >= 1}`);
+        println(`shared initial style: ${shared}`);
         println(`longhand evaluations: ${after.computedLonghandEvaluations - before.computedLonghandEvaluations}`);
         println(`first background: ${getComputedStyle(first).backgroundColor}`);
         println(`second background: ${getComputedStyle(second).backgroundColor}`);

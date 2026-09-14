@@ -2,7 +2,7 @@ reaction color: rgb(0, 128, 0)
 reaction batch runs: 1
 reaction elements: 2
 published reactions: 2
-regular recomputations: 3
+regular recomputations: 2
 targeted recomputations: 0
 closure answer completions: 1
 closure identity stops: 1

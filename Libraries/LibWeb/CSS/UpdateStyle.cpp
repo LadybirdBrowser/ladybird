@@ -465,6 +465,19 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
     // transaction of this style update.
     RequiredInvalidationAfterStyleChange transaction_invalidation;
     ChangedCustomPropertyNames changed_custom_property_names;
+    // Unstyled descendants of display:none need no record until a targeted read or visibility
+    // change asks for one. SVG resources and existing animations can still consume style while
+    // hidden, so retain their inheritance prerequisites in this batch.
+    HashTable<StyleNodeID> required_in_hidden_subtrees;
+    for (auto const& reaction : reactions) {
+        auto element = document.style_computer().element_for_style_node(reaction.style_node);
+        if (!element || (!element->is_svg_element() && !element->has_relevant_animations()))
+            continue;
+        for (Optional<DOM::AbstractElement> ancestor = DOM::AbstractElement { *element }; ancestor.has_value(); ancestor = ancestor->element_to_inherit_style_from()) {
+            if (required_in_hidden_subtrees.set(ancestor->element().style_node_id()) == HashSetResult::KeptExistingEntry)
+                break;
+        }
+    }
     {
         for (size_t reaction_index = 0; reaction_index < reactions.size(); ++reaction_index) {
             auto const& published_reaction = reactions[reaction_index];
@@ -483,6 +496,19 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                 absorbed != 0) {
                 reaction.reaction = static_cast<u8>(absorbed & 0xff);
                 reaction.inherited_style_groups = static_cast<u8>(absorbed >> 8);
+            }
+
+            if (!element->has_style() && !required_in_hidden_subtrees.contains(element->style_node_id())) {
+                bool hidden = false;
+                for (auto ancestor = DOM::AbstractElement { *element }.element_to_inherit_style_from(); ancestor.has_value(); ancestor = ancestor->element_to_inherit_style_from()) {
+                    auto identity = ancestor->style_record_identity();
+                    if (!!identity) {
+                        hidden = document.style_computer().style_engine().style_record_dependency_flags(identity) & to_underlying(StyleRecordDependencyFlag::InDisplayNoneSubtree);
+                        break;
+                    }
+                }
+                if (hidden)
+                    continue;
             }
 
             if (reaction.gap == StyleEngineFFI::FfiStyleDeltaGap::RetryAfterAncestor) {

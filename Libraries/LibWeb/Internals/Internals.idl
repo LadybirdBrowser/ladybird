@@ -240,7 +240,8 @@ interface Internals {
     object styleEngineTransactionReactions();
     undefined resetStyleFfiCounters();
     // Returns, for each ComputedValues style value group of the given element, whether the
-    // group payload is shared with the parent element and whether it is the default payload.
+    // group payload is shared with the parent element, whether it is the default payload,
+    // and its identity for comparisons while the computed style remains alive.
     object styleGroupSharingInfo(Element element);
     // Flushes pending style work without forcing layout.
     undefined updateStyle();

@@ -1782,10 +1782,13 @@ GC::Ref<JS::Object> Internals::style_group_sharing_info(DOM::Element& element)
         return object;
     auto parent = element.parent_element();
     auto parent_values = parent ? parent->computed_style() : CSS::ComputedStyleRecordView {};
+    size_t group_index = 0;
     computed_values->for_each_style_group_sharing_state(parent_values ? &*parent_values : nullptr, [&](StringView name, bool shared_with_parent, bool is_default) {
         auto group = JS::Object::create(realm, nullptr);
         group->define_direct_property("sharedWithParent"_utf16_fly_string, JS::Value(shared_with_parent), JS::default_attributes);
         group->define_direct_property("isDefault"_utf16_fly_string, JS::Value(is_default), JS::default_attributes);
+        auto* payload = computed_values->style_group_payload(static_cast<CSS::StyleGroupIndex>(group_index++));
+        group->define_direct_property("payloadIdentity"_utf16_fly_string, JS::PrimitiveString::create(vm(), Utf16String::from_utf8(MUST(String::formatted("{:p}", payload)))), JS::default_attributes);
         object->define_direct_property(Utf16FlyString::from_utf8(name), group, JS::default_attributes);
     });
     return object;

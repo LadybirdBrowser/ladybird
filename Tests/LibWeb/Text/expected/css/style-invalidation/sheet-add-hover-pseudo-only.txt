@@ -1,1 +1,1 @@
-:hover-only sheet add: elementStyleRecomputations=1, elementStyleNoopRecomputations=0
+:hover-only sheet add: elementStyleRecomputations=0, elementStyleNoopRecomputations=0
