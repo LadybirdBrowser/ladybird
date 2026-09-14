@@ -139,7 +139,7 @@ impl FragmentLink {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct AnchorCandidate {
     pub(crate) node: crate::layout::node_data::NodeSlotId,
-    pub(crate) border_box_rect: formatting_context::PhysicalRect,
+    pub(crate) border_box_rect: CssPixelRect,
     pub(crate) coordinate_space_box: crate::layout::node_data::NodeSlotId,
 }
 
@@ -148,7 +148,7 @@ pub(crate) struct AnchorCandidate {
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) struct InlineContainingBlockRect {
     pub(crate) inline_box: crate::layout::node_data::NodeSlotId,
-    pub(crate) rect: formatting_context::PhysicalRect,
+    pub(crate) rect: CssPixelRect,
     pub(crate) coordinate_space_box: crate::layout::node_data::NodeSlotId,
 }
 
@@ -545,7 +545,7 @@ impl RunFragmentBuilder {
     pub(crate) fn register_inline_containing_block_rect(
         &self,
         inline_box: crate::layout::node_data::NodeSlotId,
-        rect: formatting_context::PhysicalRect,
+        rect: CssPixelRect,
         coordinate_space_box: crate::layout::node_data::NodeSlotId,
     ) {
         let mut inner = self.inner.borrow_mut();
@@ -588,7 +588,7 @@ impl RunFragmentBuilder {
     pub(crate) fn find_inline_containing_block_rect(
         &self,
         inline_box: crate::layout::node_data::NodeSlotId,
-    ) -> Option<(formatting_context::PhysicalRect, crate::layout::node_data::NodeSlotId)> {
+    ) -> Option<(CssPixelRect, crate::layout::node_data::NodeSlotId)> {
         self.inner
             .borrow()
             .iter_inline_containing_block_rects()
@@ -685,7 +685,7 @@ impl RunFragmentBuilder {
     pub(crate) fn find_anchor_candidate(
         &self,
         node: crate::layout::node_data::NodeSlotId,
-    ) -> Option<(formatting_context::PhysicalRect, crate::layout::node_data::NodeSlotId)> {
+    ) -> Option<(CssPixelRect, crate::layout::node_data::NodeSlotId)> {
         self.inner
             .borrow()
             .iter_anchor_candidates()
@@ -806,7 +806,7 @@ impl RunFragmentBuilder {
         containing_block_is_sealed: bool,
         containing_line_box_index: Option<usize>,
         committed_offset: FfiCssPixelPoint,
-        own_anchor_candidate_border_box_rect: Option<formatting_context::PhysicalRect>,
+        own_anchor_candidate_border_box_rect: Option<CssPixelRect>,
     ) {
         let mut inner = self.inner.borrow_mut();
         let slot = node.slot_index();

@@ -234,7 +234,7 @@ impl<'pass> AbsposEngine<'pass> {
     fn base_containing_block_info(
         &self,
         node: Node,
-        inline_containing_block_rect: Option<formatting_context::PhysicalRect>,
+        inline_containing_block_rect: Option<CssPixelRect>,
         entry_containing_block_geometry: &ContainingBlockGeometry,
         resolved_anchor_insets: Option<&formatting_context::ResolvedAnchorInsets>,
     ) -> abspos_inputs::AbsposContainingBlockInfo {
@@ -395,7 +395,7 @@ impl AbsposEngine<'_> {
         containing_block: Node,
         entry_containing_block_geometry: Option<&ContainingBlockGeometry>,
         entry_coordinate_space_box: Node,
-    ) -> formatting_context::PhysicalRect {
+    ) -> CssPixelRect {
         let (rect, coordinate_space_box) = self
             .fragments
             .as_deref()
@@ -405,7 +405,7 @@ impl AbsposEngine<'_> {
             Some(geometry) => {
                 let fold_into_entry_space =
                     self.translation_between_payload_resting_spaces(coordinate_space_box, entry_coordinate_space_box);
-                formatting_context::PhysicalRect {
+                CssPixelRect {
                     x: rect.x + fold_into_entry_space.x - geometry.content_origin_in_entry_space.x
                         + geometry.padding_left,
                     y: rect.y + fold_into_entry_space.y - geometry.content_origin_in_entry_space.y
@@ -416,7 +416,7 @@ impl AbsposEngine<'_> {
             }
             None => {
                 let containing_block_used = self.used(containing_block);
-                formatting_context::PhysicalRect {
+                CssPixelRect {
                     x: rect.x + containing_block_used.padding_left.get(),
                     y: rect.y + containing_block_used.padding_top.get(),
                     width: rect.width,
@@ -429,7 +429,7 @@ impl AbsposEngine<'_> {
     fn anchor_side(
         &self,
         side: AnchorSide,
-        rect: formatting_context::PhysicalRect,
+        rect: CssPixelRect,
         positioned_box: Node,
         containing_block: Node,
         is_from_end: bool,
@@ -1992,7 +1992,7 @@ impl<'pass> AbsposEngine<'pass> {
         &self,
         child: &abspos_inputs::PendingAbsposChild,
         containing_block_geometry: &ContainingBlockGeometry,
-    ) -> Option<formatting_context::PhysicalRect> {
+    ) -> Option<CssPixelRect> {
         if child.inline_containing_block.is_invalid() {
             return None;
         }
@@ -2000,7 +2000,7 @@ impl<'pass> AbsposEngine<'pass> {
         let (rect, payload_space) = fragments.find_inline_containing_block_rect(child.inline_containing_block)?;
         let fold_into_entry_space =
             self.translation_between_payload_resting_spaces(payload_space, child.coordinate_space_box);
-        Some(formatting_context::PhysicalRect {
+        Some(CssPixelRect {
             x: rect.x + fold_into_entry_space.x - containing_block_geometry.content_origin_in_entry_space.x,
             y: rect.y + fold_into_entry_space.y - containing_block_geometry.content_origin_in_entry_space.y,
             width: rect.width,

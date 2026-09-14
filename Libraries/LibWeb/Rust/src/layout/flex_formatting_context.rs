@@ -2544,7 +2544,7 @@ impl<'pass> FlexFormattingContext<'pass> {
                 let writing_mode = self.style(self.flex_container).writing_mode();
                 let (x, y) = geometry::to_physical(writing_mode, logical_inline_offset, logical_block_offset);
                 let (width, height) = geometry::to_physical(writing_mode, logical_inline_size, logical_block_size);
-                let rect = formatting_context::FlexLayoutItemRect { x, y, width, height };
+                let rect = CssPixelRect { x, y, width, height };
                 let node = item.box_;
                 let style = self.style(node);
                 let main_size_property = self.select_main(style.width(), style.height());

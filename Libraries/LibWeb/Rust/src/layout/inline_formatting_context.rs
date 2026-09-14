@@ -462,7 +462,7 @@ fn edge_bits(horizontal: bool, low: bool, high: bool) -> u8 {
 
 pub(crate) struct InlineContainingBlockRectCandidate {
     pub(crate) inline_containing_block: Node,
-    pub(crate) rect: formatting_context::PhysicalRect,
+    pub(crate) rect: CssPixelRect,
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -834,7 +834,7 @@ pub(crate) fn compute(
         {
             inline_containing_block_rect_candidates.push(InlineContainingBlockRectCandidate {
                 inline_containing_block: node,
-                rect: formatting_context::PhysicalRect {
+                rect: CssPixelRect {
                     x: placeholder_rect.x,
                     y: placeholder_rect.y,
                     width: placeholder_rect.width,
@@ -870,7 +870,7 @@ fn padding_box_rect_spanning_first_and_last_content_lines(
     horizontal: bool,
     inline_axis_is_reverse: bool,
     container_inline_axis_is_reverse: bool,
-) -> Option<formatting_context::PhysicalRect> {
+) -> Option<CssPixelRect> {
     let first = corners.first?;
     let last = corners.last?;
 
@@ -909,14 +909,14 @@ fn padding_box_rect_spanning_first_and_last_content_lines(
         (start - size, size)
     };
     Some(if horizontal {
-        formatting_context::PhysicalRect {
+        CssPixelRect {
             x: inline_low,
             y: block_start,
             width: inline_size,
             height: block_size,
         }
     } else {
-        formatting_context::PhysicalRect {
+        CssPixelRect {
             x: block_start,
             y: inline_low,
             width: block_size,
