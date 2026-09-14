@@ -8473,6 +8473,79 @@ fn a_sibling_fact_request_is_taken_a_doubling_window_at_a_time() {
     );
 }
 
+#[test]
+fn duplicate_fact_requests_share_one_window_per_matching_pass() {
+    let mut engine = StyleEngine::new(DeviceClass::ForegroundDesktop);
+    let mut raw = [0_u32; 65];
+    engine.allocate_style_nodes(&mut raw);
+    let nodes: Vec<StyleNodeID> = raw.iter().map(|&raw| StyleNodeID::from_raw(raw).unwrap()).collect();
+    engine.record_tree_delta(nodes[0], None, Some(relations(None, None, None)));
+    for index in 1..nodes.len() {
+        engine.record_tree_delta(
+            nodes[index],
+            None,
+            Some(relations(
+                Some(nodes[0].raw()),
+                (index > 1).then(|| nodes[index - 1].raw()),
+                None,
+            )),
+        );
+    }
+    discard_transaction(&mut engine);
+
+    for request in [
+        Incomplete::MissingFacts(nodes[1]),
+        Incomplete::MissingSiblingFacts {
+            first: nodes[1],
+            last_exclusive: None,
+        },
+        Incomplete::MissingDescendantFacts {
+            root: nodes[0],
+            first: nodes[1],
+        },
+    ] {
+        let mut covered = Vec::new();
+        let mut window = INITIAL_SIBLING_FACT_WINDOW;
+        let requests = vec![request; 64];
+        engine
+            .widen_fact_coverage_for_requests(&mut covered, &requests, &mut window)
+            .unwrap();
+        let expected = if matches!(request, Incomplete::MissingFacts(_)) {
+            1
+        } else {
+            INITIAL_SIBLING_FACT_WINDOW
+        };
+        assert_eq!(covered, nodes[1..=expected]);
+        assert_eq!(engine.memory().bytes_in_category(MemoryCategory::BatchScratch), 0);
+        assert_eq!(
+            engine.widen_fact_coverage_for_requests(&mut covered, &requests, &mut window),
+            Err(nodes[1]),
+            "a row requested again after materialization still reports failure to make progress"
+        );
+        assert_eq!(engine.memory().bytes_in_category(MemoryCategory::BatchScratch), 0);
+    }
+
+    let mut covered = vec![nodes[0]];
+    let mut window = INITIAL_SIBLING_FACT_WINDOW;
+    let requests = [
+        Incomplete::MissingFacts(nodes[1]),
+        Incomplete::MissingSiblingFacts {
+            first: nodes[1],
+            last_exclusive: Some(nodes[9]),
+        },
+        Incomplete::MissingFacts(nodes[2]),
+    ];
+    engine
+        .widen_fact_coverage_for_requests(&mut covered, &requests, &mut window)
+        .unwrap();
+    assert_eq!(
+        covered,
+        nodes[..9],
+        "overlapping requests retain discovery order without duplicates"
+    );
+    assert_eq!(engine.memory().bytes_in_category(MemoryCategory::BatchScratch), 0);
+}
+
 fn typed_nth_of_type_document() -> (StyleEngine, Vec<StyleNodeID>) {
     let (mut engine, nodes) = linear_document();
     let tag = StyleAtomID(100);

@@ -1619,7 +1619,7 @@ impl StyleEngine {
 
     pub(super) fn append_descendant_fact_window(
         &self,
-        covered: &mut Vec<StyleNodeID>,
+        append: &mut impl FnMut(StyleNodeID) -> bool,
         root: StyleNodeID,
         first: StyleNodeID,
         mut remaining: usize,
@@ -1627,8 +1627,7 @@ impl StyleEngine {
         let mut reached_first = false;
         for node in self.tree.preorder(root) {
             reached_first |= node == first;
-            if reached_first && !covered.contains(&node) {
-                covered.push(node);
+            if reached_first && append(node) {
                 remaining -= 1;
                 if remaining == 0 {
                     break;
@@ -1660,27 +1659,32 @@ impl StyleEngine {
         if covered.contains(&first) {
             return Err(first);
         }
-        if self.append_fact_window(covered, incomplete, *window)? {
+        let mut append = |node| {
+            if covered.contains(&node) {
+                return false;
+            }
+            covered.push(node);
+            true
+        };
+        if self.append_fact_window(&mut append, incomplete, *window)? {
             *window = window.saturating_mul(2);
         }
         Ok(())
     }
 
-    pub(super) fn append_fact_window(
+    fn append_fact_window(
         &self,
-        covered: &mut Vec<StyleNodeID>,
+        append: &mut impl FnMut(StyleNodeID) -> bool,
         incomplete: Incomplete,
         window: usize,
     ) -> Result<bool, StyleNodeID> {
         match incomplete {
             Incomplete::MissingFacts(missing) => {
-                if !covered.contains(&missing) {
-                    covered.push(missing);
-                }
+                append(missing);
                 Ok(false)
             }
             Incomplete::MissingDescendantFacts { root, first } => self
-                .append_descendant_fact_window(covered, root, first, window)
+                .append_descendant_fact_window(append, root, first, window)
                 .then_some(true)
                 .ok_or(first),
             Incomplete::MissingSiblingFacts { first, last_exclusive } => {
@@ -1690,8 +1694,7 @@ impl StyleEngine {
                     let Some(sibling) = current else {
                         break;
                     };
-                    if !covered.contains(&sibling) {
-                        covered.push(sibling);
+                    if append(sibling) {
                         remaining -= 1;
                     }
                     current = self.tree.next_element_sibling(sibling);
@@ -1707,20 +1710,54 @@ impl StyleEngine {
     /// materialized for the pass and still could not be supplied. The former is harmless; the
     /// latter cannot make progress on another retry.
     pub(super) fn widen_fact_coverage_for_requests(
-        &self,
+        &mut self,
         covered: &mut Vec<StyleNodeID>,
         requests: &[Incomplete],
         window: &mut usize,
     ) -> Result<(), StyleNodeID> {
+        use std::collections::hash_map::Entry;
+
         let previously_covered = covered.len();
         let mut widened_a_range = false;
-        for &request in requests {
-            let first = request.first_missing_node();
-            if covered[..previously_covered].contains(&first) {
-                return Err(first);
+        // Keep fact materialization in discovery order, but index membership for the whole
+        // batch. Scanning the growing vector for every requested row is quadratic.
+        let mut positions: HashMap<StyleNodeID, usize> = covered
+            .iter()
+            .copied()
+            .enumerate()
+            .map(|(index, node)| (node, index))
+            .collect();
+        // Several candidates can miss on the same range. Repeating that request would take
+        // another window beyond the one just added and rescan already-covered rows.
+        let mut seen = HashSet::default();
+        let result = (|| {
+            for &request in requests {
+                if !seen.insert(request) {
+                    continue;
+                }
+                let first = request.first_missing_node();
+                if positions.get(&first).is_some_and(|&index| index < previously_covered) {
+                    return Err(first);
+                }
+                let mut append = |node| {
+                    if let Entry::Vacant(entry) = positions.entry(node) {
+                        entry.insert(covered.len());
+                        covered.push(node);
+                        true
+                    } else {
+                        false
+                    }
+                };
+                widened_a_range |= self.append_fact_window(&mut append, request, *window)?;
             }
-            widened_a_range |= self.append_fact_window(covered, request, *window)?;
-        }
+            Ok(())
+        })();
+        let _charge = self.memory.charge_scratch(
+            MemoryCategory::BatchScratch,
+            (positions.capacity() * size_of::<(StyleNodeID, usize)>() + seen.capacity() * size_of::<Incomplete>())
+                as u64,
+        );
+        result?;
         if widened_a_range {
             *window = window.saturating_mul(2);
         }

@@ -4680,7 +4680,7 @@ impl RoutingRegistry {
 }
 
 /// Why a match evaluation could not produce an exact answer.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 pub enum Incomplete {
     /// The fact batch does not cover a style node the evaluation had to read. This is never a
     /// negative answer: the caller widens the batch or asks a different question.
