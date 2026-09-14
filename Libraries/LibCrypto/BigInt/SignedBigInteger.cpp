@@ -16,6 +16,11 @@
 
 namespace Crypto {
 
+// Tommath's mp_init() reserves MP_PREC digits, which is 256 zeroed bytes for a value that is usually a handful of
+// bits wide. Ask for the smallest amount it accepts instead, covering values up to two digits before anything has to
+// grow.
+static constexpr int initial_digit_count = 2;
+
 SignedBigInteger::SignedBigInteger(UnsignedBigInteger&& unsigned_data, bool sign)
 {
     MP_MUST(mp_init_copy(&m_mp, &unsigned_data.m_mp));
@@ -26,7 +31,7 @@ SignedBigInteger::SignedBigInteger(UnsignedBigInteger&& unsigned_data, bool sign
 
 SignedBigInteger::SignedBigInteger(ReadonlyBytes data)
 {
-    MP_MUST(mp_init(&m_mp));
+    MP_MUST(mp_init_size(&m_mp, initial_digit_count));
     MP_MUST(mp_from_sbin(&m_mp, data.data(), data.size()));
 }
 
@@ -37,13 +42,13 @@ SignedBigInteger::SignedBigInteger(UnsignedBigInteger const& unsigned_data)
 
 SignedBigInteger::SignedBigInteger(double value)
 {
-    MP_MUST(mp_init(&m_mp));
+    MP_MUST(mp_init_size(&m_mp, initial_digit_count));
     MP_MUST(mp_set_double(&m_mp, value));
 }
 
 SignedBigInteger::SignedBigInteger(i64 value)
 {
-    MP_MUST(mp_init(&m_mp));
+    MP_MUST(mp_init_size(&m_mp, initial_digit_count));
     mp_set_i64(&m_mp, value);
 }
 
@@ -90,7 +95,7 @@ SignedBigInteger& SignedBigInteger::operator=(SignedBigInteger&& other)
 
 SignedBigInteger::SignedBigInteger()
 {
-    MP_MUST(mp_init(&m_mp));
+    MP_MUST(mp_init_size(&m_mp, initial_digit_count));
 }
 
 SignedBigInteger::~SignedBigInteger()
