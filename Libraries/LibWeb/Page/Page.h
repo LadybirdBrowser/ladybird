@@ -133,7 +133,6 @@ public:
     void stop_hosting(HTML::CrossProcessId, HTML::ReplicatedNavigableState);
     void stop_hosting(HTML::LocalNavigable&, HTML::ReplicatedNavigableState);
     void host_navigable(HTML::CrossProcessId, HTML::SessionHistoryEntryDescriptor const& current_history_entry, HTML::VisibilityState system_visibility_state);
-
     void discard();
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#browsing-context-group

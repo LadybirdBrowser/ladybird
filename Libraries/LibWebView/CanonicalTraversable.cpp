@@ -147,9 +147,35 @@ void CanonicalTraversable::for_each_hosting_page(Function<void(WebContentClient&
 void CanonicalTraversable::for_each_page_representing(CanonicalNavigable const& navigable, Function<void(WebContentClient&, Web::PageId page_id)> const& callback) const
 {
     for_each_hosting_page([&](WebContentClient& client, Web::PageId page_id) {
-        if (!hosts(navigable, client, page_id))
+        if (represents(navigable, client, page_id))
             callback(client, page_id);
     });
+}
+
+bool CanonicalTraversable::represents(CanonicalNavigable const& navigable, WebContentClient const& client, Web::PageId page_id) const
+{
+    // The traversable's document is in the view's page, and in the page displaying it while the view's process
+    // populates its replacement.
+    auto hosts_document_of = [&](CanonicalNavigable const& ancestor) {
+        if (&ancestor == this)
+            return hosts(*this, client, page_id) || is_displaced_document_host(client, page_id);
+        return ancestor.is_hosted_by(client, page_id);
+    };
+
+    bool has_ancestor_hosted_elsewhere = false;
+    CanonicalNavigable const* child = nullptr;
+    for (auto const* ancestor = &navigable; ancestor; child = ancestor, ancestor = ancestor->parent()) {
+        // A page holds the frames of a document it hosts, which it reported, and not those of another document of the
+        // same navigable: the view's page and the page displaying the document it replaces each hold only their own.
+        if (hosts_document_of(*ancestor)) {
+            return has_ancestor_hosted_elsewhere
+                && child->reporting_client_if_any() == &client
+                && child->reporting_page_id() == page_id;
+        }
+        if (ancestor->has_remote_host())
+            has_ancestor_hosted_elsewhere = true;
+    }
+    return true;
 }
 
 bool CanonicalTraversable::hosts(CanonicalNavigable const& navigable, WebContentClient const& client, Web::PageId page_id) const
@@ -163,6 +189,8 @@ bool CanonicalTraversable::hosts(CanonicalNavigable const& navigable, WebContent
 
 bool CanonicalTraversable::page_hosts_any(WebContentClient const& client, Web::PageId page_id) const
 {
+    if (is_displaced_document_host(client, page_id))
+        return true;
     bool hosts_any = false;
     for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
         if (hosts(navigable, client, page_id) || navigable.pending_host_matches(client, page_id)) {
@@ -176,12 +204,25 @@ bool CanonicalTraversable::page_hosts_any(WebContentClient const& client, Web::P
 
 void CanonicalTraversable::stop_hosting_in_page(CanonicalNavigable& navigable, WebContentClient& client, Web::PageId page_id)
 {
-    if (page_hosts_any(client, page_id)) {
-        VERIFY(navigable.replicated_state().has_value());
-        client.async_stop_hosting_navigable(page_id, navigable.id(), *navigable.replicated_state());
+    // The page retired the local navigable that displayed the document when it unloaded it. This is the state the
+    // navigable's next document activated with.
+    VERIFY(navigable.replicated_state().has_value());
+    client.async_stop_hosting_navigable(page_id, navigable.id(), *navigable.replicated_state());
+
+    if (!page_hosts_any(client, page_id)) {
+        release_page_if_unused(client, page_id);
         return;
     }
-    release_page_if_unused(client, page_id);
+
+    // The page represents the navigable's subtree from now on, which its next document's host reported while the
+    // page hosted the displaced document.
+    navigable.for_each_in_subtree([&](CanonicalNavigable const& descendant) {
+        if (represents(descendant, client, page_id)) {
+            VERIFY(descendant.replicated_state().has_value());
+            client.async_insert_remote_navigable(page_id, { .id = descendant.id(), .parent_id = descendant.parent()->id(), .replicated_state = *descendant.replicated_state() });
+        }
+        return IterationDecision::Continue;
+    });
 }
 
 void CanonicalTraversable::release_page_if_unused(WebContentClient& client, Web::PageId page_id)
@@ -195,6 +236,76 @@ void CanonicalTraversable::release_page_if_unused(WebContentClient& client, Web:
     client.prepare_for_detached_close(page_id);
     client.unregister_embedded_page(page_id);
     did_lose_history_job_endpoint(client, page_id);
+}
+
+void CanonicalTraversable::set_displaced_document_host(WebContentClient& client, Web::PageId page_id)
+{
+    release_displaced_document_host();
+    m_displaced_document_host = HistoryJobEndpoint { &client, page_id };
+    m_displaced_document_unloaded = false;
+    m_displaced_document_unload_pending = false;
+}
+
+void CanonicalTraversable::forget_displaced_document_host(Badge<SiteIsolationManager>)
+{
+    m_displaced_document_host.clear();
+    m_displaced_document_unloaded = false;
+    m_displaced_document_unload_pending = false;
+}
+
+bool CanonicalTraversable::is_displaced_document_host(WebContentClient const& client, Web::PageId page_id) const
+{
+    return m_displaced_document_host.has_value() && m_displaced_document_host->client.ptr() == &client && m_displaced_document_host->page_id == page_id;
+}
+
+void CanonicalTraversable::clear_ongoing_navigation()
+{
+    CanonicalNavigable::clear_ongoing_navigation();
+    release_displaced_document_host();
+}
+
+void CanonicalTraversable::release_displaced_document_host()
+{
+    if (!m_displaced_document_host.has_value())
+        return;
+    if (!m_displaced_document_host->client->is_page_open(m_displaced_document_host->page_id)) {
+        m_displaced_document_host.clear();
+        return;
+    }
+
+    // The navigation that displaced the document ended without activating one, or the document is otherwise still
+    // displayed: it is unloaded where it is, after its frames, and released when that is done.
+    if (!m_displaced_document_unloaded) {
+        if (m_displaced_document_unload_pending)
+            return;
+        m_displaced_document_unload_pending = true;
+        unload_a_document_and_its_descendants({}, id(), history_job_endpoint_for(*this), [](UnloadedInItsHost) { });
+        return;
+    }
+
+    // The page retired the navigable that displayed the traversable's document when it unloaded it, and is told the
+    // state the next document activated with. The frames of the unloaded document go with it, and the page is
+    // discarded once it hosts nothing else of the tab.
+    auto host = m_displaced_document_host.release_value();
+    m_displaced_document_unloaded = false;
+    m_displaced_document_unload_pending = false;
+    VERIFY(replicated_state().has_value());
+    host.client->async_stop_hosting_navigable(host.page_id, id(), *replicated_state());
+    SiteIsolationManager::the().remove_page(*host.client, host.page_id);
+    release_page_if_unused(*host.client, host.page_id);
+}
+
+void CanonicalTraversable::discard_displaced_document_host()
+{
+    if (!m_displaced_document_host.has_value())
+        return;
+    auto host = m_displaced_document_host.release_value();
+    m_displaced_document_unloaded = false;
+    m_displaced_document_unload_pending = false;
+    if (!host.client->is_page_open(host.page_id))
+        return;
+    SiteIsolationManager::the().remove_page(*host.client, host.page_id);
+    release_page_if_unused(*host.client, host.page_id);
 }
 
 Optional<CanonicalNavigable&> CanonicalTraversable::find(Web::HTML::CrossProcessId navigable_id)
@@ -1607,11 +1718,12 @@ void CanonicalTraversable::unload_a_document_and_its_descendants(Optional<Web::H
     Optional<HistoryJobEndpoint> document_host;
     if (auto navigable = find(navigable_id); navigable.has_value()) {
         // A child's document is unloaded in the page hosting it, whichever that is, before the document replacing it
-        // activates. The traversable's is unloaded by the continuation in the view's page.
-        // FIXME: Unload a traversable's document in the process displaying it when another process hosts its next
-        //        document.
+        // activates. The traversable's is unloaded by the continuation in the view's page, unless another process
+        // displays it while the view's process populates the document replacing it.
         if (navigable->parent())
             document_host = history_job_endpoint_for(*navigable);
+        else
+            document_host = m_displaced_document_host;
         Function<void(CanonicalNavigable const&, Optional<Web::HTML::CrossProcessId>)> append_subtree =
             [&](CanonicalNavigable const& descendant, Optional<Web::HTML::CrossProcessId> parent_id) {
                 pending_unload.nodes.set(descendant.id(),
@@ -1641,7 +1753,14 @@ void CanonicalTraversable::unload_a_document_and_its_descendants(Optional<Web::H
             queue_document_unload_task(UnloadedInItsHost::No);
             return;
         }
-        unload_document_in_its_host(operation_id, document_host.release_value(), navigable_id, [queue_document_unload_task = move(queue_document_unload_task)] {
+        auto host = *document_host;
+        unload_document_in_its_host(operation_id, document_host.release_value(), navigable_id, [this, navigable_id, host, queue_document_unload_task = move(queue_document_unload_task)] {
+            // The traversable's displaced document is unloaded; the page that displayed it is done with.
+            if (navigable_id == id() && is_displaced_document_host(*host.client, host.page_id)) {
+                m_displaced_document_unloaded = true;
+                m_displaced_document_unload_pending = false;
+                release_displaced_document_host();
+            }
             queue_document_unload_task(UnloadedInItsHost::Yes);
         });
     };
@@ -1681,7 +1800,9 @@ void CanonicalTraversable::dispatch_descendant_unload_task(Web::HTML::CrossProce
 
     auto endpoint = node->value.endpoint;
     bool endpoint_is_available = history_job_endpoint_is_available(endpoint);
-    if (pending_unload->value.operation_id.has_value()) {
+    // The operation's jobs left the page displaying the traversable's document for the process replacing it; the
+    // page still unloads the documents it hosts.
+    if (pending_unload->value.operation_id.has_value() && endpoint.client && !is_displaced_document_host(*endpoint.client, endpoint.page_id)) {
         if (auto* operation = find_history_operation(*pending_unload->value.operation_id)) {
             for (auto const& unavailable_endpoint : operation->unavailable_job_endpoints) {
                 if (endpoint.client.ptr() == unavailable_endpoint.client.ptr() && endpoint.page_id == unavailable_endpoint.page_id)
@@ -1693,7 +1814,6 @@ void CanonicalTraversable::dispatch_descendant_unload_task(Web::HTML::CrossProce
         complete_descendant_unload_task(unload_id, navigable_id);
         return;
     }
-
     endpoint.client->async_run_descendant_unload_task(endpoint.page_id, unload_id, navigable_id, node->value.stop_hosting_after_unload);
 }
 
@@ -2779,6 +2899,8 @@ void CanonicalTraversable::finish_history_operation(Web::HTML::CrossProcessId op
     // A changing job still pending when its operation finishes never activates its document.
     for (auto const& endpoint : taken_operation.changing_job_endpoints)
         discard_pending_host_at(endpoint.key, endpoint.value);
+    if (taken_operation.changing_job_endpoints.contains(id()))
+        release_displaced_document_host();
     if (m_pending_browser_history_traversal.has_value()
         && m_pending_browser_history_traversal->operation_id == operation_id) {
         VERIFY(m_pending_browser_history_traversal->on_ready_callbacks.is_empty());

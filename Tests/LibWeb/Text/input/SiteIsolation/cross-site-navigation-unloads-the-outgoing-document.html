@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // A top-level navigation to a cross-site URL moves the traversable to another WebContent process. The document it
+    // leaves behind, and the documents of its child navigables, are unloaded in the process displaying them before
+    // the new document activates, so their pagehide and unload handlers run; they record through cookies.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const outgoingHostname = uniqueLocalhostHostname("outgoing-unload");
+
+        const targetMarkerPath = `/outgoing-unload-target-loaded-${runId}`;
+        await httpServer.createEcho("GET", targetMarkerPath, {
+            status: 200,
+            headers: { "Content-Type": "text/plain" },
+            body: "recorded",
+        });
+        const targetUrl = new URL(
+            await httpServer.createEcho("GET", `/outgoing-unload-target-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html>target<script>
+                    fetch(new URL("/echo${targetMarkerPath}", location.href)).finally(() => window.close());
+                <\/script>`,
+            })
+        );
+        targetUrl.hostname = uniqueLocalhostHostname("outgoing-unload-target");
+
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", `/outgoing-unload-child-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html>child<script>
+                    addEventListener("pagehide", () => { document.cookie = "childPagehide=1; path=/"; });
+                <\/script>`,
+            })
+        );
+        childUrl.hostname = outgoingHostname;
+
+        const outgoingUrl = new URL(
+            await httpServer.createEcho("GET", `/outgoing-unload-outgoing-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html>outgoing<iframe src="${childUrl.href}"></iframe><script>
+                    document.cookie = "loaded=1; path=/";
+                    addEventListener("pagehide", () => { document.cookie = "pagehide=1; path=/"; });
+                    addEventListener("unload", () => { document.cookie = "unload=1; path=/"; });
+                    document.querySelector("iframe").addEventListener("load", () => {
+                        location.replace(${JSON.stringify(targetUrl.href)});
+                    });
+                <\/script>`,
+            })
+        );
+        outgoingUrl.hostname = outgoingHostname;
+
+        // Opened without an opener, so that the popup's browsing context group holds it alone and the cross-site
+        // navigation swaps processes.
+        window.open(outgoingUrl, "_blank", "noopener");
+
+        const recorded = name => internals.hasCookieForURL(outgoingUrl.href, name, "1");
+        println(`outgoing document loaded: ${await waitForCondition(() => recorded("loaded"))}`);
+
+        const recordedUrl = `${httpServer.baseURL}/recorded-request-headers/echo${targetMarkerPath}`;
+        let targetLoaded = false;
+        for (let attempt = 0; attempt < 400 && !targetLoaded; ++attempt) {
+            try {
+                targetLoaded = (await fetch(recordedUrl)).ok;
+            } catch {}
+            if (!targetLoaded) await timeout(25);
+        }
+        println(`target loaded: ${targetLoaded}`);
+
+        await waitForCondition(() => recorded("pagehide") && recorded("unload") && recorded("childPagehide"), 200, 25);
+        println(`outgoing document pagehide: ${recorded("pagehide")}`);
+        println(`outgoing document unload: ${recorded("unload")}`);
+        println(`outgoing child pagehide: ${recorded("childPagehide")}`);
+    });
+</script>
