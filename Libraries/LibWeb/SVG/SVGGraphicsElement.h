@@ -45,8 +45,8 @@ public:
 
     virtual Optional<ViewBox> active_view_box() const
     {
-        if (auto* svg_fit_to_view_box = as_if<SVGFitToViewBox>(*this))
-            return svg_fit_to_view_box->view_box();
+        if (auto const* fit_to_view_box = this->fit_to_view_box())
+            return fit_to_view_box->view_box();
         return {};
     }
 

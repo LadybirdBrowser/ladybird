@@ -19,6 +19,8 @@ class SVGSymbolElement final : public SVGGraphicsElement
 public:
     virtual ~SVGSymbolElement() override = default;
 
+    virtual SVGFitToViewBox const* fit_to_view_box() const override { return this; }
+
 private:
     virtual bool is_svg_symbol_element() const final { return true; }
 
