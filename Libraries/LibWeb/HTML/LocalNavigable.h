@@ -84,6 +84,7 @@ public:
 
     bool is_local_root() const;
     GC::Ref<LocalNavigable> local_root();
+    GC::Ptr<WindowProxy> window_proxy_after_unload() const { return m_window_proxy_after_unload; }
     bool is_provisional() const { return m_provisional_for != nullptr; }
     GC::Ptr<RemoteNavigable> provisional_for() const { return m_provisional_for; }
     void clear_provisional_for() { m_provisional_for = nullptr; }
@@ -95,7 +96,6 @@ public:
     void set_closing(bool value);
     void report_replicated_state();
     void report_state_to_remote_container();
-    void unload_document_for_host_change();
     bool is_script_closable();
 
     void stop_loading();
@@ -519,6 +519,7 @@ private:
     NavigationObserver::NavigationObserversList m_navigation_observers;
 
     bool m_has_been_destroyed { false };
+    GC::Ptr<WindowProxy> m_window_proxy_after_unload;
     GC::Ptr<RemoteNavigable> m_provisional_for;
 
     ReplicatedContainerState m_root_container_state;

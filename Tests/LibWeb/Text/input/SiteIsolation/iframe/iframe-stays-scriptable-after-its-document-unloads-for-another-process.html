@@ -1,0 +1,71 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<script>
+    // The UI process unloads an iframe's document here before the document another process hosts activates. The task
+    // after that unload already finds the container's RemoteNavigable: the same WindowProxy, whose document is now out
+    // of reach, and removing the iframe then tears the frame down.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const remoteUrl = async (name, body) => {
+            const url = new URL(
+                await httpServer.createEcho("GET", `/oop-after-unload-${name}-${runId}`, {
+                    status: 200,
+                    headers: { "Content-Type": "text/html" },
+                    body,
+                })
+            );
+            url.hostname = uniqueLocalhostHostname(`oop-after-unload-${name}`);
+            return url;
+        };
+        const firstUrl = await remoteUrl(
+            "first",
+            `<!DOCTYPE html><script>document.cookie = "loaded=1; path=/";<\/script>`
+        );
+        const secondUrl = await remoteUrl("second", "<!DOCTYPE html>second");
+
+        // Resolves in the task after the initial about:blank document's unload event. A bare await would resume in
+        // the microtask checkpoint inside the unload, before the navigable is retired.
+        const taskAfterUnload = iframe =>
+            new Promise(resolve => iframe.contentWindow.addEventListener("unload", () => setTimeout(resolve, 0)));
+
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        const contentWindow = iframe.contentWindow;
+        let unloaded = taskAfterUnload(iframe);
+        iframe.src = firstUrl;
+        await unloaded;
+        println(`same WindowProxy in the task after unload: ${iframe.contentWindow === contentWindow}`);
+        let documentAccess;
+        try {
+            contentWindow.document;
+            documentAccess = "allowed";
+        } catch (e) {
+            documentAccess = e.name;
+        }
+        println(`document access in the task after unload: ${documentAccess}`);
+        if (
+            !(await waitForCondition(
+                () => remoteFrameCount() === 1 && internals.hasCookieForURL(firstUrl.href, "loaded", "1")
+            ))
+        ) {
+            println("iframe did not load out of process");
+            return;
+        }
+        println("document loaded out of process");
+
+        const removed = document.createElement("iframe");
+        document.body.appendChild(removed);
+        unloaded = taskAfterUnload(removed);
+        removed.src = secondUrl;
+        await unloaded;
+        removed.remove();
+        println(`contentWindow after removal: ${removed.contentWindow}`);
+        const iframeCount = () => (internals.dumpSiteIsolationProcessTree().match(/iframe#/g) || []).length;
+        println(
+            (await waitForCondition(() => iframeCount() === 1))
+                ? "frame tree settled"
+                : "removed frame still in the tree"
+        );
+    });
+</script>

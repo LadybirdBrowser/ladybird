@@ -1,0 +1,5 @@
+same WindowProxy in the task after unload: true
+document access in the task after unload: SecurityError
+document loaded out of process
+contentWindow after removal: null
+frame tree settled

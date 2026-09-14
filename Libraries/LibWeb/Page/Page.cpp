@@ -820,6 +820,11 @@ void Page::stop_hosting(HTML::LocalNavigable& local_navigable, HTML::ReplicatedN
         local_navigable.inform_the_navigation_api_about_child_navigable_destruction();
         document->unload();
     }
+    // The WindowProxy scripts hold stays theirs.
+    if (auto window_proxy = local_navigable.window_proxy_after_unload()) {
+        remote_navigable->set_window_proxy(*window_proxy);
+        window_proxy->set_window(remote_navigable->active_window());
+    }
     parent.replace_child(local_navigable, remote_navigable);
     local_navigable.set_has_been_destroyed();
     local_navigable.remove_from_all_local_navigables();
