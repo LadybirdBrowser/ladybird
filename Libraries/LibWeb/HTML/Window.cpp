@@ -170,16 +170,12 @@ WebIDL::ExceptionOr<void> post_message(JS::Realm& realm, HTML::Window& window, J
     return window.post_message(realm, message, window_post_message_options_from_bindings(options));
 }
 
-JS::ThrowCompletionOr<void> post_message_with_options(JS::Realm& realm, HTML::Window& window, JS::Value message, JS::Value options)
+JS::ThrowCompletionOr<HTML::Window::PostMessageOptions> window_post_message_options(JS::VM& vm, JS::Value options)
 {
-    auto& vm = realm.vm();
     Bindings::WindowPostMessageOptions options_from_bindings {};
     if (!options.is_undefined())
         options_from_bindings = TRY(Bindings::convert_to_idl_value_for_window_post_message_options(vm, options));
-    TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {
-        return window.post_message(realm, message, Bindings::window_post_message_options_from_bindings(options_from_bindings));
-    }));
-    return {};
+    return window_post_message_options_from_bindings(options_from_bindings);
 }
 
 WebIDL::UnsignedLong request_animation_frame(HTML::Window& window, WebIDL::CallbackType& callback)

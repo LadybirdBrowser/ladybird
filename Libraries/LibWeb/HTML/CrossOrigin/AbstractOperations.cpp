@@ -110,7 +110,8 @@ static GC::Ref<JS::NativeFunction> create_cross_origin_window_method(JS::Realm& 
                     return JS::js_undefined();
                 }
 
-                TRY(Bindings::post_message_with_options(realm, window, message, second_argument));
+                auto options = TRY(Bindings::window_post_message_options(vm, second_argument));
+                TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] { return window->post_message(realm, message, options); }));
                 return JS::js_undefined();
             },
             1, property);
