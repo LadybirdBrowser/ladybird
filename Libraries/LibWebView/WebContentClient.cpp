@@ -2643,6 +2643,17 @@ void WebContentClient::request_navigable_document_abort(Web::PageId page_id, Web
     endpoint->client->async_abort_navigable_document(endpoint->page_id, navigable_id);
 }
 
+void WebContentClient::request_navigable_document_unfullscreen(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+{
+    auto* page_host = traversable_for_page(page_id);
+    if (!page_host)
+        return;
+    auto endpoint = endpoint_hosting_navigable_represented_by(*this, page_id, *page_host, navigable_id);
+    if (!endpoint.has_value())
+        return;
+    endpoint->client->async_unfullscreen_navigable_document(endpoint->page_id, navigable_id);
+}
+
 void WebContentClient::request_child_navigable_unload(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
 {
     if (auto view = owning_view_for_page_id(page_id); view.has_value())

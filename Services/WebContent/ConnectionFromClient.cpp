@@ -690,6 +690,26 @@ void ConnectionFromClient::abort_navigable_document(Web::PageId page_id, Web::HT
     }));
 }
 
+// https://fullscreen.spec.whatwg.org/#exit-fullscreen
+void ConnectionFromClient::unfullscreen_navigable_document(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)
+{
+    auto page = this->page(page_id);
+    if (!page.has_value())
+        return;
+    auto* navigable = as_if<Web::HTML::LocalNavigable>(page->page().navigable_with_id(navigable_id).ptr());
+    if (!navigable)
+        return;
+
+    // 15. For each descendantDoc in descendantDocs:
+    // NB: doc is hosted by another process, which asks this process to run these steps for navigable's document and
+    //     the documents of navigable's descendants.
+    Vector<GC::Root<Web::HTML::Navigable>> inclusive_descendants;
+    inclusive_descendants.append(*navigable);
+    if (auto document = navigable->active_document())
+        inclusive_descendants.extend(document->descendant_navigables());
+    page->page().unfullscreen_descendant_documents(inclusive_descendants);
+}
+
 void ConnectionFromClient::run_traversable_close_unload_task(Web::PageId page_id, Web::HTML::CrossProcessId)
 {
     if (auto page = this->page(page_id); page.has_value())
