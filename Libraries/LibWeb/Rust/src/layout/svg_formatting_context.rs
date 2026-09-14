@@ -191,75 +191,38 @@ impl From<FfiAffineTransform> for libgfx_rust::AffineTransform {
     }
 }
 
+impl From<libgfx_rust::AffineTransform> for FfiAffineTransform {
+    fn from(transform: libgfx_rust::AffineTransform) -> Self {
+        let [a, b, c, d, e, f] = transform.values;
+        Self { a, b, c, d, e, f }
+    }
+}
+
 impl FfiAffineTransform {
     fn is_identity(self) -> bool {
-        self.a == 1.0 && self.b == 0.0 && self.c == 0.0 && self.d == 1.0 && self.e == 0.0 && self.f == 0.0
+        libgfx_rust::AffineTransform::from(self).is_identity()
     }
 
-    fn is_identity_or_translation(self) -> bool {
-        self.a == 1.0 && self.b == 0.0 && self.c == 0.0 && self.d == 1.0
+    pub(crate) fn translated(self, x: f32, y: f32) -> Self {
+        libgfx_rust::AffineTransform::from(self).translated(x, y).into()
     }
 
-    pub(crate) fn translated(mut self, x: f32, y: f32) -> Self {
-        if self.is_identity_or_translation() {
-            self.e += x;
-            self.f += y;
-            return self;
-        }
-        self.e += x * self.a + y * self.c;
-        self.f += x * self.b + y * self.d;
-        self
-    }
-
-    pub(crate) fn scaled(mut self, x: f32, y: f32) -> Self {
-        self.a *= x;
-        self.b *= x;
-        self.c *= y;
-        self.d *= y;
-        self
-    }
-
-    fn map_point(self, point: FfiFloatPoint) -> FfiFloatPoint {
-        FfiFloatPoint {
-            x: self.a * point.x + self.c * point.y + self.e,
-            y: self.b * point.x + self.d * point.y + self.f,
-        }
+    pub(crate) fn scaled(self, x: f32, y: f32) -> Self {
+        libgfx_rust::AffineTransform::from(self).scaled(x, y).into()
     }
 
     pub(crate) fn map_rect(self, rect: FfiFloatRect) -> FfiFloatRect {
-        if self.is_identity() {
-            return rect;
-        }
-        if self.is_identity_or_translation() {
-            return FfiFloatRect {
-                x: rect.x + self.e,
-                y: rect.y + self.f,
-                ..rect
-            };
-        }
-
-        let top_left = self.map_point(FfiFloatPoint { x: rect.x, y: rect.y });
-        let top_right = self.map_point(FfiFloatPoint {
-            x: rect.x + rect.width,
-            y: rect.y,
-        });
-        let bottom_right = self.map_point(FfiFloatPoint {
-            x: rect.x + rect.width,
-            y: rect.y + rect.height,
-        });
-        let bottom_left = self.map_point(FfiFloatPoint {
-            x: rect.x,
-            y: rect.y + rect.height,
-        });
-        let left = top_left.x.min(top_right.x).min(bottom_right.x.min(bottom_left.x));
-        let top = top_left.y.min(top_right.y).min(bottom_right.y.min(bottom_left.y));
-        let right = top_left.x.max(top_right.x).max(bottom_right.x.max(bottom_left.x));
-        let bottom = top_left.y.max(top_right.y).max(bottom_right.y.max(bottom_left.y));
+        let rect = libgfx_rust::AffineTransform::from(self).map_rect(libgfx_rust::FloatRect::new(
+            rect.x,
+            rect.y,
+            rect.width,
+            rect.height,
+        ));
         FfiFloatRect {
-            x: left,
-            y: top,
-            width: right - left,
-            height: bottom - top,
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
         }
     }
 }
