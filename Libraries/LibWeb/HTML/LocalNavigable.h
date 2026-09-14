@@ -78,8 +78,15 @@ public:
     void unregister_navigation_observer(Badge<NavigationObserver>, NavigationObserver&);
 
     Vector<GC::Root<LocalNavigable>> child_navigables() const;
+    Vector<GC::Root<LocalNavigable>> hosted_inclusive_descendant_navigables();
 
     bool is_local_root() const;
+    GC::Ref<LocalNavigable> local_root();
+    bool is_provisional() const { return m_provisional_for != nullptr; }
+    GC::Ptr<RemoteNavigable> provisional_for() const { return m_provisional_for; }
+    void clear_provisional_for() { m_provisional_for = nullptr; }
+    static GC::Ref<LocalNavigable> create_stand_in(Badge<Page>, RemoteNavigable&, SessionHistoryEntryDescriptor const&, VisibilityState system_visibility_state);
+    void set_parent_compositor_context(Optional<Compositor::CompositorContextId>);
 
     bool is_closing() const { return m_closing; }
     void set_closing(bool value) { m_closing = value; }
@@ -117,7 +124,7 @@ public:
     void activate_history_entry(RefPtr<SessionHistoryEntry>, GC::Ref<DOM::Document>, VisibilityState system_visibility_state);
     void update_nonchanging_navigable_history_step_state(HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);
     void queue_navigation_api_state_clear_task();
-    void run_ui_descendant_unload_task(GC::Ref<GC::Function<void()>> on_complete);
+    void run_ui_descendant_unload_task(StopHostingAfterUnload, GC::Ref<GC::Function<void()>> on_complete);
     void notify_navigation_observers_navigation_complete();
 
     GC::Ptr<DOM::Document> active_document() const;
@@ -509,6 +516,8 @@ private:
 
     // The destroy-a-child-navigable continuation parked while the UI process unloads this navigable's document tree.
     GC::Ptr<GC::Function<void()>> m_pending_child_navigable_unload;
+
+    GC::Ptr<RemoteNavigable> m_provisional_for;
 
     CSSPixelSize m_viewport_size;
     CSSPixelPoint m_viewport_scroll_offset;

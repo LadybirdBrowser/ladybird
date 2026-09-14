@@ -6,6 +6,9 @@
 
 #pragma once
 
+#include <AK/HashTable.h>
+#include <AK/Vector.h>
+#include <LibWeb/Compositor/Types.h>
 #include <LibWeb/HTML/Navigable.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 
@@ -16,13 +19,29 @@ class WEB_API RemoteNavigable final : public Navigable {
     GC_DECLARE_ALLOCATOR(RemoteNavigable);
 
 public:
+    static constexpr bool OVERRIDES_FINALIZE = true;
+
     static GC::Ref<RemoteNavigable> create(GC::Ref<Page>, CrossProcessId, GC::Ptr<Navigable> parent, ReplicatedNavigableState);
     virtual ~RemoteNavigable() override;
 
     ReplicatedNavigableState const& replicated_state() const { return m_replicated_state; }
+    void set_replicated_state(ReplicatedNavigableState);
 
-    // A remote navigable is never destroyed from this process: the UI process discards the page hosting its children instead.
-    virtual bool has_been_destroyed() const override { return false; }
+    Vector<GC::Ref<Navigable>> const& children() const { return m_children; }
+    void append_child(GC::Ref<Navigable>);
+    void remove_child(Navigable&);
+    void replace_child(Navigable& child, GC::Ref<Navigable> replacement);
+    void remove_from_all_remote_navigables();
+
+    // The local navigable populating this navigable's next document in this page, standing beside this node until
+    // the document activates and the local navigable takes the node's place in the graph.
+    GC::Ptr<LocalNavigable> provisional_navigable() const { return m_provisional_navigable; }
+    void set_provisional_navigable(GC::Ptr<LocalNavigable> navigable) { m_provisional_navigable = navigable; }
+
+    virtual bool has_been_destroyed() const override { return m_has_been_destroyed; }
+    void set_has_been_destroyed() { m_has_been_destroyed = true; }
+
+    Optional<Compositor::CompositorContextId> compositor_context_id() const { return m_replicated_state.compositor_context_id; }
 
     virtual GC::Ptr<WindowProxy> active_window_proxy() override;
     virtual Utf16String const& target_name() const override { return m_replicated_state.target_name; }
@@ -46,9 +65,21 @@ public:
 private:
     RemoteNavigable(GC::Ref<Page>, CrossProcessId, GC::Ptr<Navigable> parent, ReplicatedNavigableState);
 
+    virtual void visit_edges(Cell::Visitor&) override;
+    virtual void finalize() override;
+
     virtual WebIDL::ExceptionOr<void> continue_navigation_in_active_document_agent(PreparedNavigation) override;
 
     ReplicatedNavigableState m_replicated_state;
+
+    Vector<GC::Ref<Navigable>> m_children;
+
+    GC::Ptr<LocalNavigable> m_provisional_navigable;
+
+    bool m_has_been_destroyed { false };
 };
+
+WEB_API HashTable<GC::RawRef<RemoteNavigable>>& all_remote_navigables();
+WEB_API GC::Ptr<RemoteNavigable> remote_navigable_with_id(Page const&, CrossProcessId);
 
 }

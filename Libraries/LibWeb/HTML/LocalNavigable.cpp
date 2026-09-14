@@ -68,6 +68,7 @@
 #include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/PolicyContainers.h>
+#include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -688,6 +689,26 @@ void LocalNavigable::set_has_been_destroyed()
     cancel_user_scroll_settlement();
 }
 
+Vector<GC::Root<LocalNavigable>> LocalNavigable::hosted_inclusive_descendant_navigables()
+{
+    Vector<GC::Root<LocalNavigable>> navigables;
+    navigables.append(*this);
+    auto document = active_document();
+    if (!document)
+        return navigables;
+    document->for_each_shadow_including_descendant([&](DOM::Node& node) {
+        if (auto* container = as_if<NavigableContainer>(node)) {
+            if (auto content_navigable = container->content_navigable()) {
+                // AD-HOC: If the descendant navigable doesn't have an active document, just skip over it.
+                if (auto* local_content_navigable = as_if<LocalNavigable>(*content_navigable); local_content_navigable && local_content_navigable->active_document())
+                    navigables.extend(local_content_navigable->hosted_inclusive_descendant_navigables());
+            }
+        }
+        return TraversalDecision::Continue;
+    });
+    return navigables;
+}
+
 void LocalNavigable::report_child_frame_destroyed()
 {
     if (m_child_frame_destruction_reported || !parent())
@@ -752,6 +773,7 @@ void LocalNavigable::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_active_document);
+    visitor.visit(m_provisional_for);
     visitor.visit(m_input_method_composition_node);
     visitor.visit(m_pending_child_navigable_unload);
     m_event_handler.visit_edges(visitor);
@@ -1158,6 +1180,11 @@ void LocalNavigable::inherit_page_state_from(LocalNavigable const& parent)
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#activate-history-entry
 void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, GC::Ref<DOM::Document> document, VisibilityState system_visibility_state)
 {
+    // AD-HOC: The document a provisional navigable populated activates: the navigable takes the node's place in the
+    //         graph first, so that the document is the navigable's active document from its activation.
+    if (is_provisional())
+        page().adopt_hosted(*this);
+
     // 1. Save persisted state to the navigable's active session history entry.
     save_persisted_state_to_active_session_history_entry();
 
@@ -1266,7 +1293,7 @@ void LocalNavigable::queue_navigation_api_state_clear_task()
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document-and-its-descendants
-void LocalNavigable::run_ui_descendant_unload_task(GC::Ref<GC::Function<void()>> on_complete)
+void LocalNavigable::run_ui_descendant_unload_task(StopHostingAfterUnload stop_hosting_after_unload, GC::Ref<GC::Function<void()>> on_complete)
 {
     // 2. Unload a document and its descendants given childNavigable's active document, null, and incrementUnloaded.
     if (has_been_destroyed()) {
@@ -1276,9 +1303,17 @@ void LocalNavigable::run_ui_descendant_unload_task(GC::Ref<GC::Function<void()>>
 
     // The UI process has already unloaded this document's descendants.
     queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr,
-        GC::create_function(heap(), [navigable = GC::Ref { *this }, on_complete] {
-            if (auto active_document = navigable->active_document())
+        GC::create_function(heap(), [navigable = GC::Ref { *this }, stop_hosting_after_unload, on_complete] {
+            if (auto active_document = navigable->active_document()) {
+                auto replicated_state = navigable->replicated_state();
                 active_document->unload();
+
+                // Another page hosts the navigable's next document, or destroys the navigable. A RemoteNavigable takes
+                // the navigable's place in the same task, so no task here sees the navigable without an active
+                // document.
+                if (stop_hosting_after_unload == StopHostingAfterUnload::Yes)
+                    navigable->page().stop_hosting(*navigable, move(replicated_state));
+            }
             on_complete->function()();
         }));
 }
@@ -1456,6 +1491,7 @@ ReplicatedNavigableState LocalNavigable::replicated_state() const
         .top_level_origin = settings.top_level_origin.value(),
         .has_cross_site_ancestor = settings.has_cross_site_ancestor(),
         .opener_policy = m_active_document->opener_policy(),
+        .compositor_context_id = has_compositor_context() ? Optional<Compositor::CompositorContextId> { compositor_context().id() } : Optional<Compositor::CompositorContextId> {},
     };
 }
 
@@ -1468,7 +1504,7 @@ Optional<UniqueNodeID> LocalNavigable::active_document_id() const
 
 void LocalNavigable::set_active_document(GC::Ptr<DOM::Document> document)
 {
-    if (page().has_local_root_navigable() && is_local_root() && m_active_document != document)
+    if (is_top_level_traversable() && m_active_document != document)
         page().invalidate_compositor_keyboard_scroll_state();
     if (m_active_document && m_active_document != document) {
         // The pending post-scroll hover refresh and scrollend settlement belong to the outgoing document; drop them.
@@ -1765,7 +1801,7 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
 
             auto create_new_traversable = [&](GC::Ptr<BrowsingContext> opener) -> GC::Ref<LocalTraversableNavigable> {
                 auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*new_web_view.page, opener, new_web_view.initial_history_entry.release_value(), new_web_view.system_visibility_state);
-                new_web_view.page->set_local_root_navigable(traversable);
+                new_web_view.page->set_top_level_traversable(traversable);
                 traversable->set_window_handle(Utf16String::from_ascii_without_validation(new_web_view.window_handle.bytes()));
                 return traversable;
             };
@@ -4316,8 +4352,76 @@ void LocalNavigable::scroll_offset_did_change()
 
 bool LocalNavigable::is_local_root() const
 {
-    HTML::LocalNavigable& local_root = page().local_root_navigable();
-    return &local_root == this;
+    auto parent = this->parent();
+    return !parent || !is<LocalNavigable>(*parent);
+}
+
+GC::Ref<LocalNavigable> LocalNavigable::local_root()
+{
+    GC::Ref<LocalNavigable> navigable = *this;
+    while (!navigable->is_local_root())
+        navigable = as<LocalNavigable>(*navigable->parent());
+    return navigable;
+}
+
+// AD-HOC: Steps 3 and 6 to 8 of creating a new child navigable, run by the process chosen to host a navigable's next
+//         document, for a navigable the UI process created long ago: a document to stand in until that document is
+//         populated, a document state carrying the canonical entry's id, and a navigable initialized under the
+//         navigable's parent. The parent's document is in another process, so the browsing context is created
+//         without a creator or embedder.
+// FIXME: The parent's document is the creator document. The UI process holds the canonical browsing context.
+GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page>, RemoteNavigable& remote_navigable, SessionHistoryEntryDescriptor const& initial_history_entry, VisibilityState system_visibility_state)
+{
+    auto parent_navigable = remote_navigable.parent();
+    VERIFY(parent_navigable && !is<LocalNavigable>(*parent_navigable));
+    auto& page = remote_navigable.page();
+
+    // 3. Let browsingContext and document be the result of creating a new browsing context and document given element's node document, element, and group.
+    // NB: group is not resolved, as in NavigableContainer::create_new_child_navigable().
+    auto [browsing_context, document] = BrowsingContext::create_a_new_browsing_context_and_document(page, nullptr, nullptr);
+
+    // 6. Let documentState be a new document state, with
+    //  - document: document
+    //  - initiator origin: document's origin
+    //  - origin: document's origin
+    //  - navigable target name: targetName
+    //  - about base URL: document's about base URL
+    // NB: Its id is the canonical entry's, so this process addresses the entry the way the UI process does. targetName
+    //     is the canonical entry's navigable target name.
+    auto document_state = DocumentState::create(initial_history_entry.document_state.id);
+    document_state->set_initiator_origin(document->origin());
+    document_state->set_origin(document->origin());
+    if (!initial_history_entry.document_state.navigable_target_name.is_empty())
+        document_state->set_navigable_target_name(initial_history_entry.document_state.navigable_target_name);
+    document_state->set_about_base_url(document->about_base_url());
+
+    page.ensure_compositor_host();
+
+    // 7. Let navigable be a new navigable.
+    GC::Ref<LocalNavigable> navigable = *GC::Heap::the().allocate<LocalNavigable>(page, page.client().is_svg_page_client());
+
+    // 8. Initialize the navigable navigable given documentState and parentNavigable.
+    navigable->initialize_navigable(document_state, parent_navigable, *document, system_visibility_state);
+    navigable->set_id_for_session_history_reconstruction(remote_navigable.id());
+    // The entry stands in for the canonical current entry, whose identity this page reports as its own.
+    navigable->active_session_history_entry()->set_navigation_api_key(initial_history_entry.navigation_api_key);
+    navigable->active_session_history_entry()->set_navigation_api_id(initial_history_entry.navigation_api_id);
+    navigable->set_parent_compositor_context(as<RemoteNavigable>(*parent_navigable).compositor_context_id());
+
+    // The navigable stands beside the navigable's node until the document it populates activates and it takes the
+    // node's place in the graph.
+    navigable->m_provisional_for = remote_navigable;
+    remote_navigable.set_provisional_navigable(navigable);
+
+    // The UI process appended the navigable's session history entry to the traversable before choosing this process.
+    navigable->set_has_session_history_entry_and_ready_for_navigation();
+    return navigable;
+}
+
+void LocalNavigable::set_parent_compositor_context(Optional<Compositor::CompositorContextId> parent_context_id)
+{
+    if (has_compositor_context())
+        compositor_context().set_parent_context(parent_context_id);
 }
 
 CSSPixelRect LocalNavigable::to_page_rect(CSSPixelRect const& a_rect)
@@ -6007,10 +6111,13 @@ void LocalNavigable::repaint_after_compositor_process_reconnect()
     m_adopted_async_scroll_sequence = 0;
 
     if (has_compositor_context()) {
-        if (auto parent = this->parent(); parent && !is_local_root()) {
-            auto& local_parent = as<LocalNavigable>(*parent);
-            if (local_parent.has_compositor_context())
-                compositor_context().set_parent_context(local_parent.compositor_context().id());
+        if (auto parent = this->parent()) {
+            if (auto* local_parent = as_if<LocalNavigable>(*parent)) {
+                if (local_parent->has_compositor_context())
+                    compositor_context().set_parent_context(local_parent->compositor_context().id());
+            } else {
+                compositor_context().set_parent_context(as<RemoteNavigable>(*parent).compositor_context_id());
+            }
         }
         compositor_context().viewport_size_updated(
             page().css_to_device_rect(viewport_rect()).size().to_type<int>(),
@@ -6207,7 +6314,7 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
     // Keyboard eligibility belongs to this publication, not to the cached paint commands. Refresh it even if
     // recording was skipped or returned the same display list, and send it with the corresponding scroll state.
     auto& published_display_list = display_list ? *display_list : *m_compositor_display_list;
-    auto keyboard_scroll_state = is_local_root()
+    auto keyboard_scroll_state = is_top_level_traversable()
         ? page().take_keyboard_scroll_state_for_compositor(published_display_list.compatible_visual_context_tree_structural_epoch())
         : Compositor::KeyboardScrollState {};
     auto async_scrolling_metadata = published_display_list.async_scrolling_metadata().value_or({});
