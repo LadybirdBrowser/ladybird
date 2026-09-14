@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function channelIsAudible(buffer, channel) {
+        return buffer.getChannelData(channel).some(sample => Math.abs(sample) > 0.000001);
+    }
+
+    async function renderThroughGain(numberOfSources, gainOptions) {
+        const context = new OfflineAudioContext(2, 128, 48000);
+        context.destination.channelInterpretation = "discrete";
+
+        const sources = new ChannelMergerNode(context, { numberOfInputs: numberOfSources });
+        for (let index = 0; index < numberOfSources; ++index) {
+            const source = new ConstantSourceNode(context, { offset: index + 1 });
+            source.connect(sources, 0, index);
+            source.start();
+        }
+
+        const gain = new GainNode(context, gainOptions);
+        sources.connect(gain);
+
+        // Split and merge again so that the destination receives both of the gain node's channels untouched.
+        const splitter = new ChannelSplitterNode(context, { numberOfOutputs: 2 });
+        gain.connect(splitter);
+        const output = new ChannelMergerNode(context, { numberOfInputs: 2 });
+        splitter.connect(output, 0, 0);
+        splitter.connect(output, 1, 1);
+        output.connect(context.destination);
+
+        return await context.startRendering();
+    }
+
+    promiseTest(async () => {
+        // An explicit channel count of two up-mixes a mono input into both channels.
+        const upMixed = await renderThroughGain(1, { channelCount: 2, channelCountMode: "explicit" });
+        println(`Constructor channelCountMode reaches the render graph: ${channelIsAudible(upMixed, 1)}`);
+
+        // Down-mixing four channels to two averages the front and surround pairs instead of dropping channels.
+        const downMixed = await renderThroughGain(4, { channelCount: 2, channelCountMode: "explicit" });
+        const left = downMixed.getChannelData(0)[64];
+        const right = downMixed.getChannelData(1)[64];
+        println(`Constructor channelCount reaches the render graph: ${left === 2 && right === 3}`);
+    });
+</script>

@@ -41,6 +41,10 @@ JS::Object& AudioNode::relevant_global_object() const
 void AudioNode::queue_render_node_creation(NonnullOwnPtr<Rendering::RenderNode> node)
 {
     context()->queue_control_message(AddNode { move(node) });
+
+    // The channel configuration is settled before the render node is created, and the rendering thread ignores
+    // messages for nodes it does not know about yet, so it has to be sent again now.
+    queue_channel_config_update();
 }
 
 void AudioNode::queue_connection_update()
