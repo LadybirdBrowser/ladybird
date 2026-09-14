@@ -836,6 +836,35 @@ void Page::stop_hosting(HTML::LocalNavigable& local_navigable, HTML::ReplicatedN
     local_navigable.remove_from_all_local_navigables();
 }
 
+// https://fullscreen.spec.whatwg.org/#exit-fullscreen
+void Page::unfullscreen_descendant_documents(Vector<GC::Root<HTML::Navigable>> const& descendant_navigables)
+{
+    for (auto const& descendant : descendant_navigables) {
+        auto* local_descendant = as_if<HTML::LocalNavigable>(*descendant);
+        if (!local_descendant) {
+            // NB: The document of a descendant hosted by another process is there, with its own descendants. The UI
+            //     process has that process run these steps for it.
+            auto& remote_descendant = as<HTML::RemoteNavigable>(*descendant);
+            if (remote_descendant.parent() && is<HTML::LocalNavigable>(*remote_descendant.parent()))
+                m_client->page_did_request_remote_document_unfullscreen(remote_descendant.id());
+            continue;
+        }
+        auto descendant_doc = local_descendant->active_document();
+        if (!descendant_doc)
+            continue;
+        auto fullscreen_element = descendant_doc->fullscreen_element();
+        if (!fullscreen_element)
+            continue;
+
+        // 1. Append (fullscreenchange, descendantDoc's fullscreen element) to descendantDoc's list of pending
+        //    fullscreen events.
+        descendant_doc->append_pending_fullscreen_change(DOM::PendingFullscreenEvent::Type::Change, *fullscreen_element, fullscreen_element->fullscreen_request_type());
+
+        // 2. Unfullscreen descendantDoc.
+        descendant_doc->unfullscreen();
+    }
+}
+
 void Page::discard()
 {
     // A tab closed while this page still displayed a document of it: the document goes without the unload the UI
@@ -1765,14 +1794,9 @@ void Page::process_pending_fullscreen_operations()
 
                 // 13. Let descendantDocs be an ordered set consisting of doc's descendant navigables' active documents
                 //     whose fullscreen element is non-null, if any, in tree order.
-                auto descendant_docs = GC::Heap::the().allocate<GC::HeapVector<GC::Ref<DOM::Document>>>();
-                // FIXME: Unfullscreen a descendant hosted by another process there, through the UI process. The cast
-                //        asks for its document here.
-                for (auto& descendant : exit.doc->descendant_navigables()) {
-                    auto& local_descendant = as<HTML::LocalNavigable>(*descendant);
-                    if (local_descendant.active_document()->fullscreen_element())
-                        descendant_docs->elements().append(*local_descendant.active_document());
-                }
+                // NB: A descendant's document can be hosted by another process, so its fullscreen element is checked
+                //     where that document is, in step 15.
+                auto descendant_navigables = exit.doc->descendant_navigables();
 
                 // 14. For each exitDoc in exitDocs:
                 for (auto& exit_doc : exit_docs->elements()) {
@@ -1791,16 +1815,7 @@ void Page::process_pending_fullscreen_operations()
                 }
 
                 // 15. For each descendantDoc in descendantDocs:
-                for (auto& descendant_doc : descendant_docs->elements()) {
-                    auto fullscreen_element = descendant_doc->fullscreen_element();
-
-                    // 1. Append (fullscreenchange, descendantDoc's fullscreen element) to descendantDoc's list of
-                    //    pending fullscreen events.
-                    descendant_doc->append_pending_fullscreen_change(DOM::PendingFullscreenEvent::Type::Change, *fullscreen_element, fullscreen_element->fullscreen_request_type());
-
-                    // 2. Unfullscreen descendantDoc.
-                    descendant_doc->unfullscreen();
-                }
+                unfullscreen_descendant_documents(descendant_navigables);
 
                 // 16. Resolve promise with undefined.
                 if (exit.promise)
