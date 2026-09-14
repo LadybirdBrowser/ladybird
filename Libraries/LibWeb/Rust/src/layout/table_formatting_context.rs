@@ -2891,18 +2891,15 @@ impl<'pass> TableFormattingContext<'pass> {
         let inline_spacing = self.border_spacing_inline();
         let inline_offset = table_used.border_box_left(table_used.uses_collapsing_borders_model.get()) + inline_spacing;
         let mut row_block_offset = self.table_box_content_block_offset_in_wrapper + block_spacing;
-        let mut row_block_offsets = Vec::with_capacity(self.rows.len());
-        for row_index in 0..self.rows.len() {
-            let row = &self.rows[row_index];
-            row_block_offsets.push(row_block_offset);
-            let inline_size = self
-                .columns
-                .iter()
-                .fold(CssPixels::default(), |sum, column| sum + column.used_inline_size)
-                + inline_spacing * self.visible_column_count().saturating_sub(1);
+        let row_inline_size = self
+            .columns
+            .iter()
+            .fold(CssPixels::default(), |sum, column| sum + column.used_inline_size)
+            + inline_spacing * self.visible_column_count().saturating_sub(1);
+        for row in &self.rows {
             let used = self.used_values(row.box_);
             used.set_content_block_size(row.final_block_size);
-            used.set_content_inline_size(inline_size);
+            used.set_content_inline_size(row_inline_size);
             self.place_child(row.box_, inline_offset, row_block_offset);
             if !row.is_collapsed {
                 row_block_offset += row.final_block_size + block_spacing;
@@ -2919,16 +2916,16 @@ impl<'pass> TableFormattingContext<'pass> {
             let mut block_end = group_block_offset;
             let mut inline_size = CssPixels::default();
             let mut has_rows = false;
-            for (row_index, row) in self.rows.iter().enumerate() {
+            for row in &self.rows {
                 if self.parent(row.box_) != group {
                     continue;
                 }
                 let used = self.used_values(row.box_);
                 if !has_rows {
-                    block_start = row_block_offsets[row_index];
+                    block_start = used.content_offset.get().y;
                     has_rows = true;
                 }
-                block_end = row_block_offsets[row_index] + used.border_box_block_size(false);
+                block_end = used.content_offset.get().y + used.border_box_block_size(false);
                 inline_size = inline_size.max(used.border_box_inline_size(false));
             }
             let used = self.used_values(group);
