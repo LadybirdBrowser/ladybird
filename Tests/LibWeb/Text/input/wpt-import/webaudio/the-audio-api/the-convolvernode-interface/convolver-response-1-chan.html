@@ -1,0 +1,406 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>
+      Test Convolver Channel Outputs for Response with 1 channel
+    </title>
+    <script src="../../../resources/testharness.js"></script>
+    <script src="../../../resources/testharnessreport.js"></script>
+    <script src="../../../webaudio/resources/audit-util.js"></script>
+    <script src="../../../webaudio/resources/audit.js"></script>
+  </head>
+  <body>
+    <script id="layout-test-code">
+      // Test various convolver configurations when the convolver response has
+      // one channel (mono).
+
+      // This is somewhat arbitrary.  It is the minimum value for which tests
+      // pass with both FFmpeg and KISS FFT implementations for 256 points.
+      // The value was similar for each implementation.
+      const absoluteThreshold = Math.pow(2, -21);
+
+      // Fairly arbitrary sample rate, except that we want the rate to be a
+      // power of two so that 1/sampleRate is exactly representable as a
+      // single-precision float.
+      let sampleRate = 8192;
+
+      // A fairly arbitrary number of frames, except the number of frames should
+      // be more than a few render quanta.
+      let renderFrames = 10 * 128;
+
+      let audit = Audit.createTaskRunner();
+
+      // Convolver response
+      let response;
+
+      audit.define(
+          {
+            label: 'initialize',
+            description: 'Convolver response with one channel'
+          },
+          (task, should) => {
+            // Convolver response
+            should(
+                () => {
+                  response = new AudioBuffer(
+                      {numberOfChannels: 1, length: 2, sampleRate: sampleRate});
+                  response.getChannelData(0)[1] = 1;
+                },
+                'new AudioBuffer({numberOfChannels: 1, length: 2, sampleRate: ' +
+                    sampleRate + '})')
+                .notThrow();
+
+            task.done();
+          });
+
+      audit.define(
+          {label: '1-channel input', description: 'produces 1-channel output'},
+          (task, should) => {
+            // Create a 3-channel context:  channel 0 = convolver under test,
+            // channel 1: test that convolver output is not stereo, channel 2:
+            // expected output.  The context MUST be discrete so that the
+            // channels don't get mixed in some unexpected way.
+            let context = new OfflineAudioContext(3, renderFrames, sampleRate);
+            context.destination.channelInterpretation = 'discrete';
+
+            let src = new OscillatorNode(context);
+            let conv = new ConvolverNode(
+                context, {disableNormalization: true, buffer: response});
+
+            // Splitter node to verify that the output of the convolver is mono.
+            // channelInterpretation must be 'discrete' so we don't do any
+            // mixing of the input to the node.
+            let splitter = new ChannelSplitterNode(
+                context,
+                {numberOfOutputs: 2, channelInterpretation: 'discrete'});
+
+            // Final merger to feed all of the individual channels into the
+            // destination.
+            let merger = new ChannelMergerNode(context, {numberOfInputs: 3});
+
+            src.connect(conv).connect(splitter);
+            splitter.connect(merger, 0, 0);
+            splitter.connect(merger, 1, 1);
+
+            // The convolver response is a 1-sample delay.  Use a delay node to
+            // implement this.
+            let delay =
+                new DelayNode(context, {delayTime: 1 / context.sampleRate});
+            src.connect(delay);
+            delay.connect(merger, 0, 2);
+
+            merger.connect(context.destination);
+
+            src.start();
+
+            context.startRendering()
+                .then(audioBuffer => {
+                  // Extract out the three channels
+                  let actual = audioBuffer.getChannelData(0);
+                  let c1 = audioBuffer.getChannelData(1);
+                  let expected = audioBuffer.getChannelData(2);
+
+                  // c1 is expected to be zero.
+                  should(c1, '1: Channel 1').beConstantValueOf(0);
+
+                  // The expected and actual results should be identical
+                  should(actual, 'Convolver output')
+                    .beCloseToArray(expected,
+                                    {absoluteThreshold: absoluteThreshold});
+                })
+                .then(() => task.done());
+          });
+
+      audit.define(
+          {label: '2-channel input', description: 'produces 2-channel output'},
+          (task, should) => {
+            downMixTest({numberOfInputs: 2, prefix: '2'}, should)
+                .then(() => task.done());
+          });
+
+      audit.define(
+          {
+            label: '3-channel input',
+            description: '3->2 downmix producing 2-channel output'
+          },
+          (task, should) => {
+            downMixTest({numberOfInputs: 3, prefix: '3'}, should)
+                .then(() => task.done());
+          });
+
+      audit.define(
+          {
+            label: '4-channel input',
+            description: '4->2 downmix producing 2-channel output'
+          },
+          (task, should) => {
+            downMixTest({numberOfInputs: 4, prefix: '4'}, should)
+                .then(() => task.done());
+          });
+
+      audit.define(
+          {
+            label: '5.1-channel input',
+            description: '5.1->2 downmix producing 2-channel output'
+          },
+          (task, should) => {
+            // Scale tolerance by maximum amplitude expected in down-mix
+            // output.
+            let threshold = (1.0 + Math.sqrt(0.5) * 2) * absoluteThreshold;
+
+            downMixTest({numberOfInputs: 6, prefix: '5.1',
+                         absoluteThreshold: threshold}, should)
+                .then(() => task.done());
+          });
+
+      audit.define(
+          {
+            label: '3-channel input, explicit',
+            description: '3->2 explicit downmix producing 2-channel output'
+          },
+          (task, should) => {
+            downMixTest(
+                {
+                  channelCountMode: 'explicit',
+                  numberOfInputs: 3,
+                  prefix: '3 chan downmix explicit'
+                },
+                should)
+                .then(() => task.done());
+          });
+
+      audit.define(
+          {
+            label: '4-channel input, explicit',
+            description: '4->2 explicit downmix producing 2-channel output'
+          },
+          (task, should) => {
+            downMixTest(
+                {
+                  channelCountMode: 'explicit',
+                  numberOfInputs: 4,
+                  prefix: '4 chan downmix explicit'
+                },
+                should)
+                .then(() => task.done());
+          });
+
+      audit.define(
+          {
+            label: '5.1-channel input, explicit',
+            description: '5.1->2 explicit downmix producing 2-channel output'
+          },
+          (task, should) => {
+            // Scale tolerance by maximum amplitude expected in down-mix
+            // output.
+            let threshold = (1.0 + Math.sqrt(0.5) * 2) * absoluteThreshold;
+
+            downMixTest(
+                {
+                  channelCountMode: 'explicit',
+                  numberOfInputs: 6,
+                  prefix: '5.1 chan downmix explicit',
+                  absoluteThreshold: threshold
+                },
+                should)
+                .then(() => task.done());
+          });
+
+      audit.define(
+          {
+            label: 'mono-upmix-explicit',
+            description: '1->2 upmix, count mode explicit'
+          },
+          (task, should) => {
+            upMixTest(should, {channelCountMode: 'explicit'})
+                .then(buffer => {
+                  let length = buffer.length;
+                  let input = buffer.getChannelData(0);
+                  let out0 = buffer.getChannelData(1);
+                  let out1 = buffer.getChannelData(2);
+
+                  // The convolver is basically a one-sample delay.  Verify that
+                  // that each channel is delayed by one sample.
+                  should(out0.slice(1), '1->2 explicit upmix: channel 0')
+                      .beCloseToArray(
+                          input.slice(0, length - 1),
+                          {absoluteThreshold: absoluteThreshold});
+                  should(out1.slice(1), '1->2 explicit upmix: channel 1')
+                      .beCloseToArray(
+                          input.slice(0, length - 1),
+                          {absoluteThreshold: absoluteThreshold});
+                })
+                .then(() => task.done());
+          });
+
+      audit.define(
+          {
+            label: 'mono-upmix-clamped-max',
+            description: '1->2 upmix, count mode clamped-max'
+          },
+          (task, should) => {
+            upMixTest(should, {channelCountMode: 'clamped-max'})
+                .then(buffer => {
+                  let length = buffer.length;
+                  let input = buffer.getChannelData(0);
+                  let out0 = buffer.getChannelData(1);
+                  let out1 = buffer.getChannelData(2);
+
+                  // The convolver is basically a one-sample delay.  With a mono
+                  // input, the count set to 2, and a mode of 'clamped-max', the
+                  // output should be mono
+                  should(out0.slice(1), '1->2 clamped-max upmix: channel 0')
+                      .beCloseToArray(
+                          input.slice(0, length - 1),
+                          {absoluteThreshold: absoluteThreshold});
+                  should(out1, '1->2 clamped-max upmix: channel 1')
+                      .beConstantValueOf(0);
+                })
+                .then(() => task.done());
+          });
+
+      function downMixTest(options, should) {
+        // Create an 4-channel offline context.  The first two channels are for
+        // the stereo output of the convolver and the next two channels are for
+        // the reference stereo signal.
+        let context = new OfflineAudioContext(4, renderFrames, sampleRate);
+        context.destination.channelInterpretation = 'discrete';
+
+        // Create oscillators for use as the input.  The type and frequency is
+        // arbitrary except that oscillators must be different.
+        let src = new Array(options.numberOfInputs);
+        for (let k = 0; k < src.length; ++k) {
+          src[k] = new OscillatorNode(
+              context, {type: 'square', frequency: 440 + 220 * k});
+        }
+
+        // Merger to combine the oscillators into one output stream.
+        let srcMerger =
+            new ChannelMergerNode(context, {numberOfInputs: src.length});
+
+        for (let k = 0; k < src.length; ++k) {
+          src[k].connect(srcMerger, 0, k);
+        }
+
+        // Convolver under test.
+        let conv = new ConvolverNode(context, {
+          disableNormalization: true,
+          buffer: response,
+          channelCountMode: options.channelCountMode
+        });
+        srcMerger.connect(conv);
+
+        // Splitter to get individual channels of the convolver output so we can
+        // feed them (eventually) to the context in the right set of channels.
+        let splitter = new ChannelSplitterNode(context, {numberOfOutputs: 2});
+        conv.connect(splitter);
+
+        // Reference graph consists of a delay node to simulate the response of
+        // the convolver.  (The convolver response is designed this way.)
+        let delay = new DelayNode(context, {delayTime: 1 / context.sampleRate});
+
+        // Gain node to mix the sources to stereo in the desired way.  (Could be
+        // done in the delay node, but let's keep the mixing separated from the
+        // functionality.)
+        let gainMixer = new GainNode(
+            context, {channelCount: 2, channelCountMode: 'explicit'});
+        srcMerger.connect(gainMixer);
+
+        // Splitter to extract the channels of the reference signal.
+        let refSplitter =
+            new ChannelSplitterNode(context, {numberOfOutputs: 2});
+        gainMixer.connect(delay).connect(refSplitter);
+
+        // Final merger to bring back the individual channels from the convolver
+        // and the reference in the right order for the destination.
+        let finalMerger = new ChannelMergerNode(
+            context, {numberOfInputs: context.destination.channelCount});
+
+        // First two channels are for the convolver output, and the next two are
+        // for the reference.
+        splitter.connect(finalMerger, 0, 0);
+        splitter.connect(finalMerger, 1, 1);
+        refSplitter.connect(finalMerger, 0, 2);
+        refSplitter.connect(finalMerger, 1, 3);
+
+        finalMerger.connect(context.destination);
+
+        // Start the sources at last.
+        for (let k = 0; k < src.length; ++k) {
+          src[k].start();
+        }
+
+        return context.startRendering().then(audioBuffer => {
+          // Extract the various channels out
+          let actual0 = audioBuffer.getChannelData(0);
+          let actual1 = audioBuffer.getChannelData(1);
+          let expected0 = audioBuffer.getChannelData(2);
+          let expected1 = audioBuffer.getChannelData(3);
+
+          let threshold = options.absoluteThreshold ?
+              options.absoluteThreshold : absoluteThreshold;
+
+          // Verify that each output channel of the convolver matches
+          // the delayed signal from the reference
+          should(actual0, options.prefix + ': Channel 0')
+              .beCloseToArray(expected0, {absoluteThreshold: threshold});
+          should(actual1, options.prefix + ': Channel 1')
+              .beCloseToArray(expected1, {absoluteThreshold: threshold});
+        });
+      }
+
+      function upMixTest(should, options) {
+        // Offline context with 3 channels:  0 = source
+        // 1 = convolver output, left, 2 = convolver output, right.  Context
+        // destination must be discrete so that channels don't get mixed in
+        // unexpected ways.
+        let context = new OfflineAudioContext(3, renderFrames, sampleRate);
+        context.destination.channelInterpretation = 'discrete';
+
+        let merger = new ChannelMergerNode(
+            context, {numberOfInputs: context.destination.maxChannelCount});
+        merger.connect(context.destination);
+
+        let src = new OscillatorNode(context);
+
+        // Mono response for convolver.  Just a simple 1-frame delay.
+        let response =
+            new AudioBuffer({length: 2, sampleRate: context.sampleRate});
+        response.getChannelData(0)[1] = 1;
+
+        // Set mode to explicit and count to 2 so we manually force the
+        // convolver to produce stereo output.  Without this, it would be
+        // mono input with mono response, which produces a mono output.
+        let conv;
+
+        should(
+            () => {conv = new ConvolverNode(context, {
+                     buffer: response,
+                     disableNormalization: true,
+                     channelCount: 2,
+                     channelCountMode: options.channelCountMode
+                   })},
+            `new ConvolverNode({channelCountMode: '${
+                options.channelCountMode}'})`)
+            .notThrow();
+
+        // Split output of convolver into individual channels.
+        let convSplit = new ChannelSplitterNode(context, {numberOfOutputs: 2});
+
+        src.connect(conv);
+        conv.connect(convSplit);
+
+        // Connect signals to destination in the desired way.
+        src.connect(merger, 0, 0);
+        convSplit.connect(merger, 0, 1);
+        convSplit.connect(merger, 1, 2);
+
+        src.start();
+
+        return context.startRendering();
+      }
+
+      audit.run();
+    </script>
+  </body>
+</html>

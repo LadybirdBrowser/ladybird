@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 5 tests
+
+4 Pass
+1 Fail
+Pass	# AUDIT TASK RUNNER STARTED.
+Fail	Executing "channel-count-test"
+Pass	Audit report
+Pass	> [channel-count-test] 
+Pass	# AUDIT TASK RUNNER FINISHED: 1 tasks ran successfully.

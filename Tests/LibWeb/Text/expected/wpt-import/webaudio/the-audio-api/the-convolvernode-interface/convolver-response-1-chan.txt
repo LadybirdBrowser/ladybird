@@ -1,0 +1,35 @@
+Harness status: OK
+
+Found 29 tests
+
+16 Pass
+13 Fail
+Pass	# AUDIT TASK RUNNER STARTED.
+Pass	Executing "initialize"
+Fail	Executing "1-channel input"
+Fail	Executing "2-channel input"
+Fail	Executing "3-channel input"
+Fail	Executing "4-channel input"
+Fail	Executing "5.1-channel input"
+Fail	Executing "3-channel input, explicit"
+Fail	Executing "4-channel input, explicit"
+Fail	Executing "5.1-channel input, explicit"
+Fail	Executing "mono-upmix-explicit"
+Fail	Executing "mono-upmix-clamped-max"
+Pass	Audit report
+Pass	> [initialize] Convolver response with one channel
+Pass	  new AudioBuffer({numberOfChannels: 1, length: 2, sampleRate: 8192}) did not throw an exception.
+Pass	< [initialize] All assertions passed. (total 1 assertions)
+Pass	> [1-channel input] produces 1-channel output
+Pass	> [2-channel input] produces 2-channel output
+Pass	> [3-channel input] 3->2 downmix producing 2-channel output
+Pass	> [4-channel input] 4->2 downmix producing 2-channel output
+Pass	> [5.1-channel input] 5.1->2 downmix producing 2-channel output
+Pass	> [3-channel input, explicit] 3->2 explicit downmix producing 2-channel output
+Pass	> [4-channel input, explicit] 4->2 explicit downmix producing 2-channel output
+Pass	> [5.1-channel input, explicit] 5.1->2 explicit downmix producing 2-channel output
+Pass	> [mono-upmix-explicit] 1->2 upmix, count mode explicit
+Fail	X new ConvolverNode({channelCountMode: 'explicit'}) incorrectly threw ReferenceError: "'ConvolverNode' is not defined".
+Pass	> [mono-upmix-clamped-max] 1->2 upmix, count mode clamped-max
+Fail	X new ConvolverNode({channelCountMode: 'clamped-max'}) incorrectly threw ReferenceError: "'ConvolverNode' is not defined".
+Fail	# AUDIT TASK RUNNER FINISHED: 2 out of 11 tasks were failed.
