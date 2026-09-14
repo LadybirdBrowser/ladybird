@@ -349,6 +349,11 @@ public:
 
     bool is_connected() const { return m_is_connected; }
     void set_is_connected(bool is_connected) { m_is_connected = is_connected; }
+
+    // Mirrors the slottable's assigned slot; see SlottableMixin::set_assigned_slot().
+    bool has_assigned_slot() const { return m_has_assigned_slot; }
+    void set_has_assigned_slot(Badge<SlottableMixin>, bool value) { m_has_assigned_slot = value; }
+
     bool inside_blocking_wheel_event_handler() const { return m_inside_blocking_wheel_event_handler; }
     bool update_inside_blocking_wheel_event_handler_state();
     void update_inside_blocking_wheel_event_handler_state_for_subtree();
@@ -611,6 +616,7 @@ protected:
     u32 m_children_explicitly_inherited_non_inherited_style_groups { 0 };
     bool m_in_editable_subtree { false };
     bool m_is_connected { false };
+    bool m_has_assigned_slot { false };
     bool m_inside_blocking_wheel_event_handler { false };
 
     void build_accessibility_tree(AccessibilityTreeNode& parent);

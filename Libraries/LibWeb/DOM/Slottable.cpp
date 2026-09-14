@@ -58,6 +58,7 @@ void SlottableMixin::set_assigned_slot(GC::Ptr<HTML::HTMLSlotElement> assigned_s
         return;
     auto& node = slottable_as_node();
     node.document().page().keyboard_scroll_dom_tree_changed(node);
+    node.set_has_assigned_slot({}, assigned_slot != nullptr);
     if (!assigned_slot) {
         if (auto* rare_data = slottable_rare_data())
             rare_data->assigned_slot = nullptr;
@@ -93,7 +94,8 @@ GC::Ptr<HTML::HTMLSlotElement> SlottableMixin::assigned_slot()
 
 GC::Ptr<HTML::HTMLSlotElement> assigned_slot_for_node(GC::Ref<Node> node)
 {
-    if (!node->is_slottable())
+    // OPTIMIZATION: Ancestor walks ask this of every node they pass, and almost none are assigned to a slot.
+    if (!node->has_assigned_slot())
         return nullptr;
 
     return node->as_slottable().visit([](auto const& slottable) {
