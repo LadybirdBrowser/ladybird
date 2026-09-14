@@ -25,29 +25,20 @@ pub(crate) enum LayoutMode {
 /// unresolved and read from style.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct ResolvedAnchorInsets {
-    pub(crate) resolves_top: bool,
-    pub(crate) top_is_auto: bool,
-    pub(crate) top: CssPixels,
-    pub(crate) resolves_right: bool,
-    pub(crate) right_is_auto: bool,
-    pub(crate) right: CssPixels,
-    pub(crate) resolves_bottom: bool,
-    pub(crate) bottom_is_auto: bool,
-    pub(crate) bottom: CssPixels,
-    pub(crate) resolves_left: bool,
-    pub(crate) left_is_auto: bool,
-    pub(crate) left: CssPixels,
+    pub(crate) top: Option<style_values::ResolvedInsetOverride>,
+    pub(crate) right: Option<style_values::ResolvedInsetOverride>,
+    pub(crate) bottom: Option<style_values::ResolvedInsetOverride>,
+    pub(crate) left: Option<style_values::ResolvedInsetOverride>,
 }
 
 impl ResolvedAnchorInsets {
     pub(crate) fn override_for(&self, field: style_values::InsetField) -> Option<style_values::ResolvedInsetOverride> {
-        let (resolves, is_auto, px) = match field {
-            style_values::InsetField::Top => (self.resolves_top, self.top_is_auto, self.top),
-            style_values::InsetField::Right => (self.resolves_right, self.right_is_auto, self.right),
-            style_values::InsetField::Bottom => (self.resolves_bottom, self.bottom_is_auto, self.bottom),
-            style_values::InsetField::Left => (self.resolves_left, self.left_is_auto, self.left),
-        };
-        resolves.then_some(style_values::ResolvedInsetOverride { is_auto, px })
+        match field {
+            style_values::InsetField::Top => self.top,
+            style_values::InsetField::Right => self.right,
+            style_values::InsetField::Bottom => self.bottom,
+            style_values::InsetField::Left => self.left,
+        }
     }
 }
 

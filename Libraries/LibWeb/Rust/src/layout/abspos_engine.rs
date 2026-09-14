@@ -568,11 +568,15 @@ impl AbsposEngine<'_> {
             .set_default_scroll_shift(node, NodeSlotId::INVALID, false, false);
 
         let style = self.style(node);
-        let top_contains_anchor = style.inset_top().contains_anchor_function();
-        let right_contains_anchor = style.inset_right().contains_anchor_function();
-        let bottom_contains_anchor = style.inset_bottom().contains_anchor_function();
-        let left_contains_anchor = style.inset_left().contains_anchor_function();
-        if !top_contains_anchor && !right_contains_anchor && !bottom_contains_anchor && !left_contains_anchor {
+        if ![
+            style.inset_top(),
+            style.inset_right(),
+            style.inset_bottom(),
+            style.inset_left(),
+        ]
+        .into_iter()
+        .any(style_values::InsetValue::contains_anchor_function)
+        {
             return None;
         }
 
@@ -597,80 +601,57 @@ impl AbsposEngine<'_> {
             compensates_for_horizontal_scroll: false,
             compensates_for_vertical_scroll: false,
         };
-        let mut resolved = formatting_context::ResolvedAnchorInsets::default();
-
-        if top_contains_anchor {
-            let value = self.resolve_anchor_value(
+        let mut resolve_inset = |inset: style_values::InsetValue<'_>, axis: AnchorValueAxis| {
+            inset.contains_anchor_function().then(|| {
+                self.resolve_anchor_value(
+                    inset,
+                    node,
+                    containing_block,
+                    entry_containing_block_geometry.copied(),
+                    entry_coordinate_space_box,
+                    axis,
+                    &mut resolution_state,
+                )
+                .map_or(
+                    style_values::ResolvedInsetOverride::Auto,
+                    style_values::ResolvedInsetOverride::Pixels,
+                )
+            })
+        };
+        let resolved = formatting_context::ResolvedAnchorInsets {
+            top: resolve_inset(
                 style.inset_top(),
-                node,
-                containing_block,
-                entry_containing_block_geometry.copied(),
-                entry_coordinate_space_box,
                 AnchorValueAxis {
                     is_from_end: false,
                     is_horizontal: false,
                     containing_block_extent: containing_block_geometry.padding_box_block_size(),
                 },
-                &mut resolution_state,
-            );
-            resolved.resolves_top = true;
-            resolved.top_is_auto = value.is_none();
-            resolved.top = value.unwrap_or_default();
-        }
-        if right_contains_anchor {
-            let value = self.resolve_anchor_value(
+            ),
+            right: resolve_inset(
                 style.inset_right(),
-                node,
-                containing_block,
-                entry_containing_block_geometry.copied(),
-                entry_coordinate_space_box,
                 AnchorValueAxis {
                     is_from_end: true,
                     is_horizontal: true,
                     containing_block_extent: containing_block_geometry.padding_box_inline_size(),
                 },
-                &mut resolution_state,
-            );
-            resolved.resolves_right = true;
-            resolved.right_is_auto = value.is_none();
-            resolved.right = value.unwrap_or_default();
-        }
-        if bottom_contains_anchor {
-            let value = self.resolve_anchor_value(
+            ),
+            bottom: resolve_inset(
                 style.inset_bottom(),
-                node,
-                containing_block,
-                entry_containing_block_geometry.copied(),
-                entry_coordinate_space_box,
                 AnchorValueAxis {
                     is_from_end: true,
                     is_horizontal: false,
                     containing_block_extent: containing_block_geometry.padding_box_block_size(),
                 },
-                &mut resolution_state,
-            );
-            resolved.resolves_bottom = true;
-            resolved.bottom_is_auto = value.is_none();
-            resolved.bottom = value.unwrap_or_default();
-        }
-        if left_contains_anchor {
-            let value = self.resolve_anchor_value(
+            ),
+            left: resolve_inset(
                 style.inset_left(),
-                node,
-                containing_block,
-                entry_containing_block_geometry.copied(),
-                entry_coordinate_space_box,
                 AnchorValueAxis {
                     is_from_end: false,
                     is_horizontal: true,
                     containing_block_extent: containing_block_geometry.padding_box_inline_size(),
                 },
-                &mut resolution_state,
-            );
-            resolved.resolves_left = true;
-            resolved.left_is_auto = value.is_none();
-            resolved.left = value.unwrap_or_default();
-        }
+            ),
+        };
 
         if resolution_state.compensates_for_horizontal_scroll || resolution_state.compensates_for_vertical_scroll {
             self.callbacks.arena().set_default_scroll_shift(
