@@ -25,6 +25,8 @@
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/Location.h>
 #include <LibWeb/HTML/Navigation.h>
+#include <LibWeb/HTML/RemoteNavigable.h>
+#include <LibWeb/HTML/RemoteWindow.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
 #include <LibWeb/HTML/Window.h>
 #include <LibWeb/Infra/SerializedURL.h>
@@ -36,13 +38,32 @@ GC_DEFINE_ALLOCATOR(Location);
 
 // https://html.spec.whatwg.org/multipage/history.html#the-location-interface
 Location::Location(Window& window)
-    : m_window(window)
+    : m_window(GC::Ref<Window> { window })
 {
+}
+
+Location::Location(RemoteWindow& window)
+    : m_window(GC::Ref<RemoteWindow> { window })
+{
+}
+
+GC::Ptr<Window> Location::window() const
+{
+    if (auto const* window = m_window.get_pointer<GC::Ref<Window>>())
+        return *window;
+    return nullptr;
+}
+
+GC::Ptr<RemoteWindow> Location::remote_window() const
+{
+    if (auto const* window = m_window.get_pointer<GC::Ref<RemoteWindow>>())
+        return *window;
+    return nullptr;
 }
 
 GC::Ptr<Bindings::Wrappable> Location::relevant_global_impl() const
 {
-    return m_window;
+    return window();
 }
 
 Location::~Location() = default;
@@ -50,7 +71,7 @@ Location::~Location() = default;
 void Location::visit_edges(GC::Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
-    visitor.visit(m_window);
+    m_window.visit([&](auto const& window) { visitor.visit(window); });
 }
 
 }
@@ -241,21 +262,31 @@ GC::Ptr<DOM::Document> Location::relevant_document() const
     // A Location object has an associated relevant Document, which is this Location object's
     // relevant global object's browsing context's active document, if this Location object's
     // relevant global object's browsing context is non-null, and null otherwise.
-    auto browsing_context = m_window->browsing_context();
+    auto browsing_context = window()->browsing_context();
     return browsing_context ? browsing_context->active_document() : nullptr;
+}
+
+bool Location::has_relevant_document() const
+{
+    // NB: A relevant global object hosted by another process has a browsing context, and so a relevant Document,
+    //     exactly while it has a navigable.
+    if (auto remote_window = this->remote_window())
+        return remote_window->navigable() != nullptr;
+    return relevant_document() != nullptr;
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#location-object-navigate
 WebIDL::ExceptionOr<void> Location::navigate(URL::URL url, NavigationHistoryBehavior history_handling)
 {
     // 1. Let navigable be location's relevant global object's navigable.
-    auto navigable = m_window->navigable();
+    auto navigable = m_window.visit([](auto const& window) -> GC::Ptr<Navigable> { return window->navigable(); });
 
     // 2. Let sourceDocument be the incumbent global object's associated Document.
     auto& source_document = incumbent_window().associated_document();
 
     // 3. If location's relevant Document is not yet completely loaded, and the incumbent global object does not have transient activation, then set historyHandling to "replace".
-    if (!relevant_document()->is_completely_loaded() && !incumbent_window().has_transient_activation()) {
+    // NB: The relevant Document is navigable's active document, which step 1 reached through the relevant global object.
+    if (!navigable->active_document_is_completely_loaded() && !incumbent_window().has_transient_activation()) {
         history_handling = NavigationHistoryBehavior::Replace;
     }
 
@@ -293,8 +324,7 @@ WebIDL::ExceptionOr<Utf16String> Location::href() const
 WebIDL::ExceptionOr<void> Location::set_href(Utf16String const& new_href)
 {
     // 1. If this's relevant Document is null, then return.
-    auto const relevant_document = this->relevant_document();
-    if (!relevant_document)
+    if (!has_relevant_document())
         return {};
 
     // 2. Let url be the result of encoding-parsing a URL given the given value, relative to the entry settings object.
@@ -697,7 +727,7 @@ WebIDL::ExceptionOr<void> Location::reload() const
 WebIDL::ExceptionOr<void> Location::replace(Utf16String const& url)
 {
     // 1. If this's relevant Document is null, then return.
-    if (!relevant_document())
+    if (!has_relevant_document())
         return {};
 
     // 2. Parse url relative to the entry settings object. If that failed, throw a "SyntaxError" DOMException.
