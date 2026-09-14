@@ -1,0 +1,3 @@
+first document unloaded before the second was activated
+WebContent#0
+  iframe#0: remote WebContent#1

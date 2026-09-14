@@ -1606,9 +1606,11 @@ void CanonicalTraversable::unload_a_document_and_its_descendants(Optional<Web::H
     pending_unload.operation_id = operation_id;
     Optional<HistoryJobEndpoint> document_host;
     if (auto navigable = find(navigable_id); navigable.has_value()) {
-        // FIXME: A document in the page holding the container stays there as the placeholder for a child hosted
-        //        elsewhere, so it is not unloaded until the container can hold a navigable hosted elsewhere.
-        if (navigable->has_remote_host())
+        // A child's document is unloaded in the page hosting it, whichever that is, before the document replacing it
+        // activates. The traversable's is unloaded by the continuation in the view's page.
+        // FIXME: Unload a traversable's document in the process displaying it when another process hosts its next
+        //        document.
+        if (navigable->parent())
             document_host = history_job_endpoint_for(*navigable);
         Function<void(CanonicalNavigable const&, Optional<Web::HTML::CrossProcessId>)> append_subtree =
             [&](CanonicalNavigable const& descendant, Optional<Web::HTML::CrossProcessId> parent_id) {

@@ -1,0 +1,60 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<script>
+    // Navigating an iframe hosted in its parent's process to a site another process hosts unloads its document
+    // where it is displayed before the new document is activated, and only then hands the frame to that process.
+    // This page is served over HTTP so that the iframe's first document is same site with it.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const firstUrl = new URL(
+            await httpServer.createEcho("GET", `/local-handoff-first-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("unload", () => { document.cookie = "unloadPing=1; path=/"; });
+                    document.cookie = "loaded=1; path=/";
+                <\/script>`,
+            })
+        );
+
+        const secondUrl = new URL(
+            await httpServer.createEcho("GET", `/local-handoff-second-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    const firstUnloaded = internals.hasCookieForURL(${JSON.stringify(firstUrl.href)}, "unloadPing", "1");
+                    document.cookie = "order=" + (firstUnloaded ? "unload-first" : "activate-first") + "; path=/";
+                <\/script>`,
+            })
+        );
+        secondUrl.hostname = uniqueLocalhostHostname("local-handoff-second");
+
+        const iframe = document.createElement("iframe");
+        iframe.src = firstUrl;
+        document.body.appendChild(iframe);
+        if (
+            !(await waitForCondition(
+                () => remoteFrameCount() === 0 && internals.hasCookieForURL(firstUrl.href, "loaded", "1")
+            ))
+        ) {
+            println("first document did not load in this process");
+            return;
+        }
+
+        iframe.src = secondUrl;
+
+        const orderRecorded = order => internals.hasCookieForURL(secondUrl.href, "order", order);
+        if (!(await waitForCondition(() => orderRecorded("unload-first") || orderRecorded("activate-first")))) {
+            println("second document did not run");
+            return;
+        }
+        println(
+            orderRecorded("unload-first")
+                ? "first document unloaded before the second was activated"
+                : "second document activated before the first was unloaded"
+        );
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

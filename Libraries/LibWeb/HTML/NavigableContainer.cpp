@@ -437,10 +437,12 @@ void NavigableContainer::swap_content_navigable_to_remote(Badge<Page>, Replicate
     auto& local_navigable = as<LocalNavigable>(*m_content_navigable);
     auto remote_navigable = RemoteNavigable::create(document().page(), local_navigable.id(), local_navigable.parent(), move(replicated_state));
     remote_navigable->set_container({}, this);
-    if (auto browsing_context = local_navigable.active_browsing_context()) {
-        auto& window_proxy = *browsing_context->window_proxy();
-        remote_navigable->set_window_proxy(window_proxy);
-        window_proxy.set_window(remote_navigable->active_window());
+    // The document the navigable displayed here was unloaded, after its descendants in the pages hosting them. The
+    // WindowProxy scripts hold stays theirs.
+    VERIFY(!local_navigable.active_document());
+    if (auto window_proxy = local_navigable.window_proxy_after_unload()) {
+        remote_navigable->set_window_proxy(*window_proxy);
+        window_proxy->set_window(remote_navigable->active_window());
     }
     m_content_navigable = remote_navigable;
     if (auto* layout_node = unsafe_layout_node())
@@ -450,7 +452,8 @@ void NavigableContainer::swap_content_navigable_to_remote(Badge<Page>, Replicate
     local_navigable.set_container({}, nullptr);
     local_navigable.set_delaying_load_events(false);
     local_navigable.clear_navigation_load_event_guard();
-    local_navigable.unload_document_for_host_change();
+    local_navigable.set_has_been_destroyed();
+    local_navigable.remove_from_all_local_navigables();
 }
 
 // AD-HOC: The document of the local navigable that stood beside the content navigable's RemoteNavigable activated,
