@@ -1,0 +1,2 @@
+Block flex baseline propagates during intrinsic sizing: PASS
+Container fits its contents: PASS

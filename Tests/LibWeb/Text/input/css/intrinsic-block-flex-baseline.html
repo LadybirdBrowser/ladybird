@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+body {
+    margin: 0;
+    font: 12px/1.4 sans-serif;
+}
+.container {
+    display: flex;
+    align-items: center;
+    width: 400px;
+}
+.item {
+    flex: 2 0 0;
+}
+.link {
+    display: inline-block;
+    padding: .8em 0;
+}
+.wrapper {
+    display: inline-block;
+}
+.control {
+    padding: 8px 0;
+    align-items: center;
+}
+</style>
+<script>
+test(() => {
+    function create_container(display) {
+        const container = document.createElement("div");
+        container.className = "container";
+        container.innerHTML = `<div class="item"><span><a class="link">Club</a></span> <div class="wrapper"><form><div class="wrapper"><div><div class="control" style="display: ${display}">Deutsch</div></div></div></form></div></div>`;
+        document.body.append(container);
+        return container;
+    }
+    const inline_container = create_container("inline-flex");
+    const block_container = create_container("flex");
+    const inline_height = inline_container.getBoundingClientRect().height;
+    const block_height = block_container.getBoundingClientRect().height;
+    println(`Block flex baseline propagates during intrinsic sizing: ${block_height === inline_height ? "PASS" : "FAIL"}`);
+    println(`Container fits its contents: ${Math.abs(block_height - block_container.querySelector(".link").getBoundingClientRect().height) < 1 ? "PASS" : "FAIL"}`);
+});
+</script>
