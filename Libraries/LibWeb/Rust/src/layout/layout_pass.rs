@@ -111,8 +111,18 @@ impl<'arena> LayoutPass<'arena> {
     }
 
     #[inline]
+    pub(crate) fn last_child(&self, node: Node) -> Node {
+        self.node_data(node).last_child.get()
+    }
+
+    #[inline]
     pub(crate) fn next_sibling(&self, node: Node) -> Node {
         self.node_data(node).next_sibling.get()
+    }
+
+    #[inline]
+    pub(crate) fn previous_sibling(&self, node: Node) -> Node {
+        self.node_data(node).previous_sibling.get()
     }
 
     #[inline]
