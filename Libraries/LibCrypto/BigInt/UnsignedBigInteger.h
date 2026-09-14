@@ -87,6 +87,8 @@ public:
     [[nodiscard]] UnsignedBigInteger shift_right(size_t num_bits) const;
     [[nodiscard]] UnsignedBigInteger multiplied_by(UnsignedBigInteger const& other) const;
     [[nodiscard]] UnsignedDivisionResult divided_by(UnsignedBigInteger const& divisor) const;
+    [[nodiscard]] UnsignedBigInteger quotient(UnsignedBigInteger const& divisor) const;
+    [[nodiscard]] UnsignedBigInteger remainder(UnsignedBigInteger const& divisor) const;
     [[nodiscard]] UnsignedBigInteger pow(u32 exponent) const;
     [[nodiscard]] UnsignedBigInteger gcd(UnsignedBigInteger const& other) const;
     [[nodiscard]] UnsignedBigInteger lcm(UnsignedBigInteger const& other) const;
