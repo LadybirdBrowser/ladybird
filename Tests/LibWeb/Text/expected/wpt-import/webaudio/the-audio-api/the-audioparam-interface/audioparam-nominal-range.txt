@@ -1,9 +1,9 @@
 Harness status: OK
 
-Found 321 tests
+Found 323 tests
 
-318 Pass
-3 Fail
+321 Pass
+2 Fail
 Pass	# AUDIT TASK RUNNER STARTED.
 Pass	Executing "initialize"
 Pass	Executing "Offline createGain"
@@ -18,7 +18,7 @@ Pass	Executing "Offline createConstantSource"
 Pass	Executing "Offline createBuffer"
 Fail	Executing "Offline createIIRFilter"
 Fail	Executing "Offline createWaveShaper"
-Fail	Executing "Offline createConvolver"
+Pass	Executing "Offline createConvolver"
 Pass	Executing "Offline createAnalyser"
 Pass	Executing "Offline createScriptProcessor"
 Pass	Executing "Offline createPeriodicWave"
@@ -240,6 +240,8 @@ Pass	< [Offline createBuffer] All assertions passed. (total 1 assertions)
 Pass	> [Offline createIIRFilter] 
 Pass	> [Offline createWaveShaper] 
 Pass	> [Offline createConvolver] 
+Pass	  ConvolverNode has no AudioParams as expected
+Pass	< [Offline createConvolver] All assertions passed. (total 1 assertions)
 Pass	> [Offline createAnalyser] 
 Pass	  AnalyserNode has no AudioParams as expected
 Pass	< [Offline createAnalyser] All assertions passed. (total 1 assertions)

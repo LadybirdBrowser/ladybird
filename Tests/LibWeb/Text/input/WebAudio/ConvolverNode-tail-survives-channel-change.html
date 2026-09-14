@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    const sampleRate = 48000;
+    const impulseDelay = 300;
+
+    async function renderClickThroughConvolver(changeChannelCountAtFrame) {
+        const context = new OfflineAudioContext(2, 512, sampleRate);
+        context.destination.channelInterpretation = "discrete";
+
+        // A mono click at frame 0, convolved with an impulse response that is a single delayed impulse, must come out
+        // as a click at the delay.
+        const click = context.createBuffer(1, 1, sampleRate);
+        click.getChannelData(0)[0] = 1;
+        const source = new AudioBufferSourceNode(context, { buffer: click });
+
+        const response = context.createBuffer(1, impulseDelay + 1, sampleRate);
+        response.getChannelData(0)[impulseDelay] = 1;
+        const convolver = new ConvolverNode(context, { buffer: response, disableNormalization: true });
+
+        source.connect(convolver);
+        convolver.connect(context.destination);
+        source.start();
+
+        // Connecting a silent stereo source part-way through turns the convolver's input from mono to stereo while the
+        // click is still travelling through the impulse response.
+        if (changeChannelCountAtFrame !== undefined) {
+            const silence = new ChannelMergerNode(context, { numberOfInputs: 2 });
+            context.suspend(changeChannelCountAtFrame / sampleRate)
+                .then(() => silence.connect(convolver))
+                .then(() => context.resume());
+        }
+
+        return await context.startRendering();
+    }
+
+    function describeClick(buffer, channel) {
+        const samples = buffer.getChannelData(channel);
+        const peak = samples.indexOf(Math.max(...samples));
+        return `peak ${samples[peak].toFixed(3)} at frame ${peak}`;
+    }
+
+    promiseTest(async () => {
+        const steady = await renderClickThroughConvolver();
+        println(`Mono throughout: ${describeClick(steady, 0)}`);
+
+        const changed = await renderClickThroughConvolver(128);
+        println(`Stereo from frame 128, left: ${describeClick(changed, 0)}`);
+        println(`Stereo from frame 128, right: ${describeClick(changed, 1)}`);
+    });
+</script>

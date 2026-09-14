@@ -25,7 +25,7 @@ interface BaseAudioContext : EventTarget {
     ChannelMergerNode createChannelMerger (optional unsigned long numberOfInputs = 6);
     ChannelSplitterNode createChannelSplitter (optional unsigned long numberOfOutputs = 6);
     ConstantSourceNode createConstantSource ();
-    [FIXME] ConvolverNode createConvolver ();
+    ConvolverNode createConvolver ();
     DelayNode createDelay (optional double maxDelayTime = 1.0);
     DynamicsCompressorNode createDynamicsCompressor();
     GainNode createGain();

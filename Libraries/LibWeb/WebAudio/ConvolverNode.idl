@@ -1,0 +1,13 @@
+// https://webaudio.github.io/web-audio-api/#ConvolverOptions
+dictionary ConvolverOptions : AudioNodeOptions {
+    AudioBuffer? buffer;
+    boolean disableNormalization = false;
+};
+
+// https://webaudio.github.io/web-audio-api/#ConvolverNode
+[Exposed=Window]
+interface ConvolverNode : AudioNode {
+    constructor (BaseAudioContext context, optional ConvolverOptions options = {});
+    attribute AudioBuffer? buffer;
+    attribute boolean normalize;
+};

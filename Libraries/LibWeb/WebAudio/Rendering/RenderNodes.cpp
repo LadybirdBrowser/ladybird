@@ -7,6 +7,7 @@
 #include <AK/Array.h>
 #include <AK/Math.h>
 #include <LibGfx/Vector3.h>
+#include <LibWeb/WebAudio/Rendering/FFT.h>
 #include <LibWeb/WebAudio/Rendering/RenderGraph.h>
 #include <LibWeb/WebAudio/Rendering/RenderNodes.h>
 
@@ -709,6 +710,191 @@ double compute_cone_gain(Gfx::DoubleVector3 const& source_position, Gfx::DoubleV
     return 1 + (config.cone_outer_gain - 1) * x;
 }
 
+}
+
+ConvolverRenderNode::ConvolverRenderNode(NodeID node_id, size_t quantum_size)
+    : RenderNode(node_id, 1, 1, quantum_size)
+    , m_fft(2 * quantum_size)
+    , m_transform_real(MUST(FixedArray<float>::create(2 * quantum_size)))
+    , m_transform_imag(MUST(FixedArray<float>::create(2 * quantum_size)))
+    , m_accumulator_real(MUST(FixedArray<double>::create(quantum_size + 1)))
+    , m_accumulator_imag(MUST(FixedArray<double>::create(quantum_size + 1)))
+{
+    set_channel_count_mode(Bindings::ChannelCountMode::ClampedMax);
+    for (auto& window : m_window)
+        window = MUST(FixedArray<float>::create(2 * quantum_size));
+}
+
+void ConvolverRenderNode::handle_message(NodeMessage const& message)
+{
+    if (auto const* set_kernel = message.get_pointer<SetConvolverKernel>()) {
+        m_kernel = set_kernel->kernel;
+        m_delay_line = set_kernel->delay_line;
+        m_delay_line_index = 0;
+    }
+}
+
+// Folds a second channel's history into the first the way down-mixing folds the channels themselves.
+static void average_history(Span<float> into, ReadonlySpan<float> other)
+{
+    for (size_t index = 0; index < into.size(); ++index)
+        into[index] = 0.5f * (into[index] + other[index]);
+}
+
+void ConvolverRenderNode::process(RenderGraph& graph, RenderContext const& context)
+{
+    auto const& input = pull_input(graph, context, 0);
+    auto& convolver_output = output(0);
+
+    auto input_channel_count = min(input.channel_count(), ConvolverDelayLine::MAX_CHANNEL_COUNT);
+
+    // Mix the history the same way the input itself is mixed, so that the tail of the impulse response keeps playing
+    // across a change in the number of input channels.
+    // https://webaudio.github.io/web-audio-api/#channel-up-mixing-and-down-mixing
+    if (m_input_channel_count == 1 && input_channel_count == 2) {
+        m_window[0].span().copy_to(m_window[1].span());
+        if (m_delay_line) {
+            m_delay_line->real(0).copy_to(m_delay_line->real(1));
+            m_delay_line->imag(0).copy_to(m_delay_line->imag(1));
+        }
+    } else if (m_input_channel_count == 2 && input_channel_count == 1) {
+        average_history(m_window[0].span(), m_window[1].span());
+        if (m_delay_line) {
+            average_history(m_delay_line->real(0), m_delay_line->real(1));
+            average_history(m_delay_line->imag(0), m_delay_line->imag(1));
+        }
+    }
+    m_input_channel_count = input_channel_count;
+
+    auto partition_size = context.quantum_size;
+    for (size_t channel = 0; channel < input_channel_count; ++channel) {
+        // Slide this quantum's samples into the window, dropping the oldest half.
+        auto window = m_window[channel].span();
+        auto input_samples = input.channel(channel);
+        for (size_t frame = 0; frame < partition_size; ++frame) {
+            window[frame] = window[partition_size + frame];
+            window[partition_size + frame] = input_samples[frame];
+        }
+    }
+
+    if (!m_kernel) {
+        convolver_output.set_channel_count(1);
+        convolver_output.zero();
+        return;
+    }
+
+    auto transform_size = m_fft.size();
+    auto partition_count = m_kernel->partition_count();
+    auto delay_line_length = m_delay_line->length();
+    auto bin_count = m_kernel->bin_count();
+
+    if (partition_count > 0) {
+        for (size_t channel = 0; channel < input_channel_count; ++channel) {
+            auto window = m_window[channel].span();
+            for (size_t frame = 0; frame < transform_size; ++frame) {
+                m_transform_real[frame] = window[frame];
+                m_transform_imag[frame] = 0;
+            }
+            m_fft.transform(m_transform_real.span(), m_transform_imag.span());
+
+            auto* delay_line_real = m_delay_line->real(channel).data() + m_delay_line_index * bin_count;
+            auto* delay_line_imag = m_delay_line->imag(channel).data() + m_delay_line_index * bin_count;
+            for (size_t bin = 0; bin < bin_count; ++bin) {
+                delay_line_real[bin] = m_transform_real[bin];
+                delay_line_imag[bin] = m_transform_imag[bin];
+            }
+        }
+    }
+
+    // https://webaudio.github.io/web-audio-api/#Convolution-channel-configurations
+    size_t right_channel = input_channel_count > 1 ? 1 : 0;
+    Array<Route, 4> routes;
+    size_t route_count = 0;
+    switch (m_kernel->channel_count()) {
+    case 1:
+        routes[route_count++] = { 0, 0, 0 };
+        if (input_channel_count > 1)
+            routes[route_count++] = { 1, 0, 1 };
+        break;
+    case 2:
+        routes[route_count++] = { 0, 0, 0 };
+        routes[route_count++] = { right_channel, 1, 1 };
+        break;
+    case 4:
+        routes[route_count++] = { 0, 0, 0 };
+        routes[route_count++] = { 0, 1, 1 };
+        routes[route_count++] = { right_channel, 2, 0 };
+        routes[route_count++] = { right_channel, 3, 1 };
+        break;
+    default:
+        VERIFY_NOT_REACHED();
+    }
+
+    auto output_channel_count = m_kernel->channel_count() == 1 && input_channel_count == 1 ? 1u : 2u;
+    convolver_output.set_channel_count(output_channel_count);
+
+    for (size_t output_channel = 0; output_channel < output_channel_count; ++output_channel) {
+        auto output_samples = convolver_output.channel(output_channel);
+        for (size_t frame = 0; frame < partition_size; ++frame)
+            output_samples[frame] = 0;
+
+        for (size_t bin = 0; bin < bin_count; ++bin) {
+            m_accumulator_real[bin] = 0;
+            m_accumulator_imag[bin] = 0;
+        }
+
+        for (size_t route_index = 0; route_index < route_count; ++route_index) {
+            auto route = routes[route_index];
+            if (route.output_channel != output_channel)
+                continue;
+
+            auto window = m_window[route.input_channel].span();
+            auto head = m_kernel->head(route.kernel_channel);
+            for (size_t frame = 0; frame < partition_size; ++frame) {
+                auto sample = 0.f;
+                for (size_t tap = 0; tap < partition_size; ++tap)
+                    sample += head[tap] * window[partition_size + frame - tap];
+                output_samples[frame] += sample;
+            }
+
+            auto const* delay_line_real = m_delay_line->real(route.input_channel).data();
+            auto const* delay_line_imag = m_delay_line->imag(route.input_channel).data();
+            for (size_t partition = 0; partition < partition_count; ++partition) {
+                // Partition N of the impulse response pairs up with the window from N + 1 quanta ago.
+                auto delay_line_slot = (m_delay_line_index + delay_line_length - partition - 1) % delay_line_length;
+                auto const* input_real = delay_line_real + delay_line_slot * bin_count;
+                auto const* input_imag = delay_line_imag + delay_line_slot * bin_count;
+                auto const* kernel_real = m_kernel->partition_real(route.kernel_channel, partition).data();
+                auto const* kernel_imag = m_kernel->partition_imag(route.kernel_channel, partition).data();
+
+                for (size_t bin = 0; bin < bin_count; ++bin) {
+                    m_accumulator_real[bin] += input_real[bin] * kernel_real[bin] - input_imag[bin] * kernel_imag[bin];
+                    m_accumulator_imag[bin] += input_real[bin] * kernel_imag[bin] + input_imag[bin] * kernel_real[bin];
+                }
+            }
+        }
+
+        if (partition_count == 0)
+            continue;
+
+        // Restore the bins above Nyquist that the kernel and the delay line leave out.
+        for (size_t bin = 0; bin < bin_count; ++bin) {
+            m_transform_real[bin] = static_cast<float>(m_accumulator_real[bin]);
+            m_transform_imag[bin] = static_cast<float>(m_accumulator_imag[bin]);
+        }
+        for (size_t bin = bin_count; bin < transform_size; ++bin) {
+            m_transform_real[bin] = static_cast<float>(m_accumulator_real[transform_size - bin]);
+            m_transform_imag[bin] = static_cast<float>(-m_accumulator_imag[transform_size - bin]);
+        }
+        m_fft.transform(m_transform_real.span(), m_transform_imag.span(), FFTDirection::Inverse);
+
+        // The first half of the result is where the cyclic convolution wrapped around, and is discarded.
+        for (size_t frame = 0; frame < partition_size; ++frame)
+            output_samples[frame] += m_transform_real[partition_size + frame];
+    }
+
+    if (partition_count > 0)
+        m_delay_line_index = (m_delay_line_index + 1) % delay_line_length;
 }
 
 PannerRenderNode::PannerRenderNode(NodeID node_id, size_t quantum_size, Params params, ListenerParams listener_params)

@@ -15,6 +15,7 @@
 #include <LibWeb/Bindings/OscillatorNode.h>
 #include <LibWeb/Bindings/PannerNode.h>
 #include <LibWeb/WebAudio/Rendering/AudioData.h>
+#include <LibWeb/WebAudio/Rendering/ConvolverKernel.h>
 #include <LibWeb/WebAudio/Types.h>
 
 namespace Web::WebAudio {
@@ -59,6 +60,12 @@ struct SetBiquadFilterType {
     Bindings::BiquadFilterType type { Bindings::BiquadFilterType::Lowpass };
 };
 
+struct SetConvolverKernel {
+    NodeID node_id { 0 };
+    RefPtr<Rendering::ConvolverKernel> kernel;
+    RefPtr<Rendering::ConvolverDelayLine> delay_line;
+};
+
 struct SetPannerParameters {
     NodeID node_id { 0 };
     Bindings::PanningModelType panning_model { Bindings::PanningModelType::Equalpower };
@@ -81,7 +88,16 @@ struct SetMediaStreamSourceRing {
 };
 
 // A control message that updates the state of a single render node.
-using NodeMessage = Variant<StartSource, StopSource, StartBufferSource, SetBufferSourceParameters, SetOscillatorWaveform, SetBiquadFilterType, SetPannerParameters, SetMediaStreamSourceRing>;
+using NodeMessage = Variant<
+    SetBiquadFilterType,
+    SetBufferSourceParameters,
+    SetConvolverKernel,
+    SetMediaStreamSourceRing,
+    SetOscillatorWaveform,
+    SetPannerParameters,
+    StartBufferSource,
+    StartSource,
+    StopSource>;
 
 inline NodeID node_message_target(NodeMessage const& message)
 {

@@ -2,8 +2,8 @@ Harness status: OK
 
 Found 1163 tests
 
-962 Pass
-201 Fail
+1000 Pass
+163 Fail
 Fail	idl_test setup
 Pass	idl_test validation
 Pass	Partial interface Element: member names are unique
@@ -36,7 +36,7 @@ Pass	BaseAudioContext interface: operation createBufferSource()
 Pass	BaseAudioContext interface: operation createChannelMerger(optional unsigned long)
 Pass	BaseAudioContext interface: operation createChannelSplitter(optional unsigned long)
 Pass	BaseAudioContext interface: operation createConstantSource()
-Fail	BaseAudioContext interface: operation createConvolver()
+Pass	BaseAudioContext interface: operation createConvolver()
 Pass	BaseAudioContext interface: operation createDelay(optional double)
 Pass	BaseAudioContext interface: operation createDynamicsCompressor()
 Pass	BaseAudioContext interface: operation createGain()
@@ -108,7 +108,7 @@ Pass	BaseAudioContext interface: calling createChannelMerger(optional unsigned l
 Pass	BaseAudioContext interface: context must inherit property "createChannelSplitter(optional unsigned long)" with the proper type
 Pass	BaseAudioContext interface: calling createChannelSplitter(optional unsigned long) on context with too few arguments must throw TypeError
 Pass	BaseAudioContext interface: context must inherit property "createConstantSource()" with the proper type
-Fail	BaseAudioContext interface: context must inherit property "createConvolver()" with the proper type
+Pass	BaseAudioContext interface: context must inherit property "createConvolver()" with the proper type
 Pass	BaseAudioContext interface: context must inherit property "createDelay(optional double)" with the proper type
 Pass	BaseAudioContext interface: calling createDelay(optional double) on context with too few arguments must throw TypeError
 Pass	BaseAudioContext interface: context must inherit property "createDynamicsCompressor()" with the proper type
@@ -169,7 +169,7 @@ Pass	BaseAudioContext interface: calling createChannelMerger(optional unsigned l
 Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createChannelSplitter(optional unsigned long)" with the proper type
 Pass	BaseAudioContext interface: calling createChannelSplitter(optional unsigned long) on new OfflineAudioContext(1, 1, sample_rate) with too few arguments must throw TypeError
 Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createConstantSource()" with the proper type
-Fail	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createConvolver()" with the proper type
+Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createConvolver()" with the proper type
 Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createDelay(optional double)" with the proper type
 Pass	BaseAudioContext interface: calling createDelay(optional double) on new OfflineAudioContext(1, 1, sample_rate) with too few arguments must throw TypeError
 Pass	BaseAudioContext interface: new OfflineAudioContext(1, 1, sample_rate) must inherit property "createDynamicsCompressor()" with the proper type
@@ -627,41 +627,41 @@ Pass	AudioNode interface: new ConstantSourceNode(context) must inherit property 
 Pass	AudioNode interface: new ConstantSourceNode(context) must inherit property "channelCount" with the proper type
 Pass	AudioNode interface: new ConstantSourceNode(context) must inherit property "channelCountMode" with the proper type
 Pass	AudioNode interface: new ConstantSourceNode(context) must inherit property "channelInterpretation" with the proper type
-Fail	ConvolverNode interface: existence and properties of interface object
-Fail	ConvolverNode interface object length
-Fail	ConvolverNode interface object name
-Fail	ConvolverNode interface: existence and properties of interface prototype object
-Fail	ConvolverNode interface: existence and properties of interface prototype object's "constructor" property
-Fail	ConvolverNode interface: existence and properties of interface prototype object's @@unscopables property
-Fail	ConvolverNode interface: attribute buffer
-Fail	ConvolverNode interface: attribute normalize
-Fail	ConvolverNode must be primary interface of new ConvolverNode(context)
-Fail	Stringification of new ConvolverNode(context)
-Fail	ConvolverNode interface: new ConvolverNode(context) must inherit property "buffer" with the proper type
-Fail	ConvolverNode interface: new ConvolverNode(context) must inherit property "normalize" with the proper type
-Fail	AudioNode interface: new ConvolverNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
-Fail	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new ConvolverNode(context) with too few arguments must throw TypeError
-Fail	AudioNode interface: new ConvolverNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
-Fail	AudioNode interface: calling connect(AudioParam, optional unsigned long) on new ConvolverNode(context) with too few arguments must throw TypeError
-Fail	AudioNode interface: new ConvolverNode(context) must inherit property "disconnect()" with the proper type
-Fail	AudioNode interface: new ConvolverNode(context) must inherit property "disconnect(unsigned long)" with the proper type
-Fail	AudioNode interface: calling disconnect(unsigned long) on new ConvolverNode(context) with too few arguments must throw TypeError
-Fail	AudioNode interface: new ConvolverNode(context) must inherit property "disconnect(AudioNode)" with the proper type
-Fail	AudioNode interface: calling disconnect(AudioNode) on new ConvolverNode(context) with too few arguments must throw TypeError
-Fail	AudioNode interface: new ConvolverNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
-Fail	AudioNode interface: calling disconnect(AudioNode, unsigned long) on new ConvolverNode(context) with too few arguments must throw TypeError
-Fail	AudioNode interface: new ConvolverNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
-Fail	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new ConvolverNode(context) with too few arguments must throw TypeError
-Fail	AudioNode interface: new ConvolverNode(context) must inherit property "disconnect(AudioParam)" with the proper type
-Fail	AudioNode interface: calling disconnect(AudioParam) on new ConvolverNode(context) with too few arguments must throw TypeError
-Fail	AudioNode interface: new ConvolverNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
-Fail	AudioNode interface: calling disconnect(AudioParam, unsigned long) on new ConvolverNode(context) with too few arguments must throw TypeError
-Fail	AudioNode interface: new ConvolverNode(context) must inherit property "context" with the proper type
-Fail	AudioNode interface: new ConvolverNode(context) must inherit property "numberOfInputs" with the proper type
-Fail	AudioNode interface: new ConvolverNode(context) must inherit property "numberOfOutputs" with the proper type
-Fail	AudioNode interface: new ConvolverNode(context) must inherit property "channelCount" with the proper type
-Fail	AudioNode interface: new ConvolverNode(context) must inherit property "channelCountMode" with the proper type
-Fail	AudioNode interface: new ConvolverNode(context) must inherit property "channelInterpretation" with the proper type
+Pass	ConvolverNode interface: existence and properties of interface object
+Pass	ConvolverNode interface object length
+Pass	ConvolverNode interface object name
+Pass	ConvolverNode interface: existence and properties of interface prototype object
+Pass	ConvolverNode interface: existence and properties of interface prototype object's "constructor" property
+Pass	ConvolverNode interface: existence and properties of interface prototype object's @@unscopables property
+Pass	ConvolverNode interface: attribute buffer
+Pass	ConvolverNode interface: attribute normalize
+Pass	ConvolverNode must be primary interface of new ConvolverNode(context)
+Pass	Stringification of new ConvolverNode(context)
+Pass	ConvolverNode interface: new ConvolverNode(context) must inherit property "buffer" with the proper type
+Pass	ConvolverNode interface: new ConvolverNode(context) must inherit property "normalize" with the proper type
+Pass	AudioNode interface: new ConvolverNode(context) must inherit property "connect(AudioNode, optional unsigned long, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioNode, optional unsigned long, optional unsigned long) on new ConvolverNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ConvolverNode(context) must inherit property "connect(AudioParam, optional unsigned long)" with the proper type
+Pass	AudioNode interface: calling connect(AudioParam, optional unsigned long) on new ConvolverNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ConvolverNode(context) must inherit property "disconnect()" with the proper type
+Pass	AudioNode interface: new ConvolverNode(context) must inherit property "disconnect(unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(unsigned long) on new ConvolverNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ConvolverNode(context) must inherit property "disconnect(AudioNode)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode) on new ConvolverNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ConvolverNode(context) must inherit property "disconnect(AudioNode, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long) on new ConvolverNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ConvolverNode(context) must inherit property "disconnect(AudioNode, unsigned long, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioNode, unsigned long, unsigned long) on new ConvolverNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ConvolverNode(context) must inherit property "disconnect(AudioParam)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam) on new ConvolverNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ConvolverNode(context) must inherit property "disconnect(AudioParam, unsigned long)" with the proper type
+Pass	AudioNode interface: calling disconnect(AudioParam, unsigned long) on new ConvolverNode(context) with too few arguments must throw TypeError
+Pass	AudioNode interface: new ConvolverNode(context) must inherit property "context" with the proper type
+Pass	AudioNode interface: new ConvolverNode(context) must inherit property "numberOfInputs" with the proper type
+Pass	AudioNode interface: new ConvolverNode(context) must inherit property "numberOfOutputs" with the proper type
+Pass	AudioNode interface: new ConvolverNode(context) must inherit property "channelCount" with the proper type
+Pass	AudioNode interface: new ConvolverNode(context) must inherit property "channelCountMode" with the proper type
+Pass	AudioNode interface: new ConvolverNode(context) must inherit property "channelInterpretation" with the proper type
 Pass	DelayNode interface: existence and properties of interface object
 Pass	DelayNode interface object length
 Pass	DelayNode interface object name

@@ -217,6 +217,12 @@ WebIDL::ExceptionOr<GC::Ref<ConstantSourceNode>> BaseAudioContext::create_consta
     return ConstantSourceNode::create(*this);
 }
 
+// https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createconvolver
+WebIDL::ExceptionOr<GC::Ref<ConvolverNode>> BaseAudioContext::create_convolver()
+{
+    return ConvolverNode::create(*this);
+}
+
 // https://webaudio.github.io/web-audio-api/#dom-baseaudiocontext-createdelay
 WebIDL::ExceptionOr<GC::Ref<DelayNode>> BaseAudioContext::create_delay(double max_delay_time)
 {

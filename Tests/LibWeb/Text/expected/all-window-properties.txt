@@ -117,6 +117,7 @@ Comment
 CompositionEvent
 CompressionStream
 ConstantSourceNode
+ConvolverNode
 CookieChangeEvent
 CookieStore
 CountQueuingStrategy
