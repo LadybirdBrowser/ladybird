@@ -981,6 +981,42 @@ impl StyleNodeTree {
         }
     }
 
+    /// Rank a batch in the same dependency order as `compare_style_reaction_order`.
+    /// Each ancestor is visited once, even for a deep chain of reacting descendants.
+    pub fn style_reaction_order_ranks(
+        &self,
+        nodes: impl IntoIterator<Item = StyleNodeID>,
+    ) -> HashMap<StyleNodeID, usize> {
+        let mut seen = HashSet::default();
+        let mut children: HashMap<StyleNodeID, Vec<(u8, StyleNodeID)>> = HashMap::default();
+        let mut roots = Vec::new();
+        for mut node in nodes {
+            while seen.insert(node) {
+                if let Some((parent, branch)) = self.style_reaction_parent(node) {
+                    children.entry(parent).or_default().push((branch, node));
+                    node = parent;
+                } else {
+                    roots.push(node);
+                    break;
+                }
+            }
+        }
+        // The existing order uses identity within each branch, not DOM sibling order.
+        roots.sort_unstable_by(|first, second| second.cmp(first));
+        for children in children.values_mut() {
+            children.sort_unstable_by(|first, second| second.cmp(first));
+        }
+        let mut ranks = HashMap::default();
+        let mut pending = roots;
+        while let Some(node) = pending.pop() {
+            ranks.insert(node, ranks.len());
+            if let Some(children) = children.get(&node) {
+                pending.extend(children.iter().map(|&(_, child)| child));
+            }
+        }
+        ranks
+    }
+
     fn style_reaction_parent(&self, node: StyleNodeID) -> Option<(StyleNodeID, u8)> {
         if let Some(slot) = self.assigned_slot_of(node) {
             return Some((slot, 2));
@@ -1604,6 +1640,35 @@ mod tests {
         reactions.sort_unstable_by(|first, second| fixture.tree.compare_style_reaction_order(*first, *second));
 
         assert_eq!(reactions, vec![host, slot, fallback, assigned, light_child]);
+        let ranks = fixture.tree.style_reaction_order_ranks(reactions.iter().copied());
+        for &first in &reactions {
+            for &second in &reactions {
+                assert_eq!(
+                    ranks[&first].cmp(&ranks[&second]),
+                    fixture.tree.compare_style_reaction_order(first, second)
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn reaction_ranks_cover_sparse_batches_and_deep_chains() {
+        let mut fixture = TreeFixture::new();
+        let first_root = fixture.element();
+        let second_root = fixture.element();
+        let mut chain = vec![first_root];
+        for _ in 0..4096 {
+            let child = fixture.element();
+            fixture.attach_children(*chain.last().unwrap(), &[child]);
+            chain.push(child);
+        }
+        let leaf = *chain.last().unwrap();
+        let ranks = fixture.tree.style_reaction_order_ranks([second_root, leaf, leaf]);
+        assert_eq!(ranks.len(), chain.len() + 1);
+        for pair in chain.windows(2) {
+            assert!(ranks[&pair[0]] < ranks[&pair[1]]);
+        }
+        assert!(ranks[&leaf] < ranks[&second_root]);
     }
 
     #[test]

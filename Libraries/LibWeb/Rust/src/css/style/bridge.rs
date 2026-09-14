@@ -3509,6 +3509,20 @@ pub unsafe extern "C" fn style_engine_sort_style_deltas_for_direct_application(
             1 + u16::from(delta.pseudo_kind)
         }
     };
+    // Small batches cost less to compare directly. A large batch names its dependency
+    // order once instead of walking both ancestor chains in every sort comparison.
+    if deltas.len() > 32 {
+        let ranks = engine.tree.style_reaction_order_ranks(
+            deltas
+                .iter()
+                .map(|delta| StyleNodeID::from_raw(delta.style_node).expect("a style delta must name an element")),
+        );
+        deltas.sort_unstable_by_key(|delta| {
+            let node = StyleNodeID::from_raw(delta.style_node).unwrap();
+            (ranks[&node], pseudo_rank(delta))
+        });
+        return;
+    }
     deltas.sort_unstable_by(|first, second| {
         let first_node = StyleNodeID::from_raw(first.style_node).expect("a style delta must name an element");
         let second_node = StyleNodeID::from_raw(second.style_node).expect("a style delta must name an element");
