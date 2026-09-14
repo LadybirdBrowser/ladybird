@@ -300,7 +300,8 @@ WebIDL::ExceptionOr<void> Internals::load_reference_test_metadata()
     auto& vm = window().principal_realm().vm();
     auto& page = this->page();
 
-    auto* document = page.top_level_browsing_context().active_document();
+    auto local_root = local_root_of(window());
+    auto document = local_root ? local_root->active_document() : nullptr;
     if (!document)
         return vm.throw_completion<JS::InternalError>("No active document available"_utf16);
 
