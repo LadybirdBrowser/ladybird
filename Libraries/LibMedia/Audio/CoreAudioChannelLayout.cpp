@@ -17,9 +17,8 @@ namespace Audio {
 static void check_core_audio_channel_layout_size(AudioChannelLayout const& layout, u32 size)
 {
     auto minimum_layout_size = Checked(layout.mNumberChannelDescriptions);
-    minimum_layout_size--;
     minimum_layout_size *= sizeof(layout.mChannelDescriptions[0]);
-    minimum_layout_size += sizeof(AudioChannelLayout);
+    minimum_layout_size += offsetof(AudioChannelLayout, mChannelDescriptions);
     VERIFY(size >= minimum_layout_size.value());
 }
 
