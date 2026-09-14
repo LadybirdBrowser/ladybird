@@ -357,9 +357,9 @@ StyleAtomID StyleEngine::intern_attribute_name(Utf16FlyString const& local_name,
     return name;
 }
 
-StyleAtomID StyleEngine::intern_attribute_value(StyleAtomID name, Utf16View value)
+StyleAtomID StyleEngine::intern_attribute_value(StyleAtomID name, Utf16String const& value)
 {
-    auto atom = intern_case_sensitive_text_atom(value);
+    auto atom = intern_atom(Utf16FlyString { value });
     if (!attribute_name_requires_value_text(name))
         return atom;
 
@@ -367,12 +367,12 @@ StyleAtomID StyleEngine::intern_attribute_value(StyleAtomID name, Utf16View valu
     return atom;
 }
 
-void StyleEngine::backfill_attribute_value_text_if_required(StyleAtomID name, Utf16View value)
+void StyleEngine::backfill_attribute_value_text_if_required(StyleAtomID name, Utf16String const& value)
 {
     if (!attribute_name_requires_value_text(name))
         return;
 
-    auto atom = intern_case_sensitive_text_atom(value);
+    auto atom = intern_atom(Utf16FlyString { value });
     publish_attribute_value_text(atom, value);
 }
 

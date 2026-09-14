@@ -114,7 +114,7 @@ private:
         // the facts again before the query matches.
         auto* handle = m_engine.compile_selector_query(selector_handles, [&] {
             for (auto const& it : m_identities) {
-                it.key->for_each_attribute([&](QualifiedName const& name, Utf16View value) {
+                it.key->for_each_attribute([&](QualifiedName const& name, Utf16String const& value) {
                     auto name_atom = m_engine.intern_attribute_name(name.local_name(), name.namespace_());
                     m_engine.backfill_attribute_value_text_if_required(name_atom, value);
                 });

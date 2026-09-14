@@ -305,7 +305,7 @@ static void publish_element_selector_features(StyleEngine& style_engine, DOM::El
         publish_feature(StyleEngineFFI::FfiFeatureKind::Id, StyleAtomID {}, StyleEngineFFI::FfiFeatureValueKind::Atom, intern_id_or_class_atom(style_engine, element, *id));
     for (auto const& class_name : element.class_names())
         publish_feature(StyleEngineFFI::FfiFeatureKind::Class, intern_id_or_class_atom(style_engine, element, class_name), StyleEngineFFI::FfiFeatureValueKind::Present, StyleAtomID {});
-    element.for_each_attribute([&](DOM::QualifiedName const& name, Utf16View value) {
+    element.for_each_attribute([&](DOM::QualifiedName const& name, Utf16String const& value) {
         auto name_atom = style_engine.intern_attribute_name(name.local_name(), name.namespace_());
         publish_feature(StyleEngineFFI::FfiFeatureKind::Attribute, name_atom, StyleEngineFFI::FfiFeatureValueKind::Atom, style_engine.intern_attribute_value(name_atom, value));
     });
@@ -520,7 +520,7 @@ void record_element_adjustment_facts(DOM::Element& element)
 void publish_required_attribute_value_texts(StyleEngine& style_engine, StyleComputer& style_computer)
 {
     style_computer.for_each_style_node([&](DOM::Element& element) {
-        element.for_each_attribute([&](DOM::QualifiedName const& name, Utf16View value) {
+        element.for_each_attribute([&](DOM::QualifiedName const& name, Utf16String const& value) {
             auto name_atom = style_engine.intern_attribute_name(name.local_name(), name.namespace_());
             style_engine.backfill_attribute_value_text_if_required(name_atom, value);
         });
@@ -634,7 +634,8 @@ StyleNodeID populate_isolated_selector_query_engine(StyleEngine& style_engine, D
         return TraversalDecision::Continue;
     });
 
-    style_engine.flush();
+    // This snapshot only answers selectors; it never needs to plan a rendering update.
+    style_engine.prepare_selector_query();
     if (non_element_root_identity.has_value())
         return *non_element_root_identity;
     if (auto* element = as_if<DOM::Element>(root))
