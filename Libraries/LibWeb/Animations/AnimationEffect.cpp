@@ -461,14 +461,19 @@ Optional<TimeValue> AnimationEffect::active_time() const
     return active_time_using_fill(m_fill_mode);
 }
 
-// https://www.w3.org/TR/web-animations-1/#calculating-the-active-time
 Optional<TimeValue> AnimationEffect::active_time_using_fill(Bindings::FillMode fill_mode) const
+{
+    auto local_time = this->local_time();
+    return active_time_for_phase(phase(local_time), local_time, fill_mode);
+}
+
+// https://www.w3.org/TR/web-animations-1/#calculating-the-active-time
+Optional<TimeValue> AnimationEffect::active_time_for_phase(Phase phase, Optional<TimeValue> const& local_time, Bindings::FillMode fill_mode) const
 {
     // The active time is based on the local time and start delay. However, it is only defined when the animation effect
     // should produce an output and hence depends on its fill mode and phase as follows,
 
-    auto local_time = this->local_time();
-    switch (phase(local_time)) {
+    switch (phase) {
     // -> If the animation effect is in the before phase,
     case Phase::Before:
         // The result depends on the first matching condition from the following,
@@ -611,11 +616,23 @@ AnimationEffect::Phase AnimationEffect::phase(Optional<TimeValue> const& local_t
     return Phase::Active;
 }
 
+AnimationEffect::ResolvedTiming AnimationEffect::resolve_timing() const
+{
+    auto local_time = this->local_time();
+    auto phase = this->phase(local_time);
+    auto active_time = active_time_for_phase(phase, local_time, m_fill_mode);
+    return {
+        .phase = phase,
+        .local_time = local_time,
+        .active_time = active_time,
+        .overall_progress = overall_progress_for_phase(phase, active_time),
+    };
+}
+
 // https://www.w3.org/TR/web-animations-1/#overall-progress
-Optional<double> AnimationEffect::overall_progress() const
+Optional<double> AnimationEffect::overall_progress_for_phase(Phase phase, Optional<TimeValue> const& active_time) const
 {
     // 1. If the active time is unresolved, return unresolved.
-    auto active_time = this->active_time();
     if (!active_time.has_value())
         return {};
 
@@ -626,7 +643,7 @@ Optional<double> AnimationEffect::overall_progress() const
     if (m_iteration_duration.value == 0) {
         // If the animation effect is in the before phase, let overall progress be zero, otherwise, let it be equal to
         // the iteration count.
-        if (phase() == Phase::Before)
+        if (phase == Phase::Before)
             overall_progress = 0.0;
         else
             overall_progress = m_iteration_count;
@@ -642,15 +659,15 @@ Optional<double> AnimationEffect::overall_progress() const
 }
 
 // https://www.w3.org/TR/web-animations-1/#directed-progress
-Optional<double> AnimationEffect::directed_progress() const
+Optional<double> AnimationEffect::directed_progress(ResolvedTiming const& timing) const
 {
     // 1. If the simple iteration progress is unresolved, return unresolved.
-    auto simple_iteration_progress = this->simple_iteration_progress();
+    auto simple_iteration_progress = this->simple_iteration_progress(timing);
     if (!simple_iteration_progress.has_value())
         return {};
 
     // 2. Calculate the current direction using the first matching condition from the following list:
-    auto current_direction = this->current_direction();
+    auto current_direction = this->current_direction(timing);
 
     // 3. If the current direction is forwards then return the simple iteration progress.
     if (current_direction == AnimationDirection::Forwards)
@@ -661,7 +678,7 @@ Optional<double> AnimationEffect::directed_progress() const
 }
 
 // https://www.w3.org/TR/web-animations-1/#directed-progress
-AnimationDirection AnimationEffect::current_direction() const
+AnimationDirection AnimationEffect::current_direction(ResolvedTiming const& timing) const
 {
     // 2. Calculate the current direction using the first matching condition from the following list:
     // -> If playback direction is normal,
@@ -677,7 +694,7 @@ AnimationDirection AnimationEffect::current_direction() const
     }
     // -> Otherwise,
     //    1. Let d be the current iteration.
-    double d = current_iteration().value();
+    double d = current_iteration(timing).value();
 
     //    2. If playback direction is alternate-reverse increment d by 1.
     if (m_playback_direction == Bindings::PlaybackDirection::AlternateReverse)
@@ -693,25 +710,22 @@ AnimationDirection AnimationEffect::current_direction() const
 }
 
 // https://www.w3.org/TR/web-animations-1/#simple-iteration-progress
-Optional<double> AnimationEffect::simple_iteration_progress() const
+Optional<double> AnimationEffect::simple_iteration_progress(ResolvedTiming const& timing) const
 {
     // 1. If the overall progress is unresolved, return unresolved.
-    auto overall_progress = this->overall_progress();
-    if (!overall_progress.has_value())
+    if (!timing.overall_progress.has_value())
         return {};
 
     // 2. If overall progress is infinity, let the simple iteration progress be iteration start % 1.0, otherwise, let
     //    the simple iteration progress be overall progress % 1.0.
-    double simple_iteration_progress = isinf(overall_progress.value()) ? fmod(m_iteration_start, 1.0) : fmod(overall_progress.value(), 1.0);
+    double simple_iteration_progress = isinf(timing.overall_progress.value()) ? fmod(m_iteration_start, 1.0) : fmod(timing.overall_progress.value(), 1.0);
 
     // 3. If all of the following conditions are true,
     //    - the simple iteration progress calculated above is zero, and
     //    - the animation effect is in the active phase or the after phase, and
     //    - the active time is equal to the active duration, and
     //    - the iteration count is not equal to zero.
-    auto active_time = this->active_time();
-    auto phase = this->phase();
-    if (simple_iteration_progress == 0.0 && (phase == Phase::Active || phase == Phase::After) && active_time.has_value() && active_time.value() == active_duration() && m_iteration_count != 0.0) {
+    if (simple_iteration_progress == 0.0 && (timing.phase == Phase::Active || timing.phase == Phase::After) && timing.active_time.has_value() && timing.active_time.value() == active_duration() && m_iteration_count != 0.0) {
         // let the simple iteration progress be 1.0.
         simple_iteration_progress = 1.0;
     }
@@ -720,47 +734,52 @@ Optional<double> AnimationEffect::simple_iteration_progress() const
     return simple_iteration_progress;
 }
 
-// https://www.w3.org/TR/web-animations-1/#current-iteration
 Optional<double> AnimationEffect::current_iteration() const
 {
+    return current_iteration(resolve_timing());
+}
+
+// https://www.w3.org/TR/web-animations-1/#current-iteration
+Optional<double> AnimationEffect::current_iteration(ResolvedTiming const& timing) const
+{
     // 1. If the active time is unresolved, return unresolved.
-    auto active_time = this->active_time();
-    if (!active_time.has_value())
+    if (!timing.active_time.has_value())
         return {};
 
     // 2. If the animation effect is in the after phase and the iteration count is infinity, return infinity.
-    if (phase() == Phase::After && isinf(m_iteration_count))
+    if (timing.phase == Phase::After && isinf(m_iteration_count))
         return m_iteration_count;
 
     // 3. If the simple iteration progress is 1.0, return floor(overall progress) - 1.
-    auto simple_iteration_progress = this->simple_iteration_progress();
+    auto simple_iteration_progress = this->simple_iteration_progress(timing);
     if (simple_iteration_progress.has_value() && simple_iteration_progress.value() == 1.0)
-        return floor(overall_progress().value()) - 1.0;
+        return floor(timing.overall_progress.value()) - 1.0;
 
     // 4. Otherwise, return floor(overall progress).
-    return floor(overall_progress().value());
+    return floor(timing.overall_progress.value());
 }
 
 // https://www.w3.org/TR/web-animations-1/#transformed-progress
 Optional<double> AnimationEffect::transformed_progress() const
 {
+    auto timing = resolve_timing();
+
     // 1. If the directed progress is unresolved, return unresolved.
-    auto directed_progress = this->directed_progress();
+    auto directed_progress = this->directed_progress(timing);
     if (!directed_progress.has_value())
         return {};
 
     // 2. Calculate the value of the before flag as follows:
 
     //    1. Determine the current direction using the procedure defined in §4.9.1 Calculating the directed progress.
-    auto current_direction = this->current_direction();
-    auto phase = this->phase();
+    auto current_direction = this->current_direction(timing);
 
     //    2. If the current direction is forwards, let going forwards be true, otherwise it is false.
     auto going_forwards = current_direction == AnimationDirection::Forwards;
 
     //    3. The before flag is set if the animation effect is in the before phase and going forwards is true; or if the animation effect
     //       is in the after phase and going forwards is false.
-    auto before_flag = (phase == Phase::Before && going_forwards) || (phase == Phase::After && !going_forwards);
+    auto before_flag = (timing.phase == Phase::Before && going_forwards) || (timing.phase == Phase::After && !going_forwards);
 
     // 3. Return the result of evaluating the animation effect’s timing function passing directed progress as the input progress value and
     //    before flag as the before flag.
