@@ -1,0 +1,4 @@
+unpadded: channels=1 keptAllAudio=true
+zero padded: channels=1 keptAllAudio=true
+garbage padded: channels=1 keptAllAudio=true
+garbage only: EncodingError
