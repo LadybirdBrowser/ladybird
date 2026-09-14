@@ -102,12 +102,20 @@ DecoderErrorOr<DecodedAudioData> decode_entire_audio_stream(NonnullRefPtr<MediaS
         }
     };
 
+    // Streams often carry stray bytes after their last frame: container padding, an encoder's alignment, or whatever
+    // a producer left behind when it sized a buffer generously. The decoder reports those as corrupt data, but the
+    // audio ahead of them is perfectly good, so once a stream has produced samples we treat undecodable data as the
+    // end of the audio rather than discarding everything decoded so far.
+    auto is_trailing_data = [&data](DecoderError const& error) {
+        return error.category() == DecoderErrorCategory::Corrupted && data.sample_specification.is_valid();
+    };
+
     AudioBlock block;
     auto end_of_stream_reached = false;
     while (!end_of_stream_reached) {
         auto sample_result = demuxer->get_next_sample_for_track(*track);
         if (sample_result.is_error()) {
-            if (sample_result.error().category() != DecoderErrorCategory::EndOfStream)
+            if (sample_result.error().category() != DecoderErrorCategory::EndOfStream && !is_trailing_data(sample_result.error()))
                 return sample_result.release_error();
             if (!decoder)
                 break;
@@ -123,7 +131,11 @@ DecoderErrorOr<DecodedAudioData> decode_entire_audio_stream(NonnullRefPtr<MediaS
                     return DecoderError::format(DecoderErrorCategory::NotImplemented, "Could not find an audio decoder for codec {}", sample.codec_id());
                 decoder = TRY(create_audio_decoder(selection, sample.codec_id(), track->audio_data().sample_specification, *codec_initialization_data));
             }
-            TRY(decoder->receive_coded_data(sample));
+            if (auto result = decoder->receive_coded_data(sample); result.is_error()) {
+                if (!is_trailing_data(result.error()))
+                    return result.release_error();
+                decoder->signal_end_of_stream();
+            }
         }
 
         while (true) {
@@ -131,7 +143,7 @@ DecoderErrorOr<DecodedAudioData> decode_entire_audio_stream(NonnullRefPtr<MediaS
             if (block_result.is_error()) {
                 if (block_result.error().category() == DecoderErrorCategory::NeedsMoreInput)
                     break;
-                if (block_result.error().category() == DecoderErrorCategory::EndOfStream) {
+                if (block_result.error().category() == DecoderErrorCategory::EndOfStream || is_trailing_data(block_result.error())) {
                     end_of_stream_reached = true;
                     break;
                 }

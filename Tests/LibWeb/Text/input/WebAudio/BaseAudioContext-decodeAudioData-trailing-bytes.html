@@ -1,0 +1,58 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function withTrailingBytes(encodedAudio, count, byteAt) {
+        const padded = new Uint8Array(encodedAudio.byteLength + count);
+        padded.set(new Uint8Array(encodedAudio));
+        for (let index = 0; index < count; ++index)
+            padded[encodedAudio.byteLength + index] = byteAt(index);
+        return padded.buffer;
+    }
+
+    async function decodeOrError(context, audioData) {
+        try {
+            return await context.decodeAudioData(audioData);
+        } catch (e) {
+            return e.name;
+        }
+    }
+
+    // Trailing bytes can only ever add to what a decoder produces, so a padded decode holding fewer frames than the
+    // unpadded one has dropped audio that it should have kept.
+    function describePadded(decoded, unpaddedFrames) {
+        if (typeof decoded === "string")
+            return decoded;
+        return `channels=${decoded.numberOfChannels} keptAllAudio=${decoded.length >= unpaddedFrames}`;
+    }
+
+    asyncTest(async done => {
+        const encodedAudio = await new Promise((resolve, reject) => {
+            const request = new XMLHttpRequest();
+            request.open("GET", "../../../Assets/tone.mp3");
+            request.responseType = "arraybuffer";
+            request.onload = () => resolve(request.response);
+            request.onerror = reject;
+            request.send();
+        });
+
+        const context = new OfflineAudioContext(1, 8000, 44100);
+
+        const unpadded = await decodeOrError(context, encodedAudio.slice(0));
+        const unpaddedFrames = typeof unpadded === "string" ? 0 : unpadded.length;
+        println(`unpadded: ${describePadded(unpadded, 1)}`);
+
+        // A producer that sizes its buffer from something other than the frame data leaves zeroes behind the audio.
+        const zeroPadded = withTrailingBytes(encodedAudio, encodedAudio.byteLength, () => 0);
+        println(`zero padded: ${describePadded(await decodeOrError(context, zeroPadded), unpaddedFrames)}`);
+
+        // Another leaves whatever happened to occupy the buffer already.
+        const garbagePadded = withTrailingBytes(encodedAudio, 4096, index => (index * 37 + 11) & 0xff);
+        println(`garbage padded: ${describePadded(await decodeOrError(context, garbagePadded), unpaddedFrames)}`);
+
+        // A stream that never produces samples is still undecodable.
+        const garbageOnly = withTrailingBytes(new ArrayBuffer(0), 4096, index => (index * 37 + 11) & 0xff);
+        println(`garbage only: ${describePadded(await decodeOrError(context, garbageOnly), unpaddedFrames)}`);
+
+        done();
+    });
+</script>
