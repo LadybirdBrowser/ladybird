@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A document with a fragment runs the focusing steps when it finishes parsing. In an isolated iframe, the top-level
+    // traversable those steps are phrased on is hosted by another process.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const markerUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-fragment-marker-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/plain" },
+                body: "marker",
+            })
+        );
+        markerUrl.hostname = uniqueLocalhostHostname("oop-fragment-child");
+        const childUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-fragment-child-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><p id="target" tabindex="0">target</p><script>addEventListener("load", () => fetch(${JSON.stringify(markerUrl.href)}));<\/script>`,
+            })
+        );
+        childUrl.hostname = markerUrl.hostname;
+        childUrl.hash = "#target";
+
+        const iframe = document.createElement("iframe");
+        iframe.src = childUrl;
+        document.body.appendChild(iframe);
+
+        const recordedUrl = `${httpServer.baseURL}/recorded-request-headers/echo/oop-fragment-marker-${runId}`;
+        let loaded = false;
+        for (let attempt = 0; attempt < 200 && !loaded; ++attempt) {
+            try {
+                loaded = (await fetch(recordedUrl)).ok;
+            } catch {}
+            if (!loaded) await timeout(25);
+        }
+        println(`child with a fragment finished loading: ${loaded}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

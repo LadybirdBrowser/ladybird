@@ -162,6 +162,8 @@ public:
     virtual Utf16String const& target_name() const override;
 
     [[nodiscard]] bool is_focused() const;
+    // https://html.spec.whatwg.org/multipage/interaction.html#currently-focused-area-of-a-top-level-traversable
+    [[nodiscard]] GC::Ptr<DOM::Node> currently_focused_area();
 
     struct ChosenNavigable {
         GC::Ptr<Navigable> navigable;
