@@ -135,6 +135,7 @@ ViewImplementation::~ViewImplementation()
 
     all_views().remove(m_view_id);
 
+    m_top_level_traversable.discard_displaced_document_host();
     if (m_client_state.client)
         m_client_state.client->unregister_view(m_client_state.page_index);
 
@@ -233,9 +234,13 @@ bool ViewImplementation::create_new_process_for_cross_site_navigation(Utf16Strin
         m_backup_bitmap_size = m_client_state.front_bitmap.last_painted_size;
     }
 
-    if (m_client_state.client) {
+    // The outgoing process keeps displaying the traversable's document until the UI process has unloaded it there,
+    // before the document the new process populates activates.
+    RefPtr<WebContentClient> displaced_client = m_client_state.client;
+    auto displaced_page_id = m_client_state.page_index;
+    if (displaced_client) {
         fail_pending_debugger_requests();
-        m_client_state.client->unregister_view(m_client_state.page_index);
+        displaced_client->keep_view_page_for_displaced_document(displaced_page_id, m_top_level_traversable);
     }
 
     reset_page_media_state();
@@ -243,6 +248,8 @@ bool ViewImplementation::create_new_process_for_cross_site_navigation(Utf16Strin
     // Replies from the replaced process will never arrive. Complete the in-flight operations so the
     // traversal queue can serve the new process.
     m_top_level_traversable.abandon_history_operations();
+    if (displaced_client)
+        m_top_level_traversable.set_displaced_document_host(*displaced_client, displaced_page_id);
 
     Optional<Web::HTML::CrossProcessId> initial_document_state_id;
     if (auto const* current_entry = m_top_level_traversable.session_history().current_entry())
@@ -299,8 +306,12 @@ void ViewImplementation::replace_web_content_process_for_history_traversal(Web::
         m_backup_bitmap_size = m_client_state.front_bitmap.last_painted_size;
     }
 
-    if (m_client_state.client)
-        m_client_state.client->unregister_view(m_client_state.page_index);
+    // The outgoing process keeps displaying the traversable's document until the UI process has unloaded it there,
+    // before the document the new process populates activates.
+    if (m_client_state.client) {
+        m_client_state.client->keep_view_page_for_displaced_document(m_client_state.page_index, m_top_level_traversable);
+        m_top_level_traversable.set_displaced_document_host(*m_client_state.client, m_client_state.page_index);
+    }
 
     reset_page_media_state();
     // NB: Preserve the in-flight traversal operations so crash recovery can redispatch them to the
@@ -2525,6 +2536,7 @@ void ViewImplementation::did_close_browsing_context(Badge<WebContentClient>)
     // Headless views retain their closed children. Remove the view from routing immediately so a command racing
     // with the close cannot be sent to a page that no longer exists.
     all_views().remove(m_view_id);
+    m_top_level_traversable.discard_displaced_document_host();
     if (m_client_state.client) {
         m_client_state.client->unregister_view(m_client_state.page_index);
         m_client_state.client = nullptr;

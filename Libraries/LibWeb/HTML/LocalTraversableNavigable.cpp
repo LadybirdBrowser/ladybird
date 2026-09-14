@@ -412,6 +412,11 @@ void LocalTraversableNavigable::destroy_top_level_traversable()
     remove_from_all_local_navigables();
 }
 
+void LocalTraversableNavigable::remove_from_user_agent_top_level_traversable_set()
+{
+    user_agent_top_level_traversable_set().remove(this);
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#currently-focused-area-of-a-top-level-traversable
 GC::Ptr<DOM::Node> LocalTraversableNavigable::currently_focused_area()
 {

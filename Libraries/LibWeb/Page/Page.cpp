@@ -810,9 +810,9 @@ void Page::stop_hosting(HTML::LocalNavigable& local_navigable, HTML::ReplicatedN
         return;
     }
 
-    // A local root whose parent's document another process hosts: the RemoteNavigable takes its place among the
-    // parent's children.
-    auto& parent = as<HTML::RemoteNavigable>(*local_navigable.parent());
+    // A local root: the RemoteNavigable takes its place among the children of its parent, whose document another
+    // process hosts, or as the traversable of a page displaying the tab no longer.
+    auto parent = local_navigable.parent();
     auto remote_navigable = HTML::RemoteNavigable::create(*this, local_navigable.id(), parent, move(state));
     // The container's page can destroy the navigable while its document activates here, after the UI process's walk
     // unloaded the document it displayed before: the document is unloaded now, as that walk would have.
@@ -825,18 +825,26 @@ void Page::stop_hosting(HTML::LocalNavigable& local_navigable, HTML::ReplicatedN
         remote_navigable->set_window_proxy(*window_proxy);
         window_proxy->set_window(remote_navigable->active_window());
     }
-    parent.replace_child(local_navigable, remote_navigable);
+    if (parent) {
+        as<HTML::RemoteNavigable>(*parent).replace_child(local_navigable, remote_navigable);
+    } else {
+        VERIFY(m_top_level_traversable.ptr() == &local_navigable);
+        m_top_level_traversable = remote_navigable;
+        as<HTML::LocalTraversableNavigable>(local_navigable).remove_from_user_agent_top_level_traversable_set();
+    }
     local_navigable.set_has_been_destroyed();
     local_navigable.remove_from_all_local_navigables();
 }
 
 void Page::discard()
 {
-    // A tab closed while this page still hosted a document of it: the document goes without the unload the UI process
-    // runs otherwise, as the documents of a top-level traversable being destroyed do.
+    // A tab closed while this page still displayed a document of it: the document goes without the unload the UI
+    // process runs otherwise, as the documents of a top-level traversable being destroyed do.
     for (auto const& navigable : local_roots()) {
         if (auto document = navigable->active_document())
             document->destroy_a_document_and_its_descendants();
+        if (auto* traversable = as_if<HTML::LocalTraversableNavigable>(*navigable))
+            traversable->remove_from_user_agent_top_level_traversable_set();
         navigable->set_has_been_destroyed();
         navigable->remove_from_all_local_navigables();
     }
