@@ -758,8 +758,6 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_
     let mut rows = Vec::new();
     let mut occupancy = HashSet::default();
     let mut column_count = 0usize;
-    let mut row_count = 0usize;
-    let mut current_row = 0usize;
 
     for child in matching_children(tree, table, |display| {
         display.is_table_column_group() || display.is_table_column()
@@ -781,12 +779,8 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_
                        cells: &mut Vec<TableCell>,
                        rows: &mut Vec<Row>,
                        occupancy: &mut HashSet<(usize, usize)>,
-                       column_count: &mut usize,
-                       row_count: &mut usize,
-                       current_row: &mut usize| {
-        if *row_count == *current_row {
-            *row_count += 1;
-        }
+                       column_count: &mut usize| {
+        let current_row = rows.len();
         let mut current_column = 0usize;
         for cell_box in matching_children(tree, row, |display| display.is_table_cell()) {
             if missing_cells == MissingTableCells::Exclude
@@ -794,7 +788,7 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_
             {
                 continue;
             }
-            while current_column < *column_count && occupancy.contains(&(current_column, *current_row)) {
+            while current_column < *column_count && occupancy.contains(&(current_column, current_row)) {
                 current_column += 1;
             }
             if current_column == *column_count {
@@ -808,8 +802,7 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_
                 row_span = 1;
             }
             *column_count = (*column_count).max(current_column + column_span);
-            *row_count = (*row_count).max(*current_row + row_span);
-            for row_index in *current_row..*current_row + row_span {
+            for row_index in current_row..current_row + row_span {
                 for column_index in current_column..current_column + column_span {
                     occupancy.insert((column_index, row_index));
                 }
@@ -817,7 +810,7 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_
             cells.push(TableCell {
                 box_: cell_box,
                 column_index: current_column,
-                row_index: *current_row,
+                row_index: current_row,
                 column_span,
                 row_span,
                 baseline: CssPixels::default(),
@@ -831,7 +824,6 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_
         }
 
         rows.push(Row::new(row, tree.row_is_collapsed(row, row_group)));
-        *current_row += 1;
     };
 
     for child in row_containers_in_layout_order(tree, table) {
@@ -844,8 +836,6 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_
                 &mut rows,
                 &mut occupancy,
                 &mut column_count,
-                &mut row_count,
-                &mut current_row,
             );
         } else {
             for row in matching_children(tree, child, |display| display.is_table_row()) {
@@ -857,8 +847,6 @@ pub(crate) fn calculate_table_grid<T: TableTree>(tree: &T, table: Node, missing_
                     &mut rows,
                     &mut occupancy,
                     &mut column_count,
-                    &mut row_count,
-                    &mut current_row,
                 );
             }
         }
