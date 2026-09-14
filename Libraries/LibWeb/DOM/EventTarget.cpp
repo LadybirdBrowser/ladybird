@@ -231,13 +231,15 @@ size_t EventTarget::external_memory_size() const
     return size;
 }
 
-Vector<GC::Root<DOMEventListener>> EventTarget::event_listener_list() const
+EventTarget::ClonedEventListeners EventTarget::event_listener_list_matching(Utf16FlyString const& type, Optional<Utf16FlyString> const& legacy_type) const
 {
-    Vector<GC::Root<DOMEventListener>> list;
+    ClonedEventListeners list;
     if (!m_data)
         return list;
-    for (auto& listener : m_data->event_listener_list)
-        list.append(*listener);
+    for (auto& listener : m_data->event_listener_list) {
+        if (listener->type == type || (legacy_type.has_value() && listener->type == *legacy_type))
+            list.append(listener);
+    }
     return list;
 }
 

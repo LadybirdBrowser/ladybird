@@ -46,7 +46,7 @@ static Optional<Utf16FlyString> legacy_event_type_for_event_type(Utf16FlyString 
 }
 
 // https://dom.spec.whatwg.org/#concept-event-listener-inner-invoke
-bool EventDispatcher::inner_invoke(Event& event, Vector<GC::Root<DOM::DOMEventListener>>& listeners, Event::Phase phase, bool invocation_target_in_shadow_tree, bool& legacy_output_did_listeners_throw)
+bool EventDispatcher::inner_invoke(Event& event, EventTarget::ClonedEventListeners& listeners, Event::Phase phase, bool invocation_target_in_shadow_tree, bool& legacy_output_did_listeners_throw)
 {
     // 1. Let found be false.
     bool found = false;
@@ -153,8 +153,15 @@ void EventDispatcher::invoke(Event::PathEntry& struct_, Event& event, Event::Pha
     event.set_current_target(struct_.invocation_target.ptr());
 
     // 6. Let listeners be a clone of event’s currentTarget attribute value’s event listener list.
-    // NOTE: This avoids event listeners added after this point from being run. Note that removal still has an effect due to the removed field.
-    auto listeners = event.current_target()->event_listener_list();
+    // NOTE: This avoids event listeners added after this point from being run. Note that removal still has an effect
+    //       due to the removed field.
+    // OPTIMIZATION: Inner invoke runs no listener registered for another type, so leave those out of the clone. If the
+    //               event is trusted, step 9 renames the event and dispatches it again, so we need to include the
+    //               legacy event type as well.
+    Optional<Utf16FlyString> legacy_event_type;
+    if (event.is_trusted())
+        legacy_event_type = legacy_event_type_for_event_type(event.type());
+    auto listeners = event.current_target()->event_listener_list_matching(event.type(), legacy_event_type);
 
     // 7. Let invocationTargetInShadowTree be struct’s invocation-target-in-shadow-tree.
     bool invocation_target_in_shadow_tree = struct_.invocation_target_in_shadow_tree;
@@ -169,7 +176,6 @@ void EventDispatcher::invoke(Event::PathEntry& struct_, Event& event, Event::Pha
 
         // 2. If event’s type attribute value is a match for any of the strings in the first column in the following table,
         //    set event’s type attribute value to the string in the second column on the same row as the matching string, and return otherwise.
-        auto legacy_event_type = legacy_event_type_for_event_type(event.type());
         if (!legacy_event_type.has_value())
             return;
         event.set_type(legacy_event_type.release_value());

@@ -9,6 +9,7 @@
 #include <AK/Noncopyable.h>
 #include <AK/Utf16FlyString.h>
 #include <AK/Vector.h>
+#include <LibGC/RootVector.h>
 #include <LibJS/Forward.h>
 #include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/DOM/DOMEventListener.h>
@@ -58,7 +59,9 @@ public:
     void add_an_event_listener(DOMEventListener&);
     void remove_an_event_listener(DOMEventListener&);
 
-    Vector<GC::Root<DOMEventListener>> event_listener_list() const;
+    // A dispatch clones only the listeners it can run, and rarely more than a couple, so keep them inline.
+    using ClonedEventListeners = GC::RootVector<GC::Ref<DOMEventListener>, 4>;
+    ClonedEventListeners event_listener_list_matching(Utf16FlyString const& type, Optional<Utf16FlyString> const& legacy_type) const;
 
     virtual bool has_activation_behavior() const;
     virtual void activation_behavior(Event const&);
