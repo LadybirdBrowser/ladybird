@@ -753,3 +753,65 @@ TEST_CASE(accepts_a_vp_configuration_box_under_a_vp8_sample_entry)
     append_video_movie(bytes, "vp08", append_vp9_configuration_box, ColourBoxOrder::None);
     EXPECT(!parse_movie(bytes).is_error());
 }
+
+TEST_CASE(uses_first_edit_list_entry_for_presentation_offset)
+{
+    for (u8 version : { 0, 1 }) {
+        for (i64 first_media_time : { -1, 123 }) {
+            ByteBuffer bytes;
+            auto movie_box = begin_box(bytes, "moov");
+            auto track_start = bytes.size();
+            append_minimal_track(bytes);
+            auto edit = begin_box(bytes, "edts");
+            auto edit_list = begin_box(bytes, "elst");
+            append_full_box_header(bytes, version);
+            append_u32(bytes, 2);
+            for (i64 media_time : { first_media_time, static_cast<i64>(456) }) {
+                if (version == 0) {
+                    append_u32(bytes, 125);
+                    append_u32(bytes, static_cast<u32>(media_time));
+                } else {
+                    append_u64(bytes, 125);
+                    append_u64(bytes, static_cast<u64>(media_time));
+                }
+                append_u16(bytes, 1);
+                append_u16(bytes, 0);
+            }
+            finish_box(bytes, edit_list);
+            finish_box(bytes, edit);
+            patch_u32(bytes, track_start, bytes.size() - track_start);
+            finish_box(bytes, movie_box);
+
+            auto streamer = streamer_for(bytes);
+            auto header = MUST(Media::ISOBMFF::Reader::read_box_header(streamer));
+            auto movie = MUST(Media::ISOBMFF::Reader::parse_movie_box(streamer, header));
+            auto offset = movie.tracks.get(1).value()->composition_to_presentation_offset;
+            EXPECT_EQ(offset, first_media_time < 0 ? 0 : -first_media_time);
+            EXPECT_EQ(streamer.position(), bytes.size());
+        }
+    }
+}
+
+TEST_CASE(rejects_truncated_multi_entry_edit_list)
+{
+    for (u8 version : { 0, 1 }) {
+        ByteBuffer bytes;
+        auto movie_box = begin_box(bytes, "moov");
+        auto track_start = bytes.size();
+        append_minimal_track(bytes);
+        auto edit = begin_box(bytes, "edts");
+        auto edit_list = begin_box(bytes, "elst");
+        append_full_box_header(bytes, version);
+        append_u32(bytes, 2);
+        append_u64(bytes, 0);
+        append_u32(bytes, 0);
+        finish_box(bytes, edit_list);
+        finish_box(bytes, edit);
+        patch_u32(bytes, track_start, bytes.size() - track_start);
+        finish_box(bytes, movie_box);
+
+        auto streamer = streamer_for(bytes);
+        auto header = MUST(Media::ISOBMFF::Reader::read_box_header(streamer));
+        EXPECT(Media::ISOBMFF::Reader::parse_movie_box(streamer, header).is_error());
+    }
+}

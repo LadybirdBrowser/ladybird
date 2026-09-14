@@ -306,37 +306,30 @@ DecoderErrorOr<NonnullRefPtr<TrackEntry>> Reader::parse_track_box(Streamer& stre
 DecoderErrorOr<i64> Reader::parse_edit_list_box(Streamer& streamer, BoxHeader const& header)
 {
     auto full_box = TRY(read_full_box_header(streamer));
-    i64 media_time = 0;
-    if (full_box.version == 0) {
-        auto entry_count = TRY(streamer.read<u32>());
-        if (entry_count == 0)
-            return 0;
-        if (entry_count != 1)
-            return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "Edit lists with multiple entries are not supported"sv);
-        TRY(streamer.skip(4)); // segment_duration
-        media_time = TRY(streamer.read<i32>());
-    } else if (full_box.version == 1) {
-        auto entry_count = TRY(streamer.read<u32>());
-        if (entry_count == 0)
-            return 0;
-        if (entry_count != 1)
-            return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "Edit lists with multiple entries are not supported"sv);
-        TRY(streamer.skip(8)); // segment_duration
-        media_time = TRY(streamer.read<i64>());
-    } else {
+    if (full_box.version > 1)
         return DecoderError::corrupted("Edit List box has an unsupported version"sv);
+
+    auto entry_count = TRY(streamer.read<u32>());
+    auto entry_size = full_box.version == 0 ? 12u : 20u;
+    if (streamer.position() > header.end_position().value()
+        || entry_count > (header.end_position().value() - streamer.position()) / entry_size)
+        return DecoderError::corrupted("Edit List box is smaller than the entries it declares"sv);
+
+    i64 offset = 0;
+    for (u32 index = 0; index < entry_count; ++index) {
+        TRY(streamer.skip(full_box.version == 0 ? 4 : 8)); // segment_duration
+        i64 media_time = full_box.version == 0 ? TRY(streamer.read<i32>()) : TRY(streamer.read<i64>());
+        auto media_rate_integer = TRY(streamer.read<i16>());
+        auto media_rate_fraction = TRY(streamer.read<i16>());
+        if (media_rate_integer != 1 || media_rate_fraction != 0)
+            return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "Edit list media rates other than one are not supported"sv);
+
+        // INTEROP: Chromium uses only the first edit to remove the composition time offset, ignoring
+        //          subsequent edits and treating an initial empty edit as a zero offset.
+        if (index == 0 && media_time >= 0)
+            offset = -media_time;
     }
-    auto media_rate_integer = TRY(streamer.read<i16>());
-    auto media_rate_fraction = TRY(streamer.read<i16>());
-
-    if (media_rate_integer != 1 || media_rate_fraction != 0)
-        return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "Edit list media rates other than one are not supported"sv);
-    if (media_time < 0)
-        return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "Empty edits are not supported"sv);
-
-    if (streamer.position() > header.end_position().value())
-        return DecoderError::corrupted("Edit List box is smaller than the entry it declares"sv);
-    return -media_time;
+    return offset;
 }
 
 DecoderErrorOr<void> Reader::parse_media_box(Streamer& streamer, BoxHeader const& header, TrackEntry& track)
