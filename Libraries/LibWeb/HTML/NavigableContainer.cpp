@@ -359,10 +359,9 @@ void NavigableContainer::destroy_the_child_navigable()
             finish_destroying_the_child_navigable(*navigable);
             return;
         }
-    } else {
-        // FIXME: Inform the navigation API of a navigable hosted by another process, in that process, before its
-        //        document is unloaded there.
     }
+    // NB: A navigable hosted by another process informs its navigation API there, when the UI process's walk reaches
+    //     its document.
 
     // 5. Destroy a document and its descendants given navigable's active document.
     // AD-HOC: We unload the document and its descendants, instead of just destroying. Unloading fires pagehide at the
