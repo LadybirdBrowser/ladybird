@@ -1426,20 +1426,11 @@ impl<'pass> GridFormattingContext<'pass> {
         if self.is_subgridded(axis, grid_style) {
             let parent_item = self.parent_grid_placement().unwrap();
             let track_count = parent_item.span(axis);
-            let inherited = self
-                .parent_grid()
-                .map(|parent| {
-                    let lines = axis.select(&parent.column_lines, &parent.row_lines);
-                    let start = parent_item.position(axis).max(0) as usize;
-                    lines
-                        .iter()
-                        .skip(start)
-                        .take(track_count.saturating_add(1))
-                        .cloned()
-                        .collect::<Vec<_>>()
-                })
-                .unwrap_or_default();
-            return expand_subgrid(source, list, track_count, &inherited);
+            let parent = self.parent_grid().unwrap();
+            let lines = axis.select(&parent.column_lines, &parent.row_lines);
+            let start = (parent_item.position(axis).max(0) as usize).min(lines.len());
+            let end = start.saturating_add(track_count.saturating_add(1)).min(lines.len());
+            return expand_subgrid(source, list, track_count, &lines[start..end]);
         }
         expand_standalone(source, list, |_index, entry| {
             self.automatic_repeat_count(source, list, entry, axis)
