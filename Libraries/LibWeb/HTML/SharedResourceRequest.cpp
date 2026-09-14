@@ -203,6 +203,17 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
     // AD-HOC: At this point, things gets very ad-hoc.
     // FIXME: Bring this closer to spec.
 
+    // NB: The page cache is consulted only after the fetch so that this document's content security policy
+    //     still applies.
+    auto is_shareable_data_url_image = url_string.scheme() == "data"sv && !image_data_is_cors_cross_origin;
+    if (is_shareable_data_url_image) {
+        if (auto cached_image_data = m_page->cached_data_url_image(url_string)) {
+            m_image_data = cached_image_data;
+            handle_successful_resource_load();
+            return;
+        }
+    }
+
     if (is_svg_image == IsSVGImage::Yes) {
         auto result = SVG::SVGDecodedImageData::create(m_page, url_string, data);
         if (result.is_error()) {
@@ -210,12 +221,14 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
         } else {
             m_image_data = result.release_value();
             m_image_data->set_is_cors_cross_origin(image_data_is_cors_cross_origin);
+            if (is_shareable_data_url_image)
+                m_page->cache_data_url_image(url_string, *m_image_data);
             handle_successful_resource_load();
         }
         return;
     }
 
-    auto handle_successful_bitmap_decode = [strong_this = GC::Root(*this), image_data_is_cors_cross_origin](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
+    auto handle_successful_bitmap_decode = [strong_this = GC::Root(*this), url = url_string, image_data_is_cors_cross_origin, is_shareable_data_url_image](Web::Platform::DecodedImage& result) -> ErrorOr<void> {
         if (result.session_id != 0) {
             // Streaming animated decode: create AnimatedBitmapDecodedImageData.
             Vector<NonnullRefPtr<Gfx::Bitmap>> initial_bitmaps;
@@ -245,6 +258,8 @@ void SharedResourceRequest::handle_successful_fetch(URL::URL const& url_string, 
                 });
             }
             strong_this->m_image_data = BitmapDecodedImageData::create(move(frames), result.loop_count, result.is_animated).release_value_but_fixme_should_propagate_errors();
+            if (is_shareable_data_url_image)
+                strong_this->m_page->cache_data_url_image(url, *strong_this->m_image_data);
         }
         strong_this->m_image_data->set_is_cors_cross_origin(image_data_is_cors_cross_origin);
         strong_this->handle_successful_resource_load();
