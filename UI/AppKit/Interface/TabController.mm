@@ -1757,7 +1757,7 @@ private:
 {
     if (exchange(m_fullscreen_requested_for_web_content, false)) {
         [self.toolbar setVisible:YES];
-        [[self tab] updateBookmarksBarDisplay:WebView::Application::settings().show_bookmarks_bar()];
+        [[self tab] updateBookmarksBarDisplay:WebView::Application::settings().appearance().show_bookmarks_bar];
 
         if (m_fullscreen_should_restore_tab_bar && ![[self.window tabGroup] isTabBarVisible]) {
             [self.window toggleTabBar:nil];

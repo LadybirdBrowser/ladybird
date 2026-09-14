@@ -699,7 +699,7 @@ void ViewImplementation::zoom_in()
     update_zoom();
 
     if (m_is_private == IsPrivate::No)
-        Application::settings().set_zoom_for_host(current_host(), m_zoom_level);
+        Application::settings().set_zoom_for_host(current_host_for_settings(), m_zoom_level);
 }
 
 void ViewImplementation::zoom_out()
@@ -710,7 +710,7 @@ void ViewImplementation::zoom_out()
     update_zoom();
 
     if (m_is_private == IsPrivate::No)
-        Application::settings().set_zoom_for_host(current_host(), m_zoom_level);
+        Application::settings().set_zoom_for_host(current_host_for_settings(), m_zoom_level);
 }
 
 void ViewImplementation::set_zoom(double zoom_level)
@@ -726,7 +726,7 @@ void ViewImplementation::reset_zoom()
     client().async_reset_zoom(m_client_state.page_index);
 
     if (m_is_private == IsPrivate::No)
-        Application::settings().set_zoom_for_host(current_host(), m_zoom_level);
+        Application::settings().set_zoom_for_host(current_host_for_settings(), m_zoom_level);
 }
 
 void ViewImplementation::enqueue_input_event(Web::InputEvent event)
@@ -2089,20 +2089,12 @@ void ViewImplementation::update_zoom()
     client().async_set_zoom_level(m_client_state.page_index, m_zoom_level);
 }
 
-String ViewImplementation::current_host() const
-{
-    auto const& state = m_top_level_traversable.replicated_state();
-    if (!state.has_value() || !state->active_document_url.host().has_value())
-        return {};
-    return state->active_document_url.serialized_host();
-}
-
 void ViewImplementation::apply_zoom_for_current_host()
 {
-    auto& settings = Application::settings();
-    auto zoom_level = settings.zoom_for_host(current_host()).value_or(settings.default_zoom_level_factor());
+    auto zoom_level = Application::settings().zoom_for_host(current_host_for_settings());
     if (zoom_level == m_zoom_level)
         return;
+
     m_zoom_level = zoom_level;
     update_zoom();
 }
@@ -2195,12 +2187,11 @@ void ViewImplementation::initialize_client(CreateNewClient create_new_client, Op
 
     Application::the().apply_view_options({}, *this);
 
-    default_zoom_level_factor_changed();
     languages_changed();
+    content_settings_changed();
     browsing_behavior_changed();
     autoplay_settings_changed();
     global_privacy_control_changed();
-    force_dark_settings_changed();
     geolocation_settings_changed();
 
     using GeolocationErrorCode = Web::Geolocation::GeolocationPositionError::ErrorCode;
@@ -3112,22 +3103,30 @@ String ViewImplementation::crash_overlay_failed_url() const
     return m_crash_state.has_value() ? m_crash_state->failed_url.serialize() : m_url.serialize();
 }
 
-void ViewImplementation::default_zoom_level_factor_changed()
+String ViewImplementation::current_host_for_settings() const
 {
-    apply_zoom_for_current_host();
-}
+    if (auto const& state = m_top_level_traversable.replicated_state(); state.has_value()) {
+        if (state->active_document_url.host().has_value())
+            return state->active_document_url.serialized_host();
+        if (state->active_document_url.scheme() == "about"sv)
+            return state->active_document_url.serialize_path();
+    }
 
-void ViewImplementation::zoom_per_host_changed(StringView host)
-{
-    if (current_host() != host)
-        return;
-    apply_zoom_for_current_host();
+    return {};
 }
 
 void ViewImplementation::languages_changed()
 {
     auto const& languages = Application::settings().languages();
     client().async_set_preferred_languages(page_id(), languages);
+}
+
+void ViewImplementation::content_settings_changed()
+{
+    apply_zoom_for_current_host();
+
+    // FIXME: This is not a "debug request". Add a proper endpoint for this toggle.
+    debug_request("set-force-dark"sv, Application::settings().content_settings().enable_force_dark ? "on"sv : "off"sv);
 }
 
 void ViewImplementation::browsing_behavior_changed()
@@ -3151,13 +3150,6 @@ void ViewImplementation::autoplay_settings_changed()
         allowlist.unchecked_append(Utf16String::from_utf8(site_filter));
 
     client().async_set_autoplay_settings(page_id(), policy, move(allowlist));
-}
-
-void ViewImplementation::force_dark_settings_changed()
-{
-    // Called on a live toggle, and again for each new client — so a tab opened while the setting is on starts out
-    // darkened, rather than waiting for the next change.
-    debug_request("set-force-dark"sv, Application::settings().force_dark_enabled() ? "on"sv : "off"sv);
 }
 
 void ViewImplementation::global_privacy_control_changed()

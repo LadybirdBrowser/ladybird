@@ -205,8 +205,7 @@ private:
     virtual void wheelEvent(QWheelEvent*) override;
     virtual void closeEvent(QCloseEvent*) override;
 
-    virtual void show_menu_bar_changed() override;
-    virtual void show_bookmarks_bar_changed() override;
+    virtual void appearance_changed() override;
     virtual void config_variable_changed(WebView::ConfigVariableID) override;
 
     Tab& create_new_tab(Web::HTML::ActivateTab, Tab& parent, Optional<Web::PageId> page_index);

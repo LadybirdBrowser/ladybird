@@ -160,12 +160,14 @@ TEST_CASE(profile_settings_and_bookmarks_are_isolated)
     auto second_profile = MUST(WebView::Profile::create({ .name = "second" }, roots()));
 
     auto first_settings_path = LexicalPath::join(first_profile.paths().config, "Settings.json"sv).string();
-    auto second_settings_path = LexicalPath::join(second_profile.paths().config, "Settings.json"sv).string();
     auto first_settings = WebView::Settings::create(first_settings_path);
-    first_settings.set_show_menu_bar(true);
+    auto first_settings_background_networking_enabled = !first_settings.background_networking_enabled();
+    first_settings.set_background_networking_enabled(first_settings_background_networking_enabled);
+
+    auto second_settings_path = LexicalPath::join(second_profile.paths().config, "Settings.json"sv).string();
     auto second_settings = WebView::Settings::create(second_settings_path);
-    EXPECT(!second_settings.show_menu_bar());
-    EXPECT(WebView::Settings::create(first_settings_path).show_menu_bar());
+    EXPECT_NE(first_settings_background_networking_enabled, second_settings.background_networking_enabled());
+    EXPECT_EQ(first_settings_background_networking_enabled, WebView::Settings::create(first_settings_path).background_networking_enabled());
 
     auto first_bookmarks_path = LexicalPath::join(first_profile.paths().config, "Bookmarks.json"sv).string();
     auto second_bookmarks_path = LexicalPath::join(second_profile.paths().config, "Bookmarks.json"sv).string();

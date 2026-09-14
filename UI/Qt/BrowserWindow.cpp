@@ -541,15 +541,6 @@ void BrowserWindow::rebuild_bookmarks_menu()
     });
 }
 
-void BrowserWindow::show_bookmarks_bar_changed()
-{
-    auto show_bookmarks_bar = WebView::Application::settings().show_bookmarks_bar();
-
-    for_each_tab([&](Tab& tab) {
-        tab.bookmarks_bar().setVisible(show_bookmarks_bar);
-    });
-}
-
 void BrowserWindow::on_devtools_enabled()
 {
     m_devtools_banner->set_port(WebView::Application::browser_options().devtools_port.value_or(0));
@@ -1105,7 +1096,7 @@ void BrowserWindow::update_menu_bar_style()
 
 void BrowserWindow::update_menu_bar_visibility()
 {
-    auto show_menu_bar = show_menubar_option_available() && WebView::Application::settings().show_menu_bar();
+    auto show_menu_bar = show_menubar_option_available() && Application::settings().appearance().show_menu_bar;
     menuBar()->setVisible(show_menu_bar);
 
     if (m_menu_bar_window_controls)
@@ -1292,7 +1283,7 @@ void BrowserWindow::enter_fullscreen()
 void BrowserWindow::exit_fullscreen()
 {
     m_tabs_container->set_tab_bar_visible(true);
-    current_tab()->bookmarks_bar().setVisible(WebView::Application::settings().show_bookmarks_bar());
+    current_tab()->bookmarks_bar().setVisible(Application::settings().appearance().show_bookmarks_bar);
 
     if (m_restore_to_maximized)
         showMaximized();
@@ -1594,9 +1585,13 @@ void BrowserWindow::changeEvent(QEvent* event)
     QWidget::changeEvent(event);
 }
 
-void BrowserWindow::show_menu_bar_changed()
+void BrowserWindow::appearance_changed()
 {
     update_menu_bar_visibility();
+
+    for_each_tab([&, show_bookmarks_bar = Application::settings().appearance().show_bookmarks_bar](Tab& tab) {
+        tab.bookmarks_bar().setVisible(show_bookmarks_bar);
+    });
 }
 
 void BrowserWindow::config_variable_changed(WebView::ConfigVariableID variable)

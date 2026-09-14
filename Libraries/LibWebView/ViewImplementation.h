@@ -559,7 +559,6 @@ protected:
     NonnullRefPtr<Core::Promise<Empty>> reset_session_history_for_testing();
 
     virtual void update_zoom();
-    String current_host() const;
     void apply_zoom_for_current_host();
 
     void handle_resize();
@@ -585,14 +584,14 @@ protected:
     void prepare_for_navigation_after_crash(Optional<URL::URL> navigation_to_retry = {});
     void set_crash_state(Optional<CrashState>);
 
-    virtual void default_zoom_level_factor_changed() override;
-    virtual void zoom_per_host_changed(StringView host) override;
+    String current_host_for_settings() const;
+
     virtual void languages_changed() override;
+    virtual void content_settings_changed() override;
     virtual void browsing_behavior_changed() override;
     virtual void autoplay_settings_changed() override;
-    virtual void global_privacy_control_changed() override;
-    virtual void force_dark_settings_changed() override;
     virtual void geolocation_settings_changed() override;
+    virtual void global_privacy_control_changed() override;
 
     virtual void bookmarks_changed() override;
     void update_bookmark_action();

@@ -64,11 +64,11 @@ void SettingsUI::register_interfaces()
     register_interface("setNewTabPageURL"sv, [this](auto const& data) {
         set_new_tab_page_url(data);
     });
-    register_interface("setDefaultZoomLevelFactor"sv, [this](auto const& data) {
-        set_default_zoom_level_factor(data);
-    });
     register_interface("setLanguages"sv, [this](auto const& data) {
         set_languages(data);
+    });
+    register_interface("setContentSettings"sv, [this](auto const& data) {
+        set_content_settings(data);
     });
     register_interface("setTabSettings"sv, [this](auto const& data) {
         set_tab_settings(data);
@@ -156,10 +156,6 @@ void SettingsUI::register_interfaces()
     register_interface("setDNSSettings"sv, [this](auto const& data) {
         set_dns_settings(data);
     });
-
-    register_interface("setForceDarkEnabled"sv, [this](auto const& data) {
-        set_force_dark_enabled(data);
-    });
 }
 
 void SettingsUI::load_features()
@@ -230,20 +226,24 @@ void SettingsUI::set_new_tab_page_url(JsonValue const& new_tab_page_url)
     Application::settings().set_new_tab_page_url(parsed_new_tab_page_url.release_value());
 }
 
-void SettingsUI::set_default_zoom_level_factor(JsonValue const& default_zoom_level_factor)
-{
-    auto const maybe_factor = default_zoom_level_factor.get_double_with_precision_loss();
-    if (!maybe_factor.has_value())
-        return;
-
-    Application::settings().set_default_zoom_level_factor(maybe_factor.value());
-}
-
 void SettingsUI::set_languages(JsonValue const& languages)
 {
     auto parsed_languages = Settings::parse_json_languages(languages);
     Application::settings().set_languages(move(parsed_languages));
 
+    load_current_settings();
+}
+
+void SettingsUI::set_content_settings(JsonValue const& content_settings)
+{
+    auto& settings = Application::settings();
+    auto parsed_content_settings = Settings::parse_content_settings(content_settings);
+    auto const& current_content_settings = settings.content_settings();
+
+    // Zoom-per-host is not controlled by the settings UI. Don't overwrite it.
+    parsed_content_settings.zoom_per_host = current_content_settings.zoom_per_host;
+
+    Application::settings().set_content_settings(move(parsed_content_settings));
     load_current_settings();
 }
 
@@ -653,14 +653,6 @@ void SettingsUI::set_dns_settings(JsonValue const& dns_settings)
 {
     Application::settings().set_dns_settings(Settings::parse_dns_settings(dns_settings));
     load_current_settings();
-}
-
-void SettingsUI::set_force_dark_enabled(JsonValue const& enabled)
-{
-    if (!enabled.is_bool())
-        return;
-
-    Application::settings().set_force_dark_enabled(enabled.as_bool());
 }
 
 }
