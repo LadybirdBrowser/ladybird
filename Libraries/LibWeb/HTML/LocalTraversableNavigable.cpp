@@ -342,14 +342,10 @@ void LocalTraversableNavigable::definitely_close_top_level_traversable(PromptToU
     }
 
     // 1. Let toUnload be traversable's active document's inclusive descendant navigables.
-    // FIXME: Check the navigables hosted by other processes there, through the UI process, which dispatches the
-    //        beforeunload groups of a history step per process. The cast asks for their documents here.
-    Vector<GC::Root<LocalNavigable>> to_unload;
-    for (auto const& navigable : active_document()->inclusive_descendant_navigables())
-        to_unload.append(as<LocalNavigable>(*navigable));
-
     // 2. If the result of checking if unloading is canceled for toUnload is not "continue", then return.
-    check_if_unloading_is_canceled(move(to_unload), GC::create_function(heap(), [this, append_close_steps = move(append_close_steps)](CheckIfUnloadingIsCanceledResult result) {
+    // NB: The documents of toUnload are hosted by this page and by others. The UI process runs the check in each
+    //     page hosting one, this one included, with the prompt shown at most once, and reports the result.
+    page().client().page_did_request_unload_check(id(), GC::create_function(heap(), [this, append_close_steps = move(append_close_steps)](CheckIfUnloadingIsCanceledResult result) {
         if (result != CheckIfUnloadingIsCanceledResult::Continue) {
             // AD-HOC: Allow a later close attempt if this one was canceled.
             if (!m_close_steps_have_been_appended)

@@ -160,6 +160,8 @@ void PageClient::visit_edges(JS::Cell::Visitor& visitor)
     visitor.visit(m_top_level_document_console_client);
     for (auto& promise : m_pending_delete_all_cookies_promises)
         visitor.visit(promise.value);
+    for (auto& check : m_pending_unload_checks)
+        visitor.visit(check.value);
     for (auto& controller : m_download_controllers)
         visitor.visit(controller.value);
     for (auto& reader : m_download_readers)
@@ -318,7 +320,7 @@ void PageClient::cancel_navigation_params_creation(Web::HTML::CrossProcessId nav
         navigable->resume_navigation_params_creation(navigation_id, {});
 }
 
-void PageClient::run_navigation_unload_check(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id)
+void PageClient::run_navigation_unload_check(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id, Web::HTML::UnloadPromptShown unload_prompt_shown)
 {
     auto* navigable = as_if<Web::HTML::LocalNavigable>(page().navigable_with_id(navigable_id).ptr());
     if (!navigable) {
@@ -326,7 +328,7 @@ void PageClient::run_navigation_unload_check(Web::HTML::CrossProcessId navigable
         return;
     }
 
-    navigable->run_navigation_unload_check(navigation_id, GC::create_function(navigable->heap(), [this, navigable = GC::Ref { *navigable }, navigable_id, navigation_id](bool should_continue) {
+    navigable->run_navigation_unload_check(navigation_id, unload_prompt_shown, GC::create_function(navigable->heap(), [this, navigable = GC::Ref { *navigable }, navigable_id, navigation_id](bool should_continue) {
         // The UI process retained the pending entry at admission; a passed check only needs the signal.
         if (!should_continue) {
             navigable->resume_navigation_params_creation(navigation_id, {});
@@ -1513,6 +1515,21 @@ void PageClient::page_did_request_remote_document_abort(Web::HTML::CrossProcessI
 void PageClient::page_did_request_remote_document_unfullscreen(Web::HTML::CrossProcessId navigable_id)
 {
     client().async_request_navigable_document_unfullscreen(m_id, navigable_id);
+}
+
+void PageClient::page_did_request_unload_check(Web::HTML::CrossProcessId navigable_id, GC::Ref<GC::Function<void(Web::HTML::CheckIfUnloadingIsCanceledResult)>> on_complete)
+{
+    auto check_id = allocate_cross_process_id();
+    m_pending_unload_checks.set(check_id, on_complete);
+    client().async_request_unload_check(m_id, navigable_id, check_id);
+}
+
+void PageClient::did_receive_unload_check_result(Web::HTML::CrossProcessId check_id, Web::HTML::HistoryStepResult result)
+{
+    auto on_complete = m_pending_unload_checks.take(check_id);
+    if (!on_complete.has_value())
+        return;
+    (*on_complete)->function()(result == Web::HTML::HistoryStepResult::Applied ? Web::HTML::CheckIfUnloadingIsCanceledResult::Continue : Web::HTML::CheckIfUnloadingIsCanceledResult::CanceledByBeforeUnload);
 }
 
 String PageClient::page_did_request_ui_process_session_history_for_testing()

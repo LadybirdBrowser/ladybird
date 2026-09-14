@@ -88,7 +88,7 @@ endpoint WebContentServer
     reload(Web::PageId page_id) =|
     stop_loading(Web::PageId page_id) =|
     cancel_download(Web::PageId page_id, u64 download_id) =|
-    run_navigation_unload_check(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) =|
+    run_navigation_unload_check(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, Web::HTML::UnloadPromptShown unload_prompt_shown) =|
     create_navigation_params(Web::PageId page_id, Web::HTML::NavigationPopulationRequest request) =|
     cancel_navigation_params_creation(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) =|
     navigate_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::PreparedNavigationDescriptor navigation) =|
@@ -101,7 +101,7 @@ endpoint WebContentServer
     set_hosted_root_viewport(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::DevicePixelSize size, double device_pixel_ratio) =|
     history_operation_started(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Optional<Web::ReconstructedChildNavigation> reconstructed_child_navigation) =|
     run_history_step_unload_cancelation_job(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Vector<Web::HTML::CrossProcessId> navigables_crossing_documents, Web::HTML::UserNavigationInvolvement user_involvement) =|
-    run_history_step_beforeunload_check(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Vector<Web::HTML::CrossProcessId> navigable_ids, Web::HTML::UnloadPromptShown unload_prompt_shown) =|
+    run_beforeunload_check(Web::PageId page_id, Web::HTML::CrossProcessId check_id, Vector<Web::HTML::CrossProcessId> navigable_ids, Web::HTML::UnloadPromptShown unload_prompt_shown) =|
     discard_embedded_page(Web::PageId page_id) =|
     queue_navigation_api_state_clear_task(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) =|
     continue_history_navigation_population(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::SessionHistoryEntryDescriptor target_entry, Optional<Web::Bindings::NavigationType> navigation_type, Web::HTML::HistoryNavigationPopulation population) =|
@@ -269,6 +269,7 @@ endpoint WebContentServer
     did_worker_agent_die(Web::HTML::WorkerAgentOwnerToken owner_token) =|
 
     request_close(Web::PageId page_id) =|
+    unload_check_result(Web::PageId page_id, Web::HTML::CrossProcessId check_id, Web::HTML::HistoryStepResult result) =|
     force_close(Web::PageId page_id) =|
 
     exit_fullscreen(Web::PageId page_id) =|

@@ -3613,7 +3613,7 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
     return;
 }
 
-void LocalNavigable::run_navigation_unload_check(Utf16String const& navigation_id, GC::Ref<GC::Function<void(bool)>> completion_steps)
+void LocalNavigable::run_navigation_unload_check(Utf16String const& navigation_id, UnloadPromptShown unload_prompt_shown, GC::Ref<GC::Function<void(bool)>> completion_steps)
 {
     if (has_been_destroyed() || !active_window()) {
         completion_steps->function()(false);
@@ -3629,10 +3629,10 @@ void LocalNavigable::run_navigation_unload_check(Utf16String const& navigation_i
     }
 
     // 1. Let unloadPromptCanceled be the result of checking if unloading is user-canceled for navigable's active document's inclusive descendant navigables.
-    // NB: This page checks the documents it hosts. The UI process, which requested the check, is where the parts
-    //     hosted by other pages are dispatched.
-    check_if_unloading_is_canceled(hosted_inclusive_descendant_navigables(),
-        GC::create_function(heap(), [this, navigation_id, completion_steps](CheckIfUnloadingIsCanceledResult unload_prompt_canceled) {
+    // NB: This page checks the documents it hosts, last: the UI process, which requested the check, ran it in the
+    //     pages hosting the others first, and whether one of them showed the prompt comes with the request.
+    check_if_unloading_is_canceled(hosted_inclusive_descendant_navigables(), {}, {}, {}, unload_prompt_shown,
+        GC::create_function(heap(), [this, navigation_id, completion_steps](CheckIfUnloadingIsCanceledResult unload_prompt_canceled, UnloadPromptShown) {
             if (has_been_destroyed() || !active_window()) {
                 completion_steps->function()(false);
                 return;

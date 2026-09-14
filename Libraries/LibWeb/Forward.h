@@ -705,6 +705,8 @@ class DOMRectReadOnly;
 
 namespace Web::HTML {
 
+enum class CheckIfUnloadingIsCanceledResult;
+
 class AnimationFrameCallbackDriver;
 class AudioTrack;
 class AudioTrackList;

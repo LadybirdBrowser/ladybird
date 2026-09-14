@@ -140,7 +140,8 @@ public:
 
     void queue_screenshot_task(Optional<Web::UniqueNodeID> node_id);
     void send_current_needs_beforeunload_check();
-    void run_navigation_unload_check(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id);
+    void run_navigation_unload_check(Web::HTML::CrossProcessId navigable_id, Utf16String const& navigation_id, Web::HTML::UnloadPromptShown);
+    void did_receive_unload_check_result(Web::HTML::CrossProcessId check_id, Web::HTML::HistoryStepResult);
     void create_navigation_params(Web::HTML::NavigationPopulationRequest);
     void navigate_navigable(Web::HTML::CrossProcessId navigable_id, Web::HTML::PreparedNavigationDescriptor);
     void deliver_posted_message(Web::HTML::CrossProcessId navigable_id, Web::HTML::PostedMessageDescriptor);
@@ -290,6 +291,7 @@ private:
     virtual void page_did_request_child_navigable_unload(Web::HTML::CrossProcessId navigable_id) override;
     virtual void page_did_request_remote_document_abort(Web::HTML::CrossProcessId navigable_id) override;
     virtual void page_did_request_remote_document_unfullscreen(Web::HTML::CrossProcessId navigable_id) override;
+    virtual void page_did_request_unload_check(Web::HTML::CrossProcessId navigable_id, GC::Ref<GC::Function<void(Web::HTML::CheckIfUnloadingIsCanceledResult)>>) override;
     virtual String page_did_request_ui_process_session_history_for_testing() override;
     virtual bool page_did_request_capture_session_history_snapshot_for_testing() override;
     virtual bool page_did_request_restore_session_history_snapshot_for_testing() override;
@@ -350,6 +352,7 @@ private:
     Web::PageId m_id { 0 };
     u64 m_next_delete_all_cookies_request_id { 1 };
     HashMap<u64, GC::Ref<Web::WebIDL::Promise>> m_pending_delete_all_cookies_promises;
+    HashMap<Web::HTML::CrossProcessId, GC::Ref<GC::Function<void(Web::HTML::CheckIfUnloadingIsCanceledResult)>>> m_pending_unload_checks;
     HashMap<u64, GC::Ref<Web::Fetch::Infrastructure::FetchController>> m_download_controllers;
     HashMap<u64, GC::Ref<Web::Streams::ReadableStreamDefaultReader>> m_download_readers;
     HashTable<u64> m_canceled_downloads;

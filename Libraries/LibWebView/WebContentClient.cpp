@@ -767,10 +767,25 @@ void WebContentClient::did_request_navigation_start(Web::PageId page_id, Web::HT
         .phase = CanonicalNavigable::OngoingNavigation::Phase::AwaitingUnloadCheck,
     });
     target_navigable->set_navigation_population_worker(*this, page_id);
-    // FIXME: Dispatch the check to the pages hosting the navigable's other descendants, sequentially and with the
-    //        prompt state threaded through, as a history step's beforeunload groups are. Only the documents of the
-    //        requesting page are checked.
-    async_run_navigation_unload_check(page_id, navigable_id, move(navigation_id));
+
+    // Navigate, step 21.2: checking if unloading is canceled for navigable's active document's inclusive descendant
+    // navigables. The pages hosting the documents the requesting page does not run their checks first; the
+    // requesting page's own, with the navigation's bookkeeping, comes last, told whether a prompt was shown.
+    Vector<Web::HTML::CrossProcessId> inclusive_descendants;
+    target_navigable->for_each_in_inclusive_subtree([&](CanonicalNavigable const& navigable) {
+        inclusive_descendants.append(navigable.id());
+        return IterationDecision::Continue;
+    });
+    target_navigable->top_level_traversable().check_if_unloading_is_canceled(move(inclusive_descendants), CanonicalTraversable::HistoryJobEndpoint { this, page_id }, Web::HTML::UnloadPromptShown::No,
+        [self = NonnullRefPtr<WebContentClient>(*this), page_id, navigable_id, navigation_id = move(navigation_id)](Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) {
+            if (result != Web::HTML::HistoryStepResult::Applied) {
+                // The navigation parked for its population is not coming; the recorded load ends as a failed one.
+                self->async_cancel_navigation_params_creation(page_id, navigable_id, navigation_id);
+                self->did_fail_navigation_population(page_id, navigable_id, navigation_id);
+                return;
+            }
+            self->async_run_navigation_unload_check(page_id, navigable_id, navigation_id, unload_prompt_shown);
+        });
 }
 
 void WebContentClient::did_complete_navigation_unload_check(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id)
@@ -2606,10 +2621,10 @@ void WebContentClient::history_step_unload_cancelation_result(Web::PageId page_i
         view->did_receive_history_step_unload_cancelation_result({}, *this, page_id, operation_id, result, unload_prompt_shown);
 }
 
-void WebContentClient::history_step_beforeunload_check_result(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown)
+void WebContentClient::beforeunload_check_result(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown)
 {
     if (auto view = owning_view_for_page_id(page_id); view.has_value())
-        view->did_receive_history_step_beforeunload_check_result({}, *this, page_id, operation_id, result, unload_prompt_shown);
+        view->did_receive_beforeunload_check_result({}, *this, page_id, operation_id, result, unload_prompt_shown);
 }
 
 void WebContentClient::changing_navigable_history_job_ready(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, Web::HTML::UnloadDisplayedDocument unload_displayed_document)
@@ -2652,6 +2667,26 @@ void WebContentClient::request_navigable_document_unfullscreen(Web::PageId page_
     if (!endpoint.has_value())
         return;
     endpoint->client->async_unfullscreen_navigable_document(endpoint->page_id, navigable_id);
+}
+
+// Checking if unloading is canceled for a navigable's active document's inclusive descendant navigables, on behalf
+// of the process closing the traversable: each page hosting a document among them runs the check for it.
+void WebContentClient::request_unload_check(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId check_id)
+{
+    auto navigable = hosted_navigable_for_page(page_id, navigable_id);
+    if (!navigable.has_value()) {
+        async_unload_check_result(page_id, check_id, Web::HTML::HistoryStepResult::Applied);
+        return;
+    }
+    Vector<Web::HTML::CrossProcessId> inclusive_descendants;
+    navigable->for_each_in_inclusive_subtree([&](CanonicalNavigable const& descendant) {
+        inclusive_descendants.append(descendant.id());
+        return IterationDecision::Continue;
+    });
+    navigable->top_level_traversable().check_if_unloading_is_canceled(move(inclusive_descendants), {}, Web::HTML::UnloadPromptShown::No,
+        [self = NonnullRefPtr<WebContentClient>(*this), page_id, check_id](Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown) {
+            self->async_unload_check_result(page_id, check_id, result);
+        });
 }
 
 void WebContentClient::request_child_navigable_unload(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id)

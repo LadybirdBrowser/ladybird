@@ -189,7 +189,7 @@ public:
     bool resume_navigation_params_creation(Utf16String const& navigation_id, Optional<NavigationPopulationRequest>);
     void continue_navigation_from_another_process(PreparedNavigationDescriptor);
     void deliver_posted_message_from_another_process(PostedMessageDescriptor);
-    void run_navigation_unload_check(Utf16String const& navigation_id, GC::Ref<GC::Function<void(bool)>> completion_steps);
+    void run_navigation_unload_check(Utf16String const& navigation_id, UnloadPromptShown, GC::Ref<GC::Function<void(bool)>> completion_steps);
     void request_population_for_reconstructed_history_entry(NavigationPopulationRequest);
     void route_child_created_during_history_reconstruction(Web::ReconstructedChildNavigation);
     void continue_navigation_at_population(NavigationPopulationRequest, NavigationPopulationResult);
