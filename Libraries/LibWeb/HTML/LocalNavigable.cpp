@@ -5684,6 +5684,41 @@ void LocalNavigable::inform_the_navigation_api_about_aborting_navigation()
     }
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#currently-focused-area-of-a-top-level-traversable
+// NB: If another process hosts the top-level traversable, this runs on this process's local root instead.
+GC::Ptr<DOM::Node> LocalNavigable::currently_focused_area()
+{
+    // 1. If traversable does not have system focus, then return null.
+    if (!is_focused())
+        return nullptr;
+
+    // 2. Let candidate be traversable's active document.
+    auto candidate = active_document();
+
+    // 3. While candidate's focused area is a navigable container with a non-null content navigable:
+    //    set candidate to the active document of that navigable container's content navigable.
+    while (candidate->focused_area()
+        && is<NavigableContainer>(candidate->focused_area().ptr())
+        && as<NavigableContainer>(*candidate->focused_area()).content_navigable()) {
+        // NB: The focused area of a document hosted by another process is that process's; the container is as far as
+        //     focus is seen here.
+        auto* content_navigable = as_if<LocalNavigable>(*as<NavigableContainer>(*candidate->focused_area()).content_navigable());
+        if (!content_navigable)
+            break;
+        candidate = content_navigable->active_document();
+    }
+
+    // 4. If candidate's focused area is non-null, set candidate to candidate's focused area.
+    if (candidate->focused_area()) {
+        // NOTE: We return right away here instead of assigning to candidate,
+        //       since that would require compromising type safety.
+        return candidate->focused_area();
+    }
+
+    // 5. Return candidate.
+    return candidate;
+}
+
 bool LocalNavigable::is_focused() const
 {
     if (!page().client().has_focus())
