@@ -1,0 +1,2 @@
+Constructor channelCountMode reaches the render graph: true
+Constructor channelCount reaches the render graph: true
