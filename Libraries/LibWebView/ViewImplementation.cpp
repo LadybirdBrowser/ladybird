@@ -2933,9 +2933,9 @@ void ViewImplementation::did_receive_history_step_unload_cancelation_result(Badg
     m_top_level_traversable.did_receive_history_step_unload_cancelation_result(source_client, source_page_id, operation_id, result, unload_prompt_shown);
 }
 
-void ViewImplementation::did_receive_history_step_beforeunload_check_result(Badge<WebContentClient>, WebContentClient& source_client, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown)
+void ViewImplementation::did_receive_beforeunload_check_result(Badge<WebContentClient>, WebContentClient& source_client, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown)
 {
-    m_top_level_traversable.did_receive_history_step_beforeunload_check_result(source_client, source_page_id, operation_id, result, unload_prompt_shown);
+    m_top_level_traversable.did_receive_beforeunload_check_result(source_client, source_page_id, operation_id, result, unload_prompt_shown);
 }
 
 void ViewImplementation::did_receive_changing_navigable_history_job_ready(Badge<WebContentClient>, WebContentClient& source_client, Web::PageId source_page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, Web::HTML::UnloadDisplayedDocument unload_displayed_document)

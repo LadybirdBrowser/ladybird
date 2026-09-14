@@ -1,0 +1,3 @@
+second document loaded: true
+beforeunload ran in the navigating document: true
+beforeunload ran in the remote grandchild: true

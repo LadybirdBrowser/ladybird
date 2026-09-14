@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // Navigating a document checks whether unloading is canceled for its inclusive descendant navigables. A descendant
+    // hosted by another process runs its beforeunload handlers there, before the navigating process runs its own.
+    // This page is served over HTTP so that the navigating iframe is same origin with it and hosted here.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const grandchildHostname = uniqueLocalhostHostname("oop-beforeunload-navigate");
+
+        const grandchildUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-beforeunload-navigate-grandchild-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>
+                    addEventListener("beforeunload", () => { document.cookie = "grandchildBeforeUnload=1; path=/"; });
+                    document.cookie = "grandchildLoaded=1; path=/";
+                <\/script>`,
+            })
+        );
+        grandchildUrl.hostname = grandchildHostname;
+
+        const secondUrl = await httpServer.createEcho("GET", `/oop-beforeunload-navigate-second-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>document.cookie = "secondLoaded=1; path=/";<\/script>`,
+        });
+
+        const firstUrl = await httpServer.createEcho("GET", `/oop-beforeunload-navigate-first-${runId}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><iframe src="${grandchildUrl}"></iframe><script>
+                addEventListener("beforeunload", () => { document.cookie = "childBeforeUnload=1; path=/"; });
+                addEventListener("message", () => { location.href = "${secondUrl}"; });
+            <\/script>`,
+        });
+
+        const frame = document.createElement("iframe");
+        frame.src = firstUrl;
+        document.body.appendChild(frame);
+
+        const grandchildCookie = (name, value) => internals.hasCookieForURL(grandchildUrl.href, name, value);
+        const childCookie = (name, value) => internals.hasCookieForURL(firstUrl, name, value);
+        if (!(await waitForCondition(() => grandchildCookie("grandchildLoaded", "1") && remoteFrameCount() === 1))) {
+            println("grandchild did not load out of process");
+            return;
+        }
+
+        frame.contentWindow.postMessage("navigate", "*");
+
+        println(`second document loaded: ${await waitForCondition(() => childCookie("secondLoaded", "1"))}`);
+        println(`beforeunload ran in the navigating document: ${childCookie("childBeforeUnload", "1")}`);
+        println(`beforeunload ran in the remote grandchild: ${grandchildCookie("grandchildBeforeUnload", "1")}`);
+    });
+</script>

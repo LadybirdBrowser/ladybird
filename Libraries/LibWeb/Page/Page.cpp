@@ -1851,7 +1851,8 @@ void PageClient::request_navigation_start(HTML::LocalNavigable& navigable, Navig
     if (!start_request.has_value())
         return;
 
-    navigable.run_navigation_unload_check(navigation_id, GC::create_function(navigable.heap(), [client = GC::Ref { *this }, navigable = GC::Ref { navigable }, target, navigation_id, start_request = start_request.release_value()](bool should_continue) mutable {
+    // A page without a UI process hosts every document of its tab, so no other page has a check to run first.
+    navigable.run_navigation_unload_check(navigation_id, HTML::UnloadPromptShown::No, GC::create_function(navigable.heap(), [client = GC::Ref { *this }, navigable = GC::Ref { navigable }, target, navigation_id, start_request = start_request.release_value()](bool should_continue) mutable {
         if (!should_continue) {
             navigable->resume_navigation_params_creation(navigation_id, {});
             return;
