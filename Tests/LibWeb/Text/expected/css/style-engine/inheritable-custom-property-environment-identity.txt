@@ -1,0 +1,4 @@
+same child environment: true
+inherited value: 15
+inherited importance does not block animation: 3
+registration change: red, blue

@@ -299,6 +299,7 @@ public:
         // then does the key name that environment, which is an object the element's own ancestors
         // mint afresh whenever any of them recomputes.
         bool cascade_reads_custom_properties { false };
+        bool cascade_inherits_custom_properties_explicitly { false };
         bool computation_reads_unkeyed_context { true };
         // Whether a value read the resource context of its declaration, which an input record names
         // through the declaration's block and a sharing key through the declaration's identity, but a

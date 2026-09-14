@@ -1,0 +1,29 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<style id="registration">
+@property --local { syntax: "<color>"; inherits: false; initial-value: black; }
+</style>
+<style>
+.normal { color: var(--local); }
+.explicit { --local: inherit; color: var(--local); }
+.function { color: inherit(--local); }
+.variable { --local: var(--missing, inherit); color: var(--local); }
+.environment { --local: env(missing-environment-variable, inherit); color: var(--local); }
+.changed span { opacity: 0.75; }
+</style>
+<div id="root">
+    <div style="--local: red"><span class="normal"></span><span class="explicit"></span><span class="function"></span><span class="variable"></span><span class="environment"></span></div>
+    <div style="--local: blue"><span class="normal"></span><span class="explicit"></span><span class="function"></span><span class="variable"></span><span class="environment"></span></div>
+</div>
+<script>
+test(() => {
+    const colors = () => [...root.querySelectorAll('span')].map(element => getComputedStyle(element).color).join('; ');
+    println(`initial: ${colors()}`);
+    root.classList.add('changed');
+    println(`recomputed: ${colors()}`);
+    registration.textContent = '@property --local { syntax: "<color>"; inherits: false; initial-value: purple; }';
+    println(`new initial value: ${colors()}`);
+    registration.textContent = '@property --local { syntax: "<color>"; inherits: true; initial-value: purple; }';
+    println(`now inherited: ${colors()}`);
+});
+</script>

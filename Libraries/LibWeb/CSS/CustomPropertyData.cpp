@@ -135,8 +135,10 @@ RefPtr<CustomPropertyData const> CustomPropertyData::inheritable_impl(RefPtr<Cus
         inheritable_own_values.set(name, property);
     }
 
-    if (inheritable_own_values.is_empty() && !inheritable_parent)
-        return nullptr;
+    // Filtering only non-inherited properties leaves the parent's environment unchanged.
+    // Preserve its identity instead of inserting an empty layer into the chain.
+    if (inheritable_own_values.is_empty())
+        return inheritable_parent;
 
     if (inheritable_own_values.size() == m_own_values.size() && inheritable_parent.ptr() == m_parent.ptr())
         return this;

@@ -1,0 +1,30 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<style id="registration">
+@property --local { syntax: "*"; inherits: false; initial-value: none; }
+@property --number { syntax: "<number>"; inherits: true; initial-value: 0; }
+</style>
+<div id="root">
+    <div style="--local: red"><span id="first"></span></div>
+    <div style="--local: blue"><span id="second"></span></div>
+</div>
+<script>
+test(() => {
+    // Keep the inherited environment large enough that it remains a shared parent chain.
+    for (let index = 0; index < 16; ++index)
+        root.style.setProperty(`--inherited-${index}`, index);
+    root.style.setProperty('--number', '1', 'important');
+    internals.updateStyle();
+    println(`same child environment: ${internals.styleRecordIdentity(first) === internals.styleRecordIdentity(second)}`);
+    println(`inherited value: ${getComputedStyle(first).getPropertyValue('--inherited-15')}`);
+
+    const animation = first.animate({'--number': ['2', '4']}, {duration: 1000, fill: 'both'});
+    animation.pause();
+    animation.currentTime = 500;
+    println(`inherited importance does not block animation: ${getComputedStyle(first).getPropertyValue('--number')}`);
+    animation.cancel();
+
+    registration.textContent = '@property --local { syntax: "*"; inherits: true; initial-value: none; }';
+    println(`registration change: ${getComputedStyle(first).getPropertyValue('--local')}, ${getComputedStyle(second).getPropertyValue('--local')}`);
+});
+</script>

@@ -59,6 +59,7 @@ pub struct FfiDeclarationBlockDependencies {
     pub has_custom_properties: bool,
     pub has_unresolved_values: bool,
     pub has_custom_functions: bool,
+    pub inherits_custom_properties_explicitly: bool,
     pub reads_style_scope: bool,
     pub declares_animation_name: bool,
 }
@@ -110,6 +111,13 @@ impl DeclarationBlockData {
         for property in &self.properties {
             let unresolved = matches!(&*property.value, StyleValueData::Unresolved { .. });
             dependencies.has_unresolved_values |= unresolved;
+            dependencies.inherits_custom_properties_explicitly |= matches!(
+                &*property.value,
+                StyleValueData::Unresolved {
+                    presence_inherit: true,
+                    ..
+                }
+            );
             dependencies.has_custom_functions |= matches!(
                 &*property.value,
                 StyleValueData::Unresolved {
@@ -125,6 +133,28 @@ impl DeclarationBlockData {
             dependencies.declares_animation_name |= property.property_id == property_id::ANIMATION_NAME;
         }
         for custom_property in &self.custom_properties {
+            // NB: Substitution can produce an inherit keyword, which reads even non-inheriting
+            //     registered properties from the full parent environment.
+            dependencies.inherits_custom_properties_explicitly |= match &*custom_property.declaration.value {
+                StyleValueData::Unresolved {
+                    presence_attr,
+                    presence_dashed_function,
+                    presence_env,
+                    presence_if,
+                    presence_inherit,
+                    presence_var,
+                    ..
+                } => {
+                    *presence_attr
+                        || *presence_dashed_function
+                        || *presence_env
+                        || *presence_if
+                        || *presence_inherit
+                        || *presence_var
+                }
+                StyleValueData::Keyword { keyword } => *keyword == crate::css::style_compute::keyword::INHERIT,
+                _ => false,
+            };
             dependencies.has_custom_functions |= matches!(
                 &*custom_property.declaration.value,
                 StyleValueData::Unresolved {
@@ -753,6 +783,32 @@ mod tests {
     fn dependency_reads_borrow_native_declarations_without_owners_or_views() {
         for (text, expected) in [
             ("width: 13px", FfiDeclarationBlockDependencies::default()),
+            ("width: inherit", FfiDeclarationBlockDependencies::default()),
+            (
+                "--color: inherit",
+                FfiDeclarationBlockDependencies {
+                    has_custom_properties: true,
+                    inherits_custom_properties_explicitly: true,
+                    ..Default::default()
+                },
+            ),
+            (
+                "width: inherit(--width)",
+                FfiDeclarationBlockDependencies {
+                    has_unresolved_values: true,
+                    inherits_custom_properties_explicitly: true,
+                    reads_style_scope: true,
+                    ..Default::default()
+                },
+            ),
+            (
+                "--color: inherit(--parent)",
+                FfiDeclarationBlockDependencies {
+                    has_custom_properties: true,
+                    inherits_custom_properties_explicitly: true,
+                    ..Default::default()
+                },
+            ),
             (
                 "--色: red",
                 FfiDeclarationBlockDependencies {
