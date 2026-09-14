@@ -133,7 +133,6 @@ public:
     WebIDL::ExceptionOr<void> send_bad_ipc_message_for_testing(Utf16String const& kind);
     WebIDL::ExceptionOr<void> set_content_blockers(Utf16String const& patterns);
     WebIDL::ExceptionOr<void> set_site_compatibility_data(Utf16String const& source);
-    void set_experimental_interfaces_exposed(bool exposed);
     void set_content_blocking_enabled(bool enabled);
     WebIDL::UnsignedLongLong partial_layout_count();
     WebIDL::UnsignedLongLong full_layout_count();
