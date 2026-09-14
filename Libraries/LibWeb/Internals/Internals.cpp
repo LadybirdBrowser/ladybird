@@ -996,6 +996,11 @@ WebIDL::UnsignedLongLong Internals::intrinsic_inline_measurement_count()
     return window().associated_document().layout_node_arena().intrinsic_inline_measurement_count();
 }
 
+WebIDL::UnsignedLongLong Internals::data_url_image_cache_hit_count()
+{
+    return page().data_url_image_cache_hit_count();
+}
+
 WebIDL::UnsignedLongLong Internals::intrinsic_measurement_count()
 {
     return window().associated_document().layout_node_arena().intrinsic_measurement_count();

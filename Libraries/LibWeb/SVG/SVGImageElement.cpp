@@ -48,6 +48,7 @@ void SVGImageElement::visit_edges(Cell::Visitor& visitor)
     Base::visit_edges(visitor);
     SVGURIReferenceMixin::visit_edges(visitor);
     visitor.visit(m_resource_request);
+    visit_registered_decoded_image_data(visitor);
 }
 
 void SVGImageElement::adopted_from(DOM::Document& old_document)

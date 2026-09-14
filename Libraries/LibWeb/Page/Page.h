@@ -375,6 +375,10 @@ public:
 
     bool pdf_viewer_supported() const { return m_pdf_viewer_supported; }
 
+    GC::Ptr<HTML::DecodedImageData> cached_data_url_image(URL::URL const&);
+    void cache_data_url_image(URL::URL const&, GC::Ref<HTML::DecodedImageData>);
+    u64 data_url_image_cache_hit_count() const { return m_data_url_image_cache_hit_count; }
+
     void clear_selection();
 
     enum class WrapAround {
@@ -453,6 +457,15 @@ private:
     GC::Ptr<HTML::BrowsingContextGroup> m_browsing_context_group;
 
     GC::Ref<HTML::HistoryExecutor> m_history_executor;
+
+    struct CachedDataURLImage {
+        GC::Ref<HTML::DecodedImageData> image_data;
+        size_t memory_size { 0 };
+        u64 last_use_serial { 0 };
+    };
+    HashMap<URL::URL, CachedDataURLImage> m_data_url_image_cache;
+    u64 m_data_url_image_cache_use_serial { 0 };
+    u64 m_data_url_image_cache_hit_count { 0 };
 
     struct ScreenshotTask {
         Optional<UniqueNodeID> node_id;

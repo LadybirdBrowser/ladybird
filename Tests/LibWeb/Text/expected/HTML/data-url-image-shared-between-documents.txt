@@ -1,0 +1,6 @@
+SVG document 1: width 10, cache hits 0
+SVG document 2: width 10, cache hits 1
+SVG document 3: width 10, cache hits 2
+PNG document 1: width 1, cache hits 0
+PNG document 2: width 1, cache hits 1
+PNG document 3: width 1, cache hits 2
