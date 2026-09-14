@@ -8,6 +8,7 @@
 
 #include <AK/Forward.h>
 #include <LibWeb/DOM/Event.h>
+#include <LibWeb/DOM/EventTarget.h>
 #include <LibWeb/Forward.h>
 
 namespace Web::DOM {
@@ -19,7 +20,7 @@ public:
 
 private:
     static void invoke(Event::PathEntry&, Event&, Event::Phase, bool& legacy_output_did_listeners_throw);
-    static bool inner_invoke(Event&, Vector<GC::Root<DOM::DOMEventListener>>&, Event::Phase, bool, bool&);
+    static bool inner_invoke(Event&, EventTarget::ClonedEventListeners&, Event::Phase, bool, bool&);
 };
 
 }
