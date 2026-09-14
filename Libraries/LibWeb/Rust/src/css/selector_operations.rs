@@ -193,7 +193,7 @@ pub(crate) fn relative_to<Identity: Clone>(
     CompiledSelector::new(compounds.into_boxed_slice())
 }
 
-fn supports_simple_dom_matching(selector: &CompiledSelector) -> bool {
+fn supports_dom_matching(selector: &CompiledSelector, attributes: bool) -> bool {
     let [compound] = selector.compound_selectors.as_ref() else {
         return false;
     };
@@ -204,6 +204,13 @@ fn supports_simple_dom_matching(selector: &CompiledSelector) -> bool {
                 super::selector::NamespaceType::Any | super::selector::NamespaceType::Default
             ),
             SimpleSelector::Id(_) | SimpleSelector::Class(_) => true,
+            SimpleSelector::Attribute(attribute) => {
+                attributes
+                    && matches!(
+                        attribute.qualified_name.namespace_type,
+                        super::selector::NamespaceType::Default | super::selector::NamespaceType::None
+                    )
+            }
             _ => false,
         })
 }
@@ -216,7 +223,33 @@ fn supports_simple_dom_matching(selector: &CompiledSelector) -> bool {
 pub unsafe extern "C" fn rust_selector_supports_simple_dom_matching(selector: *const RustSelector) -> bool {
     unsafe {
         assert!(!selector.is_null());
-        supports_simple_dom_matching((*selector).compiled())
+        supports_dom_matching((*selector).compiled(), false)
+    }
+}
+
+/// # Safety
+/// `selector` must point to a live `RustSelector`. Both output pointers must be writable.
+#[unsafe(no_mangle)]
+pub unsafe extern "C" fn rust_selector_supports_local_dom_matching(
+    selector: *const RustSelector,
+    needs_id: *mut bool,
+    needs_classes: *mut bool,
+) -> bool {
+    unsafe {
+        assert!(!selector.is_null());
+        let selector = (*selector).compiled();
+        if !supports_dom_matching(selector, true) {
+            return false;
+        }
+        *needs_id = selector.compound_selectors[0]
+            .simple_selectors
+            .iter()
+            .any(|simple| matches!(simple, SimpleSelector::Id(_)));
+        *needs_classes = selector.compound_selectors[0]
+            .simple_selectors
+            .iter()
+            .any(|simple| matches!(simple, SimpleSelector::Class(_)));
+        true
     }
 }
 
@@ -278,14 +311,15 @@ pub unsafe extern "C" fn rust_selector_contains_named_namespace(selector: *const
     }
 }
 
-/// Matches the tag, ID, and class subset directly against interned DOM name identities.
+/// Matches a local compound against interned DOM names and borrowed attribute values.
 ///
 /// Returns zero or one for a supported selector and `u8::MAX` for any selector which needs the
 /// full style-engine matcher.
 ///
 /// # Safety
 /// `selector` must point to a live `RustSelector`. The class pointers must each address
-/// `class_count` identities, or be null when the count is zero.
+/// `class_count` identities, or be null when the count is zero. The attribute callback must
+/// return a view valid until its next invocation, looking up the name in no namespace.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn rust_selector_matches_simple_dom(
     selector: *const RustSelector,
@@ -298,11 +332,15 @@ pub unsafe extern "C" fn rust_selector_matches_simple_dom(
     class_count: usize,
     fold_tag_name: bool,
     fold_id_and_classes: bool,
+    attribute_context: *mut std::ffi::c_void,
+    lookup_attribute: Option<
+        unsafe extern "C" fn(*mut std::ffi::c_void, usize, *mut super::ffi_support::FfiUtf16View) -> bool,
+    >,
 ) -> u8 {
     unsafe {
         assert!(!selector.is_null());
         let compounds = &(*selector).compiled().compound_selectors;
-        if !supports_simple_dom_matching((*selector).compiled()) {
+        if !supports_dom_matching((*selector).compiled(), lookup_attribute.is_some()) {
             return u8::MAX;
         }
         let compound = &compounds[0];
@@ -358,6 +396,47 @@ pub unsafe extern "C" fn rust_selector_matches_simple_dom(
                         (name.interned_name_identity(), classes)
                     };
                     expected.is_some_and(|expected| candidates.contains(&expected))
+                }
+                SimpleSelector::Attribute(attribute) => {
+                    use super::css_tokenizer::TokenizerInput;
+                    use super::selector::{AttributeCaseType, NamespaceType};
+                    use super::style::selector::{AttributeOperator, attribute_value_matches};
+                    let insensitive = match attribute.case_type {
+                        AttributeCaseType::Insensitive => true,
+                        AttributeCaseType::Sensitive => false,
+                        AttributeCaseType::Default => {
+                            fold_tag_name
+                                && matches!(
+                                    attribute.qualified_name.namespace_type,
+                                    NamespaceType::Default | NamespaceType::None
+                                )
+                                && super::selector::is_ascii_case_insensitive_html_attribute(
+                                    &attribute.qualified_name.name,
+                                )
+                        }
+                    };
+                    let operator = AttributeOperator::from(attribute.match_type);
+                    let lookup = lookup_attribute.unwrap();
+                    let Some(name) = (if fold_tag_name {
+                        attribute.qualified_name.interned_lowercase_name_identity()
+                    } else {
+                        attribute.qualified_name.interned_name_identity()
+                    }) else {
+                        return 0;
+                    };
+                    let mut value = super::ffi_support::FfiUtf16View::default();
+                    if !lookup(attribute_context, name, &raw mut value) {
+                        false
+                    } else {
+                        match value.units().unwrap() {
+                            TokenizerInput::Ascii(value) => {
+                                attribute_value_matches(operator, value, &attribute.value, insensitive)
+                            }
+                            TokenizerInput::Utf16(value) => {
+                                attribute_value_matches(operator, value, &attribute.value, insensitive)
+                            }
+                        }
+                    }
                 }
                 _ => unreachable!(),
             };

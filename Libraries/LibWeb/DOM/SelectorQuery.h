@@ -50,6 +50,9 @@ private:
     CSS::SelectorList m_selectors;
     void* m_engine_query { nullptr };
     bool m_can_match_in_dom { false };
+    bool m_can_match_locally_in_dom { false };
+    bool m_dom_matching_needs_id { false };
+    bool m_dom_matching_needs_classes { false };
 
     // Whether the selector is a lone `*`, which every element matches: a query then collects the
     // subtree's elements without matching any of them.

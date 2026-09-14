@@ -1,0 +1,57 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+test(() => {
+    const root = document.createElement('div');
+    const element = document.createElement('input');
+    element.id = 'subject';
+    element.className = 'subject';
+    root.append(element);
+    element.setAttribute('data-value', 'alpha\tBETA\nγamma');
+    element.setAttribute('type', 'TEXT');
+    element.setAttribute('data-ascii', 'alpha BETA gamma');
+    element.setAttribute('lang', 'en-US');
+    element.setAttribute('data-empty', '');
+    const selectors = [
+        '[data-value]', '[missing]', '[data-value="alpha\\9 BETA\\a γamma"]',
+        '[data-value~=BETA]', '[data-value~=beta]', '[data-value~=beta i]',
+        '[data-value^=alpha]', '[data-value$=γamma]', '[data-value*=ETA]',
+        '[data-value*=""]', '[data-value^=""]', '[data-value$=""]',
+        '[data-ascii~=beta i]', '[data-ascii^=alpha]', '[data-ascii$=gamma]',
+        '[data-ascii*=ETA]', '[lang|=en]', '[lang|=EN s]',
+        '[data-empty=""]', '[data-empty~=""]', '[type=text]', '[type=text s]',
+        '[|type=text]', '[TYPE=text]', 'input#subject.subject[data-value][type=text]',
+        '.missing, #subject', '[missing], [data-empty]', '.missing, [missing]',
+    ];
+    for (const connected of [false, true]) {
+        if (connected) document.body.append(root);
+        println(`explicit no-namespace HTML folding (${connected}): ${element.matches('[|type=text]') && element.closest('[|type=text]') === element && root.querySelectorAll('[|type=text], :not(*)').length === 1}`);
+        println(`explicit no-namespace sensitive flag (${connected}): ${!element.matches('[|type=text s]') && root.querySelectorAll('[|type=text s], :not(*)').length === 0}`);
+        for (const selector of selectors) {
+            const expected = root.querySelectorAll(`${selector}, :not(*)`).length === 1;
+            println(`${connected ? 'connected' : 'detached'} ${selector}: ${element.matches(selector) === expected && (element.closest(selector) === element) === expected}`);
+        }
+    }
+    element.setAttributeNS(null, 'DATA-DUP', 'first');
+    element.setAttributeNS(null, 'data-dup', 'second');
+    println(`attribute name folding: ${!element.matches('[data-dup=first]') && element.matches('[DATA-DUP=second]')}`);
+    element.setAttributeNS('urn:test', 'ns:data-only', 'namespaced');
+    println(`namespace excluded: ${!element.matches('[data-only]') && element.matches('[*|data-only]')}`);
+    element.style.color = 'red';
+    println(`style synchronized: ${element.matches('[style*="red"]')}`);
+    element.setAttribute('data-value', 'new');
+    println(`mutation: ${element.matches('[data-value=new]') && !element.matches('[data-value~=BETA]')}`);
+    const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+    svg.setAttribute('DATA-VALUE', 'UPPER');
+    println(`SVG case: ${svg.matches('[DATA-VALUE=upper i]') && !svg.matches('[data-value]')}`);
+    const xml = new DOMParser().parseFromString('<input TYPE="TEXT"/>', 'application/xml').documentElement;
+    println(`XML case: ${xml.matches('[TYPE=TEXT]') && !xml.matches('[type]') && !xml.matches('[TYPE=text]')}`);
+    const leaf = document.createElement('div');
+    leaf.attachShadow({mode: 'open'}).innerHTML = '<span></span>';
+    println(`leaf excludes shadow tree: ${leaf.querySelectorAll('[anything], span').length === 0 && leaf.querySelector('span') === null}`);
+    try { leaf.querySelectorAll('['); println('syntax error: false'); }
+    catch (error) { println(`syntax error: ${error.name === 'SyntaxError'}`); }
+    leaf.append(document.createElement('span'));
+    println(`leaf mutation: ${leaf.querySelectorAll('span').length === 1}`);
+});
+</script>

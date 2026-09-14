@@ -114,6 +114,21 @@ pub enum AttributeOperator {
     Substring,
 }
 
+impl From<crate::css::selector::AttributeMatchType> for AttributeOperator {
+    fn from(value: crate::css::selector::AttributeMatchType) -> Self {
+        use crate::css::selector::AttributeMatchType;
+        match value {
+            AttributeMatchType::HasAttribute => AttributeOperator::Presence,
+            AttributeMatchType::ExactValue => AttributeOperator::Exact,
+            AttributeMatchType::ContainsWord => AttributeOperator::Includes,
+            AttributeMatchType::ContainsString => AttributeOperator::Substring,
+            AttributeMatchType::StartsWithSegment => AttributeOperator::DashMatch,
+            AttributeMatchType::StartsWithString => AttributeOperator::Prefix,
+            AttributeMatchType::EndsWithString => AttributeOperator::Suffix,
+        }
+    }
+}
+
 impl AttributeOperator {
     /// Whether the operator can be answered by comparing interned identities. Everything else has
     /// to read the value as text, which is why the batch only carries text for those attributes.
@@ -6712,34 +6727,7 @@ impl<'a> MatchEvaluator<'a> {
         let Some(value) = facts.text_of(attribute) else {
             return false;
         };
-        match test.operator {
-            AttributeOperator::Presence => true,
-            AttributeOperator::Exact => equals(value, literal, insensitive),
-            AttributeOperator::Includes => {
-                !literal.is_empty()
-                    && value
-                        .split(|unit| matches!(unit, 0x20 | 0x09 | 0x0A | 0x0C | 0x0D))
-                        .any(|token| equals(token, literal, insensitive))
-            }
-            AttributeOperator::DashMatch => {
-                equals(value, literal, insensitive)
-                    || (value.len() > literal.len()
-                        && value[literal.len()] == u16::from(b'-')
-                        && starts_with(value, literal, insensitive))
-            }
-            AttributeOperator::Prefix => !literal.is_empty() && starts_with(value, literal, insensitive),
-            AttributeOperator::Suffix => {
-                !literal.is_empty()
-                    && value.len() >= literal.len()
-                    && equals(&value[value.len() - literal.len()..], literal, insensitive)
-            }
-            AttributeOperator::Substring => {
-                !literal.is_empty()
-                    && value.len() >= literal.len()
-                    && (0..=value.len() - literal.len())
-                        .any(|start| equals(&value[start..start + literal.len()], literal, insensitive))
-            }
-        }
+        attribute_value_matches(test.operator, value, literal, insensitive)
     }
 
     pub(super) fn matches_nth(
@@ -6983,18 +6971,54 @@ fn fold(unit: u16) -> u16 {
     unit
 }
 
-fn equals(value: &[u16], literal: &[u16], insensitive: bool) -> bool {
+pub(crate) fn attribute_value_matches<T: Copy + Into<u16>>(
+    operator: AttributeOperator,
+    value: &[T],
+    literal: &[u16],
+    insensitive: bool,
+) -> bool {
+    match operator {
+        AttributeOperator::Presence => true,
+        AttributeOperator::Exact => equals(value, literal, insensitive),
+        AttributeOperator::Includes => {
+            !literal.is_empty()
+                && value
+                    .split(|unit| matches!((*unit).into(), 0x20 | 0x09 | 0x0A | 0x0C | 0x0D))
+                    .any(|token| equals(token, literal, insensitive))
+        }
+        AttributeOperator::DashMatch => {
+            equals(value, literal, insensitive)
+                || (value.len() > literal.len()
+                    && value[literal.len()].into() == u16::from(b'-')
+                    && starts_with(value, literal, insensitive))
+        }
+        AttributeOperator::Prefix => !literal.is_empty() && starts_with(value, literal, insensitive),
+        AttributeOperator::Suffix => {
+            !literal.is_empty()
+                && value.len() >= literal.len()
+                && equals(&value[value.len() - literal.len()..], literal, insensitive)
+        }
+        AttributeOperator::Substring => {
+            !literal.is_empty()
+                && value.len() >= literal.len()
+                && (0..=value.len() - literal.len())
+                    .any(|start| equals(&value[start..start + literal.len()], literal, insensitive))
+        }
+    }
+}
+
+fn equals<T: Copy + Into<u16>>(value: &[T], literal: &[u16], insensitive: bool) -> bool {
     if !insensitive {
-        return value == literal;
+        return value.len() == literal.len() && value.iter().zip(literal).all(|(&left, &right)| left.into() == right);
     }
     value.len() == literal.len()
         && value
             .iter()
             .zip(literal)
-            .all(|(&left, &right)| fold(left) == fold(right))
+            .all(|(&left, &right)| fold(left.into()) == fold(right))
 }
 
-fn starts_with(value: &[u16], literal: &[u16], insensitive: bool) -> bool {
+fn starts_with<T: Copy + Into<u16>>(value: &[T], literal: &[u16], insensitive: bool) -> bool {
     value.len() >= literal.len() && equals(&value[..literal.len()], literal, insensitive)
 }
 
