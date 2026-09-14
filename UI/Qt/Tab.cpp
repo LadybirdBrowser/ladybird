@@ -1265,14 +1265,6 @@ void Tab::connect_hamburger_menu()
     QObject::connect(&m_window->hamburger_menu(), &QMenu::aboutToHide, m_hamburger_button, [this]() {
         m_hamburger_button->setDown(false);
     });
-
-    update_hamburger_menu();
-}
-
-void Tab::update_hamburger_menu()
-{
-    auto show_menu_bar = show_menubar_option_available() && WebView::Application::settings().show_menu_bar();
-    m_hamburger_button->setVisible(!show_menu_bar);
 }
 
 void Tab::navigate(URL::URL const& url)
@@ -1326,11 +1318,6 @@ QString Tab::title() const
 void Tab::update_tab_title()
 {
     emit title_changed(tab_index(), title());
-}
-
-void Tab::show_menu_bar_changed()
-{
-    update_hamburger_menu();
 }
 
 void Tab::tab_settings_changed()

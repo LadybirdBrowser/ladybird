@@ -120,13 +120,11 @@ private:
     virtual bool event(QEvent*) override;
 
     virtual void tab_settings_changed() override;
-    virtual void show_menu_bar_changed() override;
     virtual void config_variable_changed(WebView::ConfigVariableID) override;
 
     void recreate_toolbar_icons();
     void update_vertical_tabs_toolbar_button_placement();
     void connect_hamburger_menu();
-    void update_hamburger_menu();
     void update_chrome_style();
     void update_tab_title();
     void update_downloads_button();
