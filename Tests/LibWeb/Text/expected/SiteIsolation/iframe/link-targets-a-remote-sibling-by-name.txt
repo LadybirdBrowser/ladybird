@@ -1,0 +1,4 @@
+sibling navigated by a link targeting its name: true
+WebContent#0
+  iframe#0: remote WebContent#1
+  iframe#1: remote WebContent#1
