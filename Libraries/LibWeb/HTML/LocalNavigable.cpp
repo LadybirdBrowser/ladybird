@@ -710,19 +710,6 @@ Vector<GC::Root<LocalNavigable>> LocalNavigable::hosted_inclusive_descendant_nav
     return navigables;
 }
 
-// AD-HOC: The document of a navigable whose next document another process hosts is unloaded here once that document
-//         has activated there. Its descendants were unloaded in the pages hosting them before the activation, by the
-//         UI process's walk over the navigable's subtree.
-void LocalNavigable::unload_document_for_host_change()
-{
-    set_has_been_destroyed();
-    queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr, GC::create_function(heap(), [navigable = GC::Ref { *this }] {
-        if (auto document = navigable->active_document())
-            document->unload();
-        navigable->remove_from_all_local_navigables();
-    }));
-}
-
 void LocalNavigable::remove_from_all_local_navigables()
 {
     cancel_hover_update_after_async_scroll();
@@ -748,6 +735,7 @@ void LocalNavigable::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_active_document);
+    visitor.visit(m_window_proxy_after_unload);
     visitor.visit(m_provisional_for);
     visitor.visit(m_input_method_composition_node);
     m_event_handler.visit_edges(visitor);
@@ -1287,6 +1275,9 @@ void LocalNavigable::run_ui_descendant_unload_task(StopHostingAfterUnload stop_h
     queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr,
         GC::create_function(heap(), [navigable = GC::Ref { *this }, stop_hosting_after_unload, on_complete] {
             if (auto active_document = navigable->active_document()) {
+                // The browsing context's WindowProxy outlives the document, since scripts hold it for the navigable.
+                if (auto browsing_context = active_document->browsing_context())
+                    navigable->m_window_proxy_after_unload = browsing_context->window_proxy();
                 auto replicated_state = navigable->replicated_state();
                 active_document->unload();
 
