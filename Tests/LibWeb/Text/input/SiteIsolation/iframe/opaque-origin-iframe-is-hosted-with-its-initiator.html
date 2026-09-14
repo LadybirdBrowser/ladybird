@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A document with an opaque origin is in an agent cluster of its own, hosted with the agent cluster of the
+    // navigation's initiator origin: a data: URL iframe and a sandboxed cross-site iframe stay with their parent.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const sandboxedUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-sandboxed-child-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>sandboxed",
+            })
+        );
+        sandboxedUrl.hostname = uniqueLocalhostHostname("oop-sandboxed-child");
+
+        const dataIframe = document.createElement("iframe");
+        const dataLoaded = new Promise(resolve => dataIframe.addEventListener("load", resolve, { once: true }));
+        dataIframe.src = "data:text/html,<p>data</p>";
+        document.body.appendChild(dataIframe);
+
+        const sandboxedIframe = document.createElement("iframe");
+        sandboxedIframe.sandbox = "";
+        const sandboxedLoaded = new Promise(resolve => sandboxedIframe.addEventListener("load", resolve, { once: true }));
+        sandboxedIframe.src = sandboxedUrl;
+        document.body.appendChild(sandboxedIframe);
+
+        await Promise.all([dataLoaded, sandboxedLoaded]);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

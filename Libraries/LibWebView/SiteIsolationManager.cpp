@@ -207,6 +207,18 @@ HashMap<pid_t, pid_t> SiteIsolationManager::remote_frame_process_embedders() con
     return embedders;
 }
 
+// The specification keys the agent cluster of an opaque origin by that origin, so each such document is isolated in
+// an agent cluster of its own, and leaves which process hosts an agent cluster to the user agent. Nothing can address
+// an opaque origin but the documents it was created from, so its agent cluster is hosted where the agent cluster of
+// the navigation's initiator origin is.
+void SiteIsolationManager::host_opaque_origin_agent_with_initiator(CanonicalBrowsingContextGroup& group, CanonicalSimilarOriginWindowAgent& agent, URL::Origin const& origin, Optional<URL::Origin> const& initiator_origin)
+{
+    if (!origin.is_opaque() || agent.hosting_process() || !initiator_origin.has_value())
+        return;
+    if (auto initiator_host = group.obtain_similar_origin_window_agent(*initiator_origin, false)->hosting_process())
+        agent.set_hosting_process_if_unset(*initiator_host);
+}
+
 ErrorOr<SiteIsolationManager::DocumentHost> SiteIsolationManager::obtain_child_document_host(CanonicalNavigable& navigable, CanonicalSimilarOriginWindowAgent& agent)
 {
     auto& traversable = navigable.top_level_traversable();

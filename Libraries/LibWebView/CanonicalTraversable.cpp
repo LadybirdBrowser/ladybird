@@ -1521,6 +1521,7 @@ void CanonicalTraversable::continue_history_navigation_population(Web::HTML::Cro
             auto group = active_browsing_context().group();
             VERIFY(group);
             auto agent = group->obtain_similar_origin_window_agent(document->origin, false);
+            SiteIsolationManager::the().host_opaque_origin_agent_with_initiator(*group, *agent, document->origin, pending_job.value()->job.target_entry.document_state.initiator_origin);
             auto host = SiteIsolationManager::the().obtain_child_document_host(*navigable, *agent);
             if (host.is_error()) {
                 did_receive_changing_navigable_history_job_ready(*endpoint->client, endpoint->page_id, operation_id, navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition::Skipped, Web::HTML::UnloadDisplayedDocument::No);
