@@ -131,8 +131,11 @@ public:
 
     void discard();
 
-    HTML::BrowsingContext& top_level_browsing_context();
-    HTML::BrowsingContext const& top_level_browsing_context() const;
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#browsing-context-group
+    // The group of the tab's top-level browsing context, as this process knows it: the top-level browsing contexts
+    // it holds of this tab and of the tabs the tab opened, or none of them when other processes hold them all.
+    HTML::BrowsingContextGroup& browsing_context_group();
+    void set_browsing_context_group(Badge<HTML::BrowsingContextGroup>, GC::Ref<HTML::BrowsingContextGroup>);
 
     HTML::HistoryExecutor& history_executor();
 
@@ -413,6 +416,7 @@ private:
     GC::Weak<HTML::LocalNavigable> m_mouse_event_tracking_navigable;
 
     GC::Ptr<HTML::Navigable> m_top_level_traversable;
+    GC::Ptr<HTML::BrowsingContextGroup> m_browsing_context_group;
 
     GC::Ref<HTML::HistoryExecutor> m_history_executor;
 

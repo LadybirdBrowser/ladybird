@@ -5,6 +5,7 @@
  */
 
 #include <LibWeb/DOM/Document.h>
+#include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/Layout/Node.h>
 #include <LibWeb/Page/Page.h>
 #include <LibWeb/SVG/SVGTitleElement.h>
@@ -27,14 +28,14 @@ void SVGTitleElement::children_changed(ChildrenChangedMetadata const& metadata)
 {
     Base::children_changed(metadata);
 
-    auto& page = document().page();
-    if (document().browsing_context() != GC::Ref { page.top_level_browsing_context() })
+    auto navigable = document().navigable();
+    if (!navigable || !navigable->is_top_level_traversable())
         return;
 
     auto* document_element = document().document_element();
 
     if (document_element == parent() && is<SVGElement>(document_element))
-        page.client().page_did_change_title(document().title());
+        document().page().client().page_did_change_title(document().title());
 }
 
 }

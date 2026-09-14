@@ -90,13 +90,13 @@ URL::Origin determine_the_origin(Optional<URL::URL const&> url, SandboxingFlagSe
 BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_auxiliary_browsing_context_and_document(GC::Ref<Page> page, GC::Ref<HTML::BrowsingContext> opener)
 {
     // 1. Let openerTopLevelBrowsingContext be opener's top-level traversable's active browsing context.
-    auto opener_top_level_browsing_context = opener->top_level_traversable()->active_browsing_context();
+    // NB: This is null if another process hosts the top-level traversable.
+    auto opener_top_level_browsing_context = opener->top_level_browsing_context();
 
     // 2. Let group be openerTopLevelBrowsingContext's group.
-    auto group = opener_top_level_browsing_context->group();
-
     // 3. Assert: group is non-null, as navigating invokes this directly.
-    VERIFY(group);
+    // NB: The group is the tab's as opener's page knows it, whether or not the top-level browsing context is here.
+    auto& group = opener->page().browsing_context_group();
 
     // 4. Set browsingContext and document be the result of creating a new browsing context and document with opener's active document, null, and group.
     auto [browsing_context, document] = create_a_new_browsing_context_and_document(page, opener->active_document(), nullptr);
@@ -105,13 +105,15 @@ BrowsingContext::BrowsingContextAndDocument BrowsingContext::create_a_new_auxili
     browsing_context->m_is_auxiliary = true;
 
     // 6. Append browsingContext to group.
-    group->append(browsing_context);
+    group.append(browsing_context);
 
     // 7. Set browsingContext's opener browsing context to opener.
     browsing_context->set_opener_browsing_context(opener);
 
     // 8. Set browsingContext's virtual browsing context group ID to openerTopLevelBrowsingContext's virtual browsing context group ID.
-    browsing_context->m_virtual_browsing_context_group_id = opener_top_level_browsing_context->m_virtual_browsing_context_group_id;
+    // NB: opener took its ID from that top-level browsing context when it was created, as in creating a new browsing
+    //     context, so its own ID is the same value when the top-level browsing context is not here.
+    browsing_context->m_virtual_browsing_context_group_id = opener_top_level_browsing_context ? opener_top_level_browsing_context->m_virtual_browsing_context_group_id : opener->m_virtual_browsing_context_group_id;
 
     // 9. Set browsingContext's opener origin at creation to opener's active document's origin.
     browsing_context->m_opener_origin_at_creation = opener->active_document()->origin();
@@ -351,15 +353,18 @@ GC::Ptr<BrowsingContext> BrowsingContext::top_level_browsing_context() const
     }
 
     // 2. Let navigable be start's active document's node navigable.
-    auto navigable = start->active_document()->navigable();
+    GC::Ptr<Navigable> navigable = start->active_document()->navigable();
 
     // 3. While navigable's parent is not null, set navigable to navigable's parent.
-    while (navigable->parent()) {
-        navigable = as<LocalNavigable>(*navigable->parent());
-    }
+    while (navigable->parent())
+        navigable = navigable->parent();
 
     // 4. Return navigable's active browsing context.
-    return navigable->active_browsing_context();
+    // NB: This is null if another process hosts navigable's document.
+    auto* local_navigable = as_if<LocalNavigable>(*navigable);
+    if (!local_navigable)
+        return nullptr;
+    return local_navigable->active_browsing_context();
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#active-document
@@ -490,11 +495,12 @@ bool BrowsingContext::is_ancestor_of(BrowsingContext const& potential_descendant
         return false;
 
     // 3. Let ancestorBCs be the list obtained by taking the browsing context of the active document of each member of potentialDescendantDocument's ancestor navigables.
+    // NB: The browsing context of an ancestor hosted by another process is there, and is not potentialAncestor.
     for (auto const& ancestor : potential_descendant_document->ancestor_navigables()) {
-        auto ancestor_browsing_context = as<HTML::LocalNavigable>(*ancestor).active_browsing_context();
+        auto* local_ancestor = as_if<HTML::LocalNavigable>(*ancestor);
 
         // 4. If ancestorBCs contains potentialAncestor, then return true.
-        if (ancestor_browsing_context.ptr() == this)
+        if (local_ancestor && local_ancestor->active_browsing_context().ptr() == this)
             return true;
     }
 

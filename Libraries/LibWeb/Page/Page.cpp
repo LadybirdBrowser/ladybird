@@ -21,6 +21,7 @@
 #include <LibWeb/DOM/Element.h>
 #include <LibWeb/DOM/Range.h>
 #include <LibWeb/HTML/BrowsingContext.h>
+#include <LibWeb/HTML/BrowsingContextGroup.h>
 #include <LibWeb/HTML/EventLoop/EventLoop.h>
 #include <LibWeb/HTML/EventNames.h>
 #include <LibWeb/HTML/HTMLIFrameElement.h>
@@ -109,6 +110,7 @@ void Page::visit_edges(JS::Cell::Visitor& visitor)
     if (m_context_menu_request.has_value())
         visitor.visit(m_context_menu_request->target);
     visitor.visit(m_top_level_traversable);
+    visitor.visit(m_browsing_context_group);
     visitor.visit(m_history_executor);
     visitor.visit(m_client);
     visitor.visit(m_window_rect_observer);
@@ -810,14 +812,18 @@ void Page::discard()
     client().page_did_close();
 }
 
-HTML::BrowsingContext& Page::top_level_browsing_context()
+HTML::BrowsingContextGroup& Page::browsing_context_group()
 {
-    return *as<HTML::LocalNavigable>(*top_level_traversable()).active_browsing_context();
+    // NB: Created with the tab's top-level browsing context when this process holds it, and empty until then in a
+    //     process holding only parts of the tab under parents hosted elsewhere.
+    if (!m_browsing_context_group)
+        m_browsing_context_group = GC::Heap::the().allocate<HTML::BrowsingContextGroup>(*this);
+    return *m_browsing_context_group;
 }
 
-HTML::BrowsingContext const& Page::top_level_browsing_context() const
+void Page::set_browsing_context_group(Badge<HTML::BrowsingContextGroup>, GC::Ref<HTML::BrowsingContextGroup> group)
 {
-    return *as<HTML::LocalNavigable>(*top_level_traversable()).active_browsing_context();
+    m_browsing_context_group = group;
 }
 
 HTML::HistoryExecutor& Page::history_executor()
