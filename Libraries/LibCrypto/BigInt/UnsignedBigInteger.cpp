@@ -401,7 +401,7 @@ FLATTEN UnsignedDivisionResult UnsignedBigInteger::divided_by(UnsignedBigInteger
     UnsignedBigInteger quotient;
     UnsignedBigInteger remainder;
     MP_MUST(mp_div(&m_mp, &divisor.m_mp, &quotient.m_mp, &remainder.m_mp));
-    return UnsignedDivisionResult { quotient, remainder };
+    return UnsignedDivisionResult { move(quotient), move(remainder) };
 }
 
 FLATTEN UnsignedBigInteger UnsignedBigInteger::pow(u32 exponent) const
