@@ -227,26 +227,12 @@ impl FfiAffineTransform {
     }
 }
 
-fn css_pixels_from_f32(value: f32) -> CssPixels {
-    if value.is_nan() {
-        return CssPixels::default();
-    }
-    let scaled = value * 64.0;
-    if scaled >= i32::MAX as f32 {
-        return CssPixels::from_raw(i32::MAX);
-    }
-    if scaled <= i32::MIN as f32 {
-        return CssPixels::from_raw(i32::MIN);
-    }
-    CssPixels::from_raw(scaled.round_ties_even() as i32)
-}
-
 fn float_rect_to_css_pixels(rect: FfiFloatRect) -> SvgCssPixelRect {
     SvgCssPixelRect {
-        x: css_pixels_from_f32(rect.x),
-        y: css_pixels_from_f32(rect.y),
-        width: css_pixels_from_f32(rect.width),
-        height: css_pixels_from_f32(rect.height),
+        x: CssPixels::nearest_value_for_f32(rect.x),
+        y: CssPixels::nearest_value_for_f32(rect.y),
+        width: CssPixels::nearest_value_for_f32(rect.width),
+        height: CssPixels::nearest_value_for_f32(rect.height),
     }
 }
 
@@ -801,7 +787,7 @@ impl<'pass> SvgFormattingContext<'pass> {
 
         let mut bounding_box = float_rect_to_css_pixels(result.bounding_box);
         // Stroke increases the path's size by stroke_width/2 per side.
-        let stroke_width = css_pixels_from_f32(facts.visible_stroke_width);
+        let stroke_width = CssPixels::nearest_value_for_f32(facts.visible_stroke_width);
         bounding_box.inflate(stroke_width, stroke_width);
 
         let used_pointer = self.used_values(graphics_box);
@@ -856,8 +842,8 @@ impl<'pass> SvgFormattingContext<'pass> {
                     facts.pattern_height.value
                 };
                 let used = &used_pointer;
-                used.set_content_inline_size(css_pixels_from_f32(width));
-                used.set_content_block_size(css_pixels_from_f32(height));
+                used.set_content_inline_size(CssPixels::nearest_value_for_f32(width));
+                used.set_content_block_size(CssPixels::nearest_value_for_f32(height));
             } else {
                 let parent = self.parent(resource);
                 assert!(!parent.is_invalid());
@@ -917,10 +903,10 @@ impl<'pass> SvgFormattingContext<'pass> {
                     width: child_used.content_inline_size.get().raw_value() as f32 / 64.0,
                     height: child_used.content_block_size.get().raw_value() as f32 / 64.0,
                 });
-                let left = css_pixels_from_f32(mapped_child_rect.x);
-                let top = css_pixels_from_f32(mapped_child_rect.y);
-                let right = left + css_pixels_from_f32(mapped_child_rect.width);
-                let bottom = top + css_pixels_from_f32(mapped_child_rect.height);
+                let left = CssPixels::nearest_value_for_f32(mapped_child_rect.x);
+                let top = CssPixels::nearest_value_for_f32(mapped_child_rect.y);
+                let right = left + CssPixels::nearest_value_for_f32(mapped_child_rect.width);
+                let bottom = top + CssPixels::nearest_value_for_f32(mapped_child_rect.height);
                 if has_points {
                     min_x = min_x.min(left);
                     min_y = min_y.min(top);
