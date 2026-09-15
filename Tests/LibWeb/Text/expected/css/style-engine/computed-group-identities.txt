@@ -1,8 +1,8 @@
 computed group handles cover the elements: true
 computed group sets are shared: 147
-computed groups are shared: 3435
+computed groups are shared: 3441
 inherited group handles cover the elements: true
-inherited group sets are shared: 148
+inherited group sets are shared: 149
 custom property handles cover the elements: true
 custom property environments are shared: 148
 computed fixed metadata handles cover the elements: true
