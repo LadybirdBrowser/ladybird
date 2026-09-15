@@ -1475,6 +1475,26 @@ static bool element_folds_transform_into_svg_container_layout(DOM::Element const
     return parent && is<SVG::SVGElement>(*parent) && !is<SVG::SVGForeignObjectElement>(*parent);
 }
 
+// https://drafts.csswg.org/css-overflow-3/#overflow-propagation
+// https://drafts.csswg.org/css-writing-modes-4/#principal-flow
+// The root element and, for an html root, its first body child are the elements whose overflow, writing mode, and
+// direction every full layout pass reads for viewport propagation.
+bool Element::is_viewport_propagation_source() const
+{
+    auto const* document_element = document().document_element();
+    if (!document_element)
+        return false;
+    if (this == document_element)
+        return true;
+    return document_element->is_html_html_element()
+        && document_element->first_child_of_type<HTML::HTMLBodyElement>() == this;
+}
+
+static bool element_propagates_overflow_to_viewport(DOM::AbstractElement const& abstract_element)
+{
+    return !abstract_element.pseudo_element().has_value() && abstract_element.element().is_viewport_propagation_source();
+}
+
 static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidation_with_cache(CSS::StyleComputer& style_computer, CSS::ComputedValues const& old_computed_values, CSS::ComputedValues const& new_computed_values, ElementDependentInvalidationState const& old_state, DOM::AbstractElement& abstract_element, CSS::StyleEngine::StyleRecordDelta const& style_record_delta)
 {
     CSS::StyleComputer::ComputedStyleInvalidation result;
@@ -1486,7 +1506,8 @@ static CSS::StyleComputer::ComputedStyleInvalidation compute_required_invalidati
             style_record_delta.old_style_record,
             style_record_delta.new_style_record,
             old_computed_values.font_list().equals(new_computed_values.font_list()),
-            element_folds_transform_into_layout);
+            element_folds_transform_into_layout,
+            element_propagates_overflow_to_viewport(abstract_element));
         if (packed & to_underlying(CSS::StyleEngineFFI::FfiStyleInvalidationField::CacheHit))
             ++abstract_element.document().style_invalidation_counters().style_record_property_damage_cache_hits;
         result = decode_style_record_invalidation(packed);

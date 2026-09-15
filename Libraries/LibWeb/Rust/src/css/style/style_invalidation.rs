@@ -355,6 +355,22 @@ fn accumulated_visual_context_change_alters_hit_test_items(
     false
 }
 
+// https://drafts.csswg.org/css-overflow-3/#overflow-propagation
+// The document element and its first body child propagate their overflow to the viewport. Every full layout pass
+// applies that propagation again from their computed values, and the change reaches the viewport through the
+// relayout of the element's ancestors, so their layout boxes and subtrees can be kept.
+fn viewport_propagated_overflow_invalidation() -> StyleInvalidation {
+    let mut result = StyleInvalidation {
+        rebuild_stacking_context: true,
+        resnap_scroll_container: true,
+        affects_hit_testing: true,
+        ..StyleInvalidation::default()
+    };
+    result.ensure_level(INVALIDATION_RELAYOUT);
+    result.ensure_visual_context(VISUAL_CONTEXT_REBUILD);
+    result
+}
+
 fn property_invalidation(property: u16, old: ComputedValuesView<'_>, new: ComputedValuesView<'_>) -> StyleInvalidation {
     let old_display = old.display();
     let new_display = new.display();
@@ -696,12 +712,14 @@ impl StyleEngine {
         new_style_record: u64,
         font_lists_equal: bool,
         element_folds_transform_into_layout: bool,
+        element_propagates_overflow_to_viewport: bool,
     ) -> u32 {
         let key = (
             old_style_record,
             new_style_record,
             font_lists_equal,
             element_folds_transform_into_layout,
+            element_propagates_overflow_to_viewport,
         );
         if let Some(result) = self.style_invalidation_cache.get(&key) {
             return *result | FfiStyleInvalidationField::CacheHit as u32;
@@ -771,7 +789,13 @@ impl StyleEngine {
                         _ => result.inherited_groups = ALL_INHERITED_STYLE_GROUPS,
                     }
                 }
-                let mut invalidation = property_invalidation(property, old_values, new_values);
+                let mut invalidation = if element_propagates_overflow_to_viewport
+                    && matches!(property, property_id::OVERFLOW_X | property_id::OVERFLOW_Y)
+                {
+                    viewport_propagated_overflow_invalidation()
+                } else {
+                    property_invalidation(property, old_values, new_values)
+                };
                 if element_folds_transform_into_layout
                     && matches!(
                         property,

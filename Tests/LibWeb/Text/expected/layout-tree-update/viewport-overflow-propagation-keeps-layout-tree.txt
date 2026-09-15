@@ -1,0 +1,28 @@
+initial: hit at overflowing child=overflowing
+html visible -> hidden (body starts clipping): html kept=true, body kept=true, child kept=true
+html visible -> hidden (body starts clipping): hit at overflowing child=html
+html visible -> hidden (body starts clipping): tree matches full rebuild=true
+html hidden -> visible (body stops clipping): html kept=true, body kept=true, child kept=true
+html hidden -> visible (body stops clipping): hit at overflowing child=overflowing
+html hidden -> visible (body stops clipping): tree matches full rebuild=true
+body hidden -> visible while propagating: html kept=true, body kept=true, child kept=true
+body hidden -> visible while propagating: hit at overflowing child=overflowing
+body hidden -> visible while propagating: tree matches full rebuild=true
+body visible -> scroll while propagating: html kept=true, body kept=true, child kept=true
+body visible -> scroll while propagating: hit at overflowing child=overflowing
+body visible -> scroll while propagating: tree matches full rebuild=true
+body hidden -> visible while html propagates: html kept=true, body kept=true, child kept=true
+body hidden -> visible while html propagates: hit at overflowing child=overflowing
+body hidden -> visible while html propagates: tree matches full rebuild=true
+body visible -> clip while html propagates: html kept=true, body kept=true, child kept=true
+body visible -> clip while html propagates: hit at overflowing child=html
+body visible -> clip while html propagates: tree matches full rebuild=true
+html overflow-x only hidden -> auto: html kept=true, body kept=true, child kept=true
+html overflow-x only hidden -> auto: hit at overflowing child=html
+html overflow-x only hidden -> auto: tree matches full rebuild=true
+absolutely positioned body visible -> hidden while propagating: html kept=true, body kept=true, child kept=true
+absolutely positioned body visible -> hidden while propagating: hit at overflowing child=overflowing
+absolutely positioned body visible -> hidden while propagating: tree matches full rebuild=true
+fixed positioned body visible -> hidden while propagating: html kept=true, body kept=true, child kept=true
+fixed positioned body visible -> hidden while propagating: hit at overflowing child=overflowing
+fixed positioned body visible -> hidden while propagating: tree matches full rebuild=true

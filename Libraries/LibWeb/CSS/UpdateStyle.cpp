@@ -59,6 +59,12 @@ static void apply_element_style_invalidation_after_style_change(DOM::Element& el
     if (invalidation.changes_containing_block_establishment)
         element.document().record_partial_relayout_escape(DOM::PartialRelayoutEscapeReason::ContainingBlockEstablishmentChangedByStyleChange);
 
+    // Only a full layout pass applies viewport propagation again, so a relayout of an element the viewport takes its
+    // overflow, writing mode, or direction from must not finish as a partial relayout of that element.
+    bool const element_is_viewport_propagation_source = element.is_viewport_propagation_source();
+    if (invalidation.needs_relayout() && element_is_viewport_propagation_source)
+        element.document().record_partial_relayout_escape(DOM::PartialRelayoutEscapeReason::ViewportPropagationSourceChangedByStyleChange);
+
     if (invalidation.needs_relayout()) {
         // A relayout-only style change on an absolutely positioned partial relayout boundary
         // stays confined to it: the box contributes nothing to ancestor layout, and partial
@@ -68,6 +74,7 @@ static void apply_element_style_invalidation_after_style_change(DOM::Element& el
         // outside the subtree a boundary-self relayout covers.
         auto* box = as_if<Layout::Box>(element.unsafe_layout_node());
         if (!invalidation.needs_layout_tree_rebuild()
+            && !element_is_viewport_propagation_source
             && box
             && box->is_absolutely_positioned()
             && box->is_partial_relayout_boundary()
@@ -596,7 +603,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                         ? authoritative_custom_property_data->identity()
                         : 0;
                     auto const production_packed = !!previous_style_record
-                        ? style_engine.compare_style_records(StyleRecordID { reaction.new_style_record }, previous_style_record, true, false)
+                        ? style_engine.compare_style_records(StyleRecordID { reaction.new_style_record }, previous_style_record, true, false, false)
                         : to_underlying(StyleEngineFFI::FfiStyleInvalidationField::AnyComputedValueChanged);
                     auto& counters = document.style_invalidation_counters();
                     auto const counters_before_verification = counters;
@@ -617,7 +624,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                             break;
                         }
                     }
-                    auto packed = style_engine.compare_style_records(StyleRecordID { reaction.new_style_record }, element->style_record_identity(), true, false);
+                    auto packed = style_engine.compare_style_records(StyleRecordID { reaction.new_style_record }, element->style_record_identity(), true, false, false);
                     VERIFY(!(packed & to_underlying(StyleEngineFFI::FfiStyleInvalidationField::AnyComputedValueChanged))
                         || style_engine.style_records_match_for_verification(reaction.style_node, NumericLimits<u8>::max(), StyleRecordID { reaction.new_style_record }, element->style_record_identity()));
                     // A custom-property environment reaction can jump over ancestors whose computed
@@ -638,7 +645,7 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
                             continue;
                         }
                         VERIFY(!!installed);
-                        auto pseudo_packed = style_engine.compare_style_records(*engine_record, installed, true, false);
+                        auto pseudo_packed = style_engine.compare_style_records(*engine_record, installed, true, false, false);
                         VERIFY(!(pseudo_packed & to_underlying(StyleEngineFFI::FfiStyleInvalidationField::AnyComputedValueChanged))
                             || style_engine.style_records_match_for_verification(reaction.style_node, kind, *engine_record, installed));
                     }

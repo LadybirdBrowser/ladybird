@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    html, body {
+        margin: 0;
+    }
+    body {
+        height: 100px;
+        overflow: hidden;
+    }
+    #overflowing {
+        position: relative;
+        top: 150px;
+        width: 50px;
+        height: 50px;
+    }
+</style>
+<body><div id="overflowing"></div></body>
+<script>
+    test(() => {
+        const html = document.documentElement;
+        const body = document.body;
+        const overflowing = document.getElementById("overflowing");
+
+        function describeHit() {
+            const hit = document.elementFromPoint(25, 175);
+            return hit ? hit.id || hit.nodeName.toLowerCase() : "null";
+        }
+
+        function runCase(name, mutate) {
+            document.body.offsetHeight;
+            const identities = [html, body, overflowing].map(element => internals.layoutNodeIdentity(element));
+            mutate();
+            document.body.offsetHeight;
+            const kept = [html, body, overflowing].map((element, index) => internals.layoutNodeIdentity(element) === identities[index]);
+            println(`${name}: html kept=${kept[0]}, body kept=${kept[1]}, child kept=${kept[2]}`);
+            println(`${name}: hit at overflowing child=${describeHit()}`);
+            println(`${name}: tree matches full rebuild=${internals.compareLayoutTreeWithFullRebuild().matches}`);
+        }
+
+        println(`initial: hit at overflowing child=${describeHit()}`);
+
+        // With html overflow visible, body's overflow goes to the viewport and body itself does not clip.
+        runCase("html visible -> hidden (body starts clipping)", () => {
+            html.style.overflow = "hidden";
+        });
+        runCase("html hidden -> visible (body stops clipping)", () => {
+            html.style.overflow = "";
+        });
+        runCase("body hidden -> visible while propagating", () => {
+            body.style.overflow = "visible";
+        });
+        runCase("body visible -> scroll while propagating", () => {
+            body.style.overflow = "scroll";
+        });
+
+        html.style.overflow = "hidden";
+        body.style.overflow = "";
+        runCase("body hidden -> visible while html propagates", () => {
+            body.style.overflow = "visible";
+        });
+        runCase("body visible -> clip while html propagates", () => {
+            body.style.overflow = "clip";
+        });
+        runCase("html overflow-x only hidden -> auto", () => {
+            html.style.overflow = "";
+            html.style.overflowX = "auto";
+        });
+
+        // A positioned body can be a partial relayout boundary of its own. Its overflow must still reach the viewport
+        // instead of clipping the body.
+        html.style.overflowX = "";
+        body.style.overflow = "visible";
+        body.style.position = "absolute";
+        runCase("absolutely positioned body visible -> hidden while propagating", () => {
+            body.style.overflow = "hidden";
+        });
+        body.style.overflow = "visible";
+        body.style.position = "fixed";
+        runCase("fixed positioned body visible -> hidden while propagating", () => {
+            body.style.overflow = "hidden";
+        });
+    });
+</script>

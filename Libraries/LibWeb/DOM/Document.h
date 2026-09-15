@@ -189,7 +189,8 @@ enum class UpdateLayoutReason {
     X(AnchorNamesUnregisteredByElementRemoval)             \
     X(AnchorNamesUnregisteredByStyleChange)                \
     X(ContainingBlockEstablishmentChangedByKeyframeEffect) \
-    X(ContainingBlockEstablishmentChangedByStyleChange)
+    X(ContainingBlockEstablishmentChangedByStyleChange)    \
+    X(ViewportPropagationSourceChangedByStyleChange)
 
 enum class PartialRelayoutEscapeReason {
 #define ENUMERATE_PARTIAL_RELAYOUT_ESCAPE_REASON(e) e,
