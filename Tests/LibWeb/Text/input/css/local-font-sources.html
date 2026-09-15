@@ -13,6 +13,14 @@
         println(`Resident local font remains usable after its deadline: ${context.measureText("abc").width === 30}`);
         document.fonts.delete(immediateFont);
 
+        const deadlineFont = new FontFace("DeadlineLocalAhem", "local('Ahem')", { display: "optional" });
+        document.fonts.add(deadlineFont);
+        internals.setFontDisplayTime(deadlineFont, 10000);
+        context.font = "10px DeadlineLocalAhem";
+        println(`Local metrics are available past the deadline on first use: ${context.measureText("abc").width === 30}`);
+        await deadlineFont.loaded;
+        document.fonts.delete(deadlineFont);
+
         const metricFont = new FontFace("LocalMetrics", "local('Ahem')");
         document.fonts.add(metricFont);
         metricFont.load();
