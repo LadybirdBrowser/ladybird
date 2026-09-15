@@ -1629,19 +1629,31 @@ impl StyleEngineState {
             self.computed_group_sets
                 .set_pending_cascade_state(target, cascade_state);
         }
+        // The drive built every payload and the table, and holds the only reference to each:
+        // hand them to the catalog rather than have it retain a second one per published payload.
+        let owned = computed::PendingRecordOwnership {
+            groups: u32::try_from((1_u64 << payloads.len()) - 1).expect("a style group index fits the ownership mask"),
+            table: true,
+        };
         let publication = self.publish_computed_groups_impl(
             Some(target),
             &payloads,
             computed::ENGINE_INHERITED_GROUP_COUNT,
             environment,
             metadata_input,
+            owned,
             scratch,
             counters,
         );
+        let transferred = publication.transferred;
         for (group, payload) in payloads.into_iter().enumerate() {
-            crate::css::computed_values::release_group_payload(group, payload);
+            if transferred.groups & (1 << group) == 0 {
+                crate::css::computed_values::release_group_payload(group, payload);
+            }
         }
-        release_table(table);
+        if !transferred.table {
+            release_table(table);
+        }
         Some((publication.style_record_identity, swap_eligible))
     }
 
@@ -2408,6 +2420,7 @@ impl StyleEngineState {
             inherited_group_count,
             custom_property_environment,
             metadata_input,
+            computed::PendingRecordOwnership::default(),
             &mut scratch,
             counters,
         );
@@ -2503,6 +2516,7 @@ impl StyleEngineState {
             inherited_group_count,
             custom_property_environment,
             metadata_input,
+            computed::PendingRecordOwnership::default(),
             &mut EngineComputabilityScratch::default(),
             counters,
         )
@@ -2700,6 +2714,9 @@ impl StyleEngineState {
     }
 
     #[allow(clippy::too_many_arguments)]
+    /// `owned` says which payloads, and whether the table, the caller hands to the catalog; the
+    /// publication says which of those references the catalog took.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn publish_computed_groups_impl(
         &mut self,
         target: Option<computed::ComputedStyleTarget>,
@@ -2707,6 +2724,7 @@ impl StyleEngineState {
         inherited_group_count: usize,
         custom_property_environment: u64,
         metadata_input: computed::ComputedMetadataInput<'_>,
+        owned: computed::PendingRecordOwnership,
         scratch: &mut EngineComputabilityScratch,
         counters: &mut Counters,
     ) -> computed::ComputedGroupPublication {
@@ -2720,6 +2738,7 @@ impl StyleEngineState {
             inherited_group_count,
             custom_property_environment,
             metadata_input,
+            owned,
         );
         if let Some(target) = target
             && !target.is_pseudo()
