@@ -47,7 +47,7 @@ public:
 
     icu::NumberingSystem& numbering_system();
 
-    icu::DateTimePatternGenerator& date_time_pattern_generator();
+    Optional<icu::DateTimePatternGenerator&> date_time_pattern_generator();
 
     icu::TimeZoneNames& time_zone_names();
 
