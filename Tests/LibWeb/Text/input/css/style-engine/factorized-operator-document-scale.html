@@ -20,9 +20,12 @@
         ];
 
         function difference(after, before, names) {
-            // Residency gauges scale with the document, and phase clocks measure elapsed
-            // time. Neither is deterministic physical work held to this invariant.
-            const measured = names.filter(name => !name.startsWith("tier3Resident") && !name.endsWith("Microseconds"));
+            // Residency gauges scale with the document, phase clocks measure elapsed time,
+            // and the catalog mint counts measure how warm the catalogs are: the first
+            // measurement mints the identities every later one reuses. None of the three is
+            // deterministic physical work held to this invariant.
+            const measured = names.filter(name => !name.startsWith("tier3Resident")
+                && !name.endsWith("Microseconds") && !name.endsWith("IdentitiesMinted"));
             return Object.fromEntries(measured.map(name => [name, after[name] - before[name]]));
         }
 
