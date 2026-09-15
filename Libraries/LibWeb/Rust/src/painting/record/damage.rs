@@ -176,7 +176,6 @@ impl LayoutNodeArena {
         })
     }
 
-    #[cfg(test)]
     pub(crate) fn paint_damage_of_row(&self, row: NodeSlotId) -> PaintDamage {
         if !self.paintable_row_is_populated(row) {
             return PaintDamage::NONE;
@@ -294,9 +293,25 @@ impl LayoutNodeArena {
         set.scroll_metadata_everywhere.set(set.stamp_for_push());
     }
 
-    #[cfg(test)]
     pub(crate) fn paint_damage_covers_everything(&self) -> bool {
         self.paintable_rows.damage.all.get() != 0
+    }
+
+    /// Whether the set explains why the retained output of a row cannot be reused: the row was
+    /// pushed, something below it was, or an ancestor moved with its subtree.
+    pub(crate) fn paint_damage_explains_rejected_reuse(&self, row: NodeSlotId) -> bool {
+        if self.paint_damage_covers_everything() || !self.paint_damage_of_row(row).is_empty() {
+            return true;
+        }
+        let rows = self.paintable_rows();
+        let mut ancestor = paint_order::paint_parent(&rows, row);
+        while let Some(current) = ancestor {
+            if self.paint_damage_of_row(current).contains(PaintDamage::MOVED) {
+                return true;
+            }
+            ancestor = paint_order::paint_parent(&rows, current);
+        }
+        false
     }
 
     #[cfg(test)]

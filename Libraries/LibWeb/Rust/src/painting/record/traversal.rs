@@ -399,6 +399,19 @@ impl<O: Observer> PaintRecorder<'_, O> {
         self.completed_record_gen + 1
     }
 
+    // The pushed damage must explain every reuse the stamps and position checks reject, or a
+    // recording driven by the damage alone would copy stale output. Debug assertions are off
+    // in release builds, so this follows the verification switch instead.
+    fn verify_paint_damage_explains_rejected_reuse(&self, paintable: NodeSlotId, rejected_by: &str) {
+        if !crate::painting::record::verify::enabled_by_environment() {
+            return;
+        }
+        assert!(
+            self.layout_arena.paint_damage_explains_rejected_reuse(paintable),
+            "cached paint of {paintable:?} was rejected by {rejected_by} without pushed damage"
+        );
+    }
+
     fn try_splice_cached_subtree_capture(&mut self, site: CaptureSite) -> bool {
         if self.is_recording_svg_resource_content() || !self.cache_compatibility.allows_subtree(site.kind) {
             return false;
@@ -411,6 +424,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             || cache.is_self_dirty_since(self.completed_record_gen)
             || cache.has_dirty_descendants_since(self.completed_record_gen)
         {
+            self.verify_paint_damage_explains_rejected_reuse(site.paintable, "stamps");
             return false;
         }
         let Some(cached) = cache.subtree_capture(site.kind) else {
@@ -422,6 +436,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
             return false;
         }
         if captured_position != self.current_absolute_position(site.paintable) {
+            self.verify_paint_damage_explains_rejected_reuse(site.paintable, "position");
             return false;
         }
         let Some(source_position) = self.resolve_capture_address_in_source_tape(cached.address) else {
@@ -845,12 +860,14 @@ impl<O: Observer> PaintRecorder<'_, O> {
         // Checked before loading the entry so a dirty row's miss stays as cheap as the
         // absent-entry miss the eager clearing model produced.
         if self.all_paint_caches_dirty || cache.is_self_dirty_since(self.completed_record_gen) {
+            self.verify_paint_damage_explains_rejected_reuse(paintable, "stamps");
             return None;
         }
         let entry = cache.commands(phase)?;
         let captured_position = cache.captured_absolute_position();
         drop(cache);
         if captured_position != self.current_absolute_position(paintable) {
+            self.verify_paint_damage_explains_rejected_reuse(paintable, "position");
             return None;
         }
         let offset = self
@@ -879,15 +896,18 @@ impl<O: Observer> PaintRecorder<'_, O> {
         }
         let cache = self.layout_arena.paintable_paint_cache_if_allocated(paintable)?;
         if self.all_paint_caches_dirty || cache.is_self_dirty_since(self.completed_record_gen) {
+            self.verify_paint_damage_explains_rejected_reuse(paintable, "stamps");
             return None;
         }
         let entry = cache.hit_test_items(phase)?;
         if entry.recorded_context != own_context || entry.recorded_context_for_descendants != for_descendants_context {
+            self.verify_paint_damage_explains_rejected_reuse(paintable, "contexts");
             return None;
         }
         let captured_position = cache.captured_absolute_position();
         drop(cache);
         if captured_position != self.current_absolute_position(paintable) {
+            self.verify_paint_damage_explains_rejected_reuse(paintable, "position");
             return None;
         }
         let start = self
