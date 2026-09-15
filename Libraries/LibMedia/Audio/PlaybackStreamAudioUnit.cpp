@@ -212,7 +212,7 @@ public:
 
     void queue_task(AudioTask task)
     {
-        Sync::MutexLocker lock(m_task_queue_mutex);
+        MutexLocker lock(m_task_queue_mutex);
         m_task_queue.append(move(task));
         m_task_queue_is_empty = false;
     }
@@ -243,7 +243,7 @@ private:
         if (m_task_queue_is_empty.load())
             return {};
 
-        Sync::MutexLocker lock(m_task_queue_mutex);
+        MutexLocker lock(m_task_queue_mutex);
 
         m_task_queue_is_empty = m_task_queue.size() == 1;
         return m_task_queue.take_first();
@@ -324,7 +324,7 @@ private:
     AudioComponentInstance m_audio_unit { nullptr };
     SampleSpecification m_sample_specification;
 
-    Sync::Mutex m_task_queue_mutex;
+    Mutex m_task_queue_mutex;
     Vector<AudioTask, 4> m_task_queue;
     Atomic<bool> m_task_queue_is_empty { true };
 

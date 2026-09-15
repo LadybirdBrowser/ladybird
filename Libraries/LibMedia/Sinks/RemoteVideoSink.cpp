@@ -49,19 +49,19 @@ private:
 
     void enqueue_frame(VideoFrame const&, u32 seek_id);
     void lend_slot(PooledVideoFrameSlot const&);
-    void wait_on_pump_thread(Sync::MutexLocker<Sync::Mutex>&);
+    void wait_on_pump_thread(MutexLocker<Mutex>&);
 
     VideoEdgeQueue m_edge;
     Delegates m_delegates;
 
-    mutable Sync::Mutex m_mutex;
-    Sync::ConditionVariable m_wait_condition { m_mutex };
+    mutable Mutex m_mutex;
+    ConditionVariable m_wait_condition { m_mutex };
     RefPtr<VideoProducer> m_input;
     bool m_exit_requested { false };
     bool m_wake_pending { false };
     u32 m_actual_seek_id { 0 };
 
-    Sync::Mutex m_lent_pools_mutex;
+    Mutex m_lent_pools_mutex;
     HashMap<VideoFramePoolID, LentPool> m_lent_pools;
     PresentedFramePage m_presented_frame_page;
 };
@@ -147,11 +147,11 @@ RemoteVideoSink::ThreadData::ThreadData(VideoEdgeQueue edge, Delegates delegates
 ErrorOr<void> RemoteVideoSink::ThreadData::connect_input(NonnullRefPtr<VideoProducer> const& producer)
 {
     producer->set_wake_handler([this] {
-        Sync::MutexLocker locker { m_mutex };
+        MutexLocker locker { m_mutex };
         m_wake_pending = true;
         m_wait_condition.broadcast();
     });
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     VERIFY(m_input == nullptr);
     m_input = producer;
     m_wake_pending = true;
@@ -162,7 +162,7 @@ ErrorOr<void> RemoteVideoSink::ThreadData::connect_input(NonnullRefPtr<VideoProd
 void RemoteVideoSink::ThreadData::disconnect_input(NonnullRefPtr<VideoProducer> const& producer)
 {
     producer->set_wake_handler(nullptr);
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     VERIFY(m_input == producer.ptr());
     m_input = nullptr;
 }
@@ -179,7 +179,7 @@ void RemoteVideoSink::ThreadData::transmit_time_reader(MediaTimeReader const& ti
 
 void RemoteVideoSink::ThreadData::seek_upstream(AK::Duration timestamp)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     if (m_input)
         m_input->seek(timestamp);
     m_actual_seek_id++;
@@ -191,7 +191,7 @@ void RemoteVideoSink::ThreadData::start_input()
 {
     RefPtr<VideoProducer> input;
     {
-        Sync::MutexLocker locker { m_mutex };
+        MutexLocker locker { m_mutex };
         input = m_input;
     }
     if (input)
@@ -200,7 +200,7 @@ void RemoteVideoSink::ThreadData::start_input()
 
 void RemoteVideoSink::ThreadData::notify_space_available()
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     m_wake_pending = true;
     m_wait_condition.broadcast();
 }
@@ -209,7 +209,7 @@ void RemoteVideoSink::ThreadData::request_exit()
 {
     RefPtr<VideoProducer> input;
     {
-        Sync::MutexLocker locker { m_mutex };
+        MutexLocker locker { m_mutex };
         m_exit_requested = true;
         input = move(m_input);
         m_wake_pending = true;
@@ -219,7 +219,7 @@ void RemoteVideoSink::ThreadData::request_exit()
         input->set_wake_handler(nullptr);
 }
 
-void RemoteVideoSink::ThreadData::wait_on_pump_thread(Sync::MutexLocker<Sync::Mutex>&)
+void RemoteVideoSink::ThreadData::wait_on_pump_thread(MutexLocker<Mutex>&)
 {
     while (!m_wake_pending && !m_exit_requested)
         m_wait_condition.wait();
@@ -243,7 +243,7 @@ void RemoteVideoSink::ThreadData::pump_thread_loop()
     while (true) {
         if (enqueued_frame_seek_id.has_value()) {
             {
-                Sync::MutexLocker locker { m_mutex };
+                MutexLocker locker { m_mutex };
                 if (m_exit_requested)
                     break;
                 // Paired with the fence in RemoteVideoProducer::seek(): either that seek's look at the ring saw this
@@ -271,7 +271,7 @@ void RemoteVideoSink::ThreadData::pump_thread_loop()
         u32 seek_id;
         VideoProducerOutput output;
         {
-            Sync::MutexLocker locker { m_mutex };
+            MutexLocker locker { m_mutex };
             if (m_exit_requested)
                 break;
             auto seek_request_is_pending = m_edge.requested_seek_id() != m_actual_seek_id;
@@ -292,7 +292,7 @@ void RemoteVideoSink::ThreadData::pump_thread_loop()
 
         if (publish_status({ output.status, seek_id }) && (output.status == PipelineStatus::Suspended || is_terminal(output.status)))
             m_delegates.ring_data_available();
-        Sync::MutexLocker locker { m_mutex };
+        MutexLocker locker { m_mutex };
         wait_on_pump_thread(locker);
     }
 
@@ -312,7 +312,7 @@ void RemoteVideoSink::ThreadData::lend_slot(PooledVideoFrameSlot const& pool_slo
     auto& ledger = pool_slot.ledger();
     auto slot_index = pool_slot.slot_index();
     ledger.add_hold(slot_index);
-    Sync::MutexLocker locker { m_lent_pools_mutex };
+    MutexLocker locker { m_lent_pools_mutex };
     auto& lent_pool = m_lent_pools.ensure(ledger.id(), [&] {
         return LentPool { .ledger = ledger, .lend_counts_by_slot_index = {}, .announced_allocated_buffer_ids_by_slot_index = {}, .outstanding_lend_count = 0 };
     });
@@ -332,7 +332,7 @@ void RemoteVideoSink::ThreadData::release_slot(VideoFramePoolID pool_id, u32 slo
 {
     RefPtr<VideoFrameEntryLedger> ledger;
     {
-        Sync::MutexLocker locker { m_lent_pools_mutex };
+        MutexLocker locker { m_lent_pools_mutex };
         auto lent_pool = m_lent_pools.get(pool_id);
         if (!lent_pool.has_value())
             return;
@@ -354,7 +354,7 @@ void RemoteVideoSink::ThreadData::release_all_lends()
 {
     HashMap<VideoFramePoolID, LentPool> lent_pools;
     {
-        Sync::MutexLocker locker { m_lent_pools_mutex };
+        MutexLocker locker { m_lent_pools_mutex };
         lent_pools = move(m_lent_pools);
     }
     for (auto& entry : lent_pools) {
@@ -370,7 +370,7 @@ RefPtr<VideoFrame> RemoteVideoSink::ThreadData::current_frame()
     auto handle = m_presented_frame_page.read();
     while (handle.has_value()) {
         {
-            Sync::MutexLocker locker { m_lent_pools_mutex };
+            MutexLocker locker { m_lent_pools_mutex };
             auto lent_pool = m_lent_pools.get(handle->pool_id);
             if (lent_pool.has_value() && lent_pool->lend_counts_by_slot_index.contains(handle->slot_index)) {
                 auto ledger = lent_pool->ledger;

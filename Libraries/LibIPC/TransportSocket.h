@@ -59,8 +59,8 @@ private:
     SinglyLinkedList<QueuedMessage, AK::DefaultSizeCalculationPolicy> m_queued_messages;
     size_t m_queued_byte_count { 0 };
     Vector<int> m_fds;
-    Sync::Mutex m_mutex;
-    Sync::ConditionVariable m_drained_cv { m_mutex };
+    Mutex m_mutex;
+    ConditionVariable m_drained_cv { m_mutex };
     bool m_drain_waiters_released { false };
 };
 
@@ -148,7 +148,7 @@ private:
     // This is necessary to handle a specific behavior of the macOS kernel, which may prematurely garbage-collect the file
     // descriptor contained in the message before the peer receives it. https://openradar.me/9477351
     Queue<NonnullRefPtr<AutoCloseFileDescriptor>> m_fds_retained_until_received_by_peer;
-    Sync::Mutex m_fds_retained_until_received_by_peer_mutex;
+    Mutex m_fds_retained_until_received_by_peer_mutex;
 
     RefPtr<Threading::Thread> m_io_thread;
     RefPtr<SendQueue> m_send_queue;
@@ -157,8 +157,8 @@ private:
     Atomic<bool> m_peer_eof { false };
     ByteBuffer m_unprocessed_bytes;
     Queue<Attachment> m_unprocessed_attachments;
-    Sync::Mutex m_incoming_mutex;
-    Sync::ConditionVariable m_incoming_cv { m_incoming_mutex };
+    Mutex m_incoming_mutex;
+    ConditionVariable m_incoming_cv { m_incoming_mutex };
     Vector<NonnullOwnPtr<Message>> m_incoming_messages;
     // True while the IO thread is between reading the socket and appending what it read.
     bool m_read_in_progress { false };

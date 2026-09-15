@@ -12,14 +12,14 @@
 #include <AK/RefPtr.h>
 #include <AK/StdLibExtras.h>
 
-namespace Sync {
+namespace AK {
 
 template<typename T>
-class Weakable;
+class ThreadSafeWeakable;
 
-class WeakRefLink : public AtomicRefCounted<WeakRefLink> {
+class ThreadSafeWeakRefLink : public AtomicRefCounted<ThreadSafeWeakRefLink> {
     template<typename T>
-    friend class Weakable;
+    friend class ThreadSafeWeakable;
 
 public:
     template<typename T>
@@ -44,7 +44,7 @@ public:
     }
 
 private:
-    explicit WeakRefLink(void* target)
+    explicit ThreadSafeWeakRefLink(void* target)
         : m_target(target)
     {
     }
@@ -69,10 +69,10 @@ private:
 };
 
 template<typename T>
-class WeakRef {
+class ThreadSafeWeakRef {
 public:
-    WeakRef() = default;
-    WeakRef(RefPtr<WeakRefLink> link)
+    ThreadSafeWeakRef() = default;
+    ThreadSafeWeakRef(RefPtr<ThreadSafeWeakRefLink> link)
         : m_link(move(link))
     {
     }
@@ -92,34 +92,39 @@ public:
     }
 
 private:
-    RefPtr<WeakRefLink> m_link;
+    RefPtr<ThreadSafeWeakRefLink> m_link;
 };
 
 template<typename T>
-class Weakable {
+class ThreadSafeWeakable {
 public:
-    WeakRef<T> make_weak_ref()
+    ThreadSafeWeakRef<T> make_weak_ref()
     {
-        // The self-pointer is installed here rather than in the constructor: Weakable is constructed
+        // The self-pointer is installed here rather than in the constructor: ThreadSafeWeakable is constructed
         // before T's lifetime begins, so downcasting `this` to T* there is undefined behavior.
         m_link->ensure_target(static_cast<T*>(this));
-        return WeakRef<T> { m_link };
+        return ThreadSafeWeakRef<T> { m_link };
     }
 
 protected:
-    Weakable()
-        : m_link(adopt_ref(*new WeakRefLink(nullptr)))
+    ThreadSafeWeakable()
+        : m_link(adopt_ref(*new ThreadSafeWeakRefLink(nullptr)))
     {
     }
 
-    ~Weakable() { m_link->revoke(); }
+    ~ThreadSafeWeakable() { m_link->revoke(); }
 
-    // ~Weakable() revokes only after the derived object's members are already destroyed. If with_target() is to be
-    // used, this should be called before any destruction that breaks functionality of the object.
+    // ~ThreadSafeWeakable() revokes only after the derived object's members are already destroyed. If with_target()
+    // is to be used, this should be called before any destruction that breaks functionality of the object.
     void revoke_weak_refs() { m_link->revoke(); }
 
 private:
-    NonnullRefPtr<WeakRefLink> m_link;
+    NonnullRefPtr<ThreadSafeWeakRefLink> m_link;
 };
 
 }
+
+#if USING_AK_GLOBALLY
+using AK::ThreadSafeWeakable;
+using AK::ThreadSafeWeakRef;
+#endif

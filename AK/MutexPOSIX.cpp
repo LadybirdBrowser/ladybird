@@ -16,7 +16,7 @@
 #include <AK/Platform.h>
 #include <pthread.h>
 
-namespace Sync {
+namespace AK {
 
 namespace {
 

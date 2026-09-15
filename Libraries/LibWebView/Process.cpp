@@ -85,7 +85,7 @@ ErrorOr<Process::ProcessAndIPCTransport> Process::spawn_and_connect_to_process(C
     // The child may receive startup messages before it has constructed its transport.
     IPC::TransportMachPort::raise_receive_queue_limit(port_b_recv);
 
-    Sync::MutexLocker child_registration_locker(Application::transport_bootstrap_server().child_registration_lock());
+    MutexLocker child_registration_locker(Application::transport_bootstrap_server().child_registration_lock());
     auto process = TRY(Core::Process::spawn(spawn_options));
 
     Application::transport_bootstrap_server().register_child_transport(process.pid(), IPC::TransportBootstrapMachPorts { move(port_b_recv), move(port_a_send) });

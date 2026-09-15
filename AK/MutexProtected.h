@@ -10,7 +10,7 @@
 #include <AK/Mutex.h>
 #include <AK/Noncopyable.h>
 
-namespace Sync {
+namespace AK {
 
 template<typename T, typename MutexType = Mutex>
 class MutexProtected {
@@ -55,3 +55,7 @@ private:
 };
 
 }
+
+#if USING_AK_GLOBALLY
+using AK::MutexProtected;
+#endif

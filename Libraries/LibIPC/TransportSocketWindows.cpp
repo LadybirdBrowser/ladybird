@@ -77,7 +77,7 @@ bool TransportSocketWindows::is_open() const
 void TransportSocketWindows::close()
 {
     m_socket_is_open.store(false, AK::MemoryOrder::memory_order_relaxed);
-    Sync::MutexLocker locker(m_send_mutex);
+    MutexLocker locker(m_send_mutex);
     m_socket->close();
 }
 
@@ -185,7 +185,7 @@ ErrorOr<void> TransportSocketWindows::post_message(MessageDataType bytes, Vector
     VERIFY(bytes.size() <= MAX_MESSAGE_PAYLOAD_SIZE);
     VERIFY(attachments.size() <= MAX_MESSAGE_FD_COUNT);
 
-    Sync::MutexLocker locker(m_send_mutex);
+    MutexLocker locker(m_send_mutex);
 
     auto attachment_count = attachments.size();
     auto serialized_attachments = TRY(serialize_attachments(attachments));
@@ -348,7 +348,7 @@ TransportSocketWindows::ShouldShutdown TransportSocketWindows::read_as_many_mess
 ErrorOr<TransportHandle> TransportSocketWindows::release_for_transfer()
 {
     m_socket_is_open.store(false, AK::MemoryOrder::memory_order_relaxed);
-    Sync::MutexLocker locker(m_send_mutex);
+    MutexLocker locker(m_send_mutex);
     auto fd = TRY(m_socket->release_fd());
     return TransportHandle { File::adopt_fd(fd) };
 }

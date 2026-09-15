@@ -73,7 +73,7 @@ protected:
     u32 held_slot_count_while_locked() const;
     void publish_acquisition_while_locked(Slot&);
 
-    mutable Sync::Mutex m_mutex;
+    mutable Mutex m_mutex;
     Vector<Slot> m_slots;
 
 private:

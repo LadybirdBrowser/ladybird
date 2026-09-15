@@ -10,10 +10,10 @@
 #include <AK/Concepts.h>
 #include <AK/Mutex.h>
 
-namespace Sync {
+namespace AK {
 
 struct OnceFlag {
-    Sync::Mutex mutex;
+    Mutex mutex;
     Atomic<bool> has_been_called { false };
 };
 
@@ -21,7 +21,7 @@ template<VoidFunction Callable>
 void call_once(OnceFlag& flag, Callable&& callable)
 {
     if (!flag.has_been_called.load(MemoryOrder::memory_order_acquire)) {
-        Sync::MutexLocker lock(flag.mutex);
+        MutexLocker lock(flag.mutex);
 
         // Another thread may have called the function while we were waiting on the mutex
         // The mutex guarantees exclusivity so we can use relaxed ordering
@@ -34,3 +34,8 @@ void call_once(OnceFlag& flag, Callable&& callable)
 }
 
 }
+
+#if USING_AK_GLOBALLY
+using AK::call_once;
+using AK::OnceFlag;
+#endif

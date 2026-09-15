@@ -15,12 +15,12 @@ namespace {
 
 struct Target
     : public AtomicRefCounted<Target>
-    , public Sync::Weakable<Target> {
+    , public ThreadSafeWeakable<Target> {
     int value { 42 };
 };
 
-struct PlainTarget : public Sync::Weakable<PlainTarget> {
-    using Sync::Weakable<PlainTarget>::revoke_weak_refs;
+struct PlainTarget : public ThreadSafeWeakable<PlainTarget> {
+    using ThreadSafeWeakable<PlainTarget>::revoke_weak_refs;
     int value { 7 };
 };
 
@@ -38,7 +38,7 @@ TEST_CASE(strong_ref_while_alive)
 
 TEST_CASE(strong_ref_after_destruction_is_null)
 {
-    Sync::WeakRef<Target> weak;
+    ThreadSafeWeakRef<Target> weak;
     {
         auto target = adopt_ref(*new Target);
         weak = target->make_weak_ref();
@@ -51,7 +51,7 @@ TEST_CASE(strong_ref_after_destruction_is_null)
 TEST_CASE(with_target_works_without_ref_counting)
 {
     int observed = 0;
-    Sync::WeakRef<PlainTarget> weak;
+    ThreadSafeWeakRef<PlainTarget> weak;
     {
         PlainTarget target;
         weak = target.make_weak_ref();
@@ -78,14 +78,14 @@ TEST_CASE(with_target_does_not_run_after_explicit_revocation)
 TEST_CASE(strong_ref_races_destruction_safely)
 {
     IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> stop { false };
-    IGNORE_USE_IN_ESCAPING_LAMBDA Sync::Mutex weak_mutex;
-    IGNORE_USE_IN_ESCAPING_LAMBDA Sync::WeakRef<Target> shared_weak;
+    IGNORE_USE_IN_ESCAPING_LAMBDA Mutex weak_mutex;
+    IGNORE_USE_IN_ESCAPING_LAMBDA ThreadSafeWeakRef<Target> shared_weak;
 
     auto reader = Threading::Thread::construct("WeakReader"sv, [&]() {
         while (!stop.load(AK::MemoryOrder::memory_order_relaxed)) {
-            Sync::WeakRef<Target> weak;
+            ThreadSafeWeakRef<Target> weak;
             {
-                Sync::MutexLocker locker { weak_mutex };
+                MutexLocker locker { weak_mutex };
                 weak = shared_weak;
             }
             if (auto strong = weak.strong_ref())
@@ -98,7 +98,7 @@ TEST_CASE(strong_ref_races_destruction_safely)
     for (int i = 0; i < 200000; i++) {
         auto target = adopt_ref(*new Target);
         {
-            Sync::MutexLocker locker { weak_mutex };
+            MutexLocker locker { weak_mutex };
             shared_weak = target->make_weak_ref();
         }
         // target is dropped and destroyed here while the reader may be mid-strong_ref().
@@ -113,14 +113,14 @@ TEST_CASE(strong_ref_races_destruction_safely)
 TEST_CASE(with_target_races_revocation_safely)
 {
     IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> stop { false };
-    IGNORE_USE_IN_ESCAPING_LAMBDA Sync::Mutex weak_mutex;
-    IGNORE_USE_IN_ESCAPING_LAMBDA Sync::WeakRef<PlainTarget> shared_weak;
+    IGNORE_USE_IN_ESCAPING_LAMBDA Mutex weak_mutex;
+    IGNORE_USE_IN_ESCAPING_LAMBDA ThreadSafeWeakRef<PlainTarget> shared_weak;
 
     auto reader = Threading::Thread::construct("WithTarget"sv, [&]() {
         while (!stop.load(AK::MemoryOrder::memory_order_relaxed)) {
-            Sync::WeakRef<PlainTarget> weak;
+            ThreadSafeWeakRef<PlainTarget> weak;
             {
-                Sync::MutexLocker locker { weak_mutex };
+                MutexLocker locker { weak_mutex };
                 weak = shared_weak;
             }
             weak.with_target([](PlainTarget& target) {
@@ -134,7 +134,7 @@ TEST_CASE(with_target_races_revocation_safely)
     for (int i = 0; i < 200000; i++) {
         PlainTarget target;
         {
-            Sync::MutexLocker locker { weak_mutex };
+            MutexLocker locker { weak_mutex };
             shared_weak = target.make_weak_ref();
         }
         target.revoke_weak_refs();

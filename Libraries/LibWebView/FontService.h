@@ -70,7 +70,7 @@ private:
     HashMap<String, u64> m_dynamic_match_cache;
 
     // Font requests arrive on the UI process's renderer connections and the Compositor's dedicated font connection.
-    Sync::Mutex m_mutex;
+    Mutex m_mutex;
 };
 
 }

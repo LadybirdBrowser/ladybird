@@ -19,7 +19,7 @@
 #    include <pthread.h>
 #endif
 
-namespace Sync {
+namespace AK {
 
 // A signaling condition variable that wraps over the platform APIs.
 // On posix it is a wrapper of pthread_cond_*.
@@ -67,3 +67,7 @@ ConditionVariableBase(MutexType&) -> ConditionVariableBase<MutexType>;
 using ConditionVariable = ConditionVariableBase<Mutex>;
 
 }
+
+#if USING_AK_GLOBALLY
+using AK::ConditionVariable;
+#endif

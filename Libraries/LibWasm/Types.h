@@ -1787,7 +1787,7 @@ public:
     }
     void finish_cranelift_compilation() const
     {
-        Sync::MutexLocker locker(m_cranelift_compilation_mutex);
+        MutexLocker locker(m_cranelift_compilation_mutex);
         m_cranelift_compilation_state.store(2, AK::MemoryOrder::memory_order_release);
         m_cranelift_compilation_state_changed.broadcast();
     }
@@ -1796,7 +1796,7 @@ public:
         if (m_cranelift_compilation_state.load(AK::MemoryOrder::memory_order_acquire) != 1)
             return;
 
-        Sync::MutexLocker locker(m_cranelift_compilation_mutex);
+        MutexLocker locker(m_cranelift_compilation_mutex);
         m_cranelift_compilation_state_changed.wait_while([this] {
             return m_cranelift_compilation_state.load(AK::MemoryOrder::memory_order_acquire) == 1;
         });
@@ -1842,8 +1842,8 @@ private:
     ValidationStatus m_validation_status { ValidationStatus::Unchecked };
     Optional<ByteString> m_validation_error;
     mutable Atomic<u8> m_cranelift_compilation_state { 0 };
-    mutable Sync::Mutex m_cranelift_compilation_mutex;
-    mutable Sync::ConditionVariable m_cranelift_compilation_state_changed { m_cranelift_compilation_mutex };
+    mutable Mutex m_cranelift_compilation_mutex;
+    mutable ConditionVariable m_cranelift_compilation_state_changed { m_cranelift_compilation_mutex };
     Optional<CompileCacheConfig> m_cranelift_cache_config;
     Optional<ModuleStats> m_compile_stats;
 

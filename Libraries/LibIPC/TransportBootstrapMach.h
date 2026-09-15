@@ -43,7 +43,7 @@ public:
 
     // Hold this lock across process spawn and child transport registration so a
     // child bootstrap request cannot observe an unregistered pid.
-    Sync::Mutex& child_registration_lock() { return m_child_registration_mutex; }
+    Mutex& child_registration_lock() { return m_child_registration_mutex; }
 
     // Must be called while holding child_registration_lock().
     void register_child_transport(pid_t, TransportBootstrapMachPorts);
@@ -53,7 +53,7 @@ private:
     static void send_transport_ports_to_child(Core::MachPort reply_port, TransportBootstrapMachPorts ports);
     static ErrorOr<TransportBootstrapMachPorts> create_on_demand_local_transport(Core::MachPort reply_port);
 
-    Sync::Mutex m_child_registration_mutex;
+    Mutex m_child_registration_mutex;
     HashMap<pid_t, TransportBootstrapMachPorts> m_child_transports;
 };
 

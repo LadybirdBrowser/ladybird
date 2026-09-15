@@ -120,19 +120,19 @@ public:
 
     Vector<ByteString> range_requests()
     {
-        Sync::MutexLocker locker { m_mutex };
+        MutexLocker locker { m_mutex };
         return m_range_requests;
     }
 
     size_t request_count()
     {
-        Sync::MutexLocker locker { m_mutex };
+        MutexLocker locker { m_mutex };
         return m_request_count;
     }
 
     size_t refused_count()
     {
-        Sync::MutexLocker locker { m_mutex };
+        MutexLocker locker { m_mutex };
         return m_refused_count;
     }
 
@@ -184,7 +184,7 @@ private:
         }
 
         {
-            Sync::MutexLocker locker { m_mutex };
+            MutexLocker locker { m_mutex };
             ++m_request_count;
             if (range_header.has_value())
                 m_range_requests.append(*range_header);
@@ -192,7 +192,7 @@ private:
 
         if (range_header.has_value() && m_range_request_behavior != RangeRequestBehavior::Serve) {
             {
-                Sync::MutexLocker locker { m_mutex };
+                MutexLocker locker { m_mutex };
                 ++m_refused_count;
             }
 
@@ -307,7 +307,7 @@ private:
     Atomic<bool> m_shutting_down { false };
     Atomic<bool> m_stall_pending { false };
 
-    Sync::Mutex m_mutex;
+    Mutex m_mutex;
     Vector<ByteString> m_range_requests;
     size_t m_request_count { 0 };
     size_t m_refused_count { 0 };

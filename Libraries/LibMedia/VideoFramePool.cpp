@@ -60,7 +60,7 @@ VideoFrameEntryLedger::~VideoFrameEntryLedger() = default;
 
 void VideoFrameEntryLedger::set_slot_freed_callback(Function<void()> slot_freed_callback)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     VERIFY(m_slots.is_empty());
     m_slot_freed_callback = move(slot_freed_callback);
 }
@@ -74,7 +74,7 @@ Optional<VideoFramePool::AcquiredSlot> VideoFramePool::try_acquire(size_t byte_c
 {
     VERIFY(byte_count > 0);
 
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
 
     Optional<u32> reusable_slot_index;
     Optional<u32> free_slot_index;
@@ -167,7 +167,7 @@ Optional<u32> VideoFrameEntryLedger::try_grow_while_locked()
 
 RefPtr<VideoSurface> VideoFrameEntryLedger::slot_surface(u32 slot_index) const
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     VERIFY(m_slots[slot_index].hold_count > 0);
     return m_slots[slot_index].surface;
 }
@@ -214,7 +214,7 @@ void VideoFramePool::free_excess_buffers_while_locked()
 
 void VideoFrameEntryLedger::shed_storage()
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     m_shed_storage_on_release = true;
     for (auto& slot : m_slots) {
         if (slot.hold_count == 0)
@@ -224,7 +224,7 @@ void VideoFrameEntryLedger::shed_storage()
 
 void VideoFrameEntryLedger::add_hold(u32 slot_index)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     VERIFY(m_slots[slot_index].hold_count > 0);
     m_slots[slot_index].hold_count++;
 }
@@ -232,7 +232,7 @@ void VideoFrameEntryLedger::add_hold(u32 slot_index)
 void VideoFrameEntryLedger::release_hold(u32 slot_index)
 {
     {
-        Sync::MutexLocker locker { m_mutex };
+        MutexLocker locker { m_mutex };
         auto& slot = m_slots[slot_index];
         VERIFY(slot.hold_count > 0);
         if (--slot.hold_count > 0)
@@ -249,14 +249,14 @@ void VideoFrameEntryLedger::release_hold(u32 slot_index)
 
 Core::AnonymousBuffer VideoFrameEntryLedger::slot_buffer(u32 slot_index) const
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     VERIFY(m_slots[slot_index].hold_count > 0);
     return m_slots[slot_index].buffer;
 }
 
 size_t VideoFramePool::allocated_byte_count() const
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     return m_allocated_bytes;
 }
 
@@ -267,7 +267,7 @@ ErrorOr<NonnullRefPtr<VideoFrameSurfacePool>> VideoFrameSurfacePool::create()
 
 Optional<VideoFrameSurfacePool::AcquiredSlot> VideoFrameSurfacePool::try_acquire(NonnullRefPtr<VideoSurface> const& surface)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
 
     auto slot_index = m_slot_indices_by_surface_id.get(surface->id()).copy();
 

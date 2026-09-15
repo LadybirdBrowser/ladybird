@@ -1065,8 +1065,8 @@ ErrorOr<Core::AnonymousBuffer> compile_cranelift_buffer(Core::AnonymousBuffer co
     auto process = TRY([&]() -> ErrorOr<Core::Process> {
         // FIXME: Use Core::FileAction::DupFd once it is supported on Windows so spawning does not require temporarily
         //        inheritable handles.
-        static Sync::Mutex spawn_mutex;
-        Sync::MutexLocker locker(spawn_mutex);
+        static Mutex spawn_mutex;
+        MutexLocker locker(spawn_mutex);
 
         auto inherited_input_fd = TRY(Core::System::dup(input.fd()));
         ScopeGuard close_inherited_input_fd { [&]() { (void)Core::System::close(inherited_input_fd); } };

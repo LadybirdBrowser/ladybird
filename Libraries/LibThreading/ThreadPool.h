@@ -26,8 +26,8 @@ private:
 
     intptr_t worker_thread_func();
 
-    Sync::Mutex m_mutex;
-    Sync::ConditionVariable m_condition { m_mutex };
+    Mutex m_mutex;
+    ConditionVariable m_condition { m_mutex };
     Queue<Function<void()>> m_work_queue;
     Vector<NonnullRefPtr<Thread>> m_threads;
 };

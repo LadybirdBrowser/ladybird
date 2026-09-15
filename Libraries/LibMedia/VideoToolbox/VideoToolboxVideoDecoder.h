@@ -80,8 +80,8 @@ private:
     bool m_reached_end_of_stream { false };
 
     // The media engine decodes on its own threads, so outputs arrive from outside this decoder's caller.
-    mutable Sync::Mutex m_output_mutex;
-    Sync::ConditionVariable m_output_arrived { m_output_mutex };
+    mutable Mutex m_output_mutex;
+    ConditionVariable m_output_arrived { m_output_mutex };
     Vector<DecodedOutput> m_outputs;
     u8 m_reorder_frame_count { 0 };
     Optional<DecoderError> m_decode_failure;

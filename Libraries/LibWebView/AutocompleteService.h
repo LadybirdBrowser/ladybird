@@ -70,8 +70,8 @@ private:
     HashMap<ClientID, NonnullRefPtr<Client>> m_clients;
     ClientID m_next_client_id { 0 };
 
-    Sync::Mutex m_worker_mutex;
-    Sync::ConditionVariable m_worker_condition { m_worker_mutex };
+    Mutex m_worker_mutex;
+    ConditionVariable m_worker_condition { m_worker_mutex };
     HashMap<ClientID, Query> m_active_queries;
     Vector<Query> m_pending_queries;
     Optional<Vector<AutocompleteBookmark>> m_pending_bookmarks;

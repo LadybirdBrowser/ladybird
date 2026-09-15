@@ -48,7 +48,7 @@ public:
     {
         auto promise = Core::ThreadedPromise<AK::Duration>::create();
         {
-            Sync::MutexLocker locker(m_mutex);
+            MutexLocker locker(m_mutex);
             if (m_state == StreamState::Stopped) {
                 promise->reject(Error::from_string_literal("Null playback stream has stopped"));
                 return promise;
@@ -67,7 +67,7 @@ public:
     {
         auto promise = Core::ThreadedPromise<void>::create();
         {
-            Sync::MutexLocker locker(m_mutex);
+            MutexLocker locker(m_mutex);
             if (m_state == StreamState::Stopped) {
                 promise->reject(Error::from_string_literal("Null playback stream has stopped"));
                 return promise;
@@ -83,7 +83,7 @@ public:
     {
         auto promise = Core::ThreadedPromise<void>::create();
         {
-            Sync::MutexLocker locker(m_mutex);
+            MutexLocker locker(m_mutex);
             if (m_state == StreamState::Stopped) {
                 promise->reject(Error::from_string_literal("Null playback stream has stopped"));
                 return promise;
@@ -99,7 +99,7 @@ public:
 
     void notify_data_available()
     {
-        Sync::MutexLocker locker(m_mutex);
+        MutexLocker locker(m_mutex);
         if (m_state != StreamState::Underrun)
             return;
         m_state = StreamState::Playing;
@@ -117,7 +117,7 @@ public:
     {
         auto promise = Core::ThreadedPromise<void>::create();
         {
-            Sync::MutexLocker locker(m_mutex);
+            MutexLocker locker(m_mutex);
             if (m_state == StreamState::Stopped) {
                 promise->reject(Error::from_string_literal("Null playback stream has stopped"));
                 return promise;
@@ -131,7 +131,7 @@ public:
     void stop()
     {
         {
-            Sync::MutexLocker locker(m_mutex);
+            MutexLocker locker(m_mutex);
             if (m_state == StreamState::Stopped)
                 return;
             m_state = StreamState::Stopped;
@@ -161,7 +161,7 @@ private:
             bool inactive = false;
 
             {
-                Sync::MutexLocker locker(m_mutex);
+                MutexLocker locker(m_mutex);
                 resume_promises = move(m_resume_promises);
                 ready_void_promises = move(m_ready_void_promises);
                 if (m_state == StreamState::Stopped) {
@@ -203,7 +203,7 @@ private:
                 return 0;
 
             if (inactive) {
-                Sync::MutexLocker locker(m_mutex);
+                MutexLocker locker(m_mutex);
                 if (m_state == StreamState::Suspended || m_state == StreamState::Underrun)
                     m_wake_condition.wait();
                 continue;
@@ -215,7 +215,7 @@ private:
                 auto written_frames = min(frames_to_request.value(), written_samples.size() / channel_count);
 
                 {
-                    Sync::MutexLocker locker(m_mutex);
+                    MutexLocker locker(m_mutex);
                     if (m_state == StreamState::Playing) {
                         m_buffered_frames += written_frames;
                         if (written_frames == 0 && m_buffered_frames == 0)
@@ -227,7 +227,7 @@ private:
             }
 
             {
-                Sync::MutexLocker locker(m_mutex);
+                MutexLocker locker(m_mutex);
                 if (m_state == StreamState::Playing || m_state == StreamState::Draining)
                     m_wake_condition.wait_for(AK::Duration::from_milliseconds(PULL_INTERVAL_MS));
             }
@@ -237,8 +237,8 @@ private:
     AudioDataRequestCallback m_data_request_callback;
     size_t m_target_buffer_frames { 0 };
 
-    mutable Sync::Mutex m_mutex;
-    Sync::ConditionVariable m_wake_condition { m_mutex };
+    mutable Mutex m_mutex;
+    ConditionVariable m_wake_condition { m_mutex };
     StreamState m_state { StreamState::Suspended };
     Vector<NonnullRefPtr<Core::ThreadedPromise<AK::Duration>>> m_resume_promises;
     Vector<NonnullRefPtr<Core::ThreadedPromise<void>>> m_drain_promises;

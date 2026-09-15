@@ -101,7 +101,7 @@ struct PlaybackStreamWASAPI::AudioState : public AtomicRefCounted<PlaybackStream
 
     PlaybackStreamWASAPI::AudioDataRequestCallback data_request_callback;
 
-    Sync::Mutex task_queue_mutex;
+    Mutex task_queue_mutex;
     Queue<Variant<TaskPlay, TaskDrainAndSuspend, TaskDiscardAndSuspend, TaskResumeFromUnderrun>> task_queue;
     // FIXME: Create a owning handle type to be shared in the codebase
     HANDLE task_event = 0;

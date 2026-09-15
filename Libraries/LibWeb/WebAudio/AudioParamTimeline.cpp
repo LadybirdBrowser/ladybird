@@ -19,7 +19,7 @@ AudioParamTimeline::AudioParamTimeline(float default_value)
 // https://webaudio.github.io/web-audio-api/#computedvalue
 float AudioParamTimeline::value_at_time(double time) const
 {
-    Sync::MutexLocker locker(m_mutex);
+    MutexLocker locker(m_mutex);
     return value_at_time_locked(time, time);
 }
 
@@ -77,7 +77,7 @@ float AudioParamTimeline::value_at_time_locked(double selection_time, double tim
 // Evaluates the intrinsic value for each sample frame of a render quantum starting at start_time.
 void AudioParamTimeline::sample(double start_time, double sample_period, Span<float> output) const
 {
-    Sync::MutexLocker locker(m_mutex);
+    MutexLocker locker(m_mutex);
     for (size_t frame = 0; frame < output.size(); ++frame) {
         auto frame_time = start_time + frame * sample_period;
         output[frame] = value_at_time_locked(frame_time + sample_period / 2, frame_time);
@@ -86,13 +86,13 @@ void AudioParamTimeline::sample(double start_time, double sample_period, Span<fl
 
 bool AudioParamTimeline::has_events() const
 {
-    Sync::MutexLocker locker(m_mutex);
+    MutexLocker locker(m_mutex);
     return !m_automation_events.is_empty();
 }
 
 AudioParamTimeline::InsertResult AudioParamTimeline::set_value_at_time(float value, double start_time)
 {
-    Sync::MutexLocker locker(m_mutex);
+    MutexLocker locker(m_mutex);
     return insert_event({
         .time = start_time,
         .parameterization = SetValue { value },
@@ -101,7 +101,7 @@ AudioParamTimeline::InsertResult AudioParamTimeline::set_value_at_time(float val
 
 AudioParamTimeline::InsertResult AudioParamTimeline::linear_ramp_to_value_at_time(float value, double end_time, double current_time, float current_value)
 {
-    Sync::MutexLocker locker(m_mutex);
+    MutexLocker locker(m_mutex);
 
     // If there is no event preceding this event, the linear ramp behaves as if setValueAtTime(value, currentTime) were
     // called, where value is the current value of the attribute.
@@ -123,7 +123,7 @@ AudioParamTimeline::InsertResult AudioParamTimeline::linear_ramp_to_value_at_tim
 
 AudioParamTimeline::InsertResult AudioParamTimeline::exponential_ramp_to_value_at_time(float value, double end_time, double current_time, float current_value)
 {
-    Sync::MutexLocker locker(m_mutex);
+    MutexLocker locker(m_mutex);
 
     // If there is no event preceding this event, the exponential ramp behaves as if setValueAtTime(value, currentTime)
     // were called, where value is the current value of the attribute.
@@ -145,7 +145,7 @@ AudioParamTimeline::InsertResult AudioParamTimeline::exponential_ramp_to_value_a
 
 AudioParamTimeline::InsertResult AudioParamTimeline::set_target_at_time(float target, double start_time, float time_constant)
 {
-    Sync::MutexLocker locker(m_mutex);
+    MutexLocker locker(m_mutex);
     return insert_event({
         .time = start_time,
         .parameterization = SetTarget { target, time_constant },
@@ -154,7 +154,7 @@ AudioParamTimeline::InsertResult AudioParamTimeline::set_target_at_time(float ta
 
 AudioParamTimeline::InsertResult AudioParamTimeline::set_value_curve_at_time(Vector<float> values, double start_time, double duration)
 {
-    Sync::MutexLocker locker(m_mutex);
+    MutexLocker locker(m_mutex);
 
     // If there are any events with a time strictly greater than startTime but strictly less than startTime + duration,
     // a NotSupportedError exception MUST be thrown.
@@ -341,7 +341,7 @@ AudioParamTimeline::InsertResult AudioParamTimeline::insert_event(AutomationEven
 
 void AudioParamTimeline::cancel_scheduled_values(double cancel_time)
 {
-    Sync::MutexLocker locker(m_mutex);
+    MutexLocker locker(m_mutex);
 
     // Cancel all scheduled parameter changes with times greater than or equal to cancelTime.
     auto first_event_to_remove = AK::lower_bound_index(m_automation_events, cancel_time, [](auto const& event, double time) {
@@ -373,7 +373,7 @@ void AudioParamTimeline::cancel_scheduled_values(double cancel_time)
 
 void AudioParamTimeline::cancel_and_hold_at_time(double cancel_time)
 {
-    Sync::MutexLocker locker(m_mutex);
+    MutexLocker locker(m_mutex);
 
     auto value_to_hold = value_at_time_locked(cancel_time, cancel_time);
     auto event_index = first_event_index_after(cancel_time);

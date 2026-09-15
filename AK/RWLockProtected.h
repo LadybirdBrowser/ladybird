@@ -10,7 +10,7 @@
 #include <AK/Noncopyable.h>
 #include <AK/RWLock.h>
 
-namespace Sync {
+namespace AK {
 
 template<typename T>
 class RWLockProtected {
@@ -55,14 +55,14 @@ public:
     }
 
 private:
-    [[nodiscard]] ALWAYS_INLINE RWLockLocker<LockMode::Read> lock_read() const
+    [[nodiscard]] ALWAYS_INLINE RWLockLocker<RWLock::Mode::Read> lock_read() const
     {
-        return RWLockLocker<LockMode::Read> { m_lock };
+        return RWLockLocker<RWLock::Mode::Read> { m_lock };
     }
 
-    [[nodiscard]] ALWAYS_INLINE RWLockLocker<LockMode::Write> lock_write()
+    [[nodiscard]] ALWAYS_INLINE RWLockLocker<RWLock::Mode::Write> lock_write()
     {
-        return RWLockLocker<LockMode::Write> { m_lock };
+        return RWLockLocker<RWLock::Mode::Write> { m_lock };
     }
 
     T m_value;
@@ -70,3 +70,7 @@ private:
 };
 
 }
+
+#if USING_AK_GLOBALLY
+using AK::RWLockProtected;
+#endif

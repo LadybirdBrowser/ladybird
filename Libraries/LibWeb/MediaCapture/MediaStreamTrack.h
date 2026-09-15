@@ -52,16 +52,16 @@ using ULongRange = Bindings::ULongRange;
 struct AudioFrameSink final : public AtomicRefCounted<AudioFrameSink> {
     void deliver(float const* samples, size_t frames, u8 channels, u32 rate)
     {
-        Sync::MutexLocker locker(m_mutex);
+        MutexLocker locker(m_mutex);
         if (on_frames)
             on_frames(samples, frames, channels, rate);
     }
     void deactivate() const
     {
-        Sync::MutexLocker locker(m_mutex);
+        MutexLocker locker(m_mutex);
         on_frames = nullptr;
     }
-    mutable Sync::Mutex m_mutex;
+    mutable Mutex m_mutex;
     mutable Function<void(float const* samples, size_t frame_count, u8 channel_count, u32 sample_rate)> on_frames;
 };
 
@@ -81,7 +81,7 @@ public:
     void deliver(float const* samples, size_t frame_count, u8 channel_count, u32 sample_rate);
 
 private:
-    Sync::Mutex m_mutex;
+    Mutex m_mutex;
     Vector<NonnullRefPtr<AudioFrameSink>> m_sinks;
     Atomic<bool> m_silenced { false };
 

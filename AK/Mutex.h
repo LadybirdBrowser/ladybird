@@ -19,7 +19,7 @@
 #    include <pthread.h>
 #endif
 
-namespace Sync {
+namespace AK {
 
 template<typename RecursivePolicy, typename InterprocessPolicy>
 class MutexBase;
@@ -102,3 +102,11 @@ template<typename MutexType>
 MutexLocker(MutexType&) -> MutexLocker<MutexType>;
 
 }
+
+#if USING_AK_GLOBALLY
+using AK::IPCMutex;
+using AK::IPCRecursiveMutex;
+using AK::Mutex;
+using AK::MutexLocker;
+using AK::RecursiveMutex;
+#endif

@@ -12,8 +12,8 @@
 
 TEST_CASE(quit_event_loop_before_worker_run_loop_waits)
 {
-    IGNORE_USE_IN_ESCAPING_LAMBDA Sync::Mutex mutex;
-    IGNORE_USE_IN_ESCAPING_LAMBDA Sync::ConditionVariable condition { mutex };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Mutex mutex;
+    IGNORE_USE_IN_ESCAPING_LAMBDA ConditionVariable condition { mutex };
     IGNORE_USE_IN_ESCAPING_LAMBDA RefPtr<Core::WeakEventLoopReference> weak_ref;
     IGNORE_USE_IN_ESCAPING_LAMBDA Core::ThreadEventQueue* thread_event_queue { nullptr };
     IGNORE_USE_IN_ESCAPING_LAMBDA bool may_exec { false };
@@ -23,7 +23,7 @@ TEST_CASE(quit_event_loop_before_worker_run_loop_waits)
     auto thread = Threading::Thread::construct("AppKit event loop"sv, [&] {
         Core::EventLoop event_loop;
         {
-            Sync::MutexLocker locker { mutex };
+            MutexLocker locker { mutex };
             weak_ref = Core::EventLoop::current_weak();
             thread_event_queue = &Core::ThreadEventQueue::current();
             condition.broadcast();
@@ -36,21 +36,21 @@ TEST_CASE(quit_event_loop_before_worker_run_loop_waits)
     RefPtr<Core::WeakEventLoopReference> event_loop;
     Core::ThreadEventQueue* event_queue;
     {
-        Sync::MutexLocker locker { mutex };
+        MutexLocker locker { mutex };
         condition.wait_while([&] { return !thread_event_queue; });
         event_loop = weak_ref;
         event_queue = thread_event_queue;
     }
 
     event_queue->deferred_invoke([&] {
-        Sync::MutexLocker locker { mutex };
+        MutexLocker locker { mutex };
         callback_is_running = true;
         condition.broadcast();
         condition.wait_while([&] { return !callback_may_return; });
     });
 
     {
-        Sync::MutexLocker locker { mutex };
+        MutexLocker locker { mutex };
         may_exec = true;
         condition.broadcast();
         condition.wait_while([&] { return !callback_is_running; });
@@ -65,7 +65,7 @@ TEST_CASE(quit_event_loop_before_worker_run_loop_waits)
     }
 
     {
-        Sync::MutexLocker locker { mutex };
+        MutexLocker locker { mutex };
         callback_may_return = true;
         condition.broadcast();
     }

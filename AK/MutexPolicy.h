@@ -8,7 +8,7 @@
 
 #include <AK/Concepts.h>
 
-namespace Sync {
+namespace AK {
 
 struct PolicyNonRecursive { };
 struct PolicyRecursive { };

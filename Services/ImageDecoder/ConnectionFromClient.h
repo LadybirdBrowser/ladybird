@@ -48,7 +48,7 @@ public:
         Core::AnonymousBuffer encoded_data;
         RefPtr<Gfx::ImageDecoder> decoder;
         u32 frame_count { 0 };
-        Sync::Mutex decoder_mutex;
+        Mutex decoder_mutex;
     };
 
 private:

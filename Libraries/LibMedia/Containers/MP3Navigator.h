@@ -40,7 +40,7 @@ private:
     NonnullRefPtr<MediaStreamCursor> m_seek_range_scanning_cursor;
     NonnullRefPtr<MediaStreamCursor> m_seek_cursor;
 
-    mutable Sync::Mutex m_mutex;
+    mutable Mutex m_mutex;
     mutable Vector<CachedRange> m_cached_ranges;
 };
 

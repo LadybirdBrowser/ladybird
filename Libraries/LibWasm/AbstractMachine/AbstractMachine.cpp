@@ -29,7 +29,7 @@ AbstractMachine::~AbstractMachine() = default;
 
 static auto& module_stats()
 {
-    static NeverDestroyed<Sync::MutexProtected<Vector<ModuleStats>>> stats;
+    static NeverDestroyed<MutexProtected<Vector<ModuleStats>>> stats;
     return *stats;
 }
 

@@ -36,8 +36,8 @@ public:
 
 private:
     struct PendingCompilation final : public AtomicRefCounted<PendingCompilation> {
-        Sync::Mutex mutex;
-        Sync::ConditionVariable condition { mutex };
+        Mutex mutex;
+        ConditionVariable condition { mutex };
         Optional<Core::AnonymousBuffer> result;
     };
 
@@ -46,7 +46,7 @@ private:
 
     Atomic<u64> m_next_request_id { 0 };
 
-    Sync::Mutex m_pending_compilations_mutex;
+    Mutex m_pending_compilations_mutex;
     HashMap<u64, NonnullRefPtr<PendingCompilation>> m_pending_compilations;
 };
 

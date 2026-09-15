@@ -76,7 +76,7 @@ ErrorOr<NonnullRefPtr<CompositorFontServiceConnection>> CompositorFontServiceCon
 
     Optional<Error> initialization_error;
     {
-        Sync::MutexLocker locker(connection->m_mutex);
+        MutexLocker locker(connection->m_mutex);
         connection->m_initialization_condition.wait_while([&] { return !connection->m_initialized; });
         initialization_error = move(connection->m_initialization_error);
     }
@@ -99,7 +99,7 @@ CompositorFontServiceConnection::~CompositorFontServiceConnection()
 {
     RefPtr<Core::WeakEventLoopReference> event_loop;
     {
-        Sync::MutexLocker locker(m_mutex);
+        MutexLocker locker(m_mutex);
         event_loop = m_event_loop;
     }
 
@@ -116,7 +116,7 @@ CompositorFontServiceConnection::~CompositorFontServiceConnection()
 
 IPC::TransportHandle CompositorFontServiceConnection::take_transport_handle()
 {
-    Sync::MutexLocker locker(m_mutex);
+    MutexLocker locker(m_mutex);
     VERIFY(m_transport_handle.has_value());
     return m_transport_handle.release_value();
 }
@@ -126,7 +126,7 @@ intptr_t CompositorFontServiceConnection::thread_main()
     Core::EventLoop event_loop;
     auto paired_or_error = IPC::Transport::create_paired();
     if (paired_or_error.is_error()) {
-        Sync::MutexLocker locker(m_mutex);
+        MutexLocker locker(m_mutex);
         m_initialization_error = paired_or_error.release_error();
         m_initialized = true;
         m_initialization_condition.broadcast();
@@ -137,7 +137,7 @@ intptr_t CompositorFontServiceConnection::thread_main()
     auto connection = adopt_ref(*new FontServerConnection(move(paired.local), m_font_service));
 
     {
-        Sync::MutexLocker locker(m_mutex);
+        MutexLocker locker(m_mutex);
         m_event_loop = Core::EventLoop::current_weak();
         m_transport_handle = move(paired.remote_handle);
         m_initialized = true;
@@ -149,7 +149,7 @@ intptr_t CompositorFontServiceConnection::thread_main()
         connection->shutdown();
 
     {
-        Sync::MutexLocker locker(m_mutex);
+        MutexLocker locker(m_mutex);
         m_event_loop.clear();
     }
     return result;

@@ -57,8 +57,8 @@ public:
     RefPtr<AudioProducer> m_input;
     Core::EventLoop& m_main_thread_event_loop;
 
-    mutable Sync::Mutex m_output_mutex;
-    mutable Sync::ConditionVariable m_output_condition { m_output_mutex };
+    mutable Mutex m_output_mutex;
+    mutable ConditionVariable m_output_condition { m_output_mutex };
 
     AK::Array<AudioBlock, OUTPUT_BLOCK_QUEUE_CAPACITY> m_blocks;
     size_t m_block_head { 0 };
@@ -91,7 +91,7 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
             while (!output_thread_data->m_audio_processor_should_exit) {
                 RefPtr<AudioProducer> input;
                 {
-                    Sync::MutexLocker locker { output_thread_data->m_output_mutex };
+                    MutexLocker locker { output_thread_data->m_output_mutex };
                     input = output_thread_data->m_input;
                 }
 
@@ -100,7 +100,7 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                 if (input != nullptr) {
                     auto status = input->peek().status;
                     if (audio_processor_will_enqueue(status)) {
-                        Sync::MutexLocker locker { output_thread_data->m_output_mutex };
+                        MutexLocker locker { output_thread_data->m_output_mutex };
                         output_thread_data->m_last_pull_status = status;
                         output_thread_data->m_waiting_for_upstream_data = false;
                     }
@@ -108,7 +108,7 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
 
                 u32 seek_id_at_pull;
                 {
-                    Sync::MutexLocker locker { output_thread_data->m_output_mutex };
+                    MutexLocker locker { output_thread_data->m_output_mutex };
                     if (output_thread_data->m_audio_processor_should_exit)
                         break;
                     if (output_thread_data->m_seek_id == 0) {
@@ -150,7 +150,7 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                 if (status == PipelineStatus::Suspended) {
                     auto resume_target = AK::Duration::zero();
                     {
-                        Sync::MutexLocker locker { output_thread_data->m_output_mutex };
+                        MutexLocker locker { output_thread_data->m_output_mutex };
                         if (auto latest_timing = output_thread_data->block_timings().latest_timing(); latest_timing.has_value())
                             resume_target = latest_timing->media_time_at_frame_index(latest_timing->end_frame_index());
                     }
@@ -159,7 +159,7 @@ ErrorOr<NonnullRefPtr<AudioPlaybackSink>> AudioPlaybackSink::try_create(Pipeline
                 }
 
                 {
-                    Sync::MutexLocker locker { output_thread_data->m_output_mutex };
+                    MutexLocker locker { output_thread_data->m_output_mutex };
                     if (output_thread_data->m_seek_id != seek_id_at_pull)
                         continue;
                     output_thread_data->m_last_pull_status = status;
@@ -241,7 +241,7 @@ AudioPlaybackSink::AudioPlaybackSink(NonnullRefPtr<OutputThreadData> output_thre
 
 AudioPlaybackSink::~AudioPlaybackSink()
 {
-    Sync::MutexLocker locker { m_output_thread_data->m_output_mutex };
+    MutexLocker locker { m_output_thread_data->m_output_mutex };
     if (m_output_thread_data->m_input != nullptr)
         m_output_thread_data->m_input->set_wake_handler(nullptr);
     m_output_thread_data->m_input = nullptr;
@@ -254,14 +254,14 @@ ErrorOr<void> AudioPlaybackSink::connect_input(NonnullRefPtr<AudioProducer> cons
 {
     input->set_wake_handler([&output_thread_data = *m_output_thread_data] {
         // Pure relay: never peek here (that would race the output thread). Just wake it to pull.
-        Sync::MutexLocker locker { output_thread_data.m_output_mutex };
+        MutexLocker locker { output_thread_data.m_output_mutex };
         output_thread_data.m_waiting_for_upstream_data = false;
         output_thread_data.m_output_condition.broadcast();
     });
     auto const& sample_specification = m_output_thread_data->m_sample_specification;
     if (sample_specification.is_valid()) {
         if (auto result = input->set_output_sample_specification(sample_specification); result.is_error()) {
-            Sync::MutexLocker locker { m_output_thread_data->m_output_mutex };
+            MutexLocker locker { m_output_thread_data->m_output_mutex };
             disconnect_input_while_locked(input);
             return result.release_error();
         }
@@ -270,7 +270,7 @@ ErrorOr<void> AudioPlaybackSink::connect_input(NonnullRefPtr<AudioProducer> cons
         input->seek(m_time_reader.current_time());
         input->start();
     }
-    Sync::MutexLocker locker { m_output_thread_data->m_output_mutex };
+    MutexLocker locker { m_output_thread_data->m_output_mutex };
     VERIFY(m_output_thread_data->m_input == nullptr);
     m_output_thread_data->m_input = input;
     m_output_thread_data->m_output_condition.broadcast();
@@ -285,7 +285,7 @@ void AudioPlaybackSink::disconnect_input_while_locked(NonnullRefPtr<AudioProduce
 
 void AudioPlaybackSink::disconnect_input(NonnullRefPtr<AudioProducer> const& input)
 {
-    Sync::MutexLocker locker { m_output_thread_data->m_output_mutex };
+    MutexLocker locker { m_output_thread_data->m_output_mutex };
     VERIFY(m_output_thread_data->m_input == input);
     disconnect_input_while_locked(input);
 }
@@ -331,7 +331,7 @@ void AudioPlaybackSink::create_playback_stream()
         }
 
         {
-            Sync::MutexLocker locker { self->m_output_thread_data->m_output_mutex };
+            MutexLocker locker { self->m_output_thread_data->m_output_mutex };
             self->m_output_thread_data->m_seek_id++;
             self->m_output_thread_data->m_output_condition.broadcast();
         }
@@ -349,7 +349,7 @@ ReadonlySpan<float> AudioPlaybackSink::OutputThreadData::move_output_to_playback
 {
     VERIFY(buffer.size() > 0);
 
-    Sync::MutexLocker locker { m_output_mutex };
+    MutexLocker locker { m_output_mutex };
 
     size_t samples_written = 0;
     while (samples_written < buffer.size() && m_block_count > 0) {
@@ -521,14 +521,14 @@ void AudioPlaybackSink::seek(AK::Duration time)
     m_seek_target_awaiting_drain = time;
 
     if (!m_output_thread_data->m_playback_stream) {
-        Sync::MutexLocker locker { m_output_thread_data->m_output_mutex };
+        MutexLocker locker { m_output_thread_data->m_output_mutex };
         m_output_thread_data->m_time_writer.seek(time);
         return;
     }
 
     auto seek_target_in_frames = time.to_time_units(1, m_output_thread_data->m_sample_specification.sample_rate());
     {
-        Sync::MutexLocker locker { m_output_thread_data->m_output_mutex };
+        MutexLocker locker { m_output_thread_data->m_output_mutex };
         m_output_thread_data->m_seek_id++;
 
         m_output_thread_data->m_next_frame_to_play = seek_target_in_frames;
@@ -590,7 +590,7 @@ void AudioPlaybackSink::set_playback_rate(float rate)
     VERIFY(rate >= 0);
     RefPtr<AudioProducer> input;
     {
-        Sync::MutexLocker locker { m_output_thread_data->m_output_mutex };
+        MutexLocker locker { m_output_thread_data->m_output_mutex };
         input = m_output_thread_data->m_input;
         m_output_thread_data->m_playback_rate = rate;
     }

@@ -28,7 +28,7 @@ AutocompleteService::AutocompleteService(Core::EventLoop& main_event_loop, Optio
 AutocompleteService::~AutocompleteService()
 {
     {
-        Sync::MutexLocker locker(m_worker_mutex);
+        MutexLocker locker(m_worker_mutex);
         m_stopping = true;
         m_pending_queries.clear();
         if (m_interruptible_database)
@@ -61,7 +61,7 @@ void AutocompleteService::query(ClientID client_id, AutocompleteQueryID query_id
     client->value->active_query_id = query_id;
 
     Query query { client_id, query_id, move(input), max_suggestions };
-    Sync::MutexLocker locker(m_worker_mutex);
+    MutexLocker locker(m_worker_mutex);
     m_active_queries.set(client_id, query);
     m_pending_queries.remove_all_matching([&](auto const& query) {
         return query.client_id == client_id;
@@ -77,7 +77,7 @@ void AutocompleteService::cancel(ClientID client_id)
     if (auto client = m_clients.find(client_id); client != m_clients.end())
         client->value->active_query_id = {};
 
-    Sync::MutexLocker locker(m_worker_mutex);
+    MutexLocker locker(m_worker_mutex);
     m_active_queries.remove(client_id);
     m_pending_queries.remove_all_matching([&](auto const& query) {
         return query.client_id == client_id;
@@ -88,7 +88,7 @@ void AutocompleteService::cancel(ClientID client_id)
 
 void AutocompleteService::update_bookmarks(Vector<AutocompleteBookmark> bookmarks)
 {
-    Sync::MutexLocker locker(m_worker_mutex);
+    MutexLocker locker(m_worker_mutex);
     m_pending_bookmarks = move(bookmarks);
 
     for (auto const& active_query : m_active_queries) {
@@ -102,14 +102,14 @@ void AutocompleteService::update_bookmarks(Vector<AutocompleteBookmark> bookmark
 
 void AutocompleteService::record_engagement(OmniboxEngagement engagement)
 {
-    Sync::MutexLocker locker(m_worker_mutex);
+    MutexLocker locker(m_worker_mutex);
     m_pending_engagements.append(move(engagement));
     m_worker_condition.signal();
 }
 
 bool AutocompleteService::query_is_current(Query const& query)
 {
-    Sync::MutexLocker locker(m_worker_mutex);
+    MutexLocker locker(m_worker_mutex);
     if (m_stopping)
         return false;
     auto active_query = m_active_queries.find(query.client_id);
@@ -145,7 +145,7 @@ intptr_t AutocompleteService::worker_main(Optional<ByteString> history_database_
         Optional<Vector<AutocompleteBookmark>> bookmark_update;
         Vector<OmniboxEngagement> engagements;
         {
-            Sync::MutexLocker locker(m_worker_mutex);
+            MutexLocker locker(m_worker_mutex);
             m_worker_condition.wait_while([&] {
                 return !m_stopping && m_pending_queries.is_empty() && !m_pending_bookmarks.has_value() && m_pending_engagements.is_empty();
             });
@@ -166,12 +166,12 @@ intptr_t AutocompleteService::worker_main(Optional<ByteString> history_database_
             continue;
 
         {
-            Sync::MutexLocker locker(m_worker_mutex);
+            MutexLocker locker(m_worker_mutex);
             m_running_query_client_id = query->client_id;
             m_interruptible_database = database.ptr();
         }
         ScopeGuard clear_running_query = [&] {
-            Sync::MutexLocker locker(m_worker_mutex);
+            MutexLocker locker(m_worker_mutex);
             m_running_query_client_id = {};
             m_interruptible_database = nullptr;
         };

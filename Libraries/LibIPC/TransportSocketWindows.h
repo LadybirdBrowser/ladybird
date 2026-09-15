@@ -69,7 +69,7 @@ private:
 private:
     NonnullOwnPtr<Core::LocalSocket> m_socket;
     Atomic<bool> m_socket_is_open { true };
-    Sync::Mutex m_send_mutex;
+    Mutex m_send_mutex;
     ByteBuffer m_unprocessed_bytes;
     int m_peer_pid = -1;
 };

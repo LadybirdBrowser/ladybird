@@ -11,7 +11,7 @@
 #include <AK/Mutex.h>
 #include <AK/Windows.h>
 
-namespace Sync {
+namespace AK {
 
 template<>
 Mutex::MutexBase()

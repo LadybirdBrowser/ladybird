@@ -57,19 +57,19 @@ TEST_CASE(quit_event_loop_from_another_thread)
 {
     Core::EventLoop main_loop;
 
-    IGNORE_USE_IN_ESCAPING_LAMBDA Sync::Mutex mutex;
-    IGNORE_USE_IN_ESCAPING_LAMBDA Sync::ConditionVariable condition { mutex };
+    IGNORE_USE_IN_ESCAPING_LAMBDA Mutex mutex;
+    IGNORE_USE_IN_ESCAPING_LAMBDA ConditionVariable condition { mutex };
     IGNORE_USE_IN_ESCAPING_LAMBDA RefPtr<Core::WeakEventLoopReference> weak_ref;
     IGNORE_USE_IN_ESCAPING_LAMBDA bool exec_started { false };
 
     auto thread = Threading::Thread::construct("Worker"sv, [&] {
         Core::EventLoop event_loop;
         {
-            Sync::MutexLocker locker { mutex };
+            MutexLocker locker { mutex };
             weak_ref = Core::EventLoop::current_weak();
         }
         event_loop.deferred_invoke([&] {
-            Sync::MutexLocker locker { mutex };
+            MutexLocker locker { mutex };
             exec_started = true;
             condition.broadcast();
         });
@@ -79,7 +79,7 @@ TEST_CASE(quit_event_loop_from_another_thread)
 
     RefPtr<Core::WeakEventLoopReference> event_loop;
     {
-        Sync::MutexLocker locker { mutex };
+        MutexLocker locker { mutex };
         condition.wait_while([&] { return !exec_started; });
         event_loop = weak_ref;
     }

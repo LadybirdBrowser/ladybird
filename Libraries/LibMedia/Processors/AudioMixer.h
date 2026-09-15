@@ -58,7 +58,7 @@ private:
 
     void disconnect_input_while_locked(NonnullRefPtr<AudioProducer> const&);
 
-    mutable Sync::Mutex m_mutex;
+    mutable Mutex m_mutex;
     Audio::SampleSpecification m_sample_specification;
     HashMap<NonnullRefPtr<AudioProducer>, InputMixingData> m_inputs;
     i64 m_next_frame_to_write { 0 };

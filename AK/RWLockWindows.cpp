@@ -11,7 +11,7 @@
 #include <AK/RWLock.h>
 #include <AK/Windows.h>
 
-namespace Sync {
+namespace AK {
 
 namespace {
 

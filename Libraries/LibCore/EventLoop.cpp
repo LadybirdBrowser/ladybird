@@ -157,7 +157,7 @@ WeakEventLoopReference::WeakEventLoopReference(EventLoop& event_loop)
 
 void WeakEventLoopReference::revoke()
 {
-    Sync::RWLockLocker<Sync::LockMode::Write> locker { m_lock };
+    RWLockLocker<RWLock::Mode::Write> locker { m_lock };
     m_event_loop = nullptr;
 }
 

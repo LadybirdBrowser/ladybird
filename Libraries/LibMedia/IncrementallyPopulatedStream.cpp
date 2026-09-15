@@ -41,7 +41,7 @@ IncrementallyPopulatedStream::~IncrementallyPopulatedStream() = default;
 
 void IncrementallyPopulatedStream::set_data_request_callback(DataRequestCallback callback)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
 
     if (!callback) {
         m_callback_event_loop = nullptr;
@@ -60,7 +60,7 @@ void IncrementallyPopulatedStream::add_chunk_at(u64 offset, ReadonlyBytes data)
     auto new_chunk_end = offset + data.size();
     m_last_chunk_end = new_chunk_end;
 
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
 
     auto previous_chunk_iter = m_chunks.find_largest_not_above_iterator(offset);
 
@@ -103,7 +103,7 @@ void IncrementallyPopulatedStream::remove_byte_range(u64 start, u64 end)
 {
     VERIFY(start < end);
 
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
 
     auto chunk_iterator = m_chunks.find_largest_not_above_iterator(start);
     if (chunk_iterator.is_end() || chunk_iterator->end() <= start)
@@ -131,7 +131,7 @@ void IncrementallyPopulatedStream::remove_byte_range(u64 start, u64 end)
 
 Vector<MediaStream::ByteRange> IncrementallyPopulatedStream::available_byte_ranges() const
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     Vector<ByteRange> ranges;
     for (auto it = m_chunks.begin(); it != m_chunks.end(); ++it)
         ranges.empend(it->offset(), it->end());
@@ -140,7 +140,7 @@ Vector<MediaStream::ByteRange> IncrementallyPopulatedStream::available_byte_rang
 
 void IncrementallyPopulatedStream::close()
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     m_expected_size = m_last_chunk_end;
     m_closed = true;
     m_state_changed.broadcast();
@@ -149,13 +149,13 @@ void IncrementallyPopulatedStream::close()
 
 bool IncrementallyPopulatedStream::is_closed() const
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     return m_closed;
 }
 
 void IncrementallyPopulatedStream::set_available_ranges_change_observer(Function<void()> observer)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     m_available_ranges_change_observer = move(observer);
 }
 
@@ -167,7 +167,7 @@ void IncrementallyPopulatedStream::notify_available_ranges_changed_while_locked(
 
 u64 IncrementallyPopulatedStream::size()
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     while (!m_expected_size.has_value())
         m_state_changed.wait();
     return m_expected_size.value();
@@ -175,14 +175,14 @@ u64 IncrementallyPopulatedStream::size()
 
 void IncrementallyPopulatedStream::set_expected_size(u64 expected_size)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     m_expected_size = expected_size;
     m_state_changed.broadcast();
 }
 
 Optional<u64> IncrementallyPopulatedStream::expected_size() const
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     return m_expected_size;
 }
 
@@ -283,7 +283,7 @@ size_t IncrementallyPopulatedStream::read_from_chunks_while_locked(u64 position,
 
 DecoderErrorOr<size_t> IncrementallyPopulatedStream::read_at(Cursor& cursor, size_t position, Bytes& bytes)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
 
     bool notified_blocked = false;
     while (!cursor.m_aborted && cursor.m_is_blocking) {
@@ -323,13 +323,13 @@ NonnullRefPtr<MediaStreamCursor> IncrementallyPopulatedStream::create_cursor()
 IncrementallyPopulatedStream::Cursor::Cursor(NonnullRefPtr<IncrementallyPopulatedStream> const& stream)
     : m_stream(stream)
 {
-    Sync::MutexLocker locker { m_stream->m_mutex };
+    MutexLocker locker { m_stream->m_mutex };
     m_stream->m_cursors.append(*this);
 }
 
 IncrementallyPopulatedStream::Cursor::~Cursor()
 {
-    Sync::MutexLocker locker { m_stream->m_mutex };
+    MutexLocker locker { m_stream->m_mutex };
     VERIFY(m_stream->m_cursors.remove_first_matching([&](Cursor const& cursor) { return this == &cursor; }));
 }
 
@@ -340,7 +340,7 @@ void IncrementallyPopulatedStream::Cursor::set_is_blocking(bool blocking)
 
 void IncrementallyPopulatedStream::Cursor::set_blocked_change_handler(ReadBlockedChangeHandler handler)
 {
-    Sync::MutexLocker locker { m_stream->m_mutex };
+    MutexLocker locker { m_stream->m_mutex };
     m_read_blocked_change_handler = move(handler);
 }
 
@@ -399,7 +399,7 @@ DecoderErrorOr<FixedArray<u8>> IncrementallyPopulatedStream::Cursor::read_bytes(
 
 void IncrementallyPopulatedStream::Cursor::abort()
 {
-    Sync::MutexLocker locker { m_stream->m_mutex };
+    MutexLocker locker { m_stream->m_mutex };
     m_aborted = true;
     m_stream->m_state_changed.broadcast();
 }

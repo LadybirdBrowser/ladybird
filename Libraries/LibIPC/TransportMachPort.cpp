@@ -209,7 +209,7 @@ void TransportMachPort::write_read_notification_byte()
 
 void TransportMachPort::release_send_waiters()
 {
-    Sync::MutexLocker locker(m_send_mutex);
+    MutexLocker locker(m_send_mutex);
     m_send_waiters_released = true;
     m_sent_cv.broadcast();
 }
@@ -221,7 +221,7 @@ void TransportMachPort::flush()
 
     wake_io_thread();
 
-    Sync::MutexLocker locker(m_send_mutex);
+    MutexLocker locker(m_send_mutex);
     while (!m_send_waiters_released && (!m_pending_send_messages.is_empty() || m_send_in_progress)) {
         // The wakeup is best-effort, so re-arm it rather than wait forever if one is ever dropped.
         if (!m_sent_cv.wait_for(AK::Duration::from_milliseconds(50)))
@@ -231,7 +231,7 @@ void TransportMachPort::flush()
 
 void TransportMachPort::wait_until_incoming_is_current()
 {
-    Sync::MutexLocker locker(m_incoming_mutex);
+    MutexLocker locker(m_incoming_mutex);
     if (m_peer_eof.load() || m_io_thread_state.load() != IOThreadState::Running)
         return;
 
@@ -266,7 +266,7 @@ void TransportMachPort::mark_peer_eof()
 {
     bool should_write_notification = false;
     {
-        Sync::MutexLocker locker(m_incoming_mutex);
+        MutexLocker locker(m_incoming_mutex);
         m_peer_eof = true;
         should_write_notification = schedule_read_notification_if_needed_locked();
     }
@@ -287,7 +287,7 @@ intptr_t TransportMachPort::io_thread_loop()
 
         Vector<PendingMessage> messages_to_send;
         {
-            Sync::MutexLocker locker(m_send_mutex);
+            MutexLocker locker(m_send_mutex);
             messages_to_send = move(m_pending_send_messages);
             if (!messages_to_send.is_empty())
                 m_send_in_progress = true;
@@ -295,13 +295,13 @@ intptr_t TransportMachPort::io_thread_loop()
         for (auto& message : messages_to_send)
             send_mach_message(message);
         if (!messages_to_send.is_empty()) {
-            Sync::MutexLocker locker(m_send_mutex);
+            MutexLocker locker(m_send_mutex);
             m_send_in_progress = false;
             m_sent_cv.broadcast();
         }
 
         if (m_io_thread_state.load() == IOThreadState::SendPendingMessagesAndStop) {
-            Sync::MutexLocker locker(m_send_mutex);
+            MutexLocker locker(m_send_mutex);
             if (!m_pending_send_messages.is_empty())
                 continue;
             m_io_thread_state = IOThreadState::Stopped;
@@ -342,7 +342,7 @@ intptr_t TransportMachPort::io_thread_loop()
 
         switch (header->msgh_id) {
         case IPC_RECEIVE_BARRIER_MESSAGE_ID: {
-            Sync::MutexLocker locker(m_incoming_mutex);
+            MutexLocker locker(m_incoming_mutex);
             ++m_receive_barriers_received;
             m_incoming_cv.broadcast();
             continue;
@@ -364,7 +364,7 @@ intptr_t TransportMachPort::io_thread_loop()
     VERIFY(m_io_thread_state == IOThreadState::Stopped);
     release_send_waiters();
     {
-        Sync::MutexLocker locker(m_incoming_mutex);
+        MutexLocker locker(m_incoming_mutex);
         m_incoming_cv.broadcast();
     }
     // Stopping for transfer tears down the old endpoint on purpose. Do not surface that as peer EOF;
@@ -519,7 +519,7 @@ void TransportMachPort::process_received_message(u8* buffer)
 
     bool should_write_notification = false;
     {
-        Sync::MutexLocker locker(m_incoming_mutex);
+        MutexLocker locker(m_incoming_mutex);
         auto const was_empty = m_incoming_messages.is_empty();
         m_incoming_messages.append(move(message));
         if (was_empty)
@@ -538,7 +538,7 @@ void TransportMachPort::set_up_read_hook(Function<void()> hook)
         char buf[64];
         (void)Core::System::read(m_notify_hook_read_fd->value(), { buf, sizeof(buf) });
         {
-            Sync::MutexLocker locker(m_incoming_mutex);
+            MutexLocker locker(m_incoming_mutex);
             m_read_notification_pending = false;
         }
         if (m_on_read_hook)
@@ -547,7 +547,7 @@ void TransportMachPort::set_up_read_hook(Function<void()> hook)
 
     bool should_write_notification = false;
     {
-        Sync::MutexLocker locker(m_incoming_mutex);
+        MutexLocker locker(m_incoming_mutex);
         if (!m_incoming_messages.is_empty() || m_peer_eof)
             should_write_notification = schedule_read_notification_if_needed_locked();
     }
@@ -574,7 +574,7 @@ void TransportMachPort::close_after_sending_all_pending_messages()
 
 void TransportMachPort::wait_until_readable()
 {
-    Sync::MutexLocker lock(m_incoming_mutex);
+    MutexLocker lock(m_incoming_mutex);
     while (m_incoming_messages.is_empty() && !m_peer_eof)
         m_incoming_cv.wait();
 }
@@ -582,7 +582,7 @@ void TransportMachPort::wait_until_readable()
 ErrorOr<void> TransportMachPort::post_message(MessageDataType bytes, Vector<Attachment>& attachments)
 {
     {
-        Sync::MutexLocker locker(m_send_mutex);
+        MutexLocker locker(m_send_mutex);
         m_pending_send_messages.append(PendingMessage { move(bytes), move(attachments) });
     }
     wake_io_thread();
@@ -593,7 +593,7 @@ TransportMachPort::ShouldShutdown TransportMachPort::read_as_many_messages_as_po
 {
     Vector<NonnullOwnPtr<Message>> messages;
     {
-        Sync::MutexLocker locker(m_incoming_mutex);
+        MutexLocker locker(m_incoming_mutex);
         messages = move(m_incoming_messages);
     }
     for (auto& message : messages)

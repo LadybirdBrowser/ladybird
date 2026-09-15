@@ -20,20 +20,20 @@ AudioMixer::AudioMixer() = default;
 
 AudioMixer::~AudioMixer()
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     for (auto& [input, input_data] : m_inputs)
         input->set_wake_handler(nullptr);
 }
 
 ErrorOr<void> AudioMixer::connect_input(NonnullRefPtr<AudioProducer> const& input)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     VERIFY(!m_inputs.contains(input));
     m_inputs.set(input, InputMixingData());
     input->set_wake_handler([this] {
         bool should_wake;
         {
-            Sync::MutexLocker locker { m_mutex };
+            MutexLocker locker { m_mutex };
             should_wake = m_downstream_needs_wake;
             m_downstream_needs_wake = false;
         }
@@ -55,7 +55,7 @@ ErrorOr<void> AudioMixer::connect_input(NonnullRefPtr<AudioProducer> const& inpu
 
 void AudioMixer::disconnect_input(NonnullRefPtr<AudioProducer> const& input)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     VERIFY(m_inputs.contains(input));
     disconnect_input_while_locked(input);
 }
@@ -72,7 +72,7 @@ void AudioMixer::disconnect_input_while_locked(NonnullRefPtr<AudioProducer> cons
 
 ErrorOr<void> AudioMixer::set_output_sample_specification(Audio::SampleSpecification sample_specification)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     if (m_sample_specification == sample_specification)
         return {};
     m_sample_specification = sample_specification;
@@ -100,7 +100,7 @@ ErrorOr<void> AudioMixer::set_output_sample_specification(Audio::SampleSpecifica
 
 void AudioMixer::start()
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     m_started = true;
     for (auto& [input, input_data] : m_inputs)
         input->start();
@@ -113,7 +113,7 @@ Audio::SampleSpecification AudioMixer::sample_specification() const
 
 void AudioMixer::set_playback_rate(float rate)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     if (m_playback_rate == rate)
         return;
     for (auto& [input, input_data] : m_inputs)
@@ -129,7 +129,7 @@ AK::Duration AudioMixer::mix_head_timestamp() const
 void AudioMixer::seek(AK::Duration timestamp)
 {
     {
-        Sync::MutexLocker locker { m_mutex };
+        MutexLocker locker { m_mutex };
         if (!m_sample_specification.is_valid())
             return;
 
@@ -170,7 +170,7 @@ void AudioMixer::dispatch_wake()
 AudioProducerOutput AudioMixer::peek()
 {
     VERIFY(m_sample_specification.is_valid());
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     auto status = PipelineStatus::HaveData;
     if (m_output_block.is_empty())
         status = mix_into_output_block_while_locked();
@@ -182,7 +182,7 @@ AudioProducerOutput AudioMixer::peek()
 
 void AudioMixer::consume()
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     m_output_block.clear();
 }
 

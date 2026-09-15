@@ -169,7 +169,7 @@ RefPtr<PulseAudioStream> const& PlaybackStreamPulseAudio::InternalState::stream(
 
 void PlaybackStreamPulseAudio::InternalState::enqueue(Function<void()>&& task)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     m_tasks.enqueue(forward<Function<void()>>(task));
     m_wake_condition.signal();
 }
@@ -178,7 +178,7 @@ void PlaybackStreamPulseAudio::InternalState::thread_loop()
 {
     while (true) {
         auto task = [this]() -> Function<void()> {
-            Sync::MutexLocker locker { m_mutex };
+            MutexLocker locker { m_mutex };
 
             while (m_tasks.is_empty() && !m_exit)
                 m_wake_condition.wait();

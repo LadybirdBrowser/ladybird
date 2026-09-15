@@ -286,12 +286,12 @@ TEST_CASE(slot_freed_callback_wakes_a_waiting_acquirer)
     // The waiter mirrors how a producer integrates the callback: it sleeps on its own
     // condition variable and retries try_acquire() on each callback-driven wake.
     struct WaiterState {
-        Sync::Mutex mutex;
-        Sync::ConditionVariable condition { mutex };
+        Mutex mutex;
+        ConditionVariable condition { mutex };
     };
     IGNORE_USE_IN_ESCAPING_LAMBDA WaiterState waiter;
     IGNORE_USE_IN_ESCAPING_LAMBDA auto pool = make_pool([&waiter] {
-        Sync::MutexLocker locker { waiter.mutex };
+        MutexLocker locker { waiter.mutex };
         waiter.condition.broadcast();
     });
 
@@ -302,7 +302,7 @@ TEST_CASE(slot_freed_callback_wakes_a_waiting_acquirer)
     IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<bool> started { false };
     IGNORE_USE_IN_ESCAPING_LAMBDA Atomic<u32> acquired_index { 0 };
     auto acquirer_thread = Threading::Thread::construct("PoolAcquirer"sv, [&pool, &waiter, &started, &acquired_index]() {
-        Sync::MutexLocker locker { waiter.mutex };
+        MutexLocker locker { waiter.mutex };
         started.store(true);
         while (true) {
             if (auto slot = pool->try_acquire(FRAME_BYTE_COUNT); slot.has_value()) {

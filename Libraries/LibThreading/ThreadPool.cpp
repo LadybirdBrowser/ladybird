@@ -41,7 +41,7 @@ intptr_t ThreadPool::worker_thread_func()
         Function<void()> work;
         bool should_collect = false;
         {
-            Sync::MutexLocker locker(m_mutex);
+            MutexLocker locker(m_mutex);
 
             while (m_work_queue.is_empty()) {
                 if (collected_since_last_work) {
@@ -69,7 +69,7 @@ intptr_t ThreadPool::worker_thread_func()
 
 void ThreadPool::submit(Function<void()> work)
 {
-    Sync::MutexLocker locker(m_mutex);
+    MutexLocker locker(m_mutex);
     m_work_queue.enqueue(move(work));
     m_condition.signal();
 }

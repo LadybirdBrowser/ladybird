@@ -26,7 +26,7 @@ namespace Media {
 // through delegates that relay messages over IPC.
 class MEDIA_API RemoteVideoProducer final
     : public VideoProducer
-    , public Sync::Weakable<RemoteVideoProducer> {
+    , public ThreadSafeWeakable<RemoteVideoProducer> {
 public:
     struct Delegates {
         Function<void()> request_start;

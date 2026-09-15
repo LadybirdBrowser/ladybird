@@ -19,20 +19,20 @@ AudioTimeStretchProcessor::AudioTimeStretchProcessor() = default;
 
 AudioTimeStretchProcessor::~AudioTimeStretchProcessor()
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     if (m_input != nullptr)
         m_input->set_wake_handler(nullptr);
 }
 
 ErrorOr<void> AudioTimeStretchProcessor::connect_input(NonnullRefPtr<AudioProducer> const& input)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     VERIFY(m_input == nullptr);
     m_input = input;
     input->set_wake_handler([this] {
         bool should_wake;
         {
-            Sync::MutexLocker locker { m_mutex };
+            MutexLocker locker { m_mutex };
             should_wake = m_downstream_needs_wake;
         }
         if (should_wake)
@@ -53,7 +53,7 @@ ErrorOr<void> AudioTimeStretchProcessor::connect_input(NonnullRefPtr<AudioProduc
 
 void AudioTimeStretchProcessor::disconnect_input(NonnullRefPtr<AudioProducer> const& input)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     VERIFY(m_input == input);
     input->set_wake_handler(nullptr);
     m_input = nullptr;
@@ -63,7 +63,7 @@ void AudioTimeStretchProcessor::seek(AK::Duration timestamp)
 {
     RefPtr<AudioProducer> input;
     {
-        Sync::MutexLocker locker { m_mutex };
+        MutexLocker locker { m_mutex };
         VERIFY(m_sample_specification.is_valid());
         auto target_frame = timestamp.to_time_units(1, m_sample_specification.sample_rate());
         prime_stretcher_for_input_seek_while_locked(target_frame, target_frame);
@@ -86,7 +86,7 @@ void AudioTimeStretchProcessor::seek(AK::Duration timestamp)
 
 ErrorOr<void> AudioTimeStretchProcessor::set_output_sample_specification(Audio::SampleSpecification sample_specification)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     if (m_sample_specification == sample_specification)
         return {};
     m_sample_specification = sample_specification;
@@ -100,7 +100,7 @@ ErrorOr<void> AudioTimeStretchProcessor::set_output_sample_specification(Audio::
 
 void AudioTimeStretchProcessor::start()
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     m_started = true;
     if (m_input != nullptr)
         m_input->start();
@@ -114,7 +114,7 @@ void AudioTimeStretchProcessor::set_wake_handler(PipelineWakeHandler handler)
 void AudioTimeStretchProcessor::dispatch_wake()
 {
     {
-        Sync::MutexLocker locker { m_mutex };
+        MutexLocker locker { m_mutex };
         m_downstream_needs_wake = false;
     }
     if (m_wake_handler)
@@ -128,7 +128,7 @@ void AudioTimeStretchProcessor::set_playback_rate(float rate)
 
     bool should_wake_downstream = false;
     {
-        Sync::MutexLocker locker { m_mutex };
+        MutexLocker locker { m_mutex };
         if (m_playback_rate == rate)
             return;
         m_playback_rate = rate;
@@ -220,7 +220,7 @@ PipelineStatus AudioTimeStretchProcessor::produce_block_while_locked(AudioBlock&
 
 AudioProducerOutput AudioTimeStretchProcessor::peek()
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     auto status = PipelineStatus::HaveData;
     if (m_pending_block.is_empty())
         status = produce_block_while_locked(m_pending_block);
@@ -232,7 +232,7 @@ AudioProducerOutput AudioTimeStretchProcessor::peek()
 
 void AudioTimeStretchProcessor::consume()
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     m_pending_block.clear();
 }
 

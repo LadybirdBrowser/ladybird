@@ -19,7 +19,7 @@ TrackBufferDemuxer::~TrackBufferDemuxer() = default;
 
 Media::TimeRanges TrackBufferDemuxer::track_buffer_ranges() const
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     // https://w3c.github.io/media-source/#track-buffer-ranges
     // NOTE: Implementations MAY coalesce adjacent ranges separated by a gap smaller than 2 times the
     //       maximum frame duration buffered so far in this track buffer.
@@ -66,7 +66,7 @@ Optional<ReadonlyBytes> TrackBufferDemuxer::codec_configuration_after_frame_pref
 
 void TrackBufferDemuxer::add_coded_frame(Media::CodedFrame frame)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
 
     auto update_last_appended_codec_configuration = [&] {
         auto configuration = frame.new_codec_configuration();
@@ -241,7 +241,7 @@ void TrackBufferDemuxer::remove_coded_frames_and_dependants_in_range(AK::Duratio
 
 Optional<AK::Duration> TrackBufferDemuxer::remove_coded_frames_and_dependants_in_range_returning_presentation_timestamp_at(AK::Duration start, AK::Duration end, Optional<AK::Duration> last_decode_timestamp)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
 
     Optional<AK::Duration> removed_frame_presentation_timestamp;
 
@@ -285,7 +285,7 @@ Optional<AK::Duration> TrackBufferDemuxer::remove_coded_frames_and_dependants_in
 
 size_t TrackBufferDemuxer::total_bytes() const
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     return m_total_bytes;
 }
 
@@ -308,7 +308,7 @@ bool TrackBufferDemuxer::run_ends_at_last_appended_frame_while_locked(FrameRun c
 
 Optional<AK::Duration> TrackBufferDemuxer::earliest_evictable_frame_timestamp(AK::Duration current_time) const
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     if (m_runs.is_empty())
         return {};
 
@@ -329,7 +329,7 @@ Optional<AK::Duration> TrackBufferDemuxer::earliest_evictable_frame_timestamp(AK
 
 size_t TrackBufferDemuxer::take_earliest_frame_and_dependants()
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     VERIFY(!m_reached_end_of_stream);
     VERIFY(!m_runs.is_empty());
 
@@ -340,7 +340,7 @@ size_t TrackBufferDemuxer::take_earliest_frame_and_dependants()
 
 Optional<AK::Duration> TrackBufferDemuxer::latest_evictable_frame_timestamp(AK::Duration current_time) const
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     if (m_runs.is_empty())
         return {};
 
@@ -355,7 +355,7 @@ Optional<AK::Duration> TrackBufferDemuxer::latest_evictable_frame_timestamp(AK::
 
 TrackBufferDemuxer::RemovedFrame TrackBufferDemuxer::take_latest_frame()
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     VERIFY(!m_reached_end_of_stream);
 
     auto& run = m_runs.last();
@@ -369,7 +369,7 @@ TrackBufferDemuxer::RemovedFrame TrackBufferDemuxer::take_latest_frame()
 
 void TrackBufferDemuxer::set_reached_end_of_stream()
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     m_reached_end_of_stream = true;
     m_data_changed.broadcast();
     queue_scan_state_change_dispatch_while_locked();
@@ -377,7 +377,7 @@ void TrackBufferDemuxer::set_reached_end_of_stream()
 
 void TrackBufferDemuxer::clear_reached_end_of_stream()
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     m_reached_end_of_stream = false;
     queue_scan_state_change_dispatch_while_locked();
 }
@@ -467,7 +467,7 @@ Optional<ReadonlyBytes> TrackBufferDemuxer::codec_configuration_at_position_whil
 
 Media::DecoderErrorOr<Media::CodedFrame> TrackBufferDemuxer::get_next_sample_for_track(Media::Track const&)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
 
     auto continue_into_next_run_while_locked = [&] {
         if (m_current_run + 1 >= m_runs.size())
@@ -557,7 +557,7 @@ Media::DecoderErrorOr<Media::CodedFrame> TrackBufferDemuxer::get_next_sample_for
 
 AK::Duration TrackBufferDemuxer::select_fast_seek_target_for_track(Media::Track const&, AK::Duration target, Media::SeekMode mode)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
 
     Optional<AK::Duration> best_timestamp;
     for (auto const& run : m_runs) {
@@ -604,7 +604,7 @@ bool TrackBufferDemuxer::move_cursor_to_presentation_time_while_locked(AK::Durat
 
 Media::DecoderErrorOr<Media::DemuxerSeekResult> TrackBufferDemuxer::seek_to_most_recent_keyframe(Media::Track const&, AK::Duration timestamp, Media::DemuxerSeekOptions options)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
 
     // Forget what the consumer was sent, so that the configuration in effect is delivered again.
     if (has_flag(options, Media::DemuxerSeekOptions::NeedCodecConfiguration))
@@ -642,7 +642,7 @@ Media::DemuxerScanState const& TrackBufferDemuxer::scan_state() const
 void TrackBufferDemuxer::set_scan_state_change_handler(Function<void()> handler)
 {
     m_scan_state_change_handler = move(handler);
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     m_scan_state_change_handler_event_loop = &Core::EventLoop::current();
     // Deliver any state that was built up before a home event loop existed.
     queue_scan_state_change_dispatch_while_locked();
@@ -658,7 +658,7 @@ void TrackBufferDemuxer::queue_scan_state_change_dispatch_while_locked()
     m_scan_state_change_handler_event_loop->deferred_invoke([self = NonnullRefPtr(*this)] {
         bool reached_end_of_stream;
         {
-            Sync::MutexLocker locker { self->m_mutex };
+            MutexLocker locker { self->m_mutex };
             self->m_scan_state_change_dispatch_pending = false;
             reached_end_of_stream = self->m_reached_end_of_stream;
         }
@@ -673,7 +673,7 @@ void TrackBufferDemuxer::queue_scan_state_change_dispatch_while_locked()
 void TrackBufferDemuxer::set_blocking_reads_aborted_for_track(Media::Track const&)
 {
     m_aborted.store(true);
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     m_data_changed.broadcast();
 }
 
@@ -684,7 +684,7 @@ void TrackBufferDemuxer::reset_blocking_reads_aborted_for_track(Media::Track con
 
 void TrackBufferDemuxer::set_read_blocked_change_handler_for_track(Media::Track const&, Media::ReadBlockedChangeHandler handler)
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     m_read_blocked_change_handler = move(handler);
 }
 

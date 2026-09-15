@@ -65,7 +65,7 @@ void OfflineAudioRenderer::start_rendering()
 // Ends rendering without completing it, unblocking the rendering thread if it is waiting in a suspension.
 void OfflineAudioRenderer::stop()
 {
-    Sync::MutexLocker locker(m_suspend_mutex);
+    MutexLocker locker(m_suspend_mutex);
     m_shutting_down = true;
     m_resume_signal.broadcast();
 }
@@ -74,7 +74,7 @@ void OfflineAudioRenderer::stop()
 // for suspensions at that boundary.
 bool OfflineAudioRenderer::request_suspend(u64 frame)
 {
-    Sync::MutexLocker locker(m_suspend_mutex);
+    MutexLocker locker(m_suspend_mutex);
     if (frame < m_next_suspend_check_frame)
         return false;
     m_suspend_frames.set(frame);
@@ -83,7 +83,7 @@ bool OfflineAudioRenderer::request_suspend(u64 frame)
 
 void OfflineAudioRenderer::resume()
 {
-    Sync::MutexLocker locker(m_suspend_mutex);
+    MutexLocker locker(m_suspend_mutex);
     m_suspended = false;
     m_resume_signal.broadcast();
 }
@@ -101,7 +101,7 @@ intptr_t OfflineAudioRenderer::render_thread_main()
     while (current_frame < m_length) {
         // Suspend rendering if a suspension was scheduled at this render quantum boundary.
         {
-            Sync::MutexLocker locker(m_suspend_mutex);
+            MutexLocker locker(m_suspend_mutex);
             if (m_shutting_down)
                 return 0;
             m_next_suspend_check_frame = current_frame + m_quantum_size;
