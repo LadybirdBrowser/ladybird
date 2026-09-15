@@ -3367,7 +3367,7 @@ fn store_computed_value(longhand_table: &mut ComputedLonghandTable, entry: &Comp
 pub(crate) unsafe fn drive_property_computation(
     longhand_table: *mut ComputedLonghandTable,
     animated_overlay: *mut AnimatedOverlay,
-    store: *const CascadedPropertyStore,
+    store: &impl crate::css::cascaded_properties::CascadedValues,
     snapshot: Option<&ParentSnapshot<'_>>,
     highlight: Option<&HighlightInheritance<'_>>,
     environment: *const FfiStyleComputationEnvironment,
@@ -3387,7 +3387,6 @@ pub(crate) unsafe fn drive_property_computation(
             REQUIRES_COMPUTATION_NON_INHERITED, property_id as prop, property_requires_computation_level,
         };
 
-        let store = unsafe { &*store };
         let has_inheritance_parent = snapshot.is_some();
         let environment = unsafe { &*environment };
         let box_type_input = &environment.box_type_input;
@@ -4686,7 +4685,7 @@ unsafe fn compute_longhands(
             drive_property_computation(
                 input.longhand_table,
                 input.animated_overlay,
-                input.store,
+                &*input.store,
                 parent_snapshot,
                 highlight,
                 input.environment,
@@ -5350,7 +5349,7 @@ pub unsafe extern "C" fn rust_create_document_longhand_table(
             drive_property_computation(
                 &raw mut longhand_table,
                 std::ptr::null_mut(),
-                &raw const store,
+                &store,
                 None,
                 None,
                 &raw const environment,
@@ -5596,7 +5595,7 @@ pub unsafe extern "C" fn rust_compute_animation_keyframe_longhands(
                 drive_property_computation(
                     &raw mut table,
                     std::ptr::null_mut(),
-                    &raw const store,
+                    &store,
                     parent_snapshot.as_ref(),
                     None,
                     &raw const environment,

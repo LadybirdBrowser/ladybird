@@ -959,6 +959,13 @@ The engine interns computed style as a 32-bit base record: the tuple of a comput
 
 Layout and paint consume the same style handle rather than retaining redundant complete style objects, where lifetime and threading permit.
 
+Engine drives use cached winner locations and borrow their original declaration
+spellings through an immutable view of program and element inputs. Canonical
+specified-value identities do not replace those spellings. Only substitution
+outputs need value ownership in the winner recipe. Cascade order remains the
+logical/physical property tie breaker. Recipe capacity is charged to scratch;
+program inputs remain stable for the context's lifetime.
+
 Group sets retain their ordered group IDs alongside the contiguous host payload
 view, so reconstruction and liveness do not hash payload pointers back to IDs.
 Unchanged animation overlays are borrowed through the reuse check; only a new

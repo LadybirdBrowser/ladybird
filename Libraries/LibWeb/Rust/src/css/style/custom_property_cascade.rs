@@ -566,7 +566,8 @@ impl StyleEngineState {
     /// declaration, memoized by the written value. `None` when the value holds a substitution
     /// the engine does not resolve, or the environment is one the engine holds no store for.
     pub(super) fn substitute_written_value(
-        &mut self,
+        environments: &mut custom_property_environments::CustomPropertyEnvironments,
+        inputs: Option<bridge::FfiDocumentStyleComputationInputs>,
         environment: u64,
         property: u16,
         written: RetainedStyleValueData,
@@ -576,7 +577,7 @@ impl StyleEngineState {
             counters.bump(Counter::EngineComputedRecordBailSubstitution);
             return None;
         }
-        let Some(inputs) = self.document_style_computation_inputs else {
+        let Some(inputs) = inputs else {
             counters.bump(Counter::EngineComputedRecordBailSubstitution);
             return None;
         };
@@ -585,17 +586,14 @@ impl StyleEngineState {
             counters.bump(Counter::EngineComputedRecordBailSubstitution);
             return None;
         }
-        if let Some(value) = self
-            .custom_property_environments
-            .substitution(&written, property, environment)
-        {
+        if let Some(value) = environments.substitution(&written, property, environment) {
             counters.bump(Counter::EngineComputedRecordSubstitutionMemoHits);
             return Some(value);
         }
         let store = match environment {
             0 => std::ptr::null(),
             identity => {
-                let Some(store) = self.custom_property_environments.store(identity) else {
+                let Some(store) = environments.store(identity) else {
                     counters.bump(Counter::EngineComputedRecordBailSubstitution);
                     return None;
                 };
@@ -671,8 +669,7 @@ impl StyleEngineState {
             }
         };
         counters.bump(Counter::EngineComputedRecordSubstitutions);
-        self.custom_property_environments
-            .remember_substitution(written, property, environment, value.clone_retained());
+        environments.remember_substitution(written, property, environment, value.clone_retained());
         Some(value)
     }
 }

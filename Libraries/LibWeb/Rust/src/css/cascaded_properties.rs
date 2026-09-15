@@ -122,6 +122,33 @@ impl Hasher for PropertyIdHasher {
     }
 }
 
+pub(crate) type WinningDeclaration = (
+    *const c_void,
+    bool,
+    u32,
+    bool,
+    crate::css::style_compute::ExternalValueDependencies,
+);
+
+/// The immutable winner inputs used by longhand computation, without cascade history.
+pub(crate) trait CascadedValues {
+    fn winning_declaration(&self, property: u16) -> Option<WinningDeclaration>;
+    fn winning_origin(&self, property: u16) -> Option<CascadeOrigin>;
+    fn property_with_higher_priority(&self, first: u16, second: u16) -> u16;
+}
+
+impl CascadedValues for CascadedPropertyStore {
+    fn winning_declaration(&self, property: u16) -> Option<WinningDeclaration> {
+        self.winning_declaration(property)
+    }
+    fn winning_origin(&self, property: u16) -> Option<CascadeOrigin> {
+        self.winning_origin(property)
+    }
+    fn property_with_higher_priority(&self, first: u16, second: u16) -> u16 {
+        self.property_with_higher_priority(first, second)
+    }
+}
+
 pub struct CascadedPropertyStore {
     /// Every entry the cascade stored, in the order it stored them.
     arena: Vec<Entry>,

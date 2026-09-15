@@ -344,15 +344,16 @@ impl StyleEngineState {
                         if substituted {
                             scratch.substituted_states.insert((state, environment));
                         }
+                        scratch.store_capacity_bytes += store.capacity_bytes();
                         scratch.pseudo_stores.insert((kind, state, environment), store.clone());
                         store
                     }
                 },
-                None => std::rc::Rc::new(CascadedPropertyStore::new()),
+                None => std::rc::Rc::new(WinnerStore::default()),
             };
             pseudo_uses_substitution |=
                 state.is_some_and(|state| scratch.substituted_states.contains(&(state, environment)));
-            if pseudo_content_generates_nothing(&store, kind) {
+            if pseudo_content_generates_nothing(&store.view(self), kind) {
                 remove(self, scratch, counters);
                 continue;
             }
@@ -578,7 +579,7 @@ impl StyleEngineState {
 
 /// Whether a pseudo-element's winning `content` generates no box: `none` for every kind, and
 /// `normal` (the initial value, so also an absent one) for ::before and ::after.
-fn pseudo_content_generates_nothing(store: &CascadedPropertyStore, kind: u8) -> bool {
+fn pseudo_content_generates_nothing(store: &impl crate::css::cascaded_properties::CascadedValues, kind: u8) -> bool {
     use crate::css::property_metadata::property_id as prop;
     use crate::css::style_compute::keyword;
     let generated = matches!(kind, pseudo_kind::BEFORE | pseudo_kind::AFTER);
