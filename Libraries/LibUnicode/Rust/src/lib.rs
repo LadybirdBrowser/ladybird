@@ -14,5 +14,7 @@ mod rust_panic;
 
 pub mod calendar;
 pub mod character_types;
+#[cfg(any(test, feature = "ffi-stubs"))]
+mod ffi_stubs;
 #[cfg(feature = "idna")]
 pub mod idna;
