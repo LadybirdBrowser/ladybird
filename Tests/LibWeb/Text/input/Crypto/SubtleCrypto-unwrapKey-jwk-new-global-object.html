@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const subtle = crypto.subtle;
+        const hmac = { name: "HMAC", hash: "SHA-256" };
+        const wrapAlgorithm = { name: "AES-GCM", iv: new Uint8Array(12) };
+        const wrappingKey = await subtle.importKey("raw", new Uint8Array(16), "AES-GCM", false, ["encrypt", "unwrapKey"]);
+        const arrayIteratorPrototype = Object.getPrototypeOf([][Symbol.iterator]());
+
+        async function unwrapWhile(description, setUp, json, extractable, usages) {
+            const wrapped = await subtle.encrypt(wrapAlgorithm, wrappingKey, new TextEncoder().encode(json));
+            const tearDown = setUp();
+            let result;
+            try {
+                const key = await subtle.unwrapKey("jwk", wrapped, wrappingKey, wrapAlgorithm, hmac, extractable, usages);
+                result = `${key.type} extractable=${key.extractable} usages=${key.usages}`;
+            } catch (error) {
+                result = error.name;
+            } finally {
+                tearDown();
+            }
+            println(`${description}: ${result}`);
+        }
+
+        await unwrapWhile("Object.prototype.ext is false", () => {
+            Object.prototype.ext = false;
+            return () => delete Object.prototype.ext;
+        }, '{"kty":"oct","k":"AA"}', true, ["verify"]);
+
+        await unwrapWhile("Object.prototype.alg is HS512", () => {
+            Object.prototype.alg = "HS512";
+            return () => delete Object.prototype.alg;
+        }, '{"kty":"oct","k":"AA"}', false, ["sign"]);
+
+        await unwrapWhile("Object.prototype.key_ops is [\"verify\"]", () => {
+            Object.prototype.key_ops = ["verify"];
+            return () => delete Object.prototype.key_ops;
+        }, '{"kty":"oct","k":"AA"}', false, ["sign"]);
+
+        await unwrapWhile("Object.prototype.use is a throwing getter", () => {
+            Object.defineProperty(Object.prototype, "use", {
+                get() {
+                    throw new Error("The page's getter ran");
+                },
+                configurable: true,
+            });
+            return () => delete Object.prototype.use;
+        }, '{"kty":"oct","k":"AA"}', false, ["verify"]);
+
+        await unwrapWhile("Array iterator yields \"sign\" for key_ops [\"verify\"]", () => {
+            const next = arrayIteratorPrototype.next;
+            arrayIteratorPrototype.next = function () {
+                const step = next.call(this);
+                return step.done ? step : { value: "sign", done: false };
+            };
+            return () => (arrayIteratorPrototype.next = next);
+        }, '{"kty":"oct","k":"AA","key_ops":["verify"]}', false, ["sign"]);
+
+        for (const [description, json] of [
+            ["Malformed JSON", "{"],
+            ["Deeply nested JSON", "[".repeat(200000) + "]".repeat(200000)],
+            ["String member holding an array of an object without toString", '{"kty":"oct","k":"AA","alg":[{"toString":null}]}'],
+            ["key_ops element holding an array of an object without toString", '{"kty":"oct","k":"AA","key_ops":[[{"toString":null}]]}'],
+        ]) {
+            const wrapped = await subtle.encrypt(wrapAlgorithm, wrappingKey, new TextEncoder().encode(json));
+            try {
+                await subtle.unwrapKey("jwk", wrapped, wrappingKey, wrapAlgorithm, hmac, false, ["verify"]);
+                println(`${description}: resolved`);
+            } catch (error) {
+                const ofThisRealm = error instanceof Error && error.constructor.constructor("return globalThis")() === globalThis;
+                println(`${description}: rejected with an Error of this realm: ${ofThisRealm}`);
+            }
+        }
+    });
+</script>

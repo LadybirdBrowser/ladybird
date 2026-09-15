@@ -27,6 +27,8 @@ from Generators.libweb_bindings.intrinsics import write_exposed_interface_implem
 from Generators.libweb_bindings.intrinsics import write_intrinsic_definitions_header
 from Generators.libweb_bindings.intrinsics import write_intrinsic_definitions_implementation
 from Generators.libweb_bindings.intrinsics import write_wrapper_factory_implementation
+from Generators.libweb_bindings.json_conversions import write_dictionary_json_conversions
+from Generators.libweb_bindings.json_conversions import write_dictionary_json_declarations
 from Generators.libweb_bindings.rust_usage import DefinitionUsage
 from Generators.libweb_bindings.structured_serialize import write_structured_serialize_bindings_implementation
 from Generators.libweb_bindings.to_idl_value import dictionaries_in_dependency_order
@@ -123,6 +125,7 @@ def write_idl_header(out: TextIO, module: Module, context: GenerationContext, us
     for dictionary in dictionaries_in_dependency_order(usage.cpp_dictionaries(module), context):
         write_dictionary_declaration(body, dictionary, includes, context)
         write_dictionary_to_javascript_value_declaration(body, dictionary)
+        write_dictionary_json_declarations(body, dictionary, includes)
 
     out.write("#pragma once\n\n")
     includes.write(out)
@@ -148,6 +151,7 @@ def write_idl_implementation(out: TextIO, module: Module, context: GenerationCon
     for dictionary in usage.cpp_dictionaries(module):
         write_dictionary_conversion(body, dictionary, includes, context)
         write_dictionary_to_javascript_value_conversion(body, dictionary, includes, context)
+        write_dictionary_json_conversions(body, dictionary, includes)
 
     includes.write(out)
     out.write("namespace Web::Bindings {\n\n")

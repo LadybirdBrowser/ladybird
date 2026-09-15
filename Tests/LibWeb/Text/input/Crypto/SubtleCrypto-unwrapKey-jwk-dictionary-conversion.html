@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    promiseTest(async () => {
+        const subtle = crypto.subtle;
+        const hmac = { name: "HMAC", hash: "SHA-256" };
+        const wrapAlgorithm = { name: "AES-GCM", iv: new Uint8Array(12) };
+        const wrappingKey = await subtle.importKey("raw", new Uint8Array(16), "AES-GCM", false, ["encrypt", "unwrapKey"]);
+
+        const describe = key => `${key.type} extractable=${key.extractable} usages=${key.usages}`;
+
+        async function unwrap(bytes, extractable, usages) {
+            const wrapped = await subtle.encrypt(wrapAlgorithm, wrappingKey, bytes);
+            try {
+                return describe(await subtle.unwrapKey("jwk", wrapped, wrappingKey, wrapAlgorithm, hmac, extractable, usages));
+            } catch (error) {
+                return error.name;
+            }
+        }
+
+        async function import_(jwk, extractable, usages) {
+            try {
+                return describe(await subtle.importKey("jwk", jwk, hmac, extractable, usages));
+            } catch (error) {
+                return error.name;
+            }
+        }
+
+        for (const [json, extractable, usages] of [
+            ['{"kty":"oct","k":"AA"}', false, ["verify"]],
+            ['{"kty":"oct","k":"AA","kid":"x","x5c":[1,{}],"nested":{"a":[null]}}', false, ["verify"]],
+            ['{"kty":"oct","k":"AA","kid":"é中"}', false, ["verify"]],
+            ['{"kty":"oct","k":"AA","oth":[]}', false, ["verify"]],
+            ['{"kty":"oct","k":"AA","oth":[{"r":"AA","d":"AA","t":"AA"}]}', false, ["verify"]],
+            ['{"kty":"oct","k":"AA","key_ops":["verify"]}', false, ["verify"]],
+            ['{"kty":"oct","k":"AA","key_ops":["verify"]}', false, ["sign"]],
+            ['{"kty":"oct","k":"AA","key_ops":[0]}', false, ["verify"]],
+            ['{"kty":"oct","k":"AA","key_ops":{}}', false, ["sign"]],
+            ['{"kty":"oct","k":"AA","ext":false}', true, ["verify"]],
+            ['{"kty":"oct","k":"AA","ext":0}', true, ["verify"]],
+            ['{"kty":"oct","k":"AA","alg":"HS512"}', false, ["sign"]],
+            ['{"kty":"oct","k":"AA","alg":0}', false, ["sign"]],
+            ['{"kty":"oct","k":"AA","use":"enc"}', false, ["sign"]],
+            ['{"k":"AA"}', false, ["verify"]],
+            ['{}', false, ["verify"]],
+            ['[]', false, ["verify"]],
+            ['null', false, ["verify"]],
+        ]) {
+            const unwrapped = await unwrap(new TextEncoder().encode(json), extractable, usages);
+            const imported = await import_(JSON.parse(json), extractable, usages);
+            println(`${json} as ${extractable ? "extractable" : "non-extractable"} ${usages}: unwrapKey ${unwrapped}, importKey ${imported}`);
+        }
+
+        println(`{: unwrapKey ${await unwrap(new TextEncoder().encode("{"), false, ["verify"])}`);
+        println(`0xff: unwrapKey ${await unwrap(new Uint8Array([0xff]), false, ["verify"])}`);
+    });
+</script>

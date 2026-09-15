@@ -25,6 +25,7 @@ set(SOURCES
     Bindings/InterfaceObject.cpp
     Bindings/Intrinsics.cpp
     Bindings/MainThreadVM.cpp
+    Bindings/NewGlobalObject.cpp
     Bindings/OptionConstructor.cpp
     Bindings/PlatformObject.cpp
     Bindings/RustBindingsServices.cpp
