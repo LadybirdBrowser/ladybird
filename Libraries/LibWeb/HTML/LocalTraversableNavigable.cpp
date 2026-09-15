@@ -146,7 +146,7 @@ GC::Ref<LocalTraversableNavigable> LocalTraversableNavigable::create_a_fresh_top
 {
     // 1. Let traversable be the result of creating a new top-level traversable given null and the empty string.
     auto traversable = create_a_new_top_level_traversable(page, nullptr, move(initial_history_entry), system_visibility_state);
-    page->set_local_root_navigable(traversable);
+    page->set_top_level_traversable(traversable);
 
     // AD-HOC: Deny geolocation until the UI process sends the browser-wide setting via IPC. This prevents a request
     //         from observing the test position during the short window before the initial settings IPC arrives.
@@ -257,6 +257,42 @@ void LocalTraversableNavigable::run_ui_history_step_unload_cancelation_job(Cross
 }
 
 // https://html.spec.whatwg.org/multipage/document-sequences.html#close-a-top-level-traversable
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#dom-window-close
+// AD-HOC: Step 6 of window.close(), requested through the UI process by a document another process hosts, whose
+//         navigable found itself familiar with this traversable there. source is the incumbent global object's navigable.
+void LocalTraversableNavigable::close_top_level_traversable_from_script(Navigable const& source)
+{
+    // 1. Let thisTraversable be this's navigable.
+    auto& this_traversable = *this;
+
+    // 2. If thisTraversable is not a top-level traversable, then return.
+    if (!this_traversable.is_top_level_traversable())
+        return;
+
+    // 3. If thisTraversable's is closing is true, then return.
+    if (this_traversable.is_closing())
+        return;
+
+    // 5. Let sourceSnapshotParams be the result of snapshotting source snapshot params given thisTraversable's active document.
+    auto source_snapshot_params = snapshot_source_snapshot_params(this_traversable.active_document());
+
+    // 6. If all the following are true:
+    //    - thisTraversable is script-closable;
+    //    - the incumbent global object's browsing context is familiar with browsingContext; and
+    //    - the incumbent global object's navigable is allowed by sandboxing to navigate thisTraversable, given sourceSnapshotParams,
+    if (!this_traversable.is_script_closable() || !source.allowed_by_sandboxing_to_navigate(this_traversable, source_snapshot_params))
+        return;
+
+    // then:
+    // 1. Set thisTraversable's is closing to true.
+    this_traversable.set_closing(true);
+
+    // 2. Queue a task on the DOM manipulation task source to definitely close thisTraversable.
+    queue_a_task(Task::Source::DOMManipulation, nullptr, nullptr, GC::create_function(heap(), [this] {
+        definitely_close_top_level_traversable();
+    }));
+}
+
 void LocalTraversableNavigable::close_top_level_traversable(PromptToUnload prompt_to_unload)
 {
     // 1. If traversable's is closing is true, then return.
@@ -306,12 +342,10 @@ void LocalTraversableNavigable::definitely_close_top_level_traversable(PromptToU
     }
 
     // 1. Let toUnload be traversable's active document's inclusive descendant navigables.
-    Vector<GC::Root<LocalNavigable>> to_unload;
-    for (auto const& navigable : active_document()->inclusive_descendant_navigables())
-        to_unload.append(as<LocalNavigable>(*navigable));
-
     // 2. If the result of checking if unloading is canceled for toUnload is not "continue", then return.
-    check_if_unloading_is_canceled(move(to_unload), GC::create_function(heap(), [this, append_close_steps = move(append_close_steps)](CheckIfUnloadingIsCanceledResult result) {
+    // NB: The documents of toUnload are hosted by this page and by others. The UI process runs the check in each
+    //     page hosting one, this one included, with the prompt shown at most once, and reports the result.
+    page().client().page_did_request_unload_check(id(), GC::create_function(heap(), [this, append_close_steps = move(append_close_steps)](CheckIfUnloadingIsCanceledResult result) {
         if (result != CheckIfUnloadingIsCanceledResult::Continue) {
             // AD-HOC: Allow a later close attempt if this one was canceled.
             if (!m_close_steps_have_been_appended)
@@ -345,14 +379,6 @@ void LocalTraversableNavigable::destroy_top_level_traversable()
 {
     VERIFY(is_top_level_traversable());
 
-    destroy_local_traversable();
-}
-
-// Perform the local teardown shared by top-level traversables and remote iframe page roots.
-// A remote iframe page root is not a top-level traversable in the specification, so its discard path calls this
-// helper directly instead of the spec-linked wrapper above.
-void LocalTraversableNavigable::destroy_local_traversable()
-{
     // 1. Let browsingContext be traversable's active browsing context.
     auto browsing_context = active_browsing_context();
 
@@ -363,13 +389,13 @@ void LocalTraversableNavigable::destroy_local_traversable()
 
     // 3. Remove browsingContext.
     if (!browsing_context) {
-        dbgln("TraversableNavigable::destroy_top_level_traversable: No browsing context?");
+        dbgln("LocalTraversableNavigable::destroy_top_level_traversable: No browsing context?");
     } else {
         browsing_context->remove();
     }
 
     // 4. Remove traversable from the user interface (e.g., close or hide its tab in a tabbed browser).
-    page().client().page_did_close_top_level_traversable();
+    page().client().page_did_close();
 
     // 5. Remove traversable from the user agent's top-level traversable set.
     user_agent_top_level_traversable_set().remove(this);
@@ -377,38 +403,14 @@ void LocalTraversableNavigable::destroy_local_traversable()
     // FIXME: 6. Invoke WebDriver BiDi navigable destroyed with traversable.
 
     // FIXME: Figure out why we need to do this... we shouldn't be leaking Navigables for all time.
-    //        However, without this, we can keep stale destroyed traversables around.
+    //        However, without this, we can keep stale destroyed navigables around.
     set_has_been_destroyed();
     remove_from_all_local_navigables();
 }
 
-// https://html.spec.whatwg.org/multipage/interaction.html#currently-focused-area-of-a-top-level-traversable
-GC::Ptr<DOM::Node> LocalTraversableNavigable::currently_focused_area()
+void LocalTraversableNavigable::remove_from_user_agent_top_level_traversable_set()
 {
-    // 1. If traversable does not have system focus, then return null.
-    if (!is_focused())
-        return nullptr;
-
-    // 2. Let candidate be traversable's active document.
-    auto candidate = active_document();
-
-    // 3. While candidate's focused area is a navigable container with a non-null content navigable:
-    //    set candidate to the active document of that navigable container's content navigable.
-    while (candidate->focused_area()
-        && is<NavigableContainer>(candidate->focused_area().ptr())
-        && as<NavigableContainer>(*candidate->focused_area()).content_navigable()) {
-        candidate = as<LocalNavigable>(*as<NavigableContainer>(*candidate->focused_area()).content_navigable()).active_document();
-    }
-
-    // 4. If candidate's focused area is non-null, set candidate to candidate's focused area.
-    if (candidate->focused_area()) {
-        // NOTE: We return right away here instead of assigning to candidate,
-        //       since that would require compromising type safety.
-        return candidate->focused_area();
-    }
-
-    // 5. Return candidate.
-    return candidate;
+    user_agent_top_level_traversable_set().remove(this);
 }
 
 // https://w3c.github.io/geolocation/#dfn-emulated-position-data

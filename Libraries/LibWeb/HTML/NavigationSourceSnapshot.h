@@ -7,7 +7,9 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <LibGC/Ptr.h>
 #include <LibIPC/Forward.h>
+#include <LibJS/Forward.h>
 #include <LibWeb/Forward.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/Scripting/SerializedEnvironmentSettingsObject.h>
@@ -26,6 +28,8 @@ struct NavigationSourceSnapshot {
 };
 
 WEB_API NavigationSourceSnapshot create_navigation_source_snapshot(SourceSnapshotParams const&);
+
+WEB_API GC::Ref<SourceSnapshotParams> create_source_snapshot_params_from_navigation_source_snapshot(JS::Realm&, NavigationSourceSnapshot const&);
 
 }
 

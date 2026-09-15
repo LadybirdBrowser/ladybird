@@ -190,6 +190,7 @@
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/PopStateEvent.h>
 #include <LibWeb/HTML/RadioButtonGroupRegistry.h>
+#include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/Scripting/Agent.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -4537,6 +4538,8 @@ void Document::completely_finish_loading()
     }
     m_completely_loaded_deferred = false;
 
+    navigable->page().client().page_did_change_replicated_navigable_state(navigable->id(), navigable->replicated_state());
+
     ScopeGuard notify_observers = [this] {
         notify_each_document_observer([&](auto const& document_observer) {
             return document_observer.document_completely_loaded();
@@ -4550,26 +4553,15 @@ void Document::completely_finish_loading()
     if (m_active_refresh_timer)
         m_active_refresh_timer->start();
 
-    // 3. Let container be document's browsing context's container.
+    // 3. Let container be document's node navigable's container.
     auto container = navigable->container();
 
-    // 4. If container is an iframe element, then queue an element task on the DOM manipulation task source given container to run the iframe load event steps given container.
-    if (container && is<HTML::HTMLIFrameElement>(*container)) {
-        container->queue_an_element_task(HTML::Task::Source::DOMManipulation, [container] {
-            run_iframe_load_event_steps(static_cast<HTML::HTMLIFrameElement&>(*container));
-        });
-    }
-    // 5. Otherwise, if container is non-null, then queue an element task on the DOM manipulation task source given container to fire an event named load at container.
-    else if (container) {
-        container->queue_an_element_task(HTML::Task::Source::DOMManipulation, [container] {
-            container->dispatch_event(DOM::Event::create(HTML::EventNames::load, HighResolutionTime::current_high_resolution_time(HTML::relevant_global_object(*container))));
-        });
-    }
-
-    // AD-HOC: Finishing a child document can unblock its parent's load-event-delay phase, so wake the parent parser end
-    //         state after queueing the container's load event.
+    // NB: The container runs steps 4 and 5 where its document is: here, or in the process hosting the parent's
+    //     document, reached through the UI process.
     if (container)
-        container->document().schedule_html_parser_end_check();
+        container->content_navigable_completely_finished_loading();
+    else if (navigable->parent())
+        navigable->page().client().page_did_completely_finish_loading(navigable->id());
 }
 
 // https://html.spec.whatwg.org/multipage/dom.html#dom-document-cookie
@@ -4998,16 +4990,17 @@ bool Document::has_focus_for_bindings() const
 bool Document::has_focus() const
 {
     // 1. If target's node navigable's top-level traversable does not have system focus, then return false.
+    // NB: If another process hosts the top-level traversable, this process's local root is used instead.
     auto navigable = this->navigable();
     if (!navigable)
         return false;
 
-    auto& traversable = as<HTML::LocalTraversableNavigable>(*navigable->traversable_navigable());
-    if (!traversable.is_focused())
+    auto focus_root = navigable->local_root();
+    if (!focus_root->is_focused())
         return false;
 
     // 2. Let candidate be target's node navigable's top-level traversable's active document.
-    auto candidate = traversable.active_document();
+    auto candidate = focus_root->active_document();
 
     // 3. While true:
     while (candidate) {
@@ -5020,7 +5013,11 @@ bool Document::has_focus() const
         auto focused_area = candidate->focused_area();
         if (auto* navigable_container = as_if<HTML::NavigableContainer>(focused_area.ptr())) {
             if (auto content_navigable = navigable_container->content_navigable()) {
-                candidate = as<HTML::LocalNavigable>(*content_navigable).active_document();
+                // FIXME: Continue into a document hosted by another process.
+                auto* local_navigable = as_if<HTML::LocalNavigable>(*content_navigable);
+                if (!local_navigable)
+                    return false;
+                candidate = local_navigable->active_document();
                 continue;
             }
         }
@@ -5240,9 +5237,10 @@ void Document::set_ready_for_post_load_tasks(bool ready)
             //         load event from firing while the about:blank was still the active document.
             navigable->clear_navigation_load_event_guard();
 
-            if (auto container = navigable->container()) {
+            if (auto container = navigable->container())
                 container->document().schedule_html_parser_end_check();
-            }
+            else
+                navigable->report_state_to_remote_container();
         }
     }
 }
@@ -5252,8 +5250,10 @@ bool Document::anything_is_delaying_the_load_event() const
     if (m_number_of_things_delaying_the_load_event > 0)
         return true;
 
+    // NB: The containers of a remote navigable's descendants live in its process.
     for (auto& navigable : descendant_navigables()) {
-        if (navigable->container()->currently_delays_the_load_event())
+        auto container = navigable->container();
+        if (container && container->currently_delays_the_load_event())
             return true;
     }
 
@@ -5711,10 +5711,13 @@ void Document::destroy()
     // Not in the spec:
     for (auto& navigable_container : HTML::NavigableContainer::all_instances()) {
         if (&navigable_container->document() == this && navigable_container->content_navigable()) {
-            auto& child_navigable = as<HTML::LocalNavigable>(*navigable_container->content_navigable());
-            child_navigable.report_child_frame_destroyed();
+            auto& child_navigable = *navigable_container->content_navigable();
+            page().client().page_did_destroy_child_frame(child_navigable.id());
             child_navigable.set_has_been_destroyed();
-            child_navigable.remove_from_all_local_navigables();
+            if (auto* local_child_navigable = as_if<HTML::LocalNavigable>(child_navigable))
+                local_child_navigable->remove_from_all_local_navigables();
+            else
+                as<HTML::RemoteNavigable>(child_navigable).remove_from_all_remote_navigables();
         }
     }
 
@@ -5913,8 +5916,16 @@ void Document::abort_a_document_and_its_descendants()
 
     // 3. For each descendantNavigable of descendantNavigables, queue a global task on the navigation and traversal task source given descendantNavigable's active window to perform the following steps:
     for (auto& navigable : descendant_navigables) {
-        auto& descendant_navigable = as<HTML::LocalNavigable>(*navigable);
-        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*descendant_navigable.active_window()), GC::create_function(GC::Heap::the(), [this, descendant_navigable = &descendant_navigable] {
+        // NB: The active window of a descendant hosted by another process is there. The UI process queues the task in
+        //     that process, on the descendant's document, whose descendants that process aborts in turn; the
+        //     salvageable state it finds does not come back here, and Ladybird keeps no document alive on it.
+        auto* descendant_navigable = as_if<HTML::LocalNavigable>(*navigable);
+        if (!descendant_navigable) {
+            if (auto* remote_navigable = as_if<HTML::RemoteNavigable>(*navigable); remote_navigable->parent() && is<HTML::LocalNavigable>(*remote_navigable->parent()))
+                page().client().page_did_request_remote_document_abort(remote_navigable->id());
+            continue;
+        }
+        HTML::queue_global_task(HTML::Task::Source::NavigationAndTraversal, HTML::relevant_global_object(*descendant_navigable->active_window()), GC::create_function(GC::Heap::the(), [this, descendant_navigable] {
             // NOTE: This is not in the spec but we need to abort ongoing navigations in all descendant navigables.
             //       See https://github.com/whatwg/html/issues/9711
             descendant_navigable->set_ongoing_navigation({});

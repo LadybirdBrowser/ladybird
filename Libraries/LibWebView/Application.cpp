@@ -322,7 +322,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     bool enable_test_mode = false;
     bool validate_dnssec_locally = false;
     bool log_all_js_exceptions = false;
-    auto site_isolation_mode = SiteIsolationMode::TopLevel;
+    auto site_isolation_mode = default_site_isolation_mode();
     bool disable_http_memory_cache = false;
     bool disable_http_disk_cache = false;
     bool disable_content_blocker = false;
@@ -405,7 +405,7 @@ ErrorOr<void> Application::initialize(Main::Arguments const& arguments)
     args_parser.add_option(log_all_js_exceptions, "Log all JavaScript exceptions", "log-all-js-exceptions");
     args_parser.add_option(Core::ArgsParser::Option {
         .argument_mode = Core::ArgsParser::OptionArgumentMode::Required,
-        .help_string = "Set site isolation mode. Mode may be 'disable', 'top-level' (default), or 'iframe'.",
+        .help_string = "Set site isolation mode. Mode may be 'disable', 'top-level', or 'iframe'.",
         .long_name = "site-isolation",
         .value_name = "mode",
         .accept_value = [&](StringView value) {
@@ -1038,7 +1038,7 @@ void Application::open_bookmark_in_new_window(String const& bookmark_id, IsPriva
         open_url_in_new_window(bookmark->bookmark().url, is_private);
 }
 
-ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(Optional<ViewImplementation&> view, IsPrivate is_private, Web::PageId initial_page_id, Optional<Web::HTML::CrossProcessId> navigable_to_adopt, Optional<Web::HTML::CrossProcessId> initial_document_state_id)
+ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(Optional<ViewImplementation&> view, IsPrivate is_private, Web::PageId initial_page_id, Optional<Web::HTML::CrossProcessId> navigable_to_adopt, Optional<Web::HTML::CrossProcessId> initial_document_state_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Optional<Web::HTML::SessionHistoryEntryDescriptor> canonical_initial_history_entry)
 {
     auto request_server_handle = TRY(connect_new_request_server_client(is_private));
     auto image_decoder_handle = TRY(connect_new_image_decoder_client());
@@ -1058,10 +1058,13 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::create_web_content_client(
         ? view->traversable().system_visibility_state()
         : Web::HTML::VisibilityState::Hidden;
 
-    // A process replacing another adopts the view's traversable, so this entry only bootstraps its about:blank:
-    // the entry's identity is never observed, and the canonical entry it will host arrives with the traversal.
-    auto initial_history_entry = Web::HTML::create_initial_session_history_entry_descriptor(*initial_document_state_id, {}, {}, {});
-    client->async_initialize(initial_page_id, root_navigable_id, cross_process_id_allocator, initial_history_entry, system_visibility_state);
+    // A process replacing another adopts the view's traversable, so this entry only bootstraps its about:blank: the
+    // canonical entry it will host arrives with the traversal. A process hosting a child's document stands in for the
+    // canonical current entry, whose identity its state reports carry.
+    auto initial_history_entry = canonical_initial_history_entry.has_value()
+        ? canonical_initial_history_entry.release_value()
+        : Web::HTML::create_initial_session_history_entry_descriptor(*initial_document_state_id, {}, {}, {});
+    client->async_initialize(initial_page_id, move(remote_navigables), root_navigable_id, cross_process_id_allocator, initial_history_entry, system_visibility_state);
 
     if (!navigable_to_adopt.has_value())
         client->set_initial_top_level_history_entry({}, move(initial_history_entry));
@@ -1422,10 +1425,11 @@ ErrorOr<NonnullRefPtr<WebContentClient>> Application::launch_web_content_process
     return create_web_content_client(view, IsPrivate::No, allocate_page_id());
 }
 
-ErrorOr<Application::ChildFrameWebContentProcess> Application::launch_child_frame_web_content_process(IsPrivate is_private, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessId initial_document_state_id)
+ErrorOr<Application::ChildFrameWebContentProcess> Application::launch_child_frame_web_content_process(IsPrivate is_private, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry)
 {
     auto page_id = allocate_page_id();
-    auto client = TRY(create_web_content_client({}, is_private, page_id, root_navigable_id, initial_document_state_id));
+    auto initial_document_state_id = initial_history_entry.document_state.id;
+    auto client = TRY(create_web_content_client({}, is_private, page_id, root_navigable_id, initial_document_state_id, move(remote_navigables), move(initial_history_entry)));
     return ChildFrameWebContentProcess {
         .client = move(client),
         .page_id = page_id,

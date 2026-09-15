@@ -19,6 +19,7 @@ from Generators.libweb_bindings.includes import GeneratedIncludes
 from Generators.libweb_bindings.realms import member_realm_expr
 from Generators.libweb_bindings.security_checks import interface_needs_security_check
 from Generators.libweb_bindings.security_checks import perform_a_security_check
+from Generators.libweb_bindings.security_checks import perform_the_steps_on_a_remote_window
 from Generators.libweb_bindings.to_idl_value import to_idl_value
 from Generators.libweb_bindings.to_js_value import to_javascript_value
 from Utils.webidl_parser import Attribute
@@ -621,6 +622,14 @@ def write_attribute_getter(
 
 """
         )
+        if remote_window_steps := perform_the_steps_on_a_remote_window(
+            includes, interface, "js_value", attribute.name, "getter"
+        ):
+            out.write(
+                f"""    {remote_window_steps}
+
+"""
+            )
     out.write(
         f"""    idl_object = TRY(impl_from(vm, js_value));
     [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, js_value);
@@ -684,6 +693,14 @@ def write_attribute_setter(
 
 """
         )
+        if remote_window_steps := perform_the_steps_on_a_remote_window(
+            includes, interface, "js_value", attribute.name, "setter"
+        ):
+            out.write(
+                f"""    {remote_window_steps}
+
+"""
+            )
     out.write(
         """    auto maybe_idl_object = impl_from(vm, js_value);
 """

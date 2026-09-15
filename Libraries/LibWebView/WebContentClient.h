@@ -110,11 +110,14 @@ public:
     void request_close(Web::PageId page_id);
 
     void web_ui_disconnected(Badge<WebUI>);
-    void register_embedded_page(Web::PageId page_id, CanonicalNavigable&);
+    void register_embedded_page(Web::PageId page_id, CanonicalTraversable&);
     void unregister_embedded_page(Web::PageId page_id);
+    void keep_view_page_for_displaced_document(Web::PageId page_id, CanonicalTraversable&);
+    Optional<Web::PageId> page_id_for_traversable(CanonicalTraversable const&) const;
+    bool is_view_page(Web::PageId page_id) const { return m_views.contains(page_id); }
+    bool page_needs_beforeunload_check(Web::PageId page_id) const { return m_needs_beforeunload_check_by_page.get(page_id).value_or(true); }
 
-    CanonicalNavigable* embedded_page_host(Web::PageId page_id);
-    CanonicalNavigable* navigable_for_page(Web::PageId page_id);
+    CanonicalTraversable* traversable_for_page(Web::PageId page_id);
     // False once the page can no longer host work: the page is unregistered or the process is gone. A page
     // awaiting a detached close remains open; it still coordinates its own close.
     bool is_page_open(Web::PageId page_id) const;
@@ -142,10 +145,12 @@ public:
     Optional<Web::PageId> page_id_for_compositor_context_id(Web::Compositor::CompositorContextId) const;
     bool send_async_scroll_to_compositor(Web::PageId page_id, Gfx::FloatPoint position, Gfx::FloatPoint delta_in_device_pixels, Web::WheelDeltaPrecision, Web::ScrollGesturePhase);
     bool handle_mouse_event_in_compositor(Web::PageId page_id, Web::MouseEvent const&);
+    bool handle_mouse_event_in_compositor(Web::PageId page_id, CanonicalNavigable const& root, Optional<Web::Compositor::CompositorContextId>, Web::MouseEvent const&);
     bool handle_key_event_in_compositor(Web::PageId page_id, Web::KeyEvent const&);
     void dispatch_key_event_to_web_content(Web::PageId page_id, Web::KeyEvent const&);
     bool handle_pinch_event_in_compositor(Web::PageId page_id, Web::PinchEvent const&);
     void dispatch_mouse_event_to_web_content(Web::PageId page_id, Web::MouseEvent const&);
+    void dispatch_mouse_event_to_web_content(Web::PageId page_id, CanonicalNavigable const& root, Optional<Web::Compositor::CompositorContextId>, Web::MouseEvent const&);
     void notify_presented_bitmap_ready_to_paint(Web::PageId page_id, i32 bitmap_id);
     void did_present_backing_stores(Web::PageId page_id, Vector<i32> bitmap_ids, Vector<Gfx::SharedImage> backing_stores);
     void did_present_bitmap(Web::PageId page_id, Gfx::IntRect content_rect, Gfx::IntRect damage_rect, i32 bitmap_id);
@@ -189,9 +194,15 @@ private:
     virtual void did_request_navigation_start(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::NavigationTarget target, URL::URL url, Utf16String navigation_id, Optional<Web::HTML::NavigationStartRequest> start_request) override;
     virtual void did_complete_navigation_unload_check(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) override;
     virtual void did_request_navigation_population(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::NavigationTarget target, Web::HTML::NavigationPopulationRequest) override;
+    virtual void did_request_navigation_of_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::PreparedNavigationDescriptor) override;
+    virtual void did_post_message_to_navigable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::PostedMessageDescriptor) override;
+    virtual void did_request_close_of_traversable(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId source_navigable_id) override;
     virtual void did_finish_navigation_params_creation(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id, Optional<Web::HTML::NavigationPopulationResult>) override;
     virtual void did_finish_history_navigation_params_creation(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryNavigationPopulation) override;
     virtual void did_fail_navigation_population(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Utf16String navigation_id) override;
+    virtual void did_change_replicated_navigable_state(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedNavigableState) override;
+    virtual void did_completely_finish_loading(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) override;
+    virtual void did_change_navigable_container_state(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ReplicatedContainerState) override;
     virtual void did_create_child_frame(Web::PageId page_id, Web::HTML::CrossProcessId parent_frame_id, Web::HTML::CrossProcessId frame_id, Web::HTML::ReplicatedNavigableState replicated_state) override;
     virtual void did_update_child_frame_viewport(Web::PageId page_id, Web::HTML::CrossProcessId frame_id, Web::DevicePixelRect viewport_rect, double device_pixel_ratio) override;
     virtual void did_destroy_child_frame(Web::PageId page_id, Web::HTML::CrossProcessId frame_id) override;
@@ -288,6 +299,7 @@ private:
     virtual void did_request_activate_tab(Web::PageId page_id) override;
     virtual void did_close_browsing_context(Web::PageId page_id) override;
     virtual void did_change_needs_beforeunload_check(Web::PageId page_id, bool needs_beforeunload_check) override;
+    virtual void did_consume_user_activation(Web::PageId page_id, Web::HTML::UserActivationConsumption) override;
     virtual void webdriver_user_prompt_handling_complete(Web::PageId page_id, u64 request_id, Web::WebDriver::Response response) override;
     virtual void webdriver_command_complete(Web::PageId page_id, u64 command_id, Web::WebDriver::Response response) override;
     virtual void did_update_resource_count(Web::PageId page_id, i32 count_waiting) override;
@@ -326,11 +338,14 @@ private:
     virtual void request_history_operation(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationParameters) override;
     virtual void history_operation_ready(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HistoryOperationReadyResult) override;
     virtual void history_step_unload_cancelation_result(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) override;
-    virtual void history_step_beforeunload_check_result(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) override;
+    virtual void beforeunload_check_result(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::HistoryStepResult result, Web::HTML::UnloadPromptShown unload_prompt_shown) override;
     virtual void changing_navigable_history_job_ready(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::ChangingNavigableHistoryStepJobDisposition disposition, Web::HTML::UnloadDisplayedDocument unload_displayed_document) override;
     virtual void changing_navigable_unload_preparation_complete(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void descendant_unload_task_complete(Web::PageId page_id, Web::HTML::CrossProcessId unload_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void request_child_navigable_unload(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) override;
+    virtual void request_unload_check(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id, Web::HTML::CrossProcessId check_id) override;
+    virtual void request_navigable_document_abort(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) override;
+    virtual void request_navigable_document_unfullscreen(Web::PageId page_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual void changing_navigable_continuation_applied(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id, Optional<Web::HTML::ReplicatedNavigableState> activated_navigable_state, Optional<Web::HTML::SessionHistoryEntryPersistedState> previous_entry_persisted_state) override;
     virtual void nonchanging_navigable_history_state_updated(Web::PageId page_id, Web::HTML::CrossProcessId operation_id, Web::HTML::CrossProcessId navigable_id) override;
     virtual Messages::WebContentClient::StartWorkerAgentResponse start_worker_agent(Web::PageId page_id, Web::HTML::WorkerAgentStartRequest request) override;
@@ -353,6 +368,7 @@ private:
 
     HashMap<Web::PageId, NonnullRawPtr<ViewImplementation>> m_views;
     HashMap<Web::PageId, WeakPtr<CanonicalNavigable>> m_embedded_pages;
+    HashMap<Web::PageId, bool> m_needs_beforeunload_check_by_page;
     HashTable<Web::PageId> m_detached_pages_pending_close;
     // Every page ID the UI process has handed to this connection. A page stays in the set once it closes,
     // because messages the connection sent while it had the page can arrive after the page is gone.

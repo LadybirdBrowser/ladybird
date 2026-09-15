@@ -28,6 +28,7 @@
 #include <LibWeb/HTML/MimeType.h>
 #include <LibWeb/HTML/Plugin.h>
 #include <LibWeb/HTML/StructuredSerialize.h>
+#include <LibWeb/HTML/UserActivationConsumption.h>
 #include <LibWeb/HTML/WindowEventHandlers.h>
 #include <LibWeb/HTML/WindowOrWorkerGlobalScope.h>
 #include <LibWeb/HTML/WindowType.h>
@@ -60,7 +61,6 @@ WEB_API WebIDL::ExceptionOr<WebIDL::UnsignedLong> request_animation_frame(HTML::
 WEB_API WebIDL::UnsignedLong request_idle_callback(HTML::Window&, WebIDL::CallbackType&, IdleRequestOptions const&);
 WEB_API void define_internals_property(JS::Realm&, HTML::Window&, JS::Object& global_object);
 WEB_API JS::Value window_named_item_value(WrapperWorld&, JS::Realm&, HTML::Window const&, Utf16FlyString const&);
-WEB_API JS::ThrowCompletionOr<void> post_message_with_options(JS::Realm&, HTML::Window&, JS::Value, JS::Value options);
 
 }
 
@@ -290,6 +290,10 @@ public:
 
     void consume_history_action_user_activation();
 
+    // Steps 4 and 5 of both consumptions for the windows a page hosts. The UI process runs this in every page of the
+    // tab, since the navigables of top's active document span its pages.
+    static void consume_user_activation_of_windows_hosted_by(Page&, UserActivationConsumption);
+
     static bool in_test_mode();
     static void set_enable_test_mode(bool);
     static void set_internals_object_exposed(bool);
@@ -392,5 +396,11 @@ private:
 };
 
 void run_animation_frame_callbacks(DOM::Document&, double now);
+
+}
+
+namespace Web::Bindings {
+
+WEB_API JS::ThrowCompletionOr<HTML::Window::PostMessageOptions> window_post_message_options(JS::VM&, JS::Value options);
 
 }

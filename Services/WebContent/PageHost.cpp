@@ -22,12 +22,21 @@ PageHost::PageHost(ConnectionFromClient& client)
 {
 }
 
-void PageHost::initialize(Web::PageId initial_page_id, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state)
+void PageHost::initialize(Web::PageId initial_page_id, Vector<Web::HTML::RemoteNavigableDescriptor> remote_navigables, Web::HTML::CrossProcessId root_navigable_id, Web::HTML::CrossProcessIdAllocator cross_process_id_allocator, Web::HTML::SessionHistoryEntryDescriptor initial_history_entry, Web::HTML::VisibilityState system_visibility_state)
 {
     VERIFY(m_pages.is_empty());
     m_cross_process_id_allocator = cross_process_id_allocator;
-    auto& first_page = create_page(initial_page_id, root_navigable_id);
-    Web::HTML::LocalTraversableNavigable::create_a_fresh_top_level_traversable(first_page.page(), URL::about_blank(), Empty {}, move(initial_history_entry), system_visibility_state);
+
+    // The process displays a tab, whose traversable takes the id the UI process gave it, or hosts an isolated iframe
+    // of a tab whose graph it is given whole.
+    if (remote_navigables.is_empty()) {
+        auto& first_page = create_page(initial_page_id, root_navigable_id);
+        Web::HTML::LocalTraversableNavigable::create_a_fresh_top_level_traversable(first_page.page(), URL::about_blank(), Empty {}, move(initial_history_entry), system_visibility_state);
+        return;
+    }
+    auto& first_page = create_page(initial_page_id);
+    first_page.page().create_remote_navigable_graph(move(remote_navigables));
+    first_page.page().begin_hosting(root_navigable_id, initial_history_entry, system_visibility_state);
 }
 
 PageClient& PageHost::create_page(Web::PageId page_id, Optional<Web::HTML::CrossProcessId> pending_root_navigable_id)

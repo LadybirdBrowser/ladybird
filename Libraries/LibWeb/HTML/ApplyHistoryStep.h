@@ -50,6 +50,16 @@ enum class UnloadDisplayedDocument : bool {
     Yes,
 };
 
+enum class ChildNavigableDestruction : bool {
+    No,
+    Yes,
+};
+
+enum class StopHostingAfterUnload : bool {
+    No,
+    Yes,
+};
+
 struct HistoryObjectLengthAndIndex {
     u64 script_history_length;
     u64 script_history_index;

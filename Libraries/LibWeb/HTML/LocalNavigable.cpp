@@ -14,6 +14,7 @@
 #include <AK/Utf16StringBuilder.h>
 #include <AK/Variant.h>
 #include <LibCore/Timer.h>
+#include <LibGC/RootVector.h>
 #include <LibGfx/PaintingSurface.h>
 #include <LibWeb/CSS/ComputedValues.h>
 #include <LibWeb/CSS/PropertyID.h>
@@ -68,6 +69,7 @@
 #include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/Parser/HTMLParser.h>
 #include <LibWeb/HTML/PolicyContainers.h>
+#include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/TemporaryExecutionContext.h>
@@ -688,43 +690,24 @@ void LocalNavigable::set_has_been_destroyed()
     cancel_user_scroll_settlement();
 }
 
-void LocalNavigable::report_child_frame_destroyed()
+Vector<GC::Root<LocalNavigable>> LocalNavigable::hosted_inclusive_descendant_navigables()
 {
-    if (m_child_frame_destruction_reported || !parent())
-        return;
-    m_child_frame_destruction_reported = true;
-    page().client().page_did_destroy_child_frame(id());
-}
-
-// AD-HOC: Child removal unloads documents before running the remaining destroy-a-child-navigable steps.
-void LocalNavigable::unload_child_navigable_before_destruction(GC::Ref<GC::Function<void()>> after_all_unloads)
-{
-    m_pending_child_navigable_unload = after_all_unloads;
-    page().client().page_did_request_child_navigable_unload(id());
-}
-
-void LocalNavigable::continue_child_navigable_destruction(UnloadDisplayedDocument unload_displayed_document)
-{
-    auto after_all_unloads = m_pending_child_navigable_unload;
-    if (!after_all_unloads)
-        return;
-    m_pending_child_navigable_unload = nullptr;
-
-    queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr,
-        GC::create_function(heap(), [navigable = GC::Ref { *this }, unload_displayed_document, after_all_unloads = GC::Ref { *after_all_unloads }] {
-            if (unload_displayed_document == UnloadDisplayedDocument::Yes) {
-                // 2. Unload document, passing along newDocument if it is not null.
-                if (auto active_document = navigable->active_document())
-                    active_document->unload();
-            } else if (auto active_document = navigable->active_document()) {
-                // AD-HOC: The displayed document was unloaded in its remote host. Destroy the process-local
-                //         placeholder without firing its lifecycle events.
-                active_document->destroy();
+    Vector<GC::Root<LocalNavigable>> navigables;
+    navigables.append(*this);
+    auto document = active_document();
+    if (!document)
+        return navigables;
+    document->for_each_shadow_including_descendant([&](DOM::Node& node) {
+        if (auto* container = as_if<NavigableContainer>(node)) {
+            if (auto content_navigable = container->content_navigable()) {
+                // AD-HOC: If the descendant navigable doesn't have an active document, just skip over it.
+                if (auto* local_content_navigable = as_if<LocalNavigable>(*content_navigable); local_content_navigable && local_content_navigable->active_document())
+                    navigables.extend(local_content_navigable->hosted_inclusive_descendant_navigables());
             }
-
-            // 3. If afterAllUnloads was given, then run it.
-            after_all_unloads->function()();
-        }));
+        }
+        return TraversalDecision::Continue;
+    });
+    return navigables;
 }
 
 void LocalNavigable::remove_from_all_local_navigables()
@@ -752,8 +735,9 @@ void LocalNavigable::visit_edges(Cell::Visitor& visitor)
 {
     Base::visit_edges(visitor);
     visitor.visit(m_active_document);
+    visitor.visit(m_window_proxy_after_unload);
+    visitor.visit(m_provisional_for);
     visitor.visit(m_input_method_composition_node);
-    visitor.visit(m_pending_child_navigable_unload);
     m_event_handler.visit_edges(visitor);
 
     for (auto& pending_navigation : m_pending_navigations) {
@@ -812,18 +796,16 @@ void LocalNavigable::set_delaying_load_events(bool value)
 {
     m_is_delaying_load_events = value;
 
-    // The container document's load event waits on this flag where that document lives.
-    // FIXME: A container document hosted in another process does not wait yet. Its process needs the loading state
-    //        replicated for the remote navigable that stands in for this one.
+    // The container document's load event waits on this flag where that document lives: through a delayer when the
+    // document is here, and through the replicated state when it is in another process.
     if (!value) {
         m_container_document_load_event_delayer.clear();
-        return;
-    }
-    if (auto document = container_document()) {
+    } else if (auto document = container_document()) {
         m_container_document_load_event_delayer.emplace(*document);
-        return;
+    } else {
+        VERIFY(parent() && !is<LocalNavigable>(*parent()));
     }
-    VERIFY(parent() && !is<LocalNavigable>(*parent()));
+    report_state_to_remote_container();
 }
 
 void LocalNavigable::set_navigation_load_event_guard(DOM::Document& parent_doc)
@@ -931,6 +913,14 @@ void LocalNavigable::continue_navigation_at_population(NavigationPopulationReque
 
     navigable->set_ongoing_navigation(request.navigation_id);
 
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
+    // 15. If navigable's parent is non-null, then set navigable's is delaying load events to true.
+    // NB: A navigable whose document was hosted by another page when navigate started ran the earlier steps there. A
+    //     local root's container waits on the flag through the replicated state, and a provisional navigable's takes
+    //     it over with the navigable, so set it where the population happens.
+    if (navigable->parent() && (navigable->is_local_root() || navigable->is_provisional()))
+        navigable->set_delaying_load_events(true);
+
     auto& realm = navigable->active_window()->principal_realm();
     TemporaryExecutionContext execution_context { realm, TemporaryExecutionContext::CallbacksEnabled::Yes };
     auto navigation_params_or_error = create_navigation_params_from_descriptor(realm, *navigable, move(result.navigation_params));
@@ -947,6 +937,7 @@ void LocalNavigable::continue_navigation_at_population(NavigationPopulationReque
     output->classic_history_api_state = move(result.classic_history_api_state);
     output->resource_cleared = result.resource_cleared;
 
+    // https://html.spec.whatwg.org/multipage/browsing-the-web.html#attempt-to-populate-the-history-entry's-document
     // 5. Queue a global task on the navigation and traversal task source, given navigable's active window, to run
     //    these steps:
     auto fetch_client_origin = request.source_snapshot_params.fetch_client.has_value()
@@ -1158,6 +1149,12 @@ void LocalNavigable::inherit_page_state_from(LocalNavigable const& parent)
 // https://html.spec.whatwg.org/multipage/browsing-the-web.html#activate-history-entry
 void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, GC::Ref<DOM::Document> document, VisibilityState system_visibility_state)
 {
+    // AD-HOC: The document a provisional navigable populated activates: the navigable takes its container over first,
+    //         so that the document is the content navigable's active document, and the WindowProxy's [[Window]], from
+    //         its activation.
+    if (is_provisional())
+        page().adopt_hosted(*this);
+
     // 1. Save persisted state to the navigable's active session history entry.
     save_persisted_state_to_active_session_history_entry();
 
@@ -1266,7 +1263,7 @@ void LocalNavigable::queue_navigation_api_state_clear_task()
 }
 
 // https://html.spec.whatwg.org/multipage/document-lifecycle.html#unload-a-document-and-its-descendants
-void LocalNavigable::run_ui_descendant_unload_task(GC::Ref<GC::Function<void()>> on_complete)
+void LocalNavigable::run_ui_descendant_unload_task(ChildNavigableDestruction child_navigable_destruction, StopHostingAfterUnload stop_hosting_after_unload, GC::Ref<GC::Function<void()>> on_complete)
 {
     // 2. Unload a document and its descendants given childNavigable's active document, null, and incrementUnloaded.
     if (has_been_destroyed()) {
@@ -1274,11 +1271,28 @@ void LocalNavigable::run_ui_descendant_unload_task(GC::Ref<GC::Function<void()>>
         return;
     }
 
+    // https://html.spec.whatwg.org/multipage/document-sequences.html#destroy-a-child-navigable
+    // 4. Inform the navigation API about child navigable destruction given navigable.
+    // NB: navigable's active window is here, while container is in the process destroying navigable.
+    if (child_navigable_destruction == ChildNavigableDestruction::Yes)
+        inform_the_navigation_api_about_child_navigable_destruction();
+
     // The UI process has already unloaded this document's descendants.
     queue_a_task(Task::Source::NavigationAndTraversal, nullptr, nullptr,
-        GC::create_function(heap(), [navigable = GC::Ref { *this }, on_complete] {
-            if (auto active_document = navigable->active_document())
+        GC::create_function(heap(), [navigable = GC::Ref { *this }, stop_hosting_after_unload, on_complete] {
+            if (auto active_document = navigable->active_document()) {
+                // The browsing context's WindowProxy outlives the document, since scripts hold it for the navigable.
+                if (auto browsing_context = active_document->browsing_context())
+                    navigable->m_window_proxy_after_unload = browsing_context->window_proxy();
+                auto replicated_state = navigable->replicated_state();
                 active_document->unload();
+
+                // Another page hosts the navigable's next document, or destroys the navigable. A RemoteNavigable takes
+                // the navigable's place in the same task, so no task here sees the navigable without an active
+                // document.
+                if (stop_hosting_after_unload == StopHostingAfterUnload::Yes)
+                    navigable->page().stop_hosting(*navigable, move(replicated_state));
+            }
             on_complete->function()();
         }));
 }
@@ -1410,6 +1424,11 @@ bool LocalNavigable::active_document_is_fully_active() const
     return m_active_document && m_active_document->is_fully_active();
 }
 
+bool LocalNavigable::active_document_is_completely_loaded() const
+{
+    return m_active_document && m_active_document->is_completely_loaded();
+}
+
 bool LocalNavigable::active_document_is(DOM::Document const& document) const
 {
     return m_active_document.ptr() == &document;
@@ -1429,10 +1448,35 @@ Optional<URL::Origin> LocalNavigable::active_document_top_level_origin() const
     return relevant_settings_object(*m_active_document).top_level_origin;
 }
 
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#script-settings-for-window-objects:concept-settings-object-has-cross-site-ancestor
+// NB: Run with this navigable as window's navigable, which is null while a navigation that reuses the Window of an
+//     initial about:blank populates its next document, and once this navigable is destroyed.
 bool LocalNavigable::active_document_has_cross_site_ancestor() const
 {
     VERIFY(m_active_document);
-    return relevant_settings_object(*m_active_document).has_cross_site_ancestor();
+
+    // 1. If window's navigable's parent is null, then return false.
+    auto parent = this->parent();
+    if (!parent)
+        return false;
+
+    // 2. Let parentDocument be window's navigable's parent's active document.
+    // 3. If parentDocument's relevant settings object's has cross-site ancestor is true, then return true.
+    if (parent->active_document_has_cross_site_ancestor())
+        return true;
+
+    // 4. If parentDocument's origin is not same site with window's associated Document's origin, then return true.
+    if (!parent->active_document_origin()->is_same_site(m_active_document->origin()))
+        return true;
+
+    // 5. Return false.
+    return false;
+}
+
+OpenerPolicy const& LocalNavigable::active_document_opener_policy() const
+{
+    VERIFY(m_active_document);
+    return m_active_document->opener_policy();
 }
 
 ReplicatedNavigableState LocalNavigable::replicated_state() const
@@ -1448,8 +1492,50 @@ ReplicatedNavigableState LocalNavigable::replicated_state() const
         .active_session_history_entry_identity = session_history_entry_identity(*m_active_session_history_entry),
         .top_level_creation_url = settings.top_level_creation_url.value(),
         .top_level_origin = settings.top_level_origin.value(),
-        .has_cross_site_ancestor = settings.has_cross_site_ancestor(),
+        .has_cross_site_ancestor = active_document_has_cross_site_ancestor(),
+        .opener_policy = m_active_document->opener_policy(),
+        .active_document_is_completely_loaded = m_active_document->is_completely_loaded(),
+        .is_closing = m_closing,
+        .container = container_state(),
+        .delays_the_load_event_of_its_container = delays_the_load_event_of_its_container(),
+        .has_session_history_entry_and_ready_for_navigation = m_has_session_history_entry_and_ready_for_navigation,
+        .compositor_context_id = has_compositor_context() ? Optional<Compositor::CompositorContextId> { compositor_context().id() } : Optional<Compositor::CompositorContextId> {},
     };
+}
+
+ReplicatedContainerState LocalNavigable::container_state() const
+{
+    // A local root's container lives with its parent's document in another process, which reports it.
+    auto container = this->container();
+    if (!container)
+        return m_root_container_state;
+    return container->replicated_container_state();
+}
+
+void LocalNavigable::set_root_container_state(ReplicatedContainerState state)
+{
+    VERIFY(is_local_root() && parent());
+    m_root_container_state = move(state);
+}
+
+void LocalNavigable::set_closing(bool value)
+{
+    m_closing = value;
+
+    // The navigable's replicated state carries its closing flag.
+    report_replicated_state();
+}
+
+void LocalNavigable::report_replicated_state()
+{
+    page().client().page_did_change_replicated_navigable_state(id(), replicated_state());
+}
+
+// A container in another process reads what it asks of its content navigable from the replicated state.
+void LocalNavigable::report_state_to_remote_container()
+{
+    if (is_local_root() && parent())
+        report_replicated_state();
 }
 
 Optional<UniqueNodeID> LocalNavigable::active_document_id() const
@@ -1461,7 +1547,7 @@ Optional<UniqueNodeID> LocalNavigable::active_document_id() const
 
 void LocalNavigable::set_active_document(GC::Ptr<DOM::Document> document)
 {
-    if (page().has_local_root_navigable() && is_local_root() && m_active_document != document)
+    if (is_top_level_traversable() && m_active_document != document)
         page().invalidate_compositor_keyboard_scroll_state();
     if (m_active_document && m_active_document != document) {
         // The pending post-scroll hover refresh and scrollend settlement belong to the outgoing document; drop them.
@@ -1758,7 +1844,7 @@ LocalNavigable::ChosenNavigable LocalNavigable::choose_a_navigable(Utf16View nam
 
             auto create_new_traversable = [&](GC::Ptr<BrowsingContext> opener) -> GC::Ref<LocalTraversableNavigable> {
                 auto traversable = LocalTraversableNavigable::create_a_new_top_level_traversable(*new_web_view.page, opener, new_web_view.initial_history_entry.release_value(), new_web_view.system_visibility_state);
-                new_web_view.page->set_local_root_navigable(traversable);
+                new_web_view.page->set_top_level_traversable(traversable);
                 traversable->set_window_handle(Utf16String::from_ascii_without_validation(new_web_view.window_handle.bytes()));
                 return traversable;
             };
@@ -1823,10 +1909,10 @@ GC::Ptr<Navigable> LocalNavigable::find_a_navigable_by_target_name(Utf16View nam
     // 4. For each subtreeToSearch of subtreesToSearch, in reverse order:
     for (auto const& subtree_to_search : subtrees_to_search.in_reverse()) {
         // 1. Let documentToSearch be subtreeToSearch's active document.
-        auto& document_to_search = *as<LocalNavigable>(*subtree_to_search).active_document();
-
         // 2. For each navigable of the inclusive descendant navigables of documentToSearch:
-        for (auto const& navigable : document_to_search.inclusive_descendant_navigables()) {
+        // NB: An ancestor's document is in the process hosting it. Its inclusive descendant navigables are the
+        //     subtree the UI process replicates here, with this page's own navigables among them.
+        for (auto const& navigable : subtree_to_search->active_document_inclusive_descendant_navigables()) {
             // 1. If currentNavigable is not allowed by sandboxing to navigate navigable given sourceSnapshotParams, then optionally continue.
             if (!allowed_by_sandboxing_to_navigate(*navigable, source_snapshot_params))
                 continue;
@@ -1839,15 +1925,18 @@ GC::Ptr<Navigable> LocalNavigable::find_a_navigable_by_target_name(Utf16View nam
     }
 
     // 5. Let currentTopLevelBrowsingContext be currentNavigable's active browsing context's top-level browsing context.
-    auto& current_top_level_browsing_context = *active_browsing_context()->top_level_browsing_context();
+    // NB: This is null if another process hosts the top-level traversable.
+    auto current_top_level_browsing_context = active_browsing_context()->top_level_browsing_context();
 
     // 6. Let group be currentTopLevelBrowsingContext's group.
-    auto* group = current_top_level_browsing_context.group();
+    // NB: The group as this page knows it, whether or not currentTopLevelBrowsingContext is here: the top-level
+    //     browsing contexts this process holds. Those other processes hold are not searched.
+    auto& group = page().browsing_context_group();
 
     // 7. For each topLevelBrowsingContext of group's browsing context set, in an implementation-defined order (the user agent should pick a consistent ordering, such as the most recently opened, most recently focused, or more closely related):
-    for (auto const& top_level_browsing_context : group->browsing_context_set()) {
+    for (auto const& top_level_browsing_context : group.browsing_context_set()) {
         // 1. If currentTopLevelBrowsingContext is topLevelBrowsingContext, then continue.
-        if (&current_top_level_browsing_context == top_level_browsing_context.ptr())
+        if (current_top_level_browsing_context.ptr() == top_level_browsing_context.ptr())
             continue;
 
         // 2. Let documentToSearch be topLevelBrowsingContext's active document.
@@ -1856,7 +1945,7 @@ GC::Ptr<Navigable> LocalNavigable::find_a_navigable_by_target_name(Utf16View nam
         // 3. For each navigable of the inclusive descendant navigables of documentToSearch:
         for (auto const& navigable : document_to_search->inclusive_descendant_navigables()) {
             // 1. If currentNavigable's active browsing context is not familiar with navigable's active browsing context, then continue.
-            if (!active_browsing_context()->is_familiar_with(*as<LocalNavigable>(*navigable).active_browsing_context()))
+            if (!is_familiar_with(*navigable))
                 continue;
 
             // 2. If currentNavigable is not allowed by sandboxing to navigate navigable given sourceSnapshotParams, then optionally continue.
@@ -1872,6 +1961,48 @@ GC::Ptr<Navigable> LocalNavigable::find_a_navigable_by_target_name(Utf16View nam
 
     // 8. Return null.
     return nullptr;
+}
+
+// https://html.spec.whatwg.org/multipage/document-sequences.html#familiar-with
+// AD-HOC: Stated on the navigables whose active browsing contexts are compared, since the browsing context of a
+//         navigable another process hosts is there, while what the algorithm needs is replicated here.
+bool LocalNavigable::is_familiar_with(Navigable& other)
+{
+    // A browsing context A is familiar with a second browsing context B if the following algorithm returns true:
+    auto& A = *this;
+    auto& B = other;
+
+    // 1. If A's active document's origin is same origin with B's active document's origin, then return true.
+    if (B.active_document_origin().has_value() && A.active_document()->origin().is_same_origin(*B.active_document_origin()))
+        return true;
+
+    // 2. If A's top-level browsing context is B, then return true.
+    if (A.traversable_navigable().ptr() == &B)
+        return true;
+
+    // 3. If B is an auxiliary browsing context and A is familiar with B's opener browsing context, then return true.
+    // NB: Only a top-level browsing context is auxiliary, and the ones another process holds are nested.
+    if (auto* local_B = as_if<LocalNavigable>(B); local_B && local_B->active_browsing_context()) {
+        if (auto opener = local_B->active_browsing_context()->opener_browsing_context()) {
+            if (auto opener_navigable = opener->active_document() ? opener->active_document()->navigable() : nullptr; opener_navigable && A.is_familiar_with(*opener_navigable))
+                return true;
+        }
+    }
+
+    // 4. If there exists an ancestor browsing context of B whose active document has the same origin as the active document of A, then return true.
+    // NOTE: This includes the case where A is an ancestor browsing context of B.
+
+    // If B's active document is not fully active then it cannot have ancestor browsing context
+    if (!B.active_document_is_fully_active())
+        return false;
+
+    for (auto ancestor = B.parent(); ancestor; ancestor = ancestor->parent()) {
+        if (ancestor->active_document_origin()->is_same_origin(A.active_document()->origin()))
+            return true;
+    }
+
+    // 5. Return false.
+    return false;
 }
 
 // https://html.spec.whatwg.org/multipage/browsers.html#determining-navigation-params-policy-container
@@ -2444,25 +2575,28 @@ static void create_navigation_params_by_fetching(
         request->set_user_activation(true);
 
     // 10. If navigable's container is non-null:
-    if (navigable->container() != nullptr) {
+    // NB: The container's local name is read through the navigable, which replicates it for a container in another
+    //     process.
+    if (auto container_local_name = navigable->container_local_name(); container_local_name.has_value()) {
         // 1. If the navigable's container has a browsing context scope origin, then set request's origin to that browsing context scope origin.
         // FIXME: From "browsing context scope origin": This definition is broken and needs investigation to see what it was intended to express: see issue #4703.
         //        The referenced issue suggests that it is a no-op to retrieve the browsing context scope origin.
 
         // 2. Set request's destination to navigable's container's local name.
         // FIXME: Are there other container types? If so, we need a helper here
-        Web::Fetch::Infrastructure::Request::Destination destination = is<HTMLIFrameElement>(*navigable->container()) ? Web::Fetch::Infrastructure::Request::Destination::IFrame
-                                                                                                                      : Web::Fetch::Infrastructure::Request::Destination::Object;
-        request->set_destination(destination);
+        auto container_is_iframe = *container_local_name == HTML::TagNames::iframe;
+        request->set_destination(container_is_iframe ? Web::Fetch::Infrastructure::Request::Destination::IFrame
+                                                     : Web::Fetch::Infrastructure::Request::Destination::Object);
 
         // 3. If sourceSnapshotParams's fetch client is navigable's container document's relevant settings object,
         //    then set request's initiator type to navigable's container's local name.
         // NOTE: This ensure that only container-initiated navigations are reported to resource timing.
-        if (source_snapshot_params->fetch_client.ptr() == &navigable->container_document()->relevant_settings_object()) {
+        // FIXME: A container document in another process is not here, and the fetch client of a navigation it started
+        //        is a snapshot, so its resource timing is not told of the navigation.
+        if (auto container_document = navigable->container_document(); container_document && source_snapshot_params->fetch_client.ptr() == &container_document->relevant_settings_object()) {
             // FIXME: Are there other container types? If so, we need a helper here
-            Web::Fetch::Infrastructure::Request::InitiatorType initiator_type = is<HTMLIFrameElement>(*navigable->container()) ? Web::Fetch::Infrastructure::Request::InitiatorType::IFrame
-                                                                                                                               : Web::Fetch::Infrastructure::Request::InitiatorType::Object;
-            request->set_initiator_type(initiator_type);
+            request->set_initiator_type(container_is_iframe ? Web::Fetch::Infrastructure::Request::InitiatorType::IFrame
+                                                            : Web::Fetch::Infrastructure::Request::InitiatorType::Object);
         }
     }
 
@@ -3206,6 +3340,44 @@ void LocalNavigable::continue_navigation_after_population_dispatch(PreparedNavig
     create_navigation_params_for_navigation(move(population_request), source_snapshot_params, move(navigation_params), Bindings::NavigationTimingType::Navigate);
 }
 
+// https://html.spec.whatwg.org/multipage/browsing-the-web.html#navigate
+void LocalNavigable::continue_navigation_from_another_process(PreparedNavigationDescriptor descriptor)
+{
+    // 8. If the surrounding agent is equal to navigable's active document's relevant agent, then continue these
+    //    steps. Otherwise, queue a global task on the navigation and traversal task source given navigable's active
+    //    window to continue these steps.
+    // NB: The surrounding agent is the requesting process's, never navigable's active document's relevant agent.
+    auto window = active_window();
+    if (!window)
+        return;
+    queue_global_task(Task::Source::NavigationAndTraversal, relevant_global_object(*window), GC::create_function(heap(), [this, window, descriptor = move(descriptor)] mutable {
+        MUST(continue_navigation_in_active_document_agent(create_prepared_navigation_from_descriptor(relevant_realm(*window), move(descriptor))));
+    }));
+}
+
+// https://html.spec.whatwg.org/multipage/web-messaging.html#window-post-message-steps
+void LocalNavigable::deliver_posted_message_from_another_process(PostedMessageDescriptor message)
+{
+    auto window = active_window();
+    if (!window)
+        return;
+
+    // NB: incumbentSettings's global object lives in the posting page. The WindowProxy of its navigable stands for it
+    //     here as source, taken now since that navigable can be gone from this page by the time the task runs.
+    auto source = page().navigable_with_id(message.source_navigable_id);
+    if (!source)
+        return;
+    auto source_window_proxy = source->active_window_proxy();
+    if (!source_window_proxy)
+        return;
+
+    // 8. Queue a global task on the posted message task source given targetWindow to run the following steps:
+    queue_global_task(Task::Source::PostedMessage, relevant_global_object(*window), GC::create_function(heap(), [window, source_window_proxy = GC::Ref { *source_window_proxy }, message = move(message)]() mutable {
+        // NB: deliver_posted_message() runs these steps.
+        window->deliver_posted_message(move(message.serialize_with_transfer_result), message.target_origin, message.source_origin, source_window_proxy);
+    }));
+}
+
 // Continue the navigate algorithm at step 9 with the values prepared by steps 1-7 in navigate().
 void LocalNavigable::begin_navigation(PreparedNavigation navigation)
 {
@@ -3441,7 +3613,7 @@ void LocalNavigable::begin_navigation(PreparedNavigation navigation)
     return;
 }
 
-void LocalNavigable::run_navigation_unload_check(Utf16String const& navigation_id, GC::Ref<GC::Function<void(bool)>> completion_steps)
+void LocalNavigable::run_navigation_unload_check(Utf16String const& navigation_id, UnloadPromptShown unload_prompt_shown, GC::Ref<GC::Function<void(bool)>> completion_steps)
 {
     if (has_been_destroyed() || !active_window()) {
         completion_steps->function()(false);
@@ -3457,11 +3629,10 @@ void LocalNavigable::run_navigation_unload_check(Utf16String const& navigation_i
     }
 
     // 1. Let unloadPromptCanceled be the result of checking if unloading is user-canceled for navigable's active document's inclusive descendant navigables.
-    Vector<GC::Root<LocalNavigable>> navigables;
-    for (auto const& navigable : active_document()->inclusive_descendant_navigables())
-        navigables.append(as<LocalNavigable>(*navigable));
-    check_if_unloading_is_canceled(move(navigables),
-        GC::create_function(heap(), [this, navigation_id, completion_steps](CheckIfUnloadingIsCanceledResult unload_prompt_canceled) {
+    // NB: This page checks the documents it hosts, last: the UI process, which requested the check, ran it in the
+    //     pages hosting the others first, and whether one of them showed the prompt comes with the request.
+    check_if_unloading_is_canceled(hosted_inclusive_descendant_navigables(), {}, {}, {}, unload_prompt_shown,
+        GC::create_function(heap(), [this, navigation_id, completion_steps](CheckIfUnloadingIsCanceledResult unload_prompt_canceled, UnloadPromptShown) {
             if (has_been_destroyed() || !active_window()) {
                 completion_steps->function()(false);
                 return;
@@ -4309,8 +4480,93 @@ void LocalNavigable::scroll_offset_did_change()
 
 bool LocalNavigable::is_local_root() const
 {
-    HTML::LocalNavigable& local_root = page().local_root_navigable();
-    return &local_root == this;
+    auto parent = this->parent();
+    return !parent || !is<LocalNavigable>(*parent);
+}
+
+GC::Ref<LocalNavigable> LocalNavigable::local_root()
+{
+    GC::Ref<LocalNavigable> navigable = *this;
+    while (!navigable->is_local_root())
+        navigable = as<LocalNavigable>(*navigable->parent());
+    return navigable;
+}
+
+// AD-HOC: Steps 3 and 6 to 8 of creating a new child navigable, run by the process chosen to host a navigable's next
+//         document, for a navigable the UI process created long ago: a document to stand in until that document is
+//         populated, a document state carrying the canonical entry's id, and a navigable initialized under the
+//         navigable's parent, sharing the WindowProxy scripts hold for the navigable. The parent's document is here
+//         when the parent is local, and in another process otherwise, in which case the browsing context is created
+//         without a creator or embedder.
+// FIXME: A remote parent's document is the creator document. The UI process holds the canonical browsing context.
+GC::Ref<LocalNavigable> LocalNavigable::create_stand_in(Badge<Page> badge, RemoteNavigable& remote_navigable, SessionHistoryEntryDescriptor const& initial_history_entry, VisibilityState system_visibility_state)
+{
+    auto parent_navigable = remote_navigable.parent();
+    VERIFY(parent_navigable);
+    auto& page = remote_navigable.page();
+    auto container = remote_navigable.container();
+    auto* local_parent = as_if<LocalNavigable>(*parent_navigable);
+    VERIFY(!local_parent == !container);
+
+    // 3. Let browsingContext and document be the result of creating a new browsing context and document given element's node document, element, and group.
+    // NB: group is not resolved, as in NavigableContainer::create_new_child_navigable(). An element in another process
+    //     is covered above.
+    auto [browsing_context, document] = BrowsingContext::create_a_new_browsing_context_and_document(page, container ? GC::Ptr<DOM::Document> { container->document() } : nullptr, container, remote_navigable.window_proxy());
+
+    // 6. Let documentState be a new document state, with
+    //  - document: document
+    //  - initiator origin: document's origin
+    //  - origin: document's origin
+    //  - navigable target name: targetName
+    //  - about base URL: document's about base URL
+    // NB: Its id is the canonical entry's, so this process addresses the entry the way the UI process does. targetName
+    //     is the canonical entry's navigable target name.
+    auto document_state = DocumentState::create(initial_history_entry.document_state.id);
+    document_state->set_initiator_origin(document->origin());
+    document_state->set_origin(document->origin());
+    if (!initial_history_entry.document_state.navigable_target_name.is_empty())
+        document_state->set_navigable_target_name(initial_history_entry.document_state.navigable_target_name);
+    document_state->set_about_base_url(document->about_base_url());
+
+    if (!local_parent)
+        page.ensure_compositor_host();
+
+    // 7. Let navigable be a new navigable.
+    GC::Ref<LocalNavigable> navigable = *GC::Heap::the().allocate<LocalNavigable>(page, page.client().is_svg_page_client());
+
+    // 8. Initialize the navigable navigable given documentState and parentNavigable.
+    navigable->initialize_navigable(document_state, parent_navigable, *document, local_parent ? local_parent->active_document()->visibility_state() : system_visibility_state);
+    navigable->set_id_for_session_history_reconstruction(remote_navigable.id());
+    // The entry stands in for the canonical current entry, whose identity this page reports as its own.
+    navigable->active_session_history_entry()->set_navigation_api_key(initial_history_entry.navigation_api_key);
+    navigable->active_session_history_entry()->set_navigation_api_id(initial_history_entry.navigation_api_id);
+    if (local_parent) {
+        navigable->inherit_page_state_from(*local_parent);
+        // The navigable's container is this element although it is not the content navigable yet: its document is
+        // fully active from its activation, and its navigations read the container's facts here.
+        navigable->set_container(badge, container);
+    } else {
+        navigable->m_root_container_state = remote_navigable.replicated_state().container;
+        navigable->set_parent_compositor_context(as<RemoteNavigable>(*parent_navigable).compositor_context_id());
+    }
+
+    // The WindowProxy scripts hold keeps standing for the document the navigable displays, which another page hosts,
+    // until the stand-in's document, or the one it populates, activates and makes itself the proxy's [[Window]].
+    // The stand-in's window stays the [[Window]] meanwhile, for the tasks the population queues on it.
+    remote_navigable.set_window_proxy(*browsing_context->window_proxy());
+    browsing_context->window_proxy()->set_remote_window_over_provisional_window(remote_navigable.active_window());
+    navigable->m_provisional_for = remote_navigable;
+    remote_navigable.set_provisional_navigable(navigable);
+
+    // The UI process appended the navigable's session history entry to the traversable before choosing this process.
+    navigable->set_has_session_history_entry_and_ready_for_navigation();
+    return navigable;
+}
+
+void LocalNavigable::set_parent_compositor_context(Optional<Compositor::CompositorContextId> parent_context_id)
+{
+    if (has_compositor_context())
+        compositor_context().set_parent_context(parent_context_id);
 }
 
 CSSPixelRect LocalNavigable::to_page_rect(CSSPixelRect const& a_rect)
@@ -5428,6 +5684,41 @@ void LocalNavigable::inform_the_navigation_api_about_aborting_navigation()
     }
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#currently-focused-area-of-a-top-level-traversable
+// NB: If another process hosts the top-level traversable, this runs on this process's local root instead.
+GC::Ptr<DOM::Node> LocalNavigable::currently_focused_area()
+{
+    // 1. If traversable does not have system focus, then return null.
+    if (!is_focused())
+        return nullptr;
+
+    // 2. Let candidate be traversable's active document.
+    auto candidate = active_document();
+
+    // 3. While candidate's focused area is a navigable container with a non-null content navigable:
+    //    set candidate to the active document of that navigable container's content navigable.
+    while (candidate->focused_area()
+        && is<NavigableContainer>(candidate->focused_area().ptr())
+        && as<NavigableContainer>(*candidate->focused_area()).content_navigable()) {
+        // NB: The focused area of a document hosted by another process is that process's; the container is as far as
+        //     focus is seen here.
+        auto* content_navigable = as_if<LocalNavigable>(*as<NavigableContainer>(*candidate->focused_area()).content_navigable());
+        if (!content_navigable)
+            break;
+        candidate = content_navigable->active_document();
+    }
+
+    // 4. If candidate's focused area is non-null, set candidate to candidate's focused area.
+    if (candidate->focused_area()) {
+        // NOTE: We return right away here instead of assigning to candidate,
+        //       since that would require compromising type safety.
+        return candidate->focused_area();
+    }
+
+    // 5. Return candidate.
+    return candidate;
+}
+
 bool LocalNavigable::is_focused() const
 {
     if (!page().client().has_focus())
@@ -5977,6 +6268,7 @@ void LocalNavigable::stop_loading()
 void LocalNavigable::set_has_session_history_entry_and_ready_for_navigation()
 {
     m_has_session_history_entry_and_ready_for_navigation = true;
+    report_state_to_remote_container();
     process_pending_navigations();
 }
 
@@ -6000,10 +6292,13 @@ void LocalNavigable::repaint_after_compositor_process_reconnect()
     m_adopted_async_scroll_sequence = 0;
 
     if (has_compositor_context()) {
-        if (auto parent = this->parent(); parent && !is_local_root()) {
-            auto& local_parent = as<LocalNavigable>(*parent);
-            if (local_parent.has_compositor_context())
-                compositor_context().set_parent_context(local_parent.compositor_context().id());
+        if (auto parent = this->parent()) {
+            if (auto* local_parent = as_if<LocalNavigable>(*parent)) {
+                if (local_parent->has_compositor_context())
+                    compositor_context().set_parent_context(local_parent->compositor_context().id());
+            } else {
+                compositor_context().set_parent_context(as<RemoteNavigable>(*parent).compositor_context_id());
+            }
         }
         compositor_context().viewport_size_updated(
             page().css_to_device_rect(viewport_rect()).size().to_type<int>(),
@@ -6200,7 +6495,7 @@ bool LocalNavigable::record_display_list_and_scroll_state(PaintConfig paint_conf
     // Keyboard eligibility belongs to this publication, not to the cached paint commands. Refresh it even if
     // recording was skipped or returned the same display list, and send it with the corresponding scroll state.
     auto& published_display_list = display_list ? *display_list : *m_compositor_display_list;
-    auto keyboard_scroll_state = is_local_root()
+    auto keyboard_scroll_state = is_top_level_traversable()
         ? page().take_keyboard_scroll_state_for_compositor(published_display_list.compatible_visual_context_tree_structural_epoch())
         : Compositor::KeyboardScrollState {};
     auto async_scrolling_metadata = published_display_list.async_scrolling_metadata().value_or({});

@@ -28,7 +28,7 @@ public:
         GC::Ref<DOM::Document> document;
     };
 
-    static BrowsingContextAndDocument create_a_new_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<DOM::Document> creator, GC::Ptr<DOM::Element> embedder);
+    static BrowsingContextAndDocument create_a_new_browsing_context_and_document(GC::Ref<Page> page, GC::Ptr<DOM::Document> creator, GC::Ptr<DOM::Element> embedder, GC::Ptr<WindowProxy> existing_window_proxy = {});
     static BrowsingContextAndDocument create_a_new_auxiliary_browsing_context_and_document(GC::Ref<Page> page, GC::Ref<HTML::BrowsingContext> opener);
 
     virtual ~BrowsingContext() override;
@@ -36,7 +36,6 @@ public:
     GC::Ref<LocalTraversableNavigable> top_level_traversable() const;
 
     bool is_ancestor_of(BrowsingContext const&) const;
-    bool is_familiar_with(BrowsingContext const&) const;
 
     bool is_top_level() const;
     bool is_auxiliary() const { return m_is_auxiliary; }
@@ -132,6 +131,7 @@ private:
 URL::Origin determine_the_origin(Optional<URL::URL const&>, SandboxingFlagSet, Optional<URL::Origin> source_origin);
 
 SandboxingFlagSet determine_the_creation_sandboxing_flags(BrowsingContext const&, GC::Ptr<DOM::Element> embedder);
+SandboxingFlagSet determine_the_creation_sandboxing_flags(BrowsingContext const&, Navigable const&);
 
 // FIXME: Find a better home for these
 WEB_API bool url_matches_about_blank(URL::URL const& url);

@@ -522,7 +522,7 @@ Optional<u64> WorkerProcessManager::exclusive_performance_owner(pid_t pid) const
                 [&](WebContentOwner const& content) -> Optional<u64> {
                 if (!content.client)
                     return {};
-                auto* navigable = content.client->navigable_for_page(content.page_id);
+                auto* navigable = content.client->traversable_for_page(content.page_id);
                 if (!navigable)
                     return {};
                 auto view = ViewImplementation::find_view_for_traversable(navigable->top_level_traversable());

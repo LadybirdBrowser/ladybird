@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // A link in an isolated frame targeting a sibling frame's name finds the sibling in the tree the UI process
+    // replicates to the frame's page, and navigates it through the UI process.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const hostname = uniqueLocalhostHostname("oop-named-target");
+
+        const markerUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-named-target-marker-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/plain" },
+                body: "marker",
+            })
+        );
+        markerUrl.hostname = hostname;
+
+        const secondUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-named-target-second-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html>second<script>fetch(${JSON.stringify(markerUrl.href)});<\/script>`,
+            })
+        );
+        secondUrl.hostname = hostname;
+
+        const firstUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-named-target-first-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html>first`,
+            })
+        );
+        firstUrl.hostname = hostname;
+
+        const sourceUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-named-target-source-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><a id="link" target="target" href="${secondUrl.href}">sibling</a>
+                    <script>document.getElementById("link").click();<\/script>`,
+            })
+        );
+        sourceUrl.hostname = hostname;
+
+        const target = document.createElement("iframe");
+        target.name = "target";
+        target.src = firstUrl;
+        document.body.appendChild(target);
+        await new Promise(resolve => (target.onload = resolve));
+
+        const source = document.createElement("iframe");
+        source.src = sourceUrl;
+        document.body.appendChild(source);
+
+        // The second document's script fetches the marker; the echo server records the request when it is made.
+        const recordedUrl = `${httpServer.baseURL}/recorded-request-headers/echo/oop-named-target-marker-${runId}`;
+        let siblingNavigated = false;
+        for (let attempt = 0; attempt < 600 && !siblingNavigated; ++attempt) {
+            try {
+                siblingNavigated = (await fetch(recordedUrl)).ok;
+            } catch {}
+            if (!siblingNavigated) await timeout(25);
+        }
+        println(`sibling navigated by a link targeting its name: ${siblingNavigated}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

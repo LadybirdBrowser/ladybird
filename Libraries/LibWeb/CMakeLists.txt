@@ -665,6 +665,8 @@ set(SOURCES
     HTML/Plugin.cpp
     HTML/PluginArray.cpp
     HTML/PolicyContainers.cpp
+    HTML/PostedMessageDescriptor.cpp
+    HTML/PreparedNavigationDescriptor.cpp
     HTML/POSTResource.cpp
     HTML/PopoverTargetAttributes.cpp
     HTML/PopStateEvent.cpp
@@ -673,6 +675,8 @@ set(SOURCES
     HTML/PromiseRejectionEvent.cpp
     HTML/RadioButtonGroupRegistry.cpp
     HTML/RadioNodeList.cpp
+    HTML/RemoteNavigable.cpp
+    HTML/RemoteWindow.cpp
     HTML/ReplicatedNavigableState.cpp
     HTML/SandboxingFlagSet.cpp
     HTML/Scripting/Agent.cpp

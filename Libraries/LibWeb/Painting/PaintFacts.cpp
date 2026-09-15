@@ -13,6 +13,7 @@
 #include <LibWeb/HTML/HTMLVideoElement.h>
 #include <LibWeb/HTML/LocalNavigable.h>
 #include <LibWeb/HTML/NavigableContainer.h>
+#include <LibWeb/HTML/RemoteNavigable.h>
 #include <LibWeb/Layout/Box.h>
 #include <LibWeb/Layout/ImageProvider.h>
 #include <LibWeb/Layout/LayoutRustBridge.h>
@@ -75,16 +76,19 @@ void push_canvas_paint_facts(HTML::HTMLCanvasElement const& canvas)
 static Optional<u64> composited_context_id_for_navigable_container(HTML::NavigableContainer const& navigable_container)
 {
     auto content_navigable = navigable_container.content_navigable();
-    if (!content_navigable)
+    if (!content_navigable || content_navigable->has_been_destroyed())
         return {};
-    auto const& local_navigable = as<HTML::LocalNavigable>(*content_navigable);
-    if (local_navigable.has_been_destroyed())
-        return {};
-    auto context_id = navigable_container.document().page().client().compositor_context_id_for_remote_child_frame(content_navigable->id());
-    if (!context_id.has_value() && local_navigable.has_compositor_context()) {
-        auto const* hosted_document = navigable_container.content_document_without_origin_check();
-        if (!hosted_document || !hosted_document->is_render_blocked())
-            context_id = local_navigable.compositor_context().id();
+    Optional<Compositor::CompositorContextId> context_id;
+    if (auto const* remote_navigable = as_if<HTML::RemoteNavigable>(*content_navigable)) {
+        // The content is composited by the process hosting it.
+        context_id = remote_navigable->compositor_context_id();
+    } else {
+        auto const& local_navigable = as<HTML::LocalNavigable>(*content_navigable);
+        if (local_navigable.has_compositor_context()) {
+            auto const* hosted_document = navigable_container.content_document_without_origin_check();
+            if (!hosted_document || !hosted_document->is_render_blocked())
+                context_id = local_navigable.compositor_context().id();
+        }
     }
     if (!context_id.has_value())
         return {};

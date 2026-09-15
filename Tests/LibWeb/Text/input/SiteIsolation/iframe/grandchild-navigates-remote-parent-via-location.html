@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // Assigning parent.location in an isolated frame whose parent is hosted by another process navigates that parent:
+    // the Location stands for the remote navigable, and the navigate request crosses to its process via the UI process.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const childHostname = uniqueLocalhostHostname("oop-parent-location-child");
+        const grandchildHostname = uniqueLocalhostHostname("oop-parent-location-grandchild");
+
+        const markerUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-parent-location-marker-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/plain" },
+                body: "marker",
+            })
+        );
+        markerUrl.hostname = childHostname;
+
+        const secondChildUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-parent-location-second-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html>second<script>fetch(${JSON.stringify(markerUrl.href)});<\/script>`,
+            })
+        );
+        secondChildUrl.hostname = childHostname;
+
+        const grandchildUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-parent-location-grandchild-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html><script>parent.location = ${JSON.stringify(secondChildUrl.href)};<\/script>`,
+            })
+        );
+        grandchildUrl.hostname = grandchildHostname;
+
+        const firstChildUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-parent-location-first-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html>first<iframe src="${grandchildUrl.href}"></iframe>`,
+            })
+        );
+        firstChildUrl.hostname = childHostname;
+
+        const iframe = document.createElement("iframe");
+        iframe.src = firstChildUrl;
+        document.body.appendChild(iframe);
+
+        // The second document's script fetches the marker; the echo server records the request when it is made.
+        const recordedUrl = `${httpServer.baseURL}/recorded-request-headers/echo/oop-parent-location-marker-${runId}`;
+        let parentNavigated = false;
+        for (let attempt = 0; attempt < 600 && !parentNavigated; ++attempt) {
+            try {
+                parentNavigated = (await fetch(recordedUrl)).ok;
+            } catch {}
+            if (!parentNavigated) await timeout(25);
+        }
+        println(`parent navigated by assigning its location from its grandchild: ${parentNavigated}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

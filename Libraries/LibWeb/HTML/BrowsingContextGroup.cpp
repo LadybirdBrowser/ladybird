@@ -65,6 +65,10 @@ void BrowsingContextGroup::append(BrowsingContext& browsing_context)
 
     // 2. Set browsingContext's group to group.
     browsing_context.set_group(this);
+
+    // NB: The page holding a top-level browsing context knows the tab's group by it: the group of the tab it displays,
+    //     which the tab's opener may have created in another page.
+    browsing_context.page().set_browsing_context_group({}, *this);
 }
 
 }

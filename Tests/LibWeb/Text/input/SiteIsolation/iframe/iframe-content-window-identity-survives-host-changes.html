@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script>
+    // The WindowProxy of an iframe's content navigable is the same object while its document is hosted here, by
+    // another process, and here again.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+
+        const remoteUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-window-identity-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>remote",
+            })
+        );
+        remoteUrl.hostname = uniqueLocalhostHostname("oop-window-identity");
+
+        const iframe = document.createElement("iframe");
+        document.body.appendChild(iframe);
+        const contentWindow = iframe.contentWindow;
+        println(`initial document is accessible: ${contentWindow.document !== null}`);
+
+        iframe.src = remoteUrl;
+        if (!(await waitForCondition(() => remoteFrameCount() === 1))) {
+            println("iframe did not become remote");
+            return;
+        }
+        println(`same WindowProxy while remote: ${iframe.contentWindow === contentWindow}`);
+        let documentAccess;
+        try {
+            contentWindow.document;
+            documentAccess = "allowed";
+        } catch (e) {
+            documentAccess = e.name;
+        }
+        println(`document access while remote: ${documentAccess}`);
+
+        iframe.src = "about:blank";
+        if (!(await waitForCondition(() => remoteFrameCount() === 0))) {
+            println("iframe did not become local");
+            return;
+        }
+        println(`same WindowProxy when local again: ${iframe.contentWindow === contentWindow}`);
+        println(`document is accessible again: ${contentWindow.document !== null}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

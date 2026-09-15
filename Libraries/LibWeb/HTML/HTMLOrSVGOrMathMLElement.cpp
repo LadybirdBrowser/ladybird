@@ -16,6 +16,7 @@
 #include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/MathML/MathMLElement.h>
+#include <LibWeb/Page/Page.h>
 #include <LibWeb/SVG/SVGElement.h>
 
 namespace Web::HTML {
@@ -88,8 +89,7 @@ void HTMLOrSVGOrMathMLElement<ElementBase>::focus(Bindings::FocusOptions const& 
     // OPTIMIZATION: Checking whether an element is focusable may update its style. WebKit and Blink
     // also return before that check when focus() is called on the already-focused element.
     if (auto navigable = element.document().navigable()) {
-        auto& traversable = as<LocalTraversableNavigable>(*navigable->top_level_traversable());
-        if (traversable.currently_focused_area() == GC::Ptr<DOM::Node> { element })
+        if (navigable->local_root()->currently_focused_area() == GC::Ptr<DOM::Node> { element })
             return;
     }
 
@@ -197,7 +197,13 @@ void HTMLOrSVGOrMathMLElement<ElementBase>::inserted()
             return;
 
         // 6. Let topDocument be target's node navigable's top-level traversable's active document.
-        auto top_document = as<LocalTraversableNavigable>(*target.navigable()->top_level_traversable()).active_document();
+        // FIXME: The candidates of a top-level document hosted by another process are kept there. Only an element same
+        //        origin with that document is flushed, which a document isolated from it never is, save for a
+        //        same-origin document under a cross-site one.
+        auto* top_level_traversable = as_if<LocalTraversableNavigable>(*target.navigable()->top_level_traversable());
+        if (!top_level_traversable)
+            return;
+        auto top_document = top_level_traversable->active_document();
 
         // 7. If topDocument's autofocus processed flag is false, then remove the element from topDocument's autofocus
         //    candidates, and append the element to topDocument's autofocus candidates.

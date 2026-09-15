@@ -1,0 +1,6 @@
+load fired with the frame remote: true
+contentDocument is null: true
+contentWindow is frames[0]: true
+window.length: 1
+WebContent#0
+  iframe#0: remote WebContent#1

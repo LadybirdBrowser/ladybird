@@ -1,0 +1,45 @@
+<!doctype html>
+<script src="../../include.js"></script>
+<script>
+    // An isolated iframe navigates itself in the process hosting it, where its container is not. The request's
+    // destination comes from the container's replicated local name, so the server sees an iframe request.
+    promiseTest(async () => {
+        const httpServer = httpTestServer();
+        const runId = crypto.randomUUID();
+        const childHostname = uniqueLocalhostHostname("oop-sec-fetch-dest");
+
+        const secondUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-sec-fetch-dest-second-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: "<!DOCTYPE html>second",
+            })
+        );
+        secondUrl.hostname = childHostname;
+
+        const firstUrl = new URL(
+            await httpServer.createEcho("GET", `/oop-sec-fetch-dest-first-${runId}`, {
+                status: 200,
+                headers: { "Content-Type": "text/html" },
+                body: `<!DOCTYPE html>first<script>location.href = ${JSON.stringify(secondUrl.href)};<\/script>`,
+            })
+        );
+        firstUrl.hostname = childHostname;
+
+        const iframe = document.createElement("iframe");
+        iframe.src = firstUrl;
+        document.body.appendChild(iframe);
+
+        const recordedUrl = `${httpServer.baseURL}/recorded-request-headers/echo/oop-sec-fetch-dest-second-${runId}`;
+        let headers = null;
+        for (let attempt = 0; attempt < 600 && headers === null; ++attempt) {
+            try {
+                const response = await fetch(recordedUrl);
+                if (response.ok) headers = await response.json();
+            } catch {}
+            if (headers === null) await timeout(25);
+        }
+        println(`Sec-Fetch-Dest of the iframe's own navigation: ${headers?.["Sec-Fetch-Dest"]?.[0]}`);
+        println(internals.dumpSiteIsolationProcessTree().trimEnd());
+    });
+</script>

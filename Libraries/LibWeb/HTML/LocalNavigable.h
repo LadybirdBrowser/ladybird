@@ -35,6 +35,8 @@
 #include <LibWeb/HTML/NavigationSourceSnapshot.h>
 #include <LibWeb/HTML/POSTResource.h>
 #include <LibWeb/HTML/PaintConfig.h>
+#include <LibWeb/HTML/PostedMessageDescriptor.h>
+#include <LibWeb/HTML/PreparedNavigationDescriptor.h>
 #include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/HTML/SandboxingFlagSet.h>
 #include <LibWeb/HTML/SessionHistoryEntry.h>
@@ -78,11 +80,22 @@ public:
     void unregister_navigation_observer(Badge<NavigationObserver>, NavigationObserver&);
 
     Vector<GC::Root<LocalNavigable>> child_navigables() const;
+    Vector<GC::Root<LocalNavigable>> hosted_inclusive_descendant_navigables();
 
     bool is_local_root() const;
+    GC::Ref<LocalNavigable> local_root();
+    GC::Ptr<WindowProxy> window_proxy_after_unload() const { return m_window_proxy_after_unload; }
+    bool is_provisional() const { return m_provisional_for != nullptr; }
+    GC::Ptr<RemoteNavigable> provisional_for() const { return m_provisional_for; }
+    void clear_provisional_for() { m_provisional_for = nullptr; }
+    static GC::Ref<LocalNavigable> create_stand_in(Badge<Page>, RemoteNavigable&, SessionHistoryEntryDescriptor const&, VisibilityState system_visibility_state);
+    void set_root_container_state(ReplicatedContainerState);
+    void set_parent_compositor_context(Optional<Compositor::CompositorContextId>);
 
     bool is_closing() const { return m_closing; }
-    void set_closing(bool value) { m_closing = value; }
+    void set_closing(bool value);
+    void report_replicated_state();
+    void report_state_to_remote_container();
     bool is_script_closable();
 
     void stop_loading();
@@ -117,7 +130,7 @@ public:
     void activate_history_entry(RefPtr<SessionHistoryEntry>, GC::Ref<DOM::Document>, VisibilityState system_visibility_state);
     void update_nonchanging_navigable_history_step_state(HistoryObjectLengthAndIndex, GC::Ref<GC::Function<void()>> on_complete);
     void queue_navigation_api_state_clear_task();
-    void run_ui_descendant_unload_task(GC::Ref<GC::Function<void()>> on_complete);
+    void run_ui_descendant_unload_task(ChildNavigableDestruction, StopHostingAfterUnload, GC::Ref<GC::Function<void()>> on_complete);
     void notify_navigation_observers_navigation_complete();
 
     GC::Ptr<DOM::Document> active_document() const;
@@ -130,11 +143,14 @@ public:
     virtual Optional<URL::URL> active_document_url() const override;
     virtual Optional<URL::Origin> active_document_origin() const override;
     virtual bool active_document_is_fully_active() const override;
+    virtual bool active_document_is_completely_loaded() const override;
     virtual bool active_document_is(DOM::Document const&) const override;
     virtual Vector<GC::Root<Navigable>> active_document_inclusive_descendant_navigables() override;
     virtual Optional<URL::URL> active_document_top_level_creation_url() const override;
     virtual Optional<URL::Origin> active_document_top_level_origin() const override;
     virtual bool active_document_has_cross_site_ancestor() const override;
+    virtual OpenerPolicy const& active_document_opener_policy() const override;
+    virtual ReplicatedContainerState container_state() const override;
     ReplicatedNavigableState replicated_state() const;
 
     void save_persisted_state_to_active_session_history_entry();
@@ -146,6 +162,8 @@ public:
     virtual Utf16String const& target_name() const override;
 
     [[nodiscard]] bool is_focused() const;
+    // https://html.spec.whatwg.org/multipage/interaction.html#currently-focused-area-of-a-top-level-traversable
+    [[nodiscard]] GC::Ptr<DOM::Node> currently_focused_area();
 
     struct ChosenNavigable {
         GC::Ptr<Navigable> navigable;
@@ -155,6 +173,7 @@ public:
     ChosenNavigable choose_a_navigable(Utf16View name, TokenizedFeature::NoOpener no_opener, ActivateTab = ActivateTab::Yes, Optional<TokenizedFeature::Map const&> window_features = {});
 
     GC::Ptr<Navigable> find_a_navigable_by_target_name(Utf16View name);
+    bool is_familiar_with(Navigable&);
 
     void handle_as_a_download(GC::Ref<Fetch::Infrastructure::Response>, URL::URL const& fallback_url, GC::Ptr<Fetch::Infrastructure::FetchController>, Optional<ByteString> proposed_filename, Optional<URL::Origin> interface_origin);
 
@@ -170,7 +189,9 @@ public:
     void clear_ongoing_history_traversal();
 
     bool resume_navigation_params_creation(Utf16String const& navigation_id, Optional<NavigationPopulationRequest>);
-    void run_navigation_unload_check(Utf16String const& navigation_id, GC::Ref<GC::Function<void(bool)>> completion_steps);
+    void continue_navigation_from_another_process(PreparedNavigationDescriptor);
+    void deliver_posted_message_from_another_process(PostedMessageDescriptor);
+    void run_navigation_unload_check(Utf16String const& navigation_id, UnloadPromptShown, GC::Ref<GC::Function<void(bool)>> completion_steps);
     void request_population_for_reconstructed_history_entry(NavigationPopulationRequest);
     void route_child_created_during_history_reconstruction(Web::ReconstructedChildNavigation);
     void continue_navigation_at_population(NavigationPopulationRequest, NavigationPopulationResult);
@@ -217,10 +238,7 @@ public:
 
     // https://github.com/whatwg/html/issues/9690
     [[nodiscard]] virtual bool has_been_destroyed() const override { return m_has_been_destroyed; }
-    void set_has_been_destroyed();
-    void report_child_frame_destroyed();
-    void unload_child_navigable_before_destruction(GC::Ref<GC::Function<void()>> after_all_unloads);
-    void continue_child_navigable_destruction(UnloadDisplayedDocument);
+    virtual void set_has_been_destroyed() override;
     void remove_from_all_local_navigables();
 
     CSSPixelPoint to_page_position(CSSPixelPoint);
@@ -504,10 +522,10 @@ private:
     NavigationObserver::NavigationObserversList m_navigation_observers;
 
     bool m_has_been_destroyed { false };
-    bool m_child_frame_destruction_reported { false };
+    GC::Ptr<WindowProxy> m_window_proxy_after_unload;
+    GC::Ptr<RemoteNavigable> m_provisional_for;
 
-    // The destroy-a-child-navigable continuation parked while the UI process unloads this navigable's document tree.
-    GC::Ptr<GC::Function<void()>> m_pending_child_navigable_unload;
+    ReplicatedContainerState m_root_container_state;
 
     CSSPixelSize m_viewport_size;
     CSSPixelPoint m_viewport_scroll_offset;

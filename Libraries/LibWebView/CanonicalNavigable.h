@@ -126,12 +126,28 @@ public:
     void set_remote_host(NonnullRefPtr<WebContentClient>, Web::PageId remote_page_id);
     void detach_remote_host();
 
+    // The process and page chosen to host the navigable's next document, from the response that names the document
+    // until the document is activated. The displayed document stays with its host until then, so that it is
+    // unloaded there before the container is handed over.
+    bool has_pending_host() const { return m_pending_host_client; }
+    bool pending_host_matches(WebContentClient const&, Web::PageId page_id) const;
+    WebContentClient& pending_host_client() const;
+    Web::PageId pending_host_page_id() const { return m_pending_host_page_id; }
+    void set_pending_host(NonnullRefPtr<WebContentClient>, Web::PageId page_id);
+    // The pending host took the container over, so its page is no longer pending.
+    void clear_pending_host();
+    // The document the pending host was to display never activated: a page created for it is discarded.
+    void discard_pending_host();
+
     Optional<Web::DevicePixelRect> const& viewport_rect() const { return m_viewport_rect; }
     double device_pixel_ratio() const { return m_device_pixel_ratio; }
     void set_viewport(Web::DevicePixelRect, double device_pixel_ratio);
 
     Optional<Web::HTML::ReplicatedNavigableState> const& replicated_state() const { return m_replicated_state; }
     void set_replicated_state(Web::HTML::ReplicatedNavigableState);
+    void update_replicated_state(Web::HTML::ReplicatedNavigableState);
+    void active_document_completely_finished_loading();
+    void update_container_state(Web::HTML::ReplicatedContainerState);
 
     Optional<Web::HTML::SessionHistoryEntryIdentity> const& current_session_history_entry_identity() const { return m_current_session_history_entry_identity; }
     Optional<Web::HTML::SessionHistoryEntryIdentity> const& active_session_history_entry_identity() const { return m_active_session_history_entry_identity; }
@@ -177,7 +193,7 @@ public:
     void set_ongoing_navigation(OngoingNavigation);
     void set_ongoing_navigation_to_traversal(Web::HTML::CrossProcessId operation_id);
     void clear_ongoing_navigation_traversal(Web::HTML::CrossProcessId operation_id);
-    void clear_ongoing_navigation();
+    virtual void clear_ongoing_navigation();
     void set_navigation_population_worker(WebContentClient&, Web::PageId page_id);
     bool navigation_population_matches(WebContentClient const&, Web::PageId page_id, Utf16String const& navigation_id) const;
     bool navigation_population_worker_matches(WebContentClient const&, Web::PageId page_id) const;
@@ -220,6 +236,9 @@ private:
     HostLocality m_host_locality { HostLocality::Local };
     RefPtr<WebContentClient> m_remote_client;
     Web::PageId m_remote_page_id { 0 };
+
+    RefPtr<WebContentClient> m_pending_host_client;
+    Web::PageId m_pending_host_page_id { 0 };
 };
 
 }

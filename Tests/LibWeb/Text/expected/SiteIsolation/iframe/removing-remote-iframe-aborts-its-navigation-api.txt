@@ -1,0 +1,2 @@
+navigation settled before removal: false
+navigation aborted on removal: true

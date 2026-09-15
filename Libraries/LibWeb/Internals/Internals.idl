@@ -119,7 +119,6 @@ interface Internals {
     undefined sendBadIpcMessageForTesting(DOMString kind);
     undefined setContentBlockers(DOMString patterns);
     undefined setSiteCompatibilityData(DOMString source);
-    undefined setExperimentalInterfacesExposed(boolean exposed);
     undefined setContentBlockingEnabled(boolean enabled);
     unsigned long long partialLayoutCount();
     unsigned long long fullLayoutCount();

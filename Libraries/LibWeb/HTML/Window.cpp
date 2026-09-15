@@ -170,16 +170,12 @@ WebIDL::ExceptionOr<void> post_message(JS::Realm& realm, HTML::Window& window, J
     return window.post_message(realm, message, window_post_message_options_from_bindings(options));
 }
 
-JS::ThrowCompletionOr<void> post_message_with_options(JS::Realm& realm, HTML::Window& window, JS::Value message, JS::Value options)
+JS::ThrowCompletionOr<HTML::Window::PostMessageOptions> window_post_message_options(JS::VM& vm, JS::Value options)
 {
-    auto& vm = realm.vm();
     Bindings::WindowPostMessageOptions options_from_bindings {};
     if (!options.is_undefined())
         options_from_bindings = TRY(Bindings::convert_to_idl_value_for_window_post_message_options(vm, options));
-    TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {
-        return window.post_message(realm, message, Bindings::window_post_message_options_from_bindings(options_from_bindings));
-    }));
-    return {};
+    return window_post_message_options_from_bindings(options_from_bindings);
 }
 
 WebIDL::UnsignedLong request_animation_frame(HTML::Window& window, WebIDL::CallbackType& callback)
@@ -511,6 +507,9 @@ WebIDL::ExceptionOr<Window::OpenedWindow> Window::window_open_steps_internal(Utf
             TRY(target_navigable->navigate({ .url = url_record.release_value(), .source_document = source_document, .exceptions_enabled = true, .referrer_policy = referrer_policy }));
 
         // 2. If noopener is false, then set targetNavigable's active browsing context's opener browsing context to sourceDocument's browsing context.
+        // FIXME: The browsing context of a navigable another process hosts is there. Its opener would be a fact the
+        //        UI process carries to that process, where sourceDocument's browsing context is its navigable's
+        //        WindowProxy.
         if (no_opener == TokenizedFeature::NoOpener::No)
             as<LocalNavigable>(*target_navigable).active_browsing_context()->set_opener_browsing_context(source_document.browsing_context());
     }
@@ -814,6 +813,33 @@ bool Window::has_history_action_activation() const
     return m_last_history_action_activation_timestamp != m_last_activation_timestamp;
 }
 
+// https://html.spec.whatwg.org/multipage/interaction.html#consume-user-activation
+// https://html.spec.whatwg.org/multipage/interaction.html#consume-history-action-user-activation
+void Window::consume_user_activation_of_windows_hosted_by(Page& page, UserActivationConsumption consumption)
+{
+    // 4. Let windows be the list of Window objects constructed by taking the active window of each item in navigables.
+    // NB: Those of the navigables whose documents this page hosts.
+    GC::RootVector<GC::Ptr<Window>> windows;
+    for (auto const& navigable : page.hosted_navigables()) {
+        if (auto window = navigable->active_window())
+            windows.append(window);
+    }
+
+    for (auto& window : windows) {
+        switch (consumption) {
+        case UserActivationConsumption::Transient:
+            // 5. For each window in windows, if window's last activation timestamp is not positive infinity, then set window's last activation timestamp to negative infinity.
+            if (window->last_activation_timestamp() != AK::Infinity<HighResolutionTime::DOMHighResTimeStamp>)
+                window->set_last_activation_timestamp(-AK::Infinity<HighResolutionTime::DOMHighResTimeStamp>);
+            break;
+        case UserActivationConsumption::HistoryAction:
+            // 5. For each window in windows, set window's last history-action activation timestamp to window's last activation timestamp.
+            window->set_last_history_action_activation_timestamp(window->last_activation_timestamp());
+            break;
+        }
+    }
+}
+
 // https://html.spec.whatwg.org/multipage/interaction.html#consume-history-action-user-activation
 void Window::consume_history_action_user_activation()
 {
@@ -824,19 +850,11 @@ void Window::consume_history_action_user_activation()
         return;
 
     // 2. Let top be W's navigable's top-level traversable.
-    auto top = navigable->top_level_traversable();
-
     // 3. Let navigables be the inclusive descendant navigables of top's active document.
-    auto navigables = as<LocalTraversableNavigable>(*top).active_document()->inclusive_descendant_navigables();
-
-    // 4. Let windows be the list of Window objects constructed by taking the active window of each item in navigables.
-    GC::RootVector<GC::Ptr<Window>> windows;
-    for (auto& n : navigables)
-        windows.append(as<LocalNavigable>(*n).active_window());
-
-    // 5. For each window in windows, set window's last history-action activation timestamp to window's last activation timestamp.
-    for (auto& window : windows)
-        window->set_last_history_action_activation_timestamp(window->last_activation_timestamp());
+    // NB: The windows this page hosts are consumed here, and the UI process has every other page of the tab consume
+    //     those it hosts.
+    consume_user_activation_of_windows_hosted_by(page(), UserActivationConsumption::HistoryAction);
+    page().client().page_did_consume_user_activation(UserActivationConsumption::HistoryAction);
 }
 
 // https://html.spec.whatwg.org/multipage/interaction.html#consume-user-activation
@@ -849,21 +867,11 @@ void Window::consume_user_activation()
         return;
 
     // 2. Let top be W's navigable's top-level traversable.
-    auto top = navigable->top_level_traversable();
-
     // 3. Let navigables be the inclusive descendant navigables of top's active document.
-    auto navigables = as<LocalTraversableNavigable>(*top).active_document()->inclusive_descendant_navigables();
-
-    // 4. Let windows be the list of Window objects constructed by taking the active window of each item in navigables.
-    GC::RootVector<GC::Ptr<Window>> windows;
-    for (auto& n : navigables)
-        windows.append(as<LocalNavigable>(*n).active_window());
-
-    // 5. For each window in windows, if window's last activation timestamp is not positive infinity, then set window's last activation timestamp to negative infinity.
-    for (auto& window : windows) {
-        if (window->last_activation_timestamp() != AK::Infinity<HighResolutionTime::DOMHighResTimeStamp>)
-            window->set_last_activation_timestamp(-AK::Infinity<HighResolutionTime::DOMHighResTimeStamp>);
-    }
+    // NB: The windows this page hosts are consumed here, and the UI process has every other page of the tab consume
+    //     those it hosts.
+    consume_user_activation_of_windows_hosted_by(page(), UserActivationConsumption::Transient);
+    page().client().page_did_consume_user_activation(UserActivationConsumption::Transient);
 }
 
 // https://w3c.github.io/requestidlecallback/#start-an-idle-period-algorithm
@@ -1144,7 +1152,7 @@ void Window::close()
         return;
 
     // 4. Let browsingContext be thisTraversable's active browsing context.
-    auto browsing_context = traversable->active_browsing_context();
+    // NB: Familiarity is checked on the navigables whose active browsing contexts these are.
 
     // 5. Let sourceSnapshotParams be the result of snapshotting source snapshot params given thisTraversable's active document.
     auto source_snapshot_params = snapshot_source_snapshot_params(traversable->active_document());
@@ -1157,7 +1165,7 @@ void Window::close()
         traversable->is_script_closable()
 
         // the incumbent global object's browsing context is familiar with browsingContext; and
-        && incumbent_global_object.browsing_context()->is_familiar_with(*browsing_context)
+        && incumbent_global_object.navigable()->is_familiar_with(*traversable)
 
         // the incumbent global object's navigable is allowed by sandboxing to navigate thisTraversable, given sourceSnapshotParams,
         && incumbent_global_object.navigable()->allowed_by_sandboxing_to_navigate(*traversable, source_snapshot_params))

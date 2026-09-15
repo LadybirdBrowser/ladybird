@@ -50,15 +50,14 @@ public:
         Yes,
     };
     void close_top_level_traversable(PromptToUnload = PromptToUnload::Yes);
+    void close_top_level_traversable_from_script(Navigable const& source);
+    void remove_from_user_agent_top_level_traversable_set();
     void definitely_close_top_level_traversable(PromptToUnload = PromptToUnload::Yes);
     void run_ui_traversable_close_unload_task();
     void destroy_top_level_traversable();
-    void destroy_local_traversable();
 
     Utf16String const& window_handle() const { return m_window_handle; }
     void set_window_handle(Utf16String window_handle) { m_window_handle = move(window_handle); }
-
-    [[nodiscard]] GC::Ptr<DOM::Node> currently_focused_area();
 
     // https://w3c.github.io/geolocation/#dfn-emulated-position-data
     Geolocation::EmulatedPositionData const& emulated_position_data() const;

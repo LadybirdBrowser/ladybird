@@ -16,8 +16,10 @@
 #include <LibWeb/ContentSecurityPolicy/Directives/Directive.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/Forward.h>
+#include <LibWeb/HTML/CrossOrigin/OpenerPolicy.h>
 #include <LibWeb/HTML/CrossProcessId.h>
 #include <LibWeb/HTML/NavigateParams.h>
+#include <LibWeb/HTML/ReplicatedNavigableState.h>
 #include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::HTML {
@@ -36,7 +38,9 @@ public:
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-container
     GC::Ptr<NavigableContainer> container() const;
-    void set_container(Badge<NavigableContainer>, GC::Ptr<NavigableContainer> container) { m_container = container; }
+    // NB: A page sets the container of the local navigable it created to populate the content navigable's next
+    //     document there, before the navigable is the content navigable, and clears it if it never becomes one.
+    void set_container(Badge<NavigableContainer, Page>, GC::Ptr<NavigableContainer> container) { m_container = container; }
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#nav-container-document
     GC::Ptr<DOM::Document> container_document() const;
@@ -49,6 +53,7 @@ public:
     GC::Ptr<Navigable> find(CrossProcessId);
 
     virtual bool has_been_destroyed() const = 0;
+    virtual void set_has_been_destroyed() = 0;
 
     virtual GC::Ptr<WindowProxy> active_window_proxy() = 0;
     virtual Utf16String const& target_name() const = 0;
@@ -59,6 +64,7 @@ public:
     virtual Optional<URL::URL> active_document_url() const = 0;
     virtual Optional<URL::Origin> active_document_origin() const = 0;
     virtual bool active_document_is_fully_active() const = 0;
+    virtual bool active_document_is_completely_loaded() const = 0;
     virtual bool active_document_is(DOM::Document const&) const = 0;
 
     // https://html.spec.whatwg.org/multipage/document-sequences.html#inclusive-descendant-navigables
@@ -67,6 +73,14 @@ public:
     virtual Optional<URL::URL> active_document_top_level_creation_url() const = 0;
     virtual Optional<URL::Origin> active_document_top_level_origin() const = 0;
     virtual bool active_document_has_cross_site_ancestor() const = 0;
+    virtual OpenerPolicy const& active_document_opener_policy() const = 0;
+
+    virtual ReplicatedContainerState container_state() const = 0;
+    bool container_is_in_document_tree() const { return container_state().is_in_document_tree; }
+    SandboxingFlagSet container_iframe_sandboxing_flag_set() const { return container_state().iframe_sandboxing_flag_set; }
+    SandboxingFlagSet container_document_active_sandboxing_flag_set() const { return container_state().document_active_sandboxing_flag_set; }
+    Optional<Utf16FlyString> container_local_name() const { return container_state().local_name; }
+    ReferrerPolicy::ReferrerPolicy container_iframe_referrer_policy() const { return container_state().iframe_referrer_policy; }
 
     virtual bool has_session_history_entry_and_ready_for_navigation() const = 0;
     virtual bool delays_the_load_event_of_its_container() const = 0;

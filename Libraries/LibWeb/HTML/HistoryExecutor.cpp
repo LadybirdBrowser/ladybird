@@ -237,7 +237,7 @@ void HistoryExecutor::finalize_same_document_navigation(GC::Ref<LocalNavigable> 
 }
 
 // Fire beforeunload for the documents hosted by this process.
-void HistoryExecutor::run_ui_history_step_beforeunload_check(Vector<CrossProcessId> navigable_ids, UnloadPromptShown unload_prompt_shown, GC::Ref<GC::Function<void(HistoryStepResult, UnloadPromptShown)>> on_complete)
+void HistoryExecutor::run_ui_beforeunload_check(Vector<CrossProcessId> navigable_ids, UnloadPromptShown unload_prompt_shown, GC::Ref<GC::Function<void(HistoryStepResult, UnloadPromptShown)>> on_complete)
 {
     Vector<GC::Root<LocalNavigable>> navigables;
     navigables.ensure_capacity(navigable_ids.size());

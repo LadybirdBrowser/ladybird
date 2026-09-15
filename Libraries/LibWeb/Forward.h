@@ -705,6 +705,8 @@ class DOMRectReadOnly;
 
 namespace Web::HTML {
 
+enum class CheckIfUnloadingIsCanceledResult;
+
 class AnimationFrameCallbackDriver;
 class AudioTrack;
 class AudioTrackList;
@@ -861,6 +863,8 @@ struct PreloadKey;
 class PromiseRejectionEvent;
 class RadioButtonGroupRegistry;
 class RadioNodeList;
+class RemoteNavigable;
+class RemoteWindow;
 class ScriptRegistry;
 class SelectedFile;
 class SessionHistoryEntry;
@@ -930,6 +934,9 @@ struct NavigationPopulationResult;
 struct NavigationStartRequest;
 struct NavigationParams;
 struct OpenerPolicy;
+struct PostedMessageDescriptor;
+struct PreparedNavigation;
+struct PreparedNavigationDescriptor;
 struct OpenerPolicyEnforcementResult;
 struct PaintConfig;
 struct PolicyContainer;
@@ -937,6 +944,7 @@ struct POSTResource;
 struct SerializedFormData;
 struct SerializedPolicyContainer;
 struct SerializedTransferRecord;
+struct SessionHistoryEntryDescriptor;
 struct SourceSnapshotParams;
 struct TargetSnapshotParams;
 struct ToggleTaskTracker;

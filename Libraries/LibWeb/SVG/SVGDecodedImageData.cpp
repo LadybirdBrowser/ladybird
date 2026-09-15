@@ -52,7 +52,7 @@ public:
 
     ScopedSVGImageDocument(SVGDecodedImageData::SVGPageClient& page_client, DOM::Document& document, FrameRequests frame_requests, GC::Ptr<SVGDecodedImageData> current_image_data = nullptr)
         : m_page_client(page_client)
-        , m_navigable(page_client.page().local_root_navigable())
+        , m_navigable(page_client.page().local_traversable())
         , m_window(page_client.window())
         , m_previous_document(*m_navigable->active_document())
         , m_previous_current_image_data(page_client.current_svg_image_data())
@@ -93,8 +93,8 @@ ErrorOr<GC::Ref<SVGDecodedImageData>> SVGDecodedImageData::create(GC::Ref<Page> 
     auto page = Page::create(*page_client);
     page->set_is_scripting_enabled(false);
     page_client->m_svg_page = page.ptr();
-    page->set_local_root_navigable(HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {}));
-    auto navigable = page->local_root_navigable();
+    page->set_top_level_traversable(HTML::LocalTraversableNavigable::create_a_new_top_level_traversable(page, nullptr, {}));
+    auto navigable = page->local_traversable();
     auto response = Fetch::Infrastructure::Response::create();
     response->url_list().append(url);
     auto origin = URL::Origin::create_opaque();
@@ -449,7 +449,7 @@ void SVGDecodedImageData::SVGPageClient::prune_cached_display_list_resources_now
         svg_image_data.append_paint_command_cache_source_resources(retained_resources);
     }
 
-    m_svg_page->local_root_navigable()->display_list_resource_storage().retain_only(retained_resources);
+    m_svg_page->local_traversable()->display_list_resource_storage().retain_only(retained_resources);
 }
 
 void SVGDecodedImageData::SVGPageClient::end_recording_display_list()
@@ -466,7 +466,7 @@ void SVGDecodedImageData::SVGPageClient::end_recording_display_list()
 
 HTML::Window& SVGDecodedImageData::SVGPageClient::window() const
 {
-    auto window = m_svg_page->local_root_navigable()->active_window();
+    auto window = m_svg_page->local_traversable()->active_window();
     VERIFY(window);
     return *window;
 }
