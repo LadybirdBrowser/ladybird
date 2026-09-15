@@ -69,6 +69,7 @@ if (APPLE)
         ../AppKit/Utilities/DictionaryLookup.mm
         ../AppKit/Utilities/ExternalURLHandler.mm
         MacWindow.mm
+        Menu.mm
         WebContentViewMac.mm
     )
     target_link_libraries(ladybird PRIVATE Qt::GuiPrivate "-framework Cocoa" "-framework IOSurface" "-framework Metal")
