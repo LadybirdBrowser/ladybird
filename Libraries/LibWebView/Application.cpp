@@ -2553,8 +2553,6 @@ void Application::initialize_actions()
     });
     m_inspect_menu->add_action(*m_view_source_action);
 
-    add_platform_inspect_menu_items();
-
     m_toggle_devtools_action = Action::create("Enable DevTools"sv, ActionID::ToggleDevTools, [this]() {
         if (auto result = toggle_devtools_enabled(); result.is_error())
             display_error_dialog(MUST(String::formatted("Unable to start DevTools: {}", result.error())));
@@ -2633,6 +2631,8 @@ void Application::initialize_actions()
     m_block_pop_ups_action = Action::create_checkable("Block Pop-ups"sv, ActionID::BlockPopUps, check(m_block_pop_ups_action, "block-pop-ups"sv));
     m_block_pop_ups_action->set_checked(m_browser_options.allow_popups == AllowPopups::No);
     m_debug_menu->add_action(*m_block_pop_ups_action);
+
+    create_platform_actions();
 }
 
 void Application::apply_view_options(Badge<ViewImplementation>, ViewImplementation& view)

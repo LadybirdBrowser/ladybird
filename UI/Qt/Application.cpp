@@ -46,6 +46,7 @@
 #include <QMimeData>
 #include <QMimeDatabase>
 #include <QPointer>
+#include <QShortcut>
 #include <QSizePolicy>
 #include <QStandardPaths>
 #include <QTimer>
@@ -100,6 +101,7 @@ class LadybirdQApplication : public QApplication {
 public:
     explicit LadybirdQApplication(Main::Arguments& arguments)
         : QApplication(arguments.argc, arguments.argv)
+        , m_application_widget(make<QWidget>())
     {
 #if defined(AK_OS_MACOS)
         setQuitOnLastWindowClosed(false);
@@ -156,7 +158,124 @@ public:
         return handled;
     }
 
+    void create_application_actions()
+    {
+        auto& application = WebView::Application::the();
+
+        m_new_tab_action = new QAction("New &Tab", m_application_widget);
+        m_new_tab_action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_T));
+        QObject::connect(m_new_tab_action, &QAction::triggered, this, []() { Application::the().open_new_tab(); });
+
+        m_new_window_action = new QAction("New &Window", m_application_widget);
+        m_new_window_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::New));
+        QObject::connect(m_new_window_action, &QAction::triggered, this, []() { Application::the().open_new_window(WebView::IsPrivate::No); });
+
+        m_new_private_window_action = new QAction("New Pri&vate Window", m_application_widget);
+        m_new_private_window_action->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_N));
+        QObject::connect(m_new_private_window_action, &QAction::triggered, this, []() { Application::the().open_new_window(WebView::IsPrivate::Yes); });
+
+        m_reopen_recently_closed_tab_action = new QAction("&Reopen Recently Closed Tab", m_application_widget);
+        m_reopen_recently_closed_tab_action->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_T));
+        QObject::connect(m_reopen_recently_closed_tab_action, &QAction::triggered, this, []() { Application::the().reopen_recently_closed_tab(); });
+        update_reopen_recently_closed_action();
+
+        m_close_current_tab_action = new QAction("&Close Current Tab", m_application_widget);
+        m_close_current_tab_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Close));
+        QObject::connect(m_close_current_tab_action, &QAction::triggered, this, []() {
+            if (auto* tab = Application::the().active_tab())
+                tab->request_close();
+        });
+
+        m_open_next_tab_action = new QAction("Open &Next Tab", m_application_widget);
+        m_open_next_tab_action->setShortcuts({
+            QKeySequence(Qt::CTRL | Qt::Key_PageDown),
+            QKeySequence(Qt::CTRL | Qt::Key_Tab),
 #if defined(AK_OS_MACOS)
+            QKeySequence(Qt::META | Qt::Key_Tab),
+            QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_BracketRight),
+#endif
+        });
+        QObject::connect(m_open_next_tab_action, &QAction::triggered, this, []() {
+            if (auto* window = Application::the().active_window_if_any())
+                window->open_next_tab();
+        });
+
+        m_open_previous_tab_action = new QAction("Open &Previous Tab", m_application_widget);
+        m_open_previous_tab_action->setShortcuts({
+            QKeySequence(Qt::CTRL | Qt::Key_PageUp),
+            QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Tab),
+#if defined(AK_OS_MACOS)
+            QKeySequence(Qt::META | Qt::SHIFT | Qt::Key_Tab),
+            QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_BracketLeft),
+#endif
+        });
+        QObject::connect(m_open_previous_tab_action, &QAction::triggered, this, []() {
+            if (auto* window = Application::the().active_window_if_any())
+                window->open_previous_tab();
+        });
+
+        m_open_file_action = new QAction("&Open File...", m_application_widget);
+        m_open_file_action->setShortcut(QKeySequence(QKeySequence::StandardKey::Open));
+        QObject::connect(m_open_file_action, &QAction::triggered, this, []() { Application::the().open_file(); });
+
+        m_open_downloads_action = create_application_action(*m_application_widget, application.open_downloads_page_action(), IncludeActionIcon::No);
+        m_open_settings_action = create_application_action(*m_application_widget, application.open_settings_page_action(), IncludeActionIcon::No);
+
+        m_find_in_page_action = new QAction("&Find in Page...", m_application_widget);
+        m_find_in_page_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Find));
+        QObject::connect(m_find_in_page_action, &QAction::triggered, this, []() {
+            if (auto* window = Application::the().active_window_if_any())
+                window->show_find_in_page();
+        });
+
+        m_quit_action = new QAction("&Quit", m_application_widget);
+        m_quit_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Quit));
+#if defined(AK_OS_MACOS)
+        QObject::connect(m_quit_action, &QAction::triggered, this, []() { Application::the().quit(); });
+#else
+        QObject::connect(m_quit_action, &QAction::triggered, this, []() {
+            // If there are no active windows, we are certainly already in the process of quitting.
+            if (auto* window = Application::the().active_window_if_any())
+                window->close();
+        });
+#endif
+
+        m_bookmarks_menu = create_application_menu(*m_application_widget, application.bookmarks_menu());
+
+        m_history_menu = create_application_menu(*m_application_widget, application.history_menu());
+        QObject::connect(m_history_menu, &QMenu::aboutToShow, this, [this]() {
+            auto* tab = Application::the().active_tab();
+            update_history_menu(*m_history_menu, tab ? &tab->view() : nullptr);
+        });
+
+        m_inspect_menu = create_application_menu(*m_application_widget, application.inspect_menu());
+        m_debug_menu = create_application_menu(*m_application_widget, application.debug_menu());
+        m_zoom_menu = create_application_menu(*m_application_widget, application.zoom_menu());
+
+        m_help_menu = new QMenu("Help", m_application_widget);
+        m_help_menu->addAction(create_application_action(*m_application_widget, application.open_about_page_action(), IncludeActionIcon::No));
+    }
+
+#if defined(AK_OS_MACOS)
+    void create_application_menu_bar()
+    {
+        m_menu_bar = Application::the().create_application_menu_bar(Application::ForBrowserWindow::No);
+    }
+
+    void create_dock_menu()
+    {
+        if (m_dock_menu)
+            return;
+
+        m_dock_menu = new QMenu(m_menu_bar);
+        QObject::connect(m_dock_menu, &QMenu::aboutToShow, this, [this] {
+            rebuild_dock_menu();
+        });
+        rebuild_dock_menu();
+        m_dock_menu->setAsDockMenu();
+    }
+#endif
+
     void update_reopen_recently_closed_action()
     {
         if (!m_reopen_recently_closed_tab_action)
@@ -168,131 +287,15 @@ public:
         m_reopen_recently_closed_tab_action->setEnabled(session.session_store->has_closed_units());
     }
 
-#endif
-
-#if defined(AK_OS_MACOS)
-    void create_application_menu_bar()
-    {
-        if (m_application_menu_bar)
-            return;
-
-        m_application_menu_bar = new QMenuBar;
-        auto& application = Application::the();
-
-        auto* file_menu = m_application_menu_bar->addMenu("&File");
-
-        auto* new_tab_action = add_application_menu_action(*file_menu, "New &Tab", { QKeySequence(Qt::CTRL | Qt::Key_T) });
-        QObject::connect(new_tab_action, &QAction::triggered, this, [] {
-            Application::the().open_new_tab();
-        });
-
-        auto* new_window_action = add_application_menu_action(*file_menu, "New &Window", QKeySequence::keyBindings(QKeySequence::StandardKey::New));
-        QObject::connect(new_window_action, &QAction::triggered, this, [] {
-            Application::the().open_new_window(WebView::IsPrivate::No);
-        });
-
-        auto* new_private_window_action = add_application_menu_action(*file_menu, "New Pri&vate Window", { QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_N) });
-        QObject::connect(new_private_window_action, &QAction::triggered, this, [] {
-            Application::the().open_new_window(WebView::IsPrivate::Yes);
-        });
-
-        m_reopen_recently_closed_tab_action = add_application_menu_action(*file_menu, {}, { QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_T) });
-        QObject::connect(m_reopen_recently_closed_tab_action, &QAction::triggered, this, [] {
-            Application::the().reopen_recently_closed_tab();
-        });
-
-        auto* open_file_action = add_application_menu_action(*file_menu, "&Open File...", QKeySequence::keyBindings(QKeySequence::StandardKey::Open));
-        QObject::connect(open_file_action, &QAction::triggered, this, [] {
-            Application::the().open_file();
-        });
-
-        file_menu->addAction(create_application_action(*file_menu, application.open_downloads_page_action(), IncludeActionIcon::No));
-
-        auto* open_location_action = add_application_menu_action(*file_menu, "Open &Location", { QKeySequence("Ctrl+L"), QKeySequence("Alt+D") });
-        QObject::connect(open_location_action, &QAction::triggered, this, [] {
-            Application::the().focus_location_editor();
-        });
-
-        file_menu->addSeparator();
-
-        auto* quit_action = add_application_menu_action(*file_menu, "&Quit", QKeySequence::keyBindings(QKeySequence::StandardKey::Quit));
-        QObject::connect(quit_action, &QAction::triggered, this, [] {
-            Application::the().quit();
-        });
-
-        auto* edit_menu = m_application_menu_bar->addMenu("&Edit");
-        edit_menu->addAction(create_application_action(*edit_menu, application.cut_selection_action(), IncludeActionIcon::No));
-        edit_menu->addAction(create_application_action(*edit_menu, application.copy_selection_action(), IncludeActionIcon::No));
-        edit_menu->addAction(create_application_action(*edit_menu, application.paste_action(), IncludeActionIcon::No));
-        edit_menu->addAction(create_application_action(*edit_menu, application.select_all_action(), IncludeActionIcon::No));
-        edit_menu->addSeparator();
-        edit_menu->addAction(create_application_action(*edit_menu, application.open_settings_page_action(), IncludeActionIcon::No));
-
-        auto* view_menu = m_application_menu_bar->addMenu("&View");
-        view_menu->addMenu(create_application_menu(*view_menu, application.color_scheme_menu()));
-        view_menu->addMenu(create_application_menu(*view_menu, application.contrast_menu()));
-        view_menu->addMenu(create_application_menu(*view_menu, application.motion_menu()));
-
-        m_application_menu_bar->addMenu(bookmarks_menu());
-
-        m_history_menu = create_application_menu(*m_application_menu_bar, application.history_menu());
-        QObject::connect(m_history_menu, &QMenu::aboutToShow, m_application_menu_bar, [this] {
-            update_history_menu(*m_history_menu, Application::the().active_tab() ? &Application::the().active_tab()->view() : nullptr);
-        });
-        m_application_menu_bar->addMenu(m_history_menu);
-
-        auto* help_menu = m_application_menu_bar->addMenu("&Help");
-        help_menu->addAction(create_application_action(*help_menu, application.open_about_page_action(), IncludeActionIcon::No));
-
-        m_inspect_menu = create_application_menu(*m_application_menu_bar, application.inspect_menu());
-        m_application_menu_bar->insertMenu(help_menu->menuAction(), m_inspect_menu);
-
-        m_debug_menu = create_application_menu(*m_application_menu_bar, application.debug_menu());
-        m_application_menu_bar->insertMenu(help_menu->menuAction(), m_debug_menu);
-
-        update_reopen_recently_closed_action();
-        update_application_menu_bar_tab_menus();
-    }
-
-    void create_dock_menu()
-    {
-        if (m_dock_menu)
-            return;
-
-        m_dock_menu = new QMenu(m_application_menu_bar);
-        QObject::connect(m_dock_menu, &QMenu::aboutToShow, this, [this] {
-            rebuild_dock_menu();
-        });
-        rebuild_dock_menu();
-        m_dock_menu->setAsDockMenu();
-    }
-#endif
-
-#if defined(AK_OS_MACOS)
-    QMenu* bookmarks_menu()
-    {
-        if (!m_bookmarks_menu)
-            m_bookmarks_menu = create_application_menu(*m_application_menu_bar, Application::the().bookmarks_menu());
-        return m_bookmarks_menu;
-    }
-
     void rebuild_bookmarks_menu()
     {
         if (m_bookmarks_menu)
-            repopulate_application_menu(*m_bookmarks_menu, *m_application_menu_bar, Application::the().bookmarks_menu());
+            repopulate_application_menu(*m_bookmarks_menu, *m_application_widget, WebView::Application::the().bookmarks_menu());
     }
-
-    void update_application_menu_bar_tab_menus()
-    {
-        auto has_active_tab = Application::the().active_tab() != nullptr;
-        if (m_inspect_menu)
-            m_inspect_menu->menuAction()->setVisible(has_active_tab);
-        if (m_debug_menu)
-            m_debug_menu->menuAction()->setVisible(has_active_tab && Application::the().debug_menu().visible());
-    }
-#endif
 
 private:
+    friend Application;
+
 #if defined(AK_OS_MACOS)
     void rebuild_dock_menu()
     {
@@ -341,14 +344,6 @@ private:
             });
         }
     }
-
-    QAction* add_application_menu_action(QMenu& menu, QString const& text, QList<QKeySequence> shortcuts)
-    {
-        auto* action = new QAction(text, m_application_menu_bar);
-        action->setShortcuts(shortcuts);
-        menu.addAction(action);
-        return action;
-    }
 #endif
 
     void update_chrome_style()
@@ -356,26 +351,38 @@ private:
         setStyleSheet(ChromeStyle::application_style_sheet(palette()));
     }
 
+    // The application actions require a QWidget owner, which we don't have at the time of creation. We use this dummy
+    // widget instead, which we also can't properly parent as it would need a QWidget owner as well.
+    OwnPtr<QWidget> m_application_widget { nullptr };
+
 #if defined(AK_OS_MACOS)
-    QMenuBar* m_application_menu_bar { nullptr };
+    QMenuBar* m_menu_bar { nullptr };
+    QMenu* m_dock_menu { nullptr };
+#endif
+
     QMenu* m_bookmarks_menu { nullptr };
     QMenu* m_history_menu { nullptr };
     QMenu* m_inspect_menu { nullptr };
     QMenu* m_debug_menu { nullptr };
-    QMenu* m_dock_menu { nullptr };
+    QMenu* m_zoom_menu { nullptr };
+    QMenu* m_help_menu { nullptr };
+
+    QAction* m_new_tab_action { nullptr };
+    QAction* m_new_window_action { nullptr };
+    QAction* m_new_private_window_action { nullptr };
     QAction* m_reopen_recently_closed_tab_action { nullptr };
-#endif
+    QAction* m_close_current_tab_action { nullptr };
+    QAction* m_open_next_tab_action { nullptr };
+    QAction* m_open_previous_tab_action { nullptr };
+    QAction* m_open_file_action { nullptr };
+    QAction* m_open_settings_action { nullptr };
+    QAction* m_open_downloads_action { nullptr };
+    QAction* m_find_in_page_action { nullptr };
+    QAction* m_quit_action { nullptr };
 };
 
 Application::Application() = default;
 Application::~Application() = default;
-
-void Application::add_platform_inspect_menu_items()
-{
-    inspect_menu().add_action(WebView::Action::create("Open Task Manager"sv, WebView::ActionID::OpenTaskManager, [this]() {
-        show_process_manager();
-    }));
-}
 
 void Application::show_process_manager()
 {
@@ -392,20 +399,21 @@ void Application::create_platform_options(WebView::BrowserOptions&, WebView::Req
     web_content_options.config_path = Settings::the()->directory();
 }
 
-Optional<String> Application::ui_font_family() const
+void Application::create_platform_actions()
 {
-    if (!m_application)
-        return {};
-    return ak_string_from_qstring(QGuiApplication::font().family());
-}
-
-#if !defined(AK_OS_MACOS)
-// On macOS, WebContent resolves system-ui with CoreText, so the system font family is not sent there.
-Optional<String> Application::system_font_family() const
-{
-    return ui_font_family();
-}
+    if (m_application) {
+        auto& qapplication = static_cast<LadybirdQApplication&>(*m_application);
+        qapplication.create_application_actions();
+#if defined(AK_OS_MACOS)
+        qapplication.create_application_menu_bar();
+        qapplication.create_dock_menu();
 #endif
+    }
+
+    WebView::Application::inspect_menu().add_action(WebView::Action::create("Open Task Manager"sv, WebView::ActionID::OpenTaskManager, [this]() {
+        show_process_manager();
+    }));
+}
 
 Core::EventLoop& Application::create_platform_event_loop()
 {
@@ -429,15 +437,28 @@ Core::EventLoop& Application::create_platform_event_loop()
     return event_loop;
 }
 
+Optional<String> Application::ui_font_family() const
+{
+    if (!m_application)
+        return {};
+    return ak_string_from_qstring(QGuiApplication::font().family());
+}
+
+#if !defined(AK_OS_MACOS)
+// On macOS, WebContent resolves system-ui with CoreText, so the system font family is not sent there.
+Optional<String> Application::system_font_family() const
+{
+    return ui_font_family();
+}
+#endif
+
 BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& configuration, BrowserWindow::IsPopupWindow is_popup_window, WebView::IsPrivate is_private, Tab* parent_tab, Optional<Web::PageId> page_index, ShowWindow show_window)
 {
     auto* window = new BrowserWindow(initial_urls, is_popup_window, is_private, parent_tab, move(page_index));
     set_active_window(*window);
     QObject::connect(window, &QObject::destroyed, m_application.ptr(), [this, window] {
-        if (m_active_window == window) {
+        if (m_active_window == window)
             m_active_window = nullptr;
-            update_macos_application_menu();
-        }
     });
 
     auto should_focus_location_editor = initial_urls.size() == 1 && initial_urls.first() == WebView::Application::settings().new_tab_page_url();
@@ -470,12 +491,6 @@ BrowserWindow& Application::new_window(Vector<URL::URL> const& initial_urls, Win
         });
     }
     return *window;
-}
-
-void Application::set_active_window(BrowserWindow& window)
-{
-    m_active_window = &window;
-    update_macos_application_menu();
 }
 
 BrowserWindow* Application::non_private_window_if_any() const
@@ -667,33 +682,6 @@ bool Application::confirm_stop_active_downloads(QWidget* parent)
 
     downloader.pause_active_downloads();
     return true;
-}
-
-void Application::initialize_macos_application_menu()
-{
-#if defined(AK_OS_MACOS)
-    if (m_application) {
-        static_cast<LadybirdQApplication*>(m_application.ptr())->create_application_menu_bar();
-        static_cast<LadybirdQApplication*>(m_application.ptr())->create_dock_menu();
-    }
-#endif
-}
-
-void Application::update_macos_application_menu() const
-{
-#if defined(AK_OS_MACOS)
-    if (m_application)
-        static_cast<LadybirdQApplication*>(m_application.ptr())->update_application_menu_bar_tab_menus();
-#endif
-}
-
-QMenu* Application::qt_bookmarks_menu() const
-{
-#if defined(AK_OS_MACOS)
-    if (m_application)
-        return static_cast<LadybirdQApplication*>(m_application.ptr())->bookmarks_menu();
-#endif
-    return nullptr;
 }
 
 Optional<WebView::ViewImplementation&> Application::active_web_view() const
@@ -982,10 +970,8 @@ void Application::update_tabs_display() const
 
 void Application::rebuild_bookmarks_menu() const
 {
-#if defined(AK_OS_MACOS)
     if (m_application)
         static_cast<LadybirdQApplication*>(m_application.ptr())->rebuild_bookmarks_menu();
-#endif
 
     for (auto* widget : QApplication::topLevelWidgets()) {
         if (auto* window = as_if<BrowserWindow>(widget))
@@ -995,15 +981,8 @@ void Application::rebuild_bookmarks_menu() const
 
 void Application::update_reopen_recently_closed_actions() const
 {
-#if defined(AK_OS_MACOS)
     if (m_application)
         static_cast<LadybirdQApplication*>(m_application.ptr())->update_reopen_recently_closed_action();
-#endif
-
-    for (auto* widget : QApplication::topLevelWidgets()) {
-        if (auto* window = as_if<BrowserWindow>(widget))
-            window->update_reopen_recently_closed_action();
-    }
 }
 
 void Application::show_bookmark_context_menu(Gfx::IntPoint content_position, Optional<WebView::BookmarkItem const&> item, Optional<String const&> target_folder_id)
@@ -1247,5 +1226,95 @@ void Application::on_recently_closed_entries_changed() const
 {
     update_reopen_recently_closed_actions();
 }
+
+QMenuBar* Application::create_application_menu_bar(ForBrowserWindow for_browser_window)
+{
+    auto& application = WebView::Application::the();
+    auto* menu_bar = new QMenuBar();
+
+    auto* file_menu = menu_bar->addMenu("&File");
+    file_menu->addAction(new_tab_action());
+    file_menu->addAction(new_window_action());
+    file_menu->addAction(new_private_window_action());
+    file_menu->addAction(reopen_recently_closed_tab_action());
+    if (for_browser_window == ForBrowserWindow::Yes)
+        file_menu->addAction(close_current_tab_action());
+    file_menu->addSeparator();
+    file_menu->addAction(open_file_action());
+    file_menu->addAction(open_downloads_action());
+    file_menu->addSeparator();
+    file_menu->addAction(quit_action());
+
+    auto* edit_menu = menu_bar->addMenu("&Edit");
+    if (for_browser_window == ForBrowserWindow::Yes) {
+        edit_menu->addAction(create_application_action(*menu_bar, application.undo_action(), IncludeActionIcon::No));
+        edit_menu->addAction(create_application_action(*menu_bar, application.redo_action(), IncludeActionIcon::No));
+        edit_menu->addSeparator();
+    }
+    edit_menu->addAction(create_application_action(*menu_bar, application.cut_selection_action(), IncludeActionIcon::No));
+    edit_menu->addAction(create_application_action(*menu_bar, application.copy_selection_action(), IncludeActionIcon::No));
+    edit_menu->addAction(create_application_action(*menu_bar, application.paste_action(), IncludeActionIcon::No));
+    edit_menu->addAction(create_application_action(*menu_bar, application.select_all_action(), IncludeActionIcon::No));
+    edit_menu->addSeparator();
+    if (for_browser_window == ForBrowserWindow::Yes) {
+        edit_menu->addAction(find_in_page_action());
+        edit_menu->addSeparator();
+    }
+    edit_menu->addAction(open_settings_action());
+
+    auto* view_menu = menu_bar->addMenu("&View");
+    if (for_browser_window == ForBrowserWindow::Yes) {
+        view_menu->addAction(open_next_tab_action());
+        view_menu->addAction(open_previous_tab_action());
+        view_menu->addSeparator();
+        view_menu->addMenu(zoom_menu());
+        view_menu->addSeparator();
+    }
+    view_menu->addMenu(create_application_menu(*view_menu, application.color_scheme_menu()));
+    view_menu->addMenu(create_application_menu(*view_menu, application.contrast_menu()));
+    view_menu->addMenu(create_application_menu(*view_menu, application.motion_menu()));
+
+    if constexpr (show_menu_bar_option_available()) {
+        view_menu->addSeparator();
+        view_menu->addAction(create_application_action(*view_menu, application.toggle_menu_bar_action(), IncludeActionIcon::No));
+    }
+
+    menu_bar->addMenu(bookmarks_menu());
+    menu_bar->addMenu(history_menu());
+    if (for_browser_window == ForBrowserWindow::Yes) {
+        menu_bar->addMenu(inspect_menu());
+        menu_bar->addMenu(debug_menu());
+    }
+    menu_bar->addMenu(help_menu());
+
+    return menu_bar;
+}
+
+#define DEFINE_APP_MENU_GETTER(type, name)                                      \
+    type* Application::name()                                                   \
+    {                                                                           \
+        if (m_application)                                                      \
+            return static_cast<LadybirdQApplication&>(*m_application).m_##name; \
+        return nullptr;                                                         \
+    }
+
+DEFINE_APP_MENU_GETTER(QMenu, bookmarks_menu);
+DEFINE_APP_MENU_GETTER(QMenu, history_menu);
+DEFINE_APP_MENU_GETTER(QMenu, inspect_menu);
+DEFINE_APP_MENU_GETTER(QMenu, debug_menu);
+DEFINE_APP_MENU_GETTER(QMenu, zoom_menu);
+DEFINE_APP_MENU_GETTER(QMenu, help_menu);
+DEFINE_APP_MENU_GETTER(QAction, new_tab_action);
+DEFINE_APP_MENU_GETTER(QAction, new_window_action);
+DEFINE_APP_MENU_GETTER(QAction, new_private_window_action);
+DEFINE_APP_MENU_GETTER(QAction, reopen_recently_closed_tab_action);
+DEFINE_APP_MENU_GETTER(QAction, close_current_tab_action);
+DEFINE_APP_MENU_GETTER(QAction, open_next_tab_action);
+DEFINE_APP_MENU_GETTER(QAction, open_previous_tab_action);
+DEFINE_APP_MENU_GETTER(QAction, open_file_action);
+DEFINE_APP_MENU_GETTER(QAction, open_settings_action);
+DEFINE_APP_MENU_GETTER(QAction, open_downloads_action);
+DEFINE_APP_MENU_GETTER(QAction, find_in_page_action);
+DEFINE_APP_MENU_GETTER(QAction, quit_action);
 
 }

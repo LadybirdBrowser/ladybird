@@ -11,7 +11,6 @@
 
 #include <AK/HashMap.h>
 #include <AK/Platform.h>
-#include <AK/RefPtr.h>
 #include <AK/StdLibExtras.h>
 #include <AK/TypeCasts.h>
 #include <LibWebView/Application.h>
@@ -23,27 +22,22 @@
 #include <UI/Qt/ChromeStyle.h>
 #include <UI/Qt/DevToolsBanner.h>
 #include <UI/Qt/Icon.h>
+#include <UI/Qt/StringUtils.h>
 #if defined(AK_OS_MACOS)
 #    include <UI/Qt/MacWindow.h>
 #endif
-#include <UI/Qt/Menu.h>
 #include <UI/Qt/Settings.h>
-#include <UI/Qt/StringUtils.h>
 #include <UI/Qt/TabBar.h>
 #include <UI/Qt/WebContentView.h>
 #include <UI/Qt/WindowControlButton.h>
 
 #include <QAbstractButton>
-#include <QAction>
-#include <QActionGroup>
 #include <QApplication>
 #include <QCursor>
 #include <QGuiApplication>
-#include <QHBoxLayout>
+#include <QIcon>
 #include <QInputDevice>
-#include <QInputDialog>
 #include <QMenuBar>
-#include <QMessageBox>
 #include <QMouseEvent>
 #include <QPainter>
 #include <QPlatformSurfaceEvent>
@@ -299,7 +293,7 @@ BrowserWindow::BrowserWindow(Vector<URL::URL> const& initial_urls, IsPopupWindow
             create_new_tab((i == 0) ? Web::HTML::ActivateTab::Yes : Web::HTML::ActivateTab::No, TabLocation::end());
     }
 
-    m_tabs_container->set_new_tab_action(m_new_tab_action);
+    m_tabs_container->set_new_tab_action(Application::the().new_tab_action());
 
     auto* main_widget = new QWidget(this);
     auto* main_layout = new QVBoxLayout(main_widget);
@@ -334,71 +328,19 @@ void BrowserWindow::initialize_application_actions()
 {
     auto& application = Application::the();
 
-    m_new_tab_action = new QAction("New &Tab", this);
-    m_new_tab_action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_T));
-    QObject::connect(m_new_tab_action, &QAction::triggered, this, []() { Application::the().open_new_tab(); });
-    addAction(m_new_tab_action);
-
-    m_new_window_action = new QAction("New &Window", this);
-    m_new_window_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::New));
-    QObject::connect(m_new_window_action, &QAction::triggered, this, []() { Application::the().open_new_window(WebView::IsPrivate::No); });
-    addAction(m_new_window_action);
-
-    m_new_private_window_action = new QAction("New Pri&vate Window", this);
-    m_new_private_window_action->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_N));
-    QObject::connect(m_new_private_window_action, &QAction::triggered, this, []() { Application::the().open_new_window(WebView::IsPrivate::Yes); });
-    addAction(m_new_private_window_action);
-
-    m_reopen_recently_closed_tab_action = new QAction("&Reopen Recently Closed Tab", this);
-    m_reopen_recently_closed_tab_action->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_T));
-    QObject::connect(m_reopen_recently_closed_tab_action, &QAction::triggered, this, []() { Application::the().reopen_recently_closed_tab(); });
-    addAction(m_reopen_recently_closed_tab_action);
-    update_reopen_recently_closed_action();
-
-    m_close_current_tab_action = new QAction("&Close Current Tab", this);
-    m_close_current_tab_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Close));
-    QObject::connect(m_close_current_tab_action, &QAction::triggered, this, &BrowserWindow::request_to_close_current_tab);
-    addAction(m_close_current_tab_action);
-
-    m_open_next_tab_action = new QAction("Open &Next Tab", this);
-    m_open_next_tab_action->setShortcuts({
-        QKeySequence(Qt::CTRL | Qt::Key_PageDown),
-        QKeySequence(Qt::CTRL | Qt::Key_Tab),
-#if defined(AK_OS_MACOS)
-        QKeySequence(Qt::META | Qt::Key_Tab),
-        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_BracketRight),
-#endif
-    });
-    QObject::connect(m_open_next_tab_action, &QAction::triggered, this, &BrowserWindow::open_next_tab);
-    addAction(m_open_next_tab_action);
-
-    m_open_previous_tab_action = new QAction("Open &Previous Tab", this);
-    m_open_previous_tab_action->setShortcuts({
-        QKeySequence(Qt::CTRL | Qt::Key_PageUp),
-        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Tab),
-#if defined(AK_OS_MACOS)
-        QKeySequence(Qt::META | Qt::SHIFT | Qt::Key_Tab),
-        QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_BracketLeft),
-#endif
-    });
-    QObject::connect(m_open_previous_tab_action, &QAction::triggered, this, &BrowserWindow::open_previous_tab);
-    addAction(m_open_previous_tab_action);
-
-    m_open_file_action = new QAction("&Open File...", this);
-    m_open_file_action->setShortcut(QKeySequence(QKeySequence::StandardKey::Open));
-    QObject::connect(m_open_file_action, &QAction::triggered, this, []() { Application::the().open_file(); });
-    addAction(m_open_file_action);
-
-    m_open_downloads_action = create_application_action(*this, application.open_downloads_page_action(), IncludeActionIcon::No);
-    addAction(m_open_downloads_action);
-
-    m_open_settings_action = create_application_action(*this, application.open_settings_page_action(), IncludeActionIcon::No);
-    addAction(m_open_settings_action);
-
-    m_find_in_page_action = new QAction("&Find in Page...", this);
-    m_find_in_page_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Find));
-    QObject::connect(m_find_in_page_action, &QAction::triggered, this, &BrowserWindow::show_find_in_page);
-    addAction(m_find_in_page_action);
+    // Add all actions to the window itself. This allows shortcuts to activate when the system menu bar is not visible.
+    addAction(application.new_tab_action());
+    addAction(application.new_window_action());
+    addAction(application.new_private_window_action());
+    addAction(application.reopen_recently_closed_tab_action());
+    addAction(application.close_current_tab_action());
+    addAction(application.open_next_tab_action());
+    addAction(application.open_previous_tab_action());
+    addAction(application.open_file_action());
+    addAction(application.open_downloads_action());
+    addAction(application.open_settings_action());
+    addAction(application.find_in_page_action());
+    addAction(application.quit_action());
 
     for (auto const& shortcut : QKeySequence::keyBindings(QKeySequence::StandardKey::FindPrevious)) {
         new QShortcut(shortcut, this, [this]() {
@@ -414,15 +356,6 @@ void BrowserWindow::initialize_application_actions()
         });
     }
 
-    m_quit_action = new QAction("&Quit", this);
-    m_quit_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Quit));
-#if defined(AK_OS_MACOS)
-    QObject::connect(m_quit_action, &QAction::triggered, this, []() { Application::the().quit(); });
-#else
-    QObject::connect(m_quit_action, &QAction::triggered, this, &QMainWindow::close);
-#endif
-    addAction(m_quit_action);
-
     for (int i = 0; i < 8; ++i) {
         new QShortcut(QKeySequence(Qt::CTRL | static_cast<Qt::Key>(Qt::Key_1 + i)), this, [this, i]() {
             if (m_tabs_container->count() > 1)
@@ -434,105 +367,46 @@ void BrowserWindow::initialize_application_actions()
         if (m_tabs_container->count() > 1)
             m_tabs_container->set_current_index(m_tabs_container->count() - 1);
     });
-
-    m_bookmarks_menu = application.qt_bookmarks_menu();
-    if (!m_bookmarks_menu)
-        m_bookmarks_menu = create_application_menu(*this, application.bookmarks_menu());
-
-    m_history_menu = create_application_menu(*this, application.history_menu());
-    QObject::connect(m_history_menu, &QMenu::aboutToShow, this, [this]() {
-        update_history_menu(*m_history_menu, m_current_tab ? &m_current_tab->view() : nullptr);
-    });
-
-    m_zoom_menu = create_application_menu(*this, application.zoom_menu());
-    m_inspect_menu = create_application_menu(*this, application.inspect_menu());
-    m_debug_menu = create_application_menu(*this, application.debug_menu());
-
-    m_help_menu = new QMenu("Help", this);
-    m_help_menu->addAction(create_application_action(*this, application.open_about_page_action(), IncludeActionIcon::No));
 }
 
 void BrowserWindow::initialize_application_menu()
 {
-    auto& application = Application::the();
-
+    setMenuBar(Application::the().create_application_menu_bar(Application::ForBrowserWindow::Yes));
     menuBar()->setObjectName("LadybirdMenuBar");
+
     create_menu_bar_window_controls();
     update_menu_bar_style();
     update_menu_bar_visibility();
-
-    auto* file_menu = menuBar()->addMenu("&File");
-    file_menu->addAction(m_new_tab_action);
-    file_menu->addAction(m_new_window_action);
-    file_menu->addAction(m_new_private_window_action);
-    file_menu->addAction(m_reopen_recently_closed_tab_action);
-    file_menu->addAction(m_close_current_tab_action);
-    file_menu->addAction(m_open_file_action);
-    file_menu->addAction(m_open_downloads_action);
-    file_menu->addSeparator();
-    file_menu->addAction(m_quit_action);
-
-    auto* edit_menu = menuBar()->addMenu("&Edit");
-    edit_menu->addAction(create_application_action(*this, application.undo_action(), IncludeActionIcon::No));
-    edit_menu->addAction(create_application_action(*this, application.redo_action(), IncludeActionIcon::No));
-    edit_menu->addSeparator();
-    edit_menu->addAction(create_application_action(*this, application.cut_selection_action(), IncludeActionIcon::No));
-    edit_menu->addAction(create_application_action(*this, application.copy_selection_action(), IncludeActionIcon::No));
-    edit_menu->addAction(create_application_action(*this, application.paste_action(), IncludeActionIcon::No));
-    edit_menu->addAction(create_application_action(*this, application.select_all_action(), IncludeActionIcon::No));
-    edit_menu->addSeparator();
-    edit_menu->addAction(m_find_in_page_action);
-    edit_menu->addSeparator();
-    edit_menu->addAction(m_open_settings_action);
-
-    auto* view_menu = menuBar()->addMenu("&View");
-    view_menu->addAction(m_open_next_tab_action);
-    view_menu->addAction(m_open_previous_tab_action);
-    view_menu->addSeparator();
-    view_menu->addMenu(m_zoom_menu);
-    view_menu->addSeparator();
-    view_menu->addMenu(create_application_menu(*view_menu, application.color_scheme_menu()));
-    view_menu->addMenu(create_application_menu(*view_menu, application.contrast_menu()));
-    view_menu->addMenu(create_application_menu(*view_menu, application.motion_menu()));
-
-    if constexpr (show_menu_bar_option_available()) {
-        view_menu->addSeparator();
-        view_menu->addAction(create_application_action(*view_menu, application.toggle_menu_bar_action(), IncludeActionIcon::No));
-    }
-
-    menuBar()->addMenu(m_bookmarks_menu);
-    menuBar()->addMenu(m_history_menu);
-    menuBar()->addMenu(m_inspect_menu);
-    menuBar()->addMenu(m_debug_menu);
-    menuBar()->addMenu(m_help_menu);
 }
 
 void BrowserWindow::initialize_hamburger_menu()
 {
+    auto& application = Application::the();
+
     m_hamburger_menu = new QMenu(this);
 
-    m_hamburger_menu->addAction(m_new_tab_action);
-    m_hamburger_menu->addAction(m_new_window_action);
-    m_hamburger_menu->addAction(m_new_private_window_action);
-    m_hamburger_menu->addAction(m_reopen_recently_closed_tab_action);
+    m_hamburger_menu->addAction(application.new_tab_action());
+    m_hamburger_menu->addAction(application.new_window_action());
+    m_hamburger_menu->addAction(application.new_private_window_action());
+    m_hamburger_menu->addAction(application.reopen_recently_closed_tab_action());
     m_hamburger_menu->addSeparator();
 
-    m_hamburger_menu->addMenu(m_history_menu);
-    m_hamburger_menu->addMenu(m_bookmarks_menu);
-    m_hamburger_menu->addAction(m_open_downloads_action);
+    m_hamburger_menu->addMenu(application.history_menu());
+    m_hamburger_menu->addMenu(application.bookmarks_menu());
+    m_hamburger_menu->addAction(application.open_downloads_action());
     m_hamburger_menu->addSeparator();
 
-    m_hamburger_menu->addMenu(m_zoom_menu); // FIXME: We should create a nice widget for zoom like other browsers.
-    m_hamburger_menu->addAction(m_find_in_page_action);
+    m_hamburger_menu->addMenu(application.zoom_menu()); // FIXME: We should create a nice widget for zoom like other browsers.
+    m_hamburger_menu->addAction(application.find_in_page_action());
     m_hamburger_menu->addSeparator();
 
-    m_hamburger_menu->addAction(m_open_settings_action);
-    m_hamburger_menu->addMenu(m_inspect_menu);
-    m_hamburger_menu->addMenu(m_debug_menu);
+    m_hamburger_menu->addAction(application.open_settings_action());
+    m_hamburger_menu->addMenu(application.inspect_menu());
+    m_hamburger_menu->addMenu(application.debug_menu());
     m_hamburger_menu->addSeparator();
 
-    m_hamburger_menu->addMenu(m_help_menu);
-    m_hamburger_menu->addAction(m_quit_action);
+    m_hamburger_menu->addMenu(application.help_menu());
+    m_hamburger_menu->addAction(application.quit_action());
 }
 
 void BrowserWindow::update_tabs_display()
@@ -546,9 +420,6 @@ void BrowserWindow::update_tabs_display()
 
 void BrowserWindow::rebuild_bookmarks_menu()
 {
-    if (m_bookmarks_menu != Application::the().qt_bookmarks_menu())
-        repopulate_application_menu(*m_bookmarks_menu, *this, Application::the().bookmarks_menu());
-
     for_each_tab([](Tab& tab) {
         tab.bookmarks_bar().rebuild();
     });
@@ -872,15 +743,6 @@ bool BrowserWindow::definitely_close_tab(int index)
         close();
 
     return true;
-}
-
-void BrowserWindow::update_reopen_recently_closed_action()
-{
-    if (!m_reopen_recently_closed_tab_action)
-        return;
-
-    m_reopen_recently_closed_tab_action->setText("&Reopen Recently Closed Tab");
-    m_reopen_recently_closed_tab_action->setEnabled(m_session->session_store->has_closed_units());
 }
 
 void BrowserWindow::move_tab(int old_index, int new_index)

@@ -18,15 +18,14 @@
 #include <UI/Qt/Tab.h>
 #include <UI/Qt/TabBar.h>
 
-#include <QIcon>
 #include <QMainWindow>
 #include <QPushButton>
-#include <QTabBar>
 
+class QIcon;
 class QPropertyAnimation;
-class QWindow;
 class QToolButton;
 class QWidget;
+class QWindow;
 
 namespace Ladybird {
 
@@ -149,9 +148,6 @@ public:
     QMenu& hamburger_menu() const { return *m_hamburger_menu; }
     static bool has_chrome_in_titlebar();
 
-    QAction& new_window_action() const { return *m_new_window_action; }
-    QAction& find_action() const { return *m_find_in_page_action; }
-
     template<typename Callback>
     void for_each_tab(Callback&& callback)
     {
@@ -162,7 +158,6 @@ public:
     void update_tabs_display();
 
     void rebuild_bookmarks_menu();
-    void update_reopen_recently_closed_action();
     void detach_tab_to_new_window(int index, QPoint global_position);
     void move_tab_to_window(int index, BrowserWindow& target_window, int target_index);
     void adopt_tab(Tab&, int index);
@@ -268,25 +263,6 @@ private:
     QToolButton* m_menu_bar_close_window_button { nullptr };
 
     QMenu* m_hamburger_menu { nullptr };
-    QMenu* m_bookmarks_menu { nullptr };
-    QMenu* m_history_menu { nullptr };
-    QMenu* m_inspect_menu { nullptr };
-    QMenu* m_debug_menu { nullptr };
-    QMenu* m_zoom_menu { nullptr };
-    QMenu* m_help_menu { nullptr };
-
-    QAction* m_new_tab_action { nullptr };
-    QAction* m_new_window_action { nullptr };
-    QAction* m_new_private_window_action { nullptr };
-    QAction* m_reopen_recently_closed_tab_action { nullptr };
-    QAction* m_close_current_tab_action { nullptr };
-    QAction* m_open_next_tab_action { nullptr };
-    QAction* m_open_previous_tab_action { nullptr };
-    QAction* m_open_file_action { nullptr };
-    QAction* m_open_settings_action { nullptr };
-    QAction* m_open_downloads_action { nullptr };
-    QAction* m_find_in_page_action { nullptr };
-    QAction* m_quit_action { nullptr };
 
     IsPopupWindow m_is_popup_window { IsPopupWindow::No };
 

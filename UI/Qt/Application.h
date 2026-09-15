@@ -16,7 +16,9 @@
 
 #include <QApplication>
 
+class QAction;
 class QMenu;
+class QMenuBar;
 class QWidget;
 
 namespace Ladybird {
@@ -46,33 +48,59 @@ public:
 
     BrowserWindow& new_window(Vector<URL::URL> const& initial_urls, WindowConfiguration const& = {}, BrowserWindow::IsPopupWindow is_popup_window = BrowserWindow::IsPopupWindow::No, WebView::IsPrivate = WebView::IsPrivate::No, Tab* parent_tab = nullptr, Optional<Web::PageId> page_index = {}, ShowWindow = ShowWindow::Yes);
     WindowConfiguration configuration_for_new_window() const;
+
     void open_new_tab();
     void open_new_window(WebView::IsPrivate);
-    void restart_private_browsing_session();
-    void focus_location_editor();
     void reopen_recently_closed_tab();
     void open_file();
+
+    void restart_private_browsing_session();
+    void focus_location_editor();
     void show_process_manager();
-    virtual void add_platform_inspect_menu_items() override;
     void quit();
     bool confirm_stop_active_downloads(QWidget* parent = nullptr);
-    void initialize_macos_application_menu();
-    QMenu* qt_bookmarks_menu() const;
 
     BrowserWindow& active_window() const { return *m_active_window; }
-    void set_active_window(BrowserWindow&);
+    void set_active_window(BrowserWindow& window) { m_active_window = &window; }
     BrowserWindow* active_window_if_any() const { return m_active_window; }
     BrowserWindow* non_private_window_if_any() const;
 
     Tab* active_tab() const { return m_active_window ? m_active_window->current_tab() : nullptr; }
     void update_reopen_recently_closed_actions() const;
-    void update_macos_application_menu() const;
+
+    enum class ForBrowserWindow : u8 {
+        No,
+        Yes,
+    };
+    QMenuBar* create_application_menu_bar(ForBrowserWindow);
+
+    QMenu* bookmarks_menu();
+    QMenu* history_menu();
+    QMenu* inspect_menu();
+    QMenu* debug_menu();
+    QMenu* zoom_menu();
+    QMenu* help_menu();
+
+    QAction* new_tab_action();
+    QAction* new_window_action();
+    QAction* new_private_window_action();
+    QAction* reopen_recently_closed_tab_action();
+    QAction* close_current_tab_action();
+    QAction* open_next_tab_action();
+    QAction* open_previous_tab_action();
+    QAction* open_file_action();
+    QAction* open_settings_action();
+    QAction* open_downloads_action();
+    QAction* find_in_page_action();
+    QAction* quit_action();
 
 private:
     explicit Application();
 
     virtual void create_platform_options(WebView::BrowserOptions&, WebView::RequestServerOptions&, WebView::WebContentOptions&) override;
     virtual Core::EventLoop& create_platform_event_loop() override;
+    virtual void create_platform_actions() override;
+
     virtual Optional<String> ui_font_family() const override;
 #if !defined(AK_OS_MACOS)
     virtual Optional<String> system_font_family() const override;
