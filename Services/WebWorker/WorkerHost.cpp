@@ -16,8 +16,10 @@
 #include <LibWeb/Fetch/Infrastructure/FetchAlgorithms.h>
 #include <LibWeb/Fetch/Infrastructure/HTTP/Responses.h>
 #include <LibWeb/HTML/DedicatedWorkerGlobalScope.h>
+#include <LibWeb/HTML/EmbedderPolicy.h>
 #include <LibWeb/HTML/MessageEvent.h>
 #include <LibWeb/HTML/MessagePort.h>
+#include <LibWeb/HTML/PolicyContainers.h>
 #include <LibWeb/HTML/Scripting/ClassicScript.h>
 #include <LibWeb/HTML/Scripting/EnvironmentSettingsSnapshot.h>
 #include <LibWeb/HTML/Scripting/Environments.h>
@@ -149,7 +151,10 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
                                  : Web::Fetch::Infrastructure::Request::Destination::Worker;
 
     // In both cases, let performFetch be the following perform the fetch hook given request, isTopLevel, and processCustomFetchResponse:
-    auto perform_fetch_function = [inside_settings, worker_global_scope, is_shared](GC::Ref<Web::Fetch::Infrastructure::Request> request, Web::HTML::TopLevelModule is_top_level, Web::Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_custom_fetch_response) -> Web::WebIDL::ExceptionOr<void> {
+    auto owner_policy_container = outside_settings_snapshot.policy_container;
+    auto owner_embedder_policy = owner_policy_container.embedder_policy;
+    auto owner_is_cross_origin_isolated = outside_settings_snapshot.cross_origin_isolated_capability == Web::HTML::CanUseCrossOriginIsolatedAPIs::Yes;
+    auto perform_fetch_function = [inside_settings, worker_global_scope, is_shared, owner_policy_container, owner_embedder_policy, owner_is_cross_origin_isolated](GC::Ref<Web::Fetch::Infrastructure::Request> request, Web::HTML::TopLevelModule is_top_level, Web::Fetch::Infrastructure::FetchAlgorithms::ProcessResponseConsumeBodyFunction process_custom_fetch_response) -> Web::WebIDL::ExceptionOr<void> {
         auto& realm = inside_settings->realm();
 
         Web::Fetch::Infrastructure::FetchAlgorithms::Input fetch_algorithms_input {};
@@ -171,7 +176,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
 
         // 3. Fetch request with processResponseConsumeBody set to the following steps given response response and
         //    null, failure, or a byte sequence bodyBytes:
-        fetch_algorithms_input.process_response_consume_body = [worker_global_scope, process_custom_fetch_response_function, inside_settings, is_shared](auto response, auto body_bytes) {
+        fetch_algorithms_input.process_response_consume_body = [worker_global_scope, process_custom_fetch_response_function, inside_settings, is_shared, owner_policy_container, owner_embedder_policy, owner_is_cross_origin_isolated](auto response, auto body_bytes) {
             // 1. Set worker global scope's url to response's url.
             worker_global_scope->set_url(response->url().value_or({}));
 
@@ -180,7 +185,7 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
 
             // 3. Initialize worker global scope's policy container given worker global scope, response, and inside
             //    settings.
-            worker_global_scope->initialize_policy_container(response, inside_settings);
+            worker_global_scope->initialize_policy_container(response, inside_settings, owner_policy_container);
 
             // 4. If the Run CSP initialization for a global object algorithm returns "Blocked" when executed upon
             //    worker global scope, set response to a network error. [CSP]
@@ -188,21 +193,39 @@ void WorkerHost::run(GC::Ref<Web::Page> page, Web::HTML::TransferDataEncoder mes
                 response = Web::Fetch::Infrastructure::Response::network_error("Blocked by Content Security Policy"_string);
             }
 
-            // FIXME: Use worker global scope's policy container's embedder policy
-            // FIXME: 5. If worker global scope's embedder policy's value is compatible with cross-origin isolation and is shared is true,
+            auto const& embedder_policy = worker_global_scope->policy_container()->embedder_policy;
+
+            // 5. If worker global scope's embedder policy's value is compatible with cross-origin isolation and is shared is true,
             //    then set agent's agent cluster's cross-origin isolation mode to "logical" or "concrete".
             //    The one chosen is implementation-defined.
-            // FIXME: 6. If the result of checking a global object's embedder policy with worker global scope, outside settings,
+            // AD-HOC: We don't model agent clusters. A shared worker would get a cluster of its own, whose mode we treat as
+            //         "concrete" in that case; a dedicated worker shares its owner's cluster, so it inherits the owner's mode.
+            bool cross_origin_isolation_mode_is_concrete = is_shared
+                ? Web::HTML::is_compatible_with_cross_origin_isolation(embedder_policy.value)
+                : owner_is_cross_origin_isolated;
+
+            // 6. If the result of checking a global object's embedder policy with worker global scope, outside settings,
             //    and response is false, then set response to a network error.
-            // FIXME: 7. Set worker global scope's cross-origin isolated capability to true if agent's agent cluster's cross-origin
+            if (!Web::HTML::check_a_global_objects_embedder_policy(embedder_policy, owner_embedder_policy))
+                response = Web::Fetch::Infrastructure::Response::network_error("Worker embedder policy is incompatible with its owner's"_string);
+
+            // 7. Set worker global scope's cross-origin isolated capability to true if agent's agent cluster's cross-origin
             //    isolation mode is "concrete".
+            bool cross_origin_isolated_capability = cross_origin_isolation_mode_is_concrete;
 
             if (!is_shared) {
-                // FIXME: 8. If is shared is false and owner's cross-origin isolated capability is false, then set worker
-                //     global scope's cross-origin isolated capability to false.
-                // FIXME: 9. If is shared is false and response's url's scheme is "data", then set worker global scope's
-                //     cross-origin isolated capability to false.
+                // 8. If is shared is false and owner's cross-origin isolated capability is false, then set worker
+                //    global scope's cross-origin isolated capability to false.
+                if (!owner_is_cross_origin_isolated)
+                    cross_origin_isolated_capability = false;
+
+                // 9. If is shared is false and response's url's scheme is "data", then set worker global scope's
+                //    cross-origin isolated capability to false.
+                if (response->url().has_value() && response->url()->scheme() == "data"sv)
+                    cross_origin_isolated_capability = false;
             }
+
+            worker_global_scope->set_cross_origin_isolated_capability(cross_origin_isolated_capability);
 
             // 10. Run processCustomFetchResponse with response and bodyBytes.
             process_custom_fetch_response_function->function()(response, body_bytes);
