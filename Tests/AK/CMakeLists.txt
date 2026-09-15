@@ -111,6 +111,7 @@ if (APPLE)
     target_compile_options(TestFunctionObjCArc PRIVATE -fobjc-arc)
 endif()
 
+target_link_libraries(TestByteString PRIVATE LibThreading)
 target_link_libraries(TestFFIHelpers PRIVATE LibThreading)
 target_link_libraries(TestSeqLock PRIVATE LibThreading)
 target_link_libraries(TestString PRIVATE LibThreading LibUnicode)
