@@ -277,6 +277,16 @@ def normalize(sample):
     sample["metrics"] = {
         f"{lane}.{key}": delta[lane][key] for lane, (whole, phases) in PHASES.items() for key in [whole, *phases]
     }
+    # Optional pass clocks sit alongside the phases in the same lanes. compare() leaves every
+    # microsecond counter out of its counter diff, so each clock has to reach the metrics to be read.
+    sample["metrics"].update(
+        {
+            f"{lane}.{key}": value
+            for lane, fields in delta.items()
+            for key, value in fields.items()
+            if key.endswith("Microseconds")
+        }
+    )
     sample["metrics"].update(
         {
             key: sample.get(key)
