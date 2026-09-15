@@ -407,27 +407,6 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         Some(parent)
     }
 
-    pub(super) fn containing_block_margin_rect(&self, containing_block: NodeSlotId) -> Option<CssPixelRect> {
-        if containing_block.is_invalid() || !self.layout_arena.paintable_row_is_populated(containing_block) {
-            return None;
-        }
-        let absolute = paintable_geometry::absolute_rect(self.layout_arena, containing_block);
-        let margin = paintable_geometry::committed_margin(self.layout_arena, containing_block);
-        let border = paintable_geometry::committed_border(self.layout_arena, containing_block);
-        let padding = paintable_geometry::committed_padding(self.layout_arena, containing_block);
-        let content_size = paintable_geometry::committed_content_size(self.layout_arena, containing_block);
-        let top = margin.top + border.top + padding.top;
-        let right = margin.right + border.right + padding.right;
-        let bottom = margin.bottom + border.bottom + padding.bottom;
-        let left = margin.left + border.left + padding.left;
-        Some(CssPixelRect::new(
-            absolute.x - left,
-            absolute.y - top,
-            content_size.width + left + right,
-            content_size.height + top + bottom,
-        ))
-    }
-
     fn block_container_of_paintable(&self, paintable: NodeSlotId) -> NodeSlotId {
         self.data(paintable).containing_block
     }
@@ -464,34 +443,6 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         !self.layout_arena.node_dom_node(node).is_null()
     }
 
-    fn absolute_containing_line_box_rect(&self, paintable: NodeSlotId) -> Option<CssPixelRect> {
-        let containing_line_box_index =
-            paintable_geometry::committed_containing_line_box_index(self.layout_arena, paintable)?;
-        let block = self.data(paintable).containing_block;
-        if block.is_invalid()
-            || !self.layout_arena.paintable_row_is_populated(block)
-            || !node_painting::has_lines(self.layout_arena, block)
-        {
-            return None;
-        }
-        let side_data = self.layout_arena.paintable_side_data(block);
-        let line = side_data.lines().get(containing_line_box_index)?;
-        Some(
-            CssPixelRect::from(line.rect)
-                .translated_by(paintable_geometry::absolute_position(self.layout_arena, block)),
-        )
-    }
-
-    pub(super) fn containing_line_of_box(&self, paintable_box: NodeSlotId) -> (Option<usize>, Option<CssPixelRect>) {
-        match paintable_geometry::committed_containing_line_box_index(self.layout_arena, paintable_box) {
-            Some(containing_line_box_index) => (
-                Some(containing_line_box_index),
-                self.absolute_containing_line_box_rect(paintable_box),
-            ),
-            None => (None, None),
-        }
-    }
-
     fn append_box(
         &mut self,
         paintable_box: NodeSlotId,
@@ -500,7 +451,8 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         context: ContextRef,
         border_radii: BorderRadii,
     ) {
-        let (caret_line_index, caret_line_rect) = self.containing_line_of_box(paintable_box);
+        let caret_line_index =
+            paintable_geometry::committed_containing_line_box_index(self.layout_arena, paintable_box);
         let can_produce_caret_position = (self.is_atomic_inline(target) || self.is_replaced_box(target)) && {
             let negative_z =
                 crate::painting::style_queries::effective_z_index(self.layout_arena, target).unwrap_or(0) < 0;
@@ -511,8 +463,6 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             rect,
             caret_rect: rect,
             caret_line_index,
-            caret_line_rect,
-            block_container_margin_rect: self.containing_block_margin_rect(block_container),
             block_container,
             border_radii,
             can_produce_caret_position,
@@ -533,8 +483,6 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             rect: CssPixelRect::default(),
             caret_rect: CssPixelRect::default(),
             caret_line_index: None,
-            caret_line_rect: None,
-            block_container_margin_rect: None,
             block_container: NodeSlotId::INVALID,
             context,
             border_radii: BorderRadii::default(),
@@ -578,8 +526,6 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             rect: text_fragment::absolute_rect(layout_arena, &fragment),
             caret_rect: text_fragment::whole_range_rect(layout_arena, &fragment, first_available_font),
             caret_line_index: Some(fragment.line_index as usize),
-            caret_line_rect: Some(text_fragment::absolute_line_box_rect(layout_arena, owner, &fragment)),
-            block_container_margin_rect: self.containing_block_margin_rect(block_container),
             block_container,
             containing_block: layout_arena
                 .node_containing_block_if_live(fragment.layout_node)
@@ -613,8 +559,6 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             caret_offset,
             caret_rect: line_rect,
             caret_line_index: Some(line_box_index),
-            caret_line_rect: Some(line_rect),
-            block_container_margin_rect: self.containing_block_margin_rect(block_container),
             block_container,
             containing_block: self
                 .layout_arena
@@ -640,8 +584,6 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
             caret_offset: 0,
             caret_rect: line_rect,
             caret_line_index: Some(caret_line_index),
-            caret_line_rect: Some(line_rect),
-            block_container_margin_rect: self.containing_block_margin_rect(block_container),
             block_container,
             can_produce_caret_position: self.node_has_dom_node(caret_node),
             ..self.base_hit_test_item(HitTestItemKind::EmptyLine, block_container, context)
@@ -654,7 +596,6 @@ impl<'a, O: Observer> PaintRecorder<'a, O> {
         let item = HitTestItem {
             rect,
             caret_rect: rect,
-            block_container_margin_rect: self.containing_block_margin_rect(block_container),
             block_container,
             can_produce_caret_position: self.node_has_dom_node(paintable),
             ..self.base_hit_test_item(HitTestItemKind::EmptyEditable, paintable, context)

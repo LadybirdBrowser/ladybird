@@ -3943,7 +3943,7 @@ fn with_hit_test_list_and_derived_structures<R>(
     let Some(list) = paint_state.hit_test_list.as_mut() else {
         return default;
     };
-    list.build_derived_structures_if_needed();
+    list.build_derived_structures_if_needed(arena);
     query(list, arena)
 }
 
@@ -3967,7 +3967,7 @@ fn with_hit_test_list_and_derived_structures_and_visual_context_tree<R>(
     let Some(list) = hit_test_list.as_mut() else {
         return default;
     };
-    list.build_derived_structures_if_needed();
+    list.build_derived_structures_if_needed(arena);
     let Some(tree) = visual_context.tree.as_deref() else {
         return default;
     };
@@ -4063,8 +4063,9 @@ pub unsafe extern "C" fn layout_arena_hit_test_caret_item_for_line(
     point: FfiCssPixelPoint,
     mode: u8,
 ) -> crate::painting::host::FfiCaretItemForLine {
-    with_hit_test_list_and_derived_structures(arena, Default::default(), |list, _| {
+    with_hit_test_list_and_derived_structures(arena, Default::default(), |list, arena| {
         match list.caret_item_for_line(
+            arena,
             line_index,
             point.into(),
             crate::painting::hit_test::caret::CaretPositionMode::from_u8(mode),
@@ -4131,7 +4132,6 @@ pub unsafe extern "C" fn layout_arena_hit_test_find_closest_line(
             block_distance: closest.block_distance.raw_value(),
             block_start_distance: closest.block_start_distance.raw_value(),
             inline_distance: closest.inline_distance.raw_value(),
-            block_container_margin_rect: closest.block_container_margin_rect.map(Into::into).into(),
             is_before_point: closest.is_before_point,
             contains_point_in_block_axis: closest.contains_point_in_block_axis,
         }
