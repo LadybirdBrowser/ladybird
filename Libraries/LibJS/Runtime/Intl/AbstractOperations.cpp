@@ -7,7 +7,6 @@
 #include <AK/CharacterTypes.h>
 #include <AK/Find.h>
 #include <AK/NeverDestroyed.h>
-#include <AK/QuickSort.h>
 #include <AK/TypeCasts.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
@@ -26,15 +25,12 @@ namespace JS::Intl {
 template<typename ViewType>
 static bool is_well_formed_language_tag_impl(ViewType locale)
 {
-    auto contains_duplicate_variant = [&](auto& variants) {
-        if (variants.is_empty())
-            return false;
-
-        quick_sort(variants);
-
-        for (size_t i = 0; i < variants.size() - 1; ++i) {
-            if (variants[i].equals_ignoring_ascii_case(variants[i + 1]))
-                return true;
+    auto contains_duplicate_variant = [&](auto const& variants) {
+        for (size_t i = 0; i < variants.size(); ++i) {
+            for (size_t j = i + 1; j < variants.size(); ++j) {
+                if (variants[i].equals_ignoring_ascii_case(variants[j]))
+                    return true;
+            }
         }
 
         return false;
