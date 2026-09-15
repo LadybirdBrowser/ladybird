@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const input of ["https://]", "https://]]:8080"]) {
+            try {
+                new URLPattern(input);
+                println(`${input}: constructed`);
+            } catch (e) {
+                println(`${input}: ${e.name}`);
+            }
+        }
+    });
+</script>
