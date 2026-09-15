@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    asyncTest(async done => {
+        try {
+            await cookieStore.set({ name: "x", value: "y", domain: "" });
+            println("set: resolved");
+        } catch (e) {
+            println(`set: ${e.name}`);
+        }
+
+        try {
+            await cookieStore.delete({ name: "x", domain: "" });
+            println("delete: resolved");
+        } catch (e) {
+            println(`delete: ${e.name}`);
+        }
+
+        done();
+    });
+</script>
