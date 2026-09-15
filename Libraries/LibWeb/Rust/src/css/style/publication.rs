@@ -3881,9 +3881,11 @@ pub(super) struct EngineComputedRecordScratch {
     substitution_effects: Vec<(StyleNodeID, bool)>,
     cohorts: HashMap<(u64, CascadeStateID, u32, RecordDeltaParent, u64, RootFontInputs), computed::FinalStyleRecordID>,
     computability: EngineComputabilityScratch,
-    /// The nodes whose record this flush settled: what their descendants inherit from is in
-    /// place.
-    pub(super) settled_nodes: HashSet<StyleNodeID>,
+    /// What each node the walk has reached tells its children: whether the chain above it is
+    /// confined, and whether it resolved the record its children inherit from. A row is kept only
+    /// once every fact it folds is final, so a published ancestor the walk has not processed yet
+    /// is folded fresh rather than remembered as unsettled.
+    pub(super) derived_child_inputs: HashMap<StyleNodeID, DerivedChildInputs>,
     /// First records derived this flush, by what they were derived from.
     pub(super) cold_cohorts: HashMap<ColdRecordKey, ColdRecord>,
     store_capacity_bytes: u64,
@@ -3897,6 +3899,73 @@ pub(super) struct EngineComputedRecordScratch {
     pub(super) pseudo_deltas: Vec<PseudoRecordDelta>,
     /// The pseudo-element rules that flipped for the element being derived.
     pub(super) flipped_pseudo_rules: u64,
+}
+
+/// What one node tells its flat-tree children, decided where the node settles and read by the
+/// children in the same pass: whether the node resolved the record its children inherit from, and
+/// the accumulated proof about the chain above it, so a child reads one row instead of walking to
+/// the document element for every gate it has to pass.
+#[derive(Clone, Copy, Default)]
+pub(super) struct DerivedChildInputs {
+    /// Whether the node's record settled this flush: what its descendants inherit from is in place.
+    pub(super) settled: bool,
+    /// Whether the node took an inherited-style reaction and resolved no record of its own, so
+    /// its immediate children cannot take the direct inherited-group path. Deliberately separate
+    /// from the chain proof: that is the accumulated confinement argument, this is the immediate
+    /// parent's own unresolved fact.
+    pub(super) inheritance_unresolved: bool,
+    /// The proof about everything from this node upwards, folded on the first ask a child makes
+    /// and kept only once every fact it folds is final.
+    pub(super) chain: Option<AncestorChain>,
+}
+
+/// The published chain from one node to the root, as a child's gate reads it.
+#[derive(Clone, Copy)]
+pub(super) struct AncestorChain {
+    /// Whether any published node from this one to the root publishes a change the engine cannot
+    /// prove confined. Once an unsettled node sits below one of those, no descendant's record is
+    /// exact.
+    unconfined_above: bool,
+    /// `None` when an unsettled gap sits below an unconfined published ancestor, and otherwise
+    /// whether a child relies on an ancestor this flush settled.
+    proof: Option<bool>,
+}
+
+impl AncestorChain {
+    /// What the document element's parent says: nothing above it, and nothing unsettled.
+    pub(super) const ROOT: Self = Self {
+        unconfined_above: false,
+        proof: Some(false),
+    };
+
+    /// The proof a child of this node needs.
+    pub(super) fn ancestors_are_confined(self) -> Option<bool> {
+        self.proof
+    }
+
+    /// Fold one node onto what its parent says. `published` says the flush published a reaction
+    /// for the node, `unconfined` that the published change may move something a descendant
+    /// inherits, and `settled` that the node's record is in place.
+    ///
+    /// This is the upward walk written as a recurrence. The walk carries "something closer to the
+    /// child is unsettled" downward and stops at the first unconfined published ancestor once it
+    /// is set, which is exactly `unconfined_above` read from the unsettled node.
+    pub(super) fn fold(parent: Self, published: bool, unconfined: bool, settled: bool) -> Self {
+        let unconfined_here = published && unconfined;
+        let proof = if unconfined_here && !settled {
+            None
+        } else if settled {
+            parent.proof.map(|relied| unconfined_here || relied)
+        } else if parent.unconfined_above {
+            None
+        } else {
+            Some(unconfined_here)
+        };
+        Self {
+            unconfined_above: unconfined_here || parent.unconfined_above,
+            proof,
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -3933,7 +4002,7 @@ impl FromIterator<Option<u16>> for FlippedRules {
 impl EngineComputedRecordScratch {
     pub(super) fn capacity_bytes(&self) -> u64 {
         capacity::capacity_bytes! {
-            shallow [self.computability.states, self.cohorts, self.settled_nodes, self.cold_cohorts, self.stores,
+            shallow [self.computability.states, self.cohorts, self.derived_child_inputs, self.cold_cohorts, self.stores,
                 self.substituted_states, self.pseudo_cohorts, self.pseudo_stores,
                 self.pseudo_deltas, self.substitution_effects];
             cached [self.store_capacity_bytes, self.font_drive.capacity_bytes(),
