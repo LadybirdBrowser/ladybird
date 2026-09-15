@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<title>Location Symbol.toPrimitive</title>
+<script src=../../../../resources/testharness.js></script>
+<script src=../../../../resources/testharnessreport.js></script>
+<div id=log></div>
+<script>
+test(() => {
+  assert_equals(location[Symbol.toPrimitive], undefined)
+  const prop = Object.getOwnPropertyDescriptor(location, Symbol.toPrimitive)
+  assert_false(prop.enumerable)
+  assert_false(prop.writable)
+  assert_false(prop.configurable)
+})
+</script>

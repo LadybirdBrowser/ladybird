@@ -95,8 +95,8 @@ void LocationWrapper::initialize_location_object(JS::Realm& realm)
     MUST(JS::Object::internal_define_own_property(vm.well_known_symbol_to_primitive(), to_primitive_property_descriptor, &no_current_property));
 
     // 5. Set the value of the [[DefaultProperties]] internal slot of location to location.[[OwnPropertyKeys]]().
-    // NOTE: In LibWeb this happens before the ESO is set up, so we must avoid location's custom [[OwnPropertyKeys]].
-    m_default_properties.extend(MUST(JS::Object::internal_own_property_keys()));
+    // NB: [[DefaultProperties]] is only consulted by [[GetOwnProperty]] and [[DefineOwnProperty]] steps that we don't
+    //     implement, see https://github.com/whatwg/html/issues/4157.
 }
 
 // 7.10.5.1 [[GetPrototypeOf]] ( ), https://html.spec.whatwg.org/multipage/history.html#location-getprototypeof
@@ -142,12 +142,9 @@ JS::ThrowCompletionOr<Optional<JS::PropertyDescriptor>> LocationWrapper::interna
         auto descriptor = MUST(JS::Object::internal_get_own_property(property_key));
 
         // 2. If the value of the [[DefaultProperties]] internal slot of this contains P, then set desc.[[Configurable]] to true.
-        // FIXME: This doesn't align with what the other browsers do. Spec issue: https://github.com/whatwg/html/issues/4157
-        auto property_key_value = property_key.is_symbol()
-            ? JS::Value { property_key.as_symbol() }
-            : JS::PrimitiveString::create(vm, property_key.to_utf16_string());
-        if (m_default_properties.contains_slow(property_key_value))
-            descriptor->configurable = true;
+        // NB: We don't do this, matching other engines and WPT, which report these properties as non-configurable.
+        //     As written, this step lets OrdinaryDelete remove a default property, after which desc is undefined.
+        //     Spec issue: https://github.com/whatwg/html/issues/4157
 
         // 3. Return desc.
         return descriptor;
@@ -174,6 +171,10 @@ JS::ThrowCompletionOr<bool> LocationWrapper::internal_define_own_property(JS::Pr
     // 1. If IsPlatformObjectSameOrigin(this) is true, then:
     if (HTML::is_platform_object_same_origin(impl())) {
         // 1. If the value of the [[DefaultProperties]] internal slot of this contains P, then return false.
+        // NB: This step only exists to compensate for [[GetOwnProperty]] reporting [[DefaultProperties]] as configurable,
+        //     which we don't do. The default properties are non-configurable, so OrdinaryDefineOwnProperty already
+        //     rejects any change to them. Spec issue: https://github.com/whatwg/html/issues/4157
+
         // 2. Return ? OrdinaryDefineOwnProperty(this, P, Desc).
         return Bindings::ordinary_define_own_property_and_preserve_wrapper_if_needed(*this, property_key, descriptor, precomputed_get_own_property);
     }

@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Location stringifier
+Pass	Location stringifier 1
+Pass	Location stringifier 2
+Pass	Location stringifier 3
+Pass	Location stringifier 4
+Pass	Location stringifier 5

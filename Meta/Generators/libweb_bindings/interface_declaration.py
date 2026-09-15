@@ -71,8 +71,6 @@ def write_declaration(
     if interface_needs_wrapper(interface):
         includes.add("LibWeb/Bindings/PlatformObject.h")
         base_class = wrapper_base_class_name(context, interface)
-        if interface_is_location_object(interface):
-            includes.add("AK/Vector.h")
         if interface_has_cross_origin_property_descriptor_map(interface):
             includes.add("LibWeb/HTML/CrossOrigin/CrossOriginPropertyDescriptorMap.h")
         impl_type = fully_qualified_name_for_interface(interface)
@@ -149,12 +147,9 @@ public:
         if interface_has_cross_origin_property_descriptor_map(interface):
             out.write("    virtual void visit_edges(JS::Cell::Visitor&) override;\n")
 
-        if interface_is_location_object(interface) or interface_has_cross_origin_property_descriptor_map(interface):
+        if interface_has_cross_origin_property_descriptor_map(interface):
             out.write("\nprivate:\n")
-            if interface_is_location_object(interface):
-                out.write("    Vector<JS::Value> m_default_properties;\n")
-            if interface_has_cross_origin_property_descriptor_map(interface):
-                out.write("    HTML::CrossOriginPropertyDescriptorMap m_cross_origin_property_descriptor_map;\n")
+            out.write("    HTML::CrossOriginPropertyDescriptorMap m_cross_origin_property_descriptor_map;\n")
         out.write("};\n\n")
 
     out.write(
