@@ -579,6 +579,12 @@ impl LayoutNodeArena {
             .mark_descendant_subtree_caches_dirty_along_paint_chain(row);
     }
 
+    // The entry tables decide how a stacking context composes its hoisted content, so a table
+    // change reorders the context's own painting even when no row changed its own decisions.
+    pub(crate) fn note_stacking_context_composition_changed(&self, context_root: NodeSlotId) {
+        self.note_paint_order_changed(context_root);
+    }
+
     pub(crate) fn paintable_rows(&self) -> PaintableRowsRef<'_> {
         PaintableRows { arena: self }
     }

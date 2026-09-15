@@ -1,0 +1,38 @@
+<!doctype html>
+<html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #container { position: relative; z-index: 0; width: 100px; height: 100px; flex-direction: column; grid-template-columns: 100px; grid-template-rows: 50px 50px; }
+    .item { width: 100px; height: 50px; flex: none; }
+    #first { background: red; }
+    #second { background: blue; }
+    #destination { position: relative; z-index: 0; width: 100px; height: 100px; }
+</style>
+<body>
+<div id="container"><div class="item" id="first">first</div><div class="item" id="second">second</div></div>
+<div id="destination"></div>
+<script>
+promiseTest(async () => {
+    if (document.readyState !== "complete") await new Promise(resolve => addEventListener("load", resolve, { once: true }));
+    __outputElement.style.display = "none";
+    const container = document.getElementById("container");
+    const first = document.getElementById("first");
+    const second = document.getElementById("second");
+    const destination = document.getElementById("destination");
+    const output = [];
+    internals.recordDisplayListForTesting(true, false);
+    for (const display of ["flex", "grid", "block", "flex"]) {
+        container.style.display = display;
+        internals.recordDisplayListForTesting(true, false);
+        const firstRect = first.getBoundingClientRect();
+        const secondRect = second.getBoundingClientRect();
+        output.push(`${display}: ${firstRect.x},${firstRect.y} ${firstRect.width}x${firstRect.height}; ${secondRect.x},${secondRect.y} ${secondRect.width}x${secondRect.height}`);
+    }
+    destination.append(first, second);
+    internals.recordDisplayListForTesting(true, false);
+    output.push(`reparented: ${document.elementFromPoint(10, 110)?.id}, ${document.elementFromPoint(10, 160)?.id}`);
+    __outputElement.style.display = "";
+    for (const line of output) println(line);
+});
+</script>
