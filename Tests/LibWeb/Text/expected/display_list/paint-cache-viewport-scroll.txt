@@ -1,0 +1,3 @@
+PASS: scroll 0,100 retains unchanged output and hit targets
+PASS: scroll 50,250 retains unchanged output and hit targets
+PASS: scroll 0,0 retains unchanged output and hit targets

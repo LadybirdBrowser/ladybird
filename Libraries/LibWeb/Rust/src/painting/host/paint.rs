@@ -108,7 +108,10 @@ impl FfiRecordingInputs {
                 viewport_wheel_overflow_x: tree_inputs.viewport_wheel_overflow_x,
                 viewport_wheel_overflow_y: tree_inputs.viewport_wheel_overflow_y,
                 root_background_source,
-                device_viewport_rect: self.device_viewport_rect,
+                device_viewport_size: libgfx_rust::IntSize {
+                    width: self.device_viewport_rect.width,
+                    height: self.device_viewport_rect.height,
+                },
                 is_recording_async_scrolling_metadata: self.is_recording_async_scrolling_metadata,
                 document_id: UniqueNodeId(self.document_id),
                 has_blocking_wheel_event_region_covering_viewport: self

@@ -84,11 +84,11 @@ fn record_display_list_impl<O: Observer>(
     item_cache_source: Option<Rc<crate::painting::record::cache::HitTestItemCacheSource>>,
 ) -> RecordingResult {
     let structural_epoch = paint_state.visual_context.structural_epoch();
-    let cache_inputs = PaintCacheInputs::from_recording_inputs(inputs, paint_state);
+    let paintable_rows = layout_arena.paintable_rows();
+    let cache_inputs = PaintCacheInputs::from_recording_inputs(&paintable_rows, inputs, paint_state);
     let cache_compatibility = command_cache_source.as_ref().map_or_else(Default::default, |source| {
         cache_inputs.compatibility_with(&source.cache_inputs)
     });
-    let paintable_rows = layout_arena.paintable_rows();
     let force_dark_settings = inputs.force_dark_enabled.then_some(inputs.force_dark_settings);
     let mut recorder = PaintRecorder {
         layout_arena: &paintable_rows,

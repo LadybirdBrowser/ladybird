@@ -1,0 +1,41 @@
+<!doctype html>
+<html>
+<script src="../include.js"></script>
+<style>
+    html { background: #eee; }
+    body { margin: 0; width: 1600px; height: 2400px; }
+    #stable { position: absolute; z-index: 1; left: 100px; top: 400px; width: 120px; height: 80px; background: green; }
+    #changed { position: absolute; z-index: 1; left: 260px; top: 400px; width: 120px; height: 80px; background: blue; }
+    #fixed { position: fixed; left: 10px; top: 10px; width: 40px; height: 40px; background: purple; }
+</style>
+<body>
+<div id="stable">Unchanged</div><div id="changed">Changed</div><div id="fixed"></div>
+<script>
+promiseTest(async () => {
+    if (document.readyState !== "complete") await new Promise(resolve => addEventListener("load", resolve, { once: true }));
+    await document.fonts.ready;
+    __outputElement.style.display = "none";
+    const output = [];
+    internals.recordDisplayListForTesting(false, false);
+    for (const [x, y] of [[0, 100], [50, 250], [0, 0]]) {
+        window.scrollTo(x, y);
+        document.getElementById("changed").style.background = y === 100 ? "red" : "orange";
+        internals.beginDisplayListTrace();
+        internals.recordDisplayListForTesting(false, false);
+        const trace = internals.takeDisplayListTrace();
+        if (scrollX !== x || scrollY !== y) {
+            output.push(`FAIL: scroll offset ${x},${y}`);
+        } else if (trace.includes("#stable/background RECORD")) {
+            output.push(`FAIL: scrolling ${x},${y} recorded the unchanged sibling\n${trace}`);
+        } else if (document.elementFromPoint(20, 20)?.id !== "fixed") {
+            output.push(`FAIL: fixed hit target after scrolling ${x},${y}`);
+        } else if (document.elementFromPoint(110 - x, 410 - y)?.id !== "stable") {
+            output.push(`FAIL: document hit target after scrolling ${x},${y}`);
+        } else {
+            output.push(`PASS: scroll ${x},${y} retains unchanged output and hit targets`);
+        }
+    }
+    __outputElement.style.display = "";
+    for (const line of output) println(line);
+});
+</script>

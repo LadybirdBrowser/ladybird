@@ -226,8 +226,8 @@ impl<O: Observer> PaintRecorder<'_, O> {
             IntRect::new(
                 0,
                 0,
-                self.inputs.uncaptured.device_viewport_rect.width,
-                self.inputs.uncaptured.device_viewport_rect.height,
+                self.inputs.uncaptured.device_viewport_size.width,
+                self.inputs.uncaptured.device_viewport_size.height,
             )
         } else {
             self.converter

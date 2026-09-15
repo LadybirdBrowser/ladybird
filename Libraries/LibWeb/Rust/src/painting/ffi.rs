@@ -1502,6 +1502,21 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
                     .expect("a recording follows paint preparation"),
             )
         };
+        // The root background paints the union of the viewport and the root's overflow, so it
+        // is the one output a viewport move can change. Drop its caches before recording
+        // starts instead of treating the viewport position as a frame-wide input.
+        if let Some(source) = &paint_state.paint_command_cache_source {
+            let root = inputs.uncaptured.root_background_source.root_layout_node;
+            let rows = arena.paintable_rows();
+            let canvas_rect = crate::painting::record::paint::background_resolution::root_background_canvas_rect(
+                &rows,
+                root,
+                inputs.css_viewport_rect,
+            );
+            if canvas_rect != source.cache_inputs.root_background_canvas_rect {
+                arena.invalidate_paint_cache(root);
+            }
+        }
         let mut scratch = arena.recording_scratch().borrow_mut();
         arena.set_paint_recording_in_progress(true);
         let recording = crate::painting::record::traversal::record_display_list(
