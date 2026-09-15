@@ -274,155 +274,66 @@ static void initialize_native_icon(WebView::Action& action, id control)
         [control setKeyEquivalent:@"j"];
         break;
     case WebView::ActionID::ViewHistory:
-        set_control_image(control, @"clock");
         [control setKeyEquivalent:@"y"];
         break;
     case WebView::ActionID::ClearBrowsingData:
-        set_control_image(control, @"trash");
         [control setKeyEquivalent:@"\b"];
         [control setKeyEquivalentModifierMask:NSEventModifierFlagCommand | NSEventModifierFlagShift];
         break;
 
     case WebView::ActionID::Undo:
-        set_control_image(control, @"arrow.uturn.backward");
         [control setKeyEquivalent:@"z"];
         break;
     case WebView::ActionID::Redo:
-        set_control_image(control, @"arrow.uturn.forward");
         [control setKeyEquivalent:@"z"];
         [control setKeyEquivalentModifierMask:NSEventModifierFlagCommand | NSEventModifierFlagShift];
         break;
     case WebView::ActionID::CopySelection:
-        set_control_image(control, @"document.on.document");
         [control setKeyEquivalent:@"c"];
         break;
     case WebView::ActionID::CutSelection:
-        set_control_image(control, @"scissors");
         [control setKeyEquivalent:@"x"];
         break;
     case WebView::ActionID::Paste:
-        set_control_image(control, @"document.on.clipboard");
         [control setKeyEquivalent:@"v"];
         break;
     case WebView::ActionID::SelectAll:
-        set_control_image(control, @"character.textbox");
         [control setKeyEquivalent:@"a"];
         break;
 
-    case WebView::ActionID::LookUpSelectedText:
-    case WebView::ActionID::SearchSelectedText:
-        set_control_image(control, @"magnifyingglass");
-        break;
-
-    case WebView::ActionID::ManageBookmarks:
-        set_control_image(control, @"bookmark");
-        break;
     case WebView::ActionID::ToggleBookmark:
         [control setKeyEquivalent:@"d"];
         break;
     case WebView::ActionID::AddBookmarkAllTabs:
-        set_control_image(control, @"square.badge.plus");
         [control setKeyEquivalent:@"D"];
         break;
     case WebView::ActionID::ToggleBookmarksBar:
-        set_control_image(control, @"line.horizontal.star.fill.line.horizontal");
         [control setKeyEquivalent:@"B"];
         break;
     case WebView::ActionID::BookmarkItem:
         if (auto icon = action.png_icon(); icon.has_value())
-            [control setImage:Ladybird::image_from_png(icon->bytes(), NSMakeSize(MENU_ICON_SIZE, MENU_ICON_SIZE))];
+            set_control_image(control, Ladybird::image_from_png(icon->bytes(), NSMakeSize(MENU_ICON_SIZE, MENU_ICON_SIZE)));
         else
             set_control_image(control, @"globe");
         break;
 
-    case WebView::ActionID::OpenAboutPage:
-        set_control_image(control, @"info.circle");
-        break;
     case WebView::ActionID::OpenSettingsPage:
-        set_control_image(control, @"gearshape");
         [control setKeyEquivalent:@","];
         break;
     case WebView::ActionID::ToggleDevTools:
-        set_control_image(control, @"chevron.left.chevron.right");
         [control setKeyEquivalent:@"I"];
         break;
     case WebView::ActionID::ViewSource:
-        set_control_image(control, @"text.document");
         [control setKeyEquivalent:@"u"];
         break;
 
-    case WebView::ActionID::TakeVisibleScreenshot:
-    case WebView::ActionID::TakeFullScreenshot:
-        set_control_image(control, @"photo");
-        break;
-
-    case WebView::ActionID::OpenInNewTab:
-        set_control_image(control, @"plus.square.on.square");
-        break;
-    case WebView::ActionID::OpenInNewWindow:
-        set_control_image(control, @"macwindow.badge.plus");
-        break;
-    case WebView::ActionID::OpenInNewPrivateWindow:
-        set_control_image(control, @"eyeglasses");
-        break;
-    case WebView::ActionID::CopyURL:
-        set_control_image(control, @"document.on.document");
-        break;
-
-    case WebView::ActionID::OpenImage:
-        set_control_image(control, @"photo");
-        break;
-    case WebView::ActionID::SaveImage:
-        set_control_image(control, @"square.and.arrow.down");
-        break;
-    case WebView::ActionID::CopyImage:
-        set_control_image(control, @"document.on.document");
-        break;
-
-    case WebView::ActionID::OpenAudio:
-        set_control_image(control, @"speaker.wave.1");
-        break;
-    case WebView::ActionID::OpenVideo:
-        set_control_image(control, @"video");
-        break;
-    case WebView::ActionID::PlayMedia:
-        set_control_image(control, @"play");
-        break;
-    case WebView::ActionID::PauseMedia:
-        set_control_image(control, @"pause");
-        break;
-    case WebView::ActionID::MuteMedia:
-        set_control_image(control, @"speaker.slash");
-        break;
-    case WebView::ActionID::UnmuteMedia:
-        set_control_image(control, @"speaker.wave.2");
-        break;
-    case WebView::ActionID::ShowControls:
-        set_control_image(control, @"eye");
-        break;
-    case WebView::ActionID::HideControls:
-        set_control_image(control, @"eye.slash");
-        break;
-    case WebView::ActionID::ToggleMediaLoopState:
-        set_control_image(control, @"arrow.clockwise");
-        break;
-    case WebView::ActionID::EnterFullscreen:
-        set_control_image(control, @"arrow.up.left.and.arrow.down.right");
-        break;
-    case WebView::ActionID::ExitFullscreen:
-        set_control_image(control, @"arrow.down.right.and.arrow.up.left");
-        break;
-
     case WebView::ActionID::ZoomIn:
-        set_control_image(control, @"plus.magnifyingglass");
         [control setKeyEquivalent:@"+"];
         break;
     case WebView::ActionID::ZoomOut:
-        set_control_image(control, @"minus.magnifyingglass");
         [control setKeyEquivalent:@"-"];
         break;
     case WebView::ActionID::ResetZoom:
-        set_control_image(control, @"1.magnifyingglass");
         [control setKeyEquivalent:@"0"];
         break;
 
@@ -555,19 +466,28 @@ NSImageView* create_application_icon(WebView::Action& action)
     return icon;
 }
 
-void set_control_image(id control, NSString* image)
+void set_control_image(id control, NSString* image_name)
 {
     // System symbols are distributed with the San Fransisco (SF) Symbols font. To see all SF Symbols and their names,
     // you will have to install the SF Symbols app: https://developer.apple.com/sf-symbols/
-    auto set_image = [&]() {
-        [control setImage:[NSImage imageWithSystemSymbolName:image accessibilityDescription:@""]];
-    };
+    auto* image = [NSImage imageWithSystemSymbolName:image_name accessibilityDescription:@""];
+    set_control_image(control, image);
+}
+
+void set_control_image(id control, NSImage* image)
+{
+#if __MAC_OS_X_VERSION_MAX_ALLOWED >= 270000
+    if (@available(macOS 27, *)) {
+        if ([control respondsToSelector:@selector(setPreferredImageVisibility:)])
+            [control setPreferredImageVisibility:NSMenuItemImageVisibilityVisible];
+    }
+#endif
 
     if (@available(macOS 26, *)) {
-        set_image();
+        [control setImage:image];
     } else {
-        if ([control isKindOfClass:[NSButton class]])
-            set_image();
+        if ([control isKindOfClass:[NSButton class]] || [control isKindOfClass:[NSImageView class]])
+            [control setImage:image];
     }
 }
 
