@@ -2020,11 +2020,11 @@ PRESERVED: ::after remove inline-flex on block flow in contents | distant siblin
 ABSENT: ::after remove inline-flex on block flow in contents | DOM parent
 PRESERVED: ::after remove inline-flex on block flow in contents | preceding sibling
 PRESERVED: ::after remove inline-flex on block flow in contents | preceding sibling descendant
-RECREATED: ::after remove inline-flex on block flow in contents | target
-RECREATED: ::after remove inline-flex on block flow in contents | target descendant
+PRESERVED: ::after remove inline-flex on block flow in contents | target
+PRESERVED: ::after remove inline-flex on block flow in contents | target descendant
 PRESERVED: ::after remove inline-flex on block flow in contents | following sibling
 PRESERVED: ::after remove inline-flex on block flow in contents | following sibling descendant
-STATS: ::after remove inline-flex on block flow in contents | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove inline-flex on block flow in contents | rebuilt subtree roots=0, escaped=false
 PASS: ::after remove inline-flex on block flow in contents | incremental tree matches full rebuild
 RECREATED: ::after remove table-cell on block flow in table | fixture ancestor
 RECREATED: ::after remove table-cell on block flow in table | distant sibling

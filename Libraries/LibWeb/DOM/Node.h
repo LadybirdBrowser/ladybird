@@ -115,6 +115,7 @@ enum class SetNeedsLayoutReason {
     X(KeyframeEffect)                                     \
     X(LanguageChangeUnderCasingTextTransform)             \
     X(ListItemCounters)                                   \
+    X(PseudoElementChange)                                \
     X(NodeInsertBefore)                                   \
     X(NodeInsertBeforeWithDisplayContents)                \
     X(NodeRemove)                                         \
@@ -434,7 +435,8 @@ public:
     [[nodiscard]] bool needs_layout_tree_update() const { return m_needs_layout_tree_update; }
     void set_needs_layout_tree_update(bool, SetNeedsLayoutTreeUpdateReason);
 
-    [[nodiscard]] bool may_reuse_layout_node_for_child_list_insertion() const { return m_may_reuse_layout_node_for_child_list_insertion; }
+    [[nodiscard]] bool needs_pseudo_element_layout_tree_update() const { return m_layout_tree_update_reuse_reasons & PseudoElementChange; }
+    [[nodiscard]] bool may_reuse_layout_node_for_child_list_insertion() const { return m_layout_tree_update_reuse_reasons & ChildListInsertion; }
 
     [[nodiscard]] bool child_needs_layout_tree_update() const { return m_child_needs_layout_tree_update; }
     void set_child_needs_layout_tree_update(bool b) { m_child_needs_layout_tree_update = b; }
@@ -611,7 +613,11 @@ protected:
     NodeType m_type { NodeType::INVALID };
     bool m_needs_layout_tree_update { false };
     bool m_child_needs_layout_tree_update { false };
-    bool m_may_reuse_layout_node_for_child_list_insertion { false };
+    enum LayoutTreeUpdateReuseReason : u8 {
+        ChildListInsertion = 1,
+        PseudoElementChange = 2,
+    };
+    u8 m_layout_tree_update_reuse_reasons { 0 };
 
     u32 m_children_explicitly_inherited_non_inherited_style_groups { 0 };
     bool m_in_editable_subtree { false };

@@ -1,0 +1,107 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    .owner, .child { display: inline-block; }
+    .owner::before, .owner::after { display: inline-block; }
+    .before::before { content: "before"; }
+    .after::after { content: "after"; }
+    .changed::before { content: "replacement before"; }
+    .changed::after { content: "replacement after"; }
+    .contents { display: contents; }
+    .first-letter::first-letter { color: red; font-size: 30px; }
+    .first-line::first-line { color: green; }
+    .list { display: list-item; list-style-position: inside; }
+    .block-pseudo::before { display: block; }
+    .floating::before { float: left; }
+    .quotes::before { content: open-quote; }
+    .counter::before { content: counter(example); counter-increment: example; }
+    .none::before, .none::after { display: none; }
+    .pseudo-contents::before { display: contents; }
+    .flex { display: flex; }
+</style>
+<div id="fixture"></div>
+<script>
+    test(() => {
+        const results = [];
+        const children = '<span class="child">one<span class="child">nested</span></span><span class="child">two</span>';
+        function run(name, classes, mutate, preserve = true, markup = children) {
+            fixture.innerHTML = `<div class="owner ${classes}">${markup}</div>`;
+            const owner = fixture.firstElementChild;
+            document.body.offsetHeight;
+            const tracked = [owner, ...owner.querySelectorAll(".child")];
+            const identities = tracked.map(node => internals.layoutNodeIdentity(node));
+            mutate(owner);
+            document.body.offsetHeight;
+            if (preserve)
+                results.push([`${name}: retain owner and descendants`, tracked.every((node, index) => internals.layoutNodeIdentity(node) === identities[index])]);
+            const rectangles = () => JSON.stringify([owner, ...owner.querySelectorAll("*")].map(node => {
+                const rect = node.getBoundingClientRect();
+                return [rect.x, rect.y, rect.width, rect.height];
+            }));
+            const before = rectangles();
+            results.push([`${name}: tree matches full rebuild`, internals.compareLayoutTreeWithFullRebuild().matches]);
+            results.push([`${name}: geometry matches full rebuild`, before === rectangles()]);
+        }
+        run("add before", "", owner => owner.classList.add("before"));
+        run("add after", "", owner => owner.classList.add("after"));
+        run("add both", "", owner => owner.classList.add("before", "after"));
+        run("remove before", "before after", owner => owner.classList.remove("before"));
+        run("remove after", "before after", owner => owner.classList.remove("after"));
+        run("remove both", "before after", owner => owner.classList.remove("before", "after"));
+        run("replace both", "before after", owner => owner.classList.add("changed"));
+        run("empty owner add", "", owner => owner.classList.add("before", "after"), true, "");
+        run("empty owner remove", "before after", owner => owner.classList.remove("before", "after"), true, "");
+        run("hide pseudo boxes", "before after", owner => owner.classList.add("none"));
+        run("show pseudo boxes", "before after none", owner => owner.classList.remove("none"));
+        run("insert and toggle", "after", owner => {
+            owner.appendChild(document.createElement("span")).className = "child";
+            owner.classList.add("before");
+        });
+        run("insert remove and toggle", "before", owner => {
+            const inserted = owner.appendChild(document.createElement("span"));
+            inserted.className = "child";
+            inserted.remove();
+            owner.classList.add("after");
+        });
+        run("remove untracked child and toggle", "before", owner => {
+            owner.lastElementChild.remove();
+            owner.classList.add("after");
+        }, true, children + '<i style="display:inline-block"></i>');
+        for (const removeFirst of [false, true]) {
+            run(`mixed insertion and removal, remove first=${removeFirst}`, "before", owner => {
+                const removed = owner.lastElementChild;
+                if (removeFirst)
+                    removed.remove();
+                owner.appendChild(document.createElement("span")).className = "child";
+                if (!removeFirst)
+                    removed.remove();
+                owner.classList.add("after");
+            }, true, children + '<i style="display:inline-block"></i>');
+        }
+        run("nested toggles", "", owner => {
+            owner.classList.add("before", "after");
+            owner.firstElementChild.classList.add("owner", "before", "after");
+        });
+        run("contents descendant", "", owner => owner.classList.add("before"), true,
+            '<span class="contents"><span class="child">child</span></span>');
+        run("whitespace between new pseudos", "", owner => owner.classList.add("before", "after"), false, " ");
+        run("whitespace after removed pseudos", "before after", owner => owner.classList.remove("before", "after"), false, " ");
+        run("inline text", "", owner => owner.classList.add("before", "after"), false, "text <span>inline</span> text");
+        run("contents owner fallback", "contents", owner => owner.classList.add("before"), false);
+        run("first letter fallback", "first-letter", owner => owner.classList.add("before"), false, "text" + children);
+        run("first line", "first-line", owner => owner.classList.add("before"), false, "text" + children);
+        run("list marker fallback", "list", owner => owner.classList.add("before"), false);
+        run("block pseudo fallback", "block-pseudo", owner => owner.classList.add("before"), false);
+        run("float fallback", "floating", owner => owner.classList.add("before"), false);
+        run("quote fallback", "", owner => owner.classList.add("quotes"), false);
+        run("counter fallback", "", owner => owner.classList.add("counter"), false);
+        run("pseudo contents fallback", "pseudo-contents", owner => owner.classList.add("before"), false);
+        run("flex fallback", "flex", owner => owner.classList.add("before"), false);
+        run("owner display change", "", owner => {
+            owner.classList.add("before");
+            owner.style.display = "flex";
+        }, false);
+        for (const [name, passed] of results)
+            println(`${passed ? "PASS" : "FAIL"}: ${name}`);
+    });
+</script>

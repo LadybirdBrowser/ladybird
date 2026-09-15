@@ -1,0 +1,82 @@
+PASS: add before: retain owner and descendants
+PASS: add before: tree matches full rebuild
+PASS: add before: geometry matches full rebuild
+PASS: add after: retain owner and descendants
+PASS: add after: tree matches full rebuild
+PASS: add after: geometry matches full rebuild
+PASS: add both: retain owner and descendants
+PASS: add both: tree matches full rebuild
+PASS: add both: geometry matches full rebuild
+PASS: remove before: retain owner and descendants
+PASS: remove before: tree matches full rebuild
+PASS: remove before: geometry matches full rebuild
+PASS: remove after: retain owner and descendants
+PASS: remove after: tree matches full rebuild
+PASS: remove after: geometry matches full rebuild
+PASS: remove both: retain owner and descendants
+PASS: remove both: tree matches full rebuild
+PASS: remove both: geometry matches full rebuild
+PASS: replace both: retain owner and descendants
+PASS: replace both: tree matches full rebuild
+PASS: replace both: geometry matches full rebuild
+PASS: empty owner add: retain owner and descendants
+PASS: empty owner add: tree matches full rebuild
+PASS: empty owner add: geometry matches full rebuild
+PASS: empty owner remove: retain owner and descendants
+PASS: empty owner remove: tree matches full rebuild
+PASS: empty owner remove: geometry matches full rebuild
+PASS: hide pseudo boxes: retain owner and descendants
+PASS: hide pseudo boxes: tree matches full rebuild
+PASS: hide pseudo boxes: geometry matches full rebuild
+PASS: show pseudo boxes: retain owner and descendants
+PASS: show pseudo boxes: tree matches full rebuild
+PASS: show pseudo boxes: geometry matches full rebuild
+PASS: insert and toggle: retain owner and descendants
+PASS: insert and toggle: tree matches full rebuild
+PASS: insert and toggle: geometry matches full rebuild
+PASS: insert remove and toggle: retain owner and descendants
+PASS: insert remove and toggle: tree matches full rebuild
+PASS: insert remove and toggle: geometry matches full rebuild
+PASS: remove untracked child and toggle: retain owner and descendants
+PASS: remove untracked child and toggle: tree matches full rebuild
+PASS: remove untracked child and toggle: geometry matches full rebuild
+PASS: mixed insertion and removal, remove first=false: retain owner and descendants
+PASS: mixed insertion and removal, remove first=false: tree matches full rebuild
+PASS: mixed insertion and removal, remove first=false: geometry matches full rebuild
+PASS: mixed insertion and removal, remove first=true: retain owner and descendants
+PASS: mixed insertion and removal, remove first=true: tree matches full rebuild
+PASS: mixed insertion and removal, remove first=true: geometry matches full rebuild
+PASS: nested toggles: retain owner and descendants
+PASS: nested toggles: tree matches full rebuild
+PASS: nested toggles: geometry matches full rebuild
+PASS: contents descendant: retain owner and descendants
+PASS: contents descendant: tree matches full rebuild
+PASS: contents descendant: geometry matches full rebuild
+PASS: whitespace between new pseudos: tree matches full rebuild
+PASS: whitespace between new pseudos: geometry matches full rebuild
+PASS: whitespace after removed pseudos: tree matches full rebuild
+PASS: whitespace after removed pseudos: geometry matches full rebuild
+PASS: inline text: tree matches full rebuild
+PASS: inline text: geometry matches full rebuild
+PASS: contents owner fallback: tree matches full rebuild
+PASS: contents owner fallback: geometry matches full rebuild
+PASS: first letter fallback: tree matches full rebuild
+PASS: first letter fallback: geometry matches full rebuild
+PASS: first line: tree matches full rebuild
+PASS: first line: geometry matches full rebuild
+PASS: list marker fallback: tree matches full rebuild
+PASS: list marker fallback: geometry matches full rebuild
+PASS: block pseudo fallback: tree matches full rebuild
+PASS: block pseudo fallback: geometry matches full rebuild
+PASS: float fallback: tree matches full rebuild
+PASS: float fallback: geometry matches full rebuild
+PASS: quote fallback: tree matches full rebuild
+PASS: quote fallback: geometry matches full rebuild
+PASS: counter fallback: tree matches full rebuild
+PASS: counter fallback: geometry matches full rebuild
+PASS: pseudo contents fallback: tree matches full rebuild
+PASS: pseudo contents fallback: geometry matches full rebuild
+PASS: flex fallback: tree matches full rebuild
+PASS: flex fallback: geometry matches full rebuild
+PASS: owner display change: tree matches full rebuild
+PASS: owner display change: geometry matches full rebuild

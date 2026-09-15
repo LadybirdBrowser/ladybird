@@ -496,11 +496,11 @@ PRESERVED: ::after remove none on run-in in inline list-item | distant sibling d
 PRESERVED: ::after remove none on run-in in inline list-item | DOM parent
 PRESERVED: ::after remove none on run-in in inline list-item | preceding sibling
 PRESERVED: ::after remove none on run-in in inline list-item | preceding sibling descendant
-RECREATED: ::after remove none on run-in in inline list-item | target
-RECREATED: ::after remove none on run-in in inline list-item | target descendant
+PRESERVED: ::after remove none on run-in in inline list-item | target
+PRESERVED: ::after remove none on run-in in inline list-item | target descendant
 PRESERVED: ::after remove none on run-in in inline list-item | following sibling
 PRESERVED: ::after remove none on run-in in inline list-item | following sibling descendant
-STATS: ::after remove none on run-in in inline list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove none on run-in in inline list-item | rebuilt subtree roots=0, escaped=false
 PASS: ::after remove none on run-in in inline list-item | incremental tree matches full rebuild
 RECREATED: ::after remove inline-grid on run-in in table-footer-group | fixture ancestor
 RECREATED: ::after remove inline-grid on run-in in table-footer-group | distant sibling

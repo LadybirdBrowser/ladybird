@@ -460,11 +460,11 @@ PRESERVED: ::before create none on run-in in list-item | distant sibling descend
 PRESERVED: ::before create none on run-in in list-item | DOM parent
 PRESERVED: ::before create none on run-in in list-item | preceding sibling
 PRESERVED: ::before create none on run-in in list-item | preceding sibling descendant
-RECREATED: ::before create none on run-in in list-item | target
-RECREATED: ::before create none on run-in in list-item | target descendant
+PRESERVED: ::before create none on run-in in list-item | target
+PRESERVED: ::before create none on run-in in list-item | target descendant
 PRESERVED: ::before create none on run-in in list-item | following sibling
 PRESERVED: ::before create none on run-in in list-item | following sibling descendant
-STATS: ::before create none on run-in in list-item | rebuilt subtree roots=1, escaped=false
+STATS: ::before create none on run-in in list-item | rebuilt subtree roots=0, escaped=false
 PASS: ::before create none on run-in in list-item | incremental tree matches full rebuild
 RECREATED: ::before create inline-grid on run-in in table-header-group | fixture ancestor
 RECREATED: ::before create inline-grid on run-in in table-header-group | distant sibling

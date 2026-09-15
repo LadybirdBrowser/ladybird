@@ -104,6 +104,53 @@ static void update_style_if_needed_for_layout_tree_bypass_path(DOM::Element&);
 struct PrincipalNodeFrame;
 static RustFFI::NodeSlotId create_layout_node_for_text(PrincipalNodeFrame&, DOM::Text&);
 
+static bool may_update_pseudo_elements_in_place(DOM::Node const& node)
+{
+    if (!node.needs_pseudo_element_layout_tree_update())
+        return false;
+    auto const* element = as_if<DOM::Element>(node);
+    auto const* layout_node = as_if<NodeWithStyle>(node.unsafe_layout_node());
+    if (!element || !layout_node || layout_node->kind() != RustFFI::NodeKind::BlockContainer
+        || element->shadow_root() || element->rendered_in_top_layer()
+        || node.first_letter_owner_for_layout_subtree_from(node))
+        return false;
+    auto style = element->computed_style();
+    if (!style || style->content_visibility() != CSS::ContentVisibility::Visible
+        || (!style->display().is_flow_inside() && !style->display().is_flow_root_inside()))
+        return false;
+    if (layout_node->has_children() && !layout_node->children_are_inline())
+        return false;
+    for (auto const* child = layout_node->first_child(); child; child = child->next_sibling()) {
+        if (child->is_anonymous() && !child->is_generated_for_pseudo_element())
+            return false;
+    }
+    for (auto pseudo_element : { CSS::PseudoElement::Before, CSS::PseudoElement::After }) {
+        if (auto const* old_box = element->pseudo_element_unsafe_layout_node(pseudo_element)) {
+            // NB: The old box already holds the new style, including display:none when it is disappearing.
+            if (old_box->parent() != layout_node
+                || (!old_box->display().is_inline_outside() && !old_box->display().is_none())
+                || old_box->is_out_of_flow())
+                return false;
+        }
+        auto pseudo_style = element->computed_style(pseudo_element);
+        if (!pseudo_style)
+            continue;
+        if (!pseudo_style->counter_reset().is_empty() || !pseudo_style->counter_increment().is_empty() || !pseudo_style->counter_set().is_empty())
+            return false;
+        auto content = pseudo_style->computed_content();
+        if (!content->is_keyword()
+            && (!content->is_content() || !all_of(content->as_content().content().values(), [](auto const& item) { return item->is_string(); })))
+            return false;
+        if (pseudo_style->display().is_none() || content->is_keyword())
+            continue;
+        if (!pseudo_style->display().is_inline_outside() || pseudo_style->display().is_list_item()
+            || pseudo_style->position() == CSS::Positioning::Absolute || pseudo_style->position() == CSS::Positioning::Fixed
+            || pseudo_style->float_() != CSS::Float::None)
+            return false;
+    }
+    return true;
+}
+
 static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node)
 {
     if (!node.may_reuse_layout_node_for_child_list_insertion())
@@ -1144,10 +1191,15 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             // NB: Called during layout tree construction.
             auto* existing_layout_node = node.unsafe_layout_node();
             auto* element = as_if<DOM::Element>(node);
+            bool can_update_pseudo_elements = may_update_pseudo_elements_in_place(node);
+            bool can_insert_children = may_reuse_layout_node_for_child_list_insertion(node);
+            bool can_reuse = (!node.needs_pseudo_element_layout_tree_update() || can_update_pseudo_elements)
+                && (!node.may_reuse_layout_node_for_child_list_insertion() || can_insert_children);
             return {
                 .must_create_subtree = must_create_subtree,
                 .needs_layout_tree_update = node.needs_layout_tree_update(),
-                .may_reuse_layout_node_for_child_list_insertion = may_reuse_layout_node_for_child_list_insertion(node),
+                .may_reuse_layout_node_for_child_list_insertion = can_reuse && can_insert_children,
+                .may_update_pseudo_elements_in_place = can_reuse && can_update_pseudo_elements,
                 .document_needs_full_layout_tree_update = node.document().needs_full_layout_tree_update(),
                 .is_document = node.is_document(),
                 .has_layout_node = existing_layout_node != nullptr,
@@ -1220,6 +1272,21 @@ RustFFI::FfiDomTreeBuilderCallbacks LayoutTreeBuildBridge::make_ffi_dom_tree_bui
             if (should_create_layout_node) {
                 LayoutTreeBuilderAccess::clear_synthetic_pseudo_element_layout_nodes(element);
                 update_style_if_needed_for_layout_tree_bypass_path(element);
+            }
+            if (!should_create_layout_node && element.needs_pseudo_element_layout_tree_update()) {
+                for (auto pseudo_element : { CSS::PseudoElement::Before, CSS::PseudoElement::After }) {
+                    if (auto* pseudo_node = element.pseudo_element_unsafe_layout_node(pseudo_element)) {
+                        pseudo_node->for_each_in_inclusive_subtree([](Layout::Node& node) {
+                            node.clear_committed_box();
+                            return TraversalDecision::Continue;
+                        });
+                        pseudo_node->prepare_subtree_for_detach_from_layout_tree();
+                        VERIFY(destroy_layout_subtree(*pseudo_node));
+                        LayoutTreeBuilderAccess::set_synthetic_pseudo_element_node(element, pseudo_element, nullptr);
+                    }
+                }
+                if (auto* layout_node = element.unsafe_layout_node(); !layout_node->has_children())
+                    layout_node->set_children_are_inline(false);
             }
             frame.style_record_identity = element.style_record_identity();
             VERIFY(frame.style_record_identity);
