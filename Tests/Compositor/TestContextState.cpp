@@ -1875,6 +1875,42 @@ TEST_CASE(consecutive_discrete_wheel_steps_travel_from_the_offset_they_asked_for
     EXPECT_EQ(updates.started_user_scrolls.first().selection.position, Web::CSSPixelPoint(0, 300));
 }
 
+TEST_CASE(a_wheel_gesture_ends_once_its_steps_stop_arriving)
+{
+    SnapContainerContextFixture fixture;
+
+    fixture.discrete_step({ 0, 10 });
+    auto updates = fixture.context.take_pending_async_scroll_updates();
+    EXPECT(updates.user_scroll_gesture_in_progress);
+    EXPECT(!updates.user_scroll_gesture_ended);
+
+    // A consumed step keeps the gesture waiting for its next step as long as one that started a scroll would.
+    fixture.discrete_step({ 0, 10 }, AK::Duration::from_milliseconds(200));
+    fixture.take_updates();
+    fixture.client.events.clear();
+    fixture.context.end_scroll_step_gestures_whose_input_ran_out(fixture.now + AK::Duration::from_milliseconds(650));
+    EXPECT(fixture.client.events.is_empty());
+    EXPECT(!fixture.context.has_pending_async_scroll_updates());
+
+    // The end of the gesture is pushed to WebContent, which settles the gesture on it.
+    fixture.context.end_scroll_step_gestures_whose_input_ran_out(fixture.now + AK::Duration::from_milliseconds(750));
+    EXPECT_EQ(fixture.client.event_sequence(), "async_scroll_updates,request_rendering_update"sv);
+    auto const& pushed = fixture.client.pushed_updates.last();
+    EXPECT(!pushed.user_scroll_gesture_in_progress);
+    EXPECT(pushed.user_scroll_gesture_ended);
+    fixture.finish_animations(AK::Duration::from_seconds(1));
+
+    // A step arriving after the reported end travels from where the scrolling box rests rather than from the
+    // 20 pixels the ended gesture asked for.
+    fixture.discrete_step({ 0, 150 }, AK::Duration::from_milliseconds(1100));
+    updates = fixture.take_updates();
+    EXPECT_EQ(updates.started_user_scrolls.size(), 1u);
+    EXPECT_EQ(updates.started_user_scrolls.first().initial_scroll_offset, Web::CSSPixelPoint(0, 100));
+    EXPECT_EQ(updates.started_user_scrolls.first().unsnapped_scroll_destination, Web::CSSPixelPoint(0, 250));
+    EXPECT_EQ(updates.started_user_scrolls.first().selection.position, Web::CSSPixelPoint(0, 300));
+    EXPECT(fixture.context.take_pending_async_scroll_updates().user_scroll_gesture_in_progress);
+}
+
 TEST_CASE(a_discrete_wheel_step_along_a_non_snapping_axis_scrolls_by_its_delta)
 {
     SnapContainerContextFixture fixture;

@@ -145,6 +145,9 @@ public:
     ContextUpdateResult async_scroll_by(Gfx::FloatPoint position, Gfx::FloatPoint delta, Web::WheelDeltaPrecision, Web::ScrollGesturePhase, Optional<MonotonicTime> now_for_testing = {});
     Web::Compositor::PendingAsyncScrollUpdates take_pending_async_scroll_updates();
     bool has_pending_async_scroll_updates() const;
+    // A gesture whose steps this context chains ends once they stop arriving, which is reported to WebContent so
+    // that it settles the gesture then rather than on a clock of its own.
+    void end_scroll_step_gestures_whose_input_ran_out(MonotonicTime now);
 
     void viewport_size_updated(Gfx::IntSize, Web::Compositor::WindowResizingInProgress);
     bool set_paused_debugger_overlay(bool visible, double device_pixel_ratio, Optional<String> font_family, Optional<WebView::PausedDebuggerOverlayAction> hovered_action);
@@ -232,6 +235,8 @@ private:
     void retire_smooth_scroll_animation(Web::Compositor::AsyncScrollNodeStableID);
     void cancel_smooth_scroll_taken_over_by_user_input(Web::Compositor::AsyncScrollNodeID);
     void note_user_scroll_gesture_end_if_drag_ended(bool was_dragging_viewport_scrollbar);
+    bool user_scroll_gesture_in_progress() const;
+    void schedule_end_of_scroll_step_gestures(MonotonicTime now);
     Optional<PendingFrame> apply_viewport_scrollbar_drag(ViewportScrollbarController::Drag const&);
     void rebuild_wheel_hit_test_targets();
     void discard_sampled_visual_context_tree();
@@ -295,6 +300,7 @@ private:
     Vector<Web::UIEvents::KeyCode, 3> m_held_scroll_keys;
     bool m_user_scroll_gesture_ended { false };
     bool m_published_user_scroll_gesture_in_progress { false };
+    RefPtr<Core::Timer> m_scroll_step_gesture_input_timer;
     Vector<ActiveSmoothScrollAnimation> m_smooth_scroll_animations;
     Web::Compositor::AsyncScrollOperationID m_next_async_scroll_operation_id { 0 };
     Gfx::IntRect m_async_scrolling_viewport_rect;
