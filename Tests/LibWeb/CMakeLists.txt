@@ -1,4 +1,5 @@
 set(TEST_SOURCES
+    BenchmarkDisplayListRecording.cpp
     BenchmarkForceDarkImageFilter.cpp
     TestSiteCompatibility.cpp
     TestAudioWorkletPipe.cpp
@@ -70,6 +71,7 @@ foreach(source IN LISTS TEST_SOURCES)
 endforeach()
 
 
+target_link_libraries(BenchmarkDisplayListRecording PRIVATE LibGC LibGfx LibIPC LibJS LibURL LibWebView)
 target_link_libraries(TestAudioWorkletPipe PRIVATE LibCore LibThreading)
 target_link_libraries(TestContentBlocker PRIVATE LibURL)
 if (NOT WIN32)
