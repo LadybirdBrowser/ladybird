@@ -32,4 +32,10 @@ describe("normal behavior", () => {
         // properties, Locale("en", { hourCycle: "ladybird" }) will explicitly throw.
         testHourCycles(new Intl.Locale("en-u-hc-ladybird"), ["ladybird"]);
     });
+
+    test("numbering system without locale data", () => {
+        expect(new Intl.Locale("en", { numberingSystem: "abc" }).getHourCycles()).toEqual(["h12", "h11", "h23", "h24"]);
+        expect(new Intl.Locale("en-u-nu-abc").getHourCycles()).toEqual(["h12", "h11", "h23", "h24"]);
+        expect(new Intl.Locale("de-u-nu-abc").getHourCycles()).toEqual(["h23", "h11", "h12", "h24"]);
+    });
 });
