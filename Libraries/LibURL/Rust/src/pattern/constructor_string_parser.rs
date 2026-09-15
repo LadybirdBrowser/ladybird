@@ -47,7 +47,7 @@ pub struct ConstructorStringParser {
 
     // https://urlpattern.spec.whatwg.org/#constructor-string-parser-hostname-ipv6-bracket-depth
     // A constructor string parser has an associated hostname IPv6 bracket depth, a number, initially set to 0.
-    pub hostname_ipv6_bracket_depth: u32,
+    pub hostname_ipv6_bracket_depth: i32,
 
     // https://urlpattern.spec.whatwg.org/#constructor-string-parser-protocol-matches-a-special-scheme-flag
     // A constructor string parser has an associated protocol matches a special scheme flag, a boolean, initially set to false.
@@ -297,7 +297,6 @@ impl ConstructorStringParser {
                     // 2. Otherwise if the result of running is an IPv6 close given parser is true, then decrement parser’s
                     //    hostname IPv6 bracket depth by 1.
                     else if parser.is_an_ipv6_close() {
-                        assert!(parser.hostname_ipv6_bracket_depth != 0);
                         parser.hostname_ipv6_bracket_depth -= 1;
                     }
                     // 3. Otherwise if the result of running is a port prefix given parser is true and parser’s hostname IPv6
