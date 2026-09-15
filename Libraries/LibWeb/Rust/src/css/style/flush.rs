@@ -1622,9 +1622,6 @@ impl StyleEngineState {
             style_delta_memory.resize_required_to(&mut self.memory, style_delta_bytes);
             let mut engine_computed_record_scratch = publication::EngineComputedRecordScratch::default();
             let computation_loop_timer = PassTimer::start();
-            engine_computed_record_scratch
-                .derived_child_inputs
-                .reserve(published_nodes.len());
             computation_scratch_memory
                 .resize_required_to(&mut self.memory, engine_computed_record_scratch.capacity_bytes());
             if let Some(resolver) = &mut self.font_resolver
@@ -1708,9 +1705,13 @@ impl StyleEngineState {
             // settled ancestor left behind, fills in the rows of the nodes it crossed, and keeps
             // a row only once every fact folded into it is final. A published ancestor the walk
             // has not processed yet is folded fresh, exactly as the walk re-read it.
+            type DerivedChildInputRows = column::PagedColumn<column::PagedValuePage<publication::DerivedChildInputs>>;
+            let row_of = |rows: &DerivedChildInputRows, node: StyleNodeID| {
+                node.element_index().and_then(|index| rows.get(index as usize))
+            };
             let mut crossed_ancestors = Vec::new();
             let ancestor_chain = |engine: &Self,
-                                  rows: &mut HashMap<StyleNodeID, publication::DerivedChildInputs>,
+                                  rows: &mut DerivedChildInputRows,
                                   crossed: &mut Vec<StyleNodeID>,
                                   node: StyleNodeID|
              -> publication::AncestorChain {
@@ -1720,7 +1721,7 @@ impl StyleEngineState {
                     let Some(ancestor) = current else {
                         break publication::AncestorChain::ROOT;
                     };
-                    if let Some(chain) = rows.get(&ancestor).and_then(|row| row.chain) {
+                    if let Some(chain) = row_of(rows, ancestor).and_then(|row| row.chain) {
                         break chain;
                     }
                     crossed.push(ancestor);
@@ -1728,9 +1729,9 @@ impl StyleEngineState {
                 };
                 let mut chain_is_final = true;
                 for &ancestor in crossed.iter().rev() {
-                    let row = rows.get(&ancestor).copied();
-                    // Only a published node the walk has processed holds a row; everything else
-                    // is either published and still to come, or published nothing at all.
+                    let row = row_of(rows, ancestor);
+                    // Only a node the walk has processed holds a row; everything else is either
+                    // published and still to come, or published nothing at all.
                     let published = row.is_some() || published_match_answers.lookup(ancestor).is_some();
                     let unconfined = published
                         && !(style_input_reactions
@@ -1741,8 +1742,10 @@ impl StyleEngineState {
                     let settled = row.is_some_and(|row| row.settled);
                     chain = publication::AncestorChain::fold(chain, published, unconfined, settled);
                     chain_is_final = chain_is_final && (row.is_some() || !published);
-                    if chain_is_final {
-                        rows.entry(ancestor).or_default().chain = Some(chain);
+                    if chain_is_final && let Some(index) = ancestor.element_index() {
+                        let mut row = row.unwrap_or_default();
+                        row.chain = Some(chain);
+                        rows.insert(index as usize, row);
                     }
                 }
                 chain
@@ -1802,9 +1805,7 @@ impl StyleEngineState {
                         .then(|| self.tree.flat_tree_parent(node))
                         .flatten()
                         .filter(|parent| {
-                            !engine_computed_record_scratch
-                                .derived_child_inputs
-                                .get(parent)
+                            !row_of(&engine_computed_record_scratch.derived_child_inputs, *parent)
                                 .is_some_and(|row| row.inheritance_unresolved)
                         })
                         .and_then(|parent| {
@@ -1956,17 +1957,17 @@ impl StyleEngineState {
                     // A first record C++ declines for the custom-property environment it inherits
                     // takes its descendants' first records down with it: a descendant's environment is
                     // the parent's own, which fails the same check whenever the parent's did.
-                    // What this node tells its children, decided here, where it settles. A node
-                    // with nothing to say keeps no row: the fold reads a missing one as a node
-                    // that has not settled, which is what the walk it replaces concluded.
+                    // What this node tells its children, decided here, where it settles. Every
+                    // processed node keeps a row, settled or not: that is what lets a
+                    // descendant's fold stop at it instead of walking past it to the root.
                     let settled = direct_inherited_delta.is_some() || engine_computed_delta.is_some();
-                    let inheritance_unresolved = !settled && reaction == transaction::STYLE_REACTION_INHERITED_STYLE;
-                    if settled || inheritance_unresolved {
+                    if let Some(index) = node.element_index() {
                         engine_computed_record_scratch.derived_child_inputs.insert(
-                            node,
+                            index as usize,
                             publication::DerivedChildInputs {
                                 settled,
-                                inheritance_unresolved,
+                                inheritance_unresolved: !settled
+                                    && reaction == transaction::STYLE_REACTION_INHERITED_STYLE,
                                 // A child folds the chain when it asks; this node's own facts
                                 // are final from here on, so the fold it caches is kept.
                                 chain: None,

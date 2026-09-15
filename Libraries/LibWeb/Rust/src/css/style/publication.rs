@@ -3882,10 +3882,10 @@ pub(super) struct EngineComputedRecordScratch {
     cohorts: HashMap<(u64, CascadeStateID, u32, RecordDeltaParent, u64, RootFontInputs), computed::FinalStyleRecordID>,
     computability: EngineComputabilityScratch,
     /// What each node the walk has reached tells its children: whether the chain above it is
-    /// confined, and whether it resolved the record its children inherit from. A row is kept only
-    /// once every fact it folds is final, so a published ancestor the walk has not processed yet
-    /// is folded fresh rather than remembered as unsettled.
-    pub(super) derived_child_inputs: HashMap<StyleNodeID, DerivedChildInputs>,
+    /// confined, and whether it resolved the record its children inherit from. A column with
+    /// touched-page allocation, because the walk writes a row for every node it processes and
+    /// reads one for every node's parent.
+    pub(super) derived_child_inputs: column::PagedColumn<column::PagedValuePage<DerivedChildInputs>>,
     /// First records derived this flush, by what they were derived from.
     pub(super) cold_cohorts: HashMap<ColdRecordKey, ColdRecord>,
     store_capacity_bytes: u64,
