@@ -19,15 +19,7 @@
 #include <LibWeb/WebIDL/Promise.h>
 #include <LibWeb/WebIDL/Types.h>
 
-namespace Web::HTML {
-
-class Location;
-
-}
-
 namespace Web::Bindings {
-
-WEB_API JS::Value location_wrapper(JS::Realm&, GC::Ref<HTML::Location>);
 
 WEB_API WebIDL::ExceptionOr<GC::Ref<HTML::OffscreenCanvas>> construct_offscreen_canvas(JS::Realm&, WebIDL::UnsignedLong width, WebIDL::UnsignedLong height);
 WEB_API GC::Ref<WebIDL::Promise> convert_to_blob(JS::Realm&, HTML::OffscreenCanvas&, Optional<ImageEncodeOptions> const&);

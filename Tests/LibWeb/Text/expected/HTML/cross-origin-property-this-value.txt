@@ -1,0 +1,30 @@
+Window window getter on incompatible object: TypeError, current realm: true
+Window window getter on null is current global's: true
+Window self getter on incompatible object: TypeError, current realm: true
+Window self getter on null is current global's: true
+Window location getter on incompatible object: TypeError, current realm: true
+Window location getter on null is current global's: true
+Window closed getter on incompatible object: TypeError, current realm: true
+Window closed getter on null is current global's: true
+Window frames getter on incompatible object: TypeError, current realm: true
+Window frames getter on null is current global's: true
+Window length getter on incompatible object: TypeError, current realm: true
+Window length getter on null is current global's: true
+Window top getter on incompatible object: TypeError, current realm: true
+Window top getter on null is current global's: true
+Window opener getter on incompatible object: TypeError, current realm: true
+Window opener getter on null is current global's: true
+Window parent getter on incompatible object: TypeError, current realm: true
+Window parent getter on null is current global's: true
+Window location getter: true
+Window close method on incompatible object: TypeError, current realm: true
+Window focus method on incompatible object: TypeError, current realm: true
+Window blur method on incompatible object: TypeError, current realm: true
+Window postMessage method on incompatible object: TypeError, current realm: true
+Window postMessage method: undefined
+Window postMessage method with non-coercible target origin: TypeError, current realm: true
+Location replace method on incompatible object: TypeError, current realm: true
+Location replace method on null: TypeError, current realm: true
+Location replace method through prototype chain: TypeError, current realm: true
+Location replace method with invalid URL: SyntaxError, current realm: true
+Location replace method with non-coercible URL: TypeError, current realm: true
