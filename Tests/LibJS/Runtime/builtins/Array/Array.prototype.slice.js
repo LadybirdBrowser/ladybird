@@ -63,3 +63,50 @@ test("uses ArraySpeciesCreate", () => {
     expect(slice).toBeInstanceOf(ResultArray);
     expect(slice).toEqual([2, 3]);
 });
+
+describe("species result that already has elements", () => {
+    test("longer packed result is truncated", () => {
+        var array = [1, 2, 3, 4, 5];
+        array.constructor = {
+            [Symbol.species]: function () {
+                return [9, 9, 9, 9, 9, 9];
+            },
+        };
+        var slice = array.slice(0, 2);
+        expect(slice).toEqual([1, 2]);
+        expect(slice).toHaveLength(2);
+    });
+
+    test("longer holey result is truncated", () => {
+        var array = [1, 2, 3];
+        array.constructor = {
+            [Symbol.species]: function () {
+                return [9, , 9, 9];
+            },
+        };
+        var slice = array.slice(2);
+        expect(slice).toEqual([3]);
+    });
+
+    test("empty slice truncates the result to zero", () => {
+        var array = [1, 2, 3];
+        array.constructor = {
+            [Symbol.species]: function () {
+                return [9, 9];
+            },
+        };
+        expect(array.slice(2, 1)).toHaveLength(0);
+    });
+
+    test("result that is this", () => {
+        var array = [1, 2, 3, 4, 5];
+        array.constructor = {
+            [Symbol.species]: function () {
+                return array;
+            },
+        };
+        var slice = array.slice(1, 3);
+        expect(slice).toBe(array);
+        expect(array).toEqual([2, 3]);
+    });
+});

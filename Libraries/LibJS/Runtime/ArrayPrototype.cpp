@@ -1421,6 +1421,12 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::slice)
             u32 end = static_cast<u32>(final);
             for (u32 i = start; i < end; ++i)
                 result_array->indexed_put(i - start, array->indexed_get(i)->value);
+
+            // NB: A species constructor can return an array with more elements than the slice. The spec sets the
+            //     length of the result at the end, which removes them.
+            u32 result_length = end > start ? end - start : 0;
+            if (result_array->indexed_array_like_size() != result_length)
+                VERIFY(result_array->set_indexed_array_like_size(result_length));
             return result_array;
         }
     }
@@ -1656,7 +1662,8 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::splice)
         && actual_start <= NumericLimits<u32>::max()
         && actual_delete_count <= NumericLimits<u32>::max()
         && item_count <= NumericLimits<u32>::max()) {
-        if (auto* removed_array = fast_array_species_result(*removed_elements)) {
+        // NB: The removed elements array must not be this array, since we copy from it while shifting its elements.
+        if (auto* removed_array = fast_array_species_result(*removed_elements); removed_array && removed_array != array) {
             u32 start = static_cast<u32>(actual_start);
             u32 delete_count = static_cast<u32>(actual_delete_count);
             u32 item_count_u32 = static_cast<u32>(item_count);
@@ -1664,6 +1671,11 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayPrototype::splice)
 
             for (u32 i = 0; i < delete_count; ++i)
                 removed_array->indexed_put(i, array->indexed_get(start + i)->value);
+
+            // NB: A species constructor can return an array with more elements than were removed. The spec sets its
+            //     length to actualDeleteCount, which removes them.
+            if (removed_array->indexed_array_like_size() != delete_count)
+                VERIFY(removed_array->set_indexed_array_like_size(delete_count));
 
             if (item_count_u32 == delete_count) {
                 for (u32 i = 0; i < item_count_u32; ++i)
