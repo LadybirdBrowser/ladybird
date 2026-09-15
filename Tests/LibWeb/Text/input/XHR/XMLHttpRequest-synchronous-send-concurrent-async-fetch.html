@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    // An async fetch that's in flight when a sync XHR send() blocks must not be broken by the pause: Its response
+    // arrives on the platform event loop while the HTML event loop is paused — but its promise reactions (which are
+    // microtasks) must not run until send() has returned. Afterwards it must resume and complete as normal.
+    asyncTest(async done => {
+        const server = httpTestServer();
+        const slowUrl = await server.createEcho("GET", "/xhr-sync-concurrent-async-slow", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "text/plain" },
+            delay_ms: 200,
+            body: "async done",
+        });
+        const syncUrl = await server.createEcho("GET", "/xhr-sync-concurrent-async-sync", {
+            status: 200,
+            headers: { "Access-Control-Allow-Origin": "*", "Content-Type": "text/plain" },
+            delay_ms: 400,
+            body: "sync done",
+        });
+
+        setTimeout(() => {
+            let asyncResolvedDuringSend = false;
+            let sendReturned = false;
+            // Start the async fetch first; its response is due while send() is still blocked.
+            const asyncFetch = fetch(slowUrl).then(r => r.text()).then(text => {
+                asyncResolvedDuringSend = !sendReturned;
+                return text;
+            });
+
+            const xhr = new XMLHttpRequest();
+            xhr.open("GET", syncUrl, false);
+            xhr.send();
+            sendReturned = true;
+            println(`sync: status=${xhr.status} body=${xhr.responseText}`);
+
+            asyncFetch.then(text => {
+                println(`async: body=${text}`);
+                println(`async reactions ran during send(): ${asyncResolvedDuringSend}`);
+                done();
+            });
+        });
+    });
+</script>

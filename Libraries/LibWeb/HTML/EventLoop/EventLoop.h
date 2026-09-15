@@ -125,7 +125,12 @@ public:
 
     double compute_deadline() const;
 
-    [[nodiscard]] PauseHandle pause();
+    enum class UpdateTheRendering {
+        No,
+        Yes,
+    };
+
+    [[nodiscard]] PauseHandle pause(UpdateTheRendering = UpdateTheRendering::Yes);
     void unpause(Badge<PauseHandle>, JS::Object const& global, HighResolutionTime::DOMHighResTimeStamp);
     bool execution_paused() const { return m_execution_pause_depth > 0; }
 
