@@ -62,6 +62,9 @@ define_ffi_ops! {
     AnimationEvaluationEntry => "animationEvaluationEntries",
     TransitionDecisionEntry => "transitionDecisionEntries",
     // Computed longhand table passes whose cost follows the table's width rather than a change.
+    LonghandTableCopiedSlots => "longhandTableCopiedSlots",
+    LonghandTableCopyRetains => "longhandTableCopyRetains",
+    LonghandTableStorageAllocations => "longhandTableStorageAllocations",
     LonghandTableClone => "longhandTableClones",
     LonghandTableFullHash => "longhandTableFullHashes",
     LonghandTableSlotHash => "longhandTableSlotHashes",
@@ -222,6 +225,20 @@ pub(crate) fn bump(op: FfiOp) {
             BridgeCounterContext::new(counter_registry().clone()).counters.bump(op);
         }
     }
+}
+
+/// Counts a table ownership boundary only while diagnostics are enabled.
+#[inline]
+pub(crate) fn count_table_copy(values: impl FnOnce() -> (u64, u64)) {
+    if !COUNTERS_ENABLED.load(Ordering::Relaxed) {
+        return;
+    }
+    let (slots, retains) = values();
+    let _ = COUNTER_CONTEXT.try_with(|context| {
+        let context = context.get_or_init(|| BridgeCounterContext::new(counter_registry().clone()));
+        context.counters.values[FfiOp::LonghandTableCopiedSlots as usize].fetch_add(slots, Ordering::Relaxed);
+        context.counters.values[FfiOp::LonghandTableCopyRetains as usize].fetch_add(retains, Ordering::Relaxed);
+    });
 }
 
 #[inline]

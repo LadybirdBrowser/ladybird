@@ -199,10 +199,7 @@ impl StyleEngineState {
             );
         }
         counters.bump(Counter::EnginePartialDrivesStarted);
-        counters.add(
-            Counter::EngineDriveCopiedTableSlots,
-            crate::css::property_metadata::NUMBER_OF_LONGHAND_PROPERTIES as u64,
-        );
+
         counters.add(
             Counter::EnginePhysicalLonghandEvaluations,
             u64::from(results.longhand_evaluations),
@@ -225,7 +222,9 @@ impl StyleEngineState {
             }
             let slot = usize::from(property - crate::css::property_metadata::FIRST_LONGHAND_PROPERTY_ID);
             let old_value = old_values[slot];
-            let new_value = table.value_pointers()[slot];
+            let new_value = table
+                .get(property)
+                .map_or(std::ptr::null(), |value| value.pointer().cast());
             if old_value == new_value {
                 continue;
             }
@@ -243,7 +242,6 @@ impl StyleEngineState {
                 return None;
             }
             table.copy_slot_from(old_table, property);
-            counters.bump(Counter::EngineDriveCopiedTableSlots);
         }
         // The group builders resolve against the same context; they report no viewport dependence
         // of their own.
@@ -507,12 +505,6 @@ impl StyleEngineState {
         let root_font_complete = resumed.as_ref().is_some_and(|pending| pending.root_font_complete);
         if !resuming {
             counters.bump(Counter::EngineFullDrivesStarted);
-            if old_table.is_some() {
-                counters.add(
-                    Counter::EngineDriveCopiedTableSlots,
-                    crate::css::property_metadata::NUMBER_OF_LONGHAND_PROPERTIES as u64,
-                );
-            }
         }
         let (mut table, mut results, mut effective_color_scheme) = match resumed {
             Some(pending) => {

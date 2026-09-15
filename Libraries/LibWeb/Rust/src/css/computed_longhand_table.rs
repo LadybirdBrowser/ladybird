@@ -22,6 +22,7 @@
 //! by reference count with every `ComputedValues` built from those
 //! properties and with the style record publication that interns it.
 
+use smallvec::SmallVec;
 use std::cell::{Cell, OnceCell};
 use std::ffi::c_void;
 use std::sync::Arc;
@@ -98,9 +99,17 @@ fn set_bitmap_bit(bits: &mut [u8; LONGHAND_BITMAP_BYTES], index: usize, value: b
     }
 }
 
+/// Where `index` sits in a change list kept in slot order: the number of changed slots below it.
+/// Locating a change this way keeps a drive's cost linear in the slots it writes.
+fn bitmap_rank(bits: &[u8; LONGHAND_BITMAP_BYTES], index: usize) -> usize {
+    let byte = index / 8;
+    let below: u32 = bits[..byte].iter().map(|bits| bits.count_ones()).sum();
+    (below + (bits[byte] & ((1u8 << (index % 8)) - 1)).count_ones()) as usize
+}
+
 /// The per-slot arrays, kept on the heap so that a table moves as a handful of words rather than
 /// as the several kilobytes the slots occupy.
-struct SlotStorage {
+struct DenseSlotStorage {
     // Empty slots use the handle's null pointer; the same storage supplies the borrowed FFI view.
     slots: [RetainedStyleValueData; LONGHAND_COUNT],
     /// Cascade source slot for each longhand, or `-1` when its value carries
@@ -109,7 +118,24 @@ struct SlotStorage {
     source_slots: Option<Box<[i32; LONGHAND_COUNT]>>,
 }
 
-impl SlotStorage {
+impl Clone for DenseSlotStorage {
+    fn clone(&self) -> Self {
+        // NB: Only copying an unfrozen host working table can share mutable dense storage.
+        ffi_stats::bump(FfiOp::LonghandTableStorageAllocations);
+        ffi_stats::count_table_copy(|| {
+            (
+                LONGHAND_COUNT as u64,
+                self.slots.iter().filter(|value| !value.pointer().is_null()).count() as u64,
+            )
+        });
+        Self {
+            slots: self.slots.clone(),
+            source_slots: self.source_slots.clone(),
+        }
+    }
+}
+
+impl DenseSlotStorage {
     fn source_slot(&self, index: usize) -> i32 {
         self.source_slots.as_ref().map_or(-1, |slots| slots[index])
     }
@@ -124,10 +150,22 @@ impl SlotStorage {
         }
     }
 
-    fn new_boxed() -> Box<Self> {
-        let mut storage = Box::<Self>::new_uninit();
-        let pointer = storage.as_mut_ptr();
-        // SAFETY: Every field is initialized in place below, so the box holds a complete value
+    /// Drop a source sidecar that carries no context; reads then answer `-1` for every slot.
+    fn release_empty_sources(&mut self) {
+        if self
+            .source_slots
+            .as_ref()
+            .is_some_and(|slots| slots.iter().all(|&slot| slot == -1))
+        {
+            self.source_slots = None;
+        }
+    }
+
+    fn new_shared() -> Arc<Self> {
+        ffi_stats::bump(FfiOp::LonghandTableStorageAllocations);
+        let mut storage = Arc::<Self>::new_uninit();
+        let pointer = Arc::get_mut(&mut storage).unwrap().as_mut_ptr();
+        // SAFETY: Every field is initialized in place below, so the allocation holds a complete value
         // when it is assumed initialized; nothing is moved through the stack.
         unsafe {
             let slots = std::ptr::addr_of_mut!((*pointer).slots).cast::<RetainedStyleValueData>();
@@ -140,8 +178,242 @@ impl SlotStorage {
     }
 }
 
+/// A working table borrows unchanged slots through one owner of a flat base.
+/// The base is always dense, so even a seed made from another working delta
+/// cannot introduce a chain. Publication materializes only a unique result.
+struct ChangedSlot {
+    index: u16,
+    // None keeps the base value; Some(none()) represents an empty slot.
+    value: Option<RetainedStyleValueData>,
+    source_slot: i32,
+}
+
+// NB: Inline changes avoid a separate allocation for each sparse drive.
+#[allow(clippy::large_enum_variant)]
+enum SlotStorage {
+    Dense(Arc<DenseSlotStorage>),
+    Delta {
+        base: Arc<DenseSlotStorage>,
+        changes: SmallVec<[ChangedSlot; 16]>,
+        changed_bits: [u8; LONGHAND_BITMAP_BYTES],
+        preserve_sources: bool,
+        // Only consumers explicitly asking for the contiguous ABI span pay for it.
+        view: OnceCell<Box<[*const c_void; LONGHAND_COUNT]>>,
+    },
+}
+
+impl SlotStorage {
+    fn new() -> Self {
+        Self::Dense(DenseSlotStorage::new_shared())
+    }
+
+    fn slot(&self, index: usize) -> (&RetainedStyleValueData, i32) {
+        match self {
+            Self::Dense(storage) => (&storage.slots[index], storage.source_slot(index)),
+            Self::Delta {
+                base,
+                changes,
+                changed_bits,
+                preserve_sources,
+                ..
+            } => {
+                if bitmap_bit(changed_bits, index) {
+                    let change = &changes[bitmap_rank(changed_bits, index)];
+                    return (change.value.as_ref().unwrap_or(&base.slots[index]), change.source_slot);
+                }
+                (
+                    &base.slots[index],
+                    if *preserve_sources { base.source_slot(index) } else { -1 },
+                )
+            }
+        }
+    }
+
+    fn change(&mut self, index: usize) -> &mut ChangedSlot {
+        let source_slot = self.slot(index).1;
+        let Self::Delta {
+            changes,
+            changed_bits,
+            view,
+            ..
+        } = self
+        else {
+            unreachable!()
+        };
+        view.take();
+        // Changes stay in slot order, so a rank names an entry directly. A drive that writes
+        // its slots in order only ever appends.
+        let rank = bitmap_rank(changed_bits, index);
+        if !bitmap_bit(changed_bits, index) {
+            set_bitmap_bit(changed_bits, index, true);
+            changes.insert(
+                rank,
+                ChangedSlot {
+                    index: index as u16,
+                    value: None,
+                    source_slot,
+                },
+            );
+        }
+        &mut changes[rank]
+    }
+
+    fn set_value(&mut self, index: usize, value: RetainedStyleValueData) {
+        match self {
+            Self::Dense(storage) => Arc::make_mut(storage).slots[index] = value,
+            Self::Delta { .. } => self.change(index).value = Some(value),
+        }
+    }
+
+    /// Release an all-empty source sidecar of a uniquely owned dense base; shared or delta
+    /// storage keeps its sources, since a later materialization decides them.
+    fn release_empty_sources(&mut self) {
+        if let Self::Dense(storage) = self
+            && let Some(storage) = Arc::get_mut(storage)
+        {
+            storage.release_empty_sources();
+        }
+    }
+
+    #[cfg(test)]
+    fn has_source_slots(&self) -> bool {
+        match self {
+            Self::Dense(storage) => storage.source_slots.is_some(),
+            Self::Delta { base, changes, .. } => {
+                base.source_slots.is_some() || changes.iter().any(|change| change.source_slot != -1)
+            }
+        }
+    }
+
+    fn set_source(&mut self, index: usize, source_slot: i32) {
+        if self.slot(index).1 == source_slot {
+            return;
+        }
+        match self {
+            Self::Dense(storage) => Arc::make_mut(storage).set_source_slot(index, source_slot),
+            Self::Delta { .. } => self.change(index).source_slot = source_slot,
+        }
+    }
+
+    fn seeded(source: &Self, preserve_sources: bool) -> Self {
+        // NB: One base owner replaces the former retain of every slot.
+        ffi_stats::count_table_copy(|| (0, 1));
+        let (base, changes, changed_bits, old_preserve_sources) = match source {
+            Self::Dense(storage) => (storage.clone(), SmallVec::new(), [0; LONGHAND_BITMAP_BYTES], true),
+            Self::Delta {
+                base,
+                changes,
+                changed_bits,
+                preserve_sources,
+                ..
+            } => {
+                ffi_stats::count_table_copy(|| {
+                    let slots = changes.iter().filter_map(|change| change.value.as_ref());
+                    (
+                        slots.clone().count() as u64,
+                        slots.filter(|value| !value.pointer().is_null()).count() as u64,
+                    )
+                });
+                let changes = changes
+                    .iter()
+                    .map(|change| ChangedSlot {
+                        index: change.index,
+                        value: change.value.clone(),
+                        source_slot: change.source_slot,
+                    })
+                    .collect();
+                (base.clone(), changes, *changed_bits, *preserve_sources)
+            }
+        };
+        let mut result = Self::Delta {
+            base,
+            changes,
+            changed_bits,
+            preserve_sources: preserve_sources && old_preserve_sources,
+            view: OnceCell::new(),
+        };
+        if !preserve_sources && let Self::Delta { changes, .. } = &mut result {
+            for change in changes {
+                change.source_slot = -1;
+            }
+        }
+        result
+    }
+
+    fn value_pointers(&self) -> &[*const c_void] {
+        match self {
+            Self::Dense(storage) => RetainedStyleValueData::pointer_slice(&storage.slots),
+            Self::Delta { view, .. } => view
+                .get_or_init(|| Box::new(std::array::from_fn(|index| self.slot(index).0.pointer().cast())))
+                .as_slice(),
+        }
+    }
+
+    fn materialize(&mut self) {
+        if matches!(self, Self::Dense(_)) {
+            return;
+        }
+        let dense = DenseSlotStorage::new_shared();
+        let old = std::mem::replace(self, Self::Dense(dense));
+        let Self::Delta {
+            base,
+            changes,
+            preserve_sources,
+            ..
+        } = old
+        else {
+            unreachable!()
+        };
+        let Self::Dense(dense) = self else { unreachable!() };
+        let storage = Arc::get_mut(dense).unwrap();
+        let mut owned_bits = [0; LONGHAND_BITMAP_BYTES];
+        storage.source_slots = if preserve_sources {
+            base.source_slots.clone()
+        } else {
+            None
+        };
+        for change in changes {
+            let index = usize::from(change.index);
+            storage.set_source_slot(index, change.source_slot);
+            if let Some(value) = change.value {
+                storage.slots[index] = value;
+                set_bitmap_bit(&mut owned_bits, index, true);
+            }
+        }
+        ffi_stats::count_table_copy(|| {
+            let mut slots = 0;
+            let mut retains = 0;
+            for index in 0..LONGHAND_COUNT {
+                if !bitmap_bit(&owned_bits, index) {
+                    slots += 1;
+                    retains += u64::from(!base.slots[index].pointer().is_null());
+                }
+            }
+            (slots, retains)
+        });
+        for index in 0..LONGHAND_COUNT {
+            if !bitmap_bit(&owned_bits, index) {
+                storage.slots[index] = base.slots[index].clone();
+            }
+        }
+    }
+
+    fn owned_capacity_bytes(&self) -> usize {
+        match self {
+            Self::Dense(_) => size_of::<DenseSlotStorage>(),
+            Self::Delta { changes, view, .. } => {
+                (if changes.spilled() {
+                    changes.capacity() * size_of::<ChangedSlot>()
+                } else {
+                    0
+                }) + view.get().map_or(0, |view| size_of_val(view.as_ref()))
+            }
+        }
+    }
+}
+
 pub struct ComputedLonghandTable {
-    storage: Box<SlotStorage>,
+    storage: SlotStorage,
     /// Whether the longhand's winning declaration was `!important`, in the
     /// byte layout of the C++ `FixedBitmap` (bit `i` is byte `i / 8`, bit
     /// `i % 8`), so whole bitmaps copy across the FFI without translation.
@@ -206,7 +478,7 @@ impl ComputedLonghandTable {
     /// Capacity owned by a suspended drive, excluding shared style-value allocations.
     pub(crate) fn owned_capacity_bytes(&self) -> u64 {
         (size_of::<Self>()
-            + size_of::<SlotStorage>()
+            + self.storage.owned_capacity_bytes()
             + self.inheritance_dependent.capacity() * size_of::<(u16, RetainedStyleValueData)>()
             + self.inheritance_dependent_view.capacity() * size_of::<FfiTableInheritanceDependentValue>()
             + self
@@ -219,9 +491,23 @@ impl ComputedLonghandTable {
                 .map_or(0, |values| size_of_val(values.as_ref()))) as u64
     }
 
+    /// Immutable table allocations retained at publication. The pre-existing lazy
+    /// transition memo is excluded here because it can grow after this boundary.
+    pub(crate) fn publication_capacity_bytes(&self) -> u64 {
+        self.owned_capacity_bytes()
+            - self
+                .frozen_transition_longhands
+                .get()
+                .map_or(0, |values| size_of_val(values.as_ref()) as u64)
+    }
+
     pub(crate) fn new() -> Self {
+        Self::with_storage(SlotStorage::new())
+    }
+
+    fn with_storage(storage: SlotStorage) -> Self {
         Self {
-            storage: SlotStorage::new_boxed(),
+            storage,
             important_bits: [0; LONGHAND_BITMAP_BYTES],
             inherited_bits: [0; LONGHAND_BITMAP_BYTES],
             evaluated_bits: [0; LONGHAND_BITMAP_BYTES],
@@ -270,7 +556,10 @@ impl ComputedLonghandTable {
             "the computed longhand table is immutable once its style is created"
         );
         let index = Self::slot_index(property_id);
-        if self.storage.slots[index]
+        if self
+            .storage
+            .slot(index)
+            .0
             .optional_data()
             .is_none_or(|existing| *existing != value)
         {
@@ -285,7 +574,7 @@ impl ComputedLonghandTable {
             "the computed longhand table is immutable once its style is created"
         );
         let index = Self::slot_index(property_id);
-        let existing = &self.storage.slots[index];
+        let existing = self.storage.slot(index).0;
         let equal_to_existing = !existing.pointer().is_null()
             && unsafe { crate::css::style_value::rust_style_value_equals(existing.pointer(), value.pointer()) };
         if !equal_to_existing {
@@ -296,17 +585,16 @@ impl ComputedLonghandTable {
 
     fn replace_slot_value(&mut self, index: usize, value: RetainedStyleValueData) {
         let pointer = value.pointer().cast();
-        let previous = self.value_pointers()[index];
+        let previous = self.storage.slot(index).0.pointer().cast();
         if previous != pointer {
             self.adjust_slot_hash_sum(index, previous, pointer);
         }
-        self.storage.slots[index] = value;
+        self.storage.set_value(index, value);
     }
 
     fn mark_evaluated(&mut self, index: usize, source_slot: i64) {
         set_bitmap_bit(&mut self.evaluated_bits, index, true);
-        self.storage
-            .set_source_slot(index, i32::try_from(source_slot).unwrap_or(-1));
+        self.storage.set_source(index, i32::try_from(source_slot).unwrap_or(-1));
     }
 
     fn adjust_slot_hash_sum(&mut self, index: usize, previous: *const c_void, replacement: *const c_void) {
@@ -329,12 +617,9 @@ impl ComputedLonghandTable {
     }
 
     pub(crate) fn recomputed_slot_hash_sum(&self) -> u64 {
-        self.value_pointers()
-            .iter()
-            .enumerate()
-            .fold(0_u64, |sum, (slot, &value)| {
-                sum.wrapping_add(longhand_slot_hash(slot, value))
-            })
+        (0..LONGHAND_COUNT).fold(0_u64, |sum, slot| {
+            sum.wrapping_add(longhand_slot_hash(slot, self.storage.slot(slot).0.pointer().cast()))
+        })
     }
 
     pub(crate) fn frozen_transition_longhands(&self, compute: impl FnOnce(&Self) -> Box<[u16]>) -> Option<&[u16]> {
@@ -463,15 +748,13 @@ impl ComputedLonghandTable {
         self.raw_cascaded_font_size = value;
     }
 
-    fn copy_values_and_metadata_from(&mut self, source: &ComputedLonghandTable) {
+    fn copy_metadata_from(&mut self, source: &ComputedLonghandTable) {
         assert!(
             !self.frozen,
             "the computed longhand table is immutable once its style is created"
         );
         ffi_stats::bump(FfiOp::LonghandTableClone);
-        self.storage.slots.clone_from(&source.storage.slots);
         self.slot_hash_sum.set(source.slot_hash_sum.get());
-        self.storage.source_slots.clone_from(&source.storage.source_slots);
         self.important_bits = source.important_bits;
         self.inherited_bits = source.inherited_bits;
         self.evaluated_bits = source.evaluated_bits;
@@ -481,7 +764,8 @@ impl ComputedLonghandTable {
     }
 
     fn copy_from(&mut self, source: &ComputedLonghandTable) {
-        self.copy_values_and_metadata_from(source);
+        self.storage = SlotStorage::seeded(&source.storage, true);
+        self.copy_metadata_from(source);
         self.inheritance_dependent.clone_from(&source.inheritance_dependent);
         self.inheritance_dependent_bits = source.inheritance_dependent_bits;
         self.rebuild_inheritance_dependent_view();
@@ -494,11 +778,34 @@ impl ComputedLonghandTable {
             "the computed longhand table is immutable once its style is created"
         );
         let slot = Self::slot_index(property_id);
-        if self.value_pointers()[slot] != source.value_pointers()[slot] {
-            self.adjust_slot_hash_sum(slot, self.value_pointers()[slot], source.value_pointers()[slot]);
+        let previous = self.storage.slot(slot).0.pointer().cast();
+        let replacement = source.storage.slot(slot).0.pointer().cast();
+        if previous != replacement {
+            self.adjust_slot_hash_sum(slot, previous, replacement);
         }
-        self.storage.slots[slot].clone_from(&source.storage.slots[slot]);
-        self.storage.set_source_slot(slot, source.storage.source_slot(slot));
+        let source_slot = source.storage.slot(slot).1;
+        if let SlotStorage::Delta {
+            base,
+            changes,
+            changed_bits,
+            view,
+            ..
+        } = &mut self.storage
+            && base.slots[slot].pointer().cast::<c_void>() == replacement
+        {
+            view.take();
+            if bitmap_bit(changed_bits, slot) {
+                changes.remove(bitmap_rank(changed_bits, slot));
+                set_bitmap_bit(changed_bits, slot, false);
+            }
+            if self.storage.slot(slot).1 != source_slot {
+                self.storage.set_source(slot, source_slot);
+            }
+        } else {
+            ffi_stats::count_table_copy(|| (1, u64::from(!replacement.is_null())));
+            self.storage.set_value(slot, source.storage.slot(slot).0.clone());
+            self.storage.set_source(slot, source_slot);
+        }
         set_bitmap_bit(&mut self.important_bits, slot, bitmap_bit(&source.important_bits, slot));
         set_bitmap_bit(&mut self.inherited_bits, slot, bitmap_bit(&source.inherited_bits, slot));
         set_bitmap_bit(&mut self.evaluated_bits, slot, bitmap_bit(&source.evaluated_bits, slot));
@@ -512,22 +819,24 @@ impl ComputedLonghandTable {
     /// the inheritance-dependent records start fresh, as for a drive from an empty table.
     pub(crate) fn seeded_with_values_from(source: &ComputedLonghandTable) -> Self {
         ffi_stats::bump(FfiOp::LonghandTableClone);
-        let mut table = Self::new();
-        table.storage.slots.clone_from(&source.storage.slots);
+        let table = Self::with_storage(SlotStorage::seeded(&source.storage, false));
         table.slot_hash_sum.set(source.slot_hash_sum.get());
         table
     }
 
     pub(crate) fn copied_for_drive(source: &ComputedLonghandTable) -> Self {
-        let mut table = Self::new();
-        table.copy_values_and_metadata_from(source);
+        let mut table = Self::with_storage(SlotStorage::seeded(&source.storage, true));
+        table.copy_metadata_from(source);
         table.evaluated_bits = [0; LONGHAND_BITMAP_BYTES];
         table
     }
 
     pub(crate) fn copied_for_partial_drive(source: &ComputedLonghandTable) -> Self {
-        let mut table = Self::new();
-        table.copy_from(source);
+        let mut table = Self::with_storage(SlotStorage::seeded(&source.storage, true));
+        table.copy_metadata_from(source);
+        table.inheritance_dependent.clone_from(&source.inheritance_dependent);
+        table.inheritance_dependent_bits = source.inheritance_dependent_bits;
+        table.rebuild_inheritance_dependent_view();
         table.evaluated_bits = [0; LONGHAND_BITMAP_BYTES];
         table.inheritance_dependent_is_seeded = true;
         table.set_in_display_none_subtree(false);
@@ -546,8 +855,11 @@ impl ComputedLonghandTable {
     ) -> Self {
         assert!(self.frozen);
         assert!(inherited_source.frozen);
-        let mut table = Self::new();
-        table.copy_from(self);
+        let mut table = Self::with_storage(SlotStorage::seeded(&self.storage, true));
+        table.copy_metadata_from(self);
+        table.inheritance_dependent.clone_from(&self.inheritance_dependent);
+        table.inheritance_dependent_bits = self.inheritance_dependent_bits;
+        table.rebuild_inheritance_dependent_view();
         for property_id in FIRST_LONGHAND_PROPERTY_ID..=LAST_LONGHAND_PROPERTY_ID {
             if !property_is_inherited(property_id) {
                 continue;
@@ -573,7 +885,8 @@ impl ComputedLonghandTable {
         table
     }
 
-    pub(crate) fn into_raw_shared(self) -> *const Self {
+    pub(crate) fn into_raw_shared(mut self) -> *const Self {
+        self.storage.materialize();
         Arc::into_raw(Arc::new(self))
     }
 
@@ -583,15 +896,22 @@ impl ComputedLonghandTable {
             "the computed longhand table is immutable once its style is created"
         );
         assert_eq!(values.len(), LONGHAND_COUNT);
+        ffi_stats::count_table_copy(|| {
+            (
+                values.len() as u64,
+                values.iter().filter(|value| !value.is_null()).count() as u64,
+            )
+        });
+        self.storage = SlotStorage::new();
         for (index, &value) in values.iter().enumerate() {
-            self.storage.slots[index] = unsafe {
+            let retained = unsafe {
                 RetainedStyleValueData::from_retained_optional_pointer(crate::css::style_value::retain_style_value(
                     value.cast(),
                 ))
             };
+            self.storage.set_value(index, retained);
         }
         self.slot_hash_sum.set(None);
-        self.storage.source_slots = None;
         self.important_bits = [0; LONGHAND_BITMAP_BYTES];
         self.inherited_bits = [0; LONGHAND_BITMAP_BYTES];
         self.evaluated_bits = [0; LONGHAND_BITMAP_BYTES];
@@ -777,11 +1097,12 @@ impl ComputedLonghandTable {
             && self.publication_dependency_flags() == other.publication_dependency_flags()
             && self.pseudo_element_styles() == other.pseudo_element_styles()
             && self.inheritance_dependent.len() == other.inheritance_dependent.len()
-            && self
-                .value_pointers()
-                .iter()
-                .zip(other.value_pointers())
-                .all(|(&first, &second)| values_equal(first, second))
+            && (0..LONGHAND_COUNT).all(|slot| {
+                values_equal(
+                    self.storage.slot(slot).0.pointer().cast(),
+                    other.storage.slot(slot).0.pointer().cast(),
+                )
+            })
             && values_equal(self.raw_cascaded_font_size(), other.raw_cascaded_font_size())
             && self.inheritance_dependent.iter().all(|(property, value)| {
                 other
@@ -833,7 +1154,7 @@ impl ComputedLonghandTable {
             };
         }
         FfiEffectiveLonghandValue {
-            value: self.value_pointers()[Self::slot_index(property_id)],
+            value: self.storage.slot(Self::slot_index(property_id)).0.pointer().cast(),
             source: EFFECTIVE_LONGHAND_SOURCE_TABLE,
         }
     }
@@ -879,35 +1200,34 @@ impl ComputedLonghandTable {
     }
 
     pub(crate) fn freeze(&mut self) {
+        self.storage.materialize();
+        self.finish_delta();
+    }
+
+    pub(crate) fn finish_delta(&mut self) {
         self.post_compute_restore_values = None;
-        if !self.frozen
-            && self
-                .storage
-                .source_slots
-                .as_ref()
-                .is_some_and(|slots| slots.iter().all(|&slot| slot == -1))
-        {
-            self.storage.source_slots = None;
+        if !self.frozen {
+            self.storage.release_empty_sources();
         }
         self.frozen = true;
     }
 
     /// The stored value for a longhand, when the drive stored one.
     pub(crate) fn get(&self, property_id: u16) -> Option<&RetainedStyleValueData> {
-        let value = &self.storage.slots[Self::slot_index(property_id)];
+        let value = self.storage.slot(Self::slot_index(property_id)).0;
         (!value.pointer().is_null()).then_some(value)
     }
 
     /// The cascade source slot of the declaration a longhand's value came
     /// from, recorded only when that declaration carries style sheet context.
     pub(crate) fn source_slot(&self, property_id: u16) -> Option<u32> {
-        u32::try_from(self.storage.source_slot(Self::slot_index(property_id))).ok()
+        u32::try_from(self.storage.slot(Self::slot_index(property_id)).1).ok()
     }
 
     /// One raw data pointer per longhand slot, null where the drive stored no
     /// value. The span is stable for the table's lifetime once frozen.
     pub(crate) fn value_pointers(&self) -> &[*const c_void] {
-        RetainedStyleValueData::pointer_slice(&self.storage.slots)
+        self.storage.value_pointers()
     }
 
     pub(crate) fn is_frozen(&self) -> bool {
@@ -954,10 +1274,10 @@ pub unsafe extern "C" fn rust_computed_longhand_table_create_with_inherited_valu
     table: *const ComputedLonghandTable,
     inherited_source: *const ComputedLonghandTable,
 ) -> *mut ComputedLonghandTable {
-    Arc::into_raw(Arc::new(
-        unsafe { &*table }.with_inherited_values_from(unsafe { &*inherited_source }),
-    ))
-    .cast_mut()
+    unsafe { &*table }
+        .with_inherited_values_from(unsafe { &*inherited_source })
+        .into_raw_shared()
+        .cast_mut()
 }
 
 /// Stores one computed longhand, retaining `data`. `source_slot` is the
@@ -1271,6 +1591,58 @@ mod tests {
     }
 
     #[test]
+    fn partial_delta_borrows_base_values_and_preserves_sidecars() {
+        let mut source = ComputedLonghandTable::new();
+        source.set(property_id::OPACITY, retained_number(0.5), 9);
+        source.set(property_id::Z_INDEX, retained_number(7.0), 4);
+        source.set_important(property_id::Z_INDEX, true);
+        source.set_inherited(property_id::Z_INDEX, true);
+        source.freeze();
+        let value = source.get(property_id::Z_INDEX).unwrap().clone().into_arc();
+        let owners = Arc::strong_count(&value);
+        let mut delta = ComputedLonghandTable::copied_for_partial_drive(&source);
+        assert_eq!(Arc::strong_count(&value), owners);
+        assert!(delta.evaluated_bits().iter().all(|&bits| bits == 0));
+        assert_eq!(delta.source_slot(property_id::Z_INDEX), Some(4));
+        assert!(delta.is_important(property_id::Z_INDEX));
+        assert!(delta.is_inherited(property_id::Z_INDEX));
+        delta.set(property_id::OPACITY, retained_number(0.75), -1);
+        delta.set(property_id::Z_INDEX, retained_number(8.0), -1);
+        delta.copy_slot_from(&source, property_id::Z_INDEX);
+        assert_eq!(Arc::strong_count(&value), owners);
+        assert_eq!(delta.source_slot(property_id::Z_INDEX), Some(4));
+        assert!(source.get(property_id::OPACITY).unwrap().data() == &StyleValueData::Number { value: 0.5 });
+        assert_eq!(delta.slot_hash_sum(), delta.recomputed_slot_hash_sum());
+        drop(source);
+        assert_eq!(Arc::strong_count(&value), owners);
+        delta.freeze();
+        assert!(matches!(delta.storage, SlotStorage::Dense(_)));
+        assert!(delta.get(property_id::Z_INDEX).unwrap().data() == value.as_ref());
+        assert_eq!(Arc::strong_count(&value), owners);
+        drop(delta);
+        assert_eq!(Arc::strong_count(&value), owners - 1);
+    }
+
+    #[test]
+    fn seeding_a_delta_preserves_independence_without_a_base_chain() {
+        let mut original = ComputedLonghandTable::new();
+        original.set(property_id::OPACITY, retained_number(0.5), 3);
+        original.freeze();
+        let mut first = ComputedLonghandTable::copied_for_partial_drive(&original);
+        first.set(property_id::Z_INDEX, retained_number(1.0), 4);
+        let mut second = ComputedLonghandTable::seeded_with_values_from(&first);
+        first.set(property_id::Z_INDEX, retained_number(2.0), 5);
+        assert_eq!(second.source_slot(property_id::Z_INDEX), None);
+        assert!(second.get(property_id::Z_INDEX).unwrap().data() == &StyleValueData::Number { value: 1.0 });
+        drop(first);
+        drop(original);
+        assert!(second.get(property_id::OPACITY).unwrap().data() == &StyleValueData::Number { value: 0.5 });
+        second.freeze();
+        assert!(matches!(second.storage, SlotStorage::Dense(_)));
+        assert_eq!(second.slot_hash_sum(), second.recomputed_slot_hash_sum());
+    }
+
+    #[test]
     fn set_retains_and_release_drops() {
         let value = Arc::new(StyleValueData::Number { value: 42.0 });
         let weak_value = Arc::downgrade(&value);
@@ -1314,14 +1686,14 @@ mod tests {
     fn source_slot_storage_is_absent_when_no_value_needs_sheet_context() {
         let mut table = ComputedLonghandTable::new();
         table.set(FIRST_LONGHAND_PROPERTY_ID, retained_number(42.0), -1);
-        assert!(table.storage.source_slots.is_none());
+        assert!(!table.storage.has_source_slots());
         table.set(FIRST_LONGHAND_PROPERTY_ID, retained_number(42.0), 7);
-        assert!(table.storage.source_slots.is_some());
+        assert!(table.storage.has_source_slots());
         assert_eq!(table.source_slot(FIRST_LONGHAND_PROPERTY_ID), Some(7));
         table.set(FIRST_LONGHAND_PROPERTY_ID, retained_number(42.0), -1);
         let pointers = table.value_pointers().as_ptr();
         table.freeze();
-        assert!(table.storage.source_slots.is_none());
+        assert!(!table.storage.has_source_slots());
         assert_eq!(table.value_pointers().as_ptr(), pointers);
         assert_eq!(table.source_slot(FIRST_LONGHAND_PROPERTY_ID), None);
     }
