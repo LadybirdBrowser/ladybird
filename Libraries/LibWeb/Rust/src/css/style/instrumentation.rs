@@ -66,6 +66,22 @@ define_counters! {
     LanguageTextsPublished => "languageTextsPublished",
     CustomPropertyNamesPublished => "customPropertyNamesPublished",
 
+    // Exclusive transaction intervals. Fused stages retain one name until execution splits.
+    TransactionMicroseconds => "transactionMicroseconds",
+    CommitMicroseconds => "commitMicroseconds",
+    RoutingPlanningMicroseconds => "routingPlanningMicroseconds",
+    MatchingCascadeMicroseconds => "matchingCascadeMicroseconds",
+    ComputationPublicationMicroseconds => "computationPublicationMicroseconds",
+    EmitMicroseconds => "emitMicroseconds",
+    TransactionRemainderMicroseconds => "transactionRemainderMicroseconds",
+    // Physical work, including drives whose output is later abandoned.
+    EngineFullDrivesStarted => "engineFullDrivesStarted",
+    EnginePartialDrivesStarted => "enginePartialDrivesStarted",
+    EnginePhysicalLonghandEvaluations => "enginePhysicalLonghandEvaluations",
+    EnginePartialLonghandEvaluations => "enginePartialLonghandEvaluations",
+    EngineDriveCopiedTableSlots => "engineDriveCopiedTableSlots",
+    ReachedStyleNodes => "reachedStyleNodes",
+
     // Stylesheet program.
     StyleRulesCompiled => "styleRulesCompiled",
     ExactSelectorEntries => "exactSelectorEntries",

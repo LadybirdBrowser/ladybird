@@ -2147,6 +2147,7 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
     object->define_direct_property("baseStylePartialBuilds"_utf16_fly_string, JS::Value(counters.base_style_partial_builds), JS::default_attributes);
     object->define_direct_property("baseStyleFullBuilds"_utf16_fly_string, JS::Value(counters.base_style_full_builds), JS::default_attributes);
     object->define_direct_property("computedLonghandEvaluations"_utf16_fly_string, JS::Value(counters.computed_longhand_evaluations), JS::default_attributes);
+    object->define_direct_property("computedLonghandDrivesStarted"_utf16_fly_string, JS::Value(counters.computed_longhand_drives_started), JS::default_attributes);
     object->define_direct_property("longhandWrappersMinted"_utf16_fly_string, JS::Value(CSS::longhand_wrappers_minted()), JS::default_attributes);
     object->define_direct_property("styleStabilizationEpochs"_utf16_fly_string, JS::Value(counters.style_stabilization_epochs), JS::default_attributes);
     object->define_direct_property("styleStabilizationFeedbackEpochs"_utf16_fly_string, JS::Value(counters.style_stabilization_feedback_epochs), JS::default_attributes);
@@ -2168,9 +2169,13 @@ GC::Ref<JS::Object> Internals::style_invalidation_counters_object() const
     object->define_direct_property("sizeQueryContainerScanVisits"_utf16_fly_string, JS::Value(counters.size_query_container_scan_visits), JS::default_attributes);
     object->define_direct_property("styleEngineTransactionSetups"_utf16_fly_string, JS::Value(counters.style_engine_transaction_setups), JS::default_attributes);
     object->define_direct_property("styleEngineTransactionSetupMicroseconds"_utf16_fly_string, JS::Value(counters.style_engine_transaction_setup_microseconds), JS::default_attributes);
-    object->define_direct_property("styleEnginePlanningMicroseconds"_utf16_fly_string, JS::Value(counters.style_engine_planning_microseconds), JS::default_attributes);
+    object->define_direct_property("styleEnginePlanningMicroseconds"_utf16_fly_string, JS::Value(counters.style_update_bridge_microseconds), JS::default_attributes);
     object->define_direct_property("relayoutsPerformed"_utf16_fly_string, JS::Value(counters.relayouts_performed), JS::default_attributes);
     object->define_direct_property("styleUpdateMicroseconds"_utf16_fly_string, JS::Value(counters.style_update_microseconds), JS::default_attributes);
+    object->define_direct_property("styleUpdateSubmissionMicroseconds"_utf16_fly_string, JS::Value(counters.style_update_submission_microseconds), JS::default_attributes);
+    object->define_direct_property("styleUpdateBridgeMicroseconds"_utf16_fly_string, JS::Value(counters.style_update_bridge_microseconds), JS::default_attributes);
+    object->define_direct_property("styleUpdateApplyMicroseconds"_utf16_fly_string, JS::Value(counters.style_update_apply_microseconds), JS::default_attributes);
+    object->define_direct_property("styleUpdateRemainderMicroseconds"_utf16_fly_string, JS::Value(counters.style_update_remainder_microseconds), JS::default_attributes);
     object->define_direct_property("styleRecomputeMicroseconds"_utf16_fly_string, JS::Value(counters.style_recompute_microseconds), JS::default_attributes);
     object->define_direct_property("customPropertyResolutions"_utf16_fly_string, JS::Value(counters.custom_property_resolutions), JS::default_attributes);
     object->define_direct_property("customPropertyElements"_utf16_fly_string, JS::Value(counters.custom_property_elements), JS::default_attributes);

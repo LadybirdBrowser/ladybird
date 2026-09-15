@@ -1218,7 +1218,7 @@ The engine's job is to make broad costs correspond to real semantic uncertainty 
 
 ## 16. Instrumentation
 
-The engine maintains a large counter ledger (169 counters in `instrumentation.rs`), exposed to C++ and through the internals object, alongside a separate C++-side ledger of style-update and invalidation counters. The main families:
+The engine maintains a large counter ledger (`instrumentation.rs`), exposed to C++ and through the internals object, alongside a separate C++-side ledger of style-update and invalidation counters. The main families:
 
 * Input deltas by kind; journal cancellations, replacements, and coarsened scope markers.
 * Executed selector primitives in five buckets: local-feature tests, state tests, combinator steps, structural tests, relational tests.
@@ -1230,6 +1230,68 @@ The engine maintains a large counter ledger (169 counters in `instrumentation.rs
 * Style records and interned states created, reused, reclaimed; reaction and recomputation counts on the C++ ledger (the amplification triage numbers).
 
 The doctrine over any future counter: ratios with a zero denominator report the raw numerator and `not applicable`, never an invented zero, and every plan decision made against an estimate should leave behind the observation that would have corrected it.
+
+### 16.1 Exclusive phase clocks and physical work
+
+`internals.styleEngineCounters()` reports cumulative integer microseconds at the
+`take_style_transaction` boundary. `transactionMicroseconds` equals the sum of
+`commitMicroseconds`, `routingPlanningMicroseconds`, `matchingCascadeMicroseconds`,
+`computationPublicationMicroseconds`, `emitMicroseconds`, and
+`transactionRemainderMicroseconds`. Take two snapshots and subtract each field
+when measuring an update. Rounded cumulative endpoints preserve the identity even
+for short or empty transactions; the whole includes destruction of local scratch.
+
+The fused names describe the current execution: routing performs exact planning
+and prefix matching inline; answer patching and completion update winners;
+computation interns and installs records immediately. No per-element clocks try
+to subdivide that work. Commit includes reclamation and journal application.
+Remainder covers final bookkeeping, retained traversal preparation, and cleanup.
+
+The C++ ledger (`internals.getStyleInvalidationCounters()`) has its own identity:
+`styleUpdateMicroseconds` equals `styleUpdateSubmissionMicroseconds` plus
+`styleUpdateBridgeMicroseconds`, `styleUpdateApplyMicroseconds`, and
+`styleUpdateRemainderMicroseconds`. Submission covers update input preparation,
+transaction setup, buffered input transfer, and document computation inputs.
+Bridge measures the transaction FFI call. Apply covers reaction preparation and
+installation for each batch, excluding subsequent transactions. Remainder covers
+animation sampling, other coordination, bridge result handling, and cleanup.
+The Rust clocks subdivide bridge; **do not add the two ledgers**. Mutation hooks
+before `update_style` are outside both clocks and must be measured separately.
+Diagnostic transactions still contribute to the Rust ledger, but their returned
+bridge durations are not charged to the C++ style-update ledger.
+
+`styleEnginePlanningMicroseconds` remains a compatibility alias for the bridge
+clock. `styleEngineTransactionSetupMicroseconds` is a subset of submission, and
+`styleRecomputeMicroseconds` is a nested diagnostic. Neither is an extra exclusive
+phase. Timing counters never determine which work runs.
+
+Physical-work counts distinguish attempted work from accepted output:
+
+* `reachedStyleNodes` counts every node entering the transaction's answer pass,
+  including nodes stopped before publication. `invalidatedStyleNodes` retains its
+  existing post-stop meaning. Routing visits are counted separately.
+* `coldNodesEvaluated` and `candidateChecks` count cold matching rows and exact
+  candidate checks; `styleRecordsInterned` and `styleRecordsReused` retain their
+  existing publication meanings.
+* `engineFullDrivesStarted` and `enginePartialDrivesStarted` count Rust record
+  drives reaching property computation. `enginePhysicalLonghandEvaluations`
+  includes every shared-driver phase they execute, even if a later phase bails or
+  C++ discards the record. `enginePartialLonghandEvaluations` is its partial-drive
+  subset. `engineComputedLonghandEvaluations` still counts accepted output only.
+* The C++ ledger's `computedLonghandDrivesStarted` and
+  `computedLonghandEvaluations` count the host-driven computation lane. Add its
+  evaluations to Rust's physical evaluations for both lanes together.
+* `engineDriveCopiedTableSlots` counts full-width seeds and partial-drive copies,
+  including empty slots, plus required-input slots restored from an old table in
+  the Rust record drives. It does not count inherited-group swaps or host table
+  copies; `styleFfiCounters()` additionally reports table clone operations across
+  both lanes. Slot copies are distinct from retains and allocated bytes.
+
+These additions use the existing plain-integer document ledgers. The shared
+driver counts locally and each Rust phase folds its work immediately, before
+bailout checks. They allocate no observer state, format no strings, and perform
+no atomic operations per element. Phase clocks use a fixed number of monotonic
+clock reads per transaction or C++ reaction batch.
 
 ## 17. Failure modes and safeguards
 

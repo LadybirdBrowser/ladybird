@@ -5634,6 +5634,7 @@ NonnullRefPtr<ComputedStyleWorkingSet> StyleComputer::compute_properties(DOM::Ab
         .prepare_longhand_drive = [](void* context_pointer, ComputedValuesFFI::FfiStyleComputationRequirements const* computation_requirements, ComputedValuesFFI::ComputedLonghandTable* longhand_table, bool parent_has_animated_values, ComputedValuesFFI::FfiLonghandDriveInput* output) {
             auto& context = *static_cast<NativeComputePropertiesContext*>(context_pointer);
             auto& style_computer = *context.style_computer;
+            ++style_computer.document().style_invalidation_counters().computed_longhand_drives_started;
             auto abstract_element = context.abstract_element;
             auto computed_group_mask = computation_requirements->computed_group_mask;
             if (context.selected_computed_group_mask)

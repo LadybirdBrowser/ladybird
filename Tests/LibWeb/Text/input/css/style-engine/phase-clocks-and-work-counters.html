@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<style>
+    .before { margin-left: 10px }
+    .after { margin-left: 30px }
+    .fresh:has(> span) { opacity: 0.5 }
+    .fresh { color: rgb(12, 34, 56); padding: 7px }
+</style>
+<div id="target" class="before"></div>
+<script>
+    test(() => {
+        const messages = [];
+        const report = message => messages.push(message);
+        const rustPhases = ["commitMicroseconds", "routingPlanningMicroseconds", "matchingCascadeMicroseconds",
+            "computationPublicationMicroseconds", "emitMicroseconds", "transactionRemainderMicroseconds"];
+        const cppPhases = ["styleUpdateSubmissionMicroseconds", "styleUpdateBridgeMicroseconds",
+            "styleUpdateApplyMicroseconds", "styleUpdateRemainderMicroseconds"];
+        const snapshot = () => ({ rust: internals.styleEngineCounters(), cpp: internals.getStyleInvalidationCounters() });
+        const delta = (after, before, key) => after[key] - before[key];
+        function checkClocks(label, before, after) {
+            for (const [lane, phases, whole] of [["rust", rustPhases, "transactionMicroseconds"],
+                ["cpp", cppPhases, "styleUpdateMicroseconds"]]) {
+                const values = phases.map(key => delta(after[lane], before[lane], key));
+                const total = delta(after[lane], before[lane], whole);
+                const additive = values.every(value => Number.isSafeInteger(value) && value >= 0)
+                    && values.reduce((sum, value) => sum + value, 0) === total;
+                if (!additive)
+                    report(`${label} ${lane} intervals: ${JSON.stringify(values)}, whole: ${total}`);
+                report(`${label} ${lane} additive: ${additive}`);
+            }
+        }
+        internals.updateStyle();
+        let before = snapshot();
+        target.className = "after";
+        internals.updateStyle();
+        let after = snapshot();
+        checkClocks("partial", before, after);
+        report(`changed margin: ${getComputedStyle(target).marginLeft}`);
+        for (const key of ["reachedStyleNodes", "enginePartialDrivesStarted", "enginePartialLonghandEvaluations",
+            "enginePhysicalLonghandEvaluations", "engineDriveCopiedTableSlots"])
+            report(`${key}: ${delta(after.rust, before.rust, key) > 0}`);
+
+        before = snapshot();
+        const parent = document.createElement("div");
+        for (let i = 0; i < 3; ++i) {
+            const child = document.createElement("div");
+            child.className = "fresh";
+            parent.appendChild(child);
+        }
+        document.body.appendChild(parent);
+        internals.updateStyle();
+        after = snapshot();
+        checkClocks("arrival", before, after);
+        report(`new color: ${getComputedStyle(parent.firstChild).color}`);
+        for (const key of ["coldNodesEvaluated", "candidateChecks", "engineFullDrivesStarted", "styleRecordsInterned", "styleRecordsReused"])
+            report(`${key}: ${delta(after.rust, before.rust, key) > 0}`);
+
+        // A quiescent update and a canceled mutation exercise paths that emit no work.
+        before = snapshot();
+        internals.updateStyle();
+        after = snapshot();
+        checkClocks("quiescent", before, after);
+        before = after;
+        target.className = "before";
+        target.className = "after";
+        internals.updateStyle();
+        after = snapshot();
+        checkClocks("canceled", before, after);
+        before = after;
+        target.className = "before";
+        internals.styleEngineTransactionReactions();
+        after = snapshot();
+        checkClocks("diagnostic", before, after);
+        for (const message of messages)
+            println(message);
+    });
+</script>

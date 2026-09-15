@@ -161,6 +161,19 @@ impl StyleEngine {
                 true,
             );
         }
+        self.counters.bump(Counter::EnginePartialDrivesStarted);
+        self.counters.add(
+            Counter::EngineDriveCopiedTableSlots,
+            crate::css::property_metadata::NUMBER_OF_LONGHAND_PROPERTIES as u64,
+        );
+        self.counters.add(
+            Counter::EnginePhysicalLonghandEvaluations,
+            u64::from(results.longhand_evaluations),
+        );
+        self.counters.add(
+            Counter::EnginePartialLonghandEvaluations,
+            u64::from(results.longhand_evaluations),
+        );
         if results.explicitly_inherited_non_inherited_style_groups != 0
             || results.uses_tree_counting_function
             || table.display_before_box_type_transformation() != old_table.display_before_box_type_transformation()
@@ -193,6 +206,7 @@ impl StyleEngine {
                 return None;
             }
             table.copy_slot_from(old_table, property);
+            self.counters.bump(Counter::EngineDriveCopiedTableSlots);
         }
         // The group builders resolve against the same context; they report no viewport dependence
         // of their own.
@@ -448,16 +462,25 @@ impl StyleEngine {
                 subject_inline_axis_is_horizontal,
                 resolved_viewport_relative_length: resolved_viewport_relative_length_pointer,
             };
+        self.counters.bump(Counter::EngineFullDrivesStarted);
+        if old_table.is_some() {
+            self.counters.add(
+                Counter::EngineDriveCopiedTableSlots,
+                crate::css::property_metadata::NUMBER_OF_LONGHAND_PROPERTIES as u64,
+            );
+        }
         let mut table = old_table.map_or_else(ComputedLonghandTable::new, ComputedLonghandTable::copied_for_drive);
         let mut results = empty_longhand_driver_results();
         let mut effective_color_scheme: i16 = -1;
-        let drive = |table: &mut ComputedLonghandTable,
+        let drive = |counters: &mut Counters,
+                     table: &mut ComputedLonghandTable,
                      results: &mut crate::css::style_compute::FfiLonghandDriverResults,
                      effective_color_scheme: &mut i16,
                      phase: u8,
                      length: *const FfiLengthResolutionContext,
                      input_line_height_metrics: *const FfiInputLineHeightMetrics,
                      line_height_before: *const std::ffi::c_void| unsafe {
+            let evaluations_before = results.longhand_evaluations;
             drive_property_computation(
                 std::ptr::from_mut(table),
                 std::ptr::null_mut(),
@@ -475,6 +498,10 @@ impl StyleEngine {
                 effective_color_scheme,
                 true,
             );
+            counters.add(
+                Counter::EnginePhysicalLonghandEvaluations,
+                u64::from(results.longhand_evaluations - evaluations_before),
+            );
         };
         let font_length = if is_document_element {
             length_context(initial_metrics, false, initial_metrics, false)
@@ -487,6 +514,7 @@ impl StyleEngine {
             )
         };
         drive(
+            &mut self.counters,
             &mut table,
             &mut results,
             &mut effective_color_scheme,
@@ -605,6 +633,7 @@ impl StyleEngine {
             )
         };
         drive(
+            &mut self.counters,
             &mut table,
             &mut results,
             &mut effective_color_scheme,
@@ -614,6 +643,7 @@ impl StyleEngine {
             std::ptr::null(),
         );
         drive(
+            &mut self.counters,
             &mut table,
             &mut results,
             &mut effective_color_scheme,
@@ -659,6 +689,7 @@ impl StyleEngine {
         };
         let line_height_value = table.effective_value(None, prop::LINE_HEIGHT, true).value;
         drive(
+            &mut self.counters,
             &mut table,
             &mut results,
             &mut effective_color_scheme,
