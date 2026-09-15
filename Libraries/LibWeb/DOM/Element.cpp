@@ -1669,6 +1669,21 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
                     && !pseudo_style_can_escape_originating_element(new_style));
         };
 
+        auto can_update_pseudo_element_in_place = [&] {
+            if (!first_is_one_of(pseudo_element, CSS::PseudoElement::Before, CSS::PseudoElement::After))
+                return false;
+            auto has_independent_content = [](CSS::ComputedValues const* style) {
+                if (!style)
+                    return true;
+                if (style->display().is_list_item() || style->display().is_contents()
+                    || !style->counter_reset().is_empty() || !style->counter_increment().is_empty() || !style->counter_set().is_empty())
+                    return false;
+                auto content = style->computed_content();
+                return content->is_keyword() || (content->is_content() && all_of(content->as_content().content().values(), [](auto const& item) { return item->is_string(); }));
+            };
+            return has_independent_content(pseudo_element_values) && has_independent_content(new_pseudo_element_style);
+        };
+
         // NB: Selection highlights do not generate boxes or affect layout.
         if (pseudo_element == CSS::PseudoElement::Selection) {
             if (!style_record_is_unchanged(style_record_delta)) {
@@ -1697,6 +1712,10 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
                 else if (result.invalidation.layout_tree_rebuild_root() == CSS::LayoutTreeRebuildRoot::BoxPresenceChange)
                     result.invalidation.set_layout_tree_rebuild_root(CSS::LayoutTreeRebuildRoot::Self);
             }
+            if (result.invalidation.needs_layout_tree_rebuild()
+                && result.invalidation.layout_tree_rebuild_root() == CSS::LayoutTreeRebuildRoot::Self
+                && can_update_pseudo_element_in_place())
+                result.invalidation.set_layout_tree_rebuild_root(CSS::LayoutTreeRebuildRoot::PseudoElements);
             if (result.any_computed_value_changed)
                 document().style_invalidation_counters().element_computed_style_changes++;
             invalidation |= result.invalidation;
@@ -1705,6 +1724,8 @@ CSS::RequiredInvalidationAfterStyleChange Element::recompute_pseudo_element_styl
             auto rebuild_root = pseudo_box_stays_inside_originating_box(new_pseudo_element_style)
                 ? CSS::LayoutTreeRebuildRoot::Self
                 : CSS::LayoutTreeRebuildRoot::Parent;
+            if (rebuild_root == CSS::LayoutTreeRebuildRoot::Self && can_update_pseudo_element_in_place())
+                rebuild_root = CSS::LayoutTreeRebuildRoot::PseudoElements;
             invalidation |= CSS::RequiredInvalidationAfterStyleChange::rebuild_layout_tree_from(rebuild_root);
         }
 
@@ -1788,6 +1809,10 @@ void Element::set_needs_layout_tree_rebuild(SetNeedsLayoutTreeUpdateReason reaso
         return;
     if (rebuild_root == CSS::LayoutTreeRebuildRoot::BoxPresenceChange && apply_box_presence_change_in_place(reason))
         return;
+    if (rebuild_root == CSS::LayoutTreeRebuildRoot::PseudoElements) {
+        set_needs_layout_tree_update(true, SetNeedsLayoutTreeUpdateReason::PseudoElementChange);
+        return;
+    }
     bool can_rebuild_from_self = rebuild_root == CSS::LayoutTreeRebuildRoot::Self
         || (rebuild_root == CSS::LayoutTreeRebuildRoot::SelfUnlessDocumentElementOrBody
             && !is_html_html_element() && !is_html_body_element());

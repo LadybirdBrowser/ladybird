@@ -292,11 +292,11 @@ PRESERVED: ::after remove inline flow on inline in block grid | distant sibling 
 PRESERVED: ::after remove inline flow on inline in block grid | DOM parent
 PRESERVED: ::after remove inline flow on inline in block grid | preceding sibling
 PRESERVED: ::after remove inline flow on inline in block grid | preceding sibling descendant
-RECREATED: ::after remove inline flow on inline in block grid | target
-RECREATED: ::after remove inline flow on inline in block grid | target descendant
+PRESERVED: ::after remove inline flow on inline in block grid | target
+PRESERVED: ::after remove inline flow on inline in block grid | target descendant
 PRESERVED: ::after remove inline flow on inline in block grid | following sibling
 PRESERVED: ::after remove inline flow on inline in block grid | following sibling descendant
-STATS: ::after remove inline flow on inline in block grid | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove inline flow on inline in block grid | rebuilt subtree roots=0, escaped=false
 PASS: ::after remove inline flow on inline in block grid | incremental tree matches full rebuild
 PRESERVED: ::before change position contents on flow-root in run-in | fixture ancestor
 PRESERVED: ::before change position contents on flow-root in run-in | distant sibling
@@ -2092,11 +2092,11 @@ PRESERVED: ::after remove inline on inline flow in block grid | distant sibling 
 PRESERVED: ::after remove inline on inline flow in block grid | DOM parent
 PRESERVED: ::after remove inline on inline flow in block grid | preceding sibling
 PRESERVED: ::after remove inline on inline flow in block grid | preceding sibling descendant
-RECREATED: ::after remove inline on inline flow in block grid | target
-RECREATED: ::after remove inline on inline flow in block grid | target descendant
+PRESERVED: ::after remove inline on inline flow in block grid | target
+PRESERVED: ::after remove inline on inline flow in block grid | target descendant
 PRESERVED: ::after remove inline on inline flow in block grid | following sibling
 PRESERVED: ::after remove inline on inline flow in block grid | following sibling descendant
-STATS: ::after remove inline on inline flow in block grid | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove inline on inline flow in block grid | rebuilt subtree roots=0, escaped=false
 PASS: ::after remove inline on inline flow in block grid | incremental tree matches full rebuild
 PRESERVED: ::after remove math on inline flow in list-item | fixture ancestor
 PRESERVED: ::after remove math on inline flow in list-item | distant sibling
@@ -2272,11 +2272,11 @@ PRESERVED: ::after remove inline flex on inline flow-root in table-caption | dis
 PRESERVED: ::after remove inline flex on inline flow-root in table-caption | DOM parent
 PRESERVED: ::after remove inline flex on inline flow-root in table-caption | preceding sibling
 PRESERVED: ::after remove inline flex on inline flow-root in table-caption | preceding sibling descendant
-RECREATED: ::after remove inline flex on inline flow-root in table-caption | target
-RECREATED: ::after remove inline flex on inline flow-root in table-caption | target descendant
+PRESERVED: ::after remove inline flex on inline flow-root in table-caption | target
+PRESERVED: ::after remove inline flex on inline flow-root in table-caption | target descendant
 PRESERVED: ::after remove inline flex on inline flow-root in table-caption | following sibling
 PRESERVED: ::after remove inline flex on inline flow-root in table-caption | following sibling descendant
-STATS: ::after remove inline flex on inline flow-root in table-caption | rebuilt subtree roots=1, escaped=false
+STATS: ::after remove inline flex on inline flow-root in table-caption | rebuilt subtree roots=0, escaped=false
 PASS: ::after remove inline flex on inline flow-root in table-caption | incremental tree matches full rebuild
 PRESERVED: ::before change position inline-block on block flex in block flow list-item | fixture ancestor
 PRESERVED: ::before change position inline-block on block flex in block flow list-item | distant sibling

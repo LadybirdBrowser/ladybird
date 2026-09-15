@@ -2466,13 +2466,22 @@ void Node::set_needs_layout_tree_update(bool value, SetNeedsLayoutTreeUpdateReas
             first_letter_owner->set_needs_layout_tree_update(true, reason);
     }
 
+    u8 reuse_reason = 0;
+    if (value && reason == SetNeedsLayoutTreeUpdateReason::NodeInsertBefore)
+        reuse_reason = ChildListInsertion;
+    else if (value && reason == SetNeedsLayoutTreeUpdateReason::PseudoElementChange)
+        reuse_reason = PseudoElementChange;
+    // NB: Every pending reason must permit reuse. Once a full rebuild is requested, later
+    //     incremental changes cannot narrow it again.
     if (m_needs_layout_tree_update == value) {
-        if (value && reason != SetNeedsLayoutTreeUpdateReason::NodeInsertBefore)
-            m_may_reuse_layout_node_for_child_list_insertion = false;
+        if (!reuse_reason)
+            m_layout_tree_update_reuse_reasons = 0;
+        else if (m_layout_tree_update_reuse_reasons)
+            m_layout_tree_update_reuse_reasons |= reuse_reason;
         return;
     }
     m_needs_layout_tree_update = value;
-    m_may_reuse_layout_node_for_child_list_insertion = value && reason == SetNeedsLayoutTreeUpdateReason::NodeInsertBefore;
+    m_layout_tree_update_reuse_reasons = reuse_reason;
 
     if constexpr (UPDATE_LAYOUT_DEBUG) {
         if (m_needs_layout_tree_update) {

@@ -19,7 +19,7 @@ RequiredInvalidationAfterStyleChange decode_style_invalidation(u32 packed)
     result.ensure_at_least(static_cast<InvalidationLevel>(packed & to_underlying(LevelMask)));
     result.ensure_at_least(static_cast<AccumulatedVisualContextInvalidation>((packed >> to_underlying(VisualContextShift)) & to_underlying(LevelMask)));
     if (result.needs_layout_tree_rebuild())
-        result.set_layout_tree_rebuild_root(static_cast<LayoutTreeRebuildRoot>((packed >> to_underlying(RebuildRootShift)) & to_underlying(LevelMask)));
+        result.set_layout_tree_rebuild_root(static_cast<LayoutTreeRebuildRoot>((packed >> to_underlying(RebuildRootShift)) & to_underlying(RebuildRootMask)));
     if (packed & to_underlying(RebuildStackingContext))
         result.set_needs_stacking_context_tree_rebuild();
     result.needs_scroll_container_resnap = packed & to_underlying(ResnapScrollContainer);

@@ -201,6 +201,7 @@ pub struct FfiPrincipalNodeEntryFacts {
     pub must_create_subtree: bool,
     pub needs_layout_tree_update: bool,
     pub may_reuse_layout_node_for_child_list_insertion: bool,
+    pub may_update_pseudo_elements_in_place: bool,
     pub document_needs_full_layout_tree_update: bool,
     pub is_document: bool,
     pub has_layout_node: bool,
@@ -568,7 +569,9 @@ pub(crate) fn principal_node_entry_decision(
 ) -> PrincipalNodeEntryDecision {
     abort_on_panic(|| {
         let should_create_layout_node = facts.must_create_subtree
-            || (facts.needs_layout_tree_update && !facts.may_reuse_layout_node_for_child_list_insertion)
+            || (facts.needs_layout_tree_update
+                && !facts.may_reuse_layout_node_for_child_list_insertion
+                && !facts.may_update_pseudo_elements_in_place)
             || facts.document_needs_full_layout_tree_update
             || (facts.is_document && !facts.has_layout_node);
 
@@ -1000,6 +1003,7 @@ fn update_svg_pattern(
 
 struct PrincipalDescendantUpdate {
     should_create_layout_node: bool,
+    update_pseudo_elements_in_place: bool,
     must_create_subtree: bool,
     insertion_mode: FfiInsertionMode,
 }
@@ -1040,9 +1044,9 @@ unsafe fn update_principal_node_descendants(
         };
         let prior_quote_nesting_level = state.quote_nesting_level;
 
-        if should_create_layout_node {
+        if should_create_layout_node || update.update_pseudo_elements_in_place {
             // Resolve counters now that we exist in the layout tree.
-            if facts.is_element {
+            if should_create_layout_node && facts.is_element {
                 // SAFETY: `dom_node` is a live Element when this fact is set.
                 unsafe { (host.callbacks.resolve_counters)(dom_node, FfiPseudoElement::None) };
             }
@@ -1295,6 +1299,19 @@ unsafe fn update_principal_node_descendants(
             wrap_button_contents_if_needed(&layout_host, layout_node);
         }
 
+        if update.update_pseudo_elements_in_place && !should_create_layout_node {
+            state.ancestor_stack.push(layout_node);
+            let placed = create_pseudo_element(
+                host,
+                state,
+                dom_node,
+                FfiPseudoElement::After,
+                Some(FfiInsertionMode::Append),
+            );
+            assert!(placed.is_none());
+            assert!(state.ancestor_stack.pop().is_some());
+        }
+
         // https://www.w3.org/TR/css-contain-2/#containment-style
         // Giving an element style containment has the following effects:
         // 2. The effects of the 'content' property’s 'open-quote', 'close-quote', 'no-open-quote' and 'no-close-quote'
@@ -1537,7 +1554,8 @@ fn update_principal_node_after_entry(
             update.state.new_subtree_root = layout_node;
         }
         if entry_facts.needs_layout_tree_update
-            && entry_facts.may_reuse_layout_node_for_child_list_insertion
+            && (entry_facts.may_reuse_layout_node_for_child_list_insertion
+                || entry_facts.may_update_pseudo_elements_in_place)
             && !entry_decision.should_create_layout_node
         {
             update.state.reused_child_list_update_roots.push(layout_node);
@@ -1687,6 +1705,8 @@ fn update_principal_node_after_entry(
                 context,
                 PrincipalDescendantUpdate {
                     should_create_layout_node: entry_decision.should_create_layout_node,
+                    update_pseudo_elements_in_place: entry_facts.may_update_pseudo_elements_in_place
+                        && !entry_decision.should_create_layout_node,
                     must_create_subtree: update.must_create_subtree,
                     insertion_mode: if entry_facts.may_reuse_layout_node_for_child_list_insertion {
                         FfiInsertionMode::InDomOrder
@@ -4236,6 +4256,7 @@ mod tests {
             must_create_subtree: false,
             needs_layout_tree_update: false,
             may_reuse_layout_node_for_child_list_insertion: false,
+            may_update_pseudo_elements_in_place: false,
             document_needs_full_layout_tree_update: false,
             is_document: false,
             has_layout_node: true,

@@ -27,6 +27,8 @@ enum class AccumulatedVisualContextInvalidation : u8 {
 };
 
 enum class LayoutTreeRebuildRoot : u8 {
+    // Recreate ::before and ::after while retaining the principal box when its structure permits it.
+    PseudoElements,
     Self,
     SelfUnlessDocumentElementOrBody,
     // The element's principal box appears or disappears while every sibling box keeps its kind.
