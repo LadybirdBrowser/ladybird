@@ -84,13 +84,27 @@ ECMAScriptFunctionObject::ECMAScriptFunctionObject(
     , m_private_environment(private_environment)
 {
     set_is_ecmascript_function_object();
-    if (!is_arrow_function() && kind() == FunctionKind::Normal) {
-        auto normal_function_shape = realm()->intrinsics().normal_function_shape();
-        if (normal_function_shape->prototype() == &prototype)
-            unsafe_set_shape(normal_function_shape);
-        else
-            unsafe_set_shape(*normal_function_shape->create_prototype_transition(&prototype));
-    }
+
+    // OPTIMIZATION: Start from a premade shape that already has this function kind's own properties in spec order.
+    //               Arrow functions use the same shape as other functions of their kind, but never get a lazy prototype.
+    auto& intrinsics = realm()->intrinsics();
+    auto function_shape = [&] {
+        switch (kind()) {
+        case FunctionKind::Normal:
+            return intrinsics.normal_function_shape();
+        case FunctionKind::Generator:
+            return intrinsics.generator_function_shape();
+        case FunctionKind::Async:
+            return intrinsics.async_function_shape();
+        case FunctionKind::AsyncGenerator:
+            return intrinsics.async_generator_function_shape();
+        }
+        VERIFY_NOT_REACHED();
+    }();
+    if (function_shape->prototype() == &prototype)
+        unsafe_set_shape(function_shape);
+    else
+        unsafe_set_shape(*function_shape->create_prototype_transition(&prototype));
 
     // 15. Set F.[[ScriptOrModule]] to GetActiveScriptOrModule().
     m_script_or_module = vm().get_active_script_or_module();
@@ -108,37 +122,29 @@ void ECMAScriptFunctionObject::initialize(Realm& realm)
 
     m_name_string = PrimitiveString::create(vm, name());
 
-    if (!is_arrow_function() && kind() == FunctionKind::Normal) {
-        put_direct(realm.intrinsics().normal_function_length_offset(), Value(function_length()));
-        put_direct(realm.intrinsics().normal_function_name_offset(), m_name_string);
-        m_may_need_lazy_prototype_instantiation = true;
-    } else {
-        PropertyDescriptor length_descriptor { .value = Value(function_length()), .writable = false, .enumerable = false, .configurable = true };
-        MUST(define_property_or_throw(vm.names.length, length_descriptor));
-        PropertyDescriptor name_descriptor { .value = m_name_string, .writable = false, .enumerable = false, .configurable = true };
-        MUST(define_property_or_throw(vm.names.name, name_descriptor));
+    // NOTE: The constructor gave us a premade shape with "length" and "name" (and "prototype" for generator kinds) at
+    //       these offsets, with the attributes the spec requires, so we only have to store the values.
+    put_direct(realm.intrinsics().normal_function_length_offset(), Value(function_length()));
+    put_direct(realm.intrinsics().normal_function_name_offset(), m_name_string);
 
-        if (!is_arrow_function()) {
-            GC::Ptr<Object> prototype;
-            switch (kind()) {
-            case FunctionKind::Normal:
-                VERIFY_NOT_REACHED();
-                break;
-            case FunctionKind::Generator:
-                // prototype is "g1.prototype" in figure-2 (https://tc39.es/ecma262/img/figure-2.png)
-                prototype = Object::create_prototype(realm, realm.intrinsics().generator_function_prototype_prototype());
-                break;
-            case FunctionKind::Async:
-                break;
-            case FunctionKind::AsyncGenerator:
-                prototype = Object::create_prototype(realm, realm.intrinsics().async_generator_function_prototype_prototype());
-                break;
-            }
-            // 27.7.4 AsyncFunction Instances, https://tc39.es/ecma262/#sec-async-function-instances
-            // AsyncFunction instances do not have a prototype property as they are not constructible.
-            if (kind() != FunctionKind::Async)
-                define_direct_property(vm.names.prototype, prototype, Attribute::Writable);
-        }
+    switch (kind()) {
+    case FunctionKind::Normal:
+        if (!is_arrow_function())
+            m_may_need_lazy_prototype_instantiation = true;
+        break;
+    case FunctionKind::Generator:
+        // prototype is "g1.prototype" in figure-2 (https://tc39.es/ecma262/img/figure-2.png)
+        put_direct(realm.intrinsics().generator_function_prototype_property_offset(),
+            Object::create_prototype(realm, realm.intrinsics().generator_function_prototype_prototype()));
+        break;
+    case FunctionKind::Async:
+        // 27.7.4 AsyncFunction Instances, https://tc39.es/ecma262/#sec-async-function-instances
+        // AsyncFunction instances do not have a prototype property as they are not constructible.
+        break;
+    case FunctionKind::AsyncGenerator:
+        put_direct(realm.intrinsics().generator_function_prototype_property_offset(),
+            Object::create_prototype(realm, realm.intrinsics().async_generator_function_prototype_prototype()));
+        break;
     }
 }
 

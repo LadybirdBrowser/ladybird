@@ -46,6 +46,12 @@ public:
     [[nodiscard]] u32 normal_function_length_offset() const { return m_normal_function_length_offset; }
     [[nodiscard]] u32 normal_function_name_offset() const { return m_normal_function_name_offset; }
 
+    // NOTE: These shapes store "length" and "name" at the same offsets as the normal function shape.
+    [[nodiscard]] GC::Ref<Shape> async_function_shape() { return *m_async_function_shape; }
+    [[nodiscard]] GC::Ref<Shape> generator_function_shape() { return *m_generator_function_shape; }
+    [[nodiscard]] GC::Ref<Shape> async_generator_function_shape() { return *m_async_generator_function_shape; }
+    [[nodiscard]] u32 generator_function_prototype_property_offset() const { return m_generator_function_prototype_property_offset; }
+
     [[nodiscard]] GC::Ref<Shape> native_function_shape() { return *m_native_function_shape; }
     [[nodiscard]] u32 native_function_length_offset() const { return m_native_function_length_offset; }
     [[nodiscard]] u32 native_function_name_offset() const { return m_native_function_name_offset; }
@@ -193,6 +199,11 @@ private:
     GC::Ptr<Shape> m_normal_function_shape;
     u32 m_normal_function_length_offset { 0 };
     u32 m_normal_function_name_offset { 0 };
+
+    GC::Ptr<Shape> m_async_function_shape;
+    GC::Ptr<Shape> m_generator_function_shape;
+    GC::Ptr<Shape> m_async_generator_function_shape;
+    u32 m_generator_function_prototype_property_offset { 0 };
 
     GC::Ptr<Shape> m_native_function_shape;
     u32 m_native_function_length_offset { 0 };
