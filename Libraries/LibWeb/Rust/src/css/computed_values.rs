@@ -26,6 +26,7 @@ use std::alloc::{Layout, alloc, dealloc};
 #[cfg(feature = "style-replay")]
 use std::cell::RefCell;
 use std::ffi::c_void;
+use std::hash::Hasher;
 use std::sync::OnceLock;
 #[cfg(feature = "style-replay")]
 use std::sync::atomic::AtomicBool;
@@ -49,6 +50,7 @@ pub use crate::css::computed_value_types::{
     SizingValues, SurroundValues, TextResetValues, TransformValues,
 };
 use crate::css::retained_fly_string::{RetainedUtf16FlyString, RetainedUtf16FlyStringList};
+use crate::css::style::fast_hash::{FastHasher, fast_hasher};
 use crate::css::style_value::StyleValueData;
 use crate::css::style_value::{retained_list_drop, retained_list_partial_eq};
 
@@ -167,6 +169,236 @@ impl ComputedStyleValueHandle {
     }
 }
 
+/// Writes one value's content into `hasher` in a way consistent with its `PartialEq`: two values
+/// that compare equal always write the same bytes.
+///
+/// Consistency is what makes a content hash usable as an identity key. It holds by construction
+/// as long as every hashed field is hashed by the same notion of equality the comparison uses,
+/// and it survives omitting fields (the hash only gets coarser, and equality settles whatever
+/// shares a bucket). For the host-interned handles - fly strings, the font cascade list, the
+/// first available font - that notion *is* the address, because their `PartialEq` compares
+/// addresses. Floats hash by bit pattern with negative zero normalized; NaN never equals
+/// anything, so its hash is unconstrained.
+pub(crate) trait ContentHash {
+    fn write_content_hash(&self, hasher: &mut FastHasher);
+}
+
+macro_rules! impl_content_hash_by_field {
+    ($type:ty { $($field:ident),+ $(,)? }) => {
+        impl ContentHash for $type {
+            fn write_content_hash(&self, hasher: &mut FastHasher) {
+                $(self.$field.write_content_hash(hasher);)+
+            }
+        }
+    };
+}
+
+macro_rules! impl_content_hash_integers {
+    ($($type:ty => $write:ident),+ $(,)?) => {
+        $(impl ContentHash for $type {
+            fn write_content_hash(&self, hasher: &mut FastHasher) {
+                hasher.$write(*self);
+            }
+        })+
+    };
+}
+
+impl_content_hash_integers!(u8 => write_u8, u32 => write_u32, i32 => write_i32, u64 => write_u64, usize => write_usize);
+
+impl ContentHash for bool {
+    fn write_content_hash(&self, hasher: &mut FastHasher) {
+        hasher.write_u8(u8::from(*self));
+    }
+}
+
+impl ContentHash for f32 {
+    fn write_content_hash(&self, hasher: &mut FastHasher) {
+        hasher.write_u32((if *self == 0.0 { 0.0_f32 } else { *self }).to_bits());
+    }
+}
+
+impl ContentHash for f64 {
+    fn write_content_hash(&self, hasher: &mut FastHasher) {
+        hasher.write_u64((if *self == 0.0 { 0.0_f64 } else { *self }).to_bits());
+    }
+}
+
+impl<T: ContentHash, const N: usize> ContentHash for [T; N] {
+    fn write_content_hash(&self, hasher: &mut FastHasher) {
+        for value in self {
+            value.write_content_hash(hasher);
+        }
+    }
+}
+
+impl ContentHash for *const c_void {
+    fn write_content_hash(&self, hasher: &mut FastHasher) {
+        hasher.write_usize(*self as usize);
+    }
+}
+
+impl ContentHash for crate::css::css_pixels::CssPixels {
+    fn write_content_hash(&self, hasher: &mut FastHasher) {
+        hasher.write_i32(self.raw_value());
+    }
+}
+
+impl ContentHash for libgfx_rust::font::FontCascadeListHandle {
+    fn write_content_hash(&self, hasher: &mut FastHasher) {
+        hasher.write_usize(self.as_raw() as usize);
+    }
+}
+
+impl ContentHash for RetainedUtf16FlyString {
+    fn write_content_hash(&self, hasher: &mut FastHasher) {
+        hasher.write_usize(self.raw());
+    }
+}
+
+impl ContentHash for RetainedUtf16FlyStringList {
+    fn write_content_hash(&self, hasher: &mut FastHasher) {
+        let raws = self.raws();
+        hasher.write_usize(raws.len());
+        for &raw in raws {
+            hasher.write_usize(raw);
+        }
+    }
+}
+
+impl ContentHash for ComputedStyleValueHandle {
+    fn write_content_hash(&self, hasher: &mut FastHasher) {
+        match self.data() {
+            None => hasher.write_u8(0),
+            Some(data) => {
+                hasher.write_u8(1);
+                hasher.write_u64(data.content_hash());
+            }
+        }
+    }
+}
+
+impl ContentHash for ComputedSizeKind {
+    fn write_content_hash(&self, hasher: &mut FastHasher) {
+        hasher.write_u8(*self as u8);
+    }
+}
+
+/// Hashes a Rust-owned retained list beside the equality `retained_list_partial_eq!` gives it:
+/// the length and then every element.
+macro_rules! impl_retained_list_content_hash {
+    ($list:ty, $element:ty) => {
+        impl ContentHash for $list {
+            fn write_content_hash(&self, hasher: &mut FastHasher) {
+                let values: &[$element] = self.as_slice();
+                hasher.write_usize(values.len());
+                for value in values {
+                    value.write_content_hash(hasher);
+                }
+            }
+        }
+    };
+}
+
+impl_content_hash_by_field!(ComputedSize { kind, value });
+impl_content_hash_by_field!(crate::css::display::FfiDisplay {
+    tag,
+    outside,
+    inside,
+    list_item,
+    internal,
+    box_value,
+});
+impl_content_hash_by_field!(ComputedAspectRatio {
+    use_natural_aspect_ratio_if_available,
+    has_preferred_ratio,
+    preferred_ratio_numerator,
+    preferred_ratio_denominator,
+    computed_use_natural_aspect_ratio_if_available,
+    has_computed_ratio,
+    computed_ratio_numerator,
+    computed_ratio_denominator,
+});
+impl_content_hash_by_field!(ComputedContainIntrinsicSize {
+    has_auto,
+    has_length,
+    length_px,
+});
+impl_content_hash_by_field!(crate::css::computed_value_types::ComputedBorderSide {
+    color,
+    line_style,
+    width,
+});
+impl_content_hash_by_field!(ComputedTextUnderlinePosition { horizontal, vertical });
+impl_content_hash_by_field!(ComputedGridTrackList {
+    is_subgrid,
+    preserves_line_name_sets,
+    first_entry,
+});
+impl_content_hash_by_field!(ComputedGridPlacement {
+    kind,
+    has_line_number,
+    line_number,
+    has_name,
+    name_index,
+    implicit_start_name_index,
+    implicit_end_name_index,
+});
+impl_content_hash_by_field!(ComputedGridArea {
+    name_index,
+    implicit_start_name_index,
+    implicit_end_name_index,
+    row_start,
+    row_end,
+    column_start,
+    column_end,
+});
+impl_content_hash_by_field!(crate::css::computed_value_types::ComputedShadow {
+    offset_x,
+    offset_y,
+    blur_radius,
+    spread_distance,
+    color,
+    color_syntax,
+    placement,
+});
+impl_content_hash_by_field!(ComputedClipEdge { is_auto, value, unit });
+impl_content_hash_by_field!(ComputedColorOrAuto {
+    is_auto,
+    computed_color,
+    used_color,
+});
+impl_content_hash_by_field!(crate::css::computed_value_types::ComputedScrollbarColor {
+    thumb_color,
+    track_color,
+    is_auto,
+});
+impl_content_hash_by_field!(InheritedTableValues {
+    border_collapse,
+    caption_side,
+    empty_cells,
+    border_spacing_horizontal,
+    border_spacing_vertical,
+});
+impl_content_hash_by_field!(InheritedBoxValues {
+    visibility,
+    direction,
+    writing_mode,
+    content_visibility,
+    image_rendering,
+});
+// The anchor-inset wrappers are pure derivatives of the anchor-inset fields, so payload equality
+// excludes them and the hash follows it field for field.
+impl_content_hash_by_field!(SurroundValues {
+    inset,
+    top_anchor_inset,
+    right_anchor_inset,
+    bottom_anchor_inset,
+    left_anchor_inset,
+    position_anchor,
+    margin,
+    padding,
+});
+
 impl Clone for ComputedStyleValueHandle {
     fn clone(&self) -> Self {
         Self {
@@ -221,6 +453,8 @@ macro_rules! impl_computed_payload_clone_and_eq {
                 true $(&& self.$field == other.$field)+
             }
         }
+
+        impl_content_hash_by_field!($type { $($field),+ });
     };
 }
 
@@ -342,6 +576,8 @@ impl PartialEq for RetainedTextDecorationLineList {
     }
 }
 
+impl_retained_list_content_hash!(RetainedTextDecorationLineList, u8);
+
 impl_computed_payload_clone_and_eq!(TextResetValues {
     text_decoration_lines,
     text_decoration_thickness_kind,
@@ -398,6 +634,7 @@ macro_rules! impl_retained_computed_list {
 
         retained_list_drop!($list);
         retained_list_partial_eq!($list, $element);
+        impl_retained_list_content_hash!($list, $element);
     };
 }
 
@@ -751,6 +988,7 @@ impl Clone for RetainedComputedResolvedTransformList {
 
 retained_list_drop!(RetainedComputedResolvedTransformList);
 retained_list_partial_eq!(RetainedComputedResolvedTransformList, ComputedResolvedTransform);
+impl_retained_list_content_hash!(RetainedComputedResolvedTransformList, ComputedResolvedTransform);
 
 impl_computed_payload_clone_and_eq!(TransformValues {
     transformations,
@@ -880,6 +1118,7 @@ macro_rules! impl_retained_grid_list {
 
         retained_list_drop!($list);
         retained_list_partial_eq!($list, $element);
+        impl_retained_list_content_hash!($list, $element);
     };
 }
 
@@ -1312,6 +1551,80 @@ unsafe fn payloads_equal(table: &StyleGroupVTable, a: *const c_void, b: *const c
     }
 }
 
+unsafe fn payload_content_hash(table: &StyleGroupVTable, payload: *const c_void, hasher: &mut FastHasher) {
+    match table.lifecycle {
+        StyleGroupLifecycle::InheritedTable => unsafe {
+            (*(payload as *const InheritedTableValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::InheritedBox => unsafe {
+            (*(payload as *const InheritedBoxValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::Sizing => unsafe {
+            (*(payload as *const SizingValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::Alignment => unsafe {
+            (*(payload as *const AlignmentValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::SVGReset => unsafe {
+            (*(payload as *const SVGResetValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::Surround => unsafe {
+            (*(payload as *const SurroundValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::Box => unsafe {
+            (*(payload as *const BoxValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::Grid => unsafe {
+            (*(payload as *const GridValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::TextReset => unsafe {
+            (*(payload as *const TextResetValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::Transform => unsafe {
+            (*(payload as *const TransformValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::Effects => unsafe {
+            (*(payload as *const EffectsValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::Anchor => unsafe {
+            (*(payload as *const AnchorValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::InheritedUI => unsafe {
+            (*(payload as *const InheritedUIValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::InheritedSVG => unsafe {
+            (*(payload as *const InheritedSVGValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::InheritedText => unsafe {
+            (*(payload as *const InheritedTextValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::Animation => unsafe {
+            (*(payload as *const AnimationValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::Mask => unsafe {
+            (*(payload as *const MaskValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::Background => unsafe {
+            (*(payload as *const BackgroundValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::Border => unsafe {
+            (*(payload as *const BorderValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::Content => unsafe {
+            (*(payload as *const ContentValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::InheritedList => unsafe {
+            (*(payload as *const InheritedListValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::MiscReset => unsafe {
+            (*(payload as *const MiscResetValues)).write_content_hash(hasher);
+        },
+        StyleGroupLifecycle::Font => unsafe {
+            (*(payload as *const FontValues)).write_content_hash(hasher);
+        },
+    }
+}
+
 pub(crate) fn style_group_affects_layout(group_index: usize) -> bool {
     !matches!(
         vtable(group_index).lifecycle,
@@ -1328,6 +1641,25 @@ pub(crate) fn style_group_payloads_equal(group_index: usize, a: *const c_void, b
     // SAFETY: Published style-group payloads remain live for the call and both use the registered
     // group type at `group_index`.
     unsafe { payloads_equal(vtable(group_index), a, b) }
+}
+
+/// A content hash for one style-group payload, consistent with `style_group_payloads_equal`:
+/// two payloads that compare equal always hash equal, whoever built them and wherever they live.
+/// That is what lets a payload's identity be its content instead of its address. The group
+/// index is hashed with the content so payloads of different groups never share a bucket.
+pub(crate) fn style_group_payloads_hash(group_index: usize, payload: *const c_void) -> u64 {
+    assert!(!payload.is_null());
+    let mut hasher = fast_hasher();
+    hasher.write_usize(group_index);
+    if replaying_style_groups() {
+        // Replay compares payloads by address, so under replay the address is the content.
+        hasher.write_usize(payload as usize);
+        return hasher.finish();
+    }
+    // SAFETY: Published style-group payloads remain live for the call and use the registered
+    // group type at `group_index`.
+    unsafe { payload_content_hash(vtable(group_index), payload, &mut hasher) };
+    hasher.finish()
 }
 
 /// Whether a layered image property holds an `<image>` in any layer. The value is one layer or a
@@ -3706,6 +4038,35 @@ mod tests {
             refcount_of(box_clone, align_of::<BoxValues>()).store(0, Ordering::Relaxed);
             rust_style_group_free(6, box_clone);
         }
+
+        // The contract a payload's content hash owes its equality: two payloads that compare
+        // equal hash equal, whoever built them and wherever they live. That is what lets a
+        // group's identity be its content instead of the address of the first payload to
+        // carry it.
+        for (group_index, &default) in defaults.iter().enumerate() {
+            // SAFETY: The default payload is a live payload of its registered group.
+            let clone = unsafe { rust_style_group_clone(group_index, default) };
+            assert!(style_group_payloads_equal(group_index, default, clone));
+            assert_eq!(
+                style_group_payloads_hash(group_index, default),
+                style_group_payloads_hash(group_index, clone),
+                "a clone must hash like the payload it was copied from"
+            );
+            refcount_of(clone, payload_align(&vtables[group_index])).store(0, Ordering::Relaxed);
+            // SAFETY: The clone holds the last reference and is a payload of this group.
+            unsafe { rust_style_group_free(group_index, clone) };
+        }
+
+        // A field the hash skipped would be a difference equality has to separate every time,
+        // so every field equality reads is a field the hash reads too.
+        let mut changed = InheritedTableValues::initial();
+        changed.border_spacing_horizontal = 17;
+        let changed_payload = (&raw const changed).cast::<c_void>();
+        assert!(!style_group_payloads_equal(0, defaults[0], changed_payload));
+        assert_ne!(
+            style_group_payloads_hash(0, defaults[0]),
+            style_group_payloads_hash(0, changed_payload)
+        );
     }
 }
 
