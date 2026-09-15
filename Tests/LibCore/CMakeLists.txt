@@ -18,6 +18,12 @@ if (LINUX)
     )
 endif()
 
+if (APPLE OR LINUX)
+    list(APPEND TEST_SOURCES
+        TestLibCoreFutex.cpp
+    )
+endif()
+
 foreach(source IN LISTS TEST_SOURCES)
     ladybird_test("${source}" LibCore)
 endforeach()
@@ -33,3 +39,7 @@ endif()
 
 target_link_libraries(TestLibCoreEventLoop PRIVATE LibSync LibThreading)
 target_link_libraries(TestLibCoreSharedSingleProducerCircularQueue PRIVATE LibThreading)
+
+if (APPLE OR LINUX)
+    target_link_libraries(TestLibCoreFutex PRIVATE LibThreading)
+endif()

@@ -1,0 +1,4 @@
+popup with opener (crossOriginIsolated: true): message, shared: true, its store of 42 is visible here: true
+noopener popup, cross-origin isolated (crossOriginIsolated: true): messageerror
+noopener popup, not cross-origin isolated (crossOriginIsolated: false): messageerror
+cross-origin iframe: messageerror

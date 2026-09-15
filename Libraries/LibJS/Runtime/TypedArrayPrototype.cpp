@@ -509,27 +509,21 @@ inline void fast_typed_array_fill(TypedArrayBase& typed_array, u32 begin, u32 en
         return;
     }
 
+    // This fast path is only taken for a non-shared buffer (fill() routes a shared buffer through the per-element
+    // SetValueInBuffer path — so a bulk memcpy never races another agent's access).
     auto& array_buffer = *typed_array.viewed_array_buffer();
     auto byte_index = computed_begin.value();
-    if (!array_buffer.is_shared_array_buffer()) {
-        constexpr size_t pattern_byte_size = 256;
-        constexpr size_t pattern_element_count = max<size_t>(1, pattern_byte_size / sizeof(T));
-        AK::Array<T, pattern_element_count> pattern;
-        pattern.fill(value);
+    constexpr size_t pattern_byte_size = 256;
+    constexpr size_t pattern_element_count = max<size_t>(1, pattern_byte_size / sizeof(T));
+    AK::Array<T, pattern_element_count> pattern;
+    pattern.fill(value);
 
-        auto remaining_bytes = (end - begin) * sizeof(T);
-        while (remaining_bytes > 0) {
-            auto chunk_size = min(remaining_bytes, pattern.size() * sizeof(T));
-            array_buffer.overwrite(byte_index, pattern.data(), chunk_size);
-            byte_index += chunk_size;
-            remaining_bytes -= chunk_size;
-        }
-        return;
-    }
-
-    for (auto i = begin; i < end; ++i) {
-        array_buffer.overwrite(byte_index, &value, sizeof(T));
-        byte_index += sizeof(T);
+    auto remaining_bytes = (end - begin) * sizeof(T);
+    while (remaining_bytes > 0) {
+        auto chunk_size = min(remaining_bytes, pattern.size() * sizeof(T));
+        array_buffer.overwrite(byte_index, pattern.data(), chunk_size);
+        byte_index += chunk_size;
+        remaining_bytes -= chunk_size;
     }
 }
 
@@ -601,7 +595,9 @@ JS_DEFINE_NATIVE_FUNCTION(TypedArrayPrototype::fill)
     // 17. Set final to min(final, len).
     final = min(final, length);
 
-    if (value.is_int32()) {
+    // The int32 fast path uses a bulk memcpy — so it's only safe for a non-shared buffer; a shared buffer falls through
+    // to the per-element SetValueInBuffer loop below (a tear-free relaxed-atomic write per element).
+    if (value.is_int32() && !typed_array->viewed_array_buffer()->is_shared_array_buffer()) {
         switch (typed_array->kind()) {
         case TypedArrayBase::Kind::Uint8Array:
             fast_typed_array_fill<u8>(*typed_array, k, final, static_cast<u8>(value.as_i32()));
@@ -1562,7 +1558,20 @@ static ThrowCompletionOr<void> set_typed_array_from_typed_array(VM& vm, TypedArr
         //     ii. Perform SetValueInBuffer(targetBuffer, targetByteIndex, Uint8, value, true, Unordered).
         //     iii. Set srcByteIndex to srcByteIndex + 1.
         //     iv. Set targetByteIndex to targetByteIndex + 1.
-        source_buffer->copy_data_to(*target_buffer, source_byte_index, target_byte_index, limit - target_byte_index);
+        // OPTIMIZATION: If neither buffer is shared, a single bulk copy realizes the byte-granular Unordered events
+        //               above. A shared buffer instead uses per-byte relaxed-atomic accesses so the copy never races
+        //               another agent with a non-atomic memcpy. (Step 19 above cloned srcBuffer if it aliased
+        //               targetBuffer — so the two never overlap here.)
+        if (!source_buffer->is_shared_array_buffer() && !target_buffer->is_shared_array_buffer()) {
+            source_buffer->copy_data_to(*target_buffer, source_byte_index, target_byte_index, limit - target_byte_index);
+        } else {
+            while (target_byte_index < limit) {
+                auto value = source_buffer->get_value<u8>(source_byte_index, true, ArrayBuffer::Order::Unordered);
+                target_buffer->set_value<u8>(target_byte_index, value, true, ArrayBuffer::Order::Unordered);
+                ++source_byte_index;
+                ++target_byte_index;
+            }
+        }
     }
     // 24. Else,
     else {

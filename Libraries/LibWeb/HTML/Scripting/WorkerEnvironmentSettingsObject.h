@@ -18,12 +18,13 @@ class WEB_API WorkerEnvironmentSettingsObject final
     GC_DECLARE_ALLOCATOR(WorkerEnvironmentSettingsObject);
 
 public:
-    WorkerEnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext> execution_context, GC::Ref<WorkerGlobalScope> global_scope, URL::Origin origin, bool outside_settings_has_cross_site_ancestor, HighResolutionTime::DOMHighResTimeStamp unsafe_worker_creation_time)
+    WorkerEnvironmentSettingsObject(NonnullOwnPtr<JS::ExecutionContext> execution_context, GC::Ref<WorkerGlobalScope> global_scope, URL::Origin origin, bool outside_settings_has_cross_site_ancestor, HighResolutionTime::DOMHighResTimeStamp unsafe_worker_creation_time, Optional<u64> agent_cluster_id)
         : EnvironmentSettingsObject(move(execution_context))
         , m_origin(move(origin))
         , m_outside_settings_has_cross_site_ancestor(outside_settings_has_cross_site_ancestor)
         , m_global_scope(global_scope)
         , m_unsafe_worker_creation_time(unsafe_worker_creation_time)
+        , m_agent_cluster_id(agent_cluster_id)
     {
     }
 
@@ -37,6 +38,7 @@ public:
     virtual bool has_cross_site_ancestor() const override;
     virtual GC::Ref<PolicyContainer> policy_container() const override;
     virtual CanUseCrossOriginIsolatedAPIs cross_origin_isolated_capability() const override;
+    virtual Optional<u64> agent_cluster_id() const override { return m_agent_cluster_id; }
     virtual double time_origin() const override;
 
 private:
@@ -48,6 +50,7 @@ private:
     GC::Ref<WorkerGlobalScope> m_global_scope;
 
     HighResolutionTime::DOMHighResTimeStamp m_unsafe_worker_creation_time { 0 };
+    Optional<u64> m_agent_cluster_id;
 };
 
 }

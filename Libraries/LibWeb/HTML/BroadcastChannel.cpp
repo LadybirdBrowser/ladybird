@@ -150,7 +150,11 @@ WebIDL::ExceptionOr<void> BroadcastChannel::post_message(JS::Realm& realm, JS::V
         return WebIDL::InvalidStateError::create("BroadcastChannel.postMessage() on a closed channel"_utf16);
 
     // 3. Let serialized be StructuredSerialize(message). Rethrow any exceptions.
-    auto serialized = TRY(structured_serialize(realm.vm(), message));
+    // AD-HOC: This message reaches agents in other processes through the browser process — so a shared-memory-backed
+    //         SharedArrayBuffer travels beside the record, by file descriptor, and every receiver references the same
+    //         [[ArrayBufferData]] rather than a copy.
+    Vector<Core::AnonymousBuffer> shared_buffers;
+    auto serialized = TRY(structured_serialize(realm.vm(), message, shared_buffers));
 
     // 4. Let sourceOrigin be this's relevant settings object's origin.
     auto source_origin = m_origin;
@@ -163,6 +167,7 @@ WebIDL::ExceptionOr<void> BroadcastChannel::post_message(JS::Realm& realm, JS::V
         .channel_name = name(),
         .source_origin = source_origin,
         .serialized_message = serialized,
+        .shared_buffers = move(shared_buffers),
         .source_process_id = Core::System::getpid(),
         .source_channel_id = m_channel_id,
     };
@@ -220,7 +225,7 @@ void BroadcastChannel::deliver_message_locally(BroadcastChannelMessage const& me
             // 3. Let data be StructuredDeserialize(serialized, targetRealm).
             //    If this throws an exception, catch it, fire an event named messageerror at destination, using MessageEvent, with its
             //    origin initialized to sourceOrigin, and then abort these steps.
-            auto data_or_error = structured_deserialize(vm, message.serialized_message, target_realm);
+            auto data_or_error = structured_deserialize(vm, message.serialized_message, target_realm, {}, &message.shared_buffers);
             if (data_or_error.is_exception()) {
                 MessageEventInit event_init;
                 auto event = MessageEvent::create(target_realm.global_object(), HTML::EventNames::messageerror, event_init, message.source_origin);
