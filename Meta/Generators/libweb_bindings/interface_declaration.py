@@ -104,7 +104,16 @@ public:
                 """
     HTML::CrossOriginPropertyDescriptorMap const& cross_origin_property_descriptor_map() const { return m_cross_origin_property_descriptor_map; }
     HTML::CrossOriginPropertyDescriptorMap& cross_origin_property_descriptor_map() { return m_cross_origin_property_descriptor_map; }
+
+    static GC::Ref<JS::NativeFunction> create_cross_origin_method(JS::Realm&, Utf16FlyString const& property);
 """
+            )
+            if not interface_is_location_object(interface):
+                out.write(
+                    "    static GC::Ref<JS::NativeFunction> create_cross_origin_getter(JS::Realm&, Utf16FlyString const& property);\n"
+                )
+            out.write(
+                "    static GC::Ref<JS::NativeFunction> create_cross_origin_setter(JS::Realm&, Utf16FlyString const& property);\n"
             )
         if interface_is_location_object(interface):
             out.write(
@@ -215,6 +224,8 @@ public:
 private:
 """
         )
+        if interface_has_cross_origin_property_descriptor_map(interface):
+            out.write(f"    friend class {wrapper_class_name(interface)};\n\n")
     for attribute in interface.regular_attributes:
         if "FIXME" in attribute.extended_attributes:
             continue

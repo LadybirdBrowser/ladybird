@@ -10,6 +10,7 @@
 #include <AK/Utf16String.h>
 #include <LibGC/RootVector.h>
 #include <LibJS/Runtime/Completion.h>
+#include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/Object.h>
 #include <LibJS/Runtime/PrimitiveString.h>
 #include <LibJS/Runtime/PropertyDescriptor.h>
@@ -19,7 +20,6 @@
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/DOM/Document.h>
 #include <LibWeb/DOMURL/DOMURL.h>
-#include <LibWeb/HTML/BindingsGlue.h>
 #include <LibWeb/HTML/BrowsingContext.h>
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
 #include <LibWeb/HTML/LocalNavigable.h>
@@ -57,9 +57,16 @@ void Location::visit_edges(GC::Cell::Visitor& visitor)
 
 namespace Web::Bindings {
 
-JS::Value location_wrapper(JS::Realm& realm, GC::Ref<HTML::Location> location)
+GC::Ref<JS::NativeFunction> LocationWrapper::create_cross_origin_method(JS::Realm& realm, Utf16FlyString const& property)
 {
-    return wrap(host_defined_wrapper_world(realm), realm, location);
+    VERIFY(property == u"replace"sv);
+    return JS::NativeFunction::create(realm, LocationPrototype::replace, 1, property);
+}
+
+GC::Ref<JS::NativeFunction> LocationWrapper::create_cross_origin_setter(JS::Realm& realm, Utf16FlyString const& property)
+{
+    VERIFY(property == u"href"sv);
+    return JS::NativeFunction::create(realm, LocationPrototype::href_setter, 1, property, &realm, "set"sv);
 }
 
 // https://html.spec.whatwg.org/multipage/nav-history-apis.html#the-location-interface

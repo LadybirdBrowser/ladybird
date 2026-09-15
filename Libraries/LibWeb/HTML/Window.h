@@ -60,7 +60,6 @@ WEB_API WebIDL::ExceptionOr<WebIDL::UnsignedLong> request_animation_frame(HTML::
 WEB_API WebIDL::UnsignedLong request_idle_callback(HTML::Window&, WebIDL::CallbackType&, IdleRequestOptions const&);
 WEB_API void define_internals_property(JS::Realm&, HTML::Window&, JS::Object& global_object);
 WEB_API JS::Value window_named_item_value(WrapperWorld&, JS::Realm&, HTML::Window const&, Utf16FlyString const&);
-WEB_API JS::ThrowCompletionOr<void> post_message_with_options(JS::Realm&, HTML::Window&, JS::Value, JS::Value options);
 
 }
 
