@@ -10,7 +10,7 @@
 #include <AK/Noncopyable.h>
 #include <AK/Platform.h>
 
-#if defined(AK_OS_MACOS)
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
 #    include <LibCore/MachPort.h>
 #endif
 
@@ -28,7 +28,7 @@ public:
     static Attachment from_fd(int fd);
     int to_fd();
 
-#if defined(AK_OS_MACOS)
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
     static Attachment from_mach_port(Core::MachPort, Core::MachPort::MessageRight);
     Core::MachPort const& mach_port() const { return m_port; }
     Core::MachPort::MessageRight message_right() const { return m_message_right; }
@@ -36,7 +36,7 @@ public:
 #endif
 
 private:
-#if defined(AK_OS_MACOS)
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
     Core::MachPort m_port;
     Core::MachPort::MessageRight m_message_right { Core::MachPort::MessageRight::MoveSend };
 #else
