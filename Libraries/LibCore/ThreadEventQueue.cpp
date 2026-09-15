@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Mutex.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/Once.h>
 #include <AK/Vector.h>
 #include <LibCore/EventLoopImplementation.h>
 #include <LibCore/EventReceiver.h>
 #include <LibCore/Promise.h>
 #include <LibCore/ThreadEventQueue.h>
-#include <LibSync/Mutex.h>
-#include <LibSync/Once.h>
 #include <errno.h>
 #include <pthread.h>
 

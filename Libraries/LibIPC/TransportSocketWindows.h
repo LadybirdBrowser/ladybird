@@ -8,13 +8,13 @@
 #pragma once
 
 #include <AK/Atomic.h>
+#include <AK/Mutex.h>
 #include <AK/Queue.h>
 #include <LibCore/Socket.h>
 #include <LibIPC/Attachment.h>
 #include <LibIPC/Forward.h>
 #include <LibIPC/ReceivedMessageBytes.h>
 #include <LibIPC/TransportHandle.h>
-#include <LibSync/Mutex.h>
 
 namespace IPC {
 

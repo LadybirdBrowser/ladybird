@@ -10,7 +10,6 @@
 #include <AK/Noncopyable.h>
 #include <AK/Platform.h>
 #include <AK/Types.h>
-#include <LibSync/Export.h>
 
 #if !defined(AK_OS_WINDOWS)
 #    include <pthread.h>
@@ -18,7 +17,7 @@
 namespace Sync {
 
 // TODO: Implement interprocess RWLocks. This needs a hand-rolled implementation for win32.
-class SYNC_API RWLock {
+class RWLock {
     AK_MAKE_NONCOPYABLE(RWLock);
     AK_MAKE_NONMOVABLE(RWLock);
 
@@ -53,7 +52,7 @@ enum class LockMode : u8 {
 };
 
 template<LockMode mode>
-class SYNC_API RWLockLocker {
+class RWLockLocker {
     AK_MAKE_NONCOPYABLE(RWLockLocker);
     AK_MAKE_NONMOVABLE(RWLockLocker);
 

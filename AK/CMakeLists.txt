@@ -43,9 +43,17 @@ if (WIN32)
     list(APPEND SOURCES
         LexicalPathWindows.cpp
         DemangleWindows.cpp
+        ConditionVariableWindows.cpp
+        MutexWindows.cpp
+        RWLockWindows.cpp
     )
 else()
-    list(APPEND SOURCES LexicalPath.cpp)
+    list(APPEND SOURCES
+        LexicalPath.cpp
+        ConditionVariablePOSIX.cpp
+        MutexPOSIX.cpp
+        RWLockPOSIX.cpp
+    )
 endif()
 
 ladybird_lib(AK ak)

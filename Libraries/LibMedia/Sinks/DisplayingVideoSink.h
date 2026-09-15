@@ -10,6 +10,7 @@
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
+#include <AK/ThreadSafeWeakable.h>
 #include <AK/Time.h>
 #include <LibGfx/Size.h>
 #include <LibMedia/Export.h>
@@ -18,7 +19,6 @@
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Sinks/VideoSink.h>
 #include <LibMedia/VideoPresentation/PresentedFramePage.h>
-#include <LibSync/Weakable.h>
 
 namespace Media {
 

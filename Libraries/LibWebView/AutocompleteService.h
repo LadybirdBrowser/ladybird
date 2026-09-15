@@ -6,8 +6,10 @@
 
 #pragma once
 
+#include <AK/ConditionVariable.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
+#include <AK/Mutex.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
@@ -15,8 +17,6 @@
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
 #include <LibDatabase/Forward.h>
-#include <LibSync/ConditionVariable.h>
-#include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
 #include <LibWebView/Autocomplete.h>
 #include <LibWebView/Export.h>

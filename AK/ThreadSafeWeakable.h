@@ -7,10 +7,10 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
+#include <AK/Mutex.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
 #include <AK/StdLibExtras.h>
-#include <LibSync/Mutex.h>
 
 namespace Sync {
 

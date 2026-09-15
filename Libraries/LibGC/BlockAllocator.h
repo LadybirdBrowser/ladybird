@@ -7,10 +7,10 @@
 #pragma once
 
 #include <AK/Atomic.h>
+#include <AK/ConditionVariable.h>
+#include <AK/Mutex.h>
 #include <AK/Vector.h>
 #include <LibGC/Forward.h>
-#include <LibSync/ConditionVariable.h>
-#include <LibSync/Mutex.h>
 
 namespace GC {
 

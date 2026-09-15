@@ -6,6 +6,9 @@
 
 #include <AK/HashMap.h>
 #include <AK/IDAllocator.h>
+#include <AK/Mutex.h>
+#include <AK/MutexProtected.h>
+#include <AK/RWLock.h>
 #include <AK/Singleton.h>
 #include <AK/TemporaryChange.h>
 #include <LibCore/Event.h>
@@ -14,9 +17,6 @@
 #include <LibCore/SocketAddress.h>
 #include <LibCore/System.h>
 #include <LibCore/ThreadEventQueue.h>
-#include <LibSync/Mutex.h>
-#include <LibSync/MutexProtected.h>
-#include <LibSync/RWLock.h>
 #include <UI/Qt/EventLoopImplementationQt.h>
 #include <UI/Qt/EventLoopImplementationQtEventTarget.h>
 

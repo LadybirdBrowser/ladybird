@@ -11,9 +11,9 @@
 
 #include <AK/AtomicRefCounted.h>
 #include <AK/Concepts.h>
+#include <AK/Mutex.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/EventReceiver.h>
-#include <LibSync/Mutex.h>
 
 namespace Core {
 

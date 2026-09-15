@@ -6,11 +6,11 @@
 
 #pragma once
 
+#include <AK/ConditionVariable.h>
 #include <AK/Function.h>
+#include <AK/Mutex.h>
 #include <AK/Queue.h>
 #include <AK/Vector.h>
-#include <LibSync/ConditionVariable.h>
-#include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
 
 namespace Threading {

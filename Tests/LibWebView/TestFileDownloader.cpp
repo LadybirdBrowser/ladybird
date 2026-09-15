@@ -5,6 +5,7 @@
  */
 
 #include <AK/ByteString.h>
+#include <AK/Mutex.h>
 #include <AK/Random.h>
 #include <AK/ScopeGuard.h>
 #include <AK/String.h>
@@ -19,7 +20,6 @@
 #include <LibMain/Main.h>
 #include <LibRequests/Request.h>
 #include <LibRequests/RequestClient.h>
-#include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
 #include <LibURL/Parser.h>
 #include <LibWebView/Application.h>

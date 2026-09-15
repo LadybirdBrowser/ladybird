@@ -5,10 +5,10 @@
  */
 
 #include <AK/Atomic.h>
+#include <AK/ConditionVariable.h>
 #include <AK/Math.h>
+#include <AK/Mutex.h>
 #include <LibMedia/Audio/NullPlaybackStream.h>
-#include <LibSync/ConditionVariable.h>
-#include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
 
 namespace Audio {

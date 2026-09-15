@@ -14,10 +14,10 @@
 #include <AK/Noncopyable.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/RWLock.h>
 #include <AK/RefPtr.h>
 #include <LibCore/Export.h>
 #include <LibCore/Forward.h>
-#include <LibSync/RWLock.h>
 
 namespace Core {
 

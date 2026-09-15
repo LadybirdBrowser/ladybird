@@ -7,12 +7,12 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/Mutex.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/String.h>
 #include <LibGfx/Font/FontCatalog.h>
 #include <LibGfx/Font/SharedFontProvider.h>
 #include <LibGfx/Font/TypefaceSkia.h>
-#include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
 #include <LibWebView/Export.h>
 

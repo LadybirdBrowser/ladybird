@@ -79,7 +79,7 @@ if (NOT WIN32)
 
     add_executable(TestFileDownloader TestFileDownloader.cpp)
     add_dependencies(TestFileDownloader ${ladybird_helper_processes})
-    target_link_libraries(TestFileDownloader PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibSync LibThreading LibURL LibWeb LibWebView)
+    target_link_libraries(TestFileDownloader PRIVATE AK LibCore LibDiff LibFileSystem LibGfx LibImageDecoders LibImageDecoderClient LibIPC LibJS LibMain LibRequests LibThreading LibURL LibWeb LibWebView)
     if (APPLE)
         target_compile_definitions(TestFileDownloader PRIVATE LADYBIRD_BINARY_PATH="$<TARGET_FILE_DIR:ladybird>")
     endif()

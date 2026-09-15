@@ -13,6 +13,8 @@
 #endif
 
 #include <AK/Atomic.h>
+#include <AK/ConditionVariable.h>
+#include <AK/Mutex.h>
 #include <AK/Queue.h>
 #include <AK/RefPtr.h>
 #include <AK/Vector.h>
@@ -23,8 +25,6 @@
 #include <LibIPC/Forward.h>
 #include <LibIPC/ReceivedMessageBytes.h>
 #include <LibIPC/TransportHandle.h>
-#include <LibSync/ConditionVariable.h>
-#include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
 
 namespace IPC {

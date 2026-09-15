@@ -4,12 +4,12 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ConditionVariable.h>
 #include <AK/OwnPtr.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/Timer.h>
-#include <LibSync/ConditionVariable.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 

@@ -7,13 +7,13 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/Mutex.h>
 #include <LibMedia/ContainerID.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/DemuxerScanThread.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
 #include <LibMedia/IncrementallyPopulatedStream.h>
-#include <LibSync/Mutex.h>
 
 #include "Reader.h"
 

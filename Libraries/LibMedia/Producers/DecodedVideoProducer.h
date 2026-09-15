@@ -7,7 +7,9 @@
 #pragma once
 
 #include <AK/Atomic.h>
+#include <AK/ConditionVariable.h>
 #include <AK/Forward.h>
+#include <AK/Mutex.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/Queue.h>
@@ -26,8 +28,6 @@
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
 #include <LibMedia/VideoDecoder.h>
-#include <LibSync/ConditionVariable.h>
-#include <LibSync/Mutex.h>
 
 namespace Media {
 

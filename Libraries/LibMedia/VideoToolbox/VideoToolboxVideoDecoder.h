@@ -7,6 +7,8 @@
 #pragma once
 
 #include <AK/Atomic.h>
+#include <AK/ConditionVariable.h>
+#include <AK/Mutex.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Vector.h>
 #include <LibMedia/CodecID.h>
@@ -18,8 +20,6 @@
 #include <LibMedia/VideoDecoder.h>
 #include <LibMedia/VideoFramePool.h>
 #include <LibMedia/VideoSurface.h>
-#include <LibSync/ConditionVariable.h>
-#include <LibSync/Mutex.h>
 
 namespace Media::VideoToolbox {
 

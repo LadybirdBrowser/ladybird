@@ -12,6 +12,7 @@
 #include <AK/FixedArray.h>
 #include <AK/Format.h>
 #include <AK/Math.h>
+#include <AK/Mutex.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Platform.h>
 #include <AK/Queue.h>
@@ -25,7 +26,6 @@
 #include <LibMedia/Audio/ChannelMap.h>
 #include <LibMedia/Audio/PlaybackStreamWasapi.h>
 #include <LibMedia/Audio/SampleSpecification.h>
-#include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
 
 #include <AK/Windows.h>

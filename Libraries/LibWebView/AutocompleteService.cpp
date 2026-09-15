@@ -5,11 +5,11 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/Mutex.h>
 #include <AK/OwnPtr.h>
 #include <AK/ScopeGuard.h>
 #include <LibCore/EventLoop.h>
 #include <LibDatabase/Database.h>
-#include <LibSync/Mutex.h>
 #include <LibWebView/AutocompleteRanker.h>
 #include <LibWebView/AutocompleteService.h>
 #include <LibWebView/HistoryStore.h>

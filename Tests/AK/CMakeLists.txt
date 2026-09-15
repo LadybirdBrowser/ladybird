@@ -71,6 +71,7 @@ set(AK_TEST_SOURCES
     TestStringUtils.cpp
     TestStringView.cpp
     TestTearableAtomic.cpp
+    TestThreadSafeWeakable.cpp
     TestTime.cpp
     TestTrie.cpp
     TestTuple.cpp
@@ -117,4 +118,5 @@ target_link_libraries(TestFlyString PRIVATE LibThreading)
 target_link_libraries(TestSeqLock PRIVATE LibThreading)
 target_link_libraries(TestString PRIVATE LibThreading LibUnicode)
 target_link_libraries(TestTearableAtomic PRIVATE LibThreading)
+target_link_libraries(TestThreadSafeWeakable PRIVATE LibThreading)
 target_link_libraries(TestUtf16String PRIVATE LibUnicode)

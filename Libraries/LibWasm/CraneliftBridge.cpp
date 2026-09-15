@@ -24,8 +24,8 @@
 #include <stdlib.h>
 
 #if defined(AK_OS_WINDOWS)
+#    include <AK/Mutex.h>
 #    include <AK/Windows.h>
-#    include <LibSync/Mutex.h>
 #else
 #    include <fcntl.h>
 #    include <sys/mman.h>

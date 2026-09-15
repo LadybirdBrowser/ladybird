@@ -6,10 +6,10 @@
 
 #include "PulseAudioWrappers.h"
 
+#include <AK/Mutex.h>
 #include <AK/NeverDestroyed.h>
 #include <LibMedia/Audio/AudioDevices.h>
 #include <LibMedia/Audio/SampleSpecification.h>
-#include <LibSync/Mutex.h>
 
 namespace Audio {
 

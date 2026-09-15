@@ -6,6 +6,7 @@
 
 #include <AK/Debug.h>
 #include <AK/IDAllocator.h>
+#include <AK/Mutex.h>
 #include <AK/NonnullRefPtr.h>
 #include <ImageDecoder/ConnectionFromClient.h>
 #include <ImageDecoder/ImageDecoderClientEndpoint.h>
@@ -16,7 +17,6 @@
 #include <LibGfx/ImageFormats/ImageDecoder.h>
 #include <LibGfx/ImageFormats/TIFFMetadata.h>
 #include <LibIPC/TransportHandle.h>
-#include <LibSync/Mutex.h>
 #include <LibThreading/ThreadPool.h>
 
 namespace ImageDecoder {

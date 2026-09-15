@@ -13,6 +13,7 @@
 #include <AK/MemoryStream.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/QuickSort.h>
+#include <AK/RWLockProtected.h>
 #include <AK/Random.h>
 #include <AK/StringView.h>
 #include <AK/TemporaryChange.h>
@@ -25,7 +26,6 @@
 #include <LibCrypto/Curves/EdwardsCurve.h>
 #include <LibCrypto/PK/RSA.h>
 #include <LibDNS/Message.h>
-#include <LibSync/RWLockProtected.h>
 #include <LibThreading/ThreadPool.h>
 
 #define TRY_OR_REJECT_PROMISE(promise, expr)          \

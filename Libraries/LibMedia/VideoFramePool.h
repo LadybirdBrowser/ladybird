@@ -9,6 +9,7 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
+#include <AK/Mutex.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/Vector.h>
@@ -17,7 +18,6 @@
 #include <LibMedia/Export.h>
 #include <LibMedia/VideoFrameHandle.h>
 #include <LibMedia/VideoSurface.h>
-#include <LibSync/Mutex.h>
 
 namespace Media {
 

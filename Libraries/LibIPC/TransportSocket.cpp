@@ -6,6 +6,7 @@
  */
 
 #include <AK/Checked.h>
+#include <AK/Mutex.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/ScopeGuard.h>
 #include <AK/Types.h>
@@ -16,7 +17,6 @@
 #include <LibIPC/Limits.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibIPC/TransportSocket.h>
-#include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
 #include <sys/ioctl.h>
 

@@ -11,10 +11,9 @@
 #include <AK/Diagnostics.h>
 #include <AK/Error.h>
 #include <AK/Format.h>
+#include <AK/Mutex.h>
+#include <AK/MutexPolicy.h>
 #include <AK/Platform.h>
-#include <LibSync/Export.h>
-#include <LibSync/Mutex.h>
-#include <LibSync/Policy.h>
 #include <pthread.h>
 
 namespace Sync {
@@ -92,9 +91,9 @@ MutexBase<RecursivePolicy, InterprocessPolicy>::MutexBase()
     pthread_mutexattr_destroy(&attr);
 }
 
-template class SYNC_API MutexBase<PolicyNonRecursive, PolicyIntraprocess>;
-template class SYNC_API MutexBase<PolicyRecursive, PolicyIntraprocess>;
-template class SYNC_API MutexBase<PolicyNonRecursive, PolicyInterprocess>;
-template class SYNC_API MutexBase<PolicyRecursive, PolicyInterprocess>;
+template class MutexBase<PolicyNonRecursive, PolicyIntraprocess>;
+template class MutexBase<PolicyRecursive, PolicyIntraprocess>;
+template class MutexBase<PolicyNonRecursive, PolicyInterprocess>;
+template class MutexBase<PolicyRecursive, PolicyInterprocess>;
 
 }

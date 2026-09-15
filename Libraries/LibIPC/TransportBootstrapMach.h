@@ -15,8 +15,8 @@
 #    error "TransportBootstrapMach is only available on Mach platforms"
 #endif
 
+#include <AK/Mutex.h>
 #include <LibCore/MachPort.h>
-#include <LibSync/Mutex.h>
 
 namespace IPC {
 

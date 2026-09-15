@@ -23,7 +23,7 @@ target_include_directories(wasmcompilerservice PRIVATE ${CMAKE_CURRENT_BINARY_DI
 target_include_directories(wasmcompilerservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Services/)
 
 target_link_libraries(WasmCompiler PRIVATE wasmcompilerservice LibCore LibMain LibSandbox LibThreading)
-target_link_libraries(wasmcompilerservice PRIVATE LibCore LibCrypto LibIPC LibSync LibThreading LibWasm)
+target_link_libraries(wasmcompilerservice PRIVATE LibCore LibCrypto LibIPC LibThreading LibWasm)
 
 if (WIN32)
     ladybird_windows_bin(WasmCompiler CONSOLE)

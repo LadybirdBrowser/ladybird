@@ -8,9 +8,9 @@
 
 #include "PlaybackStream.h"
 #include "PulseAudioWrappers.h"
+#include <AK/ConditionVariable.h>
+#include <AK/Mutex.h>
 #include <AK/Queue.h>
-#include <LibSync/ConditionVariable.h>
-#include <LibSync/Mutex.h>
 
 namespace Audio {
 

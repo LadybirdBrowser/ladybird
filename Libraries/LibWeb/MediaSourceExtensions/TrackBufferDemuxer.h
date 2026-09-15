@@ -7,15 +7,15 @@
 #pragma once
 
 #include <AK/Atomic.h>
+#include <AK/ConditionVariable.h>
 #include <AK/FixedArray.h>
+#include <AK/Mutex.h>
 #include <AK/Vector.h>
 #include <LibCore/Forward.h>
 #include <LibMedia/CodecID.h>
 #include <LibMedia/CodedFrame.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/TimeRanges.h>
-#include <LibSync/ConditionVariable.h>
-#include <LibSync/Mutex.h>
 #include <LibWeb/Export.h>
 
 namespace Web::MediaSourceExtensions {

@@ -10,11 +10,10 @@
 
 #include <AK/Assertions.h>
 #include <AK/Concepts.h>
+#include <AK/MutexPolicy.h>
 #include <AK/Noncopyable.h>
 #include <AK/Platform.h>
 #include <AK/Types.h>
-#include <LibSync/Export.h>
-#include <LibSync/Policy.h>
 
 #if !defined(AK_OS_WINDOWS)
 #    include <pthread.h>
@@ -30,7 +29,7 @@ requires Detail::IsIntraprocess<T> && Detail::IsNonRecursive<T>
 class ConditionVariableBase;
 
 template<typename RecursivePolicy, typename InterprocessPolicy>
-class SYNC_API MutexBase {
+class MutexBase {
     AK_MAKE_NONCOPYABLE(MutexBase);
     AK_MAKE_NONMOVABLE(MutexBase);
 
@@ -78,7 +77,7 @@ using IPCMutex = MutexBase<PolicyNonRecursive, PolicyInterprocess>;
 using IPCRecursiveMutex = MutexBase<PolicyRecursive, PolicyInterprocess>;
 
 template<typename MutexType>
-class [[nodiscard]] SYNC_API MutexLocker {
+class [[nodiscard]] MutexLocker {
     AK_MAKE_NONCOPYABLE(MutexLocker);
     AK_MAKE_NONMOVABLE(MutexLocker);
 

@@ -9,6 +9,7 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/Forward.h>
 #include <AK/HashTable.h>
+#include <AK/Mutex.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/OwnPtr.h>
 #include <AK/ThreadID.h>
@@ -27,7 +28,6 @@
 #include <LibMedia/TimeRanges.h>
 #include <LibMedia/Track.h>
 #include <LibMedia/VideoSinkHandle.h>
-#include <LibSync/Mutex.h>
 
 namespace Media {
 

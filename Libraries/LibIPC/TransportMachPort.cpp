@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/Mutex.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/NumericLimits.h>
 #include <AK/Time.h>
@@ -11,7 +12,6 @@
 #include <LibCore/Notifier.h>
 #include <LibCore/System.h>
 #include <LibIPC/TransportMachPort.h>
-#include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
 
 #include <mach/mach.h>

@@ -9,6 +9,7 @@
 #include <AK/Function.h>
 #include <AK/HashMap.h>
 #include <AK/Optional.h>
+#include <AK/ThreadSafeWeakable.h>
 #include <LibIPC/ConnectionToServer.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Producers/RemoteVideoProducer.h>
@@ -16,7 +17,6 @@
 #include <LibMedia/VideoPresentation/VideoPresentationClientEndpoint.h>
 #include <LibMedia/VideoPresentation/VideoPresentationServerEndpoint.h>
 #include <LibMedia/VideoSinkHandle.h>
-#include <LibSync/Weakable.h>
 
 namespace Media {
 

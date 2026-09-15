@@ -9,8 +9,7 @@
 #include <AK/Error.h>
 #include <AK/Format.h>
 #include <AK/Platform.h>
-#include <LibSync/Export.h>
-#include <LibSync/RWLock.h>
+#include <AK/RWLock.h>
 #include <new>
 #include <pthread.h>
 

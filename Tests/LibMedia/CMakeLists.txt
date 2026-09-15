@@ -39,7 +39,7 @@ if (APPLE)
 endif()
 
 foreach(source IN LISTS TEST_SOURCES)
-    ladybird_test("${source}" LibMedia LIBS LibMedia LibFileSystem LibSync)
+    ladybird_test("${source}" LibMedia LIBS LibMedia LibFileSystem)
 endforeach()
 
 target_link_libraries(TestAudioBlockTimingRing PRIVATE LibThreading)
