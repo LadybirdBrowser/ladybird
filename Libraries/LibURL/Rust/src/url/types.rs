@@ -106,8 +106,10 @@ pub enum Host {
 }
 
 impl Host {
+    // https://url.spec.whatwg.org/#empty-host
     pub(crate) fn is_empty_host(&self) -> bool {
-        matches!(self, Self::Domain(host) if host.is_empty())
+        // An empty host is the empty string.
+        matches!(self, Self::Domain(host) | Self::Opaque(host) if host.is_empty())
     }
 }
 
