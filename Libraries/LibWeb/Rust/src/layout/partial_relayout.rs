@@ -437,6 +437,7 @@ impl LayoutNodeArena {
                     child_data
                         .fragment_cache_epoch
                         .set(child_data.fragment_cache_epoch.get().wrapping_add(1));
+                    self.fc_run_cache_store().note_invalidated_entry(child);
                 }
                 self.set_node_flag(child, NodeFlag::NeedsLayoutUpdate, true);
                 self.reset_cached_intrinsic_sizes(child);

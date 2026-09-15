@@ -1,0 +1,53 @@
+<!doctype html>
+<script src="../include.js"></script>
+<style>
+    #outer { position: relative; margin: 30px; width: 300px; height: 200px; }
+    #parent { margin: 20px; width: 180px; height: 100px; }
+    #absolute { position: absolute; left: 7px; top: 11px; width: 20%; height: 10px; }
+    #fixed { position: fixed; left: 13px; top: 17px; width: 10%; height: 10px; }
+</style>
+<div id="outer"><div id="parent"><span id="absolute"></span><span id="fixed"></span></div></div>
+<script>
+test(() => {
+    const parent = document.getElementById("parent");
+    const absolute = document.getElementById("absolute");
+    const fixed = document.getElementById("fixed");
+    const results = [];
+    function geometry() {
+        return JSON.stringify([parent, absolute, fixed].map(element => {
+            const rect = element.getBoundingClientRect();
+            return [rect.x, rect.y, rect.width, rect.height];
+        }));
+    }
+    function check(label, mutate) {
+        mutate();
+        // Exercise a layout run even when the style change only requests repainting.
+        document.getElementById("outer").style.width = `${300 + results.length % 2}px`;
+        const before = geometry();
+        const comparison = internals.compareLayoutTreeWithFullRebuild();
+        results.push(`${label}: ${comparison.matches && before === geometry() ? "PASS" : "FAIL"}`);
+    }
+    geometry();
+    for (const [property, value] of [
+        ["position", "relative"],
+        ["transform", "translateX(10px)"],
+        ["contain", "layout"],
+        ["filter", "blur(0px)"],
+        ["willChange", "transform"],
+        ["perspective", "100px"],
+        ["display", "inline-block"],
+        ["display", "contents"],
+    ]) {
+        check(`${property}: ${value}`, () => parent.style[property] = value);
+        check(`${property}: reset`, () => parent.style[property] = "");
+    }
+    check("absolute to static", () => absolute.style.position = "static");
+    check("static to absolute", () => absolute.style.position = "absolute");
+    check("insert sibling", () => parent.prepend(document.createElement("div")));
+    check("remove sibling", () => parent.firstChild.remove());
+    check("move positioned child", () => document.getElementById("outer").append(absolute));
+    check("move positioned child back", () => parent.append(absolute));
+    check("ordinary size change", () => parent.style.width = "160px");
+    results.forEach(println);
+});
+</script>

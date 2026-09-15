@@ -1875,20 +1875,14 @@ pub unsafe extern "C" fn rust_build_layout_tree(
     }
 
     if rebuilt_subtrees_were_updated_individually {
-        // Nodes created by the incremental build have no containing blocks assigned yet, and the
-        // mutation may have moved where existing out-of-flow descendants belong; recompute both so
-        // partial relayout boundary qualification reads facts matching the just-built tree. A full
-        // layout pass re-derives them for the whole tree instead.
         let layout_host = host.layout();
-        for &root in &state.rebuilt_subtree_roots {
-            // A later mutation in the same build can have replaced a rebuilt root's box.
-            if layout_host.arena().node_data_if_live(root).is_none() {
-                continue;
-            }
-            layout_host
-                .arena()
-                .recompute_containing_blocks_in_subtree(root, layout_host.callbacks.inline_containing_block_lookup);
-        }
+        layout_host.arena().recompute_containing_blocks_after_tree_update(
+            &state.rebuilt_subtree_roots,
+            layout_host.callbacks.inline_containing_block_lookup,
+        );
+    } else {
+        // NB: The full layout entry must initialize containing blocks for this tree.
+        host.layout().arena().record_partial_relayout_escape();
     }
 
     // SAFETY: The builder remains live and copies the reported shell pointers before returning.

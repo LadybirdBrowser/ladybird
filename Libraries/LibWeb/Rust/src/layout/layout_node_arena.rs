@@ -523,6 +523,11 @@ pub(crate) struct LayoutNodeArena {
     pub(crate) scrollable_overflow: crate::painting::scrollable_overflow::ScrollableOverflowState,
     pub(crate) anchor_positioning_nodes: RefCell<HashSet<NodeSlotId>>,
     pub(crate) partial_relayout_boundary_roots: RefCell<Vec<NodeSlotId>>,
+    nodes_with_layout_update_flags: RefCell<Vec<NodeSlotId>>,
+    layout_update_flag_node_indices: RefCell<HashMap<NodeSlotId, usize>>,
+    #[cfg(test)]
+    layout_update_flag_ancestor_visits: Cell<u64>,
+    pub(super) pending_containing_block_roots: RefCell<Vec<NodeSlotId>>,
     /// Attribution of pending updates for partial relayout. Invariant: every update recorded
     /// since the last layout pass is either attributed to a boundary in the root set above, or
     /// this escape bit is set. Partial relayout may only run while the bit is clear; a full
@@ -576,6 +581,11 @@ impl LayoutNodeArena {
             scrollable_overflow: Default::default(),
             anchor_positioning_nodes: RefCell::new(HashSet::default()),
             partial_relayout_boundary_roots: RefCell::new(Vec::new()),
+            nodes_with_layout_update_flags: RefCell::new(Vec::new()),
+            layout_update_flag_node_indices: RefCell::new(HashMap::default()),
+            #[cfg(test)]
+            layout_update_flag_ancestor_visits: Cell::new(0),
+            pending_containing_block_roots: RefCell::new(Vec::new()),
             pending_updates_escape_partial_relayout: Cell::new(false),
             boxes_needing_scrollable_overflow_recalculation: RefCell::new(Vec::new()),
             needs_full_scrollable_overflow_recalculation: Cell::new(false),
@@ -609,10 +619,10 @@ impl LayoutNodeArena {
     }
 
     /// Drops entries whose slot or epoch no longer matches.
-    /// Runs at the end of every full pass so invalidated entries whose box
-    /// never probes again do not accumulate for the document's lifetime.
+    /// Checks only entries invalidated or stored since the previous sweep. Stale entries
+    /// survive until commit so inline layout can reuse their undamaged line prefixes.
     pub(crate) fn sweep_stale_fc_run_cache_entries(&self) {
-        self.fc_run_cache_store.retain_entries(|slot, validity| {
+        self.fc_run_cache_store.sweep_pending_entries(|slot, validity| {
             let Some(metadata) = self.slot_metadata.get(slot as usize) else {
                 return false;
             };
@@ -868,6 +878,7 @@ impl LayoutNodeArena {
             *slot = RunRecordSlot::default();
         }
         self.fc_run_cache_store.remove_entry(index);
+        self.remove_layout_update_flag_node(id);
         self.raw_table_column_spans.remove(&id);
         self.replaced_paint_facts.get_mut().remove(&id);
         self.layer_image_paint_facts.get_mut().remove(&id);
@@ -1420,6 +1431,23 @@ impl LayoutNodeArena {
         } else {
             updated &= !(flag as u32);
         }
+        if value
+            && matches!(flag, NodeFlag::NeedsLayoutUpdate | NodeFlag::NeedsOwnGeometryUpdate)
+            && data.flags.get() & (NodeFlag::NeedsLayoutUpdate as u32 | NodeFlag::NeedsOwnGeometryUpdate as u32) == 0
+        {
+            let mut nodes = self.nodes_with_layout_update_flags.borrow_mut();
+            let previous = self
+                .layout_update_flag_node_indices
+                .borrow_mut()
+                .insert(id, nodes.len());
+            debug_assert!(previous.is_none());
+            nodes.push(id);
+        } else if !value
+            && matches!(flag, NodeFlag::NeedsLayoutUpdate | NodeFlag::NeedsOwnGeometryUpdate)
+            && updated & (NodeFlag::NeedsLayoutUpdate as u32 | NodeFlag::NeedsOwnGeometryUpdate as u32) == 0
+        {
+            self.remove_layout_update_flag_node(id);
+        }
         data.flags.set(updated);
     }
 
@@ -1499,13 +1527,63 @@ impl LayoutNodeArena {
         }
     }
 
+    fn remove_layout_update_flag_node(&self, node: NodeSlotId) {
+        let mut indices = self.layout_update_flag_node_indices.borrow_mut();
+        let Some(index) = indices.remove(&node) else {
+            return;
+        };
+        let mut nodes = self.nodes_with_layout_update_flags.borrow_mut();
+        nodes.swap_remove(index);
+        if let Some(&moved_node) = nodes.get(index) {
+            *indices.get_mut(&moved_node).unwrap() = index;
+        }
+    }
+
     pub(crate) fn reset_layout_update_flags_in_subtree(&self, root: NodeSlotId) {
         self.assert_owner_thread();
         let flags_to_clear = NodeFlag::NeedsLayoutUpdate as u32 | NodeFlag::NeedsOwnGeometryUpdate as u32;
-        self.for_each_node_in_layout_subtree_in_pre_order(root, |node| {
+        if self.data(root).kind.get() != NodeKind::Viewport {
+            // NB: A partial-relayout batch commits each independent boundary separately.
+            // Scanning the document's dirty list per boundary would make cleanup quadratic.
+            self.for_each_node_in_layout_subtree_in_pre_order(root, |node| {
+                let data = self.data(node);
+                data.flags.set(data.flags.get() & !flags_to_clear);
+                self.remove_layout_update_flag_node(node);
+            });
+            return;
+        }
+
+        // NB: Dirty nodes share ancestor chains. Cache membership so a deeply nested
+        // dirty chain is checked once, while detached dirty subtrees remain pending.
+        let mut membership = HashMap::default();
+        membership.insert(root, true);
+        membership.insert(NodeSlotId::INVALID, false);
+        let mut ancestors = Vec::new();
+        let mut index = 0;
+        loop {
+            let Some(node) = self.nodes_with_layout_update_flags.borrow().get(index).copied() else {
+                break;
+            };
+            let mut ancestor = node;
+            while !membership.contains_key(&ancestor) {
+                ancestors.push(ancestor);
+                ancestor = self.data(ancestor).parent.get();
+                #[cfg(test)]
+                self.layout_update_flag_ancestor_visits
+                    .set(self.layout_update_flag_ancestor_visits.get() + 1);
+            }
+            let is_in_subtree = membership[&ancestor];
+            for ancestor in ancestors.drain(..) {
+                membership.insert(ancestor, is_in_subtree);
+            }
+            if !is_in_subtree {
+                index += 1;
+                continue;
+            }
             let data = self.data(node);
             data.flags.set(data.flags.get() & !flags_to_clear);
-        });
+            self.remove_layout_update_flag_node(node);
+        }
     }
 
     fn node_is_capable_of_forming_a_containing_block(&self, id: NodeSlotId) -> bool {
@@ -1615,6 +1693,34 @@ impl LayoutNodeArena {
                 self.set_node_flag(ancestor, NodeFlag::AbsposDescendantEscapes, true);
             }
             ancestor = self.data(ancestor).parent.get();
+        }
+    }
+
+    pub(crate) fn recompute_containing_blocks_after_tree_update(
+        &self,
+        rebuilt_roots: &[NodeSlotId],
+        inline_cb_lookup: unsafe extern "C" fn(*mut c_void, *mut c_void) -> NodeSlotId,
+    ) {
+        // NB: Anonymous wrappers, generated content, and table fixup can attach nodes
+        // outside the builder's reported rebuild roots. Include every attached subtree.
+        let mut pending = self.pending_containing_block_roots.borrow_mut();
+        let roots: HashSet<_> = pending
+            .drain(..)
+            .chain(rebuilt_roots.iter().copied())
+            .filter(|&root| self.slot_is_live(root))
+            .collect();
+        drop(pending);
+        for &root in &roots {
+            let mut ancestor = self.data(root).parent.get();
+            if ancestor.is_invalid() && self.data(root).kind.get() != NodeKind::Viewport {
+                continue;
+            }
+            while !ancestor.is_invalid() && !roots.contains(&ancestor) {
+                ancestor = self.data(ancestor).parent.get();
+            }
+            if ancestor.is_invalid() {
+                self.recompute_containing_blocks_in_subtree(root, inline_cb_lookup);
+            }
         }
     }
 
@@ -2376,6 +2482,7 @@ impl LayoutNodeArena {
             if epochs_enabled {
                 data.fragment_cache_epoch
                     .set(data.fragment_cache_epoch.get().wrapping_add(1));
+                self.fc_run_cache_store.note_invalidated_entry(node);
             }
             let (kind, parent) = (data.kind.get(), data.parent.get());
             if super::node_facts::kind_is_box(kind) {
@@ -2461,10 +2568,17 @@ impl LayoutNodeArena {
 
         self.assign_pre_order_labels_to_inserted_subtree(parent, child);
         self.note_layout_subtree_attached(child);
+        self.pending_containing_block_roots.borrow_mut().push(child);
         self.note_structural_change_at_and_above(parent);
     }
 
     pub(crate) fn remove_child(&self, parent: NodeSlotId, child: NodeSlotId) {
+        if self.data(parent).flags.get() & NodeFlag::AbsposDescendantEscapes as u32 != 0 {
+            // NB: Detaching an escaping descendant can leave flags on ancestors outside
+            // the rebuilt subtree. Re-derive them, including unaffected descendants'
+            // contributions, before qualifying future partial-relayout boundaries.
+            self.record_partial_relayout_escape();
+        }
         self.unlink_child(parent, child);
         self.note_structural_change_at_and_above(parent);
     }
@@ -3575,21 +3689,21 @@ mod tests {
         let root = arena.allocate_for_test();
         let child = arena.allocate_for_test();
         let detached = arena.allocate_for_test();
+        arena.data(root.slot).kind.set(NodeKind::Viewport);
         arena.insert_child(root.slot, child.slot, NodeSlotId::INVALID);
         let update_flags = NodeFlag::NeedsLayoutUpdate as u32 | NodeFlag::NeedsOwnGeometryUpdate as u32;
-        arena
-            .data(root.slot)
-            .flags
-            .set(arena.data(root.slot).flags.get() | (update_flags));
-        arena
-            .data(child.slot)
-            .flags
-            .set(arena.data(child.slot).flags.get() | (update_flags));
-        arena
-            .data(detached.slot)
-            .flags
-            .set(arena.data(detached.slot).flags.get() | (update_flags));
+        for node in [root.slot, child.slot, detached.slot] {
+            arena.set_node_flag(node, NodeFlag::NeedsLayoutUpdate, true);
+            arena.set_node_flag(node, NodeFlag::NeedsOwnGeometryUpdate, true);
+        }
 
+        arena.reset_layout_update_flags_in_subtree(child.slot);
+        assert_eq!(arena.data(root.slot).flags.get() & update_flags, update_flags);
+        assert_eq!(arena.data(child.slot).flags.get() & update_flags, 0);
+        // An own-geometry update must be found even when its ancestors are clean.
+        arena.reset_layout_update_flags_in_subtree(root.slot);
+        arena.set_node_flag(child.slot, NodeFlag::NeedsOwnGeometryUpdate, true);
+        arena.set_node_flag(child.slot, NodeFlag::NeedsOwnGeometryUpdate, true);
         arena.reset_layout_update_flags_in_subtree(root.slot);
 
         assert_eq!(arena.data(root.slot).flags.get() & update_flags, 0);
@@ -3598,6 +3712,71 @@ mod tests {
         arena.remove_child(root.slot, child.slot);
         arena.free_subtree(root.slot).destroy_shells_and_invoke_callbacks();
         arena.free_subtree(child.slot).destroy_shells_and_invoke_callbacks();
+        arena.free_subtree(detached.slot).destroy_shells_and_invoke_callbacks();
+    }
+
+    #[test]
+    fn independent_partial_commits_remove_only_their_own_dirty_nodes() {
+        let mut arena = LayoutNodeArena::new();
+        let viewport = arena.allocate_for_test();
+        arena.data(viewport.slot).kind.set(NodeKind::Viewport);
+        let mut boundaries = Vec::new();
+        for _ in 0..32 {
+            let boundary = arena.allocate_for_test();
+            let child = arena.allocate_for_test();
+            arena.insert_child(viewport.slot, boundary.slot, NodeSlotId::INVALID);
+            arena.insert_child(boundary.slot, child.slot, NodeSlotId::INVALID);
+            arena.set_node_flag(boundary.slot, NodeFlag::NeedsLayoutUpdate, true);
+            arena.set_node_flag(child.slot, NodeFlag::NeedsOwnGeometryUpdate, true);
+            boundaries.push((boundary, child));
+        }
+        for (index, (boundary, child)) in boundaries.iter().enumerate() {
+            arena.reset_layout_update_flags_in_subtree(boundary.slot);
+            assert_eq!(arena.data(boundary.slot).flags.get(), 0);
+            assert_eq!(arena.data(child.slot).flags.get(), 0);
+            assert_eq!(arena.nodes_with_layout_update_flags.borrow().len(), (31 - index) * 2);
+            assert_eq!(arena.layout_update_flag_node_indices.borrow().len(), (31 - index) * 2);
+            // Re-enrollment after removal must not leave duplicates or stale indices.
+            arena.set_node_flag(child.slot, NodeFlag::NeedsLayoutUpdate, true);
+            arena.set_node_flag(child.slot, NodeFlag::NeedsLayoutUpdate, false);
+        }
+        assert!(arena.nodes_with_layout_update_flags.borrow().is_empty());
+        arena.set_node_flag(boundaries[0].0.slot, NodeFlag::NeedsLayoutUpdate, true);
+        arena.free_subtree(viewport.slot).destroy_shells_and_invoke_callbacks();
+        assert!(arena.nodes_with_layout_update_flags.borrow().is_empty());
+        assert!(arena.layout_update_flag_node_indices.borrow().is_empty());
+    }
+
+    #[test]
+    fn full_commit_checks_shared_dirty_ancestor_chains_once() {
+        let mut arena = LayoutNodeArena::new();
+        let viewport = arena.allocate_for_test();
+        arena.data(viewport.slot).kind.set(NodeKind::Viewport);
+        let detached = arena.allocate_for_test();
+        let mut dirty_nodes = Vec::new();
+        for root in [viewport.slot, detached.slot] {
+            let mut parent = root;
+            for _ in 0..64 {
+                let child = arena.allocate_for_test();
+                arena.insert_child(parent, child.slot, NodeSlotId::INVALID);
+                dirty_nodes.push(child.slot);
+                parent = child.slot;
+            }
+        }
+        for &node in dirty_nodes.iter().rev() {
+            arena.set_node_flag(node, NodeFlag::NeedsLayoutUpdate, true);
+        }
+        arena.reset_layout_update_flags_in_subtree(viewport.slot);
+        // Each chain node and the detached root is inspected once, independent of depth.
+        assert_eq!(arena.layout_update_flag_ancestor_visits.get(), 129);
+        for (index, &node) in dirty_nodes.iter().enumerate() {
+            assert_eq!(
+                arena.data(node).flags.get() & NodeFlag::NeedsLayoutUpdate as u32 != 0,
+                index >= 64
+            );
+        }
+        assert_eq!(arena.nodes_with_layout_update_flags.borrow().len(), 64);
+        arena.free_subtree(viewport.slot).destroy_shells_and_invoke_callbacks();
         arena.free_subtree(detached.slot).destroy_shells_and_invoke_callbacks();
     }
 

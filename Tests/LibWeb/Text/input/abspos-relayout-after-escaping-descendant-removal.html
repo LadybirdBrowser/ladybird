@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<style>
+    #root { position: relative; width: 360px; height: 180px; }
+    #boundary { position: absolute; left: 40px; top: 25px; width: 160px; height: 90px; }
+    #content { width: 20px; height: 10px; }
+    .escaping { position: fixed; left: 0; top: 0; width: 10px; height: 10px; }
+</style>
+<div id="root">
+    <div id="boundary">
+        <div id="content"></div>
+        <div id="first"><div class="escaping"></div></div>
+        <div id="second"><div class="escaping"></div></div>
+    </div>
+</div>
+<script>
+    test(() => {
+        const content = document.getElementById("content");
+        const results = [];
+        function check(label, height) {
+            const partialBefore = internals.partialLayoutCount();
+            const fullBefore = internals.fullLayoutCount();
+            content.style.height = `${height}px`;
+            document.body.offsetHeight;
+            results.push(`${label}: partial=${internals.partialLayoutCount() - partialBefore} full=${internals.fullLayoutCount() - fullBefore}`);
+        }
+        document.body.offsetHeight;
+        document.getElementById("first").firstElementChild.remove();
+        document.body.offsetHeight;
+        check("one escaping descendant remains", 20);
+
+        document.getElementById("second").firstElementChild.remove();
+        document.body.offsetHeight;
+        check("last escaping descendant removed", 30);
+
+        const subtree = document.createElement("div");
+        const escaping = document.createElement("div");
+        escaping.className = "escaping";
+        subtree.append(escaping);
+        document.getElementById("second").append(subtree);
+        document.body.offsetHeight;
+        document.getElementById("root").append(subtree);
+        document.body.offsetHeight;
+        check("escaping subtree moved away", 40);
+        results.forEach(println);
+    });
+</script>

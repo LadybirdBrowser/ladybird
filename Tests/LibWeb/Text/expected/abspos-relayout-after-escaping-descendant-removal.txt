@@ -1,0 +1,3 @@
+one escaping descendant remains: partial=0 full=1
+last escaping descendant removed: partial=1 full=0
+escaping subtree moved away: partial=1 full=0

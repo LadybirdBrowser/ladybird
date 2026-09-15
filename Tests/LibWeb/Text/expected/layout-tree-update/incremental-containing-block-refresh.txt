@@ -1,0 +1,23 @@
+position: relative: PASS
+position: reset: PASS
+transform: translateX(10px): PASS
+transform: reset: PASS
+contain: layout: PASS
+contain: reset: PASS
+filter: blur(0px): PASS
+filter: reset: PASS
+willChange: transform: PASS
+willChange: reset: PASS
+perspective: 100px: PASS
+perspective: reset: PASS
+display: inline-block: PASS
+display: reset: PASS
+display: contents: PASS
+display: reset: PASS
+absolute to static: PASS
+static to absolute: PASS
+insert sibling: PASS
+remove sibling: PASS
+move positioned child: PASS
+move positioned child back: PASS
+ordinary size change: PASS
