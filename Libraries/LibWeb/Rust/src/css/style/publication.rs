@@ -2151,6 +2151,12 @@ impl StyleEngine {
         publication
     }
 
+    /// Holds group identity to payload addresses for the span of a C++ verification pass, so
+    /// that the second copy of a record it interns to check the first decides nothing.
+    pub(crate) fn suspend_computed_group_content_identities(&mut self, suspended: bool) {
+        self.computed_group_sets.set_content_identities_suspended(suspended);
+    }
+
     /// Intern the immutable computed-group payloads of a style which has no live StyleEngine target.
     pub(crate) fn intern_computed_groups(
         &mut self,
