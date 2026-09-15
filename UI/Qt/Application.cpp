@@ -167,31 +167,37 @@ public:
     {
         auto& application = WebView::Application::the();
 
-        m_new_tab_action = new QAction("New &Tab", m_application_widget);
+        auto make_action = [&](QString const& text) {
+            auto* action = new QAction(text, m_application_widget);
+            action->setShortcutVisibleInContextMenu(true);
+            return action;
+        };
+
+        m_new_tab_action = make_action("New &Tab");
         m_new_tab_action->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_T));
         QObject::connect(m_new_tab_action, &QAction::triggered, this, []() { Application::the().open_new_tab(); });
 
-        m_new_window_action = new QAction("New &Window", m_application_widget);
+        m_new_window_action = make_action("New &Window");
         m_new_window_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::New));
         QObject::connect(m_new_window_action, &QAction::triggered, this, []() { Application::the().open_new_window(WebView::IsPrivate::No); });
 
-        m_new_private_window_action = new QAction("New Pri&vate Window", m_application_widget);
+        m_new_private_window_action = make_action("New Pri&vate Window");
         m_new_private_window_action->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_N));
         QObject::connect(m_new_private_window_action, &QAction::triggered, this, []() { Application::the().open_new_window(WebView::IsPrivate::Yes); });
 
-        m_reopen_recently_closed_tab_action = new QAction("&Reopen Recently Closed Tab", m_application_widget);
+        m_reopen_recently_closed_tab_action = make_action("&Reopen Recently Closed Tab");
         m_reopen_recently_closed_tab_action->setShortcut(QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_T));
         QObject::connect(m_reopen_recently_closed_tab_action, &QAction::triggered, this, []() { Application::the().reopen_recently_closed_tab(); });
         update_reopen_recently_closed_action();
 
-        m_close_current_tab_action = new QAction("&Close Current Tab", m_application_widget);
+        m_close_current_tab_action = make_action("&Close Current Tab");
         m_close_current_tab_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Close));
         QObject::connect(m_close_current_tab_action, &QAction::triggered, this, []() {
             if (auto* tab = Application::the().active_tab())
                 tab->request_close();
         });
 
-        m_open_next_tab_action = new QAction("Open &Next Tab", m_application_widget);
+        m_open_next_tab_action = make_action("Open &Next Tab");
         m_open_next_tab_action->setShortcuts({
             QKeySequence(Qt::CTRL | Qt::Key_PageDown),
             QKeySequence(Qt::CTRL | Qt::Key_Tab),
@@ -205,7 +211,7 @@ public:
                 window->open_next_tab();
         });
 
-        m_open_previous_tab_action = new QAction("Open &Previous Tab", m_application_widget);
+        m_open_previous_tab_action = make_action("Open &Previous Tab");
         m_open_previous_tab_action->setShortcuts({
             QKeySequence(Qt::CTRL | Qt::Key_PageUp),
             QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Tab),
@@ -219,14 +225,14 @@ public:
                 window->open_previous_tab();
         });
 
-        m_open_file_action = new QAction("&Open File...", m_application_widget);
+        m_open_file_action = make_action("&Open File...");
         m_open_file_action->setShortcut(QKeySequence(QKeySequence::StandardKey::Open));
         QObject::connect(m_open_file_action, &QAction::triggered, this, []() { Application::the().open_file(); });
 
         m_open_downloads_action = create_application_action(*m_application_widget, application.open_downloads_page_action(), IncludeActionIcon::No);
         m_open_settings_action = create_application_action(*m_application_widget, application.open_settings_page_action(), IncludeActionIcon::No);
 
-        m_find_in_page_action = new QAction("&Find in Page...", m_application_widget);
+        m_find_in_page_action = make_action("&Find in Page...");
         m_find_in_page_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Find));
         QObject::connect(m_find_in_page_action, &QAction::triggered, this, []() {
             if (auto* window = Application::the().active_window_if_any())
@@ -237,7 +243,7 @@ public:
         m_zoom_out_action = create_application_action(*m_application_widget, application.zoom_out_action(), IncludeActionIcon::No);
         m_reset_zoom_action = create_application_action(*m_application_widget, application.reset_zoom_action(), IncludeActionIcon::No);
 
-        m_quit_action = new QAction("&Quit", m_application_widget);
+        m_quit_action = make_action("&Quit");
         m_quit_action->setShortcuts(QKeySequence::keyBindings(QKeySequence::StandardKey::Quit));
 #if defined(AK_OS_MACOS)
         QObject::connect(m_quit_action, &QAction::triggered, this, []() { Application::the().quit(); });

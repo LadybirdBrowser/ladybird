@@ -156,7 +156,7 @@ static void add_properties(QObject& object, T& menu_or_action)
         object.setProperty(key.to_byte_string().characters(), qstring_from_ak_string(value));
 }
 
-static void initialize_native_control(WebView::Action& action, QAction& qaction, QPalette const& palette, IncludeActionIcon include_action_icon)
+static void initialize_native_control(WebView::Action& action, QAction& qaction, QPalette const& palette, IncludeActionIcon include_action_icon, IncludeActionShortcut include_action_shortcut)
 {
     static constexpr int const MENU_ICON_SIZE = 16;
 
@@ -279,6 +279,8 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
         break;
     }
 
+    qaction.setShortcutVisibleInContextMenu(include_action_shortcut == IncludeActionShortcut::Yes);
+
     if (action.is_checkable())
         qaction.setCheckable(true);
 
@@ -286,7 +288,7 @@ static void initialize_native_control(WebView::Action& action, QAction& qaction,
     add_properties(qaction, action);
 }
 
-static void add_items_to_menu(QMenu& qmenu, QWidget& parent, WebView::Menu& menu)
+static void add_items_to_menu(QMenu& qmenu, QWidget& parent, WebView::Menu& menu, IncludeActionShortcut include_action_shortcut)
 {
     menu.add_observer(MenuObserver::create(qmenu));
     add_properties(qmenu, menu);
@@ -294,12 +296,12 @@ static void add_items_to_menu(QMenu& qmenu, QWidget& parent, WebView::Menu& menu
     for (auto& menu_item : menu.items()) {
         menu_item.visit(
             [&](NonnullRefPtr<WebView::Action>& action) {
-                auto* qaction = create_application_action(parent, action, IncludeActionIcon::No);
+                auto* qaction = create_application_action(parent, action, IncludeActionIcon::No, include_action_shortcut);
                 qmenu.addAction(qaction);
             },
             [&](NonnullRefPtr<WebView::Menu> const& submenu) {
                 auto* qsubmenu = new QMenu(qstring_from_ak_string(submenu->title()), &qmenu);
-                add_items_to_menu(*qsubmenu, parent, submenu);
+                add_items_to_menu(*qsubmenu, parent, submenu, include_action_shortcut);
 
                 if (submenu->render_group_icon())
                     qsubmenu->setIcon(create_chrome_icon(ChromeIcon::Folder, parent.palette()));
@@ -355,17 +357,17 @@ void populate_session_history_traversal_menu(QMenu& menu, WebContentView& view, 
     append_session_history_traversal_menu_items(menu, view, direction);
 }
 
-QMenu* create_application_menu(QWidget& parent, WebView::Menu& menu)
+QMenu* create_application_menu(QWidget& parent, WebView::Menu& menu, IncludeActionShortcut include_action_shortcut)
 {
     auto* application_menu = new QMenu(qstring_from_ak_string(menu.title()), &parent);
-    add_items_to_menu(*application_menu, parent, menu);
+    add_items_to_menu(*application_menu, parent, menu, include_action_shortcut);
     return application_menu;
 }
 
-void repopulate_application_menu(QMenu& menu, QWidget& parent, WebView::Menu& source)
+void repopulate_application_menu(QMenu& menu, QWidget& parent, WebView::Menu& source, IncludeActionShortcut include_action_shortcut)
 {
     menu.clear();
-    add_items_to_menu(menu, parent, source);
+    add_items_to_menu(menu, parent, source, include_action_shortcut);
 }
 
 static void insert_dynamic_history_action(QMenu& menu, QAction* before, QAction& action)
@@ -449,7 +451,7 @@ void update_history_menu(QMenu& menu, WebContentView* view)
 
 QMenu* create_context_menu(QWidget& parent, WebContentView& view, WebView::Menu& menu)
 {
-    auto* application_menu = create_application_menu(parent, menu);
+    auto* application_menu = create_application_menu(parent, menu, IncludeActionShortcut::No);
 
     menu.on_activation = [view = QPointer { &view }, application_menu = QPointer { application_menu }](Gfx::IntPoint position) {
         if (view && application_menu)
@@ -459,10 +461,10 @@ QMenu* create_context_menu(QWidget& parent, WebContentView& view, WebView::Menu&
     return application_menu;
 }
 
-QAction* create_application_action(QWidget& parent, WebView::Action& action, IncludeActionIcon include_action_icon)
+QAction* create_application_action(QWidget& parent, WebView::Action& action, IncludeActionIcon include_action_icon, IncludeActionShortcut include_action_shortcut)
 {
     auto* qaction = new QAction(&parent);
-    initialize_native_control(action, *qaction, parent.palette(), include_action_icon);
+    initialize_native_control(action, *qaction, parent.palette(), include_action_icon, include_action_shortcut);
     return qaction;
 }
 
