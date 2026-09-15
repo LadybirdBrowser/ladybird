@@ -306,16 +306,19 @@ void NavigableContainer::destroy_the_child_navigable()
     if (!navigable)
         return;
 
-    // Not in the spec:
-    // Setting container's content navigable makes document *not* be "fully active".
-    // Therefore, it is moved to run in the after-all-unloads callback of "unload a document and its descendants"
-    // when all queued tasks are done.
-    // "Has been destroyed" flag is used instead to check whether navigable is already destroyed.
     auto& local_navigable = as<LocalNavigable>(*navigable);
 
     if (local_navigable.has_been_destroyed())
         return;
     local_navigable.set_has_been_destroyed();
+
+    // 3. Set container's content navigable to null.
+    m_content_navigable = nullptr;
+    local_navigable.set_container({}, nullptr);
+    document().schedule_html_parser_end_check();
+    if (auto* layout_node = unsafe_layout_node())
+        layout_node->refresh_dom_paint_facts();
+    set_needs_repaint();
 
     // AD-HOC: Clear the navigable's "is delaying load events" flag.
     //         This removes the DocumentLoadEventDelayer on the parent document that was
@@ -333,27 +336,16 @@ void NavigableContainer::destroy_the_child_navigable()
     // 4. Inform the navigation API about child navigable destruction given navigable.
     local_navigable.inform_the_navigation_api_about_child_navigable_destruction();
 
-    auto after_document_destruction = GC::create_function(GC::Heap::the(), [this, navigable] {
-        // 3. Set container's content navigable to null.
-        as<LocalNavigable>(*navigable).set_container({}, nullptr);
+    // NB: The container may have been inserted into another document by the time the unload below finishes, so capture
+    //     its node navigable now for steps 6 and 8.
+    auto parent_navigable = this->navigable();
 
-        // AD-HOC: In the spec this step runs synchronously, before the container could possibly acquire another content
-        //         navigable. Since we defer it, the container may have been re-inserted in the meantime and hold a new
-        //         content navigable, which this step must not clear.
-        if (m_content_navigable == navigable) {
-            m_content_navigable = nullptr;
-            document().schedule_html_parser_end_check();
-            if (auto* layout_node = unsafe_layout_node())
-                layout_node->refresh_dom_paint_facts();
-            set_needs_repaint();
-        }
-
+    auto after_document_destruction = GC::create_function(GC::Heap::the(), [navigable, parent_navigable] {
         // Not in the spec:
         as<LocalNavigable>(*navigable).report_child_frame_destroyed();
         as<LocalNavigable>(*navigable).remove_from_all_local_navigables();
 
         // 6. Let parentDocState be container's node navigable's active session history entry's document state.
-        auto parent_navigable = this->navigable();
         auto parent_doc_state = parent_navigable->active_session_history_entry()->document_state();
 
         // 7. Remove the nested history from parentDocState's nested histories whose id equals navigable's id.
