@@ -30,18 +30,19 @@
         nextParentUrl.hostname = parentHostname;
 
         // Add the child after the parent is showing so the test does not depend on propagating the remote child's
-        // load event before it can initiate the parent navigation.
+        // load event before it can initiate the parent navigation. The parent navigates when told to, once this
+        // document has seen the child hosted out of process.
         const parentUrl = new URL(
             await httpServer.createEcho("GET", `/oop-nav-parent-${runId}`, {
                 status: 200,
                 headers: { "Content-Type": "text/html" },
                 body: `<!DOCTYPE html><script>
+                    addEventListener("message", () => { location.href = "${nextParentUrl}"; });
                     addEventListener("load", () => {
                         document.cookie = "shown=1; path=/";
                         const frame = document.createElement("iframe");
                         frame.src = "${childUrl}";
                         document.body.appendChild(frame);
-                        setTimeout(() => { location.href = "${nextParentUrl}"; }, 1000);
                     });
                 <\/script>`,
             })
@@ -60,6 +61,8 @@
             println("remote document setup did not complete");
             return;
         }
+
+        frame.contentWindow.postMessage("navigate", "*");
 
         for (const [url, name, value, description] of [
             [childUrl, "unloadPing", "1", "remote child unload handler"],
