@@ -808,7 +808,7 @@ void set_needs_repaint(Layout::Node const& node, InvalidateDisplayList should_in
 
     auto& document = const_cast<DOM::Document&>(node.document());
     if (should_invalidate_display_list != InvalidateDisplayList::No) {
-        Layout::RustFFI::layout_arena_paintable_invalidate_for_repaint(node.arena_handle(), committed_row_slot(node));
+        Layout::RustFFI::layout_arena_paintable_invalidate_for_repaint(node.arena_handle(), committed_row_slot(node), should_invalidate_display_list == InvalidateDisplayList::PaintCommandsAndHitTestList);
 
         // The root element paints the body's propagated background, so a body repaint must also refresh the
         // root's cached background. Changes to the propagation source are handled during paint preparation.

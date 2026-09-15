@@ -323,10 +323,14 @@ impl LayoutNodeArena {
         if self.paintable_row_count() == 0 {
             return;
         }
+        // The new parent lists the subtree from now on, and every row inside plans its own
+        // descendants under the new ancestry.
+        self.push_enclosing_paint_order_damage(subtree_root);
         self.for_each_node_in_layout_subtree_in_pre_order(subtree_root, |node| {
             if self.paintable_row_is_populated(node) {
                 self.note_overflow_contained_box_added(node);
                 self.note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::ReattachedInLayoutTree);
+                self.push_paint_damage(node, crate::painting::record::damage::PaintDamage::ORDER);
             }
         });
     }

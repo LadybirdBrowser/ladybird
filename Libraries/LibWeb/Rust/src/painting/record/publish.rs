@@ -146,6 +146,7 @@ fn publish_recording_output(
         paint_state.paint_command_cache_source = Some(output.clone());
         // Read-only recordings commit nothing and must not age dirty stamps out.
         arena.note_paint_record_completed_with_cache_writes();
+        arena.clear_paint_damage_consumed_by_published_recording();
         paint_state.visual_context.quarantined_slots_are_releasable = true;
     } else {
         debug_assert!(cache_updates.is_empty());

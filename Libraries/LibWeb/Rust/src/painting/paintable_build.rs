@@ -9,6 +9,7 @@ use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::{DomPaintFact, NodeKind, NodeSlotId};
 use crate::layout::{formatting_context, fragment_tree, node_facts, used_values};
 use crate::painting::node_painting;
+use crate::painting::record::damage::PaintDamage;
 use crate::painting::visual_context::dirty::VisualContextBoxDirtyKind;
 
 #[derive(Clone, Copy, Debug)]
@@ -164,6 +165,7 @@ impl<'a> PaintableCommit<'a> {
                 || (enclosing_line_root_changes.fragment_changed && has_descendant_dependent_paint(self.arena(), node));
             if row_existed_before_this_commit && inline_paint_changed {
                 self.arena().paintable_rows().mark_paint_cache_self_dirty(node);
+                self.arena().push_paint_damage(node, PaintDamage::ALL_PRODUCERS);
             }
             if row_existed_before_this_commit && enclosing_line_root_changes.fragment_changed {
                 self.arena()
@@ -269,7 +271,10 @@ impl<'a> PaintableCommit<'a> {
         // Inserted, removed or reordered children change which scopes this row's plans list,
         // independently of where the children were placed.
         if !child_sequence_unchanged {
-            self.arena().note_paint_order_changed(node);
+            self.arena()
+                .paintable_rows()
+                .mark_descendant_subtree_caches_dirty_along_paint_chain(node);
+            self.arena().push_paint_damage(node, PaintDamage::ORDER);
         }
         let painted_geometry_lives_in_enclosing_line_root = {
             let data = self.arena().data(node);
@@ -301,6 +306,14 @@ impl<'a> PaintableCommit<'a> {
                 .line_data
                 .as_ref()
                 .is_none_or(|content| content.fragments.is_empty());
+        let mut damage = PaintDamage::NONE;
+        if !own_paint_unchanged || enclosing_inline_paint_changed || empty_editable_children_changed {
+            damage |= PaintDamage::ALL_PRODUCERS;
+        }
+        if !paint_offset_unchanged {
+            damage |= PaintDamage::MOVED;
+        }
+        self.arena().push_paint_damage(node, damage);
         // Equality only avoids adding dirtiness; it never clears a pending style/content repaint.
         if !own_paint_unchanged
             || !paint_offset_unchanged
@@ -411,6 +424,7 @@ impl<'a> PaintableCommit<'a> {
         data.containing_block = containing_block;
         if containing_block_changed {
             paintable_rows.note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::ContainingBlockChanged);
+            paintable_rows.push_paint_damage(node, PaintDamage::MOVED);
         }
     }
 
@@ -507,6 +521,7 @@ impl<'a> PaintableCommit<'a> {
                 if inline_geometry_changed {
                     paintable_rows
                         .note_visual_context_box_dirty(piece_node, VisualContextBoxDirtyKind::InlineGeometryChanged);
+                    paintable_rows.push_paint_damage(piece_node, PaintDamage::ALL_PRODUCERS);
                 }
             }
             // This box has at most one piece per line, so its piece indices are ordered by line.

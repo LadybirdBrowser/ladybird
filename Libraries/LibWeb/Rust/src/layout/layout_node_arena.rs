@@ -1308,14 +1308,23 @@ impl LayoutNodeArena {
             return false;
         }
         let mut table = self.layer_image_paint_facts.borrow_mut();
-        if entries.is_empty() {
-            return table.remove(&id).is_some_and(|previous| !previous.is_empty());
+        let changed = if entries.is_empty() {
+            table.remove(&id).is_some_and(|previous| !previous.is_empty())
+        } else if table.get(&id) == Some(&entries) {
+            false
+        } else {
+            table.insert(id, entries);
+            true
+        };
+        drop(table);
+        if changed {
+            use crate::painting::record::damage::PaintDamage;
+            self.push_paint_damage_for_repaint(
+                id,
+                PaintDamage::DRAW_BACKGROUND | PaintDamage::DRAW_BORDER | PaintDamage::SCOPE_PREAMBLE,
+            );
         }
-        if table.get(&id) == Some(&entries) {
-            return false;
-        }
-        table.insert(id, entries);
-        true
+        changed
     }
 
     pub(crate) fn set_replaced_paint_facts(
@@ -1339,6 +1348,7 @@ impl LayoutNodeArena {
             if row != id {
                 self.invalidate_for_repaint(row);
             }
+            self.push_paint_damage_for_repaint(row, crate::painting::record::damage::PaintDamage::DRAW_FOREGROUND);
         }
         any_changed
     }
@@ -1357,6 +1367,8 @@ impl LayoutNodeArena {
             }
             data.dom_paint_facts.set(facts);
             any_changed = true;
+            use crate::painting::record::damage::PaintDamage;
+            self.push_paint_damage_for_repaint(row, PaintDamage::ALL_HIT | PaintDamage::SCROLL_METADATA);
         }
         any_changed
     }
@@ -1425,7 +1437,8 @@ impl LayoutNodeArena {
     pub(crate) fn set_node_flag(&self, id: NodeSlotId, flag: NodeFlag, value: bool) {
         self.assert_owner_thread();
         let data = self.data(id);
-        let mut updated = data.flags.get();
+        let previous = data.flags.get();
+        let mut updated = previous;
         if value {
             updated |= flag as u32;
         } else {
@@ -1449,6 +1462,11 @@ impl LayoutNodeArena {
             self.remove_layout_update_flag_node(id);
         }
         data.flags.set(updated);
+        // Retaining compositor-animated content decides whether a non-invertible transform
+        // still records its stacking context.
+        if flag == NodeFlag::HasAnimatedOpacityOrTransform && updated != previous {
+            self.push_paint_damage(id, crate::painting::record::damage::PaintDamage::ELIGIBILITY);
+        }
     }
 
     pub(crate) fn node_has_compositor_animation_frame(
@@ -2578,6 +2596,9 @@ impl LayoutNodeArena {
             // the rebuilt subtree. Re-derive them, including unaffected descendants'
             // contributions, before qualifying future partial-relayout boundaries.
             self.record_partial_relayout_escape();
+        }
+        if self.paintable_row_count() > 0 {
+            self.push_enclosing_paint_order_damage(child);
         }
         self.unlink_child(parent, child);
         self.note_structural_change_at_and_above(parent);

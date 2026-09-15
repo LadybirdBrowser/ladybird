@@ -47,11 +47,17 @@ impl PaintState {
         if previous == source {
             return false;
         }
+        use crate::painting::record::damage::PaintDamage;
         // Propagation changes which box paints the body's background. Invalidate both
         // the old and new owners, including inline pieces cached by their containing block.
         for source in [previous, source] {
             for slot in [source.root_layout_node, source.body_layout_node] {
                 arena.invalidate_for_repaint(slot);
+                arena.push_paint_damage_for_repaint(slot, PaintDamage::DRAW_BACKGROUND);
+            }
+            // The viewport's scrollbars take their colors from the propagated background.
+            if let Some(viewport) = arena.node_parent_if_live(source.root_layout_node) {
+                arena.push_paint_damage(viewport, PaintDamage::DRAW_OVERLAY | PaintDamage::SCROLL_METADATA);
             }
         }
         true

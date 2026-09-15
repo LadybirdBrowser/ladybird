@@ -10,6 +10,7 @@ use crate::layout::{fragment_tree, used_values};
 use crate::painting::node_painting;
 use crate::painting::paintable_data::*;
 use crate::painting::record::cache::PaintCache;
+use crate::painting::record::damage::{DamageSet, PaintDamage, RowPaintState};
 use crate::painting::visual_context::dirty::{
     RemovedBoxBlocks, VisualContextBoxDirtyKind, VisualContextGlobalRebuildReason,
 };
@@ -169,6 +170,8 @@ pub(crate) struct PaintableRowStore {
     chunks: Vec<Box<PaintableRowChunk>>,
     side_data: RefCell<Vec<PaintableSideData>>,
     paint_caches: RefCell<Vec<PaintCache>>,
+    pub(crate) row_paint_states: RefCell<Vec<RowPaintState>>,
+    pub(crate) damage: DamageSet,
     visual_context_records: RefCell<Vec<Option<PaintableVisualContextRecord>>>,
     pub(crate) stacking_context_entries:
         RefCell<Vec<Option<Box<crate::painting::stacking_context::entries::StackingContextEntries>>>>,
@@ -341,6 +344,7 @@ where
     pub(crate) fn invalidate_subtree_for_repaint(&self, id: NodeSlotId) {
         crate::painting::paint_order::for_each_in_paint_subtree(self, id, |slot| {
             self.mark_paint_cache_self_dirty(slot);
+            self.arena.push_paint_damage(slot, PaintDamage::ALL_PRODUCERS);
         });
     }
 
@@ -361,17 +365,23 @@ where
     }
 
     pub(crate) fn invalidate_for_repaint(&self, id: NodeSlotId) {
+        self.for_each_row_repainted_with(id, |row| self.mark_paint_cache_self_dirty(row));
+    }
+
+    /// A style repaint of a row also repaints the anonymous boxes it generated and, for an
+    /// inline, the ancestors up to the line root that paints its pieces.
+    pub(crate) fn for_each_row_repainted_with(&self, id: NodeSlotId, mut repaint: impl FnMut(NodeSlotId)) {
         if !self.paintable_row_is_populated(id) {
             return;
         }
-        self.invalidate_paint_cache(id);
+        repaint(id);
         let mut stack = vec![id];
         while let Some(current) = stack.pop() {
             let mut child = crate::painting::paint_order::first_paint_child(self, current);
             while let Some(child_slot) = child {
                 let child_flags = self.arena.node_flags_if_live(child_slot);
                 if child_flags & NodeFlag::Anonymous as u32 != 0 {
-                    self.mark_paint_cache_self_dirty(child_slot);
+                    repaint(child_slot);
                     stack.push(child_slot);
                 }
                 child = crate::painting::paint_order::next_paint_sibling(self, child_slot);
@@ -380,7 +390,7 @@ where
         if node_painting::is_inline(self, id) {
             let mut ancestor = crate::painting::paint_order::paint_parent(self, id);
             while let Some(current) = ancestor {
-                self.invalidate_paint_cache(current);
+                repaint(current);
                 if node_painting::has_lines(self, current) {
                     break;
                 }
@@ -408,6 +418,7 @@ where
             }
             if node_painting::has_lines(self, current) || node_painting::is_inline(self, current) {
                 self.mark_paint_cache_self_dirty(current);
+                self.arena.push_paint_damage(current, PaintDamage::DRAW_FOREGROUND);
             }
             if let Some(first_child) = crate::painting::paint_order::first_paint_child(self, current) {
                 stack.push(first_child);
@@ -566,7 +577,7 @@ impl LayoutNodeArena {
             return;
         }
         let inputs = crate::painting::paint_order_plan::PaintOrderInputs::gather(&self.paintable_rows(), row);
-        if self.paintable_paint_cache(row).update_order_inputs(inputs) {
+        if self.row_paint_state(row).update_order_inputs(inputs) {
             self.note_paint_order_changed(row);
         }
     }
@@ -577,12 +588,17 @@ impl LayoutNodeArena {
         self.debug_assert_not_recording();
         self.paintable_rows()
             .mark_descendant_subtree_caches_dirty_along_paint_chain(row);
+        self.push_paint_damage(row, PaintDamage::ORDER);
+        self.push_enclosing_paint_order_damage(row);
     }
 
     // The entry tables decide how a stacking context composes its hoisted content, so a table
     // change reorders the context's own painting even when no row changed its own decisions.
     pub(crate) fn note_stacking_context_composition_changed(&self, context_root: NodeSlotId) {
-        self.note_paint_order_changed(context_root);
+        self.debug_assert_not_recording();
+        self.paintable_rows()
+            .mark_descendant_subtree_caches_dirty_along_paint_chain(context_root);
+        self.push_paint_damage(context_root, PaintDamage::CONTEXT_ORDER);
     }
 
     pub(crate) fn paintable_rows(&self) -> PaintableRowsRef<'_> {
@@ -758,6 +774,7 @@ impl LayoutNodeArena {
         self.paintable_rows
             .all_paint_caches_dirty_gen
             .set(self.paint_cache_next_dirty_gen());
+        self.push_all_paint_damage();
     }
 
     pub(crate) fn all_paint_caches_dirty(&self) -> bool {
@@ -778,6 +795,7 @@ impl LayoutNodeArena {
         let chunks = &mut store.chunks;
         let mut side_data = store.side_data.borrow_mut();
         let mut paint_caches = store.paint_caches.borrow_mut();
+        let mut row_paint_states = store.row_paint_states.borrow_mut();
         let mut absolute_rect_memo = store.absolute_rect_memo.borrow_mut();
         let mut visual_context_records = store.visual_context_records.borrow_mut();
         let mut stacking_context_entries = store.stacking_context_entries.borrow_mut();
@@ -787,6 +805,7 @@ impl LayoutNodeArena {
             }
             side_data.push(PaintableSideData::default());
             paint_caches.push(PaintCache::default());
+            row_paint_states.push(RowPaintState::default());
             absolute_rect_memo.push(None);
             visual_context_records.push(None);
             stacking_context_entries.push(None);
@@ -801,7 +820,7 @@ impl LayoutNodeArena {
             ..Default::default()
         };
         paint_caches[index].clear();
-        paint_caches[index].clear_order_inputs();
+        row_paint_states[index].clear();
         absolute_rect_memo[index] = None;
         visual_context_records[index] = None;
         stacking_context_entries[index] = None;
@@ -812,6 +831,8 @@ impl LayoutNodeArena {
         if mark_caches_dirty_along_paint_chain {
             self.paintable_rows()
                 .mark_descendant_subtree_caches_dirty_along_paint_chain(id);
+            // A cleared row is still linked, so the ancestor whose plans listed it is known now.
+            self.push_enclosing_paint_order_damage(id);
         }
         if let Some(record) = self.take_paintable_visual_context_record(id) {
             self.withdraw_stacking_context_state_of_reset_row(id, Some(record.stacking_context));
@@ -841,7 +862,7 @@ impl LayoutNodeArena {
             PaintableData::default();
         store.side_data.borrow_mut()[index] = PaintableSideData::default();
         store.paint_caches.borrow()[index].clear();
-        store.paint_caches.borrow()[index].clear_order_inputs();
+        store.row_paint_states.borrow()[index].clear();
         store.visual_context_records.borrow_mut()[index] = None;
         store.stacking_context_entries.borrow_mut()[index] = None;
     }
@@ -872,7 +893,7 @@ impl LayoutNodeArena {
 
     pub(crate) fn set_paintable_visual_context_record(&self, id: NodeSlotId, record: PaintableVisualContextRecord) {
         debug_assert!(self.paintable_row_is_populated(id));
-        let inputs = self.paintable_paint_cache(id).order_inputs().map(|inputs| {
+        let inputs = self.row_paint_state(id).order_inputs().map(|inputs| {
             inputs.with_visual_context(
                 &record.stacking_context,
                 crate::painting::style_queries::z_index(self, id),
@@ -880,7 +901,7 @@ impl LayoutNodeArena {
         });
         self.paintable_rows.visual_context_records.borrow_mut()[id.slot_index() as usize] = Some(record);
         if let Some(inputs) = inputs {
-            if self.paintable_paint_cache(id).update_order_inputs(inputs) {
+            if self.row_paint_state(id).update_order_inputs(inputs) {
                 self.note_paint_order_changed(id);
             }
         } else {
@@ -1022,6 +1043,7 @@ impl LayoutNodeArena {
         if !self.paintable_row_is_populated(containing_block) {
             return;
         }
+        self.push_paint_damage(containing_block, PaintDamage::ALL_PRODUCERS);
         let mut side = self.paintable_side_data_mut(containing_block);
         let Some(content) = side.inline_content.as_mut() else {
             return;

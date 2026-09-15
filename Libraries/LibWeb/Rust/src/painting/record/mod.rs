@@ -9,6 +9,7 @@ use crate::painting::record::trace::{Observer, Operation};
 pub mod async_scroll_metadata;
 pub mod cache;
 pub(crate) mod cache_compatibility;
+pub(crate) mod damage;
 pub mod hit_test_items;
 pub(crate) mod inputs;
 pub mod paint;

@@ -100,7 +100,12 @@ pub unsafe extern "C" fn layout_arena_paintable_set_scrollbar_enlarged(
         ScrollDirection::Horizontal => PaintableFlag::HorizontalScrollbarEnlarged,
         ScrollDirection::Vertical => PaintableFlag::VerticalScrollbarEnlarged,
     };
+    if rows.paintable_data(slot).has_flag(flag) == enlarged {
+        return;
+    }
     rows.paintable_data_mut(slot).set_flag(flag, enlarged);
+    use crate::painting::record::damage::PaintDamage;
+    rows.push_paint_damage(slot, PaintDamage::DRAW_OVERLAY | PaintDamage::HIT_OVERLAY);
 }
 
 /// Decide if force-dark should invert an image: the caller owns the sampling, this owns the policy. Returns false
@@ -421,6 +426,8 @@ pub unsafe extern "C" fn layout_arena_invalidate_nearest_self_painting_inline_pa
         crate::painting::fragment_ownership::nearest_self_painting_inline_box(&arena.paintable_rows(), node)
     {
         arena.invalidate_paint_cache(ancestor);
+        use crate::painting::record::damage::PaintDamage;
+        arena.push_paint_damage(ancestor, PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT);
     }
 }
 
@@ -1203,11 +1210,12 @@ fn fresh_visual_context_tree_build(
     };
     let arena = unsafe { arena_from_handle_mut(arena) };
     outcome.mask_node_owners_changed = true;
+    // Everything records again; pushing that first keeps the per-row pushes below free.
+    arena.mark_all_paint_caches_dirty();
     apply_walk_assignments(arena, viewport, &mut outcome, state);
     arena.rebuild_all_stacking_context_entries_from_records(viewport);
     arena.take_line_roots_needing_fragment_ownership();
     crate::painting::fragment_ownership::assign_fragment_ownership(&arena.paintable_rows(), viewport);
-    arena.mark_all_paint_caches_dirty();
     state.quarantined_slots_are_releasable = false;
     debug_assert_every_live_node_is_owned(
         &arena.paintable_rows(),
@@ -1515,7 +1523,11 @@ pub unsafe extern "C" fn layout_arena_record_display_list(
             );
             if canvas_rect != source.cache_inputs.root_background_canvas_rect {
                 arena.invalidate_paint_cache(root);
+                arena.push_paint_damage(root, crate::painting::record::damage::PaintDamage::DRAW_BACKGROUND);
             }
+        }
+        if inputs.paint_command_cache_read_write {
+            arena.note_cache_writing_paint_recording_started();
         }
         let mut scratch = arena.recording_scratch().borrow_mut();
         arena.set_paint_recording_in_progress(true);
@@ -2021,6 +2033,8 @@ pub unsafe extern "C" fn layout_arena_paintable_invalidate_paint_cache(
         arena.invalidate_propagated_text_decoration_caches(paintable);
     } else {
         arena.invalidate_paint_cache(paintable);
+        use crate::painting::record::damage::PaintDamage;
+        arena.push_paint_damage(paintable, PaintDamage::ALL_DRAW | PaintDamage::ALL_HIT);
     }
 }
 
@@ -2028,9 +2042,23 @@ pub unsafe extern "C" fn layout_arena_paintable_invalidate_paint_cache(
 ///
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_paintable_invalidate_for_repaint(arena: *mut c_void, paintable: NodeSlotId) {
+pub unsafe extern "C" fn layout_arena_paintable_invalidate_for_repaint(
+    arena: *mut c_void,
+    paintable: NodeSlotId,
+    include_hit_test_items: bool,
+) {
+    use crate::painting::record::damage::PaintDamage;
     let arena = unsafe { arena_from_handle(arena) };
-    arena.invalidate_for_repaint(paintable);
+    let damage = if include_hit_test_items {
+        PaintDamage::ALL_PRODUCERS
+    } else {
+        PaintDamage::ALL_DRAW
+    };
+    let rows = arena.paintable_rows();
+    rows.for_each_row_repainted_with(paintable, |row| {
+        rows.mark_paint_cache_self_dirty(row);
+        arena.push_paint_damage(row, damage);
+    });
 }
 
 /// # Safety
@@ -3797,6 +3825,8 @@ pub unsafe extern "C" fn layout_arena_sync_svg_paint_resources(
             unsafe { resolve_paint_server(arena.shell_if_live(slot), is_stroke, (&raw mut published).cast()) };
             if resources.publish_paint_server(slot, kind, published) {
                 any_changed = true;
+                use crate::painting::record::damage::PaintDamage;
+                arena.push_paint_damage(slot, PaintDamage::SVG | PaintDamage::SCOPE_PREAMBLE);
             }
             continue;
         }
@@ -3836,6 +3866,8 @@ pub unsafe extern "C" fn layout_arena_sync_svg_paint_resources(
                     crate::painting::visual_context::dirty::VisualContextBoxDirtyKind::StyleValueChange,
                 );
                 arena.paintable_rows().mark_paint_cache_self_dirty(slot);
+                use crate::painting::record::damage::PaintDamage;
+                arena.push_paint_damage(slot, PaintDamage::SVG | PaintDamage::SCOPE_PREAMBLE);
             }
         }
     }

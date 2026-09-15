@@ -534,6 +534,19 @@ pub(crate) fn mix_blend_mode_to_compositing_and_blending_operator(
 
 /// The referenced filter's region, in the filtered element's user space: the element's border
 /// box, or the whole enclosing viewport rect for an element without geometry of its own.
+// The bounds size the transparent fill that triggers a content-generating SVG filter, which
+// the stacking-context preamble records.
+fn set_svg_filter_bounds(
+    layout_arena: &impl PaintableRowsRead,
+    slot: NodeSlotId,
+    bounds: Option<crate::layout::used_values::FfiCssPixelRect>,
+) {
+    let previous = layout_arena.paintable_side_data(slot).svg_filter_bounds.replace(bounds);
+    if previous != bounds {
+        layout_arena.push_paint_damage(slot, crate::painting::record::damage::PaintDamage::SCOPE_PREAMBLE);
+    }
+}
+
 fn svg_filter_bounds(layout_arena: &impl PaintableRowsRead, slot: NodeSlotId) -> Option<CssPixelRect> {
     let bounds = paintable_geometry::absolute_border_box_rect(layout_arena, slot);
     if !bounds.is_empty() {
@@ -607,7 +620,9 @@ pub(crate) fn compute_effects_data(
             style,
             device_pixels_per_css_pixel,
         );
-        layout_arena.paintable_side_data(slot).svg_filter_bounds.set(
+        set_svg_filter_bounds(
+            layout_arena,
+            slot,
             resolved_svg_filter
                 .svg_filter_bounds
                 .has_value
@@ -620,7 +635,7 @@ pub(crate) fn compute_effects_data(
         )
         .map(std::rc::Rc::new)
     } else {
-        layout_arena.paintable_side_data(slot).svg_filter_bounds.set(None);
+        set_svg_filter_bounds(layout_arena, slot, None);
         crate::painting::filter_bytes::serialize_non_url_filter(&effects_values.filter, device_pixels_per_css_pixel)
             .map(std::rc::Rc::new)
     };
