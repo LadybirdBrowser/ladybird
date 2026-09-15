@@ -2006,7 +2006,7 @@ impl StyleEngineState {
                         pseudo_kind: u8::MAX,
                         gap,
                         uses_substitution: gap == FfiStyleDeltaGap::Computed
-                            && self.nodes_with_substituted_records.contains(&node),
+                            && engine_computed_record_scratch.element_uses_substitution,
                     };
                     if style_deltas.len() == style_deltas.capacity() {
                         style_deltas.reserve(1);

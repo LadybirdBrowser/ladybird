@@ -471,9 +471,7 @@ impl StyleEngineState {
                 counters,
             );
         }
-        if pseudo_uses_substitution {
-            self.nodes_with_substituted_records.insert(node);
-        }
+        scratch.pseudo_uses_substitution = pseudo_uses_substitution;
         Some(())
     }
 

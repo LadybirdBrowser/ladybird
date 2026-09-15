@@ -294,6 +294,7 @@ impl StyleEngineState {
         if scratch.font_drive.is_pending() {
             scratch.prepared_root_font = Some((node, parent_inputs_moved, std::mem::take(&mut scratch.font_drive)));
         }
+        self.apply_substitution_effects(scratch);
     }
 
     /// Derive the record a published-style reaction moves `node` to, when the engine can compute
@@ -311,6 +312,29 @@ impl StyleEngineState {
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
     ) -> Option<(computed::FinalStyleRecordID, computed::FinalStyleRecordID)> {
+        let delta = self.decide_engine_computed_record_delta(
+            node,
+            cascade_winners_are_complete,
+            exact_flipped_rules,
+            parent_inputs_moved,
+            scratch,
+            counters,
+        );
+        self.apply_substitution_effects(scratch);
+        delta
+    }
+
+    /// The step itself, which decides the substituted-record facts rather than writing them.
+    #[allow(clippy::too_many_arguments)]
+    fn decide_engine_computed_record_delta(
+        &mut self,
+        node: StyleNodeID,
+        cascade_winners_are_complete: bool,
+        exact_flipped_rules: Option<FlippedRules>,
+        parent_inputs_moved: ParentInputsMoved,
+        scratch: &mut EngineComputedRecordScratch,
+        counters: &mut Counters,
+    ) -> Option<(computed::FinalStyleRecordID, computed::FinalStyleRecordID)> {
         if scratch.root_computation_unsupported == Some(node) {
             return None;
         }
@@ -319,6 +343,7 @@ impl StyleEngineState {
             scratch.pseudo_deltas.clear();
             scratch.next_pseudo = 0;
             scratch.pseudo_uses_substitution = false;
+            scratch.noted_substitution = None;
             scratch.flipped_pseudo_rules = exact_flipped_rules.map_or(0, |flipped| flipped.pseudos);
             if parent_inputs_moved.inherited_style && !self.engine_marker_font_supported(node, counters) {
                 return None;
@@ -359,18 +384,20 @@ impl StyleEngineState {
             }
             return None;
         }
-        let uses_substitution = self.nodes_with_substituted_records.contains(&node)
+        // What this element's record was computed from decides the fact when the computation
+        // noted it; a record that stands unchanged keeps the fact the node already carries.
+        let uses_substitution = scratch
+            .noted_substitution
+            .unwrap_or_else(|| self.nodes_with_substituted_records.contains(&node))
+            || scratch.pseudo_uses_substitution
             || self
                 .current_winner_groups()
                 .pseudo_states(node)
                 .any(|(_, version, state, priority_current)| {
                     version == self.program.version() && priority_current && self.state_has_substitutions(node, state)
                 });
-        if uses_substitution {
-            self.nodes_with_substituted_records.insert(node);
-        } else {
-            self.nodes_with_substituted_records.remove(&node);
-        }
+        scratch.element_uses_substitution = uses_substitution;
+        scratch.substitution_effects.push((node, uses_substitution));
         Some(delta)
     }
 
@@ -838,18 +865,30 @@ impl StyleEngineState {
     }
 
     /// Note whether the node's record was computed with a substituted winner, for C++ to record
-    /// the node as a reader of custom properties when it installs the record.
+    /// the node as a reader of custom properties when it installs the record. The step records
+    /// the fact; the boundary that installs the record applies it.
     fn note_node_substitution(
-        &mut self,
+        &self,
         node: StyleNodeID,
-        scratch: &EngineComputedRecordScratch,
+        scratch: &mut EngineComputedRecordScratch,
         state: CascadeStateID,
         environment: u64,
     ) {
-        if scratch.substituted_states.contains(&(state, environment)) {
-            self.nodes_with_substituted_records.insert(node);
-        } else {
-            self.nodes_with_substituted_records.remove(&node);
+        let substituted = scratch.substituted_states.contains(&(state, environment));
+        scratch.noted_substitution = Some(substituted);
+        scratch.substitution_effects.push((node, substituted));
+    }
+
+    /// Write the substituted-record facts the step decided. The set is a retained per-node fact
+    /// C++ reads when it installs a record, so the step decides it once and the record's
+    /// installation boundary writes it once, rather than the step reading its own writes back.
+    fn apply_substitution_effects(&mut self, scratch: &mut EngineComputedRecordScratch) {
+        for (node, uses_substitution) in scratch.substitution_effects.drain(..) {
+            if uses_substitution {
+                self.nodes_with_substituted_records.insert(node);
+            } else {
+                self.nodes_with_substituted_records.remove(&node);
+            }
         }
     }
 
@@ -1488,11 +1527,13 @@ impl StyleEngineState {
                 scratch,
                 counters,
             ) {
-                if self
+                let pseudos_settled = self
                     .engine_pseudo_records(node, Some(old_record), record, cascade_state.0, scratch, counters)
-                    .is_none()
-                    || !scratch.pseudo_deltas.is_empty()
-                {
+                    .is_some();
+                if pseudos_settled && scratch.pseudo_uses_substitution {
+                    scratch.substitution_effects.push((node, true));
+                }
+                if !pseudos_settled || !scratch.pseudo_deltas.is_empty() {
                     // The retry result carries only the originating element's record. Let C++
                     // materialize when pseudo-element records must settle alongside it.
                     if scratch.font_drive.request.is_some() {
@@ -1500,8 +1541,10 @@ impl StyleEngineState {
                     } else {
                         self.abandon_engine_computed_record(node, scratch, counters);
                     }
+                    self.apply_substitution_effects(scratch);
                     return 0;
                 }
+                self.apply_substitution_effects(scratch);
                 return record.raw();
             }
         }
@@ -3826,6 +3869,16 @@ pub(super) struct EngineComputedRecordScratch {
     pending_element: Option<(computed::FinalStyleRecordID, computed::FinalStyleRecordID)>,
     next_pseudo: usize,
     pseudo_uses_substitution: bool,
+    /// What the element being derived noted about substituted winners, when its computation
+    /// reached the point of deciding. A record that stands unchanged notes nothing.
+    noted_substitution: Option<bool>,
+    /// Whether the element derived last was computed with a substituted winner: what the flush
+    /// publishes beside its record, decided by the step rather than read back out of the
+    /// retained set.
+    pub(super) element_uses_substitution: bool,
+    /// The nodes whose substituted-record fact the step decided, in the order it decided them.
+    /// The boundary that installs the record applies them.
+    substitution_effects: Vec<(StyleNodeID, bool)>,
     cohorts: HashMap<(u64, CascadeStateID, u32, RecordDeltaParent, u64, RootFontInputs), computed::FinalStyleRecordID>,
     computability: EngineComputabilityScratch,
     /// The nodes whose record this flush settled: what their descendants inherit from is in
@@ -3882,7 +3935,7 @@ impl EngineComputedRecordScratch {
         capacity::capacity_bytes! {
             shallow [self.computability.states, self.cohorts, self.settled_nodes, self.cold_cohorts, self.stores,
                 self.substituted_states, self.pseudo_cohorts, self.pseudo_stores,
-                self.pseudo_deltas];
+                self.pseudo_deltas, self.substitution_effects];
             cached [self.store_capacity_bytes, self.font_drive.capacity_bytes(),
                 self.prepared_root_font.as_ref().map_or(0, |(_, _, drive)| drive.capacity_bytes())];
             nested [];
