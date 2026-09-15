@@ -336,13 +336,6 @@ public:
         return data_without_union_member_assertion();
     }
 
-    ALWAYS_INLINE void set_data(Badge<Utf16FlyString>, Utf16StringData const* data)
-    {
-        auto const** this_data = __builtin_launder(&m_value.data);
-        (*this_data) = data;
-        (*this_data)->ref();
-    }
-
     template<OneOf<Utf16String, Utf16FlyString> T>
     constexpr Utf16StringBase(Badge<T>, nullptr_t)
         : m_value { .data = nullptr }
