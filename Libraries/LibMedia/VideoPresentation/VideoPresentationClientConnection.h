@@ -27,7 +27,7 @@ namespace Media {
 class MEDIA_API VideoPresentationClientConnection final
     : public IPC::ConnectionToServer<VideoPresentationClientEndpoint, VideoPresentationServerEndpoint>
     , public VideoPresentationClientEndpoint
-    , public Sync::Weakable<VideoPresentationClientConnection> {
+    , public ThreadSafeWeakable<VideoPresentationClientConnection> {
     C_OBJECT_ABSTRACT(VideoPresentationClientConnection);
 
 public:

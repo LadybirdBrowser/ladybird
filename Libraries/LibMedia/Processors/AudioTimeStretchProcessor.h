@@ -45,7 +45,7 @@ private:
     PipelineStatus produce_block_while_locked(AudioBlock&) const;
     void dispatch_wake();
 
-    mutable Sync::Mutex m_mutex;
+    mutable Mutex m_mutex;
     Audio::SampleSpecification m_sample_specification;
     RefPtr<AudioProducer> m_input;
 

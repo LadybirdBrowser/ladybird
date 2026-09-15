@@ -48,8 +48,8 @@ private:
         RefPtr<PulseAudioStream> m_stream { nullptr };
 
         Queue<Function<void()>> m_tasks;
-        Sync::Mutex m_mutex;
-        Sync::ConditionVariable m_wake_condition { m_mutex };
+        Mutex m_mutex;
+        ConditionVariable m_wake_condition { m_mutex };
 
         Atomic<bool> m_exit { false };
     };

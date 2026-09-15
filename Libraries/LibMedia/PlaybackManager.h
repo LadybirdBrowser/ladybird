@@ -272,7 +272,7 @@ public:
 
     void revoke(Badge<PlaybackManager>)
     {
-        Sync::MutexLocker locker { m_mutex };
+        MutexLocker locker { m_mutex };
         m_manager = nullptr;
     }
 
@@ -282,7 +282,7 @@ private:
         VERIFY(m_originating_thread_id.is_current_thread());
     }
 
-    mutable Sync::Mutex m_mutex;
+    mutable Mutex m_mutex;
     PlaybackManager* m_manager { nullptr };
     AK::ThreadID m_originating_thread_id { AK::ThreadID::current() };
 };

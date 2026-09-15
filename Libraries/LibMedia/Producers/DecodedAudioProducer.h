@@ -104,7 +104,7 @@ private:
 
         void seek(AK::Duration timestamp);
 
-        [[nodiscard]] Sync::MutexLocker<Sync::Mutex> take_lock() const { return Sync::MutexLocker(m_mutex); }
+        [[nodiscard]] MutexLocker<Mutex> take_lock() const { return MutexLocker(m_mutex); }
         void wake() const { m_wait_condition.broadcast(); }
 
         AudioDecoder const& decoder() const { return *m_decoder; }
@@ -126,8 +126,8 @@ private:
 
         Core::EventLoop& m_main_thread_event_loop;
 
-        mutable Sync::Mutex m_mutex;
-        mutable Sync::ConditionVariable m_wait_condition { m_mutex };
+        mutable Mutex m_mutex;
+        mutable ConditionVariable m_wait_condition { m_mutex };
         RequestedState m_requested_state { RequestedState::None };
 
         AK::ThreadID m_decode_thread_id;

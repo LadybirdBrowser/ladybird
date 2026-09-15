@@ -118,7 +118,7 @@ ErrorOr<TransportBootstrapMachServer::BootstrapRequestResult> TransportBootstrap
 {
     Optional<TransportBootstrapMachPorts> child_transport;
     {
-        Sync::MutexLocker locker(m_child_registration_mutex);
+        MutexLocker locker(m_child_registration_mutex);
         child_transport = m_child_transports.take(pid);
     }
 

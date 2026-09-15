@@ -29,7 +29,7 @@ public:
 
     DefinedType const* type_at(u32 registry_index)
     {
-        Sync::MutexLocker locker(m_mutex);
+        MutexLocker locker(m_mutex);
         if (registry_index >= m_types.size())
             return nullptr;
         return m_types[registry_index].ptr();
@@ -40,7 +40,7 @@ public:
 private:
     TypeRegistry() = default;
 
-    Sync::Mutex m_mutex;
+    Mutex m_mutex;
     Vector<NonnullOwnPtr<DefinedType>> m_types;
     HashMap<ByteString, u32> m_interned_groups; // group key -> index of first member
 };
@@ -205,7 +205,7 @@ ErrorOr<Vector<DefinedType const*>, ValidationError> TypeRegistry::intern_group(
         TRY(roller.serialize(key_builder, types[group.first_type_index + i]));
     auto key = key_builder.to_byte_string();
 
-    Sync::MutexLocker locker(m_mutex);
+    MutexLocker locker(m_mutex);
 
     Optional<u32> base_registry_index = m_interned_groups.get(key);
     if (!base_registry_index.has_value()) {

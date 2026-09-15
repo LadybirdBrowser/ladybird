@@ -15,15 +15,15 @@ namespace Audio {
 
 static PulseAudioContext* s_pulse_audio_context;
 
-static Sync::RecursiveMutex& pulse_audio_context_mutex()
+static RecursiveMutex& pulse_audio_context_mutex()
 {
-    static NeverDestroyed<Sync::RecursiveMutex> mutex;
+    static NeverDestroyed<RecursiveMutex> mutex;
     return *mutex;
 }
 
 ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::the()
 {
-    auto instantiation_locker = Sync::MutexLocker(pulse_audio_context_mutex());
+    auto instantiation_locker = MutexLocker(pulse_audio_context_mutex());
 
     // Lock and unlock the mutex to ensure that the mutex is fully unlocked at application
     // exit.
@@ -117,7 +117,7 @@ ErrorOr<NonnullRefPtr<PulseAudioContext>> PulseAudioContext::the()
 
 bool PulseAudioContext::is_connected()
 {
-    auto locker = Sync::MutexLocker(pulse_audio_context_mutex());
+    auto locker = MutexLocker(pulse_audio_context_mutex());
     return s_pulse_audio_context != nullptr;
 }
 
@@ -130,7 +130,7 @@ PulseAudioContext::PulseAudioContext(pa_threaded_mainloop* main_loop, pa_mainloo
 
 PulseAudioContext::~PulseAudioContext()
 {
-    auto locker = Sync::MutexLocker(pulse_audio_context_mutex());
+    auto locker = MutexLocker(pulse_audio_context_mutex());
 
     {
         auto loop_locker = main_loop_locker();

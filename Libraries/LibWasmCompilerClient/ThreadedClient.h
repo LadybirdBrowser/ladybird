@@ -39,9 +39,9 @@ private:
 
     NonnullRefPtr<Threading::Thread> m_thread;
 
-    Sync::Mutex m_mutex;
-    Sync::ConditionVariable m_initialization_condition { m_mutex };
-    Sync::ConditionVariable m_client_unused_condition { m_mutex };
+    Mutex m_mutex;
+    ConditionVariable m_initialization_condition { m_mutex };
+    ConditionVariable m_client_unused_condition { m_mutex };
 
     bool m_initialized { false };
     Optional<Error> m_initialization_error;

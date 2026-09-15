@@ -13,7 +13,7 @@
 #include <new>
 #include <pthread.h>
 
-namespace Sync {
+namespace AK {
 
 namespace {
 

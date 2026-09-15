@@ -30,7 +30,7 @@ public:
         auto scan_thread = adopt_ref(*new DemuxerScanThread(move(stream), move(initial_state), move(payload), move(scan)));
 
         scan_thread->m_stream->set_available_ranges_change_observer([scan_thread] {
-            Sync::MutexLocker locker { scan_thread->m_mutex };
+            MutexLocker locker { scan_thread->m_mutex };
             scan_thread->m_rescan_requested = true;
             scan_thread->m_condition.broadcast();
         });
@@ -48,7 +48,7 @@ public:
     void shutdown()
     {
         m_stream->set_available_ranges_change_observer(nullptr);
-        Sync::MutexLocker locker { m_mutex };
+        MutexLocker locker { m_mutex };
         m_exit_requested = true;
         m_condition.broadcast();
     }
@@ -70,7 +70,7 @@ public:
         m_handler_thread_id = AK::ThreadID::current();
         m_on_change = move(handler);
 
-        Sync::MutexLocker locker { m_mutex };
+        MutexLocker locker { m_mutex };
         m_handler_event_loop = &Core::EventLoop::current();
 
         // Deliver any state that was scanned before a home event loop existed.
@@ -91,7 +91,7 @@ private:
     {
         while (true) {
             {
-                Sync::MutexLocker locker { m_mutex };
+                MutexLocker locker { m_mutex };
                 while (!m_rescan_requested && !m_exit_requested)
                     m_condition.wait();
                 if (m_exit_requested)
@@ -106,7 +106,7 @@ private:
 
             Core::EventLoop* handler_event_loop;
             {
-                Sync::MutexLocker locker { m_mutex };
+                MutexLocker locker { m_mutex };
                 handler_event_loop = m_handler_event_loop;
             }
             if (handler_event_loop == nullptr)
@@ -125,8 +125,8 @@ private:
     Payload m_payload;
     ScanFunction m_scan;
 
-    Sync::Mutex m_mutex;
-    Sync::ConditionVariable m_condition { m_mutex };
+    Mutex m_mutex;
+    ConditionVariable m_condition { m_mutex };
     bool m_rescan_requested { true };
     bool m_exit_requested { false };
     Core::EventLoop* m_handler_event_loop { nullptr };

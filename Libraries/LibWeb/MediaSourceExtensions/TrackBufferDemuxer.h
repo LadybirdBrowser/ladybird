@@ -104,8 +104,8 @@ private:
 
     Media::Track m_track;
 
-    mutable Sync::Mutex m_mutex;
-    Sync::ConditionVariable m_data_changed { m_mutex };
+    mutable Mutex m_mutex;
+    ConditionVariable m_data_changed { m_mutex };
 
     Vector<FrameRun> m_runs;
     size_t m_current_run { 0 };

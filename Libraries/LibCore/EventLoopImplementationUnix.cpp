@@ -51,19 +51,19 @@ static auto& thread_data()
 
 static auto& thread_data_lock()
 {
-    static NeverDestroyed<Sync::RWLock> lock;
+    static NeverDestroyed<RWLock> lock;
     return *lock;
 }
 
 static auto& thread_data_key_once()
 {
-    static NeverDestroyed<Sync::OnceFlag> once;
+    static NeverDestroyed<OnceFlag> once;
     return *once;
 }
 
 static void ensure_thread_data_key()
 {
-    Sync::call_once(thread_data_key_once(), [] {
+    call_once(thread_data_key_once(), [] {
         VERIFY(pthread_key_create(&s_this_thread_data_key, destroy_thread_data) == 0);
     });
 }
@@ -134,7 +134,7 @@ struct ThreadData {
             s_this_thread_data = data;
             VERIFY(pthread_setspecific(s_this_thread_data_key, s_this_thread_data) == 0);
 
-            Sync::RWLockLocker<Sync::LockMode::Write> locker(thread_data_lock());
+            RWLockLocker<RWLock::Mode::Write> locker(thread_data_lock());
             thread_data().set(s_this_thread_data->thread_id, s_this_thread_data);
         } else {
             data = s_this_thread_data;
@@ -173,11 +173,11 @@ struct ThreadData {
             close(wake_pipe_fds[1]);
         }
 
-        Sync::RWLockLocker<Sync::LockMode::Write> locker(thread_data_lock());
+        RWLockLocker<RWLock::Mode::Write> locker(thread_data_lock());
         thread_data().remove(thread_id);
     }
 
-    Sync::RecursiveMutex mutex;
+    RecursiveMutex mutex;
 
     // Each thread has its own timers, notifiers and a wake pipe.
     TimeoutSet timeouts;
@@ -246,7 +246,7 @@ void EventLoopImplementationUnix::wake()
 void EventLoopManagerUnix::wait_for_events(EventLoopImplementation::PumpMode mode)
 {
     auto& thread_data = ThreadData::the();
-    Sync::MutexLocker locker(thread_data.mutex);
+    MutexLocker locker(thread_data.mutex);
 
     bool has_pending_events = ThreadEventQueue::current().has_pending_events();
 
@@ -551,7 +551,7 @@ intptr_t EventLoopManagerUnix::register_timer(EventReceiver& object, int millise
 {
     VERIFY(milliseconds >= 0);
     auto& thread_data = ThreadData::the();
-    Sync::MutexLocker locker(thread_data.mutex);
+    MutexLocker locker(thread_data.mutex);
     auto timer = new EventLoopTimer;
     timer->owner_thread = thread_data.thread_id;
     timer->owner = object;
@@ -568,11 +568,11 @@ intptr_t EventLoopManagerUnix::register_timer(EventReceiver& object, int millise
 void EventLoopManagerUnix::unregister_timer(intptr_t timer_id)
 {
     auto* timer = bit_cast<EventLoopTimer*>(timer_id);
-    Sync::RWLockLocker<Sync::LockMode::Read> locker(thread_data_lock());
+    RWLockLocker<RWLock::Mode::Read> locker(thread_data_lock());
     auto* thread_data_ptr = ThreadData::for_thread(timer->owner_thread);
     if (!thread_data_ptr)
         return;
-    Sync::MutexLocker thread_data_content_locker(thread_data_ptr->mutex);
+    MutexLocker thread_data_content_locker(thread_data_ptr->mutex);
     auto& thread_data = *thread_data_ptr;
     auto expected = false;
     if (timer->is_being_deleted.compare_exchange_strong(expected, true, AK::MemoryOrder::memory_order_acq_rel)) {
@@ -585,7 +585,7 @@ void EventLoopManagerUnix::unregister_timer(intptr_t timer_id)
 void EventLoopManagerUnix::register_notifier(Notifier& notifier)
 {
     auto& thread_data = ThreadData::the();
-    Sync::MutexLocker locker(thread_data.mutex);
+    MutexLocker locker(thread_data.mutex);
 
     thread_data.notifier_to_index.set(&notifier, thread_data.poll_fds.size());
     thread_data.notifiers.append(&notifier);
@@ -598,11 +598,11 @@ void EventLoopManagerUnix::register_notifier(Notifier& notifier)
 
 void EventLoopManagerUnix::unregister_notifier(Notifier& notifier)
 {
-    Sync::RWLockLocker<Sync::LockMode::Read> locker(thread_data_lock());
+    RWLockLocker<RWLock::Mode::Read> locker(thread_data_lock());
     auto* thread_data = ThreadData::for_thread(notifier.owner_thread());
     if (!thread_data)
         return;
-    Sync::MutexLocker thread_data_content_locker(thread_data->mutex);
+    MutexLocker thread_data_content_locker(thread_data->mutex);
 
     auto notifier_index = thread_data->notifier_to_index.take(&notifier).release_value();
 

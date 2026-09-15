@@ -56,7 +56,7 @@ ErrorOr<void> FontService::wait_until_ready()
 
 ErrorOr<FontCatalogDescriptor> FontService::clone_catalog()
 {
-    Sync::MutexLocker locker(m_mutex);
+    MutexLocker locker(m_mutex);
     TRY(wait_until_ready());
     return FontCatalogDescriptor {
         .file = TRY(IPC::File::clone_fd(m_catalog_file.fd())),
@@ -150,7 +150,7 @@ ErrorOr<IPC::File> FontService::create_immutable_font_data(ReadonlyBytes bytes)
 
 Gfx::BrokeredFont FontService::open_font(u64 generation, u64 face_id)
 {
-    Sync::MutexLocker locker(m_mutex);
+    MutexLocker locker(m_mutex);
     if (wait_until_ready().is_error())
         return {};
     return open_font_without_lock(generation, face_id);
@@ -231,7 +231,7 @@ Gfx::BrokeredFont FontService::materialize_typeface(NonnullRefPtr<Gfx::TypefaceS
 
 Gfx::BrokeredFont FontService::match_local_font(String const& name)
 {
-    Sync::MutexLocker locker(m_mutex);
+    MutexLocker locker(m_mutex);
     if (wait_until_ready().is_error())
         return {};
     auto folded_name = name.to_casefold();
@@ -247,7 +247,7 @@ Gfx::BrokeredFont FontService::match_local_font(String const& name)
 
 Gfx::BrokeredFont FontService::match_font(String const& family, u16 weight, u16 width, u8 slope)
 {
-    Sync::MutexLocker locker(m_mutex);
+    MutexLocker locker(m_mutex);
     if (wait_until_ready().is_error())
         return {};
     auto cache_key = MUST(String::formatted("family:{}:{}:{}:{}", family, weight, width, slope));
@@ -262,7 +262,7 @@ Gfx::BrokeredFont FontService::match_font(String const& family, u16 weight, u16 
 
 Gfx::BrokeredFont FontService::match_font_for_code_point(u32 code_point, u16 weight, u16 width, u8 slope, bool prefer_color_emoji)
 {
-    Sync::MutexLocker locker(m_mutex);
+    MutexLocker locker(m_mutex);
     if (wait_until_ready().is_error())
         return {};
     auto cache_key = MUST(String::formatted("character:{}:{}:{}:{}:{}", code_point, weight, width, slope, prefer_color_emoji));
@@ -277,7 +277,7 @@ Gfx::BrokeredFont FontService::match_font_for_code_point(u32 code_point, u16 wei
 
 Optional<FlyString> FontService::resolve_generic_family(String const& family, u16 weight, u8 slope)
 {
-    Sync::MutexLocker locker(m_mutex);
+    MutexLocker locker(m_mutex);
     if (wait_until_ready().is_error())
         return {};
     return Gfx::TypefaceSkia::resolve_generic_family(family.bytes_as_string_view(), weight, slope);

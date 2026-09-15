@@ -23,7 +23,7 @@ namespace Media {
 // the edge's shared-memory handles to the presentation client, and routes the consumer's demands to the pump.
 class MEDIA_API VideoPresentationServerConnection final
     : public IPC::ConnectionFromClient<VideoPresentationClientEndpoint, VideoPresentationServerEndpoint>
-    , public Sync::Weakable<VideoPresentationServerConnection> {
+    , public ThreadSafeWeakable<VideoPresentationServerConnection> {
     C_OBJECT(VideoPresentationServerConnection);
 
 public:

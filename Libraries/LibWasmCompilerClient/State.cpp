@@ -18,7 +18,7 @@ void CompilerState::install_compiler_callback()
     Wasm::set_cranelift_compile_callback([this](Core::AnonymousBuffer const& buffer) {
         RefPtr<ThreadedClient> client;
         {
-            Sync::MutexLocker locker(m_mutex);
+            MutexLocker locker(m_mutex);
             client = m_client;
         }
 
@@ -37,7 +37,7 @@ void CompilerState::replace_connection(IPC::TransportHandle handle)
 
     RefPtr<ThreadedClient> old_client;
     {
-        Sync::MutexLocker locker(m_mutex);
+        MutexLocker locker(m_mutex);
         old_client = move(m_client);
         m_client = move(new_client);
     }

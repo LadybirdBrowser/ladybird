@@ -105,7 +105,7 @@ Vector<AK::Duration> decode_reference_timestamps(StringView path)
 // announcements and signal the draining thread, which is where the consumer is touched.
 struct VideoEdgeTestHarness
     : public AtomicRefCounted<VideoEdgeTestHarness>
-    , public Sync::Weakable<VideoEdgeTestHarness> {
+    , public ThreadSafeWeakable<VideoEdgeTestHarness> {
     struct SlotAnnouncement {
         VideoFramePoolID pool_id;
         u32 slot_index { 0 };
@@ -117,14 +117,14 @@ struct VideoEdgeTestHarness
     NonnullRefPtr<VideoFrameSlotDirectory> slot_directory { VideoFrameSlotDirectory::create() };
     RefPtr<RemoteVideoProducer> consumer;
 
-    Sync::Mutex mutex;
-    Sync::ConditionVariable signal { mutex };
+    Mutex mutex;
+    ConditionVariable signal { mutex };
     Vector<SlotAnnouncement> pending_announces;
     bool signaled { false };
 
     void wake()
     {
-        Sync::MutexLocker locker { mutex };
+        MutexLocker locker { mutex };
         signaled = true;
         signal.broadcast();
     }
@@ -133,7 +133,7 @@ struct VideoEdgeTestHarness
     {
         Vector<SlotAnnouncement> announces;
         {
-            Sync::MutexLocker locker { mutex };
+            MutexLocker locker { mutex };
             announces = move(pending_announces);
         }
         for (auto& announcement : announces)
@@ -159,7 +159,7 @@ void wire_full_node(VideoEdgeTestHarness& harness, NonnullRefPtr<VideoProducer> 
         if (!harness)
             return;
         {
-            Sync::MutexLocker locker { harness->mutex };
+            MutexLocker locker { harness->mutex };
             harness->pending_announces.append({ pool_id, slot_index, move(slot_buffer), move(surface) });
         }
         harness->wake();
@@ -304,7 +304,7 @@ TEST_CASE(remote_video_node_streams_and_seeks_under_concurrency)
             if (output.status == PipelineStatus::EndOfStream && have_consumed)
                 seek_to(AK::Duration::zero());
 
-            Sync::MutexLocker locker { harness->mutex };
+            MutexLocker locker { harness->mutex };
             while (!harness->signaled && !stop.load(AK::MemoryOrder::memory_order_relaxed) && harness->pending_announces.is_empty())
                 harness->signal.wait();
             harness->signaled = false;

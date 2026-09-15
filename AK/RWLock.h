@@ -14,7 +14,7 @@
 #if !defined(AK_OS_WINDOWS)
 #    include <pthread.h>
 #endif
-namespace Sync {
+namespace AK {
 
 // TODO: Implement interprocess RWLocks. This needs a hand-rolled implementation for win32.
 class RWLock {
@@ -22,6 +22,11 @@ class RWLock {
     AK_MAKE_NONMOVABLE(RWLock);
 
 public:
+    enum class Mode : u8 {
+        Read,
+        Write,
+    };
+
     RWLock();
     ~RWLock();
 
@@ -46,12 +51,7 @@ private:
     alignas(StorageType) unsigned char m_storage[sizeof(StorageType)];
 };
 
-enum class LockMode : u8 {
-    Read,
-    Write,
-};
-
-template<LockMode mode>
+template<RWLock::Mode mode>
 class RWLockLocker {
     AK_MAKE_NONCOPYABLE(RWLockLocker);
     AK_MAKE_NONMOVABLE(RWLockLocker);
@@ -70,7 +70,7 @@ public:
 
     ALWAYS_INLINE void unlock()
     {
-        if constexpr (mode == LockMode::Read)
+        if constexpr (mode == RWLock::Mode::Read)
             m_lock.unlock_read();
         else
             m_lock.unlock_write();
@@ -78,7 +78,7 @@ public:
 
     ALWAYS_INLINE void lock()
     {
-        if constexpr (mode == LockMode::Read)
+        if constexpr (mode == RWLock::Mode::Read)
             m_lock.lock_read();
         else
             m_lock.lock_write();
@@ -89,3 +89,8 @@ private:
 };
 
 }
+
+#if USING_AK_GLOBALLY
+using AK::RWLock;
+using AK::RWLockLocker;
+#endif

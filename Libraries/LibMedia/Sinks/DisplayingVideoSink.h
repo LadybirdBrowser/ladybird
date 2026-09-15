@@ -28,7 +28,7 @@ struct DisplayingVideoSinkUpdateResult {
 };
 
 class MEDIA_API DisplayingVideoSink final : public VideoSink
-    , public Sync::Weakable<DisplayingVideoSink> {
+    , public ThreadSafeWeakable<DisplayingVideoSink> {
 public:
     static ErrorOr<NonnullRefPtr<DisplayingVideoSink>> try_create(MediaTimeReader);
 

@@ -37,8 +37,8 @@ private:
 
     FontService& m_font_service;
     NonnullRefPtr<Threading::Thread> m_thread;
-    Sync::Mutex m_mutex;
-    Sync::ConditionVariable m_initialization_condition { m_mutex };
+    Mutex m_mutex;
+    ConditionVariable m_initialization_condition { m_mutex };
     bool m_initialized { false };
     Optional<Error> m_initialization_error;
     Optional<IPC::TransportHandle> m_transport_handle;

@@ -11,7 +11,7 @@
 #include <errno.h>
 #include <pthread.h>
 
-namespace Sync {
+namespace AK {
 
 namespace {
 

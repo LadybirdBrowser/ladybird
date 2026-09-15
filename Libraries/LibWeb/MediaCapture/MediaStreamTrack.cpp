@@ -29,7 +29,7 @@ static constexpr float TRACK_SOURCE_GAIN = 1.0f;
 
 bool AudioFrameFanout::add_sink(NonnullRefPtr<AudioFrameSink> sink)
 {
-    Sync::MutexLocker locker(m_mutex);
+    MutexLocker locker(m_mutex);
     m_sinks.append(move(sink));
     return m_sinks.size() == 1;
 }
@@ -37,7 +37,7 @@ bool AudioFrameFanout::add_sink(NonnullRefPtr<AudioFrameSink> sink)
 bool AudioFrameFanout::remove_sink(AudioFrameSink const& sink)
 {
     sink.deactivate();
-    Sync::MutexLocker locker(m_mutex);
+    MutexLocker locker(m_mutex);
     m_sinks.remove_first_matching([&](auto const& existing) { return existing.ptr() == &sink; });
     return m_sinks.is_empty();
 }
@@ -50,7 +50,7 @@ void AudioFrameFanout::deliver(float const* samples, size_t frame_count, u8 chan
     // Snapshot the sinks so a slow consumer never holds up add/remove on other threads.
     Vector<NonnullRefPtr<AudioFrameSink>> sinks;
     {
-        Sync::MutexLocker locker(m_mutex);
+        MutexLocker locker(m_mutex);
         sinks = m_sinks;
     }
     if (sinks.is_empty())

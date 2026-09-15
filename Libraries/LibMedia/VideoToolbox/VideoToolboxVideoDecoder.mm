@@ -600,10 +600,10 @@ Optional<DecoderCapabilities> VideoToolboxVideoDecoder::capabilities(ParsedCodec
     auto support_key = normalize_parsed_codec_for_support_keying(codec);
 
     // Building a session to answer this costs enough that the answer is worth keeping.
-    static NeverDestroyed<Sync::Mutex> support_mutex;
+    static NeverDestroyed<Mutex> support_mutex;
     static NeverDestroyed<HashMap<ParsedCodec, bool>> support_by_format;
 
-    Sync::MutexLocker locker { *support_mutex };
+    MutexLocker locker { *support_mutex };
     auto cached_support = support_by_format->get(support_key);
     auto supported = cached_support.has_value() ? *cached_support : hardware_can_decode(support_key);
     if (!cached_support.has_value())
@@ -673,7 +673,7 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::ensure_session_for_frame(CodedFra
         if (CMFormatDescriptionEqual(format->description.ref(), m_session->format_description)) {
             if (m_parameter_set_state)
                 m_parameter_set_state->dirty = false;
-            Sync::MutexLocker locker { m_output_mutex };
+            MutexLocker locker { m_output_mutex };
             m_reorder_frame_count = format->reorder_frame_count;
             return {};
         }
@@ -705,7 +705,7 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::ensure_session_for_frame(CodedFra
         return DecoderError::with_description(DecoderErrorCategory::NotImplemented, "VideoToolbox has no hardware decoder for this format"sv);
 
     {
-        Sync::MutexLocker locker { m_output_mutex };
+        MutexLocker locker { m_output_mutex };
         m_reorder_frame_count = format->reorder_frame_count;
     }
     if (m_parameter_set_state)
@@ -716,7 +716,7 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::ensure_session_for_frame(CodedFra
 
 void VideoToolboxVideoDecoder::note_decode_completed(CodingIndependentCodePoints const& cicp, u64 generation, i32 status, void* image_buffer, AK::Duration timestamp, AK::Duration duration)
 {
-    Sync::MutexLocker locker { m_output_mutex };
+    MutexLocker locker { m_output_mutex };
 
     if (generation == m_generation.load(AK::MemoryOrder::memory_order_relaxed)) {
         if (status != noErr)
@@ -837,7 +837,7 @@ DecoderErrorOr<void> VideoToolboxVideoDecoder::receive_coded_data(CodedFrame con
     VERIFY(block_was_released);
 
     if (status != noErr) {
-        Sync::MutexLocker locker { m_output_mutex };
+        MutexLocker locker { m_output_mutex };
         note_frame_left_the_media_engine_while_locked();
         return DecoderError::format(DecoderErrorCategory::Corrupted, "VideoToolbox rejected a frame with status {}", status);
     }
@@ -861,7 +861,7 @@ bool VideoToolboxVideoDecoder::may_pull_frame_from_reorder_queue_while_locked() 
 
 DecoderErrorOr<NonnullRefPtr<VideoFrame>> VideoToolboxVideoDecoder::take_next_output(CodingIndependentCodePoints const& container_cicp, Optional<AK::Duration> target)
 {
-    Sync::MutexLocker locker { m_output_mutex };
+    MutexLocker locker { m_output_mutex };
     while (true) {
         // The frame covering a target is the one the caller is after, and nothing decoded later can precede it, so
         // it need not wait behind the reorder window.
@@ -919,7 +919,7 @@ void VideoToolboxVideoDecoder::flush()
 {
     m_reached_end_of_stream = false;
 
-    Sync::MutexLocker locker { m_output_mutex };
+    MutexLocker locker { m_output_mutex };
     m_generation.fetch_add(1, AK::MemoryOrder::memory_order_relaxed);
     m_outputs.clear();
     m_decode_failure.clear();

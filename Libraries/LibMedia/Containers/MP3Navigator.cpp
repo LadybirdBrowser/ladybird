@@ -483,7 +483,7 @@ MP3Navigator::MP3Navigator(NonnullRefPtr<MediaStream> stream, size_t first_frame
 
 BufferedRangesScan MP3Navigator::buffered_time_ranges(Vector<MediaStream::ByteRange> const& byte_ranges) const
 {
-    Sync::MutexLocker locker { m_mutex };
+    MutexLocker locker { m_mutex };
     update_cached_ranges(byte_ranges, *m_buffered_range_scanning_cursor);
 
     BufferedRangesScan scan;
@@ -510,7 +510,7 @@ DecoderErrorOr<SeekResult> MP3Navigator::seek_to_timestamp(AK::Duration timestam
     EnclosingCachedRanges enclosing_cached_ranges;
     FrameScanResult scan_result;
     {
-        Sync::MutexLocker locker { m_mutex };
+        MutexLocker locker { m_mutex };
         update_cached_ranges(m_stream->available_byte_ranges(), *m_seek_range_scanning_cursor);
         enclosing_cached_ranges = find_enclosing_cached_ranges_for_timestamp(m_cached_ranges, m_first_frame_position, timestamp);
         scan_result = scan_available_seek_frames(*m_seek_range_scanning_cursor, enclosing_cached_ranges.before, enclosing_cached_ranges.after, timestamp);

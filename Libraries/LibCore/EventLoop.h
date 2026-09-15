@@ -115,7 +115,7 @@ private:
     void revoke();
 
     EventLoop* m_event_loop;
-    Sync::RWLock m_lock;
+    RWLock m_lock;
 };
 
 class CORE_API StrongEventLoopReference {

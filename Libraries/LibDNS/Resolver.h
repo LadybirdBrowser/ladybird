@@ -1419,10 +1419,10 @@ private:
         });
     }
 
-    Sync::RWLockProtected<HashMap<ByteString, NonnullRefPtr<LookupResult>>> m_cache;
-    Sync::RWLockProtected<HashMap<ByteString, NonnullRefPtr<PendingSystemResolution>>> m_pending_system_resolutions;
-    Sync::RWLockProtected<NonnullOwnPtr<RedBlackTree<u16, PendingLookup>>> m_pending_lookups;
-    Sync::RWLockProtected<Optional<MaybeOwned<Core::Socket>>> m_socket;
+    RWLockProtected<HashMap<ByteString, NonnullRefPtr<LookupResult>>> m_cache;
+    RWLockProtected<HashMap<ByteString, NonnullRefPtr<PendingSystemResolution>>> m_pending_system_resolutions;
+    RWLockProtected<NonnullOwnPtr<RedBlackTree<u16, PendingLookup>>> m_pending_lookups;
+    RWLockProtected<Optional<MaybeOwned<Core::Socket>>> m_socket;
     Function<ErrorOr<SocketResult>()> m_create_socket;
     bool m_attempting_restart { false };
     ConnectionMode m_mode { ConnectionMode::UDP };

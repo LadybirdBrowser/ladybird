@@ -20,7 +20,7 @@ ErrorOr<NonnullRefPtr<ThreadedClient>> ThreadedClient::create(IPC::TransportHand
 
     Optional<Error> initialization_error;
     {
-        Sync::MutexLocker locker(client->m_mutex);
+        MutexLocker locker(client->m_mutex);
         client->m_initialization_condition.wait_while([&]() { return !client->m_initialized; });
         initialization_error = move(client->m_initialization_error);
     }
@@ -43,7 +43,7 @@ ThreadedClient::~ThreadedClient()
 {
     RefPtr<Core::WeakEventLoopReference> event_loop;
     {
-        Sync::MutexLocker locker(m_mutex);
+        MutexLocker locker(m_mutex);
         event_loop = m_event_loop;
     }
 
@@ -63,7 +63,7 @@ Core::AnonymousBuffer ThreadedClient::compile(Core::AnonymousBuffer const& buffe
 {
     Client* client = nullptr;
     {
-        Sync::MutexLocker locker(m_mutex);
+        MutexLocker locker(m_mutex);
         client = m_client;
         if (!client)
             return {};
@@ -71,7 +71,7 @@ Core::AnonymousBuffer ThreadedClient::compile(Core::AnonymousBuffer const& buffe
     }
 
     ScopeGuard compilation_finished = [&]() {
-        Sync::MutexLocker locker(m_mutex);
+        MutexLocker locker(m_mutex);
         VERIFY(m_active_compilations > 0);
 
         if (--m_active_compilations == 0)
@@ -104,7 +104,7 @@ intptr_t ThreadedClient::thread_main(IPC::TransportHandle const& handle)
     auto client_or_error = create_client(handle);
 
     if (client_or_error.is_error()) {
-        Sync::MutexLocker locker(m_mutex);
+        MutexLocker locker(m_mutex);
         m_initialization_error = client_or_error.release_error();
         m_initialized = true;
         m_initialization_condition.broadcast();
@@ -114,7 +114,7 @@ intptr_t ThreadedClient::thread_main(IPC::TransportHandle const& handle)
     auto client = client_or_error.release_value();
 
     {
-        Sync::MutexLocker locker(m_mutex);
+        MutexLocker locker(m_mutex);
 
         m_event_loop = Core::EventLoop::current_weak();
         m_client = client.ptr();
@@ -125,7 +125,7 @@ intptr_t ThreadedClient::thread_main(IPC::TransportHandle const& handle)
     auto result = event_loop.exec();
 
     {
-        Sync::MutexLocker locker(m_mutex);
+        MutexLocker locker(m_mutex);
         m_client = nullptr;
     }
 
@@ -133,7 +133,7 @@ intptr_t ThreadedClient::thread_main(IPC::TransportHandle const& handle)
         client->shutdown();
 
     {
-        Sync::MutexLocker locker(m_mutex);
+        MutexLocker locker(m_mutex);
         m_client_unused_condition.wait_while([&]() { return m_active_compilations != 0; });
         m_event_loop.clear();
     }

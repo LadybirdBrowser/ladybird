@@ -212,7 +212,7 @@ DecoderErrorOr<void> DecodedVideoProducer::ThreadData::create_decoder_for_frame(
     m_decoder->set_storage_freed_callback([wait_state = m_wait_state, decode_thread_id = m_decode_thread_id] {
         if (decode_thread_id.is_current_thread())
             return;
-        Sync::MutexLocker locker { wait_state->mutex };
+        MutexLocker locker { wait_state->mutex };
         wait_state->frame_storage_was_freed = true;
         wait_state->condition.broadcast();
     });

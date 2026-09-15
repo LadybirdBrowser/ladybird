@@ -20,7 +20,7 @@ public:
 
 private:
     RefPtr<ThreadedClient> m_client;
-    Sync::Mutex m_mutex;
+    Mutex m_mutex;
 };
 
 CompilerState& compiler_state();

@@ -94,7 +94,7 @@ static TrackEntry::TrackType matroska_track_type_from_track_type(TrackType type)
 DecoderErrorOr<void> MatroskaDemuxer::create_context_for_track(Track const& track)
 {
     auto iterator = TRY(m_reader.create_sample_iterator(m_stream->create_cursor(), track.identifier()));
-    Sync::MutexLocker locker(m_track_statuses_mutex);
+    MutexLocker locker(m_track_statuses_mutex);
     VERIFY(m_track_statuses.set(track, TrackStatus(move(iterator))) == HashSetResult::InsertedNewEntry);
     return {};
 }
@@ -127,7 +127,7 @@ DecoderErrorOr<Optional<Track>> MatroskaDemuxer::get_preferred_track_for_type(Tr
 
 MatroskaDemuxer::TrackStatus& MatroskaDemuxer::get_track_status(Track const& track)
 {
-    Sync::MutexLocker locker(m_track_statuses_mutex);
+    MutexLocker locker(m_track_statuses_mutex);
     auto track_status = m_track_statuses.get(track);
     VERIFY(track_status.has_value());
     return track_status.release_value();

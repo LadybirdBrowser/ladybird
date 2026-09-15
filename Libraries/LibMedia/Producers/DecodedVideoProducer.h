@@ -110,7 +110,7 @@ private:
 
         void dispatch_wake_if_needed_while_locked();
 
-        [[nodiscard]] Sync::MutexLocker<Sync::Mutex> take_lock() const { return Sync::MutexLocker(m_wait_state->mutex); }
+        [[nodiscard]] MutexLocker<Mutex> take_lock() const { return MutexLocker(m_wait_state->mutex); }
         void wake() const { m_wait_state->condition.broadcast(); }
 
     private:
@@ -130,8 +130,8 @@ private:
         // held downstream. The flag records a wake that arrived while the decode thread was outside the mutex,
         // between an unsuccessful attempt to take output and the wait that follows it.
         struct WaitState : public AtomicRefCounted<WaitState> {
-            Sync::Mutex mutex;
-            Sync::ConditionVariable condition { mutex };
+            Mutex mutex;
+            ConditionVariable condition { mutex };
             bool frame_storage_was_freed { false };
         };
         NonnullRefPtr<WaitState> m_wait_state { make_ref_counted<WaitState>() };

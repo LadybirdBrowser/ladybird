@@ -216,7 +216,7 @@ struct ThreadData {
     NonnullOwnPtr<EventLoopWake> wake_data;
 };
 
-static Sync::MutexProtected<HashMap<pid_t, NonnullOwnPtr<EventLoopProcess>>> s_processes;
+static MutexProtected<HashMap<pid_t, NonnullOwnPtr<EventLoopProcess>>> s_processes;
 
 // Arms (or disarms) the thread's shared waitable timer for the earliest pending deadline.
 static void arm_master_timer(ThreadData& thread_data)

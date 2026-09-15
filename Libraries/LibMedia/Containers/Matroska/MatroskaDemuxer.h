@@ -77,7 +77,7 @@ private:
     Reader m_reader;
     RefPtr<DemuxerScanThread<BufferedScanPayload>> m_buffered_scan_thread;
 
-    mutable Sync::Mutex m_track_statuses_mutex;
+    mutable Mutex m_track_statuses_mutex;
     HashMap<Track, TrackStatus> m_track_statuses;
 };
 

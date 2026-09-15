@@ -277,7 +277,7 @@ NonnullRefPtr<ConnectionFromClient::PendingJob> ConnectionFromClient::start_fram
                 if (job->is_canceled())
                     return FrameDecodeResult {};
 
-                Sync::MutexLocker locker { session->decoder_mutex };
+                MutexLocker locker { session->decoder_mutex };
                 if (!session->decoder)
                     return Error::from_string_literal("Animation session has no decoder");
 
