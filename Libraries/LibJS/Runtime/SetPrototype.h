@@ -19,8 +19,16 @@ public:
     virtual void initialize(Realm&) override;
     virtual ~SetPrototype() override = default;
 
+    // The original Set.prototype.values, which is also the original Set.prototype.keys and
+    // Set.prototype[%Symbol.iterator%].
+    FunctionObject const& values_function() const { return *m_values_function; }
+
 private:
     explicit SetPrototype(Realm&);
+
+    virtual void visit_edges(Visitor&) override;
+
+    GC::Ptr<FunctionObject> m_values_function;
 
     JS_DECLARE_NATIVE_FUNCTION(add);
     JS_DECLARE_NATIVE_FUNCTION(clear);

@@ -44,14 +44,21 @@ void SetPrototype::initialize(Realm& realm)
     define_native_function(realm, vm.names.symmetricDifference, symmetric_difference, 1, attr);
     define_native_function(realm, vm.names.union_, union_, 1, attr);
     define_native_function(realm, vm.names.values, values, 0, attr);
+    m_values_function = &get_without_side_effects(vm.names.values).as_function();
 
-    define_direct_property(vm.names.keys, get_without_side_effects(vm.names.values), attr);
+    define_direct_property(vm.names.keys, m_values_function, attr);
 
     // 24.2.3.18 Set.prototype [ @@iterator ] ( ), https://tc39.es/ecma262/#sec-set.prototype-@@iterator
-    define_direct_property(vm.well_known_symbol_iterator(), get_without_side_effects(vm.names.values), attr);
+    define_direct_property(vm.well_known_symbol_iterator(), m_values_function, attr);
 
     // 24.2.3.19 Set.prototype [ @@toStringTag ], https://tc39.es/ecma262/#sec-set.prototype-@@tostringtag
     define_direct_property(vm.well_known_symbol_to_string_tag(), PrimitiveString::create(vm, vm.names.Set.as_string()), Attribute::Configurable);
+}
+
+void SetPrototype::visit_edges(Visitor& visitor)
+{
+    Base::visit_edges(visitor);
+    visitor.visit(m_values_function);
 }
 
 // 24.2.3.1 Set.prototype.add ( value ), https://tc39.es/ecma262/#sec-set.prototype.add

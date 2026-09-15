@@ -19,8 +19,15 @@ public:
     virtual void initialize(Realm&) override;
     virtual ~MapPrototype() override = default;
 
+    // The original Map.prototype.entries, which is also the original Map.prototype[%Symbol.iterator%].
+    FunctionObject const& entries_function() const { return *m_entries_function; }
+
 private:
     explicit MapPrototype(Realm&);
+
+    virtual void visit_edges(Visitor&) override;
+
+    GC::Ptr<FunctionObject> m_entries_function;
 
     JS_DECLARE_NATIVE_FUNCTION(clear);
     JS_DECLARE_NATIVE_FUNCTION(delete_);

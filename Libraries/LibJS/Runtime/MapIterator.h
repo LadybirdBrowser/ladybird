@@ -38,4 +38,9 @@ private:
     Map::ConstIterator m_iterator;
 };
 
+// Returns true if iterating a Map with iterator_method cannot be observed: iterator_method is this realm's original
+// Map.prototype.entries, and %MapIteratorPrototype%.next is still the original data property. Walking the Map's
+// storage with a live Map::ConstIterator then produces the same entries as the iterator protocol.
+bool map_iteration_is_unobservable(Realm&, FunctionObject const& iterator_method);
+
 }

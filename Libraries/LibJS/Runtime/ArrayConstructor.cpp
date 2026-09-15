@@ -7,6 +7,7 @@
  */
 
 #include <AK/Function.h>
+#include <LibJS/Bytecode/PropertyAccess.h>
 #include <LibJS/Runtime/AbstractOperations.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/ArrayConstructor.h>
@@ -16,8 +17,12 @@
 #include <LibJS/Runtime/Error.h>
 #include <LibJS/Runtime/GlobalObject.h>
 #include <LibJS/Runtime/Iterator.h>
+#include <LibJS/Runtime/Map.h>
+#include <LibJS/Runtime/MapIterator.h>
 #include <LibJS/Runtime/PromiseCapability.h>
 #include <LibJS/Runtime/PromiseConstructor.h>
+#include <LibJS/Runtime/Set.h>
+#include <LibJS/Runtime/SetIterator.h>
 #include <LibJS/Runtime/Shape.h>
 #include <LibJS/Runtime/ValueInlines.h>
 
@@ -137,6 +142,34 @@ ThrowCompletionOr<GC::Ref<Object>> ArrayConstructor::construct(FunctionObject& n
     return array;
 }
 
+// OPTIMIZATION: Without a mapper, unobservable collection iteration can copy storage directly.
+static GC::Ptr<Array> array_from_set_or_map(Realm& realm, Object& items, FunctionObject const& using_iterator)
+{
+    if (auto const* set = as_if<Set>(items)) {
+        if (!set_iteration_is_unobservable(realm, using_iterator) || set->set_size() >= NumericLimits<u32>::max())
+            return nullptr;
+
+        auto array = MUST(Array::create(realm, 0));
+        auto elements = array->set_indexed_property_elements_to_undefined(static_cast<u32>(set->set_size()));
+        size_t index = 0;
+        set->for_each_value([&](Value value) { elements[index++] = value; });
+        return array;
+    }
+    if (auto const* map = as_if<Map>(items)) {
+        if (!map_iteration_is_unobservable(realm, using_iterator) || map->map_size() >= NumericLimits<u32>::max())
+            return nullptr;
+
+        auto array = MUST(Array::create(realm, 0));
+        auto elements = array->set_indexed_property_elements_to_undefined(static_cast<u32>(map->map_size()));
+        size_t index = 0;
+        map->for_each_entry([&](Value key, Value value) {
+            elements[index++] = Array::create_from(realm, { key, value });
+        });
+        return array;
+    }
+    return nullptr;
+}
+
 // 23.1.2.1 Array.from ( items [ , mapfn [ , thisArg ] ] ), https://tc39.es/ecma262/#sec-array.from
 JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from)
 {
@@ -163,14 +196,25 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from)
     }
 
     // 4. Let usingIterator be ? GetMethod(items, @@iterator).
-    auto using_iterator = TRY(items.get_method(vm, vm.well_known_symbol_iterator()));
+    static auto& iterator_method_cache = *new Bytecode::StaticPropertyLookupCache;
+    auto using_iterator = TRY(items.get_method(vm, vm.well_known_symbol_iterator(), iterator_method_cache));
 
     // 5. If usingIterator is not undefined, then
     if (using_iterator) {
+        // OPTIMIZATION: If C is %Array%, then Construct(C) is ArrayCreate(0) with %Array.prototype%, which is not
+        //               observable. The new array is also unreachable from user code until we return it, so
+        //               appending to its indexed storage is equivalent to CreateDataPropertyOrThrow.
+        auto const constructor_is_intrinsic_array = constructor.is_object() && &constructor.as_object() == realm.intrinsics().array_constructor().ptr();
+
+        if (constructor_is_intrinsic_array && !mapfn && items.is_object()) {
+            if (auto array = array_from_set_or_map(realm, items.as_object(), *using_iterator))
+                return array;
+        }
+
         GC::Ptr<Object> array;
 
         // a. If IsConstructor(C) is true, then
-        if (constructor.is_constructor()) {
+        if (constructor.is_constructor() && !constructor_is_intrinsic_array) {
             // i. Let A be ? Construct(C).
             array = TRY(JS::construct(vm, constructor.as_function()));
         }
@@ -181,7 +225,7 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from)
         }
 
         // c. Let iteratorRecord be ? GetIteratorFromMethod(items, usingIterator).
-        auto iterator = TRY(get_iterator_from_method(vm, items, *using_iterator));
+        auto iterator = TRY(get_iterator_from_method_impl(vm, items, *using_iterator));
 
         // d. Let k be 0.
         // e. Repeat,
@@ -225,7 +269,11 @@ JS_DEFINE_NATIVE_FUNCTION(ArrayConstructor::from)
 
             // vii. Let defineStatus be Completion(CreateDataPropertyOrThrow(A, Pk, mappedValue)).
             // viii. IfAbruptCloseIterator(defineStatus, iteratorRecord).
-            TRY_OR_CLOSE_ITERATOR(vm, iterator, array->create_data_property_or_throw(property_key, mapped_value));
+            // OPTIMIZATION: The intrinsic result array is unreachable by user code, so append directly.
+            if (constructor_is_intrinsic_array && k < NumericLimits<u32>::max())
+                static_cast<Array&>(*array).indexed_append(mapped_value);
+            else
+                TRY_OR_CLOSE_ITERATOR(vm, iterator, array->create_data_property_or_throw(property_key, mapped_value));
 
             // ix. Set k to k + 1.
         }

@@ -1,0 +1,16 @@
+foreign Map, mapping false: true
+foreign Map, mapping true: true
+foreign Map entries, mapping false: true
+foreign Map entries, mapping true: true
+foreign Set entries, mapping false: true
+foreign Set entries, mapping true: true
+Map entries with foreign next, mapping false: true
+Map entries with foreign next, mapping true: true
+local Map with foreign next, mapping false: true
+local Map with foreign next, mapping true: true
+Map foreign entries with local next, mapping false: true
+Map foreign entries with local next, mapping true: true
+Set entries with foreign next, mapping false: true
+Set entries with foreign next, mapping true: true
+Set foreign entries with local next, mapping false: true
+Set foreign entries with local next, mapping true: true

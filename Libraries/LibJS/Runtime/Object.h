@@ -342,6 +342,8 @@ public:
     size_t indexed_real_size() const;
     Vector<u32> indexed_indices() const;
     void set_indexed_property_elements(ReadonlySpan<Value> values);
+    // Replaces the indexed storage with `size` packed undefined elements, and returns them to be overwritten in place.
+    Span<Value> set_indexed_property_elements_to_undefined(u32 size);
     IndexedStorageKind indexed_storage_kind() const { return m_indexed_storage_kind; }
 
     template<typename Callback>

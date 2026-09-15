@@ -26,6 +26,8 @@
 #include <LibJS/Runtime/GeneratorObject.h>
 #include <LibJS/Runtime/GlobalEnvironment.h>
 #include <LibJS/Runtime/Iterator.h>
+#include <LibJS/Runtime/Map.h>
+#include <LibJS/Runtime/MapIterator.h>
 #include <LibJS/Runtime/MathObject.h>
 #include <LibJS/Runtime/ModuleEnvironment.h>
 #include <LibJS/Runtime/NativeFunction.h>
@@ -35,6 +37,8 @@
 #include <LibJS/Runtime/PrivateEnvironment.h>
 #include <LibJS/Runtime/Reference.h>
 #include <LibJS/Runtime/RegExpObject.h>
+#include <LibJS/Runtime/Set.h>
+#include <LibJS/Runtime/SetIterator.h>
 #include <LibJS/Runtime/StringConstructor.h>
 #include <LibJS/Runtime/TypedArray.h>
 #include <LibJS/Runtime/VM.h>
@@ -2610,9 +2614,11 @@ DEFINE_SLOW_PATH(asm_slow_path_array_append, ArrayAppend)
 
     if (instruction->is_spread()) {
         auto* rhs_array = rhs.is_object() ? as_if<JS::Array>(rhs.as_object()) : nullptr;
+        auto const* rhs_set = rhs.is_object() ? as_if<JS::Set>(rhs.as_object()) : nullptr;
+        auto const* rhs_map = rhs.is_object() ? as_if<JS::Map>(rhs.as_object()) : nullptr;
         Optional<IteratorRecordImpl> iterator_record;
 
-        if (rhs_array && lhs_array.indexed_storage_kind() <= IndexedStorageKind::Packed) {
+        if ((rhs_array || rhs_set || rhs_map) && lhs_array.indexed_storage_kind() <= IndexedStorageKind::Packed) {
             static auto& iterator_method_cache = *new StaticPropertyLookupCache;
             auto iterator_method = ASM_TRY(*vm, pc, rhs.get_method(*vm, vm->well_known_symbol_iterator(), iterator_method_cache));
             if (!iterator_method) {
@@ -2623,7 +2629,7 @@ DEFINE_SLOW_PATH(asm_slow_path_array_append, ArrayAppend)
             // OPTIMIZATION: The original array iterator has no observable side effects, so a packed
             //               array can be appended in bulk if its next method is also unchanged.
             auto original_iterator_method = vm->current_realm()->intrinsics().array_prototype_values_function();
-            if (iterator_method == original_iterator_method && rhs_array->is_simple_packed_array()) {
+            if (rhs_array && iterator_method == original_iterator_method && rhs_array->is_simple_packed_array()) {
                 auto iterator_prototype = vm->current_realm()->intrinsics().array_iterator_prototype();
 
                 // NB: Inspect the intrinsic prototype's own property without invoking it. Using get()
@@ -2640,6 +2646,25 @@ DEFINE_SLOW_PATH(asm_slow_path_array_append, ArrayAppend)
                         return continue_after_slow_path(pc + sizeof(Op::ArrayAppend));
                     }
                 }
+            }
+
+            // OPTIMIZATION: Iterating a Set or Map with its original iteration functions cannot be observed, and no
+            //               user code runs while we append, so the collection storage can be read directly.
+            if (rhs_set && set_iteration_is_unobservable(*vm->current_realm(), *iterator_method)
+                && rhs_set->set_size() <= NumericLimits<u32>::max() - lhs_size) {
+                auto index = lhs_size;
+                rhs_set->for_each_value([&](Value value) { lhs_array.indexed_put(index++, value); });
+                return continue_after_slow_path(pc + sizeof(Op::ArrayAppend));
+            }
+            if (rhs_map && map_iteration_is_unobservable(*vm->current_realm(), *iterator_method)
+                && rhs_map->map_size() <= NumericLimits<u32>::max() - lhs_size) {
+                // NB: Creating the entry arrays can trigger garbage collection, which does not modify maps.
+                auto& realm = *vm->current_realm();
+                auto index = lhs_size;
+                rhs_map->for_each_entry([&](Value key, Value value) {
+                    lhs_array.indexed_put(index++, JS::Array::create_from(realm, { key, value }));
+                });
+                return continue_after_slow_path(pc + sizeof(Op::ArrayAppend));
             }
 
             iterator_record = ASM_TRY(*vm, pc, get_iterator_from_method_impl(*vm, rhs, *iterator_method));
