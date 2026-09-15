@@ -15,7 +15,6 @@ use crate::url::State;
 use crate::url::Url;
 use crate::url::basic_parse;
 use crate::url::basic_parse_into;
-use crate::url::is_special_scheme;
 use crate::url::{UrlInput, parse_host_input};
 
 #[repr(C)]
@@ -51,9 +50,10 @@ pub struct RustUrlByteSlice {
 #[repr(u8)]
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
 pub enum RustUrlHostKind {
-    String,
+    Domain,
     Ipv4,
     Ipv6,
+    Opaque,
 }
 
 #[repr(C)]
@@ -71,7 +71,7 @@ impl Default for FfiUrlHost {
     fn default() -> Self {
         Self {
             has_host: false,
-            kind: RustUrlHostKind::String,
+            kind: RustUrlHostKind::Domain,
             ipv4: [0; 4],
             ipv6: [0; 16],
             string_data: std::ptr::null(),
@@ -127,22 +127,19 @@ fn decode_utf8(slice: RustUrlByteSlice) -> String {
         .to_owned()
 }
 
-fn host_from_ffi(ffi: &FfiUrlHost, scheme: &str) -> Option<Host> {
+fn host_from_ffi(ffi: &FfiUrlHost) -> Option<Host> {
     if !ffi.has_host {
         return None;
     }
+    let string = || {
+        decode_utf8(RustUrlByteSlice {
+            data: ffi.string_data,
+            length: ffi.string_length,
+        })
+    };
     Some(match ffi.kind {
-        RustUrlHostKind::String => {
-            let s = decode_utf8(RustUrlByteSlice {
-                data: ffi.string_data,
-                length: ffi.string_length,
-            });
-            if is_special_scheme(scheme.as_bytes()) {
-                Host::Domain(s)
-            } else {
-                Host::Opaque(s)
-            }
-        }
+        RustUrlHostKind::Domain => Host::Domain(string()),
+        RustUrlHostKind::Opaque => Host::Opaque(string()),
         RustUrlHostKind::Ipv4 => Host::Ipv4(Ipv4Addr::new(ffi.ipv4[0], ffi.ipv4[1], ffi.ipv4[2], ffi.ipv4[3])),
         RustUrlHostKind::Ipv6 => Host::Ipv6(Ipv6Addr::from(ffi.ipv6)),
     })
@@ -153,9 +150,16 @@ fn host_to_ffi(host: Option<&Host>) -> FfiUrlHost {
         return FfiUrlHost::default();
     };
     match host {
-        Host::Domain(s) | Host::Opaque(s) => FfiUrlHost {
+        Host::Domain(s) => FfiUrlHost {
             has_host: true,
-            kind: RustUrlHostKind::String,
+            kind: RustUrlHostKind::Domain,
+            string_data: s.as_ptr(),
+            string_length: s.len(),
+            ..FfiUrlHost::default()
+        },
+        Host::Opaque(s) => FfiUrlHost {
+            has_host: true,
+            kind: RustUrlHostKind::Opaque,
             string_data: s.as_ptr(),
             string_length: s.len(),
             ..FfiUrlHost::default()
@@ -185,10 +189,10 @@ pub(crate) fn url_from_ffi(ffi: &RustFfiUrl) -> Url {
         vec![]
     };
     Url {
-        scheme: scheme.clone(),
+        scheme,
         username: decode_utf8(ffi.username),
         password: decode_utf8(ffi.password),
-        host: host_from_ffi(&ffi.host, &scheme),
+        host: host_from_ffi(&ffi.host),
         port: ffi.has_port.then_some(ffi.port),
         path,
         has_opaque_path: ffi.has_opaque_path,

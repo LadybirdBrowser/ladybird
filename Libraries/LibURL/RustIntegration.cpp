@@ -165,10 +165,15 @@ static FFI::FfiUrlHost host_to_ffi(Optional<Host> const& host)
                 result.ipv6[(i * 2) + 1] = static_cast<u8>(piece & 0xff);
             }
         },
-        [&](String const& str) {
-            result.kind = FFI::RustUrlHostKind::String;
-            result.string_data = reinterpret_cast<u8 const*>(str.bytes().data());
-            result.string_length = str.bytes().size();
+        [&](String const& domain) {
+            result.kind = FFI::RustUrlHostKind::Domain;
+            result.string_data = reinterpret_cast<u8 const*>(domain.bytes().data());
+            result.string_length = domain.bytes().size();
+        },
+        [&](OpaqueHost const& opaque_host) {
+            result.kind = FFI::RustUrlHostKind::Opaque;
+            result.string_data = reinterpret_cast<u8 const*>(opaque_host.value.bytes().data());
+            result.string_length = opaque_host.value.bytes().size();
         });
     return result;
 }
@@ -179,8 +184,10 @@ static Optional<Host> host_from_ffi(FFI::FfiUrlHost const& ffi)
         return {};
 
     switch (ffi.kind) {
-    case FFI::RustUrlHostKind::String:
+    case FFI::RustUrlHostKind::Domain:
         return Host(string_from_ffi({ ffi.string_data, ffi.string_length }));
+    case FFI::RustUrlHostKind::Opaque:
+        return Host(OpaqueHost { string_from_ffi({ ffi.string_data, ffi.string_length }) });
     case FFI::RustUrlHostKind::Ipv4: {
         u32 const n = (static_cast<u32>(ffi.ipv4[0]) << 24)
             | (static_cast<u32>(ffi.ipv4[1]) << 16)

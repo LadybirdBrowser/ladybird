@@ -165,6 +165,13 @@ ErrorOr<URL::Host> decode(Decoder& decoder)
 }
 
 template<>
+ErrorOr<URL::OpaqueHost> decode(Decoder& decoder)
+{
+    auto value = TRY(decoder.decode<String>());
+    return URL::OpaqueHost { move(value) };
+}
+
+template<>
 ErrorOr<Empty> decode(Decoder&)
 {
     return Empty {};

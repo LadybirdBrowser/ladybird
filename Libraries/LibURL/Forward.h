@@ -15,5 +15,6 @@ class Site;
 class URL;
 
 struct BlobURLEntry;
+struct OpaqueHost;
 
 }

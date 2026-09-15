@@ -136,6 +136,9 @@ template<>
 ErrorOr<void> encode(Encoder&, URL::Host const&);
 
 template<>
+ErrorOr<void> encode(Encoder&, URL::OpaqueHost const&);
+
+template<>
 ErrorOr<void> encode(Encoder&, File const&);
 
 template<>

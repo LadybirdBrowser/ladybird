@@ -15,12 +15,21 @@
 
 namespace URL {
 
+// https://url.spec.whatwg.org/#opaque-host
+// An opaque host is a non-empty ASCII string that can be used for further processing.
+struct OpaqueHost {
+    String value;
+
+    bool operator==(OpaqueHost const&) const = default;
+};
+
 // https://url.spec.whatwg.org/#concept-host
 // A host is a domain, an IP address, an opaque host, or an empty host. Typically a host serves as a network address,
 // but it is sometimes used as opaque identifier in URLs where a network address is not necessary.
 class Host {
 public:
-    using VariantType = Variant<IPv4Address, IPv6Address, String>;
+    // NB: A String alternative is a domain, or an empty host.
+    using VariantType = Variant<IPv4Address, IPv6Address, String, OpaqueHost>;
     Host(VariantType&&);
     Host(String&&);
 
