@@ -1620,24 +1620,10 @@ impl StyleEngineState {
             let mut style_deltas = Vec::with_capacity(published_nodes.len());
             let style_delta_bytes = (style_deltas.capacity() * size_of::<PublishedStyleDeltaRecord>()) as u64;
             style_delta_memory.resize_required_to(&mut self.memory, style_delta_bytes);
-            let mut unresolved_inheritance_sources = BitColumn::default();
-            let mut unresolved_inheritance_source_bytes = 0;
             let mut engine_computed_record_scratch = publication::EngineComputedRecordScratch::default();
-            // Whether a published ancestor's change stays confined to what the engine computes,
-            // decided once per ancestor. A descendant's engine-computed record is assembled
-            // before C++ applies the ancestors, so it is exact only when none of them can move
-            // anything the descendant inherits.
-            let mut confined_ancestors: HashMap<StyleNodeID, bool> = HashMap::default();
             let computation_loop_timer = PassTimer::start();
-            engine_computed_record_scratch
-                .settled_nodes
-                .reserve(published_nodes.len());
-            confined_ancestors.reserve(published_nodes.len());
-            computation_scratch_memory.resize_required_to(
-                &mut self.memory,
-                engine_computed_record_scratch.capacity_bytes()
-                    + capacity::ShallowCapacityBytes::shallow_capacity_bytes(&confined_ancestors),
-            );
+            computation_scratch_memory
+                .resize_required_to(&mut self.memory, engine_computed_record_scratch.capacity_bytes());
             if let Some(resolver) = &mut self.font_resolver
                 && let Some(inputs) = self.document_style_computation_inputs
             {
@@ -1709,12 +1695,61 @@ impl StyleEngineState {
                 } else {
                     counters.bump(Counter::RootFontInputsUnprovenFallbacks);
                 }
-                computation_scratch_memory.resize_required_to(
-                    &mut self.memory,
-                    engine_computed_record_scratch.capacity_bytes()
-                        + capacity::ShallowCapacityBytes::shallow_capacity_bytes(&confined_ancestors),
-                );
+                computation_scratch_memory
+                    .resize_required_to(&mut self.memory, engine_computed_record_scratch.capacity_bytes());
             }
+            // What the chain above a node proves, read by its children in the same pass. A
+            // published ancestor's change is exact for a descendant only when none of the
+            // ancestors can move anything the descendant inherits, so the fold below is the
+            // upward walk the gate used to run for every node: it stops at the first row a
+            // settled ancestor left behind, fills in the rows of the nodes it crossed, and keeps
+            // a row only once every fact folded into it is final. A published ancestor the walk
+            // has not processed yet is folded fresh, exactly as the walk re-read it.
+            type DerivedChildInputRows = column::PagedColumn<column::PagedValuePage<publication::DerivedChildInputs>>;
+            let row_of = |rows: &DerivedChildInputRows, node: StyleNodeID| {
+                node.element_index().and_then(|index| rows.get(index as usize))
+            };
+            let mut crossed_ancestors = Vec::new();
+            let ancestor_chain = |engine: &Self,
+                                  rows: &mut DerivedChildInputRows,
+                                  crossed: &mut Vec<StyleNodeID>,
+                                  node: StyleNodeID|
+             -> publication::AncestorChain {
+                crossed.clear();
+                let mut current = Some(node);
+                let mut chain = loop {
+                    let Some(ancestor) = current else {
+                        break publication::AncestorChain::ROOT;
+                    };
+                    if let Some(chain) = row_of(rows, ancestor).and_then(|row| row.chain) {
+                        break chain;
+                    }
+                    crossed.push(ancestor);
+                    current = engine.tree.flat_tree_parent(ancestor);
+                };
+                let mut chain_is_final = true;
+                for &ancestor in crossed.iter().rev() {
+                    let row = row_of(rows, ancestor);
+                    // Only a node the walk has processed holds a row; everything else is either
+                    // published and still to come, or published nothing at all.
+                    let published = row.is_some() || published_match_answers.lookup(ancestor).is_some();
+                    let unconfined = published
+                        && !(style_input_reactions
+                            .binary_search_by_key(&ancestor, |&(style_node, _, _)| style_node)
+                            .is_err()
+                            && engine.winner_delta_is_engine_confined(ancestor)
+                            && !engine.node_environment_may_move(ancestor));
+                    let settled = row.is_some_and(|row| row.settled);
+                    chain = publication::AncestorChain::fold(chain, published, unconfined, settled);
+                    chain_is_final = chain_is_final && (row.is_some() || !published);
+                    if chain_is_final && let Some(index) = ancestor.element_index() {
+                        let mut row = row.unwrap_or_default();
+                        row.chain = Some(chain);
+                        rows.insert(index as usize, row);
+                    }
+                }
+                chain
+            };
             let mut next_published_index = 0;
             let mut pending_parent_inputs = None;
             while next_published_index < published_nodes.len() {
@@ -1763,14 +1798,15 @@ impl StyleEngineState {
                         None
                     };
                     let resuming_font = engine_computed_record_scratch.font_drive.is_pending();
+                    // The immediate parent's own unresolved fact, which the direct inherited-group
+                    // path reads without asking about the chain above it.
                     let direct_inherited_delta = (reaction == transaction::STYLE_REACTION_INHERITED_STYLE
                         && !resuming_font)
                         .then(|| self.tree.flat_tree_parent(node))
                         .flatten()
                         .filter(|parent| {
-                            parent
-                                .element_index()
-                                .is_none_or(|index| !unresolved_inheritance_sources.contains(index as usize))
+                            !row_of(&engine_computed_record_scratch.derived_child_inputs, *parent)
+                                .is_some_and(|row| row.inheritance_unresolved)
                         })
                         .and_then(|parent| {
                             self.computed_group_sets.replace_engine_resolvable_inherited_groups(
@@ -1790,35 +1826,6 @@ impl StyleEngineState {
                     // application derives into each of them before the descendant, so the node's
                     // parent holds what it inherits from only when every node up to the settled
                     // ancestor is settled as well.
-                    let ancestors_are_confined = |engine: &Self,
-                                                  confined_ancestors: &mut HashMap<StyleNodeID, bool>,
-                                                  settled_nodes: &HashSet<StyleNodeID>|
-                     -> Option<bool> {
-                        let mut relied_on_settled_ancestor = false;
-                        let mut unsettled_between = false;
-                        let mut ancestor = engine.tree.flat_tree_parent(node);
-                        while let Some(current) = ancestor {
-                            let settled = settled_nodes.contains(&current);
-                            if published_match_answers.lookup(current).is_some() {
-                                let confined = *confined_ancestors.entry(current).or_insert_with(|| {
-                                    style_input_reactions
-                                        .binary_search_by_key(&current, |&(style_node, _, _)| style_node)
-                                        .is_err()
-                                        && engine.winner_delta_is_engine_confined(current)
-                                        && !engine.node_environment_may_move(current)
-                                });
-                                if !confined {
-                                    if !settled || unsettled_between {
-                                        return None;
-                                    }
-                                    relied_on_settled_ancestor = true;
-                                }
-                            }
-                            unsettled_between |= !settled;
-                            ancestor = engine.tree.flat_tree_parent(current);
-                        }
-                        Some(relied_on_settled_ancestor)
-                    };
                     // A refreshed answer cannot say which entries moved, so the flag stays conservative
                     // for C++; the pseudo winner states themselves are current here and settle it.
                     // A published-style reaction is the engine's to settle, as are the recompute and
@@ -1877,11 +1884,19 @@ impl StyleEngineState {
                         counters.bump(Counter::EngineComputedRecordGateIncompleteAnswer);
                         false
                     } else {
-                        match ancestors_are_confined(
-                            self,
-                            &mut confined_ancestors,
-                            &engine_computed_record_scratch.settled_nodes,
-                        ) {
+                        match self
+                            .tree
+                            .flat_tree_parent(node)
+                            .map_or(publication::AncestorChain::ROOT, |parent| {
+                                ancestor_chain(
+                                    self,
+                                    &mut engine_computed_record_scratch.derived_child_inputs,
+                                    &mut crossed_ancestors,
+                                    parent,
+                                )
+                            })
+                            .ancestors_are_confined()
+                        {
                             None => {
                                 counters.bump(Counter::EngineComputedRecordGateAncestors);
                                 retry_after_ancestor = self.tree.tree_scope(node) == TreeScopeID::DOCUMENT
@@ -1942,16 +1957,22 @@ impl StyleEngineState {
                     // A first record C++ declines for the custom-property environment it inherits
                     // takes its descendants' first records down with it: a descendant's environment is
                     // the parent's own, which fails the same check whenever the parent's did.
-                    if direct_inherited_delta.is_some() || engine_computed_delta.is_some() {
-                        engine_computed_record_scratch.settled_nodes.insert(node);
-                    } else if reaction == transaction::STYLE_REACTION_INHERITED_STYLE {
-                        let index = node
-                            .element_index()
-                            .expect("an inherited style reaction targets an element")
-                            as usize;
-                        let (_, growth) = unresolved_inheritance_sources.set(index, true);
-                        self.memory.reserve_required(MemoryCategory::BatchScratch, growth);
-                        unresolved_inheritance_source_bytes += growth;
+                    // What this node tells its children, decided here, where it settles. Every
+                    // processed node keeps a row, settled or not: that is what lets a
+                    // descendant's fold stop at it instead of walking past it to the root.
+                    let settled = direct_inherited_delta.is_some() || engine_computed_delta.is_some();
+                    if let Some(index) = node.element_index() {
+                        engine_computed_record_scratch.derived_child_inputs.insert(
+                            index as usize,
+                            publication::DerivedChildInputs {
+                                settled,
+                                inheritance_unresolved: !settled
+                                    && reaction == transaction::STYLE_REACTION_INHERITED_STYLE,
+                                // A child folds the chain when it asks; this node's own facts
+                                // are final from here on, so the fold it caches is kept.
+                                chain: None,
+                            },
+                        );
                     }
                     let (old_style_record, new_style_record, damage, gap) =
                         match (direct_inherited_delta, engine_computed_delta) {
@@ -2006,7 +2027,7 @@ impl StyleEngineState {
                         pseudo_kind: u8::MAX,
                         gap,
                         uses_substitution: gap == FfiStyleDeltaGap::Computed
-                            && self.nodes_with_substituted_records.contains(&node),
+                            && engine_computed_record_scratch.element_uses_substitution,
                     };
                     if style_deltas.len() == style_deltas.capacity() {
                         style_deltas.reserve(1);
@@ -2043,31 +2064,21 @@ impl StyleEngineState {
                     }
                     // NB: Sample scratch coexistence without scanning its containers per element.
                     if (published_index + 1).is_multiple_of(256) {
-                        computation_scratch_memory.resize_required_to(
-                            &mut self.memory,
-                            engine_computed_record_scratch.capacity_bytes()
-                                + capacity::ShallowCapacityBytes::shallow_capacity_bytes(&confined_ancestors),
-                        );
+                        computation_scratch_memory
+                            .resize_required_to(&mut self.memory, engine_computed_record_scratch.capacity_bytes());
                     }
                 }
                 if let Some(request) = engine_computed_record_scratch.font_drive.request.take() {
-                    computation_scratch_memory.resize_required_to(
-                        &mut self.memory,
-                        engine_computed_record_scratch.capacity_bytes()
-                            + capacity::ShallowCapacityBytes::shallow_capacity_bytes(&confined_ancestors),
-                    );
+                    computation_scratch_memory
+                        .resize_required_to(&mut self.memory, engine_computed_record_scratch.capacity_bytes());
                     let node = published_nodes[next_published_index];
                     self.refill_font_request(node, request, counters);
                 }
             }
             computation_loop_timer.stop(Counter::ComputationLoopMicroseconds, counters);
-            computation_scratch_memory.resize_required_to(
-                &mut self.memory,
-                engine_computed_record_scratch.capacity_bytes()
-                    + capacity::ShallowCapacityBytes::shallow_capacity_bytes(&confined_ancestors),
-            );
+            computation_scratch_memory
+                .resize_required_to(&mut self.memory, engine_computed_record_scratch.capacity_bytes());
             drop(engine_computed_record_scratch);
-            drop(confined_ancestors);
             computation_scratch_memory.release();
             if !style_deltas.is_empty() {
                 self.settle_computed_memory();
@@ -2080,8 +2091,6 @@ impl StyleEngineState {
                 MemoryCategory::BatchScratch,
                 (published_nodes.capacity() * size_of::<StyleNodeID>()) as u64,
             );
-            self.memory
-                .release(MemoryCategory::BatchScratch, unresolved_inheritance_source_bytes);
         }
         self.memory
             .release(MemoryCategory::BatchScratch, style_input_reaction_bytes);

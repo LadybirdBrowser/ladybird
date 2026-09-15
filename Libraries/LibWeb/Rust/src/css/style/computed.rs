@@ -305,6 +305,20 @@ impl Drop for AnimationOverlayRecord {
     }
 }
 
+/// What a caller of `publish` still owns of the components being interned, and, on the way back,
+/// what interning took over from it.
+///
+/// A build hands the catalog the reference it holds instead of making the catalog retain a second
+/// one that the build then releases: build +1, intern +1, release -1 is a net +1 either way, but
+/// only one of the two touches a reference count per published payload.
+#[derive(Clone, Copy, Default)]
+pub struct PendingRecordOwnership {
+    /// One bit per group whose payload reference moves into the catalog when it is published.
+    pub groups: u32,
+    /// Whether the caller holds the reference behind the record's longhand table.
+    pub table: bool,
+}
+
 /// The identities a run's catalogs have minted, counted so that a determinism gate can compare
 /// the sharing partition itself instead of the publication that happened to intern it first.
 #[derive(Clone, Copy, Default)]
@@ -596,6 +610,9 @@ pub struct ComputedGroupPublication {
     pub animation_overlay_record_updated: bool,
     pub live_animation_overlay_records: usize,
     pub is_pseudo: bool,
+    /// Which of the references the caller handed over the catalog took: the caller releases the
+    /// rest itself.
+    pub transferred: PendingRecordOwnership,
 }
 
 #[derive(Clone, Copy)]
@@ -943,7 +960,11 @@ impl ComputedGroupSets {
         self.content_identities_suspended = suspended;
     }
 
-    fn intern_group(&mut self, index: usize, payload: *const c_void) -> (ComputedGroupID, bool) {
+    /// Interns one group payload. `owned` says the caller holds a reference it is handing over: a
+    /// payload published here takes that reference instead of retaining a second one, and a
+    /// payload that deduplicates leaves it with the caller, who releases it as before. The second
+    /// element of the answer says which of the two happened.
+    fn intern_group_owned(&mut self, index: usize, payload: *const c_void, owned: bool) -> (ComputedGroupID, bool) {
         let address_hash = content_hash((index, payload as usize));
         if let Some(identity) = self.groups.find(address_hash, |_identity, group| {
             group.index == index && group.payload == payload
@@ -964,7 +985,9 @@ impl ComputedGroupSets {
                 return (identity, false);
             }
         }
-        retain_group_payload(index, payload);
+        if !owned {
+            retain_group_payload(index, payload);
+        }
         let identity = self.groups.take_free_identity().unwrap_or_else(|| {
             ComputedGroupID(u32::try_from(self.groups.len()).expect("computed group identity space exhausted"))
         });
@@ -1115,18 +1138,25 @@ impl ComputedGroupSets {
         Err(hash)
     }
 
-    fn intern_longhand_table(
+    /// Interns one longhand table. `owned` says the caller holds the reference behind `table` and
+    /// hands it over; the returned flag says whether interning took it.
+    fn intern_longhand_table_owned(
         &mut self,
         table: &ComputedLonghandTable,
         previous: Option<ComputedLonghandTableID>,
         canonical: Option<ComputedLonghandTableID>,
-    ) -> ComputedLonghandTableID {
+        owned: bool,
+    ) -> (ComputedLonghandTableID, bool) {
         let hash = match self.find_longhand_table(table, previous, canonical) {
-            Ok(identity) => return identity,
+            Ok(identity) => return (identity, false),
             Err(hash) => hash,
         };
-        let retained = unsafe { crate::css::computed_longhand_table::rust_computed_longhand_table_retain(table) };
-        self.insert_longhand_table(retained, hash)
+        let retained = if owned {
+            std::ptr::from_ref(table)
+        } else {
+            unsafe { crate::css::computed_longhand_table::rust_computed_longhand_table_retain(table) }
+        };
+        (self.insert_longhand_table(retained, hash), owned)
     }
 
     fn intern_owned_longhand_table(
@@ -1340,12 +1370,18 @@ impl ComputedGroupSets {
                     )
                 }
                 .expect("a supported currentcolor group rebuilds from its computed table");
+                // A rebuilt payload's reference moves into the catalog when it is published,
+                // and stays with the swap to be released when an equal one is already there.
                 let identity = if payload == old_payload {
+                    release_group_payload(group, payload);
                     *group_identity
                 } else {
-                    self.intern_group(group, payload).0
+                    let (identity, inserted) = self.intern_group_owned(group, payload, true);
+                    if !inserted {
+                        release_group_payload(group, payload);
+                    }
+                    identity
                 };
-                release_group_payload(group, payload);
                 *group_identity = identity;
             }
         }
@@ -1495,11 +1531,16 @@ impl ComputedGroupSets {
             // predecessor's identical payloads.
             let identity = if payload == old_payload || style_group_payloads_equal(group, old_payload, payload) {
                 canonicalized_groups += 1;
+                release_group_payload(group, payload);
                 *group_identity
             } else {
-                self.intern_group(group, payload).0
+                // The rebuild's reference moves into the catalog when it publishes the payload.
+                let (identity, inserted) = self.intern_group_owned(group, payload, true);
+                if !inserted {
+                    release_group_payload(group, payload);
+                }
+                identity
             };
-            release_group_payload(group, payload);
             *group_identity = identity;
         }
         let group_set = self.intern_group_set(&groups).0;
@@ -1890,6 +1931,28 @@ impl ComputedGroupSets {
         })
     }
 
+    #[cfg(test)]
+    fn publish_unowned(
+        &mut self,
+        target: Option<ComputedStyleTarget>,
+        payloads: &[*const c_void],
+        inherited_group_count: usize,
+        custom_property_environment: u64,
+        metadata_input: ComputedMetadataInput<'_>,
+    ) -> ComputedGroupPublication {
+        self.publish(
+            target,
+            payloads,
+            inherited_group_count,
+            custom_property_environment,
+            metadata_input,
+            PendingRecordOwnership::default(),
+        )
+    }
+
+    /// Publishes one record's components. `owned` says which of `payloads`, and whether the
+    /// table, the caller hands over; `ComputedGroupPublication::transferred` says which of those
+    /// references the catalog took, and the caller releases the rest.
     pub fn publish(
         &mut self,
         target: Option<ComputedStyleTarget>,
@@ -1897,6 +1960,7 @@ impl ComputedGroupSets {
         inherited_group_count: usize,
         custom_property_environment: u64,
         metadata_input: ComputedMetadataInput<'_>,
+        owned: PendingRecordOwnership,
     ) -> ComputedGroupPublication {
         let ComputedMetadataInput {
             pseudo_element_styles,
@@ -1926,6 +1990,7 @@ impl ComputedGroupSets {
         });
         let mut new_groups = 0;
         let mut canonical_output_groups_reused = 0;
+        let mut transferred = PendingRecordOwnership::default();
         let mut groups = Vec::with_capacity(payloads.len());
         let replaying_style_groups = replaying_style_groups();
         for (index, &payload) in payloads.iter().enumerate() {
@@ -1972,7 +2037,13 @@ impl ComputedGroupSets {
                     identity
                 }
                 None => {
-                    let (identity, inserted) = self.intern_group(index, payload);
+                    // A new payload's reference moves into the catalog when the caller owns one;
+                    // a payload that deduplicates leaves it with the caller.
+                    let owned = owned.groups & (1 << index) != 0;
+                    let (identity, inserted) = self.intern_group_owned(index, payload, owned);
+                    if inserted && owned {
+                        transferred.groups |= 1 << index;
+                    }
                     new_groups += usize::from(inserted);
                     identity
                 }
@@ -2015,8 +2086,12 @@ impl ComputedGroupSets {
             self.style_records.get_index(style_record.index())?.longhand_table
         });
         let canonical_longhand_table = self.sets[identity].canonical_longhand_table;
-        let longhand_table_identity = longhand_table
-            .map(|table| self.intern_longhand_table(table, previous_longhand_table, canonical_longhand_table));
+        let longhand_table_identity = longhand_table.map(|table| {
+            let (identity, moved) =
+                self.intern_longhand_table_owned(table, previous_longhand_table, canonical_longhand_table, owned.table);
+            transferred.table = moved;
+            identity
+        });
         if self.sets[identity].canonical_longhand_table.is_none() {
             self.sets[identity].canonical_longhand_table = longhand_table_identity;
         }
@@ -2147,6 +2222,7 @@ impl ComputedGroupSets {
             animation_overlay_record_updated: animation_overlay_publication.record_updated,
             live_animation_overlay_records: self.live_animation_overlay_assignments,
             is_pseudo,
+            transferred,
         }
     }
 
@@ -2302,6 +2378,7 @@ impl ComputedGroupSets {
             animation_overlay_record_updated: false,
             live_animation_overlay_records: self.live_animation_overlay_assignments,
             is_pseudo,
+            transferred: PendingRecordOwnership::default(),
         })
     }
 
@@ -3624,6 +3701,139 @@ mod tests {
         }
     }
 
+    /// One owned payload per group, each a fresh clone of the group's registered default: an
+    /// allocation the caller holds the only reference to, which is what a drive hands `publish`.
+    fn owned_payloads(group_count: usize) -> Vec<*const c_void> {
+        crate::css::computed_values::registered_test_style_groups();
+        (0..group_count)
+            .map(|index| {
+                let default = crate::css::computed_values::default_group_payload(index);
+                // SAFETY: The default payload is a live payload of its registered group.
+                unsafe { crate::css::computed_values::clone_group_payload(index, default) }.cast_const()
+            })
+            .collect()
+    }
+
+    /// One owned reference to a frozen longhand table, as a drive hands one over.
+    fn owned_longhand_table() -> *const ComputedLonghandTable {
+        let mut table = ComputedLonghandTable::new();
+        table.freeze();
+        table.into_raw_shared()
+    }
+
+    fn longhand_table_owners(table: *const ComputedLonghandTable) -> usize {
+        // SAFETY: `table` is a live strong reference, and the handle reconstructed to read the
+        // count is forgotten rather than dropped, so the count itself is left alone.
+        let handle = unsafe { std::sync::Arc::from_raw(table) };
+        let owners = std::sync::Arc::strong_count(&handle);
+        std::mem::forget(handle);
+        owners
+    }
+
+    fn release_longhand_table(table: *const ComputedLonghandTable) {
+        // SAFETY: `table` is a live strong reference the caller is done with.
+        unsafe { crate::css::computed_longhand_table::rust_computed_longhand_table_release(table.cast_mut()) };
+    }
+
+    fn publish_owned(
+        sets: &mut ComputedGroupSets,
+        target: ComputedStyleTarget,
+        payloads: &[*const c_void],
+        table: *const ComputedLonghandTable,
+    ) -> ComputedGroupPublication {
+        let mut metadata_input = metadata(0, 0, 0);
+        metadata_input.longhand_table = table;
+        let owned = PendingRecordOwnership {
+            groups: (1 << payloads.len()) - 1,
+            table: true,
+        };
+        sets.publish(Some(target), payloads, 1, 0, metadata_input, owned)
+    }
+
+    #[test]
+    fn a_fresh_record_takes_over_every_reference_the_caller_hands_it() {
+        let mut sets = ComputedGroupSets::default();
+        let target = ComputedStyleTarget::new(StyleNodeID::from_raw(1).unwrap(), u8::MAX);
+        let payloads = owned_payloads(2);
+        let table = owned_longhand_table();
+
+        let publication = publish_owned(&mut sets, target, &payloads, table);
+
+        assert_eq!(publication.transferred.groups, 0b11);
+        assert!(publication.transferred.table);
+        let view = sets.style_record_view(publication.style_record_identity.raw()).unwrap();
+        assert_eq!(view.payloads, payloads.as_slice());
+        assert_eq!(view.longhand_table, table);
+        // Interning took the caller's reference instead of retaining a second one, so each
+        // component still has exactly one owner: the catalog.
+        for (index, &payload) in payloads.iter().enumerate() {
+            assert_eq!(crate::css::computed_values::group_payload_refcount(index, payload), 1);
+        }
+        assert_eq!(longhand_table_owners(table), 1);
+    }
+
+    #[test]
+    fn a_record_that_repeats_its_own_components_transfers_nothing() {
+        let mut sets = ComputedGroupSets::default();
+        let target = ComputedStyleTarget::new(StyleNodeID::from_raw(1).unwrap(), u8::MAX);
+        let payloads = owned_payloads(2);
+        let table = owned_longhand_table();
+        let published = publish_owned(&mut sets, target, &payloads, table);
+
+        // A recompute that reproduces the same components holds a reference of its own to each.
+        for (index, &payload) in payloads.iter().enumerate() {
+            retain_group_payload(index, payload);
+        }
+        // SAFETY: The table is a live strong reference to a frozen table.
+        let retained_table = unsafe { crate::css::computed_longhand_table::rust_computed_longhand_table_retain(table) };
+        let republished = publish_owned(&mut sets, target, &payloads, retained_table);
+
+        assert_eq!(republished.style_record_identity, published.style_record_identity);
+        assert_eq!(republished.transferred.groups, 0);
+        assert!(!republished.transferred.table);
+        // Deduplication left every reference with the caller, which releases them itself.
+        for (index, &payload) in payloads.iter().enumerate() {
+            assert_eq!(crate::css::computed_values::group_payload_refcount(index, payload), 2);
+            release_group_payload(index, payload);
+            assert_eq!(crate::css::computed_values::group_payload_refcount(index, payload), 1);
+        }
+        assert_eq!(longhand_table_owners(table), 2);
+        release_longhand_table(retained_table);
+        assert_eq!(longhand_table_owners(table), 1);
+    }
+
+    #[test]
+    fn a_record_that_matches_an_unrelated_record_by_content_transfers_nothing() {
+        let mut sets = ComputedGroupSets::default();
+        let first_target = ComputedStyleTarget::new(StyleNodeID::from_raw(1).unwrap(), u8::MAX);
+        let second_target = ComputedStyleTarget::new(StyleNodeID::from_raw(2).unwrap(), u8::MAX);
+        let payloads = owned_payloads(2);
+        let table = owned_longhand_table();
+        let published = publish_owned(&mut sets, first_target, &payloads, table);
+
+        // Another element builds equal components of its own, in separate allocations.
+        let equal_payloads = owned_payloads(2);
+        let equal_table = owned_longhand_table();
+        assert_ne!(equal_payloads, payloads);
+        assert_ne!(equal_table, table);
+        let republished = publish_owned(&mut sets, second_target, &equal_payloads, equal_table);
+
+        assert_eq!(republished.style_record_identity, published.style_record_identity);
+        assert_eq!(republished.transferred.groups, 0);
+        assert!(!republished.transferred.table);
+        let view = sets.style_record_view(republished.style_record_identity.raw()).unwrap();
+        assert_eq!(view.payloads, payloads.as_slice());
+        assert_eq!(view.longhand_table, table);
+        assert_eq!(longhand_table_owners(table), 1);
+        // The catalog kept the components it already held, so the caller releases its own.
+        for (index, &payload) in equal_payloads.iter().enumerate() {
+            assert_eq!(crate::css::computed_values::group_payload_refcount(index, payload), 1);
+            release_group_payload(index, payload);
+        }
+        assert_eq!(longhand_table_owners(equal_table), 1);
+        release_longhand_table(equal_table);
+    }
+
     #[test]
     fn viewport_dependent_nodes_include_elements_and_pseudo_owners_once() {
         let mut sets = ComputedGroupSets::default();
@@ -3632,11 +3842,11 @@ mod tests {
         let font_dependent_pseudo = ComputedStyleTarget::new(StyleNodeID::element(3), 1);
         let viewport_dependent_pseudo = ComputedStyleTarget::new(StyleNodeID::element(2), 2);
         let viewport_dependent_pseudo_only = ComputedStyleTarget::new(StyleNodeID::element(4), 1);
-        sets.publish(Some(independent), &[], 0, 0, metadata(0, 0, 0));
-        sets.publish(Some(viewport_dependent), &[], 0, 0, metadata(0, 1, 0));
-        sets.publish(Some(font_dependent_pseudo), &[], 0, 0, metadata(0, 2, 0));
-        sets.publish(Some(viewport_dependent_pseudo), &[], 0, 0, metadata(0, 1, 0));
-        sets.publish(Some(viewport_dependent_pseudo_only), &[], 0, 0, metadata(0, 1, 0));
+        sets.publish_unowned(Some(independent), &[], 0, 0, metadata(0, 0, 0));
+        sets.publish_unowned(Some(viewport_dependent), &[], 0, 0, metadata(0, 1, 0));
+        sets.publish_unowned(Some(font_dependent_pseudo), &[], 0, 0, metadata(0, 2, 0));
+        sets.publish_unowned(Some(viewport_dependent_pseudo), &[], 0, 0, metadata(0, 1, 0));
+        sets.publish_unowned(Some(viewport_dependent_pseudo_only), &[], 0, 0, metadata(0, 1, 0));
 
         assert_eq!(sets.viewport_dependent_nodes(), vec![2, 4]);
     }
@@ -3698,9 +3908,9 @@ mod tests {
         let mut sets = ComputedGroupSets::default();
         let first_target = ComputedStyleTarget::new(StyleNodeID::from_raw(1).unwrap(), u8::MAX);
         let second_target = ComputedStyleTarget::new(StyleNodeID::from_raw(65).unwrap(), u8::MAX);
-        let first = sets.publish(Some(first_target), &[], 0, 17, metadata(3, 1, 5));
-        let second = sets.publish(Some(second_target), &[], 0, 17, metadata(3, 1, 5));
-        let unchanged = sets.publish(Some(first_target), &[], 0, 17, metadata(3, 1, 5));
+        let first = sets.publish_unowned(Some(first_target), &[], 0, 17, metadata(3, 1, 5));
+        let second = sets.publish_unowned(Some(second_target), &[], 0, 17, metadata(3, 1, 5));
+        let unchanged = sets.publish_unowned(Some(first_target), &[], 0, 17, metadata(3, 1, 5));
 
         assert_eq!(sets.bind_cascade_state(first_target, (1, CascadeStateID(3))), None);
         assert_eq!(
@@ -3740,7 +3950,7 @@ mod tests {
         assert_ne!(first.style_record_identity.raw(), 0);
         assert_eq!(first.new_groups + second.new_groups + unchanged.new_groups, 0);
 
-        let changed_environment = sets.publish(Some(first_target), &[], 0, 18, metadata(3, 1, 5));
+        let changed_environment = sets.publish_unowned(Some(first_target), &[], 0, 18, metadata(3, 1, 5));
         assert!(changed_environment.new_custom_property_environment);
         assert!(changed_environment.custom_property_environment_node_handle_changed);
         assert!(changed_environment.new_style_record);
@@ -3751,14 +3961,14 @@ mod tests {
         assert!(changed_environment.style_record_node_handle_changed);
         assert!(!changed_environment.node_handle_changed);
 
-        let changed_metadata = sets.publish(Some(first_target), &[], 0, 18, metadata(7, 1, 5));
+        let changed_metadata = sets.publish_unowned(Some(first_target), &[], 0, 18, metadata(7, 1, 5));
         assert!(changed_metadata.new_computed_fixed_metadata);
         assert!(changed_metadata.computed_fixed_metadata_node_handle_changed);
         assert!(changed_metadata.new_style_record);
         assert!(changed_metadata.style_record_node_handle_changed);
         assert!(!changed_metadata.node_handle_changed);
 
-        let changed_observer_dependency = sets.publish(Some(first_target), &[], 0, 18, metadata(7, 1, 6));
+        let changed_observer_dependency = sets.publish_unowned(Some(first_target), &[], 0, 18, metadata(7, 1, 6));
         assert!(changed_observer_dependency.new_computed_fixed_metadata);
         assert!(changed_observer_dependency.computed_fixed_metadata_node_handle_changed);
         assert!(changed_observer_dependency.style_record_node_handle_changed);
@@ -3767,7 +3977,7 @@ mod tests {
         let mut animated_metadata = metadata(7, 1, 6);
         animated_metadata.animation_overlay_identity = 9;
         animated_metadata.animated_overlay = std::ptr::from_ref(&animated_overlay);
-        let changed_animation_overlay = sets.publish(Some(first_target), &[], 0, 18, animated_metadata);
+        let changed_animation_overlay = sets.publish_unowned(Some(first_target), &[], 0, 18, animated_metadata);
         assert!(!changed_animation_overlay.new_computed_fixed_metadata);
         assert!(!changed_animation_overlay.computed_fixed_metadata_node_handle_changed);
         assert!(!changed_animation_overlay.new_style_record);
@@ -3778,7 +3988,7 @@ mod tests {
         let mut updated_animated_metadata = metadata(7, 1, 6);
         updated_animated_metadata.animation_overlay_identity = 10;
         updated_animated_metadata.animated_overlay = std::ptr::from_ref(&animated_overlay);
-        let updated_animation_overlay = sets.publish(Some(first_target), &[], 0, 18, updated_animated_metadata);
+        let updated_animation_overlay = sets.publish_unowned(Some(first_target), &[], 0, 18, updated_animated_metadata);
         assert!(!updated_animation_overlay.new_computed_fixed_metadata);
         assert!(!updated_animation_overlay.new_style_record);
         assert!(!updated_animation_overlay.animation_overlay_slot_allocated);
@@ -3790,7 +4000,7 @@ mod tests {
         assert_eq!(updated_animation_overlay.live_animation_overlay_records, 1);
         assert_eq!(sets.live_animation_overlay_records(), 1);
 
-        let released_animation_overlay = sets.publish(Some(first_target), &[], 0, 18, metadata(7, 1, 6));
+        let released_animation_overlay = sets.publish_unowned(Some(first_target), &[], 0, 18, metadata(7, 1, 6));
         assert!(released_animation_overlay.animation_overlay_slot_released);
         assert_eq!(released_animation_overlay.live_animation_overlay_records, 0);
         assert_eq!(
@@ -3802,13 +4012,13 @@ mod tests {
         let mut reused_animated_metadata = metadata(7, 1, 6);
         reused_animated_metadata.animation_overlay_identity = 11;
         reused_animated_metadata.animated_overlay = std::ptr::from_ref(&animated_overlay);
-        let reused_animation_overlay = sets.publish(Some(first_target), &[], 0, 18, reused_animated_metadata);
+        let reused_animation_overlay = sets.publish_unowned(Some(first_target), &[], 0, 18, reused_animated_metadata);
         assert!(!reused_animation_overlay.animation_overlay_slot_allocated);
         assert_eq!(reused_animation_overlay.live_animation_overlay_records, 1);
 
         let pseudo_target = ComputedStyleTarget::new(StyleNodeID::from_raw(1).unwrap(), 2);
-        let pseudo = sets.publish(Some(pseudo_target), &[], 0, 18, metadata(7, 1, 6));
-        let unchanged_pseudo = sets.publish(Some(pseudo_target), &[], 0, 18, metadata(7, 1, 6));
+        let pseudo = sets.publish_unowned(Some(pseudo_target), &[], 0, 18, metadata(7, 1, 6));
+        let unchanged_pseudo = sets.publish_unowned(Some(pseudo_target), &[], 0, 18, metadata(7, 1, 6));
         assert!(pseudo.is_pseudo);
         assert_eq!(pseudo.previous_style_record_identity, None);
         assert!(pseudo.node_handle_changed);
@@ -3821,7 +4031,7 @@ mod tests {
             Some(pseudo.style_record_identity)
         );
         sets.remove(StyleNodeID::from_raw(1).unwrap());
-        let republished_pseudo = sets.publish(Some(pseudo_target), &[], 0, 18, metadata(7, 1, 6));
+        let republished_pseudo = sets.publish_unowned(Some(pseudo_target), &[], 0, 18, metadata(7, 1, 6));
         assert!(republished_pseudo.node_handle_changed);
         assert_eq!(
             sets.remove_pseudo(StyleNodeID::from_raw(1).unwrap(), 2),
@@ -3839,13 +4049,13 @@ mod tests {
         let mut first_metadata = metadata(0, 0, 0);
         first_metadata.animation_overlay_identity = 1;
         first_metadata.animated_overlay = std::ptr::from_ref(&animated_overlay);
-        let first = sets.publish(Some(target), &[], 0, 0, first_metadata);
+        let first = sets.publish_unowned(Some(target), &[], 0, 0, first_metadata);
 
         sets.pin_style_record(first.style_record_identity.raw());
         let mut second_metadata = metadata(0, 0, 0);
         second_metadata.animation_overlay_identity = 2;
         second_metadata.animated_overlay = std::ptr::from_ref(&animated_overlay);
-        let second = sets.publish(Some(target), &[], 0, 0, second_metadata);
+        let second = sets.publish_unowned(Some(target), &[], 0, 0, second_metadata);
 
         assert_ne!(first.style_record_identity, second.style_record_identity);
         assert!(
@@ -3871,7 +4081,7 @@ mod tests {
     #[test]
     fn base_style_record_pins_are_counted_until_the_last_view_releases() {
         let mut sets = ComputedGroupSets::default();
-        let publication = sets.publish(None, &[], 0, 0, metadata(0, 0, 0));
+        let publication = sets.publish_unowned(None, &[], 0, 0, metadata(0, 0, 0));
         let style_record = publication.style_record_identity;
         let base_style_record = style_record.base_record().unwrap();
 
@@ -3891,7 +4101,7 @@ mod tests {
         let mut sets = ComputedGroupSets::default();
         let node = StyleNodeID::element(1);
         let target = ComputedStyleTarget::new(node, u8::MAX);
-        let donor = sets.publish(Some(target), &[], 0, 0, metadata(0, 0, 0));
+        let donor = sets.publish_unowned(Some(target), &[], 0, 0, metadata(0, 0, 0));
         let record = donor.style_record_identity.raw();
         assert!(sets.inherited_groups_for_shared_style(record).is_none());
 
@@ -3927,7 +4137,7 @@ mod tests {
     #[test]
     fn pinned_style_record_retains_its_inherited_group_set_for_sharing() {
         let mut sets = ComputedGroupSets::default();
-        let donor = sets.publish(None, &[], 0, 1, metadata(0, 0, 0));
+        let donor = sets.publish_unowned(None, &[], 0, 1, metadata(0, 0, 0));
         let record = donor.style_record_identity.raw();
         sets.pin_style_record(record);
         sets.reclaim_unreachable();
@@ -3956,11 +4166,11 @@ mod tests {
         let mut sets = ComputedGroupSets::default();
         let node = StyleNodeID::element(1);
         let target = ComputedStyleTarget::new(node, u8::MAX);
-        let pinned = sets.publish(Some(target), &[], 0, 1, metadata(0, 0, 0));
+        let pinned = sets.publish_unowned(Some(target), &[], 0, 1, metadata(0, 0, 0));
         sets.pin_style_record(pinned.style_record_identity.raw());
 
         for environment in 2..128 {
-            sets.publish(Some(target), &[], 0, environment, metadata(0, 0, 0));
+            sets.publish_unowned(Some(target), &[], 0, environment, metadata(0, 0, 0));
         }
         let current = sets.assigned_style_record(node).unwrap().base_record().unwrap();
         let dense_record_count = sets.style_records.len();
@@ -3976,7 +4186,7 @@ mod tests {
         );
 
         for environment in 128..253 {
-            sets.publish(Some(target), &[], 0, environment, metadata(0, 0, 0));
+            sets.publish_unowned(Some(target), &[], 0, environment, metadata(0, 0, 0));
         }
         assert_eq!(sets.style_records.len(), dense_record_count);
 
@@ -3988,12 +4198,12 @@ mod tests {
     #[test]
     fn computed_record_reclamation_reuses_the_lowest_identity_first() {
         let mut sets = ComputedGroupSets::default();
-        let first = sets.publish(None, &[], 0, 1, metadata(0, 0, 0));
-        sets.publish(None, &[], 0, 2, metadata(0, 0, 0));
-        sets.publish(None, &[], 0, 3, metadata(0, 0, 0));
+        let first = sets.publish_unowned(None, &[], 0, 1, metadata(0, 0, 0));
+        sets.publish_unowned(None, &[], 0, 2, metadata(0, 0, 0));
+        sets.publish_unowned(None, &[], 0, 3, metadata(0, 0, 0));
         sets.reclaim_unreachable();
 
-        let replacement = sets.publish(None, &[], 0, 4, metadata(0, 0, 0));
+        let replacement = sets.publish_unowned(None, &[], 0, 4, metadata(0, 0, 0));
         assert_eq!(
             replacement.style_record_identity.base_record(),
             first.style_record_identity.base_record()
@@ -4003,12 +4213,12 @@ mod tests {
     #[test]
     fn computed_record_reclamation_retires_an_exhausted_identity() {
         let mut sets = ComputedGroupSets::default();
-        let exhausted = sets.publish(None, &[], 0, 1, metadata(0, 0, 0));
+        let exhausted = sets.publish_unowned(None, &[], 0, 1, metadata(0, 0, 0));
         let exhausted = exhausted.style_record_identity.base_record().unwrap();
         sets.style_record_generations[exhausted.index()] = FinalStyleRecordID::MAX_BASE_GENERATION;
         sets.reclaim_unreachable();
 
-        let replacement = sets.publish(None, &[], 0, 2, metadata(0, 0, 0));
+        let replacement = sets.publish_unowned(None, &[], 0, 2, metadata(0, 0, 0));
         assert_ne!(replacement.style_record_identity.base_record(), Some(exhausted));
     }
 
@@ -4016,11 +4226,11 @@ mod tests {
     #[should_panic(expected = "base style-record is not live")]
     fn a_retired_base_style_record_cannot_be_viewed() {
         let mut sets = ComputedGroupSets::default();
-        let publication = sets.publish(None, &[], 0, 1, metadata(0, 0, 0));
+        let publication = sets.publish_unowned(None, &[], 0, 1, metadata(0, 0, 0));
         let retired_final = publication.style_record_identity;
         let retired = retired_final.base_record().unwrap();
         sets.reclaim_unreachable();
-        let replacement = sets.publish(None, &[], 0, 2, metadata(0, 0, 0));
+        let replacement = sets.publish_unowned(None, &[], 0, 2, metadata(0, 0, 0));
         let replacement_final = replacement.style_record_identity;
         let replacement = replacement_final.base_record().unwrap();
         assert_eq!(retired.index(), replacement.index());
@@ -4032,11 +4242,11 @@ mod tests {
     #[should_panic(expected = "base style-record is not live")]
     fn a_retired_base_style_record_cannot_be_pinned() {
         let mut sets = ComputedGroupSets::default();
-        let publication = sets.publish(None, &[], 0, 1, metadata(0, 0, 0));
+        let publication = sets.publish_unowned(None, &[], 0, 1, metadata(0, 0, 0));
         let retired_final = publication.style_record_identity;
         let retired = retired_final.base_record().unwrap();
         sets.reclaim_unreachable();
-        let replacement = sets.publish(None, &[], 0, 2, metadata(0, 0, 0));
+        let replacement = sets.publish_unowned(None, &[], 0, 2, metadata(0, 0, 0));
         let replacement_final = replacement.style_record_identity;
         let replacement = replacement_final.base_record().unwrap();
         assert_eq!(retired.index(), replacement.index());

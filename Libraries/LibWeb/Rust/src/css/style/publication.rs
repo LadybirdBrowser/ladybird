@@ -294,6 +294,7 @@ impl StyleEngineState {
         if scratch.font_drive.is_pending() {
             scratch.prepared_root_font = Some((node, parent_inputs_moved, std::mem::take(&mut scratch.font_drive)));
         }
+        self.apply_substitution_effects(scratch);
     }
 
     /// Derive the record a published-style reaction moves `node` to, when the engine can compute
@@ -311,6 +312,29 @@ impl StyleEngineState {
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
     ) -> Option<(computed::FinalStyleRecordID, computed::FinalStyleRecordID)> {
+        let delta = self.decide_engine_computed_record_delta(
+            node,
+            cascade_winners_are_complete,
+            exact_flipped_rules,
+            parent_inputs_moved,
+            scratch,
+            counters,
+        );
+        self.apply_substitution_effects(scratch);
+        delta
+    }
+
+    /// The step itself, which decides the substituted-record facts rather than writing them.
+    #[allow(clippy::too_many_arguments)]
+    fn decide_engine_computed_record_delta(
+        &mut self,
+        node: StyleNodeID,
+        cascade_winners_are_complete: bool,
+        exact_flipped_rules: Option<FlippedRules>,
+        parent_inputs_moved: ParentInputsMoved,
+        scratch: &mut EngineComputedRecordScratch,
+        counters: &mut Counters,
+    ) -> Option<(computed::FinalStyleRecordID, computed::FinalStyleRecordID)> {
         if scratch.root_computation_unsupported == Some(node) {
             return None;
         }
@@ -319,6 +343,7 @@ impl StyleEngineState {
             scratch.pseudo_deltas.clear();
             scratch.next_pseudo = 0;
             scratch.pseudo_uses_substitution = false;
+            scratch.noted_substitution = None;
             scratch.flipped_pseudo_rules = exact_flipped_rules.map_or(0, |flipped| flipped.pseudos);
             if parent_inputs_moved.inherited_style && !self.engine_marker_font_supported(node, counters) {
                 return None;
@@ -359,18 +384,20 @@ impl StyleEngineState {
             }
             return None;
         }
-        let uses_substitution = self.nodes_with_substituted_records.contains(&node)
+        // What this element's record was computed from decides the fact when the computation
+        // noted it; a record that stands unchanged keeps the fact the node already carries.
+        let uses_substitution = scratch
+            .noted_substitution
+            .unwrap_or_else(|| self.nodes_with_substituted_records.contains(&node))
+            || scratch.pseudo_uses_substitution
             || self
                 .current_winner_groups()
                 .pseudo_states(node)
                 .any(|(_, version, state, priority_current)| {
                     version == self.program.version() && priority_current && self.state_has_substitutions(node, state)
                 });
-        if uses_substitution {
-            self.nodes_with_substituted_records.insert(node);
-        } else {
-            self.nodes_with_substituted_records.remove(&node);
-        }
+        scratch.element_uses_substitution = uses_substitution;
+        scratch.substitution_effects.push((node, uses_substitution));
         Some(delta)
     }
 
@@ -838,18 +865,30 @@ impl StyleEngineState {
     }
 
     /// Note whether the node's record was computed with a substituted winner, for C++ to record
-    /// the node as a reader of custom properties when it installs the record.
+    /// the node as a reader of custom properties when it installs the record. The step records
+    /// the fact; the boundary that installs the record applies it.
     fn note_node_substitution(
-        &mut self,
+        &self,
         node: StyleNodeID,
-        scratch: &EngineComputedRecordScratch,
+        scratch: &mut EngineComputedRecordScratch,
         state: CascadeStateID,
         environment: u64,
     ) {
-        if scratch.substituted_states.contains(&(state, environment)) {
-            self.nodes_with_substituted_records.insert(node);
-        } else {
-            self.nodes_with_substituted_records.remove(&node);
+        let substituted = scratch.substituted_states.contains(&(state, environment));
+        scratch.noted_substitution = Some(substituted);
+        scratch.substitution_effects.push((node, substituted));
+    }
+
+    /// Write the substituted-record facts the step decided. The set is a retained per-node fact
+    /// C++ reads when it installs a record, so the step decides it once and the record's
+    /// installation boundary writes it once, rather than the step reading its own writes back.
+    fn apply_substitution_effects(&mut self, scratch: &mut EngineComputedRecordScratch) {
+        for (node, uses_substitution) in scratch.substitution_effects.drain(..) {
+            if uses_substitution {
+                self.nodes_with_substituted_records.insert(node);
+            } else {
+                self.nodes_with_substituted_records.remove(&node);
+            }
         }
     }
 
@@ -1488,11 +1527,13 @@ impl StyleEngineState {
                 scratch,
                 counters,
             ) {
-                if self
+                let pseudos_settled = self
                     .engine_pseudo_records(node, Some(old_record), record, cascade_state.0, scratch, counters)
-                    .is_none()
-                    || !scratch.pseudo_deltas.is_empty()
-                {
+                    .is_some();
+                if pseudos_settled && scratch.pseudo_uses_substitution {
+                    scratch.substitution_effects.push((node, true));
+                }
+                if !pseudos_settled || !scratch.pseudo_deltas.is_empty() {
                     // The retry result carries only the originating element's record. Let C++
                     // materialize when pseudo-element records must settle alongside it.
                     if scratch.font_drive.request.is_some() {
@@ -1500,8 +1541,10 @@ impl StyleEngineState {
                     } else {
                         self.abandon_engine_computed_record(node, scratch, counters);
                     }
+                    self.apply_substitution_effects(scratch);
                     return 0;
                 }
+                self.apply_substitution_effects(scratch);
                 return record.raw();
             }
         }
@@ -1629,19 +1672,31 @@ impl StyleEngineState {
             self.computed_group_sets
                 .set_pending_cascade_state(target, cascade_state);
         }
+        // The drive built every payload and the table, and holds the only reference to each:
+        // hand them to the catalog rather than have it retain a second one per published payload.
+        let owned = computed::PendingRecordOwnership {
+            groups: u32::try_from((1_u64 << payloads.len()) - 1).expect("a style group index fits the ownership mask"),
+            table: true,
+        };
         let publication = self.publish_computed_groups_impl(
             Some(target),
             &payloads,
             computed::ENGINE_INHERITED_GROUP_COUNT,
             environment,
             metadata_input,
+            owned,
             scratch,
             counters,
         );
+        let transferred = publication.transferred;
         for (group, payload) in payloads.into_iter().enumerate() {
-            crate::css::computed_values::release_group_payload(group, payload);
+            if transferred.groups & (1 << group) == 0 {
+                crate::css::computed_values::release_group_payload(group, payload);
+            }
         }
-        release_table(table);
+        if !transferred.table {
+            release_table(table);
+        }
         Some((publication.style_record_identity, swap_eligible))
     }
 
@@ -2408,6 +2463,7 @@ impl StyleEngineState {
             inherited_group_count,
             custom_property_environment,
             metadata_input,
+            computed::PendingRecordOwnership::default(),
             &mut scratch,
             counters,
         );
@@ -2503,6 +2559,7 @@ impl StyleEngineState {
             inherited_group_count,
             custom_property_environment,
             metadata_input,
+            computed::PendingRecordOwnership::default(),
             &mut EngineComputabilityScratch::default(),
             counters,
         )
@@ -2700,6 +2757,9 @@ impl StyleEngineState {
     }
 
     #[allow(clippy::too_many_arguments)]
+    /// `owned` says which payloads, and whether the table, the caller hands to the catalog; the
+    /// publication says which of those references the catalog took.
+    #[allow(clippy::too_many_arguments)]
     pub(super) fn publish_computed_groups_impl(
         &mut self,
         target: Option<computed::ComputedStyleTarget>,
@@ -2707,6 +2767,7 @@ impl StyleEngineState {
         inherited_group_count: usize,
         custom_property_environment: u64,
         metadata_input: computed::ComputedMetadataInput<'_>,
+        owned: computed::PendingRecordOwnership,
         scratch: &mut EngineComputabilityScratch,
         counters: &mut Counters,
     ) -> computed::ComputedGroupPublication {
@@ -2720,6 +2781,7 @@ impl StyleEngineState {
             inherited_group_count,
             custom_property_environment,
             metadata_input,
+            owned,
         );
         if let Some(target) = target
             && !target.is_pseudo()
@@ -3807,11 +3869,23 @@ pub(super) struct EngineComputedRecordScratch {
     pending_element: Option<(computed::FinalStyleRecordID, computed::FinalStyleRecordID)>,
     next_pseudo: usize,
     pseudo_uses_substitution: bool,
+    /// What the element being derived noted about substituted winners, when its computation
+    /// reached the point of deciding. A record that stands unchanged notes nothing.
+    noted_substitution: Option<bool>,
+    /// Whether the element derived last was computed with a substituted winner: what the flush
+    /// publishes beside its record, decided by the step rather than read back out of the
+    /// retained set.
+    pub(super) element_uses_substitution: bool,
+    /// The nodes whose substituted-record fact the step decided, in the order it decided them.
+    /// The boundary that installs the record applies them.
+    substitution_effects: Vec<(StyleNodeID, bool)>,
     cohorts: HashMap<(u64, CascadeStateID, u32, RecordDeltaParent, u64, RootFontInputs), computed::FinalStyleRecordID>,
     computability: EngineComputabilityScratch,
-    /// The nodes whose record this flush settled: what their descendants inherit from is in
-    /// place.
-    pub(super) settled_nodes: HashSet<StyleNodeID>,
+    /// What each node the walk has reached tells its children: whether the chain above it is
+    /// confined, and whether it resolved the record its children inherit from. A column with
+    /// touched-page allocation, because the walk writes a row for every node it processes and
+    /// reads one for every node's parent.
+    pub(super) derived_child_inputs: column::PagedColumn<column::PagedValuePage<DerivedChildInputs>>,
     /// First records derived this flush, by what they were derived from.
     pub(super) cold_cohorts: HashMap<ColdRecordKey, ColdRecord>,
     store_capacity_bytes: u64,
@@ -3825,6 +3899,73 @@ pub(super) struct EngineComputedRecordScratch {
     pub(super) pseudo_deltas: Vec<PseudoRecordDelta>,
     /// The pseudo-element rules that flipped for the element being derived.
     pub(super) flipped_pseudo_rules: u64,
+}
+
+/// What one node tells its flat-tree children, decided where the node settles and read by the
+/// children in the same pass: whether the node resolved the record its children inherit from, and
+/// the accumulated proof about the chain above it, so a child reads one row instead of walking to
+/// the document element for every gate it has to pass.
+#[derive(Clone, Copy, Default)]
+pub(super) struct DerivedChildInputs {
+    /// Whether the node's record settled this flush: what its descendants inherit from is in place.
+    pub(super) settled: bool,
+    /// Whether the node took an inherited-style reaction and resolved no record of its own, so
+    /// its immediate children cannot take the direct inherited-group path. Deliberately separate
+    /// from the chain proof: that is the accumulated confinement argument, this is the immediate
+    /// parent's own unresolved fact.
+    pub(super) inheritance_unresolved: bool,
+    /// The proof about everything from this node upwards, folded on the first ask a child makes
+    /// and kept only once every fact it folds is final.
+    pub(super) chain: Option<AncestorChain>,
+}
+
+/// The published chain from one node to the root, as a child's gate reads it.
+#[derive(Clone, Copy)]
+pub(super) struct AncestorChain {
+    /// Whether any published node from this one to the root publishes a change the engine cannot
+    /// prove confined. Once an unsettled node sits below one of those, no descendant's record is
+    /// exact.
+    unconfined_above: bool,
+    /// `None` when an unsettled gap sits below an unconfined published ancestor, and otherwise
+    /// whether a child relies on an ancestor this flush settled.
+    proof: Option<bool>,
+}
+
+impl AncestorChain {
+    /// What the document element's parent says: nothing above it, and nothing unsettled.
+    pub(super) const ROOT: Self = Self {
+        unconfined_above: false,
+        proof: Some(false),
+    };
+
+    /// The proof a child of this node needs.
+    pub(super) fn ancestors_are_confined(self) -> Option<bool> {
+        self.proof
+    }
+
+    /// Fold one node onto what its parent says. `published` says the flush published a reaction
+    /// for the node, `unconfined` that the published change may move something a descendant
+    /// inherits, and `settled` that the node's record is in place.
+    ///
+    /// This is the upward walk written as a recurrence. The walk carries "something closer to the
+    /// child is unsettled" downward and stops at the first unconfined published ancestor once it
+    /// is set, which is exactly `unconfined_above` read from the unsettled node.
+    pub(super) fn fold(parent: Self, published: bool, unconfined: bool, settled: bool) -> Self {
+        let unconfined_here = published && unconfined;
+        let proof = if unconfined_here && !settled {
+            None
+        } else if settled {
+            parent.proof.map(|relied| unconfined_here || relied)
+        } else if parent.unconfined_above {
+            None
+        } else {
+            Some(unconfined_here)
+        };
+        Self {
+            unconfined_above: unconfined_here || parent.unconfined_above,
+            proof,
+        }
+    }
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -3861,9 +4002,9 @@ impl FromIterator<Option<u16>> for FlippedRules {
 impl EngineComputedRecordScratch {
     pub(super) fn capacity_bytes(&self) -> u64 {
         capacity::capacity_bytes! {
-            shallow [self.computability.states, self.cohorts, self.settled_nodes, self.cold_cohorts, self.stores,
+            shallow [self.computability.states, self.cohorts, self.derived_child_inputs, self.cold_cohorts, self.stores,
                 self.substituted_states, self.pseudo_cohorts, self.pseudo_stores,
-                self.pseudo_deltas];
+                self.pseudo_deltas, self.substitution_effects];
             cached [self.store_capacity_bytes, self.font_drive.capacity_bytes(),
                 self.prepared_root_font.as_ref().map_or(0, |(_, _, drive)| drive.capacity_bytes())];
             nested [];

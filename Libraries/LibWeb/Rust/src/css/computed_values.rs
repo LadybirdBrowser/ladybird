@@ -1769,6 +1769,80 @@ fn refcount_of(payload: *const c_void, align: usize) -> &'static AtomicUsize {
     }
 }
 
+/// One payload's live reference count, for tests that check which side of a publication ends up
+/// owning the reference it handed over.
+#[cfg(test)]
+pub(crate) fn group_payload_refcount(group_index: usize, payload: *const c_void) -> usize {
+    refcount_of(payload, payload_align(vtable(group_index))).load(Ordering::Relaxed)
+}
+
+/// The style groups a test binary registers, with the default payload built for each.
+#[cfg(test)]
+pub(crate) struct RegisteredTestStyleGroups {
+    pub(crate) vtables: Box<[StyleGroupVTable]>,
+    pub(crate) defaults: Box<[*const c_void]>,
+}
+
+// SAFETY: The vtables are immutable after registration and the defaults they built are immortal.
+#[cfg(test)]
+unsafe impl Send for RegisteredTestStyleGroups {}
+// SAFETY: The vtables are immutable after registration and the defaults they built are immortal.
+#[cfg(test)]
+unsafe impl Sync for RegisteredTestStyleGroups {}
+
+/// The registry is a process-wide `OnceLock` that refuses a second registration, so every test
+/// needing live payloads goes through this one registration and shares the defaults it built.
+#[cfg(test)]
+pub(crate) fn registered_test_style_groups() -> &'static RegisteredTestStyleGroups {
+    static GROUPS: OnceLock<RegisteredTestStyleGroups> = OnceLock::new();
+    GROUPS.get_or_init(|| {
+        let vtables: Box<[StyleGroupVTable]> = Box::new([
+            StyleGroupVTable {
+                lifecycle: StyleGroupLifecycle::InheritedTable,
+                size: size_of::<InheritedTableValues>(),
+                align: align_of::<InheritedTableValues>(),
+            },
+            StyleGroupVTable {
+                lifecycle: StyleGroupLifecycle::InheritedBox,
+                size: size_of::<InheritedBoxValues>(),
+                align: align_of::<InheritedBoxValues>(),
+            },
+            StyleGroupVTable {
+                lifecycle: StyleGroupLifecycle::Sizing,
+                size: size_of::<SizingValues>(),
+                align: align_of::<SizingValues>(),
+            },
+            StyleGroupVTable {
+                lifecycle: StyleGroupLifecycle::Alignment,
+                size: size_of::<AlignmentValues>(),
+                align: align_of::<AlignmentValues>(),
+            },
+            StyleGroupVTable {
+                lifecycle: StyleGroupLifecycle::SVGReset,
+                size: size_of::<SVGResetValues>(),
+                align: align_of::<SVGResetValues>(),
+            },
+            StyleGroupVTable {
+                lifecycle: StyleGroupLifecycle::Surround,
+                size: size_of::<SurroundValues>(),
+                align: align_of::<SurroundValues>(),
+            },
+            StyleGroupVTable {
+                lifecycle: StyleGroupLifecycle::Box,
+                size: size_of::<BoxValues>(),
+                align: align_of::<BoxValues>(),
+            },
+        ]);
+        let mut defaults = vec![std::ptr::null::<c_void>(); vtables.len()];
+        // SAFETY: The vtables are valid and the output array holds one pointer per group.
+        unsafe { rust_style_group_registry_register(vtables.as_ptr(), vtables.len(), defaults.as_mut_ptr()) };
+        RegisteredTestStyleGroups {
+            vtables,
+            defaults: defaults.into_boxed_slice(),
+        }
+    })
+}
+
 fn allocate_payload(vtable: &StyleGroupVTable, initial_refcount: usize) -> *mut c_void {
     // SAFETY: The layout is never zero-sized (the header is at least a usize).
     unsafe {
@@ -3949,46 +4023,8 @@ mod tests {
 
     #[test]
     fn payload_lifecycle() {
-        let vtables = [
-            StyleGroupVTable {
-                lifecycle: StyleGroupLifecycle::InheritedTable,
-                size: size_of::<InheritedTableValues>(),
-                align: align_of::<InheritedTableValues>(),
-            },
-            StyleGroupVTable {
-                lifecycle: StyleGroupLifecycle::InheritedBox,
-                size: size_of::<InheritedBoxValues>(),
-                align: align_of::<InheritedBoxValues>(),
-            },
-            StyleGroupVTable {
-                lifecycle: StyleGroupLifecycle::Sizing,
-                size: size_of::<SizingValues>(),
-                align: align_of::<SizingValues>(),
-            },
-            StyleGroupVTable {
-                lifecycle: StyleGroupLifecycle::Alignment,
-                size: size_of::<AlignmentValues>(),
-                align: align_of::<AlignmentValues>(),
-            },
-            StyleGroupVTable {
-                lifecycle: StyleGroupLifecycle::SVGReset,
-                size: size_of::<SVGResetValues>(),
-                align: align_of::<SVGResetValues>(),
-            },
-            StyleGroupVTable {
-                lifecycle: StyleGroupLifecycle::Surround,
-                size: size_of::<SurroundValues>(),
-                align: align_of::<SurroundValues>(),
-            },
-            StyleGroupVTable {
-                lifecycle: StyleGroupLifecycle::Box,
-                size: size_of::<BoxValues>(),
-                align: align_of::<BoxValues>(),
-            },
-        ];
-        let mut defaults = [std::ptr::null::<c_void>(); 7];
+        let RegisteredTestStyleGroups { vtables, defaults } = registered_test_style_groups();
         unsafe {
-            rust_style_group_registry_register(vtables.as_ptr(), vtables.len(), defaults.as_mut_ptr());
             let table_default = *(defaults[0] as *const InheritedTableValues);
             assert_eq!(table_default, InheritedTableValues::initial());
             let table_clone = rust_style_group_clone(0, defaults[0]);
