@@ -293,8 +293,20 @@ QMenu::item:disabled {{
     color: {6};
 }}
 
-QMenu::icon {{
+QMenu::icon,
+QMenu::indicator {{
     left: 8px;
+}}
+
+QMenu::indicator,
+QMenu::left-arrow,
+QMenu::right-arrow {{
+    width: 16px;
+    height: 16px;
+}}
+
+QMenu::right-arrow {{
+    right: 8px;
 }}
 )"
 #if defined(AK_OS_MACOS)
