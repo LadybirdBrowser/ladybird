@@ -6,6 +6,7 @@
 
 #include <LibTest/TestCase.h>
 
+#include <AK/Array.h>
 #include <AK/FlyString.h>
 #include <AK/String.h>
 #include <AK/Try.h>
@@ -167,4 +168,55 @@ TEST_CASE(interning_while_other_threads_compare_copies)
         (void)thread->join();
 
     EXPECT_EQ(fly_string.to_string(), string);
+}
+
+TEST_CASE(interning_the_same_strings_on_several_threads)
+{
+    static constexpr size_t thread_count = 8;
+    static constexpr size_t string_count = 1000;
+    auto initial_fly_string_count = FlyString::number_of_fly_strings();
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Array<Vector<FlyString>, thread_count> interned;
+    Vector<NonnullRefPtr<Threading::Thread>> threads;
+    for (size_t i = 0; i < thread_count; ++i) {
+        auto thread = Threading::Thread::construct("StringInterner"sv, [&interned, i]() {
+            for (size_t j = 0; j < string_count; ++j)
+                interned[i].append(FlyString { MUST(String::formatted("A long string interned on several threads {}", j)) });
+            return 0;
+        });
+        thread->start();
+        threads.append(move(thread));
+    }
+    for (auto& thread : threads)
+        (void)thread->join();
+
+    EXPECT_EQ(FlyString::number_of_fly_strings(), initial_fly_string_count + string_count);
+    for (size_t i = 1; i < thread_count; ++i) {
+        for (size_t j = 0; j < string_count; ++j)
+            EXPECT_EQ(interned[i][j], interned[0][j]);
+    }
+}
+
+TEST_CASE(looking_up_strings_while_other_threads_drop_them)
+{
+    auto initial_fly_string_count = FlyString::number_of_fly_strings();
+
+    Vector<NonnullRefPtr<Threading::Thread>> threads;
+    for (size_t i = 0; i < 8; ++i) {
+        auto thread = Threading::Thread::construct("StringChurner"sv, []() {
+            for (size_t j = 0; j < 20'000; ++j) {
+                // A string that is alive must stay findable while an equal string that is being destroyed removes itself.
+                auto fly_string = MUST(FlyString::from_utf8("A long string that is interned and dropped repeatedly"sv));
+                auto same_fly_string = MUST(FlyString::from_utf8("A long string that is interned and dropped repeatedly"sv));
+                EXPECT_EQ(fly_string, same_fly_string);
+            }
+            return 0;
+        });
+        thread->start();
+        threads.append(move(thread));
+    }
+    for (auto& thread : threads)
+        (void)thread->join();
+
+    EXPECT_EQ(FlyString::number_of_fly_strings(), initial_fly_string_count);
 }
