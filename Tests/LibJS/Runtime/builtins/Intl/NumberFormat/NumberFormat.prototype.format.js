@@ -1865,4 +1865,20 @@ describe("bigint", () => {
         expect(ar.format(1234567n)).toBe("\u0661\u066c\u0662\u0663\u0664\u066c\u0665\u0667\u0660");
         expect(ar.format(1234561n)).toBe("\u0661\u066c\u0662\u0663\u0664\u066c\u0665\u0666\u0660");
     });
+
+    test("string values", () => {
+        const en = new Intl.NumberFormat("en");
+        expect(en.format("")).toBe("0");
+        expect(en.format(" 12 ")).toBe("12");
+        expect(en.format("0x10")).toBe("16");
+        expect(en.format("0xffffffffffffffffffff")).toBe("1,208,925,819,614,629,174,706,175");
+        expect(en.format("1e1000000000")).toBe("∞");
+        expect(en.format("-1e-1000000000")).toBe("-0");
+        expect(en.format("1_000")).toBe("NaN");
+    });
+
+    test("BigInt wrapper object", () => {
+        const en = new Intl.NumberFormat("en");
+        expect(en.format(Object(12n))).toBe("12");
+    });
 });
