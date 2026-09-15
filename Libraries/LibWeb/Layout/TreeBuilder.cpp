@@ -298,11 +298,18 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
     bool has_indirect_existing_child = false;
     bool has_indirect_existing_child_after_insertion = false;
     bool has_inserted_child = false;
+    // A fieldset keeps its content in a structural anonymous content box that appended children must also enter.
+    bool all_indirect_existing_children_are_in_text_run_wrappers = layout_node->kind() != RustFFI::NodeKind::FieldSetBox;
     has_pending_collapsing_whitespace_since_layout_node = false;
     for (auto const* child = node.first_child(); child; child = child->next_sibling()) {
         if (auto const* child_layout_node = child->unsafe_layout_node()) {
             has_pending_collapsing_whitespace_since_layout_node = false;
             if (child_layout_node->parent() != layout_node) {
+                auto const* wrapper = child_layout_node->parent();
+                if (!wrapper || wrapper->parent() != layout_node || !wrapper->is_anonymous()
+                    || !wrapper->children_are_inline() || wrapper->is_generated_for_pseudo_element()) {
+                    all_indirect_existing_children_are_in_text_run_wrappers = false;
+                }
                 has_indirect_existing_child = true;
                 if (has_inserted_child)
                     has_indirect_existing_child_after_insertion = true;
@@ -374,9 +381,12 @@ static bool may_reuse_layout_node_for_child_list_insertion(DOM::Node const& node
         return false;
     }
     // OPTIMIZATION: Appending an in-flow block after every existing child cannot disturb an
-    //               earlier anonymous inline wrapper, and needs no indirect sibling anchor.
-    bool can_append_after_indirect_existing_children = parent_lays_out_block_children
-        && will_insert_block_child && all_inserted_block_children_are_in_flow
+    //               earlier anonymous inline wrapper, and needs no indirect sibling anchor. A flex or grid
+    //               container never places an appended item, in flow or out of flow, into an existing anonymous
+    //               text run wrapper, so appending any items after every existing child is safe there too.
+    bool appends_independent_children = (parent_lays_out_block_children && will_insert_block_child && all_inserted_block_children_are_in_flow)
+        || (parent_lays_out_flex_or_grid_children && has_inserted_child && all_indirect_existing_children_are_in_text_run_wrappers);
+    bool can_append_after_indirect_existing_children = appends_independent_children
         && !has_indirect_existing_child_after_insertion;
     return (!has_indirect_existing_child || can_append_after_indirect_existing_children)
         && !has_pending_collapsing_whitespace_since_layout_node;
