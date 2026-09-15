@@ -737,7 +737,9 @@ impl LayoutNodeArena {
 
         assert!(!root.is_invalid(), "invalid layout node arena slot ID");
         self.assert_node_is_unlinked_from_parent(root);
-        self.scrollable_overflow.contained_boxes_dirty.set(true);
+        if !self.scrollable_overflow.non_child_boxes.borrow().is_empty() {
+            self.scrollable_overflow.contained_boxes_dirty.set(true);
+        }
         if self.scrollable_overflow.viewport.get() == Some(root) {
             self.scrollable_overflow.viewport.set(None);
             self.scrollable_overflow.non_child_boxes.borrow_mut().clear();
@@ -1530,7 +1532,6 @@ impl LayoutNodeArena {
         use crate::css::css_enums::positioning;
         use crate::painting::style_queries::establishes_positioning_containing_blocks;
 
-        self.scrollable_overflow.contained_boxes_dirty.set(true);
         let data = self.data(node);
         // Reset the inline containing block - we'll set it below if applicable.
         data.inline_containing_block.set(NodeSlotId::INVALID);
@@ -1631,7 +1632,15 @@ impl LayoutNodeArena {
     ) {
         self.assert_owner_thread();
         self.for_each_node_in_layout_subtree_in_pre_order(root, |node| {
+            let previous_containing_block = self.data(node).containing_block.get();
             self.recompute_containing_block_for_node(node, inline_cb_lookup);
+            let data = self.data(node);
+            if data.containing_block.get() != previous_containing_block
+                && (data.containing_block.get() != data.parent.get()
+                    || !self.scrollable_overflow.non_child_boxes.borrow().is_empty())
+            {
+                self.scrollable_overflow.contained_boxes_dirty.set(true);
+            }
             self.derive_abspos_escape_flags_for_node(node);
         });
     }
@@ -2377,7 +2386,9 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn note_structural_change_at_and_above(&self, node: NodeSlotId) {
-        self.scrollable_overflow.contained_boxes_dirty.set(true);
+        if !self.scrollable_overflow.non_child_boxes.borrow().is_empty() {
+            self.scrollable_overflow.contained_boxes_dirty.set(true);
+        }
         self.invalidate_at_and_above(node, AncestorInvalidation::StructuralChange);
     }
 
