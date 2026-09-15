@@ -561,6 +561,24 @@ impl PaintableRowStore {
 }
 
 impl LayoutNodeArena {
+    pub(crate) fn refresh_paint_order_inputs(&self, row: NodeSlotId) {
+        if !self.paintable_row_is_populated(row) {
+            return;
+        }
+        let inputs = crate::painting::paint_order_plan::PaintOrderInputs::gather(&self.paintable_rows(), row);
+        if self.paintable_paint_cache(row).update_order_inputs(inputs) {
+            self.note_paint_order_changed(row);
+        }
+    }
+
+    // A row whose ordering decisions changed is placed differently by its ancestors' plans and
+    // may plan its own descendants differently, so the captures enclosing it are walked again.
+    pub(crate) fn note_paint_order_changed(&self, row: NodeSlotId) {
+        self.debug_assert_not_recording();
+        self.paintable_rows()
+            .mark_descendant_subtree_caches_dirty_along_paint_chain(row);
+    }
+
     pub(crate) fn paintable_rows(&self) -> PaintableRowsRef<'_> {
         PaintableRows { arena: self }
     }
@@ -777,6 +795,7 @@ impl LayoutNodeArena {
             ..Default::default()
         };
         paint_caches[index].clear();
+        paint_caches[index].clear_order_inputs();
         absolute_rect_memo[index] = None;
         visual_context_records[index] = None;
         stacking_context_entries[index] = None;
@@ -816,6 +835,7 @@ impl LayoutNodeArena {
             PaintableData::default();
         store.side_data.borrow_mut()[index] = PaintableSideData::default();
         store.paint_caches.borrow()[index].clear();
+        store.paint_caches.borrow()[index].clear_order_inputs();
         store.visual_context_records.borrow_mut()[index] = None;
         store.stacking_context_entries.borrow_mut()[index] = None;
     }
@@ -846,7 +866,21 @@ impl LayoutNodeArena {
 
     pub(crate) fn set_paintable_visual_context_record(&self, id: NodeSlotId, record: PaintableVisualContextRecord) {
         debug_assert!(self.paintable_row_is_populated(id));
+        let inputs = self.paintable_paint_cache(id).order_inputs().map(|inputs| {
+            inputs.with_visual_context(
+                &record.stacking_context,
+                crate::painting::style_queries::z_index(self, id),
+            )
+        });
         self.paintable_rows.visual_context_records.borrow_mut()[id.slot_index() as usize] = Some(record);
+        if let Some(inputs) = inputs {
+            if self.paintable_paint_cache(id).update_order_inputs(inputs) {
+                self.note_paint_order_changed(id);
+            }
+        } else {
+            // Some resource paintables are first prepared outside a layout commit.
+            self.refresh_paint_order_inputs(id);
+        }
     }
 
     pub(crate) fn drop_all_visual_context_records(&self) {
