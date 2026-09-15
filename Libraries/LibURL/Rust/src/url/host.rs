@@ -603,7 +603,10 @@ pub(crate) fn parse_host_input(input: UrlInput<'_>, is_opaque: bool) -> Option<H
     }
 
     // 3. Assert: input is not the empty string.
-    assert!(!input.is_empty());
+    // NB: Callers outside the basic URL parser can pass the empty string, so return failure rather than asserting.
+    if input.is_empty() {
+        return None;
+    }
 
     // 4. Let domain be the result of running UTF-8 decode without BOM on the percent-decoding of input.
     let decoded;
@@ -639,4 +642,14 @@ pub(crate) fn parse_host_input(input: UrlInput<'_>, is_opaque: bool) -> Option<H
 
     // 9. Return asciiDomain.
     Some(Host::Domain(ascii_domain))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn empty_non_opaque_host_is_failure() {
+        assert_eq!(parse_host_input(UrlInput::from(""), false), None);
+    }
 }
