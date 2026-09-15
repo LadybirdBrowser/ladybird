@@ -89,7 +89,7 @@ pub struct FfiCustomPropertyStoreEntry {
 #[derive(Clone)]
 pub(crate) struct CustomPropertyEntry {
     _name: RetainedUtf16FlyString,
-    pub(crate) name: Vec<u16>,
+    pub(crate) name: Arc<[u16]>,
     pub(crate) value: RetainedStyleValueData,
     pub(crate) important: bool,
 }
@@ -97,7 +97,7 @@ pub(crate) struct CustomPropertyEntry {
 pub struct CustomPropertyStore {
     pub(crate) own_values: HashMap<usize, CustomPropertyEntry>,
     pub(crate) declared_names: Vec<usize>,
-    own_names: HashMap<Vec<u16>, usize>,
+    own_names: HashMap<Arc<[u16]>, usize>,
     parent: Option<Arc<CustomPropertyStore>>,
     inheritance_parent: Option<Arc<CustomPropertyStore>>,
     ancestor_count: u8,
@@ -349,7 +349,7 @@ impl CustomPropertyStore {
     /// for this call.
     pub(crate) unsafe fn cascaded_child(
         parent: *const c_void,
-        values: Vec<(usize, Vec<u16>, bool, *const c_void)>,
+        values: Vec<(usize, Arc<[u16]>, bool, *const c_void)>,
     ) -> *const c_void {
         let entries = values
             .into_iter()
@@ -2739,7 +2739,7 @@ mod tests {
                 0,
                 CustomPropertyEntry {
                     _name: RetainedUtf16FlyString::none(),
-                    name,
+                    name: name.into(),
                     value: RetainedStyleValueData::from_owned(StyleValueData::Number { value: 1.0 }),
                     important: false,
                 },
@@ -3094,7 +3094,9 @@ pub unsafe extern "C" fn rust_custom_property_store_create(
     let own_values = entries
         .iter()
         .map(|entry| {
-            let name = unsafe { entry.name.to_utf16() }.expect("invalid custom property name");
+            let name: Arc<[u16]> = unsafe { entry.name.to_utf16() }
+                .expect("invalid custom property name")
+                .into();
             own_names.insert(name.clone(), entry.name_raw);
             (
                 entry.name_raw,
@@ -3155,7 +3157,9 @@ pub unsafe extern "C" fn rust_custom_property_store_create_animation_overlay(
     };
     let mut declared_names = Vec::with_capacity(entries.len());
     for entry in entries {
-        let name = unsafe { entry.name.to_utf16() }.expect("invalid custom property name");
+        let name: Arc<[u16]> = unsafe { entry.name.to_utf16() }
+            .expect("invalid custom property name")
+            .into();
         declared_names.push(entry.name_raw);
         own_names.insert(name.clone(), entry.name_raw);
         own_values.insert(

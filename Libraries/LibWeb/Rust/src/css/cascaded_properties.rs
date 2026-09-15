@@ -1575,7 +1575,7 @@ fn cascade_custom_properties(
         .into_iter()
         .map(|(property, name)| {
             if !parent.is_some_and(|parent| parent.value_is_identical(property.name_raw, property.data)) {
-                store_values.push((property.name_raw, name.to_vec(), property.important, property.data));
+                store_values.push((property.name_raw, name.into(), property.important, property.data));
             }
             property
         })

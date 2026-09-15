@@ -959,6 +959,12 @@ The engine interns computed style as a 32-bit base record: the tuple of a comput
 
 Layout and paint consume the same style handle rather than retaining redundant complete style objects, where lifetime and threading permit.
 
+Group sets retain their ordered group IDs alongside the contiguous host payload
+view, so reconstruction and liveness do not hash payload pointers back to IDs.
+Unchanged animation overlays are borrowed through the reuse check; only a new
+retained overlay clones their owned contents. Custom-property name text is
+shared across environment/store owners.
+
 ### 9.9 Inheritance
 
 Inherited values flow through a shared inherited-context identity. Use the inherited-group handle already present in the parent style record and perform a sequential top-down comparison over the required observed subtree. Descendants are **not** given copied inherited payloads or permanent dirty bits. A descendant observed under a new token evaluates only inherited properties it consumes and stops when its resulting inherited or full style identity is unchanged.
@@ -1425,11 +1431,13 @@ Physical-work counts distinguish attempted work from accepted output:
 * The C++ ledger's `computedLonghandDrivesStarted` and
   `computedLonghandEvaluations` count the host-driven computation lane. Add its
   evaluations to Rust's physical evaluations for both lanes together.
-* `engineDriveCopiedTableSlots` counts full-width seeds and partial-drive copies,
-  including empty slots, plus required-input slots restored from an old table in
-  the Rust record drives. It does not count inherited-group swaps or host table
-  copies; `styleFfiCounters()` additionally reports table clone operations across
-  both lanes. Slot copies are distinct from retains and allocated bytes.
+* `engineDriveCopiedTableSlots` reports drive-boundary slot copies, now zero:
+  full and partial drives borrow unchanged slots through a flat base owner.
+  `styleFfiCounters()` reports `longhandTableCopiedSlots`,
+  `longhandTableCopyRetains` and `longhandTableStorageAllocations` across
+  seed, inherited-swap, durable materialization and host boundaries. Copy
+  retains include the single base-owner retain. A new unique result is
+  materialized once; no durable table retains a delta chain.
 
 These additions use the existing plain-integer document ledgers. The shared
 driver counts locally and each Rust phase folds its work immediately, before

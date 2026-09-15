@@ -62,6 +62,9 @@ define_ffi_ops! {
     AnimationEvaluationEntry => "animationEvaluationEntries",
     TransitionDecisionEntry => "transitionDecisionEntries",
     // Computed longhand table passes whose cost follows the table's width rather than a change.
+
+    FlippedRuleVectorBuilds => "flippedRuleVectorBuilds",
+    ComputedGroupIdentityLookups => "computedGroupIdentityLookups",
     LonghandTableCopiedSlots => "longhandTableCopiedSlots",
     LonghandTableCopyRetains => "longhandTableCopyRetains",
     LonghandTableStorageAllocations => "longhandTableStorageAllocations",
