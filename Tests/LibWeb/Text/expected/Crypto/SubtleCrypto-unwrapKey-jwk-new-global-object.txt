@@ -1,0 +1,9 @@
+Object.prototype.ext is false: secret extractable=true usages=verify
+Object.prototype.alg is HS512: secret extractable=false usages=sign
+Object.prototype.key_ops is ["verify"]: secret extractable=false usages=sign
+Object.prototype.use is a throwing getter: secret extractable=false usages=verify
+Array iterator yields "sign" for key_ops ["verify"]: DataError
+Malformed JSON: rejected with an Error of this realm: true
+Deeply nested JSON: rejected with an Error of this realm: true
+String member holding an array of an object without toString: rejected with an Error of this realm: true
+key_ops element holding an array of an object without toString: rejected with an Error of this realm: true

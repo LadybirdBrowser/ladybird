@@ -12,6 +12,7 @@
 #include <AK/Utf16String.h>
 #include <AK/Vector.h>
 #include <LibWeb/Bindings/SubtleCrypto.h>
+#include <LibWeb/WebIDL/ExceptionOr.h>
 
 namespace Web::Crypto {
 
@@ -23,7 +24,7 @@ using KeyFormat = Bindings::KeyFormat;
 using RsaOtherPrimesInfo = Bindings::RsaOtherPrimesInfo;
 using JsonWebKey = Bindings::JsonWebKey;
 
-JS::ThrowCompletionOr<JsonWebKey> parse_json_web_key(JS::Realm& realm, ReadonlyBytes data);
+WebIDL::ExceptionOr<JsonWebKey> parse_json_web_key(JS::Realm&, ReadonlyBytes data);
 void resolve_crypto_key_promise(JS::Realm&, WebIDL::Promise&, GC::Ref<CryptoKey>);
 JS::ThrowCompletionOr<GC::Ref<JS::Object>> encapsulated_bits(JS::Realm&, EncapsulatedBits const&);
 JS::ThrowCompletionOr<GC::Ref<JS::Object>> encapsulated_key(JS::Realm&, EncapsulatedKey const&);

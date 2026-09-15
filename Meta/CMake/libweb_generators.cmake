@@ -317,6 +317,7 @@ function (generate_js_bindings target)
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/interfaces.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/intrinsics.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/iterables.py"
+        "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/json_conversions.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/named_and_indexed_properties.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/namespaces.py"
         "${LADYBIRD_SOURCE_DIR}/Meta/Generators/libweb_bindings/operations.py"

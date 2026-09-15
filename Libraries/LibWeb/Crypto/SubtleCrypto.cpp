@@ -1079,7 +1079,7 @@ GC::Ref<WebIDL::Promise> SubtleCrypto::unwrap_key(JS::Realm& realm, KeyFormat fo
             // Let key be the result of executing the parse a JWK algorithm, with bytes as the data to be parsed.
             auto maybe_parsed = parse_json_web_key(realm, bytes.bytes());
             if (maybe_parsed.is_error()) {
-                WebIDL::reject_promise(promise, maybe_parsed.release_error().release_value());
+                WebIDL::reject_promise_with_exception(promise, maybe_parsed.release_error());
                 return;
             }
 

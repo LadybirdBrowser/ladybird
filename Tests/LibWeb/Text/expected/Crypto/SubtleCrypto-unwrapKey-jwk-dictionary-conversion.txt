@@ -1,0 +1,20 @@
+{"kty":"oct","k":"AA"} as non-extractable verify: unwrapKey secret extractable=false usages=verify, importKey secret extractable=false usages=verify
+{"kty":"oct","k":"AA","kid":"x","x5c":[1,{}],"nested":{"a":[null]}} as non-extractable verify: unwrapKey secret extractable=false usages=verify, importKey secret extractable=false usages=verify
+{"kty":"oct","k":"AA","kid":"é中"} as non-extractable verify: unwrapKey secret extractable=false usages=verify, importKey secret extractable=false usages=verify
+{"kty":"oct","k":"AA","oth":[]} as non-extractable verify: unwrapKey secret extractable=false usages=verify, importKey secret extractable=false usages=verify
+{"kty":"oct","k":"AA","oth":[{"r":"AA","d":"AA","t":"AA"}]} as non-extractable verify: unwrapKey secret extractable=false usages=verify, importKey secret extractable=false usages=verify
+{"kty":"oct","k":"AA","key_ops":["verify"]} as non-extractable verify: unwrapKey secret extractable=false usages=verify, importKey secret extractable=false usages=verify
+{"kty":"oct","k":"AA","key_ops":["verify"]} as non-extractable sign: unwrapKey DataError, importKey DataError
+{"kty":"oct","k":"AA","key_ops":[0]} as non-extractable verify: unwrapKey DataError, importKey DataError
+{"kty":"oct","k":"AA","key_ops":{}} as non-extractable sign: unwrapKey TypeError, importKey TypeError
+{"kty":"oct","k":"AA","ext":false} as extractable verify: unwrapKey DataError, importKey DataError
+{"kty":"oct","k":"AA","ext":0} as extractable verify: unwrapKey DataError, importKey DataError
+{"kty":"oct","k":"AA","alg":"HS512"} as non-extractable sign: unwrapKey DataError, importKey DataError
+{"kty":"oct","k":"AA","alg":0} as non-extractable sign: unwrapKey DataError, importKey DataError
+{"kty":"oct","k":"AA","use":"enc"} as non-extractable sign: unwrapKey DataError, importKey DataError
+{"k":"AA"} as non-extractable verify: unwrapKey DataError, importKey DataError
+{} as non-extractable verify: unwrapKey DataError, importKey DataError
+[] as non-extractable verify: unwrapKey DataError, importKey DataError
+null as non-extractable verify: unwrapKey DataError, importKey DataError
+{: unwrapKey SyntaxError
+0xff: unwrapKey SyntaxError
