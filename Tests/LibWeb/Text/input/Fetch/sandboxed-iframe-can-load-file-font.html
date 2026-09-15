@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const fontURL = new URL("../../../Assets/HashSans.woff", window.location.href).href;
+
+        const markup = `
+            <script>
+                const face = new FontFace("HashSans", "url(${fontURL})");
+                document.fonts.add(face);
+                face.load().then(
+                    () => parent.postMessage("loaded", "*"),
+                    error => parent.postMessage(error.name, "*"));
+            <\/script>
+        `;
+
+        window.addEventListener("message", event => {
+            println(`font: ${event.data}`);
+            done();
+        });
+
+        const iframe = document.createElement("iframe");
+        iframe.sandbox = "allow-scripts";
+        iframe.srcdoc = markup;
+        document.body.appendChild(iframe);
+    });
+</script>
