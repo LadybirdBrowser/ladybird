@@ -1,0 +1,2 @@
+Invalid URL: SyntaxError, current realm: true
+Non-coercible URL: TypeError, current realm: true
