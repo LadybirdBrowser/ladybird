@@ -181,9 +181,9 @@ void const* StyleEngine::style_record_payloads(StyleRecordID style_record) const
     return StyleEngineFFI::style_engine_style_record_payloads(m_impl, style_record.value());
 }
 
-u8 StyleEngine::style_record_dependency_flags(StyleRecordID style_record) const
+StyleRecordDependencyFlag StyleEngine::style_record_dependency_flags(StyleRecordID style_record) const
 {
-    return StyleEngineFFI::style_engine_style_record_dependency_flags(m_impl, style_record.value());
+    return static_cast<StyleRecordDependencyFlag>(StyleEngineFFI::style_engine_style_record_dependency_flags(m_impl, style_record.value()));
 }
 
 u64 StyleEngine::style_record_custom_property_environment(StyleRecordID style_record) const

@@ -4502,14 +4502,15 @@ Element const* Node::first_letter_owner_for_layout_subtree_from(Node const& incl
 
 bool Node::has_inclusive_ancestor_with_display_none_ignoring_animations() const
 {
+    // NB: Only each ancestor's display matters here, so read it out of the record's box group
+    //     payload instead of materializing a full style record view.
+    auto const& style_engine = document().style_computer().style_engine();
     for (auto const* ancestor = this; ancestor; ancestor = ancestor->parent_or_shadow_host()) {
-        if (!ancestor->is_element())
+        auto const* ancestor_element = as_if<Element>(ancestor);
+        if (!ancestor_element)
             continue;
-        auto const& ancestor_element = static_cast<Element const&>(*ancestor);
-        auto style = ancestor_element.computed_style();
-        if (style && style->base_values().display().is_none()) {
+        if (CSS::style_record_display_is_none(style_engine, ancestor_element->style_record_identity()))
             return true;
-        }
     }
     return false;
 }

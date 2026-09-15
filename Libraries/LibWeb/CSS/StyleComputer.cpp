@@ -4694,9 +4694,9 @@ RefPtr<ComputedStyleWorkingSet> StyleComputer::compute_style_impl(DOM::AbstractE
             };
             auto difference = compare_style_input_records(*previous, *record);
             // A computation that read a viewport metric read what the viewport environment names.
-            auto const viewport_dependency_flags = to_underlying(StyleRecordDependencyFlag::DependsOnViewportMetrics) | to_underlying(StyleRecordDependencyFlag::FontMetricsDependOnViewportMetrics);
+            auto const viewport_dependency_flags = StyleRecordDependencyFlag::DependsOnViewportMetrics | StyleRecordDependencyFlag::FontMetricsDependOnViewportMetrics;
             auto const style_depends_on_viewport_metrics = previous->style_depends_on_viewport_metrics
-                || (previous_style_record.present && (m_style_engine.style_record_dependency_flags(previous_style_record_identity) & viewport_dependency_flags) != 0);
+                || (previous_style_record.present && has_any_flag(m_style_engine.style_record_dependency_flags(previous_style_record_identity), viewport_dependency_flags));
             auto const viewport_environment_moved = style_depends_on_viewport_metrics
                 && previous->viewport_environment_version != record->viewport_environment_version;
             if (difference == StyleInputRecord::Difference::None && viewport_environment_moved)

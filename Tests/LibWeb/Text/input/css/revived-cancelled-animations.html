@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    @keyframes slide {
+        from { margin-left: 100px; }
+        to { margin-left: 200px; }
+    }
+
+    .animated {
+        animation: slide 100s linear;
+    }
+
+    .transitioned {
+        margin-left: 0px;
+        transition: margin-left 100s linear;
+    }
+</style>
+<script>
+    async function frames(count) {
+        for (let i = 0; i < count; ++i)
+            await new Promise(requestAnimationFrame);
+    }
+
+    function associatedAnimations() {
+        return internals.getStyleInvalidationCounters().associatedAnimations;
+    }
+
+    async function cancelledCSSAnimation() {
+        const element = document.createElement("div");
+        element.className = "animated";
+        document.body.append(element);
+        await frames(2);
+        const animation = element.getAnimations()[0];
+        animation.cancel();
+        await frames(2);
+        return { element, animation };
+    }
+
+    asyncTest(async done => {
+        const initialCount = associatedAnimations();
+
+        {
+            const { element, animation } = await cancelledCSSAnimation();
+            animation.currentTime = 50000;
+            await frames(2);
+            element.style.paddingLeft = "1px";
+            println(`seeking a cancelled animation makes it relevant again: ${element.getAnimations().length === 1}`);
+            println(`a seeked cancelled animation survives a style change: ${getComputedStyle(element).marginLeft === "150px"}`);
+            animation.cancel();
+            await frames(2);
+            println(`cancelling it again disassociates it: ${associatedAnimations() === initialCount}`);
+            element.remove();
+        }
+
+        {
+            const element = document.createElement("div");
+            element.className = "animated";
+            document.body.append(element);
+            await frames(2);
+            const animation = element.getAnimations()[0];
+            animation.cancel();
+            animation.currentTime = 50000;
+            await frames(2);
+            println(`seeking in the same task as cancelling keeps it relevant: ${element.getAnimations().length === 1}`);
+            animation.cancel();
+            element.remove();
+        }
+
+        {
+            const { element, animation } = await cancelledCSSAnimation();
+            animation.pause();
+            await frames(2);
+            println(`pausing a cancelled animation makes it relevant again: ${element.getAnimations().length === 1 && getComputedStyle(element).marginLeft === "100px"}`);
+            animation.cancel();
+            element.remove();
+        }
+
+        {
+            const { element, animation } = await cancelledCSSAnimation();
+            animation.startTime = document.timeline.currentTime - 50000;
+            await frames(2);
+            const before = getComputedStyle(element).marginLeft;
+            await frames(10);
+            println(`setting the start time of a cancelled animation makes it run again: ${element.getAnimations().length === 1 && getComputedStyle(element).marginLeft !== before}`);
+            animation.cancel();
+            element.remove();
+        }
+
+        {
+            const { element, animation } = await cancelledCSSAnimation();
+            const events = [];
+            element.addEventListener("animationstart", () => events.push("start"));
+            element.addEventListener("animationend", () => events.push("end"));
+            animation.finish();
+            await frames(2);
+            println(`finishing a cancelled animation dispatches its events: ${events.join() === "start,end"}`);
+            println(`a finished cancelled animation is disassociated again: ${associatedAnimations() === initialCount}`);
+            element.remove();
+        }
+
+        {
+            const { element, animation } = await cancelledCSSAnimation();
+            const events = [];
+            element.addEventListener("animationstart", () => events.push("start"));
+            animation.play();
+            await frames(2);
+            println(`playing a cancelled animation dispatches animationstart: ${events.join() === "start"}`);
+            animation.cancel();
+            element.remove();
+        }
+
+        {
+            const element = document.createElement("div");
+            element.className = "transitioned";
+            document.body.append(element);
+            getComputedStyle(element).marginLeft;
+            element.style.marginLeft = "1000px";
+            await frames(2);
+            const transition = element.getAnimations()[0];
+            transition.cancel();
+            await frames(2);
+            transition.currentTime = 50000;
+            await frames(2);
+            println(`seeking a cancelled transition makes it relevant again: ${element.getAnimations().length === 1}`);
+            transition.cancel();
+            element.remove();
+        }
+
+        {
+            const element = document.createElement("div");
+            element.className = "transitioned";
+            document.body.append(element);
+            getComputedStyle(element).marginLeft;
+            element.style.marginLeft = "1000px";
+            await frames(2);
+            const transition = element.getAnimations()[0];
+            transition.finish();
+            await frames(2);
+            // A completed transition is removed once the property no longer transitions.
+            element.style.transitionProperty = "none";
+            await frames(2);
+            println(`a removed completed transition is disassociated: ${associatedAnimations() === initialCount}`);
+            transition.currentTime = 50000;
+            await frames(2);
+            println(`seeking a removed completed transition makes it relevant again: ${element.getAnimations().length === 1}`);
+            transition.cancel();
+            element.remove();
+        }
+
+        {
+            const element = document.createElement("div");
+            document.body.append(element);
+            const animation = element.animate({ marginLeft: ["100px", "200px"] }, 100000);
+            await frames(2);
+            animation.cancel();
+            await frames(2);
+            println(`a cancelled script animation is disassociated: ${associatedAnimations() === initialCount}`);
+            animation.currentTime = 50000;
+            await frames(2);
+            element.style.paddingLeft = "1px";
+            println(`seeking a cancelled script animation makes it relevant again: ${element.getAnimations().length === 1 && getComputedStyle(element).marginLeft === "150px"}`);
+            animation.cancel();
+            element.remove();
+        }
+
+        {
+            const element = document.createElement("div");
+            element.style.cssText = "width: 10px; height: 10px; background: green";
+            document.body.append(element);
+            const animation = element.animate({ opacity: [0, 1] }, 100000);
+            await frames(4);
+            const compositorDriven = internals.getStyleInvalidationCounters().compositorVisualAnimations > 0;
+            animation.cancel();
+            await frames(2);
+            animation.currentTime = 50000;
+            await frames(2);
+            println(`a revived compositor animation is sampled again: ${compositorDriven && element.getAnimations().length === 1 && getComputedStyle(element).opacity === "0.5"}`);
+            animation.cancel();
+            element.remove();
+        }
+
+        {
+            const element = document.createElement("div");
+            const otherElement = document.createElement("div");
+            document.body.append(element, otherElement);
+            const animation = element.animate({ marginLeft: ["100px", "200px"] }, 100000);
+            await frames(2);
+            animation.cancel();
+            await frames(2);
+            animation.effect = new KeyframeEffect(otherElement, { marginLeft: ["100px", "200px"] }, 100000);
+            await frames(2);
+            println(`replacing the effect of a disassociated animation keeps it disassociated: ${associatedAnimations() === initialCount}`);
+            animation.effect.target = element;
+            await frames(2);
+            println(`retargeting a disassociated animation keeps it disassociated: ${associatedAnimations() === initialCount}`);
+            animation.currentTime = 50000;
+            await frames(2);
+            println(`reviving a retargeted animation associates it with its new target: ${element.getAnimations().length === 1 && otherElement.getAnimations().length === 0}`);
+            animation.cancel();
+            element.remove();
+            otherElement.remove();
+        }
+
+        {
+            const element = document.createElement("div");
+            document.body.append(element);
+            const animation = element.animate({ marginLeft: ["100px", "200px"] }, 10);
+            await animation.finished;
+            await frames(2);
+            println(`a finished animation without a fill is disassociated: ${associatedAnimations() === initialCount}`);
+            element.remove();
+        }
+
+        {
+            const element = document.createElement("div");
+            element.className = "transitioned";
+            document.body.append(element);
+            getComputedStyle(element).marginLeft;
+            element.style.marginLeft = "1000px";
+            await frames(2);
+            const transition = element.getAnimations()[0];
+            transition.finish();
+            // A completed transition that script keeps in effect still composes style.
+            transition.effect.updateTiming({ fill: "forwards" });
+            await frames(2);
+            // Changing the value again removes the completed transition and starts a new one.
+            element.style.marginLeft = "2000px";
+            await frames(2);
+            println(`a removed completed transition that is still filling stays associated: ${associatedAnimations() === initialCount + 2}`);
+            transition.effect.updateTiming({ fill: "none" });
+            await frames(2);
+            println(`a removed completed transition is disassociated once it becomes inert: ${associatedAnimations() === initialCount + 1}`);
+            for (const animation of element.getAnimations())
+                animation.cancel();
+            element.remove();
+        }
+
+        await frames(2);
+        println(`no animations remain associated: ${associatedAnimations() === initialCount}`);
+        done();
+    });
+</script>
