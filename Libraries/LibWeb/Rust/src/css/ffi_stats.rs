@@ -63,6 +63,8 @@ define_ffi_ops! {
     TransitionDecisionEntry => "transitionDecisionEntries",
     // Computed longhand table passes whose cost follows the table's width rather than a change.
 
+    WinnerStoreBuilds => "winnerStoreBuilds",
+    WinnerStoreValueRetains => "winnerStoreValueRetains",
     FlippedRuleVectorBuilds => "flippedRuleVectorBuilds",
     ComputedGroupIdentityLookups => "computedGroupIdentityLookups",
     LonghandTableCopiedSlots => "longhandTableCopiedSlots",

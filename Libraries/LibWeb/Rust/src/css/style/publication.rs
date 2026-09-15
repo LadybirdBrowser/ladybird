@@ -6,6 +6,9 @@
 
 mod drive;
 mod pseudo;
+mod winner_store;
+
+use winner_store::{WinnerDeclaration, WinnerStore, WinnerValue, shorthand_longhand_data};
 
 use super::*;
 use crate::css::computed_longhand_table::ComputedLonghandTable;
@@ -758,6 +761,7 @@ impl StyleEngineState {
                     &mut substituted,
                     counters,
                 )?);
+                scratch.store_capacity_bytes += store.capacity_bytes();
                 scratch.stores.insert((state, current_environment), store.clone());
                 if substituted {
                     scratch.substituted_states.insert((state, current_environment));
@@ -1058,6 +1062,7 @@ impl StyleEngineState {
                     store.is_some(),
                 );
                 let store = std::rc::Rc::new(store?);
+                scratch.store_capacity_bytes += store.capacity_bytes();
                 scratch.stores.insert((state, environment), store.clone());
                 if substituted {
                     scratch.substituted_states.insert((state, environment));
@@ -2221,13 +2226,13 @@ impl StyleEngineState {
         environment: u64,
         substituted: &mut bool,
         counters: &mut Counters,
-    ) -> Option<CascadedPropertyStore> {
+    ) -> Option<WinnerStore> {
         use crate::css::property_metadata::property_id as prop;
-        let winners: Vec<PropertyWinner> = self.winner_groups.winners_in_state(state).collect();
+        crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::WinnerStoreBuilds);
         // Seeded in cascade order, and within one rule in declaration order, since a logical
         // property and its physical associate resolve by order of appearance.
-        let mut declarations = Vec::with_capacity(winners.len());
-        for winner in winners {
+        let mut declarations = Vec::with_capacity(self.winner_groups.winner_count_in_state(state));
+        for winner in self.winner_groups.winners_in_state(state) {
             // A revert whose continuation resumes at nothing leaves the property undeclared.
             let Some(winner) = self.winner_groups.resolved_winner(winner) else {
                 continue;
@@ -2266,21 +2271,33 @@ impl StyleEngineState {
             };
             // A longhand declared through a shorthand keeps the whole shorthand as its written
             // value; the store takes the longhand's own part of it.
-            let value = match value.data() {
+            let location = WinnerValue::Written {
+                node,
+                source: winner.source,
+                index,
+            };
+            let (value, borrowed) = match value.data() {
                 crate::css::style_value::StyleValueData::Shorthand { .. } => {
-                    let Some(value) = shorthand_longhand_value(winner.property, value.data()) else {
+                    let Some(value) = shorthand_longhand_data(winner.property, value.data()) else {
                         counters.bump(Counter::EngineComputedRecordBailWinnerSpelling);
                         return None;
                     };
-                    value
+                    (location, Some(value))
                 }
                 // A value with var() references substitutes under the node's environment, as the
                 // C++ cascade substitutes it; a value invalid at computed-value time is unset.
                 crate::css::style_value::StyleValueData::Unresolved { .. } => {
                     *substituted = true;
                     let value = value.clone_retained();
-                    let value = self.substitute_written_value(environment, winner.property, value, counters)?;
-                    invalid_as_unset(value)
+                    let value = Self::substitute_written_value(
+                        &mut self.custom_property_environments,
+                        self.document_style_computation_inputs,
+                        environment,
+                        winner.property,
+                        value,
+                        counters,
+                    )?;
+                    (WinnerValue::Substituted(invalid_as_unset(value)), None)
                 }
                 // A longhand pending its shorthand's substitution takes its part of the
                 // substituted shorthand.
@@ -2294,32 +2311,52 @@ impl StyleEngineState {
                         counters.bump(Counter::EngineComputedRecordBailWinnerSpelling);
                         return None;
                     };
-                    let resolved = self.substitute_written_value(environment, shorthand, written, counters)?;
-                    match resolved.data() {
+                    let resolved = Self::substitute_written_value(
+                        &mut self.custom_property_environments,
+                        self.document_style_computation_inputs,
+                        environment,
+                        shorthand,
+                        written,
+                        counters,
+                    )?;
+                    let value = match resolved.data() {
                         crate::css::style_value::StyleValueData::GuaranteedInvalid => unset_value(),
                         _ => expanded_longhand_value(shorthand, winner.property, &resolved).unwrap_or_else(unset_value),
-                    }
+                    };
+                    (WinnerValue::Substituted(value), None)
                 }
-                _ => value.clone_retained(),
+                _ => (location, Some(value.data())),
+            };
+            let data = match &value {
+                WinnerValue::Substituted(value) => value.data(),
+                WinnerValue::Written { .. } => borrowed.expect("written declaration is borrowed"),
             };
             if !checks
                 .longhand_context_free
-                .unwrap_or_else(|| value_computes_without_document_context(value.data()))
+                .unwrap_or_else(|| value_computes_without_document_context(data))
                 || (pseudo_kind.is_some()
                     && winner.property == prop::CONTENT
-                    && !content_value_is_engine_computable(value.data()))
+                    && !content_value_is_engine_computable(data))
             {
                 counters.bump(Counter::EngineComputedRecordBailValue);
                 return None;
             }
-            declarations.push((winner.priority, index, winner.property, winner.important, value));
+            if matches!(value, WinnerValue::Substituted(_)) {
+                crate::css::ffi_stats::bump(crate::css::ffi_stats::FfiOp::WinnerStoreValueRetains);
+            }
+            declarations.push((
+                winner.priority,
+                index,
+                WinnerDeclaration::new(winner.property, winner.important, value),
+            ));
         }
         declarations.sort_by_key(|(priority, index, ..)| (*priority, *index));
-        let mut store = CascadedPropertyStore::new();
-        for (_, _, property, important, value) in declarations {
-            store.seed_retained_property(property, value, important, false);
-        }
-        Some(store)
+        Some(WinnerStore::new(
+            declarations
+                .into_iter()
+                .map(|(_, _, declaration)| declaration)
+                .collect(),
+        ))
     }
 
     /// Whether every cascade winner that moved on this node since its record was computed is a
@@ -3777,12 +3814,13 @@ pub(super) struct EngineComputedRecordScratch {
     pub(super) settled_nodes: HashSet<StyleNodeID>,
     /// First records derived this flush, by what they were derived from.
     pub(super) cold_cohorts: HashMap<ColdRecordKey, ColdRecord>,
-    pub(super) stores: HashMap<(CascadeStateID, u64), std::rc::Rc<CascadedPropertyStore>>,
+    store_capacity_bytes: u64,
+    pub(super) stores: HashMap<(CascadeStateID, u64), std::rc::Rc<WinnerStore>>,
     /// The states whose store, under an environment, substituted a custom property into a winner.
     pub(super) substituted_states: HashSet<(CascadeStateID, u64)>,
     /// Pseudo-element records derived this flush, by what they were derived from.
     pub(super) pseudo_cohorts: HashMap<PseudoCohortKey, computed::FinalStyleRecordID>,
-    pub(super) pseudo_stores: HashMap<(u8, CascadeStateID, u64), std::rc::Rc<CascadedPropertyStore>>,
+    pub(super) pseudo_stores: HashMap<(u8, CascadeStateID, u64), std::rc::Rc<WinnerStore>>,
     /// The pseudo-element records settled beside the element derived last.
     pub(super) pseudo_deltas: Vec<PseudoRecordDelta>,
     /// The pseudo-element rules that flipped for the element being derived.
@@ -3826,7 +3864,7 @@ impl EngineComputedRecordScratch {
             shallow [self.computability.states, self.cohorts, self.settled_nodes, self.cold_cohorts, self.stores,
                 self.substituted_states, self.pseudo_cohorts, self.pseudo_stores,
                 self.pseudo_deltas];
-            cached [self.font_drive.capacity_bytes(),
+            cached [self.store_capacity_bytes, self.font_drive.capacity_bytes(),
                 self.prepared_root_font.as_ref().map_or(0, |(_, _, drive)| drive.capacity_bytes())];
             nested [];
             skip [];
