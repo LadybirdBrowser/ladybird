@@ -118,7 +118,7 @@ pub struct ClosestLine {
     pub block_distance: CssPixels,
     pub block_start_distance: CssPixels,
     pub inline_distance: CssPixels,
-    pub block_container_margin_rect: Option<CssPixelRect>,
+    pub block_container: NodeSlotId,
     pub is_before_point: bool,
     pub contains_point_in_block_axis: bool,
 }
@@ -131,7 +131,7 @@ impl Default for ClosestLine {
             block_distance: CssPixels::from_raw(i32::MAX),
             block_start_distance: CssPixels::from_raw(i32::MAX),
             inline_distance: CssPixels::from_raw(i32::MAX),
-            block_container_margin_rect: None,
+            block_container: NodeSlotId::INVALID,
             is_before_point: false,
             contains_point_in_block_axis: false,
         }
@@ -316,13 +316,15 @@ impl HitTestList {
         best_item_index
     }
 
-    pub fn caret_item_for_line(
+    pub(crate) fn caret_item_for_line(
         &self,
+        arena: &LayoutNodeArena,
         line_index: usize,
         local_point: CssPixelPoint,
         mode: CaretPositionMode,
     ) -> Option<(usize, CaretPositionType)> {
         debug_assert!(self.derived_structures_built);
+        let rows = arena.paintable_rows();
         let line = self.caret_lines[line_index].clone();
         let first_item = self.first_item_of_line(&line);
         let writing_mode = first_item.writing_mode;
@@ -385,8 +387,11 @@ impl HitTestList {
             let item_index = self.caret_item_indices[caret_item_index];
             let item = &self.items[item_index];
             let item_writing_mode = item.writing_mode;
-            let block_distance =
-                block_axis_distance_to_line_rect(Self::caret_line_rect_for_item(item), local_point, item_writing_mode);
+            let block_distance = block_axis_distance_to_line_rect(
+                Self::caret_line_rect_for_item(&rows, item),
+                local_point,
+                item_writing_mode,
+            );
             let inline_distance = inline_axis_distance_to_rect(item.caret_rect, local_point, item_writing_mode);
             if closest_item_index.is_none()
                 || caret_line_is_better_candidate(
@@ -450,6 +455,7 @@ impl HitTestList {
         respect_clip: bool,
     ) -> ClosestLine {
         debug_assert!(self.derived_structures_built);
+        let rows = arena.paintable_rows();
         let mut closest_line = ClosestLine::default();
         let mut closest_line_after_point = ClosestLine::default();
         let mut closest_line_before_point = ClosestLine::default();
@@ -492,9 +498,8 @@ impl HitTestList {
                 } else {
                     // Between lines of the same block container, a line whose block-axis range
                     // contains the point always beats lines that do not.
-                    let same_block_container = line.block_container_margin_rect.is_some()
-                        && closest_line.block_container_margin_rect.is_some()
-                        && line.block_container_margin_rect == closest_line.block_container_margin_rect;
+                    let same_block_container =
+                        !line.block_container.is_invalid() && line.block_container == closest_line.block_container;
                     if same_block_container && contains_point_in_block_axis != closest_line.contains_point_in_block_axis
                     {
                         contains_point_in_block_axis
@@ -514,7 +519,7 @@ impl HitTestList {
                 closest_line.local_point = local_point;
                 closest_line.block_distance = block_distance;
                 closest_line.inline_distance = inline_distance;
-                closest_line.block_container_margin_rect = line.block_container_margin_rect;
+                closest_line.block_container = line.block_container;
                 closest_line.is_before_point = block_axis_end(line.rect, writing_mode) < block_coordinate;
                 closest_line.contains_point_in_block_axis = contains_point_in_block_axis;
             }
@@ -533,7 +538,7 @@ impl HitTestList {
                 closest_line_before_point.local_point = local_point;
                 closest_line_before_point.block_distance = block_distance;
                 closest_line_before_point.inline_distance = inline_distance;
-                closest_line_before_point.block_container_margin_rect = line.block_container_margin_rect;
+                closest_line_before_point.block_container = line.block_container;
                 closest_line_before_point.is_before_point = true;
             }
 
@@ -556,7 +561,7 @@ impl HitTestList {
                 closest_line_after_point.block_distance = block_distance;
                 closest_line_after_point.block_start_distance = block_start_distance;
                 closest_line_after_point.inline_distance = inline_distance;
-                closest_line_after_point.block_container_margin_rect = line.block_container_margin_rect;
+                closest_line_after_point.block_container = line.block_container;
             }
         }
 
@@ -578,15 +583,14 @@ impl HitTestList {
             let line = &self.caret_lines[closest_index];
             let writing_mode = self.first_item_of_line(line).writing_mode;
             let block_coordinate = block_axis_coordinate(closest_line.local_point, writing_mode);
-            let point_is_in_closest_line_block_container_margin = closest_line
-                .block_container_margin_rect
-                .is_some_and(|rect| block_coordinate < block_axis_end(rect, writing_mode));
-            let lines_share_block_container_margin = closest_line.block_container_margin_rect.is_some()
-                && closest_line_after_point.block_container_margin_rect.is_some()
-                && closest_line.block_container_margin_rect == closest_line_after_point.block_container_margin_rect;
+            let point_is_in_closest_line_block_container_margin =
+                super::geometry::block_container_margin_rect(&rows, closest_line.block_container)
+                    .is_some_and(|rect| block_coordinate < block_axis_end(rect, writing_mode));
+            let lines_share_block_container = !closest_line.block_container.is_invalid()
+                && closest_line.block_container == closest_line_after_point.block_container;
             // A point still inside the previous block container's margin box should not jump to
             // text in a different block container, even if that following line is close.
-            if point_is_in_closest_line_block_container_margin && !lines_share_block_container_margin {
+            if point_is_in_closest_line_block_container_margin && !lines_share_block_container {
                 return closest_line;
             }
             return closest_line_after_point;

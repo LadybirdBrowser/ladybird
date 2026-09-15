@@ -750,7 +750,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
         if splice_covers_entire_source_hit_test_list {
             self.list.items = item_source.items.clone();
         } else {
-            self.append_spliced_hit_test_items(&item_source.items[source_start..source_end], site.paintable);
+            self.list.append_copies_of(&item_source.items[source_start..source_end]);
         }
         if cached.contains_blocking_wheel_event_region {
             self.blocking_wheel_event_region_count += 1;
@@ -1007,9 +1007,7 @@ impl<O: Observer> PaintRecorder<'_, O> {
                 // Paintable rows may hold dangling fragment pointers, but only ranges whose owners kept a valid cache
                 // entry (and therefore were not relaid out) are ever passed here.
                 let destination_start = self.list.items.len();
-                for item in &source[start..start + count] {
-                    self.append_spliced_hit_test_item(item);
-                }
+                self.list.append_copies_of(&source[start..start + count]);
                 self.log_hit_test_item_capture_for_verification(
                     paintable,
                     CaptureKind::BoxPhase(phase),
@@ -1157,57 +1155,6 @@ impl<O: Observer> PaintRecorder<'_, O> {
             },
             entry.recorded_context,
         ))
-    }
-
-    fn append_spliced_hit_test_item(&mut self, spliced: &HitTestItem) {
-        let mut item = spliced.clone();
-        if !item.block_container.is_invalid() {
-            item.block_container_margin_rect = self.containing_block_margin_rect(item.block_container);
-        }
-        if item.kind == HitTestItemKind::Box {
-            (item.caret_line_index, item.caret_line_rect) = self.containing_line_of_box(item.paintable);
-        }
-        self.list.append(item);
-    }
-
-    fn append_spliced_hit_test_items(&mut self, items: &[HitTestItem], spliced_subtree_root: NodeSlotId) {
-        let mut last_container_lookup: Option<(NodeSlotId, bool)> = None;
-        for item in items {
-            let container = item.block_container;
-            let container_is_inside_spliced_subtree = if container.is_invalid() {
-                false
-            } else if let Some((memoized, inside)) = last_container_lookup
-                && memoized == container
-            {
-                inside
-            } else {
-                let inside = self.is_inclusive_paint_descendant(container, spliced_subtree_root);
-                last_container_lookup = Some((container, inside));
-                inside
-            };
-            if container_is_inside_spliced_subtree {
-                self.list.append(item.clone());
-            } else {
-                self.append_spliced_hit_test_item(item);
-            }
-        }
-    }
-
-    fn is_inclusive_paint_descendant(&self, node: NodeSlotId, root: NodeSlotId) -> bool {
-        let mut climbing_from_node = Some(node);
-        let mut climbing_from_root = Some(root);
-        loop {
-            match (climbing_from_node, climbing_from_root) {
-                (Some(current), _) if current == root => return true,
-                (_, Some(current)) if current == node => return false,
-                (None, None) => return false,
-                _ => {}
-            }
-            climbing_from_node =
-                climbing_from_node.and_then(|slot| crate::painting::paint_order::paint_parent(self.layout_arena, slot));
-            climbing_from_root =
-                climbing_from_root.and_then(|slot| crate::painting::paint_order::paint_parent(self.layout_arena, slot));
-        }
     }
 
     fn valid_cached_hit_test_items(

@@ -6,7 +6,6 @@
 
 use crate::layout::node_data::NodeSlotId;
 use crate::layout::used_values;
-use crate::layout::used_values::OptionalCssPixelRect;
 use crate::painting::display_list::commands::ContextRef;
 use std::ffi::c_void;
 
@@ -100,7 +99,6 @@ pub struct FfiClosestLine {
     pub block_distance: i32,
     pub block_start_distance: i32,
     pub inline_distance: i32,
-    pub block_container_margin_rect: OptionalCssPixelRect,
     pub is_before_point: bool,
     pub contains_point_in_block_axis: bool,
 }

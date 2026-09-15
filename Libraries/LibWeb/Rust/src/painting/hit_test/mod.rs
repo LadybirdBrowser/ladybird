@@ -5,14 +5,17 @@
  */
 
 pub mod caret;
+pub mod geometry;
 pub mod query;
 pub mod resolve;
 
 use crate::css::css_pixels::CssPixels;
 use crate::css::css_pixels::{CssPixelPoint, CssPixelRect};
+use crate::layout::LayoutNodeArena;
 use crate::layout::node_data::NodeSlotId;
 use crate::painting::display_list::commands::ContextRef;
 use crate::painting::host::FfiHitTestQueryCallbacks;
+use crate::painting::paintable_rows::PaintableRowsRef;
 use crate::painting::visual_context::{ClipBehavior, VisualContextTree};
 use std::collections::HashMap;
 use std::rc::Rc;
@@ -48,8 +51,6 @@ pub struct HitTestItem {
     pub rect: CssPixelRect,
     pub caret_rect: CssPixelRect,
     pub caret_line_index: Option<usize>,
-    pub caret_line_rect: Option<CssPixelRect>,
-    pub block_container_margin_rect: Option<CssPixelRect>,
     pub block_container: NodeSlotId,
     pub context: ContextRef,
     pub border_radii: BorderRadii,
@@ -70,11 +71,11 @@ pub struct SpatialIndex {
 
 // A visual line assembled from consecutive caret-capable display-list items. Caret lines preserve painted
 // topology independently of the spatial hit-test index so keyboard navigation can reason about lines that contain
-// empty or zero-area caret targets.
+// empty or zero-area caret targets. The block container is the first populated one among the line's items.
 #[derive(Clone, Debug)]
 pub struct CaretLine {
     pub rect: CssPixelRect,
-    pub block_container_margin_rect: Option<CssPixelRect>,
+    pub block_container: NodeSlotId,
     pub context: ContextRef,
     pub first_caret_item_index: usize,
     pub last_caret_item_index: usize,
@@ -141,8 +142,23 @@ impl HitTestList {
         items.push(item);
     }
 
-    pub fn caret_line_rect_for_item(item: &HitTestItem) -> CssPixelRect {
-        let Some(line_rect) = item.caret_line_rect else {
+    pub(crate) fn append_copies_of(&mut self, source: &[HitTestItem]) {
+        assert!(
+            !self.derived_structures_built,
+            "hit-test item appended after the derived structures were built"
+        );
+        if source.is_empty() {
+            return;
+        }
+        let items = Rc::make_mut(&mut self.items);
+        if items.capacity() == 0 {
+            items.reserve(self.item_capacity_hint_from_previous_list.max(source.len()));
+        }
+        items.extend_from_slice(source);
+    }
+
+    pub(crate) fn caret_line_rect_for_item(rows: &PaintableRowsRef<'_>, item: &HitTestItem) -> CssPixelRect {
+        let Some(line_rect) = geometry::containing_line_box_rect(rows, item) else {
             return item.caret_rect;
         };
         let mut rect = item.caret_rect;
@@ -154,17 +170,18 @@ impl HitTestList {
         rect
     }
 
-    pub fn build_derived_structures_if_needed(&mut self) {
+    pub(crate) fn build_derived_structures_if_needed(&mut self, arena: &LayoutNodeArena) {
         if self.derived_structures_built {
             return;
         }
         self.derived_structures_built = true;
+        let rows = arena.paintable_rows();
         for item_index in 0..self.items.len() {
             let item_is_caret_target_only = self.items[item_index].kind == HitTestItemKind::EmptyLine;
             if !item_is_caret_target_only {
                 self.add_item_to_spatial_index(item_index);
             }
-            self.add_item_to_caret_items(item_index);
+            self.add_item_to_caret_items(&rows, item_index);
         }
     }
 
@@ -223,7 +240,7 @@ impl HitTestList {
         }
     }
 
-    fn add_item_to_caret_items(&mut self, item_index: usize) {
+    fn add_item_to_caret_items(&mut self, rows: &PaintableRowsRef<'_>, item_index: usize) {
         let item = &self.items[item_index];
         if item.caret_rect.is_empty() || !item.can_produce_caret_position {
             return;
@@ -232,7 +249,8 @@ impl HitTestList {
         self.caret_item_indices.push(item_index);
 
         let writing_mode = item.writing_mode;
-        let item_line_rect = Self::caret_line_rect_for_item(item);
+        let item_line_rect = Self::caret_line_rect_for_item(rows, item);
+        let item_block_container = geometry::populated_block_container(rows, item.block_container);
         if let Some(line) = self.caret_lines.last_mut() {
             let first_line_item = &self.items[self.caret_item_indices[line.first_caret_item_index]];
             // Text fragments record their originating line box. Other caret-capable items, such as
@@ -249,8 +267,8 @@ impl HitTestList {
                 && (same_recorded_line || same_inferred_line)
             {
                 line.rect.unite(item_line_rect);
-                if line.block_container_margin_rect.is_none() {
-                    line.block_container_margin_rect = item.block_container_margin_rect;
+                if line.block_container.is_invalid() {
+                    line.block_container = item_block_container;
                 }
                 line.last_caret_item_index = caret_item_index;
                 return;
@@ -259,7 +277,7 @@ impl HitTestList {
 
         self.caret_lines.push(CaretLine {
             rect: item_line_rect,
-            block_container_margin_rect: item.block_container_margin_rect,
+            block_container: item_block_container,
             context: item.context,
             first_caret_item_index: caret_item_index,
             last_caret_item_index: caret_item_index,
