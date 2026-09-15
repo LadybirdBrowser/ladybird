@@ -613,6 +613,13 @@ enum class NumberToStringMode {
 };
 JS_API void number_to_string(StringBuilder&, double, NumberToStringMode = NumberToStringMode::WithExponent);
 [[nodiscard]] JS_API Utf16String number_to_utf16_string(double, NumberToStringMode = NumberToStringMode::WithExponent);
+
+struct StringNumericLiteral {
+    Utf16View literal;
+    u8 base { 10 };
+};
+
+JS_API Optional<StringNumericLiteral> parse_string_numeric_literal(Utf16View);
 double string_to_number(Utf16View);
 
 inline bool Value::operator==(Value const& value) const { return same_value(*this, value); }

@@ -124,4 +124,15 @@ describe("correct behavior", () => {
         expect(ja.formatRange(-0, -1)).toBe("-0 ～ -1");
         expect(ja.formatRange(-0, -Infinity)).toBe("-0 ～ -∞");
     });
+
+    test("string values", () => {
+        const en = new Intl.NumberFormat("en");
+        expect(en.formatRange("", "2")).toBe("0–2");
+        expect(en.formatRange(" 1 ", "2")).toBe("1–2");
+        expect(en.formatRange("0x10", "20")).toBe("16–20");
+        expect(en.formatRange("0o17", "0X1F")).toBe("15–31");
+        expect(en.formatRange("1e1000000000", "2")).toBe("∞–2");
+        expect(en.formatRange("-1e1000000000", "2")).toBe("-∞ – 2");
+        expect(en.formatRange("1", "-1e-1000000000")).toBe("1–-0");
+    });
 });

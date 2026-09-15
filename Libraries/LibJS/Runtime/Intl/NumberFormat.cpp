@@ -209,45 +209,63 @@ ThrowCompletionOr<MathematicalValue> to_intl_mathematical_value(VM& vm, Value va
     // 1. Let primValue be ? ToPrimitive(value, number).
     auto primitive_value = TRY(value.to_primitive(vm, Value::PreferredType::Number));
 
-    // 2. If Type(primValue) is BigInt, return the mathematical value of primValue.
+    // 2. If primValue is a BigInt, return ℝ(primValue).
     if (primitive_value.is_bigint())
         return MUST(primitive_value.as_bigint().big_integer().to_base_utf16(10));
 
-    // FIXME: The remaining steps are being refactored into a new Runtime Semantic, StringIntlMV.
-    //        We short-circuit some of these steps to avoid known pitfalls.
-    //        See: https://github.com/tc39/proposal-intl-numberformat-v3/pull/82
+    // 3. If primValue is a String, then
+    //     a. Let str be primValue.
+    // 4. Else,
+    //     a. Let x be ? ToNumber(primValue).
+    //     b. If x is -0𝔽, return negative-zero.
+    //     c. Let str be Number::toString(x, 10).
+    // NB: Parsing the string form of a Number in the remaining steps yields a value that formats the same as the
+    //     Number itself, so the Number is returned as is.
     if (!primitive_value.is_string()) {
         auto number = TRY(primitive_value.to_number(vm));
         return number.as_double();
     }
 
-    // 3. If Type(primValue) is String,
-    // a.     Let str be primValue.
     auto string = primitive_value.as_string().utf16_string_view();
 
-    // Step 4 handled separately by the FIXME above.
+    // 5. Let text be StringToCodePoints(str).
+    // 6. Let literal be ParseText(text, StringNumericLiteral).
+    auto literal = parse_string_numeric_literal(string);
 
-    // 5. If the grammar cannot interpret str as an expansion of StringNumericLiteral, return not-a-number.
-    // 6. Let mv be the MV, a mathematical value, of ? ToNumber(str), as described in 7.1.4.1.1.
-    auto mathematical_value = TRY(primitive_value.to_number(vm)).as_double();
+    // 7. If literal is a List of errors, return not-a-number.
+    // 8. Let intlMV be the StringIntlMV of literal.
+    // 9. If intlMV is a mathematical value, then
+    //     a. Let rounded be RoundMVResult(abs(intlMV)).
+    // NB: StringToNumber performs the parse and the rounding, and its sign carries the sign of intlMV.
+    Value rounded { string_to_number(string) };
 
-    if (Value(mathematical_value).is_nan())
+    if (rounded.is_nan())
         return MathematicalValue::Symbol::NotANumber;
 
-    // 7. If mv is 0 and the first non white space code point in str is -, return negative-zero.
-    if (mathematical_value == 0.0 && string.trim_ascii_whitespace(TrimMode::Left).starts_with('-'))
-        return MathematicalValue::Symbol::NegativeZero;
-
-    // 8. If mv is 10^10000 and str contains Infinity, return positive-infinity.
-    if (mathematical_value == pow(10, 10000) && string.contains("Infinity"sv))
-        return MathematicalValue::Symbol::PositiveInfinity;
-
-    // 9. If mv is -10^10000 and str contains Infinity, return negative-infinity.
-    if (mathematical_value == pow(-10, 10000) && string.contains("Infinity"sv))
+    //     b. If rounded is +∞𝔽 and intlMV < 0, return negative-infinity.
+    if (rounded.is_negative_infinity())
         return MathematicalValue::Symbol::NegativeInfinity;
 
-    // 10. Return mv.
-    return Utf16String::from_utf16(string);
+    //     c. If rounded is +∞𝔽, return positive-infinity.
+    if (rounded.is_positive_infinity())
+        return MathematicalValue::Symbol::PositiveInfinity;
+
+    //     d. If rounded is +0𝔽 and intlMV < 0, return negative-zero.
+    if (rounded.is_negative_zero())
+        return MathematicalValue::Symbol::NegativeZero;
+
+    //     e. If rounded is +0𝔽, return 0.
+    if (rounded.is_positive_zero())
+        return 0.0;
+
+    // 10. Return intlMV.
+    // NB: The exact value is kept as decimal source text. A non-decimal integer literal is converted to its decimal
+    //     digits first.
+    if (literal->base == 10)
+        return Utf16String::from_utf16(literal->literal);
+
+    auto integer = MUST(Crypto::UnsignedBigInteger::from_base(literal->base, literal->literal));
+    return MUST(integer.to_base_utf16(10));
 }
 
 // 16.5.19 PartitionNumberRangePattern ( numberFormat, x, y ), https://tc39.es/ecma402/#sec-partitionnumberrangepattern
