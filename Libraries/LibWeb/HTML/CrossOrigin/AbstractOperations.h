@@ -14,6 +14,14 @@
 
 namespace Web::HTML {
 
+enum class SecurityCheckType {
+    Method,
+    Getter,
+    Setter,
+};
+
+JS::ThrowCompletionOr<void> perform_a_security_check(JS::VM&, JS::Value platform_object, Utf16View const& identifier, SecurityCheckType);
+
 Vector<CrossOriginProperty> cross_origin_properties(Variant<HTML::Location const*, HTML::Window const*> const&);
 Vector<CrossOriginProperty> cross_origin_window_properties();
 bool is_cross_origin_accessible_window_property_name(JS::PropertyKey const&);
