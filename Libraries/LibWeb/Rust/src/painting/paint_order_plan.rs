@@ -114,6 +114,14 @@ impl PaintOrderInputs {
         self.flags != 0
     }
 
+    fn has(self, flag: PaintOrderFlag) -> bool {
+        self.flags & (1 << flag as u32) != 0
+    }
+
+    fn z_index(self) -> Option<i32> {
+        self.has(PaintOrderFlag::HasZIndex).then_some(self.z_index)
+    }
+
     // Display, node kind, fragmentation, flex/grid membership and table geometry are prepared
     // by layout commit. Visual-context assignment only changes these live facts. A z-index on
     // a flex or grid item also changes its positioned paint participation.
@@ -184,11 +192,21 @@ impl PaintOrderInputs {
 }
 
 impl PaintScopePlan {
-    pub(crate) fn build(arena: &PaintableRowsRef<'_>, scope: PaintScope, paint_overlay: bool) -> Self {
+    /// With prepared inputs, planning reads the snapshots kept on the rows instead of style
+    /// and layout facts. Without them it gathers current inputs, so a canonical plan can
+    /// detect a stale snapshot.
+    pub(crate) fn build(
+        arena: &PaintableRowsRef<'_>,
+        scope: PaintScope,
+        paint_overlay: bool,
+        use_prepared_inputs: bool,
+    ) -> Self {
         let mut builder = PaintOrderBuilder {
             layout_arena: arena,
             paint_overlay,
+            use_prepared_inputs,
             items: SmallVec::new(),
+            last_inputs: std::cell::Cell::new(None),
         };
         let establishes_stacking_context =
             scope.kind == PaintScopeKind::PaintedAsStackingContext && builder.has_stacking_context(scope.owner);
@@ -209,24 +227,35 @@ impl PaintScopePlan {
 struct PaintOrderBuilder<'a, 'arena> {
     layout_arena: &'a PaintableRowsRef<'arena>,
     paint_overlay: bool,
+    use_prepared_inputs: bool,
     items: SmallVec<[PaintOrderItem; 16]>,
+    // Planning asks several questions about the same row in a row; keep its answers.
+    last_inputs: std::cell::Cell<Option<(NodeSlotId, PaintOrderInputs)>>,
 }
 
 impl PaintOrderBuilder<'_, '_> {
-    fn display(&self, owner: NodeSlotId) -> crate::css::display::FfiDisplay {
-        style_queries::display(self.layout_arena, owner)
-    }
-
-    fn layout_kind(&self, owner: NodeSlotId) -> Option<NodeKind> {
-        self.layout_arena.node_kind_if_live(owner)
+    fn inputs(&self, row: NodeSlotId) -> PaintOrderInputs {
+        if let Some((previous, inputs)) = self.last_inputs.get()
+            && previous == row
+        {
+            return inputs;
+        }
+        let prepared = if self.use_prepared_inputs {
+            self.layout_arena.paintable_paint_cache(row).order_inputs()
+        } else {
+            None
+        };
+        let inputs = prepared.unwrap_or_else(|| PaintOrderInputs::gather(self.layout_arena, row));
+        self.last_inputs.set(Some((row, inputs)));
+        inputs
     }
 
     fn has_stacking_context(&self, owner: NodeSlotId) -> bool {
-        self.layout_arena.paintable_data(owner).establishes_stacking_context
+        self.inputs(owner).has(PaintOrderFlag::EstablishesContext)
     }
 
     fn is_replaced_box(&self, owner: NodeSlotId) -> bool {
-        style_queries::is_replaced_box(self.layout_arena, owner)
+        self.inputs(owner).has(PaintOrderFlag::Replaced)
     }
 
     fn append_box_phase(&mut self, phase: PaintPhase) {
@@ -249,11 +278,11 @@ impl PaintOrderBuilder<'_, '_> {
     }
 
     fn z_index(&self, paintable: NodeSlotId) -> Option<i32> {
-        crate::painting::style_queries::z_index(self.layout_arena, paintable)
+        self.inputs(paintable).z_index()
     }
 
     fn is_fragmented_inline(&self, paintable: NodeSlotId) -> bool {
-        node_painting::is_fragmented_inline(self.layout_arena, paintable)
+        self.inputs(paintable).has(PaintOrderFlag::FragmentedInline)
     }
 
     fn establishes_inline_level_painting_context(&self, paintable: NodeSlotId) -> bool {
@@ -262,19 +291,18 @@ impl PaintOrderBuilder<'_, '_> {
         // actual child stacking contexts in the parent stacking context:
         // https://drafts.csswg.org/css2/#painting-order
         // https://drafts.csswg.org/css2/#elaborate-stacking-contexts
-        let display = self.display(paintable);
-        display.is_inline_outside() && (display.is_flow_root_inside() || display.is_table_inside())
+        self.inputs(paintable).has(PaintOrderFlag::InlineLevelContext)
     }
 
     fn is_pure_inline_box(&self, paintable: NodeSlotId) -> bool {
         self.is_fragmented_inline(paintable)
-            && !style_queries::is_floating(self.layout_arena, paintable)
-            && !style_queries::is_positioned(self.layout_arena, paintable)
+            && !self.inputs(paintable).has(PaintOrderFlag::Floating)
+            && !self.inputs(paintable).has(PaintOrderFlag::Positioned)
     }
 
     fn append_context_contents(&mut self, paintable: NodeSlotId) {
         let entries = self.layout_arena.stacking_context_entries(paintable);
-        if self.layout_kind(paintable) == Some(NodeKind::SVGSVGBox) {
+        if self.inputs(paintable).has(PaintOrderFlag::SvgRoot) {
             self.append_box_phase(PaintPhase::Background);
             self.append_box_phase(PaintPhase::Border);
             self.append_svg_box_foreground();
@@ -286,11 +314,7 @@ impl PaintOrderBuilder<'_, '_> {
                     self.append_stacking_context(entry.slot);
                 }
                 for &descendant in &entries.stack_level_zero_boxes {
-                    if self.layout_arena.paintable_row_is_populated(descendant)
-                        && self
-                            .layout_arena
-                            .paintable_data(descendant)
-                            .establishes_stacking_context
+                    if self.layout_arena.paintable_row_is_populated(descendant) && self.has_stacking_context(descendant)
                     {
                         self.append_stacking_context(descendant);
                     }
@@ -324,9 +348,7 @@ impl PaintOrderBuilder<'_, '_> {
 
         // Draw the background and borders for block-level children (step 4)
         self.append_descendants(paintable, StackingContextPaintPhase::BackgroundAndBorders);
-        if crate::painting::paintable_geometry::committed_collapsed_table_borders(self.layout_arena, paintable)
-            .is_some()
-        {
+        if self.inputs(paintable).has(PaintOrderFlag::CollapsedBorders) {
             self.append_box_phase(PaintPhase::TableCollapsedBorder);
         }
         // Draw the non-positioned floats (step 5)
@@ -390,9 +412,7 @@ impl PaintOrderBuilder<'_, '_> {
         if !self.is_pure_inline_box(paintable) {
             self.append_descendants(paintable, StackingContextPaintPhase::BackgroundAndBorders);
         }
-        if crate::painting::paintable_geometry::committed_collapsed_table_borders(self.layout_arena, paintable)
-            .is_some()
-        {
+        if self.inputs(paintable).has(PaintOrderFlag::CollapsedBorders) {
             self.append_box_phase(PaintPhase::TableCollapsedBorder);
         }
     }
@@ -409,7 +429,7 @@ impl PaintOrderBuilder<'_, '_> {
     }
 
     fn append_as_stacking_context(&mut self, paintable: NodeSlotId) {
-        if self.layout_kind(paintable) == Some(NodeKind::SVGSVGBox) {
+        if self.inputs(paintable).has(PaintOrderFlag::SvgRoot) {
             self.append_svg_root();
             return;
         }
@@ -430,13 +450,10 @@ impl PaintOrderBuilder<'_, '_> {
         // the columns, the row groups, the rows and the cells. Column boxes may come after the row groups in the
         // tree (the HTML parser puts a <colgroup> that follows a row after it), so a table box paints its column
         // groups and columns before its other children. https://www.w3.org/TR/CSS22/tables.html#table-layers
-        let is_column_box = |this: &Self, child: NodeSlotId| {
-            let display = this.display(child);
-            display.is_table_column_group() || display.is_table_column()
-        };
+        let is_column_box = |this: &Self, child: NodeSlotId| this.inputs(child).has(PaintOrderFlag::TableColumn);
         let paints_columns_first = phase == StackingContextPaintPhase::BackgroundAndBorders
-            && self.layout_kind(paintable) == Some(NodeKind::Box)
-            && self.display(paintable).is_table_inside();
+            && self.inputs(paintable).has(PaintOrderFlag::Box)
+            && self.inputs(paintable).has(PaintOrderFlag::TableInside);
         if paints_columns_first {
             self.append_descendants_matching(paintable, phase, |this, child| is_column_box(this, child));
             self.append_descendants_matching(paintable, phase, |this, child| !is_column_box(this, child));
@@ -471,9 +488,9 @@ impl PaintOrderBuilder<'_, '_> {
         matches!(
             phase,
             StackingContextPaintPhase::BackgroundAndBorders | StackingContextPaintPhase::Floats
-        ) && self.layout_kind(child) != Some(NodeKind::SVGSVGBox)
+        ) && !self.inputs(child).has(PaintOrderFlag::SvgRoot)
             && self.establishes_inline_level_painting_context(child)
-            && !style_queries::is_floating(self.layout_arena, child)
+            && !self.inputs(child).has(PaintOrderFlag::Floating)
             && (phase == StackingContextPaintPhase::Floats || !self.is_pure_inline_box(child))
     }
 
@@ -481,17 +498,17 @@ impl PaintOrderBuilder<'_, '_> {
         if self.has_stacking_context(child) {
             return;
         }
-        let positioned = style_queries::is_positioned(self.layout_arena, child);
-        let floating = style_queries::is_floating(self.layout_arena, child);
-        let inline = style_queries::is_inline(self.layout_arena, child);
-        let is_item = style_queries::is_flex_or_grid_item(self.layout_arena, child);
+        let positioned = self.inputs(child).has(PaintOrderFlag::Positioned);
+        let floating = self.inputs(child).has(PaintOrderFlag::Floating);
+        let inline = self.inputs(child).has(PaintOrderFlag::Inline);
+        let is_item = self.inputs(child).has(PaintOrderFlag::FlexOrGridItem);
 
         // Positioned descendants at stack level 0 are painted in a separate pass.
         if positioned && self.z_index(child).unwrap_or(0) == 0 {
             return;
         }
 
-        if self.layout_kind(child) == Some(NodeKind::SVGSVGBox) {
+        if self.inputs(child).has(PaintOrderFlag::SvgRoot) {
             if phase == StackingContextPaintPhase::Foreground {
                 self.append_svg_root();
             }
@@ -580,5 +597,27 @@ mod tests {
         flags.set(flags.get() | NodeFlag::IsFlexItem as u32);
         let as_flex_item = PaintOrderInputs::gather(&arena.paintable_rows(), child);
         assert!(arena.paintable_paint_cache(child).update_order_inputs(as_flex_item));
+    }
+
+    #[test]
+    fn canonical_planning_can_detect_stale_prepared_inputs() {
+        let mut arena = LayoutNodeArena::new();
+        let row = arena.allocate_for_test().slot;
+        arena.data(row).kind.set(NodeKind::Box);
+        arena.populate_paintable_row(row);
+        arena.refresh_paint_order_inputs(row);
+        // Deliberately omit the refresh after a participation change. The canonical planner
+        // must see the new state independently of that snapshot.
+        arena.data(row).flags.set(NodeFlag::IsFlexItem as u32);
+        let scope = PaintScope {
+            owner: row,
+            kind: PaintScopeKind::Descendants(StackingContextPaintPhase::Foreground),
+        };
+        let prepared = PaintScopePlan::build(&arena.paintable_rows(), scope, false, true);
+        let canonical = PaintScopePlan::build(&arena.paintable_rows(), scope, false, false);
+        assert_ne!(prepared.items, canonical.items);
+        arena.refresh_paint_order_inputs(row);
+        let updated = PaintScopePlan::build(&arena.paintable_rows(), scope, false, true);
+        assert_eq!(updated.items, canonical.items);
     }
 }

@@ -259,7 +259,22 @@ impl<O: Observer> PaintRecorder<'_, O> {
             },
         };
         self.splice_or_record_capture(site, |this| {
-            let plan = PaintScopePlan::build(this.layout_arena, scope, this.inputs.should_paint_overlay);
+            let use_prepared_inputs = this.command_cache_source.is_some();
+            let plan = PaintScopePlan::build(
+                this.layout_arena,
+                scope,
+                this.inputs.should_paint_overlay,
+                use_prepared_inputs,
+            );
+            if use_prepared_inputs && crate::painting::record::verify::enabled_by_environment() {
+                let canonical =
+                    PaintScopePlan::build(this.layout_arena, scope, this.inputs.should_paint_overlay, false);
+                assert!(
+                    plan.items == canonical.items
+                        && plan.establishes_stacking_context == canonical.establishes_stacking_context,
+                    "prepared paint-order inputs of {scope:?} are stale"
+                );
+            }
             if plan.establishes_stacking_context {
                 if !this.prepare_stacking_context(scope.owner) {
                     return;
