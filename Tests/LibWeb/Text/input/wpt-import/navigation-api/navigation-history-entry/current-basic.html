@@ -1,0 +1,109 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<script src="resources/is_uuid.js"></script>
+<script>
+test(() => {
+  let start_length = navigation.entries().length;
+  let first_entry = navigation.currentEntry;
+  let start_index = first_entry.index;
+  assert_not_equals(first_entry, null);
+  assert_not_equals(first_entry.key, null);
+  assert_true(isUUID(first_entry.key));
+  assert_not_equals(first_entry.id, null);
+  assert_true(isUUID(first_entry.id));
+  assert_equals(first_entry.url, location.href);
+  assert_true(first_entry.sameDocument);
+  assert_equals(navigation.entries().length, start_length);
+  assert_equals(first_entry, navigation.entries()[start_index]);
+
+  history.replaceState(2, "", "#2");
+  let second_entry = navigation.currentEntry;
+  assert_not_equals(second_entry, first_entry);
+  assert_equals(second_entry.key, first_entry.key);
+  assert_true(isUUID(second_entry.key));
+  assert_not_equals(second_entry.id, first_entry.id);
+  assert_true(isUUID(second_entry.id));
+  assert_equals(second_entry.url, location.href);
+  assert_true(second_entry.sameDocument);
+  assert_equals(navigation.entries().length, start_length);
+  assert_equals(second_entry, navigation.entries()[start_index]);
+
+  history.pushState(3, "", "#3");
+  let third_entry = navigation.currentEntry;
+  assert_not_equals(third_entry, second_entry);
+  assert_not_equals(third_entry.key, second_entry.key);
+  assert_true(isUUID(third_entry.key));
+  assert_not_equals(third_entry.id, second_entry.id);
+  assert_true(isUUID(third_entry.id));
+  assert_equals(third_entry.url, location.href);
+  assert_true(third_entry.sameDocument);
+  assert_equals(navigation.entries().length, start_length + 1);
+  assert_equals(third_entry, navigation.entries()[start_index + 1]);
+
+  history.pushState(4, "");
+  let fourth_entry = navigation.currentEntry;
+  assert_not_equals(fourth_entry, third_entry);
+  assert_not_equals(fourth_entry.key, third_entry.key);
+  assert_true(isUUID(fourth_entry.key));
+  assert_not_equals(fourth_entry.id, third_entry.id);
+  assert_true(isUUID(fourth_entry.id));
+  assert_equals(fourth_entry.url, third_entry.url);
+  assert_true(fourth_entry.sameDocument);
+  assert_equals(navigation.entries().length, start_length + 2);
+  assert_equals(fourth_entry, navigation.entries()[start_index + 2]);
+
+  history.replaceState(5, "");
+  let fifth_entry = navigation.currentEntry;
+  assert_not_equals(fifth_entry, fourth_entry);
+  assert_equals(fifth_entry.key, fourth_entry.key);
+  assert_true(isUUID(fifth_entry.key));
+  assert_not_equals(fifth_entry.id, fourth_entry.id);
+  assert_true(isUUID(fifth_entry.id));
+  assert_equals(fifth_entry.url, fourth_entry.url);
+  assert_true(fifth_entry.sameDocument);
+  assert_equals(navigation.entries().length, start_length + 2);
+  assert_equals(fifth_entry, navigation.entries()[start_index + 2]);
+
+  history.pushState(5, "");
+  let fifth_entry_after_push = navigation.currentEntry;
+  assert_not_equals(fifth_entry_after_push, fifth_entry);
+  assert_not_equals(fifth_entry_after_push.key, fifth_entry.key);
+  assert_true(isUUID(fifth_entry_after_push.key));
+  assert_not_equals(fifth_entry_after_push.id, fifth_entry.id);
+  assert_true(isUUID(fifth_entry_after_push.id));
+  assert_equals(fifth_entry_after_push.url, fifth_entry.url);
+  assert_true(fifth_entry_after_push.sameDocument);
+  assert_equals(navigation.entries().length, start_length + 3);
+  assert_equals(fifth_entry_after_push, navigation.entries()[start_index + 3]);
+
+  history.replaceState(5, "");
+  let fifth_entry_after_replace = navigation.currentEntry;
+  assert_not_equals(fifth_entry_after_replace, fifth_entry_after_push);
+  assert_equals(fifth_entry_after_replace.key, fifth_entry_after_push.key);
+  assert_true(isUUID(fifth_entry_after_replace.key));
+  assert_not_equals(fifth_entry_after_replace.id, fifth_entry_after_push.id);
+  assert_true(isUUID(fifth_entry_after_replace.id));
+  assert_equals(fifth_entry_after_replace.url, fifth_entry_after_push.url);
+  assert_true(fifth_entry_after_replace.sameDocument);
+  assert_equals(navigation.entries().length, start_length + 3);
+  assert_equals(fifth_entry_after_replace, navigation.entries()[start_index + 3]);
+
+  location.hash = "6";
+  let sixth_entry = navigation.currentEntry;
+  assert_not_equals(sixth_entry, fifth_entry_after_replace);
+  assert_equals(sixth_entry.key, fifth_entry_after_replace.key);
+  assert_true(isUUID(sixth_entry.key));
+  assert_not_equals(sixth_entry.id, fifth_entry_after_replace.id);
+  assert_true(isUUID(sixth_entry.id));
+  assert_not_equals(sixth_entry.url, fifth_entry_after_replace.url);
+  assert_true(sixth_entry.sameDocument);
+  assert_equals(navigation.entries().length, start_length + 3);
+  assert_equals(sixth_entry, navigation.entries()[start_index + 3]);
+
+  navigation.entries().forEach(entry => {
+    assert_true(isUUID(entry.id));
+    assert_true(isUUID(entry.key));
+  });
+}, "Basic tests for navigation.currentEntry");
+</script>
