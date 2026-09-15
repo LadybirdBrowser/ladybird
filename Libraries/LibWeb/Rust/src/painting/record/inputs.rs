@@ -11,7 +11,7 @@ use crate::painting::ffi::FfiChromeMetrics;
 use crate::painting::force_dark::ForceDarkSettings;
 use crate::painting::host::{FfiFlexOverlayInput, FfiGridOverlayInput, FfiRootBackgroundSource};
 use libgfx_rust::font::FontHandle;
-use libgfx_rust::{Color, IntRect};
+use libgfx_rust::{Color, IntRect, IntSize};
 use std::borrow::Cow;
 
 /// The inputs read by content that is recorded outside per-box captures: scroll metadata,
@@ -23,7 +23,8 @@ pub(crate) struct UncapturedContentInputs {
     pub viewport_wheel_overflow_x: u8,
     pub viewport_wheel_overflow_y: u8,
     pub root_background_source: FfiRootBackgroundSource,
-    pub device_viewport_rect: IntRect,
+    // Scroll commands use a scrollport at the origin. Its position is compositor state.
+    pub device_viewport_size: IntSize,
     pub is_recording_async_scrolling_metadata: bool,
     pub document_id: UniqueNodeId,
     pub has_blocking_wheel_event_region_covering_viewport: bool,
