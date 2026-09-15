@@ -2509,6 +2509,7 @@ pub unsafe extern "C" fn style_engine_begin_computed_record_verification(engine:
     assert!(engine.computed_record_verification_counters.is_none());
     assert!(engine.computed_record_verification_pins.is_empty());
     engine.computed_record_verification_counters = Some(Box::new(engine.counters.clone()));
+    engine.suspend_computed_group_content_identities(true);
 }
 
 /// Leave a C++ computed-record verification scope without exposing its instrumentation work.
@@ -2521,6 +2522,7 @@ pub unsafe extern "C" fn style_engine_end_computed_record_verification(engine: *
     for style_record in std::mem::take(&mut engine.computed_record_verification_pins) {
         engine.unpin_style_record(style_record);
     }
+    engine.suspend_computed_group_content_identities(false);
     engine.counters = *engine
         .computed_record_verification_counters
         .take()
