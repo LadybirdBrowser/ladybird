@@ -75,7 +75,7 @@ public:
     {
         if (m_substring)
             substring_data().superstring->unref();
-        if (m_is_fly_string)
+        if (is_fly_string())
             Detail::did_destroy_fly_string_data({}, *this);
     }
 
@@ -108,8 +108,8 @@ public:
         return atomic_load(&m_hash, memory_order_relaxed);
     }
 
-    bool is_fly_string() const { return m_is_fly_string; }
-    void set_fly_string(bool is_fly_string) const { m_is_fly_string = is_fly_string; }
+    bool is_fly_string() const { return atomic_load(&m_is_fly_string, memory_order_acquire); }
+    void mark_as_fly_string(Badge<FlyString>) const { atomic_store(&m_is_fly_string, true, memory_order_release); }
 
     size_t byte_count() const { return m_byte_count; }
 
