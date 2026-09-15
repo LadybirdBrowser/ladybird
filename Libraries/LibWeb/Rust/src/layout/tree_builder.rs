@@ -1828,6 +1828,7 @@ pub unsafe extern "C" fn rust_build_layout_tree(
                 &state.additional_table_fixup_roots,
             );
         } else {
+            layout_host.arena().set_needs_full_scrollable_overflow_recalculation();
             fixup_tables(&layout_host, document_layout_node);
         }
 

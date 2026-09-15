@@ -306,6 +306,7 @@ impl LayoutNodeArena {
         }
         self.for_each_node_in_layout_subtree_in_pre_order(subtree_root, |node| {
             if self.paintable_row_is_populated(node) {
+                self.note_overflow_contained_box_added(node);
                 self.note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::ReattachedInLayoutTree);
             }
         });

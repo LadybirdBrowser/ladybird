@@ -1,0 +1,10 @@
+initial: outer=250x200, nested=300x240
+move cached subtree: outer=250x300, nested=300x240
+move cached subtree back: outer=250x190, nested=300x240
+clamped offsets: 40,30
+shrink behind clipping boundary: outer=250x190, nested=120x90
+remove overflow: outer=250x190, nested=80x60
+restore overflow: outer=250x190, nested=120x90
+clip unchanged geometry: outer=100x120, nested=120x90
+restore visible overflow: outer=250x190, nested=120x90
+performed full layout: true

@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    #outer { width: 100px; height: 100px; overflow: hidden; }
+    #spacer { height: 20px; }
+    #reused { display: flow-root; width: 50px; height: 50px; }
+    #overflow { width: 250px; height: 180px; }
+    #nested { width: 80px; height: 60px; overflow: hidden; }
+    #content { width: 300px; height: 240px; }
+</style>
+<div id="outer">
+    <div id="spacer"></div>
+    <div id="reused"><div id="overflow"></div></div>
+    <div id="nested"><div id="content"></div></div>
+</div>
+<script>
+    test(() => {
+        const outer = document.getElementById("outer");
+        const spacer = document.getElementById("spacer");
+        const nested = document.getElementById("nested");
+        const content = document.getElementById("content");
+        const snapshot = label => {
+            println(`${label}: outer=${outer.scrollWidth}x${outer.scrollHeight}, nested=${nested.scrollWidth}x${nested.scrollHeight}`);
+        };
+        snapshot("initial");
+        const fullLayouts = internals.fullLayoutCount();
+        spacer.style.height = "120px";
+        snapshot("move cached subtree");
+        spacer.style.height = "10px";
+        snapshot("move cached subtree back");
+        nested.scrollTop = 1000;
+        nested.scrollLeft = 1000;
+        content.style.width = "120px";
+        content.style.height = "90px";
+        document.body.getBoundingClientRect();
+        println(`clamped offsets: ${nested.scrollLeft},${nested.scrollTop}`);
+        snapshot("shrink behind clipping boundary");
+        content.remove();
+        snapshot("remove overflow");
+        nested.appendChild(content);
+        snapshot("restore overflow");
+        const reused = document.getElementById("reused");
+        reused.style.overflow = "hidden";
+        snapshot("clip unchanged geometry");
+        reused.style.overflow = "visible";
+        snapshot("restore visible overflow");
+        println(`performed full layout: ${internals.fullLayoutCount() > fullLayouts}`);
+    });
+</script>

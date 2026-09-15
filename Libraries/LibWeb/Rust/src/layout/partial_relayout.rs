@@ -174,6 +174,7 @@ impl LayoutNodeArena {
 
     pub(crate) fn record_partial_relayout_escape(&self) {
         self.pending_updates_escape_partial_relayout.set(true);
+        self.set_needs_full_scrollable_overflow_recalculation();
     }
 
     pub(crate) fn clear_partial_relayout_escape(&self) {
@@ -215,6 +216,9 @@ impl LayoutNodeArena {
     ) -> Option<Vec<NodeSlotId>> {
         let pending_updates_escaped =
             self.pending_updates_escape_partial_relayout.replace(false) || layout_tree_update_escaped_rebuild_roots;
+        if pending_updates_escaped {
+            self.set_needs_full_scrollable_overflow_recalculation();
+        }
         if self.node_needs_layout_update(root)
             || pending_updates_escaped
             || !self.anchor_positioning_nodes.borrow().is_empty()

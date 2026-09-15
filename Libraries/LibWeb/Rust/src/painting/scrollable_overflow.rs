@@ -740,6 +740,18 @@ pub(crate) struct ScrollableOverflowState {
 }
 
 impl LayoutNodeArena {
+    // NB: An empty index stays valid through direct-child edits. New or reattached boxes
+    //     only require a rebuild when their containing block differs from their parent.
+    pub(crate) fn note_overflow_contained_box_added(&self, node: NodeSlotId) {
+        let data = self.data(node);
+        if node_facts::kind_is_box(data.kind.get())
+            && !data.containing_block.get().is_invalid()
+            && data.containing_block.get() != data.parent.get()
+        {
+            self.scrollable_overflow.contained_boxes_dirty.set(true);
+        }
+    }
+
     pub(crate) fn ensure_overflow_contained_boxes(&self) {
         if !self.scrollable_overflow.contained_boxes_dirty.replace(false) {
             return;
@@ -753,10 +765,11 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn did_commit_full_layout(&self, viewport: NodeSlotId) {
-        self.scrollable_overflow.viewport.set(Some(viewport));
+        if self.scrollable_overflow.viewport.replace(Some(viewport)) != Some(viewport) {
+            self.scrollable_overflow.contained_boxes_dirty.set(true);
+            self.set_needs_full_scrollable_overflow_recalculation();
+        }
         self.scrollable_overflow.full_layout_commit.set(true);
-        self.scrollable_overflow.contained_boxes_dirty.set(true);
-        self.set_needs_full_scrollable_overflow_recalculation();
     }
 
     pub(crate) fn ensure_scrollable_overflow(&self, slot: NodeSlotId) {
@@ -828,7 +841,9 @@ pub(crate) fn update_scrollable_overflow(arena: &LayoutNodeArena) {
     let mut seen = std::collections::HashSet::new();
     let mut add = |slot: NodeSlotId| {
         if arena.paintable_row_is_populated(slot) && seen.insert(slot) {
-            roots.push(slot);
+            if !full_layout_commit || slot == viewport || box_holds_scroll_state(arena, slot) {
+                roots.push(slot);
+            }
             true
         } else {
             false
@@ -849,7 +864,9 @@ pub(crate) fn update_scrollable_overflow(arena: &LayoutNodeArena) {
             if !arena.slot_is_live(slot) || !arena.paintable_row_is_populated(slot) {
                 continue;
             }
-            if !arena.paintable_side_data(slot).overflow_measured_this_commit.get() {
+            // NB: A full commit queues changed descendants individually, including scroll
+            //     containers behind clipping boundaries. Partial commits also queue their root.
+            if !full_layout_commit && !arena.paintable_side_data(slot).overflow_measured_this_commit.get() {
                 // A subtree commit can replace scroll containers whose overflow does not
                 // propagate through the relayout root (for example, overflow: hidden).
                 arena.for_each_node_in_layout_subtree_in_pre_order(slot, |child| {

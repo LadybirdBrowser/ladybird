@@ -95,6 +95,10 @@ fn commit_subtree(
         }
     }
 
+    if entry.is_none() && prepared.has_paintable_row {
+        paintables.schedule_scrollable_overflow_recalculation(node);
+    }
+
     paintables.stamp_containing_block(node);
 
     if reuses_committed_subtree {
@@ -148,7 +152,7 @@ pub(crate) fn commit_replacing(
     pass_fragments: &fragment_tree::CompletedPassFragments,
 ) -> CommitNotifications {
     let links_by_slot = pass_fragments.links_by_slot();
-    let mut paintables = crate::painting::paintable_build::PaintableCommit::new(arena);
+    let mut paintables = crate::painting::paintable_build::PaintableCommit::new(arena, root);
     paintables.begin_commit();
     let mut resized_container_shells = Vec::new();
     commit_subtree(

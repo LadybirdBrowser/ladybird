@@ -745,6 +745,7 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn populate_paintable_row(&mut self, layout_node: NodeSlotId) {
+        self.note_overflow_contained_box_added(layout_node);
         let overflow_style = self
             .node_style_if_live(layout_node)
             .map(crate::painting::scrollable_overflow::OverflowStyle::new);
@@ -936,6 +937,9 @@ impl LayoutNodeArena {
     }
 
     pub(crate) fn paintable_row_cleared(&mut self, reset: PaintableRowReset) {
+        if !self.scrollable_overflow.non_child_boxes.borrow().is_empty() {
+            self.scrollable_overflow.contained_boxes_dirty.set(true);
+        }
         self.reset_paintable_row(true, reset);
     }
 

@@ -70,16 +70,21 @@ fn has_descendant_dependent_paint(arena: &LayoutNodeArena, node: NodeSlotId) -> 
 
 pub(crate) struct PaintableCommit<'a> {
     arena: &'a mut LayoutNodeArena,
+    is_full_layout: bool,
     committed_navigable_container_viewports: Vec<NodeSlotId>,
     row_reset_notifications: Vec<crate::painting::paintable_rows::PaintableRowReset>,
+    overflow_invalidated_boxes: std::collections::HashSet<NodeSlotId>,
 }
 
 impl<'a> PaintableCommit<'a> {
-    pub(crate) fn new(arena: &'a mut LayoutNodeArena) -> Self {
+    pub(crate) fn new(arena: &'a mut LayoutNodeArena, root: NodeSlotId) -> Self {
+        let is_full_layout = arena.data(root).kind.get() == NodeKind::Viewport;
         Self {
             arena,
+            is_full_layout,
             committed_navigable_container_viewports: Vec::new(),
             row_reset_notifications: Vec::new(),
+            overflow_invalidated_boxes: Default::default(),
         }
     }
 
@@ -248,6 +253,9 @@ impl<'a> PaintableCommit<'a> {
             })
         });
         if old_content_size != new_content_size {
+            if self.arena().data(node).kind.get() == NodeKind::Viewport {
+                self.arena().set_needs_full_scrollable_overflow_recalculation();
+            }
             assert!(
                 !reuses_committed_subtree,
                 "a reused committed subtree changed its content size"
@@ -306,8 +314,19 @@ impl<'a> PaintableCommit<'a> {
             self.arena()
                 .note_visual_context_box_dirty(node, VisualContextBoxDirtyKind::RecommittedInPlace);
         }
-        if fragment_content_changed {
-            self.arena().paintable_rows().clear_cached_overflow_data(node);
+        if !fragment_content_unchanged
+            || !self
+                .arena()
+                .paintable_side_data(node)
+                .overflow_valid_across_recommits
+                .get()
+        {
+            self.schedule_scrollable_overflow_recalculation(node);
+        } else if !offset_unchanged {
+            // NB: Moving an unchanged subtree preserves its overflow relative to its padding
+            //     box. Only its contribution to containing blocks needs to be measured again.
+            let containing_block = self.arena().data(node).containing_block.get();
+            self.schedule_scrollable_overflow_recalculation(containing_block);
         }
         {
             let arena = self.arena_mut();
@@ -343,6 +362,28 @@ impl<'a> PaintableCommit<'a> {
             self.arena().note_line_root_needs_fragment_ownership(slot);
         }
         has_pieces
+    }
+
+    pub(crate) fn schedule_scrollable_overflow_recalculation(&mut self, mut node: NodeSlotId) {
+        // NB: Commit visits changed boxes before their descendants. Invalidate each containing
+        //     block once, including blocks outside the committed layout subtree.
+        while !node.is_invalid() && self.arena().slot_is_live(node) {
+            if !self.overflow_invalidated_boxes.insert(node) {
+                break;
+            }
+            let arena = self.arena();
+            if arena.paintable_row_is_populated(node) {
+                arena.paintable_rows().clear_cached_overflow_data(node);
+                // Commit queues are consumed immediately and are bounded by the committed tree.
+                if self.is_full_layout && !arena.needs_full_scrollable_overflow_recalculation.get() {
+                    arena
+                        .boxes_needing_scrollable_overflow_recalculation
+                        .borrow_mut()
+                        .push(node);
+                }
+            }
+            node = arena.data(node).containing_block.get();
+        }
     }
 
     pub(crate) fn stamp_containing_block(&mut self, node: formatting_context::Node) {
