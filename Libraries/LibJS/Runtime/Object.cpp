@@ -2386,6 +2386,23 @@ void Object::set_indexed_property_elements(ReadonlySpan<Value> values)
         m_indexed_elements[i] = values[i];
 }
 
+Span<Value> Object::set_indexed_property_elements_to_undefined(u32 size)
+{
+    free_indexed_elements();
+
+    if (size == 0)
+        return {};
+
+    auto* elements = HeapValueStorage::allocate(size);
+    for (u32 i = 0; i < size; ++i)
+        new (&elements[i]) Value(js_undefined());
+
+    m_indexed_storage_kind = IndexedStorageKind::Packed;
+    m_indexed_array_like_size = size;
+    m_indexed_elements = elements;
+    return { elements, size };
+}
+
 ReadonlySpan<Value> Object::indexed_packed_elements_span() const
 {
     VERIFY(m_indexed_storage_kind == IndexedStorageKind::Packed);

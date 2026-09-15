@@ -36,6 +36,13 @@ public:
     void set_add(Value const& key) { m_values->map_set(key, js_undefined()); }
     size_t set_size() const { return m_values->map_size(); }
 
+    // Calls the callback with every value, in insertion order. The callback must not modify the set.
+    template<typename Callback>
+    void for_each_value(Callback callback) const
+    {
+        m_values->for_each_entry([&](Value key, Value) { callback(key); });
+    }
+
     struct EndIterator {
     };
 

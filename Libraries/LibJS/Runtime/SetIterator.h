@@ -39,4 +39,9 @@ private:
     Set::ConstIterator m_iterator;
 };
 
+// Returns true if iterating a Set with iterator_method cannot be observed: iterator_method is this realm's original
+// Set.prototype.values, and %SetIteratorPrototype%.next is still the original data property. Walking the Set's
+// storage with a live Set::ConstIterator then produces the same values as the iterator protocol.
+bool set_iteration_is_unobservable(Realm&, FunctionObject const& iterator_method);
+
 }

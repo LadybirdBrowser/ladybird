@@ -4,11 +4,27 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <LibJS/Bytecode/PropertyAccess.h>
 #include <LibJS/Runtime/Array.h>
 #include <LibJS/Runtime/NativeFunction.h>
 #include <LibJS/Runtime/SetIterator.h>
+#include <LibJS/Runtime/SetPrototype.h>
 
 namespace JS {
+
+bool set_iteration_is_unobservable(Realm& realm, FunctionObject const& iterator_method)
+{
+    auto& set_prototype = static_cast<SetPrototype const&>(*realm.intrinsics().set_prototype());
+    if (&iterator_method != &set_prototype.values_function())
+        return false;
+
+    // NB: Inspect the intrinsic prototype's own property without invoking it. An accessor or a replacement method
+    //     is observable, so it makes the caller take the generic path.
+    static auto& next_method_cache = *new Bytecode::StaticPropertyLookupCache;
+    auto next_method = Bytecode::get_own_property_without_side_effects(*realm.intrinsics().set_iterator_prototype(), realm.vm().names.next, next_method_cache);
+    auto native_function = next_method.as_if<NativeFunction>();
+    return native_function && native_function->is_set_prototype_next_builtin();
+}
 
 GC_DEFINE_ALLOCATOR(SetIterator);
 

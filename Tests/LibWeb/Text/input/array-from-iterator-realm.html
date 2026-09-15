@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<script src="include.js"></script>
+<script>
+    test(() => {
+        const iframe = document.createElement("iframe");
+        document.body.append(iframe);
+        const other = iframe.contentWindow;
+
+        function check(label, items, prototype) {
+            for (const mapper of [undefined, value => value]) {
+                const result = Array.from(items(), mapper);
+                println(`${label}, mapping ${!!mapper}: ${Object.getPrototypeOf(result[0]) === prototype}`);
+            }
+        }
+
+        check("foreign Map", () => new other.Map([[1, 2]]), other.Array.prototype);
+        check("foreign Map entries", () => new other.Map([[1, 2]]).entries(), other.Array.prototype);
+        check("foreign Set entries", () => new other.Set([1]).entries(), other.Array.prototype);
+
+        for (const name of ["Map", "Set"]) {
+            const local = new window[name]([[1, 2]]);
+            const foreign = new other[name]([[1, 2]]);
+            const prototype = Object.getPrototypeOf(local.entries());
+            const originalNext = prototype.next;
+            prototype.next = foreign.entries().next;
+            try {
+                check(`${name} entries with foreign next`, () => local.entries(), other.Array.prototype);
+                if (name === "Map") check("local Map with foreign next", () => local, other.Array.prototype);
+            } finally {
+                prototype.next = originalNext;
+            }
+            check(`${name} foreign entries with local next`, () => {
+                const iterator = foreign.entries();
+                iterator.next = originalNext;
+                return iterator;
+            }, Array.prototype);
+        }
+    });
+</script>
