@@ -2737,6 +2737,7 @@ pub unsafe extern "C" fn style_engine_compare_style_records(
     new_style_record: u64,
     font_lists_equal: bool,
     element_folds_transform_into_layout: bool,
+    element_propagates_overflow_to_viewport: bool,
 ) -> u32 {
     let engine = unsafe { &mut *engine.cast::<StyleEngine>() };
     engine.compare_style_records(
@@ -2744,6 +2745,7 @@ pub unsafe extern "C" fn style_engine_compare_style_records(
         new_style_record,
         font_lists_equal,
         element_folds_transform_into_layout,
+        element_propagates_overflow_to_viewport,
     )
 }
 

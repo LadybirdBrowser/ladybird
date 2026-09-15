@@ -894,7 +894,7 @@ pub struct StyleEngine {
     style_record_memory: MemoryLease,
     animation_overlay_memory: MemoryLease,
     computed_pseudo_assignment_memory: MemoryLease,
-    style_invalidation_cache: HashMap<(u64, u64, bool, bool), u32>,
+    style_invalidation_cache: HashMap<(u64, u64, bool, bool, bool), u32>,
 
     /// One identity per distinct match-answer factor, retained exact factor, or cascade input.
     /// The catalog lives with the document rather than with a traversal, because a per-element ask -

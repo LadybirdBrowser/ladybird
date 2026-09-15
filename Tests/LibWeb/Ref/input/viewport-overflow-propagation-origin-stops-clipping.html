@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html class="reftest-wait" style="overflow: hidden">
+<link rel="match" href="../expected/viewport-overflow-propagation-origin-stops-clipping-ref.html">
+<style>
+    html, body {
+        margin: 0;
+    }
+    body {
+        height: 100px;
+        overflow: hidden;
+        background: white;
+    }
+    #inside {
+        width: 50px;
+        height: 50px;
+        background: green;
+    }
+    #overflowing {
+        position: relative;
+        top: 50px;
+        width: 50px;
+        height: 50px;
+        background: green;
+    }
+</style>
+<body><div id="inside"></div><div id="overflowing"></div></body>
+<script>
+    // html's overflow is first propagated to the viewport, so body clips its green child. Once html's overflow is
+    // visible, body's overflow goes to the viewport instead and the child must paint outside body.
+    requestAnimationFrame(() => {
+        requestAnimationFrame(() => {
+            document.documentElement.style.overflow = "";
+            requestAnimationFrame(() => {
+                if (window.internals)
+                    internals.signalTestIsDone("PASS");
+                else
+                    document.documentElement.classList.remove("reftest-wait");
+            });
+        });
+    });
+</script>
+</html>
