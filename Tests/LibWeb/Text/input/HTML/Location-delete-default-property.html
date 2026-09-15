@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    test(() => {
+        for (const key of ["href", "valueOf", Symbol.toPrimitive]) {
+            println(`delete ${String(key)}: ${delete location[key]}`);
+            println(`${String(key)} configurable: ${Object.getOwnPropertyDescriptor(location, key).configurable}`);
+        }
+        println(`href after delete: ${location.href === document.URL}`);
+    });
+</script>

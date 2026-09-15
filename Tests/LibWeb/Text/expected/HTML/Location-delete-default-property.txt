@@ -1,0 +1,7 @@
+delete href: false
+href configurable: false
+delete valueOf: false
+valueOf configurable: false
+delete Symbol(Symbol.toPrimitive): false
+Symbol(Symbol.toPrimitive) configurable: false
+href after delete: true

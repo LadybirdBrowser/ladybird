@@ -249,13 +249,7 @@ JS::ErrorData const* {wrapper_class}::error_data() const
     Base::visit_edges(visitor);
 """
         )
-        if interface.name == "Location":
-            out.write(
-                """    visitor.visit(m_default_properties);
-"""
-            )
-        if interface.name in ("Location", "Window"):
-            out.write("    visitor.visit(m_cross_origin_property_descriptor_map);\n")
+        out.write("    visitor.visit(m_cross_origin_property_descriptor_map);\n")
         out.write(
             """}
 
