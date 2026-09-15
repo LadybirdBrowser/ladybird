@@ -277,10 +277,7 @@ impl StyleEngineState {
             // The row has to hold the rules that flipped for this kind: one this flush published
             // holds the cascade of the node's current answer.
             if state.is_some()
-                && scratch
-                    .flipped_pseudo_rules
-                    .iter()
-                    .any(|flip| flip.pseudo_kind == Some(u16::from(kind)))
+                && scratch.flipped_pseudo_rules & (1_u64 << kind) != 0
                 && self.current_winner_groups().pseudo_row_stamp(
                     node,
                     tree::PseudoElementTarget::new(tree::PseudoElementKind(u16::from(kind))),

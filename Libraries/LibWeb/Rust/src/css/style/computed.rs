@@ -327,6 +327,7 @@ struct ComputedGroup {
 struct ComputedGroupSet {
     identity_hash: u64,
     payloads: Box<[*const c_void]>,
+    groups: Box<[ComputedGroupID]>,
     canonical_longhand_table: Option<ComputedLonghandTableID>,
 }
 
@@ -848,22 +849,8 @@ impl ComputedGroupSets {
         Some(self.inherited_sets.get(groups).len())
     }
 
-    fn group_identity(&self, index: usize, payload: *const c_void) -> ComputedGroupID {
-        let key = (index, payload as usize);
-        self.groups
-            .find(content_hash(key), |_identity, group| {
-                (group.index, group.payload as usize) == key
-            })
-            .expect("computed group-set payload names a live group")
-    }
-
     fn group_identities(&self, set: ComputedGroupSetID) -> impl Iterator<Item = ComputedGroupID> {
-        self.sets[set]
-            .payloads
-            .iter()
-            .copied()
-            .enumerate()
-            .map(move |(index, payload)| self.group_identity(index, payload))
+        self.sets[set].groups.iter().copied()
     }
 
     fn pseudo_rows(&self, node: StyleNodeID) -> &[PseudoComputedRow] {
@@ -1001,14 +988,7 @@ impl ComputedGroupSets {
 
     fn intern_group_set(&mut self, groups: &[ComputedGroupID]) -> (ComputedGroupSetID, bool) {
         let hash = content_hash(groups);
-        if let Some(identity) = self.sets.find(hash, |_identity, set| {
-            set.payloads.len() == groups.len()
-                && set
-                    .payloads
-                    .iter()
-                    .zip(groups)
-                    .all(|(&payload, &identity)| payload == self.groups[identity].payload)
-        }) {
+        if let Some(identity) = self.sets.find(hash, |_identity, set| set.groups.as_ref() == groups) {
             return (identity, false);
         }
         let identity = self.sets.take_free_identity().unwrap_or_else(|| {
@@ -1017,10 +997,9 @@ impl ComputedGroupSets {
         let payloads = groups
             .iter()
             .map(|identity| self.groups[*identity].payload)
-            .collect::<Vec<_>>()
-            .into_boxed_slice();
+            .collect::<Box<[_]>>();
         self.group_set_nested_memory
-            .grow_committed(size_of_val(payloads.as_ref()) as u64);
+            .grow_committed((size_of_val(payloads.as_ref()) + size_of_val(groups)) as u64);
         self.identity_mints.group_sets += 1;
         self.sets.insert(
             hash,
@@ -1028,6 +1007,7 @@ impl ComputedGroupSets {
             ComputedGroupSet {
                 identity_hash: hash,
                 payloads,
+                groups: groups.into(),
                 canonical_longhand_table: None,
             },
         );
@@ -1330,15 +1310,7 @@ impl ComputedGroupSets {
         let mut groups: SmallVec<[_; crate::css::table_group_builder::group_index::COUNT]> = parent_groups
             .iter()
             .copied()
-            .chain(
-                old_group_set
-                    .payloads
-                    .iter()
-                    .copied()
-                    .enumerate()
-                    .skip(INHERITED_GROUP_COUNT)
-                    .map(|(index, payload)| self.group_identity(index, payload)),
-            )
+            .chain(old_group_set.groups.iter().copied().skip(INHERITED_GROUP_COUNT))
             .collect();
         if let Some(table) = &swapped_table
             && current_color_dependencies & !INHERITED_GROUP_MASK != 0
@@ -1716,15 +1688,17 @@ impl ComputedGroupSets {
         &mut self,
         base_style_record: StyleRecordID,
         source_identity: u64,
-        animated_overlay: &mut Option<Box<crate::css::animated_overlay::AnimatedOverlay>>,
+        animated_overlay: Option<&crate::css::animated_overlay::AnimatedOverlay>,
         payloads: &[*const c_void],
     ) -> (u32, FinalStyleRecordID, bool) {
         let record = self.make_animation_overlay_record(
             base_style_record,
             source_identity,
-            animated_overlay
-                .take()
-                .expect("animation overlay properties are missing"),
+            Box::new(
+                animated_overlay
+                    .expect("animation overlay properties are missing")
+                    .clone(),
+            ),
             payloads,
         );
         self.animation_overlay_nested_memory
@@ -1776,7 +1750,7 @@ impl ComputedGroupSets {
         current_slot: Option<u32>,
         base_style_record: StyleRecordID,
         source_identity: u64,
-        animated_overlay: &mut Option<Box<crate::css::animated_overlay::AnimatedOverlay>>,
+        animated_overlay: Option<&crate::css::animated_overlay::AnimatedOverlay>,
         payloads: &[*const c_void],
     ) -> AnimationOverlayPublication {
         if source_identity == 0 {
@@ -1814,9 +1788,11 @@ impl ComputedGroupSets {
                 let record = self.make_animation_overlay_record(
                     base_style_record,
                     source_identity,
-                    animated_overlay
-                        .take()
-                        .expect("animation overlay properties are missing"),
+                    Box::new(
+                        animated_overlay
+                            .expect("animation overlay properties are missing")
+                            .clone(),
+                    ),
                     payloads,
                 );
                 let new_payload_bytes = size_of_val(record.payloads.as_ref()) as u64;
@@ -1887,13 +1863,12 @@ impl ComputedGroupSets {
             )
         };
         let previous_style_record = self.final_style_record(base_style_record, current_slot);
-        let mut animated_overlay =
-            (!animated_overlay.is_null()).then(|| Box::new(unsafe { &*animated_overlay }.clone()));
+        let animated_overlay = unsafe { animated_overlay.as_ref() };
         let publication = self.update_animation_overlay(
             current_slot,
             base_style_record,
             source_identity,
-            &mut animated_overlay,
+            animated_overlay,
             payloads,
         );
         if target.is_pseudo() {
@@ -1932,11 +1907,7 @@ impl ComputedGroupSets {
             animation_overlay_payloads,
             longhand_table,
         } = metadata_input;
-        let mut animated_overlay = if animated_overlay.is_null() {
-            None
-        } else {
-            Some(Box::new(unsafe { &*animated_overlay }.clone()))
-        };
+        let animated_overlay = unsafe { animated_overlay.as_ref() };
         let longhand_table = unsafe { longhand_table.as_ref() };
         let inherited_group_swap_eligible = dependency_flags & INHERITED_GROUP_SWAP_ELIGIBLE != 0;
         let dependency_flags = (dependency_flags & COMPUTED_VALUE_DEPENDENCY_FLAGS)
@@ -1990,9 +1961,7 @@ impl ComputedGroupSets {
                 groups.push(identity);
                 continue;
             }
-            let previous_identity = previous_group_set
-                .and_then(|set| self.sets[set].payloads.get(index).copied())
-                .map(|payload| self.group_identity(index, payload));
+            let previous_identity = previous_group_set.and_then(|set| self.sets[set].groups.get(index).copied());
             let previous_equal_identity = previous_identity
                 .filter(|identity| style_group_payloads_equal(index, payload, self.groups[*identity].payload));
             let identity = match previous_equal_identity {
@@ -2077,7 +2046,7 @@ impl ComputedGroupSets {
                 previous.and_then(|previous| previous.animation_overlay_slot),
                 style_record_identity,
                 animation_overlay_identity,
-                &mut animated_overlay,
+                animated_overlay,
                 animation_overlay_payloads,
             );
             let row = self.ensure_pseudo_row(node, pseudo_kind);
@@ -2110,7 +2079,7 @@ impl ComputedGroupSets {
                 self.columns.animation_overlay_slot(index),
                 style_record_identity,
                 animation_overlay_identity,
-                &mut animated_overlay,
+                animated_overlay,
                 animation_overlay_payloads,
             );
             let changed = (
@@ -2245,12 +2214,11 @@ impl ComputedGroupSets {
                 .and_then(|row| row.assignment);
             let previous_style_record_identity = previous
                 .map(|previous| self.final_style_record(previous.style_record, previous.animation_overlay_slot));
-            let mut animated_overlay = None;
             let animation_overlay_publication = self.update_animation_overlay(
                 previous.and_then(|previous| previous.animation_overlay_slot),
                 style_record_identity,
                 0,
-                &mut animated_overlay,
+                None,
                 &[],
             );
             let row = self.ensure_pseudo_row(target.node, target.pseudo_kind);
@@ -2282,12 +2250,11 @@ impl ComputedGroupSets {
             }
             let previous_style_record_identity = self.style_record_column[index]
                 .map(|style_record| self.final_style_record(style_record, self.columns.animation_overlay_slot(index)));
-            let mut animated_overlay = None;
             let animation_overlay_publication = self.update_animation_overlay(
                 self.columns.animation_overlay_slot(index),
                 style_record_identity,
                 0,
-                &mut animated_overlay,
+                None,
                 &[],
             );
             let changed = (
@@ -3025,8 +2992,8 @@ impl ComputedGroupSets {
             if !is_reachable {
                 continue;
             }
-            for (group_index, &payload) in self.sets[index].payloads.iter().enumerate() {
-                ComputedReachability::mark(&mut reachable.groups, self.group_identity(group_index, payload));
+            for &group in &self.sets[index].groups {
+                ComputedReachability::mark(&mut reachable.groups, group);
             }
         }
         for (index, is_reachable) in reachable.inherited_sets.iter().copied().enumerate() {
@@ -3080,11 +3047,12 @@ impl ComputedGroupSets {
                 ComputedGroupSet {
                     identity_hash: 0,
                     payloads: Box::default(),
+                    groups: Box::default(),
                     canonical_longhand_table: None,
                 },
             );
             self.group_set_nested_memory
-                .shrink_committed(size_of_val(set.payloads.as_ref()) as u64);
+                .shrink_committed((size_of_val(set.payloads.as_ref()) + size_of_val(set.groups.as_ref())) as u64);
             self.sets.retire_identity(set.identity_hash, identity);
         }
         for identity in self

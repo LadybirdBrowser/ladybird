@@ -1680,15 +1680,14 @@ impl StyleEngineState {
                     let flipped_rules = selector_truth_changes.deltas_for(root);
                     let answer_is_unchanged =
                         answer.cascade_input.is_some() && answer.cascade_input == previous_cascade_inputs[root_index];
-                    let flipped: Vec<publication::FlippedRule> = flipped_rules
+                    let flipped: publication::FlippedRules = flipped_rules
                         .iter()
-                        .map(|delta| publication::FlippedRule {
-                            pseudo_kind: self
-                                .programs
+                        .map(|delta| {
+                            self.programs
                                 .entry(delta.entry)
                                 .1
                                 .pseudo_element
-                                .map(|pseudo| pseudo.kind.0),
+                                .map(|pseudo| pseudo.kind.0)
                         })
                         .collect();
                     let winners_are_exact = !environment_changed
@@ -1702,7 +1701,7 @@ impl StyleEngineState {
                     self.prepare_root_font_inputs(
                         root,
                         answer.cascade_winners_are_complete,
-                        winners_are_exact.then_some(flipped.as_slice()),
+                        winners_are_exact.then_some(flipped),
                         parent_inputs,
                         &mut engine_computed_record_scratch,
                         counters,
@@ -1904,15 +1903,14 @@ impl StyleEngineState {
                             let flipped_rules = selector_truth_changes.deltas_for(node);
                             let answer_is_unchanged = answer.cascade_input.is_some()
                                 && answer.cascade_input == previous_cascade_inputs[published_index];
-                            let flipped: Vec<publication::FlippedRule> = flipped_rules
+                            let flipped: publication::FlippedRules = flipped_rules
                                 .iter()
-                                .map(|delta| publication::FlippedRule {
-                                    pseudo_kind: self
-                                        .programs
+                                .map(|delta| {
+                                    self.programs
                                         .entry(delta.entry)
                                         .1
                                         .pseudo_element
-                                        .map(|pseudo| pseudo.kind.0),
+                                        .map(|pseudo| pseudo.kind.0)
                                 })
                                 .collect();
                             let winners_are_exact = !environment_changed
@@ -1926,7 +1924,7 @@ impl StyleEngineState {
                             self.engine_computed_record_delta(
                                 node,
                                 answer.cascade_winners_are_complete,
-                                winners_are_exact.then_some(flipped.as_slice()),
+                                winners_are_exact.then_some(flipped),
                                 parent_inputs_moved,
                                 &mut engine_computed_record_scratch,
                                 counters,

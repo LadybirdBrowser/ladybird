@@ -102,7 +102,7 @@ impl Drop for RetainedCustomPropertyStore {
 /// by the fly string, and a `var()` reference names one by its text.
 pub(super) struct CustomPropertyName {
     pub(super) raw: RetainedUtf16FlyString,
-    pub(super) text: Box<[u16]>,
+    pub(super) text: Arc<[u16]>,
 }
 
 #[derive(Default)]
@@ -135,7 +135,7 @@ impl CustomPropertyEnvironments {
         let Entry::Vacant(entry) = self.names.entry(name) else {
             return false;
         };
-        let text: Box<[u16]> = text.into();
+        let text: Arc<[u16]> = text.into();
         self.nested_capacity_bytes += size_of_val(text.as_ref()) as u64;
         entry.insert(CustomPropertyName {
             raw: unsafe { RetainedUtf16FlyString::from_borrowed_raw(raw) },
@@ -260,7 +260,7 @@ impl CustomPropertyEnvironments {
 
     pub(super) fn remember_substitution(
         &mut self,
-        written: &RetainedStyleValueData,
+        written: RetainedStyleValueData,
         property: u16,
         environment: u64,
         value: RetainedStyleValueData,
@@ -271,7 +271,7 @@ impl CustomPropertyEnvironments {
         self.substitutions.insert(
             (written.pointer() as usize, property, environment),
             MemoizedSubstitution {
-                written_value: written.clone_retained(),
+                written_value: written,
                 value,
             },
         );

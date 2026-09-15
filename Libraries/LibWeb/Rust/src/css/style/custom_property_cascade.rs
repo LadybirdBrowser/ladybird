@@ -507,7 +507,7 @@ impl StyleEngineState {
             }
             values.push((
                 name.raw.raw(),
-                name.text.to_vec(),
+                name.text.clone(),
                 declared.important,
                 value.pointer().cast(),
             ));
@@ -569,7 +569,7 @@ impl StyleEngineState {
         &mut self,
         environment: u64,
         property: u16,
-        written: &RetainedStyleValueData,
+        written: RetainedStyleValueData,
         counters: &mut Counters,
     ) -> Option<RetainedStyleValueData> {
         if !custom_property_value_is_engine_resolvable(written.data()) {
@@ -587,7 +587,7 @@ impl StyleEngineState {
         }
         if let Some(value) = self
             .custom_property_environments
-            .substitution(written, property, environment)
+            .substitution(&written, property, environment)
         {
             counters.bump(Counter::EngineComputedRecordSubstitutionMemoHits);
             return Some(value);

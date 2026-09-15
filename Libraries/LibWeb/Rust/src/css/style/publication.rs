@@ -232,7 +232,7 @@ impl StyleEngineState {
         &mut self,
         node: StyleNodeID,
         cascade_winners_are_complete: bool,
-        exact_flipped_rules: Option<&[FlippedRule]>,
+        exact_flipped_rules: Option<FlippedRules>,
         parent_inputs_moved: ParentInputsMoved,
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
@@ -303,7 +303,7 @@ impl StyleEngineState {
         &mut self,
         node: StyleNodeID,
         cascade_winners_are_complete: bool,
-        exact_flipped_rules: Option<&[FlippedRule]>,
+        exact_flipped_rules: Option<FlippedRules>,
         parent_inputs_moved: ParentInputsMoved,
         scratch: &mut EngineComputedRecordScratch,
         counters: &mut Counters,
@@ -316,13 +316,7 @@ impl StyleEngineState {
             scratch.pseudo_deltas.clear();
             scratch.next_pseudo = 0;
             scratch.pseudo_uses_substitution = false;
-            scratch.flipped_pseudo_rules.clear();
-            scratch.flipped_pseudo_rules.extend(
-                exact_flipped_rules
-                    .into_iter()
-                    .flatten()
-                    .filter(|flip| flip.pseudo_kind.is_some()),
-            );
+            scratch.flipped_pseudo_rules = exact_flipped_rules.map_or(0, |flipped| flipped.pseudos);
             if parent_inputs_moved.inherited_style && !self.engine_marker_font_supported(node, counters) {
                 return None;
             }
@@ -385,7 +379,7 @@ impl StyleEngineState {
         &mut self,
         node: StyleNodeID,
         cascade_winners_are_complete: bool,
-        exact_flipped_rules: Option<&[FlippedRule]>,
+        exact_flipped_rules: Option<FlippedRules>,
         mut parent_inputs_moved: ParentInputsMoved,
         scratch: &mut EngineComputedRecordScratch,
         goal: FontDriveGoal,
@@ -458,8 +452,7 @@ impl StyleEngineState {
         // A record C++ computed holds no cascade state; when the reaction moved none of the
         // node's own rules its winners are the ones the record was computed from, and a full
         // drive against the moved parent inputs binds the state.
-        let winners_unchanged =
-            exact_flipped_rules.is_some_and(|flipped| flipped.iter().all(|flip| flip.pseudo_kind.is_some()));
+        let winners_unchanged = exact_flipped_rules.is_some_and(|flipped| !flipped.element);
         let delta = match self.computed_group_sets.cascade_state(target) {
             Some((previous_generation, previous_state)) => {
                 if previous_generation != generation {
@@ -534,8 +527,7 @@ impl StyleEngineState {
             // pseudo-element. The state has to hold the flips: a row this flush published holds
             // the cascade of the node's current answer. Anything else recomputes in C++.
             let flips_are_reflected = exact_flipped_rules.is_some_and(|flipped| {
-                !flipped.iter().any(|flip| flip.pseudo_kind.is_none())
-                    || self.current_winner_groups().row_stamp(node) == Some(self.flush_stamp)
+                !flipped.element || self.current_winner_groups().row_stamp(node) == Some(self.flush_stamp)
             });
             if !flips_are_reflected {
                 counters.bump(Counter::EngineComputedRecordBailUnchangedWinners);
@@ -2287,7 +2279,7 @@ impl StyleEngineState {
                 crate::css::style_value::StyleValueData::Unresolved { .. } => {
                     *substituted = true;
                     let value = value.clone_retained();
-                    let value = self.substitute_written_value(environment, winner.property, &value, counters)?;
+                    let value = self.substitute_written_value(environment, winner.property, value, counters)?;
                     invalid_as_unset(value)
                 }
                 // A longhand pending its shorthand's substitution takes its part of the
@@ -2302,7 +2294,7 @@ impl StyleEngineState {
                         counters.bump(Counter::EngineComputedRecordBailWinnerSpelling);
                         return None;
                     };
-                    let resolved = self.substitute_written_value(environment, shorthand, &written, counters)?;
+                    let resolved = self.substitute_written_value(environment, shorthand, written, counters)?;
                     match resolved.data() {
                         crate::css::style_value::StyleValueData::GuaranteedInvalid => unset_value(),
                         _ => expanded_longhand_value(shorthand, winner.property, &resolved).unwrap_or_else(unset_value),
@@ -3794,7 +3786,7 @@ pub(super) struct EngineComputedRecordScratch {
     /// The pseudo-element records settled beside the element derived last.
     pub(super) pseudo_deltas: Vec<PseudoRecordDelta>,
     /// The pseudo-element rules that flipped for the element being derived.
-    pub(super) flipped_pseudo_rules: Vec<FlippedRule>,
+    pub(super) flipped_pseudo_rules: u64,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
@@ -3803,11 +3795,29 @@ enum RecordDeltaParent {
     Inputs(ColdRecordParent),
 }
 
-/// A rule that came to match or stopped matching a node, by the pseudo-element it decides for,
-/// if any.
-#[derive(Clone, Copy)]
-pub(super) struct FlippedRule {
-    pub(super) pseudo_kind: Option<u16>,
+/// Which element and pseudo winner rows must reflect this update's exact rule flips.
+#[derive(Clone, Copy, Default)]
+pub(super) struct FlippedRules {
+    element: bool,
+    pseudos: u64,
+}
+
+impl FromIterator<Option<u16>> for FlippedRules {
+    fn from_iter<T: IntoIterator<Item = Option<u16>>>(kinds: T) -> Self {
+        let mut result = Self::default();
+        for kind in kinds {
+            match kind {
+                None => result.element = true,
+                Some(kind) => {
+                    // NB: Only the existing synthetic pseudo inventory consumes these bits.
+                    if let Some(bit) = 1_u64.checked_shl(u32::from(kind)) {
+                        result.pseudos |= bit;
+                    }
+                }
+            }
+        }
+        result
+    }
 }
 
 impl EngineComputedRecordScratch {
@@ -3815,7 +3825,7 @@ impl EngineComputedRecordScratch {
         capacity::capacity_bytes! {
             shallow [self.computability.states, self.cohorts, self.settled_nodes, self.cold_cohorts, self.stores,
                 self.substituted_states, self.pseudo_cohorts, self.pseudo_stores,
-                self.pseudo_deltas, self.flipped_pseudo_rules];
+                self.pseudo_deltas];
             cached [self.font_drive.capacity_bytes(),
                 self.prepared_root_font.as_ref().map_or(0, |(_, _, drive)| drive.capacity_bytes())];
             nested [];

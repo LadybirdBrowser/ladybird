@@ -214,7 +214,7 @@ fn substitution_memo_retains_its_written_value_key() {
     let written = RetainedStyleValueData::from_owned(StyleValueData::Number { value: 1.25 });
     let written_pointer = written.pointer();
     let value = RetainedStyleValueData::from_owned(StyleValueData::Keyword { keyword: 2 });
-    environments.remember_substitution(&written, 1, 0, value);
+    environments.remember_substitution(written.clone_retained(), 1, 0, value);
 
     // SAFETY: `written` and the memo both retain the value while this temporary Arc observes its
     // strong count.
