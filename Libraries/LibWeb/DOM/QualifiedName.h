@@ -9,6 +9,7 @@
 #pragma once
 
 #include <AK/Optional.h>
+#include <AK/RefCounted.h>
 #include <AK/Utf16FlyString.h>
 #include <LibWeb/Export.h>
 
