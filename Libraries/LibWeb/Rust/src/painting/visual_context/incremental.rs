@@ -519,6 +519,9 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
                     .paintable_rows()
                     .mark_descendant_subtree_caches_dirty_along_paint_chain(slot);
             }
+            if reconcile.shape_changed || !record_existed || contexts_changed {
+                layout_arena.push_paint_damage(slot, crate::painting::record::damage::PaintDamage::ALL_PRODUCERS);
+            }
             if previous_has_mask_nodes != assignment.record.has_mask_nodes {
                 mask_node_owners_changed = true;
             }
@@ -577,6 +580,13 @@ pub(crate) fn update_visual_context_tree<Arena: PaintableRowsRead>(
     tree.debug_assert_slot_accounting();
     if delta.structural_epoch_changed {
         tree.structural_epoch = allocate_structural_epoch();
+    }
+    // Whether any box but the viewport could take a wheel event decides if scroll metadata
+    // everywhere carries per-box wheel targets.
+    if state.scroll_state.has_non_viewport_wheel_scroll_target_candidate
+        != scroll_state.has_non_viewport_wheel_scroll_target_candidate
+    {
+        layout_arena.push_scroll_metadata_damage_everywhere();
     }
     state.scroll_state = scroll_state;
     state.needs_to_refresh_scroll_state = true;

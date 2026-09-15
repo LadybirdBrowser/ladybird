@@ -196,16 +196,45 @@ pub(crate) fn compute_fragment_ownership_for_block(
 }
 
 fn assign_for_block(layout_arena: &impl PaintableRowsRead, block: NodeSlotId) {
+    use crate::painting::record::damage::PaintDamage;
     let owners_with_filters = compute_fragment_ownership_for_block(layout_arena, block);
-    // Start every piece's box from a clean slate.
+    // Start every piece's box from a clean slate. A box whose filter changes paints a
+    // different selection of the block's fragments.
     let pieces = layout_arena.paintable_side_data(block).inline_box_pieces().to_vec();
+    let mut boxes_with_previous_filters = Vec::new();
     for piece in &pieces {
-        if let Some(paintable) = piece_paintable_of(layout_arena, piece.node) {
-            layout_arena.paintable_side_data_mut(paintable).fragment_ownership = None;
+        if let Some(paintable) = piece_paintable_of(layout_arena, piece.node)
+            && let Some(previous) = layout_arena
+                .paintable_side_data_mut(paintable)
+                .fragment_ownership
+                .take()
+        {
+            boxes_with_previous_filters.push((paintable, previous));
         }
     }
+    if let Some(previous) = layout_arena.paintable_side_data_mut(block).fragment_ownership.take() {
+        boxes_with_previous_filters.push((block, previous));
+    }
     for (owner, filter) in owners_with_filters {
+        let unchanged = boxes_with_previous_filters
+            .iter()
+            .any(|(previous_owner, previous)| *previous_owner == owner && *previous == filter);
+        if !unchanged {
+            layout_arena.push_paint_damage(owner, PaintDamage::DRAW_FOREGROUND | PaintDamage::HIT_FOREGROUND);
+        }
         layout_arena.paintable_side_data_mut(owner).fragment_ownership = Some(filter);
+    }
+    for (previous_owner, _) in boxes_with_previous_filters {
+        if layout_arena
+            .paintable_side_data(previous_owner)
+            .fragment_ownership
+            .is_none()
+        {
+            layout_arena.push_paint_damage(
+                previous_owner,
+                PaintDamage::DRAW_FOREGROUND | PaintDamage::HIT_FOREGROUND,
+            );
+        }
     }
 }
 

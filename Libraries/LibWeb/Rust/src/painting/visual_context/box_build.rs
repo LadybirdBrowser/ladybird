@@ -55,6 +55,23 @@ impl PaintableVisualContextAssignment {
     }
 
     pub(crate) fn apply(self, layout_arena: &mut impl PaintableRowsWrite) {
+        use crate::painting::record::damage::PaintDamage;
+        // Commands and hit-test items name the row's own nodes; the scroll metadata of every
+        // descendant names the nearest scroll node above it.
+        let (scroll_nodes_changed, non_invertible_transform_flipped) = match layout_arena
+            .paintable_visual_context_record(self.slot)
+        {
+            Some(_) => {
+                let data = layout_arena.paintable_data(self.slot);
+                (
+                    data.enclosing_scroll_node_index != self.enclosing_scroll_node_index
+                        || data.own_scroll_node_index != self.own_scroll_node_index
+                        || data.node_identity != self.node_identity,
+                    data.has_flag(PaintableFlag::HasNonInvertibleCssTransform) != self.has_non_invertible_css_transform,
+                )
+            }
+            None => (false, false),
+        };
         {
             let data = layout_arena.paintable_data_mut(self.slot);
             data.establishes_stacking_context = self.record.stacking_context.establishes_stacking_context;
@@ -70,6 +87,13 @@ impl PaintableVisualContextAssignment {
             );
         }
         layout_arena.set_paintable_visual_context_record(self.slot, self.record);
+        if scroll_nodes_changed {
+            layout_arena.push_paint_damage(self.slot, PaintDamage::ALL_PRODUCERS);
+            layout_arena.push_paint_damage_to_paint_subtree(self.slot, PaintDamage::SCROLL_METADATA);
+        }
+        if non_invertible_transform_flipped {
+            layout_arena.push_paint_damage(self.slot, PaintDamage::ELIGIBILITY | PaintDamage::ALL_PRODUCERS);
+        }
     }
 }
 

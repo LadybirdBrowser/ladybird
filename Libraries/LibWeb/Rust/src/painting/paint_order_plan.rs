@@ -241,7 +241,7 @@ impl PaintOrderBuilder<'_, '_> {
             return inputs;
         }
         let prepared = if self.use_prepared_inputs {
-            self.layout_arena.paintable_paint_cache(row).order_inputs()
+            self.layout_arena.row_paint_state(row).order_inputs()
         } else {
             None
         };
@@ -592,11 +592,11 @@ mod tests {
         }
         arena.paintable_rows_mut().paintable_data_mut(child).offset.x = CssPixels::from_integer(100);
         let after_move = PaintOrderInputs::gather(&arena.paintable_rows(), child);
-        assert!(!arena.paintable_paint_cache(child).update_order_inputs(after_move));
+        assert!(!arena.row_paint_state(child).update_order_inputs(after_move));
         let flags = &arena.data(child).flags;
         flags.set(flags.get() | NodeFlag::IsFlexItem as u32);
         let as_flex_item = PaintOrderInputs::gather(&arena.paintable_rows(), child);
-        assert!(arena.paintable_paint_cache(child).update_order_inputs(as_flex_item));
+        assert!(arena.row_paint_state(child).update_order_inputs(as_flex_item));
     }
 
     #[test]
