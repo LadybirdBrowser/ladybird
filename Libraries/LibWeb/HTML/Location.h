@@ -53,7 +53,7 @@ public:
     WebIDL::ExceptionOr<void> set_hash(Utf16String const&);
 
     WebIDL::ExceptionOr<void> replace(Utf16String const& url);
-    void reload() const;
+    WebIDL::ExceptionOr<void> reload() const;
     WebIDL::ExceptionOr<void> assign(Utf16String const& url);
 
 private:
