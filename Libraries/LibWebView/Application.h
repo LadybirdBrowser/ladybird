@@ -341,13 +341,14 @@ protected:
 
     virtual void process_did_exit(Process&&, Optional<int> exit_status);
 
-    virtual void add_platform_inspect_menu_items() { }
     virtual void create_platform_arguments(Core::ArgsParser&) { }
     virtual void create_platform_options(BrowserOptions&, RequestServerOptions&, WebContentOptions&) { }
+    virtual void create_platform_actions() { }
+    virtual Core::EventLoop& create_platform_event_loop();
+
     virtual bool should_coordinate_browser_process() const { return true; }
     // An application whose state must not leak between runs — or into a developer's own browsing state.
     virtual bool should_use_temporary_profile_by_default() const { return false; }
-    virtual Core::EventLoop& create_platform_event_loop();
 
     virtual Optional<ByteString> ask_user_for_download_path([[maybe_unused]] ByteString const& file) const { return {}; }
 

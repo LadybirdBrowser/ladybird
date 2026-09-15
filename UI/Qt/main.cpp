@@ -75,7 +75,6 @@ ErrorOr<int> ladybird_main(Main::Arguments arguments)
         return 0;
     }
 
-    app->initialize_macos_application_menu();
     auto& browser_process = app->browser_process();
 
     if (auto const& browser_options = Ladybird::Application::browser_options(); !browser_options.headless_mode.has_value()) {
