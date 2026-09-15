@@ -467,6 +467,7 @@ ContextState::ContextUpdateResult ContextState::handle_key_event(Web::KeyEvent c
     auto css_scroll_in_flight_destination = scroll_in_flight_destination.map([&](auto offset) { return m_async_scroll_tree.css_pixels_from_device_offset(offset); });
     auto snap_selection_intent = is_arrow ? Web::Compositor::SnapSelectionStrategy::Type::Direction : Web::Compositor::SnapSelectionStrategy::Type::EndPositionAndDirection;
     if (auto decision = m_scroll_snap_controller.decide_key_step(m_async_scroll_tree, m_scroll_state_snapshot, *target, m_async_scroll_tree.css_pixels_from_device_offset(delta), snap_selection_intent, css_scroll_in_flight_destination, now); decision.has_value()) {
+        schedule_end_of_scroll_step_gestures(now);
         if (auto* snap_scroll = decision->get_pointer<ScrollSnapController::SnapScrollStart>()) {
             start_snap_scroll(*target, move(*snap_scroll), false, now);
             return {
@@ -740,6 +741,7 @@ ContextState::WheelScrollOutcome ContextState::perform_wheel_scroll_of_node(Web:
         decision = m_scroll_snap_controller.decide_momentum_delta(m_async_scroll_tree, m_scroll_state_snapshot, node_id, css_delta);
 
     if (decision.has_value()) {
+        schedule_end_of_scroll_step_gestures(now);
         if (auto* snap_scroll = decision->get_pointer<ScrollSnapController::SnapScrollStart>()) {
             auto operation_id = start_snap_scroll(node_id, move(*snap_scroll), false, now);
             if (operation_tracking == Web::Compositor::AsyncScrollOperationTracking::Yes)
@@ -1031,7 +1033,7 @@ Web::Compositor::PendingAsyncScrollUpdates ContextState::take_pending_async_scro
     AK::swap(updates.completed_operation_ids, m_completed_async_scroll_operation_ids);
     AK::swap(updates.operation_ids_taken_over_by_user_input, m_async_scroll_operation_ids_taken_over_by_user_input);
     AK::swap(updates.started_user_scrolls, m_started_user_scrolls);
-    updates.user_scroll_gesture_in_progress = m_viewport_scrollbar_controller.has_captured_scrollbar() || !m_held_scroll_keys.is_empty();
+    updates.user_scroll_gesture_in_progress = user_scroll_gesture_in_progress();
     updates.user_scroll_gesture_ended = m_user_scroll_gesture_ended;
     m_user_scroll_gesture_ended = false;
     m_published_user_scroll_gesture_in_progress = updates.user_scroll_gesture_in_progress;
@@ -1059,7 +1061,7 @@ bool ContextState::has_pending_async_scroll_updates() const
         || !m_async_scroll_operation_ids_taken_over_by_user_input.is_empty()
         || !m_started_user_scrolls.is_empty()
         || m_user_scroll_gesture_ended
-        || (m_viewport_scrollbar_controller.has_captured_scrollbar() || !m_held_scroll_keys.is_empty()) != m_published_user_scroll_gesture_in_progress;
+        || user_scroll_gesture_in_progress() != m_published_user_scroll_gesture_in_progress;
 }
 
 void ContextState::viewport_size_updated(Gfx::IntSize viewport_size, Web::Compositor::WindowResizingInProgress window_resize_in_progress)
@@ -1492,6 +1494,40 @@ void ContextState::note_user_scroll_gesture_end_if_drag_ended(bool was_dragging_
 {
     if (was_dragging_viewport_scrollbar && !m_viewport_scrollbar_controller.has_captured_scrollbar())
         m_user_scroll_gesture_ended = true;
+}
+
+bool ContextState::user_scroll_gesture_in_progress() const
+{
+    return m_viewport_scrollbar_controller.has_captured_scrollbar()
+        || !m_held_scroll_keys.is_empty()
+        || m_scroll_snap_controller.has_gesture_awaiting_input();
+}
+
+void ContextState::schedule_end_of_scroll_step_gestures(MonotonicTime now)
+{
+    auto deadline = m_scroll_snap_controller.earliest_gesture_input_deadline();
+    if (!deadline.has_value()) {
+        if (m_scroll_step_gesture_input_timer)
+            m_scroll_step_gesture_input_timer->stop();
+        return;
+    }
+    if (!m_scroll_step_gesture_input_timer) {
+        m_scroll_step_gesture_input_timer = Core::Timer::create_single_shot(0, [this] {
+            end_scroll_step_gestures_whose_input_ran_out(MonotonicTime::now());
+        });
+    }
+    // The gesture has run out of input once the clock reads past the deadline.
+    auto delay = max(*deadline - now, AK::Duration::zero()).to_milliseconds() + 1;
+    m_scroll_step_gesture_input_timer->restart(static_cast<int>(delay));
+}
+
+void ContextState::end_scroll_step_gestures_whose_input_ran_out(MonotonicTime now)
+{
+    if (m_scroll_snap_controller.end_gestures_whose_input_ran_out(now)) {
+        m_user_scroll_gesture_ended = true;
+        request_rendering_update();
+    }
+    schedule_end_of_scroll_step_gestures(now);
 }
 
 Optional<ContextState::PendingFrame> ContextState::apply_viewport_scrollbar_drag(ViewportScrollbarController::Drag const& drag)

@@ -105,8 +105,9 @@ enum class ScrollAnimationKind : u8 {
 };
 
 // AD-HOC: Wheel events carry no gesture phase information, so a wheel gesture is considered finished once no input of
-//         it has moved a scrolling box for this long. The main thread settles the gesture after this delay, and the
-//         compositor chains the steps of a gesture across it.
+//         it has moved a scrolling box for this long. The side that scrolled the gesture's steps decides when its
+//         input ran out: the compositor reports the end of a gesture whose steps it chained, and the main thread
+//         settles the gesture on that report, or after this delay for the steps it scrolled itself.
 inline constexpr AK::Duration user_scroll_settle_delay = AK::Duration::from_milliseconds(500);
 
 }

@@ -46,6 +46,40 @@ void ScrollSnapController::end_gesture()
         state.gesture_start = {};
 }
 
+bool ScrollSnapController::has_gesture_awaiting_input() const
+{
+    for (auto const& [stable_node_id, state] : m_nodes) {
+        if (state.gesture_input_deadline.has_value())
+            return true;
+    }
+    return false;
+}
+
+Optional<MonotonicTime> ScrollSnapController::earliest_gesture_input_deadline() const
+{
+    Optional<MonotonicTime> earliest;
+    for (auto const& [stable_node_id, state] : m_nodes) {
+        if (!state.gesture_input_deadline.has_value())
+            continue;
+        if (!earliest.has_value() || *state.gesture_input_deadline < *earliest)
+            earliest = state.gesture_input_deadline;
+    }
+    return earliest;
+}
+
+bool ScrollSnapController::end_gestures_whose_input_ran_out(MonotonicTime now)
+{
+    bool ended_any = false;
+    for (auto& [stable_node_id, state] : m_nodes) {
+        if (!state.gesture_input_deadline.has_value() || now <= *state.gesture_input_deadline)
+            continue;
+        state.gesture_input_deadline = {};
+        state.unsnapped_scroll_destination = {};
+        ended_any = true;
+    }
+    return ended_any;
+}
+
 void ScrollSnapController::did_scroll_node_plainly(Web::Compositor::AsyncScrollNodeStableID stable_node_id, Web::ScrollGesturePhase phase, Web::CSSPixelPoint scroll_offset_before_scroll)
 {
     if (phase != Web::ScrollGesturePhase::Ongoing && phase != Web::ScrollGesturePhase::Momentum)
