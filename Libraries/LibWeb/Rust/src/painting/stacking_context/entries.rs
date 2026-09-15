@@ -87,6 +87,7 @@ impl LayoutNodeArena {
         else {
             return;
         };
+        let mut composition_changed = false;
         if let Some(z_index) = facts.nonzero_z_index_child_contribution() {
             let label = self.node_pre_order_label(slot);
             let position = table
@@ -95,18 +96,26 @@ impl LayoutNodeArena {
             table
                 .child_contexts_with_nonzero_z_index
                 .insert(position, NonzeroZIndexChildContext { z_index, slot });
+            composition_changed = true;
         } else if facts.contributes_to_stack_level_zero() {
             let label = self.node_pre_order_label(slot);
             let position = table
                 .stack_level_zero_boxes
                 .partition_point(|entry| self.node_pre_order_label(*entry) < label);
             table.stack_level_zero_boxes.insert(position, slot);
+            composition_changed = true;
         }
         if facts.contributes_non_positioned_float() {
+            composition_changed |= table.non_positioned_float_count == 0;
             table.non_positioned_float_count += 1;
         }
         if facts.contributes_inline_or_replaced() {
+            composition_changed |= table.inline_or_replaced_count == 0;
             table.inline_or_replaced_count += 1;
+        }
+        drop(tables);
+        if composition_changed {
+            self.note_stacking_context_composition_changed(enclosing);
         }
     }
 
@@ -122,6 +131,7 @@ impl LayoutNodeArena {
         else {
             return;
         };
+        let mut composition_changed = false;
         if facts.nonzero_z_index_child_contribution().is_some() {
             if let Some(position) = table
                 .child_contexts_with_nonzero_z_index
@@ -129,17 +139,25 @@ impl LayoutNodeArena {
                 .position(|entry| entry.slot == slot)
             {
                 table.child_contexts_with_nonzero_z_index.remove(position);
+                composition_changed = true;
             }
         } else if facts.contributes_to_stack_level_zero()
             && let Some(position) = table.stack_level_zero_boxes.iter().position(|entry| *entry == slot)
         {
             table.stack_level_zero_boxes.remove(position);
+            composition_changed = true;
         }
         if facts.contributes_non_positioned_float() {
+            composition_changed |= table.non_positioned_float_count == 1;
             table.non_positioned_float_count = table.non_positioned_float_count.saturating_sub(1);
         }
         if facts.contributes_inline_or_replaced() {
+            composition_changed |= table.inline_or_replaced_count == 1;
             table.inline_or_replaced_count = table.inline_or_replaced_count.saturating_sub(1);
+        }
+        drop(tables);
+        if composition_changed {
+            self.note_stacking_context_composition_changed(enclosing);
         }
     }
 
@@ -147,6 +165,7 @@ impl LayoutNodeArena {
         if !self.paintable_row_is_populated(root) {
             return;
         }
+        self.note_stacking_context_composition_changed(root);
         let mut tables = self.paintable_rows.stacking_context_entries.borrow_mut();
         let Some(table) = tables
             .get_mut(root.slot_index() as usize)

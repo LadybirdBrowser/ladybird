@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<script src="../include.js"></script>
+<style>
+    body { margin: 0; }
+    .stack { width: 140px; height: 80px; }
+    .item { width: 100px; height: 60px; flex: none; }
+    .front { background: red; }
+    .back { background: blue; z-index: 1; }
+    #flex { display: flex; }
+    #flex .back { margin-left: -100px; }
+    #grid { display: grid; }
+    #grid .item { grid-area: 1 / 1; }
+</style>
+<body>
+<div id="flex" class="stack"><div class="item front"></div><div class="item back"></div></div>
+<div id="grid" class="stack"><div class="item front"></div><div class="item back"></div></div>
+<script>
+promiseTest(async () => {
+    if (document.readyState !== "complete") await new Promise(resolve => addEventListener("load", resolve, { once: true }));
+    __outputElement.style.display = "none";
+    const output = [];
+    internals.recordDisplayListForTesting(true, false);
+    for (const kind of ["flex", "grid"]) {
+        const container = document.getElementById(kind);
+        const front = container.firstElementChild;
+        const back = container.lastElementChild;
+        const rect = front.getBoundingClientRect();
+        for (const zIndex of ["2", "auto", "0", "-1"]) {
+            front.style.zIndex = zIndex;
+            internals.recordDisplayListForTesting(true, false);
+            const expected = zIndex === "2" ? front : back;
+            const actual = document.elementFromPoint(rect.x + 10, rect.y + 10);
+            output.push(`${actual === expected ? "PASS" : "FAIL"}: ${kind} z-index ${zIndex}`);
+        }
+        front.style.zIndex = "auto";
+        for (const opacity of ["0.5", "1"]) {
+            front.style.opacity = opacity;
+            internals.recordDisplayListForTesting(true, false);
+            const actual = document.elementFromPoint(rect.x + 10, rect.y + 10);
+            output.push(`${actual === back ? "PASS" : "FAIL"}: ${kind} opacity ${opacity}`);
+        }
+    }
+    __outputElement.style.display = "";
+    for (const line of output) println(line);
+});
+</script>
