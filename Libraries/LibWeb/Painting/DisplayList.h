@@ -112,13 +112,15 @@ public:
         return adopt_ref(*new DisplayList(visual_context_tree.structural_epoch()));
     }
 
+    // Adopts a strong reference to immutable Rust command storage, including its run table.
+    static WEB_API NonnullRefPtr<DisplayList> adopt_rust_command_storage(AccumulatedVisualContextTree const&, void const*);
     static WEB_API NonnullRefPtr<DisplayList> create_from_command_bytes(AccumulatedVisualContextTree const&, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs);
 
     u64 compatible_visual_context_tree_structural_epoch() const { return m_compatible_visual_context_tree_structural_epoch; }
     u64 id() const { return m_id; }
 
-    ReadonlyBytes command_bytes() const { return m_command_bytes.span(); }
-    ReadonlySpan<DisplayListCommandRun> command_runs() const { return m_command_runs.span(); }
+    ReadonlyBytes command_bytes() const { return m_rust_command_storage ? m_shared_command_bytes : m_command_bytes.span(); }
+    ReadonlySpan<DisplayListCommandRun> command_runs() const { return m_rust_command_storage ? m_shared_command_runs : m_command_runs.span(); }
     ReadonlyBytes command_bytes_of_run(DisplayListCommandRun const& run) const { return command_bytes().slice(run.offset, run.size); }
     void set_surface_clear_color(Gfx::Color color) { m_surface_clear_color = color; }
     Optional<Gfx::Color> surface_clear_color() const { return m_surface_clear_color; }
@@ -160,6 +162,11 @@ private:
     mutable Atomic<void const*> m_replay_effect_clip_plan { nullptr };
     u64 m_compatible_visual_context_tree_structural_epoch { 0 };
     u64 m_id { 0 };
+    // Native construction and IPC decoding own their buffers here. Rust recordings instead
+    // share one immutable allocation with the cache; the spans borrow that retained owner.
+    void const* m_rust_command_storage { nullptr };
+    ReadonlyBytes m_shared_command_bytes;
+    ReadonlySpan<DisplayListCommandRun> m_shared_command_runs;
     ByteBuffer m_command_bytes;
     Vector<DisplayListCommandRun> m_command_runs;
     Optional<Gfx::Color> m_surface_clear_color;
