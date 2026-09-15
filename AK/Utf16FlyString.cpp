@@ -5,6 +5,7 @@
  */
 
 #include <AK/HashTable.h>
+#include <AK/Mutex.h>
 #include <AK/Singleton.h>
 #include <AK/Utf16FlyString.h>
 
@@ -16,9 +17,16 @@ struct Utf16FlyStringTableHashTraits : public Traits<Detail::Utf16StringData con
     static constexpr bool may_have_slow_equality_check() { return true; }
 };
 
-static auto& all_utf16_fly_strings()
+struct Utf16FlyStringTable {
+    // Interned data only removes itself once its destructor holds this mutex, so lookups must try_ref() entries, and
+    // nothing may drop a string reference while holding it.
+    Mutex mutex;
+    HashTable<Detail::Utf16StringData const*, Utf16FlyStringTableHashTraits> strings;
+};
+
+static Utf16FlyStringTable& utf16_fly_string_table()
 {
-    static Singleton<HashTable<Detail::Utf16StringData const*, Utf16FlyStringTableHashTraits>> table;
+    static Singleton<Utf16FlyStringTable> table;
     return *table;
 }
 
@@ -26,7 +34,13 @@ namespace Detail {
 
 void did_destroy_utf16_fly_string_data(Badge<Detail::Utf16StringData>, Detail::Utf16StringData const& data)
 {
-    all_utf16_fly_strings().remove(&data);
+    auto& table = utf16_fly_string_table();
+    MutexLocker locker { table.mutex };
+
+    // An equal string may have replaced this entry while the destructor waited for the mutex.
+    auto it = table.strings.find(data.hash(), [&](auto const& entry) { return entry == &data; });
+    if (it != table.strings.end())
+        table.strings.remove(it);
 }
 
 }
@@ -45,8 +59,12 @@ Optional<Utf16FlyString> Utf16FlyString::create_fly_string_from_cache(ViewType c
             return Utf16String::from_utf16(string);
     }
 
-    if (auto it = all_utf16_fly_strings().find(string.hash(), [&](auto const& entry) { return *entry == string; }); it != all_utf16_fly_strings().end())
-        return Utf16FlyString { Detail::Utf16StringBase(**it) };
+    auto& table = utf16_fly_string_table();
+    MutexLocker locker { table.mutex };
+
+    auto it = table.strings.find(string.hash(), [&](auto const& entry) { return *entry == string; });
+    if (it != table.strings.end() && (*it)->try_ref())
+        return Utf16FlyString { Detail::Utf16StringBase(adopt_ref(**it)) };
 
     return {};
 }
@@ -93,19 +111,25 @@ Utf16FlyString::Utf16FlyString(Utf16String const& string)
         return;
     }
 
-    if (auto it = all_utf16_fly_strings().find(data); it == all_utf16_fly_strings().end()) {
-        m_data = string;
+    auto& table = utf16_fly_string_table();
+    MutexLocker locker { table.mutex };
 
-        all_utf16_fly_strings().set(data);
-        data->mark_as_fly_string({});
-    } else {
-        m_data.set_data({}, *it);
+    if (auto it = table.strings.find(data); it != table.strings.end() && (*it)->try_ref()) {
+        m_data = Detail::Utf16StringBase(adopt_ref(**it));
+        return;
     }
+
+    // Replaces any equal entry that is waiting to be removed by its destructor.
+    m_data = string;
+    table.strings.set(data);
+    data->mark_as_fly_string({});
 }
 
 size_t Utf16FlyString::number_of_utf16_fly_strings()
 {
-    return all_utf16_fly_strings().size();
+    auto& table = utf16_fly_string_table();
+    MutexLocker locker { table.mutex };
+    return table.strings.size();
 }
 
 }

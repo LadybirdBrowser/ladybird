@@ -6,8 +6,11 @@
 
 #include <LibTest/TestCase.h>
 
+#include <AK/Array.h>
 #include <AK/FFIHelpers.h>
 #include <AK/Utf16FlyString.h>
+#include <AK/Vector.h>
+#include <LibThreading/Thread.h>
 
 static_assert(AK::Concepts::HashCompatible<Utf16String, Utf16FlyString>);
 static_assert(AK::Concepts::HashCompatible<Utf16FlyString, Utf16String>);
@@ -250,4 +253,55 @@ TEST_CASE(optional)
     released = string.release_value();
     EXPECT(!string.has_value());
     EXPECT_EQ(released, u"well 😀 hello"sv);
+}
+
+TEST_CASE(interning_the_same_strings_on_several_threads)
+{
+    static constexpr size_t thread_count = 8;
+    static constexpr size_t string_count = 1000;
+    auto initial_fly_string_count = Utf16FlyString::number_of_utf16_fly_strings();
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Array<Vector<Utf16FlyString>, thread_count> interned;
+    Vector<NonnullRefPtr<Threading::Thread>> threads;
+    for (size_t i = 0; i < thread_count; ++i) {
+        auto thread = Threading::Thread::construct("StringInterner"sv, [&interned, i]() {
+            for (size_t j = 0; j < string_count; ++j)
+                interned[i].append(Utf16FlyString { Utf16String::formatted("A long string interned on several threads {}", j) });
+            return 0;
+        });
+        thread->start();
+        threads.append(move(thread));
+    }
+    for (auto& thread : threads)
+        (void)thread->join();
+
+    EXPECT_EQ(Utf16FlyString::number_of_utf16_fly_strings(), initial_fly_string_count + string_count);
+    for (size_t i = 1; i < thread_count; ++i) {
+        for (size_t j = 0; j < string_count; ++j)
+            EXPECT_EQ(interned[i][j], interned[0][j]);
+    }
+}
+
+TEST_CASE(looking_up_strings_while_other_threads_drop_them)
+{
+    auto initial_fly_string_count = Utf16FlyString::number_of_utf16_fly_strings();
+
+    Vector<NonnullRefPtr<Threading::Thread>> threads;
+    for (size_t i = 0; i < 8; ++i) {
+        auto thread = Threading::Thread::construct("StringChurner"sv, []() {
+            for (size_t j = 0; j < 20'000; ++j) {
+                // A string that is alive must stay findable while an equal string that is being destroyed removes itself.
+                auto fly_string = Utf16FlyString::from_utf8("A long string that is interned and dropped repeatedly"sv);
+                auto same_fly_string = Utf16FlyString::from_utf8("A long string that is interned and dropped repeatedly"sv);
+                EXPECT_EQ(fly_string, same_fly_string);
+            }
+            return 0;
+        });
+        thread->start();
+        threads.append(move(thread));
+    }
+    for (auto& thread : threads)
+        (void)thread->join();
+
+    EXPECT_EQ(Utf16FlyString::number_of_utf16_fly_strings(), initial_fly_string_count);
 }
