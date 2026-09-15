@@ -121,6 +121,9 @@ struct Test {
 
     RefPtr<Core::Timer> timeout_timer {};
     ExpectedOutcome expected_outcome { ExpectedOutcome::Normal };
+    // Pre-navigation progress: the about:blank load that opens every test, then the session-history reset.
+    bool did_load_about_blank { false };
+    RefPtr<Core::Timer> pre_navigation_watchdog {};
 };
 
 struct TestCompletion {
