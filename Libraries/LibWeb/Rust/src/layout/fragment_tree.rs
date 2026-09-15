@@ -117,6 +117,15 @@ impl Fragment {
                 .zip(&previous.children)
                 .all(|(link, previous_link)| link.has_same_placement(previous_link))
     }
+
+    pub(crate) fn has_same_child_sequence(&self, previous: &Fragment) -> bool {
+        self.children.len() == previous.children.len()
+            && self
+                .children
+                .iter()
+                .zip(&previous.children)
+                .all(|(a, b)| a.fragment.node == b.fragment.node)
+    }
 }
 
 impl FragmentLink {

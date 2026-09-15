@@ -188,6 +188,9 @@ pub struct PaintCache {
     // after a cache-writing recording, never cleared by walks.
     self_dirty_gen: Cell<u64>,
     descendant_dirty_gen: Cell<u64>,
+    // The CSS paint-order decisions prepared for this row. Refreshing them compares the new
+    // snapshot with the old one, which is how paint-order changes are detected.
+    order_inputs: Cell<crate::painting::paint_order_plan::PaintOrderInputs>,
 }
 
 impl Default for PaintCache {
@@ -200,11 +203,25 @@ impl Default for PaintCache {
             captured_absolute_position: Cell::new(FfiCssPixelPoint::default()),
             self_dirty_gen: Cell::new(0),
             descendant_dirty_gen: Cell::new(0),
+            order_inputs: Cell::new(Default::default()),
         }
     }
 }
 
 impl PaintCache {
+    pub(crate) fn order_inputs(&self) -> Option<crate::painting::paint_order_plan::PaintOrderInputs> {
+        let inputs = self.order_inputs.get();
+        inputs.is_initialized().then_some(inputs)
+    }
+
+    pub(crate) fn update_order_inputs(&self, inputs: crate::painting::paint_order_plan::PaintOrderInputs) -> bool {
+        self.order_inputs.replace(inputs) != inputs
+    }
+
+    pub(crate) fn clear_order_inputs(&self) {
+        self.order_inputs.set(Default::default());
+    }
+
     pub fn commands(&self, phase: PaintPhase) -> Option<CachedBoxPhaseCommands> {
         self.commands[phase as usize].get()
     }

@@ -78,6 +78,111 @@ pub(crate) struct PaintScopePlan {
     pub items: SmallVec<[PaintOrderItem; 16]>,
 }
 
+/// The per-row decisions read by the CSS order planner. Geometry and drawing data do not
+/// belong here. Layout commit prepares the snapshot from the committed fragment and style;
+/// visual-context assignment updates the facts it owns. A changed snapshot means the row is
+/// placed differently by its ancestors' plans, or plans its own descendants differently.
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
+pub(crate) struct PaintOrderInputs {
+    flags: u32,
+    z_index: i32,
+}
+
+const _: () = assert!(std::mem::size_of::<PaintOrderInputs>() == 8);
+
+#[derive(Clone, Copy)]
+enum PaintOrderFlag {
+    EstablishesContext,
+    Positioned,
+    Floating,
+    Inline,
+    FlexOrGridItem,
+    FragmentedInline,
+    Replaced,
+    InlineLevelContext,
+    TableInside,
+    TableColumn,
+    Box,
+    SvgRoot,
+    CollapsedBorders,
+    HiddenColumns,
+    HasZIndex,
+}
+
+impl PaintOrderInputs {
+    pub(crate) fn is_initialized(self) -> bool {
+        self.flags != 0
+    }
+
+    // Display, node kind, fragmentation, flex/grid membership and table geometry are prepared
+    // by layout commit. Visual-context assignment only changes these live facts. A z-index on
+    // a flex or grid item also changes its positioned paint participation.
+    pub(crate) fn with_visual_context(
+        mut self,
+        facts: &crate::painting::stacking_context::StackingContextFacts,
+        z_index: Option<i32>,
+    ) -> Self {
+        for (flag, value) in [
+            (PaintOrderFlag::EstablishesContext, facts.establishes_stacking_context),
+            (PaintOrderFlag::Positioned, facts.is_positioned),
+            (PaintOrderFlag::HasZIndex, z_index.is_some()),
+        ] {
+            self.flags = (self.flags & !(1 << flag as u32)) | (u32::from(value) << flag as u32);
+        }
+        self.z_index = z_index.unwrap_or(0);
+        self
+    }
+
+    pub(crate) fn gather(arena: &PaintableRowsRef<'_>, row: NodeSlotId) -> Self {
+        let display = style_queries::display(arena, row);
+        let kind = arena.node_kind_if_live(row);
+        let z_index = style_queries::z_index(arena, row);
+        let (collapsed_borders, hidden_columns) = arena.with_committed_fragment_link(row, |link| {
+            link.map_or((false, false), |link| {
+                (
+                    link.fragment.collapsed_table_borders.is_some(),
+                    link.fragment.hidden_by_collapsed_columns,
+                )
+            })
+        });
+        use PaintOrderFlag::*;
+        let decisions = [
+            (
+                EstablishesContext,
+                arena.paintable_data(row).establishes_stacking_context,
+            ),
+            (Positioned, style_queries::is_positioned(arena, row)),
+            (Floating, style_queries::is_floating(arena, row)),
+            (Inline, display.is_inline_outside()),
+            (FlexOrGridItem, style_queries::is_flex_or_grid_item(arena, row)),
+            (FragmentedInline, node_painting::is_fragmented_inline(arena, row)),
+            (Replaced, style_queries::is_replaced_box(arena, row)),
+            (
+                InlineLevelContext,
+                display.is_inline_outside() && (display.is_flow_root_inside() || display.is_table_inside()),
+            ),
+            (TableInside, display.is_table_inside()),
+            (
+                TableColumn,
+                display.is_table_column_group() || display.is_table_column(),
+            ),
+            (Box, kind == Some(NodeKind::Box)),
+            (SvgRoot, kind == Some(NodeKind::SVGSVGBox)),
+            (CollapsedBorders, collapsed_borders),
+            (HiddenColumns, hidden_columns),
+            (HasZIndex, z_index.is_some()),
+        ];
+        // The high bit distinguishes the initial empty snapshot from a prepared row.
+        let flags = decisions.iter().fold(1 << 31, |flags, &(flag, value)| {
+            flags | (u32::from(value) << flag as u32)
+        });
+        Self {
+            flags,
+            z_index: z_index.unwrap_or(0),
+        }
+    }
+}
+
 impl PaintScopePlan {
     pub(crate) fn build(arena: &PaintableRowsRef<'_>, scope: PaintScope, paint_overlay: bool) -> Self {
         let mut builder = PaintOrderBuilder {
@@ -448,5 +553,32 @@ impl PaintOrderBuilder<'_, '_> {
                 self.append_box_phase(PaintPhase::Overlay);
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::css::css_pixels::CssPixels;
+    use crate::layout::LayoutNodeArena;
+    use crate::layout::node_data::NodeFlag;
+
+    #[test]
+    fn geometry_is_not_an_ordering_input_but_flex_item_participation_is() {
+        let mut arena = LayoutNodeArena::new();
+        let root = arena.allocate_for_test().slot;
+        let child = arena.allocate_for_test().slot;
+        arena.insert_child(root, child, NodeSlotId::INVALID);
+        for node in [root, child] {
+            arena.populate_paintable_row(node);
+            arena.refresh_paint_order_inputs(node);
+        }
+        arena.paintable_rows_mut().paintable_data_mut(child).offset.x = CssPixels::from_integer(100);
+        let after_move = PaintOrderInputs::gather(&arena.paintable_rows(), child);
+        assert!(!arena.paintable_paint_cache(child).update_order_inputs(after_move));
+        let flags = &arena.data(child).flags;
+        flags.set(flags.get() | NodeFlag::IsFlexItem as u32);
+        let as_flex_item = PaintOrderInputs::gather(&arena.paintable_rows(), child);
+        assert!(arena.paintable_paint_cache(child).update_order_inputs(as_flex_item));
     }
 }
