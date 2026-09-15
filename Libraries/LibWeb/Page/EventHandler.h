@@ -81,6 +81,7 @@ public:
     };
     bool is_handling_mouse_selection() const { return m_selection_mode != SelectionMode::None; }
     void reset_mouse_input_tracking(Badge<Page>);
+    void reset_hover_for_document_replacement(Badge<HTML::LocalNavigable>);
 
     Optional<MiddleButtonScrollHandler&> middle_button_scroll_handler() const
     {
@@ -173,6 +174,7 @@ private:
     };
     PointerEventDispatchResult dispatch_a_pointer_event_for_a_device_that_supports_hover(PointerEventType, GC::Ptr<DOM::Node>, RefPtr<Painting::ChromeWidget>, MouseEventCoordinates const&, CSSPixelPoint screen_position, CSSPixelPoint movement, unsigned button, unsigned buttons, unsigned modifiers, int click_count = 0);
     void track_the_effective_position_of_the_legacy_mouse_pointer(GC::Ptr<DOM::Node>, Optional<DOM::HoverEventData> = {});
+    void report_hovered_node_to_client(GC::Ptr<DOM::Node>);
 
     bool dispatch_chrome_widget_pointer_event(RefPtr<Painting::ChromeWidget>, Utf16FlyString const& type, unsigned button, CSSPixelPoint visual_viewport_position);
     void update_hovered_chrome_widget(RefPtr<Painting::ChromeWidget>);

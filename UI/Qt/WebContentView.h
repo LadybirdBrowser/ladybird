@@ -168,6 +168,7 @@ private:
     Web::DevicePixelPoint node_picker_position_for(QSinglePointEvent const&) const;
 
     void enqueue_native_event(Web::MouseEvent::Type, QSinglePointEvent const& event);
+    void handle_pointer_leave();
 
     void enqueue_native_event(Web::DragEvent::Type, QDropEvent const& event);
     void finish_handling_drag_event(Web::DragEvent const&);

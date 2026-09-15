@@ -3491,7 +3491,6 @@ EventHandler::PointerEventDispatchResult EventHandler::dispatch_a_pointer_event_
 
 void EventHandler::track_the_effective_position_of_the_legacy_mouse_pointer(GC::Ptr<DOM::Node> target, Optional<DOM::HoverEventData> hover_event_data)
 {
-    auto& page = m_navigable->page();
     auto& document = *m_navigable->active_document();
 
     // 1. Let T be the target of the pointerdown, pointerup or pointermove event being dispatched. For the pointerleave
@@ -3511,7 +3510,14 @@ void EventHandler::track_the_effective_position_of_the_legacy_mouse_pointer(GC::
     // 4. Set effective legacy mouse pointer position to T.
     m_effective_legacy_mouse_pointer_position = target;
 
-    // AD-HOC: Notify the WebView client about hovered text/links.
+    report_hovered_node_to_client(target);
+}
+
+// AD-HOC: Notify the WebView client about hovered text/links.
+void EventHandler::report_hovered_node_to_client(GC::Ptr<DOM::Node> target)
+{
+    auto& page = m_navigable->page();
+
     HTML::HTMLElement const* hovered_title_element = nullptr;
     if (target)
         hovered_title_element = target->enclosing_html_element_with_attribute(HTML::AttributeNames::title);
@@ -3527,7 +3533,7 @@ void EventHandler::track_the_effective_position_of_the_legacy_mouse_pointer(GC::
     if (target)
         hovered_link_element = target->enclosing_link_element();
     if (hovered_link_element) {
-        if (auto link_url = document.encoding_parse_url(hovered_link_element->href()); link_url.has_value()) {
+        if (auto link_url = target->document().encoding_parse_url(hovered_link_element->href()); link_url.has_value()) {
             page.client().page_did_hover_link(*link_url);
             page.set_is_hovering_link(true);
         }
@@ -3535,6 +3541,24 @@ void EventHandler::track_the_effective_position_of_the_legacy_mouse_pointer(GC::
         page.client().page_did_unhover_link();
         page.set_is_hovering_link(false);
     }
+
+    // Whatever the client shows now, this handler reported — so the hover is this handler's to end.
+    GC::Ptr<HTML::LocalNavigable> hover_reporting_navigable;
+    if (page.is_hovering_link() || page.is_in_tooltip_area())
+        hover_reporting_navigable = m_navigable;
+    page.set_hover_reporting_navigable({}, hover_reporting_navigable);
+}
+
+void EventHandler::reset_hover_for_document_replacement(Badge<HTML::LocalNavigable>)
+{
+    // The effective position is a node in the outgoing document. Forget it without dispatching boundary events into
+    // that document: The pointer didn't move; the document under it is going away. And if the link or tooltip the
+    // client shows is this handler's report, it's the outgoing document's too, and stays up until the pointer's next
+    // move. So, report it gone now. Another handler's report stands: The pointer rests in that handler's document, and
+    // this document (an iframe the pointer once passed through, e.g.) is going away underneath it.
+    m_effective_legacy_mouse_pointer_position = nullptr;
+    if (m_navigable->page().hover_reporting_navigable() == m_navigable)
+        report_hovered_node_to_client(nullptr);
 }
 
 void EventHandler::record_last_known_mouse_position(CSSPixelPoint visual_viewport_position, CSSPixelPoint screen_position, unsigned buttons, unsigned modifiers)

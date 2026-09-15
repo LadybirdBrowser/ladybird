@@ -1412,6 +1412,13 @@ void Tab::resizeEvent(QResizeEvent* event)
         update_hover_label();
 }
 
+void Tab::hideEvent(QHideEvent* event)
+{
+    QWidget::hideEvent(event);
+
+    m_hover_label->hide();
+}
+
 void Tab::update_hover_label()
 {
     m_hover_label->setText(QFontMetrics(m_hover_label->font()).elidedText(m_hover_label->text(), Qt::ElideRight, width() / 2 - 10));

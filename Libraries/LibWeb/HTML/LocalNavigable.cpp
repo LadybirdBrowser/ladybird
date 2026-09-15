@@ -1180,8 +1180,10 @@ void LocalNavigable::activate_history_entry(RefPtr<SessionHistoryEntry> entry, G
     m_active_session_history_entry = entry;
     if (m_active_document && m_active_document != new_document) {
         // The pending post-scroll hover refresh and scrollend settlement belong to the outgoing document; drop them.
+        // And so does the hover the page reported to its client; end it.
         cancel_hover_update_after_async_scroll();
         cancel_user_scroll_settlement();
+        m_event_handler.reset_hover_for_document_replacement({});
         m_active_document->set_navigable(nullptr);
     }
     m_active_document = new_document;
@@ -1465,8 +1467,10 @@ void LocalNavigable::set_active_document(GC::Ptr<DOM::Document> document)
         page().invalidate_compositor_keyboard_scroll_state();
     if (m_active_document && m_active_document != document) {
         // The pending post-scroll hover refresh and scrollend settlement belong to the outgoing document; drop them.
+        // And so does the hover the page reported to its client; end it.
         cancel_hover_update_after_async_scroll();
         cancel_user_scroll_settlement();
+        m_event_handler.reset_hover_for_document_replacement({});
         m_active_document->set_navigable(nullptr);
     }
     m_active_document = document;
