@@ -167,15 +167,25 @@ icu::NumberingSystem& LocaleData::numbering_system()
     return *m_numbering_system;
 }
 
-icu::DateTimePatternGenerator& LocaleData::date_time_pattern_generator()
+Optional<icu::DateTimePatternGenerator&> LocaleData::date_time_pattern_generator()
 {
     if (!m_date_time_pattern_generator) {
         UErrorCode status = U_ZERO_ERROR;
+        m_date_time_pattern_generator = adopt_own_if_nonnull(icu::DateTimePatternGenerator::createInstance(locale(), status));
 
-        m_date_time_pattern_generator = adopt_own(*icu::DateTimePatternGenerator::createInstance(locale(), status));
-        verify_icu_success(status);
+        if (!m_date_time_pattern_generator) {
+            status = U_ZERO_ERROR;
+
+            auto locale_without_numbering_system = locale();
+            locale_without_numbering_system.setUnicodeKeywordValue("nu", {}, status);
+
+            if (icu_success(status))
+                m_date_time_pattern_generator = adopt_own_if_nonnull(icu::DateTimePatternGenerator::createInstance(locale_without_numbering_system, status));
+        }
     }
 
+    if (!m_date_time_pattern_generator)
+        return {};
     return *m_date_time_pattern_generator;
 }
 

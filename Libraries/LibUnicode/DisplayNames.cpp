@@ -162,11 +162,15 @@ Optional<Utf16String> date_time_field_display_name(StringView locale, StringView
     if (!locale_data.has_value())
         return {};
 
+    auto pattern_generator = locale_data->date_time_pattern_generator();
+    if (!pattern_generator.has_value())
+        return {};
+
     auto icu_field = icu_date_time_field(field);
     auto icu_style = icu_date_time_style(style);
 
     icu::UnicodeString result;
-    result = locale_data->date_time_pattern_generator().getFieldDisplayName(icu_field, icu_style);
+    result = pattern_generator->getFieldDisplayName(icu_field, icu_style);
 
     return icu_string_to_utf16_string(result);
 }
