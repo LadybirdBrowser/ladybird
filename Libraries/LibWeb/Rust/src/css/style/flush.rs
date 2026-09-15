@@ -1956,16 +1956,23 @@ impl StyleEngineState {
                     // A first record C++ declines for the custom-property environment it inherits
                     // takes its descendants' first records down with it: a descendant's environment is
                     // the parent's own, which fails the same check whenever the parent's did.
-                    // What this node tells its children, decided here, where it settles.
+                    // What this node tells its children, decided here, where it settles. A node
+                    // with nothing to say keeps no row: the fold reads a missing one as a node
+                    // that has not settled, which is what the walk it replaces concluded.
                     let settled = direct_inherited_delta.is_some() || engine_computed_delta.is_some();
-                    let row = publication::DerivedChildInputs {
-                        settled,
-                        inheritance_unresolved: !settled && reaction == transaction::STYLE_REACTION_INHERITED_STYLE,
-                        // A child folds the chain when it asks; this node's own facts are final
-                        // from here on, so the fold it caches will be kept.
-                        chain: None,
-                    };
-                    engine_computed_record_scratch.derived_child_inputs.insert(node, row);
+                    let inheritance_unresolved = !settled && reaction == transaction::STYLE_REACTION_INHERITED_STYLE;
+                    if settled || inheritance_unresolved {
+                        engine_computed_record_scratch.derived_child_inputs.insert(
+                            node,
+                            publication::DerivedChildInputs {
+                                settled,
+                                inheritance_unresolved,
+                                // A child folds the chain when it asks; this node's own facts
+                                // are final from here on, so the fold it caches is kept.
+                                chain: None,
+                            },
+                        );
+                    }
                     let (old_style_record, new_style_record, damage, gap) =
                         match (direct_inherited_delta, engine_computed_delta) {
                             (Some((old_style_record, new_style_record)), _) => (
