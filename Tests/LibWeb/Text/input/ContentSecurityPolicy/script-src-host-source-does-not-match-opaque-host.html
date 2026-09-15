@@ -1,0 +1,11 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    window.executed = false;
+</script>
+<script src="data://allowed.example/,window.executed=true"></script>
+<script>
+    test(() => {
+        println(`executed: ${window.executed}`);
+    });
+</script>

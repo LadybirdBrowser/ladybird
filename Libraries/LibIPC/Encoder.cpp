@@ -178,6 +178,12 @@ ErrorOr<void> encode(Encoder& encoder, URL::Host const& host)
 }
 
 template<>
+ErrorOr<void> encode(Encoder& encoder, URL::OpaqueHost const& opaque_host)
+{
+    return encoder.encode(opaque_host.value);
+}
+
+template<>
 ErrorOr<void> encode(Encoder& encoder, File const& file)
 {
     int fd = file.take_fd();
