@@ -577,12 +577,12 @@ Optional<LocaleID> parse_unicode_locale_id(Utf16View locale)
     return parse_unicode_locale_id_from_lexer(lexer);
 }
 
-Utf16String canonicalize_unicode_locale_id(StringView locale)
+Optional<Utf16String> canonicalize_unicode_locale_id(StringView locale)
 {
     return LocaleData::canonicalize(locale);
 }
 
-Utf16String canonicalize_unicode_locale_id(Utf16View locale)
+Optional<Utf16String> canonicalize_unicode_locale_id(Utf16View locale)
 {
     return LocaleData::canonicalize(locale.bytes());
 }

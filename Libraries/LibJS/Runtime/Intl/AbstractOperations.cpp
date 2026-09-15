@@ -111,9 +111,15 @@ bool is_well_formed_language_tag(Utf16View locale)
 }
 
 // 6.2.2 CanonicalizeUnicodeLocaleId ( locale ), https://tc39.es/ecma402/#sec-canonicalizeunicodelocaleid
-Utf16String canonicalize_unicode_locale_id(Utf16View locale)
+ThrowCompletionOr<Utf16String> canonicalize_unicode_locale_id(VM& vm, Utf16View locale)
 {
-    return Unicode::canonicalize_unicode_locale_id(locale);
+    // AD-HOC: The specification treats canonicalization as infallible, but ICU refuses locales that exceed its own
+    //         representation limits. Those are reported as a RangeError.
+    auto canonicalized_locale = Unicode::canonicalize_unicode_locale_id(locale);
+    if (!canonicalized_locale.has_value())
+        return vm.throw_completion<RangeError>(ErrorType::IntlUnsupportedLanguageTag, locale);
+
+    return canonicalized_locale.release_value();
 }
 
 // 6.3.1 IsWellFormedCurrencyCode ( currency ), https://tc39.es/ecma402/#sec-iswellformedcurrencycode
@@ -319,7 +325,7 @@ ThrowCompletionOr<Vector<Utf16String>> canonicalize_locale_list(VM& vm, Value lo
                     return vm.throw_completion<RangeError>(ErrorType::IntlInvalidLanguageTag, tag);
 
                 // vi. Let canonicalizedTag be ! CanonicalizeUnicodeLocaleId(tag).
-                canonicalized_tag = canonicalize_unicode_locale_id(tag);
+                canonicalized_tag = TRY(canonicalize_unicode_locale_id(vm, tag));
             }
             // iv. Else,
             else {
@@ -331,7 +337,7 @@ ThrowCompletionOr<Vector<Utf16String>> canonicalize_locale_list(VM& vm, Value lo
                     return vm.throw_completion<RangeError>(ErrorType::IntlInvalidLanguageTag, tag);
 
                 // vi. Let canonicalizedTag be ! CanonicalizeUnicodeLocaleId(tag).
-                canonicalized_tag = canonicalize_unicode_locale_id(tag.utf16_view());
+                canonicalized_tag = TRY(canonicalize_unicode_locale_id(vm, tag.utf16_view()));
             }
 
             // vii. If canonicalizedTag is not an element of seen, append canonicalizedTag as the last element of seen.
@@ -404,7 +410,7 @@ Optional<MatchedLocale> lookup_matching_locale_by_best_fit(ReadonlySpan<Utf16Str
 }
 
 // 9.2.6 InsertUnicodeExtensionAndCanonicalize ( locale, attributes, keywords ), https://tc39.es/ecma402/#sec-insert-unicode-extension-and-canonicalize
-Utf16String insert_unicode_extension_and_canonicalize(Unicode::LocaleID locale, Vector<Utf16String> attributes, Vector<Unicode::Keyword> keywords)
+ThrowCompletionOr<Utf16String> insert_unicode_extension_and_canonicalize(VM& vm, Unicode::LocaleID locale, Vector<Utf16String> attributes, Vector<Unicode::Keyword> keywords)
 {
     // Note: This implementation differs from the spec in how the extension is inserted. The spec assumes
     // the input to this method is a string, and is written such that operations are performed on parts
@@ -414,7 +420,7 @@ Utf16String insert_unicode_extension_and_canonicalize(Unicode::LocaleID locale, 
 
     // 10. Return CanonicalizeUnicodeLocaleId(newLocale).
     auto locale_string = locale.to_utf16_string();
-    return JS::Intl::canonicalize_unicode_locale_id(locale_string.utf16_view());
+    return JS::Intl::canonicalize_unicode_locale_id(vm, locale_string.utf16_view());
 }
 
 template<typename T>
@@ -457,7 +463,7 @@ static Vector<LocaleKey> available_keyword_values(Utf16View locale, Utf16View ke
 }
 
 // 9.2.7 ResolveLocale ( availableLocales, requestedLocales, options, relevantExtensionKeys, localeData ), https://tc39.es/ecma402/#sec-resolvelocale
-ResolvedLocale resolve_locale(ReadonlySpan<Utf16String> requested_locales, LocaleOptions const& options, ReadonlySpan<Utf16View> relevant_extension_keys)
+ThrowCompletionOr<ResolvedLocale> resolve_locale(VM& vm, ReadonlySpan<Utf16String> requested_locales, LocaleOptions const& options, ReadonlySpan<Utf16View> relevant_extension_keys)
 {
     auto true_string = "true"_utf16;
 
@@ -601,7 +607,7 @@ ResolvedLocale resolve_locale(ReadonlySpan<Utf16String> requested_locales, Local
         auto locale_id = Unicode::parse_unicode_locale_id(found_locale.utf16_view());
         VERIFY(locale_id.has_value());
 
-        auto icu_locale = insert_unicode_extension_and_canonicalize(locale_id.release_value(), {}, move(icu_keywords));
+        auto icu_locale = TRY(insert_unicode_extension_and_canonicalize(vm, locale_id.release_value(), {}, move(icu_keywords)));
         result.icu_locale = move(icu_locale);
     }
 
@@ -612,7 +618,7 @@ ResolvedLocale resolve_locale(ReadonlySpan<Utf16String> requested_locales, Local
 
         // a. Let supportedAttributes be a new empty List.
         // b. Set foundLocale to InsertUnicodeExtensionAndCanonicalize(foundLocale, supportedAttributes, supportedKeywords).
-        auto supported_locale = insert_unicode_extension_and_canonicalize(locale_id.release_value(), {}, move(supported_keywords));
+        auto supported_locale = TRY(insert_unicode_extension_and_canonicalize(vm, locale_id.release_value(), {}, move(supported_keywords)));
         found_locale = move(supported_locale);
     }
 
@@ -686,7 +692,7 @@ ThrowCompletionOr<ResolvedOptions> resolve_options(VM& vm, IntlObject& object, V
         modify_resolution_options(opt);
 
     // 8. Let resolution be ResolveLocale(constructor.[[AvailableLocales]], requestedLocales, opt, constructor.[[RelevantExtensionKeys]], localeData).
-    auto resolution = resolve_locale(requested_locales, opt, object.relevant_extension_keys());
+    auto resolution = TRY(resolve_locale(vm, requested_locales, opt, object.relevant_extension_keys()));
 
     // 9. Return the Record { [[Options]]: options, [[ResolvedLocale]]: resolution, [[ResolutionOptions]]: opt }.
     return ResolvedOptions { .options = options, .resolved_locale = move(resolution), .resolution_options = move(opt) };
