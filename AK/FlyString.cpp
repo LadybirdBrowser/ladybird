@@ -66,7 +66,7 @@ FlyString::FlyString(String const& string)
     if (it == all_fly_strings().end()) {
         m_data = string;
         all_fly_strings().set(string.m_impl.data);
-        string.m_impl.data->set_fly_string(true);
+        string.m_impl.data->mark_as_fly_string({});
     } else {
         m_data.m_impl.data = *it;
         m_data.m_impl.data->ref();

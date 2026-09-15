@@ -9,6 +9,8 @@
 #include <AK/FlyString.h>
 #include <AK/String.h>
 #include <AK/Try.h>
+#include <AK/Vector.h>
+#include <LibThreading/Thread.h>
 
 TEST_CASE(empty_string)
 {
@@ -141,4 +143,28 @@ TEST_CASE(is_one_of)
     EXPECT(bar.is_one_of("foo"sv, "bar"sv));
     EXPECT(bar.is_one_of("bar"sv, "foo"sv));
     EXPECT(bar.is_one_of("bar"sv));
+}
+
+// Only ThreadSanitizer can catch a regression here, since reading a stale flag only skips a pointer comparison.
+TEST_CASE(interning_while_other_threads_compare_copies)
+{
+    auto string = "Hello I am a long string that gets interned while in use"_string;
+
+    Vector<NonnullRefPtr<Threading::Thread>> threads;
+    for (size_t i = 0; i < 4; ++i) {
+        auto thread = Threading::Thread::construct("StringComparer"sv, [copy = string]() {
+            auto other = copy;
+            for (size_t comparison = 0; comparison < 100'000; ++comparison)
+                EXPECT(copy == other);
+            return 0;
+        });
+        thread->start();
+        threads.append(move(thread));
+    }
+
+    FlyString fly_string { string };
+    for (auto& thread : threads)
+        (void)thread->join();
+
+    EXPECT_EQ(fly_string.to_string(), string);
 }
