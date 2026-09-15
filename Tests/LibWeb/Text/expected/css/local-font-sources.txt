@@ -1,6 +1,7 @@
 Local metrics are immediately available: true
 Load notification remains asynchronous: true
 Resident local font remains usable after its deadline: true
+Local metrics are available past the deadline on first use: true
 Local ch metrics precede load notification: true
 Local font-relative metrics remain unchanged: true
 Excluded character leaves local subset unloaded: true
