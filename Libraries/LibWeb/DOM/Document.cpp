@@ -28,6 +28,7 @@
 #include <LibGC/ConservativeVector.h>
 #include <LibGC/Heap.h>
 #include <LibGC/HeapVector.h>
+#include <LibGC/RootHashMap.h>
 #include <LibGC/RootHashTable.h>
 #include <LibGC/RootVector.h>
 #include <LibHTTP/Cookie/Cookie.h>
@@ -8028,6 +8029,8 @@ void Document::update_compositor_animations()
 
     auto visual_context_tree = paint_state().visual_context_tree(*this);
     Vector<Compositor::VisualAnimation> visual_animations;
+    GC::RootHashMap<GC::Ref<Layout::Node>, bool> previous_content_retention;
+    GC::RootHashTable<GC::Ref<Layout::Node>> retained_this_pass;
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_compositor_driven_effects;
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_compositor_replaced_effects;
     GC::RootHashTable<GC::Ref<Animations::KeyframeEffect>> previously_published_effects;
@@ -8362,8 +8365,9 @@ void Document::update_compositor_animations()
         if (effect.is_offscreen_throttled())
             previously_offscreen_throttled_effects.set(effect);
         if (auto target = effect.target_abstract_element(); target.has_value()) {
-            if (auto* layout_node = target->unsafe_layout_node())
-                layout_node->set_retains_compositor_animated_content(false);
+            if (auto* layout_node = target->unsafe_layout_node()) {
+                previous_content_retention.ensure(*layout_node, [&] { return layout_node->retains_compositor_animated_content(); });
+            }
         }
         effect.set_is_compositor_driven(false);
         effect.set_is_compositor_replaced(false);
@@ -8709,8 +8713,19 @@ void Document::update_compositor_animations()
             visual_animations.append(visual_animation);
         effect.set_retained_compositor_animations(move(effect_visual_animations));
         if (auto* layout_node = abstract_target->unsafe_layout_node())
-            layout_node->set_retains_compositor_animated_content(true);
+            retained_this_pass.set(*layout_node);
         published_compositor_animation = true;
+    }
+
+    // Retention changes whether zero-opacity or singular-transform content is recorded. The
+    // flag is written once the pass is complete, so an animation that stays on the compositor
+    // changes nothing.
+    for (auto const& [layout_node, retained_before] : previous_content_retention) {
+        bool const retained_now = retained_this_pass.contains(layout_node);
+        if (retained_now == retained_before)
+            continue;
+        layout_node->set_retains_compositor_animated_content(retained_now);
+        Painting::set_needs_repaint(*layout_node, InvalidateDisplayList::PaintCommandsAndHitTestList);
     }
 
     for (auto& layout_node : layout_nodes_with_stale_forced_effects_layer) {

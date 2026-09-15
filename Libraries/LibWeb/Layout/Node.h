@@ -194,6 +194,7 @@ public:
     GC::Ptr<DOM::Element> pseudo_element_generator();
 
     bool needs_layout_update() const { return has_flag(RustFFI::NodeFlag::NeedsLayoutUpdate); }
+    bool retains_compositor_animated_content() const { return has_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform); }
     void set_retains_compositor_animated_content(bool value) { set_flag(RustFFI::NodeFlag::HasAnimatedOpacityOrTransform, value); }
     bool needs_compositor_effects_layer() const { return has_compositor_animation_frame(RustFFI::CompositorAnimationFrameKind::Opacity); }
     void set_needs_compositor_effects_layer(bool value) { set_needs_compositor_animation_frame(RustFFI::CompositorAnimationFrameKind::Opacity, value); }
