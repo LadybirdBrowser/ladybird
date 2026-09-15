@@ -5,12 +5,12 @@
  */
 
 #include <AK/Assertions.h>
+#include <AK/ConditionVariable.h>
 #include <AK/Error.h>
 #include <AK/Format.h>
+#include <AK/Mutex.h>
 #include <AK/Time.h>
 #include <AK/Windows.h>
-#include <LibSync/ConditionVariable.h>
-#include <LibSync/Mutex.h>
 
 namespace Sync {
 
@@ -77,6 +77,6 @@ void ConditionVariableBase<MutexType>::broadcast()
     WakeAllConditionVariable(to_impl(m_storage));
 }
 
-template class SYNC_API ConditionVariableBase<Mutex>;
+template class ConditionVariableBase<Mutex>;
 
 }

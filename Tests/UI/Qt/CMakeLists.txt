@@ -11,7 +11,7 @@ target_link_libraries(QtEventLoopTestMain PRIVATE AK LibCore LibTest Qt::Core)
 
 ladybird_test("TestEventLoopImplementation.cpp" UI/Qt
     CUSTOM_MAIN "$<TARGET_OBJECTS:QtEventLoopTestMain>"
-    LIBS LibSync LibThreading Qt::Core
+    LIBS LibThreading Qt::Core
 )
 target_sources(TestEventLoopImplementation PRIVATE
     "${LADYBIRD_SOURCE_DIR}/UI/Qt/EventLoopImplementationQt.cpp"

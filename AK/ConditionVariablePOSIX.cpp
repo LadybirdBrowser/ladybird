@@ -5,10 +5,9 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ConditionVariable.h>
+#include <AK/Mutex.h>
 #include <AK/Time.h>
-#include <LibSync/ConditionVariable.h>
-#include <LibSync/Export.h>
-#include <LibSync/Mutex.h>
 #include <errno.h>
 #include <pthread.h>
 
@@ -80,6 +79,6 @@ void ConditionVariableBase<MutexType>::broadcast()
     VERIFY(result == 0);
 }
 
-template class SYNC_API ConditionVariableBase<Mutex>;
+template class ConditionVariableBase<Mutex>;
 
 }

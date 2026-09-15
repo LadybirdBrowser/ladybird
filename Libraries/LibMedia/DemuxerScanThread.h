@@ -7,14 +7,14 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
+#include <AK/ConditionVariable.h>
 #include <AK/Function.h>
+#include <AK/Mutex.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/ThreadID.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/MediaStream.h>
-#include <LibSync/ConditionVariable.h>
-#include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
 
 namespace Media {

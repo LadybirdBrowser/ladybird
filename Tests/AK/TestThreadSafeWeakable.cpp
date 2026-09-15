@@ -6,8 +6,8 @@
 
 #include <AK/Atomic.h>
 #include <AK/AtomicRefCounted.h>
-#include <LibSync/Mutex.h>
-#include <LibSync/Weakable.h>
+#include <AK/Mutex.h>
+#include <AK/ThreadSafeWeakable.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 

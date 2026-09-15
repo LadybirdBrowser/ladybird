@@ -8,6 +8,7 @@
 
 #include <AK/Atomic.h>
 #include <AK/HashMap.h>
+#include <AK/Mutex.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
 #include <LibMedia/Audio/Forward.h>
@@ -18,7 +19,6 @@
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Processors/AudioProcessor.h>
 #include <LibMedia/Producers/AudioProducer.h>
-#include <LibSync/Mutex.h>
 
 namespace Media {
 

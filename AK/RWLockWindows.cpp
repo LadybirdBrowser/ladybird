@@ -8,9 +8,8 @@
 #include <AK/Concepts.h>
 #include <AK/Error.h>
 #include <AK/Format.h>
+#include <AK/RWLock.h>
 #include <AK/Windows.h>
-#include <LibSync/Export.h>
-#include <LibSync/RWLock.h>
 
 namespace Sync {
 

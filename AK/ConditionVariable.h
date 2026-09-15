@@ -10,11 +10,10 @@
 #include <AK/Concepts.h>
 #include <AK/Forward.h>
 #include <AK/Function.h>
+#include <AK/Mutex.h>
+#include <AK/MutexPolicy.h>
 #include <AK/Noncopyable.h>
 #include <AK/Platform.h>
-#include <LibSync/Export.h>
-#include <LibSync/Mutex.h>
-#include <LibSync/Policy.h>
 
 #if !defined(AK_OS_WINDOWS)
 #    include <pthread.h>
@@ -27,7 +26,7 @@ namespace Sync {
 // On Windows it wraps ConditionVariable
 template<typename MutexType>
 requires Detail::IsIntraprocess<MutexType> && Detail::IsNonRecursive<MutexType>
-class SYNC_API ConditionVariableBase {
+class ConditionVariableBase {
     AK_MAKE_NONCOPYABLE(ConditionVariableBase);
     AK_MAKE_NONMOVABLE(ConditionVariableBase);
 

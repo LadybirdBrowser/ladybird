@@ -8,7 +8,7 @@
 
 #include <AK/Concepts.h>
 #include <AK/Noncopyable.h>
-#include <LibSync/RWLock.h>
+#include <AK/RWLock.h>
 
 namespace Sync {
 

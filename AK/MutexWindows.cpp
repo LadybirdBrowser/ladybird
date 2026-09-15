@@ -8,9 +8,8 @@
 #include <AK/Concepts.h>
 #include <AK/Error.h>
 #include <AK/Format.h>
+#include <AK/Mutex.h>
 #include <AK/Windows.h>
-#include <LibSync/Export.h>
-#include <LibSync/Mutex.h>
 
 namespace Sync {
 
@@ -161,9 +160,9 @@ bool IPCRecursiveMutex::try_lock() { return try_lock_ipc_mutex(m_storage); }
 template<>
 void IPCRecursiveMutex::unlock() { unlock_ipc_mutex(m_storage); }
 
-template class SYNC_API MutexBase<PolicyNonRecursive, PolicyIntraprocess>;
-template class SYNC_API MutexBase<PolicyRecursive, PolicyIntraprocess>;
-template class SYNC_API MutexBase<PolicyNonRecursive, PolicyInterprocess>;
-template class SYNC_API MutexBase<PolicyRecursive, PolicyInterprocess>;
+template class MutexBase<PolicyNonRecursive, PolicyIntraprocess>;
+template class MutexBase<PolicyRecursive, PolicyIntraprocess>;
+template class MutexBase<PolicyNonRecursive, PolicyInterprocess>;
+template class MutexBase<PolicyRecursive, PolicyInterprocess>;
 
 }

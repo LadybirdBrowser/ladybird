@@ -6,10 +6,10 @@
 
 #include <AK/Checked.h>
 #include <AK/Enumerate.h>
+#include <AK/MutexProtected.h>
 #include <AK/NeverDestroyed.h>
 #include <AK/SaturatingMath.h>
 #include <LibGC/Heap.h>
-#include <LibSync/MutexProtected.h>
 #include <LibWasm/AbstractMachine/AbstractMachine.h>
 #include <LibWasm/AbstractMachine/BytecodeInterpreter.h>
 #include <LibWasm/AbstractMachine/Configuration.h>

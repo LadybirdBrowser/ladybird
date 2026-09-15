@@ -7,14 +7,14 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
+#include <AK/ConditionVariable.h>
 #include <AK/Error.h>
+#include <AK/Mutex.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefPtr.h>
 #include <LibCore/Forward.h>
 #include <LibIPC/TransportHandle.h>
-#include <LibSync/ConditionVariable.h>
-#include <LibSync/Mutex.h>
 #include <LibThreading/Forward.h>
 #include <LibWebView/Export.h>
 #include <LibWebView/Forward.h>

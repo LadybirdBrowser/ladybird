@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/Concepts.h>
+#include <AK/Mutex.h>
 #include <AK/Noncopyable.h>
-#include <LibSync/Mutex.h>
 
 namespace Sync {
 

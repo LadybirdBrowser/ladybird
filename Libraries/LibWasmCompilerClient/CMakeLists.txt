@@ -13,4 +13,4 @@ set(GENERATED_SOURCES
 )
 
 ladybird_lib(LibWasmCompilerClient wasmcompilerclient)
-target_link_libraries(LibWasmCompilerClient PRIVATE LibCore LibIPC LibSync LibThreading LibWasm)
+target_link_libraries(LibWasmCompilerClient PRIVATE LibCore LibIPC LibThreading LibWasm)

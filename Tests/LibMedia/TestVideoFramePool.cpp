@@ -4,14 +4,14 @@
  * SPDX-License-Identifier: BSD-2-Clause
  */
 
+#include <AK/ConditionVariable.h>
+#include <AK/Mutex.h>
 #include <AK/Time.h>
 #include <LibCore/System.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibMedia/VideoFrameHandle.h>
 #include <LibMedia/VideoFramePool.h>
 #include <LibMedia/VideoSurface.h>
-#include <LibSync/ConditionVariable.h>
-#include <LibSync/Mutex.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 

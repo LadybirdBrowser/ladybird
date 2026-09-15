@@ -6,9 +6,9 @@
 
 #pragma once
 
+#include <AK/Mutex.h>
 #include <AK/RefPtr.h>
 #include <LibIPC/Forward.h>
-#include <LibSync/Mutex.h>
 #include <LibWasmCompilerClient/Forward.h>
 
 namespace WasmCompilerClient {

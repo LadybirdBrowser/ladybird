@@ -5,6 +5,7 @@
  */
 
 #include <AK/Debug.h>
+#include <AK/Mutex.h>
 #include <LibCore/EventLoop.h>
 #include <LibMedia/Audio/SampleSpecification.h>
 #include <LibMedia/CodecParameters.h>
@@ -12,7 +13,6 @@
 #include <LibMedia/Demuxer.h>
 #include <LibMedia/FFmpeg/FFmpegAudioConverter.h>
 #include <LibMedia/Sinks/AudioSink.h>
-#include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
 
 #include "DecodedAudioProducer.h"

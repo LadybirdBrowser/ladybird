@@ -30,7 +30,6 @@ target_link_libraries(LibImageDecoders PRIVATE
     LibFileSystem
     LibGfx
     LibIPC
-    LibSync
     LibTextCodec
     LibUnicode
     JPEG::JPEG

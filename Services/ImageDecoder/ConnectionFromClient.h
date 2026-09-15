@@ -9,6 +9,7 @@
 #include <AK/Atomic.h>
 #include <AK/AtomicRefCounted.h>
 #include <AK/HashMap.h>
+#include <AK/Mutex.h>
 #include <ImageDecoder/Forward.h>
 #include <ImageDecoder/ImageDecoderClientEndpoint.h>
 #include <ImageDecoder/ImageDecoderServerEndpoint.h>
@@ -17,7 +18,6 @@
 #include <LibGfx/ColorSpace.h>
 #include <LibGfx/ImageFormats/ImageDecoder.h>
 #include <LibIPC/ConnectionFromClient.h>
-#include <LibSync/Mutex.h>
 
 namespace ImageDecoder {
 

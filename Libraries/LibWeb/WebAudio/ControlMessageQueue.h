@@ -7,8 +7,8 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
+#include <AK/Mutex.h>
 #include <AK/Vector.h>
-#include <LibSync/Mutex.h>
 #include <LibWeb/Export.h>
 #include <LibWeb/WebAudio/ControlMessage.h>
 

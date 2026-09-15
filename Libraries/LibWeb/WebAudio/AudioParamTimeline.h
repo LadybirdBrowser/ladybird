@@ -8,11 +8,11 @@
 #pragma once
 
 #include <AK/AtomicRefCounted.h>
+#include <AK/Mutex.h>
 #include <AK/Optional.h>
 #include <AK/Span.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
-#include <LibSync/Mutex.h>
 #include <LibWeb/Export.h>
 
 namespace Web::WebAudio {

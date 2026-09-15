@@ -6,11 +6,11 @@
 
 #pragma once
 
+#include <AK/Mutex.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Time.h>
 #include <AK/Vector.h>
 #include <LibMedia/Containers/ContainerNavigator.h>
-#include <LibSync/Mutex.h>
 
 namespace Media {
 

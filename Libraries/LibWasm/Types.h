@@ -9,10 +9,12 @@
 #include <AK/AtomicRefCounted.h>
 #include <AK/Badge.h>
 #include <AK/ByteString.h>
+#include <AK/ConditionVariable.h>
 #include <AK/DistinctNumeric.h>
 #include <AK/FixedArray.h>
 #include <AK/Function.h>
 #include <AK/LEB128.h>
+#include <AK/Mutex.h>
 #include <AK/NumericLimits.h>
 #include <AK/Optional.h>
 #include <AK/OwnPtr.h>
@@ -23,8 +25,6 @@
 #include <AK/Variant.h>
 #include <AK/WeakPtr.h>
 #include <LibCore/AnonymousBuffer.h>
-#include <LibSync/ConditionVariable.h>
-#include <LibSync/Mutex.h>
 #include <LibWasm/Constants.h>
 #include <LibWasm/Export.h>
 #include <LibWasm/Forward.h>

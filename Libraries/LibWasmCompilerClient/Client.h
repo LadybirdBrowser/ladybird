@@ -8,13 +8,13 @@
 
 #include <AK/Atomic.h>
 #include <AK/AtomicRefCounted.h>
+#include <AK/ConditionVariable.h>
 #include <AK/Function.h>
 #include <AK/HashMap.h>
+#include <AK/Mutex.h>
 #include <AK/Optional.h>
 #include <LibCore/AnonymousBuffer.h>
 #include <LibIPC/ConnectionToServer.h>
-#include <LibSync/ConditionVariable.h>
-#include <LibSync/Mutex.h>
 #include <WasmCompiler/WasmCompilerClientEndpoint.h>
 #include <WasmCompiler/WasmCompilerServerEndpoint.h>
 

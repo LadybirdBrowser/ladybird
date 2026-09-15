@@ -9,6 +9,7 @@
 #include <AK/Function.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/RefPtr.h>
+#include <AK/ThreadSafeWeakable.h>
 #include <AK/Time.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/Forward.h>
@@ -16,7 +17,6 @@
 #include <LibMedia/VideoEdgeQueue.h>
 #include <LibMedia/VideoFrameHandle.h>
 #include <LibMedia/VideoFramePool.h>
-#include <LibSync/Weakable.h>
 
 namespace Media {
 

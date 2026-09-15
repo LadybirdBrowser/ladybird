@@ -9,8 +9,8 @@
 #include <AK/Array.h>
 #include <AK/BinarySearch.h>
 #include <AK/IntegralMath.h>
+#include <AK/Mutex.h>
 #include <LibMedia/BitReader.h>
-#include <LibSync/Mutex.h>
 
 namespace Media {
 

@@ -8,7 +8,7 @@
 
 #include <AK/Atomic.h>
 #include <AK/Concepts.h>
-#include <LibSync/Mutex.h>
+#include <AK/Mutex.h>
 
 namespace Sync {
 

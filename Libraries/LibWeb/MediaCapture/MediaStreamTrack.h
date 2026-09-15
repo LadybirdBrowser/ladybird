@@ -9,6 +9,7 @@
 #include <AK/Atomic.h>
 #include <AK/AtomicRefCounted.h>
 #include <AK/Function.h>
+#include <AK/Mutex.h>
 #include <AK/NonnullRefPtr.h>
 #include <AK/Optional.h>
 #include <AK/RefCounted.h>
@@ -17,7 +18,6 @@
 #include <AK/Utf16String.h>
 #include <AK/Variant.h>
 #include <AK/Vector.h>
-#include <LibSync/Mutex.h>
 #include <LibWeb/Bindings/MediaStreamConstraints.h>
 #include <LibWeb/Bindings/MediaStreamTrack.h>
 #include <LibWeb/DOM/EventTarget.h>

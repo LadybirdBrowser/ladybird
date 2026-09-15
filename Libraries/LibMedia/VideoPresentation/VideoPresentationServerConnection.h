@@ -7,6 +7,7 @@
 #pragma once
 
 #include <AK/HashMap.h>
+#include <AK/ThreadSafeWeakable.h>
 #include <LibIPC/ConnectionFromClient.h>
 #include <LibMedia/Export.h>
 #include <LibMedia/PlaybackManager.h>
@@ -14,7 +15,6 @@
 #include <LibMedia/VideoPresentation/VideoPresentationClientEndpoint.h>
 #include <LibMedia/VideoPresentation/VideoPresentationServerEndpoint.h>
 #include <LibMedia/VideoSinkHandle.h>
-#include <LibSync/Weakable.h>
 
 namespace Media {
 

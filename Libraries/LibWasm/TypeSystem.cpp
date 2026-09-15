@@ -5,9 +5,9 @@
  */
 
 #include <AK/HashMap.h>
+#include <AK/Mutex.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/StringBuilder.h>
-#include <LibSync/Mutex.h>
 #include <LibWasm/AbstractMachine/Validator.h>
 #include <LibWasm/TypeSystem.h>
 

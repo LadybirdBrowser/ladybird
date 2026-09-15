@@ -7,6 +7,8 @@
 #include <AK/Array.h>
 #include <AK/Atomic.h>
 #include <AK/AtomicRefCounted.h>
+#include <AK/ConditionVariable.h>
+#include <AK/Mutex.h>
 #include <AK/Time.h>
 #include <LibCore/Forward.h>
 #include <LibCore/Timer.h>
@@ -16,8 +18,6 @@
 #include <LibMedia/AudioBlockTimingRing.h>
 #include <LibMedia/PipelineStatus.h>
 #include <LibMedia/Producers/AudioProducer.h>
-#include <LibSync/ConditionVariable.h>
-#include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
 
 #include "AudioPlaybackSink.h"

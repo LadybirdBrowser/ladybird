@@ -5,14 +5,14 @@
  */
 
 #include <AK/AtomicRefCounted.h>
+#include <AK/ConditionVariable.h>
 #include <AK/HashMap.h>
+#include <AK/Mutex.h>
 #include <LibMedia/Sinks/RemoteVideoSink.h>
 #include <LibMedia/VideoEdgeQueue.h>
 #include <LibMedia/VideoFrame.h>
 #include <LibMedia/VideoPresentation/PresentedFramePage.h>
 #include <LibMedia/VideoSurface.h>
-#include <LibSync/ConditionVariable.h>
-#include <LibSync/Mutex.h>
 #include <LibThreading/Thread.h>
 
 namespace Media {

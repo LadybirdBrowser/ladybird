@@ -11,6 +11,8 @@
 #include <AK/Atomic.h>
 #include <AK/Diagnostics.h>
 #include <AK/HashMap.h>
+#include <AK/Mutex.h>
+#include <AK/MutexProtected.h>
 #include <AK/NonnullOwnPtr.h>
 #include <AK/Time.h>
 #include <AK/Windows.h>
@@ -19,8 +21,6 @@
 #include <LibCore/ThreadEventQueue.h>
 #include <LibCore/TimeoutSet.h>
 #include <LibCore/Timer.h>
-#include <LibSync/Mutex.h>
-#include <LibSync/MutexProtected.h>
 
 struct OwnHandle {
     HANDLE handle = NULL;

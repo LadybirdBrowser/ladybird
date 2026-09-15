@@ -8,13 +8,13 @@
 #include <AK/HashMap.h>
 #include <AK/IDAllocator.h>
 #include <AK/NumericLimits.h>
+#include <AK/RWLock.h>
 #include <AK/Singleton.h>
 #include <AK/TemporaryChange.h>
 #include <Application/EventLoopImplementationMacOS.h>
 #include <LibCore/Event.h>
 #include <LibCore/Notifier.h>
 #include <LibCore/ThreadEventQueue.h>
-#include <LibSync/RWLock.h>
 
 #import <Cocoa/Cocoa.h>
 #import <CoreFoundation/CoreFoundation.h>

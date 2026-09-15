@@ -8,13 +8,13 @@
 
 #include <AK/Atomic.h>
 #include <AK/Math.h>
+#include <AK/Mutex.h>
 #include <AK/ScopeGuard.h>
 #include <AK/SourceLocation.h>
 #include <AK/Vector.h>
 #include <AK/kmalloc.h>
 #include <LibCore/ThreadedPromise.h>
 #include <LibMedia/Audio/PlaybackStreamAudioUnit.h>
-#include <LibSync/Mutex.h>
 
 #include <AudioToolbox/AudioFormat.h>
 #include <AudioUnit/AudioUnit.h>

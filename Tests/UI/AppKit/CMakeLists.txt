@@ -12,7 +12,7 @@ target_link_libraries(AppKitEventLoopTestMain PRIVATE AK LibCore LibTest "-frame
 ladybird_test("TestEventLoopImplementation.cpp" UI/AppKit
     CUSTOM_MAIN "$<TARGET_OBJECTS:AppKitEventLoopTestMain>"
     NAME TestAppKitEventLoopImplementation
-    LIBS LibSync LibThreading
+    LIBS LibThreading
 )
 target_sources(TestAppKitEventLoopImplementation PRIVATE "${LADYBIRD_SOURCE_DIR}/UI/AppKit/Application/EventLoopImplementationMacOS.mm")
 target_include_directories(TestAppKitEventLoopImplementation PRIVATE "${LADYBIRD_SOURCE_DIR}/UI/AppKit")

@@ -6,7 +6,10 @@
 
 #include <AK/GenericShorthands.h>
 #include <AK/HashMap.h>
+#include <AK/Mutex.h>
 #include <AK/NeverDestroyed.h>
+#include <AK/Once.h>
+#include <AK/RWLock.h>
 #include <AK/Singleton.h>
 #include <AK/TemporaryChange.h>
 #include <AK/Time.h>
@@ -19,9 +22,6 @@
 #include <LibCore/System.h>
 #include <LibCore/ThreadEventQueue.h>
 #include <LibCore/TimeoutSet.h>
-#include <LibSync/Mutex.h>
-#include <LibSync/Once.h>
-#include <LibSync/RWLock.h>
 #include <pthread.h>
 #include <signal.h>
 #include <sys/select.h>

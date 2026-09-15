@@ -7,6 +7,7 @@
 
 #include <AK/ByteReader.h>
 #include <AK/Checked.h>
+#include <AK/Mutex.h>
 #include <AK/ScopeGuard.h>
 #include <AK/Types.h>
 #include <LibCore/System.h>
@@ -15,7 +16,6 @@
 #include <LibIPC/Limits.h>
 #include <LibIPC/TransportHandle.h>
 #include <LibIPC/TransportSocketWindows.h>
-#include <LibSync/Mutex.h>
 
 #include <AK/Windows.h>
 

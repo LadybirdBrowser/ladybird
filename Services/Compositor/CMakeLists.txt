@@ -55,7 +55,7 @@ target_include_directories(compositorservice PRIVATE ${LADYBIRD_SOURCE_DIR}/Serv
 target_link_libraries(Compositor PRIVATE compositorservice LibCore LibMain LibSandbox LibWebView)
 # ANGLE must precede Skia so macOS GLES symbols bind to ANGLE rather than the
 # OpenGL framework pulled in by Skia.
-target_link_libraries(compositorservice PRIVATE LibCore LibGfx LibIPC LibMedia LibSync LibWeb ${ANGLE_TARGETS} skia)
+target_link_libraries(compositorservice PRIVATE LibCore LibGfx LibIPC LibMedia LibWeb ${ANGLE_TARGETS} skia)
 
 if (APPLE)
     target_link_libraries(compositorservice PUBLIC "-framework CoreGraphics" "-framework CoreVideo")

@@ -5,7 +5,10 @@
  */
 
 #include <AK/Atomic.h>
+#include <AK/ConditionVariable.h>
+#include <AK/Mutex.h>
 #include <AK/NonnullRefPtr.h>
+#include <AK/ThreadSafeWeakable.h>
 #include <AK/Vector.h>
 #include <LibCore/EventLoop.h>
 #include <LibCore/File.h>
@@ -28,9 +31,6 @@
 #include <LibMedia/VideoPresentation/PresentedFramePage.h>
 #include <LibMedia/VideoPresentation/VideoPresentationClientConnection.h>
 #include <LibMedia/VideoPresentation/VideoPresentationServerConnection.h>
-#include <LibSync/ConditionVariable.h>
-#include <LibSync/Mutex.h>
-#include <LibSync/Weakable.h>
 #include <LibTest/TestCase.h>
 #include <LibThreading/Thread.h>
 
