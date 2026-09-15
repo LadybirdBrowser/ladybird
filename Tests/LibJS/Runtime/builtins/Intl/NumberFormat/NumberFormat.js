@@ -33,6 +33,10 @@ describe("errors", () => {
         expect(() => {
             new Intl.NumberFormat("en", { numberingSystem: "hello!" });
         }).toThrowWithMessage(RangeError, "hello! is not a valid value for option numberingSystem");
+
+        expect(() => {
+            new Intl.NumberFormat("en", { numberingSystem: "abc_def" });
+        }).toThrowWithMessage(RangeError, "abc_def is not a valid value for option numberingSystem");
     });
 
     test("style option is invalid ", () => {
