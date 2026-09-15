@@ -38,6 +38,7 @@ DisplayList::DisplayList(u64 compatible_visual_context_tree_structural_epoch, u6
 DisplayList::~DisplayList()
 {
     Layout::RustFFI::display_list_destroy_effect_clip_plan(m_replay_effect_clip_plan.load());
+    Layout::RustFFI::display_list_release_command_storage(m_rust_command_storage);
 }
 
 void const* DisplayList::replay_effect_clip_plan(AccumulatedVisualContextTree const& tree) const
@@ -45,7 +46,8 @@ void const* DisplayList::replay_effect_clip_plan(AccumulatedVisualContextTree co
     VERIFY(m_compatible_visual_context_tree_structural_epoch == tree.structural_epoch());
     if (auto const* plan = m_replay_effect_clip_plan.load())
         return plan;
-    auto const* plan = Layout::RustFFI::display_list_create_effect_clip_plan(tree.rust_handle(), m_command_runs.data(), m_command_runs.size());
+    auto runs = command_runs();
+    auto const* plan = Layout::RustFFI::display_list_create_effect_clip_plan(tree.rust_handle(), runs.data(), runs.size());
     VERIFY(plan);
     void const* existing = nullptr;
     if (!m_replay_effect_clip_plan.compare_exchange_strong(existing, plan)) {
@@ -53,6 +55,18 @@ void const* DisplayList::replay_effect_clip_plan(AccumulatedVisualContextTree co
         return existing;
     }
     return plan;
+}
+
+NonnullRefPtr<DisplayList> DisplayList::adopt_rust_command_storage(AccumulatedVisualContextTree const& visual_context_tree, void const* storage)
+{
+    VERIFY(storage);
+    auto recorded = Layout::RustFFI::display_list_command_storage_view(storage);
+    auto display_list = create(visual_context_tree);
+    display_list->m_rust_command_storage = storage;
+    display_list->m_shared_command_bytes = { recorded.bytes, recorded.byte_count };
+    display_list->m_shared_command_runs = { recorded.command_runs, recorded.command_run_count };
+    MUST(validate_display_list_command_runs(display_list->command_bytes(), display_list->command_runs()));
+    return display_list;
 }
 
 NonnullRefPtr<DisplayList> DisplayList::create_from_command_bytes(AccumulatedVisualContextTree const& visual_context_tree, ByteBuffer&& command_bytes, Vector<DisplayListCommandRun>&& command_runs)
@@ -311,12 +325,14 @@ template<>
 ErrorOr<void> encode(Encoder& encoder, Web::Painting::DisplayList const& display_list)
 {
     TRY(encoder.encode(display_list.m_id));
-    TRY(encoder.encode(display_list.m_command_bytes));
+    auto command_bytes = display_list.command_bytes();
+    TRY(encoder.encode_size(command_bytes.size()));
+    TRY(encoder.append(command_bytes.data(), command_bytes.size()));
     TRY(encoder.encode(display_list.m_compatible_visual_context_tree_structural_epoch));
     TRY(encoder.encode(display_list.m_surface_clear_color));
     TRY(encoder.encode(display_list.m_async_scrolling_metadata));
     // Trivially copyable records, so they travel as raw bytes like the command tape does.
-    auto const& command_runs = display_list.m_command_runs;
+    auto command_runs = display_list.command_runs();
     TRY(encoder.encode_size(command_runs.size()));
     if (!command_runs.is_empty())
         TRY(encoder.append(reinterpret_cast<u8 const*>(command_runs.data()), command_runs.size() * sizeof(Web::Painting::DisplayListCommandRun)));

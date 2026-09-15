@@ -36,6 +36,7 @@ use crate::painting::record::cache::{OpenCapture, PendingPaintCacheUpdates, Reco
 use crate::painting::record::cache_compatibility::{PaintCacheCompatibility, PaintCacheInputs};
 use crate::painting::record::svg_resources::SvgResourceWalk;
 use std::rc::Rc;
+use std::sync::Arc;
 
 pub(crate) use inputs::RecordingInputs;
 
@@ -44,7 +45,7 @@ pub struct RecordingOutput {
     pub recorded_structural_epoch: u64,
     pub(crate) cache_inputs: PaintCacheInputs,
     pub hit_test_list: HitTestList,
-    pub display_list: Rc<RecordedDisplayList>,
+    pub display_list: Arc<RecordedDisplayList>,
     pub has_blocking_wheel_event_listeners: bool,
     pub wheel_event_listener_state_generation: u64,
     pub is_identical_to_cache_source: bool,
@@ -76,7 +77,7 @@ impl PaintPhase {
     }
 }
 pub(crate) struct DeferredWholeTapeSplice {
-    pub(crate) source_display_list: Rc<RecordedDisplayList>,
+    pub(crate) source_display_list: Arc<RecordedDisplayList>,
     pub(crate) prologue_byte_count: usize,
     pub(crate) source_range: CommandRange,
 }

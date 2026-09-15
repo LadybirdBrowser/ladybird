@@ -657,14 +657,6 @@ struct RecordingPublishContext {
     GC::Ref<DOM::Document const> document;
 };
 
-static NonnullRefPtr<DisplayList> display_list_from_rust_recording(AccumulatedVisualContextTree const& visual_context_tree, Layout::RustFFI::FfiRecordedDisplayList const& recorded)
-{
-    VERIFY(recorded.byte_count % DisplayList::command_alignment == 0);
-    auto command_bytes = MUST(ByteBuffer::copy(recorded.bytes, recorded.byte_count));
-    Vector<DisplayListCommandRun> command_runs { ReadonlySpan<DisplayListCommandRun> { recorded.command_runs, recorded.command_run_count } };
-    return DisplayList::create_from_command_bytes(visual_context_tree, move(command_bytes), move(command_runs));
-}
-
 static Layout::RustFFI::FfiRecordingPublishCallbacks recording_publish_callbacks(RecordingPublishContext& context)
 {
     return {
@@ -882,11 +874,10 @@ RefPtr<DisplayList> record_rust_display_list(DOM::Document& document, DisplayLis
         }
     }
 
-    auto recorded = Layout::RustFFI::layout_arena_recorded_display_list(arena);
+    auto display_list = DisplayList::adopt_rust_command_storage(document.visual_context_tree(), Layout::RustFFI::layout_arena_retain_recorded_display_list(arena));
     if (rust_painting_timing_enabled())
-        dbgln("PAINT_RECORD rust={} µs commands={} bytes", rust_timer.elapsed_time().to_microseconds(), recorded.byte_count);
+        dbgln("PAINT_RECORD rust={} µs commands={} bytes", rust_timer.elapsed_time().to_microseconds(), display_list->command_bytes().size());
 
-    auto display_list = display_list_from_rust_recording(document.visual_context_tree(), recorded);
     if (auto color = placeholder_display_list.surface_clear_color(); color.has_value())
         display_list->set_surface_clear_color(*color);
     stamp_async_scrolling_metadata_with_current_viewport_rect(*display_list);
@@ -920,9 +911,9 @@ DisplayListResource record_image_paint_display_list(ImagePaint const& paint, Ima
         });
     Optional<DisplayListResource> recorded_display_list;
     Layout::RustFFI::ladybird_web_record_image_paint_display_list(&inputs, &recorded_display_list,
-        [](void* context, Layout::RustFFI::FfiRecordedDisplayList recorded, void const* retained_tree) {
+        [](void* context, void const* retained_commands, void const* retained_tree) {
             auto visual_context_tree = AccumulatedVisualContextTree::adopt_rust_handle(retained_tree);
-            auto display_list = display_list_from_rust_recording(visual_context_tree, recorded);
+            auto display_list = DisplayList::adopt_rust_command_storage(visual_context_tree, retained_commands);
             *static_cast<Optional<DisplayListResource>*>(context) = DisplayListResource { move(display_list), move(visual_context_tree) };
         });
     return recorded_display_list.release_value();

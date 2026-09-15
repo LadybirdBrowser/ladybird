@@ -15,3 +15,4 @@ pub mod ffi_bytes;
 pub(crate) mod nested_records;
 pub mod recorder;
 pub mod replay;
+pub(crate) mod storage;

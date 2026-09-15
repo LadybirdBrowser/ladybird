@@ -27,7 +27,7 @@ fn resolve_vector_image_placeholders(
         .iter()
         .map(|request| publish.resolve_vector_image_display_list(&request.to_ffi()))
         .collect();
-    let display_list = std::rc::Rc::make_mut(&mut output.display_list);
+    let display_list = std::sync::Arc::make_mut(&mut output.display_list);
     let id_field_offset = std::mem::offset_of!(PaintNestedDisplayList, display_list_id);
     let mut patch_offsets = Vec::new();
     crate::painting::display_list::nested_records::for_each_command_including_nested(
@@ -114,7 +114,7 @@ fn publish_recording_output(
         .as_ref()
         .zip(paint_state.hit_test_item_cache_source.as_ref())
         .is_some_and(|(source, item_source)| {
-            std::rc::Rc::ptr_eq(&output.display_list, &source.display_list)
+            std::sync::Arc::ptr_eq(&output.display_list, &source.display_list)
                 && std::rc::Rc::ptr_eq(&output.hit_test_list.items, &item_source.items)
                 && output.recorded_structural_epoch == source.recorded_structural_epoch
                 && output.wheel_event_listener_state_generation == source.wheel_event_listener_state_generation

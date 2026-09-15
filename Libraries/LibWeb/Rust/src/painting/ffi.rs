@@ -16,7 +16,6 @@ use crate::painting::display_list::commands::SpatialNodeIndex;
 use crate::painting::display_list::commands::{ClipNodeIndex, ContextRef, EffectNodeIndex};
 use crate::painting::filter_bytes::filter_functions_graph;
 use crate::painting::force_dark::ForceDarkRole;
-use crate::painting::host::FfiRecordedDisplayList;
 use crate::painting::host::visual_context::FfiSvgFilterPrimitive;
 use crate::painting::paintable_data::*;
 use crate::painting::paintable_rows::{PaintableRowsRead, with_inline_pieces};
@@ -1881,13 +1880,13 @@ pub struct FfiImagePaintRecordInputs {
 /// # Safety
 ///
 /// `inputs`, and the gradient style value and color resolution input it points at, must be
-/// live for the call; `consume` is called synchronously with a recording that is only valid
-/// during that call and a retained visual context tree handle the host takes ownership of.
+/// live for the call. `consume` is called synchronously and takes ownership of the command
+/// storage and visual context tree handles.
 #[unsafe(no_mangle)]
 pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
     inputs: *const FfiImagePaintRecordInputs,
     context: *mut c_void,
-    consume: unsafe extern "C" fn(*mut c_void, FfiRecordedDisplayList, *const c_void),
+    consume: unsafe extern "C" fn(*mut c_void, *const c_void, *const c_void),
 ) {
     use crate::css::color_resolution::{
         FfiColorResolutionInput, relative_color_context_from_ffi, resolution_input_from_ffi,
@@ -1958,7 +1957,13 @@ pub unsafe extern "C" fn ladybird_web_record_image_paint_display_list(
         }
     }
     let recorded = recorder.into_builder().finish();
-    unsafe { consume(context, (&recorded).into(), Rc::into_raw(Rc::new(tree)).cast()) };
+    unsafe {
+        consume(
+            context,
+            std::sync::Arc::into_raw(std::sync::Arc::new(recorded)).cast(),
+            Rc::into_raw(Rc::new(tree)).cast(),
+        );
+    }
 }
 
 /// # Safety
@@ -3875,14 +3880,14 @@ pub unsafe extern "C" fn layout_arena_filter_functions_serialize(
 /// `arena` must be a live handle from `layout_arena_create`, used on the document thread. The
 /// returned pointers borrow the last recording and stay valid until the next one replaces it.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn layout_arena_recorded_display_list(arena: *mut c_void) -> FfiRecordedDisplayList {
+pub unsafe extern "C" fn layout_arena_retain_recorded_display_list(arena: *mut c_void) -> *const c_void {
     let arena = unsafe { arena_from_handle(arena) };
     let paint_state = arena.paint_state().borrow();
     paint_state
         .last_recording
         .as_ref()
-        .map_or_else(FfiRecordedDisplayList::empty, |recording| {
-            FfiRecordedDisplayList::from(&*recording.display_list)
+        .map_or(std::ptr::null(), |recording| {
+            std::sync::Arc::into_raw(recording.display_list.clone()).cast()
         })
 }
 

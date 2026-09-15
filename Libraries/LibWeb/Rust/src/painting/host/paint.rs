@@ -461,8 +461,8 @@ pub struct FfiVectorImageRenderRequest {
     pub raster_scale: f32,
 }
 
-// A recording lent to C++ for the duration of one call. An empty Vec's pointer is dangling, so
-// the C++ side never dereferences a pointer whose count is zero.
+// A read-only view into retained command storage. The owner must outlive the view. An empty
+// Vec's pointer is dangling, so the host never dereferences a pointer whose count is zero.
 #[derive(Clone, Copy, Debug)]
 #[repr(C)]
 pub struct FfiRecordedDisplayList {

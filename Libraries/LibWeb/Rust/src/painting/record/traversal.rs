@@ -32,6 +32,7 @@ use crate::painting::record::verify::LoggedCapture;
 use crate::painting::record::{DeferredWholeTapeSplice, RecordingOutput, RecordingResult};
 use crate::painting::style_queries;
 use std::rc::Rc;
+use std::sync::Arc;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
 #[repr(u8)]
@@ -184,8 +185,8 @@ fn record_display_list_impl<O: Observer>(
     let recorded = recorder.recorder.into_builder().finish();
     let display_list = match recorder.deferred_whole_tape_splice {
         Some(deferred) if recorded.bytes.len() == deferred.prologue_byte_count => deferred.source_display_list,
-        Some(deferred) => Rc::new(materialize_deferred_whole_tape_splice(&recorded, &deferred)),
-        None => Rc::new(recorded),
+        Some(deferred) => Arc::new(materialize_deferred_whole_tape_splice(&recorded, &deferred)),
+        None => Arc::new(recorded),
     };
     let output = RecordingOutput {
         recorded_structural_epoch: structural_epoch,
