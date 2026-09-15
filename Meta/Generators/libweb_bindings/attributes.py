@@ -17,6 +17,8 @@ from Generators.libweb_bindings.extended_attributes import wrap_with_extended_at
 from Generators.libweb_bindings.glue_headers import bindings_glue_header_for_interface
 from Generators.libweb_bindings.includes import GeneratedIncludes
 from Generators.libweb_bindings.realms import member_realm_expr
+from Generators.libweb_bindings.security_checks import interface_needs_security_check
+from Generators.libweb_bindings.security_checks import perform_a_security_check
 from Generators.libweb_bindings.to_idl_value import to_idl_value
 from Generators.libweb_bindings.to_js_value import to_javascript_value
 from Utils.webidl_parser import Attribute
@@ -567,7 +569,18 @@ def write_attribute_getter(
         if (js_value.is_nullish())
             js_value = &realm.global_object();
 
-        idl_object = TRY(impl_from(vm, js_value));
+"""
+        )
+        if interface_needs_security_check(context, interface):
+            out.write(
+                f"""\
+        // 2. If jsValue is a platform object, then perform a security check, passing jsValue, attribute’s identifier, and "getter".
+        {perform_a_security_check(includes, "js_value", attribute.name, "getter")}
+
+"""
+            )
+        out.write(
+            f"""        idl_object = TRY(impl_from(vm, js_value));
         [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, js_value);
 
         {getter_steps}
@@ -598,7 +611,18 @@ def write_attribute_getter(
     if (js_value.is_nullish())
         js_value = &realm.global_object();
 
-    idl_object = TRY(impl_from(vm, js_value));
+"""
+    )
+    if interface_needs_security_check(context, interface):
+        out.write(
+            f"""\
+    // 2. If jsValue is a platform object, then perform a security check, passing jsValue, attribute’s identifier, and "getter".
+    {perform_a_security_check(includes, "js_value", attribute.name, "getter")}
+
+"""
+        )
+    out.write(
+        f"""    idl_object = TRY(impl_from(vm, js_value));
     [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, js_value);
 
 {getter_prelude}
@@ -650,7 +674,18 @@ def write_attribute_setter(
         js_value = &realm.global_object();
     [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, js_value);
 
-    auto maybe_idl_object = impl_from(vm, js_value);
+"""
+    )
+    if interface_needs_security_check(context, interface):
+        out.write(
+            f"""\
+    // 2. If jsValue is a platform object, then perform a security check, passing jsValue, id, and "setter".
+    {perform_a_security_check(includes, "js_value", attribute.name, "setter")}
+
+"""
+        )
+    out.write(
+        """    auto maybe_idl_object = impl_from(vm, js_value);
 """
     )
     if "LegacyLenientThis" not in attribute.extended_attributes:

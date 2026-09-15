@@ -20,6 +20,8 @@ from Generators.libweb_bindings.glue_headers import bindings_glue_header_for_int
 from Generators.libweb_bindings.includes import GeneratedIncludes
 from Generators.libweb_bindings.realms import member_passes_realm_to_implementation
 from Generators.libweb_bindings.realms import member_realm_expr
+from Generators.libweb_bindings.security_checks import interface_needs_security_check
+from Generators.libweb_bindings.security_checks import perform_a_security_check
 from Generators.libweb_bindings.to_js_value import to_javascript_value
 from Utils.webidl_parser import Attribute
 from Utils.webidl_parser import IDLParameterizedType
@@ -383,7 +385,21 @@ def write_stringifier(
 {{
     auto& realm = *vm.current_realm();
     auto this_value = vm.this_value();
-    auto* idl_object = TRY(impl_from(vm, this_value));
+"""
+    )
+    if interface_needs_security_check(context, interface):
+        out.write(
+            f"""\
+    // 3. If O is a platform object, then perform a security check, passing:
+    //    * the platform object O,
+    //    * the identifier of the stringifier, and
+    //    * the type "method".
+    {perform_a_security_check(includes, "this_value", "toString", "method")}
+
+"""
+        )
+    out.write(
+        f"""    auto* idl_object = TRY(impl_from(vm, this_value));
     auto& this_object_realm = this_value_realm(realm, this_value);
     auto R = TRY(WebIDL::throw_dom_exception_if_needed(vm, this_object_realm, [&] {{ return {stringifier_call}; }}));
     return {to_javascript_value(stringifier_type, "R", includes, context, "this_object_realm")};
@@ -450,10 +466,21 @@ def write_operation(
         )
     if not operation_invokes_as_static:
         out.write(
-            f"""    auto this_value = vm.this_value();
+            """    auto this_value = vm.this_value();
     if (this_value.is_nullish())
         this_value = &vm.current_realm()->global_object();
-    [[maybe_unused]] {fully_qualified_name_for_interface(interface)}* idl_object = TRY(impl_from(vm, this_value));
+"""
+        )
+        if interface_needs_security_check(context, interface):
+            out.write(
+                f"""\
+    // 2. If jsValue is a platform object, then perform a security check, passing jsValue, id, and "method".
+    {perform_a_security_check(includes, "this_value", operation.name, "method")}
+
+"""
+            )
+        out.write(
+            f"""    [[maybe_unused]] {fully_qualified_name_for_interface(interface)}* idl_object = TRY(impl_from(vm, this_value));
     [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, this_value);
 
 """

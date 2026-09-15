@@ -18,6 +18,7 @@
 #include <LibJS/Runtime/PropertyKey.h>
 #include <LibJS/Runtime/ValueInlines.h>
 #include <LibWeb/Bindings/MainThreadVM.h>
+#include <LibWeb/Bindings/Wrappable.h>
 #include <LibWeb/Bindings/WrapperWorld.h>
 #include <LibWeb/HTML/BindingsGlue.h>
 #include <LibWeb/HTML/CrossOrigin/AbstractOperations.h>
@@ -219,6 +220,56 @@ static GC::Ref<JS::NativeFunction> create_cross_origin_window_setter(JS::Realm& 
     }
 
     VERIFY_NOT_REACHED();
+}
+
+// https://html.spec.whatwg.org/multipage/nav-history-apis.html#integration-with-idl
+JS::ThrowCompletionOr<void> perform_a_security_check(JS::VM& vm, JS::Value js_value, Utf16View const& identifier, SecurityCheckType type)
+{
+    // 1. If platformObject is not a Window or Location object, then return.
+    // NOTE: A WindowProxy is checked against its [[Window]], which is the Window object the bindings operate on.
+    Optional<Variant<Location const*, Window const*>> platform_object;
+    if (js_value.is_object()) {
+        auto& object = js_value.as_object();
+        if (auto const* window_proxy = as_if<WindowProxy>(object)) {
+            if (auto window = window_proxy->window())
+                platform_object = window.ptr();
+        } else if (auto const* wrappable = Bindings::wrappable_impl_from(&object)) {
+            if (auto const* window = as_if<Window>(*wrappable))
+                platform_object = window;
+            else if (auto const* location = as_if<Location>(*wrappable))
+                platform_object = location;
+        }
+    }
+    if (!platform_object.has_value())
+        return {};
+
+    // NOTE: Steps 2 and 3 can only throw if platformObject is not same origin-domain with the current settings object,
+    //       so check that first to avoid computing CrossOriginProperties(platformObject) for same-origin access.
+    auto is_same_origin = platform_object->visit([](auto const* object) { return is_platform_object_same_origin(*object); });
+    if (is_same_origin)
+        return {};
+
+    // 2. For each e of CrossOriginProperties(platformObject):
+    for (auto const& entry : cross_origin_properties(*platform_object)) {
+        // 1. If SameValue(e.[[Property]], identifier) is true:
+        if (entry.property != identifier)
+            continue;
+
+        // 1. If type is "method" and e has neither [[NeedsGetter]] nor [[NeedsSetter]], then return.
+        if (type == SecurityCheckType::Method && !entry.needs_get.has_value() && !entry.needs_set.has_value())
+            return {};
+
+        // 2. Otherwise, if type is "getter" and e.[[NeedsGetter]] is true, then return.
+        if (type == SecurityCheckType::Getter && entry.needs_get == true)
+            return {};
+
+        // 3. Otherwise, if type is "setter" and e.[[NeedsSetter]] is true, then return.
+        if (type == SecurityCheckType::Setter && entry.needs_set == true)
+            return {};
+    }
+
+    // 3. If IsPlatformObjectSameOrigin(platformObject) is false, then throw a "SecurityError" DOMException.
+    return throw_completion(*vm.current_realm(), WebIDL::SecurityError::create(Utf16String::formatted("Can't access property '{}' on cross-origin object", identifier)));
 }
 
 // 7.2.3.1 CrossOriginProperties ( O ), https://html.spec.whatwg.org/multipage/browsers.html#crossoriginproperties-(-o-)

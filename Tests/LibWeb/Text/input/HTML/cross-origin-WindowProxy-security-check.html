@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function test(description, callback) {
+        try {
+            const result = callback();
+            println(`${description}: ${typeof result === "object" && result !== null ? "object" : result}`);
+        } catch (e) {
+            println(`${description}: ${e.name}`);
+        }
+    }
+
+    function getter(object, name) {
+        return Object.getOwnPropertyDescriptor(object, name).get;
+    }
+
+    function setter(object, name) {
+        return Object.getOwnPropertyDescriptor(object, name).set;
+    }
+
+    asyncTest(async done => {
+        const victimURL = new URL(await httpTestServer().createEcho("GET", `/cross-origin-WindowProxy-security-check-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: `<!DOCTYPE html><script>localStorage.setItem("secret", "victim");<\/script>`,
+        }));
+        victimURL.hostname = uniqueLocalhostHostname("cross-origin-WindowProxy-security-check");
+
+        const iframe = document.createElement("iframe");
+        iframe.onload = () => {
+            const victimWindow = iframe.contentWindow;
+            const victimLocation = victimWindow.location;
+
+            test("Window document getter", () => Reflect.apply(getter(window, "document"), victimWindow, []));
+            test("Window localStorage getter", () => Reflect.apply(getter(window, "localStorage"), victimWindow, []));
+            test("Window name setter", () => Reflect.apply(setter(window, "name"), victimWindow, ["x"]));
+            test("Window getSelection method", () => Reflect.apply(window.getSelection, victimWindow, []));
+            test("EventTarget addEventListener method", () => Reflect.apply(EventTarget.prototype.addEventListener, victimWindow, ["message", () => {}]));
+            test("Location href getter", () => Reflect.apply(getter(location, "href"), victimLocation, []));
+            test("Location toString method", () => Reflect.apply(location.toString, victimLocation, []));
+
+            test("Window closed getter", () => Reflect.apply(getter(window, "closed"), victimWindow, []));
+            test("Window location getter", () => Reflect.apply(getter(window, "location"), victimWindow, []) === victimLocation);
+            test("Window postMessage method", () => Reflect.apply(window.postMessage, victimWindow, ["message", "*"]));
+
+            done();
+        };
+        iframe.src = victimURL.href;
+        document.body.appendChild(iframe);
+    });
+</script>
