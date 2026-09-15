@@ -1,0 +1,98 @@
+<!doctype html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        const SVG_NS = "http://www.w3.org/2000/svg";
+        const createSVGElement = name => document.createElementNS(SVG_NS, name);
+        const nextTask = () => new Promise(resolve => setTimeout(resolve, 0));
+        let cloneCount = 0;
+
+        customElements.define(
+            "use-clone-counter",
+            class extends HTMLElement {
+                constructor() {
+                    super();
+                    ++cloneCount;
+                }
+            }
+        );
+
+        function createTarget(id) {
+            const target = createSVGElement("g");
+            target.id = id;
+            const rect = createSVGElement("rect");
+            rect.id = `${id}Child`;
+            rect.setAttribute("width", "10");
+            rect.setAttribute("height", "10");
+            const foreignObject = createSVGElement("foreignObject");
+            foreignObject.append(document.createElement("use-clone-counter"));
+            target.append(rect, foreignObject);
+            return target;
+        }
+
+        function createUse(id) {
+            const use = createSVGElement("use");
+            use.setAttribute("href", `#${id}`);
+            return use;
+        }
+
+        async function connect(callback, use) {
+            cloneCount = 0;
+            callback();
+            use.getBBox();
+            await nextTask();
+            return cloneCount;
+        }
+
+        window.addEventListener(
+            "load",
+            async () => {
+                await nextTask();
+
+                for (const [description, order] of [
+                    ["Target before use", "target-first"],
+                    ["Use before target", "use-first"],
+                ]) {
+                    const svg = createSVGElement("svg");
+                    svg.style.visibility = "hidden";
+                    const target = createTarget(order);
+                    const use = createUse(order);
+                    svg.append(...(order === "target-first" ? [target, use] : [use, target]));
+                    const clones = await connect(() => document.body.append(svg), use);
+                    println(
+                        `${description} in same insertion resolved: ${use.getBBox().width === 10}, cloned once: ${clones === 1}`
+                    );
+                }
+
+                {
+                    const svg = createSVGElement("svg");
+                    svg.style.visibility = "hidden";
+                    const target = createTarget("connectedTarget");
+                    const use = createUse("connectedTarget");
+                    svg.append(target);
+                    document.body.append(svg);
+                    const clones = await connect(() => svg.append(use), use);
+                    println(
+                        `Target connected first resolved: ${use.getBBox().width === 10}, cloned once: ${clones === 1}`
+                    );
+                }
+
+                {
+                    const svg = createSVGElement("svg");
+                    svg.style.visibility = "hidden";
+                    const target = createTarget("connectedUse");
+                    const use = createUse("connectedUse");
+                    svg.append(use);
+                    document.body.append(svg);
+                    const clones = await connect(() => svg.append(target), use);
+                    println(
+                        `Use connected first resolved: ${use.getBBox().width === 10}, cloned once: ${clones === 1}`
+                    );
+                }
+
+                done();
+            },
+            { once: true }
+        );
+    });
+</script>
