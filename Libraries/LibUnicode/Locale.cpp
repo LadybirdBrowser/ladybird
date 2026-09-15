@@ -122,52 +122,32 @@ static Optional<typename Lexer::ViewType> consume_next_segment(Lexer& lexer, boo
     return segment;
 }
 
-bool is_type_identifier(StringView identifier)
+template<typename ViewType>
+static bool is_type_identifier_impl(ViewType identifier)
 {
     // type = alphanum{3,8} (sep alphanum{3,8})*
-    GenericLexer lexer { identifier };
-
-    while (true) {
-        auto type = consume_next_segment(lexer, lexer.tell() > 0);
-        if (!type.has_value())
-            break;
-        if (!is_single_type(*type))
-            return false;
-    }
-
-    return lexer.is_eof() && (lexer.tell() > 0);
-}
-
-bool is_type_identifier(Utf16View identifier)
-{
-    // type = alphanum{3,8} (sep alphanum{3,8})*
-    bool saw_type = false;
-    bool is_valid = true;
+    // NB: Only the hyphen form of sep is accepted, as in BCP 47 language tags.
     size_t start = 0;
 
-    auto validate_type = [&](Utf16View type) {
-        saw_type = true;
-        if (type.is_empty() || !is_single_type(type)) {
-            is_valid = false;
-            return IterationDecision::Break;
-        }
-        return IterationDecision::Continue;
-    };
-
-    for (size_t i = 0; i < identifier.length_in_code_units(); ++i) {
-        auto code_unit = identifier.code_unit_at(i);
-        if (code_unit != '-' && code_unit != '_')
+    for (size_t i = 0; i <= view_length(identifier); ++i) {
+        if (i < view_length(identifier) && view_code_unit_at(identifier, i) != '-')
             continue;
-
-        if (validate_type(identifier.substring_view(start, i - start)) == IterationDecision::Break)
+        if (!is_single_type(identifier.substring_view(start, i - start)))
             return false;
         start = i + 1;
     }
 
-    if (validate_type(identifier.substring_view(start)) == IterationDecision::Break)
-        return false;
+    return true;
+}
 
-    return saw_type && is_valid;
+bool is_type_identifier(StringView identifier)
+{
+    return is_type_identifier_impl(identifier);
+}
+
+bool is_type_identifier(Utf16View identifier)
+{
+    return is_type_identifier_impl(identifier);
 }
 
 template<typename Lexer>
