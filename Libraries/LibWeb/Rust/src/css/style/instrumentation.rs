@@ -74,6 +74,21 @@ define_counters! {
     ComputationPublicationMicroseconds => "computationPublicationMicroseconds",
     EmitMicroseconds => "emitMicroseconds",
     TransactionRemainderMicroseconds => "transactionRemainderMicroseconds",
+    // The passes inside those phases, clocked only when `LIBWEB_STYLE_PASS_CLOCKS` is set. The
+    // phase clocks say which quarter of the transaction a millisecond is in; these say which
+    // pass, which is what decides whether a pass is per-node work or bookkeeping around it.
+    RoutingSetupMicroseconds => "routingSetupMicroseconds",
+    RoutingInputsMicroseconds => "routingInputsMicroseconds",
+    SequenceRoutingMicroseconds => "sequenceRoutingMicroseconds",
+    PendingRouteFlushMicroseconds => "pendingRouteFlushMicroseconds",
+    BatchCompilationMicroseconds => "batchCompilationMicroseconds",
+    WinnerVersionAdvanceMicroseconds => "winnerVersionAdvanceMicroseconds",
+    RetainedAnswerPatchLoopMicroseconds => "retainedAnswerPatchLoopMicroseconds",
+    CompletionBatchBeginMicroseconds => "completionBatchBeginMicroseconds",
+    CompletionBatchMaterializeMicroseconds => "completionBatchMaterializeMicroseconds",
+    CompletionBatchRelationMicroseconds => "completionBatchRelationMicroseconds",
+    CompletionPassMicroseconds => "completionPassMicroseconds",
+    ComputationLoopMicroseconds => "computationLoopMicroseconds",
     // Physical work, including drives whose output is later abandoned.
     EngineFullDrivesStarted => "engineFullDrivesStarted",
     EnginePartialDrivesStarted => "enginePartialDrivesStarted",

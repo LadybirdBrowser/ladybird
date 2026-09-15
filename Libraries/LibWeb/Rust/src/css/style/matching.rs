@@ -659,6 +659,7 @@ impl StyleEngine {
         // Each completion batch may ask for exact answers again after a quota boundary reopened
         // retained-answer admission.
         self.completion_exactness_exhausted = false;
+        let materialize_timer = flush::PassTimer::start();
         let batch = prefer_complete_batch
             .then(|| {
                 self.prepared_batch_matching_traversal
@@ -668,6 +669,8 @@ impl StyleEngine {
             })
             .flatten();
         let relation_dispatch = batch.as_ref().map(|_| self.ranked_scope_program(TreeScopeID::DOCUMENT));
+        materialize_timer.stop(Counter::CompletionBatchMaterializeMicroseconds, &mut self.counters);
+        let relation_timer = flush::PassTimer::start();
         // The walk that just converged left the retained states describing THIS transaction,
         // so the completion batch can extend the warm automaton instead of re-deriving every
         // upquery spine. Without a current walk the retained states describe the previous
@@ -712,6 +715,7 @@ impl StyleEngine {
                 caches.states.settle_memory(&mut self.memory);
             }
         }
+        relation_timer.stop(Counter::CompletionBatchRelationMicroseconds, &mut self.counters);
         self.batch_matching_traversal = Some(Box::new(BatchMatchingTraversal {
             root,
             batch,
