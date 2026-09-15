@@ -20,7 +20,8 @@ public:
     struct OpaqueData {
         enum class Type : u8 {
             Standard,
-            File
+            File,
+            SandboxedFile,
         };
         using Nonce = Array<u8, 16>;
 
@@ -65,6 +66,13 @@ public:
     bool operator==(Origin const& other) const { return is_same_origin(other); }
 
     bool is_opaque_file_origin() const { return is_opaque() && opaque_data().type == OpaqueData::Type::File; }
+
+    bool is_file_origin() const
+    {
+        if (!is_opaque())
+            return scheme() == "file"sv;
+        return opaque_data().type == OpaqueData::Type::File || opaque_data().type == OpaqueData::Type::SandboxedFile;
+    }
 
 private:
     struct Tuple {

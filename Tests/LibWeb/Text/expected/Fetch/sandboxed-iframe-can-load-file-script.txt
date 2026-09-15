@@ -1,0 +1,2 @@
+canary: file script executed
+localStorage: SecurityError

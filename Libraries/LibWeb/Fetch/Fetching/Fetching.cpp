@@ -511,7 +511,7 @@ GC::Ptr<PendingResponse> main_fetch(JS::Realm& realm, Infrastructure::FetchParam
         //         Fonts require CORS mode per spec, but file:// origins are opaque in our implementation,
         //         so the standard same-origin check always fails. Other browsers (Chromium, WebKit, Firefox)
         //         all allow loading fonts from file:// URLs on file:// pages.
-        auto is_file_to_file_font_load = origin && origin->is_opaque_file_origin()
+        auto is_file_to_file_font_load = origin && origin->is_file_origin()
             && request->current_url().scheme() == "file"sv
             && request->destination() == Infrastructure::Request::Destination::Font;
 
@@ -1216,7 +1216,18 @@ GC::Ref<PendingResponse> scheme_fetch(JS::Realm& realm, Infrastructure::FetchPar
         if (!origin)
             return error;
 
-        if (!(origin->is_opaque() || origin->scheme() == "file"sv || origin->scheme() == "resource"sv))
+        auto origin_is_allowed = [&] {
+            // Only a client that itself came from a file:// URL may reach the local file system.
+            if (request->current_url().scheme() == "file"sv)
+                return origin->is_file_origin();
+
+            // resource:// URLs are bundled browser assets rather than user data, and the internal pages that
+            // load them do have a standard opaque origin, so any opaque origin is accepted for those.
+            return origin->is_opaque() || origin->scheme() == "file"sv || origin->scheme() == "resource"sv;
+        };
+
+        bool browser_initiated_navigation = request->client() == nullptr && request->mode() == Infrastructure::Request::Mode::Navigate;
+        if (!browser_initiated_navigation && !origin_is_allowed())
             return error;
 
         // Allow file:// pages to load subresources (scripts, styles, fonts, etc.) from other file:// URLs,
