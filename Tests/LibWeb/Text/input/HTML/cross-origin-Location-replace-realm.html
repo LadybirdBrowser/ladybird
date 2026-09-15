@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function test(description, callback) {
+        try {
+            callback();
+            println(`${description}: no exception`);
+        } catch (e) {
+            const isCurrentRealm = e instanceof TypeError || e instanceof DOMException;
+            println(`${description}: ${e.name}, current realm: ${isCurrentRealm}`);
+        }
+    }
+
+    asyncTest(async done => {
+        const crossOriginURL = new URL(await httpTestServer().createEcho("GET", `/cross-origin-Location-replace-realm-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: "<!DOCTYPE html>",
+        }));
+        crossOriginURL.hostname = uniqueLocalhostHostname("cross-origin-Location-replace-realm");
+
+        const iframe = document.createElement("iframe");
+        iframe.onload = () => {
+            const crossOriginLocation = iframe.contentWindow.location;
+
+            test("Invalid URL", () => Reflect.apply(location.replace, crossOriginLocation, ["http://#"]));
+            test("Non-coercible URL", () => Reflect.apply(location.replace, crossOriginLocation, [Symbol()]));
+
+            done();
+        };
+        iframe.src = crossOriginURL.href;
+        document.body.appendChild(iframe);
+    });
+</script>
