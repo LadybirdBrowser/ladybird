@@ -6,9 +6,11 @@
 
 #include <LibTest/TestCase.h>
 
+#include <AK/Array.h>
 #include <AK/ByteString.h>
 #include <AK/StringBuilder.h>
 #include <AK/Vector.h>
+#include <LibThreading/Thread.h>
 #include <cstring>
 
 TEST_CASE(construct_empty)
@@ -257,4 +259,27 @@ TEST_CASE(find_with_empty_needle)
     string = "abc";
     EXPECT_EQ(string.find(""sv), 0u);
     EXPECT_EQ(string.find_all(""sv), (Vector<size_t> { 0u, 1u, 2u, 3u }));
+}
+
+// Only ThreadSanitizer can catch a regression here, since every thread computes and caches the same hash.
+TEST_CASE(hash_one_string_on_several_threads)
+{
+    IGNORE_USE_IN_ESCAPING_LAMBDA ByteString string { "Hello I am a ByteString that nobody has hashed yet"sv };
+    auto expected_hash = ByteString { "Hello I am a ByteString that nobody has hashed yet"sv }.hash();
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Array<unsigned, 8> hashes {};
+    Vector<NonnullRefPtr<Threading::Thread>> threads;
+    for (size_t i = 0; i < hashes.size(); ++i) {
+        auto thread = Threading::Thread::construct("ByteStringHasher"sv, [&string, &hashes, i]() {
+            hashes[i] = string.hash();
+            return 0;
+        });
+        thread->start();
+        threads.append(move(thread));
+    }
+    for (auto& thread : threads)
+        (void)thread->join();
+
+    for (auto hash : hashes)
+        EXPECT_EQ(hash, expected_hash);
 }

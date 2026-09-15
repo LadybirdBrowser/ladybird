@@ -97,11 +97,13 @@ unsigned ByteStringImpl::case_insensitive_hash() const
 
 void ByteStringImpl::compute_hash() const
 {
-    if (!length())
-        m_hash = 0;
-    else
-        m_hash = string_hash(characters(), m_length);
-    m_has_hash = true;
+    unsigned hash = 0;
+    if (length())
+        hash = string_hash(characters(), m_length);
+
+    // Store the hash before the flag, so a thread that sees the flag also sees the hash.
+    atomic_store(&m_hash, hash, memory_order_relaxed);
+    atomic_store(&m_has_hash, true, memory_order_release);
 }
 
 }
