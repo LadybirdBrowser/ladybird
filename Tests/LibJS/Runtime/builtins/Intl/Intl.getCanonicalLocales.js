@@ -25,6 +25,10 @@ describe("errors", () => {
         expect(() => {
             Intl.getCanonicalLocales("en-POSIX-POSIX");
         }).toThrowWithMessage(RangeError, "en-POSIX-POSIX is not a structurally valid language tag");
+
+        expect(() => {
+            Intl.getCanonicalLocales("en-1aaa-1BBB-1AAA");
+        }).toThrowWithMessage(RangeError, "en-1aaa-1BBB-1AAA is not a structurally valid language tag");
     });
 
     test("improperly placed separator", () => {

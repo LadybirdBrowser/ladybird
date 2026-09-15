@@ -26,14 +26,19 @@ namespace JS::Intl {
 template<typename ViewType>
 static bool is_well_formed_language_tag_impl(ViewType locale)
 {
-    auto contains_duplicate_variant = [&](auto& variants) {
-        if (variants.is_empty())
+    auto contains_duplicate_variant = [&](auto const& variants) {
+        if (variants.size() < 2)
             return false;
 
-        quick_sort(variants);
+        Vector<Utf16String> lowercase_variants;
+        lowercase_variants.ensure_capacity(variants.size());
+        for (auto const& variant : variants)
+            lowercase_variants.unchecked_append(variant.utf16_view().to_ascii_lowercase());
 
-        for (size_t i = 0; i < variants.size() - 1; ++i) {
-            if (variants[i].equals_ignoring_ascii_case(variants[i + 1]))
+        quick_sort(lowercase_variants);
+
+        for (size_t i = 0; i < lowercase_variants.size() - 1; ++i) {
+            if (lowercase_variants[i] == lowercase_variants[i + 1])
                 return true;
         }
 
