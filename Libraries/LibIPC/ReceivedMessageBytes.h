@@ -23,7 +23,7 @@ public:
     ReceivedMessageBytes& operator=(ReceivedMessageBytes&&);
 
     static ReceivedMessageBytes from_vector(Vector<u8>);
-#if defined(AK_OS_MACOS)
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
     static ReceivedMessageBytes adopt_vm_region(void*, size_t);
 #endif
 

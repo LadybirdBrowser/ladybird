@@ -8,8 +8,8 @@
 
 #include <AK/Platform.h>
 
-#if !defined(AK_OS_MACOS)
-#    error "TransportMachPort is only available on macOS"
+#if !defined(AK_OS_MACOS) && !defined(AK_OS_IOS)
+#    error "TransportMachPort is only available on Darwin"
 #endif
 
 #include <AK/Atomic.h>

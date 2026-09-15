@@ -7,7 +7,7 @@
 #include <AK/RefCounted.h>
 #include <LibIPC/ReceivedMessageBytes.h>
 
-#if defined(AK_OS_MACOS)
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
 #    include <mach/mach.h>
 #endif
 
@@ -21,7 +21,7 @@ public:
     {
     }
 
-#if defined(AK_OS_MACOS)
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
     Impl(void* vm_region_address, size_t vm_region_size)
         : m_storage_type(StorageType::VMRegion)
         , m_vm_region_address(vm_region_address)
@@ -32,7 +32,7 @@ public:
 
     ~Impl()
     {
-#if defined(AK_OS_MACOS)
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
         if (m_storage_type == StorageType::VMRegion && m_vm_region_size > 0)
             vm_deallocate(mach_task_self(), reinterpret_cast<vm_address_t>(m_vm_region_address), m_vm_region_size);
 #endif
@@ -81,7 +81,7 @@ ReceivedMessageBytes ReceivedMessageBytes::from_vector(Vector<u8> bytes)
     return ReceivedMessageBytes { adopt_ref(*new Impl(move(bytes))) };
 }
 
-#if defined(AK_OS_MACOS)
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
 ReceivedMessageBytes ReceivedMessageBytes::adopt_vm_region(void* address, size_t size)
 {
     if (size == 0)

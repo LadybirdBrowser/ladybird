@@ -21,7 +21,7 @@ class File;
 class Stub;
 class TransportHandle;
 
-#if defined(AK_OS_MACOS)
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
 class MachBootstrapListener;
 class TransportMachPort;
 using Transport = TransportMachPort;
