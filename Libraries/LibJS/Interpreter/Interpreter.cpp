@@ -285,6 +285,8 @@ ExecutionContext* VM::push_inline_frame(
     // Bind this if the function uses it.
     if (callee_function.uses_this())
         callee_function.ordinary_call_bind_this(vm(), *callee_context, this_value);
+    else
+        callee_context->this_value = this_value;
 
     // Set up execution context fields that run_executable normally does.
     // NB: We must use the callee's realm (not the caller's) for global_object

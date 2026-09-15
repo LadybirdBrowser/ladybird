@@ -76,6 +76,7 @@ public:
     bool caller_is_construct { false };
     bool frame_initialized { false };
 
+    // Bound by OrdinaryCallBindThis, or the uncoerced thisArg when the function never uses `this`.
     Optional<Value> this_value;
 
     GC::Ptr<Bytecode::Executable> executable;

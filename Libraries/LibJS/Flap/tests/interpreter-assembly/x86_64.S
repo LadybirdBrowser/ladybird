@@ -4747,14 +4747,13 @@ asm_handler_Call:
     jnc .Lasm_Call.ssa_block_1
     bt rdx, 33
     jc .Lasm_Call.ssa_block_2
-    movabs r9, 9221964661971222528
+    mov eax, DWORD PTR [r14 + r13 + 16]
+    mov r8, QWORD PTR [rbx + rax * 8]
     bt rdx, 34
     jnc .Lasm_Call.ssa_block_9
-    mov eax, DWORD PTR [r14 + r13 + 16]
-    mov r9, QWORD PTR [rbx + rax * 8]
     bt rdx, 35
     jc .Lasm_Call.ssa_block_9
-    mov rax, r9
+    mov rax, r8
     shr rax, 48
     mov rsi, rax
     and si, 65534
@@ -4763,11 +4762,11 @@ asm_handler_Call:
     mov rax, QWORD PTR [rcx + 24]
     mov rax, QWORD PTR [rax + 16]
     mov rax, QWORD PTR [rax + 40]
-    mov r9, QWORD PTR [rax + 32]
+    mov r8, QWORD PTR [rax + 32]
     movabs rax, 4398046511103
-    and r9, rax
+    and r8, rax
     movabs rax, -1970324836974592
-    or r9, rax
+    or r8, rax
     jmp .Lasm_Call.ssa_block_9
 .Lasm_Call.ssa_block_13:
     cmp ax, 65529
@@ -4790,33 +4789,33 @@ asm_handler_Call:
     mov rax, QWORD PTR [rax + 15368]
     mov r10, rsi
     add r10, rdx
-    mov r8, r10
-    shl r8, 3
-    lea r8, [r8 + 128]
-    add r8, rax
-    cmp r8, r11
+    mov r9, r10
+    shl r9, 3
+    lea r9, [r9 + 128]
+    add r9, rax
+    cmp r9, r11
     ja .Lasm_Call.ssa_block_1
     mov r11, QWORD PTR [rbp - 48]
-    mov QWORD PTR [r11 + 15368], r8
+    mov QWORD PTR [r11 + 15368], r9
     mov DWORD PTR [rax + 116], r10d
     mov DWORD PTR [rax + 120], edx
-    mov r8d, DWORD PTR [r14 + r13 + 20]
-    mov DWORD PTR [rax + 104], r8d
-    mov r8, QWORD PTR [rcx + 24]
-    mov r8, QWORD PTR [r8 + 16]
+    mov r9d, DWORD PTR [r14 + r13 + 20]
+    mov DWORD PTR [rax + 104], r9d
+    mov r9, QWORD PTR [rcx + 24]
+    mov r9, QWORD PTR [r9 + 16]
     mov QWORD PTR [rax], rcx
-    mov QWORD PTR [rax + 8], r8
-    mov r8, QWORD PTR [rcx + 104]
+    mov QWORD PTR [rax + 8], r9
+    mov r9, QWORD PTR [rcx + 104]
     mov r10, QWORD PTR [rcx + 112]
-    mov QWORD PTR [rax + 32], r8
-    mov QWORD PTR [rax + 40], r8
+    mov QWORD PTR [rax + 32], r9
+    mov QWORD PTR [rax + 40], r9
     mov QWORD PTR [rax + 48], r10
-    mov QWORD PTR [rax + 80], r9
+    mov QWORD PTR [rax + 80], r8
     mov QWORD PTR [rax + 88], rdi
     movabs rdi, 9221964661971222528
     mov QWORD PTR [rax + 128], rdi
     mov QWORD PTR [rax + 136], rdi
-    mov QWORD PTR [rax + 144], r9
+    mov QWORD PTR [rax + 144], r8
     mov QWORD PTR [rax + 152], rdi
     mov QWORD PTR [rax + 160], rdi
     lea rdi, [rax + 16]
