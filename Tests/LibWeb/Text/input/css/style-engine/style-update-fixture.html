@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<script src="../../include.js"></script>
+<script src="resources/style-update-fixture.js"></script>
+<script>
+    test(() => {
+        const messages = [];
+        for (const scenario of ["connected", "detached"]) {
+            const fixture = createStyleUpdateFixture(300, scenario, 1);
+            const samples = [fixture.setup];
+            for (let index = 0; index < 12; ++index) {
+                const sample = fixture.step(index);
+                samples.push(sample);
+                if (sample.after.rust.reachedStyleNodes <= sample.before.rust.reachedStyleNodes)
+                    throw new Error(`${scenario}: ${sample.name} reached no style nodes`);
+                messages.push(`${scenario}: ${sample.name}: PASS`);
+            }
+            for (const key of ["coldNodesEvaluated", "engineFullDrivesStarted", "enginePartialDrivesStarted",
+                "enginePhysicalLonghandEvaluations", "styleRecordsInterned"]) {
+                if (!samples.some(sample => sample.after.rust[key] > sample.before.rust[key]))
+                    throw new Error(`${scenario}: missing coverage for ${key}`);
+            }
+            messages.push(`${scenario}: coverage: PASS`);
+            fixture.dispose();
+        }
+        for (const message of messages)
+            println(message);
+    });
+</script>
