@@ -2021,12 +2021,16 @@ pub unsafe extern "C" fn rust_layout_run_root_layout(
     // SAFETY: The host keeps the document's layout inputs alive and unchanged
     // while computing fragments. Nested measurements only mutate side caches.
     let arena = unsafe { LayoutNodeArena::from_handle(host.arena) };
-    // Containing blocks follow style facts a layout invalidation can change without a tree
-    // update, so a full pass re-derives them for the whole tree. That walk re-derives every fact
-    // partial relayout boundary qualification depends on, so pending changes that escaped
-    // classification are accounted for from here on.
-    arena.recompute_containing_blocks_in_subtree(root, host.inline_containing_block_lookup);
-    arena.clear_partial_relayout_escape();
+    // NB: The tree builder refreshes rebuilt subtrees. Unclassified invalidations and
+    // containing-block style changes require refreshing the entire tree instead.
+    if arena.pending_updates_escape_partial_relayout.get() {
+        arena.recompute_containing_blocks_in_subtree(root, host.inline_containing_block_lookup);
+        arena.clear_partial_relayout_escape();
+        arena.pending_containing_block_roots.borrow_mut().clear();
+    } else {
+        // NB: Top-layer updates can attach boxes without running the tree builder.
+        arena.recompute_containing_blocks_after_tree_update(&[], host.inline_containing_block_lookup);
+    }
     let callbacks = LayoutPass::new(arena, host);
     let sink = unsafe { &*sink };
     let viewport_inline_size = CssPixels::from_raw(viewport_inline_size_raw);

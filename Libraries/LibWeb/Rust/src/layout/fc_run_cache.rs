@@ -264,9 +264,33 @@ struct InlineLayoutDamage {
 pub(crate) struct FcRunCacheArenaStore {
     entries: RefCell<Vec<Option<std::rc::Rc<FcRunCacheEntry>>>>,
     inline_layout_damage: RefCell<Vec<InlineLayoutDamage>>,
+    pending_sweep_slots: RefCell<Vec<u32>>,
+    enrolled_for_sweep: RefCell<Vec<bool>>,
 }
 
 impl FcRunCacheArenaStore {
+    fn enqueue_for_sweep(&self, slot: u32) {
+        let mut enrolled = self.enrolled_for_sweep.borrow_mut();
+        if enrolled.len() <= slot as usize {
+            enrolled.resize(slot as usize + 1, false);
+        }
+        if !enrolled[slot as usize] {
+            enrolled[slot as usize] = true;
+            self.pending_sweep_slots.borrow_mut().push(slot);
+        }
+    }
+
+    pub(crate) fn note_invalidated_entry(&self, node: Node) {
+        if self
+            .entries
+            .borrow()
+            .get(node.slot_index() as usize)
+            .is_some_and(Option::is_some)
+        {
+            self.enqueue_for_sweep(node.slot_index());
+        }
+    }
+
     pub(crate) fn remove_entry(&self, slot: u32) {
         if let Some(entry) = self.entries.borrow_mut().get_mut(slot as usize) {
             *entry = None;
@@ -380,17 +404,19 @@ impl FcRunCacheArenaStore {
             entries.resize_with(slot as usize + 1, || None);
         }
         entries[slot as usize] = Some(entry);
+        // NB: Invalidation can occur between probing a run and storing its result.
+        self.enqueue_for_sweep(slot);
     }
 
-    /// Drops every entry the keep predicate rejects, releasing its tree and
-    /// fonts. The end-of-pass sweep uses this so entries invalidated while
-    /// their box never probes again do not accumulate for the document's
-    /// lifetime.
-    pub(crate) fn retain_entries(&self, mut keep: impl FnMut(u32, FcRunCacheValidity) -> bool) {
+    /// Release stale entries after their last chance to supply reusable inline line data.
+    pub(crate) fn sweep_pending_entries(&self, mut keep: impl FnMut(u32, FcRunCacheValidity) -> bool) {
         let mut entries = self.entries.borrow_mut();
-        for (slot, stored) in entries.iter_mut().enumerate() {
-            if let Some(entry) = stored
-                && !keep(slot as u32, entry.validity)
+        let mut enrolled = self.enrolled_for_sweep.borrow_mut();
+        for slot in self.pending_sweep_slots.borrow_mut().drain(..) {
+            enrolled[slot as usize] = false;
+            if let Some(stored) = entries.get_mut(slot as usize)
+                && let Some(entry) = stored
+                && !keep(slot, entry.validity)
             {
                 *stored = None;
             }
@@ -859,6 +885,58 @@ mod tests {
             definite_available_inline_sizes_at_or_above: Some(px(threshold)),
             percentage_inline_basis: true,
         }
+    }
+
+    #[test]
+    fn sweep_checks_changed_entries_without_discarding_reusable_stale_data_early() {
+        let store = FcRunCacheArenaStore::default();
+        let entry = |epoch| {
+            std::rc::Rc::new(FcRunCacheEntry {
+                key: key(AvailableSize::definite(px(300)), Some(px(300))),
+                validity: FcRunCacheValidity {
+                    slot_generation: 1,
+                    fragment_cache_epoch: epoch,
+                },
+                outputs: formatting_context::RunOutputs {
+                    result: formatting_context::ChildLayoutResult::default(),
+                    root: None,
+                    root_outcome: formatting_context::RunRootOutcome {
+                        cells: used_values::UsedValuesCellState::capture(&UsedValues::default()),
+                        own_metrics_sealed: false,
+                        line_data: None,
+                        rare: None,
+                    },
+                    atomic_root_sizing_repeats_for_available_inline_sizes_at_or_above: None,
+                },
+            })
+        };
+        store.store(0, entry(1));
+        store.store(1, entry(1));
+        store.sweep_pending_entries(|_, _| true);
+        store.sweep_pending_entries(|_, _| panic!("unchanged entries must not be swept"));
+
+        store.note_invalidated_entry(Node::new(0, 1));
+        store.note_invalidated_entry(Node::new(0, 1));
+        assert!(store.entries.borrow()[0].is_some());
+        let mut checked = 0;
+        store.sweep_pending_entries(|slot, _| {
+            assert_eq!(slot, 0);
+            checked += 1;
+            false
+        });
+        assert_eq!(checked, 1);
+        assert!(store.entries.borrow()[0].is_none());
+        assert!(store.entries.borrow()[1].is_some());
+
+        store.note_invalidated_entry(Node::new(1, 1));
+        store.store(1, entry(2));
+        store.sweep_pending_entries(|_, validity| validity.fragment_cache_epoch == 2);
+        assert!(store.entries.borrow()[1].is_some());
+
+        // A result stored after a mid-run invalidation still needs its validity checked.
+        store.store(0, entry(1));
+        store.sweep_pending_entries(|_, validity| validity.fragment_cache_epoch == 2);
+        assert!(store.entries.borrow()[0].is_none());
     }
 
     #[test]
