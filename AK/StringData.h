@@ -6,6 +6,7 @@
 
 #pragma once
 
+#include <AK/Atomic.h>
 #include <AK/AtomicRefCounted.h>
 #include <AK/Error.h>
 #include <AK/NonnullRefPtr.h>
@@ -102,9 +103,9 @@ public:
 
     unsigned hash() const
     {
-        if (!m_has_hash)
+        if (!atomic_load(&m_has_hash, memory_order_acquire))
             compute_hash();
-        return m_hash;
+        return atomic_load(&m_hash, memory_order_relaxed);
     }
 
     bool is_fly_string() const { return m_is_fly_string; }
@@ -136,11 +137,13 @@ private:
     void compute_hash() const
     {
         auto bytes = this->bytes();
-        if (bytes.size() == 0)
-            m_hash = 0;
-        else
-            m_hash = string_hash(reinterpret_cast<char const*>(bytes.data()), bytes.size());
-        m_has_hash = true;
+        unsigned hash = 0;
+        if (bytes.size() != 0)
+            hash = string_hash(reinterpret_cast<char const*>(bytes.data()), bytes.size());
+
+        // Store the hash before the flag, so a thread that sees the flag also sees the hash.
+        atomic_store(&m_hash, hash, memory_order_relaxed);
+        atomic_store(&m_has_hash, true, memory_order_release);
     }
 
     u32 m_byte_count { 0 };

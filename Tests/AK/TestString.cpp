@@ -11,6 +11,7 @@
 
 #include <LibTest/TestCase.h>
 
+#include <AK/Array.h>
 #include <AK/MemoryStream.h>
 #include <AK/StringBuilder.h>
 #include <AK/Try.h>
@@ -277,6 +278,29 @@ TEST_CASE(copies_on_several_threads_keep_an_exact_reference_count)
     auto raw = string.to_raw_leaked();
     EXPECT_EQ(bit_cast<AK::Detail::StringData const*>(raw)->ref_count(), 2u);
     String::unref_raw(raw);
+}
+
+// Only ThreadSanitizer can catch a regression here, since every thread computes and caches the same hash.
+TEST_CASE(hash_one_string_on_several_threads)
+{
+    IGNORE_USE_IN_ESCAPING_LAMBDA auto string = "Hello I am a long string that nobody has hashed yet"_string;
+    auto expected_hash = "Hello I am a long string that nobody has hashed yet"_string.hash();
+
+    IGNORE_USE_IN_ESCAPING_LAMBDA Array<unsigned, 8> hashes {};
+    Vector<NonnullRefPtr<Threading::Thread>> threads;
+    for (size_t i = 0; i < hashes.size(); ++i) {
+        auto thread = Threading::Thread::construct("StringHasher"sv, [&string, &hashes, i]() {
+            hashes[i] = string.hash();
+            return 0;
+        });
+        thread->start();
+        threads.append(move(thread));
+    }
+    for (auto& thread : threads)
+        (void)thread->join();
+
+    for (auto hash : hashes)
+        EXPECT_EQ(hash, expected_hash);
 }
 
 TEST_CASE(code_points)
