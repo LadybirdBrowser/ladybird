@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    asyncTest(done => {
+        // The data: document below gets a standard opaque origin, which must not be enough to reach the local
+        // file system - even though this page, which created it, was itself loaded from a file: URL.
+        const canaryURL = new URL("file-script-canary.js", window.location.href).href;
+
+        const markup = `
+            <script src="${canaryURL}"><\/script>
+            <script>
+                parent.postMessage(String(globalThis.fileScriptCanary ?? null), "*");
+            <\/script>
+        `;
+
+        window.addEventListener("message", event => {
+            println(`canary: ${event.data}`);
+            done();
+        });
+
+        const iframe = document.createElement("iframe");
+        iframe.src = `data:text/html;charset=utf-8,${encodeURIComponent(markup)}`;
+        document.body.appendChild(iframe);
+    });
+</script>
