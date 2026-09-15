@@ -41,7 +41,7 @@ enum class CloseStatusCode : u16 {
 class WebSocket final : public Core::EventReceiver {
     C_OBJECT(WebSocket)
 public:
-    static NonnullRefPtr<WebSocket> create(ConnectionInfo, RefPtr<WebSocketImpl> = nullptr);
+    static NonnullRefPtr<WebSocket> create(ConnectionInfo, NonnullRefPtr<WebSocketImpl>);
     virtual ~WebSocket() override = default;
 
     URL::URL const& url() const { return m_connection.url(); }
@@ -74,7 +74,7 @@ public:
     Function<void(Error)> on_error;
 
 private:
-    WebSocket(ConnectionInfo, RefPtr<WebSocketImpl>);
+    WebSocket(ConnectionInfo, NonnullRefPtr<WebSocketImpl>);
 
     // As defined in section 5.2
     enum class OpCode : u8 {
