@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<script src="../include.js"></script>
+<script>
+    function test(description, callback) {
+        try {
+            const result = callback();
+            println(`${description}: ${typeof result === "object" && result !== null ? "object" : result}`);
+        } catch (e) {
+            const isCurrentRealm = e instanceof TypeError || e instanceof DOMException;
+            println(`${description}: ${e.name}, current realm: ${isCurrentRealm}`);
+        }
+    }
+
+    asyncTest(async done => {
+        const crossOriginURL = new URL(await httpTestServer().createEcho("GET", `/cross-origin-property-this-value-${crypto.randomUUID()}`, {
+            status: 200,
+            headers: { "Content-Type": "text/html" },
+            body: "<!DOCTYPE html>",
+        }));
+        crossOriginURL.hostname = uniqueLocalhostHostname("cross-origin-property-this-value");
+
+        const iframe = document.createElement("iframe");
+        iframe.onload = () => {
+            const crossOriginWindow = iframe.contentWindow;
+            const crossOriginLocation = crossOriginWindow.location;
+
+            for (const name of ["window", "self", "location", "closed", "frames", "length", "top", "opener", "parent"]) {
+                const get = Object.getOwnPropertyDescriptor(crossOriginWindow, name).get;
+                test(`Window ${name} getter on incompatible object`, () => get.call({}));
+                test(`Window ${name} getter on null is current global's`, () => get.call(null) === window[name]);
+            }
+            test("Window location getter", () => Object.getOwnPropertyDescriptor(crossOriginWindow, "location").get.call(crossOriginWindow) === crossOriginLocation);
+
+            for (const name of ["close", "focus", "blur", "postMessage"])
+                test(`Window ${name} method on incompatible object`, () => crossOriginWindow[name].call({}, "message", "*"));
+            test("Window postMessage method", () => crossOriginWindow.postMessage("message", "*"));
+            test("Window postMessage method with non-coercible target origin", () => crossOriginWindow.postMessage("message", Symbol()));
+
+            test("Location replace method on incompatible object", () => crossOriginLocation.replace.call({}, "#foo"));
+            test("Location replace method on null", () => crossOriginLocation.replace.call(null, "#foo"));
+            test("Location replace method through prototype chain", () => Object.create(crossOriginLocation).replace("#foo"));
+            test("Location replace method with invalid URL", () => crossOriginLocation.replace("http://#"));
+            test("Location replace method with non-coercible URL", () => crossOriginLocation.replace(Symbol()));
+
+            done();
+        };
+        iframe.src = crossOriginURL.href;
+        document.body.appendChild(iframe);
+    });
+</script>

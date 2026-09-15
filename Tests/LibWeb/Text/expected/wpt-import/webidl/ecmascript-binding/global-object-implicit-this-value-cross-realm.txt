@@ -1,0 +1,11 @@
+Harness status: OK
+
+Found 6 tests
+
+6 Pass
+Pass	Cross-realm global object's getter throws when called on incompatible object
+Pass	Cross-realm global object's setter throws when called on incompatible object
+Pass	Cross-realm global object's operation throws when called on incompatible object
+Pass	Cross-realm global object's getter called on null / undefined
+Pass	Cross-realm global object's setter called on null / undefined
+Pass	Cross-realm global object's operation called on null / undefined

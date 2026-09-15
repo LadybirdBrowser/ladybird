@@ -100,6 +100,48 @@
 
 namespace Web::Bindings {
 
+GC::Ref<JS::NativeFunction> WindowWrapper::create_cross_origin_method(JS::Realm& realm, Utf16FlyString const& property)
+{
+    if (property == u"close"sv)
+        return JS::NativeFunction::create(realm, WindowGlobalMixin::close, 0, property);
+    if (property == u"focus"sv)
+        return JS::NativeFunction::create(realm, WindowGlobalMixin::focus, 0, property);
+    if (property == u"blur"sv)
+        return JS::NativeFunction::create(realm, WindowGlobalMixin::blur, 0, property);
+    if (property == u"postMessage"sv)
+        return JS::NativeFunction::create(realm, WindowGlobalMixin::post_message, 1, property);
+    VERIFY_NOT_REACHED();
+}
+
+GC::Ref<JS::NativeFunction> WindowWrapper::create_cross_origin_getter(JS::Realm& realm, Utf16FlyString const& property)
+{
+    if (property == u"window"sv)
+        return JS::NativeFunction::create(realm, WindowGlobalMixin::window_getter, 0, property, &realm, "get"sv);
+    if (property == u"self"sv)
+        return JS::NativeFunction::create(realm, WindowGlobalMixin::self_getter, 0, property, &realm, "get"sv);
+    if (property == u"location"sv)
+        return JS::NativeFunction::create(realm, WindowGlobalMixin::location_getter, 0, property, &realm, "get"sv);
+    if (property == u"closed"sv)
+        return JS::NativeFunction::create(realm, WindowGlobalMixin::closed_getter, 0, property, &realm, "get"sv);
+    if (property == u"frames"sv)
+        return JS::NativeFunction::create(realm, WindowGlobalMixin::frames_getter, 0, property, &realm, "get"sv);
+    if (property == u"length"sv)
+        return JS::NativeFunction::create(realm, WindowGlobalMixin::length_getter, 0, property, &realm, "get"sv);
+    if (property == u"top"sv)
+        return JS::NativeFunction::create(realm, WindowGlobalMixin::top_getter, 0, property, &realm, "get"sv);
+    if (property == u"opener"sv)
+        return JS::NativeFunction::create(realm, WindowGlobalMixin::opener_getter, 0, property, &realm, "get"sv);
+    if (property == u"parent"sv)
+        return JS::NativeFunction::create(realm, WindowGlobalMixin::parent_getter, 0, property, &realm, "get"sv);
+    VERIFY_NOT_REACHED();
+}
+
+GC::Ref<JS::NativeFunction> WindowWrapper::create_cross_origin_setter(JS::Realm& realm, Utf16FlyString const& property)
+{
+    VERIFY(property == u"location"sv);
+    return JS::NativeFunction::create(realm, WindowGlobalMixin::location_setter, 1, property, &realm, "set"sv);
+}
+
 HTML::Window* window_from_global_object(JS::Object& object)
 {
     return Bindings::impl_from<HTML::Window>(&object);
@@ -168,18 +210,6 @@ static HTML::Window::PostMessageOptions window_post_message_options_from_binding
 WebIDL::ExceptionOr<void> post_message(JS::Realm& realm, HTML::Window& window, JS::Value message, WindowPostMessageOptions const& options)
 {
     return window.post_message(realm, message, window_post_message_options_from_bindings(options));
-}
-
-JS::ThrowCompletionOr<void> post_message_with_options(JS::Realm& realm, HTML::Window& window, JS::Value message, JS::Value options)
-{
-    auto& vm = realm.vm();
-    Bindings::WindowPostMessageOptions options_from_bindings {};
-    if (!options.is_undefined())
-        options_from_bindings = TRY(Bindings::convert_to_idl_value_for_window_post_message_options(vm, options));
-    TRY(WebIDL::throw_dom_exception_if_needed(vm, realm, [&] {
-        return window.post_message(realm, message, Bindings::window_post_message_options_from_bindings(options_from_bindings));
-    }));
-    return {};
 }
 
 WebIDL::UnsignedLong request_animation_frame(HTML::Window& window, WebIDL::CallbackType& callback)

@@ -784,7 +784,7 @@ def write_default_to_json_operation(
     [[maybe_unused]] auto& this_object_realm = this_value_realm(realm, this_value);
 
     // 4. Let result be OrdinaryObjectCreate(%Object.prototype%).
-    auto result = JS::Object::create(this_object_realm, this_object_realm.intrinsics().object_prototype());
+    auto result = JS::Object::create(realm, realm.intrinsics().object_prototype());
 
     // 5. For each key → value of map:
 {"".join(attribute_values)}

@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<meta charset="utf-8">
+<title>Cross-realm [[Set]] to window.location and location.href throws an error of correct realm</title>
+<link rel="help" href="https://html.spec.whatwg.org/multipage/#window">
+<link rel="help" href="https://webidl.spec.whatwg.org/#Unforgeable">
+<script src="../../../../resources/testharness.js"></script>
+<script src="../../../../resources/testharnessreport.js"></script>
+<script src="../../../../common/get-host-info.sub.js"></script>
+<body>
+<script>
+const URL_SAME_ORIGIN = get_host_info().ORIGINAL_HOST;
+const URL_CROSS_ORIGIN = get_host_info().HTTP_REMOTE_ORIGIN;
+const URL_VALID = "#foo";
+const URL_INVALID = "http://#";
+
+const { get: locationGet, set: locationSet } = Object.getOwnPropertyDescriptor(window, "location");
+const { get: hrefGet, set: hrefSet } = Object.getOwnPropertyDescriptor(location, "href");
+
+
+promise_test(async t => {
+    const sameOriginWindow = await makeWindow(t, URL_SAME_ORIGIN);
+    assert_throws_js(sameOriginWindow.TypeError, () => { Object.create(sameOriginWindow).location; });
+    assert_throws_js(sameOriginWindow.TypeError, () => { Reflect.get(sameOriginWindow, "location", {}); });
+    assert_throws_js(TypeError, () => { locationGet.call({}); });
+}, "Same-origin window.location getter throws TypeError in holder's realm on invalid |this| value");
+
+promise_test(async t => {
+    const sameOriginWindow = await makeWindow(t, URL_SAME_ORIGIN);
+    assert_throws_js(sameOriginWindow.TypeError, () => { Object.create(sameOriginWindow.location).href; });
+    assert_throws_js(sameOriginWindow.TypeError, () => { Reflect.get(sameOriginWindow.location, "href", {}); });
+    assert_throws_js(TypeError, () => { hrefGet(); });
+}, "Same-origin location.href getter throws TypeError in holder's realm on invalid |this| value");
+
+promise_test(async t => {
+    const crossOriginWindow = await makeWindow(t, URL_CROSS_ORIGIN);
+    assert_throws_dom("SECURITY_ERR", () => { crossOriginWindow.location.href; });
+    assert_throws_dom("SECURITY_ERR", () => { hrefGet.call(crossOriginWindow.location); });
+    assert_equals(Object.getOwnPropertyDescriptor(crossOriginWindow.location, "href").get, undefined);
+}, "Cross-origin location.href getter throws SecurityError in lexical realm");
+
+
+promise_test(async t => {
+    const sameOriginWindow = await makeWindow(t, URL_SAME_ORIGIN);
+    assert_throws_js(sameOriginWindow.TypeError, () => { Object.create(sameOriginWindow).location = URL_VALID; });
+    assert_throws_js(sameOriginWindow.TypeError, () => { Reflect.set(sameOriginWindow, "location", URL_VALID, {}); });
+    assert_throws_js(TypeError, () => { locationSet.call(() => {}, URL_VALID); });
+}, "Same-origin window.location setter throws TypeError in holder's realm on invalid |this| value");
+
+promise_test(async t => {
+    const sameOriginWindow = await makeWindow(t, URL_SAME_ORIGIN);
+    assert_throws_js(sameOriginWindow.TypeError, () => { Object.create(sameOriginWindow.location).href = URL_VALID; });
+    assert_throws_js(sameOriginWindow.TypeError, () => { Reflect.set(sameOriginWindow.location, "href", URL_VALID, {}); });
+    assert_throws_js(TypeError, () => { hrefSet.call(undefined, URL_VALID); });
+}, "Same-origin location.href setter throws TypeError in holder's realm on invalid |this| value");
+
+promise_test(async t => {
+    const crossOriginWindow = await makeWindow(t, URL_CROSS_ORIGIN);
+    assert_throws_js(TypeError, () => { Object.create(crossOriginWindow).location = URL_VALID; });
+    assert_throws_js(TypeError, () => { Reflect.set(crossOriginWindow, "location", URL_VALID, {}); });
+    assert_throws_js(TypeError, () => { locationSet.call([], URL_VALID); });
+}, "Cross-origin window.location setter throws TypeError in lexical realm on invalid |this| value");
+
+promise_test(async t => {
+    const crossOriginWindow = await makeWindow(t, URL_CROSS_ORIGIN);
+    assert_throws_js(TypeError, () => { Object.create(crossOriginWindow.location).href = URL_VALID; });
+    assert_throws_js(TypeError, () => { Reflect.set(crossOriginWindow.location, "href", URL_VALID, {}); });
+    assert_throws_js(TypeError, () => { hrefSet.call(null, URL_VALID); });
+}, "Cross-origin location.href setter throws TypeError in lexical realm on invalid |this| value");
+
+
+promise_test(async t => {
+    const sameOriginWindow = await makeWindow(t, URL_SAME_ORIGIN);
+    assert_throws_js(sameOriginWindow.TypeError, () => { sameOriginWindow.location = Symbol(); });
+
+    // The error originates in sameOriginWindow.location.href setter, hence it's not in realm of locationSet.
+    assert_throws_js(sameOriginWindow.TypeError, () => { locationSet.call(sameOriginWindow, Symbol()); });
+}, "Same-origin window.location` setter throws TypeError in holder's realm on non-coercible URL argument");
+
+promise_test(async t => {
+    const sameOriginWindow = await makeWindow(t, URL_SAME_ORIGIN);
+    assert_throws_js(sameOriginWindow.TypeError, () => { sameOriginWindow.location.href = Symbol(); });
+    assert_throws_js(TypeError, () => { hrefSet.call(sameOriginWindow.location, Symbol()); });
+}, "Same-origin location.href setter throws TypeError in holder's realm on non-coercible URL argument");
+
+promise_test(async t => {
+    const crossOriginWindow = await makeWindow(t, URL_CROSS_ORIGIN);
+    assert_throws_js(TypeError, () => { crossOriginWindow.location = Symbol(); });
+    assert_throws_js(TypeError, () => { locationSet.call(crossOriginWindow, Symbol()); });
+}, "Cross-origin window.location setter throws TypeError in lexical realm on non-coercible URL argument");
+
+promise_test(async t => {
+    const crossOriginWindow = await makeWindow(t, URL_CROSS_ORIGIN);
+    assert_throws_js(TypeError, () => { crossOriginWindow.location.href = Symbol(); });
+    assert_throws_js(TypeError, () => { hrefSet.call(crossOriginWindow.location, Symbol()); });
+}, "Cross-origin location.href setter throws TypeError in lexical realm on non-coercible URL argument");
+
+function makeWindow(t, src) {
+    return new Promise(resolve => {
+        const iframe = document.createElement("iframe");
+        t.add_cleanup(() => { iframe.remove(); });
+        iframe.onload = () => { resolve(iframe.contentWindow); };
+        iframe.src = src;
+        document.body.append(iframe);
+    });
+}
+</script>

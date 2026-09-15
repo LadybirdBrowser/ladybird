@@ -12,7 +12,7 @@ interface Location { // but see also additional creation steps and overridden in
     [LegacyUnforgeable, NeedsCallerRealm] attribute USVString hash;
 
     [LegacyUnforgeable, NeedsCallerRealm] undefined assign(USVString url);
-    [LegacyUnforgeable] undefined replace(USVString url);
+    [LegacyUnforgeable, NeedsCallerRealm] undefined replace(USVString url);
     [LegacyUnforgeable] undefined reload();
 
     // Intentionally not implemented at this stage due to https://github.com/whatwg/html/issues/1918

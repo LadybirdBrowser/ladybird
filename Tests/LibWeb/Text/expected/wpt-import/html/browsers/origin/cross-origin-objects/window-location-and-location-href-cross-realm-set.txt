@@ -1,0 +1,16 @@
+Harness status: OK
+
+Found 11 tests
+
+11 Pass
+Pass	Same-origin window.location getter throws TypeError in holder's realm on invalid |this| value
+Pass	Same-origin location.href getter throws TypeError in holder's realm on invalid |this| value
+Pass	Cross-origin location.href getter throws SecurityError in lexical realm
+Pass	Same-origin window.location setter throws TypeError in holder's realm on invalid |this| value
+Pass	Same-origin location.href setter throws TypeError in holder's realm on invalid |this| value
+Pass	Cross-origin window.location setter throws TypeError in lexical realm on invalid |this| value
+Pass	Cross-origin location.href setter throws TypeError in lexical realm on invalid |this| value
+Pass	Same-origin window.location` setter throws TypeError in holder's realm on non-coercible URL argument
+Pass	Same-origin location.href setter throws TypeError in holder's realm on non-coercible URL argument
+Pass	Cross-origin window.location setter throws TypeError in lexical realm on non-coercible URL argument
+Pass	Cross-origin location.href setter throws TypeError in lexical realm on non-coercible URL argument
