@@ -10,6 +10,9 @@ Generated bindings make one explicit realm decision per IDL member.
   receiver realm for iterator/container creation and wrapped values.
 - Static operations, constructors, and namespace members use the caller/current
   realm because there is no receiver.
+- A `[Default]` `toJSON()` creates its result object in the caller/current
+  realm, as WebIDL specifies. Attribute values are still converted in the
+  receiver realm.
 - `[RealmFreeConstructor]` marks an `[ImplementedInBindings]` constructor whose
   custom binding helper does not need the current realm. The generated
   constructor still uses the caller/current realm for WebIDL conversions,
