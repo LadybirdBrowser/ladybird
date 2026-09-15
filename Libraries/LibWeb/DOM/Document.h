@@ -1124,6 +1124,7 @@ public:
         u64 base_style_partial_builds { 0 };
         u64 base_style_full_builds { 0 };
         u64 computed_longhand_evaluations { 0 };
+        u64 computed_longhand_drives_started { 0 };
         u64 style_stabilization_epochs { 0 };
         u64 style_stabilization_feedback_epochs { 0 };
         u64 provisional_style_passes { 0 };
@@ -1144,7 +1145,11 @@ public:
         u64 size_query_container_scan_visits { 0 };
         u64 style_engine_transaction_setups { 0 };
         u64 style_engine_transaction_setup_microseconds { 0 };
-        u64 style_engine_planning_microseconds { 0 };
+        // Exclusive intervals within style_update_microseconds. Rust phases subdivide bridge.
+        u64 style_update_submission_microseconds { 0 };
+        u64 style_update_bridge_microseconds { 0 };
+        u64 style_update_apply_microseconds { 0 };
+        u64 style_update_remainder_microseconds { 0 };
         u64 relayouts_performed { 0 };
         u64 style_update_microseconds { 0 };
         u64 style_recompute_microseconds { 0 };

@@ -233,6 +233,9 @@ public:
         ReadonlySpan<PublishedStyleDelta> reactions;
         bool is_scoped;
         bool only_derived_child_reactions;
+        // Returned to the caller so diagnostic transactions do not charge style-update clocks.
+        u64 submission_microseconds;
+        u64 bridge_microseconds;
     };
 
     // Takes pending inputs. The diagnostic transaction reports reaction nodes and then discards

@@ -128,15 +128,18 @@ static StyleEngineTransaction take_style_engine_transaction(DOM::Document& docum
     // @property rule registers through this cache.
     document.build_registered_properties_cache_for_style_update();
     style_computer.prepare_for_style_engine_transaction();
-    document.style_invalidation_counters().style_engine_transaction_setup_microseconds += (MonotonicTime::now() - transaction_setup_started_at).to_microseconds();
+    auto setup_microseconds = (MonotonicTime::now() - transaction_setup_started_at).to_truncated_microseconds();
+    document.style_invalidation_counters().style_engine_transaction_setup_microseconds += setup_microseconds;
+    document.style_invalidation_counters().style_update_submission_microseconds += setup_microseconds;
     auto* root = document.document_element();
     if (!root || root->style_node_id() == 0) {
         style_computer.style_engine().flush();
         return transaction;
     }
 
-    auto planning_started_at = MonotonicTime::now();
     auto published_transaction = style_computer.style_engine().take_style_transaction(root->style_node_id());
+    document.style_invalidation_counters().style_update_submission_microseconds += published_transaction.submission_microseconds;
+    document.style_invalidation_counters().style_update_bridge_microseconds += published_transaction.bridge_microseconds;
     if (!published_transaction.reactions.is_empty())
         transaction.published_version = published_transaction.version;
     for (auto const& answer : published_transaction.reactions) {
@@ -145,7 +148,6 @@ static StyleEngineTransaction take_style_engine_transaction(DOM::Document& docum
         VERIFY(style_computer.element_for_style_node(answer.style_node));
         transaction.reactions.append(answer);
     }
-    document.style_invalidation_counters().style_engine_planning_microseconds += (MonotonicTime::now() - planning_started_at).to_microseconds();
 
     // A reaction batch covering more than one sixteenth of the connected elements is dense enough that
     // packing the scope once is cheaper than repeatedly reconstructing cold facts while matching
@@ -813,12 +815,23 @@ static RequiredInvalidationAfterStyleChange apply_style_engine_reactions(DOM::Do
 
 static void update_style(DOM::Document& document)
 {
+    auto style_update_started_at = MonotonicTime::now();
+    auto& timing_counters = document.style_invalidation_counters();
+    auto const submission_before = timing_counters.style_update_submission_microseconds;
+    auto const bridge_before = timing_counters.style_update_bridge_microseconds;
+    auto const apply_before = timing_counters.style_update_apply_microseconds;
+    ScopeGuard record_style_update_time = [&] {
+        auto whole = (MonotonicTime::now() - style_update_started_at).to_truncated_microseconds();
+        auto measured = timing_counters.style_update_submission_microseconds - submission_before
+            + timing_counters.style_update_bridge_microseconds - bridge_before
+            + timing_counters.style_update_apply_microseconds - apply_before;
+        timing_counters.style_update_microseconds += whole;
+        // NB: Counters are read only to attribute time, never to choose style work. The
+        //     intervals are disjoint; rounding each down leaves fractional time here too.
+        timing_counters.style_update_remainder_microseconds += whole - measured;
+    };
     StyleValueFFI::rust_style_ffi_complete_style_update_begin();
     ScopeGuard leave_complete_style_update = finish_complete_style_update;
-    auto style_update_started_at = MonotonicTime::now();
-    ScopeGuard record_style_update_time = [&] {
-        document.style_invalidation_counters().style_update_microseconds += (MonotonicTime::now() - style_update_started_at).to_microseconds();
-    };
 
     // NOTE: If our parent document needs a relayout, we must do that *first*. This is required as it may cause the
     // viewport to change which will can affect media query evaluation and the value of the `vw` unit.
@@ -832,6 +845,7 @@ static void update_style(DOM::Document& document)
     if (document.created_for_appropriate_template_contents())
         return;
 
+    auto submission_started_at = MonotonicTime::now();
     document.style_computer().begin_style_update();
     ScopeGuard end_style_update = [&] {
         document.style_computer().end_style_update();
@@ -869,6 +883,7 @@ static void update_style(DOM::Document& document)
     // change selector or cascade inputs. Apply an animation-only update first, then take a
     // transaction only if the resulting inherited-style feedback requires one.
     record_non_author_stylesheets(document);
+    timing_counters.style_update_submission_microseconds += (MonotonicTime::now() - submission_started_at).to_truncated_microseconds();
     if (document.has_completed_style_update()
         && !document.style_computer().style_engine().has_pending_transaction()) {
         document.sample_animation_effects_needing_style_update();
@@ -929,6 +944,10 @@ static void update_style(DOM::Document& document)
     size_t style_update_pass = 0;
     size_t style_reaction_pass = 0;
     while (!style_engine_reactions.is_empty()) {
+        auto apply_started_at = MonotonicTime::now();
+        ArmedScopeGuard record_apply_time = [&] {
+            timing_counters.style_update_apply_microseconds += (MonotonicTime::now() - apply_started_at).to_truncated_microseconds();
+        };
         // One more tree generation of the same style change is not a new pass of it.
         if (style_reaction_pass++ > 0 && !transaction_only_derived_child_reactions)
             document.record_style_stabilization_pass();
@@ -1018,6 +1037,9 @@ static void update_style(DOM::Document& document)
             }
             invalidation |= apply_style_engine_reactions(document, applicable_style_engine_reactions);
         }
+
+        timing_counters.style_update_apply_microseconds += (MonotonicTime::now() - apply_started_at).to_truncated_microseconds();
+        record_apply_time.disarm();
 
         // Exact consequences produced while recomputing become the next transaction in this
         // stabilization epoch. Take it only after consuming the current published answers, since

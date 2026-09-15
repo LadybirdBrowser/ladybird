@@ -6,13 +6,56 @@
 
 use super::*;
 
+/// One clock shared by every phase; rounded cumulative endpoints make the intervals additive.
+/// It owns no engine borrow, and is read only for diagnostics.
+struct TransactionClock {
+    started_at: std::time::Instant,
+    elapsed_microseconds: u64,
+    phase: Counter,
+}
+
+impl TransactionClock {
+    fn new() -> Self {
+        Self {
+            started_at: std::time::Instant::now(),
+            elapsed_microseconds: 0,
+            phase: Counter::CommitMicroseconds,
+        }
+    }
+
+    fn enter(&mut self, phase: Counter, counters: &mut Counters) {
+        let elapsed = self.started_at.elapsed().as_micros().min(u128::from(u64::MAX)) as u64;
+        counters.add(self.phase, elapsed - self.elapsed_microseconds);
+        self.elapsed_microseconds = elapsed;
+        self.phase = phase;
+    }
+
+    fn finish(mut self, counters: &mut Counters) {
+        self.enter(Counter::TransactionRemainderMicroseconds, counters);
+        counters.add(Counter::TransactionMicroseconds, self.elapsed_microseconds);
+    }
+}
+
 const MIN_SHARED_CASCADE_COMPLETION_BATCH: usize = 16;
 
 impl StyleEngine {
     pub fn take_style_transaction(
         &mut self,
         root: StyleNodeID,
+        emit: impl FnMut(StyleTransactionVersion, ProgramVersion, &[PublishedStyleDeltaRecord]),
+    ) -> bool {
+        let mut clock = TransactionClock::new();
+        let scoped = self.take_style_transaction_with_clock(root, emit, &mut clock);
+        // Include transaction-local destruction on both ordinary and early-return paths.
+        clock.finish(&mut self.counters);
+        scoped
+    }
+
+    fn take_style_transaction_with_clock(
+        &mut self,
+        root: StyleNodeID,
         mut emit: impl FnMut(StyleTransactionVersion, ProgramVersion, &[PublishedStyleDeltaRecord]),
+        clock: &mut TransactionClock,
     ) -> bool {
         // The previous transaction's uninstalled records can no longer be consumed. Revert
         // them before this transaction publishes anything: a later C++ computation can install
@@ -77,8 +120,12 @@ impl StyleEngine {
         self.programs.share_indices(&mut self.memory);
         if transaction.is_empty() {
             self.release_transaction_and_sweep_atoms(transaction);
+            clock.enter(Counter::TransactionRemainderMicroseconds, &mut self.counters);
             return true;
         }
+        // Routing invokes exact planning and prefix matching inline; separating those clocks
+        // would require per-node timers or moving work.
+        clock.enter(Counter::RoutingPlanningMicroseconds, &mut self.counters);
         let preserves_selector_incidence = !transaction.has_coarsened_markers()
             && transaction.inputs.iter().all(|input| {
                 matches!(
@@ -218,6 +265,7 @@ impl StyleEngine {
             self.discard_retained_prefix_caches();
             self.retained_match_answers.evict(&mut self.match_answers);
             self.release_transaction_and_sweep_atoms(transaction);
+            clock.enter(Counter::TransactionRemainderMicroseconds, &mut self.counters);
             return false;
         }
 
@@ -880,6 +928,7 @@ impl StyleEngine {
             }
         }
 
+        clock.enter(Counter::MatchingCascadeMicroseconds, &mut self.counters);
         let mut node_count = 0;
         let mut unattributed_node_count = 0;
         let mut published_match_answers = PublishedMatchAnswers::default();
@@ -918,6 +967,7 @@ impl StyleEngine {
         let mut attribution_scratch: Vec<(RuleID, EntryID)> = Vec::new();
         let mut attribution_sweep = AttributionSweep::default();
         regions.for_each_batch(&compiled_regions, |node| {
+            self.counters.bump(Counter::ReachedStyleNodes);
             #[cfg(test)]
             if let Some(capture) = &mut self.diagnostic_plan_capture {
                 capture.nodes.push(node.raw());
@@ -1429,6 +1479,8 @@ impl StyleEngine {
         self.memory
             .release(MemoryCategory::BatchScratch, direct_action_node_bytes);
         published_match_answers.sort();
+        // Record computation interns and installs immediately in the current evaluator.
+        clock.enter(Counter::ComputationPublicationMicroseconds, &mut self.counters);
         {
             let mut style_deltas = Vec::with_capacity(published_nodes.len());
             let style_delta_bytes = (style_deltas.capacity() * size_of::<PublishedStyleDeltaRecord>()) as u64;
@@ -1748,8 +1800,10 @@ impl StyleEngine {
                 self.settle_computed_memory();
                 self.counters
                     .add(Counter::PublishedMatchAnswerRecords, style_deltas.len() as u64);
+                clock.enter(Counter::EmitMicroseconds, &mut self.counters);
                 emit(transaction_version, program_version, &style_deltas);
             }
+            clock.enter(Counter::TransactionRemainderMicroseconds, &mut self.counters);
             self.memory.release(MemoryCategory::BridgeBuffer, style_delta_bytes);
             self.memory.release(
                 MemoryCategory::BatchScratch,
