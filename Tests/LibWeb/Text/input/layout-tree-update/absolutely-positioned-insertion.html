@@ -3,6 +3,7 @@
 <style>
     .containing-block { position: relative; }
     .sibling { display: block; width: 40px; height: 30px; }
+    .with-after::after { content: "after"; }
 </style>
 <div id="fixture"></div>
 <script>
@@ -38,6 +39,16 @@
         runInsertionCase("direct-containing-block", '<div class="parent containing-block"><div class="sibling"></div></div>', "position:absolute", true);
         runInsertionCase("flex", '<div class="parent" style="display:flex"><div class="sibling"></div></div>', "position:absolute", true);
         runInsertionCase("grid", '<div class="parent" style="display:grid"><div class="sibling"></div></div>', "position:absolute", true);
+        runInsertionCase("flex-after-text-run-in-flow", '<div class="parent" style="display:flex">text<div class="sibling"></div></div>', "", true);
+        runInsertionCase("flex-after-text-run-fixed", '<div class="parent" style="display:flex">text<div class="sibling"></div></div>', "position:fixed", true);
+        runInsertionCase("flex-after-trailing-text-run-fixed", '<div class="parent" style="display:flex"><div class="sibling"></div>text</div>', "position:fixed", true);
+        runInsertionCase("grid-after-text-run-absolute", '<div class="parent" style="display:grid">text<div class="sibling"></div></div>', "position:absolute", true);
+        runInsertionCase("flex-fieldset-in-flow", '<fieldset class="parent" style="display:flex"><div class="sibling">old</div></fieldset>', "", false);
+        runInsertionCase("flex-fieldset-after-text", '<fieldset class="parent" style="display:flex">text<div class="sibling">old</div></fieldset>', "", false);
+        runInsertionCase("grid-fieldset-with-legend", '<fieldset class="parent" style="display:grid"><legend>legend</legend><div class="sibling">old</div></fieldset>', "position:absolute", false);
+        runInsertionCase("flex-after-text-run-with-after-pseudo", '<div class="parent with-after" style="display:flex">text<div class="sibling"></div></div>', "", false);
+        runInsertionCase("flex-after-trailing-text-run-with-after-pseudo", '<div class="parent with-after" style="display:flex"><div class="sibling"></div>text</div>', "position:absolute", false);
+        runInsertionCase("inline-flex-after-trailing-text-run", '<span class="parent" style="display:inline-flex"><div class="sibling"></div>text</span>', "", false);
         runInsertionCase("nested-subtree", '<div class="parent"><div class="sibling"></div></div>', "position:absolute", true, "<span><b>contents</b></span>");
         runInsertionCase("inline-wrapper", '<div class="parent"><span class="sibling">inline</span></div>', "position:absolute", false);
         runInsertionCase("table-fixup", '<table><tbody class="parent"><tr class="sibling"><td></td></tr></tbody></table>', "position:absolute", false);
