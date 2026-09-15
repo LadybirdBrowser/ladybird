@@ -13,7 +13,7 @@
 #include <LibIPC/File.h>
 #include <LibIPC/Forward.h>
 
-#if defined(AK_OS_MACOS)
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
 #    include <LibCore/MachPort.h>
 #endif
 
@@ -27,7 +27,7 @@ public:
     TransportHandle(TransportHandle&&) = default;
     TransportHandle& operator=(TransportHandle&&) = default;
 
-#if defined(AK_OS_MACOS)
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
     TransportHandle(Core::MachPort receive_right, Core::MachPort send_right);
 #else
     explicit TransportHandle(File);
@@ -36,7 +36,7 @@ public:
     ErrorOr<NonnullOwnPtr<Transport>> create_transport() const;
 
 private:
-#if defined(AK_OS_MACOS)
+#if defined(AK_OS_MACOS) || defined(AK_OS_IOS)
     mutable Core::MachPort m_receive_right;
     mutable Core::MachPort m_send_right;
 #else
