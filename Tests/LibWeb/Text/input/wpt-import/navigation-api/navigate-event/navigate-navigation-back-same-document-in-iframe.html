@@ -1,0 +1,34 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<iframe id="i" src="../../common/blank.html"></iframe>
+<script>
+promise_test(async t => {
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+
+  let target_key = i.contentWindow.navigation.currentEntry.key;
+  let target_id = i.contentWindow.navigation.currentEntry.id;
+  await i.contentWindow.navigation.navigate("#").finished;
+  assert_true(i.contentWindow.navigation.canGoBack);
+
+  i.contentWindow.navigation.onnavigate = e => {
+    assert_equals(e.navigationType, "traverse");
+    assert_false(e.cancelable, "traversals in iframes should never be cancelable");
+    assert_true(e.canIntercept);
+    assert_false(e.userInitiated);
+    assert_true(e.hashChange);
+    assert_equals(e.downloadRequest, null);
+    assert_equals(new URL(e.destination.url).hash, "");
+    assert_true(e.destination.sameDocument);
+    assert_equals(e.destination.key, target_key);
+    assert_equals(e.destination.id, target_id);
+    assert_equals(e.destination.index, 0);
+    assert_equals(e.formData, null);
+    assert_equals(e.info, "hi");
+    assert_equals(e.sourceElement, null);
+  }
+  await i.contentWindow.navigation.back({ info: "hi" }).finished;
+}, "navigate event for navigation.back() - same-document in an iframe");
+</script>

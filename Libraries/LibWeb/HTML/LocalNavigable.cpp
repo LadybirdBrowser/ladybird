@@ -3559,16 +3559,20 @@ void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandling
     // 7. Let entryToReplace be navigable's active session history entry if historyHandling is "replace", otherwise null.
     auto entry_to_replace = history_handling == HistoryHandlingBehavior::Replace ? active_entry : nullptr;
 
-    // 8. Let history be navigable's active document's history object.
+    // 8. If entryToReplace is non-null, then set historyEntry's navigation API key to entryToReplace's navigation API key.
+    if (entry_to_replace)
+        history_entry->set_navigation_api_key(entry_to_replace->navigation_api_key());
+
+    // 9. Let history be navigable's active document's history object.
     auto history = active_document()->history();
 
-    // 9. Let scriptHistoryIndex be history's index.
+    // 10. Let scriptHistoryIndex be history's index.
     auto script_history_index = history->m_index;
 
-    // 10. Let scriptHistoryLength be history's length.
+    // 11. Let scriptHistoryLength be history's length.
     auto script_history_length = history->m_length;
 
-    // 11. If historyHandling is "push", then:
+    // 12. If historyHandling is "push", then:
     if (history_handling == HistoryHandlingBehavior::Push) {
         // 1. Set history's state to null.
         history->set_state(JS::js_null());
@@ -3580,21 +3584,21 @@ void LocalNavigable::navigate_to_a_fragment(URL::URL const& url, HistoryHandling
         script_history_length = script_history_index + 1;
     }
 
-    // 12. Set navigable's active document's URL to url.
+    // 13. Set navigable's active document's URL to url.
     active_document()->set_url(url);
 
-    // 13. Set navigable's active session history entry to historyEntry.
+    // 14. Set navigable's active session history entry to historyEntry.
     m_active_session_history_entry = history_entry;
 
-    // 14. Update document for history step application given navigable's active document, historyEntry, true,
+    // 15. Update document for history step application given navigable's active document, historyEntry, true,
     //     scriptHistoryIndex, scriptHistoryLength, and historyHandling.
     active_document()->update_for_history_step_application(*history_entry, true, script_history_length, script_history_index, navigation_type);
 
-    // 15. Scroll to the fragment given navigable's active document.
+    // 16. Scroll to the fragment given navigable's active document.
     active_document()->scroll_to_the_fragment();
 
-    // 16. Let traversable be navigable's traversable navigable.
-    // 17. Append the following session history synchronous navigation steps involving navigable to traversable:
+    // 17. Let traversable be navigable's traversable navigable.
+    // 18. Append the following session history synchronous navigation steps involving navigable to traversable:
     // 1. Finalize a same-document navigation given traversable, navigable, historyEntry, entryToReplace,
     //    historyHandling, and userInvolvement.
     page().history_executor().finalize_same_document_navigation(*this, history_entry, entry_to_replace, history_handling, user_involvement, move(previous_entry_persisted_state));
@@ -4249,7 +4253,11 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     // 5. Let entryToReplace be activeEntry if historyHandling is "replace", otherwise null.
     auto entry_to_replace = history_handling == HistoryHandlingBehavior::Replace ? active_entry : nullptr;
 
-    // 6. If historyHandling is "push", then:
+    // 6. If entryToReplace is non-null, then set newEntry's navigation API key to entryToReplace's navigation API key.
+    if (entry_to_replace)
+        new_entry->set_navigation_api_key(entry_to_replace->navigation_api_key());
+
+    // 7. If historyHandling is "push", then:
     if (history_handling == HistoryHandlingBehavior::Push) {
         // 1. Increment document's history object's index.
         document.history()->m_index++;
@@ -4258,20 +4266,20 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
         document.history()->m_length = document.history()->m_index + 1;
     }
 
-    // If serializedData is not null, then restore the history object state given document and newEntry.
+    // 8. If serializedData is not null, then restore the history object state given document and newEntry.
     if (serialized_data.has_value())
         document.restore_the_history_object_state(new_entry);
 
-    // 8. Set the URL given document to newURL.
+    // 9. Set the URL given document to newURL.
     document.set_url(new_url);
 
-    // 9. Set document's latest entry to newEntry.
+    // 10. Set document's latest entry to newEntry.
     document.set_latest_entry(new_entry);
 
-    // 10. Set navigable's active session history entry to newEntry.
+    // 11. Set navigable's active session history entry to newEntry.
     navigable->set_active_session_history_entry(new_entry);
 
-    // 11. Update the navigation API entries for a same-document navigation given document's relevant global object's navigation API, newEntry, and historyHandling.
+    // 12. Update the navigation API entries for a same-document navigation given document's relevant global object's navigation API, newEntry, and historyHandling.
     // In the wrapper architecture the relevant global object is a JS wrapper,
     // not the internal Window itself. Use the document's owning Window directly.
     VERIFY(document.window());
@@ -4279,8 +4287,8 @@ void perform_url_and_history_update_steps(DOM::Document& document, URL::URL new_
     auto navigation_type = history_handling == HistoryHandlingBehavior::Push ? Bindings::NavigationType::Push : Bindings::NavigationType::Replace;
     relevant_global_object.navigation()->update_the_navigation_api_entries_for_a_same_document_navigation(new_entry, navigation_type);
 
-    // 12. Let traversable be navigable's traversable navigable.
-    // 13. Append the following session history synchronous navigation steps involving navigable to traversable:
+    // 13. Let traversable be navigable's traversable navigable.
+    // 14. Append the following session history synchronous navigation steps involving navigable to traversable:
     // 1. Finalize a same-document navigation given traversable, navigable, newEntry, entryToReplace,
     //    historyHandling, and "none".
     navigable->page().history_executor().finalize_same_document_navigation(*navigable, new_entry, entry_to_replace, history_handling, UserNavigationInvolvement::None, move(previous_entry_persisted_state));

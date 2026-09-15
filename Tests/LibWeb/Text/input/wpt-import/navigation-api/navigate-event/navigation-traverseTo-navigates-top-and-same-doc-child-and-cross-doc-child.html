@@ -1,0 +1,52 @@
+<!doctype html>
+<script src="../../resources/testharness.js"></script>
+<script src="../../resources/testharnessreport.js"></script>
+<iframe id="i1" src="../../common/blank.html"></iframe>
+<iframe id="i2" src="../../common/blank.html"></iframe>
+<script>
+promise_test(async t => {
+  let start_length = navigation.entries().length;
+  let start_index = navigation.currentEntry.index;
+
+  // Wait for after the load event so that the navigation doesn't get converted
+  // into a replace navigation.
+  await new Promise(resolve => window.onload = () => t.step_timeout(resolve, 0));
+  await navigation.navigate("#").finished;
+  await i1.contentWindow.navigation.navigate("#").finished;
+  i2.contentWindow.navigation.navigate("?");
+  await new Promise(resolve => i2.onload = () => t.step_timeout(resolve, 0));
+
+  assert_equals(navigation.entries().length, start_length + 1);
+  assert_equals(i1.contentWindow.navigation.entries().length, 2);
+  assert_equals(i2.contentWindow.navigation.entries().length, 2);
+  assert_equals(navigation.currentEntry.index, start_index + 1);
+  assert_equals(i1.contentWindow.navigation.currentEntry.index, 1);
+  assert_equals(i2.contentWindow.navigation.currentEntry.index, 1);
+
+  let navigate_event_count = 0;
+  navigation.onnavigate = t.step_func(e => {
+    assert_equals(navigate_event_count, 0);
+    navigate_event_count++;
+    assert_true(e.cancelable);
+  });
+  i1.contentWindow.navigation.onnavigate = t.step_func(e => {
+    assert_true(navigate_event_count > 0);
+    navigate_event_count++;
+    assert_false(e.cancelable);
+  });
+  i2.contentWindow.navigation.onnavigate = t.step_func(e => {
+    assert_true(navigate_event_count > 0);
+    navigate_event_count++;
+    assert_false(e.cancelable);
+  });
+
+  await navigation.traverseTo(navigation.entries()[start_index].key).finished;
+  // The top window will finish quickly, becuase it is same-document traversal.
+  // i2 will be slower because it is cross-document, so wait for its onload.
+  await new Promise(resolve => i2.onload = () => t.step_timeout(resolve, 0));
+  assert_equals(navigate_event_count, 3);
+  assert_equals(navigation.currentEntry.index, start_index);
+  assert_equals(i1.contentWindow.navigation.currentEntry.index, 0);
+  assert_equals(i2.contentWindow.navigation.currentEntry.index, 0);
+}, "navigation.traverseTo() can navigate 3 frames of different types with correct navigate event cancelable values");
+</script>
