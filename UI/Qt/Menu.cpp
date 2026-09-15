@@ -311,6 +311,10 @@ static void add_items_to_menu(QMenu& qmenu, QWidget& parent, WebView::Menu& menu
                 qmenu.addSeparator();
             });
     }
+
+#if defined(AK_OS_MACOS)
+    enable_menu_icons(qmenu);
+#endif
 }
 
 static QAction* create_session_history_traversal_menu_action(QMenu& menu, WebContentView& view, WebView::ViewImplementation::SessionHistoryTraversalMenuItem const& item)
@@ -337,6 +341,10 @@ static bool append_session_history_traversal_menu_items(QMenu& menu, WebContentV
 
     for (auto const& item : items)
         menu.addAction(create_session_history_traversal_menu_action(menu, view, item));
+
+#if defined(AK_OS_MACOS)
+    enable_menu_icons(menu);
+#endif
 
     return true;
 }
@@ -433,6 +441,10 @@ void update_history_menu(QMenu& menu, WebContentView* view)
 
     if (!entries.is_empty())
         insert_dynamic_history_action(menu, insertion_point, *create_dynamic_history_separator(menu));
+
+#if defined(AK_OS_MACOS)
+    enable_menu_icons(menu);
+#endif
 }
 
 QMenu* create_context_menu(QWidget& parent, WebContentView& view, WebView::Menu& menu)
