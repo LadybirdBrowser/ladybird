@@ -2116,6 +2116,7 @@ impl StyleEngine {
         }
         self.settle_computed_memory();
         self.counters.add(Counter::ComputedGroupsReused, group_count as u64);
+        self.note_identity_mints();
         self.counters.bump(Counter::ComputedGroupSetsReused);
         self.counters.bump(Counter::InheritedGroupSetsReused);
         self.counters.bump(Counter::CustomPropertyEnvironmentsReused);
@@ -2223,6 +2224,20 @@ impl StyleEngine {
     pub(crate) fn end_style_record_view_epoch(&mut self) {
         self.computed_group_sets.end_style_record_view_epoch();
         self.reclaim_computed_memory_if_needed();
+    }
+
+    /// Publishes how many identities each catalog has minted. These count the sharing partition
+    /// a run produces; the reuse counters beside them credit whichever publication interned an
+    /// identity first, which is an execution-order decision.
+    fn note_identity_mints(&mut self) {
+        let mints = self.computed_group_sets.identity_mints();
+        self.counters.set(Counter::ComputedGroupIdentitiesMinted, mints.groups);
+        self.counters
+            .set(Counter::ComputedGroupSetIdentitiesMinted, mints.group_sets);
+        self.counters
+            .set(Counter::InheritedGroupSetIdentitiesMinted, mints.inherited_group_sets);
+        self.counters
+            .set(Counter::StyleRecordIdentitiesMinted, mints.style_records);
     }
 
     pub(super) fn settle_computed_memory(&mut self) {
@@ -2397,6 +2412,7 @@ impl StyleEngine {
             Counter::ComputedGroupsReused,
             (payloads.len() - publication.new_groups) as u64,
         );
+        self.note_identity_mints();
         if !publication.new_group_set {
             self.counters.bump(Counter::ComputedGroupSetsReused);
         }

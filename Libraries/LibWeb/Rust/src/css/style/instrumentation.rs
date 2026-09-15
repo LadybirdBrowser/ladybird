@@ -247,6 +247,13 @@ define_counters! {
     SpecifiedValuesReused => "specifiedValuesReused",
     ComputedGroupNodeHandlesPublished => "computedGroupNodeHandlesPublished",
     ComputedGroupsReused => "computedGroupsReused",
+    // The identities each catalog mints. Unlike the reuse counters above, which credit the
+    // publication that happened to intern an identity first, these count the identities a
+    // run creates, which is a property of the content and not of the execution order.
+    ComputedGroupIdentitiesMinted => "computedGroupIdentitiesMinted",
+    ComputedGroupSetIdentitiesMinted => "computedGroupSetIdentitiesMinted",
+    InheritedGroupSetIdentitiesMinted => "inheritedGroupSetIdentitiesMinted",
+    StyleRecordIdentitiesMinted => "styleRecordIdentitiesMinted",
     ComputedGroupsRetained => "computedGroupsRetained",
     ComputedGroupsReachable => "computedGroupsReachable",
     ComputedGroupSetsReused => "computedGroupSetsReused",

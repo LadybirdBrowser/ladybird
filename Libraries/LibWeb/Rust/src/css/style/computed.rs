@@ -304,6 +304,16 @@ impl Drop for AnimationOverlayRecord {
     }
 }
 
+/// The identities a run's catalogs have minted, counted so that a determinism gate can compare
+/// the sharing partition itself instead of the publication that happened to intern it first.
+#[derive(Clone, Copy, Default)]
+pub(super) struct IdentityMints {
+    pub groups: u64,
+    pub group_sets: u64,
+    pub inherited_group_sets: u64,
+    pub style_records: u64,
+}
+
 struct ComputedGroup {
     index: usize,
     payload: *const c_void,
@@ -634,6 +644,10 @@ impl ComputedStyleTarget {
 }
 
 pub struct ComputedGroupSets {
+    /// How many identities each catalog has minted. A mint is a content the run had not seen
+    /// before; which publication performs it is an execution-order decision, so the reuse
+    /// counters credit an order while these count the partition.
+    identity_mints: IdentityMints,
     groups: InternTable<ComputedGroupID, ComputedGroup>,
     sets: InternTable<ComputedGroupSetID, ComputedGroupSet>,
     inherited_sets: InternTable<InheritedGroupSetID, Box<[ComputedGroupID]>>,
@@ -693,6 +707,7 @@ pub(super) struct SharedStyleRecordKey {
 impl Default for ComputedGroupSets {
     fn default() -> Self {
         Self {
+            identity_mints: IdentityMints::default(),
             groups: InternTable::default(),
             sets: InternTable::default(),
             inherited_sets: InternTable::default(),
@@ -928,6 +943,7 @@ impl ComputedGroupSets {
             ComputedGroupID(u32::try_from(self.groups.len()).expect("computed group identity space exhausted"))
         });
         self.groups.insert(hash, identity, ComputedGroup { index, payload });
+        self.identity_mints.groups += 1;
         self.group_set_nested_memory
             .grow_committed(retained_group_payload_bytes(index, payload) as u64);
         (identity, true)
@@ -955,6 +971,7 @@ impl ComputedGroupSets {
             .into_boxed_slice();
         self.group_set_nested_memory
             .grow_committed(size_of_val(payloads.as_ref()) as u64);
+        self.identity_mints.group_sets += 1;
         self.sets.insert(
             hash,
             identity,
@@ -983,6 +1000,7 @@ impl ComputedGroupSets {
         let groups: Box<[ComputedGroupID]> = groups.into();
         self.group_set_nested_memory
             .grow_committed(size_of_val(groups.as_ref()) as u64);
+        self.identity_mints.inherited_group_sets += 1;
         self.inherited_sets.insert(hash, identity, groups);
         (identity, true)
     }
@@ -1014,6 +1032,7 @@ impl ComputedGroupSets {
                 .filter(|&generation| generation <= FinalStyleRecordID::MAX_BASE_GENERATION)
                 .expect("base style-record generation space exhausted");
         }
+        self.identity_mints.style_records += 1;
         self.style_records.insert(hash, identity, record);
         let (changed, _) = self.style_record_liveness.set(identity.index(), true);
         assert!(changed, "new base style-record identity must not already be live");
@@ -1889,6 +1908,7 @@ impl ComputedGroupSets {
                             identity,
                             ComputedGroup { index, payload },
                         );
+                        self.identity_mints.groups += 1;
                         self.group_set_nested_memory
                             .grow_committed(retained_group_payload_bytes(index, payload) as u64);
                         new_groups += 1;
@@ -3061,6 +3081,10 @@ impl ComputedGroupSets {
             release_group_payload(group.index, group.payload);
         }
         retention
+    }
+
+    pub(super) fn identity_mints(&self) -> IdentityMints {
+        self.identity_mints
     }
 
     pub(super) fn reclaim_unreachable_if_needed(&mut self) -> Option<ComputedGroupRetention> {
