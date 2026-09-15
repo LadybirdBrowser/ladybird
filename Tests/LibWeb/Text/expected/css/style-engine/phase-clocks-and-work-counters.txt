@@ -5,7 +5,7 @@ reachedStyleNodes: true
 enginePartialDrivesStarted: true
 enginePartialLonghandEvaluations: true
 enginePhysicalLonghandEvaluations: true
-engineDriveCopiedTableSlots: true
+engineDriveCopiedTableSlots: false
 arrival rust additive: true
 arrival cpp additive: true
 new color: rgb(12, 34, 56)

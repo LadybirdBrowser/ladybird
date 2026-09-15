@@ -32,8 +32,11 @@ boundary: `transactionMicroseconds` is exactly the sum of `commitMicroseconds`,
 Alongside the clocks, the same ledgers carry the physical-work counters: how many nodes the
 answer pass reached, how many cold matching rows and candidate checks ran, how many record
 drives started, how many longhand evaluations were physically executed as opposed to
-accepted, and how many drive table slots were copied. These are counts of work performed,
-not of output kept, and they do not depend on how fast the machine is.
+accepted, and how many drive table slots were copied. A drive that borrows its base copies no
+slots, so that last field reads zero; the copies a published result still makes are counted
+by the FFI diagnostics counters `longhandTableCopiedSlots` and `longhandTableCopyRetains`.
+These are counts of work performed, not of output kept, and they do not depend on how fast
+the machine is.
 
 A finer set of pass clocks splits each phase into the passes a transaction actually runs
 (routing setup, the routing input loop, sequence routing, the pending-route flush, batch

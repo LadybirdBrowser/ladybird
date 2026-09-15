@@ -1110,19 +1110,19 @@ impl ComputedGroupSets {
     /// does not. A candidate found equal by comparison is reused before the
     /// table's hash is asked for, so a table that starts empty and computes
     /// to a published state never hashes its values.
-    fn intern_longhand_table(
-        &mut self,
+    fn find_longhand_table(
+        &self,
         table: &ComputedLonghandTable,
         previous: Option<ComputedLonghandTableID>,
         canonical: Option<ComputedLonghandTableID>,
-    ) -> ComputedLonghandTableID {
+    ) -> Result<ComputedLonghandTableID, u64> {
         debug_assert!(table.is_frozen(), "only frozen longhand tables are published");
         for candidate in [previous, canonical].into_iter().flatten() {
             if self.computed_longhand_tables[candidate]
                 .table()
                 .publication_equals(table)
             {
-                return candidate;
+                return Ok(candidate);
             }
         }
         let hash = longhand_table_hash(table);
@@ -1130,17 +1130,48 @@ impl ComputedGroupSets {
             .computed_longhand_tables
             .find(hash, |_identity, candidate| candidate.table().publication_equals(table))
         {
-            return identity;
+            return Ok(identity);
         }
+        Err(hash)
+    }
+
+    fn intern_longhand_table(
+        &mut self,
+        table: &ComputedLonghandTable,
+        previous: Option<ComputedLonghandTableID>,
+        canonical: Option<ComputedLonghandTableID>,
+    ) -> ComputedLonghandTableID {
+        let hash = match self.find_longhand_table(table, previous, canonical) {
+            Ok(identity) => return identity,
+            Err(hash) => hash,
+        };
+        let retained = unsafe { crate::css::computed_longhand_table::rust_computed_longhand_table_retain(table) };
+        self.insert_longhand_table(retained, hash)
+    }
+
+    fn intern_owned_longhand_table(
+        &mut self,
+        table: ComputedLonghandTable,
+        previous: Option<ComputedLonghandTableID>,
+        canonical: Option<ComputedLonghandTableID>,
+    ) -> ComputedLonghandTableID {
+        let hash = match self.find_longhand_table(&table, previous, canonical) {
+            Ok(identity) => return identity,
+            Err(hash) => hash,
+        };
+        // NB: Only a new unique result materializes; ownership transfers to the catalog.
+        self.insert_longhand_table(table.into_raw_shared(), hash)
+    }
+
+    fn insert_longhand_table(&mut self, retained: *const ComputedLonghandTable, hash: u64) -> ComputedLonghandTableID {
         let identity = self.computed_longhand_tables.take_free_identity().unwrap_or_else(|| {
             ComputedLonghandTableID(
                 u32::try_from(self.computed_longhand_tables.len())
                     .expect("computed longhand-table identity space exhausted"),
             )
         });
-        let retained = unsafe { crate::css::computed_longhand_table::rust_computed_longhand_table_retain(table) };
         self.longhand_table_nested_memory
-            .grow_committed(size_of_val(table.value_pointers()) as u64);
+            .grow_committed(unsafe { &*retained }.publication_capacity_bytes());
         self.computed_longhand_tables
             .insert(hash, identity, RetainedLonghandTable { table: retained });
         identity
@@ -1290,8 +1321,7 @@ impl ComputedGroupSets {
             (Some(old_table), Some(parent_table)) => Some(
                 self.computed_longhand_tables[old_table]
                     .table()
-                    .with_inherited_values_from(self.computed_longhand_tables[parent_table].table())
-                    .into_raw_shared(),
+                    .with_inherited_values_from(self.computed_longhand_tables[parent_table].table()),
             ),
             (None, _) if current_color_dependencies & !INHERITED_GROUP_MASK == 0 => None,
             _ => return None,
@@ -1310,7 +1340,7 @@ impl ComputedGroupSets {
                     .map(|(index, payload)| self.group_identity(index, payload)),
             )
             .collect();
-        if let Some(table) = swapped_table
+        if let Some(table) = &swapped_table
             && current_color_dependencies & !INHERITED_GROUP_MASK != 0
         {
             let inherited_text = unsafe {
@@ -1330,7 +1360,7 @@ impl ComputedGroupSets {
                 let old_payload = self.groups[*group_identity].payload;
                 let payload = unsafe {
                     crate::css::table_group_builder::rebuild_group_for_inherited_current_color(
-                        &*table,
+                        table,
                         group,
                         old_payload,
                         inherited_text.color,
@@ -1351,13 +1381,8 @@ impl ComputedGroupSets {
         // The swap is only taken for a fully inheriting element, so every
         // inherited-by-default longhand's value is the parent's; the swapped
         // table keeps the record a complete inheritance source for a child.
-        let longhand_table = swapped_table.map(|table| {
-            let identity = self.intern_longhand_table(unsafe { &*table }, old_record.longhand_table, None);
-            unsafe {
-                crate::css::computed_longhand_table::rust_computed_longhand_table_release(table.cast_mut());
-            }
-            identity
-        });
+        let longhand_table =
+            swapped_table.map(|table| self.intern_owned_longhand_table(table, old_record.longhand_table, None));
         let new_record = StyleRecord {
             groups: group_set,
             inherited_groups: parent_inherited,
@@ -1463,11 +1488,7 @@ impl ComputedGroupSets {
         // it, not what the old table held.
         let display_is_none = crate::css::style_compute::effective_display(&table, None).is_none();
         table.set_in_display_none_subtree(parent_in_display_none_subtree || display_is_none);
-        table.freeze();
-        let table = table.into_raw_shared();
-        let release_table = |table: *const ComputedLonghandTable| unsafe {
-            crate::css::computed_longhand_table::rust_computed_longhand_table_release(table.cast_mut());
-        };
+        table.finish_delta();
 
         let mut groups: SmallVec<[_; crate::css::table_group_builder::group_index::COUNT]> =
             self.group_identities(old_record.groups).collect();
@@ -1480,7 +1501,7 @@ impl ComputedGroupSets {
             let payload = if group == STYLE_GROUP_INDEX_FONT {
                 unsafe {
                     crate::css::table_group_builder::rebuild_font_group_from_table(
-                        &*table,
+                        &table,
                         font.expect("a font group rebuild carries the resolved font"),
                         old_payload,
                     )
@@ -1488,7 +1509,7 @@ impl ComputedGroupSets {
             } else {
                 unsafe {
                     crate::css::table_group_builder::rebuild_group_from_table(
-                        &*table,
+                        &table,
                         group,
                         old_payload,
                         current_color,
@@ -1497,10 +1518,7 @@ impl ComputedGroupSets {
                     )
                 }
             };
-            let Some(payload) = payload else {
-                release_table(table);
-                return None;
-            };
+            let payload = payload?;
             // An equal payload keeps the old identity, as a C++ build adopts its parent's and
             // predecessor's identical payloads.
             let identity = if payload == old_payload || style_group_payloads_equal(group, old_payload, payload) {
@@ -1518,9 +1536,9 @@ impl ComputedGroupSets {
             .get_index(group_set.0 as usize)
             .is_some_and(|set| style_group_payloads_hold_image_values(&set.payloads));
         let old_metadata = self.computed_fixed_metadata[old_record.fixed_metadata];
-        let swap_eligible = table_inherited_group_swap_eligible(unsafe { &*table });
+        let swap_eligible = table_inherited_group_swap_eligible(&table);
         let dependency_flags =
-            unsafe { &*table }.publication_dependency_flags() | (u8::from(holds_image_values) * HOLDS_IMAGE_VALUES);
+            table.publication_dependency_flags() | (u8::from(holds_image_values) * HOLDS_IMAGE_VALUES);
         let fixed_metadata = if dependency_flags == old_metadata.dependency_flags {
             old_record.fixed_metadata
         } else {
@@ -1530,8 +1548,7 @@ impl ComputedGroupSets {
             })
             .0
         };
-        let longhand_table = self.intern_longhand_table(unsafe { &*table }, Some(old_table), None);
-        release_table(table);
+        let longhand_table = self.intern_owned_longhand_table(table, Some(old_table), None);
         // The environment moves with the record when the node's custom declarations resolved to
         // another; a record keeps its environment otherwise.
         let custom_properties = match environment {
@@ -3115,7 +3132,7 @@ impl ComputedGroupSets {
                 },
             );
             self.longhand_table_nested_memory
-                .shrink_committed(size_of_val(table.value_view()) as u64);
+                .shrink_committed(table.table().publication_capacity_bytes());
             self.computed_longhand_tables.retire_identity(hash, identity);
         }
         for identity in self

@@ -36,6 +36,7 @@
         let after = snapshot();
         checkClocks("partial", before, after);
         report(`changed margin: ${getComputedStyle(target).marginLeft}`);
+        // Partial drives now borrow their base; only installation of a new result copies slots.
         for (const key of ["reachedStyleNodes", "enginePartialDrivesStarted", "enginePartialLonghandEvaluations",
             "enginePhysicalLonghandEvaluations", "engineDriveCopiedTableSlots"])
             report(`${key}: ${delta(after.rust, before.rust, key) > 0}`);
